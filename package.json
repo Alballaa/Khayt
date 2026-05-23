@@ -3,7 +3,10 @@
   "version": "1.1.0-beta.1",
   "description": "Khayt — 3D printing production management, invoicing & analytics. Free & open to all makers worldwide.",
   "main": "main.js",
-  "author": "Khayt",
+  "author": {
+    "name": "Khayt",
+    "email": "support@khayt.app"
+  },
   "license": "MIT",
   "private": false,
   "scripts": {
