@@ -7287,7 +7287,7 @@ function exportOrdersCsv() {
     `orders-${new Date().toISOString().slice(0, 10)}.csv`);
 }
 
-async /* ============================================================
+/* ============================================================
    Feature 7: Shareable order status page (local HTML export)
    ============================================================ */
 async function exportOrderStatusPage(orderId) {
