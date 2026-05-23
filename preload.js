@@ -73,7 +73,12 @@ contextBridge.exposeInMainWorld('hubAPI', {
   startPrinterPolling: (machines) => ipcRenderer.invoke('hub:start-printer-polling', machines),
   stopPrinterPolling:  ()         => ipcRenderer.invoke('hub:stop-printer-polling'),
   getPrinterStatus:    ()         => ipcRenderer.invoke('hub:get-printer-status'),
-  onPrinterStatusUpdate: (cb)     => ipcRenderer.on('printer-status-update', (_e, data) => cb(data)),
+  onPrinterStatusUpdate: (() => {
+    // Single persistent listener — swaps the callback instead of stacking listeners
+    let _cb = null;
+    ipcRenderer.on('printer-status-update', (_e, data) => { if (_cb) _cb(data); });
+    return (cb) => { _cb = cb; };
+  })(),
 
   // Feature 5 (new batch): Outbound email notifications
   sendEmail: (opts) => ipcRenderer.invoke('hub:send-email', opts),

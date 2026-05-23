@@ -456,15 +456,21 @@ function fillWaTemplate(body, order, client) {
     .replace(/\{\{status\}\}/g,   t('queue.' + order.status));
 }
 
+let _saveAllTimer = null;
 function saveAll() {
-  const store = {
-    printLog, inventory, templates, products, clients, settings, printers,
-    expenses, machines, waTemplates, wasteLog, machMaintLog, consumables,
-    suppliers, purchaseOrders, testPrints, locations, operators,
-  };
-  if (window.hubAPI?.saveStore) {
-    window.hubAPI.saveStore(store).catch(e => console.error('Save failed:', e));
-  }
+  // Debounce: coalesce rapid successive saves into one disk write (300 ms window)
+  if (_saveAllTimer) clearTimeout(_saveAllTimer);
+  _saveAllTimer = setTimeout(() => {
+    _saveAllTimer = null;
+    const store = {
+      printLog, inventory, templates, products, clients, settings, printers,
+      expenses, machines, waTemplates, wasteLog, machMaintLog, consumables,
+      suppliers, purchaseOrders, testPrints, locations, operators,
+    };
+    if (window.hubAPI?.saveStore) {
+      window.hubAPI.saveStore(store).catch(e => console.error('Save failed:', e));
+    }
+  }, 300);
 }
 
 function migrateFromLocalStorage() {
@@ -9208,9 +9214,9 @@ function patchRecurringOrdersWithLeadDays() {
     const triggerStr = triggerDate.toISOString().split('T')[0];
     if (triggerStr > today) return;
 
-    // Check if an order was already created for this cycle
+    // Check if an order was already created for this cycle (any status — prevents duplicate on re-completion)
     const alreadyCreated = printLog.some(o =>
-      o.clientId === client.id && o.recurringCycle === rec.nextDue && o.status !== 'completed');
+      o.clientId === client.id && o.recurringCycle === rec.nextDue);
     if (alreadyCreated) return;
 
     // Find template: use specific templateOrderId or last completed order
@@ -9344,12 +9350,16 @@ async function loadLanQr(urlOverride) {
     if (!res?.ok) return;
     url = res.url;
   }
-  const pinSuffix = settings.lanApi?.pin ? `?pin=${settings.lanApi.pin}` : '';
-  const qrUrl = url + '/api/status' + pinSuffix;
+  // PIN is passed via x-khayt-pin header by clients — never embed it in the QR URL
+  const qrUrl = url + '/api/status';
   const svg = await window.hubAPI?.generateQR?.(qrUrl, { width: 150 });
   if (svg) {
+    const pin = settings.lanApi?.pin;
+    const pinNote = pin
+      ? `<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">PIN: <code style="background:var(--bg);padding:1px 5px;border-radius:4px;">${escapeHtml(pin)}</code> (send via <code>x-khayt-pin</code> header)</div>`
+      : '';
     qrWrap.style.display = 'block';
-    qrWrap.innerHTML = `<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">Scan from phone to view queue:</div>${svg}`;
+    qrWrap.innerHTML = `<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">Scan from phone to view queue:</div>${svg}${pinNote}`;
   }
 }
 
@@ -14196,6 +14206,8 @@ function wireEvents() {
    ============================================================ */
 function showBetaWarning() {
   if (settings.betaAcknowledged) return;
+  // Don't stack on top of the setup wizard — new users will see it on next launch
+  if (settings.firstRun) return;
 
   const isAr = i18n.current === 'ar';
   const overlay = document.createElement('div');

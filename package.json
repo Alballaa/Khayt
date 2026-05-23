@@ -1,6 +1,6 @@
 {
   "name": "khayt",
-  "version": "1.0.3",
+  "version": "1.1.0-beta.1",
   "description": "Khayt — 3D printing production management, invoicing & analytics. Free & open to all makers worldwide.",
   "main": "main.js",
   "author": "Khayt",
@@ -38,7 +38,9 @@
     "mac": {
       "category": "public.app-category.business",
       "target": [
-        { "target": "dmg" }
+        {
+          "target": "dmg"
+        }
       ],
       "icon": "assets/icon.icns",
       "darkModeSupport": true
@@ -48,8 +50,18 @@
     },
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] },
-        { "target": "portable", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "assets/khayt.iconset/icon_256x256.png"
     },
@@ -62,8 +74,18 @@
     },
     "linux": {
       "target": [
-        { "target": "AppImage", "arch": ["x64"] },
-        { "target": "deb", "arch": ["x64"] }
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "assets/icon_preview.png",
       "category": "Office",

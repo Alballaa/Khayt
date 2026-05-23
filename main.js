@@ -243,10 +243,15 @@ ipcMain.handle('hub:pick-file', async (event, opts = {}) => {
   return result.filePaths[0];
 });
 
-// --- Open arbitrary file path (Feature 5) ---
+// --- Open file path — restricted to app userData and system temp directories ---
 ipcMain.handle('hub:open-file', async (_e, filePath) => {
-  const s = String(filePath || '');
-  if (s && fs.existsSync(s)) await shell.openPath(s);
+  const s = path.resolve(String(filePath || ''));
+  const allowed = [
+    path.resolve(app.getPath('userData')),
+    path.resolve(app.getPath('temp')),
+  ];
+  const confined = allowed.some(dir => s.startsWith(dir + path.sep) || s === dir);
+  if (confined && fs.existsSync(s)) await shell.openPath(s);
   return true;
 });
 
@@ -277,8 +282,8 @@ ipcMain.handle('hub:save-store', async (_e, data) => {
   const fp = dataFilePath();
   const tmp = fp + '.tmp';
   try {
-    fs.writeFileSync(tmp, JSON.stringify(data), 'utf8');
-    fs.renameSync(tmp, fp);
+    await fs.promises.writeFile(tmp, JSON.stringify(data), 'utf8');
+    await fs.promises.rename(tmp, fp);
     lanServerStore = data;  // keep LAN server in sync
     return { ok: true };
   } catch (e) {
@@ -324,8 +329,11 @@ ipcMain.handle('hub:list-vault-files', async (_e, orderId) => {
   }));
 });
 ipcMain.handle('hub:delete-vault-file', async (_e, fullPath) => {
-  const safe = String(fullPath || '');
-  if (safe && fs.existsSync(safe)) await fs.promises.unlink(safe);
+  const safe = path.resolve(String(fullPath || ''));
+  const vaultRoot = path.resolve(fileVaultDir());
+  // Path-confinement: only allow deletions inside the vault directory
+  if (!safe.startsWith(vaultRoot + path.sep)) return false;
+  try { await fs.promises.unlink(safe); } catch (_) {}
   return true;
 });
 
