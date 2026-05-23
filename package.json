@@ -7,7 +7,7 @@
     "name": "Khayt",
     "email": "support@khayt.app"
   },
-  "license": "MIT",
+  "license": "MIT-Commons-Clause",
   "private": false,
   "scripts": {
     "start": "electron .",

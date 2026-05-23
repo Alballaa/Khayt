@@ -144,7 +144,7 @@ If you find a bug, please include:
 
 ## License
 
-MIT — free to use, modify, and distribute.
+**MIT + Commons Clause** — free to use (including for running your 3D printing business), but you may not sell, repackage, or charge others for this software. See [LICENSE](./LICENSE) for full terms.
 
 ---
 
