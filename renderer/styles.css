@@ -97,6 +97,18 @@ html, body {
   border-radius: 50%;
   background: linear-gradient(135deg, var(--primary), var(--accent));
 }
+.beta-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #fff;
+  background: linear-gradient(135deg, #f59e0b, #ef4444);
+  border-radius: 4px;
+  padding: 1px 5px;
+  vertical-align: middle;
+  opacity: 0.9;
+  user-select: none;
+}
 
 /* -----------------------------------------------------------
    Layout
