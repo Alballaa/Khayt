@@ -24,6 +24,8 @@ const K = {
   CURRENT_BUILD: 'hub_current_build_v1',
   PURCHASE_ORDERS: 'hub_purchase_orders_v1',
   TEST_PRINTS: 'hub_test_prints_v1',
+  LOCATIONS: 'hub_locations_v1',
+  OPERATORS: 'hub_operators_v1',
 };
 
 /* ---------- App state ---------- */
@@ -47,9 +49,15 @@ let consumables   = loadJSON(K.CONSUMABLES, []);
 let suppliers     = loadJSON(K.SUPPLIERS, []);
 let purchaseOrders = loadJSON(K.PURCHASE_ORDERS, []);
 let testPrints     = loadJSON(K.TEST_PRINTS, []);
+let locations      = loadJSON(K.LOCATIONS, []);
+let operators      = loadJSON(K.OPERATORS, []);
 
 // Runtime-only state (not persisted)
 let kanbanTimerInterval = null;
+let activeLocation = null; // Feature 8: null = all locations
+
+// Feature 2 (new batch): Live printer status cache (in-memory only)
+let machineStatusCache = {};
 
 // In-memory only — the current quote workspace
 let currentBuild = [];
@@ -239,6 +247,27 @@ function getAllTags() {
   return [...all].sort();
 }
 function uid(prefix = 'ID') { return prefix + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5).toUpperCase(); }
+
+/** Feature 2: Return normalised priority level for an order.
+ *  Supports both legacy boolean and new string values. */
+function getPriorityLevel(order) {
+  if (order.priorityLevel === 'urgent') return 'urgent';
+  if (order.priorityLevel === 'high')   return 'high';
+  if (order.priority === true && !order.priorityLevel) return 'high';
+  return 'normal';
+}
+/** Feature 2: Sort comparator — urgent > high > normal, then by queuePos */
+function prioritySortValue(order) {
+  const lv = getPriorityLevel(order);
+  return lv === 'urgent' ? 0 : lv === 'high' ? 1 : 2;
+}
+/** Feature 2: HTML badge for priority level (empty string if normal) */
+function priorityBadgeHtml(order) {
+  const lv = getPriorityLevel(order);
+  if (lv === 'urgent') return `<span class="priority-label priority-urgent">${escapeHtml(t('ord.priority_urgent'))}</span>`;
+  if (lv === 'high')   return `<span class="priority-label priority-high">${escapeHtml(t('ord.priority_high'))}</span>`;
+  return '';
+}
 function nextInvoiceSeq() {
   let max = 0;
   for (const o of printLog) {
@@ -343,7 +372,55 @@ function defaultSettings() {
     invNumYear:      new Date().getFullYear(),
     invNumNext:      1,
     invNumFormat:    '{prefix}-{year}-{seq4}',
+    // New Feature 7: Working hours schedule
+    workingHours:    { mon: 8, tue: 8, wed: 8, thu: 8, fri: 0, sat: 0, sun: 0 },
+    holidays:        [],
+    // Business Mode (simple | professional)
+    mode:            'simple',
+    firstRun:        true,
+    // Feature 8 (this batch): Production pause
+    productionPaused: false,
+    pauseReason:      '',
+    pausedAt:         null,
+    // Feature 5 (this batch): Filament colour library
+    filamentColours:  {},
+    // Feature 5 (new batch): Email notifications
+    emailConfig:      { provider: 'none', apiKey: '', fromEmail: '', fromName: '', domain: '', triggers: [] },
+    // Feature 7 (new batch): Operator lock
+    activeOperatorId: null,
+    operatorLockEnabled: false,
+    // Feature 8 (new batch): Loyalty tiers
+    loyaltyEnabled:   false,
+    loyaltyTiers:     [],
   };
+}
+
+/* ============================================================
+   Feature 2 (new batch): Live printer status helpers
+   ============================================================ */
+function updateKanbanLiveStatus() {
+  const cards = document.querySelectorAll('.printer-live-status[data-machine-id]');
+  cards.forEach(el => {
+    const mid = el.dataset.machineId;
+    const s = machineStatusCache[mid];
+    if (!s || s.error) {
+      el.innerHTML = s?.error ? `<span style="color:var(--danger);font-size:10px;">⚠ ${escapeHtml(s.error)}</span>` : '';
+      return;
+    }
+    const pct = Math.min(100, Math.max(0, Math.round(+s.progress || 0)));
+    const stateClass = (s.state || '').toLowerCase().includes('print') ? 'printing'
+      : (s.state || '').toLowerCase().includes('error') ? 'error' : 'idle';
+    const etaStr = s.timeRemaining ? (() => {
+      const mins = Math.round(s.timeRemaining / 60);
+      return mins > 60 ? `${Math.floor(mins/60)}h ${mins%60}m` : `${mins}m`;
+    })() : null;
+    el.innerHTML = `
+      <div class="live-status-bar"><div class="live-progress" style="width:${pct}%"></div></div>
+      <span class="live-state-badge ${escapeHtml(stateClass)}">${escapeHtml(s.state || '')}</span>
+      <span style="font-size:10px;color:var(--text-muted);">${pct}%</span>
+      ${(s.tempNozzle || s.tempBed) ? `<span class="live-temp">${s.tempNozzle ? Math.round(s.tempNozzle) + '°' : '?'}/${s.tempBed ? Math.round(s.tempBed) + '°' : '?'}</span>` : ''}
+      ${etaStr ? `<span class="live-eta">${escapeHtml(t('mach.api_eta'))}: ${escapeHtml(etaStr)}</span>` : ''}`;
+  });
 }
 
 function defaultWaTemplates() {
@@ -371,7 +448,7 @@ function saveAll() {
   const store = {
     printLog, inventory, templates, products, clients, settings, printers,
     expenses, machines, waTemplates, wasteLog, machMaintLog, consumables,
-    suppliers, purchaseOrders, testPrints,
+    suppliers, purchaseOrders, testPrints, locations, operators,
   };
   if (window.hubAPI?.saveStore) {
     window.hubAPI.saveStore(store).catch(e => console.error('Save failed:', e));
@@ -438,6 +515,8 @@ async function loadAll() {
     if (store.suppliers)      suppliers      = store.suppliers;
     if (store.purchaseOrders) purchaseOrders = store.purchaseOrders;
     if (store.testPrints)     testPrints     = store.testPrints;
+    if (store.locations)      locations      = store.locations;
+    if (store.operators)      operators      = store.operators;
     if (store.settings)       settings       = Object.assign({}, defaultSettings(), store.settings);
   }
 }
@@ -478,6 +557,510 @@ function inRange(dateStr, range, ctx) {
     return d.getFullYear() === now.getFullYear();
   }
   return true;
+}
+
+/* ============================================================
+   New Feature 7: Working-hours helpers
+   ============================================================ */
+const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+
+/** Count available working hours from now until targetDate (exclusive), using
+ *  settings.workingHours per day-of-week and skipping settings.holidays. */
+function availableHoursUntil(targetDate) {
+  const wh = settings.workingHours || { mon: 8, tue: 8, wed: 8, thu: 8, fri: 0, sat: 0, sun: 0 };
+  const holidays = new Set(settings.holidays || []);
+  const cursor = new Date();
+  cursor.setHours(0, 0, 0, 0);
+  const end = new Date(targetDate);
+  end.setHours(0, 0, 0, 0);
+  let total = 0;
+  while (cursor < end) {
+    const iso = cursor.toISOString().split('T')[0];
+    if (!holidays.has(iso)) {
+      const key = DAY_KEYS[cursor.getDay()];
+      total += Math.max(0, +(wh[key] || 0));
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return total;
+}
+
+/** Get daily working hours for today (used in clearDays forecast) */
+function avgDailyWorkingHours() {
+  const wh = settings.workingHours || { mon: 8, tue: 8, wed: 8, thu: 8, fri: 0, sat: 0, sun: 0 };
+  const days = Object.values(wh);
+  const activeDays = days.filter(h => h > 0);
+  return activeDays.length > 0
+    ? activeDays.reduce((s, h) => s + h, 0) / 7
+    : 8; // fallback 8 h/day
+}
+
+/* ============================================================
+   Feature 2 (new): Machine downtime helpers
+   ============================================================ */
+/** Sum hours of overlap between [fromDate, toDate] and machine.downtimeBlocks */
+function machineDowntimeHoursInRange(machine, fromDate, toDate) {
+  const blocks = machine.downtimeBlocks || [];
+  if (blocks.length === 0) return 0;
+  const from = new Date(fromDate).getTime();
+  const to   = new Date(toDate).getTime();
+  let total = 0;
+  for (const b of blocks) {
+    if (!b.from || !b.to) continue;
+    const bFrom = new Date(b.from).getTime();
+    const bTo   = new Date(b.to).getTime();
+    const overlapStart = Math.max(from, bFrom);
+    const overlapEnd   = Math.min(to,   bTo);
+    if (overlapEnd > overlapStart) {
+      total += (overlapEnd - overlapStart) / 3600000;
+    }
+  }
+  return total;
+}
+
+/* ============================================================
+   Feature 6 (new): Client credit limit helpers
+   ============================================================ */
+function clientOutstandingBalance(clientId) {
+  return printLog
+    .filter(o => o.clientId === clientId && o.status !== 'quote' && payStatus(o) !== 'paid')
+    .reduce((s, o) => s + Math.max(0, +o.price - (+o.paidAmount || 0)), 0);
+}
+
+/* ============================================================
+   Feature 4 (new): Recurring expenses
+   ============================================================ */
+function calcNextDueDate(fromDate, recurring) {
+  if (!fromDate || !recurring) return null;
+  const d = new Date(fromDate + 'T00:00:00');
+  if (recurring === 'monthly')    d.setMonth(d.getMonth() + 1);
+  else if (recurring === 'quarterly') d.setMonth(d.getMonth() + 3);
+  else if (recurring === 'annually')  d.setFullYear(d.getFullYear() + 1);
+  else return null;
+  return d.toISOString().split('T')[0];
+}
+
+function checkRecurringExpenses() {
+  const todayStr = new Date().toISOString().split('T')[0];
+  const due = expenses.filter(e => e.recurring && e.nextDue && e.nextDue <= todayStr);
+  if (due.length === 0) return;
+  for (const exp of due) {
+    const label = `${expCatLabel(exp.category)} ${fmtPrice(exp.amount)}`;
+    const c = document.createElement('div');
+    c.className = 'toast info';
+    c.style.cssText = 'max-width:360px;';
+    c.innerHTML = `<span>${escapeHtml(t('exp.recurring_due'))}: ${escapeHtml(label)}</span>`;
+    const addBtn = document.createElement('button');
+    addBtn.className = 'undo-btn';
+    addBtn.textContent = t('common.add') || 'Add';
+    const skipBtn = document.createElement('button');
+    skipBtn.className = 'undo-btn';
+    skipBtn.style.marginInlineStart = '4px';
+    skipBtn.textContent = 'Skip';
+    addBtn.addEventListener('click', () => {
+      expenses.unshift({
+        id: uid('EXP'),
+        date: todayStr,
+        category: exp.category,
+        amount: exp.amount,
+        note: exp.note || '',
+        recurring: null, // the new copy is not recurring
+        orderId: null,
+      });
+      exp.nextDue = calcNextDueDate(todayStr, exp.recurring);
+      saveAll();
+      renderExpenses();
+      toast(t('exp.recurring_added'), 'success');
+      c.remove();
+    });
+    skipBtn.addEventListener('click', () => {
+      exp.nextDue = calcNextDueDate(todayStr, exp.recurring);
+      saveAll();
+      c.remove();
+    });
+    c.appendChild(addBtn);
+    c.appendChild(skipBtn);
+    $('#toastContainer').appendChild(c);
+    setTimeout(() => { c.style.opacity = '0'; c.style.transition = 'opacity .2s'; }, 8000 - 250);
+    setTimeout(() => c.remove(), 8000);
+  }
+}
+
+/* ============================================================
+   Feature 7 (new): Client retention analytics
+   ============================================================ */
+function renderClientRetention() {
+  const el = $('#clientRetentionSection');
+  if (!el) return;
+  const completed = printLog.filter(o => o.status === 'completed' && o.clientId && o.date);
+  // Group by client, sorted by date
+  const clientOrders = {};
+  for (const o of completed) {
+    if (!clientOrders[o.clientId]) clientOrders[o.clientId] = [];
+    clientOrders[o.clientId].push(o.date);
+  }
+  // Only clients with at least one order
+  const allClients = Object.entries(clientOrders).map(([id, dates]) => {
+    const sorted = [...dates].sort();
+    return { id, firstDate: sorted[0], secondDate: sorted[1] || null, total: sorted.length };
+  });
+  const withAtLeastOne = allClients.length;
+  if (withAtLeastOne < 2) {
+    el.innerHTML = `<p style="color:var(--text-muted);font-size:13px;">${escapeHtml(t('an.retention_no_data'))}</p>`;
+    return;
+  }
+  const withTwo = allClients.filter(c => c.secondDate !== null);
+  const daysBetween = (a, b) => Math.round(Math.abs(new Date(b) - new Date(a)) / 86400000);
+  const ret30 = withTwo.filter(c => daysBetween(c.firstDate, c.secondDate) <= 30).length;
+  const ret60 = withTwo.filter(c => daysBetween(c.firstDate, c.secondDate) <= 60).length;
+  const ret90 = withTwo.filter(c => daysBetween(c.firstDate, c.secondDate) <= 90).length;
+  const pct = (n) => withAtLeastOne > 0 ? (n / withAtLeastOne * 100).toFixed(1) : '0.0';
+  const avgDays = withTwo.length > 0
+    ? (withTwo.reduce((s, c) => s + daysBetween(c.firstDate, c.secondDate), 0) / withTwo.length).toFixed(1)
+    : '—';
+
+  // Top returning clients
+  const topReturning = [...allClients]
+    .filter(c => c.total >= 2)
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 5);
+
+  el.innerHTML = `
+    <div class="accuracy-stats" style="margin-bottom:16px;">
+      <div class="retention-stat accuracy-stat">
+        <div class="v" style="color:var(--primary);">${pct(ret30)}%</div>
+        <div class="l">${escapeHtml(t('an.retention_30'))}</div>
+      </div>
+      <div class="retention-stat accuracy-stat">
+        <div class="v" style="color:var(--primary);">${pct(ret60)}%</div>
+        <div class="l">${escapeHtml(t('an.retention_60'))}</div>
+      </div>
+      <div class="retention-stat accuracy-stat">
+        <div class="v" style="color:var(--primary);">${pct(ret90)}%</div>
+        <div class="l">${escapeHtml(t('an.retention_90'))}</div>
+      </div>
+      <div class="retention-stat accuracy-stat">
+        <div class="v">${escapeHtml(String(avgDays))}</div>
+        <div class="l">${escapeHtml(t('an.retention_avg_days'))}</div>
+      </div>
+    </div>
+    ${topReturning.length > 0 ? `
+    <div style="font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:8px;">${escapeHtml('Top returning clients')}</div>
+    <ul class="leaderboard">
+      ${topReturning.map((c, i) => {
+        const cl = clients.find(x => x.id === c.id);
+        const name = cl ? localName(cl) : c.id;
+        return `<li><span class="rank">${i+1}.</span><span class="name">${escapeHtml(name)}</span><span class="value">${c.total}× orders</span></li>`;
+      }).join('')}
+    </ul>` : ''}`;
+}
+
+/* ============================================================
+   Feature 8 (new): Locations management
+   ============================================================ */
+function ensureDefaultLocation() {
+  if (locations.length === 0) {
+    locations.push({ id: uid('LOC'), name: 'Main', address: '' });
+    saveAll();
+  }
+}
+
+function renderLocationsSettings() {
+  const el = $('#locationsSettingsSection');
+  if (!el) return;
+  ensureDefaultLocation();
+  el.innerHTML = locations.map(loc => `
+    <div class="machine-row">
+      <span class="machine-name">${escapeHtml(loc.name)}</span>
+      ${loc.address ? `<span style="font-size:12px;color:var(--text-muted);margin-inline-start:8px;">${escapeHtml(loc.address)}</span>` : ''}
+      <button class="btn small" data-act="edit-loc" data-id="${loc.id}">${escapeHtml(t('common.edit'))}</button>
+      ${locations.length > 1 ? `<button class="btn danger small" data-act="del-loc" data-id="${loc.id}">${escapeHtml(t('common.delete'))}</button>` : ''}
+    </div>`).join('');
+}
+
+function openLocationEditor(locId = null) {
+  const existing = locId ? locations.find(l => l.id === locId) : null;
+  const draft = existing ? { ...existing } : { id: uid('LOC'), name: '', address: '' };
+  openFormModal({
+    title: existing ? t('set.locations') : t('set.location_add'),
+    sizeLg: false,
+    bodyHtml: `
+      <label>${escapeHtml(t('set.location_name'))}</label>
+      <input type="text" id="locName" value="${escapeHtml(draft.name)}" placeholder="Main">
+      <label style="margin-top:12px;">${escapeHtml(t('set.location_addr'))}</label>
+      <input type="text" id="locAddr" value="${escapeHtml(draft.address || '')}" placeholder="e.g. Riyadh, Floor 2">`,
+    async onSave(modal) {
+      draft.name = modal.querySelector('#locName').value.trim();
+      draft.address = modal.querySelector('#locAddr').value.trim();
+      if (!draft.name) { toast(t('mach.need_name'), 'error'); return false; }
+      const idx = locations.findIndex(l => l.id === draft.id);
+      if (idx >= 0) locations[idx] = draft; else locations.push(draft);
+      saveAll();
+      renderLocationsSettings();
+      renderLocationFilter();
+      toast(t('common.save'), 'success');
+      return true;
+    }
+  });
+}
+
+function renderLocationFilter() {
+  const sel = $('#locationFilter');
+  if (!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = `<option value="">${escapeHtml(t('loc.all'))}</option>` +
+    locations.map(l => `<option value="${l.id}"${l.id === prev ? ' selected' : ''}>${escapeHtml(l.name)}</option>`).join('');
+  sel.value = prev && locations.find(l => l.id === prev) ? prev : '';
+}
+
+function locationBadgeHtml(locationId) {
+  if (!locationId) return '';
+  const loc = locations.find(l => l.id === locationId);
+  if (!loc) return '';
+  return `<span class="location-badge">${escapeHtml(loc.name)}</span>`;
+}
+
+/* ============================================================
+   Feature 8 (this batch): Production pause
+   ============================================================ */
+function applyProductionPause() {
+  const banner = document.getElementById('pauseBanner');
+  const btn = document.getElementById('btnPauseProduction');
+  if (!banner) return;
+  if (settings.productionPaused) {
+    const reason = settings.pauseReason ? ` — ${escapeHtml(settings.pauseReason)}` : '';
+    banner.innerHTML = `⏸ ${escapeHtml(t('prod.paused_banner'))}${reason} <button data-act="resume-production">${escapeHtml(t('prod.resume'))}</button>`;
+    banner.style.display = 'flex';
+    if (btn) {
+      btn.textContent = '▶ ' + t('prod.resume');
+      btn.style.background = 'rgba(34,197,94,0.15)';
+      btn.style.color = '#4ade80';
+      btn.style.borderColor = 'rgba(34,197,94,0.3)';
+    }
+  } else {
+    banner.style.display = 'none';
+    if (btn) {
+      btn.textContent = '⏸ ' + t('prod.pause');
+      btn.style.background = 'rgba(220,38,38,0.15)';
+      btn.style.color = '#f87171';
+      btn.style.borderColor = 'rgba(220,38,38,0.3)';
+    }
+  }
+}
+
+function pauseProduction() {
+  openFormModal({
+    title: t('prod.pause'),
+    sizeLg: false,
+    saveLabel: t('prod.pause'),
+    bodyHtml: `
+      <label>${escapeHtml(t('prod.pause_reason'))}</label>
+      <input type="text" id="pauseReasonInput" placeholder="${escapeHtml(t('prod.pause_reason'))}" style="width:100%;">`,
+    onMount(modal) { setTimeout(() => modal.querySelector('#pauseReasonInput')?.focus(), 40); },
+    onSave(modal) {
+      const reason = modal.querySelector('#pauseReasonInput').value.trim();
+      settings.productionPaused = true;
+      settings.pauseReason = reason || '';
+      settings.pausedAt = new Date().toISOString();
+      saveAll();
+      applyProductionPause();
+      renderKanban();
+      toast(t('prod.paused_toast'), 'warning');
+      return true;
+    }
+  });
+}
+
+function resumeProduction() {
+  settings.productionPaused = false;
+  settings.pauseReason = '';
+  settings.pausedAt = null;
+  saveAll();
+  applyProductionPause();
+  renderKanban();
+  toast(t('prod.resumed'), 'success');
+}
+
+/* ============================================================
+   New 8-pack Feature 7: Cost & Revenue Trends
+   ============================================================ */
+function renderCostTrends() {
+  const el = $('#costTrendsSection');
+  if (!el) return;
+  // Build last 12 months
+  const now = new Date();
+  const months = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({
+      year: d.getFullYear(),
+      month: d.getMonth(),
+      label: d.toLocaleString('en', { month: 'short' }) + ' ' + d.getFullYear().toString().slice(2),
+      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+    });
+  }
+
+  // Revenue per print-hour for completed orders
+  const revPerHour = months.map(m => {
+    const orders = printLog.filter(o =>
+      o.status === 'completed' && (o.date || '').startsWith(m.key)
+    );
+    const totalRev = orders.reduce((s, o) => s + (+o.price || 0), 0);
+    const totalHrs = orders.reduce((s, o) => s + (+o.printTime || 0), 0);
+    return totalHrs > 0 ? totalRev / totalHrs : 0;
+  });
+
+  // Average material cost per gram from inventory (simple average)
+  const avgCostPerGram = months.map(() => {
+    const items = inventory.filter(i => i.cost > 0 && i.weight > 0);
+    if (items.length === 0) return 0;
+    return items.reduce((s, i) => s + (i.cost / i.weight), 0) / items.length;
+  });
+
+  const maxRev = Math.max(...revPerHour, 1);
+  const maxCost = Math.max(...avgCostPerGram, 0.001);
+
+  const cur = currencySymbol();
+  const revBars = revPerHour.map((v, i) => {
+    const pct = Math.round((v / maxRev) * 100);
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;">
+      <div style="font-size:9.5px;color:var(--text-muted);font-variant-numeric:tabular-nums;">${v > 0 ? fmtMoney(v) : '—'}</div>
+      <div style="background:rgba(255,255,255,0.08);width:100%;height:80px;display:flex;align-items:flex-end;border-radius:3px 3px 0 0;">
+        <div style="background:var(--primary);width:100%;height:${pct}%;border-radius:3px 3px 0 0;transition:height 0.4s;opacity:0.8;"></div>
+      </div>
+      <div style="font-size:9px;color:var(--text-muted);writing-mode:vertical-rl;transform:rotate(180deg);max-height:40px;overflow:hidden;">${escapeHtml(months[i].label)}</div>
+    </div>`;
+  }).join('');
+
+  const costBars = avgCostPerGram.map((v, i) => {
+    const pct = maxCost > 0 ? Math.round((v / maxCost) * 100) : 0;
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;">
+      <div style="font-size:9.5px;color:var(--text-muted);font-variant-numeric:tabular-nums;">${v > 0 ? fmtMoney(v) : '—'}</div>
+      <div style="background:rgba(255,255,255,0.08);width:100%;height:80px;display:flex;align-items:flex-end;border-radius:3px 3px 0 0;">
+        <div style="background:var(--warning);width:100%;height:${pct}%;border-radius:3px 3px 0 0;transition:height 0.4s;opacity:0.8;"></div>
+      </div>
+      <div style="font-size:9px;color:var(--text-muted);writing-mode:vertical-rl;transform:rotate(180deg);max-height:40px;overflow:hidden;">${escapeHtml(months[i].label)}</div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <h3 class="card-head"><span class="swatch"></span><span>${escapeHtml(t('an.cost_trends'))}</span></h3>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:12.5px;font-weight:600;color:var(--text-dim);margin-bottom:8px;">
+        ${escapeHtml(t('an.rev_per_hour'))} (${cur}/hr)
+      </div>
+      <div style="display:flex;gap:4px;align-items:flex-end;">${revBars}</div>
+    </div>
+    <div>
+      <div style="font-size:12.5px;font-weight:600;color:var(--text-dim);margin-bottom:8px;">
+        ${escapeHtml(t('an.cost_per_gram'))} (${cur}/g)
+      </div>
+      <div style="display:flex;gap:4px;align-items:flex-end;">${costBars}</div>
+    </div>`;
+}
+
+/* ============================================================
+   New 8-pack Feature 1: Per-operator analytics
+   ============================================================ */
+function renderOperatorAnalytics() {
+  const el = $('#operatorAnalyticsSection');
+  if (!el) return;
+  if (operators.length === 0) { el.innerHTML = ''; return; }
+
+  const completed = printLog.filter(o => o.status === 'completed' && o.operatorId);
+  if (completed.length === 0) {
+    el.innerHTML = `<h3 class="card-head"><span class="swatch"></span><span>${escapeHtml(t('an.operator_title'))}</span></h3><p style="color:var(--text-muted);font-size:13px;">${escapeHtml(t('an.accuracy_none'))}</p>`;
+    return;
+  }
+
+  const rows = operators.map(op => {
+    const jobs = completed.filter(o => o.operatorId === op.id);
+    const wasteEntries = wasteLog.filter(w => {
+      // Match waste entries to orders assigned to this operator
+      return jobs.some(j => j.id === w.orderId);
+    });
+    // Avg print time accuracy: (estimated - actual) / estimated
+    const accuracyScores = jobs
+      .filter(o => o.actualPrintTime != null && o.printTime > 0)
+      .map(o => (1 - Math.abs(+o.actualPrintTime - +o.printTime) / +o.printTime) * 100);
+    const avgAccuracy = accuracyScores.length > 0
+      ? (accuracyScores.reduce((s, v) => s + v, 0) / accuracyScores.length).toFixed(1) + '%'
+      : '—';
+    return { op, jobs: jobs.length, wasteEntries: wasteEntries.length, avgAccuracy };
+  }).filter(r => r.jobs > 0);
+
+  if (rows.length === 0) { el.innerHTML = ''; return; }
+
+  el.innerHTML = `
+    <h3 class="card-head"><span class="swatch"></span><span>${escapeHtml(t('an.operator_title'))}</span></h3>
+    <div class="table-wrap">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr style="border-bottom:1px solid var(--border-soft);color:var(--text-muted);">
+          <th style="padding:6px 8px;text-align:left;">${escapeHtml(t('op.name'))}</th>
+          <th style="padding:6px 8px;text-align:right;">${escapeHtml(t('an.op_jobs'))}</th>
+          <th style="padding:6px 8px;text-align:right;">${escapeHtml(t('an.op_waste'))}</th>
+          <th style="padding:6px 8px;text-align:right;">${escapeHtml(t('an.op_accuracy'))}</th>
+        </tr></thead>
+        <tbody>
+          ${rows.map(r => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+            <td style="padding:7px 8px;font-weight:500;">${escapeHtml(r.op.name)}${r.op.role ? `<span style="font-size:11px;color:var(--text-muted);margin-inline-start:5px;">${escapeHtml(r.op.role)}</span>` : ''}</td>
+            <td style="padding:7px 8px;text-align:right;">${r.jobs}</td>
+            <td style="padding:7px 8px;text-align:right;color:${r.wasteEntries > 0 ? 'var(--danger)' : 'var(--text-muted)'};">${r.wasteEntries}</td>
+            <td style="padding:7px 8px;text-align:right;color:var(--primary);">${escapeHtml(String(r.avgAccuracy))}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+/* ============================================================
+   New 8-pack Feature 1: Operators / Staff
+   ============================================================ */
+function renderOperatorsList() {
+  const el = $('#operatorsList');
+  if (!el) return;
+  if (operators.length === 0) {
+    el.innerHTML = `<div style="color:var(--text-muted);font-size:13px;padding:8px 0;">${escapeHtml(t('mach.empty') || 'No operators yet.')}</div>`;
+    return;
+  }
+  el.innerHTML = operators.map(op => `
+    <div class="machine-row">
+      <span class="machine-name">${escapeHtml(op.name)}</span>
+      ${op.role ? `<span style="font-size:11.5px;color:var(--text-muted);margin-inline-start:8px;">${escapeHtml(op.role)}</span>` : ''}
+      ${op.active === false ? `<span class="machine-jobs-badge" style="background:var(--danger);color:#fff;">Inactive</span>` : ''}
+      <button class="btn small" data-act="edit-operator" data-id="${op.id}">${escapeHtml(t('common.edit'))}</button>
+      <button class="btn danger small" data-act="del-operator" data-id="${op.id}">${escapeHtml(t('common.delete'))}</button>
+    </div>`).join('');
+}
+
+function openOperatorEditor(opId = null) {
+  const existing = opId ? operators.find(o => o.id === opId) : null;
+  const draft = existing ? { ...existing } : { id: uid('OP'), name: '', role: '', active: true };
+  openFormModal({
+    title: existing ? t('op.title') : t('op.add'),
+    sizeLg: false,
+    bodyHtml: `
+      <label>${escapeHtml(t('op.name'))}</label>
+      <input type="text" id="opName" value="${escapeHtml(draft.name)}" placeholder="e.g. Ali Al-Hassan">
+      <label style="margin-top:12px;">${escapeHtml(t('op.role'))}</label>
+      <input type="text" id="opRole" value="${escapeHtml(draft.role || '')}" placeholder="e.g. Senior Technician">
+      <label style="margin-top:12px;display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="opActive" style="width:auto;margin:0;" ${draft.active !== false ? 'checked' : ''}>
+        <span>Active</span>
+      </label>`,
+    async onSave(modal) {
+      draft.name = modal.querySelector('#opName').value.trim();
+      draft.role = modal.querySelector('#opRole').value.trim();
+      draft.active = modal.querySelector('#opActive').checked;
+      if (!draft.name) { toast(t('mach.need_name'), 'error'); return false; }
+      const idx = operators.findIndex(o => o.id === draft.id);
+      if (idx >= 0) operators[idx] = draft; else operators.push(draft);
+      saveAll();
+      renderOperatorsList();
+      toast(t('common.save'), 'success');
+      return true;
+    }
+  });
 }
 
 /* ============================================================
@@ -620,6 +1203,19 @@ function applyTheme(theme) {
 }
 
 /* ============================================================
+   Business Mode
+   ============================================================ */
+function applyMode() {
+  document.body.classList.toggle('mode-simple', settings.mode === 'simple');
+  document.body.classList.toggle('mode-professional', settings.mode === 'professional');
+  // Update mode toggle buttons in settings if they exist
+  const btnSimple = $('#btnModeSimple');
+  const btnPro    = $('#btnModePro');
+  if (btnSimple) btnSimple.classList.toggle('active', settings.mode === 'simple');
+  if (btnPro)    btnPro.classList.toggle('active',    settings.mode === 'professional');
+}
+
+/* ============================================================
    Tabs
    ============================================================ */
 function switchTab(tabId) {
@@ -633,7 +1229,7 @@ function switchTab(tabId) {
   if (tabId === 'catalog-tab')    renderCatalog();
   if (tabId === 'clients-tab')    renderClients();
   if (tabId === 'queue-tab')      renderKanban();
-  if (tabId === 'analytics-tab')  renderAnalytics();
+  if (tabId === 'analytics-tab')  { if (settings.mode === 'simple') renderSimpleReports(); else renderAnalytics(); }
   if (tabId === 'logs-tab')       renderLogs();
   if (tabId === 'portfolio-tab')  renderPortfolio();
   if (tabId === 'waste-tab')      renderWasteLog();
@@ -649,7 +1245,17 @@ function computePartBaseCost(part) {
   const spoolCost   = Math.max(0, +part.spoolCost   || 0);
   const spoolWeight = Math.max(1, +part.spoolWeight || 1);
   const printWeight = Math.max(0, +part.printWeight || 0);
-  const materialCost = (spoolCost / spoolWeight) * printWeight;
+  // Feature 7: For resin parts, spoolWeight is total volume (mL), cost is per-litre; printWeight is volume used in mL
+  const isResin = (() => {
+    if (part.filamentId) {
+      const invItem = inventory.find(i => i.id === part.filamentId);
+      if (invItem) return invItem.materialType === 'resin';
+    }
+    return false;
+  })();
+  const materialCost = isResin
+    ? (spoolCost / 1000) * printWeight  // cost per mL * mL used
+    : (spoolCost / spoolWeight) * printWeight;
 
   const printTime = Math.max(0, +part.printTime || 0);
   const wearCost  = printTime * Math.max(0, +part.wearRate || 0);
@@ -690,7 +1296,8 @@ function computePartBreakdown(part) {
   const spoolCost   = Math.max(0, +part.spoolCost   || 0);
   const spoolWeight = Math.max(1, +part.spoolWeight || 1);
   const printWeight = Math.max(0, +part.printWeight || 0);
-  const material    = (spoolCost / spoolWeight) * printWeight;
+  const isResin = part.filamentId ? (inventory.find(i => i.id === part.filamentId)?.materialType === 'resin') : false;
+  const material    = isResin ? (spoolCost / 1000) * printWeight : (spoolCost / spoolWeight) * printWeight;
   const printTime   = Math.max(0, +part.printTime   || 0);
   const machine     = printTime * Math.max(0, +part.wearRate  || 0)
                     + printTime * (Math.max(0, +part.powerDraw || 0) / 1000) * Math.max(0, +part.elecRate || 0);
@@ -800,6 +1407,7 @@ function snapshotPartFromForm() {
   const unitCost = calculateLivePartCost();
   return {
     name:        $('#partName').value.trim() || t('calc.part.name_ph'),
+    colour:      ($('#partColour')?.value || '').trim(),
     material:    opt?.text || '',
     filamentId:  filamentSelect.value,
     spoolCost:   clampPositive($('#spoolCost').value),
@@ -854,6 +1462,7 @@ function addPart() {
   currentBuild.push(part);
 
   $('#partName').value = '';
+  if ($('#partColour')) $('#partColour').value = '';
   $('#printWeight').value = '';
   $('#printTime').value = '';
   $('#partQty').value = '1';
@@ -1171,6 +1780,14 @@ function deleteCurrentPreset() {
    ============================================================ */
 const MACHINE_COLORS = ['#5b9cf0','#2bb673','#f5a623','#ef4d5e','#a78bfa','#fb923c','#34d399','#f472b6'];
 
+/* Feature 4: Grams printed on a machine since last nozzle install */
+function machineGramsSinceNozzle(machine) {
+  const sinceDate = machine.nozzle?.installedAt || '';
+  return printLog
+    .filter(o => o.machineId === machine.id && o.status === 'completed' && (o.date || '') >= sinceDate)
+    .reduce((s, o) => s + (o.parts || []).reduce((ps, p) => ps + (+p.weight || 0), 0), 0);
+}
+
 function renderMachines() {
   const list = $('#machinesList');
   if (!list) return;
@@ -1187,17 +1804,44 @@ function renderMachines() {
         ? `<span class="machine-jobs-badge" style="background:var(--warning); color:#000;">⚠ ${escapeHtml(t('mach.service_warn'))}</span>`
         : '';
     const hrsLine = `<span class="machine-hrs-stat">🔧 ${svc.total.toFixed(1)}h ${escapeHtml(t('mach.hours_total'))}${m.serviceInterval > 0 ? ` · ${svc.hours.toFixed(1)}h since service` : ''}</span>`;
+    const now2Str = new Date().toISOString();
+    const hasDowntime = (m.downtimeBlocks || []).some(b => b.to && b.to > now2Str);
+    const downtimeBadge = hasDowntime
+      ? `<span class="machine-jobs-badge" style="background:var(--warning); color:#000;">🔧 ${escapeHtml(t('mach.downtime_badge'))}</span>`
+      : '';
+    // Feature 4: Nozzle info
+    const nozzleGrams = machineGramsSinceNozzle(m);
+    const nozzleThreshold = m.nozzle?.gramsThreshold || 2000;
+    const nozzlePct = Math.min(100, nozzleThreshold > 0 ? (nozzleGrams / nozzleThreshold) * 100 : 0);
+    const nozzleOver = nozzleGrams >= nozzleThreshold && nozzleThreshold > 0;
+    const nozzleHtml = m.nozzle?.installedAt ? `
+      <div style="margin-top:4px; font-size:11px; color:var(--text-muted);">
+        🔩 ${escapeHtml(m.nozzle.material || 'brass')} nozzle${m.nozzleDiameter ? ` · ${m.nozzleDiameter}mm` : ''}${m.extruderType ? ` · ${escapeHtml(m.extruderType)}` : ''}
+        · ${nozzleGrams.toFixed(0)}g/${nozzleThreshold}g
+        ${nozzleOver ? `<span class="machine-jobs-badge" style="background:var(--danger);color:#fff;">🔩 ${escapeHtml(t('mach.nozzle_replace'))}</span>` : ''}
+      </div>
+      <div class="nozzle-progress" style="max-width:200px;margin-top:3px;">
+        <div class="nozzle-progress-bar" style="width:${nozzlePct.toFixed(1)}%;background:${nozzleOver ? 'var(--danger)' : 'var(--primary)'};"></div>
+      </div>` : '';
+    // Feature 3: compat materials
+    const compatHtml = (m.compatMaterials && m.compatMaterials.length > 0)
+      ? `<span style="font-size:10.5px;color:var(--text-muted);margin-inline-start:6px;">[${escapeHtml(m.compatMaterials.join(', '))}]</span>`
+      : '';
     return `
-      <div class="machine-row">
+      <div class="machine-row" style="flex-wrap:wrap;">
         <span class="machine-dot" style="background:${escapeHtml(m.color)};"></span>
         <span class="machine-name">${escapeHtml(m.name)}</span>
+        ${compatHtml}
         ${m.isOffline ? `<span class="machine-jobs-badge" style="background:var(--danger); color:#fff;">⚠ ${escapeHtml(t('mach.offline_badge'))}</span>` : ''}
         ${active > 0 ? `<span class="machine-jobs-badge">${active} ${escapeHtml(t('mach.active_jobs'))}</span>` : ''}
         ${svcBadge}
+        ${downtimeBadge}
         ${hrsLine}
         <button class="btn small" data-act="maint-log" data-id="${m.id}" title="${escapeHtml(t('maint.btn'))}">🔧</button>
+        <button class="btn small ghost" data-act="log-nozzle-change" data-id="${m.id}" title="${escapeHtml(t('mach.log_nozzle'))}" style="font-size:11px;">🔩</button>
         <button class="btn small" data-act="edit-mach" data-id="${m.id}">${escapeHtml(t('common.edit'))}</button>
         <button class="btn danger small" data-act="del-mach" data-id="${m.id}">${escapeHtml(t('common.delete'))}</button>
+        ${nozzleHtml}
       </div>`;
   }).join('');
 }
@@ -1260,9 +1904,174 @@ function openMachineEditor(machineId = null) {
       <label style="margin-top:16px; display:flex; align-items:center; gap:8px; cursor:pointer;">
         <input type="checkbox" id="machOffline" style="width:auto; margin:0;" ${draft.isOffline ? 'checked' : ''}>
         <span data-i18n="mach.mark_offline">${escapeHtml(t('mach.mark_offline'))}</span>
-      </label>`,
+      </label>
+
+      <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--border-soft);">
+        <label style="font-size:12.5px; font-weight:600; margin-bottom:8px;">${escapeHtml(t('mach.compat_materials'))}</label>
+        <div id="machCompatMaterialsSection" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;"></div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px;">
+          <div>
+            <label style="margin:0;">${escapeHtml(t('mach.nozzle_diameter'))}</label>
+            <input type="number" id="machNozzleDiameter" value="${draft.nozzleDiameter || ''}" step="0.1" min="0.1" placeholder="0.4" style="font-size:12.5px;">
+          </div>
+          <div>
+            <label style="margin:0;">${escapeHtml(t('mach.extruder_type'))}</label>
+            <input type="text" id="machExtruderType" value="${escapeHtml(draft.extruderType || '')}" placeholder="Bowden / Direct Drive" style="font-size:12.5px;">
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border-soft);">
+        <label style="font-size:12.5px; font-weight:600; margin:0 0 8px;">${escapeHtml(t('mach.nozzle'))}</label>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px;">
+          <div>
+            <label style="margin:0;">${escapeHtml(t('mach.nozzle_material'))}</label>
+            <select id="machNozzleMaterial" style="font-size:12.5px;">
+              <option value="brass"${(draft.nozzle?.material||'brass') === 'brass' ? ' selected' : ''}>${escapeHtml(t('mach.nozzle_brass'))}</option>
+              <option value="hardened"${draft.nozzle?.material === 'hardened' ? ' selected' : ''}>${escapeHtml(t('mach.nozzle_hardened'))}</option>
+              <option value="ruby"${draft.nozzle?.material === 'ruby' ? ' selected' : ''}>${escapeHtml(t('mach.nozzle_ruby'))}</option>
+              <option value="stainless"${draft.nozzle?.material === 'stainless' ? ' selected' : ''}>Stainless</option>
+              <option value="other"${draft.nozzle?.material === 'other' ? ' selected' : ''}>Other</option>
+            </select>
+          </div>
+          <div>
+            <label style="margin:0;">${escapeHtml(t('mach.nozzle_installed'))}</label>
+            <input type="date" id="machNozzleInstalledAt" value="${escapeHtml(draft.nozzle?.installedAt || '')}" style="font-size:12.5px;">
+          </div>
+          <div>
+            <label style="margin:0;">${escapeHtml(t('mach.nozzle_threshold'))}</label>
+            <input type="number" id="machNozzleGramsThreshold" value="${draft.nozzle?.gramsThreshold || 2000}" min="0" step="100" style="font-size:12.5px;">
+          </div>
+          <div>
+            <label style="margin:0;">${escapeHtml('Lifetime grams at install')}</label>
+            <input type="number" id="machNozzleGramsAtInstall" value="${draft.nozzle?.gramsAtInstall || 0}" min="0" step="1" style="font-size:12.5px;">
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--border-soft);">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <label style="margin:0; flex:1; font-size:12.5px; font-weight:600;">${escapeHtml(t('mach.downtime'))}</label>
+          <button class="btn ghost small" id="btnAddDowntime" type="button">${escapeHtml(t('mach.downtime_add'))}</button>
+        </div>
+        <div id="downtimeBlocksList"></div>
+      </div>
+
+      <details style="margin-top:18px; padding-top:14px; border-top:1px solid var(--border-soft);" class="pro-only">
+        <summary style="cursor:pointer; font-size:12.5px; font-weight:600; color:var(--text-dim); user-select:none; padding:2px 0;">${escapeHtml(t('mach.api_live'))}</summary>
+        <div style="margin-top:10px;">
+          <label style="margin-top:0;">${escapeHtml(t('mach.api_type'))}</label>
+          <select id="machApiType" style="font-size:12.5px;">
+            <option value="none">${escapeHtml(t('common.none'))}</option>
+            <option value="octoprint">OctoPrint</option>
+            <option value="moonraker">Moonraker / Klipper</option>
+            <option value="bambu">Bambu Lab (local network)</option>
+            <option value="prusalink">PrusaLink (Prusa MK4 / XL / Mini+)</option>
+            <option value="duet">Duet / RepRapFirmware</option>
+            <option value="repetier">Repetier-Server</option>
+          </select>
+          <div id="machApiFields" style="display:none; margin-top:8px;">
+            <div class="inline-pair">
+              <div>
+                <label style="margin-top:0;">${escapeHtml(t('mach.api_host'))}</label>
+                <input id="machApiHost" placeholder="192.168.1.50" style="font-size:12.5px;" value="${escapeHtml(draft.printerApi?.host || '')}">
+              </div>
+              <div>
+                <label style="margin-top:0;">${escapeHtml(t('mach.api_port'))}</label>
+                <input id="machApiPort" type="number" placeholder="default" style="font-size:12.5px;" value="${draft.printerApi?.port || ''}">
+              </div>
+            </div>
+            <label style="margin-top:8px;">${escapeHtml(t('mach.api_key'))}</label>
+            <input id="machApiKey" placeholder="API key / token" style="font-size:12.5px;" value="${escapeHtml(draft.printerApi?.apiKey || '')}">
+            <label style="margin-top:8px;">Access code (Bambu)</label>
+            <input id="machApiAccessCode" placeholder="Bambu access code" style="font-size:12.5px;" value="${escapeHtml(draft.printerApi?.accessCode || '')}">
+            <label style="margin-top:8px;">Printer slug (Repetier)</label>
+            <input id="machApiSlug" placeholder="default" style="font-size:12.5px;" value="${escapeHtml(draft.printerApi?.printerSlug || '')}">
+            <div style="display:flex; align-items:center; gap:8px; margin-top:10px;">
+              <button type="button" id="btnTestApi" class="btn small">${escapeHtml(t('mach.api_test'))}</button>
+              <span id="apiTestResult" style="font-size:12px;"></span>
+            </div>
+          </div>
+        </div>
+      </details>`,
     onMount(modal) {
+      if (!draft.downtimeBlocks) draft.downtimeBlocks = [];
+      if (!draft.compatMaterials) draft.compatMaterials = [];
+      if (!draft.nozzle) draft.nozzle = { material: 'brass', installedAt: '', gramsThreshold: 2000, gramsAtInstall: 0 };
+      if (!draft.printerApi) draft.printerApi = { type: 'none', host: '', port: '', apiKey: '', accessCode: '', printerSlug: '' };
       modal.querySelector('#machName').addEventListener('input', e => { draft.name = e.target.value; });
+
+      // Feature 2 (new batch): Printer API section wiring
+      const apiTypeSel = modal.querySelector('#machApiType');
+      const apiFields  = modal.querySelector('#machApiFields');
+      if (apiTypeSel) {
+        apiTypeSel.value = draft.printerApi.type || 'none';
+        const toggleApiFields = () => {
+          if (apiFields) apiFields.style.display = apiTypeSel.value !== 'none' ? 'block' : 'none';
+        };
+        toggleApiFields();
+        apiTypeSel.addEventListener('change', () => {
+          draft.printerApi.type = apiTypeSel.value;
+          toggleApiFields();
+        });
+      }
+      modal.querySelector('#machApiHost')?.addEventListener('input', e => { draft.printerApi.host = e.target.value; });
+      modal.querySelector('#machApiPort')?.addEventListener('input', e => { draft.printerApi.port = e.target.value ? parseInt(e.target.value) : null; });
+      modal.querySelector('#machApiKey')?.addEventListener('input', e => { draft.printerApi.apiKey = e.target.value; });
+      modal.querySelector('#machApiAccessCode')?.addEventListener('input', e => { draft.printerApi.accessCode = e.target.value; });
+      modal.querySelector('#machApiSlug')?.addEventListener('input', e => { draft.printerApi.printerSlug = e.target.value; });
+      modal.querySelector('#btnTestApi')?.addEventListener('click', async () => {
+        const resultEl = modal.querySelector('#apiTestResult');
+        if (resultEl) resultEl.textContent = '…testing';
+        try {
+          if (window.hubAPI?.startPrinterPolling) {
+            const testMachine = { id: draft.id, printerApi: { ...draft.printerApi } };
+            await window.hubAPI.startPrinterPolling([testMachine]);
+            const cache = await window.hubAPI.getPrinterStatus();
+            if (resultEl) {
+              const s = cache[draft.id];
+              if (s?.error) {
+                resultEl.textContent = t('mach.api_fail') + ': ' + s.error;
+                resultEl.style.color = 'var(--danger)';
+              } else if (s) {
+                resultEl.textContent = t('mach.api_ok') + ' — ' + (s.state || '');
+                resultEl.style.color = 'var(--success)';
+              }
+            }
+          }
+        } catch(e) {
+          if (resultEl) { resultEl.textContent = t('mach.api_fail'); resultEl.style.color = 'var(--danger)'; }
+        }
+      });
+
+      // Compat materials checkboxes (Feature 3)
+      const compatEl = modal.querySelector('#machCompatMaterialsSection');
+      if (compatEl) {
+        const COMMON_MATS = ['PLA', 'PETG', 'ABS', 'ASA', 'TPU', 'PA/Nylon', 'PC', 'PVA', 'HIPS', 'Resin'];
+        const allMats = [...new Set([...COMMON_MATS, ...inventory.map(i => i.material).filter(Boolean)])];
+        compatEl.innerHTML = allMats.map(mat => {
+          const checked = draft.compatMaterials.includes(mat);
+          return `<label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;background:var(--surface-2);padding:3px 8px;border-radius:4px;border:1px solid ${checked ? 'var(--primary)' : 'var(--border)'};">
+            <input type="checkbox" class="compat-mat-cb" data-mat="${escapeHtml(mat)}" style="width:auto;margin:0;" ${checked ? 'checked' : ''}>
+            ${escapeHtml(mat)}
+          </label>`;
+        }).join('');
+        compatEl.querySelectorAll('.compat-mat-cb').forEach(cb => {
+          cb.addEventListener('change', () => {
+            const m = cb.dataset.mat;
+            if (cb.checked) { if (!draft.compatMaterials.includes(m)) draft.compatMaterials.push(m); }
+            else { draft.compatMaterials = draft.compatMaterials.filter(x => x !== m); }
+            cb.closest('label').style.borderColor = cb.checked ? 'var(--primary)' : 'var(--border)';
+          });
+        });
+      }
+      // Nozzle field listeners (Feature 4)
+      modal.querySelector('#machNozzleDiameter')?.addEventListener('input', e => { draft.nozzleDiameter = parseFloat(e.target.value) || null; });
+      modal.querySelector('#machExtruderType')?.addEventListener('input', e => { draft.extruderType = e.target.value; });
+      modal.querySelector('#machNozzleMaterial')?.addEventListener('change', e => { draft.nozzle.material = e.target.value; });
+      modal.querySelector('#machNozzleInstalledAt')?.addEventListener('change', e => { draft.nozzle.installedAt = e.target.value; });
+      modal.querySelector('#machNozzleGramsThreshold')?.addEventListener('input', e => { draft.nozzle.gramsThreshold = parseFloat(e.target.value) || 2000; });
+      modal.querySelector('#machNozzleGramsAtInstall')?.addEventListener('input', e => { draft.nozzle.gramsAtInstall = parseFloat(e.target.value) || 0; });
       modal.querySelectorAll('input[name="machColor"]').forEach(radio => {
         radio.addEventListener('change', () => {
           draft.color = radio.value;
@@ -1275,9 +2084,68 @@ function openMachineEditor(machineId = null) {
       modal.querySelector('#machTargetHours').addEventListener('input', e => { draft.targetHoursPerDay = Math.max(0, +e.target.value || 0) || null; });
       modal.querySelector('#machServiceInterval').addEventListener('input', e => { draft.serviceInterval = parseFloat(e.target.value) || 0; });
       modal.querySelector('#machLastServiceHours').addEventListener('input', e => { draft.lastServiceHours = parseFloat(e.target.value) || 0; });
+
+      // Downtime blocks
+      function renderDowntimeList() {
+        const el = modal.querySelector('#downtimeBlocksList');
+        if (!el) return;
+        if (!draft.downtimeBlocks || draft.downtimeBlocks.length === 0) {
+          el.innerHTML = `<div style="color:var(--text-muted);font-size:12.5px;padding:4px 0;">${escapeHtml(t('mach.empty') || 'No downtime blocks.')}</div>`;
+          return;
+        }
+        el.innerHTML = draft.downtimeBlocks.map((b, i) => `
+          <div style="display:grid; grid-template-columns:1fr 1fr auto auto; gap:6px; align-items:center; margin-bottom:6px; font-size:12px;">
+            <input type="datetime-local" class="dt-from" data-dti="${i}" value="${escapeHtml(b.from || '')}" style="font-size:11.5px;">
+            <input type="datetime-local" class="dt-to" data-dti="${i}" value="${escapeHtml(b.to || '')}" style="font-size:11.5px;">
+            <input type="text" class="dt-reason" data-dti="${i}" value="${escapeHtml(b.reason || '')}" placeholder="${escapeHtml(t('mach.downtime_reason'))}" style="font-size:11.5px; min-width:80px;">
+            <button class="btn danger small dt-rm" data-dti="${i}">×</button>
+          </div>`).join('');
+        el.querySelectorAll('.dt-from').forEach(inp => { inp.addEventListener('change', () => { draft.downtimeBlocks[+inp.dataset.dti].from = inp.value; }); });
+        el.querySelectorAll('.dt-to').forEach(inp => { inp.addEventListener('change', () => { draft.downtimeBlocks[+inp.dataset.dti].to = inp.value; }); });
+        el.querySelectorAll('.dt-reason').forEach(inp => { inp.addEventListener('input', () => { draft.downtimeBlocks[+inp.dataset.dti].reason = inp.value; }); });
+        el.querySelectorAll('.dt-rm').forEach(btn => {
+          btn.addEventListener('click', () => { draft.downtimeBlocks.splice(+btn.dataset.dti, 1); renderDowntimeList(); });
+        });
+      }
+      renderDowntimeList();
+      modal.querySelector('#btnAddDowntime').addEventListener('click', () => {
+        if (!draft.downtimeBlocks) draft.downtimeBlocks = [];
+        draft.downtimeBlocks.push({ id: uid('DT'), from: '', to: '', reason: '' });
+        renderDowntimeList();
+      });
     },
     async onSave() {
       if (!draft.name.trim()) { toast(t('mach.need_name'), 'error'); return false; }
+      draft.downtimeBlocks = (draft.downtimeBlocks || []).filter(b => b.from && b.to);
+      // Feature 2 (new batch): Persist printer API config from modal
+      const apiTypeFinal = document.getElementById('machApiType');
+      if (apiTypeFinal) {
+        draft.printerApi = {
+          type:         apiTypeFinal.value || 'none',
+          host:         document.getElementById('machApiHost')?.value.trim() || '',
+          port:         document.getElementById('machApiPort')?.value ? parseInt(document.getElementById('machApiPort').value) : null,
+          apiKey:       document.getElementById('machApiKey')?.value.trim() || '',
+          accessCode:   document.getElementById('machApiAccessCode')?.value.trim() || '',
+          printerSlug:  document.getElementById('machApiSlug')?.value.trim() || '',
+        };
+      }
+      // Persist nozzle/compat fields from form (Feature 3 & 4)
+      const nozzleDiamEl = document.getElementById('machNozzleDiameter');
+      if (nozzleDiamEl) draft.nozzleDiameter = parseFloat(nozzleDiamEl.value) || null;
+      const extruderTypeEl = document.getElementById('machExtruderType');
+      if (extruderTypeEl) draft.extruderType = extruderTypeEl.value.trim() || null;
+      const nozzleMatEl = document.getElementById('machNozzleMaterial');
+      const nozzleInstEl = document.getElementById('machNozzleInstalledAt');
+      const nozzleThreshEl = document.getElementById('machNozzleGramsThreshold');
+      const nozzleAtInstEl = document.getElementById('machNozzleGramsAtInstall');
+      if (nozzleMatEl) {
+        draft.nozzle = {
+          material: nozzleMatEl.value || 'brass',
+          installedAt: nozzleInstEl?.value || '',
+          gramsThreshold: parseFloat(nozzleThreshEl?.value) || 2000,
+          gramsAtInstall: parseFloat(nozzleAtInstEl?.value) || 0,
+        };
+      }
       const idx = machines.findIndex(m => m.id === draft.id);
       if (idx >= 0) machines[idx] = draft;
       else machines.push(draft);
@@ -1285,6 +2153,50 @@ function openMachineEditor(machineId = null) {
       renderMachines();
       renderMachineDropdown();
       toast(t('mach.saved'), 'success');
+      return true;
+    }
+  });
+}
+
+function logNozzleChange(machineId) {
+  const machine = machines.find(m => m.id === machineId);
+  if (!machine) return;
+  const totalGrams = machineGramsSinceNozzle(machine);
+  openFormModal({
+    title: `${machine.name} — ${t('mach.log_nozzle')}`,
+    sizeLg: false,
+    saveLabel: t('common.save'),
+    bodyHtml: `
+      <label>${escapeHtml(t('mach.nozzle_material'))}</label>
+      <select id="nlNozzleMat" style="margin-bottom:10px;">
+        <option value="brass">${escapeHtml(t('mach.nozzle_brass'))}</option>
+        <option value="hardened">${escapeHtml(t('mach.nozzle_hardened'))}</option>
+        <option value="ruby">${escapeHtml(t('mach.nozzle_ruby'))}</option>
+        <option value="stainless">Stainless</option>
+        <option value="other">Other</option>
+      </select>
+      <label>${escapeHtml(t('mach.nozzle_installed'))}</label>
+      <input type="date" id="nlInstalledAt" value="${new Date().toISOString().split('T')[0]}">
+      <label style="margin-top:10px;">${escapeHtml(t('mach.nozzle_threshold'))}</label>
+      <input type="number" id="nlThreshold" value="${machine.nozzle?.gramsThreshold || 2000}" min="0" step="100">
+      <p style="font-size:12px;color:var(--text-muted);margin-top:8px;">
+        Lifetime grams at install: <strong>${totalGrams.toFixed(0)}g</strong>
+      </p>`,
+    async onSave(modal) {
+      const mat       = modal.querySelector('#nlNozzleMat').value;
+      const installed = modal.querySelector('#nlInstalledAt').value;
+      const threshold = parseFloat(modal.querySelector('#nlThreshold').value) || 2000;
+      const idx = machines.findIndex(m => m.id === machineId);
+      if (idx < 0) return false;
+      machines[idx].nozzle = {
+        material: mat,
+        installedAt: installed,
+        gramsThreshold: threshold,
+        gramsAtInstall: totalGrams,
+      };
+      saveAll();
+      renderMachines();
+      toast(t('mach.nozzle_done'), 'success');
       return true;
     }
   });
@@ -1623,7 +2535,7 @@ function populateFilamentDropdown() {
   const previous = select.value;
   select.innerHTML = inventory.map(item => `
     <option value="${item.id}" data-cost="${item.cost}" data-weight="${item.weight}" data-color="${escapeHtml(item.color || '#888888')}">
-      ${escapeHtml(item.material)}${item.weight <= settings.lowStockThreshold ? '  ⚠' : ''}
+      ${escapeHtml(item.material)}${item.weight <= (item.reorderPoint ?? settings.lowStockThreshold) ? '  ⚠' : ''}
     </option>`).join('');
   if (inventory.find(i => i.id === previous)) {
     select.value = previous;
@@ -1670,6 +2582,15 @@ function handleFilamentChange() {
 
   // Feature 3: Populate spool picker if visible
   updateSpoolPicker();
+
+  // Feature 5 (colour library): populate datalist for part colour field
+  const colourDL = $('#partColourList');
+  if (colourDL) {
+    const item = $('#filamentSelect').value ? inventory.find(i => i.id === $('#filamentSelect').value) : null;
+    const matKey = item ? item.material : null;
+    const colours = matKey ? (settings.filamentColours?.[matKey] || []) : [];
+    colourDL.innerHTML = colours.map(c => `<option value="${escapeHtml(c)}">`).join('');
+  }
 }
 
 function updateSpoolPicker() {
@@ -2348,6 +3269,8 @@ function openInventoryEditor(id) {
       </div>
     </div>` : '';
 
+  const existingColours = (settings.filamentColours || {})[item.material] || [];
+
   const bodyHtml = `
     <div class="inline-pair" style="align-items:end;">
       <div>
@@ -2355,13 +3278,28 @@ function openInventoryEditor(id) {
         <input type="text" id="ieMatInput" value="${escapeHtml(item.material)}" placeholder="${escapeHtml(t('inv.material_ph'))}">
       </div>
       <div>
+        <label>${escapeHtml(t('inv.material_type'))}</label>
+        <select id="ieMaterialType">
+          <option value="fdm"${(item.materialType || 'fdm') === 'fdm' ? ' selected' : ''}>${escapeHtml(t('inv.type_fdm'))}</option>
+          <option value="resin"${item.materialType === 'resin' ? ' selected' : ''}>${escapeHtml(t('inv.type_resin'))}</option>
+          <option value="other"${item.materialType === 'other' ? ' selected' : ''}>${escapeHtml(t('inv.type_other'))}</option>
+        </select>
+      </div>
+    </div>
+    <div class="inline-pair" style="align-items:end; margin-top:14px;">
+      <div>
+        <label>${escapeHtml(t('inv.colour_variant'))}</label>
+        <input type="text" id="ieColourInput" list="ieColourDL" value="${escapeHtml(item.colourVariant || '')}" placeholder="${escapeHtml(t('inv.colour_variant_ph'))}">
+        <datalist id="ieColourDL">${existingColours.map(c => `<option value="${escapeHtml(c)}">`).join('')}</datalist>
+      </div>
+      <div>
         <label>${escapeHtml(t('inv.color'))}</label>
         <input type="color" id="ieColorInput" value="${escapeHtml(item.color || '#888888')}" style="width:100%; height:38px; padding:3px 4px; border-radius:var(--radius-sm); border:1px solid var(--border); cursor:pointer; background:var(--bg-elev);">
       </div>
     </div>
-    <label style="margin-top:14px;">${escapeHtml(t('inv.cost'))}</label>
+    <label style="margin-top:14px;" id="ieCostLabel">${escapeHtml(t('inv.cost'))}</label>
     <input type="number" id="ieCostInput" value="${item.cost}" min="0" step="0.01">
-    <label style="margin-top:14px;">${escapeHtml(t('inv.remaining'))}</label>
+    <label style="margin-top:14px;" id="ieWeightLabel">${escapeHtml(t(item.materialType === 'resin' ? 'inv.volume_ml' : 'inv.remaining'))}</label>
     <input type="number" id="ieWeightInput" value="${Math.round(item.weight)}" min="0" step="1">
     <div class="inline-pair" style="margin-top:14px;">
       <div>
@@ -2371,6 +3309,16 @@ function openInventoryEditor(id) {
       <div>
         <label style="margin-top:0;">${escapeHtml(t('inv.opened_on'))}</label>
         <input type="date" id="ieOpenedAt" value="${escapeHtml(item.openedAt || '')}">
+      </div>
+    </div>
+    <div class="inline-pair" style="margin-top:14px;">
+      <div>
+        <label style="margin-top:0;">${escapeHtml(t('inv.reorder_point'))}</label>
+        <input type="number" id="ieReorderPoint" value="${item.reorderPoint ?? 200}" min="0" step="1" placeholder="200">
+      </div>
+      <div>
+        <label style="margin-top:0;">${escapeHtml(t('inv.reorder_qty'))}</label>
+        <input type="number" id="ieReorderQty" value="${item.reorderQty ?? 1000}" min="0" step="1" placeholder="1000">
       </div>
     </div>
     <div style="margin-top:14px; padding:10px 12px; background:rgba(255,255,255,0.04); border-radius:var(--radius-sm); border:1px solid var(--border-soft);">
@@ -2402,6 +3350,18 @@ function openInventoryEditor(id) {
       if (!material) { toast(t('inv.material_ph'), 'error'); return false; }
       item.material = material;
       item.color    = document.getElementById('ieColorInput').value || '#888888';
+      // Feature 7: Material type
+      item.materialType = document.getElementById('ieMaterialType')?.value || 'fdm';
+      // Feature 5: Colour variant — save to item and to settings.filamentColours library
+      const colourVariant = (document.getElementById('ieColourInput')?.value || '').trim();
+      item.colourVariant = colourVariant || undefined;
+      if (colourVariant) {
+        if (!settings.filamentColours) settings.filamentColours = {};
+        if (!settings.filamentColours[material]) settings.filamentColours[material] = [];
+        if (!settings.filamentColours[material].includes(colourVariant)) {
+          settings.filamentColours[material].push(colourVariant);
+        }
+      }
       const newCost = clampPositive(document.getElementById('ieCostInput').value);
       // Track price history when cost changes
       if (newCost !== item.cost) {
@@ -2419,11 +3379,64 @@ function openInventoryEditor(id) {
       item.printTemp = pt > 0 ? pt : undefined;
       item.bedTemp   = bt > 0 ? bt : undefined;
       item.maxSpeed  = ms > 0 ? ms : undefined;
+      // New Feature 5: Per-spool reorder thresholds
+      const rp = num(document.getElementById('ieReorderPoint')?.value, 200);
+      const rq = num(document.getElementById('ieReorderQty')?.value, 1000);
+      item.reorderPoint = rp >= 0 ? rp : 200;
+      item.reorderQty   = rq >= 0 ? rq : 1000;
       saveAll();
       renderInventory();
       toast(t('inv.updated'), 'success');
       return true;
     }
+  });
+}
+
+/* New Feature 6: Price history modal */
+function openPriceHistory(itemId) {
+  const item = inventory.find(i => i.id === itemId);
+  if (!item) return;
+  const history = (item.priceHistory || []).slice().reverse(); // newest first
+  if (history.length === 0) {
+    toast(t('inv.price_hist_empty'), 'info');
+    return;
+  }
+  const rows = history.map((h, i) => {
+    const prev = history[i + 1];
+    let changePct = '';
+    if (prev && prev.cost > 0) {
+      const diff = ((h.cost - prev.cost) / prev.cost * 100).toFixed(1);
+      const arrow = +diff > 0 ? '▲' : (+diff < 0 ? '▼' : '—');
+      const color = +diff > 0 ? 'var(--danger)' : (+diff < 0 ? 'var(--success)' : 'var(--text-muted)');
+      changePct = `<span style="color:${color}; font-weight:600;">${arrow} ${Math.abs(+diff)}%</span>`;
+    }
+    return `<tr>
+      <td style="font-size:12px; color:var(--text-muted);">${escapeHtml(h.date || '')}</td>
+      <td style="font-weight:600;">${fmtPrice(h.cost)}</td>
+      <td>${changePct}</td>
+    </tr>`;
+  });
+  // Add current cost as the most recent entry
+  const currentRow = `<tr style="background:rgba(91,156,240,0.08);">
+    <td style="font-size:12px; color:var(--primary); font-weight:600;">${escapeHtml(t('inv.current_stock'))}</td>
+    <td style="font-weight:700; color:var(--primary);">${fmtPrice(item.cost)}</td>
+    <td></td>
+  </tr>`;
+
+  openFormModal({
+    title: `${t('inv.price_history')} — ${escapeHtml(item.material)}`,
+    noSave: true,
+    bodyHtml: `
+      <div class="table-wrap">
+        <table class="price-history-table">
+          <thead><tr>
+            <th>${escapeHtml(t('common.date'))}</th>
+            <th>${escapeHtml(t('inv.cost'))}</th>
+            <th>${escapeHtml(t('inv.price_change'))}</th>
+          </tr></thead>
+          <tbody>${currentRow}${rows.join('')}</tbody>
+        </table>
+      </div>`,
   });
 }
 
@@ -2488,7 +3501,7 @@ function renderInventory() {
   } else {
     const todayMs = Date.now();
     tbody.innerHTML = inventory.map(item => {
-      const low = item.weight <= settings.lowStockThreshold;
+      const low = item.weight <= (item.reorderPoint ?? settings.lowStockThreshold);
       const queued = Math.round(getQueuedWeight(item.id));
       const warn   = queued > 0 && queued > item.weight;
       // Spool age badge
@@ -2515,17 +3528,21 @@ function renderInventory() {
       const testBadge = spoolTestCount > 0
         ? ` <span style="font-size:10px;color:var(--primary);">🧪 ${spoolTestCount}</span>`
         : '';
+      const isResin = item.materialType === 'resin';
+      const weightUnit = isResin ? 'mL' : escapeHtml(t('common.grams'));
+      const resinBadge = isResin ? ` <span class="resin-badge">${escapeHtml(t('inv.type_resin'))}</span>` : '';
+      const colourChip = item.colourVariant ? ` <span class="variant-chip">${escapeHtml(item.colourVariant)}</span>` : '';
       return `
         <tr${low ? ' style="background: rgba(245,166,35,0.08);"' : ''}>
           <td style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:${escapeHtml(item.color || '#888888')}; flex-shrink:0; border:1px solid rgba(255,255,255,0.15);"></span>
-            <strong>${escapeHtml(item.material)}</strong>${low ? ' <span style="color:var(--warning); font-size:11px;">· low</span>' : ''}${ageBadge}${reservedBadge}${overcommitBadge}${testBadge}
+            <strong>${escapeHtml(item.material)}</strong>${low ? ' <span style="color:var(--warning); font-size:11px;">· low</span>' : ''}${resinBadge}${colourChip}${ageBadge}${reservedBadge}${overcommitBadge}${testBadge}
             ${item.printTemp || item.bedTemp ? `<span style="font-size:10px; color:var(--primary);">🌡 ${item.printTemp ? item.printTemp + '°C print' : ''}${item.printTemp && item.bedTemp ? ' / ' : ''}${item.bedTemp ? item.bedTemp + '°C bed' : ''}</span>` : ''}
           </td>
           <td style="font-variant-numeric: tabular-nums;">${fmtPrice(item.cost)}</td>
-          <td style="font-variant-numeric: tabular-nums;">${Math.round(item.weight)} ${escapeHtml(t('common.grams'))}</td>
+          <td style="font-variant-numeric: tabular-nums;">${Math.round(item.weight)} ${weightUnit}</td>
           <td style="font-variant-numeric: tabular-nums; color:${queued > 0 ? (warn ? 'var(--danger)' : 'var(--text-dim)') : 'var(--text-muted)'};">
-            ${queued > 0 ? Math.round(queued) + ' ' + escapeHtml(t('common.grams')) : '—'}${warn ? ' <span style="color:var(--danger); font-size:11px;">⚠</span>' : ''}
+            ${queued > 0 ? Math.round(queued) + ' ' + weightUnit : '—'}${warn ? ' <span style="color:var(--danger); font-size:11px;">⚠</span>' : ''}
           </td>
           <td style="white-space:nowrap;">
             ${(() => {
@@ -2548,6 +3565,7 @@ function renderInventory() {
             <button class="btn small ghost" data-act="inv-dry-log" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.dry_log'))}">🌡</button>
             <button class="btn small ghost" data-act="inv-spool-history" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.spool_history'))}">📋</button>
             <button class="btn small ghost" data-act="adj-inv" data-id="${item.id}" style="margin-inline-end:4px;">${escapeHtml(t('inv.adjust'))}</button>
+            ${(item.priceHistory && item.priceHistory.length > 0) ? `<button class="btn small ghost" data-act="inv-price-history" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.price_history'))}">📈</button>` : ''}
             <button class="btn small" data-act="edit-inv" data-id="${item.id}" style="margin-inline-end:4px;">${escapeHtml(t('common.edit'))}</button>
             <button class="btn danger small" data-act="del-inv" data-id="${item.id}">${escapeHtml(t('common.delete'))}</button>
           </td>
@@ -2885,7 +3903,7 @@ function deductFilamentForOrder(order) {
     item.usageHistory.unshift({ orderId: order.id, project: order.project || '', weightUsed: +part.printWeight, date: today });
     deductedAny = true;
     toast(t('inv.deducted', { material: item.material, weight: Math.round(part.printWeight) }), 'info', 2200);
-    if (item.weight <= settings.lowStockThreshold) {
+    if (item.weight <= (item.reorderPoint ?? settings.lowStockThreshold)) {
       toast(t('inv.low_stock', { material: item.material, weight: Math.round(item.weight) }), 'error', 3800);
     }
   }
@@ -3716,6 +4734,11 @@ function renderClients() {
     const stats = clientStatsMap.get(c.id) || { count: 0, completedCount: 0, revenue: 0, lastDate: null };
     const displayName = localName(c);
     const altName     = i18n.current === 'ar' ? c.nameEn : c.nameAr;
+    const balance = clientOutstandingBalance(c.id);
+    const isOverLimit = (c.creditLimit > 0) && (balance > c.creditLimit);
+    // Feature 8 (new 8-pack): Loyalty tier badge
+    const tier = getClientTier(c.id);
+    const tierHtml = tier ? `<span class="loyalty-tier-badge tier-${tier.name.toLowerCase().replace(/\s+/g,'')}">${escapeHtml(tier.name)}</span>` : '';
     return `
       <tr>
         <td>
@@ -3726,6 +4749,8 @@ function renderClients() {
               ${c.recurring?.enabled ? `<span class="rec-badge">${escapeHtml(t('rec.badge.' + (c.recurring.interval || 'monthly')))}</span>` : ''}
               ${c.currency && c.currency !== (settings.currency || 'SAR') ? `<span class="currency-badge">${escapeHtml(c.currency)}</span>` : ''}
               ${(c.addresses && c.addresses.length > 0) ? `<span style="font-size:10px; color:var(--primary); margin-inline-start:4px;">📍 ${c.addresses.length}</span>` : ''}
+              ${isOverLimit ? `<span class="machine-jobs-badge" style="background:var(--danger);color:#fff;font-size:10px;">⚠ ${escapeHtml(t('cl.over_limit'))}</span>` : ''}
+              ${tierHtml}
               ${altName ? `<div style="font-size:11.5px; color:var(--text-muted);">${escapeHtml(altName)}</div>` : ''}
             </div>
           </div>
@@ -3929,6 +4954,7 @@ function openClientHistory(clientId) {
       <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border-soft); display:flex; gap:8px; flex-wrap:wrap;">
         <button class="btn small primary" id="btnPrintStatement">${escapeHtml(t('cl.print_statement'))}</button>
         <button class="btn small ghost" id="btnExportClientInvoices">${escapeHtml(t('cl.export_all_invoices'))}</button>
+        <button class="btn small ghost" id="btnExportClientPortal">🌐 ${escapeHtml(t('cl.portal_export'))}</button>
       </div>`,
     onMount(modal) {
       modal.querySelector('#btnPrintStatement')?.addEventListener('click', () => {
@@ -3936,6 +4962,9 @@ function openClientHistory(clientId) {
       });
       modal.querySelector('#btnExportClientInvoices')?.addEventListener('click', () => {
         exportClientInvoices(clientId);
+      });
+      modal.querySelector('#btnExportClientPortal')?.addEventListener('click', () => {
+        exportClientPortal(clientId);
       });
     },
     onSave() { quoteForClient(clientId); return true; }
@@ -4151,6 +5180,14 @@ function openClientEditor(clientId = null) {
       <p style="font-size:11.5px;color:var(--text-muted);margin:3px 0 0;">${escapeHtml(t('ce.currency_hint'))}</p>
     </div>
 
+    <div style="margin-top:14px; display:flex; align-items:center; gap:12px;">
+      <div style="flex:1;">
+        <label style="margin-top:0;">${escapeHtml(t('ce.credit_limit'))} (${currencySymbol()})</label>
+        <input type="number" id="ceCreditLimit" min="0" step="1" value="${draft.creditLimit || 0}" placeholder="0">
+      </div>
+      <div style="flex:2; padding-top:20px; font-size:12px; color:var(--text-muted);">${escapeHtml(t('ce.credit_limit_hint'))}</div>
+    </div>
+
     <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border-soft);">
       <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
         <label style="margin:0; flex:1; font-size:12.5px; font-weight:600;">${escapeHtml(t('ce.price_list'))}</label>
@@ -4306,6 +5343,7 @@ function openClientEditor(clientId = null) {
         nextDue:  modal.querySelector('#recNextDue').value || null,
       };
       draft.currency = modal.querySelector('#ceCurrency')?.value || null;
+      draft.creditLimit = Math.max(0, num(modal.querySelector('#ceCreditLimit')?.value, 0)) || 0;
       draft.priceList = (draft.priceList || []).filter(pl => pl.product.trim() || pl.price > 0);
       draft.addresses = (draft.addresses || []).filter(a => a.label.trim() || a.address.trim());
       const idx = clients.findIndex(c => c.id === draft.id);
@@ -4588,21 +5626,49 @@ function promptActuals(order, onConfirm) {
 function updateStatus(id, newStatus) {
   const order = printLog.find(o => o.id === id);
   if (!order) return;
+  // Feature 8 (this batch): Block new prints when production is paused
+  if (settings.productionPaused && newStatus === 'printing') {
+    toast(t('prod.paused_block'), 'warning');
+    return;
+  }
   if (newStatus === 'completed') {
     promptActuals(order, () => {
+      // Feature 8 (new 8-pack): Check loyalty tier upgrade BEFORE marking complete
+      const prevTier = order.clientId ? getClientTier(order.clientId) : null;
       order.status = 'completed';
       if (!order.completedAt) order.completedAt = new Date().toISOString();
       deductFilamentForOrder(order);
       deductPackagingConsumables(order);
       saveAll();
+      // Check if client reached a new tier
+      const newTier = order.clientId ? getClientTier(order.clientId) : null;
+      if (newTier && (!prevTier || prevTier.name !== newTier.name)) {
+        const client = clients.find(c => c.id === order.clientId);
+        const cName = client ? localName(client) : '';
+        toast(`${cName ? cName + ' ' : ''}${t('cl.new_tier') || 'reached'} ${newTier.name} tier! 🎉`, 'success', 5000);
+      }
       renderKanban(); renderLogs(); renderAnalytics(); renderDashboard();
       toast(t('toast.status_updated'), 'success');
+      // Feature 8: Auto-export status page
+      if (order.clientId) autoExportStatusPage(order);
     });
     return;
   }
   order.status = newStatus;
   if (!order.statusHistory) order.statusHistory = [];
   order.statusHistory.push({ status: newStatus, at: new Date().toISOString() });
+  // Feature 3 (new batch): Detect resin orders entering post-processing
+  if (newStatus === 'post') {
+    const invItem = inventory.find(i => i.id === order.filamentId || (order.parts || []).some(p => p.filamentId === i.id));
+    if (invItem && invItem.materialType === 'resin') {
+      order.isResin = true;
+      if (!order.resinPost) {
+        order.resinPost = { washDurationMins: null, washIpaVolumeMl: null, cureDurationMins: null, curePowerW: null, inspectionNotes: '', completedAt: null };
+      }
+    }
+  }
+  // Feature 2 (this batch): QC gate — automatically redirect 'post' → 'qc' when we see it
+  // (The 'qc' status is set directly by qc-pass / qc-fail handlers)
   // Live timer: record when printing starts, clear when it ends
   if (newStatus === 'printing') {
     order.timerStart = new Date().toISOString();
@@ -4618,6 +5684,10 @@ function updateStatus(id, newStatus) {
   saveAll();
   renderKanban(); renderLogs(); renderAnalytics();
   toast(t('toast.status_updated'), 'success');
+  // Feature 8: Auto-export status page
+  if (order.clientId) autoExportStatusPage(order);
+  // Feature 5 (new batch): Auto-send email notification
+  autoSendEmailNotification(order, newStatus);
 }
 
 function holdOrder(id) {
@@ -4645,6 +5715,149 @@ function holdOrder(id) {
       return true;
     }
   });
+}
+
+/* ============================================================
+   Feature 2 (this batch): QC pass / fail handlers
+   ============================================================ */
+function qcPassOrder(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+  openFormModal({
+    title: t('ord.qc_pass'),
+    sizeLg: false,
+    saveLabel: t('ord.qc_pass'),
+    bodyHtml: `
+      <label>${escapeHtml(t('ord.qc_notes'))}</label>
+      <textarea id="qcNotesInput" rows="3" style="resize:vertical;" placeholder="${escapeHtml(t('common.optional'))}"></textarea>`,
+    onMount(modal) { setTimeout(() => modal.querySelector('#qcNotesInput')?.focus(), 40); },
+    onSave(modal) {
+      const notes = modal.querySelector('#qcNotesInput').value.trim();
+      order.status = 'completed';
+      order.qcNotes = notes || null;
+      order.qcPassedAt = new Date().toISOString();
+      if (!order.completedAt) order.completedAt = new Date().toISOString();
+      if (!order.statusHistory) order.statusHistory = [];
+      order.statusHistory.push({ status: 'completed', at: new Date().toISOString() });
+      deductFilamentForOrder(order);
+      deductPackagingConsumables(order);
+      saveAll();
+      renderKanban(); renderLogs(); renderAnalytics(); renderDashboard();
+      toast(t('ord.qc_passed'), 'success');
+      if (order.clientId) autoExportStatusPage(order);
+      return true;
+    }
+  });
+}
+
+function qcFailOrder(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+  openFormModal({
+    title: t('ord.qc_fail'),
+    sizeLg: false,
+    saveLabel: t('ord.qc_fail'),
+    bodyHtml: `
+      <label>${escapeHtml(t('waste.reason'))}</label>
+      <input type="text" id="qcFailReason" placeholder="${escapeHtml(t('waste.reason_ph'))}" style="width:100%;">
+      <label style="margin-top:12px;">${escapeHtml(t('waste.weight'))} (g)</label>
+      <input type="number" id="qcFailWeight" min="0" step="1" value="" placeholder="0">`,
+    onMount(modal) { setTimeout(() => modal.querySelector('#qcFailReason')?.focus(), 40); },
+    onSave(modal) {
+      const reason = modal.querySelector('#qcFailReason').value.trim();
+      const weight = Math.max(0, num(modal.querySelector('#qcFailWeight').value, 0));
+      // Auto-create waste entry
+      wasteLog.unshift({
+        id: uid('WASTE'),
+        date: new Date().toISOString().split('T')[0],
+        material: order.material || '',
+        weight: weight || 0,
+        cost: weight > 0 ? (() => {
+          const inv = inventory.find(i => i.material === order.material);
+          return inv ? (inv.cost / inv.weight) * weight : 0;
+        })() : 0,
+        reason: reason || t('ord.qc_fail'),
+        orderId: order.id,
+        failureType: 'other',
+      });
+      // Requeue order for reprint
+      order.status = 'pending';
+      order.qcFailedAt = new Date().toISOString();
+      if (!order.statusHistory) order.statusHistory = [];
+      order.statusHistory.push({ status: 'pending', at: new Date().toISOString(), note: 'QC failed' });
+      saveAll();
+      renderKanban(); renderLogs();
+      toast(t('ord.qc_failed_requeue'), 'warning');
+      return true;
+    }
+  });
+}
+
+/* ============================================================
+   Feature 3 (new batch): Resin post-processing handlers
+   ============================================================ */
+function resinLogWash(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+  if (!order.resinPost) order.resinPost = {};
+  openFormModal({
+    title: t('resin.wash'),
+    sizeLg: false,
+    saveLabel: t('common.save'),
+    bodyHtml: `
+      <label>${escapeHtml(t('resin.wash_duration'))}</label>
+      <input type="number" id="resinWashMins" value="${order.resinPost.washDurationMins || ''}" min="0" step="1" placeholder="15">
+      <label style="margin-top:12px;">${escapeHtml(t('resin.wash_volume'))}</label>
+      <input type="number" id="resinWashVol" value="${order.resinPost.washIpaVolumeMl || ''}" min="0" step="10" placeholder="500">`,
+    onSave(modal) {
+      const mins = Math.max(0, num(modal.querySelector('#resinWashMins').value, 0));
+      const vol  = Math.max(0, num(modal.querySelector('#resinWashVol').value, 0));
+      order.resinPost.washDurationMins = mins || null;
+      order.resinPost.washIpaVolumeMl  = vol  || null;
+      // Deduct IPA from consumables if tracked
+      if (vol > 0) {
+        const ipa = consumables.find(c => c.name && /ipa|isopropyl/i.test(c.name));
+        if (ipa && (ipa.stock || 0) > 0) {
+          ipa.stock = Math.max(0, (ipa.stock || 0) - vol);
+        }
+      }
+      saveAll();
+      renderKanban();
+      toast(t('resin.wash') + ' ✓', 'success');
+      return true;
+    }
+  });
+}
+
+function resinLogCure(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+  if (!order.resinPost) order.resinPost = {};
+  openFormModal({
+    title: t('resin.cure'),
+    sizeLg: false,
+    saveLabel: t('common.save'),
+    bodyHtml: `
+      <label>${escapeHtml(t('resin.cure_duration'))}</label>
+      <input type="number" id="resinCureMins" value="${order.resinPost.cureDurationMins || ''}" min="0" step="1" placeholder="3">
+      <label style="margin-top:12px;">${escapeHtml(t('resin.cure_power'))}</label>
+      <input type="number" id="resinCurePow" value="${order.resinPost.curePowerW || ''}" min="0" step="1" placeholder="60">`,
+    onSave(modal) {
+      order.resinPost.cureDurationMins = Math.max(0, num(modal.querySelector('#resinCureMins').value, 0)) || null;
+      order.resinPost.curePowerW       = Math.max(0, num(modal.querySelector('#resinCurePow').value, 0)) || null;
+      saveAll();
+      renderKanban();
+      toast(t('resin.cure') + ' ✓', 'success');
+      return true;
+    }
+  });
+}
+
+function resinCompletePost(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+  if (order.resinPost) order.resinPost.completedAt = new Date().toISOString();
+  updateStatus(orderId, 'qc');
 }
 
 async function deleteLog(id) {
@@ -4782,6 +5995,7 @@ function openOrderEditor(orderId) {
     tags: (order.tags || []).slice(),
     dueDate: order.dueDate || '',
     priority: !!order.priority,
+    priorityLevel: order.priorityLevel || (order.priority ? 'high' : 'normal'),
     discountPct: order.discountPct || 0,
     shippingCost: order.shippingCost || 0,
     extraLines: (order.extraLines || []).map(l => ({ ...l })),
@@ -4791,6 +6005,7 @@ function openOrderEditor(orderId) {
     trackingNumber: order.trackingNumber || '',
     deliveryAddress: order.deliveryAddress || '',
     instalments: (order.instalments || []).map(ins => ({ ...ins })),
+    operatorId: order.operatorId || '',
   };
   const pendingFileDeletes = [];
   // newly-uploaded photos to flush to disk on save (full data URLs)
@@ -4808,10 +6023,33 @@ function openOrderEditor(orderId) {
   };
 
   const bodyHtml = `
-    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-top:0;">
-      <input type="checkbox" data-f="priority" style="width:auto; margin:0;"${draft.priority ? ' checked' : ''}>
-      <span>${escapeHtml(t('oe.priority'))}</span>
-    </label>
+    <div style="display:flex; align-items:center; gap:12px; margin-top:0; margin-bottom:8px;">
+      <label style="margin:0; font-size:13px; white-space:nowrap;">${escapeHtml(t('oe.priority'))}</label>
+      <select data-f="priorityLevel" style="flex:1; max-width:160px;">
+        <option value="normal"${draft.priorityLevel === 'normal' ? ' selected' : ''}>${escapeHtml(t('common.none') || 'Normal')}</option>
+        <option value="high"${draft.priorityLevel === 'high' ? ' selected' : ''}>${escapeHtml(t('ord.priority_high'))}</option>
+        <option value="urgent"${draft.priorityLevel === 'urgent' ? ' selected' : ''}>${escapeHtml(t('ord.priority_urgent'))}</option>
+      </select>
+    </div>
+    ${operators.length > 0 ? `
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+      <label style="margin:0; font-size:13px; white-space:nowrap;">${escapeHtml(t('op.assigned'))}</label>
+      <select id="oeOperator" style="flex:1; max-width:220px;">
+        <option value="">${escapeHtml(t('op.unassigned'))}</option>
+        ${operators.filter(o => o.active !== false).map(o => `<option value="${o.id}"${draft.operatorId === o.id ? ' selected' : ''}>${escapeHtml(o.name)}${o.role ? ' · ' + escapeHtml(o.role) : ''}</option>`).join('')}
+      </select>
+    </div>` : ''}
+    ${(() => {
+      // Feature 3: Material compatibility check
+      if (!order.machineId || !order.material) return '';
+      const mach = machines.find(m => m.id === order.machineId);
+      if (!mach || !mach.compatMaterials || mach.compatMaterials.length === 0) return '';
+      const isCompat = mach.compatMaterials.some(m => order.material.toLowerCase().includes(m.toLowerCase()));
+      if (isCompat) return '';
+      return `<div style="background:rgba(245,166,35,0.12);border:1px solid rgba(245,166,35,0.4);border-radius:6px;padding:8px 12px;font-size:12.5px;color:var(--warning);margin-bottom:8px;">
+        ⚠ ${escapeHtml(order.material)} ${escapeHtml(t('mach.compat_warn'))} <em>${escapeHtml(mach.name)}</em> (supports: ${escapeHtml(mach.compatMaterials.join(', '))})
+      </div>`;
+    })()}
     <label style="margin-top:14px;">${escapeHtml(t('oe.due_date'))}</label>
     <input type="date" data-f="dueDate" value="${escapeHtml(draft.dueDate)}" style="max-width:180px;">
 
@@ -4839,6 +6077,17 @@ function openOrderEditor(orderId) {
     <label style="margin-top:10px;">${escapeHtml(t('oe.delivery_address'))}</label>
     <textarea data-f="deliveryAddress" rows="2" style="resize:vertical; min-height:48px;" placeholder="…">${escapeHtml(draft.deliveryAddress)}</textarea>
 
+    ${(() => {
+      // Feature 8 (new 8-pack): Loyalty tier auto-discount
+      if (!order.clientId || !settings.loyaltyEnabled) return '';
+      const tier = getClientTier(order.clientId);
+      if (!tier || !tier.discountPct) return '';
+      return `<div style="padding:8px 12px;background:rgba(43,182,115,0.1);border:1px solid rgba(43,182,115,0.3);border-radius:6px;font-size:12.5px;margin-top:10px;">
+        <span class="loyalty-tier-badge tier-${tier.name.toLowerCase().replace(/\s+/g,'')}">${escapeHtml(tier.name)}</span>
+        ${escapeHtml(t('oe.tier_discount') || 'Loyalty discount applied')}: <strong>${tier.discountPct}%</strong>
+        <button type="button" id="btnApplyTierDiscount" class="btn small" style="margin-inline-start:8px;">Apply ${tier.discountPct}% discount</button>
+      </div>`;
+    })()}
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:18px;">
       <div>
         <label style="margin-top:0;">${escapeHtml(t('oe.discount_pct'))} (%)</label>
@@ -4881,6 +6130,15 @@ function openOrderEditor(orderId) {
       <div id="attachedFilesList">${renderAttachedFiles(draft.attachedFiles || [])}</div>
     </div>
 
+    <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--border-soft);">
+      <label style="margin-top:0; display:flex; align-items:center; justify-content:space-between;">
+        <span>${escapeHtml(t('ord.vault_files'))}</span>
+        ${window.hubAPI?.pickFile ? `<button id="btnAddVaultFile" class="btn small" type="button">📁 ${escapeHtml(t('ord.vault_add'))}</button>` : ''}
+      </label>
+      <div id="vaultFilesList"></div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">${escapeHtml(t('ord.status_page_path'))}: userData/status-pages/${escapeHtml(order.id)}.html</div>
+    </div>
+
     ${(() => {
       const hist = order.statusHistory || [];
       if (hist.length === 0) return '';
@@ -4921,7 +6179,37 @@ function openOrderEditor(orderId) {
       <div id="oeInstalmentList"></div>
     </div>
 
+    ${(order.parts && order.parts.length > 0) ? `
+    <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--border-soft);">
+      <label style="margin-top:0; font-weight:600;">${escapeHtml(t('ord.parts_colours'))}</label>
+      <p style="font-size:11.5px;color:var(--text-muted);margin:2px 0 8px;">${escapeHtml(t('ord.parts_colours_hint'))}</p>
+      <div id="oePartsColourList">
+        ${order.parts.map((p, i) => `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+          <span style="font-size:12.5px;color:var(--text-dim);min-width:120px;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(p.name || ('Part ' + (i+1)))}</span>
+          <input type="text" class="oe-part-colour" data-pi="${i}" list="oePartColourDL"
+            value="${escapeHtml(p.colour || '')}"
+            placeholder="${escapeHtml(t('ord.part_colour'))}"
+            style="flex:1;">
+        </div>`).join('')}
+      </div>
+      <datalist id="oePartColourDL">
+        ${[...new Set(Object.values(settings.filamentColours || {}).flat())].map(c => `<option value="${escapeHtml(c)}">`).join('')}
+      </datalist>
+    </div>` : ''}
+
     ${buildProfitabilityHtml(order)}
+
+    <div class="pro-only" style="margin-top:18px; padding-top:14px; border-top:1px solid var(--border-soft);">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+        <label style="margin:0; flex:1; font-size:12.5px; font-weight:600;">${escapeHtml(t('ord.milestone_invoices'))}${(order.milestoneInvoices && order.milestoneInvoices.length > 0) ? ` <span style="font-size:11px;color:var(--primary);">(${order.milestoneInvoices.length})</span>` : ''}</label>
+        <button class="btn ghost small" id="oeOpenMilestones" type="button" data-act="milestone-invoices" data-id="${escapeHtml(order.id)}">${escapeHtml(t('ord.milestone_manage'))}</button>
+      </div>
+      ${(order.milestoneInvoices || []).length > 0 ? `
+      <div style="font-size:12px;color:var(--text-muted);">
+        ${order.milestoneInvoices.map(m => `<div style="padding:4px 0; border-bottom:1px solid var(--border-soft);">${escapeHtml(m.label || '')} — ${fmtPrice(m.amount || 0)}${m.paidAt ? ' ✓' : ''}</div>`).join('')}
+      </div>` : `<p style="font-size:12px;color:var(--text-muted);margin:0;">${escapeHtml(t('ord.no_milestones'))}</p>`}
+    </div>
 
     ${(settings.customFields || []).length > 0 ? `
     <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--border-soft);">
@@ -4939,8 +6227,10 @@ function openOrderEditor(orderId) {
     sizeLg: true,
     bodyHtml,
     onMount(modal) {
-      modal.querySelector('[data-f="priority"]').addEventListener('change', (e) => {
-        draft.priority = e.target.checked;
+      const plSel = modal.querySelector('[data-f="priorityLevel"]');
+      if (plSel) plSel.addEventListener('change', (e) => {
+        draft.priorityLevel = e.target.value;
+        draft.priority = e.target.value !== 'normal';
       });
       modal.querySelector('[data-f="dueDate"]').addEventListener('change', (e) => {
         draft.dueDate = e.target.value;
@@ -4965,6 +6255,17 @@ function openOrderEditor(orderId) {
           }
         });
       }
+      // Feature 8 (new 8-pack): Apply loyalty tier discount button
+      modal.querySelector('#btnApplyTierDiscount')?.addEventListener('click', () => {
+        const tier = getClientTier(order.clientId);
+        if (!tier) return;
+        const discEl = modal.querySelector('[data-f="discountPct"]');
+        if (discEl) {
+          discEl.value = tier.discountPct;
+          draft.discountPct = +tier.discountPct;
+        }
+      });
+
       modal.querySelector('[data-f="discountPct"]').addEventListener('input', (e) => {
         draft.discountPct = Math.min(100, Math.max(0, +e.target.value || 0));
       });
@@ -4980,6 +6281,55 @@ function openOrderEditor(orderId) {
       modal.querySelector('[data-f="tags"]').addEventListener('input', (e) => {
         draft.tags = parseTags(e.target.value);
       });
+
+      // Operator select
+      const opSel = modal.querySelector('#oeOperator');
+      if (opSel) opSel.addEventListener('change', (e) => { draft.operatorId = e.target.value; });
+
+      // Vault files (Feature 2)
+      const vaultListEl = modal.querySelector('#vaultFilesList');
+      async function refreshVaultFiles() {
+        if (!vaultListEl || !window.hubAPI?.listVaultFiles) return;
+        try {
+          const files = await window.hubAPI.listVaultFiles(order.id);
+          if (!files || files.length === 0) {
+            vaultListEl.innerHTML = `<div style="color:var(--text-muted);font-size:12px;padding:4px 0;">${escapeHtml(t('ord.vault_empty'))}</div>`;
+            return;
+          }
+          vaultListEl.innerHTML = files.map(f => `
+            <div class="vault-file-row">
+              <span class="vf-name" title="${escapeHtml(f.filename)}">📄 ${escapeHtml(f.filename)}</span>
+              <span class="vf-size">${(f.size / 1024).toFixed(1)} KB</span>
+              <button class="btn small" data-act-vault="open" data-path="${escapeHtml(f.fullPath)}">${escapeHtml(t('ord.vault_open'))}</button>
+              <button class="btn danger small" data-act-vault="del" data-path="${escapeHtml(f.fullPath)}">${escapeHtml(t('ord.vault_delete'))}</button>
+            </div>`).join('');
+          vaultListEl.querySelectorAll('[data-act-vault="open"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+              if (window.hubAPI?.openFile) window.hubAPI.openFile(btn.dataset.path);
+            });
+          });
+          vaultListEl.querySelectorAll('[data-act-vault="del"]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+              if (!window.hubAPI?.deleteVaultFile) return;
+              await window.hubAPI.deleteVaultFile(btn.dataset.path);
+              refreshVaultFiles();
+            });
+          });
+        } catch (e) { console.error('vault list error', e); }
+      }
+      refreshVaultFiles();
+      const addVaultBtn = modal.querySelector('#btnAddVaultFile');
+      if (addVaultBtn && window.hubAPI?.pickFile && window.hubAPI?.copyFileToVault) {
+        addVaultBtn.addEventListener('click', async () => {
+          try {
+            const srcPath = await window.hubAPI.pickFile({ filters: [{ name: '3D Files', extensions: ['stl','3mf','obj','step','stp','gcode','zip'] }] });
+            if (!srcPath) return;
+            await window.hubAPI.copyFileToVault(srcPath, order.id);
+            refreshVaultFiles();
+            toast(`📁 ${escapeHtml(t('ord.vault_files'))}`, 'success');
+          } catch (e) { console.error('vault add error', e); }
+        });
+      }
 
       // Extra lines
       const oeExtraListEl = modal.querySelector('#oeExtraLinesList');
@@ -5124,6 +6474,26 @@ function openOrderEditor(orderId) {
       });
     },
     async onSave() {
+      // Feature 6 (new 8-pack): Capacity check — warn if machine queue exceeds due date
+      const newDueDate = (document.querySelector('[data-f="dueDate"]'))?.value || draft.dueDate;
+      if (newDueDate && order.machineId) {
+        const clearDate = estimateMachineQueueClearDate(order.machineId, order.id);
+        const due = new Date(newDueDate);
+        if (clearDate > due) {
+          const clearStr = clearDate.toLocaleDateString();
+          const ok = await confirmModal(
+            t('oe.capacity_warn', { date: clearStr }) ||
+              `Machine queue clears on ${clearStr}, which is after the due date. Save anyway?`,
+            {
+              okText: t('oe.capacity_save_anyway') || 'Save anyway',
+              cancelText: t('oe.capacity_change_machine') || 'Change machine',
+              danger: false,
+            }
+          );
+          if (!ok) return false;
+        }
+      }
+
       // Feature 3: Spool over-commit check
       const ocWarnings = checkSpoolOvercommit(order.parts || [], order.id);
       if (ocWarnings.length > 0) {
@@ -5148,6 +6518,7 @@ function openOrderEditor(orderId) {
         checkField('discountPct', draft.discountPct);
         checkField('shippingCost', draft.shippingCost);
         checkField('priority', draft.priority);
+        checkField('priorityLevel', draft.priorityLevel);
         recordOrderEdit(order, changedFields);
       }
 
@@ -5172,6 +6543,8 @@ function openOrderEditor(orderId) {
       order.tags = draft.tags.length > 0 ? draft.tags : undefined;
       order.dueDate = draft.dueDate || null;
       order.priority = draft.priority;
+      order.priorityLevel = draft.priorityLevel || (draft.priority ? 'high' : 'normal');
+      order.operatorId = draft.operatorId || undefined;
       order.printPhotos = draft.printPhotos;
       order.attachedFiles = draft.attachedFiles;
       order.courierName = draft.courierName || undefined;
@@ -5230,6 +6603,14 @@ function openOrderEditor(orderId) {
         });
         order.customData = Object.keys(customData).some(k => customData[k]) ? customData : undefined;
       }
+      // Feature 1: Save part colours from the inline editors
+      const colourInputs = document.querySelectorAll('.oe-part-colour');
+      colourInputs.forEach(inp => {
+        const pi = parseInt(inp.dataset.pi, 10);
+        if (order.parts && order.parts[pi] !== undefined) {
+          order.parts[pi].colour = inp.value.trim() || undefined;
+        }
+      });
       saveAll();
       renderLogs(); renderPortfolio(); renderDashboard(); renderAnalytics();
       toast(t('common.save'), 'success');
@@ -5835,6 +7216,45 @@ async function renderInvoiceForOrder(order) {
 }
 
 /* ============================================================
+   New Feature 3: Proforma Invoice
+   ============================================================ */
+async function generateProformaInvoice(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+
+  // Render the regular invoice first
+  await renderInvoiceForOrder(order);
+
+  // Inject proforma watermark and change the title
+  const area = $('#invoice-print-area');
+  if (area) {
+    // Change title text nodes that say "Invoice" / "فاتورة"
+    area.querySelectorAll('.inv-title, .inv-heading, h1, h2').forEach(el => {
+      if (/invoice|فاتورة/i.test(el.textContent)) {
+        el.textContent = t('inv.proforma_title');
+      }
+    });
+    // Inject watermark overlay if not already present
+    if (!area.querySelector('.proforma-watermark')) {
+      const wm = document.createElement('div');
+      wm.className = 'proforma-watermark';
+      wm.textContent = t('inv.proforma_title');
+      area.style.position = 'relative';
+      area.appendChild(wm);
+    }
+  }
+
+  // Open print dialog
+  window.print();
+
+  // Remove watermark after print so area is clean for next real invoice
+  setTimeout(() => {
+    const wm = area?.querySelector('.proforma-watermark');
+    if (wm) wm.remove();
+  }, 1000);
+}
+
+/* ============================================================
    Daily auto-backup
    ============================================================ */
 async function maybeAutoBackup() {
@@ -5885,6 +7305,8 @@ function addExpense() {
   if (amount <= 0) { toast(t('exp.amount_required'), 'error'); return; }
   const dateVal = $('#expDate').value || new Date().toISOString().split('T')[0];
   const orderRef = ($('#expOrderRef')?.value || '').trim() || null;
+  const recurringVal = $('#expRecurring')?.value || null;
+  const nextDue = recurringVal ? calcNextDueDate(dateVal, recurringVal) : null;
   expenses.unshift({
     id:          uid('EXP'),
     date:        dateVal,
@@ -5893,11 +7315,14 @@ function addExpense() {
     note:        $('#expNote').value.trim(),
     orderId:     orderRef,
     receiptPath: _expReceiptPath || null,
+    recurring:   recurringVal || null,
+    nextDue:     nextDue,
   });
   saveAll();
   $('#expAmount').value = '';
   $('#expNote').value   = '';
   if ($('#expOrderRef')) $('#expOrderRef').value = '';
+  if ($('#expRecurring')) $('#expRecurring').value = '';
   _expReceiptPath = null;
   const nameEl = $('#expReceiptName');
   if (nameEl) nameEl.textContent = '';
@@ -5997,7 +7422,10 @@ function renderExpenses() {
         <td style="font-family:var(--font-num); font-size:12px; color:var(--text-dim); white-space:nowrap;">${escapeHtml(e.date)}</td>
         <td><span class="exp-cat-badge cat-${escapeHtml(e.category)}">${escapeHtml(expCatLabel(e.category))}</span></td>
         <td style="font-weight:600; font-variant-numeric:tabular-nums; color:var(--danger);">${fmtPrice(e.amount)}</td>
-        <td style="color:var(--text-muted); font-size:12.5px;">${escapeHtml(e.note)}</td>
+        <td style="color:var(--text-muted); font-size:12.5px;">
+          ${escapeHtml(e.note)}
+          ${e.recurring ? `<span class="rec-badge" style="font-size:10px;">🔁 ${escapeHtml(t('exp.recurring_' + e.recurring))}${e.nextDue ? ' · ' + escapeHtml(e.nextDue) : ''}</span>` : ''}
+        </td>
         <td style="white-space:nowrap;">
           ${e.receiptPath ? `<button class="btn small ghost" data-act="open-receipt" data-path="${escapeHtml(e.receiptPath)}" title="${escapeHtml(t('exp.open_receipt'))}">📎</button>` : ''}
           <button class="btn danger small" data-act="del-exp" data-id="${e.id}">${escapeHtml(t('common.delete'))}</button>
@@ -6386,11 +7814,98 @@ function deleteWasteEntry(id) {
    Monthly Tax Summary Export
    ============================================================ */
 function exportTaxSummary() {
+  // New Feature 4: Show period selector modal before exporting
+  const now = new Date();
+  const curY = now.getFullYear();
+  const curM = now.getMonth(); // 0-based
+  const curQ = Math.floor(curM / 3); // 0-based quarter
+
+  openFormModal({
+    title: t('tax.period'),
+    sizeLg: false,
+    saveLabel: t('set.export'),
+    bodyHtml: `
+      <label>${escapeHtml(t('tax.period'))}</label>
+      <select id="taxPeriodSel" style="margin-bottom:10px;">
+        <option value="month">${escapeHtml(t('an.this_month') || 'This month')}</option>
+        <option value="last_month">${escapeHtml(t('an.last_month') || 'Last month')}</option>
+        <option value="quarter">${escapeHtml(t('tax.this_quarter'))}</option>
+        <option value="last_quarter">${escapeHtml(t('tax.last_quarter'))}</option>
+        <option value="year">${escapeHtml(t('tax.this_year'))}</option>
+        <option value="all" selected>${escapeHtml(t('common.all'))}</option>
+        <option value="custom">${escapeHtml(t('tax.custom_range'))}</option>
+      </select>
+      <div id="taxCustomRange" style="display:none;">
+        <div class="inline-pair">
+          <div>
+            <label style="margin-top:0;">${escapeHtml(t('common.date'))} (from)</label>
+            <input type="date" id="taxFromDate">
+          </div>
+          <div>
+            <label style="margin-top:0;">${escapeHtml(t('common.date'))} (to)</label>
+            <input type="date" id="taxToDate">
+          </div>
+        </div>
+      </div>`,
+    onMount(modal) {
+      const sel = modal.querySelector('#taxPeriodSel');
+      const customDiv = modal.querySelector('#taxCustomRange');
+      sel.addEventListener('change', () => {
+        customDiv.style.display = sel.value === 'custom' ? '' : 'none';
+      });
+    },
+    onSave(modal) {
+      const period = modal.querySelector('#taxPeriodSel').value;
+      const fromInput = modal.querySelector('#taxFromDate')?.value || '';
+      const toInput   = modal.querySelector('#taxToDate')?.value || '';
+
+      // Compute date range
+      let fromDate = '', toDate = '';
+      if (period === 'month') {
+        fromDate = `${curY}-${String(curM + 1).padStart(2, '0')}-01`;
+        toDate   = `${curY}-${String(curM + 1).padStart(2, '0')}-31`;
+      } else if (period === 'last_month') {
+        const lm = new Date(curY, curM - 1, 1);
+        fromDate = `${lm.getFullYear()}-${String(lm.getMonth() + 1).padStart(2, '0')}-01`;
+        toDate   = `${lm.getFullYear()}-${String(lm.getMonth() + 1).padStart(2, '0')}-31`;
+      } else if (period === 'quarter') {
+        fromDate = `${curY}-${String(curQ * 3 + 1).padStart(2, '0')}-01`;
+        toDate   = `${curY}-${String(curQ * 3 + 3).padStart(2, '0')}-31`;
+      } else if (period === 'last_quarter') {
+        const lq = curQ === 0 ? { y: curY - 1, q: 3 } : { y: curY, q: curQ - 1 };
+        fromDate = `${lq.y}-${String(lq.q * 3 + 1).padStart(2, '0')}-01`;
+        toDate   = `${lq.y}-${String(lq.q * 3 + 3).padStart(2, '0')}-31`;
+      } else if (period === 'year') {
+        fromDate = `${curY}-01-01`;
+        toDate   = `${curY}-12-31`;
+      } else if (period === 'custom') {
+        fromDate = fromInput;
+        toDate   = toInput;
+      }
+      // 'all' — no filter
+
+      _doExportTaxSummary(period, fromDate, toDate);
+      return true;
+    }
+  });
+}
+
+function _doExportTaxSummary(periodLabel, fromDate, toDate) {
+  const inPeriod = (dateStr) => {
+    if (!fromDate && !toDate) return true;
+    if (!dateStr) return false;
+    if (fromDate && dateStr < fromDate) return false;
+    if (toDate   && dateStr > toDate)   return false;
+    return true;
+  };
+
   // Group completed orders by YYYY-MM
   const monthMap = {};
   for (const o of printLog) {
     if (o.status !== 'completed') continue;
-    const month = (o.date || '').slice(0, 7);
+    const ds = (o.date || '').slice(0, 10);
+    if (!inPeriod(ds)) continue;
+    const month = ds.slice(0, 7);
     if (!month) continue;
     if (!monthMap[month]) monthMap[month] = { orders: 0, revenue: 0, vatCollected: 0, shipping: 0 };
     monthMap[month].orders++;
@@ -6402,7 +7917,9 @@ function exportTaxSummary() {
   // Group expenses by YYYY-MM
   const expMap = {};
   for (const e of expenses) {
-    const month = (e.date || '').slice(0, 7);
+    const ds = (e.date || '').slice(0, 10);
+    if (!inPeriod(ds)) continue;
+    const month = ds.slice(0, 7);
     if (!month) continue;
     expMap[month] = (expMap[month] || 0) + (+e.amount || 0);
   }
@@ -6414,14 +7931,25 @@ function exportTaxSummary() {
     return;
   }
 
+  // Build period label for filename/header
+  const labelMap = {
+    month: 'this-month', last_month: 'last-month',
+    quarter: 'this-quarter', last_quarter: 'last-quarter',
+    year: 'this-year', all: 'all'
+  };
+  const fileLabel = labelMap[periodLabel] || periodLabel;
+
   const cur = currencySymbol();
   const headers = [
+    `Period: ${fileLabel} ${fromDate ? fromDate + ' to ' + toDate : ''}`,
     `Month`, `Orders`, `Revenue (${cur})`, `Shipping (${cur})`,
     `VAT Collected (${cur})`, `Expenses (${cur})`, `Net Income (${cur})`
-  ].map(csvEsc).join(',');
+  ];
+  const headerRow = headers.slice(1).map(csvEsc).join(',');
+  const periodRow = [csvEsc(headers[0]), ...new Array(6).fill(csvEsc(''))].join(',');
 
   const rows = allMonths.map(m => {
-    const rev = monthMap[m]?.revenue || 0;
+    const rev  = monthMap[m]?.revenue  || 0;
     const ship = monthMap[m]?.shipping || 0;
     const vat  = monthMap[m]?.vatCollected || 0;
     const exp  = expMap[m] || 0;
@@ -6438,8 +7966,8 @@ function exportTaxSummary() {
   });
 
   downloadBlob(
-    new Blob(['﻿' + [headers, ...rows].join('\r\n')], { type: 'text/csv;charset=utf-8;' }),
-    `tax-summary-${new Date().toISOString().slice(0, 10)}.csv`
+    new Blob(['﻿' + [periodRow, headerRow, ...rows].join('\r\n')], { type: 'text/csv;charset=utf-8;' }),
+    `tax-summary-${fileLabel}-${new Date().toISOString().slice(0, 10)}.csv`
   );
   toast(t('an.tax_exported'), 'success');
 }
@@ -6667,6 +8195,507 @@ function renderCapacityGauge() {
   </div>`;
 }
 
+/* ============================================================
+   Feature 5 (new batch): Email notification helpers
+   ============================================================ */
+async function autoSendEmailNotification(order, newStatus) {
+  const cfg = settings.emailConfig;
+  if (!cfg || cfg.provider === 'none' || !(cfg.triggers || []).includes(newStatus)) return;
+  if (!order.clientId) return;
+  const client = clients.find(c => c.id === order.clientId);
+  if (!client?.email) return;
+  const shopName = settings.bizEn || 'Khayt';
+  const statusLabel = t('queue.' + newStatus) || newStatus;
+  const subject = `${shopName} — Order ${order.id} Update: ${statusLabel}`;
+  const body = `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px;">
+    <h2 style="color:#5E2E14;">${escapeHtml(shopName)}</h2>
+    <p>Dear ${escapeHtml(localName(client) || client.email)},</p>
+    <p>Your order <strong>${escapeHtml(order.id)}</strong> (${escapeHtml(order.project || '')}) has been updated:</p>
+    <p style="font-size:18px;font-weight:bold;color:#5E2E14;">${escapeHtml(statusLabel)}</p>
+    ${order.dueDate ? `<p>Due date: ${escapeHtml(order.dueDate)}</p>` : ''}
+    <p>Thank you for your business!</p>
+    <p style="font-size:12px;color:#888;">— ${escapeHtml(shopName)}</p>
+  </div>`;
+  try {
+    const result = await window.hubAPI?.sendEmail?.({ to: client.email, subject, body, smtpConfig: cfg });
+    if (result?.ok) {
+      toast('📧 Email sent', 'success', 2000);
+    } else if (result?.fallback && result?.mailtoUrl) {
+      // silently ignore fallback — user has WhatsApp
+    }
+  } catch(e) { /* silent */ }
+}
+
+function renderEmailNotificationSettings() {
+  const el = $('#emailNotificationsSection');
+  if (!el) return;
+  const cfg = settings.emailConfig || {};
+  const triggers = [
+    { key: 'printing',  label: 'Printing started' },
+    { key: 'post',      label: 'In post-processing' },
+    { key: 'completed', label: 'Ready for pickup' },
+    { key: 'quote',     label: 'Quote created' },
+  ];
+  el.innerHTML = `
+    <div style="margin-bottom:12px;">
+      <label style="margin-top:0;">${escapeHtml(t('set.email_provider'))}</label>
+      <select id="emailProviderSel" style="font-size:12.5px;">
+        <option value="none"${cfg.provider === 'none' || !cfg.provider ? ' selected' : ''}>${escapeHtml(t('set.smtp_none'))}</option>
+        <option value="sendgrid"${cfg.provider === 'sendgrid' ? ' selected' : ''}>${escapeHtml(t('set.smtp_sendgrid'))}</option>
+        <option value="mailgun"${cfg.provider === 'mailgun' ? ' selected' : ''}>${escapeHtml(t('set.smtp_mailgun'))}</option>
+        <option value="mailto"${cfg.provider === 'mailto' ? ' selected' : ''}>${escapeHtml(t('set.smtp_mailto'))}</option>
+      </select>
+    </div>
+    <div id="emailProviderFields" style="${cfg.provider && cfg.provider !== 'none' ? '' : 'display:none;'}">
+      <div class="inline-pair">
+        <div>
+          <label style="margin-top:0;">${escapeHtml(t('set.email_api_key'))}</label>
+          <input type="text" id="emailApiKey" value="${escapeHtml(cfg.apiKey || '')}" placeholder="sk-..." style="font-size:12.5px;">
+        </div>
+        <div>
+          <label style="margin-top:0;">${escapeHtml(t('set.email_domain'))} (Mailgun)</label>
+          <input type="text" id="emailDomain" value="${escapeHtml(cfg.domain || '')}" placeholder="mg.yourshop.com" style="font-size:12.5px;">
+        </div>
+      </div>
+      <div class="inline-pair">
+        <div>
+          <label style="margin-top:0;">${escapeHtml(t('set.email_from'))}</label>
+          <input type="email" id="emailFrom" value="${escapeHtml(cfg.fromEmail || '')}" placeholder="orders@yourshop.com" style="font-size:12.5px;">
+        </div>
+        <div>
+          <label style="margin-top:0;">${escapeHtml(t('set.email_from_name'))}</label>
+          <input type="text" id="emailFromName" value="${escapeHtml(cfg.fromName || '')}" placeholder="${escapeHtml(settings.bizEn || 'Khayt')}" style="font-size:12.5px;">
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:10px;">
+      <label style="margin-top:0;font-size:12.5px;font-weight:600;">${escapeHtml(t('set.email_triggers'))}</label>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;">
+        ${triggers.map(tr => `
+          <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;">
+            <input type="checkbox" class="email-trigger-cb" data-trigger="${escapeHtml(tr.key)}" style="width:auto;margin:0;" ${(cfg.triggers || []).includes(tr.key) ? 'checked' : ''}>
+            <span>${escapeHtml(tr.label)}</span>
+          </label>`).join('')}
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:10px;">
+      <button id="btnSaveEmailCfg" class="btn small primary">${escapeHtml(t('common.save'))}</button>
+      <button id="btnTestEmail" class="btn small">${escapeHtml(t('set.email_test'))}</button>
+      <span id="emailTestResult" style="font-size:12px;color:var(--text-muted);"></span>
+    </div>`;
+
+  el.querySelector('#emailProviderSel')?.addEventListener('change', (e) => {
+    const fields = el.querySelector('#emailProviderFields');
+    if (fields) fields.style.display = e.target.value !== 'none' ? '' : 'none';
+  });
+
+  el.querySelector('#btnSaveEmailCfg')?.addEventListener('click', () => {
+    settings.emailConfig = {
+      provider:   el.querySelector('#emailProviderSel').value,
+      apiKey:     el.querySelector('#emailApiKey')?.value.trim() || '',
+      domain:     el.querySelector('#emailDomain')?.value.trim() || '',
+      fromEmail:  el.querySelector('#emailFrom')?.value.trim() || '',
+      fromName:   el.querySelector('#emailFromName')?.value.trim() || '',
+      triggers:   [...el.querySelectorAll('.email-trigger-cb:checked')].map(cb => cb.dataset.trigger),
+    };
+    saveAll();
+    toast(t('common.save'), 'success');
+  });
+
+  el.querySelector('#btnTestEmail')?.addEventListener('click', async () => {
+    const resEl = el.querySelector('#emailTestResult');
+    if (resEl) resEl.textContent = '…';
+    const to = settings.email || '';
+    if (!to) { if (resEl) { resEl.textContent = 'No shop email set in Settings.'; } return; }
+    const cfg2 = {
+      provider:  el.querySelector('#emailProviderSel').value,
+      apiKey:    el.querySelector('#emailApiKey')?.value.trim() || '',
+      domain:    el.querySelector('#emailDomain')?.value.trim() || '',
+      fromEmail: el.querySelector('#emailFrom')?.value.trim() || '',
+      fromName:  el.querySelector('#emailFromName')?.value.trim() || '',
+    };
+    const result = await window.hubAPI?.sendEmail?.({
+      to, subject: 'Khayt — Test email', body: '<p>Test email from Khayt. Email notifications are working.</p>', smtpConfig: cfg2
+    });
+    if (resEl) {
+      if (result?.ok) { resEl.textContent = t('set.email_test_sent'); resEl.style.color = 'var(--success)'; }
+      else if (result?.fallback) { resEl.textContent = 'mailto: fallback (no API configured)'; resEl.style.color = 'var(--text-muted)'; }
+      else { resEl.textContent = 'Failed: ' + (result?.error || result?.status || ''); resEl.style.color = 'var(--danger)'; }
+    }
+  });
+}
+
+/* ============================================================
+   Feature 7 (new 8-pack): Operator PIN lock
+   ============================================================ */
+
+/** Render the PIN lock settings sub-section inside settings tab */
+function renderOperatorLockSettings() {
+  const el = $('#operatorLockSection');
+  if (!el) return;
+  const activeOp = settings.activeOperatorId ? operators.find(o => o.id === settings.activeOperatorId) : null;
+  el.innerHTML = `
+    <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:10px;">
+      ${activeOp
+        ? `Active operator: <strong>${escapeHtml(activeOp.name)}</strong> (${escapeHtml(activeOp.role || 'no role')})`
+        : 'No operator active — all features accessible.'}
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button id="btnSwitchOperator" class="btn small primary">${escapeHtml(t('op.switch') || 'Switch operator')}</button>
+      ${activeOp ? `<button id="btnLockNow" class="btn small">${escapeHtml(t('op.lock') || 'Lock now')}</button>` : ''}
+    </div>
+    ${operators.length === 0
+      ? `<p style="font-size:11.5px;color:var(--text-muted);margin-top:8px;">Add operators in the Operators section above, then assign PINs.</p>`
+      : `<div style="margin-top:12px;font-size:12.5px;font-weight:600;margin-bottom:6px;">Operator PINs</div>
+         <div style="display:flex;flex-direction:column;gap:6px;">
+           ${operators.map(op => `
+             <div style="display:flex;align-items:center;gap:10px;">
+               <span style="flex:1;font-size:13px;">${escapeHtml(op.name)}</span>
+               <span style="font-size:11px;color:var(--text-muted);">${escapeHtml(op.role || '')}</span>
+               <input type="password" class="op-pin-input" data-op-id="${op.id}"
+                 value="${op.pinHash ? '****' : ''}"
+                 placeholder="${op.pinHash ? '(set)' : 'Set PIN'}"
+                 maxlength="8" style="width:80px;font-size:12px;">
+               <button class="btn small op-save-pin" data-op-id="${op.id}">Save PIN</button>
+             </div>`).join('')}
+         </div>`}`;
+
+  el.querySelector('#btnSwitchOperator')?.addEventListener('click', () => openPinPadModal());
+  el.querySelector('#btnLockNow')?.addEventListener('click', () => {
+    settings.activeOperatorId = null;
+    saveAll();
+    renderOperatorLockSettings();
+    applyOperatorPermissions();
+    toast(t('op.lock') || 'Locked', 'info', 1800);
+  });
+
+  el.querySelectorAll('.op-save-pin').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const opId = btn.dataset.opId;
+      const pinInput = el.querySelector(`.op-pin-input[data-op-id="${opId}"]`);
+      const pin = pinInput?.value?.trim() || '';
+      const op = operators.find(o => o.id === opId);
+      if (!op) return;
+      if (pin && pin !== '****') {
+        op.pinHash = btoa(pin);
+        saveAll();
+        toast(t('op.pin_set') || 'PIN saved', 'success', 1800);
+        if (pinInput) pinInput.value = '****';
+      } else if (!pin) {
+        op.pinHash = '';
+        saveAll();
+        toast('PIN cleared', 'info', 1800);
+      }
+    });
+  });
+}
+
+/** Show PIN pad modal to switch operator */
+function openPinPadModal(afterUnlock) {
+  const mount = $('#modalMount');
+  const opList = operators.filter(o => o.active !== false);
+  if (opList.length === 0) { toast('No operators configured', 'info'); return; }
+
+  let selectedOpId = opList[0].id;
+  let enteredPin = '';
+
+  const render = () => {
+    mount.innerHTML = `
+      <div class="modal-backdrop">
+        <div class="modal" role="dialog" aria-modal="true" style="max-width:340px;">
+          <h3>${escapeHtml(t('op.switch') || 'Switch Operator')}</h3>
+          <div style="margin-bottom:12px;">
+            <label style="font-size:12.5px;">${escapeHtml(t('op.enter_pin') || 'Select operator')}</label>
+            <select id="pinOpSelect" style="margin-top:4px;">
+              ${opList.map(op => `<option value="${op.id}"${op.id === selectedOpId ? ' selected' : ''}>${escapeHtml(op.name)}${op.role ? ' · ' + escapeHtml(op.role) : ''}</option>`).join('')}
+            </select>
+          </div>
+          <div id="pinDisplay" style="font-size:24px;letter-spacing:10px;text-align:center;margin:10px 0;min-height:36px;color:var(--primary);">${'●'.repeat(enteredPin.length)}</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px;">
+            ${[1,2,3,4,5,6,7,8,9].map(n => `<button class="btn pin-key" data-k="${n}" style="font-size:18px;padding:12px;">${n}</button>`).join('')}
+            <button class="btn pin-key" data-k="C" style="font-size:14px;padding:12px;">C</button>
+            <button class="btn pin-key" data-k="0" style="font-size:18px;padding:12px;">0</button>
+            <button class="btn pin-key" data-k="⌫" style="font-size:18px;padding:12px;">⌫</button>
+          </div>
+          <div id="pinError" style="color:var(--danger);font-size:12.5px;min-height:20px;text-align:center;"></div>
+          <div class="btn-row" style="margin-top:8px;">
+            <button class="btn ghost" data-act="cancel-pin">${escapeHtml(t('common.cancel'))}</button>
+            <button class="btn primary" id="btnConfirmPin">${escapeHtml(t('common.confirm'))}</button>
+          </div>
+        </div>
+      </div>`;
+
+    mount.querySelector('#pinOpSelect')?.addEventListener('change', e => {
+      selectedOpId = e.target.value;
+      enteredPin = '';
+      render();
+    });
+
+    mount.querySelectorAll('.pin-key').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const k = btn.dataset.k;
+        if (k === 'C') { enteredPin = ''; }
+        else if (k === '⌫') { enteredPin = enteredPin.slice(0, -1); }
+        else if (enteredPin.length < 8) { enteredPin += k; }
+        const disp = mount.querySelector('#pinDisplay');
+        if (disp) disp.textContent = '●'.repeat(enteredPin.length);
+      });
+    });
+
+    mount.querySelector('[data-act="cancel-pin"]')?.addEventListener('click', () => {
+      mount.innerHTML = '';
+    });
+
+    mount.querySelector('#btnConfirmPin')?.addEventListener('click', () => {
+      const op = operators.find(o => o.id === selectedOpId);
+      if (!op) { mount.innerHTML = ''; return; }
+      // If no PIN set, allow free switch
+      if (!op.pinHash) {
+        settings.activeOperatorId = op.id;
+        saveAll();
+        mount.innerHTML = '';
+        renderOperatorLockSettings();
+        applyOperatorPermissions();
+        toast(`Switched to ${op.name}`, 'success', 1800);
+        if (afterUnlock) afterUnlock();
+        return;
+      }
+      const errEl = mount.querySelector('#pinError');
+      if (btoa(enteredPin) !== op.pinHash) {
+        if (errEl) errEl.textContent = t('op.wrong_pin') || 'Incorrect PIN';
+        enteredPin = '';
+        const disp = mount.querySelector('#pinDisplay');
+        if (disp) disp.textContent = '';
+        return;
+      }
+      settings.activeOperatorId = op.id;
+      saveAll();
+      mount.innerHTML = '';
+      renderOperatorLockSettings();
+      applyOperatorPermissions();
+      toast(`Switched to ${op.name}`, 'success', 1800);
+      if (afterUnlock) afterUnlock();
+    });
+  };
+
+  render();
+}
+
+/** Apply tab/feature restrictions based on active operator's role */
+function applyOperatorPermissions() {
+  if (!settings.operatorLockEnabled) {
+    // Remove all restrictions
+    $$('.tab-btn').forEach(b => b.style.display = '');
+    $$('.restricted-blur').forEach(el => el.classList.remove('restricted-blur'));
+    // Update nav operator badge if present
+    const badge = $('#operatorNavBadge');
+    if (badge) badge.textContent = '';
+    return;
+  }
+  const activeOp = settings.activeOperatorId ? operators.find(o => o.id === settings.activeOperatorId) : null;
+  const role = activeOp?.role?.toLowerCase() || '';
+
+  // Role: 'sales' — hide settings, expenses, analytics deep features
+  // Role: 'technician' — hide clients, settings financial details
+  // Role: 'admin' — full access
+  const isAdmin = !role || role.includes('admin');
+  const isTech  = role.includes('tech');
+  const isSales = role.includes('sales');
+
+  // Settings tab restricted for non-admin
+  const settingsBtn = $('[data-tab="settings-tab"]');
+  if (settingsBtn) settingsBtn.style.display = isAdmin ? '' : 'none';
+
+  // Analytics/expenses restricted for technician
+  const analyticsBtn = $('[data-tab="analytics-tab"]');
+  if (analyticsBtn && isTech) analyticsBtn.style.display = 'none';
+  else if (analyticsBtn) analyticsBtn.style.display = '';
+
+  // Clients restricted for technician
+  const clientsBtn = $('[data-tab="clients-tab"]');
+  if (clientsBtn && isTech) clientsBtn.style.display = 'none';
+  else if (clientsBtn) clientsBtn.style.display = '';
+
+  // Update nav badge
+  const badge = $('#operatorNavBadge');
+  if (badge && activeOp) badge.textContent = activeOp.name;
+  else if (badge) badge.textContent = '';
+}
+
+/* ============================================================
+   Feature 8 (new 8-pack): Customer loyalty tiers
+   ============================================================ */
+
+/** Get the best matching tier for a client based on their completed order stats */
+function getClientTier(clientId) {
+  if (!settings.loyaltyEnabled) return null;
+  const tiers = (settings.loyaltyTiers || []).filter(tier => tier.name);
+  if (tiers.length === 0) return null;
+
+  let completedCount = 0;
+  let totalSpend = 0;
+  for (const o of printLog) {
+    if (o.clientId !== clientId || o.status !== 'completed') continue;
+    completedCount++;
+    totalSpend += +o.price || 0;
+  }
+
+  // Find the highest tier the client qualifies for
+  const eligible = tiers.filter(tier =>
+    (!tier.minOrders || completedCount >= +tier.minOrders) &&
+    (!tier.minSpend  || totalSpend     >= +tier.minSpend)
+  );
+  if (eligible.length === 0) return null;
+  // Return the tier with the highest benefit (largest minOrders/minSpend combo)
+  return eligible.sort((a, b) => (+b.minOrders || 0) - (+a.minOrders || 0))[0];
+}
+
+/** Render the loyalty tier management UI in settings */
+function renderLoyaltyTiersSettings() {
+  const el = $('#loyaltyTiersSection');
+  if (!el) return;
+  const tiers = settings.loyaltyTiers || [];
+
+  el.innerHTML = `
+    <div id="loyaltyTiersList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">
+      ${tiers.map((tier, idx) => `
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface-2);">
+          <input type="text" class="tier-name" data-idx="${idx}" value="${escapeHtml(tier.name || '')}" placeholder="e.g. Gold" style="flex:1.5;font-size:12.5px;">
+          <input type="number" class="tier-min-orders" data-idx="${idx}" value="${tier.minOrders || ''}" placeholder="${escapeHtml(t('set.loyalty_min_orders') || 'Min orders')}" min="0" style="flex:1;font-size:12.5px;">
+          <input type="number" class="tier-min-spend" data-idx="${idx}" value="${tier.minSpend || ''}" placeholder="${escapeHtml(t('set.loyalty_min_spend') || 'Min spend')}" min="0" style="flex:1;font-size:12.5px;">
+          <input type="number" class="tier-discount" data-idx="${idx}" value="${tier.discountPct || ''}" placeholder="${escapeHtml(t('set.loyalty_benefit') || 'Discount %')}" min="0" max="100" style="flex:1;font-size:12.5px;">
+          <button class="btn small danger tier-del" data-idx="${idx}">×</button>
+        </div>`).join('')}
+    </div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Name · Min completed orders · Min total spend (${currencySymbol()}) · Auto-discount %</div>
+    <div style="display:flex;gap:8px;">
+      <button id="btnAddLoyaltyTier" class="btn small primary">${escapeHtml(t('set.loyalty_add_tier') || '+ Add tier')}</button>
+      <button id="btnSaveLoyaltyTiers" class="btn small">${escapeHtml(t('common.save'))}</button>
+    </div>`;
+
+  el.querySelector('#btnAddLoyaltyTier')?.addEventListener('click', () => {
+    settings.loyaltyTiers = settings.loyaltyTiers || [];
+    settings.loyaltyTiers.push({ name: '', minOrders: 5, minSpend: 0, discountPct: 0 });
+    renderLoyaltyTiersSettings();
+  });
+
+  el.querySelector('#btnSaveLoyaltyTiers')?.addEventListener('click', () => {
+    const rows = el.querySelectorAll('[data-idx]');
+    const seen = new Set();
+    rows.forEach(inp => {
+      const idx = parseInt(inp.dataset.idx, 10);
+      if (!seen.has(idx)) seen.add(idx);
+    });
+    const newTiers = [];
+    seen.forEach(idx => {
+      const name = el.querySelector(`.tier-name[data-idx="${idx}"]`)?.value.trim() || '';
+      const minOrders = +(el.querySelector(`.tier-min-orders[data-idx="${idx}"]`)?.value || 0);
+      const minSpend  = +(el.querySelector(`.tier-min-spend[data-idx="${idx}"]`)?.value || 0);
+      const discountPct = +(el.querySelector(`.tier-discount[data-idx="${idx}"]`)?.value || 0);
+      if (name) newTiers.push({ name, minOrders, minSpend, discountPct });
+    });
+    settings.loyaltyTiers = newTiers;
+    saveAll();
+    toast(t('common.save'), 'success');
+    renderLoyaltyTiersSettings();
+  });
+
+  el.querySelectorAll('.tier-del').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.idx, 10);
+      settings.loyaltyTiers = (settings.loyaltyTiers || []).filter((_, i) => i !== idx);
+      saveAll();
+      renderLoyaltyTiersSettings();
+    });
+  });
+}
+
+/* ============================================================
+   Feature 6 (new 8-pack): Capacity check — estimate when a machine's
+   queue will clear, accounting for working hours.
+   ============================================================ */
+function estimateMachineQueueClearDate(machineId, excludeOrderId) {
+  const wh = settings.workingHours || { mon: 8, tue: 8, wed: 8, thu: 8, fri: 0, sat: 0, sun: 0 };
+  const holidays = settings.holidays || [];
+  const dayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+
+  // Sum queued print hours for this machine (active/pending orders)
+  let queueHours = 0;
+  for (const o of printLog) {
+    if (o.id === excludeOrderId) continue;
+    if (o.status === 'completed' || o.status === 'quote') continue;
+    if (o.machineId !== machineId) continue;
+    const hrs = +(o.printTime || 0);
+    queueHours += hrs;
+  }
+  if (queueHours <= 0) return new Date();
+
+  // Walk forward through working hours until queue is consumed
+  const cursor = new Date();
+  cursor.setSeconds(0, 0);
+  let remaining = queueHours;
+  let safety = 0;
+  while (remaining > 0 && safety < 730) { // max 2 years
+    safety++;
+    const dateStr = cursor.toISOString().split('T')[0];
+    if (!holidays.includes(dateStr)) {
+      const dayKey = dayKeys[cursor.getDay()];
+      const hoursAvail = +(wh[dayKey] || 0);
+      if (hoursAvail > 0) {
+        remaining -= hoursAvail;
+      }
+    }
+    if (remaining > 0) cursor.setDate(cursor.getDate() + 1);
+  }
+  return cursor;
+}
+
+/* ============================================================
+   Feature 4 (new batch): Material depletion forecast
+   ============================================================ */
+function computeMaterialForecast() {
+  const results = [];
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const thirtyAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+
+  for (const item of inventory) {
+    // Sum weight queued (non-completed, non-quote orders using this material)
+    let queued = 0;
+    for (const o of printLog) {
+      if (o.status === 'completed' || o.status === 'quote') continue;
+      for (const p of (o.parts || [])) {
+        if (p.filamentId === item.id) queued += (+p.printWeight || 0);
+      }
+      if (!o.parts || o.parts.length === 0) {
+        if (o.material && o.material === item.material) queued += (+o.weight || 0);
+      }
+    }
+    const available = (item.weight || 0) - queued;
+
+    // Daily usage from last 30 days of completed orders
+    const recentCompleted = printLog.filter(o => o.status === 'completed' && (o.date || '') >= thirtyAgoStr);
+    let recentGrams = 0;
+    for (const o of recentCompleted) {
+      for (const p of (o.parts || [])) {
+        if (p.filamentId === item.id) recentGrams += (+p.printWeight || 0);
+      }
+    }
+    const dailyUsage = recentGrams / 30;
+    const daysRemaining = (dailyUsage > 0 && available > 0) ? Math.floor(available / dailyUsage) : null;
+
+    if (available < 0 || (daysRemaining !== null && daysRemaining < 14)) {
+      results.push({
+        material: item.material,
+        available: Math.round(available),
+        daysRemaining,
+        urgent: available < 0 || (daysRemaining !== null && daysRemaining < 7),
+      });
+    }
+  }
+  return results.sort((a, b) => (a.daysRemaining ?? -999) - (b.daysRemaining ?? -999));
+}
+
 function renderDashboard() {
   const el = $('#dashboardContent');
   if (!el) return;
@@ -6692,14 +8721,10 @@ function renderDashboard() {
   const pendingHours = printLog
     .filter(o => o.status !== 'completed' && o.status !== 'quote' && o.status !== 'on_hold')
     .reduce((s, o) => s + (+o.printTime || 0), 0);
-  const thirtyDaysAgo = new Date(today); thirtyDaysAgo.setDate(today.getDate() - 30);
-  const thirtyStr = thirtyDaysAgo.toISOString().split('T')[0];
-  const recentCompleted = printLog.filter(o => o.status === 'completed' && (o.date || '') >= thirtyStr);
-  const avgDailyHours = recentCompleted.length > 0
-    ? recentCompleted.reduce((s, o) => s + (+o.printTime || 0), 0) / 30
-    : 0;
-  const clearDays = (avgDailyHours > 0 && pendingHours > 0)
-    ? Math.ceil(pendingHours / avgDailyHours)
+  // New Feature 7: use working-hours-aware daily rate
+  const whDailyRate = avgDailyWorkingHours();
+  const clearDays = (whDailyRate > 0 && pendingHours > 0)
+    ? Math.ceil(pendingHours / whDailyRate)
     : null;
 
   // Quotes expiring soon (≤ 2 days) or already expired
@@ -6864,7 +8889,7 @@ function renderDashboard() {
     })() : ''}
 
     ${(() => {
-      const lowSpools = inventory.filter(i => i.weight <= settings.lowStockThreshold);
+      const lowSpools = inventory.filter(i => i.weight <= (i.reorderPoint ?? settings.lowStockThreshold));
       if (lowSpools.length === 0) return '';
       return `<div class="dash-low-stock">
         <span class="dash-low-stock-icon">⚠</span>
@@ -6892,9 +8917,12 @@ function renderDashboard() {
         const s = machineServiceStatus(m);
         return s.due || s.warning;
       });
-      if (maintMachines.length === 0) return '';
-      return `<div class="dash-section dash-maint-section">
-        <h3 class="dash-section-head" style="color:var(--danger);">🔧 ${escapeHtml(t('dash.maint_title'))} (${maintMachines.length})</h3>
+      // Feature 4: Nozzle replace alerts
+      const nozzleAlerts = machines.filter(m => m.nozzle?.installedAt && m.nozzle?.gramsThreshold > 0 && machineGramsSinceNozzle(m) >= m.nozzle.gramsThreshold);
+      const totalAlerts = maintMachines.length + nozzleAlerts.length;
+      if (totalAlerts === 0) return '';
+      return `<div class="dash-section dash-maint-section pro-only">
+        <h3 class="dash-section-head" style="color:var(--danger);">🔧 ${escapeHtml(t('dash.maint_title'))} (${totalAlerts})</h3>
         ${maintMachines.map(m => {
           const s = machineServiceStatus(m);
           const badge = s.due
@@ -6912,6 +8940,20 @@ function renderDashboard() {
             </div>
           </div>`;
         }).join('')}
+        ${nozzleAlerts.map(m => {
+          const grams = machineGramsSinceNozzle(m);
+          return `<div class="dash-order-row">
+            <div class="dash-order-info">
+              <span class="machine-dot" style="background:${escapeHtml(m.color)};display:inline-block;width:10px;height:10px;border-radius:50%;margin-inline-end:6px;vertical-align:middle;"></span>
+              <strong>${escapeHtml(m.name)}</strong>
+              <span class="dash-order-id">🔩 ${grams.toFixed(0)}g / ${m.nozzle.gramsThreshold}g</span>
+            </div>
+            <div class="dash-order-meta">
+              <span class="due-badge overdue">${escapeHtml(t('mach.nozzle_replace'))}</span>
+              <button class="btn small ghost" data-act="log-nozzle-change" data-id="${m.id}">${escapeHtml(t('mach.log_nozzle'))}</button>
+            </div>
+          </div>`;
+        }).join('')}
       </div>`;
     })()}
 
@@ -6924,7 +8966,7 @@ function renderDashboard() {
         return nd <= sevenDays;
       }).sort((a, b) => a.recurring.nextDue.localeCompare(b.recurring.nextDue));
       if (dueClients.length === 0) return '';
-      return `<div class="dash-section" style="border-left:3px solid var(--primary); padding-inline-start:12px;">
+      return `<div class="dash-section pro-only" style="border-left:3px solid var(--primary); padding-inline-start:12px;">
         <h3 class="dash-section-head" style="color:var(--primary);">${escapeHtml(t('dash.recurring_due'))} (${dueClients.length})</h3>
         ${dueClients.map(c => {
           const nd = new Date(c.recurring.nextDue + 'T00:00:00');
@@ -7011,7 +9053,7 @@ function renderDashboard() {
         });
       }
       if (paymentsDue.length === 0) return '';
-      return `<div class="dash-section" style="border-left:3px solid var(--primary); padding-inline-start:12px; margin-bottom:14px;">
+      return `<div class="dash-section pro-only" style="border-left:3px solid var(--primary); padding-inline-start:12px; margin-bottom:14px;">
         <h3 class="dash-section-head" style="color:var(--primary);">💳 ${escapeHtml(t('dash.payments_due'))} (${paymentsDue.length})</h3>
         ${paymentsDue.map(({ order: o, inst, instIndex, client }) => {
           const clientName = client ? localName(client) : (o.project || o.id);
@@ -7037,6 +9079,22 @@ function renderDashboard() {
 
     <div id="capacityGaugeSection"></div>
 
+    ${(() => {
+      const forecastItems = computeMaterialForecast();
+      if (forecastItems.length === 0) return '';
+      return `<div class="dash-card forecast-card" style="margin-bottom:14px;">
+        <h3 class="dash-section-head" style="color:var(--warning);">⚠ ${escapeHtml(t('dash.mat_forecast'))}</h3>
+        ${forecastItems.map(f => `
+          <div class="forecast-row ${f.urgent ? 'urgent' : 'warn'}" style="display:flex;align-items:center;justify-content:space-between;padding:5px 8px;border-radius:5px;margin-bottom:4px;background:${f.urgent ? 'rgba(220,38,38,0.08)' : 'rgba(245,166,35,0.08)'};">
+            <span class="forecast-mat" style="font-weight:500;">${escapeHtml(f.material)}</span>
+            <span class="forecast-days" style="font-size:12px;color:${f.urgent ? 'var(--danger)' : 'var(--warning)'};">
+              ${f.available < 0 ? escapeHtml(t('dash.mat_queue_exceeds')) : escapeHtml(t('dash.mat_days_left', { n: f.daysRemaining }))}
+            </span>
+            <span class="forecast-stock" style="font-size:11px;color:var(--text-muted);">${f.available}g</span>
+          </div>`).join('')}
+      </div>`;
+    })()}
+
     <div class="dash-quick">
       <button class="btn primary" data-act="goto-tab" data-tab="calculator-tab" data-i18n="tab.calculator">Calculator</button>
       <button class="btn" data-act="goto-tab" data-tab="queue-tab" data-i18n="tab.queue">Production Queue</button>
@@ -7053,6 +9111,85 @@ function renderDashboard() {
   );
   // Feature 5: Render capacity gauge into its placeholder
   renderCapacityGauge();
+}
+
+/* ============================================================
+   Feature 1 (new): Kanban drag-and-drop reorder
+   ============================================================ */
+let _kanbanDraggingId = null;
+
+function setupKanbanDrag() {
+  _kanbanDraggingId = null;
+  const cols = ['pending', 'on_hold', 'printing', 'post', 'completed'];
+  cols.forEach(status => {
+    const container = $('#list-' + status);
+    if (!container) return;
+    const cards = container.querySelectorAll('.kanban-card[draggable="true"]');
+    cards.forEach(card => {
+      card.addEventListener('dragstart', (e) => {
+        _kanbanDraggingId = card.dataset.orderId;
+        card.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', _kanbanDraggingId);
+      });
+      card.addEventListener('dragend', () => {
+        card.classList.remove('dragging');
+        container.querySelectorAll('.kanban-drop-indicator').forEach(el => el.remove());
+        container.querySelectorAll('.kanban-drag-over').forEach(el => el.classList.remove('kanban-drag-over'));
+        _kanbanDraggingId = null;
+      });
+    });
+
+    container.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      container.querySelectorAll('.kanban-drop-indicator').forEach(el => el.remove());
+      container.querySelectorAll('.kanban-drag-over').forEach(el => el.classList.remove('kanban-drag-over'));
+      const target = e.target.closest('.kanban-card[draggable="true"]');
+      if (!target || target.dataset.orderId === _kanbanDraggingId) return;
+      target.classList.add('kanban-drag-over');
+      const rect = target.getBoundingClientRect();
+      const mid  = rect.top + rect.height / 2;
+      const indicator = document.createElement('div');
+      indicator.className = 'kanban-drop-indicator';
+      if (e.clientY < mid) {
+        target.parentNode.insertBefore(indicator, target);
+      } else {
+        target.parentNode.insertBefore(indicator, target.nextSibling);
+      }
+    });
+
+    container.addEventListener('dragleave', (e) => {
+      if (!container.contains(e.relatedTarget)) {
+        container.querySelectorAll('.kanban-drop-indicator').forEach(el => el.remove());
+        container.querySelectorAll('.kanban-drag-over').forEach(el => el.classList.remove('kanban-drag-over'));
+      }
+    });
+
+    container.addEventListener('drop', (e) => {
+      e.preventDefault();
+      container.querySelectorAll('.kanban-drop-indicator').forEach(el => el.remove());
+      container.querySelectorAll('.kanban-drag-over').forEach(el => el.classList.remove('kanban-drag-over'));
+      if (!_kanbanDraggingId) return;
+      const target = e.target.closest('.kanban-card[draggable="true"]');
+      if (!target || target.dataset.orderId === _kanbanDraggingId) return;
+      const colOrders = printLog.filter(o => o.status === status)
+        .sort((a, b) => (a.queuePos || 9999) - (b.queuePos || 9999));
+      const dragIdx   = colOrders.findIndex(o => o.id === _kanbanDraggingId);
+      const targetIdx = colOrders.findIndex(o => o.id === target.dataset.orderId);
+      if (dragIdx < 0 || targetIdx < 0) return;
+      const rect = target.getBoundingClientRect();
+      const insertBefore = e.clientY < rect.top + rect.height / 2;
+      const reordered = colOrders.filter(o => o.id !== _kanbanDraggingId);
+      const dragged = colOrders[dragIdx];
+      const newIdx = reordered.findIndex(o => o.id === target.dataset.orderId);
+      const insertAt = insertBefore ? newIdx : newIdx + 1;
+      reordered.splice(insertAt, 0, dragged);
+      reordered.forEach((o, i) => { o.queuePos = i; });
+      saveAll();
+      renderKanban();
+    });
+  });
 }
 
 function renderKanban() {
@@ -7078,7 +9215,7 @@ function renderKanban() {
         return `
           <div class="quote-card">
             <div class="quote-main">
-              <div class="quote-title">${q.priority ? `<span class="priority-badge">!</span> ` : ''}${escapeHtml(q.project || q.id)}</div>
+              <div class="quote-title">${getPriorityLevel(q) !== 'normal' ? priorityBadgeHtml(q) + ' ' : ''}${escapeHtml(q.project || q.id)}</div>
               <div class="quote-meta">${escapeHtml(q.id)} · ${fmtPrice(q.price)} ${expiryHtml}</div>
             </div>
             <div class="quote-actions">
@@ -7092,17 +9229,18 @@ function renderKanban() {
   }
 
   // --- Production columns (exclude quotes) ---
-  const cols = { pending: [], on_hold: [], printing: [], post: [], completed: [] };
+  const cols = { pending: [], on_hold: [], printing: [], post: [], qc: [], completed: [] };
   printLog.filter(o => o.status !== 'quote').forEach(o => { if (cols[o.status]) cols[o.status].push(o); });
 
   Object.entries(cols).forEach(([status, items]) => {
-    // For pending: sort by queuePos (Feature 7), then priority
+    // For pending: sort by priority level (urgent>high>normal) then queuePos; other columns by priority level
     const sorted = status === 'pending'
       ? [...items].sort((a, b) => {
-          if ((b.priority ? 1 : 0) !== (a.priority ? 1 : 0)) return (b.priority ? 1 : 0) - (a.priority ? 1 : 0);
+          const pd = prioritySortValue(a) - prioritySortValue(b);
+          if (pd !== 0) return pd;
           return (a.queuePos || 9999) - (b.queuePos || 9999);
         })
-      : [...items].sort((a, b) => (b.priority ? 1 : 0) - (a.priority ? 1 : 0));
+      : [...items].sort((a, b) => prioritySortValue(a) - prioritySortValue(b));
     const countEl = $('#count-' + status);
     if (countEl) countEl.textContent = sorted.length;
 
@@ -7161,7 +9299,13 @@ function renderKanban() {
         actions = `<button class="btn small primary" data-act="status" data-id="${log.id}" data-to="pending">${escapeHtml(t('ord.unhold_btn'))}</button>${woBtn}${notifyBtn}`;
       }
       if (status === 'printing')  actions = `<button class="btn small" data-act="status" data-id="${log.id}" data-to="post">${escapeHtml(t('queue.to_post'))}</button>${woBtn}${notifyBtn}`;
-      if (status === 'post')      actions = `<button class="btn small success" data-act="status" data-id="${log.id}" data-to="completed">${escapeHtml(t('queue.complete'))}</button>${woBtn}${notifyBtn}`;
+      // Feature 2 (this batch): Post column → QC column instead of directly completing
+      if (status === 'post')      actions = `<button class="btn small primary" data-act="status" data-id="${log.id}" data-to="qc">📋 ${escapeHtml(t('ord.qc'))}</button>${woBtn}${notifyBtn}`;
+      // Feature 2 (this batch): QC column — pass or fail buttons
+      if (status === 'qc') {
+        actions = `<button class="btn small success" data-act="qc-pass" data-id="${log.id}">✅ ${escapeHtml(t('ord.qc_pass'))}</button>
+          <button class="btn small danger" data-act="qc-fail" data-id="${log.id}" style="margin-inline-start:4px;">❌ ${escapeHtml(t('ord.qc_fail'))}</button>${woBtn}${notifyBtn}`;
+      }
       if (status === 'completed') {
         const deliverBtn = log.deliveredAt
           ? `<span style="font-size:11px;color:var(--success);">✓ ${escapeHtml(t('queue.delivered'))}</span>`
@@ -7185,16 +9329,17 @@ function renderKanban() {
           ? `<span class="machine-badge${machine.isOffline ? ' mach-offline' : ''}" style="background:${escapeHtml(machine.color)};">${machine.isOffline ? '⚠ ' : ''}${escapeHtml(machine.name)}</span>`
           : '';
       }
-      // Live timer badge for printing orders
+      // Live timer badge for printing orders (Feature 1+8)
       let timerBadge = '';
-      if (status === 'printing' && log.timerStart) {
-        const elapsed = Math.floor((Date.now() - new Date(log.timerStart).getTime()) / 60000);
+      if (status === 'printing' && (log.timerStart || log.printingStartedAt)) {
+        const startIso = log.timerStart || log.printingStartedAt;
+        const elapsed = Math.floor((Date.now() - new Date(startIso).getTime()) / 60000);
         const hrs = Math.floor(elapsed / 60);
         const mins = elapsed % 60;
         const elapsedStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
         const expected = +log.printTime * 60;
         const isOver = elapsed > expected;
-        timerBadge = `<span class="timer-badge${isOver ? ' timer-over' : ''}">⏱ ${escapeHtml(elapsedStr)}${isOver ? ' ⚠' : ''}</span>`;
+        timerBadge = `<span class="elapsed-timer timer-badge${isOver ? ' timer-over' : ''}" data-started="${escapeHtml(startIso)}">⏱ ${escapeHtml(elapsedStr)}${isOver ? ' ⚠' : ''}</span>`;
       }
       // Post-processing checklist (shown only in 'post' column)
       let postCheckHtml = '';
@@ -7214,9 +9359,41 @@ function renderKanban() {
               </label>`).join('')}
           </div>`;
       }
+      // Feature 3 (new batch): Resin post-processing checklist
+      let resinCheckHtml = '';
+      if (status === 'post' && log.isResin) {
+        const rp = log.resinPost || {};
+        resinCheckHtml = `
+          <div class="resin-checklist">
+            <div class="resin-step ${rp.washDurationMins ? 'done' : ''}" data-act="resin-log-wash" data-id="${log.id}">
+              🧴 ${escapeHtml(t('resin.wash'))} ${rp.washDurationMins ? `✓ ${rp.washDurationMins}min` : '— tap to log'}
+            </div>
+            <div class="resin-step ${rp.cureDurationMins ? 'done' : ''}" data-act="resin-log-cure" data-id="${log.id}">
+              ☀️ ${escapeHtml(t('resin.cure'))} ${rp.cureDurationMins ? `✓ ${rp.cureDurationMins}min` : '— tap to log'}
+            </div>
+            <div class="resin-step" data-act="resin-complete" data-id="${log.id}">
+              ✅ ${escapeHtml(t('resin.complete_post'))}
+            </div>
+          </div>`;
+      }
+      const _pl = getPriorityLevel(log);
+      const kanbanOperator = log.operatorId ? operators.find(o => o.id === log.operatorId) : null;
+      const operatorBadge = kanbanOperator ? `<span class="operator-badge">👤 ${escapeHtml(kanbanOperator.name)}</span>` : '';
+      // Split/sub-order badges
+      const kanbanSplitBadge = log.splitInto && log.splitInto.length > 0 ? `<span class="split-badge">🔀 ${escapeHtml(t('ord.split_badge', { n: log.splitInto.length }))}</span>` : '';
+      const kanbanSubBadge = log.parentOrderId ? `<span class="sub-order-badge">↳ #${escapeHtml(log.parentOrderId)}</span>` : '';
+      // Feature 2 (this batch): QC passed badge
+      const qcBadge = log.qcPassedAt ? `<span class="qc-badge">✅ ${escapeHtml(t('ord.qc_passed'))}</span>` : '';
+      // Feature 8 (this batch): paused overlay on pending cards
+      const pausedClass = (settings.productionPaused && status === 'pending') ? ' kanban-paused-overlay' : '';
+      // Feature 1 (this batch): colour chips on parts
+      const partColourHtml = (log.parts || []).filter(p => p.colour).map(p =>
+        `<span class="part-colour-chip">${escapeHtml(p.colour)}</span>`
+      ).join('');
       return `
-        <div class="kanban-card${log.priority ? ' kanban-priority' : ''}">
-          <h4>${log.priority ? `<span class="priority-badge">!</span> ` : ''}${escapeHtml(log.project)}${machineBadge}</h4>
+        <div class="kanban-card${_pl === 'urgent' ? ' kanban-priority-urgent' : _pl === 'high' ? ' kanban-priority-high' : ''}${pausedClass}" draggable="true" data-order-id="${log.id}">
+          <h4>${_pl !== 'normal' ? priorityBadgeHtml(log) + ' ' : ''}${escapeHtml(log.project)}${machineBadge}${operatorBadge}${kanbanSplitBadge}${kanbanSubBadge}${qcBadge}</h4>
+          ${partColourHtml ? `<div style="margin-top:2px;">${partColourHtml}</div>` : ''}
           <div class="meta">
             <span class="price">${fmtPrice(log.price)}</span>
             <span>·</span>
@@ -7229,6 +9406,7 @@ function renderKanban() {
           ${status === 'on_hold' && log.holdReason ? `<div style="font-size:11px; color:var(--warning); margin-top:3px;">⏸ ${escapeHtml(log.holdReason)}</div>` : ''}
           ${(log.tags && log.tags.length > 0) ? `<div class="kanban-tags">${renderTagChips(log.tags)}</div>` : ''}
           ${postCheckHtml}
+          ${resinCheckHtml}
           ${log.parts && log.parts.length > 0 ? `
           <div class="part-status-list">
             ${log.parts.map((p, i) => {
@@ -7251,21 +9429,50 @@ function renderKanban() {
             return `<div class="partial-delivery-badge">${escapeHtml(t('ord.parts_delivered', { done: delivered, total: log.parts.length }))}</div>`;
           })()}
           <div class="actions">${actions}</div>
+          ${(() => {
+            // Feature 2 (new batch): Live printer status
+            if (status !== 'printing') return '';
+            const mid = log.machineId;
+            if (!mid) return '';
+            const mach = machines.find(m => m.id === mid);
+            if (!mach?.printerApi?.type || mach.printerApi.type === 'none') return '';
+            return `<div class="printer-live-status" data-machine-id="${escapeHtml(mid)}"></div>`;
+          })()}
         </div>`;
     }).join('');
   });
 
-  // Auto-refresh kanban every 60 s while any job is actively printing (for live timer)
-  const hasPrinting = printLog.some(o => o.status === 'printing' && o.timerStart);
+  // Feature 2 (new batch): Populate live status on rendered cards
+  updateKanbanLiveStatus();
+
+  // Feature 3 (new batch): FEP film alert — check per machine after render
+  (() => {
+    if (!settings.mode || settings.mode === 'simple') return;
+    const resinCompleted = printLog.filter(o => o.isResin && o.status === 'completed');
+    machines.forEach(m => {
+      const count = resinCompleted.filter(o => o.machineId === m.id).length;
+      if (count > 0 && count % 50 === 0) {
+        toast(`${escapeHtml(m.name)}: ${t('resin.fep_alert')}`, 'warning', 6000);
+      }
+    });
+  })();
+
+  // Feature 1 (new): Drag-and-drop reorder within kanban columns
+  setupKanbanDrag();
+
+  // Feature 8: Live elapsed timer — update badge text every 60 s without full re-render
+  clearInterval(window._elapsedTimerInterval);
+  const hasPrinting = printLog.some(o => o.status === 'printing' && (o.timerStart || o.printingStartedAt));
   if (hasPrinting) {
-    if (!kanbanTimerInterval) {
-      kanbanTimerInterval = setInterval(() => renderKanban(), 60000);
-    }
-  } else {
-    if (kanbanTimerInterval) {
-      clearInterval(kanbanTimerInterval);
-      kanbanTimerInterval = null;
-    }
+    window._elapsedTimerInterval = setInterval(() => {
+      document.querySelectorAll('.elapsed-timer[data-started]').forEach(el => {
+        const started = new Date(el.dataset.started);
+        const mins = Math.floor((Date.now() - started) / 60000);
+        const h = Math.floor(mins / 60), m = mins % 60;
+        const timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
+        el.textContent = `⏱ ${timeStr}`;
+      });
+    }, 60000);
   }
 }
 
@@ -7296,18 +9503,24 @@ function renderLogs() {
     const fileCount  = (log.attachedFiles || []).length;
     const isOverdue = log.dueDate && log.status !== 'completed' && new Date(log.dueDate + 'T00:00:00') < new Date(new Date().setHours(0,0,0,0));
     const isSel = selectedOrders.has(log.id);
+    const logOperator = log.operatorId ? operators.find(o => o.id === log.operatorId) : null;
+    const logSplitBadge = log.splitInto && log.splitInto.length > 0 ? `<span class="split-badge">🔀 ${escapeHtml(t('ord.split_badge', { n: log.splitInto.length }))}</span>` : '';
+    const logSubBadge = log.parentOrderId ? `<span class="sub-order-badge">↳ ${escapeHtml(t('ord.sub_order'))} #${escapeHtml(log.parentOrderId)}</span>` : '';
     return `
     <tr${isOverdue ? ' class="row-overdue"' : ''}${isSel ? ' style="background:rgba(91,156,240,0.07);"' : ''}>
       <td style="width:32px;padding:8px 6px;"><input type="checkbox" class="log-sel" data-id="${log.id}" style="width:auto;" ${isSel ? 'checked' : ''}></td>
       <td style="font-family: var(--font-num); font-size: 12px; color: var(--text-dim); white-space:nowrap;">${escapeHtml(log.date)}</td>
       <td>
-        ${log.priority ? `<span class="priority-badge" style="margin-inline-end:5px;">!</span>` : ''}<strong>${escapeHtml(log.project)}</strong>${log.dueDate && log.status !== 'completed' ? ' ' + formatDueDateBadge(log.dueDate) : ''}
+        ${getPriorityLevel(log) !== 'normal' ? priorityBadgeHtml(log) + ' ' : ''}<strong>${escapeHtml(log.project)}</strong>${log.dueDate && log.status !== 'completed' ? ' ' + formatDueDateBadge(log.dueDate) : ''}${logSplitBadge}${logSubBadge}
+        ${logOperator ? `<span class="operator-badge">👤 ${escapeHtml(logOperator.name)}</span>` : ''}
         ${(log.tags && log.tags.length > 0) ? `<div style="margin-top:3px;">${renderTagChips(log.tags, true)}</div>` : ''}
         <div style="font-family: var(--font-num); font-size: 11.5px; color: var(--text-muted);">${escapeHtml(log.id)}${photoCount ? ` · ${photoCount}📷` : ''}${fileCount ? ` · ${fileCount}📎` : ''}${log.notes ? ' · 📝' : ''}</div>
       </td>
       <td>
         <span class="badge ${escapeHtml(log.status)}">${escapeHtml(t('queue.' + log.status))}</span>${log.deliveredAt ? ` <span style="font-size:10px; color:var(--success);">✓ ${escapeHtml(t('queue.delivered'))}</span>` : ''}
         ${log.status === 'completed' && log.completedAt ? `<div style="font-size:10.5px; color:var(--text-muted); margin-top:2px;">✓ ${escapeHtml(t('ord.completed_at'))}: ${escapeHtml(new Date(log.completedAt).toLocaleDateString())}</div>` : ''}
+        ${log.qcPassedAt ? `<div style="margin-top:2px;"><span class="qc-badge">✅ ${escapeHtml(t('ord.qc_passed'))}</span>${log.qcNotes ? `<span style="font-size:11px;color:var(--text-muted);margin-inline-start:5px;">${escapeHtml(log.qcNotes)}</span>` : ''}</div>` : ''}
+        ${(log.milestoneInvoices && log.milestoneInvoices.length > 0) ? `<div style="margin-top:2px;font-size:10.5px;color:var(--primary);">📄 ${log.milestoneInvoices.length} ${escapeHtml(t('ord.milestone_invoices'))}</div>` : ''}
         ${(() => {
           // Feature 2: Actual duration badge
           if (log.printingStartedAt && log.completedAt) {
@@ -7336,13 +9549,16 @@ function renderLogs() {
         ${(() => { const linkedWaste = wasteLog.filter(w => w.orderId === log.id); const wCost = linkedWaste.reduce((s, w) => s + (+w.cost || 0), 0); return linkedWaste.length > 0 ? `<span title="${escapeHtml(t('waste.linked_cost'))}: ${fmtPrice(wCost)}" style="font-size:10.5px; color:var(--danger); cursor:default;">🗑 ${fmtPrice(wCost)}</span>` : ''; })()}
         ${log.clientId ? clients.find(c => c.id === log.clientId)?.email ? '' : '' : ''}
         <button class="btn small ghost" data-act="export-status-page" data-id="${log.id}" title="${escapeHtml(t('ord.status_page'))}">📄</button>
+        ${log.clientId ? `<button class="btn small ghost" data-act="open-status-page" data-id="${log.id}" title="${escapeHtml(t('ord.status_page_open'))}">🔗</button>` : ''}
+        ${(log.parts || []).length > 1 && log.status !== 'split' ? `<button class="btn small ghost pro-only" data-act="split-order" data-id="${log.id}" title="${escapeHtml(t('ord.split'))}">⚡</button>` : ''}
         ${(() => { const cl = log.clientId ? clients.find(c => c.id === log.clientId) : null; return cl?.email ? `<button class="btn small ghost" data-act="${log.status === 'quote' ? 'email-quote' : 'email-invoice'}" data-id="${log.id}" title="${escapeHtml(t(log.status === 'quote' ? 'ord.email_quote' : 'ord.email_invoice'))}">✉️</button>` : ''; })()}
         <button class="btn small ${isPaid ? '' : 'primary'}" data-act="${isPaid ? 'unpay' : 'pay'}" data-id="${log.id}" title="${escapeHtml(isPaid ? t('pay.mark_unpaid') : t('pay.mark_paid'))}">${escapeHtml(isPaid ? '✓' : t('pay.mark_paid'))}</button>
+        ${(log.status === 'pending' || log.status === 'printing') && log.clientId && (+log.price || 0) > 0 ? `<button class="btn small ghost pro-only" data-act="gen-proforma" data-id="${log.id}" title="${escapeHtml(t('ord.gen_proforma'))}">${escapeHtml(t('ord.proforma'))}</button>` : ''}
         <button class="btn small" data-act="invoice"   data-id="${log.id}" title="${escapeHtml(t('inv.print'))}">${escapeHtml(t('inv.print'))}</button>
         <button class="btn small" data-act="inv-pdf"   data-id="${log.id}" title="${escapeHtml(t('inv.save_pdf'))}">PDF</button>
         <button class="btn small" data-act="inv-wa"    data-id="${log.id}" title="${escapeHtml(t('inv.share_whatsapp'))}">WA</button>
         <button class="btn small ghost" data-act="dn-log" data-id="${log.id}" title="${escapeHtml(t('dn.print'))}">DN</button>
-        <button class="btn small ghost" data-act="cn-log" data-id="${log.id}" title="${escapeHtml(t('cn.title'))}">CN</button>
+        <button class="btn small ghost pro-only" data-act="cn-log" data-id="${log.id}" title="${escapeHtml(t('cn.title'))}">CN</button>
         <button class="btn small ghost" data-act="wo-log" data-id="${log.id}" title="${escapeHtml(t('wo.title'))}">WO</button>
         <button class="btn small" data-act="edit-log"  data-id="${log.id}" title="${escapeHtml(t('common.edit'))}">${escapeHtml(t('common.edit'))}</button>
         <button class="btn small" data-act="dup-log"    data-id="${log.id}" title="${escapeHtml(t('oe.duplicate'))}">${escapeHtml(t('oe.duplicate'))}</button>
@@ -7350,6 +9566,7 @@ function renderLogs() {
         ${!isPaid ? `<button class="btn small ghost" data-act="pay-remind" data-id="${log.id}" title="${escapeHtml(t('pay.remind_btn'))}">💰</button>` : ''}
         ${log.trackingNumber ? `<button class="btn small ghost" data-act="share-tracking" data-id="${log.id}" title="${escapeHtml(t('ship.tracking_share'))}">📦</button>` : ''}
         ${(log.editHistory && log.editHistory.length > 0) ? `<button class="btn small ghost" data-act="view-edit-history" data-id="${log.id}" title="${escapeHtml(t('ord.edit_history'))}">📝</button>` : ''}
+        <button class="btn small ghost pro-only" data-act="milestone-invoices" data-id="${log.id}" title="${escapeHtml(t('ord.milestone_invoices'))}">📋</button>
         ${log.status === 'quote' && log.clientId ? `<button class="btn small ghost" data-act="export-quote-approval" data-id="${log.id}" title="${escapeHtml(t('ord.quote_approval_page'))}">📋</button>` : ''}
         ${log.status === 'quote' ? `<button class="btn small ghost" data-act="revise-quote" data-id="${log.id}" title="${escapeHtml(t('ord.revise_quote'))}">📝 ${escapeHtml(t('ord.revise_quote'))}</button>` : ''}
         ${log.status === 'quote' && (log.quoteRevisions || []).length > 0 ? `<button class="btn small ghost" data-act="quote-revisions" data-id="${log.id}" title="${escapeHtml(t('ord.quote_revisions'))}">🕐 v${log.quoteVersion || 1}</button>` : ''}
@@ -7559,6 +9776,64 @@ function renderProductTierChips(product) {
 /* ============================================================
    Reorder reminder (inventory low-stock)
    ============================================================ */
+async function batchGenPOs() {
+  const lowStockItems = inventory.filter(item =>
+    (item.weight || 0) < (item.reorderPoint || settings.lowStockThreshold || 200)
+  );
+  if (lowStockItems.length === 0) {
+    toast(t('po.none_needed'), 'info');
+    return;
+  }
+  // Group by supplier
+  const bySupplier = {};
+  for (const item of lowStockItems) {
+    const key = item.supplier || '—';
+    if (!bySupplier[key]) bySupplier[key] = [];
+    bySupplier[key].push(item);
+  }
+  const rowsHtml = Object.entries(bySupplier).map(([sup, items]) =>
+    items.map(item => `
+      <tr>
+        <td>${escapeHtml(sup)}</td>
+        <td>${escapeHtml(item.material)}</td>
+        <td>${Math.round(item.weight || 0)}g</td>
+        <td>${Math.round(item.reorderQty || 1000)}g</td>
+      </tr>`).join('')
+  ).join('');
+  const confirmed = await new Promise(resolve => {
+    openFormModal({
+      title: t('po.batch_confirm', { n: lowStockItems.length }),
+      saveLabel: t('common.confirm'),
+      sizeLg: false,
+      bodyHtml: `
+        <div style="overflow-x:auto;max-height:280px;overflow-y:auto;">
+          <table style="width:100%;font-size:12px;border-collapse:collapse;">
+            <thead><tr style="color:var(--text-muted);">
+              <th style="text-align:left;padding:4px 6px;">${escapeHtml(t('po.supplier'))}</th>
+              <th style="text-align:left;padding:4px 6px;">${escapeHtml(t('po.item'))}</th>
+              <th style="text-align:right;padding:4px 6px;">${escapeHtml('Current')}</th>
+              <th style="text-align:right;padding:4px 6px;">${escapeHtml('Order qty')}</th>
+            </tr></thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+        </div>`,
+      async onSave() { resolve(true); return true; }
+    });
+    // If modal is closed without save, resolve false
+    const observer = new MutationObserver(() => {
+      if (!document.querySelector('#modalMount .modal')) { observer.disconnect(); resolve(false); }
+    });
+    observer.observe($('#modalMount'), { childList: true });
+  });
+  if (!confirmed) return;
+  for (const item of lowStockItems) {
+    createPurchaseOrder(item);
+  }
+  saveAll();
+  renderPurchaseOrders();
+  toast(t('po.batch_done', { n: lowStockItems.length }), 'success');
+}
+
 function createPurchaseOrder(item) {
   const po = {
     id: uid('PO'),
@@ -7566,7 +9841,7 @@ function createPurchaseOrder(item) {
     itemName: item.material,
     supplierId: null,
     supplierName: '',
-    qty: 1,
+    qty: item.reorderQty || 1000,  // New Feature 5: use per-spool reorder qty
     status: 'ordered',
     orderedAt: new Date().toISOString().split('T')[0],
     receivedAt: null,
@@ -7585,6 +9860,7 @@ function renderPurchaseOrders() {
   sec.innerHTML = `
     <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
       <h3 class="card-head" style="margin:0; flex:1;"><span class="swatch"></span><span>${escapeHtml(t('po.title'))}</span></h3>
+      <button class="btn small pro-only" data-act="batch-gen-pos">📦 ${escapeHtml(t('po.batch_gen'))}</button>
     </div>
     ${relevant.length === 0
       ? `<p style="color:var(--text-muted); font-size:13px;">${escapeHtml(t('po.empty'))}</p>`
@@ -7597,17 +9873,33 @@ function renderPurchaseOrders() {
             <th></th>
           </tr></thead>
           <tbody>
-          ${relevant.map(po => `
+          ${relevant.map(po => {
+            const receivedSoFar = po.receivedSoFar || 0;
+            const weightOrdered = po.weightOrdered || 0;
+            const progressPct = weightOrdered > 0 ? Math.min(100, (receivedSoFar / weightOrdered) * 100) : 0;
+            const isPartial = po.status === 'partial';
+            const progressHtml = isPartial && weightOrdered > 0 ? `
+              <div style="margin-top:4px; font-size:11px; color:var(--text-muted);">${escapeHtml(t('po.received_so_far'))}: ${receivedSoFar}g / ${weightOrdered}g</div>
+              <div class="po-progress-bar"><div style="width:${progressPct.toFixed(1)}%;background:var(--primary);height:100%;border-radius:2px;"></div></div>` : '';
+            return `
             <tr>
-              <td><strong>${escapeHtml(po.itemName || po.id)}</strong></td>
+              <td><strong>${escapeHtml(po.itemName || po.id)}</strong>${progressHtml}</td>
               <td style="color:var(--text-dim);">${escapeHtml(po.supplierName || '—')}</td>
               <td style="font-size:12px; color:var(--text-muted);">${escapeHtml(po.orderedAt || '')}</td>
-              <td><span class="po-badge ${escapeHtml(po.status)}">${escapeHtml(t('po.status.' + po.status))}</span></td>
+              <td>
+                <span class="po-badge ${escapeHtml(po.status)}">${isPartial ? escapeHtml(t('po.partial')) : escapeHtml(t('po.status.' + po.status))}</span>
+                ${po.supplierInvoice ? (po.invoiceDiscrepancy
+                  ? `<span class="ap-mismatch-badge" title="${escapeHtml(t('po.ap_mismatch'))}">⚠ ${escapeHtml(t('po.ap_mismatch'))}</span>`
+                  : `<span class="ap-matched-badge" title="${escapeHtml(t('po.ap_matched'))}">✔ ${escapeHtml(t('po.ap_matched'))}</span>`) : ''}
+              </td>
               <td style="white-space:nowrap;">
-                ${po.status === 'ordered' ? `<button class="btn small success" data-act="po-receive" data-id="${po.id}">${escapeHtml(t('po.receive'))}</button>` : `<span style="font-size:11px; color:var(--text-muted);">${escapeHtml(po.receivedAt || '')}</span>`}
+                ${(po.status === 'ordered' || isPartial) ? `<button class="btn small success" data-act="po-receive" data-id="${po.id}">${escapeHtml(isPartial ? t('po.receive_more') : t('po.receive'))}</button>` : `<span style="font-size:11px; color:var(--text-muted);">${escapeHtml(po.receivedAt || '')}</span>`}
+                ${isPartial ? `<button class="btn small ghost" data-act="po-close" data-id="${po.id}" style="margin-inline-start:4px;">${escapeHtml(t('po.close_po'))}</button>` : ''}
+                ${(po.status === 'received' || isPartial) ? `<button class="btn small ghost pro-only" data-act="po-record-invoice" data-id="${po.id}" style="margin-inline-start:4px;" title="${escapeHtml(t('po.ap_record'))}">🧾 ${escapeHtml(t('po.ap_record'))}</button>` : ''}
                 <button class="btn danger small" data-act="po-del" data-id="${po.id}" style="margin-inline-start:4px;">×</button>
               </td>
-            </tr>`).join('')}
+            </tr>`;
+          }).join('')}
           </tbody></table></div>`
     }`;
 }
@@ -7615,7 +9907,10 @@ function renderPurchaseOrders() {
 function openReorderModal(itemId) {
   const item = inventory.find(i => i.id === itemId);
   if (!item) return;
-  const defaultMsg = t('inv.reorder_msg', { material: item.material, weight: Math.round(item.weight) });
+  // New Feature 5: include reorder qty in default message
+  const orderQty = item.reorderQty || 1000;
+  const defaultMsg = t('inv.reorder_msg', { material: item.material, weight: Math.round(item.weight) })
+    .replace(/\.$/, '') + `. Please send ${orderQty}g. Thank you!`;
   openFormModal({
     title: t('inv.reorder_title'),
     saveLabel: t('wa.open_btn'),
@@ -7641,6 +9936,75 @@ function openReorderModal(itemId) {
       createPurchaseOrder(item);
       return true;
     }
+  });
+}
+
+/* ============================================================
+   Simple Reports — shown instead of full Analytics in Simple mode
+   ============================================================ */
+function renderSimpleReports() {
+  // Show simple-reports card, hide the full analytics content
+  const analyticsTab = $('#analytics-tab');
+  if (!analyticsTab) return;
+
+  const thisMonthStr = new Date().toISOString().slice(0, 7);
+  const monthOrders = printLog.filter(o => o.status === 'completed' && (o.date || '').startsWith(thisMonthStr));
+  const monthRevenue = monthOrders.reduce((s, o) => s + +o.price, 0);
+  const monthCount   = monthOrders.length;
+
+  const outstanding = printLog
+    .filter(o => payStatus(o) !== 'paid')
+    .reduce((s, o) => s + Math.max(0, +o.price - (+o.paidAmount || 0)), 0);
+
+  // Top 3 tags by revenue
+  const tagRev = {};
+  for (const o of monthOrders) {
+    for (const tag of (o.tags || [])) {
+      tagRev[tag] = (tagRev[tag] || 0) + +o.price;
+    }
+  }
+  const topTags = Object.entries(tagRev).sort((a, b) => b[1] - a[1]).slice(0, 3);
+
+  let simpleEl = $('#simpleReportsCard');
+  if (!simpleEl) {
+    simpleEl = document.createElement('div');
+    simpleEl.id = 'simpleReportsCard';
+    simpleEl.className = 'card';
+    simpleEl.style.marginTop = '0';
+    analyticsTab.innerHTML = '';
+    analyticsTab.appendChild(simpleEl);
+  }
+
+  simpleEl.innerHTML = `
+    <h3 class="card-head"><span class="swatch"></span><span>${escapeHtml(t('an.simple_reports'))}</span></h3>
+    <div class="grid-4" style="margin-bottom:16px;">
+      <div class="stat revenue">
+        <div class="stat-label">${escapeHtml(t('an.simple_revenue'))}</div>
+        <div class="stat-value"><span>${fmtMoney(monthRevenue)}</span><span class="unit">${escapeHtml(currencySymbol())}</span></div>
+      </div>
+      <div class="stat orders">
+        <div class="stat-label">${escapeHtml(t('an.simple_orders'))}</div>
+        <div class="stat-value">${monthCount}</div>
+      </div>
+      <div class="stat receivables full">
+        <div class="stat-label">${escapeHtml(t('an.simple_outstanding'))}</div>
+        <div class="stat-value"><span>${fmtMoney(outstanding)}</span><span class="unit">${escapeHtml(currencySymbol())}</span></div>
+      </div>
+    </div>
+    ${topTags.length > 0 ? `
+    <h4 style="font-size:13px;font-weight:600;margin:0 0 10px;">Top products this month</h4>
+    <ul class="leaderboard" style="margin-bottom:16px;">
+      ${topTags.map(([ tag, rev ], i) => `
+        <li>
+          <span class="rank">${i + 1}.</span>
+          <span class="name">${escapeHtml(tag)}</span>
+          <span class="value">${fmtPrice(rev)}</span>
+        </li>`).join('')}
+    </ul>` : ''}
+    <button class="btn small" id="btnSimpleReportsCsv">${escapeHtml('Download CSV')}</button>`;
+
+  simpleEl.querySelector('#btnSimpleReportsCsv')?.addEventListener('click', () => {
+    exportOrdersCsv();
   });
 }
 
@@ -7838,6 +10202,9 @@ function renderAnalytics() {
   renderSLASection();
   renderMachinePL();
   renderThroughputHeatmap();
+  renderClientRetention();
+  renderCostTrends();
+  renderOperatorAnalytics();
 }
 
 /* ============================================================
@@ -8432,6 +10799,162 @@ async function exportOrderStatusPage(orderId) {
   }
 }
 
+/* ============================================================
+   New 8-pack Feature 6: Split order across machines
+   ============================================================ */
+async function splitOrderAcrossMachines(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order || !order.parts || order.parts.length < 2) return;
+
+  const machineOptions = `<option value="">${escapeHtml(t('mach.unassigned'))}</option>` +
+    machines.map(m => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
+
+  const partsHtml = order.parts.map((p, i) => `
+    <div style="display:grid; grid-template-columns:1fr auto; gap:8px; align-items:center; padding:6px 0; border-bottom:1px solid var(--border-soft);">
+      <div style="font-size:13px;">
+        <strong>${escapeHtml(p.name || 'Part ' + (i + 1))}</strong>
+        <span style="color:var(--text-muted); font-size:11.5px; margin-inline-start:6px;">${p.printTime || 0}h · ${p.printWeight || 0}g</span>
+      </div>
+      <select class="split-mach-sel" data-pi="${i}" style="font-size:12px; min-width:140px;">
+        ${machineOptions}
+      </select>
+    </div>`).join('');
+
+  const assignments = {}; // { partIndex: machineId }
+
+  const confirmed = await new Promise(resolve => {
+    openFormModal({
+      title: t('ord.split_assign'),
+      saveLabel: t('common.confirm'),
+      bodyHtml: `
+        <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 10px;">${escapeHtml(t('ord.split_confirm', { n: order.parts.length }))}</p>
+        ${partsHtml}`,
+      onMount(modal) {
+        modal.querySelectorAll('.split-mach-sel').forEach(sel => {
+          sel.addEventListener('change', () => {
+            assignments[+sel.dataset.pi] = sel.value;
+          });
+        });
+      },
+      async onSave(modal) {
+        modal.querySelectorAll('.split-mach-sel').forEach(sel => {
+          assignments[+sel.dataset.pi] = sel.value;
+        });
+        resolve(true);
+        return true;
+      }
+    });
+    const obs = new MutationObserver(() => {
+      if (!document.querySelector('#modalMount .modal')) { obs.disconnect(); resolve(false); }
+    });
+    obs.observe($('#modalMount'), { childList: true });
+  });
+  if (!confirmed) return;
+
+  // Group parts by machine
+  const machineGroups = {};
+  for (let i = 0; i < order.parts.length; i++) {
+    const mid = assignments[i] || '';
+    if (!machineGroups[mid]) machineGroups[mid] = [];
+    machineGroups[mid].push(i);
+  }
+
+  const totalCost = order.parts.reduce((s, p) => s + (+p.baseCost || 0), 0) || 1;
+  const subOrderIds = [];
+  for (const [mid, partIndices] of Object.entries(machineGroups)) {
+    const parts = partIndices.map(i => ({ ...order.parts[i] }));
+    const partCost = parts.reduce((s, p) => s + (+p.baseCost || 0), 0);
+    const proportional = totalCost > 0 ? (+order.price * partCost / totalCost) : 0;
+    const subId = uid('SUB');
+    const subOrder = {
+      id: subId,
+      parentOrderId: order.id,
+      project: `${order.project} — Parts ${partIndices.map(i => i + 1).join(',')}`,
+      clientId: order.clientId,
+      machineId: mid || null,
+      parts,
+      printTime: parts.reduce((s, p) => s + (+p.printTime || 0), 0),
+      material: order.material || '',
+      date: order.date || new Date().toISOString().split('T')[0],
+      status: 'pending',
+      price: +proportional.toFixed(2),
+    };
+    printLog.push(subOrder);
+    subOrderIds.push(subId);
+  }
+
+  order.status = 'split';
+  order.splitInto = subOrderIds;
+  saveAll();
+  renderKanban();
+  renderLogs();
+  toast(t('ord.split_done', { n: subOrderIds.length }), 'success');
+}
+
+/* ============================================================
+   New 8-pack Feature 8: Auto-export status page on status change
+   ============================================================ */
+async function autoExportStatusPage(order) {
+  if (!order || !order.clientId) return;
+  if (!window.hubAPI?.writeStatusPage) return;
+  try {
+    // Build the same HTML as exportOrderStatusPage but don't open it
+    const client = order.clientId ? clients.find(c => c.id === order.clientId) : null;
+    const clientName = client ? (localName(client) || order.project) : (order.project || '');
+    const bizName = settings.bizEn || settings.bizAr || 'Khayt';
+    const accentColor = settings.invAccentColor || '#5E2E14';
+    const STATUS_ORDER = ['quote', 'pending', 'on_hold', 'printing', 'post', 'completed'];
+    const curIdx = STATUS_ORDER.indexOf(order.status);
+    const stepsHtml = ['Quote', 'Pending', 'Printing', 'Post-Processing', 'Completed']
+      .map((lbl, i) => {
+        const stepStatus = ['quote', 'pending', 'printing', 'post', 'completed'][i];
+        const stepIdx = STATUS_ORDER.indexOf(stepStatus);
+        const done    = curIdx >= stepIdx;
+        const current = order.status === stepStatus;
+        return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;">
+          <div style="width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;
+            background:${done ? accentColor : '#e5e7eb'};color:${done ? '#fff' : '#9ca3af'};
+            ${current ? 'box-shadow:0 0 0 4px ' + accentColor + '33;' : ''}">
+            ${done ? '✓' : (i + 1)}
+          </div>
+          <div style="font-size:11px;margin-top:6px;text-align:center;color:${done ? '#111827' : '#9ca3af'};font-weight:${current ? '700' : '400'};">${lbl}</div>
+        </div>`;
+      });
+    const connectors = stepsHtml.map((s, i) => i < stepsHtml.length - 1
+      ? s + `<div style="flex:0 0 24px;height:2px;background:${curIdx > STATUS_ORDER.indexOf(['quote','pending','printing','post','completed'][i]) ? accentColor : '#e5e7eb'};margin-top:15px;"></div>`
+      : s
+    ).join('');
+    const isReady = order.status === 'completed';
+    const msg = isReady
+      ? 'Your order is ready for pickup / delivery!'
+      : order.status === 'on_hold'
+        ? `Your order is temporarily on hold.${order.holdReason ? ' Reason: ' + order.holdReason : ''}`
+        : 'Your order is being processed. We\'ll notify you when it\'s ready.';
+    const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Order Status — ${order.id}</title>
+<style>* { box-sizing: border-box; margin: 0; padding: 0; }body { font-family: -apple-system, sans-serif; background: #f9fafb; color: #111827; padding: 24px 16px; }.card { background: #fff; border-radius: 16px; box-shadow: 0 2px 16px rgba(0,0,0,0.08); max-width: 480px; margin: 0 auto; overflow: hidden; }.header { background: ${accentColor}; color: #fff; padding: 24px; }.header h1 { font-size: 22px; font-weight: 700; }.body { padding: 24px; }.info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 14px; }.info-label { color: #6b7280; }.info-value { font-weight: 600; }.stepper { display: flex; align-items: flex-start; margin: 24px 0; }.message { background: ${isReady ? '#d1fae5' : '#fffbeb'}; border-left: 4px solid ${isReady ? '#10b981' : '#f59e0b'}; padding: 14px 16px; border-radius: 8px; margin-top: 16px; font-size: 14px; color: #374151; }.footer { text-align: center; padding: 16px 24px; background: #f9fafb; font-size: 12px; color: #9ca3af; border-top: 1px solid #f3f4f6; }</style></head><body>
+<div class="card"><div class="header"><h1>${escapeHtml(bizName)}</h1><p>Order Status Update</p></div>
+<div class="body"><div class="stepper">${connectors}</div>
+<div class="info-row"><span class="info-label">Order #</span><span class="info-value">${escapeHtml(order.id)}</span></div>
+<div class="info-row"><span class="info-label">Project</span><span class="info-value">${escapeHtml(order.project || '—')}</span></div>
+<div class="info-row"><span class="info-label">Client</span><span class="info-value">${escapeHtml(clientName)}</span></div>
+<div class="info-row"><span class="info-label">Status</span><span class="info-value">${escapeHtml(order.status)}</span></div>
+${order.dueDate ? `<div class="info-row"><span class="info-label">Due</span><span class="info-value">${escapeHtml(order.dueDate)}</span></div>` : ''}
+<div class="message">${escapeHtml(msg)}</div></div>
+<div class="footer">Generated by ${escapeHtml(bizName)} · ${new Date().toLocaleDateString()}</div></div></body></html>`;
+    await window.hubAPI.writeStatusPage(html, order.id);
+  } catch (e) { console.error('autoExportStatusPage error', e); }
+}
+
+async function openSavedStatusPage(orderId) {
+  if (!window.hubAPI?.openFile) return;
+  // The path is userData/status-pages/{orderId}.html, but we can't know the exact userData path from renderer
+  // Instead, trigger write then open
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+  await autoExportStatusPage(order);
+  toast(t('ord.status_page_open'), 'success');
+}
+
 async function clearAllLogs() {
   const ok = await confirmModal(t('log.clear_q'), { danger: true });
   if (!ok) return;
@@ -8513,6 +11036,9 @@ function generateCreditNote(order, creditAmount, reason) {
   const linkedClient = order.clientId ? clients.find(c => c.id === order.clientId) : null;
   const clientName = (order.project || '').trim() || t('inv.walk_in');
   const clientSub  = linkedClient ? [linkedClient.phone, linkedClient.email].filter(Boolean).join(' · ') : '';
+  // Feature 3: Build reversal reference line
+  const invoiceNumber = order.invoiceNumber || order.id;
+  const originalDate  = order.date || '';
 
   area.innerHTML = `
     <div class="inv-wrap">
@@ -8534,6 +11060,11 @@ function generateCreditNote(order, creditAmount, reason) {
             <div class="meta-row"><span class="k">${escapeHtml(isAr ? 'يشير إلى' : 'Ref.')}</span><span class="v">${escapeHtml(order.id)}</span></div>
           </div>
         </div>
+      </div>
+
+      <div class="cn-ref-line">
+        ${escapeHtml(t('cn.reversal_of'))}: <strong>#${escapeHtml(invoiceNumber)}</strong>
+        ${originalDate ? ` &mdash; ${escapeHtml(t('cn.original_date'))}: ${escapeHtml(formatPrintDate(originalDate))}` : ''}
       </div>
 
       <div class="bill-to">
@@ -8659,6 +11190,260 @@ function generateDeliveryNote(id) {
 }
 
 /* ============================================================
+   Feature 3 (this batch): Milestone / partial invoice
+   ============================================================ */
+function generateMilestoneInvoice(orderId, milestone) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order || !milestone) return;
+  // Build a temporary order-like object with the milestone amount
+  const tempOrder = Object.assign({}, order, {
+    price: milestone.amount,
+    _milestoneLabel: milestone.label,
+    _milestoneTotal: order.price,
+    _milestonePct: milestone.percentage,
+  });
+  milestone.issuedAt = new Date().toISOString().split('T')[0];
+  saveAll();
+  renderInvoiceForOrder(tempOrder, {
+    milestoneHeader: `${t('ord.milestone_invoices')}: ${escapeHtml(milestone.label)} (${milestone.percentage}% of total ${fmtPrice(order.price)})`
+  });
+}
+
+function openMilestoneInvoices(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+  if (!order.milestoneInvoices) order.milestoneInvoices = [];
+
+  function listHtml() {
+    if (order.milestoneInvoices.length === 0) {
+      return `<p style="color:var(--text-muted);font-size:13px;">${escapeHtml(t('waste.empty'))}</p>`;
+    }
+    return `<table style="width:100%;font-size:12.5px;border-collapse:collapse;">
+      <thead><tr style="border-bottom:1px solid var(--border-soft);color:var(--text-muted);">
+        <th style="padding:5px 8px;text-align:left;">${escapeHtml(t('ord.milestone_label'))}</th>
+        <th style="padding:5px 8px;text-align:right;">${escapeHtml(t('ord.milestone_pct'))}</th>
+        <th style="padding:5px 8px;text-align:right;">${escapeHtml(t('ord.milestone_amount'))}</th>
+        <th style="padding:5px 8px;">${escapeHtml(t('ord.milestone_issued'))}</th>
+        <th></th>
+      </tr></thead>
+      <tbody>
+        ${order.milestoneInvoices.map((m, i) => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+          <td style="padding:6px 8px;">${escapeHtml(m.label)}</td>
+          <td style="padding:6px 8px;text-align:right;">${escapeHtml(String(m.percentage))}%</td>
+          <td style="padding:6px 8px;text-align:right;">${fmtPrice(m.amount)}</td>
+          <td style="padding:6px 8px;color:var(--text-muted);">${m.issuedAt ? escapeHtml(m.issuedAt) : '—'}</td>
+          <td style="padding:6px 8px;">
+            <button class="btn small" data-mi="${i}">${escapeHtml(t('ord.milestone_issue'))}</button>
+            <button class="btn danger small" data-mi-del="${i}" style="margin-inline-start:4px;">×</button>
+          </td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+  }
+
+  openFormModal({
+    title: `${t('ord.milestone_invoices')} — ${escapeHtml(order.id)}`,
+    sizeLg: true,
+    noSave: true,
+    bodyHtml: `
+      <div id="milestoneListWrap">${listHtml()}</div>
+      <hr class="divider" style="margin:16px 0;">
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;align-items:end;">
+        <div>
+          <label style="margin:0;">${escapeHtml(t('ord.milestone_label'))}</label>
+          <input type="text" id="msLabel" placeholder="e.g. Deposit" style="font-size:12.5px;">
+        </div>
+        <div>
+          <label style="margin:0;">${escapeHtml(t('ord.milestone_pct'))} (%)</label>
+          <input type="number" id="msPct" min="1" max="100" step="1" placeholder="50" style="font-size:12.5px;">
+        </div>
+        <div>
+          <label style="margin:0;">${escapeHtml(t('ord.milestone_amount'))} (${currencySymbol()})</label>
+          <input type="number" id="msAmount" min="0" step="0.01" placeholder="0.00" style="font-size:12.5px;">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button class="btn small primary" id="btnAddMilestone">${escapeHtml(t('ord.milestone_add'))}</button>
+      </div>`,
+    onMount(modal) {
+      const wrap = modal.querySelector('#milestoneListWrap');
+      function refresh() { wrap.innerHTML = listHtml(); wireIssue(); }
+      function wireIssue() {
+        wrap.querySelectorAll('[data-mi]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            generateMilestoneInvoice(orderId, order.milestoneInvoices[+btn.dataset.mi]);
+          });
+        });
+        wrap.querySelectorAll('[data-mi-del]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            order.milestoneInvoices.splice(+btn.dataset['mi-del'] ?? +btn.getAttribute('data-mi-del'), 1);
+            saveAll(); refresh();
+          });
+        });
+      }
+      wireIssue();
+      // Auto-compute amount when % changes
+      modal.querySelector('#msPct')?.addEventListener('input', (e) => {
+        const pct = parseFloat(e.target.value) || 0;
+        const amtEl = modal.querySelector('#msAmount');
+        if (amtEl && order.price) amtEl.value = fmtMoney(+order.price * pct / 100);
+      });
+      modal.querySelector('#btnAddMilestone').addEventListener('click', () => {
+        const label = modal.querySelector('#msLabel').value.trim() || 'Milestone';
+        const pct = parseFloat(modal.querySelector('#msPct').value) || 0;
+        const amount = parseFloat(modal.querySelector('#msAmount').value) || 0;
+        order.milestoneInvoices.push({ id: uid('MS'), label, percentage: pct, amount, issuedAt: null });
+        saveAll(); refresh();
+        modal.querySelector('#msLabel').value = '';
+        modal.querySelector('#msPct').value = '';
+        modal.querySelector('#msAmount').value = '';
+      });
+    }
+  });
+}
+
+/* ============================================================
+   Feature 4 (this batch): AP — supplier invoice recording
+   ============================================================ */
+function recordSupplierInvoice(poId) {
+  const po = purchaseOrders.find(p => p.id === poId);
+  if (!po) return;
+  openFormModal({
+    title: t('po.ap_record'),
+    sizeLg: false,
+    saveLabel: t('common.save'),
+    bodyHtml: `
+      <label>${escapeHtml(t('po.sup_inv_num'))}</label>
+      <input type="text" id="poSupInvNum" placeholder="${escapeHtml(t('po.sup_inv_num'))}" value="${escapeHtml(po.supplierInvoice?.number || '')}">
+      <label style="margin-top:12px;">${escapeHtml(t('po.sup_inv_amount'))} (${currencySymbol()})</label>
+      <input type="number" id="poSupInvAmount" min="0" step="0.01" value="${po.supplierInvoice?.amount || ''}">
+      <label style="margin-top:12px;">${escapeHtml(t('po.sup_inv_date'))}</label>
+      <input type="date" id="poSupInvDate" value="${escapeHtml(po.supplierInvoice?.date || new Date().toISOString().split('T')[0])}">`,
+    onSave(modal) {
+      const number = modal.querySelector('#poSupInvNum').value.trim();
+      const amount = parseFloat(modal.querySelector('#poSupInvAmount').value) || 0;
+      const date   = modal.querySelector('#poSupInvDate').value;
+      po.supplierInvoice = { number, amount, date };
+      // Check discrepancy: compare invoiced amount vs. PO expected amount
+      const expectedAmt = (po.weightOrdered || 0) * ((po.unitCost || 0) / 1000);
+      po.invoiceDiscrepancy = expectedAmt > 0 && Math.abs(amount - expectedAmt) > 1;
+      saveAll();
+      renderPurchaseOrders();
+      toast(t('common.save'), 'success');
+      return true;
+    }
+  });
+}
+
+/* ============================================================
+   Feature 6 (this batch): Client portal export
+   ============================================================ */
+function exportClientPortal(clientId) {
+  const c = clients.find(x => x.id === clientId);
+  if (!c) return;
+  const displayName = localName(c);
+  const orders = printLog.filter(o => o.clientId === clientId)
+    .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const activeOrders = orders.filter(o => !['completed','quote'].includes(o.status));
+  const completedOrders = orders.filter(o => o.status === 'completed');
+  const outstanding = orders
+    .filter(o => payStatus(o) !== 'paid')
+    .reduce((s, o) => s + Math.max(0, +o.price - (+o.paidAmount || 0)), 0);
+
+  const statusColors = {
+    pending: '#f59e0b', printing: '#3b82f6', post: '#8b5cf6',
+    qc: '#a78bfa', completed: '#22c55e', on_hold: '#f97316', quote: '#94a3b8'
+  };
+  const statusSteps = ['pending','printing','post','qc','completed'];
+
+  const stepperHtml = (order) => {
+    const si = statusSteps.indexOf(order.status);
+    return `<div style="display:flex;gap:4px;align-items:center;margin-top:6px;font-size:10px;">
+      ${statusSteps.map((st, i) => {
+        const done = i < si;
+        const cur  = i === si;
+        const col  = cur ? (statusColors[st] || '#94a3b8') : (done ? '#22c55e' : '#374151');
+        return `<span style="background:${col};color:#fff;padding:2px 7px;border-radius:4px;opacity:${cur?1:done?0.7:0.35};">${escapeHtml(st)}</span>${i < statusSteps.length-1 ? `<span style="color:#555;font-size:9px;">›</span>` : ''}`;
+      }).join('')}
+    </div>`;
+  };
+
+  const bizName = (settings.bizEn || settings.bizAr || 'Khayt');
+  const rowsHtml = orders.map(o => {
+    const isPaid = payStatus(o) === 'paid';
+    return `<tr style="border-bottom:1px solid #2a2a2a;">
+      <td style="padding:8px;font-size:12px;white-space:nowrap;color:#888;">${escapeHtml(o.date || '')}</td>
+      <td style="padding:8px;font-size:12px;"><strong style="color:#e2e8f0;">${escapeHtml(o.project || o.id)}</strong><div style="font-size:10px;color:#666;">${escapeHtml(o.id)}</div>
+        ${!['completed','quote'].includes(o.status) ? stepperHtml(o) : ''}
+      </td>
+      <td style="padding:8px;"><span style="background:${statusColors[o.status]||'#555'};color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;">${escapeHtml(o.status)}</span></td>
+      <td style="padding:8px;text-align:right;font-weight:600;color:#4ade80;">${fmtPrice(o.price)}</td>
+      <td style="padding:8px;text-align:center;font-size:11px;color:${isPaid?'#4ade80':'#f87171'};">${isPaid ? '✓ Paid' : 'Outstanding'}</td>
+    </tr>`;
+  }).join('');
+
+  const paymentBlock = settings.paymentInstructions
+    ? `<div style="margin-top:24px;padding:16px;background:#1a1a2e;border-radius:8px;border:1px solid #2a2a3e;">
+        <h3 style="margin:0 0 8px;color:#94a3b8;font-size:13px;">Payment Information</h3>
+        <p style="margin:0;color:#cbd5e1;font-size:13px;white-space:pre-line;">${escapeHtml(settings.paymentInstructions)}</p>
+      </div>` : '';
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${escapeHtml(displayName)} — Client Portal — ${escapeHtml(bizName)}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#0f0f0f; color:#e2e8f0; margin:0; padding:20px; }
+    .header { background:linear-gradient(135deg,#1e1e3f,#2d2d5a); padding:24px 28px; border-radius:12px; margin-bottom:20px; }
+    h1 { margin:0 0 4px; font-size:1.4rem; color:#a78bfa; }
+    .subtitle { color:#94a3b8; font-size:13px; }
+    .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-bottom:20px; }
+    .stat-card { background:#1a1a2e; border:1px solid #2a2a3e; border-radius:8px; padding:14px 16px; }
+    .stat-val { font-size:1.5rem; font-weight:700; color:#a78bfa; }
+    .stat-lbl { font-size:11px; color:#64748b; margin-top:2px; }
+    table { width:100%; border-collapse:collapse; background:#111; border-radius:8px; overflow:hidden; }
+    th { padding:10px 8px; text-align:left; font-size:11px; color:#64748b; border-bottom:1px solid #2a2a2a; }
+    @media(max-width:600px){ td,th { padding:6px 4px; font-size:11px; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>${escapeHtml(bizName)}</h1>
+    <div class="subtitle">Order portal for ${escapeHtml(displayName)}</div>
+  </div>
+  <div class="stats">
+    <div class="stat-card"><div class="stat-val">${activeOrders.length}</div><div class="stat-lbl">Active orders</div></div>
+    <div class="stat-card"><div class="stat-val">${completedOrders.length}</div><div class="stat-lbl">Completed</div></div>
+    <div class="stat-card"><div class="stat-val">${fmtPrice(outstanding)}</div><div class="stat-lbl">Outstanding balance</div></div>
+  </div>
+  <table>
+    <thead><tr>
+      <th>Date</th><th>Project</th><th>Status</th><th style="text-align:right;">Amount</th><th style="text-align:center;">Payment</th>
+    </tr></thead>
+    <tbody>${rowsHtml}</tbody>
+  </table>
+  ${paymentBlock}
+  <p style="text-align:center;color:#374151;font-size:11px;margin-top:24px;">Generated by Khayt · ${new Date().toISOString().split('T')[0]}</p>
+</body>
+</html>`;
+
+  if (window.hubAPI?.saveHtml) {
+    window.hubAPI.saveHtml(html, `client-portal-${c.id}.html`).then(() => {
+      toast(t('cl.portal_saved'), 'success');
+    }).catch(() => {
+      toast(t('cl.portal_saved'), 'info');
+    });
+  } else {
+    const blob = new Blob([html], { type: 'text/html' });
+    downloadBlob(blob, `client-portal-${c.id}.html`);
+    toast(t('cl.portal_saved'), 'info');
+  }
+}
+
+/* ============================================================
    Work Order — internal shop-floor sheet (no pricing shown)
    ============================================================ */
 function generateWorkOrder(id) {
@@ -8717,6 +11502,7 @@ function generateWorkOrder(id) {
             <th>${escapeHtml(isAr ? 'الجزء' : 'Part')}</th>
             <th style="text-align:center; width:40px;">${escapeHtml(isAr ? 'الكمية' : 'Qty')}</th>
             <th style="width:120px;">${escapeHtml(isAr ? 'المادة' : 'Material')}</th>
+            <th style="width:80px;">${escapeHtml(isAr ? 'اللون' : 'Colour')}</th>
             <th style="width:80px; text-align:center;">${escapeHtml(isAr ? 'الوزن (غ)' : 'Weight (g)')}</th>
             <th style="width:80px; text-align:center;">${escapeHtml(isAr ? 'الوقت (س)' : 'Time (h)')}</th>
             <th style="width:100px;">${escapeHtml(isAr ? 'الإعدادات' : 'Settings')}</th>
@@ -8745,6 +11531,7 @@ function generateWorkOrder(id) {
               <td>${escapeHtml(p.name || order.project || '')}</td>
               <td class="center">${escapeHtml(String(p.qty || 1))}</td>
               <td>${escapeHtml(filamentName)}</td>
+              <td style="font-size:11px;">${escapeHtml(p.colour || invItem?.colourVariant || '—')}</td>
               <td class="center">${p.weight ? escapeHtml(String(+p.weight)) : '—'}</td>
               <td class="center">${p.printTime ? escapeHtml((+p.printTime).toFixed(1)) : '—'}</td>
               <td style="font-size:10px;">${escapeHtml(settings_str)}</td>
@@ -8991,7 +11778,12 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
           <span class="sub ${isAr ? 'ltr' : 'ar'}">${escapeHtml(L.billTo[1])}</span>
         </div>
         <div>
-          <div class="name">${escapeHtml(billToName)}</div>
+          <div class="name">${escapeHtml(billToName)}${(() => {
+            if (!order.clientId || !settings.loyaltyEnabled) return '';
+            const tierObj = getClientTier(order.clientId);
+            if (!tierObj) return '';
+            return ` <span style="display:inline-block;background:#D88A3D;color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;vertical-align:middle;margin-inline-start:4px;">${escapeHtml(tierObj.name)}</span>`;
+          })()}</div>
           ${billToSub}
         </div>
       </div>
@@ -9153,6 +11945,13 @@ function loadSettingsIntoForm() {
   $('#set_invTermsAr').value    = settings.invTermsAr  || '';
   $('#set_monthlyGoal').value     = settings.monthlyGoal ?? 0;
   $('#set_supplierPhone').value   = settings.supplierPhone || '';
+  // New Feature 7: Working hours
+  const wh = settings.workingHours || { mon: 8, tue: 8, wed: 8, thu: 8, fri: 0, sat: 0, sun: 0 };
+  ['mon','tue','wed','thu','fri','sat','sun'].forEach(d => {
+    const el = $(`#wh_${d}`);
+    if (el) el.value = wh[d] ?? 0;
+  });
+  renderHolidayList();
   updateLogoPreview();
   // Accepted payments checkboxes
   $$('#acceptedPaymentsList input[data-pm]').forEach(cb => {
@@ -9192,6 +11991,20 @@ function loadSettingsIntoForm() {
   renderInvoiceNumberingSection();
   // Feature 8 / Task 0: Storage usage display
   renderStorageUsage();
+  // Feature 7 (new 8-pack): Operator lock checkbox
+  const opLockEl = $('#set_operatorLock');
+  if (opLockEl) opLockEl.checked = !!settings.operatorLockEnabled;
+  // Feature 8 (new 8-pack): Loyalty enabled checkbox
+  const loyaltyEl = $('#set_loyaltyEnabled');
+  if (loyaltyEl) loyaltyEl.checked = !!settings.loyaltyEnabled;
+  // Feature 5 (new 8-pack): Email notifications
+  renderEmailNotificationSettings();
+  // Feature 7 (new 8-pack): Operator lock section
+  renderOperatorLockSettings();
+  // Feature 8 (new 8-pack): Loyalty tiers
+  renderLoyaltyTiersSettings();
+  // Business Mode toggle buttons
+  applyMode();
 }
 
 /* Feature 8 / Task 0: File-store size display in Settings */
@@ -9271,10 +12084,28 @@ function saveSettingsFromForm() {
     invNumYear:    settings.invNumYear    || new Date().getFullYear(),
     invNumNext:    settings.invNumNext    || 1,
     invNumFormat:  settings.invNumFormat  || '{prefix}-{year}-{seq4}',
+    // New Feature 7: Working hours
+    workingHours: Object.fromEntries(
+      ['mon','tue','wed','thu','fri','sat','sun'].map(d => [d, Math.max(0, Math.min(24, num($(`#wh_${d}`)?.value, 0)))])
+    ),
+    holidays: settings.holidays || [],
+    // Business Mode — preserve current mode/firstRun (changed via mode toggle buttons)
+    mode:      settings.mode      || 'professional',
+    firstRun:  false,
+    customFields: settings.customFields || [],
+    // Feature 5 (new 8-pack): Email config — managed by renderEmailNotificationSettings, preserve as-is
+    emailConfig: settings.emailConfig || { provider: 'none', apiKey: '', fromEmail: '', fromName: '', domain: '', triggers: [] },
+    // Feature 7 (new 8-pack): Operator lock
+    operatorLockEnabled: !!$('#set_operatorLock')?.checked,
+    activeOperatorId: settings.activeOperatorId || null,
+    // Feature 8 (new 8-pack): Loyalty tiers
+    loyaltyEnabled: !!$('#set_loyaltyEnabled')?.checked,
+    loyaltyTiers:   settings.loyaltyTiers || [],
   };
   saveAll();
   i18n.set(settings.lang);
   applyTheme(settings.theme);
+  applyMode();
   renderInventory();
   // Keep sponsor link live after save
   const sponsorBtn = $('#btnGithubSponsors');
@@ -9330,6 +12161,22 @@ async function openRestoreBackupModal() {
 /* ============================================================
    Post-processing checklist (settings management)
    ============================================================ */
+/* New Feature 7: Holiday/closure dates list */
+function renderHolidayList() {
+  const el = $('#holidayList');
+  if (!el) return;
+  const holidays = settings.holidays || [];
+  if (holidays.length === 0) {
+    el.innerHTML = `<span style="font-size:12px; color:var(--text-muted);">${escapeHtml(t('set.holidays'))}: none</span>`;
+    return;
+  }
+  el.innerHTML = [...holidays].sort().map(d => `
+    <span class="holiday-chip" style="display:inline-flex; align-items:center; gap:4px; background:var(--surface-2); border:1px solid var(--border-soft); border-radius:16px; padding:2px 10px; font-size:12px;">
+      ${escapeHtml(d)}
+      <button type="button" data-act="rm-holiday" data-date="${escapeHtml(d)}" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:13px; padding:0; line-height:1;">×</button>
+    </span>`).join('');
+}
+
 function renderPostChecklistSettings() {
   const el = $('#postChecklistItems');
   if (!el) return;
@@ -9468,6 +12315,10 @@ async function resetAllData() {
    Render-everything entry point
    ============================================================ */
 function initialRender() {
+  applyMode();
+  ensureDefaultLocation();
+  renderLocationsSettings();
+  renderLocationFilter();
   renderPrinterPresets();
   renderQuoteTemplates();
   renderMachines();
@@ -9488,6 +12339,7 @@ function initialRender() {
   renderExpenses();
   checkDueDateNotifications();
   checkRecurringOrders();
+  checkRecurringExpenses();
 }
 
 /* ============================================================
@@ -9700,6 +12552,9 @@ function wireEvents() {
   const btnGs = $('#btnGlobalSearch');
   if (btnGs) btnGs.addEventListener('click', openGlobalSearch);
 
+  // Feature 7 (new 8-pack): Nav switch operator button
+  $('#btnNavSwitchOp')?.addEventListener('click', () => openPinPadModal());
+
   // Help button (Feature 9)
   $('#btnHelp')?.addEventListener('click', openHelpModal);
 
@@ -9756,6 +12611,40 @@ function wireEvents() {
   $('#btnAddPriceTier')?.addEventListener('click', () => {
     currentPriceTiers.push({ minQty: 1, pricePerUnit: 0 });
     renderPriceTiers();
+  });
+
+  // Feature 1 (new batch): Parse G-code / 3MF for print time and weight
+  $('#btnParseFile')?.addEventListener('click', async () => {
+    if (!window.hubAPI?.pickFile || !window.hubAPI?.parsePrintFile) return;
+    const filePath = await window.hubAPI.pickFile({ filters: [{ name: '3D Files', extensions: ['gcode', 'gco', '3mf'] }] });
+    if (!filePath) return;
+    try {
+      const result = await window.hubAPI.parsePrintFile(filePath);
+      let filled = false;
+      if (result.printTimeMins && result.printTimeMins > 0) {
+        const hrs = (result.printTimeMins / 60).toFixed(2);
+        const ptEl = $('#printTime');
+        if (ptEl) { ptEl.value = hrs; filled = true; }
+      }
+      if (result.filamentGrams && result.filamentGrams > 0) {
+        const pwEl = $('#printWeight');
+        if (pwEl) { pwEl.value = result.filamentGrams.toFixed(1); filled = true; }
+      }
+      if (result.filename) {
+        const frEl = $('#partFileRef');
+        if (frEl && !frEl.value) frEl.value = result.filename;
+      }
+      updateGrandTotal();
+      if (result.printTimeMins && result.filamentGrams) {
+        toast(t('calc.parsed_toast', { time: (result.printTimeMins/60).toFixed(2), grams: result.filamentGrams.toFixed(1) }), 'success');
+      } else if (filled) {
+        toast(t('calc.parse_partial'), 'info');
+      } else {
+        toast(t('calc.parse_failed'), 'warning');
+      }
+    } catch(e) {
+      toast(t('calc.parse_failed'), 'warning');
+    }
   });
 
   // Printer presets
@@ -9846,6 +12735,7 @@ function wireEvents() {
     if (btn.dataset.act === 'inv-spool-history') openSpoolHistory(btn.dataset.id);
     if (btn.dataset.act === 'inv-dry-log')       openDryingLog(btn.dataset.id);
     if (btn.dataset.act === 'inv-test-print')    openTestPrintLog(btn.dataset.id);
+    if (btn.dataset.act === 'inv-price-history') openPriceHistory(btn.dataset.id);
   });
 
   // Consumables
@@ -10006,6 +12896,10 @@ function wireEvents() {
     if (emailQuo) emailOrderToClient(emailQuo.dataset.id, true);
     const statusPage = e.target.closest('[data-act="export-status-page"]');
     if (statusPage) exportOrderStatusPage(statusPage.dataset.id);
+    const openStatusPage = e.target.closest('[data-act="open-status-page"]');
+    if (openStatusPage) openSavedStatusPage(openStatusPage.dataset.id);
+    const splitOrderBtn = e.target.closest('[data-act="split-order"]');
+    if (splitOrderBtn) splitOrderAcrossMachines(splitOrderBtn.dataset.id);
     const editHistBtn = e.target.closest('[data-act="view-edit-history"]');
     if (editHistBtn) openEditHistoryModal(editHistBtn.dataset.id);
     const quoteApproval = e.target.closest('[data-act="export-quote-approval"]');
@@ -10018,6 +12912,12 @@ function wireEvents() {
     if (partialDeliveryBtn) openPartialDeliveryModal(partialDeliveryBtn.dataset.id);
     const spoolSwitchBtn = e.target.closest('[data-act="log-spool-switch"]');
     if (spoolSwitchBtn) openSpoolSwitchModal(spoolSwitchBtn.dataset.id);
+    // New Feature 3: Proforma invoice
+    const proformaBtn = e.target.closest('[data-act="gen-proforma"]');
+    if (proformaBtn) generateProformaInvoice(proformaBtn.dataset.id);
+    // Milestone invoices
+    const milestoneBtn = e.target.closest('[data-act="milestone-invoices"]');
+    if (milestoneBtn) openMilestoneInvoices(milestoneBtn.dataset.id);
     if (tagBtn) {
       logTagFilter = tagBtn.dataset.tag;
       const sel = $('#logTagFilter');
@@ -10047,8 +12947,20 @@ function wireEvents() {
     const qDn = e.target.closest('[data-act="q-down"]');
     const tps = e.target.closest('[data-act="toggle-part-status"]');
     const holdBtn = e.target.closest('[data-act="hold-order"]');
+    const qcPassBtn = e.target.closest('[data-act="qc-pass"]');
+    const qcFailBtn = e.target.closest('[data-act="qc-fail"]');
+    const resumeBtn = e.target.closest('[data-act="resume-production"]');
+    const resinWashBtn = e.target.closest('[data-act="resin-log-wash"]');
+    const resinCureBtn = e.target.closest('[data-act="resin-log-cure"]');
+    const resinCompleteBtn = e.target.closest('[data-act="resin-complete"]');
     if (s)  updateStatus(s.dataset.id, s.dataset.to);
     if (holdBtn) holdOrder(holdBtn.dataset.id);
+    if (qcPassBtn) qcPassOrder(qcPassBtn.dataset.id);
+    if (qcFailBtn) qcFailOrder(qcFailBtn.dataset.id);
+    if (resumeBtn) resumeProduction();
+    if (resinWashBtn) resinLogWash(resinWashBtn.dataset.id);
+    if (resinCureBtn) resinLogCure(resinCureBtn.dataset.id);
+    if (resinCompleteBtn) resinCompletePost(resinCompleteBtn.dataset.id);
     if (i)  generateInvoice(i.dataset.id);
     if (wa) openWaSendModal(wa.dataset.id);
     if (md) markDelivered(md.dataset.id);
@@ -10123,6 +13035,9 @@ function wireEvents() {
   // Save-as-Quote button
   $('#btnSaveAsQuote').addEventListener('click', () => logPrint(true));
 
+  // Production pause button
+  $('#btnPauseProduction')?.addEventListener('click', pauseProduction);
+
   // Schedule view toggle (Feature 2)
   $('#btnScheduleView')?.addEventListener('click', () => {
     const sv = $('#scheduleView');
@@ -10149,6 +13064,44 @@ function wireEvents() {
     if (btn.dataset.act === 'maint-log') openMaintLog(btn.dataset.id);
     if (btn.dataset.act === 'edit-mach') openMachineEditor(btn.dataset.id);
     if (btn.dataset.act === 'del-mach') deleteMachine(btn.dataset.id);
+    if (btn.dataset.act === 'log-nozzle-change') logNozzleChange(btn.dataset.id);
+  });
+
+  // Feature 8 (new): Locations settings
+  $('#btnAddLocation')?.addEventListener('click', () => openLocationEditor(null));
+  $('#locationsSettingsSection')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-act]');
+    if (!btn) return;
+    if (btn.dataset.act === 'edit-loc') openLocationEditor(btn.dataset.id);
+    if (btn.dataset.act === 'del-loc') {
+      locations = locations.filter(l => l.id !== btn.dataset.id);
+      saveAll();
+      renderLocationsSettings();
+      renderLocationFilter();
+    }
+  });
+
+  // Feature 8 (new): Location filter
+  $('#locationFilter')?.addEventListener('change', (e) => {
+    activeLocation = e.target.value || null;
+    renderDashboard();
+    renderAnalytics();
+    renderKanban();
+    renderLogs();
+    renderInventory();
+  });
+
+  // Operators management (settings section, Feature 1)
+  $('#btnAddOperator')?.addEventListener('click', () => openOperatorEditor(null));
+  $('#operatorsList')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-act]');
+    if (!btn) return;
+    if (btn.dataset.act === 'edit-operator') openOperatorEditor(btn.dataset.id);
+    if (btn.dataset.act === 'del-operator') {
+      operators = operators.filter(o => o.id !== btn.dataset.id);
+      saveAll();
+      renderOperatorsList();
+    }
   });
 
   // WA template management (settings section)
@@ -10230,6 +13183,26 @@ function wireEvents() {
 
   // Custom order fields
   $('#btnAddCustomField')?.addEventListener('click', addCustomField);
+
+  // New Feature 7: Working hours — holiday add/remove
+  $('#btnAddHoliday')?.addEventListener('click', () => {
+    const inp = $('#set_holidayInput');
+    const d = inp?.value;
+    if (!d) return;
+    if (!settings.holidays) settings.holidays = [];
+    if (!settings.holidays.includes(d)) {
+      settings.holidays.push(d);
+      renderHolidayList();
+    }
+    if (inp) inp.value = '';
+  });
+  $('#holidayList')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-act="rm-holiday"]');
+    if (!btn) return;
+    settings.holidays = (settings.holidays || []).filter(x => x !== btn.dataset.date);
+    renderHolidayList();
+    toast(t('set.holiday_removed'), 'info', 2000);
+  });
   $('#customFieldInput')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomField(); } });
   $('#customFieldsList')?.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-act="del-custom-field"]');
@@ -10247,6 +13220,22 @@ function wireEvents() {
 
   // Settings
   $('#btnSaveSettings').addEventListener('click', saveSettingsFromForm);
+
+  // Business Mode toggle buttons (in Settings tab)
+  $$('#btnModeSimple, #btnModePro').forEach(btn => {
+    btn?.addEventListener('click', () => {
+      settings.mode = btn.dataset.mode;
+      saveAll();
+      applyMode();
+      toast(t('set.mode_changed'), 'success');
+      // Re-render analytics tab if it's currently active
+      const analyticsActive = $('#analytics-tab')?.classList.contains('active');
+      if (analyticsActive) {
+        if (settings.mode === 'simple') renderSimpleReports();
+        else renderAnalytics();
+      }
+    });
+  });
   $('#logoUploadInput').addEventListener('change', (e) => {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -10284,23 +13273,57 @@ function wireEvents() {
 
   // Purchase orders (Feature 3) — delegate from section
   $('#poSection')?.addEventListener('click', (e) => {
-    const recv = e.target.closest('[data-act="po-receive"]');
-    const del  = e.target.closest('[data-act="po-del"]');
+    const recv    = e.target.closest('[data-act="po-receive"]');
+    const del     = e.target.closest('[data-act="po-del"]');
+    const closePo = e.target.closest('[data-act="po-close"]');
     if (recv) {
       const po = purchaseOrders.find(p => p.id === recv.dataset.id);
+      if (!po) return;
+      const alreadyReceived = po.receivedSoFar || 0;
+      const remaining = po.weightOrdered > 0 ? po.weightOrdered - alreadyReceived : 1000;
+      openFormModal({
+        title: t('po.receive'),
+        sizeLg: false,
+        saveLabel: t('po.receive'),
+        bodyHtml: `
+          <label>${escapeHtml(t('po.weight_received'))} (g)</label>
+          <input type="number" id="poRecvWeight" value="${Math.max(0, remaining)}" min="0" step="1">
+          <label style="margin-top:12px;">${escapeHtml(t('po.notes'))}</label>
+          <input type="text" id="poRecvNotes" placeholder="${escapeHtml(t('po.notes'))}">`,
+        async onSave(modal) {
+          const w = Math.max(0, num(modal.querySelector('#poRecvWeight').value, 0));
+          if (w <= 0) { toast(t('exp.amount_required') || 'Enter a weight', 'error'); return false; }
+          const notes = modal.querySelector('#poRecvNotes').value.trim();
+          const invItem = inventory.find(i => i.id === po.itemId);
+          if (invItem) {
+            invItem.weight = Math.min((invItem.weight || 0) + w, 99000);
+            if (!invItem.usageHistory) invItem.usageHistory = [];
+            invItem.usageHistory.unshift({ type: 'received', orderId: po.id, weightUsed: -w, date: new Date().toISOString().split('T')[0], notes });
+            renderInventory();
+          }
+          po.receivedSoFar = alreadyReceived + w;
+          if (po.weightOrdered > 0 && po.receivedSoFar >= po.weightOrdered) {
+            po.status = 'received';
+            po.receivedAt = new Date().toISOString().split('T')[0];
+            toast(t('po.received_toast') + ' · +' + w + 'g', 'success');
+          } else {
+            po.status = 'partial';
+            toast(t('po.partial') + ' · +' + w + 'g', 'success');
+          }
+          saveAll();
+          renderPurchaseOrders();
+          return true;
+        }
+      });
+    }
+    if (closePo) {
+      const po = purchaseOrders.find(p => p.id === closePo.dataset.id);
       if (po) {
         po.status = 'received';
         po.receivedAt = new Date().toISOString().split('T')[0];
-        const invItem = inventory.find(i => i.id === po.itemId);
-        if (invItem) {
-          invItem.weight = Math.min(invItem.weight + 1000, 99000);
-          renderInventory();
-          toast(t('po.received_toast') + ' · +1000g', 'success');
-        } else {
-          toast(t('po.received_toast'), 'success');
-        }
         saveAll();
         renderPurchaseOrders();
+        toast(t('po.received_toast'), 'success');
       }
     }
     if (del) {
@@ -10308,7 +13331,86 @@ function wireEvents() {
       saveAll();
       renderPurchaseOrders();
     }
+    const recInv = e.target.closest('[data-act="po-record-invoice"]');
+    if (recInv) recordSupplierInvoice(recInv.dataset.id);
   });
+
+  // Batch generate POs for low-stock items (Feature 5 new 8-pack)
+  document.addEventListener('click', (e) => {
+    const batchBtn = e.target.closest('[data-act="batch-gen-pos"]');
+    if (batchBtn) batchGenPOs();
+  });
+}
+
+/* ============================================================
+   Setup wizard (Business Mode first-run)
+   ============================================================ */
+function initWizard() {
+  if (!settings.firstRun) return;
+  const wiz = $('#setup-wizard');
+  if (!wiz) return;
+  wiz.style.display = 'flex';
+
+  let selectedMode = 'simple';
+
+  // Step navigation
+  wiz.addEventListener('click', e => {
+    const nextBtn   = e.target.closest('[data-next]');
+    const optionBtn = e.target.closest('.wizard-option');
+    const finishBtn = e.target.closest('#wizFinish');
+
+    if (optionBtn) {
+      wiz.querySelectorAll('.wizard-option').forEach(o => o.classList.remove('selected'));
+      optionBtn.classList.add('selected');
+      selectedMode = optionBtn.dataset.mode;
+      setTimeout(() => goToStep(parseInt(optionBtn.dataset.next)), 300);
+      return;
+    }
+
+    if (nextBtn && !optionBtn) {
+      goToStep(parseInt(nextBtn.dataset.next));
+      return;
+    }
+
+    if (finishBtn) {
+      finishWizard();
+    }
+  });
+
+  function goToStep(n) {
+    wiz.querySelectorAll('.wizard-step').forEach(s => s.style.display = 'none');
+    const step = $(`#wiz-step-${n}`);
+    if (step) step.style.display = '';
+    wiz.querySelectorAll('.wizard-dot').forEach(d => {
+      d.classList.toggle('active', parseInt(d.dataset.step) <= n);
+    });
+  }
+
+  function finishWizard() {
+    const bizName  = $('#wizBizName').value.trim();
+    const currency = $('#wizCurrency').value;
+    const lang     = $('#wizLang').value;
+
+    if (bizName) settings.businessName = bizName;
+    if (bizName) settings.bizEn = bizName;
+    settings.currency = currency;
+    settings.mode     = selectedMode;
+    settings.firstRun = false;
+    settings.firstRunDone = true;
+    saveAll();
+
+    if (lang !== 'en') {
+      i18n.set(lang);
+      settings.lang = lang;
+      saveAll();
+    }
+
+    wiz.style.display = 'none';
+    applyMode();
+    loadSettingsIntoForm();
+    initialRender();
+    toast(t('wiz.welcome_done'), 'success', 4000);
+  }
 }
 
 /* ============================================================
@@ -10389,7 +13491,23 @@ function openOnboarding() {
 document.addEventListener('DOMContentLoaded', async () => {
   await loadAll();
 
+  // Existing users who had data before Business Mode was introduced:
+  // give them Professional mode and skip the wizard.
+  // Detection: firstRun=true but firstRunDone=true means old user (firstRun defaulted in).
+  // Also catch cases where firstRun is undefined/null.
+  const isExistingUser = (
+    (settings.firstRun === undefined || settings.firstRun === null) ||
+    (settings.firstRun === true && settings.firstRunDone === true)
+  ) && (printLog.length > 0 || clients.length > 0);
+  if (isExistingUser) {
+    settings.mode = settings.mode || 'professional';
+    settings.firstRun = false;
+    settings.firstRunDone = true;
+    saveAll();
+  }
+
   applyTheme(settings.theme || 'dark');
+  applyMode();
   i18n.init();
   if (settings.lang) i18n.set(settings.lang, { silent: true });
   const langSel = $('#langSelect');
@@ -10399,6 +13517,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadSettingsIntoForm();
   refreshCurrencyLabels();
   initialRender();
+  applyProductionPause();
+  // Feature 7 (new 8-pack): Apply operator permissions at startup
+  applyOperatorPermissions();
+  // Show/hide the nav operator switch button
+  const navOpBtn = $('#btnNavSwitchOp');
+  if (navOpBtn) navOpBtn.style.display = settings.operatorLockEnabled ? 'inline-flex' : 'none';
+
+  // Feature 2 (new batch): Start live printer polling for connected machines
+  const apiMachines = machines.filter(m => m.printerApi?.type && m.printerApi.type !== 'none');
+  if (apiMachines.length > 0 && window.hubAPI?.startPrinterPolling) {
+    window.hubAPI.startPrinterPolling(apiMachines).then(cache => {
+      machineStatusCache = cache || {};
+      updateKanbanLiveStatus();
+    }).catch(() => {});
+  }
+  if (window.hubAPI?.onPrinterStatusUpdate) {
+    window.hubAPI.onPrinterStatusUpdate(data => {
+      machineStatusCache = data || {};
+      updateKanbanLiveStatus();
+    });
+  }
 
   if (window.hubAPI?.appVersion) {
     try { $('#appVersion').textContent = await window.hubAPI.appVersion(); }
@@ -10411,8 +13550,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   maybeAutoBackup();
   updateLastBackupDisplay();
 
-  // First-run onboarding (shown once, after a short delay so UI paints first)
-  if (!settings.firstRunDone) {
+  // Business Mode setup wizard (new first-run experience)
+  initWizard();
+
+  // Legacy first-run onboarding — only if wizard was already completed but old onboarding never ran
+  // (firstRun=false means wizard was dismissed; firstRunDone=false means old onboarding still needed)
+  if (!settings.firstRun && !settings.firstRunDone) {
     setTimeout(openOnboarding, 400);
   }
 

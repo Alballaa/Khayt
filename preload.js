@@ -52,9 +52,29 @@ contextBridge.exposeInMainWorld('hubAPI', {
   // Feature 7: Save HTML to temp file and open
   saveHtml:  (html, filename) => ipcRenderer.invoke('hub:save-html', html, filename),
 
+  // Feature 2 (new): File vault
+  copyFileToVault: (srcPath, orderId) => ipcRenderer.invoke('hub:copy-file-to-vault', { srcPath, orderId }),
+  listVaultFiles:  (orderId) => ipcRenderer.invoke('hub:list-vault-files', orderId),
+  deleteVaultFile: (fullPath) => ipcRenderer.invoke('hub:delete-vault-file', fullPath),
+
+  // Feature 8 (new): Status page auto-export
+  writeStatusPage: (html, orderId) => ipcRenderer.invoke('hub:write-status-page', { html, orderId }),
+
   // Task 0: File-based data store (replaces localStorage)
   loadStore:     ()       => ipcRenderer.invoke('hub:load-store'),
   saveStore:     (data)   => ipcRenderer.invoke('hub:save-store', data),
   storeSize:     ()       => ipcRenderer.invoke('hub:store-size'),
   revealStoreFile: ()     => ipcRenderer.invoke('hub:reveal-store-file'),
+
+  // Feature 1 (new batch): G-code / 3MF metadata extraction
+  parsePrintFile: (filePath) => ipcRenderer.invoke('hub:parse-print-file', filePath),
+
+  // Feature 2 (new batch): Live printer API polling
+  startPrinterPolling: (machines) => ipcRenderer.invoke('hub:start-printer-polling', machines),
+  stopPrinterPolling:  ()         => ipcRenderer.invoke('hub:stop-printer-polling'),
+  getPrinterStatus:    ()         => ipcRenderer.invoke('hub:get-printer-status'),
+  onPrinterStatusUpdate: (cb)     => ipcRenderer.on('printer-status-update', (_e, data) => cb(data)),
+
+  // Feature 5 (new batch): Outbound email notifications
+  sendEmail: (opts) => ipcRenderer.invoke('hub:send-email', opts),
 });

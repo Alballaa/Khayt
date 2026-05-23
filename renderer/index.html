@@ -9,6 +9,8 @@
 </head>
 <body>
 
+<div id="pauseBanner" class="pause-banner" style="display:none;"></div>
+
 <div class="app">
 
   <div class="titlebar">
@@ -28,6 +30,14 @@
     <button id="btnHelp" title="Help" aria-label="Help" data-i18n="help.btn" style="background:rgba(255,255,255,0.07);color:var(--text-muted);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;white-space:nowrap;">?</button>
     <button id="btnGlobalSearch" title="Search (⌘K)" aria-label="Global search" style="background:rgba(255,255,255,0.07);color:var(--text-muted);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;white-space:nowrap;">🔍 <kbd style="font-size:10px;opacity:0.6;">⌘K</kbd></button>
     <button id="btnFeedback" title="Feedback &amp; Bug Reports" aria-label="Feedback" data-i18n="feedback.title" style="background:rgba(255,255,255,0.07);color:var(--text-muted);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;white-space:nowrap;">💬</button>
+    <select id="locationFilter" aria-label="Location filter" style="background:var(--bg-elev);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer; min-width:100px;" title="Filter by location">
+      <option value="">All locations</option>
+    </select>
+    <!-- Feature 7 (new 8-pack): Operator switch button (hidden when lock disabled) -->
+    <button id="btnNavSwitchOp" title="Switch operator" aria-label="Switch operator"
+      style="display:none;background:rgba(255,255,255,0.07);color:var(--text-muted);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;white-space:nowrap;gap:5px;align-items:center;">
+      👤 <span id="operatorNavBadge" style="font-size:11px;font-weight:600;"></span>
+    </button>
     <select id="langSelect" aria-label="Language" style="background:var(--bg-elev);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;">
       <option value="en">🌐 EN</option>
       <option value="ar">🌐 ع</option>
@@ -48,7 +58,7 @@
     <button class="tab-btn" data-tab="inventory-tab" data-i18n="tab.inventory">Inventory</button>
     <button class="tab-btn" data-tab="clients-tab" data-i18n="tab.clients">Clients</button>
     <button class="tab-btn" data-tab="portfolio-tab" data-i18n="tab.portfolio">Portfolio</button>
-    <button class="tab-btn" data-tab="expenses-tab" data-i18n="tab.expenses">Expenses</button>
+    <button class="tab-btn pro-only" data-tab="expenses-tab" data-i18n="tab.expenses">Expenses</button>
     <button class="tab-btn" data-tab="waste-tab" data-i18n="tab.waste">Waste Log</button>
     <button class="tab-btn" data-tab="settings-tab" data-i18n="tab.settings">Settings</button>
   </nav>
@@ -77,6 +87,12 @@
               <label data-i18n="calc.part.qty">Qty</label>
               <input type="number" id="partQty" value="1" min="1" step="1">
             </div>
+          </div>
+
+          <div style="margin-top:10px;">
+            <label data-i18n="calc.part_colour">Colour / variant</label>
+            <input type="text" id="partColour" list="partColourList" data-i18n-placeholder="calc.part_colour" placeholder="e.g. Red, RAL 3020">
+            <datalist id="partColourList"></datalist>
           </div>
 
           <div class="inline-pair" style="margin-top:10px;">
@@ -128,7 +144,10 @@
             <label data-i18n="calc.profile">Profile name</label>
             <input type="text" id="printProfile" data-i18n-placeholder="calc.profile_ph" placeholder="Quality 0.2mm">
             <label style="margin-top:10px;" data-i18n="calc.file_ref">File / STL reference</label>
-            <input type="text" id="partFileRef" data-i18n-placeholder="calc.file_ref_ph" placeholder="e.g. bracket_v3.stl">
+            <div style="display:flex;gap:6px;align-items:center;">
+              <input type="text" id="partFileRef" data-i18n-placeholder="calc.file_ref_ph" placeholder="e.g. bracket_v3.stl" style="flex:1;">
+              <button type="button" id="btnParseFile" class="btn small ghost" data-i18n="calc.parse_file" title="Parse print time and filament weight from G-code / 3MF">Parse from file</button>
+            </div>
           </details>
 
           <!-- Feature 5: Volume / quantity-break pricing -->
@@ -307,6 +326,7 @@
       <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
         <h3 class="card-head" style="margin:0; flex:1;"><span class="swatch"></span><span data-i18n="queue.title">Active Production Queue</span></h3>
         <button id="btnScheduleView" class="btn-sm btn ghost small">📅 <span data-i18n="kan.schedule_view">Schedule</span></button>
+        <button id="btnPauseProduction" class="btn small" style="background:rgba(220,38,38,0.15);color:#f87171;border-color:rgba(220,38,38,0.3);" data-i18n="prod.pause">⏸ Pause production</button>
       </div>
 
       <!-- Schedule view (hidden by default) -->
@@ -342,6 +362,11 @@
           <div class="kanban-col-meta" id="meta-post"></div>
           <div id="list-post"></div>
         </div>
+        <div class="kanban-col" data-status="qc" style="border-top: 3px solid #a78bfa;">
+          <h3><span class="dot" style="background:#a78bfa;"></span><span data-i18n="kan.col_qc">QC</span><span class="count" id="count-qc">0</span></h3>
+          <div class="kanban-col-meta" id="meta-qc"></div>
+          <div id="list-qc"></div>
+        </div>
         <div class="kanban-col" data-status="completed">
           <h3><span class="dot"></span><span data-i18n="queue.completed">Completed</span><span class="count" id="count-completed">0</span></h3>
           <div class="kanban-col-meta" id="meta-completed"></div>
@@ -355,7 +380,7 @@
       <div class="card">
         <div id="batchBar" class="batch-bar" style="display:none;">
           <span id="batchCount" class="batch-count"></span>
-          <button class="btn small primary" id="btnBatchPdf" data-i18n="batch.export_pdfs">Export PDFs</button>
+          <button class="btn small primary pro-only" id="btnBatchPdf" data-i18n="batch.export_pdfs">Export PDFs</button>
           <button class="btn small" id="btnBatchWa" data-i18n="batch.wa_all">WhatsApp all</button>
           <select id="batchStatusSelect" class="toolbar-select" style="max-width:140px;">
             <option value="" data-i18n="batch.move_to">Move to…</option>
@@ -378,6 +403,7 @@
             <option value="on_hold" data-i18n="queue.on_hold">On Hold</option>
             <option value="printing" data-i18n="queue.printing">Printing</option>
             <option value="post" data-i18n="queue.post">Post</option>
+            <option value="qc" data-i18n="kan.col_qc">QC</option>
             <option value="completed" data-i18n="queue.completed">Completed</option>
           </select>
           <select id="logPayFilter" class="toolbar-select">
@@ -497,48 +523,60 @@
         <ul class="activity-list" id="activityList"></ul>
       </div>
 
-      <div class="card" style="margin-top: 16px;">
+      <div class="card pro-only" style="margin-top: 16px;">
         <h3 class="card-head"><span class="swatch"></span><span data-i18n="an.accuracy_title">Estimate Accuracy</span></h3>
         <div id="accuracySection"></div>
         <div id="timestampAccuracySection" style="margin-top:8px;"></div>
       </div>
 
-      <div class="card" style="margin-top: 16px;">
+      <div class="card pro-only" style="margin-top: 16px;">
         <h3 class="card-head"><span class="swatch"></span><span data-i18n="an.filament_perf">Filament Performance</span></h3>
         <div id="filamentPerfSection"></div>
       </div>
 
-      <div class="card" style="margin-top: 16px;">
+      <div class="card pro-only" style="margin-top: 16px;">
         <h3 class="card-head"><span class="swatch"></span><span data-i18n="an.printer_util">Printer Utilization</span></h3>
         <div id="printerUtilSection"></div>
       </div>
 
-      <div class="card" style="margin-top: 16px;">
+      <div class="card pro-only" style="margin-top: 16px;">
         <h3 class="card-head"><span class="swatch"></span><span data-i18n="an.pnl_title">Profit &amp; Loss by Quarter</span></h3>
         <div id="pnlSection"></div>
       </div>
 
-      <div class="card" style="margin-top: 16px;">
+      <div class="card pro-only" style="margin-top: 16px;">
         <h3 class="card-head"><span class="swatch"></span><span data-i18n="an.product_profit_title">Profitability by Product</span></h3>
         <div id="productProfitSection"></div>
       </div>
 
-      <div class="card" style="margin-top: 16px;">
+      <div class="card pro-only" style="margin-top: 16px;">
         <h3 class="card-head"><span class="swatch"></span><span data-i18n="an.sla_title">On-Time Delivery Rate</span></h3>
         <div id="slaSection"></div>
       </div>
 
       <!-- Feature 7: Per-machine P&L -->
-      <div class="card" style="margin-top: 16px;">
+      <div class="card pro-only" style="margin-top: 16px;">
         <h3 class="card-head"><span class="swatch"></span><span data-i18n="an.machine_pl">Per-Machine P&L</span></h3>
         <div id="machinePLSection"></div>
       </div>
 
       <!-- Feature 5: Throughput heatmap -->
-      <div class="card" style="margin-top: 16px;">
+      <div class="card pro-only" style="margin-top: 16px;">
         <h3 class="card-head"><span class="swatch"></span><span data-i18n="an.heatmap_title">Completion Heatmap</span></h3>
         <div id="throughputHeatmapSection"></div>
       </div>
+
+      <!-- Feature 7 (new): Client retention -->
+      <div class="card pro-only" style="margin-top: 16px;">
+        <h3 class="card-head"><span class="swatch"></span><span data-i18n="an.retention_title">Client Retention</span></h3>
+        <div id="clientRetentionSection"></div>
+      </div>
+
+      <!-- New 8-pack Feature 7: Cost & Revenue Trends -->
+      <div id="costTrendsSection" class="card pro-only" style="margin-top: 16px;"></div>
+
+      <!-- New 8-pack Feature 1: Per-Operator Performance -->
+      <div id="operatorAnalyticsSection" class="card pro-only" style="margin-top: 16px;"></div>
     </section>
 
     <!-- ===================== INVENTORY ===================== -->
@@ -617,7 +655,7 @@
       </div>
 
       <!-- Supplier / vendor database -->
-      <div class="card" style="margin-top:16px;">
+      <div class="card pro-only" style="margin-top:16px;">
         <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
           <h3 class="card-head" style="margin:0; flex:1;"><span class="swatch"></span><span data-i18n="sup.title">Suppliers / Vendors</span></h3>
           <button class="btn small primary" id="btnAddSupplier" data-i18n="sup.add">+ Add Supplier</button>
@@ -639,7 +677,7 @@
         </div>
       </div>
       <!-- Purchase Orders (Feature 3) -->
-      <div id="poSection" class="card" style="margin-top:16px;"></div>
+      <div id="poSection" class="card pro-only" style="margin-top:16px;"></div>
     </section>
 
     <!-- ===================== CLIENTS ===================== -->
@@ -718,6 +756,13 @@
           <input type="number" id="expAmount" min="0" step="0.01" placeholder="0.00">
           <label data-i18n="exp.note" style="margin-top:12px;">Note</label>
           <input type="text" id="expNote" data-i18n-placeholder="exp.note_ph">
+          <label data-i18n="exp.recurring" style="margin-top:12px;">Recurring</label>
+          <select id="expRecurring">
+            <option value="">— None —</option>
+            <option value="monthly"   data-i18n="exp.recurring_monthly">Monthly</option>
+            <option value="quarterly" data-i18n="exp.recurring_quarterly">Quarterly</option>
+            <option value="annually"  data-i18n="exp.recurring_annually">Annually</option>
+          </select>
           <label data-i18n="exp.order_ref" style="margin-top:12px;">Link to order (optional)</label>
           <input type="text" id="expOrderRef" list="expOrderList" placeholder="Order ID (optional)">
           <datalist id="expOrderList"></datalist>
@@ -794,6 +839,23 @@
     <section id="settings-tab" class="tab-content">
       <div class="grid">
 
+        <!-- Experience / Business Mode toggle -->
+        <div class="card settings-card pro-mode-card full">
+          <h3 data-i18n="set.experience">Experience</h3>
+          <p style="font-size:13px; color:var(--text-muted); margin:0 0 4px;">Choose the level of features that matches your workflow.</p>
+          <div class="mode-toggle-group">
+            <button class="mode-btn" id="btnModeSimple" data-mode="simple">
+              <strong data-i18n="set.mode_simple">Simple</strong>
+              <span data-i18n="set.mode_simple_desc">Solo makers &amp; small shops</span>
+            </button>
+            <button class="mode-btn" id="btnModePro" data-mode="professional">
+              <strong data-i18n="set.mode_pro">Professional</strong>
+              <span data-i18n="set.mode_pro_desc">Print farms &amp; companies</span>
+            </button>
+          </div>
+          <p class="settings-hint" style="font-size:12px; color:var(--text-muted); margin:8px 0 0;" data-i18n="set.mode_changed_hint">You can switch at any time — no data is lost.</p>
+        </div>
+
         <div class="card">
           <h3 class="card-head"><span class="swatch"></span><span data-i18n="set.biz_section">Business Information</span></h3>
 
@@ -832,9 +894,11 @@
             </div>
           </div>
 
+          <div class="pro-only">
           <label data-i18n="set.vat">VAT registration number</label>
           <input type="text" id="set_vat" placeholder="3xxxxxxxxxxxxx3" maxlength="15">
           <p style="font-size: 11.5px; color: var(--text-muted); margin: 4px 0 0;" data-i18n="set.vat_hint"></p>
+          </div>
 
           <div class="inline-pair" style="margin-top: 12px;">
             <div>
@@ -892,6 +956,26 @@
           <label style="margin-top: 12px;" data-i18n="set.low_stock">Low-stock threshold (grams)</label>
           <input type="number" id="set_lowStock" value="200" min="0">
           <p style="font-size: 11.5px; color: var(--text-muted); margin: 4px 0 0;" data-i18n="set.low_stock_hint"></p>
+
+          <div class="pro-only">
+          <h3 class="card-head" style="margin-top: 20px;"><span class="swatch"></span><span data-i18n="set.working_hours">Working Hours</span></h3>
+          <p style="font-size: 11.5px; color: var(--text-muted); margin: 0 0 10px;">Available print hours per day of week (0 = closed)</p>
+          <div id="workingHoursGrid" style="display:grid; grid-template-columns:repeat(7,1fr); gap:8px; margin-bottom:12px;">
+            <div style="text-align:center;"><label style="font-size:11px; margin:0; color:var(--text-muted);">Mon</label><input type="number" id="wh_mon" min="0" max="24" step="0.5" value="8" style="text-align:center; padding:4px;"></div>
+            <div style="text-align:center;"><label style="font-size:11px; margin:0; color:var(--text-muted);">Tue</label><input type="number" id="wh_tue" min="0" max="24" step="0.5" value="8" style="text-align:center; padding:4px;"></div>
+            <div style="text-align:center;"><label style="font-size:11px; margin:0; color:var(--text-muted);">Wed</label><input type="number" id="wh_wed" min="0" max="24" step="0.5" value="8" style="text-align:center; padding:4px;"></div>
+            <div style="text-align:center;"><label style="font-size:11px; margin:0; color:var(--text-muted);">Thu</label><input type="number" id="wh_thu" min="0" max="24" step="0.5" value="8" style="text-align:center; padding:4px;"></div>
+            <div style="text-align:center;"><label style="font-size:11px; margin:0; color:var(--text-muted);">Fri</label><input type="number" id="wh_fri" min="0" max="24" step="0.5" value="0" style="text-align:center; padding:4px;"></div>
+            <div style="text-align:center;"><label style="font-size:11px; margin:0; color:var(--text-muted);">Sat</label><input type="number" id="wh_sat" min="0" max="24" step="0.5" value="0" style="text-align:center; padding:4px;"></div>
+            <div style="text-align:center;"><label style="font-size:11px; margin:0; color:var(--text-muted);">Sun</label><input type="number" id="wh_sun" min="0" max="24" step="0.5" value="0" style="text-align:center; padding:4px;"></div>
+          </div>
+          <label data-i18n="set.holidays">Closure dates</label>
+          <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+            <input type="date" id="set_holidayInput" style="flex:1;">
+            <button class="btn small primary" id="btnAddHoliday" type="button" data-i18n="set.add_holiday">Add closure date</button>
+          </div>
+          <div id="holidayList" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:4px;"></div>
+          </div>
 
           <label style="margin-top: 14px;" data-i18n="set.supplier_phone">Supplier WhatsApp number</label>
           <input type="tel" id="set_supplierPhone" data-i18n-placeholder="set.supplier_ph">
@@ -1052,7 +1136,7 @@
         </div>
 
         <!-- Operational settings: min-margin + expense budgets -->
-        <div class="card full">
+        <div class="card full pro-only">
           <h3 class="card-head"><span class="swatch"></span><span data-i18n="set.ops_section">Operational Settings</span></h3>
 
           <div class="inline-pair" style="align-items:flex-end; margin-top:0;">
@@ -1073,6 +1157,50 @@
             <div><label data-i18n="exp.cat.other">Other</label><input type="number" id="set_budget_other" min="0" step="1" placeholder="0"></div>
           </div>
           <button class="btn primary" id="btnSaveOpsSettings" style="margin-top:16px;" data-i18n="common.save">Save</button>
+        </div>
+
+        <!-- Feature 8 (new): Locations / Branches -->
+        <div class="card full pro-only">
+          <h3 class="card-head"><span class="swatch"></span><span data-i18n="set.locations">Locations</span></h3>
+          <p style="font-size:12px; color:var(--text-muted); margin:0 0 12px;">Manage your shop locations or branches. Tag orders, machines, inventory and expenses to a location.</p>
+          <div id="locationsSettingsSection"></div>
+          <button class="btn primary" id="btnAddLocation" style="margin-top:10px;" data-i18n="set.location_add">+ Add location</button>
+        </div>
+
+        <!-- New 8-pack Feature 1: Operators / Staff (pro-only) -->
+        <div class="card full pro-only">
+          <h3 class="card-head"><span class="swatch"></span><span data-i18n="op.title">Operators</span></h3>
+          <div id="operatorsList"></div>
+          <button class="btn primary" id="btnAddOperator" style="margin-top:10px;" data-i18n="op.add">+ Add operator</button>
+        </div>
+
+        <!-- Feature 7 (new 8-pack): Operator PIN lock (pro-only) -->
+        <div class="card full pro-only">
+          <h3 class="card-head"><span class="swatch"></span><span data-i18n="op.lock">Operator Lock</span></h3>
+          <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;" data-i18n="op.lock_hint">Require a PIN to switch between operator accounts. Restricts access by role.</p>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:12px;">
+            <input type="checkbox" id="set_operatorLock" style="width:auto;margin:0;">
+            <span data-i18n="op.lock_enabled">Enable operator PIN lock</span>
+          </label>
+          <div id="operatorLockSection"></div>
+        </div>
+
+        <!-- Feature 5 (new 8-pack): Email notifications (pro-only) -->
+        <div class="card full pro-only">
+          <h3 class="card-head"><span class="swatch"></span><span data-i18n="set.notifications">Email Notifications</span></h3>
+          <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">Send automated status update emails to clients via SendGrid, Mailgun, or your default mail client.</p>
+          <div id="emailNotificationsSection"></div>
+        </div>
+
+        <!-- Feature 8 (new 8-pack): Loyalty tiers (pro-only) -->
+        <div class="card full pro-only">
+          <h3 class="card-head"><span class="swatch"></span><span data-i18n="set.loyalty">Customer Loyalty Tiers</span></h3>
+          <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">Auto-assign tier badges and discounts based on completed orders or spend.</p>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:12px;">
+            <input type="checkbox" id="set_loyaltyEnabled" style="width:auto;margin:0;">
+            <span data-i18n="set.loyalty_enabled">Enable loyalty tiers</span>
+          </label>
+          <div id="loyaltyTiersSection"></div>
         </div>
 
         <!-- Custom order metadata fields -->
@@ -1136,6 +1264,87 @@
 
 <!-- Modal mount point -->
 <div id="modalMount"></div>
+
+<!-- ===================== SETUP WIZARD ===================== -->
+<div id="setup-wizard" class="wizard-overlay" style="display:none">
+  <div class="wizard-card">
+    <!-- Step 1: Welcome -->
+    <div class="wizard-step" id="wiz-step-1">
+      <div class="wizard-logo">🖨️ Khayt</div>
+      <h1 class="wizard-title">Welcome to Khayt</h1>
+      <p class="wizard-subtitle">3D printing production management — let's get you set up in 60 seconds.</p>
+      <button class="btn btn-primary wizard-next" data-next="2">Get started →</button>
+    </div>
+
+    <!-- Step 2: Business type -->
+    <div class="wizard-step" id="wiz-step-2" style="display:none">
+      <h2 class="wizard-title">How do you use Khayt?</h2>
+      <p class="wizard-subtitle">This sets your starting experience. You can change it anytime in Settings.</p>
+      <div class="wizard-options">
+        <button class="wizard-option" data-mode="simple" data-next="3">
+          <span class="wizard-option-icon">👤</span>
+          <strong>Solo maker</strong>
+          <span>Just me — quoting, invoicing, tracking jobs</span>
+        </button>
+        <button class="wizard-option" data-mode="simple" data-next="3">
+          <span class="wizard-option-icon">🏪</span>
+          <strong>Small shop</strong>
+          <span>1–3 printers, occasional staff help</span>
+        </button>
+        <button class="wizard-option" data-mode="professional" data-next="3">
+          <span class="wizard-option-icon">🏭</span>
+          <strong>Print farm</strong>
+          <span>4+ printers, multiple operators, analytics-driven</span>
+        </button>
+        <button class="wizard-option" data-mode="professional" data-next="3">
+          <span class="wizard-option-icon">🏢</span>
+          <strong>Company / B2B</strong>
+          <span>Corporate clients, VAT invoicing, multi-location</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Step 3: Business details -->
+    <div class="wizard-step" id="wiz-step-3" style="display:none">
+      <h2 class="wizard-title">Your business details</h2>
+      <p class="wizard-subtitle">Used on invoices and documents. Edit anytime in Settings.</p>
+      <div class="wizard-form">
+        <label>Business / Shop name
+          <input id="wizBizName" type="text" placeholder="e.g. Khayt Studio" class="form-control">
+        </label>
+        <label>Currency
+          <select id="wizCurrency" class="form-control">
+            <option value="SAR">SAR — Saudi Riyal</option>
+            <option value="USD">USD — US Dollar</option>
+            <option value="EUR">EUR — Euro</option>
+            <option value="GBP">GBP — British Pound</option>
+            <option value="AED">AED — UAE Dirham</option>
+            <option value="QAR">QAR — Qatari Riyal</option>
+            <option value="KWD">KWD — Kuwaiti Dinar</option>
+          </select>
+        </label>
+        <label>Language
+          <select id="wizLang" class="form-control">
+            <option value="en">English</option>
+            <option value="ar">العربية</option>
+            <option value="de">Deutsch</option>
+            <option value="es">Español</option>
+            <option value="fr">Français</option>
+            <option value="zh">中文</option>
+          </select>
+        </label>
+      </div>
+      <button class="btn btn-primary wizard-finish" id="wizFinish">Start using Khayt →</button>
+    </div>
+  </div>
+
+  <!-- Progress dots -->
+  <div class="wizard-dots">
+    <span class="wizard-dot active" data-step="1"></span>
+    <span class="wizard-dot" data-step="2"></span>
+    <span class="wizard-dot" data-step="3"></span>
+  </div>
+</div>
 
 <!-- Printable invoice area -->
 <div id="invoice-print-area"></div>

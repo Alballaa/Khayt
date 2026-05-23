@@ -1027,6 +1027,19 @@ const STRINGS = {
     'po.receive':               'Mark received',
     'po.received_toast':        'Purchase order marked as received',
     'po.created_toast':         'Purchase order created',
+    'po.partial':               'Partially received',
+    'po.received_so_far':       'Received so far',
+    'po.receive_more':          'Receive more',
+    'po.close_po':              'Close PO',
+    'po.progress':              '{received}g of {ordered}g received',
+    'po.weight_received':       'Weight received (g)',
+    'po.notes':                 'Notes',
+
+    // ---------- Feature 6: Per-client credit limit ----------
+    'ce.credit_limit':          'Credit limit',
+    'ce.credit_limit_hint':     'Set to 0 for no limit',
+    'cl.over_limit':            'Over credit limit',
+    'cl.credit_warning':        'This order would exceed the client\'s credit limit of {limit}. Outstanding: {balance}. Continue?',
 
     // ---------- Feature 4: Per-client price list ----------
     'ce.price_list':            'Price agreements',
@@ -1042,6 +1055,46 @@ const STRINGS = {
     'mach.target_hours':        'Target hours / day',
     'mach.target_hours_hint':   'Used to calculate utilization % in analytics.',
     'an.utilization_pct':       'Utilization',
+
+    // ---------- Feature 1 (new): Kanban drag ----------
+    'kan.drag_hint':            'Drag to reorder',
+
+    // ---------- Feature 2 (new): Machine downtime ----------
+    'mach.downtime':            'Scheduled downtime',
+    'mach.downtime_add':        '+ Add downtime',
+    'mach.downtime_from':       'From',
+    'mach.downtime_to':         'To',
+    'mach.downtime_reason':     'Reason',
+    'mach.downtime_badge':      'Downtime scheduled',
+
+    // ---------- Feature 3 (new): Credit note reversal ----------
+    'cn.reversal_of':           'Reversal of Invoice',
+    'cn.original_date':         'Original date',
+
+    // ---------- Feature 4 (new): Recurring expenses ----------
+    'exp.recurring':            'Recurring',
+    'exp.recurring_monthly':    'Monthly',
+    'exp.recurring_quarterly':  'Quarterly',
+    'exp.recurring_annually':   'Annually',
+    'exp.recurring_due':        'Recurring expense due',
+    'exp.recurring_added':      'Recurring expense added.',
+
+    // ---------- Feature 7: Client retention ----------
+    'an.retention_title':       'Client Retention',
+    'an.retention_30':          '30-day return rate',
+    'an.retention_60':          '60-day return rate',
+    'an.retention_90':          '90-day return rate',
+    'an.retention_avg_days':    'Avg. days to return',
+    'an.retention_no_data':     'Not enough data yet (need 2+ completed orders per client).',
+
+    // ---------- Feature 8: Locations ----------
+    'set.locations':            'Locations',
+    'set.location_add':         '+ Add location',
+    'set.location_name':        'Location name',
+    'set.location_addr':        'Address',
+    'loc.all':                  'All locations',
+    'loc.badge':                '{name}',
+    'ord.location':             'Location',
 
     // ---------- Feature 6: Backup restore UI ----------
     'set.restore_backup':       'Restore from backup…',
@@ -1329,6 +1382,269 @@ const STRINGS = {
     'ord.quote_rev_empty':      'No previous revisions.',
     'ord.quote_rev_price':      'Price',
     'ord.quote_rev_date':       'Date',
+
+    // ---------- New Feature 1+8: Kanban elapsed timer ----------
+    'kan.elapsed':              'Elapsed',
+    'kan.started':              'Started {time}',
+
+    // ---------- New Feature 2: Priority flags ----------
+    'ord.priority_urgent':      'Urgent',
+    'ord.priority_high':        'High priority',
+
+    // ---------- New Feature 3: Proforma invoice ----------
+    'ord.proforma':             'Proforma Invoice',
+    'ord.gen_proforma':         'Generate Proforma',
+    'inv.proforma_title':       'PROFORMA INVOICE',
+
+    // ---------- New Feature 4: VAT export periods ----------
+    'tax.period':               'Export period',
+    'tax.this_quarter':         'This quarter',
+    'tax.last_quarter':         'Last quarter',
+    'tax.this_year':            'This year',
+    'tax.custom_range':         'Custom range',
+
+    // ---------- New Feature 5: Per-spool reorder ----------
+    'inv.reorder_point':        'Reorder when below (g)',
+    'inv.reorder_qty':          'Default order qty (g)',
+
+    // ---------- New Feature 6: Material price history ----------
+    'inv.price_hist_empty':     'No price changes recorded.',
+    'inv.price_change':         'Change',
+
+    // ---------- New Feature 7: Working hours ----------
+    'set.working_hours':        'Working Hours',
+    'set.work_day':             'hrs/day',
+    'set.holidays':             'Closure dates',
+    'set.add_holiday':          'Add closure date',
+    'set.holiday_removed':      'Date removed',
+
+    // ---------- Business Mode ----------
+    'wiz.welcome_done':         'Welcome to Khayt! You\'re all set.',
+    'wiz.business_type':        'How do you use Khayt?',
+    'set.experience':           'Experience',
+    'set.mode_simple':          'Simple',
+    'set.mode_simple_desc':     'Solo makers & small shops',
+    'set.mode_pro':             'Professional',
+    'set.mode_pro_desc':        'Print farms & companies',
+    'set.mode_changed':         'Experience updated.',
+    'set.mode_changed_hint':    'You can switch at any time — no data is lost.',
+    'an.simple_reports':        'Reports',
+    'an.simple_revenue':        'Revenue this month',
+    'an.simple_orders':         'Completed this month',
+    'an.simple_outstanding':    'Outstanding receivables',
+
+    // ---------- Feature 1 (new 8-pack): Operators ----------
+    'op.title':               'Operators',
+    'op.add':                 '+ Add operator',
+    'op.name':                'Name',
+    'op.role':                'Role',
+    'op.assigned':            'Assigned to',
+    'op.unassigned':          'Unassigned',
+    'an.operator_title':      'Per-Operator Performance',
+    'an.op_jobs':             'Jobs',
+    'an.op_waste':            'Waste entries',
+    'an.op_accuracy':         'Accuracy',
+
+    // ---------- Feature 2 (new 8-pack): File vault ----------
+    'ord.vault_files':        'Project files',
+    'ord.vault_add':          'Add file',
+    'ord.vault_empty':        'No files attached.',
+    'ord.vault_open':         'Open',
+    'ord.vault_delete':       'Remove',
+    'ord.vault_badge':        '{n} file(s)',
+
+    // ---------- Feature 3 (new 8-pack): Machine compat ----------
+    'mach.nozzle_diameter':   'Nozzle diameter (mm)',
+    'mach.compat_materials':  'Compatible materials',
+    'mach.extruder_type':     'Extruder type',
+    'mach.compat_warn':       'Material may not be compatible with this machine',
+
+    // ---------- Feature 4 (new 8-pack): Nozzle tracking ----------
+    'mach.nozzle':            'Nozzle',
+    'mach.nozzle_material':   'Nozzle material',
+    'mach.nozzle_brass':      'Brass',
+    'mach.nozzle_hardened':   'Hardened steel',
+    'mach.nozzle_ruby':       'Ruby',
+    'mach.nozzle_installed':  'Installed on',
+    'mach.nozzle_threshold':  'Replace after (g)',
+    'mach.nozzle_replace':    'Replace nozzle',
+    'mach.log_nozzle':        'Log nozzle change',
+    'mach.nozzle_done':       'Nozzle change logged.',
+
+    // ---------- Feature 5 (new 8-pack): Batch POs ----------
+    'po.batch_gen':           'Generate POs for low stock',
+    'po.none_needed':         'All items are above reorder point.',
+    'po.batch_confirm':       'Create {n} purchase orders?',
+    'po.batch_done':          '{n} purchase orders created.',
+
+    // ---------- Feature 6 (new 8-pack): Order splitting ----------
+    'ord.split':              'Split across machines',
+    'ord.split_confirm':      'Split order into {n} sub-jobs?',
+    'ord.split_done':         'Order split into {n} sub-jobs.',
+    'ord.split_badge':        'Split into {n}',
+    'ord.sub_order':          'Part of',
+    'ord.split_assign':       'Assign parts to machines',
+
+    // ---------- Feature 7 (new 8-pack): Cost trends ----------
+    'an.cost_trends':         'Cost & Revenue Trends',
+    'an.cost_per_gram':       'Avg. material cost/g',
+    'an.rev_per_hour':        'Revenue per print-hour',
+
+    // ---------- Feature 8 (new 8-pack): Status page ----------
+    'ord.status_page_path':   'Status page (auto-updated)',
+    'ord.status_page_open':   'Open status page',
+
+    // ---------- Feature 1 (this batch): Colour/variant tracking ----------
+    'ord.part_colour':        'Colour',
+    'calc.part_colour':       'Colour / variant',
+
+    // ---------- Feature 2 (this batch): QC approval gate ----------
+    'ord.qc':                 'Quality Check',
+    'ord.qc_pass':            'Pass QC',
+    'ord.qc_fail':            'Fail QC',
+    'ord.qc_notes':           'QC notes',
+    'ord.qc_passed':          'QC passed',
+    'ord.qc_failed_requeue':  'QC failed — order requeued',
+    'kan.col_qc':             'QC',
+
+    // ---------- Feature 3 (this batch): Milestone invoicing ----------
+    'ord.milestone_invoices': 'Milestone invoices',
+    'ord.milestone_add':      '+ Add milestone',
+    'ord.milestone_label':    'Label',
+    'ord.milestone_pct':      'Percentage',
+    'ord.milestone_amount':   'Amount',
+    'ord.milestone_issue':    'Issue invoice',
+    'ord.milestone_issued':   'Invoice issued',
+
+    // ---------- Feature 4 (this batch): AP tracking ----------
+    'po.ap_record':           'Record supplier invoice',
+    'po.sup_inv_num':         'Supplier invoice #',
+    'po.sup_inv_amount':      'Invoiced amount',
+    'po.sup_inv_date':        'Invoice date',
+    'po.ap_matched':          'AP matched',
+    'po.ap_mismatch':         'Amount mismatch',
+
+    // ---------- Feature 5 (this batch): Filament colour library ----------
+    'inv.variants':           'Variants',
+    'inv.group_by_material':  'Group by material',
+    'inv.colour_library':     'Saved colours',
+    'inv.variant_chips':      '{n} colours in stock',
+
+    // ---------- Feature 6 (this batch): Client portal ----------
+    'cl.portal':              'Client portal',
+    'cl.portal_export':       'Export client portal',
+    'cl.portal_saved':        'Client portal saved and opened.',
+    'cl.portal_active':       'Active orders',
+    'cl.portal_balance':      'Outstanding balance',
+
+    // ---------- Feature 1 extra: Part colours in order editor ----------
+    'ord.parts_colours':      'Part colours / variants',
+    'ord.parts_colours_hint': 'Set a colour or variant label for each part.',
+    // ---------- Feature 3 extra: Milestone management ----------
+    'ord.milestone_manage':   'Manage',
+    'ord.no_milestones':      'No milestones added.',
+    // ---------- Feature 5 extra: Colour library ----------
+    'inv.type_fdm':           'FDM filament',
+    'inv.type_resin':         'Resin / SLA',
+    'inv.type_other':         'Other',
+    'inv.colour_variant':     'Colour / variant',
+    'inv.colour_variant_ph':  'e.g. Fire Red, RAL 3020',
+    // ---------- Feature 7 (this batch): Resin / SLA material ----------
+    'inv.material_type':      'Material type',
+    'inv.fdm_filament':       'FDM Filament (g)',
+    'inv.resin':              'Resin (mL)',
+    'inv.volume_ml':          'Volume (mL)',
+    'inv.cost_per_litre':     'Cost per litre',
+    'calc.resin_ml':          'Resin used (mL)',
+    'inv.resin_badge':        'Resin',
+
+    // ---------- Feature 8 (this batch): Production pause ----------
+    'prod.pause':             'Pause production',
+    'prod.resume':            'Resume production',
+    'prod.pause_reason':      'Reason for pause (optional)',
+    'prod.paused_banner':     'Production paused',
+    'prod.paused_block':      'Production is paused — resume before starting new prints.',
+    'prod.resumed':           'Production resumed.',
+    'prod.paused_toast':      'Production paused.',
+
+    // ---------- Feature 1 (new 8-pack-2): G-code / 3MF metadata extraction ----------
+    'calc.parse_file':        'Parse from file',
+    'calc.parsed_toast':      'Parsed: {time}h print time, {grams}g filament',
+    'calc.parse_partial':     'Partially parsed — fill remaining fields',
+    'calc.parse_failed':      'Could not extract data from file — fill manually',
+
+    // ---------- Feature 2 (new 8-pack-2): Live printer API ----------
+    'mach.api_type':          'Printer API',
+    'mach.api_host':          'IP address',
+    'mach.api_port':          'Port',
+    'mach.api_key':           'API key',
+    'mach.api_test':          'Test connection',
+    'mach.api_ok':            'Connected',
+    'mach.api_fail':          'Connection failed',
+    'mach.api_progress':      '{pct}% complete',
+    'mach.api_eta':           'ETA',
+    'mach.api_temps':         'Nozzle / Bed',
+    'mach.api_live':          'Live printer connection',
+
+    // ---------- Feature 3 (new 8-pack-2): Resin post-processing ----------
+    'resin.wash':             'IPA Wash',
+    'resin.wash_duration':    'Wash duration (min)',
+    'resin.wash_volume':      'IPA used (mL)',
+    'resin.cure':             'UV Cure',
+    'resin.cure_duration':    'Cure duration (min)',
+    'resin.cure_power':       'UV power (W)',
+    'resin.complete_post':    'Complete post-processing',
+    'resin.fep_alert':        'FEP film may need replacement',
+
+    // ---------- Feature 4 (new 8-pack-2): Material depletion forecast ----------
+    'dash.mat_forecast':      'Materials Forecast',
+    'dash.mat_days_left':     '{n} days remaining',
+    'dash.mat_queue_exceeds': 'Queue exceeds stock',
+    'dash.mat_forecast_ok':   'All materials sufficient',
+
+    // ---------- Feature 5 (new 8-pack-2): Email notifications ----------
+    'set.notifications':      'Email Notifications',
+    'set.email_provider':     'Email provider',
+    'set.email_triggers':     'Send email when',
+    'set.email_test':         'Send test email',
+    'set.email_test_sent':    'Test email sent.',
+    'set.smtp_none':          'Disabled',
+    'set.smtp_sendgrid':      'SendGrid',
+    'set.smtp_mailgun':       'Mailgun',
+    'set.smtp_mailto':        'mailto: (manual)',
+    'set.email_from':         'From email',
+    'set.email_from_name':    'From name',
+    'set.email_api_key':      'API key',
+    'set.email_domain':       'Domain (Mailgun)',
+
+    // ---------- Feature 6 (new 8-pack-2): Capacity check on order ----------
+    'oe.capacity_warn':       'Machine queue clears {date} — after due date {due}',
+    'oe.capacity_save_anyway': 'Save anyway',
+    'oe.capacity_change_machine': 'Choose different machine',
+
+    // ---------- Feature 7 (new 8-pack-2): Role-based operator PIN lock ----------
+    'op.lock':                'Operator lock',
+    'op.switch':              'Switch operator',
+    'op.enter_pin':           'Enter PIN',
+    'op.wrong_pin':           'Incorrect PIN',
+    'op.pin':                 'PIN (4 digits)',
+    'op.role_admin':          'Admin',
+    'op.role_technician':     'Technician',
+    'op.role_sales':          'Sales',
+    'op.lock_enabled':        'Lock enabled',
+    'op.pin_set':             'PIN updated',
+
+    // ---------- Feature 8 (new 8-pack-2): Customer loyalty tiers ----------
+    'set.loyalty':            'Loyalty Program',
+    'set.loyalty_enabled':    'Enable loyalty tiers',
+    'set.loyalty_tiers':      'Tiers',
+    'set.loyalty_add_tier':   '+ Add tier',
+    'set.loyalty_min_orders': 'Min orders',
+    'set.loyalty_min_spend':  'Min spend',
+    'set.loyalty_benefit':    'Discount %',
+    'cl.tier_badge':          '{name} member',
+    'cl.new_tier':            '{name} reached {tier} tier!',
+    'oe.tier_discount':       '{tier} discount applied: {pct}%',
   },
 
   ar: {

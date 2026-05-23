@@ -297,12 +297,282 @@ ipcMain.handle('hub:reveal-store-file', async () => {
   return true;
 });
 
+// --- Feature 2: File vault (per-order 3D files) ---
+const fileVaultDir = () => ensureDir('file-vault');
+ipcMain.handle('hub:copy-file-to-vault', async (_e, { srcPath, orderId }) => {
+  const safeId = path.basename(String(orderId || '')).replace(/[^a-zA-Z0-9_-]/g, '_');
+  const orderVaultDir = path.join(fileVaultDir(), safeId);
+  if (!fs.existsSync(orderVaultDir)) fs.mkdirSync(orderVaultDir, { recursive: true });
+  const filename = path.basename(String(srcPath || ''));
+  const destPath = path.join(orderVaultDir, filename);
+  fs.copyFileSync(String(srcPath), destPath);
+  const stat = await fs.promises.stat(destPath);
+  return { destPath, filename, size: stat.size };
+});
+ipcMain.handle('hub:list-vault-files', async (_e, orderId) => {
+  const safeId = path.basename(String(orderId || '')).replace(/[^a-zA-Z0-9_-]/g, '_');
+  const orderVaultDir = path.join(fileVaultDir(), safeId);
+  if (!fs.existsSync(orderVaultDir)) return [];
+  const files = await fs.promises.readdir(orderVaultDir);
+  return Promise.all(files.map(async (f) => {
+    const fullPath = path.join(orderVaultDir, f);
+    const stat = await fs.promises.stat(fullPath);
+    return { filename: f, fullPath, size: stat.size };
+  }));
+});
+ipcMain.handle('hub:delete-vault-file', async (_e, fullPath) => {
+  const safe = String(fullPath || '');
+  if (safe && fs.existsSync(safe)) await fs.promises.unlink(safe);
+  return true;
+});
+
+// --- Feature 8: Auto-export status page ---
+const statusPagesDir = () => ensureDir('status-pages');
+ipcMain.handle('hub:write-status-page', async (_e, { html, orderId }) => {
+  const safeId = path.basename(String(orderId || '')).replace(/[^a-zA-Z0-9_-]/g, '_');
+  const dir = statusPagesDir();
+  const fullPath = path.join(dir, `${safeId}.html`);
+  await fs.promises.writeFile(fullPath, String(html || ''), 'utf8');
+  return fullPath;
+});
+
 // --- Safe external URL opener (mailto, https) ---
 ipcMain.handle('hub:open-external', async (_e, url) => {
   const s = String(url || '');
   if (!s.startsWith('mailto:') && !s.startsWith('https://') && !s.startsWith('http://')) return false;
   await shell.openExternal(s);
   return true;
+});
+
+// --- Feature 1 (new batch): G-code / 3MF metadata extraction ---
+ipcMain.handle('hub:parse-print-file', async (_e, filePath) => {
+  const result = { printTimeMins: null, filamentGrams: null, filename: path.basename(filePath) };
+  try {
+    const ext = path.extname(filePath).toLowerCase();
+    if (ext === '.gcode' || ext === '.gco') {
+      const fd = fs.openSync(filePath, 'r');
+      const buf = Buffer.alloc(8192);
+      fs.readSync(fd, buf, 0, 8192, 0);
+      fs.closeSync(fd);
+      const head = buf.toString('utf8');
+      // PrusaSlicer / Slic3r
+      const prusaTime = head.match(/estimated printing time[^=]*=\s*(?:(\d+)d\s*)?(?:(\d+)h\s*)?(?:(\d+)m\s*)?(?:(\d+)s)?/i);
+      if (prusaTime) {
+        const d = parseInt(prusaTime[1]||0), h = parseInt(prusaTime[2]||0), m = parseInt(prusaTime[3]||0);
+        result.printTimeMins = d*1440 + h*60 + m;
+      }
+      // Cura: ;TIME:12345 (seconds)
+      const curaTime = head.match(/^;TIME:(\d+)/m);
+      if (curaTime && !result.printTimeMins) result.printTimeMins = Math.round(parseInt(curaTime[1]) / 60);
+      // Bambu Studio
+      const bambuTime = head.match(/total estimated time\s*=\s*(?:(\d+)h)?(?:(\d+)m)?/i);
+      if (bambuTime && !result.printTimeMins) {
+        result.printTimeMins = parseInt(bambuTime[1]||0)*60 + parseInt(bambuTime[2]||0);
+      }
+      // PrusaSlicer filament grams
+      const prusaGrams = head.match(/filament used \[g\]\s*=\s*([\d.]+)/i);
+      if (prusaGrams) result.filamentGrams = parseFloat(prusaGrams[1]);
+      // Cura FILAMENT_WEIGHT
+      const curaGrams = head.match(/FILAMENT_WEIGHT\s*=\s*([\d.]+)/i);
+      if (curaGrams && !result.filamentGrams) result.filamentGrams = parseFloat(curaGrams[1]);
+    } else if (ext === '.3mf') {
+      const buf2 = fs.readFileSync(filePath);
+      const content = buf2.toString('latin1');
+      const prusaTime2 = content.match(/estimated printing time[^=]*=\s*(?:(\d+)d\s*)?(?:(\d+)h\s*)?(?:(\d+)m\s*)?/i);
+      if (prusaTime2) {
+        const d = parseInt(prusaTime2[1]||0), h = parseInt(prusaTime2[2]||0), m = parseInt(prusaTime2[3]||0);
+        result.printTimeMins = d*1440 + h*60 + m;
+      }
+      const prusaGrams2 = content.match(/filament used \[g\]\s*=\s*([\d.]+)/i);
+      if (prusaGrams2) result.filamentGrams = parseFloat(prusaGrams2[1]);
+    }
+  } catch(e) { /* silent fail */ }
+  return result;
+});
+
+// --- Feature 2 (new batch): Printer API polling infrastructure ---
+const printerStatusCache = {};
+let printerPollInterval = null;
+
+ipcMain.handle('hub:start-printer-polling', async (_e, machines) => {
+  if (printerPollInterval) clearInterval(printerPollInterval);
+  const poll = async () => {
+    for (const machine of (machines || [])) {
+      if (!machine.printerApi?.type || machine.printerApi.type === 'none') continue;
+      try {
+        const status = await fetchPrinterStatus(machine);
+        printerStatusCache[machine.id] = { ...status, lastUpdated: Date.now() };
+      } catch(e) {
+        printerStatusCache[machine.id] = { error: e.message, lastUpdated: Date.now() };
+      }
+    }
+    const wins = BrowserWindow.getAllWindows();
+    wins.forEach(w => w.webContents.send('printer-status-update', printerStatusCache));
+  };
+  await poll();
+  printerPollInterval = setInterval(poll, 30000);
+  return printerStatusCache;
+});
+
+ipcMain.handle('hub:stop-printer-polling', () => {
+  if (printerPollInterval) { clearInterval(printerPollInterval); printerPollInterval = null; }
+});
+
+ipcMain.handle('hub:get-printer-status', () => printerStatusCache);
+
+async function fetchPrinterStatus(machine) {
+  const { type, host, port, apiKey, accessCode, printerSlug } = machine.printerApi || {};
+  const baseUrl = `http://${host}:${port || defaultPrinterPort(type)}`;
+  const headers = {};
+  if (type === 'octoprint') headers['X-Api-Key'] = apiKey;
+  if (type === 'prusalink') headers['X-Api-Key'] = apiKey;
+  if (type === 'repetier')  headers['x-api-key']  = apiKey;
+  if (type === 'bambu')     headers['Authorization'] = `Bearer ${accessCode}`;
+
+  const get = async (p) => {
+    const res = await fetch(`${baseUrl}${p}`, { headers, signal: AbortSignal.timeout(5000) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  };
+
+  if (type === 'octoprint') {
+    const [printer, job] = await Promise.all([get('/api/printer'), get('/api/job')]);
+    return {
+      state: printer.state?.text || 'Unknown',
+      progress: job.progress?.completion || 0,
+      filename: job.job?.file?.name || '',
+      timeRemaining: job.progress?.printTimeLeft || null,
+      tempNozzle: printer.temperature?.tool0?.actual || null,
+      tempBed: printer.temperature?.bed?.actual || null,
+      type: 'octoprint'
+    };
+  }
+  if (type === 'moonraker') {
+    const data = await get('/printer/objects/query?print_stats&virtual_sdcard&extruder&heater_bed');
+    const ps = data.result?.status?.print_stats || {};
+    const vs = data.result?.status?.virtual_sdcard || {};
+    return {
+      state: ps.state || 'Unknown',
+      progress: Math.round((vs.progress || 0) * 100),
+      filename: ps.filename || '',
+      timeRemaining: ps.total_duration ? Math.round((ps.total_duration / (vs.progress||1)) * (1-(vs.progress||0))) : null,
+      tempNozzle: data.result?.status?.extruder?.temperature || null,
+      tempBed: data.result?.status?.heater_bed?.temperature || null,
+      type: 'moonraker'
+    };
+  }
+  if (type === 'prusalink') {
+    const data = await get('/api/v1/status');
+    const job = data.job || {};
+    return {
+      state: data.printer?.state || 'Unknown',
+      progress: job.progress || 0,
+      filename: job.file?.name || '',
+      timeRemaining: job.time_remaining || null,
+      tempNozzle: data.printer?.temp_nozzle || null,
+      tempBed: data.printer?.temp_bed || null,
+      type: 'prusalink'
+    };
+  }
+  if (type === 'bambu') {
+    const data = await get('/api/v1/info');
+    let jobData = {};
+    try { jobData = await get('/api/v1/print'); } catch(e) {}
+    return {
+      state: jobData.gcode_state || data.dev_product_name || 'Connected',
+      progress: jobData.mc_percent || 0,
+      filename: jobData.subtask_name || '',
+      timeRemaining: jobData.mc_remaining_time ? jobData.mc_remaining_time * 60 : null,
+      tempNozzle: jobData.nozzle_temper || null,
+      tempBed: jobData.bed_temper || null,
+      type: 'bambu'
+    };
+  }
+  if (type === 'duet') {
+    try {
+      const data = await get('/rr_model?key=&flags=d99fn');
+      const job = data.result?.job || {};
+      return {
+        state: data.result?.state?.status || 'Unknown',
+        progress: Math.round((job.filePosition || 0) / (job.file?.size || 1) * 100),
+        filename: job.file?.fileName || '',
+        timeRemaining: job.timesLeft?.file || null,
+        tempNozzle: data.result?.heat?.heaters?.[1]?.current || null,
+        tempBed: data.result?.heat?.heaters?.[0]?.current || null,
+        type: 'duet'
+      };
+    } catch(e) {
+      const data = await get('/rr_status?type=3');
+      return {
+        state: data.status || 'Unknown',
+        progress: Math.round((data.fractionPrinted || 0) * 100),
+        filename: '',
+        timeRemaining: null,
+        tempNozzle: data.temps?.heads?.current?.[0] || null,
+        tempBed: data.temps?.bed?.current || null,
+        type: 'duet'
+      };
+    }
+  }
+  if (type === 'repetier') {
+    const slug = printerSlug || 'default';
+    const data = await get(`/printer/api/${slug}?a=stateList`);
+    const state = data.data?.[0] || {};
+    return {
+      state: state.job ? 'Printing' : 'Idle',
+      progress: state.done || 0,
+      filename: state.job || '',
+      timeRemaining: null,
+      tempNozzle: state.extruder?.[0]?.tempRead || null,
+      tempBed: state.heated_bed?.tempRead || null,
+      type: 'repetier'
+    };
+  }
+  throw new Error(`Unknown printer type: ${type}`);
+}
+
+function defaultPrinterPort(type) {
+  const ports = { octoprint: 80, moonraker: 7125, bambu: 443, prusalink: 80, duet: 80, repetier: 3344 };
+  return ports[type] || 80;
+}
+
+// --- Feature 5 (new batch): Outbound email notifications ---
+ipcMain.handle('hub:send-email', async (_e, { to, subject, body, smtpConfig }) => {
+  if (smtpConfig?.provider === 'sendgrid' && smtpConfig?.apiKey) {
+    try {
+      const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${smtpConfig.apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          personalizations: [{ to: [{ email: to }] }],
+          from: { email: smtpConfig.fromEmail || 'noreply@khayt.app', name: smtpConfig.fromName || 'Khayt' },
+          subject,
+          content: [{ type: 'text/html', value: body }]
+        })
+      });
+      return { ok: res.ok, status: res.status };
+    } catch(e) {
+      return { ok: false, error: String(e) };
+    }
+  }
+  if (smtpConfig?.provider === 'mailgun' && smtpConfig?.apiKey && smtpConfig?.domain) {
+    try {
+      const formData = new URLSearchParams({
+        from: `${smtpConfig.fromName||'Khayt'} <mailgun@${smtpConfig.domain}>`,
+        to, subject, html: body
+      });
+      const res = await fetch(`https://api.mailgun.net/v3/${smtpConfig.domain}/messages`, {
+        method: 'POST',
+        headers: { 'Authorization': `Basic ${Buffer.from(`api:${smtpConfig.apiKey}`).toString('base64')}` },
+        body: formData
+      });
+      return { ok: res.ok, status: res.status };
+    } catch(e) {
+      return { ok: false, error: String(e) };
+    }
+  }
+  // Fallback: mailto link
+  return { ok: false, fallback: true, mailtoUrl: `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}` };
 });
 
 /* ============================================================

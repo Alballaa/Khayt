@@ -2880,6 +2880,7 @@ button.tag-chip, .tag-chip[data-act] {
 .po-badge { display:inline-block; padding:2px 8px; border-radius:8px; font-size:11px; font-weight:600; }
 .po-badge.ordered  { background:rgba(245,166,35,0.15); color:var(--warning); }
 .po-badge.received { background:rgba(43,182,115,0.15); color:var(--success); }
+.po-badge.partial  { background:rgba(91,156,240,0.15); color:var(--primary); }
 
 /* ── Feature 4: Per-client price list ─────────────────────── */
 .price-list-table { width:100%; border-collapse:collapse; margin-top:8px; font-size:13px; }
@@ -3146,5 +3147,551 @@ button.tag-chip, .tag-chip[data-act] {
   height: 10px;
   border-radius: 4px;
   background: linear-gradient(to right, rgba(91,156,240,0.05), rgba(91,156,240,0.95));
+}
+
+/* ── New Feature 2: Priority level badges ───────────────────── */
+.priority-label {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  vertical-align: middle;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.priority-urgent {
+  background: rgba(239,68,68,0.18);
+  color: #ef4444;
+}
+.priority-high {
+  background: rgba(251,146,60,0.18);
+  color: #fb923c;
+}
+.kanban-card.kanban-priority-urgent {
+  border-inline-start: 4px solid #ef4444;
+}
+.kanban-card.kanban-priority-high {
+  border-inline-start: 3px solid #fb923c;
+}
+
+/* ── New Feature 3: Proforma watermark ──────────────────────── */
+.proforma-watermark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-45deg);
+  font-size: 72px;
+  font-weight: 900;
+  color: rgba(200, 50, 50, 0.12);
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 10;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  user-select: none;
+}
+@media print {
+  .proforma-watermark {
+    color: rgba(200, 50, 50, 0.18);
+  }
+}
+
+/* ── New Feature 8: Elapsed timer badge ────────────────────── */
+.elapsed-timer {
+  font-family: var(--font-num, monospace);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ── New Feature 6: Price history table ────────────────────── */
+.price-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.price-history-table th {
+  text-align: start;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.price-history-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+/* ── Feature 1 (new): Kanban drag-and-drop ─────────────────── */
+.kanban-card[draggable="true"] {
+  cursor: grab;
+}
+.kanban-card[draggable="true"]:active {
+  cursor: grabbing;
+}
+.kanban-card.dragging {
+  opacity: 0.4;
+  border: 2px dashed var(--accent);
+}
+.kanban-drag-over {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.kanban-drop-indicator {
+  height: 3px;
+  background: var(--accent);
+  border-radius: 2px;
+  margin: 2px 0;
+  pointer-events: none;
+}
+
+/* ── Feature 3 (new): Credit note reversal reference line ───── */
+.cn-ref-line {
+  background: rgba(156, 163, 175, 0.08);
+  border: 1px solid rgba(156, 163, 175, 0.2);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  color: #9ca3af;
+  margin-bottom: 14px;
+}
+.cn-ref-line strong {
+  color: #dc2626;
+}
+
+/* ── Feature 5 (new): Partial PO progress bar ───────────────── */
+.po-progress-bar {
+  height: 6px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 4px;
+  width: 120px;
+}
+
+/* ── Feature 7 (new): Client retention stats ────────────────── */
+.retention-stat {
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  text-align: center;
+}
+
+/* ── Feature 8 (new): Location badge ────────────────────────── */
+.location-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 20px;
+  background: rgba(6, 182, 212, 0.15);
+  color: #06b6d4;
+  vertical-align: middle;
+  margin-inline-start: 4px;
+  letter-spacing: 0.03em;
+}
+
+/* ── Simple mode: hide professional-only features ─────────── */
+body.mode-simple .pro-only { display: none !important; }
+
+/* ── Setup wizard ─────────────────────────────────────────── */
+.wizard-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: var(--bg); display: flex;
+  flex-direction: column; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.wizard-card {
+  background: var(--surface); border-radius: 16px;
+  padding: 40px; max-width: 520px; width: 100%;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+}
+.wizard-logo { font-size: 48px; text-align: center; margin-bottom: 8px; }
+.wizard-title { font-size: 24px; font-weight: 700; text-align: center; margin: 0 0 8px; }
+.wizard-subtitle { color: var(--text-muted); text-align: center; margin: 0 0 28px; }
+.wizard-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+.wizard-option {
+  background: var(--bg); border: 2px solid var(--border);
+  border-radius: 10px; padding: 16px 12px; cursor: pointer;
+  display: flex; flex-direction: column; gap: 4px; text-align: left;
+  transition: border-color .15s, background .15s;
+}
+.wizard-option:hover { border-color: var(--accent); }
+.wizard-option.selected { border-color: var(--accent); background: rgba(91,156,240,0.08); }
+.wizard-option-icon { font-size: 24px; }
+.wizard-option strong { font-size: 14px; }
+.wizard-option span { font-size: 12px; color: var(--text-muted); }
+.wizard-form { display: flex; flex-direction: column; gap: 16px; margin-bottom: 28px; }
+.wizard-form label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; }
+.wizard-next, .wizard-finish { width: 100%; }
+.wizard-dots { display: flex; gap: 8px; margin-top: 20px; }
+.wizard-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); transition: background .2s; }
+.wizard-dot.active { background: var(--accent); }
+
+/* ── Mode toggle in settings ──────────────────────────────── */
+.mode-toggle-group { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+.mode-btn {
+  background: var(--bg); border: 2px solid var(--border);
+  border-radius: 10px; padding: 16px; cursor: pointer;
+  display: flex; flex-direction: column; gap: 4px; text-align: left;
+  transition: border-color .15s;
+}
+.mode-btn:hover { border-color: var(--accent); }
+.mode-btn.active { border-color: var(--accent); background: rgba(91,156,240,0.08); }
+.mode-btn strong { font-size: 14px; color: var(--text); }
+.mode-btn span { font-size: 12px; color: var(--text-muted); }
+
+/* ── New 8-pack feature styles ────────────────────────────── */
+
+/* Feature 1: Operator badge on kanban cards */
+.operator-badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 20px;
+  background: rgba(167, 139, 250, 0.18);
+  color: #c4b5fd;
+  border: 1px solid rgba(167, 139, 250, 0.3);
+  margin-inline-start: 4px;
+  vertical-align: middle;
+  font-weight: 500;
+}
+
+/* Feature 2: Vault file row */
+.vault-file-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  margin-bottom: 4px;
+  font-size: 12.5px;
+}
+.vault-file-row .vf-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vault-file-row .vf-size { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+
+/* Feature 4: Nozzle progress bar */
+.nozzle-progress {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.1);
+  overflow: hidden;
+  margin-top: 4px;
+}
+.nozzle-progress-bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s;
+}
+
+/* Feature 6: Split badge */
+.split-badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 20px;
+  background: rgba(20, 184, 166, 0.18);
+  color: #5eead4;
+  border: 1px solid rgba(20, 184, 166, 0.3);
+  margin-inline-start: 4px;
+  vertical-align: middle;
+  font-weight: 500;
+}
+
+/* Feature 6: Sub-order badge */
+.sub-order-badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 20px;
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--text-muted);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  margin-inline-start: 4px;
+  vertical-align: middle;
+  font-style: italic;
+}
+
+/* ============================================================
+   New 8-feature batch CSS
+   ============================================================ */
+
+/* Feature 1: Part colour chip */
+.part-colour-chip {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.1);
+  color: var(--text-dim);
+  border: 1px solid rgba(255,255,255,0.15);
+  margin-inline-start: 4px;
+  vertical-align: middle;
+  font-weight: 500;
+}
+
+/* Feature 2: QC badge */
+.qc-badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 20px;
+  background: rgba(34,197,94,0.18);
+  color: #4ade80;
+  border: 1px solid rgba(34,197,94,0.3);
+  margin-inline-start: 4px;
+  vertical-align: middle;
+  font-weight: 600;
+}
+
+/* Feature 4: AP badges */
+.ap-matched-badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 4px;
+  background: rgba(34,197,94,0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34,197,94,0.25);
+  font-weight: 600;
+}
+.ap-mismatch-badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 4px;
+  background: rgba(239,68,68,0.15);
+  color: #f87171;
+  border: 1px solid rgba(239,68,68,0.25);
+  font-weight: 600;
+}
+
+/* Feature 7: Resin badge */
+.resin-badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 20px;
+  background: rgba(167,139,250,0.18);
+  color: #c4b5fd;
+  border: 1px solid rgba(167,139,250,0.3);
+  margin-inline-start: 4px;
+  vertical-align: middle;
+  font-weight: 500;
+}
+
+/* Feature 8: Production pause banner */
+.pause-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9000;
+  background: var(--danger, #dc2626);
+  color: #fff;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+.pause-banner button {
+  background: rgba(255,255,255,0.2);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.4);
+  border-radius: 4px;
+  padding: 3px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  margin-inline-start: auto;
+}
+.pause-banner button:hover {
+  background: rgba(255,255,255,0.35);
+}
+
+/* Feature 8: Kanban paused overlay */
+.kanban-paused-overlay {
+  opacity: 0.5;
+  pointer-events: none;
+  position: relative;
+}
+.kanban-paused-overlay::after {
+  content: 'Production paused';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+/* Feature 5: Variant chips */
+.variant-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.variant-chip {
+  display: inline-block;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.08);
+  color: var(--text-dim);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+
+/* ============================================================
+   Feature 2 (new 8-pack): Live printer status on kanban cards
+   ============================================================ */
+.printer-live-status {
+  margin-top: 8px;
+  padding: 6px 8px;
+  background: rgba(0,0,0,0.25);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.live-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.live-progress {
+  flex: 1;
+  height: 5px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+  min-width: 60px;
+}
+.live-progress-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+.live-state-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.live-state-badge.printing { background: rgba(91,156,240,0.18); color: var(--primary); }
+.live-state-badge.idle     { background: rgba(43,182,115,0.14); color: var(--success); }
+.live-state-badge.error    { background: rgba(239,77,94,0.18);  color: var(--danger); }
+.live-temp {
+  font-size: 10.5px;
+  color: var(--warning);
+  font-variant-numeric: tabular-nums;
+}
+.live-eta {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* ============================================================
+   Feature 3 (new 8-pack): Resin post-processing checklist
+   ============================================================ */
+.resin-checklist {
+  margin-top: 8px;
+  padding: 6px 8px;
+  background: rgba(138,125,240,0.08);
+  border: 1px solid rgba(138,125,240,0.2);
+  border-radius: var(--radius-sm);
+}
+.resin-checklist-title {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--info);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.resin-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-dim);
+  padding: 3px 0;
+}
+.resin-step.done {
+  color: var(--success);
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+.resin-step button {
+  font-size: 10px;
+  padding: 2px 6px;
+}
+
+/* ============================================================
+   Feature 7 (new 8-pack): Restricted blur for operator lock
+   ============================================================ */
+.restricted-blur {
+  filter: blur(4px);
+  pointer-events: none;
+  user-select: none;
+  opacity: 0.4;
+}
+
+/* ============================================================
+   Feature 8 (new 8-pack): Loyalty tier badges
+   ============================================================ */
+.loyalty-tier-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 10px;
+  margin-inline-start: 4px;
+  vertical-align: middle;
+  background: var(--surface-2);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+/* Bronze */
+.loyalty-tier-badge.tier-bronze,
+.loyalty-tier-badge[class*="bronze"] {
+  background: rgba(176,103,44,0.2);
+  color: #c87941;
+  border-color: rgba(176,103,44,0.35);
+}
+/* Silver */
+.loyalty-tier-badge.tier-silver,
+.loyalty-tier-badge[class*="silver"] {
+  background: rgba(150,150,165,0.2);
+  color: #a8a8bb;
+  border-color: rgba(150,150,165,0.35);
+}
+/* Gold */
+.loyalty-tier-badge.tier-gold,
+.loyalty-tier-badge[class*="gold"] {
+  background: rgba(216,138,61,0.2);
+  color: #D88A3D;
+  border-color: rgba(216,138,61,0.35);
+}
+/* Platinum / any other custom tier */
+.loyalty-tier-badge.tier-platinum,
+.loyalty-tier-badge[class*="platinum"] {
+  background: rgba(91,156,240,0.15);
+  color: var(--primary);
+  border-color: rgba(91,156,240,0.3);
 }
 
