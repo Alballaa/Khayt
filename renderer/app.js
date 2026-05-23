@@ -14506,6 +14506,30 @@ document.addEventListener('DOMContentLoaded', async () => {
   maybeAutoBackup();
   updateLastBackupDisplay();
 
+  // iOS companion: react to spools/orders changed via LAN API from phone
+  if (window.hubAPI?.onLanSpoolAdded) {
+    window.hubAPI.onLanSpoolAdded(spool => {
+      // Phone added a spool — merge into local inventory without full reload
+      if (spool && spool.id && !inventory.find(s => s.id === spool.id)) {
+        inventory.push(spool);
+        if ($('#tab-inventory')?.classList.contains('active')) renderInventory();
+        toast('📱 Spool added from phone: ' + (spool.brand || '') + ' ' + (spool.material || ''), 'success', 4000);
+      }
+    });
+  }
+  if (window.hubAPI?.onLanOrderUpdated) {
+    window.hubAPI.onLanOrderUpdated(({ id, status }) => {
+      // Phone updated an order status
+      const order = printLog.find(o => o.id === id);
+      if (order) {
+        order.status = status;
+        renderLogs();
+        renderKanban();
+        toast('📱 Order ' + id + ' → ' + status, 'info', 3000);
+      }
+    });
+  }
+
   // Round 12: Start LAN API server if enabled
   if (settings.lanApi?.enabled) {
     startLanServer().catch(() => {});

@@ -657,9 +657,80 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
           res.end(JSON.stringify((store.machines || []).map(m => ({
             id: m.id, name: m.name, type: m.type, status: m.status
           }))));
+
+        // ── iOS companion: inventory ────────────────────────────
+        } else if (pathname === '/api/inventory' && req.method === 'GET') {
+          res.writeHead(200);
+          res.end(JSON.stringify(store.inventory || []));
+
+        } else if (pathname === '/api/inventory' && req.method === 'POST') {
+          let body = '';
+          req.on('data', chunk => { body += chunk; });
+          req.on('end', async () => {
+            try {
+              const spool = JSON.parse(body);
+              spool.id = spool.id || `spool-${Date.now()}`;
+              spool.addedAt = new Date().toISOString();
+              spool.remaining = spool.weightRemaining ?? spool.weightTotal ?? 1000;
+              // Write back to store on disk
+              const storeData = { ...lanServerStore };
+              storeData.inventory = [...(storeData.inventory || []), spool];
+              lanServerStore = storeData;
+              const fp = dataFilePath();
+              await fs.promises.writeFile(fp + '.tmp', JSON.stringify(storeData), 'utf8');
+              await fs.promises.rename(fp + '.tmp', fp);
+              // Notify renderer to reload
+              if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('lan-spool-added', spool);
+              }
+              res.writeHead(201);
+              res.end(JSON.stringify({ ok: true, spool }));
+            } catch (e) {
+              res.writeHead(400);
+              res.end(JSON.stringify({ error: String(e) }));
+            }
+          });
+
+        // ── iOS companion: update order status ──────────────────
+        } else if (pathname.startsWith('/api/orders/') && req.method === 'PATCH') {
+          const orderId = decodeURIComponent(pathname.split('/api/orders/')[1].split('/')[0]);
+          let body = '';
+          req.on('data', chunk => { body += chunk; });
+          req.on('end', async () => {
+            try {
+              const { status } = JSON.parse(body);
+              const valid = ['pending','printing','post','qc','completed','on_hold'];
+              if (!valid.includes(status)) {
+                res.writeHead(400);
+                res.end(JSON.stringify({ error: 'Invalid status' }));
+                return;
+              }
+              const storeData = { ...lanServerStore };
+              const idx = (storeData.printLog || []).findIndex(o => o.id === orderId);
+              if (idx === -1) {
+                res.writeHead(404);
+                res.end(JSON.stringify({ error: 'Order not found' }));
+                return;
+              }
+              storeData.printLog[idx] = { ...storeData.printLog[idx], status };
+              lanServerStore = storeData;
+              const fp = dataFilePath();
+              await fs.promises.writeFile(fp + '.tmp', JSON.stringify(storeData), 'utf8');
+              await fs.promises.rename(fp + '.tmp', fp);
+              if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('lan-order-updated', { id: orderId, status });
+              }
+              res.writeHead(200);
+              res.end(JSON.stringify({ ok: true }));
+            } catch (e) {
+              res.writeHead(400);
+              res.end(JSON.stringify({ error: String(e) }));
+            }
+          });
+
         } else {
           res.writeHead(404);
-          res.end(JSON.stringify({ error: 'Not found', endpoints: ['/api/status','/api/orders','/api/queue','/api/machines'] }));
+          res.end(JSON.stringify({ error: 'Not found', endpoints: ['/api/status','/api/orders','/api/queue','/api/machines','/api/inventory'] }));
         }
       });
       lanServer.listen(port, '0.0.0.0', () => {
