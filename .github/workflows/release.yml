@@ -110,34 +110,53 @@ jobs:
       - name: List release files
         run: ls -lah release-files/
 
-      - name: Publish release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: Khayt ${{ github.ref_name }}
-          draft: false
-          prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-rc') || contains(github.ref_name, '-alpha') }}
-          make_latest: ${{ !contains(github.ref_name, '-beta') && !contains(github.ref_name, '-rc') && !contains(github.ref_name, '-alpha') }}
-          fail_on_unmatched_files: false
-          body: |
-            ## Khayt ${{ github.ref_name }}
-
-            3D printing production management for macOS, Windows, and Linux.
-
-            ### Downloads
-            | Platform | File |
-            |----------|------|
-            | macOS (Apple Silicon + Intel) | `Khayt-*-universal.dmg` |
-            | Windows installer | `Khayt-*-Setup.exe` |
-            | Windows portable | `Khayt-*-portable.exe` |
-            | Linux AppImage | `Khayt-*.AppImage` |
-            | Linux Debian/Ubuntu | `Khayt-*.deb` |
-
-            ### First launch
-            - **macOS**: Right-click → Open if blocked by Gatekeeper
-            - **Windows**: Click "More info" → "Run anyway" on SmartScreen
-            - **Linux AppImage**: `chmod +x Khayt-*.AppImage` then run
-            - **Linux deb**: `sudo dpkg -i Khayt-*.deb`
-          files: release-files/*
+      - name: Publish release and upload assets
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          IS_PRE=$(echo "$TAG" | grep -qE '\-(beta|rc|alpha)' && echo true || echo false)
+
+          # Get or create release
+          RELEASE=$(curl -sf "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/$TAG" \
+            -H "Authorization: token $GH_TOKEN" || echo "")
+
+          if [ -z "$RELEASE" ]; then
+            echo "Creating release for $TAG..."
+            RELEASE=$(curl -sf -X POST "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{\"tag_name\":\"$TAG\",\"name\":\"Khayt $TAG\",\"draft\":false,\"prerelease\":$IS_PRE,\"body\":\"See [README](https://github.com/$GITHUB_REPOSITORY#readme) for full release notes.\"}")
+          else
+            echo "Found existing release, will upload assets to it..."
+            # Ensure it is published (not draft)
+            RELEASE_ID=$(echo "$RELEASE" | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
+            curl -sf -X PATCH "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{\"draft\":false,\"prerelease\":$IS_PRE}" > /dev/null
+          fi
+
+          RELEASE_ID=$(echo "$RELEASE" | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
+          UPLOAD_URL="https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets"
+
+          echo "Release ID: $RELEASE_ID — uploading assets..."
+          for f in release-files/*; do
+            NAME=$(basename "$f")
+            # Delete existing asset with same name if present
+            ASSET_ID=$(curl -sf "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets" \
+              -H "Authorization: token $GH_TOKEN" \
+              | python3 -c "import json,sys,os; assets=json.load(sys.stdin); a=next((a for a in assets if a['name']==os.environ['NAME']),None); print(a['id'] if a else '')" NAME="$NAME")
+            if [ -n "$ASSET_ID" ]; then
+              echo "  Replacing $NAME (existing asset $ASSET_ID)..."
+              curl -sf -X DELETE "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/assets/$ASSET_ID" \
+                -H "Authorization: token $GH_TOKEN" > /dev/null
+            fi
+            echo "  Uploading $NAME..."
+            curl -sf -X POST "$UPLOAD_URL?name=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$NAME")" \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Content-Type: application/octet-stream" \
+              --data-binary @"$f" > /dev/null
+            echo "  ✅ $NAME"
+          done
+          echo "🎉 Release $TAG published: https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
