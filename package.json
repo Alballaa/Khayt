@@ -1,6 +1,6 @@
 {
   "name": "khayt",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Khayt — 3D printing production management, invoicing & analytics. Free & open to all makers worldwide.",
   "main": "main.js",
   "author": "Khayt",
@@ -9,10 +9,10 @@
   "scripts": {
     "start": "electron .",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder --mac",
-    "dist:universal": "electron-builder --mac --universal",
-    "dist:win": "electron-builder --win",
-    "dist:linux": "electron-builder --linux"
+    "dist:mac:arm64": "electron-builder --mac --arm64",
+    "dist:mac:x64": "electron-builder --mac --x64",
+    "dist:win": "electron-builder --win --x64",
+    "dist:linux": "electron-builder --linux --x64"
   },
   "dependencies": {
     "qrcode": "^1.5.3"
@@ -51,7 +51,7 @@
         { "target": "nsis", "arch": ["x64"] },
         { "target": "portable", "arch": ["x64"] }
       ],
-      "icon": "assets/icon.ico"
+      "icon": "assets/khayt.iconset/icon_256x256.png"
     },
     "nsis": {
       "oneClick": false,

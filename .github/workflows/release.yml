@@ -11,25 +11,23 @@ permissions:
 jobs:
   # ── macOS arm64 (Apple Silicon) ────────────────────────────────
   build-mac-arm64:
-    name: macOS arm64
+    name: macOS (Apple Silicon)
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
           cache: npm
 
       - name: Install dependencies
         run: npm ci
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build arm64 DMG
+      - name: Build macOS arm64 DMG
         run: npx electron-builder --mac --arm64 --publish never
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - uses: actions/upload-artifact@v4
         with:
@@ -38,25 +36,23 @@ jobs:
 
   # ── macOS x64 (Intel) ──────────────────────────────────────────
   build-mac-x64:
-    name: macOS x64
+    name: macOS (Intel)
     runs-on: macos-13
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
           cache: npm
 
       - name: Install dependencies
         run: npm ci
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build x64 DMG
+      - name: Build macOS x64 DMG
         run: npx electron-builder --mac --x64 --publish never
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - uses: actions/upload-artifact@v4
         with:
@@ -65,86 +61,63 @@ jobs:
 
   # ── Windows x64 ────────────────────────────────────────────────
   build-windows:
-    name: Windows x64
+    name: Windows (x64)
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
           cache: npm
-
-      - name: Configure git credentials
-        run: git config --global url."https://${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
 
       - name: Install dependencies
         run: npm ci
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Convert PNG icon to ICO
-        shell: pwsh
-        run: |
-          magick assets/icon_preview.png -resize 256x256 assets/icon.ico
-          Write-Host "Icon created at assets/icon.ico"
-
-      - name: Build Windows installer + portable
+      - name: Build Windows NSIS installer
         run: npx electron-builder --win --x64 --publish never
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/upload-artifact@v4
         with:
-          name: windows
+          name: windows-x64
           path: build/*.exe
 
   # ── Linux x64 ──────────────────────────────────────────────────
   build-linux:
-    name: Linux x64
+    name: Linux (x64)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
           cache: npm
 
       - name: Install Linux build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            libnss3-dev \
-            libatk-bridge2.0-dev \
-            libgtk-3-dev \
-            libdrm-dev \
-            libgbm-dev \
-            fakeroot \
-            dpkg \
-            libfuse2
+          sudo apt-get install -y libnss3-dev libatk-bridge2.0-dev \
+            libgtk-3-dev libdrm-dev libgbm-dev libfuse2 rpm
 
       - name: Install dependencies
         run: npm ci
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build AppImage + deb
+      - name: Build Linux AppImage + deb
         run: npx electron-builder --linux --x64 --publish never
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPIMAGE_EXTRACT_AND_RUN: 1
 
       - uses: actions/upload-artifact@v4
         with:
-          name: linux
+          name: linux-x64
           path: |
             build/*.AppImage
             build/*.deb
 
   # ── Publish GitHub Release ─────────────────────────────────────
   release:
-    name: Publish Release
+    name: Publish GitHub Release
     needs: [build-mac-arm64, build-mac-x64, build-windows, build-linux]
     runs-on: ubuntu-latest
     steps:
@@ -159,34 +132,33 @@ jobs:
       - name: List release files
         run: ls -lah release-files/
 
-      - name: Publish GitHub Release
+      - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: Khayt ${{ github.ref_name }}
           draft: false
           prerelease: false
-          make_latest: true
+          fail_on_unmatched_files: false
           body: |
             ## Khayt ${{ github.ref_name }}
 
-            3D printing production management — free & open source.
+            3D printing production management for macOS, Windows, and Linux.
 
             ### Downloads
+            | Platform | File |
+            |----------|------|
+            | macOS Apple Silicon | `Khayt-*-arm64.dmg` |
+            | macOS Intel | `Khayt-*-x64.dmg` |
+            | Windows installer | `Khayt-*-Setup.exe` |
+            | Windows portable | `Khayt-*-portable.exe` |
+            | Linux AppImage | `Khayt-*.AppImage` |
+            | Linux Debian/Ubuntu | `Khayt-*.deb` |
 
-            | Platform | Architecture | File |
-            |----------|-------------|------|
-            | macOS | Apple Silicon (M1/M2/M3) | `Khayt-*-arm64.dmg` |
-            | macOS | Intel | `Khayt-*-x64.dmg` |
-            | Windows | 64-bit installer | `Khayt-*-Setup.exe` |
-            | Windows | 64-bit portable | `Khayt-*-portable.exe` |
-            | Linux | AppImage (universal) | `Khayt-*.AppImage` |
-            | Linux | Debian / Ubuntu (.deb) | `Khayt-*.deb` |
-
-            ### Installation notes
-            - **macOS**: Right-click the DMG → Open to bypass the unsigned-app warning
-            - **Windows**: If SmartScreen appears, click "More info" → "Run anyway"
-            - **Linux AppImage**: Run `chmod +x Khayt-*.AppImage` then double-click
+            ### First launch
+            - **macOS**: Right-click → Open if blocked by Gatekeeper
+            - **Windows**: Click "More info" → "Run anyway" on SmartScreen
+            - **Linux AppImage**: `chmod +x Khayt-*.AppImage` then run
             - **Linux deb**: `sudo dpkg -i Khayt-*.deb`
           files: release-files/*
         env:
