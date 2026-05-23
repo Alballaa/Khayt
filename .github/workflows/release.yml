@@ -12,19 +12,24 @@ jobs:
   # ── macOS arm64 (Apple Silicon) ────────────────────────────────
   build-mac-arm64:
     name: macOS arm64
-    runs-on: macos-latest        # macos-14, Apple Silicon
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
-      - run: npm ci
+      - name: Install dependencies
+        run: npm ci
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build arm64 DMG
         run: npx electron-builder --mac --arm64 --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/upload-artifact@v4
         with:
@@ -34,19 +39,24 @@ jobs:
   # ── macOS x64 (Intel) ──────────────────────────────────────────
   build-mac-x64:
     name: macOS x64
-    runs-on: macos-13            # Intel runner
+    runs-on: macos-13
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
-      - run: npm ci
+      - name: Install dependencies
+        run: npm ci
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build x64 DMG
         run: npx electron-builder --mac --x64 --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/upload-artifact@v4
         with:
@@ -62,28 +72,32 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
-      - run: npm ci
+      - name: Configure git credentials
+        run: git config --global url."https://${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Convert PNG icon to ICO
         shell: pwsh
         run: |
-          # Use ImageMagick (pre-installed on windows-latest) to create .ico
           magick assets/icon_preview.png -resize 256x256 assets/icon.ico
-          echo "Icon created: $(ls assets/icon.ico)"
+          Write-Host "Icon created at assets/icon.ico"
 
       - name: Build Windows installer + portable
         run: npx electron-builder --win --x64 --publish never
         env:
-          WIN_ICON: assets/icon.ico
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/upload-artifact@v4
         with:
           name: windows
-          path: |
-            build/*.exe
+          path: build/*.exe
 
   # ── Linux x64 ──────────────────────────────────────────────────
   build-linux:
@@ -94,26 +108,32 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
-
-      - run: npm ci
 
       - name: Install Linux build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            libopenjp2-tools \
             libnss3-dev \
             libatk-bridge2.0-dev \
             libgtk-3-dev \
             libdrm-dev \
             libgbm-dev \
-            libfuse2 \
-            fuse
+            fakeroot \
+            dpkg \
+            icnsutils \
+            graphicsmagick
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build AppImage + deb
         run: npx electron-builder --linux --x64 --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/upload-artifact@v4
         with:
@@ -166,7 +186,7 @@ jobs:
             ### Installation notes
             - **macOS**: Right-click the DMG → Open to bypass the unsigned-app warning
             - **Windows**: If SmartScreen appears, click "More info" → "Run anyway"
-            - **Linux AppImage**: Run `chmod +x Khayt-*.AppImage` then double-click or `./Khayt-*.AppImage`
+            - **Linux AppImage**: Run `chmod +x Khayt-*.AppImage` then double-click
             - **Linux deb**: `sudo dpkg -i Khayt-*.deb`
           files: release-files/*
         env:
