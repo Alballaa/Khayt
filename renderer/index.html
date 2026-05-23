@@ -304,7 +304,13 @@
 
     <!-- ===================== QUEUE ===================== -->
     <section id="queue-tab" class="tab-content">
-      <h3 class="card-head" style="margin-bottom: 16px;"><span class="swatch"></span><span data-i18n="queue.title">Active Production Queue</span></h3>
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+        <h3 class="card-head" style="margin:0; flex:1;"><span class="swatch"></span><span data-i18n="queue.title">Active Production Queue</span></h3>
+        <button id="btnScheduleView" class="btn-sm btn ghost small">📅 <span data-i18n="kan.schedule_view">Schedule</span></button>
+      </div>
+
+      <!-- Schedule view (hidden by default) -->
+      <div id="scheduleView" style="display:none; margin-bottom:16px;"></div>
 
       <!-- Quotes awaiting client approval (hidden when empty) -->
       <div id="quotesSection" class="quotes-section" style="display:none;">
@@ -526,6 +532,12 @@
       <div class="card" style="margin-top: 16px;">
         <h3 class="card-head"><span class="swatch"></span><span data-i18n="an.machine_pl">Per-Machine P&L</span></h3>
         <div id="machinePLSection"></div>
+      </div>
+
+      <!-- Feature 5: Throughput heatmap -->
+      <div class="card" style="margin-top: 16px;">
+        <h3 class="card-head"><span class="swatch"></span><span data-i18n="an.heatmap_title">Completion Heatmap</span></h3>
+        <div id="throughputHeatmapSection"></div>
       </div>
     </section>
 
@@ -951,6 +963,11 @@
           <textarea id="set_invTermsAr" rows="3" dir="rtl" style="resize:vertical;"></textarea>
 
           <button class="btn primary full" id="btnSaveSettings" style="margin-top: 16px;" data-i18n="common.save">Save</button>
+        </div>
+
+        <div class="card">
+          <h3 class="card-head"><span class="swatch"></span><span data-i18n="set.inv_num_title">Invoice Numbering</span></h3>
+          <div id="invNumSection"></div>
         </div>
 
         <div class="card">

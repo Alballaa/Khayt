@@ -1278,6 +1278,57 @@ const STRINGS = {
     'ord.edit_at':              'Edited',
     'ord.edit_fields':          'Changes',
     'ord.edit_badge':           'Edited',
+
+    // ---------- Feature 1: Partial delivery ----------
+    'ord.partial_delivery':     'Partial delivery',
+    'ord.parts_delivered':      '{done} of {total} parts delivered',
+    'ord.mark_delivered_parts': 'Mark selected as delivered',
+
+    // ---------- Feature 2: Schedule view ----------
+    'kan.schedule_view':        'Schedule',
+    'kan.kanban_view':          'Kanban',
+    'kan.schedule_now':         'Now',
+
+    // ---------- Feature 3: Spool switch ----------
+    'ord.spool_switch':         'Spool switch',
+    'ord.add_spool':            'Add spool',
+    'ord.spool_switch_saved':   'Spool switch logged, inventory updated.',
+    'ord.additional_spools':    'Additional spools',
+
+    // ---------- Feature 4: Client address book ----------
+    'ce.address_book':          'Address book',
+    'ce.addr_label':            'Label (e.g. Main Office)',
+    'ce.addr_address':          'Address',
+    'ce.addr_add':              '+ Add address',
+    'oe.select_address':        'Saved addresses',
+
+    // ---------- Feature 5: Throughput heatmap ----------
+    'an.heatmap_title':         'Completion Heatmap',
+    'an.heatmap_day':           'Day',
+    'an.heatmap_hour':          'Hour',
+    'an.heatmap_no_data':       'Not enough timestamped orders yet.',
+
+    // ---------- Feature 6: Packaging consumables ----------
+    'cons.is_packaging':        'Packaging / per-shipment',
+    'cons.packaging_badge':     'Packaging',
+    'cons.packaging_deducted':  'Packaging materials deducted for completed order.',
+
+    // ---------- Feature 7: Invoice number sequence ----------
+    'set.inv_num_title':        'Invoice Numbering',
+    'set.inv_num_prefix':       'Prefix',
+    'set.inv_num_next':         'Next number',
+    'set.inv_num_reset':        'Reset to 1 (new year)',
+    'set.inv_num_detect_gaps':  'Detect gaps',
+    'set.inv_num_gaps_found':   '{n} gaps found in sequence.',
+    'set.inv_num_no_gaps':      'No gaps found ✓',
+
+    // ---------- Feature 8: Quote revision history ----------
+    'ord.revise_quote':         'Revise',
+    'ord.quote_version':        'v{n}',
+    'ord.quote_revisions':      'Quote history',
+    'ord.quote_rev_empty':      'No previous revisions.',
+    'ord.quote_rev_price':      'Price',
+    'ord.quote_rev_date':       'Date',
   },
 
   ar: {

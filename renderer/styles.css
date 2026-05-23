@@ -3021,3 +3021,130 @@ button.tag-chip, .tag-chip[data-act] {
   padding-bottom: 8px;
 }
 
+/* ── Feature 1: Partial delivery badge ─────────────────────────────── */
+.partial-delivery-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 8px;
+  background: rgba(251, 146, 60, 0.18);
+  color: var(--warning);
+  margin-inline-start: 6px;
+  vertical-align: middle;
+}
+
+/* ── Feature 2: Schedule / timeline view ───────────────────────────── */
+.schedule-view {
+  width: 100%;
+  overflow-x: auto;
+  padding: 0 0 12px;
+}
+.schedule-axis {
+  display: flex;
+  margin-inline-start: 130px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+}
+.schedule-axis-tick {
+  flex: 0 0 auto;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.schedule-machine-row {
+  display: flex;
+  align-items: stretch;
+  min-height: 36px;
+  margin-bottom: 6px;
+}
+.schedule-machine-label {
+  flex: 0 0 130px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  padding-inline-end: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.schedule-track {
+  flex: 1;
+  display: flex;
+  background: rgba(255,255,255,0.04);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  min-width: 0;
+}
+.schedule-block {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  opacity: 0.85;
+  padding: 0 4px;
+  border-inline-end: 1px solid rgba(0,0,0,0.15);
+  cursor: default;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  transition: opacity 0.15s;
+  border-radius: 0;
+}
+.schedule-block:hover { opacity: 1; }
+.schedule-block.status-pending { background: var(--primary); }
+.schedule-block.status-printing { background: var(--success); }
+.schedule-block.status-post { background: var(--warning); }
+.schedule-block.status-on_hold { background: var(--danger); }
+
+/* ── Feature 5: Throughput heatmap ─────────────────────────────────── */
+.heatmap-table {
+  border-collapse: collapse;
+  font-size: 11px;
+  margin: 0 auto;
+}
+.heatmap-table th {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 2px 4px;
+  text-align: center;
+}
+.heatmap-cell {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  text-align: center;
+  vertical-align: middle;
+  cursor: default;
+  transition: opacity 0.15s;
+  font-size: 9px;
+  color: #fff;
+  background: rgba(91,156,240, var(--hm-intensity, 0.05));
+  border: 1px solid var(--border-soft);
+}
+.heatmap-cell:hover { outline: 1px solid var(--primary); }
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 8px;
+  justify-content: center;
+}
+.heatmap-legend-bar {
+  display: flex;
+  width: 80px;
+  height: 10px;
+  border-radius: 4px;
+  background: linear-gradient(to right, rgba(91,156,240,0.05), rgba(91,156,240,0.95));
+}
+

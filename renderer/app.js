@@ -247,6 +247,26 @@ function nextInvoiceSeq() {
   }
   return (max + 1).toString().padStart(4, '0');
 }
+
+/* Feature 7: Configurable invoice number sequence */
+function nextInvoiceNumber() {
+  const currentYear = new Date().getFullYear();
+  if ((settings.invNumYear || currentYear) !== currentYear) {
+    settings.invNumYear = currentYear;
+    settings.invNumNext = 1;
+  }
+  const prefix = settings.invNumPrefix || 'INV';
+  const seq4 = String(settings.invNumNext || 1).padStart(4, '0');
+  const fmt = settings.invNumFormat || '{prefix}-{year}-{seq4}';
+  const result = fmt
+    .replace('{prefix}', prefix)
+    .replace('{year}', currentYear)
+    .replace('{seq4}', seq4);
+  settings.invNumNext = (settings.invNumNext || 1) + 1;
+  settings.invNumYear = currentYear;
+  saveAll();
+  return result;
+}
 function formatDueDateBadge(dueDate) {
   if (!dueDate) return '';
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -318,6 +338,11 @@ function defaultSettings() {
     expBudgets:      {},
     postChecklist:   [],
     customFields:    [],
+    // Feature 7: Invoice number sequence
+    invNumPrefix:    'INV',
+    invNumYear:      new Date().getFullYear(),
+    invNumNext:      1,
+    invNumFormat:    '{prefix}-{year}-{seq4}',
   };
 }
 
@@ -2887,6 +2912,21 @@ function deductFilamentForOrder(order) {
   }
 }
 
+/* Feature 6: Deduct packaging consumables when order completes */
+function deductPackagingConsumables(order) {
+  const packagingItems = consumables.filter(c => c.isPackaging && c.stock > 0);
+  if (packagingItems.length === 0) return;
+  packagingItems.forEach(c => {
+    c.stock = Math.max(0, (c.stock || 0) - 1);
+    if (c.stock <= (c.minStock || 0)) {
+      toast(`📦 ${escapeHtml(t('cons.low'))}: ${c.name}`, 'warning', 3000);
+    }
+  });
+  saveAll();
+  renderConsumables();
+  toast(t('cons.packaging_deducted'), 'info', 2200);
+}
+
 /* ============================================================
    Non-filament consumables (glue, isopropyl, sandpaper, etc.)
    ============================================================ */
@@ -2902,9 +2942,12 @@ function renderConsumables() {
     const usageHint = c.usagePerHour > 0
       ? `<div style="font-size:10.5px; color:var(--primary); margin-top:1px;">${escapeHtml(t('cons.usage_per_hour'))}: ${c.usagePerHour} / h</div>`
       : '';
+    const packagingBadge = c.isPackaging
+      ? `<span style="font-size:10px; background:rgba(251,146,60,0.18); color:var(--warning); padding:1px 6px; border-radius:6px; margin-inline-start:6px; vertical-align:middle;">📦 ${escapeHtml(t('cons.packaging_badge'))}</span>`
+      : '';
     return `
       <tr${low ? ' style="background:rgba(245,166,35,0.08);"' : ''}>
-        <td><strong>${escapeHtml(c.name)}</strong>${low ? ` <span style="color:var(--warning); font-size:11px;">· ${escapeHtml(t('cons.low'))}</span>` : ''}${usageHint}</td>
+        <td><strong>${escapeHtml(c.name)}</strong>${packagingBadge}${low ? ` <span style="color:var(--warning); font-size:11px;">· ${escapeHtml(t('cons.low'))}</span>` : ''}${usageHint}</td>
         <td style="font-variant-numeric:tabular-nums;">${c.stock} ${escapeHtml(c.unit || '')}</td>
         <td style="font-variant-numeric:tabular-nums;">${c.minStock > 0 ? c.minStock + ' ' + escapeHtml(c.unit || '') : '—'}</td>
         <td style="font-variant-numeric:tabular-nums;">${c.cost > 0 ? fmtPrice(c.cost) : '—'}</td>
@@ -2920,7 +2963,7 @@ function openConsumableEditor(id) {
   const existing = id ? consumables.find(c => c.id === id) : null;
   const draft = existing
     ? { ...existing }
-    : { id: uid('CNS'), name: '', stock: 0, unit: '', cost: 0, minStock: 0, usagePerHour: 0 };
+    : { id: uid('CNS'), name: '', stock: 0, unit: '', cost: 0, minStock: 0, usagePerHour: 0, isPackaging: false };
 
   const bodyHtml = `
     <label>${escapeHtml(t('cons.name'))}</label>
@@ -2948,7 +2991,11 @@ function openConsumableEditor(id) {
     <div style="margin-top:12px; padding:10px 12px; background:rgba(255,255,255,0.04); border-radius:var(--radius-sm); border:1px solid var(--border-soft);">
       <label style="margin-top:0; font-size:12px; font-weight:600;">${escapeHtml(t('cons.usage_per_hour'))} <span style="font-weight:400; color:var(--text-muted);">(${escapeHtml(t('cons.auto_deducted'))})</span></label>
       <input type="number" id="consUsagePerHour" data-f="usagePerHour" value="${draft.usagePerHour || 0}" min="0" step="0.01" placeholder="0 = disabled">
-    </div>`;
+    </div>
+    <label style="margin-top:12px; display:flex; align-items:center; gap:8px; cursor:pointer;">
+      <input type="checkbox" id="consIsPackaging" style="width:auto; margin:0;" ${draft.isPackaging ? 'checked' : ''}>
+      <span>📦 ${escapeHtml(t('cons.is_packaging'))}</span>
+    </label>`;
 
   openFormModal({
     title: existing ? t('cons.edit_title') : t('cons.add_title'),
@@ -2959,7 +3006,7 @@ function openConsumableEditor(id) {
         inp.addEventListener('input', () => { draft[inp.dataset.f] = inp.value; });
       });
     },
-    onSave() {
+    onSave(modal) {
       const name = draft.name?.trim ? draft.name.trim() : '';
       if (!name) { toast(t('cons.name_ph'), 'error'); return false; }
       draft.name         = name;
@@ -2968,6 +3015,7 @@ function openConsumableEditor(id) {
       draft.minStock     = Math.max(0, num(draft.minStock, 0));
       draft.unit         = (draft.unit || '').trim();
       draft.usagePerHour = Math.max(0, num(draft.usagePerHour, 0));
+      draft.isPackaging  = !!(modal.querySelector('#consIsPackaging')?.checked);
       if (existing) {
         Object.assign(existing, draft);
       } else {
@@ -3677,6 +3725,7 @@ function renderClients() {
               <strong>${escapeHtml(displayName || '—')}</strong>
               ${c.recurring?.enabled ? `<span class="rec-badge">${escapeHtml(t('rec.badge.' + (c.recurring.interval || 'monthly')))}</span>` : ''}
               ${c.currency && c.currency !== (settings.currency || 'SAR') ? `<span class="currency-badge">${escapeHtml(c.currency)}</span>` : ''}
+              ${(c.addresses && c.addresses.length > 0) ? `<span style="font-size:10px; color:var(--primary); margin-inline-start:4px;">📍 ${c.addresses.length}</span>` : ''}
               ${altName ? `<div style="font-size:11.5px; color:var(--text-muted);">${escapeHtml(altName)}</div>` : ''}
             </div>
           </div>
@@ -4131,6 +4180,14 @@ function openClientEditor(clientId = null) {
       </div>
     </div>
 
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border-soft);">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+        <label style="margin:0; flex:1; font-size:12.5px; font-weight:600;">📍 ${escapeHtml(t('ce.address_book'))}</label>
+        <button class="btn ghost small" id="ceAddrAdd" type="button">${escapeHtml(t('ce.addr_add'))}</button>
+      </div>
+      <div id="ceAddressBookWrap"></div>
+    </div>
+
     <div id="clientHistorySection" style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border-soft);">
     </div>
   `;
@@ -4185,6 +4242,35 @@ function openClientEditor(clientId = null) {
       const cePlBtn = modal.querySelector('#cePlAdd');
       if (cePlBtn) cePlBtn.addEventListener('click', () => { draft.priceList.push({ product: '', price: 0, note: '' }); renderPriceList(); });
 
+      // Address book (Feature 4)
+      if (!draft.addresses) draft.addresses = [];
+      const addrWrap = modal.querySelector('#ceAddressBookWrap');
+      function renderAddressBook() {
+        if (!addrWrap) return;
+        if (!draft.addresses || draft.addresses.length === 0) {
+          addrWrap.innerHTML = `<div style="color:var(--text-muted);font-size:12.5px;padding:4px 0;">${escapeHtml(t('ce.price_list_empty'))}</div>`;
+          return;
+        }
+        addrWrap.innerHTML = `<table style="width:100%; border-collapse:collapse;">
+          <thead><tr>
+            <th style="font-size:11px; text-align:start; padding:2px 4px;">${escapeHtml(t('ce.addr_label'))}</th>
+            <th style="font-size:11px; text-align:start; padding:2px 4px;">${escapeHtml(t('ce.addr_address'))}</th>
+            <th></th>
+          </tr></thead>
+          <tbody>${draft.addresses.map((a, i) => `<tr>
+            <td style="padding:2px 4px;"><input type="text" class="addr-label" data-ai="${i}" value="${escapeHtml(a.label || '')}" placeholder="${escapeHtml(t('ce.addr_label'))}" style="width:100%;font-size:12px;"></td>
+            <td style="padding:2px 4px;"><input type="text" class="addr-addr" data-ai="${i}" value="${escapeHtml(a.address || '')}" placeholder="${escapeHtml(t('ce.addr_address'))}" style="width:100%;font-size:12px;"></td>
+            <td><button class="btn danger small addr-rm" data-ai="${i}">×</button></td>
+          </tr>`).join('')}</tbody>
+        </table>`;
+        addrWrap.querySelectorAll('.addr-label').forEach(inp => { inp.addEventListener('input', () => { draft.addresses[+inp.dataset.ai].label = inp.value; }); });
+        addrWrap.querySelectorAll('.addr-addr').forEach(inp => { inp.addEventListener('input', () => { draft.addresses[+inp.dataset.ai].address = inp.value; }); });
+        addrWrap.querySelectorAll('.addr-rm').forEach(btn => { btn.addEventListener('click', () => { draft.addresses.splice(+btn.dataset.ai, 1); renderAddressBook(); }); });
+      }
+      renderAddressBook();
+      const ceAddrAddBtn = modal.querySelector('#ceAddrAdd');
+      if (ceAddrAddBtn) ceAddrAddBtn.addEventListener('click', () => { draft.addresses.push({ id: uid('ADDR'), label: '', address: '' }); renderAddressBook(); });
+
       // Order history
       const histEl = modal.querySelector('#clientHistorySection');
       if (clientId && histEl) {
@@ -4221,6 +4307,7 @@ function openClientEditor(clientId = null) {
       };
       draft.currency = modal.querySelector('#ceCurrency')?.value || null;
       draft.priceList = (draft.priceList || []).filter(pl => pl.product.trim() || pl.price > 0);
+      draft.addresses = (draft.addresses || []).filter(a => a.label.trim() || a.address.trim());
       const idx = clients.findIndex(c => c.id === draft.id);
       if (idx >= 0) clients[idx] = draft;
       else clients.push(draft);
@@ -4356,8 +4443,10 @@ function logPrint(asQuote = false) {
   const prefix = asQuote ? (settings.quotePrefix || 'QUO') : (settings.invPrefix || 'INV');
   const id = `${prefix}-${now.getFullYear()}-${seq}`;
 
+  const invoiceNum = nextInvoiceNumber();
   printLog.unshift({
     id,
+    invoiceNum,
     date: now.toISOString().split('T')[0],
     timestamp: now.toISOString(),
     project,
@@ -4400,6 +4489,9 @@ function logPrint(asQuote = false) {
     quoteSentAt:     asQuote ? now.toISOString().split('T')[0] : null,
     quoteExpiresAt:  asQuote ? new Date(now.getTime() + 7 * 86400000).toISOString().split('T')[0] : null,
     quoteAcceptedAt: null,
+    // Feature 8: Quote revision history
+    quoteVersion:    asQuote ? 1 : undefined,
+    quoteRevisions:  asQuote ? [] : undefined,
   });
 
   saveAll();
@@ -4501,6 +4593,7 @@ function updateStatus(id, newStatus) {
       order.status = 'completed';
       if (!order.completedAt) order.completedAt = new Date().toISOString();
       deductFilamentForOrder(order);
+      deductPackagingConsumables(order);
       saveAll();
       renderKanban(); renderLogs(); renderAnalytics(); renderDashboard();
       toast(t('toast.status_updated'), 'success');
@@ -4732,8 +4825,19 @@ function openOrderEditor(orderId) {
         <input type="text" data-f="trackingNumber" value="${escapeHtml(draft.trackingNumber)}" placeholder="…">
       </div>
     </div>
+    ${(() => {
+      const cl = order.clientId ? clients.find(c => c.id === order.clientId) : null;
+      if (cl && cl.addresses && cl.addresses.length > 0) {
+        return `<label style="margin-top:10px;">${escapeHtml(t('oe.select_address'))}</label>
+        <select id="oeAddressSelect" style="margin-bottom:6px;">
+          <option value="">— ${escapeHtml(t('oe.select_address'))} —</option>
+          ${cl.addresses.map(a => `<option value="${escapeHtml(a.address || '')}">${escapeHtml(a.label || a.address)}</option>`).join('')}
+        </select>`;
+      }
+      return '';
+    })()}
     <label style="margin-top:10px;">${escapeHtml(t('oe.delivery_address'))}</label>
-    <input type="text" data-f="deliveryAddress" value="${escapeHtml(draft.deliveryAddress)}" placeholder="…">
+    <textarea data-f="deliveryAddress" rows="2" style="resize:vertical; min-height:48px;" placeholder="…">${escapeHtml(draft.deliveryAddress)}</textarea>
 
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:18px;">
       <div>
@@ -4847,9 +4951,20 @@ function openOrderEditor(orderId) {
       modal.querySelector('[data-f="trackingNumber"]').addEventListener('input', (e) => {
         draft.trackingNumber = e.target.value;
       });
-      modal.querySelector('[data-f="deliveryAddress"]').addEventListener('input', (e) => {
+      modal.querySelector('[data-f="deliveryAddress"]')?.addEventListener('input', (e) => {
         draft.deliveryAddress = e.target.value;
       });
+      // Feature 4: Address book select
+      const addrSel = modal.querySelector('#oeAddressSelect');
+      if (addrSel) {
+        addrSel.addEventListener('change', (e) => {
+          const addrField = modal.querySelector('[data-f="deliveryAddress"]');
+          if (addrField && e.target.value) {
+            addrField.value = e.target.value;
+            draft.deliveryAddress = e.target.value;
+          }
+        });
+      }
       modal.querySelector('[data-f="discountPct"]').addEventListener('input', (e) => {
         draft.discountPct = Math.min(100, Math.max(0, +e.target.value || 0));
       });
@@ -5164,6 +5279,381 @@ function reprintOrder(orderId) {
   renderExtraLines();
   updateGrandTotal();
   toast(t('oe.reprint_toast'), 'success');
+}
+
+/* ============================================================
+   Feature 1: Partial delivery modal
+   ============================================================ */
+function openPartialDeliveryModal(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order || !order.parts || order.parts.length === 0) return;
+  const delivered = order.parts.filter(p => p.delivered).length;
+  const total = order.parts.length;
+
+  const bodyHtml = `
+    <div style="margin-bottom:12px; font-size:13px; color:var(--primary); font-weight:600;">
+      ${escapeHtml(t('ord.parts_delivered', { done: delivered, total }))}
+    </div>
+    <div id="partialDeliveryList">
+      ${order.parts.map((p, i) => `
+        <label style="display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border-soft); cursor:pointer;">
+          <input type="checkbox" class="pd-part-cb" data-pi="${i}" style="width:auto; margin:0;" ${p.delivered ? 'checked' : ''}>
+          <span style="flex:1;">
+            <strong>${escapeHtml(p.name || 'Part ' + (i + 1))}</strong>
+            ${p.material ? `<span style="font-size:11px; color:var(--text-muted); margin-inline-start:6px;">${escapeHtml(p.material)}</span>` : ''}
+          </span>
+          ${p.delivered ? `<span style="font-size:10px; color:var(--success);">✓ delivered</span>` : ''}
+        </label>`).join('')}
+    </div>`;
+
+  openFormModal({
+    title: `📦 ${t('ord.partial_delivery')} — ${escapeHtml(order.project || order.id)}`,
+    saveLabel: t('ord.mark_delivered_parts'),
+    sizeLg: false,
+    bodyHtml,
+    onSave(modal) {
+      const checkboxes = modal.querySelectorAll('.pd-part-cb');
+      checkboxes.forEach(cb => {
+        const idx = parseInt(cb.dataset.pi, 10);
+        if (order.parts[idx]) order.parts[idx].delivered = cb.checked;
+      });
+      const newDelivered = order.parts.filter(p => p.delivered).length;
+      saveAll();
+      renderLogs();
+      renderKanban();
+      toast(t('ord.parts_delivered', { done: newDelivered, total: order.parts.length }), 'success');
+      return true;
+    }
+  });
+}
+
+/* ============================================================
+   Feature 2: Schedule view — per-machine timeline
+   ============================================================ */
+function renderScheduleView() {
+  const el = $('#scheduleView');
+  if (!el) return;
+  const activeOrders = printLog.filter(o => !['completed', 'quote'].includes(o.status));
+  if (activeOrders.length === 0) {
+    el.innerHTML = `<div class="card"><p style="color:var(--text-muted); font-size:13px; text-align:center; padding:20px 0;">${escapeHtml(t('queue.empty'))}</p></div>`;
+    return;
+  }
+
+  // Group orders by machine
+  const machineMap = {};
+  activeOrders.forEach(o => {
+    const mid = o.machineId || '__unassigned__';
+    if (!machineMap[mid]) machineMap[mid] = [];
+    machineMap[mid].push(o);
+  });
+
+  // Determine time horizon (max 48h or sum of queued)
+  const totalHours = Math.max(48, activeOrders.reduce((s, o) => s + (+o.printTime || 0), 0));
+  const tickMarks = [0, 4, 8, 12, 16, 24, 32, 48].filter(h => h <= totalHours + 4);
+
+  // Build axis HTML
+  const axisHtml = `<div class="schedule-axis">
+    ${tickMarks.map(h => {
+      const pct = (h / totalHours) * 100;
+      return `<div class="schedule-axis-tick" style="position:absolute; left:${pct.toFixed(1)}%; transform:translateX(-50%);">${h}h</div>`;
+    }).join('')}
+  </div>`;
+
+  // Build rows
+  const rowsHtml = Object.entries(machineMap).map(([mid, orders]) => {
+    const machine = machines.find(m => m.id === mid);
+    const label = machine ? machine.name : t('dash.unassigned');
+    const dotColor = machine ? machine.color : '#888';
+    let offset = 0;
+    const blocks = orders.map(o => {
+      const pct = ((+o.printTime || 0) / totalHours) * 100;
+      const blockHtml = `<div class="schedule-block status-${escapeHtml(o.status)}"
+        style="flex: 0 0 ${pct.toFixed(2)}%; background:${escapeHtml(dotColor)};"
+        title="${escapeHtml((o.invoiceNum || o.id) + ' · ' + (o.project || ''))}">
+        ${pct > 5 ? escapeHtml((o.invoiceNum || o.id).slice(-6)) : ''}
+      </div>`;
+      offset += pct;
+      return blockHtml;
+    }).join('');
+    return `<div class="schedule-machine-row">
+      <div class="schedule-machine-label">
+        <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${escapeHtml(dotColor)}; flex-shrink:0;"></span>
+        ${escapeHtml(label)}
+      </div>
+      <div class="schedule-track">${blocks}</div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `<div class="card">
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+      <h3 class="card-head" style="margin:0; flex:1;"><span class="swatch"></span>${escapeHtml(t('kan.schedule_view'))}</h3>
+      <span style="font-size:11.5px; color:var(--text-muted);">${escapeHtml(t('kan.schedule_now'))}: ${new Date().toLocaleTimeString()}</span>
+    </div>
+    <div class="schedule-view" style="position:relative; padding-top:22px;">
+      <div style="position:relative; height:22px; margin-inline-start:130px; margin-bottom:4px;">
+        ${tickMarks.map(h => {
+          const pct = (h / totalHours) * 100;
+          return `<div style="position:absolute; left:${pct.toFixed(1)}%; transform:translateX(-50%); font-size:10.5px; color:var(--text-muted);">${h}h</div>`;
+        }).join('')}
+      </div>
+      ${rowsHtml}
+    </div>
+  </div>`;
+}
+
+/* ============================================================
+   Feature 3: Spool switch modal
+   ============================================================ */
+function openSpoolSwitchModal(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+  const parts = order.parts || [];
+
+  const inventoryOptions = inventory.map(item =>
+    `<option value="${item.id}">${escapeHtml(item.material)} (${Math.round(item.weight)}g)</option>`
+  ).join('');
+
+  const partsHtml = parts.length > 0
+    ? parts.map((p, i) => `
+        <div style="padding:10px 0; border-bottom:1px solid var(--border-soft);">
+          <strong>${escapeHtml(p.name || 'Part ' + (i + 1))}</strong>
+          ${p.material ? `<span style="font-size:11.5px; color:var(--text-muted); margin-inline-start:6px;">${escapeHtml(p.material)}</span>` : ''}
+          ${(p.additionalSpools || []).length > 0 ? `
+            <div style="font-size:11.5px; color:var(--primary); margin-top:4px;">
+              ${p.additionalSpools.map(s => {
+                const it = inventory.find(x => x.id === s.spoolId);
+                return `+ ${escapeHtml(it ? it.material : s.spoolId)}: ${s.weight}g`;
+              }).join(' | ')}
+            </div>` : ''}
+          <div style="display:flex; gap:8px; margin-top:6px; align-items:center;">
+            <select class="ss-spool-sel" data-pi="${i}" style="flex:2; font-size:12.5px;">
+              <option value="">${escapeHtml(t('oe.select_spool'))}</option>
+              ${inventoryOptions}
+            </select>
+            <input type="number" class="ss-weight-inp" data-pi="${i}" min="0" step="1" placeholder="${escapeHtml(t('common.grams'))}" style="width:80px; font-size:12.5px;">
+            <button class="btn small primary ss-add-btn" data-pi="${i}">${escapeHtml(t('ord.add_spool'))}</button>
+          </div>
+        </div>`)
+    .join('')
+    : `<p style="color:var(--text-muted);">${escapeHtml(t('queue.parts_count', { n: 0 }))}</p>`;
+
+  openFormModal({
+    title: `🔄 ${t('ord.spool_switch')} — ${escapeHtml(order.project || order.id)}`,
+    noSave: true,
+    bodyHtml: `<div id="spoolSwitchBody">${partsHtml}</div>`,
+    onMount(modal) {
+      modal.querySelectorAll('.ss-add-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = parseInt(btn.dataset.pi, 10);
+          const spoolId = modal.querySelector(`.ss-spool-sel[data-pi="${idx}"]`)?.value;
+          const weight = Math.max(0, parseFloat(modal.querySelector(`.ss-weight-inp[data-pi="${idx}"]`)?.value) || 0);
+          if (!spoolId || weight <= 0) {
+            toast(t('ord.add_spool') + ' — select spool and enter weight', 'error');
+            return;
+          }
+          const part = order.parts[idx];
+          if (!part) return;
+          if (!part.additionalSpools) part.additionalSpools = [];
+          part.additionalSpools.push({ spoolId, weight });
+          // Deduct from inventory
+          const invItem = inventory.find(i => i.id === spoolId);
+          if (invItem) {
+            invItem.weight = Math.max(0, invItem.weight - weight);
+            if (!invItem.usageHistory) invItem.usageHistory = [];
+            invItem.usageHistory.unshift({ orderId: order.id, project: order.project || '', weightUsed: weight, date: new Date().toISOString().split('T')[0] });
+          }
+          saveAll();
+          renderInventory();
+          toast(t('ord.spool_switch_saved'), 'success');
+          // Reset inputs
+          const selEl = modal.querySelector(`.ss-spool-sel[data-pi="${idx}"]`);
+          const wgtEl = modal.querySelector(`.ss-weight-inp[data-pi="${idx}"]`);
+          if (selEl) selEl.value = '';
+          if (wgtEl) wgtEl.value = '';
+        });
+      });
+    }
+  });
+}
+
+/* ============================================================
+   Feature 5: Throughput heatmap
+   ============================================================ */
+function renderThroughputHeatmap() {
+  const el = $('#throughputHeatmapSection');
+  if (!el) return;
+
+  const completed = printLog.filter(o =>
+    o.status === 'completed' && o.completedAt && inRange(o.date, analyticsRange, 'analytics')
+  );
+
+  if (completed.length < 10) {
+    el.innerHTML = `<p style="color:var(--text-muted); font-size:13px;">${escapeHtml(t('an.heatmap_no_data'))}</p>`;
+    return;
+  }
+
+  // Build 7×24 matrix
+  const matrix = Array.from({ length: 7 }, () => Array(24).fill(0));
+  completed.forEach(o => {
+    try {
+      const d = new Date(o.completedAt);
+      const dow = d.getDay();   // 0=Sun..6=Sat
+      const hod = d.getHours(); // 0..23
+      matrix[dow][hod]++;
+    } catch (_) {}
+  });
+
+  const maxVal = Math.max(1, ...matrix.flat());
+  const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const SHOWN_HOURS = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22];
+
+  const headerRow = `<tr>
+    <th style="padding:2px 6px;">${escapeHtml(t('an.heatmap_day'))}</th>
+    ${Array.from({ length: 24 }, (_, h) => `<th class="heatmap-cell" style="background:none; border:none; width:28px; height:28px;">${SHOWN_HOURS.includes(h) ? h : ''}</th>`).join('')}
+  </tr>`;
+
+  const bodyRows = matrix.map((row, dow) => {
+    const cells = row.map((count, h) => {
+      const intensity = count / maxVal;
+      return `<td class="heatmap-cell" style="--hm-intensity:${intensity.toFixed(2)};" title="${DAY_NAMES[dow]} ${h}:00 — ${count} order(s)">${count > 0 ? count : ''}</td>`;
+    }).join('');
+    return `<tr><th style="font-size:11px; padding:2px 6px; text-align:start;">${escapeHtml(DAY_NAMES[dow])}</th>${cells}</tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div style="overflow-x:auto;">
+      <table class="heatmap-table">
+        <thead>${headerRow}</thead>
+        <tbody>${bodyRows}</tbody>
+      </table>
+    </div>
+    <div class="heatmap-legend">
+      <span>0</span>
+      <div class="heatmap-legend-bar"></div>
+      <span>${maxVal}</span>
+    </div>`;
+}
+
+/* ============================================================
+   Feature 7: Invoice numbering settings UI helpers
+   ============================================================ */
+function renderInvoiceNumberingSection() {
+  const el = $('#invNumSection');
+  if (!el) return;
+  el.innerHTML = `
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:10px;">
+      <div>
+        <label style="margin-top:0;">${escapeHtml(t('set.inv_num_prefix'))}</label>
+        <input type="text" id="invNumPrefix" value="${escapeHtml(settings.invNumPrefix || 'INV')}" placeholder="INV" maxlength="10">
+      </div>
+      <div>
+        <label style="margin-top:0;">${escapeHtml(t('set.inv_num_next'))}</label>
+        <input type="number" id="invNumNext" value="${settings.invNumNext || 1}" min="1" step="1">
+      </div>
+    </div>
+    <div style="margin-top:10px;">
+      <label style="margin-top:0;">Format</label>
+      <select id="invNumFormat">
+        <option value="{prefix}-{year}-{seq4}" ${(settings.invNumFormat || '') === '{prefix}-{year}-{seq4}' ? 'selected' : ''}>{prefix}-{year}-{seq4} (e.g. INV-2026-0001)</option>
+        <option value="{prefix}-{seq4}" ${settings.invNumFormat === '{prefix}-{seq4}' ? 'selected' : ''}>{prefix}-{seq4} (e.g. INV-0001)</option>
+      </select>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+      <button class="btn small primary" id="btnSaveInvNum">${escapeHtml(t('common.save'))}</button>
+      <button class="btn small ghost" id="btnInvNumReset">${escapeHtml(t('set.inv_num_reset'))}</button>
+      <button class="btn small ghost" id="btnInvNumDetectGaps">${escapeHtml(t('set.inv_num_detect_gaps'))}</button>
+    </div>
+    <div id="invNumGapsResult" style="margin-top:8px; font-size:12.5px;"></div>`;
+
+  el.querySelector('#btnSaveInvNum').addEventListener('click', () => {
+    settings.invNumPrefix = el.querySelector('#invNumPrefix').value.trim() || 'INV';
+    settings.invNumNext   = Math.max(1, parseInt(el.querySelector('#invNumNext').value, 10) || 1);
+    settings.invNumFormat = el.querySelector('#invNumFormat').value;
+    saveAll();
+    toast(t('set.saved'), 'success');
+  });
+  el.querySelector('#btnInvNumReset').addEventListener('click', () => {
+    settings.invNumYear  = new Date().getFullYear();
+    settings.invNumNext  = 1;
+    saveAll();
+    el.querySelector('#invNumNext').value = '1';
+    toast(t('set.inv_num_reset'), 'success');
+  });
+  el.querySelector('#btnInvNumDetectGaps').addEventListener('click', () => {
+    const nums = printLog
+      .map(o => o.invoiceNum || o.id)
+      .map(id => { const m = /(\d+)$/.exec(id); return m ? parseInt(m[1], 10) : null; })
+      .filter(n => n !== null)
+      .sort((a, b) => a - b);
+    const gaps = [];
+    for (let i = 1; i < nums.length; i++) {
+      for (let g = nums[i - 1] + 1; g < nums[i]; g++) gaps.push(g);
+    }
+    const res = el.querySelector('#invNumGapsResult');
+    if (res) {
+      res.textContent = gaps.length === 0
+        ? t('set.inv_num_no_gaps')
+        : t('set.inv_num_gaps_found', { n: gaps.length }) + ': ' + gaps.slice(0, 20).join(', ');
+      res.style.color = gaps.length === 0 ? 'var(--success)' : 'var(--warning)';
+    }
+  });
+}
+
+/* ============================================================
+   Feature 8: Quote revision history
+   ============================================================ */
+function reviseQuote(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order || order.status !== 'quote') return;
+  // Snapshot current state
+  const snapshot = {
+    version:     order.quoteVersion || 1,
+    snapshotAt:  new Date().toISOString(),
+    price:       order.price,
+    parts:       (order.parts || []).map(p => ({ ...p })),
+    notes:       order.notes || '',
+    material:    order.material || '',
+    printTime:   order.printTime || 0,
+  };
+  if (!order.quoteRevisions) order.quoteRevisions = [];
+  order.quoteRevisions.push(snapshot);
+  order.quoteVersion = (order.quoteVersion || 1) + 1;
+  saveAll();
+  // Open order editor so operator can revise
+  openOrderEditor(orderId);
+}
+
+function openQuoteRevisionsModal(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+  const revisions = order.quoteRevisions || [];
+
+  const revsHtml = revisions.length === 0
+    ? `<p style="color:var(--text-muted); font-size:13px;">${escapeHtml(t('ord.quote_rev_empty'))}</p>`
+    : `<div class="table-wrap"><table>
+        <thead><tr>
+          <th>${escapeHtml(t('ord.quote_version'))}</th>
+          <th>${escapeHtml(t('ord.quote_rev_date'))}</th>
+          <th>${escapeHtml(t('ord.quote_rev_price'))}</th>
+          <th>Parts</th>
+          <th>Notes</th>
+        </tr></thead>
+        <tbody>
+          ${[...revisions].reverse().map(rev => `<tr>
+            <td><strong>v${rev.version}</strong></td>
+            <td style="font-size:11.5px;">${new Date(rev.snapshotAt).toLocaleDateString()}</td>
+            <td>${fmtPrice(rev.price)}</td>
+            <td style="font-size:11.5px;">${(rev.parts || []).length} parts</td>
+            <td style="font-size:11.5px; max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(rev.notes || '—')}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div>`;
+
+  openFormModal({
+    title: `📋 ${t('ord.quote_revisions')} — ${escapeHtml(order.project || order.id)} (${t('ord.quote_version', { n: order.quoteVersion || 1 })})`,
+    noSave: true,
+    bodyHtml: revsHtml,
+  });
 }
 
 /* ============================================================
@@ -6386,6 +6876,18 @@ function renderDashboard() {
     })()}
 
     ${(() => {
+      const lowPkg = consumables.filter(c => c.isPackaging && (c.stock || 0) <= (c.minStock || 0));
+      if (lowPkg.length === 0) return '';
+      return `<div class="dash-low-stock">
+        <span class="dash-low-stock-icon">📦</span>
+        <span class="dash-low-stock-label">${escapeHtml(t('cons.packaging_badge'))} — ${escapeHtml(t('dash.low_stock_alert'))}</span>
+        <span class="dash-low-stock-items">${lowPkg.map(c =>
+          `<span class="dash-low-spool">📦 ${escapeHtml(c.name)}: ${c.stock || 0} ${escapeHtml(c.unit || '')}</span>`
+        ).join('')}</span>
+      </div>`;
+    })()}
+
+    ${(() => {
       const maintMachines = machines.filter(m => {
         const s = machineServiceStatus(m);
         return s.due || s.warning;
@@ -6742,6 +7244,12 @@ function renderKanban() {
               </div>`;
             }).join('')}
           </div>` : ''}
+          ${(() => {
+            if (!log.parts || log.parts.length <= 1) return '';
+            const delivered = log.parts.filter(p => p.delivered).length;
+            if (delivered === 0) return '';
+            return `<div class="partial-delivery-badge">${escapeHtml(t('ord.parts_delivered', { done: delivered, total: log.parts.length }))}</div>`;
+          })()}
           <div class="actions">${actions}</div>
         </div>`;
     }).join('');
@@ -6843,6 +7351,10 @@ function renderLogs() {
         ${log.trackingNumber ? `<button class="btn small ghost" data-act="share-tracking" data-id="${log.id}" title="${escapeHtml(t('ship.tracking_share'))}">📦</button>` : ''}
         ${(log.editHistory && log.editHistory.length > 0) ? `<button class="btn small ghost" data-act="view-edit-history" data-id="${log.id}" title="${escapeHtml(t('ord.edit_history'))}">📝</button>` : ''}
         ${log.status === 'quote' && log.clientId ? `<button class="btn small ghost" data-act="export-quote-approval" data-id="${log.id}" title="${escapeHtml(t('ord.quote_approval_page'))}">📋</button>` : ''}
+        ${log.status === 'quote' ? `<button class="btn small ghost" data-act="revise-quote" data-id="${log.id}" title="${escapeHtml(t('ord.revise_quote'))}">📝 ${escapeHtml(t('ord.revise_quote'))}</button>` : ''}
+        ${log.status === 'quote' && (log.quoteRevisions || []).length > 0 ? `<button class="btn small ghost" data-act="quote-revisions" data-id="${log.id}" title="${escapeHtml(t('ord.quote_revisions'))}">🕐 v${log.quoteVersion || 1}</button>` : ''}
+        ${log.status !== 'completed' && (log.parts || []).length > 1 ? `<button class="btn small ghost" data-act="partial-delivery" data-id="${log.id}" title="${escapeHtml(t('ord.partial_delivery'))}">📦 ${escapeHtml(t('ord.partial_delivery'))}</button>` : ''}
+        ${log.status !== 'completed' && (log.parts || []).some(p => p.spoolId) ? `<button class="btn small ghost" data-act="log-spool-switch" data-id="${log.id}" title="${escapeHtml(t('ord.spool_switch'))}">🔄 ${escapeHtml(t('ord.spool_switch'))}</button>` : ''}
         <button class="btn danger small" data-act="del-log" data-id="${log.id}">${escapeHtml(t('common.delete'))}</button>
       </td>
     </tr>`;
@@ -7325,6 +7837,7 @@ function renderAnalytics() {
   renderProductProfitability();
   renderSLASection();
   renderMachinePL();
+  renderThroughputHeatmap();
 }
 
 /* ============================================================
@@ -8675,6 +9188,8 @@ function loadSettingsIntoForm() {
   renderCustomFieldsSettings();
   refreshCurrencyLabels();
   updateLastBackupDisplay();
+  // Invoice numbering section (Feature 7)
+  renderInvoiceNumberingSection();
   // Feature 8 / Task 0: Storage usage display
   renderStorageUsage();
 }
@@ -8751,6 +9266,11 @@ function saveSettingsFromForm() {
     minMarginPct:  Math.max(0, Math.min(100, num($('#set_minMarginPct')?.value, 0))),
     expBudgets:    Object.fromEntries(EXP_CATEGORIES.map(c => [c, Math.max(0, num($(`#set_budget_${c}`)?.value, 0))])),
     postChecklist: settings.postChecklist || [],
+    // Invoice numbering (managed by renderInvoiceNumberingSection — preserve as-is)
+    invNumPrefix:  settings.invNumPrefix  || 'INV',
+    invNumYear:    settings.invNumYear    || new Date().getFullYear(),
+    invNumNext:    settings.invNumNext    || 1,
+    invNumFormat:  settings.invNumFormat  || '{prefix}-{year}-{seq4}',
   };
   saveAll();
   i18n.set(settings.lang);
@@ -9490,6 +10010,14 @@ function wireEvents() {
     if (editHistBtn) openEditHistoryModal(editHistBtn.dataset.id);
     const quoteApproval = e.target.closest('[data-act="export-quote-approval"]');
     if (quoteApproval) exportQuoteApprovalPage(quoteApproval.dataset.id);
+    const reviseQuoteBtn = e.target.closest('[data-act="revise-quote"]');
+    if (reviseQuoteBtn) reviseQuote(reviseQuoteBtn.dataset.id);
+    const quoteRevisionsBtn = e.target.closest('[data-act="quote-revisions"]');
+    if (quoteRevisionsBtn) openQuoteRevisionsModal(quoteRevisionsBtn.dataset.id);
+    const partialDeliveryBtn = e.target.closest('[data-act="partial-delivery"]');
+    if (partialDeliveryBtn) openPartialDeliveryModal(partialDeliveryBtn.dataset.id);
+    const spoolSwitchBtn = e.target.closest('[data-act="log-spool-switch"]');
+    if (spoolSwitchBtn) openSpoolSwitchModal(spoolSwitchBtn.dataset.id);
     if (tagBtn) {
       logTagFilter = tagBtn.dataset.tag;
       const sel = $('#logTagFilter');
@@ -9594,6 +10122,24 @@ function wireEvents() {
 
   // Save-as-Quote button
   $('#btnSaveAsQuote').addEventListener('click', () => logPrint(true));
+
+  // Schedule view toggle (Feature 2)
+  $('#btnScheduleView')?.addEventListener('click', () => {
+    const sv = $('#scheduleView');
+    const kanban = document.querySelector('.kanban');
+    if (!sv || !kanban) return;
+    const isVisible = sv.style.display !== 'none';
+    if (isVisible) {
+      sv.style.display = 'none';
+      kanban.style.display = '';
+      $('#btnScheduleView').innerHTML = `📅 <span data-i18n="kan.schedule_view">${t('kan.schedule_view')}</span>`;
+    } else {
+      sv.style.display = '';
+      kanban.style.display = 'none';
+      renderScheduleView();
+      $('#btnScheduleView').innerHTML = `📋 <span data-i18n="kan.kanban_view">${t('kan.kanban_view')}</span>`;
+    }
+  });
 
   // Machine profiles (settings section)
   $('#btnAddMachine').addEventListener('click', () => openMachineEditor(null));
