@@ -12,9 +12,9 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  # ── macOS arm64 (Apple Silicon) ────────────────────────────────
-  build-mac-arm64:
-    name: macOS (Apple Silicon)
+  # ── macOS Universal (Apple Silicon + Intel in one DMG) ─────────
+  build-mac:
+    name: macOS (Universal)
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,39 +27,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build macOS arm64 DMG
-        run: npx electron-builder --mac --arm64 --publish never
+      - name: Build macOS Universal DMG
+        run: npx electron-builder --mac --universal --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - uses: actions/upload-artifact@v4
         with:
-          name: mac-arm64
-          path: build/*.dmg
-
-  # ── macOS x64 (Intel) ──────────────────────────────────────────
-  build-mac-x64:
-    name: macOS (Intel)
-    runs-on: macos-13
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build macOS x64 DMG
-        run: npx electron-builder --mac --x64 --publish never
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: mac-x64
+          name: mac-universal
           path: build/*.dmg
 
   # ── Windows x64 ────────────────────────────────────────────────
@@ -121,7 +96,7 @@ jobs:
   # ── Publish GitHub Release ─────────────────────────────────────
   release:
     name: Publish GitHub Release
-    needs: [build-mac-arm64, build-mac-x64, build-windows, build-linux]
+    needs: [build-mac, build-windows, build-linux]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -141,9 +116,7 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: Khayt ${{ github.ref_name }}
           draft: false
-          # Mark as pre-release automatically for beta/rc/alpha tags
           prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-rc') || contains(github.ref_name, '-alpha') }}
-          # Only mark as latest for stable releases
           make_latest: ${{ !contains(github.ref_name, '-beta') && !contains(github.ref_name, '-rc') && !contains(github.ref_name, '-alpha') }}
           fail_on_unmatched_files: false
           body: |
@@ -154,8 +127,7 @@ jobs:
             ### Downloads
             | Platform | File |
             |----------|------|
-            | macOS Apple Silicon | `Khayt-*-arm64.dmg` |
-            | macOS Intel | `Khayt-*-x64.dmg` |
+            | macOS (Apple Silicon + Intel) | `Khayt-*-universal.dmg` |
             | Windows installer | `Khayt-*-Setup.exe` |
             | Windows portable | `Khayt-*-portable.exe` |
             | Linux AppImage | `Khayt-*.AppImage` |

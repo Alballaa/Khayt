@@ -42,7 +42,8 @@
       "category": "public.app-category.business",
       "target": [
         {
-          "target": "dmg"
+          "target": "dmg",
+          "arch": ["universal"]
         }
       ],
       "icon": "assets/icon.icns",
