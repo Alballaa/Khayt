@@ -38,8 +38,7 @@
     "mac": {
       "category": "public.app-category.business",
       "target": [
-        { "target": "dmg", "arch": ["arm64"] },
-        { "target": "dmg", "arch": ["x64"] }
+        { "target": "dmg" }
       ],
       "icon": "assets/icon.icns",
       "darkModeSupport": true
@@ -52,7 +51,7 @@
         { "target": "nsis", "arch": ["x64"] },
         { "target": "portable", "arch": ["x64"] }
       ],
-      "icon": "assets/icon.icns"
+      "icon": "assets/icon.ico"
     },
     "nsis": {
       "oneClick": false,
@@ -66,7 +65,7 @@
         { "target": "AppImage", "arch": ["x64"] },
         { "target": "deb", "arch": ["x64"] }
       ],
-      "icon": "assets/khayt.iconset",
+      "icon": "assets/icon_preview.png",
       "category": "Office",
       "description": "3D printing production management, invoicing & analytics"
     }
