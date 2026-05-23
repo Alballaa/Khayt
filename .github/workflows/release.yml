@@ -1,0 +1,145 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-mac:
+    name: macOS (arm64 + x64)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build macOS DMGs
+        run: npm run dist:universal
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-builds
+          path: |
+            build/*.dmg
+            build/*.dmg.blockmap
+
+  build-windows:
+    name: Windows (x64)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Windows installer
+        run: npm run dist:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-builds
+          path: |
+            build/*.exe
+            build/*.blockmap
+
+  build-linux:
+    name: Linux (x64)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libnss3-dev libatk-bridge2.0-dev libgtk-3-dev libdrm-dev libgbm-dev
+
+      - name: Build Linux packages
+        run: npm run dist:linux
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-builds
+          path: |
+            build/*.AppImage
+            build/*.deb
+
+  release:
+    name: Publish GitHub Release
+    needs: [build-mac, build-windows, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-files
+          merge-multiple: true
+
+      - name: List release files
+        run: ls -lah release-files/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Khayt ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+          body: |
+            ## Khayt ${{ github.ref_name }}
+
+            3D printing production management for macOS, Windows, and Linux.
+
+            ### Downloads
+            | Platform | File |
+            |----------|------|
+            | macOS Apple Silicon | `Khayt-*-arm64.dmg` |
+            | macOS Intel | `Khayt-*-x64.dmg` |
+            | Windows (installer) | `Khayt-*-Setup.exe` |
+            | Windows (portable) | `Khayt-*-portable.exe` |
+            | Linux AppImage | `Khayt-*.AppImage` |
+            | Linux Debian/Ubuntu | `Khayt-*.deb` |
+
+            ### First launch notes
+            - **macOS**: Right-click → Open if you see an unsigned app warning
+            - **Windows**: Click "More info" → "Run anyway" on the SmartScreen prompt
+            - **Linux AppImage**: `chmod +x Khayt-*.AppImage` then run it
+          files: release-files/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

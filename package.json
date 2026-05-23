@@ -10,7 +10,9 @@
     "start": "electron .",
     "pack": "electron-builder --dir",
     "dist": "electron-builder --mac",
-    "dist:universal": "electron-builder --mac --universal"
+    "dist:universal": "electron-builder --mac --universal",
+    "dist:win": "electron-builder --win",
+    "dist:linux": "electron-builder --linux"
   },
   "dependencies": {
     "qrcode": "^1.5.3"
@@ -36,13 +38,37 @@
     "mac": {
       "category": "public.app-category.business",
       "target": [
-        { "target": "dmg", "arch": ["arm64"] }
+        { "target": "dmg", "arch": ["arm64"] },
+        { "target": "dmg", "arch": ["x64"] }
       ],
       "icon": "assets/icon.icns",
       "darkModeSupport": true
     },
     "dmg": {
       "title": "Khayt ${version}"
+    },
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ],
+      "icon": "assets/icon.icns"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Khayt"
+    },
+    "linux": {
+      "target": [
+        { "target": "AppImage", "arch": ["x64"] },
+        { "target": "deb", "arch": ["x64"] }
+      ],
+      "icon": "assets/khayt.iconset",
+      "category": "Office",
+      "description": "3D printing production management, invoicing & analytics"
     }
   }
 }
