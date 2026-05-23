@@ -77,4 +77,12 @@ contextBridge.exposeInMainWorld('hubAPI', {
 
   // Feature 5 (new batch): Outbound email notifications
   sendEmail: (opts) => ipcRenderer.invoke('hub:send-email', opts),
+
+  // Round 12: Outbound webhooks
+  fireWebhook: (url, event, payload, secret) => ipcRenderer.invoke('hub:fire-webhook', { url, event, payload, secret }),
+
+  // Round 12: Embedded LAN REST API
+  startLanServer: (config) => ipcRenderer.invoke('hub:start-lan-server', config),
+  stopLanServer:  ()       => ipcRenderer.invoke('hub:stop-lan-server'),
+  getLanUrl:      ()       => ipcRenderer.invoke('hub:get-lan-url'),
 });

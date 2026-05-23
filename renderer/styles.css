@@ -3695,3 +3695,38 @@ body.mode-simple .pro-only { display: none !important; }
   border-color: rgba(91,156,240,0.3);
 }
 
+/* ── Round 12 additions ──────────────────────────────────────── */
+
+/* Saved filter presets bar */
+#savedFiltersBar {
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 4px 0 10px;
+  border-bottom: 1px solid var(--border-soft);
+  margin-bottom: 10px;
+}
+#savedFiltersBar .btn { font-size: 12px; padding: 3px 10px; }
+
+/* Comment thread in order editor */
+#orderCommentsSection .btn { min-width: 60px; }
+#commentFeed::-webkit-scrollbar { width: 4px; }
+#commentFeed::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* Break-even progress bar (dashboard) */
+#breakEvenSection { border-radius: var(--radius); }
+
+/* Webhook settings */
+#webhookSettingsSection input[type="url"],
+#webhookSettingsSection input[type="text"] { font-size: 12.5px; }
+
+/* LAN API QR wrap */
+#lanQrWrap svg { border-radius: 8px; background: #fff; padding: 8px; display: block; }
+
+/* Aged receivables table */
+#agedReceivablesSection table { font-size: 12.5px; }
+#agedReceivablesSection table th { font-weight: 600; color: var(--text-dim); }
+
+/* Survey analytics */
+#surveyAnalyticsSection { padding: 4px 0; }
+

@@ -1,6 +1,8 @@
 const { app, BrowserWindow, Menu, shell, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const http = require('http');
+const os = require('os');
 const QRCode = require('qrcode');
 
 let mainWindow;
@@ -277,6 +279,7 @@ ipcMain.handle('hub:save-store', async (_e, data) => {
   try {
     fs.writeFileSync(tmp, JSON.stringify(data), 'utf8');
     fs.renameSync(tmp, fp);
+    lanServerStore = data;  // keep LAN server in sync
     return { ok: true };
   } catch (e) {
     console.error('hub:save-store error:', e);
@@ -573,6 +576,117 @@ ipcMain.handle('hub:send-email', async (_e, { to, subject, body, smtpConfig }) =
   }
   // Fallback: mailto link
   return { ok: false, fallback: true, mailtoUrl: `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}` };
+});
+
+// ── Feature R12-1: Outbound Webhooks ────────────────────────────────────────
+ipcMain.handle('hub:fire-webhook', async (_e, { url, event, payload, secret }) => {
+  if (!url || !url.startsWith('http')) return { ok: false, error: 'Invalid URL' };
+  try {
+    const body = JSON.stringify({ event, payload, timestamp: Date.now() });
+    const headers = { 'Content-Type': 'application/json', 'X-Khayt-Event': event };
+    if (secret) headers['X-Khayt-Signature'] = require('crypto')
+      .createHmac('sha256', secret).update(body).digest('hex');
+    const res = await fetch(url, { method: 'POST', headers, body });
+    return { ok: res.ok, status: res.status };
+  } catch(e) { return { ok: false, error: String(e) }; }
+});
+
+// ── Feature R12-7: Embedded LAN REST API ────────────────────────────────────
+let lanServer = null;
+let lanServerStore = {};  // reference to current store, updated via hub:save-store
+
+ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}) => {
+  if (lanServer) { lanServer.close(); lanServer = null; }
+  return new Promise(resolve => {
+    try {
+      lanServer = http.createServer((req, res) => {
+        const url = new URL(req.url, `http://localhost:${port}`);
+        if (pin) {
+          const provided = url.searchParams.get('pin') || req.headers['x-khayt-pin'] || '';
+          if (provided !== pin) {
+            res.writeHead(401, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+            res.end(JSON.stringify({ error: 'Unauthorized' }));
+            return;
+          }
+        }
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', 'application/json');
+        const pathname = url.pathname.replace(/\/$/, '');
+        const store = lanServerStore;
+        if (pathname === '/api/status') {
+          const queue = (store.printLog || []).filter(o => o.status !== 'completed');
+          res.writeHead(200);
+          res.end(JSON.stringify({
+            queued: queue.length,
+            pending:    queue.filter(o => o.status === 'pending').length,
+            printing:   queue.filter(o => o.status === 'printing').length,
+            post:       queue.filter(o => o.status === 'post').length,
+            qc:         queue.filter(o => o.status === 'qc').length,
+            completed_today: (store.printLog || []).filter(o => o.completedAt &&
+              o.completedAt.startsWith(new Date().toISOString().split('T')[0])).length
+          }));
+        } else if (pathname === '/api/orders') {
+          const limit = Math.min(parseInt(url.searchParams.get('limit') || '50', 10), 200);
+          const status = url.searchParams.get('status');
+          let orders = (store.printLog || []).slice(0, limit);
+          if (status) orders = orders.filter(o => o.status === status);
+          res.writeHead(200);
+          res.end(JSON.stringify(orders.map(o => ({
+            id: o.id, project: o.project, client: o.client, status: o.status,
+            material: o.material, price: o.price, dueDate: o.dueDate, date: o.date,
+            paymentStatus: o.paymentStatus
+          }))));
+        } else if (pathname === '/api/queue') {
+          const queue = (store.printLog || []).filter(o =>
+            ['pending','printing','post','qc'].includes(o.status));
+          res.writeHead(200);
+          res.end(JSON.stringify(queue.map(o => ({
+            id: o.id, project: o.project, client: o.client, status: o.status,
+            machine: o.machine, dueDate: o.dueDate, priority: o.priority
+          }))));
+        } else if (pathname === '/api/machines') {
+          res.writeHead(200);
+          res.end(JSON.stringify((store.machines || []).map(m => ({
+            id: m.id, name: m.name, type: m.type, status: m.status
+          }))));
+        } else {
+          res.writeHead(404);
+          res.end(JSON.stringify({ error: 'Not found', endpoints: ['/api/status','/api/orders','/api/queue','/api/machines'] }));
+        }
+      });
+      lanServer.listen(port, '0.0.0.0', () => {
+        const ifaces = os.networkInterfaces();
+        let localIp = '127.0.0.1';
+        for (const iface of Object.values(ifaces)) {
+          for (const addr of iface) {
+            if (addr.family === 'IPv4' && !addr.internal) { localIp = addr.address; break; }
+          }
+          if (localIp !== '127.0.0.1') break;
+        }
+        resolve({ ok: true, url: `http://${localIp}:${port}`, localIp, port });
+      });
+      lanServer.on('error', e => { resolve({ ok: false, error: String(e) }); });
+    } catch(e) { resolve({ ok: false, error: String(e) }); }
+  });
+});
+
+ipcMain.handle('hub:stop-lan-server', async () => {
+  if (lanServer) { lanServer.close(); lanServer = null; }
+  return { ok: true };
+});
+
+ipcMain.handle('hub:get-lan-url', async () => {
+  if (!lanServer?.listening) return { ok: false };
+  const addr = lanServer.address();
+  const ifaces = os.networkInterfaces();
+  let localIp = '127.0.0.1';
+  for (const iface of Object.values(ifaces)) {
+    for (const a of iface) {
+      if (a.family === 'IPv4' && !a.internal) { localIp = a.address; break; }
+    }
+    if (localIp !== '127.0.0.1') break;
+  }
+  return { ok: true, url: `http://${localIp}:${addr?.port || 3219}`, port: addr?.port };
 });
 
 /* ============================================================

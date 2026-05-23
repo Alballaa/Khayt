@@ -392,6 +392,16 @@ function defaultSettings() {
     // Feature 8 (new batch): Loyalty tiers
     loyaltyEnabled:   false,
     loyaltyTiers:     [],
+    // Round 12: Webhooks
+    webhooks:         { enabled: false, secret: '', events: {
+      order_created: '', status_changed: '', payment_received: '', quote_approved: '', order_delivered: ''
+    }},
+    // Round 12: Break-even / fixed overhead
+    fixedCosts:       [],
+    // Round 12: LAN API
+    lanApi:           { enabled: false, port: 3219, pin: '' },
+    // Round 12: Saved filter presets
+    savedFilters:     [],
   };
 }
 
@@ -5553,6 +5563,9 @@ function logPrint(asQuote = false) {
   renderKanban();
   renderAnalytics();
   renderDashboard();
+  // Round 12 — Webhook: order_created
+  const newOrder = printLog[0];
+  if (newOrder) fireWebhook('order_created', { orderId: newOrder.id, project: newOrder.project, status: newOrder.status, price: newOrder.price });
 }
 
 /* ============================================================
@@ -5688,6 +5701,10 @@ function updateStatus(id, newStatus) {
   if (order.clientId) autoExportStatusPage(order);
   // Feature 5 (new batch): Auto-send email notification
   autoSendEmailNotification(order, newStatus);
+  // Round 12 — Webhook: status_changed
+  fireWebhook('status_changed', { orderId: order.id, project: order.project, newStatus, client: order.client });
+  // Round 12 — Webhook: order_delivered
+  if (newStatus === 'completed') fireWebhook('order_delivered', { orderId: order.id, project: order.project, client: order.client });
 }
 
 function holdOrder(id) {
@@ -5955,6 +5972,8 @@ function openPaymentModal(orderId) {
       saveAll();
       renderLogs(); renderKanban(); renderAnalytics();
       toast(t('pay.saved'), 'success');
+      // Round 12 — Webhook: payment_received
+      fireWebhook('payment_received', { orderId: order.id, amount: order.paidAmount, paymentStatus: order.paymentStatus, client: order.client });
       return true;
     }
   });
@@ -6219,6 +6238,13 @@ function openOrderEditor(orderId) {
         <input type="text" data-cf="${escapeHtml(f.id)}" value="${escapeHtml((order.customData || {})[f.id] || '')}" placeholder="${escapeHtml(f.label)}">
       `).join('')}
     </div>` : ''}
+
+    <details style="margin-top:18px; padding-top:14px; border-top:1px solid var(--border-soft);">
+      <summary style="font-size:12.5px; font-weight:600; cursor:pointer; color:var(--primary);">
+        💬 Internal Notes${(order.comments || []).length > 0 ? ` <span style="background:var(--primary);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;">${(order.comments || []).length}</span>` : ''}
+      </summary>
+      <div id="orderCommentsSection" style="margin-top:12px;"></div>
+    </details>
   `;
 
   openFormModal({
@@ -6471,6 +6497,24 @@ function openOrderEditor(orderId) {
           pendingFulls.push({ idx, dataUrl: full });
           refresh();
         } catch (err) { console.error(err); }
+      });
+
+      // Round 12 Feature 10: Internal comment thread
+      renderOrderComments(orderId);
+
+      // Round 12 Feature 5: Auto-link carrier tracking URL
+      const carrierTrackBtn = document.createElement('button');
+      carrierTrackBtn.className = 'btn ghost small';
+      carrierTrackBtn.type = 'button';
+      carrierTrackBtn.title = 'Open tracking page';
+      carrierTrackBtn.textContent = '🔗 Track';
+      carrierTrackBtn.style.cssText = 'margin-top:6px;';
+      const trackRow = modal.querySelector('[data-f="trackingNumber"]')?.parentNode;
+      if (trackRow) trackRow.appendChild(carrierTrackBtn);
+      carrierTrackBtn.addEventListener('click', () => {
+        const url = getCarrierTrackingUrl(draft.courierName, draft.trackingNumber);
+        if (url) window.hubAPI?.openExternal?.(url);
+        else toast('Enter courier name and tracking number first', 'warning');
       });
     },
     async onSave() {
@@ -8696,6 +8740,773 @@ function computeMaterialForecast() {
   return results.sort((a, b) => (a.daysRemaining ?? -999) - (b.daysRemaining ?? -999));
 }
 
+/* ============================================================
+   Round 12 — Feature 1: Outbound Webhooks
+   ============================================================ */
+async function fireWebhook(eventName, payload) {
+  const wh = settings.webhooks;
+  if (!wh?.enabled) return;
+  const url = (wh.events || {})[eventName];
+  if (!url) return;
+  try {
+    await window.hubAPI?.fireWebhook?.(url, eventName, payload, wh.secret || '');
+  } catch(e) { /* silent — webhook failures must not block UI */ }
+}
+
+function renderWebhookSettings() {
+  const el = $('#webhookSettingsSection');
+  if (!el) return;
+  const wh = settings.webhooks || {};
+  const events = [
+    { key: 'order_created',    label: 'Order created' },
+    { key: 'status_changed',   label: 'Status changed' },
+    { key: 'payment_received', label: 'Payment received' },
+    { key: 'quote_approved',   label: 'Quote approved' },
+    { key: 'order_delivered',  label: 'Order delivered' },
+  ];
+  el.innerHTML = `
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:14px;">
+      <input type="checkbox" id="whk_enabled" style="width:auto;margin:0;" ${wh.enabled ? 'checked' : ''}>
+      <span data-i18n="whk.enabled">Enable outbound webhooks</span>
+    </label>
+    <div style="margin-bottom:12px;">
+      <label data-i18n="whk.secret">Signing secret (HMAC-SHA256, optional)</label>
+      <input type="text" id="whk_secret" value="${escapeHtml(wh.secret||'')}" placeholder="my-secret-key" style="font-family:var(--font-mono,monospace);">
+    </div>
+    <h4 style="margin:0 0 10px;font-size:13px;font-weight:600;" data-i18n="whk.event_urls">Webhook URLs per event</h4>
+    ${events.map(ev => `
+      <div style="margin-bottom:10px;">
+        <label style="font-size:12px;color:var(--text-dim);">${escapeHtml(ev.label)}</label>
+        <input type="url" id="whk_${ev.key}" value="${escapeHtml((wh.events||{})[ev.key]||'')}" placeholder="https://hooks.zapier.com/...">
+      </div>`).join('')}
+    <button class="btn primary" id="btnSaveWebhooks" data-i18n="common.save">Save</button>
+    <button class="btn ghost small" id="btnTestWebhook" style="margin-inline-start:8px;" data-i18n="whk.test">Test (send ping)</button>`;
+
+  el.querySelector('#btnSaveWebhooks').addEventListener('click', () => {
+    settings.webhooks = {
+      enabled: el.querySelector('#whk_enabled').checked,
+      secret:  el.querySelector('#whk_secret').value.trim(),
+      events:  Object.fromEntries(events.map(ev => [ev.key, el.querySelector(`#whk_${ev.key}`).value.trim()]))
+    };
+    saveAll();
+    toast('Webhooks saved ✓', 'success');
+  });
+  el.querySelector('#btnTestWebhook').addEventListener('click', async () => {
+    const url = el.querySelector('#whk_status_changed')?.value || Object.values((settings.webhooks?.events||{})).find(Boolean);
+    if (!url) { toast('Enter at least one webhook URL first', 'warning'); return; }
+    const res = await window.hubAPI?.fireWebhook?.(url, 'ping', { message: 'Khayt webhook test' }, settings.webhooks?.secret || '');
+    if (res?.ok) toast('✅ Webhook delivered!', 'success');
+    else toast(`⚠ Webhook failed: ${res?.error || res?.status || '?'}`, 'error');
+  });
+}
+
+/* ============================================================
+   Round 12 — Feature 2: Aged-Receivables Report
+   ============================================================ */
+function renderAgedReceivables() {
+  const el = $('#agedReceivablesSection');
+  if (!el) return;
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  const unpaid = printLog.filter(o => {
+    const ps = payStatus(o);
+    return ps === 'unpaid' || ps === 'partial';
+  });
+
+  if (unpaid.length === 0) {
+    el.innerHTML = `<p style="color:var(--success);margin:0;">✅ No outstanding receivables.</p>`;
+    return;
+  }
+
+  const buckets = { '0–30': [], '31–60': [], '61–90': [], '90+': [] };
+  unpaid.forEach(o => {
+    const orderDate = new Date((o.date || o.timestamp || today.toISOString()).split('T')[0] + 'T00:00:00');
+    const days = Math.max(0, Math.floor((today - orderDate) / 86400000));
+    const owed = Math.max(0, (+o.price || 0) - (+o.paidAmount || 0));
+    const entry = { id: o.id, project: o.project, client: o.client, owed, days, payStatus: payStatus(o) };
+    if      (days <= 30) buckets['0–30'].push(entry);
+    else if (days <= 60) buckets['31–60'].push(entry);
+    else if (days <= 90) buckets['61–90'].push(entry);
+    else                 buckets['90+'].push(entry);
+  });
+
+  const totalOwed = unpaid.reduce((s, o) => s + Math.max(0, (+o.price||0) - (+o.paidAmount||0)), 0);
+
+  const bucketColors = { '0–30': 'var(--success)', '31–60': 'var(--warning)', '61–90': '#f97316', '90+': 'var(--danger)' };
+
+  let html = `
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+      ${Object.entries(buckets).map(([label, items]) => {
+        const total = items.reduce((s, i) => s + i.owed, 0);
+        return `<div style="flex:1;min-width:120px;padding:12px 16px;background:var(--bg-elev);border-radius:var(--radius);border-left:3px solid ${bucketColors[label]};">
+          <div style="font-size:12px;color:var(--text-muted);">${label} days</div>
+          <div style="font-size:16px;font-weight:700;margin-top:4px;">${fmtPrice(total)}</div>
+          <div style="font-size:11px;color:var(--text-dim);">${items.length} order${items.length !== 1 ? 's' : ''}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <strong style="font-size:14px;">Total outstanding: <span style="color:var(--danger);">${fmtPrice(totalOwed)}</span></strong>
+      <button class="btn small ghost" id="btnExportAgedCsv">⬇ Export CSV</button>
+    </div>`;
+
+  Object.entries(buckets).forEach(([label, items]) => {
+    if (items.length === 0) return;
+    html += `<div style="margin-bottom:12px;">
+      <div style="font-size:12px;font-weight:600;color:${bucketColors[label]};margin-bottom:6px;padding:4px 8px;background:rgba(0,0,0,0.1);border-radius:4px;">${label} DAYS — ${items.length} order(s)</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead><tr style="color:var(--text-dim);">
+          <th style="text-align:left;padding:4px 6px;">Order ID</th>
+          <th style="text-align:left;padding:4px 6px;">Project</th>
+          <th style="text-align:left;padding:4px 6px;">Client</th>
+          <th style="text-align:right;padding:4px 6px;">Owed</th>
+          <th style="text-align:right;padding:4px 6px;">Days</th>
+        </tr></thead>
+        <tbody>${items.map(i => `<tr style="border-top:1px solid var(--border);">
+          <td style="padding:5px 6px;color:var(--text-muted);font-family:var(--font-num);">${escapeHtml(i.id)}</td>
+          <td style="padding:5px 6px;">${escapeHtml(i.project||'—')}</td>
+          <td style="padding:5px 6px;">${escapeHtml(i.client||'—')}</td>
+          <td style="padding:5px 6px;text-align:right;color:var(--danger);font-weight:600;">${fmtPrice(i.owed)}</td>
+          <td style="padding:5px 6px;text-align:right;color:${bucketColors[label]};">${i.days}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>`;
+  });
+  el.innerHTML = html;
+
+  el.querySelector('#btnExportAgedCsv')?.addEventListener('click', () => {
+    const rows = [['Order ID','Project','Client','Owed','Days Outstanding','Bucket']];
+    Object.entries(buckets).forEach(([label, items]) => {
+      items.forEach(i => rows.push([i.id, i.project||'', i.client||'', i.owed.toFixed(2), i.days, label]));
+    });
+    downloadBlob(new Blob([rows.map(r => r.map(csvEsc).join(',')).join('\n')], { type: 'text/csv' }), 'aged-receivables.csv');
+  });
+}
+
+/* ============================================================
+   Round 12 — Feature 3: Post-Delivery NPS / Star Rating Survey
+   ============================================================ */
+function generateSurveyPage(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+  const token = order.surveyToken || ('srv-' + Date.now().toString(36));
+  if (!order.surveyToken) { order.surveyToken = token; saveAll(); }
+
+  const shopName = escapeHtml(settings.bizEn || settings.bizAr || 'Khayt');
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${shopName} — Order Feedback</title>
+<style>
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f172a;color:#e2e8f0;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;padding:20px;}
+  .card{background:#1e293b;border-radius:16px;padding:40px 36px;max-width:480px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5);}
+  h1{font-size:22px;margin:0 0 6px;} p{color:#94a3b8;margin:0 0 24px;}
+  .stars{display:flex;justify-content:center;gap:8px;margin-bottom:24px;}
+  .star{font-size:40px;cursor:pointer;transition:transform .15s;} .star:hover,.star.sel{transform:scale(1.2);}
+  textarea{width:100%;box-sizing:border-box;background:#0f172a;border:1px solid #334155;color:#e2e8f0;border-radius:8px;padding:12px;font-size:14px;resize:vertical;min-height:90px;margin-bottom:16px;}
+  button{background:#5E2E14;color:#fff;border:none;border-radius:8px;padding:12px 28px;font-size:15px;cursor:pointer;font-weight:600;}
+  button:hover{background:#7c3d1b;} .thanks{display:none;font-size:18px;font-weight:600;color:#4ade80;}
+</style></head>
+<body><div class="card">
+  <h1>📦 ${shopName}</h1>
+  <p>Order <strong>${escapeHtml(order.id)}</strong>${order.project ? ' — ' + escapeHtml(order.project) : ''}</p>
+  <p>How would you rate your experience?</p>
+  <div class="stars" id="stars">
+    <span class="star" data-v="1">⭐</span>
+    <span class="star" data-v="2">⭐</span>
+    <span class="star" data-v="3">⭐</span>
+    <span class="star" data-v="4">⭐</span>
+    <span class="star" data-v="5">⭐</span>
+  </div>
+  <textarea id="comment" placeholder="Any comments? (optional)"></textarea>
+  <button onclick="submit()">Submit Feedback</button>
+  <div class="thanks" id="thanks">🎉 Thank you for your feedback!</div>
+</div>
+<script>
+  let rating = 0;
+  document.querySelectorAll('.star').forEach(s => {
+    s.addEventListener('click', () => {
+      rating = parseInt(s.dataset.v);
+      document.querySelectorAll('.star').forEach((st, i) => st.classList.toggle('sel', i < rating));
+    });
+  });
+  function submit() {
+    if (!rating) { alert('Please select a rating.'); return; }
+    const data = { token: '${escapeHtml(token)}', orderId: '${escapeHtml(orderId)}', rating, comment: document.getElementById('comment').value };
+    // In a hosted scenario this would POST to a server. Here we encode in URL for local capture.
+    document.getElementById('thanks').style.display = 'block';
+    document.querySelector('button').style.display = 'none';
+    document.getElementById('stars').style.pointerEvents = 'none';
+    // Embed response in URL for local file approach
+    window.location.hash = 'submitted:' + encodeURIComponent(JSON.stringify(data));
+  }
+</script>
+</body></html>`;
+
+  window.hubAPI?.saveHtml?.(html, `survey-${orderId}.html`);
+  toast('Survey page generated — share the file link with your client', 'success', 4000);
+}
+
+function openRecordSurveyModal(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+  openFormModal({
+    title: '📊 Record Customer Feedback',
+    saveLabel: 'Save',
+    bodyHtml: `
+      <p style="color:var(--text-muted);margin:0 0 16px;">Manually record the customer's rating for order <strong>${escapeHtml(orderId)}</strong>.</p>
+      <label>Star Rating (1–5)</label>
+      <div style="display:flex;gap:8px;margin-bottom:16px;" id="surveyStarRow">
+        ${[1,2,3,4,5].map(n => `<button class="btn${(order.survey?.rating||0)>=n ? ' primary' : ' ghost'}" data-star="${n}" style="font-size:20px;padding:6px 10px;" type="button">⭐</button>`).join('')}
+      </div>
+      <label>Comment (optional)</label>
+      <textarea id="surveyComment" rows="3">${escapeHtml(order.survey?.comment||'')}</textarea>`,
+    onMount: () => {
+      $$('#surveyStarRow button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const v = parseInt(btn.dataset.star);
+          $$('#surveyStarRow button').forEach((b, i) => {
+            b.className = 'btn ' + (i < v ? 'primary' : 'ghost');
+          });
+        });
+      });
+    },
+    onSave: () => {
+      const rating = $$('#surveyStarRow button').filter(b => b.className.includes('primary')).length;
+      order.survey = { rating, comment: $('#surveyComment').value.trim(), recordedAt: new Date().toISOString() };
+      saveAll();
+      toast(`✅ Rating saved: ${rating}/5`, 'success');
+    }
+  });
+}
+
+function renderSurveyAnalytics() {
+  const el = $('#surveyAnalyticsSection');
+  if (!el) return;
+  const surveyed = printLog.filter(o => o.survey?.rating);
+  if (surveyed.length === 0) {
+    el.innerHTML = '<p style="color:var(--text-muted);">No survey responses yet.</p>';
+    return;
+  }
+  const avg = surveyed.reduce((s, o) => s + o.survey.rating, 0) / surveyed.length;
+  const dist = [1,2,3,4,5].map(r => ({ r, n: surveyed.filter(o => o.survey.rating === r).length }));
+  // NPS: 5-star = promoters, 3-4 = passive, 1-2 = detractors
+  const promoters  = surveyed.filter(o => o.survey.rating >= 5).length;
+  const detractors = surveyed.filter(o => o.survey.rating <= 2).length;
+  const nps = Math.round((promoters - detractors) / surveyed.length * 100);
+
+  el.innerHTML = `
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
+      <div style="text-align:center;padding:12px 20px;background:var(--bg-elev);border-radius:var(--radius);">
+        <div style="font-size:28px;font-weight:700;color:var(--primary);">${avg.toFixed(1)}</div>
+        <div style="font-size:11px;color:var(--text-muted);">Avg Rating</div>
+      </div>
+      <div style="text-align:center;padding:12px 20px;background:var(--bg-elev);border-radius:var(--radius);">
+        <div style="font-size:28px;font-weight:700;color:${nps >= 50 ? 'var(--success)' : nps >= 0 ? 'var(--warning)' : 'var(--danger)'};">${nps >= 0 ? '+' : ''}${nps}</div>
+        <div style="font-size:11px;color:var(--text-muted);">NPS Score</div>
+      </div>
+      <div style="text-align:center;padding:12px 20px;background:var(--bg-elev);border-radius:var(--radius);">
+        <div style="font-size:28px;font-weight:700;">${surveyed.length}</div>
+        <div style="font-size:11px;color:var(--text-muted);">Responses</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px;">
+      ${dist.reverse().map(({r, n}) => {
+        const pct = surveyed.length > 0 ? Math.round(n / surveyed.length * 100) : 0;
+        return `<div style="display:flex;align-items:center;gap:8px;font-size:12.5px;">
+          <span style="width:18px;text-align:right;">${r}⭐</span>
+          <div style="flex:1;background:var(--bg);border-radius:4px;height:14px;overflow:hidden;">
+            <div style="height:100%;width:${pct}%;background:var(--primary);border-radius:4px;transition:width .4s;"></div>
+          </div>
+          <span style="width:36px;color:var(--text-muted);">${pct}%</span>
+          <span style="color:var(--text-dim);">(${n})</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+/* ============================================================
+   Round 12 — Feature 4: Break-Even & Overhead Allocation
+   ============================================================ */
+function computeBreakEven() {
+  const fixedCosts = settings.fixedCosts || [];
+  const totalFixed = fixedCosts.reduce((s, c) => s + (+c.amount || 0), 0);
+  if (totalFixed === 0) return null;
+
+  // Avg contribution margin per order (last 90 days)
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 90);
+  const recent = printLog.filter(o => o.status === 'completed' && o.date && new Date(o.date + 'T00:00:00') >= cutoff);
+  const avgRevPerOrder = recent.length > 0 ? recent.reduce((s, o) => s + (+o.price || 0), 0) / recent.length : 0;
+  const avgMaterialCost = recent.length > 0 ? recent.reduce((s, o) => {
+    const mc = (o.parts || []).reduce((ps, p) => {
+      if (!p.filamentId) return ps;
+      const sp = inventory.find(i => i.id === p.filamentId);
+      return ps + ((+p.printWeight || 0) / 1000 * ((sp ? (+sp.cost / +sp.weight) * 1000 : 0)));
+    }, 0);
+    return s + mc;
+  }, 0) / recent.length : 0;
+  const avgMarginPct = avgRevPerOrder > 0 ? Math.max(0, (avgRevPerOrder - avgMaterialCost) / avgRevPerOrder) : 0;
+
+  const breakEvenRevenue = avgMarginPct > 0 ? totalFixed / avgMarginPct : null;
+  return { totalFixed, breakEvenRevenue, avgMarginPct, avgRevPerOrder };
+}
+
+function renderBreakEvenCard() {
+  const el = $('#breakEvenSection');
+  if (!el) return;
+  const fixedCosts = settings.fixedCosts || [];
+  const be = computeBreakEven();
+
+  const today = new Date();
+  const thisMonthStr = today.toISOString().slice(0, 7);
+  const monthRev = printLog
+    .filter(o => o.status === 'completed' && (o.date || '').startsWith(thisMonthStr))
+    .reduce((s, o) => s + (+o.price || 0), 0);
+
+  if (fixedCosts.length === 0) {
+    el.innerHTML = `<p style="color:var(--text-muted);font-size:13px;">No fixed costs configured. <a href="#" id="goToBreakEvenSettings" style="color:var(--primary);">Add fixed costs in Settings →</a></p>`;
+    el.querySelector('#goToBreakEvenSettings')?.addEventListener('click', e => {
+      e.preventDefault();
+      document.querySelector('[data-tab="settings-tab"]')?.click();
+    });
+    return;
+  }
+
+  const progress = be?.breakEvenRevenue ? Math.min(100, (monthRev / be.breakEvenRevenue) * 100) : 0;
+  const surplus  = be?.breakEvenRevenue ? monthRev - be.breakEvenRevenue : null;
+
+  el.innerHTML = `
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
+      <div style="flex:1;min-width:140px;padding:12px 16px;background:var(--bg-elev);border-radius:var(--radius);">
+        <div style="font-size:11px;color:var(--text-muted);">Monthly Fixed Costs</div>
+        <div style="font-size:18px;font-weight:700;color:var(--danger);">${fmtPrice(be?.totalFixed || 0)}</div>
+      </div>
+      ${be?.breakEvenRevenue ? `
+      <div style="flex:1;min-width:140px;padding:12px 16px;background:var(--bg-elev);border-radius:var(--radius);">
+        <div style="font-size:11px;color:var(--text-muted);">Break-Even Revenue</div>
+        <div style="font-size:18px;font-weight:700;color:var(--warning);">${fmtPrice(be.breakEvenRevenue)}</div>
+      </div>
+      <div style="flex:1;min-width:140px;padding:12px 16px;background:var(--bg-elev);border-radius:var(--radius);border-left:3px solid ${surplus >= 0 ? 'var(--success)' : 'var(--danger)'};">
+        <div style="font-size:11px;color:var(--text-muted);">${surplus >= 0 ? 'Above Break-Even' : 'Below Break-Even'}</div>
+        <div style="font-size:18px;font-weight:700;color:${surplus >= 0 ? 'var(--success)' : 'var(--danger)'};">${surplus >= 0 ? '+' : ''}${fmtPrice(surplus || 0)}</div>
+      </div>` : ''}
+    </div>
+    ${be?.breakEvenRevenue ? `
+    <div style="margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:4px;">
+        <span>This month: ${fmtPrice(monthRev)}</span>
+        <span>Target: ${fmtPrice(be.breakEvenRevenue)}</span>
+      </div>
+      <div style="background:var(--bg);border-radius:6px;height:10px;overflow:hidden;">
+        <div style="height:100%;width:${progress}%;background:${progress >= 100 ? 'var(--success)' : 'var(--primary)'};border-radius:6px;transition:width .5s;"></div>
+      </div>
+    </div>` : '<p style="color:var(--text-muted);font-size:12.5px;margin-bottom:12px;">Not enough order history to compute break-even. Add more completed orders.</p>'}
+    <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+      <thead><tr style="color:var(--text-dim);">
+        <th style="text-align:left;padding:4px 6px;">Fixed Cost</th>
+        <th style="text-align:right;padding:4px 6px;">Monthly Amount</th>
+        <th style="padding:4px 6px;"></th>
+      </tr></thead>
+      <tbody>
+        ${fixedCosts.map((c, i) => `<tr style="border-top:1px solid var(--border);">
+          <td style="padding:6px;">${escapeHtml(c.name)}</td>
+          <td style="padding:6px;text-align:right;color:var(--danger);">${fmtPrice(c.amount)}</td>
+          <td style="padding:6px;"><button class="btn danger small" data-del-cost="${i}">✕</button></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+
+  el.querySelectorAll('[data-del-cost]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      settings.fixedCosts.splice(parseInt(btn.dataset.delCost), 1);
+      saveAll();
+      renderBreakEvenCard();
+    });
+  });
+}
+
+function renderFixedCostSettings() {
+  const el = $('#fixedCostsSection');
+  if (!el) return;
+  const fixedCosts = settings.fixedCosts || [];
+  el.innerHTML = `
+    <div id="fixedCostList" style="margin-bottom:12px;">
+      ${fixedCosts.length === 0 ? '<p style="color:var(--text-muted);font-size:12.5px;margin:0;">No fixed costs added yet.</p>' :
+        fixedCosts.map((c, i) => `
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);">
+            <span style="flex:1;">${escapeHtml(c.name)}</span>
+            <strong>${fmtPrice(c.amount)}</strong>
+            <button class="btn danger small" data-del-fc="${i}">✕</button>
+          </div>`).join('')
+      }
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <input type="text"   id="fcName"   placeholder="e.g. Rent"   style="flex:2;min-width:120px;">
+      <input type="number" id="fcAmount" placeholder="Amount/month" style="flex:1;min-width:100px;" min="0" step="0.01">
+      <button class="btn primary" id="btnAddFixedCost">+ Add</button>
+    </div>`;
+
+  el.querySelectorAll('[data-del-fc]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      settings.fixedCosts.splice(parseInt(btn.dataset.delFc), 1);
+      saveAll(); renderFixedCostSettings(); renderBreakEvenCard();
+    });
+  });
+  el.querySelector('#btnAddFixedCost')?.addEventListener('click', () => {
+    const name = el.querySelector('#fcName').value.trim();
+    const amount = parseFloat(el.querySelector('#fcAmount').value) || 0;
+    if (!name || amount <= 0) { toast('Enter a name and amount', 'warning'); return; }
+    settings.fixedCosts = [...(settings.fixedCosts || []), { id: Date.now().toString(36), name, amount }];
+    saveAll(); renderFixedCostSettings(); renderBreakEvenCard();
+    el.querySelector('#fcName').value = '';
+    el.querySelector('#fcAmount').value = '';
+  });
+}
+
+/* ============================================================
+   Round 12 — Feature 5: Carrier tracking URL auto-generation
+   ============================================================ */
+const CARRIER_TRACKING_URLS = {
+  aramex:     n => `https://www.aramex.com/express/track?mode=0&ShipmentNumber=${n}`,
+  dhl:        n => `https://www.dhl.com/en/express/tracking.html?AWB=${n}&brand=DHL`,
+  fedex:      n => `https://www.fedex.com/fedextrack/?trknbr=${n}`,
+  ups:        n => `https://www.ups.com/track?loc=en_US&tracknum=${n}`,
+  'saudi post': n => `https://www.splonline.com.sa/en/track-your-shipment/?awb=${n}`,
+  spl:        n => `https://www.splonline.com.sa/en/track-your-shipment/?awb=${n}`,
+  smsa:       n => `https://www.smsaexpress.com/en/tracking?trackno=${n}`,
+  dpd:        n => `https://tracking.dpd.de/status/en_US/parcel/${n}`,
+  'j&t':      n => `https://www.jtexpress.sa/index/query/giftSearch.html?billcode=${n}`,
+};
+
+function getCarrierTrackingUrl(courierName, trackingNumber) {
+  if (!courierName || !trackingNumber) return null;
+  const key = courierName.toLowerCase().trim();
+  const fn = CARRIER_TRACKING_URLS[key] ||
+    Object.entries(CARRIER_TRACKING_URLS).find(([k]) => key.includes(k))?.[1];
+  return fn ? fn(trackingNumber) : null;
+}
+
+/* ============================================================
+   Round 12 — Feature 6: Recurring job auto-clone improvements
+   (Existing checkRecurringOrders extended with leadDays + template selection)
+   ============================================================ */
+// (checkRecurringOrders is extended in-place below its existing definition via post-load call)
+function patchRecurringOrdersWithLeadDays() {
+  // Wrap the existing checkRecurringOrders to also respect leadDays
+  // This runs at startup after loadAll() to check for orders due within leadDays
+  const today = new Date().toISOString().split('T')[0];
+  const INTERVAL_DAYS = { weekly: 7, biweekly: 14, monthly: 30, quarterly: 91 };
+  let created = 0;
+
+  clients.forEach(client => {
+    const rec = client.recurring;
+    if (!rec?.enabled || !rec.nextDue) return;
+    const leadDays = rec.leadDays || 0;
+    const triggerDate = new Date(rec.nextDue + 'T00:00:00');
+    triggerDate.setDate(triggerDate.getDate() - leadDays);
+    const triggerStr = triggerDate.toISOString().split('T')[0];
+    if (triggerStr > today) return;
+
+    // Check if an order was already created for this cycle
+    const alreadyCreated = printLog.some(o =>
+      o.clientId === client.id && o.recurringCycle === rec.nextDue && o.status !== 'completed');
+    if (alreadyCreated) return;
+
+    // Find template: use specific templateOrderId or last completed order
+    const template = rec.templateOrderId
+      ? printLog.find(o => o.id === rec.templateOrderId)
+      : printLog.find(o => o.clientId === client.id && o.status === 'completed');
+    if (!template) return;
+
+    const now = new Date();
+    const seq = nextInvoiceSeq();
+    const id = `${settings.invPrefix || 'INV'}-${now.getFullYear()}-${seq}`;
+    printLog.unshift({
+      ...template,
+      parts: template.parts ? template.parts.map(p => ({ ...p })) : [],
+      id,
+      date: today,
+      timestamp: now.toISOString(),
+      status: rec.cloneStatus || 'pending',
+      paymentStatus: 'unpaid',
+      paidAmount: 0,
+      paymentMethod: null,
+      paidAt: null,
+      printPhotos: [],
+      notes: '',
+      dueDate: rec.nextDue,
+      priority: false,
+      materialDeducted: false,
+      actualPrintTime: null,
+      actualWeight: null,
+      quoteSentAt: null,
+      quoteExpiresAt: null,
+      quoteAcceptedAt: null,
+      deliveredAt: null,
+      attachedFiles: [],
+      comments: [],
+      recurringCycle: rec.nextDue,
+    });
+    created++;
+
+    const days = INTERVAL_DAYS[rec.interval] || 30;
+    const next = new Date(rec.nextDue + 'T00:00:00');
+    next.setDate(next.getDate() + days);
+    rec.nextDue = next.toISOString().split('T')[0];
+  });
+
+  if (created > 0) {
+    saveAll(); renderKanban(); renderLogs(); renderDashboard();
+    toast(t('rec.created', { n: created }), 'success', 4500);
+  }
+}
+
+/* ============================================================
+   Round 12 — Feature 7: LAN API settings
+   ============================================================ */
+function renderLanApiSettings() {
+  const el = $('#lanApiSection');
+  if (!el) return;
+  const lan = settings.lanApi || {};
+
+  el.innerHTML = `
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:14px;">
+      <input type="checkbox" id="lan_enabled" style="width:auto;margin:0;" ${lan.enabled ? 'checked' : ''}>
+      <span data-i18n="lan.enabled">Enable LAN REST API</span>
+    </label>
+    <div class="inline-pair">
+      <div>
+        <label data-i18n="lan.port">Port</label>
+        <input type="number" id="lan_port" value="${lan.port || 3219}" min="1024" max="65535">
+      </div>
+      <div>
+        <label data-i18n="lan.pin">Access PIN (leave blank for open)</label>
+        <input type="text" id="lan_pin" value="${escapeHtml(lan.pin||'')}" maxlength="12" placeholder="e.g. 1234">
+      </div>
+    </div>
+    <div id="lanStatusRow" style="margin:12px 0;padding:10px 12px;background:var(--bg-elev);border-radius:var(--radius);font-size:13px;">${lan.enabled ? '🟢 Server active' : '⚫ Server stopped'}</div>
+    <div id="lanQrWrap" style="margin-bottom:12px;display:${lan.enabled ? 'block' : 'none'};"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn primary" id="btnSaveLan" data-i18n="common.save">Save</button>
+      <button class="btn ghost" id="btnStartLan" data-i18n="lan.start">Start server</button>
+      <button class="btn ghost" id="btnStopLan"  data-i18n="lan.stop">Stop server</button>
+    </div>`;
+
+  if (lan.enabled) loadLanQr();
+
+  el.querySelector('#btnSaveLan')?.addEventListener('click', () => {
+    settings.lanApi = {
+      enabled: el.querySelector('#lan_enabled').checked,
+      port: parseInt(el.querySelector('#lan_port').value) || 3219,
+      pin:  el.querySelector('#lan_pin').value.trim(),
+    };
+    saveAll();
+    if (settings.lanApi.enabled) {
+      startLanServer();
+    } else {
+      window.hubAPI?.stopLanServer?.();
+      el.querySelector('#lanStatusRow').textContent = '⚫ Server stopped';
+      el.querySelector('#lanQrWrap').style.display = 'none';
+    }
+    toast('LAN API settings saved', 'success');
+  });
+
+  el.querySelector('#btnStartLan')?.addEventListener('click', startLanServer);
+  el.querySelector('#btnStopLan')?.addEventListener('click', async () => {
+    await window.hubAPI?.stopLanServer?.();
+    el.querySelector('#lanStatusRow').textContent = '⚫ Server stopped';
+    el.querySelector('#lanQrWrap').style.display = 'none';
+  });
+}
+
+async function startLanServer() {
+  const lan = settings.lanApi || {};
+  const res = await window.hubAPI?.startLanServer?.({ port: lan.port || 3219, pin: lan.pin || '' });
+  const statusRow = $('#lanStatusRow');
+  const qrWrap    = $('#lanQrWrap');
+  if (res?.ok) {
+    if (statusRow) statusRow.innerHTML = `🟢 Active at <a href="#" style="color:var(--primary);" onclick="window.hubAPI?.openExternal?.('${escapeHtml(res.url)}')">${escapeHtml(res.url)}</a>`;
+    settings.lanApi = { ...settings.lanApi, enabled: true };
+    saveAll();
+    loadLanQr(res.url);
+  } else {
+    if (statusRow) statusRow.textContent = `❌ Failed: ${res?.error || 'unknown error'}`;
+  }
+}
+
+async function loadLanQr(urlOverride) {
+  const qrWrap = $('#lanQrWrap');
+  if (!qrWrap) return;
+  let url = urlOverride;
+  if (!url) {
+    const res = await window.hubAPI?.getLanUrl?.();
+    if (!res?.ok) return;
+    url = res.url;
+  }
+  const pinSuffix = settings.lanApi?.pin ? `?pin=${settings.lanApi.pin}` : '';
+  const qrUrl = url + '/api/status' + pinSuffix;
+  const svg = await window.hubAPI?.generateQR?.(qrUrl, { width: 150 });
+  if (svg) {
+    qrWrap.style.display = 'block';
+    qrWrap.innerHTML = `<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">Scan from phone to view queue:</div>${svg}`;
+  }
+}
+
+/* ============================================================
+   Round 12 — Feature 8: Accounting Export (double-entry CSV)
+   ============================================================ */
+function exportAccountingCSV() {
+  const rows = [['Date','DocNumber','Type','Description','Account','Debit','Credit','VAT','Currency']];
+  const cur = currencySymbol();
+
+  // Revenue entries (completed invoices)
+  printLog.filter(o => o.status === 'completed').forEach(o => {
+    const vatRate = settings.enableVat ? (settings.vatRate || 0) / 100 : 0;
+    const subtotal = (+o.price || 0) / (1 + vatRate);
+    const vat = (+o.price || 0) - subtotal;
+    // Debit Accounts Receivable
+    rows.push([o.date||o.timestamp?.split('T')[0]||'', o.id, 'Invoice', escapeHtml(o.project||o.client||'Order'), 'Accounts Receivable', (+o.price||0).toFixed(2), '', vat.toFixed(2), cur]);
+    // Credit Revenue
+    rows.push([o.date||o.timestamp?.split('T')[0]||'', o.id, 'Invoice', escapeHtml(o.project||o.client||'Order'), 'Revenue', '', subtotal.toFixed(2), '', cur]);
+    // Credit VAT Payable
+    if (vat > 0) rows.push([o.date||o.timestamp?.split('T')[0]||'', o.id, 'Invoice', 'VAT Payable', 'VAT Payable', '', vat.toFixed(2), vat.toFixed(2), cur]);
+    // Payment entries
+    if (o.paidAmount > 0) {
+      rows.push([o.paidAt?.split('T')[0]||o.date||'', o.id, 'Payment', `Payment for ${escapeHtml(o.id)}`, 'Cash / Bank', (+o.paidAmount||0).toFixed(2), '', '', cur]);
+      rows.push([o.paidAt?.split('T')[0]||o.date||'', o.id, 'Payment', `Payment for ${escapeHtml(o.id)}`, 'Accounts Receivable', '', (+o.paidAmount||0).toFixed(2), '', cur]);
+    }
+  });
+
+  // Expense entries
+  expenses.forEach(e => {
+    rows.push([e.date||'', e.id||'', 'Expense', escapeHtml(e.note||e.category||'Expense'), `Expense: ${escapeHtml(e.category||'Other')}`, (+e.amount||0).toFixed(2), '', '', cur]);
+    rows.push([e.date||'', e.id||'', 'Expense', escapeHtml(e.note||e.category||'Expense'), 'Cash / Bank', '', (+e.amount||0).toFixed(2), '', cur]);
+  });
+
+  downloadBlob(new Blob([rows.map(r => r.map(csvEsc).join(',')).join('\n')], { type: 'text/csv' }), 'khayt-accounting-journal.csv');
+  toast('Accounting journal exported ✓', 'success');
+}
+
+/* ============================================================
+   Round 12 — Feature 9: Saved filter presets
+   ============================================================ */
+function renderSavedFilterPresets() {
+  const el = $('#savedFiltersBar');
+  if (!el) return;
+  const saved = settings.savedFilters || [];
+  if (saved.length === 0) {
+    el.style.display = 'none';
+    return;
+  }
+  el.style.display = 'flex';
+  el.innerHTML = `
+    <span style="font-size:11.5px;color:var(--text-muted);white-space:nowrap;">Saved:</span>
+    ${saved.map((f, i) => `
+      <button class="btn ghost small" data-load-filter="${i}" title="${escapeHtml(f.name)}" style="font-size:12px;">${escapeHtml(f.name)}</button>
+      <button class="btn ghost small" data-del-filter="${i}" style="font-size:10px;padding:2px 5px;color:var(--text-muted);">✕</button>
+    `).join('')}`;
+
+  el.querySelectorAll('[data-load-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const f = saved[parseInt(btn.dataset.loadFilter)];
+      if (!f) return;
+      logStatusFilter = f.status || '';
+      logPayFilter    = f.pay    || '';
+      logTagFilter    = f.tag    || '';
+      logRangeFilter  = f.range  || 'all';
+      logSearchTerm   = f.search || '';
+      // Sync UI dropdowns
+      const s = $('#logStatusFilter'); if (s) s.value = logStatusFilter;
+      const p = $('#logPayFilter');    if (p) p.value = logPayFilter;
+      const tg = $('#logTagFilter');   if (tg) tg.value = logTagFilter;
+      const r = $('#logRangeFilter');  if (r) r.value = logRangeFilter;
+      const sr = $('#logSearch');      if (sr) sr.value = logSearchTerm;
+      renderLogs();
+      toast(`Filter "${f.name}" loaded`, 'success', 1800);
+    });
+  });
+  el.querySelectorAll('[data-del-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      settings.savedFilters.splice(parseInt(btn.dataset.delFilter), 1);
+      saveAll(); renderSavedFilterPresets();
+    });
+  });
+}
+
+function saveCurrentFilterPreset() {
+  openFormModal({
+    title: '💾 Save Filter Preset',
+    saveLabel: 'Save',
+    bodyHtml: `<label>Preset name</label><input type="text" id="filterPresetName" placeholder="e.g. Unpaid this month">`,
+    onSave: () => {
+      const name = $('#filterPresetName')?.value?.trim();
+      if (!name) return;
+      const preset = {
+        id: Date.now().toString(36),
+        name,
+        status: logStatusFilter,
+        pay:    logPayFilter,
+        tag:    logTagFilter,
+        range:  logRangeFilter,
+        search: logSearchTerm,
+      };
+      settings.savedFilters = [...(settings.savedFilters || []), preset];
+      saveAll();
+      renderSavedFilterPresets();
+      toast(`Preset "${name}" saved ✓`, 'success');
+    }
+  });
+}
+
+/* ============================================================
+   Round 12 — Feature 10: Per-job internal comment thread
+   ============================================================ */
+function renderOrderComments(orderId) {
+  const el = $('#orderCommentsSection');
+  if (!el) return;
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+  const comments = order.comments || [];
+  const opName = settings.activeOperatorId
+    ? (operators.find(op => op.id === settings.activeOperatorId)?.name || 'Operator')
+    : (settings.bizEn || 'Admin');
+
+  el.innerHTML = `
+    <div id="commentFeed" style="max-height:260px;overflow-y:auto;margin-bottom:12px;display:flex;flex-direction:column;gap:8px;">
+      ${comments.length === 0 ? '<p style="color:var(--text-muted);font-size:12.5px;margin:0;">No internal notes yet.</p>' :
+        comments.map(c => `
+          <div style="background:var(--bg-elev);border-radius:var(--radius);padding:8px 12px;border-left:3px solid var(--primary);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+              <span style="font-size:12px;font-weight:600;color:var(--primary);">${escapeHtml(c.authorName||'—')}</span>
+              <span style="font-size:11px;color:var(--text-muted);">${new Date(c.createdAt).toLocaleString()}</span>
+            </div>
+            <p style="margin:0;font-size:13px;white-space:pre-wrap;">${escapeHtml(c.text)}</p>
+          </div>`).join('')
+      }
+    </div>
+    <div style="display:flex;gap:8px;align-items:flex-end;">
+      <textarea id="commentInput" rows="2" placeholder="Add internal note…" style="flex:1;resize:vertical;font-size:13px;"></textarea>
+      <button class="btn primary" id="btnPostComment">Post</button>
+    </div>`;
+
+  // Auto-scroll to bottom
+  const feed = el.querySelector('#commentFeed');
+  if (feed) feed.scrollTop = feed.scrollHeight;
+
+  el.querySelector('#btnPostComment')?.addEventListener('click', () => {
+    const text = el.querySelector('#commentInput')?.value?.trim();
+    if (!text) return;
+    if (!order.comments) order.comments = [];
+    order.comments.push({
+      id: Date.now().toString(36),
+      authorName: opName,
+      text,
+      createdAt: new Date().toISOString(),
+    });
+    saveAll();
+    renderOrderComments(orderId);
+  });
+}
+
 function renderDashboard() {
   const el = $('#dashboardContent');
   if (!el) return;
@@ -9079,6 +9890,8 @@ function renderDashboard() {
 
     <div id="capacityGaugeSection"></div>
 
+    <div id="breakEvenSection" class="pro-only" style="margin-bottom:14px;"></div>
+
     ${(() => {
       const forecastItems = computeMaterialForecast();
       if (forecastItems.length === 0) return '';
@@ -9111,6 +9924,8 @@ function renderDashboard() {
   );
   // Feature 5: Render capacity gauge into its placeholder
   renderCapacityGauge();
+  // Round 12: break-even card
+  renderBreakEvenCard();
 }
 
 /* ============================================================
@@ -9572,6 +10387,9 @@ function renderLogs() {
         ${log.status === 'quote' && (log.quoteRevisions || []).length > 0 ? `<button class="btn small ghost" data-act="quote-revisions" data-id="${log.id}" title="${escapeHtml(t('ord.quote_revisions'))}">🕐 v${log.quoteVersion || 1}</button>` : ''}
         ${log.status !== 'completed' && (log.parts || []).length > 1 ? `<button class="btn small ghost" data-act="partial-delivery" data-id="${log.id}" title="${escapeHtml(t('ord.partial_delivery'))}">📦 ${escapeHtml(t('ord.partial_delivery'))}</button>` : ''}
         ${log.status !== 'completed' && (log.parts || []).some(p => p.spoolId) ? `<button class="btn small ghost" data-act="log-spool-switch" data-id="${log.id}" title="${escapeHtml(t('ord.spool_switch'))}">🔄 ${escapeHtml(t('ord.spool_switch'))}</button>` : ''}
+        ${log.status === 'completed' ? `<button class="btn small ghost" data-act="gen-survey" data-id="${log.id}" title="Generate survey page">📊</button>` : ''}
+        ${log.status === 'completed' && !log.survey?.rating ? `<button class="btn small ghost" data-act="record-survey" data-id="${log.id}" title="Record customer rating">⭐</button>` : ''}
+        ${log.survey?.rating ? `<span title="Customer rating" style="font-size:12px;">⭐${log.survey.rating}</span>` : ''}
         <button class="btn danger small" data-act="del-log" data-id="${log.id}">${escapeHtml(t('common.delete'))}</button>
       </td>
     </tr>`;
@@ -10205,6 +11023,9 @@ function renderAnalytics() {
   renderClientRetention();
   renderCostTrends();
   renderOperatorAnalytics();
+  // Round 12 additions
+  renderAgedReceivables();
+  renderSurveyAnalytics();
 }
 
 /* ============================================================
@@ -12003,6 +12824,14 @@ function loadSettingsIntoForm() {
   renderOperatorLockSettings();
   // Feature 8 (new 8-pack): Loyalty tiers
   renderLoyaltyTiersSettings();
+  // Round 12: Webhooks
+  renderWebhookSettings();
+  // Round 12: Fixed costs / break-even
+  renderFixedCostSettings();
+  // Round 12: LAN API
+  renderLanApiSettings();
+  // Round 12: Saved filter presets
+  renderSavedFilterPresets();
   // Business Mode toggle buttons
   applyMode();
 }
@@ -12101,6 +12930,11 @@ function saveSettingsFromForm() {
     // Feature 8 (new 8-pack): Loyalty tiers
     loyaltyEnabled: !!$('#set_loyaltyEnabled')?.checked,
     loyaltyTiers:   settings.loyaltyTiers || [],
+    // Round 12 — preserve managed-in-place settings
+    webhooks:     settings.webhooks     || { enabled: false, secret: '', events: {} },
+    fixedCosts:   settings.fixedCosts   || [],
+    lanApi:       settings.lanApi       || { enabled: false, port: 3219, pin: '' },
+    savedFilters: settings.savedFilters || [],
   };
   saveAll();
   i18n.set(settings.lang);
@@ -12339,6 +13173,7 @@ function initialRender() {
   renderExpenses();
   checkDueDateNotifications();
   checkRecurringOrders();
+  patchRecurringOrdersWithLeadDays();  // Round 12: leadDays-aware auto-clone
   checkRecurringExpenses();
 }
 
@@ -12846,6 +13681,8 @@ function wireEvents() {
   // Logs — search/filter/export
   $('#btnExportCsv').addEventListener('click', exportOrdersCsv);
   $('#btnClearLogs').addEventListener('click', clearAllLogs);
+  $('#btnSaveFilterPreset')?.addEventListener('click', saveCurrentFilterPreset);
+  $('#btnExportAccounting')?.addEventListener('click', exportAccountingCSV);
   $('#logSearch').addEventListener('input', (e) => { logSearchTerm = e.target.value; renderLogs(); });
   $('#logStatusFilter').addEventListener('change', (e) => { logStatusFilter = e.target.value; renderLogs(); });
   $('#logPayFilter').addEventListener('change', (e) => { logPayFilter = e.target.value; renderLogs(); });
@@ -12918,6 +13755,11 @@ function wireEvents() {
     // Milestone invoices
     const milestoneBtn = e.target.closest('[data-act="milestone-invoices"]');
     if (milestoneBtn) openMilestoneInvoices(milestoneBtn.dataset.id);
+    // Round 12: NPS survey actions
+    const surveyBtn = e.target.closest('[data-act="gen-survey"]');
+    if (surveyBtn) generateSurveyPage(surveyBtn.dataset.id);
+    const recordSurveyBtn = e.target.closest('[data-act="record-survey"]');
+    if (recordSurveyBtn) openRecordSurveyModal(recordSurveyBtn.dataset.id);
     if (tagBtn) {
       logTagFilter = tagBtn.dataset.tag;
       const sel = $('#logTagFilter');
@@ -13549,6 +14391,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Daily auto-backup (silent) + populate last-backup label
   maybeAutoBackup();
   updateLastBackupDisplay();
+
+  // Round 12: Start LAN API server if enabled
+  if (settings.lanApi?.enabled) {
+    startLanServer().catch(() => {});
+  }
 
   // Business Mode setup wizard (new first-run experience)
   initWizard();
