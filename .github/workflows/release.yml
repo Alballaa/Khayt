@@ -122,8 +122,7 @@ jobs:
             libgbm-dev \
             fakeroot \
             dpkg \
-            icnsutils \
-            graphicsmagick
+            libfuse2
 
       - name: Install dependencies
         run: npm ci
@@ -134,6 +133,7 @@ jobs:
         run: npx electron-builder --linux --x64 --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPIMAGE_EXTRACT_AND_RUN: 1
 
       - uses: actions/upload-artifact@v4
         with:
