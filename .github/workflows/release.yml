@@ -138,7 +138,10 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: Khayt ${{ github.ref_name }}
           draft: false
-          prerelease: false
+          # Mark as pre-release automatically for beta/rc/alpha tags
+          prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-rc') || contains(github.ref_name, '-alpha') }}
+          # Update existing release if already created (e.g. manually via API)
+          make_latest: ${{ !contains(github.ref_name, '-beta') && !contains(github.ref_name, '-rc') && !contains(github.ref_name, '-alpha') }}
           fail_on_unmatched_files: false
           body: |
             ## Khayt ${{ github.ref_name }}
