@@ -1222,6 +1222,62 @@ const STRINGS = {
     'an.net_contribution':      'Net',
     'an.mat_cost_col':          'Material Cost',
     'an.linked_exp_col':        'Linked Exp.',
+
+    // ---------- Feature 1: Multi-machine parallel job visibility ----------
+    'kan.multi_machine':        'Split across {n} printers',
+
+    // ---------- Feature 2: Manual print timestamps ----------
+    'oe.actual_timestamps':     'Actual timestamps',
+    'oe.printing_started_at':   'Actual print start',
+    'oe.completed_at_actual':   'Actual completion',
+    'ord.actual_duration':      'Actual: {h}h {m}m',
+
+    // ---------- Feature 3: Spool over-commitment warning ----------
+    'inv.overcommit_warn':      'Over-committed',
+    'inv.overcommit_confirm':   'Spool {name} needs {needed}g but only {available}g available after existing reservations. Save anyway?',
+
+    // ---------- Feature 4: Instalment WhatsApp reminders ----------
+    'dash.payments_due':        'Payments Due Soon',
+    'dash.inst_remind':         'Send reminder',
+    'ord.inst_badge':           'Payment due',
+
+    // ---------- Feature 5: Capacity gauge ----------
+    'dash.capacity_title':      'Capacity This Week',
+    'dash.capacity_booked':     '{pct}% booked',
+    'dash.capacity_no_targets': 'Set target hours/day on machines to enable this forecast.',
+
+    // ---------- Feature 6: Quote approval page ----------
+    'ord.quote_approval_page':  'Approval page',
+    'ord.quote_approval_saved': 'Quote approval page saved and opened.',
+    'ord.quote_how_to_approve': 'To approve this quote, reply by email or WhatsApp.',
+
+    // ---------- Feature 7: Test print library ----------
+    'inv.test_prints':          'Test Prints',
+    'inv.test_add':             'Log test print',
+    'inv.test_type':            'Test type',
+    'inv.test_result':          'Result',
+    'inv.test_machine':         'Machine',
+    'inv.test_speed':           'Speed (mm/s)',
+    'inv.test_weight_used':     'Material used (g)',
+    'inv.test_saved':           'Test print logged.',
+    'inv.test.temp_tower':      'Temperature Tower',
+    'inv.test.retraction':      'Retraction Test',
+    'inv.test.first_layer':     'First Layer Cal',
+    'inv.test.stringing':       'Stringing Test',
+    'inv.test.overhang':        'Overhang Test',
+    'inv.test.dimensional':     'Dimensional Accuracy',
+    'inv.test.other':           'Other',
+    'inv.test.excellent':       'Excellent',
+    'inv.test.good':            'Good',
+    'inv.test.fair':            'Fair',
+    'inv.test.poor':            'Poor',
+
+    // ---------- Feature 8: Order edit history ----------
+    'ord.edit_history':         'Edit history',
+    'ord.edit_history_empty':   'No edits recorded.',
+    'ord.edit_at':              'Edited',
+    'ord.edit_fields':          'Changes',
+    'ord.edit_badge':           'Edited',
   },
 
   ar: {

@@ -23,6 +23,7 @@ const K = {
   SUPPLIERS:   'hub_suppliers_v1',
   CURRENT_BUILD: 'hub_current_build_v1',
   PURCHASE_ORDERS: 'hub_purchase_orders_v1',
+  TEST_PRINTS: 'hub_test_prints_v1',
 };
 
 /* ---------- App state ---------- */
@@ -45,6 +46,7 @@ let machMaintLog  = loadJSON(K.MAINT, []);
 let consumables   = loadJSON(K.CONSUMABLES, []);
 let suppliers     = loadJSON(K.SUPPLIERS, []);
 let purchaseOrders = loadJSON(K.PURCHASE_ORDERS, []);
+let testPrints     = loadJSON(K.TEST_PRINTS, []);
 
 // Runtime-only state (not persisted)
 let kanbanTimerInterval = null;
@@ -344,7 +346,7 @@ function saveAll() {
   const store = {
     printLog, inventory, templates, products, clients, settings, printers,
     expenses, machines, waTemplates, wasteLog, machMaintLog, consumables,
-    suppliers, purchaseOrders,
+    suppliers, purchaseOrders, testPrints,
   };
   if (window.hubAPI?.saveStore) {
     window.hubAPI.saveStore(store).catch(e => console.error('Save failed:', e));
@@ -410,6 +412,7 @@ async function loadAll() {
     if (store.consumables)    consumables    = store.consumables;
     if (store.suppliers)      suppliers      = store.suppliers;
     if (store.purchaseOrders) purchaseOrders = store.purchaseOrders;
+    if (store.testPrints)     testPrints     = store.testPrints;
     if (store.settings)       settings       = Object.assign({}, defaultSettings(), store.settings);
   }
 }
@@ -2420,6 +2423,39 @@ function getSpoolReservedGrams(spoolId) {
     , 0);
 }
 
+// Helper: return YYYY-MM-DD string n days from now
+function todayPlusDays(n) {
+  const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() + n);
+  return d.toISOString().split('T')[0];
+}
+
+// Feature 3: Check if saving parts would over-commit any spool
+function checkSpoolOvercommit(parts, excludeOrderId) {
+  const warnings = [];
+  for (const part of (parts || [])) {
+    if (!part.spoolId) continue;
+    const item = inventory.find(i => i.id === part.spoolId);
+    if (!item) continue;
+    // Compute already-reserved excluding the order being edited
+    const alreadyReserved = printLog
+      .filter(o => o.status !== 'completed' && o.status !== 'quote' && o.id !== excludeOrderId)
+      .reduce((s, o) =>
+        s + (o.parts || [])
+          .filter(p => p.spoolId === part.spoolId)
+          .reduce((ps, p) => ps + (+p.weight || +p.printWeight || 0), 0)
+      , 0);
+    const thisJobNeeds = +(part.weight || part.printWeight || 0);
+    if (alreadyReserved + thisJobNeeds > item.weight) {
+      warnings.push({
+        spoolName: item.material,
+        available: Math.max(0, item.weight - alreadyReserved),
+        needed: thisJobNeeds,
+      });
+    }
+  }
+  return warnings;
+}
+
 function renderInventory() {
   const tbody = $('#inventoryTable tbody');
   if (inventory.length === 0) {
@@ -2442,14 +2478,23 @@ function renderInventory() {
         }
       }
       const reserved = Math.round(getSpoolReservedGrams(item.id));
+      const isOvercommit = reserved > item.weight;
       const reservedBadge = reserved > 0
         ? ` <span class="spool-reserved-badge">${escapeHtml(t('inv.reserved'))}: ${reserved}${escapeHtml(t('common.grams'))}</span>`
+        : '';
+      const overcommitBadge = isOvercommit
+        ? ` <span style="background:var(--danger);color:#fff;font-size:10px;padding:1px 5px;border-radius:3px;font-weight:600;">⚠ ${escapeHtml(t('inv.overcommit_warn'))}</span>`
+        : '';
+      // Feature 7: Test prints badge
+      const spoolTestCount = testPrints.filter(tp => tp.spoolId === item.id).length;
+      const testBadge = spoolTestCount > 0
+        ? ` <span style="font-size:10px;color:var(--primary);">🧪 ${spoolTestCount}</span>`
         : '';
       return `
         <tr${low ? ' style="background: rgba(245,166,35,0.08);"' : ''}>
           <td style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:${escapeHtml(item.color || '#888888')}; flex-shrink:0; border:1px solid rgba(255,255,255,0.15);"></span>
-            <strong>${escapeHtml(item.material)}</strong>${low ? ' <span style="color:var(--warning); font-size:11px;">· low</span>' : ''}${ageBadge}${reservedBadge}
+            <strong>${escapeHtml(item.material)}</strong>${low ? ' <span style="color:var(--warning); font-size:11px;">· low</span>' : ''}${ageBadge}${reservedBadge}${overcommitBadge}${testBadge}
             ${item.printTemp || item.bedTemp ? `<span style="font-size:10px; color:var(--primary);">🌡 ${item.printTemp ? item.printTemp + '°C print' : ''}${item.printTemp && item.bedTemp ? ' / ' : ''}${item.bedTemp ? item.bedTemp + '°C bed' : ''}</span>` : ''}
           </td>
           <td style="font-variant-numeric: tabular-nums;">${fmtPrice(item.cost)}</td>
@@ -2474,6 +2519,7 @@ function renderInventory() {
               return `<span class="drying-ok-badge" style="margin-inline-end:6px;">✅ ${escapeHtml(t('inv.dry_ok', { n: daysSince }))}</span>`;
             })()}
             ${low ? `<button class="btn small" data-act="reorder-inv" data-id="${item.id}" style="margin-inline-end:4px; color:var(--warning); border-color:var(--warning);">${escapeHtml(t('inv.reorder'))}</button>` : ''}
+            <button class="btn small ghost" data-act="inv-test-print" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.test_prints'))}">🧪</button>
             <button class="btn small ghost" data-act="inv-dry-log" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.dry_log'))}">🌡</button>
             <button class="btn small ghost" data-act="inv-spool-history" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.spool_history'))}">📋</button>
             <button class="btn small ghost" data-act="adj-inv" data-id="${item.id}" style="margin-inline-end:4px;">${escapeHtml(t('inv.adjust'))}</button>
@@ -2661,6 +2707,137 @@ function openDryingLog(itemId) {
       saveAll();
       renderInventory();
       toast(t('inv.dry_add'), 'success');
+      return true;
+    }
+  });
+}
+
+/* ============================================================
+   Feature 7: Test Print / Calibration Library
+   ============================================================ */
+function openTestPrintLog(itemId) {
+  const item = inventory.find(i => i.id === itemId);
+  if (!item) return;
+  const todayStr = new Date().toISOString().split('T')[0];
+  const TEST_TYPES = ['temp_tower','retraction','first_layer','stringing','overhang','dimensional','other'];
+  const TEST_RESULTS = ['excellent','good','fair','poor'];
+
+  function listHtml() {
+    const entries = testPrints.filter(tp => tp.spoolId === itemId)
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    if (entries.length === 0)
+      return `<p style="color:var(--text-muted); font-size:13px; text-align:center; padding:10px 0;">${escapeHtml(t('inv.spool_hist_empty'))}</p>`;
+    return `<div class="table-wrap"><table style="width:100%; font-size:12px;">
+      <thead><tr>
+        <th>${escapeHtml(t('common.date'))}</th>
+        <th>${escapeHtml(t('inv.test_machine'))}</th>
+        <th>${escapeHtml(t('inv.test_type'))}</th>
+        <th>Print°C</th>
+        <th>Bed°C</th>
+        <th>${escapeHtml(t('inv.test_speed'))}</th>
+        <th>${escapeHtml(t('inv.test_result'))}</th>
+        <th>${escapeHtml(t('common.notes'))}</th>
+        <th>${escapeHtml(t('inv.test_weight_used'))}</th>
+        <th></th>
+      </tr></thead>
+      <tbody>${entries.map(e => {
+        const mach = e.machineId ? machines.find(m => m.id === e.machineId) : null;
+        return `<tr>
+          <td style="white-space:nowrap; color:var(--text-dim);">${escapeHtml(e.date || '')}</td>
+          <td>${mach ? escapeHtml(mach.name) : '—'}</td>
+          <td>${escapeHtml(t('inv.test.' + (e.testType || 'other')))}</td>
+          <td>${e.printTemp ? escapeHtml(String(e.printTemp)) + '°' : '—'}</td>
+          <td>${e.bedTemp ? escapeHtml(String(e.bedTemp)) + '°' : '—'}</td>
+          <td>${e.speed ? escapeHtml(String(e.speed)) : '—'}</td>
+          <td style="color:${e.result === 'excellent' || e.result === 'good' ? 'var(--success)' : e.result === 'poor' ? 'var(--danger)' : 'var(--warning)'};">${escapeHtml(t('inv.test.' + (e.result || 'good')))}</td>
+          <td style="color:var(--text-muted);">${escapeHtml(e.notes || '')}</td>
+          <td>${e.weightUsed ? escapeHtml(String(e.weightUsed)) + 'g' : '—'}</td>
+          <td><button class="btn danger small" data-act="del-test" data-test-id="${e.id}">×</button></td>
+        </tr>`;
+      }).join('')}
+      </tbody>
+    </table></div>`;
+  }
+
+  const machOptions = `<option value="">${escapeHtml(t('mach.unassigned'))}</option>` +
+    machines.map(m => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
+  const typeOptions = TEST_TYPES.map(tp => `<option value="${tp}">${escapeHtml(t('inv.test.' + tp))}</option>`).join('');
+  const resultOptions = TEST_RESULTS.map(r => `<option value="${r}">${escapeHtml(t('inv.test.' + r))}</option>`).join('');
+
+  openFormModal({
+    title: `${escapeHtml(item.material)} — ${t('inv.test_prints')}`,
+    saveLabel: t('inv.test_add'),
+    sizeLg: true,
+    bodyHtml: `
+      <div style="background:var(--surface-2); padding:14px; border-radius:var(--radius); margin-bottom:14px;">
+        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; align-items:end;">
+          <div>
+            <label style="margin:0;">${escapeHtml(t('common.date'))}</label>
+            <input type="date" id="tpDate" value="${todayStr}">
+          </div>
+          <div>
+            <label style="margin:0;">${escapeHtml(t('inv.test_machine'))}</label>
+            <select id="tpMachine">${machOptions}</select>
+          </div>
+          <div>
+            <label style="margin:0;">${escapeHtml(t('inv.test_type'))}</label>
+            <select id="tpType">${typeOptions}</select>
+          </div>
+          <div>
+            <label style="margin:0;">${escapeHtml(t('inv.test_result'))}</label>
+            <select id="tpResult">${resultOptions}</select>
+          </div>
+          <div>
+            <label style="margin:0;">${escapeHtml(t('inv.print_temp'))}</label>
+            <input type="number" id="tpPrintTemp" min="0" max="350" step="1" placeholder="210">
+          </div>
+          <div>
+            <label style="margin:0;">${escapeHtml(t('inv.bed_temp'))}</label>
+            <input type="number" id="tpBedTemp" min="0" max="150" step="1" placeholder="60">
+          </div>
+          <div>
+            <label style="margin:0;">${escapeHtml(t('inv.test_speed'))}</label>
+            <input type="number" id="tpSpeed" min="0" step="1" placeholder="60">
+          </div>
+          <div>
+            <label style="margin:0;">${escapeHtml(t('inv.test_weight_used'))}</label>
+            <input type="number" id="tpWeight" min="0" step="1" placeholder="5">
+          </div>
+        </div>
+        <div style="margin-top:8px;">
+          <label style="margin:0;">${escapeHtml(t('common.notes'))}</label>
+          <input type="text" id="tpNotes" placeholder="${escapeHtml(t('common.optional'))}">
+        </div>
+      </div>
+      <div id="testPrintList">${listHtml()}</div>
+    `,
+    onMount(modal) {
+      modal.querySelector('#testPrintList').addEventListener('click', async (e) => {
+        const btn = e.target.closest('[data-act="del-test"]');
+        if (!btn) return;
+        testPrints = testPrints.filter(tp => tp.id !== btn.dataset.testId);
+        saveAll();
+        modal.querySelector('#testPrintList').innerHTML = listHtml();
+        renderInventory();
+      });
+    },
+    onSave(modal) {
+      const date      = modal.querySelector('#tpDate').value || todayStr;
+      const machineId = modal.querySelector('#tpMachine').value || null;
+      const testType  = modal.querySelector('#tpType').value || 'other';
+      const result    = modal.querySelector('#tpResult').value || 'good';
+      const printTemp = parseFloat(modal.querySelector('#tpPrintTemp').value) || null;
+      const bedTemp   = parseFloat(modal.querySelector('#tpBedTemp').value) || null;
+      const speed     = parseFloat(modal.querySelector('#tpSpeed').value) || null;
+      const notes     = modal.querySelector('#tpNotes').value.trim();
+      const weightUsed = parseFloat(modal.querySelector('#tpWeight').value) || 0;
+      testPrints.unshift({ id: uid('TP'), spoolId: itemId, date, machineId, testType, result, printTemp, bedTemp, speed, notes, weightUsed });
+      if (weightUsed > 0) {
+        item.weight = Math.max(0, item.weight - weightUsed);
+      }
+      saveAll();
+      renderInventory();
+      toast(t('inv.test_saved'), 'success');
       return true;
     }
   });
@@ -4618,6 +4795,20 @@ function openOrderEditor(orderId) {
       </div>`;
     })()}
 
+    <details style="margin-top:18px; padding-top:14px; border-top:1px solid var(--border-soft);">
+      <summary style="cursor:pointer; font-size:12.5px; font-weight:600; color:var(--text-dim); user-select:none; padding:2px 0; margin-bottom:10px;">${escapeHtml(t('oe.actual_timestamps'))}</summary>
+      <div class="inline-pair">
+        <div>
+          <label style="margin-top:0;">${escapeHtml(t('oe.printing_started_at'))}</label>
+          <input type="datetime-local" id="oePrintingStartedAt" value="${order.printingStartedAt ? order.printingStartedAt.slice(0,16) : ''}">
+        </div>
+        <div>
+          <label style="margin-top:0;">${escapeHtml(t('oe.completed_at_actual'))}</label>
+          <input type="datetime-local" id="oeCompletedAt" value="${order.completedAt ? order.completedAt.slice(0,16) : ''}">
+        </div>
+      </div>
+    </details>
+
     <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--border-soft);">
       <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
         <label style="margin:0; flex:1; font-size:12.5px; font-weight:600;">${escapeHtml(t('inst.title'))}</label>
@@ -4818,6 +5009,33 @@ function openOrderEditor(orderId) {
       });
     },
     async onSave() {
+      // Feature 3: Spool over-commit check
+      const ocWarnings = checkSpoolOvercommit(order.parts || [], order.id);
+      if (ocWarnings.length > 0) {
+        const msgs = ocWarnings.map(w =>
+          t('inv.overcommit_confirm', { name: w.spoolName, needed: Math.round(w.needed), available: Math.round(w.available) })
+        ).join('\n');
+        const ok = confirm('⚠️ ' + msgs);
+        if (!ok) return false;
+      }
+
+      // Feature 8: Record edit history before overwriting
+      const existingOrder = printLog.find(o => o.id === order.id);
+      if (existingOrder) {
+        const changedFields = {};
+        const checkField = (key, newVal) => {
+          const oldVal = existingOrder[key];
+          if (String(oldVal ?? '') !== String(newVal ?? '')) {
+            changedFields[key] = { from: oldVal, to: newVal };
+          }
+        };
+        checkField('dueDate', draft.dueDate || null);
+        checkField('discountPct', draft.discountPct);
+        checkField('shippingCost', draft.shippingCost);
+        checkField('priority', draft.priority);
+        recordOrderEdit(order, changedFields);
+      }
+
       // Persist any pending full images to disk
       for (const { idx, dataUrl } of pendingFulls) {
         if (!draft.printPhotos[idx]) continue;
@@ -4845,6 +5063,17 @@ function openOrderEditor(orderId) {
       order.trackingNumber = draft.trackingNumber || undefined;
       order.deliveryAddress = draft.deliveryAddress || undefined;
       order.instalments = draft.instalments.length > 0 ? draft.instalments.map(ins => ({ ...ins })) : undefined;
+      // Feature 2: Persist actual timestamps
+      const psaEl = document.getElementById('oePrintingStartedAt');
+      const cmpEl = document.getElementById('oeCompletedAt');
+      if (psaEl && psaEl.value) {
+        order.printingStartedAt = new Date(psaEl.value).toISOString();
+      } else if (psaEl && !psaEl.value) {
+        // keep existing if present and field left blank intentionally only clear if was never set
+      }
+      if (cmpEl && cmpEl.value) {
+        order.completedAt = new Date(cmpEl.value).toISOString();
+      }
       // Update paidAmount from instalments if present
       if (draft.instalments.length > 0) {
         const instPaid = draft.instalments.filter(ins => ins.paid).reduce((s, ins) => s + (+ins.amount || 0), 0);
@@ -5728,6 +5957,226 @@ function exportTaxSummary() {
 /* ============================================================
    Dashboard
    ============================================================ */
+/* ============================================================
+   Feature 6: Quote Approval Page Export
+   ============================================================ */
+async function exportQuoteApprovalPage(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+  const client = order.clientId ? clients.find(c => c.id === order.clientId) : null;
+  const bizName = settings.bizEn || 'Khayt';
+  const contactEmail = settings.email || '';
+  const contactPhone = settings.phone || '';
+  const cur = currencySymbol();
+  const vatEnabled = settings.enableVat && settings.vatRate > 0;
+  const vatRate = +settings.vatRate || 15;
+  const subtotal = +order.price || 0;
+  const vatAmt = vatEnabled ? Math.round(subtotal / (1 + vatRate / 100) * (vatRate / 100) * 100) / 100 : 0;
+  const grandTotal = subtotal;
+
+  const partsHtml = (order.parts || []).map((p, i) => `
+    <tr>
+      <td>${i + 1}. ${escapeHtml(p.name || '')}</td>
+      <td style="text-align:center;">${p.qty || 1}</td>
+      <td>${escapeHtml(p.material || '')}</td>
+      <td style="text-align:right;">${fmtMoney((+order.price || 0) / Math.max(1, (order.parts || []).length))} ${cur}</td>
+      <td style="text-align:right;">${fmtMoney((+order.price || 0) / Math.max(1, (order.parts || []).length))} ${cur}</td>
+    </tr>`).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quote ${escapeHtml(order.id)} — ${escapeHtml(bizName)}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a2e; background: #f8f9fa; padding: 20px; }
+    .container { max-width: 700px; margin: 0 auto; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 20px rgba(0,0,0,0.08); }
+    .header { background: ${settings.invAccentColor || '#5E2E14'}; color: #fff; padding: 28px 32px; }
+    .header h1 { font-size: 1.6rem; font-weight: 700; }
+    .header p { opacity: 0.85; font-size: 0.9rem; margin-top: 4px; }
+    .body { padding: 28px 32px; }
+    .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+    .meta-block { }
+    .meta-block h3 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #888; margin-bottom: 4px; }
+    .meta-block p { font-size: 0.95rem; color: #1a1a2e; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    th { background: #f1f3f5; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: #555; padding: 10px 14px; text-align: left; }
+    td { padding: 10px 14px; border-bottom: 1px solid #eee; font-size: 0.9rem; }
+    .total-row { font-weight: 700; background: #f8f9fa; }
+    .approve-section { margin-top: 28px; padding: 20px; background: #f0f7ff; border-radius: 8px; border-left: 4px solid ${settings.invAccentColor || '#5E2E14'}; }
+    .approve-section h2 { font-size: 1.1rem; margin-bottom: 10px; color: ${settings.invAccentColor || '#5E2E14'}; }
+    .approve-section p { font-size: 0.9rem; color: #333; line-height: 1.5; }
+    @media (max-width: 600px) { .meta { grid-template-columns: 1fr; } .container { border-radius: 0; } }
+    @media print { body { background: #fff; } .container { box-shadow: none; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>${escapeHtml(bizName)}</h1>
+      <p>${escapeHtml(t('ord.quote_approval_page'))} · ${escapeHtml(order.id)}</p>
+    </div>
+    <div class="body">
+      <div class="meta">
+        <div class="meta-block">
+          <h3>${escapeHtml(t('inv.invoice_no') || 'Quote #')}</h3>
+          <p>${escapeHtml(order.id)}</p>
+        </div>
+        <div class="meta-block">
+          <h3>${escapeHtml(t('inv.date'))}</h3>
+          <p>${escapeHtml(order.date || '')}</p>
+        </div>
+        ${order.quoteExpiresAt ? `<div class="meta-block">
+          <h3>Expires</h3>
+          <p>${escapeHtml(order.quoteExpiresAt)}</p>
+        </div>` : ''}
+        ${client ? `<div class="meta-block">
+          <h3>${escapeHtml(t('inv.billed_to'))}</h3>
+          <p>${escapeHtml(client.nameEn || client.nameAr || '')}</p>
+        </div>` : ''}
+      </div>
+
+      <table>
+        <thead><tr>
+          <th>${escapeHtml(t('inv.description'))}</th>
+          <th style="text-align:center;">${escapeHtml(t('inv.qty'))}</th>
+          <th>Material</th>
+          <th style="text-align:right;">Unit Price</th>
+          <th style="text-align:right;">${escapeHtml(t('inv.line_total'))}</th>
+        </tr></thead>
+        <tbody>
+          ${partsHtml || `<tr><td colspan="5">${escapeHtml(order.project || '')}</td></tr>`}
+        </tbody>
+        <tfoot>
+          <tr class="total-row">
+            <td colspan="4" style="text-align:right;">${escapeHtml(t('inv.grand_total'))}</td>
+            <td style="text-align:right;">${fmtMoney(grandTotal)} ${cur}</td>
+          </tr>
+          ${vatEnabled ? `<tr style="font-size:0.82rem;color:#888;"><td colspan="4" style="text-align:right;">VAT (${vatRate}%)</td><td style="text-align:right;">${fmtMoney(vatAmt)} ${cur}</td></tr>` : ''}
+        </tfoot>
+      </table>
+
+      <div class="approve-section">
+        <h2>✅ ${escapeHtml(t('ord.quote_approval_page'))}</h2>
+        <p>${escapeHtml(t('ord.quote_how_to_approve'))}</p>
+        ${contactEmail ? `<p style="margin-top:8px;">📧 <a href="mailto:${escapeHtml(contactEmail)}?subject=I approve quote ${escapeHtml(order.id)}">${escapeHtml(contactEmail)}</a></p>` : ''}
+        ${contactPhone ? `<p style="margin-top:4px;">📱 <a href="https://wa.me/${contactPhone.replace(/\D/g,'')}?text=I approve quote ${escapeHtml(order.id)}">${escapeHtml(contactPhone)} (WhatsApp)</a></p>` : ''}
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  try {
+    const saved = await window.hubAPI.saveHtml(html, `quote-${orderId}.html`);
+    if (saved) toast(t('ord.quote_approval_saved'), 'success');
+  } catch (e) {
+    console.error('exportQuoteApprovalPage error', e);
+    toast('Could not save approval page.', 'error');
+  }
+}
+
+/* ============================================================
+   Feature 8: Order Edit History / Audit Trail
+   ============================================================ */
+function recordOrderEdit(order, changedFields) {
+  if (!changedFields || Object.keys(changedFields).length === 0) return;
+  order.editHistory = order.editHistory || [];
+  order.editHistory.push({
+    id: uid('edit'),
+    at: new Date().toISOString(),
+    fields: changedFields,
+  });
+}
+
+function openEditHistoryModal(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+  const history = order.editHistory || [];
+  const bodyHtml = history.length === 0
+    ? `<p style="color:var(--text-muted); text-align:center; padding:20px;">${escapeHtml(t('ord.edit_history_empty'))}</p>`
+    : `<div class="table-wrap"><table style="width:100%; font-size:12.5px;">
+        <thead><tr>
+          <th>${escapeHtml(t('ord.edit_at'))}</th>
+          <th>${escapeHtml(t('ord.edit_fields'))}</th>
+        </tr></thead>
+        <tbody>${[...history].reverse().map(h => {
+          const d = new Date(h.at);
+          const dateStr = d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) + ' ' + d.toTimeString().slice(0,5);
+          const fieldRows = Object.entries(h.fields).map(([k, v]) =>
+            `<div style="margin-bottom:2px;"><strong>${escapeHtml(k)}:</strong> <span style="color:var(--danger);">${escapeHtml(String(v.from ?? ''))}</span> → <span style="color:var(--success);">${escapeHtml(String(v.to ?? ''))}</span></div>`
+          ).join('');
+          return `<tr>
+            <td style="white-space:nowrap; color:var(--text-dim); vertical-align:top;">${escapeHtml(dateStr)}</td>
+            <td>${fieldRows}</td>
+          </tr>`;
+        }).join('')}
+        </tbody>
+      </table></div>`;
+  openFormModal({
+    title: `${t('ord.edit_history')} — ${escapeHtml(orderId)}`,
+    noSave: true,
+    sizeLg: true,
+    bodyHtml,
+  });
+}
+
+/* ============================================================
+   Feature 5: Capacity Forecast
+   ============================================================ */
+function computeCapacityForecast() {
+  const activeStatuses = ['pending','printing','post','on_hold'];
+  const rows = [];
+  let totalBooked = 0, totalAvail = 0;
+  for (const m of machines) {
+    const avail = +(m.targetHoursPerDay || 0);
+    if (avail <= 0) continue;
+    const availableHours = avail * 7;
+    const bookedHours = printLog
+      .filter(o => o.machineId === m.id && activeStatuses.includes(o.status))
+      .reduce((s, o) => s + (+o.printTime || 0), 0);
+    const pct = Math.min(100, Math.round(bookedHours / availableHours * 100));
+    rows.push({ machineName: m.name, color: m.color, bookedHours, availableHours, pct });
+    totalBooked += bookedHours;
+    totalAvail  += availableHours;
+  }
+  return { rows, totalBooked, totalAvail, totalPct: totalAvail > 0 ? Math.min(100, Math.round(totalBooked / totalAvail * 100)) : 0 };
+}
+
+function renderCapacityGauge() {
+  const el = $('#capacityGaugeSection');
+  if (!el) return;
+  const { rows, totalPct } = computeCapacityForecast();
+  if (rows.length === 0) {
+    el.innerHTML = `<div class="dash-section" style="margin-bottom:14px;">
+      <h3 class="dash-section-head">${escapeHtml(t('dash.capacity_title'))}</h3>
+      <p style="color:var(--text-muted); font-size:12.5px;">${escapeHtml(t('dash.capacity_no_targets'))}</p>
+    </div>`;
+    return;
+  }
+  const gaugeRows = rows.map(r => {
+    const col = r.pct >= 90 ? 'var(--danger)' : r.pct >= 70 ? 'var(--warning)' : 'var(--success)';
+    return `<div style="margin-bottom:8px;">
+      <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:3px;">
+        <span style="display:flex; align-items:center; gap:6px;">
+          <span style="width:8px;height:8px;border-radius:50%;background:${escapeHtml(r.color)};display:inline-block;"></span>
+          ${escapeHtml(r.machineName)}
+        </span>
+        <span style="color:var(--text-muted);">${r.bookedHours.toFixed(1)}h / ${r.availableHours.toFixed(1)}h (${r.pct}%)</span>
+      </div>
+      <div style="background:var(--surface-2); border-radius:3px; height:6px; overflow:hidden;">
+        <div style="width:${r.pct}%; height:100%; background:${col}; transition:width 0.3s;"></div>
+      </div>
+    </div>`;
+  }).join('');
+  el.innerHTML = `<div class="dash-section" style="margin-bottom:14px;">
+    <h3 class="dash-section-head">${escapeHtml(t('dash.capacity_title'))} <span style="font-size:11px;font-weight:400;color:var(--text-muted);">${escapeHtml(t('dash.capacity_booked', { pct: totalPct }))}</span></h3>
+    ${gaugeRows}
+  </div>`;
+}
+
 function renderDashboard() {
   const el = $('#dashboardContent');
   if (!el) return;
@@ -6047,6 +6496,45 @@ function renderDashboard() {
       }).join('')}
     </div>` : ''}
 
+    ${(() => {
+      const sevenDaysFromNow = todayPlusDays(7);
+      const paymentsDue = [];
+      for (const o of printLog) {
+        if (!o.instalments) continue;
+        const client = o.clientId ? clients.find(c => c.id === o.clientId) : null;
+        o.instalments.forEach((inst, i) => {
+          if (!inst.paidAt && inst.dueDate && inst.dueDate <= sevenDaysFromNow) {
+            paymentsDue.push({ order: o, inst, instIndex: i, client });
+          }
+        });
+      }
+      if (paymentsDue.length === 0) return '';
+      return `<div class="dash-section" style="border-left:3px solid var(--primary); padding-inline-start:12px; margin-bottom:14px;">
+        <h3 class="dash-section-head" style="color:var(--primary);">💳 ${escapeHtml(t('dash.payments_due'))} (${paymentsDue.length})</h3>
+        ${paymentsDue.map(({ order: o, inst, instIndex, client }) => {
+          const clientName = client ? localName(client) : (o.project || o.id);
+          const daysUntil = Math.round((new Date(inst.dueDate + 'T00:00:00') - new Date(new Date().setHours(0,0,0,0))) / 86400000);
+          const badge = daysUntil < 0
+            ? `<span class="due-badge overdue">${Math.abs(daysUntil)}d overdue</span>`
+            : daysUntil === 0
+              ? `<span class="due-badge due-today">${escapeHtml(t('oe.due_today'))}</span>`
+              : `<span class="due-badge due-soon">${escapeHtml(t('oe.due_soon', { n: daysUntil }))}</span>`;
+          return `<div class="dash-order-row">
+            <div class="dash-order-info">
+              <strong>${escapeHtml(clientName)}</strong>
+              <span class="dash-order-id">${escapeHtml(o.id)} · ${escapeHtml(inst.note || '')} · ${fmtPrice(inst.amount || 0)}</span>
+            </div>
+            <div class="dash-order-meta">
+              ${badge}
+              ${client?.phone ? `<button class="btn small ghost" data-act="remind-instalment" data-order-id="${o.id}" data-inst-index="${instIndex}" title="${escapeHtml(t('dash.inst_remind'))}">💬</button>` : ''}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+    })()}
+
+    <div id="capacityGaugeSection"></div>
+
     <div class="dash-quick">
       <button class="btn primary" data-act="goto-tab" data-tab="calculator-tab" data-i18n="tab.calculator">Calculator</button>
       <button class="btn" data-act="goto-tab" data-tab="queue-tab" data-i18n="tab.queue">Production Queue</button>
@@ -6061,6 +6549,8 @@ function renderDashboard() {
   el.querySelectorAll('[data-act="goto-tab"]').forEach(btn =>
     btn.addEventListener('click', () => switchTab(btn.dataset.tab))
   );
+  // Feature 5: Render capacity gauge into its placeholder
+  renderCapacityGauge();
 }
 
 function renderKanban() {
@@ -6139,9 +6629,17 @@ function renderKanban() {
           ${qIdx > 0 ? `<button data-act="q-up" data-id="${log.id}" title="${escapeHtml(t('queue.move_up'))}">▲</button>` : ''}
           ${qIdx < sorted.length - 1 ? `<button data-act="q-down" data-id="${log.id}" title="${escapeHtml(t('queue.move_down'))}">▼</button>` : ''}
         </span>`;
-        // Feature 1: Per-machine ETA — only sum hours from same machine's queue
+        // Feature 1: Per-machine ETA — for multi-machine orders use MAX across all machines
         let hrsBefore = 0;
-        if (log.machineId) {
+        const logPartMids = [...new Set((log.parts || []).map(p => p.machineId).filter(Boolean))];
+        if (logPartMids.length > 1) {
+          // Multi-machine: take the max ETA across all machines used
+          hrsBefore = Math.max(...logPartMids.map(mid =>
+            sorted.slice(0, qIdx)
+              .filter(o => o.machineId === mid || (o.parts || []).some(p => p.machineId === mid))
+              .reduce((s, o) => s + (+o.printTime || 0), 0)
+          ));
+        } else if (log.machineId) {
           // Only count prior jobs on the same machine
           hrsBefore = sorted.slice(0, qIdx)
             .filter(o => o.machineId === log.machineId)
@@ -6170,10 +6668,21 @@ function renderKanban() {
       }
       const partCount = log.parts ? log.parts.length : 1;
       const partsLabel = partCount === 1 ? t('queue.parts_count_1') : t('queue.parts_count', { n: partCount });
-      const machine = log.machineId ? machines.find(m => m.id === log.machineId) : null;
-      const machineBadge = machine
-        ? `<span class="machine-badge${machine.isOffline ? ' mach-offline' : ''}" style="background:${escapeHtml(machine.color)};">${machine.isOffline ? '⚠ ' : ''}${escapeHtml(machine.name)}</span>`
-        : '';
+      // Feature 1: Multi-machine badge logic
+      const partMachineIds = [...new Set((log.parts || []).map(p => p.machineId).filter(Boolean))];
+      const isMultiMachine = partMachineIds.length > 1;
+      let machineBadge = '';
+      if (isMultiMachine) {
+        machineBadge = partMachineIds.map(mid => {
+          const m = machines.find(x => x.id === mid);
+          return m ? `<span class="machine-badge${m.isOffline ? ' mach-offline' : ''}" style="background:${escapeHtml(m.color)};">🖨 ${escapeHtml(m.name)}</span>` : '';
+        }).join('') + `<span class="multi-machine-badge" data-multi-machine="true" style="font-size:10px; background:rgba(91,156,240,0.15); color:var(--primary); padding:1px 6px; border-radius:3px; margin-inline-start:2px;">${escapeHtml(t('kan.multi_machine', { n: partMachineIds.length }))}</span>`;
+      } else {
+        const machine = log.machineId ? machines.find(m => m.id === log.machineId) : null;
+        machineBadge = machine
+          ? `<span class="machine-badge${machine.isOffline ? ' mach-offline' : ''}" style="background:${escapeHtml(machine.color)};">${machine.isOffline ? '⚠ ' : ''}${escapeHtml(machine.name)}</span>`
+          : '';
+      }
       // Live timer badge for printing orders
       let timerBadge = '';
       if (status === 'printing' && log.timerStart) {
@@ -6291,6 +6800,25 @@ function renderLogs() {
       <td>
         <span class="badge ${escapeHtml(log.status)}">${escapeHtml(t('queue.' + log.status))}</span>${log.deliveredAt ? ` <span style="font-size:10px; color:var(--success);">✓ ${escapeHtml(t('queue.delivered'))}</span>` : ''}
         ${log.status === 'completed' && log.completedAt ? `<div style="font-size:10.5px; color:var(--text-muted); margin-top:2px;">✓ ${escapeHtml(t('ord.completed_at'))}: ${escapeHtml(new Date(log.completedAt).toLocaleDateString())}</div>` : ''}
+        ${(() => {
+          // Feature 2: Actual duration badge
+          if (log.printingStartedAt && log.completedAt) {
+            const ms = new Date(log.completedAt) - new Date(log.printingStartedAt);
+            if (ms > 0) {
+              const totalMins = Math.round(ms / 60000);
+              const h = Math.floor(totalMins / 60), m = totalMins % 60;
+              return `<div style="font-size:10.5px; color:var(--primary); margin-top:1px;">⏱ ${escapeHtml(t('ord.actual_duration', { h, m }))}</div>`;
+            }
+          }
+          return '';
+        })()}
+        ${(() => {
+          // Feature 4: Instalment due badge
+          if (!log.instalments) return '';
+          const sevenDaysFromNow = todayPlusDays(7);
+          const hasDue = log.instalments.some(ins => !ins.paidAt && ins.dueDate && ins.dueDate <= sevenDaysFromNow);
+          return hasDue ? `<span style="font-size:10px; background:var(--primary); color:#fff; padding:1px 5px; border-radius:3px; margin-top:2px; display:inline-block;">💳 ${escapeHtml(t('ord.inst_badge'))}</span>` : '';
+        })()}
       </td>
       <td>${paymentBadge(log)}</td>
       <td style="font-size: 12.5px; color: var(--text-dim);">${escapeHtml(log.material)}</td>
@@ -6313,6 +6841,8 @@ function renderLogs() {
         <button class="btn small ghost" data-act="reprint-log" data-id="${log.id}" title="${escapeHtml(t('oe.reprint'))}">${escapeHtml(t('oe.reprint'))}</button>
         ${!isPaid ? `<button class="btn small ghost" data-act="pay-remind" data-id="${log.id}" title="${escapeHtml(t('pay.remind_btn'))}">💰</button>` : ''}
         ${log.trackingNumber ? `<button class="btn small ghost" data-act="share-tracking" data-id="${log.id}" title="${escapeHtml(t('ship.tracking_share'))}">📦</button>` : ''}
+        ${(log.editHistory && log.editHistory.length > 0) ? `<button class="btn small ghost" data-act="view-edit-history" data-id="${log.id}" title="${escapeHtml(t('ord.edit_history'))}">📝</button>` : ''}
+        ${log.status === 'quote' && log.clientId ? `<button class="btn small ghost" data-act="export-quote-approval" data-id="${log.id}" title="${escapeHtml(t('ord.quote_approval_page'))}">📋</button>` : ''}
         <button class="btn danger small" data-act="del-log" data-id="${log.id}">${escapeHtml(t('common.delete'))}</button>
       </td>
     </tr>`;
@@ -8795,6 +9325,7 @@ function wireEvents() {
     if (btn.dataset.act === 'adj-inv')           openStockAdjustModal(btn.dataset.id);
     if (btn.dataset.act === 'inv-spool-history') openSpoolHistory(btn.dataset.id);
     if (btn.dataset.act === 'inv-dry-log')       openDryingLog(btn.dataset.id);
+    if (btn.dataset.act === 'inv-test-print')    openTestPrintLog(btn.dataset.id);
   });
 
   // Consumables
@@ -8955,6 +9486,10 @@ function wireEvents() {
     if (emailQuo) emailOrderToClient(emailQuo.dataset.id, true);
     const statusPage = e.target.closest('[data-act="export-status-page"]');
     if (statusPage) exportOrderStatusPage(statusPage.dataset.id);
+    const editHistBtn = e.target.closest('[data-act="view-edit-history"]');
+    if (editHistBtn) openEditHistoryModal(editHistBtn.dataset.id);
+    const quoteApproval = e.target.closest('[data-act="export-quote-approval"]');
+    if (quoteApproval) exportQuoteApprovalPage(quoteApproval.dataset.id);
     if (tagBtn) {
       logTagFilter = tagBtn.dataset.tag;
       const sel = $('#logTagFilter');
@@ -9109,6 +9644,20 @@ function wireEvents() {
     if (btn.dataset.act === 'edit-log')   openOrderEditor(btn.dataset.id);
     if (btn.dataset.act === 'pay-remind') sendPaymentReminder(btn.dataset.id);
     if (btn.dataset.act === 'log-service') logMachineService(btn.dataset.id);
+    if (btn.dataset.act === 'remind-instalment') {
+      const order = printLog.find(o => o.id === btn.dataset.orderId);
+      if (!order) return;
+      const instIdx = parseInt(btn.dataset.instIndex, 10);
+      const inst = (order.instalments || [])[instIdx];
+      if (!inst) return;
+      const client = order.clientId ? clients.find(c => c.id === order.clientId) : null;
+      const clientName = client ? localName(client) : (order.project || order.id);
+      const msg = `Hi ${clientName}! A payment of ${fmtMoney(inst.amount || 0)} ${currencySymbol()} for order #${order.id} (${inst.note || ''}) is due on ${inst.dueDate || ''}. Please let us know if you have any questions.`;
+      const phone = client?.phone || '';
+      if (window.hubAPI?.shareWhatsApp) {
+        window.hubAPI.shareWhatsApp({ phone, message: msg, pdfPath: null });
+      }
+    }
   });
 
   // Clients
