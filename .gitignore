@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Electron build output
+build/
+dist/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Logs
+*.log
+npm-debug.log*
+
+# Old patch/archive zips
+*.zip
+
+# Unknown/temp files
+ziajmqE6
+
+# Old version directory
+athar-tuwaiq-hub/
+
+# Claude session data
+.claude/
+
+# Electron user data (local runtime data, not source)
+userData/
+
+# Python cache
+__pycache__/
+*.pyc

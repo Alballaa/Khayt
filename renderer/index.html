@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:;">
+  <title>Khayt</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="app">
+
+  <div class="titlebar">
+    <span class="brand"><span class="brand-dot"></span><span data-i18n="app.title">Khayt</span></span>
+  </div>
+
+  <header class="header">
+    <h1 data-i18n="app.title">Khayt</h1>
+    <span class="header-spacer"></span>
+
+    <button class="theme-toggle" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+      </svg>
+    </button>
+
+    <button id="btnHelp" title="Help" aria-label="Help" data-i18n="help.btn" style="background:rgba(255,255,255,0.07);color:var(--text-muted);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;white-space:nowrap;">?</button>
+    <button id="btnGlobalSearch" title="Search (⌘K)" aria-label="Global search" style="background:rgba(255,255,255,0.07);color:var(--text-muted);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;white-space:nowrap;">🔍 <kbd style="font-size:10px;opacity:0.6;">⌘K</kbd></button>
+    <button id="btnFeedback" title="Feedback &amp; Bug Reports" aria-label="Feedback" data-i18n="feedback.title" style="background:rgba(255,255,255,0.07);color:var(--text-muted);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;white-space:nowrap;">💬</button>
+    <select id="langSelect" aria-label="Language" style="background:var(--bg-elev);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;">
+      <option value="en">🌐 EN</option>
+      <option value="ar">🌐 ع</option>
+      <option value="de">🌐 DE</option>
+      <option value="es">🌐 ES</option>
+      <option value="fr">🌐 FR</option>
+      <option value="zh">🌐 中文</option>
+    </select>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab-btn active" data-tab="dashboard-tab" data-i18n="tab.dashboard">Dashboard</button>
+    <button class="tab-btn" data-tab="calculator-tab" data-i18n="tab.calculator">Calculator</button>
+    <button class="tab-btn" data-tab="catalog-tab" data-i18n="tab.catalog">Catalog</button>
+    <button class="tab-btn" data-tab="queue-tab" data-i18n="tab.queue">Production Queue</button>
+    <button class="tab-btn" data-tab="logs-tab" data-i18n="tab.logs">Orders Log</button>
+    <button class="tab-btn" data-tab="analytics-tab" data-i18n="tab.analytics">Analytics</button>
+    <button class="tab-btn" data-tab="inventory-tab" data-i18n="tab.inventory">Inventory</button>
+    <button class="tab-btn" data-tab="clients-tab" data-i18n="tab.clients">Clients</button>
+    <button class="tab-btn" data-tab="portfolio-tab" data-i18n="tab.portfolio">Portfolio</button>
+    <button class="tab-btn" data-tab="expenses-tab" data-i18n="tab.expenses">Expenses</button>
+    <button class="tab-btn" data-tab="waste-tab" data-i18n="tab.waste">Waste Log</button>
+    <button class="tab-btn" data-tab="settings-tab" data-i18n="tab.settings">Settings</button>
+  </nav>
+
+  <main class="content">
+
+    <!-- ===================== DASHBOARD ===================== -->
+    <section id="dashboard-tab" class="tab-content active">
+      <div id="dashboardContent"></div>
+    </section>
+
+    <!-- ===================== CALCULATOR ===================== -->
+    <section id="calculator-tab" class="tab-content">
+
+      <div class="grid">
+
+        <div class="card material">
+          <h3 class="card-head"><span class="swatch"></span><span data-i18n="calc.part.title">1. Part & Material</span></h3>
+
+          <div class="inline-pair">
+            <div>
+              <label data-i18n="calc.part.name">Part name</label>
+              <input type="text" id="partName" data-i18n-placeholder="calc.part.name_ph">
+            </div>
+            <div>
+              <label data-i18n="calc.part.qty">Qty</label>
+              <input type="number" id="partQty" value="1" min="1" step="1">
+            </div>
+          </div>
+
+          <div class="inline-pair" style="margin-top:10px;">
+            <div>
+              <label data-i18n="calc.part.filament">Filament</label>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span id="filColorDot" style="display:inline-block; width:14px; height:14px; border-radius:50%; background:#888; flex-shrink:0; border:1px solid rgba(255,255,255,0.15); transition:background 0.2s;"></span>
+                <select id="filamentSelect" style="flex:1;"></select>
+              </div>
+              <!-- Feature 3: Specific spool reservation -->
+              <select id="spoolIdPicker" style="width:100%; margin-top:5px; font-size:12px; display:none;"></select>
+            </div>
+            <div>
+              <label data-i18n="calc.part.printer">Printer (per part)</label>
+              <select id="partMachineId"></select>
+            </div>
+          </div>
+
+          <div class="inline-pair">
+            <div>
+              <label><span data-i18n="calc.part.spool_cost">Spool cost</span> (<span data-i18n="common.currency">SAR</span>)</label>
+              <input type="number" id="spoolCost" value="75" step="1" min="0">
+            </div>
+            <div>
+              <label><span data-i18n="calc.part.spool_wt">Spool weight</span> (<span data-i18n="common.grams">g</span>)</label>
+              <input type="number" id="spoolWeight" value="1000" min="1">
+            </div>
+          </div>
+
+          <label><span data-i18n="calc.part.print_wt">Print weight</span> (<span data-i18n="common.grams">g</span>)</label>
+          <input type="number" id="printWeight" value="150" min="0">
+
+          <!-- Extra materials (Feature 8) -->
+          <div id="extraMaterialsList" style="margin-top:6px;"></div>
+          <button class="btn ghost small" id="btnAddExtraMaterial" style="margin-top:6px; font-size:12px;" data-i18n="calc.extra_material">+ Add material</button>
+
+          <details style="margin-top:12px;">
+            <summary style="cursor:pointer; font-size:12px; color:var(--text-muted); user-select:none;" data-i18n="calc.print_settings">⚙️ Print settings (optional)</summary>
+            <div class="inline-pair" style="margin-top:8px;">
+              <div>
+                <label><span data-i18n="calc.layer_height">Layer height</span> (mm)</label>
+                <input type="number" id="layerHeight" step="0.05" min="0.05" max="1" placeholder="0.2">
+              </div>
+              <div>
+                <label><span data-i18n="calc.infill">Infill</span> (%)</label>
+                <input type="number" id="infill" min="0" max="100" step="5" placeholder="20">
+              </div>
+            </div>
+            <label data-i18n="calc.profile">Profile name</label>
+            <input type="text" id="printProfile" data-i18n-placeholder="calc.profile_ph" placeholder="Quality 0.2mm">
+            <label style="margin-top:10px;" data-i18n="calc.file_ref">File / STL reference</label>
+            <input type="text" id="partFileRef" data-i18n-placeholder="calc.file_ref_ph" placeholder="e.g. bracket_v3.stl">
+          </details>
+
+          <!-- Feature 5: Volume / quantity-break pricing -->
+          <details id="volumePricingDetails" style="margin-top:10px;">
+            <summary style="cursor:pointer; font-size:12px; color:var(--text-muted); user-select:none;" data-i18n="calc.volume_pricing">Volume pricing</summary>
+            <div id="priceTiersList" style="margin-top:8px;"></div>
+            <button type="button" id="btnAddPriceTier" class="btn ghost small" style="margin-top:6px; font-size:12px;" data-i18n="calc.tier_add">+ Add tier</button>
+          </details>
+        </div>
+
+        <div class="card machine">
+          <h3 class="card-head"><span class="swatch"></span><span data-i18n="calc.machine.title">2. Machine & Power</span></h3>
+
+          <div class="preset-row">
+            <div style="flex:1;">
+              <label data-i18n="calc.machine.preset" style="margin-top:0;">Printer preset</label>
+              <select id="printerPreset" style="margin:0;"></select>
+            </div>
+            <button class="btn small" id="btnSavePreset" style="margin-bottom:1px;" data-i18n="calc.machine.save_preset">Save preset</button>
+            <button class="btn small danger" id="btnDeletePreset" style="display:none; margin-bottom:1px;" data-i18n="calc.machine.del_preset">Delete</button>
+          </div>
+
+          <label data-i18n="calc.machine.printer">Printer name</label>
+          <input type="text" id="printerModel" value="Prusa CORE One+">
+
+          <div class="inline-pair">
+            <div>
+              <label><span data-i18n="calc.machine.time">Print time</span> (<span data-i18n="common.hours">hrs</span>)</label>
+              <input type="number" id="printTime" value="5.5" step="0.1" min="0">
+            </div>
+            <div>
+              <label><span data-i18n="calc.machine.wear">Wear & tear</span> (<span data-i18n="common.currency">SAR</span> <span data-i18n="calc.machine.per_hr">/ hr</span>)</label>
+              <input type="number" id="wearRate" value="0.75" step="0.05" min="0">
+            </div>
+          </div>
+
+          <div class="inline-pair">
+            <div>
+              <label><span data-i18n="calc.machine.power">Power draw</span> (<span data-i18n="calc.machine.watts">Watts</span>)</label>
+              <input type="number" id="powerDraw" value="150" step="10" min="0">
+            </div>
+            <div>
+              <label><span data-i18n="calc.machine.elec">Electricity</span> (<span data-i18n="common.currency">SAR</span> <span data-i18n="calc.machine.per_kwh">/ kWh</span>)</label>
+              <input type="number" id="elecRate" value="0.18" step="0.01" min="0">
+            </div>
+          </div>
+        </div>
+
+        <div class="card labor">
+          <h3 class="card-head"><span class="swatch"></span><span data-i18n="calc.labor.title">3. Labor & Overhead</span></h3>
+
+          <label><span data-i18n="calc.labor.prep">Slicer / prep time</span> (<span data-i18n="common.hours">hrs</span>)</label>
+          <input type="number" id="prepTime" value="0.25" step="0.1" min="0">
+
+          <label><span data-i18n="calc.labor.post">Post-processing / assembly</span> (<span data-i18n="common.hours">hrs</span>)</label>
+          <input type="number" id="postTime" value="0.5" step="0.1" min="0">
+
+          <label><span data-i18n="calc.labor.rate">Labor rate</span> (<span data-i18n="common.currency">SAR</span> <span data-i18n="calc.labor.per_hour">/ hour</span>)</label>
+          <input type="number" id="laborRate" value="90" min="0">
+
+          <label><span data-i18n="calc.labor.failure">Failure buffer</span> (<span data-i18n="common.percent">%</span>)</label>
+          <input type="number" id="failureRate" value="10" min="0" max="100">
+        </div>
+
+        <div class="card summary">
+          <h3 class="card-head"><span class="swatch"></span><span data-i18n="calc.quote.title">4. Build Cart & Quote</span></h3>
+
+          <!-- Quote templates -->
+          <div class="preset-row" style="margin-bottom: 12px;">
+            <div style="flex:1;">
+              <label data-i18n="calc.tpl.label" style="margin-top:0;">Quote template</label>
+              <select id="quoteTplSelect" style="margin:0;"></select>
+            </div>
+            <button class="btn small" id="btnLoadTpl" data-i18n="calc.tpl.load">Load</button>
+            <button class="btn small" id="btnSaveTpl" data-i18n="calc.tpl.save">Save as template</button>
+            <button class="btn small danger" id="btnDeleteTpl" style="display:none;" data-i18n="calc.tpl.delete">Delete</button>
+          </div>
+
+          <div id="cartFromCatalogBanner" class="cart-banner" style="display:none;"></div>
+
+          <label data-i18n="calc.quote.cart">Parts in this project</label>
+          <div class="build-cart">
+            <table>
+              <tbody id="buildTableBody"></tbody>
+            </table>
+          </div>
+
+          <div class="live-line">
+            <span><span data-i18n="calc.quote.live">Live part value</span>:
+              <strong><span id="partLivePrice">0.00</span> <span data-i18n="common.currency">SAR</span></strong>
+            </span>
+            <button class="btn" id="btnAddPart" data-i18n="calc.quote.add_part">+ Add part to cart</button>
+          </div>
+          <div id="costBreakdown" class="cost-breakdown" style="display:none;"></div>
+
+          <hr class="divider">
+
+          <div class="inline-pair">
+            <div>
+              <label><span data-i18n="calc.quote.margin">Target profit margin</span> (<span data-i18n="common.percent">%</span>)</label>
+              <input type="number" id="margin" value="30" min="0">
+            </div>
+            <div>
+              <label><span data-i18n="calc.quote.discount">Discount</span> (<span data-i18n="common.percent">%</span>)</label>
+              <input type="number" id="discountPct" value="0" min="0" max="100" step="1">
+            </div>
+          </div>
+          <div class="inline-pair" style="margin-top:10px;">
+            <div>
+              <label><span data-i18n="oe.shipping">Shipping cost</span> (<span data-i18n="common.currency">SAR</span>)</label>
+              <input type="number" id="shippingCost" value="0" min="0" step="0.01">
+            </div>
+          </div>
+
+          <div id="extraLinesWrap" style="margin-top:12px;">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+              <label style="margin:0; flex:1; font-size:12.5px;" data-i18n="calc.extra_lines">Extra charges</label>
+              <button class="btn ghost small" id="btnAddExtraLine" data-i18n="calc.add_extra_line">+ Add fee</button>
+            </div>
+            <div id="extraLinesList"></div>
+          </div>
+
+          <div id="priceTiersStrip" class="tier-chips" style="display:none;"></div>
+
+          <div class="inline-pair" style="margin-top:10px;">
+            <div>
+              <label data-i18n="calc.quote.client">Client</label>
+              <div class="client-picker">
+                <input type="text" id="clientInput" data-i18n-placeholder="calc.quote.client_ph" autocomplete="off">
+                <div id="clientSuggestions" class="suggest-list" style="display:none;"></div>
+              </div>
+            </div>
+            <div>
+              <label data-i18n="mach.assign">Assign to printer</label>
+              <select id="machineAssign"></select>
+            </div>
+          </div>
+
+          <div id="marginWarning" class="margin-warning" style="display:none;"></div>
+
+          <div class="total-display">
+            <div class="label" data-i18n="calc.quote.total">Project total</div>
+            <div class="value">
+              <span id="discountLine" style="display:none; font-size:12px; color:var(--success); margin-inline-end:8px;"></span>
+              <span id="finalPrice">0.00</span><span class="unit" data-i18n="common.currency">SAR</span>
+            </div>
+          </div>
+
+          <div class="deposit-row">
+            <label for="depositAmount" data-i18n="pay.deposit_label">Deposit / advance received</label>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <input type="number" id="depositAmount" min="0" step="0.01" value="0" style="flex:1;" placeholder="0.00">
+              <span class="unit" data-i18n="common.currency">SAR</span>
+            </div>
+          </div>
+          <div class="save-btn-row">
+            <button class="btn success" id="btnSaveQuote" data-i18n="calc.quote.save" style="flex:1;">Save quote and send to queue</button>
+            <button class="btn ghost" id="btnSaveAsQuote" data-i18n="calc.quote.save_as_quote" title="Save as a quotation for client approval first">📄 Quote</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== CATALOG ===================== -->
+    <section id="catalog-tab" class="tab-content">
+      <div class="toolbar">
+        <h3 class="card-head" style="margin: 0; flex: 1;"><span class="swatch"></span><span data-i18n="cat.title">Product Catalog</span></h3>
+        <input type="search" id="catalogSearch" class="toolbar-search" data-i18n-placeholder="cat.search_ph">
+        <button class="btn primary" id="btnAddProduct" data-i18n="cat.add">+ Add Product</button>
+      </div>
+      <div id="catalogGrid" class="product-grid"></div>
+    </section>
+
+    <!-- ===================== QUEUE ===================== -->
+    <section id="queue-tab" class="tab-content">
+      <h3 class="card-head" style="margin-bottom: 16px;"><span class="swatch"></span><span data-i18n="queue.title">Active Production Queue</span></h3>
+
+      <!-- Quotes awaiting client approval (hidden when empty) -->
+      <div id="quotesSection" class="quotes-section" style="display:none;">
+        <div class="quotes-section-header">
+          <span data-i18n="queue.quotes_awaiting">Awaiting Approval</span>
+          <span class="count" id="count-quote">0</span>
+        </div>
+        <div id="list-quote"></div>
+      </div>
+
+      <div class="kanban">
+        <div class="kanban-col" data-status="pending">
+          <h3><span class="dot"></span><span data-i18n="queue.pending">Pending</span><span class="count" id="count-pending">0</span></h3>
+          <div class="kanban-col-meta" id="meta-pending"></div>
+          <div id="list-pending"></div>
+        </div>
+        <div class="kanban-col" data-status="on_hold" style="border-top: 3px solid var(--warning);">
+          <h3><span class="dot" style="background:var(--warning);"></span><span data-i18n="queue.on_hold">On Hold</span><span class="count" id="count-on_hold">0</span></h3>
+          <div class="kanban-col-meta" id="meta-on_hold"></div>
+          <div id="list-on_hold"></div>
+        </div>
+        <div class="kanban-col" data-status="printing">
+          <h3><span class="dot"></span><span data-i18n="queue.printing">Printing</span><span class="count" id="count-printing">0</span></h3>
+          <div class="kanban-col-meta" id="meta-printing"></div>
+          <div id="list-printing"></div>
+        </div>
+        <div class="kanban-col" data-status="post">
+          <h3><span class="dot"></span><span data-i18n="queue.post">Post-Processing</span><span class="count" id="count-post">0</span></h3>
+          <div class="kanban-col-meta" id="meta-post"></div>
+          <div id="list-post"></div>
+        </div>
+        <div class="kanban-col" data-status="completed">
+          <h3><span class="dot"></span><span data-i18n="queue.completed">Completed</span><span class="count" id="count-completed">0</span></h3>
+          <div class="kanban-col-meta" id="meta-completed"></div>
+          <div id="list-completed"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== LOGS ===================== -->
+    <section id="logs-tab" class="tab-content">
+      <div class="card">
+        <div id="batchBar" class="batch-bar" style="display:none;">
+          <span id="batchCount" class="batch-count"></span>
+          <button class="btn small primary" id="btnBatchPdf" data-i18n="batch.export_pdfs">Export PDFs</button>
+          <button class="btn small" id="btnBatchWa" data-i18n="batch.wa_all">WhatsApp all</button>
+          <select id="batchStatusSelect" class="toolbar-select" style="max-width:140px;">
+            <option value="" data-i18n="batch.move_to">Move to…</option>
+            <option value="pending" data-i18n="queue.pending">Pending</option>
+            <option value="printing" data-i18n="queue.printing">Printing</option>
+            <option value="post" data-i18n="queue.post">Post-Processing</option>
+            <option value="completed" data-i18n="queue.completed">Completed</option>
+          </select>
+          <button class="btn small" id="btnBatchMove" data-i18n="batch.move">Move</button>
+          <button class="btn ghost small" id="btnBatchClear" data-i18n="batch.clear_sel">Clear</button>
+        </div>
+        <div class="toolbar" style="margin-bottom: 14px;">
+          <h3 class="card-head" style="margin: 0;"><span class="swatch"></span><span data-i18n="log.title">Orders Database</span></h3>
+          <span style="flex:1;"></span>
+          <input type="search" id="logSearch" class="toolbar-search" data-i18n-placeholder="log.search_ph">
+          <select id="logStatusFilter" class="toolbar-select">
+            <option value="" data-i18n="common.all">All statuses</option>
+            <option value="quote" data-i18n="queue.quote">Quote</option>
+            <option value="pending" data-i18n="queue.pending">Pending</option>
+            <option value="on_hold" data-i18n="queue.on_hold">On Hold</option>
+            <option value="printing" data-i18n="queue.printing">Printing</option>
+            <option value="post" data-i18n="queue.post">Post</option>
+            <option value="completed" data-i18n="queue.completed">Completed</option>
+          </select>
+          <select id="logPayFilter" class="toolbar-select">
+            <option value="" data-i18n="common.all">All payments</option>
+            <option value="unpaid" data-i18n="pay.unpaid">Unpaid</option>
+            <option value="partial" data-i18n="pay.partial">Partial</option>
+            <option value="paid" data-i18n="pay.paid">Paid</option>
+          </select>
+          <select id="logRangeFilter" class="toolbar-select">
+            <option value="all" data-i18n="an.range.all">All time</option>
+            <option value="month" data-i18n="an.range.month">This month</option>
+            <option value="last_month" data-i18n="an.range.last_month">Last month</option>
+            <option value="quarter" data-i18n="an.range.quarter">This quarter</option>
+            <option value="year" data-i18n="an.range.year">This year</option>
+            <option value="custom" data-i18n="filter.custom">Custom range…</option>
+          </select>
+          <span class="custom-range-inputs" id="logCustomRange" style="display:none;">
+            <input type="date" id="logRangeFrom" title="From">
+            <span style="font-size:12px; color:var(--text-muted);">–</span>
+            <input type="date" id="logRangeTo" title="To">
+          </span>
+          <select id="logTagFilter" class="toolbar-select" style="max-width:130px;">
+            <option value="" data-i18n="tag.all">All tags</option>
+          </select>
+          <button class="btn small" id="btnExportCsv" data-i18n="log.export_csv">Export CSV</button>
+          <button class="btn danger small" id="btnClearLogs" data-i18n="log.clear">Clear all records</button>
+        </div>
+        <div class="table-wrap">
+          <table id="logTable">
+            <thead>
+              <tr>
+                <th style="width:32px;"><input type="checkbox" id="logSelectAll" style="width:auto;"></th>
+                <th data-i18n="common.date">Date</th>
+                <th data-i18n="log.client">Project / Client</th>
+                <th data-i18n="common.status">Status</th>
+                <th data-i18n="log.pay_status">Payment</th>
+                <th data-i18n="log.materials">Materials</th>
+                <th data-i18n="log.price">Price</th>
+                <th data-i18n="common.actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== ANALYTICS ===================== -->
+    <section id="analytics-tab" class="tab-content">
+      <div class="toolbar" style="margin-bottom: 16px;">
+        <h3 class="card-head" style="margin: 0; flex: 1;"><span class="swatch"></span><span data-i18n="an.title">Business Overview</span></h3>
+        <button class="btn small" id="btnTaxExport" data-i18n="an.tax_export">Monthly Tax Summary</button>
+        <select id="analyticsRange" class="toolbar-select">
+          <option value="all" data-i18n="an.range.all">All time</option>
+          <option value="month" data-i18n="an.range.month">This month</option>
+          <option value="last_month" data-i18n="an.range.last_month">Last month</option>
+          <option value="quarter" data-i18n="an.range.quarter">This quarter</option>
+          <option value="year" data-i18n="an.range.year">This year</option>
+          <option value="custom" data-i18n="filter.custom">Custom range…</option>
+        </select>
+        <span class="custom-range-inputs" id="analyticsCustomRange" style="display:none;">
+          <input type="date" id="analyticsRangeFrom" title="From">
+          <span style="font-size:12px; color:var(--text-muted);">–</span>
+          <input type="date" id="analyticsRangeTo" title="To">
+        </span>
+      </div>
+
+      <div class="grid-4">
+        <div class="stat revenue">
+          <div class="stat-label" data-i18n="an.revenue">Revenue</div>
+          <div class="stat-value"><span id="stat-revenue">0.00</span><span class="unit" data-i18n="common.currency">SAR</span></div>
+        </div>
+        <div class="stat orders">
+          <div class="stat-label" data-i18n="an.orders">Completed orders</div>
+          <div class="stat-value" id="stat-orders">0</div>
+        </div>
+        <div class="stat hours">
+          <div class="stat-label" data-i18n="an.hours">Print hours</div>
+          <div class="stat-value"><span id="stat-hours">0</span><span class="unit" data-i18n="common.hours">hrs</span></div>
+        </div>
+        <div class="stat pending">
+          <div class="stat-label" data-i18n="an.pending">In progress</div>
+          <div class="stat-value" id="stat-pending">0</div>
+        </div>
+        <div class="stat receivables full">
+          <div class="stat-label" data-i18n="pay.receivables">Outstanding</div>
+          <div class="stat-value"><span id="stat-receivables">0.00</span><span class="unit" data-i18n="common.currency">SAR</span></div>
+        </div>
+        <div class="stat">
+          <div class="stat-label" data-i18n="an.quotes_created">Quotes created</div>
+          <div class="stat-value" id="stat-quotes-created">0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label" data-i18n="an.conv_rate">Conversion rate</div>
+          <div class="stat-value" id="stat-conv-rate">—</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 16px;">
+        <h3 class="card-head"><span class="swatch"></span><span data-i18n="an.revenue_chart">Monthly Revenue (last 12 months)</span></h3>
+        <div id="revenueChartWrap" class="chart-wrap"></div>
+      </div>
+
+      <div class="grid" style="margin-top: 16px;">
+        <div class="card">
+          <h3 class="card-head"><span class="swatch"></span><span data-i18n="an.top_products">Most-printed products</span></h3>
+          <ul class="leaderboard" id="topProductsList"></ul>
+        </div>
+        <div class="card">
+          <h3 class="card-head"><span class="swatch"></span><span data-i18n="an.top_clients">Top clients by revenue</span></h3>
+          <ul class="leaderboard" id="topClientsList"></ul>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 16px;">
+        <h3 class="card-head"><span class="swatch"></span><span data-i18n="an.recent">Recent activity</span></h3>
+        <ul class="activity-list" id="activityList"></ul>
+      </div>
+
+      <div class="card" style="margin-top: 16px;">
+        <h3 class="card-head"><span class="swatch"></span><span data-i18n="an.accuracy_title">Estimate Accuracy</span></h3>
+        <div id="accuracySection"></div>
+        <div id="timestampAccuracySection" style="margin-top:8px;"></div>
+      </div>
+
+      <div class="card" style="margin-top: 16px;">
+        <h3 class="card-head"><span class="swatch"></span><span data-i18n="an.filament_perf">Filament Performance</span></h3>
+        <div id="filamentPerfSection"></div>
+      </div>
+
+      <div class="card" style="margin-top: 16px;">
+        <h3 class="card-head"><span class="swatch"></span><span data-i18n="an.printer_util">Printer Utilization</span></h3>
+        <div id="printerUtilSection"></div>
+      </div>
+
+      <div class="card" style="margin-top: 16px;">
+        <h3 class="card-head"><span class="swatch"></span><span data-i18n="an.pnl_title">Profit &amp; Loss by Quarter</span></h3>
+        <div id="pnlSection"></div>
+      </div>
+
+      <div class="card" style="margin-top: 16px;">
+        <h3 class="card-head"><span class="swatch"></span><span data-i18n="an.product_profit_title">Profitability by Product</span></h3>
+        <div id="productProfitSection"></div>
+      </div>
+
+      <div class="card" style="margin-top: 16px;">
+        <h3 class="card-head"><span class="swatch"></span><span data-i18n="an.sla_title">On-Time Delivery Rate</span></h3>
+        <div id="slaSection"></div>
+      </div>
+
+      <!-- Feature 7: Per-machine P&L -->
+      <div class="card" style="margin-top: 16px;">
+        <h3 class="card-head"><span class="swatch"></span><span data-i18n="an.machine_pl">Per-Machine P&L</span></h3>
+        <div id="machinePLSection"></div>
+      </div>
+    </section>
+
+    <!-- ===================== INVENTORY ===================== -->
+    <section id="inventory-tab" class="tab-content">
+      <div class="grid">
+        <div class="card warn">
+          <h3 class="card-head"><span class="swatch"></span><span data-i18n="inv.add_title">Add Filament Spool</span></h3>
+
+          <div class="inline-pair" style="align-items:end;">
+            <div>
+              <label data-i18n="inv.material">Brand & material</label>
+              <input type="text" id="invMaterial" data-i18n-placeholder="inv.material_ph">
+            </div>
+            <div>
+              <label data-i18n="inv.color">Colour</label>
+              <input type="color" id="invColor" value="#f5a623" style="width:100%; height:38px; padding:3px 4px; border-radius:var(--radius-sm); border:1px solid var(--border); cursor:pointer; background:var(--bg-elev);">
+            </div>
+          </div>
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <button class="btn ghost small" id="btnBrowseCatalog" style="flex:1; border-style:dashed;" data-i18n="inv.browse_catalog">🔍 Browse Catalog</button>
+            <button class="btn ghost small" id="btnScanLabel" style="flex:1; border-style:dashed;" data-i18n="inv.scan_label">📷 Scan Label</button>
+          </div>
+
+          <div class="inline-pair">
+            <div>
+              <label><span data-i18n="inv.cost">Spool cost</span> (<span data-i18n="common.currency">SAR</span>)</label>
+              <input type="number" id="invCost" value="75" min="0">
+            </div>
+            <div>
+              <label><span data-i18n="inv.weight">Spool weight</span> (<span data-i18n="common.grams">g</span>)</label>
+              <input type="number" id="invWeight" value="1000" min="1">
+            </div>
+          </div>
+
+          <button class="btn primary full" id="btnAddInv" style="margin-top: 12px;" data-i18n="inv.save">Save to inventory</button>
+        </div>
+
+        <div class="card">
+          <h3 class="card-head"><span class="swatch"></span><span data-i18n="inv.stock">Stock List</span></h3>
+          <div class="table-wrap">
+            <table id="inventoryTable">
+              <thead>
+                <tr>
+                  <th data-i18n="inv.material">Material</th>
+                  <th data-i18n="inv.cost">Cost</th>
+                  <th data-i18n="inv.weight">Weight</th>
+                  <th data-i18n="inv.col_queued">Queued</th>
+                  <th data-i18n="common.actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <!-- Consumables section -->
+      <div class="card" style="margin-top:16px;">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+          <h3 class="card-head" style="margin:0; flex:1;"><span class="swatch"></span><span data-i18n="cons.title">Other Consumables</span></h3>
+          <button class="btn small primary" id="btnAddConsumable" data-i18n="cons.add">+ Add Consumable</button>
+        </div>
+        <div class="table-wrap">
+          <table id="consumablesTable">
+            <thead>
+              <tr>
+                <th data-i18n="cons.name">Name</th>
+                <th data-i18n="cons.stock">Stock</th>
+                <th data-i18n="cons.min_stock">Min Stock</th>
+                <th data-i18n="cons.cost">Unit Cost</th>
+                <th data-i18n="common.actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Supplier / vendor database -->
+      <div class="card" style="margin-top:16px;">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+          <h3 class="card-head" style="margin:0; flex:1;"><span class="swatch"></span><span data-i18n="sup.title">Suppliers / Vendors</span></h3>
+          <button class="btn small primary" id="btnAddSupplier" data-i18n="sup.add">+ Add Supplier</button>
+        </div>
+        <div class="table-wrap">
+          <table id="suppliersTable">
+            <thead>
+              <tr>
+                <th data-i18n="sup.name">Name</th>
+                <th data-i18n="sup.category">Category</th>
+                <th data-i18n="sup.contact">Contact</th>
+                <th data-i18n="sup.lead_time">Lead Time</th>
+                <th data-i18n="sup.total_spent">Total Spent</th>
+                <th data-i18n="common.actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <!-- Purchase Orders (Feature 3) -->
+      <div id="poSection" class="card" style="margin-top:16px;"></div>
+    </section>
+
+    <!-- ===================== CLIENTS ===================== -->
+    <section id="clients-tab" class="tab-content">
+      <div class="toolbar">
+        <h3 class="card-head" style="margin: 0; flex: 1;"><span class="swatch"></span><span data-i18n="cl.title">Clients</span></h3>
+        <input type="search" id="clientSearch" class="toolbar-search" data-i18n-placeholder="cl.search_ph">
+        <button class="btn" id="btnBlankIntakeForm" title="Blank intake form">📋 <span data-i18n="cl.intake_form">Intake form</span></button>
+        <button class="btn primary" id="btnAddClient" data-i18n="cl.add">+ Add Client</button>
+      </div>
+      <div class="card" style="margin-top: 12px;">
+        <div class="table-wrap">
+          <table id="clientsTable">
+            <thead>
+              <tr>
+                <th data-i18n="cl.name">Name</th>
+                <th data-i18n="cl.phone">Phone</th>
+                <th data-i18n="cl.orders">Orders</th>
+                <th data-i18n="cl.revenue">Revenue</th>
+                <th data-i18n="cl.last_order">Last order</th>
+                <th data-i18n="common.actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== PORTFOLIO ===================== -->
+    <section id="portfolio-tab" class="tab-content">
+      <div class="toolbar">
+        <h3 class="card-head" style="margin: 0; flex: 1;"><span class="swatch"></span><span data-i18n="pf.title">Portfolio</span></h3>
+        <input type="search" id="portfolioSearch" class="toolbar-search" data-i18n-placeholder="pf.search_ph">
+        <button class="btn" id="btnRevealOrderPhotos" data-i18n="pf.reveal_folder">Reveal photos folder</button>
+      </div>
+      <div id="portfolioGrid" class="portfolio-grid"></div>
+    </section>
+
+    <!-- ===================== EXPENSES ===================== -->
+    <section id="expenses-tab" class="tab-content">
+      <div class="toolbar" style="margin-bottom:16px;">
+        <h3 class="card-head" style="margin:0; flex:1;"><span class="swatch"></span><span data-i18n="exp.title">Expense Tracker</span></h3>
+        <button class="btn small" id="btnExportExpCsv" data-i18n="exp.export_csv">Export CSV</button>
+        <select id="expRangeFilter" class="toolbar-select">
+          <option value="all"        data-i18n="an.range.all">All time</option>
+          <option value="month"      data-i18n="an.range.month">This month</option>
+          <option value="last_month" data-i18n="an.range.last_month">Last month</option>
+          <option value="quarter"    data-i18n="an.range.quarter">This quarter</option>
+          <option value="year"       data-i18n="an.range.year">This year</option>
+          <option value="custom"     data-i18n="filter.custom">Custom range…</option>
+        </select>
+        <span class="custom-range-inputs" id="expCustomRange" style="display:none;">
+          <input type="date" id="expRangeFrom" title="From">
+          <span style="font-size:12px; color:var(--text-muted);">–</span>
+          <input type="date" id="expRangeTo" title="To">
+        </span>
+      </div>
+
+      <div class="grid">
+        <!-- Add expense form -->
+        <div class="card">
+          <h3 class="card-head"><span class="swatch"></span><span data-i18n="exp.add_title">Add Expense</span></h3>
+          <label data-i18n="exp.date">Date</label>
+          <input type="date" id="expDate">
+          <label data-i18n="exp.category" style="margin-top:12px;">Category</label>
+          <select id="expCategory">
+            <option value="filament"    data-i18n="exp.cat.filament">Filament</option>
+            <option value="electricity" data-i18n="exp.cat.electricity">Electricity</option>
+            <option value="maintenance" data-i18n="exp.cat.maintenance">Maintenance</option>
+            <option value="tools"       data-i18n="exp.cat.tools">Tools & Supplies</option>
+            <option value="shipping"    data-i18n="exp.cat.shipping">Shipping</option>
+            <option value="other"       data-i18n="exp.cat.other">Other</option>
+          </select>
+          <label data-i18n="exp.amount" style="margin-top:12px;">Amount (SAR)</label>
+          <input type="number" id="expAmount" min="0" step="0.01" placeholder="0.00">
+          <label data-i18n="exp.note" style="margin-top:12px;">Note</label>
+          <input type="text" id="expNote" data-i18n-placeholder="exp.note_ph">
+          <label data-i18n="exp.order_ref" style="margin-top:12px;">Link to order (optional)</label>
+          <input type="text" id="expOrderRef" list="expOrderList" placeholder="Order ID (optional)">
+          <datalist id="expOrderList"></datalist>
+          <div style="margin-top:12px; display:flex; align-items:center; gap:8px;">
+            <button class="btn small ghost" id="btnExpReceipt" type="button">📎 <span data-i18n="exp.attach_receipt">Attach receipt</span></button>
+            <span id="expReceiptName" style="font-size:12px; color:var(--text-muted);"></span>
+          </div>
+          <button class="btn primary full" id="btnAddExpense" style="margin-top:16px;" data-i18n="exp.add_btn">Add Expense</button>
+        </div>
+
+        <!-- Summary card -->
+        <div class="card">
+          <h3 class="card-head"><span class="swatch"></span><span data-i18n="exp.summary">Summary</span></h3>
+          <div id="expenseSummary"></div>
+        </div>
+      </div>
+
+      <!-- Budget vs Actual -->
+      <div class="card" style="margin-top:16px;">
+        <h3 class="card-head"><span class="swatch"></span><span data-i18n="exp.budget_title">Budget vs. Actual</span></h3>
+        <div id="expenseBudgetSection"></div>
+      </div>
+
+      <!-- Expenses table -->
+      <div class="card" style="margin-top:16px;">
+        <div class="table-wrap">
+          <table id="expenseTable">
+            <thead>
+              <tr>
+                <th data-i18n="common.date">Date</th>
+                <th data-i18n="exp.category">Category</th>
+                <th data-i18n="exp.amount">Amount</th>
+                <th data-i18n="exp.note">Note</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== WASTE LOG ===================== -->
+    <section id="waste-tab" class="tab-content">
+      <div class="toolbar" style="margin-bottom:16px;">
+        <h3 class="card-head" style="margin:0; flex:1;"><span class="swatch"></span><span data-i18n="waste.title">Failed Prints &amp; Waste Log</span></h3>
+        <button class="btn primary" id="btnLogWaste" data-i18n="waste.add">Log Failed Print</button>
+      </div>
+
+      <div id="wasteStats" style="font-size:13px; color:var(--text-muted); margin-bottom:12px;"></div>
+
+      <div class="card">
+        <div id="wasteTopOrdersSection"></div>
+        <div class="table-wrap">
+          <table id="wasteTable">
+            <thead>
+              <tr>
+                <th data-i18n="waste.date">Date</th>
+                <th data-i18n="waste.material">Material</th>
+                <th style="text-align:center;" data-i18n="waste.weight">Weight (g)</th>
+                <th data-i18n="waste.failure_type">Failure Type</th>
+                <th data-i18n="waste.reason">Reason</th>
+                <th style="text-align:right;" data-i18n="waste.est_cost">Est. Cost</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== SETTINGS ===================== -->
+    <section id="settings-tab" class="tab-content">
+      <div class="grid">
+
+        <div class="card">
+          <h3 class="card-head"><span class="swatch"></span><span data-i18n="set.biz_section">Business Information</span></h3>
+
+          <label data-i18n="set.logo">Business logo</label>
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px;">
+            <img id="logoPreview" style="display:none; height:52px; width:auto; border-radius:6px; border:1px solid var(--border); padding:4px; background:var(--surface-2);" alt="logo">
+            <div style="display:flex; gap:8px;">
+              <label class="btn small" style="cursor:pointer; margin:0;">
+                <span data-i18n="set.logo_upload">Upload image</span>
+                <input type="file" id="logoUploadInput" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;">
+              </label>
+              <button class="btn small danger" id="btnRemoveLogo" style="display:none;" data-i18n="set.logo_remove">Remove</button>
+            </div>
+          </div>
+          <p style="font-size:11.5px; color:var(--text-muted); margin:0 0 14px;" data-i18n="set.logo_hint"></p>
+
+          <div class="inline-pair">
+            <div>
+              <label data-i18n="set.biz_en">Business name (English)</label>
+              <input type="text" id="set_bizEn" placeholder="Khayt">
+            </div>
+            <div>
+              <label data-i18n="set.biz_ar">Business name (Arabic)</label>
+              <input type="text" id="set_bizAr" dir="rtl" placeholder="أثر طويق للطباعة ثلاثية الأبعاد">
+            </div>
+          </div>
+
+          <div class="inline-pair">
+            <div>
+              <label data-i18n="set.tagline_en">Tagline (English)</label>
+              <input type="text" id="set_taglineEn" data-i18n-placeholder="set.tagline_ph">
+            </div>
+            <div>
+              <label data-i18n="set.tagline_ar">Tagline (Arabic)</label>
+              <input type="text" id="set_taglineAr" dir="rtl" data-i18n-placeholder="set.tagline_ph_ar">
+            </div>
+          </div>
+
+          <label data-i18n="set.vat">VAT registration number</label>
+          <input type="text" id="set_vat" placeholder="3xxxxxxxxxxxxx3" maxlength="15">
+          <p style="font-size: 11.5px; color: var(--text-muted); margin: 4px 0 0;" data-i18n="set.vat_hint"></p>
+
+          <div class="inline-pair" style="margin-top: 12px;">
+            <div>
+              <label data-i18n="set.cr">Commercial registration #</label>
+              <input type="text" id="set_cr">
+            </div>
+            <div>
+              <label data-i18n="set.phone">Phone</label>
+              <input type="tel" id="set_phone">
+            </div>
+          </div>
+
+          <label data-i18n="set.email">Email</label>
+          <input type="email" id="set_email">
+
+          <div class="inline-pair">
+            <div>
+              <label data-i18n="set.address_en">Address (English)</label>
+              <input type="text" id="set_addrEn">
+            </div>
+            <div>
+              <label data-i18n="set.address_ar">Address (Arabic)</label>
+              <input type="text" id="set_addrAr" dir="rtl">
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card-head"><span class="swatch"></span><span data-i18n="set.prefs_section">App Preferences</span></h3>
+
+          <label data-i18n="set.language">Default language</label>
+          <select id="set_lang">
+            <option value="en">English</option>
+            <option value="ar">العربية</option>
+            <option value="de">Deutsch</option>
+            <option value="es">Español</option>
+            <option value="fr">Français</option>
+            <option value="zh">中文 (简体)</option>
+          </select>
+
+          <label data-i18n="set.theme">Theme</label>
+          <select id="set_theme">
+            <option value="dark" data-i18n="set.theme.dark">Dark</option>
+            <option value="light" data-i18n="set.theme.light">Light</option>
+            <option value="system" data-i18n="set.theme.system">System</option>
+          </select>
+
+          <h3 class="card-head" style="margin-top: 20px;"><span class="swatch"></span><span data-i18n="set.stock_section">Stock & Inventory</span></h3>
+
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="set_autoDeduct" style="width:auto; margin:0;">
+            <span data-i18n="set.auto_deduct">Auto-deduct filament when an order is completed</span>
+          </label>
+
+          <label style="margin-top: 12px;" data-i18n="set.low_stock">Low-stock threshold (grams)</label>
+          <input type="number" id="set_lowStock" value="200" min="0">
+          <p style="font-size: 11.5px; color: var(--text-muted); margin: 4px 0 0;" data-i18n="set.low_stock_hint"></p>
+
+          <label style="margin-top: 14px;" data-i18n="set.supplier_phone">Supplier WhatsApp number</label>
+          <input type="tel" id="set_supplierPhone" data-i18n-placeholder="set.supplier_ph">
+
+          <!-- ── Worldwide settings ── -->
+          <h3 class="card-head" style="margin-top: 20px;"><span class="swatch"></span><span data-i18n="set.worldwide_section">Regional & Currency</span></h3>
+
+          <label data-i18n="set.currency">Currency</label>
+          <select id="set_currency" style="margin-bottom:4px;"></select>
+          <p style="font-size:11.5px; color:var(--text-muted); margin:0 0 12px;" data-i18n="set.currency_hint">Used on all invoices, analytics, and the calculator.</p>
+
+          <h3 class="card-head" style="margin-top: 20px;"><span class="swatch"></span><span data-i18n="set.invoice_section">Invoice Defaults</span></h3>
+
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-top:0;">
+            <input type="checkbox" id="set_enableZatca" style="width:auto; margin:0;">
+            <span data-i18n="set.enable_zatca">ZATCA-compliant invoices (Saudi Arabia)</span>
+          </label>
+          <p style="font-size:11.5px; color:var(--text-muted); margin:3px 0 10px;" data-i18n="set.enable_zatca_hint">Adds ZATCA Phase 1 TLV QR code to invoices. Turn off for international use.</p>
+
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-top:0;">
+            <input type="checkbox" id="set_enableVat" style="width:auto; margin:0;">
+            <span data-i18n="set.enable_vat">Enable VAT on invoices</span>
+          </label>
+          <div class="inline-pair" style="margin-top:10px;">
+            <div>
+              <label data-i18n="set.vat_rate">VAT rate (%)</label>
+              <input type="number" id="set_vatRate" value="15" min="0" max="100" step="0.1">
+            </div>
+            <div></div>
+          </div>
+          <p style="font-size:11.5px; color:var(--text-muted); margin:4px 0 12px;" data-i18n="set.vat_rate_hint"></p>
+
+          <div class="inline-pair">
+            <div>
+              <label data-i18n="set.invoice_prefix">Invoice number prefix</label>
+              <input type="text" id="set_invPrefix" value="INV" maxlength="6">
+            </div>
+            <div>
+              <label data-i18n="set.quote_prefix">Quote number prefix</label>
+              <input type="text" id="set_quotePrefix" value="QUO" maxlength="6">
+            </div>
+          </div>
+
+          <label data-i18n="set.footer_en">Invoice footer (English)</label>
+          <input type="text" id="set_footerEn">
+
+          <label data-i18n="set.footer_ar">Invoice footer (Arabic)</label>
+          <input type="text" id="set_footerAr" dir="rtl">
+
+          <label data-i18n="dash.goal_setting" style="margin-top:14px;">Monthly revenue goal (SAR)</label>
+          <input type="number" id="set_monthlyGoal" min="0" step="100" placeholder="0">
+          <p style="font-size:11.5px; color:var(--text-muted); margin:4px 0 12px;" data-i18n="dash.goal_hint"></p>
+
+          <div class="inline-pair" style="margin-top:14px; align-items:center;">
+            <div>
+              <label data-i18n="set.inv_accent">Invoice accent colour</label>
+              <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
+                <input type="color" id="set_invAccent" value="#5E2E14" style="width:44px; height:34px; padding:2px; border-radius:6px; border:1px solid var(--border); cursor:pointer; background:var(--bg-elev);">
+                <span style="font-size:11.5px; color:var(--text-muted);" data-i18n="set.inv_accent_hint">Brand colour used on invoices</span>
+              </div>
+            </div>
+            <div></div>
+          </div>
+
+          <label style="margin-top:12px;" data-i18n="set.inv_terms_en">Terms &amp; notes (English)</label>
+          <textarea id="set_invTermsEn" rows="3" style="resize:vertical;"></textarea>
+
+          <label data-i18n="set.inv_terms_ar">Terms &amp; notes (Arabic)</label>
+          <textarea id="set_invTermsAr" rows="3" dir="rtl" style="resize:vertical;"></textarea>
+
+          <button class="btn primary full" id="btnSaveSettings" style="margin-top: 16px;" data-i18n="common.save">Save</button>
+        </div>
+
+        <div class="card">
+          <h3 class="card-head"><span class="swatch"></span><span data-i18n="set.bank_section">Bank & Payment Methods</span></h3>
+
+          <label data-i18n="set.bank_name">Bank name</label>
+          <input type="text" id="set_bankName" placeholder="Al Rajhi Bank">
+
+          <label data-i18n="set.account_holder">Account holder</label>
+          <input type="text" id="set_accountHolder">
+
+          <label data-i18n="set.iban">IBAN</label>
+          <input type="text" id="set_iban" data-i18n-placeholder="set.iban_ph" maxlength="34">
+
+          <label data-i18n="set.accepted">Accepted payment methods</label>
+          <div id="acceptedPaymentsList" class="payment-method-grid">
+            <label><input type="checkbox" data-pm="cash"><span data-i18n="pay.method.cash">Cash</span></label>
+            <label><input type="checkbox" data-pm="mada"><span data-i18n="pay.method.mada">Mada</span></label>
+            <label><input type="checkbox" data-pm="transfer"><span data-i18n="pay.method.transfer">Bank transfer</span></label>
+            <label><input type="checkbox" data-pm="stcpay"><span data-i18n="pay.method.stcpay">STC Pay</span></label>
+            <label><input type="checkbox" data-pm="applepay"><span data-i18n="pay.method.applepay">Apple Pay</span></label>
+            <label><input type="checkbox" data-pm="visa"><span data-i18n="pay.method.visa">Credit card</span></label>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card-head"><span class="swatch"></span><span data-i18n="set.locale_section">Saudi Locale</span></h3>
+
+          <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; margin-top:0;">
+            <input type="checkbox" id="set_useHijri" style="width:auto; margin:3px 0 0;">
+            <span data-i18n="set.use_hijri">Show Hijri date next to Gregorian on invoices</span>
+          </label>
+
+          <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; margin-top:14px;">
+            <input type="checkbox" id="set_useArabicNumerals" style="width:auto; margin:3px 0 0;">
+            <span data-i18n="set.use_arabic_nums">Use Arabic-Indic numerals (٠١٢٣) in Arabic-mode invoices</span>
+          </label>
+
+          <h3 class="card-head" style="margin-top:24px;"><span class="swatch"></span><span data-i18n="set.backup_section">Backups</span></h3>
+
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="checkbox" id="set_autoBackup" style="width:auto; margin:0;">
+            <span data-i18n="set.auto_backup">Auto-backup once a day</span>
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-top:10px;">
+            <input type="checkbox" id="set_useIcloud" style="width:auto; margin:0;">
+            <span data-i18n="set.use_icloud">Also back up to iCloud Drive</span>
+          </label>
+          <p style="font-size:11.5px; color:var(--text-muted); margin:6px 0 0;" data-i18n="set.icloud_hint"></p>
+          <p style="font-size:11.5px; color:var(--text-muted); margin:6px 0 0;">
+            <span data-i18n="set.last_backup">Last backup</span>: <span id="lastBackupDate" style="color: var(--text-dim);">—</span>
+          </p>
+          <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
+            <button class="btn" id="btnRevealBackups" data-i18n="set.reveal_backups">Reveal backups folder</button>
+            <button class="btn" id="btnRestoreBackup" data-i18n="set.restore_backup">Restore from backup…</button>
+          </div>
+        </div>
+
+        <div class="card full">
+          <h3 class="card-head"><span class="swatch"></span><span data-i18n="mach.section">My Printers / Machines</span></h3>
+          <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px;" data-i18n="mach.section_hint"></p>
+          <div id="machinesList"></div>
+          <button class="btn primary" id="btnAddMachine" style="margin-top:10px;" data-i18n="mach.add">+ Add Printer</button>
+        </div>
+
+        <div class="card full">
+          <h3 class="card-head"><span class="swatch"></span><span data-i18n="wa.settings_section">WhatsApp Quick-Reply Templates</span></h3>
+          <p style="font-size:12px; color:var(--text-muted); margin:0 0 12px;" data-i18n="wa.settings_hint"></p>
+          <div id="waTemplatesList"></div>
+          <button class="btn primary" id="btnAddWaTemplate" style="margin-top:10px;" data-i18n="wa.add_template">+ Add Template</button>
+        </div>
+
+        <!-- Post-processing checklist -->
+        <div class="card full">
+          <h3 class="card-head"><span class="swatch"></span><span data-i18n="post.settings_title">Post-Processing Checklist</span></h3>
+          <p style="font-size:12px; color:var(--text-muted); margin:0 0 12px;" data-i18n="post.settings_hint">Define steps shown on every order card in the Post column of the queue.</p>
+          <div id="postChecklistItems"></div>
+          <div style="display:flex; gap:8px; margin-top:10px;">
+            <input type="text" id="postCheckInput" style="flex:1;" data-i18n-placeholder="post.step_ph" placeholder="e.g. Sand & polish">
+            <button class="btn primary" id="btnAddPostCheck" data-i18n="post.add_step">+ Add step</button>
+          </div>
+        </div>
+
+        <!-- Operational settings: min-margin + expense budgets -->
+        <div class="card full">
+          <h3 class="card-head"><span class="swatch"></span><span data-i18n="set.ops_section">Operational Settings</span></h3>
+
+          <div class="inline-pair" style="align-items:flex-end; margin-top:0;">
+            <div>
+              <label data-i18n="set.min_margin">Minimum margin warning (%)</label>
+              <input type="number" id="set_minMarginPct" min="0" max="100" step="1" placeholder="0">
+            </div>
+            <div style="padding-bottom:6px; font-size:12px; color:var(--text-muted);" data-i18n="set.min_margin_hint">Show a warning in the calculator when margin falls below this threshold. Set 0 to disable.</div>
+          </div>
+
+          <h4 style="margin:20px 0 10px; font-size:13px; font-weight:600;" data-i18n="set.exp_budgets">Monthly Expense Budgets</h4>
+          <div class="inline-pair" style="flex-wrap:wrap;">
+            <div><label data-i18n="exp.cat.filament">Filament</label><input type="number" id="set_budget_filament" min="0" step="1" placeholder="0"></div>
+            <div><label data-i18n="exp.cat.electricity">Electricity</label><input type="number" id="set_budget_electricity" min="0" step="1" placeholder="0"></div>
+            <div><label data-i18n="exp.cat.maintenance">Maintenance</label><input type="number" id="set_budget_maintenance" min="0" step="1" placeholder="0"></div>
+            <div><label data-i18n="exp.cat.tools">Tools</label><input type="number" id="set_budget_tools" min="0" step="1" placeholder="0"></div>
+            <div><label data-i18n="exp.cat.shipping">Shipping</label><input type="number" id="set_budget_shipping" min="0" step="1" placeholder="0"></div>
+            <div><label data-i18n="exp.cat.other">Other</label><input type="number" id="set_budget_other" min="0" step="1" placeholder="0"></div>
+          </div>
+          <button class="btn primary" id="btnSaveOpsSettings" style="margin-top:16px;" data-i18n="common.save">Save</button>
+        </div>
+
+        <!-- Custom order metadata fields -->
+        <div class="card full">
+          <h3 class="card-head"><span class="swatch"></span><span data-i18n="set.custom_fields_title">Custom Order Fields</span></h3>
+          <p style="font-size:12px; color:var(--text-muted); margin:0 0 12px;" data-i18n="set.custom_fields_hint">Add extra fields that appear in every order form (e.g. "Customer Reference", "Color Choice").</p>
+          <div id="customFieldsList"></div>
+          <div style="display:flex; gap:8px; margin-top:10px;">
+            <input type="text" id="customFieldInput" style="flex:1;" data-i18n-placeholder="set.custom_field_ph" placeholder="e.g. Customer Reference">
+            <button class="btn primary" id="btnAddCustomField" data-i18n="set.add_custom_field">+ Add Field</button>
+          </div>
+        </div>
+
+        <div class="card full">
+          <h3 class="card-head"><span class="swatch"></span><span data-i18n="set.data_section">Data</span></h3>
+          <div class="btn-row">
+            <button class="btn" id="btnExport" data-i18n="set.export">Export all data (JSON)</button>
+            <button class="btn" id="btnImport" data-i18n="set.import">Import data (JSON)</button>
+            <input type="file" id="importFile" accept="application/json" style="display:none;">
+            <button class="btn" id="btnRevealPhotos" data-i18n="set.reveal_photos">Reveal product photos folder</button>
+            <button class="btn danger" id="btnReset" data-i18n="set.reset">Reset all data…</button>
+          </div>
+
+          <!-- Feature 8 / Task 0: Data storage section -->
+          <div style="margin-top:18px; padding:14px 16px; background:rgba(43,182,115,0.06); border:1px solid rgba(43,182,115,0.2); border-radius:var(--radius);">
+            <div style="font-size:13px; font-weight:600; margin-bottom:10px;">💾 Data Storage</div>
+            <div id="storageUsageDisplay" style="font-size:13px;"></div>
+          </div>
+
+          <!-- Feedback -->
+          <div style="margin-top:18px; padding:14px 16px; background:rgba(100,200,100,0.06); border:1px solid rgba(100,200,100,0.2); border-radius:var(--radius);">
+            <div style="font-size:13px; font-weight:600; margin-bottom:6px;">💬 <span data-i18n="feedback.settings_title">Feedback & Bug Reports</span></div>
+            <p style="font-size:12px; color:var(--text-muted); margin:0 0 10px;" data-i18n="feedback.settings_desc">Help us improve Khayt by reporting bugs, suggesting features, or sharing your experience.</p>
+            <button id="btnFeedbackSettings" class="btn small primary" data-i18n="feedback.title">Send Feedback</button>
+          </div>
+
+          <!-- GitHub Sponsors -->
+          <div style="margin-top:18px; padding:14px 16px; background:rgba(91,156,240,0.06); border:1px solid rgba(91,156,240,0.2); border-radius:var(--radius);">
+            <div style="font-size:13px; font-weight:600; margin-bottom:6px;">❤️ <span data-i18n="set.donate_title">Support Khayt</span></div>
+            <p style="font-size:12px; color:var(--text-muted); margin:0 0 10px;" data-i18n="set.donate_desc">Khayt is free &amp; open source for makers worldwide. If it saves you time, consider sponsoring on GitHub.</p>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <a id="btnGithubSponsors" href="#" target="_blank" class="btn small primary" style="text-decoration:none;" data-i18n="set.donate_btn">❤️ Sponsor on GitHub</a>
+              <label style="font-size:11.5px; color:var(--text-muted); margin:0; flex:1; min-width:120px;" data-i18n="set.donate_url_label">Your GitHub Sponsors URL (optional):</label>
+              <input type="url" id="set_donationUrl" style="flex:2; min-width:180px;" placeholder="https://github.com/sponsors/yourname">
+            </div>
+          </div>
+
+          <div style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border-soft); font-size: 12px; color: var(--text-muted);">
+            <strong data-i18n="set.about">About</strong> · <span data-i18n="app.title">Khayt</span> · خيط · <span data-i18n="set.version">Version</span> <span id="appVersion">—</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Modal mount point -->
+<div id="modalMount"></div>
+
+<!-- Printable invoice area -->
+<div id="invoice-print-area"></div>
+<div id="work-order-print-area"></div>
+
+<!-- Global ⌘K Search Overlay -->
+<div id="globalSearchOverlay" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.65); backdrop-filter:blur(4px); align-items:flex-start; justify-content:center; padding-top:15vh;">
+  <div style="background:var(--bg-elev,#1e293b); border:1px solid var(--border,rgba(255,255,255,0.12)); border-radius:14px; width:min(640px,92vw); max-height:60vh; display:flex; flex-direction:column; box-shadow:0 24px 60px rgba(0,0,0,0.5); overflow:hidden;">
+    <div style="display:flex; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid var(--border,rgba(255,255,255,0.08));">
+      <span style="font-size:16px; color:var(--text-muted);">🔍</span>
+      <input id="globalSearchInput" type="text" data-i18n-placeholder="search.placeholder" placeholder="Search…" autocomplete="off" spellcheck="false"
+        style="flex:1; background:transparent; border:none; outline:none; font-size:15px; color:var(--text); caret-color:var(--primary);">
+      <kbd style="font-size:11px; color:var(--text-muted); border:1px solid var(--border); border-radius:4px; padding:1px 5px;">Esc</kbd>
+    </div>
+    <div id="globalSearchResults" style="overflow-y:auto; padding:8px 0; flex:1;"></div>
+  </div>
+</div>
+
+<script src="i18n.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

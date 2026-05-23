@@ -1,0 +1,48 @@
+{
+  "name": "khayt",
+  "version": "1.0.0",
+  "description": "Khayt — 3D printing production management, invoicing & analytics. Free & open to all makers worldwide.",
+  "main": "main.js",
+  "author": "Khayt",
+  "license": "MIT",
+  "private": false,
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --mac",
+    "dist:universal": "electron-builder --mac --universal"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.3"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "app.khayt.hub",
+    "productName": "Khayt",
+    "directories": {
+      "output": "build",
+      "buildResources": "assets"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.business",
+      "target": [
+        { "target": "dmg", "arch": ["arm64"] }
+      ],
+      "icon": "assets/icon.icns",
+      "darkModeSupport": true
+    },
+    "dmg": {
+      "title": "Khayt ${version}"
+    }
+  }
+}
