@@ -1139,9 +1139,9 @@ tbody tr:hover { background: var(--surface-2); }
   flex-wrap: wrap;
 }
 .toolbar-search {
-  flex: 1;
-  min-width: 200px;
-  max-width: 360px;
+  flex: 3;
+  min-width: 120px;
+  max-width: 400px;
   padding: 9px 11px;
   font: inherit;
   font-size: 13.5px;
@@ -1157,7 +1157,8 @@ tbody tr:hover { background: var(--surface-2); }
 }
 .toolbar-select {
   width: auto;
-  min-width: 130px;
+  min-width: 90px;
+  max-width: 150px;
   padding: 8px 28px 8px 11px;
   font-size: 13px;
   color: var(--text);
