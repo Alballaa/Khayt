@@ -323,8 +323,9 @@
 
     <!-- ===================== QUEUE ===================== -->
     <section id="queue-tab" class="tab-content">
-      <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
-        <h3 class="card-head" style="margin:0; flex:1;"><span class="swatch"></span><span data-i18n="queue.title">Active Production Queue</span></h3>
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap;">
+        <h3 class="card-head" style="margin:0; flex:1; min-width:120px;"><span class="swatch"></span><span data-i18n="queue.title">Active Production Queue</span></h3>
+        <input type="search" id="kanSearch" class="toolbar-search" data-i18n-placeholder="kan.search_ph" placeholder="Filter by client, project…" style="max-width:200px;">
         <button id="btnScheduleView" class="btn-sm btn ghost small">📅 <span data-i18n="kan.schedule_view">Schedule</span></button>
         <button id="btnPauseProduction" class="btn small" style="background:rgba(220,38,38,0.15);color:#f87171;border-color:rgba(220,38,38,0.3);" data-i18n="prod.pause">⏸ Pause production</button>
       </div>

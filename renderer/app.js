@@ -101,6 +101,7 @@ function saveBuildDraft() {
 
 // UI state for filters and search
 let logSearchTerm = '';
+let kanSearchTerm = '';
 let logStatusFilter = '';
 let logPayFilter = '';
 let logRangeFilter = 'all';
@@ -247,6 +248,14 @@ function getAllTags() {
   return [...all].sort();
 }
 function uid(prefix = 'ID') { return prefix + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5).toUpperCase(); }
+
+/** Hash a PIN with SHA-256 (hex string, 64 chars). Used for operator PINs instead of btoa(). */
+async function hashPin(pin) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(pin)));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+/** Detect legacy base64-encoded PINs (btoa output is always < 64 chars for 4-8 digit PINs). */
+function isLegacyPin(hash) { return typeof hash === 'string' && hash.length > 0 && hash.length !== 64; }
 
 /** Feature 2: Return normalised priority level for an order.
  *  Supports both legacy boolean and new string values. */
@@ -1784,9 +1793,11 @@ function saveCurrentAsPreset() {
   });
 }
 
-function deleteCurrentPreset() {
+async function deleteCurrentPreset() {
   const val = $('#printerPreset').value;
   if (!val) return;
+  const ok = await confirmModal(t('common.delete') + '?', { danger: true });
+  if (!ok) return;
   printers = printers.filter(p => p.id !== val);
   saveAll();
   renderPrinterPresets();
@@ -2426,7 +2437,7 @@ function openWaTemplateEditor(tplId = null) {
       if (!draft.body) { toast(t('wa.tpl_need_body'), 'error'); return false; }
       const idx = waTemplates.findIndex(x => x.id === draft.id);
       if (idx >= 0) waTemplates[idx] = draft; else waTemplates.push(draft);
-      saveJSON(K.WA_TEMPLATES, waTemplates);
+      saveAll();
       renderWaTemplates();
       toast(t('wa.tpl_saved'), 'success');
       return true;
@@ -2436,7 +2447,7 @@ function openWaTemplateEditor(tplId = null) {
 
 function deleteWaTemplate(tplId) {
   waTemplates = waTemplates.filter(x => x.id !== tplId);
-  saveJSON(K.WA_TEMPLATES, waTemplates);
+  saveAll();
   renderWaTemplates();
 }
 
@@ -2536,9 +2547,11 @@ function saveQuoteTemplate() {
   });
 }
 
-function deleteQuoteTemplate() {
+async function deleteQuoteTemplate() {
   const id = $('#quoteTplSelect').value;
   if (!id) return;
+  const ok = await confirmModal(t('common.delete') + '?', { danger: true });
+  if (!ok) return;
   templates = templates.filter(tpl => tpl.id !== id);
   saveAll();
   renderQuoteTemplates();
@@ -3916,11 +3929,12 @@ function deductFilamentForOrder(order) {
     if (!part.filamentId || !part.printWeight) continue;
     const item = inventory.find(i => i.id === part.filamentId);
     if (!item) continue;
-    item.weight = Math.max(0, item.weight - part.printWeight);
+    const deductAmt = (+part.printWeight || 0) * (part.qty || 1);
+    item.weight = Math.max(0, item.weight - deductAmt);
     if (!item.usageHistory) item.usageHistory = [];
-    item.usageHistory.unshift({ orderId: order.id, project: order.project || '', weightUsed: +part.printWeight, date: today });
+    item.usageHistory.unshift({ orderId: order.id, project: order.project || '', weightUsed: deductAmt, date: today });
     deductedAny = true;
-    toast(t('inv.deducted', { material: item.material, weight: Math.round(part.printWeight) }), 'info', 2200);
+    toast(t('inv.deducted', { material: item.material, weight: Math.round(deductAmt) }), 'info', 2200);
     if (item.weight <= (item.reorderPoint ?? settings.lowStockThreshold)) {
       toast(t('inv.low_stock', { material: item.material, weight: Math.round(item.weight) }), 'error', 3800);
     }
@@ -5770,6 +5784,11 @@ function qcPassOrder(orderId) {
       renderKanban(); renderLogs(); renderAnalytics(); renderDashboard();
       toast(t('ord.qc_passed'), 'success');
       if (order.clientId) autoExportStatusPage(order);
+      // Prompt for actuals after QC modal closes (mirrors updateStatus 'completed' path)
+      setTimeout(() => promptActuals(order, () => {
+        saveAll();
+        renderAnalytics(); renderDashboard();
+      }), 0);
       return true;
     }
   });
@@ -7414,32 +7433,54 @@ function showLinkedExpenses(orderId) {
   });
 }
 
-function emailOrderToClient(orderId, isQuote = false) {
+async function emailOrderToClient(orderId, isQuote = false) {
   const order = printLog.find(o => o.id === orderId);
   if (!order) return;
   const client = order.clientId ? clients.find(c => c.id === order.clientId) : null;
   if (!client?.email) { toast(t('ord.no_email'), 'error'); return; }
   const clientName = localName(client) || order.project || '';
-  const subject = encodeURIComponent(
-    isQuote
-      ? `Quote #${order.id} — ${order.project}`
-      : `Invoice for order #${order.id} — ${order.project}`
-  );
+  const shopName = settings.bizEn || 'Khayt';
+  const subjectText = isQuote
+    ? `Quote #${order.id} — ${order.project}`
+    : `Invoice for order #${order.id} — ${order.project}`;
+
+  // Use configured SMTP if available, fall back to mailto
+  const cfg = settings.emailConfig;
+  const smtpReady = cfg && cfg.provider !== 'none' && cfg.provider !== 'mailto' && cfg.apiKey;
+  if (smtpReady && window.hubAPI?.sendEmail) {
+    const htmlBody = `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px;">
+      <h2 style="color:${settings.invAccentColor || '#5E2E14'};">${escapeHtml(shopName)}</h2>
+      <p>Dear ${escapeHtml(clientName)},</p>
+      <p>${isQuote
+        ? `Please find below your quote <strong>${escapeHtml(order.id)}</strong> for <strong>${fmtPrice(order.price)}</strong>.`
+        : `Please find below your invoice <strong>${escapeHtml(order.id)}</strong> for <strong>${fmtPrice(order.price)}</strong>.`
+      }</p>
+      <p>Project: ${escapeHtml(order.project || '')}</p>
+      <p>Date: ${escapeHtml(order.date || '')}</p>
+      ${!isQuote && settings.paymentInstructions ? `<p>${escapeHtml(settings.paymentInstructions)}</p>` : ''}
+      <p>Thank you for your business!</p>
+      <p style="font-size:12px;color:#888;">— ${escapeHtml(shopName)}</p>
+    </div>`;
+    try {
+      const result = await window.hubAPI.sendEmail({ to: client.email, subject: subjectText, body: htmlBody, smtpConfig: cfg });
+      if (result?.ok) {
+        toast('📧 ' + t('ord.email_sent'), 'success');
+        return;
+      }
+    } catch(e) { /* fall through to mailto */ }
+  }
+
+  // Fallback: open OS mail client
   const bodyLines = [
-    `Dear ${clientName},`,
-    '',
+    `Dear ${clientName},`, '',
     isQuote
       ? `Please find attached your quote #${order.id} for ${fmtPrice(order.price)}.`
       : `Please find attached your invoice #${order.id} for ${fmtPrice(order.price)}.`,
-    `Order: ${order.project}`,
-    `Date: ${order.date}`,
+    `Order: ${order.project}`, `Date: ${order.date}`,
   ];
-  if (!isQuote && settings.paymentInstructions) {
-    bodyLines.push('', settings.paymentInstructions);
-  }
-  bodyLines.push('', `Thank you for your business!`, settings.bizEn || 'Khayt');
-  const body = encodeURIComponent(bodyLines.join('\n'));
-  const mailtoUrl = `mailto:${encodeURIComponent(client.email)}?subject=${subject}&body=${body}`;
+  if (!isQuote && settings.paymentInstructions) bodyLines.push('', settings.paymentInstructions);
+  bodyLines.push('', 'Thank you for your business!', shopName);
+  const mailtoUrl = `mailto:${encodeURIComponent(client.email)}?subject=${encodeURIComponent(subjectText)}&body=${encodeURIComponent(bodyLines.join('\n'))}`;
   window.open(mailtoUrl);
   toast(t('ord.email_opened'), 'success');
 }
@@ -7853,7 +7894,9 @@ function openWasteForm() {
   });
 }
 
-function deleteWasteEntry(id) {
+async function deleteWasteEntry(id) {
+  const ok = await confirmModal(t('common.delete') + '?', { danger: true });
+  if (!ok) return;
   const idx = wasteLog.findIndex(w => w.id === id);
   if (idx < 0) return;
   wasteLog.splice(idx, 1);
@@ -7911,22 +7954,29 @@ function exportTaxSummary() {
       const fromInput = modal.querySelector('#taxFromDate')?.value || '';
       const toInput   = modal.querySelector('#taxToDate')?.value || '';
 
+      // Helper: last calendar day of a given year/month (1-based month)
+      const lastDay = (y, m) => new Date(y, m, 0).getDate();
+      const pad = n => String(n).padStart(2, '0');
+
       // Compute date range
       let fromDate = '', toDate = '';
       if (period === 'month') {
-        fromDate = `${curY}-${String(curM + 1).padStart(2, '0')}-01`;
-        toDate   = `${curY}-${String(curM + 1).padStart(2, '0')}-31`;
+        fromDate = `${curY}-${pad(curM + 1)}-01`;
+        toDate   = `${curY}-${pad(curM + 1)}-${lastDay(curY, curM + 1)}`;
       } else if (period === 'last_month') {
         const lm = new Date(curY, curM - 1, 1);
-        fromDate = `${lm.getFullYear()}-${String(lm.getMonth() + 1).padStart(2, '0')}-01`;
-        toDate   = `${lm.getFullYear()}-${String(lm.getMonth() + 1).padStart(2, '0')}-31`;
+        const ly = lm.getFullYear(), lmm = lm.getMonth() + 1;
+        fromDate = `${ly}-${pad(lmm)}-01`;
+        toDate   = `${ly}-${pad(lmm)}-${lastDay(ly, lmm)}`;
       } else if (period === 'quarter') {
-        fromDate = `${curY}-${String(curQ * 3 + 1).padStart(2, '0')}-01`;
-        toDate   = `${curY}-${String(curQ * 3 + 3).padStart(2, '0')}-31`;
+        const qFrom = curQ * 3 + 1, qTo = curQ * 3 + 3;
+        fromDate = `${curY}-${pad(qFrom)}-01`;
+        toDate   = `${curY}-${pad(qTo)}-${lastDay(curY, qTo)}`;
       } else if (period === 'last_quarter') {
         const lq = curQ === 0 ? { y: curY - 1, q: 3 } : { y: curY, q: curQ - 1 };
-        fromDate = `${lq.y}-${String(lq.q * 3 + 1).padStart(2, '0')}-01`;
-        toDate   = `${lq.y}-${String(lq.q * 3 + 3).padStart(2, '0')}-31`;
+        const lqFrom = lq.q * 3 + 1, lqTo = lq.q * 3 + 3;
+        fromDate = `${lq.y}-${pad(lqFrom)}-01`;
+        toDate   = `${lq.y}-${pad(lqTo)}-${lastDay(lq.y, lqTo)}`;
       } else if (period === 'year') {
         fromDate = `${curY}-01-01`;
         toDate   = `${curY}-12-31`;
@@ -8044,14 +8094,24 @@ async function exportQuoteApprovalPage(orderId) {
   const vatAmt = vatEnabled ? Math.round(subtotal / (1 + vatRate / 100) * (vatRate / 100) * 100) / 100 : 0;
   const grandTotal = subtotal;
 
-  const partsHtml = (order.parts || []).map((p, i) => `
+  const _qaParts = order.parts || [];
+  const _qaTotalBase = _qaParts.reduce((s, p) => s + (+p.baseCost || 0), 0);
+  const _qaTotal = +order.price || 0;
+  const partsHtml = _qaParts.map((p, i) => {
+    const lineTotal = _qaTotalBase > 0
+      ? (+p.baseCost / _qaTotalBase) * _qaTotal
+      : _qaTotal / Math.max(1, _qaParts.length);
+    const qty = p.qty || 1;
+    const unitPrice = lineTotal / qty;
+    return `
     <tr>
       <td>${i + 1}. ${escapeHtml(p.name || '')}</td>
-      <td style="text-align:center;">${p.qty || 1}</td>
+      <td style="text-align:center;">${qty}</td>
       <td>${escapeHtml(p.material || '')}</td>
-      <td style="text-align:right;">${fmtMoney((+order.price || 0) / Math.max(1, (order.parts || []).length))} ${cur}</td>
-      <td style="text-align:right;">${fmtMoney((+order.price || 0) / Math.max(1, (order.parts || []).length))} ${cur}</td>
-    </tr>`).join('');
+      <td style="text-align:right;">${fmtMoney(unitPrice)} ${cur}</td>
+      <td style="text-align:right;">${fmtMoney(lineTotal)} ${cur}</td>
+    </tr>`;
+  }).join('');
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -8422,14 +8482,14 @@ function renderOperatorLockSettings() {
   });
 
   el.querySelectorAll('.op-save-pin').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const opId = btn.dataset.opId;
       const pinInput = el.querySelector(`.op-pin-input[data-op-id="${opId}"]`);
       const pin = pinInput?.value?.trim() || '';
       const op = operators.find(o => o.id === opId);
       if (!op) return;
       if (pin && pin !== '****') {
-        op.pinHash = btoa(pin);
+        op.pinHash = await hashPin(pin); // SHA-256 hex, not btoa
         saveAll();
         toast(t('op.pin_set') || 'PIN saved', 'success', 1800);
         if (pinInput) pinInput.value = '****';
@@ -8498,7 +8558,7 @@ function openPinPadModal(afterUnlock) {
       mount.innerHTML = '';
     });
 
-    mount.querySelector('#btnConfirmPin')?.addEventListener('click', () => {
+    mount.querySelector('#btnConfirmPin')?.addEventListener('click', async () => {
       const op = operators.find(o => o.id === selectedOpId);
       if (!op) { mount.innerHTML = ''; return; }
       // If no PIN set, allow free switch
@@ -8513,7 +8573,16 @@ function openPinPadModal(afterUnlock) {
         return;
       }
       const errEl = mount.querySelector('#pinError');
-      if (btoa(enteredPin) !== op.pinHash) {
+      // Support legacy btoa PINs (migration: clear them and prompt re-set)
+      if (isLegacyPin(op.pinHash)) {
+        op.pinHash = '';
+        saveAll();
+        if (errEl) errEl.textContent = 'PIN reset for security upgrade — please set a new PIN in Settings.';
+        enteredPin = '';
+        return;
+      }
+      const entered = await hashPin(enteredPin);
+      if (entered !== op.pinHash) {
         if (errEl) errEl.textContent = t('op.wrong_pin') || 'Incorrect PIN';
         enteredPin = '';
         const disp = mount.querySelector('#pinDisplay');
@@ -8736,7 +8805,7 @@ function computeMaterialForecast() {
     const dailyUsage = recentGrams / 30;
     const daysRemaining = (dailyUsage > 0 && available > 0) ? Math.floor(available / dailyUsage) : null;
 
-    if (available < 0 || (daysRemaining !== null && daysRemaining < 14)) {
+    if (available < 0 || (daysRemaining !== null && daysRemaining < 30)) {
       results.push({
         material: item.material,
         available: Math.round(available),
@@ -10056,8 +10125,17 @@ function renderKanban() {
   }
 
   // --- Production columns (exclude quotes) ---
+  const kanTerm = (kanSearchTerm || '').toLowerCase().trim();
   const cols = { pending: [], on_hold: [], printing: [], post: [], qc: [], completed: [] };
-  printLog.filter(o => o.status !== 'quote').forEach(o => { if (cols[o.status]) cols[o.status].push(o); });
+  printLog.filter(o => {
+    if (o.status === 'quote') return false;
+    if (kanTerm) {
+      const client = o.clientId ? clients.find(c => c.id === o.clientId) : null;
+      const hay = [o.project, o.id, o.client, client?.nameEn, client?.nameAr, client?.phone].join(' ').toLowerCase();
+      if (!hay.includes(kanTerm)) return false;
+    }
+    return true;
+  }).forEach(o => { if (cols[o.status]) cols[o.status].push(o); });
 
   Object.entries(cols).forEach(([status, items]) => {
     // For pending: sort by priority level (urgent>high>normal) then queuePos; other columns by priority level
@@ -10484,10 +10562,18 @@ function batchMoveStatus() {
   const now = new Date().toISOString();
   for (const id of ids) {
     const o = printLog.find(x => x.id === id);
-    if (o) {
-      o.status = status;
-      if (!o.statusHistory) o.statusHistory = [];
-      o.statusHistory.push({ status, at: now });
+    if (!o) continue;
+    o.status = status;
+    if (!o.statusHistory) o.statusHistory = [];
+    o.statusHistory.push({ status, at: now });
+    if (status === 'completed') {
+      if (!o.completedAt) o.completedAt = now;
+      deductFilamentForOrder(o);
+      deductPackagingConsumables(o);
+      if (o.clientId) autoExportStatusPage(o);
+      autoSendEmailNotification(o, 'completed');
+      fireWebhook('status_changed', { orderId: o.id, project: o.project, newStatus: 'completed', client: o.client });
+      fireWebhook('order_delivered', { orderId: o.id, project: o.project, client: o.client });
     }
   }
   saveAll();
@@ -11774,17 +11860,19 @@ async function autoExportStatusPage(order) {
 ${order.dueDate ? `<div class="info-row"><span class="info-label">Due</span><span class="info-value">${escapeHtml(order.dueDate)}</span></div>` : ''}
 <div class="message">${escapeHtml(msg)}</div></div>
 <div class="footer">Generated by ${escapeHtml(bizName)} · ${new Date().toLocaleDateString()}</div></div></body></html>`;
-    await window.hubAPI.writeStatusPage(html, order.id);
-  } catch (e) { console.error('autoExportStatusPage error', e); }
+    const filePath = await window.hubAPI.writeStatusPage(html, order.id);
+    return filePath || null;
+  } catch (e) { console.error('autoExportStatusPage error', e); return null; }
 }
 
 async function openSavedStatusPage(orderId) {
-  if (!window.hubAPI?.openFile) return;
-  // The path is userData/status-pages/{orderId}.html, but we can't know the exact userData path from renderer
-  // Instead, trigger write then open
+  if (!window.hubAPI?.writeStatusPage || !window.hubAPI?.openFile) return;
   const order = printLog.find(o => o.id === orderId);
   if (!order) return;
-  await autoExportStatusPage(order);
+  const filePath = await autoExportStatusPage(order);
+  if (filePath) {
+    await window.hubAPI.openFile(filePath);
+  }
   toast(t('ord.status_page_open'), 'success');
 }
 
@@ -12688,11 +12776,11 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
         <div class="thanks">${escapeHtml(isAr ? (settings.footerAr || t('inv.thank_you')) : (settings.footerEn || t('inv.thank_you')))}</div>
         ${(isAr ? settings.footerEn : settings.footerAr) ? `<div class="thanks-ar ${isAr ? 'ltr' : 'ar'}">${escapeHtml(isAr ? settings.footerEn : settings.footerAr)}</div>` : ''}
         <div class="legal">${escapeHtml(L.legal)}</div>
-        <div class="legal" style="margin-top:4px;color:#e67e22;font-size:9.5px;opacity:0.75;">
+        ${settings.showBetaDisclaimer ? `<div class="legal" style="margin-top:4px;color:#e67e22;font-size:9.5px;opacity:0.75;">
           ${isAr
             ? '⚠️ تم إنشاؤه بتطبيق تجريبي (Beta) — يُرجى التحقق من جميع الأرقام قبل الاعتماد عليها'
             : '⚠️ Generated by beta software — please verify all figures before relying on them'}
-        </div>
+        </div>` : ''}
       </div>
 
     </div>
@@ -13700,7 +13788,12 @@ function wireEvents() {
   $('#btnClearLogs').addEventListener('click', clearAllLogs);
   $('#btnSaveFilterPreset')?.addEventListener('click', saveCurrentFilterPreset);
   $('#btnExportAccounting')?.addEventListener('click', exportAccountingCSV);
-  $('#logSearch').addEventListener('input', (e) => { logSearchTerm = e.target.value; renderLogs(); });
+  let _logSearchTimer = null;
+  $('#logSearch').addEventListener('input', (e) => {
+    logSearchTerm = e.target.value;
+    clearTimeout(_logSearchTimer);
+    _logSearchTimer = setTimeout(renderLogs, 150);
+  });
   $('#logStatusFilter').addEventListener('change', (e) => { logStatusFilter = e.target.value; renderLogs(); });
   $('#logPayFilter').addEventListener('change', (e) => { logPayFilter = e.target.value; renderLogs(); });
   $('#logRangeFilter').addEventListener('change', (e) => {
@@ -13896,6 +13989,14 @@ function wireEvents() {
 
   // Production pause button
   $('#btnPauseProduction')?.addEventListener('click', pauseProduction);
+
+  // Kanban search filter
+  let _kanSearchTimer = null;
+  $('#kanSearch')?.addEventListener('input', (e) => {
+    kanSearchTerm = e.target.value;
+    clearTimeout(_kanSearchTimer);
+    _kanSearchTimer = setTimeout(renderKanban, 150);
+  });
 
   // Schedule view toggle (Feature 2)
   $('#btnScheduleView')?.addEventListener('click', () => {

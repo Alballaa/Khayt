@@ -1190,6 +1190,7 @@ const STRINGS = {
     'ord.email_invoice':        'Email invoice',
     'ord.email_quote':          'Email quote',
     'ord.email_opened':         'Email client opened.',
+    'ord.email_sent':           'Email sent successfully.',
     'ord.no_email':             'No email on file for this client.',
 
     // ---------- Feature 8: Multi-material cost split ----------
@@ -1341,6 +1342,7 @@ const STRINGS = {
     'kan.schedule_view':        'Schedule',
     'kan.kanban_view':          'Kanban',
     'kan.schedule_now':         'Now',
+    'kan.search_ph':            'Filter by client, project…',
 
     // ---------- Feature 3: Spool switch ----------
     'ord.spool_switch':         'Spool switch',
@@ -2750,6 +2752,7 @@ const STRINGS = {
     'kan.schedule_view':          'عرض الجدول الزمني',
     'kan.kanban_view':            'عرض كانبان',
     'kan.schedule_now':           'جدولة الآن',
+    'kan.search_ph':              'تصفية حسب العميل أو المشروع…',
     'kan.elapsed':                'المنقضي',
     'kan.started':                'بدأ',
     'kan.col_qc':                 'مراقبة الجودة',
@@ -2903,6 +2906,7 @@ const STRINGS = {
     'ord.email_invoice':          'إرسال الفاتورة بالبريد',
     'ord.email_quote':            'إرسال عرض السعر بالبريد',
     'ord.email_opened':           'تم فتح البريد',
+    'ord.email_sent':             'تم إرسال البريد بنجاح.',
     'ord.no_email':               'لا يوجد بريد إلكتروني',
     'ord.on_hold':                'معلق',
     'ord.hold_reason':            'سبب الإيقاف',
