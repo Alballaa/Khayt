@@ -9,6 +9,7 @@
   --bg:           #0f172a;
   --bg-elev:      #111c33;
   --surface:      #1a2540;
+  --surface-1:    #1a2540;
   --surface-2:    #213056;
   --border:       #2a3656;
   --border-soft:  #1f2a47;
@@ -38,6 +39,7 @@
   --bg:           #f4f6fb;
   --bg-elev:      #ffffff;
   --surface:      #ffffff;
+  --surface-1:    #ffffff;
   --surface-2:    #f7f9fc;
   --border:       #e4e9f2;
   --border-soft:  #eef1f7;
@@ -630,6 +632,15 @@ tbody tr:hover { background: var(--surface-2); }
 .badge.printing  { background: rgba(91,156,240,0.18); color: var(--primary); }
 .badge.post      { background: rgba(245,166,35,0.18); color: var(--warning); }
 .badge.completed { background: rgba(43,182,115,0.18); color: var(--success); }
+.badge.qc        { background: rgba(138,125,240,0.18); color: var(--info); }
+.badge.quote     { background: rgba(249,115,22,0.15); color: var(--accent); }
+
+/* Highlight-flash for search navigation */
+@keyframes highlight-flash {
+  0%   { background: rgba(91,156,240,0.25); }
+  100% { background: transparent; }
+}
+.highlight-flash { animation: highlight-flash 1.5s ease-out; }
 
 /* Drying badges */
 .drying-warn-badge { display:inline-flex; align-items:center; gap:3px; font-size:10.5px; padding:2px 7px; border-radius:10px; background:rgba(245,166,35,0.18); color:var(--warning); font-weight:600; }

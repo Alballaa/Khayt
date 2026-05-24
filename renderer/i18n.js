@@ -618,6 +618,8 @@ const STRINGS = {
     'inv.saved':            'PDF saved',
     'inv.no_phone':         'No phone on file — WhatsApp will open without a recipient.',
     'inv.message_template': 'Hello {name}, your invoice {id} for {total} SAR is ready. Thank you!',
+    'inv.spool_added_phone': '📱 Spool added from phone: {name}',
+    'ord.status_updated_phone': '📱 Order {id} status → {status}',
 
     // ---------- Settings ----------
     'set.title':            'Business Settings',

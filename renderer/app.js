@@ -616,10 +616,9 @@ function availableHoursUntil(targetDate) {
 function avgDailyWorkingHours() {
   const wh = settings.workingHours || { mon: 8, tue: 8, wed: 8, thu: 8, fri: 0, sat: 0, sun: 0 };
   const days = Object.values(wh);
-  const activeDays = days.filter(h => h > 0);
-  return activeDays.length > 0
-    ? activeDays.reduce((s, h) => s + h, 0) / 7
-    : 8; // fallback 8 h/day
+  const totalWeeklyHours = days.reduce((s, h) => s + (h > 0 ? h : 0), 0);
+  // Divide by 7 to get calendar-day average (correct for delivery-date estimation)
+  return totalWeeklyHours > 0 ? totalWeeklyHours / 7 : 8;
 }
 
 /* ============================================================
@@ -3564,7 +3563,7 @@ function renderInventory() {
       const resinBadge = isResin ? ` <span class="resin-badge">${escapeHtml(t('inv.type_resin'))}</span>` : '';
       const colourChip = item.colourVariant ? ` <span class="variant-chip">${escapeHtml(item.colourVariant)}</span>` : '';
       return `
-        <tr${low ? ' style="background: rgba(245,166,35,0.08);"' : ''}>
+        <tr data-inv-id="${escapeHtml(item.id)}"${low ? ' style="background: rgba(245,166,35,0.08);"' : ''}>
           <td style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:${escapeHtml(item.color || '#888888')}; flex-shrink:0; border:1px solid rgba(255,255,255,0.15);"></span>
             <strong>${escapeHtml(item.material)}</strong>${low ? ' <span style="color:var(--warning); font-size:11px;">· low</span>' : ''}${resinBadge}${colourChip}${ageBadge}${reservedBadge}${overcommitBadge}${testBadge}
@@ -4723,11 +4722,12 @@ function resizeImage(file, maxDim, quality = 0.9) {
 function getClientStats(clientId) {
   const orders = printLog.filter(o => o.clientId === clientId);
   const completed = orders.filter(o => o.status === 'completed');
+  const sorted = [...orders].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   return {
     count: orders.length,
     completedCount: completed.length,
     revenue: completed.reduce((s, o) => s + +o.price, 0),
-    lastDate: orders[0]?.date || null
+    lastDate: sorted[0]?.date || null
   };
 }
 
@@ -5132,11 +5132,13 @@ async function exportClientInvoices(clientId) {
   // Fallback: render all invoices concatenated into print area, print once
   const area = $('#invoice-print-area');
   area.innerHTML = '';
+  const pages = [];
   for (const order of orders) {
     await renderInvoiceForOrder(order);
-    const snap = area.innerHTML;
-    area.innerHTML += snap + '<div style="page-break-after:always;"></div>';
+    pages.push(area.innerHTML);
+    area.innerHTML = '';
   }
+  area.innerHTML = pages.join('<div style="page-break-after:always;"></div>');
   setTimeout(() => window.print(), 100);
 }
 
@@ -5778,16 +5780,17 @@ function qcPassOrder(orderId) {
       if (!order.completedAt) order.completedAt = new Date().toISOString();
       if (!order.statusHistory) order.statusHistory = [];
       order.statusHistory.push({ status: 'completed', at: new Date().toISOString() });
-      deductFilamentForOrder(order);
-      deductPackagingConsumables(order);
-      saveAll();
-      renderKanban(); renderLogs(); renderAnalytics(); renderDashboard();
+      // Note: filament deduction happens inside the promptActuals callback so
+      // that if the operator cancels actuals, inventory is NOT silently deducted
+      renderKanban(); renderLogs();
       toast(t('ord.qc_passed'), 'success');
-      if (order.clientId) autoExportStatusPage(order);
-      // Prompt for actuals after QC modal closes (mirrors updateStatus 'completed' path)
+      // Prompt for actuals after QC modal closes, then finalise
       setTimeout(() => promptActuals(order, () => {
+        deductFilamentForOrder(order);
+        deductPackagingConsumables(order);
         saveAll();
         renderAnalytics(); renderDashboard();
+        if (order.clientId) autoExportStatusPage(order);
       }), 0);
       return true;
     }
@@ -6655,7 +6658,9 @@ function openOrderEditor(orderId) {
         const prevDiscountPct = order.discountPct || 0;
         const prevShipping    = +order.shippingCost || 0;
         const sellingBase = order.priceBeforeDiscount ||
-          (+order.price - prevShipping - prevOldExtra) / (1 - prevDiscountPct / 100);
+          (prevDiscountPct < 100
+            ? (+order.price - prevShipping - prevOldExtra) / (1 - prevDiscountPct / 100)
+            : (+order.price - prevShipping - prevOldExtra)); // 100% discount: base = original price
         const newPrice = sellingBase * (1 - draft.discountPct / 100) + draft.shippingCost + newExtraTotal;
         order.price = +newPrice.toFixed(2);
         order.discountPct = draft.discountPct;
@@ -7334,8 +7339,9 @@ async function maybeAutoBackup() {
     const last  = await window.hubAPI.lastBackupDate();
     const today = new Date().toISOString().split('T')[0];
     const json  = JSON.stringify({
-      version: 4, exportedAt: new Date().toISOString(),
-      printLog, inventory, templates, products, clients, settings, expenses, machines, waTemplates, wasteLog
+      version: 5, exportedAt: new Date().toISOString(),
+      printLog, inventory, templates, products, clients, settings, expenses, machines,
+      waTemplates, wasteLog, operators, purchaseOrders, consumables, suppliers, locations
     });
     if (last !== today) {
       const p = await window.hubAPI.writeBackup(json);
@@ -9746,7 +9752,7 @@ function renderDashboard() {
 
     ${machines.length > 0 ? (() => {
       const activeOrds = printLog.filter(o => o.status !== 'completed' && o.status !== 'quote');
-      const WORK_HRS_PER_DAY = 8; // assumed working hours per day for queue depth estimate
+      const WORK_HRS_PER_DAY = Math.max(1, avgDailyWorkingHours()); // use configured working hours
       // Feature 1: Per-machine clearance forecast
       const machRows = machines.map(m => {
         const mJobs  = activeOrds.filter(o => o.machineId === m.id);
@@ -10350,13 +10356,17 @@ function renderKanban() {
   // Feature 2 (new batch): Populate live status on rendered cards
   updateKanbanLiveStatus();
 
-  // Feature 3 (new batch): FEP film alert — check per machine after render
+  // Feature 3 (new batch): FEP film alert — fire once per threshold crossing, not on every render
   (() => {
     if (!settings.mode || settings.mode === 'simple') return;
+    if (!renderKanban._fepAlerted) renderKanban._fepAlerted = new Map();
     const resinCompleted = printLog.filter(o => o.isResin && o.status === 'completed');
     machines.forEach(m => {
       const count = resinCompleted.filter(o => o.machineId === m.id).length;
-      if (count > 0 && count % 50 === 0) {
+      const threshold = Math.floor(count / 50) * 50;
+      const lastAlerted = renderKanban._fepAlerted.get(m.id) || 0;
+      if (threshold > 0 && threshold > lastAlerted) {
+        renderKanban._fepAlerted.set(m.id, threshold);
         toast(`${escapeHtml(m.name)}: ${t('resin.fep_alert')}`, 'warning', 6000);
       }
     });
@@ -13040,6 +13050,10 @@ function saveSettingsFromForm() {
     fixedCosts:   settings.fixedCosts   || [],
     lanApi:       settings.lanApi       || { enabled: false, port: 3219, pin: '' },
     savedFilters: settings.savedFilters || [],
+    // Payment instructions (textarea, not auto-included by DOM reconstruction)
+    paymentInstructions: $('#set_paymentInstructions')?.value ?? settings.paymentInstructions ?? '',
+    showBetaDisclaimer: !!$('#set_showBetaDisclaimer')?.checked,
+    betaAcknowledged: settings.betaAcknowledged ?? false,
   };
   saveAll();
   i18n.set(settings.lang);
@@ -13193,9 +13207,10 @@ function deleteCustomField(idx) {
 function exportData() {
   downloadBlob(
     new Blob([JSON.stringify({
-      version: 4,
+      version: 5,
       exportedAt: new Date().toISOString(),
-      printLog, inventory, templates, products, clients, settings, expenses, machines, waTemplates, wasteLog
+      printLog, inventory, templates, products, clients, settings, expenses, machines,
+      waTemplates, wasteLog, operators, purchaseOrders, consumables, suppliers, locations
     }, null, 2)], { type: 'application/json' }),
     `khayt-${new Date().toISOString().split('T')[0]}.json`
   );
@@ -13207,15 +13222,20 @@ function importData(file) {
   reader.onload = (ev) => {
     try {
       const data = JSON.parse(ev.target.result);
-      if (Array.isArray(data.printLog))  printLog  = data.printLog;
-      if (Array.isArray(data.inventory)) inventory = data.inventory;
-      if (Array.isArray(data.templates)) templates = data.templates;
-      if (Array.isArray(data.products))  products  = data.products;
-      if (Array.isArray(data.clients))   clients   = data.clients;
-      if (Array.isArray(data.expenses))  expenses  = data.expenses;
-      if (Array.isArray(data.machines))    machines    = data.machines;
-      if (Array.isArray(data.waTemplates)) waTemplates = data.waTemplates;
-      if (Array.isArray(data.wasteLog))    wasteLog    = data.wasteLog;
+      if (Array.isArray(data.printLog))      printLog      = data.printLog;
+      if (Array.isArray(data.inventory))     inventory     = data.inventory;
+      if (Array.isArray(data.templates))     templates     = data.templates;
+      if (Array.isArray(data.products))      products      = data.products;
+      if (Array.isArray(data.clients))       clients       = data.clients;
+      if (Array.isArray(data.expenses))      expenses      = data.expenses;
+      if (Array.isArray(data.machines))      machines      = data.machines;
+      if (Array.isArray(data.waTemplates))   waTemplates   = data.waTemplates;
+      if (Array.isArray(data.wasteLog))      wasteLog      = data.wasteLog;
+      if (Array.isArray(data.operators))     operators     = data.operators;
+      if (Array.isArray(data.purchaseOrders)) purchaseOrders = data.purchaseOrders;
+      if (Array.isArray(data.consumables))   consumables   = data.consumables;
+      if (Array.isArray(data.suppliers))     suppliers     = data.suppliers;
+      if (Array.isArray(data.locations))     locations     = data.locations;
       if (data.settings && typeof data.settings === 'object') {
         settings = Object.assign(defaultSettings(), data.settings);
       }
@@ -13236,7 +13256,9 @@ function importData(file) {
 async function resetAllData() {
   const ok = await confirmModal(t('set.reset_q'), { danger: true });
   if (!ok) return;
-  printLog = []; templates = []; products = []; clients = []; expenses = []; machines = []; waTemplates = defaultWaTemplates(); wasteLog = [];
+  printLog = []; templates = []; products = []; clients = []; expenses = []; machines = [];
+  waTemplates = defaultWaTemplates(); wasteLog = [];
+  operators = []; purchaseOrders = []; consumables = []; suppliers = []; locations = [];
   inventory = [
     { id: 'seed-1', material: 'PLA+ 2.0',   cost: 75, weight: 1000 },
     { id: 'seed-2', material: 'Sunlu PETG', cost: 85, weight: 1000 },
@@ -13376,7 +13398,7 @@ function renderGlobalResults(term) {
   if (matchInv.length) {
     sections.push(`<div class="gs-group-label">${escapeHtml(t('search.inventory'))}</div>`);
     sections.push(matchInv.map(i => `
-      <div class="gs-result" data-gs-action="inventory">
+      <div class="gs-result" data-gs-action="inventory" data-gs-id="${escapeHtml(i.id)}">
         <span class="gs-icon">🧵</span>
         <span class="gs-title">${escapeHtml(i.material)}</span>
         <span class="gs-meta">${Math.round(i.weight)}g · ${fmtPrice(i.cost)}</span>
@@ -13390,10 +13412,16 @@ function renderGlobalResults(term) {
       const action = row.dataset.gsAction;
       const id     = row.dataset.gsId;
       closeGlobalSearch();
-      if (action === 'order')     { switchTab('logs-tab');     setTimeout(() => { logSearchTerm = id; renderLogs(); }, 50); }
-      if (action === 'client')    { switchTab('clients-tab');  setTimeout(() => { clientSearchTerm = id; renderClients(); }, 50); }
+      if (action === 'order')     { switchTab('logs-tab');       setTimeout(() => { logSearchTerm = id; renderLogs(); }, 50); }
+      if (action === 'client')    { switchTab('clients-tab');    setTimeout(() => { clientSearchTerm = id; renderClients(); }, 50); }
       if (action === 'product')   { switchTab('catalog-tab'); }
-      if (action === 'inventory') { switchTab('inventory-tab'); }
+      if (action === 'inventory') {
+        switchTab('inventory-tab');
+        if (id) setTimeout(() => {
+          const row = document.querySelector(`[data-inv-id="${CSS.escape(id)}"]`);
+          if (row) { row.scrollIntoView({ behavior: 'smooth', block: 'center' }); row.classList.add('highlight-flash'); setTimeout(() => row.classList.remove('highlight-flash'), 1500); }
+        }, 80);
+      }
     });
   });
 }
@@ -14610,23 +14638,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   // iOS companion: react to spools/orders changed via LAN API from phone
   if (window.hubAPI?.onLanSpoolAdded) {
     window.hubAPI.onLanSpoolAdded(spool => {
-      // Phone added a spool — merge into local inventory without full reload
+      // Phone added a spool — patch in-memory state and persist so next saveAll() doesn't clobber it
       if (spool && spool.id && !inventory.find(s => s.id === spool.id)) {
         inventory.push(spool);
-        if ($('#tab-inventory')?.classList.contains('active')) renderInventory();
-        toast('📱 Spool added from phone: ' + (spool.brand || '') + ' ' + (spool.material || ''), 'success', 4000);
+        saveAll(); // keep in-memory and on-disk in sync before any UI save can overwrite
+        renderInventory();
+        toast('📱 ' + t('inv.spool_added_phone', { name: ((spool.brand || '') + ' ' + (spool.material || '')).trim() || spool.id }), 'success', 4000);
       }
     });
   }
   if (window.hubAPI?.onLanOrderUpdated) {
     window.hubAPI.onLanOrderUpdated(({ id, status }) => {
-      // Phone updated an order status
+      // Phone updated an order status — patch in-memory state and persist
       const order = printLog.find(o => o.id === id);
       if (order) {
         order.status = status;
+        if (!order.statusHistory) order.statusHistory = [];
+        order.statusHistory.push({ status, at: new Date().toISOString() });
+        saveAll(); // keep in-memory and on-disk in sync before any UI save can overwrite
         renderLogs();
         renderKanban();
-        toast('📱 Order ' + id + ' → ' + status, 'info', 3000);
+        toast('📱 ' + t('ord.status_updated_phone', { id, status }), 'info', 3000);
       }
     });
   }
