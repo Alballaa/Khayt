@@ -142,8 +142,9 @@ ipcMain.handle('hub:export-pdf', async (event, { savePath, askWhere = false, def
     finalPath = result.filePath;
   }
   if (!finalPath) {
-    // Default location: userData/invoices/<defaultName>
-    finalPath = path.join(invoicesDir(), defaultName);
+    // Default location: userData/invoices/<safeName>
+    const safeName = String(defaultName || 'invoice.pdf').replace(/[^a-zA-Z0-9._-]/g, '_');
+    finalPath = path.join(invoicesDir(), safeName);
   }
   await fs.promises.writeFile(finalPath, pdfBuffer);
   return finalPath;
@@ -274,7 +275,7 @@ ipcMain.handle('hub:load-store', async () => {
     return JSON.parse(raw);
   } catch (e) {
     console.error('hub:load-store error:', e);
-    return null;
+    return { __corrupt: true, error: String(e.message || e) };
   }
 });
 
@@ -308,12 +309,21 @@ ipcMain.handle('hub:reveal-store-file', async () => {
 // --- Feature 2: File vault (per-order 3D files) ---
 const fileVaultDir = () => ensureDir('file-vault');
 ipcMain.handle('hub:copy-file-to-vault', async (_e, { srcPath, orderId }) => {
+  const src = path.resolve(String(srcPath || ''));
+  // Block paths that look like they're targeting system/sensitive directories
+  const blocked = ['/etc', '/usr', '/System', '/private/etc',
+                   (process.env.HOME || '') + '/.ssh',
+                   (process.env.HOME || '') + '/.gnupg',
+                   path.join(app.getPath('userData'), '..')];
+  if (blocked.some(b => b && src.startsWith(b) && !src.startsWith(app.getPath('userData')))) {
+    return { ok: false, error: 'Source path not allowed' };
+  }
   const safeId = path.basename(String(orderId || '')).replace(/[^a-zA-Z0-9_-]/g, '_');
   const orderVaultDir = path.join(fileVaultDir(), safeId);
   if (!fs.existsSync(orderVaultDir)) fs.mkdirSync(orderVaultDir, { recursive: true });
-  const filename = path.basename(String(srcPath || ''));
+  const filename = path.basename(src);
   const destPath = path.join(orderVaultDir, filename);
-  fs.copyFileSync(String(srcPath), destPath);
+  fs.copyFileSync(src, destPath);
   const stat = await fs.promises.stat(destPath);
   return { destPath, filename, size: stat.size };
 });
@@ -350,7 +360,8 @@ ipcMain.handle('hub:write-status-page', async (_e, { html, orderId }) => {
 // --- Safe external URL opener (mailto, https) ---
 ipcMain.handle('hub:open-external', async (_e, url) => {
   const s = String(url || '');
-  if (!s.startsWith('mailto:') && !s.startsWith('https://') && !s.startsWith('http://')) return false;
+  // Only allow safe URL schemes — no http:// to prevent local network exploit attempts
+  if (!s.startsWith('mailto:') && !s.startsWith('https://')) return false;
   await shell.openExternal(s);
   return true;
 });
@@ -588,7 +599,8 @@ ipcMain.handle('hub:send-email', async (_e, { to, subject, body, smtpConfig }) =
 
 // ── Feature R12-1: Outbound Webhooks ────────────────────────────────────────
 ipcMain.handle('hub:fire-webhook', async (_e, { url, event, payload, secret }) => {
-  if (!url || !url.startsWith('http')) return { ok: false, error: 'Invalid URL' };
+  // Restrict to https:// only — prevents SSRF to localhost and internal network
+  if (!url || !url.startsWith('https://')) return { ok: false, error: 'Invalid URL — only https:// allowed' };
   try {
     const body = JSON.stringify({ event, payload, timestamp: Date.now() });
     const headers = { 'Content-Type': 'application/json', 'X-Khayt-Event': event };
@@ -605,16 +617,44 @@ let lanServerStore = {};  // reference to current store, updated via hub:save-st
 
 ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}) => {
   if (lanServer) { lanServer.close(); lanServer = null; }
+  // Brute-force tracking: { ip -> { count, resetAt } }
+  const failedAttempts = new Map();
+  const LOCKOUT_MS = 60_000;     // 1-minute lockout after 10 failures
+  const MAX_BODY   = 1_048_576; // 1 MB body limit
   return new Promise(resolve => {
     try {
       lanServer = http.createServer((req, res) => {
         const url = new URL(req.url, `http://localhost:${port}`);
-        if (pin) {
-          const provided = url.searchParams.get('pin') || req.headers['x-khayt-pin'] || '';
-          if (provided !== pin) {
-            res.writeHead(401, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-            res.end(JSON.stringify({ error: 'Unauthorized' }));
-            return;
+        const ip = req.socket.remoteAddress || '';
+        const isWriteRequest = req.method !== 'GET' && req.method !== 'HEAD';
+
+        const requirePin = isWriteRequest; // writes always need a PIN
+        if (requirePin || pin) {
+          const provided = (url.searchParams.get('pin') || req.headers['x-khayt-pin'] || '').trim();
+          if (!pin) {
+            // No PIN configured — block all write requests
+            if (isWriteRequest) {
+              res.writeHead(403, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+              res.end(JSON.stringify({ error: 'Write requests require a PIN to be configured in settings' }));
+              return;
+            }
+          } else {
+            // Brute-force lockout check
+            const now = Date.now();
+            const ipData = failedAttempts.get(ip) || { count: 0, resetAt: 0 };
+            if (now < ipData.resetAt && ipData.count >= 10) {
+              res.writeHead(429, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+              res.end(JSON.stringify({ error: 'Too many attempts — try again in 1 minute' }));
+              return;
+            }
+            if (provided !== pin) {
+              const newCount = (now >= ipData.resetAt ? 0 : ipData.count) + 1;
+              failedAttempts.set(ip, { count: newCount, resetAt: newCount >= 10 ? now + LOCKOUT_MS : ipData.resetAt });
+              res.writeHead(401, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+              res.end(JSON.stringify({ error: 'Unauthorized' }));
+              return;
+            }
+            failedAttempts.delete(ip); // reset on success
           }
         }
         res.setHeader('Access-Control-Allow-Origin', '*');
@@ -665,7 +705,15 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
 
         } else if (pathname === '/api/inventory' && req.method === 'POST') {
           let body = '';
-          req.on('data', chunk => { body += chunk; });
+          req.on('data', chunk => {
+            if (Buffer.byteLength(body) + chunk.length > MAX_BODY) {
+              res.writeHead(413, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'Request too large' }));
+              req.socket.destroy();
+              return;
+            }
+            body += chunk;
+          });
           req.on('end', async () => {
             try {
               const spool = JSON.parse(body);
@@ -695,7 +743,15 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
         } else if (pathname.startsWith('/api/orders/') && req.method === 'PATCH') {
           const orderId = decodeURIComponent(pathname.split('/api/orders/')[1].split('/')[0]);
           let body = '';
-          req.on('data', chunk => { body += chunk; });
+          req.on('data', chunk => {
+            if (Buffer.byteLength(body) + chunk.length > MAX_BODY) {
+              res.writeHead(413, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'Request too large' }));
+              req.socket.destroy();
+              return;
+            }
+            body += chunk;
+          });
           req.on('end', async () => {
             try {
               const { status } = JSON.parse(body);
@@ -792,7 +848,9 @@ function createWindow() {
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    if (url.startsWith('https://') || url.startsWith('mailto:')) {
+      shell.openExternal(url);
+    }
     return { action: 'deny' };
   });
 }

@@ -82,6 +82,25 @@ let currentPriceTiers = [];
     document.addEventListener('DOMContentLoaded', () => {
       setTimeout(() => toast(t('calc.draft_restored'), 'info', 3000), 600);
     }, { once: true });
+    // Restore calculator form state after DOM is ready
+    if (saved.formState) {
+      document.addEventListener('DOMContentLoaded', () => {
+        const fs = saved.formState;
+        if ($('#margin') && fs.margin)             $('#margin').value       = fs.margin;
+        if ($('#spoolCost') && fs.spoolCost)       $('#spoolCost').value    = fs.spoolCost;
+        if ($('#spoolWeight') && fs.spoolWeight)   $('#spoolWeight').value  = fs.spoolWeight;
+        if ($('#partQty') && fs.partQty)           $('#partQty').value      = fs.partQty;
+        if ($('#partName') && fs.partName)         $('#partName').value     = fs.partName;
+        if ($('#printWeight') && fs.printWeight)   $('#printWeight').value  = fs.printWeight;
+        if ($('#printTime') && fs.printTime)       $('#printTime').value    = fs.printTime;
+        // filamentSelect needs to be restored after the select is populated
+        if (fs.filamentId) {
+          setTimeout(() => {
+            if ($('#filamentSelect')) $('#filamentSelect').value = fs.filamentId;
+          }, 100);
+        }
+      }, { once: true });
+    }
   }
 })();
 
@@ -91,17 +110,30 @@ function saveBuildDraft() {
     return;
   }
   saveJSON(K.CURRENT_BUILD, {
-    parts: currentBuild,
-    productId: currentBuildFromProductId,
-    clientId: currentClientId,
+    parts:      currentBuild,
+    productId:  currentBuildFromProductId,
+    clientId:   currentClientId,
     extraLines: currentExtraLines,
-    savedAt: new Date().toISOString(),
+    savedAt:    new Date().toISOString(),
+    // Persist calculator form state
+    formState: {
+      margin:      $('#margin')?.value || '',
+      filamentId:  $('#filamentSelect')?.value || '',
+      spoolCost:   $('#spoolCost')?.value || '',
+      spoolWeight: $('#spoolWeight')?.value || '',
+      partQty:     $('#partQty')?.value || '1',
+      partName:    $('#partName')?.value || '',
+      printWeight: $('#printWeight')?.value || '',
+      printTime:   $('#printTime')?.value || '',
+    },
   });
 }
 
 // UI state for filters and search
 let logSearchTerm = '';
+let logClientFilter = '';       // filter logs by specific clientId
 let kanSearchTerm = '';
+let kanbanCollapsed = new Set(JSON.parse(localStorage.getItem('khayt_kan_collapsed') || '[]'));
 let logStatusFilter = '';
 let logPayFilter = '';
 let logRangeFilter = 'all';
@@ -112,6 +144,9 @@ let portfolioSearchTerm = '';
 
 // Batch selection for the logs table
 let selectedOrders = new Set();
+
+// Stack of escape-key handlers — supports nested modals (confirm inside form)
+const _escHandlerStack = [];
 
 // Tag filter for the logs table
 let logTagFilter = '';
@@ -201,8 +236,20 @@ function refreshCurrencyLabels() {
 function localName(obj) {
   return i18n.current === 'ar' ? (obj.nameAr || obj.nameEn) : (obj.nameEn || obj.nameAr);
 }
-/** Normalise payment status with fallback. */
-function payStatus(order) { return order.paymentStatus || 'unpaid'; }
+/** Normalise payment status with fallback, accounting for credit notes. */
+function payStatus(order) {
+  if (order.voidedAt) return 'voided';
+  const price = +order.price || 0;
+  if (price === 0) return order.paymentStatus || 'paid';
+
+  // Subtract any issued credit notes from effective paid amount
+  const totalCredited = (order.creditNotes || []).reduce((s, cn) => s + (+cn.amount || 0), 0);
+  const effectivePaid = Math.max(0, (+order.paidAmount || 0) - totalCredited);
+
+  if (effectivePaid <= 0) return 'unpaid';
+  if (effectivePaid >= price) return 'paid';
+  return 'partial';
+}
 /** Escape a value for CSV (RFC 4180). */
 function csvEsc(v) { return '"' + String(v ?? '').replace(/"/g, '""') + '"'; }
 /** Trigger a file download from a Blob. */
@@ -219,8 +266,10 @@ function getFilteredLogs() {
     if (logPayFilter    !== 'all' && payStatus(log) !== logPayFilter) return false;
     if (!inRange(log.date, logRangeFilter, 'log')) return false;
     if (logTagFilter && !(log.tags || []).includes(logTagFilter)) return false;
+    if (logClientFilter && log.clientId !== logClientFilter) return false;
     if (logSearchTerm) {
-      const hay = [log.project, log.client, log.id, log.material, ...(log.tags || [])].join(' ').toLowerCase();
+      const cl = log.clientId ? clients.find(c => c.id === log.clientId) : null;
+      const hay = [log.project, log.client, cl?.nameEn, cl?.nameAr, log.id, log.material, ...(log.tags || [])].join(' ').toLowerCase();
       if (!hay.includes(logSearchTerm.toLowerCase())) return false;
     }
     return true;
@@ -322,6 +371,10 @@ function escapeHtml(s) {
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'
   })[c]);
 }
+/** Validate a CSS color string — allow only #RRGGBB / #RGB hex colors */
+function safeCssColor(val, fallback = '#5E2E14') {
+  return /^#[0-9a-fA-F]{3,8}$/.test(String(val || '')) ? String(val) : fallback;
+}
 function initials(name) {
   const n = String(name || '').trim();
   if (!n) return '?';
@@ -413,6 +466,16 @@ function defaultSettings() {
     savedFilters:     [],
     // Beta: user has acknowledged the beta warning
     betaAcknowledged: false,
+    // Easy-wins batch: Calculator
+    quoteValidityDays: 7,
+    minOrderAmount:    0,
+    rushFeeEnabled:    false,
+    rushFeePct:        25,
+    // Analysis batch
+    wipLimits:            {},           // e.g. { printing: 3, qc: 2 }
+    postProcessPresets:   [],           // [{ name, amount }]
+    defaultPackagingCost: 0,
+    paymentInstructions:  '',           // Shown in client portal and invoices
   };
 }
 
@@ -477,7 +540,10 @@ function saveAll() {
       suppliers, purchaseOrders, testPrints, locations, operators,
     };
     if (window.hubAPI?.saveStore) {
-      window.hubAPI.saveStore(store).catch(e => console.error('Save failed:', e));
+      window.hubAPI.saveStore(store).catch(e => {
+        console.error('Save failed:', e);
+        toast('⚠ ' + (t('common.save_failed') || 'Save failed — check disk space'), 'error', 6000);
+      });
     }
   }, 300);
 }
@@ -509,7 +575,7 @@ function migrateFromLocalStorage() {
       } catch(e) {}
     }
     if (Object.keys(store).length > 0) {
-      console.log('Migrated data from localStorage to file store');
+      console.debug('Migrated data from localStorage to file store');
       return store;
     }
   } catch(e) {}
@@ -521,6 +587,12 @@ async function loadAll() {
   try {
     store = await window.hubAPI.loadStore();
   } catch(e) {}
+
+  if (store && store.__corrupt) {
+    console.error('Store corruption detected:', store.error);
+    setTimeout(() => toast('⚠ Data file could not be read — starting fresh. Check backups!', 'error', 10000), 1500);
+    store = null;
+  }
 
   if (!store) {
     store = migrateFromLocalStorage();
@@ -558,8 +630,8 @@ let customRangeTo   = { log: '', analytics: '', expenses: '' };
 function inRange(dateStr, range, ctx) {
   if (!range || range === 'all') return true;
   if (!dateStr) return false;
-  const d = new Date(dateStr);
-  if (isNaN(d)) return false;
+  // Validate the date string is parseable
+  if (isNaN(new Date(dateStr))) return false;
   if (range === 'custom') {
     const from = ctx ? customRangeFrom[ctx] : '';
     const to   = ctx ? customRangeTo[ctx]   : '';
@@ -569,19 +641,35 @@ function inRange(dateStr, range, ctx) {
     if (to   && ds > to)   return false;
     return true;
   }
+  // Use string slicing for all range checks to avoid UTC/local timezone boundary issues
   const now = new Date();
+  const nowY = now.getFullYear();
+  const nowM = now.getMonth(); // 0-based
+  const ds = dateStr.slice(0, 10); // YYYY-MM-DD
   if (range === 'month') {
-    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    const nowStr = `${nowY}-${String(nowM + 1).padStart(2, '0')}`;
+    return ds.slice(0, 7) === nowStr;
   }
   if (range === 'last_month') {
-    const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    return d.getFullYear() === lm.getFullYear() && d.getMonth() === lm.getMonth();
+    const lm = new Date(nowY, nowM - 1, 1);
+    const lmStr = `${lm.getFullYear()}-${String(lm.getMonth() + 1).padStart(2, '0')}`;
+    return ds.slice(0, 7) === lmStr;
   }
   if (range === 'quarter') {
-    return d.getFullYear() === now.getFullYear() && Math.floor(d.getMonth() / 3) === Math.floor(now.getMonth() / 3);
+    const nowQ = Math.floor(nowM / 3);
+    const dsMonth = parseInt(ds.slice(5, 7), 10) - 1; // 0-based
+    const dsYear  = parseInt(ds.slice(0, 4), 10);
+    return dsYear === nowY && Math.floor(dsMonth / 3) === nowQ;
+  }
+  if (range === 'last_quarter') {
+    const lastQEnd   = new Date(nowY, nowM - (nowM % 3), 0); // last day of prev quarter
+    const lastQStart = new Date(lastQEnd.getFullYear(), Math.floor(lastQEnd.getMonth() / 3) * 3, 1);
+    const fromStr = lastQStart.toISOString().slice(0, 10);
+    const toStr   = lastQEnd.toISOString().slice(0, 10);
+    return ds >= fromStr && ds <= toStr;
   }
   if (range === 'year') {
-    return d.getFullYear() === now.getFullYear();
+    return ds.slice(0, 4) === String(nowY);
   }
   return true;
 }
@@ -1022,17 +1110,17 @@ function renderOperatorAnalytics() {
     <div class="table-wrap">
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
         <thead><tr style="border-bottom:1px solid var(--border-soft);color:var(--text-muted);">
-          <th style="padding:6px 8px;text-align:left;">${escapeHtml(t('op.name'))}</th>
-          <th style="padding:6px 8px;text-align:right;">${escapeHtml(t('an.op_jobs'))}</th>
-          <th style="padding:6px 8px;text-align:right;">${escapeHtml(t('an.op_waste'))}</th>
-          <th style="padding:6px 8px;text-align:right;">${escapeHtml(t('an.op_accuracy'))}</th>
+          <th style="padding:6px 8px;text-align:start;">${escapeHtml(t('op.name'))}</th>
+          <th style="padding:6px 8px;text-align:end;">${escapeHtml(t('an.op_jobs'))}</th>
+          <th style="padding:6px 8px;text-align:end;">${escapeHtml(t('an.op_waste'))}</th>
+          <th style="padding:6px 8px;text-align:end;">${escapeHtml(t('an.op_accuracy'))}</th>
         </tr></thead>
         <tbody>
           ${rows.map(r => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
             <td style="padding:7px 8px;font-weight:500;">${escapeHtml(r.op.name)}${r.op.role ? `<span style="font-size:11px;color:var(--text-muted);margin-inline-start:5px;">${escapeHtml(r.op.role)}</span>` : ''}</td>
-            <td style="padding:7px 8px;text-align:right;">${r.jobs}</td>
-            <td style="padding:7px 8px;text-align:right;color:${r.wasteEntries > 0 ? 'var(--danger)' : 'var(--text-muted)'};">${r.wasteEntries}</td>
-            <td style="padding:7px 8px;text-align:right;color:var(--primary);">${escapeHtml(String(r.avgAccuracy))}</td>
+            <td style="padding:7px 8px;text-align:end;">${r.jobs}</td>
+            <td style="padding:7px 8px;text-align:end;color:${r.wasteEntries > 0 ? 'var(--danger)' : 'var(--text-muted)'};">${r.wasteEntries}</td>
+            <td style="padding:7px 8px;text-align:end;color:var(--primary);">${escapeHtml(String(r.avgAccuracy))}</td>
           </tr>`).join('')}
         </tbody>
       </table>
@@ -1123,6 +1211,9 @@ function hijriDate(isoDate, format = 'short') {
    ============================================================ */
 function toast(msg, kind = 'info', ms = 2800, opts = {}) {
   const c = $('#toastContainer');
+  // Cap at 6 visible toasts — remove oldest if over limit
+  const existing = c.querySelectorAll('.toast');
+  if (existing.length >= 6) existing[0].remove();
   const el = document.createElement('div');
   el.className = `toast ${kind}`;
   el.textContent = msg;
@@ -1149,8 +1240,8 @@ function confirmModal(message, { okText, cancelText, danger = false } = {}) {
     const mount = $('#modalMount');
     mount.innerHTML = `
       <div class="modal-backdrop">
-        <div class="modal" role="dialog" aria-modal="true">
-          <h3>${escapeHtml(t('common.confirm'))}</h3>
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirmModalTitle">
+          <h3 id="confirmModalTitle">${escapeHtml(t('common.confirm'))}</h3>
           <p>${escapeHtml(message)}</p>
           <div class="btn-row">
             <button class="btn ghost" data-act="cancel">${escapeHtml(cancelText || t('common.cancel'))}</button>
@@ -1158,7 +1249,16 @@ function confirmModal(message, { okText, cancelText, danger = false } = {}) {
           </div>
         </div>
       </div>`;
-    const cleanup = (val) => { mount.innerHTML = ''; resolve(val); };
+    const cleanup = (val) => {
+      document.removeEventListener('keydown', escHandler);
+      const idx = _escHandlerStack.indexOf(escHandler);
+      if (idx !== -1) _escHandlerStack.splice(idx, 1);
+      mount.innerHTML = '';
+      resolve(val);
+    };
+    const escHandler = (e) => { if (e.key === 'Escape') cleanup(false); };
+    _escHandlerStack.push(escHandler);
+    document.addEventListener('keydown', escHandler);
     mount.querySelector('[data-act="ok"]').addEventListener('click', () => cleanup(true));
     mount.querySelector('[data-act="cancel"]').addEventListener('click', () => cleanup(false));
     mount.querySelector('.modal-backdrop').addEventListener('click', (e) => {
@@ -1189,9 +1289,12 @@ function openFormModal({ title, bodyHtml, onMount, onSave, saveLabel, sizeLg = t
   const modal = mount.querySelector('.modal');
   const close = () => {
     document.removeEventListener('keydown', escHandler);
+    const idx = _escHandlerStack.indexOf(escHandler);
+    if (idx !== -1) _escHandlerStack.splice(idx, 1);
     mount.innerHTML = '';
   };
   const escHandler = (e) => { if (e.key === 'Escape') close(); };
+  _escHandlerStack.push(escHandler);
   document.addEventListener('keydown', escHandler);
   mount.querySelectorAll('[data-act="cancel"]').forEach(b => b.addEventListener('click', close));
   mount.querySelector('.modal-backdrop').addEventListener('click', (e) => {
@@ -1259,7 +1362,7 @@ function switchTab(tabId) {
   if (tabId === 'logs-tab')       renderLogs();
   if (tabId === 'portfolio-tab')  renderPortfolio();
   if (tabId === 'waste-tab')      renderWasteLog();
-  if (tabId === 'inventory-tab')  { renderConsumables(); renderSuppliers(); }
+  if (tabId === 'inventory-tab')  { renderInventory(); renderPurchaseOrders(); renderConsumables(); renderSuppliers(); }
 }
 
 /* ============================================================
@@ -1279,9 +1382,11 @@ function computePartBaseCost(part) {
     }
     return false;
   })();
+  // Support material uses the same filament cost-per-gram
+  const supportWeight = Math.max(0, +part.supportWeight || 0);
   const materialCost = isResin
-    ? (spoolCost / 1000) * printWeight  // cost per mL * mL used
-    : (spoolCost / spoolWeight) * printWeight;
+    ? (spoolCost / 1000) * (printWeight + supportWeight)
+    : (spoolCost / spoolWeight) * (printWeight + supportWeight);
 
   const printTime = Math.max(0, +part.printTime || 0);
   const wearCost  = printTime * Math.max(0, +part.wearRate || 0);
@@ -1306,7 +1411,9 @@ function computePartBaseCost(part) {
       extraMatCost += (em.weight / 1000) * pricePerKg;
     }
   }
-  const baseCost = materialCost + wearCost + powerCost + laborCost + extraMatCost;
+  // Packaging cost: per-order default distributed to this part (prorated by qty)
+  const packagingCost = Math.max(0, +settings.defaultPackagingCost || 0) / Math.max(1, +part.qty || 1);
+  const baseCost = materialCost + wearCost + powerCost + laborCost + extraMatCost + packagingCost;
   const totalCost = baseCost + (baseCost * (failureRate / 100));
   return totalCost;
 }
@@ -1323,7 +1430,10 @@ function computePartBreakdown(part) {
   const spoolWeight = Math.max(1, +part.spoolWeight || 1);
   const printWeight = Math.max(0, +part.printWeight || 0);
   const isResin = part.filamentId ? (inventory.find(i => i.id === part.filamentId)?.materialType === 'resin') : false;
-  const material    = isResin ? (spoolCost / 1000) * printWeight : (spoolCost / spoolWeight) * printWeight;
+  const supportWt   = Math.max(0, +part.supportWeight || 0);
+  const material    = isResin
+    ? (spoolCost / 1000) * (printWeight + supportWt)
+    : (spoolCost / spoolWeight) * (printWeight + supportWt);
   const printTime   = Math.max(0, +part.printTime   || 0);
   const machine     = printTime * Math.max(0, +part.wearRate  || 0)
                     + printTime * (Math.max(0, +part.powerDraw || 0) / 1000) * Math.max(0, +part.elecRate || 0);
@@ -1338,17 +1448,18 @@ function computePartBreakdown(part) {
 function calculateLivePartCost() {
   // Snapshot the DOM into a part-shaped object and reuse the pure helper.
   return computePartBaseCost({
-    spoolCost:   $('#spoolCost').value,
-    spoolWeight: $('#spoolWeight').value,
-    printWeight: $('#printWeight').value,
-    printTime:   $('#printTime').value,
-    wearRate:    $('#wearRate').value,
-    powerDraw:   $('#powerDraw').value,
-    elecRate:    $('#elecRate').value,
-    prepTime:    $('#prepTime').value,
-    postTime:    $('#postTime').value,
-    laborRate:   $('#laborRate').value,
-    failureRate: $('#failureRate').value,
+    spoolCost:     $('#spoolCost').value,
+    spoolWeight:   $('#spoolWeight').value,
+    printWeight:   $('#printWeight').value,
+    supportWeight: $('#supportWeight')?.value || 0,
+    printTime:     $('#printTime').value,
+    wearRate:      $('#wearRate').value,
+    powerDraw:     $('#powerDraw').value,
+    elecRate:      $('#elecRate').value,
+    prepTime:      $('#prepTime').value,
+    postTime:      $('#postTime').value,
+    laborRate:     $('#laborRate').value,
+    failureRate:   $('#failureRate').value,
     extraMaterials: currentExtraMaterials.filter(m => m.material && m.weight > 0),
   });
 }
@@ -1356,7 +1467,8 @@ function calculateLivePartCost() {
 function updateGrandTotal() {
   const snap = {
     spoolCost: $('#spoolCost').value, spoolWeight: $('#spoolWeight').value,
-    printWeight: $('#printWeight').value, printTime: $('#printTime').value,
+    printWeight: $('#printWeight').value, supportWeight: $('#supportWeight')?.value || 0,
+    printTime: $('#printTime').value,
     wearRate: $('#wearRate').value, powerDraw: $('#powerDraw').value,
     elecRate: $('#elecRate').value, prepTime: $('#prepTime').value,
     postTime: $('#postTime').value, laborRate: $('#laborRate').value,
@@ -1367,7 +1479,16 @@ function updateGrandTotal() {
   const liveBase = bd.material + bd.machine + bd.labor + bd.buffer;
   const qty = Math.max(1, Math.round(num($('#partQty').value, 1)));
   const margin = clampPositive($('#margin').value);
-  $('#partLivePrice').textContent = fmtMoney(liveBase * (1 + margin / 100) * qty);
+  // Apply price tier if one matches current qty
+  const activeTier = (() => {
+    const tiers = currentPriceTiers.filter(ti => ti.minQty > 0 && ti.pricePerUnit > 0);
+    if (tiers.length === 0) return null;
+    return [...tiers].sort((a, b) => b.minQty - a.minQty).find(ti => qty >= ti.minQty) || null;
+  })();
+  const liveUnitPrice = activeTier
+    ? activeTier.pricePerUnit
+    : liveBase * (1 + margin / 100);
+  $('#partLivePrice').textContent = fmtMoney(liveUnitPrice * qty);
 
   // Cost breakdown chips
   const bdEl = $('#costBreakdown');
@@ -1399,7 +1520,12 @@ function updateGrandTotal() {
   const extraLinesTotal = currentExtraLines.reduce((s, l) => s + Math.max(0, +l.amount || 0), 0);
   const priceBeforeDiscount = totalBase * (1 + margin / 100);
   const discountAmt = priceBeforeDiscount * discountPct / 100;
-  const finalPrice = priceBeforeDiscount - discountAmt + shippingCost + extraLinesTotal;
+  const subAfterDiscount = priceBeforeDiscount - discountAmt;
+  // Rush fee
+  const rushEnabled = !!$('#calcRushFee')?.checked;
+  const rushPct = rushEnabled ? num(settings.rushFeePct, 25) : 0;
+  const rushFeeAmt = subAfterDiscount * rushPct / 100;
+  const finalPrice = subAfterDiscount + rushFeeAmt + shippingCost + extraLinesTotal;
   $('#finalPrice').textContent = fmtMoney(finalPrice);
 
   const discountLine = $('#discountLine');
@@ -1412,16 +1538,44 @@ function updateGrandTotal() {
     }
   }
 
-  // Min-margin warning
+  // Rush fee chip
+  const rushChip = $('#rushFeeChip');
+  if (rushChip) {
+    if (rushEnabled && rushFeeAmt > 0) {
+      rushChip.textContent = `⚡ ${t('calc.rush_fee')}: +${rushPct}% (${fmtMoney(rushFeeAmt)})`;
+      rushChip.style.display = 'inline-block';
+    } else {
+      rushChip.style.display = 'none';
+    }
+  }
+
+  // Min-margin warning + live margin display
   const marginWarn = $('#marginWarning');
+  const actualMarginPct = finalPrice > 0 ? ((finalPrice - (totalBase + shippingCost + extraLinesTotal)) / finalPrice) * 100 : margin;
   if (marginWarn) {
     const minPct = num(settings.minMarginPct, 0);
-    const actualMarginPct = finalPrice > 0 ? ((finalPrice - (totalBase + shippingCost + extraLinesTotal)) / finalPrice) * 100 : margin;
+    const marginColor = actualMarginPct >= 40 ? 'var(--success)' : actualMarginPct >= 20 ? 'var(--warning)' : 'var(--danger)';
+    const marginDisplay = `<span style="color:${marginColor}; font-weight:600;">${actualMarginPct.toFixed(0)}% margin</span>`;
     if (minPct > 0 && actualMarginPct < minPct) {
-      marginWarn.textContent = t('calc.margin_warn', { min: minPct.toFixed(0), actual: actualMarginPct.toFixed(0) });
+      marginWarn.innerHTML = `${marginDisplay} — ${escapeHtml(t('calc.margin_warn', { min: minPct.toFixed(0), actual: actualMarginPct.toFixed(0) }))}`;
+      marginWarn.style.display = 'block';
+    } else if (totalBase > 0) {
+      marginWarn.innerHTML = marginDisplay;
       marginWarn.style.display = 'block';
     } else {
       marginWarn.style.display = 'none';
+    }
+  }
+
+  // Min order amount warning
+  const minOrderWarn = $('#minOrderWarning');
+  if (minOrderWarn) {
+    const minAmt = num(settings.minOrderAmount, 0);
+    if (minAmt > 0 && finalPrice < minAmt) {
+      minOrderWarn.textContent = t('calc.min_order_warn', { min: fmtMoney(minAmt) });
+      minOrderWarn.style.display = 'block';
+    } else {
+      minOrderWarn.style.display = 'none';
     }
   }
 }
@@ -1432,14 +1586,16 @@ function snapshotPartFromForm() {
   const qty = Math.max(1, Math.round(num($('#partQty').value, 1)));
   const unitCost = calculateLivePartCost();
   return {
-    name:        $('#partName').value.trim() || t('calc.part.name_ph'),
-    colour:      ($('#partColour')?.value || '').trim(),
-    material:    opt?.text || '',
-    filamentId:  filamentSelect.value,
-    spoolCost:   clampPositive($('#spoolCost').value),
-    spoolWeight: Math.max(1, num($('#spoolWeight').value, 1)),
-    printWeight: clampPositive($('#printWeight').value),
-    printTime:   clampPositive($('#printTime').value),
+    name:          $('#partName').value.trim() || t('calc.part.name_ph'),
+    colour:        ($('#partColour')?.value || '').trim(),
+    partNote:      ($('#partNote')?.value || '').trim(),
+    material:      opt?.text || '',
+    filamentId:    filamentSelect.value,
+    spoolCost:     clampPositive($('#spoolCost').value),
+    spoolWeight:   Math.max(1, num($('#spoolWeight').value, 1)),
+    printWeight:   clampPositive($('#printWeight').value),
+    supportWeight: Math.max(0, num($('#supportWeight')?.value, 0)),
+    printTime:     clampPositive($('#printTime').value),
     wearRate:    clampPositive($('#wearRate').value),
     powerDraw:   clampPositive($('#powerDraw').value),
     elecRate:    clampPositive($('#elecRate').value),
@@ -1489,6 +1645,8 @@ function addPart() {
 
   $('#partName').value = '';
   if ($('#partColour')) $('#partColour').value = '';
+  if ($('#partNote'))   $('#partNote').value   = '';
+  if ($('#supportWeight')) $('#supportWeight').value = '';
   $('#printWeight').value = '';
   $('#printTime').value = '';
   $('#partQty').value = '1';
@@ -1595,6 +1753,8 @@ function renderBuild() {
           ).join('')}
           ${psHint ? `<div style="font-size:10.5px; color:var(--text-muted); margin-top:1px; font-style:italic;">${escapeHtml(psHint)}</div>` : ''}
           ${part.fileRef ? `<div class="part-file-ref">📎 ${escapeHtml(part.fileRef)}</div>` : ''}
+          ${part.colour ? `<div style="font-size:11px;color:var(--text-muted);margin-top:1px;">🎨 ${escapeHtml(part.colour)}</div>` : ''}
+          ${part.partNote ? `<div style="font-size:11px;color:var(--text-dim);margin-top:1px;font-style:italic;">📝 ${escapeHtml(part.partNote)}</div>` : ''}
         </td>
         <td style="text-align: end; font-variant-numeric: tabular-nums; white-space:nowrap;">
           ${part.printTime} ${escapeHtml(t('common.hours'))}
@@ -1678,7 +1838,10 @@ function renderExtraMaterials() {
 function renderPriceTiers() {
   const el = $('#priceTiersList');
   if (!el) return;
-  if (currentPriceTiers.length === 0) { el.innerHTML = ''; return; }
+  if (currentPriceTiers.length === 0) {
+    el.innerHTML = `<p style="font-size:12px; color:var(--text-muted); margin:4px 0;">${escapeHtml(t('calc.no_price_tiers') || 'No volume tiers — click + Add tier for quantity pricing')}</p>`;
+    return;
+  }
   el.innerHTML = `<div style="display:grid; grid-template-columns:1fr 1fr auto; gap:4px; align-items:center; font-size:12px; color:var(--text-muted); margin-bottom:2px;">
     <span>${escapeHtml(t('calc.tier_min_qty'))}</span>
     <span>${escapeHtml(t('calc.tier_price'))} (${currencySymbol()})</span>
@@ -2282,7 +2445,7 @@ function openMaintLog(machineId) {
         <div style="display:grid;grid-template-columns:1fr 2fr 1fr;gap:8px;align-items:end;">
           <div>
             <label style="margin:0;">${escapeHtml(t('maint.date'))}</label>
-            <input type="date" id="maintDate" value="${new Date().toISOString().split('T')[0]}">
+            <input type="date" id="maintDate" value="${new Date().toISOString().split('T')[0]}" max="${new Date().toISOString().split('T')[0]}">
           </div>
           <div>
             <label style="margin:0;">${escapeHtml(t('maint.note'))}</label>
@@ -2444,7 +2607,9 @@ function openWaTemplateEditor(tplId = null) {
   });
 }
 
-function deleteWaTemplate(tplId) {
+async function deleteWaTemplate(tplId) {
+  const ok = await confirmModal(t('common.delete') + '?', { danger: true });
+  if (!ok) return;
   waTemplates = waTemplates.filter(x => x.id !== tplId);
   saveAll();
   renderWaTemplates();
@@ -2511,10 +2676,17 @@ function updateDeleteTplBtn() {
   if (btn) btn.style.display = $('#quoteTplSelect').value ? 'inline-flex' : 'none';
 }
 
-function loadQuoteTemplate() {
+async function loadQuoteTemplate() {
   const id = $('#quoteTplSelect').value;
   const tpl = templates.find(t => t.id === id);
   if (!tpl) { toast(t('calc.tpl.none'), 'error'); return; }
+  if (currentBuild.length > 0) {
+    const ok = await confirmModal(
+      t('calc.tpl.overwrite_confirm') || 'Loading this template will replace your current build. Continue?',
+      { danger: true, okText: t('calc.tpl.overwrite_ok') || 'Load template' }
+    );
+    if (!ok) return;
+  }
   currentBuild = tpl.build.map(p => ({ ...p }));
   if (tpl.margin != null) $('#margin').value = tpl.margin;
   renderBuild();
@@ -3525,6 +3697,27 @@ function checkSpoolOvercommit(parts, excludeOrderId) {
 }
 
 function renderInventory() {
+  // Inventory valuation summary
+  const valEl = $('#invValuationSummary');
+  if (valEl) {
+    if (inventory.length > 0) {
+      const totalValue = inventory.reduce((s, item) => {
+        const pricePerG = item.weight > 0 && item.cost > 0 ? item.cost / Math.max(1, item.spoolWeight || item.weight || 1000) * item.weight : 0;
+        return s + pricePerG;
+      }, 0);
+      const totalGrams = inventory.reduce((s, item) => s + Math.max(0, +item.weight || 0), 0);
+      const lowCount = inventory.filter(i => i.weight <= (i.reorderPoint ?? settings.lowStockThreshold)).length;
+      valEl.innerHTML = `
+        <span>${escapeHtml(t('inv.total_value'))}: <strong style="color:var(--success);">${fmtMoney(totalValue)}</strong></span>
+        <span style="margin-inline-start:16px;">${escapeHtml(t('inv.total_stock'))}: <strong>${Math.round(totalGrams).toLocaleString()}g</strong></span>
+        ${lowCount > 0 ? `<span style="margin-inline-start:16px; color:var(--warning);">⚠ ${lowCount} ${escapeHtml(t('inv.low_stock_count'))}</span>` : ''}
+      `;
+      valEl.style.display = 'flex';
+    } else {
+      valEl.style.display = 'none';
+    }
+  }
+
   const tbody = $('#inventoryTable tbody');
   if (inventory.length === 0) {
     tbody.innerHTML = `<tr><td colspan="5" class="empty-state">${escapeHtml(t('inv.empty'))}</td></tr>`;
@@ -3583,7 +3776,7 @@ function renderInventory() {
               if (dryLog.length === 0) {
                 return `<span class="drying-warn-badge" style="margin-inline-end:6px;" title="${escapeHtml(t('inv.dry_log'))}">⚠ ${escapeHtml(t('inv.dry_warn'))}</span>`;
               }
-              const lastDry = dryLog.sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
+              const lastDry = [...dryLog].sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
               const daysSince = lastDry.date ? Math.floor((Date.now() - new Date(lastDry.date + 'T00:00:00').getTime()) / 86400000) : 999;
               if (daysSince > 7) {
                 return `<span class="drying-warn-badge" style="margin-inline-end:6px;">⚠ ${escapeHtml(t('inv.dry_warn'))}</span>`;
@@ -3684,11 +3877,16 @@ function openSpoolHistory(itemId) {
           <th>${escapeHtml(t('log.client'))}</th>
           <th>${escapeHtml(t('inv.spool_hist_weight'))}</th>
         </tr></thead>
-        <tbody>${history.map(h => `<tr>
-          <td style="font-family:var(--font-num); font-size:12px; color:var(--text-dim); white-space:nowrap;">${escapeHtml(h.date || '')}</td>
-          <td>${escapeHtml(h.project || h.orderId || '')}</td>
-          <td style="text-align:right; font-variant-numeric:tabular-nums;">${(+h.weightUsed || 0).toFixed(0)}g</td>
-        </tr>`).join('')}</tbody>
+        <tbody>${history.map(h => {
+          const orderLabel = h.orderId
+            ? `<a class="spool-hist-order-link" href="#" data-order-id="${escapeHtml(h.orderId)}" style="color:var(--primary); text-decoration:none; font-size:12px;">${escapeHtml(h.project || h.orderId)}</a>`
+            : escapeHtml(h.project || '');
+          return `<tr>
+            <td style="font-family:var(--font-num); font-size:12px; color:var(--text-dim); white-space:nowrap;">${escapeHtml(h.date || '')}</td>
+            <td>${orderLabel}</td>
+            <td style="text-align:right; font-variant-numeric:tabular-nums;">${(+h.weightUsed || 0).toFixed(0)}g</td>
+          </tr>`;
+        }).join('')}</tbody>
       </table></div>`;
   openFormModal({
     title: `${t('inv.spool_history')} — ${escapeHtml(item.material)}`,
@@ -3700,6 +3898,18 @@ function openSpoolHistory(itemId) {
         <span>${escapeHtml(t('inv.spool_consumed'))}: <strong>${totalConsumed.toFixed(0)}g</strong></span>
       </div>
       ${tableHtml}`,
+    onMount(modal) {
+      modal.querySelectorAll('.spool-hist-order-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          const oid = link.dataset.orderId;
+          // Close modal by clicking cancel, then navigate
+          modal.closest('.modal-backdrop')?.querySelector('[data-act="cancel"]')?.click();
+          switchTab('logs-tab');
+          setTimeout(() => { logSearchTerm = oid; renderLogs(); }, 60);
+        });
+      });
+    },
   });
 }
 
@@ -3729,7 +3939,7 @@ function openDryingLog(itemId) {
         <td style="text-align:center;">${e.tempC ? escapeHtml(String(e.tempC)) + '°C' : '—'}</td>
         <td style="text-align:center;">${e.durationH ? escapeHtml(String(e.durationH)) + 'h' : '—'}</td>
         <td style="color:var(--text-muted); font-size:12.5px;">${escapeHtml(e.notes || '')}</td>
-        <td><button class="btn danger small" data-act="del-dry" data-dry-id="${e.id}">×</button></td>
+        <td><button class="btn danger small" data-act="del-dry" data-dry-id="${e.id}" aria-label="${escapeHtml(t('common.delete'))}">×</button></td>
       </tr>`).join('')}
       </tbody>
     </table></div>`;
@@ -3766,6 +3976,8 @@ function openDryingLog(itemId) {
       modal.querySelector('#dryLogList').addEventListener('click', async (e) => {
         const btn = e.target.closest('[data-act="del-dry"]');
         if (!btn) return;
+        const ok = await confirmModal(t('common.delete') + '?', { danger: true });
+        if (!ok) return;
         item.dryingLog = item.dryingLog.filter(e2 => e2.id !== btn.dataset.dryId);
         saveAll();
         modal.querySelector('#dryLogList').innerHTML = listHtml();
@@ -3825,7 +4037,7 @@ function openTestPrintLog(itemId) {
           <td style="color:${e.result === 'excellent' || e.result === 'good' ? 'var(--success)' : e.result === 'poor' ? 'var(--danger)' : 'var(--warning)'};">${escapeHtml(t('inv.test.' + (e.result || 'good')))}</td>
           <td style="color:var(--text-muted);">${escapeHtml(e.notes || '')}</td>
           <td>${e.weightUsed ? escapeHtml(String(e.weightUsed)) + 'g' : '—'}</td>
-          <td><button class="btn danger small" data-act="del-test" data-test-id="${e.id}">×</button></td>
+          <td><button class="btn danger small" data-act="del-test" data-test-id="${e.id}" aria-label="${escapeHtml(t('common.delete'))}">×</button></td>
         </tr>`;
       }).join('')}
       </tbody>
@@ -3846,7 +4058,7 @@ function openTestPrintLog(itemId) {
         <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; align-items:end;">
           <div>
             <label style="margin:0;">${escapeHtml(t('common.date'))}</label>
-            <input type="date" id="tpDate" value="${todayStr}">
+            <input type="date" id="tpDate" value="${todayStr}" max="${todayStr}">
           </div>
           <div>
             <label style="margin:0;">${escapeHtml(t('inv.test_machine'))}</label>
@@ -3888,7 +4100,14 @@ function openTestPrintLog(itemId) {
       modal.querySelector('#testPrintList').addEventListener('click', async (e) => {
         const btn = e.target.closest('[data-act="del-test"]');
         if (!btn) return;
-        testPrints = testPrints.filter(tp => tp.id !== btn.dataset.testId);
+        const ok = await confirmModal(t('common.delete') + '?', { danger: true });
+        if (!ok) return;
+        const tp = testPrints.find(x => x.id === btn.dataset.testId);
+        testPrints = testPrints.filter(x => x.id !== btn.dataset.testId);
+        // Restore filament weight when deleting a test print
+        if (tp && tp.weightUsed > 0) {
+          item.weight = (item.weight || 0) + tp.weightUsed;
+        }
         saveAll();
         modal.querySelector('#testPrintList').innerHTML = listHtml();
         renderInventory();
@@ -3904,9 +4123,13 @@ function openTestPrintLog(itemId) {
       const speed     = parseFloat(modal.querySelector('#tpSpeed').value) || null;
       const notes     = modal.querySelector('#tpNotes').value.trim();
       const weightUsed = parseFloat(modal.querySelector('#tpWeight').value) || 0;
-      testPrints.unshift({ id: uid('TP'), spoolId: itemId, date, machineId, testType, result, printTemp, bedTemp, speed, notes, weightUsed });
+      const newTp = { id: uid('TP'), spoolId: itemId, date, machineId, testType, result, printTemp, bedTemp, speed, notes, weightUsed };
+      testPrints.unshift(newTp);
       if (weightUsed > 0) {
         item.weight = Math.max(0, item.weight - weightUsed);
+        if (!item.usageHistory) item.usageHistory = [];
+        item.usageHistory.unshift({ orderId: newTp.id, project: `Test print (${testType})`, weightUsed, date });
+        if (item.usageHistory.length > 200) item.usageHistory.length = 200;
       }
       saveAll();
       renderInventory();
@@ -3919,7 +4142,7 @@ function openTestPrintLog(itemId) {
 /* ============================================================
    Auto filament deduction (on completion)
    ============================================================ */
-function deductFilamentForOrder(order) {
+function deductFilamentForOrder(order, { skipRender = false } = {}) {
   if (!settings.autoDeduct) return;
   if (order.materialDeducted) return;
   let deductedAny = false;
@@ -3928,10 +4151,11 @@ function deductFilamentForOrder(order) {
     if (!part.filamentId || !part.printWeight) continue;
     const item = inventory.find(i => i.id === part.filamentId);
     if (!item) continue;
-    const deductAmt = (+part.printWeight || 0) * (part.qty || 1);
+    const deductAmt = ((+part.printWeight || 0) + (+part.supportWeight || 0)) * (part.qty || 1);
     item.weight = Math.max(0, item.weight - deductAmt);
     if (!item.usageHistory) item.usageHistory = [];
     item.usageHistory.unshift({ orderId: order.id, project: order.project || '', weightUsed: deductAmt, date: today });
+    if (item.usageHistory.length > 200) item.usageHistory.length = 200;
     deductedAny = true;
     toast(t('inv.deducted', { material: item.material, weight: Math.round(deductAmt) }), 'info', 2200);
     if (item.weight <= (item.reorderPoint ?? settings.lowStockThreshold)) {
@@ -3939,9 +4163,8 @@ function deductFilamentForOrder(order) {
     }
   }
   if (deductedAny) {
-    order.materialDeducted = true;
     saveAll();
-    renderInventory();
+    if (!skipRender) renderInventory();
   }
 
   // Feature 2: Deduct consumables based on print hours
@@ -3959,10 +4182,14 @@ function deductFilamentForOrder(order) {
     saveAll();
     renderConsumables();
   }
+
+  // Always mark materialDeducted so re-runs never double-deduct
+  order.materialDeducted = true;
 }
 
 /* Feature 6: Deduct packaging consumables when order completes */
 function deductPackagingConsumables(order) {
+  if (order.packagingDeducted) return;
   const packagingItems = consumables.filter(c => c.isPackaging && c.stock > 0);
   if (packagingItems.length === 0) return;
   packagingItems.forEach(c => {
@@ -3974,6 +4201,7 @@ function deductPackagingConsumables(order) {
   saveAll();
   renderConsumables();
   toast(t('cons.packaging_deducted'), 'info', 2200);
+  order.packagingDeducted = true;
 }
 
 /* ============================================================
@@ -4819,7 +5047,7 @@ async function generateIntakeForm(clientId) {
   const shopEmail = settings.email || '';
   const clientName = client ? localName(client) : '';
   const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-  const accentColor = settings.invAccentColor || '#5E2E14';
+  const accentColor = safeCssColor(settings.invAccentColor, '#5E2E14');
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -4831,7 +5059,7 @@ async function generateIntakeForm(clientId) {
   body { font-family: Arial, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 24px; color: #222; }
   .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid ${accentColor}; padding-bottom: 16px; margin-bottom: 24px; }
   .shop-name { font-size: 22px; font-weight: 700; color: ${accentColor}; }
-  .shop-contact { font-size: 12px; color: #555; text-align: right; }
+  .shop-contact { font-size: 12px; color: #555; text-align: end; }
   h1 { font-size: 20px; color: ${accentColor}; margin-bottom: 20px; }
   .field { margin-bottom: 18px; }
   label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 6px; color: #333; }
@@ -5146,6 +5374,10 @@ async function deleteClient(clientId) {
   const ok = await confirmModal(t('ce.delete_q'), { danger: true });
   if (!ok) return;
   clients = clients.filter(c => c.id !== clientId);
+  // Null-out orders that reference the deleted client
+  for (const o of printLog) {
+    if (o.clientId === clientId) o.clientId = null;
+  }
   saveAll();
   renderClients();
   toast(t('ce.deleted'), 'success');
@@ -5261,6 +5493,24 @@ function openClientEditor(clientId = null) {
 
     <div id="clientHistorySection" style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border-soft);">
     </div>
+
+    <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border-soft);">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+        <label style="margin:0; flex:1; font-size:12.5px; font-weight:600;">💬 ${escapeHtml(t('ce.comm_log'))}</label>
+      </div>
+      <div style="display:flex; gap:6px; margin-bottom:8px;">
+        <select id="ceCommType" style="min-width:90px; font-size:12px;">
+          <option value="call">${escapeHtml(t('ce.comm_call'))}</option>
+          <option value="email">${escapeHtml(t('ce.comm_email'))}</option>
+          <option value="whatsapp">${escapeHtml(t('ce.comm_wa'))}</option>
+          <option value="meeting">${escapeHtml(t('ce.comm_meeting'))}</option>
+          <option value="note">${escapeHtml(t('ce.comm_note'))}</option>
+        </select>
+        <input type="text" id="ceCommNote" placeholder="${escapeHtml(t('ce.comm_note_ph'))}" style="flex:1; font-size:12px;">
+        <button type="button" id="ceCommAdd" class="btn small primary">${escapeHtml(t('common.add'))}</button>
+      </div>
+      <div id="ceCommLogList" style="max-height:160px; overflow-y:auto;"></div>
+    </div>
   `;
 
   openFormModal({
@@ -5301,7 +5551,7 @@ function openClientEditor(clientId = null) {
             <td><input type="text" class="pl-prod" data-pli="${i}" value="${escapeHtml(pl.product || '')}" placeholder="${escapeHtml(t('ce.pl_product'))}" style="width:100%;font-size:12px;"></td>
             <td><input type="number" class="pl-price" data-pli="${i}" value="${pl.price || ''}" min="0" step="0.01" style="width:90px;font-size:12px;"></td>
             <td><input type="text" class="pl-note" data-pli="${i}" value="${escapeHtml(pl.note || '')}" placeholder="${escapeHtml(t('ce.pl_note'))}" style="width:100%;font-size:12px;"></td>
-            <td><button class="btn danger small pl-rm" data-pli="${i}">×</button></td>
+            <td><button class="btn danger small pl-rm" data-pli="${i}" aria-label="${escapeHtml(t('common.delete'))}">×</button></td>
           </tr>`).join('')}
           </tbody></table>`;
         plWrap.querySelectorAll('.pl-prod').forEach(inp => { inp.addEventListener('input', () => { draft.priceList[+inp.dataset.pli].product = inp.value; }); });
@@ -5331,7 +5581,7 @@ function openClientEditor(clientId = null) {
           <tbody>${draft.addresses.map((a, i) => `<tr>
             <td style="padding:2px 4px;"><input type="text" class="addr-label" data-ai="${i}" value="${escapeHtml(a.label || '')}" placeholder="${escapeHtml(t('ce.addr_label'))}" style="width:100%;font-size:12px;"></td>
             <td style="padding:2px 4px;"><input type="text" class="addr-addr" data-ai="${i}" value="${escapeHtml(a.address || '')}" placeholder="${escapeHtml(t('ce.addr_address'))}" style="width:100%;font-size:12px;"></td>
-            <td><button class="btn danger small addr-rm" data-ai="${i}">×</button></td>
+            <td><button class="btn danger small addr-rm" data-ai="${i}" aria-label="${escapeHtml(t('common.delete'))}">×</button></td>
           </tr>`).join('')}</tbody>
         </table>`;
         addrWrap.querySelectorAll('.addr-label').forEach(inp => { inp.addEventListener('input', () => { draft.addresses[+inp.dataset.ai].label = inp.value; }); });
@@ -5341,6 +5591,62 @@ function openClientEditor(clientId = null) {
       renderAddressBook();
       const ceAddrAddBtn = modal.querySelector('#ceAddrAdd');
       if (ceAddrAddBtn) ceAddrAddBtn.addEventListener('click', () => { draft.addresses.push({ id: uid('ADDR'), label: '', address: '' }); renderAddressBook(); });
+
+      // Communication log
+      if (!draft.commLog) draft.commLog = [];
+      const commListEl = modal.querySelector('#ceCommLogList');
+      const COMM_ICONS = { call: '📞', email: '📧', whatsapp: '💬', meeting: '🤝', note: '📝' };
+      function renderCommLog() {
+        if (!commListEl) return;
+        if (draft.commLog.length === 0) {
+          commListEl.innerHTML = `<p style="color:var(--text-muted);font-size:12px;margin:4px 0;">${escapeHtml(t('ce.comm_empty'))}</p>`;
+          return;
+        }
+        const sorted = [...draft.commLog].sort((a, b) => (b.at || '').localeCompare(a.at || ''));
+        commListEl.innerHTML = sorted.map((e, idx) => `
+          <div style="display:flex;align-items:flex-start;gap:6px;padding:5px 0;border-bottom:1px solid var(--border-soft);font-size:12px;">
+            <span>${COMM_ICONS[e.type] || '📝'}</span>
+            <div style="flex:1;">
+              <span style="font-weight:600;">${escapeHtml(t('ce.comm_' + (e.type || 'note')))}</span>
+              <span style="color:var(--text-dim);font-size:11px;margin-inline-start:6px;">${escapeHtml((e.at || '').slice(0, 10))}</span>
+              <div style="color:var(--text-muted);">${escapeHtml(e.note || '')}</div>
+            </div>
+            <button class="btn danger small comm-del" data-ci="${idx}" style="flex-shrink:0;">×</button>
+          </div>`).join('');
+        commListEl.querySelectorAll('.comm-del').forEach(btn => {
+          btn.addEventListener('click', () => {
+            // find by reverse index since we sorted
+            const sorted2 = [...draft.commLog].sort((a, b) => (b.at || '').localeCompare(a.at || ''));
+            const toRemove = sorted2[+btn.dataset.ci];
+            const idx2 = draft.commLog.indexOf(toRemove);
+            if (idx2 >= 0) draft.commLog.splice(idx2, 1);
+            renderCommLog();
+          });
+        });
+      }
+      renderCommLog();
+      const commAddBtn = modal.querySelector('#ceCommAdd');
+      if (commAddBtn) {
+        commAddBtn.addEventListener('click', () => {
+          const noteInput = modal.querySelector('#ceCommNote');
+          const typeInput = modal.querySelector('#ceCommType');
+          const noteVal = (noteInput?.value || '').trim();
+          if (!noteVal) return;
+          const newEntry = { id: uid('CMM'), type: typeInput?.value || 'note', note: noteVal, at: new Date().toISOString() };
+          draft.commLog.push(newEntry);
+          if (draft.commLog.length > 200) draft.commLog.length = 200;
+          // Immediately persist to the real client record so it isn't lost if modal is closed via ×
+          const liveClient = clients.find(c => c.id === draft.id);
+          if (liveClient) {
+            if (!liveClient.commLog) liveClient.commLog = [];
+            liveClient.commLog.push(newEntry);
+            if (liveClient.commLog.length > 200) liveClient.commLog.length = 200;
+            saveAll();
+          }
+          if (noteInput) noteInput.value = '';
+          renderCommLog();
+        });
+      }
 
       // Order history
       const histEl = modal.querySelector('#clientHistorySection');
@@ -5354,14 +5660,15 @@ function openClientEditor(clientId = null) {
           histEl.innerHTML = `
             <h4 style="font-size:11.5px; font-weight:600; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.07em; margin:0 0 10px;">${escapeHtml(t('ce.history_title'))} (${clientOrders.length})</h4>
             <div class="client-history">
-              ${clientOrders.slice(0, 15).map(o => `
+              ${clientOrders.slice(0, 30).map(o => `
                 <div class="ch-row">
                   <span class="ch-date">${escapeHtml(o.date)}</span>
                   <span class="ch-name">${escapeHtml(o.project)}</span>
                   <span class="badge ${escapeHtml(o.status)}">${escapeHtml(t('queue.' + o.status))}</span>
                   <span class="ch-price">${fmtPrice(o.price)}</span>
                 </div>`).join('')}
-            </div>`;
+            </div>
+            ${clientOrders.length > 30 ? `<p style="font-size:11.5px;color:var(--text-muted);margin:6px 0 0;">+${clientOrders.length - 30} more — see Orders log</p>` : ''}`;
         }
       }
     },
@@ -5407,13 +5714,24 @@ function checkRecurringOrders() {
     const template = printLog.find(o => o.clientId === client.id && o.status === 'completed');
     if (!template) return;
 
+    // Check if an order was already created for this cycle — prevents duplicates
+    // when patchRecurringOrdersWithLeadDays also runs on boot
+    // Must happen BEFORE consuming the invoice number to avoid wasting sequence numbers
+    const alreadyCreated = printLog.some(o =>
+      o.clientId === client.id && o.recurringCycle === rec.nextDue);
+    if (alreadyCreated) return;
+
     const now = new Date();
     const seq = nextInvoiceSeq();
     const id = `${settings.invPrefix || 'INV'}-${now.getFullYear()}-${seq}`;
+    const invoiceNum = nextInvoiceNumber();
+
     printLog.unshift({
       ...template,
       parts: template.parts ? template.parts.map(p => ({ ...p })) : [],
       id,
+      invoiceNum,
+      invoiceNumber: invoiceNum,
       date: today,
       timestamp: now.toISOString(),
       status: 'pending',
@@ -5433,6 +5751,7 @@ function checkRecurringOrders() {
       quoteAcceptedAt: null,
       deliveredAt: null,
       attachedFiles: [],
+      recurringCycle: rec.nextDue,
     });
     created++;
 
@@ -5504,10 +5823,15 @@ function logPrint(asQuote = false) {
   const shippingCost = Math.max(0, num($('#shippingCost')?.value, 0));
   const extraLinesTotal = currentExtraLines.reduce((s, l) => s + Math.max(0, +l.amount || 0), 0);
   const priceBeforeDiscount = totalBaseCost * (1 + margin / 100);
-  const finalPrice = priceBeforeDiscount * (1 - discountPct / 100) + shippingCost + extraLinesTotal;
+  const subAfterDiscount = priceBeforeDiscount * (1 - discountPct / 100);
+  const logRushEnabled = !!$('#calcRushFee')?.checked;
+  const logRushPct = logRushEnabled ? num(settings.rushFeePct, 25) : 0;
+  const logRushFeeAmt = subAfterDiscount * logRushPct / 100;
+  const finalPrice = subAfterDiscount + logRushFeeAmt + shippingCost + extraLinesTotal;
 
   const clientInputVal = $('#clientInput').value.trim();
   const project = clientInputVal;
+  const clientRef = ($('#calcClientRef')?.value || '').trim() || null;
   const now = new Date();
   const materials = [...new Set(currentBuild.map(p => p.material))].join(', ');
 
@@ -5515,10 +5839,12 @@ function logPrint(asQuote = false) {
   const prefix = asQuote ? (settings.quotePrefix || 'QUO') : (settings.invPrefix || 'INV');
   const id = `${prefix}-${now.getFullYear()}-${seq}`;
 
-  const invoiceNum = nextInvoiceNumber();
+  // Only advance the formal invoice counter for real orders, not quotes
+  const invoiceNum = asQuote ? null : nextInvoiceNumber();
   printLog.unshift({
     id,
     invoiceNum,
+    invoiceNumber: invoiceNum,
     date: now.toISOString().split('T')[0],
     timestamp: now.toISOString(),
     project,
@@ -5548,9 +5874,27 @@ function logPrint(asQuote = false) {
     paymentMethod: null,
     paidAt: null,
     notes: '',
+    internalNotes: '',
     invoiceNotes: '',
+    clientRef:    clientRef,
     tags: [],
-    dueDate: null,
+    dueDate: (() => {
+      // Auto-estimate due date from queue depth + working hours
+      if (!asQuote) {
+        const queueHrs = printLog
+          .filter(o => o.status !== 'completed' && o.status !== 'quote' && o.status !== 'on_hold')
+          .reduce((s, o) => s + (+o.printTime || 0), 0);
+        const totalHrs = queueHrs + totalPrintTime;
+        const dailyHrs = avgDailyWorkingHours();
+        if (dailyHrs > 0 && totalHrs > 0) {
+          const daysNeeded = Math.ceil(totalHrs / dailyHrs);
+          const d = new Date(now);
+          d.setDate(d.getDate() + daysNeeded);
+          return d.toISOString().split('T')[0];
+        }
+      }
+      return null;
+    })(),
     priority: false,
     printPhotos: [],
     parts: currentBuild.map(p => ({ ...p, partStatus: p.partStatus || 'pending' })),
@@ -5559,7 +5903,9 @@ function logPrint(asQuote = false) {
     actualWeight:    null,
     // Quote lifecycle
     quoteSentAt:     asQuote ? now.toISOString().split('T')[0] : null,
-    quoteExpiresAt:  asQuote ? new Date(now.getTime() + 7 * 86400000).toISOString().split('T')[0] : null,
+    rushFee:         logRushFeeAmt > 0 ? +logRushFeeAmt.toFixed(2) : undefined,
+    rushFeeAmount:   logRushFeeAmt > 0 ? +logRushFeeAmt.toFixed(2) : 0,
+    quoteExpiresAt:  asQuote ? new Date(now.getTime() + (settings.quoteValidityDays || 7) * 86400000).toISOString().split('T')[0] : null,
     quoteAcceptedAt: null,
     // Feature 8: Quote revision history
     quoteVersion:    asQuote ? 1 : undefined,
@@ -5576,6 +5922,7 @@ function logPrint(asQuote = false) {
   renderBuild();
   renderExtraLines();
   $('#clientInput').value = '';
+  if ($('#calcClientRef')) $('#calcClientRef').value = '';
   $('#discountPct').value = '0';
   if ($('#shippingCost')) $('#shippingCost').value = '0';
   if ($('#depositAmount')) $('#depositAmount').value = '0';
@@ -5600,8 +5947,13 @@ function approveQuote(orderId) {
   if (!order) return;
   order.status = 'pending';
   order.quoteAcceptedAt = new Date().toISOString().split('T')[0];
+  if (!order.invoiceNum) {
+    order.invoiceNum = nextInvoiceNumber();
+    order.invoiceNumber = order.invoiceNum;
+  }
   if (!order.statusHistory) order.statusHistory = [];
   order.statusHistory.push({ status: 'pending', at: new Date().toISOString() });
+  if (order.statusHistory.length > 200) order.statusHistory = order.statusHistory.slice(-200);
   saveAll();
   renderKanban(); renderLogs(); renderDashboard();
   toast(t('quote.approved'), 'success');
@@ -5668,10 +6020,23 @@ function updateStatus(id, newStatus) {
     toast(t('prod.paused_block'), 'warning');
     return;
   }
+  // WIP limit enforcement: warn (non-blocking) when moving into a limited column
+  if (newStatus !== 'completed') {
+    const wipLimit = (settings.wipLimits || {})[newStatus] || 0;
+    if (wipLimit > 0) {
+      const colCount = printLog.filter(o => o.id !== id && o.status === newStatus).length;
+      if (colCount >= wipLimit) {
+        toast(`⚠ WIP limit (${wipLimit}) reached for "${newStatus}" column`, 'warning', 4000);
+      }
+    }
+  }
   if (newStatus === 'completed') {
     promptActuals(order, () => {
       // Feature 8 (new 8-pack): Check loyalty tier upgrade BEFORE marking complete
       const prevTier = order.clientId ? getClientTier(order.clientId) : null;
+      if (!order.statusHistory) order.statusHistory = [];
+      order.statusHistory.push({ status: 'completed', at: new Date().toISOString() });
+      if (order.statusHistory.length > 200) order.statusHistory = order.statusHistory.slice(-200);
       order.status = 'completed';
       if (!order.completedAt) order.completedAt = new Date().toISOString();
       deductFilamentForOrder(order);
@@ -5691,9 +6056,11 @@ function updateStatus(id, newStatus) {
     });
     return;
   }
+  const prevStatus = order.status;
   order.status = newStatus;
   if (!order.statusHistory) order.statusHistory = [];
   order.statusHistory.push({ status: newStatus, at: new Date().toISOString() });
+  if (order.statusHistory.length > 200) order.statusHistory = order.statusHistory.slice(-200);
   // Feature 3 (new batch): Detect resin orders entering post-processing
   if (newStatus === 'post') {
     const invItem = inventory.find(i => i.id === order.filamentId || (order.parts || []).some(p => p.filamentId === i.id));
@@ -5713,8 +6080,20 @@ function updateStatus(id, newStatus) {
   } else if (order.timerStart) {
     delete order.timerStart;
   }
-  // Clear hold reason when resuming from on_hold
-  if (newStatus === 'pending' && order.holdReason !== undefined) {
+  // Auto-extend due date and clear hold state when resuming from on_hold
+  if (prevStatus === 'on_hold' && newStatus !== 'on_hold') {
+    if (order.dueDate && order.heldAt) {
+      const holdDays = Math.ceil((Date.now() - new Date(order.heldAt).getTime()) / 86400000);
+      if (holdDays > 0) {
+        const d = new Date(order.dueDate + 'T00:00:00');
+        d.setDate(d.getDate() + holdDays);
+        order.dueDate = d.toISOString().split('T')[0];
+        toast(t('ord.due_extended', { days: holdDays, date: order.dueDate }), 'info', 4000);
+      }
+    }
+    delete order.holdReason;
+    delete order.heldAt;
+  } else if (newStatus === 'pending' && order.holdReason !== undefined) {
     delete order.holdReason;
     delete order.heldAt;
   }
@@ -5750,6 +6129,7 @@ function holdOrder(id) {
       order.heldAt = new Date().toISOString();
       if (!order.statusHistory) order.statusHistory = [];
       order.statusHistory.push({ status: 'on_hold', at: new Date().toISOString() });
+      if (order.statusHistory.length > 200) order.statusHistory = order.statusHistory.slice(-200);
       saveAll();
       renderKanban(); renderLogs();
       toast(t('ord.on_hold'), 'info');
@@ -5780,8 +6160,9 @@ function qcPassOrder(orderId) {
       if (!order.completedAt) order.completedAt = new Date().toISOString();
       if (!order.statusHistory) order.statusHistory = [];
       order.statusHistory.push({ status: 'completed', at: new Date().toISOString() });
-      // Note: filament deduction happens inside the promptActuals callback so
-      // that if the operator cancels actuals, inventory is NOT silently deducted
+      if (order.statusHistory.length > 200) order.statusHistory = order.statusHistory.slice(-200);
+      // Persist completion immediately so it's not lost if actuals modal is cancelled
+      saveAll();
       renderKanban(); renderLogs();
       toast(t('ord.qc_passed'), 'success');
       // Prompt for actuals after QC modal closes, then finalise
@@ -5805,12 +6186,23 @@ function qcFailOrder(orderId) {
     sizeLg: false,
     saveLabel: t('ord.qc_fail'),
     bodyHtml: `
+      <label>${escapeHtml(t('waste.failure_type') || 'Failure type')}</label>
+      <select id="qcFailType" style="margin-bottom:10px;">
+        <option value="warping">${escapeHtml(t('waste.ft.warping') || 'Warping')}</option>
+        <option value="adhesion">${escapeHtml(t('waste.ft.adhesion') || 'Bed adhesion')}</option>
+        <option value="stringing">${escapeHtml(t('waste.ft.stringing') || 'Stringing')}</option>
+        <option value="layer_shift">${escapeHtml(t('waste.ft.layer_shift') || 'Layer shift')}</option>
+        <option value="under_extrusion">${escapeHtml(t('waste.ft.under_extrusion') || 'Under-extrusion')}</option>
+        <option value="support_fail">${escapeHtml(t('waste.ft.support_fail') || 'Support failure')}</option>
+        <option value="other" selected>${escapeHtml(t('waste.ft.other') || 'Other')}</option>
+      </select>
       <label>${escapeHtml(t('waste.reason'))}</label>
       <input type="text" id="qcFailReason" placeholder="${escapeHtml(t('waste.reason_ph'))}" style="width:100%;">
       <label style="margin-top:12px;">${escapeHtml(t('waste.weight'))} (g)</label>
       <input type="number" id="qcFailWeight" min="0" step="1" value="" placeholder="0">`,
-    onMount(modal) { setTimeout(() => modal.querySelector('#qcFailReason')?.focus(), 40); },
+    onMount(modal) { setTimeout(() => modal.querySelector('#qcFailType')?.focus(), 40); },
     onSave(modal) {
+      const failureType = modal.querySelector('#qcFailType').value;
       const reason = modal.querySelector('#qcFailReason').value.trim();
       const weight = Math.max(0, num(modal.querySelector('#qcFailWeight').value, 0));
       // Auto-create waste entry
@@ -5825,13 +6217,14 @@ function qcFailOrder(orderId) {
         })() : 0,
         reason: reason || t('ord.qc_fail'),
         orderId: order.id,
-        failureType: 'other',
+        failureType,
       });
       // Requeue order for reprint
       order.status = 'pending';
       order.qcFailedAt = new Date().toISOString();
       if (!order.statusHistory) order.statusHistory = [];
       order.statusHistory.push({ status: 'pending', at: new Date().toISOString(), note: 'QC failed' });
+      if (order.statusHistory.length > 200) order.statusHistory = order.statusHistory.slice(-200);
       saveAll();
       renderKanban(); renderLogs();
       toast(t('ord.qc_failed_requeue'), 'warning');
@@ -5914,6 +6307,16 @@ async function deleteLog(id) {
   if (idx < 0) return;
   const removed = printLog[idx];
   printLog.splice(idx, 1);
+  // Sweep orphaned spool usage-history entries for this order
+  for (const spool of inventory) {
+    if (spool.usageHistory && spool.usageHistory.some(h => h.orderId === id)) {
+      spool.usageHistory = spool.usageHistory.filter(h => h.orderId !== id);
+    }
+  }
+  // Clean up expenses linked to this order
+  if (typeof expenses !== 'undefined' && expenses.some(e => e.orderId === id)) {
+    expenses = expenses.filter(e => e.orderId !== id);
+  }
   saveAll();
   renderKanban(); renderLogs(); renderAnalytics(); renderPortfolio();
   // Toast with Undo — restores at the same position
@@ -5966,7 +6369,7 @@ function openPaymentModal(orderId) {
     <div class="inline-pair">
       <div>
         <label>${escapeHtml(t('pay.amount_paid'))} (${escapeHtml(currencySymbol())})</label>
-        <input type="number" data-f="paidAmount" min="0" step="0.01" value="${draft.paidAmount}">
+        <input type="number" data-f="paidAmount" min="0" max="${+order.price || 0}" step="0.01" value="${draft.paidAmount}">
       </div>
       <div>
         <label>${escapeHtml(t('pay.payment_method'))}</label>
@@ -5974,7 +6377,7 @@ function openPaymentModal(orderId) {
       </div>
     </div>
     <label>${escapeHtml(t('pay.paid_on'))}</label>
-    <input type="date" data-f="paidAt" value="${draft.paidAt}">
+    <input type="date" data-f="paidAt" value="${draft.paidAt}" max="${new Date().toISOString().split('T')[0]}">
     <p style="font-size:11.5px; color:var(--text-muted); margin:10px 0 0;">
       ${order.id} · ${escapeHtml(order.project)} · ${fmtPrice(fullAmount)}
     </p>
@@ -5989,12 +6392,17 @@ function openPaymentModal(orderId) {
     onMount(modal) {
       modal.querySelectorAll('[data-f]').forEach(input => {
         input.addEventListener('input', () => {
-          draft[input.dataset.f] = input.type === 'number' ? num(input.value, 0) : input.value;
+          const rawVal = input.type === 'number' ? num(input.value, 0) : input.value;
+          if (input.dataset.f === 'paidAmount') {
+            draft.paidAmount = Math.min(Math.max(0, rawVal), +order.price || 0);
+          } else {
+            draft[input.dataset.f] = rawVal;
+          }
         });
       });
     },
     async onSave() {
-      order.paidAmount    = draft.paidAmount;
+      order.paidAmount    = Math.min(Math.max(0, draft.paidAmount || 0), +order.price || 0);
       order.paymentMethod = draft.paymentMethod;
       order.paidAt        = draft.paidAt;
       order.paymentStatus = (draft.paidAmount >= fullAmount) ? 'paid'
@@ -6040,6 +6448,7 @@ function openOrderEditor(orderId) {
   if (!order) return;
   const draft = {
     notes: order.notes || '',
+    internalNotes: order.internalNotes || '',
     invoiceNotes: order.invoiceNotes || '',
     tags: (order.tags || []).slice(),
     dueDate: order.dueDate || '',
@@ -6158,6 +6567,10 @@ function openOrderEditor(orderId) {
 
     <label style="margin-top:18px;">${escapeHtml(t('oe.notes'))}</label>
     <textarea data-f="notes" rows="3" style="resize:vertical; min-height:60px;" placeholder="${escapeHtml(t('oe.notes_ph'))}">${escapeHtml(draft.notes)}</textarea>
+
+    <label style="margin-top:14px;">${escapeHtml(t('oe.internal_notes'))}</label>
+    <p style="font-size:11.5px;color:var(--text-muted);margin:2px 0 5px;">🔒 ${escapeHtml(t('oe.internal_notes_ph'))}</p>
+    <textarea data-f="internalNotes" rows="2" style="resize:vertical; min-height:48px; border-color:var(--border-soft); background:rgba(0,0,0,0.03);" placeholder="${escapeHtml(t('oe.internal_notes_ph'))}">${escapeHtml(draft.internalNotes)}</textarea>
 
     <label style="margin-top:14px;">${escapeHtml(t('oe.invoice_notes'))}</label>
     <p style="font-size:11.5px;color:var(--text-muted);margin:2px 0 5px;">${escapeHtml(t('oe.invoice_notes_hint'))}</p>
@@ -6331,6 +6744,9 @@ function openOrderEditor(orderId) {
       modal.querySelector('[data-f="notes"]').addEventListener('input', (e) => {
         draft.notes = e.target.value;
       });
+      modal.querySelector('[data-f="internalNotes"]')?.addEventListener('input', (e) => {
+        draft.internalNotes = e.target.value;
+      });
       modal.querySelector('[data-f="invoiceNotes"]').addEventListener('input', (e) => {
         draft.invoiceNotes = e.target.value;
       });
@@ -6435,7 +6851,7 @@ function openOrderEditor(orderId) {
               <input type="number" class="inst-amt-inp" data-ii="${i}" value="${ins.amount || ''}" min="0" step="0.01" style="width:80px; font-size:12px; border:1px solid var(--border); background:var(--surface-2); border-radius:4px; padding:2px 6px; color:var(--text);">
               <input type="date" class="inst-due-inp" data-ii="${i}" value="${escapeHtml(ins.dueDate || '')}" style="font-size:11px; border:1px solid var(--border); background:var(--surface-2); border-radius:4px; padding:2px 4px; color:var(--text);">
               <button class="btn small${ins.paid ? '' : ' success'} inst-pay-btn" data-ii="${i}">${escapeHtml(ins.paid ? t('inst.paid') : t('inst.mark_paid'))}</button>
-              <button class="btn danger small inst-rm-btn" data-ii="${i}">×</button>
+              <button class="btn danger small inst-rm-btn" data-ii="${i}" aria-label="${escapeHtml(t('common.delete'))}">×</button>
             </div>`).join('')}`;
         instListEl.querySelectorAll('.inst-note-inp').forEach(inp => { inp.addEventListener('input', () => { draft.instalments[+inp.dataset.ii].note = inp.value; }); });
         instListEl.querySelectorAll('.inst-amt-inp').forEach(inp => { inp.addEventListener('input', () => { draft.instalments[+inp.dataset.ii].amount = Math.max(0, +inp.value || 0); }); });
@@ -6574,7 +6990,7 @@ function openOrderEditor(orderId) {
         const msgs = ocWarnings.map(w =>
           t('inv.overcommit_confirm', { name: w.spoolName, needed: Math.round(w.needed), available: Math.round(w.available) })
         ).join('\n');
-        const ok = confirm('⚠️ ' + msgs);
+        const ok = await confirmModal('⚠️ ' + msgs, { danger: false });
         if (!ok) return false;
       }
 
@@ -6613,6 +7029,7 @@ function openOrderEditor(orderId) {
         }
       }
       order.notes = draft.notes;
+      order.internalNotes = draft.internalNotes || undefined;
       order.invoiceNotes = draft.invoiceNotes || undefined;
       order.tags = draft.tags.length > 0 ? draft.tags : undefined;
       order.dueDate = draft.dueDate || null;
@@ -6666,6 +7083,13 @@ function openOrderEditor(orderId) {
         order.discountPct = draft.discountPct;
         order.priceBeforeDiscount = draft.discountPct > 0 ? +sellingBase.toFixed(2) : null;
         order.shippingCost = draft.shippingCost;
+        // Re-clamp paidAmount in case price was reduced below what was already paid
+        if ((order.paidAmount || 0) > (+order.price || 0)) {
+          order.paidAmount = +order.price || 0;
+          if (order.paidAmount >= +order.price) {
+            order.paymentStatus = 'paid';
+          }
+        }
       }
       // Persist extra lines (after price recalculation to use correct prev values)
       order.extraLines = draft.extraLines.length > 0 ? draft.extraLines.map(l => ({ ...l })) : undefined;
@@ -6708,10 +7132,16 @@ function duplicateOrder(orderId) {
   });
   currentBuildFromProductId = order.productId || null;
   currentClientId = order.clientId || null;
+  currentExtraLines = (order.extraLines || []).map(l => ({ ...l }));
+  if ($('#discountPct'))   $('#discountPct').value   = String(order.discountPct   || 0);
+  if ($('#shippingCost'))  $('#shippingCost').value  = String(order.shippingCost  || 0);
+  if ($('#calcClientRef')) $('#calcClientRef').value = order.clientRef || '';
   // Pre-fill client field with the order's client display name
   $('#clientInput').value = order.project || '';
   switchTab('calculator-tab');
   renderBuild();
+  renderExtraLines();
+  updateGrandTotal();
   toast(t('oe.duplicated'), 'success');
 }
 
@@ -6918,6 +7348,7 @@ function openSpoolSwitchModal(orderId) {
             invItem.weight = Math.max(0, invItem.weight - weight);
             if (!invItem.usageHistory) invItem.usageHistory = [];
             invItem.usageHistory.unshift({ orderId: order.id, project: order.project || '', weightUsed: weight, date: new Date().toISOString().split('T')[0] });
+            if (invItem.usageHistory.length > 200) invItem.usageHistory.length = 200;
           }
           saveAll();
           renderInventory();
@@ -6994,6 +7425,46 @@ function renderThroughputHeatmap() {
 /* ============================================================
    Feature 7: Invoice numbering settings UI helpers
    ============================================================ */
+function renderPostProcessPresetsList() {
+  const el = $('#postProcessPresetsList');
+  if (!el) return;
+  const presets = settings.postProcessPresets || [];
+  if (presets.length === 0) {
+    el.innerHTML = `<p style="font-size:12px;color:var(--text-muted);margin:0 0 6px;">${escapeHtml(t('set.no_presets') || 'No presets yet.')}</p>`;
+  } else {
+    el.innerHTML = presets.map((p, i) => `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
+        <span style="flex:1;font-size:13px;">${escapeHtml(p.name)}</span>
+        <span style="font-size:13px;color:var(--success);min-width:60px;text-align:right;">${fmtMoney(p.amount)}</span>
+        <button class="btn danger small" data-pp-del="${i}">×</button>
+      </div>`).join('');
+    el.querySelectorAll('[data-pp-del]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        settings.postProcessPresets.splice(+btn.dataset.ppDel, 1);
+        saveAll();
+        renderPostProcessPresetsList();
+      });
+    });
+  }
+  // Wire Add button
+  const addBtn = $('#btnAddPostPreset');
+  if (addBtn && !addBtn._wired) {
+    addBtn._wired = true;
+    addBtn.addEventListener('click', () => {
+      const name = $('#set_ppName')?.value.trim();
+      const amount = Math.max(0, num($('#set_ppAmount')?.value, 0));
+      if (!name) return toast(t('common.required') || 'Name is required', 'error');
+      if (!settings.postProcessPresets) settings.postProcessPresets = [];
+      settings.postProcessPresets.push({ name, amount });
+      saveAll();
+      if ($('#set_ppName')) $('#set_ppName').value = '';
+      if ($('#set_ppAmount')) $('#set_ppAmount').value = '';
+      renderPostProcessPresetsList();
+      toast(t('set.preset_saved') || 'Preset saved', 'success');
+    });
+  }
+}
+
 function renderInvoiceNumberingSection() {
   const el = $('#invNumSection');
   if (!el) return;
@@ -7164,11 +7635,13 @@ function renderPortfolio() {
 async function exportInvoicePDF(orderId, { askWhere = true, openAfter = true } = {}) {
   const order = printLog.find(o => o.id === orderId);
   if (!order) return null;
-  // Render invoice into print area, then call printToPDF via IPC
-  await renderInvoiceForOrder(order);
-  await new Promise(r => setTimeout(r, 60)); // let layout settle
-  if (!window.hubAPI?.exportPDF) return null;
+  const btn = document.querySelector(`[data-act="export-pdf"][data-id="${orderId}"]`) || $('#btnExportPdf');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
   try {
+    // Render invoice into print area, then call printToPDF via IPC
+    await renderInvoiceForOrder(order);
+    await new Promise(r => setTimeout(r, 60)); // let layout settle
+    if (!window.hubAPI?.exportPDF) return null;
     const finalPath = await window.hubAPI.exportPDF({
       askWhere,
       defaultName: `${order.id}.pdf`
@@ -7181,6 +7654,8 @@ async function exportInvoicePDF(orderId, { askWhere = true, openAfter = true } =
     console.error(e);
     toast('PDF error', 'error');
     return null;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = t('inv.export_pdf') || 'Export PDF'; }
   }
 }
 
@@ -7235,6 +7710,14 @@ async function sendPaymentReminder(orderId) {
     : t('pay.remind_default', { name: localName(client), id: order.id, price: fmtPrice(order.price), currency: currencySymbol() });
   if (window.hubAPI?.shareWhatsApp) {
     await window.hubAPI.shareWhatsApp({ phone: client.phone, message, pdfPath: null });
+  } else {
+    // Fallback: open WhatsApp web
+    const encodedMsg = encodeURIComponent(message);
+    const phone = (client.phone || '').replace(/\D/g, '');
+    window.hubAPI?.openExternal?.(`https://wa.me/${phone}?text=${encodedMsg}`);
+    if (!window.hubAPI?.openExternal) {
+      toast(t('pay.remind_sent') || 'Open WhatsApp manually to send the reminder', 'info');
+    }
   }
 }
 
@@ -7276,14 +7759,15 @@ async function renderInvoiceForOrder(order) {
     catch (e) { console.error(e); }
   }
 
-  // Payment QR — encode IBAN + amount + ref so client can scan to initiate transfer
+  // Payment QR — EMVCo-inspired format for GCC banking apps (SARIE/Mada compatible)
   let payQrSvg = '';
   if (settings.iban && window.hubAPI?.generateQR) {
     const iban = settings.iban.replace(/\s+/g, '');
-    const payRef = order.id;
+    const beneName = settings.bizEn || settings.bizAr || '';
     const payAmt = price.toFixed(2);
-    // BeneficiaryName|IBAN|Amount|Ref (simple format readable by Saudi banking apps)
-    const payText = [settings.bizEn || settings.bizAr || '', iban, payAmt, payRef].join('|');
+    const payRef = order.invoiceNumber || order.id;
+    // Structured format: BeneficiaryName\nIBAN\nAmount\nRef
+    const payText = `${beneName}\n${iban}\n${payAmt}\n${payRef}`;
     try { payQrSvg = await window.hubAPI.generateQR(payText, { width: 120, margin: 1 }); }
     catch (e) { console.warn('Payment QR failed', e); }
   }
@@ -7345,7 +7829,7 @@ async function maybeAutoBackup() {
     });
     if (last !== today) {
       const p = await window.hubAPI.writeBackup(json);
-      if (p) console.log('Auto-backup written:', p);
+      if (p) console.debug('Auto-backup written:', p);
       updateLastBackupDisplay();
     }
     if (settings.useIcloud && window.hubAPI?.writeIcloudBackup) {
@@ -7384,10 +7868,11 @@ function addExpense() {
   const orderRef = ($('#expOrderRef')?.value || '').trim() || null;
   const recurringVal = $('#expRecurring')?.value || null;
   const nextDue = recurringVal ? calcNextDueDate(dateVal, recurringVal) : null;
+  const expCat = $('#expCategory').value || 'other';
   expenses.unshift({
     id:          uid('EXP'),
     date:        dateVal,
-    category:    $('#expCategory').value || 'other',
+    category:    expCat,
     amount,
     note:        $('#expNote').value.trim(),
     orderId:     orderRef,
@@ -7396,6 +7881,17 @@ function addExpense() {
     nextDue:     nextDue,
   });
   saveAll();
+  // Budget overspend check
+  const budget = (settings.expBudgets || {})[expCat] || 0;
+  if (budget > 0) {
+    const curMonth = new Date().toISOString().slice(0, 7);
+    const monthSpent = expenses
+      .filter(e => e.category === expCat && (e.date || '').startsWith(curMonth))
+      .reduce((s, e) => s + (+e.amount || 0), 0);
+    if (monthSpent > budget) {
+      toast(t('exp.budget_exceeded', { cat: expCatLabel(expCat), spent: fmtMoney(monthSpent), budget: fmtMoney(budget) }), 'warning', 5000);
+    }
+  }
   $('#expAmount').value = '';
   $('#expNote').value   = '';
   if ($('#expOrderRef')) $('#expOrderRef').value = '';
@@ -7455,7 +7951,7 @@ async function emailOrderToClient(orderId, isQuote = false) {
   const smtpReady = cfg && cfg.provider !== 'none' && cfg.provider !== 'mailto' && cfg.apiKey;
   if (smtpReady && window.hubAPI?.sendEmail) {
     const htmlBody = `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px;">
-      <h2 style="color:${settings.invAccentColor || '#5E2E14'};">${escapeHtml(shopName)}</h2>
+      <h2 style="color:${safeCssColor(settings.invAccentColor, '#5E2E14')};">${escapeHtml(shopName)}</h2>
       <p>Dear ${escapeHtml(clientName)},</p>
       <p>${isQuote
         ? `Please find below your quote <strong>${escapeHtml(order.id)}</strong> for <strong>${fmtPrice(order.price)}</strong>.`
@@ -7586,12 +8082,12 @@ function renderExpenseBudgets() {
     el.innerHTML = `<p style="color:var(--text-muted); font-size:13px;">${escapeHtml(t('exp.no_budgets'))}</p>`;
     return;
   }
-  const now = new Date();
-  const firstDayOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-  const monthExpenses = expenses.filter(e => (e.date || '') >= firstDayOfMonth);
+  // Budgets are monthly — use the active month if a month filter is selected, otherwise current month
+  const budgetFilter = (expRangeFilter === 'month' || expRangeFilter === 'last_month') ? expRangeFilter : 'month';
+  const filteredExpenses = expenses.filter(e => inRange(e.date, budgetFilter, 'expenses'));
   const byCategory = {};
   EXP_CATEGORIES.forEach(c => { byCategory[c] = 0; });
-  monthExpenses.forEach(e => { byCategory[e.category] = (byCategory[e.category] || 0) + e.amount; });
+  filteredExpenses.forEach(e => { byCategory[e.category] = (byCategory[e.category] || 0) + e.amount; });
 
   const rows = EXP_CATEGORIES.filter(c => (budgets[c] || 0) > 0).map(c => {
     const budget = budgets[c];
@@ -7628,8 +8124,8 @@ function renderExpenseBudgets() {
 function exportExpensesCsv() {
   const filtered = expenses.filter(e => inRange(e.date, expRangeFilter, 'expenses'));
   const lines = [
-    [`Date`,`Category`,`Amount (${currencySymbol()})`,`Note`].map(csvEsc).join(','),
-    ...filtered.map(e => [e.date, expCatLabel(e.category), e.amount, e.note].map(csvEsc).join(','))
+    [`Date`,`Category`,`Amount (${currencySymbol()})`,`Note`,`Order ID`].map(csvEsc).join(','),
+    ...filtered.map(e => [e.date, expCatLabel(e.category), e.amount, e.note, e.orderId || ''].map(csvEsc).join(','))
   ];
   downloadBlob(new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' }),
     `expenses-${new Date().toISOString().slice(0,10)}.csv`);
@@ -7727,6 +8223,8 @@ function renderWasteLog() {
 
   const statEl = $('#wasteStats');
   if (statEl) {
+    const completedRevenue = printLog.filter(o => o.status === 'completed').reduce((s, o) => s + +o.price, 0);
+    const wastePct = completedRevenue > 0 ? (totalWasteCost / completedRevenue * 100) : null;
     const maxFt = Object.values(ftCounts).reduce((a, b) => Math.max(a, b), 1);
     const ftBars = WASTE_FAILURE_TYPES.filter(ft => ftCounts[ft] > 0).sort((a, b) => (ftCounts[b] || 0) - (ftCounts[a] || 0)).map(ft => {
       const pct = ((ftCounts[ft] || 0) / maxFt * 100).toFixed(1);
@@ -7736,11 +8234,15 @@ function renderWasteLog() {
         <span style="width:24px;text-align:start;">${ftCounts[ft]}</span>
       </div>`;
     }).join('');
+    const wastePctHtml = wastePct !== null
+      ? `<span>${escapeHtml(t('waste.pct_revenue'))}: <strong style="color:${wastePct > 5 ? 'var(--danger)' : wastePct > 2 ? 'var(--warning)' : 'var(--success)'};">${wastePct.toFixed(1)}%</strong></span>`
+      : '';
     statEl.innerHTML = `
       <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:${ftBars ? '12px' : '0'};">
         <span>${escapeHtml(t('waste.total_entries'))}: <strong>${wasteLog.length}</strong></span>
         <span>${escapeHtml(t('waste.total_weight'))}: <strong>${totalWasteGrams.toFixed(0)}g</strong></span>
         <span>${escapeHtml(t('waste.total_cost'))}: <strong>${fmtPrice(totalWasteCost)}</strong></span>
+        ${wastePctHtml}
       </div>
       ${ftBars ? `<div style="margin-top:8px;"><div style="font-size:11.5px;font-weight:600;color:var(--text-muted);margin-bottom:6px;">${escapeHtml(t('waste.failure_breakdown'))}</div>${ftBars}</div>` : ''}
     `;
@@ -7827,7 +8329,7 @@ function openWasteForm() {
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
         <div>
           <label style="margin-top:0;">${escapeHtml(t('waste.date'))}</label>
-          <input type="date" id="wf_date" value="${today}">
+          <input type="date" id="wf_date" value="${today}" max="${today}">
         </div>
         <div>
           <label style="margin-top:0;">${escapeHtml(t('waste.material'))}</label>
@@ -7858,6 +8360,22 @@ function openWasteForm() {
         <span>${escapeHtml(t('waste.deduct_inv'))}</span>
       </label>
     `,
+    onMount(modal) {
+      // Auto-calculate cost when material or weight changes
+      const autoCalcCost = () => {
+        const mat = modal.querySelector('#wf_material')?.value;
+        const wt  = Math.max(0, +modal.querySelector('#wf_weight')?.value || 0);
+        if (!mat || wt <= 0) return;
+        const invItem = inventory.find(i => i.material === mat);
+        if (invItem && invItem.cost > 0 && invItem.weight > 0) {
+          const costPerGram = invItem.cost / invItem.weight;
+          const costEl = modal.querySelector('#wf_cost');
+          if (costEl) costEl.value = (wt * costPerGram).toFixed(2);
+        }
+      };
+      modal.querySelector('#wf_material')?.addEventListener('change', autoCalcCost);
+      modal.querySelector('#wf_weight')?.addEventListener('input', autoCalcCost);
+    },
     onSave() {
       const material    = $('#wf_material').value.trim();
       const failureType = $('#wf_failure_type').value;
@@ -7905,9 +8423,16 @@ async function deleteWasteEntry(id) {
   if (!ok) return;
   const idx = wasteLog.findIndex(w => w.id === id);
   if (idx < 0) return;
+  const entry = wasteLog[idx];
   wasteLog.splice(idx, 1);
+  // Restore filament weight if the waste entry tracked a spool
+  if (entry.spoolId && entry.weight > 0) {
+    const spool = inventory.find(i => i.id === entry.spoolId);
+    if (spool) spool.weight = (spool.weight || 0) + entry.weight;
+  }
   saveAll();
   renderWasteLog();
+  renderInventory();
   toast(t('waste.deleted'), 'success');
 }
 
@@ -8129,7 +8654,7 @@ async function exportQuoteApprovalPage(orderId) {
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a2e; background: #f8f9fa; padding: 20px; }
     .container { max-width: 700px; margin: 0 auto; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 20px rgba(0,0,0,0.08); }
-    .header { background: ${settings.invAccentColor || '#5E2E14'}; color: #fff; padding: 28px 32px; }
+    .header { background: ${safeCssColor(settings.invAccentColor, '#5E2E14')}; color: #fff; padding: 28px 32px; }
     .header h1 { font-size: 1.6rem; font-weight: 700; }
     .header p { opacity: 0.85; font-size: 0.9rem; margin-top: 4px; }
     .body { padding: 28px 32px; }
@@ -8141,8 +8666,8 @@ async function exportQuoteApprovalPage(orderId) {
     th { background: #f1f3f5; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: #555; padding: 10px 14px; text-align: left; }
     td { padding: 10px 14px; border-bottom: 1px solid #eee; font-size: 0.9rem; }
     .total-row { font-weight: 700; background: #f8f9fa; }
-    .approve-section { margin-top: 28px; padding: 20px; background: #f0f7ff; border-radius: 8px; border-left: 4px solid ${settings.invAccentColor || '#5E2E14'}; }
-    .approve-section h2 { font-size: 1.1rem; margin-bottom: 10px; color: ${settings.invAccentColor || '#5E2E14'}; }
+    .approve-section { margin-top: 28px; padding: 20px; background: #f0f7ff; border-radius: 8px; border-left: 4px solid ${safeCssColor(settings.invAccentColor, '#5E2E14')}; }
+    .approve-section h2 { font-size: 1.1rem; margin-bottom: 10px; color: ${safeCssColor(settings.invAccentColor, '#5E2E14')}; }
     .approve-section p { font-size: 0.9rem; color: #333; line-height: 1.5; }
     @media (max-width: 600px) { .meta { grid-template-columns: 1fr; } .container { border-radius: 0; } }
     @media print { body { background: #fff; } .container { box-shadow: none; } }
@@ -8225,6 +8750,7 @@ function recordOrderEdit(order, changedFields) {
     at: new Date().toISOString(),
     fields: changedFields,
   });
+  if (order.editHistory.length > 100) order.editHistory = order.editHistory.slice(-100);
 }
 
 function openEditHistoryModal(orderId) {
@@ -8321,7 +8847,13 @@ async function autoSendEmailNotification(order, newStatus) {
   if (!cfg || cfg.provider === 'none' || !(cfg.triggers || []).includes(newStatus)) return;
   if (!order.clientId) return;
   const client = clients.find(c => c.id === order.clientId);
-  if (!client?.email) return;
+  if (!client?.email) {
+    // Only toast if email notifications are expected (not a silent skip)
+    if (cfg && cfg.provider !== 'none' && (cfg.triggers || []).includes(newStatus)) {
+      toast(t('notify.no_email') || `No email on file for ${localName(client)} — notification not sent`, 'info', 3000);
+    }
+    return;
+  }
   const shopName = settings.bizEn || 'Khayt';
   const statusLabel = t('queue.' + newStatus) || newStatus;
   const subject = `${shopName} — Order ${order.id} Update: ${statusLabel}`;
@@ -8674,7 +9206,11 @@ function getClientTier(clientId) {
   );
   if (eligible.length === 0) return null;
   // Return the tier with the highest benefit (largest minOrders/minSpend combo)
-  return eligible.sort((a, b) => (+b.minOrders || 0) - (+a.minOrders || 0))[0];
+  return eligible.sort((a, b) => {
+    const orderDiff = (+b.minOrders || 0) - (+a.minOrders || 0);
+    if (orderDiff !== 0) return orderDiff;
+    return (+b.minSpend || 0) - (+a.minSpend || 0);
+  })[0];
 }
 
 /** Render the loyalty tier management UI in settings */
@@ -8691,7 +9227,7 @@ function renderLoyaltyTiersSettings() {
           <input type="number" class="tier-min-orders" data-idx="${idx}" value="${tier.minOrders || ''}" placeholder="${escapeHtml(t('set.loyalty_min_orders') || 'Min orders')}" min="0" style="flex:1;font-size:12.5px;">
           <input type="number" class="tier-min-spend" data-idx="${idx}" value="${tier.minSpend || ''}" placeholder="${escapeHtml(t('set.loyalty_min_spend') || 'Min spend')}" min="0" style="flex:1;font-size:12.5px;">
           <input type="number" class="tier-discount" data-idx="${idx}" value="${tier.discountPct || ''}" placeholder="${escapeHtml(t('set.loyalty_benefit') || 'Discount %')}" min="0" max="100" style="flex:1;font-size:12.5px;">
-          <button class="btn small danger tier-del" data-idx="${idx}">×</button>
+          <button class="btn small danger tier-del" data-idx="${idx}" aria-label="${escapeHtml(t('common.delete'))}">×</button>
         </div>`).join('')}
     </div>
     <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Name · Min completed orders · Min total spend (${currencySymbol()}) · Auto-discount %</div>
@@ -8872,11 +9408,11 @@ function renderWebhookSettings() {
       events:  Object.fromEntries(events.map(ev => [ev.key, el.querySelector(`#whk_${ev.key}`).value.trim()]))
     };
     saveAll();
-    toast('Webhooks saved ✓', 'success');
+    toast(t('webhook.saved'), 'success');
   });
   el.querySelector('#btnTestWebhook').addEventListener('click', async () => {
     const url = el.querySelector('#whk_status_changed')?.value || Object.values((settings.webhooks?.events||{})).find(Boolean);
-    if (!url) { toast('Enter at least one webhook URL first', 'warning'); return; }
+    if (!url) { toast(t('webhook.enter_url'), 'warning'); return; }
     const res = await window.hubAPI?.fireWebhook?.(url, 'ping', { message: 'Khayt webhook test' }, settings.webhooks?.secret || '');
     if (res?.ok) toast('✅ Webhook delivered!', 'success');
     else toast(`⚠ Webhook failed: ${res?.error || res?.status || '?'}`, 'error');
@@ -8892,6 +9428,7 @@ function renderAgedReceivables() {
   const today = new Date(); today.setHours(0,0,0,0);
 
   const unpaid = printLog.filter(o => {
+    if (o.voidedAt) return false;
     const ps = payStatus(o);
     return ps === 'unpaid' || ps === 'partial';
   });
@@ -8902,18 +9439,41 @@ function renderAgedReceivables() {
   }
 
   const buckets = { '0–30': [], '31–60': [], '61–90': [], '90+': [] };
+  function addToBucket(entry) {
+    if      (entry.days <= 30) buckets['0–30'].push(entry);
+    else if (entry.days <= 60) buckets['31–60'].push(entry);
+    else if (entry.days <= 90) buckets['61–90'].push(entry);
+    else                       buckets['90+'].push(entry);
+  }
   unpaid.forEach(o => {
-    const orderDate = new Date((o.date || o.timestamp || today.toISOString()).split('T')[0] + 'T00:00:00');
-    const days = Math.max(0, Math.floor((today - orderDate) / 86400000));
-    const owed = Math.max(0, (+o.price || 0) - (+o.paidAmount || 0));
-    const entry = { id: o.id, project: o.project, client: o.client, owed, days, payStatus: payStatus(o) };
-    if      (days <= 30) buckets['0–30'].push(entry);
-    else if (days <= 60) buckets['31–60'].push(entry);
-    else if (days <= 90) buckets['61–90'].push(entry);
-    else                 buckets['90+'].push(entry);
+    const arClient = o.clientId ? clients.find(c => c.id === o.clientId) : null;
+    const arClientName = arClient ? localName(arClient) : (o.client || '');
+
+    if (o.instalments && o.instalments.length > 0) {
+      // Age each unpaid instalment separately by its own dueDate
+      o.instalments.forEach(ins => {
+        if (ins.paid) return;
+        const owed = Math.max(0, +ins.amount || 0);
+        if (owed <= 0) return;
+        const refDate = ins.dueDate || o.date;
+        const instDate = new Date(refDate + 'T00:00:00');
+        const days = Math.max(0, Math.floor((today - instDate) / 86400000));
+        addToBucket({ id: o.id, project: o.project, client: arClientName, owed, days, payStatus: payStatus(o) });
+      });
+    } else {
+      const orderDate = new Date((o.date || o.timestamp || today.toISOString()).split('T')[0] + 'T00:00:00');
+      const days = Math.max(0, Math.floor((today - orderDate) / 86400000));
+      const owed = Math.max(0, (+o.price || 0) - (+o.paidAmount || 0));
+      if (owed > 0) addToBucket({ id: o.id, project: o.project, client: arClientName, owed, days, payStatus: payStatus(o) });
+    }
   });
 
-  const totalOwed = unpaid.reduce((s, o) => s + Math.max(0, (+o.price||0) - (+o.paidAmount||0)), 0);
+  const totalOwed = unpaid.reduce((s, o) => {
+    if (o.instalments && o.instalments.length > 0) {
+      return s + o.instalments.filter(ins => !ins.paid).reduce((si, ins) => si + Math.max(0, +ins.amount || 0), 0);
+    }
+    return s + Math.max(0, (+o.price||0) - (+o.paidAmount||0));
+  }, 0);
 
   const bucketColors = { '0–30': 'var(--success)', '31–60': 'var(--warning)', '61–90': '#f97316', '90+': 'var(--danger)' };
 
@@ -9000,6 +9560,7 @@ function generateSurveyPage(orderId) {
     <span class="star" data-v="4">⭐</span>
     <span class="star" data-v="5">⭐</span>
   </div>
+  <div id="ratingErr" style="display:none;color:#f87171;font-size:13px;margin:-16px 0 12px;">Please select a rating first.</div>
   <textarea id="comment" placeholder="Any comments? (optional)"></textarea>
   <button onclick="submit()">Submit Feedback</button>
   <div class="thanks" id="thanks">🎉 Thank you for your feedback!</div>
@@ -9013,7 +9574,8 @@ function generateSurveyPage(orderId) {
     });
   });
   function submit() {
-    if (!rating) { alert('Please select a rating.'); return; }
+    if (!rating) { document.getElementById('ratingErr').style.display='block'; return; }
+    document.getElementById('ratingErr').style.display='none';
     const data = { token: '${escapeHtml(token)}', orderId: '${escapeHtml(orderId)}', rating, comment: document.getElementById('comment').value };
     // In a hosted scenario this would POST to a server. Here we encode in URL for local capture.
     document.getElementById('thanks').style.display = 'block';
@@ -9026,7 +9588,7 @@ function generateSurveyPage(orderId) {
 </body></html>`;
 
   window.hubAPI?.saveHtml?.(html, `survey-${orderId}.html`);
-  toast('Survey page generated — share the file link with your client', 'success', 4000);
+  toast(t('cl.portal_generated'), 'success', 4000);
 }
 
 function openRecordSurveyModal(orderId) {
@@ -9072,9 +9634,10 @@ function renderSurveyAnalytics() {
   }
   const avg = surveyed.reduce((s, o) => s + o.survey.rating, 0) / surveyed.length;
   const dist = [1,2,3,4,5].map(r => ({ r, n: surveyed.filter(o => o.survey.rating === r).length }));
-  // NPS: 5-star = promoters, 3-4 = passive, 1-2 = detractors
-  const promoters  = surveyed.filter(o => o.survey.rating >= 5).length;
-  const detractors = surveyed.filter(o => o.survey.rating <= 2).length;
+  // NPS on 5-star scale: 5 = promoter, 4 = passive, 1-3 = detractors
+  // (True NPS requires 0-10 scale; adapt proportionally: 5→promoter, 4→passive, ≤3→detractor)
+  const promoters  = surveyed.filter(o => o.survey.rating === 5).length;
+  const detractors = surveyed.filter(o => o.survey.rating <= 3).length;
   const nps = Math.round((promoters - detractors) / surveyed.length * 100);
 
   el.innerHTML = `
@@ -9199,7 +9762,9 @@ function renderBreakEvenCard() {
     </table>`;
 
   el.querySelectorAll('[data-del-cost]').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
+      const ok = await confirmModal(t('common.delete') + '?', { danger: true });
+      if (!ok) return;
       settings.fixedCosts.splice(parseInt(btn.dataset.delCost), 1);
       saveAll();
       renderBreakEvenCard();
@@ -9229,7 +9794,9 @@ function renderFixedCostSettings() {
     </div>`;
 
   el.querySelectorAll('[data-del-fc]').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
+      const ok = await confirmModal(t('common.delete') + '?', { danger: true });
+      if (!ok) return;
       settings.fixedCosts.splice(parseInt(btn.dataset.delFc), 1);
       saveAll(); renderFixedCostSettings(); renderBreakEvenCard();
     });
@@ -9237,7 +9804,7 @@ function renderFixedCostSettings() {
   el.querySelector('#btnAddFixedCost')?.addEventListener('click', () => {
     const name = el.querySelector('#fcName').value.trim();
     const amount = parseFloat(el.querySelector('#fcAmount').value) || 0;
-    if (!name || amount <= 0) { toast('Enter a name and amount', 'warning'); return; }
+    if (!name || amount <= 0) { toast(t('set.fixed_cost_name_amt'), 'warning'); return; }
     settings.fixedCosts = [...(settings.fixedCosts || []), { id: Date.now().toString(36), name, amount }];
     saveAll(); renderFixedCostSettings(); renderBreakEvenCard();
     el.querySelector('#fcName').value = '';
@@ -9303,10 +9870,13 @@ function patchRecurringOrdersWithLeadDays() {
     const now = new Date();
     const seq = nextInvoiceSeq();
     const id = `${settings.invPrefix || 'INV'}-${now.getFullYear()}-${seq}`;
+    const invoiceNum = nextInvoiceNumber();
     printLog.unshift({
       ...template,
       parts: template.parts ? template.parts.map(p => ({ ...p })) : [],
       id,
+      invoiceNum,
+      invoiceNumber: invoiceNum,
       date: today,
       timestamp: now.toISOString(),
       status: rec.cloneStatus || 'pending',
@@ -9489,7 +10059,7 @@ function renderSavedFilterPresets() {
     <span style="font-size:11.5px;color:var(--text-muted);white-space:nowrap;">Saved:</span>
     ${saved.map((f, i) => `
       <button class="btn ghost small" data-load-filter="${i}" title="${escapeHtml(f.name)}" style="font-size:12px;">${escapeHtml(f.name)}</button>
-      <button class="btn ghost small" data-del-filter="${i}" style="font-size:10px;padding:2px 5px;color:var(--text-muted);">✕</button>
+      <button class="btn ghost small" data-del-filter="${i}" style="font-size:10px;padding:2px 5px;color:var(--text-muted);" aria-label="${escapeHtml(t('common.delete'))}">✕</button>
     `).join('')}`;
 
   el.querySelectorAll('[data-load-filter]').forEach(btn => {
@@ -9526,7 +10096,10 @@ function saveCurrentFilterPreset() {
     bodyHtml: `<label>Preset name</label><input type="text" id="filterPresetName" placeholder="e.g. Unpaid this month">`,
     onSave: () => {
       const name = $('#filterPresetName')?.value?.trim();
-      if (!name) return;
+      if (!name) {
+        toast(t('log.preset_name_required') || 'Enter a preset name', 'warning');
+        return false;
+      }
       const preset = {
         id: Date.now().toString(36),
         name,
@@ -9608,12 +10181,17 @@ function renderDashboard() {
     .reduce((s, o) => s + +o.price, 0);
 
   // Stats
-  const active   = printLog.filter(o => o.status !== 'completed');
+  const active   = printLog.filter(o => o.status !== 'completed' && o.status !== 'quote');
   const todayDone = printLog.filter(o => o.status === 'completed' && o.date === todayStr);
   const todayRev  = todayDone.reduce((s, o) => s + +o.price, 0);
   const receivables = printLog
     .filter(o => (payStatus(o)) !== 'paid')
     .reduce((s, o) => s + Math.max(0, +o.price - (+o.paidAmount || 0)), 0);
+
+  // Pipeline value — sum of all non-completed, non-quote order prices
+  const pipelineValue = printLog
+    .filter(o => o.status !== 'completed' && o.status !== 'quote')
+    .reduce((s, o) => s + (+o.price || 0), 0);
 
   // Queue clearance forecast (exclude on_hold orders — they are frozen)
   const pendingHours = printLog
@@ -9649,7 +10227,7 @@ function renderDashboard() {
     .slice(0, 5);
 
   // Receivables aging (all non-fully-paid orders)
-  const unpaidOrders = printLog.filter(o => payStatus(o) !== 'paid');
+  const unpaidOrders = printLog.filter(o => payStatus(o) !== 'paid' && !o.voidedAt);
   const agingBuckets = { c0_30: { count: 0, amount: 0 }, c31_60: { count: 0, amount: 0 }, c61_90: { count: 0, amount: 0 }, c91plus: { count: 0, amount: 0 } };
   for (const o of unpaidOrders) {
     const owed = Math.max(0, +o.price - (+o.paidAmount || 0));
@@ -9724,6 +10302,11 @@ function renderDashboard() {
         <div class="dash-stat-val">${fmtMoney(receivables)}</div>
         <div class="dash-stat-lbl">${escapeHtml(t('dash.receivables'))} <small>${escapeHtml(currencySymbol())}</small></div>
       </div>
+      ${pipelineValue > 0 ? `
+      <div class="dash-stat">
+        <div class="dash-stat-val">${fmtMoney(pipelineValue)}</div>
+        <div class="dash-stat-lbl">${escapeHtml(t('dash.pipeline_value'))} <small>${escapeHtml(currencySymbol())}</small></div>
+      </div>` : ''}
       ${awaitingDelivery.length > 0 ? `
       <div class="dash-stat">
         <div class="dash-stat-val">${awaitingDelivery.length}</div>
@@ -10013,16 +10596,18 @@ function renderDashboard() {
   renderCapacityGauge();
   // Round 12: break-even card
   renderBreakEvenCard();
+  updateTabBadges();
 }
 
 /* ============================================================
    Feature 1 (new): Kanban drag-and-drop reorder
    ============================================================ */
 let _kanbanDraggingId = null;
+let _kanbanTimerPrintingCount = -1;
 
 function setupKanbanDrag() {
   _kanbanDraggingId = null;
-  const cols = ['pending', 'on_hold', 'printing', 'post', 'completed'];
+  const cols = ['pending', 'on_hold', 'printing', 'post', 'qc', 'completed'];
   cols.forEach(status => {
     const container = $('#list-' + status);
     if (!container) return;
@@ -10141,7 +10726,38 @@ function renderKanban() {
       if (!hay.includes(kanTerm)) return false;
     }
     return true;
-  }).forEach(o => { if (cols[o.status]) cols[o.status].push(o); });
+  }).forEach(o => {
+    if (cols[o.status]) {
+      cols[o.status].push(o);
+    } else if (o.status === 'split') {
+      // Split parent orders shown in pending column with a visual indicator
+      cols.pending.push({ ...o, _isSplitParent: true });
+    }
+  });
+
+  // Apply collapse toggles to columns
+  $$('.kanban-col[data-status]').forEach(col => {
+    const st = col.dataset.status;
+    const isCollapsed = kanbanCollapsed.has(st);
+    col.classList.toggle('kanban-col-collapsed', isCollapsed);
+    // Add/update collapse button in h3
+    let collapseBtn = col.querySelector('.kan-col-collapse-btn');
+    if (!collapseBtn) {
+      collapseBtn = document.createElement('button');
+      collapseBtn.className = 'kan-col-collapse-btn btn ghost small';
+      collapseBtn.title = 'Collapse / expand column';
+      collapseBtn.style.cssText = 'padding:1px 5px;font-size:11px;margin-inline-start:4px;';
+      col.querySelector('h3')?.appendChild(collapseBtn);
+      collapseBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (kanbanCollapsed.has(st)) kanbanCollapsed.delete(st);
+        else kanbanCollapsed.add(st);
+        localStorage.setItem('khayt_kan_collapsed', JSON.stringify([...kanbanCollapsed]));
+        renderKanban();
+      });
+    }
+    collapseBtn.textContent = isCollapsed ? '▶' : '▼';
+  });
 
   Object.entries(cols).forEach(([status, items]) => {
     // For pending: sort by priority level (urgent>high>normal) then queuePos; other columns by priority level
@@ -10155,6 +10771,24 @@ function renderKanban() {
     const countEl = $('#count-' + status);
     if (countEl) countEl.textContent = sorted.length;
 
+    // WIP limit warning
+    const wipLimit = (settings.wipLimits || {})[status] || 0;
+    const colEl = $(`.kanban-col[data-status="${status}"]`);
+    if (colEl) {
+      const overWip = wipLimit > 0 && sorted.length > wipLimit;
+      colEl.classList.toggle('kanban-wip-over', overWip);
+      const existingWipBadge = colEl.querySelector('.wip-badge');
+      if (overWip && !existingWipBadge) {
+        const wipBadge = document.createElement('span');
+        wipBadge.className = 'wip-badge';
+        wipBadge.style.cssText = 'font-size:10.5px;padding:1px 6px;border-radius:10px;background:rgba(220,38,38,0.2);color:var(--danger);font-weight:600;margin-inline-start:4px;';
+        wipBadge.textContent = `WIP: ${sorted.length}/${wipLimit}`;
+        colEl.querySelector('h3')?.appendChild(wipBadge);
+      } else if (!overWip && existingWipBadge) {
+        existingWipBadge.remove();
+      }
+    }
+
     // Column totals meta line
     const totalHrs = sorted.reduce((s, o) => s + (+o.printTime || 0), 0);
     const totalVal = sorted.reduce((s, o) => s + (+o.price || 0), 0);
@@ -10166,6 +10800,12 @@ function renderKanban() {
     }
 
     const container = $('#list-' + status);
+    // Skip card rendering for collapsed columns
+    if (kanbanCollapsed.has(status)) {
+      container.style.display = 'none';
+      return;
+    }
+    container.style.display = '';
     if (sorted.length === 0) {
       container.innerHTML = `<div class="empty-state" style="padding:20px 8px;">${escapeHtml(t('queue.empty'))}</div>`;
       return;
@@ -10221,7 +10861,9 @@ function renderKanban() {
         const deliverBtn = log.deliveredAt
           ? `<span style="font-size:11px;color:var(--success);">✓ ${escapeHtml(t('queue.delivered'))}</span>`
           : `<button class="btn small success" data-act="mark-delivered" data-id="${log.id}">${escapeHtml(t('queue.mark_delivered'))}</button>`;
-        actions = `<button class="btn small" data-act="invoice" data-id="${log.id}">${escapeHtml(t('queue.invoice'))}</button>${deliverBtn}${notifyBtn}`;
+        const isPaidCard = payStatus(log) === 'paid';
+        const payBtn = isPaidCard ? '' : `<button class="btn small primary" data-act="pay" data-id="${log.id}" title="${escapeHtml(t('pay.mark_paid'))}">💳 ${escapeHtml(t('pay.mark_paid'))}</button>`;
+        actions = `<button class="btn small" data-act="invoice" data-id="${log.id}">${escapeHtml(t('queue.invoice'))}</button>${payBtn}${deliverBtn}${notifyBtn}`;
       }
       const partCount = log.parts ? log.parts.length : 1;
       const partsLabel = partCount === 1 ? t('queue.parts_count_1') : t('queue.parts_count', { n: partCount });
@@ -10301,9 +10943,12 @@ function renderKanban() {
       const partColourHtml = (log.parts || []).filter(p => p.colour).map(p =>
         `<span class="part-colour-chip">${escapeHtml(p.colour)}</span>`
       ).join('');
+      // Client accent colour on card left border
+      const cardClient = log.clientId ? clients.find(c => c.id === log.clientId) : null;
+      const cardClientAccent = cardClient?.color ? `border-inline-start:3px solid ${escapeHtml(cardClient.color)};padding-inline-start:7px;` : '';
       return `
-        <div class="kanban-card${_pl === 'urgent' ? ' kanban-priority-urgent' : _pl === 'high' ? ' kanban-priority-high' : ''}${pausedClass}" draggable="true" data-order-id="${log.id}">
-          <h4>${_pl !== 'normal' ? priorityBadgeHtml(log) + ' ' : ''}${escapeHtml(log.project)}${machineBadge}${operatorBadge}${kanbanSplitBadge}${kanbanSubBadge}${qcBadge}</h4>
+        <div class="kanban-card${_pl === 'urgent' ? ' kanban-priority-urgent' : _pl === 'high' ? ' kanban-priority-high' : ''}${pausedClass}" draggable="true" data-order-id="${log.id}" style="${cardClientAccent}">
+          <h4>${_pl !== 'normal' ? priorityBadgeHtml(log) + ' ' : ''}${escapeHtml(log.project)}${machineBadge}${operatorBadge}${kanbanSplitBadge}${kanbanSubBadge}${qcBadge}${log._isSplitParent ? ' <span style="font-size:10px;color:var(--text-muted);background:var(--bg-elev);padding:1px 5px;border-radius:8px;">split</span>' : ''}</h4>
           ${partColourHtml ? `<div style="margin-top:2px;">${partColourHtml}</div>` : ''}
           <div class="meta">
             <span class="price">${fmtPrice(log.price)}</span>
@@ -10355,6 +11000,7 @@ function renderKanban() {
 
   // Feature 2 (new batch): Populate live status on rendered cards
   updateKanbanLiveStatus();
+  updateTabBadges();
 
   // Feature 3 (new batch): FEP film alert — fire once per threshold crossing, not on every render
   (() => {
@@ -10376,18 +11022,21 @@ function renderKanban() {
   setupKanbanDrag();
 
   // Feature 8: Live elapsed timer — update badge text every 60 s without full re-render
-  clearInterval(window._elapsedTimerInterval);
-  const hasPrinting = printLog.some(o => o.status === 'printing' && (o.timerStart || o.printingStartedAt));
-  if (hasPrinting) {
-    window._elapsedTimerInterval = setInterval(() => {
-      document.querySelectorAll('.elapsed-timer[data-started]').forEach(el => {
-        const started = new Date(el.dataset.started);
-        const mins = Math.floor((Date.now() - started) / 60000);
-        const h = Math.floor(mins / 60), m = mins % 60;
-        const timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
-        el.textContent = `⏱ ${timeStr}`;
-      });
-    }, 60000);
+  const printingNow = printLog.filter(o => o.status === 'printing').length;
+  if (printingNow !== _kanbanTimerPrintingCount) {
+    _kanbanTimerPrintingCount = printingNow;
+    clearInterval(window._elapsedTimerInterval);
+    if (printingNow > 0) {
+      window._elapsedTimerInterval = setInterval(() => {
+        document.querySelectorAll('.elapsed-timer[data-started]').forEach(el => {
+          const started = new Date(el.dataset.started);
+          const mins = Math.floor((Date.now() - started) / 60000);
+          const h = Math.floor(mins / 60), m = mins % 60;
+          const timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
+          el.textContent = `⏱ ${timeStr}`;
+        });
+      }, 60000);
+    }
   }
 }
 
@@ -10400,6 +11049,13 @@ function renderLogs() {
     const curTag = tagSel.value;
     tagSel.innerHTML = `<option value="">${escapeHtml(t('tag.all'))}</option>` +
       allTags.map(tg => `<option value="${escapeHtml(tg)}"${tg === curTag ? ' selected' : ''}>${escapeHtml(tg)}</option>`).join('');
+  }
+  // Client filter dropdown — only show clients that have orders
+  const clientSel = $('#logClientFilter');
+  if (clientSel) {
+    const clientsWithOrders = clients.filter(c => printLog.some(o => o.clientId === c.id));
+    clientSel.innerHTML = `<option value="">${escapeHtml(t('log.all_clients') || 'All clients')}</option>` +
+      clientsWithOrders.map(c => `<option value="${escapeHtml(c.id)}"${c.id === logClientFilter ? ' selected' : ''}>${escapeHtml(localName(c))}</option>`).join('');
   }
   const filtered = getFilteredLogs();
 
@@ -10474,6 +11130,7 @@ function renderLogs() {
         <button class="btn small" data-act="inv-wa"    data-id="${log.id}" title="${escapeHtml(t('inv.share_whatsapp'))}">WA</button>
         <button class="btn small ghost" data-act="dn-log" data-id="${log.id}" title="${escapeHtml(t('dn.print'))}">DN</button>
         <button class="btn small ghost pro-only" data-act="cn-log" data-id="${log.id}" title="${escapeHtml(t('cn.title'))}">CN</button>
+        ${!log.voidedAt ? `<button class="btn small ghost pro-only" data-act="void-invoice" data-id="${log.id}" title="${escapeHtml(t('inv.void_btn'))}">🚫</button>` : `<span title="${escapeHtml(t('inv.already_voided'))}" style="font-size:11px;color:var(--danger);padding:0 4px;">🚫 ${escapeHtml(t('inv.void_btn'))}</span>`}
         <button class="btn small ghost" data-act="wo-log" data-id="${log.id}" title="${escapeHtml(t('wo.title'))}">WO</button>
         <button class="btn small" data-act="edit-log"  data-id="${log.id}" title="${escapeHtml(t('common.edit'))}">${escapeHtml(t('common.edit'))}</button>
         <button class="btn small" data-act="dup-log"    data-id="${log.id}" title="${escapeHtml(t('oe.duplicate'))}">${escapeHtml(t('oe.duplicate'))}</button>
@@ -10564,11 +11221,16 @@ function batchWaSend() {
   });
 }
 
-function batchMoveStatus() {
+async function batchMoveStatus() {
   const status = $('#batchStatusSelect')?.value;
   if (!status) { toast(t('batch.move_to_hint'), 'info'); return; }
   const ids = [...selectedOrders];
   if (ids.length === 0) return;
+  const ok = await confirmModal(
+    `Move ${ids.length} order(s) to "${status}"?`,
+    { danger: status === 'completed' || status === 'on_hold' }
+  );
+  if (!ok) return;
   const now = new Date().toISOString();
   for (const id of ids) {
     const o = printLog.find(x => x.id === id);
@@ -10576,9 +11238,10 @@ function batchMoveStatus() {
     o.status = status;
     if (!o.statusHistory) o.statusHistory = [];
     o.statusHistory.push({ status, at: now });
+    if (o.statusHistory.length > 200) o.statusHistory = o.statusHistory.slice(-200);
     if (status === 'completed') {
       if (!o.completedAt) o.completedAt = now;
-      deductFilamentForOrder(o);
+      deductFilamentForOrder(o, { skipRender: true });
       deductPackagingConsumables(o);
       if (o.clientId) autoExportStatusPage(o);
       autoSendEmailNotification(o, 'completed');
@@ -10586,6 +11249,7 @@ function batchMoveStatus() {
       fireWebhook('order_delivered', { orderId: o.id, project: o.project, client: o.client });
     }
   }
+  renderInventory();
   saveAll();
   selectedOrders.clear();
   renderBatchBar();
@@ -10783,11 +11447,33 @@ function renderPurchaseOrders() {
   const sec = $('#poSection');
   if (!sec) return;
   const relevant = purchaseOrders.slice(); // all POs for now
+
+  // AP Aging: unpaid/pending POs grouped by age
+  const today = Date.now();
+  const unpaidPOs = relevant.filter(po => po.status !== 'received' || (po.supplierInvoice && !po.invoicePaid));
+  const aging = { current: 0, d30: 0, d60: 0 };
+  for (const po of unpaidPOs) {
+    const orderedMs = po.orderedAt ? new Date(po.orderedAt + 'T00:00:00').getTime() : today;
+    const agedays = Math.floor((today - orderedMs) / 86400000);
+    if (agedays < 30) aging.current++;
+    else if (agedays < 60) aging.d30++;
+    else aging.d60++;
+  }
+  const agingHtml = unpaidPOs.length > 0 ? `
+    <div class="ap-aging-bar" style="display:flex;gap:12px;flex-wrap:wrap;padding:8px 12px;background:var(--surface-2);border-radius:var(--radius);margin-bottom:12px;font-size:12.5px;align-items:center;">
+      <span style="font-weight:600;color:var(--text-muted);">AP Aging:</span>
+      <span style="color:var(--success);">● ${aging.current} &lt;30d</span>
+      <span style="color:var(--warning);">● ${aging.d30} 30-60d</span>
+      <span style="color:var(--danger);">● ${aging.d60} 60d+</span>
+      <span style="margin-inline-start:auto;color:var(--text-muted);">${unpaidPOs.length} ${escapeHtml(t('po.aging_unpaid'))}</span>
+    </div>` : '';
+
   sec.innerHTML = `
     <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
       <h3 class="card-head" style="margin:0; flex:1;"><span class="swatch"></span><span>${escapeHtml(t('po.title'))}</span></h3>
       <button class="btn small pro-only" data-act="batch-gen-pos">📦 ${escapeHtml(t('po.batch_gen'))}</button>
     </div>
+    ${agingHtml}
     ${relevant.length === 0
       ? `<p style="color:var(--text-muted); font-size:13px;">${escapeHtml(t('po.empty'))}</p>`
       : `<div class="table-wrap"><table class="po-table">
@@ -11134,6 +11820,90 @@ function renderAnalytics() {
   // Round 12 additions
   renderAgedReceivables();
   renderSurveyAnalytics();
+  renderNewVsReturning();
+}
+
+/* ============================================================
+   Tab badge counts
+   ============================================================ */
+function updateTabBadges() {
+  // Queue tab: count all active (non-completed, non-quote) orders
+  const activeCount = printLog.filter(o => o.status !== 'completed' && o.status !== 'quote').length;
+  const queueTabBtn = document.querySelector('.tab-btn[data-tab="queue-tab"]');
+  if (queueTabBtn) {
+    let badge = queueTabBtn.querySelector('.tab-badge');
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'tab-badge';
+      badge.style.cssText = 'display:inline-block;min-width:16px;padding:0 4px;height:16px;line-height:16px;border-radius:8px;font-size:10px;font-weight:700;background:var(--primary);color:#fff;margin-inline-start:4px;text-align:center;vertical-align:middle;';
+      queueTabBtn.appendChild(badge);
+    }
+    badge.textContent = activeCount > 0 ? String(activeCount) : '';
+    badge.style.display = activeCount > 0 ? 'inline-block' : 'none';
+  }
+  // Overdue orders badge on logs tab
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const overdueCount = printLog.filter(o => o.dueDate && o.status !== 'completed' && new Date(o.dueDate + 'T00:00:00') < today).length;
+  const logsTabBtn = document.querySelector('.tab-btn[data-tab="logs-tab"]');
+  if (logsTabBtn) {
+    let badge = logsTabBtn.querySelector('.tab-badge');
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'tab-badge';
+      badge.style.cssText = 'display:inline-block;min-width:16px;padding:0 4px;height:16px;line-height:16px;border-radius:8px;font-size:10px;font-weight:700;background:var(--danger);color:#fff;margin-inline-start:4px;text-align:center;vertical-align:middle;';
+      logsTabBtn.appendChild(badge);
+    }
+    badge.textContent = overdueCount > 0 ? String(overdueCount) : '';
+    badge.style.display = overdueCount > 0 ? 'inline-block' : 'none';
+  }
+}
+
+/* ============================================================
+   New vs returning client revenue split
+   ============================================================ */
+function renderNewVsReturning() {
+  const el = $('#newVsReturningSection');
+  if (!el) return;
+  const completed = printLog.filter(o => o.status === 'completed' && o.clientId && o.date);
+  if (completed.length === 0) { el.innerHTML = ''; return; }
+
+  // First-ever order per client determines their "new" date
+  const firstOrderDate = {};
+  for (const o of [...completed].sort((a, b) => (a.date || '').localeCompare(b.date || ''))) {
+    if (!firstOrderDate[o.clientId]) firstOrderDate[o.clientId] = o.date;
+  }
+
+  const inRangeOrders = completed.filter(o => inRange(o.date, analyticsRange, 'analytics'));
+  let newRev = 0, retRev = 0, newCount = 0, retCount = 0;
+  for (const o of inRangeOrders) {
+    const isNew = firstOrderDate[o.clientId] === o.date; // first order = new client
+    if (isNew) { newRev += +o.price; newCount++; }
+    else        { retRev += +o.price; retCount++; }
+  }
+  const total = newRev + retRev;
+  const newPct  = total > 0 ? Math.round(newRev / total * 100) : 0;
+  const retPct  = 100 - newPct;
+
+  el.innerHTML = `
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;">
+      <div style="flex:1;min-width:120px;text-align:center;padding:10px;background:var(--surface-2);border-radius:var(--radius);">
+        <div style="font-size:20px;font-weight:700;color:var(--primary);">${fmtMoney(newRev)}</div>
+        <div style="font-size:12px;color:var(--text-muted);">${escapeHtml(t('an.new_clients'))} (${newCount} ${escapeHtml(t('an.orders_count'))})</div>
+      </div>
+      <div style="flex:1;min-width:120px;text-align:center;padding:10px;background:var(--surface-2);border-radius:var(--radius);">
+        <div style="font-size:20px;font-weight:700;color:var(--success);">${fmtMoney(retRev)}</div>
+        <div style="font-size:12px;color:var(--text-muted);">${escapeHtml(t('an.returning_clients'))} (${retCount} ${escapeHtml(t('an.orders_count'))})</div>
+      </div>
+    </div>
+    ${total > 0 ? `
+    <div style="height:12px;border-radius:6px;overflow:hidden;display:flex;">
+      <div style="width:${newPct}%;background:var(--primary);transition:width .3s;" title="${escapeHtml(t('an.new_clients'))}: ${newPct}%"></div>
+      <div style="flex:1;background:var(--success);transition:width .3s;" title="${escapeHtml(t('an.returning_clients'))}: ${retPct}%"></div>
+    </div>
+    <div style="display:flex;gap:16px;margin-top:5px;font-size:11.5px;color:var(--text-muted);">
+      <span>● ${escapeHtml(t('an.new_clients'))}: ${newPct}%</span>
+      <span>● ${escapeHtml(t('an.returning_clients'))}: ${retPct}%</span>
+    </div>` : ''}`;
 }
 
 /* ============================================================
@@ -11231,11 +12001,18 @@ function renderPnLSection() {
     expQ[key] = (expQ[key] || 0) + (+e.amount || 0);
   }
 
+  // Aggregate fixedCosts per quarter (assume monthly recurring → multiply by 3)
+  const fixedCostPerMonth = (settings.fixedCosts || []).reduce((s, fc) => s + (+fc.amount || 0), 0);
+  const fixedCostPerQ = fixedCostPerMonth * 3;
+
   const allKeys = [...new Set([...Object.keys(qMap), ...Object.keys(expQ)])].sort().reverse();
   if (allKeys.length === 0) { el.innerHTML = `<p style="color:var(--text-muted);font-size:13px;">${escapeHtml(t('an.pnl_empty'))}</p>`; return; }
 
   const cur = currencySymbol();
+  const hasFixed = fixedCostPerQ > 0;
+  const nowQ = (() => { const d = new Date(); const q = Math.ceil((d.getMonth() + 1) / 3); return `${d.getFullYear()}-Q${q}`; })();
   el.innerHTML = `
+    ${hasFixed ? `<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">Fixed overhead: ${fmtMoney(fixedCostPerQ)}/quarter included in net</div>` : ''}
     <div style="overflow-x:auto;">
       <table style="width:100%; border-collapse:collapse; font-size:13px;">
         <thead>
@@ -11253,13 +12030,14 @@ function renderPnLSection() {
             const r = qMap[k]?.revenue || 0;
             const exp = expQ[k] || 0;
             const vat = qMap[k]?.vatCollected || 0;
-            const net = r - exp;
+            const fixedForPeriod = k === nowQ ? fixedCostPerQ : 0;
+            const net = r - exp - fixedForPeriod;
             const netCol = net >= 0 ? 'var(--success)' : 'var(--danger)';
             return `<tr style="border-top:1px solid rgba(255,255,255,0.06);">
               <td style="padding:6px 8px; font-weight:600;">${escapeHtml(k)}</td>
               <td style="padding:6px 8px; text-align:right;">${qMap[k]?.orders || 0}</td>
               <td style="padding:6px 8px; text-align:right; font-variant-numeric:tabular-nums;">${fmtMoney(r)}</td>
-              <td style="padding:6px 8px; text-align:right; color:var(--danger); font-variant-numeric:tabular-nums;">−${fmtMoney(exp)}</td>
+              <td style="padding:6px 8px; text-align:right; color:var(--danger); font-variant-numeric:tabular-nums;">−${fmtMoney(exp + fixedForPeriod)}</td>
               <td style="padding:6px 8px; text-align:right; color:var(--text-muted); font-variant-numeric:tabular-nums;">${fmtMoney(vat)}</td>
               <td style="padding:6px 8px; text-align:right; font-weight:700; color:${netCol}; font-variant-numeric:tabular-nums;">${fmtMoney(net)}</td>
             </tr>`;
@@ -11359,18 +12137,18 @@ function renderSLASection() {
   }
 
   const onTime = completed.filter(o => {
-    const delivered = o.deliveredAt || o.date;
+    const delivered = (o.completedAt || o.deliveredAt || o.date || '').slice(0, 10);
     return delivered <= o.dueDate;
   });
   const late = completed.filter(o => {
-    const delivered = o.deliveredAt || o.date;
+    const delivered = (o.completedAt || o.deliveredAt || o.date || '').slice(0, 10);
     return delivered > o.dueDate;
   });
 
   const rate = Math.round(onTime.length / completed.length * 100);
   const avgDelay = late.length > 0 ? Math.round(
     late.reduce((s, o) => {
-      const delivered = o.deliveredAt || o.date;
+      const delivered = (o.completedAt || o.deliveredAt || o.date || '').slice(0, 10);
       return s + Math.round((new Date(delivered + 'T00:00:00') - new Date(o.dueDate + 'T00:00:00')) / 86400000);
     }, 0) / late.length
   ) : 0;
@@ -11488,20 +12266,53 @@ function renderRevenueChart() {
   const wrap = $('#revenueChartWrap');
   if (!wrap) return;
 
-  const months = [];
   const now = new Date();
-  for (let i = 11; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    months.push({
-      key:     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
-      label:   d.toLocaleDateString(i18n.current === 'ar' ? 'ar-SA' : 'en-US', { month: 'short' }),
-      revenue: 0,
-      orders:  0
-    });
+  const months = [];
+
+  // Build month buckets based on analyticsRange
+  if (analyticsRange === 'month') {
+    // Daily view for current month
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    for (let d = 1; d <= daysInMonth; d++) {
+      const key = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      months.push({ key, label: String(d), revenue: 0, orders: 0, isDay: true });
+    }
+  } else if (analyticsRange === 'last_month') {
+    const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const daysInMonth = new Date(lm.getFullYear(), lm.getMonth() + 1, 0).getDate();
+    for (let d = 1; d <= daysInMonth; d++) {
+      const key = `${lm.getFullYear()}-${String(lm.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      months.push({ key, label: String(d), revenue: 0, orders: 0, isDay: true });
+    }
+  } else if (analyticsRange === 'quarter') {
+    // Show 3 months for current quarter
+    const qStart = Math.floor(now.getMonth() / 3) * 3;
+    for (let i = 0; i < 3; i++) {
+      const d = new Date(now.getFullYear(), qStart + i, 1);
+      months.push({
+        key:   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+        label: d.toLocaleDateString(i18n.current === 'ar' ? 'ar-SA' : 'en-US', { month: 'short' }),
+        revenue: 0, orders: 0
+      });
+    }
+  } else {
+    // Default (all / year / custom): last 12 months
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({
+        key:   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+        label: d.toLocaleDateString(i18n.current === 'ar' ? 'ar-SA' : 'en-US', { month: 'short' }),
+        revenue: 0, orders: 0
+      });
+    }
   }
+
+  const isDay = months[0]?.isDay;
   for (const o of printLog) {
-    if (o.status !== 'completed') continue;
-    const m = months.find(x => x.key === (o.date || '').slice(0, 7));
+    if (o.status !== 'completed' || o.voidedAt) continue;
+    if (!inRange(o.date, analyticsRange, 'analytics')) continue;
+    const key = isDay ? (o.date || '').slice(0, 10) : (o.date || '').slice(0, 7);
+    const m = months.find(x => x.key === key);
     if (m) { m.revenue += +o.price || 0; m.orders++; }
   }
 
@@ -11597,6 +12408,23 @@ async function checkDueDateNotifications() {
       tag:  'hub-due-tomorrow'
     });
   }
+
+  // Expiring quotes (≤ 1 day remaining, not yet reminded this session)
+  if (!checkDueDateNotifications._quotesReminded) checkDueDateNotifications._quotesReminded = new Set();
+  const expiringQuotes = printLog.filter(o => {
+    if (o.status !== 'quote' || !o.quoteExpiresAt) return false;
+    const daysLeft = Math.round((new Date(o.quoteExpiresAt + 'T00:00:00') - today) / 86400000);
+    return daysLeft <= 1;
+  });
+  for (const q of expiringQuotes) {
+    if (checkDueDateNotifications._quotesReminded.has(q.id)) continue;
+    checkDueDateNotifications._quotesReminded.add(q.id);
+    const daysLeft = Math.round((new Date(q.quoteExpiresAt + 'T00:00:00') - today) / 86400000);
+    const msg = daysLeft < 0
+      ? `Quote ${q.id} for "${q.project}" expired ${Math.abs(daysLeft)} day(s) ago`
+      : `Quote ${q.id} for "${q.project}" expires ${daysLeft === 0 ? 'today' : 'tomorrow'}`;
+    toast(msg, 'warning', 6000);
+  }
 }
 
 function exportOrdersCsv() {
@@ -11635,7 +12463,7 @@ async function exportOrderStatusPage(orderId) {
   const client = order.clientId ? clients.find(c => c.id === order.clientId) : null;
   const clientName = client ? (localName(client) || order.project) : (order.project || '');
   const bizName = settings.bizEn || settings.bizAr || 'Khayt';
-  const accentColor = settings.invAccentColor || '#5E2E14';
+  const accentColor = safeCssColor(settings.invAccentColor, '#5E2E14');
 
   const STATUS_ORDER = ['quote', 'pending', 'on_hold', 'printing', 'post', 'completed'];
   const STATUS_LABELS = {
@@ -11672,7 +12500,7 @@ async function exportOrderStatusPage(orderId) {
   const msg = isReady
     ? 'Your order is ready for pickup / delivery!'
     : order.status === 'on_hold'
-      ? `Your order is temporarily on hold.${order.holdReason ? ' Reason: ' + order.holdReason : ''}`
+      ? `Your order is temporarily on hold.${order.holdReason ? ' Reason: ' + escapeHtml(order.holdReason) : ''}`
       : 'Your order is being processed. We\'ll notify you when it\'s ready.';
 
   const html = `<!DOCTYPE html>
@@ -11680,7 +12508,7 @@ async function exportOrderStatusPage(orderId) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Order Status — ${order.id}</title>
+  <title>Order Status — ${escapeHtml(order.id)}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f9fafb; color: #111827; padding: 24px 16px; }
@@ -11701,15 +12529,15 @@ async function exportOrderStatusPage(orderId) {
 <body>
   <div class="card">
     <div class="header">
-      <h1>${bizName}</h1>
+      <h1>${escapeHtml(bizName)}</h1>
       <p>Order Status Update</p>
     </div>
     <div class="body">
       <div class="stepper">${connectors}</div>
-      <div class="info-row"><span class="info-label">Order #</span><span class="info-value">${order.id}</span></div>
+      <div class="info-row"><span class="info-label">Order #</span><span class="info-value">${escapeHtml(order.id)}</span></div>
       <div class="info-row"><span class="info-label">Project</span><span class="info-value">${escapeHtml(order.project || '—')}</span></div>
       <div class="info-row"><span class="info-label">Client</span><span class="info-value">${escapeHtml(clientName)}</span></div>
-      <div class="info-row"><span class="info-label">Status</span><span class="info-value">${STATUS_LABELS[order.status] || order.status}</span></div>
+      <div class="info-row"><span class="info-label">Status</span><span class="info-value">${STATUS_LABELS[order.status] || escapeHtml(order.status)}</span></div>
       ${order.dueDate ? `<div class="info-row"><span class="info-label">Estimated completion</span><span class="info-value">${escapeHtml(order.dueDate)}</span></div>` : ''}
       <div class="message">${msg}</div>
     </div>
@@ -11795,6 +12623,7 @@ async function splitOrderAcrossMachines(orderId) {
     const partCost = parts.reduce((s, p) => s + (+p.baseCost || 0), 0);
     const proportional = totalCost > 0 ? (+order.price * partCost / totalCost) : 0;
     const subId = uid('SUB');
+    const subInvoiceNum = nextInvoiceNumber();
     const subOrder = {
       id: subId,
       parentOrderId: order.id,
@@ -11807,6 +12636,12 @@ async function splitOrderAcrossMachines(orderId) {
       date: order.date || new Date().toISOString().split('T')[0],
       status: 'pending',
       price: +proportional.toFixed(2),
+      paymentStatus: 'unpaid',
+      paidAmount: 0,
+      materialDeducted: false,
+      statusHistory: [{ status: 'pending', at: new Date().toISOString() }],
+      invoiceNum: subInvoiceNum,
+      invoiceNumber: subInvoiceNum,
     };
     printLog.push(subOrder);
     subOrderIds.push(subId);
@@ -11831,7 +12666,7 @@ async function autoExportStatusPage(order) {
     const client = order.clientId ? clients.find(c => c.id === order.clientId) : null;
     const clientName = client ? (localName(client) || order.project) : (order.project || '');
     const bizName = settings.bizEn || settings.bizAr || 'Khayt';
-    const accentColor = settings.invAccentColor || '#5E2E14';
+    const accentColor = safeCssColor(settings.invAccentColor, '#5E2E14');
     const STATUS_ORDER = ['quote', 'pending', 'on_hold', 'printing', 'post', 'completed'];
     const curIdx = STATUS_ORDER.indexOf(order.status);
     const stepsHtml = ['Quote', 'Pending', 'Printing', 'Post-Processing', 'Completed']
@@ -11857,9 +12692,9 @@ async function autoExportStatusPage(order) {
     const msg = isReady
       ? 'Your order is ready for pickup / delivery!'
       : order.status === 'on_hold'
-        ? `Your order is temporarily on hold.${order.holdReason ? ' Reason: ' + order.holdReason : ''}`
+        ? `Your order is temporarily on hold.${order.holdReason ? ' Reason: ' + escapeHtml(order.holdReason) : ''}`
         : 'Your order is being processed. We\'ll notify you when it\'s ready.';
-    const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Order Status — ${order.id}</title>
+    const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Order Status — ${escapeHtml(order.id)}</title>
 <style>* { box-sizing: border-box; margin: 0; padding: 0; }body { font-family: -apple-system, sans-serif; background: #f9fafb; color: #111827; padding: 24px 16px; }.card { background: #fff; border-radius: 16px; box-shadow: 0 2px 16px rgba(0,0,0,0.08); max-width: 480px; margin: 0 auto; overflow: hidden; }.header { background: ${accentColor}; color: #fff; padding: 24px; }.header h1 { font-size: 22px; font-weight: 700; }.body { padding: 24px; }.info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 14px; }.info-label { color: #6b7280; }.info-value { font-weight: 600; }.stepper { display: flex; align-items: flex-start; margin: 24px 0; }.message { background: ${isReady ? '#d1fae5' : '#fffbeb'}; border-left: 4px solid ${isReady ? '#10b981' : '#f59e0b'}; padding: 14px 16px; border-radius: 8px; margin-top: 16px; font-size: 14px; color: #374151; }.footer { text-align: center; padding: 16px 24px; background: #f9fafb; font-size: 12px; color: #9ca3af; border-top: 1px solid #f3f4f6; }</style></head><body>
 <div class="card"><div class="header"><h1>${escapeHtml(bizName)}</h1><p>Order Status Update</p></div>
 <div class="body"><div class="stepper">${connectors}</div>
@@ -11902,8 +12737,18 @@ function buildZatcaTLV({ sellerName, vatNumber, timestamp, total, vatAmount }) {
   const enc = new TextEncoder();
   function tlv(tag, value) {
     const bytes = enc.encode(value);
-    const out = new Uint8Array(bytes.length + 2);
-    out[0] = tag; out[1] = bytes.length; out.set(bytes, 2);
+    const len = bytes.length;
+    // BER-TLV: use two-byte length for values > 127 bytes (0x81 + length byte)
+    let header;
+    if (len <= 127) {
+      header = new Uint8Array([tag, len]);
+    } else if (len <= 255) {
+      header = new Uint8Array([tag, 0x81, len]);
+    } else {
+      header = new Uint8Array([tag, 0x82, (len >> 8) & 0xff, len & 0xff]);
+    }
+    const out = new Uint8Array(header.length + len);
+    out.set(header, 0); out.set(bytes, header.length);
     return out;
   }
   const fields = [
@@ -11926,6 +12771,43 @@ async function generateInvoice(id) {
   if (!order) return;
   await renderInvoiceForOrder(order);
   setTimeout(() => window.print(), 80);
+}
+
+/* ============================================================
+   Invoice void / cancel
+   ============================================================ */
+async function voidInvoice(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+  if (order.voidedAt) {
+    toast(t('inv.already_voided'), 'warning');
+    return;
+  }
+  const ok = await confirmModal(t('inv.void_confirm', { id: order.id }), { danger: true, okText: t('inv.void_btn') });
+  if (!ok) return;
+  openFormModal({
+    title: t('inv.void_btn') + ' — ' + order.id,
+    saveLabel: t('inv.void_btn'),
+    sizeLg: false,
+    bodyHtml: `
+      <label>${escapeHtml(t('inv.void_reason'))}</label>
+      <input type="text" id="voidReasonInput" placeholder="${escapeHtml(t('inv.void_reason_ph'))}" style="width:100%;">
+    `,
+    onMount(modal) { setTimeout(() => modal.querySelector('#voidReasonInput')?.focus(), 40); },
+    onSave(modal) {
+      order.voidedAt = new Date().toISOString();
+      order.voidedReason = modal.querySelector('#voidReasonInput').value.trim() || 'Voided';
+      order.status = order.status === 'completed' ? 'completed' : order.status; // keep status
+      order.paymentStatus = 'voided';
+      if (!order.statusHistory) order.statusHistory = [];
+      order.statusHistory.push({ status: 'voided', at: order.voidedAt });
+      if (order.statusHistory.length > 200) order.statusHistory = order.statusHistory.slice(-200);
+      saveAll();
+      renderLogs(); renderKanban();
+      toast(t('inv.voided_toast', { id: order.id }), 'success');
+      return true;
+    }
+  });
 }
 
 function openCreditNoteModal(orderId) {
@@ -11958,6 +12840,19 @@ function openCreditNoteModal(orderId) {
 }
 
 function generateCreditNote(order, creditAmount, reason) {
+  // Record financial effect: reduce paidAmount or mark partial refund
+  if (!order.creditNotes) order.creditNotes = [];
+  order.creditNotes.push({ id: 'CN-' + Date.now().toString(36), amount: creditAmount, reason, issuedAt: new Date().toISOString() });
+  const totalCredited = order.creditNotes.reduce((s, cn) => s + (+cn.amount || 0), 0);
+  // Reduce paidAmount by credit amount (can't go below 0)
+  if ((order.paidAmount || 0) > 0) {
+    order.paidAmount = Math.max(0, (+order.paidAmount || 0) - creditAmount);
+  }
+  // If credit equals full price, treat as voided for reporting
+  if (totalCredited >= (+order.price || 0)) {
+    order.creditedAt = new Date().toISOString();
+  }
+  saveAll();
   const area = $('#invoice-print-area');
   const isAr = i18n.current === 'ar';
   const dir  = isAr ? 'rtl' : 'ltr';
@@ -12123,7 +13018,7 @@ function generateDeliveryNote(id) {
 /* ============================================================
    Feature 3 (this batch): Milestone / partial invoice
    ============================================================ */
-function generateMilestoneInvoice(orderId, milestone) {
+async function generateMilestoneInvoice(orderId, milestone) {
   const order = printLog.find(o => o.id === orderId);
   if (!order || !milestone) return;
   // Build a temporary order-like object with the milestone amount
@@ -12135,9 +13030,7 @@ function generateMilestoneInvoice(orderId, milestone) {
   });
   milestone.issuedAt = new Date().toISOString().split('T')[0];
   saveAll();
-  renderInvoiceForOrder(tempOrder, {
-    milestoneHeader: `${t('ord.milestone_invoices')}: ${escapeHtml(milestone.label)} (${milestone.percentage}% of total ${fmtPrice(order.price)})`
-  });
+  await renderInvoiceForOrder(tempOrder);
 }
 
 function openMilestoneInvoices(orderId) {
@@ -12300,6 +13193,23 @@ function exportClientPortal(clientId) {
   };
 
   const bizName = (settings.bizEn || settings.bizAr || 'Khayt');
+  const portalIsAr = i18n.current === 'ar';
+  const portalLang = portalIsAr ? 'ar' : 'en';
+  const PL = {
+    activeOrders:      portalIsAr ? 'طلبات نشطة'   : 'Active orders',
+    completed:         portalIsAr ? 'مكتملة'        : 'Completed',
+    outstandingBal:    portalIsAr ? 'الرصيد المستحق': 'Outstanding balance',
+    date:              portalIsAr ? 'التاريخ'       : 'Date',
+    project:           portalIsAr ? 'المشروع'       : 'Project',
+    status:            portalIsAr ? 'الحالة'        : 'Status',
+    amount:            portalIsAr ? 'المبلغ'        : 'Amount',
+    payment:           portalIsAr ? 'الدفع'         : 'Payment',
+    paid:              portalIsAr ? '✓ مدفوع'      : '✓ Paid',
+    outstanding:       portalIsAr ? 'مستحق'         : 'Outstanding',
+    paymentInfo:       portalIsAr ? 'معلومات الدفع' : 'Payment Information',
+    orderPortal:       portalIsAr ? 'بوابة الطلبات' : 'Order portal for',
+    generatedBy:       portalIsAr ? 'أُنشئ بواسطة Khayt' : 'Generated by Khayt',
+  };
   const rowsHtml = orders.map(o => {
     const isPaid = payStatus(o) === 'paid';
     return `<tr style="border-bottom:1px solid #2a2a2a;">
@@ -12309,18 +13219,18 @@ function exportClientPortal(clientId) {
       </td>
       <td style="padding:8px;"><span style="background:${statusColors[o.status]||'#555'};color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;">${escapeHtml(o.status)}</span></td>
       <td style="padding:8px;text-align:right;font-weight:600;color:#4ade80;">${fmtPrice(o.price)}</td>
-      <td style="padding:8px;text-align:center;font-size:11px;color:${isPaid?'#4ade80':'#f87171'};">${isPaid ? '✓ Paid' : 'Outstanding'}</td>
+      <td style="padding:8px;text-align:center;font-size:11px;color:${isPaid?'#4ade80':'#f87171'};">${isPaid ? PL.paid : PL.outstanding}</td>
     </tr>`;
   }).join('');
 
   const paymentBlock = settings.paymentInstructions
     ? `<div style="margin-top:24px;padding:16px;background:#1a1a2e;border-radius:8px;border:1px solid #2a2a3e;">
-        <h3 style="margin:0 0 8px;color:#94a3b8;font-size:13px;">Payment Information</h3>
+        <h3 style="margin:0 0 8px;color:#94a3b8;font-size:13px;">${escapeHtml(PL.paymentInfo)}</h3>
         <p style="margin:0;color:#cbd5e1;font-size:13px;white-space:pre-line;">${escapeHtml(settings.paymentInstructions)}</p>
       </div>` : '';
 
   const html = `<!DOCTYPE html>
-<html lang="en">
+<html lang="${portalLang}" dir="${portalIsAr ? 'rtl' : 'ltr'}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -12343,21 +13253,21 @@ function exportClientPortal(clientId) {
 <body>
   <div class="header">
     <h1>${escapeHtml(bizName)}</h1>
-    <div class="subtitle">Order portal for ${escapeHtml(displayName)}</div>
+    <div class="subtitle">${escapeHtml(PL.orderPortal)} ${escapeHtml(displayName)}</div>
   </div>
   <div class="stats">
-    <div class="stat-card"><div class="stat-val">${activeOrders.length}</div><div class="stat-lbl">Active orders</div></div>
-    <div class="stat-card"><div class="stat-val">${completedOrders.length}</div><div class="stat-lbl">Completed</div></div>
-    <div class="stat-card"><div class="stat-val">${fmtPrice(outstanding)}</div><div class="stat-lbl">Outstanding balance</div></div>
+    <div class="stat-card"><div class="stat-val">${activeOrders.length}</div><div class="stat-lbl">${escapeHtml(PL.activeOrders)}</div></div>
+    <div class="stat-card"><div class="stat-val">${completedOrders.length}</div><div class="stat-lbl">${escapeHtml(PL.completed)}</div></div>
+    <div class="stat-card"><div class="stat-val">${fmtPrice(outstanding)}</div><div class="stat-lbl">${escapeHtml(PL.outstandingBal)}</div></div>
   </div>
   <table>
     <thead><tr>
-      <th>Date</th><th>Project</th><th>Status</th><th style="text-align:right;">Amount</th><th style="text-align:center;">Payment</th>
+      <th>${escapeHtml(PL.date)}</th><th>${escapeHtml(PL.project)}</th><th>${escapeHtml(PL.status)}</th><th style="text-align:right;">${escapeHtml(PL.amount)}</th><th style="text-align:center;">${escapeHtml(PL.payment)}</th>
     </tr></thead>
     <tbody>${rowsHtml}</tbody>
   </table>
   ${paymentBlock}
-  <p style="text-align:center;color:#374151;font-size:11px;margin-top:24px;">Generated by Khayt · ${new Date().toISOString().split('T')[0]}</p>
+  <p style="text-align:center;color:#374151;font-size:11px;margin-top:24px;">${escapeHtml(PL.generatedBy)} · ${new Date().toISOString().split('T')[0]}</p>
 </body>
 </html>`;
 
@@ -12602,8 +13512,8 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
   const taglineSecondary = isAr ? (settings.taglineEn || '') : (settings.taglineAr || '');
 
   // Brand color: amber for quotes, user-chosen (or default) for invoices
-  const invBrand     = isQuoteDoc ? '#92400e' : (settings.invAccentColor || '#5E2E14');
-  const invAccent    = isQuoteDoc ? '#d97706' : (settings.invAccentColor || '#B8723D');
+  const invBrand     = isQuoteDoc ? '#92400e' : (safeCssColor(settings.invAccentColor, '#5E2E14'));
+  const invAccent    = isQuoteDoc ? '#d97706' : (safeCssColor(settings.invAccentColor, '#B8723D'));
   const invHighlight = isQuoteDoc ? '#fef3c7' : '#fcefdc';
 
   // Terms / conditions section
@@ -12699,6 +13609,11 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
               <span class="k">${escapeHtml(L.time[0])}</span>
               <span class="v">${escapeHtml(num(issuedTime))}</span>
             </div>` : ''}
+            ${order.clientRef ? `
+            <div class="meta-row">
+              <span class="k">${escapeHtml(isAr ? 'مرجع العميل' : 'Client Ref.')}</span>
+              <span class="v">${escapeHtml(order.clientRef)}</span>
+            </div>` : ''}
           </div>
         </div>
       </div>
@@ -12747,7 +13662,7 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
           ${order.discountPct > 0 ? `
           <div class="row" style="color:#22c55e;">
             <span class="label-en">${escapeHtml(isAr ? `خصم (${order.discountPct}%)` : `Discount (${order.discountPct}%)`)}</span>
-            <span class="v">−${fmtMoney((order.priceBeforeDiscount || 0) - ((+order.price || 0) - (+order.shippingCost || 0)))} ${invCurrSym}</span>
+            <span class="v">−${fmtMoney(Math.max(0, (order.priceBeforeDiscount || 0) - ((+order.price || 0) - (+order.shippingCost || 0) - (+order.rushFeeAmount || 0))))} ${invCurrSym}</span>
           </div>` : ''}
           ${(+order.shippingCost || 0) > 0 ? `
           <div class="row">
@@ -12770,6 +13685,31 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
       </div>
 
       ${bankSectionHtml}
+
+      ${(order.instalments && order.instalments.length > 0) ? `
+      <div class="inv-notes-section" style="margin-top:12px;">
+        <div class="label-strip">
+          <span>${escapeHtml(isAr ? 'جدول الأقساط' : 'Payment Schedule')}</span>
+          <span class="sub ${isAr ? 'ltr' : 'ar'}">${escapeHtml(isAr ? 'Payment Schedule' : 'جدول الأقساط')}</span>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:11.5px;margin-top:4px;">
+          <thead><tr style="color:var(--ink-mute);text-align:left;">
+            <th style="padding:3px 6px;">${escapeHtml(isAr ? '#' : '#')}</th>
+            <th style="padding:3px 6px;">${escapeHtml(isAr ? 'الاستحقاق' : 'Due date')}</th>
+            <th style="padding:3px 6px;text-align:right;">${escapeHtml(isAr ? 'المبلغ' : 'Amount')}</th>
+            <th style="padding:3px 6px;text-align:center;">${escapeHtml(isAr ? 'الحالة' : 'Status')}</th>
+          </tr></thead>
+          <tbody>
+            ${order.instalments.map((ins, i) => `
+            <tr style="border-top:1px solid rgba(0,0,0,.06);">
+              <td style="padding:3px 6px;">${i + 1}</td>
+              <td style="padding:3px 6px;">${escapeHtml(ins.dueDate ? formatPrintDate(ins.dueDate) : '—')}</td>
+              <td style="padding:3px 6px;text-align:right;">${fmtMoney(+ins.amount || 0)} ${invCurrSym}</td>
+              <td style="padding:3px 6px;text-align:center;color:${ins.paid ? 'var(--ink-success,#15803d)' : 'var(--ink-mute)'}">${ins.paid ? (isAr ? '✓ مدفوع' : '✓ Paid') : (isAr ? 'معلق' : 'Pending')}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>` : ''}
 
       ${(order.invoiceNotes || '').trim() ? `
       <div class="inv-notes-section">
@@ -12876,7 +13816,7 @@ function loadSettingsIntoForm() {
   $('#set_useIcloud').checked   = !!settings.useIcloud;
   $('#set_taglineEn').value     = settings.taglineEn   || '';
   $('#set_taglineAr').value     = settings.taglineAr   || '';
-  $('#set_invAccent').value     = settings.invAccentColor || '#5E2E14';
+  $('#set_invAccent').value     = safeCssColor(settings.invAccentColor, '#5E2E14');
   $('#set_invTermsEn').value    = settings.invTermsEn  || '';
   $('#set_invTermsAr').value    = settings.invTermsAr  || '';
   $('#set_monthlyGoal').value     = settings.monthlyGoal ?? 0;
@@ -12912,6 +13852,28 @@ function loadSettingsIntoForm() {
   // Min-margin warning threshold
   const minMargEl = $('#set_minMarginPct');
   if (minMargEl) minMargEl.value = settings.minMarginPct ?? 0;
+  // Easy-wins: Calculator settings
+  const qvEl = $('#set_quoteValidityDays');
+  if (qvEl) qvEl.value = settings.quoteValidityDays ?? 7;
+  const moEl = $('#set_minOrderAmount');
+  if (moEl) moEl.value = settings.minOrderAmount ?? 0;
+  const rfEl = $('#set_rushFeeEnabled');
+  if (rfEl) rfEl.checked = !!settings.rushFeeEnabled;
+  const rpEl = $('#set_rushFeePct');
+  if (rpEl) rpEl.value = settings.rushFeePct ?? 25;
+  // Packaging cost + payment instructions
+  const pcEl = $('#set_defaultPackagingCost');
+  if (pcEl) pcEl.value = settings.defaultPackagingCost ?? 0;
+  const piEl = $('#set_paymentInstructions');
+  if (piEl) piEl.value = settings.paymentInstructions ?? '';
+  // WIP limits
+  const wipCols = ['pending', 'printing', 'post', 'qc'];
+  wipCols.forEach(col => {
+    const el = $(`#set_wip_${col}`);
+    if (el) el.value = (settings.wipLimits || {})[col] || '';
+  });
+  // Post-process presets list
+  renderPostProcessPresetsList();
   // Expense budgets
   EXP_CATEGORIES.forEach(c => {
     const el = $(`#set_budget_${c}`);
@@ -13052,8 +14014,23 @@ function saveSettingsFromForm() {
     savedFilters: settings.savedFilters || [],
     // Payment instructions (textarea, not auto-included by DOM reconstruction)
     paymentInstructions: $('#set_paymentInstructions')?.value ?? settings.paymentInstructions ?? '',
-    showBetaDisclaimer: !!$('#set_showBetaDisclaimer')?.checked,
     betaAcknowledged: settings.betaAcknowledged ?? false,
+    // Easy-wins batch: Calculator
+    quoteValidityDays: Math.max(1, num($('#set_quoteValidityDays')?.value, 7)),
+    minOrderAmount:    Math.max(0, num($('#set_minOrderAmount')?.value, 0)),
+    rushFeeEnabled:    !!$('#set_rushFeeEnabled')?.checked,
+    rushFeePct:        Math.max(0, Math.min(500, num($('#set_rushFeePct')?.value, 25))),
+    defaultPackagingCost: Math.max(0, num($('#set_defaultPackagingCost')?.value, 0)),
+    // WIP limits
+    wipLimits: (() => {
+      const wip = { ...(settings.wipLimits || {}) };
+      ['pending', 'printing', 'post', 'qc'].forEach(col => {
+        const v = num($(`#set_wip_${col}`)?.value, 0);
+        if (v > 0) wip[col] = v;
+        else delete wip[col];
+      });
+      return wip;
+    })(),
   };
   saveAll();
   i18n.set(settings.lang);
@@ -13536,6 +14513,28 @@ function wireEvents() {
     renderExtraLines();
   });
 
+  // Post-process preset picker in calculator
+  const ppPresetRow = $('#ppPresetRow');
+  const ppPresetSel = $('#ppPresetSelect');
+  if (ppPresetRow && ppPresetSel) {
+    const presets = settings.postProcessPresets || [];
+    if (presets.length > 0) {
+      ppPresetSel.innerHTML = `<option value="">${escapeHtml(t('set.no_presets') || '— select preset —')}</option>`
+        + presets.map((p, i) => `<option value="${i}">${escapeHtml(p.name)} (+${fmtMoney(p.amount)})</option>`).join('');
+      ppPresetRow.style.display = 'flex';
+      ppPresetRow.style.alignItems = 'center';
+    }
+    $('#btnAddPpPreset')?.addEventListener('click', () => {
+      const idx = parseInt(ppPresetSel.value, 10);
+      if (isNaN(idx)) return;
+      const preset = (settings.postProcessPresets || [])[idx];
+      if (!preset) return;
+      currentExtraLines.push({ id: uid('EL'), label: preset.name, amount: preset.amount });
+      renderExtraLines();
+      ppPresetSel.value = '';
+    });
+  }
+
   // Batch status move
   $('#btnBatchMove')?.addEventListener('click', batchMoveStatus);
 
@@ -13566,6 +14565,8 @@ function wireEvents() {
   $$('#calculator-tab input, #calculator-tab select').forEach(el => {
     if (el.id !== 'clientInput' && el.id !== 'printerPreset') el.addEventListener('input', updateGrandTotal);
   });
+  // Rush fee checkbox uses 'change' not 'input'
+  $('#calcRushFee')?.addEventListener('change', updateGrandTotal);
   $('#btnAddPart').addEventListener('click', addPart);
   $('#btnSaveQuote').addEventListener('click', logPrint);
 
@@ -13770,8 +14771,10 @@ function wireEvents() {
       }
     });
   }
-  // Set default date to today
-  $('#expDate').value = new Date().toISOString().split('T')[0];
+  // Set default date to today (and enforce max = today)
+  const _expTodayStr = new Date().toISOString().split('T')[0];
+  $('#expDate').value = _expTodayStr;
+  $('#expDate').max   = _expTodayStr;
 
   // Waste Log
   const btnLogWaste = $('#btnLogWaste');
@@ -13811,6 +14814,10 @@ function wireEvents() {
     if (tr) tr.style.background = cb.checked ? 'rgba(91,156,240,0.07)' : '';
   });
 
+  // Analytics tab — CSV export buttons
+  $('#btnAnOrdersCsv')?.addEventListener('click', exportOrdersCsv);
+  $('#btnAnExpensesCsv')?.addEventListener('click', exportExpensesCsv);
+
   // Logs — search/filter/export
   $('#btnExportCsv').addEventListener('click', exportOrdersCsv);
   $('#btnClearLogs').addEventListener('click', clearAllLogs);
@@ -13833,12 +14840,14 @@ function wireEvents() {
   $('#logRangeFrom')?.addEventListener('change', (e) => { customRangeFrom.log = e.target.value; renderLogs(); });
   $('#logRangeTo')?.addEventListener('change',   (e) => { customRangeTo.log   = e.target.value; renderLogs(); });
   $('#logTagFilter')?.addEventListener('change', (e) => { logTagFilter = e.target.value; renderLogs(); });
+  $('#logClientFilter')?.addEventListener('change', (e) => { logClientFilter = e.target.value; renderLogs(); });
   $('#logTable').addEventListener('click', (e) => {
     const inv  = e.target.closest('[data-act="invoice"]');
     const pdf  = e.target.closest('[data-act="inv-pdf"]');
     const wa   = e.target.closest('[data-act="inv-wa"]');
     const dn   = e.target.closest('[data-act="dn-log"]');
     const cn   = e.target.closest('[data-act="cn-log"]');
+    const voidInv = e.target.closest('[data-act="void-invoice"]');
     const wo   = e.target.closest('[data-act="wo-log"]');
     const pay  = e.target.closest('[data-act="pay"]');
     const unp  = e.target.closest('[data-act="unpay"]');
@@ -13852,6 +14861,7 @@ function wireEvents() {
     if (wa)      shareInvoiceWhatsApp(wa.dataset.id);
     if (dn)      generateDeliveryNote(dn.dataset.id);
     if (cn)      openCreditNoteModal(cn.dataset.id);
+    if (voidInv) voidInvoice(voidInv.dataset.id);
     if (wo)      generateWorkOrder(wo.dataset.id);
     const remind = e.target.closest('[data-act="pay-remind"]');
     if (remind)  sendPaymentReminder(remind.dataset.id);
@@ -14260,7 +15270,7 @@ function wireEvents() {
   $('#btnRestoreBackup')?.addEventListener('click', openRestoreBackupModal);
 
   // Purchase orders (Feature 3) — delegate from section
-  $('#poSection')?.addEventListener('click', (e) => {
+  $('#poSection')?.addEventListener('click', async (e) => {
     const recv    = e.target.closest('[data-act="po-receive"]');
     const del     = e.target.closest('[data-act="po-del"]');
     const closePo = e.target.closest('[data-act="po-close"]');
@@ -14287,6 +15297,7 @@ function wireEvents() {
             invItem.weight = Math.min((invItem.weight || 0) + w, 99000);
             if (!invItem.usageHistory) invItem.usageHistory = [];
             invItem.usageHistory.unshift({ type: 'received', orderId: po.id, weightUsed: -w, date: new Date().toISOString().split('T')[0], notes });
+            if (invItem.usageHistory.length > 200) invItem.usageHistory.length = 200;
             renderInventory();
           }
           po.receivedSoFar = alreadyReceived + w;
@@ -14297,6 +15308,22 @@ function wireEvents() {
           } else {
             po.status = 'partial';
             toast(t('po.partial') + ' · +' + w + 'g', 'success');
+          }
+          // Automatically create an expense record for the received goods
+          if (po.totalCost > 0 || po.unitCost > 0) {
+            const expAmount = po.totalCost > 0 ? +((w / Math.max(1, po.weightOrdered)) * po.totalCost).toFixed(2) : +(w * (po.unitCost || 0) / 1000).toFixed(2);
+            if (expAmount > 0) {
+              expenses.push({
+                id:       uid('EXP'),
+                date:     new Date().toISOString().split('T')[0],
+                amount:   expAmount,
+                category: 'filament',
+                note:     `${t('po.receive') || 'PO receive'}: ${po.id}${notes ? ' — ' + notes : ''}`,
+                orderId:  null,
+                poId:     po.id,
+              });
+              renderExpenses?.();
+            }
           }
           saveAll();
           renderPurchaseOrders();
@@ -14315,6 +15342,8 @@ function wireEvents() {
       }
     }
     if (del) {
+      const ok = await confirmModal(t('common.delete') + '?', { danger: true });
+      if (!ok) return;
       purchaseOrders = purchaseOrders.filter(p => p.id !== del.dataset.id);
       saveAll();
       renderPurchaseOrders();
@@ -14376,7 +15405,7 @@ function showBetaWarning() {
       <div style="font-size:14px;line-height:1.7;color:var(--text,#e2e8f0);margin-bottom:20px;">
         ${isAr ? `
           <p style="margin-bottom:12px;">هذا التطبيق في مرحلة <strong>تجريبية مبكرة</strong>. يُرجى مراعاة ما يلي قبل الاعتماد عليه:</p>
-          <ul style="padding-right:18px;margin:0;display:flex;flex-direction:column;gap:8px;">
+          <ul style="padding-inline-start:18px;margin:0;display:flex;flex-direction:column;gap:8px;">
             <li>📁 <strong>النسخ الاحتياطي يدوي</strong> — فعّل النسخ الاحتياطي التلقائي من الإعدادات وقم بنسخ ملف البيانات بانتظام.</li>
             <li>🧾 <strong>تحقق من الفواتير</strong> — راجع جميع الأرقام والمبالغ قبل إرسالها للعملاء.</li>
             <li>🐛 <strong>أخطاء محتملة</strong> — قد تظهر أخطاء غير متوقعة. يُرجى الإبلاغ عنها.</li>
@@ -14384,7 +15413,7 @@ function showBetaWarning() {
           </ul>
         ` : `
           <p style="margin-bottom:12px;">This app is in <strong>early beta</strong>. Please keep the following in mind before relying on it:</p>
-          <ul style="padding-left:18px;margin:0;display:flex;flex-direction:column;gap:8px;">
+          <ul style="padding-inline-start:18px;margin:0;display:flex;flex-direction:column;gap:8px;">
             <li>📁 <strong>Backup manually</strong> — Enable auto-backup in Settings and export your data regularly.</li>
             <li>🧾 <strong>Verify invoices</strong> — Always double-check amounts and totals before sending to clients.</li>
             <li>🐛 <strong>Bugs may exist</strong> — Unexpected errors can happen. Please report them when you see them.</li>
@@ -14624,12 +15653,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  let currentVersion = '1.0.0-rc.1';
   if (window.hubAPI?.appVersion) {
-    try { $('#appVersion').textContent = await window.hubAPI.appVersion(); }
-    catch (_) { $('#appVersion').textContent = '1.0.0-rc.1'; }
-  } else {
-    $('#appVersion').textContent = '1.0.0-rc.1 (dev)';
+    try { currentVersion = await window.hubAPI.appVersion(); }
+    catch (_) {}
   }
+  if ($('#appVersion')) $('#appVersion').textContent = currentVersion || '1.0.0-rc.1 (dev)';
+
+  // Update checker — fetch GitHub latest release tag
+  setTimeout(async () => {
+    try {
+      const GITHUB_REPO = 'turkialballaa/khayt'; // adjust if needed
+      const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, { headers: { Accept: 'application/vnd.github.v3+json' } });
+      if (!res.ok) return;
+      const data = await res.json();
+      const latest = (data.tag_name || '').replace(/^v/, '');
+      const current = (currentVersion || '').replace(/^v/, '');
+      if (latest && latest !== current && latest !== '1.0.0-rc.1') {
+        const banner = document.createElement('div');
+        banner.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:9999;background:var(--primary);color:#fff;padding:8px 20px;border-radius:20px;font-size:13px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,0.3);cursor:pointer;display:flex;align-items:center;gap:10px;';
+        banner.innerHTML = `🎉 Khayt ${latest} is available! <button style="background:rgba(255,255,255,0.25);border:none;color:#fff;padding:3px 10px;border-radius:10px;cursor:pointer;font-size:12px;">Open releases</button> <span style="opacity:.7;font-size:16px;cursor:pointer;" id="updateBannerClose">×</span>`;
+        banner.querySelector('button')?.addEventListener('click', () => {
+          window.hubAPI?.openExternal?.(`https://github.com/${GITHUB_REPO}/releases`);
+        });
+        banner.querySelector('#updateBannerClose')?.addEventListener('click', () => banner.remove());
+        document.body.appendChild(banner);
+      }
+    } catch (_) { /* network unavailable — silently ignore */ }
+  }, 5000);
 
   // Daily auto-backup (silent) + populate last-backup label
   maybeAutoBackup();
@@ -14655,6 +15706,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         order.status = status;
         if (!order.statusHistory) order.statusHistory = [];
         order.statusHistory.push({ status, at: new Date().toISOString() });
+        if (order.statusHistory.length > 200) order.statusHistory = order.statusHistory.slice(-200);
         saveAll(); // keep in-memory and on-disk in sync before any UI save can overwrite
         renderLogs();
         renderKanban();
@@ -14680,7 +15732,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setTimeout(openOnboarding, 400);
   }
 
-  // Global search keyboard shortcut ⌘K / Ctrl+K
+  // Global search keyboard shortcut ⌘K / Ctrl+K, plus tab-nav shortcuts
   document.addEventListener('keydown', (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
       e.preventDefault();
@@ -14689,6 +15741,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     if (e.key === 'Escape' && globalSearchOpen) {
       closeGlobalSearch();
+      return;
+    }
+    // Single-key navigation shortcuts — only when no input/modal is focused
+    if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+    const tag = (document.activeElement?.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+    if (document.querySelector('.modal-backdrop')) return; // modal open
+    switch (e.key) {
+      case 'n': case 'N': switchTab('calculator-tab'); break;
+      case 'o': case 'O': switchTab('logs-tab'); break;
+      case 'q': case 'Q': switchTab('queue-tab'); break;
+      case 'i': case 'I': switchTab('inventory-tab'); break;
+      case 'a': case 'A': switchTab('analytics-tab'); break;
+      case 'c': case 'C': switchTab('clients-tab'); break;
+      case '?': openHelpModal(); break;
     }
   });
 

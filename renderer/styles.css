@@ -198,6 +198,10 @@ html, body {
 @media (max-width: 1100px) {
   .grid   { grid-template-columns: 1fr; }
   .grid-3 { grid-template-columns: 1fr; }
+  .kanban { grid-template-columns: repeat(3, minmax(160px, 1fr)); }
+}
+@media (max-width: 700px) {
+  .kanban { grid-template-columns: repeat(2, 1fr); }
 }
 
 .card {
@@ -491,8 +495,9 @@ tbody tr:hover { background: var(--surface-2); }
    ----------------------------------------------------------- */
 .kanban {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
+  grid-template-columns: repeat(6, minmax(180px, 1fr));
+  gap: 10px;
+  overflow-x: auto;
 }
 .kanban-col {
   background: var(--surface);
@@ -2431,7 +2436,7 @@ tr.row-overdue td { background: rgba(239,77,94,0.05); }
   gap: 8px;
   max-height: 400px;
   overflow-y: auto;
-  padding-right: 4px;
+  padding-inline-end: 4px;
 }
 .fil-card {
   display: flex;
@@ -3338,7 +3343,7 @@ body.mode-simple .pro-only { display: none !important; }
 .wizard-option {
   background: var(--bg); border: 2px solid var(--border);
   border-radius: 10px; padding: 16px 12px; cursor: pointer;
-  display: flex; flex-direction: column; gap: 4px; text-align: left;
+  display: flex; flex-direction: column; gap: 4px; text-align: start;
   transition: border-color .15s, background .15s;
 }
 .wizard-option:hover { border-color: var(--accent); }
@@ -3358,7 +3363,7 @@ body.mode-simple .pro-only { display: none !important; }
 .mode-btn {
   background: var(--bg); border: 2px solid var(--border);
   border-radius: 10px; padding: 16px; cursor: pointer;
-  display: flex; flex-direction: column; gap: 4px; text-align: left;
+  display: flex; flex-direction: column; gap: 4px; text-align: start;
   transition: border-color .15s;
 }
 .mode-btn:hover { border-color: var(--accent); }

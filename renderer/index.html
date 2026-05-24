@@ -125,6 +125,12 @@
           <label><span data-i18n="calc.part.print_wt">Print weight</span> (<span data-i18n="common.grams">g</span>)</label>
           <input type="number" id="printWeight" value="150" min="0">
 
+          <label style="margin-top:8px;"><span data-i18n="calc.support_wt">Support weight (g)</span></label>
+          <input type="number" id="supportWeight" value="0" min="0" placeholder="0">
+
+          <label style="margin-top:8px;"><span data-i18n="calc.part_note">Part note</span></label>
+          <input type="text" id="partNote" data-i18n-placeholder="calc.part_note_ph" placeholder="e.g. special requirements…">
+
           <!-- Extra materials (Feature 8) -->
           <div id="extraMaterialsList" style="margin-top:6px;"></div>
           <button class="btn ghost small" id="btnAddExtraMaterial" style="margin-top:6px; font-size:12px;" data-i18n="calc.extra_material">+ Add material</button>
@@ -268,6 +274,10 @@
               <button class="btn ghost small" id="btnAddExtraLine" data-i18n="calc.add_extra_line">+ Add fee</button>
             </div>
             <div id="extraLinesList"></div>
+            <div id="ppPresetRow" style="display:none; margin-top:4px;">
+              <select id="ppPresetSelect" style="font-size:12px; width:auto; margin-inline-end:6px;"></select>
+              <button class="btn ghost small" id="btnAddPpPreset" data-i18n="calc.add_pp_preset">+ Add post-process</button>
+            </div>
           </div>
 
           <div id="priceTiersStrip" class="tier-chips" style="display:none;"></div>
@@ -285,8 +295,22 @@
               <select id="machineAssign"></select>
             </div>
           </div>
+          <div style="margin-top:8px;">
+            <label data-i18n="calc.client_ref">Client PO / reference</label>
+            <input type="text" id="calcClientRef" data-i18n-placeholder="calc.client_ref_ph" placeholder="e.g. PO-2024-001">
+          </div>
 
           <div id="marginWarning" class="margin-warning" style="display:none;"></div>
+          <div id="minOrderWarning" class="margin-warning" style="display:none; background:rgba(249,115,22,0.12); color:var(--accent);"></div>
+
+          <!-- Rush fee toggle -->
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:13px;">
+            <label style="display:flex; align-items:center; gap:6px; cursor:pointer; margin:0; font-weight:normal;">
+              <input type="checkbox" id="calcRushFee" style="width:auto; margin:0;">
+              <span data-i18n="calc.rush_fee_label">⚡ Rush / priority order</span>
+            </label>
+            <span id="rushFeeChip" style="display:none; font-size:11.5px; padding:2px 8px; border-radius:10px; background:rgba(249,115,22,0.15); color:var(--accent); font-weight:600;"></span>
+          </div>
 
           <div class="total-display">
             <div class="label" data-i18n="calc.quote.total">Project total</div>
@@ -426,6 +450,9 @@
             <span style="font-size:12px; color:var(--text-muted);">–</span>
             <input type="date" id="logRangeTo" title="To">
           </span>
+          <select id="logClientFilter" class="toolbar-select" style="max-width:140px;">
+            <option value="" data-i18n="log.all_clients">All clients</option>
+          </select>
           <select id="logTagFilter" class="toolbar-select" style="max-width:130px;">
             <option value="" data-i18n="tag.all">All tags</option>
           </select>
@@ -596,6 +623,18 @@
         <h3 class="card-head"><span class="swatch"></span><span>Customer Satisfaction (NPS)</span></h3>
         <div id="surveyAnalyticsSection"></div>
       </div>
+
+      <!-- New vs Returning cohort chart -->
+      <div class="card" style="margin-top: 16px;">
+        <div id="newVsReturningSection"></div>
+      </div>
+
+      <!-- Analytics CSV export bar -->
+      <div id="analyticsExportBar" class="card" style="margin-top: 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:12px 16px;">
+        <span style="font-size:13px; color:var(--text-muted); flex:1;" data-i18n="an.export_hint">Export data as CSV</span>
+        <button class="btn small ghost" id="btnAnOrdersCsv">📥 <span data-i18n="an.export_orders">Orders CSV</span></button>
+        <button class="btn small ghost" id="btnAnExpensesCsv">📥 <span data-i18n="an.export_expenses">Expenses CSV</span></button>
+      </div>
     </section>
 
     <!-- ===================== INVENTORY ===================== -->
@@ -635,6 +674,8 @@
 
         <div class="card">
           <h3 class="card-head"><span class="swatch"></span><span data-i18n="inv.stock">Stock List</span></h3>
+          <!-- Inventory valuation summary -->
+          <div id="invValuationSummary" style="display:none; gap:16px; flex-wrap:wrap; font-size:13px; color:var(--text-muted); padding:8px 12px; background:var(--surface-2); border-radius:var(--radius); margin-bottom:12px;"></div>
           <div class="table-wrap">
             <table id="inventoryTable">
               <thead>
@@ -761,7 +802,7 @@
         <div class="card">
           <h3 class="card-head"><span class="swatch"></span><span data-i18n="exp.add_title">Add Expense</span></h3>
           <label data-i18n="exp.date">Date</label>
-          <input type="date" id="expDate">
+          <input type="date" id="expDate" max="">
           <label data-i18n="exp.category" style="margin-top:12px;">Category</label>
           <select id="expCategory">
             <option value="filament"    data-i18n="exp.cat.filament">Filament</option>
@@ -1164,6 +1205,58 @@
               <input type="number" id="set_minMarginPct" min="0" max="100" step="1" placeholder="0">
             </div>
             <div style="padding-bottom:6px; font-size:12px; color:var(--text-muted);" data-i18n="set.min_margin_hint">Show a warning in the calculator when margin falls below this threshold. Set 0 to disable.</div>
+          </div>
+
+          <div class="inline-pair" style="align-items:flex-end; margin-top:12px; flex-wrap:wrap;">
+            <div>
+              <label data-i18n="set.quote_validity">Default quote validity (days)</label>
+              <input type="number" id="set_quoteValidityDays" min="1" max="365" step="1" placeholder="7">
+            </div>
+            <div>
+              <label data-i18n="set.min_order_amount">Minimum order amount</label>
+              <input type="number" id="set_minOrderAmount" min="0" step="0.01" placeholder="0">
+            </div>
+          </div>
+          <div class="inline-pair" style="align-items:flex-end; margin-top:12px; flex-wrap:wrap;">
+            <div>
+              <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal;">
+                <input type="checkbox" id="set_rushFeeEnabled" style="width:auto; margin:0;">
+                <span data-i18n="set.rush_fee_enabled">Enable rush/priority fee</span>
+              </label>
+              <p style="font-size:11.5px; color:var(--text-muted); margin:4px 0 0;">Adds a surcharge checkbox to the calculator.</p>
+            </div>
+            <div>
+              <label data-i18n="set.rush_fee_pct">Rush fee percentage (%)</label>
+              <input type="number" id="set_rushFeePct" min="0" max="500" step="1" placeholder="25">
+            </div>
+          </div>
+
+          <!-- Packaging + WIP limits + Post-process presets -->
+          <div class="inline-pair" style="margin-top:16px;">
+            <div>
+              <label data-i18n="set.default_packaging_cost">Default packaging cost per order</label>
+              <input type="number" id="set_defaultPackagingCost" min="0" step="0.01" placeholder="0">
+            </div>
+            <div>
+              <label data-i18n="set.payment_instructions">Payment instructions (shown in client portal)</label>
+              <textarea id="set_paymentInstructions" rows="3" style="resize:vertical;" placeholder="Bank name, IBAN, Mada/STCPay..."></textarea>
+            </div>
+          </div>
+
+          <h4 style="margin:20px 0 8px; font-size:13px; font-weight:600;">WIP Limits per column</h4>
+          <div class="inline-pair" style="flex-wrap:wrap;">
+            <div><label>Pending</label><input type="number" id="set_wip_pending" min="0" step="1" placeholder="0 = unlimited"></div>
+            <div><label>Printing</label><input type="number" id="set_wip_printing" min="0" step="1" placeholder="0 = unlimited"></div>
+            <div><label>Post</label><input type="number" id="set_wip_post" min="0" step="1" placeholder="0 = unlimited"></div>
+            <div><label>QC</label><input type="number" id="set_wip_qc" min="0" step="1" placeholder="0 = unlimited"></div>
+          </div>
+
+          <h4 style="margin:20px 0 8px; font-size:13px; font-weight:600;" data-i18n="set.post_process_presets">Post-process presets</h4>
+          <div id="postProcessPresetsList" style="margin-bottom:8px;"></div>
+          <div style="display:flex; gap:8px; align-items:flex-end;">
+            <div style="flex:1;"><label style="margin:0;">Name</label><input type="text" id="set_ppName" placeholder="e.g. Sanding + Painting"></div>
+            <div style="width:100px;"><label style="margin:0;">Amount</label><input type="number" id="set_ppAmount" min="0" step="0.01" placeholder="0"></div>
+            <button class="btn small primary" id="btnAddPostPreset" style="margin-bottom:1px;">+ Add</button>
           </div>
 
           <h4 style="margin:20px 0 10px; font-size:13px; font-weight:600;" data-i18n="set.exp_budgets">Monthly Expense Budgets</h4>
