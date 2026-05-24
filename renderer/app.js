@@ -270,8 +270,8 @@ function downloadBlob(blob, filename) {
 /** Return printLog entries matching the current log filter UI state. */
 function getFilteredLogs() {
   const filtered = printLog.filter(log => {
-    if (logStatusFilter !== 'all' && log.status !== logStatusFilter) return false;
-    if (logPayFilter    !== 'all' && payStatus(log) !== logPayFilter) return false;
+    if (logStatusFilter && log.status !== logStatusFilter) return false;
+    if (logPayFilter    && payStatus(log) !== logPayFilter) return false;
     if (!inRange(log.date, logRangeFilter, 'log')) return false;
     if (logTagFilter && !(log.tags || []).includes(logTagFilter)) return false;
     if (logClientFilter && log.clientId !== logClientFilter) return false;
@@ -4995,11 +4995,11 @@ function renderClients() {
     );
   }
   if (clients.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">${escapeHtml(t('cl.empty'))}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="empty-state">${escapeHtml(t('cl.empty'))}</td></tr>`;
     return;
   }
   if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">${escapeHtml(t('cl.empty_search'))}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="empty-state">${escapeHtml(t('cl.empty_search'))}</td></tr>`;
     return;
   }
   // Precompute client stats in one pass to avoid O(n²) scan
@@ -5042,6 +5042,7 @@ function renderClients() {
         <td style="font-variant-numeric: tabular-nums;">${stats.count}</td>
         <td style="font-variant-numeric: tabular-nums; color: var(--success);">${fmtPrice(stats.revenue)}</td>
         <td style="font-variant-numeric: tabular-nums; color: var(--text-dim);">${escapeHtml(stats.lastDate || t('cl.never_ordered'))}</td>
+        <td style="font-variant-numeric:tabular-nums;text-align:right;color:${balance > 0 ? 'var(--danger)' : 'var(--text-muted)'};">${balance > 0 ? fmtPrice(balance) : '—'}</td>
         <td>
           <button class="btn small" data-act="cl-history" data-id="${c.id}">${escapeHtml(t('cl.history'))}</button>
           <button class="btn small success" data-act="cl-quote" data-id="${c.id}">${escapeHtml(t('cl.quote'))}</button>
@@ -5959,7 +5960,10 @@ function logPrint(asQuote = false) {
   renderDashboard();
   // Round 12 — Webhook: order_created
   const newOrder = printLog[0];
-  if (newOrder) fireWebhook('order_created', { orderId: newOrder.id, project: newOrder.project, status: newOrder.status, price: newOrder.price });
+  if (newOrder) {
+    fireWebhook('order_created', { orderId: newOrder.id, project: newOrder.project, status: newOrder.status, price: newOrder.price });
+    if (asQuote) autoSendEmailNotification(newOrder, 'quote');
+  }
 }
 
 /* ============================================================
@@ -6049,7 +6053,7 @@ function updateStatus(id, newStatus) {
     if (wipLimit > 0) {
       const colCount = printLog.filter(o => o.id !== id && o.status === newStatus).length;
       if (colCount >= wipLimit) {
-        toast(`⚠ WIP limit (${wipLimit}) reached for "${newStatus}" column`, 'warning', 4000);
+        toast(t('wip.limit_reached', { col: newStatus, n: wipLimit }) || `⚠ WIP limit (${wipLimit}) reached for "${newStatus}" column`, 'warning', 4000);
       }
     }
   }
@@ -6435,6 +6439,7 @@ function openPaymentModal(orderId) {
       toast(t('pay.saved'), 'success');
       // Round 12 — Webhook: payment_received
       fireWebhook('payment_received', { orderId: order.id, amount: order.paidAmount, paymentStatus: order.paymentStatus, client: order.client });
+      if (order.paidAmount > 0) autoSendEmailNotification(order, 'payment_received');
       return true;
     }
   });
@@ -8930,10 +8935,11 @@ function renderEmailNotificationSettings() {
   if (!el) return;
   const cfg = settings.emailConfig || {};
   const triggers = [
-    { key: 'printing',  label: 'Printing started' },
-    { key: 'post',      label: 'In post-processing' },
-    { key: 'completed', label: 'Ready for pickup' },
-    { key: 'quote',     label: 'Quote created' },
+    { key: 'printing',         label: 'Printing started' },
+    { key: 'post',             label: 'In post-processing' },
+    { key: 'completed',        label: 'Ready for pickup' },
+    { key: 'quote',            label: 'Quote created' },
+    { key: 'payment_received', label: 'Payment received' },
   ];
   el.innerHTML = `
     <div style="margin-bottom:12px;">
@@ -11633,7 +11639,7 @@ function openReorderModal(itemId) {
     sizeLg: false,
     bodyHtml: `
       <label>${escapeHtml(t('set.supplier_phone'))}</label>
-      <input type="tel" id="reorderPhone" value="${escapeHtml(settings.supplierPhone || '')}" data-i18n-placeholder="set.supplier_ph">
+      <input type="tel" id="reorderPhone" value="${escapeHtml((suppliers.find(s => s.id === item.supplierId)?.phone) || settings.supplierPhone || '')}" data-i18n-placeholder="set.supplier_ph">
       <label style="margin-top:12px;">${escapeHtml(t('wa.tpl_body'))}</label>
       <textarea id="reorderMsg" rows="4" style="resize:vertical;">${escapeHtml(defaultMsg)}</textarea>`,
     async onSave(modal) {
