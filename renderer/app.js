@@ -93,10 +93,17 @@ let currentPriceTiers = [];
         if ($('#partName') && fs.partName)         $('#partName').value     = fs.partName;
         if ($('#printWeight') && fs.printWeight)   $('#printWeight').value  = fs.printWeight;
         if ($('#printTime') && fs.printTime)       $('#printTime').value    = fs.printTime;
+        if ($('#resinLayers') && fs.resinLayers)           $('#resinLayers').value           = fs.resinLayers;
+        if ($('#resinLayerHeight') && fs.resinLayerHeight) $('#resinLayerHeight').value       = fs.resinLayerHeight;
+        if ($('#resinExposure') && fs.resinExposure)       $('#resinExposure').value          = fs.resinExposure;
+        if ($('#resinBaseLayers') && fs.resinBaseLayers)   $('#resinBaseLayers').value        = fs.resinBaseLayers;
+        if ($('#resinBaseExposure') && fs.resinBaseExposure) $('#resinBaseExposure').value    = fs.resinBaseExposure;
+        updateResinFieldsVisibility();
         // filamentSelect needs to be restored after the select is populated
         if (fs.filamentId) {
           setTimeout(() => {
             if ($('#filamentSelect')) $('#filamentSelect').value = fs.filamentId;
+            updateResinFieldsVisibility();
           }, 100);
         }
       }, { once: true });
@@ -125,6 +132,11 @@ function saveBuildDraft() {
       partName:    $('#partName')?.value || '',
       printWeight: $('#printWeight')?.value || '',
       printTime:   $('#printTime')?.value || '',
+      resinLayers:       $('#resinLayers')?.value || '',
+      resinLayerHeight:  $('#resinLayerHeight')?.value || '0.05',
+      resinExposure:     $('#resinExposure')?.value || '',
+      resinBaseLayers:   $('#resinBaseLayers')?.value || '',
+      resinBaseExposure: $('#resinBaseExposure')?.value || '',
     },
   });
 }
@@ -1787,6 +1799,7 @@ function renderBuild() {
   }
   renderCartBanner();
   updateGrandTotal();
+  updateResinFieldsVisibility();
 }
 
 /* ── Extra charges (custom invoice line items) ─────────────── */
@@ -2803,6 +2816,9 @@ function handleFilamentChange() {
   // Feature 3: Populate spool picker if visible
   updateSpoolPicker();
 
+  // Show/hide resin-specific fields
+  updateResinFieldsVisibility();
+
   // Feature 5 (colour library): populate datalist for part colour field
   const colourDL = $('#partColourList');
   if (colourDL) {
@@ -2824,6 +2840,16 @@ function updateSpoolPicker() {
   spoolPicker.innerHTML = `<option value="">${escapeHtml(t('oe.select_spool'))}</option>` +
     sameMaterial.map(s => `<option value="${s.id}"${s.id === sel.value ? ' selected' : ''}>${escapeHtml(s.material)} — ${Math.round(s.weight)}g</option>`).join('');
   spoolPicker.style.display = sameMaterial.length > 0 ? '' : 'none';
+}
+
+function updateResinFieldsVisibility() {
+  const fid = $('#filamentSelect')?.value;
+  const isResin = fid ? (inventory.find(i => i.id === fid)?.materialType === 'resin') : false;
+  const resinRow = $('#resinFieldsRow');
+  if (resinRow) resinRow.style.display = isResin ? '' : 'none';
+  // Swap the printWeight label unit
+  const pwUnitEl = $('#printWeightUnit');
+  if (pwUnitEl) pwUnitEl.textContent = isResin ? 'mL' : (t('common.grams') || 'g');
 }
 
 function openFilamentCatalog() {
@@ -3746,6 +3772,11 @@ function renderInventory() {
     const visibleInv = invTerm
       ? inventory.filter(i => (i.material || '').toLowerCase().includes(invTerm) || (i.colourVariant || '').toLowerCase().includes(invTerm))
       : inventory;
+    // Build a forecast map: materialName → daysRemaining
+    const forecastMap = {};
+    try {
+      computeMaterialForecast().forEach(f => { forecastMap[f.material] = f; });
+    } catch(e) { /* silent */ }
     tbody.innerHTML = visibleInv.map(item => {
       const low = item.weight <= (item.reorderPoint ?? settings.lowStockThreshold);
       const queued = Math.round(getQueuedWeight(item.id));
@@ -3774,6 +3805,13 @@ function renderInventory() {
       const testBadge = spoolTestCount > 0
         ? ` <span style="font-size:10px;color:var(--primary);">🧪 ${spoolTestCount}</span>`
         : '';
+      // Run-out forecast badge
+      const fc = forecastMap[item.material];
+      const runoutBadge = fc
+        ? fc.available < 0
+          ? ` <span style="font-size:10px;background:var(--danger);color:#fff;padding:1px 5px;border-radius:3px;font-weight:600;">⚠ ${escapeHtml(t('inv.overcommit_warn'))}</span>`
+          : ` <span style="font-size:10px;color:${fc.urgent ? 'var(--danger)' : 'var(--warning)'};font-weight:600;" title="${escapeHtml(t('inv.runout_in') || 'Run-out in')} ${fc.daysRemaining} ${escapeHtml(t('common.days') || 'days')}">📉 ${fc.daysRemaining}d</span>`
+        : '';
       const isResin = item.materialType === 'resin';
       const weightUnit = isResin ? 'mL' : escapeHtml(t('common.grams'));
       const resinBadge = isResin ? ` <span class="resin-badge">${escapeHtml(t('inv.type_resin'))}</span>` : '';
@@ -3782,7 +3820,7 @@ function renderInventory() {
         <tr data-inv-id="${escapeHtml(item.id)}"${low ? ' style="background: rgba(245,166,35,0.08);"' : ''}>
           <td style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:${escapeHtml(item.color || '#888888')}; flex-shrink:0; border:1px solid rgba(255,255,255,0.15);"></span>
-            <strong>${escapeHtml(item.material)}</strong>${low ? ' <span style="color:var(--warning); font-size:11px;">· low</span>' : ''}${resinBadge}${colourChip}${ageBadge}${reservedBadge}${overcommitBadge}${testBadge}
+            <strong>${escapeHtml(item.material)}</strong>${low ? ' <span style="color:var(--warning); font-size:11px;">· low</span>' : ''}${resinBadge}${colourChip}${ageBadge}${reservedBadge}${overcommitBadge}${testBadge}${runoutBadge}
             ${item.printTemp || item.bedTemp ? `<span style="font-size:10px; color:var(--primary);">🌡 ${item.printTemp ? item.printTemp + '°C print' : ''}${item.printTemp && item.bedTemp ? ' / ' : ''}${item.bedTemp ? item.bedTemp + '°C bed' : ''}</span>` : ''}
           </td>
           <td style="font-variant-numeric: tabular-nums;">${fmtPrice(item.cost)}</td>
@@ -7311,6 +7349,9 @@ function renderScheduleView() {
           return `<div style="position:absolute; left:${pct.toFixed(1)}%; transform:translateX(-50%); font-size:10.5px; color:var(--text-muted);">${h}h</div>`;
         }).join('')}
       </div>
+      <div style="position:absolute; left:130px; top:22px; bottom:0; width:2px; background:var(--primary); opacity:0.6; z-index:2; pointer-events:none;">
+        <span style="position:absolute; top:-18px; left:50%; transform:translateX(-50%); font-size:9.5px; font-weight:700; color:var(--primary); white-space:nowrap; background:var(--bg-card); padding:0 3px;">▼ NOW</span>
+      </div>
       ${rowsHtml}
     </div>
   </div>`;
@@ -8409,6 +8450,11 @@ function openWasteForm() {
       <datalist id="wasteOrderList">${recentOrderOptions}</datalist>
       <label style="margin-top:12px;">${escapeHtml(t('waste.notes'))}</label>
       <textarea id="wf_notes" rows="2" style="resize:vertical;"></textarea>
+      <label style="margin-top:12px;">${escapeHtml(t('waste.printer') || 'Printer / Machine')}</label>
+      <select id="wf_machine">
+        <option value="">${escapeHtml(t('mach.unassigned') || '— Unassigned —')}</option>
+        ${machines.map(m => `<option value="${escapeHtml(m.id)}">${escapeHtml(m.name)}</option>`).join('')}
+      </select>
       <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-top:14px;">
         <input type="checkbox" id="wf_deduct" checked style="width:auto; margin:0;">
         <span>${escapeHtml(t('waste.deduct_inv'))}</span>
@@ -8440,6 +8486,7 @@ function openWasteForm() {
       const deduct      = $('#wf_deduct').checked;
       const date        = $('#wf_date').value || today;
       const orderRef    = ($('#wf_order_ref').value || '').trim() || null;
+      const machineId   = ($('#wf_machine')?.value || '').trim() || null;
 
       if (!material) { toast(t('waste.err_material'), 'error'); return false; }
 
@@ -8453,6 +8500,7 @@ function openWasteForm() {
         reason,
         notes,
         orderId: orderRef,
+        machineId,
       };
       wasteLog.unshift(entry);
 
@@ -10885,6 +10933,10 @@ function renderKanban() {
       let actions = '';
       const notifyBtn = `<button class="btn small ghost" data-act="wa-quick" data-id="${log.id}" title="${escapeHtml(t('queue.notify'))}">📲</button>`;
       const woBtn = `<button class="btn small ghost" data-act="wo-kanban" data-id="${log.id}" title="${escapeHtml(t('wo.title'))}">WO</button>`;
+      // Tracking link button — shown on all active cards that have a client
+      const trackBtn = log.clientId
+        ? `<button class="btn small ghost" data-act="share-tracking-link" data-id="${log.id}" title="${escapeHtml(t('ord.status_page') || 'Share tracking link')}">🔗</button>`
+        : '';
       if (status === 'pending') {
         const qIdx = sorted.indexOf(log);
         const queueControls = `<span class="queue-pos-ctrl">
@@ -10914,19 +10966,19 @@ function renderKanban() {
         }
         const estStart = hrsBefore > 0 ? `<span class="est-start-badge">${escapeHtml(t('queue.est_start'))}: +${hrsBefore.toFixed(1)}h</span>` : '';
         const holdBtn = `<button class="btn small ghost" data-act="hold-order" data-id="${log.id}" title="${escapeHtml(t('ord.hold_btn'))}" style="color:var(--warning);">⏸</button>`;
-        actions = `${queueControls}<button class="btn small primary" data-act="status" data-id="${log.id}" data-to="printing">${escapeHtml(t('queue.start'))}</button>${holdBtn}${estStart}${woBtn}${notifyBtn}`;
+        actions = `${queueControls}<button class="btn small primary" data-act="status" data-id="${log.id}" data-to="printing">${escapeHtml(t('queue.start'))}</button>${holdBtn}${estStart}${woBtn}${notifyBtn}${trackBtn}`;
       }
       if (status === 'on_hold') {
         const holdReason = log.holdReason ? `<div style="font-size:11px; color:var(--warning); margin-top:2px;">⏸ ${escapeHtml(log.holdReason)}</div>` : '';
         actions = `<button class="btn small primary" data-act="status" data-id="${log.id}" data-to="pending">${escapeHtml(t('ord.unhold_btn'))}</button>${woBtn}${notifyBtn}`;
       }
-      if (status === 'printing')  actions = `<button class="btn small" data-act="status" data-id="${log.id}" data-to="post">${escapeHtml(t('queue.to_post'))}</button>${woBtn}${notifyBtn}`;
+      if (status === 'printing')  actions = `<button class="btn small" data-act="status" data-id="${log.id}" data-to="post">${escapeHtml(t('queue.to_post'))}</button>${woBtn}${notifyBtn}${trackBtn}`;
       // Feature 2 (this batch): Post column → QC column instead of directly completing
-      if (status === 'post')      actions = `<button class="btn small primary" data-act="status" data-id="${log.id}" data-to="qc">📋 ${escapeHtml(t('ord.qc'))}</button>${woBtn}${notifyBtn}`;
+      if (status === 'post')      actions = `<button class="btn small primary" data-act="status" data-id="${log.id}" data-to="qc">📋 ${escapeHtml(t('ord.qc'))}</button>${woBtn}${notifyBtn}${trackBtn}`;
       // Feature 2 (this batch): QC column — pass or fail buttons
       if (status === 'qc') {
         actions = `<button class="btn small success" data-act="qc-pass" data-id="${log.id}">✅ ${escapeHtml(t('ord.qc_pass'))}</button>
-          <button class="btn small danger" data-act="qc-fail" data-id="${log.id}" style="margin-inline-start:4px;">❌ ${escapeHtml(t('ord.qc_fail'))}</button>${woBtn}${notifyBtn}`;
+          <button class="btn small danger" data-act="qc-fail" data-id="${log.id}" style="margin-inline-start:4px;">❌ ${escapeHtml(t('ord.qc_fail'))}</button>${woBtn}${notifyBtn}${trackBtn}`;
       }
       if (status === 'completed') {
         const deliverBtn = log.deliveredAt
@@ -14680,6 +14732,32 @@ function wireEvents() {
   $('#btnAddPart').addEventListener('click', addPart);
   $('#btnSaveQuote').addEventListener('click', logPrint);
 
+  // Resin: compute print time & volume from layer parameters
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('#btnComputeResinTime')) {
+      const layers     = Math.max(1, parseInt($('#resinLayers')?.value || '0') || 1);
+      const exposure   = Math.max(0, parseFloat($('#resinExposure')?.value || '0') || 0);
+      const baseLayers = Math.max(0, parseInt($('#resinBaseLayers')?.value || '0') || 0);
+      const baseExp    = Math.max(0, parseFloat($('#resinBaseExposure')?.value || '0') || 0);
+      const layerH     = Math.max(0.01, parseFloat($('#resinLayerHeight')?.value || '0.05') || 0.05);
+
+      const totalSeconds = (layers * exposure) + (baseLayers * baseExp);
+      const printTimeHrs = totalSeconds / 3600;
+
+      // Approximate volume: layers × layerHeight(mm) × 40cm² build area = cm³ = mL
+      const volMl = layers * layerH * 40;
+
+      const ptEl = $('#printTime');
+      if (ptEl) ptEl.value = printTimeHrs.toFixed(2);
+
+      const pwEl = $('#printWeight');
+      if (pwEl && !+pwEl.value) pwEl.value = volMl.toFixed(1);  // only fill if empty
+
+      saveBuildDraft();
+      toast(t('calc.resin.computed') || `Computed: ${printTimeHrs.toFixed(2)}h · ${volMl.toFixed(1)}mL`, 'success', 3000);
+    }
+  });
+
   // Extra materials (Feature 8)
   $('#btnAddExtraMaterial')?.addEventListener('click', () => {
     currentExtraMaterials.push({ material: '', weight: 0 });
@@ -15088,6 +15166,7 @@ function wireEvents() {
     const resinWashBtn = e.target.closest('[data-act="resin-log-wash"]');
     const resinCureBtn = e.target.closest('[data-act="resin-log-cure"]');
     const resinCompleteBtn = e.target.closest('[data-act="resin-complete"]');
+    const shareTrackBtn = e.target.closest('[data-act="share-tracking-link"]');
     if (s)  updateStatus(s.dataset.id, s.dataset.to);
     if (holdBtn) holdOrder(holdBtn.dataset.id);
     if (qcPassBtn) qcPassOrder(qcPassBtn.dataset.id);
@@ -15100,6 +15179,13 @@ function wireEvents() {
     if (wa) openWaSendModal(wa.dataset.id);
     if (md) markDelivered(md.dataset.id);
     if (wo) generateWorkOrder(wo.dataset.id);
+    if (shareTrackBtn) {
+      const ordId = shareTrackBtn.dataset.id;
+      exportOrderStatusPage(ordId).then(() => {
+        const path = `userData/status-pages/order-status-${ordId}.html`;
+        toast(`📄 ${escapeHtml(t('ord.status_page_saved') || 'Tracking page saved')} · ${path}`, 'success', 5000);
+      });
+    }
     if (tps) {
       const order = printLog.find(o => o.id === tps.dataset.orderId);
       const partIdx = parseInt(tps.dataset.partIndex, 10);

@@ -122,7 +122,7 @@
             </div>
           </div>
 
-          <label><span data-i18n="calc.part.print_wt">Print weight</span> (<span data-i18n="common.grams">g</span>)</label>
+          <label><span data-i18n="calc.part.print_wt">Print weight</span> (<span id="printWeightUnit" data-i18n="common.grams">g</span>)</label>
           <input type="number" id="printWeight" value="150" min="0">
 
           <label style="margin-top:8px;"><span data-i18n="calc.support_wt">Support weight (g)</span></label>
@@ -189,6 +189,39 @@
               <input type="number" id="wearRate" value="0.75" step="0.05" min="0">
             </div>
           </div>
+
+              <!-- Resin-specific fields (shown when a resin spool is selected) -->
+              <div id="resinFieldsRow" style="display:none;">
+                <div class="inline-pair" style="margin-top:8px;">
+                  <div>
+                    <label data-i18n="calc.resin.layers">Layer Count</label>
+                    <input type="number" id="resinLayers" min="1" step="1" placeholder="200">
+                  </div>
+                  <div>
+                    <label data-i18n="calc.resin.layer_height">Layer Height (mm)</label>
+                    <input type="number" id="resinLayerHeight" min="0.01" max="0.3" step="0.01" value="0.05">
+                  </div>
+                </div>
+                <div class="inline-pair" style="margin-top:8px;">
+                  <div>
+                    <label data-i18n="calc.resin.exposure">Exposure (s/layer)</label>
+                    <input type="number" id="resinExposure" min="0.1" step="0.1" placeholder="2.0">
+                  </div>
+                  <div>
+                    <label data-i18n="calc.resin.base_layers">Base Layers</label>
+                    <input type="number" id="resinBaseLayers" min="0" step="1" placeholder="6">
+                  </div>
+                </div>
+                <div class="inline-pair" style="margin-top:8px;">
+                  <div>
+                    <label data-i18n="calc.resin.base_exposure">Base Exposure (s)</label>
+                    <input type="number" id="resinBaseExposure" min="0.1" step="0.1" placeholder="40">
+                  </div>
+                  <div style="display:flex;align-items:flex-end;">
+                    <button class="btn ghost small" id="btnComputeResinTime" style="margin-bottom:0;" data-i18n="calc.resin.compute">⚡ Compute time &amp; volume</button>
+                  </div>
+                </div>
+              </div>
 
           <div class="inline-pair">
             <div>
