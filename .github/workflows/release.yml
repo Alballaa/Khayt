@@ -115,48 +115,34 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
         run: |
-          IS_PRE=$(echo "$TAG" | grep -qE '\-(beta|rc|alpha)' && echo true || echo false)
+          set -e
 
-          # Get or create release
-          RELEASE=$(curl -sf "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/$TAG" \
-            -H "Authorization: token $GH_TOKEN" || echo "")
-
-          if [ -z "$RELEASE" ]; then
-            echo "Creating release for $TAG..."
-            RELEASE=$(curl -sf -X POST "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" \
-              -H "Authorization: token $GH_TOKEN" \
-              -H "Content-Type: application/json" \
-              -d "{\"tag_name\":\"$TAG\",\"name\":\"Khayt $TAG\",\"draft\":false,\"prerelease\":$IS_PRE,\"body\":\"See [README](https://github.com/$GITHUB_REPOSITORY#readme) for full release notes.\"}")
+          # Determine pre-release flag
+          if echo "$TAG" | grep -qE '\-(beta|rc|alpha)'; then
+            PRERELEASE_FLAG="--prerelease"
           else
-            echo "Found existing release, will upload assets to it..."
-            # Ensure it is published (not draft)
-            RELEASE_ID=$(echo "$RELEASE" | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
-            curl -sf -X PATCH "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" \
-              -H "Authorization: token $GH_TOKEN" \
-              -H "Content-Type: application/json" \
-              -d "{\"draft\":false,\"prerelease\":$IS_PRE}" > /dev/null
+            PRERELEASE_FLAG=""
           fi
 
-          RELEASE_ID=$(echo "$RELEASE" | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
-          UPLOAD_URL="https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets"
+          NOTES="See [README](https://github.com/${GITHUB_REPOSITORY}#readme) for full release notes."
 
-          echo "Release ID: $RELEASE_ID — uploading assets..."
-          for f in release-files/*; do
-            NAME=$(basename "$f")
-            # Delete existing asset with same name if present
-            ASSET_ID=$(curl -sf "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets" \
-              -H "Authorization: token $GH_TOKEN" \
-              | python3 -c "import json,sys,os; assets=json.load(sys.stdin); a=next((a for a in assets if a['name']==os.environ['NAME']),None); print(a['id'] if a else '')" NAME="$NAME")
-            if [ -n "$ASSET_ID" ]; then
-              echo "  Replacing $NAME (existing asset $ASSET_ID)..."
-              curl -sf -X DELETE "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/assets/$ASSET_ID" \
-                -H "Authorization: token $GH_TOKEN" > /dev/null
-            fi
-            echo "  Uploading $NAME..."
-            curl -sf -X POST "$UPLOAD_URL?name=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$NAME")" \
-              -H "Authorization: token $GH_TOKEN" \
-              -H "Content-Type: application/octet-stream" \
-              --data-binary @"$f" > /dev/null
-            echo "  ✅ $NAME"
-          done
+          # Create release if it doesn't exist; otherwise ensure it's published
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "Release $TAG already exists — ensuring it is published..."
+            gh release edit "$TAG" --draft=false $PRERELEASE_FLAG --repo "$GITHUB_REPOSITORY" || true
+          else
+            echo "Creating release $TAG..."
+            gh release create "$TAG" \
+              --title "Khayt $TAG" \
+              --notes "$NOTES" \
+              $PRERELEASE_FLAG \
+              --repo "$GITHUB_REPOSITORY"
+          fi
+
+          # Upload all assets; --clobber replaces any already-uploaded file with the same name
+          echo "Uploading assets..."
+          gh release upload "$TAG" release-files/* \
+            --clobber \
+            --repo "$GITHUB_REPOSITORY"
+
           echo "🎉 Release $TAG published: https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
