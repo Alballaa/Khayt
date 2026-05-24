@@ -92,6 +92,7 @@ contextBridge.exposeInMainWorld('hubAPI', {
   getLanUrl:      ()       => ipcRenderer.invoke('hub:get-lan-url'),
 
   // iOS companion: live reload when phone adds a spool or changes an order
-  onLanSpoolAdded:    (() => { let _cb=null; ipcRenderer.on('lan-spool-added',   (_e,d)=>{ if(_cb) _cb(d); }); return cb=>{ _cb=cb; }; })(),
-  onLanOrderUpdated:  (() => { let _cb=null; ipcRenderer.on('lan-order-updated', (_e,d)=>{ if(_cb) _cb(d); }); return cb=>{ _cb=cb; }; })(),
+  onLanSpoolAdded:      (() => { let _cb=null; ipcRenderer.on('lan-spool-added',      (_e,d)=>{ if(_cb) _cb(d); }); return cb=>{ _cb=cb; }; })(),
+  onLanOrderUpdated:    (() => { let _cb=null; ipcRenderer.on('lan-order-updated',    (_e,d)=>{ if(_cb) _cb(d); }); return cb=>{ _cb=cb; }; })(),
+  onLanSurveySubmitted: (() => { let _cb=null; ipcRenderer.on('lan-survey-submitted', (_e,d)=>{ if(_cb) _cb(d); }); return cb=>{ _cb=cb; }; })(),
 });

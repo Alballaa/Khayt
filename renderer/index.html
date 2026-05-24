@@ -29,6 +29,14 @@
 
     <button id="btnHelp" title="Help" aria-label="Help" data-i18n="help.btn" style="background:rgba(255,255,255,0.07);color:var(--text-muted);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;white-space:nowrap;">?</button>
     <button id="btnGlobalSearch" title="Search (⌘K)" aria-label="Global search" style="background:rgba(255,255,255,0.07);color:var(--text-muted);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;white-space:nowrap;">🔍 <kbd style="font-size:10px;opacity:0.6;">⌘K</kbd></button>
+    <div style="position:relative;display:inline-block;">
+      <button id="btnNotifBell" title="Notifications" aria-label="Notifications"
+        style="background:rgba(255,255,255,0.07);color:var(--text-muted);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:14px;cursor:pointer;white-space:nowrap;position:relative;">
+        🔔
+        <span id="notifBadge" style="display:none;position:absolute;top:-4px;inset-inline-end:-4px;background:var(--danger);color:#fff;font-size:9px;font-weight:700;min-width:16px;height:16px;border-radius:8px;line-height:16px;text-align:center;padding:0 3px;"></span>
+      </button>
+      <div id="notifPanel" style="display:none;position:absolute;top:calc(100% + 8px);inset-inline-end:0;width:340px;max-height:480px;overflow-y:auto;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.5);z-index:8000;"></div>
+    </div>
     <button id="btnFeedback" title="Feedback &amp; Bug Reports" aria-label="Feedback" data-i18n="feedback.title" style="background:rgba(255,255,255,0.07);color:var(--text-muted);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;white-space:nowrap;">💬</button>
     <select id="locationFilter" aria-label="Location filter" style="background:var(--bg-elev);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;min-width:80px;max-width:120px;" title="Filter by location">
       <option value="">All locations</option>
@@ -175,6 +183,14 @@
             <button class="btn small" id="btnSavePreset" style="margin-bottom:1px;" data-i18n="calc.machine.save_preset">Save preset</button>
             <button class="btn small danger" id="btnDeletePreset" style="display:none; margin-bottom:1px;" data-i18n="calc.machine.del_preset">Delete</button>
           </div>
+          <div class="preset-row" style="margin-top:8px;">
+            <div style="flex:1;">
+              <label data-i18n="tpl.job_label" style="margin-top:0;">Job template</label>
+              <select id="jobTemplateSelect" style="margin:0;"></select>
+            </div>
+            <button class="btn small primary" id="btnSaveJobTemplate" style="margin-bottom:1px;" data-i18n="tpl.job_save">Save template</button>
+            <button class="btn small danger" id="btnDeleteJobTemplate" style="display:none; margin-bottom:1px;" data-i18n="tpl.job_del">Delete</button>
+          </div>
 
           <label data-i18n="calc.machine.printer">Printer name</label>
           <input type="text" id="printerModel" value="Prusa CORE One+">
@@ -192,6 +208,15 @@
 
               <!-- Resin-specific fields (shown when a resin spool is selected) -->
               <div id="resinFieldsRow" style="display:none;">
+                <!-- Resin exposure profile preset row -->
+                <div class="preset-row" style="margin-bottom:8px;">
+                  <div style="flex:1;">
+                    <label data-i18n="resin.profile_label" style="margin-top:0;">Resin profile</label>
+                    <select id="resinProfileSelect" style="margin:0;"></select>
+                  </div>
+                  <button class="btn small primary" id="btnSaveResinProfile" style="margin-bottom:1px;" data-i18n="resin.save_profile">Save profile</button>
+                  <button class="btn small danger" id="btnDeleteResinProfile" style="display:none; margin-bottom:1px;" data-i18n="common.delete">Delete</button>
+                </div>
                 <div class="inline-pair" style="margin-top:8px;">
                   <div>
                     <label data-i18n="calc.resin.layers">Layer Count</label>
@@ -384,11 +409,21 @@
         <h3 class="card-head" style="margin:0; flex:1; min-width:120px;"><span class="swatch"></span><span data-i18n="queue.title">Active Production Queue</span></h3>
         <input type="search" id="kanSearch" class="toolbar-search" data-i18n-placeholder="kan.search_ph" placeholder="Filter by client, project…" style="max-width:200px;">
         <button id="btnScheduleView" class="btn-sm btn ghost small">📅 <span data-i18n="kan.schedule_view">Schedule</span></button>
+        <button id="btnCalendarView" class="btn-sm btn ghost small">📆 <span data-i18n="kan.calendar_view">Calendar</span></button>
+        <button id="btnBatchPlanner" class="btn small ghost" data-i18n="kan.batch_planner">📋 Batch Planner</button>
+        <button id="btnKioskView" class="btn-sm btn ghost small">🖥 <span data-i18n="kan.kiosk_view">Kiosk</span></button>
+        <button id="btnKanbanSort" class="btn-sm btn ghost small" title="Sort cards by urgency">⬆ <span data-i18n="queue.sort_btn">Sort</span></button>
         <button id="btnPauseProduction" class="btn small" style="background:rgba(220,38,38,0.15);color:#f87171;border-color:rgba(220,38,38,0.3);" data-i18n="prod.pause">⏸ Pause production</button>
       </div>
 
       <!-- Schedule view (hidden by default) -->
       <div id="scheduleView" style="display:none; margin-bottom:16px;"></div>
+
+      <!-- Calendar view (hidden by default) -->
+      <div id="calendarView" style="display:none; margin-bottom:16px;"></div>
+
+      <!-- Kiosk view (hidden by default) -->
+      <div id="kioskView" style="display:none; margin-bottom:16px;"></div>
 
       <!-- Quotes awaiting client approval (hidden when empty) -->
       <div id="quotesSection" class="quotes-section" style="display:none;">
@@ -397,6 +432,19 @@
           <span class="count" id="count-quote">0</span>
         </div>
         <div id="list-quote"></div>
+      </div>
+
+      <!-- Waiting list (job intake queue) -->
+      <div style="margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 0;" id="waitingListToggle">
+          <h4 style="margin:0;font-size:13px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">
+            <span data-i18n="waiting.title">Job Intake</span>
+            <span id="waitingBadge" style="display:none;background:var(--accent);color:#fff;border-radius:10px;font-size:10px;padding:1px 6px;margin-inline-start:6px;font-weight:700;"></span>
+          </h4>
+          <span id="waitingChevron" style="font-size:10px;color:var(--text-muted);">▼</span>
+          <button id="btnAddWaiting" class="btn small ghost" style="margin-inline-start:auto;" onclick="event.stopPropagation()">+ <span data-i18n="waiting.add">Add</span></button>
+        </div>
+        <div id="waitingListSection" style="display:none;"></div>
       </div>
 
       <div class="kanban">
@@ -448,6 +496,11 @@
             <option value="completed" data-i18n="queue.completed">Completed</option>
           </select>
           <button class="btn small" id="btnBatchMove" data-i18n="batch.move">Move</button>
+          <select id="batchMachineSelect" class="toolbar-select" style="max-width:140px;">
+            <option value="">— Assign machine —</option>
+          </select>
+          <button class="btn small" id="btnBatchAssignMachine" data-i18n="batch.assign_machine">Assign</button>
+          <button class="btn small ghost" id="btnBatchArchive" data-i18n="batch.archive">📦 Archive</button>
           <button class="btn ghost small" id="btnBatchClear" data-i18n="batch.clear_sel">Clear</button>
         </div>
         <div class="toolbar" style="margin-bottom: 14px;">
@@ -492,6 +545,10 @@
           <select id="logTagFilter" class="toolbar-select" style="max-width:130px;">
             <option value="" data-i18n="tag.all">All tags</option>
           </select>
+          <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text-muted);cursor:pointer;white-space:nowrap;">
+            <input type="checkbox" id="showArchivedToggle" style="width:auto;margin:0;cursor:pointer;">
+            <span data-i18n="log.show_archived">Show archived</span>
+          </label>
           <button class="btn small ghost" id="btnSaveFilterPreset" title="Save current filter as a preset">💾 Save filter</button>
           <button class="btn small" id="btnExportCsv" data-i18n="log.export_csv">Export CSV</button>
           <button class="btn small ghost pro-only" id="btnExportAccounting" title="Export accounting journal (CSV)">📒 Accounting</button>
@@ -510,6 +567,7 @@
                 <th data-i18n="log.pay_status">Payment</th>
                 <th data-sort="material" style="cursor:pointer;user-select:none;" data-i18n="log.materials">Materials</th>
                 <th data-sort="price" style="cursor:pointer;user-select:none;" data-i18n="log.price">Price</th>
+                <th data-i18n="log.margin" style="cursor:pointer;user-select:none;white-space:nowrap;" data-sort="margin">Margin</th>
                 <th data-i18n="common.actions">Actions</th>
               </tr>
             </thead>
@@ -595,6 +653,18 @@
         <h3 class="card-head"><span class="swatch"></span><span data-i18n="an.accuracy_title">Estimate Accuracy</span></h3>
         <div id="accuracySection"></div>
         <div id="timestampAccuracySection" style="margin-top:8px;"></div>
+        <div id="quoteFunnelChart" style="margin-top:8px;"></div>
+        <div id="monthlyTrendChart" style="margin-top:8px;"></div>
+        <div id="machineRevenueChart" style="margin-top:8px;"></div>
+        <div id="profitMarginChart" style="margin-top:8px;"></div>
+        <div id="machineAccuracySection" style="margin-top:8px;"></div>
+      </div>
+
+      <div id="clientSourceChart"></div>
+
+      <div class="card" style="margin-top: 16px;">
+        <h3 class="card-head"><span class="swatch"></span><span data-i18n="an.mat_usage_title">Monthly Material Usage</span></h3>
+        <div id="materialUsageChart" style="margin-top:8px;"></div>
       </div>
 
       <div class="card pro-only" style="margin-top: 16px;">
@@ -675,6 +745,11 @@
 
     <!-- ===================== INVENTORY ===================== -->
     <section id="inventory-tab" class="tab-content">
+      <div id="supplierReorderList" style="margin-bottom:12px;"></div>
+      <div id="pipelineDemand"></div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+        <button class="btn ghost small" id="btnExportInventoryCsv" title="Export inventory to CSV">📥 <span data-i18n="common.export_csv">CSV</span></button>
+      </div>
       <div class="grid">
         <div class="card warn">
           <h3 class="card-head"><span class="swatch"></span><span data-i18n="inv.add_title">Add Filament Spool</span></h3>
@@ -795,6 +870,7 @@
         <h3 class="card-head" style="margin: 0; flex: 1;"><span class="swatch"></span><span data-i18n="cl.title">Clients</span></h3>
         <input type="search" id="clientSearch" class="toolbar-search" data-i18n-placeholder="cl.search_ph">
         <button class="btn" id="btnBlankIntakeForm" title="Blank intake form">📋 <span data-i18n="cl.intake_form">Intake form</span></button>
+        <button class="btn ghost small" id="btnExportClientsCsv" title="Export clients to CSV">📥 <span data-i18n="common.export_csv">CSV</span></button>
         <button class="btn primary" id="btnAddClient" data-i18n="cl.add">+ Add Client</button>
       </div>
       <div class="card" style="margin-top: 12px;">

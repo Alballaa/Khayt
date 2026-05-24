@@ -26,6 +26,7 @@ const K = {
   TEST_PRINTS: 'hub_test_prints_v1',
   LOCATIONS: 'hub_locations_v1',
   OPERATORS: 'hub_operators_v1',
+  WAITING:   'hub_waiting_v1',
 };
 
 /* ---------- App state ---------- */
@@ -51,6 +52,7 @@ let purchaseOrders = loadJSON(K.PURCHASE_ORDERS, []);
 let testPrints     = loadJSON(K.TEST_PRINTS, []);
 let locations      = loadJSON(K.LOCATIONS, []);
 let operators      = loadJSON(K.OPERATORS, []);
+let waitingList    = loadJSON(K.WAITING, []);
 
 // Runtime-only state (not persisted)
 let kanbanTimerInterval = null;
@@ -164,8 +166,12 @@ const _escHandlerStack = [];
 let logTagFilter = '';
 let logSortCol = 'date';  // 'date' | 'project' | 'price' | 'material' | 'status'
 let logSortDir = 'desc';  // 'asc' | 'desc'
+let showArchivedOrders = false;
+let kanbanSortByPriority = false;
 let invSearchTerm = '';
 let logOperatorFilter = '';
+let logDisplayLimit = 100;      // pagination: rows shown in log table
+let _lastLogFilterHash = '';    // detects filter/sort changes to reset page
 let wasteSearchTerm = '';
 let wasteMaterialFilter = '';
 let wasteFailureFilter = '';
@@ -222,6 +228,13 @@ const CURRENCIES = {
   ZAR: { symbol: 'R',   label: 'South African Rand (ZAR)',     pos: 'before' },
   NGN: { symbol: '₦',   label: 'Nigerian Naira (NGN)',         pos: 'before' },
 };
+function localDateStr(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function localMonthStr(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+
 // Returns "$ 12.50" or "12.50 SAR" depending on currency setting
 function fmtPrice(n) {
   const cur = CURRENCIES[settings?.currency] || CURRENCIES.SAR;
@@ -282,6 +295,7 @@ function downloadBlob(blob, filename) {
 /** Return printLog entries matching the current log filter UI state. */
 function getFilteredLogs() {
   const filtered = printLog.filter(log => {
+    if (!showArchivedOrders && log.archived) return false;
     if (logStatusFilter && log.status !== logStatusFilter) return false;
     if (logPayFilter    && payStatus(log) !== logPayFilter) return false;
     if (!inRange(log.date, logRangeFilter, 'log')) return false;
@@ -302,6 +316,13 @@ function getFilteredLogs() {
     if (logSortCol === 'price')    return dir * ((+a.price || 0) - (+b.price || 0));
     if (logSortCol === 'material') return dir * (a.material || '').localeCompare(b.material || '');
     if (logSortCol === 'status')   return dir * (a.status || '').localeCompare(b.status || '');
+    if (logSortCol === 'margin') {
+      const costA = (a.parts || []).reduce((s, p) => s + (+p.baseCost || 0), 0);
+      const costB = (b.parts || []).reduce((s, p) => s + (+p.baseCost || 0), 0);
+      const mA = costA > 0 && +a.price > 0 ? (+a.price - costA) / +a.price : -Infinity;
+      const mB = costB > 0 && +b.price > 0 ? (+b.price - costB) / +b.price : -Infinity;
+      return dir * (mA - mB);
+    }
     return 0;
   });
 }
@@ -411,6 +432,10 @@ function initials(name) {
   const parts = n.split(/\s+/).slice(0, 2);
   return parts.map(p => p[0]).join('').toUpperCase();
 }
+function safeBizLogo() {
+  const v = settings.bizLogo;
+  return (v && v.startsWith('data:image/')) ? v : '';
+}
 
 function defaultSettings() {
   return {
@@ -470,6 +495,8 @@ function defaultSettings() {
     // Business Mode (simple | professional)
     mode:            'simple',
     firstRun:        true,
+    // Stale order alert thresholds (hours per status)
+    staleHours: { printing: 48, post: 24, qc: 12, pending: 72 },
     // Feature 8 (this batch): Production pause
     productionPaused: false,
     pauseReason:      '',
@@ -506,6 +533,12 @@ function defaultSettings() {
     postProcessPresets:   [],           // [{ name, amount }]
     defaultPackagingCost: 0,
     paymentInstructions:  '',           // Shown in client portal and invoices
+    // Job templates — full calculator config presets
+    jobTemplates:         [],
+    // Resin exposure profile presets
+    resinProfiles:        [],
+    // Dismissed/snoozed notifications: key → expiresAt ISO string or 'forever'
+    dismissedNotifs:      {},
   };
 }
 
@@ -567,7 +600,7 @@ function saveAll() {
     const store = {
       printLog, inventory, templates, products, clients, settings, printers,
       expenses, machines, waTemplates, wasteLog, machMaintLog, consumables,
-      suppliers, purchaseOrders, testPrints, locations, operators,
+      suppliers, purchaseOrders, testPrints, locations, operators, waitingList,
     };
     if (window.hubAPI?.saveStore) {
       window.hubAPI.saveStore(store).catch(e => {
@@ -646,8 +679,24 @@ async function loadAll() {
     if (store.testPrints)     testPrints     = store.testPrints;
     if (store.locations)      locations      = store.locations;
     if (store.operators)      operators      = store.operators;
+    if (store.waitingList)    waitingList    = store.waitingList;
     if (store.settings)       settings       = Object.assign({}, defaultSettings(), store.settings);
   }
+}
+
+function pruneExpiredNotifs() {
+  const dismissed = settings.dismissedNotifs;
+  if (!dismissed || typeof dismissed !== 'object') return;
+  const now = new Date().toISOString();
+  let changed = false;
+  for (const key of Object.keys(dismissed)) {
+    const val = dismissed[key];
+    if (val !== 'forever' && val < now) {
+      delete dismissed[key];
+      changed = true;
+    }
+  }
+  if (changed) saveAll();
 }
 
 /* ============================================================
@@ -1998,6 +2047,178 @@ async function deleteCurrentPreset() {
 }
 
 /* ============================================================
+   Job Templates — save/load full job configs
+   ============================================================ */
+function renderJobTemplateSelect() {
+  const sel = $('#jobTemplateSelect');
+  if (!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = [
+    `<option value="">${escapeHtml(t('tpl.job_no_tpl') || 'No template')}</option>`,
+    ...(settings.jobTemplates || []).map(tpl =>
+      `<option value="${escapeHtml(tpl.id)}">${escapeHtml(tpl.name)}</option>`)
+  ].join('');
+  if ((settings.jobTemplates || []).find(t => t.id === prev)) sel.value = prev;
+  const delBtn = $('#btnDeleteJobTemplate');
+  if (delBtn) delBtn.style.display = sel.value ? 'inline-flex' : 'none';
+}
+
+function applyJobTemplate(tplId) {
+  const tpl = (settings.jobTemplates || []).find(t => t.id === tplId);
+  if (!tpl) return;
+  if (tpl.margin      !== undefined && $('#margin'))      $('#margin').value      = tpl.margin;
+  if (tpl.spoolCost   !== undefined && $('#spoolCost'))   $('#spoolCost').value   = tpl.spoolCost;
+  if (tpl.spoolWeight !== undefined && $('#spoolWeight')) $('#spoolWeight').value = tpl.spoolWeight;
+  if (tpl.printWeight !== undefined && $('#printWeight')) $('#printWeight').value = tpl.printWeight;
+  if (tpl.printTime   !== undefined && $('#printTime'))   $('#printTime').value   = tpl.printTime;
+  if (tpl.wearRate    !== undefined && $('#wearRate'))    $('#wearRate').value    = tpl.wearRate;
+  if (tpl.powerDraw   !== undefined && $('#powerDraw'))   $('#powerDraw').value   = tpl.powerDraw;
+  if (tpl.elecRate    !== undefined && $('#elecRate'))    $('#elecRate').value    = tpl.elecRate;
+  if (tpl.laborRate   !== undefined && $('#laborRate'))   $('#laborRate').value   = tpl.laborRate;
+  if (tpl.filamentId  !== undefined && $('#filamentSelect')) {
+    $('#filamentSelect').value = tpl.filamentId;
+    $('#filamentSelect').dispatchEvent(new Event('change'));
+  }
+  updateGrandTotal();
+  toast(t('tpl.job_applied') || `Template "${tpl.name}" applied`, 'success', 2500);
+}
+
+function saveCurrentAsJobTemplate() {
+  openFormModal({
+    title: t('tpl.job_save') || 'Save Job Template',
+    sizeLg: false,
+    saveLabel: t('common.save'),
+    bodyHtml: `
+      <label>${escapeHtml(t('tpl.job_name') || 'Template name')}</label>
+      <input type="text" id="_jobTplNameInput" placeholder="${escapeHtml(t('tpl.job_name_ph') || 'e.g. Large PLA Print')}">
+      <label style="margin-top:12px; font-size:11.5px; color:var(--text-muted);">${escapeHtml(t('tpl.job_captures') || 'Captures: margin, spool cost/weight, print weight, time, machine rates, material')}</label>`,
+    onMount(modal) { setTimeout(() => modal.querySelector('#_jobTplNameInput')?.focus(), 40); },
+    onSave(modal) {
+      const name = (modal.querySelector('#_jobTplNameInput')?.value || '').trim();
+      if (!name) { toast(t('tpl.need_name') || 'Name required', 'error'); return false; }
+      if (!settings.jobTemplates) settings.jobTemplates = [];
+      const existingIdx = settings.jobTemplates.findIndex(t => t.name.toLowerCase() === name.toLowerCase());
+      const tpl = {
+        id:          existingIdx >= 0 ? settings.jobTemplates[existingIdx].id : uid('JTPL'),
+        name,
+        margin:      $('#margin')?.value || '',
+        spoolCost:   $('#spoolCost')?.value || '',
+        spoolWeight: $('#spoolWeight')?.value || '',
+        printWeight: $('#printWeight')?.value || '',
+        printTime:   $('#printTime')?.value || '',
+        wearRate:    $('#wearRate')?.value || '',
+        powerDraw:   $('#powerDraw')?.value || '',
+        elecRate:    $('#elecRate')?.value || '',
+        laborRate:   $('#laborRate')?.value || '',
+        filamentId:  $('#filamentSelect')?.value || '',
+        savedAt:     new Date().toISOString(),
+      };
+      if (existingIdx >= 0) settings.jobTemplates[existingIdx] = tpl;
+      else settings.jobTemplates.push(tpl);
+      saveAll();
+      renderJobTemplateSelect();
+      $('#jobTemplateSelect').value = tpl.id;
+      const delBtn = $('#btnDeleteJobTemplate');
+      if (delBtn) delBtn.style.display = 'inline-flex';
+      toast(t('tpl.job_saved') || `Template "${name}" saved`, 'success');
+      return true;
+    }
+  });
+}
+
+async function deleteCurrentJobTemplate() {
+  const sel = $('#jobTemplateSelect');
+  if (!sel?.value) return;
+  const ok = await confirmModal(t('common.delete') + '?', { danger: true });
+  if (!ok) return;
+  if (!settings.jobTemplates) return;
+  settings.jobTemplates = settings.jobTemplates.filter(t => t.id !== sel.value);
+  saveAll();
+  renderJobTemplateSelect();
+  toast(t('tpl.job_deleted') || 'Template deleted', 'success');
+}
+
+/* ============================================================
+   Resin Exposure Profile Presets
+   ============================================================ */
+function renderResinProfiles() {
+  const sel = $('#resinProfileSelect');
+  if (!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = [
+    `<option value="">${escapeHtml(t('resin.no_profile') || 'No profile')}</option>`,
+    ...(settings.resinProfiles || []).map(p =>
+      `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}</option>`)
+  ].join('');
+  if ((settings.resinProfiles || []).find(p => p.id === prev)) sel.value = prev;
+  const delBtn = $('#btnDeleteResinProfile');
+  if (delBtn) delBtn.style.display = sel.value ? 'inline-flex' : 'none';
+}
+
+function applyResinProfile(profileId) {
+  const profile = (settings.resinProfiles || []).find(p => p.id === profileId);
+  if (!profile) return;
+  if (profile.layers      !== undefined && $('#resinLayers'))      $('#resinLayers').value      = profile.layers;
+  if (profile.layerHeight !== undefined && $('#resinLayerHeight')) $('#resinLayerHeight').value = profile.layerHeight;
+  if (profile.exposure    !== undefined && $('#resinExposure'))    $('#resinExposure').value    = profile.exposure;
+  if (profile.baseLayers  !== undefined && $('#resinBaseLayers'))  $('#resinBaseLayers').value  = profile.baseLayers;
+  if (profile.baseExposure!== undefined && $('#resinBaseExposure'))$('#resinBaseExposure').value= profile.baseExposure;
+  toast(t('resin.profile_applied') || `Profile "${profile.name}" applied`, 'success', 2000);
+}
+
+function saveCurrentAsResinProfile() {
+  openFormModal({
+    title: t('resin.save_profile') || 'Save Resin Profile',
+    sizeLg: false,
+    saveLabel: t('common.save'),
+    bodyHtml: `
+      <label>${escapeHtml(t('resin.profile_name') || 'Profile name')}</label>
+      <input type="text" id="_resinProfileNameInput" placeholder="${escapeHtml(t('resin.profile_name_ph') || 'e.g. Elegoo Standard 0.05mm')}">
+      <div style="margin-top:10px; font-size:11.5px; color:var(--text-muted);">
+        ${escapeHtml(t('resin.profile_captures') || 'Captures: layer count, height, exposure times, base settings')}
+      </div>`,
+    onMount(modal) { setTimeout(() => modal.querySelector('#_resinProfileNameInput')?.focus(), 40); },
+    onSave(modal) {
+      const name = (modal.querySelector('#_resinProfileNameInput')?.value || '').trim();
+      if (!name) { toast(t('tpl.need_name') || 'Name required', 'error'); return false; }
+      if (!settings.resinProfiles) settings.resinProfiles = [];
+      const existingIdx = settings.resinProfiles.findIndex(p => p.name.toLowerCase() === name.toLowerCase());
+      const profile = {
+        id:           existingIdx >= 0 ? settings.resinProfiles[existingIdx].id : uid('RSNP'),
+        name,
+        layers:       $('#resinLayers')?.value      || '',
+        layerHeight:  $('#resinLayerHeight')?.value || '0.05',
+        exposure:     $('#resinExposure')?.value    || '',
+        baseLayers:   $('#resinBaseLayers')?.value  || '',
+        baseExposure: $('#resinBaseExposure')?.value|| '',
+        savedAt:      new Date().toISOString(),
+      };
+      if (existingIdx >= 0) settings.resinProfiles[existingIdx] = profile;
+      else settings.resinProfiles.push(profile);
+      saveAll();
+      renderResinProfiles();
+      $('#resinProfileSelect').value = profile.id;
+      const delBtn = $('#btnDeleteResinProfile');
+      if (delBtn) delBtn.style.display = 'inline-flex';
+      toast(t('resin.profile_saved') || `Profile "${name}" saved`, 'success');
+      return true;
+    }
+  });
+}
+
+async function deleteCurrentResinProfile() {
+  const sel = $('#resinProfileSelect');
+  if (!sel?.value) return;
+  const ok = await confirmModal(t('common.delete') + '?', { danger: true });
+  if (!ok) return;
+  if (!settings.resinProfiles) return;
+  settings.resinProfiles = settings.resinProfiles.filter(p => p.id !== sel.value);
+  saveAll();
+  renderResinProfiles();
+  toast(t('resin.profile_deleted') || 'Profile deleted', 'success');
+}
+
+/* ============================================================
    Machine profiles (physical printers you assign jobs to)
    ============================================================ */
 const MACHINE_COLORS = ['#5b9cf0','#2bb673','#f5a623','#ef4d5e','#a78bfa','#fb923c','#34d399','#f472b6'];
@@ -2066,6 +2287,7 @@ function renderMachines() {
         ${nozzleHtml}
       </div>`;
   }).join('');
+  updateNotifBadge();
 }
 
 function renderMachineDropdown() {
@@ -2847,6 +3069,7 @@ function updateResinFieldsVisibility() {
   const isResin = fid ? (inventory.find(i => i.id === fid)?.materialType === 'resin') : false;
   const resinRow = $('#resinFieldsRow');
   if (resinRow) resinRow.style.display = isResin ? '' : 'none';
+  renderResinProfiles();
   // Swap the printWeight label unit
   const pwUnitEl = $('#printWeightUnit');
   if (pwUnitEl) pwUnitEl.textContent = isResin ? 'mL' : (t('common.grams') || 'g');
@@ -3741,7 +3964,78 @@ function checkSpoolOvercommit(parts, excludeOrderId) {
   return warnings;
 }
 
+/* ── Pipeline material demand ───────────────────────────── */
+function renderPipelineDemand() {
+  const el = $('#pipelineDemand');
+  if (!el) return;
+
+  const activeOrders = printLog.filter(o => o.status !== 'completed' && o.status !== 'quote' && !o.archived);
+  if (activeOrders.length === 0) {
+    el.innerHTML = '';
+    return;
+  }
+
+  // Aggregate by material + colour
+  const demand = {};
+  for (const o of activeOrders) {
+    for (const p of (o.parts || [])) {
+      const mat = p.material || p.filament || '';
+      const col = p.colour || p.color || '';
+      const key = mat ? (col ? `${mat} / ${col}` : mat) : (col || t('inv.unknown_material') || 'Unknown');
+      const grams = +(p.printWeight || p.weight || 0);
+      if (!demand[key]) demand[key] = { grams: 0, count: 0, mat, col };
+      demand[key].grams += grams;
+      demand[key].count++;
+    }
+  }
+
+  const entries = Object.entries(demand)
+    .filter(([, d]) => d.grams > 0)
+    .sort((a, b) => b[1].grams - a[1].grams);
+
+  if (entries.length === 0) {
+    el.innerHTML = '';
+    return;
+  }
+
+  const rows = entries.map(([key, d]) => {
+    // Check if we have enough stock
+    const totalStock = inventory
+      .filter(spool => {
+        const spoolMat = spool.material || spool.filament || '';
+        const spoolCol = spool.colour || spool.color || '';
+        return spoolMat.toLowerCase() === d.mat.toLowerCase() &&
+               (!d.col || spoolCol.toLowerCase() === d.col.toLowerCase());
+      })
+      .reduce((s, spool) => s + (+spool.remaining || +spool.weight || 0), 0);
+    const deficit = totalStock - d.grams;
+    const color = deficit >= 0 ? 'var(--success)' : 'var(--danger)';
+    const icon  = deficit >= 0 ? '✅' : '⚠';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);">
+      <span style="font-size:13px;">${icon}</span>
+      <div style="flex:1;min-width:0;">
+        <span style="font-size:12.5px;font-weight:500;">${escapeHtml(key)}</span>
+      </div>
+      <div style="font-size:12px;text-align:end;white-space:nowrap;">
+        <span style="color:var(--text);">${d.grams.toFixed(0)}g ${escapeHtml(t('inv.needed') || 'needed')}</span>
+        <span style="color:${color};margin-inline-start:8px;font-size:11px;">${deficit >= 0 ? `${totalStock.toFixed(0)}g ${escapeHtml(t('inv.in_stock') || 'in stock')}` : `${Math.abs(deficit).toFixed(0)}g ${escapeHtml(t('inv.short') || 'short')}`}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px;border-left:3px solid var(--primary);">
+      <h3 class="card-head" style="margin-bottom:8px;"><span class="swatch" style="background:var(--primary);"></span>
+        ${escapeHtml(t('inv.pipeline_title'))}
+        <span class="count" style="margin-inline-start:6px;">${activeOrders.length}</span>
+      </h3>
+      ${rows}
+    </div>`;
+}
+
 function renderInventory() {
+  renderSupplierReorderList();
+  renderPipelineDemand();
   // Inventory valuation summary
   const valEl = $('#invValuationSummary');
   if (valEl) {
@@ -3857,6 +4151,7 @@ function renderInventory() {
     }).join('');
   }
   populateFilamentDropdown();
+  updateNotifBadge();
 }
 
 function openStockAdjustModal(itemId) {
@@ -4383,6 +4678,75 @@ function deleteConsumable(id) {
    Supplier / Vendor database
    ============================================================ */
 const SUPPLIER_CATEGORIES = ['filament', 'hardware', 'tools', 'packaging', 'services', 'other'];
+
+function renderSupplierReorderList() {
+  const el = $('#supplierReorderList');
+  if (!el) return;
+
+  const lowItems = inventory.filter(i =>
+    i.weight <= (i.reorderPoint ?? settings.lowStockThreshold ?? 200)
+  );
+
+  if (lowItems.length === 0) {
+    el.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(34,197,94,0.08);border-radius:var(--radius);border:1px solid rgba(34,197,94,0.2);margin-bottom:12px;font-size:13px;color:var(--success);">
+      ✅ ${escapeHtml(t('inv.stock_ok') || 'All materials are above reorder levels')}
+    </div>`;
+    return;
+  }
+
+  const bySupplier = {};
+  for (const item of lowItems) {
+    const key = item.supplierId || '__unknown__';
+    if (!bySupplier[key]) bySupplier[key] = [];
+    bySupplier[key].push(item);
+  }
+
+  const groupHtml = Object.entries(bySupplier).map(([supId, items]) => {
+    const sup = supId !== '__unknown__' ? suppliers.find(s => s.id === supId) : null;
+    const supName = sup ? escapeHtml(sup.name) : escapeHtml(t('sup.unknown') || 'Unknown supplier');
+    const phoneBtn = sup?.phone
+      ? `<a href="https://wa.me/${encodeURIComponent(sup.phone.replace(/\D/g, ''))}" target="_blank" class="btn small ghost" style="font-size:11px;">📲 ${escapeHtml(sup.phone)}</a>`
+      : '';
+    const webBtn = sup?.website
+      ? `<a href="${escapeHtml(sup.website)}" target="_blank" class="btn small ghost" style="font-size:11px;">🌐 ${escapeHtml(t('sup.website') || 'Website')}</a>`
+      : '';
+    const itemRows = items.map(item => {
+      const needed = Math.max(0, (item.reorderPoint ?? settings.lowStockThreshold ?? 200) * 2 - item.weight);
+      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;background:var(--bg-elev);border-radius:var(--radius-sm);margin-bottom:4px;">
+        <span style="width:10px;height:10px;border-radius:50%;background:${escapeHtml(item.color || '#888')};display:inline-block;flex-shrink:0;"></span>
+        <span style="flex:1;font-size:12.5px;">${escapeHtml(item.material)}${item.brand ? ` — ${escapeHtml(item.brand)}` : ''}</span>
+        <span style="font-size:11.5px;color:var(--danger);white-space:nowrap;">${Math.round(item.weight)}g left</span>
+        <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;">need ~${Math.round(needed)}g</span>
+        <button class="btn small primary" data-act="reorder-item" data-id="${item.id}" style="font-size:11px;padding:2px 8px;">${escapeHtml(t('inv.reorder') || 'Order')}</button>
+      </div>`;
+    }).join('');
+
+    return `<div style="margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <span style="font-size:12px;font-weight:700;color:var(--text);">🏭 ${supName}</span>
+        ${sup?.leadDays ? `<span style="font-size:11px;color:var(--text-muted);">${sup.leadDays}d lead time</span>` : ''}
+        ${phoneBtn}${webBtn}
+      </div>
+      ${itemRows}
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="card" style="border-left:3px solid var(--warning);">
+      <h3 class="card-head" style="margin-bottom:10px;color:var(--warning);">
+        <span class="swatch" style="background:var(--warning);"></span>
+        ⚠ ${escapeHtml(t('inv.reorder_list') || 'Reorder List')} <span style="background:var(--warning);color:#000;font-size:11px;padding:1px 6px;border-radius:10px;margin-inline-start:6px;">${lowItems.length}</span>
+      </h3>
+      ${groupHtml}
+    </div>`;
+
+  el.querySelectorAll('[data-act="reorder-item"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const item = inventory.find(i => i.id === btn.dataset.id);
+      if (item) openReorderModal(item.id);
+    });
+  });
+}
 
 function renderSuppliers() {
   const tbody = $('#suppliersTable tbody');
@@ -5060,13 +5424,24 @@ function renderClients() {
     // Feature 8 (new 8-pack): Loyalty tier badge
     const tier = getClientTier(c.id);
     const tierHtml = tier ? `<span class="loyalty-tier-badge tier-${tier.name.toLowerCase().replace(/\s+/g,'')}">${escapeHtml(tier.name)}</span>` : '';
+    // Survey rating from completed orders
+    const clientOrdersWithSurvey = printLog.filter(o => o.clientId === c.id && o.survey?.rating);
+    const avgRating = clientOrdersWithSurvey.length > 0
+      ? clientOrdersWithSurvey.reduce((s, o) => s + o.survey.rating, 0) / clientOrdersWithSurvey.length
+      : null;
+    const ratingBadge = avgRating !== null
+      ? `<span style="font-size:10px;color:#f59e0b;margin-inline-start:5px;white-space:nowrap;" title="${clientOrdersWithSurvey.length} ${escapeHtml(t('an.survey_responses') || 'survey response(s)')}">⭐ ${avgRating.toFixed(1)}</span>`
+      : '';
+    const sourceBadge = c.source && c.source !== 'other'
+      ? `<span class="source-badge source-${escapeHtml(c.source)}">${escapeHtml(t('cl.source_' + c.source))}</span>`
+      : '';
     return `
       <tr>
         <td>
           <div style="display:flex; align-items:center; gap:10px;">
             <span class="avatar">${escapeHtml(initials(displayName))}</span>
             <div>
-              <strong>${escapeHtml(displayName || '—')}</strong>
+              <strong>${escapeHtml(displayName || '—')}</strong>${ratingBadge}${sourceBadge}
               ${c.recurring?.enabled ? `<span class="rec-badge">${escapeHtml(t('rec.badge.' + (c.recurring.interval || 'monthly')))}</span>` : ''}
               ${c.currency && c.currency !== (settings.currency || 'SAR') ? `<span class="currency-badge">${escapeHtml(c.currency)}</span>` : ''}
               ${(c.addresses && c.addresses.length > 0) ? `<span style="font-size:10px; color:var(--primary); margin-inline-start:4px;">📍 ${c.addresses.length}</span>` : ''}
@@ -5085,6 +5460,7 @@ function renderClients() {
           <button class="btn small" data-act="cl-history" data-id="${c.id}">${escapeHtml(t('cl.history'))}</button>
           <button class="btn small success" data-act="cl-quote" data-id="${c.id}">${escapeHtml(t('cl.quote'))}</button>
           <button class="btn small" data-act="cl-intake-form" data-id="${c.id}" title="${escapeHtml(t('cl.intake_form'))}">📋</button>
+          <button class="btn small" data-act="cl-note" data-id="${c.id}" title="${escapeHtml(t('cl.add_note'))}">💬</button>
           <button class="btn small" data-act="cl-edit" data-id="${c.id}">${escapeHtml(t('common.edit'))}</button>
           <button class="btn danger small" data-act="cl-del" data-id="${c.id}">${escapeHtml(t('common.delete'))}</button>
         </td>
@@ -5328,7 +5704,7 @@ function generateClientStatement(clientId) {
     <div class="inv" style="--brand:#1a1a2e; --accent:#4a90e2; --highlight:#eef3fc;">
       <div class="inv-header">
         <div class="biz">
-          <div class="mark">${settings.bizLogo ? `<img src="${settings.bizLogo}" style="max-height:60px; max-width:120px; object-fit:contain;" alt="logo">` : BRAND_MARK_SVG}</div>
+          <div class="mark">${safeBizLogo() ? `<img src="${safeBizLogo()}" style="max-height:60px; max-width:120px; object-fit:contain;" alt="logo">` : BRAND_MARK_SVG}</div>
           <div class="biz-name"><h1>${escapeHtml(bizPrimary)}</h1></div>
         </div>
         <div class="doc">
@@ -5490,6 +5866,13 @@ function openClientEditor(clientId = null) {
     </div>
     <label>${escapeHtml(t('ce.notes'))}</label>
     <input type="text" data-f="notes" placeholder="${escapeHtml(t('ce.notes_ph'))}" value="${escapeHtml(draft.notes || '')}">
+
+    <label style="margin-top:10px;">${escapeHtml(t('cl.source'))}</label>
+    <select data-f="source">
+      ${['instagram','referral','walk_in','website','exhibition','other'].map(s =>
+        `<option value="${s}" ${(draft.source || 'other') === s ? 'selected' : ''}>${escapeHtml(t('cl.source_' + s))}</option>`
+      ).join('')}
+    </select>
 
     <div style="margin-top:14px; display:flex; align-items:center; gap:12px;">
       <div style="flex:1;">
@@ -5747,6 +6130,7 @@ function openClientEditor(clientId = null) {
       };
       draft.currency = modal.querySelector('#ceCurrency')?.value || null;
       draft.creditLimit = Math.max(0, num(modal.querySelector('#ceCreditLimit')?.value, 0)) || 0;
+      draft.source = modal.querySelector('[data-f="source"]')?.value || 'other';
       draft.priceList = (draft.priceList || []).filter(pl => pl.product.trim() || pl.price > 0);
       draft.addresses = (draft.addresses || []).filter(a => a.label.trim() || a.address.trim());
       const idx = clients.findIndex(c => c.id === draft.id);
@@ -6105,6 +6489,9 @@ function updateStatus(id, newStatus) {
       order.status = 'completed';
       if (!order.completedAt) order.completedAt = new Date().toISOString();
       deductFilamentForOrder(order);
+      if (!order.costBasis) {
+        order.costBasis = (order.parts || []).reduce((s, p) => s + (+p.baseCost || 0), 0);
+      }
       deductPackagingConsumables(order);
       saveAll();
       // Check if client reached a new tier
@@ -6144,6 +6531,8 @@ function updateStatus(id, newStatus) {
     if (!order.printingStartedAt) order.printingStartedAt = new Date().toISOString();
   } else if (order.timerStart) {
     delete order.timerStart;
+    delete order.timerPausedAt;
+    delete order.timerPausedMs;
   }
   // Auto-extend due date and clear hold state when resuming from on_hold
   if (prevStatus === 'on_hold' && newStatus !== 'on_hold') {
@@ -6253,13 +6642,15 @@ function qcFailOrder(orderId) {
     bodyHtml: `
       <label>${escapeHtml(t('waste.failure_type') || 'Failure type')}</label>
       <select id="qcFailType" style="margin-bottom:10px;">
-        <option value="warping">${escapeHtml(t('waste.ft.warping') || 'Warping')}</option>
-        <option value="adhesion">${escapeHtml(t('waste.ft.adhesion') || 'Bed adhesion')}</option>
-        <option value="stringing">${escapeHtml(t('waste.ft.stringing') || 'Stringing')}</option>
-        <option value="layer_shift">${escapeHtml(t('waste.ft.layer_shift') || 'Layer shift')}</option>
-        <option value="under_extrusion">${escapeHtml(t('waste.ft.under_extrusion') || 'Under-extrusion')}</option>
-        <option value="support_fail">${escapeHtml(t('waste.ft.support_fail') || 'Support failure')}</option>
-        <option value="other" selected>${escapeHtml(t('waste.ft.other') || 'Other')}</option>
+        <option value="bed_adhesion">${escapeHtml(t('waste.ft.bed_adhesion'))}</option>
+        <option value="nozzle_jam">${escapeHtml(t('waste.ft.nozzle_jam'))}</option>
+        <option value="warping">${escapeHtml(t('waste.ft.warping'))}</option>
+        <option value="stringing">${escapeHtml(t('waste.ft.stringing'))}</option>
+        <option value="operator_error">${escapeHtml(t('waste.ft.operator_error'))}</option>
+        <option value="design_issue">${escapeHtml(t('waste.ft.design_issue'))}</option>
+        <option value="power_failure">${escapeHtml(t('waste.ft.power_failure'))}</option>
+        <option value="material_quality">${escapeHtml(t('waste.ft.material_quality'))}</option>
+        <option value="other" selected>${escapeHtml(t('waste.ft.other'))}</option>
       </select>
       <label>${escapeHtml(t('waste.reason'))}</label>
       <input type="text" id="qcFailReason" placeholder="${escapeHtml(t('waste.reason_ph'))}" style="width:100%;">
@@ -7185,6 +7576,204 @@ function openOrderEditor(orderId) {
   });
 }
 
+/* ── Batch Print Planner ────────────────────────────────── */
+function openBatchPlannerModal() {
+  const candidates = printLog.filter(o => o.status !== 'completed' && o.status !== 'quote' && !o.voidedAt);
+  if (candidates.length === 0) {
+    toast(t('batch.no_orders') || 'No pending orders to plan', 'info');
+    return;
+  }
+
+  const rowsHtml = candidates.map(o => {
+    const totalWeight = (o.parts || []).reduce((s, p) => s + (+p.printWeight || 0) * (+p.qty || 1), 0);
+    const machine = o.machineId ? (machines || []).find(m => m.id === o.machineId) : null;
+    const matNames = [...new Set((o.parts || []).map(p => p.material).filter(Boolean))].join(', ');
+    return `<label style="display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border-radius:var(--radius-sm);cursor:pointer;border:1px solid transparent;transition:background .1s;" class="batch-row">
+      <input type="checkbox" class="batch-cb" data-id="${o.id}" data-time="${+o.printTime || 0}" data-weight="${totalWeight.toFixed(1)}" data-mat="${escapeHtml(matNames)}" style="margin-top:2px;width:auto;flex-shrink:0;">
+      <div style="flex:1;">
+        <div style="font-weight:600;font-size:13px;">${escapeHtml(o.project || o.id)}</div>
+        <div style="font-size:11.5px;color:var(--text-muted);">${escapeHtml(o.id)} · ${o.printTime}h · ${Math.round(totalWeight)}g${matNames ? ' · ' + escapeHtml(matNames) : ''}${machine ? ' · <span style="color:' + escapeHtml(machine.color) + ';">' + escapeHtml(machine.name) + '</span>' : ''}</div>
+      </div>
+      <span style="font-weight:600;color:var(--success);white-space:nowrap;">${fmtPrice(o.price)}</span>
+    </label>`;
+  }).join('');
+
+  const bodyHtml = `
+    <div style="margin-bottom:10px;display:flex;align-items:center;gap:10px;">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+        <input type="checkbox" id="batchSelectAll" style="width:auto;">
+        <span>${escapeHtml(t('batch.select_all') || 'Select all')}</span>
+      </label>
+    </div>
+    <div style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius);padding:4px 0;margin-bottom:14px;">
+      ${rowsHtml}
+    </div>
+    <div id="batchSummary" style="background:var(--bg-elev);border-radius:var(--radius);padding:12px 16px;font-size:13px;min-height:64px;">
+      <span style="color:var(--text-muted);">${escapeHtml(t('batch.select_hint') || 'Select orders to see totals')}</span>
+    </div>`;
+
+  openFormModal({
+    title: t('batch.title') || 'Batch Print Planner',
+    saveLabel: t('common.close') || 'Close',
+    sizeLg: true,
+    bodyHtml,
+    onSave() { return true; }
+  });
+
+  requestAnimationFrame(() => {
+    const allCbs = document.querySelectorAll('.batch-cb');
+    const selectAll = document.getElementById('batchSelectAll');
+    const summary = document.getElementById('batchSummary');
+
+    function updateSummary() {
+      const checked = [...document.querySelectorAll('.batch-cb:checked')];
+      if (checked.length === 0) {
+        summary.innerHTML = `<span style="color:var(--text-muted);">${escapeHtml(t('batch.select_hint') || 'Select orders to see totals')}</span>`;
+        return;
+      }
+      const totalTime = checked.reduce((s, cb) => s + +cb.dataset.time, 0);
+      const totalWeight = checked.reduce((s, cb) => s + +cb.dataset.weight, 0);
+      const totalRev = checked.reduce((s, cb) => {
+        const o = printLog.find(x => x.id === cb.dataset.id);
+        return s + (+o?.price || 0);
+      }, 0);
+      const matMap = {};
+      checked.forEach(cb => {
+        if (cb.dataset.mat) cb.dataset.mat.split(',').forEach(m => {
+          const name = m.trim();
+          if (name) matMap[name] = (matMap[name] || 0) + 1;
+        });
+      });
+      const matHtml = Object.entries(matMap).map(([name, cnt]) => `<span style="background:var(--bg-card);padding:2px 8px;border-radius:10px;font-size:11px;">${escapeHtml(name)} ×${cnt}</span>`).join(' ');
+      summary.innerHTML = `
+        <div style="display:flex;flex-wrap:wrap;gap:20px;margin-bottom:8px;">
+          <div><div style="font-size:18px;font-weight:700;">${checked.length}</div><div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('batch.orders') || 'Orders')}</div></div>
+          <div><div style="font-size:18px;font-weight:700;">${totalTime.toFixed(1)}h</div><div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('batch.print_time') || 'Print time')}</div></div>
+          <div><div style="font-size:18px;font-weight:700;">${Math.round(totalWeight)}g</div><div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('batch.total_weight') || 'Total weight')}</div></div>
+          <div><div style="font-size:18px;font-weight:700;color:var(--success);">${fmtMoney(totalRev)}</div><div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('batch.revenue') || 'Revenue')}</div></div>
+        </div>
+        ${matHtml ? `<div style="display:flex;flex-wrap:wrap;gap:4px;">${matHtml}</div>` : ''}`;
+    }
+
+    allCbs.forEach(cb => cb.addEventListener('change', updateSummary));
+    selectAll?.addEventListener('change', () => {
+      allCbs.forEach(cb => { cb.checked = selectAll.checked; });
+      updateSummary();
+    });
+
+    document.querySelectorAll('.batch-row').forEach(row => {
+      row.addEventListener('mouseenter', () => row.style.background = 'var(--bg-elev)');
+      row.addEventListener('mouseleave', () => row.style.background = '');
+    });
+  });
+}
+
+/* ── Order Status Timeline ──────────────────────────────── */
+function openOrderTimeline(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+
+  const hist = order.statusHistory || [];
+  if (hist.length === 0) {
+    alert(t('ord.timeline_empty'));
+    return;
+  }
+
+  const statusColors = {
+    quote:     '#6366f1',
+    pending:   '#6b7280',
+    on_hold:   '#ef4444',
+    printing:  '#22c55e',
+    post:      '#f59e0b',
+    qc:        '#3b82f6',
+    completed: '#10b981',
+  };
+
+  const now = Date.now();
+  const steps = hist.map((entry, i) => {
+    const startMs = new Date(entry.at).getTime();
+    const endMs   = i + 1 < hist.length ? new Date(hist[i + 1].at).getTime() : now;
+    const durMs   = endMs - startMs;
+    const durH    = durMs / 3600000;
+
+    let durStr = '';
+    if (durH < 1) {
+      const mins = Math.round(durMs / 60000);
+      durStr = `${mins}m`;
+    } else if (durH < 24) {
+      durStr = `${durH.toFixed(1)}h`;
+    } else {
+      const days = Math.floor(durH / 24);
+      const remH = Math.round(durH % 24);
+      durStr = remH > 0 ? `${days}d ${remH}h` : `${days}d`;
+    }
+
+    const isLast = i === hist.length - 1;
+    const color = statusColors[entry.status] || '#6b7280';
+    const localAt = new Date(entry.at).toLocaleString();
+    const statusLabel = t('queue.' + entry.status) || entry.status;
+
+    return { entry, startMs, durStr, color, isLast, localAt, statusLabel };
+  });
+
+  const totalMs  = new Date(hist[hist.length - 1].at).getTime() - new Date(hist[0].at).getTime();
+  const totalH   = totalMs / 3600000;
+  let totalStr   = '';
+  if (totalH < 1)       totalStr = `${Math.round(totalMs / 60000)}m`;
+  else if (totalH < 24) totalStr = `${totalH.toFixed(1)}h`;
+  else { const d = Math.floor(totalH / 24); const h = Math.round(totalH % 24); totalStr = h > 0 ? `${d}d ${h}h` : `${d}d`; }
+
+  const stepsHtml = steps.map((s, i) => `
+    <div class="timeline-step${s.isLast ? ' timeline-last' : ''}">
+      <div class="timeline-node" style="background:${s.color};box-shadow:0 0 0 3px ${s.color}33;"></div>
+      ${i < steps.length - 1 ? '<div class="timeline-line"></div>' : ''}
+      <div class="timeline-content">
+        <span class="timeline-status" style="color:${s.color};">${escapeHtml(s.statusLabel)}</span>
+        <span class="timeline-time">${escapeHtml(s.localAt)}</span>
+        ${!s.isLast ? `<span class="timeline-dur">⏱ ${escapeHtml(s.durStr)}</span>` : '<span class="timeline-dur" style="color:var(--text-muted);font-style:italic;">(current)</span>'}
+      </div>
+    </div>`).join('');
+
+  const client = order.clientId ? clients.find(c => c.id === order.clientId) : null;
+  const clientName = client ? (client.nameEn || client.nameAr || '') : (order.client || '');
+
+  const existing = document.querySelector('#timelineModal');
+  if (existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-backdrop';
+  overlay.id = 'timelineModal';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);';
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:480px;width:100%;">
+      <div class="modal-header">
+        <h3 id="modalTitle" style="margin:0;font-size:15px;">🕐 ${escapeHtml(t('ord.timeline_title'))} — ${escapeHtml(order.project || order.id)}</h3>
+        <button class="btn ghost small" data-act="cancel" aria-label="Close">×</button>
+      </div>
+      <div class="modal-body" style="max-height:70vh;overflow-y:auto;">
+        <div style="margin-bottom:12px;font-size:12.5px;color:var(--text-muted);">
+          ${clientName ? `👤 ${escapeHtml(clientName)} · ` : ''}
+          ${escapeHtml(order.id)} · ${escapeHtml(t('ord.timeline_total'))}: <strong>${escapeHtml(totalStr)}</strong>
+        </div>
+        <div class="timeline-wrap">${stepsHtml}</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn ghost" data-act="cancel">${escapeHtml(t('common.close') || 'Close')}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  const closeTimeline = () => {
+    document.removeEventListener('keydown', tlEscHandler);
+    const idx = _escHandlerStack.indexOf(tlEscHandler);
+    if (idx !== -1) _escHandlerStack.splice(idx, 1);
+    overlay.remove();
+  };
+  const tlEscHandler = (e) => { if (e.key === 'Escape') closeTimeline(); };
+  _escHandlerStack.push(tlEscHandler);
+  document.addEventListener('keydown', tlEscHandler);
+  overlay.querySelectorAll('[data-act="cancel"]').forEach(b => b.addEventListener('click', closeTimeline));
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeTimeline(); });
+}
+
 /* ============================================================
    Duplicate an order — clone into the build cart
    ============================================================ */
@@ -7235,6 +7824,248 @@ function reprintOrder(orderId) {
 }
 
 /* ============================================================
+   Order Print Label
+   ============================================================ */
+async function generateOrderLabel(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+
+  const client = order.clientId ? clients.find(c => c.id === order.clientId) : null;
+  const clientName = client ? localName(client) : (order.client || '');
+  const machine = order.machineId ? machines.find(m => m.id === order.machineId) : null;
+  const shopName = settings.bizEn || settings.bizAr || 'Khayt';
+  const accentColor = safeCssColor(settings.invAccentColor, '#5E2E14');
+
+  // QR code — encode the order ID
+  let qrSvg = '';
+  if (window.hubAPI?.generateQR) {
+    try { qrSvg = await window.hubAPI.generateQR(order.id, { width: 80, margin: 0 }); }
+    catch(e) { /* graceful fallback — no QR */ }
+  }
+
+  const totalParts = (order.parts || []).length;
+  const totalWeight = (order.parts || []).reduce((s, p) => s + (+p.printWeight || 0), 0);
+  const weightStr = totalWeight > 0 ? `${Math.round(totalWeight)}g` : '';
+  const materialStr = order.material || (order.parts?.[0]?.material) || '';
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Label — ${escapeHtml(order.id)}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: -apple-system, 'Segoe UI', sans-serif; background:#fff; color:#111; }
+  .label {
+    width: 85mm; min-height: 54mm;
+    border: 1px solid #ccc; border-radius: 3mm;
+    padding: 4mm 5mm; display: flex; flex-direction: column; gap: 2mm;
+    page-break-after: always;
+  }
+  .label-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    border-bottom: 0.5mm solid ${accentColor}; padding-bottom: 2mm; margin-bottom: 1mm;
+  }
+  .shop { font-size: 7pt; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: .4pt; }
+  .order-id { font-size: 11pt; font-weight: 800; color: ${accentColor}; font-family: monospace; }
+  .qr { width: 20mm; height: 20mm; flex-shrink: 0; }
+  .qr svg { width: 100%; height: 100%; }
+  .body { flex: 1; display: flex; gap: 3mm; }
+  .info { flex: 1; display: flex; flex-direction: column; gap: 1.5mm; }
+  .project { font-size: 9.5pt; font-weight: 700; line-height: 1.2; }
+  .client  { font-size: 8pt; color: #555; }
+  .meta    { font-size: 7.5pt; color: #666; display: flex; flex-wrap: wrap; gap: 2mm; margin-top: 1mm; }
+  .meta span { background: #f3f4f6; border-radius: 2mm; padding: 0.5mm 1.5mm; }
+  .footer { font-size: 6.5pt; color: #aaa; text-align: center; border-top: 0.3mm solid #eee; padding-top: 1.5mm; margin-top: 1mm; }
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .label { border: 0.5mm solid #ccc; }
+  }
+</style>
+</head>
+<body>
+<div class="label">
+  <div class="label-header">
+    <div>
+      <div class="shop">${escapeHtml(shopName)}</div>
+      <div class="order-id">${escapeHtml(order.id)}</div>
+    </div>
+    ${qrSvg ? `<div class="qr">${qrSvg}</div>` : ''}
+  </div>
+  <div class="body">
+    <div class="info">
+      <div class="project">${escapeHtml(order.project || '—')}</div>
+      ${clientName ? `<div class="client">👤 ${escapeHtml(clientName)}</div>` : ''}
+      <div class="meta">
+        ${materialStr ? `<span>🧵 ${escapeHtml(materialStr)}</span>` : ''}
+        ${weightStr   ? `<span>⚖ ${escapeHtml(weightStr)}</span>` : ''}
+        ${totalParts > 1 ? `<span>🔧 ${totalParts} parts</span>` : ''}
+        ${machine     ? `<span>🖨 ${escapeHtml(machine.name)}</span>` : ''}
+        ${order.dueDate ? `<span>📅 ${escapeHtml(order.dueDate)}</span>` : ''}
+        ${order.priority && order.priority !== 'normal' ? `<span style="background:#fee2e2;color:#dc2626;">⚡ ${escapeHtml(order.priority)}</span>` : ''}
+      </div>
+    </div>
+  </div>
+  ${order.internalNotes ? `<div style="font-size:7pt;color:#444;border-top:0.3mm solid #eee;padding-top:1.5mm;">📝 ${escapeHtml(order.internalNotes.slice(0, 120))}</div>` : ''}
+  <div class="footer">${escapeHtml(new Date().toLocaleDateString())} · Khayt</div>
+</div>
+<script>window.onload = () => { setTimeout(() => window.print(), 250); };<\/script>
+</body></html>`;
+
+  // Open in new window for printing
+  const win = window.open('', '_blank', 'width=400,height=320,toolbar=0,menubar=0,scrollbars=0');
+  if (win) {
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+  } else {
+    // Fallback: save to disk and open
+    if (window.hubAPI?.saveHtml) {
+      const saved = await window.hubAPI.saveHtml(html, `label-${order.id}.html`);
+      if (saved?.path) window.hubAPI?.openPath?.(saved.path);
+    }
+    toast('🏷 ' + (t('ord.label_generated') || 'Label generated'), 'success');
+  }
+}
+
+/* ============================================================
+   Packing Slip
+   ============================================================ */
+async function generatePackingSlip(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+  const client = order.clientId ? clients.find(c => c.id === order.clientId) : null;
+  const clientName = client ? localName(client) : (order.client || '');
+  const clientPhone = client?.phone || '';
+  const deliveryAddr = order.deliveryAddress
+    || (client?.addresses?.[0]?.address || '');
+  const shopName = settings.bizEn || settings.bizAr || 'Khayt';
+  const shopPhone = settings.phone || '';
+  const shopEmail = settings.email || '';
+  const accentColor = safeCssColor(settings.invAccentColor, '#5E2E14');
+  const dateStr = order.completedAt
+    ? new Date(order.completedAt).toLocaleDateString()
+    : order.date || localDateStr();
+
+  const parts = order.parts || [];
+  const rowsHtml = parts.map(p => {
+    const qty = p.qty || 1;
+    const wt = Math.round((+p.printWeight || 0) * qty);
+    return `<tr>
+      <td>${escapeHtml(p.name || order.project || '—')}</td>
+      <td>${escapeHtml(p.material || order.material || '—')}</td>
+      <td>${escapeHtml(p.color || p.colour || '—')}</td>
+      <td style="text-align:center;">${qty}</td>
+      <td style="text-align:right;">${wt > 0 ? wt + 'g' : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  const totalWeight = parts.reduce((s, p) => s + (+p.printWeight || 0) * (p.qty || 1), 0);
+  const totalQty = parts.reduce((s, p) => s + (p.qty || 1), 0);
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Packing Slip — ${escapeHtml(order.id)}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,'Segoe UI',sans-serif; font-size:11pt; color:#111; background:#fff; padding:20mm; }
+  .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10mm; border-bottom:2px solid ${accentColor}; padding-bottom:6mm; }
+  .shop-name { font-size:18pt; font-weight:800; color:${accentColor}; }
+  .shop-sub { font-size:9pt; color:#666; margin-top:2mm; }
+  .slip-title { font-size:22pt; font-weight:700; color:${accentColor}; text-align:right; text-transform:uppercase; letter-spacing:1pt; }
+  .slip-meta { font-size:9.5pt; color:#444; text-align:right; margin-top:2mm; line-height:1.7; }
+  .section { margin-bottom:8mm; }
+  .section-label { font-size:8pt; text-transform:uppercase; letter-spacing:.5pt; color:#888; margin-bottom:1.5mm; font-weight:700; }
+  .bill-to { font-size:11pt; line-height:1.6; }
+  table { width:100%; border-collapse:collapse; margin-bottom:6mm; }
+  thead tr { background:${accentColor}; color:#fff; }
+  thead th { padding:3mm 4mm; text-align:left; font-size:9pt; font-weight:700; letter-spacing:.3pt; }
+  thead th:last-child, thead th:nth-child(4) { text-align:right; }
+  tbody tr:nth-child(even) { background:#f9fafb; }
+  td { padding:2.5mm 4mm; font-size:10pt; border-bottom:0.3mm solid #e5e7eb; }
+  td:last-child, td:nth-child(4) { text-align:right; }
+  tfoot td { padding:3mm 4mm; font-size:10.5pt; font-weight:700; border-top:1.5px solid #111; }
+  .notes { background:#fffbeb; border-left:3mm solid #fbbf24; padding:3mm 4mm; font-size:10pt; border-radius:1mm; margin-bottom:8mm; }
+  .footer { text-align:center; font-size:9pt; color:#888; border-top:0.5mm solid #e5e7eb; padding-top:4mm; margin-top:4mm; }
+  @media print { body { padding:15mm; } }
+</style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="shop-name">${escapeHtml(shopName)}</div>
+      <div class="shop-sub">${shopPhone ? escapeHtml(shopPhone) : ''}${shopPhone && shopEmail ? ' · ' : ''}${shopEmail ? escapeHtml(shopEmail) : ''}</div>
+    </div>
+    <div>
+      <div class="slip-title">Packing Slip</div>
+      <div class="slip-meta">
+        <strong>${escapeHtml(t('common.date') || 'Date')}:</strong> ${escapeHtml(dateStr)}<br>
+        <strong>${escapeHtml(t('log.order_id') || 'Order') || 'Order'}:</strong> ${escapeHtml(order.id)}
+        ${order.invoiceNum ? `<br><strong>${escapeHtml(t('ord.invoice_num') || 'Invoice')}:</strong> ${escapeHtml(String(order.invoiceNum))}` : ''}
+      </div>
+    </div>
+  </div>
+
+  ${(clientName || deliveryAddr || clientPhone) ? `
+  <div class="section">
+    <div class="section-label">${escapeHtml(t('ps.ship_to') || 'Ship / Bill To')}</div>
+    <div class="bill-to">
+      ${clientName ? `<strong>${escapeHtml(clientName)}</strong><br>` : ''}
+      ${deliveryAddr ? escapeHtml(deliveryAddr).replace(/\\n/g, '<br>') + '<br>' : ''}
+      ${clientPhone ? escapeHtml(clientPhone) : ''}
+    </div>
+  </div>` : ''}
+
+  <table>
+    <thead>
+      <tr>
+        <th>${escapeHtml(t('ps.item') || 'Item')}</th>
+        <th>${escapeHtml(t('ps.material') || 'Material')}</th>
+        <th>${escapeHtml(t('ps.color') || 'Color')}</th>
+        <th style="text-align:right;">${escapeHtml(t('ps.qty') || 'Qty')}</th>
+        <th style="text-align:right;">${escapeHtml(t('ps.weight') || 'Weight')}</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rowsHtml || `<tr><td colspan="5" style="color:#888;text-align:center;">${escapeHtml(order.project || order.id)}</td></tr>`}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="3" style="text-align:right;font-weight:600;">${escapeHtml(t('ps.total') || 'Total')}</td>
+        <td style="text-align:right;">${totalQty}</td>
+        <td style="text-align:right;">${totalWeight > 0 ? Math.round(totalWeight) + 'g' : '—'}</td>
+      </tr>
+    </tfoot>
+  </table>
+
+  ${order.notes ? `<div class="notes"><strong>${escapeHtml(t('common.notes') || 'Notes')}:</strong> ${escapeHtml(order.notes)}</div>` : ''}
+
+  <div class="footer">
+    ${escapeHtml(t('ps.thank_you') || 'Thank you for your business!')}
+    ${shopName ? ` · ${escapeHtml(shopName)}` : ''}
+  </div>
+</body>
+</html>`;
+
+  const win = window.open('', '_blank', 'width=900,height=700,toolbar=0,menubar=0,scrollbars=1');
+  if (win) {
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 250);
+  } else {
+    if (window.hubAPI?.saveHtml) {
+      const saved = await window.hubAPI.saveHtml(html, `packing-slip-${order.id}.html`);
+      if (saved?.path) window.hubAPI?.openPath?.(saved.path);
+    }
+    toast(t('ps.title') || 'Packing Slip', 'success');
+  }
+}
+
+/* ============================================================
    Feature 1: Partial delivery modal
    ============================================================ */
 function openPartialDeliveryModal(orderId) {
@@ -7278,6 +8109,115 @@ function openPartialDeliveryModal(orderId) {
       return true;
     }
   });
+}
+
+/* ── Waiting List (Job Intake) ──────────────────────────── */
+function renderWaitingList() {
+  const el = $('#waitingListSection');
+  if (!el) return;
+  if (waitingList.length === 0) {
+    el.innerHTML = `<p class="dash-empty">${escapeHtml(t('waiting.empty'))}</p>`;
+    return;
+  }
+  const priorityOrder = { urgent: 0, high: 1, normal: 2, low: 3 };
+  const sorted = [...waitingList].sort((a, b) =>
+    (priorityOrder[a.priority] ?? 2) - (priorityOrder[b.priority] ?? 2)
+  );
+  const priorityColors = { urgent: 'var(--danger)', high: '#f59e0b', normal: 'var(--text-muted)', low: 'var(--text-muted)' };
+  const priorityLabels = { urgent: '🔴', high: '🟠', normal: '🔵', low: '⚪' };
+
+  el.innerHTML = sorted.map(item => {
+    const client = item.clientId ? clients.find(c => c.id === item.clientId) : null;
+    const clientName = client ? (client.nameEn || client.nameAr || '') : '';
+    const dot = priorityLabels[item.priority] || '🔵';
+    const color = priorityColors[item.priority] || 'var(--text-muted)';
+    return `<div class="waiting-item" data-id="${item.id}">
+      <div class="waiting-item-left">
+        <span style="font-size:14px;">${dot}</span>
+        <div>
+          <div class="waiting-item-project">${escapeHtml(item.project || t('waiting.untitled'))}</div>
+          ${clientName ? `<div class="waiting-item-client">👤 ${escapeHtml(clientName)}</div>` : ''}
+          ${item.notes ? `<div class="waiting-item-notes">${escapeHtml(item.notes)}</div>` : ''}
+        </div>
+      </div>
+      <div class="waiting-item-actions">
+        <button class="btn small" data-act="waiting-promote" data-id="${item.id}" title="${escapeHtml(t('waiting.promote'))}">→ ${escapeHtml(t('waiting.promote'))}</button>
+        <button class="btn small ghost" data-act="waiting-edit" data-id="${item.id}">${escapeHtml(t('common.edit'))}</button>
+        <button class="btn small ghost danger" data-act="waiting-del" data-id="${item.id}">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openWaitingItemEditor(itemId = null) {
+  const existing = itemId ? waitingList.find(w => w.id === itemId) : null;
+  const draft = existing
+    ? { ...existing }
+    : { id: uid('WAIT'), project: '', clientId: '', notes: '', priority: 'normal', addedAt: new Date().toISOString() };
+
+  const clientOpts = clients
+    .map(c => `<option value="${c.id}" ${draft.clientId === c.id ? 'selected' : ''}>${escapeHtml(c.nameEn || c.nameAr || c.id)}</option>`)
+    .join('');
+
+  const priorityOpts = ['urgent','high','normal','low']
+    .map(p => `<option value="${p}" ${draft.priority === p ? 'selected' : ''}>${escapeHtml(t('waiting.priority_' + p))}</option>`)
+    .join('');
+
+  openFormModal({
+    title: existing ? t('waiting.edit') : t('waiting.add'),
+    bodyHtml:
+     `<label>${escapeHtml(t('waiting.project'))}</label>
+      <input type="text" data-f="project" placeholder="${escapeHtml(t('waiting.project_ph'))}" value="${escapeHtml(draft.project || '')}">
+      <label style="margin-top:10px;">${escapeHtml(t('waiting.client'))}</label>
+      <select data-f="clientId"><option value="">${escapeHtml(t('waiting.no_client'))}</option>${clientOpts}</select>
+      <label style="margin-top:10px;">${escapeHtml(t('waiting.priority_label'))}</label>
+      <select data-f="priority">${priorityOpts}</select>
+      <label style="margin-top:10px;">${escapeHtml(t('waiting.notes'))}</label>
+      <textarea data-f="notes" rows="3" placeholder="${escapeHtml(t('waiting.notes_ph'))}" style="resize:vertical;">${escapeHtml(draft.notes || '')}</textarea>`,
+    onSave() {
+      draft.project  = document.querySelector('[data-f="project"]')?.value.trim() || '';
+      draft.clientId = document.querySelector('[data-f="clientId"]')?.value || '';
+      draft.priority = document.querySelector('[data-f="priority"]')?.value || 'normal';
+      draft.notes    = document.querySelector('[data-f="notes"]')?.value.trim() || '';
+      if (!draft.project) { alert(t('waiting.project_required')); return false; }
+      if (!existing) {
+        waitingList.unshift(draft);
+      } else {
+        const idx = waitingList.findIndex(w => w.id === itemId);
+        if (idx !== -1) waitingList[idx] = draft;
+      }
+      saveAll();
+      renderWaitingList();
+      updateWaitingBadge();
+    }
+  });
+}
+
+function promoteWaitingItem(itemId) {
+  const item = waitingList.find(w => w.id === itemId);
+  if (!item) return;
+  // Remove from waiting list first
+  waitingList = waitingList.filter(w => w.id !== itemId);
+  saveAll();
+  renderWaitingList();
+  updateWaitingBadge();
+  // Switch to calculator tab and pre-fill
+  switchTab('calculator-tab');
+  setTimeout(() => {
+    const projInput = document.querySelector('[data-f="project"]') || document.querySelector('#partName');
+    if (projInput && item.project) projInput.value = item.project;
+    if (item.clientId) {
+      const clientSel = document.querySelector('#clientSelect') || document.querySelector('[data-f="clientId"]');
+      if (clientSel) clientSel.value = item.clientId;
+    }
+  }, 80);
+}
+
+function updateWaitingBadge() {
+  const badge = $('#waitingBadge');
+  if (!badge) return;
+  badge.textContent = waitingList.length;
+  badge.style.display = waitingList.length > 0 ? 'inline-flex' : 'none';
 }
 
 /* ============================================================
@@ -7355,6 +8295,196 @@ function renderScheduleView() {
       ${rowsHtml}
     </div>
   </div>`;
+}
+
+/* ============================================================
+   Calendar view — monthly grid by due date
+   ============================================================ */
+let calendarViewMonth = null; // null = current month
+
+function renderCalendarView() {
+  const el = $('#calendarView');
+  if (!el) return;
+
+  const now = new Date();
+  if (!calendarViewMonth) calendarViewMonth = { y: now.getFullYear(), m: now.getMonth() };
+  const { y, m } = calendarViewMonth;
+
+  const firstDay = new Date(y, m, 1);
+  const lastDay  = new Date(y, m + 1, 0);
+  const monthStr = firstDay.toLocaleDateString(i18n.current === 'ar' ? 'ar-SA' : 'en-US', { year: 'numeric', month: 'long' });
+
+  // Build a map: "YYYY-MM-DD" -> orders[]
+  const dayMap = {};
+  printLog.forEach(o => {
+    if (!o.dueDate || o.status === 'completed' || o.status === 'quote') return;
+    const d = (o.dueDate || '').slice(0, 10);
+    if (!dayMap[d]) dayMap[d] = [];
+    dayMap[d].push(o);
+  });
+
+  // Day-of-week headers (Sun–Sat for LTR; adapt for RTL)
+  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const headerHtml = dayNames.map(d => `<div class="cal-day-header">${d}</div>`).join('');
+
+  // Calendar cells: pad before first day
+  const startDow = firstDay.getDay(); // 0=Sun
+  let cells = '';
+  for (let i = 0; i < startDow; i++) cells += `<div class="cal-cell cal-empty"></div>`;
+
+  const todayStr = localDateStr(now);
+
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    const dateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const isToday = dateStr === todayStr;
+    const orders  = dayMap[dateStr] || [];
+
+    const chips = orders.slice(0, 3).map(o => {
+      const mc = machines.find(x => x.id === o.machineId);
+      const bg = mc?.color ? mc.color : (
+        o.status === 'printing' ? '#5b9cf0' :
+        o.status === 'post'     ? '#a78bfa' :
+        o.status === 'qc'       ? '#f59e0b' :
+                                  '#6b7793'
+      );
+      return `<div class="cal-chip" style="background:${escapeHtml(bg)};" title="${escapeHtml(o.project || o.id)}">${escapeHtml((o.project || o.id).slice(0, 18))}</div>`;
+    }).join('');
+
+    const overflow = orders.length > 3 ? `<div class="cal-chip-more">+${orders.length - 3}</div>` : '';
+
+    cells += `<div class="cal-cell${isToday ? ' cal-today' : ''}" data-date="${dateStr}">
+      <div class="cal-day-num">${d}</div>
+      ${chips}${overflow}
+    </div>`;
+  }
+
+  el.innerHTML = `<div class="card" style="padding:12px;">
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+      <button class="btn small ghost" id="calPrev">‹</button>
+      <h3 style="margin:0; flex:1; text-align:center; font-size:14px;">${escapeHtml(monthStr)}</h3>
+      <button class="btn small ghost" id="calNext">›</button>
+    </div>
+    <div class="cal-grid">
+      ${headerHtml}
+      ${cells}
+    </div>
+  </div>`;
+
+  el.querySelector('#calPrev')?.addEventListener('click', () => {
+    calendarViewMonth = { y: m === 0 ? y - 1 : y, m: m === 0 ? 11 : m - 1 };
+    renderCalendarView();
+  });
+  el.querySelector('#calNext')?.addEventListener('click', () => {
+    calendarViewMonth = { y: m === 11 ? y + 1 : y, m: m === 11 ? 0 : m + 1 };
+    renderCalendarView();
+  });
+
+  // Click a day cell to open a popup showing orders for that day
+  el.querySelectorAll('.cal-cell[data-date]').forEach(cell => {
+    cell.addEventListener('click', () => {
+      const date = cell.dataset.date;
+      const orders = dayMap[date] || [];
+      if (orders.length === 0) return;
+      const body = orders.map(o => {
+        const mc = machines.find(x => x.id === o.machineId);
+        return `<div style="padding:8px 0; border-bottom:1px solid var(--border-soft); font-size:13px;">
+          <strong>${escapeHtml(o.project || o.id)}</strong>
+          <span style="margin-inline-start:8px; font-size:11px; color:var(--text-muted);">${escapeHtml(o.status)}</span>
+          ${mc ? `<span style="margin-inline-start:6px; font-size:11px; color:var(--primary);">🖨 ${escapeHtml(mc.name)}</span>` : ''}
+        </div>`;
+      }).join('');
+      openFormModal({
+        title: `📆 ${escapeHtml(date)}`,
+        noSave: true,
+        bodyHtml: `<div>${body}</div>`
+      });
+    });
+  });
+}
+
+/* ── Kiosk view ─────────────────────────────────────────── */
+function renderKioskView() {
+  const el = $('#kioskView');
+  if (!el) return;
+
+  // Build a map: machineId → current active order
+  const activeMachines = machines.filter(m => !m.deleted);
+  const activeOrders = printLog.filter(o => o.status !== 'completed' && o.status !== 'quote');
+
+  const cards = activeMachines.map(m => {
+    const job = activeOrders.filter(o => o.machineId === m.id)
+      .sort((a, b) => {
+        const rankOf = s => ({ printing: 0, post: 1, qc: 2, pending: 3, on_hold: 4 })[s] ?? 5;
+        return rankOf(a.status) - rankOf(b.status);
+      })[0] || null;
+
+    const statusColors = {
+      printing: '#22c55e',
+      post:     '#f59e0b',
+      qc:       '#3b82f6',
+      pending:  '#6b7280',
+      on_hold:  '#ef4444',
+    };
+    const idleColor = '#374151';
+
+    const borderColor = job ? (statusColors[job.status] || '#6b7280') : idleColor;
+
+    let progressHtml = '';
+    if (job) {
+      const printHrs = +job.printTime || 0;
+      const startedAt = job.printingStartedAt ? new Date(job.printingStartedAt).getTime() : null;
+      let pct = 0;
+      let etaStr = '';
+      if (printHrs > 0 && startedAt) {
+        const elapsed = (Date.now() - startedAt) / 3600000;
+        pct = Math.min(100, Math.round((elapsed / printHrs) * 100));
+        const remaining = Math.max(0, printHrs - elapsed);
+        if (remaining > 0) {
+          const h = Math.floor(remaining);
+          const min = Math.round((remaining - h) * 60);
+          etaStr = h > 0 ? `${h}h ${min}m` : `${min}m`;
+        } else {
+          etaStr = t('kiosk.done') || 'Done';
+        }
+      } else if (printHrs > 0) {
+        etaStr = `~${printHrs}h total`;
+      }
+
+      const client = job.clientId ? clients.find(c => c.id === job.clientId) : null;
+      const clientName = client ? (client.nameEn || client.nameAr || '') : (job.client || '');
+
+      progressHtml = `
+        <div class="kiosk-job">
+          <div class="kiosk-job-name">${escapeHtml(job.project || t('inv.walk_in'))}</div>
+          ${clientName ? `<div class="kiosk-job-client">👤 ${escapeHtml(clientName)}</div>` : ''}
+          <div class="kiosk-job-status">
+            <span class="badge ${escapeHtml(job.status)}" style="font-size:13px;padding:3px 10px;">${escapeHtml(t('queue.' + job.status))}</span>
+          </div>
+          ${pct > 0 ? `
+          <div class="kiosk-progress-wrap">
+            <div class="kiosk-progress-bar" style="width:${pct}%;background:${borderColor};"></div>
+          </div>
+          <div class="kiosk-eta">${pct}% ${etaStr ? `· ETA ${escapeHtml(etaStr)}` : ''}</div>` : ''}
+          ${job.dueDate ? `<div class="kiosk-due">📅 ${escapeHtml(job.dueDate)}</div>` : ''}
+        </div>`;
+    } else {
+      progressHtml = `<div class="kiosk-idle">${escapeHtml(t('kiosk.idle') || 'Idle')}</div>`;
+    }
+
+    return `
+      <div class="kiosk-card" style="border-color:${borderColor};">
+        <div class="kiosk-machine-name">${escapeHtml(m.name || m.model || m.id)}</div>
+        ${m.model && m.name !== m.model ? `<div class="kiosk-machine-model">${escapeHtml(m.model)}</div>` : ''}
+        ${progressHtml}
+      </div>`;
+  });
+
+  if (cards.length === 0) {
+    el.innerHTML = `<p style="text-align:center;color:var(--text-muted);padding:32px;">${escapeHtml(t('kiosk.no_machines') || 'No machines configured.')}</p>`;
+    return;
+  }
+
+  el.innerHTML = `<div class="kiosk-grid">${cards.join('')}</div>`;
 }
 
 /* ============================================================
@@ -7894,7 +9024,7 @@ async function maybeAutoBackup() {
     const json  = JSON.stringify({
       version: 5, exportedAt: new Date().toISOString(),
       printLog, inventory, templates, products, clients, settings, expenses, machines,
-      waTemplates, wasteLog, operators, purchaseOrders, consumables, suppliers, locations
+      waTemplates, wasteLog, operators, purchaseOrders, consumables, suppliers, locations, waitingList
     });
     if (last !== today) {
       const p = await window.hubAPI.writeBackup(json);
@@ -8065,7 +9195,12 @@ function populateExpOrderDatalist() {
 }
 
 async function deleteExpense(id) {
-  const ok = await confirmModal(t('common.delete') + '?', { danger: true });
+  const expense = expenses.find(e => e.id === id);
+  const label = expense ? (expense.note || expCatLabel(expense.category) || expense.category) : '';
+  const msg = expense
+    ? `${t('common.delete')} "${escapeHtml(label)}" — ${fmtPrice(expense.amount)}?`
+    : t('common.delete') + '?';
+  const ok = await confirmModal(msg, { danger: true });
   if (!ok) return;
   expenses = expenses.filter(e => e.id !== id);
   saveAll();
@@ -8825,7 +9960,7 @@ async function exportQuoteApprovalPage(orderId) {
         <h2>✅ ${escapeHtml(t('ord.quote_approval_page'))}</h2>
         <p>${escapeHtml(t('ord.quote_how_to_approve'))}</p>
         ${contactEmail ? `<p style="margin-top:8px;">📧 <a href="mailto:${escapeHtml(contactEmail)}?subject=I approve quote ${escapeHtml(order.id)}">${escapeHtml(contactEmail)}</a></p>` : ''}
-        ${contactPhone ? `<p style="margin-top:4px;">📱 <a href="https://wa.me/${contactPhone.replace(/\D/g,'')}?text=I approve quote ${escapeHtml(order.id)}">${escapeHtml(contactPhone)} (WhatsApp)</a></p>` : ''}
+        ${contactPhone ? `<p style="margin-top:4px;">📱 <a href="https://wa.me/${contactPhone.replace(/\D/g,'')}?text=${encodeURIComponent('I approve quote ' + order.id)}">${escapeHtml(contactPhone)} (WhatsApp)</a></p>` : ''}
       </div>
     </div>
   </div>
@@ -9631,11 +10766,14 @@ function renderAgedReceivables() {
 /* ============================================================
    Round 12 — Feature 3: Post-Delivery NPS / Star Rating Survey
    ============================================================ */
-function generateSurveyPage(orderId) {
+async function generateSurveyPage(orderId) {
   const order = printLog.find(o => o.id === orderId);
   if (!order) return;
   const token = order.surveyToken || ('srv-' + Date.now().toString(36));
   if (!order.surveyToken) { order.surveyToken = token; saveAll(); }
+
+  const lanInfo = await window.hubAPI?.getLanUrl?.();
+  const surveyUrl = lanInfo?.ok ? lanInfo.url + '/api/survey' : null;
 
   const shopName = escapeHtml(settings.bizEn || settings.bizAr || 'Khayt');
   const html = `<!DOCTYPE html>
@@ -9668,7 +10806,9 @@ function generateSurveyPage(orderId) {
   <button onclick="submit()">Submit Feedback</button>
   <div class="thanks" id="thanks">🎉 Thank you for your feedback!</div>
 </div>
+<script id="survey-config" type="application/json">{"token":${JSON.stringify(token)},"orderId":${JSON.stringify(orderId)}}</script>
 <script>
+  const _cfg = JSON.parse(document.getElementById('survey-config').textContent);
   let rating = 0;
   document.querySelectorAll('.star').forEach(s => {
     s.addEventListener('click', () => {
@@ -9676,16 +10816,38 @@ function generateSurveyPage(orderId) {
       document.querySelectorAll('.star').forEach((st, i) => st.classList.toggle('sel', i < rating));
     });
   });
-  function submit() {
+  async function submit() {
     if (!rating) { document.getElementById('ratingErr').style.display='block'; return; }
     document.getElementById('ratingErr').style.display='none';
-    const data = { token: '${escapeHtml(token)}', orderId: '${escapeHtml(orderId)}', rating, comment: document.getElementById('comment').value };
-    // In a hosted scenario this would POST to a server. Here we encode in URL for local capture.
-    document.getElementById('thanks').style.display = 'block';
-    document.querySelector('button').style.display = 'none';
-    document.getElementById('stars').style.pointerEvents = 'none';
-    // Embed response in URL for local file approach
-    window.location.hash = 'submitted:' + encodeURIComponent(JSON.stringify(data));
+    const btn = document.querySelector('button');
+    btn.disabled = true; btn.textContent = 'Sending…';
+    const data = { token: _cfg.token, orderId: _cfg.orderId, rating, comment: document.getElementById('comment').value.trim() };
+    ${surveyUrl ? `
+    try {
+      const r = await fetch('${surveyUrl}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (r.ok) {
+        document.getElementById('thanks').style.display = 'block';
+        btn.style.display = 'none';
+        document.getElementById('stars').style.pointerEvents = 'none';
+      } else {
+        btn.disabled = false; btn.textContent = 'Submit Feedback';
+        document.getElementById('thanks').textContent = '⚠ Submission failed. Please try again.';
+        document.getElementById('thanks').style.cssText = 'display:block;color:#f87171;';
+      }
+    } catch(e) {
+      btn.disabled = false; btn.textContent = 'Submit Feedback';
+      document.getElementById('thanks').textContent = '⚠ Could not connect. Make sure you are on the same network.';
+      document.getElementById('thanks').style.cssText = 'display:block;color:#f87171;';
+    }
+    ` : `
+    document.getElementById('thanks').textContent = '⚠ Survey endpoint not available. Please contact the shop directly.';
+    document.getElementById('thanks').style.cssText = 'display:block;color:#f87171;font-size:14px;';
+    btn.disabled = false; btn.textContent = 'Submit Feedback';
+    `}
   }
 </script>
 </body></html>`;
@@ -9806,7 +10968,7 @@ function renderBreakEvenCard() {
   const be = computeBreakEven();
 
   const today = new Date();
-  const thisMonthStr = today.toISOString().slice(0, 7);
+  const thisMonthStr = localMonthStr(today);
   const monthRev = printLog
     .filter(o => o.status === 'completed' && (o.date || '').startsWith(thisMonthStr))
     .reduce((s, o) => s + (+o.price || 0), 0);
@@ -10275,22 +11437,281 @@ function renderOrderComments(orderId) {
   });
 }
 
+function getStaleOrders() {
+  const thresholds = settings.staleHours || { printing: 48, post: 24, qc: 12, pending: 72 };
+  const now = Date.now();
+  return printLog.filter(o => {
+    if (['completed', 'quote', 'on_hold'].includes(o.status)) return false;
+    const threshold = thresholds[o.status];
+    if (!threshold) return false;
+    // Find the last status change time
+    let lastAt = null;
+    if (o.statusHistory && o.statusHistory.length > 0) {
+      lastAt = o.statusHistory[o.statusHistory.length - 1].at;
+    } else if (o.status === 'printing' && o.printingStartedAt) {
+      lastAt = o.printingStartedAt;
+    } else if (o.date) {
+      lastAt = o.date + 'T00:00:00.000Z';
+    }
+    if (!lastAt) return false;
+    const hoursAgo = (now - new Date(lastAt).getTime()) / 3600000;
+    return hoursAgo >= threshold;
+  }).sort((a, b) => {
+    // Most stale first
+    const getLastAt = o => {
+      if (o.statusHistory?.length) return o.statusHistory[o.statusHistory.length - 1].at;
+      return o.printingStartedAt || o.date + 'T00:00:00Z' || '';
+    };
+    return getLastAt(a).localeCompare(getLastAt(b));
+  });
+}
+
+/* ============================================================
+   Notification Centre
+   ============================================================ */
+function buildNotifications() {
+  const alerts = [];
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  const dismissed = settings.dismissedNotifs || {};
+  const now = new Date().toISOString();
+  function isDismissed(key) {
+    const until = dismissed[key];
+    if (!until) return false;
+    if (until === 'forever') return true;
+    return until > now;
+  }
+
+  // 1. Overdue orders
+  const overdue = printLog.filter(o =>
+    o.dueDate && o.status !== 'completed' && o.status !== 'quote' &&
+    new Date(o.dueDate + 'T00:00:00') < today
+  );
+  for (const o of overdue.slice(0, 8)) {
+    const key = 'overdue:' + o.id;
+    if (!isDismissed(key)) {
+      alerts.push({
+        key,
+        type: 'overdue', icon: '🔴',
+        title: escapeHtml(t('notif.overdue') || 'Overdue'),
+        body:  escapeHtml(o.project || o.id),
+        action() { switchTab('queue-tab'); }
+      });
+    }
+  }
+  if (overdue.length > 8) alerts.push({ key: 'overdue:more', type: 'overdue', icon: '🔴', title: '', body: `+${overdue.length - 8} more overdue`, action() { switchTab('queue-tab'); } });
+
+  // 2. Expiring quotes (≤ 2 days)
+  const expiringQuotes = printLog
+    .filter(o => o.status === 'quote' && o.quoteExpiresAt)
+    .filter(o => Math.round((new Date(o.quoteExpiresAt + 'T00:00:00') - today) / 86400000) <= 2)
+    .slice(0, 5);
+  for (const o of expiringQuotes) {
+    const key = 'quote:' + o.id;
+    if (!isDismissed(key)) {
+      const d = Math.round((new Date(o.quoteExpiresAt + 'T00:00:00') - today) / 86400000);
+      alerts.push({
+        key,
+        type: 'quote', icon: '📋',
+        title: escapeHtml(t('notif.quote_expiring') || 'Quote expiring'),
+        body:  `${escapeHtml(o.project || o.id)} — ${d <= 0 ? (t('oe.due_overdue', {n: Math.abs(d)}) || 'expired') : d + 'd left'}`,
+        action() { switchTab('logs-tab'); }
+      });
+    }
+  }
+
+  // 3. Low stock spools
+  const lowSpools = inventory.filter(i =>
+    i.weight <= (i.reorderPoint ?? settings.lowStockThreshold ?? 200)
+  ).slice(0, 6);
+  for (const spool of lowSpools) {
+    const key = 'stock:' + spool.id;
+    if (!isDismissed(key)) {
+      alerts.push({
+        key,
+        type: 'stock', icon: '🧵',
+        title: escapeHtml(t('notif.low_stock') || 'Low stock'),
+        body:  `${escapeHtml(spool.material)} — ${Math.round(spool.weight)}g remaining`,
+        action() { switchTab('inventory-tab'); }
+      });
+    }
+  }
+
+  // 4. Machines due for service
+  for (const m of machines) {
+    const svc = machineServiceStatus(m);
+    if (svc.due || svc.warning) {
+      const key = 'service:' + m.id;
+      if (!isDismissed(key)) {
+        alerts.push({
+          key,
+          type: 'service', icon: '🔧',
+          title: escapeHtml(svc.due ? (t('notif.service_due') || 'Service due') : (t('notif.service_soon') || 'Service soon')),
+          body:  escapeHtml(m.name),
+          action() { switchTab('settings-tab'); }
+        });
+      }
+    }
+  }
+
+  // 5. Stale orders (uses existing helper)
+  const stale = typeof getStaleOrders === 'function' ? getStaleOrders().slice(0, 5) : [];
+  for (const o of stale) {
+    const key = 'stale:' + o.id;
+    if (!isDismissed(key)) {
+      alerts.push({
+        key,
+        type: 'stale', icon: '⚠️',
+        title: escapeHtml(t('notif.stale_order') || 'Order stalled'),
+        body:  `${escapeHtml(o.project || o.id)} — ${escapeHtml(t('queue.' + o.status) || o.status)}`,
+        action() { switchTab('queue-tab'); }
+      });
+    }
+  }
+
+  // 6. Consumables low stock
+  const lowCons = consumables.filter(c => c.minStock > 0 && c.stock <= c.minStock).slice(0, 4);
+  for (const c of lowCons) {
+    const key = 'cons:' + (c.id || c.name);
+    if (!isDismissed(key)) {
+      alerts.push({
+        key,
+        type: 'stock', icon: '📦',
+        title: escapeHtml(t('notif.low_consumable') || 'Low consumable'),
+        body:  `${escapeHtml(c.name)} — ${c.stock} ${escapeHtml(c.unit || '')}`,
+        action() { switchTab('inventory-tab'); }
+      });
+    }
+  }
+
+  return alerts;
+}
+
+function updateNotifBadge() {
+  const badge = $('#notifBadge');
+  if (!badge) return;
+  const count = buildNotifications().length;
+  if (count === 0) {
+    badge.style.display = 'none';
+  } else {
+    badge.style.display = '';
+    badge.textContent = count > 99 ? '99+' : String(count);
+  }
+}
+
+function openNotifPanel() {
+  const panel = $('#notifPanel');
+  if (!panel) return;
+  if (panel.style.display !== 'none') {
+    panel.style.display = 'none';
+    return;
+  }
+
+  const alerts = buildNotifications();
+
+  if (alerts.length === 0) {
+    panel.innerHTML = `<div style="padding:24px 16px;text-align:center;color:var(--text-muted);font-size:13px;">
+      ✅ ${escapeHtml(t('notif.all_clear') || 'All clear — no active alerts')}
+    </div>`;
+    panel.style.display = 'block';
+    return;
+  }
+
+  // Group by type
+  const groups = [
+    { key: 'overdue', label: t('notif.group_overdue') || 'Overdue Orders' },
+    { key: 'quote',   label: t('notif.group_quotes')  || 'Expiring Quotes' },
+    { key: 'stock',   label: t('notif.group_stock')   || 'Low Stock' },
+    { key: 'service', label: t('notif.group_service') || 'Machine Service' },
+    { key: 'stale',   label: t('notif.group_stale')   || 'Stalled Orders' },
+  ];
+
+  let html = `<div style="padding:10px 14px 6px;font-size:13px;font-weight:700;border-bottom:1px solid var(--border-soft);">
+    🔔 ${escapeHtml(t('notif.title') || 'Notifications')}
+    <span style="float:right;font-size:11px;font-weight:400;color:var(--text-muted);">${alerts.length} alert${alerts.length !== 1 ? 's' : ''}</span>
+  </div>`;
+
+  for (const g of groups) {
+    const items = alerts.filter(a => a.type === g.key);
+    if (items.length === 0) continue;
+    html += `<div style="padding:6px 14px 2px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);">${escapeHtml(g.label)}</div>`;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      html += `<div class="notif-row" data-notif-idx="${alerts.indexOf(item)}"
+        style="display:flex;align-items:flex-start;gap:10px;padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--border-soft);transition:background .1s;">
+        <span style="font-size:15px;flex-shrink:0;margin-top:1px;">${item.icon}</span>
+        <div style="flex:1;overflow:hidden;">
+          ${item.title ? `<div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;">${item.title}</div>` : ''}
+          <div style="font-size:12.5px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.body}</div>
+        </div>
+        ${item.key ? `<button class="btn small ghost notif-dismiss-btn" data-key="${escapeHtml(item.key)}" title="${escapeHtml(t('notif.dismiss') || 'Snooze until tomorrow')}" style="font-size:11px;padding:2px 6px;margin-inline-end:4px;" onclick="event.stopPropagation()">✕</button>` : ''}
+        <span style="font-size:11px;color:var(--primary);flex-shrink:0;padding-top:2px;">${escapeHtml(t('notif.go') || 'Go →')}</span>
+      </div>`;
+    }
+  }
+
+  html += `<div style="padding:8px 14px;border-top:1px solid var(--border-soft);text-align:center;">
+    <button class="btn small ghost" id="notifDismissAll">${escapeHtml(t('notif.dismiss_all') || 'Snooze all for today')}</button>
+  </div>`;
+
+  panel.innerHTML = html;
+  panel.style.display = 'block';
+
+  // Attach click handlers
+  panel.querySelectorAll('.notif-row').forEach(row => {
+    const idx = parseInt(row.dataset.notifIdx, 10);
+    row.addEventListener('mouseenter', () => row.style.background = 'var(--bg-elev)');
+    row.addEventListener('mouseleave', () => row.style.background = '');
+    row.addEventListener('click', () => {
+      panel.style.display = 'none';
+      if (alerts[idx]) alerts[idx].action();
+    });
+  });
+
+  panel.querySelectorAll('.notif-dismiss-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const key = btn.dataset.key;
+      if (!settings.dismissedNotifs) settings.dismissedNotifs = {};
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(8, 0, 0, 0);
+      settings.dismissedNotifs[key] = tomorrow.toISOString();
+      saveAll();
+      updateNotifBadge();
+      openNotifPanel();
+    });
+  });
+
+  panel.querySelector('#notifDismissAll')?.addEventListener('click', () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(8, 0, 0, 0);
+    const exp = tomorrow.toISOString();
+    if (!settings.dismissedNotifs) settings.dismissedNotifs = {};
+    alerts.forEach(a => { if (a.key) settings.dismissedNotifs[a.key] = exp; });
+    saveAll();
+    updateNotifBadge();
+    panel.style.display = 'none';
+  });
+}
+
 function renderDashboard() {
   const el = $('#dashboardContent');
   if (!el) return;
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  const todayStr = today.toISOString().split('T')[0];
+  const todayStr = localDateStr(today);
 
   // Monthly goal
-  const thisMonthStr = today.toISOString().slice(0, 7);
+  const thisMonthStr = localMonthStr(today);
   const monthlyRev   = printLog
     .filter(o => o.status === 'completed' && (o.date || '').startsWith(thisMonthStr))
     .reduce((s, o) => s + +o.price, 0);
 
   // QW8: Previous month revenue for delta chip
   const prevMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-  const prevMonthStr = prevMonthDate.toISOString().slice(0, 7);
+  const prevMonthStr = localMonthStr(prevMonthDate);
   const prevMonthRev = printLog
     .filter(o => o.status === 'completed' && (o.date || '').startsWith(prevMonthStr))
     .reduce((s, o) => s + +o.price, 0);
@@ -10299,10 +11720,53 @@ function renderDashboard() {
     ? `<span class="delta-chip ${revDeltaPct >= 0 ? 'delta-up' : 'delta-down'}" style="font-size:10px;padding:1px 6px;border-radius:10px;margin-inline-start:6px;font-weight:600;background:${revDeltaPct >= 0 ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)'};color:${revDeltaPct >= 0 ? 'var(--success)' : 'var(--danger)'};">${revDeltaPct >= 0 ? '▲' : '▼'} ${Math.abs(revDeltaPct).toFixed(0)}%</span>`
     : '';
 
+  // Revenue forecast: project month-end based on daily rate so far
+  const dayOfMonth = today.getDate();
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const forecastRev = dayOfMonth > 0 && dayOfMonth < daysInMonth
+    ? Math.round((monthlyRev / dayOfMonth) * daysInMonth)
+    : monthlyRev;
+  const forecastHtml = dayOfMonth < daysInMonth && monthlyRev > 0
+    ? `<span style="font-size:10px;padding:1px 7px;border-radius:10px;margin-inline-start:6px;font-weight:600;background:rgba(99,102,241,0.15);color:#818cf8;" title="${escapeHtml(t('dash.forecast_tip'))}">📈 ${escapeHtml(t('dash.forecast'))} ${fmtPrice(forecastRev)}</span>`
+    : '';
+
+  // 30-day daily revenue sparkline data
+  const sparkDays = 30;
+  const sparkData = [];
+  for (let d = sparkDays - 1; d >= 0; d--) {
+    const dd = new Date(today); dd.setDate(dd.getDate() - d);
+    const ds = localDateStr(dd);
+    const dayRev = printLog
+      .filter(o => o.status === 'completed' && o.date === ds)
+      .reduce((s, o) => s + (+o.price || 0), 0);
+    sparkData.push(dayRev);
+  }
+  const sparkMax = Math.max(...sparkData, 1);
+  const sparkW = 200, sparkH = 40;
+  const sparkPts = sparkData.map((v, i) => {
+    const x = Math.round((i / (sparkDays - 1)) * sparkW);
+    const y = Math.round(sparkH - (v / sparkMax) * sparkH * 0.9);
+    return `${x},${y}`;
+  }).join(' ');
+  const sparkHtml = `
+    <div style="display:inline-flex;align-items:center;gap:8px;margin-top:8px;">
+      <span style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('dash.sparkline_30d'))}</span>
+      <svg width="${sparkW}" height="${sparkH}" style="display:block;overflow:visible;">
+        <polyline points="${sparkPts}" fill="none" stroke="var(--primary)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" opacity="0.8"/>
+        <circle cx="${sparkData.map((v,i)=>Math.round((i/(sparkDays-1))*sparkW)).slice(-1)[0]}" cy="${Math.round(sparkH-(sparkData[sparkData.length-1]/sparkMax)*sparkH*0.9)}" r="3" fill="var(--primary)"/>
+      </svg>
+    </div>`;
+
   // Stats
   const active   = printLog.filter(o => o.status !== 'completed' && o.status !== 'quote');
   const todayDone = printLog.filter(o => o.status === 'completed' && o.date === todayStr);
   const todayRev  = todayDone.reduce((s, o) => s + +o.price, 0);
+  const todayNew = printLog.filter(o => o.date === todayStr && o.status !== 'completed');
+  const todayMatG = inventory.reduce((s, item) =>
+    s + (item.usageHistory || [])
+      .filter(h => h.date === todayStr)
+      .reduce((a, h) => a + (+h.weightUsed || 0), 0), 0);
+  const nowPrinting = printLog.filter(o => o.status === 'printing');
   const receivables = printLog
     .filter(o => (payStatus(o)) !== 'paid')
     .reduce((s, o) => s + Math.max(0, +o.price - (+o.paidAmount || 0)), 0);
@@ -10368,7 +11832,7 @@ function renderDashboard() {
     return `
     <div class="dash-order-row">
       <div class="dash-order-info">
-        <strong>${escapeHtml(o.project || t('inv.walkin'))}</strong>
+        <strong>${escapeHtml(o.project || t('inv.walk_in'))}</strong>
         <span class="dash-order-id">${escapeHtml(o.id)}</span>
       </div>
       <div class="dash-order-meta">
@@ -10388,10 +11852,36 @@ function renderDashboard() {
   const dashBizSecondary = dashIsAr ? (settings.bizEn || '') : (settings.bizAr || '');
   const dashTagline      = dashIsAr ? (settings.taglineAr || settings.taglineEn) : (settings.taglineEn || settings.taglineAr);
 
+  // Stale order alerts
+  const staleOrders = getStaleOrders();
+  const staleHtml = staleOrders.length === 0 ? '' : `
+    <div class="card" style="margin-bottom:16px; border-left:3px solid var(--warning);">
+      <h3 class="card-head" style="margin-bottom:10px;"><span class="swatch" style="background:var(--warning);"></span>
+        ⚠ ${escapeHtml(t('dash.stale_title') || 'Orders Stalled')}
+        <span class="count" style="background:var(--warning);color:#000;margin-inline-start:8px;">${staleOrders.length}</span>
+      </h3>
+      ${staleOrders.slice(0, 5).map(o => {
+        const threshold = (settings.staleHours || {})[o.status] || 24;
+        const lastAt = (o.statusHistory?.length ? o.statusHistory[o.statusHistory.length-1].at : o.printingStartedAt || o.date + 'T00:00:00Z');
+        const hoursAgo = Math.round((Date.now() - new Date(lastAt).getTime()) / 3600000);
+        return `<div class="dash-order-row">
+          <div class="dash-order-info">
+            <strong>${escapeHtml(o.project || t('inv.walk_in'))}</strong>
+            <span class="dash-order-id">${escapeHtml(o.id)}</span>
+          </div>
+          <div class="dash-order-meta">
+            <span class="badge ${escapeHtml(o.status)}">${escapeHtml(t('queue.' + o.status))}</span>
+            <span style="font-size:11px; color:var(--warning);">🕐 ${hoursAgo}h (>${threshold}h)</span>
+          </div>
+        </div>`;
+      }).join('')}
+      ${staleOrders.length > 5 ? `<div style="font-size:11.5px;color:var(--text-muted);padding:6px 0;">+${staleOrders.length - 5} more</div>` : ''}
+    </div>`;
+
   el.innerHTML = `
     <div class="dash-hero">
       <div class="dash-hero-brand">
-        <div class="dash-hero-logo">${settings.bizLogo ? `<img src="${settings.bizLogo}" alt="logo">` : BRAND_MARK_SVG}</div>
+        <div class="dash-hero-logo">${safeBizLogo() ? `<img src="${safeBizLogo()}" alt="logo">` : BRAND_MARK_SVG}</div>
         <div class="dash-hero-info">
           <div class="dash-hero-name">${escapeHtml(dashBizPrimary || 'Khayt')}</div>
           ${dashBizSecondary ? `<div class="dash-hero-name-sec">${escapeHtml(dashBizSecondary)}</div>` : ''}
@@ -10438,6 +11928,39 @@ function renderDashboard() {
       </div>` : ''}
     </div>
 
+    ${(todayDone.length > 0 || todayNew.length > 0 || nowPrinting.length > 0) ? `
+    <div class="dash-section" style="margin-bottom:14px;padding:12px 16px;background:var(--bg-card);border-radius:var(--radius);border:1px solid var(--border-soft);">
+      <h3 class="dash-section-head" style="margin-bottom:10px;">📅 ${escapeHtml(t('dash.today_title'))}</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:16px;">
+        <div style="display:flex;flex-direction:column;align-items:center;min-width:72px;">
+          <span style="font-size:22px;font-weight:700;color:${todayDone.length > 0 ? 'var(--success)' : 'var(--text-muted)'};">${todayDone.length}</span>
+          <span style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('dash.today_done'))}</span>
+        </div>
+        ${todayDone.length > 0 ? `<div style="display:flex;flex-direction:column;align-items:center;min-width:90px;">
+          <span style="font-size:22px;font-weight:700;color:var(--primary);">${fmtMoney(todayRev)}</span>
+          <span style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('dash.today_rev'))}</span>
+        </div>` : ''}
+        ${todayNew.length > 0 ? `<div style="display:flex;flex-direction:column;align-items:center;min-width:72px;">
+          <span style="font-size:22px;font-weight:700;color:var(--text);">${todayNew.length}</span>
+          <span style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('dash.today_new'))}</span>
+        </div>` : ''}
+        ${nowPrinting.length > 0 ? `<div style="display:flex;flex-direction:column;align-items:center;min-width:72px;">
+          <span style="font-size:22px;font-weight:700;color:var(--warning);">${nowPrinting.length}</span>
+          <span style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('dash.now_printing'))}</span>
+        </div>` : ''}
+        ${todayMatG > 0 ? `<div style="display:flex;flex-direction:column;align-items:center;min-width:90px;">
+          <span style="font-size:22px;font-weight:700;color:var(--text);">${Math.round(todayMatG)}g</span>
+          <span style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('dash.today_mat'))}</span>
+        </div>` : ''}
+      </div>
+      ${todayDone.length > 0 ? `<div style="margin-top:10px;border-top:1px solid var(--border-soft);padding-top:8px;">${
+        todayDone.slice(0, 5).map(o => `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:12.5px;">
+          <span style="color:var(--text);">${escapeHtml(o.project || t('inv.walk_in'))}</span>
+          <span style="color:var(--success);font-weight:600;">${fmtPrice(o.price)}</span>
+        </div>`).join('')
+      }${todayDone.length > 5 ? `<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">+${todayDone.length - 5} more</div>` : ''}</div>` : ''}
+    </div>` : ''}
+
     ${settings.monthlyGoal > 0 ? (() => {
       const pct = Math.min(100, (monthlyRev / settings.monthlyGoal) * 100);
       const monthName = today.toLocaleDateString(dashIsAr ? 'ar-SA' : 'en-US', { month: 'long' });
@@ -10446,9 +11969,10 @@ function renderDashboard() {
         <div class="dash-goal">
           <div class="dash-goal-top">
             <span class="dash-goal-label">${escapeHtml(monthName)} ${escapeHtml(t('dash.goal'))}</span>
-            <span class="dash-goal-nums">${fmtMoney(monthlyRev)}${revDeltaHtml} / ${fmtPrice(settings.monthlyGoal)} · ${Math.round(pct)}%</span>
+            <span class="dash-goal-nums">${fmtMoney(monthlyRev)}${revDeltaHtml}${forecastHtml} / ${fmtPrice(settings.monthlyGoal)} · ${Math.round(pct)}%</span>
           </div>
           <div class="dash-goal-bar"><div class="dash-goal-fill" style="width:${pct}%; background:${col};"></div></div>
+          ${sparkHtml}
         </div>`;
     })() : ''}
 
@@ -10601,6 +12125,8 @@ function renderDashboard() {
       <h3 class="dash-section-head">${escapeHtml(t('dash.due_soon_section'))}</h3>
       ${dueSoon.length > 0 ? dueSoon.map(o => orderCard(o, formatDueDateBadge(o.dueDate))).join('') : noItems('dash.no_due_soon')}
     </div>
+
+    ${staleHtml}
 
     <div class="dash-section">
       <h3 class="dash-section-head">${escapeHtml(t('dash.unpaid_section'))}</h3>
@@ -10798,7 +12324,20 @@ function setupKanbanDrag() {
   });
 }
 
+function kanbanUrgencyScore(o) {
+  const today0 = new Date(); today0.setHours(0,0,0,0);
+  if (!o.dueDate) return 10000 + (+o.printTime || 0);
+  const due = new Date(o.dueDate + 'T00:00:00');
+  const diff = Math.round((due - today0) / 86400000);
+  if (diff < 0)   return diff - 1000;  // overdue: most negative = most urgent
+  if (diff === 0) return 0;
+  if (diff <= 3)  return diff;
+  return diff + (+o.printTime || 0) * 0.01;
+}
+
 function renderKanban() {
+  renderWaitingList();
+  updateWaitingBadge();
   // --- Quotes awaiting approval ---
   const quotes = printLog.filter(o => o.status === 'quote');
   const quotesSec = $('#quotesSection');
@@ -10880,13 +12419,14 @@ function renderKanban() {
 
   Object.entries(cols).forEach(([status, items]) => {
     // For pending: sort by priority level (urgent>high>normal) then queuePos; other columns by priority level
-    const sorted = status === 'pending'
+    let sorted = status === 'pending'
       ? [...items].sort((a, b) => {
           const pd = prioritySortValue(a) - prioritySortValue(b);
           if (pd !== 0) return pd;
           return (a.queuePos || 9999) - (b.queuePos || 9999);
         })
       : [...items].sort((a, b) => prioritySortValue(a) - prioritySortValue(b));
+    if (kanbanSortByPriority) sorted = sorted.slice().sort((a, b) => kanbanUrgencyScore(a) - kanbanUrgencyScore(b));
     const countEl = $('#count-' + status);
     if (countEl) countEl.textContent = sorted.length;
 
@@ -10937,6 +12477,7 @@ function renderKanban() {
       const trackBtn = log.clientId
         ? `<button class="btn small ghost" data-act="share-tracking-link" data-id="${log.id}" title="${escapeHtml(t('ord.status_page') || 'Share tracking link')}">🔗</button>`
         : '';
+      const labelBtn = `<button class="btn small ghost" data-act="print-label" data-id="${log.id}" title="${escapeHtml(t('ord.label_btn') || 'Print Label')}" style="padding:2px 6px;font-size:12px;">🏷</button>`;
       if (status === 'pending') {
         const qIdx = sorted.indexOf(log);
         const queueControls = `<span class="queue-pos-ctrl">
@@ -10966,19 +12507,19 @@ function renderKanban() {
         }
         const estStart = hrsBefore > 0 ? `<span class="est-start-badge">${escapeHtml(t('queue.est_start'))}: +${hrsBefore.toFixed(1)}h</span>` : '';
         const holdBtn = `<button class="btn small ghost" data-act="hold-order" data-id="${log.id}" title="${escapeHtml(t('ord.hold_btn'))}" style="color:var(--warning);">⏸</button>`;
-        actions = `${queueControls}<button class="btn small primary" data-act="status" data-id="${log.id}" data-to="printing">${escapeHtml(t('queue.start'))}</button>${holdBtn}${estStart}${woBtn}${notifyBtn}${trackBtn}`;
+        actions = `${queueControls}<button class="btn small primary" data-act="status" data-id="${log.id}" data-to="printing">${escapeHtml(t('queue.start'))}</button>${holdBtn}${estStart}${woBtn}${notifyBtn}${trackBtn}${labelBtn}`;
       }
       if (status === 'on_hold') {
         const holdReason = log.holdReason ? `<div style="font-size:11px; color:var(--warning); margin-top:2px;">⏸ ${escapeHtml(log.holdReason)}</div>` : '';
-        actions = `<button class="btn small primary" data-act="status" data-id="${log.id}" data-to="pending">${escapeHtml(t('ord.unhold_btn'))}</button>${woBtn}${notifyBtn}`;
+        actions = `<button class="btn small primary" data-act="status" data-id="${log.id}" data-to="pending">${escapeHtml(t('ord.unhold_btn'))}</button>${woBtn}${notifyBtn}${labelBtn}`;
       }
-      if (status === 'printing')  actions = `<button class="btn small" data-act="status" data-id="${log.id}" data-to="post">${escapeHtml(t('queue.to_post'))}</button>${woBtn}${notifyBtn}${trackBtn}`;
+      if (status === 'printing')  actions = `<button class="btn small" data-act="status" data-id="${log.id}" data-to="post">${escapeHtml(t('queue.to_post'))}</button>${woBtn}${notifyBtn}${trackBtn}${labelBtn}`;
       // Feature 2 (this batch): Post column → QC column instead of directly completing
-      if (status === 'post')      actions = `<button class="btn small primary" data-act="status" data-id="${log.id}" data-to="qc">📋 ${escapeHtml(t('ord.qc'))}</button>${woBtn}${notifyBtn}${trackBtn}`;
+      if (status === 'post')      actions = `<button class="btn small primary" data-act="status" data-id="${log.id}" data-to="qc">📋 ${escapeHtml(t('ord.qc'))}</button>${woBtn}${notifyBtn}${trackBtn}${labelBtn}`;
       // Feature 2 (this batch): QC column — pass or fail buttons
       if (status === 'qc') {
         actions = `<button class="btn small success" data-act="qc-pass" data-id="${log.id}">✅ ${escapeHtml(t('ord.qc_pass'))}</button>
-          <button class="btn small danger" data-act="qc-fail" data-id="${log.id}" style="margin-inline-start:4px;">❌ ${escapeHtml(t('ord.qc_fail'))}</button>${woBtn}${notifyBtn}${trackBtn}`;
+          <button class="btn small danger" data-act="qc-fail" data-id="${log.id}" style="margin-inline-start:4px;">❌ ${escapeHtml(t('ord.qc_fail'))}</button>${woBtn}${notifyBtn}${trackBtn}${labelBtn}`;
       }
       if (status === 'completed') {
         const deliverBtn = log.deliveredAt
@@ -10986,7 +12527,7 @@ function renderKanban() {
           : `<button class="btn small success" data-act="mark-delivered" data-id="${log.id}">${escapeHtml(t('queue.mark_delivered'))}</button>`;
         const isPaidCard = payStatus(log) === 'paid';
         const payBtn = isPaidCard ? '' : `<button class="btn small primary" data-act="pay" data-id="${log.id}" title="${escapeHtml(t('pay.mark_paid'))}">💳 ${escapeHtml(t('pay.mark_paid'))}</button>`;
-        actions = `<button class="btn small" data-act="invoice" data-id="${log.id}">${escapeHtml(t('queue.invoice'))}</button>${payBtn}${deliverBtn}${notifyBtn}`;
+        actions = `<button class="btn small" data-act="invoice" data-id="${log.id}">${escapeHtml(t('queue.invoice'))}</button>${payBtn}${deliverBtn}${notifyBtn}${labelBtn}`;
       }
       const partCount = log.parts ? log.parts.length : 1;
       const partsLabel = partCount === 1 ? t('queue.parts_count_1') : t('queue.parts_count', { n: partCount });
@@ -11005,17 +12546,20 @@ function renderKanban() {
           ? `<span class="machine-badge${machine.isOffline ? ' mach-offline' : ''}" style="background:${escapeHtml(machine.color)};">${machine.isOffline ? '⚠ ' : ''}${escapeHtml(machine.name)}</span>`
           : '';
       }
-      // Live timer badge for printing orders (Feature 1+8)
       let timerBadge = '';
       if (status === 'printing' && (log.timerStart || log.printingStartedAt)) {
         const startIso = log.timerStart || log.printingStartedAt;
-        const elapsed = Math.floor((Date.now() - new Date(startIso).getTime()) / 60000);
+        const isPaused = !!log.timerPausedAt;
+        const pausedMs = (log.timerPausedMs || 0) + (isPaused ? Date.now() - new Date(log.timerPausedAt).getTime() : 0);
+        const elapsed = Math.floor((Date.now() - new Date(startIso).getTime() - pausedMs) / 60000);
         const hrs = Math.floor(elapsed / 60);
         const mins = elapsed % 60;
         const elapsedStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
         const expected = +log.printTime * 60;
-        const isOver = elapsed > expected;
-        timerBadge = `<span class="elapsed-timer timer-badge${isOver ? ' timer-over' : ''}" data-started="${escapeHtml(startIso)}">⏱ ${escapeHtml(elapsedStr)}${isOver ? ' ⚠' : ''}</span>`;
+        const isOver = !isPaused && elapsed > expected;
+        const pauseBtnAct = isPaused ? 'resume-timer' : 'pause-timer';
+        const pauseBtnIcon = isPaused ? '▶' : '⏸';
+        timerBadge = `<span class="elapsed-timer timer-badge${isOver ? ' timer-over' : ''}${isPaused ? ' timer-paused' : ''}" data-started="${escapeHtml(startIso)}" data-paused-ms="${pausedMs}" data-is-paused="${isPaused}">${isPaused ? '⏸ ' : '⏱ '}${escapeHtml(elapsedStr)}${isOver ? ' ⚠' : ''}</span><button class="btn small ghost timer-pause-btn" data-act="${pauseBtnAct}" data-id="${log.id}" style="font-size:11px;padding:1px 6px;margin-inline-start:2px;" title="${isPaused ? escapeHtml(t('kan.resume_timer') || 'Resume timer') : escapeHtml(t('kan.pause_timer') || 'Pause timer')}">${pauseBtnIcon}</button>`;
       }
       // Post-processing checklist (shown only in 'post' column)
       let postCheckHtml = '';
@@ -11127,7 +12671,7 @@ function renderKanban() {
             if (delivered === 0) return '';
             return `<div class="partial-delivery-badge">${escapeHtml(t('ord.parts_delivered', { done: delivered, total: log.parts.length }))}</div>`;
           })()}
-          <div class="actions">${actions}</div>
+          <div class="actions"><button class="btn small ghost" data-act="order-timeline" data-id="${log.id}" title="${escapeHtml(t('ord.timeline'))}">🕐</button>${actions}</div>
           ${(() => {
             // Feature 2 (new batch): Live printer status
             if (status !== 'printing') return '';
@@ -11172,8 +12716,11 @@ function renderKanban() {
     if (printingNow > 0) {
       window._elapsedTimerInterval = setInterval(() => {
         document.querySelectorAll('.elapsed-timer[data-started]').forEach(el => {
+          if (el.dataset.isPaused === 'true') return;
           const started = new Date(el.dataset.started);
-          const mins = Math.floor((Date.now() - started) / 60000);
+          const pausedMs = +(el.dataset.pausedMs || 0);
+          const totalMs = Date.now() - started - pausedMs;
+          const mins = Math.floor(totalMs / 60000);
           const h = Math.floor(mins / 60), m = mins % 60;
           const timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
           el.textContent = `⏱ ${timeStr}`;
@@ -11181,6 +12728,8 @@ function renderKanban() {
       }, 60000);
     }
   }
+  if ($('#calendarView')?.style.display !== 'none') renderCalendarView();
+  updateNotifBadge();
 }
 
 function renderLogs() {
@@ -11221,15 +12770,24 @@ function renderLogs() {
   });
   const filtered = getFilteredLogs();
 
+  // Reset display limit when any filter or sort criterion changes
+  const filterHash = [logSearchTerm, logStatusFilter, logPayFilter, logTagFilter,
+    logClientFilter, logOperatorFilter, logRangeFilter, logSortCol, logSortDir].join('\x00');
+  if (filterHash !== _lastLogFilterHash) {
+    logDisplayLimit = 100;
+    _lastLogFilterHash = filterHash;
+  }
+
   if (printLog.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" class="empty-state">${escapeHtml(t('log.empty'))} <button class="btn small primary" data-act="new-order" style="margin-inline-start:12px;">${escapeHtml(t('common.new_order') || 'New Order')}</button></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" class="empty-state">${escapeHtml(t('log.empty'))} <button class="btn small primary" data-act="new-order" style="margin-inline-start:12px;">${escapeHtml(t('common.new_order') || 'New Order')}</button></td></tr>`;
     return;
   }
   if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" class="empty-state">${escapeHtml(t('log.empty_search'))}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" class="empty-state">${escapeHtml(t('log.empty_search'))}</td></tr>`;
     return;
   }
-  tbody.innerHTML = filtered.map(log => {
+  const page = filtered.slice(0, logDisplayLimit);
+  tbody.innerHTML = page.map(log => {
     const ps = payStatus(log);
     const isPaid = ps === 'paid';
     const photoCount = (log.printPhotos || []).length;
@@ -11239,6 +12797,13 @@ function renderLogs() {
     const logOperator = log.operatorId ? operators.find(o => o.id === log.operatorId) : null;
     const logSplitBadge = log.splitInto && log.splitInto.length > 0 ? `<span class="split-badge">🔀 ${escapeHtml(t('ord.split_badge', { n: log.splitInto.length }))}</span>` : '';
     const logSubBadge = log.parentOrderId ? `<span class="sub-order-badge">↳ ${escapeHtml(t('ord.sub_order'))} #${escapeHtml(log.parentOrderId)}</span>` : '';
+    // Profit margin estimation
+    const partsCost = (log.parts || []).reduce((s, p) => s + (+p.baseCost || 0), 0);
+    const hasMarginData = partsCost > 0 && (+log.price || 0) > 0;
+    const marginPct = hasMarginData ? ((+log.price - partsCost) / +log.price * 100) : null;
+    const marginHtml = marginPct !== null
+      ? `<span style="font-size:11px;font-weight:600;padding:2px 6px;border-radius:10px;background:${marginPct >= 40 ? 'rgba(34,197,94,0.15)' : marginPct >= 20 ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)'};color:${marginPct >= 40 ? 'var(--success)' : marginPct >= 20 ? 'var(--warning)' : 'var(--danger)'};">${marginPct.toFixed(0)}%</span>`
+      : `<span style="color:var(--text-muted);font-size:11px;">—</span>`;
     return `
     <tr${isOverdue ? ' class="row-overdue"' : ''}${isSel ? ' style="background:rgba(91,156,240,0.07);"' : ''}>
       <td style="width:32px;padding:8px 6px;"><input type="checkbox" class="log-sel" data-id="${log.id}" style="width:auto;" ${isSel ? 'checked' : ''}></td>
@@ -11277,12 +12842,14 @@ function renderLogs() {
       <td>${paymentBadge(log)}</td>
       <td style="font-size: 12.5px; color: var(--text-dim);">${escapeHtml(log.material)}</td>
       <td style="color: var(--success); font-weight: 600; font-variant-numeric: tabular-nums; white-space:nowrap;">${fmtPrice(log.price)}</td>
+      <td style="text-align:center;">${marginHtml}</td>
       <td style="white-space:nowrap;">
         ${expenses.some(e => e.orderId === log.id) ? `<button class="btn small ghost" data-act="linked-expenses" data-id="${log.id}" title="${escapeHtml(t('exp.linked_expenses'))}">💰</button>` : ''}
         ${(() => { const linkedWaste = wasteLog.filter(w => w.orderId === log.id); const wCost = linkedWaste.reduce((s, w) => s + (+w.cost || 0), 0); return linkedWaste.length > 0 ? `<span title="${escapeHtml(t('waste.linked_cost'))}: ${fmtPrice(wCost)}" style="font-size:10.5px; color:var(--danger); cursor:default;">🗑 ${fmtPrice(wCost)}</span>` : ''; })()}
         ${log.clientId ? clients.find(c => c.id === log.clientId)?.email ? '' : '' : ''}
         <button class="btn small ghost" data-act="export-status-page" data-id="${log.id}" title="${escapeHtml(t('ord.status_page'))}">📄</button>
         ${log.clientId ? `<button class="btn small ghost" data-act="open-status-page" data-id="${log.id}" title="${escapeHtml(t('ord.status_page_open'))}">🔗</button>` : ''}
+        <button class="btn small ghost" data-act="copy-tracking-url" data-id="${log.id}" title="${escapeHtml(t('ord.copy_tracking_url') || 'Copy tracking URL')}">🔗📋</button>
         ${(log.parts || []).length > 1 && log.status !== 'split' ? `<button class="btn small ghost pro-only" data-act="split-order" data-id="${log.id}" title="${escapeHtml(t('ord.split'))}">⚡</button>` : ''}
         ${(() => { const cl = log.clientId ? clients.find(c => c.id === log.clientId) : null; return cl?.email ? `<button class="btn small ghost" data-act="${log.status === 'quote' ? 'email-quote' : 'email-invoice'}" data-id="${log.id}" title="${escapeHtml(t(log.status === 'quote' ? 'ord.email_quote' : 'ord.email_invoice'))}">✉️</button>` : ''; })()}
         <button class="btn small ${isPaid ? '' : 'primary'}" data-act="${isPaid ? 'unpay' : 'pay'}" data-id="${log.id}" title="${escapeHtml(isPaid ? t('pay.mark_unpaid') : t('pay.mark_paid'))}">${escapeHtml(isPaid ? '✓' : t('pay.mark_paid'))}</button>
@@ -11294,9 +12861,13 @@ function renderLogs() {
         <button class="btn small ghost pro-only" data-act="cn-log" data-id="${log.id}" title="${escapeHtml(t('cn.title'))}">CN</button>
         ${!log.voidedAt ? `<button class="btn small ghost pro-only" data-act="void-invoice" data-id="${log.id}" title="${escapeHtml(t('inv.void_btn'))}">🚫</button>` : `<span title="${escapeHtml(t('inv.already_voided'))}" style="font-size:11px;color:var(--danger);padding:0 4px;">🚫 ${escapeHtml(t('inv.void_btn'))}</span>`}
         <button class="btn small ghost" data-act="wo-log" data-id="${log.id}" title="${escapeHtml(t('wo.title'))}">WO</button>
+        <button class="btn small ghost" data-act="order-timeline" data-id="${log.id}" title="${escapeHtml(t('ord.timeline'))}">🕐</button>
         <button class="btn small" data-act="edit-log"  data-id="${log.id}" title="${escapeHtml(t('common.edit'))}">${escapeHtml(t('common.edit'))}</button>
         <button class="btn small" data-act="dup-log"    data-id="${log.id}" title="${escapeHtml(t('oe.duplicate'))}">${escapeHtml(t('oe.duplicate'))}</button>
+        <button class="btn small ghost" data-act="${log.archived ? 'unarchive-log' : 'archive-log'}" data-id="${log.id}" title="${escapeHtml(log.archived ? (t('ord.unarchive') || 'Unarchive') : (t('ord.archive') || 'Archive'))}" style="opacity:${log.archived ? '1' : '0.5'};">📦</button>
         <button class="btn small ghost" data-act="reprint-log" data-id="${log.id}" title="${escapeHtml(t('oe.reprint'))}">${escapeHtml(t('oe.reprint'))}</button>
+        <button class="btn small ghost" data-act="print-label" data-id="${log.id}" title="${escapeHtml(t('ord.label_btn') || 'Print Label')}">🏷</button>
+        <button class="btn small ghost" data-act="packing-slip" data-id="${log.id}" title="${escapeHtml(t('ps.title') || 'Packing Slip')}">🗒</button>
         ${!isPaid ? `<button class="btn small ghost" data-act="pay-remind" data-id="${log.id}" title="${escapeHtml(t('pay.remind_btn'))}">💰</button>` : ''}
         ${log.trackingNumber ? `<button class="btn small ghost" data-act="share-tracking" data-id="${log.id}" title="${escapeHtml(t('ship.tracking_share'))}">📦</button>` : ''}
         ${(log.editHistory && log.editHistory.length > 0) ? `<button class="btn small ghost" data-act="view-edit-history" data-id="${log.id}" title="${escapeHtml(t('ord.edit_history'))}">📝</button>` : ''}
@@ -11313,6 +12884,14 @@ function renderLogs() {
       </td>
     </tr>`;
   }).join('');
+  if (filtered.length > logDisplayLimit) {
+    tbody.innerHTML += `<tr><td colspan="9" style="text-align:center;padding:12px;">
+      <button class="btn small ghost" data-act="load-more-logs">
+        ${escapeHtml(t('log.load_more') || 'Load more')} (${filtered.length - logDisplayLimit} ${escapeHtml(t('log.remaining') || 'remaining')})
+      </button>
+    </td></tr>`;
+  }
+  updateNotifBadge();
 }
 
 /* ============================================================
@@ -11330,6 +12909,12 @@ function renderBatchBar() {
     bar.style.display = 'flex';
     const countEl = $('#batchCount');
     if (countEl) countEl.textContent = t('batch.selected', { n: count });
+    const machSel = $('#batchMachineSelect');
+    if (machSel) {
+      const prev = machSel.value;
+      machSel.innerHTML = `<option value="">${escapeHtml(t('batch.assign_machine_ph') || '— Assign machine —')}</option>` +
+        machines.map(m => `<option value="${m.id}"${m.id === prev ? ' selected' : ''}>${escapeHtml(m.name)}</option>`).join('');
+    }
   }
 }
 
@@ -11421,6 +13006,44 @@ async function batchMoveStatus() {
   toast(t('batch.moved', { n: ids.length }), 'success');
 }
 
+async function batchAssignMachine() {
+  const machineId = $('#batchMachineSelect')?.value;
+  if (!machineId) { toast(t('batch.assign_machine_ph') || 'Select a machine first', 'info'); return; }
+  const machine = machines.find(m => m.id === machineId);
+  const ids = [...selectedOrders];
+  if (ids.length === 0) return;
+  const ok = await confirmModal(
+    `${t('batch.assign_confirm') || 'Assign'} ${ids.length} ${t('batch.orders') || 'order(s)'} → ${machine?.name || machineId}?`,
+    { danger: false }
+  );
+  if (!ok) return;
+  for (const id of ids) {
+    const o = printLog.find(x => x.id === id);
+    if (!o) continue;
+    o.machineId = machineId;
+    o.machine   = machine?.name || machineId;
+  }
+  saveAll();
+  renderKanban(); renderLogs(); renderDashboard();
+  toast(`🖨 ${ids.length} ${t('batch.orders') || 'order(s)'} ${t('batch.assigned_to') || 'assigned to'} ${machine?.name || machineId}`, 'success');
+}
+
+async function batchArchiveOrders() {
+  const ids = [...selectedOrders];
+  if (ids.length === 0) return;
+  const ok = await confirmModal(`Archive ${ids.length} order(s)?`, { danger: false });
+  if (!ok) return;
+  for (const id of ids) {
+    const o = printLog.find(x => x.id === id);
+    if (o) o.archived = true;
+  }
+  selectedOrders.clear();
+  saveAll();
+  renderBatchBar();
+  renderLogs();
+  toast(`📦 ${ids.length} order(s) archived`, 'success');
+}
+
 /* ============================================================
    Filament performance analytics
    ============================================================ */
@@ -11496,6 +13119,111 @@ function renderFilamentAnalytics() {
         </tbody>
       </table>
     </div>`;
+}
+
+/* ============================================================
+   Monthly material consumption trend chart
+   ============================================================ */
+function renderMaterialUsageChart() {
+  const el = $('#materialUsageChart');
+  if (!el) return;
+
+  // Build last 6 months as keys
+  const now = new Date();
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({
+      key:   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+      label: d.toLocaleDateString(i18n.current === 'ar' ? 'ar-SA' : 'en-US', { month: 'short', year: '2-digit' }),
+    });
+  }
+
+  // Aggregate usage per material per month
+  const materialData = {};   // { materialName: { monthKey: grams } }
+  for (const item of inventory) {
+    if (!item.usageHistory || item.usageHistory.length === 0) continue;
+    const mat = item.material || 'Unknown';
+    if (!materialData[mat]) materialData[mat] = {};
+    for (const h of item.usageHistory) {
+      const mk = (h.date || '').slice(0, 7);
+      if (!months.find(m => m.key === mk)) continue;
+      materialData[mat][mk] = (materialData[mat][mk] || 0) + (+h.weightUsed || 0);
+    }
+  }
+
+  const materials = Object.keys(materialData).filter(mat =>
+    Object.values(materialData[mat]).some(v => v > 0)
+  ).slice(0, 6); // max 6 materials for readability
+
+  if (materials.length === 0) {
+    el.innerHTML = `<p style="color:var(--text-muted);font-size:13px;padding:8px 0;">${escapeHtml(t('an.mat_usage_empty') || 'No usage data yet. Spool weights update as orders complete.')}</p>`;
+    return;
+  }
+
+  // Assign colors from inventory items
+  const matColors = {};
+  for (const mat of materials) {
+    const invItem = inventory.find(i => i.material === mat);
+    matColors[mat] = invItem?.color || '#5b9cf0';
+  }
+
+  // SVG stacked bar chart
+  const W = 560, H = 180;
+  const padL = 48, padR = 12, padT = 16, padB = 34;
+  const chartW = W - padL - padR;
+  const chartH = H - padT - padB;
+  const barW   = chartW / months.length;
+  const gap    = Math.max(3, barW * 0.2);
+
+  // Max total grams in any month
+  const monthTotals = months.map(m =>
+    materials.reduce((s, mat) => s + (materialData[mat][m.key] || 0), 0)
+  );
+  const maxG = Math.max(...monthTotals, 1);
+  const TICKS = 4;
+
+  let s = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+
+  // Grid + y-labels
+  for (let i = 0; i <= TICKS; i++) {
+    const y = padT + chartH - (i / TICKS) * chartH;
+    const val = (maxG / TICKS) * i;
+    const lbl = val >= 1000 ? (val / 1000).toFixed(1) + 'kg' : val.toFixed(0) + 'g';
+    s += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W - padR}" y2="${y.toFixed(1)}" stroke="#ffffff10" stroke-width="1"/>`;
+    s += `<text x="${(padL - 5).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="9.5" fill="#6b7793">${escapeHtml(lbl)}</text>`;
+  }
+
+  // Stacked bars
+  months.forEach((m, i) => {
+    const x = padL + i * barW + gap / 2;
+    const bw = barW - gap;
+    let yOff = padT + chartH;
+    for (const mat of materials) {
+      const grams = materialData[mat][m.key] || 0;
+      if (grams <= 0) continue;
+      const bh = Math.max(2, (grams / maxG) * chartH);
+      yOff -= bh;
+      s += `<rect x="${x.toFixed(1)}" y="${yOff.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" fill="${escapeHtml(matColors[mat])}" rx="2" opacity="0.82"/>`;
+    }
+    // Month label
+    const cx = (x + bw / 2).toFixed(1);
+    s += `<text x="${cx}" y="${(padT + chartH + 18).toFixed(1)}" text-anchor="middle" font-size="9.5" fill="#6b7793">${escapeHtml(m.label)}</text>`;
+  });
+
+  s += `</svg>`;
+
+  // Legend
+  const legendHtml = materials.map(mat =>
+    `<span style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--text-dim);">
+      <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${escapeHtml(matColors[mat])};"></span>
+      ${escapeHtml(mat)}
+    </span>`
+  ).join('');
+
+  el.innerHTML = `
+    <div style="overflow-x:auto;">${s}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:6px;padding:0 4px;">${legendHtml}</div>`;
 }
 
 /* ============================================================
@@ -11721,7 +13449,7 @@ function renderSimpleReports() {
   const analyticsTab = $('#analytics-tab');
   if (!analyticsTab) return;
 
-  const thisMonthStr = new Date().toISOString().slice(0, 7);
+  const thisMonthStr = localMonthStr();
   const monthOrders = printLog.filter(o => o.status === 'completed' && (o.date || '').startsWith(thisMonthStr));
   const monthRevenue = monthOrders.reduce((s, o) => s + +o.price, 0);
   const monthCount   = monthOrders.length;
@@ -11969,6 +13697,7 @@ function renderAnalytics() {
   })();
 
   renderRevenueChart();
+  renderMaterialUsageChart();
   renderFilamentAnalytics();
   renderPrinterUtilizationChart();
   renderPnLSection();
@@ -11983,6 +13712,385 @@ function renderAnalytics() {
   renderAgedReceivables();
   renderSurveyAnalytics();
   renderNewVsReturning();
+  renderQuoteFunnelChart();
+  renderMonthlyTrendChart();
+  renderMachineRevenueChart();
+  renderProfitMarginChart();
+  renderMachineAccuracy();
+  renderClientSourceChart();
+}
+
+function renderClientSourceChart() {
+  const el = $('#clientSourceChart');
+  if (!el) return;
+  const sources = ['instagram','referral','walk_in','website','exhibition','other'];
+  const counts = {};
+  for (const s of sources) counts[s] = 0;
+  for (const c of clients) counts[c.source || 'other'] = (counts[c.source || 'other'] || 0) + 1;
+
+  const maxCount = Math.max(...Object.values(counts), 1);
+
+  const sourceColors = {
+    instagram:  '#e1306c',
+    referral:   '#22c55e',
+    walk_in:    '#3b82f6',
+    website:    '#f59e0b',
+    exhibition: '#a855f7',
+    other:      '#6b7280',
+  };
+
+  const rows = sources
+    .filter(s => counts[s] > 0)
+    .sort((a, b) => counts[b] - counts[a])
+    .map(s => {
+      const pct = Math.round((counts[s] / maxCount) * 100);
+      const revBySource = printLog
+        .filter(o => o.status === 'completed' && o.clientId && clients.find(c => c.id === o.clientId && (c.source || 'other') === s))
+        .reduce((sum, o) => sum + (+o.price || 0), 0);
+      return `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <div style="min-width:90px;font-size:12px;color:var(--text);text-align:end;">${escapeHtml(t('cl.source_' + s))}</div>
+          <div style="flex:1;background:var(--border);border-radius:4px;height:14px;overflow:hidden;">
+            <div style="width:${pct}%;height:100%;background:${sourceColors[s]};border-radius:4px;transition:width .4s;"></div>
+          </div>
+          <div style="min-width:60px;font-size:11px;color:var(--text-muted);">${counts[s]} · ${fmtPrice(revBySource)}</div>
+        </div>`;
+    }).join('');
+
+  if (!rows) {
+    el.innerHTML = `<p class="dash-empty">${escapeHtml(t('an.source_empty'))}</p>`;
+    return;
+  }
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px;">
+      <h3 class="card-head"><span class="swatch"></span>${escapeHtml(t('an.source_title'))}</h3>
+      <div style="padding:8px 0;">${rows}</div>
+    </div>`;
+}
+
+/* ── Quote Conversion Funnel ────────────────────────────── */
+function renderQuoteFunnelChart() {
+  const el = $('#quoteFunnelChart');
+  if (!el) return;
+
+  // Step 1: All orders that were at some point a quote
+  const allQuoteOrders = printLog.filter(o =>
+    o.status === 'quote' || o.quoteSentAt || o.quoteAcceptedAt
+  );
+  // Step 2: Quotes that were explicitly sent
+  const sent = allQuoteOrders.filter(o => o.quoteSentAt);
+  // Step 3: Quotes accepted by client
+  const accepted = allQuoteOrders.filter(o => o.quoteAcceptedAt);
+  // Step 4: Accepted quotes converted to active orders (status not 'quote', not voided)
+  const converted = accepted.filter(o => o.status !== 'quote' && !o.voidedAt);
+  // Step 5: Converted that are now completed
+  const completedConv = converted.filter(o => o.status === 'completed');
+
+  const steps = [
+    { key: 'an.funnel_created',   count: allQuoteOrders.length, color: '#6366f1' },
+    { key: 'an.funnel_sent',      count: sent.length,           color: '#3b82f6' },
+    { key: 'an.funnel_accepted',  count: accepted.length,       color: '#22c55e' },
+    { key: 'an.funnel_converted', count: converted.length,      color: '#f59e0b' },
+    { key: 'an.funnel_completed', count: completedConv.length,  color: '#10b981' },
+  ];
+
+  if (allQuoteOrders.length === 0) {
+    el.innerHTML = '';
+    return;
+  }
+
+  const maxCount = Math.max(allQuoteOrders.length, 1);
+
+  const rows = steps.map((step, i) => {
+    const pct = maxCount > 0 ? Math.round((step.count / maxCount) * 100) : 0;
+    const convFromPrev = i > 0 && steps[i - 1].count > 0
+      ? Math.round((step.count / steps[i - 1].count) * 100)
+      : null;
+    const convColor = convFromPrev !== null
+      ? (convFromPrev >= 80 ? 'var(--success)' : convFromPrev >= 50 ? 'var(--warning)' : 'var(--danger)')
+      : '';
+    return `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <div style="min-width:130px;font-size:12px;color:var(--text);text-align:end;">${escapeHtml(t(step.key))}</div>
+        <div style="flex:1;background:var(--border);border-radius:4px;height:18px;overflow:hidden;">
+          <div style="width:${pct}%;height:100%;background:${step.color};border-radius:4px;transition:width .4s;display:flex;align-items:center;justify-content:flex-end;padding-inline-end:6px;">
+            ${step.count > 0 ? `<span style="font-size:10px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5);">${step.count}</span>` : ''}
+          </div>
+        </div>
+        <div style="min-width:56px;font-size:12px;color:var(--text-muted);display:flex;flex-direction:column;align-items:flex-start;line-height:1.3;">
+          <span>${step.count}</span>
+          ${convFromPrev !== null ? `<span style="font-size:10px;color:${convColor};">${convFromPrev}%</span>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+
+  const overallRate = allQuoteOrders.length > 0
+    ? Math.round((completedConv.length / allQuoteOrders.length) * 100)
+    : 0;
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px;">
+      <h3 class="card-head" style="margin-bottom:12px;">
+        <span class="swatch"></span>${escapeHtml(t('an.funnel_title'))}
+        <span style="margin-inline-start:10px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:rgba(99,102,241,0.15);color:#818cf8;">
+          ${escapeHtml(t('an.funnel_overall'))}: ${overallRate}%
+        </span>
+      </h3>
+      ${rows}
+    </div>`;
+}
+
+/* ── Monthly Revenue vs Expense Trend ───────────────────── */
+function renderMonthlyTrendChart() {
+  const el = $('#monthlyTrendChart');
+  if (!el) return;
+
+  // Build last 6 months (YYYY-MM strings, oldest first)
+  const today = new Date();
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+
+  const revByMonth = {};
+  const expByMonth = {};
+  months.forEach(m => { revByMonth[m] = 0; expByMonth[m] = 0; });
+
+  for (const o of printLog) {
+    if (o.status !== 'completed') continue;
+    const m = (o.date || '').slice(0, 7);
+    if (revByMonth[m] !== undefined) revByMonth[m] += +o.price || 0;
+  }
+  for (const e of expenses) {
+    const m = (e.date || '').slice(0, 7);
+    if (expByMonth[m] !== undefined) expByMonth[m] += +e.amount || 0;
+  }
+
+  const maxVal = Math.max(...months.map(m => Math.max(revByMonth[m], expByMonth[m])), 1);
+
+  // SVG dimensions
+  const svgW = 560, svgH = 160;
+  const padL = 50, padR = 12, padT = 24, padB = 36;
+  const chartW = svgW - padL - padR;
+  const chartH = svgH - padT - padB;
+  const groupW = chartW / months.length;
+  const barW = Math.min(22, groupW * 0.35);
+  const gap = 4;
+
+  // Y-axis labels (3 lines: 0, 50%, 100%)
+  const yLabels = [0, 0.5, 1].map(f => {
+    const yVal = Math.round(maxVal * f);
+    const y = padT + chartH - f * chartH;
+    return `<text x="${padL - 6}" y="${y + 4}" text-anchor="end" font-size="9" fill="var(--text-muted)">${fmtMoney(yVal)}</text>
+            <line x1="${padL}" y1="${y}" x2="${padL + chartW}" y2="${y}" stroke="var(--border)" stroke-dasharray="3,3" stroke-width="0.5"/>`;
+  }).join('');
+
+  const bars = months.map((m, i) => {
+    const rev = revByMonth[m];
+    const exp = expByMonth[m];
+    const cx = padL + i * groupW + groupW / 2;
+    const revH = rev > 0 ? Math.max(2, (rev / maxVal) * chartH) : 0;
+    const expH = exp > 0 ? Math.max(2, (exp / maxVal) * chartH) : 0;
+    const revY = padT + chartH - revH;
+    const expY = padT + chartH - expH;
+    const label = new Date(m + '-01').toLocaleDateString(undefined, { month: 'short' });
+    const profit = rev - exp;
+    const profitColor = profit >= 0 ? '#22c55e' : '#ef4444';
+
+    return `
+      <rect x="${cx - barW - gap / 2}" y="${revY}" width="${barW}" height="${revH}" fill="#22c55e" opacity="0.8" rx="2"/>
+      <rect x="${cx + gap / 2}" y="${expY}" width="${barW}" height="${expH}" fill="#ef4444" opacity="0.7" rx="2"/>
+      ${(rev > 0 || exp > 0) ? `<text x="${cx}" y="${Math.min(revY, expY) - 4}" text-anchor="middle" font-size="9" fill="${profitColor}" font-weight="600">${fmtMoney(profit)}</text>` : ''}
+      <text x="${cx}" y="${padT + chartH + 16}" text-anchor="middle" font-size="10" fill="var(--text-muted)">${label}</text>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px;">
+      <h3 class="card-head"><span class="swatch"></span>${escapeHtml(t('an.monthly_trend_title'))}</h3>
+      <div style="display:flex;gap:16px;margin-bottom:8px;font-size:11px;">
+        <span><span style="display:inline-block;width:10px;height:10px;background:#22c55e;border-radius:2px;margin-inline-end:4px;"></span>${escapeHtml(t('an.monthly_rev'))}</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:#ef4444;border-radius:2px;margin-inline-end:4px;"></span>${escapeHtml(t('an.monthly_exp'))}</span>
+        <span style="color:var(--text-muted);">${escapeHtml(t('an.monthly_profit_above'))}</span>
+      </div>
+      <svg viewBox="0 0 ${svgW} ${svgH}" style="width:100%;max-width:${svgW}px;overflow:visible;">
+        ${yLabels}
+        ${bars}
+        <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT + chartH}" stroke="var(--border)" stroke-width="1"/>
+        <line x1="${padL}" y1="${padT + chartH}" x2="${padL + chartW}" y2="${padT + chartH}" stroke="var(--border)" stroke-width="1"/>
+      </svg>
+    </div>`;
+}
+
+/* ── Revenue by machine chart ───────────────────────────── */
+function renderMachineRevenueChart() {
+  const el = $('#machineRevenueChart');
+  if (!el) return;
+
+  const completed = printLog.filter(o => o.status === 'completed' && o.machineId);
+  if (completed.length === 0) { el.innerHTML = ''; return; }
+
+  const machMap = {};
+  for (const m of machines) {
+    machMap[m.id] = { name: m.name || m.model || m.id, color: m.color || '#6b7280', revenue: 0, count: 0 };
+  }
+  // Also capture orders with machineId that no longer maps to a known machine
+  for (const o of completed) {
+    if (!machMap[o.machineId]) {
+      machMap[o.machineId] = { name: o.machine || o.machineId, color: '#6b7280', revenue: 0, count: 0 };
+    }
+    machMap[o.machineId].revenue += +o.price || 0;
+    machMap[o.machineId].count++;
+  }
+
+  const rows = Object.values(machMap)
+    .filter(m => m.count > 0)
+    .sort((a, b) => b.revenue - a.revenue);
+
+  if (rows.length === 0) { el.innerHTML = ''; return; }
+
+  const maxRev = rows[0].revenue;
+
+  const bars = rows.map(m => {
+    const pct = maxRev > 0 ? Math.round((m.revenue / maxRev) * 100) : 0;
+    return `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px;">
+        <div style="display:flex;align-items:center;gap:6px;min-width:130px;overflow:hidden;">
+          <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${escapeHtml(m.color)};flex-shrink:0;"></span>
+          <span style="font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(m.name)}</span>
+        </div>
+        <div style="flex:1;background:var(--border);border-radius:4px;height:14px;overflow:hidden;">
+          <div style="width:${pct}%;height:100%;background:${escapeHtml(m.color)};border-radius:4px;transition:width .4s;opacity:0.85;"></div>
+        </div>
+        <div style="min-width:100px;font-size:12px;text-align:end;">
+          <span style="color:var(--success);font-weight:600;">${fmtPrice(m.revenue)}</span>
+          <span style="color:var(--text-muted);font-size:11px;margin-inline-start:4px;">${m.count} ${escapeHtml(t('an.jobs') || 'jobs')}</span>
+        </div>
+      </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px;">
+      <h3 class="card-head"><span class="swatch"></span>${escapeHtml(t('an.machine_rev_title'))}</h3>
+      <div style="padding:4px 0;">${bars}</div>
+    </div>`;
+}
+
+function renderProfitMarginChart() {
+  const el = $('#profitMarginChart');
+  if (!el) return;
+
+  const today = new Date();
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+
+  const marginByMonth = {};
+  months.forEach(m => { marginByMonth[m] = { total: 0, count: 0 }; });
+  for (const o of printLog) {
+    if (o.status !== 'completed' || !o.costBasis || !+o.price) continue;
+    const m = (o.date || '').slice(0, 7);
+    if (!marginByMonth[m]) continue;
+    const margin = (+o.price - +o.costBasis) / +o.price * 100;
+    marginByMonth[m].total += margin;
+    marginByMonth[m].count++;
+  }
+
+  const vals = months.map(m => {
+    const b = marginByMonth[m];
+    return b.count > 0 ? b.total / b.count : null;
+  });
+
+  const hasData = vals.some(v => v !== null);
+  if (!hasData) { el.innerHTML = ''; return; }
+
+  const maxVal = Math.max(...vals.filter(v => v !== null), 1);
+  const H = 120, BAR_W = 40, GAP = 28;
+  const total = months.length;
+  const chartW = total * (BAR_W + GAP);
+
+  const bars = months.map((m, i) => {
+    const v = vals[i];
+    if (v === null) return '';
+    const bh = Math.max(4, Math.round((v / maxVal) * (H - 30)));
+    const x = i * (BAR_W + GAP);
+    const y = H - 22 - bh;
+    const col = v >= 40 ? '#22c55e' : v >= 20 ? '#f59e0b' : '#ef4444';
+    const label = m.slice(5);
+    return `<rect x="${x}" y="${y}" width="${BAR_W}" height="${bh}" rx="3" fill="${col}" opacity="0.85"/>
+      <text x="${x + BAR_W / 2}" y="${y - 4}" text-anchor="middle" font-size="10" fill="${col}">${v.toFixed(0)}%</text>
+      <text x="${x + BAR_W / 2}" y="${H - 6}" text-anchor="middle" font-size="10" fill="var(--text-muted)">${escapeHtml(label)}</text>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px;">
+      <h3 class="card-head" style="margin-bottom:12px;">
+        <span class="swatch"></span>${escapeHtml(t('an.profit_margin_title') || 'Avg Profit Margin by Month')}
+      </h3>
+      <div style="overflow-x:auto;">
+        <svg width="${chartW}" height="${H}" style="display:block;min-width:200px;">
+          ${bars}
+        </svg>
+      </div>
+    </div>`;
+}
+
+function renderMachineAccuracy() {
+  const el = $('#machineAccuracySection');
+  if (!el) return;
+
+  // Only use orders with both timestamps and a machineId
+  const withData = printLog.filter(o =>
+    o.status === 'completed' &&
+    o.printingStartedAt && o.completedAt &&
+    o.printTime > 0 && o.machineId
+  );
+
+  if (withData.length < 3) { el.innerHTML = ''; return; }
+
+  // Group by machine
+  const byMachine = {};
+  for (const o of withData) {
+    const mid = o.machineId;
+    if (!byMachine[mid]) byMachine[mid] = { totalActual: 0, totalEst: 0, count: 0 };
+    const actualH = (new Date(o.completedAt) - new Date(o.printingStartedAt)) / 3600000;
+    byMachine[mid].totalActual += actualH;
+    byMachine[mid].totalEst    += +o.printTime;
+    byMachine[mid].count++;
+  }
+
+  const rows = Object.entries(byMachine)
+    .map(([mid, d]) => {
+      const machine = machines.find(m => m.id === mid);
+      const name = machine ? machine.name : t('dash.unassigned');
+      const color = machine?.color || '#888';
+      const avgActual = d.totalActual / d.count;
+      const avgEst    = d.totalEst    / d.count;
+      const diffPct   = avgEst > 0 ? Math.round((avgActual - avgEst) / avgEst * 100) : 0;
+      const sign      = diffPct > 0 ? `+${diffPct}` : `${diffPct}`;
+      const col       = Math.abs(diffPct) <= 10 ? 'var(--success)' : Math.abs(diffPct) <= 25 ? 'var(--warning)' : 'var(--danger)';
+      return { name, color, count: d.count, avgActual, avgEst, diffPct, sign, col };
+    })
+    .sort((a, b) => Math.abs(a.diffPct) - Math.abs(b.diffPct)); // most accurate first
+
+  el.innerHTML = `
+    <div style="margin-top:12px;">
+      <div style="font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:8px;">${escapeHtml(t('an.machine_accuracy') || 'Per-Machine Time Accuracy')}</div>
+      <div style="display:flex; flex-direction:column; gap:5px;">
+        ${rows.map(r => `
+          <div style="display:flex; align-items:center; gap:10px; font-size:12.5px;">
+            <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:${escapeHtml(r.color)}; flex-shrink:0;"></span>
+            <span style="flex:1; font-weight:500;">${escapeHtml(r.name)}</span>
+            <span style="color:var(--text-muted); font-size:11px;">${r.count} jobs</span>
+            <span style="color:var(--text-muted); font-size:11px;">${r.avgEst.toFixed(1)}h est</span>
+            <span style="color:var(--text-muted); font-size:11px;">→</span>
+            <span style="color:var(--text-muted); font-size:11px;">${r.avgActual.toFixed(1)}h actual</span>
+            <span style="font-weight:700; min-width:42px; text-align:end; color:${r.col};">${r.sign}%</span>
+          </div>`).join('')}
+      </div>
+    </div>`;
 }
 
 /* ============================================================
@@ -12130,6 +14238,41 @@ function renderPrinterUtilizationChart() {
       </div>
     </div>`;
   }).join('');
+
+  // PNG export button
+  const existingUtilBtn = el.parentElement?.querySelector('.chart-dl-btn');
+  if (existingUtilBtn) existingUtilBtn.remove();
+  const dlUtilBtn = document.createElement('button');
+  dlUtilBtn.className = 'btn small ghost chart-dl-btn';
+  dlUtilBtn.style.cssText = 'position:absolute;top:6px;right:6px;font-size:11px;padding:3px 8px;opacity:0.7;';
+  dlUtilBtn.textContent = '⬇ PNG';
+  dlUtilBtn.title = 'Download chart as PNG';
+  if (el.parentElement) el.parentElement.style.position = 'relative';
+  el.parentElement?.appendChild(dlUtilBtn);
+  dlUtilBtn.addEventListener('click', () => {
+    const svg = el.querySelector('svg');
+    if (!svg) return;
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement('canvas');
+    const vb = svg.viewBox.baseVal;
+    canvas.width  = vb.width  || 600;
+    canvas.height = vb.height || 210;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const img = new Image();
+    const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+      const link = document.createElement('a');
+      link.download = 'khayt-utilization-chart.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    };
+    img.src = url;
+  });
 }
 
 /* ============================================================
@@ -12524,6 +14667,41 @@ function renderRevenueChart() {
 
   s += `</svg>`;
   wrap.innerHTML = s;
+
+  // PNG export button
+  const existingBtn = wrap.parentElement?.querySelector('.chart-dl-btn');
+  if (existingBtn) existingBtn.remove();
+  const dlBtn = document.createElement('button');
+  dlBtn.className = 'btn small ghost chart-dl-btn';
+  dlBtn.style.cssText = 'position:absolute;top:6px;right:6px;font-size:11px;padding:3px 8px;opacity:0.7;';
+  dlBtn.textContent = '⬇ PNG';
+  dlBtn.title = 'Download chart as PNG';
+  if (wrap.parentElement) wrap.parentElement.style.position = 'relative';
+  wrap.parentElement?.appendChild(dlBtn);
+  dlBtn.addEventListener('click', () => {
+    const svg = wrap.querySelector('svg');
+    if (!svg) return;
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement('canvas');
+    const vb = svg.viewBox.baseVal;
+    canvas.width  = vb.width  || 600;
+    canvas.height = vb.height || 210;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const img = new Image();
+    const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+      const link = document.createElement('a');
+      link.download = 'khayt-revenue-chart.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    };
+    img.src = url;
+  });
 }
 
 /* ============================================================
@@ -12587,6 +14765,80 @@ async function checkDueDateNotifications() {
       : `Quote ${q.id} for "${q.project}" expires ${daysLeft === 0 ? 'today' : 'tomorrow'}`;
     toast(msg, 'warning', 6000);
   }
+}
+
+function exportInventoryCsv() {
+  const threshold = +(settings.lowStockThreshold || 200);
+
+  const headers = [
+    'ID', 'Material', 'Color', 'Brand',
+    `Weight (g)`, `Remaining (g)`, `Cost/g (${currencySymbol()})`,
+    'Location', 'Low Stock'
+  ];
+
+  const lines = [
+    headers.map(csvEsc).join(','),
+    ...inventory.map(spool => [
+      spool.id,
+      spool.material || '',
+      spool.colorName || spool.color || '',
+      spool.brand || '',
+      +spool.weight  || 0,
+      +spool.remaining !== undefined ? +spool.remaining : +spool.weight || 0,
+      spool.costPerGram != null ? (+spool.costPerGram).toFixed(4) : '',
+      spool.location || '',
+      (+spool.remaining || +spool.weight || 0) < threshold ? 'Yes' : 'No'
+    ].map(csvEsc).join(','))
+  ];
+
+  downloadBlob(
+    new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' }),
+    `inventory-${new Date().toISOString().slice(0, 10)}.csv`
+  );
+}
+
+function exportClientsCsv() {
+  // Build stats map (same as renderClients uses)
+  const clientStatsMap = new Map();
+  for (const o of printLog) {
+    if (!o.clientId) continue;
+    let s = clientStatsMap.get(o.clientId);
+    if (!s) { s = { count: 0, revenue: 0, lastDate: null }; clientStatsMap.set(o.clientId, s); }
+    s.count++;
+    if (o.status === 'completed') s.revenue += +o.price;
+    if (!s.lastDate || o.date > s.lastDate) s.lastDate = o.date;
+  }
+
+  const headers = [
+    'ID', 'Name (EN)', 'Name (AR)', 'Phone', 'Email',
+    'Source', 'Total Orders', `Revenue (${currencySymbol()})`,
+    `Outstanding (${currencySymbol()})`, 'Last Order'
+  ];
+
+  const lines = [
+    headers.map(csvEsc).join(','),
+    ...clients.map(c => {
+      const stats = clientStatsMap.get(c.id) || { count: 0, revenue: 0, lastDate: null };
+      const outstanding = clientOutstandingBalance(c.id);
+      return [
+        c.id,
+        c.nameEn || '',
+        c.nameAr || '',
+        c.phone  || '',
+        c.email  || '',
+        c.source || '',
+        stats.count,
+        stats.revenue.toFixed(2),
+        outstanding.toFixed(2),
+        stats.lastDate || ''
+      ].map(csvEsc).join(',');
+    })
+  ];
+
+  downloadBlob(
+    new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' }),
+    `clients-${new Date().toISOString().slice(0, 10)}.csv`
+  );
 }
 
 function exportOrdersCsv() {
@@ -12699,7 +14951,7 @@ async function exportOrderStatusPage(orderId) {
       <div class="info-row"><span class="info-label">Order #</span><span class="info-value">${escapeHtml(order.id)}</span></div>
       <div class="info-row"><span class="info-label">Project</span><span class="info-value">${escapeHtml(order.project || '—')}</span></div>
       <div class="info-row"><span class="info-label">Client</span><span class="info-value">${escapeHtml(clientName)}</span></div>
-      <div class="info-row"><span class="info-label">Status</span><span class="info-value">${STATUS_LABELS[order.status] || escapeHtml(order.status)}</span></div>
+      <div class="info-row"><span class="info-label">Status</span><span class="info-value">${escapeHtml(STATUS_LABELS[order.status] || order.status)}</span></div>
       ${order.dueDate ? `<div class="info-row"><span class="info-label">Estimated completion</span><span class="info-value">${escapeHtml(order.dueDate)}</span></div>` : ''}
       <div class="message">${msg}</div>
     </div>
@@ -13034,7 +15286,7 @@ function generateCreditNote(order, creditAmount, reason) {
     <div class="inv" dir="${dir}" lang="${i18n.current}" style="--brand:#7f1d1d; --accent:#dc2626; --highlight:#fee2e2;">
       <div class="inv-header">
         <div class="biz">
-          <div class="mark">${settings.bizLogo ? `<img src="${settings.bizLogo}" style="max-height:60px; max-width:120px; object-fit:contain;" alt="logo">` : BRAND_MARK_SVG}</div>
+          <div class="mark">${safeBizLogo() ? `<img src="${safeBizLogo()}" style="max-height:60px; max-width:120px; object-fit:contain;" alt="logo">` : BRAND_MARK_SVG}</div>
           <div class="biz-name">
             <h1>${escapeHtml(bizPrimary || 'Khayt')}</h1>
           </div>
@@ -13120,7 +15372,7 @@ function generateDeliveryNote(id) {
     <div class="inv" dir="${dir}" lang="${i18n.current}" style="--brand:#1a1a2e; --accent:#4a90e2; --highlight:#eef3fc;">
       <div class="inv-header">
         <div class="biz">
-          <div class="mark">${settings.bizLogo ? `<img src="${settings.bizLogo}" style="max-height:60px; max-width:120px; object-fit:contain;" alt="logo">` : BRAND_MARK_SVG}</div>
+          <div class="mark">${safeBizLogo() ? `<img src="${safeBizLogo()}" style="max-height:60px; max-width:120px; object-fit:contain;" alt="logo">` : BRAND_MARK_SVG}</div>
           <div class="biz-name">
             <h1>${escapeHtml(bizPrimary || 'Khayt')}</h1>
           </div>
@@ -13475,7 +15727,7 @@ function generateWorkOrder(id) {
     <div class="inv" dir="${dir}" lang="${i18n.current}" style="--brand:#1f2937; --accent:#374151; --highlight:#f3f4f6;">
       <div class="inv-header">
         <div class="biz">
-          <div class="mark">${settings.bizLogo ? `<img src="${settings.bizLogo}" style="max-height:50px; max-width:100px; object-fit:contain;" alt="logo">` : BRAND_MARK_SVG}</div>
+          <div class="mark">${safeBizLogo() ? `<img src="${safeBizLogo()}" style="max-height:50px; max-width:100px; object-fit:contain;" alt="logo">` : BRAND_MARK_SVG}</div>
           <div class="biz-name"><h1>${escapeHtml(bizPrimary || 'Khayt')}</h1></div>
         </div>
         <div class="doc">
@@ -13735,7 +15987,7 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
 
       <div class="inv-header">
         <div class="biz">
-          <div class="mark">${settings.bizLogo ? `<img src="${settings.bizLogo}" style="max-height:80px; max-width:150px; object-fit:contain;" alt="logo">` : BRAND_MARK_SVG}</div>
+          <div class="mark">${safeBizLogo() ? `<img src="${safeBizLogo()}" style="max-height:80px; max-width:150px; object-fit:contain;" alt="logo">` : BRAND_MARK_SVG}</div>
           <div class="biz-name">
             <h1>${escapeHtml(bizPrimary || 'Khayt')}</h1>
             ${taglinePrimary ? `<div class="biz-tagline">${escapeHtml(taglinePrimary)}</div>` : ''}
@@ -13939,8 +16191,8 @@ function updateLogoPreview() {
   const preview = $('#logoPreview');
   const removeBtn = $('#btnRemoveLogo');
   if (!preview) return;
-  if (settings.bizLogo) {
-    preview.src = settings.bizLogo;
+  if (safeBizLogo()) {
+    preview.src = safeBizLogo();
     preview.style.display = 'block';
     if (removeBtn) removeBtn.style.display = 'inline-flex';
   } else {
@@ -14349,34 +16601,60 @@ function exportData() {
       version: 5,
       exportedAt: new Date().toISOString(),
       printLog, inventory, templates, products, clients, settings, expenses, machines,
-      waTemplates, wasteLog, operators, purchaseOrders, consumables, suppliers, locations
+      waTemplates, wasteLog, operators, purchaseOrders, consumables, suppliers, locations, waitingList
     }, null, 2)], { type: 'application/json' }),
     `khayt-${new Date().toISOString().split('T')[0]}.json`
   );
   toast(t('set.exported'), 'success');
 }
 
+function sanitiseForAssign(obj) {
+  if (!obj || typeof obj !== 'object') return {};
+  const clean = {};
+  for (const key of Object.keys(obj)) {
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
+    clean[key] = obj[key];
+  }
+  return clean;
+}
+function isValidOrder(o) {
+  return o && typeof o === 'object' &&
+    typeof o.id === 'string' && o.id.length > 0 &&
+    typeof o.date === 'string' &&
+    typeof o.status === 'string' &&
+    typeof o.project === 'string';
+}
+function isValidClient(c) {
+  return c && typeof c === 'object' && typeof c.id === 'string' && c.id.length > 0;
+}
+function isValidInventoryItem(i) {
+  return i && typeof i === 'object' && typeof i.id === 'string' && i.id.length > 0;
+}
+function isValidRecord(r) {
+  return r && typeof r === 'object' && typeof r.id === 'string' && r.id.length > 0;
+}
 function importData(file) {
   const reader = new FileReader();
   reader.onload = (ev) => {
     try {
       const data = JSON.parse(ev.target.result);
-      if (Array.isArray(data.printLog))      printLog      = data.printLog;
-      if (Array.isArray(data.inventory))     inventory     = data.inventory;
-      if (Array.isArray(data.templates))     templates     = data.templates;
-      if (Array.isArray(data.products))      products      = data.products;
-      if (Array.isArray(data.clients))       clients       = data.clients;
-      if (Array.isArray(data.expenses))      expenses      = data.expenses;
-      if (Array.isArray(data.machines))      machines      = data.machines;
-      if (Array.isArray(data.waTemplates))   waTemplates   = data.waTemplates;
-      if (Array.isArray(data.wasteLog))      wasteLog      = data.wasteLog;
-      if (Array.isArray(data.operators))     operators     = data.operators;
-      if (Array.isArray(data.purchaseOrders)) purchaseOrders = data.purchaseOrders;
-      if (Array.isArray(data.consumables))   consumables   = data.consumables;
-      if (Array.isArray(data.suppliers))     suppliers     = data.suppliers;
-      if (Array.isArray(data.locations))     locations     = data.locations;
+      if (Array.isArray(data.printLog))      printLog      = data.printLog.filter(isValidOrder);
+      if (Array.isArray(data.inventory))     inventory     = data.inventory.filter(isValidInventoryItem);
+      if (Array.isArray(data.templates))     templates     = data.templates.filter(isValidRecord);
+      if (Array.isArray(data.products))      products      = data.products.filter(isValidRecord);
+      if (Array.isArray(data.clients))       clients       = data.clients.filter(isValidClient);
+      if (Array.isArray(data.expenses))      expenses      = data.expenses.filter(isValidRecord);
+      if (Array.isArray(data.machines))      machines      = data.machines.filter(isValidRecord);
+      if (Array.isArray(data.waTemplates))   waTemplates   = data.waTemplates.filter(isValidRecord);
+      if (Array.isArray(data.wasteLog))      wasteLog      = data.wasteLog.filter(isValidRecord);
+      if (Array.isArray(data.operators))     operators     = data.operators.filter(isValidRecord);
+      if (Array.isArray(data.purchaseOrders)) purchaseOrders = data.purchaseOrders.filter(isValidRecord);
+      if (Array.isArray(data.consumables))   consumables   = data.consumables.filter(isValidRecord);
+      if (Array.isArray(data.suppliers))     suppliers     = data.suppliers.filter(isValidRecord);
+      if (Array.isArray(data.locations))     locations     = data.locations.filter(isValidRecord);
+      if (Array.isArray(data.waitingList))   waitingList   = data.waitingList.filter(isValidRecord);
       if (data.settings && typeof data.settings === 'object') {
-        settings = Object.assign(defaultSettings(), data.settings);
+        settings = Object.assign(defaultSettings(), sanitiseForAssign(data.settings));
       }
       saveAll();
       initialRender();
@@ -14397,7 +16675,7 @@ async function resetAllData() {
   if (!ok) return;
   printLog = []; templates = []; products = []; clients = []; expenses = []; machines = [];
   waTemplates = defaultWaTemplates(); wasteLog = [];
-  operators = []; purchaseOrders = []; consumables = []; suppliers = []; locations = [];
+  operators = []; purchaseOrders = []; consumables = []; suppliers = []; locations = []; waitingList = [];
   inventory = [
     { id: 'seed-1', material: 'PLA+ 2.0',   cost: 75, weight: 1000 },
     { id: 'seed-2', material: 'Sunlu PETG', cost: 85, weight: 1000 },
@@ -14420,6 +16698,7 @@ function initialRender() {
   renderLocationsSettings();
   renderLocationFilter();
   renderPrinterPresets();
+  renderJobTemplateSelect();
   renderQuoteTemplates();
   renderMachines();
   renderMachineDropdown();
@@ -14665,6 +16944,19 @@ function wireEvents() {
   // Help button (Feature 9)
   $('#btnHelp')?.addEventListener('click', openHelpModal);
 
+  // Notification bell
+  $('#btnNotifBell')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openNotifPanel();
+  });
+  // Close notification panel when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#btnNotifBell') && !e.target.closest('#notifPanel')) {
+      const panel = $('#notifPanel');
+      if (panel) panel.style.display = 'none';
+    }
+  });
+
   // Feedback button (header + settings)
   $$('#btnFeedback, #btnFeedbackSettings').forEach(b => b?.addEventListener('click', openFeedbackModal));
 
@@ -14699,6 +16991,12 @@ function wireEvents() {
 
   // Batch status move
   $('#btnBatchMove')?.addEventListener('click', batchMoveStatus);
+  $('#btnBatchAssignMachine')?.addEventListener('click', batchAssignMachine);
+  $('#btnBatchArchive')?.addEventListener('click', batchArchiveOrders);
+  $('#showArchivedToggle')?.addEventListener('change', e => {
+    showArchivedOrders = e.target.checked;
+    renderLogs();
+  });
 
   // Tabs
   $$('.tab-btn').forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
@@ -14811,6 +17109,20 @@ function wireEvents() {
   });
   $('#btnSavePreset').addEventListener('click', saveCurrentAsPreset);
   $('#btnDeletePreset').addEventListener('click', deleteCurrentPreset);
+
+  // Job templates
+  renderJobTemplateSelect();
+  $('#jobTemplateSelect')?.addEventListener('change', e => { if (e.target.value) applyJobTemplate(e.target.value); });
+  $('#btnSaveJobTemplate')?.addEventListener('click', saveCurrentAsJobTemplate);
+  $('#btnDeleteJobTemplate')?.addEventListener('click', deleteCurrentJobTemplate);
+
+  // Resin exposure profile presets
+  renderResinProfiles();
+  $('#resinProfileSelect')?.addEventListener('change', e => {
+    if (e.target.value) applyResinProfile(e.target.value);
+  });
+  $('#btnSaveResinProfile')?.addEventListener('click', saveCurrentAsResinProfile);
+  $('#btnDeleteResinProfile')?.addEventListener('click', deleteCurrentResinProfile);
 
   // Quote templates
   $('#quoteTplSelect').addEventListener('change', updateDeleteTplBtn);
@@ -15065,6 +17377,10 @@ function wireEvents() {
   // QW6: Operator filter
   $('#logOperatorFilter')?.addEventListener('change', (e) => { logOperatorFilter = e.target.value; renderLogs(); });
   $('#logTable').addEventListener('click', (e) => {
+    const newOrdBtn = e.target.closest('[data-act="new-order"]');
+    if (newOrdBtn) { logPrint(); return; }
+    const loadMoreBtn = e.target.closest('[data-act="load-more-logs"]');
+    if (loadMoreBtn) { logDisplayLimit += 100; renderLogs(); return; }
     const inv  = e.target.closest('[data-act="invoice"]');
     const pdf  = e.target.closest('[data-act="inv-pdf"]');
     const wa   = e.target.closest('[data-act="inv-wa"]');
@@ -15074,6 +17390,8 @@ function wireEvents() {
     const wo   = e.target.closest('[data-act="wo-log"]');
     const pay  = e.target.closest('[data-act="pay"]');
     const unp  = e.target.closest('[data-act="unpay"]');
+    const timeline = e.target.closest('[data-act="order-timeline"]');
+    if (timeline) { openOrderTimeline(timeline.dataset.id); return; }
     const edit    = e.target.closest('[data-act="edit-log"]');
     const dup     = e.target.closest('[data-act="dup-log"]');
     const reprint = e.target.closest('[data-act="reprint-log"]');
@@ -15095,6 +17413,10 @@ function wireEvents() {
     if (edit)    openOrderEditor(edit.dataset.id);
     if (dup)     duplicateOrder(dup.dataset.id);
     if (reprint) reprintOrder(reprint.dataset.id);
+    const labelBtn2 = e.target.closest('[data-act="print-label"]');
+    if (labelBtn2) { generateOrderLabel(labelBtn2.dataset.id); return; }
+    const packSlipBtn = e.target.closest('[data-act="packing-slip"]');
+    if (packSlipBtn) { generatePackingSlip(packSlipBtn.dataset.id); return; }
     if (del)     deleteLog(del.dataset.id);
     const linkedExp = e.target.closest('[data-act="linked-expenses"]');
     if (linkedExp) showLinkedExpenses(linkedExp.dataset.id);
@@ -15106,6 +17428,24 @@ function wireEvents() {
     if (statusPage) exportOrderStatusPage(statusPage.dataset.id);
     const openStatusPage = e.target.closest('[data-act="open-status-page"]');
     if (openStatusPage) openSavedStatusPage(openStatusPage.dataset.id);
+    const copyUrlBtn = e.target.closest('[data-act="copy-tracking-url"]');
+    if (copyUrlBtn) {
+      (async () => {
+        const lanInfo = await window.hubAPI?.getLanUrl?.();
+        if (!lanInfo?.ok) {
+          toast(t('ord.tracking_no_lan') || 'LAN server is not running — enable it in Settings', 'warning', 4000);
+          return;
+        }
+        const url = `${lanInfo.url}/status/${copyUrlBtn.dataset.id}`;
+        try {
+          await navigator.clipboard.writeText(url);
+          toast(`${escapeHtml(t('ord.tracking_copied') || 'Tracking URL copied')}: ${url}`, 'success', 4000);
+        } catch {
+          toast(url, 'info', 8000);
+        }
+      })();
+      return;
+    }
     const splitOrderBtn = e.target.closest('[data-act="split-order"]');
     if (splitOrderBtn) splitOrderAcrossMachines(splitOrderBtn.dataset.id);
     const editHistBtn = e.target.closest('[data-act="view-edit-history"]');
@@ -15120,6 +17460,18 @@ function wireEvents() {
     if (partialDeliveryBtn) openPartialDeliveryModal(partialDeliveryBtn.dataset.id);
     const spoolSwitchBtn = e.target.closest('[data-act="log-spool-switch"]');
     if (spoolSwitchBtn) openSpoolSwitchModal(spoolSwitchBtn.dataset.id);
+    const archBtn  = e.target.closest('[data-act="archive-log"]');
+    const unarchBtn = e.target.closest('[data-act="unarchive-log"]');
+    if (archBtn) {
+      const o = printLog.find(x => x.id === archBtn.dataset.id);
+      if (o) { o.archived = true; saveAll(); renderLogs(); toast(t('ord.archived') || 'Order archived', 'success'); }
+      return;
+    }
+    if (unarchBtn) {
+      const o = printLog.find(x => x.id === unarchBtn.dataset.id);
+      if (o) { delete o.archived; saveAll(); renderLogs(); toast(t('ord.unarchived') || 'Order restored', 'success'); }
+      return;
+    }
     // New Feature 3: Proforma invoice
     const proformaBtn = e.target.closest('[data-act="gen-proforma"]');
     if (proformaBtn) generateProformaInvoice(proformaBtn.dataset.id);
@@ -15151,6 +17503,8 @@ function wireEvents() {
 
   // Kanban — production columns
   document.querySelector('.kanban').addEventListener('click', (e) => {
+    const kanbanTimeline = e.target.closest('[data-act="order-timeline"]');
+    if (kanbanTimeline) { openOrderTimeline(kanbanTimeline.dataset.id); return; }
     const s  = e.target.closest('[data-act="status"]');
     const i  = e.target.closest('[data-act="invoice"]');
     const wa = e.target.closest('[data-act="wa-quick"]');
@@ -15167,7 +17521,28 @@ function wireEvents() {
     const resinCureBtn = e.target.closest('[data-act="resin-log-cure"]');
     const resinCompleteBtn = e.target.closest('[data-act="resin-complete"]');
     const shareTrackBtn = e.target.closest('[data-act="share-tracking-link"]');
+    const printLabelBtn = e.target.closest('[data-act="print-label"]');
+    const pauseTimerBtn = e.target.closest('[data-act="pause-timer"]');
+    const resumeTimerBtn = e.target.closest('[data-act="resume-timer"]');
     if (s)  updateStatus(s.dataset.id, s.dataset.to);
+    if (printLabelBtn) { generateOrderLabel(printLabelBtn.dataset.id); return; }
+    if (pauseTimerBtn) {
+      const ord = printLog.find(o => o.id === pauseTimerBtn.dataset.id);
+      if (ord && ord.timerStart && !ord.timerPausedAt) {
+        ord.timerPausedAt = new Date().toISOString();
+        saveAll(); renderKanban();
+      }
+      return;
+    }
+    if (resumeTimerBtn) {
+      const ord = printLog.find(o => o.id === resumeTimerBtn.dataset.id);
+      if (ord && ord.timerPausedAt) {
+        ord.timerPausedMs = (ord.timerPausedMs || 0) + (Date.now() - new Date(ord.timerPausedAt).getTime());
+        delete ord.timerPausedAt;
+        saveAll(); renderKanban();
+      }
+      return;
+    }
     if (holdBtn) holdOrder(holdBtn.dataset.id);
     if (qcPassBtn) qcPassOrder(qcPassBtn.dataset.id);
     if (qcFailBtn) qcFailOrder(qcFailBtn.dataset.id);
@@ -15282,7 +17657,80 @@ function wireEvents() {
       kanban.style.display = 'none';
       renderScheduleView();
       $('#btnScheduleView').innerHTML = `📋 <span data-i18n="kan.kanban_view">${t('kan.kanban_view')}</span>`;
+      // Close calendar/kiosk views if open
+      const cv = $('#calendarView');
+      if (cv) cv.style.display = 'none';
+      const kv = $('#kioskView');
+      if (kv) kv.style.display = 'none';
     }
+  });
+
+  $('#btnBatchPlanner')?.addEventListener('click', openBatchPlannerModal);
+
+  // Kiosk view toggle
+  $('#btnKioskView')?.addEventListener('click', () => {
+    const el = $('#kioskView');
+    if (!el) return;
+    const isVisible = el.style.display !== 'none';
+    el.style.display = isVisible ? 'none' : 'block';
+    if (!isVisible) renderKioskView();
+    // Close other views
+    const sv = $('#scheduleView');
+    const cv = $('#calendarView');
+    if (sv && el.style.display !== 'none') sv.style.display = 'none';
+    if (cv && el.style.display !== 'none') cv.style.display = 'none';
+  });
+
+  // Kanban priority sort toggle
+  $('#btnKanbanSort')?.addEventListener('click', () => {
+    kanbanSortByPriority = !kanbanSortByPriority;
+    const btn = $('#btnKanbanSort');
+    if (btn) {
+      btn.style.background = kanbanSortByPriority ? 'rgba(99,102,241,0.2)' : '';
+      btn.style.color = kanbanSortByPriority ? '#818cf8' : '';
+      btn.style.borderColor = kanbanSortByPriority ? 'rgba(99,102,241,0.5)' : '';
+    }
+    renderKanban();
+    toast(kanbanSortByPriority ? t('queue.sort_on') : t('queue.sort_off'), 'info');
+  });
+
+  // Waiting list
+  $('#btnAddWaiting')?.addEventListener('click', () => openWaitingItemEditor(null));
+  $('#waitingListToggle')?.addEventListener('click', () => {
+    const section = $('#waitingListSection');
+    const chevron = $('#waitingChevron');
+    if (!section) return;
+    const hidden = section.style.display === 'none';
+    section.style.display = hidden ? 'block' : 'none';
+    if (chevron) chevron.textContent = hidden ? '▲' : '▼';
+  });
+  $('#waitingListSection')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-act]');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    if (btn.dataset.act === 'waiting-edit') openWaitingItemEditor(id);
+    if (btn.dataset.act === 'waiting-del') {
+      waitingList = waitingList.filter(w => w.id !== id);
+      saveAll();
+      renderWaitingList();
+      updateWaitingBadge();
+    }
+    if (btn.dataset.act === 'waiting-promote') promoteWaitingItem(id);
+  });
+
+  // Calendar view toggle
+  $('#btnCalendarView')?.addEventListener('click', () => {
+    const el = $('#calendarView');
+    if (!el) return;
+    const isVisible = el.style.display !== 'none';
+    el.style.display = isVisible ? 'none' : 'block';
+    if (!isVisible) {
+      calendarViewMonth = null;
+      renderCalendarView();
+    }
+    // If schedule view is open, close it
+    const sv = $('#scheduleView');
+    if (sv && el.style.display !== 'none') sv.style.display = 'none';
   });
 
   // Machine profiles (settings section)
@@ -15395,6 +17843,8 @@ function wireEvents() {
   });
 
   // Clients
+  $('#btnExportClientsCsv')?.addEventListener('click', () => exportClientsCsv());
+  $('#btnExportInventoryCsv')?.addEventListener('click', () => exportInventoryCsv());
   $('#btnAddClient').addEventListener('click', () => openClientEditor(null));
   $('#btnBlankIntakeForm')?.addEventListener('click', () => generateIntakeForm(null));
   $('#clientSearch').addEventListener('input', (e) => { clientSearchTerm = e.target.value; renderClients(); });
@@ -15404,6 +17854,36 @@ function wireEvents() {
     if (btn.dataset.act === 'cl-history')     openClientHistory(btn.dataset.id);
     if (btn.dataset.act === 'cl-quote')       quoteForClient(btn.dataset.id);
     if (btn.dataset.act === 'cl-intake-form') generateIntakeForm(btn.dataset.id);
+    if (btn.dataset.act === 'cl-note') {
+      const id = btn.dataset.id;
+      const client = clients.find(c => c.id === id);
+      if (!client) return;
+      const channels = ['email','phone','whatsapp','in-person','other'];
+      openFormModal({
+        title: `💬 ${t('cl.add_note')} — ${escapeHtml(localName(client) || client.id)}`,
+        saveLabel: t('common.save'),
+        bodyHtml: `
+          <label>${escapeHtml(t('cl.comm_channel'))}</label>
+          <select id="clNoteChannel">
+            ${channels.map(ch => `<option value="${ch}">${escapeHtml(ch)}</option>`).join('')}
+          </select>
+          <label style="margin-top:12px;">${escapeHtml(t('cl.comm_note'))}</label>
+          <textarea id="clNoteText" rows="4" placeholder="${escapeHtml(t('cl.comm_note_ph'))}"></textarea>`,
+        onSave() {
+          const channel = $('#clNoteChannel')?.value || 'other';
+          const note    = ($('#clNoteText')?.value || '').trim();
+          if (!note) { toast(t('cl.comm_note_required') || 'Note is required', 'error'); return false; }
+          const entry = { channel, note, at: new Date().toISOString(), quick: true };
+          if (!client.commLog) client.commLog = [];
+          client.commLog.unshift(entry);
+          if (client.commLog.length > 200) client.commLog.length = 200;
+          saveAll();
+          renderClients();
+          toast(`💬 ${t('cl.note_saved') || 'Note saved'}`, 'success');
+          return true;
+        }
+      });
+    }
     if (btn.dataset.act === 'cl-edit')        openClientEditor(btn.dataset.id);
     if (btn.dataset.act === 'cl-del')         deleteClient(btn.dataset.id);
   });
@@ -15478,7 +17958,12 @@ function wireEvents() {
     if (file.size > 1024 * 1024) { toast(t('set.logo_too_big'), 'error'); return; }
     const reader = new FileReader();
     reader.onload = (ev) => {
-      settings.bizLogo = ev.target.result;
+      const result = ev.target.result;
+      if (!result.startsWith('data:image/')) {
+        toast(t('settings.logo_invalid_type') || 'Logo must be an image file', 'error');
+        return;
+      }
+      settings.bizLogo = result;
       saveAll();
       updateLogoPreview();
       toast(t('set.logo_saved'), 'success');
@@ -15841,6 +18326,7 @@ function openOnboarding() {
    ============================================================ */
 document.addEventListener('DOMContentLoaded', async () => {
   await loadAll();
+  pruneExpiredNotifs();
 
   // Existing users who had data before Business Mode was introduced:
   // give them Professional mode and skip the wizard.
@@ -15868,6 +18354,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadSettingsIntoForm();
   refreshCurrencyLabels();
   initialRender();
+  updateNotifBadge();
   applyProductionPause();
   // Feature 7 (new 8-pack): Apply operator permissions at startup
   applyOperatorPermissions();
@@ -15948,6 +18435,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderLogs();
         renderKanban();
         toast('📱 ' + t('ord.status_updated_phone', { id, status }), 'info', 3000);
+      }
+    });
+  }
+  if (window.hubAPI?.onLanSurveySubmitted) {
+    window.hubAPI.onLanSurveySubmitted(({ orderId, rating }) => {
+      const o = printLog.find(x => x.id === orderId);
+      if (o) {
+        loadFromDisk();
+        toast(`⭐ Survey received for "${o.project || orderId}": ${rating}/5`, 'success', 5000);
       }
     });
   }

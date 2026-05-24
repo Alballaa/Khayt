@@ -1,9 +1,35 @@
-const { app, BrowserWindow, Menu, shell, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, Menu, shell, ipcMain, dialog, safeStorage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
 const os = require('os');
 const QRCode = require('qrcode');
+
+function encryptStoreField(val) {
+  if (!val || typeof val !== 'string' || !safeStorage.isEncryptionAvailable()) return val;
+  return '__enc__' + safeStorage.encryptString(val).toString('base64');
+}
+
+function decryptStoreField(val) {
+  if (!val || typeof val !== 'string' || !val.startsWith('__enc__')) return val;
+  if (!safeStorage.isEncryptionAvailable()) return val;
+  try { return safeStorage.decryptString(Buffer.from(val.slice(7), 'base64')); }
+  catch { return val; }
+}
+
+// Prepare a store object for writing to disk: deep-clone + encrypt sensitive fields.
+function encryptForDisk(data) {
+  const d = JSON.parse(JSON.stringify(data));
+  if (d?.settings?.emailConfig?.apiKey)
+    d.settings.emailConfig.apiKey = encryptStoreField(d.settings.emailConfig.apiKey);
+  if (Array.isArray(d?.machines))
+    d.machines = d.machines.map(m =>
+      m?.printerApi?.apiKey
+        ? { ...m, printerApi: { ...m.printerApi, apiKey: encryptStoreField(m.printerApi.apiKey) } }
+        : m
+    );
+  return d;
+}
 
 let mainWindow;
 
@@ -132,6 +158,18 @@ ipcMain.handle('hub:export-pdf', async (event, { savePath, askWhere = false, def
     margins: { top: 0, right: 0, bottom: 0, left: 0 } // CSS @page handles margins
   });
   let finalPath = savePath;
+  if (finalPath) {
+    const allowed = [
+      app.getPath('userData'),
+      app.getPath('documents'),
+      app.getPath('downloads'),
+      app.getPath('desktop'),
+    ];
+    const resolvedFinal = path.resolve(finalPath);
+    if (!allowed.some(d => resolvedFinal.startsWith(path.resolve(d) + path.sep) || resolvedFinal === path.resolve(d))) {
+      finalPath = null; // reject the path, fall through to dialog or invoicesDir
+    }
+  }
   if (askWhere) {
     const win = BrowserWindow.fromWebContents(wc);
     const result = await dialog.showSaveDialog(win, {
@@ -151,13 +189,26 @@ ipcMain.handle('hub:export-pdf', async (event, { savePath, askWhere = false, def
 });
 
 ipcMain.handle('hub:reveal-in-finder', async (_e, filePath) => {
-  if (filePath && fs.existsSync(filePath)) shell.showItemInFolder(filePath);
-  return true;
+  if (!filePath) return { ok: false };
+  const resolved = path.resolve(String(filePath));
+  const allowedReveal = [path.resolve(app.getPath('userData'))];
+  if (!allowedReveal.some(d => resolved.startsWith(d + path.sep) || resolved === d)) return { ok: false };
+  if (fs.existsSync(resolved)) shell.showItemInFolder(resolved);
+  return { ok: true };
 });
 
 ipcMain.handle('hub:open-path', async (_e, filePath) => {
-  if (filePath && fs.existsSync(filePath)) shell.openPath(filePath);
-  return true;
+  if (!filePath) return { ok: false };
+  const resolved = path.resolve(String(filePath));
+  const allowedOpen = [
+    path.resolve(app.getPath('userData')),
+    path.resolve(app.getPath('documents')),
+    path.resolve(app.getPath('downloads')),
+    path.resolve(app.getPath('desktop')),
+  ];
+  if (!allowedOpen.some(d => resolved.startsWith(d + path.sep) || resolved === d)) return { ok: false };
+  if (fs.existsSync(resolved)) shell.openPath(resolved);
+  return { ok: true };
 });
 
 // Share to WhatsApp. The Web/Desktop WhatsApp wa.me link can't actually
@@ -189,7 +240,8 @@ ipcMain.handle('hub:write-icloud-backup', async (_e, jsonString) => {
   if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
   const filename = `${new Date().toISOString().split('T')[0]}.json`;
   const fullPath = path.join(backupDir, filename);
-  await fs.promises.writeFile(fullPath, jsonString, 'utf8');
+  const encrypted = JSON.stringify(encryptForDisk(JSON.parse(jsonString)));
+  await fs.promises.writeFile(fullPath, encrypted, 'utf8');
   return fullPath;
 });
 
@@ -197,7 +249,8 @@ ipcMain.handle('hub:write-icloud-backup', async (_e, jsonString) => {
 ipcMain.handle('hub:write-backup', async (_e, jsonString) => {
   const filename = `${new Date().toISOString().split('T')[0]}.json`;
   const fullPath = path.join(backupsDir(), filename);
-  await fs.promises.writeFile(fullPath, jsonString, 'utf8');
+  const encrypted = JSON.stringify(encryptForDisk(JSON.parse(jsonString)));
+  await fs.promises.writeFile(fullPath, encrypted, 'utf8');
   // Keep only the most recent 30 backups
   const all = (await fs.promises.readdir(backupsDir())).filter(f => f.endsWith('.json')).sort();
   if (all.length > 30) {
@@ -272,7 +325,20 @@ ipcMain.handle('hub:load-store', async () => {
   if (!fs.existsSync(fp)) return null;
   try {
     const raw = fs.readFileSync(fp, 'utf8');
-    return JSON.parse(raw);
+    const data = JSON.parse(raw);
+    // Decrypt sensitive fields
+    if (data?.settings?.emailConfig?.apiKey) {
+      data.settings.emailConfig.apiKey = decryptStoreField(data.settings.emailConfig.apiKey);
+    }
+    if (Array.isArray(data?.machines)) {
+      data.machines = data.machines.map(m => {
+        if (m?.printerApi?.apiKey) {
+          return { ...m, printerApi: { ...m.printerApi, apiKey: decryptStoreField(m.printerApi.apiKey) } };
+        }
+        return m;
+      });
+    }
+    return data;
   } catch (e) {
     console.error('hub:load-store error:', e);
     return { __corrupt: true, error: String(e.message || e) };
@@ -283,9 +349,9 @@ ipcMain.handle('hub:save-store', async (_e, data) => {
   const fp = dataFilePath();
   const tmp = fp + '.tmp';
   try {
-    await fs.promises.writeFile(tmp, JSON.stringify(data), 'utf8');
+    await fs.promises.writeFile(tmp, JSON.stringify(encryptForDisk(data)), 'utf8');
     await fs.promises.rename(tmp, fp);
-    lanServerStore = data;  // keep LAN server in sync
+    lanServerStore = data;  // keep LAN server in sync (plaintext in-memory)
     return { ok: true };
   } catch (e) {
     console.error('hub:save-store error:', e);
@@ -309,15 +375,18 @@ ipcMain.handle('hub:reveal-store-file', async () => {
 // --- Feature 2: File vault (per-order 3D files) ---
 const fileVaultDir = () => ensureDir('file-vault');
 ipcMain.handle('hub:copy-file-to-vault', async (_e, { srcPath, orderId }) => {
-  const src = path.resolve(String(srcPath || ''));
-  // Block paths that look like they're targeting system/sensitive directories
-  const blocked = ['/etc', '/usr', '/System', '/private/etc',
-                   (process.env.HOME || '') + '/.ssh',
-                   (process.env.HOME || '') + '/.gnupg',
-                   path.join(app.getPath('userData'), '..')];
-  if (blocked.some(b => b && src.startsWith(b) && !src.startsWith(app.getPath('userData')))) {
-    return { ok: false, error: 'Source path not allowed' };
+  const resolvedSrc = path.resolve(String(srcPath || ''));
+  const allowedSrcDirs = [
+    app.getPath('userData'),
+    app.getPath('documents'),
+    app.getPath('downloads'),
+    app.getPath('desktop'),
+    app.getPath('temp'),
+  ];
+  if (!allowedSrcDirs.some(d => resolvedSrc.startsWith(path.resolve(d) + path.sep) || resolvedSrc === path.resolve(d))) {
+    return { ok: false, error: 'Source path is outside allowed directories' };
   }
+  const src = resolvedSrc;
   const safeId = path.basename(String(orderId || '')).replace(/[^a-zA-Z0-9_-]/g, '_');
   const orderVaultDir = path.join(fileVaultDir(), safeId);
   if (!fs.existsSync(orderVaultDir)) fs.mkdirSync(orderVaultDir, { recursive: true });
@@ -368,6 +437,17 @@ ipcMain.handle('hub:open-external', async (_e, url) => {
 
 // --- Feature 1 (new batch): G-code / 3MF metadata extraction ---
 ipcMain.handle('hub:parse-print-file', async (_e, filePath) => {
+  const resolvedParse = path.resolve(String(filePath || ''));
+  const allowedParseDirs = [
+    app.getPath('userData'),
+    app.getPath('documents'),
+    app.getPath('downloads'),
+    app.getPath('desktop'),
+    app.getPath('temp'),
+  ];
+  if (!allowedParseDirs.some(d => resolvedParse.startsWith(path.resolve(d) + path.sep) || resolvedParse === path.resolve(d))) {
+    return { ok: false, error: 'Path outside allowed directories' };
+  }
   const result = { printTimeMins: null, filamentGrams: null, filename: path.basename(filePath) };
   try {
     const ext = path.extname(filePath).toLowerCase();
@@ -444,7 +524,11 @@ ipcMain.handle('hub:get-printer-status', () => printerStatusCache);
 
 async function fetchPrinterStatus(machine) {
   const { type, host, port, apiKey, accessCode, printerSlug } = machine.printerApi || {};
-  const baseUrl = `http://${host}:${port || defaultPrinterPort(type)}`;
+  const printerHost = String(host || '');
+  if (/^(localhost|127\.\d+\.\d+\.\d+|::1|0\.0\.0\.0)$/i.test(printerHost)) {
+    return { ok: false, error: 'Printer host cannot be localhost' };
+  }
+  const baseUrl = `http://${printerHost}:${port || defaultPrinterPort(type)}`;
   const headers = {};
   if (type === 'octoprint') headers['X-Api-Key'] = apiKey;
   if (type === 'prusalink') headers['X-Api-Key'] = apiKey;
@@ -616,6 +700,11 @@ let lanServer = null;
 let lanServerStore = {};  // reference to current store, updated via hub:save-store
 
 ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}) => {
+  const portNum = parseInt(port, 10);
+  if (!Number.isInteger(portNum) || portNum < 1024 || portNum > 65535) {
+    return { ok: false, error: 'Invalid port number (must be 1024–65535)' };
+  }
+  port = portNum;
   if (lanServer) { lanServer.close(); lanServer = null; }
   // Brute-force tracking: { ip -> { count, resetAt } }
   const failedAttempts = new Map();
@@ -627,12 +716,17 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
         const url = new URL(req.url, `http://localhost:${port}`);
         const ip = req.socket.remoteAddress || '';
         const isWriteRequest = req.method !== 'GET' && req.method !== 'HEAD';
+        const pathname = url.pathname.replace(/\/$/, '');
 
-        const requirePin = isWriteRequest; // writes always need a PIN
-        if (requirePin || pin) {
+        // Routes that are always public regardless of PIN configuration
+        const isAlwaysPublic = pathname === '/api/status' || pathname === '/api/queue' ||
+          pathname === '/api/machines' || pathname.startsWith('/status/');
+        const isSurveyEndpoint = pathname === '/api/survey' && req.method === 'POST';
+        const requirePin = isWriteRequest && !isSurveyEndpoint && !isAlwaysPublic;
+        if (!isAlwaysPublic && (requirePin || (pin && !isSurveyEndpoint))) {
           const provided = (url.searchParams.get('pin') || req.headers['x-khayt-pin'] || '').trim();
           if (!pin) {
-            // No PIN configured — block all write requests
+            // No PIN configured — block all write requests (survey is exempt via isSurveyEndpoint)
             if (isWriteRequest) {
               res.writeHead(403, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
               res.end(JSON.stringify({ error: 'Write requests require a PIN to be configured in settings' }));
@@ -657,10 +751,40 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
             failedAttempts.delete(ip); // reset on success
           }
         }
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Content-Type', 'application/json');
-        const pathname = url.pathname.replace(/\/$/, '');
         const store = lanServerStore;
+        // H4: restrict CORS — sensitive API routes get no wildcard
+        const reqOrigin = req.headers['origin'] || null;
+        const isPublicRoute = isAlwaysPublic;
+        if (isPublicRoute) {
+          res.setHeader('Access-Control-Allow-Origin', '*');
+        } else if (!reqOrigin || reqOrigin.startsWith('http://')) {
+          // Electron renderer (no origin) or same-LAN http:// origin — allow
+          res.setHeader('Access-Control-Allow-Origin', reqOrigin || 'null');
+        }
+        res.setHeader('Content-Type', 'application/json');
+
+        // H3: helper to enforce PIN for sensitive GET routes
+        const checkPinForGet = () => {
+          if (!pin) return true; // no PIN configured — allow (read-only)
+          const provided = (url.searchParams.get('pin') || req.headers['x-khayt-pin'] || '').trim();
+          const now = Date.now();
+          const ipData = failedAttempts.get(ip) || { count: 0, resetAt: 0 };
+          if (now < ipData.resetAt && ipData.count >= 10) {
+            res.writeHead(429, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Too many attempts — try again in 1 minute' }));
+            return false;
+          }
+          if (provided !== pin) {
+            const newCount = (now >= ipData.resetAt ? 0 : ipData.count) + 1;
+            failedAttempts.set(ip, { count: newCount, resetAt: newCount >= 10 ? now + LOCKOUT_MS : ipData.resetAt });
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Unauthorized' }));
+            return false;
+          }
+          failedAttempts.delete(ip);
+          return true;
+        };
+
         if (pathname === '/api/status') {
           const queue = (store.printLog || []).filter(o => o.status !== 'completed');
           res.writeHead(200);
@@ -674,6 +798,7 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
               o.completedAt.startsWith(new Date().toISOString().split('T')[0])).length
           }));
         } else if (pathname === '/api/orders') {
+          if (!checkPinForGet()) return;
           const limit = Math.min(parseInt(url.searchParams.get('limit') || '50', 10), 200);
           const status = url.searchParams.get('status');
           let orders = (store.printLog || []).slice(0, limit);
@@ -700,6 +825,7 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
 
         // ── iOS companion: inventory ────────────────────────────
         } else if (pathname === '/api/inventory' && req.method === 'GET') {
+          if (!checkPinForGet()) return;
           res.writeHead(200);
           res.end(JSON.stringify(store.inventory || []));
 
@@ -725,7 +851,7 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
               storeData.inventory = [...(storeData.inventory || []), spool];
               lanServerStore = storeData;
               const fp = dataFilePath();
-              await fs.promises.writeFile(fp + '.tmp', JSON.stringify(storeData), 'utf8');
+              await fs.promises.writeFile(fp + '.tmp', JSON.stringify(encryptForDisk(storeData)), 'utf8');
               await fs.promises.rename(fp + '.tmp', fp);
               // Notify renderer to reload
               if (mainWindow && !mainWindow.isDestroyed()) {
@@ -771,7 +897,7 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
               storeData.printLog[idx] = { ...storeData.printLog[idx], status };
               lanServerStore = storeData;
               const fp = dataFilePath();
-              await fs.promises.writeFile(fp + '.tmp', JSON.stringify(storeData), 'utf8');
+              await fs.promises.writeFile(fp + '.tmp', JSON.stringify(encryptForDisk(storeData)), 'utf8');
               await fs.promises.rename(fp + '.tmp', fp);
               if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send('lan-order-updated', { id: orderId, status });
@@ -784,6 +910,78 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
             }
           });
 
+        // ── Customer survey submission (public — protected by one-time token) ──
+        } else if (pathname === '/api/survey' && req.method === 'POST') {
+          let body = '';
+          req.on('data', chunk => {
+            if (Buffer.byteLength(body) + chunk.length > MAX_BODY) {
+              res.writeHead(413, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+              res.end(JSON.stringify({ error: 'Request too large' }));
+              req.socket.destroy();
+              return;
+            }
+            body += chunk;
+          });
+          req.on('end', async () => {
+            try {
+              const parsed = JSON.parse(body);
+              if (typeof parsed.comment === 'string' && parsed.comment.length > 2000) {
+                parsed.comment = parsed.comment.slice(0, 2000);
+              }
+              const { token, orderId, rating, comment } = parsed;
+              if (!token || typeof rating !== 'number' || rating < 1 || rating > 5) {
+                res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+                res.end(JSON.stringify({ error: 'Invalid payload — token and rating (1-5) are required' }));
+                return;
+              }
+              const storeData = { ...lanServerStore };
+              const idx = (storeData.printLog || []).findIndex(o => o.surveyToken === token);
+              if (idx === -1) {
+                res.writeHead(404, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+                res.end(JSON.stringify({ error: 'Invalid or expired survey token' }));
+                return;
+              }
+              storeData.printLog[idx] = {
+                ...storeData.printLog[idx],
+                survey: {
+                  rating,
+                  comment: (comment || '').trim(),
+                  submittedAt: new Date().toISOString()
+                }
+              };
+              lanServerStore = storeData;
+              const fp = dataFilePath();
+              await fs.promises.writeFile(fp + '.tmp', JSON.stringify(encryptForDisk(storeData)), 'utf8');
+              await fs.promises.rename(fp + '.tmp', fp);
+              if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('lan-survey-submitted', {
+                  orderId: storeData.printLog[idx].id,
+                  rating
+                });
+              }
+              res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+              res.end(JSON.stringify({ ok: true }));
+            } catch (e) {
+              res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+              res.end(JSON.stringify({ error: String(e) }));
+            }
+          });
+
+        } else if (pathname.startsWith('/status/')) {
+          const rawId = path.basename(decodeURIComponent(pathname.slice('/status/'.length)).replace(/\.html$/, ''));
+          const safeId = rawId.replace(/[^a-zA-Z0-9_-]/g, '');
+          const statusDir = statusPagesDir();
+          const filePath = path.join(statusDir, `order-status-${safeId}.html`);
+          fs.promises.readFile(filePath, 'utf8').then(html => {
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            res.setHeader('Cache-Control', 'no-cache');
+            res.writeHead(200);
+            res.end(html);
+          }).catch(() => {
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            res.writeHead(404);
+            res.end(`<!DOCTYPE html><html><body style="font-family:sans-serif;text-align:center;padding:60px;color:#666;"><h2>Order not found</h2><p>The tracking page for this order is not available yet.</p></body></html>`);
+          });
         } else {
           res.writeHead(404);
           res.end(JSON.stringify({ error: 'Not found', endpoints: ['/api/status','/api/orders','/api/queue','/api/machines','/api/inventory'] }));
@@ -876,7 +1074,9 @@ function buildMenu() {
     },
     {
       label: 'View', submenu: [
-        { role: 'reload' }, { role: 'forceReload' }, { role: 'toggleDevTools' }, { type: 'separator' },
+        { role: 'reload' }, { role: 'forceReload' },
+        ...(!app.isPackaged ? [{ role: 'toggleDevTools' }] : []),
+        { type: 'separator' },
         { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { type: 'separator' },
         { role: 'togglefullscreen' }
       ]
