@@ -3759,3 +3759,23 @@ body.mode-simple .pro-only { display: none !important; }
 /* Survey analytics */
 #surveyAnalyticsSection { padding: 4px 0; }
 
+/* ── Quick Win styles ───────────────────────────────────────── */
+
+/* QW1: Sortable column sort indicator hover */
+th[data-sort]:hover {
+  background: rgba(255,255,255,0.04);
+}
+
+/* QW3: Kanban ETA badge */
+.eta-badge {
+  display: inline-block;
+  font-size: 10.5px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: rgba(91, 156, 240, 0.12);
+  color: var(--primary);
+  font-weight: 500;
+  margin-inline-start: 4px;
+  white-space: nowrap;
+}
+

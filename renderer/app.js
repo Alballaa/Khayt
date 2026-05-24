@@ -150,6 +150,14 @@ const _escHandlerStack = [];
 
 // Tag filter for the logs table
 let logTagFilter = '';
+let logSortCol = 'date';  // 'date' | 'project' | 'price' | 'material' | 'status'
+let logSortDir = 'desc';  // 'asc' | 'desc'
+let invSearchTerm = '';
+let logOperatorFilter = '';
+let wasteSearchTerm = '';
+let wasteMaterialFilter = '';
+let wasteFailureFilter = '';
+let wasteDateFilter = 'all';
 
 // Filament manufacturer catalog (loaded from filaments-db.json)
 let filamentsDB = [];
@@ -261,18 +269,28 @@ function downloadBlob(blob, filename) {
 }
 /** Return printLog entries matching the current log filter UI state. */
 function getFilteredLogs() {
-  return printLog.filter(log => {
+  const filtered = printLog.filter(log => {
     if (logStatusFilter !== 'all' && log.status !== logStatusFilter) return false;
     if (logPayFilter    !== 'all' && payStatus(log) !== logPayFilter) return false;
     if (!inRange(log.date, logRangeFilter, 'log')) return false;
     if (logTagFilter && !(log.tags || []).includes(logTagFilter)) return false;
     if (logClientFilter && log.clientId !== logClientFilter) return false;
+    if (logOperatorFilter && log.operatorId !== logOperatorFilter) return false;
     if (logSearchTerm) {
       const cl = log.clientId ? clients.find(c => c.id === log.clientId) : null;
       const hay = [log.project, log.client, cl?.nameEn, cl?.nameAr, log.id, log.material, ...(log.tags || [])].join(' ').toLowerCase();
       if (!hay.includes(logSearchTerm.toLowerCase())) return false;
     }
     return true;
+  });
+  const dir = logSortDir === 'asc' ? 1 : -1;
+  return filtered.sort((a, b) => {
+    if (logSortCol === 'date')     return dir * (a.date || '').localeCompare(b.date || '');
+    if (logSortCol === 'project')  return dir * (a.project || '').localeCompare(b.project || '');
+    if (logSortCol === 'price')    return dir * ((+a.price || 0) - (+b.price || 0));
+    if (logSortCol === 'material') return dir * (a.material || '').localeCompare(b.material || '');
+    if (logSortCol === 'status')   return dir * (a.status || '').localeCompare(b.status || '');
+    return 0;
   });
 }
 
@@ -3436,7 +3454,8 @@ function addInventoryItem() {
   const color = $('#invColor').value || '#888888';
   if (!material) { toast(t('inv.material_ph'), 'error'); return; }
   const today = new Date().toISOString().split('T')[0];
-  inventory.push({ id: uid('INV'), material, cost, weight, color, purchasedAt: today });
+  const invMaterialType = $('#invMaterialType')?.value || 'fdm';
+  inventory.push({ id: uid('INV'), material, cost, weight, color, purchasedAt: today, materialType: invMaterialType });
   saveAll();
   renderInventory();
   $('#invMaterial').value = '';
@@ -3720,10 +3739,14 @@ function renderInventory() {
 
   const tbody = $('#inventoryTable tbody');
   if (inventory.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" class="empty-state">${escapeHtml(t('inv.empty'))}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-state">${escapeHtml(t('inv.empty'))} <button class="btn small primary" onclick="$('#invMaterial')?.focus()" style="margin-inline-start:12px;">${escapeHtml(t('inv.add_title') || 'Add Filament')}</button></td></tr>`;
   } else {
     const todayMs = Date.now();
-    tbody.innerHTML = inventory.map(item => {
+    const invTerm = invSearchTerm.toLowerCase().trim();
+    const visibleInv = invTerm
+      ? inventory.filter(i => (i.material || '').toLowerCase().includes(invTerm) || (i.colourVariant || '').toLowerCase().includes(invTerm))
+      : inventory;
+    tbody.innerHTML = visibleInv.map(item => {
       const low = item.weight <= (item.reorderPoint ?? settings.lowStockThreshold);
       const queued = Math.round(getQueuedWeight(item.id));
       const warn   = queued > 0 && queued > item.weight;
@@ -8209,11 +8232,25 @@ function buildProfitabilityHtml(order) {
 /* ============================================================
    Waste Log (failed prints & wasted filament)
    ============================================================ */
+const WASTE_FAILURE_TYPES = ['bed_adhesion','nozzle_jam','warping','stringing','operator_error','design_issue','power_failure','material_quality','other'];
+
 function renderWasteLog() {
   const tbody = document.querySelector('#wasteTable tbody');
   if (!tbody) return;
 
-  const sorted = [...wasteLog].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const wasteFiltered = wasteLog.filter(w => {
+    if (wasteMaterialFilter && w.material !== wasteMaterialFilter) return false;
+    if (wasteFailureFilter && w.failureType !== wasteFailureFilter) return false;
+    if (wasteSearchTerm) {
+      const hay = [w.material || '', w.reason || '', w.failureType || ''].join(' ').toLowerCase();
+      if (!hay.includes(wasteSearchTerm.toLowerCase())) return false;
+    }
+    if (wasteDateFilter !== 'all') {
+      if (!inRange(w.date, wasteDateFilter, 'waste')) return false;
+    }
+    return true;
+  });
+  const sorted = [...wasteFiltered].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   const totalWasteCost = wasteLog.reduce((s, w) => s + (+w.cost || 0), 0);
   const totalWasteGrams = wasteLog.reduce((s, w) => s + (+w.weight || 0), 0);
 
@@ -8222,6 +8259,18 @@ function renderWasteLog() {
   wasteLog.forEach(w => { const ft = w.failureType || 'other'; ftCounts[ft] = (ftCounts[ft] || 0) + 1; });
 
   const statEl = $('#wasteStats');
+  // QW9: Populate waste filter dropdowns
+  const wasteMaterialSel = $('#wasteMaterialFilter');
+  if (wasteMaterialSel) {
+    const mats = [...new Set(wasteLog.map(w => w.material).filter(Boolean))].sort();
+    wasteMaterialSel.innerHTML = `<option value="">${escapeHtml(t('common.all') || 'All materials')}</option>` +
+      mats.map(m => `<option value="${escapeHtml(m)}"${m === wasteMaterialFilter ? ' selected' : ''}>${escapeHtml(m)}</option>`).join('');
+  }
+  const wasteFailureSel = $('#wasteFailureFilter');
+  if (wasteFailureSel) {
+    wasteFailureSel.innerHTML = `<option value="">${escapeHtml(t('common.all') || 'All failure types')}</option>` +
+      WASTE_FAILURE_TYPES.map(ft => `<option value="${escapeHtml(ft)}"${ft === wasteFailureFilter ? ' selected' : ''}>${escapeHtml(t('waste.ft.' + ft))}</option>`).join('');
+  }
   if (statEl) {
     const completedRevenue = printLog.filter(o => o.status === 'completed').reduce((s, o) => s + +o.price, 0);
     const wastePct = completedRevenue > 0 ? (totalWasteCost / completedRevenue * 100) : null;
@@ -8287,7 +8336,9 @@ function renderWasteLog() {
   }
 
   if (sorted.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:24px;">${escapeHtml(t('waste.empty'))}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:24px;">${escapeHtml(t('waste.empty'))} <button class="btn small primary" id="btnLogWasteEmpty" style="margin-inline-start:12px;">${escapeHtml(t('waste.add') || 'Log Failed Print')}</button></td></tr>`;
+    // Wire up the CTA
+    document.querySelector('#btnLogWasteEmpty')?.addEventListener('click', () => document.querySelector('#btnLogWaste')?.click());
     return;
   }
 
@@ -8307,8 +8358,6 @@ function renderWasteLog() {
     </tr>`;
   }).join('');
 }
-
-const WASTE_FAILURE_TYPES = ['bed_adhesion','nozzle_jam','warping','stringing','operator_error','design_issue','power_failure','material_quality','other'];
 
 function openWasteForm() {
   const today = new Date().toISOString().split('T')[0];
@@ -10004,7 +10053,10 @@ async function loadLanQr(urlOverride) {
       ? `<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">PIN: <code style="background:var(--bg);padding:1px 5px;border-radius:4px;">${escapeHtml(pin)}</code> (send via <code>x-khayt-pin</code> header)</div>`
       : '';
     qrWrap.style.display = 'block';
-    qrWrap.innerHTML = `<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">Scan from phone to view queue:</div>${svg}${pinNote}`;
+    qrWrap.innerHTML = `<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">Scan from phone to view queue: <span style="font-size:11px;opacity:0.7;">(click QR to copy URL)</span></div><div id="lanQrSvgWrap" style="cursor:pointer;display:inline-block;" title="Click to copy URL">${svg}</div>${pinNote}`;
+    document.getElementById('lanQrSvgWrap')?.addEventListener('click', () => {
+      navigator.clipboard.writeText(qrUrl).then(() => toast('URL copied to clipboard', 'success')).catch(() => {});
+    });
   }
 }
 
@@ -10071,6 +10123,7 @@ function renderSavedFilterPresets() {
       logTagFilter    = f.tag    || '';
       logRangeFilter  = f.range  || 'all';
       logSearchTerm   = f.search || '';
+      logOperatorFilter = f.operator || '';
       // Sync UI dropdowns
       const s = $('#logStatusFilter'); if (s) s.value = logStatusFilter;
       const p = $('#logPayFilter');    if (p) p.value = logPayFilter;
@@ -10108,6 +10161,7 @@ function saveCurrentFilterPreset() {
         tag:    logTagFilter,
         range:  logRangeFilter,
         search: logSearchTerm,
+        operator: logOperatorFilter,
       };
       settings.savedFilters = [...(settings.savedFilters || []), preset];
       saveAll();
@@ -10179,6 +10233,17 @@ function renderDashboard() {
   const monthlyRev   = printLog
     .filter(o => o.status === 'completed' && (o.date || '').startsWith(thisMonthStr))
     .reduce((s, o) => s + +o.price, 0);
+
+  // QW8: Previous month revenue for delta chip
+  const prevMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const prevMonthStr = prevMonthDate.toISOString().slice(0, 7);
+  const prevMonthRev = printLog
+    .filter(o => o.status === 'completed' && (o.date || '').startsWith(prevMonthStr))
+    .reduce((s, o) => s + +o.price, 0);
+  const revDeltaPct = prevMonthRev > 0 ? ((monthlyRev - prevMonthRev) / prevMonthRev * 100) : null;
+  const revDeltaHtml = revDeltaPct !== null
+    ? `<span class="delta-chip ${revDeltaPct >= 0 ? 'delta-up' : 'delta-down'}" style="font-size:10px;padding:1px 6px;border-radius:10px;margin-inline-start:6px;font-weight:600;background:${revDeltaPct >= 0 ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)'};color:${revDeltaPct >= 0 ? 'var(--success)' : 'var(--danger)'};">${revDeltaPct >= 0 ? '▲' : '▼'} ${Math.abs(revDeltaPct).toFixed(0)}%</span>`
+    : '';
 
   // Stats
   const active   = printLog.filter(o => o.status !== 'completed' && o.status !== 'quote');
@@ -10327,7 +10392,7 @@ function renderDashboard() {
         <div class="dash-goal">
           <div class="dash-goal-top">
             <span class="dash-goal-label">${escapeHtml(monthName)} ${escapeHtml(t('dash.goal'))}</span>
-            <span class="dash-goal-nums">${fmtMoney(monthlyRev)} / ${fmtPrice(settings.monthlyGoal)} · ${Math.round(pct)}%</span>
+            <span class="dash-goal-nums">${fmtMoney(monthlyRev)}${revDeltaHtml} / ${fmtPrice(settings.monthlyGoal)} · ${Math.round(pct)}%</span>
           </div>
           <div class="dash-goal-bar"><div class="dash-goal-fill" style="width:${pct}%; background:${col};"></div></div>
         </div>`;
@@ -10929,6 +10994,26 @@ function renderKanban() {
             </div>
           </div>`;
       }
+      // QW3: Est. completion badge for printing cards
+      let etaBadge = '';
+      if (status === 'printing' && log.printingStartedAt && +log.printTime > 0) {
+        const etaMs = new Date(log.printingStartedAt).getTime() + (+log.printTime * 3600000);
+        const nowMs = Date.now();
+        const diffH = (etaMs - nowMs) / 3600000;
+        const etaDate = new Date(etaMs);
+        const timeStr = etaDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        let etaLabel;
+        if (diffH < -0.5) {
+          etaLabel = `<span style="color:var(--danger);">⚠ ${escapeHtml(t('queue.overdue') || 'Overdue')}</span>`;
+        } else {
+          const today0 = new Date(); today0.setHours(0,0,0,0);
+          const etaDay0 = new Date(etaDate); etaDay0.setHours(0,0,0,0);
+          const dayDiff = Math.round((etaDay0 - today0) / 86400000);
+          const dayLabel = dayDiff === 0 ? 'Today' : dayDiff === 1 ? 'Tomorrow' : etaDate.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+          etaLabel = `${escapeHtml(dayLabel)} ${escapeHtml(timeStr)}`;
+        }
+        etaBadge = `<span class="eta-badge">🏁 ${etaLabel}</span>`;
+      }
       const _pl = getPriorityLevel(log);
       const kanbanOperator = log.operatorId ? operators.find(o => o.id === log.operatorId) : null;
       const operatorBadge = kanbanOperator ? `<span class="operator-badge">👤 ${escapeHtml(kanbanOperator.name)}</span>` : '';
@@ -10958,7 +11043,7 @@ function renderKanban() {
             <span>${escapeHtml(partsLabel)}</span>
           </div>
           ${(() => { const refs = (log.parts || []).map(p => p.fileRef).filter(Boolean); return refs.length > 0 ? `<div class="part-file-ref" style="margin-top:2px;">📎 ${escapeHtml(refs.join(', '))}</div>` : ''; })()}
-          <div class="order-meta-row">${paymentBadge(log)}${log.dueDate && status !== 'completed' ? ' ' + formatDueDateBadge(log.dueDate) : ''}${timerBadge}</div>
+          <div class="order-meta-row">${paymentBadge(log)}${log.dueDate && status !== 'completed' ? ' ' + formatDueDateBadge(log.dueDate) : ''}${timerBadge}${etaBadge}</div>
           ${status === 'on_hold' && log.holdReason ? `<div style="font-size:11px; color:var(--warning); margin-top:3px;">⏸ ${escapeHtml(log.holdReason)}</div>` : ''}
           ${(log.tags && log.tags.length > 0) ? `<div class="kanban-tags">${renderTagChips(log.tags)}</div>` : ''}
           ${postCheckHtml}
@@ -11057,10 +11142,29 @@ function renderLogs() {
     clientSel.innerHTML = `<option value="">${escapeHtml(t('log.all_clients') || 'All clients')}</option>` +
       clientsWithOrders.map(c => `<option value="${escapeHtml(c.id)}"${c.id === logClientFilter ? ' selected' : ''}>${escapeHtml(localName(c))}</option>`).join('');
   }
+  // QW6: Operator filter dropdown
+  const operatorSel = $('#logOperatorFilter');
+  if (operatorSel) {
+    operatorSel.innerHTML = `<option value="">${escapeHtml(t('log.all_operators') || 'All operators')}</option>` +
+      operators.map(op => `<option value="${escapeHtml(op.id)}"${op.id === logOperatorFilter ? ' selected' : ''}>${escapeHtml(op.name)}</option>`).join('');
+  }
+  // QW1: Update sort indicators on headers
+  $$('#logTable thead th[data-sort]').forEach(th => {
+    const col = th.dataset.sort;
+    const arrow = logSortCol === col ? (logSortDir === 'asc' ? ' ▲' : ' ▼') : '';
+    th.querySelectorAll('.sort-arrow').forEach(el => el.remove());
+    if (arrow) {
+      const span = document.createElement('span');
+      span.className = 'sort-arrow';
+      span.textContent = arrow;
+      span.style.cssText = 'font-size:10px;color:var(--primary);';
+      th.appendChild(span);
+    }
+  });
   const filtered = getFilteredLogs();
 
   if (printLog.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" class="empty-state">${escapeHtml(t('log.empty'))}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="empty-state">${escapeHtml(t('log.empty'))} <button class="btn small primary" data-act="new-order" style="margin-inline-start:12px;">${escapeHtml(t('common.new_order') || 'New Order')}</button></td></tr>`;
     return;
   }
   if (filtered.length === 0) {
@@ -14690,9 +14794,29 @@ function wireEvents() {
     if (btn.dataset.act === 'edit-part')   editPart(+btn.dataset.idx);
   });
 
+  // QW4: Calculator autosave — debounced on every field change
+  const _calcInputIds = ['#margin','#spoolCost','#spoolWeight','#partQty','#partName','#printWeight','#printTime'];
+  let _calcAutosaveTimer = null;
+  function _scheduleCalcAutosave() {
+    clearTimeout(_calcAutosaveTimer);
+    _calcAutosaveTimer = setTimeout(saveBuildDraft, 400);
+  }
+  _calcInputIds.forEach(sel => {
+    $(sel)?.addEventListener('input', _scheduleCalcAutosave);
+    $(sel)?.addEventListener('change', _scheduleCalcAutosave);
+  });
+
   // Inventory
   $('#btnAddInv').addEventListener('click', addInventoryItem);
   $('#btnBrowseCatalog').addEventListener('click', openFilamentCatalog);
+  // QW7: Dynamic unit label for Resin vs FDM in add form
+  $('#invMaterialType')?.addEventListener('change', (e) => {
+    const isResin = e.target.value === 'resin';
+    const lbl = $('#invWeightUnitSpan');
+    if (lbl) lbl.textContent = isResin ? 'mL' : t('common.grams') || 'g';
+    const weightLabel = $('#invWeightLabel');
+    if (weightLabel) weightLabel.textContent = isResin ? (t('inv.volume_ml') || 'Volume') : (t('inv.weight') || 'Spool weight');
+  });
   $('#btnScanLabel').addEventListener('click', openFilamentScanner);
   $('#inventoryTable').addEventListener('click', (e) => {
     const btn = e.target.closest('[data-act]');
@@ -14841,6 +14965,21 @@ function wireEvents() {
   $('#logRangeTo')?.addEventListener('change',   (e) => { customRangeTo.log   = e.target.value; renderLogs(); });
   $('#logTagFilter')?.addEventListener('change', (e) => { logTagFilter = e.target.value; renderLogs(); });
   $('#logClientFilter')?.addEventListener('change', (e) => { logClientFilter = e.target.value; renderLogs(); });
+  // QW1: Sortable log table headers
+  $('#logTable thead').addEventListener('click', (e) => {
+    const th = e.target.closest('th[data-sort]');
+    if (!th) return;
+    const col = th.dataset.sort;
+    if (logSortCol === col) {
+      logSortDir = logSortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      logSortCol = col;
+      logSortDir = col === 'date' ? 'desc' : 'asc';
+    }
+    renderLogs();
+  });
+  // QW6: Operator filter
+  $('#logOperatorFilter')?.addEventListener('change', (e) => { logOperatorFilter = e.target.value; renderLogs(); });
   $('#logTable').addEventListener('click', (e) => {
     const inv  = e.target.closest('[data-act="invoice"]');
     const pdf  = e.target.closest('[data-act="inv-pdf"]');
@@ -15124,6 +15263,12 @@ function wireEvents() {
   // Catalog
   $('#btnAddProduct').addEventListener('click', () => openProductEditor(null));
   $('#catalogSearch').addEventListener('input', (e) => { catalogSearchTerm = e.target.value; renderCatalog(); });
+  $('#invSearch')?.addEventListener('input', (e) => { invSearchTerm = e.target.value; renderInventory(); });
+  // QW9: Waste log filters
+  $('#wasteSearch')?.addEventListener('input', (e) => { wasteSearchTerm = e.target.value; renderWasteLog(); });
+  $('#wasteMaterialFilter')?.addEventListener('change', (e) => { wasteMaterialFilter = e.target.value; renderWasteLog(); });
+  $('#wasteFailureFilter')?.addEventListener('change', (e) => { wasteFailureFilter = e.target.value; renderWasteLog(); });
+  $('#wasteDateFilter')?.addEventListener('change', (e) => { wasteDateFilter = e.target.value; renderWasteLog(); });
   $('#catalogGrid').addEventListener('click', (e) => {
     const quote = e.target.closest('[data-act="cat-quote"]');
     const edit  = e.target.closest('[data-act="cat-edit"]');
