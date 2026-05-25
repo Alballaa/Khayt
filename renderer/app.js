@@ -802,6 +802,7 @@ function defaultSettings() {
     // v2.0 — worldwide
     currency:        'SAR',
     enableZatca:     true,
+    zatcaPhase2:     { enabled: false, environment: 'sandbox', csid: '', pcsid: '', cn: '', invoiceCounter: 0, lastInvoiceHash: 'NWZlY2ViNjZmZmM4NmYzOGQ5NTI3ODZjNmQ2OTZjNzljMmRiYzIzOWRkNGU5MWI4NjJhNGRhNjM3NWQ2OGM5', org: '', city: 'Riyadh', industry: '3D Printing' },
     donationUrl:     '',
     firstRunDone:    false,
     // v3.0 additions
@@ -9480,14 +9481,49 @@ async function renderInvoiceForOrder(order) {
   const subtotal  = fmtMoney(exVat);
   let qrSvg = '';
   if (settings.enableZatca && window.hubAPI?.generateQR) {
-    const tlvB64 = buildZatcaTLV({
-      sellerName: settings.bizEn || settings.bizAr || '',
-      vatNumber:  settings.vat || '',
-      timestamp:  ts,
-      total, vatAmount
-    });
-    try { qrSvg = await window.hubAPI.generateQR(tlvB64, { width: 140, margin: 1 }); }
-    catch (e) { console.error(e); }
+    try {
+      const z2 = settings.zatcaPhase2;
+      let tlvB64;
+      if (z2?.enabled && (z2.csid || z2.pcsid)) {
+        // Phase 2: generate UBL XML, sign it, build TLV with tags 1–8
+        const issueDt  = (ts || new Date().toISOString()).split('T');
+        const xml = buildZatcaInvoiceXml({
+          invoiceNumber: order.invoiceNumber || order.id,
+          uuid:          order.zatcaUuid || order.id,
+          issueDate:     issueDt[0],
+          issueTime:     (issueDt[1] || '00:00:00').split('.')[0],
+          sellerName:    settings.bizEn || settings.bizAr || '',
+          sellerStreet:  settings.address || '',
+          sellerCity:    z2.city || 'Riyadh',
+          vatNumber:     settings.vat || '',
+          buyerName:     order.client || '',
+          total:         +price,
+          subtotal:      +price - (settings.enableVat ? +price * (+settings.vatRate || 15) / (100 + (+settings.vatRate || 15)) : 0),
+          vatAmount:     settings.enableVat ? +price * (+settings.vatRate || 15) / (100 + (+settings.vatRate || 15)) : 0,
+          vatRate:       settings.enableVat ? (+settings.vatRate || 15) : 0,
+          itemName:      order.project || order.id,
+          invoiceCounter: (z2.invoiceCounter || 0) + 1,
+          pih:           z2.lastInvoiceHash || 'NWZlY2ViNjZmZmM4NmYzOGQ5NTI3ODZjNmQ2OTZjNzljMmRiYzIzOWRkNGU5MWI4NjJhNGRhNjM3NWQ2OGM5',
+        });
+        tlvB64 = await buildZatcaPhase2TLV({
+          sellerName: settings.bizEn || settings.bizAr || '',
+          vatNumber:  settings.vat || '',
+          timestamp:  ts,
+          total, vatAmount,
+          canonicalData: xml,
+        });
+        // Store the UUID on the order for future reference
+        if (!order.zatcaUuid) {
+          order.zatcaUuid = order.id + '-' + Date.now().toString(36);
+          const idx = printLog.findIndex(o => o.id === order.id);
+          if (idx !== -1) { printLog[idx] = { ...printLog[idx], zatcaUuid: order.zatcaUuid }; saveAll(); }
+        }
+      } else {
+        // Phase 1 fallback
+        tlvB64 = buildZatcaTLV({ sellerName: settings.bizEn || settings.bizAr || '', vatNumber: settings.vat || '', timestamp: ts, total, vatAmount });
+      }
+      qrSvg = await window.hubAPI.generateQR(tlvB64, { width: 140, margin: 1 });
+    } catch (e) { console.error('ZATCA QR error:', e); }
   }
 
   // Payment QR — EMVCo-inspired format for GCC banking apps (SARIE/Mada compatible)
@@ -11886,6 +11922,221 @@ function renderLanApiSettings() {
   el.querySelector('#webhookUrlDisplay')?.addEventListener('click', () => {
     const url = el.querySelector('#webhookUrlDisplay').textContent;
     if (url && url !== '—') navigator.clipboard.writeText(url).then(() => toast(t('common.copied'), 'success')).catch(() => {});
+  });
+}
+
+/* ============================================================
+   ZATCA Phase 2 Settings
+   ============================================================ */
+function renderZatcaPhase2Settings() {
+  const el = $('#zatcaPhase2Section');
+  if (!el) return;
+  const z2 = settings.zatcaPhase2 || {};
+  const hasKey = !!(z2.cn); // crude check — replaced by IPC status
+  const hasCsid  = !!z2.csid;
+  const hasPcsid = !!z2.pcsid;
+
+  const stepClass = (done) => done ? 'style="color:var(--success)"' : '';
+  el.innerHTML = `
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:12px;">
+      <input type="checkbox" id="z2_enabled" style="width:auto;margin:0;" ${z2.enabled ? 'checked' : ''}>
+      <span data-i18n="zatca2.enable">Enable ZATCA Phase 2 (cryptographic invoices)</span>
+    </label>
+    <div id="z2Body" style="${z2.enabled ? '' : 'display:none;'}">
+      <div class="inline-pair">
+        <div>
+          <label data-i18n="zatca2.environment">Environment</label>
+          <select id="z2_env">
+            <option value="sandbox" ${z2.environment !== 'production' ? 'selected' : ''}>Sandbox (testing)</option>
+            <option value="production" ${z2.environment === 'production' ? 'selected' : ''}>Production</option>
+          </select>
+        </div>
+        <div>
+          <label data-i18n="zatca2.city">City (for CSR)</label>
+          <input type="text" id="z2_city" value="${escapeHtml(z2.city || 'Riyadh')}" placeholder="Riyadh">
+        </div>
+      </div>
+      <div class="inline-pair">
+        <div>
+          <label data-i18n="zatca2.org">Organization name (for CSR)</label>
+          <input type="text" id="z2_org" value="${escapeHtml(z2.org || settings.bizEn || '')}" placeholder="My Shop LLC">
+        </div>
+        <div>
+          <label data-i18n="zatca2.industry">Industry (for CSR)</label>
+          <input type="text" id="z2_industry" value="${escapeHtml(z2.industry || '3D Printing')}" placeholder="3D Printing">
+        </div>
+      </div>
+
+      <h4 style="margin:16px 0 10px;font-size:13px;color:var(--text-muted);" data-i18n="zatca2.steps_title">Onboarding Steps</h4>
+
+      <!-- Step 1: Key pair -->
+      <div style="margin-bottom:12px;padding:12px;background:var(--bg-elev);border-radius:var(--radius);">
+        <div style="font-weight:600;font-size:13px;margin-bottom:6px;">
+          <span ${stepClass(hasKey)}>● </span><span data-i18n="zatca2.step1">Step 1 — Generate Device Key Pair</span>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;" data-i18n="zatca2.step1_hint">Creates an ECDSA secp256k1 key pair. Private key is encrypted at rest.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn ghost small" id="btnZ2GenKey" data-i18n="zatca2.gen_key">Generate Key Pair</button>
+          <button class="btn ghost small" id="btnZ2ShowKey" data-i18n="zatca2.show_pubkey">Show Public Key</button>
+        </div>
+        <div id="z2KeyStatus" style="font-size:11px;margin-top:6px;color:var(--text-muted);"></div>
+      </div>
+
+      <!-- Step 2: CSR -->
+      <div style="margin-bottom:12px;padding:12px;background:var(--bg-elev);border-radius:var(--radius);">
+        <div style="font-weight:600;font-size:13px;margin-bottom:6px;">
+          <span data-i18n="zatca2.step2">Step 2 — Generate CSR &amp; Get CSID</span>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;" data-i18n="zatca2.step2_hint">Submit the CSR to ZATCA's Fatoorah portal to get a compliance CSID (OTP required).</div>
+        <label data-i18n="zatca2.egs_cn">EGS Common Name (format: 1-{OIC}{CR}|{brand}|{serial})</label>
+        <input type="text" id="z2_cn" value="${escapeHtml(z2.cn || '')}" placeholder="1-123456789-1|MyShop|SN001" style="margin-bottom:8px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+          <button class="btn ghost small" id="btnZ2GenCsr" data-i18n="zatca2.gen_csr">Generate CSR</button>
+        </div>
+        <div id="z2CsrOut" style="display:none;margin-bottom:8px;">
+          <label data-i18n="zatca2.csr_label">CSR (copy and submit to ZATCA)</label>
+          <textarea id="z2CsrText" rows="4" style="font-family:monospace;font-size:10px;width:100%;resize:vertical;" readonly></textarea>
+          <button class="btn ghost small" id="btnZ2CopyCsr" style="margin-top:4px;" data-i18n="zatca2.copy_csr">Copy CSR</button>
+        </div>
+        <label data-i18n="zatca2.otp_label">OTP (from ZATCA Fatoorah portal)</label>
+        <input type="text" id="z2_otp" placeholder="123456" maxlength="6" style="margin-bottom:8px;">
+        <button class="btn ghost small" id="btnZ2GetCsid" data-i18n="zatca2.get_csid">Get CSID from ZATCA</button>
+        <div id="z2CsidStatus" style="font-size:11px;margin-top:6px;"></div>
+      </div>
+
+      <!-- Step 3: Production CSID -->
+      <div style="margin-bottom:12px;padding:12px;background:var(--bg-elev);border-radius:var(--radius);">
+        <div style="font-weight:600;font-size:13px;margin-bottom:6px;">
+          <span ${stepClass(hasPcsid)}>● </span><span data-i18n="zatca2.step3">Step 3 — Upgrade to Production CSID</span>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;" data-i18n="zatca2.step3_hint">Run compliance checks, then upgrade. Leave blank if staying on sandbox.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn ghost small" id="btnZ2GetPcsid" data-i18n="zatca2.get_pcsid">Get Production CSID</button>
+        </div>
+        <div id="z2PcsidStatus" style="font-size:11px;margin-top:6px;color:var(--text-muted);">${hasPcsid ? '✅ Production CSID stored' : hasCsid ? '🔵 Compliance CSID ready' : '—'}</div>
+      </div>
+
+      <!-- Step 4: Submit invoices -->
+      <div style="padding:12px;background:var(--bg-elev);border-radius:var(--radius);">
+        <div style="font-weight:600;font-size:13px;margin-bottom:6px;" data-i18n="zatca2.step4">Step 4 — Submit invoices to ZATCA</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;" data-i18n="zatca2.step4_hint">Each completed invoice with Phase 2 enabled will be auto-submitted. You can also submit manually from the invoice view.</div>
+        <div id="z2SubmitStatus" style="font-size:12px;color:var(--text-muted);">
+          ${(z2.invoiceCounter||0) > 0 ? `✅ ${z2.invoiceCounter} invoice(s) submitted` : t('zatca2.no_submissions')}
+        </div>
+      </div>
+
+      <button class="btn primary" id="btnZ2Save" style="margin-top:14px;" data-i18n="common.save">Save Phase 2 Settings</button>
+    </div>`;
+
+  // Toggle body visibility
+  el.querySelector('#z2_enabled')?.addEventListener('change', (e) => {
+    const body = el.querySelector('#z2Body');
+    if (body) body.style.display = e.target.checked ? '' : 'none';
+  });
+
+  // Save
+  el.querySelector('#btnZ2Save')?.addEventListener('click', () => {
+    settings.zatcaPhase2 = {
+      ...settings.zatcaPhase2,
+      enabled:     el.querySelector('#z2_enabled').checked,
+      environment: el.querySelector('#z2_env').value,
+      cn:          el.querySelector('#z2_cn').value.trim(),
+      org:         el.querySelector('#z2_org').value.trim(),
+      city:        el.querySelector('#z2_city').value.trim(),
+      industry:    el.querySelector('#z2_industry').value.trim(),
+    };
+    saveAll();
+    toast(t('zatca2.saved'), 'success');
+  });
+
+  // Generate key pair
+  el.querySelector('#btnZ2GenKey')?.addEventListener('click', async () => {
+    const res = await window.hubAPI?.zatcaGenKeypair?.();
+    const ks = el.querySelector('#z2KeyStatus');
+    if (res?.ok) {
+      if (ks) ks.textContent = '✅ Key pair generated and encrypted on disk';
+      toast(t('zatca2.key_generated'), 'success');
+    } else {
+      if (ks) ks.textContent = `❌ ${res?.error || 'Failed'}`;
+    }
+  });
+
+  // Show public key
+  el.querySelector('#btnZ2ShowKey')?.addEventListener('click', async () => {
+    const res = await window.hubAPI?.zatcaGetPubkey?.();
+    const ks = el.querySelector('#z2KeyStatus');
+    if (res?.ok) {
+      if (ks) ks.innerHTML = `<details><summary>Public Key (click to expand)</summary><pre style="font-size:9px;white-space:pre-wrap;word-break:break-all;">${escapeHtml(res.publicKey)}</pre></details>`;
+    } else {
+      if (ks) ks.textContent = 'No key pair found — generate one first';
+    }
+  });
+
+  // Generate CSR
+  el.querySelector('#btnZ2GenCsr')?.addEventListener('click', async () => {
+    const cn = el.querySelector('#z2_cn').value.trim();
+    const org = el.querySelector('#z2_org').value.trim() || settings.bizEn || '';
+    const vat = settings.vat || '';
+    if (!cn) { toast(t('zatca2.cn_required'), 'warning'); return; }
+    const res = await window.hubAPI?.zatcaGenCsr?.({
+      cn, org, vat,
+      invoiceType: '1100',
+      location: el.querySelector('#z2_city').value.trim() || 'Riyadh',
+      industry: el.querySelector('#z2_industry').value.trim() || '3D Printing',
+    });
+    if (res?.ok) {
+      const out = el.querySelector('#z2CsrOut');
+      const txt = el.querySelector('#z2CsrText');
+      if (out) out.style.display = 'block';
+      if (txt) txt.value = res.csr;
+    } else {
+      toast(res?.error || t('zatca2.csr_failed'), 'error');
+    }
+  });
+
+  // Copy CSR
+  el.querySelector('#btnZ2CopyCsr')?.addEventListener('click', () => {
+    const txt = el.querySelector('#z2CsrText');
+    if (txt?.value) navigator.clipboard.writeText(txt.value).then(() => toast(t('common.copied'), 'success')).catch(() => {});
+  });
+
+  // Get CSID from ZATCA
+  el.querySelector('#btnZ2GetCsid')?.addEventListener('click', async () => {
+    const csrTxt = el.querySelector('#z2CsrText')?.value;
+    const otp = el.querySelector('#z2_otp')?.value.trim();
+    const env = el.querySelector('#z2_env').value;
+    if (!csrTxt) { toast(t('zatca2.gen_csr_first'), 'warning'); return; }
+    if (!otp) { toast(t('zatca2.otp_required'), 'warning'); return; }
+    const csrB64 = csrTxt.replace(/-----[^-]+-----/g, '').replace(/\s/g, '');
+    const st = el.querySelector('#z2CsidStatus');
+    if (st) st.textContent = '⏳ Contacting ZATCA…';
+    const res = await window.hubAPI?.zatcaCompliance?.({ csrBase64: csrB64, otp, environment: env });
+    if (res?.ok) {
+      settings.zatcaPhase2 = { ...settings.zatcaPhase2, csid: res.csid };
+      saveAll();
+      if (st) st.textContent = `✅ Compliance CSID stored (request ID: ${res.requestId || 'N/A'})`;
+      toast(t('zatca2.csid_received'), 'success');
+    } else {
+      if (st) st.textContent = `❌ ${res?.error || JSON.stringify(res?.body || '')}`;
+    }
+  });
+
+  // Get Production CSID
+  el.querySelector('#btnZ2GetPcsid')?.addEventListener('click', async () => {
+    const csid = settings.zatcaPhase2?.csid;
+    const env = el.querySelector('#z2_env').value;
+    if (!csid) { toast(t('zatca2.need_csid_first'), 'warning'); return; }
+    const ps = el.querySelector('#z2PcsidStatus');
+    if (ps) ps.textContent = '⏳ Upgrading…';
+    const res = await window.hubAPI?.zatcaProductionCsid?.({ csid, environment: env });
+    if (res?.ok) {
+      settings.zatcaPhase2 = { ...settings.zatcaPhase2, pcsid: res.pcsid };
+      saveAll();
+      if (ps) ps.textContent = '✅ Production CSID stored';
+      toast(t('zatca2.pcsid_received'), 'success');
+    } else {
+      if (ps) ps.textContent = `❌ ${res?.error || JSON.stringify(res?.body || '')}`;
+    }
   });
 }
 
@@ -16485,6 +16736,143 @@ function buildZatcaTLV({ sellerName, vatNumber, timestamp, total, vatAmount }) {
   return btoa(bin);
 }
 
+/* ============================================================
+   ZATCA Phase 2 — UBL 2.1 Simplified Invoice XML
+   ============================================================ */
+function buildZatcaInvoiceXml({ invoiceNumber, uuid, issueDate, issueTime, sellerName, sellerStreet, sellerCity, vatNumber, buyerName, total, subtotal, vatAmount, vatRate, itemName, invoiceCounter, pih }) {
+  const x = (s) => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const amt = (n) => (Math.round((+n || 0) * 100) / 100).toFixed(2);
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
+         xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
+         xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+  <cbc:ProfileID>reporting:1.0</cbc:ProfileID>
+  <cbc:ID>${x(invoiceNumber)}</cbc:ID>
+  <cbc:UUID>${x(uuid)}</cbc:UUID>
+  <cbc:IssueDate>${x(issueDate)}</cbc:IssueDate>
+  <cbc:IssueTime>${x(issueTime)}</cbc:IssueTime>
+  <cbc:InvoiceTypeCode name="0200000">388</cbc:InvoiceTypeCode>
+  <cbc:DocumentCurrencyCode>SAR</cbc:DocumentCurrencyCode>
+  <cbc:TaxCurrencyCode>SAR</cbc:TaxCurrencyCode>
+  <cac:AdditionalDocumentReference>
+    <cbc:ID>ICV</cbc:ID>
+    <cbc:UUID>${x(invoiceCounter)}</cbc:UUID>
+  </cac:AdditionalDocumentReference>
+  <cac:AdditionalDocumentReference>
+    <cbc:ID>PIH</cbc:ID>
+    <cac:Attachment>
+      <cbc:EmbeddedDocumentBinaryObject mimeCode="text/plain">${x(pih)}</cbc:EmbeddedDocumentBinaryObject>
+    </cac:Attachment>
+  </cac:AdditionalDocumentReference>
+  <cac:AccountingSupplierParty>
+    <cac:Party>
+      <cac:PartyName><cbc:Name>${x(sellerName)}</cbc:Name></cac:PartyName>
+      <cac:PostalAddress>
+        <cbc:StreetName>${x(sellerStreet || sellerCity)}</cbc:StreetName>
+        <cbc:CityName>${x(sellerCity)}</cbc:CityName>
+        <cac:Country><cbc:IdentificationCode>SA</cbc:IdentificationCode></cac:Country>
+      </cac:PostalAddress>
+      <cac:PartyTaxScheme>
+        <cbc:CompanyID>${x(vatNumber)}</cbc:CompanyID>
+        <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
+      </cac:PartyTaxScheme>
+      <cac:PartyLegalEntity><cbc:RegistrationName>${x(sellerName)}</cbc:RegistrationName></cac:PartyLegalEntity>
+    </cac:Party>
+  </cac:AccountingSupplierParty>
+  <cac:AccountingCustomerParty>
+    <cac:Party>
+      <cac:PartyName><cbc:Name>${x(buyerName)}</cbc:Name></cac:PartyName>
+      <cac:PartyLegalEntity><cbc:RegistrationName>${x(buyerName)}</cbc:RegistrationName></cac:PartyLegalEntity>
+    </cac:Party>
+  </cac:AccountingCustomerParty>
+  <cac:TaxTotal>
+    <cbc:TaxAmount currencyID="SAR">${amt(vatAmount)}</cbc:TaxAmount>
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount currencyID="SAR">${amt(subtotal)}</cbc:TaxableAmount>
+      <cbc:TaxAmount currencyID="SAR">${amt(vatAmount)}</cbc:TaxAmount>
+      <cac:TaxCategory>
+        <cbc:ID>S</cbc:ID>
+        <cbc:Percent>${amt(vatRate)}</cbc:Percent>
+        <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
+      </cac:TaxCategory>
+    </cac:TaxSubtotal>
+  </cac:TaxTotal>
+  <cac:LegalMonetaryTotal>
+    <cbc:LineExtensionAmount currencyID="SAR">${amt(subtotal)}</cbc:LineExtensionAmount>
+    <cbc:TaxExclusiveAmount currencyID="SAR">${amt(subtotal)}</cbc:TaxExclusiveAmount>
+    <cbc:TaxInclusiveAmount currencyID="SAR">${amt(total)}</cbc:TaxInclusiveAmount>
+    <cbc:PayableAmount currencyID="SAR">${amt(total)}</cbc:PayableAmount>
+  </cac:LegalMonetaryTotal>
+  <cac:InvoiceLine>
+    <cbc:ID>1</cbc:ID>
+    <cbc:InvoicedQuantity unitCode="PCE">1</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="SAR">${amt(subtotal)}</cbc:LineExtensionAmount>
+    <cac:TaxTotal>
+      <cbc:TaxAmount currencyID="SAR">${amt(vatAmount)}</cbc:TaxAmount>
+      <cbc:RoundingAmount currencyID="SAR">${amt(total)}</cbc:RoundingAmount>
+    </cac:TaxTotal>
+    <cac:Item>
+      <cbc:Name>${x(itemName)}</cbc:Name>
+      <cac:ClassifiedTaxCategory>
+        <cbc:ID>S</cbc:ID>
+        <cbc:Percent>${amt(vatRate)}</cbc:Percent>
+        <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
+      </cac:ClassifiedTaxCategory>
+    </cac:Item>
+    <cac:Price>
+      <cbc:PriceAmount currencyID="SAR">${amt(subtotal)}</cbc:PriceAmount>
+    </cac:Price>
+  </cac:InvoiceLine>
+</Invoice>`;
+}
+
+/* ============================================================
+   ZATCA Phase 2 — Signed TLV QR (tags 1–8)
+   ============================================================ */
+async function buildZatcaPhase2TLV({ sellerName, vatNumber, timestamp, total, vatAmount, canonicalData }) {
+  const enc = new TextEncoder();
+  function tlvBytes(tag, value) {
+    const len = value.length;
+    const header = len <= 127
+      ? new Uint8Array([tag, len])
+      : new Uint8Array([tag, 0x81, len]);
+    const out = new Uint8Array(header.length + len);
+    out.set(header, 0); out.set(value, header.length);
+    return out;
+  }
+
+  const fields = [
+    tlvBytes(1, enc.encode(String(sellerName || ''))),
+    tlvBytes(2, enc.encode(String(vatNumber  || ''))),
+    tlvBytes(3, enc.encode(String(timestamp  || ''))),
+    tlvBytes(4, enc.encode(String(total      || ''))),
+    tlvBytes(5, enc.encode(String(vatAmount  || ''))),
+  ];
+
+  // Sign via main process; it hashes + signs canonicalData and returns base64 values
+  const signResult = await window.hubAPI?.zatcaSignInvoice?.({ canonicalData: canonicalData || '' });
+  if (signResult?.ok) {
+    // Tag 6: SHA-256 hash bytes (raw, not hex)
+    const hashBytes = Uint8Array.from(atob(signResult.hashBase64), c => c.charCodeAt(0));
+    fields.push(tlvBytes(6, hashBytes));
+    // Tag 7: ECDSA signature bytes (DER)
+    const sigBytes = Uint8Array.from(atob(signResult.signatureBase64), c => c.charCodeAt(0));
+    fields.push(tlvBytes(7, sigBytes));
+    // Tag 8: Public key (SPKI DER bytes, skip PEM header/footer)
+    if (signResult.publicKey) {
+      const pemBody = signResult.publicKey.replace(/-----[^-]+-----/g, '').replace(/\s/g, '');
+      const pubBytes = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0));
+      fields.push(tlvBytes(8, pubBytes));
+    }
+  }
+
+  const totalLen = fields.reduce((s, f) => s + f.length, 0);
+  const combined = new Uint8Array(totalLen);
+  let off = 0; for (const f of fields) { combined.set(f, off); off += f.length; }
+  let bin = ''; for (let i = 0; i < combined.length; i++) bin += String.fromCharCode(combined[i]);
+  return btoa(bin);
+}
+
 // "Print invoice" path — renders into the print area then opens the system print dialog
 async function generateInvoice(id) {
   const order = printLog.find(o => o.id === id);
@@ -17654,6 +18042,8 @@ function loadSettingsIntoForm() {
   renderFixedCostSettings();
   // Round 12: LAN API
   renderLanApiSettings();
+  // ZATCA Phase 2
+  renderZatcaPhase2Settings();
   // Round 12: Saved filter presets
   renderSavedFilterPresets();
   // Business Mode toggle buttons

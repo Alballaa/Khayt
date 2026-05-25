@@ -18,6 +18,84 @@ function decryptStoreField(val) {
   catch { return val; }
 }
 
+// ── ZATCA Phase 2 — ASN.1 DER utilities ─────────────────────────────────────
+function asn1Len(n) {
+  if (n < 0x80) return Buffer.from([n]);
+  if (n < 0x100) return Buffer.from([0x81, n]);
+  return Buffer.from([0x82, (n >> 8) & 0xff, n & 0xff]);
+}
+function asn1TL(tag, content) {
+  return Buffer.concat([Buffer.from([tag]), asn1Len(content.length), content]);
+}
+const asn1Seq    = (items) => asn1TL(0x30, Array.isArray(items) ? Buffer.concat(items) : items);
+const asn1Set    = (items) => asn1TL(0x31, Array.isArray(items) ? Buffer.concat(items) : items);
+const asn1OStr   = (b)     => asn1TL(0x04, b);
+const asn1BitStr = (b)     => asn1TL(0x03, Buffer.concat([Buffer.from([0x00]), b]));
+const asn1Int    = (n)     => asn1TL(0x02, Buffer.from([n]));
+const asn1Utf8   = (s)     => asn1TL(0x0c, Buffer.from(s, 'utf8'));
+const asn1Print  = (s)     => asn1TL(0x13, Buffer.from(s, 'ascii'));
+const asn1CtxX   = (n, b)  => asn1TL(0xa0 | n, b);  // [n] EXPLICIT/IMPLICIT constructed
+
+function asn1OID(oidStr) {
+  const p = oidStr.split('.').map(Number);
+  const bytes = [40 * p[0] + p[1]];
+  for (let i = 2; i < p.length; i++) {
+    let n = p[i]; if (n < 0x80) { bytes.push(n); continue; }
+    const chunk = [];
+    while (n > 0) { chunk.unshift(n & 0x7f); n >>>= 7; }
+    for (let j = 0; j < chunk.length - 1; j++) chunk[j] |= 0x80;
+    bytes.push(...chunk);
+  }
+  return asn1TL(0x06, Buffer.from(bytes));
+}
+
+function buildZatcaCsrDer({ privateKey, pubDer, cn, org, vat, invoiceType = '1100', location = 'Riyadh', industry = '3D Printing' }) {
+  const rdn = (oidStr, val, strTag = 0x0c) =>
+    asn1Set([asn1Seq([asn1OID(oidStr), asn1TL(strTag, Buffer.from(val, 'utf8'))])]);
+
+  const subject = asn1Seq([
+    rdn('2.5.4.6',  'SA',  0x13),
+    rdn('2.5.4.10', org),
+    rdn('2.5.4.11', vat),
+    rdn('2.5.4.3',  cn),
+  ]);
+
+  // OtherName inside GeneralName: [0] IMPLICIT { OID, [0] EXPLICIT UTF8String }
+  const otherName = (typeOid, val) =>
+    asn1CtxX(0, Buffer.concat([asn1OID(typeOid), asn1CtxX(0, asn1Utf8(val))]));
+
+  const sanContent = asn1Seq([
+    otherName('2.16.682.1.35.1.1.2', invoiceType),
+    otherName('2.16.682.1.35.1.1.3', location),
+    otherName('2.16.682.1.35.1.1.4', industry),
+  ]);
+
+  const extensions = asn1Seq([
+    asn1Seq([asn1OID('2.5.29.17'), asn1OStr(sanContent)]),
+  ]);
+
+  const extReqAttr = asn1Seq([
+    asn1OID('1.2.840.113549.1.9.14'),
+    asn1Set([extensions]),
+  ]);
+
+  const crInfo = asn1Seq([
+    asn1Int(0),
+    subject,
+    Buffer.from(pubDer),
+    asn1CtxX(0, extReqAttr),  // [0] IMPLICIT attributes
+  ]);
+
+  const signer = crypto.createSign('SHA256');
+  signer.update(crInfo);
+  const sig = signer.sign(privateKey);
+
+  const sigAlg = asn1Seq([asn1OID('1.2.840.10045.4.3.2')]);
+  return asn1Seq([crInfo, sigAlg, asn1BitStr(sig)]);
+}
+
+const zatcaKeyPath = () => path.join(app.getPath('userData'), 'zatca-keypair.enc');
+
 // Prepare a store object for writing to disk: deep-clone + encrypt sensitive fields.
 function encryptForDisk(data) {
   const d = JSON.parse(JSON.stringify(data));
@@ -29,6 +107,8 @@ function encryptForDisk(data) {
         ? { ...m, printerApi: { ...m.printerApi, apiKey: encryptStoreField(m.printerApi.apiKey) } }
         : m
     );
+  if (d?.settings?.zatcaPhase2?.csid)  d.settings.zatcaPhase2.csid  = encryptStoreField(d.settings.zatcaPhase2.csid);
+  if (d?.settings?.zatcaPhase2?.pcsid) d.settings.zatcaPhase2.pcsid = encryptStoreField(d.settings.zatcaPhase2.pcsid);
   return d;
 }
 
@@ -378,6 +458,8 @@ ipcMain.handle('hub:load-store', async () => {
         return m;
       });
     }
+    if (data?.settings?.zatcaPhase2?.csid)  data.settings.zatcaPhase2.csid  = decryptStoreField(data.settings.zatcaPhase2.csid);
+    if (data?.settings?.zatcaPhase2?.pcsid) data.settings.zatcaPhase2.pcsid = decryptStoreField(data.settings.zatcaPhase2.pcsid);
     return data;
   } catch (e) {
     console.error('hub:load-store error:', e);
@@ -733,6 +815,119 @@ ipcMain.handle('hub:fire-webhook', async (_e, { url, event, payload, secret }) =
     const res = await fetch(url, { method: 'POST', headers, body });
     return { ok: res.ok, status: res.status };
   } catch(e) { return { ok: false, error: String(e) }; }
+});
+
+// ── ZATCA Phase 2 — IPC handlers ────────────────────────────────────────────
+
+ipcMain.handle('hub:zatca-gen-keypair', async () => {
+  try {
+    const { privateKey, publicKey } = crypto.generateKeyPairSync('ec', { namedCurve: 'secp256k1' });
+    const privPem = privateKey.export({ type: 'pkcs8', format: 'pem' });
+    const pubPem  = publicKey.export({ type: 'spki',  format: 'pem' });
+    const stored  = JSON.stringify({ privateKey: encryptStoreField(privPem), publicKey: pubPem });
+    await fs.promises.writeFile(zatcaKeyPath(), stored, 'utf8');
+    return { ok: true, publicKey: pubPem };
+  } catch (e) { return { ok: false, error: String(e) }; }
+});
+
+ipcMain.handle('hub:zatca-get-pubkey', async () => {
+  try {
+    if (!fs.existsSync(zatcaKeyPath())) return { ok: false };
+    const d = JSON.parse(fs.readFileSync(zatcaKeyPath(), 'utf8'));
+    return { ok: true, publicKey: d.publicKey };
+  } catch (e) { return { ok: false, error: String(e) }; }
+});
+
+ipcMain.handle('hub:zatca-gen-csr', async (_e, { cn, org, vat, invoiceType = '1100', location = 'Riyadh', industry = '3D Printing' } = {}) => {
+  try {
+    if (!fs.existsSync(zatcaKeyPath())) return { ok: false, error: 'No key pair — generate keys first' };
+    const d = JSON.parse(fs.readFileSync(zatcaKeyPath(), 'utf8'));
+    const privPem    = decryptStoreField(d.privateKey);
+    const privateKey = crypto.createPrivateKey(privPem);
+    const publicKey  = crypto.createPublicKey(privateKey);
+    const pubDer     = publicKey.export({ type: 'spki', format: 'der' });
+    const csrDer     = buildZatcaCsrDer({ privateKey, pubDer, cn, org, vat, invoiceType, location, industry });
+    const csrB64     = csrDer.toString('base64');
+    const lines      = csrB64.match(/.{1,64}/g).join('\n');
+    const csrPem     = `-----BEGIN CERTIFICATE REQUEST-----\n${lines}\n-----END CERTIFICATE REQUEST-----`;
+    return { ok: true, csr: csrPem, csrBase64: csrB64 };
+  } catch (e) { return { ok: false, error: String(e) }; }
+});
+
+ipcMain.handle('hub:zatca-sign-invoice', async (_e, { canonicalData }) => {
+  try {
+    if (!fs.existsSync(zatcaKeyPath())) return { ok: false, error: 'No key pair' };
+    const d = JSON.parse(fs.readFileSync(zatcaKeyPath(), 'utf8'));
+    const privPem    = decryptStoreField(d.privateKey);
+    const privateKey = crypto.createPrivateKey(privPem);
+    const hash       = crypto.createHash('SHA256').update(String(canonicalData)).digest();
+    const signer     = crypto.createSign('SHA256');
+    signer.update(hash);
+    const sig = signer.sign(privateKey);
+    return { ok: true, hashBase64: hash.toString('base64'), signatureBase64: sig.toString('base64'), publicKey: d.publicKey };
+  } catch (e) { return { ok: false, error: String(e) }; }
+});
+
+ipcMain.handle('hub:zatca-compliance', async (_e, { csrBase64, otp, environment = 'sandbox' }) => {
+  const base = environment === 'production'
+    ? 'https://gw-fatoorah.zatca.gov.sa/e-invoicing/core'
+    : 'https://gw-apic-gov.gazt.gov.sa/e-invoicing/developer-portal';
+  try {
+    const res = await fetch(`${base}/compliance`, {
+      method: 'POST',
+      headers: { 'Accept': 'application/json', 'Accept-Version': 'V2', 'Accept-Language': 'en', 'Content-Type': 'application/json', 'OTP': String(otp || '') },
+      body: JSON.stringify({ csr: csrBase64 }),
+      signal: AbortSignal.timeout(15000),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (res.ok && body.binarySecurityToken) {
+      return { ok: true, csid: `${body.binarySecurityToken}:${body.secret}`, requestId: body.requestId };
+    }
+    return { ok: false, status: res.status, body };
+  } catch (e) { return { ok: false, error: String(e) }; }
+});
+
+ipcMain.handle('hub:zatca-production-csid', async (_e, { csid, environment = 'sandbox' }) => {
+  const base = environment === 'production'
+    ? 'https://gw-fatoorah.zatca.gov.sa/e-invoicing/core'
+    : 'https://gw-apic-gov.gazt.gov.sa/e-invoicing/developer-portal';
+  try {
+    const res = await fetch(`${base}/production/csids`, {
+      method: 'POST',
+      headers: { 'Accept': 'application/json', 'Accept-Version': 'V2', 'Accept-Language': 'en', 'Content-Type': 'application/json', 'Authorization': `Basic ${Buffer.from(csid).toString('base64')}` },
+      body: JSON.stringify({}),
+      signal: AbortSignal.timeout(15000),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (res.ok && body.binarySecurityToken) {
+      return { ok: true, pcsid: `${body.binarySecurityToken}:${body.secret}` };
+    }
+    return { ok: false, status: res.status, body };
+  } catch (e) { return { ok: false, error: String(e) }; }
+});
+
+ipcMain.handle('hub:zatca-submit', async (_e, { xmlBase64, invoiceHash, uuid, invoiceNumber, invoiceType = 'simplified', environment = 'sandbox', pcsid, csid }) => {
+  const base = environment === 'production'
+    ? 'https://gw-fatoorah.zatca.gov.sa/e-invoicing/core'
+    : 'https://gw-apic-gov.gazt.gov.sa/e-invoicing/developer-portal';
+  const cred = pcsid || csid;
+  if (!cred) return { ok: false, error: 'No CSID configured' };
+  const apiPath = invoiceType === 'standard' ? '/invoices/clearance/single' : '/invoices/reporting/single';
+  try {
+    const res = await fetch(`${base}${apiPath}`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json', 'Accept-Version': 'V2', 'Accept-Language': 'en',
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${Buffer.from(cred).toString('base64')}`,
+        'Clearance-Status': '1',
+      },
+      body: JSON.stringify({ invoiceHash, uuid, invoice: xmlBase64 }),
+      signal: AbortSignal.timeout(15000),
+    });
+    const body = await res.json().catch(() => ({}));
+    return { ok: res.ok, status: res.status, body };
+  } catch (e) { return { ok: false, error: String(e) }; }
 });
 
 // ── LAN Tunnel (localtunnel) ─────────────────────────────────────────────────

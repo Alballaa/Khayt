@@ -105,4 +105,13 @@ contextBridge.exposeInMainWorld('hubAPI', {
   stopTunnel:   ()     => ipcRenderer.invoke('hub:stop-tunnel'),
   getTunnelUrl: ()     => ipcRenderer.invoke('hub:get-tunnel-url'),
   onTunnelStatusChanged: (() => { let _cb=null; ipcRenderer.on('tunnel-status-changed', (_e,d)=>{ if(_cb) _cb(d); }); return cb=>{ _cb=cb; }; })(),
+
+  // ZATCA Phase 2
+  zatcaGenKeypair:    (opts)  => ipcRenderer.invoke('hub:zatca-gen-keypair', opts),
+  zatcaGetPubkey:     ()      => ipcRenderer.invoke('hub:zatca-get-pubkey'),
+  zatcaGenCsr:        (opts)  => ipcRenderer.invoke('hub:zatca-gen-csr', opts),
+  zatcaSignInvoice:   (opts)  => ipcRenderer.invoke('hub:zatca-sign-invoice', opts),
+  zatcaCompliance:    (opts)  => ipcRenderer.invoke('hub:zatca-compliance', opts),
+  zatcaProductionCsid:(opts)  => ipcRenderer.invoke('hub:zatca-production-csid', opts),
+  zatcaSubmit:        (opts)  => ipcRenderer.invoke('hub:zatca-submit', opts),
 });
