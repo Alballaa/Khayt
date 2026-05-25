@@ -356,6 +356,9 @@ ipcMain.handle('hub:icloud-available', async () => {
 });
 
 ipcMain.handle('hub:write-icloud-backup', async (_e, jsonString) => {
+  if (!jsonString || typeof jsonString !== 'string' || jsonString.length > 20_000_000) {
+    return { ok: false, error: 'Backup data too large or invalid' };
+  }
   if (process.platform !== 'darwin') return null;
   const icloudBase = path.join(app.getPath('home'), 'Library', 'Mobile Documents', 'com~apple~CloudDocs');
   if (!fs.existsSync(icloudBase)) return null;
@@ -370,6 +373,9 @@ ipcMain.handle('hub:write-icloud-backup', async (_e, jsonString) => {
 
 // --- Daily auto-backup (new in 1.3) ---
 ipcMain.handle('hub:write-backup', async (_e, jsonString) => {
+  if (!jsonString || typeof jsonString !== 'string' || jsonString.length > 20_000_000) {
+    return { ok: false, error: 'Backup data too large or invalid' };
+  }
   const filename = `${new Date().toISOString().split('T')[0]}.json`;
   const fullPath = path.join(backupsDir(), filename);
   const encrypted = JSON.stringify(encryptForDisk(JSON.parse(jsonString)));
@@ -396,7 +402,7 @@ ipcMain.handle('hub:list-backups', async () => {
   return Promise.all(files.map(async (f) => {
     const fullPath = path.join(dir, f);
     const stat = await fs.promises.stat(fullPath);
-    return { name: f.replace('.json', ''), path: fullPath, mtime: stat.mtimeMs };
+    return { name: f.replace('.json', ''), filename: path.basename(fullPath), mtime: stat.mtimeMs };
   }));
 });
 
@@ -559,6 +565,12 @@ ipcMain.handle('hub:open-external', async (_e, url) => {
   const s = String(url || '');
   // Only allow safe URL schemes — no http:// to prevent local network exploit attempts
   if (!s.startsWith('mailto:') && !s.startsWith('https://')) return false;
+  if (s.startsWith('https://')) {
+    try {
+      const parsedExt = new URL(s);
+      if (isBlockedHost(parsedExt.hostname)) return { ok: false, error: 'Blocked URL' };
+    } catch { return { ok: false, error: 'Invalid URL' }; }
+  }
   await shell.openExternal(s);
   return true;
 });
@@ -606,6 +618,8 @@ ipcMain.handle('hub:parse-print-file', async (_e, filePath) => {
       const curaGrams = head.match(/FILAMENT_WEIGHT\s*=\s*([\d.]+)/i);
       if (curaGrams && !result.filamentGrams) result.filamentGrams = parseFloat(curaGrams[1]);
     } else if (ext === '.3mf') {
+      const mfStat = fs.statSync(resolvedParse);
+      if (mfStat.size > 50_000_000) return { ok: false, error: '3MF file too large (max 50 MB)' };
       const buf2 = fs.readFileSync(filePath);
       const content = buf2.toString('latin1');
       const prusaTime2 = content.match(/estimated printing time[^=]*=\s*(?:(\d+)d\s*)?(?:(\d+)h\s*)?(?:(\d+)m\s*)?/i);
@@ -650,11 +664,34 @@ ipcMain.handle('hub:stop-printer-polling', () => {
 
 ipcMain.handle('hub:get-printer-status', () => printerStatusCache);
 
+function isBlockedHost(h) {
+  if (!h) return true;
+  if (/^(localhost|ip6-localhost|ip6-loopback)$/i.test(h)) return true;
+  // For hostnames (non-IP) allow DNS resolution — can't block rebinding without DNS interception
+  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h);
+  if (v4) {
+    const [,a,b,c,d] = v4.map(Number);
+    if (a === 0)   return true; // 0.0.0.0/8
+    if (a === 10)  return true; // RFC-1918
+    if (a === 127) return true; // loopback
+    if (a === 169 && b === 254) return true; // link-local / AWS metadata
+    if (a === 172 && b >= 16 && b <= 31) return true; // RFC-1918
+    if (a === 192 && b === 168) return true; // RFC-1918
+    if (a === 198 && (b === 18 || b === 19)) return true; // benchmarking
+    if (a === 240) return true; // reserved
+    if (a === 255) return true; // broadcast
+  }
+  if (/^::1$|^::$|^fe80:/i.test(h)) return true; // IPv6 loopback / link-local
+  if (/^fc|^fd/i.test(h)) return true;            // IPv6 ULA
+  if (/^::ffff:/i.test(h)) return true;            // IPv4-mapped IPv6
+  return false;
+}
+
 async function fetchPrinterStatus(machine) {
   const { type, host, port, apiKey, accessCode, printerSlug } = machine.printerApi || {};
   const printerHost = String(host || '');
-  if (/^(localhost|127\.\d+\.\d+\.\d+|::1|0\.0\.0\.0)$/i.test(printerHost)) {
-    return { ok: false, error: 'Printer host cannot be localhost' };
+  if (isBlockedHost(printerHost)) {
+    return { ok: false, error: 'Blocked host — cannot connect to loopback or private addresses' };
   }
   const baseUrl = `http://${printerHost}:${port || defaultPrinterPort(type)}`;
   const headers = {};
@@ -750,7 +787,7 @@ async function fetchPrinterStatus(machine) {
   }
   if (type === 'repetier') {
     const slug = printerSlug || 'default';
-    const data = await get(`/printer/api/${slug}?a=stateList`);
+    const data = await get(`/printer/api/${encodeURIComponent(slug)}?a=stateList`);
     const state = data.data?.[0] || {};
     return {
       state: state.job ? 'Printing' : 'Idle',
@@ -813,6 +850,10 @@ ipcMain.handle('hub:send-email', async (_e, { to, subject, body, smtpConfig }) =
 ipcMain.handle('hub:fire-webhook', async (_e, { url, event, payload, secret }) => {
   // Restrict to https:// only — prevents SSRF to localhost and internal network
   if (!url || !url.startsWith('https://')) return { ok: false, error: 'Invalid URL — only https:// allowed' };
+  try {
+    const parsedWebhook = new URL(url);
+    if (isBlockedHost(parsedWebhook.hostname)) return { ok: false, error: 'Blocked URL — cannot send webhooks to private/loopback addresses' };
+  } catch { return { ok: false, error: 'Invalid webhook URL' }; }
   try {
     const body = JSON.stringify({ event, payload, timestamp: Date.now() });
     const headers = { 'Content-Type': 'application/json', 'X-Khayt-Event': event };
@@ -1145,7 +1186,7 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
               res.end(JSON.stringify({ error: 'Too many attempts — try again in 1 minute' }));
               return;
             }
-            if (provided !== pin) {
+            if (!safeTokenEqual(provided, pin)) {
               const newCount = (now >= ipData.resetAt ? 0 : ipData.count) + 1;
               failedAttempts.set(ip, { count: newCount, resetAt: newCount >= 10 ? now + LOCKOUT_MS : ipData.resetAt });
               res.writeHead(401, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
@@ -1178,7 +1219,7 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
             res.end(JSON.stringify({ error: 'Too many attempts — try again in 1 minute' }));
             return false;
           }
-          if (provided !== pin) {
+          if (!safeTokenEqual(provided, pin)) {
             const newCount = (now >= ipData.resetAt ? 0 : ipData.count) + 1;
             failedAttempts.set(ip, { count: newCount, resetAt: newCount >= 10 ? now + LOCKOUT_MS : ipData.resetAt });
             res.writeHead(401, { 'Content-Type': 'application/json' });
@@ -1252,7 +1293,7 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
               spool.remaining = spool.weightRemaining ?? spool.weightTotal ?? 1000;
               // Write back to store on disk
               const storeData = { ...lanServerStore };
-              storeData.inventory = [...(storeData.inventory || []), spool];
+              storeData.inventory = [...(lanServerStore.inventory || []), spool];
               lanServerStore = storeData;
               const fp = dataFilePath();
               await fs.promises.writeFile(fp + '.tmp', JSON.stringify(encryptForDisk(storeData)), 'utf8');
@@ -1292,7 +1333,8 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
                 return;
               }
               const storeData = { ...lanServerStore };
-              const idx = (storeData.printLog || []).findIndex(o => o.id === orderId);
+              storeData.printLog = [...(lanServerStore.printLog || [])];
+              const idx = storeData.printLog.findIndex(o => o.id === orderId);
               if (idx === -1) {
                 res.writeHead(404);
                 res.end(JSON.stringify({ error: 'Order not found' }));
@@ -1339,7 +1381,8 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
                 return;
               }
               const storeData = { ...lanServerStore };
-              const idx = (storeData.printLog || []).findIndex(o => o.surveyToken === token);
+              storeData.printLog = [...(lanServerStore.printLog || [])];
+              const idx = storeData.printLog.findIndex(o => o.surveyToken && safeTokenEqual(o.surveyToken, token));
               if (idx === -1) {
                 res.writeHead(404, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
                 res.end(JSON.stringify({ error: 'Invalid or expired survey token' }));
@@ -1548,11 +1591,22 @@ setTimeout(()=>location.reload(),30000);
           const machineId = decodeURIComponent(pathname.slice('/api/webhook/printer/'.length).split('/')[0]);
           const providedToken = url.searchParams.get('token') || req.headers['x-khayt-webhook-token'] || '';
           const expectedToken = store.settings?.lanApi?.webhookToken || '';
+          // Rate-limit webhook token attempts (reuse the same failedAttempts map)
+          const wh_now = Date.now();
+          const wh_ipData = failedAttempts.get(ip) || { count: 0, resetAt: 0 };
+          if (wh_now < wh_ipData.resetAt && wh_ipData.count >= 10) {
+            res.writeHead(429, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Too many attempts — try again in 1 minute' }));
+            return;
+          }
           if (!expectedToken || !safeTokenEqual(providedToken, expectedToken)) {
+            const wh_newCount = (wh_now >= wh_ipData.resetAt ? 0 : wh_ipData.count) + 1;
+            failedAttempts.set(ip, { count: wh_newCount, resetAt: wh_newCount >= 10 ? wh_now + LOCKOUT_MS : wh_ipData.resetAt });
             res.writeHead(401, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'Unauthorized — set webhook token in Khayt LAN settings' }));
             return;
           }
+          failedAttempts.delete(ip);
           let body = '';
           req.on('data', chunk => {
             if (Buffer.byteLength(body) + chunk.length > MAX_BODY) {

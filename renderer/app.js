@@ -1063,27 +1063,37 @@ async function loadAll() {
   }
 
   if (store) {
-    if (store.printLog)       printLog       = store.printLog;
-    if (store.inventory)      inventory      = store.inventory;
-    if (store.templates)      templates      = store.templates;
-    if (store.products)       products       = store.products;
-    if (store.clients)        clients        = store.clients;
-    if (store.printers)       printers       = store.printers;
-    if (store.expenses)       expenses       = store.expenses;
-    if (store.machines)       machines       = store.machines;
-    if (store.waTemplates)    waTemplates    = store.waTemplates;
-    if (store.wasteLog)       wasteLog       = store.wasteLog;
-    if (store.machMaintLog)   machMaintLog   = store.machMaintLog;
-    if (store.consumables)    consumables    = store.consumables;
-    if (store.suppliers)      suppliers      = store.suppliers;
-    if (store.purchaseOrders) purchaseOrders = store.purchaseOrders;
-    if (store.testPrints)     testPrints     = store.testPrints;
-    if (store.locations)      locations      = store.locations;
-    if (store.operators)           operators           = store.operators;
-    if (store.waitingList)         waitingList         = store.waitingList;
-    if (store.waitingListHistory)  waitingListHistory  = store.waitingListHistory;
-    if (store.timeEntries)         timeEntries         = store.timeEntries;
+    const isObj = x => x && typeof x === 'object';
+    if (store.printLog)       printLog       = store.printLog.filter(isValidOrder);
+    if (store.inventory)      inventory      = store.inventory.filter(isValidRecord);
+    if (store.templates)      templates      = store.templates.filter(isValidRecord);
+    if (store.products)       products       = store.products.filter(isValidRecord);
+    if (store.clients)        clients        = store.clients.filter(isValidRecord);
+    if (store.printers)       printers       = store.printers.filter(isObj);
+    if (store.expenses)       expenses       = store.expenses.filter(isObj);
+    if (store.machines)       machines       = store.machines.filter(isValidRecord);
+    if (store.waTemplates)    waTemplates    = store.waTemplates.filter(isValidRecord);
+    if (store.wasteLog)       wasteLog       = store.wasteLog.filter(isObj);
+    if (store.machMaintLog)   machMaintLog   = store.machMaintLog.filter(isObj);
+    if (store.consumables)    consumables    = store.consumables.filter(isValidRecord);
+    if (store.suppliers)      suppliers      = store.suppliers.filter(isValidRecord);
+    if (store.purchaseOrders) purchaseOrders = store.purchaseOrders.filter(isValidRecord);
+    if (store.testPrints)     testPrints     = store.testPrints.filter(isObj);
+    if (store.locations)      locations      = store.locations.filter(isValidRecord);
+    if (store.operators)           operators           = store.operators.filter(isValidRecord);
+    if (store.waitingList)         waitingList         = store.waitingList.filter(isValidRecord);
+    if (store.waitingListHistory)  waitingListHistory  = store.waitingListHistory.filter(isObj);
+    if (store.timeEntries)         timeEntries         = store.timeEntries.filter(isObj);
     if (store.settings)            settings            = Object.assign({}, defaultSettings(), store.settings);
+    // Deep-merge nested settings objects so new subkeys survive upgrades
+    if (store.settings) {
+      const nested = ['emailDigest', 'emailConfig', 'zatcaPhase2', 'bnpl', 'lanApi', 'exchangeRates', 'printerApi'];
+      for (const key of nested) {
+        if (store.settings[key] && typeof store.settings[key] === 'object' && !Array.isArray(store.settings[key])) {
+          settings[key] = Object.assign({}, defaultSettings()[key] || {}, store.settings[key]);
+        }
+      }
+    }
   }
 
   // One-time migration: pull localStorage kanban state into settings
@@ -9249,7 +9259,7 @@ function openReminderModal(itemId) {
       if (!email) { toast('Email address required', 'error'); return; }
       const cfg = settings.emailConfig;
       const body = `<p>${escapeHtml(msg).replace(/\n/g, '<br>')}</p>`;
-      const subject = `Reminder: ${item.project || 'Your project'} at ${settings.bizEn || 'Khayt'}`;
+      const subject = `Reminder: ${(item.project || 'Your project').replace(/[\r\n]/g, ' ')} at ${(settings.bizEn || 'Khayt').replace(/[\r\n]/g, ' ')}`;
       const result = await window.hubAPI?.sendEmail?.({ to: email, subject, body, smtpConfig: cfg });
       if (result?.ok) {
         item.status = 'reminded';
@@ -11394,7 +11404,7 @@ function buildDigestEmailHtml() {
     .reduce((s, o) => s + (+o.price || 0), 0);
 
   // Low-stock spools
-  const reorderPt = settings.reorderPoint ?? 200;
+  const reorderPt = settings.lowStockThreshold ?? 200;
   const lowStockSpools = inventory
     .filter(s => (+s.weight || 0) < (s.reorderPoint ?? reorderPt))
     .slice(0, 5);
@@ -11557,7 +11567,10 @@ function renderDigestSettings() {
   });
 }
 
+let _digestInFlight = false;
+
 async function checkAndSendDigest() {
+  if (_digestInFlight) return;
   const d = settings.emailDigest;
   if (!d?.enabled) return;
   const cfg = settings.emailConfig;
@@ -11580,10 +11593,15 @@ async function checkAndSendDigest() {
   if (d.lastSentDate === periodKey) return; // already sent
   const body = buildDigestEmailHtml();
   const subject = `${settings.bizEn || 'Khayt'} — ${d.frequency === 'weekly' ? 'Weekly' : 'Daily'} Digest`;
-  const result = await window.hubAPI?.sendEmail?.({ to, subject, body, smtpConfig: cfg });
-  if (result?.ok) {
-    settings.emailDigest = { ...settings.emailDigest, lastSentDate: periodKey };
-    saveAll();
+  _digestInFlight = true;
+  try {
+    const result = await window.hubAPI?.sendEmail?.({ to, subject, body, smtpConfig: cfg });
+    if (result?.ok) {
+      settings.emailDigest = { ...settings.emailDigest, lastSentDate: periodKey };
+      saveAll();
+    }
+  } finally {
+    _digestInFlight = false;
   }
 }
 
@@ -12653,7 +12671,8 @@ function renderLanApiSettings() {
     if (tRow) tRow.textContent = '⏳ Connecting…';
     const res = await window.hubAPI?.startTunnel?.(port);
     if (res?.ok) {
-      if (tRow) tRow.innerHTML = `🟢 Active at <a href="#" onclick="window.hubAPI?.openExternal?.('${escapeHtml(res.url)}')" style="color:var(--primary)">${escapeHtml(res.url)}</a>`;
+      tRow.innerHTML = `🟢 Active at <a href="#" class="lan-url-link" data-url="${escapeHtml(res.url)}" style="color:var(--primary)">${escapeHtml(res.url)}</a>`;
+      tRow.querySelectorAll('.lan-url-link').forEach(a => { a.addEventListener('click', e => { e.preventDefault(); window.hubAPI?.openExternal?.(a.dataset.url); }); });
       toast(t('lan.tunnel_active'), 'success');
       updateWebhookUrlDisplay(res.url);
     } else {
@@ -13093,17 +13112,27 @@ async function openBnplModal(orderId) {
         // Generate QR for the link
         let qrHtml = '';
         try { const svg = await window.hubAPI?.generateQR?.(result.url, { width: 120, margin: 1 }); if (svg) qrHtml = svg; } catch {}
+        const waMsg = t('bnpl.wa_message',{name:buyer.name,url:result.url,service:svc.name}) || `Hi ${buyer.name}, here is your payment link: ${result.url}`;
         res_el.innerHTML = `
           <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">
             <div>${qrHtml}</div>
             <div style="flex:1;min-width:120px;">
-              <div style="word-break:break-all;font-size:11px;margin-bottom:6px;"><a href="#" onclick="window.hubAPI?.openExternal?.('${escapeHtml(result.url)}')" style="color:var(--primary);">${escapeHtml(result.url)}</a></div>
+              <div style="word-break:break-all;font-size:11px;margin-bottom:6px;"><a href="#" class="bnpl-open-link" data-url="${escapeHtml(result.url)}" style="color:var(--primary);">${escapeHtml(result.url)}</a></div>
               <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                <button class="btn ghost small" onclick="navigator.clipboard.writeText('${escapeHtml(result.url)}').then(()=>window._toast?.(window._t?.('bnpl.link_copied')||'Copied','success')).catch(()=>{})">${t('bnpl.copy_link')}</button>
-                <button class="btn ghost small" onclick="window.hubAPI?.shareWhatsApp?.({phone:'${escapeHtml(buyer.phone)}',message:'${escapeHtml(t('bnpl.wa_message',{name:buyer.name,url:result.url,service:svc.name})||`Hi ${buyer.name}, here is your payment link: ${result.url}`)}',pdfPath:null})">${t('bnpl.share_wa')}</button>
+                <button class="btn ghost small bnpl-copy-link" data-url="${escapeHtml(result.url)}">${t('bnpl.copy_link')}</button>
+                <button class="btn ghost small bnpl-share-wa" data-wa-phone="${escapeHtml(buyer.phone||'')}" data-wa-msg="${escapeHtml(waMsg)}">${t('bnpl.share_wa')}</button>
               </div>
             </div>
           </div>`;
+        res_el.querySelectorAll('.bnpl-open-link').forEach(a => {
+          a.addEventListener('click', e => { e.preventDefault(); window.hubAPI?.openExternal?.(a.dataset.url); });
+        });
+        res_el.querySelectorAll('.bnpl-copy-link').forEach(btn => {
+          btn.addEventListener('click', () => { navigator.clipboard.writeText(btn.dataset.url).then(() => window._toast?.(window._t?.('bnpl.link_copied') || 'Copied', 'success')).catch(() => {}); });
+        });
+        res_el.querySelectorAll('.bnpl-share-wa').forEach(btn => {
+          btn.addEventListener('click', () => { window.hubAPI?.shareWhatsApp?.({ phone: btn.dataset.waPhone, message: btn.dataset.waMsg, pdfPath: null }); });
+        });
         toast(t('bnpl.link_generated'), 'success');
       } else {
         res_el.innerHTML = `<span style="color:var(--danger);font-size:12px;">❌ ${escapeHtml(result?.error || 'Failed')}</span>`;
@@ -13123,7 +13152,10 @@ async function startLanServer() {
   const statusRow = $('#lanStatusRow');
   const qrWrap    = $('#lanQrWrap');
   if (res?.ok) {
-    if (statusRow) statusRow.innerHTML = `🟢 Active at <a href="#" style="color:var(--primary);" onclick="window.hubAPI?.openExternal?.('${escapeHtml(res.url)}')">${escapeHtml(res.url)}</a>`;
+    if (statusRow) {
+      statusRow.innerHTML = `🟢 Active at <a href="#" class="lan-url-link" data-url="${escapeHtml(res.url)}" style="color:var(--primary);">${escapeHtml(res.url)}</a>`;
+      statusRow.querySelectorAll('.lan-url-link').forEach(a => { a.addEventListener('click', e => { e.preventDefault(); window.hubAPI?.openExternal?.(a.dataset.url); }); });
+    }
     settings.lanApi = { ...settings.lanApi, enabled: true };
     saveAll();
     loadLanQr(res.url);
@@ -21523,7 +21555,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (latest && latest !== current && latest !== '1.0.0-rc.1') {
         const banner = document.createElement('div');
         banner.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:9999;background:var(--primary);color:#fff;padding:8px 20px;border-radius:20px;font-size:13px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,0.3);cursor:pointer;display:flex;align-items:center;gap:10px;';
-        banner.innerHTML = `🎉 Khayt ${latest} is available! <button style="background:rgba(255,255,255,0.25);border:none;color:#fff;padding:3px 10px;border-radius:10px;cursor:pointer;font-size:12px;">Open releases</button> <span style="opacity:.7;font-size:16px;cursor:pointer;" id="updateBannerClose">×</span>`;
+        banner.innerHTML = `🎉 Khayt ${escapeHtml(latest)} is available! <button style="background:rgba(255,255,255,0.25);border:none;color:#fff;padding:3px 10px;border-radius:10px;cursor:pointer;font-size:12px;">Open releases</button> <span style="opacity:.7;font-size:16px;cursor:pointer;" id="updateBannerClose">×</span>`;
         banner.querySelector('button')?.addEventListener('click', () => {
           window.hubAPI?.openExternal?.(`https://github.com/${GITHUB_REPO}/releases`);
         });
@@ -21535,6 +21567,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Email digest scheduler — checks every 5 minutes
   setInterval(checkAndSendDigest, 5 * 60 * 1000);
+  setTimeout(checkAndSendDigest, 10_000); // also run ~10s after boot in case we're already in the send window
 
   // Daily auto-backup (silent) + populate last-backup label
   maybeAutoBackup();
@@ -21597,7 +21630,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!active) {
       if (tRow) tRow.textContent = error ? `❌ ${error}` : '⚫ Tunnel inactive';
     } else if (url && tRow) {
-      tRow.innerHTML = `🟢 Active at <a href="#" onclick="window.hubAPI?.openExternal?.('${escapeHtml(url)}')" style="color:var(--primary)">${escapeHtml(url)}</a>`;
+      tRow.innerHTML = `🟢 Active at <a href="#" class="lan-url-link" data-url="${escapeHtml(url)}" style="color:var(--primary)">${escapeHtml(url)}</a>`;
+      tRow.querySelectorAll('.lan-url-link').forEach(a => { a.addEventListener('click', e => { e.preventDefault(); window.hubAPI?.openExternal?.(a.dataset.url); }); });
       updateWebhookUrlDisplay(url);
     }
   });
