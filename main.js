@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const http = require('http');
 const os = require('os');
+const crypto = require('crypto');
 const QRCode = require('qrcode');
 
 function encryptStoreField(val) {
@@ -51,6 +52,45 @@ const invoicesDir    = () => ensureDir('invoices');
 const backupsDir     = () => ensureDir('backups');
 
 /* ---------- Shared helpers ---------- */
+function lanEscapeHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function safeTokenEqual(a, b) {
+  if (!a || !b) return false;
+  try {
+    const ba = Buffer.from(String(a)), bb = Buffer.from(String(b));
+    if (ba.length !== bb.length) return false;
+    return crypto.timingSafeEqual(ba, bb);
+  } catch { return false; }
+}
+
+function normalizePrinterEvent(body) {
+  // OctoPrint Webhooks plugin format
+  if (typeof body.topic === 'string') {
+    const t = body.topic.toLowerCase();
+    if (t.includes('done') || t.includes('finished') || t.includes('complete')) return 'print_done';
+    if (t.includes('started') || t.includes('start')) return 'print_started';
+    if (t.includes('cancel') || t.includes('fail') || t.includes('error')) return 'print_cancelled';
+  }
+  // Moonraker / generic event field
+  if (typeof body.event === 'string') {
+    const e = body.event.toLowerCase();
+    if (e.includes('done') || e.includes('complete') || e.includes('finish')) return 'print_done';
+    if (e.includes('start')) return 'print_started';
+    if (e.includes('cancel') || e.includes('fail') || e.includes('error')) return 'print_cancelled';
+    return body.event; // pass through
+  }
+  // Moonraker state field
+  if (typeof body.state === 'string') {
+    const s = body.state.toLowerCase();
+    if (s === 'complete' || s === 'completed' || s === 'standby') return 'print_done';
+    if (s === 'printing') return 'print_started';
+    if (s === 'cancelled' || s === 'error') return 'print_cancelled';
+  }
+  return null;
+}
+
 function decodeDataUrl(dataUrl) {
   const m = /^data:(image\/(jpeg|jpg|png|webp));base64,(.+)$/.exec(String(dataUrl || ''));
   if (!m) throw new Error('Unsupported image format');
@@ -695,6 +735,48 @@ ipcMain.handle('hub:fire-webhook', async (_e, { url, event, payload, secret }) =
   } catch(e) { return { ok: false, error: String(e) }; }
 });
 
+// ── LAN Tunnel (localtunnel) ─────────────────────────────────────────────────
+let _tunnelInstance = null;
+
+ipcMain.handle('hub:start-tunnel', async (_e, port) => {
+  if (_tunnelInstance) {
+    try { _tunnelInstance.close(); } catch {}
+    _tunnelInstance = null;
+  }
+  const portNum = parseInt(port, 10) || (lanServer?.address?.()?.port) || 3219;
+  try {
+    const localtunnel = require('localtunnel');
+    const tunnel = await localtunnel({ port: portNum });
+    _tunnelInstance = tunnel;
+    tunnel.on('error', (err) => {
+      _tunnelInstance = null;
+      if (mainWindow && !mainWindow.isDestroyed())
+        mainWindow.webContents.send('tunnel-status-changed', { active: false, error: String(err) });
+    });
+    tunnel.on('close', () => {
+      _tunnelInstance = null;
+      if (mainWindow && !mainWindow.isDestroyed())
+        mainWindow.webContents.send('tunnel-status-changed', { active: false });
+    });
+    return { ok: true, url: tunnel.url };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+ipcMain.handle('hub:stop-tunnel', async () => {
+  if (_tunnelInstance) {
+    try { _tunnelInstance.close(); } catch {}
+    _tunnelInstance = null;
+  }
+  return { ok: true };
+});
+
+ipcMain.handle('hub:get-tunnel-url', async () => {
+  if (!_tunnelInstance) return { ok: false };
+  return { ok: true, url: _tunnelInstance.url };
+});
+
 // ── Feature R12-7: Embedded LAN REST API ────────────────────────────────────
 let lanServer = null;
 let lanServerStore = {};  // reference to current store, updated via hub:save-store
@@ -720,7 +802,10 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
 
         // Routes that are always public regardless of PIN configuration
         const isAlwaysPublic = pathname === '/api/status' || pathname === '/api/queue' ||
-          pathname === '/api/machines' || pathname.startsWith('/status/');
+          pathname === '/api/machines' || pathname.startsWith('/status/') ||
+          pathname === '/' || pathname === '/manifest.json' || pathname === '/sw.js' ||
+          pathname === '/icon-192.png' || pathname === '/icon-512.png' ||
+          pathname.startsWith('/api/webhook/printer/');
         const isSurveyEndpoint = pathname === '/api/survey' && req.method === 'POST';
         const requirePin = isWriteRequest && !isSurveyEndpoint && !isAlwaysPublic;
         if (!isAlwaysPublic && (requirePin || (pin && !isSurveyEndpoint))) {
@@ -982,9 +1067,175 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
             res.writeHead(404);
             res.end(`<!DOCTYPE html><html><body style="font-family:sans-serif;text-align:center;padding:60px;color:#666;"><h2>Order not found</h2><p>The tracking page for this order is not available yet.</p></body></html>`);
           });
+        } else if (pathname === '/manifest.json' && req.method === 'GET') {
+          const shopName = (store.settings?.shopName || 'Khayt').replace(/"/g, '\\"');
+          res.setHeader('Content-Type', 'application/manifest+json');
+          res.writeHead(200);
+          res.end(JSON.stringify({
+            name: shopName + ' Queue',
+            short_name: shopName,
+            start_url: '/',
+            display: 'standalone',
+            background_color: '#0f172a',
+            theme_color: '#6366f1',
+            icons: [
+              { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+              { src: '/icon-512.png', sizes: '512x512', type: 'image/png' }
+            ]
+          }));
+
+        } else if ((pathname === '/icon-192.png' || pathname === '/icon-512.png') && req.method === 'GET') {
+          const iconPath = path.join(__dirname, 'assets', 'icon_preview.png');
+          res.setHeader('Content-Type', 'image/png');
+          res.setHeader('Cache-Control', 'public, max-age=86400');
+          if (fs.existsSync(iconPath)) {
+            const iconBuf = fs.readFileSync(iconPath);
+            res.writeHead(200);
+            res.end(iconBuf);
+          } else {
+            res.writeHead(200);
+            res.end(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64'));
+          }
+
+        } else if (pathname === '/sw.js' && req.method === 'GET') {
+          res.setHeader('Content-Type', 'application/javascript');
+          res.setHeader('Service-Worker-Allowed', '/');
+          res.writeHead(200);
+          res.end(`const CACHE='khayt-v1';
+self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['/']))));
+self.addEventListener('fetch',e=>e.respondWith(fetch(e.request).catch(()=>caches.match(e.request))));
+self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k))))));`);
+
+        } else if (pathname === '/' && req.method === 'GET') {
+          const shopName = lanEscapeHtml(store.settings?.shopName || 'Khayt');
+          const queue = (store.printLog || []).filter(o => ['pending','printing','post','qc','on_hold'].includes(o.status));
+          const pending  = queue.filter(o => o.status === 'pending').length;
+          const printing = queue.filter(o => o.status === 'printing').length;
+          const post     = queue.filter(o => o.status === 'post').length;
+          const qc       = queue.filter(o => o.status === 'qc').length;
+          const onHold   = queue.filter(o => o.status === 'on_hold').length;
+          const badgeMap = { pending:'#374151|#d1d5db', printing:'#1d4ed8|#bfdbfe', post:'#065f46|#a7f3d0', qc:'#7c3aed|#ddd6fe', on_hold:'#92400e|#fde68a' };
+          const orderCards = queue.slice(0, 30).map(o => {
+            const [bg, fg] = (badgeMap[o.status] || '#374151|#d1d5db').split('|');
+            return `<div class="oc"><div><div class="on">${lanEscapeHtml(o.project || o.id)}</div><div class="cl">${lanEscapeHtml(o.client || '')}</div></div><span class="bd" style="background:${bg};color:${fg}">${lanEscapeHtml(o.status)}</span></div>`;
+          }).join('') || '<div class="empty">No active orders</div>';
+          const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const html = `<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-touch-icon" href="/icon-192.png">
+<meta name="theme-color" content="#6366f1">
+<link rel="manifest" href="/manifest.json">
+<title>${shopName} Queue</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0f172a;color:#e2e8f0;font-family:-apple-system,system-ui,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:16px;max-width:480px;margin:0 auto}
+h1{font-size:20px;color:#6366f1;margin-bottom:2px}
+.sub{font-size:12px;color:#64748b;margin-bottom:18px;display:flex;align-items:center;gap:6px}
+.dot{width:7px;height:7px;border-radius:50%;background:#22c55e;animation:pulse 2s infinite;display:inline-block}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:18px}
+.sc{background:#1e293b;border-radius:10px;padding:12px 14px}
+.sn{font-size:26px;font-weight:700}
+.sl{font-size:11px;color:#64748b;margin-top:2px}
+.oc{background:#1e293b;border-radius:10px;padding:11px 14px;margin-bottom:7px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.on{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px}
+.cl{font-size:11px;color:#94a3b8;margin-top:2px}
+.bd{padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+.empty{text-align:center;padding:32px 20px;color:#475569;font-size:13px}
+.rf{text-align:center;font-size:11px;color:#475569;margin-top:14px}
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px}
+</style></head><body>
+<div class="hdr"><div><h1>${shopName}</h1><div class="sub"><span class="dot"></span>Live Queue</div></div></div>
+<div class="stats">
+<div class="sc"><div class="sn">${pending}</div><div class="sl">Pending</div></div>
+<div class="sc"><div class="sn">${printing}</div><div class="sl">Printing</div></div>
+<div class="sc"><div class="sn">${post}</div><div class="sl">Post-Processing</div></div>
+<div class="sc"><div class="sn">${qc + onHold}</div><div class="sl">QC / On Hold</div></div>
+</div>
+${orderCards}
+<div class="rf">Auto-refreshes every 30s &middot; Updated ${now}</div>
+<script>
+if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{})}
+setTimeout(()=>location.reload(),30000);
+</script>
+</body></html>`;
+          res.setHeader('Content-Type', 'text/html; charset=utf-8');
+          res.setHeader('Cache-Control', 'no-cache');
+          res.writeHead(200);
+          res.end(html);
+
+        } else if (pathname.startsWith('/api/webhook/printer/') && req.method === 'POST') {
+          const machineId = decodeURIComponent(pathname.slice('/api/webhook/printer/'.length).split('/')[0]);
+          const providedToken = url.searchParams.get('token') || req.headers['x-khayt-webhook-token'] || '';
+          const expectedToken = store.settings?.lanApi?.webhookToken || '';
+          if (!expectedToken || !safeTokenEqual(providedToken, expectedToken)) {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Unauthorized — set webhook token in Khayt LAN settings' }));
+            return;
+          }
+          let body = '';
+          req.on('data', chunk => {
+            if (Buffer.byteLength(body) + chunk.length > MAX_BODY) {
+              res.writeHead(413, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'Request too large' }));
+              req.socket.destroy();
+              return;
+            }
+            body += chunk;
+          });
+          req.on('end', async () => {
+            try {
+              const parsed = body ? JSON.parse(body) : {};
+              const event = normalizePrinterEvent(parsed);
+              // Find the order currently printing on this machine
+              const storeData = { ...lanServerStore };
+              const orders = storeData.printLog || [];
+              // Find by machineId (order.machine === machine.name where machine.id === machineId)
+              const machine = (storeData.machines || []).find(m => m.id === machineId);
+              const machineName = machine?.name || machineId;
+              let advancedOrder = null;
+              if (event === 'print_done' || event === 'print_started' || event === 'print_cancelled') {
+                const targetStatus = event === 'print_done' ? 'printing'
+                                   : event === 'print_started' ? 'pending'
+                                   : 'printing';
+                const newStatus   = event === 'print_done' ? 'post'
+                                  : event === 'print_started' ? 'printing'
+                                  : 'on_hold';
+                const idx = orders.findIndex(o => o.status === targetStatus &&
+                  (o.machine === machineName || o.machineId === machineId));
+                if (idx !== -1) {
+                  const prev = orders[idx];
+                  storeData.printLog = [...orders];
+                  storeData.printLog[idx] = {
+                    ...prev,
+                    status: newStatus,
+                    ...(newStatus === 'printing' ? { printStartedAt: new Date().toISOString() } : {}),
+                    ...(newStatus === 'post'     ? { printDoneAt:    new Date().toISOString() } : {}),
+                  };
+                  lanServerStore = storeData;
+                  const fp = dataFilePath();
+                  await fs.promises.writeFile(fp + '.tmp', JSON.stringify(encryptForDisk(storeData)), 'utf8');
+                  await fs.promises.rename(fp + '.tmp', fp);
+                  advancedOrder = { id: prev.id, from: targetStatus, to: newStatus, project: prev.project };
+                  if (mainWindow && !mainWindow.isDestroyed()) {
+                    mainWindow.webContents.send('lan-kanban-advanced', advancedOrder);
+                  }
+                }
+              }
+              res.setHeader('Content-Type', 'application/json');
+              res.writeHead(200);
+              res.end(JSON.stringify({ ok: true, event, advanced: advancedOrder }));
+            } catch (e) {
+              res.writeHead(400, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: String(e) }));
+            }
+          });
+
         } else {
           res.writeHead(404);
-          res.end(JSON.stringify({ error: 'Not found', endpoints: ['/api/status','/api/orders','/api/queue','/api/machines','/api/inventory'] }));
+          res.end(JSON.stringify({ error: 'Not found', endpoints: ['/api/status','/api/orders','/api/queue','/api/machines','/api/inventory','/api/webhook/printer/:machineId'] }));
         }
       });
       lanServer.listen(port, '0.0.0.0', () => {

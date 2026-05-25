@@ -843,7 +843,7 @@ function defaultSettings() {
     // Round 12: Break-even / fixed overhead
     fixedCosts:       [],
     // Round 12: LAN API
-    lanApi:           { enabled: false, port: 3219, pin: '' },
+    lanApi:           { enabled: false, port: 3219, pin: '', webhookToken: '', tunnelEnabled: false },
     // Round 12: Saved filter presets
     savedFilters:     [],
     // Beta: user has acknowledged the beta warning
@@ -11790,12 +11790,41 @@ function renderLanApiSettings() {
         <input type="text" id="lan_pin" value="${escapeHtml(lan.pin||'')}" maxlength="12" placeholder="e.g. 1234">
       </div>
     </div>
+    <div class="inline-pair" style="margin-top:10px;">
+      <div style="flex:1;">
+        <label data-i18n="lan.webhook_token">Printer Webhook Token</label>
+        <div style="display:flex;gap:6px;">
+          <input type="text" id="lan_wh_token" value="${escapeHtml(lan.webhookToken||'')}" placeholder="e.g. secret123" style="flex:1;">
+          <button class="btn ghost small" id="btnGenWebhookToken" title="Generate random token">🎲</button>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;" data-i18n="lan.webhook_token_hint">Used to authenticate printer webhook calls</div>
+      </div>
+    </div>
     <div id="lanStatusRow" style="margin:12px 0;padding:10px 12px;background:var(--bg-elev);border-radius:var(--radius);font-size:13px;">${lan.enabled ? '🟢 Server active' : '⚫ Server stopped'}</div>
     <div id="lanQrWrap" style="margin-bottom:12px;display:${lan.enabled ? 'block' : 'none'};"></div>
+    <div id="lanWebhookSection" style="display:${lan.enabled && lan.webhookToken ? 'block' : 'none'};margin:10px 0;">
+      <label data-i18n="lan.printer_webhook">Printer Webhook URL</label>
+      <div style="font-size:11px;color:var(--text-muted);padding:8px 10px;background:var(--bg-elev);border-radius:var(--radius);word-break:break-all;cursor:pointer;" id="webhookUrlDisplay" title="Click to copy">—</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:4px;" data-i18n="lan.webhook_url_hint">Configure this URL in OctoPrint/Moonraker webhook plugin for each machine.</div>
+    </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="btn primary" id="btnSaveLan" data-i18n="common.save">Save</button>
       <button class="btn ghost" id="btnStartLan" data-i18n="lan.start">Start server</button>
       <button class="btn ghost" id="btnStopLan"  data-i18n="lan.stop">Stop server</button>
+    </div>
+    <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border);">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px;">
+        <input type="checkbox" id="lan_tunnel_enabled" style="width:auto;margin:0;" ${lan.tunnelEnabled ? 'checked' : ''}>
+        <span data-i18n="lan.tunnel_enable">Enable remote tunnel (via localtunnel.me)</span>
+      </label>
+      <div id="tunnelStatusRow" style="font-size:13px;padding:8px 12px;background:var(--bg-elev);border-radius:var(--radius);margin-bottom:8px;">
+        ⚫ Tunnel inactive
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn ghost small" id="btnStartTunnel" data-i18n="lan.tunnel_start">Start Tunnel</button>
+        <button class="btn ghost small" id="btnStopTunnel" data-i18n="lan.tunnel_stop">Stop Tunnel</button>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:8px;" data-i18n="lan.tunnel_hint">Exposes your LAN server to the internet via a temporary URL. Requires LAN server to be running.</div>
     </div>`;
 
   if (lan.enabled) loadLanQr();
@@ -11805,6 +11834,8 @@ function renderLanApiSettings() {
       enabled: el.querySelector('#lan_enabled').checked,
       port: parseInt(el.querySelector('#lan_port').value) || 3219,
       pin:  el.querySelector('#lan_pin').value.trim(),
+      webhookToken: el.querySelector('#lan_wh_token').value.trim(),
+      tunnelEnabled: el.querySelector('#lan_tunnel_enabled').checked,
     };
     saveAll();
     if (settings.lanApi.enabled) {
@@ -11823,6 +11854,39 @@ function renderLanApiSettings() {
     el.querySelector('#lanStatusRow').textContent = '⚫ Server stopped';
     el.querySelector('#lanQrWrap').style.display = 'none';
   });
+
+  el.querySelector('#btnGenWebhookToken')?.addEventListener('click', () => {
+    const arr = new Uint8Array(16);
+    crypto.getRandomValues(arr);
+    const token = Array.from(arr).map(b => b.toString(16).padStart(2,'0')).join('');
+    el.querySelector('#lan_wh_token').value = token;
+  });
+
+  el.querySelector('#btnStartTunnel')?.addEventListener('click', async () => {
+    const port = settings.lanApi?.port || 3219;
+    const tRow = el.querySelector('#tunnelStatusRow');
+    if (tRow) tRow.textContent = '⏳ Connecting…';
+    const res = await window.hubAPI?.startTunnel?.(port);
+    if (res?.ok) {
+      if (tRow) tRow.innerHTML = `🟢 Active at <a href="#" onclick="window.hubAPI?.openExternal?.('${escapeHtml(res.url)}')" style="color:var(--primary)">${escapeHtml(res.url)}</a>`;
+      toast(t('lan.tunnel_active'), 'success');
+      updateWebhookUrlDisplay(res.url);
+    } else {
+      if (tRow) tRow.textContent = `❌ ${res?.error || 'Failed to connect'}`;
+      toast(res?.error || t('lan.tunnel_failed'), 'error');
+    }
+  });
+
+  el.querySelector('#btnStopTunnel')?.addEventListener('click', async () => {
+    await window.hubAPI?.stopTunnel?.();
+    const tRow = el.querySelector('#tunnelStatusRow');
+    if (tRow) tRow.textContent = '⚫ Tunnel inactive';
+  });
+
+  el.querySelector('#webhookUrlDisplay')?.addEventListener('click', () => {
+    const url = el.querySelector('#webhookUrlDisplay').textContent;
+    if (url && url !== '—') navigator.clipboard.writeText(url).then(() => toast(t('common.copied'), 'success')).catch(() => {});
+  });
 }
 
 async function startLanServer() {
@@ -11835,9 +11899,24 @@ async function startLanServer() {
     settings.lanApi = { ...settings.lanApi, enabled: true };
     saveAll();
     loadLanQr(res.url);
+    updateWebhookUrlDisplay(res.url);
   } else {
     if (statusRow) statusRow.textContent = `❌ Failed: ${res?.error || 'unknown error'}`;
   }
+}
+
+function updateWebhookUrlDisplay(baseUrl) {
+  const section = document.getElementById('lanWebhookSection');
+  const display = document.getElementById('webhookUrlDisplay');
+  if (!section || !display) return;
+  const token = settings.lanApi?.webhookToken || '';
+  if (!baseUrl || !token) { section.style.display = 'none'; return; }
+  // Show example for first machine
+  const firstMachine = machines[0];
+  const machineId = firstMachine?.id || 'machine-id';
+  const url = `${baseUrl}/api/webhook/printer/${encodeURIComponent(machineId)}?token=${encodeURIComponent(token)}`;
+  display.textContent = url;
+  section.style.display = 'block';
 }
 
 async function loadLanQr(urlOverride) {
@@ -19715,6 +19794,25 @@ document.addEventListener('DOMContentLoaded', async () => {
       toast(t('lan.start_failed') || 'LAN server failed to start — port may be in use', 'warning', 6000);
     });
   }
+  window.hubAPI?.onLanKanbanAdvanced?.(({ id, from, to, project }) => {
+    // Update the order in memory
+    const idx = printLog.findIndex(o => o.id === id);
+    if (idx !== -1) {
+      printLog[idx] = { ...printLog[idx], status: to };
+      renderKanban();
+      renderLog();
+    }
+    toast(`🖨️ ${escapeHtml(project || id)}: ${from} → ${to}`, 'success');
+  });
+  window.hubAPI?.onTunnelStatusChanged?.(({ active, url, error }) => {
+    const tRow = document.getElementById('tunnelStatusRow');
+    if (!active) {
+      if (tRow) tRow.textContent = error ? `❌ ${error}` : '⚫ Tunnel inactive';
+    } else if (url && tRow) {
+      tRow.innerHTML = `🟢 Active at <a href="#" onclick="window.hubAPI?.openExternal?.('${escapeHtml(url)}')" style="color:var(--primary)">${escapeHtml(url)}</a>`;
+      updateWebhookUrlDisplay(url);
+    }
+  });
 
   // Round 12: Start LAN API server if enabled
   if (settings.lanApi?.enabled) {

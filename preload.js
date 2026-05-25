@@ -96,4 +96,13 @@ contextBridge.exposeInMainWorld('hubAPI', {
   onLanOrderUpdated:    (() => { let _cb=null; ipcRenderer.on('lan-order-updated',    (_e,d)=>{ if(_cb) _cb(d); }); return cb=>{ _cb=cb; }; })(),
   onLanSurveySubmitted: (() => { let _cb=null; ipcRenderer.on('lan-survey-submitted', (_e,d)=>{ if(_cb) _cb(d); }); return cb=>{ _cb=cb; }; })(),
   onLanStartFailed:     (() => { let _cb=null; ipcRenderer.on('lan-start-failed',     (_e,d)=>{ if(_cb) _cb(d); }); return cb=>{ _cb=cb; }; })(),
+
+  // Printer webhook → Kanban auto-advance
+  onLanKanbanAdvanced: (() => { let _cb=null; ipcRenderer.on('lan-kanban-advanced', (_e,d)=>{ if(_cb) _cb(d); }); return cb=>{ _cb=cb; }; })(),
+
+  // LAN Tunnel
+  startTunnel:  (port) => ipcRenderer.invoke('hub:start-tunnel', port),
+  stopTunnel:   ()     => ipcRenderer.invoke('hub:stop-tunnel'),
+  getTunnelUrl: ()     => ipcRenderer.invoke('hub:get-tunnel-url'),
+  onTunnelStatusChanged: (() => { let _cb=null; ipcRenderer.on('tunnel-status-changed', (_e,d)=>{ if(_cb) _cb(d); }); return cb=>{ _cb=cb; }; })(),
 });
