@@ -1121,6 +1121,7 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
         // Routes that are always public regardless of PIN configuration
         const isAlwaysPublic = pathname === '/api/status' || pathname === '/api/queue' ||
           pathname === '/api/machines' || pathname.startsWith('/status/') ||
+          pathname.startsWith('/order/') ||
           pathname === '/' || pathname === '/manifest.json' || pathname === '/sw.js' ||
           pathname === '/icon-192.png' || pathname === '/icon-512.png' ||
           pathname.startsWith('/api/webhook/printer/');
@@ -1385,6 +1386,65 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
             res.writeHead(404);
             res.end(`<!DOCTYPE html><html><body style="font-family:sans-serif;text-align:center;padding:60px;color:#666;"><h2>Order not found</h2><p>The tracking page for this order is not available yet.</p></body></html>`);
           });
+        } else if (pathname.startsWith('/order/') && req.method === 'GET') {
+          const rawId = pathname.replace(/^\/order\//, '').replace(/\/status\/?$/, '');
+          const safeId = rawId.replace(/[^a-zA-Z0-9_-]/g, '');
+          const order = (store.printLog || []).find(o => o.id === safeId);
+          res.setHeader('Content-Type', 'text/html; charset=utf-8');
+          res.setHeader('Cache-Control', 'no-cache');
+          if (!order) {
+            res.writeHead(404);
+            res.end(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Order Not Found</title><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0f172a;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}.card{background:#1e293b;border-radius:16px;padding:40px 32px;text-align:center;max-width:400px;width:100%}h2{font-size:1.4rem;margin-bottom:12px;color:#f1f5f9}p{color:#94a3b8;line-height:1.6}</style></head><body><div class="card"><h2>Order Not Found</h2><p>We couldn't find an order with that ID. Please check the link and try again.</p></div></body></html>`);
+          } else {
+            const shopName = lanEscapeHtml(store.settings?.shopName || 'Khayt');
+            const projectName = lanEscapeHtml(order.project || order.id);
+            const clientName = order.client ? lanEscapeHtml(order.client) : null;
+            const material = order.material ? lanEscapeHtml(order.material) : null;
+            const dueDate = order.dueDate ? lanEscapeHtml(order.dueDate) : null;
+            const status = (order.status || 'pending').toLowerCase();
+
+            const statusLabels = {
+              pending: 'Waiting to Start',
+              printing: 'Printing',
+              post: 'Post-Processing',
+              qc: 'Quality Check',
+              completed: 'Ready for Pickup / Completed',
+              on_hold: 'On Hold',
+              cancelled: 'Cancelled'
+            };
+            const statusDescriptions = {
+              pending: 'Your order is in the queue and will start soon.',
+              printing: 'Your order is currently being printed.',
+              post: 'Your print is finished — post-processing is underway.',
+              qc: 'Your order is going through a quality check.',
+              completed: 'Your order is complete and ready for pickup!',
+              on_hold: 'Your order is temporarily on hold. We\'ll update you soon.',
+              cancelled: 'This order has been cancelled. Please contact us if you have questions.'
+            };
+            const steps = ['Pending', 'Printing', 'Post-Processing', 'Quality Check', 'Ready / Completed'];
+            const stepMap = { pending: 0, printing: 1, post: 2, qc: 3, completed: 4 };
+            const currentStep = stepMap[status] !== undefined ? stepMap[status] : (status === 'on_hold' || status === 'cancelled' ? -1 : 0);
+            const isWarning = status === 'on_hold' || status === 'cancelled';
+            const accentColor = isWarning ? (status === 'cancelled' ? '#ef4444' : '#f59e0b') : '#6366f1';
+            const statusLabel = lanEscapeHtml(statusLabels[status] || status);
+            const statusDesc = lanEscapeHtml(statusDescriptions[status] || 'We are working on your order.');
+
+            const stepsHtml = steps.map((label, i) => {
+              const active = !isWarning && i <= currentStep;
+              const isCurrent = !isWarning && i === currentStep;
+              return `<div class="step${active ? ' active' : ''}${isCurrent ? ' current' : ''}"><div class="dot"></div><div class="step-label">${lanEscapeHtml(label)}</div></div>`;
+            }).join('');
+
+            const detailsHtml = [
+              clientName ? `<div class="detail"><span class="detail-label">Customer</span><span class="detail-val">${clientName}</span></div>` : '',
+              material ? `<div class="detail"><span class="detail-label">Material</span><span class="detail-val">${material}</span></div>` : '',
+              dueDate ? `<div class="detail"><span class="detail-label">Est. Due Date</span><span class="detail-val">${dueDate}</span></div>` : ''
+            ].filter(Boolean).join('');
+
+            res.writeHead(200);
+            res.end(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Order Status — ${projectName}</title><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0f172a;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;padding:24px 16px}.container{max-width:480px;margin:0 auto}.header{text-align:center;margin-bottom:28px}.header h1{font-size:1.5rem;font-weight:700;color:#f1f5f9;margin-bottom:4px}.header .subtitle{color:#94a3b8;font-size:.9rem}.card{background:#1e293b;border-radius:16px;padding:24px;margin-bottom:16px}.card-title{font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:16px}.status-badge{display:inline-block;padding:6px 14px;border-radius:20px;font-size:.85rem;font-weight:600;background:${accentColor}22;color:${accentColor};margin-bottom:12px}.status-desc{color:#94a3b8;font-size:.9rem;line-height:1.5}.progress{display:flex;align-items:flex-start;gap:0;margin-top:8px}.step{flex:1;display:flex;flex-direction:column;align-items:center;position:relative}.step:not(:last-child)::after{content:'';position:absolute;top:10px;left:50%;width:100%;height:2px;background:#334155;z-index:0}.step.active:not(:last-child)::after{background:#6366f1}.dot{width:20px;height:20px;border-radius:50%;background:#334155;border:2px solid #334155;position:relative;z-index:1;transition:all .2s}.step.active .dot{background:#6366f1;border-color:#6366f1}.step.current .dot{box-shadow:0 0 0 4px #6366f133}.step-label{font-size:.65rem;color:#64748b;margin-top:6px;text-align:center;line-height:1.3}.step.active .step-label{color:#a5b4fc}.detail{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #0f172a}.detail:last-child{border-bottom:none}.detail-label{font-size:.8rem;color:#64748b}.detail-val{font-size:.85rem;color:#e2e8f0;font-weight:500;text-align:right;max-width:60%}.footer{text-align:center;margin-top:24px;color:#475569;font-size:.8rem;line-height:1.6}</style></head><body><div class="container"><div class="header"><h1>${projectName}</h1><div class="subtitle">Order Status</div></div><div class="card"><div class="card-title">Current Status</div><div class="status-badge">${statusLabel}</div><p class="status-desc">${statusDesc}</p>${!isWarning ? `<div class="progress" style="margin-top:20px">${stepsHtml}</div>` : ''}</div>${detailsHtml ? `<div class="card"><div class="card-title">Order Details</div>${detailsHtml}</div>` : ''}<div class="footer"><p>Thank you for choosing ${shopName}</p><p style="margin-top:4px;font-size:.75rem;color:#334155">Auto-refreshes every 30s</p></div></div><script>setTimeout(()=>location.reload(),30000);</script></body></html>`);
+          }
+
         } else if (pathname === '/manifest.json' && req.method === 'GET') {
           const shopName = (store.settings?.shopName || 'Khayt').replace(/"/g, '\\"');
           res.setHeader('Content-Type', 'application/manifest+json');

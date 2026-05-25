@@ -311,6 +311,15 @@ function clientCurrency(clientId) {
   const c = clients.find(x => x.id === clientId);
   return (c && c.currency) ? c.currency : (settings.currency || 'SAR');
 }
+// Convert an amount in `fromCurrency` to the base currency using stored exchange rates.
+// Returns the amount unchanged if fromCurrency === base or no rate is configured.
+function convertToBase(amount, fromCurrency) {
+  const base = settings.currency || 'SAR';
+  if (!fromCurrency || fromCurrency === base) return +amount || 0;
+  const rate = (settings.exchangeRates || {})[fromCurrency];
+  if (!rate || rate <= 0) return +amount || 0;
+  return (+amount || 0) * rate;
+}
 // Update all [data-i18n="common.currency"] elements after currency changes
 function refreshCurrencyLabels() {
   const sym = currencySymbol();
@@ -915,6 +924,8 @@ function defaultSettings() {
     dismissedNotifs:      {},
     // Kanban column collapsed state (array of column IDs) — synced with settings to survive backup restore
     kanbanCollapsed:      [],
+    // Feature H: Exchange rates — how many base-currency units per 1 foreign unit
+    exchangeRates:        {},  // e.g. { USD: 3.75, EUR: 4.12 }
   };
 }
 
@@ -4434,7 +4445,63 @@ function renderPipelineDemand() {
     </div>`;
 }
 
+// Feature F2: Render a prominent amber alert banner listing all low-stock items
+function renderReorderAlerts() {
+  const el = $('#reorderAlertsSection');
+  if (!el) return;
+
+  const lowItems = inventory.filter(i =>
+    i.weight <= (i.reorderPoint ?? settings.lowStockThreshold ?? 200)
+  );
+
+  if (lowItems.length === 0) {
+    el.innerHTML = '';
+    el.style.display = 'none';
+    return;
+  }
+
+  const collapsed = el.dataset.collapsed === 'true';
+
+  const itemRows = lowItems.map(item => {
+    const daysLeft = estimateDaysRemaining(item);
+    const daysHtml = daysLeft !== null
+      ? `<span style="font-size:11px;color:${daysLeft <= 3 ? 'var(--danger)' : 'var(--warning)'};margin-inline-start:6px;" title="${escapeHtml(t('inv.usage_prediction') || 'Usage prediction')}">⏱ ${escapeHtml(t('inv.est_days_remaining') || 'Est.')} ${daysLeft}d</span>`
+      : '';
+    const threshold = item.reorderPoint ?? settings.lowStockThreshold ?? 200;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:5px 10px;background:rgba(245,166,35,0.08);border-radius:var(--radius-sm);margin-bottom:4px;flex-wrap:wrap;">
+      <span style="width:10px;height:10px;border-radius:50%;background:${escapeHtml(item.color || '#f5a623')};display:inline-block;flex-shrink:0;"></span>
+      <span style="flex:1;font-size:12.5px;font-weight:600;">${escapeHtml(item.material)}${item.colourVariant ? ` — ${escapeHtml(item.colourVariant)}` : ''}</span>
+      <span style="font-size:11.5px;color:var(--danger);white-space:nowrap;">${Math.round(item.weight)}g / ${Math.round(threshold)}g</span>
+      ${daysHtml}
+      <button class="btn small primary" data-act="reorder-alert-item" data-id="${escapeHtml(item.id)}" style="font-size:11px;padding:2px 8px;">${escapeHtml(t('inv.draft_po') || 'Draft PO')}</button>
+    </div>`;
+  }).join('');
+
+  el.style.display = '';
+  el.innerHTML = `
+    <div style="border:1px solid rgba(245,166,35,0.4);border-radius:var(--radius);background:rgba(245,166,35,0.06);margin-bottom:14px;overflow:hidden;">
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;background:rgba(245,166,35,0.1);" id="reorderAlertToggle">
+        <span style="font-size:16px;">⚠</span>
+        <span style="font-weight:700;color:var(--warning);flex:1;">${escapeHtml(t('inv.low_stock_alert') || 'Low Stock Alert')} <span style="background:var(--warning);color:#000;font-size:11px;padding:1px 6px;border-radius:10px;margin-inline-start:4px;">${lowItems.length}</span></span>
+        <span style="font-size:12px;color:var(--text-muted);">${collapsed ? '▶' : '▼'}</span>
+      </div>
+      ${collapsed ? '' : `<div style="padding:10px 14px;">${itemRows}</div>`}
+    </div>`;
+
+  const toggle = el.querySelector('#reorderAlertToggle');
+  if (toggle) {
+    toggle.addEventListener('click', () => {
+      el.dataset.collapsed = collapsed ? 'false' : 'true';
+      renderReorderAlerts();
+    });
+  }
+  el.querySelectorAll('[data-act="reorder-alert-item"]').forEach(btn => {
+    btn.addEventListener('click', () => openReorderModal(btn.dataset.id));
+  });
+}
+
 function renderInventory() {
+  renderReorderAlerts();
   renderSupplierReorderList();
   renderPipelineDemand();
   // Inventory valuation summary
@@ -5079,6 +5146,19 @@ function deleteConsumable(id) {
    Supplier / Vendor database
    ============================================================ */
 const SUPPLIER_CATEGORIES = ['filament', 'hardware', 'tools', 'packaging', 'services', 'other'];
+
+// Feature F3: Estimate days remaining for an inventory item based on recent usage history
+function estimateDaysRemaining(item) {
+  const hist = (item.usageHistory || []).filter(h => h.weightUsed > 0);
+  if (!hist.length) return null;
+  const cutoff = Date.now() - 30 * 86400000;
+  const recent = hist.filter(h => new Date(h.date).getTime() >= cutoff);
+  const totalUsed = recent.reduce((s, h) => s + (+h.weightUsed || 0), 0);
+  const days = recent.length > 0 ? Math.min(30, (Date.now() - new Date(recent[recent.length-1]?.date || Date.now()).getTime()) / 86400000 + recent.length) : 30;
+  const dailyRate = totalUsed / Math.max(days, 1);
+  if (dailyRate <= 0) return null;
+  return Math.round((item.weight || 0) / dailyRate);
+}
 
 function renderSupplierReorderList() {
   const el = $('#supplierReorderList');
@@ -12231,6 +12311,62 @@ function renderZatcaPhase2Settings() {
 }
 
 /* ============================================================
+   Feature H3: Exchange Rates Settings
+   ============================================================ */
+function renderExchangeRatesSettings() {
+  const el = $('#exchangeRatesSection');
+  if (!el) return;
+  const base = settings.currency || 'SAR';
+  const rates = settings.exchangeRates || {};
+  const otherCurrencies = Object.entries(CURRENCIES).filter(([code]) => code !== base);
+
+  const rows = otherCurrencies.map(([code, cur]) => {
+    const rate = rates[code] || '';
+    return `<tr>
+      <td style="padding:6px 8px;font-size:12.5px;">
+        <strong>${escapeHtml(code)}</strong>
+        <span style="color:var(--text-muted);margin-inline-start:4px;font-size:11px;">${escapeHtml(cur.label)}</span>
+      </td>
+      <td style="padding:6px 8px;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:11px;color:var(--text-muted);">1 ${escapeHtml(code)} =</span>
+          <input type="number" class="xr-input" data-code="${escapeHtml(code)}" value="${escapeHtml(String(rate))}" min="0" step="0.0001" placeholder="0.00" style="width:90px;padding:3px 6px;font-size:12px;">
+          <span style="font-size:11px;color:var(--text-muted);">${escapeHtml(base)}</span>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div style="margin-bottom:6px;">
+      <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px;">${escapeHtml(t('xr.hint') || 'Exchange rates are used to convert foreign-currency orders into your base currency for analytics reporting.')}</p>
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead>
+          <tr style="border-bottom:1px solid var(--border);">
+            <th style="padding:6px 8px;text-align:start;font-weight:600;color:var(--text-muted);font-size:11px;">${escapeHtml(t('xr.currency') || 'Currency')}</th>
+            <th style="padding:6px 8px;text-align:start;font-weight:600;color:var(--text-muted);font-size:11px;">${escapeHtml(t('xr.rate') || 'Rate')} (${escapeHtml(t('xr.rate_hint') || 'base currency units per 1 foreign unit')})</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+
+  el.querySelectorAll('.xr-input').forEach(input => {
+    input.addEventListener('input', () => {
+      const code = input.dataset.code;
+      const val = parseFloat(input.value);
+      if (!settings.exchangeRates) settings.exchangeRates = {};
+      if (!isNaN(val) && val > 0) {
+        settings.exchangeRates[code] = val;
+      } else {
+        delete settings.exchangeRates[code];
+      }
+      saveAll();
+    });
+  });
+}
+
+/* ============================================================
    BNPL / Payment Link Settings
    ============================================================ */
 function renderBnplSettings() {
@@ -14083,6 +14219,7 @@ function renderLogs() {
         ${(() => { const linkedWaste = wasteLog.filter(w => w.orderId === log.id); const wCost = linkedWaste.reduce((s, w) => s + (+w.cost || 0), 0); return linkedWaste.length > 0 ? `<span title="${escapeHtml(t('waste.linked_cost'))}: ${fmtPrice(wCost)}" style="font-size:10.5px; color:var(--danger); cursor:default;">🗑 ${fmtPrice(wCost)}</span>` : ''; })()}
         ${log.clientId ? clients.find(c => c.id === log.clientId)?.email ? '' : '' : ''}
         <button class="btn small ghost" data-act="export-status-page" data-id="${log.id}" title="${escapeHtml(t('ord.status_page'))}">📄</button>
+        <button class="btn small ghost" data-act="portal-qr" data-id="${log.id}" title="${escapeHtml(t('ord.portal_qr_title') || 'Customer Portal QR')}">📱</button>
         ${log.clientId ? `<button class="btn small ghost" data-act="open-status-page" data-id="${log.id}" title="${escapeHtml(t('ord.status_page_open'))}">🔗</button>` : ''}
         <button class="btn small ghost" data-act="copy-tracking-url" data-id="${log.id}" title="${escapeHtml(t('ord.copy_tracking_url') || 'Copy tracking URL')}">🔗📋</button>
         ${(log.parts || []).length > 1 && log.status !== 'split' ? `<button class="btn small ghost pro-only" data-act="split-order" data-id="${log.id}" title="${escapeHtml(t('ord.split'))}">⚡</button>` : ''}
@@ -14549,18 +14686,23 @@ async function batchGenPOs() {
   toast(t('po.batch_done', { n: lowStockItems.length }), 'success');
 }
 
-function createPurchaseOrder(item) {
+function createPurchaseOrder(item, opts) {
+  // opts: { supplierId, supplierName, qty, unitPrice, estimatedDelivery, notes }
+  const resolvedSupplierId = (opts && opts.supplierId) || item.supplierId || null;
+  const resolvedSupplierName = (opts && opts.supplierName) || (resolvedSupplierId ? (suppliers.find(s => s.id === resolvedSupplierId)?.name || '') : '');
   const po = {
     id: uid('PO'),
     itemId: item.id,
     itemName: item.material,
-    supplierId: null,
-    supplierName: '',
-    qty: item.reorderQty || 1000,  // New Feature 5: use per-spool reorder qty
+    supplierId: resolvedSupplierId,
+    supplierName: resolvedSupplierName,
+    qty: (opts && opts.qty) ? +opts.qty : (item.reorderQty || 1000),
+    unitPrice: (opts && opts.unitPrice) ? +opts.unitPrice : undefined,
+    estimatedDelivery: (opts && opts.estimatedDelivery) || null,
     status: 'ordered',
     orderedAt: new Date().toISOString().split('T')[0],
     receivedAt: null,
-    notes: '',
+    notes: (opts && opts.notes) || '',
   };
   purchaseOrders.unshift(po);
   saveAll();
@@ -14683,35 +14825,123 @@ function renderPurchaseOrders() {
 function openReorderModal(itemId) {
   const item = inventory.find(i => i.id === itemId);
   if (!item) return;
-  // New Feature 5: include reorder qty in default message
   const orderQty = item.reorderQty || 1000;
   const defaultMsg = t('inv.reorder_msg', { material: item.material, weight: Math.round(item.weight) })
     .replace(/\.$/, '') + `. Please send ${orderQty}g. Thank you!`;
-  openFormModal({
-    title: t('inv.reorder_title'),
-    saveLabel: t('wa.open_btn'),
-    sizeLg: false,
-    bodyHtml: `
-      <label>${escapeHtml(t('set.supplier_phone'))}</label>
-      <input type="tel" id="reorderPhone" value="${escapeHtml((suppliers.find(s => s.id === item.supplierId)?.phone) || settings.supplierPhone || '')}" data-i18n-placeholder="set.supplier_ph">
-      <label style="margin-top:12px;">${escapeHtml(t('wa.tpl_body'))}</label>
-      <textarea id="reorderMsg" rows="4" style="resize:vertical;">${escapeHtml(defaultMsg)}</textarea>`,
-    async onSave(modal) {
-      const phone = modal.querySelector('#reorderPhone').value.trim();
-      const msg   = modal.querySelector('#reorderMsg').value;
-      if (phone && phone !== settings.supplierPhone) {
-        settings.supplierPhone = phone;
-        saveAll();
-        const el = $('#set_supplierPhone');
-        if (el) el.value = phone;
-      }
-      if (window.hubAPI?.shareWhatsApp) {
-        await window.hubAPI.shareWhatsApp({ phone, message: msg, pdfPath: null });
-      }
-      // Also create a purchase order automatically
-      createPurchaseOrder(item);
-      return true;
+  const supplierOptions = suppliers.map(s =>
+    `<option value="${escapeHtml(s.id)}"${s.id === item.supplierId ? ' selected' : ''}>${escapeHtml(s.name)}</option>`
+  ).join('');
+  const mount = $('#modalMount');
+  mount.innerHTML = `
+    <div class="modal-backdrop">
+      <div class="modal modal-lg" role="dialog" aria-modal="true" aria-labelledby="reorderModalTitle">
+        <div class="modal-header">
+          <h3 id="reorderModalTitle">${escapeHtml(t('inv.draft_po_title') || 'Draft Purchase Order')}</h3>
+          <button class="btn ghost small" id="reorderModalClose" aria-label="Close">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="inline-pair">
+            <div>
+              <label>${escapeHtml(t('po.supplier') || 'Supplier')}</label>
+              <select id="reorderSupplier" style="width:100%;">
+                <option value="">— ${escapeHtml(t('po.no_supplier') || 'No supplier')} —</option>
+                ${supplierOptions}
+              </select>
+            </div>
+            <div>
+              <label>${escapeHtml(t('po.qty') || 'Quantity')} (g)</label>
+              <input type="number" id="reorderQtyInput" value="${orderQty}" min="1">
+            </div>
+          </div>
+          <div class="inline-pair" style="margin-top:10px;">
+            <div>
+              <label>${escapeHtml(t('po.unit_price') || 'Unit price')} (${escapeHtml(t('inv.per_g') || 'per g, optional')})</label>
+              <input type="number" id="reorderUnitPrice" value="" min="0" step="0.01" placeholder="0.00">
+            </div>
+            <div>
+              <label>${escapeHtml(t('po.est_delivery') || 'Estimated delivery')}</label>
+              <input type="date" id="reorderDeliveryDate">
+            </div>
+          </div>
+          <label style="margin-top:10px;">${escapeHtml(t('common.notes') || 'Notes')}</label>
+          <textarea id="reorderNotes" rows="2" style="resize:vertical;"></textarea>
+          <hr style="margin:14px 0;border:none;border-top:1px solid var(--border);">
+          <label>${escapeHtml(t('set.supplier_phone'))}</label>
+          <input type="tel" id="reorderPhone" value="${escapeHtml((suppliers.find(s => s.id === item.supplierId)?.phone) || settings.supplierPhone || '')}" data-i18n-placeholder="set.supplier_ph">
+          <label style="margin-top:10px;">${escapeHtml(t('wa.tpl_body'))}</label>
+          <textarea id="reorderMsg" rows="3" style="resize:vertical;">${escapeHtml(defaultMsg)}</textarea>
+        </div>
+        <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;">
+          <button class="btn ghost" id="reorderModalCancel">${escapeHtml(t('common.cancel'))}</button>
+          <button class="btn" id="reorderDraftOnly">${escapeHtml(t('inv.draft_po_only') || 'Draft PO Only')}</button>
+          <button class="btn primary" id="reorderDraftAndWa">${escapeHtml(t('inv.draft_po_wa') || 'Draft PO + WhatsApp')}</button>
+        </div>
+      </div>
+    </div>`;
+
+  const close = () => {
+    document.removeEventListener('keydown', escH);
+    const idx = _escHandlerStack.indexOf(escH);
+    if (idx !== -1) _escHandlerStack.splice(idx, 1);
+    mount.innerHTML = '';
+  };
+  const escH = (e) => { if (e.key === 'Escape') close(); };
+  _escHandlerStack.push(escH);
+  document.addEventListener('keydown', escH);
+  mount.querySelector('#reorderModalClose').addEventListener('click', close);
+  mount.querySelector('#reorderModalCancel').addEventListener('click', close);
+  mount.querySelector('.modal-backdrop').addEventListener('click', (e) => {
+    if (e.target.classList.contains('modal-backdrop')) close();
+  });
+
+  // Update phone when supplier changes
+  mount.querySelector('#reorderSupplier').addEventListener('change', function() {
+    const sup = suppliers.find(s => s.id === this.value);
+    if (sup?.phone) mount.querySelector('#reorderPhone').value = sup.phone;
+  });
+
+  const collectOpts = () => {
+    const modal = mount.querySelector('.modal');
+    const supId = modal.querySelector('#reorderSupplier').value;
+    const sup = suppliers.find(s => s.id === supId);
+    return {
+      supplierId:        supId || null,
+      supplierName:      sup?.name || '',
+      qty:               +modal.querySelector('#reorderQtyInput').value || orderQty,
+      unitPrice:         +modal.querySelector('#reorderUnitPrice').value || undefined,
+      estimatedDelivery: modal.querySelector('#reorderDeliveryDate').value || null,
+      notes:             modal.querySelector('#reorderNotes').value.trim(),
+    };
+  };
+
+  mount.querySelector('#reorderDraftOnly').addEventListener('click', () => {
+    const opts = collectOpts();
+    const phone = mount.querySelector('#reorderPhone').value.trim();
+    if (phone && phone !== settings.supplierPhone) {
+      settings.supplierPhone = phone;
+      saveAll();
+      const el = $('#set_supplierPhone');
+      if (el) el.value = phone;
     }
+    createPurchaseOrder(item, opts);
+    close();
+  });
+
+  mount.querySelector('#reorderDraftAndWa').addEventListener('click', async () => {
+    const opts = collectOpts();
+    const phone = mount.querySelector('#reorderPhone').value.trim();
+    const msg   = mount.querySelector('#reorderMsg').value;
+    if (phone && phone !== settings.supplierPhone) {
+      settings.supplierPhone = phone;
+      saveAll();
+      const el = $('#set_supplierPhone');
+      if (el) el.value = phone;
+    }
+    createPurchaseOrder(item, opts);
+    if (window.hubAPI?.shareWhatsApp) {
+      await window.hubAPI.shareWhatsApp({ phone, message: msg, pdfPath: null });
+    }
+    close();
   });
 }
 
@@ -14787,7 +15017,7 @@ function renderSimpleReports() {
 function renderAnalytics() {
   const orders = printLog.filter(o => inRange(o.date, analyticsRange, 'analytics'));
   const completed = orders.filter(o => o.status === 'completed');
-  const revenue = completed.reduce((s, o) => s + +o.price, 0);
+  const revenue = completed.reduce((s, o) => s + convertToBase(+o.price, clientCurrency(o.clientId)), 0);
   const hours   = orders.reduce((s, o) => s + +o.printTime, 0);
   const inProgress = orders.filter(o => o.status !== 'completed' && o.status !== 'pending').length;
   // Receivables — outstanding amount across all unpaid/partial orders, regardless of status
@@ -16414,7 +16644,7 @@ function renderLocationPL() {
   printLog.filter(o => o.status === 'completed' && inRange(o.date || (o.timestamp || '').slice(0,10), analyticsRange, 'analytics')).forEach(o => {
     const lid = (o.machineId && machLocById[o.machineId]) || (o.machine && machLocByName[o.machine]) || '__none__';
     const d = getD(lid);
-    d.revenue += +o.price || 0;
+    d.revenue += convertToBase(+o.price || 0, clientCurrency(o.clientId));
     d.orders++;
     (o.parts || []).forEach(p => { d.matCost += computePartBaseCost ? (computePartBaseCost(p) || 0) : 0; });
   });
@@ -17155,6 +17385,68 @@ async function openSavedStatusPage(orderId) {
     await window.hubAPI.openFile(filePath);
   }
   toast(t('ord.status_page_open'), 'success');
+}
+
+// Feature G1: Customer Portal QR modal
+async function openCustomerPortalModal(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+
+  const lanInfo = await window.hubAPI?.getLanUrl?.();
+  if (!lanInfo?.ok) {
+    openFormModal({
+      title: t('ord.portal_qr_title') || 'Customer Portal QR',
+      noSave: true,
+      sizeLg: false,
+      bodyHtml: `
+        <div style="text-align:center;padding:16px 0;">
+          <div style="font-size:32px;margin-bottom:12px;">⚠</div>
+          <p style="color:var(--warning);font-weight:600;margin-bottom:8px;">${escapeHtml(t('lan.not_running') || 'LAN server is not running')}</p>
+          <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">${escapeHtml(t('lan.start_hint') || 'Start the LAN server in Settings first')}</p>
+          <button class="btn primary" onclick="showTab('settings-tab');$('#modalMount').innerHTML='';">${escapeHtml(t('nav.settings') || 'Go to Settings')}</button>
+        </div>`,
+    });
+    return;
+  }
+
+  const url = `${lanInfo.url}/order/${orderId}/status`;
+  let qrHtml = '';
+  try {
+    const qrDataUrl = await window.hubAPI.generateQR(url, { width: 200 });
+    if (qrDataUrl) qrHtml = `<img src="${escapeHtml(qrDataUrl)}" alt="QR" style="width:200px;height:200px;display:block;margin:0 auto;">`;
+  } catch(e) { /* silent */ }
+
+  openFormModal({
+    title: t('ord.portal_qr_title') || 'Customer Portal QR',
+    noSave: true,
+    sizeLg: false,
+    bodyHtml: `
+      <div style="text-align:center;padding:12px 0;">
+        ${qrHtml || '<p style="color:var(--text-muted);">QR unavailable</p>'}
+        <p style="font-size:12px;color:var(--text-muted);margin:12px 0 6px;word-break:break-all;">${escapeHtml(url)}</p>
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px;">
+          <button class="btn small" id="portalQrCopy">${escapeHtml(t('common.copy') || 'Copy URL')}</button>
+          <button class="btn small primary" id="portalQrWa">${escapeHtml(t('inv.share_whatsapp') || 'Share WhatsApp')}</button>
+        </div>
+      </div>`,
+    onMount(modal) {
+      modal.querySelector('#portalQrCopy')?.addEventListener('click', async () => {
+        try { await navigator.clipboard.writeText(url); toast(t('common.copied') || 'Copied!', 'success'); }
+        catch { toast(url, 'info', 6000); }
+      });
+      modal.querySelector('#portalQrWa')?.addEventListener('click', async () => {
+        const waMsg = `${t('ord.portal_track_msg') || 'Track your order'}: ${url}`;
+        const cl = order.clientId ? clients.find(c => c.id === order.clientId) : null;
+        const phone = cl?.phone || '';
+        if (window.hubAPI?.shareWhatsApp) {
+          await window.hubAPI.shareWhatsApp({ phone, message: waMsg, pdfPath: null });
+        } else {
+          const waUrl = `https://wa.me/?text=${encodeURIComponent(waMsg)}`;
+          window.open(waUrl, '_blank');
+        }
+      });
+    },
+  });
 }
 
 async function clearAllLogs() {
@@ -18281,6 +18573,20 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
             </span>
             <span class="v">${total}<span class="unit">${invCurrSym}</span></span>
           </div>
+          ${(() => {
+            const orderCur = invCurrencyCode;
+            const baseCur = settings.currency || 'SAR';
+            const xrate = (settings.exchangeRates || {})[orderCur];
+            if (orderCur && orderCur !== baseCur && xrate && xrate > 0) {
+              const convertedAmt = fmtMoney((+order.price || 0) * xrate);
+              const baseSym = (CURRENCIES[baseCur] || CURRENCIES.SAR).symbol;
+              return `<div class="row" style="opacity:0.65;font-size:11px;border-top:1px dashed rgba(0,0,0,0.1);padding-top:4px;margin-top:4px;">
+                <span class="label-en">${escapeHtml(isAr ? `المبلغ بـ ${baseCur}` : `Amount in ${baseCur}`)}</span>
+                <span class="v">${convertedAmt}<span class="unit">${escapeHtml(baseSym)}</span></span>
+              </div>`;
+            }
+            return '';
+          })()}
         </div>
       </div>
 
@@ -18510,6 +18816,8 @@ function loadSettingsIntoForm() {
   // ZATCA Phase 2
   renderZatcaPhase2Settings();
   renderBnplSettings();
+  // Feature H: Exchange rates
+  renderExchangeRatesSettings();
   // Round 12: Saved filter presets
   renderSavedFilterPresets();
   // Business Mode toggle buttons
@@ -19641,6 +19949,8 @@ function wireEvents() {
     if (emailQuo) emailOrderToClient(emailQuo.dataset.id, true);
     const statusPage = e.target.closest('[data-act="export-status-page"]');
     if (statusPage) exportOrderStatusPage(statusPage.dataset.id);
+    const portalQrBtn = e.target.closest('[data-act="portal-qr"]');
+    if (portalQrBtn) { openCustomerPortalModal(portalQrBtn.dataset.id); return; }
     const openStatusPage = e.target.closest('[data-act="open-status-page"]');
     if (openStatusPage) openSavedStatusPage(openStatusPage.dataset.id);
     const copyUrlBtn = e.target.closest('[data-act="copy-tracking-url"]');

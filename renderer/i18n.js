@@ -2059,6 +2059,39 @@ const STRINGS = {
     'csv.skipped':             'skipped (duplicates)',
     'csv.no_data':             'No data to import',
     'csv.no_valid_rows':       'No valid rows — check required fields',
+
+    // ---------- Feature F: Reorder Alerts + Draft PO ----------
+    'inv.reorder_alerts_title': 'Reorder Alerts',
+    'inv.reorder_alerts_hide':  'Hide',
+    'inv.reorder_alerts_show':  'Show Alerts',
+    'inv.days_remaining':       '{days} days remaining',
+    'inv.no_usage_data':        'No usage data',
+    'inv.draft_po_only':        'Draft PO Only',
+    'inv.draft_po_whatsapp':    'Draft PO + WhatsApp',
+    'inv.po_supplier':          'Supplier',
+    'inv.po_qty_g':             'Quantity (g)',
+    'inv.po_unit_price':        'Unit Price (optional)',
+    'inv.po_est_delivery':      'Est. Delivery Date',
+    'po.created_with_details':  'Purchase order created',
+
+    // ---------- Feature G: Customer Portal ----------
+    'ord.portal_qr':            'Customer Portal QR',
+    'ord.portal_qr_title':      'Order Tracking Link',
+    'ord.portal_no_lan':        'LAN server is not running. Enable it in Settings → LAN API.',
+    'ord.portal_copy':          'Copy Link',
+    'ord.portal_copied':        'Link copied!',
+    'ord.portal_whatsapp':      'Share via WhatsApp',
+    'ord.portal_whatsapp_msg':  'Track your order: ',
+    'ord.portal_go_settings':   'Go to Settings',
+
+    // ---------- Feature H: Exchange Rates + Multi-currency ----------
+    'set.exchange_rates_title': 'Exchange Rates',
+    'set.exchange_rates_note':  'Set rates to convert foreign-currency orders to your base currency in analytics.',
+    'set.exchange_rate_label':  '1 {code} =',
+    'set.exchange_rate_base_lbl': '{code} (base)',
+    'set.exchange_rate_saved':  'Rate saved',
+    'inv.base_currency_equiv':  'Base currency equivalent',
+    'an.fx_converted':          '(converted to {currency})',
   },
 
   ar: {
@@ -3960,6 +3993,39 @@ const STRINGS = {
     'csv.skipped':             'مُتجاهل (مكرر)',
     'csv.no_data':             'لا توجد بيانات للاستيراد',
     'csv.no_valid_rows':       'لا توجد صفوف صالحة — تحقق من الحقول المطلوبة',
+
+    // ---------- Feature F: Reorder Alerts + Draft PO ----------
+    'inv.reorder_alerts_title': 'تنبيهات إعادة الطلب',
+    'inv.reorder_alerts_hide':  'إخفاء',
+    'inv.reorder_alerts_show':  'عرض التنبيهات',
+    'inv.days_remaining':       '{days} أيام متبقية',
+    'inv.no_usage_data':        'لا توجد بيانات استخدام',
+    'inv.draft_po_only':        'إنشاء أمر شراء فقط',
+    'inv.draft_po_whatsapp':    'إنشاء أمر شراء + واتساب',
+    'inv.po_supplier':          'المورد',
+    'inv.po_qty_g':             'الكمية (جرام)',
+    'inv.po_unit_price':        'سعر الوحدة (اختياري)',
+    'inv.po_est_delivery':      'تاريخ التسليم المتوقع',
+    'po.created_with_details':  'تم إنشاء أمر الشراء',
+
+    // ---------- Feature G: Customer Portal ----------
+    'ord.portal_qr':            'رمز QR لبوابة العميل',
+    'ord.portal_qr_title':      'رابط تتبع الطلب',
+    'ord.portal_no_lan':        'خادم الشبكة المحلية غير مشغّل. فعّله من الإعدادات ← واجهة برمجة LAN.',
+    'ord.portal_copy':          'نسخ الرابط',
+    'ord.portal_copied':        'تم نسخ الرابط!',
+    'ord.portal_whatsapp':      'مشاركة عبر واتساب',
+    'ord.portal_whatsapp_msg':  'تابع طلبك: ',
+    'ord.portal_go_settings':   'الذهاب إلى الإعدادات',
+
+    // ---------- Feature H: Exchange Rates + Multi-currency ----------
+    'set.exchange_rates_title': 'أسعار الصرف',
+    'set.exchange_rates_note':  'حدد الأسعار لتحويل الطلبات بالعملات الأجنبية إلى عملتك الأساسية في التقارير.',
+    'set.exchange_rate_label':  '1 {code} =',
+    'set.exchange_rate_base_lbl': '{code} (أساسي)',
+    'set.exchange_rate_saved':  'تم حفظ السعر',
+    'inv.base_currency_equiv':  'ما يعادله بالعملة الأساسية',
+    'an.fx_converted':          '(محوّل إلى {currency})',
   },
 
   // ════════════════════════════════════════════════════════════
@@ -4865,6 +4931,39 @@ const STRINGS = {
     'csv.skipped':             'skipped (duplicates)',
     'csv.no_data':             'No data to import',
     'csv.no_valid_rows':       'No valid rows — check required fields',
+
+    // ---------- Feature F: Reorder Alerts + Draft PO ----------
+    'inv.reorder_alerts_title': 'Nachbestellungshinweise',
+    'inv.reorder_alerts_hide':  'Ausblenden',
+    'inv.reorder_alerts_show':  'Hinweise anzeigen',
+    'inv.days_remaining':       '{days} Tage verbleibend',
+    'inv.no_usage_data':        'Keine Nutzungsdaten',
+    'inv.draft_po_only':        'Nur Bestellung erstellen',
+    'inv.draft_po_whatsapp':    'Bestellung + WhatsApp',
+    'inv.po_supplier':          'Lieferant',
+    'inv.po_qty_g':             'Menge (g)',
+    'inv.po_unit_price':        'Stückpreis (optional)',
+    'inv.po_est_delivery':      'Voraussichtliches Lieferdatum',
+    'po.created_with_details':  'Bestellung erstellt',
+
+    // ---------- Feature G: Customer Portal ----------
+    'ord.portal_qr':            'Kunden-Portal-QR',
+    'ord.portal_qr_title':      'Bestellverfolgungslink',
+    'ord.portal_no_lan':        'LAN-Server läuft nicht. Aktivieren Sie ihn in Einstellungen → LAN API.',
+    'ord.portal_copy':          'Link kopieren',
+    'ord.portal_copied':        'Link kopiert!',
+    'ord.portal_whatsapp':      'Via WhatsApp teilen',
+    'ord.portal_whatsapp_msg':  'Verfolgen Sie Ihre Bestellung: ',
+    'ord.portal_go_settings':   'Zu Einstellungen',
+
+    // ---------- Feature H: Exchange Rates + Multi-currency ----------
+    'set.exchange_rates_title': 'Wechselkurse',
+    'set.exchange_rates_note':  'Kurse für Fremdwährungsaufträge zur Umrechnung in Basiswährung.',
+    'set.exchange_rate_label':  '1 {code} =',
+    'set.exchange_rate_base_lbl': '{code} (Basis)',
+    'set.exchange_rate_saved':  'Kurs gespeichert',
+    'inv.base_currency_equiv':  'Gegenwert in Basiswährung',
+    'an.fx_converted':          '(umgerechnet in {currency})',
   },
 
   // ════════════════════════════════════════════════════════════
@@ -5770,6 +5869,39 @@ const STRINGS = {
     'csv.skipped':             'skipped (duplicates)',
     'csv.no_data':             'No data to import',
     'csv.no_valid_rows':       'No valid rows — check required fields',
+
+    // ---------- Feature F: Reorder Alerts + Draft PO ----------
+    'inv.reorder_alerts_title': 'Alertas de reabastecimiento',
+    'inv.reorder_alerts_hide':  'Ocultar',
+    'inv.reorder_alerts_show':  'Mostrar alertas',
+    'inv.days_remaining':       '{days} días restantes',
+    'inv.no_usage_data':        'Sin datos de uso',
+    'inv.draft_po_only':        'Solo crear orden',
+    'inv.draft_po_whatsapp':    'Orden + WhatsApp',
+    'inv.po_supplier':          'Proveedor',
+    'inv.po_qty_g':             'Cantidad (g)',
+    'inv.po_unit_price':        'Precio unitario (opcional)',
+    'inv.po_est_delivery':      'Fecha estimada de entrega',
+    'po.created_with_details':  'Orden de compra creada',
+
+    // ---------- Feature G: Customer Portal ----------
+    'ord.portal_qr':            'QR del portal del cliente',
+    'ord.portal_qr_title':      'Enlace de seguimiento del pedido',
+    'ord.portal_no_lan':        'El servidor LAN no está en ejecución. Actívalo en Ajustes → LAN API.',
+    'ord.portal_copy':          'Copiar enlace',
+    'ord.portal_copied':        '¡Enlace copiado!',
+    'ord.portal_whatsapp':      'Compartir por WhatsApp',
+    'ord.portal_whatsapp_msg':  'Rastrea tu pedido: ',
+    'ord.portal_go_settings':   'Ir a Ajustes',
+
+    // ---------- Feature H: Exchange Rates + Multi-currency ----------
+    'set.exchange_rates_title': 'Tipos de cambio',
+    'set.exchange_rates_note':  'Configure las tasas para convertir pedidos en moneda extranjera a su moneda base en el análisis.',
+    'set.exchange_rate_label':  '1 {code} =',
+    'set.exchange_rate_base_lbl': '{code} (base)',
+    'set.exchange_rate_saved':  'Tasa guardada',
+    'inv.base_currency_equiv':  'Equivalente en moneda base',
+    'an.fx_converted':          '(convertido a {currency})',
   },
 
   // ════════════════════════════════════════════════════════════
@@ -6692,6 +6824,39 @@ const STRINGS = {
     'csv.skipped':             'skipped (duplicates)',
     'csv.no_data':             'No data to import',
     'csv.no_valid_rows':       'No valid rows — check required fields',
+
+    // ---------- Feature F: Reorder Alerts + Draft PO ----------
+    'inv.reorder_alerts_title': 'Alertes de réapprovisionnement',
+    'inv.reorder_alerts_hide':  'Masquer',
+    'inv.reorder_alerts_show':  'Afficher les alertes',
+    'inv.days_remaining':       '{days} jours restants',
+    'inv.no_usage_data':        "Aucune donnée d'utilisation",
+    'inv.draft_po_only':        'Créer commande uniquement',
+    'inv.draft_po_whatsapp':    'Commande + WhatsApp',
+    'inv.po_supplier':          'Fournisseur',
+    'inv.po_qty_g':             'Quantité (g)',
+    'inv.po_unit_price':        'Prix unitaire (optionnel)',
+    'inv.po_est_delivery':      'Date de livraison estimée',
+    'po.created_with_details':  'Bon de commande créé',
+
+    // ---------- Feature G: Customer Portal ----------
+    'ord.portal_qr':            'QR portail client',
+    'ord.portal_qr_title':      'Lien de suivi de commande',
+    'ord.portal_no_lan':        "Le serveur LAN n'est pas en cours d'exécution. Activez-le dans Paramètres → API LAN.",
+    'ord.portal_copy':          'Copier le lien',
+    'ord.portal_copied':        'Lien copié !',
+    'ord.portal_whatsapp':      'Partager via WhatsApp',
+    'ord.portal_whatsapp_msg':  'Suivez votre commande : ',
+    'ord.portal_go_settings':   'Aller aux paramètres',
+
+    // ---------- Feature H: Exchange Rates + Multi-currency ----------
+    'set.exchange_rates_title': 'Taux de change',
+    'set.exchange_rates_note':  'Définissez les taux pour convertir les commandes en devise étrangère en devise de base dans les analyses.',
+    'set.exchange_rate_label':  '1 {code} =',
+    'set.exchange_rate_base_lbl': '{code} (de base)',
+    'set.exchange_rate_saved':  'Taux enregistré',
+    'inv.base_currency_equiv':  'Équivalent en devise de base',
+    'an.fx_converted':          '(converti en {currency})',
   },
 
   // ════════════════════════════════════════════════════════════
@@ -7614,6 +7779,39 @@ const STRINGS = {
     'csv.skipped':             'skipped (duplicates)',
     'csv.no_data':             'No data to import',
     'csv.no_valid_rows':       'No valid rows — check required fields',
+
+    // ---------- Feature F: Reorder Alerts + Draft PO ----------
+    'inv.reorder_alerts_title': '补货提醒',
+    'inv.reorder_alerts_hide':  '隐藏',
+    'inv.reorder_alerts_show':  '显示提醒',
+    'inv.days_remaining':       '剩余 {days} 天',
+    'inv.no_usage_data':        '无使用数据',
+    'inv.draft_po_only':        '仅创建采购单',
+    'inv.draft_po_whatsapp':    '创建采购单 + WhatsApp',
+    'inv.po_supplier':          '供应商',
+    'inv.po_qty_g':             '数量（克）',
+    'inv.po_unit_price':        '单价（可选）',
+    'inv.po_est_delivery':      '预计交货日期',
+    'po.created_with_details':  '采购单已创建',
+
+    // ---------- Feature G: Customer Portal ----------
+    'ord.portal_qr':            '客户门户二维码',
+    'ord.portal_qr_title':      '订单追踪链接',
+    'ord.portal_no_lan':        '局域网服务器未运行，请在设置 → LAN API 中启用。',
+    'ord.portal_copy':          '复制链接',
+    'ord.portal_copied':        '链接已复制！',
+    'ord.portal_whatsapp':      '通过 WhatsApp 分享',
+    'ord.portal_whatsapp_msg':  '追踪您的订单：',
+    'ord.portal_go_settings':   '前往设置',
+
+    // ---------- Feature H: Exchange Rates + Multi-currency ----------
+    'set.exchange_rates_title': '汇率',
+    'set.exchange_rates_note':  '设置汇率，将外币订单转换为基础货币以用于分析报告。',
+    'set.exchange_rate_label':  '1 {code} =',
+    'set.exchange_rate_base_lbl': '{code}（基础）',
+    'set.exchange_rate_saved':  '汇率已保存',
+    'inv.base_currency_equiv':  '基础货币等值',
+    'an.fx_converted':          '（已换算为 {currency}）',
   },
 };
 

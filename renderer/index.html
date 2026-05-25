@@ -766,6 +766,7 @@
 
     <!-- ===================== INVENTORY ===================== -->
     <section id="inventory-tab" class="tab-content">
+      <div id="reorderAlertsSection" style="display:none;"></div>
       <div id="supplierReorderList" style="margin-bottom:12px;"></div>
       <div id="pipelineDemand"></div>
       <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
@@ -1226,6 +1227,9 @@
 
           <h3 class="card-head" style="margin-top: 24px;"><span class="swatch"></span><span data-i18n="bnpl.section">Payment Services &amp; BNPL</span></h3>
           <div id="bnplSection"></div>
+
+          <h3 class="card-head" style="margin-top: 24px;"><span class="swatch"></span><span data-i18n="xr.section">Exchange Rates</span></h3>
+          <div id="exchangeRatesSection"></div>
 
           <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-top:0;">
             <input type="checkbox" id="set_enableVat" style="width:auto; margin:0;">
