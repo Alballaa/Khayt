@@ -27,6 +27,8 @@ const K = {
   LOCATIONS: 'hub_locations_v1',
   OPERATORS: 'hub_operators_v1',
   WAITING:   'hub_waiting_v1',
+  WAITING_HISTORY: 'hub_waiting_history_v1',
+  TIME_ENTRIES: 'hub_time_entries_v1',
 };
 
 /* ---------- App state ---------- */
@@ -53,6 +55,8 @@ let testPrints     = loadJSON(K.TEST_PRINTS, []);
 let locations      = loadJSON(K.LOCATIONS, []);
 let operators      = loadJSON(K.OPERATORS, []);
 let waitingList    = loadJSON(K.WAITING, []);
+let waitingListHistory = loadJSON(K.WAITING_HISTORY, []);
+let timeEntries    = loadJSON(K.TIME_ENTRIES, []);
 
 // Runtime-only state (not persisted)
 let kanbanTimerInterval = null;
@@ -926,6 +930,15 @@ function defaultSettings() {
     kanbanCollapsed:      [],
     // Feature H: Exchange rates — how many base-currency units per 1 foreign unit
     exchangeRates:        {},  // e.g. { USD: 3.75, EUR: 4.12 }
+    // Feature I: Email digest scheduler
+    emailDigest: {
+      enabled: false,
+      frequency: 'daily',   // 'daily' | 'weekly'
+      hour: 8,              // 0–23, hour of day to send
+      weekday: 1,           // 0=Sun…6=Sat, only used when frequency='weekly'
+      recipientEmail: '',   // defaults to settings.email if blank
+      lastSentDate: '',     // 'YYYY-MM-DD' or 'YYYY-WW' (ISO week), prevents double-send
+    },
   };
 }
 
@@ -988,6 +1001,7 @@ function saveAll() {
       printLog, inventory, templates, products, clients, settings, printers,
       expenses, machines, waTemplates, wasteLog, machMaintLog, consumables,
       suppliers, purchaseOrders, testPrints, locations, operators, waitingList,
+      waitingListHistory, timeEntries,
     };
     if (window.hubAPI?.saveStore) {
       window.hubAPI.saveStore(store).catch(e => {
@@ -1065,9 +1079,11 @@ async function loadAll() {
     if (store.purchaseOrders) purchaseOrders = store.purchaseOrders;
     if (store.testPrints)     testPrints     = store.testPrints;
     if (store.locations)      locations      = store.locations;
-    if (store.operators)      operators      = store.operators;
-    if (store.waitingList)    waitingList    = store.waitingList;
-    if (store.settings)       settings       = Object.assign({}, defaultSettings(), store.settings);
+    if (store.operators)           operators           = store.operators;
+    if (store.waitingList)         waitingList         = store.waitingList;
+    if (store.waitingListHistory)  waitingListHistory  = store.waitingListHistory;
+    if (store.timeEntries)         timeEntries         = store.timeEntries;
+    if (store.settings)            settings            = Object.assign({}, defaultSettings(), store.settings);
   }
 
   // One-time migration: pull localStorage kanban state into settings
@@ -1607,6 +1623,180 @@ function renderOperatorAnalytics() {
 }
 
 /* ============================================================
+   Feature K: Multi-Operator Time Tracking
+   ============================================================ */
+
+function openTimeEntryModal(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  const activeOps = operators.filter(o => o.active !== false);
+  const today = new Date().toISOString().split('T')[0];
+
+  if (activeOps.length === 0) {
+    toast(t('op.no_operators') || 'No active operators — add operators in Settings first', 'warning', 3000);
+    return;
+  }
+
+  const opOpts = activeOps.map(op =>
+    `<option value="${op.id}" data-rate="${+op.hourlyRate || 0}">${escapeHtml(op.name)}${op.role ? ' (' + escapeHtml(op.role) + ')' : ''}</option>`
+  ).join('');
+
+  openFormModal({
+    title: t('time.log_title') || 'Log Work Time',
+    sizeLg: false,
+    bodyHtml: `
+      ${order ? `<p style="font-size:13px;color:var(--text-muted);margin-top:0;">Order: <strong>${escapeHtml(order.project || order.id)}</strong></p>` : ''}
+      <label>${escapeHtml(t('time.operator') || 'Operator')}</label>
+      <select id="teOperator">${opOpts}</select>
+      <div style="display:flex;gap:12px;margin-top:10px;">
+        <div style="flex:1;">
+          <label style="margin-top:0;">${escapeHtml(t('time.hours') || 'Hours')}</label>
+          <input type="number" id="teHours" value="1" min="0.25" step="0.25">
+        </div>
+        <div style="flex:1;">
+          <label style="margin-top:0;">${escapeHtml(t('time.date') || 'Date')}</label>
+          <input type="date" id="teDate" value="${today}">
+        </div>
+      </div>
+      <label style="margin-top:10px;">${escapeHtml(t('time.notes') || 'Notes (optional)')}</label>
+      <textarea id="teNotes" rows="2" style="resize:vertical;"></textarea>`,
+    onSave(modal) {
+      const opId    = modal.querySelector('#teOperator').value;
+      const op      = operators.find(o => o.id === opId);
+      const hours   = parseFloat(modal.querySelector('#teHours').value) || 0;
+      const date    = modal.querySelector('#teDate').value || today;
+      const notes   = modal.querySelector('#teNotes').value.trim();
+      if (!opId)    { toast('Select an operator', 'error'); return false; }
+      if (hours <= 0) { toast('Hours must be > 0', 'error'); return false; }
+      const rate = +op?.hourlyRate || 0;
+      timeEntries.push({
+        id: uid('TE'),
+        orderId:       orderId || null,
+        operatorId:    opId,
+        operatorName:  op?.name || '',
+        hours,
+        hourlyRate:    rate,
+        cost:          hours * rate,
+        date,
+        notes,
+        createdAt:     new Date().toISOString(),
+      });
+      saveAll();
+      toast(`${t('time.logged') || 'Time logged'}: ${hours}h ${t('common.by') || 'by'} ${op?.name || ''}`, 'success');
+      return true;
+    }
+  });
+}
+
+function renderTimeAnalytics() {
+  const el = $('#timeAnalyticsSection');
+  if (!el) return;
+  if (timeEntries.length === 0) {
+    el.innerHTML = `<h3 class="card-head"><span class="swatch"></span><span>${escapeHtml(t('time.analytics_title') || 'Time Tracking')}</span></h3><p style="color:var(--text-muted);font-size:13px;">${escapeHtml(t('time.no_entries') || 'No time entries yet — log time using ⏱ on orders.')}</p>`;
+    return;
+  }
+
+  const totalHours = timeEntries.reduce((s, e) => s + (+e.hours || 0), 0);
+  const totalCost  = timeEntries.reduce((s, e) => s + (+e.cost  || 0), 0);
+  const orderIds   = [...new Set(timeEntries.map(e => e.orderId).filter(Boolean))];
+  const avgHrsPerOrder = orderIds.length > 0 ? (totalHours / orderIds.length) : 0;
+
+  // Per-operator stats
+  const opStats = {};
+  for (const entry of timeEntries) {
+    const oid = entry.operatorId;
+    if (!opStats[oid]) opStats[oid] = { name: entry.operatorName, hours: 0, cost: 0, orderIds: new Set() };
+    opStats[oid].hours += +entry.hours || 0;
+    opStats[oid].cost  += +entry.cost  || 0;
+    if (entry.orderId) opStats[oid].orderIds.add(entry.orderId);
+  }
+  const opRows = Object.entries(opStats).map(([, s]) => {
+    const ordersWorked = [...s.orderIds];
+    const revenue = ordersWorked.reduce((sum, oid) => {
+      const o = printLog.find(x => x.id === oid);
+      return sum + (+o?.price || 0);
+    }, 0);
+    const avgRevPerHr = s.hours > 0 ? revenue / s.hours : 0;
+    const avgHrs      = s.orderIds.size > 0 ? s.hours / s.orderIds.size : 0;
+    return { ...s, orders: s.orderIds.size, avgHrs: avgHrs.toFixed(2), avgRevPerHr: avgRevPerHr.toFixed(2) };
+  });
+
+  // Top 3 orders by hours
+  const orderHours = {};
+  for (const e of timeEntries) {
+    if (!e.orderId) continue;
+    if (!orderHours[e.orderId]) orderHours[e.orderId] = { hours: 0, ops: new Set() };
+    orderHours[e.orderId].hours += +e.hours || 0;
+    orderHours[e.orderId].ops.add(e.operatorName);
+  }
+  const top3 = Object.entries(orderHours)
+    .sort((a, b) => b[1].hours - a[1].hours)
+    .slice(0, 3)
+    .map(([oid, v]) => {
+      const o = printLog.find(x => x.id === oid);
+      return { name: o?.project || oid, hours: v.hours.toFixed(2), ops: [...v.ops].join(', ') };
+    });
+
+  el.innerHTML = `
+    <h3 class="card-head"><span class="swatch"></span><span>${escapeHtml(t('time.analytics_title') || 'Time Tracking Analytics')}</span></h3>
+    <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px;">
+      <div style="flex:1;min-width:100px;text-align:center;">
+        <div style="font-size:20px;font-weight:700;">${totalHours.toFixed(2)}h</div>
+        <div style="font-size:11px;color:var(--text-muted);">Total hours</div>
+      </div>
+      <div style="flex:1;min-width:100px;text-align:center;">
+        <div style="font-size:20px;font-weight:700;color:#22c55e;">${fmtPrice(totalCost)}</div>
+        <div style="font-size:11px;color:var(--text-muted);">Total labor cost</div>
+      </div>
+      <div style="flex:1;min-width:100px;text-align:center;">
+        <div style="font-size:20px;font-weight:700;">${avgHrsPerOrder.toFixed(2)}h</div>
+        <div style="font-size:11px;color:var(--text-muted);">Avg hrs/order</div>
+      </div>
+    </div>
+    ${opRows.length > 0 ? `
+    <div style="font-weight:600;font-size:13px;margin-bottom:8px;">Per-Operator Breakdown</div>
+    <div class="table-wrap">
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead><tr style="border-bottom:1px solid var(--border-soft);color:var(--text-muted);">
+          <th style="padding:6px 8px;text-align:start;">Operator</th>
+          <th style="padding:6px 8px;text-align:end;">Hours</th>
+          <th style="padding:6px 8px;text-align:end;">Cost</th>
+          <th style="padding:6px 8px;text-align:end;">Orders</th>
+          <th style="padding:6px 8px;text-align:end;">Avg h/order</th>
+          <th style="padding:6px 8px;text-align:end;">Revenue/hr</th>
+        </tr></thead>
+        <tbody>
+          ${opRows.map(r => `<tr style="border-bottom:1px solid rgba(255,255,255,.05);">
+            <td style="padding:7px 8px;font-weight:500;">${escapeHtml(r.name)}</td>
+            <td style="padding:7px 8px;text-align:end;">${r.hours.toFixed(2)}h</td>
+            <td style="padding:7px 8px;text-align:end;">${fmtPrice(r.cost)}</td>
+            <td style="padding:7px 8px;text-align:end;">${r.orders}</td>
+            <td style="padding:7px 8px;text-align:end;">${r.avgHrs}h</td>
+            <td style="padding:7px 8px;text-align:end;color:var(--primary);">${fmtPrice(+r.avgRevPerHr)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>` : ''}
+    ${top3.length > 0 ? `
+    <div style="font-weight:600;font-size:13px;margin-top:16px;margin-bottom:8px;">Top Orders by Hours</div>
+    <div class="table-wrap">
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead><tr style="border-bottom:1px solid var(--border-soft);color:var(--text-muted);">
+          <th style="padding:6px 8px;text-align:start;">Project</th>
+          <th style="padding:6px 8px;text-align:end;">Total Hours</th>
+          <th style="padding:6px 8px;text-align:start;">Operators</th>
+        </tr></thead>
+        <tbody>
+          ${top3.map(r => `<tr style="border-bottom:1px solid rgba(255,255,255,.05);">
+            <td style="padding:7px 8px;">${escapeHtml(r.name)}</td>
+            <td style="padding:7px 8px;text-align:end;font-weight:600;">${r.hours}h</td>
+            <td style="padding:7px 8px;font-size:11.5px;color:var(--text-muted);">${escapeHtml(r.ops)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>` : ''}`;
+}
+
+/* ============================================================
    New 8-pack Feature 1: Operators / Staff
    ============================================================ */
 function renderOperatorsList() {
@@ -1620,6 +1810,7 @@ function renderOperatorsList() {
     <div class="machine-row">
       <span class="machine-name">${escapeHtml(op.name)}</span>
       ${op.role ? `<span style="font-size:11.5px;color:var(--text-muted);margin-inline-start:8px;">${escapeHtml(op.role)}</span>` : ''}
+      ${op.hourlyRate ? `<span style="font-size:11px;color:var(--primary);margin-inline-start:8px;">${fmtPrice(+op.hourlyRate)}/hr</span>` : ''}
       ${op.active === false ? `<span class="machine-jobs-badge" style="background:var(--danger);color:#fff;">Inactive</span>` : ''}
       <button class="btn small" data-act="edit-operator" data-id="${op.id}">${escapeHtml(t('common.edit'))}</button>
       <button class="btn danger small" data-act="del-operator" data-id="${op.id}">${escapeHtml(t('common.delete'))}</button>
@@ -1628,7 +1819,9 @@ function renderOperatorsList() {
 
 function openOperatorEditor(opId = null) {
   const existing = opId ? operators.find(o => o.id === opId) : null;
-  const draft = existing ? { ...existing } : { id: uid('OP'), name: '', role: '', active: true };
+  const draft = existing ? { ...existing } : { id: uid('OP'), name: '', role: '', active: true, hourlyRate: 0 };
+  if (!('hourlyRate' in draft)) draft.hourlyRate = 0;
+  const currency = settings.currency || 'SAR';
   openFormModal({
     title: existing ? t('op.title') : t('op.add'),
     sizeLg: false,
@@ -1637,14 +1830,17 @@ function openOperatorEditor(opId = null) {
       <input type="text" id="opName" value="${escapeHtml(draft.name)}" placeholder="e.g. Ali Al-Hassan">
       <label style="margin-top:12px;">${escapeHtml(t('op.role'))}</label>
       <input type="text" id="opRole" value="${escapeHtml(draft.role || '')}" placeholder="e.g. Senior Technician">
+      <label style="margin-top:12px;">${escapeHtml(t('op.hourly_rate') || 'Hourly Rate')} (${escapeHtml(currency)})</label>
+      <input type="number" id="opHourlyRate" value="${+draft.hourlyRate || 0}" min="0" step="0.01">
       <label style="margin-top:12px;display:flex;align-items:center;gap:8px;cursor:pointer;">
         <input type="checkbox" id="opActive" style="width:auto;margin:0;" ${draft.active !== false ? 'checked' : ''}>
         <span>Active</span>
       </label>`,
     async onSave(modal) {
-      draft.name = modal.querySelector('#opName').value.trim();
-      draft.role = modal.querySelector('#opRole').value.trim();
-      draft.active = modal.querySelector('#opActive').checked;
+      draft.name       = modal.querySelector('#opName').value.trim();
+      draft.role       = modal.querySelector('#opRole').value.trim();
+      draft.hourlyRate = parseFloat(modal.querySelector('#opHourlyRate')?.value) || 0;
+      draft.active     = modal.querySelector('#opActive').checked;
       if (!draft.name) { toast(t('mach.need_name'), 'error'); return false; }
       const idx = operators.findIndex(o => o.id === draft.id);
       if (idx >= 0) operators[idx] = draft; else operators.push(draft);
@@ -8815,6 +9011,7 @@ function openPartialDeliveryModal(orderId) {
 
 /* ── Waiting List (Job Intake) ──────────────────────────── */
 function renderWaitingList() {
+  renderWaitingFunnel();
   const el = $('#waitingListSection');
   if (!el) return;
   if (waitingList.length === 0) {
@@ -8827,25 +9024,30 @@ function renderWaitingList() {
   );
   const priorityColors = { urgent: 'var(--danger)', high: '#f59e0b', normal: 'var(--text-muted)', low: 'var(--text-muted)' };
   const priorityLabels = { urgent: '🔴', high: '🟠', normal: '🔵', low: '⚪' };
+  const today = new Date().toISOString().split('T')[0];
 
   el.innerHTML = sorted.map(item => {
     const client = item.clientId ? clients.find(c => c.id === item.clientId) : null;
     const clientName = client ? (client.nameEn || client.nameAr || '') : '';
     const dot = priorityLabels[item.priority] || '🔵';
-    const color = priorityColors[item.priority] || 'var(--text-muted)';
-    return `<div class="waiting-item" data-id="${item.id}">
+    const isDueReminder = item.reminderDate && item.reminderDate <= today && item.status !== 'declined';
+    return `<div class="waiting-item" data-id="${item.id}" style="${isDueReminder ? 'border-inline-start: 3px solid var(--primary);' : ''}">
       <div class="waiting-item-left">
         <span style="font-size:14px;">${dot}</span>
         <div>
-          <div class="waiting-item-project">${escapeHtml(item.project || t('waiting.untitled'))}</div>
+          <div class="waiting-item-project">${escapeHtml(item.project || t('waiting.untitled'))}${item.status === 'reminded' ? ' <span style="font-size:10px;background:var(--primary);color:#fff;padding:1px 5px;border-radius:3px;">reminded</span>' : ''}${item.status === 'declined' ? ' <span style="font-size:10px;background:var(--danger);color:#fff;padding:1px 5px;border-radius:3px;">declined</span>' : ''}</div>
           ${clientName ? `<div class="waiting-item-client">👤 ${escapeHtml(clientName)}</div>` : ''}
           ${item.notes ? `<div class="waiting-item-notes">${escapeHtml(item.notes)}</div>` : ''}
+          ${item.estimatedValue ? `<div style="font-size:11px;color:var(--text-muted);">Est. ${fmtPrice(+item.estimatedValue)}</div>` : ''}
+          ${isDueReminder ? `<div style="font-size:11px;color:var(--primary);">⏰ Reminder due: ${escapeHtml(item.reminderDate)}</div>` : ''}
         </div>
       </div>
       <div class="waiting-item-actions">
+        <button class="btn small ghost" data-act="waiting-remind" data-id="${item.id}">💬 ${escapeHtml(t('waiting.remind') || 'Remind')}</button>
+        <button class="btn small ghost" data-act="waiting-decline" data-id="${item.id}">✕ ${escapeHtml(t('waiting.decline') || 'Decline')}</button>
         <button class="btn small" data-act="waiting-promote" data-id="${item.id}" title="${escapeHtml(t('waiting.promote'))}">→ ${escapeHtml(t('waiting.promote'))}</button>
         <button class="btn small ghost" data-act="waiting-edit" data-id="${item.id}">${escapeHtml(t('common.edit'))}</button>
-        <button class="btn small ghost danger" data-act="waiting-del" data-id="${item.id}">✕</button>
+        <button class="btn small ghost danger" data-act="waiting-del" data-id="${item.id}">🗑</button>
       </div>
     </div>`;
   }).join('');
@@ -8855,7 +9057,8 @@ function openWaitingItemEditor(itemId = null) {
   const existing = itemId ? waitingList.find(w => w.id === itemId) : null;
   const draft = existing
     ? { ...existing }
-    : { id: uid('WAIT'), project: '', clientId: '', notes: '', priority: 'normal', addedAt: new Date().toISOString() };
+    : { id: uid('WAIT'), project: '', clientId: '', notes: '', priority: 'normal', addedAt: new Date().toISOString(),
+        reminderDate: '', status: 'active', estimatedValue: 0 };
 
   const clientOpts = clients
     .map(c => `<option value="${c.id}" ${draft.clientId === c.id ? 'selected' : ''}>${escapeHtml(c.nameEn || c.nameAr || c.id)}</option>`)
@@ -8875,12 +9078,25 @@ function openWaitingItemEditor(itemId = null) {
       <label style="margin-top:10px;">${escapeHtml(t('waiting.priority_label'))}</label>
       <select data-f="priority">${priorityOpts}</select>
       <label style="margin-top:10px;">${escapeHtml(t('waiting.notes'))}</label>
-      <textarea data-f="notes" rows="3" placeholder="${escapeHtml(t('waiting.notes_ph'))}" style="resize:vertical;">${escapeHtml(draft.notes || '')}</textarea>`,
+      <textarea data-f="notes" rows="3" placeholder="${escapeHtml(t('waiting.notes_ph'))}" style="resize:vertical;">${escapeHtml(draft.notes || '')}</textarea>
+      <label style="margin-top:10px;">${escapeHtml(t('waiting.est_value') || 'Estimated value')}</label>
+      <input type="number" data-f="estimatedValue" min="0" step="0.01" value="${+draft.estimatedValue || 0}" placeholder="0">
+      <label style="margin-top:10px;">${escapeHtml(t('waiting.reminder_date') || 'Reminder date')}</label>
+      <input type="date" data-f="reminderDate" value="${escapeHtml(draft.reminderDate || '')}">
+      <label style="margin-top:10px;">${escapeHtml(t('waiting.status') || 'Status')}</label>
+      <select data-f="status">
+        <option value="active" ${(draft.status || 'active') === 'active' ? 'selected' : ''}>Active</option>
+        <option value="reminded" ${draft.status === 'reminded' ? 'selected' : ''}>Reminded</option>
+        <option value="declined" ${draft.status === 'declined' ? 'selected' : ''}>Declined</option>
+      </select>`,
     onSave() {
-      draft.project  = document.querySelector('[data-f="project"]')?.value.trim() || '';
-      draft.clientId = document.querySelector('[data-f="clientId"]')?.value || '';
-      draft.priority = document.querySelector('[data-f="priority"]')?.value || 'normal';
-      draft.notes    = document.querySelector('[data-f="notes"]')?.value.trim() || '';
+      draft.project        = document.querySelector('[data-f="project"]')?.value.trim() || '';
+      draft.clientId       = document.querySelector('[data-f="clientId"]')?.value || '';
+      draft.priority       = document.querySelector('[data-f="priority"]')?.value || 'normal';
+      draft.notes          = document.querySelector('[data-f="notes"]')?.value.trim() || '';
+      draft.estimatedValue = parseFloat(document.querySelector('[data-f="estimatedValue"]')?.value) || 0;
+      draft.reminderDate   = document.querySelector('[data-f="reminderDate"]')?.value || '';
+      draft.status         = document.querySelector('[data-f="status"]')?.value || 'active';
       if (!draft.project) { alert(t('waiting.project_required')); return false; }
       if (!existing) {
         waitingList.unshift(draft);
@@ -8898,6 +9114,8 @@ function openWaitingItemEditor(itemId = null) {
 function promoteWaitingItem(itemId) {
   const item = waitingList.find(w => w.id === itemId);
   if (!item) return;
+  // Save to history with converted status
+  waitingListHistory.push({ ...item, status: 'converted', convertedAt: new Date().toISOString() });
   // Remove from waiting list first
   waitingList = waitingList.filter(w => w.id !== itemId);
   saveAll();
@@ -8920,6 +9138,131 @@ function updateWaitingBadge() {
   if (!badge) return;
   badge.textContent = waitingList.length;
   badge.style.display = waitingList.length > 0 ? 'inline-flex' : 'none';
+  // Pulse badge if any item has a reminder date today or overdue
+  const today = new Date().toISOString().split('T')[0];
+  const hasDueReminder = waitingList.some(w => w.reminderDate && w.reminderDate <= today && w.status !== 'declined');
+  badge.style.animation = hasDueReminder ? 'pulse 1s infinite' : '';
+}
+
+function renderWaitingFunnel() {
+  const el = $('#waitingFunnelSection');
+  if (!el) return;
+  const allItems = [...waitingList, ...waitingListHistory];
+  const totalAdded = allItems.length;
+  const active = waitingList.filter(w => w.status === 'active' || w.status === 'reminded').length;
+  const converted = waitingListHistory.filter(w => w.status === 'converted').length;
+  const declined = allItems.filter(w => w.status === 'declined').length;
+  const convRate = totalAdded > 0 ? ((converted / totalAdded) * 100).toFixed(1) : '0.0';
+  const pipeline = waitingList
+    .filter(w => w.status === 'active' || w.status === 'reminded')
+    .reduce((s, w) => s + (+w.estimatedValue || 0), 0);
+
+  // Bar segments
+  const convPct  = totalAdded > 0 ? (converted / totalAdded * 100) : 0;
+  const declPct  = totalAdded > 0 ? (declined  / totalAdded * 100) : 0;
+  const actPct   = totalAdded > 0 ? (active    / totalAdded * 100) : 0;
+
+  el.innerHTML = `
+    <h3 class="card-head" style="margin-bottom:12px;"><span class="swatch"></span><span>${escapeHtml(t('waiting.funnel_title') || 'Waiting List Funnel')}</span></h3>
+    <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:14px;">
+      <div style="flex:1;min-width:100px;text-align:center;">
+        <div style="font-size:22px;font-weight:700;">${totalAdded}</div>
+        <div style="font-size:11px;color:var(--text-muted);">Total Added</div>
+      </div>
+      <div style="flex:1;min-width:100px;text-align:center;">
+        <div style="font-size:22px;font-weight:700;color:var(--primary);">${active}</div>
+        <div style="font-size:11px;color:var(--text-muted);">Active</div>
+      </div>
+      <div style="flex:1;min-width:100px;text-align:center;">
+        <div style="font-size:22px;font-weight:700;color:#22c55e;">${converted}</div>
+        <div style="font-size:11px;color:var(--text-muted);">Converted (${convRate}%)</div>
+      </div>
+      <div style="flex:1;min-width:100px;text-align:center;">
+        <div style="font-size:22px;font-weight:700;color:var(--danger);">${declined}</div>
+        <div style="font-size:11px;color:var(--text-muted);">Declined</div>
+      </div>
+      <div style="flex:1;min-width:120px;text-align:center;">
+        <div style="font-size:16px;font-weight:700;color:#f59e0b;">${fmtPrice(pipeline)}</div>
+        <div style="font-size:11px;color:var(--text-muted);">Pipeline Value</div>
+      </div>
+    </div>
+    ${totalAdded > 0 ? `
+    <div style="height:10px;border-radius:5px;overflow:hidden;display:flex;margin-top:4px;">
+      <div style="width:${convPct.toFixed(1)}%;background:#22c55e;" title="Converted: ${converted}"></div>
+      <div style="width:${declPct.toFixed(1)}%;background:var(--danger);" title="Declined: ${declined}"></div>
+      <div style="width:${actPct.toFixed(1)}%;background:var(--primary);" title="Active: ${active}"></div>
+    </div>` : ''}`;
+}
+
+function openReminderModal(itemId) {
+  const item = waitingList.find(w => w.id === itemId);
+  if (!item) return;
+  const client = item.clientId ? clients.find(c => c.id === item.clientId) : null;
+  const clientName = client ? (client.nameEn || client.nameAr || '') : 'there';
+  const defaultMsg = `Hi ${clientName}, just a reminder about your project '${item.project || 'your order'}' — we have a slot available. Let us know if you'd like to proceed!`;
+  const hasEmail = !!settings.emailConfig && settings.emailConfig.provider !== 'none';
+
+  openFormModal({
+    title: t('waiting.remind_title') || 'Send Reminder',
+    sizeLg: true,
+    bodyHtml: `
+      <p style="font-size:13px;color:var(--text-muted);margin-top:0;">Send a reminder to <strong>${escapeHtml(clientName)}</strong> about project <strong>${escapeHtml(item.project || '')}</strong></p>
+      <label>${escapeHtml(t('waiting.remind_msg') || 'Message')}</label>
+      <textarea id="reminderMsg" rows="4" style="resize:vertical;">${escapeHtml(defaultMsg)}</textarea>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;">
+        <div style="flex:1;min-width:180px;">
+          <label style="margin-top:0;">${escapeHtml(t('waiting.remind_phone') || 'WhatsApp phone')}</label>
+          <input type="tel" id="reminderPhone" value="${escapeHtml(client?.phone || '')}" placeholder="+966501234567">
+        </div>
+        ${hasEmail ? `
+        <div style="flex:1;min-width:180px;">
+          <label style="margin-top:0;">${escapeHtml(t('waiting.remind_email') || 'Email')}</label>
+          <input type="email" id="reminderEmail" value="${escapeHtml(client?.email || '')}" placeholder="client@example.com">
+        </div>` : ''}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+        <button id="btnSendWhatsApp" class="btn small primary">💬 Send WhatsApp</button>
+        ${hasEmail ? `<button id="btnSendReminderEmail" class="btn small">✉ Send Email</button>` : ''}
+      </div>`,
+    saveLabel: t('common.close') || 'Close',
+    onSave() { return true; }
+  });
+
+  // Wire up buttons after modal renders
+  setTimeout(() => {
+    document.querySelector('#btnSendWhatsApp')?.addEventListener('click', () => {
+      const phone = document.querySelector('#reminderPhone')?.value.trim() || '';
+      const msg   = document.querySelector('#reminderMsg')?.value.trim() || defaultMsg;
+      if (!phone) { toast('Phone number required for WhatsApp', 'error'); return; }
+      window.hubAPI?.shareWhatsApp?.({ phone, message: msg });
+      item.status = 'reminded';
+      item.reminderSentAt = new Date().toISOString();
+      saveAll();
+      renderWaitingList();
+      updateWaitingBadge();
+      toast(t('waiting.reminded_ok') || 'Reminder sent via WhatsApp', 'success');
+    });
+
+    document.querySelector('#btnSendReminderEmail')?.addEventListener('click', async () => {
+      const email = document.querySelector('#reminderEmail')?.value.trim() || '';
+      const msg   = document.querySelector('#reminderMsg')?.value.trim() || defaultMsg;
+      if (!email) { toast('Email address required', 'error'); return; }
+      const cfg = settings.emailConfig;
+      const body = `<p>${escapeHtml(msg).replace(/\n/g, '<br>')}</p>`;
+      const subject = `Reminder: ${item.project || 'Your project'} at ${settings.bizEn || 'Khayt'}`;
+      const result = await window.hubAPI?.sendEmail?.({ to: email, subject, body, smtpConfig: cfg });
+      if (result?.ok) {
+        item.status = 'reminded';
+        item.reminderSentAt = new Date().toISOString();
+        saveAll();
+        renderWaitingList();
+        updateWaitingBadge();
+        toast(t('waiting.reminded_ok') || 'Reminder sent via email', 'success');
+      } else {
+        toast('Email send failed: ' + (result?.error || ''), 'error');
+      }
+    });
+  }, 80);
 }
 
 /* ============================================================
@@ -11006,6 +11349,242 @@ function renderEmailNotificationSettings() {
       else { resEl.textContent = 'Failed: ' + (result?.error || result?.status || ''); resEl.style.color = 'var(--danger)'; }
     }
   });
+}
+
+/* ============================================================
+   Feature I: Email Digest Scheduler
+   ============================================================ */
+
+function buildDigestEmailHtml() {
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+  const isWeekly = settings.emailDigest?.frequency === 'weekly';
+
+  // Compute period bounds
+  let periodLabel, periodFrom, periodTo;
+  if (isWeekly) {
+    const jan1 = new Date(now.getFullYear(), 0, 1);
+    const weekNum = Math.ceil(((now - jan1) / 86400000 + jan1.getDay() + 1) / 7);
+    periodLabel = `Week ${weekNum}, ${now.getFullYear()}`;
+    // Start of week (Monday)
+    const dayOfWeek = now.getDay(); // 0=Sun
+    const diffToMon = (dayOfWeek === 0) ? -6 : 1 - dayOfWeek;
+    periodFrom = new Date(now);
+    periodFrom.setDate(now.getDate() + diffToMon);
+    periodFrom.setHours(0, 0, 0, 0);
+    periodTo = new Date(now);
+  } else {
+    periodLabel = todayStr;
+    periodFrom = new Date(now);
+    periodFrom.setHours(0, 0, 0, 0);
+    periodTo = new Date(now);
+  }
+
+  const fromIso = periodFrom.toISOString();
+  const toIso = periodTo.toISOString();
+
+  // Stats
+  const completedThisPeriod = printLog.filter(o =>
+    o.status === 'completed' &&
+    o.completedAt && o.completedAt >= fromIso && o.completedAt <= toIso
+  );
+  const revenueThisPeriod = completedThisPeriod.reduce((s, o) => s + (+o.price || 0), 0);
+  const outstanding = printLog
+    .filter(o => o.status === 'completed' && !o.paid)
+    .reduce((s, o) => s + (+o.price || 0), 0);
+
+  // Low-stock spools
+  const reorderPt = settings.reorderPoint ?? 200;
+  const lowStockSpools = inventory
+    .filter(s => (+s.weight || 0) < (s.reorderPoint ?? reorderPt))
+    .slice(0, 5);
+
+  const waitingCount = waitingList.length;
+  const shopName = escapeHtml(settings.bizEn || settings.bizAr || 'Khayt');
+  const currency = escapeHtml(settings.currency || 'SAR');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>${shopName} Digest</title></head>
+<body style="margin:0;padding:0;background:#f4f4f7;font-family:Arial,sans-serif;">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1);">
+    <div style="background:#6c47ff;padding:24px 32px;">
+      <h1 style="margin:0;color:#fff;font-size:22px;">${shopName}</h1>
+      <p style="margin:4px 0 0;color:rgba(255,255,255,.8);font-size:13px;">${isWeekly ? 'Weekly' : 'Daily'} Digest · ${escapeHtml(periodLabel)}</p>
+    </div>
+    <div style="padding:28px 32px;">
+      <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:24px;">
+        <thead><tr style="border-bottom:2px solid #eee;">
+          <th style="text-align:left;padding:8px 0;color:#888;">Metric</th>
+          <th style="text-align:right;padding:8px 0;color:#888;">Value</th>
+        </tr></thead>
+        <tbody>
+          <tr style="border-bottom:1px solid #f0f0f0;">
+            <td style="padding:10px 0;">Completed orders this period</td>
+            <td style="text-align:right;font-weight:600;">${completedThisPeriod.length}</td>
+          </tr>
+          <tr style="border-bottom:1px solid #f0f0f0;">
+            <td style="padding:10px 0;">Revenue this period</td>
+            <td style="text-align:right;font-weight:600;color:#22c55e;">${revenueThisPeriod.toFixed(2)} ${currency}</td>
+          </tr>
+          <tr style="border-bottom:1px solid #f0f0f0;">
+            <td style="padding:10px 0;">Outstanding receivables</td>
+            <td style="text-align:right;font-weight:600;color:${outstanding > 0 ? '#f59e0b' : '#888'};">${outstanding.toFixed(2)} ${currency}</td>
+          </tr>
+          <tr style="border-bottom:1px solid #f0f0f0;">
+            <td style="padding:10px 0;">Low-stock spools</td>
+            <td style="text-align:right;font-weight:600;color:${lowStockSpools.length > 0 ? '#ef4444' : '#888'};">${lowStockSpools.length}</td>
+          </tr>
+          <tr>
+            <td style="padding:10px 0;">Waiting list items</td>
+            <td style="text-align:right;font-weight:600;">${waitingCount}</td>
+          </tr>
+        </tbody>
+      </table>
+      ${lowStockSpools.length > 0 ? `
+      <div style="background:#fff5f5;border-left:3px solid #ef4444;padding:12px 16px;border-radius:4px;margin-bottom:20px;">
+        <div style="font-weight:600;font-size:13px;color:#ef4444;margin-bottom:8px;">Low Stock Alert</div>
+        <ul style="margin:0;padding:0 0 0 16px;font-size:13px;color:#333;">
+          ${lowStockSpools.map(s => `<li style="margin-bottom:4px;">${escapeHtml(s.material || s.brand || 'Spool')} — ${+s.weight || 0}g remaining (reorder at ${s.reorderPoint ?? reorderPt}g)</li>`).join('')}
+        </ul>
+      </div>` : ''}
+    </div>
+    <div style="padding:16px 32px;background:#f8f8fb;text-align:center;font-size:11px;color:#aaa;border-top:1px solid #eee;">
+      Sent by Khayt · ${escapeHtml(todayStr)}
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+function renderDigestSettings() {
+  const el = $('#emailDigestSection');
+  if (!el) return;
+  const d = settings.emailDigest || {};
+  const hourOpts = Array.from({ length: 24 }, (_, i) =>
+    `<option value="${i}" ${(d.hour ?? 8) === i ? 'selected' : ''}>${String(i).padStart(2,'0')}:00</option>`
+  ).join('');
+  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const dayOpts = dayNames.map((n, i) =>
+    `<option value="${i}" ${(d.weekday ?? 1) === i ? 'selected' : ''}>${escapeHtml(n)}</option>`
+  ).join('');
+
+  el.innerHTML = `
+    <div style="margin-bottom:12px;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:0;">
+        <input type="checkbox" id="digestEnabled" style="width:auto;margin:0;" ${d.enabled ? 'checked' : ''}>
+        <span style="font-weight:600;font-size:13px;">${escapeHtml(t('digest.enable') || 'Enable automated email digest')}</span>
+      </label>
+    </div>
+    <div id="digestFields" style="${d.enabled ? '' : 'opacity:.5;pointer-events:none;'}">
+      <div style="margin-bottom:10px;">
+        <label style="margin-top:0;">${escapeHtml(t('digest.frequency') || 'Frequency')}</label>
+        <div style="display:flex;gap:16px;margin-top:4px;">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:normal;">
+            <input type="radio" name="digestFreq" value="daily" ${d.frequency !== 'weekly' ? 'checked' : ''} style="width:auto;margin:0;">
+            Daily
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:normal;">
+            <input type="radio" name="digestFreq" value="weekly" ${d.frequency === 'weekly' ? 'checked' : ''} style="width:auto;margin:0;">
+            Weekly
+          </label>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
+        <div>
+          <label style="margin-top:0;">${escapeHtml(t('digest.send_hour') || 'Send at hour')}</label>
+          <select id="digestHour" style="font-size:12.5px;">${hourOpts}</select>
+        </div>
+        <div id="digestWeekdayWrap" style="${d.frequency === 'weekly' ? '' : 'display:none;'}">
+          <label style="margin-top:0;">${escapeHtml(t('digest.weekday') || 'Day of week')}</label>
+          <select id="digestWeekday" style="font-size:12.5px;">${dayOpts}</select>
+        </div>
+      </div>
+      <div style="margin-bottom:10px;">
+        <label style="margin-top:0;">${escapeHtml(t('digest.recipient') || 'Recipient email')}</label>
+        <input type="email" id="digestRecipient" value="${escapeHtml(d.recipientEmail || '')}" placeholder="${escapeHtml(settings.email || 'defaults to shop email')}" style="font-size:12.5px;">
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:10px;">
+      <button id="btnSaveDigest" class="btn small primary">${escapeHtml(t('common.save'))}</button>
+      <button id="btnTestDigest" class="btn small">${escapeHtml(t('digest.send_test') || 'Send Test Now')}</button>
+      <span id="digestTestResult" style="font-size:12px;color:var(--text-muted);"></span>
+    </div>`;
+
+  el.querySelector('#digestEnabled')?.addEventListener('change', (e) => {
+    const fields = el.querySelector('#digestFields');
+    if (fields) fields.style.cssText = e.target.checked ? '' : 'opacity:.5;pointer-events:none;';
+  });
+
+  el.querySelectorAll('[name="digestFreq"]').forEach(r => {
+    r.addEventListener('change', () => {
+      const wdWrap = el.querySelector('#digestWeekdayWrap');
+      if (wdWrap) wdWrap.style.display = r.value === 'weekly' && r.checked ? '' : 'none';
+    });
+  });
+
+  el.querySelector('#btnSaveDigest')?.addEventListener('click', () => {
+    settings.emailDigest = {
+      enabled:        el.querySelector('#digestEnabled').checked,
+      frequency:      el.querySelector('[name="digestFreq"]:checked')?.value || 'daily',
+      hour:           parseInt(el.querySelector('#digestHour').value, 10) || 8,
+      weekday:        parseInt(el.querySelector('#digestWeekday').value, 10) || 1,
+      recipientEmail: el.querySelector('#digestRecipient').value.trim(),
+      lastSentDate:   settings.emailDigest?.lastSentDate || '',
+    };
+    saveAll();
+    toast(t('common.save'), 'success');
+  });
+
+  el.querySelector('#btnTestDigest')?.addEventListener('click', async () => {
+    const resEl = el.querySelector('#digestTestResult');
+    if (resEl) resEl.textContent = '…';
+    const cfg = settings.emailConfig;
+    if (!cfg || cfg.provider === 'none') {
+      if (resEl) resEl.textContent = 'No email provider configured.';
+      return;
+    }
+    const to = (el.querySelector('#digestRecipient').value.trim()) || settings.email || '';
+    if (!to) { if (resEl) resEl.textContent = 'No recipient email.'; return; }
+    const body = buildDigestEmailHtml();
+    const subject = `${settings.bizEn || 'Khayt'} — Test Digest`;
+    const result = await window.hubAPI?.sendEmail?.({ to, subject, body, smtpConfig: cfg });
+    if (resEl) {
+      if (result?.ok) { resEl.textContent = 'Test sent!'; resEl.style.color = 'var(--success)'; }
+      else if (result?.fallback) { resEl.textContent = 'mailto: fallback'; resEl.style.color = 'var(--text-muted)'; }
+      else { resEl.textContent = 'Failed: ' + (result?.error || ''); resEl.style.color = 'var(--danger)'; }
+    }
+  });
+}
+
+async function checkAndSendDigest() {
+  const d = settings.emailDigest;
+  if (!d?.enabled) return;
+  const cfg = settings.emailConfig;
+  if (!cfg || cfg.provider === 'none') return;
+  const to = d.recipientEmail || settings.email;
+  if (!to) return;
+  const now = new Date();
+  if (now.getHours() !== (d.hour ?? 8)) return;
+  // Compute period key
+  let periodKey;
+  if (d.frequency === 'weekly') {
+    if (now.getDay() !== (d.weekday ?? 1)) return;
+    // ISO week number
+    const jan1 = new Date(now.getFullYear(), 0, 1);
+    const week = Math.ceil(((now - jan1) / 86400000 + jan1.getDay() + 1) / 7);
+    periodKey = `${now.getFullYear()}-W${String(week).padStart(2,'0')}`;
+  } else {
+    periodKey = now.toISOString().split('T')[0];
+  }
+  if (d.lastSentDate === periodKey) return; // already sent
+  const body = buildDigestEmailHtml();
+  const subject = `${settings.bizEn || 'Khayt'} — ${d.frequency === 'weekly' ? 'Weekly' : 'Daily'} Digest`;
+  const result = await window.hubAPI?.sendEmail?.({ to, subject, body, smtpConfig: cfg });
+  if (result?.ok) {
+    settings.emailDigest = { ...settings.emailDigest, lastSentDate: periodKey };
+    saveAll();
+  }
 }
 
 /* ============================================================
@@ -14220,6 +14799,7 @@ function renderLogs() {
         ${log.clientId ? clients.find(c => c.id === log.clientId)?.email ? '' : '' : ''}
         <button class="btn small ghost" data-act="export-status-page" data-id="${log.id}" title="${escapeHtml(t('ord.status_page'))}">📄</button>
         <button class="btn small ghost" data-act="portal-qr" data-id="${log.id}" title="${escapeHtml(t('ord.portal_qr_title') || 'Customer Portal QR')}">📱</button>
+        <button class="btn small ghost" data-act="log-time" data-id="${log.id}" title="${escapeHtml(t('time.log_title') || 'Log time')}">⏱</button>
         ${log.clientId ? `<button class="btn small ghost" data-act="open-status-page" data-id="${log.id}" title="${escapeHtml(t('ord.status_page_open'))}">🔗</button>` : ''}
         <button class="btn small ghost" data-act="copy-tracking-url" data-id="${log.id}" title="${escapeHtml(t('ord.copy_tracking_url') || 'Copy tracking URL')}">🔗📋</button>
         ${(log.parts || []).length > 1 && log.status !== 'split' ? `<button class="btn small ghost pro-only" data-act="split-order" data-id="${log.id}" title="${escapeHtml(t('ord.split'))}">⚡</button>` : ''}
@@ -15234,6 +15814,8 @@ function renderAnalytics() {
   renderClientLtvTable();
   renderMachineDowntimeChart();
   renderMaintenanceCostChart();
+  // Feature K: Time tracking analytics
+  renderTimeAnalytics();
 }
 
 function renderClientSourceChart() {
@@ -18803,6 +19385,8 @@ function loadSettingsIntoForm() {
   if (loyaltyEl) loyaltyEl.checked = !!settings.loyaltyEnabled;
   // Feature 5 (new 8-pack): Email notifications
   renderEmailNotificationSettings();
+  // Feature I: Email digest scheduler
+  renderDigestSettings();
   // Feature 7 (new 8-pack): Operator lock section
   renderOperatorLockSettings();
   // Feature 8 (new 8-pack): Loyalty tiers
@@ -19951,6 +20535,8 @@ function wireEvents() {
     if (statusPage) exportOrderStatusPage(statusPage.dataset.id);
     const portalQrBtn = e.target.closest('[data-act="portal-qr"]');
     if (portalQrBtn) { openCustomerPortalModal(portalQrBtn.dataset.id); return; }
+    const logTimeBtn = e.target.closest('[data-act="log-time"]');
+    if (logTimeBtn) { openTimeEntryModal(logTimeBtn.dataset.id); return; }
     const openStatusPage = e.target.closest('[data-act="open-status-page"]');
     if (openStatusPage) openSavedStatusPage(openStatusPage.dataset.id);
     const copyUrlBtn = e.target.closest('[data-act="copy-tracking-url"]');
@@ -20238,6 +20824,12 @@ function wireEvents() {
     if (!btn) return;
     const id = btn.dataset.id;
     if (btn.dataset.act === 'waiting-edit') openWaitingItemEditor(id);
+    if (btn.dataset.act === 'waiting-remind') { openReminderModal(id); return; }
+    if (btn.dataset.act === 'waiting-decline') {
+      const item = waitingList.find(w => w.id === id);
+      if (item) { item.status = 'declined'; saveAll(); renderWaitingList(); }
+      return;
+    }
     if (btn.dataset.act === 'waiting-del') {
       waitingList = waitingList.filter(w => w.id !== id);
       saveAll();
@@ -20940,6 +21532,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     } catch (_) { /* network unavailable — silently ignore */ }
   }, 5000);
+
+  // Email digest scheduler — checks every 5 minutes
+  setInterval(checkAndSendDigest, 5 * 60 * 1000);
 
   // Daily auto-backup (silent) + populate last-backup label
   maybeAutoBackup();

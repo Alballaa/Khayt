@@ -445,6 +445,7 @@
           <span id="waitingChevron" style="font-size:10px;color:var(--text-muted);">▼</span>
           <button id="btnAddWaiting" class="btn small ghost" style="margin-inline-start:auto;" onclick="event.stopPropagation()">+ <span data-i18n="waiting.add">Add</span></button>
         </div>
+        <div id="waitingFunnelSection" style="margin-bottom:10px;"></div>
         <div id="waitingListSection" style="display:none;"></div>
       </div>
 
@@ -717,6 +718,10 @@
               <div class="card" id="locationPlCard" style="margin-top:16px;">
                 <h3 class="card-head"><span class="swatch"></span><span data-i18n="an.location_pl">Per-Location P&amp;L</span></h3>
                 <div id="locationPlChart"></div>
+              </div>
+
+              <div class="card" id="timeAnalyticsCard">
+                <div id="timeAnalyticsSection"></div>
               </div>
 
       <!-- Feature 5: Throughput heatmap -->
@@ -1478,6 +1483,13 @@
           <h3 class="card-head"><span class="swatch"></span><span data-i18n="set.notifications">Email Notifications</span></h3>
           <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">Send automated status update emails to clients via SendGrid, Mailgun, or your default mail client.</p>
           <div id="emailNotificationsSection"></div>
+        </div>
+
+        <!-- Feature I: Email Digest -->
+        <div class="card full pro-only">
+          <h3 class="card-head"><span class="swatch"></span><span data-i18n="set.digest_title">Email Digest</span></h3>
+          <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;" data-i18n="set.digest_hint">Send an automated daily or weekly summary email to yourself with revenue, orders, and stock alerts.</p>
+          <div id="emailDigestSection"></div>
         </div>
 
         <!-- Feature 8 (new 8-pack): Loyalty tiers (pro-only) -->
