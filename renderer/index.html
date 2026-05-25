@@ -398,6 +398,7 @@
       <div class="toolbar">
         <h3 class="card-head" style="margin: 0; flex: 1;"><span class="swatch"></span><span data-i18n="cat.title">Product Catalog</span></h3>
         <input type="search" id="catalogSearch" class="toolbar-search" data-i18n-placeholder="cat.search_ph">
+        <button id="btnImportProductsCsv" class="btn small ghost" data-i18n="csv.import_products_btn">Import CSV</button>
         <button class="btn primary" id="btnAddProduct" data-i18n="cat.add">+ Add Product</button>
       </div>
       <div id="catalogGrid" class="product-grid"></div>
@@ -587,6 +588,7 @@
       <div class="toolbar" style="margin-bottom: 16px;">
         <h3 class="card-head" style="margin: 0; flex: 1;"><span class="swatch"></span><span data-i18n="an.title">Business Overview</span></h3>
         <button class="btn small" id="btnTaxExport" data-i18n="an.tax_export">Monthly Tax Summary</button>
+        <button id="btnExportAnalytics" class="btn small ghost" title="Export report as PDF" data-i18n="an.export_report">📊 Export Report</button>
         <select id="analyticsRange" class="toolbar-select">
           <option value="all" data-i18n="an.range.all">All time</option>
           <option value="month" data-i18n="an.range.month">This month</option>
@@ -763,6 +765,7 @@
       <div id="pipelineDemand"></div>
       <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
         <button class="btn ghost small" id="btnExportInventoryCsv" title="Export inventory to CSV">📥 <span data-i18n="common.export_csv">CSV</span></button>
+        <button id="btnImportSpoolsCsv" class="btn small ghost" data-i18n="csv.import_spools_btn">Import CSV</button>
       </div>
       <div class="grid">
         <div class="card warn">
@@ -886,6 +889,7 @@
         <input type="search" id="clientSearch" class="toolbar-search" data-i18n-placeholder="cl.search_ph">
         <button class="btn" id="btnBlankIntakeForm" title="Blank intake form">📋 <span data-i18n="cl.intake_form">Intake form</span></button>
         <button class="btn ghost small" id="btnExportClientsCsv" title="Export clients to CSV">📥 <span data-i18n="common.export_csv">CSV</span></button>
+        <button id="btnImportClientsCsv" class="btn small ghost" data-i18n="csv.import_clients_btn">Import CSV</button>
         <button class="btn primary" id="btnAddClient" data-i18n="cl.add">+ Add Client</button>
       </div>
       <div class="card" style="margin-top: 12px;">

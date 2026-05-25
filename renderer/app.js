@@ -429,6 +429,324 @@ function escapeHtml(s) {
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'
   })[c]);
 }
+
+/* ============================================================
+   CSV utilities — generic engine
+   ============================================================ */
+
+/**
+ * Robust CSV parser.
+ * Handles: quoted fields, commas inside quotes, "" escape for literal quote,
+ * Windows \r\n line endings, empty trailing lines.
+ */
+function parseCsvString(csv) {
+  const lines = csv.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim().split('\n');
+  if (!lines.length) return { headers: [], rows: [] };
+
+  function parseLine(line) {
+    const cols = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') {
+        if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
+        else inQ = !inQ;
+      } else if (c === ',' && !inQ) {
+        cols.push(cur.trim()); cur = '';
+      } else {
+        cur += c;
+      }
+    }
+    cols.push(cur.trim());
+    return cols;
+  }
+
+  const headers = parseLine(lines[0]);
+  const rows = lines.slice(1).filter(l => l.trim()).map(parseLine);
+  return { headers, rows };
+}
+
+/**
+ * Reusable CSV import modal.
+ * @param {object} opts
+ * @param {string}   opts.title    — Modal title
+ * @param {Array}    opts.fields   — [{ key, label, required?, type? }]
+ * @param {Function} opts.onImport — (objects) => { imported, skipped }
+ */
+function openCsvImportModal({ title, fields, onImport }) {
+  let parsedHeaders = [];
+  let parsedRows = [];
+
+  function autoMapIdx(fieldKey, fieldLabel, headers) {
+    const norm = s => s.toLowerCase().replace(/[\s_-]/g, '');
+    const targets = [norm(fieldKey), norm(fieldLabel)];
+    const idx = headers.findIndex(h => targets.includes(norm(h)));
+    return idx >= 0 ? String(idx) : '';
+  }
+
+  function buildMappingHtml(headers, rows) {
+    if (!headers.length) return '';
+    return `
+      <div style="margin-top:12px;">
+        <p style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">${rows.length} ${escapeHtml(t('csv.rows_found') || 'rows found')}. ${escapeHtml(t('csv.map_hint') || 'Map CSV columns to fields:')}</p>
+        <table style="width:100%;font-size:12px;border-collapse:collapse;">
+          <thead>
+            <tr style="background:var(--bg-alt);">
+              <th style="padding:6px 8px;text-align:left;">${escapeHtml(t('csv.field') || 'Field')}</th>
+              <th style="padding:6px 8px;text-align:left;">${escapeHtml(t('csv.column') || 'CSV Column')}</th>
+              <th style="padding:6px 8px;text-align:left;color:var(--text-muted);">${escapeHtml(t('csv.preview') || 'Preview')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${fields.map(f => {
+              const autoIdx = autoMapIdx(f.key, f.label, headers);
+              const optHtml = `<option value="">(${escapeHtml(t('csv.skip') || 'skip')})</option>` +
+                headers.map((h, i) => `<option value="${i}"${String(i) === autoIdx ? ' selected' : ''}>${escapeHtml(h)}</option>`).join('');
+              const previewVal = autoIdx !== '' ? (rows[0]?.[+autoIdx] || '—') : '—';
+              return `<tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:6px 8px;font-weight:${f.required ? '600' : '400'};">${escapeHtml(f.label)}${f.required ? ' <span style="color:var(--danger);">*</span>' : ''}</td>
+                <td style="padding:6px 8px;"><select class="csv-map-sel" data-field="${escapeHtml(f.key)}" style="width:100%;font-size:12px;padding:3px;">${optHtml}</select></td>
+                <td class="csv-map-preview" data-field="${escapeHtml(f.key)}" style="padding:6px 8px;color:var(--text-muted);font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(String(previewVal))}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+        <p id="csvImportCount" style="margin-top:8px;font-size:12px;color:var(--primary);font-weight:600;"></p>
+      </div>`;
+  }
+
+  function updatePreviewsAndCount() {
+    $$('.csv-map-sel').forEach(sel => {
+      const field = sel.dataset.field;
+      const idx = sel.value !== '' ? +sel.value : -1;
+      const previewEl = $(`.csv-map-preview[data-field="${field}"]`);
+      if (previewEl) previewEl.textContent = idx >= 0 ? (parsedRows[0]?.[idx] || '—') : '—';
+    });
+    const required = fields.filter(f => f.required);
+    const mappings = {};
+    $$('.csv-map-sel').forEach(sel => { mappings[sel.dataset.field] = sel.value !== '' ? +sel.value : -1; });
+    const validCount = parsedRows.filter(row => required.every(f => mappings[f.key] >= 0 && row[mappings[f.key]]?.trim())).length;
+    const countEl = $('#csvImportCount');
+    if (countEl) countEl.textContent = `${validCount} ${t('csv.rows_to_import') || 'rows will be imported'}`;
+  }
+
+  function parseAndRender(text) {
+    const { headers, rows } = parseCsvString(text);
+    parsedHeaders = headers;
+    parsedRows = rows;
+    const area = $('#csvMappingArea');
+    if (area) {
+      area.innerHTML = buildMappingHtml(headers, rows);
+      $$('.csv-map-sel').forEach(sel => sel.addEventListener('change', updatePreviewsAndCount));
+      updatePreviewsAndCount();
+    }
+  }
+
+  openFormModal({
+    title,
+    sizeLg: true,
+    bodyHtml: `
+      <div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+          <label class="btn small ghost" style="cursor:pointer;margin:0;">
+            ${escapeHtml(t('csv.choose_file') || 'Choose CSV file')}
+            <input type="file" id="csvFileInput" accept=".csv,.txt" style="display:none;">
+          </label>
+          <span style="font-size:12px;color:var(--text-muted);" id="csvFileName">${escapeHtml(t('csv.no_file') || 'No file chosen')}</span>
+          <button class="btn small ghost" id="csvPasteToggle" style="margin-inline-start:auto;">${escapeHtml(t('csv.paste') || 'Paste CSV')}</button>
+        </div>
+        <textarea id="csvPasteArea" rows="4" class="form-control" placeholder="${escapeHtml(t('csv.paste_ph') || 'Paste CSV text here…')}" style="display:none;font-size:11px;font-family:monospace;"></textarea>
+        <div id="csvMappingArea"></div>
+      </div>`,
+    saveLabel: t('csv.import_btn') || 'Import',
+    onSave: () => {
+      if (!parsedRows.length) { toast(t('csv.no_data') || 'No data to import', 'error'); return false; }
+      const mappings = {};
+      $$('.csv-map-sel').forEach(sel => { mappings[sel.dataset.field] = sel.value !== '' ? +sel.value : -1; });
+      const objects = parsedRows.map(row => {
+        const obj = {};
+        fields.forEach(f => {
+          if (mappings[f.key] >= 0) {
+            const raw = row[mappings[f.key]]?.trim() || '';
+            obj[f.key] = f.type === 'number' ? (+raw || 0) : raw;
+          }
+        });
+        return obj;
+      }).filter(obj => fields.filter(f => f.required).every(f => obj[f.key]));
+
+      if (!objects.length) { toast(t('csv.no_valid_rows') || 'No valid rows found — check required fields', 'error'); return false; }
+      const result = onImport(objects);
+      toast(`${result.imported} ${t('csv.imported') || 'imported'}${result.skipped ? `, ${result.skipped} ${t('csv.skipped') || 'skipped'}` : ''}`, 'success', 4000);
+      return true;
+    }
+  });
+
+  requestAnimationFrame(() => {
+    $('#csvFileInput')?.addEventListener('change', e => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const nameEl = $('#csvFileName');
+      if (nameEl) nameEl.textContent = file.name;
+      const reader = new FileReader();
+      reader.onload = ev => parseAndRender(ev.target.result);
+      reader.readAsText(file, 'UTF-8');
+    });
+    $('#csvPasteToggle')?.addEventListener('click', () => {
+      const ta = $('#csvPasteArea');
+      if (!ta) return;
+      ta.style.display = ta.style.display === 'none' ? 'block' : 'none';
+    });
+    $('#csvPasteArea')?.addEventListener('input', e => {
+      if (e.target.value.trim()) parseAndRender(e.target.value);
+    });
+  });
+}
+
+/* ============================================================
+   CSV import — Spools / Inventory
+   ============================================================ */
+function importSpoolsCsv() {
+  openCsvImportModal({
+    title: t('csv.import_spools') || 'Import Spools from CSV',
+    fields: [
+      { key: 'material',        label: t('inv.material')        || 'Material',            required: true },
+      { key: 'brand',           label: t('inv.brand')           || 'Brand' },
+      { key: 'color',           label: t('inv.color')           || 'Color' },
+      { key: 'diameter',        label: t('inv.diameter')        || 'Diameter (mm)',        type: 'number' },
+      { key: 'weightTotal',     label: t('inv.weight_total')    || 'Total Weight (g)',     type: 'number' },
+      { key: 'weightRemaining', label: t('inv.remaining')       || 'Remaining (g)',        type: 'number' },
+      { key: 'costPerKg',       label: t('inv.cost_per_kg')     || 'Cost/kg',              type: 'number' },
+      { key: 'reorderPoint',    label: t('inv.reorder_point')   || 'Reorder Point (g)',    type: 'number' },
+      { key: 'location',        label: t('inv.location')        || 'Location' },
+      { key: 'notes',           label: t('common.notes')        || 'Notes' },
+    ],
+    onImport: (rows) => {
+      let imported = 0, skipped = 0;
+      rows.forEach(row => {
+        const exists = (inventory || []).some(s =>
+          s.material?.toLowerCase() === row.material?.toLowerCase() &&
+          s.brand?.toLowerCase() === (row.brand || '').toLowerCase() &&
+          s.color?.toLowerCase() === (row.color || '').toLowerCase()
+        );
+        if (exists) { skipped++; return; }
+        const wt = row.weightTotal || 1000;
+        inventory.push({
+          id: uid('S'),
+          material: row.material,
+          brand: row.brand || '',
+          color: row.color || '',
+          diameter: row.diameter || 1.75,
+          weight: row.weightRemaining != null ? row.weightRemaining : wt,
+          weightTotal: wt,
+          cost: row.costPerKg || 0,
+          reorderPoint: row.reorderPoint || (settings.lowStockThreshold ?? 200),
+          location: row.location || '',
+          notes: row.notes || '',
+          addedAt: localDateStr(),
+          usageHistory: [],
+        });
+        imported++;
+      });
+      saveAll();
+      renderInventory();
+      return { imported, skipped };
+    }
+  });
+}
+
+/* ============================================================
+   CSV import — Clients
+   ============================================================ */
+function importClientsCsv() {
+  openCsvImportModal({
+    title: t('csv.import_clients') || 'Import Clients from CSV',
+    fields: [
+      { key: 'nameEn',    label: t('cl.name_en')   || 'Name (English)',  required: true },
+      { key: 'nameAr',    label: t('cl.name_ar')   || 'Name (Arabic)' },
+      { key: 'phone',     label: t('cl.phone')     || 'Phone' },
+      { key: 'email',     label: t('cl.email')     || 'Email' },
+      { key: 'city',      label: t('cl.city')      || 'City' },
+      { key: 'address',   label: t('cl.address')   || 'Address' },
+      { key: 'vatNumber', label: t('cl.vat')       || 'VAT Number' },
+      { key: 'company',   label: t('cl.company')   || 'Company' },
+      { key: 'notes',     label: t('common.notes') || 'Notes' },
+    ],
+    onImport: (rows) => {
+      let imported = 0, skipped = 0;
+      rows.forEach(row => {
+        const exists = (clients || []).some(c =>
+          (c.nameEn?.toLowerCase() === row.nameEn?.toLowerCase()) ||
+          (row.phone && c.phone === row.phone) ||
+          (row.email && c.email?.toLowerCase() === row.email?.toLowerCase())
+        );
+        if (exists) { skipped++; return; }
+        clients.push({
+          id: uid('CL'),
+          nameEn: row.nameEn,
+          nameAr: row.nameAr || '',
+          phone: row.phone || '',
+          email: row.email || '',
+          city: row.city || '',
+          address: row.address || '',
+          vat: row.vatNumber || '',
+          company: row.company || '',
+          notes: row.notes || '',
+          createdAt: localDateStr(),
+          commLog: [],
+          loyaltyTier: 'standard',
+        });
+        imported++;
+      });
+      saveAll();
+      renderClients();
+      return { imported, skipped };
+    }
+  });
+}
+
+/* ============================================================
+   CSV import — Products / Catalog
+   ============================================================ */
+function importProductsCsv() {
+  openCsvImportModal({
+    title: t('csv.import_products') || 'Import Products from CSV',
+    fields: [
+      { key: 'nameEn',        label: t('pe.name_en')     || 'Name (English)',   required: true },
+      { key: 'nameAr',        label: t('pe.name_ar')     || 'Name (Arabic)' },
+      { key: 'description',   label: t('pe.description') || 'Description' },
+      { key: 'defaultMargin', label: t('pe.default_margin') || 'Default Margin (%)', type: 'number' },
+      { key: 'sku',           label: t('cat.sku')        || 'SKU' },
+    ],
+    onImport: (rows) => {
+      let imported = 0, skipped = 0;
+      rows.forEach(row => {
+        const exists = (products || []).some(p =>
+          (p.nameEn?.toLowerCase() === row.nameEn?.toLowerCase()) ||
+          (row.sku && p.sku === row.sku)
+        );
+        if (exists) { skipped++; return; }
+        products.push({
+          id: uid('PROD'),
+          nameEn: row.nameEn,
+          nameAr: row.nameAr || '',
+          description: row.description || '',
+          defaultMargin: row.defaultMargin || 30,
+          sku: row.sku || '',
+          thumbnail: null,
+          imagePath: null,
+          priceTiers: [],
+          parts: [],
+          createdAt: localDateStr(),
+        });
+        imported++;
+      });
+      saveAll();
+      renderCatalog();
+      return { imported, skipped };
+    }
+  });
+}
+
 /** Validate a CSS color string — allow only #RRGGBB / #RGB hex colors */
 function safeCssColor(val, fallback = '#5E2E14') {
   return /^#[0-9a-fA-F]{3,8}$/.test(String(val || '')) ? String(val) : fallback;
@@ -8114,6 +8432,168 @@ async function generatePackingSlip(orderId) {
       if (saved?.path) window.hubAPI?.openPath?.(saved.path);
     }
     toast(t('ps.title') || 'Packing Slip', 'success');
+  }
+}
+
+/* ============================================================
+   Analytics Export Report
+   ============================================================ */
+async function exportAnalyticsReport() {
+  // 1. Make sure analytics is freshly rendered
+  renderAnalytics();
+
+  // 2. Collect chart/table SVGs from DOM (already rendered)
+  const chartIds = [
+    'revenueChartWrap',
+    'topProductsList',
+    'topClientsList',
+    'activityList',
+    'accuracySection',
+    'timestampAccuracySection',
+    'quoteFunnelChart',
+    'monthlyTrendChart',
+    'machineRevenueChart',
+    'profitMarginChart',
+    'wasteTrendChart',
+    'cycleTimeChart',
+    'cashFlowChart',
+    'expenseCategoryChart',
+    'leadTimeTable',
+    'npsTrendChart',
+    'clientLtvTable',
+    'machineDowntimeChart',
+    'maintenanceCostChart',
+    'materialUsageChart',
+    'filamentPerfSection',
+    'printerUtilSection',
+    'pnlSection',
+    'productProfitSection',
+    'slaSection',
+    'machinePLSection',
+    'throughputHeatmapSection',
+    'clientRetentionSection',
+    'costTrendsSection',
+    'operatorAnalyticsSection',
+    'agedReceivablesSection',
+    'surveyAnalyticsSection',
+    'newVsReturningSection',
+  ];
+
+  const sections = chartIds.map(id => {
+    const el = document.getElementById(id);
+    const inner = el?.innerHTML?.trim();
+    return inner ? `<div class="report-section">${inner}</div>` : '';
+  }).filter(Boolean).join('\n');
+
+  // 3. KPI summary
+  const pl = printLog || [];
+  const completedOrders = pl.filter(o => o.status === 'completed');
+  const totalRev = pl.filter(o => o.status === 'completed' || o.status === 'delivered')
+    .reduce((s, o) => s + (+o.price || 0), 0);
+  const totalOrders = pl.length;
+  const avgMargin = (() => {
+    const withMargin = completedOrders.filter(o => o.costBasis > 0 && +o.price > 0);
+    if (!withMargin.length) return null;
+    return withMargin.reduce((s, o) => s + ((+o.price - o.costBasis) / +o.price * 100), 0) / withMargin.length;
+  })();
+  const matCount = {};
+  pl.forEach(o => { if (o.material) matCount[o.material] = (matCount[o.material] || 0) + 1; });
+  const topMat = Object.entries(matCount).sort((a, b) => b[1] - a[1])[0]?.[0] || '—';
+
+  const s = settings || {};
+  const shopName = escapeHtml(s.bizName || s.bizEn || s.shopName || 'Khayt');
+  const accentColor = s.invoiceAccentColor || s.invAccentColor || '#5b9cf0';
+  const rangeLabel = escapeHtml(t('an.range.' + analyticsRange) || analyticsRange);
+  const reportDate = new Date().toLocaleDateString();
+
+  const safeLogo = typeof safeBizLogo === 'function' ? safeBizLogo() : '';
+
+  // 4. Build HTML
+  const html = `<!DOCTYPE html>
+<html dir="${document.documentElement.dir || 'ltr'}" lang="${document.documentElement.lang || 'en'}">
+<head>
+<meta charset="UTF-8">
+<title>${shopName} — ${escapeHtml(t('an.report_title') || 'Analytics Report')}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,'Segoe UI',sans-serif; font-size:11pt; color:#111; background:#fff; padding:15mm 20mm; }
+  .report-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10mm; border-bottom:2.5px solid ${accentColor}; padding-bottom:6mm; }
+  .shop-name { font-size:20pt; font-weight:800; color:${accentColor}; }
+  .report-meta { text-align:right; font-size:9.5pt; color:#666; line-height:1.7; }
+  .report-title { font-size:14pt; font-weight:700; color:#111; margin-bottom:1mm; }
+  .kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:10mm; }
+  .kpi-card { background:#f8fafc; border:1px solid #e5e7eb; border-radius:8px; padding:10px 14px; }
+  .kpi-label { font-size:8.5pt; color:#888; text-transform:uppercase; letter-spacing:.4pt; }
+  .kpi-value { font-size:16pt; font-weight:700; color:${accentColor}; margin-top:2px; }
+  .report-section { margin-bottom:8mm; page-break-inside:avoid; }
+  h4 { font-size:11pt; font-weight:700; color:#444; margin:6mm 0 3mm; }
+  table { width:100%; border-collapse:collapse; font-size:9.5pt; }
+  th { background:${accentColor}; color:#fff; padding:5px 8px; text-align:left; font-size:8.5pt; }
+  td { padding:5px 8px; border-bottom:0.3mm solid #e5e7eb; }
+  tr:nth-child(even) td { background:#f9fafb; }
+  svg text { font-family:-apple-system,'Segoe UI',sans-serif !important; }
+  ul { list-style:none; padding:0; }
+  li { padding:4px 0; border-bottom:0.3mm solid #f0f0f0; font-size:10pt; }
+  @media print {
+    body { padding:10mm 15mm; }
+    .report-section { page-break-inside:avoid; }
+  }
+  .logo-img { max-height:50px; max-width:120px; object-fit:contain; }
+</style>
+</head>
+<body>
+  <div class="report-header">
+    <div>
+      ${safeLogo ? `<img src="${safeLogo}" class="logo-img" alt="logo" style="margin-bottom:4px;display:block;">` : ''}
+      <div class="shop-name">${shopName}</div>
+    </div>
+    <div class="report-meta">
+      <div class="report-title">${escapeHtml(t('an.report_title') || 'Analytics Report')}</div>
+      <div>${escapeHtml(t('an.period') || 'Period')}: <strong>${rangeLabel}</strong></div>
+      <div>${escapeHtml(t('an.generated') || 'Generated')}: ${reportDate}</div>
+    </div>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="kpi-label">${escapeHtml(t('an.total_revenue') || 'Total Revenue')}</div>
+      <div class="kpi-value">${escapeHtml(fmtPrice(totalRev))}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">${escapeHtml(t('an.total_orders') || 'Total Orders')}</div>
+      <div class="kpi-value">${totalOrders}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">${escapeHtml(t('an.avg_margin') || 'Avg Margin')}</div>
+      <div class="kpi-value">${avgMargin !== null ? avgMargin.toFixed(1) + '%' : '—'}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">${escapeHtml(t('an.top_material') || 'Top Material')}</div>
+      <div class="kpi-value" style="font-size:13pt;">${escapeHtml(topMat)}</div>
+    </div>
+  </div>
+
+  ${sections}
+
+  <div style="margin-top:12mm;padding-top:4mm;border-top:0.5px solid #ddd;font-size:8pt;color:#aaa;text-align:center;">
+    ${shopName} · ${escapeHtml(t('an.report_footer') || 'Generated by Khayt')} · ${reportDate}
+  </div>
+</body>
+</html>`;
+
+  // 5. Open and print
+  const win = window.open('', '_blank', 'width=1000,height=760,toolbar=0,menubar=0,scrollbars=1');
+  if (win) {
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 600);
+  } else if (window.hubAPI?.saveHtml) {
+    const fname = `analytics-report-${localDateStr()}.html`;
+    const saved = await window.hubAPI.saveHtml(html, fname);
+    if (saved?.path) { window.hubAPI?.openPath?.(saved.path); return; }
+    if (typeof saved === 'string') { window.hubAPI?.openPath?.(saved); return; }
   }
 }
 
@@ -18111,6 +18591,7 @@ function wireEvents() {
   // Analytics tab — CSV export buttons
   $('#btnAnOrdersCsv')?.addEventListener('click', exportOrdersCsv);
   $('#btnAnExpensesCsv')?.addEventListener('click', exportExpensesCsv);
+  $('#btnExportAnalytics')?.addEventListener('click', exportAnalyticsReport);
 
   // Logs — search/filter/export
   $('#btnExportCsv').addEventListener('click', exportOrdersCsv);
@@ -18577,6 +19058,7 @@ function wireEvents() {
   $('#analyticsRangeTo')?.addEventListener('change',   (e) => { customRangeTo.analytics   = e.target.value; renderAnalytics(); });
 
   // Catalog
+  $('#btnImportProductsCsv')?.addEventListener('click', importProductsCsv);
   $('#btnAddProduct').addEventListener('click', () => openProductEditor(null));
   $('#catalogSearch').addEventListener('input', (e) => { catalogSearchTerm = e.target.value; renderCatalog(); });
   $('#invSearch')?.addEventListener('input', (e) => { invSearchTerm = e.target.value; renderInventory(); });
@@ -18620,6 +19102,8 @@ function wireEvents() {
   });
 
   // Clients
+  $('#btnImportSpoolsCsv')?.addEventListener('click', importSpoolsCsv);
+  $('#btnImportClientsCsv')?.addEventListener('click', importClientsCsv);
   $('#btnExportClientsCsv')?.addEventListener('click', () => exportClientsCsv());
   $('#btnExportInventoryCsv')?.addEventListener('click', () => exportInventoryCsv());
   $('#btnAddClient').addEventListener('click', () => openClientEditor(null));
