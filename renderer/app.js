@@ -246,6 +246,12 @@ function num(v, fallback = 0) { const n = parseFloat(v); return Number.isFinite(
 function clampPositive(v) { return Math.max(0, num(v, 0)); }
 function fmtMoney(n) { return (Math.round((+n || 0) * 100) / 100).toFixed(2); }
 
+function computeUnitPrice(p) {
+  if (p?.unitPrice && +p.unitPrice > 0) return +p.unitPrice;
+  const qty = +p?.quantity || 1;
+  return (+p?.amount || 0) / qty;
+}
+
 /* ── Currency catalogue ────────────────────────────────────────────────── */
 const CURRENCIES = {
   SAR: { symbol: 'SAR', label: 'Saudi Riyal (SAR)',            pos: 'after'  },
@@ -2730,6 +2736,12 @@ function openMachineEditor(machineId = null) {
           <input type="number" id="machLastServiceHours" value="${draft.lastServiceHours || ''}" min="0" step="0.1" placeholder="0">
         </div>
       </div>
+      <label style="margin-top:14px;">${escapeHtml(t('mach.location'))}</label>
+      <select id="machLocationId" style="margin-top:6px;">
+        <option value="">— ${escapeHtml(t('an.unassigned_location'))} —</option>
+        ${locations.map(l => `<option value="${escapeHtml(l.id)}"${draft.locationId === l.id ? ' selected' : ''}>${escapeHtml(l.name)}</option>`).join('')}
+      </select>
+
       <label style="margin-top:16px; display:flex; align-items:center; gap:8px; cursor:pointer;">
         <input type="checkbox" id="machOffline" style="width:auto; margin:0;" ${draft.isOffline ? 'checked' : ''}>
         <span data-i18n="mach.mark_offline">${escapeHtml(t('mach.mark_offline'))}</span>
@@ -2975,6 +2987,9 @@ function openMachineEditor(machineId = null) {
           gramsAtInstall: parseFloat(nozzleAtInstEl?.value) || 0,
         };
       }
+      // Persist locationId
+      const machLocEl = document.getElementById('machLocationId');
+      if (machLocEl) draft.locationId = machLocEl.value || '';
       const idx = machines.findIndex(m => m.id === draft.id);
       if (idx >= 0) machines[idx] = draft;
       else machines.push(draft);
@@ -5166,6 +5181,10 @@ function renderSuppliers() {
       </td>
     </tr>`;
   }).join('');
+
+  // Render supplier price history chart below the table
+  const hasPurchases = suppliers.some(s => s.purchases && s.purchases.length > 0);
+  if (hasPurchases) renderSupplierPriceHistory();
 }
 
 function openSupplierEditor(id) {
@@ -5236,7 +5255,29 @@ function openLogPurchaseModal(supplierId) {
     <label style="margin-top:12px;">${escapeHtml(t('sup.purchase_item'))}</label>
     <input type="text" id="purchItemInput" placeholder="${escapeHtml(t('sup.purchase_item_ph'))}">
     <label style="margin-top:12px;">${escapeHtml(t('common.notes'))}</label>
-    <input type="text" id="purchNotesInput" placeholder="${escapeHtml(t('sup.purchase_notes_ph'))}">`;
+    <input type="text" id="purchNotesInput" placeholder="${escapeHtml(t('sup.purchase_notes_ph'))}">
+    <div class="inline-pair" style="margin-top:12px;">
+      <div>
+        <label style="margin:0;">${escapeHtml(t('sup.unit_price'))}</label>
+        <input type="number" id="pur_unitPrice" min="0" step="0.01" placeholder="0.00">
+      </div>
+      <div>
+        <label style="margin:0;">${escapeHtml(t('sup.quantity'))}</label>
+        <input type="number" id="pur_quantity" min="0" step="1" placeholder="1" value="1">
+      </div>
+    </div>
+    <div class="inline-pair" style="margin-top:12px;">
+      <div>
+        <label style="margin:0;">${escapeHtml(t('sup.unit'))}</label>
+        <select id="pur_unit">
+          ${['spool','kg','g','L','piece','roll','box'].map(u => `<option value="${u}">${u}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label style="margin:0;">${escapeHtml(t('sup.material_type'))}</label>
+        <input type="text" id="pur_materialType" placeholder="PLA, PETG, Resin…">
+      </div>
+    </div>`;
 
   openFormModal({
     title: t('sup.log_purchase'),
@@ -5247,11 +5288,15 @@ function openLogPurchaseModal(supplierId) {
       if (amt <= 0) { toast(t('sup.amount_required'), 'error'); return false; }
       if (!sup.purchases) sup.purchases = [];
       sup.purchases.unshift({
-        id:     uid('pch'),
-        date:   document.getElementById('purchDateInput').value,
-        amount: amt,
-        item:   document.getElementById('purchItemInput').value.trim(),
-        notes:  document.getElementById('purchNotesInput').value.trim(),
+        id:           uid('pch'),
+        date:         document.getElementById('purchDateInput').value,
+        amount:       amt,
+        item:         document.getElementById('purchItemInput').value.trim(),
+        notes:        document.getElementById('purchNotesInput').value.trim(),
+        unitPrice:    parseFloat(document.getElementById('pur_unitPrice')?.value)  || null,
+        quantity:     parseFloat(document.getElementById('pur_quantity')?.value)   || 1,
+        unit:         document.getElementById('pur_unit')?.value                    || 'spool',
+        materialType: document.getElementById('pur_materialType')?.value?.trim()   || '',
       });
       saveAll();
       renderSuppliers();
@@ -9690,6 +9735,7 @@ function addExpense() {
     receiptPath: _expReceiptPath || null,
     recurring:   recurringVal || null,
     nextDue:     nextDue,
+    locationId:  $('#exp_locationId')?.value || '',
   });
   saveAll();
   // Budget overspend check
@@ -14932,6 +14978,8 @@ function renderAnalytics() {
   renderProductProfitability();
   renderSLASection();
   renderMachinePL();
+  renderLocationPL();
+  renderSupplierPriceHistory();
   renderThroughputHeatmap();
   renderClientRetention();
   renderCostTrends();
@@ -16336,6 +16384,204 @@ function renderMachinePL() {
             </tr>`;
           }).join('')}
         </tbody>
+      </table>
+    </div>`;
+}
+
+/* ============================================================
+   Per-Location P&L
+   ============================================================ */
+function renderLocationPL() {
+  const container = document.getElementById('locationPlChart');
+  if (!container) return;
+
+  if (!locations.length) {
+    container.innerHTML = `<p style="color:var(--text-muted);font-size:13px;padding:12px 0;">${t('an.no_locations')}</p>`;
+    return;
+  }
+
+  // Map machineId → locationId and machineName → locationId
+  const machLocById  = {};
+  const machLocByName = {};
+  machines.forEach(m => {
+    if (m.locationId) { machLocById[m.id] = m.locationId; machLocByName[m.name] = m.locationId; }
+  });
+
+  const locTotals = {}; // locationId | '__none__' → { revenue, matCost, expenses, orders }
+  const getD = id => { if (!locTotals[id]) locTotals[id] = { revenue: 0, matCost: 0, expenses: 0, orders: 0 }; return locTotals[id]; };
+
+  // Orders
+  printLog.filter(o => o.status === 'completed' && inRange(o.date || (o.timestamp || '').slice(0,10), analyticsRange, 'analytics')).forEach(o => {
+    const lid = (o.machineId && machLocById[o.machineId]) || (o.machine && machLocByName[o.machine]) || '__none__';
+    const d = getD(lid);
+    d.revenue += +o.price || 0;
+    d.orders++;
+    (o.parts || []).forEach(p => { d.matCost += computePartBaseCost ? (computePartBaseCost(p) || 0) : 0; });
+  });
+
+  // Expenses
+  expenses.filter(e => inRange(e.date, analyticsRange, 'analytics')).forEach(e => {
+    getD(e.locationId || '__none__').expenses += +e.amount || 0;
+  });
+
+  // Build rows
+  const nameMap = { '__none__': t('an.unassigned_location') };
+  locations.forEach(l => { nameMap[l.id] = l.name; });
+
+  const rows = Object.entries(locTotals)
+    .map(([lid, d]) => ({ lid, name: nameMap[lid] || lid, ...d, net: d.revenue - d.matCost - d.expenses }))
+    .sort((a, b) => b.revenue - a.revenue);
+
+  if (!rows.length) {
+    container.innerHTML = `<p style="color:var(--text-muted);font-size:13px;padding:12px 0;">${t('an.no_data')}</p>`;
+    return;
+  }
+
+  const cur = currencySymbol();
+  const maxRev = Math.max(...rows.map(r => r.revenue), 1);
+
+  // SVG grouped bar chart (revenue / net per location)
+  const BAR_W = 28, GAP = 18, GRP = 2 * BAR_W + 6, H = 120, PAD = 36;
+  const svgW = rows.length * (GRP + GAP) + PAD * 2;
+  const scale = v => H - Math.max(0, Math.min(H, (v / maxRev) * H));
+
+  const bars = rows.map((r, i) => {
+    const x = PAD + i * (GRP + GAP);
+    const revH = Math.max(1, (r.revenue / maxRev) * H);
+    const netH = Math.max(1, (Math.max(0, r.net) / maxRev) * H);
+    const netColor = r.net >= 0 ? '#22c55e' : '#ef4444';
+    return `
+      <rect x="${x}" y="${H - revH}" width="${BAR_W}" height="${revH}" fill="#6366f1" opacity="0.85" rx="2">
+        <title>${escapeHtml(r.name)}: ${t('an.location_revenue')} ${cur}${fmtMoney(r.revenue)}</title>
+      </rect>
+      <rect x="${x + BAR_W + 6}" y="${H - netH}" width="${BAR_W}" height="${netH}" fill="${netColor}" opacity="0.85" rx="2">
+        <title>${escapeHtml(r.name)}: ${t('an.location_profit')} ${cur}${fmtMoney(r.net)}</title>
+      </rect>
+      <text x="${x + BAR_W + 3}" y="${H + 14}" text-anchor="middle" font-size="9" fill="var(--text-muted)">${escapeHtml(r.name.slice(0,8))}</text>`;
+  }).join('');
+
+  const legend = `<g transform="translate(${PAD},${H + 30})">
+    <rect width="10" height="10" fill="#6366f1" rx="1"/><text x="14" y="9" font-size="9" fill="var(--text-muted)">${t('an.location_revenue')}</text>
+    <rect x="80" width="10" height="10" fill="#22c55e" rx="1"/><text x="94" y="9" font-size="9" fill="var(--text-muted)">${t('an.location_profit')}</text>
+  </g>`;
+
+  const chart = `<svg viewBox="0 0 ${svgW} ${H + 50}" style="width:100%;max-width:${svgW}px;overflow:visible;">${bars}${legend}</svg>`;
+
+  // Summary table
+  const tableRows = rows.map(r => {
+    const margin = r.revenue > 0 ? (r.net / r.revenue * 100).toFixed(1) + '%' : '—';
+    const netCol = r.net >= 0 ? `<span style="color:var(--success)">${cur}${fmtMoney(r.net)}</span>` : `<span style="color:var(--danger)">${cur}${fmtMoney(r.net)}</span>`;
+    return `<tr>
+      <td><strong>${escapeHtml(r.name)}</strong></td>
+      <td style="text-align:right;">${r.orders}</td>
+      <td style="text-align:right;">${cur}${fmtMoney(r.revenue)}</td>
+      <td style="text-align:right;">${cur}${fmtMoney(r.matCost + r.expenses)}</td>
+      <td style="text-align:right;">${netCol}</td>
+      <td style="text-align:right;">${margin}</td>
+    </tr>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div style="overflow-x:auto;margin-bottom:12px;">${chart}</div>
+    <div style="overflow-x:auto;">
+      <table style="width:100%;font-size:12px;border-collapse:collapse;">
+        <thead><tr style="color:var(--text-muted);font-size:11px;">
+          <th style="text-align:left;padding:4px 8px;">${t('an.location')}</th>
+          <th style="text-align:right;padding:4px 8px;">${t('an.orders')}</th>
+          <th style="text-align:right;padding:4px 8px;">${t('an.location_revenue')}</th>
+          <th style="text-align:right;padding:4px 8px;">${t('an.location_expenses')}</th>
+          <th style="text-align:right;padding:4px 8px;">${t('an.location_profit')}</th>
+          <th style="text-align:right;padding:4px 8px;">${t('an.margin')}</th>
+        </tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>`;
+}
+
+/* ============================================================
+   Supplier Price History
+   ============================================================ */
+function renderSupplierPriceHistory() {
+  const container = document.getElementById('supplierPriceHistoryChart');
+  if (!container) return;
+
+  // Aggregate all purchases by materialType
+  const byMat = {}; // materialType → [{ date, unitPrice, supplier, total }]
+  suppliers.forEach(sup => {
+    (sup.purchases || []).forEach(p => {
+      const mt = (p.materialType || '').trim() || t('sup.untagged');
+      if (!byMat[mt]) byMat[mt] = [];
+      byMat[mt].push({ date: p.date || '', unitPrice: computeUnitPrice(p), supplier: sup.name, total: +p.amount || 0, unit: p.unit || 'spool' });
+    });
+  });
+
+  const allMats = Object.keys(byMat).sort();
+  if (!allMats.length) {
+    container.innerHTML = `<p style="color:var(--text-muted);font-size:13px;padding:12px 0;">${t('sup.no_price_data')}</p>`;
+    return;
+  }
+
+  const cur = currencySymbol();
+
+  // Price trend sparklines
+  const sparks = allMats.map(mat => {
+    const entries = byMat[mat].filter(e => e.date).sort((a,b) => a.date.localeCompare(b.date));
+    if (!entries.length) return '';
+    const prices = entries.map(e => e.unitPrice);
+    const minP = Math.min(...prices), maxP = Math.max(...prices), rangeP = maxP - minP || 1;
+    const W = 120, H = 36;
+    const pts = entries.map((e, i) => {
+      const x = entries.length > 1 ? (i / (entries.length - 1)) * W : W / 2;
+      const y = H - ((e.unitPrice - minP) / rangeP) * H;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+    const last = entries[entries.length - 1];
+    const prev = entries[entries.length - 2];
+    const pctChange = prev ? ((last.unitPrice - prev.unitPrice) / prev.unitPrice * 100) : 0;
+    const badge = Math.abs(pctChange) >= 5
+      ? `<span style="font-size:10px;padding:1px 5px;border-radius:10px;background:${pctChange > 0 ? '#fee2e2' : '#dcfce7'};color:${pctChange > 0 ? '#ef4444' : '#16a34a'};">${pctChange > 0 ? '▲' : '▼'}${Math.abs(pctChange).toFixed(1)}%</span>`
+      : '';
+    return `<div style="padding:10px 12px;background:var(--bg-elev);border-radius:var(--radius);min-width:180px;">
+      <div style="font-weight:600;font-size:12px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;">
+        <span>${escapeHtml(mat)}</span>${badge}
+      </div>
+      <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:36px;overflow:visible;">
+        <polyline points="${pts}" fill="none" stroke="#6366f1" stroke-width="1.5" stroke-linejoin="round"/>
+        ${entries.map((e,i) => { const x = entries.length > 1 ? (i / (entries.length - 1)) * W : W/2; const y = H - ((e.unitPrice - minP) / rangeP) * H; return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.5" fill="#6366f1"><title>${escapeHtml(e.supplier)}: ${cur}${e.unitPrice.toFixed(2)}/${escapeHtml(e.unit||'unit')} (${e.date})</title></circle>`; }).join('')}
+      </svg>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">
+        ${t('sup.latest')}: <strong>${cur}${last.unitPrice.toFixed(2)}/${last.unit||'unit'}</strong> · ${escapeHtml(last.supplier)}
+      </div>
+    </div>`;
+  }).join('');
+
+  // Best-price comparison table (one row per material)
+  const tableRows = allMats.map(mat => {
+    const entries = byMat[mat].sort((a,b) => a.unitPrice - b.unitPrice);
+    const best = entries[0];
+    const worst = entries[entries.length - 1];
+    const count = entries.length;
+    return `<tr>
+      <td>${escapeHtml(mat)}</td>
+      <td style="color:var(--success);text-align:right;">${cur}${best.unitPrice.toFixed(2)} <span style="font-size:10px;color:var(--text-muted);">${escapeHtml(best.supplier)}</span></td>
+      <td style="color:var(--danger);text-align:right;">${cur}${worst.unitPrice.toFixed(2)} <span style="font-size:10px;color:var(--text-muted);">${escapeHtml(worst.supplier)}</span></td>
+      <td style="text-align:right;">${count}</td>
+    </tr>`;
+  }).join('');
+
+  container.innerHTML = `
+    <h4 style="font-size:13px;margin-bottom:10px;">${t('sup.price_trend')}</h4>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:16px;">${sparks}</div>
+    <h4 style="font-size:13px;margin-bottom:8px;">${t('sup.best_price')}</h4>
+    <div style="overflow-x:auto;">
+      <table style="width:100%;font-size:12px;border-collapse:collapse;">
+        <thead><tr style="color:var(--text-muted);font-size:11px;">
+          <th style="text-align:left;padding:4px 8px;">${t('sup.material_type')}</th>
+          <th style="text-align:right;padding:4px 8px;">${t('sup.best_price')}</th>
+          <th style="text-align:right;padding:4px 8px;">${t('sup.highest_price')}</th>
+          <th style="text-align:right;padding:4px 8px;">${t('sup.purchase_count')}</th>
+        </tr></thead>
+        <tbody>${tableRows}</tbody>
       </table>
     </div>`;
 }
@@ -19234,6 +19480,29 @@ function wireEvents() {
       }
     });
   }
+  // Inject locationId select into expense form
+  (() => {
+    const addBtn = $('#btnAddExpense');
+    if (addBtn && !$('#exp_locationId')) {
+      const lbl = document.createElement('label');
+      lbl.style.marginTop = '12px';
+      lbl.textContent = t('mach.location') + ' (' + t('common.optional') + ')';
+      const sel = document.createElement('select');
+      sel.id = 'exp_locationId';
+      const blankOpt = document.createElement('option');
+      blankOpt.value = '';
+      blankOpt.textContent = '— ' + t('an.unassigned_location') + ' —';
+      sel.appendChild(blankOpt);
+      locations.forEach(l => {
+        const o = document.createElement('option');
+        o.value = l.id;
+        o.textContent = l.name;
+        sel.appendChild(o);
+      });
+      addBtn.parentNode.insertBefore(sel, addBtn);
+      addBtn.parentNode.insertBefore(lbl, sel);
+    }
+  })();
   // Set default date to today (and enforce max = today)
   const _expTodayStr = new Date().toISOString().split('T')[0];
   $('#expDate').value = _expTodayStr;
