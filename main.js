@@ -109,6 +109,9 @@ function encryptForDisk(data) {
     );
   if (d?.settings?.zatcaPhase2?.csid)  d.settings.zatcaPhase2.csid  = encryptStoreField(d.settings.zatcaPhase2.csid);
   if (d?.settings?.zatcaPhase2?.pcsid) d.settings.zatcaPhase2.pcsid = encryptStoreField(d.settings.zatcaPhase2.pcsid);
+  if (d?.settings?.bnpl?.tabby?.apiKey)  d.settings.bnpl.tabby.apiKey  = encryptStoreField(d.settings.bnpl.tabby.apiKey);
+  if (d?.settings?.bnpl?.tamara?.apiKey) d.settings.bnpl.tamara.apiKey = encryptStoreField(d.settings.bnpl.tamara.apiKey);
+  if (d?.settings?.bnpl?.stripe?.apiKey) d.settings.bnpl.stripe.apiKey = encryptStoreField(d.settings.bnpl.stripe.apiKey);
   return d;
 }
 
@@ -460,6 +463,9 @@ ipcMain.handle('hub:load-store', async () => {
     }
     if (data?.settings?.zatcaPhase2?.csid)  data.settings.zatcaPhase2.csid  = decryptStoreField(data.settings.zatcaPhase2.csid);
     if (data?.settings?.zatcaPhase2?.pcsid) data.settings.zatcaPhase2.pcsid = decryptStoreField(data.settings.zatcaPhase2.pcsid);
+    if (data?.settings?.bnpl?.tabby?.apiKey)  data.settings.bnpl.tabby.apiKey  = decryptStoreField(data.settings.bnpl.tabby.apiKey);
+    if (data?.settings?.bnpl?.tamara?.apiKey) data.settings.bnpl.tamara.apiKey = decryptStoreField(data.settings.bnpl.tamara.apiKey);
+    if (data?.settings?.bnpl?.stripe?.apiKey) data.settings.bnpl.stripe.apiKey = decryptStoreField(data.settings.bnpl.stripe.apiKey);
     return data;
   } catch (e) {
     console.error('hub:load-store error:', e);
@@ -927,6 +933,123 @@ ipcMain.handle('hub:zatca-submit', async (_e, { xmlBase64, invoiceHash, uuid, in
     });
     const body = await res.json().catch(() => ({}));
     return { ok: res.ok, status: res.status, body };
+  } catch (e) { return { ok: false, error: String(e) }; }
+});
+
+// ── BNPL: Tabby ──────────────────────────────────────────────────────────────
+ipcMain.handle('hub:bnpl-tabby', async (_e, { apiKey, merchantCode, amount, currency, description, buyer, orderId, itemName }) => {
+  if (!apiKey) return { ok: false, error: 'No API key configured' };
+  try {
+    const body = {
+      payment: {
+        amount:      (+amount || 0).toFixed(2),
+        currency:    currency  || 'SAR',
+        description: String(description || ''),
+        buyer: {
+          phone: String(buyer?.phone || ''),
+          name:  String(buyer?.name  || ''),
+          email: String(buyer?.email || ''),
+        },
+        buyer_history: { registered_since: '2024-01-01T00:00:00Z', loyalty_level: 0 },
+        order: {
+          reference_id: String(orderId || ''),
+          items: [{ title: String(itemName || description || ''), unit_price: (+amount || 0).toFixed(2), qty: 1, category: '3D Printing', reference_id: String(orderId || '') }],
+          tax_amount: '0.00', shipping_amount: '0.00',
+        },
+        meta: { order_id: String(orderId || ''), customer: String(buyer?.name || '') },
+      },
+      lang: 'en',
+      merchant_code: String(merchantCode || ''),
+      merchant_urls: {
+        success: 'https://khayt.app/success',
+        cancel:  'https://khayt.app/cancel',
+        failure: 'https://khayt.app/failure',
+      },
+    };
+    const res = await fetch('https://api.tabby.ai/api/v2/checkout', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(10000),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, status: res.status, error: data?.error || JSON.stringify(data) };
+    const url = data?.configuration?.available_products?.installments?.[0]?.web_url
+             || data?.configuration?.available_products?.pay_now?.[0]?.web_url
+             || null;
+    return { ok: true, url, checkoutId: data?.id };
+  } catch (e) { return { ok: false, error: String(e) }; }
+});
+
+// ── BNPL: Tamara ─────────────────────────────────────────────────────────────
+ipcMain.handle('hub:bnpl-tamara', async (_e, { apiKey, amount, currency, country, description, buyer, orderId, itemName }) => {
+  if (!apiKey) return { ok: false, error: 'No API key configured' };
+  try {
+    const cur = (currency || 'SAR').toUpperCase();
+    const body = {
+      order_reference_id: String(orderId || ''),
+      total_amount:       { amount: (+amount || 0).toFixed(2), currency: cur },
+      description:        String(description || itemName || ''),
+      country_code:       (country || 'SA').toUpperCase(),
+      payment_type:       'PAY_BY_INSTALMENTS',
+      instalments:        3,
+      items: [{
+        name:         String(itemName || description || ''),
+        sku:          String(orderId  || ''),
+        quantity:     1,
+        unit_price:   { amount: (+amount || 0).toFixed(2), currency: cur },
+        total_amount: { amount: (+amount || 0).toFixed(2), currency: cur },
+        type:         'digital',
+      }],
+      consumer: {
+        email:        String(buyer?.email || ''),
+        first_name:   (String(buyer?.name || '')).split(' ')[0]             || '',
+        last_name:    (String(buyer?.name || '')).split(' ').slice(1).join(' ') || '',
+        phone_number: String(buyer?.phone || ''),
+      },
+      merchant_url: {
+        success:      'https://khayt.app/success',
+        failure:      'https://khayt.app/failure',
+        cancel:       'https://khayt.app/cancel',
+        notification: 'https://khayt.app/notify',
+      },
+    };
+    const res = await fetch('https://api.tamara.co/checkout', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(10000),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, status: res.status, error: data?.message || JSON.stringify(data) };
+    return { ok: true, url: data?.checkout_url, checkoutId: data?.checkout_id };
+  } catch (e) { return { ok: false, error: String(e) }; }
+});
+
+// ── BNPL: Stripe Checkout (supports Klarna/Afterpay/Affirm via dashboard) ────
+ipcMain.handle('hub:bnpl-stripe', async (_e, { apiKey, amount, currency, description, successUrl, cancelUrl, customerEmail }) => {
+  if (!apiKey || !apiKey.startsWith('sk_')) return { ok: false, error: 'Invalid Stripe secret key (must start with sk_)' };
+  try {
+    const params = new URLSearchParams({
+      'mode':                                         'payment',
+      'payment_method_types[]':                       'card',
+      'line_items[0][price_data][currency]':          (currency || 'sar').toLowerCase(),
+      'line_items[0][price_data][product_data][name]':String(description || 'Order'),
+      'line_items[0][price_data][unit_amount]':       String(Math.round((+amount || 0) * 100)),
+      'line_items[0][quantity]':                      '1',
+      'success_url':                                  String(successUrl || 'https://khayt.app/success'),
+      'cancel_url':                                   String(cancelUrl  || 'https://khayt.app/cancel'),
+    });
+    if (customerEmail) params.set('customer_email', String(customerEmail));
+    const res = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString(),
+      signal: AbortSignal.timeout(10000),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, status: res.status, error: data?.error?.message || JSON.stringify(data) };
+    return { ok: true, url: data?.url, sessionId: data?.id };
   } catch (e) { return { ok: false, error: String(e) }; }
 });
 

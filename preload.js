@@ -114,4 +114,8 @@ contextBridge.exposeInMainWorld('hubAPI', {
   zatcaCompliance:    (opts)  => ipcRenderer.invoke('hub:zatca-compliance', opts),
   zatcaProductionCsid:(opts)  => ipcRenderer.invoke('hub:zatca-production-csid', opts),
   zatcaSubmit:        (opts)  => ipcRenderer.invoke('hub:zatca-submit', opts),
+  // BNPL Payment Links
+  bnplTabby:  (opts) => ipcRenderer.invoke('hub:bnpl-tabby',  opts),
+  bnplTamara: (opts) => ipcRenderer.invoke('hub:bnpl-tamara', opts),
+  bnplStripe: (opts) => ipcRenderer.invoke('hub:bnpl-stripe', opts),
 });

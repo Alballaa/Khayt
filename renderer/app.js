@@ -169,6 +169,43 @@ let logSortDir = 'desc';  // 'asc' | 'desc'
 let showArchivedOrders = false;
 let kanbanSortByPriority = false;
 let invSearchTerm = '';
+
+/* ============================================================
+   BNPL / Payment-link service catalog (23 global services)
+   ============================================================ */
+const BNPL_CATALOG = [
+  // ── MENA ────────────────────────────────────────────────────────────────────
+  { id:'tabby',       name:'Tabby',              regions:['SA','AE','KW','BH','EG','QA'], color:'#6c5ce7', hasApi:true,  dashUrl:'https://business.tabby.ai',                      desc:'Split into 4 payments, 0% interest · MENA' },
+  { id:'tamara',      name:'Tamara',             regions:['SA','AE','KW'],               color:'#00b48a', hasApi:true,  dashUrl:'https://merchant.tamara.co',                      desc:'Pay in 2, 3 or 6 instalments · Gulf' },
+  { id:'cashew',      name:'Cashew',             regions:['AE','KW','BH','QA'],          color:'#f59e0b', hasApi:false, dashUrl:'https://getcashew.com',                           desc:'Split purchases in the Gulf' },
+  { id:'postpay',     name:'Postpay',            regions:['AE','SA'],                    color:'#0ea5e9', hasApi:false, dashUrl:'https://postpay.io',                              desc:'Pay in 3 installments · UAE/KSA' },
+  // ── Europe ──────────────────────────────────────────────────────────────────
+  { id:'klarna',      name:'Klarna',             regions:['SE','DE','GB','US','AU','NL'], color:'#ffb3c7', hasApi:false, dashUrl:'https://www.klarna.com/merchant',                 desc:'Pay in 3, finance or pay now · 40+ countries' },
+  { id:'clearpay',    name:'Clearpay / Afterpay',regions:['AU','NZ','GB','US','CA','FR'], color:'#b2fce4', hasApi:false, dashUrl:'https://www.clearpay.co.uk/merchant',             desc:'Pay in 4 fortnightly instalments' },
+  { id:'scalapay',    name:'Scalapay',           regions:['IT','FR','DE','ES','PT'],     color:'#ff6b6b', hasApi:false, dashUrl:'https://scalapay.com',                            desc:'Split into 3 · Southern Europe' },
+  { id:'alma',        name:'Alma',               regions:['FR','BE','ES','IT','NL'],     color:'#fa7268', hasApi:false, dashUrl:'https://almapay.com',                             desc:'Pay in 2–12 instalments · France & Europe' },
+  { id:'laybuy',      name:'Laybuy',             regions:['NZ','AU','GB'],               color:'#5b2d8e', hasApi:false, dashUrl:'https://business.laybuy.com',                    desc:'6 weekly instalments · NZ/AU/UK' },
+  // ── North America ────────────────────────────────────────────────────────────
+  { id:'affirm',      name:'Affirm',             regions:['US','CA'],                    color:'#0fa0db', hasApi:false, dashUrl:'https://www.affirm.com/business',                 desc:'Flexible monthly payments · US & Canada' },
+  { id:'sezzle',      name:'Sezzle',             regions:['US','CA','IN','DE'],          color:'#392558', hasApi:false, dashUrl:'https://dashboard.sezzle.com',                    desc:'Pay in 4 interest-free · US/CA/EU' },
+  { id:'zip',         name:'Zip (Quadpay)',       regions:['AU','NZ','US','GB','ZA'],     color:'#aa8fff', hasApi:false, dashUrl:'https://zip.co/merchants',                        desc:'Pay in 4 fortnightly · AU/US/UK' },
+  // ── Asia-Pacific ─────────────────────────────────────────────────────────────
+  { id:'paidy',       name:'Paidy',              regions:['JP'],                         color:'#3d5afe', hasApi:false, dashUrl:'https://merchant.paidy.com',                      desc:'Monthly consolidation & 3-instalments · Japan' },
+  { id:'atome',       name:'Atome',              regions:['SG','MY','HK','ID','TH','PH'],color:'#00c853', hasApi:false, dashUrl:'https://www.atome.sg/merchants',                  desc:'Pay in 3 equal instalments · Southeast Asia' },
+  { id:'kredivo',     name:'Kredivo',            regions:['ID','VN','TH','PH'],          color:'#e53935', hasApi:false, dashUrl:'https://kredivo.com/business',                    desc:'Southeast Asia BNPL leader' },
+  // ── India ────────────────────────────────────────────────────────────────────
+  { id:'simpl',       name:'Simpl',              regions:['IN'],                         color:'#ff4b00', hasApi:false, dashUrl:'https://getsimpl.com/merchant',                   desc:'Pay in 3 with no-cost EMI · India' },
+  { id:'lazypay',     name:'LazyPay',            regions:['IN'],                         color:'#fbbf24', hasApi:false, dashUrl:'https://lazypay.in',                              desc:'Pay later & EMI · India' },
+  // ── Africa ───────────────────────────────────────────────────────────────────
+  { id:'mpesa',       name:'M-Pesa',             regions:['KE','TZ','GH','EG','LS','MZ'],color:'#4caf50', hasApi:false, dashUrl:'https://developer.safaricom.co.ke',               desc:'Mobile money · East & Central Africa' },
+  { id:'flutterwave', name:'Flutterwave',        regions:['NG','GH','KE','ZA','EG','TZ'],color:'#f68b1e', hasApi:false, dashUrl:'https://merchant.flutterwave.com',                desc:'Pan-African payments platform' },
+  // ── Latin America ────────────────────────────────────────────────────────────
+  { id:'mercadopago', name:'Mercado Pago',       regions:['BR','AR','MX','CO','CL'],     color:'#00b1ea', hasApi:false, dashUrl:'https://www.mercadopago.com.br/developers',       desc:'Largest LATAM platform · cuotas / instalments' },
+  { id:'kueski',      name:'Kueski Pay',         regions:['MX'],                         color:'#ff5722', hasApi:false, dashUrl:'https://kueskipay.com/negocios',                  desc:'Buy now, pay later · Mexico' },
+  // ── Global ───────────────────────────────────────────────────────────────────
+  { id:'stripe',      name:'Stripe',             regions:['*'],                          color:'#635bff', hasApi:true,  dashUrl:'https://dashboard.stripe.com',                    desc:'Global payments — enables Klarna/Afterpay/Affirm via dashboard' },
+  { id:'paypal',      name:'PayPal Pay Later',   regions:['US','GB','AU','DE','FR','IT'], color:'#003087', hasApi:false, dashUrl:'https://www.paypal.com/merchant',                 desc:'Pay in 4 or monthly financing via PayPal' },
+];
 let supplierSearchTerm = '';
 let poSearchTerm = '';
 let poStatusFilter = '';
@@ -803,6 +840,11 @@ function defaultSettings() {
     currency:        'SAR',
     enableZatca:     true,
     zatcaPhase2:     { enabled: false, environment: 'sandbox', csid: '', pcsid: '', cn: '', invoiceCounter: 0, lastInvoiceHash: 'NWZlY2ViNjZmZmM4NmYzOGQ5NTI3ODZjNmQ2OTZjNzljMmRiYzIzOWRkNGU5MWI4NjJhNGRhNjM3NWQ2OGM5', org: '', city: 'Riyadh', industry: '3D Printing' },
+    bnpl: {
+      tabby:  { enabled: false, apiKey: '', merchantCode: '', currency: 'SAR' },
+      tamara: { enabled: false, apiKey: '', notificationToken: '', currency: 'SAR', country: 'SA' },
+      stripe: { enabled: false, apiKey: '', currency: 'usd', successUrl: '', cancelUrl: '' },
+    },
     donationUrl:     '',
     firstRunDone:    false,
     // v3.0 additions
@@ -1651,6 +1693,8 @@ function toast(msg, kind = 'info', ms = 2800, opts = {}) {
   setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .2s'; }, ms - 250);
   setTimeout(() => el.remove(), ms);
 }
+window._toast = toast;
+window._t     = t;
 
 /* ============================================================
    Modals (confirm + form host)
@@ -12140,6 +12184,178 @@ function renderZatcaPhase2Settings() {
   });
 }
 
+/* ============================================================
+   BNPL / Payment Link Settings
+   ============================================================ */
+function renderBnplSettings() {
+  const el = $('#bnplSection');
+  if (!el) return;
+  const b = settings.bnpl || {};
+
+  // Build config rows for API-integrated services
+  const apiSvcs = [
+    { id: 'tabby',  label: 'Tabby',  fields: [
+        { key: 'apiKey',       label: t('bnpl.api_key'),       type: 'password', ph: 'sk_test_...' },
+        { key: 'merchantCode', label: t('bnpl.merchant_code'), type: 'text',     ph: 'MERCHANT_CODE' },
+        { key: 'currency',     label: t('bnpl.currency'),      type: 'text',     ph: 'SAR' },
+    ]},
+    { id: 'tamara', label: 'Tamara', fields: [
+        { key: 'apiKey',            label: t('bnpl.api_key'),            type: 'password', ph: 'Bearer token...' },
+        { key: 'notificationToken', label: t('bnpl.notification_token'), type: 'password', ph: 'Notification token' },
+        { key: 'currency',          label: t('bnpl.currency'),           type: 'text',     ph: 'SAR' },
+        { key: 'country',           label: t('bnpl.country'),            type: 'text',     ph: 'SA' },
+    ]},
+    { id: 'stripe', label: 'Stripe', fields: [
+        { key: 'apiKey',      label: t('bnpl.api_key'),     type: 'password', ph: 'sk_live_...' },
+        { key: 'currency',    label: t('bnpl.currency'),    type: 'text',     ph: 'sar' },
+        { key: 'successUrl',  label: t('bnpl.success_url'), type: 'text',     ph: 'https://...' },
+        { key: 'cancelUrl',   label: t('bnpl.cancel_url'),  type: 'text',     ph: 'https://...' },
+    ]},
+  ];
+
+  const apiRows = apiSvcs.map(svc => {
+    const cfg = b[svc.id] || {};
+    const flds = svc.fields.map(f =>
+      `<div style="flex:1;min-width:140px;">
+        <label style="font-size:11px;">${escapeHtml(f.label)}</label>
+        <input type="${f.type}" id="bnpl_${svc.id}_${f.key}" value="${escapeHtml(cfg[f.key]||'')}" placeholder="${escapeHtml(f.ph)}" autocomplete="off">
+      </div>`
+    ).join('');
+    return `
+    <div style="padding:12px;background:var(--bg-elev);border-radius:var(--radius);margin-bottom:10px;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:8px;font-weight:600;">
+        <input type="checkbox" id="bnpl_${svc.id}_en" style="width:auto;margin:0;" ${cfg.enabled?'checked':''}>
+        <span style="color:${BNPL_CATALOG.find(c=>c.id===svc.id)?.color||'inherit'}">${escapeHtml(svc.label)}</span>
+        <span style="font-size:11px;font-weight:400;color:var(--text-muted);">${escapeHtml(BNPL_CATALOG.find(c=>c.id===svc.id)?.desc||'')}</span>
+      </label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">${flds}</div>
+    </div>`;
+  }).join('');
+
+  // Directory cards for info-only services
+  const dirCards = BNPL_CATALOG.filter(s => !s.hasApi).map(s =>
+    `<a href="#" class="bnpl-dir-card" data-url="${escapeHtml(s.dashUrl)}" style="display:flex;flex-direction:column;gap:4px;padding:10px 12px;background:var(--bg-elev);border-radius:var(--radius);border-left:3px solid ${escapeHtml(s.color)};text-decoration:none;color:inherit;cursor:pointer;">
+      <div style="font-weight:600;font-size:13px;">${escapeHtml(s.name)}</div>
+      <div style="font-size:11px;color:var(--text-muted);">${s.regions.slice(0,5).join(' · ')}</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${escapeHtml(s.desc)}</div>
+    </a>`
+  ).join('');
+
+  el.innerHTML = `
+    <h4 style="margin-bottom:10px;font-size:13px;" data-i18n="bnpl.integrated">${t('bnpl.integrated')}</h4>
+    ${apiRows}
+    <button class="btn primary small" id="btnSaveBnpl" style="margin-bottom:18px;" data-i18n="common.save">${t('common.save')}</button>
+    <h4 style="margin-bottom:8px;font-size:13px;" data-i18n="bnpl.directory">${t('bnpl.directory')}</h4>
+    <p style="font-size:11px;color:var(--text-muted);margin-bottom:10px;" data-i18n="bnpl.directory_hint">${t('bnpl.directory_hint')}</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;">${dirCards}</div>`;
+
+  el.querySelector('#btnSaveBnpl')?.addEventListener('click', () => {
+    const saved = {};
+    for (const svc of apiSvcs) {
+      saved[svc.id] = { enabled: el.querySelector(`#bnpl_${svc.id}_en`)?.checked || false };
+      for (const f of svc.fields) {
+        saved[svc.id][f.key] = el.querySelector(`#bnpl_${svc.id}_${f.key}`)?.value?.trim() || '';
+      }
+    }
+    settings.bnpl = { ...(settings.bnpl || {}), ...saved };
+    saveAll();
+    toast(t('bnpl.saved'), 'success');
+  });
+
+  el.querySelectorAll('.bnpl-dir-card').forEach(card => {
+    card.addEventListener('click', (e) => {
+      e.preventDefault();
+      const url = card.dataset.url;
+      if (url) window.hubAPI?.openExternal?.(url);
+    });
+  });
+}
+
+async function openBnplModal(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+  const client = order.clientId ? clients.find(c => c.id === order.clientId) : null;
+  const buyer  = { name: client ? localName(client) : (order.client || ''), phone: client?.phone || '', email: client?.email || '' };
+  const amount = +order.price || 0;
+  const b      = settings.bnpl || {};
+
+  const apiSvcs = BNPL_CATALOG.filter(s => s.hasApi && b[s.id]?.enabled && b[s.id]?.apiKey);
+
+  const svcRows = apiSvcs.length
+    ? apiSvcs.map(svc => `
+        <div class="bnpl-modal-svc" data-svc="${escapeHtml(svc.id)}" style="padding:12px;background:var(--bg-elev);border-radius:var(--radius);margin-bottom:10px;border-left:3px solid ${escapeHtml(svc.color)};">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <span style="font-weight:600;">${escapeHtml(svc.name)}</span>
+            <button class="btn ghost small" id="bnplGen_${escapeHtml(svc.id)}">${t('bnpl.generate')}</button>
+          </div>
+          <div id="bnplResult_${escapeHtml(svc.id)}" style="margin-top:8px;font-size:12px;"></div>
+        </div>`
+    ).join('')
+    : `<p style="color:var(--text-muted);font-size:13px;">${t('bnpl.configure_first')}</p>`;
+
+  const infoCards = BNPL_CATALOG.filter(s => !s.hasApi).map(s =>
+    `<a href="#" class="bnpl-info-card" data-url="${escapeHtml(s.dashUrl)}" style="padding:8px 10px;background:var(--bg-elev);border-radius:var(--radius);border-left:2px solid ${escapeHtml(s.color)};text-decoration:none;color:inherit;cursor:pointer;display:block;">
+      <span style="font-weight:600;font-size:12px;">${escapeHtml(s.name)}</span>
+      <span style="font-size:10px;color:var(--text-muted);margin-left:6px;">${s.regions.slice(0,4).join('·')}</span>
+    </a>`
+  ).join('');
+
+  openFormModal({
+    title: `💳 ${t('bnpl.payment_modal')} — ${escapeHtml(order.project || order.id)}`,
+    fields: [],
+    extraHtml: `
+      <div style="margin-bottom:6px;font-size:12px;color:var(--text-muted);">${t('bnpl.amount_label')}: <strong>${fmtPrice(amount)} ${currencySymbol()}</strong></div>
+      <h4 style="font-size:13px;margin-bottom:8px;">${t('bnpl.integrated')}</h4>
+      ${svcRows}
+      <details style="margin-top:12px;">
+        <summary style="font-size:12px;cursor:pointer;color:var(--text-muted);">${t('bnpl.directory')} (${BNPL_CATALOG.filter(s=>!s.hasApi).length} ${t('bnpl.services')})</summary>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px;margin-top:8px;">${infoCards}</div>
+      </details>`,
+    onSubmit: () => {},
+  });
+
+  // Wire up generate buttons
+  for (const svc of apiSvcs) {
+    document.getElementById(`bnplGen_${svc.id}`)?.addEventListener('click', async () => {
+      const btn = document.getElementById(`bnplGen_${svc.id}`);
+      const res_el = document.getElementById(`bnplResult_${svc.id}`);
+      if (btn) { btn.disabled = true; btn.textContent = t('bnpl.generating'); }
+      let result;
+      const cfg = b[svc.id];
+      const commonArgs = { amount, currency: cfg.currency || 'SAR', description: order.project || order.id, buyer, orderId: order.invoiceNumber || order.id, itemName: order.project || order.id };
+      if (svc.id === 'tabby')  result = await window.hubAPI?.bnplTabby?.({ ...commonArgs, apiKey: cfg.apiKey, merchantCode: cfg.merchantCode });
+      if (svc.id === 'tamara') result = await window.hubAPI?.bnplTamara?.({ ...commonArgs, apiKey: cfg.apiKey, country: cfg.country || 'SA' });
+      if (svc.id === 'stripe') result = await window.hubAPI?.bnplStripe?.({ ...commonArgs, apiKey: cfg.apiKey, successUrl: cfg.successUrl, cancelUrl: cfg.cancelUrl, customerEmail: buyer.email });
+      if (btn) { btn.disabled = false; btn.textContent = t('bnpl.generate'); }
+      if (!res_el) return;
+      if (result?.ok && result.url) {
+        // Generate QR for the link
+        let qrHtml = '';
+        try { const svg = await window.hubAPI?.generateQR?.(result.url, { width: 120, margin: 1 }); if (svg) qrHtml = svg; } catch {}
+        res_el.innerHTML = `
+          <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <div>${qrHtml}</div>
+            <div style="flex:1;min-width:120px;">
+              <div style="word-break:break-all;font-size:11px;margin-bottom:6px;"><a href="#" onclick="window.hubAPI?.openExternal?.('${escapeHtml(result.url)}')" style="color:var(--primary);">${escapeHtml(result.url)}</a></div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <button class="btn ghost small" onclick="navigator.clipboard.writeText('${escapeHtml(result.url)}').then(()=>window._toast?.(window._t?.('bnpl.link_copied')||'Copied','success')).catch(()=>{})">${t('bnpl.copy_link')}</button>
+                <button class="btn ghost small" onclick="window.hubAPI?.shareWhatsApp?.({phone:'${escapeHtml(buyer.phone)}',message:'${escapeHtml(t('bnpl.wa_message',{name:buyer.name,url:result.url,service:svc.name})||`Hi ${buyer.name}, here is your payment link: ${result.url}`)}',pdfPath:null})">${t('bnpl.share_wa')}</button>
+              </div>
+            </div>
+          </div>`;
+        toast(t('bnpl.link_generated'), 'success');
+      } else {
+        res_el.innerHTML = `<span style="color:var(--danger);font-size:12px;">❌ ${escapeHtml(result?.error || 'Failed')}</span>`;
+      }
+    });
+  }
+
+  // Info card clicks
+  document.querySelectorAll('.bnpl-info-card').forEach(card => {
+    card.addEventListener('click', e => { e.preventDefault(); window.hubAPI?.openExternal?.(card.dataset.url); });
+  });
+}
+
 async function startLanServer() {
   const lan = settings.lanApi || {};
   const res = await window.hubAPI?.startLanServer?.({ port: lan.port || 3219, pin: lan.pin || '' });
@@ -13486,18 +13702,21 @@ function renderKanban() {
         actions = `<button class="btn small success" data-act="qc-pass" data-id="${log.id}">✅ ${escapeHtml(t('ord.qc_pass'))}</button>
           <button class="btn small danger" data-act="qc-fail" data-id="${log.id}" style="margin-inline-start:4px;">❌ ${escapeHtml(t('ord.qc_fail'))}</button>${woBtn}${notifyBtn}${trackBtn}${labelBtn}`;
       }
+      const bnplBtn = (settings.bnpl?.tabby?.enabled || settings.bnpl?.tamara?.enabled || settings.bnpl?.stripe?.enabled)
+        ? `<button class="btn small ghost" data-act="bnpl-pay" data-id="${log.id}" title="${escapeHtml(t('bnpl.payment_modal'))}">💳</button>`
+        : '';
       if (status === 'completed') {
         const deliverBtn = `<button class="btn small success" data-act="mark-delivered" data-id="${log.id}">${escapeHtml(t('queue.mark_delivered'))}</button>`;
         const wasteBtn = `<button class="btn ghost small" data-act="log-waste-card" data-id="${log.id}" title="${escapeHtml(t('waste.log_from_card'))}">🗑</button>`;
         const isPaidCard = payStatus(log) === 'paid';
         const payBtn = isPaidCard ? '' : `<button class="btn small primary" data-act="pay" data-id="${log.id}" title="${escapeHtml(t('pay.mark_paid'))}">💳 ${escapeHtml(t('pay.mark_paid'))}</button>`;
-        actions = `<button class="btn small" data-act="invoice" data-id="${log.id}">${escapeHtml(t('queue.invoice'))}</button>${payBtn}${deliverBtn}${wasteBtn}${notifyBtn}${labelBtn}`;
+        actions = `<button class="btn small" data-act="invoice" data-id="${log.id}">${escapeHtml(t('queue.invoice'))}</button>${payBtn}${bnplBtn}${deliverBtn}${wasteBtn}${notifyBtn}${labelBtn}`;
       }
       if (status === 'delivered') {
         const isPaidCard = payStatus(log) === 'paid';
         const payBtn = isPaidCard ? '' : `<button class="btn small primary" data-act="pay" data-id="${log.id}" title="${escapeHtml(t('pay.mark_paid'))}">💳 ${escapeHtml(t('pay.mark_paid'))}</button>`;
         const wasteBtn = `<button class="btn ghost small" data-act="log-waste-card" data-id="${log.id}" title="${escapeHtml(t('waste.log_from_card'))}">🗑</button>`;
-        actions = `<button class="btn small" data-act="invoice" data-id="${log.id}">${escapeHtml(t('queue.invoice'))}</button>${payBtn}${wasteBtn}${notifyBtn}${labelBtn}`;
+        actions = `<button class="btn small" data-act="invoice" data-id="${log.id}">${escapeHtml(t('queue.invoice'))}</button>${payBtn}${bnplBtn}${wasteBtn}${notifyBtn}${labelBtn}`;
       }
       const partCount = log.parts ? log.parts.length : 1;
       const partsLabel = partCount === 1 ? t('queue.parts_count_1') : t('queue.parts_count', { n: partCount });
@@ -18044,6 +18263,7 @@ function loadSettingsIntoForm() {
   renderLanApiSettings();
   // ZATCA Phase 2
   renderZatcaPhase2Settings();
+  renderBnplSettings();
   // Round 12: Saved filter presets
   renderSavedFilterPresets();
   // Business Mode toggle buttons
@@ -19105,6 +19325,8 @@ function wireEvents() {
     if (newOrdBtn) { logPrint(); return; }
     const loadMoreBtn = e.target.closest('[data-act="load-more-logs"]');
     if (loadMoreBtn) { logDisplayLimit += 100; renderLogs(); return; }
+    const bnplPay = e.target.closest('[data-act="bnpl-pay"]');
+    if (bnplPay) { openBnplModal(bnplPay.dataset.id); return; }
     const inv  = e.target.closest('[data-act="invoice"]');
     const pdf  = e.target.closest('[data-act="inv-pdf"]');
     const wa   = e.target.closest('[data-act="inv-wa"]');
@@ -19231,6 +19453,8 @@ function wireEvents() {
     if (kanbanTimeline) { openOrderTimeline(kanbanTimeline.dataset.id); return; }
     const logWasteCard = e.target.closest('[data-act="log-waste-card"]');
     if (logWasteCard) { openLogWasteFromCard(logWasteCard.dataset.id); return; }
+    const bnplPay = e.target.closest('[data-act="bnpl-pay"]');
+    if (bnplPay) { openBnplModal(bnplPay.dataset.id); return; }
     const s  = e.target.closest('[data-act="status"]');
     const i  = e.target.closest('[data-act="invoice"]');
     const wa = e.target.closest('[data-act="wa-quick"]');
