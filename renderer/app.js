@@ -147,7 +147,7 @@ function saveBuildDraft() {
 let logSearchTerm = '';
 let logClientFilter = '';       // filter logs by specific clientId
 let kanSearchTerm = '';
-let kanbanCollapsed = new Set(JSON.parse(localStorage.getItem('khayt_kan_collapsed') || '[]'));
+let kanbanCollapsed = new Set(settings?.kanbanCollapsed || []);
 let logStatusFilter = '';
 let logPayFilter = '';
 let logRangeFilter = 'all';
@@ -169,9 +169,14 @@ let logSortDir = 'desc';  // 'asc' | 'desc'
 let showArchivedOrders = false;
 let kanbanSortByPriority = false;
 let invSearchTerm = '';
+let supplierSearchTerm = '';
+let poSearchTerm = '';
+let poStatusFilter = '';
 let logOperatorFilter = '';
 let logDisplayLimit = 100;      // pagination: rows shown in log table
 let _lastLogFilterHash = '';    // detects filter/sort changes to reset page
+let poDisplayLimit = 50;        // pagination: rows shown in PO table
+let _lastPoFilterHash = '';     // detects filter changes to reset PO page
 let wasteSearchTerm = '';
 let wasteMaterialFilter = '';
 let wasteFailureFilter = '';
@@ -179,7 +184,13 @@ let wasteDateFilter = 'all';
 
 // Filament manufacturer catalog (loaded from filaments-db.json)
 let filamentsDB = [];
-fetch('./filaments-db.json').then(r => r.json()).then(data => { filamentsDB = data; }).catch(() => {});
+fetch('./filaments-db.json').then(r => r.json()).then(data => { filamentsDB = data; }).catch(e => {
+  console.warn('filaments-db.json not loaded:', e);
+  // Mark as failed so openFilamentCatalog can surface the right message
+  filamentsDB = null;
+  const catalogEl = document.getElementById('filamentCatalog') || document.getElementById('filamentDbSection');
+  if (catalogEl) catalogEl.innerHTML = `<p style="color:var(--text-muted);padding:12px;font-size:13px;">⚠ ${escapeHtml(t('inv.catalog_unavailable') || 'Filament catalog unavailable')}</p>`;
+});
 
 // Undo stack — pushed when a destructive action runs; popped if user clicks "Undo"
 const undoStack = [];
@@ -377,13 +388,9 @@ function priorityBadgeHtml(order) {
   if (lv === 'high')   return `<span class="priority-label priority-high">${escapeHtml(t('ord.priority_high'))}</span>`;
   return '';
 }
+/** @deprecated Delegates to nextInvoiceNumber() — retained for any missed call sites. */
 function nextInvoiceSeq() {
-  let max = 0;
-  for (const o of printLog) {
-    const m = /-(\d+)$/.exec(o.id || '');
-    if (m) max = Math.max(max, parseInt(m[1], 10));
-  }
-  return (max + 1).toString().padStart(4, '0');
+  return String(settings.invNumNext || 1).padStart(4, '0');
 }
 
 /* Feature 7: Configurable invoice number sequence */
@@ -539,6 +546,8 @@ function defaultSettings() {
     resinProfiles:        [],
     // Dismissed/snoozed notifications: key → expiresAt ISO string or 'forever'
     dismissedNotifs:      {},
+    // Kanban column collapsed state (array of column IDs) — synced with settings to survive backup restore
+    kanbanCollapsed:      [],
   };
 }
 
@@ -682,6 +691,19 @@ async function loadAll() {
     if (store.waitingList)    waitingList    = store.waitingList;
     if (store.settings)       settings       = Object.assign({}, defaultSettings(), store.settings);
   }
+
+  // One-time migration: pull localStorage kanban state into settings
+  const legacyCollapsed = localStorage.getItem('khayt_kan_collapsed');
+  if (legacyCollapsed && !settings.kanbanCollapsed?.length) {
+    try {
+      settings.kanbanCollapsed = JSON.parse(legacyCollapsed);
+      localStorage.removeItem('khayt_kan_collapsed');
+      saveAll(); // persist the migration
+    } catch {}
+  }
+
+  // Sync in-memory kanbanCollapsed Set from settings (ensures restore doesn't cause desync)
+  kanbanCollapsed = new Set(settings.kanbanCollapsed || []);
 }
 
 function pruneExpiredNotifs() {
@@ -3076,7 +3098,8 @@ function updateResinFieldsVisibility() {
 }
 
 function openFilamentCatalog() {
-  if (!filamentsDB.length) { toast(t('inv.catalog_loading') || 'Catalog not ready yet', 'error'); return; }
+  if (filamentsDB === null) { toast(t('inv.catalog_unavailable') || 'Filament catalog unavailable', 'error'); return; }
+  if (!filamentsDB || !filamentsDB.length) { toast(t('inv.catalog_loading') || 'Catalog not ready yet', 'error'); return; }
 
   const brands = [...new Set(filamentsDB.map(f => f.brand))].sort();
   const types  = [...new Set(filamentsDB.map(f => f.type))].sort();
@@ -3683,7 +3706,7 @@ async function openFilamentScanner() {
               status.style.color = 'var(--success, #22c55e)';
               const raw    = codes[0].rawValue;
               const parsed = parseFilamentFromText(raw);
-              const scored = filamentsDB.map(f => ({ ...f, _score: scoreFil(f, parsed) })).filter(f => f._score > 0).sort((a,b) => b._score - a._score);
+              const scored = (filamentsDB || []).map(f => ({ ...f, _score: scoreFil(f, parsed) })).filter(f => f._score > 0).sort((a,b) => b._score - a._score);
               showCameraMatch(raw, parsed, scored);
             }
           } catch { /* frame not ready */ }
@@ -4751,11 +4774,20 @@ function renderSupplierReorderList() {
 function renderSuppliers() {
   const tbody = $('#suppliersTable tbody');
   if (!tbody) return;
-  if (suppliers.length === 0) {
+  const filtered = supplierSearchTerm
+    ? suppliers.filter(s => {
+        const term = supplierSearchTerm.toLowerCase();
+        return (s.name || '').toLowerCase().includes(term) ||
+               (s.city || '').toLowerCase().includes(term) ||
+               (s.category || '').toLowerCase().includes(term) ||
+               (s.notes || '').toLowerCase().includes(term);
+      })
+    : suppliers;
+  if (filtered.length === 0) {
     tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:16px;">${escapeHtml(t('sup.empty'))}</td></tr>`;
     return;
   }
-  tbody.innerHTML = suppliers.map(s => {
+  tbody.innerHTML = filtered.map(s => {
     const totalSpent = s.purchases ? s.purchases.reduce((sum, p) => sum + (+p.amount || 0), 0) : 0;
     return `<tr>
       <td><strong>${escapeHtml(s.name)}</strong>${s.notes ? `<div style="font-size:11px;color:var(--text-muted);">${escapeHtml(s.notes)}</div>` : ''}</td>
@@ -6168,9 +6200,9 @@ function checkRecurringOrders() {
     if (alreadyCreated) return;
 
     const now = new Date();
-    const seq = nextInvoiceSeq();
-    const id = `${settings.invPrefix || 'INV'}-${now.getFullYear()}-${seq}`;
     const invoiceNum = nextInvoiceNumber();
+    const seq = String(settings.invNumNext - 1).padStart(4, '0');
+    const id = `${settings.invPrefix || 'INV'}-${now.getFullYear()}-${seq}`;
 
     printLog.unshift({
       ...template,
@@ -6281,12 +6313,11 @@ function logPrint(asQuote = false) {
   const now = new Date();
   const materials = [...new Set(currentBuild.map(p => p.material))].join(', ');
 
-  const seq = nextInvoiceSeq();
   const prefix = asQuote ? (settings.quotePrefix || 'QUO') : (settings.invPrefix || 'INV');
-  const id = `${prefix}-${now.getFullYear()}-${seq}`;
-
   // Only advance the formal invoice counter for real orders, not quotes
   const invoiceNum = asQuote ? null : nextInvoiceNumber();
+  const seq = invoiceNum ? String(settings.invNumNext - 1).padStart(4, '0') : String(settings.invNumNext || 1).padStart(4, '0');
+  const id = `${prefix}-${now.getFullYear()}-${seq}`;
   printLog.unshift({
     id,
     invoiceNum,
@@ -6788,7 +6819,7 @@ async function deleteLog(id) {
 function markDelivered(orderId) {
   const order = printLog.find(o => o.id === orderId);
   if (!order || order.status !== 'completed') return;
-  order.deliveredAt = new Date().toISOString().split('T')[0];
+  order.deliveredAt = new Date().toISOString();
   saveAll();
   renderKanban(); renderLogs(); renderDashboard();
   toast(t('queue.delivered_toast', { id: order.id }), 'success');
@@ -6967,6 +6998,7 @@ function openOrderEditor(orderId) {
     })()}
     <label style="margin-top:14px;">${escapeHtml(t('oe.due_date'))}</label>
     <input type="date" data-f="dueDate" value="${escapeHtml(draft.dueDate)}" style="max-width:180px;">
+    <small id="oe_due_hint" style="color:var(--text-muted);display:none;margin-top:3px;">📅 ${escapeHtml(t('ord.due_suggestion'))}</small>
 
     <div class="inline-pair" style="margin-top:14px;">
       <div>
@@ -7157,6 +7189,26 @@ function openOrderEditor(orderId) {
       if (plSel) plSel.addEventListener('change', (e) => {
         draft.priorityLevel = e.target.value;
         draft.priority = e.target.value !== 'normal';
+      });
+      // Feature 3: Auto-suggest due date when field is empty
+      requestAnimationFrame(() => {
+        const dueDateInput = modal.querySelector('[data-f="dueDate"]');
+        if (dueDateInput && !dueDateInput.value) {
+          const queueDepth = printLog.filter(o => o.status === 'pending' || o.status === 'printing').length;
+          const workingHoursPerDay = settings.workingHours || 8;
+          const recentMins = printLog.filter(o => o.status === 'completed' && o.printTimeMins != null)
+            .slice(-20).map(o => o.printTimeMins).filter(Boolean);
+          const avgPrintMins = recentMins.length > 0 ? recentMins.reduce((s, v) => s + v, 0) / recentMins.length : 120;
+          const totalMinsQueued = queueDepth * avgPrintMins;
+          const daysNeeded = Math.max(1, Math.ceil(totalMinsQueued / (workingHoursPerDay * 60)));
+          const suggested = new Date(); suggested.setDate(suggested.getDate() + daysNeeded);
+          const suggestedStr = suggested.toISOString().split('T')[0];
+          dueDateInput.value = suggestedStr;
+          dueDateInput.title = 'Auto-suggested based on current queue';
+          draft.dueDate = suggestedStr;
+          const hint = modal.querySelector('#oe_due_hint');
+          if (hint) hint.style.display = 'block';
+        }
       });
       modal.querySelector('[data-f="dueDate"]').addEventListener('change', (e) => {
         draft.dueDate = e.target.value;
@@ -9655,6 +9707,63 @@ function openWasteForm() {
   });
 }
 
+function openLogWasteFromCard(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+  // Pre-fill material from first part with material data
+  const firstPart = (order.parts || []).find(p => p.material);
+  const defaultMaterial = firstPart?.material || order.material || '';
+  const invOptions = inventory.map(f =>
+    `<option value="${escapeHtml(f.material)}"${f.material === defaultMaterial ? ' selected' : ''}>${escapeHtml(f.material)}</option>`
+  ).join('');
+  const failureOptions = WASTE_FAILURE_TYPES.map(ft =>
+    `<option value="${ft}">${escapeHtml(t('waste.ft.' + ft))}</option>`
+  ).join('');
+
+  openFormModal({
+    title: t('waste.log_from_card'),
+    saveLabel: t('waste.log_btn'),
+    sizeLg: false,
+    bodyHtml: `
+      <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 12px;">${escapeHtml(order.id)} — ${escapeHtml(order.project || '')}</p>
+      <label>${escapeHtml(t('waste.material'))}</label>
+      <select id="wfc_material">${invOptions || `<option value="">${escapeHtml(defaultMaterial)}</option>`}</select>
+      <label style="margin-top:12px;">${escapeHtml(t('waste.weight_g'))}</label>
+      <input type="number" id="wfc_weight" value="0" min="0" step="1">
+      <label style="margin-top:12px;">${escapeHtml(t('waste.failure_type'))}</label>
+      <select id="wfc_failure_type">${failureOptions}</select>
+      <label style="margin-top:12px;">${escapeHtml(t('waste.notes'))}</label>
+      <textarea id="wfc_notes" rows="2" style="resize:vertical;"></textarea>
+    `,
+    onSave() {
+      const material    = $('#wfc_material').value.trim();
+      const weight      = Math.max(0, +$('#wfc_weight').value || 0);
+      const failureType = $('#wfc_failure_type').value;
+      const notes       = $('#wfc_notes').value.trim();
+      if (!material) { toast(t('waste.err_material'), 'error'); return false; }
+      // Compute cost per gram from inventory
+      const invItem = inventory.find(i => i.material === material);
+      const costPerGram = (invItem && invItem.cost > 0 && invItem.weight > 0)
+        ? invItem.cost / invItem.weight : 0;
+      const entry = {
+        id: uid('W'),
+        date: localDateStr(),
+        orderId: order.id,
+        material,
+        weight,
+        failureType,
+        notes,
+        cost: +(weight * costPerGram).toFixed(2),
+      };
+      wasteLog.unshift(entry);
+      saveAll();
+      renderWasteLog();
+      toast(t('waste.saved'), 'success');
+      return true;
+    }
+  });
+}
+
 async function deleteWasteEntry(id) {
   const ok = await confirmModal(t('common.delete') + '?', { danger: true });
   if (!ok) return;
@@ -11133,9 +11242,9 @@ function patchRecurringOrdersWithLeadDays() {
     if (!template) return;
 
     const now = new Date();
-    const seq = nextInvoiceSeq();
-    const id = `${settings.invPrefix || 'INV'}-${now.getFullYear()}-${seq}`;
     const invoiceNum = nextInvoiceNumber();
+    const seq = String(settings.invNumNext - 1).padStart(4, '0');
+    const id = `${settings.invPrefix || 'INV'}-${now.getFullYear()}-${seq}`;
     printLog.unshift({
       ...template,
       parts: template.parts ? template.parts.map(p => ({ ...p })) : [],
@@ -11584,6 +11693,28 @@ function buildNotifications() {
     }
   }
 
+  // 7. Recurring order reminders
+  clients.filter(c => c.recurring?.enabled && c.recurring?.intervalDays).forEach(c => {
+    const lastOrder = printLog.filter(o => o.clientId === c.id)
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
+    if (!lastOrder) return;
+    const daysSince = Math.floor((Date.now() - new Date(lastOrder.date).getTime()) / 86400000);
+    const due = daysSince >= c.recurring.intervalDays;
+    if (!due) return;
+    const key = 'recurring:' + c.id;
+    if (isDismissed(key)) return;
+    alerts.push({
+      key,
+      type: 'recurring',
+      icon: '🔄',
+      title: escapeHtml(t('notif.group_recurring') || 'Recurring Orders'),
+      body: escapeHtml(t('notif.recurring_due', { name: localName(c), days: daysSince })),
+      dismissKey: key,
+      clientId: c.id,
+      action() { logClientFilter = c.id; switchTab('queue-tab'); logPrint && logPrint(); }
+    });
+  });
+
   return alerts;
 }
 
@@ -11619,10 +11750,11 @@ function openNotifPanel() {
 
   // Group by type
   const groups = [
-    { key: 'overdue', label: t('notif.group_overdue') || 'Overdue Orders' },
-    { key: 'quote',   label: t('notif.group_quotes')  || 'Expiring Quotes' },
-    { key: 'stock',   label: t('notif.group_stock')   || 'Low Stock' },
-    { key: 'service', label: t('notif.group_service') || 'Machine Service' },
+    { key: 'overdue',    label: t('notif.group_overdue')    || 'Overdue Orders' },
+    { key: 'quote',      label: t('notif.group_quotes')     || 'Expiring Quotes' },
+    { key: 'stock',      label: t('notif.group_stock')      || 'Low Stock' },
+    { key: 'service',    label: t('notif.group_service')    || 'Machine Service' },
+    { key: 'recurring',  label: t('notif.group_recurring')  || 'Recurring Orders' },
     { key: 'stale',   label: t('notif.group_stale')   || 'Stalled Orders' },
   ];
 
@@ -11637,6 +11769,9 @@ function openNotifPanel() {
     html += `<div style="padding:6px 14px 2px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);">${escapeHtml(g.label)}</div>`;
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
+      const newOrderBtn = item.type === 'recurring' && item.clientId
+        ? `<button class="btn small ghost notif-new-order-btn" data-client="${escapeHtml(item.clientId)}" style="font-size:11px;padding:2px 6px;margin-inline-end:4px;" onclick="event.stopPropagation()">${escapeHtml(t('common.new_order') || 'New Order')}</button>`
+        : '';
       html += `<div class="notif-row" data-notif-idx="${alerts.indexOf(item)}"
         style="display:flex;align-items:flex-start;gap:10px;padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--border-soft);transition:background .1s;">
         <span style="font-size:15px;flex-shrink:0;margin-top:1px;">${item.icon}</span>
@@ -11644,6 +11779,7 @@ function openNotifPanel() {
           ${item.title ? `<div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;">${item.title}</div>` : ''}
           <div style="font-size:12.5px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.body}</div>
         </div>
+        ${newOrderBtn}
         ${item.key ? `<button class="btn small ghost notif-dismiss-btn" data-key="${escapeHtml(item.key)}" title="${escapeHtml(t('notif.dismiss') || 'Snooze until tomorrow')}" style="font-size:11px;padding:2px 6px;margin-inline-end:4px;" onclick="event.stopPropagation()">✕</button>` : ''}
         <span style="font-size:11px;color:var(--primary);flex-shrink:0;padding-top:2px;">${escapeHtml(t('notif.go') || 'Go →')}</span>
       </div>`;
@@ -11665,6 +11801,15 @@ function openNotifPanel() {
     row.addEventListener('click', () => {
       panel.style.display = 'none';
       if (alerts[idx]) alerts[idx].action();
+    });
+  });
+
+  panel.querySelectorAll('.notif-new-order-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      panel.style.display = 'none';
+      logClientFilter = btn.dataset.client || '';
+      switchTab('calculator-tab');
     });
   });
 
@@ -12375,7 +12520,7 @@ function renderKanban() {
 
   // --- Production columns (exclude quotes) ---
   const kanTerm = (kanSearchTerm || '').toLowerCase().trim();
-  const cols = { pending: [], on_hold: [], printing: [], post: [], qc: [], completed: [] };
+  const cols = { pending: [], on_hold: [], printing: [], post: [], qc: [], completed: [], delivered: [] };
   printLog.filter(o => {
     if (o.status === 'quote') return false;
     if (kanTerm) {
@@ -12385,7 +12530,10 @@ function renderKanban() {
     }
     return true;
   }).forEach(o => {
-    if (cols[o.status]) {
+    // Delivered column: completed orders that have a deliveredAt timestamp
+    if (o.status === 'completed' && o.deliveredAt) {
+      cols.delivered.push(o);
+    } else if (cols[o.status]) {
       cols[o.status].push(o);
     } else if (o.status === 'split') {
       // Split parent orders shown in pending column with a visual indicator
@@ -12410,7 +12558,8 @@ function renderKanban() {
         e.stopPropagation();
         if (kanbanCollapsed.has(st)) kanbanCollapsed.delete(st);
         else kanbanCollapsed.add(st);
-        localStorage.setItem('khayt_kan_collapsed', JSON.stringify([...kanbanCollapsed]));
+        settings.kanbanCollapsed = [...kanbanCollapsed];
+        saveAll();
         renderKanban();
       });
     }
@@ -12513,21 +12662,32 @@ function renderKanban() {
         const holdReason = log.holdReason ? `<div style="font-size:11px; color:var(--warning); margin-top:2px;">⏸ ${escapeHtml(log.holdReason)}</div>` : '';
         actions = `<button class="btn small primary" data-act="status" data-id="${log.id}" data-to="pending">${escapeHtml(t('ord.unhold_btn'))}</button>${woBtn}${notifyBtn}${labelBtn}`;
       }
-      if (status === 'printing')  actions = `<button class="btn small" data-act="status" data-id="${log.id}" data-to="post">${escapeHtml(t('queue.to_post'))}</button>${woBtn}${notifyBtn}${trackBtn}${labelBtn}`;
+      if (status === 'printing') {
+        const wasteBtn = `<button class="btn ghost small" data-act="log-waste-card" data-id="${log.id}" title="${escapeHtml(t('waste.log_from_card'))}">🗑</button>`;
+        actions = `<button class="btn small" data-act="status" data-id="${log.id}" data-to="post">${escapeHtml(t('queue.to_post'))}</button>${woBtn}${notifyBtn}${trackBtn}${wasteBtn}${labelBtn}`;
+      }
       // Feature 2 (this batch): Post column → QC column instead of directly completing
-      if (status === 'post')      actions = `<button class="btn small primary" data-act="status" data-id="${log.id}" data-to="qc">📋 ${escapeHtml(t('ord.qc'))}</button>${woBtn}${notifyBtn}${trackBtn}${labelBtn}`;
+      if (status === 'post') {
+        const wasteBtn = `<button class="btn ghost small" data-act="log-waste-card" data-id="${log.id}" title="${escapeHtml(t('waste.log_from_card'))}">🗑</button>`;
+        actions = `<button class="btn small primary" data-act="status" data-id="${log.id}" data-to="qc">📋 ${escapeHtml(t('ord.qc'))}</button>${woBtn}${notifyBtn}${trackBtn}${wasteBtn}${labelBtn}`;
+      }
       // Feature 2 (this batch): QC column — pass or fail buttons
       if (status === 'qc') {
         actions = `<button class="btn small success" data-act="qc-pass" data-id="${log.id}">✅ ${escapeHtml(t('ord.qc_pass'))}</button>
           <button class="btn small danger" data-act="qc-fail" data-id="${log.id}" style="margin-inline-start:4px;">❌ ${escapeHtml(t('ord.qc_fail'))}</button>${woBtn}${notifyBtn}${trackBtn}${labelBtn}`;
       }
       if (status === 'completed') {
-        const deliverBtn = log.deliveredAt
-          ? `<span style="font-size:11px;color:var(--success);">✓ ${escapeHtml(t('queue.delivered'))}</span>`
-          : `<button class="btn small success" data-act="mark-delivered" data-id="${log.id}">${escapeHtml(t('queue.mark_delivered'))}</button>`;
+        const deliverBtn = `<button class="btn small success" data-act="mark-delivered" data-id="${log.id}">${escapeHtml(t('queue.mark_delivered'))}</button>`;
+        const wasteBtn = `<button class="btn ghost small" data-act="log-waste-card" data-id="${log.id}" title="${escapeHtml(t('waste.log_from_card'))}">🗑</button>`;
         const isPaidCard = payStatus(log) === 'paid';
         const payBtn = isPaidCard ? '' : `<button class="btn small primary" data-act="pay" data-id="${log.id}" title="${escapeHtml(t('pay.mark_paid'))}">💳 ${escapeHtml(t('pay.mark_paid'))}</button>`;
-        actions = `<button class="btn small" data-act="invoice" data-id="${log.id}">${escapeHtml(t('queue.invoice'))}</button>${payBtn}${deliverBtn}${notifyBtn}${labelBtn}`;
+        actions = `<button class="btn small" data-act="invoice" data-id="${log.id}">${escapeHtml(t('queue.invoice'))}</button>${payBtn}${deliverBtn}${wasteBtn}${notifyBtn}${labelBtn}`;
+      }
+      if (status === 'delivered') {
+        const isPaidCard = payStatus(log) === 'paid';
+        const payBtn = isPaidCard ? '' : `<button class="btn small primary" data-act="pay" data-id="${log.id}" title="${escapeHtml(t('pay.mark_paid'))}">💳 ${escapeHtml(t('pay.mark_paid'))}</button>`;
+        const wasteBtn = `<button class="btn ghost small" data-act="log-waste-card" data-id="${log.id}" title="${escapeHtml(t('waste.log_from_card'))}">🗑</button>`;
+        actions = `<button class="btn small" data-act="invoice" data-id="${log.id}">${escapeHtml(t('queue.invoice'))}</button>${payBtn}${wasteBtn}${notifyBtn}${labelBtn}`;
       }
       const partCount = log.parts ? log.parts.length : 1;
       const partsLabel = partCount === 1 ? t('queue.parts_count_1') : t('queue.parts_count', { n: partCount });
@@ -13336,7 +13496,23 @@ function createPurchaseOrder(item) {
 function renderPurchaseOrders() {
   const sec = $('#poSection');
   if (!sec) return;
-  const relevant = purchaseOrders.slice(); // all POs for now
+  const relevant = purchaseOrders.filter(po => {
+    if (poStatusFilter && po.status !== poStatusFilter) return false;
+    if (poSearchTerm) {
+      const term = poSearchTerm.toLowerCase();
+      if (!(po.itemName || po.id || '').toLowerCase().includes(term) &&
+          !(po.supplierName || '').toLowerCase().includes(term) &&
+          !(po.notes || '').toLowerCase().includes(term)) return false;
+    }
+    return true;
+  });
+
+  // Reset display limit when filters change
+  const poFilterHash = [poStatusFilter, poSearchTerm].join('\x00');
+  if (poFilterHash !== _lastPoFilterHash) {
+    poDisplayLimit = 50;
+    _lastPoFilterHash = poFilterHash;
+  }
 
   // AP Aging: unpaid/pending POs grouped by age
   const today = Date.now();
@@ -13359,14 +13535,30 @@ function renderPurchaseOrders() {
     </div>` : '';
 
   sec.innerHTML = `
-    <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap;">
       <h3 class="card-head" style="margin:0; flex:1;"><span class="swatch"></span><span>${escapeHtml(t('po.title'))}</span></h3>
+      <input type="search" id="poSearch" class="search-input" placeholder="${escapeHtml(t('po.search_ph'))}" value="${escapeHtml(poSearchTerm)}" style="max-width:200px;">
+      <select id="poStatusSel" style="background:var(--bg-elev);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;">
+        <option value=""${poStatusFilter===''?' selected':''}>${escapeHtml(t('common.all'))}</option>
+        <option value="pending"${poStatusFilter==='pending'?' selected':''}>${escapeHtml(t('queue.pending'))}</option>
+        <option value="ordered"${poStatusFilter==='ordered'?' selected':''}>${escapeHtml(t('po.status.ordered'))}</option>
+        <option value="partial"${poStatusFilter==='partial'?' selected':''}>${escapeHtml(t('po.partial'))}</option>
+        <option value="received"${poStatusFilter==='received'?' selected':''}>${escapeHtml(t('po.status.received'))}</option>
+      </select>
       <button class="btn small pro-only" data-act="batch-gen-pos">📦 ${escapeHtml(t('po.batch_gen'))}</button>
     </div>
     ${agingHtml}
     ${relevant.length === 0
       ? `<p style="color:var(--text-muted); font-size:13px;">${escapeHtml(t('po.empty'))}</p>`
-      : `<div class="table-wrap"><table class="po-table">
+      : (() => {
+          const page = relevant.slice(0, poDisplayLimit);
+          const loadMoreRow = relevant.length > poDisplayLimit
+            ? `<tr><td colspan="5" style="text-align:center;padding:12px;">
+                <button class="btn small ghost" data-act="load-more-pos">
+                  ${escapeHtml(t('log.load_more') || 'Load more')} (${relevant.length - poDisplayLimit} ${escapeHtml(t('log.remaining') || 'remaining')})
+                </button>
+              </td></tr>` : '';
+          return `<div class="table-wrap"><table class="po-table">
           <thead><tr>
             <th>${escapeHtml(t('po.item'))}</th>
             <th>${escapeHtml(t('po.supplier'))}</th>
@@ -13375,7 +13567,7 @@ function renderPurchaseOrders() {
             <th></th>
           </tr></thead>
           <tbody>
-          ${relevant.map(po => {
+          ${page.map(po => {
             const receivedSoFar = po.receivedSoFar || 0;
             const weightOrdered = po.weightOrdered || 0;
             const progressPct = weightOrdered > 0 ? Math.min(100, (receivedSoFar / weightOrdered) * 100) : 0;
@@ -13402,8 +13594,15 @@ function renderPurchaseOrders() {
               </td>
             </tr>`;
           }).join('')}
-          </tbody></table></div>`
+          ${loadMoreRow}
+          </tbody></table></div>`;
+        })()
     }`;
+  // Attach event listeners to the dynamically-rendered search/filter controls
+  const poSearchEl = sec.querySelector('#poSearch');
+  if (poSearchEl) poSearchEl.addEventListener('input', (e) => { poSearchTerm = e.target.value; renderPurchaseOrders(); });
+  const poStatusSelEl = sec.querySelector('#poStatusSel');
+  if (poStatusSelEl) poStatusSelEl.addEventListener('change', (e) => { poStatusFilter = e.target.value; renderPurchaseOrders(); });
 }
 
 function openReorderModal(itemId) {
@@ -13718,6 +13917,16 @@ function renderAnalytics() {
   renderProfitMarginChart();
   renderMachineAccuracy();
   renderClientSourceChart();
+  // Round 13 additions
+  renderWasteTrendChart();
+  renderCycleTimeChart();
+  renderCashFlowChart();
+  renderExpenseCategoryChart();
+  renderLeadTimeChart();
+  renderNpsTrendChart();
+  renderClientLtvTable();
+  renderMachineDowntimeChart();
+  renderMaintenanceCostChart();
 }
 
 function renderClientSourceChart() {
@@ -14033,6 +14242,535 @@ function renderProfitMarginChart() {
         <svg width="${chartW}" height="${H}" style="display:block;min-width:200px;">
           ${bars}
         </svg>
+      </div>
+    </div>`;
+}
+
+// ── Analytics Round 13: 9 new charts ──────────────────────────────────────────
+
+function renderWasteTrendChart() {
+  const el = $('#wasteTrendChart');
+  if (!el) return;
+
+  const today = new Date();
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    months.push({
+      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+      label: `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getFullYear()).slice(2)}`
+    });
+  }
+
+  const failureColors = { warping: '#f59e0b', adhesion: '#ef4444', stringing: '#f97316' };
+  const topTypes = ['warping', 'adhesion', 'stringing'];
+
+  // Build data: {month -> {failureType -> weight}}
+  const data = {};
+  months.forEach(m => { data[m.key] = {}; topTypes.forEach(t2 => { data[m.key][t2] = 0; }); data[m.key]['other'] = 0; });
+
+  for (const w of (wasteLog || [])) {
+    if (!w.date) continue;
+    const mk = localMonthStr(new Date(w.date));
+    if (!data[mk]) continue;
+    const ft = topTypes.includes(w.failureType) ? w.failureType : 'other';
+    data[mk][ft] = (data[mk][ft] || 0) + (+w.weight || 0);
+  }
+
+  const allTypes = [...topTypes, 'other'];
+  const typeColors = { ...failureColors, other: '#6b7280' };
+  const allVals = months.flatMap(m => allTypes.map(ft => data[m.key][ft]));
+  const hasData = allVals.some(v => v > 0);
+
+  if (!hasData) {
+    el.innerHTML = `<div class="card" style="margin-bottom:16px;"><h3 class="card-head"><span class="swatch"></span>${escapeHtml(t('an.waste_trend') || 'Waste by Failure Type')}</h3><p style="color:var(--text-muted);padding:12px 0;font-size:13px;">${escapeHtml(t('an.no_data') || 'No data yet')}</p></div>`;
+    return;
+  }
+
+  const maxVal = Math.max(...months.map(m => allTypes.reduce((s, ft) => s + data[m.key][ft], 0)), 1);
+  const H = 140, BAR_W = 14, GAP = 30;
+  const groupW = allTypes.length * BAR_W + 4;
+  const chartW = months.length * (groupW + GAP);
+
+  const bars = months.map((m, mi) => {
+    const gx = mi * (groupW + GAP);
+    const bars2 = allTypes.map((ft, fi) => {
+      const v = data[m.key][ft];
+      if (!v) return '';
+      const bh = Math.max(3, Math.round((v / maxVal) * (H - 32)));
+      const x = gx + fi * BAR_W;
+      const y = H - 22 - bh;
+      return `<rect x="${x}" y="${y}" width="${BAR_W - 2}" height="${bh}" rx="2" fill="${typeColors[ft]}" opacity="0.85"/>`;
+    }).join('');
+    return `${bars2}<text x="${gx + groupW / 2}" y="${H - 6}" text-anchor="middle" font-size="10" fill="var(--text-muted)">${escapeHtml(m.label)}</text>`;
+  }).join('');
+
+  const legend = allTypes.map(ft => `<span style="display:inline-flex;align-items:center;gap:4px;margin-inline-end:10px;font-size:11px;color:var(--text-muted);"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${typeColors[ft]};"></span>${escapeHtml(ft)}</span>`).join('');
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px;">
+      <h3 class="card-head" style="margin-bottom:8px;"><span class="swatch"></span>${escapeHtml(t('an.waste_trend') || 'Waste by Failure Type')}</h3>
+      <div style="margin-bottom:6px;">${legend}</div>
+      <div style="overflow-x:auto;">
+        <svg width="${chartW}" height="${H}" style="display:block;min-width:200px;">${bars}</svg>
+      </div>
+    </div>`;
+}
+
+function renderCycleTimeChart() {
+  const el = $('#cycleTimeChart');
+  if (!el) return;
+
+  const today = new Date();
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    months.push({
+      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+      label: `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getFullYear()).slice(2)}`
+    });
+  }
+
+  const byMonth = {};
+  months.forEach(m => { byMonth[m.key] = { total: 0, count: 0 }; });
+
+  for (const o of (printLog || [])) {
+    if (o.status !== 'completed' || !o.date || !o.completedAt) continue;
+    const mk = localMonthStr(new Date(o.completedAt));
+    if (!byMonth[mk]) continue;
+    const days = (new Date(o.completedAt) - new Date(o.date)) / 86400000;
+    if (days < 0) continue;
+    byMonth[mk].total += days;
+    byMonth[mk].count++;
+  }
+
+  const vals = months.map(m => {
+    const b = byMonth[m.key];
+    return b.count > 0 ? b.total / b.count : null;
+  });
+
+  const hasData = vals.some(v => v !== null);
+  if (!hasData) {
+    el.innerHTML = `<div class="card" style="margin-bottom:16px;"><h3 class="card-head"><span class="swatch"></span>${escapeHtml(t('an.cycle_time') || 'Avg Cycle Time (days)')}</h3><p style="color:var(--text-muted);padding:12px 0;font-size:13px;">${escapeHtml(t('an.no_data') || 'No data yet')}</p></div>`;
+    return;
+  }
+
+  const maxVal = Math.max(...vals.filter(v => v !== null), 1);
+  const H = 130, BAR_W = 40, GAP = 28;
+  const chartW = months.length * (BAR_W + GAP);
+
+  const bars = months.map((m, i) => {
+    const v = vals[i];
+    if (v === null) return `<text x="${i * (BAR_W + GAP) + BAR_W / 2}" y="${H - 6}" text-anchor="middle" font-size="10" fill="var(--text-muted)">${escapeHtml(m.label)}</text>`;
+    const bh = Math.max(4, Math.round((v / maxVal) * (H - 36)));
+    const x = i * (BAR_W + GAP);
+    const y = H - 22 - bh;
+    const label = v.toFixed(1);
+    return `<rect x="${x}" y="${y}" width="${BAR_W}" height="${bh}" rx="3" fill="var(--primary)" opacity="0.8"/>
+      <text x="${x + BAR_W / 2}" y="${y - 4}" text-anchor="middle" font-size="10" fill="var(--primary)">${escapeHtml(label)}</text>
+      <text x="${x + BAR_W / 2}" y="${H - 6}" text-anchor="middle" font-size="10" fill="var(--text-muted)">${escapeHtml(m.label)}</text>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px;">
+      <h3 class="card-head" style="margin-bottom:12px;"><span class="swatch"></span>${escapeHtml(t('an.cycle_time') || 'Avg Cycle Time (days)')}</h3>
+      <div style="overflow-x:auto;">
+        <svg width="${chartW}" height="${H}" style="display:block;min-width:200px;">${bars}</svg>
+      </div>
+    </div>`;
+}
+
+function renderCashFlowChart() {
+  const el = $('#cashFlowChart');
+  if (!el) return;
+
+  const today = new Date();
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    months.push({
+      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+      label: `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getFullYear()).slice(2)}`
+    });
+  }
+
+  const revByMonth = {};
+  const expByMonth = {};
+  months.forEach(m => { revByMonth[m.key] = 0; expByMonth[m.key] = 0; });
+
+  for (const o of (printLog || [])) {
+    if (!o.paidAt) continue;
+    const mk = localMonthStr(new Date(o.paidAt));
+    if (revByMonth[mk] !== undefined) revByMonth[mk] += +o.price || 0;
+  }
+  for (const e of (expenses || [])) {
+    if (!e.date) continue;
+    const mk = localMonthStr(new Date(e.date));
+    if (expByMonth[mk] !== undefined) expByMonth[mk] += +e.amount || 0;
+  }
+
+  const hasData = months.some(m => revByMonth[m.key] > 0 || expByMonth[m.key] > 0);
+  if (!hasData) {
+    el.innerHTML = `<div class="card" style="margin-bottom:16px;"><h3 class="card-head"><span class="swatch"></span>${escapeHtml(t('an.cash_flow') || 'Cash Flow')}</h3><p style="color:var(--text-muted);padding:12px 0;font-size:13px;">${escapeHtml(t('an.no_data') || 'No data yet')}</p></div>`;
+    return;
+  }
+
+  const maxVal = Math.max(...months.flatMap(m => [revByMonth[m.key], expByMonth[m.key]]), 1);
+  const H = 140, BAR_W = 22, GAP = 28;
+  const groupW = BAR_W * 2 + 4;
+  const chartW = months.length * (groupW + GAP);
+
+  const bars = months.map((m, i) => {
+    const rv = revByMonth[m.key];
+    const ev = expByMonth[m.key];
+    const gx = i * (groupW + GAP);
+    const rbh = Math.max(rv > 0 ? 3 : 0, Math.round((rv / maxVal) * (H - 32)));
+    const ebh = Math.max(ev > 0 ? 3 : 0, Math.round((ev / maxVal) * (H - 32)));
+    return `${rbh > 0 ? `<rect x="${gx}" y="${H - 22 - rbh}" width="${BAR_W}" height="${rbh}" rx="2" fill="var(--success)" opacity="0.85"/>` : ''}
+      ${ebh > 0 ? `<rect x="${gx + BAR_W + 4}" y="${H - 22 - ebh}" width="${BAR_W}" height="${ebh}" rx="2" fill="var(--danger)" opacity="0.75"/>` : ''}
+      <text x="${gx + groupW / 2}" y="${H - 6}" text-anchor="middle" font-size="10" fill="var(--text-muted)">${escapeHtml(m.label)}</text>`;
+  }).join('');
+
+  const legend = `<span style="display:inline-flex;align-items:center;gap:4px;margin-inline-end:10px;font-size:11px;color:var(--text-muted);"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--success);"></span>${escapeHtml(t('an.collected') || 'Collected')}</span><span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--text-muted);"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--danger);"></span>${escapeHtml(t('an.expenses_paid') || 'Expenses')}</span>`;
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px;">
+      <h3 class="card-head" style="margin-bottom:8px;"><span class="swatch"></span>${escapeHtml(t('an.cash_flow') || 'Cash Flow')}</h3>
+      <div style="margin-bottom:6px;">${legend}</div>
+      <div style="overflow-x:auto;">
+        <svg width="${chartW}" height="${H}" style="display:block;min-width:200px;">${bars}</svg>
+      </div>
+    </div>`;
+}
+
+function renderExpenseCategoryChart() {
+  const el = $('#expenseCategoryChart');
+  if (!el) return;
+
+  const filtered = (expenses || []).filter(e => inRange(e.date, analyticsRange, 'analytics'));
+  if (!filtered.length) {
+    el.innerHTML = `<div class="card" style="margin-bottom:16px;"><h3 class="card-head"><span class="swatch"></span>${escapeHtml(t('an.exp_by_cat') || 'Expenses by Category')}</h3><p style="color:var(--text-muted);padding:12px 0;font-size:13px;">${escapeHtml(t('an.no_data') || 'No data yet')}</p></div>`;
+    return;
+  }
+
+  const totals = {};
+  for (const e of filtered) {
+    const cat = e.category || 'other';
+    totals[cat] = (totals[cat] || 0) + (+e.amount || 0);
+  }
+
+  const sorted = Object.entries(totals).sort((a, b) => b[1] - a[1]);
+  const grand = sorted.reduce((s, [, v]) => s + v, 0) || 1;
+  const maxV = sorted[0]?.[1] || 1;
+  const BAR_MAX_W = 200;
+
+  const rows = sorted.map(([cat, v]) => {
+    const pct = Math.round(v / grand * 100);
+    const bw = Math.round((v / maxV) * BAR_MAX_W);
+    return `<tr>
+      <td style="padding:6px 8px;font-size:12px;white-space:nowrap;">${escapeHtml(expCatLabel(cat))}</td>
+      <td style="padding:6px 8px;">
+        <div style="background:var(--primary);opacity:0.7;height:14px;border-radius:3px;width:${bw}px;min-width:4px;"></div>
+      </td>
+      <td style="padding:6px 8px;font-size:12px;text-align:end;white-space:nowrap;">${escapeHtml(fmtPrice(v))}</td>
+      <td style="padding:6px 8px;font-size:11px;color:var(--text-muted);text-align:end;">${pct}%</td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px;">
+      <h3 class="card-head" style="margin-bottom:12px;"><span class="swatch"></span>${escapeHtml(t('an.exp_by_cat') || 'Expenses by Category')}</h3>
+      <div style="overflow-x:auto;">
+        <table style="border-collapse:collapse;width:100%;"><tbody>${rows}</tbody></table>
+      </div>
+    </div>`;
+}
+
+function renderLeadTimeChart() {
+  const el = $('#leadTimeTable');
+  if (!el) return;
+
+  const completed = (printLog || []).filter(o => o.status === 'completed' && o.date && o.completedAt);
+  if (completed.length < 3) {
+    el.innerHTML = `<div class="card" style="margin-bottom:16px;"><h3 class="card-head"><span class="swatch"></span>${escapeHtml(t('an.lead_time') || 'Lead Time by Product')}</h3><p style="color:var(--text-muted);padding:12px 0;font-size:13px;">${escapeHtml(t('an.no_data') || 'No data yet')}</p></div>`;
+    return;
+  }
+
+  const byProduct = {};
+  for (const o of completed) {
+    const key = o.project || o.name || 'Unknown';
+    const days = (new Date(o.completedAt) - new Date(o.date)) / 86400000;
+    if (days < 0) continue;
+    if (!byProduct[key]) byProduct[key] = { total: 0, count: 0, min: Infinity, max: -Infinity };
+    byProduct[key].total += days;
+    byProduct[key].count++;
+    if (days < byProduct[key].min) byProduct[key].min = days;
+    if (days > byProduct[key].max) byProduct[key].max = days;
+  }
+
+  const rows = Object.entries(byProduct)
+    .map(([name, d]) => ({ name, avg: d.total / d.count, fastest: d.min, slowest: d.max, count: d.count }))
+    .sort((a, b) => b.avg - a.avg)
+    .slice(0, 10);
+
+  const daysLabel = escapeHtml(t('an.days') || 'days');
+  const tableRows = rows.map(r => `<tr>
+    <td style="padding:6px 8px;font-size:12px;">${escapeHtml(r.name)}</td>
+    <td style="padding:6px 8px;font-size:12px;text-align:end;">${r.avg.toFixed(1)} ${daysLabel}</td>
+    <td style="padding:6px 8px;font-size:12px;text-align:end;">${r.fastest.toFixed(1)}</td>
+    <td style="padding:6px 8px;font-size:12px;text-align:end;">${r.slowest.toFixed(1)}</td>
+    <td style="padding:6px 8px;font-size:12px;text-align:end;">${r.count}</td>
+  </tr>`).join('');
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px;">
+      <h3 class="card-head" style="margin-bottom:12px;"><span class="swatch"></span>${escapeHtml(t('an.lead_time') || 'Lead Time by Product')}</h3>
+      <div style="overflow-x:auto;">
+        <table style="border-collapse:collapse;width:100%;font-size:12px;">
+          <thead><tr style="border-bottom:1px solid var(--border);">
+            <th style="padding:6px 8px;text-align:start;">${escapeHtml(t('ord.project') || 'Product')}</th>
+            <th style="padding:6px 8px;text-align:end;">${escapeHtml(t('an.lead_time_avg') || 'Avg Days')}</th>
+            <th style="padding:6px 8px;text-align:end;">${escapeHtml(t('an.lead_time_fastest') || 'Fastest')}</th>
+            <th style="padding:6px 8px;text-align:end;">${escapeHtml(t('an.lead_time_slowest') || 'Slowest')}</th>
+            <th style="padding:6px 8px;text-align:end;">#</th>
+          </tr></thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function renderNpsTrendChart() {
+  const el = $('#npsTrendChart');
+  if (!el) return;
+
+  const today = new Date();
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    months.push({
+      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+      label: `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getFullYear()).slice(2)}`
+    });
+  }
+
+  const ratedOrders = (printLog || []).filter(o => o.survey?.rating && o.completedAt);
+  if (ratedOrders.length < 3) {
+    el.innerHTML = `<div class="card" style="margin-bottom:16px;"><h3 class="card-head"><span class="swatch"></span>${escapeHtml(t('an.nps_trend') || 'Customer Rating Trend')}</h3><p style="color:var(--text-muted);padding:12px 0;font-size:13px;">${escapeHtml(t('an.no_data') || 'No data yet')}</p></div>`;
+    return;
+  }
+
+  const byMonth = {};
+  months.forEach(m => { byMonth[m.key] = { total: 0, count: 0 }; });
+  for (const o of ratedOrders) {
+    const mk = localMonthStr(new Date(o.completedAt));
+    if (!byMonth[mk]) continue;
+    byMonth[mk].total += +o.survey.rating;
+    byMonth[mk].count++;
+  }
+
+  const totalResponses = ratedOrders.length;
+  const globalAvg = ratedOrders.reduce((s, o) => s + +o.survey.rating, 0) / totalResponses;
+
+  const vals = months.map(m => {
+    const b = byMonth[m.key];
+    return b.count > 0 ? b.total / b.count : null;
+  });
+
+  const H = 120, W_PER = 60;
+  const chartW = months.length * W_PER;
+  const MIN_R = 1, MAX_R = 5;
+
+  const points = months.map((m, i) => {
+    const v = vals[i];
+    if (v === null) return null;
+    const x = i * W_PER + W_PER / 2;
+    const y = Math.round(H - 24 - ((v - MIN_R) / (MAX_R - MIN_R)) * (H - 40));
+    return { x, y, v };
+  }).filter(Boolean);
+
+  const polyline = points.length >= 2
+    ? `<polyline points="${points.map(p => `${p.x},${p.y}`).join(' ')}" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linejoin="round"/>`
+    : '';
+
+  const dots = points.map(p => `<circle cx="${p.x}" cy="${p.y}" r="4" fill="var(--primary)"/>
+    <text x="${p.x}" y="${p.y - 8}" text-anchor="middle" font-size="10" fill="var(--primary)">${p.v.toFixed(1)}</text>`).join('');
+
+  const labels = months.map((m, i) => `<text x="${i * W_PER + W_PER / 2}" y="${H - 6}" text-anchor="middle" font-size="10" fill="var(--text-muted)">${escapeHtml(m.label)}</text>`).join('');
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px;">
+      <h3 class="card-head" style="margin-bottom:12px;"><span class="swatch"></span>${escapeHtml(t('an.nps_trend') || 'Customer Rating Trend')}</h3>
+      <div style="overflow-x:auto;">
+        <svg width="${chartW}" height="${H}" style="display:block;min-width:200px;">${polyline}${dots}${labels}</svg>
+      </div>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:6px;">${escapeHtml(String(totalResponses))} ${escapeHtml(t('an.nps_responses') || 'responses · Avg')} ${globalAvg.toFixed(1)} / 5</p>
+    </div>`;
+}
+
+function renderClientLtvTable() {
+  const el = $('#clientLtvTable');
+  if (!el) return;
+
+  if (!(clients || []).length) {
+    el.innerHTML = `<div class="card" style="margin-bottom:16px;"><h3 class="card-head"><span class="swatch"></span>${escapeHtml(t('an.client_ltv') || 'Client Lifetime Value')}</h3><p style="color:var(--text-muted);padding:12px 0;font-size:13px;">${escapeHtml(t('an.no_data') || 'No data yet')}</p></div>`;
+    return;
+  }
+
+  const now = Date.now();
+  const CHURN_MS = 90 * 86400000;
+
+  const ltvData = (clients || []).map(c => {
+    const cOrders = (printLog || []).filter(o => o.clientId === c.id);
+    const ltv = cOrders.reduce((s, o) => s + (+o.price || 0), 0);
+    const lastOrder = cOrders.reduce((latest, o) => {
+      const d = o.completedAt || o.date;
+      return d && (!latest || d > latest) ? d : latest;
+    }, null);
+    const churnRisk = !lastOrder || (now - new Date(lastOrder).getTime()) > CHURN_MS;
+    return { name: c.name || c.company || '—', ltv, count: cOrders.length, avgVal: cOrders.length ? ltv / cOrders.length : 0, lastOrder, churnRisk };
+  }).sort((a, b) => b.ltv - a.ltv).slice(0, 10);
+
+  if (!ltvData.some(d => d.ltv > 0)) {
+    el.innerHTML = `<div class="card" style="margin-bottom:16px;"><h3 class="card-head"><span class="swatch"></span>${escapeHtml(t('an.client_ltv') || 'Client Lifetime Value')}</h3><p style="color:var(--text-muted);padding:12px 0;font-size:13px;">${escapeHtml(t('an.no_data') || 'No data yet')}</p></div>`;
+    return;
+  }
+
+  const tableRows = ltvData.map((d, i) => `<tr>
+    <td style="padding:6px 8px;font-size:12px;">${i + 1}</td>
+    <td style="padding:6px 8px;font-size:12px;">${escapeHtml(d.name)}${d.churnRisk ? ` <span title="${escapeHtml(t('an.churn_risk') || 'Churn risk')}">🟡</span>` : ''}</td>
+    <td style="padding:6px 8px;font-size:12px;text-align:end;font-weight:600;">${escapeHtml(fmtPrice(d.ltv))}</td>
+    <td style="padding:6px 8px;font-size:12px;text-align:end;">${d.count}</td>
+    <td style="padding:6px 8px;font-size:12px;text-align:end;">${escapeHtml(fmtPrice(d.avgVal))}</td>
+    <td style="padding:6px 8px;font-size:12px;text-align:end;color:var(--text-muted);">${d.lastOrder ? escapeHtml(localDateStr(new Date(d.lastOrder))) : '—'}</td>
+  </tr>`).join('');
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px;">
+      <h3 class="card-head" style="margin-bottom:12px;"><span class="swatch"></span>${escapeHtml(t('an.client_ltv') || 'Client Lifetime Value')}</h3>
+      <div style="overflow-x:auto;">
+        <table style="border-collapse:collapse;width:100%;font-size:12px;">
+          <thead><tr style="border-bottom:1px solid var(--border);">
+            <th style="padding:6px 8px;text-align:start;">#</th>
+            <th style="padding:6px 8px;text-align:start;">${escapeHtml(t('cl.name') || 'Client')}</th>
+            <th style="padding:6px 8px;text-align:end;">${escapeHtml(t('an.ltv') || 'LTV')}</th>
+            <th style="padding:6px 8px;text-align:end;">${escapeHtml(t('an.op_jobs') || '# Orders')}</th>
+            <th style="padding:6px 8px;text-align:end;">${escapeHtml(t('an.avg_order') || 'Avg')}</th>
+            <th style="padding:6px 8px;text-align:end;">${escapeHtml(t('ord.date') || 'Last Order')}</th>
+          </tr></thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function renderMachineDowntimeChart() {
+  const el = $('#machineDowntimeChart');
+  if (!el) return;
+
+  const today = new Date();
+  const months = [];
+  for (let i = 2; i >= 0; i--) {
+    const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    months.push({
+      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+      label: `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getFullYear()).slice(2)}`,
+      start: new Date(d.getFullYear(), d.getMonth(), 1),
+      end:   new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999)
+    });
+  }
+
+  const machineData = (machines || []).map(mach => {
+    const blocks = mach.downtimeBlocks || [];
+    const hoursByMonth = months.map(m => {
+      let total = 0;
+      for (const b of blocks) {
+        if (!b.from || !b.to) continue;
+        const bFrom = new Date(b.from);
+        const bTo   = new Date(b.to);
+        const start = bFrom < m.start ? m.start : bFrom;
+        const end   = bTo   > m.end   ? m.end   : bTo;
+        if (end > start) total += (end - start) / 3600000;
+      }
+      return total;
+    });
+    return { name: mach.name || mach.id, hoursByMonth, total: hoursByMonth.reduce((s, h) => s + h, 0) };
+  }).filter(d => d.total > 0);
+
+  if (!machineData.length) {
+    el.innerHTML = `<div class="card" style="margin-bottom:16px;"><h3 class="card-head"><span class="swatch"></span>${escapeHtml(t('an.downtime') || 'Machine Downtime (hrs/month)')}</h3><p style="color:var(--text-muted);padding:12px 0;font-size:13px;">${escapeHtml(t('an.no_data') || 'No data yet')}</p></div>`;
+    return;
+  }
+
+  const stackColors = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6'];
+  const maxMonthTotal = Math.max(...months.map((_, mi) => machineData.reduce((s, md) => s + md.hoursByMonth[mi], 0)), 1);
+  const H = 140, BAR_W = 40, GAP = 24;
+  const chartW = months.length * (BAR_W + GAP);
+
+  const bars = months.map((m, mi) => {
+    const x = mi * (BAR_W + GAP);
+    let yOffset = H - 22;
+    const segments = machineData.map((md, ki) => {
+      const v = md.hoursByMonth[mi];
+      if (!v) return '';
+      const bh = Math.max(2, Math.round((v / maxMonthTotal) * (H - 36)));
+      yOffset -= bh;
+      return `<rect x="${x}" y="${yOffset}" width="${BAR_W}" height="${bh}" rx="0" fill="${stackColors[ki % stackColors.length]}" opacity="0.85"/>`;
+    }).join('');
+    return `${segments}<text x="${x + BAR_W / 2}" y="${H - 6}" text-anchor="middle" font-size="10" fill="var(--text-muted)">${escapeHtml(m.label)}</text>`;
+  }).join('');
+
+  const legend = machineData.map((md, ki) => `<span style="display:inline-flex;align-items:center;gap:4px;margin-inline-end:10px;font-size:11px;color:var(--text-muted);"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${stackColors[ki % stackColors.length]};"></span>${escapeHtml(md.name)}</span>`).join('');
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px;">
+      <h3 class="card-head" style="margin-bottom:8px;"><span class="swatch"></span>${escapeHtml(t('an.downtime') || 'Machine Downtime (hrs/month)')}</h3>
+      <div style="margin-bottom:6px;">${legend}</div>
+      <div style="overflow-x:auto;">
+        <svg width="${chartW}" height="${H}" style="display:block;min-width:120px;">${bars}</svg>
+      </div>
+    </div>`;
+}
+
+function renderMaintenanceCostChart() {
+  const el = $('#maintenanceCostChart');
+  if (!el) return;
+
+  const currentYear = new Date().getFullYear();
+
+  const machData = (machines || []).map(mach => {
+    const log = mach.machMaintLog || [];
+    const total = log.reduce((s, entry) => {
+      if (!entry.date) return s;
+      if (new Date(entry.date).getFullYear() !== currentYear) return s;
+      return s + (+entry.cost || 0);
+    }, 0);
+    return { name: mach.name || mach.id, total };
+  }).filter(d => d.total > 0).sort((a, b) => b.total - a.total);
+
+  if (!machData.length) {
+    el.innerHTML = `<div class="card" style="margin-bottom:16px;"><h3 class="card-head"><span class="swatch"></span>${escapeHtml(t('an.maint_cost') || 'Maintenance Cost by Machine')}</h3><p style="color:var(--text-muted);padding:12px 0;font-size:13px;">${escapeHtml(t('an.no_data') || 'No data yet')}</p></div>`;
+    return;
+  }
+
+  const maxVal = machData[0].total || 1;
+  const H = 130, BAR_W = 44, GAP = 20;
+  const chartW = machData.length * (BAR_W + GAP);
+
+  const bars = machData.map((d, i) => {
+    const bh = Math.max(4, Math.round((d.total / maxVal) * (H - 48)));
+    const x = i * (BAR_W + GAP);
+    const y = H - 40 - bh;
+    return `<rect x="${x}" y="${y}" width="${BAR_W}" height="${bh}" rx="3" fill="var(--warning)" opacity="0.85"/>
+      <text x="${x + BAR_W / 2}" y="${y - 4}" text-anchor="middle" font-size="9" fill="var(--warning)">${escapeHtml(fmtPrice(d.total))}</text>
+      <text x="${x + BAR_W / 2}" y="${H - 22}" text-anchor="middle" font-size="9" fill="var(--text-muted)" style="overflow:hidden;">${escapeHtml(d.name.slice(0, 10))}</text>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px;">
+      <h3 class="card-head" style="margin-bottom:12px;"><span class="swatch"></span>${escapeHtml(t('an.maint_cost') || 'Maintenance Cost by Machine')}</h3>
+      <div style="overflow-x:auto;">
+        <svg width="${chartW}" height="${H}" style="display:block;min-width:120px;">${bars}</svg>
       </div>
     </div>`;
 }
@@ -14502,12 +15240,19 @@ function renderMachinePL() {
     return;
   }
 
+  // Determine year for maintenance cost filtering
+  const analyticsYear = String(new Date().getFullYear());
+
   // Build per-machine aggregation
   const machMap = {};
   for (const m of machines) {
-    machMap[m.id] = { name: m.name, color: m.color || '#888', jobs: 0, revenue: 0, materialCost: 0, linkedExp: 0 };
+    // Sum maintenance costs for this machine within the analytics year
+    const maintCost = machMaintLog
+      .filter(e => e.machineId === m.id && (e.date || '').startsWith(analyticsYear))
+      .reduce((s, e) => s + (+e.cost || 0), 0);
+    machMap[m.id] = { name: m.name, color: m.color || '#888', jobs: 0, revenue: 0, materialCost: 0, linkedExp: 0, maintCost };
   }
-  machMap['__none__'] = { name: t('dash.unassigned'), color: '#888', jobs: 0, revenue: 0, materialCost: 0, linkedExp: 0 };
+  machMap['__none__'] = { name: t('dash.unassigned'), color: '#888', jobs: 0, revenue: 0, materialCost: 0, linkedExp: 0, maintCost: 0 };
 
   for (const o of completed) {
     const key = o.machineId && machMap[o.machineId] ? o.machineId : '__none__';
@@ -14537,13 +15282,14 @@ function renderMachinePL() {
             <th style="text-align:right; padding:6px 8px;">${escapeHtml(t('an.revenue'))} (${cur})</th>
             <th style="text-align:right; padding:6px 8px;">${escapeHtml(t('an.mat_cost_col'))} (${cur})</th>
             <th style="text-align:right; padding:6px 8px;">${escapeHtml(t('an.linked_exp_col'))} (${cur})</th>
-            <th style="text-align:right; padding:6px 8px; font-weight:700;">${escapeHtml(t('an.net_contribution'))} (${cur})</th>
+            <th style="text-align:right; padding:6px 8px;">${escapeHtml(t('an.maint_cost_col'))} (${cur})</th>
+            <th style="text-align:right; padding:6px 8px; font-weight:700;">${escapeHtml(t('an.net_col'))} (${cur})</th>
             <th style="text-align:right; padding:6px 8px;">${escapeHtml(t('an.margin_col'))}</th>
           </tr>
         </thead>
         <tbody>
           ${rows.map(r => {
-            const net = r.revenue - r.materialCost - r.linkedExp;
+            const net = r.revenue - r.materialCost - r.linkedExp - r.maintCost;
             const margin = r.revenue > 0 ? (net / r.revenue * 100) : 0;
             const marginCol = margin >= 30 ? 'var(--success)' : margin >= 10 ? 'var(--warning)' : 'var(--danger)';
             return `<tr style="border-top:1px solid rgba(255,255,255,0.06);">
@@ -14555,6 +15301,7 @@ function renderMachinePL() {
               <td style="text-align:right; padding:6px 8px; font-variant-numeric:tabular-nums;">${fmtMoney(r.revenue)}</td>
               <td style="text-align:right; padding:6px 8px; color:var(--danger); font-variant-numeric:tabular-nums;">−${fmtMoney(r.materialCost)}</td>
               <td style="text-align:right; padding:6px 8px; color:var(--danger); font-variant-numeric:tabular-nums;">−${fmtMoney(r.linkedExp)}</td>
+              <td style="text-align:right; padding:6px 8px; color:var(--danger); font-variant-numeric:tabular-nums;">−${fmtMoney(r.maintCost)}</td>
               <td style="text-align:right; padding:6px 8px; font-weight:700; color:${net >= 0 ? 'var(--success)' : 'var(--danger)'}; font-variant-numeric:tabular-nums;">${fmtMoney(net)}</td>
               <td style="text-align:right; padding:6px 8px; font-weight:600; color:${marginCol};">${margin.toFixed(1)}%</td>
             </tr>`;
@@ -15199,6 +15946,10 @@ async function voidInvoice(orderId) {
   }
   const ok = await confirmModal(t('inv.void_confirm', { id: order.id }), { danger: true, okText: t('inv.void_btn') });
   if (!ok) return;
+  // Calculate total weight for the waste checkbox label
+  const voidTotalWeight = (order.parts || []).reduce((s, p) => s + (+p.weightG || +p.printWeight || 0), 0);
+  const voidMaterial = order.material || (order.parts || []).find(p => p.material)?.material || '';
+  const hasWeightData = voidTotalWeight > 0 && voidMaterial;
   openFormModal({
     title: t('inv.void_btn') + ' — ' + order.id,
     saveLabel: t('inv.void_btn'),
@@ -15206,6 +15957,11 @@ async function voidInvoice(orderId) {
     bodyHtml: `
       <label>${escapeHtml(t('inv.void_reason'))}</label>
       <input type="text" id="voidReasonInput" placeholder="${escapeHtml(t('inv.void_reason_ph'))}" style="width:100%;">
+      ${hasWeightData ? `
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:14px;font-size:13px;">
+        <input type="checkbox" id="voidLogWasteCheck" checked style="width:auto;margin:0;">
+        <span>${escapeHtml(t('waste.voided_order'))} (${voidTotalWeight.toFixed(0)}g ${escapeHtml(voidMaterial)})</span>
+      </label>` : ''}
     `,
     onMount(modal) { setTimeout(() => modal.querySelector('#voidReasonInput')?.focus(), 40); },
     onSave(modal) {
@@ -15216,6 +15972,24 @@ async function voidInvoice(orderId) {
       if (!order.statusHistory) order.statusHistory = [];
       order.statusHistory.push({ status: 'voided', at: order.voidedAt });
       if (order.statusHistory.length > 200) order.statusHistory = order.statusHistory.slice(-200);
+      // Feature 5 (UX): Auto-log material waste if the order has parts with weight data
+      const logWasteChk = modal.querySelector('#voidLogWasteCheck');
+      if (logWasteChk && logWasteChk.checked) {
+        const totalWeight = (order.parts || []).reduce((s, p) => s + (+p.weightG || +p.printWeight || 0), 0);
+        const material = order.material || (order.parts || []).find(p => p.material)?.material || '';
+        if (totalWeight > 0 && material) {
+          wasteLog.unshift({
+            id: uid('W'),
+            date: localDateStr(),
+            orderId: order.id,
+            material,
+            weight: totalWeight,
+            failureType: 'operator_error',
+            notes: t('waste.voided_order'),
+            cost: 0,
+          });
+        }
+      }
       saveAll();
       renderLogs(); renderKanban();
       toast(t('inv.voided_toast', { id: order.id }), 'success');
@@ -17505,6 +18279,8 @@ function wireEvents() {
   document.querySelector('.kanban').addEventListener('click', (e) => {
     const kanbanTimeline = e.target.closest('[data-act="order-timeline"]');
     if (kanbanTimeline) { openOrderTimeline(kanbanTimeline.dataset.id); return; }
+    const logWasteCard = e.target.closest('[data-act="log-waste-card"]');
+    if (logWasteCard) { openLogWasteFromCard(logWasteCard.dataset.id); return; }
     const s  = e.target.closest('[data-act="status"]');
     const i  = e.target.closest('[data-act="invoice"]');
     const wa = e.target.closest('[data-act="wa-quick"]');
@@ -17804,6 +18580,7 @@ function wireEvents() {
   $('#btnAddProduct').addEventListener('click', () => openProductEditor(null));
   $('#catalogSearch').addEventListener('input', (e) => { catalogSearchTerm = e.target.value; renderCatalog(); });
   $('#invSearch')?.addEventListener('input', (e) => { invSearchTerm = e.target.value; renderInventory(); });
+  $('#supplierSearch')?.addEventListener('input', (e) => { supplierSearchTerm = e.target.value; renderSuppliers(); });
   // QW9: Waste log filters
   $('#wasteSearch')?.addEventListener('input', (e) => { wasteSearchTerm = e.target.value; renderWasteLog(); });
   $('#wasteMaterialFilter')?.addEventListener('change', (e) => { wasteMaterialFilter = e.target.value; renderWasteLog(); });
@@ -17993,6 +18770,8 @@ function wireEvents() {
 
   // Purchase orders (Feature 3) — delegate from section
   $('#poSection')?.addEventListener('click', async (e) => {
+    const loadMorePos = e.target.closest('[data-act="load-more-pos"]');
+    if (loadMorePos) { poDisplayLimit += 50; renderPurchaseOrders(); return; }
     const recv    = e.target.closest('[data-act="po-receive"]');
     const del     = e.target.closest('[data-act="po-del"]');
     const closePo = e.target.closest('[data-act="po-close"]');
@@ -18447,10 +19226,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
   }
+  if (window.hubAPI?.onLanStartFailed) {
+    window.hubAPI.onLanStartFailed(() => {
+      toast(t('lan.start_failed') || 'LAN server failed to start — port may be in use', 'warning', 6000);
+    });
+  }
 
   // Round 12: Start LAN API server if enabled
   if (settings.lanApi?.enabled) {
-    startLanServer().catch(() => {});
+    startLanServer().catch(e => {
+      console.error('LAN server failed to start:', e);
+      toast(t('lan.start_failed') || 'LAN server failed to start — port may be in use', 'warning', 6000);
+    });
   }
 
   // Beta warning — shown every launch until acknowledged

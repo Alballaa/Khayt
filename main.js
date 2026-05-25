@@ -998,8 +998,20 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
         }
         resolve({ ok: true, url: `http://${localIp}:${port}`, localIp, port });
       });
-      lanServer.on('error', e => { resolve({ ok: false, error: String(e) }); });
-    } catch(e) { resolve({ ok: false, error: String(e) }); }
+      lanServer.on('error', e => {
+        console.error('LAN server failed to start:', e);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('lan-start-failed', { error: String(e) });
+        }
+        resolve({ ok: false, error: String(e) });
+      });
+    } catch(e) {
+      console.error('LAN server failed to start:', e);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('lan-start-failed', { error: String(e) });
+      }
+      resolve({ ok: false, error: String(e) });
+    }
   });
 });
 

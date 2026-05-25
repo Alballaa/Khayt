@@ -478,6 +478,11 @@
           <div class="kanban-col-meta" id="meta-completed"></div>
           <div id="list-completed"></div>
         </div>
+        <div class="kanban-col" data-status="delivered" style="border-top: 3px solid var(--success);">
+          <h3><span class="dot" style="background:var(--success);"></span><span data-i18n="queue.delivered_col">Delivered</span><span class="count" id="count-delivered">0</span></h3>
+          <div class="kanban-col-meta" id="meta-delivered"></div>
+          <div id="list-delivered"></div>
+        </div>
       </div>
     </section>
 
@@ -657,6 +662,15 @@
         <div id="monthlyTrendChart" style="margin-top:8px;"></div>
         <div id="machineRevenueChart" style="margin-top:8px;"></div>
         <div id="profitMarginChart" style="margin-top:8px;"></div>
+        <div id="wasteTrendChart" style="margin-top:8px;"></div>
+        <div id="cycleTimeChart" style="margin-top:8px;"></div>
+        <div id="cashFlowChart" style="margin-top:8px;"></div>
+        <div id="expenseCategoryChart" style="margin-top:8px;"></div>
+        <div id="leadTimeTable" style="margin-top:8px;"></div>
+        <div id="npsTrendChart" style="margin-top:8px;"></div>
+        <div id="clientLtvTable" style="margin-top:8px;"></div>
+        <div id="machineDowntimeChart" style="margin-top:8px;"></div>
+        <div id="maintenanceCostChart" style="margin-top:8px;"></div>
         <div id="machineAccuracySection" style="margin-top:8px;"></div>
       </div>
 
@@ -842,6 +856,7 @@
       <div class="card pro-only" style="margin-top:16px;">
         <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
           <h3 class="card-head" style="margin:0; flex:1;"><span class="swatch"></span><span data-i18n="sup.title">Suppliers / Vendors</span></h3>
+          <input type="search" id="supplierSearch" class="search-input" data-i18n-placeholder="sup.search_ph" placeholder="Search suppliers…" style="max-width:200px;">
           <button class="btn small primary" id="btnAddSupplier" data-i18n="sup.add">+ Add Supplier</button>
         </div>
         <div class="table-wrap">
