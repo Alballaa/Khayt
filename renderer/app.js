@@ -2895,7 +2895,7 @@ function renderMachines() {
       : '';
     return `
       <div class="machine-row" style="flex-wrap:wrap;">
-        <span class="machine-dot" style="background:${escapeHtml(m.color)};"></span>
+        <span class="machine-dot" style="background:${safeCssColor(m.color)};"></span>
         <span class="machine-name">${escapeHtml(m.name)}</span>
         ${compatHtml}
         ${m.isOffline ? `<span class="machine-jobs-badge" style="background:var(--danger); color:#fff;">⚠ ${escapeHtml(t('mach.offline_badge'))}</span>` : ''}
@@ -4690,7 +4690,7 @@ function renderReorderAlerts() {
       : '';
     const threshold = item.reorderPoint ?? settings.lowStockThreshold ?? 200;
     return `<div style="display:flex;align-items:center;gap:8px;padding:5px 10px;background:rgba(245,166,35,0.08);border-radius:var(--radius-sm);margin-bottom:4px;flex-wrap:wrap;">
-      <span style="width:10px;height:10px;border-radius:50%;background:${escapeHtml(item.color || '#f5a623')};display:inline-block;flex-shrink:0;"></span>
+      <span style="width:10px;height:10px;border-radius:50%;background:${safeCssColor(item.color, '#f5a623')};display:inline-block;flex-shrink:0;"></span>
       <span style="flex:1;font-size:12.5px;font-weight:600;">${escapeHtml(item.material)}${item.colourVariant ? ` — ${escapeHtml(item.colourVariant)}` : ''}</span>
       <span style="font-size:11.5px;color:var(--danger);white-space:nowrap;">${Math.round(item.weight)}g / ${Math.round(threshold)}g</span>
       ${daysHtml}
@@ -4802,7 +4802,7 @@ function renderInventory() {
       return `
         <tr data-inv-id="${escapeHtml(item.id)}"${low ? ' style="background: rgba(245,166,35,0.08);"' : ''}>
           <td style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-            <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:${escapeHtml(item.color || '#888888')}; flex-shrink:0; border:1px solid rgba(255,255,255,0.15);"></span>
+            <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:${safeCssColor(item.color, '#888888')}; flex-shrink:0; border:1px solid rgba(255,255,255,0.15);"></span>
             <strong>${escapeHtml(item.material)}</strong>${low ? ' <span style="color:var(--warning); font-size:11px;">· low</span>' : ''}${resinBadge}${colourChip}${ageBadge}${reservedBadge}${overcommitBadge}${testBadge}${runoutBadge}
             ${item.printTemp || item.bedTemp ? `<span style="font-size:10px; color:var(--primary);">🌡 ${item.printTemp ? item.printTemp + '°C print' : ''}${item.printTemp && item.bedTemp ? ' / ' : ''}${item.bedTemp ? item.bedTemp + '°C bed' : ''}</span>` : ''}
           </td>
@@ -5415,7 +5415,7 @@ function renderSupplierReorderList() {
     const itemRows = items.map(item => {
       const needed = Math.max(0, (item.reorderPoint ?? settings.lowStockThreshold ?? 200) * 2 - item.weight);
       return `<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;background:var(--bg-elev);border-radius:var(--radius-sm);margin-bottom:4px;">
-        <span style="width:10px;height:10px;border-radius:50%;background:${escapeHtml(item.color || '#888')};display:inline-block;flex-shrink:0;"></span>
+        <span style="width:10px;height:10px;border-radius:50%;background:${safeCssColor(item.color, '#888')};display:inline-block;flex-shrink:0;"></span>
         <span style="flex:1;font-size:12.5px;">${escapeHtml(item.material)}${item.brand ? ` — ${escapeHtml(item.brand)}` : ''}</span>
         <span style="font-size:11.5px;color:var(--danger);white-space:nowrap;">${Math.round(item.weight)}g left</span>
         <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;">need ~${Math.round(needed)}g</span>
@@ -6145,33 +6145,72 @@ function renderClients() {
     tbody.innerHTML = `<tr><td colspan="7" class="empty-state">${escapeHtml(t('cl.empty_search'))}</td></tr>`;
     return;
   }
-  // Precompute client stats in one pass to avoid O(n²) scan
+  // Precompute all per-client aggregates in a single O(n) pass to avoid O(n²) scans
   const clientStatsMap = new Map();
+  const clientSurveyMap = new Map();  // clientId -> { sum, count }
+  const clientBalanceMap = new Map(); // clientId -> outstanding balance
   for (const o of printLog) {
     if (!o.clientId) continue;
+    // Stats (count, revenue, lastDate)
     let s = clientStatsMap.get(o.clientId);
     if (!s) { s = { count: 0, completedCount: 0, revenue: 0, lastDate: null }; clientStatsMap.set(o.clientId, s); }
     s.count++;
     if (o.status === 'completed') { s.completedCount++; s.revenue += +o.price; }
     if (!s.lastDate || o.date > s.lastDate) s.lastDate = o.date;
+    // Survey ratings
+    if (o.survey?.rating) {
+      let sv = clientSurveyMap.get(o.clientId);
+      if (!sv) { sv = { sum: 0, count: 0 }; clientSurveyMap.set(o.clientId, sv); }
+      sv.sum += o.survey.rating; sv.count++;
+    }
+    // Outstanding balance (unpaid non-quote orders)
+    if (o.status !== 'quote' && payStatus(o) !== 'paid') {
+      const outstanding = Math.max(0, +o.price - (+o.paidAmount || 0));
+      if (outstanding > 0) clientBalanceMap.set(o.clientId, (clientBalanceMap.get(o.clientId) || 0) + outstanding);
+    }
+  }
+  // Precompute loyalty tiers in one pass (getClientTier itself iterates printLog)
+  const clientTierMap = new Map();
+  if (settings.loyaltyEnabled) {
+    const tiers = (settings.loyaltyTiers || []).filter(tier => tier.name);
+    if (tiers.length > 0) {
+      const tierSpend  = new Map(); // clientId -> { completedCount, totalSpend }
+      for (const o of printLog) {
+        if (!o.clientId || o.status !== 'completed') continue;
+        let ts = tierSpend.get(o.clientId);
+        if (!ts) { ts = { completedCount: 0, totalSpend: 0 }; tierSpend.set(o.clientId, ts); }
+        ts.completedCount++; ts.totalSpend += +o.price || 0;
+      }
+      for (const [cid, { completedCount, totalSpend }] of tierSpend) {
+        const eligible = tiers.filter(tier =>
+          (!tier.minOrders || completedCount >= +tier.minOrders) &&
+          (!tier.minSpend  || totalSpend     >= +tier.minSpend)
+        );
+        if (eligible.length > 0) {
+          clientTierMap.set(cid, eligible.sort((a, b) => {
+            const d = (+b.minOrders || 0) - (+a.minOrders || 0);
+            return d !== 0 ? d : (+b.minSpend || 0) - (+a.minSpend || 0);
+          })[0]);
+        }
+      }
+    }
   }
 
   tbody.innerHTML = filtered.map(c => {
     const stats = clientStatsMap.get(c.id) || { count: 0, completedCount: 0, revenue: 0, lastDate: null };
     const displayName = localName(c);
     const altName     = i18n.current === 'ar' ? c.nameEn : c.nameAr;
-    const balance = clientOutstandingBalance(c.id);
+    const balance = clientBalanceMap.get(c.id) || 0;
     const isOverLimit = (c.creditLimit > 0) && (balance > c.creditLimit);
     // Feature 8 (new 8-pack): Loyalty tier badge
-    const tier = getClientTier(c.id);
-    const tierHtml = tier ? `<span class="loyalty-tier-badge tier-${tier.name.toLowerCase().replace(/\s+/g,'')}">${escapeHtml(tier.name)}</span>` : '';
-    // Survey rating from completed orders
-    const clientOrdersWithSurvey = printLog.filter(o => o.clientId === c.id && o.survey?.rating);
-    const avgRating = clientOrdersWithSurvey.length > 0
-      ? clientOrdersWithSurvey.reduce((s, o) => s + o.survey.rating, 0) / clientOrdersWithSurvey.length
-      : null;
+    const tier = clientTierMap.get(c.id) || null;
+    const tierHtml = tier ? `<span class="loyalty-tier-badge tier-${escapeHtml(tier.name.toLowerCase().replace(/\s+/g,''))}">${escapeHtml(tier.name)}</span>` : '';
+    // Survey rating from completed orders (pre-computed above)
+    const sv = clientSurveyMap.get(c.id);
+    const avgRating = sv ? sv.sum / sv.count : null;
+    const clientOrdersWithSurveyCount = sv ? sv.count : 0;
     const ratingBadge = avgRating !== null
-      ? `<span style="font-size:10px;color:#f59e0b;margin-inline-start:5px;white-space:nowrap;" title="${clientOrdersWithSurvey.length} ${escapeHtml(t('an.survey_responses') || 'survey response(s)')}">⭐ ${avgRating.toFixed(1)}</span>`
+      ? `<span style="font-size:10px;color:#f59e0b;margin-inline-start:5px;white-space:nowrap;" title="${clientOrdersWithSurveyCount} ${escapeHtml(t('an.survey_responses') || 'survey response(s)')}">⭐ ${avgRating.toFixed(1)}</span>`
       : '';
     const sourceBadge = c.source && c.source !== 'other'
       ? `<span class="source-badge source-${escapeHtml(c.source)}">${escapeHtml(t('cl.source_' + c.source))}</span>`
@@ -7743,7 +7782,7 @@ function openOrderEditor(orderId) {
       const tier = getClientTier(order.clientId);
       if (!tier || !tier.discountPct) return '';
       return `<div style="padding:8px 12px;background:rgba(43,182,115,0.1);border:1px solid rgba(43,182,115,0.3);border-radius:6px;font-size:12.5px;margin-top:10px;">
-        <span class="loyalty-tier-badge tier-${tier.name.toLowerCase().replace(/\s+/g,'')}">${escapeHtml(tier.name)}</span>
+        <span class="loyalty-tier-badge tier-${escapeHtml(tier.name.toLowerCase().replace(/\s+/g,''))}">${escapeHtml(tier.name)}</span>
         ${escapeHtml(t('oe.tier_discount') || 'Loyalty discount applied')}: <strong>${tier.discountPct}%</strong>
         <button type="button" id="btnApplyTierDiscount" class="btn small" style="margin-inline-start:8px;">Apply ${tier.discountPct}% discount</button>
       </div>`;
@@ -13971,7 +14010,7 @@ function renderDashboard() {
           ? ` · <span style="color:var(--text-muted);">${escapeHtml(t('dash.est_clear', { n: estDays }))}</span>`
           : '';
         return `<div class="dash-mach-row">
-          <span class="dash-mach-dot" style="background:${escapeHtml(m.color)};"></span>
+          <span class="dash-mach-dot" style="background:${safeCssColor(m.color)};"></span>
           <span class="dash-mach-name">${escapeHtml(m.name)}</span>
           <span class="dash-mach-stat">${mJobs.length} ${escapeHtml(t('dash.mach_jobs'))} · ${mHrs.toFixed(1)} ${escapeHtml(t('common.hours'))}${clearHtml}</span>
         </div>`;
@@ -14037,7 +14076,7 @@ function renderDashboard() {
             : `<span class="due-badge due-soon">${escapeHtml(t('mach.service_warn'))}</span>`;
           return `<div class="dash-order-row">
             <div class="dash-order-info">
-              <span class="machine-dot" style="background:${escapeHtml(m.color)};display:inline-block;width:10px;height:10px;border-radius:50%;margin-inline-end:6px;vertical-align:middle;"></span>
+              <span class="machine-dot" style="background:${safeCssColor(m.color)};display:inline-block;width:10px;height:10px;border-radius:50%;margin-inline-end:6px;vertical-align:middle;"></span>
               <strong>${escapeHtml(m.name)}</strong>
               <span class="dash-order-id">${s.hours.toFixed(1)}h since service / ${s.interval}h interval</span>
             </div>
@@ -14051,7 +14090,7 @@ function renderDashboard() {
           const grams = machineGramsSinceNozzle(m);
           return `<div class="dash-order-row">
             <div class="dash-order-info">
-              <span class="machine-dot" style="background:${escapeHtml(m.color)};display:inline-block;width:10px;height:10px;border-radius:50%;margin-inline-end:6px;vertical-align:middle;"></span>
+              <span class="machine-dot" style="background:${safeCssColor(m.color)};display:inline-block;width:10px;height:10px;border-radius:50%;margin-inline-end:6px;vertical-align:middle;"></span>
               <strong>${escapeHtml(m.name)}</strong>
               <span class="dash-order-id">🔩 ${grams.toFixed(0)}g / ${m.nozzle.gramsThreshold}g</span>
             </div>
@@ -14540,12 +14579,12 @@ function renderKanban() {
       if (isMultiMachine) {
         machineBadge = partMachineIds.map(mid => {
           const m = machines.find(x => x.id === mid);
-          return m ? `<span class="machine-badge${m.isOffline ? ' mach-offline' : ''}" style="background:${escapeHtml(m.color)};">🖨 ${escapeHtml(m.name)}</span>` : '';
+          return m ? `<span class="machine-badge${m.isOffline ? ' mach-offline' : ''}" style="background:${safeCssColor(m.color)};">🖨 ${escapeHtml(m.name)}</span>` : '';
         }).join('') + `<span class="multi-machine-badge" data-multi-machine="true" style="font-size:10px; background:rgba(91,156,240,0.15); color:var(--primary); padding:1px 6px; border-radius:3px; margin-inline-start:2px;">${escapeHtml(t('kan.multi_machine', { n: partMachineIds.length }))}</span>`;
       } else {
         const machine = log.machineId ? machines.find(m => m.id === log.machineId) : null;
         machineBadge = machine
-          ? `<span class="machine-badge${machine.isOffline ? ' mach-offline' : ''}" style="background:${escapeHtml(machine.color)};">${machine.isOffline ? '⚠ ' : ''}${escapeHtml(machine.name)}</span>`
+          ? `<span class="machine-badge${machine.isOffline ? ' mach-offline' : ''}" style="background:${safeCssColor(machine.color)};">${machine.isOffline ? '⚠ ' : ''}${escapeHtml(machine.name)}</span>`
           : '';
       }
       let timerBadge = '';
@@ -14634,7 +14673,7 @@ function renderKanban() {
       ).join('');
       // Client accent colour on card left border
       const cardClient = log.clientId ? clients.find(c => c.id === log.clientId) : null;
-      const cardClientAccent = cardClient?.color ? `border-inline-start:3px solid ${escapeHtml(cardClient.color)};padding-inline-start:7px;` : '';
+      const cardClientAccent = cardClient?.color ? `border-inline-start:3px solid ${safeCssColor(cardClient.color)};padding-inline-start:7px;` : '';
       return `
         <div class="kanban-card${_pl === 'urgent' ? ' kanban-priority-urgent' : _pl === 'high' ? ' kanban-priority-high' : ''}${pausedClass}" draggable="true" data-order-id="${log.id}" style="${cardClientAccent}">
           <h4>${_pl !== 'normal' ? priorityBadgeHtml(log) + ' ' : ''}${escapeHtml(log.project)}${machineBadge}${operatorBadge}${kanbanSplitBadge}${kanbanSubBadge}${qcBadge}${log._isSplitParent ? ' <span style="font-size:10px;color:var(--text-muted);background:var(--bg-elev);padding:1px 5px;border-radius:8px;">split</span>' : ''}</h4>
@@ -16107,11 +16146,11 @@ function renderMachineRevenueChart() {
     return `
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px;">
         <div style="display:flex;align-items:center;gap:6px;min-width:130px;overflow:hidden;">
-          <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${escapeHtml(m.color)};flex-shrink:0;"></span>
+          <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${safeCssColor(m.color)};flex-shrink:0;"></span>
           <span style="font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(m.name)}</span>
         </div>
         <div style="flex:1;background:var(--border);border-radius:4px;height:14px;overflow:hidden;">
-          <div style="width:${pct}%;height:100%;background:${escapeHtml(m.color)};border-radius:4px;transition:width .4s;opacity:0.85;"></div>
+          <div style="width:${pct}%;height:100%;background:${safeCssColor(m.color)};border-radius:4px;transition:width .4s;opacity:0.85;"></div>
         </div>
         <div style="min-width:100px;font-size:12px;text-align:end;">
           <span style="color:var(--success);font-weight:600;">${fmtPrice(m.revenue)}</span>

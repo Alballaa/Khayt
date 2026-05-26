@@ -155,8 +155,13 @@ function encryptForDisk(data) {
   if (d?.settings?.zatcaPhase2?.csid)  d.settings.zatcaPhase2.csid  = encryptStoreField(d.settings.zatcaPhase2.csid);
   if (d?.settings?.zatcaPhase2?.pcsid) d.settings.zatcaPhase2.pcsid = encryptStoreField(d.settings.zatcaPhase2.pcsid);
   if (d?.settings?.bnpl?.tabby?.apiKey)  d.settings.bnpl.tabby.apiKey  = encryptStoreField(d.settings.bnpl.tabby.apiKey);
-  if (d?.settings?.bnpl?.tamara?.apiKey) d.settings.bnpl.tamara.apiKey = encryptStoreField(d.settings.bnpl.tamara.apiKey);
+  if (d?.settings?.bnpl?.tamara?.apiKey)             d.settings.bnpl.tamara.apiKey             = encryptStoreField(d.settings.bnpl.tamara.apiKey);
+  if (d?.settings?.bnpl?.tamara?.notificationToken)  d.settings.bnpl.tamara.notificationToken  = encryptStoreField(d.settings.bnpl.tamara.notificationToken);
   if (d?.settings?.bnpl?.stripe?.apiKey) d.settings.bnpl.stripe.apiKey = encryptStoreField(d.settings.bnpl.stripe.apiKey);
+  if (d?.settings?.telegram?.botToken)   d.settings.telegram.botToken   = encryptStoreField(d.settings.telegram.botToken);
+  if (d?.settings?.lanApi?.webhookToken)        d.settings.lanApi.webhookToken        = encryptStoreField(d.settings.lanApi.webhookToken);
+  if (d?.settings?.lanApi?.sallaWebhookSecret)  d.settings.lanApi.sallaWebhookSecret  = encryptStoreField(d.settings.lanApi.sallaWebhookSecret);
+  if (d?.settings?.lanApi?.zidWebhookSecret)    d.settings.lanApi.zidWebhookSecret    = encryptStoreField(d.settings.lanApi.zidWebhookSecret);
   return d;
 }
 
@@ -397,10 +402,22 @@ ipcMain.handle('hub:open-path', async (_e, filePath) => {
 ipcMain.handle('hub:share-whatsapp', async (_e, { phone, message, pdfPath }) => {
   // Normalize: strip everything but digits. wa.me expects country code.
   const clean = (String(phone || '').replace(/[^\d]/g, ''));
-  const text = encodeURIComponent(String(message || ''));
+  const text = encodeURIComponent(String(message || '').slice(0, 4096));
   const url = clean ? `https://wa.me/${clean}?text=${text}` : `https://wa.me/?text=${text}`;
   await shell.openExternal(url);
-  if (pdfPath && fs.existsSync(pdfPath)) shell.showItemInFolder(pdfPath);
+  // Path-confinement: only reveal files inside userData or known download locations
+  if (pdfPath) {
+    const resolvedPdf = path.resolve(String(pdfPath));
+    const allowedPdfDirs = [
+      path.resolve(app.getPath('userData')),
+      path.resolve(app.getPath('documents')),
+      path.resolve(app.getPath('downloads')),
+      path.resolve(app.getPath('desktop')),
+      path.resolve(app.getPath('temp')),
+    ];
+    const confined = allowedPdfDirs.some(d => resolvedPdf.startsWith(d + path.sep) || resolvedPdf === d);
+    if (confined && fs.existsSync(resolvedPdf)) shell.showItemInFolder(resolvedPdf);
+  }
   return true;
 });
 
@@ -509,8 +526,15 @@ ipcMain.handle('hub:load-store', async () => {
   const fp = dataFilePath();
   if (!fs.existsSync(fp)) return null;
   try {
-    const raw = fs.readFileSync(fp, 'utf8');
-    const data = JSON.parse(raw);
+    // Guard: reject suspiciously large store files before parsing
+    const stat = await fs.promises.stat(fp);
+    if (stat.size > 50_000_000) {
+      console.error('hub:load-store: store file exceeds 50 MB size limit');
+      return { __corrupt: true, error: 'Store file too large' };
+    }
+    const raw = await fs.promises.readFile(fp, 'utf8');
+    // Use safeJsonParse to strip __proto__ / constructor prototype-pollution keys
+    const data = safeJsonParse(raw);
     // Decrypt sensitive fields
     if (data?.settings?.emailConfig?.apiKey) {
       data.settings.emailConfig.apiKey = decryptStoreField(data.settings.emailConfig.apiKey);
@@ -525,9 +549,14 @@ ipcMain.handle('hub:load-store', async () => {
     }
     if (data?.settings?.zatcaPhase2?.csid)  data.settings.zatcaPhase2.csid  = decryptStoreField(data.settings.zatcaPhase2.csid);
     if (data?.settings?.zatcaPhase2?.pcsid) data.settings.zatcaPhase2.pcsid = decryptStoreField(data.settings.zatcaPhase2.pcsid);
-    if (data?.settings?.bnpl?.tabby?.apiKey)  data.settings.bnpl.tabby.apiKey  = decryptStoreField(data.settings.bnpl.tabby.apiKey);
-    if (data?.settings?.bnpl?.tamara?.apiKey) data.settings.bnpl.tamara.apiKey = decryptStoreField(data.settings.bnpl.tamara.apiKey);
+    if (data?.settings?.bnpl?.tabby?.apiKey)              data.settings.bnpl.tabby.apiKey              = decryptStoreField(data.settings.bnpl.tabby.apiKey);
+    if (data?.settings?.bnpl?.tamara?.apiKey)             data.settings.bnpl.tamara.apiKey             = decryptStoreField(data.settings.bnpl.tamara.apiKey);
+    if (data?.settings?.bnpl?.tamara?.notificationToken)  data.settings.bnpl.tamara.notificationToken  = decryptStoreField(data.settings.bnpl.tamara.notificationToken);
     if (data?.settings?.bnpl?.stripe?.apiKey) data.settings.bnpl.stripe.apiKey = decryptStoreField(data.settings.bnpl.stripe.apiKey);
+    if (data?.settings?.telegram?.botToken)   data.settings.telegram.botToken   = decryptStoreField(data.settings.telegram.botToken);
+    if (data?.settings?.lanApi?.webhookToken)        data.settings.lanApi.webhookToken        = decryptStoreField(data.settings.lanApi.webhookToken);
+    if (data?.settings?.lanApi?.sallaWebhookSecret)  data.settings.lanApi.sallaWebhookSecret  = decryptStoreField(data.settings.lanApi.sallaWebhookSecret);
+    if (data?.settings?.lanApi?.zidWebhookSecret)    data.settings.lanApi.zidWebhookSecret    = decryptStoreField(data.settings.lanApi.zidWebhookSecret);
     return data;
   } catch (e) {
     console.error('hub:load-store error:', e);
@@ -1126,6 +1155,19 @@ ipcMain.handle('hub:bnpl-tamara', async (_e, { apiKey, amount, currency, country
 // ── BNPL: Stripe Checkout (supports Klarna/Afterpay/Affirm via dashboard) ────
 ipcMain.handle('hub:bnpl-stripe', async (_e, { apiKey, amount, currency, description, successUrl, cancelUrl, customerEmail }) => {
   if (!apiKey || !apiKey.startsWith('sk_')) return { ok: false, error: 'Invalid Stripe secret key (must start with sk_)' };
+  // Validate redirect URLs — must be https:// and must not point to private/loopback addresses
+  const validateStripeRedirectUrl = (u, fallback) => {
+    const s = String(u || '');
+    if (!s) return fallback;
+    if (!s.startsWith('https://')) return fallback;
+    try {
+      const parsed = new URL(s);
+      if (isBlockedHost(parsed.hostname)) return fallback;
+      return s;
+    } catch { return fallback; }
+  };
+  const safeSuccessUrl = validateStripeRedirectUrl(successUrl, 'https://khayt.app/success');
+  const safeCancelUrl  = validateStripeRedirectUrl(cancelUrl,  'https://khayt.app/cancel');
   try {
     const params = new URLSearchParams({
       'mode':                                         'payment',
@@ -1134,8 +1176,8 @@ ipcMain.handle('hub:bnpl-stripe', async (_e, { apiKey, amount, currency, descrip
       'line_items[0][price_data][product_data][name]':String(description || 'Order'),
       'line_items[0][price_data][unit_amount]':       String(Math.round((+amount || 0) * 100)),
       'line_items[0][quantity]':                      '1',
-      'success_url':                                  String(successUrl || 'https://khayt.app/success'),
-      'cancel_url':                                   String(cancelUrl  || 'https://khayt.app/cancel'),
+      'success_url':                                  safeSuccessUrl,
+      'cancel_url':                                   safeCancelUrl,
     });
     if (customerEmail) params.set('customer_email', String(customerEmail));
     const res = await fetch('https://api.stripe.com/v1/checkout/sessions', {
@@ -1215,10 +1257,13 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
         const isWriteRequest = req.method !== 'GET' && req.method !== 'HEAD';
         const pathname = url.pathname.replace(/\/$/, '');
 
-        // Routes that are always public regardless of PIN configuration
+        // Routes that are always public regardless of PIN configuration.
+        // NOTE: /order/:id POST (quote approval) is intentionally excluded so that
+        // unauthenticated write access cannot transition order state.  GET is public
+        // (customer-facing tracking page) but POST requires a PIN when one is set.
         const isAlwaysPublic = pathname === '/api/status' || pathname === '/api/queue' ||
           pathname === '/api/machines' || pathname.startsWith('/status/') ||
-          pathname.startsWith('/order/') ||
+          (pathname.startsWith('/order/') && req.method === 'GET') ||
           pathname === '/' || pathname === '/manifest.json' || pathname === '/sw.js' ||
           pathname === '/icon-192.png' || pathname === '/icon-512.png' ||
           pathname.startsWith('/api/webhook/printer/') ||
@@ -1932,14 +1977,19 @@ setTimeout(()=>location.reload(),30000);
           req.on('end', async () => {
             try {
               const sallaSecret = lanServerStore.settings?.lanApi?.sallaWebhookSecret;
-              if (sallaSecret) {
-                const sigHeader = req.headers['x-salla-signature'] || '';
-                const expected = 'sha256=' + crypto.createHmac('sha256', sallaSecret).update(bodyBuf).digest('hex');
-                if (!safeTokenEqual(sigHeader, expected)) {
-                  res.writeHead(401, { 'Content-Type': 'application/json' });
-                  res.end(JSON.stringify({ error: 'Invalid signature' }));
-                  return;
-                }
+              // Always require a configured secret — reject without one to prevent
+              // unauthenticated order injection from any LAN host.
+              if (!sallaSecret) {
+                res.writeHead(403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Salla webhook secret not configured in LAN settings' }));
+                return;
+              }
+              const sigHeader = req.headers['x-salla-signature'] || '';
+              const expected = 'sha256=' + crypto.createHmac('sha256', sallaSecret).update(bodyBuf).digest('hex');
+              if (!safeTokenEqual(sigHeader, expected)) {
+                res.writeHead(401, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Invalid signature' }));
+                return;
               }
               const parsed = safeJsonParse(bodyBuf.toString('utf8'));
               const storeData = { ...lanServerStore };
@@ -1988,14 +2038,19 @@ setTimeout(()=>location.reload(),30000);
           req.on('end', async () => {
             try {
               const zidSecret = lanServerStore.settings?.lanApi?.zidWebhookSecret;
-              if (zidSecret) {
-                const sigHeader = req.headers['x-zid-signature'] || '';
-                const expected = 'sha256=' + crypto.createHmac('sha256', zidSecret).update(bodyBuf).digest('hex');
-                if (!safeTokenEqual(sigHeader, expected)) {
-                  res.writeHead(401, { 'Content-Type': 'application/json' });
-                  res.end(JSON.stringify({ error: 'Invalid signature' }));
-                  return;
-                }
+              // Always require a configured secret — reject without one to prevent
+              // unauthenticated order injection from any LAN host.
+              if (!zidSecret) {
+                res.writeHead(403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Zid webhook secret not configured in LAN settings' }));
+                return;
+              }
+              const sigHeader = req.headers['x-zid-signature'] || '';
+              const expected = 'sha256=' + crypto.createHmac('sha256', zidSecret).update(bodyBuf).digest('hex');
+              if (!safeTokenEqual(sigHeader, expected)) {
+                res.writeHead(401, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Invalid signature' }));
+                return;
               }
               const parsed = safeJsonParse(bodyBuf.toString('utf8'));
               const storeData = { ...lanServerStore };
@@ -2118,19 +2173,44 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true
+      sandbox: true,
+      navigateOnDragDrop: false,
     }
   });
 
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 
+  // Prevent same-frame navigation away from the local app file.
+  // Without this, renderer JS could do location.href = 'https://evil.com' and retain
+  // full access to the contextBridge-exposed hubAPI under a foreign origin.
+  mainWindow.webContents.on('will-navigate', (event, navigationUrl) => {
+    if (!navigationUrl.startsWith('file://')) {
+      event.preventDefault();
+    }
+  });
+
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('https://') || url.startsWith('mailto:')) {
+    if (url.startsWith('https://')) {
+      try {
+        const parsed = new URL(url);
+        if (!isBlockedHost(parsed.hostname)) shell.openExternal(url);
+      } catch { /* invalid URL — deny */ }
+    } else if (url.startsWith('mailto:')) {
       shell.openExternal(url);
     }
     return { action: 'deny' };
   });
 }
+
+// Block navigation and new-window creation for any web contents spawned after startup.
+app.on('web-contents-created', (_event, wc) => {
+  wc.on('will-navigate', (event, navigationUrl) => {
+    if (!navigationUrl.startsWith('file://')) {
+      event.preventDefault();
+    }
+  });
+  wc.setWindowOpenHandler(() => ({ action: 'deny' }));
+});
 
 function buildMenu() {
   const isMac = process.platform === 'darwin';
@@ -2175,8 +2255,37 @@ app.whenReady().then(() => {
   createWindow();
   setupAutoUpdater(mainWindow);
 
-  // Grant camera access so the filament label scanner can use getUserMedia
   const { session } = require('electron');
+
+  // ── Content Security Policy ───────────────────────────────────────────────
+  // Applied to every response served to the renderer. Tightens XSS impact:
+  //   • script-src 'self'  — only scripts bundled with the app; no inline eval
+  //   • connect-src 'self' + external APIs the app legitimately calls
+  //   • object-src 'none'  — no Flash / plugin execution
+  //   • base-uri 'none'    — prevents <base href="…"> attacks
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          [
+            "default-src 'self'",
+            "script-src 'self' 'unsafe-inline'",  // 'unsafe-inline' needed until app migrates to external scripts
+            "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' data: blob:",
+            "font-src 'self' data:",
+            "connect-src 'self' https://api.telegram.org https://api.sendgrid.com https://api.mailgun.net https://api.tabby.ai https://api.tamara.co https://api.stripe.com https://gw-fatoorah.zatca.gov.sa https://gw-apic-gov.gazt.gov.sa",
+            "media-src 'self' blob:",
+            "object-src 'none'",
+            "base-uri 'none'",
+            "form-action 'none'",
+          ].join('; ')
+        ]
+      }
+    });
+  });
+
+  // Grant camera access so the filament label scanner can use getUserMedia
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
     const allowed = ['media', 'camera', 'microphone'];
     callback(allowed.includes(permission));
