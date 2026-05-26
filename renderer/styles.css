@@ -496,7 +496,7 @@ tbody tr:hover { background: var(--surface-2); }
    ----------------------------------------------------------- */
 .kanban {
   display: grid;
-  grid-template-columns: repeat(6, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 10px;
   overflow-x: auto;
 }
@@ -560,8 +560,8 @@ tbody tr:hover { background: var(--surface-2); }
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-.kanban-card .actions { display: flex; gap: 6px; }
-.kanban-card .actions .btn { flex: 1; }
+.kanban-card .actions { display: flex; gap: 4px; flex-wrap: wrap; }
+.kanban-card .actions .btn { flex: 0 0 auto; min-width: 0; }
 
 /* -----------------------------------------------------------
    Analytics stat boxes

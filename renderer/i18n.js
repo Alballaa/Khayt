@@ -2145,6 +2145,7 @@ const STRINGS = {
 
     // ---------- Shift / Queue operations ----------
     'startShift':               'Start Shift',
+    'shiftChecklistHint':       'Complete the checklist before starting your shift.',
     'endOfDayReport':           'End of Day Report',
     'shiftChecklist':           'Shift Checklist',
     'checkFilamentLevels':      'Check filament levels on all printers',
@@ -2187,6 +2188,15 @@ const STRINGS = {
     'applyGiftCard':            'Apply Gift Card',
     'giftCardApplied':          'Gift card applied',
     'giftCardInvalid':          'Invalid or depleted gift card',
+    'giftCardEmpty':            'No gift cards issued yet.',
+    'giftCardIssued':           'Gift card issued!',
+    'giftCardCodeRequired':     'Enter a code',
+    'giftCardCodeInvalid':      'Code must be 3–20 alphanumeric characters',
+    'giftCardBalanceRequired':  'Initial balance must be greater than 0',
+    'giftCardCodeDuplicate':    'Code already exists',
+    'gcActive':                 'Active',
+    'gcUsed':                   'Used',
+    'gcExpired':                'Expired',
 
     // ---------- Multi-material ----------
     'addMaterial':              'Add Material',
@@ -4260,6 +4270,7 @@ const STRINGS = {
 
     // ---------- Shift / Queue operations ----------
     'startShift':               'بدء الوردية',
+    'shiftChecklistHint':       'أكمل القائمة قبل بدء الوردية.',
     'endOfDayReport':           'تقرير نهاية اليوم',
     'shiftChecklist':           'قائمة مراجعة الوردية',
     'checkFilamentLevels':      'فحص مستويات الفيلامنت في جميع الطابعات',
@@ -4302,6 +4313,15 @@ const STRINGS = {
     'applyGiftCard':            'تطبيق بطاقة الهدية',
     'giftCardApplied':          'تم تطبيق بطاقة الهدية',
     'giftCardInvalid':          'بطاقة الهدية غير صالحة أو مستنفدة',
+    'giftCardEmpty':            'لا توجد بطاقات هدايا صادرة بعد.',
+    'giftCardIssued':           'تم إصدار بطاقة الهدية!',
+    'giftCardCodeRequired':     'أدخل الرمز',
+    'giftCardCodeInvalid':      'يجب أن يكون الرمز من 3 إلى 20 حرفًا أو رقمًا',
+    'giftCardBalanceRequired':  'يجب أن يكون الرصيد الابتدائي أكبر من صفر',
+    'giftCardCodeDuplicate':    'الرمز موجود مسبقًا',
+    'gcActive':                 'نشطة',
+    'gcUsed':                   'مستخدمة',
+    'gcExpired':                'منتهية',
 
     // ---------- Multi-material ----------
     'addMaterial':              'إضافة مادة',
