@@ -21717,6 +21717,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  // LAN intake form submission → add to waiting list and refresh
+  window.hubAPI?.onLanIntakeSubmitted?.((entry) => {
+    // entry: { project, client, qty, deadline, requirements, submittedAt }
+    const draft = {
+      id: `wl-${Date.now()}`,
+      project: entry.project || t('waiting.untitled'),
+      clientName: entry.client || '',
+      notes: entry.requirements || '',
+      priority: 'normal',
+      status: 'active',
+      source: 'intake_form',
+      estValue: 0,
+      reminderDate: entry.deadline || null,
+      createdAt: entry.submittedAt || new Date().toISOString(),
+    };
+    waitingList.unshift(draft);
+    saveAll();
+    renderWaitingList();
+    toast(t('intakeFormSubmitted'), 'success');
+  });
+
   // Round 12: Start LAN API server if enabled
   if (settings.lanApi?.enabled) {
     startLanServer().catch(e => {
@@ -21786,7 +21807,7 @@ document.addEventListener('languagechange', () => {
 function renderMachineQueues() {
   const container = document.getElementById('machineQueuesContainer');
   if (!container) return;
-  if (machines.length === 0) { container.innerHTML = ''; return; }
+  if (machines.length === 0) { container.innerHTML = `<div class="empty-state" style="padding:24px;">${escapeHtml('No machines configured. Add a machine to see queues.')}</div>`; return; }
 
   const today = localDateStr();
 
@@ -21996,6 +22017,14 @@ function processRecurringOrders() {
       timerStart: null,
       timerPausedAt: null,
       timerPausedMs: null,
+      // Clear fields that must not carry over from the parent order
+      survey: null,
+      paymentStatus: null,
+      invoiceId: null,
+      giftCardCode: null,
+      giftCardDiscount: null,
+      changeLog: [],
+      failurePhotoPath: null,
     };
     printLog.push(newOrder);
     created++;
@@ -22065,8 +22094,10 @@ function openCreateGiftCardModal() {
       <input type="date" id="gcExpiry">`,
     onSave(modal) {
       const codeVal = modal.querySelector('#gcCode').value.trim().toUpperCase();
-      const balance = Math.max(0, num(modal.querySelector('#gcBalance').value, 0));
+      const balance = Math.max(0, Math.min(100000, num(modal.querySelector('#gcBalance').value, 0)));
       if (!codeVal) { toast('Enter a code', 'error'); return false; }
+      if (!/^[A-Z0-9]{3,20}$/.test(codeVal)) { toast('Code must be 3–20 alphanumeric characters', 'error'); return false; }
+      if (balance <= 0) { toast('Initial balance must be greater than 0', 'error'); return false; }
       if (giftCards.find(g => g.code === codeVal)) { toast('Code already exists', 'error'); return false; }
       const clientId = modal.querySelector('#gcClient').value;
       const cl = clientId ? clients.find(c => c.id === clientId) : null;
@@ -22362,6 +22393,14 @@ function openLogEnvModal() {
       const temp     = modal.querySelector('#envTemp').value;
       const humidity = modal.querySelector('#envHumidity').value;
       if (temp === '' && humidity === '') { toast('Enter at least temperature or humidity', 'error'); return false; }
+      if (temp !== '') {
+        const t = num(temp, null);
+        if (t === null || t < -50 || t > 100) { toast('Temperature must be between -50°C and 100°C', 'error'); return false; }
+      }
+      if (humidity !== '') {
+        const h = num(humidity, null);
+        if (h === null || h < 0 || h > 100) { toast('Humidity must be between 0% and 100%', 'error'); return false; }
+      }
       if (!envLogs) envLogs = [];
       envLogs.push({
         id: uid('ENV'),
@@ -22436,12 +22475,14 @@ function sendTelegramForOrder(order, newStatus) {
   if (!tg || !tg.botToken || !tg.chatId) return;
   let shouldSend = false;
   let message = '';
+  // tgSafe: strip control chars and truncate to prevent message manipulation
+  const tgSafe = s => String(s ?? '').replace(/[\r\n\t]/g, ' ').slice(0, 200);
   if (newStatus === 'completed' && tg.notifyOnComplete) {
     shouldSend = true;
-    message = `✅ Order completed: ${order.project || order.id} (${fmtPrice(order.price)})`;
+    message = `✅ Order completed: ${tgSafe(order.project || order.id)} (${fmtPrice(order.price)})`;
   } else if (newStatus === 'on_hold' && tg.notifyOnHold) {
     shouldSend = true;
-    message = `⏸ Order on hold: ${order.project || order.id}${order.holdReason ? ' — ' + order.holdReason : ''}`;
+    message = `⏸ Order on hold: ${tgSafe(order.project || order.id)}${order.holdReason ? ' — ' + tgSafe(order.holdReason) : ''}`;
   }
   if (!shouldSend) return;
   window.hubAPI?.sendTelegram?.({ botToken: tg.botToken, chatId: tg.chatId, message })
@@ -22454,7 +22495,8 @@ function checkTelegramLowStock() {
   const threshold = settings.lowStockThreshold || 200;
   const lowItems = inventory.filter(i => (+i.weight || 0) < threshold);
   if (lowItems.length === 0) return;
-  const names = lowItems.slice(0, 5).map(i => i.material).join(', ');
+  const tgSafe = s => String(s ?? '').replace(/[\r\n\t]/g, ' ').slice(0, 100);
+  const names = lowItems.slice(0, 5).map(i => tgSafe(i.material)).join(', ');
   const message = `⚠️ Low stock alert: ${names}${lowItems.length > 5 ? ` and ${lowItems.length - 5} more` : ''}`;
   window.hubAPI?.sendTelegram?.({ botToken: tg.botToken, chatId: tg.chatId, message })
     .catch(e => console.warn('Telegram low-stock notify failed:', e));

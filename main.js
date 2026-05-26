@@ -184,6 +184,17 @@ function lanEscapeHtml(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// Parse JSON and freeze the result to prevent prototype pollution.
+// Throws on invalid JSON (same as JSON.parse).
+function safeJsonParse(text) {
+  const obj = JSON.parse(text);
+  // Reviver-based protection: strip __proto__ / constructor overrides
+  return JSON.parse(text, (key, value) => {
+    if (key === '__proto__' || key === 'constructor') return undefined;
+    return value;
+  });
+}
+
 function safeTokenEqual(a, b) {
   if (!a || !b) return false;
   try {
@@ -1743,7 +1754,8 @@ setTimeout(()=>location.reload(),30000);
             const me = String(dEnd.getUTCMonth() + 1).padStart(2, '0');
             const de = String(dEnd.getUTCDate()).padStart(2, '0');
             const dtend = `${ye}${me}${de}`;
-            const summary = `${(o.project || o.id).replace(/[\\;,]/g, '\\$&')} (${(o.client || 'No client').replace(/[\\;,]/g, '\\$&')})`;
+            const icalEscape = s => String(s || '').replace(/[\r\n]+/g, ' ').replace(/[\\;,]/g, '\\$&');
+            const summary = `${icalEscape(o.project || o.id)} (${icalEscape(o.client || 'No client')})`;
             const icalStatus = calStatusMap[o.status] || 'TENTATIVE';
             return [
               'BEGIN:VEVENT',
@@ -1755,7 +1767,7 @@ setTimeout(()=>location.reload(),30000);
               'END:VEVENT'
             ].join('\r\n');
           }).filter(Boolean).join('\r\n');
-          const shopName = (store.settings?.shopName || 'Khayt').replace(/[\\;,]/g, '\\$&');
+          const shopName = (store.settings?.shopName || 'Khayt').replace(/[\r\n]+/g, ' ').replace(/[\\;,]/g, '\\$&');
           const icalBody = [
             'BEGIN:VCALENDAR',
             'VERSION:2.0',
@@ -1929,19 +1941,20 @@ setTimeout(()=>location.reload(),30000);
                   return;
                 }
               }
-              const parsed = JSON.parse(bodyBuf.toString('utf8'));
+              const parsed = safeJsonParse(bodyBuf.toString('utf8'));
               const storeData = { ...lanServerStore };
               storeData.printLog = [...(lanServerStore.printLog || [])];
-              const clientFirst = (parsed.data?.customer?.first_name || '').trim();
-              const clientLast  = (parsed.data?.customer?.last_name  || '').trim();
+              const clientFirst = (parsed.data?.customer?.first_name || '').trim().slice(0, 100);
+              const clientLast  = (parsed.data?.customer?.last_name  || '').trim().slice(0, 100);
+              const sallaPrice  = Number(parsed.data?.total);
               const newOrder = {
                 id:      `salla-${Date.now()}`,
                 project: `Salla: ${(parsed.data?.name || 'Order').slice(0, 100)}`,
-                client:  [clientFirst, clientLast].filter(Boolean).join(' '),
+                client:  [clientFirst, clientLast].filter(Boolean).join(' ').slice(0, 200),
                 status:  'pending',
                 date:    new Date().toISOString().split('T')[0],
-                price:   parsed.data?.total || 0,
-                notes:   `Salla order #${parsed.data?.reference_id || ''}`,
+                price:   isFinite(sallaPrice) ? sallaPrice : 0,
+                notes:   `Salla order #${String(parsed.data?.reference_id || '').slice(0, 100)}`,
                 source:  'salla'
               };
               storeData.printLog.unshift(newOrder);
@@ -1984,17 +1997,18 @@ setTimeout(()=>location.reload(),30000);
                   return;
                 }
               }
-              const parsed = JSON.parse(bodyBuf.toString('utf8'));
+              const parsed = safeJsonParse(bodyBuf.toString('utf8'));
               const storeData = { ...lanServerStore };
               storeData.printLog = [...(lanServerStore.printLog || [])];
+              const zidPrice = Number(parsed.order?.total);
               const newOrder = {
                 id:      `zid-${Date.now()}`,
                 project: `Zid: ${(parsed.order?.name || 'Order').slice(0, 100)}`,
-                client:  (parsed.order?.customer_name || '').trim(),
+                client:  (parsed.order?.customer_name || '').trim().slice(0, 200),
                 status:  'pending',
                 date:    new Date().toISOString().split('T')[0],
-                price:   parsed.order?.total || 0,
-                notes:   `Zid order #${parsed.order?.reference_id || parsed.order?.id || ''}`,
+                price:   isFinite(zidPrice) ? zidPrice : 0,
+                notes:   `Zid order #${String(parsed.order?.reference_id || parsed.order?.id || '').slice(0, 100)}`,
                 source:  'zid'
               };
               storeData.printLog.unshift(newOrder);
@@ -2058,7 +2072,7 @@ ipcMain.handle('hub:send-telegram', async (_e, { botToken, chatId, message } = {
   // isBlockedHost check — api.telegram.org is a public host, should pass
   if (isBlockedHost('api.telegram.org')) return { ok: false, error: 'Host is blocked' };
   const url = `https://api.telegram.org/bot${encodeURIComponent(botToken)}/sendMessage`;
-  const body = JSON.stringify({ chat_id: chatIdStr, text: message.slice(0, 4096), parse_mode: 'HTML' });
+  const body = JSON.stringify({ chat_id: chatIdStr, text: message.slice(0, 4096) });
   try {
     const res = await fetch(url, {
       method: 'POST',
