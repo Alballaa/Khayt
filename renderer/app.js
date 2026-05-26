@@ -19503,6 +19503,10 @@ function loadSettingsIntoForm() {
   renderSavedFilterPresets();
   // Business Mode toggle buttons
   applyMode();
+  // New feature sections inside settings tab
+  renderSlicerProfiles();
+  renderEnvLogs();
+  renderTelegramSettings();
 }
 
 /* Feature 8 / Task 0: File-store size display in Settings */
@@ -21718,18 +21722,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
   if (window.hubAPI?.onLanOrderUpdated) {
-    window.hubAPI.onLanOrderUpdated(({ id, status }) => {
-      // Phone updated an order status — patch in-memory state and persist
-      const order = printLog.find(o => o.id === id);
-      if (order) {
-        order.status = status;
-        if (!order.statusHistory) order.statusHistory = [];
-        order.statusHistory.push({ status, at: new Date().toISOString() });
-        if (order.statusHistory.length > 200) order.statusHistory = order.statusHistory.slice(-200);
-        saveAll(); // keep in-memory and on-disk in sync before any UI save can overwrite
+    window.hubAPI.onLanOrderUpdated((payload) => {
+      const { id, status } = payload;
+      const idx = printLog.findIndex(o => o.id === id);
+      if (idx !== -1) {
+        // Existing order: patch status
+        printLog[idx].status = status;
+        if (!printLog[idx].statusHistory) printLog[idx].statusHistory = [];
+        printLog[idx].statusHistory.push({ status, at: new Date().toISOString() });
+        if (printLog[idx].statusHistory.length > 200) printLog[idx].statusHistory = printLog[idx].statusHistory.slice(-200);
+        saveAll();
         renderLogs();
         renderKanban();
         toast('📱 ' + t('ord.status_updated_phone', { id, status }), 'info', 3000);
+      } else if (id && payload.project) {
+        // New order from Salla/Zid (or other source): add to printLog
+        printLog.unshift({ ...payload });
+        saveAll();
+        renderLogs();
+        renderKanban();
+        const src = payload.source === 'zid' ? t('zidOrderReceived') : t('sallaOrderReceived');
+        toast('🛒 ' + (src || 'New order received'), 'success', 4000);
       }
     });
   }
@@ -21770,17 +21783,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // LAN intake form submission → add to waiting list and refresh
   window.hubAPI?.onLanIntakeSubmitted?.((entry) => {
-    // entry: { project, client, qty, deadline, requirements, submittedAt }
+    // entry from main.js: { id, name, description, email, phone, dueDate, material, budget, referenceLink, submittedAt, source, status }
     const draft = {
-      id: `wl-${Date.now()}`,
-      project: entry.project || t('waiting.untitled'),
-      clientName: entry.client || '',
-      notes: entry.requirements || '',
+      id: entry.id || `wl-${Date.now()}`,
+      project: entry.project || (entry.description ? entry.description.slice(0, 80) : null) || t('waiting.untitled'),
+      clientName: entry.clientName || entry.name || '',
+      notes: entry.notes || entry.description || '',
       priority: 'normal',
       status: 'active',
       source: 'intake_form',
       estValue: 0,
-      reminderDate: entry.deadline || null,
+      reminderDate: entry.reminderDate || entry.deadline || entry.dueDate || null,
       createdAt: entry.submittedAt || new Date().toISOString(),
     };
     waitingList.unshift(draft);
@@ -21904,11 +21917,11 @@ function renderMachineQueues() {
           </div>`).join('')
       : `<div style="font-size:11px;color:var(--text-muted);">${t('queue.no_pending') || 'No pending jobs'}</div>`;
 
-    const machColor = machine.color || '#5b9cf0';
+    const machColor = safeCssColor(machine.color, '#5b9cf0');
     return `
       <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px;min-width:200px;max-width:280px;flex:1;">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
-          <span style="width:10px;height:10px;border-radius:50%;background:${escapeHtml(machColor)};flex-shrink:0;"></span>
+          <span style="width:10px;height:10px;border-radius:50%;background:${machColor};flex-shrink:0;"></span>
           <strong style="font-size:13px;">${escapeHtml(machine.name)}</strong>
           ${machine.type ? `<span style="font-size:10px;background:rgba(255,255,255,0.08);border-radius:4px;padding:1px 5px;">${escapeHtml(machine.type)}</span>` : ''}
         </div>
@@ -22178,7 +22191,9 @@ function applyGiftCard(orderId, code) {
   if (+gc.balance <= 0) { toast('Gift card has no remaining balance', 'error'); return false; }
   const today = localDateStr();
   if (gc.expiresAt && gc.expiresAt < today) { toast('Gift card is expired', 'error'); return false; }
-  const deduct = Math.min(+gc.balance, +order.price || 0);
+  const outstanding = Math.max(0, (+order.price || 0) - (+order.paidAmount || 0) - (+order.giftCardDiscount || 0));
+  const deduct = Math.min(+gc.balance, outstanding);
+  if (deduct <= 0) { toast('Order is already fully covered', 'info'); return false; }
   gc.balance = Math.max(0, +gc.balance - deduct);
   gc.redeemedOrders.push({ orderId, amount: deduct, at: new Date().toISOString() });
   order.giftCardCode = code;
@@ -22563,7 +22578,7 @@ async function exportIcalFeed() {
 
 /* ── Feature 12: Referral Attribution ──────────────────────── */
 function renderReferralAnalytics() {
-  const el = document.getElementById('referralAnalyticsContainer');
+  const el = document.getElementById('acquisitionSourcesContainer');
   if (!el) return;
 
   const sources = ['instagram','referral','walk_in','website','exhibition','salla','zid','intake_form','other'];

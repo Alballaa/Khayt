@@ -1884,12 +1884,19 @@ setTimeout(()=>location.reload(),30000);
               const budget = sanitize(parsed.budget);
               const dueDate = sanitize(parsed.dueDate);
               const referenceLink = sanitize(parsed.referenceLink);
+              // Store in renderer-compatible waiting-list format
               const entry = {
                 id: `intake-${Date.now()}`,
-                name, email, phone, description, material, budget, dueDate, referenceLink,
-                submittedAt: new Date().toISOString(),
+                project: description.slice(0, 80),  // first 80 chars as project name
+                clientName: name,
+                notes: description,
+                email, phone, material, budget, referenceLink,
+                reminderDate: dueDate || null,
+                priority: 'normal',
+                status: 'active',
+                estValue: 0,
                 source: 'intake_form',
-                status: 'new'
+                submittedAt: new Date().toISOString(),
               };
               // Remove undefined keys
               Object.keys(entry).forEach(k => entry[k] === undefined && delete entry[k]);
@@ -1906,7 +1913,7 @@ setTimeout(()=>location.reload(),30000);
               res.end(JSON.stringify({ ok: true }));
             } catch (e) {
               res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-              res.end(JSON.stringify({ error: String(e) }));
+              res.end(JSON.stringify({ error: 'Invalid request — please check your submission and try again' }));
             }
           });
 
