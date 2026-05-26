@@ -21543,27 +21543,56 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   if ($('#appVersion')) $('#appVersion').textContent = currentVersion || '1.0.0-rc.1 (dev)';
 
-  // Update checker — fetch GitHub latest release tag
-  setTimeout(async () => {
-    try {
-      const GITHUB_REPO = 'turkialballaa/khayt'; // adjust if needed
-      const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, { headers: { Accept: 'application/vnd.github.v3+json' } });
-      if (!res.ok) return;
-      const data = await res.json();
-      const latest = (data.tag_name || '').replace(/^v/, '');
-      const current = (currentVersion || '').replace(/^v/, '');
-      if (latest && latest !== current && latest !== '1.0.0-rc.1') {
-        const banner = document.createElement('div');
-        banner.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:9999;background:var(--primary);color:#fff;padding:8px 20px;border-radius:20px;font-size:13px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,0.3);cursor:pointer;display:flex;align-items:center;gap:10px;';
-        banner.innerHTML = `🎉 Khayt ${escapeHtml(latest)} is available! <button style="background:rgba(255,255,255,0.25);border:none;color:#fff;padding:3px 10px;border-radius:10px;cursor:pointer;font-size:12px;">Open releases</button> <span style="opacity:.7;font-size:16px;cursor:pointer;" id="updateBannerClose">×</span>`;
-        banner.querySelector('button')?.addEventListener('click', () => {
-          window.hubAPI?.openExternal?.(`https://github.com/${GITHUB_REPO}/releases`);
-        });
-        banner.querySelector('#updateBannerClose')?.addEventListener('click', () => banner.remove());
-        document.body.appendChild(banner);
-      }
-    } catch (_) { /* network unavailable — silently ignore */ }
-  }, 5000);
+  // ── Auto-updater UI ─────────────────────────────────────────────────────────
+  // electron-updater fires IPC events from main; we show a non-intrusive banner.
+  (function wireUpdaterUI() {
+    const BANNER_CSS = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:9999;' +
+      'background:var(--primary);color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;' +
+      'font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,0.35);display:flex;align-items:center;gap:10px;white-space:nowrap;';
+
+    function makeBanner(html) {
+      const el = document.createElement('div');
+      el.id = 'updateBanner';
+      el.style.cssText = BANNER_CSS;
+      el.innerHTML = html;
+      document.getElementById('updateBanner')?.remove();
+      document.body.appendChild(el);
+      return el;
+    }
+
+    // 1. Update available — ask user to download
+    window.hubAPI?.onUpdateAvailable?.((info) => {
+      const banner = makeBanner(
+        `🎉 Khayt <strong>${escapeHtml(info.version)}</strong> is available! ` +
+        `<button id="updBtnDownload" style="background:rgba(255,255,255,0.25);border:none;color:#fff;padding:3px 12px;border-radius:12px;cursor:pointer;font-size:12px;">Download</button> ` +
+        `<span id="updBtnClose" style="opacity:.7;font-size:18px;cursor:pointer;line-height:1;">×</span>`
+      );
+      banner.querySelector('#updBtnDownload')?.addEventListener('click', () => {
+        banner.innerHTML = `⬇️ Downloading update… <span id="updProgress" style="opacity:.8;font-size:12px;">0%</span>`;
+        window.hubAPI?.startUpdateDownload?.();
+      });
+      banner.querySelector('#updBtnClose')?.addEventListener('click', () => banner.remove());
+    });
+
+    // 2. Download progress — update the % counter
+    window.hubAPI?.onUpdateDownloadProgress?.((progress) => {
+      const el = document.getElementById('updProgress');
+      if (el) el.textContent = `${progress.percent}%`;
+    });
+
+    // 3. Download complete — show restart button
+    window.hubAPI?.onUpdateDownloaded?.((info) => {
+      const banner = makeBanner(
+        `✅ Khayt <strong>${escapeHtml(info.version)}</strong> ready — ` +
+        `<button id="updBtnRestart" style="background:rgba(255,255,255,0.25);border:none;color:#fff;padding:3px 12px;border-radius:12px;cursor:pointer;font-size:12px;">Restart now</button> ` +
+        `<span id="updBtnClose2" style="opacity:.7;font-size:18px;cursor:pointer;line-height:1;">×</span>`
+      );
+      banner.querySelector('#updBtnRestart')?.addEventListener('click', () => {
+        window.hubAPI?.installUpdate?.();
+      });
+      banner.querySelector('#updBtnClose2')?.addEventListener('click', () => banner.remove());
+    });
+  })();
 
   // Email digest scheduler — checks every 5 minutes
   setInterval(checkAndSendDigest, 5 * 60 * 1000);

@@ -1,6 +1,6 @@
 {
   "name": "khayt",
-  "version": "1.11.1-beta.1",
+  "version": "1.11.2-beta.1",
   "description": "Khayt — 3D printing production management, invoicing & analytics. Free & open to all makers worldwide.",
   "main": "main.js",
   "author": {
@@ -18,6 +18,7 @@
     "dist:linux": "electron-builder --linux --x64"
   },
   "dependencies": {
+    "electron-updater": "^6.8.3",
     "localtunnel": "^2.0.2",
     "qrcode": "^1.5.3"
   },
@@ -28,6 +29,11 @@
   "build": {
     "appId": "app.khayt.hub",
     "productName": "Khayt",
+    "publish": {
+      "provider": "github",
+      "owner": "Alballaa",
+      "repo": "Khayt"
+    },
     "directories": {
       "output": "build",
       "buildResources": "assets"
@@ -68,6 +74,12 @@
           "arch": [
             "x64"
           ]
+        },
+        {
+          "target": "appx",
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "assets/khayt.iconset/icon_256x256.png"
@@ -78,6 +90,14 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Khayt"
+    },
+    "appx": {
+      "applicationId": "Khayt",
+      "backgroundColor": "#0f172a",
+      "showNameOnTiles": true,
+      "publisherDisplayName": "Khayt",
+      "identityName": "STORE-IDENTITY-NAME-FROM-PARTNER-CENTER",
+      "publisher": "CN=STORE-PUBLISHER-ID-FROM-PARTNER-CENTER"
     },
     "linux": {
       "target": [

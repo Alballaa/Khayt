@@ -12,9 +12,42 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  # ── macOS Universal (Apple Silicon + Intel in one DMG) ─────────
+  # ── Create the GitHub Release first so parallel build jobs can publish to it ─
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    outputs:
+      prerelease: ${{ steps.flags.outputs.prerelease }}
+    steps:
+      - name: Detect pre-release
+        id: flags
+        run: |
+          if echo "${{ github.ref_name }}" | grep -qE '\-(beta|rc|alpha)'; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create release (idempotent)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          PRERELEASE: ${{ steps.flags.outputs.prerelease }}
+        run: |
+          FLAGS=""
+          [ "$PRERELEASE" = "true" ] && FLAGS="--prerelease"
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Khayt $TAG" \
+            --notes "See [README](https://github.com/${GITHUB_REPOSITORY}#readme) for full release notes." \
+            --draft \
+            $FLAGS \
+            2>/dev/null || echo "Release already exists — continuing"
+
+  # ── macOS Universal DMG ────────────────────────────────────────────────────
   build-mac:
     name: macOS (Universal)
+    needs: create-release
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,19 +60,22 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build macOS Universal DMG
-        run: npx electron-builder --mac --universal --publish never
+      - name: Build & publish macOS Universal DMG
+        run: npx electron-builder --mac --universal --publish always
         env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # ── Apple code signing (uncomment when Developer ID cert is ready) ──
+          # CSC_LINK:                    ${{ secrets.APPLE_CSC_LINK }}
+          # CSC_KEY_PASSWORD:            ${{ secrets.APPLE_CSC_KEY_PASSWORD }}
+          # APPLE_ID:                    ${{ secrets.APPLE_ID }}
+          # APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          # APPLE_TEAM_ID:               ${{ secrets.APPLE_TEAM_ID }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false   # remove this line once signing is configured
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: mac-universal
-          path: build/*.dmg
-
-  # ── Windows x64 ────────────────────────────────────────────────
+  # ── Windows x64 (NSIS installer + portable + MSIX for Store) ──────────────
   build-windows:
     name: Windows (x64)
+    needs: create-release
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -52,17 +88,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build Windows NSIS installer
-        run: npx electron-builder --win --x64 --publish never
+      - name: Build & publish Windows installers
+        run: npx electron-builder --win --x64 --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # ── Windows code signing (uncomment when HARICA cert is ready) ───────
+          # WIN_CSC_LINK:         ${{ secrets.WIN_CSC_LINK }}         # base64 .pfx
+          # WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: windows-x64
-          path: build/*.exe
-
-  # ── Linux x64 ──────────────────────────────────────────────────
+  # ── Linux x64 (AppImage + deb) ────────────────────────────────────────────
   build-linux:
     name: Linux (x64)
+    needs: create-release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -93,56 +130,38 @@ jobs:
             build/*.AppImage
             build/*.deb
 
-  # ── Publish GitHub Release ─────────────────────────────────────
-  release:
-    name: Publish GitHub Release
-    needs: [build-mac, build-windows, build-linux]
+  # ── Publish: upload Linux artifacts + mark release public ─────────────────
+  publish:
+    name: Publish Release
+    needs: [create-release, build-mac, build-windows, build-linux]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Download all artifacts
+      - name: Download Linux artifacts
         uses: actions/download-artifact@v4
         with:
-          path: release-files
-          merge-multiple: true
+          name: linux-x64
+          path: linux-files
 
-      - name: List release files
-        run: ls -lah release-files/
-
-      - name: Publish release and upload assets
+      - name: Upload Linux artifacts to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
         run: |
-          set -e
-
-          # Determine pre-release flag
-          if echo "$TAG" | grep -qE '\-(beta|rc|alpha)'; then
-            PRERELEASE_FLAG="--prerelease"
-          else
-            PRERELEASE_FLAG=""
-          fi
-
-          NOTES="See [README](https://github.com/${GITHUB_REPOSITORY}#readme) for full release notes."
-
-          # Create release if it doesn't exist; otherwise ensure it's published
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            echo "Release $TAG already exists — ensuring it is published..."
-            gh release edit "$TAG" --draft=false $PRERELEASE_FLAG --repo "$GITHUB_REPOSITORY" || true
-          else
-            echo "Creating release $TAG..."
-            gh release create "$TAG" \
-              --title "Khayt $TAG" \
-              --notes "$NOTES" \
-              $PRERELEASE_FLAG \
-              --repo "$GITHUB_REPOSITORY"
-          fi
-
-          # Upload all assets; --clobber replaces any already-uploaded file with the same name
-          echo "Uploading assets..."
-          gh release upload "$TAG" release-files/* \
+          gh release upload "$TAG" linux-files/* \
             --clobber \
             --repo "$GITHUB_REPOSITORY"
 
-          echo "🎉 Release $TAG published: https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
+      - name: Publish release (remove draft)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          PRERELEASE: ${{ needs.create-release.outputs.prerelease }}
+        run: |
+          FLAGS=""
+          [ "$PRERELEASE" = "true" ] && FLAGS="--prerelease"
+          gh release edit "$TAG" \
+            --draft=false \
+            $FLAGS \
+            --repo "$GITHUB_REPOSITORY"
+          echo "✅ Release $TAG published"
+          echo "https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"

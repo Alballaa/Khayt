@@ -5,6 +5,51 @@ const http = require('http');
 const os = require('os');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
+const { autoUpdater } = require('electron-updater');
+
+// ── Auto-updater setup ───────────────────────────────────────────────────────
+autoUpdater.autoDownload = false;       // ask user first; they click "Download"
+autoUpdater.autoInstallOnAppQuit = true; // install silently when app quits
+
+function setupAutoUpdater(win) {
+  autoUpdater.on('update-available', (info) => {
+    if (!win || win.isDestroyed()) return;
+    win.webContents.send('update-available', {
+      version:      info.version,
+      releaseDate:  info.releaseDate,
+      releaseNotes: typeof info.releaseNotes === 'string' ? info.releaseNotes : ''
+    });
+  });
+
+  autoUpdater.on('download-progress', (progress) => {
+    if (!win || win.isDestroyed()) return;
+    win.webContents.send('update-download-progress', {
+      percent:        Math.round(progress.percent),
+      transferred:    progress.transferred,
+      total:          progress.total,
+      bytesPerSecond: progress.bytesPerSecond
+    });
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    if (!win || win.isDestroyed()) return;
+    win.webContents.send('update-downloaded', { version: info.version });
+  });
+
+  autoUpdater.on('error', (err) => {
+    console.error('[updater]', err?.message || err);
+  });
+
+  // Check 12 seconds after launch so the window is fully loaded first.
+  // Only runs in the packaged app — not during npm start / dev mode.
+  if (app.isPackaged) {
+    setTimeout(() => autoUpdater.checkForUpdates().catch(() => {}), 12_000);
+  }
+}
+
+ipcMain.handle('hub:start-update-download', () => autoUpdater.downloadUpdate());
+ipcMain.handle('hub:install-update',        () => { autoUpdater.quitAndInstall(); });
+ipcMain.handle('hub:check-for-updates',     () => autoUpdater.checkForUpdates().catch(() => {}));
 
 function encryptStoreField(val) {
   if (!val || typeof val !== 'string' || !safeStorage.isEncryptionAvailable()) return val;
@@ -1789,6 +1834,7 @@ function buildMenu() {
 app.whenReady().then(() => {
   buildMenu();
   createWindow();
+  setupAutoUpdater(mainWindow);
 
   // Grant camera access so the filament label scanner can use getUserMedia
   const { session } = require('electron');
