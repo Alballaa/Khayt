@@ -89,9 +89,12 @@ jobs:
         run: npm ci
 
       - name: Build & publish Windows installers
-        run: npx electron-builder --win --x64 --publish always
+        # appx (MSIX) is built locally and uploaded to Microsoft Partner Center.
+        # Only nsis + portable are published here via GitHub Releases.
+        run: npx electron-builder --win nsis portable --x64 --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WIN_CSC_IDENTITY_AUTO_DISCOVERY: false
           # ── Windows code signing (uncomment when HARICA cert is ready) ───────
           # WIN_CSC_LINK:         ${{ secrets.WIN_CSC_LINK }}         # base64 .pfx
           # WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
@@ -113,7 +116,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libnss3-dev libatk-bridge2.0-dev \
-            libgtk-3-dev libdrm-dev libgbm-dev libfuse2 rpm
+            libgtk-3-dev libdrm-dev libgbm-dev rpm
+          # libfuse2 was renamed libfuse2t64 on Ubuntu 24.04 (ubuntu-latest)
+          sudo apt-get install -y libfuse2t64 2>/dev/null || \
+          sudo apt-get install -y libfuse2 2>/dev/null || \
+          echo "FUSE2 not available — AppImage will use extraction fallback"
 
       - name: Install dependencies
         run: npm ci
