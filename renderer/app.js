@@ -58,6 +58,12 @@ let waitingList    = loadJSON(K.WAITING, []);
 let waitingListHistory = loadJSON(K.WAITING_HISTORY, []);
 let timeEntries    = loadJSON(K.TIME_ENTRIES, []);
 
+// Batch-2 new arrays
+let shiftLogs      = [];
+let giftCards      = [];
+let slicerProfiles = [];
+let envLogs        = [];
+
 // Runtime-only state (not persisted)
 let kanbanTimerInterval = null;
 let activeLocation = null; // Feature 8: null = all locations
@@ -1002,6 +1008,7 @@ function saveAll() {
       expenses, machines, waTemplates, wasteLog, machMaintLog, consumables,
       suppliers, purchaseOrders, testPrints, locations, operators, waitingList,
       waitingListHistory, timeEntries,
+      shiftLogs, giftCards, slicerProfiles, envLogs,
     };
     if (window.hubAPI?.saveStore) {
       window.hubAPI.saveStore(store).catch(e => {
@@ -1084,6 +1091,10 @@ async function loadAll() {
     if (store.waitingList)         waitingList         = store.waitingList.filter(isValidRecord);
     if (store.waitingListHistory)  waitingListHistory  = store.waitingListHistory.filter(isObj);
     if (store.timeEntries)         timeEntries         = store.timeEntries.filter(isObj);
+    if (store.shiftLogs)           shiftLogs           = store.shiftLogs.filter(isObj);
+    if (store.giftCards)           giftCards           = store.giftCards.filter(isObj);
+    if (store.slicerProfiles)      slicerProfiles      = store.slicerProfiles.filter(isObj);
+    if (store.envLogs)             envLogs             = store.envLogs.filter(isObj);
     if (store.settings)            settings            = Object.assign({}, defaultSettings(), store.settings);
     // Deep-merge nested settings objects so new subkeys survive upgrades
     if (store.settings) {
@@ -1108,6 +1119,9 @@ async function loadAll() {
 
   // Sync in-memory kanbanCollapsed Set from settings (ensures restore doesn't cause desync)
   kanbanCollapsed = new Set(settings.kanbanCollapsed || []);
+
+  // Feature 4 (batch-2): Process any due recurring orders on load
+  processRecurringOrders();
 }
 
 function pruneExpiredNotifs() {
@@ -2044,8 +2058,9 @@ function switchTab(tabId) {
   if (tabId === 'expenses-tab')   { renderExpenses(); populateExpOrderDatalist(); }
   if (tabId === 'catalog-tab')    renderCatalog();
   if (tabId === 'clients-tab')    renderClients();
-  if (tabId === 'queue-tab')      renderKanban();
+  if (tabId === 'queue-tab')      { renderMachineQueues(); renderKanban(); }
   if (tabId === 'analytics-tab')  { if (settings.mode === 'simple') renderSimpleReports(); else renderAnalytics(); }
+  if (tabId === 'gift-cards-tab') renderGiftCards();
   if (tabId === 'logs-tab')       renderLogs();
   if (tabId === 'portfolio-tab')  renderPortfolio();
   if (tabId === 'waste-tab')      renderWasteLog();
@@ -7230,6 +7245,8 @@ function updateStatus(id, newStatus) {
       toast(t('toast.status_updated'), 'success');
       // Feature 8: Auto-export status page
       if (order.clientId) autoExportStatusPage(order);
+      // Batch-2 Feature 10: Telegram on completed
+      sendTelegramForOrder(order, 'completed');
     });
     return;
   }
@@ -7283,6 +7300,8 @@ function updateStatus(id, newStatus) {
   if (order.clientId) autoExportStatusPage(order);
   // Feature 5 (new batch): Auto-send email notification
   autoSendEmailNotification(order, newStatus);
+  // Batch-2 Feature 10: Telegram notification on status change
+  sendTelegramForOrder(order, newStatus);
   // Round 12 — Webhook: status_changed
   fireWebhook('status_changed', { orderId: order.id, project: order.project, newStatus, client: order.client });
   // Round 12 — Webhook: order_delivered
@@ -14479,7 +14498,8 @@ function renderKanban() {
       }
       if (status === 'on_hold') {
         const holdReason = log.holdReason ? `<div style="font-size:11px; color:var(--warning); margin-top:2px;">⏸ ${escapeHtml(log.holdReason)}</div>` : '';
-        actions = `<button class="btn small primary" data-act="status" data-id="${log.id}" data-to="pending">${escapeHtml(t('ord.unhold_btn'))}</button>${woBtn}${notifyBtn}${labelBtn}`;
+        const failPhotoBtn = `<button class="btn small ghost" data-act="capture-failure-photo" data-id="${log.id}" title="Capture failure photo">📷</button>`;
+        actions = `<button class="btn small primary" data-act="status" data-id="${log.id}" data-to="pending">${escapeHtml(t('ord.unhold_btn'))}</button>${woBtn}${notifyBtn}${labelBtn}${failPhotoBtn}`;
       }
       if (status === 'printing') {
         const wasteBtn = `<button class="btn ghost small" data-act="log-waste-card" data-id="${log.id}" title="${escapeHtml(t('waste.log_from_card'))}">🗑</button>`;
@@ -14864,6 +14884,7 @@ function renderLogs() {
         ${log.status === 'completed' ? `<button class="btn small ghost" data-act="gen-survey" data-id="${log.id}" title="Generate survey page">📊</button>` : ''}
         ${log.status === 'completed' && !log.survey?.rating ? `<button class="btn small ghost" data-act="record-survey" data-id="${log.id}" title="Record customer rating">⭐</button>` : ''}
         ${log.survey?.rating ? `<span title="Customer rating" style="font-size:12px;">⭐${log.survey.rating}</span>` : ''}
+        <button class="btn small ghost" data-act="change-order" data-id="${log.id}" title="Change Order">CO</button>
         <button class="btn danger small" data-act="del-log" data-id="${log.id}">${escapeHtml(t('common.delete'))}</button>
       </td>
     </tr>`;
@@ -19417,6 +19438,8 @@ function loadSettingsIntoForm() {
   if (loyaltyEl) loyaltyEl.checked = !!settings.loyaltyEnabled;
   // Feature 5 (new 8-pack): Email notifications
   renderEmailNotificationSettings();
+  // Batch-2 Feature 10: Telegram settings
+  renderTelegramSettings();
   // Feature I: Email digest scheduler
   renderDigestSettings();
   // Feature 7 (new 8-pack): Operator lock section
@@ -19534,6 +19557,8 @@ function saveSettingsFromForm() {
     // Feature 8 (new 8-pack): Loyalty tiers
     loyaltyEnabled: !!$('#set_loyaltyEnabled')?.checked,
     loyaltyTiers:   settings.loyaltyTiers || [],
+    // Batch-2 Feature 10: Telegram — preserved from renderTelegramSettings
+    telegram: settings.telegram || { botToken: '', chatId: '', notifyOnComplete: false, notifyOnHold: false, notifyOnLowStock: false },
     // Round 12 — preserve managed-in-place settings
     webhooks:     settings.webhooks     || { enabled: false, secret: '', events: {} },
     fixedCosts:   settings.fixedCosts   || [],
@@ -20626,6 +20651,9 @@ function wireEvents() {
     if (surveyBtn) generateSurveyPage(surveyBtn.dataset.id);
     const recordSurveyBtn = e.target.closest('[data-act="record-survey"]');
     if (recordSurveyBtn) openRecordSurveyModal(recordSurveyBtn.dataset.id);
+    // Batch-2 Feature 13: Change Order from logs table
+    const changeOrderLogBtn = e.target.closest('[data-act="change-order"]');
+    if (changeOrderLogBtn) { openChangeOrderModal(changeOrderLogBtn.dataset.id); return; }
     if (tagBtn) {
       logTagFilter = tagBtn.dataset.tag;
       const sel = $('#logTagFilter');
@@ -20739,6 +20767,12 @@ function wireEvents() {
         saveAll(); renderKanban();
       }
     }
+    // Batch-2 Feature 13: Change Order
+    const changeOrderBtn = e.target.closest('[data-act="change-order"]');
+    if (changeOrderBtn) { openChangeOrderModal(changeOrderBtn.dataset.id); return; }
+    // Batch-2 Feature 14: Failure photo capture
+    const failPhotoBtn = e.target.closest('[data-act="capture-failure-photo"]');
+    if (failPhotoBtn) { captureFailurePhoto(failPhotoBtn.dataset.id); return; }
   });
 
   // Post-checklist checkbox changes (delegated from kanban, uses change not click)
@@ -20839,6 +20873,24 @@ function wireEvents() {
     }
     renderKanban();
     toast(kanbanSortByPriority ? t('queue.sort_on') : t('queue.sort_off'), 'info');
+  });
+
+  // Batch-2 Feature 2: Shift checklist
+  $('#btnStartShift')?.addEventListener('click', openShiftChecklistModal);
+  // Batch-2 Feature 3: End of day report
+  $('#btnEndOfDay')?.addEventListener('click', openEndOfDayReport);
+  // Batch-2 Feature 11: iCal export
+  $('#btnExportIcal')?.addEventListener('click', exportIcalFeed);
+  // Batch-2 Feature 5: Gift cards
+  $('#btnCreateGiftCard')?.addEventListener('click', openCreateGiftCardModal);
+  // Batch-2 Feature 8: Slicer profiles
+  $('#btnAddSlicerProfile')?.addEventListener('click', () => openSlicerProfileModal(null));
+  // Batch-2 Feature 9: Env log
+  $('#btnLogEnv')?.addEventListener('click', openLogEnvModal);
+  // Batch-2 Feature 7: VAT return export
+  $('#btnExportVatReturn')?.addEventListener('click', () => {
+    const periodSel = $('#vatReturnPeriod');
+    exportGaztVatReturn(periodSel ? periodSel.value : 'year');
   });
 
   // Waiting list
@@ -21725,3 +21777,889 @@ document.addEventListener('DOMContentLoaded', async () => {
 document.addEventListener('languagechange', () => {
   initialRender();
 });
+
+/* ============================================================
+   BATCH-2 FEATURES (Features 1-15)
+   ============================================================ */
+
+/* ── Feature 1: Per-machine Queue View ─────────────────────── */
+function renderMachineQueues() {
+  const container = document.getElementById('machineQueuesContainer');
+  if (!container) return;
+  if (machines.length === 0) { container.innerHTML = ''; return; }
+
+  const today = localDateStr();
+
+  const cards = machines.map(machine => {
+    const activeOrder = printLog.find(o => o.status === 'printing' && (o.machineId === machine.id || o.machine === machine.name));
+    const queue = printLog
+      .filter(o => o.status === 'pending' && (o.machineId === machine.id || o.machine === machine.name))
+      .sort((a, b) => prioritySortValue(a) - prioritySortValue(b))
+      .slice(0, 5);
+
+    let progressRingHtml = '';
+    if (activeOrder && activeOrder.printingStartedAt && +activeOrder.printTime > 0) {
+      const elapsed = (Date.now() - new Date(activeOrder.printingStartedAt).getTime()) / 3600000;
+      const pct = Math.min(100, Math.round((elapsed / +activeOrder.printTime) * 100));
+      const r = 20, c = 2 * Math.PI * r;
+      const dash = (pct / 100) * c;
+      progressRingHtml = `
+        <svg width="48" height="48" style="flex-shrink:0;" viewBox="0 0 48 48">
+          <circle cx="24" cy="24" r="${r}" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="4"/>
+          <circle cx="24" cy="24" r="${r}" fill="none" stroke="var(--primary)" stroke-width="4"
+            stroke-dasharray="${dash.toFixed(1)} ${c.toFixed(1)}"
+            stroke-linecap="round" transform="rotate(-90 24 24)"/>
+          <text x="24" y="28" text-anchor="middle" font-size="10" fill="var(--text)">${pct}%</text>
+        </svg>`;
+    }
+
+    const activeHtml = activeOrder
+      ? `<div style="display:flex;align-items:center;gap:8px;background:rgba(91,156,240,0.12);border-radius:6px;padding:6px 8px;margin-bottom:8px;">
+          ${progressRingHtml}
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(activeOrder.project || activeOrder.id)}</div>
+            <div style="font-size:11px;color:var(--text-muted);">${escapeHtml(activeOrder.material || '')} · ${(+activeOrder.printTime || 0).toFixed(1)}h</div>
+          </div>
+        </div>`
+      : `<div style="font-size:12px;color:var(--text-muted);padding:6px 0;margin-bottom:8px;">— ${t('queue.idle') || 'Idle'} —</div>`;
+
+    const queueHtml = queue.length > 0
+      ? queue.map((o, i) => `
+          <div style="display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid var(--border-soft);">
+            <span style="font-size:11px;color:var(--text-muted);min-width:16px;">${i + 1}.</span>
+            <span style="font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(o.project || o.id)}</span>
+            ${priorityBadgeHtml(o)}
+          </div>`).join('')
+      : `<div style="font-size:11px;color:var(--text-muted);">${t('queue.no_pending') || 'No pending jobs'}</div>`;
+
+    const machColor = machine.color || '#5b9cf0';
+    return `
+      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px;min-width:200px;max-width:280px;flex:1;">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
+          <span style="width:10px;height:10px;border-radius:50%;background:${escapeHtml(machColor)};flex-shrink:0;"></span>
+          <strong style="font-size:13px;">${escapeHtml(machine.name)}</strong>
+          ${machine.type ? `<span style="font-size:10px;background:rgba(255,255,255,0.08);border-radius:4px;padding:1px 5px;">${escapeHtml(machine.type)}</span>` : ''}
+        </div>
+        ${activeHtml}
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:4px;">QUEUE</div>
+        ${queueHtml}
+      </div>`;
+  }).join('');
+
+  container.innerHTML = `<div style="display:flex;gap:12px;flex-wrap:wrap;padding:12px 0;">${cards}</div>`;
+}
+
+/* ── Feature 2: Shift-Start Checklist ──────────────────────── */
+function openShiftChecklistModal() {
+  const checks = [
+    { id: 'c1', label: 'Check filament levels on all printers' },
+    { id: 'c2', label: 'Verify printer temperatures are correct' },
+    { id: 'c3', label: "Review today's order queue" },
+    { id: 'c4', label: 'Check for any failed prints from previous shift' },
+    { id: 'c5', label: 'Clean print surfaces' },
+    { id: 'c6', label: 'Log shift start time' },
+  ];
+  const bodyHtml = `
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">Complete the checklist before starting your shift.</p>
+    ${checks.map(c => `
+      <label style="display:flex;align-items:center;gap:10px;padding:6px 0;cursor:pointer;border-bottom:1px solid var(--border-soft);">
+        <input type="checkbox" id="shift_${c.id}" style="width:auto;margin:0;accent-color:var(--primary);">
+        <span style="font-size:13px;">${escapeHtml(c.label)}</span>
+      </label>`).join('')}`;
+  openFormModal({
+    title: '▶ Start Shift Checklist',
+    bodyHtml,
+    saveLabel: 'Start Shift',
+    sizeLg: false,
+    onSave(modal) {
+      const count = checks.filter(c => modal.querySelector(`#shift_${c.id}`)?.checked).length;
+      if (!shiftLogs) shiftLogs = [];
+      const activeOp = settings.activeOperatorId
+        ? (operators.find(o => o.id === settings.activeOperatorId)?.name || null)
+        : null;
+      shiftLogs.push({
+        id: uid('SHF'),
+        startedAt: new Date().toISOString(),
+        operator: activeOp,
+        checksCompleted: count,
+        totalChecks: checks.length,
+      });
+      saveAll();
+      toast('Shift started!', 'success');
+    },
+  });
+}
+
+/* ── Feature 3: End-of-Day Report Modal ─────────────────────── */
+function openEndOfDayReport() {
+  const today = localDateStr();
+  const completedToday = printLog.filter(o => o.status === 'completed' && (o.completedAt || o.date || '').startsWith(today));
+  const revenueToday   = completedToday.reduce((s, o) => s + (+o.price || 0), 0);
+  const inProgress     = printLog.filter(o => ['pending','printing','post','qc'].includes(o.status));
+  const wasteToday     = wasteLog.filter(w => (w.date || '').startsWith(today));
+  const wasteTotalG    = wasteToday.reduce((s, w) => s + (+w.weight || 0), 0);
+  const timeToday      = timeEntries.filter(te => (te.date || te.startedAt || '').startsWith(today));
+  const timeTotal      = timeToday.reduce((s, te) => s + (+te.durationMins || 0), 0);
+  const overdueOrders  = printLog.filter(o => o.dueDate === today && o.status !== 'completed' && o.status !== 'quote');
+
+  const overdueHtml = overdueOrders.length > 0 ? `
+    <div style="background:rgba(245,166,35,0.1);border:1px solid rgba(245,166,35,0.35);border-radius:6px;padding:10px;margin-top:12px;">
+      <strong style="font-size:12px;color:var(--warning);">Due Today — Not Completed</strong>
+      ${overdueOrders.map(o => `<div style="font-size:12px;margin-top:4px;">• ${escapeHtml(o.project || o.id)}</div>`).join('')}
+    </div>` : '';
+
+  const bodyHtml = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+      <div class="card" style="padding:12px;">
+        <div style="font-size:11px;color:var(--text-muted);">Orders Completed</div>
+        <div style="font-size:24px;font-weight:700;">${completedToday.length}</div>
+      </div>
+      <div class="card" style="padding:12px;">
+        <div style="font-size:11px;color:var(--text-muted);">Revenue Today</div>
+        <div style="font-size:20px;font-weight:700;">${fmtPrice(revenueToday)}</div>
+      </div>
+      <div class="card" style="padding:12px;">
+        <div style="font-size:11px;color:var(--text-muted);">In Progress</div>
+        <div style="font-size:24px;font-weight:700;">${inProgress.length}</div>
+      </div>
+      <div class="card" style="padding:12px;">
+        <div style="font-size:11px;color:var(--text-muted);">Filament Used Today</div>
+        <div style="font-size:20px;font-weight:700;">${wasteTotalG.toFixed(0)}g</div>
+      </div>
+      <div class="card" style="padding:12px;grid-column:1/-1;">
+        <div style="font-size:11px;color:var(--text-muted);">Time Logged Today</div>
+        <div style="font-size:20px;font-weight:700;">${(timeTotal / 60).toFixed(1)}h (${timeTotal} min)</div>
+      </div>
+    </div>
+    ${overdueHtml}`;
+
+  const eodHtmlForExport = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>End of Day Report — ${today}</title>
+    <style>body{font-family:sans-serif;max-width:600px;margin:auto;padding:24px;}h1{font-size:20px;}table{width:100%;border-collapse:collapse;}td,th{border:1px solid #ddd;padding:8px;}</style></head>
+    <body><h1>End of Day Report — ${escapeHtml(today)}</h1>
+    <table><tr><th>Metric</th><th>Value</th></tr>
+    <tr><td>Orders Completed</td><td>${completedToday.length}</td></tr>
+    <tr><td>Revenue</td><td>${fmtPrice(revenueToday)}</td></tr>
+    <tr><td>In Progress</td><td>${inProgress.length}</td></tr>
+    <tr><td>Filament Used</td><td>${wasteTotalG.toFixed(0)}g</td></tr>
+    <tr><td>Time Logged</td><td>${timeTotal} min</td></tr>
+    </table>${overdueOrders.length > 0 ? '<h2>Due Today — Not Completed</h2><ul>' + overdueOrders.map(o => `<li>${escapeHtml(o.project || o.id)}</li>`).join('') + '</ul>' : ''}
+    </body></html>`;
+
+  openFormModal({
+    title: 'End of Day Report — ' + today,
+    bodyHtml,
+    sizeLg: false,
+    noSave: false,
+    saveLabel: 'Export as PDF',
+    onSave() {
+      if (window.hubAPI?.exportPDF) {
+        window.hubAPI.exportPDF({ html: eodHtmlForExport, filename: `eod-report-${today}.pdf` })
+          .then(() => toast('Report exported!', 'success'))
+          .catch(() => toast('PDF export not available', 'error'));
+      } else {
+        toast('PDF export not available in this build', 'info');
+      }
+      return false; // keep modal open after export
+    },
+  });
+}
+
+/* ── Feature 4: Recurring Order Auto-Generation ─────────────── */
+function processRecurringOrders() {
+  const today = localDateStr();
+  let created = 0;
+  const toUpdate = [];
+
+  for (const order of printLog) {
+    if (!order.isRecurring) continue;
+    if (!order.nextDueDate || order.nextDueDate > today) continue;
+
+    // Check no child created in last 24h
+    const recentChild = printLog.find(o =>
+      o.parentRecurringId === order.id &&
+      o.date >= new Date(Date.now() - 86400000).toISOString().slice(0, 10)
+    );
+    if (recentChild) continue;
+
+    const newOrder = {
+      ...order,
+      id: uid('REC'),
+      date: today,
+      dueDate: order.nextDueDate,
+      status: 'pending',
+      isRecurring: false,
+      parentRecurringId: order.id,
+      queuePos: printLog.filter(o => o.status === 'pending').length + 1,
+      createdAt: new Date().toISOString(),
+      completedAt: null,
+      printingStartedAt: null,
+      timerStart: null,
+      timerPausedAt: null,
+      timerPausedMs: null,
+    };
+    printLog.push(newOrder);
+    created++;
+
+    // Advance nextDueDate
+    const d = new Date(order.nextDueDate + 'T00:00:00');
+    if (order.recurringInterval === 'weekly')   d.setDate(d.getDate() + 7);
+    else if (order.recurringInterval === 'biweekly') d.setDate(d.getDate() + 14);
+    else /* monthly */                          d.setMonth(d.getMonth() + 1);
+    order.nextDueDate = d.toISOString().slice(0, 10);
+    toUpdate.push(order.id);
+  }
+
+  if (created > 0) {
+    saveAll();
+    setTimeout(() => toast(`Auto-created ${created} recurring order${created > 1 ? 's' : ''}`, 'success', 4000), 500);
+  }
+}
+
+/* ── Feature 5: Gift Cards / Store Credit ───────────────────── */
+function renderGiftCards() {
+  const container = document.getElementById('giftCardsContainer');
+  if (!container) return;
+  if (giftCards.length === 0) {
+    container.innerHTML = `<div class="empty-state" style="padding:24px;">${escapeHtml('No gift cards issued yet.')}</div>`;
+    return;
+  }
+  const today = localDateStr();
+  const rows = giftCards.map(gc => {
+    const cl = gc.issuedTo ? clients.find(c => c.id === gc.issuedTo) : null;
+    const expired = gc.expiresAt && gc.expiresAt < today;
+    const status = expired ? 'Expired' : (+gc.balance <= 0 ? 'Used' : 'Active');
+    const statusColor = expired ? 'var(--danger)' : (+gc.balance <= 0 ? 'var(--text-muted)' : 'var(--success)');
+    return `<tr>
+      <td style="font-family:monospace;">${escapeHtml(gc.code)}</td>
+      <td>${fmtPrice(gc.balance)} / ${fmtPrice(gc.initialBalance)}</td>
+      <td>${cl ? escapeHtml(localName(cl)) : (gc.issuedToName ? escapeHtml(gc.issuedToName) : '—')}</td>
+      <td>${gc.expiresAt ? escapeHtml(gc.expiresAt) : '—'}</td>
+      <td style="color:${statusColor};font-weight:600;">${escapeHtml(status)}</td>
+    </tr>`;
+  }).join('');
+  container.innerHTML = `
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Code</th><th>Balance</th><th>Issued To</th><th>Expires</th><th>Status</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function openCreateGiftCardModal() {
+  const shortUid = () => uid('GC').replace(/[^A-Z0-9]/g, '').slice(0, 8);
+  const code = shortUid();
+  const clientOptions = clients.map(c => `<option value="${c.id}">${escapeHtml(localName(c))}</option>`).join('');
+  openFormModal({
+    title: 'Issue Gift Card',
+    sizeLg: false,
+    saveLabel: 'Issue',
+    bodyHtml: `
+      <label>Code</label>
+      <input type="text" id="gcCode" value="${escapeHtml(code)}" style="font-family:monospace;">
+      <label style="margin-top:10px;">Customer</label>
+      <select id="gcClient"><option value="">— None —</option>${clientOptions}</select>
+      <label style="margin-top:10px;">Initial Balance (${currencySymbol()})</label>
+      <input type="number" id="gcBalance" min="0" step="0.01" value="50">
+      <label style="margin-top:10px;">Expiry Date (optional)</label>
+      <input type="date" id="gcExpiry">`,
+    onSave(modal) {
+      const codeVal = modal.querySelector('#gcCode').value.trim().toUpperCase();
+      const balance = Math.max(0, num(modal.querySelector('#gcBalance').value, 0));
+      if (!codeVal) { toast('Enter a code', 'error'); return false; }
+      if (giftCards.find(g => g.code === codeVal)) { toast('Code already exists', 'error'); return false; }
+      const clientId = modal.querySelector('#gcClient').value;
+      const cl = clientId ? clients.find(c => c.id === clientId) : null;
+      giftCards.push({
+        id: uid('GC'),
+        code: codeVal,
+        initialBalance: balance,
+        balance,
+        issuedTo: clientId || null,
+        issuedToName: cl ? localName(cl) : '',
+        issuedAt: new Date().toISOString(),
+        expiresAt: modal.querySelector('#gcExpiry').value || null,
+        redeemedOrders: [],
+      });
+      saveAll();
+      renderGiftCards();
+      toast('Gift card issued!', 'success');
+    },
+  });
+}
+
+function applyGiftCard(orderId, code) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return false;
+  const gc = giftCards.find(g => g.code === code.trim().toUpperCase());
+  if (!gc) { toast('Gift card not found', 'error'); return false; }
+  if (+gc.balance <= 0) { toast('Gift card has no remaining balance', 'error'); return false; }
+  const today = localDateStr();
+  if (gc.expiresAt && gc.expiresAt < today) { toast('Gift card is expired', 'error'); return false; }
+  const deduct = Math.min(+gc.balance, +order.price || 0);
+  gc.balance = Math.max(0, +gc.balance - deduct);
+  gc.redeemedOrders.push({ orderId, amount: deduct, at: new Date().toISOString() });
+  order.giftCardCode = code;
+  order.giftCardDiscount = deduct;
+  saveAll();
+  toast(`Gift card applied! ${fmtPrice(deduct)} deducted.`, 'success');
+  return true;
+}
+
+/* ── Feature 6: Multi-Material AMS/MMU Cost ─────────────────── */
+// Note: Multi-material support already exists via currentExtraMaterials / extraMaterials array
+// and computePartBaseCost already handles part.extraMaterials.
+// This feature exposes a UI "Add Material" button that appends to currentExtraMaterials.
+// The existing renderExtraMaterials() function in app.js handles display.
+// We add a convenience wrapper here for clarity.
+function addAMSMaterialRow() {
+  currentExtraMaterials.push({ material: '', weight: 0 });
+  if (typeof renderExtraMaterials === 'function') renderExtraMaterials();
+}
+
+/* ── Feature 7: GAZT VAT Return Export ─────────────────────── */
+function exportGaztVatReturn(period) {
+  period = period || 'year';
+  const now = new Date();
+  let fromDate, toDate;
+  if (period === 'year') {
+    fromDate = `${now.getFullYear()}-01-01`;
+    toDate   = `${now.getFullYear()}-12-31`;
+  } else if (period === 'q1') { fromDate = `${now.getFullYear()}-01-01`; toDate = `${now.getFullYear()}-03-31`; }
+  else if (period === 'q2') { fromDate = `${now.getFullYear()}-04-01`; toDate = `${now.getFullYear()}-06-30`; }
+  else if (period === 'q3') { fromDate = `${now.getFullYear()}-07-01`; toDate = `${now.getFullYear()}-09-30`; }
+  else if (period === 'q4') { fromDate = `${now.getFullYear()}-10-01`; toDate = `${now.getFullYear()}-12-31`; }
+  else { fromDate = `${now.getFullYear()}-01-01`; toDate = `${now.getFullYear()}-12-31`; }
+
+  const periodOrders = printLog.filter(o =>
+    o.status === 'completed' && o.date >= fromDate && o.date <= toDate
+  );
+  const box1 = periodOrders.reduce((s, o) => s + (+o.price || 0), 0);
+  const box2 = periodOrders.filter(o => +o.vatRate === 0).reduce((s, o) => s + (+o.price || 0), 0);
+  const box3 = periodOrders.reduce((s, o) => s + (+o.vatAmount || 0), 0);
+  const periodExp = (expenses || []).filter(e => e.date >= fromDate && e.date <= toDate);
+  const box6 = periodExp.reduce((s, e) => s + (+e.amount || 0), 0);
+  const box7 = periodExp.filter(e => e.vatAmount > 0).reduce((s, e) => s + (+e.vatAmount || 0), 0);
+  const netVat = box3 - box7;
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+    <title>GAZT VAT Return — ${escapeHtml(period)} ${now.getFullYear()}</title>
+    <style>body{font-family:sans-serif;max-width:700px;margin:auto;padding:24px;}
+      h1{font-size:18px;} table{width:100%;border-collapse:collapse;margin-top:16px;}
+      th{background:#f3f4f6;text-align:left;padding:8px;border:1px solid #ddd;font-size:13px;}
+      td{padding:8px;border:1px solid #ddd;font-size:13px;}
+      .net{font-weight:700;background:#fef3c7;}</style></head>
+    <body>
+      <h1>GAZT VAT Return — ${escapeHtml(settings.bizEn || '')} (${escapeHtml(period.toUpperCase())} ${now.getFullYear()})</h1>
+      <p style="font-size:12px;color:#666;">Period: ${escapeHtml(fromDate)} to ${escapeHtml(toDate)}</p>
+      <table>
+        <thead><tr><th>Box</th><th>Description</th><th>Amount (${escapeHtml(currencySymbol())})</th></tr></thead>
+        <tbody>
+          <tr><td>Box 1</td><td>Total Sales (Standard-rated)</td><td>${fmtMoney(box1)}</td></tr>
+          <tr><td>Box 2</td><td>Zero-rated Sales</td><td>${fmtMoney(box2)}</td></tr>
+          <tr><td>Box 3</td><td>VAT Collected on Sales</td><td>${fmtMoney(box3)}</td></tr>
+          <tr><td>Box 6</td><td>Total Purchases</td><td>${fmtMoney(box6)}</td></tr>
+          <tr><td>Box 7</td><td>Input VAT (Recoverable)</td><td>${fmtMoney(box7)}</td></tr>
+          <tr class="net"><td colspan="2">Net VAT Payable (Box 3 − Box 7)</td><td>${fmtMoney(netVat)}</td></tr>
+        </tbody>
+      </table>
+    </body></html>`;
+
+  if (window.hubAPI?.exportPDF) {
+    window.hubAPI.exportPDF({ html, filename: `vat-return-${period}-${now.getFullYear()}.pdf` })
+      .then(() => toast('VAT return exported!', 'success'))
+      .catch(() => _fallbackVatDownload(html, period, now.getFullYear()));
+  } else {
+    _fallbackVatDownload(html, period, now.getFullYear());
+  }
+}
+
+function _fallbackVatDownload(html, period, year) {
+  const blob = new Blob([html], { type: 'text/html' });
+  downloadBlob(blob, `vat-return-${period}-${year}.html`);
+  toast('VAT return downloaded as HTML', 'info');
+}
+
+/* ── Feature 8: Slicer Profile Library ─────────────────────── */
+function renderSlicerProfiles() {
+  const container = document.getElementById('slicerProfilesContainer');
+  if (!container) return;
+
+  const machFilter = (document.getElementById('slicerMachineFilter') || {}).value || '';
+  const matFilter  = (document.getElementById('slicerMaterialFilter') || {}).value || '';
+
+  let profiles = slicerProfiles || [];
+  if (machFilter) profiles = profiles.filter(p => p.machineId === machFilter);
+  if (matFilter)  profiles = profiles.filter(p => p.material === matFilter);
+
+  if (profiles.length === 0) {
+    container.innerHTML = `<div class="empty-state" style="padding:20px;">No slicer profiles yet.</div>`;
+    return;
+  }
+
+  const rows = profiles.map(p => {
+    const mach = p.machineId ? machines.find(m => m.id === p.machineId) : null;
+    return `<tr>
+      <td>${escapeHtml(p.name)}</td>
+      <td>${mach ? escapeHtml(mach.name) : '—'}</td>
+      <td>${escapeHtml(p.material || '—')}</td>
+      <td>${p.layerHeight ? p.layerHeight + ' mm' : '—'}</td>
+      <td>${p.infill ? p.infill + '%' : '—'}</td>
+      <td>${p.supports ? 'Yes' : 'No'}</td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(p.notes || '')}</td>
+      <td>
+        <button class="btn small ghost" onclick="openSlicerProfileModal('${escapeHtml(p.id)}')">Edit</button>
+        <button class="btn danger small" onclick="deleteSlicerProfile('${escapeHtml(p.id)}')">×</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>Machine</th><th>Material</th><th>Layer</th><th>Infill</th><th>Supports</th><th>Notes</th><th>Actions</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function openSlicerProfileModal(profileId) {
+  const existing = profileId ? (slicerProfiles || []).find(p => p.id === profileId) : null;
+  const machOptions = machines.map(m => `<option value="${m.id}"${existing && existing.machineId === m.id ? ' selected' : ''}>${escapeHtml(m.name)}</option>`).join('');
+  const matOptions = [...new Set(inventory.map(i => i.material).filter(Boolean))].map(m =>
+    `<option value="${escapeHtml(m)}"${existing && existing.material === m ? ' selected' : ''}>${escapeHtml(m)}</option>`
+  ).join('');
+
+  openFormModal({
+    title: existing ? 'Edit Slicer Profile' : 'New Slicer Profile',
+    sizeLg: false,
+    saveLabel: existing ? 'Save' : 'Create',
+    bodyHtml: `
+      <label>Profile Name</label>
+      <input type="text" id="spName" value="${escapeHtml(existing?.name || '')}">
+      <label style="margin-top:10px;">Machine</label>
+      <select id="spMachine"><option value="">— Any —</option>${machOptions}</select>
+      <label style="margin-top:10px;">Material</label>
+      <select id="spMaterial"><option value="">— Any —</option>${matOptions}</select>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
+        <div><label>Layer Height (mm)</label><input type="number" id="spLayer" step="0.01" min="0.01" value="${existing?.layerHeight || 0.2}"></div>
+        <div><label>Infill %</label><input type="number" id="spInfill" min="0" max="100" value="${existing?.infill || 20}"></div>
+      </div>
+      <label style="margin-top:10px;display:flex;align-items:center;gap:8px;">
+        <input type="checkbox" id="spSupports" style="width:auto;" ${existing?.supports ? 'checked' : ''}> Supports
+      </label>
+      <label style="margin-top:10px;">Notes</label>
+      <textarea id="spNotes" rows="2">${escapeHtml(existing?.notes || '')}</textarea>`,
+    onSave(modal) {
+      const name = modal.querySelector('#spName').value.trim();
+      if (!name) { toast('Enter a profile name', 'error'); return false; }
+      const profile = {
+        id: existing ? existing.id : uid('SP'),
+        name,
+        machineId: modal.querySelector('#spMachine').value || null,
+        material:  modal.querySelector('#spMaterial').value || '',
+        layerHeight: num(modal.querySelector('#spLayer').value, 0.2),
+        infill:    num(modal.querySelector('#spInfill').value, 20),
+        supports:  modal.querySelector('#spSupports').checked,
+        notes:     modal.querySelector('#spNotes').value.trim(),
+        createdAt: existing ? existing.createdAt : new Date().toISOString(),
+      };
+      if (!slicerProfiles) slicerProfiles = [];
+      if (existing) {
+        const idx = slicerProfiles.findIndex(p => p.id === profileId);
+        if (idx !== -1) slicerProfiles[idx] = profile;
+      } else {
+        slicerProfiles.push(profile);
+      }
+      saveAll();
+      renderSlicerProfiles();
+      toast(existing ? 'Profile updated' : 'Profile created', 'success');
+    },
+  });
+}
+
+function deleteSlicerProfile(profileId) {
+  slicerProfiles = (slicerProfiles || []).filter(p => p.id !== profileId);
+  saveAll();
+  renderSlicerProfiles();
+  toast('Profile deleted', 'success');
+}
+
+/* ── Feature 9: Environmental Condition Logging ─────────────── */
+function renderEnvLogs() {
+  const container = document.getElementById('envLogsContainer');
+  if (!container) return;
+
+  const recent = (envLogs || []).slice().sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || '')).slice(0, 50);
+
+  if (recent.length === 0) {
+    container.innerHTML = `<div class="empty-state" style="padding:20px;">No environmental logs yet.</div>`;
+    return;
+  }
+
+  const rows = recent.map(log => {
+    const mach = log.machineId ? machines.find(m => m.id === log.machineId) : null;
+    return `<tr>
+      <td style="font-size:11px;">${escapeHtml(new Date(log.timestamp).toLocaleString())}</td>
+      <td>${log.temperature != null ? log.temperature + ' °C' : '—'}</td>
+      <td>${log.humidity    != null ? log.humidity    + '%'  : '—'}</td>
+      <td>${mach ? escapeHtml(mach.name) : '—'}</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(log.notes || '')}</td>
+    </tr>`;
+  }).join('');
+
+  // Simple SVG sparkline for temperature — last 20 entries in chronological order
+  const sparkData = (envLogs || [])
+    .filter(l => l.temperature != null)
+    .slice().sort((a, b) => (a.timestamp || '').localeCompare(b.timestamp || ''))
+    .slice(-20);
+
+  let sparkHtml = '';
+  if (sparkData.length >= 2) {
+    const temps = sparkData.map(l => +l.temperature);
+    const minT = Math.min(...temps), maxT = Math.max(...temps);
+    const range = maxT - minT || 1;
+    const W = 240, H = 48;
+    const pts = temps.map((t, i) => {
+      const x = (i / (temps.length - 1)) * W;
+      const y = H - ((t - minT) / range) * H;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+    sparkHtml = `<div style="margin-bottom:12px;">
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Temperature trend (last ${temps.length} readings)</div>
+      <svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="overflow:visible;">
+        <polyline fill="none" stroke="var(--primary)" stroke-width="2" points="${escapeHtml(pts)}"/>
+      </svg>
+    </div>`;
+  }
+
+  container.innerHTML = `
+    ${sparkHtml}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Time</th><th>Temp (°C)</th><th>Humidity (%)</th><th>Machine</th><th>Notes</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function openLogEnvModal() {
+  const machOptions = machines.map(m => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
+  openFormModal({
+    title: 'Log Environmental Conditions',
+    sizeLg: false,
+    saveLabel: 'Log',
+    bodyHtml: `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div><label>Temperature (°C)</label><input type="number" id="envTemp" step="0.1" placeholder="e.g. 22"></div>
+        <div><label>Humidity (%)</label><input type="number" id="envHumidity" min="0" max="100" step="1" placeholder="e.g. 45"></div>
+      </div>
+      <label style="margin-top:10px;">Machine (optional)</label>
+      <select id="envMachine"><option value="">— All / None —</option>${machOptions}</select>
+      <label style="margin-top:10px;">Notes (optional)</label>
+      <textarea id="envNotes" rows="2"></textarea>`,
+    onSave(modal) {
+      const temp     = modal.querySelector('#envTemp').value;
+      const humidity = modal.querySelector('#envHumidity').value;
+      if (temp === '' && humidity === '') { toast('Enter at least temperature or humidity', 'error'); return false; }
+      if (!envLogs) envLogs = [];
+      envLogs.push({
+        id: uid('ENV'),
+        timestamp:   new Date().toISOString(),
+        temperature: temp !== '' ? num(temp, null) : null,
+        humidity:    humidity !== '' ? num(humidity, null) : null,
+        machineId:   modal.querySelector('#envMachine').value || null,
+        notes:       modal.querySelector('#envNotes').value.trim(),
+      });
+      saveAll();
+      renderEnvLogs();
+      toast('Environment logged', 'success');
+    },
+  });
+}
+
+/* ── Feature 10: Telegram Notification Settings ─────────────── */
+function renderTelegramSettings() {
+  const el = document.getElementById('telegramSettingsSection');
+  if (!el) return;
+  const tg = settings.telegram || {};
+  el.innerHTML = `
+    <h4 style="margin-bottom:10px;">Telegram Notifications</h4>
+    <label>Bot Token</label>
+    <input type="password" id="tgBotToken" value="${escapeHtml(tg.botToken || '')}" placeholder="123456:ABC-...">
+    <label style="margin-top:8px;">Chat ID</label>
+    <input type="text" id="tgChatId" value="${escapeHtml(tg.chatId || '')}" placeholder="-100123456789">
+    <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
+      <button class="btn small" id="btnTgTest">Test</button>
+      <span style="font-size:12px;color:var(--text-muted);">Sends a test message to verify the bot works</span>
+    </div>
+    <div style="margin-top:12px;">
+      <label style="display:flex;align-items:center;gap:8px;">
+        <input type="checkbox" id="tgNotifyComplete" style="width:auto;" ${tg.notifyOnComplete ? 'checked' : ''}> Notify on order completed
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+        <input type="checkbox" id="tgNotifyHold" style="width:auto;" ${tg.notifyOnHold ? 'checked' : ''}> Notify on order on_hold
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+        <input type="checkbox" id="tgNotifyLowStock" style="width:auto;" ${tg.notifyOnLowStock ? 'checked' : ''}> Notify on low stock
+      </label>
+    </div>
+    <button class="btn primary small" id="btnSaveTgSettings" style="margin-top:12px;">Save Telegram Settings</button>`;
+
+  el.querySelector('#btnTgTest')?.addEventListener('click', () => {
+    const botToken = el.querySelector('#tgBotToken').value.trim();
+    const chatId   = el.querySelector('#tgChatId').value.trim();
+    if (!botToken || !chatId) { toast('Enter bot token and chat ID first', 'error'); return; }
+    if (window.hubAPI?.sendTelegram) {
+      window.hubAPI.sendTelegram({ botToken, chatId, message: '✅ Khayt test notification' })
+        .then(() => toast('Telegram test sent!', 'success'))
+        .catch(e => toast('Telegram error: ' + e.message, 'error'));
+    } else {
+      toast('Telegram API not available in this build', 'info');
+    }
+  });
+
+  el.querySelector('#btnSaveTgSettings')?.addEventListener('click', () => {
+    const botToken         = el.querySelector('#tgBotToken').value.trim();
+    const chatId           = el.querySelector('#tgChatId').value.trim();
+    const notifyOnComplete = el.querySelector('#tgNotifyComplete').checked;
+    const notifyOnHold     = el.querySelector('#tgNotifyHold').checked;
+    const notifyOnLowStock = el.querySelector('#tgNotifyLowStock').checked;
+    settings.telegram = { botToken, chatId, notifyOnComplete, notifyOnHold, notifyOnLowStock };
+    saveAll();
+    toast('Telegram settings saved', 'success');
+  });
+}
+
+function sendTelegramForOrder(order, newStatus) {
+  const tg = settings.telegram;
+  if (!tg || !tg.botToken || !tg.chatId) return;
+  let shouldSend = false;
+  let message = '';
+  if (newStatus === 'completed' && tg.notifyOnComplete) {
+    shouldSend = true;
+    message = `✅ Order completed: ${order.project || order.id} (${fmtPrice(order.price)})`;
+  } else if (newStatus === 'on_hold' && tg.notifyOnHold) {
+    shouldSend = true;
+    message = `⏸ Order on hold: ${order.project || order.id}${order.holdReason ? ' — ' + order.holdReason : ''}`;
+  }
+  if (!shouldSend) return;
+  window.hubAPI?.sendTelegram?.({ botToken: tg.botToken, chatId: tg.chatId, message })
+    .catch(e => console.warn('Telegram notify failed:', e));
+}
+
+function checkTelegramLowStock() {
+  const tg = settings.telegram;
+  if (!tg || !tg.botToken || !tg.chatId || !tg.notifyOnLowStock) return;
+  const threshold = settings.lowStockThreshold || 200;
+  const lowItems = inventory.filter(i => (+i.weight || 0) < threshold);
+  if (lowItems.length === 0) return;
+  const names = lowItems.slice(0, 5).map(i => i.material).join(', ');
+  const message = `⚠️ Low stock alert: ${names}${lowItems.length > 5 ? ` and ${lowItems.length - 5} more` : ''}`;
+  window.hubAPI?.sendTelegram?.({ botToken: tg.botToken, chatId: tg.chatId, message })
+    .catch(e => console.warn('Telegram low-stock notify failed:', e));
+}
+
+/* ── Feature 11: iCal Export ────────────────────────────────── */
+async function exportIcalFeed() {
+  const lanUrl = await window.hubAPI?.getLanUrl?.().catch(() => null);
+  if (!lanUrl?.ok) { toast('Start LAN server first to use iCal', 'error'); return; }
+  const icalUrl = lanUrl.url + '/calendar.ics';
+  window.hubAPI?.openExternal?.(icalUrl);
+}
+
+/* ── Feature 12: Referral Attribution ──────────────────────── */
+function renderReferralAnalytics() {
+  const el = document.getElementById('referralAnalyticsContainer');
+  if (!el) return;
+
+  const sources = ['instagram','referral','walk_in','website','exhibition','salla','zid','intake_form','other'];
+  const counts = {};
+  sources.forEach(s => { counts[s] = 0; });
+  for (const o of printLog) {
+    const s = o.source || 'other';
+    counts[s] = (counts[s] || 0) + 1;
+  }
+
+  const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
+  const colors = {
+    instagram:'#e1306c', referral:'#22c55e', walk_in:'#3b82f6',
+    website:'#f59e0b',   exhibition:'#a855f7', salla:'#10b981',
+    zid:'#6366f1',       intake_form:'#f97316', other:'#6b7280',
+  };
+
+  const bars = sources.filter(s => counts[s] > 0)
+    .sort((a, b) => counts[b] - counts[a])
+    .map(s => {
+      const pct = Math.round((counts[s] / total) * 100);
+      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <span style="min-width:100px;font-size:12px;text-align:end;">${escapeHtml(s.replace(/_/g,' '))}</span>
+        <div style="flex:1;background:var(--border);border-radius:3px;height:12px;overflow:hidden;">
+          <div style="width:${pct}%;height:100%;background:${colors[s] || '#888'};border-radius:3px;"></div>
+        </div>
+        <span style="min-width:40px;font-size:11px;color:var(--text-muted);">${counts[s]} (${pct}%)</span>
+      </div>`;
+    }).join('');
+
+  // Top referrers (clients whose referralCode appears on orders as referredBy)
+  const referralMap = {};
+  for (const o of printLog) {
+    if (o.referredBy) referralMap[o.referredBy] = (referralMap[o.referredBy] || 0) + 1;
+  }
+  const topReferrers = Object.entries(referralMap)
+    .sort((a, b) => b[1] - a[1]).slice(0, 5)
+    .map(([cid, cnt]) => {
+      const cl = clients.find(c => c.id === cid);
+      return `<tr><td>${cl ? escapeHtml(localName(cl)) : escapeHtml(cid)}</td><td>${cnt}</td></tr>`;
+    }).join('');
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px;padding:14px;">
+      <h4 style="margin-bottom:10px;">Acquisition Sources</h4>
+      ${bars || '<span style="color:var(--text-muted);font-size:12px;">No data</span>'}
+    </div>
+    ${topReferrers ? `<div class="card" style="padding:14px;">
+      <h4 style="margin-bottom:10px;">Top Referrers</h4>
+      <table><thead><tr><th>Client</th><th>Referrals</th></tr></thead><tbody>${topReferrers}</tbody></table>
+    </div>` : ''}`;
+}
+
+/* ── Feature 13: Change Order Workflow ──────────────────────── */
+function openChangeOrderModal(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+  openFormModal({
+    title: 'Change Order — ' + escapeHtml(order.project || order.id),
+    sizeLg: false,
+    saveLabel: 'Save Change Order',
+    bodyHtml: `
+      <div style="background:var(--surface-2);border-radius:6px;padding:10px;font-size:12px;margin-bottom:12px;color:var(--text-muted);">
+        <strong>Order:</strong> ${escapeHtml(order.id)}<br>
+        <strong>Project:</strong> ${escapeHtml(order.project || '—')}<br>
+        <strong>Current Price:</strong> ${fmtPrice(order.price)}<br>
+        <strong>Current Due Date:</strong> ${escapeHtml(order.dueDate || '—')}
+      </div>
+      <label>What changed?</label>
+      <textarea id="coDescription" rows="3" placeholder="Describe the change…"></textarea>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
+        <div>
+          <label>New Price (optional)</label>
+          <input type="number" id="coNewPrice" min="0" step="0.01" placeholder="${fmtMoney(order.price)}">
+        </div>
+        <div>
+          <label>New Due Date (optional)</label>
+          <input type="date" id="coNewDueDate" value="${escapeHtml(order.dueDate || '')}">
+        </div>
+      </div>`,
+    onSave(modal) {
+      const description = modal.querySelector('#coDescription').value.trim();
+      if (!description) { toast('Describe what changed', 'error'); return false; }
+      const newPrice    = modal.querySelector('#coNewPrice').value;
+      const newDueDate  = modal.querySelector('#coNewDueDate').value;
+      const entry = {
+        at: new Date().toISOString(),
+        description,
+        oldPrice:    +order.price || 0,
+        newPrice:    newPrice ? num(newPrice, +order.price) : null,
+        oldDueDate:  order.dueDate || null,
+        newDueDate:  newDueDate || null,
+      };
+      if (!order.changeLog) order.changeLog = [];
+      order.changeLog.push(entry);
+      if (newPrice)   order.price   = num(newPrice, order.price);
+      if (newDueDate) order.dueDate = newDueDate;
+      saveAll();
+      renderLogs();
+      renderKanban();
+      toast('Change order saved', 'success');
+    },
+  });
+}
+
+/* ── Feature 14: Print Failure Photo Capture ────────────────── */
+async function captureFailurePhoto(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+
+  let filePath = null;
+  if (window.hubAPI?.pickFile) {
+    filePath = await window.hubAPI.pickFile({ filters: [{ name: 'Images', extensions: ['jpg','jpeg','png','webp'] }] })
+      .catch(() => null);
+  }
+
+  if (!filePath) {
+    // Fallback: hidden file input
+    filePath = await new Promise(resolve => {
+      const inp = document.createElement('input');
+      inp.type = 'file';
+      inp.accept = 'image/jpeg,image/png,image/webp';
+      inp.style.display = 'none';
+      document.body.appendChild(inp);
+      inp.onchange = () => { const f = inp.files[0]; inp.remove(); resolve(f || null); };
+      inp.oncancel = () => { inp.remove(); resolve(null); };
+      inp.click();
+    });
+  }
+
+  if (!filePath) return;
+
+  // If hubAPI.copyFileToVault exists, use it; otherwise read as dataURL
+  if (window.hubAPI?.copyFileToVault && typeof filePath === 'string') {
+    try {
+      const filename = await window.hubAPI.copyFileToVault(filePath, orderId);
+      order.failurePhotoPath = filename;
+      saveAll();
+      toast('Failure photo saved', 'success');
+      renderKanban();
+    } catch(e) {
+      toast('Could not save photo: ' + e.message, 'error');
+    }
+    return;
+  }
+
+  // filePath is a File object (from the hidden input fallback)
+  if (filePath instanceof File) {
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const dataUrl = reader.result;
+      const filename = `failure-${orderId}-${Date.now()}.jpg`;
+      if (window.hubAPI?.saveOrderPhoto) {
+        try {
+          await window.hubAPI.saveOrderPhoto(orderId, 0, dataUrl);
+          order.failurePhotoPath = filename;
+        } catch(e) {
+          order.failurePhotoPath = filename;
+        }
+      } else {
+        order.failurePhotoPath = filename;
+      }
+      saveAll();
+      toast('Failure photo captured', 'success');
+      renderKanban();
+    };
+    reader.readAsDataURL(filePath);
+  }
+}
+
+/* ── Feature 15: Shipping Carrier Integration ───────────────── */
+function trackShipment(trackingNumber, carrier) {
+  if (!trackingNumber) { toast('No tracking number', 'error'); return; }
+  let url = '';
+  const tn = encodeURIComponent(trackingNumber.trim());
+  const c  = (carrier || '').toLowerCase();
+  if (c === 'aramex') {
+    url = `https://www.aramex.com/track/results?ShipmentNumber=${tn}`;
+  } else if (c === 'saudipost' || c === 'saudi_post' || c === 'saudi post') {
+    url = `https://www.saudipost.com.sa/en/tools/track?num=${tn}`;
+  } else if (c === 'dhl') {
+    url = `https://www.dhl.com/en/express/tracking.html?AWB=${tn}`;
+  } else if (c === 'fedex') {
+    url = `https://www.fedex.com/fedextrack/?trknbr=${tn}`;
+  } else {
+    toast('Copy tracking number and check carrier website: ' + escapeHtml(trackingNumber), 'info', 6000);
+    return;
+  }
+  window.hubAPI?.openExternal?.(url) || window.open(url, '_blank');
+}
+
+// Note: getCarrierTrackingUrl() is already defined earlier in this file.

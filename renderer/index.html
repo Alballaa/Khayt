@@ -68,6 +68,7 @@
     <button class="tab-btn" data-tab="portfolio-tab" data-i18n="tab.portfolio">Portfolio</button>
     <button class="tab-btn pro-only" data-tab="expenses-tab" data-i18n="tab.expenses">Expenses</button>
     <button class="tab-btn" data-tab="waste-tab" data-i18n="tab.waste">Waste Log</button>
+    <button class="tab-btn" data-tab="gift-cards-tab" data-i18n="giftCards">Gift Cards</button>
     <button class="tab-btn" data-tab="settings-tab" data-i18n="tab.settings">Settings</button>
   </nav>
 
@@ -406,8 +407,13 @@
 
     <!-- ===================== QUEUE ===================== -->
     <section id="queue-tab" class="tab-content">
+      <!-- Machine Queues -->
+      <div id="machineQueuesContainer" class="mb-6"></div>
+
       <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap;">
         <h3 class="card-head" style="margin:0; flex:1; min-width:120px;"><span class="swatch"></span><span data-i18n="queue.title">Active Production Queue</span></h3>
+        <button id="btnStartShift" class="btn btn-sm btn-secondary" data-i18n="startShift">▶ Start Shift</button>
+        <button id="btnEndOfDay" class="btn btn-sm btn-secondary" data-i18n="endOfDayReport">📋 End of Day</button>
         <input type="search" id="kanSearch" class="toolbar-search" data-i18n-placeholder="kan.search_ph" placeholder="Filter by client, project…" style="max-width:200px;">
         <button id="btnScheduleView" class="btn-sm btn ghost small">📅 <span data-i18n="kan.schedule_view">Schedule</span></button>
         <button id="btnCalendarView" class="btn-sm btn ghost small">📆 <span data-i18n="kan.calendar_view">Calendar</span></button>
@@ -761,6 +767,12 @@
         <div id="newVsReturningSection"></div>
       </div>
 
+      <!-- GAZT VAT Return -->
+      <div id="vatReturnContainer" class="mt-6" style="margin-top:16px;"></div>
+
+      <!-- Acquisition Sources -->
+      <div id="acquisitionSourcesContainer" class="mt-6" style="margin-top:16px;"></div>
+
       <!-- Analytics CSV export bar -->
       <div id="analyticsExportBar" class="card" style="margin-top: 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:12px 16px;">
         <span style="font-size:13px; color:var(--text-muted); flex:1;" data-i18n="an.export_hint">Export data as CSV</span>
@@ -1069,6 +1081,15 @@
       </div>
     </section>
 
+    <!-- ===================== GIFT CARDS ===================== -->
+    <section id="gift-cards-tab" class="tab-content" style="display:none">
+      <div class="toolbar" style="margin-bottom:16px;">
+        <h2 class="card-head" style="margin:0; flex:1;"><span class="swatch"></span><span data-i18n="giftCards">Gift Cards</span></h2>
+        <button id="btnCreateGiftCard" class="btn btn-primary" data-i18n="issueGiftCard">Issue Gift Card</button>
+      </div>
+      <div id="giftCardsContainer"></div>
+    </section>
+
     <!-- ===================== SETTINGS ===================== -->
     <section id="settings-tab" class="tab-content">
       <div class="grid">
@@ -1356,6 +1377,12 @@
           <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px;" data-i18n="mach.section_hint"></p>
           <div id="machinesList"></div>
           <button class="btn primary" id="btnAddMachine" style="margin-top:10px;" data-i18n="mach.add">+ Add Printer</button>
+
+          <!-- Slicer Profiles -->
+          <div id="slicerProfilesContainer" class="mt-6" style="margin-top:24px;"></div>
+
+          <!-- Environmental Logs -->
+          <div id="envLogsContainer" class="mt-6" style="margin-top:24px;"></div>
         </div>
 
         <div class="card full">
@@ -1522,6 +1549,18 @@
           <h3 class="card-head"><span class="swatch"></span><span>LAN API (Mobile Access)</span></h3>
           <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">Start a local HTTP server so phones/tablets on the same Wi-Fi can view the queue without a desktop.</p>
           <div id="lanApiSection"></div>
+        </div>
+
+        <!-- Telegram Notifications -->
+        <div class="card full settings-section" id="telegramSettingsSection">
+          <h3 class="card-head"><span class="swatch"></span><span data-i18n="telegramNotifications">Telegram Notifications</span></h3>
+          <div id="telegramSettingsContainer"></div>
+        </div>
+
+        <!-- Salla / Zid Webhooks -->
+        <div class="card full settings-section" id="sallaZidSection">
+          <h3 class="card-head"><span class="swatch"></span><span>Salla / Zid Webhooks</span></h3>
+          <div id="sallaZidContainer"></div>
         </div>
 
         <!-- Custom order metadata fields -->

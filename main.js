@@ -1210,7 +1210,12 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
           pathname.startsWith('/order/') ||
           pathname === '/' || pathname === '/manifest.json' || pathname === '/sw.js' ||
           pathname === '/icon-192.png' || pathname === '/icon-512.png' ||
-          pathname.startsWith('/api/webhook/printer/');
+          pathname.startsWith('/api/webhook/printer/') ||
+          pathname === '/calendar.ics' ||
+          pathname === '/intake' ||
+          pathname === '/api/intake' ||
+          pathname === '/api/webhook/salla' ||
+          pathname === '/api/webhook/zid';
         const isSurveyEndpoint = pathname === '/api/survey' && req.method === 'POST';
         const requirePin = isWriteRequest && !isSurveyEndpoint && !isAlwaysPublic;
         if (!isAlwaysPublic && (requirePin || (pin && !isSurveyEndpoint))) {
@@ -1710,9 +1715,307 @@ setTimeout(()=>location.reload(),30000);
             }
           });
 
+        // ── iCal feed ───────────────────────────────────────────
+        } else if (pathname === '/calendar.ics' && req.method === 'GET') {
+          const calOrders = (store.printLog || []).filter(o =>
+            o.dueDate && o.status !== 'completed' && o.status !== 'cancelled'
+          );
+          const formatIcalDate = (dateStr) => {
+            // Parse YYYY-MM-DD → YYYYMMDD
+            const d = new Date(dateStr + 'T00:00:00Z');
+            if (isNaN(d.getTime())) return null;
+            const y = d.getUTCFullYear();
+            const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+            const dy = String(d.getUTCDate()).padStart(2, '0');
+            return `${y}${m}${dy}`;
+          };
+          const calStatusMap = {
+            printing: 'CONFIRMED', post: 'CONFIRMED', qc: 'CONFIRMED',
+            pending: 'TENTATIVE', on_hold: 'CANCELLED'
+          };
+          const vevents = calOrders.map(o => {
+            const dtstart = formatIcalDate(o.dueDate);
+            if (!dtstart) return '';
+            // DTEND = dueDate + 1 day
+            const dEnd = new Date(o.dueDate + 'T00:00:00Z');
+            dEnd.setUTCDate(dEnd.getUTCDate() + 1);
+            const ye = dEnd.getUTCFullYear();
+            const me = String(dEnd.getUTCMonth() + 1).padStart(2, '0');
+            const de = String(dEnd.getUTCDate()).padStart(2, '0');
+            const dtend = `${ye}${me}${de}`;
+            const summary = `${(o.project || o.id).replace(/[\\;,]/g, '\\$&')} (${(o.client || 'No client').replace(/[\\;,]/g, '\\$&')})`;
+            const icalStatus = calStatusMap[o.status] || 'TENTATIVE';
+            return [
+              'BEGIN:VEVENT',
+              `UID:khayt-${o.id}@khayt.app`,
+              `DTSTART;VALUE=DATE:${dtstart}`,
+              `DTEND;VALUE=DATE:${dtend}`,
+              `SUMMARY:${summary}`,
+              `STATUS:${icalStatus}`,
+              'END:VEVENT'
+            ].join('\r\n');
+          }).filter(Boolean).join('\r\n');
+          const shopName = (store.settings?.shopName || 'Khayt').replace(/[\\;,]/g, '\\$&');
+          const icalBody = [
+            'BEGIN:VCALENDAR',
+            'VERSION:2.0',
+            'PRODID:-//Khayt//Khayt//EN',
+            'CALSCALE:GREGORIAN',
+            'METHOD:PUBLISH',
+            `X-WR-CALNAME:${shopName} Orders`,
+            vevents,
+            'END:VCALENDAR'
+          ].join('\r\n');
+          res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+          res.setHeader('Content-Disposition', 'attachment; filename="khayt-orders.ics"');
+          res.setHeader('Cache-Control', 'no-cache');
+          res.writeHead(200);
+          res.end(icalBody);
+
+        // ── Online intake form ──────────────────────────────────
+        } else if (pathname === '/intake' && req.method === 'GET') {
+          const shopName = lanEscapeHtml(store.settings?.shopName || 'Khayt');
+          res.setHeader('Content-Type', 'text/html; charset=utf-8');
+          res.setHeader('Cache-Control', 'no-cache');
+          res.writeHead(200);
+          res.end(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Order Intake — ${shopName}</title><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0f172a;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;padding:24px 16px}.container{max-width:520px;margin:0 auto}.header{text-align:center;margin-bottom:28px}.header h1{font-size:1.5rem;font-weight:700;color:#f1f5f9;margin-bottom:4px}.header p{color:#94a3b8;font-size:.9rem}.card{background:#1e293b;border-radius:16px;padding:24px;margin-bottom:16px}.form-group{margin-bottom:16px}label{display:block;font-size:.8rem;font-weight:600;color:#94a3b8;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}input,textarea,select{width:100%;background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:10px 12px;font-size:.9rem;outline:none;transition:border-color .2s}input:focus,textarea:focus,select:focus{border-color:#6366f1}textarea{resize:vertical;min-height:100px}select option{background:#1e293b}.req{color:#f87171}button[type=submit]{width:100%;background:#6366f1;color:#fff;border:none;border-radius:10px;padding:13px;font-size:1rem;font-weight:600;cursor:pointer;transition:background .2s}button[type=submit]:hover{background:#4f46e5}button[type=submit]:disabled{background:#334155;cursor:not-allowed}.thankyou{display:none;text-align:center;padding:40px 24px}.thankyou h2{font-size:1.3rem;color:#6366f1;margin-bottom:12px}.thankyou p{color:#94a3b8;line-height:1.6}.error-msg{color:#f87171;font-size:.8rem;margin-top:6px;display:none}</style></head><body><div class="container"><div class="header"><h1>${shopName}</h1><p>Submit a new order request</p></div><div class="card"><form id="intakeForm"><div class="form-group"><label>Name <span class="req">*</span></label><input type="text" name="name" required maxlength="200" placeholder="Your full name"></div><div class="form-group"><label>Email</label><input type="email" name="email" maxlength="500" placeholder="your@email.com"></div><div class="form-group"><label>Phone</label><input type="tel" name="phone" maxlength="500" placeholder="+966 5x xxx xxxx"></div><div class="form-group"><label>Project Description <span class="req">*</span></label><textarea name="description" required maxlength="2000" placeholder="Describe your 3D printing project in detail..."></textarea></div><div class="form-group"><label>Reference / Link</label><input type="url" name="referenceLink" maxlength="500" placeholder="https://..."></div><div class="form-group"><label>Preferred Material</label><input type="text" name="material" maxlength="500" placeholder="e.g. PLA, PETG, Resin"></div><div class="form-group"><label>Budget Range</label><select name="budget"><option value="">— Select —</option><option value="&lt;100">Less than 100 SAR</option><option value="100-500">100 – 500 SAR</option><option value="500-1000">500 – 1,000 SAR</option><option value="1000+">1,000+ SAR</option></select></div><div class="form-group"><label>Preferred Due Date</label><input type="date" name="dueDate" maxlength="500"></div><div class="error-msg" id="errMsg">An error occurred. Please try again.</div><button type="submit">Submit Request</button></form><div class="thankyou" id="thankYou"><h2>Thank you!</h2><p>Your request has been received. We'll get back to you as soon as possible.</p></div></div></div><script>document.getElementById('intakeForm').addEventListener('submit',async function(e){e.preventDefault();const btn=this.querySelector('button[type=submit]');const err=document.getElementById('errMsg');err.style.display='none';btn.disabled=true;btn.textContent='Submitting…';const data={};new FormData(this).forEach((v,k)=>{if(v)data[k]=v;});try{const r=await fetch('/api/intake',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});if(r.ok){this.style.display='none';document.getElementById('thankYou').style.display='block';}else{const j=await r.json().catch(()=>({}));err.textContent=j.error||'Submission failed.';err.style.display='block';btn.disabled=false;btn.textContent='Submit Request';}}catch(ex){err.textContent='Network error. Please try again.';err.style.display='block';btn.disabled=false;btn.textContent='Submit Request';}});</script></body></html>`);
+
+        // ── Intake form submission ──────────────────────────────
+        } else if (pathname === '/api/intake' && req.method === 'POST') {
+          let body = '';
+          req.on('data', chunk => {
+            if (Buffer.byteLength(body) + chunk.length > MAX_BODY) {
+              res.writeHead(413, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+              res.end(JSON.stringify({ error: 'Request too large' }));
+              req.socket.destroy();
+              return;
+            }
+            body += chunk;
+          });
+          req.on('end', async () => {
+            try {
+              const parsed = JSON.parse(body);
+              // Validate required fields
+              const name = typeof parsed.name === 'string' ? parsed.name.trim().slice(0, 200) : '';
+              const description = typeof parsed.description === 'string' ? parsed.description.trim().slice(0, 2000) : '';
+              if (!name) {
+                res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+                res.end(JSON.stringify({ error: 'name is required' }));
+                return;
+              }
+              if (!description) {
+                res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+                res.end(JSON.stringify({ error: 'description is required' }));
+                return;
+              }
+              // Optional fields — sanitize
+              const sanitize = (v) => typeof v === 'string' ? v.trim().slice(0, 500) : undefined;
+              const email = sanitize(parsed.email);
+              const phone = sanitize(parsed.phone);
+              const material = sanitize(parsed.material);
+              const budget = sanitize(parsed.budget);
+              const dueDate = sanitize(parsed.dueDate);
+              const referenceLink = sanitize(parsed.referenceLink);
+              const entry = {
+                id: `intake-${Date.now()}`,
+                name, email, phone, description, material, budget, dueDate, referenceLink,
+                submittedAt: new Date().toISOString(),
+                source: 'intake_form',
+                status: 'new'
+              };
+              // Remove undefined keys
+              Object.keys(entry).forEach(k => entry[k] === undefined && delete entry[k]);
+              const storeData = { ...lanServerStore };
+              storeData.waitingList = [...(lanServerStore.waitingList || []), entry];
+              lanServerStore = storeData;
+              const fp = dataFilePath();
+              await fs.promises.writeFile(fp + '.tmp', JSON.stringify(encryptForDisk(storeData)), 'utf8');
+              await fs.promises.rename(fp + '.tmp', fp);
+              if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('lan-intake-submitted', entry);
+              }
+              res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+              res.end(JSON.stringify({ ok: true }));
+            } catch (e) {
+              res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+              res.end(JSON.stringify({ error: String(e) }));
+            }
+          });
+
+        // ── Quote approval ──────────────────────────────────────
+        } else if (pathname.startsWith('/order/') && req.method === 'POST') {
+          const rawId = pathname.replace(/^\/order\//, '').replace(/\/?$/, '').split('/')[0];
+          const safeId = rawId.replace(/[^a-zA-Z0-9_-]/g, '');
+          let body = '';
+          req.on('data', chunk => {
+            if (Buffer.byteLength(body) + chunk.length > MAX_BODY) {
+              res.writeHead(413, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'Request too large' }));
+              req.socket.destroy();
+              return;
+            }
+            body += chunk;
+          });
+          req.on('end', async () => {
+            try {
+              const parsed = JSON.parse(body);
+              if (parsed.action !== 'approve') {
+                res.setHeader('Content-Type', 'text/html; charset=utf-8');
+                res.writeHead(400);
+                res.end(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bad Request</title><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0f172a;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}.card{background:#1e293b;border-radius:16px;padding:40px 32px;text-align:center;max-width:400px;width:100%}h2{font-size:1.4rem;margin-bottom:12px;color:#f1f5f9}p{color:#94a3b8;line-height:1.6}</style></head><body><div class="card"><h2>Invalid Action</h2><p>Unknown action. Only "approve" is supported.</p></div></body></html>`);
+                return;
+              }
+              const storeData = { ...lanServerStore };
+              storeData.printLog = [...(lanServerStore.printLog || [])];
+              const idx = storeData.printLog.findIndex(o => o.id === safeId);
+              if (idx === -1) {
+                res.setHeader('Content-Type', 'text/html; charset=utf-8');
+                res.writeHead(404);
+                res.end(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Order Not Found</title><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0f172a;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}.card{background:#1e293b;border-radius:16px;padding:40px 32px;text-align:center;max-width:400px;width:100%}h2{font-size:1.4rem;margin-bottom:12px;color:#f1f5f9}p{color:#94a3b8;line-height:1.6}</style></head><body><div class="card"><h2>Order Not Found</h2><p>We could not find an order with that ID.</p></div></body></html>`);
+                return;
+              }
+              const order = storeData.printLog[idx];
+              const canApprove = order.status === 'quote' || (order.status === 'on_hold' && order.hasQuote);
+              if (!canApprove) {
+                res.setHeader('Content-Type', 'text/html; charset=utf-8');
+                res.writeHead(409);
+                res.end(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cannot Approve</title><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0f172a;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}.card{background:#1e293b;border-radius:16px;padding:40px 32px;text-align:center;max-width:400px;width:100%}h2{font-size:1.4rem;margin-bottom:12px;color:#f1f5f9}p{color:#94a3b8;line-height:1.6}</style></head><body><div class="card"><h2>Cannot Approve</h2><p>This order is not in a state that can be approved (current status: ${lanEscapeHtml(order.status || '')}).</p></div></body></html>`);
+                return;
+              }
+              storeData.printLog[idx] = {
+                ...order,
+                status: 'pending',
+                clientApprovedAt: new Date().toISOString()
+              };
+              lanServerStore = storeData;
+              const fp = dataFilePath();
+              await fs.promises.writeFile(fp + '.tmp', JSON.stringify(encryptForDisk(storeData)), 'utf8');
+              await fs.promises.rename(fp + '.tmp', fp);
+              if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('lan-order-updated', { id: safeId, status: 'pending', clientApprovedAt: storeData.printLog[idx].clientApprovedAt });
+              }
+              const projectName = lanEscapeHtml(order.project || order.id);
+              res.setHeader('Content-Type', 'text/html; charset=utf-8');
+              res.writeHead(200);
+              res.end(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Quote Approved</title><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0f172a;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}.card{background:#1e293b;border-radius:16px;padding:40px 32px;text-align:center;max-width:400px;width:100%}h2{font-size:1.4rem;margin-bottom:12px;color:#6366f1}p{color:#94a3b8;line-height:1.6}</style></head><body><div class="card"><h2>Quote Approved!</h2><p>Your approval for <strong>${projectName}</strong> has been received. We'll start working on your order shortly.</p></div></body></html>`);
+            } catch (e) {
+              res.setHeader('Content-Type', 'application/json');
+              res.writeHead(400);
+              res.end(JSON.stringify({ error: String(e) }));
+            }
+          });
+
+        // ── Salla inbound order webhook ─────────────────────────
+        } else if (pathname === '/api/webhook/salla' && req.method === 'POST') {
+          let bodyBuf = Buffer.alloc(0);
+          req.on('data', chunk => {
+            if (bodyBuf.length + chunk.length > MAX_BODY) {
+              res.writeHead(413, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'Request too large' }));
+              req.socket.destroy();
+              return;
+            }
+            bodyBuf = Buffer.concat([bodyBuf, chunk]);
+          });
+          req.on('end', async () => {
+            try {
+              const sallaSecret = lanServerStore.settings?.lanApi?.sallaWebhookSecret;
+              if (sallaSecret) {
+                const sigHeader = req.headers['x-salla-signature'] || '';
+                const expected = 'sha256=' + crypto.createHmac('sha256', sallaSecret).update(bodyBuf).digest('hex');
+                if (!safeTokenEqual(sigHeader, expected)) {
+                  res.writeHead(401, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({ error: 'Invalid signature' }));
+                  return;
+                }
+              }
+              const parsed = JSON.parse(bodyBuf.toString('utf8'));
+              const storeData = { ...lanServerStore };
+              storeData.printLog = [...(lanServerStore.printLog || [])];
+              const clientFirst = (parsed.data?.customer?.first_name || '').trim();
+              const clientLast  = (parsed.data?.customer?.last_name  || '').trim();
+              const newOrder = {
+                id:      `salla-${Date.now()}`,
+                project: `Salla: ${(parsed.data?.name || 'Order').slice(0, 100)}`,
+                client:  [clientFirst, clientLast].filter(Boolean).join(' '),
+                status:  'pending',
+                date:    new Date().toISOString().split('T')[0],
+                price:   parsed.data?.total || 0,
+                notes:   `Salla order #${parsed.data?.reference_id || ''}`,
+                source:  'salla'
+              };
+              storeData.printLog.unshift(newOrder);
+              lanServerStore = storeData;
+              const fp = dataFilePath();
+              await fs.promises.writeFile(fp + '.tmp', JSON.stringify(encryptForDisk(storeData)), 'utf8');
+              await fs.promises.rename(fp + '.tmp', fp);
+              if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('lan-order-updated', newOrder);
+              }
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ ok: true }));
+            } catch (e) {
+              res.writeHead(400, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: String(e) }));
+            }
+          });
+
+        // ── Zid inbound order webhook ───────────────────────────
+        } else if (pathname === '/api/webhook/zid' && req.method === 'POST') {
+          let bodyBuf = Buffer.alloc(0);
+          req.on('data', chunk => {
+            if (bodyBuf.length + chunk.length > MAX_BODY) {
+              res.writeHead(413, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'Request too large' }));
+              req.socket.destroy();
+              return;
+            }
+            bodyBuf = Buffer.concat([bodyBuf, chunk]);
+          });
+          req.on('end', async () => {
+            try {
+              const zidSecret = lanServerStore.settings?.lanApi?.zidWebhookSecret;
+              if (zidSecret) {
+                const sigHeader = req.headers['x-zid-signature'] || '';
+                const expected = 'sha256=' + crypto.createHmac('sha256', zidSecret).update(bodyBuf).digest('hex');
+                if (!safeTokenEqual(sigHeader, expected)) {
+                  res.writeHead(401, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({ error: 'Invalid signature' }));
+                  return;
+                }
+              }
+              const parsed = JSON.parse(bodyBuf.toString('utf8'));
+              const storeData = { ...lanServerStore };
+              storeData.printLog = [...(lanServerStore.printLog || [])];
+              const newOrder = {
+                id:      `zid-${Date.now()}`,
+                project: `Zid: ${(parsed.order?.name || 'Order').slice(0, 100)}`,
+                client:  (parsed.order?.customer_name || '').trim(),
+                status:  'pending',
+                date:    new Date().toISOString().split('T')[0],
+                price:   parsed.order?.total || 0,
+                notes:   `Zid order #${parsed.order?.reference_id || parsed.order?.id || ''}`,
+                source:  'zid'
+              };
+              storeData.printLog.unshift(newOrder);
+              lanServerStore = storeData;
+              const fp = dataFilePath();
+              await fs.promises.writeFile(fp + '.tmp', JSON.stringify(encryptForDisk(storeData)), 'utf8');
+              await fs.promises.rename(fp + '.tmp', fp);
+              if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('lan-order-updated', newOrder);
+              }
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ ok: true }));
+            } catch (e) {
+              res.writeHead(400, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: String(e) }));
+            }
+          });
+
         } else {
           res.writeHead(404);
-          res.end(JSON.stringify({ error: 'Not found', endpoints: ['/api/status','/api/orders','/api/queue','/api/machines','/api/inventory','/api/webhook/printer/:machineId'] }));
+          res.end(JSON.stringify({ error: 'Not found', endpoints: ['/api/status','/api/orders','/api/queue','/api/machines','/api/inventory','/api/webhook/printer/:machineId','/calendar.ics','/intake','/api/intake','/api/webhook/salla','/api/webhook/zid'] }));
         }
       });
       lanServer.listen(port, '0.0.0.0', () => {
@@ -1746,6 +2049,28 @@ setTimeout(()=>location.reload(),30000);
 ipcMain.handle('hub:stop-lan-server', async () => {
   if (lanServer) { lanServer.close(); lanServer = null; }
   return { ok: true };
+});
+
+ipcMain.handle('hub:send-telegram', async (_e, { botToken, chatId, message } = {}) => {
+  if (!botToken || !chatId || !message) return { ok: false, error: 'Missing params' };
+  if (!/^[0-9]+:[A-Za-z0-9_-]+$/.test(botToken)) return { ok: false, error: 'Invalid bot token format' };
+  const chatIdStr = String(chatId).replace(/[^0-9@-]/g, '');
+  // isBlockedHost check — api.telegram.org is a public host, should pass
+  if (isBlockedHost('api.telegram.org')) return { ok: false, error: 'Host is blocked' };
+  const url = `https://api.telegram.org/bot${encodeURIComponent(botToken)}/sendMessage`;
+  const body = JSON.stringify({ chat_id: chatIdStr, text: message.slice(0, 4096), parse_mode: 'HTML' });
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+      signal: AbortSignal.timeout(10000)
+    });
+    const data = await res.json().catch(() => ({}));
+    return { ok: res.ok, status: res.status, data };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
 });
 
 ipcMain.handle('hub:get-lan-url', async () => {

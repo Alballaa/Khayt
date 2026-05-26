@@ -2142,6 +2142,136 @@ const STRINGS = {
     'set.exchange_rate_saved':  'Rate saved',
     'inv.base_currency_equiv':  'Base currency equivalent',
     'an.fx_converted':          '(converted to {currency})',
+
+    // ---------- Shift / Queue operations ----------
+    'startShift':               'Start Shift',
+    'endOfDayReport':           'End of Day Report',
+    'shiftChecklist':           'Shift Checklist',
+    'checkFilamentLevels':      'Check filament levels on all printers',
+    'verifyTemperatures':       'Verify printer temperatures',
+    'reviewOrderQueue':         "Review today's order queue",
+    'checkFailedPrints':        'Check for failed prints from previous shift',
+    'cleanPrintSurfaces':       'Clean print surfaces',
+    'logShiftStartTime':        'Log shift start time',
+    'shiftStarted':             'Shift started!',
+    'completedToday':           'Completed Today',
+    'revenueToday':             'Revenue Today',
+    'ordersInProgress':         'Orders in Progress',
+    'filamentUsedToday':        'Filament Used Today',
+    'timeLoggedToday':          'Time Logged Today',
+    'ordersDueToday':           'Orders Due Today',
+
+    // ---------- Per-machine queues ----------
+    'machineQueues':            'Machine Queues',
+    'currentlyPrinting':        'Currently Printing',
+    'machineIdle':              'Idle',
+    'machineQueue':             'Queue',
+
+    // ---------- Recurring orders ----------
+    'recurringOrder':           'Recurring Order',
+    'recurringInterval':        'Recurrence',
+    'weekly':                   'Weekly',
+    'biweekly':                 'Bi-weekly',
+    'monthly':                  'Monthly',
+    'nextDueDate':              'Next Due Date',
+    'recurringOrderCreated':    'Recurring order auto-created',
+
+    // ---------- Gift cards ----------
+    'giftCards':                'Gift Cards',
+    'issueGiftCard':            'Issue Gift Card',
+    'giftCardCode':             'Gift Card Code',
+    'giftCardBalance':          'Balance',
+    'giftCardInitialBalance':   'Initial Balance',
+    'giftCardExpiry':           'Expiry Date (optional)',
+    'giftCardIssuedTo':         'Issued To',
+    'applyGiftCard':            'Apply Gift Card',
+    'giftCardApplied':          'Gift card applied',
+    'giftCardInvalid':          'Invalid or depleted gift card',
+
+    // ---------- Multi-material ----------
+    'addMaterial':              'Add Material',
+    'multiMaterial':            'Multi-Material Job',
+    'materialRow':              'Material {n}',
+    'removeRow':                'Remove',
+
+    // ---------- GAZT VAT ----------
+    'vatReturn':                'VAT Return',
+    'exportVatReturn':          'Export VAT Return',
+    'vatPeriod':                'Period',
+    'totalSales':               'Total Sales',
+    'zeroRatedSales':           'Zero-rated Sales',
+    'vatCollected':             'VAT Collected',
+    'totalPurchases':           'Total Purchases',
+    'inputVat':                 'Input VAT',
+    'netVatDue':                'Net VAT Due',
+
+    // ---------- Slicer profiles ----------
+    'slicerProfiles':           'Slicer Profiles',
+    'addSlicerProfile':         'Add Profile',
+    'layerHeight':              'Layer Height (mm)',
+    'infillPercent':            'Infill %',
+    'supportEnabled':           'Supports',
+    'slicerProfileSaved':       'Profile saved',
+
+    // ---------- Environmental logging ----------
+    'envLogs':                  'Environment Log',
+    'logEnvironment':           'Log Environment',
+    'temperature':              'Temperature (°C)',
+    'humidity':                 'Humidity (%)',
+    'envLogSaved':              'Environment logged',
+
+    // ---------- Telegram ----------
+    'telegramNotifications':    'Telegram Notifications',
+    'telegramBotToken':         'Bot Token',
+    'telegramChatId':           'Chat ID',
+    'telegramTest':             'Send Test Message',
+    'telegramTestSent':         'Test message sent!',
+    'notifyOnComplete':         'Notify on order completed',
+    'notifyOnHold':             'Notify on order on hold',
+    'notifyOnLowStock':         'Notify on low stock',
+
+    // ---------- iCal ----------
+    'exportIcal':               'Export iCal Feed',
+    'icalDescription':          'Subscribe to upcoming order due dates in your calendar app',
+
+    // ---------- Referral ----------
+    'referralCode':             'Referral Code',
+    'referredBy':               'Referred By',
+    'acquisitionSources':       'Acquisition Sources',
+    'topReferrers':             'Top Referrers',
+
+    // ---------- Change orders ----------
+    'changeOrder':              'Change Order',
+    'changeDescription':        'What changed?',
+    'changeOrderSaved':         'Change order recorded',
+    'changeLog':                'Change Log',
+
+    // ---------- Failure photo ----------
+    'captureFailurePhoto':      'Capture Failure Photo',
+    'failurePhoto':             'Failure Photo',
+    'photoSaved':               'Photo saved',
+
+    // ---------- Shipping ----------
+    'trackingNumber':           'Tracking Number',
+    'carrier':                  'Carrier',
+    'trackShipment':            'Track Shipment',
+    'aramex':                   'Aramex',
+    'saudiPost':                'Saudi Post',
+    'otherCarrier':             'Other Carrier',
+
+    // ---------- Intake form ----------
+    'onlineIntakeForm':         'Online Intake Form',
+    'intakeFormUrl':            'Intake Form URL',
+    'copyIntakeUrl':            'Copy URL',
+    'intakeFormSubmitted':      'New quote request received',
+
+    // ---------- Salla / Zid ----------
+    'sallaWebhook':             'Salla Webhook',
+    'zidWebhook':               'Zid Webhook',
+    'sallaWebhookSecret':       'Salla Webhook Secret',
+    'zidWebhookSecret':         'Zid Webhook Secret',
+    'sallaOrderReceived':       'New order from Salla',
+    'zidOrderReceived':         'New order from Zid',
   },
 
   ar: {
@@ -4127,6 +4257,136 @@ const STRINGS = {
     'set.exchange_rate_saved':  'تم حفظ السعر',
     'inv.base_currency_equiv':  'ما يعادله بالعملة الأساسية',
     'an.fx_converted':          '(محوّل إلى {currency})',
+
+    // ---------- Shift / Queue operations ----------
+    'startShift':               'بدء الوردية',
+    'endOfDayReport':           'تقرير نهاية اليوم',
+    'shiftChecklist':           'قائمة مراجعة الوردية',
+    'checkFilamentLevels':      'فحص مستويات الفيلامنت في جميع الطابعات',
+    'verifyTemperatures':       'التحقق من درجات حرارة الطابعات',
+    'reviewOrderQueue':         'مراجعة قائمة طلبات اليوم',
+    'checkFailedPrints':        'فحص الطباعة الفاشلة من الوردية السابقة',
+    'cleanPrintSurfaces':       'تنظيف أسطح الطباعة',
+    'logShiftStartTime':        'تسجيل وقت بدء الوردية',
+    'shiftStarted':             'بدأت الوردية!',
+    'completedToday':           'مكتمل اليوم',
+    'revenueToday':             'إيراد اليوم',
+    'ordersInProgress':         'طلبات قيد التنفيذ',
+    'filamentUsedToday':        'الفيلامنت المستهلك اليوم',
+    'timeLoggedToday':          'الوقت المسجّل اليوم',
+    'ordersDueToday':           'طلبات مستحقة اليوم',
+
+    // ---------- Per-machine queues ----------
+    'machineQueues':            'قوائم الطابعات',
+    'currentlyPrinting':        'تطبع الآن',
+    'machineIdle':              'خاملة',
+    'machineQueue':             'القائمة',
+
+    // ---------- Recurring orders ----------
+    'recurringOrder':           'طلب متكرر',
+    'recurringInterval':        'التكرار',
+    'weekly':                   'أسبوعيًا',
+    'biweekly':                 'كل أسبوعين',
+    'monthly':                  'شهريًا',
+    'nextDueDate':              'تاريخ الاستحقاق التالي',
+    'recurringOrderCreated':    'تم إنشاء طلب متكرر تلقائيًا',
+
+    // ---------- Gift cards ----------
+    'giftCards':                'بطاقات الهدايا',
+    'issueGiftCard':            'إصدار بطاقة هدية',
+    'giftCardCode':             'رمز بطاقة الهدية',
+    'giftCardBalance':          'الرصيد',
+    'giftCardInitialBalance':   'الرصيد الابتدائي',
+    'giftCardExpiry':           'تاريخ الانتهاء (اختياري)',
+    'giftCardIssuedTo':         'صادرة لـ',
+    'applyGiftCard':            'تطبيق بطاقة الهدية',
+    'giftCardApplied':          'تم تطبيق بطاقة الهدية',
+    'giftCardInvalid':          'بطاقة الهدية غير صالحة أو مستنفدة',
+
+    // ---------- Multi-material ----------
+    'addMaterial':              'إضافة مادة',
+    'multiMaterial':            'مهمة متعددة المواد',
+    'materialRow':              'المادة {n}',
+    'removeRow':                'إزالة',
+
+    // ---------- GAZT VAT ----------
+    'vatReturn':                'إقرار ضريبة القيمة المضافة',
+    'exportVatReturn':          'تصدير إقرار ضريبة القيمة المضافة',
+    'vatPeriod':                'الفترة',
+    'totalSales':               'إجمالي المبيعات',
+    'zeroRatedSales':           'المبيعات الخاضعة لنسبة صفر',
+    'vatCollected':             'ضريبة القيمة المضافة المحصّلة',
+    'totalPurchases':           'إجمالي المشتريات',
+    'inputVat':                 'ضريبة المدخلات',
+    'netVatDue':                'صافي الضريبة المستحقة',
+
+    // ---------- Slicer profiles ----------
+    'slicerProfiles':           'ملفات تقسيم الطبقات',
+    'addSlicerProfile':         'إضافة ملف',
+    'layerHeight':              'ارتفاع الطبقة (مم)',
+    'infillPercent':            'نسبة الحشو (%)',
+    'supportEnabled':           'الدعامات',
+    'slicerProfileSaved':       'تم حفظ الملف',
+
+    // ---------- Environmental logging ----------
+    'envLogs':                  'سجل البيئة',
+    'logEnvironment':           'تسجيل بيانات البيئة',
+    'temperature':              'درجة الحرارة (°م)',
+    'humidity':                 'الرطوبة (%)',
+    'envLogSaved':              'تم تسجيل بيانات البيئة',
+
+    // ---------- Telegram ----------
+    'telegramNotifications':    'إشعارات تيليغرام',
+    'telegramBotToken':         'رمز البوت',
+    'telegramChatId':           'معرّف المحادثة',
+    'telegramTest':             'إرسال رسالة اختبار',
+    'telegramTestSent':         'تم إرسال رسالة الاختبار!',
+    'notifyOnComplete':         'إشعار عند إتمام الطلب',
+    'notifyOnHold':             'إشعار عند تعليق الطلب',
+    'notifyOnLowStock':         'إشعار عند انخفاض المخزون',
+
+    // ---------- iCal ----------
+    'exportIcal':               'تصدير تغذية iCal',
+    'icalDescription':          'اشترك في مواعيد استحقاق الطلبات في تطبيق التقويم',
+
+    // ---------- Referral ----------
+    'referralCode':             'رمز الإحالة',
+    'referredBy':               'أُحيل من',
+    'acquisitionSources':       'مصادر الاكتساب',
+    'topReferrers':             'أعلى المُحيلين',
+
+    // ---------- Change orders ----------
+    'changeOrder':              'أمر التغيير',
+    'changeDescription':        'ما الذي تغيّر؟',
+    'changeOrderSaved':         'تم تسجيل أمر التغيير',
+    'changeLog':                'سجل التغييرات',
+
+    // ---------- Failure photo ----------
+    'captureFailurePhoto':      'التقاط صورة العطل',
+    'failurePhoto':             'صورة العطل',
+    'photoSaved':               'تم حفظ الصورة',
+
+    // ---------- Shipping ----------
+    'trackingNumber':           'رقم التتبع',
+    'carrier':                  'شركة الشحن',
+    'trackShipment':            'تتبع الشحنة',
+    'aramex':                   'أرامكس',
+    'saudiPost':                'البريد السعودي',
+    'otherCarrier':             'شركة أخرى',
+
+    // ---------- Intake form ----------
+    'onlineIntakeForm':         'نموذج الطلبات الإلكتروني',
+    'intakeFormUrl':            'رابط نموذج الطلبات',
+    'copyIntakeUrl':            'نسخ الرابط',
+    'intakeFormSubmitted':      'استُلم طلب عرض سعر جديد',
+
+    // ---------- Salla / Zid ----------
+    'sallaWebhook':             'Webhook سلة',
+    'zidWebhook':               'Webhook زد',
+    'sallaWebhookSecret':       'مفتاح Webhook سلة',
+    'zidWebhookSecret':         'مفتاح Webhook زد',
+    'sallaOrderReceived':       'طلب جديد من سلة',
+    'zidOrderReceived':         'طلب جديد من زد',
   },
 
   // ════════════════════════════════════════════════════════════
@@ -5116,6 +5376,136 @@ const STRINGS = {
     'set.exchange_rate_saved':  'Kurs gespeichert',
     'inv.base_currency_equiv':  'Gegenwert in Basiswährung',
     'an.fx_converted':          '(umgerechnet in {currency})',
+
+    // ---------- Shift / Queue operations ----------
+    'startShift':               'Schicht beginnen',
+    'endOfDayReport':           'Tagesendbericht',
+    'shiftChecklist':           'Schicht-Checkliste',
+    'checkFilamentLevels':      'Filamentstand an allen Druckern prüfen',
+    'verifyTemperatures':       'Druckertemperaturen überprüfen',
+    'reviewOrderQueue':         'Auftragswarteschlange für heute durchsehen',
+    'checkFailedPrints':        'Fehlgeschlagene Drucke der letzten Schicht prüfen',
+    'cleanPrintSurfaces':       'Druckoberflächen reinigen',
+    'logShiftStartTime':        'Schichtbeginn erfassen',
+    'shiftStarted':             'Schicht gestartet!',
+    'completedToday':           'Heute fertiggestellt',
+    'revenueToday':             'Heutiger Umsatz',
+    'ordersInProgress':         'Aufträge in Bearbeitung',
+    'filamentUsedToday':        'Heute verbrauchtes Filament',
+    'timeLoggedToday':          'Heute erfasste Zeit',
+    'ordersDueToday':           'Heute fällige Aufträge',
+
+    // ---------- Per-machine queues ----------
+    'machineQueues':            'Maschinenwarteschlangen',
+    'currentlyPrinting':        'Druckt gerade',
+    'machineIdle':              'Inaktiv',
+    'machineQueue':             'Warteschlange',
+
+    // ---------- Recurring orders ----------
+    'recurringOrder':           'Wiederkehrender Auftrag',
+    'recurringInterval':        'Wiederholungsintervall',
+    'weekly':                   'Wöchentlich',
+    'biweekly':                 'Zweiwöchentlich',
+    'monthly':                  'Monatlich',
+    'nextDueDate':              'Nächstes Fälligkeitsdatum',
+    'recurringOrderCreated':    'Wiederkehrender Auftrag automatisch erstellt',
+
+    // ---------- Gift cards ----------
+    'giftCards':                'Geschenkkarten',
+    'issueGiftCard':            'Geschenkkarte ausstellen',
+    'giftCardCode':             'Geschenkkarten-Code',
+    'giftCardBalance':          'Guthaben',
+    'giftCardInitialBalance':   'Anfangsguthaben',
+    'giftCardExpiry':           'Ablaufdatum (optional)',
+    'giftCardIssuedTo':         'Ausgestellt für',
+    'applyGiftCard':            'Geschenkkarte einlösen',
+    'giftCardApplied':          'Geschenkkarte angewendet',
+    'giftCardInvalid':          'Ungültige oder aufgebrauchte Geschenkkarte',
+
+    // ---------- Multi-material ----------
+    'addMaterial':              'Material hinzufügen',
+    'multiMaterial':            'Mehrere Materialien',
+    'materialRow':              'Material {n}',
+    'removeRow':                'Entfernen',
+
+    // ---------- GAZT VAT ----------
+    'vatReturn':                'Umsatzsteuervoranmeldung',
+    'exportVatReturn':          'Umsatzsteuervoranmeldung exportieren',
+    'vatPeriod':                'Zeitraum',
+    'totalSales':               'Gesamtumsatz',
+    'zeroRatedSales':           'Nullsatz-Umsätze',
+    'vatCollected':             'Erhobene Mehrwertsteuer',
+    'totalPurchases':           'Gesamteinkäufe',
+    'inputVat':                 'Vorsteuer',
+    'netVatDue':                'Netto-Mehrwertsteuer fällig',
+
+    // ---------- Slicer profiles ----------
+    'slicerProfiles':           'Slicer-Profile',
+    'addSlicerProfile':         'Profil hinzufügen',
+    'layerHeight':              'Schichthöhe (mm)',
+    'infillPercent':            'Infill %',
+    'supportEnabled':           'Stützstrukturen',
+    'slicerProfileSaved':       'Profil gespeichert',
+
+    // ---------- Environmental logging ----------
+    'envLogs':                  'Umgebungsprotokoll',
+    'logEnvironment':           'Umgebung erfassen',
+    'temperature':              'Temperatur (°C)',
+    'humidity':                 'Luftfeuchtigkeit (%)',
+    'envLogSaved':              'Umgebung erfasst',
+
+    // ---------- Telegram ----------
+    'telegramNotifications':    'Telegram-Benachrichtigungen',
+    'telegramBotToken':         'Bot-Token',
+    'telegramChatId':           'Chat-ID',
+    'telegramTest':             'Testnachricht senden',
+    'telegramTestSent':         'Testnachricht gesendet!',
+    'notifyOnComplete':         'Benachrichtigung bei Auftragsabschluss',
+    'notifyOnHold':             'Benachrichtigung bei Auftrag in Warteschleife',
+    'notifyOnLowStock':         'Benachrichtigung bei niedrigem Lagerstand',
+
+    // ---------- iCal ----------
+    'exportIcal':               'iCal-Feed exportieren',
+    'icalDescription':          'Anstehende Auftragsfälligkeiten in Ihrer Kalender-App abonnieren',
+
+    // ---------- Referral ----------
+    'referralCode':             'Empfehlungscode',
+    'referredBy':               'Empfohlen von',
+    'acquisitionSources':       'Akquisitionsquellen',
+    'topReferrers':             'Beste Empfehler',
+
+    // ---------- Change orders ----------
+    'changeOrder':              'Änderungsauftrag',
+    'changeDescription':        'Was hat sich geändert?',
+    'changeOrderSaved':         'Änderungsauftrag erfasst',
+    'changeLog':                'Änderungsprotokoll',
+
+    // ---------- Failure photo ----------
+    'captureFailurePhoto':      'Fehlerfoto aufnehmen',
+    'failurePhoto':             'Fehlerfoto',
+    'photoSaved':               'Foto gespeichert',
+
+    // ---------- Shipping ----------
+    'trackingNumber':           'Sendungsnummer',
+    'carrier':                  'Versanddienstleister',
+    'trackShipment':            'Sendung verfolgen',
+    'aramex':                   'Aramex',
+    'saudiPost':                'Saudi Post',
+    'otherCarrier':             'Anderer Anbieter',
+
+    // ---------- Intake form ----------
+    'onlineIntakeForm':         'Online-Auftragsformular',
+    'intakeFormUrl':            'Formular-URL',
+    'copyIntakeUrl':            'URL kopieren',
+    'intakeFormSubmitted':      'Neue Angebotsanfrage eingegangen',
+
+    // ---------- Salla / Zid ----------
+    'sallaWebhook':             'Salla-Webhook',
+    'zidWebhook':               'Zid-Webhook',
+    'sallaWebhookSecret':       'Salla-Webhook-Schlüssel',
+    'zidWebhookSecret':         'Zid-Webhook-Schlüssel',
+    'sallaOrderReceived':       'Neuer Auftrag von Salla',
+    'zidOrderReceived':         'Neuer Auftrag von Zid',
   },
 
   // ════════════════════════════════════════════════════════════
@@ -6105,6 +6495,136 @@ const STRINGS = {
     'set.exchange_rate_saved':  'Tasa guardada',
     'inv.base_currency_equiv':  'Equivalente en moneda base',
     'an.fx_converted':          '(convertido a {currency})',
+
+    // ---------- Shift / Queue operations ----------
+    'startShift':               'Iniciar turno',
+    'endOfDayReport':           'Informe de fin de día',
+    'shiftChecklist':           'Lista de verificación del turno',
+    'checkFilamentLevels':      'Verificar niveles de filamento en todas las impresoras',
+    'verifyTemperatures':       'Verificar temperaturas de las impresoras',
+    'reviewOrderQueue':         'Revisar la cola de pedidos del día',
+    'checkFailedPrints':        'Revisar impresiones fallidas del turno anterior',
+    'cleanPrintSurfaces':       'Limpiar superficies de impresión',
+    'logShiftStartTime':        'Registrar hora de inicio del turno',
+    'shiftStarted':             '¡Turno iniciado!',
+    'completedToday':           'Completado hoy',
+    'revenueToday':             'Ingresos de hoy',
+    'ordersInProgress':         'Pedidos en curso',
+    'filamentUsedToday':        'Filamento usado hoy',
+    'timeLoggedToday':          'Tiempo registrado hoy',
+    'ordersDueToday':           'Pedidos con vencimiento hoy',
+
+    // ---------- Per-machine queues ----------
+    'machineQueues':            'Colas por máquina',
+    'currentlyPrinting':        'Imprimiendo actualmente',
+    'machineIdle':              'Inactiva',
+    'machineQueue':             'Cola',
+
+    // ---------- Recurring orders ----------
+    'recurringOrder':           'Pedido recurrente',
+    'recurringInterval':        'Recurrencia',
+    'weekly':                   'Semanal',
+    'biweekly':                 'Quincenal',
+    'monthly':                  'Mensual',
+    'nextDueDate':              'Próxima fecha de vencimiento',
+    'recurringOrderCreated':    'Pedido recurrente creado automáticamente',
+
+    // ---------- Gift cards ----------
+    'giftCards':                'Tarjetas de regalo',
+    'issueGiftCard':            'Emitir tarjeta de regalo',
+    'giftCardCode':             'Código de tarjeta de regalo',
+    'giftCardBalance':          'Saldo',
+    'giftCardInitialBalance':   'Saldo inicial',
+    'giftCardExpiry':           'Fecha de vencimiento (opcional)',
+    'giftCardIssuedTo':         'Emitida a',
+    'applyGiftCard':            'Aplicar tarjeta de regalo',
+    'giftCardApplied':          'Tarjeta de regalo aplicada',
+    'giftCardInvalid':          'Tarjeta de regalo inválida o agotada',
+
+    // ---------- Multi-material ----------
+    'addMaterial':              'Añadir material',
+    'multiMaterial':            'Trabajo con múltiples materiales',
+    'materialRow':              'Material {n}',
+    'removeRow':                'Eliminar',
+
+    // ---------- GAZT VAT ----------
+    'vatReturn':                'Declaración de IVA',
+    'exportVatReturn':          'Exportar declaración de IVA',
+    'vatPeriod':                'Período',
+    'totalSales':               'Ventas totales',
+    'zeroRatedSales':           'Ventas con tipo cero',
+    'vatCollected':             'IVA recaudado',
+    'totalPurchases':           'Compras totales',
+    'inputVat':                 'IVA soportado',
+    'netVatDue':                'IVA neto a pagar',
+
+    // ---------- Slicer profiles ----------
+    'slicerProfiles':           'Perfiles de laminado',
+    'addSlicerProfile':         'Añadir perfil',
+    'layerHeight':              'Altura de capa (mm)',
+    'infillPercent':            'Relleno %',
+    'supportEnabled':           'Soportes',
+    'slicerProfileSaved':       'Perfil guardado',
+
+    // ---------- Environmental logging ----------
+    'envLogs':                  'Registro ambiental',
+    'logEnvironment':           'Registrar entorno',
+    'temperature':              'Temperatura (°C)',
+    'humidity':                 'Humedad (%)',
+    'envLogSaved':              'Entorno registrado',
+
+    // ---------- Telegram ----------
+    'telegramNotifications':    'Notificaciones de Telegram',
+    'telegramBotToken':         'Token del bot',
+    'telegramChatId':           'ID de chat',
+    'telegramTest':             'Enviar mensaje de prueba',
+    'telegramTestSent':         '¡Mensaje de prueba enviado!',
+    'notifyOnComplete':         'Notificar al completar pedido',
+    'notifyOnHold':             'Notificar cuando pedido en espera',
+    'notifyOnLowStock':         'Notificar ante stock bajo',
+
+    // ---------- iCal ----------
+    'exportIcal':               'Exportar feed iCal',
+    'icalDescription':          'Suscríbete a las fechas de vencimiento de pedidos en tu app de calendario',
+
+    // ---------- Referral ----------
+    'referralCode':             'Código de referido',
+    'referredBy':               'Referido por',
+    'acquisitionSources':       'Fuentes de adquisición',
+    'topReferrers':             'Principales referidores',
+
+    // ---------- Change orders ----------
+    'changeOrder':              'Orden de cambio',
+    'changeDescription':        '¿Qué cambió?',
+    'changeOrderSaved':         'Orden de cambio registrada',
+    'changeLog':                'Registro de cambios',
+
+    // ---------- Failure photo ----------
+    'captureFailurePhoto':      'Capturar foto de fallo',
+    'failurePhoto':             'Foto de fallo',
+    'photoSaved':               'Foto guardada',
+
+    // ---------- Shipping ----------
+    'trackingNumber':           'Número de seguimiento',
+    'carrier':                  'Transportista',
+    'trackShipment':            'Rastrear envío',
+    'aramex':                   'Aramex',
+    'saudiPost':                'Correo Saudí',
+    'otherCarrier':             'Otro transportista',
+
+    // ---------- Intake form ----------
+    'onlineIntakeForm':         'Formulario de solicitud en línea',
+    'intakeFormUrl':            'URL del formulario',
+    'copyIntakeUrl':            'Copiar URL',
+    'intakeFormSubmitted':      'Nueva solicitud de presupuesto recibida',
+
+    // ---------- Salla / Zid ----------
+    'sallaWebhook':             'Webhook de Salla',
+    'zidWebhook':               'Webhook de Zid',
+    'sallaWebhookSecret':       'Clave secreta de Salla',
+    'zidWebhookSecret':         'Clave secreta de Zid',
+    'sallaOrderReceived':       'Nuevo pedido desde Salla',
+    'zidOrderReceived':         'Nuevo pedido desde Zid',
   },
 
   // ════════════════════════════════════════════════════════════
@@ -7111,6 +7631,136 @@ const STRINGS = {
     'set.exchange_rate_saved':  'Taux enregistré',
     'inv.base_currency_equiv':  'Équivalent en devise de base',
     'an.fx_converted':          '(converti en {currency})',
+
+    // ---------- Shift / Queue operations ----------
+    'startShift':               'Commencer le quart',
+    'endOfDayReport':           'Rapport de fin de journée',
+    'shiftChecklist':           'Liste de contrôle du quart',
+    'checkFilamentLevels':      'Vérifier les niveaux de filament sur toutes les imprimantes',
+    'verifyTemperatures':       'Vérifier les températures des imprimantes',
+    'reviewOrderQueue':         'Passer en revue la file des commandes du jour',
+    'checkFailedPrints':        'Vérifier les impressions échouées du quart précédent',
+    'cleanPrintSurfaces':       "Nettoyer les surfaces d'impression",
+    'logShiftStartTime':        "Enregistrer l'heure de début de quart",
+    'shiftStarted':             'Quart commencé !',
+    'completedToday':           "Terminé aujourd'hui",
+    'revenueToday':             'Revenus du jour',
+    'ordersInProgress':         'Commandes en cours',
+    'filamentUsedToday':        "Filament utilisé aujourd'hui",
+    'timeLoggedToday':          "Temps enregistré aujourd'hui",
+    'ordersDueToday':           "Commandes à rendre aujourd'hui",
+
+    // ---------- Per-machine queues ----------
+    'machineQueues':            'Files par machine',
+    'currentlyPrinting':        "En cours d'impression",
+    'machineIdle':              'Inactive',
+    'machineQueue':             'File',
+
+    // ---------- Recurring orders ----------
+    'recurringOrder':           'Commande récurrente',
+    'recurringInterval':        'Récurrence',
+    'weekly':                   'Hebdomadaire',
+    'biweekly':                 'Bimensuel',
+    'monthly':                  'Mensuel',
+    'nextDueDate':              "Prochaine date d'échéance",
+    'recurringOrderCreated':    'Commande récurrente créée automatiquement',
+
+    // ---------- Gift cards ----------
+    'giftCards':                'Cartes cadeaux',
+    'issueGiftCard':            'Émettre une carte cadeau',
+    'giftCardCode':             'Code de la carte cadeau',
+    'giftCardBalance':          'Solde',
+    'giftCardInitialBalance':   'Solde initial',
+    'giftCardExpiry':           "Date d'expiration (optionnel)",
+    'giftCardIssuedTo':         'Émise à',
+    'applyGiftCard':            'Appliquer la carte cadeau',
+    'giftCardApplied':          'Carte cadeau appliquée',
+    'giftCardInvalid':          'Carte cadeau invalide ou épuisée',
+
+    // ---------- Multi-material ----------
+    'addMaterial':              'Ajouter un matériau',
+    'multiMaterial':            'Travail multi-matériaux',
+    'materialRow':              'Matériau {n}',
+    'removeRow':                'Supprimer',
+
+    // ---------- GAZT VAT ----------
+    'vatReturn':                'Déclaration de TVA',
+    'exportVatReturn':          'Exporter la déclaration de TVA',
+    'vatPeriod':                'Période',
+    'totalSales':               'Total des ventes',
+    'zeroRatedSales':           'Ventes à taux zéro',
+    'vatCollected':             'TVA collectée',
+    'totalPurchases':           'Total des achats',
+    'inputVat':                 'TVA déductible',
+    'netVatDue':                'TVA nette due',
+
+    // ---------- Slicer profiles ----------
+    'slicerProfiles':           'Profils de découpage',
+    'addSlicerProfile':         'Ajouter un profil',
+    'layerHeight':              'Hauteur de couche (mm)',
+    'infillPercent':            'Remplissage %',
+    'supportEnabled':           'Supports',
+    'slicerProfileSaved':       'Profil enregistré',
+
+    // ---------- Environmental logging ----------
+    'envLogs':                  'Journal environnemental',
+    'logEnvironment':           "Enregistrer l'environnement",
+    'temperature':              'Température (°C)',
+    'humidity':                 'Humidité (%)',
+    'envLogSaved':              'Environnement enregistré',
+
+    // ---------- Telegram ----------
+    'telegramNotifications':    'Notifications Telegram',
+    'telegramBotToken':         'Token du bot',
+    'telegramChatId':           'ID de conversation',
+    'telegramTest':             'Envoyer un message test',
+    'telegramTestSent':         'Message test envoyé !',
+    'notifyOnComplete':         "Notifier à la fin d'une commande",
+    'notifyOnHold':             "Notifier quand une commande est en attente",
+    'notifyOnLowStock':         'Notifier en cas de stock bas',
+
+    // ---------- iCal ----------
+    'exportIcal':               'Exporter le flux iCal',
+    'icalDescription':          "Abonnez-vous aux dates d'échéance des commandes dans votre application de calendrier",
+
+    // ---------- Referral ----------
+    'referralCode':             'Code de parrainage',
+    'referredBy':               'Parrainé par',
+    'acquisitionSources':       "Sources d'acquisition",
+    'topReferrers':             'Meilleurs parrains',
+
+    // ---------- Change orders ----------
+    'changeOrder':              'Ordre de modification',
+    'changeDescription':        "Qu'est-ce qui a changé ?",
+    'changeOrderSaved':         'Ordre de modification enregistré',
+    'changeLog':                'Journal des modifications',
+
+    // ---------- Failure photo ----------
+    'captureFailurePhoto':      'Capturer une photo de défaillance',
+    'failurePhoto':             'Photo de défaillance',
+    'photoSaved':               'Photo enregistrée',
+
+    // ---------- Shipping ----------
+    'trackingNumber':           'Numéro de suivi',
+    'carrier':                  'Transporteur',
+    'trackShipment':            "Suivre l'envoi",
+    'aramex':                   'Aramex',
+    'saudiPost':                'Poste saoudienne',
+    'otherCarrier':             'Autre transporteur',
+
+    // ---------- Intake form ----------
+    'onlineIntakeForm':         'Formulaire de demande en ligne',
+    'intakeFormUrl':            'URL du formulaire',
+    'copyIntakeUrl':            "Copier l'URL",
+    'intakeFormSubmitted':      'Nouvelle demande de devis reçue',
+
+    // ---------- Salla / Zid ----------
+    'sallaWebhook':             'Webhook Salla',
+    'zidWebhook':               'Webhook Zid',
+    'sallaWebhookSecret':       'Clé secrète Salla',
+    'zidWebhookSecret':         'Clé secrète Zid',
+    'sallaOrderReceived':       'Nouvelle commande depuis Salla',
+    'zidOrderReceived':         'Nouvelle commande depuis Zid',
   },
 
   // ════════════════════════════════════════════════════════════
@@ -8117,6 +8767,136 @@ const STRINGS = {
     'set.exchange_rate_saved':  '汇率已保存',
     'inv.base_currency_equiv':  '基础货币等值',
     'an.fx_converted':          '（已换算为 {currency}）',
+
+    // ---------- Shift / Queue operations ----------
+    'startShift':               '开始班次',
+    'endOfDayReport':           '日终报告',
+    'shiftChecklist':           '班次核对清单',
+    'checkFilamentLevels':      '检查所有打印机的耗材量',
+    'verifyTemperatures':       '核实打印机温度',
+    'reviewOrderQueue':         '查看今日订单队列',
+    'checkFailedPrints':        '检查上一班次的失败打印',
+    'cleanPrintSurfaces':       '清洁打印表面',
+    'logShiftStartTime':        '记录班次开始时间',
+    'shiftStarted':             '班次已开始！',
+    'completedToday':           '今日已完成',
+    'revenueToday':             '今日收入',
+    'ordersInProgress':         '进行中的订单',
+    'filamentUsedToday':        '今日耗材用量',
+    'timeLoggedToday':          '今日记录工时',
+    'ordersDueToday':           '今日到期订单',
+
+    // ---------- Per-machine queues ----------
+    'machineQueues':            '设备队列',
+    'currentlyPrinting':        '正在打印',
+    'machineIdle':              '空闲',
+    'machineQueue':             '队列',
+
+    // ---------- Recurring orders ----------
+    'recurringOrder':           '周期性订单',
+    'recurringInterval':        '重复周期',
+    'weekly':                   '每周',
+    'biweekly':                 '每两周',
+    'monthly':                  '每月',
+    'nextDueDate':              '下次到期日',
+    'recurringOrderCreated':    '周期性订单已自动创建',
+
+    // ---------- Gift cards ----------
+    'giftCards':                '礼品卡',
+    'issueGiftCard':            '发行礼品卡',
+    'giftCardCode':             '礼品卡编号',
+    'giftCardBalance':          '余额',
+    'giftCardInitialBalance':   '初始余额',
+    'giftCardExpiry':           '到期日（可选）',
+    'giftCardIssuedTo':         '发行给',
+    'applyGiftCard':            '使用礼品卡',
+    'giftCardApplied':          '礼品卡已使用',
+    'giftCardInvalid':          '礼品卡无效或余额不足',
+
+    // ---------- Multi-material ----------
+    'addMaterial':              '添加材料',
+    'multiMaterial':            '多材料任务',
+    'materialRow':              '材料 {n}',
+    'removeRow':                '移除',
+
+    // ---------- GAZT VAT ----------
+    'vatReturn':                '增值税申报',
+    'exportVatReturn':          '导出增值税申报',
+    'vatPeriod':                '期间',
+    'totalSales':               '总销售额',
+    'zeroRatedSales':           '零税率销售',
+    'vatCollected':             '已收增值税',
+    'totalPurchases':           '总采购额',
+    'inputVat':                 '进项税额',
+    'netVatDue':                '应缴净增值税',
+
+    // ---------- Slicer profiles ----------
+    'slicerProfiles':           '切片配置文件',
+    'addSlicerProfile':         '添加配置文件',
+    'layerHeight':              '层高（毫米）',
+    'infillPercent':            '填充率 %',
+    'supportEnabled':           '支撑',
+    'slicerProfileSaved':       '配置文件已保存',
+
+    // ---------- Environmental logging ----------
+    'envLogs':                  '环境记录',
+    'logEnvironment':           '记录环境',
+    'temperature':              '温度（°C）',
+    'humidity':                 '湿度（%）',
+    'envLogSaved':              '环境已记录',
+
+    // ---------- Telegram ----------
+    'telegramNotifications':    'Telegram 通知',
+    'telegramBotToken':         '机器人令牌',
+    'telegramChatId':           '聊天 ID',
+    'telegramTest':             '发送测试消息',
+    'telegramTestSent':         '测试消息已发送！',
+    'notifyOnComplete':         '订单完成时通知',
+    'notifyOnHold':             '订单搁置时通知',
+    'notifyOnLowStock':         '库存不足时通知',
+
+    // ---------- iCal ----------
+    'exportIcal':               '导出 iCal 订阅',
+    'icalDescription':          '在日历应用中订阅即将到期的订单日期',
+
+    // ---------- Referral ----------
+    'referralCode':             '推荐码',
+    'referredBy':               '推荐人',
+    'acquisitionSources':       '获客渠道',
+    'topReferrers':             '顶级推荐人',
+
+    // ---------- Change orders ----------
+    'changeOrder':              '变更单',
+    'changeDescription':        '发生了什么变化？',
+    'changeOrderSaved':         '变更单已记录',
+    'changeLog':                '变更日志',
+
+    // ---------- Failure photo ----------
+    'captureFailurePhoto':      '拍摄故障照片',
+    'failurePhoto':             '故障照片',
+    'photoSaved':               '照片已保存',
+
+    // ---------- Shipping ----------
+    'trackingNumber':           '快递单号',
+    'carrier':                  '承运商',
+    'trackShipment':            '追踪货件',
+    'aramex':                   'Aramex',
+    'saudiPost':                '沙特邮政',
+    'otherCarrier':             '其他承运商',
+
+    // ---------- Intake form ----------
+    'onlineIntakeForm':         '在线需求表单',
+    'intakeFormUrl':            '表单链接',
+    'copyIntakeUrl':            '复制链接',
+    'intakeFormSubmitted':      '收到新报价请求',
+
+    // ---------- Salla / Zid ----------
+    'sallaWebhook':             'Salla Webhook',
+    'zidWebhook':               'Zid Webhook',
+    'sallaWebhookSecret':       'Salla Webhook 密钥',
+    'zidWebhookSecret':         'Zid Webhook 密钥',
+    'sallaOrderReceived':       '收到来自 Salla 的新订单',
+    'zidOrderReceived':         '收到来自 Zid 的新订单',
   },
 };
 
