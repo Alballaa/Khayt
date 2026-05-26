@@ -439,7 +439,9 @@ ipcMain.handle('hub:write-icloud-backup', async (_e, jsonString) => {
   if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
   const filename = `${new Date().toISOString().split('T')[0]}.json`;
   const fullPath = path.join(backupDir, filename);
-  const encrypted = JSON.stringify(encryptForDisk(JSON.parse(jsonString)));
+  let parsed;
+  try { parsed = JSON.parse(jsonString); } catch(e) { return null; }
+  const encrypted = JSON.stringify(encryptForDisk(parsed));
   await fs.promises.writeFile(fullPath, encrypted, 'utf8');
   return fullPath;
 });
@@ -451,7 +453,9 @@ ipcMain.handle('hub:write-backup', async (_e, jsonString) => {
   }
   const filename = `${new Date().toISOString().split('T')[0]}.json`;
   const fullPath = path.join(backupsDir(), filename);
-  const encrypted = JSON.stringify(encryptForDisk(JSON.parse(jsonString)));
+  let parsed;
+  try { parsed = JSON.parse(jsonString); } catch(e) { return { ok: false, error: 'Invalid JSON in backup data' }; }
+  const encrypted = JSON.stringify(encryptForDisk(parsed));
   await fs.promises.writeFile(fullPath, encrypted, 'utf8');
   // Keep only the most recent 30 backups
   const all = (await fs.promises.readdir(backupsDir())).filter(f => f.endsWith('.json')).sort();
@@ -725,8 +729,9 @@ let printerPollInterval = null;
 
 ipcMain.handle('hub:start-printer-polling', async (_e, machines) => {
   if (printerPollInterval) clearInterval(printerPollInterval);
+  const machineList = Array.isArray(machines) ? machines : [];
   const poll = async () => {
-    for (const machine of (machines || [])) {
+    for (const machine of machineList) {
       if (!machine.printerApi?.type || machine.printerApi.type === 'none') continue;
       try {
         const status = await fetchPrinterStatus(machine);
@@ -774,11 +779,16 @@ function isBlockedHost(h) {
 
 async function fetchPrinterStatus(machine) {
   const { type, host, port, apiKey, accessCode, printerSlug } = machine.printerApi || {};
-  const printerHost = String(host || '');
+  // Strip any characters that aren't valid in a hostname/IP (prevents URL injection via @, /, etc.)
+  const printerHost = String(host || '').replace(/[^a-zA-Z0-9.\-]/g, '');
   if (isBlockedHost(printerHost)) {
     return { ok: false, error: 'Blocked host — cannot connect to loopback or private addresses' };
   }
-  const baseUrl = `http://${printerHost}:${port || defaultPrinterPort(type)}`;
+  const portNum = parseInt(port || defaultPrinterPort(type), 10);
+  if (!Number.isInteger(portNum) || portNum < 1 || portNum > 65535) {
+    return { ok: false, error: 'Invalid port number' };
+  }
+  const baseUrl = `http://${printerHost}:${portNum}`;
   const headers = {};
   if (type === 'octoprint') headers['X-Api-Key'] = apiKey;
   if (type === 'prusalink') headers['X-Api-Key'] = apiKey;
@@ -1244,6 +1254,7 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
     return { ok: false, error: 'Invalid port number (must be 1024–65535)' };
   }
   port = portNum;
+  pin = String(pin || '').slice(0, 256); // cap PIN length to prevent DoS via giant string comparisons
   if (lanServer) { lanServer.close(); lanServer = null; }
   // Brute-force tracking: { ip -> { count, resetAt } }
   const failedAttempts = new Map();
@@ -1267,7 +1278,7 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
           pathname === '/' || pathname === '/manifest.json' || pathname === '/sw.js' ||
           pathname === '/icon-192.png' || pathname === '/icon-512.png' ||
           pathname.startsWith('/api/webhook/printer/') ||
-          pathname === '/calendar.ics' ||
+          (pathname === '/calendar.ics' && !pin) || // requires PIN when one is set (calendar apps can append ?pin=…)
           pathname === '/intake' ||
           pathname === '/api/intake' ||
           pathname === '/api/webhook/salla' ||

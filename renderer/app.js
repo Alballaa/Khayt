@@ -1095,13 +1095,13 @@ async function loadAll() {
     if (store.giftCards)           giftCards           = store.giftCards.filter(isObj);
     if (store.slicerProfiles)      slicerProfiles      = store.slicerProfiles.filter(isObj);
     if (store.envLogs)             envLogs             = store.envLogs.filter(isObj);
-    if (store.settings)            settings            = Object.assign({}, defaultSettings(), store.settings);
+    if (store.settings)            settings            = Object.assign({}, defaultSettings(), sanitiseForAssign(store.settings));
     // Deep-merge nested settings objects so new subkeys survive upgrades
     if (store.settings) {
       const nested = ['emailDigest', 'emailConfig', 'zatcaPhase2', 'bnpl', 'lanApi', 'exchangeRates', 'printerApi'];
       for (const key of nested) {
         if (store.settings[key] && typeof store.settings[key] === 'object' && !Array.isArray(store.settings[key])) {
-          settings[key] = Object.assign({}, defaultSettings()[key] || {}, store.settings[key]);
+          settings[key] = Object.assign({}, defaultSettings()[key] || {}, sanitiseForAssign(store.settings[key]));
         }
       }
     }
@@ -8915,8 +8915,11 @@ async function exportAnalyticsReport() {
 
   const sections = chartIds.map(id => {
     const el = document.getElementById(id);
-    const inner = el?.innerHTML?.trim();
-    return inner ? `<div class="report-section">${inner}</div>` : '';
+    let inner = el?.innerHTML?.trim();
+    if (!inner) return '';
+    // Strip <script> blocks to prevent XSS when content is written via document.write()
+    inner = inner.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<script[^>]*/gi, '');
+    return `<div class="report-section">${inner}</div>`;
   }).filter(Boolean).join('\n');
 
   // 3. KPI summary
@@ -8936,7 +8939,7 @@ async function exportAnalyticsReport() {
 
   const s = settings || {};
   const shopName = escapeHtml(s.bizName || s.bizEn || s.shopName || 'Khayt');
-  const accentColor = s.invoiceAccentColor || s.invAccentColor || '#5b9cf0';
+  const accentColor = safeCssColor(s.invoiceAccentColor || s.invAccentColor, '#5b9cf0');
   const rangeLabel = escapeHtml(t('an.range.' + analyticsRange) || analyticsRange);
   const reportDate = new Date().toLocaleDateString();
 
@@ -12274,7 +12277,7 @@ async function generateSurveyPage(orderId) {
     const data = { token: _cfg.token, orderId: _cfg.orderId, rating, comment: document.getElementById('comment').value.trim() };
     ${surveyUrl ? `
     try {
-      const r = await fetch('${surveyUrl}', {
+      const r = await fetch(${JSON.stringify(surveyUrl)}, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -13651,10 +13654,10 @@ function openNotifPanel() {
         : '';
       html += `<div class="notif-row" data-notif-idx="${alerts.indexOf(item)}"
         style="display:flex;align-items:flex-start;gap:10px;padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--border-soft);transition:background .1s;">
-        <span style="font-size:15px;flex-shrink:0;margin-top:1px;">${item.icon}</span>
+        <span style="font-size:15px;flex-shrink:0;margin-top:1px;">${escapeHtml(String(item.icon || ''))}</span>
         <div style="flex:1;overflow:hidden;">
-          ${item.title ? `<div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;">${item.title}</div>` : ''}
-          <div style="font-size:12.5px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.body}</div>
+          ${item.title ? `<div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;">${escapeHtml(item.title)}</div>` : ''}
+          <div style="font-size:12.5px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(item.body)}</div>
         </div>
         ${newOrderBtn}
         ${item.key ? `<button class="btn small ghost notif-dismiss-btn" data-key="${escapeHtml(item.key)}" title="${escapeHtml(t('notif.dismiss') || 'Snooze until tomorrow')}" style="font-size:11px;padding:2px 6px;margin-inline-end:4px;" onclick="event.stopPropagation()">✕</button>` : ''}
@@ -19790,7 +19793,9 @@ function sanitiseForAssign(obj) {
   const clean = {};
   for (const key of Object.keys(obj)) {
     if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
-    clean[key] = obj[key];
+    const val = obj[key];
+    // Recurse into plain objects so nested __proto__ keys are also stripped
+    clean[key] = (val && typeof val === 'object' && !Array.isArray(val)) ? sanitiseForAssign(val) : val;
   }
   return clean;
 }
