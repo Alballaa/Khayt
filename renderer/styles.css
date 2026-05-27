@@ -23,6 +23,7 @@
   --warning:      #f5a623;
   --danger:       #ef4d5e;
   --info:         #8a7df0;
+  --cyan:         #06b6d4;
   --accent:       #f97316;
 
   --radius:       10px;
@@ -298,6 +299,7 @@ input[type="number"] { font-variant-numeric: tabular-nums; }
 }
 .btn:hover  { background: var(--surface); border-color: var(--text-muted); }
 .btn:active { transform: translateY(1px); }
+.btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
 .btn.primary  { background: var(--primary); color: #fff; border-color: var(--primary); }
 .btn.primary:hover { background: var(--primary-2); border-color: var(--primary-2); }
@@ -308,6 +310,12 @@ input[type="number"] { font-variant-numeric: tabular-nums; }
 .btn.ghost    { background: transparent; border-color: transparent; color: var(--text-dim); }
 .btn.ghost:hover { color: var(--text); background: var(--surface-2); }
 .btn.small    { padding: 6px 10px; font-size: 12px; }
+/* Bootstrap-style class aliases used in index.html */
+.btn.btn-primary   { background: var(--primary); color: #fff; border-color: var(--primary); }
+.btn.btn-primary:hover { background: var(--primary-2); border-color: var(--primary-2); }
+.btn.btn-secondary { background: var(--surface-2); color: var(--text); border-color: var(--border); }
+.btn.btn-secondary:hover { background: var(--surface); border-color: var(--text-muted); }
+.btn.btn-sm        { padding: 6px 10px; font-size: 12px; }
 .chart-dl-btn:hover { opacity: 1 !important; }
 .btn.full     { width: 100%; }
 
@@ -2008,9 +2016,9 @@ tr.row-overdue td { background: rgba(239,77,94,0.05); }
   font-size: 11px;
   font-weight: 600;
 }
-.cat-filament    { background: rgba(91,156,240,0.15);  color: #5b9cf0; }
+.cat-filament    { background: rgba(91,156,240,0.15);  color: var(--primary); }
 .cat-electricity { background: rgba(245,166,35,0.15);  color: var(--warning); }
-.cat-maintenance { background: rgba(167,139,250,0.15); color: #a78bfa; }
+.cat-maintenance { background: rgba(167,139,250,0.15); color: var(--info); }
 .cat-tools       { background: rgba(52,211,153,0.15);  color: #34d399; }
 .cat-shipping    { background: rgba(251,146,60,0.15);  color: #fb923c; }
 .cat-other       { background: var(--surface-2);       color: var(--text-muted); }
@@ -2133,7 +2141,7 @@ tr.row-overdue td { background: rgba(239,77,94,0.05); }
 /* Badge for quote status in logs/kanban */
 .badge.quote {
   background: rgba(167,139,250,0.18);
-  color: #a78bfa;
+  color: var(--info);
 }
 
 /* -----------------------------------------------------------
@@ -3134,7 +3142,7 @@ button.tag-chip, .tag-chip[data-act] {
 .schedule-block.status-pending { background: var(--primary); }
 .schedule-block.status-printing { background: var(--success); }
 .schedule-block.status-post { background: var(--warning); }
-.schedule-block.status-on_hold { background: var(--danger); }
+.schedule-block.status-on_hold { background: var(--warning); }
 
 /* ── Feature 5: Throughput heatmap ─────────────────────────────────── */
 .heatmap-table {
@@ -3288,7 +3296,7 @@ button.tag-chip, .tag-chip[data-act] {
   margin-bottom: 14px;
 }
 .cn-ref-line strong {
-  color: #dc2626;
+  color: var(--danger);
 }
 
 /* ── Feature 5 (new): Partial PO progress bar ───────────────── */
@@ -3317,7 +3325,7 @@ button.tag-chip, .tag-chip[data-act] {
   padding: 1px 7px;
   border-radius: 20px;
   background: rgba(6, 182, 212, 0.15);
-  color: #06b6d4;
+  color: var(--cyan);
   vertical-align: middle;
   margin-inline-start: 4px;
   letter-spacing: 0.03em;
@@ -3996,5 +4004,69 @@ th[data-sort]:hover {
 }
 .timeline-last .timeline-content {
   padding-bottom: 0;
+}
+
+/* ============================================================
+   Orders log — row actions dropdown (⋯ menu)
+   ============================================================ */
+.log-actions-td { white-space: nowrap; }
+
+.row-actions-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.row-actions-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  inset-inline-end: 0;
+  z-index: 500;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-3);
+  padding: 4px;
+  /* keep it on-screen even in dense tables */
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.row-actions-menu.open { display: block; }
+
+.row-actions-menu .menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 12.5px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  cursor: pointer;
+  text-align: start;
+  white-space: nowrap;
+}
+.row-actions-menu .menu-item:hover { background: var(--surface-2); }
+.row-actions-menu .menu-item.danger { color: var(--danger); }
+.row-actions-menu .menu-item.danger:hover { background: rgba(239,77,94,0.08); }
+
+.row-actions-menu .menu-sep {
+  height: 1px;
+  background: var(--border-soft);
+  margin: 3px 6px;
+}
+.row-actions-menu .menu-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  padding: 6px 10px 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 

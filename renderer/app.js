@@ -2021,11 +2021,23 @@ function openFormModal({ title, bodyHtml, onMount, onSave, saveLabel, sizeLg = t
 /* ============================================================
    Theme
    ============================================================ */
+// One-time listener: keeps the app in sync when the OS theme changes
+// while the user has "System" selected — registered lazily on first use.
+let _sysThemeMql = null;
+
 function applyTheme(theme) {
   const root = document.documentElement;
   if (theme === 'system') {
     const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     root.dataset.theme = dark ? 'dark' : 'light';
+    if (!_sysThemeMql) {
+      _sysThemeMql = window.matchMedia('(prefers-color-scheme: dark)');
+      _sysThemeMql.addEventListener('change', e => {
+        if (localStorage.getItem(K.THEME) === 'system') {
+          document.documentElement.dataset.theme = e.matches ? 'dark' : 'light';
+        }
+      });
+    }
   } else {
     root.dataset.theme = theme;
   }
@@ -14776,6 +14788,24 @@ function renderKanban() {
   updateNotifBadge();
 }
 
+function clearLogFilters() {
+  logSearchTerm   = '';
+  logStatusFilter = '';
+  logPayFilter    = '';
+  logTagFilter    = '';
+  logOperatorFilter = '';
+  logClientFilter = '';
+  logRangeFilter  = 'all';
+  const sr = $('#logSearch');         if (sr)  sr.value  = '';
+  const sf = $('#logStatusFilter');   if (sf)  sf.value  = '';
+  const pf = $('#logPayFilter');      if (pf)  pf.value  = '';
+  const tf = $('#logTagFilter');      if (tf)  tf.value  = '';
+  const of = $('#logOperatorFilter'); if (of)  of.value  = '';
+  const cf = $('#logClientFilter');   if (cf)  cf.value  = '';
+  const rf = $('#logRangeFilter');    if (rf)  rf.value  = 'all';
+  renderLogs();
+}
+
 function renderLogs() {
   const tbody = $('#logTable tbody');
   // Repopulate tag filter dropdown with all existing tags
@@ -14827,7 +14857,7 @@ function renderLogs() {
     return;
   }
   if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9" class="empty-state">${escapeHtml(t('log.empty_search'))}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" class="empty-state">${escapeHtml(t('log.empty_search'))} <button class="btn small ghost" style="margin-inline-start:10px;" onclick="clearLogFilters()">${escapeHtml(t('log.clear_filters') || 'Clear filters')}</button></td></tr>`;
     return;
   }
   const page = filtered.slice(0, logDisplayLimit);
@@ -14887,47 +14917,71 @@ function renderLogs() {
       <td style="font-size: 12.5px; color: var(--text-dim);">${escapeHtml(log.material)}</td>
       <td style="color: var(--success); font-weight: 600; font-variant-numeric: tabular-nums; white-space:nowrap;">${fmtPrice(log.price)}</td>
       <td style="text-align:center;">${marginHtml}</td>
-      <td style="white-space:nowrap;">
-        ${expenses.some(e => e.orderId === log.id) ? `<button class="btn small ghost" data-act="linked-expenses" data-id="${log.id}" title="${escapeHtml(t('exp.linked_expenses'))}">💰</button>` : ''}
-        ${(() => { const linkedWaste = wasteLog.filter(w => w.orderId === log.id); const wCost = linkedWaste.reduce((s, w) => s + (+w.cost || 0), 0); return linkedWaste.length > 0 ? `<span title="${escapeHtml(t('waste.linked_cost'))}: ${fmtPrice(wCost)}" style="font-size:10.5px; color:var(--danger); cursor:default;">🗑 ${fmtPrice(wCost)}</span>` : ''; })()}
-        ${log.clientId ? clients.find(c => c.id === log.clientId)?.email ? '' : '' : ''}
-        <button class="btn small ghost" data-act="export-status-page" data-id="${log.id}" title="${escapeHtml(t('ord.status_page'))}">📄</button>
-        <button class="btn small ghost" data-act="portal-qr" data-id="${log.id}" title="${escapeHtml(t('ord.portal_qr_title') || 'Customer Portal QR')}">📱</button>
-        <button class="btn small ghost" data-act="log-time" data-id="${log.id}" title="${escapeHtml(t('time.log_title') || 'Log time')}">⏱</button>
-        ${log.clientId ? `<button class="btn small ghost" data-act="open-status-page" data-id="${log.id}" title="${escapeHtml(t('ord.status_page_open'))}">🔗</button>` : ''}
-        <button class="btn small ghost" data-act="copy-tracking-url" data-id="${log.id}" title="${escapeHtml(t('ord.copy_tracking_url') || 'Copy tracking URL')}">🔗📋</button>
-        ${(log.parts || []).length > 1 && log.status !== 'split' ? `<button class="btn small ghost pro-only" data-act="split-order" data-id="${log.id}" title="${escapeHtml(t('ord.split'))}">⚡</button>` : ''}
-        ${(() => { const cl = log.clientId ? clients.find(c => c.id === log.clientId) : null; return cl?.email ? `<button class="btn small ghost" data-act="${log.status === 'quote' ? 'email-quote' : 'email-invoice'}" data-id="${log.id}" title="${escapeHtml(t(log.status === 'quote' ? 'ord.email_quote' : 'ord.email_invoice'))}">✉️</button>` : ''; })()}
-        <button class="btn small ${isPaid ? '' : 'primary'}" data-act="${isPaid ? 'unpay' : 'pay'}" data-id="${log.id}" title="${escapeHtml(isPaid ? t('pay.mark_unpaid') : t('pay.mark_paid'))}">${escapeHtml(isPaid ? '✓' : t('pay.mark_paid'))}</button>
-        ${(log.status === 'pending' || log.status === 'printing') && log.clientId && (+log.price || 0) > 0 ? `<button class="btn small ghost pro-only" data-act="gen-proforma" data-id="${log.id}" title="${escapeHtml(t('ord.gen_proforma'))}">${escapeHtml(t('ord.proforma'))}</button>` : ''}
-        <button class="btn small" data-act="invoice"   data-id="${log.id}" title="${escapeHtml(t('inv.print'))}">${escapeHtml(t('inv.print'))}</button>
-        <button class="btn small" data-act="inv-pdf"   data-id="${log.id}" title="${escapeHtml(t('inv.save_pdf'))}">PDF</button>
-        <button class="btn small" data-act="inv-wa"    data-id="${log.id}" title="${escapeHtml(t('inv.share_whatsapp'))}">WA</button>
-        <button class="btn small ghost" data-act="dn-log" data-id="${log.id}" title="${escapeHtml(t('dn.print'))}">DN</button>
-        <button class="btn small ghost pro-only" data-act="cn-log" data-id="${log.id}" title="${escapeHtml(t('cn.title'))}">CN</button>
-        ${!log.voidedAt ? `<button class="btn small ghost pro-only" data-act="void-invoice" data-id="${log.id}" title="${escapeHtml(t('inv.void_btn'))}">🚫</button>` : `<span title="${escapeHtml(t('inv.already_voided'))}" style="font-size:11px;color:var(--danger);padding:0 4px;">🚫 ${escapeHtml(t('inv.void_btn'))}</span>`}
-        <button class="btn small ghost" data-act="wo-log" data-id="${log.id}" title="${escapeHtml(t('wo.title'))}">WO</button>
-        <button class="btn small ghost" data-act="order-timeline" data-id="${log.id}" title="${escapeHtml(t('ord.timeline'))}">🕐</button>
-        <button class="btn small" data-act="edit-log"  data-id="${log.id}" title="${escapeHtml(t('common.edit'))}">${escapeHtml(t('common.edit'))}</button>
-        <button class="btn small" data-act="dup-log"    data-id="${log.id}" title="${escapeHtml(t('oe.duplicate'))}">${escapeHtml(t('oe.duplicate'))}</button>
-        <button class="btn small ghost" data-act="${log.archived ? 'unarchive-log' : 'archive-log'}" data-id="${log.id}" title="${escapeHtml(log.archived ? (t('ord.unarchive') || 'Unarchive') : (t('ord.archive') || 'Archive'))}" style="opacity:${log.archived ? '1' : '0.5'};">📦</button>
-        <button class="btn small ghost" data-act="reprint-log" data-id="${log.id}" title="${escapeHtml(t('oe.reprint'))}">${escapeHtml(t('oe.reprint'))}</button>
-        <button class="btn small ghost" data-act="print-label" data-id="${log.id}" title="${escapeHtml(t('ord.label_btn') || 'Print Label')}">🏷</button>
-        <button class="btn small ghost" data-act="packing-slip" data-id="${log.id}" title="${escapeHtml(t('ps.title') || 'Packing Slip')}">🗒</button>
-        ${!isPaid ? `<button class="btn small ghost" data-act="pay-remind" data-id="${log.id}" title="${escapeHtml(t('pay.remind_btn'))}">💰</button>` : ''}
-        ${log.trackingNumber ? `<button class="btn small ghost" data-act="share-tracking" data-id="${log.id}" title="${escapeHtml(t('ship.tracking_share'))}">📦</button>` : ''}
-        ${(log.editHistory && log.editHistory.length > 0) ? `<button class="btn small ghost" data-act="view-edit-history" data-id="${log.id}" title="${escapeHtml(t('ord.edit_history'))}">📝</button>` : ''}
-        <button class="btn small ghost pro-only" data-act="milestone-invoices" data-id="${log.id}" title="${escapeHtml(t('ord.milestone_invoices'))}">📋</button>
-        ${log.status === 'quote' && log.clientId ? `<button class="btn small ghost" data-act="export-quote-approval" data-id="${log.id}" title="${escapeHtml(t('ord.quote_approval_page'))}">📋</button>` : ''}
-        ${log.status === 'quote' ? `<button class="btn small ghost" data-act="revise-quote" data-id="${log.id}" title="${escapeHtml(t('ord.revise_quote'))}">📝 ${escapeHtml(t('ord.revise_quote'))}</button>` : ''}
-        ${log.status === 'quote' && (log.quoteRevisions || []).length > 0 ? `<button class="btn small ghost" data-act="quote-revisions" data-id="${log.id}" title="${escapeHtml(t('ord.quote_revisions'))}">🕐 v${log.quoteVersion || 1}</button>` : ''}
-        ${log.status !== 'completed' && (log.parts || []).length > 1 ? `<button class="btn small ghost" data-act="partial-delivery" data-id="${log.id}" title="${escapeHtml(t('ord.partial_delivery'))}">📦 ${escapeHtml(t('ord.partial_delivery'))}</button>` : ''}
-        ${log.status !== 'completed' && (log.parts || []).some(p => p.spoolId) ? `<button class="btn small ghost" data-act="log-spool-switch" data-id="${log.id}" title="${escapeHtml(t('ord.spool_switch'))}">🔄 ${escapeHtml(t('ord.spool_switch'))}</button>` : ''}
-        ${log.status === 'completed' ? `<button class="btn small ghost" data-act="gen-survey" data-id="${log.id}" title="Generate survey page">📊</button>` : ''}
-        ${log.status === 'completed' && !log.survey?.rating ? `<button class="btn small ghost" data-act="record-survey" data-id="${log.id}" title="Record customer rating">⭐</button>` : ''}
-        ${log.survey?.rating ? `<span title="Customer rating" style="font-size:12px;">⭐${log.survey.rating}</span>` : ''}
-        <button class="btn small ghost" data-act="change-order" data-id="${log.id}" title="Change Order">CO</button>
-        <button class="btn danger small" data-act="del-log" data-id="${log.id}">${escapeHtml(t('common.delete'))}</button>
+      <td class="log-actions-td">
+        <div class="row-actions-wrap">
+          <!-- ── Primary actions (always visible) ── -->
+          <button class="btn small primary" data-act="edit-log" data-id="${log.id}" title="${escapeHtml(t('common.edit'))}">${escapeHtml(t('common.edit'))}</button>
+          <button class="btn small ${isPaid ? 'success' : 'primary'}" data-act="${isPaid ? 'unpay' : 'pay'}" data-id="${log.id}" title="${escapeHtml(isPaid ? t('pay.mark_unpaid') : t('pay.mark_paid'))}">${isPaid ? '✓' : '💳'}</button>
+          <button class="btn small" data-act="invoice" data-id="${log.id}" title="${escapeHtml(t('inv.print'))}">${escapeHtml(t('inv.print'))}</button>
+          <button class="btn small ghost" data-act="inv-pdf" data-id="${log.id}" title="${escapeHtml(t('inv.save_pdf'))}">PDF</button>
+          <!-- ⋯ dropdown trigger -->
+          <button class="btn small ghost row-more-btn" data-id="${log.id}" title="${escapeHtml(t('common.more') || 'More actions')}" aria-haspopup="true" aria-expanded="false">⋯</button>
+          <!-- ── Dropdown menu ── -->
+          <div class="row-actions-menu" data-for="${log.id}">
+            <!-- Documents -->
+            <div class="menu-label">${escapeHtml(t('menu.documents') || 'Documents')}</div>
+            <button class="menu-item" data-act="inv-wa"  data-id="${log.id}">📱 ${escapeHtml(t('inv.share_whatsapp'))}</button>
+            <button class="menu-item" data-act="dn-log"  data-id="${log.id}">📋 ${escapeHtml(t('dn.print'))}</button>
+            <button class="menu-item pro-only" data-act="cn-log" data-id="${log.id}">↩️ ${escapeHtml(t('cn.title'))}</button>
+            <button class="menu-item" data-act="wo-log"  data-id="${log.id}">🔧 ${escapeHtml(t('wo.title'))}</button>
+            ${(log.status === 'pending' || log.status === 'printing') && log.clientId && (+log.price || 0) > 0 ? `<button class="menu-item pro-only" data-act="gen-proforma" data-id="${log.id}">📄 ${escapeHtml(t('ord.gen_proforma'))}</button>` : ''}
+            <button class="menu-item pro-only" data-act="milestone-invoices" data-id="${log.id}">📋 ${escapeHtml(t('ord.milestone_invoices'))}</button>
+            ${!log.voidedAt ? `<button class="menu-item pro-only" data-act="void-invoice" data-id="${log.id}">🚫 ${escapeHtml(t('inv.void_btn'))}</button>` : `<span class="menu-item" style="color:var(--danger);cursor:default;">🚫 ${escapeHtml(t('inv.already_voided'))}</span>`}
+            ${(() => { const cl = log.clientId ? clients.find(c => c.id === log.clientId) : null; return cl?.email ? `<button class="menu-item" data-act="${log.status === 'quote' ? 'email-quote' : 'email-invoice'}" data-id="${log.id}">✉️ ${escapeHtml(t(log.status === 'quote' ? 'ord.email_quote' : 'ord.email_invoice'))}</button>` : ''; })()}
+            <div class="menu-sep"></div>
+            <!-- Tracking & sharing -->
+            <div class="menu-label">${escapeHtml(t('menu.tracking') || 'Tracking')}</div>
+            <button class="menu-item" data-act="export-status-page"  data-id="${log.id}">📄 ${escapeHtml(t('ord.status_page'))}</button>
+            <button class="menu-item" data-act="portal-qr"           data-id="${log.id}">📱 ${escapeHtml(t('ord.portal_qr_title') || 'Portal QR')}</button>
+            <button class="menu-item" data-act="copy-tracking-url"   data-id="${log.id}">🔗 ${escapeHtml(t('ord.copy_tracking_url') || 'Copy tracking URL')}</button>
+            ${log.clientId ? `<button class="menu-item" data-act="open-status-page" data-id="${log.id}">🔗 ${escapeHtml(t('ord.status_page_open'))}</button>` : ''}
+            ${log.trackingNumber ? `<button class="menu-item" data-act="share-tracking" data-id="${log.id}">📦 ${escapeHtml(t('ship.tracking_share'))}</button>` : ''}
+            <div class="menu-sep"></div>
+            <!-- Operations -->
+            <div class="menu-label">${escapeHtml(t('menu.operations') || 'Operations')}</div>
+            <button class="menu-item" data-act="dup-log"       data-id="${log.id}">⊕ ${escapeHtml(t('oe.duplicate'))}</button>
+            <button class="menu-item" data-act="log-time"      data-id="${log.id}">⏱ ${escapeHtml(t('time.log_title') || 'Log time')}</button>
+            <button class="menu-item" data-act="order-timeline" data-id="${log.id}">🕐 ${escapeHtml(t('ord.timeline'))}</button>
+            ${(log.parts || []).length > 1 && log.status !== 'split' ? `<button class="menu-item pro-only" data-act="split-order" data-id="${log.id}">⚡ ${escapeHtml(t('ord.split'))}</button>` : ''}
+            ${log.status !== 'completed' && (log.parts || []).length > 1 ? `<button class="menu-item" data-act="partial-delivery" data-id="${log.id}">📦 ${escapeHtml(t('ord.partial_delivery'))}</button>` : ''}
+            ${log.status !== 'completed' && (log.parts || []).some(p => p.spoolId) ? `<button class="menu-item" data-act="log-spool-switch" data-id="${log.id}">🔄 ${escapeHtml(t('ord.spool_switch'))}</button>` : ''}
+            <button class="menu-item" data-act="change-order"  data-id="${log.id}">🔀 ${escapeHtml(t('ord.change_order') || 'Change Order')}</button>
+            ${!isPaid ? `<button class="menu-item" data-act="pay-remind" data-id="${log.id}">💰 ${escapeHtml(t('pay.remind_btn'))}</button>` : ''}
+            <div class="menu-sep"></div>
+            <!-- Print & labels -->
+            <div class="menu-label">${escapeHtml(t('menu.print_label') || 'Print & labels')}</div>
+            <button class="menu-item" data-act="reprint-log"   data-id="${log.id}">🖨 ${escapeHtml(t('oe.reprint'))}</button>
+            <button class="menu-item" data-act="print-label"   data-id="${log.id}">🏷 ${escapeHtml(t('ord.label_btn') || 'Print Label')}</button>
+            <button class="menu-item" data-act="packing-slip"  data-id="${log.id}">🗒 ${escapeHtml(t('ps.title') || 'Packing Slip')}</button>
+            ${expenses.some(e => e.orderId === log.id) ? `<button class="menu-item" data-act="linked-expenses" data-id="${log.id}">💰 ${escapeHtml(t('exp.linked_expenses'))}</button>` : ''}
+            <!-- Quotes (shown only for quote status) -->
+            ${log.status === 'quote' ? `<div class="menu-sep"></div><div class="menu-label">${escapeHtml(t('menu.quote') || 'Quote')}</div>` : ''}
+            ${log.status === 'quote' && log.clientId ? `<button class="menu-item" data-act="export-quote-approval" data-id="${log.id}">📋 ${escapeHtml(t('ord.quote_approval_page'))}</button>` : ''}
+            ${log.status === 'quote' ? `<button class="menu-item" data-act="revise-quote" data-id="${log.id}">📝 ${escapeHtml(t('ord.revise_quote'))}</button>` : ''}
+            ${log.status === 'quote' && (log.quoteRevisions || []).length > 0 ? `<button class="menu-item" data-act="quote-revisions" data-id="${log.id}">🕐 ${escapeHtml(t('ord.quote_revisions'))} v${log.quoteVersion || 1}</button>` : ''}
+            <!-- Engagement -->
+            ${log.status === 'completed' ? `<div class="menu-sep"></div><div class="menu-label">${escapeHtml(t('menu.engagement') || 'Engagement')}</div>` : ''}
+            ${log.status === 'completed' ? `<button class="menu-item" data-act="gen-survey" data-id="${log.id}">📊 ${escapeHtml(t('ord.gen_survey') || 'Generate survey')}</button>` : ''}
+            ${log.status === 'completed' && !log.survey?.rating ? `<button class="menu-item" data-act="record-survey" data-id="${log.id}">⭐ ${escapeHtml(t('ord.record_survey') || 'Record rating')}</button>` : ''}
+            ${log.survey?.rating ? `<span class="menu-item" style="cursor:default;">⭐ ${escapeHtml(t('ord.survey_rating') || 'Rating')}: ${log.survey.rating}/5</span>` : ''}
+            <!-- History & admin -->
+            <div class="menu-sep"></div>
+            <div class="menu-label">${escapeHtml(t('menu.admin') || 'Admin')}</div>
+            ${(log.editHistory && log.editHistory.length > 0) ? `<button class="menu-item" data-act="view-edit-history" data-id="${log.id}">📝 ${escapeHtml(t('ord.edit_history'))}</button>` : ''}
+            <button class="menu-item" data-act="${log.archived ? 'unarchive-log' : 'archive-log'}" data-id="${log.id}">📦 ${escapeHtml(log.archived ? (t('ord.unarchive') || 'Unarchive') : (t('ord.archive') || 'Archive'))}</button>
+            <button class="menu-item danger" data-act="del-log" data-id="${log.id}">🗑 ${escapeHtml(t('common.delete'))}</button>
+          </div><!-- /.row-actions-menu -->
+        </div><!-- /.row-actions-wrap -->
       </td>
     </tr>`;
   }).join('');
@@ -20095,7 +20149,7 @@ function openFeedbackModal() {
       </div>`,
     onMount(modal) {
       modal.querySelector('#btnFbGithub').addEventListener('click', () => {
-        const url = 'https://github.com/TurkiAlballaa/AtharTuwaiq/issues/new';
+        const url = 'https://github.com/Alballaa/Khayt/issues/new';
         if (window.hubAPI?.openExternal) window.hubAPI.openExternal(url);
         else window.open(url);
       });
@@ -21345,6 +21399,45 @@ function wireEvents() {
     const batchBtn = e.target.closest('[data-act="batch-gen-pos"]');
     if (batchBtn) batchGenPOs();
   });
+
+  // Row-actions dropdown: toggle open on ⋯ click, close on outside click
+  document.addEventListener('click', (e) => {
+    const moreBtn = e.target.closest('.row-more-btn');
+    if (moreBtn) {
+      e.stopPropagation();
+      const id   = moreBtn.dataset.id;
+      const menu = document.querySelector(`.row-actions-menu[data-for="${CSS.escape(id)}"]`);
+      if (!menu) return;
+      const isOpen = menu.classList.contains('open');
+      // Close all open menus first
+      document.querySelectorAll('.row-actions-menu.open').forEach(m => {
+        m.classList.remove('open');
+        m.previousElementSibling?.setAttribute('aria-expanded', 'false');
+      });
+      if (!isOpen) {
+        menu.classList.add('open');
+        moreBtn.setAttribute('aria-expanded', 'true');
+      }
+      return;
+    }
+    // Click outside any menu → close all
+    if (!e.target.closest('.row-actions-menu')) {
+      document.querySelectorAll('.row-actions-menu.open').forEach(m => {
+        m.classList.remove('open');
+        m.previousElementSibling?.setAttribute('aria-expanded', 'false');
+      });
+    }
+  });
+
+  // Keyboard: close dropdown on Escape
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.row-actions-menu.open').forEach(m => {
+        m.classList.remove('open');
+        m.previousElementSibling?.setAttribute('aria-expanded', 'false');
+      });
+    }
+  }, { capture: false });
 }
 
 /* ============================================================
