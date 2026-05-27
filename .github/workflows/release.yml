@@ -124,6 +124,7 @@ jobs:
         run: npx electron-builder --win appx --x64 --publish never
         env:
           WIN_CSC_IDENTITY_AUTO_DISCOVERY: false
+          DEBUG: electron-builder
 
       - name: Upload MSIX as workflow artifact
         if: success()
