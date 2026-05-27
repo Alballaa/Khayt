@@ -64,13 +64,11 @@ jobs:
         run: npx electron-builder --mac --universal --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # ── Apple code signing (uncomment when Developer ID cert is ready) ──
-          # CSC_LINK:                    ${{ secrets.APPLE_CSC_LINK }}
-          # CSC_KEY_PASSWORD:            ${{ secrets.APPLE_CSC_KEY_PASSWORD }}
-          # APPLE_ID:                    ${{ secrets.APPLE_ID }}
-          # APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          # APPLE_TEAM_ID:               ${{ secrets.APPLE_TEAM_ID }}
-          CSC_IDENTITY_AUTO_DISCOVERY: false   # remove this line once signing is configured
+          CSC_LINK:                    ${{ secrets.APPLE_CSC_LINK }}
+          CSC_KEY_PASSWORD:            ${{ secrets.APPLE_CSC_KEY_PASSWORD }}
+          APPLE_ID:                    ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID:               ${{ secrets.APPLE_TEAM_ID }}
 
   # ── Windows x64 (NSIS installer + portable + MSIX for Store) ──────────────
   build-windows:
