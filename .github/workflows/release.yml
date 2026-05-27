@@ -98,6 +98,27 @@ jobs:
           # WIN_CSC_LINK:         ${{ secrets.WIN_CSC_LINK }}         # base64 .pfx
           # WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
 
+      - name: Add Windows SDK makeAppx to PATH
+        # electron-builder needs makeAppx.exe; find the latest installed SDK version
+        shell: pwsh
+        run: |
+          $kitsBase = "C:\Program Files (x86)\Windows Kits\10\bin"
+          if (Test-Path $kitsBase) {
+            $latest = Get-ChildItem $kitsBase -Directory |
+                      Where-Object { $_.Name -match '^\d+\.\d+\.\d+\.\d+$' } |
+                      Sort-Object Name -Descending |
+                      Select-Object -First 1
+            if ($latest) {
+              $sdkBin = Join-Path $latest.FullName "x64"
+              Write-Host "Adding SDK bin to PATH: $sdkBin"
+              Add-Content $env:GITHUB_PATH $sdkBin
+            } else {
+              Write-Warning "No versioned SDK folder found under $kitsBase"
+            }
+          } else {
+            Write-Warning "Windows Kits directory not found — skipping PATH addition"
+          }
+
       - name: Build MSIX for Microsoft Store
         # Unsigned — Partner Center signs it during certification.
         run: npx electron-builder --win appx --x64 --publish never
@@ -105,6 +126,7 @@ jobs:
           WIN_CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: Upload MSIX as workflow artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: windows-store-msix
