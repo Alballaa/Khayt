@@ -8,12 +8,27 @@ Built with Electron · Vanilla JS · No cloud · No subscription · Your data ne
 [![Release](https://img.shields.io/github/v/release/Alballaa/Khayt?label=latest)](https://github.com/Alballaa/Khayt/releases/latest)
 [![License: MIT + Commons Clause](https://img.shields.io/badge/license-MIT%20%2B%20Commons%20Clause-blue)](./LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)](#installation)
+[![Website](https://img.shields.io/badge/website-khaytapp.com-informational)](https://khaytapp.com)
 
 ---
 
 ## Screenshots
 
-> Screenshots coming soon — PRs welcome!
+| Dashboard | Calculator & Quoting |
+|:---------:|:--------------------:|
+| ![Dashboard — revenue, orders, and live machine status at a glance](assets/screenshot-1-dashboard.png) | ![Calculator — multi-part cart with live cost breakdown](assets/screenshot-2-calculator.png) |
+
+| Production Queue (Kanban) | Orders Log |
+|:-------------------------:|:----------:|
+| ![Kanban board — drag-and-drop from Pending to Completed](assets/screenshot-3-production-queue.png) | ![Orders log — full history with filters and PDF export](assets/screenshot-4-orders-log.png) |
+
+| Analytics | Inventory |
+|:---------:|:---------:|
+| ![Analytics — revenue trends, filament usage, machine P&L](assets/screenshot-5-analytics.png) | ![Inventory — spool tracking with FIFO cost and reorder alerts](assets/screenshot-6-inventory.png) |
+
+| Clients & CRM |  |
+|:-------------:|:-:|
+| ![Clients — profiles, loyalty tiers, and purchase history](assets/screenshot-7-clients.png) | |
 
 ---
 
