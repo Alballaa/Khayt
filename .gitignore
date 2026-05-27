@@ -32,3 +32,11 @@ userData/
 # Python cache
 __pycache__/
 *.pyc
+
+# iOS / Xcode (project is generated via XcodeGen)
+ios/Khayt.xcodeproj/
+ios/build/
+ios/DerivedData/
+*.xcuserdata/
+*.xcworkspace/
+.swiftpm/
