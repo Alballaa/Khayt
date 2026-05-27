@@ -93,8 +93,9 @@
     },
     "appx": {
       "applicationId": "Khayt",
-      "backgroundColor": "#0f172a",
-      "showNameOnTiles": true,
+      "backgroundColor": "#0F172A",
+      "showNameOnTiles": false,
+      "languages": ["en-US"],
       "publisherDisplayName": "Khayt",
       "identityName": "Khayt.Khayt",
       "publisher": "CN=F9AECB56-B63C-4BD8-BAF1-B8CDA4A8B0BC"
