@@ -89,8 +89,7 @@ jobs:
         run: npm ci
 
       - name: Build & publish Windows installers
-        # appx (MSIX) is built locally and uploaded to Microsoft Partner Center.
-        # Only nsis + portable are published here via GitHub Releases.
+        # Only nsis + portable are published to GitHub Releases.
         run: npx electron-builder --win nsis portable --x64 --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -98,6 +97,19 @@ jobs:
           # ── Windows code signing (uncomment when HARICA cert is ready) ───────
           # WIN_CSC_LINK:         ${{ secrets.WIN_CSC_LINK }}         # base64 .pfx
           # WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+
+      - name: Build MSIX for Microsoft Store
+        # Unsigned — Partner Center signs it during certification.
+        run: npx electron-builder --win appx --x64 --publish never
+        env:
+          WIN_CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Upload MSIX as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-store-msix
+          path: build/*.appx
+          retention-days: 30
 
   # ── Linux x64 (AppImage + deb) ────────────────────────────────────────────
   build-linux:
