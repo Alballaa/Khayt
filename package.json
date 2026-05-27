@@ -1,6 +1,6 @@
 {
   "name": "khayt",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "Khayt - 3D printing production management, invoicing and analytics. Free and open to all makers worldwide.",
   "main": "main.js",
   "author": {
@@ -24,7 +24,8 @@
   },
   "devDependencies": {
     "electron": "^42.2.0",
-    "electron-builder": "^26.8.1"
+    "electron-builder": "^26.8.1",
+    "playwright-core": "^1.60.0"
   },
   "build": {
     "appId": "app.khayt.hub",
@@ -95,7 +96,9 @@
       "applicationId": "Khayt",
       "backgroundColor": "#0F172A",
       "showNameOnTiles": false,
-      "languages": ["en-US"],
+      "languages": [
+        "en-US"
+      ],
       "publisherDisplayName": "Khayt",
       "identityName": "Khayt.Khayt",
       "publisher": "CN=F9AECB56-B63C-4BD8-BAF1-B8CDA4A8B0BC"

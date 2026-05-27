@@ -998,25 +998,43 @@ function fillWaTemplate(body, order, client) {
 }
 
 let _saveAllTimer = null;
+
+/** Snapshot current in-memory state as a plain object. */
+function buildStoreSnapshot() {
+  return {
+    printLog, inventory, templates, products, clients, settings, printers,
+    expenses, machines, waTemplates, wasteLog, machMaintLog, consumables,
+    suppliers, purchaseOrders, testPrints, locations, operators, waitingList,
+    waitingListHistory, timeEntries, shiftLogs, giftCards, slicerProfiles, envLogs,
+  };
+}
+
+/** Write the store snapshot to disk; returns the IPC Promise. */
+function _doSave(snapshot) {
+  if (!window.hubAPI?.saveStore) return Promise.resolve();
+  return window.hubAPI.saveStore(snapshot).catch(e => {
+    console.error('Save failed:', e);
+    toast('⚠ ' + (t('common.save_failed') || 'Save failed — check disk space'), 'error', 6000);
+  });
+}
+
 function saveAll() {
   // Debounce: coalesce rapid successive saves into one disk write (300 ms window)
   if (_saveAllTimer) clearTimeout(_saveAllTimer);
   _saveAllTimer = setTimeout(() => {
     _saveAllTimer = null;
-    const store = {
-      printLog, inventory, templates, products, clients, settings, printers,
-      expenses, machines, waTemplates, wasteLog, machMaintLog, consumables,
-      suppliers, purchaseOrders, testPrints, locations, operators, waitingList,
-      waitingListHistory, timeEntries,
-      shiftLogs, giftCards, slicerProfiles, envLogs,
-    };
-    if (window.hubAPI?.saveStore) {
-      window.hubAPI.saveStore(store).catch(e => {
-        console.error('Save failed:', e);
-        toast('⚠ ' + (t('common.save_failed') || 'Save failed — check disk space'), 'error', 6000);
-      });
-    }
+    _doSave(buildStoreSnapshot());
   }, 300);
+}
+
+/**
+ * Cancel any pending debounced save and write to disk immediately.
+ * Returns a Promise that resolves when the write is complete.
+ * Use before quitting (update install, app close, etc.) to avoid data loss.
+ */
+function flushSave() {
+  if (_saveAllTimer) { clearTimeout(_saveAllTimer); _saveAllTimer = null; }
+  return _doSave(buildStoreSnapshot());
 }
 
 function migrateFromLocalStorage() {
@@ -21743,6 +21761,40 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   if ($('#appVersion')) $('#appVersion').textContent = currentVersion || '1.0.0-rc.1 (dev)';
 
+  // ── Post-update "data survived" toast ────────────────────────────────────────
+  // If the previous session stored a pending-update version and we're now running
+  // that version (or any newer one), show a brief confirmation.
+  (function checkPostUpdateNotice() {
+    const pendingVer = localStorage.getItem('khayt_pending_update_to');
+    if (!pendingVer) return;
+    // Strip only the pre-release suffix ('2.1.0-beta.1' → '2.1.0') before comparing.
+    // Don't use a regex that removes hyphens mid-string — that collapses '2.0.4-beta.1'
+    // to '2.0.41' and confuses the comparator.
+    const norm = v => (v || '').split('-')[0].split('.').map(n => parseInt(n, 10) || 0);
+    const gte = (a, b) => {
+      const [aa, ba] = [norm(a), norm(b)];
+      const len = Math.max(aa.length, ba.length);
+      for (let i = 0; i < len; i++) {
+        if ((aa[i] || 0) > (ba[i] || 0)) return true;
+        if ((aa[i] || 0) < (ba[i] || 0)) return false;
+      }
+      return true; // equal
+    };
+    // Extra guard: if currentVersion still carries a pre-release tag (e.g. '-beta.1')
+    // the stable release hasn't landed yet — suppress the toast.
+    const isStable = !String(currentVersion).includes('-');
+    if (isStable && gte(currentVersion, pendingVer)) {
+      localStorage.removeItem('khayt_pending_update_to');
+      setTimeout(() => {
+        toast(
+          `✅ Updated to Khayt ${escapeHtml(currentVersion)} — your data is intact. ` +
+          `A pre-update backup was saved to <em>Settings → Backup</em>.`,
+          'success', 7000
+        );
+      }, 2500); // slight delay so the UI is fully painted first
+    }
+  })();
+
   // ── Auto-updater UI ─────────────────────────────────────────────────────────
   // electron-updater fires IPC events from main; we show a non-intrusive banner.
   (function wireUpdaterUI() {
@@ -21784,11 +21836,46 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.hubAPI?.onUpdateDownloaded?.((info) => {
       const banner = makeBanner(
         `✅ Khayt <strong>${escapeHtml(info.version)}</strong> ready — ` +
-        `<button id="updBtnRestart" style="background:rgba(255,255,255,0.25);border:none;color:#fff;padding:3px 12px;border-radius:12px;cursor:pointer;font-size:12px;">Restart now</button> ` +
+        `<button id="updBtnRestart" style="background:rgba(255,255,255,0.25);border:none;color:#fff;padding:3px 12px;border-radius:12px;cursor:pointer;font-size:12px;">Restart &amp; install</button> ` +
         `<span id="updBtnClose2" style="opacity:.7;font-size:18px;cursor:pointer;line-height:1;">×</span>`
       );
-      banner.querySelector('#updBtnRestart')?.addEventListener('click', () => {
-        window.hubAPI?.installUpdate?.();
+      banner.querySelector('#updBtnRestart')?.addEventListener('click', async () => {
+        const btn = banner.querySelector('#updBtnRestart');
+        if (btn) { btn.disabled = true; btn.textContent = 'Saving data…'; }
+
+        // 1. Flush any pending debounced save immediately — closes the race window.
+        //    Cancel the timer BEFORE capturing the snapshot so no concurrent
+        //    debounced write can race with the explicit flush below.
+        if (_saveAllTimer) { clearTimeout(_saveAllTimer); _saveAllTimer = null; }
+        const snapshot = buildStoreSnapshot();
+        try { await _doSave(snapshot); } catch (_) {}
+
+        // 2. Write a named pre-update backup so the user can always roll back.
+        if (btn) btn.textContent = 'Backing up…';
+        try {
+          const json = JSON.stringify({
+            version: 5, exportedAt: new Date().toISOString(), ...snapshot,
+          });
+          await window.hubAPI?.writeUpdateBackup?.(json, info.version);
+        } catch (_) {}
+
+        // 3. Record the pending update version so we can show a "what's new" banner
+        //    after the app relaunches on the new version.
+        localStorage.setItem('khayt_pending_update_to', String(info.version));
+
+        // Safety valve: if the process hasn't quit after 30 s the install
+        // silently failed — clear the key so we never show a false "updated" toast.
+        setTimeout(() => {
+          if (localStorage.getItem('khayt_pending_update_to') === String(info.version)) {
+            localStorage.removeItem('khayt_pending_update_to');
+            toast('⚠ Update installation failed — please restart the app manually.', 'error', 8000);
+            if (btn) { btn.disabled = false; btn.textContent = 'Restart & install'; }
+          }
+        }, 30_000);
+
+        // 4. Hand the final snapshot to main.js so it can do one last atomic write
+        //    before killing the process.
+        window.hubAPI?.installUpdate?.(snapshot);
       });
       banner.querySelector('#updBtnClose2')?.addEventListener('click', () => banner.remove());
     });

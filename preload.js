@@ -126,9 +126,12 @@ contextBridge.exposeInMainWorld('hubAPI', {
   onLanIntakeSubmitted: (() => { let _cb=null; ipcRenderer.on('lan-intake-submitted', (_e,d)=>{ if(_cb) _cb(d); }); return cb=>{ _cb=cb; }; })(),
 
   // Auto-updater
-  checkForUpdates:      ()  => ipcRenderer.invoke('hub:check-for-updates'),
-  startUpdateDownload:  ()  => ipcRenderer.invoke('hub:start-update-download'),
-  installUpdate:        ()  => ipcRenderer.invoke('hub:install-update'),
+  checkForUpdates:      ()               => ipcRenderer.invoke('hub:check-for-updates'),
+  startUpdateDownload:  ()               => ipcRenderer.invoke('hub:start-update-download'),
+  // Pass the final in-memory store so main.js can flush it atomically before quitting.
+  installUpdate:        (storeSnapshot)  => ipcRenderer.invoke('hub:install-update', storeSnapshot),
+  // Write a named pre-update backup (distinct from daily YYYY-MM-DD.json files).
+  writeUpdateBackup:    (json, version)  => ipcRenderer.invoke('hub:write-update-backup', json, version),
   onUpdateAvailable:        (() => { let _cb=null; ipcRenderer.on('update-available',         (_e,d)=>{ if(_cb) _cb(d); }); return cb=>{ _cb=cb; }; })(),
   onUpdateDownloadProgress: (() => { let _cb=null; ipcRenderer.on('update-download-progress', (_e,d)=>{ if(_cb) _cb(d); }); return cb=>{ _cb=cb; }; })(),
   onUpdateDownloaded:       (() => { let _cb=null; ipcRenderer.on('update-downloaded',        (_e,d)=>{ if(_cb) _cb(d); }); return cb=>{ _cb=cb; }; })(),

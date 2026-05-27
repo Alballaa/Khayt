@@ -48,8 +48,49 @@ function setupAutoUpdater(win) {
 }
 
 ipcMain.handle('hub:start-update-download', () => autoUpdater.downloadUpdate());
-ipcMain.handle('hub:install-update',        () => { autoUpdater.quitAndInstall(); });
+ipcMain.handle('hub:install-update', async (_e, storeSnapshot) => {
+  // If the renderer sent a final store snapshot, flush it to disk atomically
+  // before the process is killed — this closes the 300ms debounce race window.
+  if (storeSnapshot && typeof storeSnapshot === 'object') {
+    try {
+      const serialized = JSON.stringify(encryptForDisk(storeSnapshot));
+      // Mirror the 50 MB read-side guard from hub:load-store — reject unreasonably large snapshots.
+      if (serialized.length <= 50_000_000) {
+        const fp  = dataFilePath();
+        const tmp = fp + '.tmp';
+        await fs.promises.writeFile(tmp, serialized, 'utf8');
+        await fs.promises.rename(tmp, fp);
+      } else {
+        console.error('[update] flush-save skipped: snapshot exceeds 50 MB');
+      }
+    } catch (e) {
+      console.error('[update] flush-save failed:', e?.message);
+    }
+  }
+  // Small grace period so any in-flight IPC responses can drain, then quit.
+  setTimeout(() => autoUpdater.quitAndInstall(/* isSilent */ false, /* isForceRunAfter */ true), 250);
+});
 ipcMain.handle('hub:check-for-updates',     () => autoUpdater.checkForUpdates().catch(() => {}));
+
+// Writes a timestamped pre-update backup so users can always roll back data.
+// Filename: pre-update-vX.Y.Z-YYYY-MM-DD.json  (kept alongside daily backups).
+ipcMain.handle('hub:write-update-backup', async (_e, jsonString, newVersion) => {
+  if (!jsonString || typeof jsonString !== 'string' || jsonString.length > 20_000_000) {
+    return { ok: false, error: 'invalid' };
+  }
+  let parsed;
+  try { parsed = JSON.parse(jsonString); } catch { return { ok: false, error: 'bad json' }; }
+  const safeVer  = String(newVersion || 'unknown').replace(/[^a-zA-Z0-9._-]/g, '');
+  const dateStr  = new Date().toISOString().split('T')[0];
+  const filename = `pre-update-v${safeVer}-${dateStr}.json`;
+  const fullPath = path.join(backupsDir(), filename);
+  try {
+    await fs.promises.writeFile(fullPath, JSON.stringify(encryptForDisk(parsed)), 'utf8');
+    return { ok: true, path: fullPath };
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e) };
+  }
+});
 
 function encryptStoreField(val) {
   if (!val || typeof val !== 'string' || !safeStorage.isEncryptionAvailable()) return val;
@@ -607,7 +648,14 @@ ipcMain.handle('hub:save-store', async (_e, data) => {
   const fp = dataFilePath();
   const tmp = fp + '.tmp';
   try {
-    await fs.promises.writeFile(tmp, JSON.stringify(encryptForDisk(data)), 'utf8');
+    const serialized = JSON.stringify(encryptForDisk(data));
+    // Write-side guard: mirror the 50 MB read-side limit from hub:load-store.
+    // Prevents runaway data-URL or blob embedding from silently bloating the store.
+    if (serialized.length > 50_000_000) {
+      console.error('hub:save-store: refusing to write store exceeding 50 MB');
+      return { ok: false, error: 'Store too large' };
+    }
+    await fs.promises.writeFile(tmp, serialized, 'utf8');
     await fs.promises.rename(tmp, fp);
     lanServerStore = data;  // keep LAN server in sync (plaintext in-memory)
     return { ok: true };
@@ -2227,6 +2275,7 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      webSecurity: true,       // explicit — guards against accidental removal via build config
       navigateOnDragDrop: false,
     }
   });
