@@ -9249,6 +9249,8 @@ function renderWaitingFunnel() {
   if (!el) return;
   const allItems = [...waitingList, ...waitingListHistory];
   const totalAdded = allItems.length;
+  // Hide the funnel entirely when there's no intake data — avoids an all-zeros widget
+  if (totalAdded === 0) { el.innerHTML = ''; return; }
   const active = waitingList.filter(w => w.status === 'active' || w.status === 'reminded').length;
   const converted = waitingListHistory.filter(w => w.status === 'converted').length;
   const declined = allItems.filter(w => w.status === 'declined').length;
@@ -13959,11 +13961,11 @@ function renderDashboard() {
       </div>
       <div class="dash-stat">
         <div class="dash-stat-val">${fmtMoney(todayRev)}</div>
-        <div class="dash-stat-lbl">${escapeHtml(t('dash.today_rev'))} <small>${escapeHtml(currencySymbol())}</small></div>
+        <div class="dash-stat-lbl">${escapeHtml(t('dash.today_rev'))}</div>
       </div>
       <div class="dash-stat">
         <div class="dash-stat-val">${fmtMoney(receivables)}</div>
-        <div class="dash-stat-lbl">${escapeHtml(t('dash.receivables'))} <small>${escapeHtml(currencySymbol())}</small></div>
+        <div class="dash-stat-lbl">${escapeHtml(t('dash.receivables'))}</div>
       </div>
       ${pipelineValue > 0 ? `
       <div class="dash-stat">
@@ -19497,7 +19499,7 @@ function loadSettingsIntoForm() {
   const donEl = $('#set_donationUrl');
   if (donEl) donEl.value = settings.donationUrl || '';
   const sponsorBtn = $('#btnGithubSponsors');
-  if (sponsorBtn) sponsorBtn.href = settings.donationUrl || 'https://github.com/sponsors';
+  if (sponsorBtn) sponsorBtn.href = settings.donationUrl || 'https://github.com/sponsors/Alballaa';
   // Min-margin warning threshold
   const minMargEl = $('#set_minMarginPct');
   if (minMargEl) minMargEl.value = settings.minMarginPct ?? 0;
@@ -19703,7 +19705,7 @@ function saveSettingsFromForm() {
   renderInventory();
   // Keep sponsor link live after save
   const sponsorBtn = $('#btnGithubSponsors');
-  if (sponsorBtn) sponsorBtn.href = settings.donationUrl || 'https://github.com/sponsors';
+  if (sponsorBtn) sponsorBtn.href = settings.donationUrl || 'https://github.com/sponsors/Alballaa';
   refreshCurrencyLabels();
   toast(t('set.saved'), 'success');
 }

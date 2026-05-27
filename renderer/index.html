@@ -1126,62 +1126,57 @@
         <div class="card">
           <h3 class="card-head"><span class="swatch"></span><span data-i18n="set.biz_section">Business Information</span></h3>
 
-          <label data-i18n="set.logo">Business logo</label>
-          <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px;">
-            <img id="logoPreview" style="display:none; height:52px; width:auto; border-radius:6px; border:1px solid var(--border); padding:4px; background:var(--surface-2);" alt="logo">
-            <div style="display:flex; gap:8px;">
-              <label class="btn small" style="cursor:pointer; margin:0;">
-                <span data-i18n="set.logo_upload">Upload image</span>
-                <input type="file" id="logoUploadInput" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;">
-              </label>
-              <button class="btn small danger" id="btnRemoveLogo" style="display:none;" data-i18n="set.logo_remove">Remove</button>
+          <!-- Logo + business name on same row -->
+          <div style="display:flex; align-items:flex-start; gap:16px; margin-bottom:14px;">
+            <div style="flex-shrink:0;">
+              <label style="font-size:11.5px; color:var(--text-muted); display:block; margin-bottom:6px;" data-i18n="set.logo">Logo</label>
+              <div style="display:flex; flex-direction:column; align-items:center; gap:6px;">
+                <img id="logoPreview" style="display:none; height:52px; width:auto; border-radius:6px; border:1px solid var(--border); padding:4px; background:var(--surface-2);" alt="logo">
+                <label class="btn small" style="cursor:pointer; margin:0; white-space:nowrap;">
+                  <span data-i18n="set.logo_upload">Upload</span>
+                  <input type="file" id="logoUploadInput" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;">
+                </label>
+                <button class="btn small danger" id="btnRemoveLogo" style="display:none; margin:0;" data-i18n="set.logo_remove">Remove</button>
+              </div>
+            </div>
+            <div style="flex:1; min-width:0;">
+              <div class="inline-pair" style="margin-bottom:10px;">
+                <div>
+                  <label data-i18n="set.biz_en">Business name (English)</label>
+                  <input type="text" id="set_bizEn" placeholder="Khayt">
+                </div>
+                <div>
+                  <label data-i18n="set.biz_ar">Business name (Arabic)</label>
+                  <input type="text" id="set_bizAr" dir="rtl" placeholder="خيط">
+                </div>
+              </div>
+              <div class="inline-pair">
+                <div>
+                  <label data-i18n="set.tagline_en">Tagline (English)</label>
+                  <input type="text" id="set_taglineEn" data-i18n-placeholder="set.tagline_ph">
+                </div>
+                <div>
+                  <label data-i18n="set.tagline_ar">Tagline (Arabic)</label>
+                  <input type="text" id="set_taglineAr" dir="rtl" data-i18n-placeholder="set.tagline_ph_ar">
+                </div>
+              </div>
             </div>
           </div>
-          <p style="font-size:11.5px; color:var(--text-muted); margin:0 0 14px;" data-i18n="set.logo_hint"></p>
 
-          <div class="inline-pair">
-            <div>
-              <label data-i18n="set.biz_en">Business name (English)</label>
-              <input type="text" id="set_bizEn" placeholder="Khayt">
-            </div>
-            <div>
-              <label data-i18n="set.biz_ar">Business name (Arabic)</label>
-              <input type="text" id="set_bizAr" dir="rtl" placeholder="أثر طويق للطباعة ثلاثية الأبعاد">
-            </div>
-          </div>
-
-          <div class="inline-pair">
-            <div>
-              <label data-i18n="set.tagline_en">Tagline (English)</label>
-              <input type="text" id="set_taglineEn" data-i18n-placeholder="set.tagline_ph">
-            </div>
-            <div>
-              <label data-i18n="set.tagline_ar">Tagline (Arabic)</label>
-              <input type="text" id="set_taglineAr" dir="rtl" data-i18n-placeholder="set.tagline_ph_ar">
-            </div>
-          </div>
-
-          <div class="pro-only">
-          <label data-i18n="set.vat">VAT registration number</label>
-          <input type="text" id="set_vat" placeholder="3xxxxxxxxxxxxx3" maxlength="15">
-          <p style="font-size: 11.5px; color: var(--text-muted); margin: 4px 0 0;" data-i18n="set.vat_hint"></p>
-          </div>
-
-          <div class="inline-pair" style="margin-top: 12px;">
-            <div>
-              <label data-i18n="set.cr">Commercial registration #</label>
-              <input type="text" id="set_cr">
-            </div>
+          <!-- Contact row: phone + email -->
+          <div class="inline-pair" style="margin-bottom:10px;">
             <div>
               <label data-i18n="set.phone">Phone</label>
               <input type="tel" id="set_phone">
             </div>
+            <div>
+              <label data-i18n="set.email">Email</label>
+              <input type="email" id="set_email">
+            </div>
           </div>
 
-          <label data-i18n="set.email">Email</label>
-          <input type="email" id="set_email">
-
-          <div class="inline-pair">
+          <!-- Address -->
+          <div class="inline-pair" style="margin-bottom:10px;">
             <div>
               <label data-i18n="set.address_en">Address (English)</label>
               <input type="text" id="set_addrEn">
@@ -1189,6 +1184,18 @@
             <div>
               <label data-i18n="set.address_ar">Address (Arabic)</label>
               <input type="text" id="set_addrAr" dir="rtl">
+            </div>
+          </div>
+
+          <!-- Legal numbers row -->
+          <div class="inline-pair pro-only">
+            <div>
+              <label data-i18n="set.vat">VAT number</label>
+              <input type="text" id="set_vat" placeholder="3xxxxxxxxxxxxx3" maxlength="15">
+            </div>
+            <div>
+              <label data-i18n="set.cr">CR #</label>
+              <input type="text" id="set_cr">
             </div>
           </div>
         </div>
