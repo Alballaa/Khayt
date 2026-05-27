@@ -698,6 +698,7 @@ const STRINGS = {
     'set.import_error':     'Could not import — file is not valid JSON.',
     'set.about':            'About',
     'set.version':          'Version',
+    'set.check_updates':    'Check for updates',
 
     // ---------- Invoice ----------
     'inv.invoice':          'Invoice',
@@ -2946,6 +2947,7 @@ const STRINGS = {
     'set.import_error':     'تعذّر الاستيراد — الملف ليس JSON صالحاً.',
     'set.about':            'حول التطبيق',
     'set.version':          'الإصدار',
+    'set.check_updates':    'التحقق من التحديثات',
 
     'inv.invoice':          'فاتورة',
     'inv.billed_to':        'الفاتورة إلى',

@@ -1639,8 +1639,14 @@
             </div>
           </div>
 
-          <div style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border-soft); font-size: 12px; color: var(--text-muted);">
-            <strong data-i18n="set.about">About</strong> · <span data-i18n="app.title">Khayt</span> · خيط · <span data-i18n="set.version">Version</span> <span id="appVersion">—</span>
+          <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border-soft); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+            <div style="font-size:12px; color:var(--text-muted);">
+              <strong data-i18n="set.about">About</strong> · <span data-i18n="app.title">Khayt</span> · خيط · <span data-i18n="set.version">Version</span> <span id="appVersion">—</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span id="updateStatusMsg" style="font-size:12px; color:var(--text-muted);"></span>
+              <button id="btnCheckForUpdates" class="btn small" data-i18n="set.check_updates">Check for updates</button>
+            </div>
           </div>
         </div>
 

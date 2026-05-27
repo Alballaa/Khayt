@@ -21782,6 +21782,35 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   })();
 
+  // ── Manual "Check for updates" button in Settings ────────────────────────
+  (function wireCheckForUpdatesBtn() {
+    const btn = document.getElementById('btnCheckForUpdates');
+    const msg = document.getElementById('updateStatusMsg');
+    if (!btn || !window.hubAPI?.checkForUpdates) return;
+
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = 'Checking…';
+      if (msg) { msg.textContent = ''; }
+      try {
+        await window.hubAPI.checkForUpdates();
+        // Give the updater 4 seconds to fire onUpdateAvailable if there is one.
+        // If nothing fires we show "You're up to date".
+        setTimeout(() => {
+          if (!document.getElementById('updateBanner')) {
+            if (msg) msg.textContent = '✓ You\'re up to date';
+          }
+          btn.disabled = false;
+          btn.textContent = t('set.check_updates') || 'Check for updates';
+        }, 4000);
+      } catch (e) {
+        if (msg) msg.textContent = '⚠ Check failed';
+        btn.disabled = false;
+        btn.textContent = t('set.check_updates') || 'Check for updates';
+      }
+    });
+  })();
+
   // Email digest scheduler — checks every 5 minutes
   setInterval(checkAndSendDigest, 5 * 60 * 1000);
   setTimeout(checkAndSendDigest, 10_000); // also run ~10s after boot in case we're already in the send window
