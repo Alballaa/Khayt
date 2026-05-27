@@ -526,7 +526,42 @@ ipcMain.handle('hub:save-html', async (_e, html, filename) => {
 });
 
 // --- Main data store (file-based) ---
-ipcMain.handle('hub:load-store', async () => {
+// ── One-time keychain explanation ──────────────────────────────────────────
+// Shows a native dialog before the OS credential-store permission prompt so
+// users understand why macOS/Windows is asking for keychain access.
+async function maybeShowKeychainExplanation(win) {
+  if (!safeStorage.isEncryptionAvailable()) return;
+  const flagPath = path.join(app.getPath('userData'), 'khayt-keychain-ok.flag');
+  if (fs.existsSync(flagPath)) return;
+
+  const storeName = process.platform === 'darwin' ? 'macOS Keychain'
+                  : process.platform === 'win32'  ? 'Windows Credential Manager'
+                  : 'your system keyring';
+
+  await dialog.showMessageBox(win, {
+    type: 'information',
+    title: 'Khayt — Secure Storage',
+    message: 'Your API keys are encrypted',
+    detail:
+      `Khayt encrypts sensitive credentials — ZATCA keys, printer API tokens, ` +
+      `payment gateway secrets, and email passwords — using ${storeName}.\n\n` +
+      `This is the same secure storage that protects your browser passwords and ` +
+      `iCloud data. Nothing is sent to any server.\n\n` +
+      `${process.platform === 'darwin'
+        ? 'macOS will ask for permission once. Click "Always Allow" so Khayt can read these keys each time it opens.'
+        : 'Your OS may ask for permission to access the credential store — please allow it.'}`,
+    buttons: ['Allow Secure Access'],
+    defaultId: 0,
+    icon: undefined,
+  });
+
+  fs.writeFileSync(flagPath, '1');
+}
+
+ipcMain.handle('hub:load-store', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  await maybeShowKeychainExplanation(win);
+
   const fp = dataFilePath();
   if (!fs.existsSync(fp)) return null;
   try {
