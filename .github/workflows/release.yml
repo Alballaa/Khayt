@@ -44,9 +44,9 @@ jobs:
             $FLAGS \
             2>/dev/null || echo "Release already exists — continuing"
 
-  # ── macOS Universal DMG ────────────────────────────────────────────────────
+  # ── macOS Apple Silicon DMG ───────────────────────────────────────────────
   build-mac:
-    name: macOS (Universal)
+    name: macOS (Apple Silicon)
     needs: create-release
     runs-on: macos-latest
     steps:
@@ -60,8 +60,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build & publish macOS Universal DMG
-        run: npx electron-builder --mac --universal --publish always
+      - name: Build & publish macOS Apple Silicon DMG
+        run: npx electron-builder --mac --arm64 --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK:                    ${{ secrets.APPLE_CSC_LINK }}

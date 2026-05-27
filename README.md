@@ -130,24 +130,12 @@ Go to **[Releases](https://github.com/Alballaa/Khayt/releases/latest)** and grab
 
 | Platform | File | Notes |
 |---|---|---|
-| macOS (Universal) | `Khayt-*.dmg` | Runs on both Apple Silicon and Intel |
+| macOS (Apple Silicon) | `Khayt-*-arm64.dmg` | Requires Apple Silicon (M1 or later) |
 | Windows (installer) | `Khayt-*-Setup.exe` | NSIS installer, adds Start Menu shortcut |
 | Windows (portable) | `Khayt-*-portable.exe` | No installation needed |
 | Microsoft Store | [coming soon] | Will appear in the Store once approved |
 | Linux (AppImage) | `Khayt-*.AppImage` | `chmod +x` then run |
 | Linux (deb) | `Khayt-*.deb` | `sudo dpkg -i Khayt-*.deb` |
-
-#### macOS first-run (unsigned build)
-The app is currently unsigned while Apple Developer ID is being processed. To open it the first time:
-```bash
-xattr -cr "/Applications/Khayt.app"
-```
-Or: right-click the app → Open → Open anyway.
-
-Once the Developer ID certificate arrives, builds will be notarized and this step will not be needed.
-
-#### Windows first-run (unsigned build)
-Windows SmartScreen may warn "unrecognized app." Click **More info → Run anyway**. This warning will disappear once the app has built reputation or is code-signed.
 
 ---
 
