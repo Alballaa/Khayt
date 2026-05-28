@@ -698,11 +698,12 @@ function importSpoolsCsv() {
           material: row.material,
           brand: row.brand || '',
           color: row.color || '',
+          lot: row.lot || undefined,
           diameter: row.diameter || 1.75,
           weight: row.weightRemaining != null ? row.weightRemaining : wt,
           weightTotal: wt,
           cost: row.costPerKg || 0,
-          reorderPoint: row.reorderPoint || (settings.lowStockThreshold ?? 200),
+          reorderPoint: row.reorderPoint ?? (settings.lowStockThreshold ?? 200),
           location: row.location || '',
           notes: row.notes || '',
           addedAt: localDateStr(),
@@ -2477,6 +2478,7 @@ function editPart(index) {
   currentBuild.splice(index, 1);
   renderBuild();
   calculateLivePartCost();
+  updateFailureRateHint();
 
   // Scroll form into view and highlight the add button
   const addBtn = $('#btnAddPart');
@@ -6544,9 +6546,9 @@ function generateClientStatement(clientId) {
       <td style="padding:6px 8px; font-size:12px; white-space:nowrap;">${escapeHtml(o.date || '')}</td>
       <td style="padding:6px 8px; font-size:12px;">${escapeHtml(o.id)}</td>
       <td style="padding:6px 8px; font-size:12px;">${escapeHtml(o.project || '')}</td>
-      <td style="padding:6px 8px; font-size:12px; text-align:right;">${fmtPrice(o.price)}</td>
-      <td style="padding:6px 8px; font-size:12px; text-align:right; color:#2a9d8f;">${fmtPrice(paid)}</td>
-      <td style="padding:6px 8px; font-size:12px; text-align:right; color:${bal > 0 ? '#e63946' : '#2a9d8f'};">${fmtPrice(bal)}</td>
+      <td style="padding:6px 8px; font-size:12px; text-align:end;">${fmtPrice(o.price)}</td>
+      <td style="padding:6px 8px; font-size:12px; text-align:end; color:#2a9d8f;">${fmtPrice(paid)}</td>
+      <td style="padding:6px 8px; font-size:12px; text-align:end; color:${bal > 0 ? '#e63946' : '#2a9d8f'};">${fmtPrice(bal)}</td>
     </tr>`;
   }).join('');
 
@@ -6577,22 +6579,22 @@ function generateClientStatement(clientId) {
       </div>
       <table style="width:100%; border-collapse:collapse; margin-top:16px; font-size:13px;">
         <thead>
-          <tr style="border-bottom:2px solid #333; text-align:left;">
+          <tr style="border-bottom:2px solid #333; text-align:start;">
             <th style="padding:6px 8px;">${escapeHtml(t('common.date'))}</th>
             <th style="padding:6px 8px;">${escapeHtml(t('log.id') || 'Order ID')}</th>
             <th style="padding:6px 8px;">${escapeHtml(t('oe.project') || 'Description')}</th>
-            <th style="padding:6px 8px; text-align:right;">${escapeHtml(t('log.price'))}</th>
-            <th style="padding:6px 8px; text-align:right;">${escapeHtml(t('cl.stmt_paid'))}</th>
-            <th style="padding:6px 8px; text-align:right;">${escapeHtml(t('cl.stmt_outstanding'))}</th>
+            <th style="padding:6px 8px; text-align:end;">${escapeHtml(t('log.price'))}</th>
+            <th style="padding:6px 8px; text-align:end;">${escapeHtml(t('cl.stmt_paid'))}</th>
+            <th style="padding:6px 8px; text-align:end;">${escapeHtml(t('cl.stmt_outstanding'))}</th>
           </tr>
         </thead>
         <tbody>${rowsHtml}</tbody>
         <tfoot>
           <tr style="border-top:2px solid #333; font-weight:700;">
             <td colspan="3" style="padding:8px 8px;">${escapeHtml(t('common.total'))}</td>
-            <td style="padding:8px 8px; text-align:right;">${fmtPrice(totalCharges)}</td>
-            <td style="padding:8px 8px; text-align:right; color:#2a9d8f;">${fmtPrice(totalPaid)}</td>
-            <td style="padding:8px 8px; text-align:right; color:${outstanding > 0 ? '#e63946' : '#2a9d8f'};">${fmtPrice(outstanding)}</td>
+            <td style="padding:8px 8px; text-align:end;">${fmtPrice(totalCharges)}</td>
+            <td style="padding:8px 8px; text-align:end; color:#2a9d8f;">${fmtPrice(totalPaid)}</td>
+            <td style="padding:8px 8px; text-align:end; color:${outstanding > 0 ? '#e63946' : '#2a9d8f'};">${fmtPrice(outstanding)}</td>
           </tr>
         </tfoot>
       </table>
@@ -7522,6 +7524,7 @@ function qcFailOrder(orderId) {
         id: uid('WASTE'),
         date: new Date().toISOString().split('T')[0],
         material: order.material || '',
+        machineId: order.machineId || null,
         weight: weight || 0,
         cost: weight > 0 ? (() => {
           const inv = inventory.find(i => i.material === order.material);
@@ -8117,8 +8120,12 @@ function openOrderEditor(orderId) {
           vaultListEl.querySelectorAll('[data-act-vault="del"]').forEach(btn => {
             btn.addEventListener('click', async () => {
               if (!window.hubAPI?.deleteVaultFile) return;
-              await window.hubAPI.deleteVaultFile(btn.dataset.path);
-              refreshVaultFiles();
+              try {
+                await window.hubAPI.deleteVaultFile(btn.dataset.path);
+                refreshVaultFiles();
+              } catch (e) {
+                toast(t('common.error') + ': ' + (e?.message || 'delete failed'), 'error');
+              }
             });
           });
         } catch (e) { console.error('vault list error', e); }
@@ -15422,7 +15429,7 @@ function renderProductTierChips(product) {
    ============================================================ */
 async function batchGenPOs() {
   const lowStockItems = inventory.filter(item =>
-    (item.weight || 0) < (item.reorderPoint || settings.lowStockThreshold || 200)
+    (item.weight || 0) < (item.reorderPoint ?? settings.lowStockThreshold ?? 200)
   );
   if (lowStockItems.length === 0) {
     toast(t('po.none_needed'), 'info');
@@ -18480,6 +18487,7 @@ async function voidInvoice(orderId) {
             id: uid('W'),
             date: localDateStr(),
             orderId: order.id,
+            machineId: order.machineId || null,
             material,
             weight: totalWeight,
             failureType: 'operator_error',

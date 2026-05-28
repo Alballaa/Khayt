@@ -28,6 +28,8 @@ const STRINGS = {
     'common.optional':      'optional',
     'common.none':          'none',
     'common.close':         'Close',
+    'common.copy':          'Copy',
+    'common.copied':        'Copied!',
     'common.required':      'required',
     'common.export_csv':    'CSV',
 
@@ -433,6 +435,7 @@ const STRINGS = {
     'an.range.last_month':  'Last month',
     'an.range.quarter':     'This quarter',
     'an.range.year':        'This year',
+    'analytics.this_year':  'This Year',
     'an.top_products':      'Most-printed products',
     'an.top_clients':       'Top clients by revenue',
     'an.no_top_products':   'No catalog data yet.',
@@ -1812,6 +1815,7 @@ const STRINGS = {
 
     // ---------- Feature 7 (new 8-pack-2): Role-based operator PIN lock ----------
     'op.lock':                'Operator lock',
+    'op.lock_hint':           'Require a PIN to switch between operator accounts. Restricts access by role.',
     'op.switch':              'Switch operator',
     'op.enter_pin':           'Enter PIN',
     'op.wrong_pin':           'Incorrect PIN',
@@ -2140,6 +2144,7 @@ const STRINGS = {
     'ord.portal_go_settings':   'Go to Settings',
 
     // ---------- Feature H: Exchange Rates + Multi-currency ----------
+    'xr.section':               'Exchange Rates',
     'set.exchange_rates_title': 'Exchange Rates',
     'set.exchange_rates_note':  'Set rates to convert foreign-currency orders to your base currency in analytics.',
     'set.exchange_rate_label':  '1 {code} =',
@@ -2313,6 +2318,8 @@ const STRINGS = {
     'common.optional':      'اختياري',
     'common.none':          'لا يوجد',
     'common.close':         'إغلاق',
+    'common.copy':          'نسخ',
+    'common.copied':        'تم النسخ!',
     'common.required':      'مطلوب',
     'common.export_csv':    'CSV',
 
@@ -2702,6 +2709,7 @@ const STRINGS = {
     'an.range.last_month':  'الشهر الماضي',
     'an.range.quarter':     'هذا الربع',
     'an.range.year':        'هذا العام',
+    'analytics.this_year':  'هذا العام',
     'an.top_products':      'المنتجات الأكثر طباعةً',
     'an.top_clients':       'أعلى العملاء إيراداً',
     'an.no_top_products':   'لا توجد بيانات كتالوج بعد.',
@@ -3911,6 +3919,7 @@ const STRINGS = {
     'op.assigned':                'مُعيَّن',
     'op.unassigned':              'غير مُعيَّن',
     'op.lock':                    'قفل',
+    'op.lock_hint':               'يتطلب رمز PIN للتبديل بين حسابات المشغلين. يقيد الوصول حسب الدور.',
     'op.switch':                  'تبديل المشغل',
     'op.enter_pin':               'أدخل الرمز السري',
     'op.wrong_pin':               'رمز خاطئ',
@@ -4272,6 +4281,7 @@ const STRINGS = {
     'ord.portal_go_settings':   'الذهاب إلى الإعدادات',
 
     // ---------- Feature H: Exchange Rates + Multi-currency ----------
+    'xr.section':               'أسعار الصرف',
     'set.exchange_rates_title': 'أسعار الصرف',
     'set.exchange_rates_note':  'حدد الأسعار لتحويل الطلبات بالعملات الأجنبية إلى عملتك الأساسية في التقارير.',
     'set.exchange_rate_label':  '1 {code} =',

@@ -556,12 +556,22 @@ ipcMain.handle('hub:open-file', async (_e, filePath) => {
   return true;
 });
 
+// Strip <script> blocks and inline event handlers before writing any HTML to disk.
+// Defense-in-depth: renderer already escapes user data, but this prevents XSS if
+// a future escaping gap lets malicious content reach the template.
+function sanitizeHtmlForFile(html) {
+  return String(html || '')
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
+    .replace(/<script\b[^>]*/gi, '')
+    .replace(/\bon\w+\s*=/gi, 'data-removed=');
+}
+
 // --- Save HTML to temp and open (Feature 7) ---
 ipcMain.handle('hub:save-html', async (_e, html, filename) => {
   const tmpDir = app.getPath('temp');
   const safeName = (String(filename || 'status.html')).replace(/[^a-zA-Z0-9._-]/g, '_');
   const fullPath = path.join(tmpDir, safeName);
-  await fs.promises.writeFile(fullPath, String(html || ''), 'utf8');
+  await fs.promises.writeFile(fullPath, sanitizeHtmlForFile(html), 'utf8');
   await shell.openPath(fullPath);
   return fullPath;
 });
@@ -728,7 +738,7 @@ ipcMain.handle('hub:write-status-page', async (_e, { html, orderId }) => {
   const safeId = path.basename(String(orderId || '')).replace(/[^a-zA-Z0-9_-]/g, '_');
   const dir = statusPagesDir();
   const fullPath = path.join(dir, `${safeId}.html`);
-  await fs.promises.writeFile(fullPath, String(html || ''), 'utf8');
+  await fs.promises.writeFile(fullPath, sanitizeHtmlForFile(html), 'utf8');
   return fullPath;
 });
 
@@ -2372,7 +2382,7 @@ app.whenReady().then(() => {
         'Content-Security-Policy': [
           [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline'",  // 'unsafe-inline' needed until app migrates to external scripts
+            "script-src 'self' 'unsafe-inline'",  // TODO: remove 'unsafe-inline' after replacing inline onclick= handlers in dynamically-generated HTML (app.js) with data-act delegation
             "style-src 'self' 'unsafe-inline'",
             "img-src 'self' data: blob:",
             "font-src 'self' data:",
