@@ -674,6 +674,7 @@ function importSpoolsCsv() {
       { key: 'material',        label: t('inv.material')        || 'Material',            required: true },
       { key: 'brand',           label: t('inv.brand')           || 'Brand' },
       { key: 'color',           label: t('inv.color')           || 'Color' },
+      { key: 'lot',             label: t('inv.lot')             || 'Lot / Batch' },
       { key: 'diameter',        label: t('inv.diameter')        || 'Diameter (mm)',        type: 'number' },
       { key: 'weightTotal',     label: t('inv.weight_total')    || 'Total Weight (g)',     type: 'number' },
       { key: 'weightRemaining', label: t('inv.remaining')       || 'Remaining (g)',        type: 'number' },
@@ -2099,6 +2100,41 @@ function switchTab(tabId) {
 /* ============================================================
    Calculator
    ============================================================ */
+// Returns { rate, n } suggestion from waste history for a machine+material pair,
+// or null if there is insufficient data (< 5 completed jobs).
+function suggestedFailureRate(machineId, material) {
+  if (!machineId || !material) return null;
+  const mat = material.toLowerCase();
+  const completed = printLog.filter(o =>
+    o.machineId === machineId &&
+    o.status === 'completed' &&
+    ((o.material || '').toLowerCase() === mat ||
+     (o.parts || []).some(p => (p.material || '').toLowerCase() === mat))
+  );
+  if (completed.length < 5) return null;
+  const wastes = wasteLog.filter(w =>
+    w.machineId === machineId &&
+    (w.material || '').toLowerCase() === mat
+  );
+  const rate = Math.round((wastes.length / completed.length) * 1000) / 10;
+  return { rate, n: completed.length };
+}
+
+function updateFailureRateHint() {
+  const hint = $('#failureRateHint');
+  if (!hint) return;
+  const machineId = $('#partMachineId')?.value || '';
+  const filamentSel = $('#filamentSelect');
+  const material = filamentSel?.options[filamentSel.selectedIndex]?.dataset?.material ||
+    (filamentSel?.value ? (inventory.find(i => i.id === filamentSel.value)?.material || '') : '');
+  const sugg = suggestedFailureRate(machineId, material);
+  if (sugg) {
+    hint.textContent = `↗ ${t('calc.fail_suggested') || 'suggested'}: ${sugg.rate}% (${sugg.n} ${t('an.jobs') || 'jobs'})`;
+  } else {
+    hint.textContent = '';
+  }
+}
+
 // Pure function: compute base cost (before margin) from a part object.
 // Used for parts loaded from the catalog as well as the live calculator form.
 function computePartBaseCost(part) {
@@ -2132,7 +2168,7 @@ function computePartBaseCost(part) {
   const laborCost = (prepTime + postTime) * laborRate;
 
   const failureRate = Math.max(0, +part.failureRate || 0);
-  // Extra materials cost (Feature 8)
+  // Extra materials cost
   let extraMatCost = 0;
   for (const em of (part.extraMaterials || [])) {
     if (!em.material || !em.weight) continue;
@@ -4366,10 +4402,12 @@ function addInventoryItem() {
   if (!material) { toast(t('inv.material_ph'), 'error'); return; }
   const today = new Date().toISOString().split('T')[0];
   const invMaterialType = $('#invMaterialType')?.value || 'fdm';
-  inventory.push({ id: uid('INV'), material, cost, weight, color, purchasedAt: today, materialType: invMaterialType });
+  const lot = ($('#invLot')?.value || '').trim() || undefined;
+  inventory.push({ id: uid('INV'), material, cost, weight, color, purchasedAt: today, materialType: invMaterialType, lot });
   saveAll();
   renderInventory();
   $('#invMaterial').value = '';
+  if ($('#invLot')) $('#invLot').value = '';
   toast(t('inv.added'), 'success');
 }
 
@@ -4443,6 +4481,10 @@ function openInventoryEditor(id) {
         <input type="date" id="ieOpenedAt" value="${escapeHtml(item.openedAt || '')}">
       </div>
     </div>
+    <div style="margin-top:14px;">
+      <label style="margin-top:0;">${escapeHtml(t('inv.lot') || 'Lot / Batch')}</label>
+      <input type="text" id="ieLot" value="${escapeHtml(item.lot || '')}" placeholder="${escapeHtml(t('inv.lot_ph') || 'e.g. 2024-Q1-A')}">
+    </div>
     <div class="inline-pair" style="margin-top:14px;">
       <div>
         <label style="margin-top:0;">${escapeHtml(t('inv.reorder_point'))}</label>
@@ -4504,6 +4546,7 @@ function openInventoryEditor(id) {
       item.weight      = Math.max(0, num(document.getElementById('ieWeightInput').value, 0));
       item.purchasedAt = document.getElementById('iePurchasedAt').value || undefined;
       item.openedAt    = document.getElementById('ieOpenedAt').value || undefined;
+      item.lot         = (document.getElementById('ieLot')?.value || '').trim() || undefined;
       // Feature 4: Print settings
       const pt = num(document.getElementById('iePrintTemp').value, 0);
       const bt = num(document.getElementById('ieBedTemp').value, 0);
@@ -4828,11 +4871,12 @@ function renderInventory() {
       const weightUnit = isResin ? 'mL' : escapeHtml(t('common.grams'));
       const resinBadge = isResin ? ` <span class="resin-badge">${escapeHtml(t('inv.type_resin'))}</span>` : '';
       const colourChip = item.colourVariant ? ` <span class="variant-chip">${escapeHtml(item.colourVariant)}</span>` : '';
+      const lotChip = item.lot ? ` <span style="font-size:10px; color:var(--text-dim); background:var(--bg-elev); border:1px solid var(--border-soft); border-radius:3px; padding:0 4px;" title="${escapeHtml(t('inv.lot') || 'Lot')}">${escapeHtml(item.lot)}</span>` : '';
       return `
         <tr data-inv-id="${escapeHtml(item.id)}"${low ? ' style="background: rgba(245,166,35,0.08);"' : ''}>
           <td style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:${safeCssColor(item.color, '#888888')}; flex-shrink:0; border:1px solid rgba(255,255,255,0.15);"></span>
-            <strong>${escapeHtml(item.material)}</strong>${low ? ' <span style="color:var(--warning); font-size:11px;">· low</span>' : ''}${resinBadge}${colourChip}${ageBadge}${reservedBadge}${overcommitBadge}${testBadge}${runoutBadge}
+            <strong>${escapeHtml(item.material)}</strong>${low ? ' <span style="color:var(--warning); font-size:11px;">· low</span>' : ''}${resinBadge}${colourChip}${lotChip}${ageBadge}${reservedBadge}${overcommitBadge}${testBadge}${runoutBadge}
             ${item.printTemp || item.bedTemp ? `<span style="font-size:10px; color:var(--primary);">🌡 ${item.printTemp ? item.printTemp + '°C print' : ''}${item.printTemp && item.bedTemp ? ' / ' : ''}${item.bedTemp ? item.bedTemp + '°C bed' : ''}</span>` : ''}
           </td>
           <td style="font-variant-numeric: tabular-nums;">${fmtPrice(item.cost)}</td>
@@ -20283,6 +20327,8 @@ function wireEvents() {
 
   // Calculator
   $('#filamentSelect').addEventListener('change', handleFilamentChange);
+  $('#filamentSelect').addEventListener('change', updateFailureRateHint);
+  $('#partMachineId')?.addEventListener('change', updateFailureRateHint);
   $$('#calculator-tab input, #calculator-tab select').forEach(el => {
     if (el.id !== 'clientInput' && el.id !== 'printerPreset') el.addEventListener('input', updateGrandTotal);
   });

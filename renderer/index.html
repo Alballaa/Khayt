@@ -53,6 +53,7 @@
       <option value="es">🌐 ES</option>
       <option value="fr">🌐 FR</option>
       <option value="zh">🌐 中文</option>
+      <option value="ja">🌐 日本語</option>
     </select>
   </header>
 
@@ -273,7 +274,10 @@
           <label><span data-i18n="calc.labor.rate">Labor rate</span> (<span data-i18n="common.currency">SAR</span> <span data-i18n="calc.labor.per_hour">/ hour</span>)</label>
           <input type="number" id="laborRate" value="90" min="0">
 
-          <label><span data-i18n="calc.labor.failure">Failure buffer</span> (<span data-i18n="common.percent">%</span>)</label>
+          <label style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <span data-i18n="calc.labor.failure">Failure buffer</span> (<span data-i18n="common.percent">%</span>)
+            <span id="failureRateHint" style="font-size:11px; color:var(--primary); font-weight:500; margin-inline-start:auto;"></span>
+          </label>
           <input type="number" id="failureRate" value="10" min="0" max="100">
         </div>
 
@@ -839,6 +843,10 @@
             <div>
               <label><span id="invWeightLabel" data-i18n="inv.weight">Spool weight</span> (<span id="invWeightUnitSpan" data-i18n="common.grams">g</span>)</label>
               <input type="number" id="invWeight" value="1000" min="1">
+            </div>
+            <div>
+              <label data-i18n="inv.lot">Lot / Batch</label>
+              <input type="text" id="invLot" data-i18n-placeholder="inv.lot_ph">
             </div>
           </div>
 
