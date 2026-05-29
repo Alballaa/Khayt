@@ -2144,6 +2144,35 @@ function applyMode() {
   if (btnPro)    btnPro.classList.toggle('active',    settings.mode === 'professional');
 }
 
+
+/* ============================================================
+   App shell (sidebar layout)
+   ============================================================ */
+function initAppShell() {
+  const sidebar = $('#appSidebar');
+  const collapseBtn = $('#btnSidebarCollapse');
+  if (!sidebar) return;
+
+  if (localStorage.getItem('hub_sidebar_collapsed') === '1') {
+    sidebar.classList.add('collapsed');
+  }
+
+  collapseBtn?.addEventListener('click', () => {
+    sidebar.classList.toggle('collapsed');
+    localStorage.setItem('hub_sidebar_collapsed', sidebar.classList.contains('collapsed') ? '1' : '0');
+    const chevron = collapseBtn.querySelector('[aria-hidden="true"]');
+    if (chevron) chevron.textContent = sidebar.classList.contains('collapsed') ? '›' : '‹';
+  });
+
+  const chevron = collapseBtn?.querySelector('[aria-hidden="true"]');
+  if (chevron && sidebar.classList.contains('collapsed')) chevron.textContent = '›';
+
+  const activeTab = $('.tab-content.active')?.id || 'dashboard-tab';
+  const titleKey = $(`.tab-btn[data-tab="${activeTab}"]`)?.getAttribute('data-i18n');
+  const topTitle = $('#topbarPageTitle');
+  if (topTitle && titleKey) topTitle.textContent = t(titleKey);
+}
+
 /* ============================================================
    Tabs
    ============================================================ */
@@ -2151,7 +2180,16 @@ function switchTab(tabId) {
   $$('.tab-content').forEach(el => el.classList.remove('active'));
   $$('.tab-btn').forEach(el => el.classList.remove('active'));
   $('#' + tabId)?.classList.add('active');
-  $(`.tab-btn[data-tab="${tabId}"]`)?.classList.add('active');
+  $$(`.tab-btn[data-tab="${tabId}"]`).forEach(el => el.classList.add('active'));
+
+  const navBtn = $(`.tab-btn[data-tab="${tabId}"]`);
+  const titleKey = navBtn?.getAttribute('data-i18n');
+  const topTitle = $('#topbarPageTitle');
+  if (topTitle && titleKey) topTitle.textContent = t(titleKey);
+
+  $$('.tab-btn.nav-item').forEach(btn => {
+    btn.setAttribute('aria-current', btn.dataset.tab === tabId ? 'page' : 'false');
+  });
 
   if (tabId === 'dashboard-tab')  renderDashboard();
   if (tabId === 'expenses-tab')   { renderExpenses(); populateExpOrderDatalist(); }
@@ -21821,6 +21859,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Show/hide the nav operator switch button
   const navOpBtn = $('#btnNavSwitchOp');
   if (navOpBtn) navOpBtn.style.display = settings.operatorLockEnabled ? 'inline-flex' : 'none';
+
+  initAppShell();
 
   // Feature 2 (new batch): Start live printer polling for connected machines
   const apiMachines = machines.filter(m => m.printerApi?.type && m.printerApi.type !== 'none');

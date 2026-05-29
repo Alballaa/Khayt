@@ -1,0 +1,381 @@
+/* ============================================================
+   Khayt UI shell v2 — sidebar layout + top bar
+   Loaded after styles.css; overrides layout chrome only.
+   ============================================================ */
+
+:root {
+  --sidebar-w:        248px;
+  --sidebar-w-collapsed: 72px;
+  --topbar-h:         56px;
+  --brand-accent:     #f59e0b;
+  --brand-accent-2:   #f97316;
+  --primary:          #3b82f6;
+  --primary-soft:     rgba(59, 130, 246, 0.12);
+  --sidebar-bg:       #0c1222;
+  --sidebar-border:   rgba(255, 255, 255, 0.06);
+  --nav-hover:        rgba(255, 255, 255, 0.05);
+  --nav-active-bg:    rgba(59, 130, 246, 0.14);
+  --nav-active-border: rgba(59, 130, 246, 0.45);
+  --radius-lg:        12px;
+  --radius-xl:        16px;
+}
+
+[data-theme="light"] {
+  --sidebar-bg:       #ffffff;
+  --sidebar-border:   #e8ecf4;
+  --nav-hover:        rgba(15, 23, 42, 0.04);
+  --nav-active-bg:    rgba(59, 130, 246, 0.1);
+  --nav-active-border: rgba(59, 130, 246, 0.35);
+}
+
+/* App grid: sidebar + main */
+.app {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  grid-template-rows: 1fr;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app-sidebar.collapsed {
+  width: var(--sidebar-w-collapsed);
+}
+.app:has(.app-sidebar.collapsed) {
+  grid-template-columns: var(--sidebar-w-collapsed) 1fr;
+}
+
+.app-sidebar {
+  display: flex;
+  flex-direction: column;
+  background: var(--sidebar-bg);
+  border-inline-end: 1px solid var(--sidebar-border);
+  min-height: 0;
+  z-index: 20;
+  -webkit-app-region: no-drag;
+}
+
+.app-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Titlebar spans main column only */
+.app-body .titlebar {
+  border-bottom: 1px solid var(--sidebar-border);
+}
+
+/* Sidebar brand */
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px 12px;
+  -webkit-app-region: drag;
+}
+.sidebar-brand .brand-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand-accent), var(--brand-accent-2));
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.45);
+  flex-shrink: 0;
+}
+.sidebar-brand-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+.sidebar-title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.sidebar-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.app-sidebar.collapsed .sidebar-brand-text,
+.app-sidebar.collapsed .nav-group-label,
+.app-sidebar.collapsed .nav-item .nav-label {
+  display: none;
+}
+.app-sidebar.collapsed .sidebar-brand {
+  justify-content: center;
+  padding-inline: 12px;
+}
+
+/* Nav */
+.sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px 10px 16px;
+  scrollbar-width: thin;
+}
+.nav-group {
+  margin-bottom: 14px;
+}
+.nav-group-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  padding: 4px 10px 6px;
+  opacity: 0.85;
+}
+
+/* Sidebar tab buttons (keep .tab-btn for JS) */
+.app-sidebar .tab-btn.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: start;
+  padding: 9px 12px;
+  margin-bottom: 2px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  border-radius: 8px;
+}
+.app-sidebar .tab-btn.nav-item::after {
+  display: none;
+}
+.app-sidebar .tab-btn.nav-item:hover {
+  background: var(--nav-hover);
+  color: var(--text);
+}
+.app-sidebar .tab-btn.nav-item.active {
+  background: var(--nav-active-bg);
+  color: var(--text);
+  border-color: var(--nav-active-border);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+[dir="rtl"] .app-sidebar .tab-btn.nav-item.active {
+  box-shadow: inset -3px 0 0 var(--primary);
+}
+.nav-icon {
+  width: 20px;
+  text-align: center;
+  font-size: 15px;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+.nav-label {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-footer {
+  padding: 10px;
+  border-top: 1px solid var(--sidebar-border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.btn-sidebar-collapse {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.btn-sidebar-collapse:hover {
+  background: var(--nav-hover);
+  color: var(--text);
+}
+.app-sidebar.collapsed .btn-sidebar-collapse .collapse-label {
+  display: none;
+}
+
+/* Hide legacy horizontal tabs if any remain */
+nav.tabs {
+  display: none !important;
+}
+
+/* Top bar */
+.app-topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--topbar-h);
+  padding: 0 20px;
+  background: var(--bg-elev);
+  border-bottom: 1px solid var(--border-soft);
+  flex-shrink: 0;
+  -webkit-app-region: no-drag;
+}
+.topbar-heading {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin-inline-end: 8px;
+}
+.topbar-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  line-height: 1.2;
+}
+.topbar-breadcrumb {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.topbar-spacer {
+  flex: 1;
+}
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* Unified toolbar buttons (replaces inline header styles) */
+.tb-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--text-dim);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.tb-btn:hover {
+  color: var(--text);
+  border-color: var(--text-muted);
+  background: var(--surface-2);
+}
+.tb-btn kbd {
+  font-size: 10px;
+  opacity: 0.65;
+  padding: 1px 4px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  font-family: inherit;
+}
+.tb-select {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  max-width: 120px;
+}
+.tb-notif-wrap {
+  position: relative;
+  display: inline-block;
+}
+#notifPanel {
+  inset-inline-end: 0;
+  top: calc(100% + 8px);
+}
+
+/* Main content area */
+.app-body .content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 22px 24px 32px;
+}
+
+/* Legacy header hidden */
+.header {
+  display: none !important;
+}
+
+/* Cards polish in v2 shell */
+.app-body .card {
+  border-radius: var(--radius-lg);
+  border-color: var(--border-soft);
+}
+.app-body .card-head .swatch {
+  background: linear-gradient(135deg, var(--primary), var(--brand-accent));
+}
+
+/* Dashboard stat tiles — when using dash-stat class */
+.dash-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.dash-stat {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+}
+.dash-stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.dash-stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 900px) {
+  .app {
+    grid-template-columns: var(--sidebar-w-collapsed) 1fr;
+  }
+  .app-sidebar:not(.collapsed) {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    width: var(--sidebar-w);
+    box-shadow: var(--shadow-3);
+  }
+  .app-sidebar:not(.collapsed) .sidebar-brand-text,
+  .app-sidebar:not(.collapsed) .nav-group-label,
+  .app-sidebar:not(.collapsed) .nav-item .nav-label {
+    display: flex;
+  }
+  .app-sidebar:not(.collapsed) .nav-item .nav-label {
+    display: block;
+  }
+}

@@ -57,6 +57,12 @@ const STRINGS = {
     'tab.waste':            'Waste Log',
     'tab.settings':         'Settings',
 
+    'nav.group.overview':   'Overview',
+    'nav.group.production': 'Production',
+    'nav.group.business':   'Business',
+    'nav.group.insights':   'Insights',
+    'nav.collapse':         'Collapse sidebar',
+
     // ---------- Payment ----------
     'pay.unpaid':           'Unpaid',
     'pay.partial':          'Partial',
