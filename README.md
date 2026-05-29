@@ -161,8 +161,28 @@ Requires **Node.js 22+**.
 ```bash
 git clone https://github.com/Alballaa/Khayt.git
 cd Khayt
-npm install
+npm install            # wait for Electron download to finish
 npm start              # development (live-reload with ⌘R / Ctrl+R)
+```
+
+**Requires Node.js 22.12+** (`node -v`). Project folder can live anywhere (e.g. `~/Documents/Khayt`).
+
+### Electron won’t start (`path.txt` missing)
+
+```bash
+npm run install:electron
+# or
+node node_modules/electron/install.js
+npm start
+```
+
+If the download fails (slow network), try a mirror then reinstall:
+
+```bash
+export ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/
+rm -rf node_modules/electron
+npm install
+npm start
 ```
 
 To build distributable packages:

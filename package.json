@@ -10,7 +10,9 @@
   "license": "MIT-Commons-Clause",
   "private": false,
   "scripts": {
-    "start": "electron .",
+    "postinstall": "node node_modules/electron/install.js",
+    "install:electron": "node node_modules/electron/install.js",
+    "start": "node scripts/ensure-electron.js && electron .",
     "pack": "electron-builder --dir",
     "dist:mac:arm64": "electron-builder --mac --arm64",
     "dist:mac:x64": "electron-builder --mac --x64",
