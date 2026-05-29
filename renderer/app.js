@@ -2172,6 +2172,21 @@ function initAppShell() {
   document.documentElement.style.setProperty('--accent-l', '53%');
 
   syncTopbarTitle($('.tab-content.active')?.id || 'dashboard-tab');
+
+  $('.kanban')?.classList.add('khayt-kanban');
+  $$('.kanban-col').forEach(col => {
+    col.classList.add('khayt-kcol');
+    col.querySelector('.list')?.classList.add('khayt-kcol-body');
+    const head = col.querySelector('h3');
+    if (head && !head.parentElement.classList.contains('khayt-kcol-head')) {
+      const wrap = document.createElement('div');
+      wrap.className = 'khayt-kcol-head';
+      head.parentNode.insertBefore(wrap, head);
+      wrap.appendChild(head);
+      const meta = col.querySelector('.kanban-col-meta');
+      if (meta) wrap.appendChild(meta);
+    }
+  });
 }
 
 function syncTopbarTitle(tabId) {
@@ -13960,6 +13975,156 @@ function openNotifPanel() {
   });
 }
 
+
+/* ============================================================
+   Khayt Studio — dashboard & queue presentation
+   ============================================================ */
+function buildStudioDashboardPanels(ctx) {
+  const {
+    machines, printLog, nowPrinting, overdue, staleOrders, expiringQuotes,
+    dueSoon, today, inventory, settings,
+  } = ctx;
+  if (!document.body.classList.contains('khayt-studio')) return '';
+
+  const printingOrders = printLog.filter(o => o.status === 'printing');
+  const lowSpools = inventory.filter(i => i.weight <= (i.reorderPoint ?? settings.lowStockThreshold));
+  const attention = [];
+
+  if (staleOrders.length) {
+    attention.push({
+      icon: '⚠', color: 'var(--warn)',
+      title: t('dash.stale_title') || 'Orders stalled',
+      sub: String(staleOrders.length) + ' ' + (t('dash.orders') || 'orders'),
+      tab: 'queue-tab', label: t('tab.queue') || 'Queue',
+    });
+  }
+  if (overdue.length) {
+    attention.push({
+      icon: '⏱', color: 'var(--danger)',
+      title: t('dash.overdue_section') || 'Overdue',
+      sub: overdue.slice(0, 3).map(o => o.project || o.id).join(' · '),
+      tab: 'queue-tab', label: t('common.view') || 'View',
+    });
+  }
+  if (lowSpools.length) {
+    attention.push({
+      icon: '⬡', color: 'var(--warn)',
+      title: t('dash.low_stock_alert') || 'Low stock',
+      sub: lowSpools.slice(0, 2).map(i => `${i.material} (${Math.round(i.weight)}g)`).join(' · '),
+      tab: 'inventory-tab', label: t('tab.inventory') || 'Inventory',
+    });
+  }
+  if (expiringQuotes.length) {
+    attention.push({
+      icon: '📋', color: 'var(--info)',
+      title: t('dash.expiring_quotes') || 'Expiring quotes',
+      sub: String(expiringQuotes.length) + ' ' + (t('dash.quotes') || 'quotes'),
+      tab: 'queue-tab', label: t('tab.queue') || 'Queue',
+    });
+  }
+  if (dueSoon.length) {
+    attention.push({
+      icon: '📅', color: 'var(--info)',
+      title: t('dash.due_soon_section') || 'Due soon',
+      sub: String(dueSoon.length) + ' ' + (t('dash.orders') || 'orders'),
+      tab: 'queue-tab', label: t('common.view') || 'View',
+    });
+  }
+  if (nowPrinting.length && !attention.some(a => a.icon === '▤')) {
+    attention.push({
+      icon: '▤', color: 'var(--ok)',
+      title: t('dash.now_printing') || 'Printing now',
+      sub: String(nowPrinting.length) + ' ' + (t('dash.active_jobs') || 'active jobs'),
+      tab: 'queue-tab', label: t('tab.queue') || 'Queue',
+    });
+  }
+
+  const attnHtml = attention.length === 0
+    ? `<p class="dash-empty" style="padding:18px;">${escapeHtml(t('dash.all_clear') || 'All clear — nothing needs attention right now.')}</p>`
+    : attention.slice(0, 6).map(a => `
+      <div class="khayt-attn">
+        <div class="khayt-attn-ic" style="color:${a.color};background:color-mix(in srgb, ${a.color} 14%, transparent)">${a.icon}</div>
+        <div class="col grow" style="gap:2px;min-width:0">
+          <span style="font-size:13px;font-weight:600">${escapeHtml(a.title)}</span>
+          <span style="font-size:11.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(a.sub)}</span>
+        </div>
+        <button type="button" class="btn sm subtle" data-act="goto-tab" data-tab="${a.tab}">${escapeHtml(a.label)}</button>
+      </div>`).join('');
+
+  let floorHtml = '';
+  if (machines.length > 0) {
+    const tiles = machines.map(m => {
+      const job = printingOrders.find(o =>
+        o.machineId === m.id || (o.parts || []).some(p => p.machineId === m.id)
+      );
+      const svc = machineServiceStatus(m);
+      let status = 'idle';
+      let color = 'var(--text-muted)';
+      if (m.isOffline) { status = 'error'; color = 'var(--danger)'; }
+      else if (job) { status = 'printing'; color = 'var(--ok)'; }
+      else if (svc.due || svc.warning) { status = 'maint'; color = 'var(--warn)'; }
+      const label = { printing: t('mach.status_printing') || 'Printing', idle: t('mach.status_idle') || 'Idle',
+        error: t('mach.offline') || 'Offline', maint: t('dash.maint_title') || 'Maintenance' }[status];
+      let progress = 0;
+      if (job && job.printTime > 0) {
+        const start = new Date(job.printingStartedAt || job.timerStart || Date.now()).getTime();
+        progress = Math.min(99, Math.round((Date.now() - start) / (job.printTime * 3600000) * 100));
+      }
+      const jobName = job ? (job.project || job.id) : (t('dash.no_active_job') || 'No active job');
+      const sub = job
+        ? `${(+job.printTime || 0).toFixed(1)}h · ${progress}%`
+        : (m.tech || m.notes || '').slice(0, 40);
+      return `
+        <div class="card khayt-ptile" style="padding:calc(var(--u)*3.5)">
+          <div class="row between">
+            <div class="row gap8 grow" style="min-width:0">
+              <span class="dot" style="background:${safeCssColor(m.color)};width:8px;height:8px"></span>
+              <strong style="font-size:13;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(m.name)}</strong>
+            </div>
+            <span class="pill" style="border-color:transparent;background:var(--surface-2);padding:3px 8px">
+              <span class="dot" style="background:${color}"></span> ${escapeHtml(label)}
+            </span>
+          </div>
+          <div class="row between" style="margin-top:12px;align-items:center">
+            <div class="col" style="gap:3px;min-width:0">
+              <span style="font-size:12;color:${job ? 'var(--text-dim)' : 'var(--text-faint)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px">${escapeHtml(jobName)}</span>
+              <span class="mono" style="font-size:11px;color:var(--text-muted)">${escapeHtml(sub)}</span>
+            </div>
+            ${status === 'printing' ? `<span class="metric" style="font-size:13px;color:var(--ok)">${progress}%</span>` : ''}
+          </div>
+        </div>`;
+    }).join('');
+    const liveCount = printingOrders.length;
+    floorHtml = `
+      <div class="card flush khayt-floor">
+        <div class="row between" style="padding:16px 18px 12px">
+          <div class="row gap8">
+            <span class="sec-title">${escapeHtml(t('dash.studio_floor') || 'Production floor')}</span>
+            ${liveCount ? `<span class="pill" style="background:var(--ok-soft);border-color:transparent;color:var(--ok)"><span class="khayt-live"></span> ${liveCount} ${escapeHtml(t('dash.live') || 'live')}</span>` : ''}
+          </div>
+          <button type="button" class="btn ghost sm" data-act="goto-tab" data-tab="queue-tab">${escapeHtml(t('dash.open_queue') || 'Open queue')} ›</button>
+        </div>
+        <hr class="thread" style="margin:0 18px" />
+        <div style="padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">${tiles}</div>
+      </div>`;
+  }
+
+  if (!floorHtml && !attention.length) return '';
+
+  return `
+    <div class="khayt-grid khayt-dash-panels" style="grid-template-columns:${floorHtml ? '1.55fr 1fr' : '1fr'};margin-bottom:var(--gap)">
+      ${floorHtml || ''}
+      <div class="card flush">
+        <div class="row between" style="padding:16px 18px 12px">
+          <span class="sec-title">${escapeHtml(t('dash.needs_attention') || 'Needs attention')}</span>
+          ${attention.length ? `<span class="pill">${attention.length}</span>` : ''}
+        </div>
+        <hr class="thread" style="margin:0 18px" />
+        <div class="col">${attnHtml}</div>
+      </div>
+    </div>`;
+}
+
 function renderDashboard() {
   const el = $('#dashboardContent');
   if (!el) return;
@@ -14142,8 +14307,13 @@ function renderDashboard() {
       ${staleOrders.length > 5 ? `<div style="font-size:11.5px;color:var(--text-muted);padding:6px 0;">+${staleOrders.length - 5} more</div>` : ''}
     </div>`;
 
-  el.innerHTML = `
-    <div class="dash-hero">
+  const studioPanels = buildStudioDashboardPanels({
+    machines, printLog, nowPrinting, overdue, staleOrders, expiringQuotes,
+    dueSoon, today, inventory, settings,
+  });
+
+  el.innerHTML = `<div class="khayt-dash col gap16 fade">
+    <div class="dash-hero khayt-dash-hero">
       <div class="dash-hero-brand">
         <div class="dash-hero-logo">${safeBizLogo() ? `<img src="${safeBizLogo()}" alt="logo">` : BRAND_MARK_SVG}</div>
         <div class="dash-hero-info">
@@ -14487,12 +14657,13 @@ function renderDashboard() {
       </div>`;
     })()}
 
+    ${studioPanels}
     <div class="dash-quick">
       <button class="btn primary" data-act="goto-tab" data-tab="calculator-tab" data-i18n="tab.calculator">Calculator</button>
       <button class="btn" data-act="goto-tab" data-tab="queue-tab" data-i18n="tab.queue">Production Queue</button>
       <button class="btn" data-act="goto-tab" data-tab="logs-tab" data-i18n="tab.logs">Orders Log</button>
     </div>
-  `;
+  </div>`;
 
   // Wire the edit-log and goto-tab buttons inside the dashboard
   el.querySelectorAll('[data-act="edit-log"]').forEach(btn =>
@@ -14917,7 +15088,7 @@ function renderKanban() {
       const cardClient = log.clientId ? clients.find(c => c.id === log.clientId) : null;
       const cardClientAccent = cardClient?.color ? `border-inline-start:3px solid ${safeCssColor(cardClient.color)};padding-inline-start:7px;` : '';
       return `
-        <div class="kanban-card${_pl === 'urgent' ? ' kanban-priority-urgent' : _pl === 'high' ? ' kanban-priority-high' : ''}${pausedClass}" draggable="true" data-order-id="${log.id}" style="${cardClientAccent}">
+        <div class="kanban-card khayt-kcard${_pl === 'urgent' ? ' kanban-priority-urgent' : _pl === 'high' ? ' kanban-priority-high' : ''}${pausedClass}" draggable="true" data-order-id="${log.id}" style="${cardClientAccent}">
           <h4>${_pl !== 'normal' ? priorityBadgeHtml(log) + ' ' : ''}${escapeHtml(log.project)}${machineBadge}${operatorBadge}${kanbanSplitBadge}${kanbanSubBadge}${qcBadge}${log._isSplitParent ? ' <span style="font-size:10px;color:var(--text-muted);background:var(--bg-elev);padding:1px 5px;border-radius:8px;">split</span>' : ''}</h4>
           ${partColourHtml ? `<div style="margin-top:2px;">${partColourHtml}</div>` : ''}
           <div class="meta">

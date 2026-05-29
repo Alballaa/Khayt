@@ -131,3 +131,103 @@ nav.tabs,
 .app-sidebar.collapsed .khayt-live,
 .app-sidebar.collapsed .collapse-label { display: none !important; }
 .app-sidebar.collapsed .khayt-brand { justify-content: center; padding-inline: 12px; }
+
+/* Phase 2: dashboard + queue content */
+.khayt-dash .dash-hero-right { display: none; }
+.khayt-dash-hero {
+  margin-bottom: var(--gap);
+  padding: var(--pad-card);
+}
+.khayt-dash-panels { align-items: stretch; }
+@media (max-width: 1100px) {
+  .khayt-dash-panels { grid-template-columns: 1fr !important; }
+}
+
+.khayt-studio .dash-section,
+.khayt-studio .dash-goal,
+.khayt-studio .dash-low-stock {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: var(--pad-card);
+  margin-bottom: var(--gap);
+}
+.khayt-studio .dash-section-head,
+.khayt-studio .sec-title {
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.khayt-studio .dash-order-row {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+.khayt-studio .dash-quick .btn {
+  border-radius: var(--r-sm);
+}
+
+/* Queue: legacy kanban → studio columns/cards */
+.khayt-studio .kanban.khayt-kanban,
+.khayt-studio .khayt-kanban {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(216px, 1fr));
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  align-items: start;
+}
+.khayt-studio .kanban-col.khayt-kcol {
+  background: var(--bg-2);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-lg);
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+  border-top-width: 1px !important;
+}
+.khayt-studio .kanban-col .khayt-kcol-head,
+.khayt-studio .kanban-col > h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 13px 9px;
+  margin: 0;
+  font-size: 13px;
+}
+.khayt-studio .kanban-col-meta {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  padding: 0 13px 8px;
+}
+.khayt-studio .kanban-col .list.khayt-kcol-body,
+.khayt-studio .kanban-col .list {
+  padding: 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  overflow-y: auto;
+  flex: 1;
+}
+.khayt-studio .kanban-card.khayt-kcard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 12px;
+  cursor: grab;
+  transition: border-color .14s, transform .08s, box-shadow .14s;
+}
+.khayt-studio .kanban-card.khayt-kcard:hover {
+  border-color: var(--border-2);
+  box-shadow: var(--shadow-2);
+  transform: translateY(-1px);
+}
+.khayt-studio .kanban-card h4 {
+  font-size: 13.5px;
+  margin: 0 0 6px;
+}
+.khayt-studio .content {
+  padding: var(--gap);
+  overflow-y: auto;
+}
