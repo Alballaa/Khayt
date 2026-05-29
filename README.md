@@ -225,13 +225,13 @@ Khayt/
 
 ## Versioning
 
-Khayt follows **semantic versioning** under the **1.1.x** maintenance line:
+Khayt continues from the **current shipped version** (`2.0.15` today) — no renumbering from zero:
 
 | Release type | Example | Use for |
 |--------------|---------|---------|
-| Patch (minor updates) | `1.1.0` → `1.1.1` | Fixes and small improvements |
-| Minor (significant) | `1.1.x` → `1.2.0` | New features, compatible with existing data |
-| Major | `1.x.x` → `2.0.0` | Breaking changes or required migration |
+| Patch (minor day-to-day updates) | `2.0.15` → `2.0.16` | Fixes and small improvements |
+| Minor (significant updates) | `2.0.x` → `2.1.0` | New features, compatible with existing data |
+| Major | `2.x.x` → `3.0.0` | Breaking changes or required migration |
 
 Full policy, tagging, and release steps: **[VERSIONING.md](./VERSIONING.md)**. Change history: **[CHANGELOG.md](./CHANGELOG.md)**.
 

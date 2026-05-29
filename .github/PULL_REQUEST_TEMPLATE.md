@@ -4,9 +4,9 @@
 
 ## Type of change
 
-- [ ] Patch (1.1.x) — fix / small improvement
-- [ ] Minor (1.x.0) — significant feature (backward compatible)
-- [ ] Major (X.0.0) — breaking change or migration required
+- [ ] Patch (2.0.x) — minor day-to-day update / fix
+- [ ] Minor (2.x.0) — significant feature (backward compatible)
+- [ ] Major (3.0.0) — breaking change or migration required
 
 ## Checklist
 
