@@ -435,7 +435,7 @@ const STRINGS = {
     // ---------- Analytics ----------
     'an.title':             'Business Overview',
     'an.revenue':           'Revenue',
-    'an.orders':            'Completed orders',
+    'an.orders':            'Orders',
     'an.hours':             'Print hours',
     'an.pending':           'In progress',
     'an.recent':            'Recent activity',
@@ -1111,7 +1111,7 @@ const STRINGS = {
     'an.cost_col':              'Est. Cost',
     'an.margin_col':            'Margin',
     'an.revenue_bar':           'Revenue share',
-    'an.no_data':               'No data for the selected period.',
+    'an.no_data':               'No data yet',
     'an.untagged':              'Untagged / Walk-in',
 
     // ---------- Feature: Supplier database ----------
@@ -2731,7 +2731,7 @@ const STRINGS = {
 
     'an.title':             'نظرة عامة على الأعمال',
     'an.revenue':           'الإيرادات',
-    'an.orders':            'الطلبات المكتملة',
+    'an.orders':            'الطلبات',
     'an.hours':             'ساعات الطباعة',
     'an.pending':           'قيد التنفيذ',
     'an.recent':            'النشاط الأخير',
@@ -3388,7 +3388,7 @@ const STRINGS = {
     'an.cost_col':              'التكلفة التقديرية',
     'an.margin_col':            'هامش الربح',
     'an.revenue_bar':           'حصة الإيرادات',
-    'an.no_data':               'لا توجد بيانات للفترة المحددة.',
+    'an.no_data':               'لا توجد بيانات بعد',
     'an.untagged':              'بدون تصنيف / عميل عابر',
 
     'sup.title':                'الموردون',
@@ -4478,6 +4478,10 @@ const STRINGS = {
   //  GERMAN — Deutsch
   // ════════════════════════════════════════════════════════════
   de: {
+    'whk.enabled': 'Ausgehende Webhooks aktivieren',
+    'whk.secret': 'Signaturschlüssel (HMAC-SHA256, optional)',
+    'whk.event_urls': 'Webhook-URLs pro Ereignis',
+    'whk.test': 'Testen (Ping senden)',
     'dash.completed_orders': 'Abgeschlossene Aufträge',
     'common.copy': 'Kopieren',
     'common.copied': 'Kopiert!',
@@ -5051,7 +5055,7 @@ const STRINGS = {
     'an.maint_cost_col':        'Wartungskosten',
     'an.net_col':               'Netto',
     'an.revenue_bar':           'Umsatzanteil',
-    'an.no_data':               'Keine Daten für den gewählten Zeitraum.',
+    'an.no_data':               'Noch keine Daten für diesen Zeitraum',
     'an.untagged':              'Ohne Kategorie / Laufkunde',
 
     'sup.title':                'Lieferanten / Anbieter',
@@ -6526,6 +6530,10 @@ const STRINGS = {
   //  SPANISH — Español
   // ════════════════════════════════════════════════════════════
   es: {
+    'whk.enabled': 'Activar webhooks salientes',
+    'whk.secret': 'Clave de firma (HMAC-SHA256, opcional)',
+    'whk.event_urls': 'URLs de webhook por evento',
+    'whk.test': 'Probar (enviar ping)',
     'dash.completed_orders': 'Pedidos completados',
     'common.copy': 'Copiar',
     'common.copied': '¡Copiado!',
@@ -8574,6 +8582,10 @@ const STRINGS = {
   //  FRENCH — Français
   // ════════════════════════════════════════════════════════════
   fr: {
+    'whk.enabled': 'Activer les webhooks sortants',
+    'whk.secret': 'Clé de signature (HMAC-SHA256, facultatif)',
+    'whk.event_urls': 'URLs de webhook par événement',
+    'whk.test': 'Tester (envoyer un ping)',
     'dash.completed_orders': 'Commandes terminées',
     'common.copy': 'Copier',
     'common.copied': 'Copié !',
@@ -9123,7 +9135,7 @@ const STRINGS = {
     'an.maint_cost_col':        'Coût maint.',
     'an.net_col':               'Net',
     'an.revenue_bar':           'Part du chiffre d\'affaires',
-    'an.no_data':               'Aucune donnée pour la période sélectionnée.',
+    'an.no_data':               'Aucune donnée pour cette période',
     'an.untagged':              'Sans catégorie / Client de passage',
 
     'sup.title':                'Fournisseurs',
@@ -10638,6 +10650,10 @@ const STRINGS = {
   //  CHINESE SIMPLIFIED — 中文（简体）
   // ════════════════════════════════════════════════════════════
   zh: {
+    'whk.enabled': '启用出站 Webhook',
+    'whk.secret': '签名密钥（HMAC-SHA256，可选）',
+    'whk.event_urls': '各事件的 Webhook URL',
+    'whk.test': '测试（发送 ping）',
     'dash.completed_orders': '已完成订单',
     'common.copy': '复制',
     'common.copied': '已复制！',
@@ -10902,7 +10918,7 @@ const STRINGS = {
     'log.margin':           '利润率',
     'log.clear_q':          '删除全部订单？此操作无法撤销。',
     'an.revenue':           '营收',
-    'an.orders':            '订单数',
+    'an.orders':            '订单',
     'an.materials':         '材料',
     'an.top_clients':       '优质客户',
     'cat.empty':            '暂无产品。',
@@ -11187,7 +11203,7 @@ const STRINGS = {
     'an.maint_cost_col':        '维护费用',
     'an.net_col':               '净额',
     'an.revenue_bar':           '收入占比',
-    'an.no_data':               '所选时段暂无数据。',
+    'an.no_data':               '此期间暂无数据',
     'an.untagged':              '未分类 / 散客',
 
     'sup.title':                '供应商',
