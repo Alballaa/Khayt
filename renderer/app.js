@@ -2168,7 +2168,9 @@ function initAppShell() {
   if (chevron && sidebar.classList.contains('collapsed')) chevron.textContent = '›';
 
   const activeTab = $('.tab-content.active')?.id || 'dashboard-tab';
-  const titleKey = $(`.tab-btn[data-tab="${activeTab}"]`)?.getAttribute('data-i18n');
+  const activeBtn = $(`.tab-btn[data-tab="${activeTab}"]`);
+  const titleKey = activeBtn?.querySelector('[data-i18n]')?.getAttribute('data-i18n')
+    || activeBtn?.getAttribute('data-i18n');
   const topTitle = $('#topbarPageTitle');
   if (topTitle && titleKey) topTitle.textContent = t(titleKey);
 }
@@ -2183,7 +2185,8 @@ function switchTab(tabId) {
   $$(`.tab-btn[data-tab="${tabId}"]`).forEach(el => el.classList.add('active'));
 
   const navBtn = $(`.tab-btn[data-tab="${tabId}"]`);
-  const titleKey = navBtn?.getAttribute('data-i18n');
+  const titleKey = navBtn?.querySelector('[data-i18n]')?.getAttribute('data-i18n')
+    || navBtn?.getAttribute('data-i18n');
   const topTitle = $('#topbarPageTitle');
   if (topTitle && titleKey) topTitle.textContent = t(titleKey);
 
