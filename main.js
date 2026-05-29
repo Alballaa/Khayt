@@ -1481,6 +1481,8 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
             paymentStatus: o.paymentStatus
           }))));
         } else if (pathname === '/api/queue') {
+          // Owner data (client + project names): require PIN when one is configured.
+          if (!checkPinForGet()) return;
           const queue = (store.printLog || []).filter(o =>
             ['pending','printing','post','qc'].includes(o.status));
           res.writeHead(200);
@@ -1489,6 +1491,8 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
             machine: o.machine, dueDate: o.dueDate, priority: o.priority
           }))));
         } else if (pathname === '/api/machines') {
+          // Owner data (machine names): require PIN when one is configured.
+          if (!checkPinForGet()) return;
           res.writeHead(200);
           res.end(JSON.stringify((store.machines || []).map(m => ({
             id: m.id, name: m.name, type: m.type, status: m.status
