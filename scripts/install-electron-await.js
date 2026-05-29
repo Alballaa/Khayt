@@ -94,11 +94,34 @@ function postExtract(electronDir, distDir, platPath, version) {
   fs.writeFileSync(pathTxt, platPath);
 }
 
-async function main() {
-  if (!fs.existsSync(electronDir)) {
-    console.error('Missing node_modules/electron — run: npm install');
+function ensureElectronPackage() {
+  if (fs.existsSync(electronDir)) return;
+
+  const pkgPath = path.join(root, 'package.json');
+  if (!fs.existsSync(pkgPath)) {
+    console.error('Run this from the Khayt project root (where package.json lives).');
     process.exit(1);
   }
+
+  console.log('node_modules/electron is missing — installing the electron npm package…\n');
+  const r = spawnSync('npm', ['install', 'electron', '--save-dev'], {
+    cwd: root,
+    stdio: 'inherit',
+    env: process.env,
+  });
+  if (r.status !== 0) {
+    console.error('\nFailed. From the project folder run: npm install');
+    process.exit(1);
+  }
+  if (!fs.existsSync(electronDir)) {
+    console.error('\nStill missing node_modules/electron after npm install.');
+    console.error('Try: rm -rf node_modules package-lock.json && npm install');
+    process.exit(1);
+  }
+}
+
+async function main() {
+  ensureElectronPackage();
 
   const { version } = require(path.join(electronDir, 'package.json'));
   const platPath = platformPath();
