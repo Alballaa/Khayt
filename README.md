@@ -161,29 +161,47 @@ Requires **Node.js 22+**.
 ```bash
 git clone https://github.com/Alballaa/Khayt.git
 cd Khayt
-npm install            # wait for Electron download to finish
+npm install
 npm start              # development (live-reload with ⌘R / Ctrl+R)
 ```
 
-**Requires Node.js 22.12+** (`node -v`). Project folder can live anywhere (e.g. `~/Documents/Khayt`).
+#### macOS: `path.txt` missing / Electron won't start
 
-### Electron won’t start (`path.txt` missing)
+If `npm start` fails with `ENOENT ... node_modules/electron/path.txt`, your tree is missing the awaited Electron installer (or `npm install` exited before the ~150MB download finished).
 
-```bash
-npm run install:electron
-# or
-node node_modules/electron/install.js
-npm start
-```
+1. **Update the repo** (you need `scripts/install-electron-await.js` on `main`):
 
-If the download fails (slow network), try a mirror then reinstall:
+   ```bash
+   cd ~/Documents/Khayt
+   git fetch origin
+   git pull origin main
+   ```
 
-```bash
-export ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/
-rm -rf node_modules/electron
-npm install
-npm start
-```
+   If `git pull` complains about divergent branches and you have no local commits to keep:
+
+   ```bash
+   git reset --hard origin/main
+   ```
+
+2. **Reinstall Electron** (wait until it prints `Success`):
+
+   ```bash
+   rm -rf node_modules/electron
+   rm -rf ~/Library/Caches/electron
+   npm install
+   node scripts/install-electron-await.js
+   cat node_modules/electron/path.txt    # should print: Electron.app/Contents/MacOS/Electron
+   npm start
+   ```
+
+3. **Slow or blocked download** — use a mirror, then run step 2 again:
+
+   ```bash
+   export ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/
+   node scripts/install-electron-await.js
+   ```
+
+Use **Node.js 22.12+** (LTS 22 or 24 is fine). Do not run `node node_modules/electron/install.js` alone; it can return before the download completes.
 
 To build distributable packages:
 ```bash
