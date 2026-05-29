@@ -158,7 +158,7 @@
     </section>
 
     <!-- ===================== CALCULATOR ===================== -->
-    <section id="calculator-tab" class="tab-content">
+    <section id="calculator-tab" class="tab-content khayt-calc">
 
       <div class="grid">
 
@@ -487,12 +487,12 @@
     </section>
 
     <!-- ===================== QUEUE ===================== -->
-    <section id="queue-tab" class="tab-content">
+    <section id="queue-tab" class="tab-content khayt-queue">
       <!-- Machine Queues -->
       <div id="machineQueuesContainer" class="mb-6"></div>
 
-      <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap;">
-        <h3 class="card-head" style="margin:0; flex:1; min-width:120px;"><span class="swatch"></span><span data-i18n="queue.title">Active Production Queue</span></h3>
+      <div class="khayt-queue-toolbar row between wrap gap12" style="margin-bottom:16px;">
+        <h3 class="card-head sec-title" style="margin:0; flex:1; min-width:120px;"><span class="swatch"></span><span data-i18n="queue.title">Active Production Queue</span></h3>
         <button id="btnStartShift" class="btn btn-sm btn-secondary" data-i18n="startShift">▶ Start Shift</button>
         <button id="btnEndOfDay" class="btn btn-sm btn-secondary" data-i18n="endOfDayReport">📋 End of Day</button>
         <input type="search" id="kanSearch" class="toolbar-search" data-i18n-placeholder="kan.search_ph" placeholder="Filter by client, project…" style="max-width:200px;">

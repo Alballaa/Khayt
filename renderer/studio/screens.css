@@ -61,3 +61,9 @@
 @media (max-width: 1180px) {
   .khayt-grid[style*="repeat(4"] { grid-template-columns: repeat(2, 1fr) !important; }
 }
+
+.khayt-kcol-foot {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 14px; border-top: 1px solid var(--hairline);
+}
+.khayt-kbar { height: 2px; margin: 0 13px; border-radius: 2px; opacity: 0.55; }
