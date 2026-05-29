@@ -223,9 +223,21 @@ Khayt/
 
 ---
 
+## Versioning
+
+Khayt follows **semantic versioning** under the **1.1.x** maintenance line:
+
+| Release type | Example | Use for |
+|--------------|---------|---------|
+| Patch (minor updates) | `1.1.0` → `1.1.1` | Fixes and small improvements |
+| Minor (significant) | `1.1.x` → `1.2.0` | New features, compatible with existing data |
+| Major | `1.x.x` → `2.0.0` | Breaking changes or required migration |
+
+Full policy, tagging, and release steps: **[VERSIONING.md](./VERSIONING.md)**. Change history: **[CHANGELOG.md](./CHANGELOG.md)**.
+
 ## Contributing
 
-Issues and pull requests are welcome.
+Issues and pull requests are welcome. Maintainer workflow: **[CONTRIBUTING.md](./CONTRIBUTING.md)**. Planned engineering work: **[ROADMAP.md](./ROADMAP.md)**.
 
 When reporting a bug, please include:
 1. OS and app version (shown in **Settings → About**)
