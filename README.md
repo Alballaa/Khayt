@@ -156,34 +156,16 @@ Go to **[Releases](https://github.com/Alballaa/Khayt/releases/latest)** and grab
 
 ### Build from source
 
-Requires **Node.js 22+**.
+Requires **Node.js 22.12+** (22 LTS or 24.x). On **Node 24.16+**, Electron’s zip step needs system `unzip` on macOS (`xcode-select --install` if missing).
 
 ```bash
 git clone https://github.com/Alballaa/Khayt.git
 cd Khayt
-npm install            # wait for Electron download to finish
+npm install
 npm start              # development (live-reload with ⌘R / Ctrl+R)
 ```
 
-**Requires Node.js 22.12+** (`node -v`). Project folder can live anywhere (e.g. `~/Documents/Khayt`).
-
-### Electron won’t start (`path.txt` missing)
-
-```bash
-npm run install:electron
-# or
-node node_modules/electron/install.js
-npm start
-```
-
-If the download fails (slow network), try a mirror then reinstall:
-
-```bash
-export ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/
-rm -rf node_modules/electron
-npm install
-npm start
-```
+If `path.txt` is missing after install, run `node scripts/install-electron-await.js` (uses `unzip` on macOS, not the broken `extract-zip` on Node 24.16+).
 
 To build distributable packages:
 ```bash
