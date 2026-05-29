@@ -2449,6 +2449,12 @@ function updateGrandTotal() {
   const finalPrice = subAfterDiscount + rushFeeAmt + shippingCost + extraLinesTotal;
   $('#finalPrice').textContent = fmtMoney(finalPrice);
 
+  window.KhaytStudio?.updateCalcBreakdown?.(bd, {
+    currency: settings.currency,
+    margin,
+    finalPrice,
+  });
+
   const discountLine = $('#discountLine');
   if (discountLine) {
     if (discountPct > 0) {
@@ -4974,9 +4980,11 @@ function renderInventory() {
     }
   }
 
+  window.KhaytStudio?.patchInventoryTableHead?.();
+  const _studioInv = window.KhaytStudio?.isStudio?.();
   const tbody = $('#inventoryTable tbody');
   if (inventory.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" class="empty-state">${escapeHtml(t('inv.empty'))} <button class="btn small primary" onclick="$('#invMaterial')?.focus()" style="margin-inline-start:12px;">${escapeHtml(t('inv.add_title') || 'Add Filament')}</button></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${_studioInv ? 6 : 5}" class="empty-state">${escapeHtml(t('inv.empty'))} <button class="btn small primary" onclick="$('#invMaterial')?.focus()" style="margin-inline-start:12px;">${escapeHtml(t('inv.add_title') || 'Add Filament')}</button></td></tr>`;
   } else {
     const todayMs = Date.now();
     const invTerm = invSearchTerm.toLowerCase().trim();
@@ -4989,6 +4997,8 @@ function renderInventory() {
       computeMaterialForecast().forEach(f => { forecastMap[f.material] = f; });
     } catch(e) { /* silent */ }
     tbody.innerHTML = visibleInv.map(item => {
+      const studioRow = window.KhaytStudio?.renderInventoryRow?.(item, { forecastMap, todayMs });
+      if (studioRow) return studioRow;
       const low = item.weight <= (item.reorderPoint ?? settings.lowStockThreshold);
       const queued = Math.round(getQueuedWeight(item.id));
       const warn   = queued > 0 && queued > item.weight;
@@ -15021,7 +15031,11 @@ function renderKanban() {
   const quotes = printLog.filter(o => o.status === 'quote');
   const quotesSec = $('#quotesSection');
   if (quotesSec) {
-    quotesSec.style.display = quotes.length > 0 ? '' : 'none';
+    if (window.KhaytStudio?.isStudio?.()) {
+      quotesSec.style.display = '';
+    } else {
+      quotesSec.style.display = quotes.length > 0 ? '' : 'none';
+    }
     const qCount = $('#count-quote');
     if (qCount) qCount.textContent = quotes.length;
     const ql = $('#list-quote');
@@ -15051,6 +15065,8 @@ function renderKanban() {
       }).join('');
     }
   }
+
+  window.KhaytStudio?.syncQueueFolds?.();
 
   // --- Production columns (exclude quotes) ---
   const kanTerm = (kanSearchTerm || '').toLowerCase().trim();
