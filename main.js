@@ -2403,9 +2403,9 @@ app.whenReady().then(() => {
           [
             "default-src 'self'",
             "script-src 'self' 'unsafe-inline'",  // TODO: remove 'unsafe-inline' after replacing inline onclick= handlers in dynamically-generated HTML (app.js) with data-act delegation
-            "style-src 'self' 'unsafe-inline'",
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "img-src 'self' data: blob:",
-            "font-src 'self' data:",
+            "font-src 'self' data: https://fonts.gstatic.com",
             "connect-src 'self' https://api.telegram.org https://api.sendgrid.com https://api.mailgun.net https://api.tabby.ai https://api.tamara.co https://api.stripe.com https://gw-fatoorah.zatca.gov.sa https://gw-apic-gov.gazt.gov.sa",
             "media-src 'self' blob:",
             "object-src 'none'",

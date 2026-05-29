@@ -3,77 +3,154 @@
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:;">
+        content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; script-src 'self'; img-src 'self' data: blob:;">
   <title>Khayt</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="studio/ds.css" />
+  <link rel="stylesheet" href="studio/shell.css" />
+  <link rel="stylesheet" href="studio/screens.css" />
+  <link rel="stylesheet" href="studio/compat.css" />
 </head>
-<body>
+<body class="khayt-studio">
 
 <div id="pauseBanner" class="pause-banner" style="display:none;"></div>
 
-<div class="app">
+<div class="khayt-app app">
 
-  <div class="titlebar">
-    <span class="brand"><span class="brand-dot"></span><span data-i18n="app.title">Khayt</span></span>
+  <div class="khayt-titlebar titlebar">
+    <span class="khayt-tbrand brand" style="visibility:hidden"><span class="khayt-tdot brand-dot"></span><span data-i18n="app.title">Khayt</span></span>
   </div>
 
-  <header class="header">
-    <h1 data-i18n="app.title">Khayt</h1>
-    <span class="header-spacer"></span>
+  <div class="khayt-body">
+    <aside class="khayt-sidebar app-sidebar" id="appSidebar" aria-label="Main navigation">
+      <div class="khayt-brand sidebar-brand">
+        <div class="khayt-logo" aria-hidden="true"><b>خ</b></div>
+        <div class="sidebar-brand-text col" style="line-height:1.1">
+          <strong class="sidebar-title" style="font-size:15px;letter-spacing:-0.02em" data-i18n="app.title">Khayt</strong>
+          <span class="mono sidebar-subtitle" style="font-size:10px;color:var(--text-muted)">خيط · STUDIO</span>
+        </div>
+      </div>
 
-    <button class="theme-toggle" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-      </svg>
-    </button>
+      <nav class="khayt-nav sidebar-nav" role="tablist">
+        <div class="khayt-navsec nav-group">
+          <div class="eyebrow khayt-navhead nav-group-label" data-i18n="nav.group.overview">Overview</div>
+          <button type="button" class="tab-btn khayt-navitem active" data-tab="dashboard-tab">
+            <span class="nav-icon" aria-hidden="true">◉</span>
+            <span class="nav-label grow" data-i18n="tab.dashboard">Dashboard</span>
+          </button>
+        </div>
+        <div class="khayt-navsec nav-group">
+          <div class="eyebrow khayt-navhead nav-group-label" data-i18n="nav.group.production">Production</div>
+          <button type="button" class="tab-btn khayt-navitem" data-tab="queue-tab">
+            <span class="nav-icon" aria-hidden="true">▤</span>
+            <span class="nav-label grow" data-i18n="tab.queue">Production Queue</span>
+            <span class="khayt-live" aria-hidden="true"></span>
+          </button>
+          <button type="button" class="tab-btn khayt-navitem" data-tab="calculator-tab">
+            <span class="nav-icon" aria-hidden="true">◎</span>
+            <span class="nav-label grow" data-i18n="tab.calculator">Calculator</span>
+          </button>
+          <button type="button" class="tab-btn khayt-navitem" data-tab="inventory-tab">
+            <span class="nav-icon" aria-hidden="true">⬡</span>
+            <span class="nav-label grow" data-i18n="tab.inventory">Inventory</span>
+          </button>
+          <button type="button" class="tab-btn khayt-navitem" data-tab="catalog-tab">
+            <span class="nav-icon" aria-hidden="true">▣</span>
+            <span class="nav-label grow" data-i18n="tab.catalog">Catalog</span>
+          </button>
+          <button type="button" class="tab-btn khayt-navitem" data-tab="waste-tab">
+            <span class="nav-icon" aria-hidden="true">△</span>
+            <span class="nav-label grow" data-i18n="tab.waste">Waste Log</span>
+          </button>
+        </div>
+        <div class="khayt-navsec nav-group">
+          <div class="eyebrow khayt-navhead nav-group-label" data-i18n="nav.group.sales">Sales</div>
+          <button type="button" class="tab-btn khayt-navitem" data-tab="logs-tab">
+            <span class="nav-icon" aria-hidden="true">☰</span>
+            <span class="nav-label grow" data-i18n="tab.logs">Orders Log</span>
+          </button>
+          <button type="button" class="tab-btn khayt-navitem" data-tab="clients-tab">
+            <span class="nav-icon" aria-hidden="true">◈</span>
+            <span class="nav-label grow" data-i18n="tab.clients">Clients</span>
+          </button>
+          <button type="button" class="tab-btn khayt-navitem" data-tab="gift-cards-tab">
+            <span class="nav-icon" aria-hidden="true">♦</span>
+            <span class="nav-label grow" data-i18n="giftCards">Gift Cards</span>
+          </button>
+          <button type="button" class="tab-btn khayt-navitem" data-tab="portfolio-tab">
+            <span class="nav-icon" aria-hidden="true">◇</span>
+            <span class="nav-label grow" data-i18n="tab.portfolio">Portfolio</span>
+          </button>
+        </div>
+        <div class="khayt-navsec nav-group pro-only">
+          <div class="eyebrow khayt-navhead nav-group-label" data-i18n="nav.group.business">Business</div>
+          <button type="button" class="tab-btn khayt-navitem" data-tab="analytics-tab">
+            <span class="nav-icon" aria-hidden="true">◐</span>
+            <span class="nav-label grow" data-i18n="tab.analytics">Analytics</span>
+          </button>
+          <button type="button" class="tab-btn khayt-navitem pro-only" data-tab="expenses-tab">
+            <span class="nav-icon" aria-hidden="true">◧</span>
+            <span class="nav-label grow" data-i18n="tab.expenses">Expenses</span>
+            <span class="khayt-pro">PRO</span>
+          </button>
+        </div>
+      </nav>
 
-    <button id="btnHelp" title="Help" aria-label="Help" data-i18n="help.btn" style="background:rgba(255,255,255,0.07);color:var(--text-muted);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;white-space:nowrap;">?</button>
-    <button id="btnGlobalSearch" title="Search (⌘K)" aria-label="Global search" style="background:rgba(255,255,255,0.07);color:var(--text-muted);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;white-space:nowrap;">🔍 <kbd style="font-size:10px;opacity:0.6;">⌘K</kbd></button>
-    <div style="position:relative;display:inline-block;">
-      <button id="btnNotifBell" title="Notifications" aria-label="Notifications"
-        style="background:rgba(255,255,255,0.07);color:var(--text-muted);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:14px;cursor:pointer;white-space:nowrap;position:relative;">
-        🔔
-        <span id="notifBadge" style="display:none;position:absolute;top:-4px;inset-inline-end:-4px;background:var(--danger);color:#fff;font-size:9px;font-weight:700;min-width:16px;height:16px;border-radius:8px;line-height:16px;text-align:center;padding:0 3px;"></span>
-      </button>
-      <div id="notifPanel" style="display:none;position:absolute;top:calc(100% + 8px);inset-inline-end:0;width:340px;max-height:480px;overflow-y:auto;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.5);z-index:8000;"></div>
-    </div>
-    <button id="btnFeedback" title="Feedback &amp; Bug Reports" aria-label="Feedback" data-i18n="feedback.title" style="background:rgba(255,255,255,0.07);color:var(--text-muted);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;white-space:nowrap;">💬</button>
-    <select id="locationFilter" aria-label="Location filter" style="background:var(--bg-elev);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;min-width:80px;max-width:120px;" title="Filter by location">
-      <option value="">All locations</option>
-    </select>
-    <!-- Feature 7 (new 8-pack): Operator switch button (hidden when lock disabled) -->
-    <button id="btnNavSwitchOp" title="Switch operator" aria-label="Switch operator"
-      style="display:none;background:rgba(255,255,255,0.07);color:var(--text-muted);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;white-space:nowrap;gap:5px;align-items:center;">
-      👤 <span id="operatorNavBadge" style="font-size:11px;font-weight:600;"></span>
-    </button>
-    <select id="langSelect" aria-label="Language" style="background:var(--bg-elev);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;min-width:70px;max-width:90px;">
-      <option value="en">🌐 EN</option>
-      <option value="ar">🌐 ع</option>
-      <option value="de">🌐 DE</option>
-      <option value="es">🌐 ES</option>
-      <option value="fr">🌐 FR</option>
-      <option value="zh">🌐 中文</option>
-      <option value="ja">🌐 日本語</option>
-    </select>
-  </header>
+      <div class="khayt-navfoot sidebar-footer">
+        <button type="button" class="tab-btn khayt-navitem" data-tab="settings-tab">
+          <span class="nav-icon" aria-hidden="true">⚙</span>
+          <span class="nav-label" data-i18n="tab.settings">Settings</span>
+        </button>
+        <button type="button" class="btn-sidebar-collapse btn ghost sm" id="btnSidebarCollapse" style="width:100%;margin-top:6px" aria-label="Collapse sidebar">
+          <span aria-hidden="true">‹</span> <span class="collapse-label" data-i18n="nav.collapse">Collapse</span>
+        </button>
+      </div>
+    </aside>
 
-  <nav class="tabs" role="tablist">
-    <button class="tab-btn active" data-tab="dashboard-tab" data-i18n="tab.dashboard">Dashboard</button>
-    <button class="tab-btn" data-tab="calculator-tab" data-i18n="tab.calculator">Calculator</button>
-    <button class="tab-btn" data-tab="catalog-tab" data-i18n="tab.catalog">Catalog</button>
-    <button class="tab-btn" data-tab="queue-tab" data-i18n="tab.queue">Production Queue</button>
-    <button class="tab-btn" data-tab="logs-tab" data-i18n="tab.logs">Orders Log</button>
-    <button class="tab-btn" data-tab="analytics-tab" data-i18n="tab.analytics">Analytics</button>
-    <button class="tab-btn" data-tab="inventory-tab" data-i18n="tab.inventory">Inventory</button>
-    <button class="tab-btn" data-tab="clients-tab" data-i18n="tab.clients">Clients</button>
-    <button class="tab-btn" data-tab="portfolio-tab" data-i18n="tab.portfolio">Portfolio</button>
-    <button class="tab-btn pro-only" data-tab="expenses-tab" data-i18n="tab.expenses">Expenses</button>
-    <button class="tab-btn" data-tab="waste-tab" data-i18n="tab.waste">Waste Log</button>
-    <button class="tab-btn" data-tab="gift-cards-tab" data-i18n="giftCards">Gift Cards</button>
-    <button class="tab-btn" data-tab="settings-tab" data-i18n="tab.settings">Settings</button>
-  </nav>
+    <div class="khayt-main app-body">
+      <header class="khayt-top app-topbar">
+        <div class="khayt-toptitle topbar-heading">
+          <h2 class="topbar-title" id="topbarPageTitle" data-i18n="tab.dashboard">Dashboard</h2>
+          <span class="dim mono" id="topbarPageSubtitle" style="font-size:12px"></span>
+        </div>
+        <div class="khayt-search" role="search">
+          <span class="dim" aria-hidden="true">⌕</span>
+          <input type="text" id="topbarSearchMirror" readonly tabindex="-1" placeholder="Search…" data-i18n-placeholder="search.placeholder" style="cursor:pointer" />
+          <kbd>⌘K</kbd>
+        </div>
+        <span class="grow topbar-spacer"></span>
+        <div class="row gap8 topbar-actions wrap">
+          <button type="button" class="btn ghost icon sm" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">◐</button>
+          <button type="button" class="btn ghost sm" id="btnHelp" data-i18n="help.btn">?</button>
+          <button type="button" class="btn ghost sm" id="btnGlobalSearch">🔍 <span class="muted" style="font-size:10px">⌘K</span></button>
+          <div class="khayt-bell tb-notif-wrap" style="position:relative">
+            <button type="button" class="btn ghost icon sm" id="btnNotifBell" title="Notifications" aria-label="Notifications">🔔</button>
+            <span class="khayt-bdot" id="notifBadge" style="display:none"></span>
+            <div id="notifPanel" style="display:none;position:absolute;inset-inline-end:0;top:calc(100% + 8px);width:340px;max-height:480px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:var(--shadow-pop);z-index:8000"></div>
+          </div>
+          <button type="button" class="btn ghost sm" id="btnFeedback" data-i18n="feedback.title">💬</button>
+          <select class="input" id="locationFilter" aria-label="Location filter" style="width:auto;height:34px;min-width:100px" title="Filter by location">
+            <option value="">All locations</option>
+          </select>
+          <button type="button" class="btn ghost sm" id="btnNavSwitchOp" title="Switch operator" style="display:none">👤 <span id="operatorNavBadge"></span></button>
+          <select class="input" id="langSelect" aria-label="Language" style="width:auto;height:34px;min-width:72px">
+            <option value="en">EN</option>
+            <option value="ar">ع</option>
+            <option value="de">DE</option>
+            <option value="es">ES</option>
+            <option value="fr">FR</option>
+            <option value="zh">中文</option>
+            <option value="ja">日本語</option>
+          </select>
+        </div>
+      </header>
 
-  <main class="content">
+      <main class="khayt-scroll content">
+
+
 
     <!-- ===================== DASHBOARD ===================== -->
     <section id="dashboard-tab" class="tab-content active">
@@ -1721,6 +1798,8 @@
 </section>
 
   </main>
+    </div>
+  </div>
 </div>
 
 <!-- Toast container -->

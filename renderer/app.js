@@ -2144,6 +2144,53 @@ function applyMode() {
   if (btnPro)    btnPro.classList.toggle('active',    settings.mode === 'professional');
 }
 
+
+/* ============================================================
+   Khayt Studio shell
+   ============================================================ */
+function initAppShell() {
+  const sidebar = $('#appSidebar');
+  const collapseBtn = $('#btnSidebarCollapse');
+  if (localStorage.getItem('hub_sidebar_collapsed') === '1') {
+    sidebar?.classList.add('collapsed');
+  }
+  collapseBtn?.addEventListener('click', () => {
+    sidebar?.classList.toggle('collapsed');
+    localStorage.setItem('hub_sidebar_collapsed', sidebar?.classList.contains('collapsed') ? '1' : '0');
+    const chevron = collapseBtn.querySelector('[aria-hidden="true"]');
+    if (chevron) chevron.textContent = sidebar?.classList.contains('collapsed') ? '›' : '‹';
+  });
+
+  const mirror = $('#topbarSearchMirror');
+  const searchBtn = $('#btnGlobalSearch');
+  const openSearch = () => searchBtn?.click();
+  mirror?.addEventListener('click', openSearch);
+  mirror?.addEventListener('focus', openSearch);
+
+  document.documentElement.style.setProperty('--accent-h', '187');
+  document.documentElement.style.setProperty('--accent-s', '76%');
+  document.documentElement.style.setProperty('--accent-l', '53%');
+
+  syncTopbarTitle($('.tab-content.active')?.id || 'dashboard-tab');
+}
+
+function syncTopbarTitle(tabId) {
+  const activeBtn = $(`.tab-btn[data-tab="${tabId}"]`);
+  const titleKey = activeBtn?.querySelector('[data-i18n]')?.getAttribute('data-i18n');
+  const topTitle = $('#topbarPageTitle');
+  if (topTitle && titleKey) topTitle.textContent = t(titleKey);
+  const sub = $('#topbarPageSubtitle');
+  if (!sub) return;
+  if (tabId === 'dashboard-tab') {
+    const d = new Date();
+    sub.textContent = d.toLocaleDateString(i18n.current === 'ar' ? 'ar-SA' : 'en-US', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+    });
+  } else {
+    sub.textContent = '';
+  }
+}
+
 /* ============================================================
    Tabs
    ============================================================ */
@@ -2151,7 +2198,14 @@ function switchTab(tabId) {
   $$('.tab-content').forEach(el => el.classList.remove('active'));
   $$('.tab-btn').forEach(el => el.classList.remove('active'));
   $('#' + tabId)?.classList.add('active');
-  $(`.tab-btn[data-tab="${tabId}"]`)?.classList.add('active');
+  $$(`.tab-btn[data-tab="${tabId}"]`).forEach(el => el.classList.add('active'));
+
+  $$('.tab-btn.khayt-navitem').forEach(btn => {
+    btn.classList.toggle('on', btn.dataset.tab === tabId);
+    btn.setAttribute('aria-current', btn.dataset.tab === tabId ? 'page' : 'false');
+  });
+
+  syncTopbarTitle(tabId);
 
   if (tabId === 'dashboard-tab')  renderDashboard();
   if (tabId === 'expenses-tab')   { renderExpenses(); populateExpOrderDatalist(); }
@@ -21821,6 +21875,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Show/hide the nav operator switch button
   const navOpBtn = $('#btnNavSwitchOp');
   if (navOpBtn) navOpBtn.style.display = settings.operatorLockEnabled ? 'inline-flex' : 'none';
+
+  initAppShell();
 
   // Feature 2 (new batch): Start live printer polling for connected machines
   const apiMachines = machines.filter(m => m.printerApi?.type && m.printerApi.type !== 'none');
