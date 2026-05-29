@@ -164,7 +164,13 @@
       <div class="grid">
 
         <div class="card material">
-          <h3 class="card-head"><span class="swatch"></span><span data-i18n="calc.part.title">1. Part & Material</span></h3>
+          <div class="row between wrap gap12" style="margin-bottom:14px;align-items:center">
+          <h3 class="card-head" style="margin:0"><span class="swatch"></span><span data-i18n="calc.part.title">1. Part & Material</span></h3>
+          <div class="seg" id="calcTechSeg" role="group" aria-label="Print technology">
+            <button type="button" class="on" data-calc-tech="fdm" data-i18n="queue.filter_fdm">FDM</button>
+            <button type="button" data-calc-tech="resin" data-i18n="queue.filter_resin">Resin</button>
+          </div>
+        </div>
 
           <div class="inline-pair">
             <div>
@@ -494,10 +500,13 @@
 
       <div class="khayt-queue-seg-row">
         <div class="seg khayt-queue-seg" id="studioQueueSeg" role="group" aria-label="Queue filters">
-          <button type="button" class="on" data-queue-filter="all">All</button>
-          <button type="button" data-queue-filter="fdm">FDM</button>
-          <button type="button" data-queue-filter="resin">Resin</button>
-          <button type="button" data-queue-filter="machine">By machine</button>
+          <button type="button" class="on" data-queue-filter="all" data-i18n="queue.filter_all">All</button>
+          <button type="button" data-queue-filter="fdm" data-i18n="queue.filter_fdm">FDM</button>
+          <button type="button" data-queue-filter="resin" data-i18n="queue.filter_resin">Resin</button>
+          <button type="button" data-queue-filter="machine" data-i18n="queue.filter_machine">By machine</button>
+        </div>
+        <div id="studioQueueMachineWrap" class="khayt-queue-machine-wrap" style="display:none" aria-hidden="true">
+          <select id="studioQueueMachine" class="input" style="min-width:200px;height:34px"></select>
         </div>
       </div>
 
@@ -1019,10 +1028,10 @@
     <section id="clients-tab" class="tab-content khayt-clients">
       <div class="khayt-clients-toolbar">
         <div class="seg" id="studioClientSeg" role="group" aria-label="Client filters">
-          <button type="button" class="on" data-client-filter="all">All</button>
-          <button type="button" data-client-filter="vat">VAT</button>
-          <button type="button" data-client-filter="b2c">B2C</button>
-          <button type="button" data-client-filter="balance">Has balance</button>
+          <button type="button" class="on" data-client-filter="all" data-i18n="cl.filter_all">All</button>
+          <button type="button" data-client-filter="vat" data-i18n="cl.filter_vat">VAT</button>
+          <button type="button" data-client-filter="b2c" data-i18n="cl.filter_b2c">B2C</button>
+          <button type="button" data-client-filter="balance" data-i18n="cl.filter_balance">Has balance</button>
         </div>
         <div class="row gap8 wrap khayt-clients-actions">
           <input type="search" id="clientSearch" class="toolbar-search" data-i18n-placeholder="cl.search_ph">
@@ -1927,6 +1936,7 @@
 
 <script src="i18n.js"></script>
 <script src="studio/icons.js"></script>
+<script src="studio/studio.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

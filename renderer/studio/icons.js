@@ -87,5 +87,30 @@
     });
   }
 
-  window.KhaytIcon = { svg, mount, hydrateNav, ICONS };
+  function hydrateTopbar() {
+    if (!document.body.classList.contains('khayt-studio')) return;
+    const themeBtn = $('#themeToggle');
+    if (themeBtn) {
+      themeBtn.classList.add('khayt-icon-btn');
+      themeBtn.innerHTML = '';
+      const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+      mount(themeBtn, isLight ? 'moon' : 'sun', 18);
+    }
+    const searchIcon = document.querySelector('.khayt-search > span[aria-hidden]');
+    if (searchIcon) mount(searchIcon, 'search', 16);
+    const bellBtn = $('#btnNotifBell');
+    if (bellBtn) {
+      bellBtn.innerHTML = '';
+      mount(bellBtn, 'bell', 18);
+    }
+    const feedbackBtn = $('#btnFeedback');
+    if (feedbackBtn) {
+      feedbackBtn.textContent = '';
+      mount(feedbackBtn, 'doc', 16);
+      feedbackBtn.setAttribute('title', feedbackBtn.getAttribute('title') || 'Feedback');
+      feedbackBtn.setAttribute('aria-label', 'Feedback');
+    }
+  }
+
+  window.KhaytIcon = { svg, mount, hydrateNav, hydrateTopbar, ICONS };
 })();
