@@ -42,17 +42,34 @@ function hasUnzip() {
   return r.status === 0;
 }
 
+function isNodeExtractZipBroken() {
+  const [major, minor] = process.versions.node.split('.').map(Number);
+  return major >= 26 || major > 24 || (major === 24 && minor >= 16);
+}
+
 async function extractZipArchive(zipPath, distDir) {
   fs.mkdirSync(distDir, { recursive: true });
   const platform = process.env.ELECTRON_INSTALL_PLATFORM || process.platform;
+  const unix =
+    platform === 'darwin' ||
+    platform === 'mas' ||
+    platform === 'linux' ||
+    platform === 'freebsd' ||
+    platform === 'openbsd';
 
-  if (
-    (platform === 'darwin' || platform === 'linux' || platform === 'freebsd' || platform === 'openbsd') &&
-    hasUnzip()
-  ) {
+  if (unix) {
+    if (!hasUnzip()) {
+      const hint =
+        platform === 'darwin' || platform === 'mas'
+          ? 'On macOS install Command Line Tools:\n  xcode-select --install'
+          : 'On Linux install unzip (e.g. apt install unzip).';
+      throw new Error('`unzip` is required but not found in PATH.\n' + hint);
+    }
+    console.log('Extracting with unzip…');
     const r = spawnSync('unzip', ['-o', '-q', zipPath, '-d', distDir], { stdio: 'inherit' });
+    if (r.error) throw r.error;
     if (r.status !== 0) {
-      throw new Error('unzip failed with exit code ' + (r.status ?? r.error?.message ?? 'unknown'));
+      throw new Error('unzip failed with exit code ' + (r.status ?? 'unknown'));
     }
     return;
   }
@@ -71,6 +88,12 @@ async function extractZipArchive(zipPath, distDir) {
     return;
   }
 
+  if (isNodeExtractZipBroken()) {
+    throw new Error(
+      'Node ' + process.versions.node + ' cannot use extract-zip (electron/electron#51619).'
+    );
+  }
+  console.log('Extracting with extract-zip…');
   const extract = require('extract-zip');
   await extract(zipPath, { dir: distDir });
 }
@@ -133,14 +156,9 @@ async function main() {
     return;
   }
 
-  const [nodeMajor, nodeMinor] = process.versions.node.split('.').map(Number);
-  const extractZipBroken = nodeMajor >= 26 || nodeMajor > 24 || (nodeMajor === 24 && nodeMinor >= 16);
-
   console.log(`Installing Electron ${version} for ${process.platform}-${resolveArch()}…`);
-  if (extractZipBroken && process.platform === 'darwin' && !hasUnzip()) {
-    console.warn(
-      'Note: Node ' + process.versions.node + ' breaks npm extract-zip. Install unzip: xcode-select --install'
-    );
+  if (isNodeExtractZipBroken() && (process.platform === 'darwin' || process.platform === 'linux')) {
+    console.log('Node ' + process.versions.node + ' — using system unzip (extract-zip broken on 24.16+).\n');
   }
   console.log('(About 150MB — can take several minutes on a slow connection.)\n');
 
@@ -154,7 +172,6 @@ async function main() {
     checksums: require(path.join(electronDir, 'checksums.json')),
   });
 
-  console.log('Extracting…');
   if (fs.existsSync(distDir)) {
     fs.rmSync(distDir, { recursive: true, force: true });
   }
