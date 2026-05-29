@@ -368,7 +368,12 @@ function payStatus(order) {
   return 'partial';
 }
 /** Escape a value for CSV (RFC 4180). */
-function csvEsc(v) { return '"' + String(v ?? '').replace(/"/g, '""') + '"'; }
+function csvFormulaNeutralize(v) {
+  const s = String(v ?? '');
+  return /^[=+\-@\t\r]/.test(s) ? "'" + s : s;
+}
+/** Escape a value for CSV (RFC 4180). */
+function csvEsc(v) { return '"' + csvFormulaNeutralize(v).replace(/"/g, '""') + '"'; }
 /** Trigger a file download from a Blob. */
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
@@ -941,7 +946,7 @@ function defaultSettings() {
     // Round 12: Break-even / fixed overhead
     fixedCosts:       [],
     // Round 12: LAN API
-    lanApi:           { enabled: false, port: 3219, pin: '', webhookToken: '', tunnelEnabled: false },
+    lanApi:           { enabled: false, port: 3219, pin: '', intakeToken: '', webhookToken: '', tunnelEnabled: false, bindLan: false },
     // Round 12: Saved filter presets
     savedFilters:     [],
     betaAcknowledged: true, // legacy field — kept so old saved data doesn't break
@@ -2394,6 +2399,7 @@ function updateGrandTotal() {
     elecRate: $('#elecRate').value, prepTime: $('#prepTime').value,
     postTime: $('#postTime').value, laborRate: $('#laborRate').value,
     failureRate: $('#failureRate').value,
+    filamentId: $('#filamentSelect')?.value || '',
     extraMaterials: currentExtraMaterials.filter(m => m.material && m.weight > 0),
   };
   const bd = computePartBreakdown(snap);
@@ -12931,9 +12937,16 @@ function renderLanApiSettings() {
         <input type="number" id="lan_port" value="${lan.port || 3219}" min="1024" max="65535">
       </div>
       <div>
-        <label data-i18n="lan.pin">Access PIN (leave blank for open)</label>
+        <label data-i18n="lan.pin">Access PIN (required for queue API &amp; kiosk)</label>
         <input type="text" id="lan_pin" value="${escapeHtml(lan.pin||'')}" maxlength="12" placeholder="e.g. 1234">
       </div>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:10px;">
+      <input type="checkbox" id="lan_bind_lan" style="width:auto;margin:0;" ${lan.bindLan ? 'checked' : ''}>
+      <span>Listen on all network interfaces (LAN). Default is localhost only.</span>
+    </label>
+    <div style="font-size:11px;color:var(--text-muted);margin:4px 0 10px;padding:8px 10px;background:var(--bg-elev);border-radius:var(--radius);word-break:break-all;">
+      Intake form: <code style="font-size:11px;">/intake</code> on this server (uses intake token automatically)
     </div>
     <div class="inline-pair" style="margin-top:10px;">
       <div style="flex:1;">
@@ -12975,12 +12988,20 @@ function renderLanApiSettings() {
   if (lan.enabled) loadLanQr();
 
   el.querySelector('#btnSaveLan')?.addEventListener('click', () => {
+    let intakeToken = (settings.lanApi || {}).intakeToken || '';
+    if (!intakeToken) {
+      const arr = new Uint8Array(16);
+      crypto.getRandomValues(arr);
+      intakeToken = Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
     settings.lanApi = {
       enabled: el.querySelector('#lan_enabled').checked,
       port: parseInt(el.querySelector('#lan_port').value) || 3219,
       pin:  el.querySelector('#lan_pin').value.trim(),
+      intakeToken,
       webhookToken: el.querySelector('#lan_wh_token').value.trim(),
       tunnelEnabled: el.querySelector('#lan_tunnel_enabled').checked,
+      bindLan: !!el.querySelector('#lan_bind_lan')?.checked,
     };
     saveAll();
     if (settings.lanApi.enabled) {
@@ -13490,7 +13511,7 @@ async function openBnplModal(orderId) {
 
 async function startLanServer() {
   const lan = settings.lanApi || {};
-  const res = await window.hubAPI?.startLanServer?.({ port: lan.port || 3219, pin: lan.pin || '' });
+  const res = await window.hubAPI?.startLanServer?.({ port: lan.port || 3219, pin: lan.pin || '', bindLan: lan.bindLan ? 'lan' : 'loopback' });
   const statusRow = $('#lanStatusRow');
   const qrWrap    = $('#lanQrWrap');
   if (res?.ok) {

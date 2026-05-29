@@ -447,16 +447,96 @@
     return fold;
   }
 
+
+  function initWaitingStudioFold() {
+    const wrap = $('#waitingListToggle')?.parentElement;
+    if (!wrap || wrap.dataset.khaytFold === '1') return;
+
+    const collapsed = prefGet('fold_waiting', '1') === '1';
+    const fold = document.createElement('div');
+    fold.className = 'khayt-fold' + (collapsed ? ' is-collapsed' : '');
+    fold.dataset.foldKey = 'waiting';
+
+    const head = document.createElement('button');
+    head.type = 'button';
+    head.className = 'khayt-fold-head';
+    head.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+
+    const title = document.createElement('span');
+    title.className = 'khayt-fold-title';
+    title.setAttribute('data-i18n', 'waiting.title');
+    title.textContent = t('waiting.title');
+
+    const countEl = document.createElement('span');
+    countEl.className = 'khayt-fold-count';
+    countEl.style.display = 'none';
+
+    const addBtn = $('#btnAddWaiting');
+    if (addBtn) {
+      addBtn.type = 'button';
+      addBtn.className = 'btn sm ghost khayt-fold-add';
+      addBtn.removeAttribute('onclick');
+      addBtn.addEventListener('click', (e) => e.stopPropagation());
+      head.appendChild(addBtn);
+    }
+
+    const chev = document.createElement('span');
+    chev.className = 'khayt-fold-chevron';
+    chev.setAttribute('aria-hidden', 'true');
+    chev.textContent = '▼';
+
+    head.insertBefore(title, head.firstChild);
+    head.append(countEl, chev);
+
+    const toggle = $('#waitingListToggle');
+    if (toggle) toggle.style.display = 'none';
+
+    const body = document.createElement('div');
+    body.className = 'khayt-fold-body';
+
+    const parent = wrap.parentNode;
+    parent.insertBefore(fold, wrap);
+    body.appendChild(wrap);
+    fold.append(head, body);
+    wrap.dataset.khaytFold = '1';
+
+    const section = $('#waitingListSection');
+    const syncListVisibility = () => {
+      const open = !fold.classList.contains('is-collapsed');
+      if (section) section.style.display = open ? 'block' : 'none';
+    };
+    syncListVisibility();
+
+    const syncCount = () => {
+      const n = typeof waitingList !== 'undefined' ? waitingList.length : 0;
+      countEl.textContent = String(n);
+      countEl.style.display = n > 0 ? '' : 'none';
+      const badge = $('#waitingBadge');
+      if (badge) {
+        badge.textContent = String(n);
+        badge.style.display = n > 0 ? 'inline-flex' : 'none';
+      }
+    };
+    syncCount();
+    fold._syncCount = syncCount;
+
+    head.addEventListener('click', (e) => {
+      if (e.target.closest('.khayt-fold-add')) return;
+      const nowCollapsed = !fold.classList.toggle('is-collapsed');
+      prefSet('fold_waiting', nowCollapsed ? '1' : '0');
+      head.setAttribute('aria-expanded', nowCollapsed ? 'false' : 'true');
+      syncListVisibility();
+    });
+
+    return fold;
+  }
   function initQueueStudioFolds() {
     if (!isStudio()) return;
     const quotes = $('#quotesSection');
     if (quotes) {
       wrapQueueFold(quotes, 'quotes', 'queue.quotes_awaiting', () => printLog.filter(o => o.status === 'quote').length);
     }
-    const waitingWrap = $('#waitingListToggle')?.parentElement;
-    if (waitingWrap) {
-      wrapQueueFold(waitingWrap, 'waiting', 'waiting.title', () => (typeof waitingList !== 'undefined' ? waitingList.length : 0));
-    }
+    initWaitingStudioFold();
   }
 
   function syncQueueFolds() {

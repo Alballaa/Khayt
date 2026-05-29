@@ -219,6 +219,8 @@ function encryptForDisk(data) {
   if (d?.settings?.lanApi?.webhookToken)        d.settings.lanApi.webhookToken        = encryptStoreField(d.settings.lanApi.webhookToken);
   if (d?.settings?.lanApi?.sallaWebhookSecret)  d.settings.lanApi.sallaWebhookSecret  = encryptStoreField(d.settings.lanApi.sallaWebhookSecret);
   if (d?.settings?.lanApi?.zidWebhookSecret)    d.settings.lanApi.zidWebhookSecret    = encryptStoreField(d.settings.lanApi.zidWebhookSecret);
+  if (d?.settings?.lanApi?.pin)                 d.settings.lanApi.pin                 = encryptStoreField(d.settings.lanApi.pin);
+  if (d?.settings?.lanApi?.intakeToken)         d.settings.lanApi.intakeToken         = encryptStoreField(d.settings.lanApi.intakeToken);
   return d;
 }
 
@@ -663,6 +665,8 @@ ipcMain.handle('hub:load-store', async (event) => {
     if (data?.settings?.lanApi?.webhookToken)        data.settings.lanApi.webhookToken        = decryptStoreField(data.settings.lanApi.webhookToken);
     if (data?.settings?.lanApi?.sallaWebhookSecret)  data.settings.lanApi.sallaWebhookSecret  = decryptStoreField(data.settings.lanApi.sallaWebhookSecret);
     if (data?.settings?.lanApi?.zidWebhookSecret)    data.settings.lanApi.zidWebhookSecret    = decryptStoreField(data.settings.lanApi.zidWebhookSecret);
+    if (data?.settings?.lanApi?.pin)                 data.settings.lanApi.pin                 = decryptStoreField(data.settings.lanApi.pin);
+    if (data?.settings?.lanApi?.intakeToken)         data.settings.lanApi.intakeToken         = decryptStoreField(data.settings.lanApi.intakeToken);
     return data;
   } catch (e) {
     console.error('hub:load-store error:', e);
@@ -1357,13 +1361,14 @@ ipcMain.handle('hub:get-tunnel-url', async () => {
 let lanServer = null;
 let lanServerStore = {};  // reference to current store, updated via hub:save-store
 
-ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}) => {
+ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '', bindLan = 'loopback' } = {}) => {
   const portNum = parseInt(port, 10);
   if (!Number.isInteger(portNum) || portNum < 1024 || portNum > 65535) {
     return { ok: false, error: 'Invalid port number (must be 1024–65535)' };
   }
   port = portNum;
   pin = String(pin || '').slice(0, 256); // cap PIN length to prevent DoS via giant string comparisons
+  const bindHost = (bindLan === 'lan' || bindLan === 'all') ? '0.0.0.0' : '127.0.0.1';
   if (lanServer) { lanServer.close(); lanServer = null; }
   // Brute-force tracking: { ip -> { count, resetAt } }
   const failedAttempts = new Map();
@@ -1381,15 +1386,14 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
         // NOTE: /order/:id POST (quote approval) is intentionally excluded so that
         // unauthenticated write access cannot transition order state.  GET is public
         // (customer-facing tracking page) but POST requires a PIN when one is set.
-        const isAlwaysPublic = pathname === '/api/status' || pathname === '/api/queue' ||
-          pathname === '/api/machines' || pathname.startsWith('/status/') ||
+        const isIntakeFormGet = pathname === '/intake' && req.method === 'GET';
+        const isAlwaysPublic = pathname === '/api/status' || pathname.startsWith('/status/') ||
           (pathname.startsWith('/order/') && req.method === 'GET') ||
-          pathname === '/' || pathname === '/manifest.json' || pathname === '/sw.js' ||
+          pathname === '/manifest.json' || pathname === '/sw.js' ||
           pathname === '/icon-192.png' || pathname === '/icon-512.png' ||
           pathname.startsWith('/api/webhook/printer/') ||
-          (pathname === '/calendar.ics' && !pin) || // requires PIN when one is set (calendar apps can append ?pin=…)
-          pathname === '/intake' ||
-          pathname === '/api/intake' ||
+          (pathname === '/calendar.ics' && !pin) ||
+          isIntakeFormGet ||
           pathname === '/api/webhook/salla' ||
           pathname === '/api/webhook/zid';
         const isSurveyEndpoint = pathname === '/api/survey' && req.method === 'POST';
@@ -1435,8 +1439,20 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
         res.setHeader('Content-Type', 'application/json');
 
         // H3: helper to enforce PIN for sensitive GET routes
+        const getIntakeToken = () => {
+          const raw = lanServerStore?.settings?.lanApi?.intakeToken;
+          return raw ? decryptStoreField(raw) : '';
+        };
+        const checkIntakePost = () => {
+          const intakeTok = getIntakeToken();
+          const providedPin = (url.searchParams.get('pin') || req.headers['x-khayt-pin'] || '').trim();
+          const providedIntake = (req.headers['x-khayt-intake-token'] || '').trim();
+          if (pin && safeTokenEqual(providedPin, pin)) return true;
+          if (intakeTok && providedIntake && safeTokenEqual(providedIntake, intakeTok)) return true;
+          return false;
+        };
         const checkPinForGet = () => {
-          if (!pin) return true; // no PIN configured — allow (read-only)
+          if (!pin) return false; // owner/queue data requires a configured PIN
           const provided = (url.searchParams.get('pin') || req.headers['x-khayt-pin'] || '').trim();
           const now = Date.now();
           const ipData = failedAttempts.get(ip) || { count: 0, resetAt: 0 };
@@ -1758,6 +1774,7 @@ self.addEventListener('fetch',e=>e.respondWith(fetch(e.request).catch(()=>caches
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k))))));`);
 
         } else if (pathname === '/' && req.method === 'GET') {
+          if (!checkPinForGet()) return;
           const shopName = lanEscapeHtml(store.settings?.shopName || 'Khayt');
           const queue = (store.printLog || []).filter(o => ['pending','printing','post','qc','on_hold'].includes(o.status));
           const pending  = queue.filter(o => o.status === 'pending').length;
@@ -1956,13 +1973,19 @@ setTimeout(()=>location.reload(),30000);
         // ── Online intake form ──────────────────────────────────
         } else if (pathname === '/intake' && req.method === 'GET') {
           const shopName = lanEscapeHtml(store.settings?.shopName || 'Khayt');
+          const intakeTokJs = JSON.stringify(getIntakeToken());
           res.setHeader('Content-Type', 'text/html; charset=utf-8');
           res.setHeader('Cache-Control', 'no-cache');
           res.writeHead(200);
-          res.end(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Order Intake — ${shopName}</title><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0f172a;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;padding:24px 16px}.container{max-width:520px;margin:0 auto}.header{text-align:center;margin-bottom:28px}.header h1{font-size:1.5rem;font-weight:700;color:#f1f5f9;margin-bottom:4px}.header p{color:#94a3b8;font-size:.9rem}.card{background:#1e293b;border-radius:16px;padding:24px;margin-bottom:16px}.form-group{margin-bottom:16px}label{display:block;font-size:.8rem;font-weight:600;color:#94a3b8;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}input,textarea,select{width:100%;background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:10px 12px;font-size:.9rem;outline:none;transition:border-color .2s}input:focus,textarea:focus,select:focus{border-color:#6366f1}textarea{resize:vertical;min-height:100px}select option{background:#1e293b}.req{color:#f87171}button[type=submit]{width:100%;background:#6366f1;color:#fff;border:none;border-radius:10px;padding:13px;font-size:1rem;font-weight:600;cursor:pointer;transition:background .2s}button[type=submit]:hover{background:#4f46e5}button[type=submit]:disabled{background:#334155;cursor:not-allowed}.thankyou{display:none;text-align:center;padding:40px 24px}.thankyou h2{font-size:1.3rem;color:#6366f1;margin-bottom:12px}.thankyou p{color:#94a3b8;line-height:1.6}.error-msg{color:#f87171;font-size:.8rem;margin-top:6px;display:none}</style></head><body><div class="container"><div class="header"><h1>${shopName}</h1><p>Submit a new order request</p></div><div class="card"><form id="intakeForm"><div class="form-group"><label>Name <span class="req">*</span></label><input type="text" name="name" required maxlength="200" placeholder="Your full name"></div><div class="form-group"><label>Email</label><input type="email" name="email" maxlength="500" placeholder="your@email.com"></div><div class="form-group"><label>Phone</label><input type="tel" name="phone" maxlength="500" placeholder="+966 5x xxx xxxx"></div><div class="form-group"><label>Project Description <span class="req">*</span></label><textarea name="description" required maxlength="2000" placeholder="Describe your 3D printing project in detail..."></textarea></div><div class="form-group"><label>Reference / Link</label><input type="url" name="referenceLink" maxlength="500" placeholder="https://..."></div><div class="form-group"><label>Preferred Material</label><input type="text" name="material" maxlength="500" placeholder="e.g. PLA, PETG, Resin"></div><div class="form-group"><label>Budget Range</label><select name="budget"><option value="">— Select —</option><option value="&lt;100">Less than 100 SAR</option><option value="100-500">100 – 500 SAR</option><option value="500-1000">500 – 1,000 SAR</option><option value="1000+">1,000+ SAR</option></select></div><div class="form-group"><label>Preferred Due Date</label><input type="date" name="dueDate" maxlength="500"></div><div class="error-msg" id="errMsg">An error occurred. Please try again.</div><button type="submit">Submit Request</button></form><div class="thankyou" id="thankYou"><h2>Thank you!</h2><p>Your request has been received. We'll get back to you as soon as possible.</p></div></div></div><script>document.getElementById('intakeForm').addEventListener('submit',async function(e){e.preventDefault();const btn=this.querySelector('button[type=submit]');const err=document.getElementById('errMsg');err.style.display='none';btn.disabled=true;btn.textContent='Submitting…';const data={};new FormData(this).forEach((v,k)=>{if(v)data[k]=v;});try{const r=await fetch('/api/intake',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});if(r.ok){this.style.display='none';document.getElementById('thankYou').style.display='block';}else{const j=await r.json().catch(()=>({}));err.textContent=j.error||'Submission failed.';err.style.display='block';btn.disabled=false;btn.textContent='Submit Request';}}catch(ex){err.textContent='Network error. Please try again.';err.style.display='block';btn.disabled=false;btn.textContent='Submit Request';}});</script></body></html>`);
+          res.end(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Order Intake — ${shopName}</title><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0f172a;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;padding:24px 16px}.container{max-width:520px;margin:0 auto}.header{text-align:center;margin-bottom:28px}.header h1{font-size:1.5rem;font-weight:700;color:#f1f5f9;margin-bottom:4px}.header p{color:#94a3b8;font-size:.9rem}.card{background:#1e293b;border-radius:16px;padding:24px;margin-bottom:16px}.form-group{margin-bottom:16px}label{display:block;font-size:.8rem;font-weight:600;color:#94a3b8;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}input,textarea,select{width:100%;background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:10px 12px;font-size:.9rem;outline:none;transition:border-color .2s}input:focus,textarea:focus,select:focus{border-color:#6366f1}textarea{resize:vertical;min-height:100px}select option{background:#1e293b}.req{color:#f87171}button[type=submit]{width:100%;background:#6366f1;color:#fff;border:none;border-radius:10px;padding:13px;font-size:1rem;font-weight:600;cursor:pointer;transition:background .2s}button[type=submit]:hover{background:#4f46e5}button[type=submit]:disabled{background:#334155;cursor:not-allowed}.thankyou{display:none;text-align:center;padding:40px 24px}.thankyou h2{font-size:1.3rem;color:#6366f1;margin-bottom:12px}.thankyou p{color:#94a3b8;line-height:1.6}.error-msg{color:#f87171;font-size:.8rem;margin-top:6px;display:none}</style></head><body><div class="container"><div class="header"><h1>${shopName}</h1><p>Submit a new order request</p></div><div class="card"><form id="intakeForm"><div class="form-group"><label>Name <span class="req">*</span></label><input type="text" name="name" required maxlength="200" placeholder="Your full name"></div><div class="form-group"><label>Email</label><input type="email" name="email" maxlength="500" placeholder="your@email.com"></div><div class="form-group"><label>Phone</label><input type="tel" name="phone" maxlength="500" placeholder="+966 5x xxx xxxx"></div><div class="form-group"><label>Project Description <span class="req">*</span></label><textarea name="description" required maxlength="2000" placeholder="Describe your 3D printing project in detail..."></textarea></div><div class="form-group"><label>Reference / Link</label><input type="url" name="referenceLink" maxlength="500" placeholder="https://..."></div><div class="form-group"><label>Preferred Material</label><input type="text" name="material" maxlength="500" placeholder="e.g. PLA, PETG, Resin"></div><div class="form-group"><label>Budget Range</label><select name="budget"><option value="">— Select —</option><option value="&lt;100">Less than 100 SAR</option><option value="100-500">100 – 500 SAR</option><option value="500-1000">500 – 1,000 SAR</option><option value="1000+">1,000+ SAR</option></select></div><div class="form-group"><label>Preferred Due Date</label><input type="date" name="dueDate" maxlength="500"></div><div class="error-msg" id="errMsg">An error occurred. Please try again.</div><button type="submit">Submit Request</button></form><div class="thankyou" id="thankYou"><h2>Thank you!</h2><p>Your request has been received. We'll get back to you as soon as possible.</p></div></div></div><script>document.getElementById('intakeForm').addEventListener('submit',async function(e){e.preventDefault();const btn=this.querySelector('button[type=submit]');const err=document.getElementById('errMsg');err.style.display='none';btn.disabled=true;btn.textContent='Submitting…';const data={};new FormData(this).forEach((v,k)=>{if(v)data[k]=v;});try{const r=await fetch('/api/intake',{method:'POST',headers:{'Content-Type':'application/json','x-khayt-intake-token':${intakeTokJs}},body:JSON.stringify(data)});if(r.ok){this.style.display='none';document.getElementById('thankYou').style.display='block';}else{const j=await r.json().catch(()=>({}));err.textContent=j.error||'Submission failed.';err.style.display='block';btn.disabled=false;btn.textContent='Submit Request';}}catch(ex){err.textContent='Network error. Please try again.';err.style.display='block';btn.disabled=false;btn.textContent='Submit Request';}});</script></body></html>`);
 
         // ── Intake form submission ──────────────────────────────
         } else if (pathname === '/api/intake' && req.method === 'POST') {
+          if (!checkIntakePost()) {
+            res.writeHead(401, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+            res.end(JSON.stringify({ error: 'Unauthorized' }));
+            return;
+          }
           let body = '';
           req.on('data', chunk => {
             if (Buffer.byteLength(body) + chunk.length > MAX_BODY) {
@@ -2218,7 +2241,7 @@ setTimeout(()=>location.reload(),30000);
           res.end(JSON.stringify({ error: 'Not found', endpoints: ['/api/status','/api/orders','/api/queue','/api/machines','/api/inventory','/api/webhook/printer/:machineId','/calendar.ics','/intake','/api/intake','/api/webhook/salla','/api/webhook/zid'] }));
         }
       });
-      lanServer.listen(port, '0.0.0.0', () => {
+      lanServer.listen(port, bindHost, () => {
         const ifaces = os.networkInterfaces();
         let localIp = '127.0.0.1';
         for (const iface of Object.values(ifaces)) {
@@ -2403,9 +2426,9 @@ app.whenReady().then(() => {
           [
             "default-src 'self'",
             "script-src 'self' 'unsafe-inline'",  // TODO: remove 'unsafe-inline' after replacing inline onclick= handlers in dynamically-generated HTML (app.js) with data-act delegation
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+            "style-src 'self' 'unsafe-inline'",
             "img-src 'self' data: blob:",
-            "font-src 'self' data: https://fonts.gstatic.com",
+            "font-src 'self' data:",
             "connect-src 'self' https://api.telegram.org https://api.sendgrid.com https://api.mailgun.net https://api.tabby.ai https://api.tamara.co https://api.stripe.com https://gw-fatoorah.zatca.gov.sa https://gw-apic-gov.gazt.gov.sa",
             "media-src 'self' blob:",
             "object-src 'none'",

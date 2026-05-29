@@ -207,12 +207,33 @@
 .khayt-fold-body .quotes-section-header {
   display: none;
 }
-.khayt-fold-body #waitingListToggle {
-  display: none;
-}
 .khayt-queue .quotes-section.khayt-fold-inner {
   border: none;
   margin: 0;
   padding: 0;
   background: transparent;
+}
+.khayt-fold-head .khayt-fold-add {
+  margin-inline-start: auto;
+  flex-shrink: 0;
+}
+.khayt-studio .table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.khayt-studio .kanban-col.kanban-col-collapsed {
+  flex: 0 0 44px;
+  min-width: 44px;
+  max-width: 44px;
+}
+.khayt-studio .kanban-col.kanban-col-collapsed .khayt-kcol-body,
+.khayt-studio .kanban-col.kanban-col-collapsed .kanban-col-meta,
+.khayt-studio .kanban-col.kanban-col-collapsed .count {
+  display: none !important;
+}
+.khayt-studio .kanban-col.kanban-col-collapsed h3 {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  justify-content: center;
+  padding: 12px 6px;
 }
