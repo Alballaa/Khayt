@@ -2096,6 +2096,18 @@ function switchTab(tabId) {
   if (tabId === 'portfolio-tab')  renderPortfolio();
   if (tabId === 'waste-tab')      renderWasteLog();
   if (tabId === 'inventory-tab')  { renderInventory(); renderPurchaseOrders(); renderConsumables(); renderSuppliers(); }
+  if (tabId === 'settings-tab') {
+    // Activate the first sidebar nav item if none is active
+    const activePanel = $('.settings-panel.active');
+    if (!activePanel) {
+      const firstNav = $('.settings-nav-item[data-settings-section]');
+      if (firstNav) {
+        const section = firstNav.dataset.settingsSection;
+        firstNav.classList.add('active');
+        $(`#settings-panel-${section}`)?.classList.add('active');
+      }
+    }
+  }
 }
 
 /* ============================================================
@@ -19626,7 +19638,6 @@ function loadSettingsIntoForm() {
   // New feature sections inside settings tab
   renderSlicerProfiles();
   renderEnvLogs();
-  renderTelegramSettings();
 }
 
 /* Feature 8 / Task 0: File-store size display in Settings */
@@ -19749,6 +19760,24 @@ function saveSettingsFromForm() {
       });
       return wip;
     })(),
+    // Preserve fields managed outside this form — never silently drop them
+    zatcaPhase2:        settings.zatcaPhase2        || {},
+    emailDigest:        settings.emailDigest        || {},
+    bnpl:               settings.bnpl               || {},
+    exchangeRates:      settings.exchangeRates       || {},
+    staleHours:         settings.staleHours          || {},
+    productionPaused:   settings.productionPaused    || false,
+    pauseReason:        settings.pauseReason         || '',
+    pausedAt:           settings.pausedAt            ?? null,
+    filamentColours:    settings.filamentColours     || {},
+    jobTemplates:       settings.jobTemplates        || [],
+    resinProfiles:      settings.resinProfiles       || [],
+    dismissedNotifs:    settings.dismissedNotifs     || {},
+    kanbanCollapsed:    settings.kanbanCollapsed     || [],
+    printerApi:         settings.printerApi          || {},
+    locations:          settings.locations           || [],
+    sallaWebhookSecret: settings.sallaWebhookSecret  || '',
+    zidWebhookSecret:   settings.zidWebhookSecret    || '',
   };
   saveAll();
   i18n.set(settings.lang);
@@ -19775,7 +19804,7 @@ async function openRestoreBackupModal() {
   }
   const listHtml = backups.map((b, i) => `
     <label style="display:flex; align-items:center; gap:10px; padding:6px 8px; border-radius:6px; cursor:pointer; border:1px solid var(--border); margin-bottom:6px; ${i === 0 ? 'background:rgba(91,156,240,0.07);' : ''}">
-      <input type="radio" name="backupChoice" value="${escapeHtml(b.path)}" ${i === 0 ? 'checked' : ''} style="width:auto; margin:0;">
+      <input type="radio" name="backupChoice" value="${escapeHtml(b.filename)}" ${i === 0 ? 'checked' : ''} style="width:auto; margin:0;">
       <span style="flex:1; font-size:13px; font-weight:${i === 0 ? '600' : '400'};">${escapeHtml(b.name)}</span>
       <span style="font-size:11px; color:var(--text-muted);">${new Date(b.mtime).toLocaleDateString()}</span>
     </label>`).join('');
@@ -21310,17 +21339,25 @@ function wireEvents() {
     if (btn) deleteCustomField(+btn.dataset.idx);
   });
 
-  // Operational settings save (separate card)
+  // Operational settings save — delegate to saveSettingsFromForm so all fields are preserved
   $('#btnSaveOpsSettings')?.addEventListener('click', () => {
-    settings.minMarginPct = Math.max(0, Math.min(100, num($('#set_minMarginPct')?.value, 0)));
-    settings.expBudgets   = Object.fromEntries(EXP_CATEGORIES.map(c => [c, Math.max(0, num($(`#set_budget_${c}`)?.value, 0))]));
-    saveAll();
-    toast(t('set.saved'), 'success');
+    saveSettingsFromForm();
     renderExpenses();
   });
 
   // Settings
   $('#btnSaveSettings').addEventListener('click', saveSettingsFromForm);
+
+  // Settings sidebar navigation
+  document.addEventListener('click', e => {
+    const navItem = e.target.closest('.settings-nav-item[data-settings-section]');
+    if (!navItem) return;
+    const section = navItem.dataset.settingsSection;
+    $$('.settings-nav-item').forEach(el => el.classList.remove('active'));
+    $$('.settings-panel').forEach(el => el.classList.remove('active'));
+    navItem.classList.add('active');
+    $(`#settings-panel-${section}`)?.classList.add('active');
+  });
 
   // Business Mode toggle buttons (in Settings tab)
   $$('#btnModeSimple, #btnModePro').forEach(btn => {
