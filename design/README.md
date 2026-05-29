@@ -1,37 +1,52 @@
 # Khayt UI design assets
 
-Place your mockup files here so the agent and CI can reference them.
+Drop your mockup files in **this folder** (`design/` at the repo root).
 
-## Expected location on your machine
-
-- **macOS:** `~/Downloads/design/`
-- **Windows:** `%USERPROFILE%\Downloads\design\`
-- **Linux:** `~/Downloads/design/`
-
-## Add files to this repo
-
-From your laptop (replace paths if needed):
+## Quick check (run inside the Khayt folder)
 
 ```bash
-cd /path/to/Khayt
+pwd
+ls -la design/
+```
+
+You should see PNG, JPG, or PDF files — not only `README.md`.
+
+## Sync so the Cloud Agent can see your files
+
+If you copied files in Cursor on your laptop but the agent still says the folder is empty:
+
+1. In Cursor, open **Source Control** (branch icon).
+2. Confirm `design/your-file.png` appears under **Changes**.
+3. **Commit** (e.g. `chore: add UI mockups`) → **Push**.
+
+Or attach the main screens to the **chat** (drag PNG/PDF into the message).
+
+## Copy from Downloads (macOS)
+
+```bash
+cd ~/Downloads/Khayt
+# ↑ use YOUR real path — run `pwd` after opening the folder in Cursor
+
 mkdir -p design
 cp -r ~/Downloads/design/* design/
+ls design
 git add design/
 git commit -m "chore: add UI design mockups"
 git push
 ```
 
-Or in **Cursor**: drag PNG/PDF/SVG files from `Downloads/design` into this `design/` folder in the file tree, then commit.
+## Copy from Downloads (Windows PowerShell)
 
-## Useful formats
-
-| Format | Notes |
-|--------|--------|
-| `.png` / `.jpg` | Full screens or components — best for implementation |
-| `.pdf` | Export from Figma — include spec pages if any |
-| `.svg` | Icons and logos |
-| Figma link | Share view link in PR/issue if you prefer not to commit binaries |
+```powershell
+cd $env:USERPROFILE\Downloads\Khayt
+mkdir design -Force
+Copy-Item "$env:USERPROFILE\Downloads\design\*" design\ -Recurse
+dir design
+git add design/
+git commit -m "chore: add UI design mockups"
+git push
+```
 
 ## After upload
 
-Tell the agent which file is the **source of truth** (e.g. `dashboard.png`, `home-dark.fig` export) and priority order for screens.
+Tell the agent: *“design is pushed”* and the **main file name** to implement first (e.g. `dashboard.png`).
