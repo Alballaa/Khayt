@@ -330,6 +330,16 @@ function convertToBase(amount, fromCurrency) {
   if (!rate || rate <= 0) return +amount || 0;
   return (+amount || 0) * rate;
 }
+// Revenue of an order in the base currency (gift cards ARE revenue earned — full price).
+function orderRevenueBase(o){ return convertToBase(+o.price || 0, clientCurrency(o.clientId)); }
+// Amount still owed by the customer, in base currency, net of cash paid and gift-card credit.
+function orderOwedBase(o){
+  const cur = clientCurrency(o.clientId);
+  return Math.max(0,
+    convertToBase(+o.price || 0, cur)
+    - convertToBase(+o.paidAmount || 0, cur)
+    - convertToBase(+o.giftCardDiscount || 0, cur));
+}
 // Update all [data-i18n="common.currency"] elements after currency changes
 function refreshCurrencyLabels() {
   const sym = currencySymbol();
@@ -348,9 +358,10 @@ function payStatus(order) {
   const price = +order.price || 0;
   if (price === 0) return order.paymentStatus || 'paid';
 
-  // Subtract any issued credit notes from effective paid amount
+  // Subtract any issued credit notes (refunds) from cash paid, then ADD gift-card
+  // redemption as a credit toward the order (it pays the order down, like a payment).
   const totalCredited = (order.creditNotes || []).reduce((s, cn) => s + (+cn.amount || 0), 0);
-  const effectivePaid = Math.max(0, (+order.paidAmount || 0) - totalCredited);
+  const effectivePaid = Math.max(0, (+order.paidAmount || 0) - totalCredited) + (+order.giftCardDiscount || 0);
 
   if (effectivePaid <= 0) return 'unpaid';
   if (effectivePaid >= price) return 'paid';
@@ -473,6 +484,21 @@ function nextInvoiceNumber() {
   settings.invNumYear = currentYear;
   saveAll();
   return result;
+}
+/* Separate quote sequence so two quotes never collide on id (Bug A).
+   Quotes intentionally do NOT advance the invoice counter, but they still
+   need their own monotonic number or back-to-back quotes share an id. */
+function nextQuoteSeq() {
+  const currentYear = new Date().getFullYear();
+  if ((settings.quoteNumYear || currentYear) !== currentYear) {
+    settings.quoteNumYear = currentYear;
+    settings.quoteNumNext = 1;
+  }
+  const seq4 = String(settings.quoteNumNext || 1).padStart(4, '0');
+  settings.quoteNumNext = (settings.quoteNumNext || 1) + 1;
+  settings.quoteNumYear = currentYear;
+  saveAll();
+  return seq4;
 }
 function formatDueDateBadge(dueDate) {
   if (!dueDate) return '';
@@ -883,6 +909,8 @@ function defaultSettings() {
     invNumPrefix:    'INV',
     invNumYear:      new Date().getFullYear(),
     invNumNext:      1,
+    quoteNumYear:    new Date().getFullYear(),
+    quoteNumNext:    1,
     invNumFormat:    '{prefix}-{year}-{seq4}',
     // New Feature 7: Working hours schedule
     workingHours:    { mon: 8, tue: 8, wed: 8, thu: 8, fri: 0, sat: 0, sun: 0 },
@@ -1139,6 +1167,46 @@ async function loadAll() {
   // Sync in-memory kanbanCollapsed Set from settings (ensures restore doesn't cause desync)
   kanbanCollapsed = new Set(settings.kanbanCollapsed || []);
 
+  // One-time migration (Bug A): de-duplicate any colliding order/quote ids.
+  // Quotes historically reused the invoice counter without advancing it, so two
+  // quotes could share an id — and id is the primary key for every lookup.
+  (function dedupeOrderIds() {
+    if (settings._idDedupeDone) return;
+    const seen = new Set();
+    const remap = {};
+    for (const o of printLog) {
+      if (!o || !o.id) continue;
+      if (seen.has(o.id)) {
+        const oldId = o.id;
+        let n = 2;
+        let candidate = `${oldId}-${n}`;
+        while (seen.has(candidate)) { n++; candidate = `${oldId}-${n}`; }
+        o.id = candidate;
+        remap[oldId] = remap[oldId] || [];
+        remap[oldId].push(candidate);
+      }
+      seen.add(o.id);
+    }
+    // Seed the quote counter past the highest existing quote number for this year
+    // so freshly-minted quotes don't immediately collide with pre-existing ones.
+    const yr = new Date().getFullYear();
+    const qPrefix = settings.quotePrefix || 'QUO';
+    let maxQ = 0;
+    for (const o of printLog) {
+      const m = (o.id || '').match(new RegExp('^' + qPrefix + '-' + yr + '-(\\d+)'));
+      if (m) maxQ = Math.max(maxQ, parseInt(m[1], 10) || 0);
+    }
+    if (settings.quoteNumNext === undefined || (settings.quoteNumYear === yr && settings.quoteNumNext <= maxQ)) {
+      settings.quoteNumYear = yr;
+      settings.quoteNumNext = maxQ + 1;
+    }
+    settings._idDedupeDone = true;
+    if (Object.keys(remap).length) {
+      console.warn('[migration] de-duplicated colliding order ids:', remap);
+      saveAll();
+    }
+  })();
+
   // Feature 4 (batch-2): Process any due recurring orders on load
   processRecurringOrders();
 }
@@ -1276,7 +1344,7 @@ function machineDowntimeHoursInRange(machine, fromDate, toDate) {
 function clientOutstandingBalance(clientId) {
   return printLog
     .filter(o => o.clientId === clientId && o.status !== 'quote' && payStatus(o) !== 'paid')
-    .reduce((s, o) => s + Math.max(0, +o.price - (+o.paidAmount || 0)), 0);
+    .reduce((s, o) => s + orderOwedBase(o), 0);
 }
 
 /* ============================================================
@@ -1557,7 +1625,7 @@ function renderCostTrends() {
     const orders = printLog.filter(o =>
       o.status === 'completed' && (o.date || '').startsWith(m.key)
     );
-    const totalRev = orders.reduce((s, o) => s + (+o.price || 0), 0);
+    const totalRev = orders.reduce((s, o) => s + orderRevenueBase(o), 0);
     const totalHrs = orders.reduce((s, o) => s + (+o.printTime || 0), 0);
     return totalHrs > 0 ? totalRev / totalHrs : 0;
   });
@@ -5755,7 +5823,7 @@ function getProductStats(productId) {
   return {
     count: orders.length,
     completedCount: completed.length,
-    revenue: completed.reduce((s, o) => s + +o.price, 0),
+    revenue: completed.reduce((s, o) => s + orderRevenueBase(o), 0),
     lastDate: orders[0]?.date || null
   };
 }
@@ -5788,7 +5856,7 @@ function renderCatalog() {
     let s = productStatsMap.get(o.productId);
     if (!s) { s = { count: 0, completedCount: 0, revenue: 0, lastDate: null }; productStatsMap.set(o.productId, s); }
     s.count++;
-    if (o.status === 'completed') { s.completedCount++; s.revenue += +o.price; }
+    if (o.status === 'completed') { s.completedCount++; s.revenue += orderRevenueBase(o); }
     if (!s.lastDate || o.date > s.lastDate) s.lastDate = o.date;
   }
 
@@ -6207,7 +6275,7 @@ function getClientStats(clientId) {
   return {
     count: orders.length,
     completedCount: completed.length,
-    revenue: completed.reduce((s, o) => s + +o.price, 0),
+    revenue: completed.reduce((s, o) => s + orderRevenueBase(o), 0),
     lastDate: sorted[0]?.date || null
   };
 }
@@ -6242,7 +6310,7 @@ function renderClients() {
     let s = clientStatsMap.get(o.clientId);
     if (!s) { s = { count: 0, completedCount: 0, revenue: 0, lastDate: null }; clientStatsMap.set(o.clientId, s); }
     s.count++;
-    if (o.status === 'completed') { s.completedCount++; s.revenue += +o.price; }
+    if (o.status === 'completed') { s.completedCount++; s.revenue += orderRevenueBase(o); }
     if (!s.lastDate || o.date > s.lastDate) s.lastDate = o.date;
     // Survey ratings
     if (o.survey?.rating) {
@@ -6252,7 +6320,7 @@ function renderClients() {
     }
     // Outstanding balance (unpaid non-quote orders)
     if (o.status !== 'quote' && payStatus(o) !== 'paid') {
-      const outstanding = Math.max(0, +o.price - (+o.paidAmount || 0));
+      const outstanding = orderOwedBase(o);
       if (outstanding > 0) clientBalanceMap.set(o.clientId, (clientBalanceMap.get(o.clientId) || 0) + outstanding);
     }
   }
@@ -6266,7 +6334,7 @@ function renderClients() {
         if (!o.clientId || o.status !== 'completed') continue;
         let ts = tierSpend.get(o.clientId);
         if (!ts) { ts = { completedCount: 0, totalSpend: 0 }; tierSpend.set(o.clientId, ts); }
-        ts.completedCount++; ts.totalSpend += +o.price || 0;
+        ts.completedCount++; ts.totalSpend += orderRevenueBase(o);
       }
       for (const [cid, { completedCount, totalSpend }] of tierSpend) {
         const eligible = tiers.filter(tier =>
@@ -6547,13 +6615,15 @@ function generateClientStatement(clientId) {
     ? (settings.bizAr || settings.bizEn || 'Khayt')
     : (settings.bizEn || settings.bizAr || 'Khayt');
 
-  const totalCharges = orders.reduce((s, o) => s + (+o.price || 0), 0);
+  const totalCharges = orders.reduce((s, o) => s + orderRevenueBase(o), 0);
   const totalPaid    = orders.reduce((s, o) => s + (+o.paidAmount || (payStatus(o) === 'paid' ? +o.price : 0)), 0);
-  const outstanding  = Math.max(0, totalCharges - totalPaid);
+  // Gift-card redemptions settle part of the balance just like a payment.
+  const totalGift    = orders.reduce((s, o) => s + (+o.giftCardDiscount || 0), 0);
+  const outstanding  = Math.max(0, totalCharges - totalPaid - totalGift);
 
   const rowsHtml = orders.map(o => {
     const paid  = +o.paidAmount || (payStatus(o) === 'paid' ? +o.price : 0);
-    const bal   = Math.max(0, (+o.price || 0) - paid);
+    const bal   = Math.max(0, (+o.price || 0) - paid - (+o.giftCardDiscount || 0));
     return `<tr style="border-bottom:1px solid #eee;">
       <td style="padding:6px 8px; font-size:12px; white-space:nowrap;">${escapeHtml(o.date || '')}</td>
       <td style="padding:6px 8px; font-size:12px;">${escapeHtml(o.id)}</td>
@@ -7151,7 +7221,8 @@ function logPrint(asQuote = false) {
   const prefix = asQuote ? (settings.quotePrefix || 'QUO') : (settings.invPrefix || 'INV');
   // Only advance the formal invoice counter for real orders, not quotes
   const invoiceNum = asQuote ? null : nextInvoiceNumber();
-  const seq = invoiceNum ? String(settings.invNumNext - 1).padStart(4, '0') : String(settings.invNumNext || 1).padStart(4, '0');
+  // Quotes use their own counter so two quotes never share an id (id is the primary key).
+  const seq = asQuote ? nextQuoteSeq() : String(settings.invNumNext - 1).padStart(4, '0');
   const id = `${prefix}-${now.getFullYear()}-${seq}`;
   printLog.unshift({
     id,
@@ -7485,11 +7556,20 @@ function qcPassOrder(orderId) {
       if (!order.statusHistory) order.statusHistory = [];
       order.statusHistory.push({ status: 'completed', at: new Date().toISOString() });
       if (order.statusHistory.length > 200) order.statusHistory = order.statusHistory.slice(-200);
+      // Deduct stock eagerly so cancelling the actuals modal can't leave a completed
+      // order with no deduction (Bug B). Both deduct fns are idempotent (guard on
+      // order.materialDeducted / order.packagingDeducted), so the repeat call inside
+      // the actuals callback below is a harmless no-op.
+      deductFilamentForOrder(order);
+      if (!order.costBasis) {
+        order.costBasis = (order.parts || []).reduce((s, p) => s + (+p.baseCost || 0), 0);
+      }
+      deductPackagingConsumables(order);
       // Persist completion immediately so it's not lost if actuals modal is cancelled
       saveAll();
-      renderKanban(); renderLogs();
+      renderKanban(); renderLogs(); renderInventory();
       toast(t('ord.qc_passed'), 'success');
-      // Prompt for actuals after QC modal closes, then finalise
+      // Prompt for actuals after QC modal closes (records actuals; deduction already done)
       setTimeout(() => promptActuals(order, () => {
         deductFilamentForOrder(order);
         deductPackagingConsumables(order);
@@ -7732,8 +7812,12 @@ function openPaymentModal(orderId) {
       order.paidAmount    = Math.min(Math.max(0, draft.paidAmount || 0), +order.price || 0);
       order.paymentMethod = draft.paymentMethod;
       order.paidAt        = draft.paidAt;
-      order.paymentStatus = (draft.paidAmount >= fullAmount) ? 'paid'
-                          : (draft.paidAmount > 0 ? 'partial' : 'unpaid');
+      {
+        const giftCredit = +order.giftCardDiscount || 0;
+        const effPaid = (draft.paidAmount || 0) + giftCredit;
+        order.paymentStatus = (effPaid >= fullAmount) ? 'paid'
+                            : (effPaid > 0 ? 'partial' : 'unpaid');
+      }
       saveAll();
       renderLogs(); renderKanban(); renderAnalytics();
       toast(t('pay.saved'), 'success');
@@ -9018,7 +9102,7 @@ async function exportAnalyticsReport() {
   const pl = printLog || [];
   const completedOrders = pl.filter(o => o.status === 'completed');
   const totalRev = pl.filter(o => o.status === 'completed' || o.status === 'delivered')
-    .reduce((s, o) => s + (+o.price || 0), 0);
+    .reduce((s, o) => s + orderRevenueBase(o), 0);
   const totalOrders = pl.length;
   const avgMargin = (() => {
     const withMargin = completedOrders.filter(o => o.costBasis > 0 && +o.price > 0);
@@ -10482,7 +10566,7 @@ function renderExpenses() {
   const totalExpenses = filtered.reduce((s, e) => s + e.amount, 0);
   const revenue = printLog
     .filter(o => o.status === 'completed' && inRange(o.date, expRangeFilter, 'expenses'))
-    .reduce((s, o) => s + +o.price, 0);
+    .reduce((s, o) => s + orderRevenueBase(o), 0);
   const profit = revenue - totalExpenses;
 
   const byCategory = {};
@@ -10699,7 +10783,7 @@ function renderWasteLog() {
       WASTE_FAILURE_TYPES.map(ft => `<option value="${escapeHtml(ft)}"${ft === wasteFailureFilter ? ' selected' : ''}>${escapeHtml(t('waste.ft.' + ft))}</option>`).join('');
   }
   if (statEl) {
-    const completedRevenue = printLog.filter(o => o.status === 'completed').reduce((s, o) => s + +o.price, 0);
+    const completedRevenue = printLog.filter(o => o.status === 'completed').reduce((s, o) => s + orderRevenueBase(o), 0);
     const wastePct = completedRevenue > 0 ? (totalWasteCost / completedRevenue * 100) : null;
     const maxFt = Object.values(ftCounts).reduce((a, b) => Math.max(a, b), 1);
     const ftBars = WASTE_FAILURE_TYPES.filter(ft => ftCounts[ft] > 0).sort((a, b) => (ftCounts[b] || 0) - (ftCounts[a] || 0)).map(ft => {
@@ -11082,10 +11166,10 @@ function _doExportTaxSummary(periodLabel, fromDate, toDate) {
     if (!month) continue;
     if (!monthMap[month]) monthMap[month] = { orders: 0, revenue: 0, vatCollected: 0, shipping: 0 };
     monthMap[month].orders++;
-    monthMap[month].revenue += +o.price || 0;
-    monthMap[month].shipping += +o.shippingCost || 0;
+    monthMap[month].revenue += orderRevenueBase(o);
+    monthMap[month].shipping += convertToBase(+o.shippingCost || 0, clientCurrency(o.clientId));
     const rate = settings.enableVat ? (+settings.vatRate || 15) : 0;
-    monthMap[month].vatCollected += rate > 0 ? (+o.price || 0) * rate / (100 + rate) : 0;
+    monthMap[month].vatCollected += rate > 0 ? orderRevenueBase(o) * rate / (100 + rate) : 0;
   }
   // Group expenses by YYYY-MM
   const expMap = {};
@@ -11553,10 +11637,10 @@ function buildDigestEmailHtml() {
     o.status === 'completed' &&
     o.completedAt && o.completedAt >= fromIso && o.completedAt <= toIso
   );
-  const revenueThisPeriod = completedThisPeriod.reduce((s, o) => s + (+o.price || 0), 0);
+  const revenueThisPeriod = completedThisPeriod.reduce((s, o) => s + orderRevenueBase(o), 0);
   const outstanding = printLog
-    .filter(o => o.status === 'completed' && !o.paid)
-    .reduce((s, o) => s + (+o.price || 0), 0);
+    .filter(o => o.status === 'completed' && payStatus(o) !== 'paid')
+    .reduce((s, o) => s + orderOwedBase(o), 0);
 
   // Low-stock spools
   const reorderPt = settings.lowStockThreshold ?? 200;
@@ -11981,7 +12065,7 @@ function getClientTier(clientId) {
   for (const o of printLog) {
     if (o.clientId !== clientId || o.status !== 'completed') continue;
     completedCount++;
-    totalSpend += +o.price || 0;
+    totalSpend += orderRevenueBase(o);
   }
 
   // Find the highest tier the client qualifies for
@@ -12248,7 +12332,7 @@ function renderAgedReceivables() {
     } else {
       const orderDate = new Date((o.date || o.timestamp || today.toISOString()).split('T')[0] + 'T00:00:00');
       const days = Math.max(0, Math.floor((today - orderDate) / 86400000));
-      const owed = Math.max(0, (+o.price || 0) - (+o.paidAmount || 0));
+      const owed = orderOwedBase(o);
       if (owed > 0) addToBucket({ id: o.id, project: o.project, client: arClientName, owed, days, payStatus: payStatus(o) });
     }
   });
@@ -12257,7 +12341,7 @@ function renderAgedReceivables() {
     if (o.instalments && o.instalments.length > 0) {
       return s + o.instalments.filter(ins => !ins.paid).reduce((si, ins) => si + Math.max(0, +ins.amount || 0), 0);
     }
-    return s + Math.max(0, (+o.price||0) - (+o.paidAmount||0));
+    return s + orderOwedBase(o);
   }, 0);
 
   const bucketColors = { '0–30': 'var(--success)', '31–60': 'var(--warning)', '61–90': '#f97316', '90+': 'var(--danger)' };
@@ -12493,7 +12577,7 @@ function computeBreakEven() {
   // Avg contribution margin per order (last 90 days)
   const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 90);
   const recent = printLog.filter(o => o.status === 'completed' && o.date && new Date(o.date + 'T00:00:00') >= cutoff);
-  const avgRevPerOrder = recent.length > 0 ? recent.reduce((s, o) => s + (+o.price || 0), 0) / recent.length : 0;
+  const avgRevPerOrder = recent.length > 0 ? recent.reduce((s, o) => s + orderRevenueBase(o), 0) / recent.length : 0;
   const avgMaterialCost = recent.length > 0 ? recent.reduce((s, o) => {
     const mc = (o.parts || []).reduce((ps, p) => {
       if (!p.filamentId) return ps;
@@ -12518,7 +12602,7 @@ function renderBreakEvenCard() {
   const thisMonthStr = localMonthStr(today);
   const monthRev = printLog
     .filter(o => o.status === 'completed' && (o.date || '').startsWith(thisMonthStr))
-    .reduce((s, o) => s + (+o.price || 0), 0);
+    .reduce((s, o) => s + orderRevenueBase(o), 0);
 
   if (fixedCosts.length === 0) {
     el.innerHTML = `<p style="color:var(--text-muted);font-size:13px;">No fixed costs configured. <a href="#" id="goToBreakEvenSettings" style="color:var(--primary);">Add fixed costs in Settings →</a></p>`;
@@ -13382,6 +13466,13 @@ function exportAccountingCSV() {
       rows.push([o.paidAt?.split('T')[0]||o.date||'', o.id, 'Payment', `Payment for ${escapeHtml(o.id)}`, 'Cash / Bank', (+o.paidAmount||0).toFixed(2), '', '', cur]);
       rows.push([o.paidAt?.split('T')[0]||o.date||'', o.id, 'Payment', `Payment for ${escapeHtml(o.id)}`, 'Accounts Receivable', '', (+o.paidAmount||0).toFixed(2), '', cur]);
     }
+    if ((+o.giftCardDiscount || 0) > 0) {
+      // Clear the gift-card-settled portion from A/R against the gift-card liability,
+      // otherwise the exported ledger leaves that portion open forever.
+      const gd = (+o.giftCardDiscount).toFixed(2);
+      rows.push([o.paidAt?.split('T')[0]||o.date||'', o.id, 'Payment', `Gift card redeemed for ${escapeHtml(o.id)}`, 'Gift Card Liability', gd, '', '', cur]);
+      rows.push([o.paidAt?.split('T')[0]||o.date||'', o.id, 'Payment', `Gift card redeemed for ${escapeHtml(o.id)}`, 'Accounts Receivable', '', gd, '', cur]);
+    }
   });
 
   // Expense entries
@@ -13826,14 +13917,14 @@ function renderDashboard() {
   const thisMonthStr = localMonthStr(today);
   const monthlyRev   = printLog
     .filter(o => o.status === 'completed' && (o.date || '').startsWith(thisMonthStr))
-    .reduce((s, o) => s + +o.price, 0);
+    .reduce((s, o) => s + orderRevenueBase(o), 0);
 
   // QW8: Previous month revenue for delta chip
   const prevMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
   const prevMonthStr = localMonthStr(prevMonthDate);
   const prevMonthRev = printLog
     .filter(o => o.status === 'completed' && (o.date || '').startsWith(prevMonthStr))
-    .reduce((s, o) => s + +o.price, 0);
+    .reduce((s, o) => s + orderRevenueBase(o), 0);
   const revDeltaPct = prevMonthRev > 0 ? ((monthlyRev - prevMonthRev) / prevMonthRev * 100) : null;
   const revDeltaHtml = revDeltaPct !== null
     ? `<span class="delta-chip ${revDeltaPct >= 0 ? 'delta-up' : 'delta-down'}" style="font-size:10px;padding:1px 6px;border-radius:10px;margin-inline-start:6px;font-weight:600;background:${revDeltaPct >= 0 ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)'};color:${revDeltaPct >= 0 ? 'var(--success)' : 'var(--danger)'};">${revDeltaPct >= 0 ? '▲' : '▼'} ${Math.abs(revDeltaPct).toFixed(0)}%</span>`
@@ -13857,7 +13948,7 @@ function renderDashboard() {
     const ds = localDateStr(dd);
     const dayRev = printLog
       .filter(o => o.status === 'completed' && o.date === ds)
-      .reduce((s, o) => s + (+o.price || 0), 0);
+      .reduce((s, o) => s + orderRevenueBase(o), 0);
     sparkData.push(dayRev);
   }
   const sparkMax = Math.max(...sparkData, 1);
@@ -13879,7 +13970,7 @@ function renderDashboard() {
   // Stats
   const active   = printLog.filter(o => o.status !== 'completed' && o.status !== 'quote');
   const todayDone = printLog.filter(o => o.status === 'completed' && o.date === todayStr);
-  const todayRev  = todayDone.reduce((s, o) => s + +o.price, 0);
+  const todayRev  = todayDone.reduce((s, o) => s + orderRevenueBase(o), 0);
   const todayNew = printLog.filter(o => o.date === todayStr && o.status !== 'completed');
   const todayMatG = inventory.reduce((s, item) =>
     s + (item.usageHistory || [])
@@ -13888,12 +13979,12 @@ function renderDashboard() {
   const nowPrinting = printLog.filter(o => o.status === 'printing');
   const receivables = printLog
     .filter(o => (payStatus(o)) !== 'paid')
-    .reduce((s, o) => s + Math.max(0, +o.price - (+o.paidAmount || 0)), 0);
+    .reduce((s, o) => s + orderOwedBase(o), 0);
 
   // Pipeline value — sum of all non-completed, non-quote order prices
   const pipelineValue = printLog
     .filter(o => o.status !== 'completed' && o.status !== 'quote')
-    .reduce((s, o) => s + (+o.price || 0), 0);
+    .reduce((s, o) => s + orderRevenueBase(o), 0);
 
   // Queue clearance forecast (exclude on_hold orders — they are frozen)
   const pendingHours = printLog
@@ -13932,7 +14023,7 @@ function renderDashboard() {
   const unpaidOrders = printLog.filter(o => payStatus(o) !== 'paid' && !o.voidedAt);
   const agingBuckets = { c0_30: { count: 0, amount: 0 }, c31_60: { count: 0, amount: 0 }, c61_90: { count: 0, amount: 0 }, c91plus: { count: 0, amount: 0 } };
   for (const o of unpaidOrders) {
-    const owed = Math.max(0, +o.price - (+o.paidAmount || 0));
+    const owed = orderOwedBase(o);
     if (owed <= 0) continue;
     const age = Math.round((today - new Date(o.date + 'T00:00:00')) / 86400000);
     if (age <= 30)      { agingBuckets.c0_30.count++;   agingBuckets.c0_30.amount   += owed; }
@@ -14573,7 +14664,7 @@ function renderKanban() {
 
     // Column totals meta line
     const totalHrs = sorted.reduce((s, o) => s + (+o.printTime || 0), 0);
-    const totalVal = sorted.reduce((s, o) => s + (+o.price || 0), 0);
+    const totalVal = sorted.reduce((s, o) => s + orderRevenueBase(o), 0);
     const metaEl = $('#meta-' + status);
     if (metaEl) {
       metaEl.textContent = sorted.length > 0
@@ -15766,18 +15857,18 @@ function renderSimpleReports() {
 
   const thisMonthStr = localMonthStr();
   const monthOrders = printLog.filter(o => o.status === 'completed' && (o.date || '').startsWith(thisMonthStr));
-  const monthRevenue = monthOrders.reduce((s, o) => s + +o.price, 0);
+  const monthRevenue = monthOrders.reduce((s, o) => s + orderRevenueBase(o), 0);
   const monthCount   = monthOrders.length;
 
   const outstanding = printLog
     .filter(o => payStatus(o) !== 'paid')
-    .reduce((s, o) => s + Math.max(0, +o.price - (+o.paidAmount || 0)), 0);
+    .reduce((s, o) => s + orderOwedBase(o), 0);
 
   // Top 3 tags by revenue
   const tagRev = {};
   for (const o of monthOrders) {
     for (const tag of (o.tags || [])) {
-      tagRev[tag] = (tagRev[tag] || 0) + +o.price;
+      tagRev[tag] = (tagRev[tag] || 0) + orderRevenueBase(o);
     }
   }
   const topTags = Object.entries(tagRev).sort((a, b) => b[1] - a[1]).slice(0, 3);
@@ -15834,7 +15925,7 @@ function renderAnalytics() {
   // Receivables — outstanding amount across all unpaid/partial orders, regardless of status
   const receivables = printLog
     .filter(o => (payStatus(o)) !== 'paid')
-    .reduce((s, o) => s + Math.max(0, +o.price - (+o.paidAmount || 0)), 0);
+    .reduce((s, o) => s + orderOwedBase(o), 0);
 
   $('#stat-revenue').textContent = fmtMoney(revenue);
   $('#stat-orders').textContent  = completed.length;
@@ -15858,7 +15949,7 @@ function renderAnalytics() {
     if (!o.productId) return;
     productAgg[o.productId] = productAgg[o.productId] || { count: 0, revenue: 0 };
     productAgg[o.productId].count++;
-    if (o.status === 'completed') productAgg[o.productId].revenue += +o.price;
+    if (o.status === 'completed') productAgg[o.productId].revenue += orderRevenueBase(o);
   });
   const topProducts = Object.entries(productAgg)
     .map(([id, agg]) => {
@@ -15887,7 +15978,7 @@ function renderAnalytics() {
     if (!o.clientId) return;
     clientAgg[o.clientId] = clientAgg[o.clientId] || { count: 0, revenue: 0 };
     clientAgg[o.clientId].count++;
-    clientAgg[o.clientId].revenue += +o.price;
+    clientAgg[o.clientId].revenue += orderRevenueBase(o);
   });
   const topClients = Object.entries(clientAgg)
     .map(([id, agg]) => {
@@ -16075,7 +16166,7 @@ function renderClientSourceChart() {
       const pct = Math.round((counts[s] / maxCount) * 100);
       const revBySource = printLog
         .filter(o => o.status === 'completed' && o.clientId && clients.find(c => c.id === o.clientId && (c.source || 'other') === s))
-        .reduce((sum, o) => sum + (+o.price || 0), 0);
+        .reduce((sum, o) => sum + orderRevenueBase(o), 0);
       return `
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
           <div style="min-width:90px;font-size:12px;color:var(--text);text-align:end;">${escapeHtml(t('cl.source_' + s))}</div>
@@ -16189,7 +16280,7 @@ function renderMonthlyTrendChart() {
   for (const o of printLog) {
     if (o.status !== 'completed') continue;
     const m = (o.date || '').slice(0, 7);
-    if (revByMonth[m] !== undefined) revByMonth[m] += +o.price || 0;
+    if (revByMonth[m] !== undefined) revByMonth[m] += orderRevenueBase(o);
   }
   for (const e of expenses) {
     const m = (e.date || '').slice(0, 7);
@@ -16268,7 +16359,7 @@ function renderMachineRevenueChart() {
     if (!machMap[o.machineId]) {
       machMap[o.machineId] = { name: o.machine || o.machineId, color: '#6b7280', revenue: 0, count: 0 };
     }
-    machMap[o.machineId].revenue += +o.price || 0;
+    machMap[o.machineId].revenue += orderRevenueBase(o);
     machMap[o.machineId].count++;
   }
 
@@ -16521,7 +16612,7 @@ function renderCashFlowChart() {
   for (const o of (printLog || [])) {
     if (!o.paidAt) continue;
     const mk = localMonthStr(new Date(o.paidAt));
-    if (revByMonth[mk] !== undefined) revByMonth[mk] += +o.price || 0;
+    if (revByMonth[mk] !== undefined) revByMonth[mk] += orderRevenueBase(o);
   }
   for (const e of (expenses || [])) {
     if (!e.date) continue;
@@ -16742,7 +16833,7 @@ function renderClientLtvTable() {
 
   const ltvData = (clients || []).map(c => {
     const cOrders = (printLog || []).filter(o => o.clientId === c.id);
-    const ltv = cOrders.reduce((s, o) => s + (+o.price || 0), 0);
+    const ltv = cOrders.reduce((s, o) => s + orderRevenueBase(o), 0);
     const lastOrder = cOrders.reduce((latest, o) => {
       const d = o.completedAt || o.date;
       return d && (!latest || d > latest) ? d : latest;
@@ -17005,8 +17096,8 @@ function renderNewVsReturning() {
   let newRev = 0, retRev = 0, newCount = 0, retCount = 0;
   for (const o of inRangeOrders) {
     const isNew = firstOrderDate[o.clientId] === o.date; // first order = new client
-    if (isNew) { newRev += +o.price; newCount++; }
-    else        { retRev += +o.price; retCount++; }
+    if (isNew) { newRev += orderRevenueBase(o); newCount++; }
+    else        { retRev += orderRevenueBase(o); retCount++; }
   }
   const total = newRev + retRev;
   const newPct  = total > 0 ? Math.round(newRev / total * 100) : 0;
@@ -17048,7 +17139,7 @@ function renderPrinterUtilizationChart() {
     const key = o.machineId || '__none__';
     if (!machMap[key]) continue;
     machMap[key].hours += +o.printTime || 0;
-    machMap[key].revenue += +o.price || 0;
+    machMap[key].revenue += orderRevenueBase(o);
     machMap[key].count++;
     // Estimate material + machine cost from order parts
     const orderCost = (o.parts || []).reduce((s, p) => s + computePartBaseCost(p), 0);
@@ -17149,11 +17240,11 @@ function renderPnLSection() {
     const q = Math.ceil((d.getMonth() + 1) / 3);
     const key = `${d.getFullYear()}-Q${q}`;
     if (!qMap[key]) qMap[key] = { revenue: 0, shipping: 0, vatCollected: 0, orders: 0 };
-    qMap[key].revenue += +o.price || 0;
-    qMap[key].shipping += +o.shippingCost || 0;
+    qMap[key].revenue += orderRevenueBase(o);
+    qMap[key].shipping += convertToBase(+o.shippingCost || 0, clientCurrency(o.clientId));
     qMap[key].orders++;
     const rate = settings.enableVat ? (+settings.vatRate || 15) : 0;
-    qMap[key].vatCollected += rate > 0 ? (+o.price || 0) * rate / (100 + rate) : 0;
+    qMap[key].vatCollected += rate > 0 ? orderRevenueBase(o) * rate / (100 + rate) : 0;
   }
   const expQ = {};
   for (const e of expenses) {
@@ -17232,7 +17323,7 @@ function renderProductProfitability() {
       const prod = products.find(p => p.id === key);
       map[key] = { name: prod ? localName(prod) : t('an.untagged'), revenue: 0, cost: 0, count: 0 };
     }
-    map[key].revenue += +o.price || 0;
+    map[key].revenue += orderRevenueBase(o);
     map[key].count++;
     // Estimate cost from parts if available
     const partCost = (o.parts || []).reduce((s, p) => s + computePartBaseCost(p), 0);
@@ -17377,7 +17468,7 @@ function renderMachinePL() {
   for (const o of completed) {
     const key = o.machineId && machMap[o.machineId] ? o.machineId : '__none__';
     machMap[key].jobs++;
-    machMap[key].revenue += +o.price || 0;
+    machMap[key].revenue += orderRevenueBase(o);
     machMap[key].materialCost += (o.parts || []).reduce((s, p) => s + computePartBaseCost(p), 0);
     // Linked expenses
     machMap[key].linkedExp += expenses
@@ -17683,7 +17774,7 @@ function renderRevenueChart() {
     if (!inRange(o.date, analyticsRange, 'analytics')) continue;
     const key = isDay ? (o.date || '').slice(0, 10) : (o.date || '').slice(0, 7);
     const m = months.find(x => x.key === key);
-    if (m) { m.revenue += +o.price || 0; m.orders++; }
+    if (m) { m.revenue += orderRevenueBase(o); m.orders++; }
   }
 
   const maxRev = Math.max(...months.map(m => m.revenue), 1);
@@ -17870,7 +17961,7 @@ function exportClientsCsv() {
     let s = clientStatsMap.get(o.clientId);
     if (!s) { s = { count: 0, revenue: 0, lastDate: null }; clientStatsMap.set(o.clientId, s); }
     s.count++;
-    if (o.status === 'completed') s.revenue += +o.price;
+    if (o.status === 'completed') s.revenue += orderRevenueBase(o);
     if (!s.lastDate || o.date > s.lastDate) s.lastDate = o.date;
   }
 
@@ -18878,7 +18969,7 @@ function exportClientPortal(clientId) {
   const completedOrders = orders.filter(o => o.status === 'completed');
   const outstanding = orders
     .filter(o => payStatus(o) !== 'paid')
-    .reduce((s, o) => s + Math.max(0, +o.price - (+o.paidAmount || 0)), 0);
+    .reduce((s, o) => s + orderOwedBase(o), 0);
 
   const statusColors = {
     pending: '#f59e0b', printing: '#3b82f6', post: '#8b5cf6',
@@ -19124,7 +19215,7 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
   const dir = isAr ? 'rtl' : 'ltr';
   // Numeral formatting helper — only converts when in Arabic mode with the toggle on
   const num = (v) => (isAr && settings.useArabicNumerals) ? toArabicNumerals(v) : String(v);
-  const isPaid = (order.paymentStatus === 'paid');
+  const isPaid = (payStatus(order) === 'paid');
 
   // Label pairs — (primary, secondary). Primary = working language.
   const isQuoteDoc = order.status === 'quote';
@@ -22188,7 +22279,7 @@ function openShiftChecklistModal() {
 function openEndOfDayReport() {
   const today = localDateStr();
   const completedToday = printLog.filter(o => o.status === 'completed' && (o.completedAt || o.date || '').startsWith(today));
-  const revenueToday   = completedToday.reduce((s, o) => s + (+o.price || 0), 0);
+  const revenueToday   = completedToday.reduce((s, o) => s + orderRevenueBase(o), 0);
   const inProgress     = printLog.filter(o => ['pending','printing','post','qc'].includes(o.status));
   const wasteToday     = wasteLog.filter(w => (w.date || '').startsWith(today));
   const wasteTotalG    = wasteToday.reduce((s, w) => s + (+w.weight || 0), 0);
@@ -22403,10 +22494,15 @@ function applyGiftCard(orderId, code) {
   const outstanding = Math.max(0, (+order.price || 0) - (+order.paidAmount || 0) - (+order.giftCardDiscount || 0));
   const deduct = Math.min(+gc.balance, outstanding);
   if (deduct <= 0) { toast('Order is already fully covered', 'info'); return false; }
+  // Guard legacy/imported cards that predate the redeemedOrders field (avoids a
+  // TypeError that would abort after the balance was already mutated in memory).
+  if (!Array.isArray(gc.redeemedOrders)) gc.redeemedOrders = [];
   gc.balance = Math.max(0, +gc.balance - deduct);
   gc.redeemedOrders.push({ orderId, amount: deduct, at: new Date().toISOString() });
   order.giftCardCode = code;
-  order.giftCardDiscount = deduct;
+  // Accumulate so applying a second card to the same order keeps the prior credit
+  // (outstanding above is already computed net of any existing giftCardDiscount).
+  order.giftCardDiscount = (+order.giftCardDiscount || 0) + deduct;
   saveAll();
   toast(`Gift card applied! ${fmtPrice(deduct)} deducted.`, 'success');
   return true;
@@ -22440,9 +22536,9 @@ function exportGaztVatReturn(period) {
   const periodOrders = printLog.filter(o =>
     o.status === 'completed' && o.date >= fromDate && o.date <= toDate
   );
-  const box1 = periodOrders.reduce((s, o) => s + (+o.price || 0), 0);
-  const box2 = periodOrders.filter(o => +o.vatRate === 0).reduce((s, o) => s + (+o.price || 0), 0);
-  const box3 = periodOrders.reduce((s, o) => s + (+o.vatAmount || 0), 0);
+  const box1 = periodOrders.reduce((s, o) => s + orderRevenueBase(o), 0);
+  const box2 = periodOrders.filter(o => +o.vatRate === 0).reduce((s, o) => s + orderRevenueBase(o), 0);
+  const box3 = periodOrders.reduce((s, o) => s + (convertToBase(+o.vatAmount || 0, clientCurrency(o.clientId))), 0);
   const periodExp = (expenses || []).filter(e => e.date >= fromDate && e.date <= toDate);
   const box6 = periodExp.reduce((s, e) => s + (+e.amount || 0), 0);
   const box7 = periodExp.filter(e => e.vatAmount > 0).reduce((s, e) => s + (+e.vatAmount || 0), 0);
