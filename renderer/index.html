@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="studio/shell.css" />
   <link rel="stylesheet" href="studio/screens.css" />
   <link rel="stylesheet" href="studio/compat.css" />
+  <link rel="stylesheet" href="studio/phase4.css" />
 </head>
 <body class="khayt-studio">
 
@@ -491,6 +492,15 @@
       <!-- Machine Queues -->
       <div id="machineQueuesContainer" class="mb-6"></div>
 
+      <div class="khayt-queue-seg-row">
+        <div class="seg khayt-queue-seg" id="studioQueueSeg" role="group" aria-label="Queue filters">
+          <button type="button" class="on" data-queue-filter="all">All</button>
+          <button type="button" data-queue-filter="fdm">FDM</button>
+          <button type="button" data-queue-filter="resin">Resin</button>
+          <button type="button" data-queue-filter="machine">By machine</button>
+        </div>
+      </div>
+
       <div class="khayt-queue-toolbar row between wrap gap12" style="margin-bottom:16px;">
         <h3 class="card-head sec-title" style="margin:0; flex:1; min-width:120px;"><span class="swatch"></span><span data-i18n="queue.title">Active Production Queue</span></h3>
         <button id="btnStartShift" class="btn btn-sm btn-secondary" data-i18n="startShift">▶ Start Shift</button>
@@ -875,7 +885,8 @@
     </section>
 
     <!-- ===================== INVENTORY ===================== -->
-    <section id="inventory-tab" class="tab-content">
+    <section id="inventory-tab" class="tab-content khayt-inventory">
+      <div id="invStudioStats" class="khayt-inv-stats" style="display:none" aria-hidden="true"></div>
       <div id="reorderAlertsSection" style="display:none;"></div>
       <div id="supplierReorderList" style="margin-bottom:12px;"></div>
       <div id="pipelineDemand"></div>
@@ -1005,16 +1016,24 @@
     </section>
 
     <!-- ===================== CLIENTS ===================== -->
-    <section id="clients-tab" class="tab-content">
-      <div class="toolbar">
-        <h3 class="card-head" style="margin: 0; flex: 1;"><span class="swatch"></span><span data-i18n="cl.title">Clients</span></h3>
-        <input type="search" id="clientSearch" class="toolbar-search" data-i18n-placeholder="cl.search_ph">
-        <button class="btn" id="btnBlankIntakeForm" title="Blank intake form">📋 <span data-i18n="cl.intake_form">Intake form</span></button>
-        <button class="btn ghost small" id="btnExportClientsCsv" title="Export clients to CSV">📥 <span data-i18n="common.export_csv">CSV</span></button>
-        <button id="btnImportClientsCsv" class="btn small ghost" data-i18n="csv.import_clients_btn">Import CSV</button>
-        <button class="btn primary" id="btnAddClient" data-i18n="cl.add">+ Add Client</button>
+    <section id="clients-tab" class="tab-content khayt-clients">
+      <div class="khayt-clients-toolbar">
+        <div class="seg" id="studioClientSeg" role="group" aria-label="Client filters">
+          <button type="button" class="on" data-client-filter="all">All</button>
+          <button type="button" data-client-filter="vat">VAT</button>
+          <button type="button" data-client-filter="b2c">B2C</button>
+          <button type="button" data-client-filter="balance">Has balance</button>
+        </div>
+        <div class="row gap8 wrap khayt-clients-actions">
+          <input type="search" id="clientSearch" class="toolbar-search" data-i18n-placeholder="cl.search_ph">
+          <button class="btn sm subtle" id="btnBlankIntakeForm" title="Blank intake form"><span data-i18n="cl.intake_form">Intake form</span></button>
+          <button class="btn sm subtle" id="btnExportClientsCsv" title="Export clients to CSV"><span data-i18n="common.export_csv">CSV</span></button>
+          <button id="btnImportClientsCsv" class="btn sm subtle" data-i18n="csv.import_clients_btn">Import CSV</button>
+          <button class="btn sm primary" id="btnAddClient" data-i18n="cl.add">+ Add Client</button>
+        </div>
       </div>
-      <div class="card" style="margin-top: 12px;">
+      <div id="clientsCardsGrid" class="khayt-clients-grid" style="display:none" aria-hidden="true"></div>
+      <div class="card" id="clientsTableWrap" style="margin-top: 12px;">
         <div class="table-wrap">
           <table id="clientsTable">
             <thead>
@@ -1907,6 +1926,7 @@
 </div>
 
 <script src="i18n.js"></script>
+<script src="studio/icons.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

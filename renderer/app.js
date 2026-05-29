@@ -2173,6 +2173,8 @@ function initAppShell() {
 
   syncTopbarTitle($('.tab-content.active')?.id || 'dashboard-tab');
 
+  initStudioPhase4();
+
   $('.kanban')?.classList.add('khayt-kanban');
   $$('.kanban-col').forEach(col => {
     col.classList.add('khayt-kcol');
@@ -2206,6 +2208,215 @@ function syncTopbarTitle(tabId) {
   }
 }
 
+
+/* ============================================================
+   Khayt Studio — phase 4 (icons, filters, calc layout, CRM grid)
+   ============================================================ */
+let studioQueueFilter = 'all';
+let studioClientFilter = 'all';
+
+function orderUsesResin(log) {
+  if (log.isResin) return true;
+  for (const p of (log.parts || [])) {
+    if (p.filamentId) {
+      const inv = inventory.find(i => i.id === p.filamentId);
+      if (inv?.materialType === 'resin') return true;
+    }
+  }
+  if (log.machineId) {
+    const m = machines.find(x => x.id === log.machineId);
+    if (m?.type === 'resin') return true;
+  }
+  return false;
+}
+
+function orderMatchesStudioQueueFilter(log) {
+  const f = studioQueueFilter || 'all';
+  if (f === 'all') return true;
+  if (f === 'fdm') return !orderUsesResin(log);
+  if (f === 'resin') return orderUsesResin(log);
+  if (f === 'machine') return !!log.machineId;
+  return true;
+}
+
+function wireStudioQueueFilters() {
+  const seg = $('#studioQueueSeg');
+  if (!seg || seg.dataset.wired === '1') return;
+  seg.dataset.wired = '1';
+  seg.querySelectorAll('[data-queue-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      studioQueueFilter = btn.dataset.queueFilter || 'all';
+      seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === btn));
+      renderKanban();
+    });
+  });
+}
+
+function wireStudioClientFilters() {
+  const seg = $('#studioClientSeg');
+  if (!seg || seg.dataset.wired === '1') return;
+  seg.dataset.wired = '1';
+  seg.querySelectorAll('[data-client-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      studioClientFilter = btn.dataset.clientFilter || 'all';
+      seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === btn));
+      renderClients();
+    });
+  });
+}
+
+function initStudioCalculatorLayout() {
+  const tab = $('#calculator-tab');
+  if (!tab || !document.body.classList.contains('khayt-studio')) return;
+  const grid = tab.querySelector('.grid');
+  if (!grid || grid.classList.contains('khayt-calc-layout')) return;
+  const cards = [...grid.querySelectorAll(':scope > .card')];
+  const material = cards.find(c => c.classList.contains('material'));
+  const machine = cards.find(c => c.classList.contains('machine'));
+  const labor = cards.find(c => c.classList.contains('labor'));
+  const summary = cards.find(c => c.classList.contains('summary'));
+  if (!summary) return;
+
+  const layout = document.createElement('div');
+  layout.className = 'grid khayt-calc-layout';
+  const formCol = document.createElement('div');
+  formCol.className = 'khayt-calc-form';
+  const asideCol = document.createElement('div');
+  asideCol.className = 'khayt-calc-aside';
+  [material, machine, labor].filter(Boolean).forEach(c => formCol.appendChild(c));
+  summary.classList.add('khayt-calc-summary');
+  asideCol.appendChild(summary);
+  layout.appendChild(formCol);
+  layout.appendChild(asideCol);
+  grid.replaceWith(layout);
+}
+
+function renderInventoryStudioStats() {
+  const el = $('#invStudioStats');
+  if (!el || !document.body.classList.contains('khayt-studio')) return;
+  if (!inventory.length) {
+    el.style.display = 'none';
+    el.setAttribute('aria-hidden', 'true');
+    return;
+  }
+  const low = inventory.filter(i => i.weight <= (i.reorderPoint ?? settings.lowStockThreshold));
+  const totalValue = inventory.reduce((s, item) => {
+    const sw = Math.max(1, +item.spoolWeight || 1000);
+    const pricePerG = item.cost > 0 ? item.cost / sw : 0;
+    return s + pricePerG * Math.max(0, +item.weight || 0);
+  }, 0);
+  const dryingNow = inventory.filter(i => {
+    const log = i.dryingLog || [];
+    if (!log.length) return false;
+    const last = [...log].sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
+    if (!last?.date) return false;
+    const hours = (Date.now() - new Date(last.date + 'T12:00:00').getTime()) / 3600000;
+    return hours < 48;
+  }).length;
+  const stats = [
+    { l: t('inv.total_spools') || 'Total spools', v: inventory.length, u: '', c: 'var(--info)' },
+    { l: t('inv.total_value') || 'Stock value', v: Math.round(totalValue).toLocaleString(), u: settings.currency || 'SAR', c: 'var(--accent)' },
+    { l: t('inv.low_stock_count') || 'Below reorder', v: low.length, u: t('inv.items') || 'items', c: 'var(--warn)' },
+    { l: t('inv.drying_now') || 'Drying now', v: dryingNow, u: '', c: 'var(--violet, #a78bfa)' },
+  ];
+  el.innerHTML = stats.map(s => `
+    <div class="khayt-inv-stat">
+      <div class="col" style="gap:4px">
+        <span class="eyebrow">${escapeHtml(s.l)}</span>
+        <span class="row" style="align-items:baseline;gap:4px">
+          <span class="metric">${escapeHtml(String(s.v))}</span>
+          ${s.u ? `<span class="mono" style="font-size:11px;color:var(--text-muted)">${escapeHtml(s.u)}</span>` : ''}
+        </span>
+      </div>
+      <span class="dot" style="background:${s.c};width:10px;height:10px"></span>
+    </div>`).join('');
+  el.style.display = 'grid';
+  el.removeAttribute('aria-hidden');
+}
+
+function renderClientsStudioCards(filtered, maps) {
+  const grid = $('#clientsCardsGrid');
+  const tableWrap = $('#clientsTableWrap');
+  if (!grid || !document.body.classList.contains('khayt-studio')) return false;
+  const { clientStatsMap, clientBalanceMap, clientTierMap } = maps;
+  const tierColor = { Gold: 'var(--warn)', Silver: '#aeb6c4', Bronze: '#c08457' };
+
+  let list = filtered;
+  if (studioClientFilter === 'vat') {
+    list = list.filter(c => !!(c.vat || '').trim());
+  } else if (studioClientFilter === 'b2c') {
+    list = list.filter(c => !(c.vat || '').trim() && !(c.cr || '').trim());
+  } else if (studioClientFilter === 'balance') {
+    list = list.filter(c => (clientBalanceMap.get(c.id) || 0) > 0);
+  }
+
+  grid.style.display = list.length ? 'grid' : 'none';
+  grid.removeAttribute('aria-hidden');
+  if (tableWrap) tableWrap.classList.toggle('khayt-clients-legacy-hidden', list.length > 0);
+
+  if (!list.length) {
+    grid.innerHTML = `<p class="dash-empty" style="padding:18px;grid-column:1/-1">${escapeHtml(t('cl.empty_search') || 'No clients match.')}</p>`;
+    return true;
+  }
+
+  grid.innerHTML = list.map(c => {
+    const stats = clientStatsMap.get(c.id) || { count: 0, revenue: 0 };
+    const displayName = localName(c);
+    const balance = clientBalanceMap.get(c.id) || 0;
+    const tier = clientTierMap.get(c.id);
+    const color = safeCssColor(c.color, 'var(--accent)');
+    const initials = (displayName || '?').split(/\s+/).map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+    const credit = Math.max(0, +c.creditLimit || 0);
+    const creditPct = credit > 0 ? Math.min(100, (balance / credit) * 100) : 0;
+    const tag = c.source && c.source !== 'other' ? (t('cl.source_' + c.source) || c.source) : (c.phone || '');
+    return `
+      <div class="card khayt-client-card">
+        <div class="row between">
+          <div class="row gap10 grow" style="align-items:center;min-width:0">
+            <span class="khayt-cavatar" style="background:color-mix(in srgb, ${color} 22%, var(--surface-2));color:${color}">${escapeHtml(initials)}</span>
+            <div class="col grow" style="line-height:1.25;min-width:0">
+              <strong style="font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(displayName || '—')}</strong>
+              <span style="font-size:11px;color:var(--text-muted)">${escapeHtml(tag)}${tier ? ` · <span style="color:${tierColor[tier.name] || 'var(--text-muted)'}">${escapeHtml(tier.name)}</span>` : ''}</span>
+            </div>
+          </div>
+          <button type="button" class="btn ghost sm icon" data-act="cl-edit" data-id="${c.id}" title="${escapeHtml(t('common.edit'))}">⋯</button>
+        </div>
+        <hr class="thread" style="margin:13px 0" />
+        <div class="row between">
+          ${[['Orders', stats.count, ''], ['Lifetime', Math.round(stats.revenue).toLocaleString(), settings.currency || 'SAR'], ['Balance', balance > 0 ? Math.round(balance).toLocaleString() : '0', balance > 0 ? (settings.currency || 'SAR') : '']].map(([l, v, u]) => `
+            <div class="col" style="gap:3px">
+              <span class="mono" style="font-size:9.5px;color:var(--text-muted);letter-spacing:0.06em">${escapeHtml(String(l).toUpperCase())}</span>
+              <span class="row" style="align-items:baseline;gap:3px">
+                <span class="metric" style="font-size:15px;color:${l === 'Balance' && balance > 0 ? 'var(--warn)' : 'var(--text)'}">${escapeHtml(String(v))}</span>
+                ${u ? `<span class="mono" style="font-size:9px;color:var(--text-faint)">${escapeHtml(u)}</span>` : ''}
+              </span>
+            </div>`).join('')}
+        </div>
+        ${credit > 0 ? `
+        <div style="margin-top:13px">
+          <div class="row between" style="margin-bottom:5px">
+            <span style="font-size:10.5px;color:var(--text-muted)">${escapeHtml(t('cl.credit_used') || 'Credit used')}</span>
+            <span class="mono" style="font-size:10.5px;color:var(--text-dim)">${Math.round(balance)} / ${Math.round(credit)}</span>
+          </div>
+          <div class="meter"><i style="width:${creditPct}%;background:${creditPct > 70 ? 'var(--danger)' : 'var(--accent)'}"></i></div>
+        </div>` : ''}
+        <div class="row gap6" style="margin-top:12px;flex-wrap:wrap">
+          <button class="btn sm subtle" data-act="cl-quote" data-id="${c.id}">${escapeHtml(t('cl.quote'))}</button>
+          <button class="btn sm subtle" data-act="cl-history" data-id="${c.id}">${escapeHtml(t('cl.history'))}</button>
+        </div>
+      </div>`;
+  }).join('');
+  return true;
+}
+
+function initStudioPhase4() {
+  if (!document.body.classList.contains('khayt-studio')) return;
+  window.KhaytIcon?.hydrateNav?.();
+  wireStudioQueueFilters();
+  wireStudioClientFilters();
+  initStudioCalculatorLayout();
+}
+
 /* ============================================================
    Tabs
    ============================================================ */
@@ -2226,6 +2437,7 @@ function switchTab(tabId) {
   if (tabId === 'expenses-tab')   { renderExpenses(); populateExpOrderDatalist(); }
   if (tabId === 'catalog-tab')    renderCatalog();
   if (tabId === 'clients-tab')    renderClients();
+  if (tabId === 'calculator-tab')  initStudioCalculatorLayout();
   if (tabId === 'queue-tab')      { renderMachineQueues(); renderKanban(); }
   if (tabId === 'analytics-tab')  { if (settings.mode === 'simple') renderSimpleReports(); else renderAnalytics(); }
   if (tabId === 'gift-cards-tab') renderGiftCards();
@@ -4945,6 +5157,7 @@ function renderReorderAlerts() {
 }
 
 function renderInventory() {
+  renderInventoryStudioStats();
   renderReorderAlerts();
   renderSupplierReorderList();
   renderPipelineDemand();
@@ -6362,10 +6575,24 @@ function renderClients() {
     );
   }
   if (clients.length === 0) {
+    const grid0 = $('#clientsCardsGrid');
+    const wrap0 = $('#clientsTableWrap');
+    if (grid0 && document.body.classList.contains('khayt-studio')) {
+      grid0.innerHTML = `<p class="dash-empty" style="padding:18px">${escapeHtml(t('cl.empty'))}</p>`;
+      grid0.style.display = 'block';
+      grid0.removeAttribute('aria-hidden');
+      if (wrap0) wrap0.classList.add('khayt-clients-legacy-hidden');
+    }
     tbody.innerHTML = `<tr><td colspan="7" class="empty-state">${escapeHtml(t('cl.empty'))}</td></tr>`;
     return;
   }
   if (filtered.length === 0) {
+    const gridE = $('#clientsCardsGrid');
+    if (gridE && document.body.classList.contains('khayt-studio')) {
+      gridE.innerHTML = `<p class="dash-empty" style="padding:18px">${escapeHtml(t('cl.empty_search'))}</p>`;
+      gridE.style.display = 'block';
+      if ($('#clientsTableWrap')) $('#clientsTableWrap').classList.add('khayt-clients-legacy-hidden');
+    }
     tbody.innerHTML = `<tr><td colspan="7" class="empty-state">${escapeHtml(t('cl.empty_search'))}</td></tr>`;
     return;
   }
@@ -6419,6 +6646,9 @@ function renderClients() {
       }
     }
   }
+
+  const clientMaps = { clientStatsMap, clientBalanceMap, clientTierMap, clientSurveyMap };
+  if (renderClientsStudioCards(filtered, clientMaps)) return;
 
   tbody.innerHTML = filtered.map(c => {
     const stats = clientStatsMap.get(c.id) || { count: 0, completedCount: 0, revenue: 0, lastDate: null };
@@ -15037,6 +15267,7 @@ function renderKanban() {
       const hay = [o.project, o.id, o.client, client?.nameEn, client?.nameAr, client?.phone].join(' ').toLowerCase();
       if (!hay.includes(kanTerm)) return false;
     }
+    if (!orderMatchesStudioQueueFilter(o)) return false;
     return true;
   }).forEach(o => {
     // Delivered column: completed orders that have a deliveredAt timestamp
