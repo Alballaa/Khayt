@@ -57,6 +57,12 @@ const STRINGS = {
     'tab.waste':            'Waste Log',
     'tab.settings':         'Settings',
 
+    'nav.group.overview':   'Overview',
+    'nav.group.production': 'Production',
+    'nav.group.sales':      'Sales',
+    'nav.group.business':   'Business',
+    'nav.collapse':         'Collapse sidebar',
+
     // ---------- Payment ----------
     'pay.unpaid':           'Unpaid',
     'pay.partial':          'Partial',
@@ -2367,6 +2373,12 @@ const STRINGS = {
     'tab.expenses':         'المصروفات',
     'tab.waste':            'سجل الهدر',
     'tab.settings':         'الإعدادات',
+
+    'nav.group.overview':   'نظرة عامة',
+    'nav.group.production': 'الإنتاج',
+    'nav.group.sales':      'المبيعات',
+    'nav.group.business':   'الأعمال',
+    'nav.collapse':         'طي القائمة',
 
     'pay.unpaid':           'غير مدفوع',
     'pay.partial':          'مدفوع جزئياً',
