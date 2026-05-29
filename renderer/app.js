@@ -21824,6 +21824,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (el) el.textContent = `${progress.percent}%`;
     });
 
+    // 2b. Update error — surface it instead of leaving the banner stuck at 0%
+    window.hubAPI?.onUpdateError?.((err) => {
+      const banner = document.getElementById('updateBanner');
+      if (!banner) return;
+      const msg = escapeHtml(err?.message || 'Update failed');
+      banner.innerHTML =
+        `⚠ Update failed: <span style="opacity:.85;font-size:12px;">${msg}</span> ` +
+        `<span id="updBtnCloseErr" style="opacity:.7;font-size:18px;cursor:pointer;line-height:1;margin-inline-start:6px;">×</span>`;
+      banner.querySelector('#updBtnCloseErr')?.addEventListener('click', () => banner.remove());
+    });
+
     // 3. Download complete — show restart button
     window.hubAPI?.onUpdateDownloaded?.((info) => {
       const banner = makeBanner(

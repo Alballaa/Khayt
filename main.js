@@ -38,6 +38,8 @@ function setupAutoUpdater(win) {
 
   autoUpdater.on('error', (err) => {
     console.error('[updater]', err?.message || err);
+    if (!win || win.isDestroyed()) return;
+    win.webContents.send('update-error', { message: String(err?.message || err || 'Unknown update error') });
   });
 
   // Check 12 seconds after launch so the window is fully loaded first.
@@ -47,7 +49,21 @@ function setupAutoUpdater(win) {
   }
 }
 
-ipcMain.handle('hub:start-update-download', () => autoUpdater.downloadUpdate());
+ipcMain.handle('hub:start-update-download', async () => {
+  try {
+    await autoUpdater.downloadUpdate();
+    return { ok: true };
+  } catch (err) {
+    // downloadUpdate() can reject without ever firing the 'error' event
+    // (e.g. network failure, signature mismatch) — surface it so the UI
+    // doesn't sit silently at 0%.
+    const message = String(err?.message || err || 'Download failed');
+    console.error('[updater] downloadUpdate failed:', message);
+    const win = BrowserWindow.getAllWindows()[0];
+    if (win && !win.isDestroyed()) win.webContents.send('update-error', { message });
+    return { ok: false, error: message };
+  }
+});
 ipcMain.handle('hub:install-update', async (_e, storeSnapshot) => {
   // If the renderer sent a final store snapshot, flush it to disk atomically
   // before the process is killed — this closes the 300ms debounce race window.

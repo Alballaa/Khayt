@@ -135,4 +135,5 @@ contextBridge.exposeInMainWorld('hubAPI', {
   onUpdateAvailable:        (() => { let _cb=null; ipcRenderer.on('update-available',         (_e,d)=>{ if(_cb) _cb(d); }); return cb=>{ _cb=cb; }; })(),
   onUpdateDownloadProgress: (() => { let _cb=null; ipcRenderer.on('update-download-progress', (_e,d)=>{ if(_cb) _cb(d); }); return cb=>{ _cb=cb; }; })(),
   onUpdateDownloaded:       (() => { let _cb=null; ipcRenderer.on('update-downloaded',        (_e,d)=>{ if(_cb) _cb(d); }); return cb=>{ _cb=cb; }; })(),
+  onUpdateError:            (() => { let _cb=null; ipcRenderer.on('update-error',             (_e,d)=>{ if(_cb) _cb(d); }); return cb=>{ _cb=cb; }; })(),
 });
