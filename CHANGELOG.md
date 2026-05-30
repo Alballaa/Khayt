@@ -4,20 +4,18 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-05-30
+
 ### Fixed
 
-- **Critical:** Export `importClientsCsv` globally so app boot completes — fixes blank dashboard and non-working Settings sidebar links (wireEvents aborted mid-setup).
+- **Critical:** Export `importClientsCsv` globally so app boot completes — fixes blank dashboard and non-working Settings sidebar links (`wireEvents` aborted mid-setup during 2.1.0 modular split).
 
 ### Changed
 
 - Settings → About credits AI-assisted development; production queue toolbar actions lay out horizontally again.
 - Removed optional GitHub Sponsors URL field — sponsor button links to the official profile.
-- Added missing inventory and queue locale strings (`inv.low_stock_alert`, `inv.draft_po`, `inv.search_ph`, `queue.idle`, `queue.no_pending`).
-- README: updated versioning (2.1.x), project structure, and setup doc link.
-
-### Changed (prior)
-
-- New Khayt brand system: hotend + filament-layered **خ** app icon, SVG sidebar mark, regenerated `icon.icns`, iconset, and Microsoft Store (`appx`) assets. Run `npm run build:icons` after editing `make_icon.py` or `assets/logo/khayt-mark.svg`.
+- Added missing inventory and queue locale strings; README updated for 2.1.x.
+- E2E smoke test now asserts dashboard render and Settings nav.
 
 ## [2.1.0] - 2026-05-30
 
