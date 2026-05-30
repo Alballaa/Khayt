@@ -2,9 +2,10 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (2.1.x)
+## Now (2.2.0)
 
-- [ ] Triage post-2.1.0 feedback and plan the next significant slice (target **2.2.0** when justified)
+- [x] **Bundle C — LAN quote approval:** public quote page, share link modal, portal survey, client-approval sync
+- [ ] Bundles A–B (production shop, ZATCA/SMTP) — see open PRs when merging 2.2.0
 
 ## Completed (2.1.0 — 2026-05-30)
 

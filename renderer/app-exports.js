@@ -70,6 +70,25 @@ async function exportQuoteApprovalPage(orderId) {
     </tr>`;
   }).join('');
 
+  const lanInfo = await window.hubAPI?.getLanUrl?.();
+  const approveUrl = lanInfo?.ok ? `${lanInfo.url}/order/${orderId}/quote` : null;
+  let approveQrHtml = '';
+  if (approveUrl) {
+    try {
+      const qrDataUrl = await window.hubAPI.generateQR(approveUrl, { width: 160 });
+      if (qrDataUrl) {
+        approveQrHtml = `
+        <div style="text-align:center;margin-top:16px;">
+          <img src="${qrDataUrl}" alt="QR" width="160" height="160" style="display:block;margin:0 auto 12px;">
+          <p style="font-size:0.85rem;word-break:break-all;"><a href="${escapeHtml(approveUrl)}">${escapeHtml(approveUrl)}</a></p>
+        </div>`;
+      }
+    } catch (e) { /* silent */ }
+  }
+  const howToApprove = approveUrl
+    ? (t('ord.quote_how_to_approve_lan') || 'Open the link or scan the QR code to approve online.')
+    : t('ord.quote_how_to_approve');
+
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -147,9 +166,10 @@ async function exportQuoteApprovalPage(orderId) {
 
       <div class="approve-section">
         <h2>✅ ${escapeHtml(t('ord.quote_approval_page'))}</h2>
-        <p>${escapeHtml(t('ord.quote_how_to_approve'))}</p>
-        ${contactEmail ? `<p style="margin-top:8px;">📧 <a href="mailto:${escapeHtml(contactEmail)}?subject=I approve quote ${escapeHtml(order.id)}">${escapeHtml(contactEmail)}</a></p>` : ''}
-        ${contactPhone ? `<p style="margin-top:4px;">📱 <a href="https://wa.me/${contactPhone.replace(/\D/g,'')}?text=${encodeURIComponent('I approve quote ' + order.id)}">${escapeHtml(contactPhone)} (WhatsApp)</a></p>` : ''}
+        <p>${escapeHtml(howToApprove)}</p>
+        ${approveQrHtml}
+        ${!approveUrl && contactEmail ? `<p style="margin-top:8px;">📧 <a href="mailto:${escapeHtml(contactEmail)}?subject=I approve quote ${escapeHtml(order.id)}">${escapeHtml(contactEmail)}</a></p>` : ''}
+        ${!approveUrl && contactPhone ? `<p style="margin-top:4px;">📱 <a href="https://wa.me/${contactPhone.replace(/\D/g,'')}?text=${encodeURIComponent('I approve quote ' + order.id)}">${escapeHtml(contactPhone)} (WhatsApp)</a></p>` : ''}
       </div>
     </div>
   </div>

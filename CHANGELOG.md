@@ -4,6 +4,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added (2.2.0 — Bundle C: LAN quote approval)
+
+- **LAN quote approval page** — public `GET /order/:id/quote` with mobile-friendly approve button; `POST /order/:id/approve` (no PIN required).
+- **Share approval link** — Kanban quote cards and Orders log menu open a QR/copy/WhatsApp modal when the LAN server is running.
+- **Static quote export** — saved approval HTML includes LAN approve URL + QR when the server is active.
+- **Client approval sync** — LAN approvals assign invoice numbers, fire `quote_approved` webhooks, and show a dedicated toast in the desktop app.
+- **Post-delivery survey** — survey widget on the customer order portal; `surveyToken` auto-generated when orders complete.
+- Unit tests for `lib/lan-quote-page.js` (`applyQuoteApprovalToStore`, `isQuoteExpired`, page render).
+
 ## [2.1.2] - 2026-05-30
 
 ### Fixed

@@ -324,16 +324,29 @@ document.addEventListener('DOMContentLoaded', async () => {
       const { id, status } = payload;
       const idx = printLog.findIndex(o => o.id === id);
       if (idx !== -1) {
-        // Existing order: patch status
         printLog[idx].status = status;
         if (payload.clientApprovedAt) printLog[idx].clientApprovedAt = payload.clientApprovedAt;
+        if (payload.quoteAcceptedAt) printLog[idx].quoteAcceptedAt = payload.quoteAcceptedAt;
+        if (payload.quoteApproved) {
+          const order = printLog[idx];
+          if (!order.invoiceNum) {
+            order.invoiceNum = nextInvoiceNumber();
+            order.invoiceNumber = order.invoiceNum;
+          }
+          fireWebhook('quote_approved', { orderId: id, project: order.project, client: order.client });
+        }
         if (!printLog[idx].statusHistory) printLog[idx].statusHistory = [];
         printLog[idx].statusHistory.push({ status, at: new Date().toISOString() });
         if (printLog[idx].statusHistory.length > 200) printLog[idx].statusHistory = printLog[idx].statusHistory.slice(-200);
         saveAll();
         renderLogs();
         renderKanban();
-        toast('📱 ' + t('ord.status_updated_phone', { id, status }), 'info', 3000);
+        renderDashboard();
+        if (payload.quoteApproved) {
+          toast('✅ ' + t('ord.client_quote_approved', { id }), 'success', 4000);
+        } else {
+          toast('📱 ' + t('ord.status_updated_phone', { id, status }), 'info', 3000);
+        }
       } else if (id && payload.project) {
         // New order from Salla/Zid (or other source): add to printLog
         printLog.unshift({ ...payload });

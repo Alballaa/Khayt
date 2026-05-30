@@ -324,6 +324,7 @@ function renderKanban() {
             </div>
             <div class="quote-actions">
               <button class="btn small success" data-act="approve-quote" data-id="${q.id}">${escapeHtml(t('quote.approve'))}</button>
+              <button class="btn small" data-act="quote-approval-link" data-id="${q.id}">${escapeHtml(t('ord.quote_approval_link'))}</button>
               <button class="btn small" data-act="share-quote" data-id="${q.id}">${escapeHtml(t('quote.share_pdf'))}</button>
               <button class="btn danger small" data-act="reject-quote" data-id="${q.id}">${escapeHtml(t('quote.reject'))}</button>
             </div>
