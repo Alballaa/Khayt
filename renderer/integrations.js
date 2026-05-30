@@ -744,7 +744,7 @@ async function openCustomerPortalModal(orderId) {
           <div style="font-size:32px;margin-bottom:12px;">⚠</div>
           <p style="color:var(--warning);font-weight:600;margin-bottom:8px;">${escapeHtml(t('lan.not_running') || 'LAN server is not running')}</p>
           <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">${escapeHtml(t('lan.start_hint') || 'Start the LAN server in Settings first')}</p>
-          <button class="btn primary" onclick="showTab('settings-tab');$('#modalMount').innerHTML='';">${escapeHtml(t('nav.settings') || 'Go to Settings')}</button>
+          <button type="button" class="btn primary" data-act="open-settings-from-modal">${escapeHtml(t('nav.settings') || 'Go to Settings')}</button>
         </div>`,
     });
     return;

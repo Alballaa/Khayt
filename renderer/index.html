@@ -550,7 +550,7 @@
             <span id="waitingBadge" style="display:none;background:var(--accent);color:#fff;border-radius:10px;font-size:10px;padding:1px 6px;margin-inline-start:6px;font-weight:700;"></span>
           </h4>
           <span id="waitingChevron" style="font-size:10px;color:var(--text-muted);">▼</span>
-          <button id="btnAddWaiting" class="btn small ghost" style="margin-inline-start:auto;" onclick="event.stopPropagation()">+ <span data-i18n="waiting.add">Add</span></button>
+          <button type="button" id="btnAddWaiting" class="btn small ghost" style="margin-inline-start:auto;">+ <span data-i18n="waiting.add">Add</span></button>
         </button>
         <div id="waitingFunnelSection" style="margin-bottom:10px;"></div>
         <div id="waitingListSection" style="display:none;"></div>
@@ -1394,7 +1394,7 @@
         </div>
 
         <div class="settings-save-row">
-          <button class="btn primary" onclick="document.getElementById('btnSaveSettings')?.click()" data-i18n="common.save">Save</button>
+          <button class="btn primary" data-act="save-settings-from-panel" data-i18n="common.save">Save</button>
         </div>
       </div>
 
@@ -1440,7 +1440,7 @@
         </div>
 
         <div class="settings-save-row">
-          <button class="btn primary" onclick="document.getElementById('btnSaveSettings')?.click()" data-i18n="common.save">Save</button>
+          <button class="btn primary" data-act="save-settings-from-panel" data-i18n="common.save">Save</button>
         </div>
       </div>
 
@@ -1516,7 +1516,7 @@
         <div id="invNumSection"></div>
 
         <div class="settings-save-row">
-          <button class="btn primary" onclick="document.getElementById('btnSaveSettings')?.click()" data-i18n="common.save">Save</button>
+          <button class="btn primary" data-act="save-settings-from-panel" data-i18n="common.save">Save</button>
         </div>
       </div>
 
@@ -1555,7 +1555,7 @@
         <div id="exchangeRatesSection"></div>
 
         <div class="settings-save-row">
-          <button class="btn primary" onclick="document.getElementById('btnSaveSettings')?.click()" data-i18n="common.save">Save</button>
+          <button class="btn primary" data-act="save-settings-from-panel" data-i18n="common.save">Save</button>
         </div>
       </div>
 
@@ -1720,7 +1720,7 @@
         <div id="loyaltyTiersSection"></div>
 
         <div class="settings-save-row">
-          <button class="btn primary" onclick="document.getElementById('btnSaveSettings')?.click()" data-i18n="common.save">Save</button>
+          <button class="btn primary" data-act="save-settings-from-panel" data-i18n="common.save">Save</button>
         </div>
       </div>
 
@@ -1811,7 +1811,7 @@
         </div>
 
         <div class="settings-save-row">
-          <button class="btn primary" onclick="document.getElementById('btnSaveSettings')?.click()" data-i18n="common.save">Save</button>
+          <button class="btn primary" data-act="save-settings-from-panel" data-i18n="common.save">Save</button>
         </div>
 
         <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border-soft); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">

@@ -1170,7 +1170,7 @@ function renderInventory() {
   const _studioInv = window.KhaytStudio?.isStudio?.();
   const tbody = $('#inventoryTable tbody');
   if (inventory.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="${_studioInv ? 6 : 5}" class="empty-state">${escapeHtml(t('inv.empty'))} <button class="btn small primary" onclick="$('#invMaterial')?.focus()" style="margin-inline-start:12px;">${escapeHtml(t('inv.add_title') || 'Add Filament')}</button></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${_studioInv ? 6 : 5}" class="empty-state">${escapeHtml(t('inv.empty'))} <button type="button" class="btn small primary" data-act="focus-inv-material" style="margin-inline-start:12px;">${escapeHtml(t('inv.add_title') || 'Add Filament')}</button></td></tr>`;
   } else {
     const todayMs = Date.now();
     const invTerm = invSearchTerm.toLowerCase().trim();

@@ -13,7 +13,7 @@ Living priorities for maintainers. Not a public commitment calendar — reorder 
 
 - [x] Split `renderer/app.js` into feature modules (`app.js` is now a thin entry; next: `main.js` split)
 - [ ] Unit tests for pure logic (`lib/store-io` + renderer modules; expand as needed)
-- [ ] Finish CSP hardening: drop `script-src 'unsafe-inline'` after all dynamic handlers use `data-act`
+- [x] Drop `script-src 'unsafe-inline'` in Electron CSP (renderer uses `data-act`; LAN/export HTML may still use inline scripts)
 - [x] Split `main.js` into feature modules (`lib/store-io.js`, `lib/updater.js`, `lib/lan-server.js`, `lib/zatca-crypto.js`)
 
 ## Later (2.x / 3.0.0 when justified)

@@ -226,7 +226,7 @@ function openNotifPanel() {
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       const newOrderBtn = item.type === 'recurring' && item.clientId
-        ? `<button class="btn small ghost notif-new-order-btn" data-client="${escapeHtml(item.clientId)}" style="font-size:11px;padding:2px 6px;margin-inline-end:4px;" onclick="event.stopPropagation()">${escapeHtml(t('common.new_order') || 'New Order')}</button>`
+        ? `<button type="button" class="btn small ghost notif-new-order-btn" data-client="${escapeHtml(item.clientId)}" style="font-size:11px;padding:2px 6px;margin-inline-end:4px;">${escapeHtml(t('common.new_order') || 'New Order')}</button>`
         : '';
       html += `<div class="notif-row" data-notif-idx="${alerts.indexOf(item)}"
         style="display:flex;align-items:flex-start;gap:10px;padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--border-soft);transition:background .1s;">
@@ -236,7 +236,7 @@ function openNotifPanel() {
           <div style="font-size:12.5px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(item.body)}</div>
         </div>
         ${newOrderBtn}
-        ${item.key ? `<button class="btn small ghost notif-dismiss-btn" data-key="${escapeHtml(item.key)}" title="${escapeHtml(t('notif.dismiss') || 'Snooze until tomorrow')}" style="font-size:11px;padding:2px 6px;margin-inline-end:4px;" onclick="event.stopPropagation()">✕</button>` : ''}
+        ${item.key ? `<button type="button" class="btn small ghost notif-dismiss-btn" data-key="${escapeHtml(item.key)}" title="${escapeHtml(t('notif.dismiss') || 'Snooze until tomorrow')}" style="font-size:11px;padding:2px 6px;margin-inline-end:4px;">✕</button>` : ''}
         <span style="font-size:11px;color:var(--primary);flex-shrink:0;padding-top:2px;">${escapeHtml(t('notif.go') || 'Go →')}</span>
       </div>`;
     }

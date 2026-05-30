@@ -331,6 +331,8 @@ function wireEvents() {
   });
   $('#btnScanLabel').addEventListener('click', openFilamentScanner);
   $('#inventoryTable').addEventListener('click', (e) => {
+    const focusInv = e.target.closest('[data-act="focus-inv-material"]');
+    if (focusInv) { $('#invMaterial')?.focus(); return; }
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
     if (btn.dataset.act === 'del-inv')           deleteInventoryItem(btn.dataset.id);
@@ -517,6 +519,8 @@ function wireEvents() {
   // QW6: Operator filter
   $('#logOperatorFilter')?.addEventListener('change', (e) => { logOperatorFilter = e.target.value; renderLogs(); });
   $('#logTable').addEventListener('click', (e) => {
+    const clearFiltersBtn = e.target.closest('[data-act="clear-log-filters"]');
+    if (clearFiltersBtn) { clearLogFilters(); return; }
     const newOrdBtn = e.target.closest('[data-act="new-order"]');
     if (newOrdBtn) { logPrint(); return; }
     const loadMoreBtn = e.target.closest('[data-act="load-more-logs"]');
@@ -863,6 +867,12 @@ function wireEvents() {
   $('#btnCreateGiftCard')?.addEventListener('click', openCreateGiftCardModal);
   // Batch-2 Feature 8: Slicer profiles
   $('#btnAddSlicerProfile')?.addEventListener('click', () => openSlicerProfileModal(null));
+  $('#slicerProfilesContainer')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-act]');
+    if (!btn) return;
+    if (btn.dataset.act === 'edit-slicer-profile') openSlicerProfileModal(btn.dataset.id);
+    if (btn.dataset.act === 'delete-slicer-profile') deleteSlicerProfile(btn.dataset.id);
+  });
   // Batch-2 Feature 9: Env log
   $('#btnLogEnv')?.addEventListener('click', openLogEnvModal);
   // Batch-2 Feature 7: VAT return export
@@ -872,7 +882,10 @@ function wireEvents() {
   });
 
   // Waiting list
-  $('#btnAddWaiting')?.addEventListener('click', () => openWaitingItemEditor(null));
+  $('#btnAddWaiting')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openWaitingItemEditor(null);
+  });
   $('#waitingListToggle')?.addEventListener('click', () => {
     if (window.KhaytStudio?.isStudio?.()) return;
     const section = $('#waitingListSection');
@@ -1126,6 +1139,16 @@ function wireEvents() {
 
   // Settings
   $('#btnSaveSettings').addEventListener('click', saveSettingsFromForm);
+  document.addEventListener('click', (e) => {
+    const savePanel = e.target.closest('[data-act="save-settings-from-panel"]');
+    if (savePanel) { $('#btnSaveSettings')?.click(); return; }
+    const openSettings = e.target.closest('[data-act="open-settings-from-modal"]');
+    if (openSettings) {
+      showTab('settings-tab');
+      const mount = $('#modalMount');
+      if (mount) mount.innerHTML = '';
+    }
+  });
 
   // Settings sidebar navigation
   document.addEventListener('click', e => {

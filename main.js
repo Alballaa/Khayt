@@ -1112,7 +1112,7 @@ app.whenReady().then(() => {
         'Content-Security-Policy': [
           [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline'",  // TODO: remove 'unsafe-inline' after replacing inline onclick= handlers in dynamically-generated HTML (app.js) with data-act delegation
+            "script-src 'self'",
             "style-src 'self' 'unsafe-inline'",
             "img-src 'self' data: blob:",
             "font-src 'self' data:",

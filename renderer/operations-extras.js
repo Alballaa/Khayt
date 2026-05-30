@@ -383,8 +383,8 @@ function renderSlicerProfiles() {
       <td>${p.supports ? 'Yes' : 'No'}</td>
       <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(p.notes || '')}</td>
       <td>
-        <button class="btn small ghost" onclick="openSlicerProfileModal('${escapeHtml(p.id)}')">Edit</button>
-        <button class="btn danger small" onclick="deleteSlicerProfile('${escapeHtml(p.id)}')">×</button>
+        <button type="button" class="btn small ghost" data-act="edit-slicer-profile" data-id="${escapeHtml(p.id)}">Edit</button>
+        <button type="button" class="btn danger small" data-act="delete-slicer-profile" data-id="${escapeHtml(p.id)}">×</button>
       </td>
     </tr>`;
   }).join('');
