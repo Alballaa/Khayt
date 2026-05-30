@@ -3053,6 +3053,8 @@ function recordSupplierInvoice(poId) {
     openPriceHistory,
     checkSpoolOvercommit,
     todayPlusDays,
+    getQueuedWeight,
+    getSpoolReservedGrams,
     renderInventory,
     openStockAdjustModal,
     openSpoolHistory,
