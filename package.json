@@ -1,6 +1,6 @@
 {
   "name": "khayt",
-  "version": "2.0.15",
+  "version": "2.0.16",
   "description": "Khayt - 3D printing production management, invoicing and analytics. Free and open to all makers worldwide.",
   "main": "main.js",
   "author": {
@@ -10,15 +10,12 @@
   "license": "MIT-Commons-Clause",
   "private": false,
   "scripts": {
-    "postinstall": "node scripts/install-electron-await.js",
-    "install:electron": "node scripts/install-electron-await.js",
-    "start": "node scripts/ensure-electron.js && electron .",
+    "start": "electron .",
     "pack": "electron-builder --dir",
     "dist:mac:arm64": "electron-builder --mac --arm64",
     "dist:mac:x64": "electron-builder --mac --x64",
     "dist:win": "electron-builder --win --x64",
-    "dist:linux": "electron-builder --linux --x64",
-    "setup": "npm install && node scripts/install-electron-await.js"
+    "dist:linux": "electron-builder --linux --x64"
   },
   "dependencies": {
     "electron-updater": "^6.8.3",
@@ -26,12 +23,9 @@
     "qrcode": "^1.5.3"
   },
   "devDependencies": {
-    "electron": "^42.3.0",
+    "electron": "^42.2.0",
     "electron-builder": "^26.8.1",
     "playwright-core": "^1.60.0"
-  },
-  "overrides": {
-    "yauzl": "^3.3.1"
   },
   "build": {
     "appId": "app.khayt.hub",

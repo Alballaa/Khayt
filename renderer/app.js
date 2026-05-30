@@ -22344,12 +22344,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  let currentVersion = '2.0.15';
+  let currentVersion = '2.0.16';
   if (window.hubAPI?.appVersion) {
     try { currentVersion = await window.hubAPI.appVersion(); }
     catch (_) {}
   }
-  if ($('#appVersion')) $('#appVersion').textContent = currentVersion || '2.0.15 (dev)';
+  if ($('#appVersion')) $('#appVersion').textContent = currentVersion || '2.0.16 (dev)';
 
   // ── Post-update "data survived" toast ────────────────────────────────────────
   // If the previous session stored a pending-update version and we're now running
