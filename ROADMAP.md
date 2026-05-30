@@ -11,7 +11,7 @@ Four feature bundles land as independent PRs off `main`. Merge order is flexible
 | **A** | Production shop | `cursor/2-2-0-production-shop-d4c8` | [#49](https://github.com/Alballaa/Khayt/pull/49) | LAN printer polling (RFC1918), gift card checkout, WIP hard limits |
 | **B** | ZATCA & email | `cursor/2-2-0-zatca-compliance-d4c8` | [#50](https://github.com/Alballaa/Khayt/pull/50) | Auto-submit pipeline, submission log, custom SMTP |
 | **C** | Customer portal | `cursor/2-2-0-quote-approval-d4c8` | [#51](https://github.com/Alballaa/Khayt/pull/51) | LAN quote approval links, portal survey, share modal |
-| **D** | Platform hardening | `cursor/2-2-0-platform-hardening-d4c8` | TBD | E2E critical flows, ensure-electron, stale PR cleanup |
+| **D** | Platform hardening | `cursor/2-2-0-platform-hardening-d4c8` | [#53](https://github.com/Alballaa/Khayt/pull/53) | E2E critical flows, ensure-electron, stale PR cleanup |
 
 ### Bundle D — Platform hardening (checklist)
 
