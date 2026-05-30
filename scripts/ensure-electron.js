@@ -12,7 +12,9 @@ const pathTxt = path.join(root, 'node_modules', 'electron', 'path.txt');
 const awaitInstaller = path.join(__dirname, 'install-electron-await.js');
 
 if (fs.existsSync(pathTxt)) {
-  process.exit(0);
+  const content = fs.readFileSync(pathTxt, 'utf8').trim();
+  if (content) process.exit(0);
+  console.warn('Khayt: electron path.txt exists but is empty — re-downloading…');
 }
 
 if (!fs.existsSync(awaitInstaller)) {

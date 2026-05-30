@@ -5,15 +5,22 @@ Living priorities for maintainers. Not a public commitment calendar — reorder 
 ## Now (2.2.x)
 
 - [ ] Triage post-2.2.0 feedback; plan 2.2.x patches or 2.3.0
+- [ ] Run `node scripts/list-stale-branches.mjs --merged-into main` and delete merged `cursor/*` branches
 
 ## Shipped (2.2.0 — 2026-05-30)
 
-| Bundle | Theme | Status |
-|--------|--------|--------|
-| **A** | Production shop | LAN printer polling, gift card checkout, WIP hard limits |
-| **B** | ZATCA & email | Auto-submit, submission log, custom SMTP |
-| **C** | Customer portal | LAN quote approval links, portal survey |
-| **D** | Platform hardening | E2E critical flows, ensure-electron, stale branch helper |
+| Bundle | Theme | PR | Highlights |
+|--------|--------|-----|------------|
+| **A** | Production shop | [#49](https://github.com/Alballaa/Khayt/pull/49) | LAN printer polling (RFC1918), gift card checkout, WIP hard limits |
+| **B** | ZATCA & email | [#50](https://github.com/Alballaa/Khayt/pull/50) | Auto-submit pipeline, submission log, custom SMTP |
+| **C** | Customer portal | [#51](https://github.com/Alballaa/Khayt/pull/51) | LAN quote approval links, portal survey, share modal |
+| **D** | Platform hardening | [#53](https://github.com/Alballaa/Khayt/pull/53) | E2E critical flows, ensure-electron, stale PR cleanup |
+
+### Superseded / closed
+
+| PR | Reason |
+|----|--------|
+| [#52](https://github.com/Alballaa/Khayt/pull/52) | Wrong Bundle D scope (daily ops). Replaced by platform-hardening branch. |
 
 ## Completed (2.1.0 — 2026-05-30)
 

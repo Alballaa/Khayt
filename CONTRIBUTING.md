@@ -21,6 +21,14 @@ Thank you for helping maintain Khayt. This document is the default workflow for 
    npm test
    ```
 
+   Optional headless UI smoke (requires display / `xvfb-run` on Linux):
+
+   ```bash
+   npm run test:e2e
+   ```
+
+   E2E covers boot, tab navigation, order lifecycle, store round-trip, and LAN PIN gate.
+
 2. If you changed user-visible behavior, add a line under `CHANGELOG.md` → `[Unreleased]`.
 
 3. Bump version only when preparing a **release** (see [VERSIONING.md](./VERSIONING.md)), not on every PR.
