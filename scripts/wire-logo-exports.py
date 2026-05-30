@@ -61,6 +61,21 @@ ICONSET_SIZES = {
 }
 
 MARK_SIZES = (32, 64, 128, 256, 512)
+LOCKUP_OUT = ROOT / "assets" / "logo" / "khayt-lockup.png"
+FAVICON_OUT = ROOT / "assets" / "logo" / "favicon.ico"
+
+# Claude export layout (export/icon-a/, export/mark-cyan/, …)
+EXPLICIT_ICON = (
+    ROOT / "export" / "icon-a" / "khayt-icon-1024.png",
+    ROOT / "export" / "icon-b" / "khayt-iconB-512.png",
+)
+EXPLICIT_MARK = (
+    ROOT / "export" / "mark-cyan" / "khayt-mark-512.png",
+    ROOT / "export" / "mark-cyan" / "khayt-mark-1024.png",
+    ROOT / "export" / "mark-teal" / "khayt-mark-teal-512.png",
+)
+EXPLICIT_LOCKUP = ROOT / "export" / "lockup" / "khayt-lockup-1200x400.png"
+EXPLICIT_FAVICON = ROOT / "export" / "khayt-favicon.ico"
 
 
 def png_bytes(img: Image.Image) -> bytes:
@@ -138,12 +153,24 @@ def find_exports() -> list[Path]:
     return files
 
 
+def first_existing(paths: tuple[Path, ...]) -> Path | None:
+    for p in paths:
+        if p.is_file():
+            return p
+    return None
+
+
 def pick_assets(files: list[Path]) -> tuple[Path, Path | None]:
+    icon_explicit = first_existing(EXPLICIT_ICON)
+    mark_explicit = first_existing(EXPLICIT_MARK)
+    if icon_explicit:
+        return icon_explicit, mark_explicit
+
     if not files:
         raise SystemExit(
-            "No logo PNGs found. Copy your Claude exports into:\n"
-            "  export/\n"
-            "  assets/logo-exports/\n"
+            "No logo PNGs found. Expected Claude exports under export/, e.g.:\n"
+            "  export/icon-a/khayt-icon-1024.png\n"
+            "  export/mark-cyan/khayt-mark-512.png\n"
             "Then run: npm run wire:logo"
         )
 
