@@ -14,10 +14,11 @@ Thank you for helping maintain Khayt. This document is the default workflow for 
 
 ## Before you open a PR
 
-1. Run syntax checks (same as CI):
+1. Run syntax checks and unit tests (same as CI):
 
    ```bash
-   node --check main.js preload.js renderer/app.js renderer/i18n.js
+   npm run lint
+   npm test
    ```
 
 2. If you changed user-visible behavior, add a line under `CHANGELOG.md` → `[Unreleased]`.
@@ -38,10 +39,14 @@ Thank you for helping maintain Khayt. This document is the default workflow for 
 | `main.js` | Electron main: IPC, disk store, LAN server, ZATCA crypto, updater |
 | `preload.js` | `hubAPI` context bridge |
 | `renderer/app.js` | UI and business logic |
+| `renderer/store.js` | Export/import and backup helpers |
 | `renderer/i18n.js` | Translations |
-| `renderer/index.html` | App shell |
+| `renderer/studio/*.js` | Khayt Studio UI module |
+| `lib/` | Shared main-process helpers (`safeJsonParse`, `isBlockedHost`) |
+| `test/` | `node:test` unit tests for `lib/` |
+| `design/khayt/` | UI design prototype (reference only, not shipped) |
 
-Do not edit root `src/` or root `index.html` for the desktop app — they are legacy Vite scaffolding (see [ROADMAP.md](./ROADMAP.md)).
+The desktop app uses `renderer/index.html` as its shell; there is no root Vite scaffold.
 
 ## Releases (maintainers)
 

@@ -8,6 +8,11 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 - Versioning policy (`VERSIONING.md`), release checklist, and `npm run version:*` helpers.
 - Maintainer guide (`CONTRIBUTING.md`) and engineering roadmap (`ROADMAP.md`).
+- `npm run lint`, `npm run check`, and `npm test` (unit tests for `safeJsonParse` and `isBlockedHost` in `lib/`).
+
+### Changed
+
+- `safeJsonParse` and `isBlockedHost` moved from `main.js` into `lib/` for reuse and testing.
 
 ## [2.0.15] - (current)
 

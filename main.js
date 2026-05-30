@@ -6,6 +6,8 @@ const os = require('os');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
 const { autoUpdater } = require('electron-updater');
+const { safeJsonParse } = require('./lib/safe-json');
+const { isBlockedHost } = require('./lib/host-guard');
 
 // ── Auto-updater setup ───────────────────────────────────────────────────────
 autoUpdater.autoDownload = false;       // ask user first; they click "Download"
@@ -474,17 +476,6 @@ const backupsDir     = () => ensureDir('backups');
 /* ---------- Shared helpers ---------- */
 function lanEscapeHtml(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-// Parse JSON and freeze the result to prevent prototype pollution.
-// Throws on invalid JSON (same as JSON.parse).
-function safeJsonParse(text) {
-  const obj = JSON.parse(text);
-  // Reviver-based protection: strip __proto__ / constructor overrides
-  return JSON.parse(text, (key, value) => {
-    if (key === '__proto__' || key === 'constructor') return undefined;
-    return value;
-  });
 }
 
 function safeTokenEqual(a, b) {
@@ -1095,29 +1086,6 @@ ipcMain.handle('hub:stop-printer-polling', () => {
 });
 
 ipcMain.handle('hub:get-printer-status', () => printerStatusCache);
-
-function isBlockedHost(h) {
-  if (!h) return true;
-  if (/^(localhost|ip6-localhost|ip6-loopback)$/i.test(h)) return true;
-  // For hostnames (non-IP) allow DNS resolution — can't block rebinding without DNS interception
-  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h);
-  if (v4) {
-    const [,a,b,c,d] = v4.map(Number);
-    if (a === 0)   return true; // 0.0.0.0/8
-    if (a === 10)  return true; // RFC-1918
-    if (a === 127) return true; // loopback
-    if (a === 169 && b === 254) return true; // link-local / AWS metadata
-    if (a === 172 && b >= 16 && b <= 31) return true; // RFC-1918
-    if (a === 192 && b === 168) return true; // RFC-1918
-    if (a === 198 && (b === 18 || b === 19)) return true; // benchmarking
-    if (a === 240) return true; // reserved
-    if (a === 255) return true; // broadcast
-  }
-  if (/^::1$|^::$|^fe80:/i.test(h)) return true; // IPv6 loopback / link-local
-  if (/^fc|^fd/i.test(h)) return true;            // IPv6 ULA
-  if (/^::ffff:/i.test(h)) return true;            // IPv4-mapped IPv6
-  return false;
-}
 
 async function fetchPrinterStatus(machine) {
   const { type, host, port, apiKey, accessCode, printerSlug } = machine.printerApi || {};
