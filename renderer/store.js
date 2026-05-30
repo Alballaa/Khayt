@@ -51,7 +51,7 @@
     };
   }
 
-  global.KhaytStore = {
+  const api = {
     VERSION: STORE_VERSION,
     SECRET_MASK: STORE_SECRET_MASK,
     redactSettingsForExport,
@@ -59,4 +59,7 @@
     buildSnapshot,
     buildExportPayload,
   };
-})(typeof window !== 'undefined' ? window : globalThis);
+
+  global.KhaytStore = api;
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+})(typeof globalThis !== 'undefined' ? globalThis : window);

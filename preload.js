@@ -101,7 +101,7 @@ contextBridge.exposeInMainWorld('hubAPI', {
   onLanKanbanAdvanced: (() => { let _cb=null; ipcRenderer.on('lan-kanban-advanced', (_e,d)=>{ if(_cb) _cb(d); }); return cb=>{ _cb=cb; }; })(),
 
   // LAN Tunnel
-  startTunnel:  (port) => ipcRenderer.invoke('hub:start-tunnel', port),
+  startTunnel:  (port, opts = {}) => ipcRenderer.invoke('hub:start-tunnel', { port, acknowledgedRisk: !!opts.acknowledgedRisk }),
   stopTunnel:   ()     => ipcRenderer.invoke('hub:stop-tunnel'),
   getTunnelUrl: ()     => ipcRenderer.invoke('hub:get-tunnel-url'),
   onTunnelStatusChanged: (() => { let _cb=null; ipcRenderer.on('tunnel-status-changed', (_e,d)=>{ if(_cb) _cb(d); }); return cb=>{ _cb=cb; }; })(),

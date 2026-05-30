@@ -550,7 +550,7 @@
             <span id="waitingBadge" style="display:none;background:var(--accent);color:#fff;border-radius:10px;font-size:10px;padding:1px 6px;margin-inline-start:6px;font-weight:700;"></span>
           </h4>
           <span id="waitingChevron" style="font-size:10px;color:var(--text-muted);">▼</span>
-          <button id="btnAddWaiting" class="btn small ghost" style="margin-inline-start:auto;" onclick="event.stopPropagation()">+ <span data-i18n="waiting.add">Add</span></button>
+          <button type="button" id="btnAddWaiting" class="btn small ghost" style="margin-inline-start:auto;">+ <span data-i18n="waiting.add">Add</span></button>
         </button>
         <div id="waitingFunnelSection" style="margin-bottom:10px;"></div>
         <div id="waitingListSection" style="display:none;"></div>
@@ -1394,7 +1394,7 @@
         </div>
 
         <div class="settings-save-row">
-          <button class="btn primary" onclick="document.getElementById('btnSaveSettings')?.click()" data-i18n="common.save">Save</button>
+          <button type="button" class="btn primary" data-act="save-settings-from-panel" data-i18n="common.save">Save</button>
         </div>
       </div>
 
@@ -1440,7 +1440,7 @@
         </div>
 
         <div class="settings-save-row">
-          <button class="btn primary" onclick="document.getElementById('btnSaveSettings')?.click()" data-i18n="common.save">Save</button>
+          <button type="button" class="btn primary" data-act="save-settings-from-panel" data-i18n="common.save">Save</button>
         </div>
       </div>
 
@@ -1516,7 +1516,7 @@
         <div id="invNumSection"></div>
 
         <div class="settings-save-row">
-          <button class="btn primary" onclick="document.getElementById('btnSaveSettings')?.click()" data-i18n="common.save">Save</button>
+          <button type="button" class="btn primary" data-act="save-settings-from-panel" data-i18n="common.save">Save</button>
         </div>
       </div>
 
@@ -1555,7 +1555,7 @@
         <div id="exchangeRatesSection"></div>
 
         <div class="settings-save-row">
-          <button class="btn primary" onclick="document.getElementById('btnSaveSettings')?.click()" data-i18n="common.save">Save</button>
+          <button type="button" class="btn primary" data-act="save-settings-from-panel" data-i18n="common.save">Save</button>
         </div>
       </div>
 
@@ -1720,7 +1720,7 @@
         <div id="loyaltyTiersSection"></div>
 
         <div class="settings-save-row">
-          <button class="btn primary" onclick="document.getElementById('btnSaveSettings')?.click()" data-i18n="common.save">Save</button>
+          <button type="button" class="btn primary" data-act="save-settings-from-panel" data-i18n="common.save">Save</button>
         </div>
       </div>
 
@@ -1811,7 +1811,7 @@
         </div>
 
         <div class="settings-save-row">
-          <button class="btn primary" onclick="document.getElementById('btnSaveSettings')?.click()" data-i18n="common.save">Save</button>
+          <button type="button" class="btn primary" data-act="save-settings-from-panel" data-i18n="common.save">Save</button>
         </div>
 
         <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border-soft); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
@@ -1946,23 +1946,48 @@
   </div>
 </div>
 
+<script src="locales/en.js"></script>
+<script src="locales/ar.js"></script>
+<script src="locales/de.js"></script>
+<script src="locales/es.js"></script>
+<script src="locales/fr.js"></script>
+<script src="locales/zh.js"></script>
+<script src="locales/ja.js"></script>
 <script src="i18n.js"></script>
 <script src="studio/icons.js"></script>
 <script src="studio/charts.js"></script>
 <script src="studio/studio.js"></script>
 <script src="store.js"></script>
+<script src="store-validate.js"></script>
 <script src="format.js"></script>
 <script src="util.js"></script>
+<script src="app-state.js"></script>
+<script src="shell.js"></script>
+<script src="app-helpers.js"></script>
 <script src="currency.js"></script>
 <script src="calculator-cost.js"></script>
+<script src="build.js"></script>
+<script src="inventory.js"></script>
+<script src="machines.js"></script>
+<script src="clients.js"></script>
+<script src="expenses.js"></script>
+<script src="waste.js"></script>
+<script src="views.js"></script>
+<script src="notifications.js"></script>
 <script src="waiting-list.js"></script>
 <script src="kanban.js"></script>
 <script src="invoicing.js"></script>
+<script src="app-exports.js"></script>
 <script src="logs.js"></script>
 <script src="settings.js"></script>
+<script src="ops-locations.js"></script>
+<script src="integrations.js"></script>
 <script src="order-flows.js"></script>
 <script src="dashboard.js"></script>
 <script src="analytics.js"></script>
+<script src="operations-extras.js"></script>
+<script src="wire-events.js"></script>
+<script src="app-boot.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -105,7 +105,7 @@ function renderLogs() {
     return;
   }
   if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9" class="empty-state">${escapeHtml(t('log.empty_search'))} <button class="btn small ghost" style="margin-inline-start:10px;" onclick="clearLogFilters()">${escapeHtml(t('log.clear_filters') || 'Clear filters')}</button></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" class="empty-state">${escapeHtml(t('log.empty_search'))} <button type="button" class="btn small ghost" style="margin-inline-start:10px;" data-act="clear-log-filters">${escapeHtml(t('log.clear_filters') || 'Clear filters')}</button></td></tr>`;
     return;
   }
   const page = filtered.slice(0, logDisplayLimit);

@@ -42,3 +42,16 @@ test('formatPrintDate formats ISO date', () => {
   assert.match(formatPrintDate('2026-05-30'), /2026/);
   assert.equal(formatPrintDate(''), '');
 });
+
+test('buildZatcaTLV handles long seller names', () => {
+  const longName = 'A'.repeat(140);
+  const b64 = buildZatcaTLV({
+    sellerName: longName,
+    vatNumber: '300000000000003',
+    timestamp: '2026-05-30T12:00:00Z',
+    total: '115.00',
+    vatAmount: '15.00',
+  });
+  const bytes = Buffer.from(b64, 'base64');
+  assert.ok(bytes.length > 140);
+});
