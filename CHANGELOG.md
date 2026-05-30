@@ -4,6 +4,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added (2.2.0 — Bundle D: Platform hardening)
+
+- **E2E critical flows** — tab navigation (queue, calculator, logs), order create → kanban → status change → logs, plus existing boot/store/LAN PIN tests (`scripts/e2e/helpers.mjs`).
+- **ensure-electron** — `prestart` and `pretest:e2e` run `scripts/ensure-electron.js`; new `npm run install:electron`; empty `path.txt` triggers re-download.
+- **Stale branch helper** — `node scripts/list-stale-branches.mjs` flags superseded PR branches (e.g. wrong Bundle D #52).
+- **`npm run check`** — now runs lint + unit tests (E2E remains separate: `npm run test:e2e`).
+- **ROADMAP.md** — full 2.2.0 bundle table (A–D) and superseded PR notes.
+
 ## [2.1.2] - 2026-05-30
 
 ### Fixed
