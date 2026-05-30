@@ -576,6 +576,8 @@ function wireEvents() {
     if (statusPage) exportOrderStatusPage(statusPage.dataset.id);
     const portalQrBtn = e.target.closest('[data-act="portal-qr"]');
     if (portalQrBtn) { openCustomerPortalModal(portalQrBtn.dataset.id); return; }
+    const quoteLinkBtn = e.target.closest('[data-act="quote-approval-link"]');
+    if (quoteLinkBtn) { openQuoteApprovalLinkModal(quoteLinkBtn.dataset.id); return; }
     const logTimeBtn = e.target.closest('[data-act="log-time"]');
     if (logTimeBtn) { openTimeEntryModal(logTimeBtn.dataset.id); return; }
     const openStatusPage = e.target.closest('[data-act="open-status-page"]');
@@ -788,9 +790,11 @@ function wireEvents() {
     const approve = e.target.closest('[data-act="approve-quote"]');
     const reject  = e.target.closest('[data-act="reject-quote"]');
     const share   = e.target.closest('[data-act="share-quote"]');
+    const quoteLink = e.target.closest('[data-act="quote-approval-link"]');
     if (approve) approveQuote(approve.dataset.id);
     if (reject)  rejectQuote(reject.dataset.id);
     if (share)   exportInvoicePDF(share.dataset.id, { askWhere: true, openAfter: true });
+    if (quoteLink) openQuoteApprovalLinkModal(quoteLink.dataset.id);
   });
 
   // Save-as-Quote button

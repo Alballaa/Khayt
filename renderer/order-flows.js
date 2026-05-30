@@ -281,6 +281,10 @@ function updateStatus(id, newStatus) {
   fireWebhook('status_changed', { orderId: order.id, project: order.project, newStatus, client: order.client });
   // Round 12 — Webhook: order_delivered
   if (newStatus === 'completed') fireWebhook('order_delivered', { orderId: order.id, project: order.project, client: order.client });
+  if (newStatus === 'completed' && !order.surveyToken) {
+    order.surveyToken = 'srv-' + Date.now().toString(36);
+    saveAll();
+  }
 }
 
 function holdOrder(id) {

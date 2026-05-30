@@ -778,6 +778,66 @@ async function openCustomerPortalModal(orderId) {
   });
 }
 
+async function openQuoteApprovalLinkModal(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+
+  const lanInfo = await window.hubAPI?.getLanUrl?.();
+  if (!lanInfo?.ok) {
+    openFormModal({
+      title: t('ord.quote_approval_link_title') || 'Quote Approval Link',
+      noSave: true,
+      sizeLg: false,
+      bodyHtml: `
+        <div style="text-align:center;padding:16px 0;">
+          <div style="font-size:32px;margin-bottom:12px;">⚠</div>
+          <p style="color:var(--warning);font-weight:600;margin-bottom:8px;">${escapeHtml(t('lan.not_running') || 'LAN server is not running')}</p>
+          <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">${escapeHtml(t('lan.start_hint') || 'Start the LAN server in Settings first')}</p>
+          <button type="button" class="btn primary" data-act="open-settings-from-modal">${escapeHtml(t('nav.settings') || 'Go to Settings')}</button>
+        </div>`,
+    });
+    return;
+  }
+
+  const url = `${lanInfo.url}/order/${orderId}/quote`;
+  let qrHtml = '';
+  try {
+    const qrDataUrl = await window.hubAPI.generateQR(url, { width: 200 });
+    if (qrDataUrl) qrHtml = `<img src="${escapeHtml(qrDataUrl)}" alt="QR" style="width:200px;height:200px;display:block;margin:0 auto;">`;
+  } catch (e) { /* silent */ }
+
+  openFormModal({
+    title: t('ord.quote_approval_link_title') || 'Quote Approval Link',
+    noSave: true,
+    sizeLg: false,
+    bodyHtml: `
+      <div style="text-align:center;padding:12px 0;">
+        ${qrHtml || '<p style="color:var(--text-muted);">QR unavailable</p>'}
+        <p style="font-size:12px;color:var(--text-muted);margin:12px 0 6px;word-break:break-all;">${escapeHtml(url)}</p>
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px;">
+          <button class="btn small" id="quoteApprovalCopy">${escapeHtml(t('common.copy') || 'Copy URL')}</button>
+          <button class="btn small primary" id="quoteApprovalWa">${escapeHtml(t('inv.share_whatsapp') || 'Share WhatsApp')}</button>
+        </div>
+      </div>`,
+    onMount(modal) {
+      modal.querySelector('#quoteApprovalCopy')?.addEventListener('click', async () => {
+        try { await navigator.clipboard.writeText(url); toast(t('common.copied') || 'Copied!', 'success'); }
+        catch { toast(url, 'info', 6000); }
+      });
+      modal.querySelector('#quoteApprovalWa')?.addEventListener('click', async () => {
+        const waMsg = `${t('ord.quote_approve_msg') || 'Please review and approve your quote'}: ${url}`;
+        const cl = order.clientId ? clients.find(c => c.id === order.clientId) : null;
+        const phone = cl?.phone || '';
+        if (window.hubAPI?.shareWhatsApp) {
+          await window.hubAPI.shareWhatsApp({ phone, message: waMsg, pdfPath: null });
+        } else {
+          window.open(`https://wa.me/?text=${encodeURIComponent(waMsg)}`, '_blank');
+        }
+      });
+    },
+  });
+}
+
 async function clearAllLogs() {
   const ok = await confirmModal(t('log.clear_q'), { danger: true });
   if (!ok) return;
@@ -949,6 +1009,7 @@ function trackShipment(trackingNumber, carrier) {
     autoExportStatusPage,
     openSavedStatusPage,
     openCustomerPortalModal,
+    openQuoteApprovalLinkModal,
     clearAllLogs,
     sendTelegramForOrder,
     checkTelegramLowStock,

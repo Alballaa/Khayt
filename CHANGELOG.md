@@ -8,7 +8,7 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 - **Production shop (Bundle A)** — gift card checkout in payment modal; WIP hard-limit setting; LAN printer polling on private-network hosts.
 - **ZATCA & email (Bundle B)** — Phase 2 FATOORA auto-submit on invoice, submission audit log, manual retry, custom SMTP provider.
-- **LAN quote approval (Bundle C)** — public quote page, share approval link modal, portal survey, client-approval sync.
+- **LAN quote approval (Bundle C)** — public `GET/POST /order/:id/quote` approval page; share approval link modal; static export with LAN QR; client-approval sync with invoice numbering and webhooks; post-delivery portal survey.
 - **Platform hardening (Bundle D)** — expanded E2E critical flows, `ensure-electron` wiring, stale branch cleanup helper.
 
 ### Fixed

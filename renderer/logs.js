@@ -221,6 +221,7 @@ function renderLogs() {
             ${expenses.some(e => e.orderId === log.id) ? `<button class="menu-item" data-act="linked-expenses" data-id="${log.id}">💰 ${escapeHtml(t('exp.linked_expenses'))}</button>` : ''}
             <!-- Quotes (shown only for quote status) -->
             ${log.status === 'quote' ? `<div class="menu-sep"></div><div class="menu-label">${escapeHtml(t('menu.quote') || 'Quote')}</div>` : ''}
+            ${log.status === 'quote' ? `<button class="menu-item" data-act="quote-approval-link" data-id="${log.id}">🔗 ${escapeHtml(t('ord.quote_approval_link'))}</button>` : ''}
             ${log.status === 'quote' && log.clientId ? `<button class="menu-item" data-act="export-quote-approval" data-id="${log.id}">📋 ${escapeHtml(t('ord.quote_approval_page'))}</button>` : ''}
             ${log.status === 'quote' ? `<button class="menu-item" data-act="revise-quote" data-id="${log.id}">📝 ${escapeHtml(t('ord.revise_quote'))}</button>` : ''}
             ${log.status === 'quote' && (log.quoteRevisions || []).length > 0 ? `<button class="menu-item" data-act="quote-revisions" data-id="${log.id}">🕐 ${escapeHtml(t('ord.quote_revisions'))} v${log.quoteVersion || 1}</button>` : ''}
