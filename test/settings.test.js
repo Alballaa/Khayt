@@ -1,0 +1,17 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const settings = require('../renderer/settings.js');
+
+test('KhaytSettings exports core settings tab functions', () => {
+  for (const name of [
+    'loadSettingsIntoForm',
+    'saveSettingsFromForm',
+    'renderZatcaPhase2Settings',
+    'renderLanApiSettings',
+    'exportData',
+    'importData',
+    'resetAllData',
+  ]) {
+    assert.equal(typeof settings[name], 'function', name);
+  }
+});
