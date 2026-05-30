@@ -835,6 +835,11 @@ const redactMachinesForExport = (arr) => KhaytStore.redactMachinesForExport(arr)
 /** Load all collections from a store snapshot (disk load or import). */
 function applyStoreFromSnapshot(store) {
   if (!store) return;
+  if (store.__corrupt) return;
+  const { normalized, warnings } = KhaytStoreValidate.normalizeStoreSnapshot(store);
+  if (!normalized) return;
+  if (warnings.length) console.warn('applyStoreFromSnapshot:', warnings.join('; '));
+  store = normalized;
   const isObj = x => x && typeof x === 'object';
   if (store.printLog)       printLog       = store.printLog.filter(isValidOrder);
   if (store.inventory)      inventory      = store.inventory.filter(isValidRecord);

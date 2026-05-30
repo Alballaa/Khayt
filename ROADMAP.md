@@ -20,7 +20,7 @@ Living priorities for maintainers. Not a public commitment calendar — reorder 
 
 - [ ] Locale files per language instead of monolithic `i18n.js`
 - [ ] Playwright smoke test: launch app, save store, LAN PIN gate
-- [ ] Typed store contract (JSDoc or JSON Schema) validated on load
+- [x] Typed store contract (JSDoc + `renderer/store-validate.js`) validated on load
 - [ ] LAN tunnel: require PIN + in-app risk warning before exposing via localtunnel
 
 ## Versioning reminder

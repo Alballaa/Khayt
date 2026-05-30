@@ -8,6 +8,7 @@ const QRCode = require('qrcode');
 const { autoUpdater } = require('electron-updater');
 const { safeJsonParse } = require('./lib/safe-json');
 const { isBlockedHost } = require('./lib/host-guard');
+const { normalizeStoreSnapshot } = require('./lib/store-validate');
 const { buildZatcaCsrDer } = require('./lib/zatca-asn1');
 
 // ── Auto-updater setup ───────────────────────────────────────────────────────
@@ -795,8 +796,14 @@ ipcMain.handle('hub:load-store', async (event) => {
     // Use safeJsonParse to strip __proto__ / constructor prototype-pollution keys
     const data = safeJsonParse(raw);
     syncLanServerStoreFromDisk();
+    const { normalized, warnings, errors } = normalizeStoreSnapshot(data);
+    if (errors.length) {
+      console.error('hub:load-store: invalid store shape:', errors.join('; '));
+      return { __corrupt: true, error: errors[0] || 'Invalid store' };
+    }
+    if (warnings.length) console.warn('hub:load-store:', warnings.join('; '));
     // Mask secrets — renderer must not receive plaintext credentials
-    return maskStoreSecretsForRenderer(data);
+    return maskStoreSecretsForRenderer(normalized || data);
   } catch (e) {
     console.error('hub:load-store error:', e);
     return { __corrupt: true, error: String(e.message || e) };
