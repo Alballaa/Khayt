@@ -1086,6 +1086,8 @@ function fillWaTemplate(body, order, client) {
 
 let _saveAllTimer = null;
 
+const STORE_VERSION = 5;
+
 /** Snapshot current in-memory state as a plain object. */
 function buildStoreSnapshot() {
   return {
@@ -1094,6 +1096,58 @@ function buildStoreSnapshot() {
     suppliers, purchaseOrders, testPrints, locations, operators, waitingList,
     waitingListHistory, timeEntries, shiftLogs, giftCards, slicerProfiles, envLogs,
   };
+}
+
+/** Build a versioned export/backup payload; optionally redact secrets. */
+function buildExportPayload({ redactSecrets = false } = {}) {
+  const snap = buildStoreSnapshot();
+  return {
+    version: STORE_VERSION,
+    exportedAt: new Date().toISOString(),
+    ...snap,
+    settings: redactSecrets ? redactSettingsForExport(snap.settings) : snap.settings,
+    machines: redactSecrets ? redactMachinesForExport(snap.machines) : snap.machines,
+  };
+}
+
+/** Load all collections from a store snapshot (disk load or import). */
+function applyStoreFromSnapshot(store) {
+  if (!store) return;
+  const isObj = x => x && typeof x === 'object';
+  if (store.printLog)       printLog       = store.printLog.filter(isValidOrder);
+  if (store.inventory)      inventory      = store.inventory.filter(isValidRecord);
+  if (store.templates)      templates      = store.templates.filter(isValidRecord);
+  if (store.products)       products       = store.products.filter(isValidRecord);
+  if (store.clients)        clients        = store.clients.filter(isValidClient);
+  if (store.printers)       printers       = store.printers.filter(isObj);
+  if (store.expenses)       expenses       = store.expenses.filter(isObj);
+  if (store.machines)       machines       = store.machines.filter(isValidRecord);
+  if (store.waTemplates)    waTemplates    = store.waTemplates.filter(isValidRecord);
+  if (store.wasteLog)       wasteLog       = store.wasteLog.filter(isObj);
+  if (store.machMaintLog)   machMaintLog   = store.machMaintLog.filter(isObj);
+  if (store.consumables)    consumables    = store.consumables.filter(isValidRecord);
+  if (store.suppliers)      suppliers      = store.suppliers.filter(isValidRecord);
+  if (store.purchaseOrders) purchaseOrders = store.purchaseOrders.filter(isValidRecord);
+  if (store.testPrints)     testPrints     = store.testPrints.filter(isObj);
+  if (store.locations)      locations      = store.locations.filter(isValidRecord);
+  if (store.operators)           operators           = store.operators.filter(isValidRecord);
+  if (store.waitingList)         waitingList         = store.waitingList.filter(isValidRecord);
+  if (store.waitingListHistory)  waitingListHistory  = store.waitingListHistory.filter(isObj);
+  if (store.timeEntries)         timeEntries         = store.timeEntries.filter(isObj);
+  if (store.shiftLogs)           shiftLogs           = store.shiftLogs.filter(isObj);
+  if (store.giftCards)           giftCards           = store.giftCards.filter(isObj);
+  if (store.slicerProfiles)      slicerProfiles      = store.slicerProfiles.filter(isObj);
+  if (store.envLogs)             envLogs             = store.envLogs.filter(isObj);
+  if (store.settings)            settings            = Object.assign({}, defaultSettings(), sanitiseForAssign(store.settings));
+  migrateLanApiSettings();
+  if (store.settings) {
+    const nested = ['emailDigest', 'emailConfig', 'zatcaPhase2', 'bnpl', 'lanApi', 'exchangeRates', 'printerApi'];
+    for (const key of nested) {
+      if (store.settings[key] && typeof store.settings[key] === 'object' && !Array.isArray(store.settings[key])) {
+        settings[key] = Object.assign({}, defaultSettings()[key] || {}, sanitiseForAssign(store.settings[key]));
+      }
+    }
+  }
 }
 
 /** Write the store snapshot to disk; returns the IPC Promise. */
@@ -1174,44 +1228,7 @@ async function loadAll() {
     store = migrateFromLocalStorage();
   }
 
-  if (store) {
-    const isObj = x => x && typeof x === 'object';
-    if (store.printLog)       printLog       = store.printLog.filter(isValidOrder);
-    if (store.inventory)      inventory      = store.inventory.filter(isValidRecord);
-    if (store.templates)      templates      = store.templates.filter(isValidRecord);
-    if (store.products)       products       = store.products.filter(isValidRecord);
-    if (store.clients)        clients        = store.clients.filter(isValidRecord);
-    if (store.printers)       printers       = store.printers.filter(isObj);
-    if (store.expenses)       expenses       = store.expenses.filter(isObj);
-    if (store.machines)       machines       = store.machines.filter(isValidRecord);
-    if (store.waTemplates)    waTemplates    = store.waTemplates.filter(isValidRecord);
-    if (store.wasteLog)       wasteLog       = store.wasteLog.filter(isObj);
-    if (store.machMaintLog)   machMaintLog   = store.machMaintLog.filter(isObj);
-    if (store.consumables)    consumables    = store.consumables.filter(isValidRecord);
-    if (store.suppliers)      suppliers      = store.suppliers.filter(isValidRecord);
-    if (store.purchaseOrders) purchaseOrders = store.purchaseOrders.filter(isValidRecord);
-    if (store.testPrints)     testPrints     = store.testPrints.filter(isObj);
-    if (store.locations)      locations      = store.locations.filter(isValidRecord);
-    if (store.operators)           operators           = store.operators.filter(isValidRecord);
-    if (store.waitingList)         waitingList         = store.waitingList.filter(isValidRecord);
-    if (store.waitingListHistory)  waitingListHistory  = store.waitingListHistory.filter(isObj);
-    if (store.timeEntries)         timeEntries         = store.timeEntries.filter(isObj);
-    if (store.shiftLogs)           shiftLogs           = store.shiftLogs.filter(isObj);
-    if (store.giftCards)           giftCards           = store.giftCards.filter(isObj);
-    if (store.slicerProfiles)      slicerProfiles      = store.slicerProfiles.filter(isObj);
-    if (store.envLogs)             envLogs             = store.envLogs.filter(isObj);
-    if (store.settings)            settings            = Object.assign({}, defaultSettings(), sanitiseForAssign(store.settings));
-    migrateLanApiSettings();
-    // Deep-merge nested settings objects so new subkeys survive upgrades
-    if (store.settings) {
-      const nested = ['emailDigest', 'emailConfig', 'zatcaPhase2', 'bnpl', 'lanApi', 'exchangeRates', 'printerApi'];
-      for (const key of nested) {
-        if (store.settings[key] && typeof store.settings[key] === 'object' && !Array.isArray(store.settings[key])) {
-          settings[key] = Object.assign({}, defaultSettings()[key] || {}, sanitiseForAssign(store.settings[key]));
-        }
-      }
-    }
-  }
+  if (store) applyStoreFromSnapshot(store);
 
   // One-time migration: pull localStorage kanban state into settings
   const legacyCollapsed = localStorage.getItem('khayt_kan_collapsed');
@@ -2193,14 +2210,26 @@ function applyTheme(theme) {
 /* ============================================================
    Business Mode
    ============================================================ */
+function applyAnalyticsModeView() {
+  const simple = settings.mode === 'simple';
+  const simpleWrap = $('#analyticsSimpleWrap');
+  const proWrap = $('#analyticsProWrap');
+  if (simpleWrap) simpleWrap.style.display = simple ? 'block' : 'none';
+  if (proWrap) proWrap.style.display = simple ? 'none' : 'block';
+  if ($('#analytics-tab')?.classList.contains('active')) {
+    if (simple) renderSimpleReports();
+    else renderAnalytics();
+  }
+}
+
 function applyMode() {
   document.body.classList.toggle('mode-simple', settings.mode === 'simple');
   document.body.classList.toggle('mode-professional', settings.mode === 'professional');
-  // Update mode toggle buttons in settings if they exist
   const btnSimple = $('#btnModeSimple');
   const btnPro    = $('#btnModePro');
   if (btnSimple) btnSimple.classList.toggle('active', settings.mode === 'simple');
   if (btnPro)    btnPro.classList.toggle('active',    settings.mode === 'professional');
+  applyAnalyticsModeView();
 }
 
 
@@ -2290,7 +2319,7 @@ function switchTab(tabId) {
   if (tabId === 'clients-tab')    renderClients();
   if (tabId === 'calculator-tab')  window.KhaytStudio?.initStudioCalculatorLayout?.();
   if (tabId === 'queue-tab')      { renderMachineQueues(); renderKanban(); }
-  if (tabId === 'analytics-tab')  { if (settings.mode === 'simple') renderSimpleReports(); else renderAnalytics(); }
+  if (tabId === 'analytics-tab')  applyAnalyticsModeView();
   if (tabId === 'gift-cards-tab') renderGiftCards();
   if (tabId === 'logs-tab')       renderLogs();
   if (tabId === 'portfolio-tab')  renderPortfolio();
@@ -10532,14 +10561,7 @@ async function maybeAutoBackup() {
   try {
     const last  = await window.hubAPI.lastBackupDate();
     const today = new Date().toISOString().split('T')[0];
-    const json  = JSON.stringify({
-      version: 5, exportedAt: new Date().toISOString(),
-      printLog, inventory, templates, products, clients,
-      settings: redactSettingsForExport(settings),
-      expenses, machines: redactMachinesForExport(machines),
-      waTemplates, wasteLog, operators, purchaseOrders, consumables, suppliers, locations,
-      waitingList, waitingListHistory
-    });
+    const json  = JSON.stringify(buildExportPayload({ redactSecrets: true }));
     if (last !== today) {
       const p = await window.hubAPI.writeBackup(json);
       if (p) console.debug('Auto-backup written:', p);
@@ -13640,11 +13662,18 @@ function updateWebhookUrlDisplay(baseUrl) {
   if (!section || !display) return;
   const token = settings.lanApi?.webhookToken || '';
   if (!baseUrl || !token) { section.style.display = 'none'; return; }
-  // Show example for first machine
   const firstMachine = machines[0];
   const machineId = firstMachine?.id || 'machine-id';
-  const url = `${baseUrl}/api/webhook/printer/${encodeURIComponent(machineId)}?token=${encodeURIComponent(token)}`;
+  const url = `${baseUrl}/api/webhook/printer/${encodeURIComponent(machineId)}`;
   display.textContent = url;
+  let hint = section.querySelector('.webhook-token-hint');
+  if (!hint) {
+    hint = document.createElement('p');
+    hint.className = 'webhook-token-hint';
+    hint.style.cssText = 'font-size:11px;color:var(--text-muted);margin:6px 0 0;';
+    display.insertAdjacentElement('afterend', hint);
+  }
+  hint.textContent = t('lan.webhook_header_hint') || 'Send webhook token via x-khayt-webhook-token header (not in URL)';
   section.style.display = 'block';
 }
 
@@ -16434,9 +16463,8 @@ function openReorderModal(itemId) {
    Simple Reports — shown instead of full Analytics in Simple mode
    ============================================================ */
 function renderSimpleReports() {
-  // Show simple-reports card, hide the full analytics content
-  const analyticsTab = $('#analytics-tab');
-  if (!analyticsTab) return;
+  const wrap = $('#analyticsSimpleWrap');
+  if (!wrap) return;
 
   const thisMonthStr = localMonthStr();
   const monthOrders = printLog.filter(o => o.status === 'completed' && (o.date || '').startsWith(thisMonthStr));
@@ -16447,7 +16475,6 @@ function renderSimpleReports() {
     .filter(o => payStatus(o) !== 'paid')
     .reduce((s, o) => s + orderOwedBase(o), 0);
 
-  // Top 3 tags by revenue
   const tagRev = {};
   for (const o of monthOrders) {
     for (const tag of (o.tags || [])) {
@@ -16456,17 +16483,8 @@ function renderSimpleReports() {
   }
   const topTags = Object.entries(tagRev).sort((a, b) => b[1] - a[1]).slice(0, 3);
 
-  let simpleEl = $('#simpleReportsCard');
-  if (!simpleEl) {
-    simpleEl = document.createElement('div');
-    simpleEl.id = 'simpleReportsCard';
-    simpleEl.className = 'card';
-    simpleEl.style.marginTop = '0';
-    analyticsTab.innerHTML = '';
-    analyticsTab.appendChild(simpleEl);
-  }
-
-  simpleEl.innerHTML = `
+  wrap.innerHTML = `
+    <div class="card" id="simpleReportsCard" style="margin-top:0;">
     <h3 class="card-head"><span class="swatch"></span><span>${escapeHtml(t('an.simple_reports'))}</span></h3>
     <div class="grid-4" style="margin-bottom:16px;">
       <div class="stat revenue">
@@ -16483,7 +16501,7 @@ function renderSimpleReports() {
       </div>
     </div>
     ${topTags.length > 0 ? `
-    <h4 style="font-size:13px;font-weight:600;margin:0 0 10px;">Top products this month</h4>
+    <h4 style="font-size:13px;font-weight:600;margin:0 0 10px;">${escapeHtml(t('an.simple_top_products') || 'Top products this month')}</h4>
     <ul class="leaderboard" style="margin-bottom:16px;">
       ${topTags.map(([ tag, rev ], i) => `
         <li>
@@ -16492,9 +16510,10 @@ function renderSimpleReports() {
           <span class="value">${fmtPrice(rev)}</span>
         </li>`).join('')}
     </ul>` : ''}
-    <button class="btn small" id="btnSimpleReportsCsv">${escapeHtml('Download CSV')}</button>`;
+    <button class="btn small" id="btnSimpleReportsCsv">${escapeHtml(t('an.simple_csv') || 'Download CSV')}</button>
+    </div>`;
 
-  simpleEl.querySelector('#btnSimpleReportsCsv')?.addEventListener('click', () => {
+  wrap.querySelector('#btnSimpleReportsCsv')?.addEventListener('click', () => {
     exportOrdersCsv();
   });
 }
@@ -20608,12 +20627,7 @@ function deleteCustomField(idx) {
 function exportData() {
   if (!confirm(t('set.export_secrets_warning') || 'Export will redact API keys and secrets. Continue?')) return;
   downloadBlob(
-    new Blob([JSON.stringify({
-      version: 5,
-      exportedAt: new Date().toISOString(),
-      printLog, inventory, templates, products, clients, settings, expenses, machines,
-      waTemplates, wasteLog, operators, purchaseOrders, consumables, suppliers, locations, waitingList
-    }, null, 2)], { type: 'application/json' }),
+    new Blob([JSON.stringify(buildExportPayload({ redactSecrets: true }), null, 2)], { type: 'application/json' }),
     `khayt-${new Date().toISOString().split('T')[0]}.json`
   );
   toast(t('set.exported'), 'success');
@@ -20651,25 +20665,7 @@ function importData(file) {
   reader.onload = (ev) => {
     try {
       const data = JSON.parse(ev.target.result);
-      if (Array.isArray(data.printLog))      printLog      = data.printLog.filter(isValidOrder);
-      if (Array.isArray(data.inventory))     inventory     = data.inventory.filter(isValidInventoryItem);
-      if (Array.isArray(data.templates))     templates     = data.templates.filter(isValidRecord);
-      if (Array.isArray(data.products))      products      = data.products.filter(isValidRecord);
-      if (Array.isArray(data.clients))       clients       = data.clients.filter(isValidClient);
-      if (Array.isArray(data.expenses))      expenses      = data.expenses.filter(isValidRecord);
-      if (Array.isArray(data.machines))      machines      = data.machines.filter(isValidRecord);
-      if (Array.isArray(data.waTemplates))   waTemplates   = data.waTemplates.filter(isValidRecord);
-      if (Array.isArray(data.wasteLog))      wasteLog      = data.wasteLog.filter(isValidRecord);
-      if (Array.isArray(data.operators))     operators     = data.operators.filter(isValidRecord);
-      if (Array.isArray(data.purchaseOrders)) purchaseOrders = data.purchaseOrders.filter(isValidRecord);
-      if (Array.isArray(data.consumables))   consumables   = data.consumables.filter(isValidRecord);
-      if (Array.isArray(data.suppliers))     suppliers     = data.suppliers.filter(isValidRecord);
-      if (Array.isArray(data.locations))     locations     = data.locations.filter(isValidRecord);
-      if (Array.isArray(data.waitingList))   waitingList   = data.waitingList.filter(isValidRecord);
-      if (Array.isArray(data.waitingListHistory)) waitingListHistory = data.waitingListHistory.filter(isValidRecord);
-      if (data.settings && typeof data.settings === 'object') {
-        settings = Object.assign(defaultSettings(), sanitiseForAssign(data.settings));
-      }
+      applyStoreFromSnapshot(data);
       saveAll();
       initialRender();
       loadSettingsIntoForm();
@@ -20687,9 +20683,11 @@ function importData(file) {
 async function resetAllData() {
   const ok = await confirmModal(t('set.reset_q'), { danger: true });
   if (!ok) return;
-  printLog = []; templates = []; products = []; clients = []; expenses = []; machines = [];
-  waTemplates = defaultWaTemplates(); wasteLog = [];
-  operators = []; purchaseOrders = []; consumables = []; suppliers = []; locations = []; waitingList = [];
+  printLog = []; templates = []; products = []; clients = []; printers = [];
+  expenses = []; machines = []; waTemplates = defaultWaTemplates(); wasteLog = [];
+  machMaintLog = []; consumables = []; suppliers = []; purchaseOrders = []; testPrints = [];
+  locations = []; operators = []; waitingList = []; waitingListHistory = [];
+  timeEntries = []; shiftLogs = []; giftCards = []; slicerProfiles = []; envLogs = [];
   inventory = [
     { id: 'seed-1', material: 'PLA+ 2.0',   cost: 75, weight: 1000 },
     { id: 'seed-2', material: 'Sunlu PETG', cost: 85, weight: 1000 },
@@ -22054,11 +22052,7 @@ function wireEvents() {
       applyMode();
       toast(t('set.mode_changed'), 'success');
       // Re-render analytics tab if it's currently active
-      const analyticsActive = $('#analytics-tab')?.classList.contains('active');
-      if (analyticsActive) {
-        if (settings.mode === 'simple') renderSimpleReports();
-        else renderAnalytics();
-      }
+      applyAnalyticsModeView();
     });
   });
   $('#logoUploadInput').addEventListener('change', (e) => {

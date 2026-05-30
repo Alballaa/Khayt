@@ -871,6 +871,7 @@ ipcMain.handle('hub:load-store', async (event) => {
     const raw = await fs.promises.readFile(fp, 'utf8');
     // Use safeJsonParse to strip __proto__ / constructor prototype-pollution keys
     const data = safeJsonParse(raw);
+    syncLanServerStoreFromDisk();
     // Mask secrets — renderer must not receive plaintext credentials
     return maskStoreSecretsForRenderer(data);
   } catch (e) {
@@ -968,19 +969,34 @@ ipcMain.handle('hub:write-status-page', async (_e, { html, orderId }) => {
   return fullPath;
 });
 
-// --- Safe external URL opener (mailto, https) ---
+function isAllowedExternalUrl(s) {
+  if (s.startsWith('mailto:')) return true;
+  if (s.startsWith('https://')) {
+    try { return !isBlockedHost(new URL(s).hostname); } catch { return false; }
+  }
+  if (s.startsWith('http://')) {
+    try {
+      const h = new URL(s).hostname;
+      if (/^localhost$/i.test(h)) return true;
+      const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h);
+      if (v4) {
+        const a = +v4[1], b = +v4[2];
+        if (a === 127) return true;
+        if (a === 10) return true;
+        if (a === 192 && b === 168) return true;
+        if (a === 172 && b >= 16 && b <= 31) return true;
+      }
+    } catch { return false; }
+  }
+  return false;
+}
+
+// --- Safe external URL opener (mailto, https, private LAN http) ---
 ipcMain.handle('hub:open-external', async (_e, url) => {
   const s = String(url || '');
-  // Only allow safe URL schemes — no http:// to prevent local network exploit attempts
-  if (!s.startsWith('mailto:') && !s.startsWith('https://')) return false;
-  if (s.startsWith('https://')) {
-    try {
-      const parsedExt = new URL(s);
-      if (isBlockedHost(parsedExt.hostname)) return { ok: false, error: 'Blocked URL' };
-    } catch { return { ok: false, error: 'Invalid URL' }; }
-  }
+  if (!isAllowedExternalUrl(s)) return { ok: false, error: 'Blocked URL' };
   await shell.openExternal(s);
-  return true;
+  return { ok: true };
 });
 
 // --- Feature 1 (new batch): G-code / 3MF metadata extraction ---
@@ -1906,7 +1922,8 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '', bindL
                   rating,
                   comment: (comment || '').trim(),
                   submittedAt: new Date().toISOString()
-                }
+                },
+                surveyToken: undefined,
               };
               await persistLanStoreUpdate(storeData);
               if (mainWindow && !mainWindow.isDestroyed()) {

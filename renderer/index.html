@@ -544,14 +544,14 @@
 
       <!-- Waiting list (job intake queue) -->
       <div style="margin-bottom:12px;">
-        <div style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 0;" id="waitingListToggle">
+        <button type="button" style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 0;background:none;border:none;width:100%;text-align:inherit;color:inherit;" id="waitingListToggle" aria-expanded="false">
           <h4 style="margin:0;font-size:13px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">
             <span data-i18n="waiting.title">Job Intake</span>
             <span id="waitingBadge" style="display:none;background:var(--accent);color:#fff;border-radius:10px;font-size:10px;padding:1px 6px;margin-inline-start:6px;font-weight:700;"></span>
           </h4>
           <span id="waitingChevron" style="font-size:10px;color:var(--text-muted);">▼</span>
           <button id="btnAddWaiting" class="btn small ghost" style="margin-inline-start:auto;" onclick="event.stopPropagation()">+ <span data-i18n="waiting.add">Add</span></button>
-        </div>
+        </button>
         <div id="waitingFunnelSection" style="margin-bottom:10px;"></div>
         <div id="waitingListSection" style="display:none;"></div>
       </div>
@@ -711,6 +711,9 @@
           <input type="date" id="analyticsRangeTo" title="To">
         </span>
       </div>
+
+      <div id="analyticsSimpleWrap" style="display:none;"></div>
+      <div id="analyticsProWrap">
 
       <div class="grid-4">
         <div class="stat revenue">
@@ -891,6 +894,7 @@
         <span style="font-size:13px; color:var(--text-muted); flex:1;" data-i18n="an.export_hint">Export data as CSV</span>
         <button class="btn small ghost" id="btnAnOrdersCsv">📥 <span data-i18n="an.export_orders">Orders CSV</span></button>
         <button class="btn small ghost" id="btnAnExpensesCsv">📥 <span data-i18n="an.export_expenses">Expenses CSV</span></button>
+      </div>
       </div>
     </section>
 

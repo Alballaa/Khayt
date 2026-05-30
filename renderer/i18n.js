@@ -26,6 +26,9 @@ const STRINGS = {
     'lan.tunnel_security_warning': 'Warning: the tunnel exposes your full LAN API surface to the internet. Set a strong owner PIN and disable when not needed.',
     'lan.tunnel_need_server': 'Start the LAN server first',
     'lan.tunnel_need_pin': 'Set an owner LAN PIN before starting the tunnel',
+    'an.simple_top_products': 'Top products this month',
+    'an.simple_csv': 'Download CSV',
+    'lan.webhook_header_hint': 'Send webhook token via x-khayt-webhook-token header (not in URL)',
     'lan.pin_configured': 'PIN configured — use Settings to view or change',
 
     // ---------- Common ----------
