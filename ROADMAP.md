@@ -11,7 +11,7 @@ Living priorities for maintainers. Not a public commitment calendar — reorder 
 
 ## Next (2.1.0 — significant)
 
-- [ ] Split `renderer/app.js` into feature modules (started: through `wire-events`; next: shared helpers / misc from `app.js`, or `main.js`)
+- [ ] Split `renderer/app.js` into feature modules (started: through `app-helpers`; next: locations/operators/misc from `app.js`, or `main.js`)
 - [ ] Unit tests for pure logic: more `app.js` splits (started: `lib/` + `renderer/*` modules + `npm test`)
 - [ ] Finish CSP hardening: drop `script-src 'unsafe-inline'` after all dynamic handlers use `data-act`
 - [ ] Split `main.js` into `lan-server`, `store-io`, `zatca-crypto`, `updater`
