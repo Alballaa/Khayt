@@ -270,103 +270,9 @@ fetch('./filaments-db.json').then(r => r.json()).then(data => { filamentsDB = da
 // Undo stack — pushed when a destructive action runs; popped if user clicks "Undo"
 const undoStack = [];
 
-/* ============================================================
-   Helpers
-   ============================================================ */
-function loadJSON(key, fallback) {
-  try { const v = JSON.parse(localStorage.getItem(key)); return v ?? fallback; }
-  catch { return fallback; }
-}
-function saveJSON(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
-function $(sel, root = document) { return root.querySelector(sel); }
-function $$(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
+/* util, currency — renderer/util.js, renderer/currency.js */
 /* num, clampPositive, fmtMoney, computeUnitPrice — renderer/format.js */
 
-/* ── Currency catalogue ────────────────────────────────────────────────── */
-const CURRENCIES = {
-  SAR: { symbol: 'SAR', label: 'Saudi Riyal (SAR)',            pos: 'after'  },
-  AED: { symbol: 'AED', label: 'UAE Dirham (AED)',             pos: 'after'  },
-  KWD: { symbol: 'KWD', label: 'Kuwaiti Dinar (KWD)',          pos: 'after'  },
-  BHD: { symbol: 'BHD', label: 'Bahraini Dinar (BHD)',         pos: 'after'  },
-  QAR: { symbol: 'QAR', label: 'Qatari Riyal (QAR)',           pos: 'after'  },
-  OMR: { symbol: 'OMR', label: 'Omani Rial (OMR)',             pos: 'after'  },
-  EGP: { symbol: 'EGP', label: 'Egyptian Pound (EGP)',         pos: 'after'  },
-  MAD: { symbol: 'MAD', label: 'Moroccan Dirham (MAD)',        pos: 'after'  },
-  TND: { symbol: 'TND', label: 'Tunisian Dinar (TND)',         pos: 'after'  },
-  DZD: { symbol: 'DZD', label: 'Algerian Dinar (DZD)',        pos: 'after'  },
-  IQD: { symbol: 'IQD', label: 'Iraqi Dinar (IQD)',            pos: 'after'  },
-  JOD: { symbol: 'JOD', label: 'Jordanian Dinar (JOD)',        pos: 'after'  },
-  USD: { symbol: '$',   label: 'US Dollar (USD)',              pos: 'before' },
-  EUR: { symbol: '€',   label: 'Euro (EUR)',                   pos: 'before' },
-  GBP: { symbol: '£',   label: 'British Pound (GBP)',          pos: 'before' },
-  CAD: { symbol: 'CA$', label: 'Canadian Dollar (CAD)',        pos: 'before' },
-  AUD: { symbol: 'A$',  label: 'Australian Dollar (AUD)',      pos: 'before' },
-  CHF: { symbol: 'CHF', label: 'Swiss Franc (CHF)',            pos: 'before' },
-  TRY: { symbol: '₺',   label: 'Turkish Lira (TRY)',           pos: 'before' },
-  INR: { symbol: '₹',   label: 'Indian Rupee (INR)',           pos: 'before' },
-  JPY: { symbol: '¥',   label: 'Japanese Yen (JPY)',           pos: 'before' },
-  CNY: { symbol: '¥',   label: 'Chinese Yuan (CNY)',           pos: 'before' },
-  KRW: { symbol: '₩',   label: 'South Korean Won (KRW)',       pos: 'before' },
-  BRL: { symbol: 'R$',  label: 'Brazilian Real (BRL)',         pos: 'before' },
-  MXN: { symbol: '$',   label: 'Mexican Peso (MXN)',           pos: 'before' },
-  ZAR: { symbol: 'R',   label: 'South African Rand (ZAR)',     pos: 'before' },
-  NGN: { symbol: '₦',   label: 'Nigerian Naira (NGN)',         pos: 'before' },
-};
-function localDateStr(d = new Date()) {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-function localMonthStr(d = new Date()) {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-}
-
-// Returns "$ 12.50" or "12.50 SAR" depending on currency setting
-function fmtPrice(n) {
-  const cur = CURRENCIES[settings?.currency] || CURRENCIES.SAR;
-  const num = fmtMoney(n);
-  return cur.pos === 'before' ? `${cur.symbol} ${num}` : `${num} ${cur.symbol}`;
-}
-// Just the currency symbol/code for use as a unit label
-function currencySymbol() {
-  return (CURRENCIES[settings?.currency] || CURRENCIES.SAR).symbol;
-}
-// Format a money value in a specific currency (for per-client currency, Feature 1)
-function fmtMoneyIn(n, currencyCode) {
-  const cur = CURRENCIES[currencyCode] || CURRENCIES[settings?.currency] || CURRENCIES.SAR;
-  const val = fmtMoney(n);
-  return cur.pos === 'before' ? `${cur.symbol} ${val}` : `${val} ${cur.symbol}`;
-}
-// Return the currency for a given client id (falls back to settings default)
-function clientCurrency(clientId) {
-  if (!clientId) return settings.currency || 'SAR';
-  const c = clients.find(x => x.id === clientId);
-  return (c && c.currency) ? c.currency : (settings.currency || 'SAR');
-}
-// Convert an amount in `fromCurrency` to the base currency using stored exchange rates.
-// Returns the amount unchanged if fromCurrency === base or no rate is configured.
-function convertToBase(amount, fromCurrency) {
-  const base = settings.currency || 'SAR';
-  if (!fromCurrency || fromCurrency === base) return +amount || 0;
-  const rate = (settings.exchangeRates || {})[fromCurrency];
-  if (!rate || rate <= 0) return +amount || 0;
-  return (+amount || 0) * rate;
-}
-// Revenue of an order in the base currency (gift cards ARE revenue earned — full price).
-function orderRevenueBase(o){ return convertToBase(+o.price || 0, clientCurrency(o.clientId)); }
-// Amount still owed by the customer, in base currency, net of cash paid and gift-card credit.
-function orderOwedBase(o){
-  const cur = clientCurrency(o.clientId);
-  return Math.max(0,
-    convertToBase(+o.price || 0, cur)
-    - convertToBase(+o.paidAmount || 0, cur)
-    - convertToBase(+o.giftCardDiscount || 0, cur));
-}
-// Update all [data-i18n="common.currency"] elements after currency changes
-function refreshCurrencyLabels() {
-  const sym = currencySymbol();
-  document.querySelectorAll('[data-i18n="common.currency"]').forEach(el => {
-    el.textContent = sym;
-  });
-}
 // ── Shared helpers ────────────────────────────────────────────────────────────
 /** Localised name — picks AR or EN depending on current language. */
 function localName(obj) {
@@ -452,7 +358,7 @@ function getAllTags() {
   for (const o of printLog) { for (const tag of (o.tags || [])) all.add(tag); }
   return [...all].sort();
 }
-function uid(prefix = 'ID') { return prefix + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5).toUpperCase(); }
+/* uid — renderer/util.js */
 
 /** Hash a PIN with SHA-256 (hex string, 64 chars). Used for operator PINs instead of btoa(). */
 async function hashPin(pin) {
@@ -533,47 +439,7 @@ function formatDueDateBadge(dueDate) {
   else                { cls = 'due-ok';    label = t('oe.due_in',    { n: diff }); }
   return `<span class="due-badge ${cls}">${escapeHtml(label)}</span>`;
 }
-function escapeHtml(s) {
-  return String(s ?? '').replace(/[&<>"']/g, c => ({
-    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'
-  })[c]);
-}
-
-/* ============================================================
-   CSV utilities — generic engine
-   ============================================================ */
-
-/**
- * Robust CSV parser.
- * Handles: quoted fields, commas inside quotes, "" escape for literal quote,
- * Windows \r\n line endings, empty trailing lines.
- */
-function parseCsvString(csv) {
-  const lines = csv.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim().split('\n');
-  if (!lines.length) return { headers: [], rows: [] };
-
-  function parseLine(line) {
-    const cols = [];
-    let cur = '', inQ = false;
-    for (let i = 0; i < line.length; i++) {
-      const c = line[i];
-      if (c === '"') {
-        if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
-        else inQ = !inQ;
-      } else if (c === ',' && !inQ) {
-        cols.push(cur.trim()); cur = '';
-      } else {
-        cur += c;
-      }
-    }
-    cols.push(cur.trim());
-    return cols;
-  }
-
-  const headers = parseLine(lines[0]);
-  const rows = lines.slice(1).filter(l => l.trim()).map(parseLine);
-  return { headers, rows };
-}
+/* escapeHtml, parseCsvString — renderer/util.js */
 
 /**
  * Reusable CSV import modal.
@@ -858,16 +724,7 @@ function importProductsCsv() {
   });
 }
 
-/** Validate a CSS color string — allow only #RRGGBB / #RGB hex colors */
-function safeCssColor(val, fallback = '#5E2E14') {
-  return /^#[0-9a-fA-F]{3,8}$/.test(String(val || '')) ? String(val) : fallback;
-}
-function initials(name) {
-  const n = String(name || '').trim();
-  if (!n) return '?';
-  const parts = n.split(/\s+/).slice(0, 2);
-  return parts.map(p => p[0]).join('').toUpperCase();
-}
+/* safeCssColor, initials — renderer/util.js */
 function safeBizLogo() {
   const v = settings.bizLogo;
   return (v && v.startsWith('data:image/')) ? v : '';
@@ -2345,82 +2202,7 @@ function updateFailureRateHint() {
   }
 }
 
-// Pure function: compute base cost (before margin) from a part object.
-// Used for parts loaded from the catalog as well as the live calculator form.
-function computePartBaseCost(part) {
-  const spoolCost   = Math.max(0, +part.spoolCost   || 0);
-  const spoolWeight = Math.max(1, +part.spoolWeight || 1);
-  const printWeight = Math.max(0, +part.printWeight || 0);
-  // Feature 7: For resin parts, spoolWeight is total volume (mL), cost is per-litre; printWeight is volume used in mL
-  const isResin = (() => {
-    if (part.filamentId) {
-      const invItem = inventory.find(i => i.id === part.filamentId);
-      if (invItem) return invItem.materialType === 'resin';
-    }
-    return false;
-  })();
-  // Support material uses the same filament cost-per-gram
-  const supportWeight = Math.max(0, +part.supportWeight || 0);
-  const materialCost = isResin
-    ? (spoolCost / 1000) * (printWeight + supportWeight)
-    : (spoolCost / spoolWeight) * (printWeight + supportWeight);
-
-  const printTime = Math.max(0, +part.printTime || 0);
-  const wearCost  = printTime * Math.max(0, +part.wearRate || 0);
-
-  const powerDraw = Math.max(0, +part.powerDraw || 0);
-  const elecRate  = Math.max(0, +part.elecRate  || 0);
-  const powerCost = printTime * (powerDraw / 1000) * elecRate;
-
-  const prepTime  = Math.max(0, +part.prepTime  || 0);
-  const postTime  = Math.max(0, +part.postTime  || 0);
-  const laborRate = Math.max(0, +part.laborRate || 0);
-  const laborCost = (prepTime + postTime) * laborRate;
-
-  const failureRate = Math.max(0, +part.failureRate || 0);
-  // Extra materials cost
-  let extraMatCost = 0;
-  for (const em of (part.extraMaterials || [])) {
-    if (!em.material || !em.weight) continue;
-    const invItem = inventory.find(i => i.material === em.material);
-    if (invItem && invItem.cost > 0 && invItem.weight > 0) {
-      const pricePerKg = (invItem.cost / invItem.weight) * 1000;
-      extraMatCost += (em.weight / 1000) * pricePerKg;
-    }
-  }
-  // Packaging cost: per-order default distributed to this part (prorated by qty)
-  const packagingCost = Math.max(0, +settings.defaultPackagingCost || 0) / Math.max(1, +part.qty || 1);
-  const baseCost = materialCost + wearCost + powerCost + laborCost + extraMatCost + packagingCost;
-  const totalCost = baseCost + (baseCost * (failureRate / 100));
-  return totalCost;
-}
-
-// Feature 5: Check if a price tier applies and return the override total (final price), or null
-function getActivePriceTier(part) {
-  if (!part.priceTiers || part.priceTiers.length === 0 || !part.qty) return null;
-  const sorted = [...part.priceTiers].sort((a, b) => a.minQty - b.minQty);
-  return [...sorted].reverse().find(ti => +part.qty >= +ti.minQty) || null;
-}
-
-function computePartBreakdown(part) {
-  const spoolCost   = Math.max(0, +part.spoolCost   || 0);
-  const spoolWeight = Math.max(1, +part.spoolWeight || 1);
-  const printWeight = Math.max(0, +part.printWeight || 0);
-  const isResin = part.filamentId ? (inventory.find(i => i.id === part.filamentId)?.materialType === 'resin') : false;
-  const supportWt   = Math.max(0, +part.supportWeight || 0);
-  const material    = isResin
-    ? (spoolCost / 1000) * (printWeight + supportWt)
-    : (spoolCost / spoolWeight) * (printWeight + supportWt);
-  const printTime   = Math.max(0, +part.printTime   || 0);
-  const machine     = printTime * Math.max(0, +part.wearRate  || 0)
-                    + printTime * (Math.max(0, +part.powerDraw || 0) / 1000) * Math.max(0, +part.elecRate || 0);
-  const prepTime    = Math.max(0, +part.prepTime  || 0);
-  const postTime    = Math.max(0, +part.postTime  || 0);
-  const labor       = (prepTime + postTime) * Math.max(0, +part.laborRate || 0);
-  const base        = material + machine + labor;
-  const buffer      = base * (Math.max(0, +part.failureRate || 0) / 100);
-  return { material, machine, labor, buffer };
-}
+/* computePartBaseCost, getActivePriceTier, computePartBreakdown — renderer/calculator-cost.js */
 
 function calculateLivePartCost() {
   // Snapshot the DOM into a part-shaped object and reuse the pure helper.

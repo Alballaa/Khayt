@@ -41,6 +41,9 @@ Thank you for helping maintain Khayt. This document is the default workflow for 
 | `renderer/app.js` | UI and business logic |
 | `renderer/store.js` | Export/import and backup helpers |
 | `renderer/format.js` | Number, money, CSV, and unit-price helpers |
+| `renderer/util.js` | DOM, storage, dates, HTML escape, CSV parse |
+| `renderer/currency.js` | Currency catalogue and conversion |
+| `renderer/calculator-cost.js` | Part costing (`computePartBaseCost`, tiers, breakdown) |
 | `renderer/i18n.js` | Translations |
 | `renderer/studio/*.js` | Khayt Studio UI module |
 | `lib/` | Shared main-process helpers (`safeJsonParse`, `isBlockedHost`) |

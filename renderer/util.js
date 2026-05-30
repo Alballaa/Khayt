@@ -1,0 +1,107 @@
+/**
+ * DOM, storage, date, HTML escape, CSV parse, and small string helpers.
+ */
+(function (global) {
+  function loadJSON(key, fallback) {
+    try {
+      const v = JSON.parse(localStorage.getItem(key));
+      return v ?? fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  function saveJSON(key, val) {
+    localStorage.setItem(key, JSON.stringify(val));
+  }
+
+  function $(sel, root = document) {
+    return root.querySelector(sel);
+  }
+
+  function $$(sel, root = document) {
+    return Array.from(root.querySelectorAll(sel));
+  }
+
+  function localDateStr(d = new Date()) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  function localMonthStr(d = new Date()) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;',
+    })[c]);
+  }
+
+  function uid(prefix = 'ID') {
+    return prefix + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5).toUpperCase();
+  }
+
+  function safeCssColor(val, fallback = '#5E2E14') {
+    return /^#[0-9a-fA-F]{3,8}$/.test(String(val || '')) ? String(val) : fallback;
+  }
+
+  function initials(name) {
+    const n = String(name || '').trim();
+    if (!n) return '?';
+    const parts = n.split(/\s+/).slice(0, 2);
+    return parts.map((p) => p[0]).join('').toUpperCase();
+  }
+
+  function parseCsvString(csv) {
+    const lines = csv.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim().split('\n');
+    if (!lines.length) return { headers: [], rows: [] };
+
+    function parseLine(line) {
+      const cols = [];
+      let cur = '';
+      let inQ = false;
+      for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        if (c === '"') {
+          if (inQ && line[i + 1] === '"') {
+            cur += '"';
+            i++;
+          } else inQ = !inQ;
+        } else if (c === ',' && !inQ) {
+          cols.push(cur.trim());
+          cur = '';
+        } else {
+          cur += c;
+        }
+      }
+      cols.push(cur.trim());
+      return cols;
+    }
+
+    const headers = parseLine(lines[0]);
+    const rows = lines.slice(1).filter((l) => l.trim()).map(parseLine);
+    return { headers, rows };
+  }
+
+  const api = {
+    $,
+    $$,
+    loadJSON,
+    saveJSON,
+    localDateStr,
+    localMonthStr,
+    escapeHtml,
+    uid,
+    safeCssColor,
+    initials,
+    parseCsvString,
+  };
+
+  Object.assign(global, api);
+  global.KhaytUtil = api;
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+})(typeof globalThis !== 'undefined' ? globalThis : window);
