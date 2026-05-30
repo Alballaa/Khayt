@@ -271,6 +271,17 @@ def main() -> int:
     print("\nMicrosoft Store tiles…")
     subprocess.check_call([sys.executable, str(appx)])
 
+    if EXPLICIT_LOCKUP.is_file():
+        LOCKUP_OUT.parent.mkdir(parents=True, exist_ok=True)
+        Image.open(EXPLICIT_LOCKUP).convert("RGBA").save(LOCKUP_OUT, optimize=True)
+        print(f"  {LOCKUP_OUT.relative_to(ROOT)}")
+
+    if EXPLICIT_FAVICON.is_file():
+        import shutil
+        FAVICON_OUT.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(EXPLICIT_FAVICON, FAVICON_OUT)
+        print(f"  {FAVICON_OUT.relative_to(ROOT)}")
+
     print("\nDone. Run npm start to see sidebar mark; icon updates after rebuild/reinstall.")
     return 0
 
