@@ -1410,6 +1410,7 @@ function saveSettingsFromForm() {
     resinProfiles:      settings.resinProfiles       || [],
     dismissedNotifs:    settings.dismissedNotifs     || {},
     kanbanCollapsed:    settings.kanbanCollapsed     || [],
+    donationUrl:        settings.donationUrl         || '', // legacy — UI removed; preserve on save
     printerApi:         settings.printerApi          || {},
     locations:          settings.locations           || [],
     lanApi: (() => { migrateLanApiSettings(); return settings.lanApi || { enabled: false, port: 3219, pin: '' }; })(),

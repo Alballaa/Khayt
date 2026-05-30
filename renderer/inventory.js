@@ -2909,7 +2909,7 @@ function openReorderModal(itemId) {
         <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;">
           <button class="btn ghost" id="reorderModalCancel">${escapeHtml(t('common.cancel'))}</button>
           <button class="btn" id="reorderDraftOnly">${escapeHtml(t('inv.draft_po_only') || 'Draft PO Only')}</button>
-          <button class="btn primary" id="reorderDraftAndWa">${escapeHtml(t('inv.draft_po_wa') || 'Draft PO + WhatsApp')}</button>
+          <button class="btn primary" id="reorderDraftAndWa">${escapeHtml(t('inv.draft_po_whatsapp') || 'Draft PO + WhatsApp')}</button>
         </div>
       </div>
     </div>`;
