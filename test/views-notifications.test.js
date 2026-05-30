@@ -36,3 +36,49 @@ test('KhaytViews and KhaytNotifications export entry points', () => {
   assert.equal(typeof notifications.buildNotifications, 'function');
   assert.equal(typeof notifications.updateTabBadges, 'function');
 });
+
+test('buildNotifications surfaces overdue orders and low stock', () => {
+  global.settings = { dismissedNotifs: {}, lowStockThreshold: 200, staleHours: { pending: 72 } };
+  global.printLog = [{
+    id: 'O-overdue',
+    project: 'Late job',
+    dueDate: '2020-01-01',
+    status: 'pending',
+    date: '2020-01-01',
+  }];
+  global.inventory = [{ id: 'S1', material: 'PLA', weight: 50, reorderPoint: 200 }];
+  global.machines = [];
+  global.consumables = [];
+  global.clients = [];
+  global.escapeHtml = (s) => String(s ?? '');
+  global.t = (k) => k;
+  global.switchTab = () => {};
+  global.machineServiceStatus = () => ({ due: false, warning: false });
+  global.localName = () => '';
+
+  const { buildNotifications } = require('../renderer/notifications.js');
+  const types = buildNotifications().map((a) => a.type);
+  assert.ok(types.includes('overdue'));
+  assert.ok(types.includes('stock'));
+});
+
+test('buildNotifications respects dismissed alert keys', () => {
+  global.settings = {
+    dismissedNotifs: { 'overdue:O1': 'forever' },
+    lowStockThreshold: 200,
+    staleHours: {},
+  };
+  global.printLog = [{ id: 'O1', project: 'X', dueDate: '2020-01-01', status: 'pending' }];
+  global.inventory = [];
+  global.machines = [];
+  global.consumables = [];
+  global.clients = [];
+  global.escapeHtml = (s) => String(s ?? '');
+  global.t = (k) => k;
+  global.switchTab = () => {};
+  global.machineServiceStatus = () => ({ due: false, warning: false });
+  global.localName = () => '';
+
+  const { buildNotifications } = require('../renderer/notifications.js');
+  assert.equal(buildNotifications().some((a) => a.key === 'overdue:O1'), false);
+});
