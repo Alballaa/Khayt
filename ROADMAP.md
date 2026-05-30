@@ -14,7 +14,7 @@ Living priorities for maintainers. Not a public commitment calendar — reorder 
 - [x] Split `renderer/app.js` into feature modules (`app.js` is now a thin entry; next: `main.js` split)
 - [ ] Unit tests for pure logic: more `app.js` splits (started: `lib/` + `renderer/*` modules + `npm test`)
 - [ ] Finish CSP hardening: drop `script-src 'unsafe-inline'` after all dynamic handlers use `data-act`
-- [ ] Split `main.js` into `zatca-crypto` (`lib/store-io.js`, `lib/updater.js`, `lib/lan-server.js` done)
+- [x] Split `main.js` into feature modules (`lib/store-io.js`, `lib/updater.js`, `lib/lan-server.js`, `lib/zatca-crypto.js`)
 
 ## Later (2.x / 3.0.0 when justified)
 
