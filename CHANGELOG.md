@@ -8,11 +8,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 - Versioning policy (`VERSIONING.md`), release checklist, and `npm run version:*` helpers.
 - Maintainer guide (`CONTRIBUTING.md`) and engineering roadmap (`ROADMAP.md`).
-- `npm run lint`, `npm run check`, and `npm test` (unit tests for `safeJsonParse` and `isBlockedHost` in `lib/`).
+- `npm run lint`, `npm run check`, and `npm test` (unit tests for `lib/` helpers).
+- Unit tests for ZATCA ASN.1 DER encoding and CSR building.
 
 ### Changed
 
-- `safeJsonParse` and `isBlockedHost` moved from `main.js` into `lib/` for reuse and testing.
+- `safeJsonParse`, `isBlockedHost`, and ZATCA ASN.1 helpers moved from `main.js` into `lib/` for reuse and testing.
 
 ## [2.0.15] - (current)
 

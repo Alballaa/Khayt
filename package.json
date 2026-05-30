@@ -10,7 +10,7 @@
   "license": "MIT-Commons-Clause",
   "private": false,
   "scripts": {
-    "lint": "node --check main.js && node --check preload.js && node --check renderer/app.js && node --check renderer/i18n.js && node --check renderer/store.js && node --check renderer/studio/studio.js && node --check renderer/studio/icons.js && node --check renderer/studio/charts.js && node --check lib/safe-json.js && node --check lib/host-guard.js",
+    "lint": "node --check main.js && node --check preload.js && node --check renderer/app.js && node --check renderer/i18n.js && node --check renderer/store.js && node --check renderer/studio/studio.js && node --check renderer/studio/icons.js && node --check renderer/studio/charts.js && node --check lib/safe-json.js && node --check lib/host-guard.js && node --check lib/zatca-asn1.js",
     "check": "npm run lint",
     "test": "node --test test/*.test.js",
     "start": "electron .",
