@@ -2227,6 +2227,7 @@ async function captureFailurePhoto(orderId) {
     splitOrderAcrossMachines,
     openChangeOrderModal,
     captureFailurePhoto,
+    paymentBadge,
   };
 
   Object.assign(global, api);
