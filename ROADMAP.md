@@ -2,33 +2,28 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (2.0.x patch series)
+## Now (2.1.x)
 
-- [x] Document versioning (`VERSIONING.md`) — continue from **2.0.15**, no version reset
-- [x] Align CI Node version with README (22 LTS)
-- [x] Add `npm run lint` for `main.js`, `preload.js`, `renderer/*.js` (includes `store.js`, `studio/*.js`, `lib/*.js`)
-- [x] Remove or relocate unused root Vite/React scaffold — gone; app is `renderer/` only
+- [ ] Triage post-2.1.0 feedback and plan the next significant slice (target **2.2.0** when justified)
 
-## Next (2.1.0 — significant)
+## Completed (2.1.0 — 2026-05-30)
 
-- [x] Split `renderer/app.js` into feature modules (`app.js` is a thin entry shell; log pagination state lives in `app-state.js`)
-- [x] Unit tests for pure logic (`npm test` — 120 cases covering `lib/*`, store contract, renderer helpers)
-- [x] Finish CSP hardening: drop `script-src 'unsafe-inline'` in Electron CSP (renderer uses `data-act`; LAN/export HTML may still use inline scripts)
-- [x] Split `main.js` into feature modules (`lib/store-io.js`, `lib/updater.js`, `lib/lan-server.js`, `lib/zatca-crypto.js`)
-
-## Later (2.x / 3.0.0 when justified)
-
-- [x] Locale files per language (`renderer/locales/*.js` + thin `i18n.js` loader; `npm run i18n:extract`)
-- [x] E2E smoke test: launch app, store round-trip, LAN PIN gate (`npm run test:e2e`, CI with xvfb)
-- [x] Typed store contract (JSDoc + `renderer/store-validate.js`) validated on load
-- [x] LAN tunnel: require PIN + confirm dialog before exposing via localtunnel
+- [x] Document versioning (`VERSIONING.md`), lint, and test harness
+- [x] Split `renderer/app.js` into feature modules (`app.js` is a thin entry shell)
+- [x] Split `main.js` into `lib/store-io.js`, `lib/updater.js`, `lib/lan-server.js`, `lib/zatca-crypto.js`
+- [x] Unit tests for pure logic (`npm test` — 120 cases)
+- [x] CSP hardening: drop `script-src 'unsafe-inline'` in Electron CSP
+- [x] Locale files per language (`renderer/locales/*.js` + `npm run i18n:extract`)
+- [x] E2E smoke test (`npm run test:e2e`)
+- [x] Typed store contract validated on load (`renderer/store-validate.js`)
+- [x] LAN tunnel: confirm dialog + risk acknowledgement before `localtunnel`
 
 ## Versioning reminder
 
 | Type | Example |
 |------|---------|
-| Patch (minor updates) | `2.0.15` → `2.0.16` |
-| Minor (significant) | `2.0.16` → `2.1.0` |
-| Major | `2.0.x` → `3.0.0` |
+| Patch (minor updates) | `2.1.0` → `2.1.1` |
+| Minor (significant) | `2.1.0` → `2.2.0` |
+| Major | `2.x.x` → `3.0.0` |
 
 Details: [VERSIONING.md](./VERSIONING.md).

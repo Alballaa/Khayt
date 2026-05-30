@@ -4,23 +4,33 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-05-30
+
+Significant release: modular renderer and main process, store validation, expanded test suite, and CSP hardening. Completes [ROADMAP.md](./ROADMAP.md) 2.1.0 goals.
+
 ### Added
 
 - Versioning policy (`VERSIONING.md`), release checklist, and `npm run version:*` helpers.
 - Maintainer guide (`CONTRIBUTING.md`) and engineering roadmap (`ROADMAP.md`).
-- `npm run lint`, `npm run check`, and `npm test` (unit tests for `lib/` helpers).
-- Unit tests for ZATCA ASN.1 DER encoding and CSR building.
-- `renderer/format.js` with tests for `num`, `fmtMoney`, `computeUnitPrice`, and CSV neutralization.
-- Split from `app.js`: `app-state.js`, `shell.js`, `util.js`, `currency.js`, `calculator-cost.js`, `build.js` (calculator tab, quote cart, presets, quote templates), `wire-events.js` (initial render + DOM listeners), `app-boot.js` (setup wizard + `DOMContentLoaded`), `app-exports.js` (auto-backup, quote approval, milestones, work orders), `integrations.js` (Telegram, iCal, referral, shipping, email, webhooks, BNPL, LAN, status pages, surveys), `inventory.js` (spools, catalog, POs, NFC import, material forecast), `machines.js`, `clients.js`, `expenses.js`, `waste.js`, `views.js`, `notifications.js`, `ops-locations.js`, `app-helpers.js`, `operations-extras.js`, `kanban.js`, `invoicing.js`, `logs.js`, `settings.js`, `order-flows.js`, `waiting-list.js`, `dashboard.js`, `analytics.js` (with unit tests).
-
-- Unit tests for `lib/lan-server` token/HTML helpers and expanded `app-helpers` / `analytics` pure-logic coverage.
-- Additional tests for printer webhook normalization, store client validation, order balance helpers, long ZATCA TLV payloads, notification centre rules, and kanban urgency scoring.
+- `npm run lint`, `npm run check`, and `npm test` (120 unit tests).
+- `npm run test:e2e` — Electron smoke (launch, store round-trip, LAN PIN gate).
+- `npm run i18n:extract` — locale file extraction; per-language bundles in `renderer/locales/*.js`.
+- `lib/store-io.js`, `lib/updater.js`, `lib/lan-server.js`, `lib/zatca-crypto.js` — split from `main.js`.
+- `renderer/store-validate.js` — snapshot shape checks and normalization on load.
+- Renderer modules split from `app.js`: `app-state`, `shell`, `app-helpers`, `app-boot`, `app-exports`, `wire-events`, `build`, `inventory`, `machines`, `clients`, `expenses`, `waste`, `views`, `notifications`, `ops-locations`, `integrations`, `operations-extras`, `kanban`, `invoicing`, `logs`, `settings`, `order-flows`, `waiting-list`, `dashboard`, `analytics`, and related helpers (`format`, `util`, `currency`, `calculator-cost`).
+- Unit tests for ZATCA ASN.1, store I/O, store validation, LAN server helpers, invoicing TLV/XML, and renderer pure-logic helpers.
 
 ### Changed
 
-- `renderer/app.js` reduced to a thin entry shell; log operator filter and pagination state live in `app-state.js` with other log filters.
+- `renderer/app.js` is a thin entry shell (~7 lines); feature logic lives in `renderer/*.js`.
+- Log operator filter and pagination state live in `app-state.js` with other log UI globals.
 - `safeJsonParse`, `isBlockedHost`, and ZATCA ASN.1 helpers moved from `main.js` into `lib/` for reuse and testing.
 
-## [2.0.15] - (current)
+### Security
 
-Ongoing production line. See [GitHub Releases](https://github.com/Alballaa/Khayt/releases) for prior `2.0.x` notes.
+- Electron CSP: drop `script-src 'unsafe-inline'` (renderer uses `data-act`; exported HTML may still use inline scripts).
+- LAN tunnel: require explicit risk acknowledgement before starting `localtunnel`.
+
+## [2.0.16] - 2026-05-30
+
+Patch line preceding 2.1.0. See [GitHub Releases](https://github.com/Alballaa/Khayt/releases) for prior `2.0.x` notes.
