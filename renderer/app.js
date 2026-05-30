@@ -2301,10 +2301,17 @@ function syncTopbarTitle(tabId) {
    Tabs
    ============================================================ */
 function switchTab(tabId) {
-  $$('.tab-content').forEach(el => el.classList.remove('active'));
-  $$('.tab-btn').forEach(el => el.classList.remove('active'));
-  $('#' + tabId)?.classList.add('active');
-  $$(`.tab-btn[data-tab="${tabId}"]`).forEach(el => el.classList.add('active'));
+  $$('.tab-content').forEach(el => {
+    const on = el.id === tabId;
+    el.classList.toggle('active', on);
+    el.setAttribute('aria-hidden', on ? 'false' : 'true');
+  });
+  $$('.tab-btn').forEach(btn => {
+    const on = btn.dataset.tab === tabId;
+    btn.classList.toggle('active', on);
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    btn.setAttribute('tabindex', on ? '0' : '-1');
+  });
 
   $$('.tab-btn.khayt-navitem').forEach(btn => {
     btn.classList.toggle('on', btn.dataset.tab === tabId);
@@ -10561,14 +10568,15 @@ async function maybeAutoBackup() {
   try {
     const last  = await window.hubAPI.lastBackupDate();
     const today = new Date().toISOString().split('T')[0];
-    const json  = JSON.stringify(buildExportPayload({ redactSecrets: true }));
+    const localJson  = JSON.stringify(buildExportPayload({ redactSecrets: false }));
+    const icloudJson = JSON.stringify(buildExportPayload({ redactSecrets: true }));
     if (last !== today) {
-      const p = await window.hubAPI.writeBackup(json);
+      const p = await window.hubAPI.writeBackup(localJson);
       if (p) console.debug('Auto-backup written:', p);
       updateLastBackupDisplay();
     }
     if (settings.useIcloud && window.hubAPI?.writeIcloudBackup) {
-      await window.hubAPI.writeIcloudBackup(json).catch(e => console.warn('iCloud backup failed', e));
+      await window.hubAPI.writeIcloudBackup(icloudJson).catch(e => console.warn('iCloud backup failed', e));
     }
   } catch (e) { console.warn('Auto-backup failed', e); }
 }
@@ -20519,7 +20527,13 @@ async function openRestoreBackupModal() {
       try {
         const json = await window.hubAPI.restoreBackup(chosen.value);
         if (!json) { toast(t('set.restore_error'), 'error'); return false; }
-        importData(new File([json], 'restore.json', { type: 'application/json' }));
+        const data = JSON.parse(json);
+        applyStoreFromSnapshot(data);
+        saveAll();
+        initialRender();
+        loadSettingsIntoForm();
+        applyTheme(settings.theme);
+        i18n.set(settings.lang);
         toast(t('set.restore_success'), 'success');
         return true;
       } catch (e) {
@@ -22281,6 +22295,7 @@ function initWizard() {
     if (bizName) settings.bizEn = bizName;
     settings.currency = currency;
     settings.mode     = selectedMode;
+    settings.enableZatca = $('#wizEnableZatca')?.checked !== false;
     settings.firstRun = false;
     settings.firstRunDone = true;
     saveAll();
@@ -22337,6 +22352,7 @@ function openOnboarding() {
             <option value="es"${(settings.lang||'en')==='es'?' selected':''}>Español</option>
             <option value="fr"${(settings.lang||'en')==='fr'?' selected':''}>Français</option>
             <option value="zh"${(settings.lang||'en')==='zh'?' selected':''}>中文</option>
+            <option value="ja"${(settings.lang||'en')==='ja'?' selected':''}>日本語</option>
           </select>
         </div>
         <div class="form-group" style="background:var(--surface-2,rgba(255,255,255,.04)); padding:12px; border-radius:8px;">
@@ -22360,6 +22376,7 @@ function openOnboarding() {
       settings.currency     = currency;
       settings.lang         = lang;
       settings.enableZatca  = enableZatca;
+      settings.firstRun = false;
       settings.firstRunDone = true;
       saveAll();
       i18n.set(lang);
@@ -22429,12 +22446,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  let currentVersion = '1.0.0-rc.1';
+  let currentVersion = '2.0.15';
   if (window.hubAPI?.appVersion) {
     try { currentVersion = await window.hubAPI.appVersion(); }
     catch (_) {}
   }
-  if ($('#appVersion')) $('#appVersion').textContent = currentVersion || '1.0.0-rc.1 (dev)';
+  if ($('#appVersion')) $('#appVersion').textContent = currentVersion || '2.0.15 (dev)';
 
   // ── Post-update "data survived" toast ────────────────────────────────────────
   // If the previous session stored a pending-update version and we're now running

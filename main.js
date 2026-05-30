@@ -774,8 +774,15 @@ ipcMain.handle('hub:list-backups', async () => {
 ipcMain.handle('hub:restore-backup', async (_e, backupPath) => {
   const safe = path.join(backupsDir(), path.basename(String(backupPath || '')));
   if (!fs.existsSync(safe)) return null;
-  const content = await fs.promises.readFile(safe, 'utf8');
-  return content;
+  try {
+    const content = await fs.promises.readFile(safe, 'utf8');
+    const parsed = safeJsonParse(content);
+    const decrypted = decryptStoreSecrets(JSON.parse(JSON.stringify(parsed)));
+    return JSON.stringify(decrypted);
+  } catch (e) {
+    console.error('hub:restore-backup error:', e);
+    return null;
+  }
 });
 ipcMain.handle('hub:reveal-order-photos-folder', async () => shell.openPath(orderPhotosDir()));
 ipcMain.handle('hub:reveal-backups-folder', async () => shell.openPath(backupsDir()));
