@@ -23,7 +23,8 @@
     "dist:mac:arm64": "electron-builder --mac --arm64",
     "dist:mac:x64": "electron-builder --mac --x64",
     "dist:win": "electron-builder --win --x64",
-    "dist:linux": "electron-builder --linux --x64"
+    "dist:linux": "electron-builder --linux --x64",
+    "build:icons": "python3 make_icon.py && python3 scripts/build-appx-icons.py"
   },
   "dependencies": {
     "electron-updater": "^6.8.3",
