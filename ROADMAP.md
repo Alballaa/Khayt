@@ -12,7 +12,7 @@ Living priorities for maintainers. Not a public commitment calendar — reorder 
 ## Next (2.1.0 — significant)
 
 - [ ] Split `renderer/app.js` into feature modules (started: `format`, `util`, `currency`, `calculator-cost`, `kanban`, `invoicing`, `logs`, `settings`, `order-flows`, `waiting-list`, `dashboard`, `analytics` (incl. capacity/break-even/receivables); next: `main.js` or build/calculator tab)
-- [ ] Unit tests for pure logic: more `app.js` splits (started: `lib/` + `renderer/*` + `store.js` / `store-validate` + `npm test`)
+- [ ] Unit tests for pure logic: more `app.js` splits (started: `lib/store-io` + `renderer/*` + `store.js` / `store-validate` + `npm test`)
 - [ ] Finish CSP hardening: drop `script-src 'unsafe-inline'` after all dynamic handlers use `data-act`
 - [ ] Split `main.js` into `lan-server`, `zatca-crypto`, `updater` (`lib/store-io.js` done)
 
