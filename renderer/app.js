@@ -4442,7 +4442,7 @@ function renderInventory() {
   const _studioInv = window.KhaytStudio?.isStudio?.();
   const tbody = $('#inventoryTable tbody');
   if (inventory.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="${_studioInv ? 6 : 5}" class="empty-state">${escapeHtml(t('inv.empty'))} <button class="btn small primary" onclick="$('#invMaterial')?.focus()" style="margin-inline-start:12px;">${escapeHtml(t('inv.add_title') || 'Add Filament')}</button></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${_studioInv ? 6 : 5}" class="empty-state">${escapeHtml(t('inv.empty'))} <button type="button" class="btn small primary" data-act="focus-inv-material" style="margin-inline-start:12px;">${escapeHtml(t('inv.add_title') || 'Add Filament')}</button></td></tr>`;
   } else {
     const todayMs = Date.now();
     const invTerm = invSearchTerm.toLowerCase().trim();
@@ -9072,7 +9072,7 @@ function openNotifPanel() {
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       const newOrderBtn = item.type === 'recurring' && item.clientId
-        ? `<button class="btn small ghost notif-new-order-btn" data-client="${escapeHtml(item.clientId)}" style="font-size:11px;padding:2px 6px;margin-inline-end:4px;" onclick="event.stopPropagation()">${escapeHtml(t('common.new_order') || 'New Order')}</button>`
+        ? `<button type="button" class="btn small ghost notif-new-order-btn" data-client="${escapeHtml(item.clientId)}" style="font-size:11px;padding:2px 6px;margin-inline-end:4px;">${escapeHtml(t('common.new_order') || 'New Order')}</button>`
         : '';
       html += `<div class="notif-row" data-notif-idx="${alerts.indexOf(item)}"
         style="display:flex;align-items:flex-start;gap:10px;padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--border-soft);transition:background .1s;">
@@ -9082,7 +9082,7 @@ function openNotifPanel() {
           <div style="font-size:12.5px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(item.body)}</div>
         </div>
         ${newOrderBtn}
-        ${item.key ? `<button class="btn small ghost notif-dismiss-btn" data-key="${escapeHtml(item.key)}" title="${escapeHtml(t('notif.dismiss') || 'Snooze until tomorrow')}" style="font-size:11px;padding:2px 6px;margin-inline-end:4px;" onclick="event.stopPropagation()">✕</button>` : ''}
+        ${item.key ? `<button type="button" class="btn small ghost notif-dismiss-btn" data-key="${escapeHtml(item.key)}" title="${escapeHtml(t('notif.dismiss') || 'Snooze until tomorrow')}" style="font-size:11px;padding:2px 6px;margin-inline-end:4px;">✕</button>` : ''}
         <span style="font-size:11px;color:var(--primary);flex-shrink:0;padding-top:2px;">${escapeHtml(t('notif.go') || 'Go →')}</span>
       </div>`;
     }
@@ -9853,7 +9853,7 @@ async function openCustomerPortalModal(orderId) {
           <div style="font-size:32px;margin-bottom:12px;">⚠</div>
           <p style="color:var(--warning);font-weight:600;margin-bottom:8px;">${escapeHtml(t('lan.not_running') || 'LAN server is not running')}</p>
           <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">${escapeHtml(t('lan.start_hint') || 'Start the LAN server in Settings first')}</p>
-          <button class="btn primary" onclick="showTab('settings-tab');$('#modalMount').innerHTML='';">${escapeHtml(t('nav.settings') || 'Go to Settings')}</button>
+          <button type="button" class="btn primary" data-act="open-settings-from-modal">${escapeHtml(t('nav.settings') || 'Go to Settings')}</button>
         </div>`,
     });
     return;
@@ -10859,6 +10859,8 @@ function wireEvents() {
   });
   $('#btnScanLabel').addEventListener('click', openFilamentScanner);
   $('#inventoryTable').addEventListener('click', (e) => {
+    const focusInv = e.target.closest('[data-act="focus-inv-material"]');
+    if (focusInv) { $('#invMaterial')?.focus(); return; }
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
     if (btn.dataset.act === 'del-inv')           deleteInventoryItem(btn.dataset.id);
@@ -11045,6 +11047,8 @@ function wireEvents() {
   // QW6: Operator filter
   $('#logOperatorFilter')?.addEventListener('change', (e) => { logOperatorFilter = e.target.value; renderLogs(); });
   $('#logTable').addEventListener('click', (e) => {
+    const clearFiltersBtn = e.target.closest('[data-act="clear-log-filters"]');
+    if (clearFiltersBtn) { clearLogFilters(); return; }
     const newOrdBtn = e.target.closest('[data-act="new-order"]');
     if (newOrdBtn) { logPrint(); return; }
     const loadMoreBtn = e.target.closest('[data-act="load-more-logs"]');
@@ -11391,6 +11395,12 @@ function wireEvents() {
   $('#btnCreateGiftCard')?.addEventListener('click', openCreateGiftCardModal);
   // Batch-2 Feature 8: Slicer profiles
   $('#btnAddSlicerProfile')?.addEventListener('click', () => openSlicerProfileModal(null));
+  $('#slicerProfilesContainer')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-act]');
+    if (!btn) return;
+    if (btn.dataset.act === 'edit-slicer-profile') openSlicerProfileModal(btn.dataset.id);
+    if (btn.dataset.act === 'delete-slicer-profile') deleteSlicerProfile(btn.dataset.id);
+  });
   // Batch-2 Feature 9: Env log
   $('#btnLogEnv')?.addEventListener('click', openLogEnvModal);
   // Batch-2 Feature 7: VAT return export
@@ -11400,7 +11410,10 @@ function wireEvents() {
   });
 
   // Waiting list
-  $('#btnAddWaiting')?.addEventListener('click', () => openWaitingItemEditor(null));
+  $('#btnAddWaiting')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openWaitingItemEditor(null);
+  });
   $('#waitingListToggle')?.addEventListener('click', () => {
     if (window.KhaytStudio?.isStudio?.()) return;
     const section = $('#waitingListSection');
@@ -11654,6 +11667,16 @@ function wireEvents() {
 
   // Settings
   $('#btnSaveSettings').addEventListener('click', saveSettingsFromForm);
+  document.addEventListener('click', (e) => {
+    const savePanel = e.target.closest('[data-act="save-settings-from-panel"]');
+    if (savePanel) { $('#btnSaveSettings')?.click(); return; }
+    const openSettings = e.target.closest('[data-act="open-settings-from-modal"]');
+    if (openSettings) {
+      showTab('settings-tab');
+      const mount = $('#modalMount');
+      if (mount) mount.innerHTML = '';
+    }
+  });
 
   // Settings sidebar navigation
   document.addEventListener('click', e => {
@@ -12699,8 +12722,8 @@ function renderSlicerProfiles() {
       <td>${p.supports ? 'Yes' : 'No'}</td>
       <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(p.notes || '')}</td>
       <td>
-        <button class="btn small ghost" onclick="openSlicerProfileModal('${escapeHtml(p.id)}')">Edit</button>
-        <button class="btn danger small" onclick="deleteSlicerProfile('${escapeHtml(p.id)}')">×</button>
+        <button type="button" class="btn small ghost" data-act="edit-slicer-profile" data-id="${escapeHtml(p.id)}">Edit</button>
+        <button type="button" class="btn danger small" data-act="delete-slicer-profile" data-id="${escapeHtml(p.id)}">×</button>
       </td>
     </tr>`;
   }).join('');
