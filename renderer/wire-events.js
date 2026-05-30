@@ -23,6 +23,7 @@ function initialRender() {
   renderLogs();
   renderKanban();
   renderAnalytics();
+  if (typeof renderReferralAnalytics === 'function') renderReferralAnalytics();
   renderBuild();
   renderCatalog();
   renderClients();

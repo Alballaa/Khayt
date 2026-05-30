@@ -11,7 +11,7 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 - `npm run lint`, `npm run check`, and `npm test` (unit tests for `lib/` helpers).
 - Unit tests for ZATCA ASN.1 DER encoding and CSR building.
 - `renderer/format.js` with tests for `num`, `fmtMoney`, `computeUnitPrice`, and CSV neutralization.
-- Split from `app.js`: `app-state.js`, `shell.js`, `util.js`, `currency.js`, `calculator-cost.js`, `build.js` (calculator tab, quote cart, presets, quote templates), `wire-events.js` (initial render + DOM listeners), `app-boot.js` (setup wizard + `DOMContentLoaded`), `app-exports.js` (auto-backup, quote approval, milestones, work orders), `kanban.js`, `invoicing.js`, `logs.js`, `settings.js`, `order-flows.js`, `waiting-list.js`, `dashboard.js`, `analytics.js` (with unit tests).
+- Split from `app.js`: `app-state.js`, `shell.js`, `util.js`, `currency.js`, `calculator-cost.js`, `build.js` (calculator tab, quote cart, presets, quote templates), `wire-events.js` (initial render + DOM listeners), `app-boot.js` (setup wizard + `DOMContentLoaded`), `app-exports.js` (auto-backup, quote approval, milestones, work orders), `integrations.js` (Telegram, iCal, referral analytics, shipping tracking), `kanban.js`, `invoicing.js`, `logs.js`, `settings.js`, `order-flows.js`, `waiting-list.js`, `dashboard.js`, `analytics.js` (with unit tests).
 
 ### Changed
 
