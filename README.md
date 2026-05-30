@@ -125,7 +125,7 @@ Khayt replaces spreadsheets, WhatsApp notes, and separate invoicing tools with o
 - In-app download progress and one-click install
 
 ### ⚙️ Settings & Integrations
-- 6 UI languages: English, Arabic, German, Spanish, French, Chinese
+- 7 UI languages: English, Arabic, German, Spanish, French, Chinese, Japanese
 - Full RTL support for Arabic
 - Dark / Light / System theme
 - Operator PIN lock with role-based access (Admin / Technician / Sales)
@@ -133,7 +133,7 @@ Khayt replaces spreadsheets, WhatsApp notes, and separate invoicing tools with o
 - Import / Export all data
 - Custom invoice number prefix with gap detection
 - Working hours schedule and public holidays
-- Simple / Professional UI modes (hide advanced features for new users)
+- Studio UI — sidebar navigation, Kanban production queue, and focused dashboards
 
 ---
 
@@ -176,7 +176,7 @@ npm run install:electron
 npm start
 ```
 
-If that does not help, follow these steps:
+If that does not help, see **[docs/LOCAL_SETUP.md](./docs/LOCAL_SETUP.md)** or follow these steps:
 
 1. **Update the repo** (you need `scripts/install-electron-await.js` on `main`):
 
@@ -256,13 +256,15 @@ Full cryptographic e-invoicing for the Saudi FATOORA platform:
 Khayt/
 ├── main.js              # Electron main process — IPC, file I/O, LAN server, updater
 ├── preload.js           # Context bridge — exposes hubAPI to renderer
+├── lib/                 # Shared main-process modules (store I/O, LAN, ZATCA, updater)
 ├── renderer/
 │   ├── index.html       # Single-page app shell with all tab panels
-│   ├── styles.css       # Dark theme, RTL support, print styles
-│   ├── i18n.js          # 6-language string table + t() helper
-│   ├── app.js           # All UI logic (~22,000 lines)
-│   └── filaments-db.json # Built-in filament presets
-├── assets/              # App icons (icns, png, ico)
+│   ├── app.js           # Thin entry shell (feature logic in renderer/*.js)
+│   ├── studio/          # Studio UI styles and layout helpers
+│   ├── locales/         # Per-language string bundles (en, ar, de, es, fr, zh, ja)
+│   └── …                # Feature modules (dashboard, kanban, inventory, …)
+├── assets/              # App icons, README screenshots, store tiles
+├── docs/LOCAL_SETUP.md  # Extended setup notes (macOS Electron, mirrors)
 ├── privacy.html         # Privacy policy (required for Store submissions)
 └── .github/workflows/
     └── release.yml      # CI: build DMG + EXE + AppImage on version tags
@@ -272,12 +274,12 @@ Khayt/
 
 ## Versioning
 
-Khayt continues from the **current shipped version** (`2.0.15` today) — no renumbering from zero:
+Khayt is on the **2.1.x** release line (latest: **2.1.0** in `package.json`):
 
 | Release type | Example | Use for |
 |--------------|---------|---------|
-| Patch (minor day-to-day updates) | `2.0.15` → `2.0.16` | Fixes and small improvements |
-| Minor (significant updates) | `2.0.x` → `2.1.0` | New features, compatible with existing data |
+| Patch (minor day-to-day updates) | `2.1.0` → `2.1.1` | Fixes and small improvements |
+| Minor (significant updates) | `2.1.x` → `2.2.0` | New features, compatible with existing data |
 | Major | `2.x.x` → `3.0.0` | Breaking changes or required migration |
 
 Full policy, tagging, and release steps: **[VERSIONING.md](./VERSIONING.md)**. Change history: **[CHANGELOG.md](./CHANGELOG.md)**.

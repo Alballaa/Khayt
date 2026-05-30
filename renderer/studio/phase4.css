@@ -10,15 +10,23 @@
   margin-bottom: 14px;
 }
 .khayt-studio .khayt-queue-toolbar {
-  flex-direction: column;
-  align-items: stretch;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
+}
+.khayt-studio .khayt-queue-toolbar .sec-title {
+  flex: 1 1 auto;
+  min-width: 160px;
 }
 .khayt-studio .khayt-queue-toolbar-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+  justify-content: flex-end;
+  flex: 1 1 auto;
 }
 
 /* Calculator 1.3fr / 1fr layout */

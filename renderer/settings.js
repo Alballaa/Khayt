@@ -1202,10 +1202,6 @@ function loadSettingsIntoForm() {
   if (langSelHdr) langSelHdr.value = settings.lang || 'en';
   const zatcaEl = $('#set_enableZatca');
   if (zatcaEl) zatcaEl.checked = settings.enableZatca !== false;
-  const donEl = $('#set_donationUrl');
-  if (donEl) donEl.value = settings.donationUrl || '';
-  const sponsorBtn = $('#btnGithubSponsors');
-  if (sponsorBtn) sponsorBtn.href = settings.donationUrl || 'https://github.com/sponsors/Alballaa';
   // Min-margin warning threshold
   const minMargEl = $('#set_minMarginPct');
   if (minMargEl) minMargEl.value = settings.minMarginPct ?? 0;
@@ -1348,7 +1344,6 @@ function saveSettingsFromForm() {
     // 2.0 worldwide / regional
     currency:      $('#set_currency')?.value    || 'SAR',
     enableZatca:   !!$('#set_enableZatca')?.checked,
-    donationUrl:   $('#set_donationUrl')?.value.trim() || '',
     firstRunDone:  true,
     // Operational settings
     minMarginPct:  Math.max(0, Math.min(100, num($('#set_minMarginPct')?.value, 0))),
@@ -1424,9 +1419,6 @@ function saveSettingsFromForm() {
   applyTheme(settings.theme);
   applyMode();
   renderInventory();
-  // Keep sponsor link live after save
-  const sponsorBtn = $('#btnGithubSponsors');
-  if (sponsorBtn) sponsorBtn.href = settings.donationUrl || 'https://github.com/sponsors/Alballaa';
   refreshCurrencyLabels();
   toast(t('set.saved'), 'success');
 }
