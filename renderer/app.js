@@ -31,6 +31,20 @@ const K = {
   TIME_ENTRIES: 'hub_time_entries_v1',
 };
 
+const STORE_SECRET_MASK = '__KHAYT_MASKED__';
+function secretInputValue(v) { return v === STORE_SECRET_MASK ? '' : (v || ''); }
+function secretInputSave(current, typed) {
+  const t = (typed || '').trim();
+  if (t) return t;
+  return current === STORE_SECRET_MASK ? STORE_SECRET_MASK : (current || '');
+}
+function sanitizePrintHtml(html) {
+  return String(html || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/\s+on\w+\s*=\s*(".*?"|'.*?'|[^\s>]+)/gi, '')
+    .replace(/javascript\s*:/gi, '');
+}
+
 /* ---------- App state ---------- */
 let printLog   = loadJSON(K.LOG, []);
 let machines   = loadJSON(K.MACHINES, []);
@@ -2455,10 +2469,25 @@ function updateGrandTotal() {
   const finalPrice = subAfterDiscount + rushFeeAmt + shippingCost + extraLinesTotal;
   $('#finalPrice').textContent = fmtMoney(finalPrice);
 
-  window.KhaytStudio?.updateCalcBreakdown?.(bd, {
+  let bdForChart = bd;
+  let breakdownScope = 'live';
+  if (currentBuild.length > 0) {
+    bdForChart = currentBuild.reduce((acc, part) => {
+      const partBd = computePartBreakdown(part);
+      const q = Math.max(1, +part.qty || 1);
+      acc.material += partBd.material * q;
+      acc.machine += partBd.machine * q;
+      acc.labor += partBd.labor * q;
+      acc.buffer += partBd.buffer * q;
+      return acc;
+    }, { material: 0, machine: 0, labor: 0, buffer: 0 });
+    breakdownScope = 'cart';
+  }
+  window.KhaytStudio?.updateCalcBreakdown?.(bdForChart, {
     currency: settings.currency,
     margin,
     finalPrice,
+    breakdownScope,
   });
 
   const discountLine = $('#discountLine');
@@ -3429,7 +3458,7 @@ function openMachineEditor(machineId = null) {
           type:         apiTypeFinal.value || 'none',
           host:         document.getElementById('machApiHost')?.value.trim() || '',
           port:         document.getElementById('machApiPort')?.value ? parseInt(document.getElementById('machApiPort').value) : null,
-          apiKey:       document.getElementById('machApiKey')?.value.trim() || '',
+          apiKey:       secretInputSave(draft.printerApi?.apiKey, document.getElementById('machApiKey')?.value),
           accessCode:   document.getElementById('machApiAccessCode')?.value.trim() || '',
           printerSlug:  document.getElementById('machApiSlug')?.value.trim() || '',
         };
@@ -9005,7 +9034,7 @@ async function generateOrderLabel(orderId) {
   const win = window.open('', '_blank', 'width=400,height=320,toolbar=0,menubar=0,scrollbars=0');
   if (win) {
     win.document.open();
-    win.document.write(html);
+    win.document.write(sanitizePrintHtml(html));
     win.document.close();
   } else {
     // Fallback: save to disk and open
@@ -9141,7 +9170,7 @@ async function generatePackingSlip(orderId) {
   const win = window.open('', '_blank', 'width=900,height=700,toolbar=0,menubar=0,scrollbars=1');
   if (win) {
     win.document.open();
-    win.document.write(html);
+    win.document.write(sanitizePrintHtml(html));
     win.document.close();
     win.focus();
     setTimeout(() => win.print(), 250);
@@ -9307,7 +9336,7 @@ async function exportAnalyticsReport() {
   const win = window.open('', '_blank', 'width=1000,height=760,toolbar=0,menubar=0,scrollbars=1');
   if (win) {
     win.document.open();
-    win.document.write(html);
+    win.document.write(sanitizePrintHtml(html));
     win.document.close();
     win.focus();
     setTimeout(() => win.print(), 600);
@@ -11676,7 +11705,7 @@ function renderEmailNotificationSettings() {
   el.querySelector('#btnSaveEmailCfg')?.addEventListener('click', () => {
     settings.emailConfig = {
       provider:   el.querySelector('#emailProviderSel').value,
-      apiKey:     el.querySelector('#emailApiKey')?.value.trim() || '',
+      apiKey:     secretInputSave((settings.emailConfig || {}).apiKey, el.querySelector('#emailApiKey')?.value),
       domain:     el.querySelector('#emailDomain')?.value.trim() || '',
       fromEmail:  el.querySelector('#emailFrom')?.value.trim() || '',
       fromName:   el.querySelector('#emailFromName')?.value.trim() || '',
@@ -11693,7 +11722,7 @@ function renderEmailNotificationSettings() {
     if (!to) { if (resEl) { resEl.textContent = 'No shop email set in Settings.'; } return; }
     const cfg2 = {
       provider:  el.querySelector('#emailProviderSel').value,
-      apiKey:    el.querySelector('#emailApiKey')?.value.trim() || '',
+      apiKey:    secretInputSave((settings.emailConfig || {}).apiKey, el.querySelector('#emailApiKey')?.value),
       domain:    el.querySelector('#emailDomain')?.value.trim() || '',
       fromEmail: el.querySelector('#emailFrom')?.value.trim() || '',
       fromName:  el.querySelector('#emailFromName')?.value.trim() || '',
@@ -12997,9 +13026,9 @@ function renderLanApiSettings() {
     settings.lanApi = {
       enabled: el.querySelector('#lan_enabled').checked,
       port: parseInt(el.querySelector('#lan_port').value) || 3219,
-      pin:  el.querySelector('#lan_pin').value.trim(),
+      pin:  secretInputSave((settings.lanApi || {}).pin, el.querySelector('#lan_pin').value),
       intakeToken,
-      webhookToken: el.querySelector('#lan_wh_token').value.trim(),
+      webhookToken: secretInputSave((settings.lanApi || {}).webhookToken, el.querySelector('#lan_wh_token').value),
       tunnelEnabled: el.querySelector('#lan_tunnel_enabled').checked,
       bindLan: !!el.querySelector('#lan_bind_lan')?.checked,
     };
@@ -13397,7 +13426,10 @@ function renderBnplSettings() {
     for (const svc of apiSvcs) {
       saved[svc.id] = { enabled: el.querySelector(`#bnpl_${svc.id}_en`)?.checked || false };
       for (const f of svc.fields) {
-        saved[svc.id][f.key] = el.querySelector(`#bnpl_${svc.id}_${f.key}`)?.value?.trim() || '';
+        const curVal = (settings.bnpl || {})[svc.id]?.[f.key];
+        saved[svc.id][f.key] = (f.type === 'password')
+          ? secretInputSave(curVal, el.querySelector(`#bnpl_${svc.id}_${f.key}`)?.value)
+          : (el.querySelector(`#bnpl_${svc.id}_${f.key}`)?.value?.trim() || '');
       }
     }
     settings.bnpl = { ...(settings.bnpl || {}), ...saved };
@@ -13520,6 +13552,7 @@ async function startLanServer() {
       statusRow.querySelectorAll('.lan-url-link').forEach(a => { a.addEventListener('click', e => { e.preventDefault(); window.hubAPI?.openExternal?.(a.dataset.url); }); });
     }
     settings.lanApi = { ...settings.lanApi, enabled: true };
+    if (res.intakeTokenGenerated) settings.lanApi.intakeToken = STORE_SECRET_MASK;
     saveAll();
     loadLanQr(res.url);
     updateWebhookUrlDisplay(res.url);
@@ -21669,6 +21702,7 @@ function wireEvents() {
   // Waiting list
   $('#btnAddWaiting')?.addEventListener('click', () => openWaitingItemEditor(null));
   $('#waitingListToggle')?.addEventListener('click', () => {
+    if (window.KhaytStudio?.isStudio?.()) return;
     const section = $('#waitingListSection');
     const chevron = $('#waitingChevron');
     if (!section) return;
@@ -23308,7 +23342,7 @@ function renderTelegramSettings() {
   });
 
   el.querySelector('#btnSaveTgSettings')?.addEventListener('click', () => {
-    const botToken         = el.querySelector('#tgBotToken').value.trim();
+    const botToken         = secretInputSave((settings.telegram || {}).botToken, el.querySelector('#tgBotToken').value);
     const chatId           = el.querySelector('#tgChatId').value.trim();
     const notifyOnComplete = el.querySelector('#tgNotifyComplete').checked;
     const notifyOnHold     = el.querySelector('#tgNotifyHold').checked;

@@ -219,6 +219,7 @@ const STRINGS = {
     'calc.bd.machine':      'Machine',
     'calc.bd.labor':        'Labor',
     'calc.bd.buffer':       'Buffer',
+    'calc.breakdown_cart':  'Project breakdown',
 
     'calc.labor.title':     '3. Labor & Overhead',
     'calc.labor.prep':      'Slicer / prep time',

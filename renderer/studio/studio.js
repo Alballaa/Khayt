@@ -277,10 +277,17 @@
         <span class="metric">${escapeHtml(fmtMoney(x.val))}</span>
       </div>`).join('');
 
+    const scopeLabel = opts?.breakdownScope === 'cart'
+      ? (t('calc.breakdown_cart') || 'Project breakdown')
+      : (t('calc.breakdown_live') || 'Live part');
+    const scopeEl = $('#calcBreakdownScope');
+    if (scopeEl) scopeEl.textContent = scopeLabel;
+
     if (strip && opts) {
       const margin = opts.margin ?? 0;
       const priced = total * (1 + margin / 100);
       strip.innerHTML = `
+        <span>${escapeHtml(scopeLabel)}</span>
         <span>${escapeHtml(t('calc.breakdown_unit_cost') || 'Unit cost')}: <strong>${escapeHtml(fmtMoney(total))}</strong></span>
         <span>${escapeHtml(t('calc.quote.margin') || 'Margin')}: <strong>${Math.round(margin)}%</strong></span>
         <span>${escapeHtml(t('calc.breakdown_at_margin') || 'At margin')}: <strong>${escapeHtml(fmtMoney(priced))}</strong></span>
@@ -356,7 +363,24 @@
     }
     const fc = forecastMap[item.material];
     const runoutBadge = fc
-      ? `<span style="font-size:10px;color:${fc.urgent ? 'var(--danger)' : 'var(--warning)'}">📉 ${fc.daysRemaining}d</span>`
+      ? fc.available < 0
+        ? `<span style="font-size:10px;background:var(--danger);color:#fff;padding:1px 5px;border-radius:3px;font-weight:600;">⚠ ${escapeHtml(t('inv.overcommit_warn'))}</span>`
+        : `<span style="font-size:10px;color:${fc.urgent ? 'var(--danger)' : 'var(--warning)'};font-weight:600;" title="${escapeHtml(t('inv.runout_in') || 'Run-out in')} ${fc.daysRemaining} ${escapeHtml(t('common.days') || 'days')}">📉 ${fc.daysRemaining}d</span>`
+      : '';
+    const reserved = Math.round(getSpoolReservedGrams(item.id));
+    const isOvercommit = reserved > item.weight;
+    const reservedBadge = reserved > 0
+      ? `<span class="spool-reserved-badge">${escapeHtml(t('inv.reserved'))}: ${reserved}${escapeHtml(t('common.grams'))}</span>`
+      : '';
+    const overcommitBadge = isOvercommit
+      ? `<span style="background:var(--danger);color:#fff;font-size:10px;padding:1px 5px;border-radius:3px;font-weight:600;">⚠ ${escapeHtml(t('inv.overcommit_warn'))}</span>`
+      : '';
+    const spoolTestCount = (typeof testPrints !== 'undefined' ? testPrints : []).filter(tp => tp.spoolId === item.id).length;
+    const testBadge = spoolTestCount > 0
+      ? `<span style="font-size:10px;color:var(--primary);">🧪 ${spoolTestCount}</span>`
+      : '';
+    const lotChip = item.lot
+      ? `<span style="font-size:10px;color:var(--text-dim);background:var(--bg-elev);border:1px solid var(--border-soft);border-radius:3px;padding:0 4px;" title="${escapeHtml(t('inv.lot') || 'Lot')}">${escapeHtml(item.lot)}</span>`
       : '';
     const dryingActive = (() => {
       const log = item.dryingLog || [];
@@ -376,7 +400,7 @@
               <div class="khayt-inv-meta">
                 ${item.colourVariant ? `<span>${escapeHtml(item.colourVariant)}</span>` : ''}
                 ${low ? `<span style="color:var(--warn)">· low</span>` : ''}
-                ${ageBadge}${runoutBadge}
+                ${lotChip}${ageBadge}${reservedBadge}${overcommitBadge}${testBadge}${runoutBadge}
                 ${dryingActive ? `<span class="khayt-due" style="color:var(--violet);background:color-mix(in srgb,var(--violet) 18%,transparent)">${escapeHtml(t('inv.drying_now') || 'drying')}</span>` : ''}
               </div>
             </div>
