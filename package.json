@@ -14,6 +14,7 @@
     "i18n:extract": "node scripts/extract-i18n-locales.js",
     "check": "npm run lint",
     "test": "node --test test/*.test.js",
+    "test:e2e": "node scripts/e2e-smoke.mjs",
     "start": "electron .",
     "version:patch": "node scripts/bump-version.js patch",
     "version:minor": "node scripts/bump-version.js minor",
