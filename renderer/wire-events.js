@@ -663,6 +663,8 @@ function wireEvents() {
     const i  = e.target.closest('[data-act="invoice"]');
     const wa = e.target.closest('[data-act="wa-quick"]');
     const md = e.target.closest('[data-act="mark-delivered"]');
+    const sharePickup = e.target.closest('[data-act="share-pickup"]');
+    if (sharePickup) { sharePickupNotification(sharePickup.dataset.id); return; }
     const wo = e.target.closest('[data-act="wo-kanban"]');
     const qUp = e.target.closest('[data-act="q-up"]');
     const qDn = e.target.closest('[data-act="q-down"]');
@@ -1086,6 +1088,12 @@ function wireEvents() {
   // Post-processing checklist settings
   $('#btnAddPostCheck')?.addEventListener('click', addPostCheckItem);
   $('#postCheckInput')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addPostCheckItem(); } });
+  $('#btnAddShiftCheck')?.addEventListener('click', addShiftChecklistItem);
+  $('#shiftCheckInput')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addShiftChecklistItem(); } });
+  $('#shiftChecklistItems')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-act="del-shift-check"]');
+    if (btn) deleteShiftChecklistItem(+btn.dataset.idx);
+  });
   $('#postChecklistItems')?.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-act="del-post-check"]');
     if (btn) deletePostCheckItem(+btn.dataset.idx);

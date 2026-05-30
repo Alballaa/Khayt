@@ -1219,6 +1219,12 @@ function loadSettingsIntoForm() {
   if (pcEl) pcEl.value = settings.defaultPackagingCost ?? 0;
   const piEl = $('#set_paymentInstructions');
   if (piEl) piEl.value = settings.paymentInstructions ?? '';
+  const puEl = $('#set_pickupInstructions');
+  if (puEl) puEl.value = settings.pickupInstructions ?? '';
+  const shiftAllEl = $('#set_shiftRequireAll');
+  if (shiftAllEl) shiftAllEl.checked = !!settings.shiftRequireAllChecks;
+  renderShiftChecklistSettings();
+  renderShiftLogHistory();
   // WIP limits
   const wipCols = ['pending', 'printing', 'post', 'qc'];
   wipCols.forEach(col => {
@@ -1379,6 +1385,9 @@ function saveSettingsFromForm() {
     savedFilters: settings.savedFilters || [],
     // Payment instructions (textarea, not auto-included by DOM reconstruction)
     paymentInstructions: $('#set_paymentInstructions')?.value ?? settings.paymentInstructions ?? '',
+    pickupInstructions: $('#set_pickupInstructions')?.value ?? settings.pickupInstructions ?? '',
+    shiftRequireAllChecks: !!$('#set_shiftRequireAll')?.checked,
+    shiftChecklistItems: settings.shiftChecklistItems || [],
     betaAcknowledged: true, // legacy field — always true, beta phase is over
     // Easy-wins batch: Calculator
     quoteValidityDays: Math.max(1, num($('#set_quoteValidityDays')?.value, 7)),

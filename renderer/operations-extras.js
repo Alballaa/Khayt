@@ -8,20 +8,38 @@
 
 
 /* ── Feature 2: Shift-Start Checklist ──────────────────────── */
+const DEFAULT_SHIFT_CHECKS = [
+  { id: 'c1', labelKey: 'checkFilamentLevels', label: 'Check filament levels on all printers' },
+  { id: 'c2', labelKey: 'verifyTemperatures', label: 'Verify printer temperatures are correct' },
+  { id: 'c3', labelKey: 'reviewOrderQueue', label: "Review today's order queue" },
+  { id: 'c4', labelKey: 'checkFailedPrints', label: 'Check for any failed prints from previous shift' },
+  { id: 'c5', labelKey: 'cleanPrintSurfaces', label: 'Clean print surfaces' },
+  { id: 'c6', labelKey: 'logShiftStartTime', label: 'Log shift start time' },
+];
+
+function getShiftChecklistForModal() {
+  const custom = settings.shiftChecklistItems;
+  if (Array.isArray(custom) && custom.length > 0) {
+    return custom.filter(c => c && c.id && c.label).map(c => ({
+      id: c.id,
+      label: c.labelKey ? (t(c.labelKey) || c.label) : c.label,
+    }));
+  }
+  return DEFAULT_SHIFT_CHECKS.map(c => ({
+    id: c.id,
+    label: t(c.labelKey) || c.label,
+  }));
+}
+
 function openShiftChecklistModal() {
-  const checks = [
-    { id: 'c1', label: t('checkFilamentLevels')    || 'Check filament levels on all printers' },
-    { id: 'c2', label: t('verifyTemperatures')     || 'Verify printer temperatures are correct' },
-    { id: 'c3', label: t('reviewOrderQueue')       || "Review today's order queue" },
-    { id: 'c4', label: t('checkFailedPrints')      || 'Check for any failed prints from previous shift' },
-    { id: 'c5', label: t('cleanPrintSurfaces')     || 'Clean print surfaces' },
-    { id: 'c6', label: t('logShiftStartTime')      || 'Log shift start time' },
-  ];
+  const checks = getShiftChecklistForModal();
+  const requireAll = !!settings.shiftRequireAllChecks;
   const bodyHtml = `
     <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">${escapeHtml(t('shiftChecklistHint') || 'Complete the checklist before starting your shift.')}</p>
+    ${requireAll ? `<p style="font-size:12px;color:var(--warning);margin-bottom:8px;">${escapeHtml(t('shift.require_all_hint') || 'All items must be checked before starting.')}</p>` : ''}
     ${checks.map(c => `
       <label style="display:flex;align-items:center;gap:10px;padding:6px 0;cursor:pointer;border-bottom:1px solid var(--border-soft);">
-        <input type="checkbox" id="shift_${c.id}" style="width:auto;margin:0;accent-color:var(--primary);">
+        <input type="checkbox" class="shift-check-cb" data-id="${escapeHtml(c.id)}" style="width:auto;margin:0;accent-color:var(--primary);">
         <span style="font-size:13px;">${escapeHtml(c.label)}</span>
       </label>`).join('')}`;
   openFormModal({
@@ -30,7 +48,11 @@ function openShiftChecklistModal() {
     saveLabel: t('startShift') || 'Start Shift',
     sizeLg: false,
     onSave(modal) {
-      const count = checks.filter(c => modal.querySelector(`#shift_${c.id}`)?.checked).length;
+      const checkedIds = [...modal.querySelectorAll('.shift-check-cb:checked')].map(cb => cb.dataset.id);
+      if (requireAll && checkedIds.length < checks.length) {
+        toast(t('shift.require_all') || 'Please complete all checklist items', 'warning');
+        return false;
+      }
       if (!shiftLogs) shiftLogs = [];
       const activeOp = settings.activeOperatorId
         ? (operators.find(o => o.id === settings.activeOperatorId)?.name || null)
@@ -39,85 +61,184 @@ function openShiftChecklistModal() {
         id: uid('SHF'),
         startedAt: new Date().toISOString(),
         operator: activeOp,
-        checksCompleted: count,
+        checksCompleted: checkedIds.length,
         totalChecks: checks.length,
+        checkedIds,
       });
+      if (shiftLogs.length > 100) shiftLogs = shiftLogs.slice(-100);
       saveAll();
-      toast('Shift started!', 'success');
+      toast(t('shift.started') || 'Shift started!', 'success');
     },
   });
 }
 
+/* ── Feature 2b: Shift checklist settings & log history ─────── */
+function renderShiftChecklistSettings() {
+  const el = $('#shiftChecklistItems');
+  if (!el) return;
+  const list = settings.shiftChecklistItems || [];
+  if (list.length === 0) {
+    el.innerHTML = `<div style="color:var(--text-muted);font-size:12.5px;padding:6px 0;">${escapeHtml(t('shift.using_defaults') || 'Using built-in checklist (add items to customize)')}</div>`;
+    return;
+  }
+  el.innerHTML = list.map((ch, i) => `
+    <div class="post-check-setting-row">
+      <span style="flex:1;font-size:13px;">${escapeHtml(ch.label)}</span>
+      <button class="btn danger small" data-act="del-shift-check" data-idx="${i}" aria-label="${escapeHtml(t('common.delete'))}">×</button>
+    </div>`).join('');
+}
+
+function addShiftChecklistItem() {
+  const inp = $('#shiftCheckInput');
+  if (!inp) return;
+  const label = inp.value.trim();
+  if (!label) return;
+  if (!settings.shiftChecklistItems) settings.shiftChecklistItems = [];
+  settings.shiftChecklistItems.push({ id: uid('SCH'), label });
+  inp.value = '';
+  saveAll();
+  renderShiftChecklistSettings();
+}
+
+function deleteShiftChecklistItem(idx) {
+  if (!settings.shiftChecklistItems) return;
+  settings.shiftChecklistItems.splice(idx, 1);
+  saveAll();
+  renderShiftChecklistSettings();
+}
+
+function renderShiftLogHistory() {
+  const el = $('#shiftLogHistory');
+  if (!el) return;
+  const logs = [...(shiftLogs || [])].slice(-10).reverse();
+  if (logs.length === 0) {
+    el.innerHTML = `<div style="color:var(--text-muted);padding:6px 0;">${escapeHtml(t('shift.log_empty') || 'No shifts logged yet.')}</div>`;
+    return;
+  }
+  el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px;">
+    <thead><tr style="color:var(--text-muted);text-align:left;">
+      <th style="padding:4px 6px;">${escapeHtml(t('shift.col_started') || 'Started')}</th>
+      <th style="padding:4px 6px;">${escapeHtml(t('shift.col_operator') || 'Operator')}</th>
+      <th style="padding:4px 6px;">${escapeHtml(t('shift.col_checks') || 'Checks')}</th>
+    </tr></thead>
+    <tbody>${logs.map(s => `<tr style="border-top:1px solid var(--border-soft);">
+      <td style="padding:6px;">${escapeHtml(new Date(s.startedAt).toLocaleString())}</td>
+      <td style="padding:6px;">${escapeHtml(s.operator || '—')}</td>
+      <td style="padding:6px;">${s.checksCompleted}/${s.totalChecks}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
 /* ── Feature 3: End-of-Day Report Modal ─────────────────────── */
+function _computeEodMetrics(today) {
+  const dayStart = (iso) => String(iso || '').startsWith(today);
+  const completedToday = printLog.filter(o => o.status === 'completed' && dayStart(o.completedAt || o.date));
+  const deliveredToday = printLog.filter(o => dayStart(o.deliveredAt));
+  const revenueToday = completedToday.reduce((s, o) => s + orderRevenueBase(o), 0);
+  const paymentsToday = printLog.filter(o => dayStart(o.paidAt || o.paymentReceivedAt) && (+o.paidAmount || 0) > 0);
+  const paymentsTotal = paymentsToday.reduce((s, o) => s + (+o.paidAmount || 0), 0);
+  const inProgress = printLog.filter(o => ['pending', 'printing', 'post', 'qc'].includes(o.status));
+  const wasteToday = wasteLog.filter(w => dayStart(w.date));
+  const wasteTotalG = wasteToday.reduce((s, w) => s + (+w.weight || 0), 0);
+  const timeToday = timeEntries.filter(te => dayStart(te.date || te.startedAt));
+  const timeTotal = timeToday.reduce((s, te) => s + (+te.durationMins || 0), 0);
+  const overdueOrders = printLog.filter(o => o.dueDate === today && o.status !== 'completed' && o.status !== 'quote');
+  return {
+    completedToday, deliveredToday, revenueToday, paymentsToday, paymentsTotal,
+    inProgress, wasteTotalG, timeTotal, overdueOrders,
+  };
+}
+
 function openEndOfDayReport() {
   const today = localDateStr();
-  const completedToday = printLog.filter(o => o.status === 'completed' && (o.completedAt || o.date || '').startsWith(today));
-  const revenueToday   = completedToday.reduce((s, o) => s + orderRevenueBase(o), 0);
-  const inProgress     = printLog.filter(o => ['pending','printing','post','qc'].includes(o.status));
-  const wasteToday     = wasteLog.filter(w => (w.date || '').startsWith(today));
-  const wasteTotalG    = wasteToday.reduce((s, w) => s + (+w.weight || 0), 0);
-  const timeToday      = timeEntries.filter(te => (te.date || te.startedAt || '').startsWith(today));
-  const timeTotal      = timeToday.reduce((s, te) => s + (+te.durationMins || 0), 0);
-  const overdueOrders  = printLog.filter(o => o.dueDate === today && o.status !== 'completed' && o.status !== 'quote');
+  const m = _computeEodMetrics(today);
 
-  const overdueHtml = overdueOrders.length > 0 ? `
+  const overdueHtml = m.overdueOrders.length > 0 ? `
     <div style="background:rgba(245,166,35,0.1);border:1px solid rgba(245,166,35,0.35);border-radius:6px;padding:10px;margin-top:12px;">
-      <strong style="font-size:12px;color:var(--warning);">Due Today — Not Completed</strong>
-      ${overdueOrders.map(o => `<div style="font-size:12px;margin-top:4px;">• ${escapeHtml(o.project || o.id)}</div>`).join('')}
+      <strong style="font-size:12px;color:var(--warning);">${escapeHtml(t('eod.overdue') || 'Due Today — Not Completed')}</strong>
+      ${m.overdueOrders.map(o => `<div style="font-size:12px;margin-top:4px;">• ${escapeHtml(o.project || o.id)}</div>`).join('')}
     </div>` : '';
 
   const bodyHtml = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
       <div class="card" style="padding:12px;">
-        <div style="font-size:11px;color:var(--text-muted);">Orders Completed</div>
-        <div style="font-size:24px;font-weight:700;">${completedToday.length}</div>
+        <div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('eod.completed') || 'Orders Completed')}</div>
+        <div style="font-size:24px;font-weight:700;">${m.completedToday.length}</div>
       </div>
       <div class="card" style="padding:12px;">
-        <div style="font-size:11px;color:var(--text-muted);">Revenue Today</div>
-        <div style="font-size:20px;font-weight:700;">${fmtPrice(revenueToday)}</div>
+        <div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('eod.delivered') || 'Delivered')}</div>
+        <div style="font-size:24px;font-weight:700;">${m.deliveredToday.length}</div>
       </div>
       <div class="card" style="padding:12px;">
-        <div style="font-size:11px;color:var(--text-muted);">In Progress</div>
-        <div style="font-size:24px;font-weight:700;">${inProgress.length}</div>
+        <div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('eod.revenue') || 'Revenue Today')}</div>
+        <div style="font-size:20px;font-weight:700;">${fmtPrice(m.revenueToday)}</div>
       </div>
       <div class="card" style="padding:12px;">
-        <div style="font-size:11px;color:var(--text-muted);">Filament Used Today</div>
-        <div style="font-size:20px;font-weight:700;">${wasteTotalG.toFixed(0)}g</div>
+        <div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('eod.payments') || 'Payments Received')}</div>
+        <div style="font-size:20px;font-weight:700;">${fmtPrice(m.paymentsTotal)}</div>
+      </div>
+      <div class="card" style="padding:12px;">
+        <div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('eod.in_progress') || 'In Progress')}</div>
+        <div style="font-size:24px;font-weight:700;">${m.inProgress.length}</div>
+      </div>
+      <div class="card" style="padding:12px;">
+        <div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('eod.filament') || 'Filament Used Today')}</div>
+        <div style="font-size:20px;font-weight:700;">${m.wasteTotalG.toFixed(0)}g</div>
       </div>
       <div class="card" style="padding:12px;grid-column:1/-1;">
-        <div style="font-size:11px;color:var(--text-muted);">Time Logged Today</div>
-        <div style="font-size:20px;font-weight:700;">${(timeTotal / 60).toFixed(1)}h (${timeTotal} min)</div>
+        <div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('eod.time') || 'Time Logged Today')}</div>
+        <div style="font-size:20px;font-weight:700;">${(m.timeTotal / 60).toFixed(1)}h (${m.timeTotal} min)</div>
       </div>
     </div>
-    ${overdueHtml}`;
+    ${overdueHtml}
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+      <button type="button" class="btn small" id="eodExportCsv">${escapeHtml(t('eod.export_csv') || 'Export CSV')}</button>
+    </div>`;
 
   const eodHtmlForExport = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>End of Day Report — ${today}</title>
     <style>body{font-family:sans-serif;max-width:600px;margin:auto;padding:24px;}h1{font-size:20px;}table{width:100%;border-collapse:collapse;}td,th{border:1px solid #ddd;padding:8px;}</style></head>
     <body><h1>End of Day Report — ${escapeHtml(today)}</h1>
     <table><tr><th>Metric</th><th>Value</th></tr>
-    <tr><td>Orders Completed</td><td>${completedToday.length}</td></tr>
-    <tr><td>Revenue</td><td>${fmtPrice(revenueToday)}</td></tr>
-    <tr><td>In Progress</td><td>${inProgress.length}</td></tr>
-    <tr><td>Filament Used</td><td>${wasteTotalG.toFixed(0)}g</td></tr>
-    <tr><td>Time Logged</td><td>${timeTotal} min</td></tr>
-    </table>${overdueOrders.length > 0 ? '<h2>Due Today — Not Completed</h2><ul>' + overdueOrders.map(o => `<li>${escapeHtml(o.project || o.id)}</li>`).join('') + '</ul>' : ''}
+    <tr><td>Orders Completed</td><td>${m.completedToday.length}</td></tr>
+    <tr><td>Delivered</td><td>${m.deliveredToday.length}</td></tr>
+    <tr><td>Revenue</td><td>${fmtPrice(m.revenueToday)}</td></tr>
+    <tr><td>Payments Received</td><td>${fmtPrice(m.paymentsTotal)}</td></tr>
+    <tr><td>In Progress</td><td>${m.inProgress.length}</td></tr>
+    <tr><td>Filament Used</td><td>${m.wasteTotalG.toFixed(0)}g</td></tr>
+    <tr><td>Time Logged</td><td>${m.timeTotal} min</td></tr>
+    </table>${m.overdueOrders.length > 0 ? '<h2>Due Today — Not Completed</h2><ul>' + m.overdueOrders.map(o => `<li>${escapeHtml(o.project || o.id)}</li>`).join('') + '</ul>' : ''}
     </body></html>`;
 
   openFormModal({
-    title: 'End of Day Report — ' + today,
+    title: (t('endOfDayReport') || 'End of Day Report') + ' — ' + today,
     bodyHtml,
     sizeLg: false,
     noSave: false,
-    saveLabel: 'Export as PDF',
+    saveLabel: t('eod.export_pdf') || 'Export as PDF',
+    onMount(modal) {
+      modal.querySelector('#eodExportCsv')?.addEventListener('click', () => {
+        const csv = [
+          'Metric,Value', `Date,${today}`,
+          `Orders Completed,${m.completedToday.length}`,
+          `Delivered,${m.deliveredToday.length}`,
+          `Revenue,${m.revenueToday}`,
+          `Payments,${m.paymentsTotal}`,
+          `In Progress,${m.inProgress.length}`,
+          `Filament (g),${m.wasteTotalG}`,
+          `Time (min),${m.timeTotal}`,
+        ].join('\n');
+        downloadBlob(new Blob([csv], { type: 'text/csv' }), `eod-report-${today}.csv`);
+        toast(t('eod.csv_saved') || 'CSV exported', 'success');
+      });
+    },
     onSave() {
       if (window.hubAPI?.exportPDF) {
         window.hubAPI.exportPDF({ html: eodHtmlForExport, filename: `eod-report-${today}.pdf` })
-          .then(() => toast('Report exported!', 'success'))
+          .then(() => toast(t('eod.pdf_saved') || 'Report exported!', 'success'))
           .catch(() => toast('PDF export not available', 'error'));
       } else {
         toast('PDF export not available in this build', 'info');
       }
-      return false; // keep modal open after export
+      return false;
     },
   });
 }
@@ -296,25 +417,28 @@ function addAMSMaterialRow() {
 function exportGaztVatReturn(period) {
   period = period || 'year';
   const now = new Date();
+  const year = now.getFullYear();
   let fromDate, toDate;
-  if (period === 'year') {
-    fromDate = `${now.getFullYear()}-01-01`;
-    toDate   = `${now.getFullYear()}-12-31`;
-  } else if (period === 'q1') { fromDate = `${now.getFullYear()}-01-01`; toDate = `${now.getFullYear()}-03-31`; }
-  else if (period === 'q2') { fromDate = `${now.getFullYear()}-04-01`; toDate = `${now.getFullYear()}-06-30`; }
-  else if (period === 'q3') { fromDate = `${now.getFullYear()}-07-01`; toDate = `${now.getFullYear()}-09-30`; }
-  else if (period === 'q4') { fromDate = `${now.getFullYear()}-10-01`; toDate = `${now.getFullYear()}-12-31`; }
-  else { fromDate = `${now.getFullYear()}-01-01`; toDate = `${now.getFullYear()}-12-31`; }
+  if (period === 'q1') { fromDate = `${year}-01-01`; toDate = `${year}-03-31`; }
+  else if (period === 'q2') { fromDate = `${year}-04-01`; toDate = `${year}-06-30`; }
+  else if (period === 'q3') { fromDate = `${year}-07-01`; toDate = `${year}-09-30`; }
+  else if (period === 'q4') { fromDate = `${year}-10-01`; toDate = `${year}-12-31`; }
+  else { fromDate = `${year}-01-01`; toDate = `${year}-12-31`; }
 
-  const periodOrders = printLog.filter(o =>
-    o.status === 'completed' && o.date >= fromDate && o.date <= toDate
-  );
-  const box1 = periodOrders.reduce((s, o) => s + orderRevenueBase(o), 0);
-  const box2 = periodOrders.filter(o => +o.vatRate === 0).reduce((s, o) => s + orderRevenueBase(o), 0);
-  const box3 = periodOrders.reduce((s, o) => s + (convertToBase(+o.vatAmount || 0, clientCurrency(o.clientId))), 0);
+  const periodOrders = printLog.filter(o => o.status === 'completed' && o.date >= fromDate && o.date <= toDate);
   const periodExp = (expenses || []).filter(e => e.date >= fromDate && e.date <= toDate);
-  const box6 = periodExp.reduce((s, e) => s + (+e.amount || 0), 0);
-  const box7 = periodExp.filter(e => e.vatAmount > 0).reduce((s, e) => s + (+e.vatAmount || 0), 0);
+  const rows = periodOrders.map(o => ({
+    status: 'completed',
+    revenue: orderRevenueBase(o),
+    vatRate: +o.vatRate || (settings.enableVat ? settings.vatRate : 0),
+    vatAmount: convertToBase(+o.vatAmount || 0, clientCurrency(o.clientId)),
+  }));
+  const expRows = periodExp.map(e => ({ amount: +e.amount || 0, vatAmount: +e.vatAmount || 0 }));
+  const box1 = rows.reduce((s, o) => s + o.revenue, 0);
+  const box2 = rows.filter(o => o.vatRate === 0).reduce((s, o) => s + o.revenue, 0);
+  const box3 = rows.reduce((s, o) => s + o.vatAmount, 0);
+  const box6 = expRows.reduce((s, e) => s + e.amount, 0);
+  const box7 = expRows.filter(e => e.vatAmount > 0).reduce((s, e) => s + e.vatAmount, 0);
   const netVat = box3 - box7;
 
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
@@ -563,6 +687,10 @@ function openLogEnvModal() {
 (function (global) {
   const api = {
     openShiftChecklistModal,
+    renderShiftChecklistSettings,
+    addShiftChecklistItem,
+    deleteShiftChecklistItem,
+    renderShiftLogHistory,
     openEndOfDayReport,
     processRecurringOrders,
     renderGiftCards,

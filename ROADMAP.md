@@ -2,9 +2,10 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (2.1.x)
+## Now (2.2.0)
 
-- [ ] Triage post-2.1.0 feedback and plan the next significant slice (target **2.2.0** when justified)
+- [x] **Bundle D — Daily ops & fulfillment:** shift checklist, EOD report, pickup notifications, delivery webhooks
+- [ ] Bundles A–C — see open PRs (#49–#51) when merging 2.2.0
 
 ## Completed (2.1.0 — 2026-05-30)
 

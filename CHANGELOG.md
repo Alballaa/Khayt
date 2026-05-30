@@ -4,6 +4,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added (2.2.0 — Bundle D: Daily ops & fulfillment)
+
+- **Configurable shift checklist** — customize Start Shift items in Settings → Operations; optional require-all gate.
+- **Shift log history** — recent shifts with operator and checklist completion in Settings.
+- **Enhanced EOD report** — delivered count, payments received, CSV export alongside PDF.
+- **Pickup notifications** — “Notify pickup” on completed kanban cards (WhatsApp + LAN tracking link).
+- **Delivery workflow** — mark delivered fires `order_delivered` webhook and Telegram notification.
+- Pure helpers in `lib/shift-checklist.js`, `lib/eod-report.js`, `lib/vat-return.js` with unit tests.
+
 ## [2.1.2] - 2026-05-30
 
 ### Fixed

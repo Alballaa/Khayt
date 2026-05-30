@@ -520,9 +520,31 @@ function markDelivered(orderId) {
   const order = printLog.find(o => o.id === orderId);
   if (!order || order.status !== 'completed') return;
   order.deliveredAt = new Date().toISOString();
+  if (!order.statusHistory) order.statusHistory = [];
+  order.statusHistory.push({ status: 'delivered', at: order.deliveredAt });
+  if (order.statusHistory.length > 200) order.statusHistory = order.statusHistory.slice(-200);
   saveAll();
   renderKanban(); renderLogs(); renderDashboard();
+  fireWebhook('order_delivered', { orderId: order.id, project: order.project, client: order.client });
+  sendTelegramForOrder(order, 'delivered');
   toast(t('queue.delivered_toast', { id: order.id }), 'success');
+}
+
+async function sharePickupNotification(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+  const cl = order.clientId ? clients.find(c => c.id === order.clientId) : null;
+  const biz = settings.bizEn || 'Khayt';
+  const instructions = settings.pickupInstructions || settings.paymentInstructions || '';
+  let msg = `${t('pickup.ready_msg') || 'Your order is ready for pickup'} — ${order.project || order.id} (${biz}).`;
+  if (instructions) msg += `\n\n${instructions}`;
+  const lanInfo = await window.hubAPI?.getLanUrl?.();
+  if (lanInfo?.ok) msg += `\n\n${t('ord.portal_track_msg') || 'Track your order'}: ${lanInfo.url}/order/${order.id}`;
+  if (window.hubAPI?.shareWhatsApp) {
+    await window.hubAPI.shareWhatsApp({ phone: cl?.phone || '', message: msg, pdfPath: null });
+  } else {
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+  }
 }
 
 /* ============================================================
@@ -2210,6 +2232,7 @@ async function captureFailurePhoto(orderId) {
     resinCompletePost,
     deleteLog,
     markDelivered,
+    sharePickupNotification,
     openPaymentModal,
     clearPayment,
     renderOeExtraLinesHtml,

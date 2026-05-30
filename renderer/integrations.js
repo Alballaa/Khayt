@@ -820,6 +820,9 @@ function sendTelegramForOrder(order, newStatus) {
   if (newStatus === 'completed' && tg.notifyOnComplete) {
     shouldSend = true;
     message = `✅ Order completed: ${tgSafe(order.project || order.id)} (${fmtPrice(order.price)})`;
+  } else if (newStatus === 'delivered' && tg.notifyOnComplete) {
+    shouldSend = true;
+    message = `📦 Order delivered: ${tgSafe(order.project || order.id)}`;
   } else if (newStatus === 'on_hold' && tg.notifyOnHold) {
     shouldSend = true;
     message = `⏸ Order on hold: ${tgSafe(order.project || order.id)}${order.holdReason ? ' — ' + tgSafe(order.holdReason) : ''}`;

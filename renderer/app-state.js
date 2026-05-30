@@ -159,6 +159,9 @@ function defaultSettings() {
     postProcessPresets:   [],           // [{ name, amount }]
     defaultPackagingCost: 0,
     paymentInstructions:  '',           // Shown in client portal and invoices
+    pickupInstructions:   '',           // Shown when notifying client of pickup
+    shiftChecklistItems:  [],           // [{ id, label }] — empty = built-in defaults
+    shiftRequireAllChecks: false,
     // Job templates — full calculator config presets
     jobTemplates:         [],
     // Resin exposure profile presets

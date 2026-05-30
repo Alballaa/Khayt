@@ -509,10 +509,11 @@ function renderKanban() {
         : '';
       if (status === 'completed') {
         const deliverBtn = `<button class="btn small success" data-act="mark-delivered" data-id="${log.id}">${escapeHtml(t('queue.mark_delivered'))}</button>`;
+        const pickupBtn = log.clientId ? `<button class="btn small" data-act="share-pickup" data-id="${log.id}">📲 ${escapeHtml(t('pickup.notify'))}</button>` : '';
         const wasteBtn = `<button class="btn ghost small" data-act="log-waste-card" data-id="${log.id}" title="${escapeHtml(t('waste.log_from_card'))}">🗑</button>`;
         const isPaidCard = payStatus(log) === 'paid';
         const payBtn = isPaidCard ? '' : `<button class="btn small primary" data-act="pay" data-id="${log.id}" title="${escapeHtml(t('pay.mark_paid'))}">💳 ${escapeHtml(t('pay.mark_paid'))}</button>`;
-        actions = `<button class="btn small" data-act="invoice" data-id="${log.id}">${escapeHtml(t('queue.invoice'))}</button>${payBtn}${bnplBtn}${deliverBtn}${wasteBtn}${notifyBtn}${labelBtn}`;
+        actions = `<button class="btn small" data-act="invoice" data-id="${log.id}">${escapeHtml(t('queue.invoice'))}</button>${payBtn}${bnplBtn}${deliverBtn}${pickupBtn}${wasteBtn}${notifyBtn}${labelBtn}`;
       }
       if (status === 'delivered') {
         const isPaidCard = payStatus(log) === 'paid';

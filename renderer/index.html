@@ -1630,6 +1630,24 @@
             <textarea id="set_paymentInstructions" rows="3" style="resize:vertical;" placeholder="Bank name, IBAN, Mada/STCPay..."></textarea>
           </div>
         </div>
+        <div style="margin-top:12px;">
+          <label data-i18n="set.pickup_instructions">Pickup instructions (included in ready-for-pickup messages)</label>
+          <textarea id="set_pickupInstructions" rows="2" style="resize:vertical;" placeholder="Shop hours, address, parking..."></textarea>
+        </div>
+
+        <div class="settings-section-head" data-i18n="shift.settings_title">Shift Checklist</div>
+        <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;" data-i18n="shift.settings_hint">Customize items shown when operators tap Start Shift on the queue.</p>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px;">
+          <input type="checkbox" id="set_shiftRequireAll" style="width:auto;margin:0;">
+          <span data-i18n="shift.require_all_label">Require all items before starting shift</span>
+        </label>
+        <div id="shiftChecklistItems"></div>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <input type="text" id="shiftCheckInput" style="flex:1;" data-i18n-placeholder="shift.item_ph" placeholder="e.g. Calibrate bed level">
+          <button class="btn primary" id="btnAddShiftCheck" type="button" data-i18n="shift.add_item">+ Add item</button>
+        </div>
+        <div class="settings-section-head" style="margin-top:16px;" data-i18n="shift.log_title">Recent Shifts</div>
+        <div id="shiftLogHistory" style="font-size:12.5px;"></div>
 
         <div class="settings-section-head">WIP Limits per column</div>
         <div class="inline-pair" style="flex-wrap:wrap;">
