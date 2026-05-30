@@ -1973,9 +1973,845 @@ function renderRevenueChart() {
     img.src = url;
   });
 }
+
+function renderClientRetention() {
+  const el = $('#clientRetentionSection');
+  if (!el) return;
+  const completed = printLog.filter(o => o.status === 'completed' && o.clientId && o.date);
+  // Group by client, sorted by date
+  const clientOrders = {};
+  for (const o of completed) {
+    if (!clientOrders[o.clientId]) clientOrders[o.clientId] = [];
+    clientOrders[o.clientId].push(o.date);
+  }
+  // Only clients with at least one order
+  const allClients = Object.entries(clientOrders).map(([id, dates]) => {
+    const sorted = [...dates].sort();
+    return { id, firstDate: sorted[0], secondDate: sorted[1] || null, total: sorted.length };
+  });
+  const withAtLeastOne = allClients.length;
+  if (withAtLeastOne < 2) {
+    el.innerHTML = `<p style="color:var(--text-muted);font-size:13px;">${escapeHtml(t('an.retention_no_data'))}</p>`;
+    return;
+  }
+  const withTwo = allClients.filter(c => c.secondDate !== null);
+  const daysBetween = (a, b) => Math.round(Math.abs(new Date(b) - new Date(a)) / 86400000);
+  const ret30 = withTwo.filter(c => daysBetween(c.firstDate, c.secondDate) <= 30).length;
+  const ret60 = withTwo.filter(c => daysBetween(c.firstDate, c.secondDate) <= 60).length;
+  const ret90 = withTwo.filter(c => daysBetween(c.firstDate, c.secondDate) <= 90).length;
+  const pct = (n) => withAtLeastOne > 0 ? (n / withAtLeastOne * 100).toFixed(1) : '0.0';
+  const avgDays = withTwo.length > 0
+    ? (withTwo.reduce((s, c) => s + daysBetween(c.firstDate, c.secondDate), 0) / withTwo.length).toFixed(1)
+    : '—';
+
+  // Top returning clients
+  const topReturning = [...allClients]
+    .filter(c => c.total >= 2)
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 5);
+
+  el.innerHTML = `
+    <div class="accuracy-stats" style="margin-bottom:16px;">
+      <div class="retention-stat accuracy-stat">
+        <div class="v" style="color:var(--primary);">${pct(ret30)}%</div>
+        <div class="l">${escapeHtml(t('an.retention_30'))}</div>
+      </div>
+      <div class="retention-stat accuracy-stat">
+        <div class="v" style="color:var(--primary);">${pct(ret60)}%</div>
+        <div class="l">${escapeHtml(t('an.retention_60'))}</div>
+      </div>
+      <div class="retention-stat accuracy-stat">
+        <div class="v" style="color:var(--primary);">${pct(ret90)}%</div>
+        <div class="l">${escapeHtml(t('an.retention_90'))}</div>
+      </div>
+      <div class="retention-stat accuracy-stat">
+        <div class="v">${escapeHtml(String(avgDays))}</div>
+        <div class="l">${escapeHtml(t('an.retention_avg_days'))}</div>
+      </div>
+    </div>
+    ${topReturning.length > 0 ? `
+    <div style="font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:8px;">${escapeHtml('Top returning clients')}</div>
+    <ul class="leaderboard">
+      ${topReturning.map((c, i) => {
+        const cl = clients.find(x => x.id === c.id);
+        const name = cl ? localName(cl) : c.id;
+        return `<li><span class="rank">${i+1}.</span><span class="name">${escapeHtml(name)}</span><span class="value">${c.total}× orders</span></li>`;
+      }).join('')}
+    </ul>` : ''}`;
+}
+
+function renderCostTrends() {
+  const el = $('#costTrendsSection');
+  if (!el) return;
+  // Build last 12 months
+  const now = new Date();
+  const months = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({
+      year: d.getFullYear(),
+      month: d.getMonth(),
+      label: d.toLocaleString('en', { month: 'short' }) + ' ' + d.getFullYear().toString().slice(2),
+      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+    });
+  }
+
+  // Revenue per print-hour for completed orders
+  const revPerHour = months.map(m => {
+    const orders = printLog.filter(o =>
+      o.status === 'completed' && (o.date || '').startsWith(m.key)
+    );
+    const totalRev = orders.reduce((s, o) => s + orderRevenueBase(o), 0);
+    const totalHrs = orders.reduce((s, o) => s + (+o.printTime || 0), 0);
+    return totalHrs > 0 ? totalRev / totalHrs : 0;
+  });
+
+  // Average material cost per gram from inventory (simple average)
+  const avgCostPerGram = months.map(() => {
+    const items = inventory.filter(i => i.cost > 0 && i.weight > 0);
+    if (items.length === 0) return 0;
+    return items.reduce((s, i) => s + (i.cost / i.weight), 0) / items.length;
+  });
+
+  const maxRev = Math.max(...revPerHour, 1);
+  const maxCost = Math.max(...avgCostPerGram, 0.001);
+
+  const cur = currencySymbol();
+  const revBars = revPerHour.map((v, i) => {
+    const pct = Math.round((v / maxRev) * 100);
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;">
+      <div style="font-size:9.5px;color:var(--text-muted);font-variant-numeric:tabular-nums;">${v > 0 ? fmtMoney(v) : '—'}</div>
+      <div style="background:rgba(255,255,255,0.08);width:100%;height:80px;display:flex;align-items:flex-end;border-radius:3px 3px 0 0;">
+        <div style="background:var(--primary);width:100%;height:${pct}%;border-radius:3px 3px 0 0;transition:height 0.4s;opacity:0.8;"></div>
+      </div>
+      <div style="font-size:9px;color:var(--text-muted);writing-mode:vertical-rl;transform:rotate(180deg);max-height:40px;overflow:hidden;">${escapeHtml(months[i].label)}</div>
+    </div>`;
+  }).join('');
+
+  const costBars = avgCostPerGram.map((v, i) => {
+    const pct = maxCost > 0 ? Math.round((v / maxCost) * 100) : 0;
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;">
+      <div style="font-size:9.5px;color:var(--text-muted);font-variant-numeric:tabular-nums;">${v > 0 ? fmtMoney(v) : '—'}</div>
+      <div style="background:rgba(255,255,255,0.08);width:100%;height:80px;display:flex;align-items:flex-end;border-radius:3px 3px 0 0;">
+        <div style="background:var(--warning);width:100%;height:${pct}%;border-radius:3px 3px 0 0;transition:height 0.4s;opacity:0.8;"></div>
+      </div>
+      <div style="font-size:9px;color:var(--text-muted);writing-mode:vertical-rl;transform:rotate(180deg);max-height:40px;overflow:hidden;">${escapeHtml(months[i].label)}</div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <h3 class="card-head"><span class="swatch"></span><span>${escapeHtml(t('an.cost_trends'))}</span></h3>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:12.5px;font-weight:600;color:var(--text-dim);margin-bottom:8px;">
+        ${escapeHtml(t('an.rev_per_hour'))} (${cur}/hr)
+      </div>
+      <div style="display:flex;gap:4px;align-items:flex-end;">${revBars}</div>
+    </div>
+    <div>
+      <div style="font-size:12.5px;font-weight:600;color:var(--text-dim);margin-bottom:8px;">
+        ${escapeHtml(t('an.cost_per_gram'))} (${cur}/g)
+      </div>
+      <div style="display:flex;gap:4px;align-items:flex-end;">${costBars}</div>
+    </div>`;
+}
+
+/* ============================================================
+   New 8-pack Feature 1: Per-operator analytics
+   ============================================================ */
+
+function renderOperatorAnalytics() {
+  const el = $('#operatorAnalyticsSection');
+  if (!el) return;
+  if (operators.length === 0) { el.innerHTML = ''; return; }
+
+  const completed = printLog.filter(o => o.status === 'completed' && o.operatorId);
+  if (completed.length === 0) {
+    el.innerHTML = `<h3 class="card-head"><span class="swatch"></span><span>${escapeHtml(t('an.operator_title'))}</span></h3><p style="color:var(--text-muted);font-size:13px;">${escapeHtml(t('an.accuracy_none'))}</p>`;
+    return;
+  }
+
+  const rows = operators.map(op => {
+    const jobs = completed.filter(o => o.operatorId === op.id);
+    const wasteEntries = wasteLog.filter(w => {
+      // Match waste entries to orders assigned to this operator
+      return jobs.some(j => j.id === w.orderId);
+    });
+    // Avg print time accuracy: (estimated - actual) / estimated
+    const accuracyScores = jobs
+      .filter(o => o.actualPrintTime != null && o.printTime > 0)
+      .map(o => (1 - Math.abs(+o.actualPrintTime - +o.printTime) / +o.printTime) * 100);
+    const avgAccuracy = accuracyScores.length > 0
+      ? (accuracyScores.reduce((s, v) => s + v, 0) / accuracyScores.length).toFixed(1) + '%'
+      : '—';
+    return { op, jobs: jobs.length, wasteEntries: wasteEntries.length, avgAccuracy };
+  }).filter(r => r.jobs > 0);
+
+  if (rows.length === 0) { el.innerHTML = ''; return; }
+
+  el.innerHTML = `
+    <h3 class="card-head"><span class="swatch"></span><span>${escapeHtml(t('an.operator_title'))}</span></h3>
+    <div class="table-wrap">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr style="border-bottom:1px solid var(--border-soft);color:var(--text-muted);">
+          <th style="padding:6px 8px;text-align:start;">${escapeHtml(t('op.name'))}</th>
+          <th style="padding:6px 8px;text-align:end;">${escapeHtml(t('an.op_jobs'))}</th>
+          <th style="padding:6px 8px;text-align:end;">${escapeHtml(t('an.op_waste'))}</th>
+          <th style="padding:6px 8px;text-align:end;">${escapeHtml(t('an.op_accuracy'))}</th>
+        </tr></thead>
+        <tbody>
+          ${rows.map(r => `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+            <td style="padding:7px 8px;font-weight:500;">${escapeHtml(r.op.name)}${r.op.role ? `<span style="font-size:11px;color:var(--text-muted);margin-inline-start:5px;">${escapeHtml(r.op.role)}</span>` : ''}</td>
+            <td style="padding:7px 8px;text-align:end;">${r.jobs}</td>
+            <td style="padding:7px 8px;text-align:end;color:${r.wasteEntries > 0 ? 'var(--danger)' : 'var(--text-muted)'};">${r.wasteEntries}</td>
+            <td style="padding:7px 8px;text-align:end;color:var(--primary);">${escapeHtml(String(r.avgAccuracy))}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function renderTimeAnalytics() {
+  const el = $('#timeAnalyticsSection');
+  if (!el) return;
+  if (timeEntries.length === 0) {
+    el.innerHTML = `<h3 class="card-head"><span class="swatch"></span><span>${escapeHtml(t('time.analytics_title') || 'Time Tracking')}</span></h3><p style="color:var(--text-muted);font-size:13px;">${escapeHtml(t('time.no_entries') || 'No time entries yet — log time using ⏱ on orders.')}</p>`;
+    return;
+  }
+
+  const totalHours = timeEntries.reduce((s, e) => s + (+e.hours || 0), 0);
+  const totalCost  = timeEntries.reduce((s, e) => s + (+e.cost  || 0), 0);
+  const orderIds   = [...new Set(timeEntries.map(e => e.orderId).filter(Boolean))];
+  const avgHrsPerOrder = orderIds.length > 0 ? (totalHours / orderIds.length) : 0;
+
+  // Per-operator stats
+  const opStats = {};
+  for (const entry of timeEntries) {
+    const oid = entry.operatorId;
+    if (!opStats[oid]) opStats[oid] = { name: entry.operatorName, hours: 0, cost: 0, orderIds: new Set() };
+    opStats[oid].hours += +entry.hours || 0;
+    opStats[oid].cost  += +entry.cost  || 0;
+    if (entry.orderId) opStats[oid].orderIds.add(entry.orderId);
+  }
+  const opRows = Object.entries(opStats).map(([, s]) => {
+    const ordersWorked = [...s.orderIds];
+    const revenue = ordersWorked.reduce((sum, oid) => {
+      const o = printLog.find(x => x.id === oid);
+      return sum + (+o?.price || 0);
+    }, 0);
+    const avgRevPerHr = s.hours > 0 ? revenue / s.hours : 0;
+    const avgHrs      = s.orderIds.size > 0 ? s.hours / s.orderIds.size : 0;
+    return { ...s, orders: s.orderIds.size, avgHrs: avgHrs.toFixed(2), avgRevPerHr: avgRevPerHr.toFixed(2) };
+  });
+
+  // Top 3 orders by hours
+  const orderHours = {};
+  for (const e of timeEntries) {
+    if (!e.orderId) continue;
+    if (!orderHours[e.orderId]) orderHours[e.orderId] = { hours: 0, ops: new Set() };
+    orderHours[e.orderId].hours += +e.hours || 0;
+    orderHours[e.orderId].ops.add(e.operatorName);
+  }
+  const top3 = Object.entries(orderHours)
+    .sort((a, b) => b[1].hours - a[1].hours)
+    .slice(0, 3)
+    .map(([oid, v]) => {
+      const o = printLog.find(x => x.id === oid);
+      return { name: o?.project || oid, hours: v.hours.toFixed(2), ops: [...v.ops].join(', ') };
+    });
+
+  el.innerHTML = `
+    <h3 class="card-head"><span class="swatch"></span><span>${escapeHtml(t('time.analytics_title') || 'Time Tracking Analytics')}</span></h3>
+    <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px;">
+      <div style="flex:1;min-width:100px;text-align:center;">
+        <div style="font-size:20px;font-weight:700;">${totalHours.toFixed(2)}h</div>
+        <div style="font-size:11px;color:var(--text-muted);">Total hours</div>
+      </div>
+      <div style="flex:1;min-width:100px;text-align:center;">
+        <div style="font-size:20px;font-weight:700;color:#22c55e;">${fmtPrice(totalCost)}</div>
+        <div style="font-size:11px;color:var(--text-muted);">Total labor cost</div>
+      </div>
+      <div style="flex:1;min-width:100px;text-align:center;">
+        <div style="font-size:20px;font-weight:700;">${avgHrsPerOrder.toFixed(2)}h</div>
+        <div style="font-size:11px;color:var(--text-muted);">Avg hrs/order</div>
+      </div>
+    </div>
+    ${opRows.length > 0 ? `
+    <div style="font-weight:600;font-size:13px;margin-bottom:8px;">Per-Operator Breakdown</div>
+    <div class="table-wrap">
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead><tr style="border-bottom:1px solid var(--border-soft);color:var(--text-muted);">
+          <th style="padding:6px 8px;text-align:start;">Operator</th>
+          <th style="padding:6px 8px;text-align:end;">Hours</th>
+          <th style="padding:6px 8px;text-align:end;">Cost</th>
+          <th style="padding:6px 8px;text-align:end;">Orders</th>
+          <th style="padding:6px 8px;text-align:end;">Avg h/order</th>
+          <th style="padding:6px 8px;text-align:end;">Revenue/hr</th>
+        </tr></thead>
+        <tbody>
+          ${opRows.map(r => `<tr style="border-bottom:1px solid rgba(255,255,255,.05);">
+            <td style="padding:7px 8px;font-weight:500;">${escapeHtml(r.name)}</td>
+            <td style="padding:7px 8px;text-align:end;">${r.hours.toFixed(2)}h</td>
+            <td style="padding:7px 8px;text-align:end;">${fmtPrice(r.cost)}</td>
+            <td style="padding:7px 8px;text-align:end;">${r.orders}</td>
+            <td style="padding:7px 8px;text-align:end;">${r.avgHrs}h</td>
+            <td style="padding:7px 8px;text-align:end;color:var(--primary);">${fmtPrice(+r.avgRevPerHr)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>` : ''}
+    ${top3.length > 0 ? `
+    <div style="font-weight:600;font-size:13px;margin-top:16px;margin-bottom:8px;">Top Orders by Hours</div>
+    <div class="table-wrap">
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead><tr style="border-bottom:1px solid var(--border-soft);color:var(--text-muted);">
+          <th style="padding:6px 8px;text-align:start;">Project</th>
+          <th style="padding:6px 8px;text-align:end;">Total Hours</th>
+          <th style="padding:6px 8px;text-align:start;">Operators</th>
+        </tr></thead>
+        <tbody>
+          ${top3.map(r => `<tr style="border-bottom:1px solid rgba(255,255,255,.05);">
+            <td style="padding:7px 8px;">${escapeHtml(r.name)}</td>
+            <td style="padding:7px 8px;text-align:end;font-weight:600;">${r.hours}h</td>
+            <td style="padding:7px 8px;font-size:11.5px;color:var(--text-muted);">${escapeHtml(r.ops)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>` : ''}`;
+}
+
+async function exportAnalyticsReport() {
+  // 1. Make sure analytics is freshly rendered
+  renderAnalytics();
+
+  // 2. Collect chart/table SVGs from DOM (already rendered)
+  const chartIds = [
+    'revenueChartWrap',
+    'topProductsList',
+    'topClientsList',
+    'activityList',
+    'accuracySection',
+    'timestampAccuracySection',
+    'quoteFunnelChart',
+    'monthlyTrendChart',
+    'machineRevenueChart',
+    'profitMarginChart',
+    'wasteTrendChart',
+    'cycleTimeChart',
+    'cashFlowChart',
+    'expenseCategoryChart',
+    'leadTimeTable',
+    'npsTrendChart',
+    'clientLtvTable',
+    'machineDowntimeChart',
+    'maintenanceCostChart',
+    'materialUsageChart',
+    'filamentPerfSection',
+    'printerUtilSection',
+    'pnlSection',
+    'productProfitSection',
+    'slaSection',
+    'machinePLSection',
+    'throughputHeatmapSection',
+    'clientRetentionSection',
+    'costTrendsSection',
+    'operatorAnalyticsSection',
+    'agedReceivablesSection',
+    'surveyAnalyticsSection',
+    'newVsReturningSection',
+  ];
+
+  const sections = chartIds.map(id => {
+    const el = document.getElementById(id);
+    let inner = el?.innerHTML?.trim();
+    if (!inner) return '';
+    // Strip <script> blocks to prevent XSS when content is written via document.write()
+    inner = inner.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<script[^>]*/gi, '');
+    return `<div class="report-section">${inner}</div>`;
+  }).filter(Boolean).join('\n');
+
+  // 3. KPI summary
+  const pl = printLog || [];
+  const completedOrders = pl.filter(o => o.status === 'completed');
+  const totalRev = pl.filter(o => o.status === 'completed' || o.status === 'delivered')
+    .reduce((s, o) => s + orderRevenueBase(o), 0);
+  const totalOrders = pl.length;
+  const avgMargin = (() => {
+    const withMargin = completedOrders.filter(o => o.costBasis > 0 && +o.price > 0);
+    if (!withMargin.length) return null;
+    return withMargin.reduce((s, o) => s + ((+o.price - o.costBasis) / +o.price * 100), 0) / withMargin.length;
+  })();
+  const matCount = {};
+  pl.forEach(o => { if (o.material) matCount[o.material] = (matCount[o.material] || 0) + 1; });
+  const topMat = Object.entries(matCount).sort((a, b) => b[1] - a[1])[0]?.[0] || '—';
+
+  const s = settings || {};
+  const shopName = escapeHtml(s.bizName || s.bizEn || s.shopName || 'Khayt');
+  const accentColor = safeCssColor(s.invoiceAccentColor || s.invAccentColor, '#5b9cf0');
+  const rangeLabel = escapeHtml(t('an.range.' + analyticsRange) || analyticsRange);
+  const reportDate = new Date().toLocaleDateString();
+
+  const safeLogo = typeof safeBizLogo === 'function' ? safeBizLogo() : '';
+
+  // 4. Build HTML
+  const html = `<!DOCTYPE html>
+<html dir="${document.documentElement.dir || 'ltr'}" lang="${document.documentElement.lang || 'en'}">
+<head>
+<meta charset="UTF-8">
+<title>${shopName} — ${escapeHtml(t('an.report_title') || 'Analytics Report')}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,'Segoe UI',sans-serif; font-size:11pt; color:#111; background:#fff; padding:15mm 20mm; }
+  .report-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10mm; border-bottom:2.5px solid ${accentColor}; padding-bottom:6mm; }
+  .shop-name { font-size:20pt; font-weight:800; color:${accentColor}; }
+  .report-meta { text-align:right; font-size:9.5pt; color:#666; line-height:1.7; }
+  .report-title { font-size:14pt; font-weight:700; color:#111; margin-bottom:1mm; }
+  .kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:10mm; }
+  .kpi-card { background:#f8fafc; border:1px solid #e5e7eb; border-radius:8px; padding:10px 14px; }
+  .kpi-label { font-size:8.5pt; color:#888; text-transform:uppercase; letter-spacing:.4pt; }
+  .kpi-value { font-size:16pt; font-weight:700; color:${accentColor}; margin-top:2px; }
+  .report-section { margin-bottom:8mm; page-break-inside:avoid; }
+  h4 { font-size:11pt; font-weight:700; color:#444; margin:6mm 0 3mm; }
+  table { width:100%; border-collapse:collapse; font-size:9.5pt; }
+  th { background:${accentColor}; color:#fff; padding:5px 8px; text-align:left; font-size:8.5pt; }
+  td { padding:5px 8px; border-bottom:0.3mm solid #e5e7eb; }
+  tr:nth-child(even) td { background:#f9fafb; }
+  svg text { font-family:-apple-system,'Segoe UI',sans-serif !important; }
+  ul { list-style:none; padding:0; }
+  li { padding:4px 0; border-bottom:0.3mm solid #f0f0f0; font-size:10pt; }
+  @media print {
+    body { padding:10mm 15mm; }
+    .report-section { page-break-inside:avoid; }
+  }
+  .logo-img { max-height:50px; max-width:120px; object-fit:contain; }
+</style>
+</head>
+<body>
+  <div class="report-header">
+    <div>
+      ${safeLogo ? `<img src="${safeLogo}" class="logo-img" alt="logo" style="margin-bottom:4px;display:block;">` : ''}
+      <div class="shop-name">${shopName}</div>
+    </div>
+    <div class="report-meta">
+      <div class="report-title">${escapeHtml(t('an.report_title') || 'Analytics Report')}</div>
+      <div>${escapeHtml(t('an.period') || 'Period')}: <strong>${rangeLabel}</strong></div>
+      <div>${escapeHtml(t('an.generated') || 'Generated')}: ${reportDate}</div>
+    </div>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="kpi-label">${escapeHtml(t('an.total_revenue') || 'Total Revenue')}</div>
+      <div class="kpi-value">${escapeHtml(fmtPrice(totalRev))}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">${escapeHtml(t('an.total_orders') || 'Total Orders')}</div>
+      <div class="kpi-value">${totalOrders}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">${escapeHtml(t('an.avg_margin') || 'Avg Margin')}</div>
+      <div class="kpi-value">${avgMargin !== null ? avgMargin.toFixed(1) + '%' : '—'}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">${escapeHtml(t('an.top_material') || 'Top Material')}</div>
+      <div class="kpi-value" style="font-size:13pt;">${escapeHtml(topMat)}</div>
+    </div>
+  </div>
+
+  ${sections}
+
+  <div style="margin-top:12mm;padding-top:4mm;border-top:0.5px solid #ddd;font-size:8pt;color:#aaa;text-align:center;">
+    ${shopName} · ${escapeHtml(t('an.report_footer') || 'Generated by Khayt')} · ${reportDate}
+  </div>
+</body>
+</html>`;
+
+  // 5. Open and print
+  const win = window.open('', '_blank', 'width=1000,height=760,toolbar=0,menubar=0,scrollbars=1');
+  if (win) {
+    win.document.open();
+    win.document.write(sanitizePrintHtml(html));
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 600);
+  } else if (window.hubAPI?.saveHtml) {
+    const fname = `analytics-report-${localDateStr()}.html`;
+    const saved = await window.hubAPI.saveHtml(html, fname);
+    if (saved?.path) { window.hubAPI?.openPath?.(saved.path); return; }
+    if (typeof saved === 'string') { window.hubAPI?.openPath?.(saved); return; }
+  }
+}
+
+function renderThroughputHeatmap() {
+  const el = $('#throughputHeatmapSection');
+  if (!el) return;
+
+  const completed = printLog.filter(o =>
+    o.status === 'completed' && o.completedAt && inRange(o.date, analyticsRange, 'analytics')
+  );
+
+  if (completed.length < 10) {
+    el.innerHTML = `<p style="color:var(--text-muted); font-size:13px;">${escapeHtml(t('an.heatmap_no_data'))}</p>`;
+    return;
+  }
+
+  // Build 7×24 matrix
+  const matrix = Array.from({ length: 7 }, () => Array(24).fill(0));
+  completed.forEach(o => {
+    try {
+      const d = new Date(o.completedAt);
+      const dow = d.getDay();   // 0=Sun..6=Sat
+      const hod = d.getHours(); // 0..23
+      matrix[dow][hod]++;
+    } catch (_) {}
+  });
+
+  const maxVal = Math.max(1, ...matrix.flat());
+  const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const SHOWN_HOURS = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22];
+
+  const headerRow = `<tr>
+    <th style="padding:2px 6px;">${escapeHtml(t('an.heatmap_day'))}</th>
+    ${Array.from({ length: 24 }, (_, h) => `<th class="heatmap-cell" style="background:none; border:none; width:28px; height:28px;">${SHOWN_HOURS.includes(h) ? h : ''}</th>`).join('')}
+  </tr>`;
+
+  const bodyRows = matrix.map((row, dow) => {
+    const cells = row.map((count, h) => {
+      const intensity = count / maxVal;
+      return `<td class="heatmap-cell" style="--hm-intensity:${intensity.toFixed(2)};" title="${DAY_NAMES[dow]} ${h}:00 — ${count} order(s)">${count > 0 ? count : ''}</td>`;
+    }).join('');
+    return `<tr><th style="font-size:11px; padding:2px 6px; text-align:start;">${escapeHtml(DAY_NAMES[dow])}</th>${cells}</tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div style="overflow-x:auto;">
+      <table class="heatmap-table">
+        <thead>${headerRow}</thead>
+        <tbody>${bodyRows}</tbody>
+      </table>
+    </div>
+    <div class="heatmap-legend">
+      <span>0</span>
+      <div class="heatmap-legend-bar"></div>
+      <span>${maxVal}</span>
+    </div>`;
+}
+
+function computeCapacityForecast() {
+  const activeStatuses = ['pending','printing','post','on_hold'];
+  const rows = [];
+  let totalBooked = 0, totalAvail = 0;
+  for (const m of machines) {
+    const avail = +(m.targetHoursPerDay || 0);
+    if (avail <= 0) continue;
+    const availableHours = avail * 7;
+    const bookedHours = printLog
+      .filter(o => o.machineId === m.id && activeStatuses.includes(o.status))
+      .reduce((s, o) => s + (+o.printTime || 0), 0);
+    const pct = Math.min(100, Math.round(bookedHours / availableHours * 100));
+    rows.push({ machineName: m.name, color: m.color, bookedHours, availableHours, pct });
+    totalBooked += bookedHours;
+    totalAvail  += availableHours;
+  }
+  return { rows, totalBooked, totalAvail, totalPct: totalAvail > 0 ? Math.min(100, Math.round(totalBooked / totalAvail * 100)) : 0 };
+}
+
+function renderCapacityGauge() {
+  const el = $('#capacityGaugeSection');
+  if (!el) return;
+  const { rows, totalPct } = computeCapacityForecast();
+  if (rows.length === 0) {
+    el.innerHTML = `<div class="dash-section" style="margin-bottom:14px;">
+      <h3 class="dash-section-head">${escapeHtml(t('dash.capacity_title'))}</h3>
+      <p style="color:var(--text-muted); font-size:12.5px;">${escapeHtml(t('dash.capacity_no_targets'))}</p>
+    </div>`;
+    return;
+  }
+  const gaugeRows = rows.map(r => {
+    const col = r.pct >= 90 ? 'var(--danger)' : r.pct >= 70 ? 'var(--warning)' : 'var(--success)';
+    return `<div style="margin-bottom:8px;">
+      <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:3px;">
+        <span style="display:flex; align-items:center; gap:6px;">
+          <span style="width:8px;height:8px;border-radius:50%;background:${escapeHtml(r.color)};display:inline-block;"></span>
+          ${escapeHtml(r.machineName)}
+        </span>
+        <span style="color:var(--text-muted);">${r.bookedHours.toFixed(1)}h / ${r.availableHours.toFixed(1)}h (${r.pct}%)</span>
+      </div>
+      <div style="background:var(--surface-2); border-radius:3px; height:6px; overflow:hidden;">
+        <div style="width:${r.pct}%; height:100%; background:${col}; transition:width 0.3s;"></div>
+      </div>
+    </div>`;
+  }).join('');
+  el.innerHTML = `<div class="dash-section" style="margin-bottom:14px;">
+    <h3 class="dash-section-head">${escapeHtml(t('dash.capacity_title'))} <span style="font-size:11px;font-weight:400;color:var(--text-muted);">${escapeHtml(t('dash.capacity_booked', { pct: totalPct }))}</span></h3>
+    ${gaugeRows}
+  </div>`;
+}
+
+function renderAgedReceivables() {
+  const el = $('#agedReceivablesSection');
+  if (!el) return;
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  const unpaid = printLog.filter(o => {
+    if (o.voidedAt) return false;
+    const ps = payStatus(o);
+    return ps === 'unpaid' || ps === 'partial';
+  });
+
+  if (unpaid.length === 0) {
+    el.innerHTML = `<p style="color:var(--success);margin:0;">✅ No outstanding receivables.</p>`;
+    return;
+  }
+
+  const buckets = { '0–30': [], '31–60': [], '61–90': [], '90+': [] };
+  function addToBucket(entry) {
+    if      (entry.days <= 30) buckets['0–30'].push(entry);
+    else if (entry.days <= 60) buckets['31–60'].push(entry);
+    else if (entry.days <= 90) buckets['61–90'].push(entry);
+    else                       buckets['90+'].push(entry);
+  }
+  unpaid.forEach(o => {
+    const arClient = o.clientId ? clients.find(c => c.id === o.clientId) : null;
+    const arClientName = arClient ? localName(arClient) : (o.client || '');
+
+    if (o.instalments && o.instalments.length > 0) {
+      // Age each unpaid instalment separately by its own dueDate
+      o.instalments.forEach(ins => {
+        if (ins.paid) return;
+        const owed = Math.max(0, +ins.amount || 0);
+        if (owed <= 0) return;
+        const refDate = ins.dueDate || o.date;
+        const instDate = new Date(refDate + 'T00:00:00');
+        const days = Math.max(0, Math.floor((today - instDate) / 86400000));
+        addToBucket({ id: o.id, project: o.project, client: arClientName, owed, days, payStatus: payStatus(o) });
+      });
+    } else {
+      const orderDate = new Date((o.date || o.timestamp || today.toISOString()).split('T')[0] + 'T00:00:00');
+      const days = Math.max(0, Math.floor((today - orderDate) / 86400000));
+      const owed = orderOwedBase(o);
+      if (owed > 0) addToBucket({ id: o.id, project: o.project, client: arClientName, owed, days, payStatus: payStatus(o) });
+    }
+  });
+
+  const totalOwed = unpaid.reduce((s, o) => {
+    if (o.instalments && o.instalments.length > 0) {
+      return s + o.instalments.filter(ins => !ins.paid).reduce((si, ins) => si + Math.max(0, +ins.amount || 0), 0);
+    }
+    return s + orderOwedBase(o);
+  }, 0);
+
+  const bucketColors = { '0–30': 'var(--success)', '31–60': 'var(--warning)', '61–90': '#f97316', '90+': 'var(--danger)' };
+
+  let html = `
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+      ${Object.entries(buckets).map(([label, items]) => {
+        const total = items.reduce((s, i) => s + i.owed, 0);
+        return `<div style="flex:1;min-width:120px;padding:12px 16px;background:var(--bg-elev);border-radius:var(--radius);border-left:3px solid ${bucketColors[label]};">
+          <div style="font-size:12px;color:var(--text-muted);">${label} days</div>
+          <div style="font-size:16px;font-weight:700;margin-top:4px;">${fmtPrice(total)}</div>
+          <div style="font-size:11px;color:var(--text-dim);">${items.length} order${items.length !== 1 ? 's' : ''}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <strong style="font-size:14px;">Total outstanding: <span style="color:var(--danger);">${fmtPrice(totalOwed)}</span></strong>
+      <button class="btn small ghost" id="btnExportAgedCsv">⬇ Export CSV</button>
+    </div>`;
+
+  Object.entries(buckets).forEach(([label, items]) => {
+    if (items.length === 0) return;
+    html += `<div style="margin-bottom:12px;">
+      <div style="font-size:12px;font-weight:600;color:${bucketColors[label]};margin-bottom:6px;padding:4px 8px;background:rgba(0,0,0,0.1);border-radius:4px;">${label} DAYS — ${items.length} order(s)</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead><tr style="color:var(--text-dim);">
+          <th style="text-align:left;padding:4px 6px;">Order ID</th>
+          <th style="text-align:left;padding:4px 6px;">Project</th>
+          <th style="text-align:left;padding:4px 6px;">Client</th>
+          <th style="text-align:right;padding:4px 6px;">Owed</th>
+          <th style="text-align:right;padding:4px 6px;">Days</th>
+        </tr></thead>
+        <tbody>${items.map(i => `<tr style="border-top:1px solid var(--border);">
+          <td style="padding:5px 6px;color:var(--text-muted);font-family:var(--font-num);">${escapeHtml(i.id)}</td>
+          <td style="padding:5px 6px;">${escapeHtml(i.project||'—')}</td>
+          <td style="padding:5px 6px;">${escapeHtml(i.client||'—')}</td>
+          <td style="padding:5px 6px;text-align:right;color:var(--danger);font-weight:600;">${fmtPrice(i.owed)}</td>
+          <td style="padding:5px 6px;text-align:right;color:${bucketColors[label]};">${i.days}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>`;
+  });
+  el.innerHTML = html;
+
+  el.querySelector('#btnExportAgedCsv')?.addEventListener('click', () => {
+    const rows = [['Order ID','Project','Client','Owed','Days Outstanding','Bucket']];
+    Object.entries(buckets).forEach(([label, items]) => {
+      items.forEach(i => rows.push([i.id, i.project||'', i.client||'', i.owed.toFixed(2), i.days, label]));
+    });
+    downloadBlob(new Blob([rows.map(r => r.map(csvEsc).join(',')).join('\n')], { type: 'text/csv' }), 'aged-receivables.csv');
+  });
+}
+
+function renderSurveyAnalytics() {
+  const el = $('#surveyAnalyticsSection');
+  if (!el) return;
+  const surveyed = printLog.filter(o => o.survey?.rating);
+  if (surveyed.length === 0) {
+    el.innerHTML = '<p style="color:var(--text-muted);">No survey responses yet.</p>';
+    return;
+  }
+  const avg = surveyed.reduce((s, o) => s + o.survey.rating, 0) / surveyed.length;
+  const dist = [1,2,3,4,5].map(r => ({ r, n: surveyed.filter(o => o.survey.rating === r).length }));
+  // NPS on 5-star scale: 5 = promoter, 4 = passive, 1-3 = detractors
+  // (True NPS requires 0-10 scale; adapt proportionally: 5→promoter, 4→passive, ≤3→detractor)
+  const promoters  = surveyed.filter(o => o.survey.rating === 5).length;
+  const detractors = surveyed.filter(o => o.survey.rating <= 3).length;
+  const nps = Math.round((promoters - detractors) / surveyed.length * 100);
+
+  el.innerHTML = `
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
+      <div style="text-align:center;padding:12px 20px;background:var(--bg-elev);border-radius:var(--radius);">
+        <div style="font-size:28px;font-weight:700;color:var(--primary);">${avg.toFixed(1)}</div>
+        <div style="font-size:11px;color:var(--text-muted);">Avg Rating</div>
+      </div>
+      <div style="text-align:center;padding:12px 20px;background:var(--bg-elev);border-radius:var(--radius);">
+        <div style="font-size:28px;font-weight:700;color:${nps >= 50 ? 'var(--success)' : nps >= 0 ? 'var(--warning)' : 'var(--danger)'};">${nps >= 0 ? '+' : ''}${nps}</div>
+        <div style="font-size:11px;color:var(--text-muted);">NPS Score</div>
+      </div>
+      <div style="text-align:center;padding:12px 20px;background:var(--bg-elev);border-radius:var(--radius);">
+        <div style="font-size:28px;font-weight:700;">${surveyed.length}</div>
+        <div style="font-size:11px;color:var(--text-muted);">Responses</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px;">
+      ${dist.reverse().map(({r, n}) => {
+        const pct = surveyed.length > 0 ? Math.round(n / surveyed.length * 100) : 0;
+        return `<div style="display:flex;align-items:center;gap:8px;font-size:12.5px;">
+          <span style="width:18px;text-align:right;">${r}⭐</span>
+          <div style="flex:1;background:var(--bg);border-radius:4px;height:14px;overflow:hidden;">
+            <div style="height:100%;width:${pct}%;background:var(--primary);border-radius:4px;transition:width .4s;"></div>
+          </div>
+          <span style="width:36px;color:var(--text-muted);">${pct}%</span>
+          <span style="color:var(--text-dim);">(${n})</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+/* ============================================================
+   Round 12 — Feature 4: Break-Even & Overhead Allocation
+   ============================================================ */
+function computeBreakEven() {
+  const fixedCosts = settings.fixedCosts || [];
+  const totalFixed = fixedCosts.reduce((s, c) => s + (+c.amount || 0), 0);
+  if (totalFixed === 0) return null;
+
+  // Avg contribution margin per order (last 90 days)
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 90);
+  const recent = printLog.filter(o => o.status === 'completed' && o.date && new Date(o.date + 'T00:00:00') >= cutoff);
+  const avgRevPerOrder = recent.length > 0 ? recent.reduce((s, o) => s + orderRevenueBase(o), 0) / recent.length : 0;
+  const avgMaterialCost = recent.length > 0 ? recent.reduce((s, o) => {
+    const mc = (o.parts || []).reduce((ps, p) => {
+      if (!p.filamentId) return ps;
+      const sp = inventory.find(i => i.id === p.filamentId);
+      return ps + ((+p.printWeight || 0) / 1000 * ((sp ? (+sp.cost / +sp.weight) * 1000 : 0)));
+    }, 0);
+    return s + mc;
+  }, 0) / recent.length : 0;
+  const avgMarginPct = avgRevPerOrder > 0 ? Math.max(0, (avgRevPerOrder - avgMaterialCost) / avgRevPerOrder) : 0;
+
+  const breakEvenRevenue = avgMarginPct > 0 ? totalFixed / avgMarginPct : null;
+  return { totalFixed, breakEvenRevenue, avgMarginPct, avgRevPerOrder };
+}
+
+function renderBreakEvenCard() {
+  const el = $('#breakEvenSection');
+  if (!el) return;
+  const fixedCosts = settings.fixedCosts || [];
+  const be = computeBreakEven();
+
+  const today = new Date();
+  const thisMonthStr = localMonthStr(today);
+  const monthRev = printLog
+    .filter(o => o.status === 'completed' && (o.date || '').startsWith(thisMonthStr))
+    .reduce((s, o) => s + orderRevenueBase(o), 0);
+
+  if (fixedCosts.length === 0) {
+    el.innerHTML = `<p style="color:var(--text-muted);font-size:13px;">No fixed costs configured. <a href="#" id="goToBreakEvenSettings" style="color:var(--primary);">Add fixed costs in Settings →</a></p>`;
+    el.querySelector('#goToBreakEvenSettings')?.addEventListener('click', e => {
+      e.preventDefault();
+      document.querySelector('[data-tab="settings-tab"]')?.click();
+    });
+    return;
+  }
+
+  const progress = be?.breakEvenRevenue ? Math.min(100, (monthRev / be.breakEvenRevenue) * 100) : 0;
+  const surplus  = be?.breakEvenRevenue ? monthRev - be.breakEvenRevenue : null;
+
+  el.innerHTML = `
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
+      <div style="flex:1;min-width:140px;padding:12px 16px;background:var(--bg-elev);border-radius:var(--radius);">
+        <div style="font-size:11px;color:var(--text-muted);">Monthly Fixed Costs</div>
+        <div style="font-size:18px;font-weight:700;color:var(--danger);">${fmtPrice(be?.totalFixed || 0)}</div>
+      </div>
+      ${be?.breakEvenRevenue ? `
+      <div style="flex:1;min-width:140px;padding:12px 16px;background:var(--bg-elev);border-radius:var(--radius);">
+        <div style="font-size:11px;color:var(--text-muted);">Break-Even Revenue</div>
+        <div style="font-size:18px;font-weight:700;color:var(--warning);">${fmtPrice(be.breakEvenRevenue)}</div>
+      </div>
+      <div style="flex:1;min-width:140px;padding:12px 16px;background:var(--bg-elev);border-radius:var(--radius);border-left:3px solid ${surplus >= 0 ? 'var(--success)' : 'var(--danger)'};">
+        <div style="font-size:11px;color:var(--text-muted);">${surplus >= 0 ? 'Above Break-Even' : 'Below Break-Even'}</div>
+        <div style="font-size:18px;font-weight:700;color:${surplus >= 0 ? 'var(--success)' : 'var(--danger)'};">${surplus >= 0 ? '+' : ''}${fmtPrice(surplus || 0)}</div>
+      </div>` : ''}
+    </div>
+    ${be?.breakEvenRevenue ? `
+    <div style="margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:4px;">
+        <span>This month: ${fmtPrice(monthRev)}</span>
+        <span>Target: ${fmtPrice(be.breakEvenRevenue)}</span>
+      </div>
+      <div style="background:var(--bg);border-radius:6px;height:10px;overflow:hidden;">
+        <div style="height:100%;width:${progress}%;background:${progress >= 100 ? 'var(--success)' : 'var(--primary)'};border-radius:6px;transition:width .5s;"></div>
+      </div>
+    </div>` : '<p style="color:var(--text-muted);font-size:12.5px;margin-bottom:12px;">Not enough order history to compute break-even. Add more completed orders.</p>'}
+    <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+      <thead><tr style="color:var(--text-dim);">
+        <th style="text-align:left;padding:4px 6px;">Fixed Cost</th>
+        <th style="text-align:right;padding:4px 6px;">Monthly Amount</th>
+        <th style="padding:4px 6px;"></th>
+      </tr></thead>
+      <tbody>
+        ${fixedCosts.map((c, i) => `<tr style="border-top:1px solid var(--border);">
+          <td style="padding:6px;">${escapeHtml(c.name)}</td>
+          <td style="padding:6px;text-align:right;color:var(--danger);">${fmtPrice(c.amount)}</td>
+          <td style="padding:6px;"><button class="btn danger small" data-del-cost="${i}">✕</button></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+
+  el.querySelectorAll('[data-del-cost]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const ok = await confirmModal(t('common.delete') + '?', { danger: true });
+      if (!ok) return;
+      settings.fixedCosts.splice(parseInt(btn.dataset.delCost), 1);
+      saveAll();
+      renderBreakEvenCard();
+    });
+  });
+}
   const api = {
     renderSimpleReports,
     renderAnalytics,
+    exportAnalyticsReport,
+    renderClientRetention,
+    renderCostTrends,
+    renderOperatorAnalytics,
+    renderTimeAnalytics,
+    renderThroughputHeatmap,
+    computeCapacityForecast,
+    renderCapacityGauge,
+    renderAgedReceivables,
+    renderSurveyAnalytics,
+    computeBreakEven,
+    renderBreakEvenCard,
     renderClientSourceChart,
     renderQuoteFunnelChart,
     renderMonthlyTrendChart,
