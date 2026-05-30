@@ -19,8 +19,7 @@ Living priorities for maintainers. Not a public commitment calendar — reorder 
 ## Later (2.x / 3.0.0 when justified)
 
 - [ ] Locale files per language instead of monolithic `i18n.js`
-- [x] E2E smoke test: launch app + store round-trip (`npm run test:e2e`, CI with xvfb)
-- [ ] E2E: LAN PIN gate (extend smoke)
+- [x] E2E smoke test: launch app, store round-trip, LAN PIN gate (`npm run test:e2e`, CI with xvfb)
 - [ ] Typed store contract (JSDoc or JSON Schema) validated on load
 - [ ] LAN tunnel: require PIN + in-app risk warning before exposing via localtunnel
 
