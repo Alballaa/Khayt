@@ -63,16 +63,6 @@
   width: 22px; height: 22px; display: block;
   filter: drop-shadow(0 0 4px hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.65));
 }
-.khayt-logo b {
-  font-family: var(--font-ar); font-size: 19px; font-weight: 600; line-height: 1;
-  color: hsl(var(--accent-h) 90% 78%);
-  text-shadow: 0 0 6px var(--accent), 0 0 12px hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.8);
-  margin-top: -1px;
-}
-.khayt-logo::after {
-  content: ""; position: absolute; left: 18%; right: 18%; bottom: 3px; height: 2px; border-radius: 2px;
-  background: var(--accent); box-shadow: 0 0 6px var(--accent);
-}
 
 .khayt-nav { flex: 1; overflow-y: auto; padding: 12px 12px 4px; }
 .khayt-nav::-webkit-scrollbar { width: 0; }
