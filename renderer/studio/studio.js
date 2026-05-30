@@ -280,7 +280,7 @@
     const scopeLabel = opts?.breakdownScope === 'cart'
       ? (t('calc.breakdown_cart') || 'Project breakdown')
       : (t('calc.breakdown_live') || 'Live part');
-    const scopeEl = $('#calcBreakdownScope');
+    const scopeEl = panel.querySelector('.khayt-calc-breakdown-live');
     if (scopeEl) scopeEl.textContent = scopeLabel;
 
     if (strip && opts) {

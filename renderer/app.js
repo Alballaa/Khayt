@@ -38,6 +38,45 @@ function secretInputSave(current, typed) {
   if (t) return t;
   return current === STORE_SECRET_MASK ? STORE_SECRET_MASK : (current || '');
 }
+
+function isSecretMasked(v) { return v === STORE_SECRET_MASK; }
+function secretFieldPlaceholder(current) {
+  return isSecretMasked(current) ? (t('common.secret_unchanged') || 'Leave blank to keep current') : '';
+}
+function migrateLanApiSettings() {
+  if (!settings.lanApi) settings.lanApi = {};
+  if (settings.sallaWebhookSecret && !settings.lanApi.sallaWebhookSecret) {
+    settings.lanApi.sallaWebhookSecret = settings.sallaWebhookSecret;
+  }
+  if (settings.zidWebhookSecret && !settings.lanApi.zidWebhookSecret) {
+    settings.lanApi.zidWebhookSecret = settings.zidWebhookSecret;
+  }
+}
+function redactSettingsForExport(src) {
+  const s = JSON.parse(JSON.stringify(src || {}));
+  const mask = (obj, key) => { if (obj?.[key]) obj[key] = STORE_SECRET_MASK; };
+  mask(s.emailConfig, 'apiKey');
+  mask(s.telegram, 'botToken');
+  mask(s.webhooks, 'secret');
+  mask(s.zatcaPhase2, 'csid');
+  mask(s.zatcaPhase2, 'pcsid');
+  ['tabby', 'tamara', 'stripe'].forEach(prov => {
+    mask(s.bnpl?.[prov], 'apiKey');
+    if (prov === 'tamara') mask(s.bnpl?.tamara, 'notificationToken');
+  });
+  if (s.lanApi) ['pin', 'intakePin', 'intakeToken', 'webhookToken', 'sallaWebhookSecret', 'zidWebhookSecret'].forEach(k => mask(s.lanApi, k));
+  return s;
+}
+function redactMachinesForExport(arr) {
+  return (arr || []).map(m => {
+    if (!m?.printerApi) return m;
+    const pa = { ...m.printerApi };
+    if (pa.apiKey) pa.apiKey = STORE_SECRET_MASK;
+    if (pa.accessCode) pa.accessCode = STORE_SECRET_MASK;
+    return { ...m, printerApi: pa };
+  });
+}
+
 function sanitizePrintHtml(html) {
   return String(html || '')
     .replace(/<script[\s\S]*?<\/script>/gi, '')
@@ -960,7 +999,7 @@ function defaultSettings() {
     // Round 12: Break-even / fixed overhead
     fixedCosts:       [],
     // Round 12: LAN API
-    lanApi:           { enabled: false, port: 3219, pin: '', intakeToken: '', webhookToken: '', tunnelEnabled: false, bindLan: false },
+    lanApi:           { enabled: false, port: 3219, pin: '', intakePin: '', intakeToken: '', webhookToken: '', sallaWebhookSecret: '', zidWebhookSecret: '', tunnelEnabled: false, bindLan: false },
     // Round 12: Saved filter presets
     savedFilters:     [],
     betaAcknowledged: true, // legacy field — kept so old saved data doesn't break
@@ -1162,6 +1201,7 @@ async function loadAll() {
     if (store.slicerProfiles)      slicerProfiles      = store.slicerProfiles.filter(isObj);
     if (store.envLogs)             envLogs             = store.envLogs.filter(isObj);
     if (store.settings)            settings            = Object.assign({}, defaultSettings(), sanitiseForAssign(store.settings));
+    migrateLanApiSettings();
     // Deep-merge nested settings objects so new subkeys survive upgrades
     if (store.settings) {
       const nested = ['emailDigest', 'emailConfig', 'zatcaPhase2', 'bnpl', 'lanApi', 'exchangeRates', 'printerApi'];
@@ -2459,7 +2499,9 @@ function updateGrandTotal() {
   const discountPct = Math.min(100, Math.max(0, num($('#discountPct').value, 0)));
   const shippingCost = Math.max(0, num($('#shippingCost')?.value, 0));
   const extraLinesTotal = currentExtraLines.reduce((s, l) => s + Math.max(0, +l.amount || 0), 0);
-  const priceBeforeDiscount = totalBase * (1 + margin / 100);
+  const priceBeforeDiscount = (currentBuild.length === 0 && activeTier)
+    ? activeTier.pricePerUnit * qty
+    : totalBase * (1 + margin / 100);
   const discountAmt = priceBeforeDiscount * discountPct / 100;
   const subAfterDiscount = priceBeforeDiscount - discountAmt;
   // Rush fee
@@ -2467,7 +2509,11 @@ function updateGrandTotal() {
   const rushPct = rushEnabled ? num(settings.rushFeePct, 25) : 0;
   const rushFeeAmt = subAfterDiscount * rushPct / 100;
   const finalPrice = subAfterDiscount + rushFeeAmt + shippingCost + extraLinesTotal;
-  $('#finalPrice').textContent = fmtMoney(finalPrice);
+  const finalEl = $('#finalPrice');
+  if (finalEl) {
+    if (!finalEl.getAttribute('aria-live')) finalEl.setAttribute('aria-live', 'polite');
+    finalEl.textContent = fmtMoney(finalPrice);
+  }
 
   let bdForChart = bd;
   let breakdownScope = 'live';
@@ -3316,9 +3362,9 @@ function openMachineEditor(machineId = null) {
               </div>
             </div>
             <label style="margin-top:8px;">${escapeHtml(t('mach.api_key'))}</label>
-            <input id="machApiKey" placeholder="API key / token" style="font-size:12.5px;" value="${escapeHtml(draft.printerApi?.apiKey || '')}">
+            <input id="machApiKey" type="password" placeholder="API key / token" style="font-size:12.5px;" value="${escapeHtml(secretInputValue(draft.printerApi?.apiKey))}" autocomplete="off">
             <label style="margin-top:8px;">Access code (Bambu)</label>
-            <input id="machApiAccessCode" placeholder="Bambu access code" style="font-size:12.5px;" value="${escapeHtml(draft.printerApi?.accessCode || '')}">
+            <input id="machApiAccessCode" type="password" placeholder="Bambu access code" style="font-size:12.5px;" value="${escapeHtml(secretInputValue(draft.printerApi?.accessCode))}" autocomplete="off">
             <label style="margin-top:8px;">Printer slug (Repetier)</label>
             <input id="machApiSlug" placeholder="default" style="font-size:12.5px;" value="${escapeHtml(draft.printerApi?.printerSlug || '')}">
             <div style="display:flex; align-items:center; gap:8px; margin-top:10px;">
@@ -9404,7 +9450,8 @@ function renderWaitingList() {
     return;
   }
   const priorityOrder = { urgent: 0, high: 1, normal: 2, low: 3 };
-  const sorted = [...waitingList].sort((a, b) =>
+  const visible = waitingList.filter(w => w.status !== 'declined');
+  const sorted = [...visible].sort((a, b) =>
     (priorityOrder[a.priority] ?? 2) - (priorityOrder[b.priority] ?? 2)
   );
   const priorityColors = { urgent: 'var(--danger)', high: '#f59e0b', normal: 'var(--text-muted)', low: 'var(--text-muted)' };
@@ -9420,10 +9467,10 @@ function renderWaitingList() {
       <div class="waiting-item-left">
         <span style="font-size:14px;">${dot}</span>
         <div>
-          <div class="waiting-item-project">${escapeHtml(item.project || t('waiting.untitled'))}${item.status === 'reminded' ? ' <span style="font-size:10px;background:var(--primary);color:#fff;padding:1px 5px;border-radius:3px;">reminded</span>' : ''}${item.status === 'declined' ? ' <span style="font-size:10px;background:var(--danger);color:#fff;padding:1px 5px;border-radius:3px;">declined</span>' : ''}</div>
+          <div class="waiting-item-project">${escapeHtml(item.project || t('waiting.untitled'))}${item.status === 'reminded' ? ` <span style="font-size:10px;background:var(--primary);color:#fff;padding:1px 5px;border-radius:3px;">${escapeHtml(t('waiting.status_reminded') || 'reminded')}</span>` : ''}</div>
           ${clientName ? `<div class="waiting-item-client">👤 ${escapeHtml(clientName)}</div>` : ''}
           ${item.notes ? `<div class="waiting-item-notes">${escapeHtml(item.notes)}</div>` : ''}
-          ${item.estimatedValue ? `<div style="font-size:11px;color:var(--text-muted);">Est. ${fmtPrice(+item.estimatedValue)}</div>` : ''}
+          ${(item.estValue || item.estimatedValue) ? `<div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('waiting.est_prefix') || 'Est.')} ${fmtPrice(+(item.estValue || item.estimatedValue))}</div>` : ''}
           ${isDueReminder ? `<div style="font-size:11px;color:var(--primary);">⏰ Reminder due: ${escapeHtml(item.reminderDate)}</div>` : ''}
         </div>
       </div>
@@ -9509,20 +9556,17 @@ function promoteWaitingItem(itemId) {
   // Switch to calculator tab and pre-fill
   switchTab('calculator-tab');
   setTimeout(() => {
-    const projInput = document.querySelector('[data-f="project"]') || document.querySelector('#partName');
-    if (projInput && item.project) projInput.value = item.project;
-    if (item.clientId) {
-      const clientSel = document.querySelector('#clientSelect') || document.querySelector('[data-f="clientId"]');
-      if (clientSel) clientSel.value = item.clientId;
-    }
+    if ($('#clientInput')) $('#clientInput').value = item.clientName || item.project || '';
+    currentClientId = item.clientId || null;
   }, 80);
 }
 
 function updateWaitingBadge() {
   const badge = $('#waitingBadge');
   if (!badge) return;
-  badge.textContent = waitingList.length;
-  badge.style.display = waitingList.length > 0 ? 'inline-flex' : 'none';
+  const activeCount = waitingList.filter(w => w.status === 'active' || w.status === 'reminded').length;
+  badge.textContent = activeCount;
+  badge.style.display = activeCount > 0 ? 'inline-flex' : 'none';
   // Pulse badge if any item has a reminder date today or overdue
   const today = new Date().toISOString().split('T')[0];
   const hasDueReminder = waitingList.some(w => w.reminderDate && w.reminderDate <= today && w.status !== 'declined');
@@ -9542,7 +9586,7 @@ function renderWaitingFunnel() {
   const convRate = totalAdded > 0 ? ((converted / totalAdded) * 100).toFixed(1) : '0.0';
   const pipeline = waitingList
     .filter(w => w.status === 'active' || w.status === 'reminded')
-    .reduce((s, w) => s + (+w.estimatedValue || 0), 0);
+    .reduce((s, w) => s + (+(w.estValue || w.estimatedValue) || 0), 0);
 
   // Bar segments
   const convPct  = totalAdded > 0 ? (converted / totalAdded * 100) : 0;
@@ -9554,23 +9598,23 @@ function renderWaitingFunnel() {
     <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:14px;">
       <div style="flex:1;min-width:100px;text-align:center;">
         <div style="font-size:22px;font-weight:700;">${totalAdded}</div>
-        <div style="font-size:11px;color:var(--text-muted);">Total Added</div>
+        <div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('waiting.funnel_total') || 'Total Added')}</div>
       </div>
       <div style="flex:1;min-width:100px;text-align:center;">
         <div style="font-size:22px;font-weight:700;color:var(--primary);">${active}</div>
-        <div style="font-size:11px;color:var(--text-muted);">Active</div>
+        <div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('waiting.funnel_active') || 'Active')}</div>
       </div>
       <div style="flex:1;min-width:100px;text-align:center;">
         <div style="font-size:22px;font-weight:700;color:#22c55e;">${converted}</div>
-        <div style="font-size:11px;color:var(--text-muted);">Converted (${convRate}%)</div>
+        <div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('waiting.funnel_converted') || 'Converted')} (${convRate}%)</div>
       </div>
       <div style="flex:1;min-width:100px;text-align:center;">
         <div style="font-size:22px;font-weight:700;color:var(--danger);">${declined}</div>
-        <div style="font-size:11px;color:var(--text-muted);">Declined</div>
+        <div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('waiting.funnel_declined') || 'Declined')}</div>
       </div>
       <div style="flex:1;min-width:120px;text-align:center;">
         <div style="font-size:16px;font-weight:700;color:#f59e0b;">${fmtPrice(pipeline)}</div>
-        <div style="font-size:11px;color:var(--text-muted);">Pipeline Value</div>
+        <div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('waiting.funnel_pipeline') || 'Pipeline Value')}</div>
       </div>
     </div>
     ${totalAdded > 0 ? `
@@ -10490,8 +10534,11 @@ async function maybeAutoBackup() {
     const today = new Date().toISOString().split('T')[0];
     const json  = JSON.stringify({
       version: 5, exportedAt: new Date().toISOString(),
-      printLog, inventory, templates, products, clients, settings, expenses, machines,
-      waTemplates, wasteLog, operators, purchaseOrders, consumables, suppliers, locations, waitingList
+      printLog, inventory, templates, products, clients,
+      settings: redactSettingsForExport(settings),
+      expenses, machines: redactMachinesForExport(machines),
+      waTemplates, wasteLog, operators, purchaseOrders, consumables, suppliers, locations,
+      waitingList, waitingListHistory
     });
     if (last !== today) {
       const p = await window.hubAPI.writeBackup(json);
@@ -12953,6 +13000,7 @@ function patchRecurringOrdersWithLeadDays() {
 function renderLanApiSettings() {
   const el = $('#lanApiSection');
   if (!el) return;
+  migrateLanApiSettings();
   const lan = settings.lanApi || {};
 
   el.innerHTML = `
@@ -12966,8 +13014,15 @@ function renderLanApiSettings() {
         <input type="number" id="lan_port" value="${lan.port || 3219}" min="1024" max="65535">
       </div>
       <div>
-        <label data-i18n="lan.pin">Access PIN (required for queue API &amp; kiosk)</label>
-        <input type="text" id="lan_pin" value="${escapeHtml(lan.pin||'')}" maxlength="12" placeholder="e.g. 1234">
+        <label data-i18n="lan.pin">Owner LAN PIN (queue API, kiosk, tunnel)</label>
+        <input type="password" id="lan_pin" value="${escapeHtml(secretInputValue(lan.pin))}" maxlength="12" placeholder="${escapeHtml(secretFieldPlaceholder(lan.pin) || 'e.g. 1234')}" autocomplete="off">
+      </div>
+    </div>
+    <div class="inline-pair" style="margin-top:10px;">
+      <div>
+        <label data-i18n="lan.intake_pin">Intake form PIN (customers)</label>
+        <input type="password" id="lan_intake_pin" value="${escapeHtml(secretInputValue(lan.intakePin))}" maxlength="12" placeholder="${escapeHtml(secretFieldPlaceholder(lan.intakePin) || 'Auto-generated on start')}" autocomplete="off">
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;" data-i18n="lan.intake_pin_hint">Separate from owner PIN — shown to customers at /intake</div>
       </div>
     </div>
     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:10px;">
@@ -12975,16 +13030,26 @@ function renderLanApiSettings() {
       <span>Listen on all network interfaces (LAN). Default is localhost only.</span>
     </label>
     <div style="font-size:11px;color:var(--text-muted);margin:4px 0 10px;padding:8px 10px;background:var(--bg-elev);border-radius:var(--radius);word-break:break-all;">
-      Intake form: <code style="font-size:11px;">/intake</code> on this server (uses intake token automatically)
+      Customer intake form: <code style="font-size:11px;">/intake</code> — requires the intake PIN above (auto-generated when the server starts if blank).
     </div>
     <div class="inline-pair" style="margin-top:10px;">
       <div style="flex:1;">
         <label data-i18n="lan.webhook_token">Printer Webhook Token</label>
         <div style="display:flex;gap:6px;">
-          <input type="text" id="lan_wh_token" value="${escapeHtml(lan.webhookToken||'')}" placeholder="e.g. secret123" style="flex:1;">
+          <input type="password" id="lan_wh_token" value="${escapeHtml(secretInputValue(lan.webhookToken))}" placeholder="${escapeHtml(secretFieldPlaceholder(lan.webhookToken) || 'e.g. secret123')}" style="flex:1;" autocomplete="off">
           <button class="btn ghost small" id="btnGenWebhookToken" title="Generate random token">🎲</button>
         </div>
         <div style="font-size:11px;color:var(--text-muted);margin-top:4px;" data-i18n="lan.webhook_token_hint">Used to authenticate printer webhook calls</div>
+      </div>
+    </div>
+    <div class="inline-pair" style="margin-top:10px;">
+      <div style="flex:1;">
+        <label data-i18n="lan.salla_secret">Salla webhook secret</label>
+        <input type="password" id="lan_salla_secret" value="${escapeHtml(secretInputValue(lan.sallaWebhookSecret))}" placeholder="${escapeHtml(secretFieldPlaceholder(lan.sallaWebhookSecret) || 'From Salla dashboard')}" autocomplete="off">
+      </div>
+      <div style="flex:1;">
+        <label data-i18n="lan.zid_secret">Zid webhook secret</label>
+        <input type="password" id="lan_zid_secret" value="${escapeHtml(secretInputValue(lan.zidWebhookSecret))}" placeholder="${escapeHtml(secretFieldPlaceholder(lan.zidWebhookSecret) || 'From Zid dashboard')}" autocomplete="off">
       </div>
     </div>
     <div id="lanStatusRow" style="margin:12px 0;padding:10px 12px;background:var(--bg-elev);border-radius:var(--radius);font-size:13px;">${lan.enabled ? '🟢 Server active' : '⚫ Server stopped'}</div>
@@ -13012,23 +13077,22 @@ function renderLanApiSettings() {
         <button class="btn ghost small" id="btnStopTunnel" data-i18n="lan.tunnel_stop">Stop Tunnel</button>
       </div>
       <div style="font-size:11px;color:var(--text-muted);margin-top:8px;" data-i18n="lan.tunnel_hint">Exposes your LAN server to the internet via a temporary URL. Requires LAN server to be running.</div>
+      <div style="font-size:11px;color:var(--danger);margin-top:8px;padding:8px 10px;background:rgba(239,68,68,0.08);border-radius:var(--radius);" data-i18n="lan.tunnel_security_warning">Warning: the tunnel exposes your full LAN API surface to the internet. Set a strong owner PIN and disable when not needed.</div>
     </div>`;
 
   if (lan.enabled) loadLanQr();
 
   el.querySelector('#btnSaveLan')?.addEventListener('click', () => {
-    let intakeToken = (settings.lanApi || {}).intakeToken || '';
-    if (!intakeToken) {
-      const arr = new Uint8Array(16);
-      crypto.getRandomValues(arr);
-      intakeToken = Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
-    }
+    const prev = settings.lanApi || {};
     settings.lanApi = {
+      ...prev,
       enabled: el.querySelector('#lan_enabled').checked,
       port: parseInt(el.querySelector('#lan_port').value) || 3219,
-      pin:  secretInputSave((settings.lanApi || {}).pin, el.querySelector('#lan_pin').value),
-      intakeToken,
-      webhookToken: secretInputSave((settings.lanApi || {}).webhookToken, el.querySelector('#lan_wh_token').value),
+      pin:  secretInputSave(prev.pin, el.querySelector('#lan_pin').value),
+      intakePin: secretInputSave(prev.intakePin, el.querySelector('#lan_intake_pin')?.value),
+      webhookToken: secretInputSave(prev.webhookToken, el.querySelector('#lan_wh_token').value),
+      sallaWebhookSecret: secretInputSave(prev.sallaWebhookSecret, el.querySelector('#lan_salla_secret')?.value),
+      zidWebhookSecret: secretInputSave(prev.zidWebhookSecret, el.querySelector('#lan_zid_secret')?.value),
       tunnelEnabled: el.querySelector('#lan_tunnel_enabled').checked,
       bindLan: !!el.querySelector('#lan_bind_lan')?.checked,
     };
@@ -13058,6 +13122,14 @@ function renderLanApiSettings() {
   });
 
   el.querySelector('#btnStartTunnel')?.addEventListener('click', async () => {
+    if (!settings.lanApi?.enabled) {
+      toast(t('lan.tunnel_need_server') || 'Start the LAN server first', 'warning');
+      return;
+    }
+    if (!settings.lanApi?.pin || isSecretMasked(settings.lanApi.pin)) {
+      toast(t('lan.tunnel_need_pin') || 'Set an owner LAN PIN before starting the tunnel', 'warning');
+      return;
+    }
     const port = settings.lanApi?.port || 3219;
     const tRow = el.querySelector('#tunnelStatusRow');
     if (tRow) tRow.textContent = '⏳ Connecting…';
@@ -13553,6 +13625,7 @@ async function startLanServer() {
     }
     settings.lanApi = { ...settings.lanApi, enabled: true };
     if (res.intakeTokenGenerated) settings.lanApi.intakeToken = STORE_SECRET_MASK;
+    if (res.intakePinGenerated) settings.lanApi.intakePin = STORE_SECRET_MASK;
     saveAll();
     loadLanQr(res.url);
     updateWebhookUrlDisplay(res.url);
@@ -13589,9 +13662,11 @@ async function loadLanQr(urlOverride) {
   const svg = await window.hubAPI?.generateQR?.(qrUrl, { width: 150 });
   if (svg) {
     const pin = settings.lanApi?.pin;
-    const pinNote = pin
+    const pinNote = pin && !isSecretMasked(pin)
       ? `<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">PIN: <code style="background:var(--bg);padding:1px 5px;border-radius:4px;">${escapeHtml(pin)}</code> (send via <code>x-khayt-pin</code> header)</div>`
-      : '';
+      : pin && isSecretMasked(pin)
+        ? `<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">${escapeHtml(t('lan.pin_configured') || 'PIN configured — use Settings to view or change')}</div>`
+        : '';
     qrWrap.style.display = 'block';
     qrWrap.innerHTML = `<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">Scan from phone to view queue: <span style="font-size:11px;opacity:0.7;">(click QR to copy URL)</span></div><div id="lanQrSvgWrap" style="cursor:pointer;display:inline-block;" title="Click to copy URL">${svg}</div>${pinNote}`;
     document.getElementById('lanQrSvgWrap')?.addEventListener('click', () => {
@@ -19771,7 +19846,7 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
     : [{ name: t('inv.services_default'), material: order.material, printTime: order.printTime, baseCost: order.price }];
   const totalBase = lines.reduce((s, p) => s + (+p.baseCost || 0), 0);
   // Pool for parts = total price minus shipping minus extra lines (fixed fees)
-  const partsPool = +order.price - (+order.shippingCost || 0) - orderExtraTotal;
+  const partsPool = +order.price - (+order.shippingCost || 0) - orderExtraTotal - (+order.rushFeeAmount || 0);
   const linesHtml = lines.map(p => {
     const share = totalBase > 0 ? (p.baseCost / totalBase) * partsPool : partsPool / lines.length;
     const meta = [
@@ -19967,7 +20042,12 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
           ${order.discountPct > 0 ? `
           <div class="row" style="color:#22c55e;">
             <span class="label-en">${escapeHtml(isAr ? `خصم (${order.discountPct}%)` : `Discount (${order.discountPct}%)`)}</span>
-            <span class="v">−${fmtMoney(Math.max(0, (order.priceBeforeDiscount || 0) - ((+order.price || 0) - (+order.shippingCost || 0) - (+order.rushFeeAmount || 0))))} ${invCurrSym}</span>
+            <span class="v">−${fmtMoney(Math.max(0, (+order.priceBeforeDiscount || 0) * (+order.discountPct || 0) / 100))} ${invCurrSym}</span>
+          </div>` : ''}
+          ${(+order.rushFeeAmount || 0) > 0 ? `
+          <div class="row">
+            <span class="label-en">${escapeHtml(isAr ? 'رسوم مستعجلة' : 'Rush fee')}</span>
+            <span class="v">${fmtMoney(+order.rushFeeAmount)} ${invCurrSym}</span>
           </div>` : ''}
           ${(+order.shippingCost || 0) > 0 ? `
           <div class="row">
@@ -20338,7 +20418,6 @@ function saveSettingsFromForm() {
     // Round 12 — preserve managed-in-place settings
     webhooks:     settings.webhooks     || { enabled: false, secret: '', events: {} },
     fixedCosts:   settings.fixedCosts   || [],
-    lanApi:       settings.lanApi       || { enabled: false, port: 3219, pin: '' },
     savedFilters: settings.savedFilters || [],
     // Payment instructions (textarea, not auto-included by DOM reconstruction)
     paymentInstructions: $('#set_paymentInstructions')?.value ?? settings.paymentInstructions ?? '',
@@ -20375,8 +20454,7 @@ function saveSettingsFromForm() {
     kanbanCollapsed:    settings.kanbanCollapsed     || [],
     printerApi:         settings.printerApi          || {},
     locations:          settings.locations           || [],
-    sallaWebhookSecret: settings.sallaWebhookSecret  || '',
-    zidWebhookSecret:   settings.zidWebhookSecret    || '',
+    lanApi: (() => { migrateLanApiSettings(); return settings.lanApi || { enabled: false, port: 3219, pin: '' }; })(),
   };
   saveAll();
   i18n.set(settings.lang);
@@ -20528,6 +20606,7 @@ function deleteCustomField(idx) {
 }
 
 function exportData() {
+  if (!confirm(t('set.export_secrets_warning') || 'Export will redact API keys and secrets. Continue?')) return;
   downloadBlob(
     new Blob([JSON.stringify({
       version: 5,
@@ -20587,6 +20666,7 @@ function importData(file) {
       if (Array.isArray(data.suppliers))     suppliers     = data.suppliers.filter(isValidRecord);
       if (Array.isArray(data.locations))     locations     = data.locations.filter(isValidRecord);
       if (Array.isArray(data.waitingList))   waitingList   = data.waitingList.filter(isValidRecord);
+      if (Array.isArray(data.waitingListHistory)) waitingListHistory = data.waitingListHistory.filter(isValidRecord);
       if (data.settings && typeof data.settings === 'object') {
         settings = Object.assign(defaultSettings(), sanitiseForAssign(data.settings));
       }
@@ -21705,10 +21785,12 @@ function wireEvents() {
     if (window.KhaytStudio?.isStudio?.()) return;
     const section = $('#waitingListSection');
     const chevron = $('#waitingChevron');
+    const toggle = $('#waitingListToggle');
     if (!section) return;
     const hidden = section.style.display === 'none';
     section.style.display = hidden ? 'block' : 'none';
     if (chevron) chevron.textContent = hidden ? '▲' : '▼';
+    if (toggle) toggle.setAttribute('aria-expanded', hidden ? 'true' : 'false');
   });
   $('#waitingListSection')?.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-act]');
@@ -21718,7 +21800,11 @@ function wireEvents() {
     if (btn.dataset.act === 'waiting-remind') { openReminderModal(id); return; }
     if (btn.dataset.act === 'waiting-decline') {
       const item = waitingList.find(w => w.id === id);
-      if (item) { item.status = 'declined'; saveAll(); renderWaitingList(); }
+      if (item) {
+        waitingListHistory.push({ ...item, status: 'declined', declinedAt: new Date().toISOString() });
+        waitingList = waitingList.filter(w => w.id !== id);
+        saveAll(); renderWaitingList(); updateWaitingBadge();
+      }
       return;
     }
     if (btn.dataset.act === 'waiting-del') {
@@ -22543,6 +22629,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (idx !== -1) {
         // Existing order: patch status
         printLog[idx].status = status;
+        if (payload.clientApprovedAt) printLog[idx].clientApprovedAt = payload.clientApprovedAt;
         if (!printLog[idx].statusHistory) printLog[idx].statusHistory = [];
         printLog[idx].statusHistory.push({ status, at: new Date().toISOString() });
         if (printLog[idx].statusHistory.length > 200) printLog[idx].statusHistory = printLog[idx].statusHistory.slice(-200);
@@ -22598,22 +22685,34 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // LAN intake form submission → add to waiting list and refresh
   window.hubAPI?.onLanIntakeSubmitted?.((entry) => {
-    // entry from main.js: { id, name, description, email, phone, dueDate, material, budget, referenceLink, submittedAt, source, status }
+    if (!entry?.id) return;
+    if (waitingList.some(w => w.id === entry.id)) {
+      renderWaitingList();
+      updateWaitingBadge();
+      toast(t('intakeFormSubmitted'), 'success');
+      return;
+    }
     const draft = {
-      id: entry.id || `wl-${Date.now()}`,
+      id: entry.id,
       project: entry.project || (entry.description ? entry.description.slice(0, 80) : null) || t('waiting.untitled'),
       clientName: entry.clientName || entry.name || '',
       notes: entry.notes || entry.description || '',
-      priority: 'normal',
-      status: 'active',
-      source: 'intake_form',
-      estValue: 0,
+      email: entry.email,
+      phone: entry.phone,
+      material: entry.material,
+      budget: entry.budget,
+      referenceLink: entry.referenceLink,
+      priority: entry.priority || 'normal',
+      status: entry.status || 'active',
+      source: entry.source || 'intake_form',
+      estValue: entry.estValue || 0,
       reminderDate: entry.reminderDate || entry.deadline || entry.dueDate || null,
-      createdAt: entry.submittedAt || new Date().toISOString(),
+      createdAt: entry.submittedAt || entry.createdAt || new Date().toISOString(),
     };
+    Object.keys(draft).forEach(k => draft[k] === undefined && delete draft[k]);
     waitingList.unshift(draft);
-    saveAll();
     renderWaitingList();
+    updateWaitingBadge();
     toast(t('intakeFormSubmitted'), 'success');
   });
 
