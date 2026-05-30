@@ -13,3 +13,13 @@ test('safeTokenEqual compares tokens in constant time', () => {
   assert.equal(safeTokenEqual('', 'x'), false);
   assert.equal(safeTokenEqual('abc', 'abcd'), false);
 });
+
+test('normalizePrinterEvent maps vendor payloads to canonical events', () => {
+  const { normalizePrinterEvent } = require('../lib/lan-server.js');
+  assert.equal(normalizePrinterEvent({ topic: 'Print Finished' }), 'print_done');
+  assert.equal(normalizePrinterEvent({ event: 'job.started' }), 'print_started');
+  assert.equal(normalizePrinterEvent({ state: 'printing' }), 'print_started');
+  assert.equal(normalizePrinterEvent({ state: 'completed' }), 'print_done');
+  assert.equal(normalizePrinterEvent({ event: 'custom_status' }), 'custom_status');
+  assert.equal(normalizePrinterEvent({}), null);
+});

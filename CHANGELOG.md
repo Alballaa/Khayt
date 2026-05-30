@@ -14,6 +14,7 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 - Split from `app.js`: `app-state.js`, `shell.js`, `util.js`, `currency.js`, `calculator-cost.js`, `build.js` (calculator tab, quote cart, presets, quote templates), `wire-events.js` (initial render + DOM listeners), `app-boot.js` (setup wizard + `DOMContentLoaded`), `app-exports.js` (auto-backup, quote approval, milestones, work orders), `integrations.js` (Telegram, iCal, referral, shipping, email, webhooks, BNPL, LAN, status pages, surveys), `inventory.js` (spools, catalog, POs, NFC import, material forecast), `machines.js`, `clients.js`, `expenses.js`, `waste.js`, `views.js`, `notifications.js`, `ops-locations.js`, `app-helpers.js`, `operations-extras.js`, `kanban.js`, `invoicing.js`, `logs.js`, `settings.js`, `order-flows.js`, `waiting-list.js`, `dashboard.js`, `analytics.js` (with unit tests).
 
 - Unit tests for `lib/lan-server` token/HTML helpers and expanded `app-helpers` / `analytics` pure-logic coverage.
+- Additional tests for printer webhook normalization, store client validation, order balance helpers, and long ZATCA TLV payloads.
 
 ### Changed
 

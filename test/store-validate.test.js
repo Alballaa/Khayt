@@ -61,3 +61,18 @@ test('export version newer than supported yields warning only', () => {
   assert.equal(ok, true);
   assert.ok(warnings.some(w => w.includes('newer')));
 });
+
+test('isValidClient requires non-empty id', () => {
+  const { isValidClient } = require('../lib/store-validate');
+  assert.equal(isValidClient({ id: 'C1' }), true);
+  assert.equal(isValidClient({ id: '' }), false);
+  assert.ok(!isValidClient(null));
+});
+
+test('normalizeStoreSnapshot drops invalid clients', () => {
+  const { normalized, warnings } = normalizeStoreSnapshot({
+    clients: [{ id: 'C1' }, { id: '' }],
+  });
+  assert.equal(normalized.clients.length, 1);
+  assert.ok(warnings.some(w => w.includes('clients')));
+});

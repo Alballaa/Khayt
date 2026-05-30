@@ -84,3 +84,33 @@ test('availableHoursUntil returns zero when target is today', () => {
   };
   assert.equal(availableHoursUntil(new Date()), 0);
 });
+
+test('inRange supports custom date windows', () => {
+  const { inRange, customRangeFrom, customRangeTo } = require('../renderer/app-helpers.js');
+  customRangeFrom.log = '2026-05-01';
+  customRangeTo.log = '2026-05-31';
+  assert.equal(inRange('2026-05-15', 'custom', 'log'), true);
+  assert.equal(inRange('2026-06-01', 'custom', 'log'), false);
+});
+
+test('localName picks Arabic or English by locale', () => {
+  const { localName } = require('../renderer/app-helpers.js');
+  global.i18n = { current: 'ar' };
+  assert.equal(localName({ nameAr: 'عربي', nameEn: 'English' }), 'عربي');
+  global.i18n = { current: 'en' };
+  assert.equal(localName({ nameAr: 'عربي', nameEn: 'English' }), 'English');
+});
+
+test('prioritySortValue ranks urgent before high before normal', () => {
+  const { prioritySortValue } = require('../renderer/app-helpers.js');
+  assert.ok(prioritySortValue({ priorityLevel: 'urgent' }) < prioritySortValue({ priorityLevel: 'high' }));
+  assert.ok(prioritySortValue({ priorityLevel: 'high' }) < prioritySortValue({}));
+});
+
+test('avgDailyWorkingHours averages configured weekly hours', () => {
+  const { avgDailyWorkingHours } = require('../renderer/app-helpers.js');
+  global.settings = {
+    workingHours: { sun: 0, mon: 8, tue: 8, wed: 8, thu: 8, fri: 8, sat: 0 },
+  };
+  assert.equal(avgDailyWorkingHours(), 40 / 7);
+});
