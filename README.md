@@ -165,14 +165,52 @@ npm install            # downloads Electron (~150MB); wait until it finishes
 npm start              # development (live-reload with ⌘R / Ctrl+R)
 ```
 
-If `path.txt` is missing after install, run `node scripts/install-electron-await.js` (uses `unzip` on macOS, not the broken `extract-zip` on Node 24.16+).
+#### macOS: `path.txt` missing / Electron won't start
 
-**Node.js:** use **22 LTS** or newer (22.12+). If `npm start` fails with `path.txt` missing, run:
+If `npm start` fails with `ENOENT ... node_modules/electron/path.txt`, your tree is missing the awaited Electron installer (or `npm install` exited before the ~150MB download finished).
+
+Quick fix:
 
 ```bash
 npm run install:electron
 npm start
 ```
+
+If that does not help, follow these steps:
+
+1. **Update the repo** (you need `scripts/install-electron-await.js` on `main`):
+
+   ```bash
+   cd ~/Documents/Khayt
+   git fetch origin
+   git pull origin main
+   ```
+
+   If `git pull` complains about divergent branches and you have no local commits to keep:
+
+   ```bash
+   git reset --hard origin/main
+   ```
+
+2. **Reinstall Electron** (wait until it prints `Success`):
+
+   ```bash
+   rm -rf node_modules/electron
+   rm -rf ~/Library/Caches/electron
+   npm install
+   node scripts/install-electron-await.js
+   cat node_modules/electron/path.txt    # should print: Electron.app/Contents/MacOS/Electron
+   npm start
+   ```
+
+3. **Slow or blocked download** — use a mirror, then run step 2 again:
+
+   ```bash
+   export ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/
+   node scripts/install-electron-await.js
+   ```
+
+Use **Node.js 22.12+** (LTS 22 or 24 is fine). Do not run `node node_modules/electron/install.js` alone; it can return before the download completes. The await script uses `unzip` on macOS (not the broken `extract-zip` path on Node 24.16+).
 
 To build distributable packages:
 ```bash
