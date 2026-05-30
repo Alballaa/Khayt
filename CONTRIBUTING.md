@@ -14,10 +14,10 @@ Thank you for helping maintain Khayt. This document is the default workflow for 
 
 ## Before you open a PR
 
-1. Run syntax checks (same as CI):
+1. Run syntax checks (same as CI; `npm run check` is an alias for `npm run lint`):
 
    ```bash
-   node --check main.js preload.js renderer/app.js renderer/i18n.js
+   npm run lint
    ```
 
 2. If you changed user-visible behavior, add a line under `CHANGELOG.md` → `[Unreleased]`.

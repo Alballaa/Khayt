@@ -22,14 +22,5 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Check renderer/app.js
-        run: node --check renderer/app.js
-
-      - name: Check renderer/i18n.js
-        run: node --check renderer/i18n.js
-
-      - name: Check main.js
-        run: node --check main.js
-
-      - name: Check preload.js
-        run: node --check preload.js
+      - name: Syntax check (all shipped JS)
+        run: npm run lint

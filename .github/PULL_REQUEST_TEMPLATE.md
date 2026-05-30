@@ -10,7 +10,7 @@
 
 ## Checklist
 
-- [ ] `node --check` passes on changed `.js` files
+- [ ] `npm run lint` passes on changed `.js` files
 - [ ] `CHANGELOG.md` updated under `[Unreleased]` (if user-visible)
 - [ ] Version bump only if this PR is a **release** (see VERSIONING.md)
 
