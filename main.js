@@ -40,6 +40,18 @@ registerZatcaCrypto({ app, fs, crypto, ipcMain, encryptStoreField, decryptStoreF
 
 let mainWindow;
 
+function appIconPath() {
+  const png = path.join(__dirname, 'assets', 'icon_preview.png');
+  if (fs.existsSync(png)) return png;
+  return undefined;
+}
+
+function applyDockIcon() {
+  if (process.platform !== 'darwin' || !app.dock) return;
+  const icon = appIconPath();
+  if (icon) app.dock.setIcon(icon);
+}
+
 /* ---------- On-disk locations under app userData ---------- */
 function ensureDir(name) {
   const dir = path.join(app.getPath('userData'), name);
@@ -1014,6 +1026,7 @@ function createWindow() {
     minWidth: 1024,
     minHeight: 700,
     title: 'Khayt',
+    icon: appIconPath(),
     backgroundColor: '#0f172a',
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 16, y: 16 },
@@ -1100,6 +1113,7 @@ function buildMenu() {
 }
 
 app.whenReady().then(() => {
+  applyDockIcon();
   buildMenu();
   createWindow();
   setupAutoUpdater(mainWindow);
