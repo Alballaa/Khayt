@@ -6,13 +6,13 @@ Living priorities for maintainers. Not a public commitment calendar — reorder 
 
 - [x] Document versioning (`VERSIONING.md`) — continue from **2.0.15**, no version reset
 - [x] Align CI Node version with README (22 LTS)
-- [ ] Add `npm run lint` for `main.js`, `preload.js`, `renderer/*.js`
-- [ ] Remove or relocate unused root Vite/React scaffold (`src/`, root `index.html`)
+- [x] Add `npm run lint` for `main.js`, `preload.js`, `renderer/*.js` (includes `store.js`, `studio/*.js`, `lib/*.js`)
+- [x] Remove or relocate unused root Vite/React scaffold — gone; app is `renderer/` only
 
 ## Next (2.1.0 — significant)
 
-- [ ] Split `renderer/app.js` into feature modules (store, calculator, kanban, invoicing, settings)
-- [ ] Unit tests for pure logic: ZATCA ASN.1, `safeJsonParse`, costing helpers, `isBlockedHost`
+- [ ] Split `renderer/app.js` into feature modules (started: `format`, `util`, `currency`, `calculator-cost`, `kanban`, `invoicing`, `logs`, `settings`, `order-flows`, `waiting-list`, `dashboard`, `analytics` (incl. capacity/break-even/receivables); next: `main.js` or build/calculator tab)
+- [ ] Unit tests for pure logic: more `app.js` splits (started: `lib/` + `renderer/*` modules + `npm test`)
 - [ ] Finish CSP hardening: drop `script-src 'unsafe-inline'` after all dynamic handlers use `data-act`
 - [ ] Split `main.js` into `lan-server`, `store-io`, `zatca-crypto`, `updater`
 

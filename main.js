@@ -6,6 +6,9 @@ const os = require('os');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
 const { autoUpdater } = require('electron-updater');
+const { safeJsonParse } = require('./lib/safe-json');
+const { isBlockedHost } = require('./lib/host-guard');
+const { buildZatcaCsrDer } = require('./lib/zatca-asn1');
 
 // ── Auto-updater setup ───────────────────────────────────────────────────────
 autoUpdater.autoDownload = false;       // ask user first; they click "Download"
@@ -119,82 +122,6 @@ function decryptStoreField(val) {
   if (!safeStorage.isEncryptionAvailable()) return val;
   try { return safeStorage.decryptString(Buffer.from(val.slice(7), 'base64')); }
   catch { return val; }
-}
-
-// ── ZATCA Phase 2 — ASN.1 DER utilities ─────────────────────────────────────
-function asn1Len(n) {
-  if (n < 0x80) return Buffer.from([n]);
-  if (n < 0x100) return Buffer.from([0x81, n]);
-  return Buffer.from([0x82, (n >> 8) & 0xff, n & 0xff]);
-}
-function asn1TL(tag, content) {
-  return Buffer.concat([Buffer.from([tag]), asn1Len(content.length), content]);
-}
-const asn1Seq    = (items) => asn1TL(0x30, Array.isArray(items) ? Buffer.concat(items) : items);
-const asn1Set    = (items) => asn1TL(0x31, Array.isArray(items) ? Buffer.concat(items) : items);
-const asn1OStr   = (b)     => asn1TL(0x04, b);
-const asn1BitStr = (b)     => asn1TL(0x03, Buffer.concat([Buffer.from([0x00]), b]));
-const asn1Int    = (n)     => asn1TL(0x02, Buffer.from([n]));
-const asn1Utf8   = (s)     => asn1TL(0x0c, Buffer.from(s, 'utf8'));
-const asn1Print  = (s)     => asn1TL(0x13, Buffer.from(s, 'ascii'));
-const asn1CtxX   = (n, b)  => asn1TL(0xa0 | n, b);  // [n] EXPLICIT/IMPLICIT constructed
-
-function asn1OID(oidStr) {
-  const p = oidStr.split('.').map(Number);
-  const bytes = [40 * p[0] + p[1]];
-  for (let i = 2; i < p.length; i++) {
-    let n = p[i]; if (n < 0x80) { bytes.push(n); continue; }
-    const chunk = [];
-    while (n > 0) { chunk.unshift(n & 0x7f); n >>>= 7; }
-    for (let j = 0; j < chunk.length - 1; j++) chunk[j] |= 0x80;
-    bytes.push(...chunk);
-  }
-  return asn1TL(0x06, Buffer.from(bytes));
-}
-
-function buildZatcaCsrDer({ privateKey, pubDer, cn, org, vat, invoiceType = '1100', location = 'Riyadh', industry = '3D Printing' }) {
-  const rdn = (oidStr, val, strTag = 0x0c) =>
-    asn1Set([asn1Seq([asn1OID(oidStr), asn1TL(strTag, Buffer.from(val, 'utf8'))])]);
-
-  const subject = asn1Seq([
-    rdn('2.5.4.6',  'SA',  0x13),
-    rdn('2.5.4.10', org),
-    rdn('2.5.4.11', vat),
-    rdn('2.5.4.3',  cn),
-  ]);
-
-  // OtherName inside GeneralName: [0] IMPLICIT { OID, [0] EXPLICIT UTF8String }
-  const otherName = (typeOid, val) =>
-    asn1CtxX(0, Buffer.concat([asn1OID(typeOid), asn1CtxX(0, asn1Utf8(val))]));
-
-  const sanContent = asn1Seq([
-    otherName('2.16.682.1.35.1.1.2', invoiceType),
-    otherName('2.16.682.1.35.1.1.3', location),
-    otherName('2.16.682.1.35.1.1.4', industry),
-  ]);
-
-  const extensions = asn1Seq([
-    asn1Seq([asn1OID('2.5.29.17'), asn1OStr(sanContent)]),
-  ]);
-
-  const extReqAttr = asn1Seq([
-    asn1OID('1.2.840.113549.1.9.14'),
-    asn1Set([extensions]),
-  ]);
-
-  const crInfo = asn1Seq([
-    asn1Int(0),
-    subject,
-    Buffer.from(pubDer),
-    asn1CtxX(0, extReqAttr),  // [0] IMPLICIT attributes
-  ]);
-
-  const signer = crypto.createSign('SHA256');
-  signer.update(crInfo);
-  const sig = signer.sign(privateKey);
-
-  const sigAlg = asn1Seq([asn1OID('1.2.840.10045.4.3.2')]);
-  return asn1Seq([crInfo, sigAlg, asn1BitStr(sig)]);
 }
 
 const zatcaKeyPath = () => path.join(app.getPath('userData'), 'zatca-keypair.enc');
@@ -474,17 +401,6 @@ const backupsDir     = () => ensureDir('backups');
 /* ---------- Shared helpers ---------- */
 function lanEscapeHtml(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-// Parse JSON and freeze the result to prevent prototype pollution.
-// Throws on invalid JSON (same as JSON.parse).
-function safeJsonParse(text) {
-  const obj = JSON.parse(text);
-  // Reviver-based protection: strip __proto__ / constructor overrides
-  return JSON.parse(text, (key, value) => {
-    if (key === '__proto__' || key === 'constructor') return undefined;
-    return value;
-  });
 }
 
 function safeTokenEqual(a, b) {
@@ -1095,29 +1011,6 @@ ipcMain.handle('hub:stop-printer-polling', () => {
 });
 
 ipcMain.handle('hub:get-printer-status', () => printerStatusCache);
-
-function isBlockedHost(h) {
-  if (!h) return true;
-  if (/^(localhost|ip6-localhost|ip6-loopback)$/i.test(h)) return true;
-  // For hostnames (non-IP) allow DNS resolution — can't block rebinding without DNS interception
-  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h);
-  if (v4) {
-    const [,a,b,c,d] = v4.map(Number);
-    if (a === 0)   return true; // 0.0.0.0/8
-    if (a === 10)  return true; // RFC-1918
-    if (a === 127) return true; // loopback
-    if (a === 169 && b === 254) return true; // link-local / AWS metadata
-    if (a === 172 && b >= 16 && b <= 31) return true; // RFC-1918
-    if (a === 192 && b === 168) return true; // RFC-1918
-    if (a === 198 && (b === 18 || b === 19)) return true; // benchmarking
-    if (a === 240) return true; // reserved
-    if (a === 255) return true; // broadcast
-  }
-  if (/^::1$|^::$|^fe80:/i.test(h)) return true; // IPv6 loopback / link-local
-  if (/^fc|^fd/i.test(h)) return true;            // IPv6 ULA
-  if (/^::ffff:/i.test(h)) return true;            // IPv4-mapped IPv6
-  return false;
-}
 
 async function fetchPrinterStatus(machine) {
   const { type, host, port, apiKey, accessCode, printerSlug } = machine.printerApi || {};
