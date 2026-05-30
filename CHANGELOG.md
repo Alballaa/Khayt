@@ -4,6 +4,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Changed
+
+- New Khayt brand system: hotend + filament-layered **خ** app icon, SVG sidebar mark, regenerated `icon.icns`, iconset, and Microsoft Store (`appx`) assets. Run `npm run build:icons` after editing `make_icon.py` or `assets/logo/khayt-mark.svg`.
+
 ## [2.1.0] - 2026-05-30
 
 Significant release: modular renderer and main process, store validation, expanded test suite, and CSP hardening. Completes [ROADMAP.md](./ROADMAP.md) 2.1.0 goals.
