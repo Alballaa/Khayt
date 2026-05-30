@@ -110,6 +110,7 @@ ipcMain.handle('hub:write-update-backup', async (_e, jsonString, newVersion) => 
 
 function encryptStoreField(val) {
   if (!val || typeof val !== 'string' || !safeStorage.isEncryptionAvailable()) return val;
+  if (val.startsWith('__enc__') || val === STORE_SECRET_MASK) return val;
   return '__enc__' + safeStorage.encryptString(val).toString('base64');
 }
 
@@ -204,11 +205,13 @@ function encryptForDisk(data) {
   if (d?.settings?.emailConfig?.apiKey)
     d.settings.emailConfig.apiKey = encryptStoreField(d.settings.emailConfig.apiKey);
   if (Array.isArray(d?.machines))
-    d.machines = d.machines.map(m =>
-      m?.printerApi?.apiKey
-        ? { ...m, printerApi: { ...m.printerApi, apiKey: encryptStoreField(m.printerApi.apiKey) } }
-        : m
-    );
+    d.machines = d.machines.map(m => {
+      if (!m?.printerApi) return m;
+      const pa = { ...m.printerApi };
+      if (pa.apiKey) pa.apiKey = encryptStoreField(pa.apiKey);
+      if (pa.accessCode) pa.accessCode = encryptStoreField(pa.accessCode);
+      return { ...m, printerApi: pa };
+    });
   if (d?.settings?.zatcaPhase2?.csid)  d.settings.zatcaPhase2.csid  = encryptStoreField(d.settings.zatcaPhase2.csid);
   if (d?.settings?.zatcaPhase2?.pcsid) d.settings.zatcaPhase2.pcsid = encryptStoreField(d.settings.zatcaPhase2.pcsid);
   if (d?.settings?.bnpl?.tabby?.apiKey)  d.settings.bnpl.tabby.apiKey  = encryptStoreField(d.settings.bnpl.tabby.apiKey);
@@ -219,8 +222,235 @@ function encryptForDisk(data) {
   if (d?.settings?.lanApi?.webhookToken)        d.settings.lanApi.webhookToken        = encryptStoreField(d.settings.lanApi.webhookToken);
   if (d?.settings?.lanApi?.sallaWebhookSecret)  d.settings.lanApi.sallaWebhookSecret  = encryptStoreField(d.settings.lanApi.sallaWebhookSecret);
   if (d?.settings?.lanApi?.zidWebhookSecret)    d.settings.lanApi.zidWebhookSecret    = encryptStoreField(d.settings.lanApi.zidWebhookSecret);
+  if (d?.settings?.lanApi?.pin)                 d.settings.lanApi.pin                 = encryptStoreField(d.settings.lanApi.pin);
+  if (d?.settings?.lanApi?.intakeToken)         d.settings.lanApi.intakeToken         = encryptStoreField(d.settings.lanApi.intakeToken);
+  if (d?.settings?.lanApi?.intakePin)          d.settings.lanApi.intakePin          = encryptStoreField(d.settings.lanApi.intakePin);
+  if (d?.settings?.webhooks?.secret)            d.settings.webhooks.secret            = encryptStoreField(d.settings.webhooks.secret);
   return d;
 }
+const STORE_SECRET_MASK = '__KHAYT_MASKED__';
+
+function isStoreSecretMasked(val) {
+  return val === STORE_SECRET_MASK;
+}
+
+function decryptStoreSecrets(data) {
+  if (!data) return data;
+  if (data?.settings?.emailConfig?.apiKey) {
+    data.settings.emailConfig.apiKey = decryptStoreField(data.settings.emailConfig.apiKey);
+  }
+  if (Array.isArray(data?.machines)) {
+    data.machines = data.machines.map(m => {
+      if (!m?.printerApi) return m;
+      const pa = { ...m.printerApi };
+      if (pa.apiKey) pa.apiKey = decryptStoreField(pa.apiKey);
+      if (pa.accessCode) pa.accessCode = decryptStoreField(pa.accessCode);
+      return { ...m, printerApi: pa };
+    });
+  }
+  if (data?.settings?.zatcaPhase2?.csid)  data.settings.zatcaPhase2.csid  = decryptStoreField(data.settings.zatcaPhase2.csid);
+  if (data?.settings?.zatcaPhase2?.pcsid) data.settings.zatcaPhase2.pcsid = decryptStoreField(data.settings.zatcaPhase2.pcsid);
+  if (data?.settings?.bnpl?.tabby?.apiKey)             data.settings.bnpl.tabby.apiKey             = decryptStoreField(data.settings.bnpl.tabby.apiKey);
+  if (data?.settings?.bnpl?.tamara?.apiKey)            data.settings.bnpl.tamara.apiKey            = decryptStoreField(data.settings.bnpl.tamara.apiKey);
+  if (data?.settings?.bnpl?.tamara?.notificationToken) data.settings.bnpl.tamara.notificationToken = decryptStoreField(data.settings.bnpl.tamara.notificationToken);
+  if (data?.settings?.bnpl?.stripe?.apiKey)            data.settings.bnpl.stripe.apiKey            = decryptStoreField(data.settings.bnpl.stripe.apiKey);
+  if (data?.settings?.telegram?.botToken)              data.settings.telegram.botToken              = decryptStoreField(data.settings.telegram.botToken);
+  if (data?.settings?.lanApi?.webhookToken)            data.settings.lanApi.webhookToken            = decryptStoreField(data.settings.lanApi.webhookToken);
+  if (data?.settings?.lanApi?.sallaWebhookSecret)      data.settings.lanApi.sallaWebhookSecret      = decryptStoreField(data.settings.lanApi.sallaWebhookSecret);
+  if (data?.settings?.lanApi?.zidWebhookSecret)        data.settings.lanApi.zidWebhookSecret        = decryptStoreField(data.settings.lanApi.zidWebhookSecret);
+  if (data?.settings?.lanApi?.pin)                     data.settings.lanApi.pin                     = decryptStoreField(data.settings.lanApi.pin);
+  if (data?.settings?.lanApi?.intakeToken)             data.settings.lanApi.intakeToken             = decryptStoreField(data.settings.lanApi.intakeToken);
+  if (data?.settings?.lanApi?.intakePin)              data.settings.lanApi.intakePin              = decryptStoreField(data.settings.lanApi.intakePin);
+  if (data?.settings?.webhooks?.secret)                data.settings.webhooks.secret                = decryptStoreField(data.settings.webhooks.secret);
+  return data;
+}
+
+function maskStoreSecretsForRenderer(data) {
+  if (!data) return data;
+  const mask = (obj, key) => { if (obj?.[key]) obj[key] = STORE_SECRET_MASK; };
+  mask(data.settings?.emailConfig, 'apiKey');
+  if (Array.isArray(data?.machines)) {
+    data.machines = data.machines.map(m =>
+      m?.printerApi?.apiKey
+        ? { ...m, printerApi: { ...m.printerApi, apiKey: STORE_SECRET_MASK, ...(m.printerApi.accessCode ? { accessCode: STORE_SECRET_MASK } : {}) } }
+        : m
+    );
+  }
+  mask(data.settings?.zatcaPhase2, 'csid');
+  mask(data.settings?.zatcaPhase2, 'pcsid');
+  mask(data.settings?.bnpl?.tabby, 'apiKey');
+  mask(data.settings?.bnpl?.tamara, 'apiKey');
+  mask(data.settings?.bnpl?.tamara, 'notificationToken');
+  mask(data.settings?.bnpl?.stripe, 'apiKey');
+  mask(data.settings?.telegram, 'botToken');
+  mask(data.settings?.webhooks, 'secret');
+  if (data.settings?.lanApi) {
+    ['webhookToken', 'sallaWebhookSecret', 'zidWebhookSecret', 'pin', 'intakeToken', 'intakePin'].forEach(k => mask(data.settings.lanApi, k));
+  }
+  return data;
+}
+
+function readStoreRawFromDisk() {
+  const fp = dataFilePath();
+  if (!fs.existsSync(fp)) return null;
+  try {
+    const stat = fs.statSync(fp);
+    if (stat.size > 50_000_000) return null;
+    return safeJsonParse(fs.readFileSync(fp, 'utf8'));
+  } catch { return null; }
+}
+
+function readStoreDecryptedFromDisk() {
+  const raw = readStoreRawFromDisk();
+  if (!raw) return null;
+  return decryptStoreSecrets(JSON.parse(JSON.stringify(raw)));
+}
+
+function mergeStoreSecretsFromDisk(incoming) {
+  const out = JSON.parse(JSON.stringify(incoming || {}));
+  const disk = readStoreDecryptedFromDisk();
+  if (!disk) return out;
+  const pick = (getIn, setOut, getDisk) => {
+    const inVal = getIn(out);
+    if (!isStoreSecretMasked(inVal) && inVal) return;
+    const diskVal = getDisk(disk);
+    if (diskVal) setOut(out, diskVal);
+  };
+  pick(
+    d => d?.settings?.emailConfig?.apiKey,
+    (d, v) => { if (!d.settings) d.settings = {}; if (!d.settings.emailConfig) d.settings.emailConfig = {}; d.settings.emailConfig.apiKey = v; },
+    d => d?.settings?.emailConfig?.apiKey
+  );
+  if (Array.isArray(out.machines)) {
+    out.machines = out.machines.map((m, i) => {
+      const inKey = m?.printerApi?.apiKey;
+      if (!isStoreSecretMasked(inKey) && inKey) return m;
+      const diskM = disk.machines?.[i];
+      const diskKey = diskM?.printerApi?.apiKey;
+      if (!diskKey) return m;
+      return { ...m, printerApi: { ...(m.printerApi || {}), apiKey: diskKey } };
+    });
+  }
+  pick(
+    d => d?.settings?.zatcaPhase2?.csid,
+    (d, v) => { if (!d.settings.zatcaPhase2) d.settings.zatcaPhase2 = {}; d.settings.zatcaPhase2.csid = v; },
+    d => d?.settings?.zatcaPhase2?.csid
+  );
+  pick(
+    d => d?.settings?.zatcaPhase2?.pcsid,
+    (d, v) => { if (!d.settings.zatcaPhase2) d.settings.zatcaPhase2 = {}; d.settings.zatcaPhase2.pcsid = v; },
+    d => d?.settings?.zatcaPhase2?.pcsid
+  );
+  const mergeBnpl = (provider, key) => pick(
+    d => d?.settings?.bnpl?.[provider]?.[key],
+    (d, v) => { if (!d.settings.bnpl) d.settings.bnpl = {}; if (!d.settings.bnpl[provider]) d.settings.bnpl[provider] = {}; d.settings.bnpl[provider][key] = v; },
+    d => d?.settings?.bnpl?.[provider]?.[key]
+  );
+  mergeBnpl('tabby', 'apiKey');
+  mergeBnpl('tamara', 'apiKey');
+  mergeBnpl('tamara', 'notificationToken');
+  mergeBnpl('stripe', 'apiKey');
+  pick(
+    d => d?.settings?.telegram?.botToken,
+    (d, v) => { if (!d.settings.telegram) d.settings.telegram = {}; d.settings.telegram.botToken = v; },
+    d => d?.settings?.telegram?.botToken
+  );
+  pick(
+    d => d?.settings?.webhooks?.secret,
+    (d, v) => { if (!d.settings) d.settings = {}; if (!d.settings.webhooks) d.settings.webhooks = {}; d.settings.webhooks.secret = v; },
+    d => d?.settings?.webhooks?.secret
+  );
+  if (Array.isArray(out.machines)) {
+    out.machines = out.machines.map((m, i) => {
+      const inCode = m?.printerApi?.accessCode;
+      if (!isStoreSecretMasked(inCode) && inCode) return m;
+      const diskCode = disk.machines?.[i]?.printerApi?.accessCode;
+      if (!diskCode) return m;
+      return { ...m, printerApi: { ...(m.printerApi || {}), accessCode: diskCode } };
+    });
+  }
+  ['webhookToken', 'sallaWebhookSecret', 'zidWebhookSecret', 'pin', 'intakeToken', 'intakePin'].forEach(field => {
+    pick(
+      d => d?.settings?.lanApi?.[field],
+      (d, v) => { if (!d.settings.lanApi) d.settings.lanApi = {}; d.settings.lanApi[field] = v; },
+      d => d?.settings?.lanApi?.[field]
+    );
+  });
+  return out;
+}
+
+async function writeStoreToDisk(data) {
+  const fp = dataFilePath();
+  const tmp = fp + '.tmp';
+  const serialized = JSON.stringify(encryptForDisk(data));
+  if (serialized.length > 50_000_000) throw new Error('Store too large');
+  await fs.promises.writeFile(tmp, serialized, 'utf8');
+  await fs.promises.rename(tmp, fp);
+  lanServerStore = data;
+}
+
+function syncLanServerStoreFromDisk() {
+  const disk = readStoreDecryptedFromDisk();
+  if (disk) lanServerStore = disk;
+}
+
+function migrateLanApiSecrets(store) {
+  if (!store?.settings) return;
+  if (!store.settings.lanApi) store.settings.lanApi = {};
+  const la = store.settings.lanApi;
+  if (store.settings.sallaWebhookSecret && !la.sallaWebhookSecret) {
+    la.sallaWebhookSecret = store.settings.sallaWebhookSecret;
+  }
+  if (store.settings.zidWebhookSecret && !la.zidWebhookSecret) {
+    la.zidWebhookSecret = store.settings.zidWebhookSecret;
+  }
+}
+
+function ensureLanIntakeToken(store) {
+  if (!store.settings) store.settings = {};
+  if (!store.settings.lanApi) store.settings.lanApi = {};
+  const existing = store.settings.lanApi.intakeToken;
+  if (existing && !isStoreSecretMasked(existing)) return { token: existing, generated: false };
+  const token = crypto.randomBytes(16).toString('hex');
+  store.settings.lanApi.intakeToken = token;
+  return { token, generated: true };
+}
+
+function ensureLanIntakePin(store) {
+  if (!store.settings) store.settings = {};
+  if (!store.settings.lanApi) store.settings.lanApi = {};
+  const existing = store.settings.lanApi.intakePin;
+  if (existing && !isStoreSecretMasked(existing)) return { pin: existing, generated: false };
+  const pin = String(Math.floor(100000 + Math.random() * 900000));
+  store.settings.lanApi.intakePin = pin;
+  return { pin, generated: true };
+}
+
+async function persistLanStoreUpdate(storeData) {
+  const serialized = JSON.stringify(encryptForDisk(storeData));
+  if (serialized.length > 50_000_000) throw new Error('Store too large');
+  const fp = dataFilePath();
+  const tmp = fp + '.tmp';
+  await fs.promises.writeFile(tmp, serialized, 'utf8');
+  await fs.promises.rename(tmp, fp);
+  lanServerStore = storeData;
+}
+
+function resolveStoreSecret(incoming, getter) {
+  if (incoming && !isStoreSecretMasked(incoming)) return incoming;
+  const disk = readStoreDecryptedFromDisk();
+  return disk ? getter(disk) || '' : '';
+}
+
+function parseRequestCookies(req) {
+  const header = req.headers.cookie || '';
+  return Object.fromEntries(header.split(';').map(part => {
+    const idx = part.indexOf('=');
+    if (idx < 0) return [part.trim(), ''];
+    return [part.slice(0, idx).trim(), decodeURIComponent(part.slice(idx + 1).trim())];
+  }).filter(([k]) => k));
+}
+
 
 let mainWindow;
 
@@ -544,8 +774,15 @@ ipcMain.handle('hub:list-backups', async () => {
 ipcMain.handle('hub:restore-backup', async (_e, backupPath) => {
   const safe = path.join(backupsDir(), path.basename(String(backupPath || '')));
   if (!fs.existsSync(safe)) return null;
-  const content = await fs.promises.readFile(safe, 'utf8');
-  return content;
+  try {
+    const content = await fs.promises.readFile(safe, 'utf8');
+    const parsed = safeJsonParse(content);
+    const decrypted = decryptStoreSecrets(JSON.parse(JSON.stringify(parsed)));
+    return JSON.stringify(decrypted);
+  } catch (e) {
+    console.error('hub:restore-backup error:', e);
+    return null;
+  }
 });
 ipcMain.handle('hub:reveal-order-photos-folder', async () => shell.openPath(orderPhotosDir()));
 ipcMain.handle('hub:reveal-backups-folder', async () => shell.openPath(backupsDir()));
@@ -641,29 +878,9 @@ ipcMain.handle('hub:load-store', async (event) => {
     const raw = await fs.promises.readFile(fp, 'utf8');
     // Use safeJsonParse to strip __proto__ / constructor prototype-pollution keys
     const data = safeJsonParse(raw);
-    // Decrypt sensitive fields
-    if (data?.settings?.emailConfig?.apiKey) {
-      data.settings.emailConfig.apiKey = decryptStoreField(data.settings.emailConfig.apiKey);
-    }
-    if (Array.isArray(data?.machines)) {
-      data.machines = data.machines.map(m => {
-        if (m?.printerApi?.apiKey) {
-          return { ...m, printerApi: { ...m.printerApi, apiKey: decryptStoreField(m.printerApi.apiKey) } };
-        }
-        return m;
-      });
-    }
-    if (data?.settings?.zatcaPhase2?.csid)  data.settings.zatcaPhase2.csid  = decryptStoreField(data.settings.zatcaPhase2.csid);
-    if (data?.settings?.zatcaPhase2?.pcsid) data.settings.zatcaPhase2.pcsid = decryptStoreField(data.settings.zatcaPhase2.pcsid);
-    if (data?.settings?.bnpl?.tabby?.apiKey)              data.settings.bnpl.tabby.apiKey              = decryptStoreField(data.settings.bnpl.tabby.apiKey);
-    if (data?.settings?.bnpl?.tamara?.apiKey)             data.settings.bnpl.tamara.apiKey             = decryptStoreField(data.settings.bnpl.tamara.apiKey);
-    if (data?.settings?.bnpl?.tamara?.notificationToken)  data.settings.bnpl.tamara.notificationToken  = decryptStoreField(data.settings.bnpl.tamara.notificationToken);
-    if (data?.settings?.bnpl?.stripe?.apiKey) data.settings.bnpl.stripe.apiKey = decryptStoreField(data.settings.bnpl.stripe.apiKey);
-    if (data?.settings?.telegram?.botToken)   data.settings.telegram.botToken   = decryptStoreField(data.settings.telegram.botToken);
-    if (data?.settings?.lanApi?.webhookToken)        data.settings.lanApi.webhookToken        = decryptStoreField(data.settings.lanApi.webhookToken);
-    if (data?.settings?.lanApi?.sallaWebhookSecret)  data.settings.lanApi.sallaWebhookSecret  = decryptStoreField(data.settings.lanApi.sallaWebhookSecret);
-    if (data?.settings?.lanApi?.zidWebhookSecret)    data.settings.lanApi.zidWebhookSecret    = decryptStoreField(data.settings.lanApi.zidWebhookSecret);
-    return data;
+    syncLanServerStoreFromDisk();
+    // Mask secrets — renderer must not receive plaintext credentials
+    return maskStoreSecretsForRenderer(data);
   } catch (e) {
     console.error('hub:load-store error:', e);
     return { __corrupt: true, error: String(e.message || e) };
@@ -674,7 +891,8 @@ ipcMain.handle('hub:save-store', async (_e, data) => {
   const fp = dataFilePath();
   const tmp = fp + '.tmp';
   try {
-    const serialized = JSON.stringify(encryptForDisk(data));
+    const merged = mergeStoreSecretsFromDisk(data);
+    const serialized = JSON.stringify(encryptForDisk(merged));
     // Write-side guard: mirror the 50 MB read-side limit from hub:load-store.
     // Prevents runaway data-URL or blob embedding from silently bloating the store.
     if (serialized.length > 50_000_000) {
@@ -683,7 +901,7 @@ ipcMain.handle('hub:save-store', async (_e, data) => {
     }
     await fs.promises.writeFile(tmp, serialized, 'utf8');
     await fs.promises.rename(tmp, fp);
-    lanServerStore = data;  // keep LAN server in sync (plaintext in-memory)
+    lanServerStore = merged;  // keep LAN server in sync (plaintext in-memory)
     return { ok: true };
   } catch (e) {
     console.error('hub:save-store error:', e);
@@ -758,19 +976,34 @@ ipcMain.handle('hub:write-status-page', async (_e, { html, orderId }) => {
   return fullPath;
 });
 
-// --- Safe external URL opener (mailto, https) ---
+function isAllowedExternalUrl(s) {
+  if (s.startsWith('mailto:')) return true;
+  if (s.startsWith('https://')) {
+    try { return !isBlockedHost(new URL(s).hostname); } catch { return false; }
+  }
+  if (s.startsWith('http://')) {
+    try {
+      const h = new URL(s).hostname;
+      if (/^localhost$/i.test(h)) return true;
+      const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h);
+      if (v4) {
+        const a = +v4[1], b = +v4[2];
+        if (a === 127) return true;
+        if (a === 10) return true;
+        if (a === 192 && b === 168) return true;
+        if (a === 172 && b >= 16 && b <= 31) return true;
+      }
+    } catch { return false; }
+  }
+  return false;
+}
+
+// --- Safe external URL opener (mailto, https, private LAN http) ---
 ipcMain.handle('hub:open-external', async (_e, url) => {
   const s = String(url || '');
-  // Only allow safe URL schemes — no http:// to prevent local network exploit attempts
-  if (!s.startsWith('mailto:') && !s.startsWith('https://')) return false;
-  if (s.startsWith('https://')) {
-    try {
-      const parsedExt = new URL(s);
-      if (isBlockedHost(parsedExt.hostname)) return { ok: false, error: 'Blocked URL' };
-    } catch { return { ok: false, error: 'Invalid URL' }; }
-  }
+  if (!isAllowedExternalUrl(s)) return { ok: false, error: 'Blocked URL' };
   await shell.openExternal(s);
-  return true;
+  return { ok: true };
 });
 
 // --- Feature 1 (new batch): G-code / 3MF metadata extraction ---
@@ -1013,14 +1246,16 @@ function defaultPrinterPort(type) {
 
 // --- Feature 5 (new batch): Outbound email notifications ---
 ipcMain.handle('hub:send-email', async (_e, { to, subject, body, smtpConfig }) => {
-  if (smtpConfig?.provider === 'sendgrid' && smtpConfig?.apiKey) {
+  const cfg = smtpConfig ? { ...smtpConfig } : {};
+  cfg.apiKey = resolveStoreSecret(cfg.apiKey, d => d?.settings?.emailConfig?.apiKey);
+  if (cfg?.provider === 'sendgrid' && cfg?.apiKey) {
     try {
       const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${smtpConfig.apiKey}`, 'Content-Type': 'application/json' },
+        headers: { 'Authorization': `Bearer ${cfg.apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           personalizations: [{ to: [{ email: to }] }],
-          from: { email: smtpConfig.fromEmail || 'noreply@khayt.app', name: smtpConfig.fromName || 'Khayt' },
+          from: { email: cfg.fromEmail || 'noreply@khayt.app', name: cfg.fromName || 'Khayt' },
           subject,
           content: [{ type: 'text/html', value: body }]
         })
@@ -1030,15 +1265,15 @@ ipcMain.handle('hub:send-email', async (_e, { to, subject, body, smtpConfig }) =
       return { ok: false, error: String(e) };
     }
   }
-  if (smtpConfig?.provider === 'mailgun' && smtpConfig?.apiKey && smtpConfig?.domain) {
+  if (cfg?.provider === 'mailgun' && cfg?.apiKey && cfg?.domain) {
     try {
       const formData = new URLSearchParams({
-        from: `${smtpConfig.fromName||'Khayt'} <mailgun@${smtpConfig.domain}>`,
+        from: `${cfg.fromName||'Khayt'} <mailgun@${cfg.domain}>`,
         to, subject, html: body
       });
-      const res = await fetch(`https://api.mailgun.net/v3/${smtpConfig.domain}/messages`, {
+      const res = await fetch(`https://api.mailgun.net/v3/${cfg.domain}/messages`, {
         method: 'POST',
-        headers: { 'Authorization': `Basic ${Buffer.from(`api:${smtpConfig.apiKey}`).toString('base64')}` },
+        headers: { 'Authorization': `Basic ${Buffer.from(`api:${cfg.apiKey}`).toString('base64')}` },
         body: formData
       });
       return { ok: res.ok, status: res.status };
@@ -1183,6 +1418,7 @@ ipcMain.handle('hub:zatca-submit', async (_e, { xmlBase64, invoiceHash, uuid, in
 
 // ── BNPL: Tabby ──────────────────────────────────────────────────────────────
 ipcMain.handle('hub:bnpl-tabby', async (_e, { apiKey, merchantCode, amount, currency, description, buyer, orderId, itemName }) => {
+  apiKey = resolveStoreSecret(apiKey, d => d?.settings?.bnpl?.tabby?.apiKey);
   if (!apiKey) return { ok: false, error: 'No API key configured' };
   try {
     const body = {
@@ -1228,6 +1464,7 @@ ipcMain.handle('hub:bnpl-tabby', async (_e, { apiKey, merchantCode, amount, curr
 
 // ── BNPL: Tamara ─────────────────────────────────────────────────────────────
 ipcMain.handle('hub:bnpl-tamara', async (_e, { apiKey, amount, currency, country, description, buyer, orderId, itemName }) => {
+  apiKey = resolveStoreSecret(apiKey, d => d?.settings?.bnpl?.tamara?.apiKey);
   if (!apiKey) return { ok: false, error: 'No API key configured' };
   try {
     const cur = (currency || 'SAR').toUpperCase();
@@ -1273,6 +1510,7 @@ ipcMain.handle('hub:bnpl-tamara', async (_e, { apiKey, amount, currency, country
 
 // ── BNPL: Stripe Checkout (supports Klarna/Afterpay/Affirm via dashboard) ────
 ipcMain.handle('hub:bnpl-stripe', async (_e, { apiKey, amount, currency, description, successUrl, cancelUrl, customerEmail }) => {
+  apiKey = resolveStoreSecret(apiKey, d => d?.settings?.bnpl?.stripe?.apiKey);
   if (!apiKey || !apiKey.startsWith('sk_')) return { ok: false, error: 'Invalid Stripe secret key (must start with sk_)' };
   // Validate redirect URLs — must be https:// and must not point to private/loopback addresses
   const validateStripeRedirectUrl = (u, fallback) => {
@@ -1315,9 +1553,20 @@ ipcMain.handle('hub:bnpl-stripe', async (_e, { apiKey, amount, currency, descrip
 let _tunnelInstance = null;
 
 ipcMain.handle('hub:start-tunnel', async (_e, port) => {
+  syncLanServerStoreFromDisk();
+  const lanPin = resolveStoreSecret(lanServerStore?.settings?.lanApi?.pin, d => d?.settings?.lanApi?.pin);
+  if (!lanPin) return { ok: false, error: 'Configure a LAN PIN before enabling remote tunnel' };
   if (_tunnelInstance) {
     try { _tunnelInstance.close(); } catch {}
     _tunnelInstance = null;
+  }
+  syncLanServerStoreFromDisk();
+  const ownerPin = lanServerStore?.settings?.lanApi?.pin || '';
+  if (!ownerPin || isStoreSecretMasked(ownerPin)) {
+    return { ok: false, error: 'Set an owner LAN PIN before enabling the remote tunnel' };
+  }
+  if (!lanServer) {
+    return { ok: false, error: 'Start the LAN server before enabling the tunnel' };
   }
   const portNum = parseInt(port, 10) || (lanServer?.address?.()?.port) || 3219;
   try {
@@ -1357,16 +1606,40 @@ ipcMain.handle('hub:get-tunnel-url', async () => {
 let lanServer = null;
 let lanServerStore = {};  // reference to current store, updated via hub:save-store
 
-ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}) => {
+ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '', bindLan = 'loopback' } = {}) => {
   const portNum = parseInt(port, 10);
   if (!Number.isInteger(portNum) || portNum < 1024 || portNum > 65535) {
     return { ok: false, error: 'Invalid port number (must be 1024–65535)' };
   }
   port = portNum;
+  syncLanServerStoreFromDisk();
+  if (!lanServerStore || !Object.keys(lanServerStore).length) lanServerStore = {};
+  migrateLanApiSecrets(lanServerStore);
+  const storedPin = lanServerStore?.settings?.lanApi?.pin || '';
+  if (!pin || isStoreSecretMasked(pin)) pin = storedPin;
   pin = String(pin || '').slice(0, 256); // cap PIN length to prevent DoS via giant string comparisons
+  let intakeTokenGenerated = false;
+  let intakePinGenerated = false;
+  try {
+    const tokResult = ensureLanIntakeToken(lanServerStore);
+    if (tokResult.generated) intakeTokenGenerated = true;
+    const pinResult = ensureLanIntakePin(lanServerStore);
+    if (pinResult.generated) intakePinGenerated = true;
+    if (intakeTokenGenerated || intakePinGenerated) await writeStoreToDisk(lanServerStore);
+  } catch (e) {
+    console.error('ensureLanIntakeToken/ensureLanIntakePin failed:', e);
+  }
+  const bindHost = (bindLan === 'lan' || bindLan === 'all') ? '0.0.0.0' : '127.0.0.1';
   if (lanServer) { lanServer.close(); lanServer = null; }
   // Brute-force tracking: { ip -> { count, resetAt } }
   const failedAttempts = new Map();
+  const intakePinAttempts = new Map();
+  const intakeSubmitAttempts = new Map();
+  const INTAKE_SUBMIT_LIMIT = 20;
+  const INTAKE_SUBMIT_WINDOW_MS = 60 * 60 * 1000;
+  const intakeSessions = new Map();
+  const INTAKE_COOKIE = 'khayt_intake';
+  const INTAKE_SESSION_MS = 4 * 60 * 60 * 1000;
   const LOCKOUT_MS = 60_000;     // 1-minute lockout after 10 failures
   const MAX_BODY   = 1_048_576; // 1 MB body limit
   return new Promise(resolve => {
@@ -1381,20 +1654,20 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
         // NOTE: /order/:id POST (quote approval) is intentionally excluded so that
         // unauthenticated write access cannot transition order state.  GET is public
         // (customer-facing tracking page) but POST requires a PIN when one is set.
-        const isAlwaysPublic = pathname === '/api/status' || pathname === '/api/queue' ||
-          pathname === '/api/machines' || pathname.startsWith('/status/') ||
+        const isIntakePublicGet = pathname === '/intake' && req.method === 'GET';
+        const isIntakeSessionPost = pathname === '/api/intake/session' && req.method === 'POST';
+        const isIntakeSubmitPost = pathname === '/api/intake' && req.method === 'POST';
+        const isAlwaysPublic = pathname === '/api/status' || pathname.startsWith('/status/') ||
           (pathname.startsWith('/order/') && req.method === 'GET') ||
-          pathname === '/' || pathname === '/manifest.json' || pathname === '/sw.js' ||
+          pathname === '/manifest.json' || pathname === '/sw.js' ||
           pathname === '/icon-192.png' || pathname === '/icon-512.png' ||
           pathname.startsWith('/api/webhook/printer/') ||
-          (pathname === '/calendar.ics' && !pin) || // requires PIN when one is set (calendar apps can append ?pin=…)
-          pathname === '/intake' ||
-          pathname === '/api/intake' ||
+          (pathname === '/calendar.ics' && !pin) ||
           pathname === '/api/webhook/salla' ||
           pathname === '/api/webhook/zid';
         const isSurveyEndpoint = pathname === '/api/survey' && req.method === 'POST';
-        const requirePin = isWriteRequest && !isSurveyEndpoint && !isAlwaysPublic;
-        if (!isAlwaysPublic && (requirePin || (pin && !isSurveyEndpoint))) {
+        const requirePin = isWriteRequest && !isSurveyEndpoint && !isAlwaysPublic && !isIntakeSessionPost && !isIntakeSubmitPost;
+        if (!isAlwaysPublic && !isIntakePublicGet && !isIntakeSessionPost && !isIntakeSubmitPost && (requirePin || (pin && !isSurveyEndpoint))) {
           const provided = (url.searchParams.get('pin') || req.headers['x-khayt-pin'] || '').trim();
           if (!pin) {
             // No PIN configured — block all write requests (survey is exempt via isSurveyEndpoint)
@@ -1432,11 +1705,48 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
           // Electron renderer (no origin) or same-LAN http:// origin — allow
           res.setHeader('Access-Control-Allow-Origin', reqOrigin || 'null');
         }
-        res.setHeader('Content-Type', 'application/json');
+        if (!isIntakePublicGet) res.setHeader('Content-Type', 'application/json');
 
         // H3: helper to enforce PIN for sensitive GET routes
+        const getIntakePin = () => lanServerStore?.settings?.lanApi?.intakePin || '';
+        const getIntakeToken = () => lanServerStore?.settings?.lanApi?.intakeToken || '';
+        const checkIntakeSubmitRate = () => {
+          const now = Date.now();
+          const rec = intakeSubmitAttempts.get(ip) || { count: 0, resetAt: now + INTAKE_SUBMIT_WINDOW_MS };
+          if (now >= rec.resetAt) { rec.count = 0; rec.resetAt = now + INTAKE_SUBMIT_WINDOW_MS; }
+          if (rec.count >= INTAKE_SUBMIT_LIMIT) return false;
+          rec.count += 1;
+          intakeSubmitAttempts.set(ip, rec);
+          return true;
+        };
+        const validateIntakeSession = (token) => {
+          const sess = intakeSessions.get(token);
+          if (!sess) return false;
+          if (Date.now() - sess.created > INTAKE_SESSION_MS) {
+            intakeSessions.delete(token);
+            return false;
+          }
+          return true;
+        };
+        const hasIntakeSession = (request) => {
+          const cookies = parseRequestCookies(request);
+          const token = cookies[INTAKE_COOKIE];
+          return token && validateIntakeSession(token);
+        };
+        const checkIntakePost = (request) => {
+          if (hasIntakeSession(request)) return true;
+          const intakeTok = getIntakeToken();
+          const providedPin = (url.searchParams.get('pin') || request.headers['x-khayt-pin'] || '').trim();
+          const providedIntake = (request.headers['x-khayt-intake-token'] || '').trim();
+          if (pin && safeTokenEqual(providedPin, pin)) return true;
+          if (intakeTok && providedIntake && safeTokenEqual(providedIntake, intakeTok)) return true;
+          return false;
+        };
+        const intakeSharedStyles = '*{box-sizing:border-box;margin:0;padding:0}body{background:#0f172a;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;min-height:100vh;padding:24px 16px}.container{max-width:520px;margin:0 auto}.header{text-align:center;margin-bottom:28px}.header h1{font-size:1.5rem;font-weight:700;color:#f1f5f9;margin-bottom:4px}.header p{color:#94a3b8;font-size:.9rem}.card{background:#1e293b;border-radius:16px;padding:24px;margin-bottom:16px}.form-group{margin-bottom:16px}label{display:block;font-size:.8rem;font-weight:600;color:#94a3b8;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}input,textarea,select{width:100%;background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:10px 12px;font-size:.9rem;outline:none;transition:border-color .2s}input:focus,textarea:focus,select:focus{border-color:#6366f1}textarea{resize:vertical;min-height:100px}select option{background:#1e293b}.req{color:#f87171}button[type=submit]{width:100%;background:#6366f1;color:#fff;border:none;border-radius:10px;padding:13px;font-size:1rem;font-weight:600;cursor:pointer;transition:background .2s}button[type=submit]:hover{background:#4f46e5}button[type=submit]:disabled{background:#334155;cursor:not-allowed}.thankyou{display:none;text-align:center;padding:40px 24px}.thankyou h2{font-size:1.3rem;color:#6366f1;margin-bottom:12px}.thankyou p{color:#94a3b8;line-height:1.6}.error-msg{color:#f87171;font-size:.8rem;margin-top:6px;display:none}';
+        const renderIntakePinPage = (shopName) => `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Intake Access — ${shopName}</title><style>${intakeSharedStyles}</style></head><body><div class="container"><div class="header"><h1>${shopName}</h1><p>Enter your intake PIN to submit an order request</p></div><div class="card"><form id="pinForm"><div class="form-group"><label>Intake PIN <span class="req">*</span></label><input type="password" name="pin" required maxlength="256" autocomplete="current-password" placeholder="Intake PIN from the shop"></div><div class="error-msg" id="errMsg">Invalid PIN. Please try again.</div><button type="submit">Continue</button></form></div></div><script>document.getElementById('pinForm').addEventListener('submit',async function(e){e.preventDefault();const btn=this.querySelector('button[type=submit]');const err=document.getElementById('errMsg');err.style.display='none';btn.disabled=true;btn.textContent='Checking…';const pin=this.querySelector('[name=pin]').value;try{const r=await fetch('/api/intake/session',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin})});if(r.ok){location.href='/intake';return;}err.style.display='block';btn.disabled=false;btn.textContent='Continue';}catch(ex){err.textContent='Network error. Please try again.';err.style.display='block';btn.disabled=false;btn.textContent='Continue';}});<\/script></body></html>`;
+        const renderIntakeFormPage = (shopName) => `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Order Intake — ${shopName}</title><style>${intakeSharedStyles}</style></head><body><div class="container"><div class="header"><h1>${shopName}</h1><p>Submit a new order request</p></div><div class="card"><form id="intakeForm"><div class="form-group"><label>Name <span class="req">*</span></label><input type="text" name="name" required maxlength="200" placeholder="Your full name"></div><div class="form-group"><label>Email</label><input type="email" name="email" maxlength="500" placeholder="your@email.com"></div><div class="form-group"><label>Phone</label><input type="tel" name="phone" maxlength="500" placeholder="+966 5x xxx xxxx"></div><div class="form-group"><label>Project Description <span class="req">*</span></label><textarea name="description" required maxlength="2000" placeholder="Describe your 3D printing project in detail..."></textarea></div><div class="form-group"><label>Reference / Link</label><input type="url" name="referenceLink" maxlength="500" placeholder="https://..."></div><div class="form-group"><label>Preferred Material</label><input type="text" name="material" maxlength="500" placeholder="e.g. PLA, PETG, Resin"></div><div class="form-group"><label>Budget Range</label><select name="budget"><option value="">— Select —</option><option value="&lt;100">Less than 100 SAR</option><option value="100-500">100 – 500 SAR</option><option value="500-1000">500 – 1,000 SAR</option><option value="1000+">1,000+ SAR</option></select></div><div class="form-group"><label>Preferred Due Date</label><input type="date" name="dueDate" maxlength="500"></div><div class="error-msg" id="errMsg">An error occurred. Please try again.</div><button type="submit">Submit Request</button></form><div class="thankyou" id="thankYou"><h2>Thank you!</h2><p>Your request has been received. We'll get back to you as soon as possible.</p></div></div></div><script>document.getElementById('intakeForm').addEventListener('submit',async function(e){e.preventDefault();const btn=this.querySelector('button[type=submit]');const err=document.getElementById('errMsg');err.style.display='none';btn.disabled=true;btn.textContent='Submitting…';const data={};new FormData(this).forEach((v,k)=>{if(v)data[k]=v;});try{const r=await fetch('/api/intake',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});if(r.ok){this.style.display='none';document.getElementById('thankYou').style.display='block';}else{const j=await r.json().catch(()=>({}));err.textContent=j.error||'Submission failed.';err.style.display='block';btn.disabled=false;btn.textContent='Submit Request';}}catch(ex){err.textContent='Network error. Please try again.';err.style.display='block';btn.disabled=false;btn.textContent='Submit Request';}});<\/script></body></html>`;
         const checkPinForGet = () => {
-          if (!pin) return true; // no PIN configured — allow (read-only)
+          if (!pin) return false; // owner/queue data requires a configured PIN
           const provided = (url.searchParams.get('pin') || req.headers['x-khayt-pin'] || '').trim();
           const now = Date.now();
           const ipData = failedAttempts.get(ip) || { count: 0, resetAt: 0 };
@@ -1458,7 +1768,7 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
 
         if (pathname === '/api/status') {
           const queue = (store.printLog || []).filter(o => o.status !== 'completed');
-          res.writeHead(200);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({
             queued: queue.length,
             pending:    queue.filter(o => o.status === 'pending').length,
@@ -1472,8 +1782,9 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
           if (!checkPinForGet()) return;
           const limit = Math.min(parseInt(url.searchParams.get('limit') || '50', 10), 200);
           const status = url.searchParams.get('status');
-          let orders = (store.printLog || []).slice(0, limit);
+          let orders = store.printLog || [];
           if (status) orders = orders.filter(o => o.status === status);
+          orders = orders.slice(0, limit);
           res.writeHead(200);
           res.end(JSON.stringify(orders.map(o => ({
             id: o.id, project: o.project, client: o.client, status: o.status,
@@ -1524,10 +1835,7 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
               // Write back to store on disk
               const storeData = { ...lanServerStore };
               storeData.inventory = [...(lanServerStore.inventory || []), spool];
-              lanServerStore = storeData;
-              const fp = dataFilePath();
-              await fs.promises.writeFile(fp + '.tmp', JSON.stringify(encryptForDisk(storeData)), 'utf8');
-              await fs.promises.rename(fp + '.tmp', fp);
+              await persistLanStoreUpdate(storeData);
               // Notify renderer to reload
               if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send('lan-spool-added', spool);
@@ -1571,10 +1879,7 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
                 return;
               }
               storeData.printLog[idx] = { ...storeData.printLog[idx], status };
-              lanServerStore = storeData;
-              const fp = dataFilePath();
-              await fs.promises.writeFile(fp + '.tmp', JSON.stringify(encryptForDisk(storeData)), 'utf8');
-              await fs.promises.rename(fp + '.tmp', fp);
+              await persistLanStoreUpdate(storeData);
               if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send('lan-order-updated', { id: orderId, status });
               }
@@ -1624,12 +1929,10 @@ ipcMain.handle('hub:start-lan-server', async (_e, { port = 3219, pin = '' } = {}
                   rating,
                   comment: (comment || '').trim(),
                   submittedAt: new Date().toISOString()
-                }
+                },
+                surveyToken: undefined,
               };
-              lanServerStore = storeData;
-              const fp = dataFilePath();
-              await fs.promises.writeFile(fp + '.tmp', JSON.stringify(encryptForDisk(storeData)), 'utf8');
-              await fs.promises.rename(fp + '.tmp', fp);
+              await persistLanStoreUpdate(storeData);
               if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send('lan-survey-submitted', {
                   orderId: storeData.printLog[idx].id,
@@ -1758,6 +2061,7 @@ self.addEventListener('fetch',e=>e.respondWith(fetch(e.request).catch(()=>caches
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k))))));`);
 
         } else if (pathname === '/' && req.method === 'GET') {
+          if (!checkPinForGet()) return;
           const shopName = lanEscapeHtml(store.settings?.shopName || 'Khayt');
           const queue = (store.printLog || []).filter(o => ['pending','printing','post','qc','on_hold'].includes(o.status));
           const pending  = queue.filter(o => o.status === 'pending').length;
@@ -1876,10 +2180,7 @@ setTimeout(()=>location.reload(),30000);
                     ...(newStatus === 'printing' ? { printStartedAt: new Date().toISOString() } : {}),
                     ...(newStatus === 'post'     ? { printDoneAt:    new Date().toISOString() } : {}),
                   };
-                  lanServerStore = storeData;
-                  const fp = dataFilePath();
-                  await fs.promises.writeFile(fp + '.tmp', JSON.stringify(encryptForDisk(storeData)), 'utf8');
-                  await fs.promises.rename(fp + '.tmp', fp);
+                  await persistLanStoreUpdate(storeData);
                   advancedOrder = { id: prev.id, from: targetStatus, to: newStatus, project: prev.project };
                   if (mainWindow && !mainWindow.isDestroyed()) {
                     mainWindow.webContents.send('lan-kanban-advanced', advancedOrder);
@@ -1956,13 +2257,77 @@ setTimeout(()=>location.reload(),30000);
         // ── Online intake form ──────────────────────────────────
         } else if (pathname === '/intake' && req.method === 'GET') {
           const shopName = lanEscapeHtml(store.settings?.shopName || 'Khayt');
-          res.setHeader('Content-Type', 'text/html; charset=utf-8');
           res.setHeader('Cache-Control', 'no-cache');
-          res.writeHead(200);
-          res.end(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Order Intake — ${shopName}</title><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0f172a;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;padding:24px 16px}.container{max-width:520px;margin:0 auto}.header{text-align:center;margin-bottom:28px}.header h1{font-size:1.5rem;font-weight:700;color:#f1f5f9;margin-bottom:4px}.header p{color:#94a3b8;font-size:.9rem}.card{background:#1e293b;border-radius:16px;padding:24px;margin-bottom:16px}.form-group{margin-bottom:16px}label{display:block;font-size:.8rem;font-weight:600;color:#94a3b8;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}input,textarea,select{width:100%;background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:10px 12px;font-size:.9rem;outline:none;transition:border-color .2s}input:focus,textarea:focus,select:focus{border-color:#6366f1}textarea{resize:vertical;min-height:100px}select option{background:#1e293b}.req{color:#f87171}button[type=submit]{width:100%;background:#6366f1;color:#fff;border:none;border-radius:10px;padding:13px;font-size:1rem;font-weight:600;cursor:pointer;transition:background .2s}button[type=submit]:hover{background:#4f46e5}button[type=submit]:disabled{background:#334155;cursor:not-allowed}.thankyou{display:none;text-align:center;padding:40px 24px}.thankyou h2{font-size:1.3rem;color:#6366f1;margin-bottom:12px}.thankyou p{color:#94a3b8;line-height:1.6}.error-msg{color:#f87171;font-size:.8rem;margin-top:6px;display:none}</style></head><body><div class="container"><div class="header"><h1>${shopName}</h1><p>Submit a new order request</p></div><div class="card"><form id="intakeForm"><div class="form-group"><label>Name <span class="req">*</span></label><input type="text" name="name" required maxlength="200" placeholder="Your full name"></div><div class="form-group"><label>Email</label><input type="email" name="email" maxlength="500" placeholder="your@email.com"></div><div class="form-group"><label>Phone</label><input type="tel" name="phone" maxlength="500" placeholder="+966 5x xxx xxxx"></div><div class="form-group"><label>Project Description <span class="req">*</span></label><textarea name="description" required maxlength="2000" placeholder="Describe your 3D printing project in detail..."></textarea></div><div class="form-group"><label>Reference / Link</label><input type="url" name="referenceLink" maxlength="500" placeholder="https://..."></div><div class="form-group"><label>Preferred Material</label><input type="text" name="material" maxlength="500" placeholder="e.g. PLA, PETG, Resin"></div><div class="form-group"><label>Budget Range</label><select name="budget"><option value="">— Select —</option><option value="&lt;100">Less than 100 SAR</option><option value="100-500">100 – 500 SAR</option><option value="500-1000">500 – 1,000 SAR</option><option value="1000+">1,000+ SAR</option></select></div><div class="form-group"><label>Preferred Due Date</label><input type="date" name="dueDate" maxlength="500"></div><div class="error-msg" id="errMsg">An error occurred. Please try again.</div><button type="submit">Submit Request</button></form><div class="thankyou" id="thankYou"><h2>Thank you!</h2><p>Your request has been received. We'll get back to you as soon as possible.</p></div></div></div><script>document.getElementById('intakeForm').addEventListener('submit',async function(e){e.preventDefault();const btn=this.querySelector('button[type=submit]');const err=document.getElementById('errMsg');err.style.display='none';btn.disabled=true;btn.textContent='Submitting…';const data={};new FormData(this).forEach((v,k)=>{if(v)data[k]=v;});try{const r=await fetch('/api/intake',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});if(r.ok){this.style.display='none';document.getElementById('thankYou').style.display='block';}else{const j=await r.json().catch(()=>({}));err.textContent=j.error||'Submission failed.';err.style.display='block';btn.disabled=false;btn.textContent='Submit Request';}}catch(ex){err.textContent='Network error. Please try again.';err.style.display='block';btn.disabled=false;btn.textContent='Submit Request';}});</script></body></html>`);
+          const intakePin = getIntakePin();
+          if (!intakePin) {
+            res.writeHead(503, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Intake Unavailable</title><style>${intakeSharedStyles}</style></head><body><div class="container"><div class="card"><h2 style="margin-bottom:12px;color:#f1f5f9">Intake unavailable</h2><p style="color:#94a3b8;line-height:1.6">The shop has not configured intake access yet.</p></div></div></body></html>`);
+          } else if (hasIntakeSession(req)) {
+            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(renderIntakeFormPage(shopName));
+          } else {
+            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(renderIntakePinPage(shopName));
+          }
+
+        // ── Intake session (PIN gate) ───────────────────────────
+        } else if (pathname === '/api/intake/session' && req.method === 'POST') {
+          const intakePin = getIntakePin();
+          if (!intakePin) {
+            res.writeHead(503, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+            res.end(JSON.stringify({ error: 'Intake PIN not configured' }));
+            return;
+          }
+          let body = '';
+          req.on('data', chunk => {
+            if (Buffer.byteLength(body) + chunk.length > MAX_BODY) {
+              res.writeHead(413, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+              res.end(JSON.stringify({ error: 'Request too large' }));
+              req.socket.destroy();
+              return;
+            }
+            body += chunk;
+          });
+          req.on('end', () => {
+            try {
+              const parsed = JSON.parse(body || '{}');
+              const providedPin = typeof parsed.pin === 'string' ? parsed.pin.trim() : '';
+              const now = Date.now();
+              const ipData = intakePinAttempts.get(ip) || { count: 0, resetAt: 0 };
+              if (now < ipData.resetAt && ipData.count >= 10) {
+                res.writeHead(429, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+                res.end(JSON.stringify({ error: 'Too many attempts — try again in 1 minute' }));
+                return;
+              }
+              if (!safeTokenEqual(providedPin, intakePin)) {
+                const newCount = (now >= ipData.resetAt ? 0 : ipData.count) + 1;
+                intakePinAttempts.set(ip, { count: newCount, resetAt: newCount >= 10 ? now + LOCKOUT_MS : ipData.resetAt });
+                res.writeHead(401, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+                res.end(JSON.stringify({ error: 'Unauthorized' }));
+                return;
+              }
+              intakePinAttempts.delete(ip);
+              const sessionToken = crypto.randomBytes(32).toString('hex');
+              intakeSessions.set(sessionToken, { created: Date.now(), ip });
+              res.writeHead(200, {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Set-Cookie': `${INTAKE_COOKIE}=${sessionToken}; HttpOnly; Path=/; SameSite=Strict; Max-Age=${Math.floor(INTAKE_SESSION_MS / 1000)}`,
+              });
+              res.end(JSON.stringify({ ok: true }));
+            } catch (e) {
+              res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+              res.end(JSON.stringify({ error: 'Invalid request' }));
+            }
+          });
 
         // ── Intake form submission ──────────────────────────────
         } else if (pathname === '/api/intake' && req.method === 'POST') {
+          if (!checkIntakePost(req)) {
+            res.writeHead(401, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+            res.end(JSON.stringify({ error: 'Unauthorized' }));
+            return;
+          }
           let body = '';
           req.on('data', chunk => {
             if (Buffer.byteLength(body) + chunk.length > MAX_BODY) {
@@ -1975,6 +2340,11 @@ setTimeout(()=>location.reload(),30000);
           });
           req.on('end', async () => {
             try {
+              if (!checkIntakeSubmitRate()) {
+                res.writeHead(429, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+                res.end(JSON.stringify({ error: 'Too many submissions — try again later' }));
+                return;
+              }
               const parsed = JSON.parse(body);
               // Validate required fields
               const name = typeof parsed.name === 'string' ? parsed.name.trim().slice(0, 200) : '';
@@ -2015,10 +2385,7 @@ setTimeout(()=>location.reload(),30000);
               Object.keys(entry).forEach(k => entry[k] === undefined && delete entry[k]);
               const storeData = { ...lanServerStore };
               storeData.waitingList = [...(lanServerStore.waitingList || []), entry];
-              lanServerStore = storeData;
-              const fp = dataFilePath();
-              await fs.promises.writeFile(fp + '.tmp', JSON.stringify(encryptForDisk(storeData)), 'utf8');
-              await fs.promises.rename(fp + '.tmp', fp);
+              await persistLanStoreUpdate(storeData);
               if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send('lan-intake-submitted', entry);
               }
@@ -2075,10 +2442,7 @@ setTimeout(()=>location.reload(),30000);
                 status: 'pending',
                 clientApprovedAt: new Date().toISOString()
               };
-              lanServerStore = storeData;
-              const fp = dataFilePath();
-              await fs.promises.writeFile(fp + '.tmp', JSON.stringify(encryptForDisk(storeData)), 'utf8');
-              await fs.promises.rename(fp + '.tmp', fp);
+              await persistLanStoreUpdate(storeData);
               if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send('lan-order-updated', { id: safeId, status: 'pending', clientApprovedAt: storeData.printLog[idx].clientApprovedAt });
               }
@@ -2139,10 +2503,7 @@ setTimeout(()=>location.reload(),30000);
                 source:  'salla'
               };
               storeData.printLog.unshift(newOrder);
-              lanServerStore = storeData;
-              const fp = dataFilePath();
-              await fs.promises.writeFile(fp + '.tmp', JSON.stringify(encryptForDisk(storeData)), 'utf8');
-              await fs.promises.rename(fp + '.tmp', fp);
+              await persistLanStoreUpdate(storeData);
               if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send('lan-order-updated', newOrder);
               }
@@ -2198,10 +2559,7 @@ setTimeout(()=>location.reload(),30000);
                 source:  'zid'
               };
               storeData.printLog.unshift(newOrder);
-              lanServerStore = storeData;
-              const fp = dataFilePath();
-              await fs.promises.writeFile(fp + '.tmp', JSON.stringify(encryptForDisk(storeData)), 'utf8');
-              await fs.promises.rename(fp + '.tmp', fp);
+              await persistLanStoreUpdate(storeData);
               if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send('lan-order-updated', newOrder);
               }
@@ -2218,7 +2576,7 @@ setTimeout(()=>location.reload(),30000);
           res.end(JSON.stringify({ error: 'Not found', endpoints: ['/api/status','/api/orders','/api/queue','/api/machines','/api/inventory','/api/webhook/printer/:machineId','/calendar.ics','/intake','/api/intake','/api/webhook/salla','/api/webhook/zid'] }));
         }
       });
-      lanServer.listen(port, '0.0.0.0', () => {
+      lanServer.listen(port, bindHost, () => {
         const ifaces = os.networkInterfaces();
         let localIp = '127.0.0.1';
         for (const iface of Object.values(ifaces)) {
@@ -2227,7 +2585,7 @@ setTimeout(()=>location.reload(),30000);
           }
           if (localIp !== '127.0.0.1') break;
         }
-        resolve({ ok: true, url: `http://${localIp}:${port}`, localIp, port });
+        resolve({ ok: true, url: `http://${localIp}:${port}`, localIp, port, intakeTokenGenerated, intakePinGenerated });
       });
       lanServer.on('error', e => {
         console.error('LAN server failed to start:', e);
@@ -2252,6 +2610,7 @@ ipcMain.handle('hub:stop-lan-server', async () => {
 });
 
 ipcMain.handle('hub:send-telegram', async (_e, { botToken, chatId, message } = {}) => {
+  botToken = resolveStoreSecret(botToken, d => d?.settings?.telegram?.botToken);
   if (!botToken || !chatId || !message) return { ok: false, error: 'Missing params' };
   if (!/^[0-9]+:[A-Za-z0-9_-]+$/.test(botToken)) return { ok: false, error: 'Invalid bot token format' };
   const chatIdStr = String(chatId).replace(/[^0-9@-]/g, '');
@@ -2403,9 +2762,9 @@ app.whenReady().then(() => {
           [
             "default-src 'self'",
             "script-src 'self' 'unsafe-inline'",  // TODO: remove 'unsafe-inline' after replacing inline onclick= handlers in dynamically-generated HTML (app.js) with data-act delegation
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+            "style-src 'self' 'unsafe-inline'",
             "img-src 'self' data: blob:",
-            "font-src 'self' data: https://fonts.gstatic.com",
+            "font-src 'self' data:",
             "connect-src 'self' https://api.telegram.org https://api.sendgrid.com https://api.mailgun.net https://api.tabby.ai https://api.tamara.co https://api.stripe.com https://gw-fatoorah.zatca.gov.sa https://gw-apic-gov.gazt.gov.sa",
             "media-src 'self' blob:",
             "object-src 'none'",

@@ -31,6 +31,34 @@ const K = {
   TIME_ENTRIES: 'hub_time_entries_v1',
 };
 
+const STORE_SECRET_MASK = KhaytStore.SECRET_MASK;
+function secretInputValue(v) { return v === STORE_SECRET_MASK ? '' : (v || ''); }
+function secretInputSave(current, typed) {
+  const t = (typed || '').trim();
+  if (t) return t;
+  return current === STORE_SECRET_MASK ? STORE_SECRET_MASK : (current || '');
+}
+
+function isSecretMasked(v) { return v === STORE_SECRET_MASK; }
+function secretFieldPlaceholder(current) {
+  return isSecretMasked(current) ? (t('common.secret_unchanged') || 'Leave blank to keep current') : '';
+}
+function migrateLanApiSettings() {
+  if (!settings.lanApi) settings.lanApi = {};
+  if (settings.sallaWebhookSecret && !settings.lanApi.sallaWebhookSecret) {
+    settings.lanApi.sallaWebhookSecret = settings.sallaWebhookSecret;
+  }
+  if (settings.zidWebhookSecret && !settings.lanApi.zidWebhookSecret) {
+    settings.lanApi.zidWebhookSecret = settings.zidWebhookSecret;
+  }
+}
+function sanitizePrintHtml(html) {
+  return String(html || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/\s+on\w+\s*=\s*(".*?"|'.*?'|[^\s>]+)/gi, '')
+    .replace(/javascript\s*:/gi, '');
+}
+
 /* ---------- App state ---------- */
 let printLog   = loadJSON(K.LOG, []);
 let machines   = loadJSON(K.MACHINES, []);
@@ -368,7 +396,12 @@ function payStatus(order) {
   return 'partial';
 }
 /** Escape a value for CSV (RFC 4180). */
-function csvEsc(v) { return '"' + String(v ?? '').replace(/"/g, '""') + '"'; }
+function csvFormulaNeutralize(v) {
+  const s = String(v ?? '');
+  return /^[=+\-@\t\r]/.test(s) ? "'" + s : s;
+}
+/** Escape a value for CSV (RFC 4180). */
+function csvEsc(v) { return '"' + csvFormulaNeutralize(v).replace(/"/g, '""') + '"'; }
 /** Trigger a file download from a Blob. */
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
@@ -941,7 +974,7 @@ function defaultSettings() {
     // Round 12: Break-even / fixed overhead
     fixedCosts:       [],
     // Round 12: LAN API
-    lanApi:           { enabled: false, port: 3219, pin: '', webhookToken: '', tunnelEnabled: false },
+    lanApi:           { enabled: false, port: 3219, pin: '', intakePin: '', intakeToken: '', webhookToken: '', sallaWebhookSecret: '', zidWebhookSecret: '', tunnelEnabled: false, bindLan: false },
     // Round 12: Saved filter presets
     savedFilters:     [],
     betaAcknowledged: true, // legacy field — kept so old saved data doesn't break
@@ -1028,14 +1061,66 @@ function fillWaTemplate(body, order, client) {
 
 let _saveAllTimer = null;
 
-/** Snapshot current in-memory state as a plain object. */
-function buildStoreSnapshot() {
+function collectStoreCollections() {
   return {
     printLog, inventory, templates, products, clients, settings, printers,
     expenses, machines, waTemplates, wasteLog, machMaintLog, consumables,
     suppliers, purchaseOrders, testPrints, locations, operators, waitingList,
     waitingListHistory, timeEntries, shiftLogs, giftCards, slicerProfiles, envLogs,
   };
+}
+
+/** Snapshot current in-memory state as a plain object. */
+function buildStoreSnapshot() {
+  return KhaytStore.buildSnapshot(collectStoreCollections());
+}
+
+/** Build a versioned export/backup payload; optionally redact secrets. */
+function buildExportPayload({ redactSecrets = false } = {}) {
+  return KhaytStore.buildExportPayload(collectStoreCollections(), { redactSecrets });
+}
+
+const redactSettingsForExport = (src) => KhaytStore.redactSettingsForExport(src);
+const redactMachinesForExport = (arr) => KhaytStore.redactMachinesForExport(arr);
+
+/** Load all collections from a store snapshot (disk load or import). */
+function applyStoreFromSnapshot(store) {
+  if (!store) return;
+  const isObj = x => x && typeof x === 'object';
+  if (store.printLog)       printLog       = store.printLog.filter(isValidOrder);
+  if (store.inventory)      inventory      = store.inventory.filter(isValidRecord);
+  if (store.templates)      templates      = store.templates.filter(isValidRecord);
+  if (store.products)       products       = store.products.filter(isValidRecord);
+  if (store.clients)        clients        = store.clients.filter(isValidClient);
+  if (store.printers)       printers       = store.printers.filter(isObj);
+  if (store.expenses)       expenses       = store.expenses.filter(isObj);
+  if (store.machines)       machines       = store.machines.filter(isValidRecord);
+  if (store.waTemplates)    waTemplates    = store.waTemplates.filter(isValidRecord);
+  if (store.wasteLog)       wasteLog       = store.wasteLog.filter(isObj);
+  if (store.machMaintLog)   machMaintLog   = store.machMaintLog.filter(isObj);
+  if (store.consumables)    consumables    = store.consumables.filter(isValidRecord);
+  if (store.suppliers)      suppliers      = store.suppliers.filter(isValidRecord);
+  if (store.purchaseOrders) purchaseOrders = store.purchaseOrders.filter(isValidRecord);
+  if (store.testPrints)     testPrints     = store.testPrints.filter(isObj);
+  if (store.locations)      locations      = store.locations.filter(isValidRecord);
+  if (store.operators)           operators           = store.operators.filter(isValidRecord);
+  if (store.waitingList)         waitingList         = store.waitingList.filter(isValidRecord);
+  if (store.waitingListHistory)  waitingListHistory  = store.waitingListHistory.filter(isObj);
+  if (store.timeEntries)         timeEntries         = store.timeEntries.filter(isObj);
+  if (store.shiftLogs)           shiftLogs           = store.shiftLogs.filter(isObj);
+  if (store.giftCards)           giftCards           = store.giftCards.filter(isObj);
+  if (store.slicerProfiles)      slicerProfiles      = store.slicerProfiles.filter(isObj);
+  if (store.envLogs)             envLogs             = store.envLogs.filter(isObj);
+  if (store.settings)            settings            = Object.assign({}, defaultSettings(), sanitiseForAssign(store.settings));
+  migrateLanApiSettings();
+  if (store.settings) {
+    const nested = ['emailDigest', 'emailConfig', 'zatcaPhase2', 'bnpl', 'lanApi', 'exchangeRates', 'printerApi'];
+    for (const key of nested) {
+      if (store.settings[key] && typeof store.settings[key] === 'object' && !Array.isArray(store.settings[key])) {
+        settings[key] = Object.assign({}, defaultSettings()[key] || {}, sanitiseForAssign(store.settings[key]));
+      }
+    }
+  }
 }
 
 /** Write the store snapshot to disk; returns the IPC Promise. */
@@ -1116,43 +1201,7 @@ async function loadAll() {
     store = migrateFromLocalStorage();
   }
 
-  if (store) {
-    const isObj = x => x && typeof x === 'object';
-    if (store.printLog)       printLog       = store.printLog.filter(isValidOrder);
-    if (store.inventory)      inventory      = store.inventory.filter(isValidRecord);
-    if (store.templates)      templates      = store.templates.filter(isValidRecord);
-    if (store.products)       products       = store.products.filter(isValidRecord);
-    if (store.clients)        clients        = store.clients.filter(isValidRecord);
-    if (store.printers)       printers       = store.printers.filter(isObj);
-    if (store.expenses)       expenses       = store.expenses.filter(isObj);
-    if (store.machines)       machines       = store.machines.filter(isValidRecord);
-    if (store.waTemplates)    waTemplates    = store.waTemplates.filter(isValidRecord);
-    if (store.wasteLog)       wasteLog       = store.wasteLog.filter(isObj);
-    if (store.machMaintLog)   machMaintLog   = store.machMaintLog.filter(isObj);
-    if (store.consumables)    consumables    = store.consumables.filter(isValidRecord);
-    if (store.suppliers)      suppliers      = store.suppliers.filter(isValidRecord);
-    if (store.purchaseOrders) purchaseOrders = store.purchaseOrders.filter(isValidRecord);
-    if (store.testPrints)     testPrints     = store.testPrints.filter(isObj);
-    if (store.locations)      locations      = store.locations.filter(isValidRecord);
-    if (store.operators)           operators           = store.operators.filter(isValidRecord);
-    if (store.waitingList)         waitingList         = store.waitingList.filter(isValidRecord);
-    if (store.waitingListHistory)  waitingListHistory  = store.waitingListHistory.filter(isObj);
-    if (store.timeEntries)         timeEntries         = store.timeEntries.filter(isObj);
-    if (store.shiftLogs)           shiftLogs           = store.shiftLogs.filter(isObj);
-    if (store.giftCards)           giftCards           = store.giftCards.filter(isObj);
-    if (store.slicerProfiles)      slicerProfiles      = store.slicerProfiles.filter(isObj);
-    if (store.envLogs)             envLogs             = store.envLogs.filter(isObj);
-    if (store.settings)            settings            = Object.assign({}, defaultSettings(), sanitiseForAssign(store.settings));
-    // Deep-merge nested settings objects so new subkeys survive upgrades
-    if (store.settings) {
-      const nested = ['emailDigest', 'emailConfig', 'zatcaPhase2', 'bnpl', 'lanApi', 'exchangeRates', 'printerApi'];
-      for (const key of nested) {
-        if (store.settings[key] && typeof store.settings[key] === 'object' && !Array.isArray(store.settings[key])) {
-          settings[key] = Object.assign({}, defaultSettings()[key] || {}, sanitiseForAssign(store.settings[key]));
-        }
-      }
-    }
-  }
+  if (store) applyStoreFromSnapshot(store);
 
   // One-time migration: pull localStorage kanban state into settings
   const legacyCollapsed = localStorage.getItem('khayt_kan_collapsed');
@@ -2134,14 +2183,26 @@ function applyTheme(theme) {
 /* ============================================================
    Business Mode
    ============================================================ */
+function applyAnalyticsModeView() {
+  const simple = settings.mode === 'simple';
+  const simpleWrap = $('#analyticsSimpleWrap');
+  const proWrap = $('#analyticsProWrap');
+  if (simpleWrap) simpleWrap.style.display = simple ? 'block' : 'none';
+  if (proWrap) proWrap.style.display = simple ? 'none' : 'block';
+  if ($('#analytics-tab')?.classList.contains('active')) {
+    if (simple) renderSimpleReports();
+    else renderAnalytics();
+  }
+}
+
 function applyMode() {
   document.body.classList.toggle('mode-simple', settings.mode === 'simple');
   document.body.classList.toggle('mode-professional', settings.mode === 'professional');
-  // Update mode toggle buttons in settings if they exist
   const btnSimple = $('#btnModeSimple');
   const btnPro    = $('#btnModePro');
   if (btnSimple) btnSimple.classList.toggle('active', settings.mode === 'simple');
   if (btnPro)    btnPro.classList.toggle('active',    settings.mode === 'professional');
+  applyAnalyticsModeView();
 }
 
 
@@ -2173,10 +2234,12 @@ function initAppShell() {
 
   syncTopbarTitle($('.tab-content.active')?.id || 'dashboard-tab');
 
+  window.KhaytStudio?.init?.();
+
   $('.kanban')?.classList.add('khayt-kanban');
   $$('.kanban-col').forEach(col => {
     col.classList.add('khayt-kcol');
-    col.querySelector('.list')?.classList.add('khayt-kcol-body');
+    col.querySelector('[id^="list-"]')?.classList.add('khayt-kcol-body');
     const head = col.querySelector('h3');
     if (head && !head.parentElement.classList.contains('khayt-kcol-head')) {
       const wrap = document.createElement('div');
@@ -2206,14 +2269,22 @@ function syncTopbarTitle(tabId) {
   }
 }
 
+
 /* ============================================================
    Tabs
    ============================================================ */
 function switchTab(tabId) {
-  $$('.tab-content').forEach(el => el.classList.remove('active'));
-  $$('.tab-btn').forEach(el => el.classList.remove('active'));
-  $('#' + tabId)?.classList.add('active');
-  $$(`.tab-btn[data-tab="${tabId}"]`).forEach(el => el.classList.add('active'));
+  $$('.tab-content').forEach(el => {
+    const on = el.id === tabId;
+    el.classList.toggle('active', on);
+    el.setAttribute('aria-hidden', on ? 'false' : 'true');
+  });
+  $$('.tab-btn').forEach(btn => {
+    const on = btn.dataset.tab === tabId;
+    btn.classList.toggle('active', on);
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    btn.setAttribute('tabindex', on ? '0' : '-1');
+  });
 
   $$('.tab-btn.khayt-navitem').forEach(btn => {
     btn.classList.toggle('on', btn.dataset.tab === tabId);
@@ -2226,8 +2297,9 @@ function switchTab(tabId) {
   if (tabId === 'expenses-tab')   { renderExpenses(); populateExpOrderDatalist(); }
   if (tabId === 'catalog-tab')    renderCatalog();
   if (tabId === 'clients-tab')    renderClients();
+  if (tabId === 'calculator-tab')  window.KhaytStudio?.initStudioCalculatorLayout?.();
   if (tabId === 'queue-tab')      { renderMachineQueues(); renderKanban(); }
-  if (tabId === 'analytics-tab')  { if (settings.mode === 'simple') renderSimpleReports(); else renderAnalytics(); }
+  if (tabId === 'analytics-tab')  applyAnalyticsModeView();
   if (tabId === 'gift-cards-tab') renderGiftCards();
   if (tabId === 'logs-tab')       renderLogs();
   if (tabId === 'portfolio-tab')  renderPortfolio();
@@ -2390,6 +2462,7 @@ function updateGrandTotal() {
     elecRate: $('#elecRate').value, prepTime: $('#prepTime').value,
     postTime: $('#postTime').value, laborRate: $('#laborRate').value,
     failureRate: $('#failureRate').value,
+    filamentId: $('#filamentSelect')?.value || '',
     extraMaterials: currentExtraMaterials.filter(m => m.material && m.weight > 0),
   };
   const bd = computePartBreakdown(snap);
@@ -2435,7 +2508,9 @@ function updateGrandTotal() {
   const discountPct = Math.min(100, Math.max(0, num($('#discountPct').value, 0)));
   const shippingCost = Math.max(0, num($('#shippingCost')?.value, 0));
   const extraLinesTotal = currentExtraLines.reduce((s, l) => s + Math.max(0, +l.amount || 0), 0);
-  const priceBeforeDiscount = totalBase * (1 + margin / 100);
+  const priceBeforeDiscount = (currentBuild.length === 0 && activeTier)
+    ? activeTier.pricePerUnit * qty
+    : totalBase * (1 + margin / 100);
   const discountAmt = priceBeforeDiscount * discountPct / 100;
   const subAfterDiscount = priceBeforeDiscount - discountAmt;
   // Rush fee
@@ -2443,7 +2518,32 @@ function updateGrandTotal() {
   const rushPct = rushEnabled ? num(settings.rushFeePct, 25) : 0;
   const rushFeeAmt = subAfterDiscount * rushPct / 100;
   const finalPrice = subAfterDiscount + rushFeeAmt + shippingCost + extraLinesTotal;
-  $('#finalPrice').textContent = fmtMoney(finalPrice);
+  const finalEl = $('#finalPrice');
+  if (finalEl) {
+    if (!finalEl.getAttribute('aria-live')) finalEl.setAttribute('aria-live', 'polite');
+    finalEl.textContent = fmtMoney(finalPrice);
+  }
+
+  let bdForChart = bd;
+  let breakdownScope = 'live';
+  if (currentBuild.length > 0) {
+    bdForChart = currentBuild.reduce((acc, part) => {
+      const partBd = computePartBreakdown(part);
+      const q = Math.max(1, +part.qty || 1);
+      acc.material += partBd.material * q;
+      acc.machine += partBd.machine * q;
+      acc.labor += partBd.labor * q;
+      acc.buffer += partBd.buffer * q;
+      return acc;
+    }, { material: 0, machine: 0, labor: 0, buffer: 0 });
+    breakdownScope = 'cart';
+  }
+  window.KhaytStudio?.updateCalcBreakdown?.(bdForChart, {
+    currency: settings.currency,
+    margin,
+    finalPrice,
+    breakdownScope,
+  });
 
   const discountLine = $('#discountLine');
   if (discountLine) {
@@ -3271,9 +3371,9 @@ function openMachineEditor(machineId = null) {
               </div>
             </div>
             <label style="margin-top:8px;">${escapeHtml(t('mach.api_key'))}</label>
-            <input id="machApiKey" placeholder="API key / token" style="font-size:12.5px;" value="${escapeHtml(draft.printerApi?.apiKey || '')}">
+            <input id="machApiKey" type="password" placeholder="API key / token" style="font-size:12.5px;" value="${escapeHtml(secretInputValue(draft.printerApi?.apiKey))}" autocomplete="off">
             <label style="margin-top:8px;">Access code (Bambu)</label>
-            <input id="machApiAccessCode" placeholder="Bambu access code" style="font-size:12.5px;" value="${escapeHtml(draft.printerApi?.accessCode || '')}">
+            <input id="machApiAccessCode" type="password" placeholder="Bambu access code" style="font-size:12.5px;" value="${escapeHtml(secretInputValue(draft.printerApi?.accessCode))}" autocomplete="off">
             <label style="margin-top:8px;">Printer slug (Repetier)</label>
             <input id="machApiSlug" placeholder="default" style="font-size:12.5px;" value="${escapeHtml(draft.printerApi?.printerSlug || '')}">
             <div style="display:flex; align-items:center; gap:8px; margin-top:10px;">
@@ -3413,7 +3513,7 @@ function openMachineEditor(machineId = null) {
           type:         apiTypeFinal.value || 'none',
           host:         document.getElementById('machApiHost')?.value.trim() || '',
           port:         document.getElementById('machApiPort')?.value ? parseInt(document.getElementById('machApiPort').value) : null,
-          apiKey:       document.getElementById('machApiKey')?.value.trim() || '',
+          apiKey:       secretInputSave(draft.printerApi?.apiKey, document.getElementById('machApiKey')?.value),
           accessCode:   document.getElementById('machApiAccessCode')?.value.trim() || '',
           printerSlug:  document.getElementById('machApiSlug')?.value.trim() || '',
         };
@@ -4945,12 +5045,13 @@ function renderReorderAlerts() {
 }
 
 function renderInventory() {
+  window.KhaytStudio?.renderInventoryStudioStats?.();
   renderReorderAlerts();
   renderSupplierReorderList();
   renderPipelineDemand();
   // Inventory valuation summary
   const valEl = $('#invValuationSummary');
-  if (valEl) {
+  if (valEl && !window.KhaytStudio?.isStudio?.()) {
     if (inventory.length > 0) {
       const totalValue = inventory.reduce((s, item) => {
         const pricePerG = item.weight > 0 && item.cost > 0 ? item.cost / Math.max(1, item.spoolWeight || item.weight || 1000) * item.weight : 0;
@@ -4969,9 +5070,11 @@ function renderInventory() {
     }
   }
 
+  window.KhaytStudio?.patchInventoryTableHead?.();
+  const _studioInv = window.KhaytStudio?.isStudio?.();
   const tbody = $('#inventoryTable tbody');
   if (inventory.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" class="empty-state">${escapeHtml(t('inv.empty'))} <button class="btn small primary" onclick="$('#invMaterial')?.focus()" style="margin-inline-start:12px;">${escapeHtml(t('inv.add_title') || 'Add Filament')}</button></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${_studioInv ? 6 : 5}" class="empty-state">${escapeHtml(t('inv.empty'))} <button class="btn small primary" onclick="$('#invMaterial')?.focus()" style="margin-inline-start:12px;">${escapeHtml(t('inv.add_title') || 'Add Filament')}</button></td></tr>`;
   } else {
     const todayMs = Date.now();
     const invTerm = invSearchTerm.toLowerCase().trim();
@@ -4984,6 +5087,8 @@ function renderInventory() {
       computeMaterialForecast().forEach(f => { forecastMap[f.material] = f; });
     } catch(e) { /* silent */ }
     tbody.innerHTML = visibleInv.map(item => {
+      const studioRow = window.KhaytStudio?.renderInventoryRow?.(item, { forecastMap, todayMs });
+      if (studioRow) return studioRow;
       const low = item.weight <= (item.reorderPoint ?? settings.lowStockThreshold);
       const queued = Math.round(getQueuedWeight(item.id));
       const warn   = queued > 0 && queued > item.weight;
@@ -5031,7 +5136,9 @@ function renderInventory() {
             ${item.printTemp || item.bedTemp ? `<span style="font-size:10px; color:var(--primary);">🌡 ${item.printTemp ? item.printTemp + '°C print' : ''}${item.printTemp && item.bedTemp ? ' / ' : ''}${item.bedTemp ? item.bedTemp + '°C bed' : ''}</span>` : ''}
           </td>
           <td style="font-variant-numeric: tabular-nums;">${fmtPrice(item.cost)}</td>
-          <td style="font-variant-numeric: tabular-nums;">${Math.round(item.weight)} ${weightUnit}</td>
+          <td style="font-variant-numeric: tabular-nums;">
+            ${window.KhaytStudio?.isStudio?.() ? window.KhaytStudio.invStockMeterHtml(item) : `${Math.round(item.weight)} ${weightUnit}`}
+          </td>
           <td style="font-variant-numeric: tabular-nums; color:${queued > 0 ? (warn ? 'var(--danger)' : 'var(--text-dim)') : 'var(--text-muted)'};">
             ${queued > 0 ? Math.round(queued) + ' ' + weightUnit : '—'}${warn ? ' <span style="color:var(--danger); font-size:11px;">⚠</span>' : ''}
           </td>
@@ -6362,10 +6469,24 @@ function renderClients() {
     );
   }
   if (clients.length === 0) {
+    const grid0 = $('#clientsCardsGrid');
+    const wrap0 = $('#clientsTableWrap');
+    if (grid0 && document.body.classList.contains('khayt-studio')) {
+      grid0.innerHTML = `<p class="dash-empty" style="padding:18px">${escapeHtml(t('cl.empty'))}</p>`;
+      grid0.style.display = 'grid';
+      grid0.removeAttribute('aria-hidden');
+      if (wrap0) wrap0.classList.add('khayt-clients-legacy-hidden');
+    }
     tbody.innerHTML = `<tr><td colspan="7" class="empty-state">${escapeHtml(t('cl.empty'))}</td></tr>`;
     return;
   }
   if (filtered.length === 0) {
+    const gridE = $('#clientsCardsGrid');
+    if (gridE && document.body.classList.contains('khayt-studio')) {
+      gridE.innerHTML = `<p class="dash-empty" style="padding:18px">${escapeHtml(t('cl.empty_search'))}</p>`;
+      gridE.style.display = 'grid';
+      if ($('#clientsTableWrap')) $('#clientsTableWrap').classList.add('khayt-clients-legacy-hidden');
+    }
     tbody.innerHTML = `<tr><td colspan="7" class="empty-state">${escapeHtml(t('cl.empty_search'))}</td></tr>`;
     return;
   }
@@ -6419,6 +6540,9 @@ function renderClients() {
       }
     }
   }
+
+  const clientMaps = { clientStatsMap, clientBalanceMap, clientTierMap, clientSurveyMap };
+  if (window.KhaytStudio?.renderClientsStudioCards?.(filtered, clientMaps)) return;
 
   tbody.innerHTML = filtered.map(c => {
     const stats = clientStatsMap.get(c.id) || { count: 0, completedCount: 0, revenue: 0, lastDate: null };
@@ -8965,7 +9089,7 @@ async function generateOrderLabel(orderId) {
   const win = window.open('', '_blank', 'width=400,height=320,toolbar=0,menubar=0,scrollbars=0');
   if (win) {
     win.document.open();
-    win.document.write(html);
+    win.document.write(sanitizePrintHtml(html));
     win.document.close();
   } else {
     // Fallback: save to disk and open
@@ -9101,7 +9225,7 @@ async function generatePackingSlip(orderId) {
   const win = window.open('', '_blank', 'width=900,height=700,toolbar=0,menubar=0,scrollbars=1');
   if (win) {
     win.document.open();
-    win.document.write(html);
+    win.document.write(sanitizePrintHtml(html));
     win.document.close();
     win.focus();
     setTimeout(() => win.print(), 250);
@@ -9267,7 +9391,7 @@ async function exportAnalyticsReport() {
   const win = window.open('', '_blank', 'width=1000,height=760,toolbar=0,menubar=0,scrollbars=1');
   if (win) {
     win.document.open();
-    win.document.write(html);
+    win.document.write(sanitizePrintHtml(html));
     win.document.close();
     win.focus();
     setTimeout(() => win.print(), 600);
@@ -9335,7 +9459,8 @@ function renderWaitingList() {
     return;
   }
   const priorityOrder = { urgent: 0, high: 1, normal: 2, low: 3 };
-  const sorted = [...waitingList].sort((a, b) =>
+  const visible = waitingList.filter(w => w.status !== 'declined');
+  const sorted = [...visible].sort((a, b) =>
     (priorityOrder[a.priority] ?? 2) - (priorityOrder[b.priority] ?? 2)
   );
   const priorityColors = { urgent: 'var(--danger)', high: '#f59e0b', normal: 'var(--text-muted)', low: 'var(--text-muted)' };
@@ -9351,10 +9476,10 @@ function renderWaitingList() {
       <div class="waiting-item-left">
         <span style="font-size:14px;">${dot}</span>
         <div>
-          <div class="waiting-item-project">${escapeHtml(item.project || t('waiting.untitled'))}${item.status === 'reminded' ? ' <span style="font-size:10px;background:var(--primary);color:#fff;padding:1px 5px;border-radius:3px;">reminded</span>' : ''}${item.status === 'declined' ? ' <span style="font-size:10px;background:var(--danger);color:#fff;padding:1px 5px;border-radius:3px;">declined</span>' : ''}</div>
+          <div class="waiting-item-project">${escapeHtml(item.project || t('waiting.untitled'))}${item.status === 'reminded' ? ` <span style="font-size:10px;background:var(--primary);color:#fff;padding:1px 5px;border-radius:3px;">${escapeHtml(t('waiting.status_reminded') || 'reminded')}</span>` : ''}</div>
           ${clientName ? `<div class="waiting-item-client">👤 ${escapeHtml(clientName)}</div>` : ''}
           ${item.notes ? `<div class="waiting-item-notes">${escapeHtml(item.notes)}</div>` : ''}
-          ${item.estimatedValue ? `<div style="font-size:11px;color:var(--text-muted);">Est. ${fmtPrice(+item.estimatedValue)}</div>` : ''}
+          ${(item.estValue || item.estimatedValue) ? `<div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('waiting.est_prefix') || 'Est.')} ${fmtPrice(+(item.estValue || item.estimatedValue))}</div>` : ''}
           ${isDueReminder ? `<div style="font-size:11px;color:var(--primary);">⏰ Reminder due: ${escapeHtml(item.reminderDate)}</div>` : ''}
         </div>
       </div>
@@ -9440,20 +9565,17 @@ function promoteWaitingItem(itemId) {
   // Switch to calculator tab and pre-fill
   switchTab('calculator-tab');
   setTimeout(() => {
-    const projInput = document.querySelector('[data-f="project"]') || document.querySelector('#partName');
-    if (projInput && item.project) projInput.value = item.project;
-    if (item.clientId) {
-      const clientSel = document.querySelector('#clientSelect') || document.querySelector('[data-f="clientId"]');
-      if (clientSel) clientSel.value = item.clientId;
-    }
+    if ($('#clientInput')) $('#clientInput').value = item.clientName || item.project || '';
+    currentClientId = item.clientId || null;
   }, 80);
 }
 
 function updateWaitingBadge() {
   const badge = $('#waitingBadge');
   if (!badge) return;
-  badge.textContent = waitingList.length;
-  badge.style.display = waitingList.length > 0 ? 'inline-flex' : 'none';
+  const activeCount = waitingList.filter(w => w.status === 'active' || w.status === 'reminded').length;
+  badge.textContent = activeCount;
+  badge.style.display = activeCount > 0 ? 'inline-flex' : 'none';
   // Pulse badge if any item has a reminder date today or overdue
   const today = new Date().toISOString().split('T')[0];
   const hasDueReminder = waitingList.some(w => w.reminderDate && w.reminderDate <= today && w.status !== 'declined');
@@ -9473,7 +9595,7 @@ function renderWaitingFunnel() {
   const convRate = totalAdded > 0 ? ((converted / totalAdded) * 100).toFixed(1) : '0.0';
   const pipeline = waitingList
     .filter(w => w.status === 'active' || w.status === 'reminded')
-    .reduce((s, w) => s + (+w.estimatedValue || 0), 0);
+    .reduce((s, w) => s + (+(w.estValue || w.estimatedValue) || 0), 0);
 
   // Bar segments
   const convPct  = totalAdded > 0 ? (converted / totalAdded * 100) : 0;
@@ -9485,23 +9607,23 @@ function renderWaitingFunnel() {
     <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:14px;">
       <div style="flex:1;min-width:100px;text-align:center;">
         <div style="font-size:22px;font-weight:700;">${totalAdded}</div>
-        <div style="font-size:11px;color:var(--text-muted);">Total Added</div>
+        <div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('waiting.funnel_total') || 'Total Added')}</div>
       </div>
       <div style="flex:1;min-width:100px;text-align:center;">
         <div style="font-size:22px;font-weight:700;color:var(--primary);">${active}</div>
-        <div style="font-size:11px;color:var(--text-muted);">Active</div>
+        <div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('waiting.funnel_active') || 'Active')}</div>
       </div>
       <div style="flex:1;min-width:100px;text-align:center;">
         <div style="font-size:22px;font-weight:700;color:#22c55e;">${converted}</div>
-        <div style="font-size:11px;color:var(--text-muted);">Converted (${convRate}%)</div>
+        <div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('waiting.funnel_converted') || 'Converted')} (${convRate}%)</div>
       </div>
       <div style="flex:1;min-width:100px;text-align:center;">
         <div style="font-size:22px;font-weight:700;color:var(--danger);">${declined}</div>
-        <div style="font-size:11px;color:var(--text-muted);">Declined</div>
+        <div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('waiting.funnel_declined') || 'Declined')}</div>
       </div>
       <div style="flex:1;min-width:120px;text-align:center;">
         <div style="font-size:16px;font-weight:700;color:#f59e0b;">${fmtPrice(pipeline)}</div>
-        <div style="font-size:11px;color:var(--text-muted);">Pipeline Value</div>
+        <div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('waiting.funnel_pipeline') || 'Pipeline Value')}</div>
       </div>
     </div>
     ${totalAdded > 0 ? `
@@ -10419,18 +10541,15 @@ async function maybeAutoBackup() {
   try {
     const last  = await window.hubAPI.lastBackupDate();
     const today = new Date().toISOString().split('T')[0];
-    const json  = JSON.stringify({
-      version: 5, exportedAt: new Date().toISOString(),
-      printLog, inventory, templates, products, clients, settings, expenses, machines,
-      waTemplates, wasteLog, operators, purchaseOrders, consumables, suppliers, locations, waitingList
-    });
+    const localJson  = JSON.stringify(buildExportPayload({ redactSecrets: false }));
+    const icloudJson = JSON.stringify(buildExportPayload({ redactSecrets: true }));
     if (last !== today) {
-      const p = await window.hubAPI.writeBackup(json);
+      const p = await window.hubAPI.writeBackup(localJson);
       if (p) console.debug('Auto-backup written:', p);
       updateLastBackupDisplay();
     }
     if (settings.useIcloud && window.hubAPI?.writeIcloudBackup) {
-      await window.hubAPI.writeIcloudBackup(json).catch(e => console.warn('iCloud backup failed', e));
+      await window.hubAPI.writeIcloudBackup(icloudJson).catch(e => console.warn('iCloud backup failed', e));
     }
   } catch (e) { console.warn('Auto-backup failed', e); }
 }
@@ -11636,7 +11755,7 @@ function renderEmailNotificationSettings() {
   el.querySelector('#btnSaveEmailCfg')?.addEventListener('click', () => {
     settings.emailConfig = {
       provider:   el.querySelector('#emailProviderSel').value,
-      apiKey:     el.querySelector('#emailApiKey')?.value.trim() || '',
+      apiKey:     secretInputSave((settings.emailConfig || {}).apiKey, el.querySelector('#emailApiKey')?.value),
       domain:     el.querySelector('#emailDomain')?.value.trim() || '',
       fromEmail:  el.querySelector('#emailFrom')?.value.trim() || '',
       fromName:   el.querySelector('#emailFromName')?.value.trim() || '',
@@ -11653,7 +11772,7 @@ function renderEmailNotificationSettings() {
     if (!to) { if (resEl) { resEl.textContent = 'No shop email set in Settings.'; } return; }
     const cfg2 = {
       provider:  el.querySelector('#emailProviderSel').value,
-      apiKey:    el.querySelector('#emailApiKey')?.value.trim() || '',
+      apiKey:    secretInputSave((settings.emailConfig || {}).apiKey, el.querySelector('#emailApiKey')?.value),
       domain:    el.querySelector('#emailDomain')?.value.trim() || '',
       fromEmail: el.querySelector('#emailFrom')?.value.trim() || '',
       fromName:  el.querySelector('#emailFromName')?.value.trim() || '',
@@ -12884,6 +13003,7 @@ function patchRecurringOrdersWithLeadDays() {
 function renderLanApiSettings() {
   const el = $('#lanApiSection');
   if (!el) return;
+  migrateLanApiSettings();
   const lan = settings.lanApi || {};
 
   el.innerHTML = `
@@ -12897,18 +13017,42 @@ function renderLanApiSettings() {
         <input type="number" id="lan_port" value="${lan.port || 3219}" min="1024" max="65535">
       </div>
       <div>
-        <label data-i18n="lan.pin">Access PIN (leave blank for open)</label>
-        <input type="text" id="lan_pin" value="${escapeHtml(lan.pin||'')}" maxlength="12" placeholder="e.g. 1234">
+        <label data-i18n="lan.pin">Owner LAN PIN (queue API, kiosk, tunnel)</label>
+        <input type="password" id="lan_pin" value="${escapeHtml(secretInputValue(lan.pin))}" maxlength="12" placeholder="${escapeHtml(secretFieldPlaceholder(lan.pin) || 'e.g. 1234')}" autocomplete="off">
       </div>
+    </div>
+    <div class="inline-pair" style="margin-top:10px;">
+      <div>
+        <label data-i18n="lan.intake_pin">Intake form PIN (customers)</label>
+        <input type="password" id="lan_intake_pin" value="${escapeHtml(secretInputValue(lan.intakePin))}" maxlength="12" placeholder="${escapeHtml(secretFieldPlaceholder(lan.intakePin) || 'Auto-generated on start')}" autocomplete="off">
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;" data-i18n="lan.intake_pin_hint">Separate from owner PIN — shown to customers at /intake</div>
+      </div>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:10px;">
+      <input type="checkbox" id="lan_bind_lan" style="width:auto;margin:0;" ${lan.bindLan ? 'checked' : ''}>
+      <span>Listen on all network interfaces (LAN). Default is localhost only.</span>
+    </label>
+    <div style="font-size:11px;color:var(--text-muted);margin:4px 0 10px;padding:8px 10px;background:var(--bg-elev);border-radius:var(--radius);word-break:break-all;">
+      Customer intake form: <code style="font-size:11px;">/intake</code> — requires the intake PIN above (auto-generated when the server starts if blank).
     </div>
     <div class="inline-pair" style="margin-top:10px;">
       <div style="flex:1;">
         <label data-i18n="lan.webhook_token">Printer Webhook Token</label>
         <div style="display:flex;gap:6px;">
-          <input type="text" id="lan_wh_token" value="${escapeHtml(lan.webhookToken||'')}" placeholder="e.g. secret123" style="flex:1;">
+          <input type="password" id="lan_wh_token" value="${escapeHtml(secretInputValue(lan.webhookToken))}" placeholder="${escapeHtml(secretFieldPlaceholder(lan.webhookToken) || 'e.g. secret123')}" style="flex:1;" autocomplete="off">
           <button class="btn ghost small" id="btnGenWebhookToken" title="Generate random token">🎲</button>
         </div>
         <div style="font-size:11px;color:var(--text-muted);margin-top:4px;" data-i18n="lan.webhook_token_hint">Used to authenticate printer webhook calls</div>
+      </div>
+    </div>
+    <div class="inline-pair" style="margin-top:10px;">
+      <div style="flex:1;">
+        <label data-i18n="lan.salla_secret">Salla webhook secret</label>
+        <input type="password" id="lan_salla_secret" value="${escapeHtml(secretInputValue(lan.sallaWebhookSecret))}" placeholder="${escapeHtml(secretFieldPlaceholder(lan.sallaWebhookSecret) || 'From Salla dashboard')}" autocomplete="off">
+      </div>
+      <div style="flex:1;">
+        <label data-i18n="lan.zid_secret">Zid webhook secret</label>
+        <input type="password" id="lan_zid_secret" value="${escapeHtml(secretInputValue(lan.zidWebhookSecret))}" placeholder="${escapeHtml(secretFieldPlaceholder(lan.zidWebhookSecret) || 'From Zid dashboard')}" autocomplete="off">
       </div>
     </div>
     <div id="lanStatusRow" style="margin:12px 0;padding:10px 12px;background:var(--bg-elev);border-radius:var(--radius);font-size:13px;">${lan.enabled ? '🟢 Server active' : '⚫ Server stopped'}</div>
@@ -12936,17 +13080,24 @@ function renderLanApiSettings() {
         <button class="btn ghost small" id="btnStopTunnel" data-i18n="lan.tunnel_stop">Stop Tunnel</button>
       </div>
       <div style="font-size:11px;color:var(--text-muted);margin-top:8px;" data-i18n="lan.tunnel_hint">Exposes your LAN server to the internet via a temporary URL. Requires LAN server to be running.</div>
+      <div style="font-size:11px;color:var(--danger);margin-top:8px;padding:8px 10px;background:rgba(239,68,68,0.08);border-radius:var(--radius);" data-i18n="lan.tunnel_security_warning">Warning: the tunnel exposes your full LAN API surface to the internet. Set a strong owner PIN and disable when not needed.</div>
     </div>`;
 
   if (lan.enabled) loadLanQr();
 
   el.querySelector('#btnSaveLan')?.addEventListener('click', () => {
+    const prev = settings.lanApi || {};
     settings.lanApi = {
+      ...prev,
       enabled: el.querySelector('#lan_enabled').checked,
       port: parseInt(el.querySelector('#lan_port').value) || 3219,
-      pin:  el.querySelector('#lan_pin').value.trim(),
-      webhookToken: el.querySelector('#lan_wh_token').value.trim(),
+      pin:  secretInputSave(prev.pin, el.querySelector('#lan_pin').value),
+      intakePin: secretInputSave(prev.intakePin, el.querySelector('#lan_intake_pin')?.value),
+      webhookToken: secretInputSave(prev.webhookToken, el.querySelector('#lan_wh_token').value),
+      sallaWebhookSecret: secretInputSave(prev.sallaWebhookSecret, el.querySelector('#lan_salla_secret')?.value),
+      zidWebhookSecret: secretInputSave(prev.zidWebhookSecret, el.querySelector('#lan_zid_secret')?.value),
       tunnelEnabled: el.querySelector('#lan_tunnel_enabled').checked,
+      bindLan: !!el.querySelector('#lan_bind_lan')?.checked,
     };
     saveAll();
     if (settings.lanApi.enabled) {
@@ -12974,6 +13125,14 @@ function renderLanApiSettings() {
   });
 
   el.querySelector('#btnStartTunnel')?.addEventListener('click', async () => {
+    if (!settings.lanApi?.enabled) {
+      toast(t('lan.tunnel_need_server') || 'Start the LAN server first', 'warning');
+      return;
+    }
+    if (!settings.lanApi?.pin || isSecretMasked(settings.lanApi.pin)) {
+      toast(t('lan.tunnel_need_pin') || 'Set an owner LAN PIN before starting the tunnel', 'warning');
+      return;
+    }
     const port = settings.lanApi?.port || 3219;
     const tRow = el.querySelector('#tunnelStatusRow');
     if (tRow) tRow.textContent = '⏳ Connecting…';
@@ -13342,7 +13501,10 @@ function renderBnplSettings() {
     for (const svc of apiSvcs) {
       saved[svc.id] = { enabled: el.querySelector(`#bnpl_${svc.id}_en`)?.checked || false };
       for (const f of svc.fields) {
-        saved[svc.id][f.key] = el.querySelector(`#bnpl_${svc.id}_${f.key}`)?.value?.trim() || '';
+        const curVal = (settings.bnpl || {})[svc.id]?.[f.key];
+        saved[svc.id][f.key] = (f.type === 'password')
+          ? secretInputSave(curVal, el.querySelector(`#bnpl_${svc.id}_${f.key}`)?.value)
+          : (el.querySelector(`#bnpl_${svc.id}_${f.key}`)?.value?.trim() || '');
       }
     }
     settings.bnpl = { ...(settings.bnpl || {}), ...saved };
@@ -13456,7 +13618,7 @@ async function openBnplModal(orderId) {
 
 async function startLanServer() {
   const lan = settings.lanApi || {};
-  const res = await window.hubAPI?.startLanServer?.({ port: lan.port || 3219, pin: lan.pin || '' });
+  const res = await window.hubAPI?.startLanServer?.({ port: lan.port || 3219, pin: lan.pin || '', bindLan: lan.bindLan ? 'lan' : 'loopback' });
   const statusRow = $('#lanStatusRow');
   const qrWrap    = $('#lanQrWrap');
   if (res?.ok) {
@@ -13465,6 +13627,8 @@ async function startLanServer() {
       statusRow.querySelectorAll('.lan-url-link').forEach(a => { a.addEventListener('click', e => { e.preventDefault(); window.hubAPI?.openExternal?.(a.dataset.url); }); });
     }
     settings.lanApi = { ...settings.lanApi, enabled: true };
+    if (res.intakeTokenGenerated) settings.lanApi.intakeToken = STORE_SECRET_MASK;
+    if (res.intakePinGenerated) settings.lanApi.intakePin = STORE_SECRET_MASK;
     saveAll();
     loadLanQr(res.url);
     updateWebhookUrlDisplay(res.url);
@@ -13479,11 +13643,18 @@ function updateWebhookUrlDisplay(baseUrl) {
   if (!section || !display) return;
   const token = settings.lanApi?.webhookToken || '';
   if (!baseUrl || !token) { section.style.display = 'none'; return; }
-  // Show example for first machine
   const firstMachine = machines[0];
   const machineId = firstMachine?.id || 'machine-id';
-  const url = `${baseUrl}/api/webhook/printer/${encodeURIComponent(machineId)}?token=${encodeURIComponent(token)}`;
+  const url = `${baseUrl}/api/webhook/printer/${encodeURIComponent(machineId)}`;
   display.textContent = url;
+  let hint = section.querySelector('.webhook-token-hint');
+  if (!hint) {
+    hint = document.createElement('p');
+    hint.className = 'webhook-token-hint';
+    hint.style.cssText = 'font-size:11px;color:var(--text-muted);margin:6px 0 0;';
+    display.insertAdjacentElement('afterend', hint);
+  }
+  hint.textContent = t('lan.webhook_header_hint') || 'Send webhook token via x-khayt-webhook-token header (not in URL)';
   section.style.display = 'block';
 }
 
@@ -13501,9 +13672,11 @@ async function loadLanQr(urlOverride) {
   const svg = await window.hubAPI?.generateQR?.(qrUrl, { width: 150 });
   if (svg) {
     const pin = settings.lanApi?.pin;
-    const pinNote = pin
+    const pinNote = pin && !isSecretMasked(pin)
       ? `<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">PIN: <code style="background:var(--bg);padding:1px 5px;border-radius:4px;">${escapeHtml(pin)}</code> (send via <code>x-khayt-pin</code> header)</div>`
-      : '';
+      : pin && isSecretMasked(pin)
+        ? `<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">${escapeHtml(t('lan.pin_configured') || 'PIN configured — use Settings to view or change')}</div>`
+        : '';
     qrWrap.style.display = 'block';
     qrWrap.innerHTML = `<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">Scan from phone to view queue: <span style="font-size:11px;opacity:0.7;">(click QR to copy URL)</span></div><div id="lanQrSvgWrap" style="cursor:pointer;display:inline-block;" title="Click to copy URL">${svg}</div>${pinNote}`;
     document.getElementById('lanQrSvgWrap')?.addEventListener('click', () => {
@@ -13992,7 +14165,7 @@ function buildStudioDashboardPanels(ctx) {
 
   if (staleOrders.length) {
     attention.push({
-      icon: '⚠', color: 'var(--warn)',
+      icon: '⚠', iconKind: 'warn', color: 'var(--warn)',
       title: t('dash.stale_title') || 'Orders stalled',
       sub: String(staleOrders.length) + ' ' + (t('dash.orders') || 'orders'),
       tab: 'queue-tab', label: t('tab.queue') || 'Queue',
@@ -14000,7 +14173,7 @@ function buildStudioDashboardPanels(ctx) {
   }
   if (overdue.length) {
     attention.push({
-      icon: '⏱', color: 'var(--danger)',
+      icon: '⏱', iconKind: 'danger', color: 'var(--danger)',
       title: t('dash.overdue_section') || 'Overdue',
       sub: overdue.slice(0, 3).map(o => o.project || o.id).join(' · '),
       tab: 'queue-tab', label: t('common.view') || 'View',
@@ -14008,7 +14181,7 @@ function buildStudioDashboardPanels(ctx) {
   }
   if (lowSpools.length) {
     attention.push({
-      icon: '⬡', color: 'var(--warn)',
+      icon: '⬡', iconKind: 'stock', color: 'var(--warn)',
       title: t('dash.low_stock_alert') || 'Low stock',
       sub: lowSpools.slice(0, 2).map(i => `${i.material} (${Math.round(i.weight)}g)`).join(' · '),
       tab: 'inventory-tab', label: t('tab.inventory') || 'Inventory',
@@ -14016,7 +14189,7 @@ function buildStudioDashboardPanels(ctx) {
   }
   if (expiringQuotes.length) {
     attention.push({
-      icon: '📋', color: 'var(--info)',
+      icon: '📋', iconKind: 'info', color: 'var(--info)',
       title: t('dash.expiring_quotes') || 'Expiring quotes',
       sub: String(expiringQuotes.length) + ' ' + (t('dash.quotes') || 'quotes'),
       tab: 'queue-tab', label: t('tab.queue') || 'Queue',
@@ -14024,7 +14197,7 @@ function buildStudioDashboardPanels(ctx) {
   }
   if (dueSoon.length) {
     attention.push({
-      icon: '📅', color: 'var(--info)',
+      icon: '📅', iconKind: 'calendar', color: 'var(--info)',
       title: t('dash.due_soon_section') || 'Due soon',
       sub: String(dueSoon.length) + ' ' + (t('dash.orders') || 'orders'),
       tab: 'queue-tab', label: t('common.view') || 'View',
@@ -14032,7 +14205,7 @@ function buildStudioDashboardPanels(ctx) {
   }
   if (nowPrinting.length && !attention.some(a => a.icon === '▤')) {
     attention.push({
-      icon: '▤', color: 'var(--ok)',
+      icon: '▤', iconKind: 'queue', color: 'var(--ok)',
       title: t('dash.now_printing') || 'Printing now',
       sub: String(nowPrinting.length) + ' ' + (t('dash.active_jobs') || 'active jobs'),
       tab: 'queue-tab', label: t('tab.queue') || 'Queue',
@@ -14043,7 +14216,7 @@ function buildStudioDashboardPanels(ctx) {
     ? `<p class="dash-empty" style="padding:18px;">${escapeHtml(t('dash.all_clear') || 'All clear — nothing needs attention right now.')}</p>`
     : attention.slice(0, 6).map(a => `
       <div class="khayt-attn">
-        <div class="khayt-attn-ic" style="color:${a.color};background:color-mix(in srgb, ${a.color} 14%, transparent)">${a.icon}</div>
+        <div class="khayt-attn-ic" style="color:${a.color};background:color-mix(in srgb, ${a.color} 14%, transparent)">${window.KhaytStudio?.attentionIconSvg?.(a.iconKind) || a.icon}</div>
         <div class="col grow" style="gap:2px;min-width:0">
           <span style="font-size:13px;font-weight:600">${escapeHtml(a.title)}</span>
           <span style="font-size:11.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(a.sub)}</span>
@@ -14990,13 +15163,18 @@ function studioKanbanDecorateColumns() {
 }
 
 function renderKanban() {
+  window.KhaytStudio?.syncQueueMachinePicker?.();
   renderWaitingList();
   updateWaitingBadge();
   // --- Quotes awaiting approval ---
   const quotes = printLog.filter(o => o.status === 'quote');
   const quotesSec = $('#quotesSection');
   if (quotesSec) {
-    quotesSec.style.display = quotes.length > 0 ? '' : 'none';
+    if (window.KhaytStudio?.isStudio?.()) {
+      quotesSec.style.display = '';
+    } else {
+      quotesSec.style.display = quotes.length > 0 ? '' : 'none';
+    }
     const qCount = $('#count-quote');
     if (qCount) qCount.textContent = quotes.length;
     const ql = $('#list-quote');
@@ -15027,6 +15205,8 @@ function renderKanban() {
     }
   }
 
+  window.KhaytStudio?.syncQueueFolds?.();
+
   // --- Production columns (exclude quotes) ---
   const kanTerm = (kanSearchTerm || '').toLowerCase().trim();
   const cols = { pending: [], on_hold: [], printing: [], post: [], qc: [], completed: [], delivered: [] };
@@ -15037,6 +15217,7 @@ function renderKanban() {
       const hay = [o.project, o.id, o.client, client?.nameEn, client?.nameAr, client?.phone].join(' ').toLowerCase();
       if (!hay.includes(kanTerm)) return false;
     }
+    if (window.KhaytStudio?.orderMatchesStudioQueueFilter?.(o) === false) return false;
     return true;
   }).forEach(o => {
     // Delivered column: completed orders that have a deliveredAt timestamp
@@ -16263,9 +16444,8 @@ function openReorderModal(itemId) {
    Simple Reports — shown instead of full Analytics in Simple mode
    ============================================================ */
 function renderSimpleReports() {
-  // Show simple-reports card, hide the full analytics content
-  const analyticsTab = $('#analytics-tab');
-  if (!analyticsTab) return;
+  const wrap = $('#analyticsSimpleWrap');
+  if (!wrap) return;
 
   const thisMonthStr = localMonthStr();
   const monthOrders = printLog.filter(o => o.status === 'completed' && (o.date || '').startsWith(thisMonthStr));
@@ -16276,7 +16456,6 @@ function renderSimpleReports() {
     .filter(o => payStatus(o) !== 'paid')
     .reduce((s, o) => s + orderOwedBase(o), 0);
 
-  // Top 3 tags by revenue
   const tagRev = {};
   for (const o of monthOrders) {
     for (const tag of (o.tags || [])) {
@@ -16285,17 +16464,8 @@ function renderSimpleReports() {
   }
   const topTags = Object.entries(tagRev).sort((a, b) => b[1] - a[1]).slice(0, 3);
 
-  let simpleEl = $('#simpleReportsCard');
-  if (!simpleEl) {
-    simpleEl = document.createElement('div');
-    simpleEl.id = 'simpleReportsCard';
-    simpleEl.className = 'card';
-    simpleEl.style.marginTop = '0';
-    analyticsTab.innerHTML = '';
-    analyticsTab.appendChild(simpleEl);
-  }
-
-  simpleEl.innerHTML = `
+  wrap.innerHTML = `
+    <div class="card" id="simpleReportsCard" style="margin-top:0;">
     <h3 class="card-head"><span class="swatch"></span><span>${escapeHtml(t('an.simple_reports'))}</span></h3>
     <div class="grid-4" style="margin-bottom:16px;">
       <div class="stat revenue">
@@ -16312,7 +16482,7 @@ function renderSimpleReports() {
       </div>
     </div>
     ${topTags.length > 0 ? `
-    <h4 style="font-size:13px;font-weight:600;margin:0 0 10px;">Top products this month</h4>
+    <h4 style="font-size:13px;font-weight:600;margin:0 0 10px;">${escapeHtml(t('an.simple_top_products') || 'Top products this month')}</h4>
     <ul class="leaderboard" style="margin-bottom:16px;">
       ${topTags.map(([ tag, rev ], i) => `
         <li>
@@ -16321,9 +16491,10 @@ function renderSimpleReports() {
           <span class="value">${fmtPrice(rev)}</span>
         </li>`).join('')}
     </ul>` : ''}
-    <button class="btn small" id="btnSimpleReportsCsv">${escapeHtml('Download CSV')}</button>`;
+    <button class="btn small" id="btnSimpleReportsCsv">${escapeHtml(t('an.simple_csv') || 'Download CSV')}</button>
+    </div>`;
 
-  simpleEl.querySelector('#btnSimpleReportsCsv')?.addEventListener('click', () => {
+  wrap.querySelector('#btnSimpleReportsCsv')?.addEventListener('click', () => {
     exportOrdersCsv();
   });
 }
@@ -19675,7 +19846,7 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
     : [{ name: t('inv.services_default'), material: order.material, printTime: order.printTime, baseCost: order.price }];
   const totalBase = lines.reduce((s, p) => s + (+p.baseCost || 0), 0);
   // Pool for parts = total price minus shipping minus extra lines (fixed fees)
-  const partsPool = +order.price - (+order.shippingCost || 0) - orderExtraTotal;
+  const partsPool = +order.price - (+order.shippingCost || 0) - orderExtraTotal - (+order.rushFeeAmount || 0);
   const linesHtml = lines.map(p => {
     const share = totalBase > 0 ? (p.baseCost / totalBase) * partsPool : partsPool / lines.length;
     const meta = [
@@ -19871,7 +20042,12 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
           ${order.discountPct > 0 ? `
           <div class="row" style="color:#22c55e;">
             <span class="label-en">${escapeHtml(isAr ? `خصم (${order.discountPct}%)` : `Discount (${order.discountPct}%)`)}</span>
-            <span class="v">−${fmtMoney(Math.max(0, (order.priceBeforeDiscount || 0) - ((+order.price || 0) - (+order.shippingCost || 0) - (+order.rushFeeAmount || 0))))} ${invCurrSym}</span>
+            <span class="v">−${fmtMoney(Math.max(0, (+order.priceBeforeDiscount || 0) * (+order.discountPct || 0) / 100))} ${invCurrSym}</span>
+          </div>` : ''}
+          ${(+order.rushFeeAmount || 0) > 0 ? `
+          <div class="row">
+            <span class="label-en">${escapeHtml(isAr ? 'رسوم مستعجلة' : 'Rush fee')}</span>
+            <span class="v">${fmtMoney(+order.rushFeeAmount)} ${invCurrSym}</span>
           </div>` : ''}
           ${(+order.shippingCost || 0) > 0 ? `
           <div class="row">
@@ -20242,7 +20418,6 @@ function saveSettingsFromForm() {
     // Round 12 — preserve managed-in-place settings
     webhooks:     settings.webhooks     || { enabled: false, secret: '', events: {} },
     fixedCosts:   settings.fixedCosts   || [],
-    lanApi:       settings.lanApi       || { enabled: false, port: 3219, pin: '' },
     savedFilters: settings.savedFilters || [],
     // Payment instructions (textarea, not auto-included by DOM reconstruction)
     paymentInstructions: $('#set_paymentInstructions')?.value ?? settings.paymentInstructions ?? '',
@@ -20279,8 +20454,7 @@ function saveSettingsFromForm() {
     kanbanCollapsed:    settings.kanbanCollapsed     || [],
     printerApi:         settings.printerApi          || {},
     locations:          settings.locations           || [],
-    sallaWebhookSecret: settings.sallaWebhookSecret  || '',
-    zidWebhookSecret:   settings.zidWebhookSecret    || '',
+    lanApi: (() => { migrateLanApiSettings(); return settings.lanApi || { enabled: false, port: 3219, pin: '' }; })(),
   };
   saveAll();
   i18n.set(settings.lang);
@@ -20326,7 +20500,13 @@ async function openRestoreBackupModal() {
       try {
         const json = await window.hubAPI.restoreBackup(chosen.value);
         if (!json) { toast(t('set.restore_error'), 'error'); return false; }
-        importData(new File([json], 'restore.json', { type: 'application/json' }));
+        const data = JSON.parse(json);
+        applyStoreFromSnapshot(data);
+        saveAll();
+        initialRender();
+        loadSettingsIntoForm();
+        applyTheme(settings.theme);
+        i18n.set(settings.lang);
         toast(t('set.restore_success'), 'success');
         return true;
       } catch (e) {
@@ -20432,13 +20612,9 @@ function deleteCustomField(idx) {
 }
 
 function exportData() {
+  if (!confirm(t('set.export_secrets_warning') || 'Export will redact API keys and secrets. Continue?')) return;
   downloadBlob(
-    new Blob([JSON.stringify({
-      version: 5,
-      exportedAt: new Date().toISOString(),
-      printLog, inventory, templates, products, clients, settings, expenses, machines,
-      waTemplates, wasteLog, operators, purchaseOrders, consumables, suppliers, locations, waitingList
-    }, null, 2)], { type: 'application/json' }),
+    new Blob([JSON.stringify(buildExportPayload({ redactSecrets: true }), null, 2)], { type: 'application/json' }),
     `khayt-${new Date().toISOString().split('T')[0]}.json`
   );
   toast(t('set.exported'), 'success');
@@ -20476,24 +20652,7 @@ function importData(file) {
   reader.onload = (ev) => {
     try {
       const data = JSON.parse(ev.target.result);
-      if (Array.isArray(data.printLog))      printLog      = data.printLog.filter(isValidOrder);
-      if (Array.isArray(data.inventory))     inventory     = data.inventory.filter(isValidInventoryItem);
-      if (Array.isArray(data.templates))     templates     = data.templates.filter(isValidRecord);
-      if (Array.isArray(data.products))      products      = data.products.filter(isValidRecord);
-      if (Array.isArray(data.clients))       clients       = data.clients.filter(isValidClient);
-      if (Array.isArray(data.expenses))      expenses      = data.expenses.filter(isValidRecord);
-      if (Array.isArray(data.machines))      machines      = data.machines.filter(isValidRecord);
-      if (Array.isArray(data.waTemplates))   waTemplates   = data.waTemplates.filter(isValidRecord);
-      if (Array.isArray(data.wasteLog))      wasteLog      = data.wasteLog.filter(isValidRecord);
-      if (Array.isArray(data.operators))     operators     = data.operators.filter(isValidRecord);
-      if (Array.isArray(data.purchaseOrders)) purchaseOrders = data.purchaseOrders.filter(isValidRecord);
-      if (Array.isArray(data.consumables))   consumables   = data.consumables.filter(isValidRecord);
-      if (Array.isArray(data.suppliers))     suppliers     = data.suppliers.filter(isValidRecord);
-      if (Array.isArray(data.locations))     locations     = data.locations.filter(isValidRecord);
-      if (Array.isArray(data.waitingList))   waitingList   = data.waitingList.filter(isValidRecord);
-      if (data.settings && typeof data.settings === 'object') {
-        settings = Object.assign(defaultSettings(), sanitiseForAssign(data.settings));
-      }
+      applyStoreFromSnapshot(data);
       saveAll();
       initialRender();
       loadSettingsIntoForm();
@@ -20511,9 +20670,11 @@ function importData(file) {
 async function resetAllData() {
   const ok = await confirmModal(t('set.reset_q'), { danger: true });
   if (!ok) return;
-  printLog = []; templates = []; products = []; clients = []; expenses = []; machines = [];
-  waTemplates = defaultWaTemplates(); wasteLog = [];
-  operators = []; purchaseOrders = []; consumables = []; suppliers = []; locations = []; waitingList = [];
+  printLog = []; templates = []; products = []; clients = []; printers = [];
+  expenses = []; machines = []; waTemplates = defaultWaTemplates(); wasteLog = [];
+  machMaintLog = []; consumables = []; suppliers = []; purchaseOrders = []; testPrints = [];
+  locations = []; operators = []; waitingList = []; waitingListHistory = [];
+  timeEntries = []; shiftLogs = []; giftCards = []; slicerProfiles = []; envLogs = [];
   inventory = [
     { id: 'seed-1', material: 'PLA+ 2.0',   cost: 75, weight: 1000 },
     { id: 'seed-2', material: 'Sunlu PETG', cost: 85, weight: 1000 },
@@ -20863,6 +21024,7 @@ function wireEvents() {
     applyTheme(next);
     settings.theme = next;
     saveAll();
+    window.KhaytIcon?.hydrateTopbar?.();
   });
 
   // Calculator
@@ -21605,12 +21767,15 @@ function wireEvents() {
   // Waiting list
   $('#btnAddWaiting')?.addEventListener('click', () => openWaitingItemEditor(null));
   $('#waitingListToggle')?.addEventListener('click', () => {
+    if (window.KhaytStudio?.isStudio?.()) return;
     const section = $('#waitingListSection');
     const chevron = $('#waitingChevron');
+    const toggle = $('#waitingListToggle');
     if (!section) return;
     const hidden = section.style.display === 'none';
     section.style.display = hidden ? 'block' : 'none';
     if (chevron) chevron.textContent = hidden ? '▲' : '▼';
+    if (toggle) toggle.setAttribute('aria-expanded', hidden ? 'true' : 'false');
   });
   $('#waitingListSection')?.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-act]');
@@ -21620,7 +21785,11 @@ function wireEvents() {
     if (btn.dataset.act === 'waiting-remind') { openReminderModal(id); return; }
     if (btn.dataset.act === 'waiting-decline') {
       const item = waitingList.find(w => w.id === id);
-      if (item) { item.status = 'declined'; saveAll(); renderWaitingList(); }
+      if (item) {
+        waitingListHistory.push({ ...item, status: 'declined', declinedAt: new Date().toISOString() });
+        waitingList = waitingList.filter(w => w.id !== id);
+        saveAll(); renderWaitingList(); updateWaitingBadge();
+      }
       return;
     }
     if (btn.dataset.act === 'waiting-del') {
@@ -21870,11 +22039,7 @@ function wireEvents() {
       applyMode();
       toast(t('set.mode_changed'), 'success');
       // Re-render analytics tab if it's currently active
-      const analyticsActive = $('#analytics-tab')?.classList.contains('active');
-      if (analyticsActive) {
-        if (settings.mode === 'simple') renderSimpleReports();
-        else renderAnalytics();
-      }
+      applyAnalyticsModeView();
     });
   });
   $('#logoUploadInput').addEventListener('change', (e) => {
@@ -22058,6 +22223,7 @@ function initWizard() {
   const wiz = $('#setup-wizard');
   if (!wiz) return;
   wiz.style.display = 'flex';
+  i18n.applyToDom(wiz);
 
   let selectedMode = 'simple';
 
@@ -22103,15 +22269,14 @@ function initWizard() {
     if (bizName) settings.bizEn = bizName;
     settings.currency = currency;
     settings.mode     = selectedMode;
+    settings.enableZatca = $('#wizEnableZatca')?.checked !== false;
     settings.firstRun = false;
     settings.firstRunDone = true;
     saveAll();
 
-    if (lang !== 'en') {
-      i18n.set(lang);
-      settings.lang = lang;
-      saveAll();
-    }
+    settings.lang = lang || 'en';
+    i18n.set(settings.lang);
+    saveAll();
 
     wiz.style.display = 'none';
     applyMode();
@@ -22119,78 +22284,6 @@ function initWizard() {
     initialRender();
     toast(t('wiz.welcome_done'), 'success', 4000);
   }
-}
-
-/* ============================================================
-   First-run onboarding
-   ============================================================ */
-function openOnboarding() {
-  const curOptions = Object.entries(CURRENCIES)
-    .map(([code, c]) => `<option value="${code}"${code === 'SAR' ? ' selected' : ''}>${escapeHtml(c.label)}</option>`)
-    .join('');
-
-  openFormModal({
-    title: '👋 ' + t('onboard.title'),
-    sizeLg: true,
-    saveLabel: t('onboard.lets_go'),
-    bodyHtml: `
-      <div style="text-align:center; margin-bottom:20px;">
-        <div style="font-size:3rem; margin-bottom:8px;">🧵</div>
-        <h2 style="margin:0; font-size:1.35rem; color:var(--accent);">Khayt · خيط</h2>
-        <p style="margin:8px 0 0; color:var(--muted); font-size:.93rem;">${escapeHtml(t('onboard.subtitle'))}</p>
-      </div>
-
-      <div style="display:grid; gap:14px;">
-        <div class="form-group">
-          <label>${escapeHtml(t('onboard.biz_name'))}</label>
-          <input id="ob_bizEn" type="text" placeholder="My 3D Print Studio" value="${escapeHtml(settings.bizEn || '')}">
-        </div>
-        <div class="form-group">
-          <label>${escapeHtml(t('onboard.currency'))}</label>
-          <select id="ob_currency">${curOptions}</select>
-          <small style="color:var(--muted);">${escapeHtml(t('onboard.currency_hint'))}</small>
-        </div>
-        <div class="form-group">
-          <label>${escapeHtml(t('onboard.lang'))}</label>
-          <select id="ob_lang">
-            <option value="en"${(settings.lang||'en')==='en'?' selected':''}>English</option>
-            <option value="ar"${(settings.lang||'en')==='ar'?' selected':''}>العربية</option>
-            <option value="de"${(settings.lang||'en')==='de'?' selected':''}>Deutsch</option>
-            <option value="es"${(settings.lang||'en')==='es'?' selected':''}>Español</option>
-            <option value="fr"${(settings.lang||'en')==='fr'?' selected':''}>Français</option>
-            <option value="zh"${(settings.lang||'en')==='zh'?' selected':''}>中文</option>
-          </select>
-        </div>
-        <div class="form-group" style="background:var(--surface-2,rgba(255,255,255,.04)); padding:12px; border-radius:8px;">
-          <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin:0;">
-            <input type="checkbox" id="ob_enableZatca" style="width:auto; margin:0;" ${settings.enableZatca !== false ? 'checked' : ''}>
-            <span>${escapeHtml(t('onboard.zatca'))}</span>
-          </label>
-          <small style="color:var(--muted); margin-top:4px; display:block;">${escapeHtml(t('onboard.zatca_hint'))}</small>
-        </div>
-        <p style="text-align:center; color:var(--muted); font-size:.82rem; margin:4px 0 0;">${escapeHtml(t('onboard.change_later'))}</p>
-      </div>
-    `,
-    onMount() {},
-    onSave() {
-      const bizEn = $('#ob_bizEn').value.trim() || 'Khayt';
-      const currency = $('#ob_currency').value || 'SAR';
-      const lang     = $('#ob_lang').value || 'en';
-      const enableZatca = !!$('#ob_enableZatca').checked;
-      settings.bizEn        = bizEn;
-      settings.bizAr        = settings.bizAr || 'خيط';
-      settings.currency     = currency;
-      settings.lang         = lang;
-      settings.enableZatca  = enableZatca;
-      settings.firstRunDone = true;
-      saveAll();
-      i18n.set(lang);
-      loadSettingsIntoForm();
-      initialRender();
-      toast('🎉 ' + t('onboard.welcome'), 'success');
-      // openFormModal auto-closes after onSave returns
-    }
-  });
 }
 
 /* ============================================================
@@ -22251,12 +22344,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  let currentVersion = '1.0.0-rc.1';
+  let currentVersion = '2.0.15';
   if (window.hubAPI?.appVersion) {
     try { currentVersion = await window.hubAPI.appVersion(); }
     catch (_) {}
   }
-  if ($('#appVersion')) $('#appVersion').textContent = currentVersion || '1.0.0-rc.1 (dev)';
+  if ($('#appVersion')) $('#appVersion').textContent = currentVersion || '2.0.15 (dev)';
 
   // ── Post-update "data survived" toast ────────────────────────────────────────
   // If the previous session stored a pending-update version and we're now running
@@ -22445,6 +22538,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (idx !== -1) {
         // Existing order: patch status
         printLog[idx].status = status;
+        if (payload.clientApprovedAt) printLog[idx].clientApprovedAt = payload.clientApprovedAt;
         if (!printLog[idx].statusHistory) printLog[idx].statusHistory = [];
         printLog[idx].statusHistory.push({ status, at: new Date().toISOString() });
         if (printLog[idx].statusHistory.length > 200) printLog[idx].statusHistory = printLog[idx].statusHistory.slice(-200);
@@ -22500,22 +22594,34 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // LAN intake form submission → add to waiting list and refresh
   window.hubAPI?.onLanIntakeSubmitted?.((entry) => {
-    // entry from main.js: { id, name, description, email, phone, dueDate, material, budget, referenceLink, submittedAt, source, status }
+    if (!entry?.id) return;
+    if (waitingList.some(w => w.id === entry.id)) {
+      renderWaitingList();
+      updateWaitingBadge();
+      toast(t('intakeFormSubmitted'), 'success');
+      return;
+    }
     const draft = {
-      id: entry.id || `wl-${Date.now()}`,
+      id: entry.id,
       project: entry.project || (entry.description ? entry.description.slice(0, 80) : null) || t('waiting.untitled'),
       clientName: entry.clientName || entry.name || '',
       notes: entry.notes || entry.description || '',
-      priority: 'normal',
-      status: 'active',
-      source: 'intake_form',
-      estValue: 0,
+      email: entry.email,
+      phone: entry.phone,
+      material: entry.material,
+      budget: entry.budget,
+      referenceLink: entry.referenceLink,
+      priority: entry.priority || 'normal',
+      status: entry.status || 'active',
+      source: entry.source || 'intake_form',
+      estValue: entry.estValue || 0,
       reminderDate: entry.reminderDate || entry.deadline || entry.dueDate || null,
-      createdAt: entry.submittedAt || new Date().toISOString(),
+      createdAt: entry.submittedAt || entry.createdAt || new Date().toISOString(),
     };
+    Object.keys(draft).forEach(k => draft[k] === undefined && delete draft[k]);
     waitingList.unshift(draft);
-    saveAll();
     renderWaitingList();
+    updateWaitingBadge();
     toast(t('intakeFormSubmitted'), 'success');
   });
 
@@ -22530,10 +22636,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Business Mode setup wizard (new first-run experience)
   initWizard();
 
-  // Legacy first-run onboarding — only if wizard was already completed but old onboarding never ran
-  // (firstRun=false means wizard was dismissed; firstRunDone=false means old onboarding still needed)
-  if (!settings.firstRun && !settings.firstRunDone) {
-    setTimeout(openOnboarding, 400);
+  // Upgraded installs: wizard already done but legacy onboarding flag never set
+  if (!settings.firstRunDone && !settings.firstRun) {
+    settings.firstRunDone = true;
+    saveAll();
   }
 
   // Global search keyboard shortcut ⌘K / Ctrl+K, plus tab-nav shortcuts
@@ -23244,7 +23350,7 @@ function renderTelegramSettings() {
   });
 
   el.querySelector('#btnSaveTgSettings')?.addEventListener('click', () => {
-    const botToken         = el.querySelector('#tgBotToken').value.trim();
+    const botToken         = secretInputSave((settings.telegram || {}).botToken, el.querySelector('#tgBotToken').value);
     const chatId           = el.querySelector('#tgChatId').value.trim();
     const notifyOnComplete = el.querySelector('#tgNotifyComplete').checked;
     const notifyOnHold     = el.querySelector('#tgNotifyHold').checked;

@@ -13,6 +13,8 @@
   <link rel="stylesheet" href="studio/shell.css" />
   <link rel="stylesheet" href="studio/screens.css" />
   <link rel="stylesheet" href="studio/compat.css" />
+  <link rel="stylesheet" href="studio/phase4.css" />
+  <link rel="stylesheet" href="studio/phase5.css" />
 </head>
 <body class="khayt-studio">
 
@@ -37,57 +39,57 @@
       <nav class="khayt-nav sidebar-nav" role="tablist">
         <div class="khayt-navsec nav-group">
           <div class="eyebrow khayt-navhead nav-group-label" data-i18n="nav.group.overview">Overview</div>
-          <button type="button" class="tab-btn khayt-navitem active" data-tab="dashboard-tab">
+          <button type="button" class="tab-btn khayt-navitem active" data-tab="dashboard-tab" role="tab" id="tabbtn-dashboard-tab" aria-selected="true" aria-controls="dashboard-tab" tabindex="0">
             <span class="nav-icon" aria-hidden="true">◉</span>
             <span class="nav-label grow" data-i18n="tab.dashboard">Dashboard</span>
           </button>
         </div>
         <div class="khayt-navsec nav-group">
           <div class="eyebrow khayt-navhead nav-group-label" data-i18n="nav.group.production">Production</div>
-          <button type="button" class="tab-btn khayt-navitem" data-tab="queue-tab">
+          <button type="button" class="tab-btn khayt-navitem" data-tab="queue-tab" role="tab" id="tabbtn-queue-tab" aria-selected="false" aria-controls="queue-tab" tabindex="-1">
             <span class="nav-icon" aria-hidden="true">▤</span>
             <span class="nav-label grow" data-i18n="tab.queue">Production Queue</span>
             <span class="khayt-live" aria-hidden="true"></span>
           </button>
-          <button type="button" class="tab-btn khayt-navitem" data-tab="calculator-tab">
+          <button type="button" class="tab-btn khayt-navitem" data-tab="calculator-tab" role="tab" id="tabbtn-calculator-tab" aria-selected="false" aria-controls="calculator-tab" tabindex="-1">
             <span class="nav-icon" aria-hidden="true">◎</span>
             <span class="nav-label grow" data-i18n="tab.calculator">Calculator</span>
           </button>
-          <button type="button" class="tab-btn khayt-navitem" data-tab="inventory-tab">
+          <button type="button" class="tab-btn khayt-navitem" data-tab="inventory-tab" role="tab" id="tabbtn-inventory-tab" aria-selected="false" aria-controls="inventory-tab" tabindex="-1">
             <span class="nav-icon" aria-hidden="true">⬡</span>
             <span class="nav-label grow" data-i18n="tab.inventory">Inventory</span>
           </button>
-          <button type="button" class="tab-btn khayt-navitem" data-tab="catalog-tab">
+          <button type="button" class="tab-btn khayt-navitem" data-tab="catalog-tab" role="tab" id="tabbtn-catalog-tab" aria-selected="false" aria-controls="catalog-tab" tabindex="-1">
             <span class="nav-icon" aria-hidden="true">▣</span>
             <span class="nav-label grow" data-i18n="tab.catalog">Catalog</span>
           </button>
-          <button type="button" class="tab-btn khayt-navitem" data-tab="waste-tab">
+          <button type="button" class="tab-btn khayt-navitem" data-tab="waste-tab" role="tab" id="tabbtn-waste-tab" aria-selected="false" aria-controls="waste-tab" tabindex="-1">
             <span class="nav-icon" aria-hidden="true">△</span>
             <span class="nav-label grow" data-i18n="tab.waste">Waste Log</span>
           </button>
         </div>
         <div class="khayt-navsec nav-group">
           <div class="eyebrow khayt-navhead nav-group-label" data-i18n="nav.group.sales">Sales</div>
-          <button type="button" class="tab-btn khayt-navitem" data-tab="logs-tab">
+          <button type="button" class="tab-btn khayt-navitem" data-tab="logs-tab" role="tab" id="tabbtn-logs-tab" aria-selected="false" aria-controls="logs-tab" tabindex="-1">
             <span class="nav-icon" aria-hidden="true">☰</span>
             <span class="nav-label grow" data-i18n="tab.logs">Orders Log</span>
           </button>
-          <button type="button" class="tab-btn khayt-navitem" data-tab="clients-tab">
+          <button type="button" class="tab-btn khayt-navitem" data-tab="clients-tab" role="tab" id="tabbtn-clients-tab" aria-selected="false" aria-controls="clients-tab" tabindex="-1">
             <span class="nav-icon" aria-hidden="true">◈</span>
             <span class="nav-label grow" data-i18n="tab.clients">Clients</span>
           </button>
-          <button type="button" class="tab-btn khayt-navitem" data-tab="gift-cards-tab">
+          <button type="button" class="tab-btn khayt-navitem" data-tab="gift-cards-tab" role="tab" id="tabbtn-gift-cards-tab" aria-selected="false" aria-controls="gift-cards-tab" tabindex="-1">
             <span class="nav-icon" aria-hidden="true">♦</span>
             <span class="nav-label grow" data-i18n="giftCards">Gift Cards</span>
           </button>
-          <button type="button" class="tab-btn khayt-navitem" data-tab="portfolio-tab">
+          <button type="button" class="tab-btn khayt-navitem" data-tab="portfolio-tab" role="tab" id="tabbtn-portfolio-tab" aria-selected="false" aria-controls="portfolio-tab" tabindex="-1">
             <span class="nav-icon" aria-hidden="true">◇</span>
             <span class="nav-label grow" data-i18n="tab.portfolio">Portfolio</span>
           </button>
         </div>
         <div class="khayt-navsec nav-group pro-only">
           <div class="eyebrow khayt-navhead nav-group-label" data-i18n="nav.group.business">Business</div>
-          <button type="button" class="tab-btn khayt-navitem" data-tab="analytics-tab">
+          <button type="button" class="tab-btn khayt-navitem" data-tab="analytics-tab" role="tab" id="tabbtn-analytics-tab" aria-selected="false" aria-controls="analytics-tab" tabindex="-1">
             <span class="nav-icon" aria-hidden="true">◐</span>
             <span class="nav-label grow" data-i18n="tab.analytics">Analytics</span>
           </button>
@@ -100,7 +102,7 @@
       </nav>
 
       <div class="khayt-navfoot sidebar-footer">
-        <button type="button" class="tab-btn khayt-navitem" data-tab="settings-tab">
+        <button type="button" class="tab-btn khayt-navitem" data-tab="settings-tab" role="tab" id="tabbtn-settings-tab" aria-selected="false" aria-controls="settings-tab" tabindex="-1">
           <span class="nav-icon" aria-hidden="true">⚙</span>
           <span class="nav-label" data-i18n="tab.settings">Settings</span>
         </button>
@@ -153,7 +155,7 @@
 
 
     <!-- ===================== DASHBOARD ===================== -->
-    <section id="dashboard-tab" class="tab-content active">
+    <section id="dashboard-tab" class="tab-content active" role="tabpanel" aria-labelledby="tabbtn-dashboard-tab" aria-hidden="false" tabindex="0">
       <div id="dashboardContent"></div>
     </section>
 
@@ -163,7 +165,13 @@
       <div class="grid">
 
         <div class="card material">
-          <h3 class="card-head"><span class="swatch"></span><span data-i18n="calc.part.title">1. Part & Material</span></h3>
+          <div class="row between wrap gap12" style="margin-bottom:14px;align-items:center">
+          <h3 class="card-head" style="margin:0"><span class="swatch"></span><span data-i18n="calc.part.title">1. Part & Material</span></h3>
+          <div class="seg" id="calcTechSeg" role="group" aria-label="Print technology">
+            <button type="button" class="on" data-calc-tech="fdm" data-i18n="queue.filter_fdm">FDM</button>
+            <button type="button" data-calc-tech="resin" data-i18n="queue.filter_resin">Resin</button>
+          </div>
+        </div>
 
           <div class="inline-pair">
             <div>
@@ -476,7 +484,7 @@
     </section>
 
     <!-- ===================== CATALOG ===================== -->
-    <section id="catalog-tab" class="tab-content">
+    <section id="catalog-tab" class="tab-content" role="tabpanel" aria-labelledby="tabbtn-catalog-tab" aria-hidden="true" tabindex="-1">
       <div class="toolbar">
         <h3 class="card-head" style="margin: 0; flex: 1;"><span class="swatch"></span><span data-i18n="cat.title">Product Catalog</span></h3>
         <input type="search" id="catalogSearch" class="toolbar-search" data-i18n-placeholder="cat.search_ph">
@@ -490,6 +498,18 @@
     <section id="queue-tab" class="tab-content khayt-queue">
       <!-- Machine Queues -->
       <div id="machineQueuesContainer" class="mb-6"></div>
+
+      <div class="khayt-queue-seg-row">
+        <div class="seg khayt-queue-seg" id="studioQueueSeg" role="group" aria-label="Queue filters">
+          <button type="button" class="on" data-queue-filter="all" data-i18n="queue.filter_all">All</button>
+          <button type="button" data-queue-filter="fdm" data-i18n="queue.filter_fdm">FDM</button>
+          <button type="button" data-queue-filter="resin" data-i18n="queue.filter_resin">Resin</button>
+          <button type="button" data-queue-filter="machine" data-i18n="queue.filter_machine">By machine</button>
+        </div>
+        <div id="studioQueueMachineWrap" class="khayt-queue-machine-wrap" style="display:none" aria-hidden="true">
+          <select id="studioQueueMachine" class="input" style="min-width:200px;height:34px"></select>
+        </div>
+      </div>
 
       <div class="khayt-queue-toolbar row between wrap gap12" style="margin-bottom:16px;">
         <h3 class="card-head sec-title" style="margin:0; flex:1; min-width:120px;"><span class="swatch"></span><span data-i18n="queue.title">Active Production Queue</span></h3>
@@ -524,14 +544,14 @@
 
       <!-- Waiting list (job intake queue) -->
       <div style="margin-bottom:12px;">
-        <div style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 0;" id="waitingListToggle">
+        <button type="button" style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 0;background:none;border:none;width:100%;text-align:inherit;color:inherit;" id="waitingListToggle" aria-expanded="false">
           <h4 style="margin:0;font-size:13px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">
             <span data-i18n="waiting.title">Job Intake</span>
             <span id="waitingBadge" style="display:none;background:var(--accent);color:#fff;border-radius:10px;font-size:10px;padding:1px 6px;margin-inline-start:6px;font-weight:700;"></span>
           </h4>
           <span id="waitingChevron" style="font-size:10px;color:var(--text-muted);">▼</span>
           <button id="btnAddWaiting" class="btn small ghost" style="margin-inline-start:auto;" onclick="event.stopPropagation()">+ <span data-i18n="waiting.add">Add</span></button>
-        </div>
+        </button>
         <div id="waitingFunnelSection" style="margin-bottom:10px;"></div>
         <div id="waitingListSection" style="display:none;"></div>
       </div>
@@ -576,7 +596,7 @@
     </section>
 
     <!-- ===================== LOGS ===================== -->
-    <section id="logs-tab" class="tab-content">
+    <section id="logs-tab" class="tab-content" role="tabpanel" aria-labelledby="tabbtn-logs-tab" aria-hidden="true" tabindex="-1">
       <div class="card">
         <div id="batchBar" class="batch-bar" style="display:none;">
           <span id="batchCount" class="batch-count"></span>
@@ -672,7 +692,7 @@
     </section>
 
     <!-- ===================== ANALYTICS ===================== -->
-    <section id="analytics-tab" class="tab-content">
+    <section id="analytics-tab" class="tab-content" role="tabpanel" aria-labelledby="tabbtn-analytics-tab" aria-hidden="true" tabindex="-1">
       <div class="toolbar" style="margin-bottom: 16px;">
         <h3 class="card-head" style="margin: 0; flex: 1;"><span class="swatch"></span><span data-i18n="an.title">Business Overview</span></h3>
         <button class="btn small" id="btnTaxExport" data-i18n="an.tax_export">Monthly Tax Summary</button>
@@ -691,6 +711,9 @@
           <input type="date" id="analyticsRangeTo" title="To">
         </span>
       </div>
+
+      <div id="analyticsSimpleWrap" style="display:none;"></div>
+      <div id="analyticsProWrap">
 
       <div class="grid-4">
         <div class="stat revenue">
@@ -872,10 +895,12 @@
         <button class="btn small ghost" id="btnAnOrdersCsv">📥 <span data-i18n="an.export_orders">Orders CSV</span></button>
         <button class="btn small ghost" id="btnAnExpensesCsv">📥 <span data-i18n="an.export_expenses">Expenses CSV</span></button>
       </div>
+      </div>
     </section>
 
     <!-- ===================== INVENTORY ===================== -->
-    <section id="inventory-tab" class="tab-content">
+    <section id="inventory-tab" class="tab-content khayt-inventory">
+      <div id="invStudioStats" class="khayt-inv-stats" style="display:none" aria-hidden="true"></div>
       <div id="reorderAlertsSection" style="display:none;"></div>
       <div id="supplierReorderList" style="margin-bottom:12px;"></div>
       <div id="pipelineDemand"></div>
@@ -1005,16 +1030,24 @@
     </section>
 
     <!-- ===================== CLIENTS ===================== -->
-    <section id="clients-tab" class="tab-content">
-      <div class="toolbar">
-        <h3 class="card-head" style="margin: 0; flex: 1;"><span class="swatch"></span><span data-i18n="cl.title">Clients</span></h3>
-        <input type="search" id="clientSearch" class="toolbar-search" data-i18n-placeholder="cl.search_ph">
-        <button class="btn" id="btnBlankIntakeForm" title="Blank intake form">📋 <span data-i18n="cl.intake_form">Intake form</span></button>
-        <button class="btn ghost small" id="btnExportClientsCsv" title="Export clients to CSV">📥 <span data-i18n="common.export_csv">CSV</span></button>
-        <button id="btnImportClientsCsv" class="btn small ghost" data-i18n="csv.import_clients_btn">Import CSV</button>
-        <button class="btn primary" id="btnAddClient" data-i18n="cl.add">+ Add Client</button>
+    <section id="clients-tab" class="tab-content khayt-clients">
+      <div class="khayt-clients-toolbar">
+        <div class="seg" id="studioClientSeg" role="group" aria-label="Client filters">
+          <button type="button" class="on" data-client-filter="all" data-i18n="cl.filter_all">All</button>
+          <button type="button" data-client-filter="vat" data-i18n="cl.filter_vat">VAT</button>
+          <button type="button" data-client-filter="b2c" data-i18n="cl.filter_b2c">B2C</button>
+          <button type="button" data-client-filter="balance" data-i18n="cl.filter_balance">Has balance</button>
+        </div>
+        <div class="row gap8 wrap khayt-clients-actions">
+          <input type="search" id="clientSearch" class="toolbar-search" data-i18n-placeholder="cl.search_ph">
+          <button class="btn sm subtle" id="btnBlankIntakeForm" title="Blank intake form"><span data-i18n="cl.intake_form">Intake form</span></button>
+          <button class="btn sm subtle" id="btnExportClientsCsv" title="Export clients to CSV"><span data-i18n="common.export_csv">CSV</span></button>
+          <button id="btnImportClientsCsv" class="btn sm subtle" data-i18n="csv.import_clients_btn">Import CSV</button>
+          <button class="btn sm primary" id="btnAddClient" data-i18n="cl.add">+ Add Client</button>
+        </div>
       </div>
-      <div class="card" style="margin-top: 12px;">
+      <div id="clientsCardsGrid" class="khayt-clients-grid" style="display:none" aria-hidden="true"></div>
+      <div class="card" id="clientsTableWrap" style="margin-top: 12px;">
         <div class="table-wrap">
           <table id="clientsTable">
             <thead>
@@ -1035,7 +1068,7 @@
     </section>
 
     <!-- ===================== PORTFOLIO ===================== -->
-    <section id="portfolio-tab" class="tab-content">
+    <section id="portfolio-tab" class="tab-content" role="tabpanel" aria-labelledby="tabbtn-portfolio-tab" aria-hidden="true" tabindex="-1">
       <div class="toolbar">
         <h3 class="card-head" style="margin: 0; flex: 1;"><span class="swatch"></span><span data-i18n="pf.title">Portfolio</span></h3>
         <input type="search" id="portfolioSearch" class="toolbar-search" data-i18n-placeholder="pf.search_ph">
@@ -1045,7 +1078,7 @@
     </section>
 
     <!-- ===================== EXPENSES ===================== -->
-    <section id="expenses-tab" class="tab-content">
+    <section id="expenses-tab" class="tab-content" role="tabpanel" aria-labelledby="tabbtn-expenses-tab" aria-hidden="true" tabindex="-1">
       <div class="toolbar" style="margin-bottom:16px;">
         <h3 class="card-head" style="margin:0; flex:1;"><span class="swatch"></span><span data-i18n="exp.title">Expense Tracker</span></h3>
         <button class="btn small" id="btnExportExpCsv" data-i18n="exp.export_csv">Export CSV</button>
@@ -1133,7 +1166,7 @@
     </section>
 
     <!-- ===================== WASTE LOG ===================== -->
-    <section id="waste-tab" class="tab-content">
+    <section id="waste-tab" class="tab-content" role="tabpanel" aria-labelledby="tabbtn-waste-tab" aria-hidden="true" tabindex="-1">
       <div class="toolbar" style="margin-bottom:8px;">
         <h3 class="card-head" style="margin:0; flex:1;"><span class="swatch"></span><span data-i18n="waste.title">Failed Prints &amp; Waste Log</span></h3>
         <button class="btn primary" id="btnLogWaste" data-i18n="waste.add">Log Failed Print</button>
@@ -1179,7 +1212,7 @@
     </section>
 
     <!-- ===================== GIFT CARDS ===================== -->
-    <section id="gift-cards-tab" class="tab-content">
+    <section id="gift-cards-tab" class="tab-content" role="tabpanel" aria-labelledby="tabbtn-gift-cards-tab" aria-hidden="true" tabindex="-1">
       <div class="toolbar" style="margin-bottom:16px;">
         <h2 class="card-head" style="margin:0; flex:1;"><span class="swatch"></span><span data-i18n="giftCards">Gift Cards</span></h2>
         <button id="btnCreateGiftCard" class="btn btn-primary" data-i18n="issueGiftCard">Issue Gift Card</button>
@@ -1188,7 +1221,7 @@
     </section>
 
     <!-- ===================== SETTINGS ===================== -->
-    <section id="settings-tab" class="tab-content">
+    <section id="settings-tab" class="tab-content" role="tabpanel" aria-labelledby="tabbtn-settings-tab" aria-hidden="true" tabindex="-1">
   <div class="settings-layout">
 
     <!-- ═══ SIDEBAR ═══ -->
@@ -1814,48 +1847,48 @@
     <!-- Step 1: Welcome -->
     <div class="wizard-step" id="wiz-step-1">
       <div class="wizard-logo">🖨️ Khayt</div>
-      <h1 class="wizard-title">Welcome to Khayt</h1>
-      <p class="wizard-subtitle">3D printing production management — let's get you set up in 60 seconds.</p>
-      <button class="btn btn-primary wizard-next" data-next="2">Get started →</button>
+      <h1 class="wizard-title" data-i18n="wiz.title">Welcome to Khayt</h1>
+      <p class="wizard-subtitle" data-i18n="wiz.intro_subtitle">3D printing production management — let's get you set up in 60 seconds.</p>
+      <button type="button" class="btn btn-primary wizard-next" data-next="2" data-i18n="wiz.get_started">Get started →</button>
     </div>
 
     <!-- Step 2: Business type -->
     <div class="wizard-step" id="wiz-step-2" style="display:none">
-      <h2 class="wizard-title">How do you use Khayt?</h2>
-      <p class="wizard-subtitle">This sets your starting experience. You can change it anytime in Settings.</p>
+      <h2 class="wizard-title" data-i18n="wiz.business_type">How do you use Khayt?</h2>
+      <p class="wizard-subtitle" data-i18n="wiz.mode_hint">This sets your starting experience. You can change it anytime in Settings.</p>
       <div class="wizard-options">
-        <button class="wizard-option" data-mode="simple" data-next="3">
-          <span class="wizard-option-icon">👤</span>
-          <strong>Solo maker</strong>
-          <span>Just me — quoting, invoicing, tracking jobs</span>
+        <button type="button" class="wizard-option" data-mode="simple" data-next="3">
+          <span class="wizard-option-icon" aria-hidden="true">👤</span>
+          <strong data-i18n="wiz.option_solo">Solo maker</strong>
+          <span data-i18n="wiz.option_solo_desc">Just me — quoting, invoicing, tracking jobs</span>
         </button>
-        <button class="wizard-option" data-mode="simple" data-next="3">
-          <span class="wizard-option-icon">🏪</span>
-          <strong>Small shop</strong>
-          <span>1–3 printers, occasional staff help</span>
+        <button type="button" class="wizard-option" data-mode="simple" data-next="3">
+          <span class="wizard-option-icon" aria-hidden="true">🏪</span>
+          <strong data-i18n="wiz.option_shop">Small shop</strong>
+          <span data-i18n="wiz.option_shop_desc">1–3 printers, occasional staff help</span>
         </button>
-        <button class="wizard-option" data-mode="professional" data-next="3">
-          <span class="wizard-option-icon">🏭</span>
-          <strong>Print farm</strong>
-          <span>4+ printers, multiple operators, analytics-driven</span>
+        <button type="button" class="wizard-option" data-mode="professional" data-next="3">
+          <span class="wizard-option-icon" aria-hidden="true">🏭</span>
+          <strong data-i18n="wiz.option_farm">Print farm</strong>
+          <span data-i18n="wiz.option_farm_desc">4+ printers, multiple operators, analytics-driven</span>
         </button>
-        <button class="wizard-option" data-mode="professional" data-next="3">
-          <span class="wizard-option-icon">🏢</span>
-          <strong>Company / B2B</strong>
-          <span>Corporate clients, VAT invoicing, multi-location</span>
+        <button type="button" class="wizard-option" data-mode="professional" data-next="3">
+          <span class="wizard-option-icon" aria-hidden="true">🏢</span>
+          <strong data-i18n="wiz.option_b2b">Company / B2B</strong>
+          <span data-i18n="wiz.option_b2b_desc">Corporate clients, VAT invoicing, multi-location</span>
         </button>
       </div>
     </div>
 
     <!-- Step 3: Business details -->
     <div class="wizard-step" id="wiz-step-3" style="display:none">
-      <h2 class="wizard-title">Your business details</h2>
-      <p class="wizard-subtitle">Used on invoices and documents. Edit anytime in Settings.</p>
+      <h2 class="wizard-title" data-i18n="wiz.details_title">Your business details</h2>
+      <p class="wizard-subtitle" data-i18n="wiz.details_subtitle">Used on invoices and documents. Edit anytime in Settings.</p>
       <div class="wizard-form">
-        <label>Business / Shop name
-          <input id="wizBizName" type="text" placeholder="e.g. Khayt Studio" class="form-control">
+        <label><span data-i18n="wiz.biz_name">Business / Shop name</span>
+          <input id="wizBizName" type="text" data-i18n-placeholder="wiz.biz_name_ph" placeholder="e.g. Khayt Studio" class="form-control">
         </label>
-        <label>Currency
+        <label><span data-i18n="wiz.currency">Currency</span>
           <select id="wizCurrency" class="form-control">
             <option value="SAR">SAR — Saudi Riyal</option>
             <option value="USD">USD — US Dollar</option>
@@ -1866,7 +1899,7 @@
             <option value="KWD">KWD — Kuwaiti Dinar</option>
           </select>
         </label>
-        <label>Language
+        <label><span data-i18n="wiz.language">Language</span>
           <select id="wizLang" class="form-control">
             <option value="en">English</option>
             <option value="ar">العربية</option>
@@ -1874,19 +1907,26 @@
             <option value="es">Español</option>
             <option value="fr">Français</option>
             <option value="zh">中文</option>
+            <option value="ja">日本語</option>
           </select>
         </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:10px;">
+          <input type="checkbox" id="wizEnableZatca" style="width:auto;margin:0;" checked>
+          <span data-i18n="onboard.zatca">ZATCA e-invoicing fields on invoices</span>
+        </label>
       </div>
-      <button class="btn btn-primary wizard-finish" id="wizFinish">Start using Khayt →</button>
+      <button type="button" class="btn btn-primary wizard-finish" id="wizFinish" data-i18n="wiz.finish">Start using Khayt →</button>
     </div>
   </div>
 
   <!-- Progress dots -->
-  <div class="wizard-dots">
+  <div class="wizard-dots" aria-hidden="true">
     <span class="wizard-dot active" data-step="1"></span>
     <span class="wizard-dot" data-step="2"></span>
     <span class="wizard-dot" data-step="3"></span>
   </div>
+</div>
+
 </div>
 
 <!-- Printable invoice area -->
@@ -1907,6 +1947,10 @@
 </div>
 
 <script src="i18n.js"></script>
+<script src="studio/icons.js"></script>
+<script src="studio/charts.js"></script>
+<script src="studio/studio.js"></script>
+<script src="store.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -174,7 +174,6 @@ npm run install:electron
 npm start
 ```
 
-
 To build distributable packages:
 ```bash
 npm run dist:mac:arm64   # macOS Apple Silicon DMG
