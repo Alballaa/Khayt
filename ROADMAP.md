@@ -7,7 +7,7 @@ Living priorities for maintainers. Not a public commitment calendar — reorder 
 - [x] Document versioning (`VERSIONING.md`) — continue from **2.0.15**, no version reset
 - [x] Align CI Node version with README (22 LTS)
 - [ ] Add `npm run lint` for `main.js`, `preload.js`, `renderer/*.js`
-- [ ] Remove or relocate unused root Vite/React scaffold (`src/`, root `index.html`)
+- [x] Remove or relocate unused root Vite/React scaffold (`src/`, root `index.html`) — removed; desktop app is `renderer/` only
 
 ## Next (2.1.0 — significant)
 

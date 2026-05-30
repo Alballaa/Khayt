@@ -37,11 +37,14 @@ Thank you for helping maintain Khayt. This document is the default workflow for 
 |------|------|
 | `main.js` | Electron main: IPC, disk store, LAN server, ZATCA crypto, updater |
 | `preload.js` | `hubAPI` context bridge |
+| `renderer/index.html` | App shell (shipped UI entry) |
 | `renderer/app.js` | UI and business logic |
+| `renderer/store.js` | Export/import and backup helpers |
 | `renderer/i18n.js` | Translations |
-| `renderer/index.html` | App shell |
+| `renderer/studio/*.js` | Khayt Studio UI module (when `khayt-studio` is enabled) |
+| `design/khayt/` | Browser design prototype — reference only, not shipped |
 
-Do not edit root `src/` or root `index.html` for the desktop app — they are legacy Vite scaffolding (see [ROADMAP.md](./ROADMAP.md)).
+The desktop app has no root `src/` or root `index.html`; an old Vite scaffold was removed from the tree.
 
 ## Releases (maintainers)
 
