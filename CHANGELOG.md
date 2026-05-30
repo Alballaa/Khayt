@@ -4,6 +4,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Changed
+
+- README screenshots refreshed for Studio UI on v2.2.0 (`npm run capture:screenshots`).
+
 ## [2.2.0] - 2026-05-30
 
 Four-bundle release: production shop, ZATCA compliance, LAN quote approval, and platform hardening. Completes [ROADMAP.md](./ROADMAP.md) 2.2.0 goals.
