@@ -23,6 +23,14 @@ Living priorities for maintainers. Not a public commitment calendar — reorder 
 - [ ] Typed store contract (JSDoc or JSON Schema) validated on load
 - [ ] LAN tunnel: require PIN + in-app risk warning before exposing via localtunnel
 
+## Superseded branches
+
+Do not merge or revive these without a deliberate re-plan — `main` already contains the shipped replacement.
+
+| PR | Branch | Superseded by |
+|----|--------|---------------|
+| [#3](https://github.com/Alballaa/Khayt/pull/3) | `cursor/ui-shell-redesign-c86e` | Studio shell on `main` (`renderer/studio/*`, `khayt-studio` layout) via PRs [#4](https://github.com/Alballaa/Khayt/pull/4)–[#8](https://github.com/Alballaa/Khayt/pull/8) and publish cleanup [#9](https://github.com/Alballaa/Khayt/pull/9) (v2.0.16). Early sidebar prototype; conflicts in `renderer/app.js`, `renderer/index.html`, `renderer/i18n.js`, and `design/README.md`. **Close without merging.** |
+
 ## Versioning reminder
 
 | Type | Example |
