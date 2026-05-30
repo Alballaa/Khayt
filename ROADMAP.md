@@ -2,9 +2,12 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (2.1.x)
+## Now (2.2.0 — in progress)
 
-- [ ] Triage post-2.1.0 feedback and plan the next significant slice (target **2.2.0** when justified)
+- [ ] Bundle A — production shop: LAN printer polling, gift card checkout, WIP hard limits
+- [x] Bundle B — ZATCA auto-submit + submission log + custom SMTP
+- [ ] Bundle C — LAN quote approval links
+- [ ] Bundle D — E2E flow tests + platform hardening
 
 ## Completed (2.1.0 — 2026-05-30)
 

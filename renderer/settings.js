@@ -33,10 +33,12 @@ function renderEmailNotificationSettings() {
         <option value="none"${cfg.provider === 'none' || !cfg.provider ? ' selected' : ''}>${escapeHtml(t('set.smtp_none'))}</option>
         <option value="sendgrid"${cfg.provider === 'sendgrid' ? ' selected' : ''}>${escapeHtml(t('set.smtp_sendgrid'))}</option>
         <option value="mailgun"${cfg.provider === 'mailgun' ? ' selected' : ''}>${escapeHtml(t('set.smtp_mailgun'))}</option>
+        <option value="custom"${cfg.provider === 'custom' ? ' selected' : ''}>${escapeHtml(t('set.smtp_custom'))}</option>
         <option value="mailto"${cfg.provider === 'mailto' ? ' selected' : ''}>${escapeHtml(t('set.smtp_mailto'))}</option>
       </select>
     </div>
-    <div id="emailProviderFields" style="${cfg.provider && cfg.provider !== 'none' ? '' : 'display:none;'}">
+    <div id="emailProviderFields" style="${cfg.provider && cfg.provider !== 'none' && cfg.provider !== 'mailto' ? '' : 'display:none;'}">
+      <div id="emailApiFields" style="${cfg.provider === 'custom' ? 'display:none;' : ''}">
       <div class="inline-pair">
         <div>
           <label style="margin-top:0;">${escapeHtml(t('set.email_api_key'))}</label>
@@ -46,6 +48,33 @@ function renderEmailNotificationSettings() {
           <label style="margin-top:0;">${escapeHtml(t('set.email_domain'))} (Mailgun)</label>
           <input type="text" id="emailDomain" value="${escapeHtml(cfg.domain || '')}" placeholder="mg.yourshop.com" style="font-size:12.5px;">
         </div>
+      </div>
+      </div>
+      <div id="emailCustomSmtpFields" style="${cfg.provider === 'custom' ? '' : 'display:none;'}">
+        <div class="inline-pair">
+          <div>
+            <label style="margin-top:0;">${escapeHtml(t('set.smtp_host'))}</label>
+            <input type="text" id="emailSmtpHost" value="${escapeHtml(cfg.smtpHost || '')}" placeholder="smtp.yourshop.com" style="font-size:12.5px;">
+          </div>
+          <div>
+            <label style="margin-top:0;">${escapeHtml(t('set.smtp_port'))}</label>
+            <input type="number" id="emailSmtpPort" value="${cfg.smtpPort || 587}" min="1" max="65535" style="font-size:12.5px;">
+          </div>
+        </div>
+        <div class="inline-pair">
+          <div>
+            <label style="margin-top:0;">${escapeHtml(t('set.smtp_user'))}</label>
+            <input type="text" id="emailSmtpUser" value="${escapeHtml(cfg.smtpUser || '')}" placeholder="orders@yourshop.com" style="font-size:12.5px;">
+          </div>
+          <div>
+            <label style="margin-top:0;">${escapeHtml(t('set.smtp_pass'))}</label>
+            <input type="password" id="emailSmtpPass" value="${escapeHtml(cfg.smtpPassword || '')}" placeholder="••••••••" style="font-size:12.5px;">
+          </div>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;margin:8px 0;font-weight:400;">
+          <input type="checkbox" id="emailSmtpSecure" style="width:auto;margin:0;" ${cfg.smtpSecure ? 'checked' : ''}>
+          <span>${escapeHtml(t('set.smtp_secure'))}</span>
+        </label>
       </div>
       <div class="inline-pair">
         <div>
@@ -75,8 +104,13 @@ function renderEmailNotificationSettings() {
     </div>`;
 
   el.querySelector('#emailProviderSel')?.addEventListener('change', (e) => {
+    const val = e.target.value;
     const fields = el.querySelector('#emailProviderFields');
-    if (fields) fields.style.display = e.target.value !== 'none' ? '' : 'none';
+    const apiFields = el.querySelector('#emailApiFields');
+    const customFields = el.querySelector('#emailCustomSmtpFields');
+    if (fields) fields.style.display = (val !== 'none' && val !== 'mailto') ? '' : 'none';
+    if (apiFields) apiFields.style.display = val === 'custom' ? 'none' : '';
+    if (customFields) customFields.style.display = val === 'custom' ? '' : 'none';
   });
 
   el.querySelector('#btnSaveEmailCfg')?.addEventListener('click', () => {
@@ -84,6 +118,11 @@ function renderEmailNotificationSettings() {
       provider:   el.querySelector('#emailProviderSel').value,
       apiKey:     secretInputSave((settings.emailConfig || {}).apiKey, el.querySelector('#emailApiKey')?.value),
       domain:     el.querySelector('#emailDomain')?.value.trim() || '',
+      smtpHost:   el.querySelector('#emailSmtpHost')?.value.trim() || '',
+      smtpPort:   parseInt(el.querySelector('#emailSmtpPort')?.value, 10) || 587,
+      smtpUser:   el.querySelector('#emailSmtpUser')?.value.trim() || '',
+      smtpPassword: secretInputSave((settings.emailConfig || {}).smtpPassword, el.querySelector('#emailSmtpPass')?.value),
+      smtpSecure: !!el.querySelector('#emailSmtpSecure')?.checked,
       fromEmail:  el.querySelector('#emailFrom')?.value.trim() || '',
       fromName:   el.querySelector('#emailFromName')?.value.trim() || '',
       triggers:   [...el.querySelectorAll('.email-trigger-cb:checked')].map(cb => cb.dataset.trigger),
@@ -101,6 +140,11 @@ function renderEmailNotificationSettings() {
       provider:  el.querySelector('#emailProviderSel').value,
       apiKey:    secretInputSave((settings.emailConfig || {}).apiKey, el.querySelector('#emailApiKey')?.value),
       domain:    el.querySelector('#emailDomain')?.value.trim() || '',
+      smtpHost:  el.querySelector('#emailSmtpHost')?.value.trim() || '',
+      smtpPort:  parseInt(el.querySelector('#emailSmtpPort')?.value, 10) || 587,
+      smtpUser:  el.querySelector('#emailSmtpUser')?.value.trim() || '',
+      smtpPassword: secretInputSave((settings.emailConfig || {}).smtpPassword, el.querySelector('#emailSmtpPass')?.value),
+      smtpSecure: !!el.querySelector('#emailSmtpSecure')?.checked,
       fromEmail: el.querySelector('#emailFrom')?.value.trim() || '',
       fromName:  el.querySelector('#emailFromName')?.value.trim() || '',
     };
@@ -796,10 +840,19 @@ function renderZatcaPhase2Settings() {
       <!-- Step 4: Submit invoices -->
       <div style="padding:12px;background:var(--bg-elev);border-radius:var(--radius);">
         <div style="font-weight:600;font-size:13px;margin-bottom:6px;" data-i18n="zatca2.step4">Step 4 — Submit invoices to ZATCA</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;" data-i18n="zatca2.step4_hint">Each completed invoice with Phase 2 enabled will be auto-submitted. You can also submit manually from the invoice view.</div>
-        <div id="z2SubmitStatus" style="font-size:12px;color:var(--text-muted);">
-          ${(z2.invoiceCounter||0) > 0 ? `✅ ${z2.invoiceCounter} invoice(s) submitted` : t('zatca2.no_submissions')}
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;" data-i18n="zatca2.step4_hint">Completed invoices auto-submit when Phase 2 is enabled. Retry manually from the Orders log.</div>
+        <label style="display:flex;align-items:center;gap:8px;margin:10px 0;font-weight:400;">
+          <input type="checkbox" id="z2_autoSubmit" style="width:auto;margin:0;" ${z2.autoSubmit !== false ? 'checked' : ''}>
+          <span data-i18n="zatca2.auto_submit">Auto-submit when invoice is generated</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;margin:0 0 10px;font-weight:400;">
+          <input type="checkbox" id="z2_emailAfterSubmit" style="width:auto;margin:0;" ${z2.emailAfterSubmit ? 'checked' : ''}>
+          <span data-i18n="zatca2.email_after_submit">Email invoice to client after successful submission</span>
+        </label>
+        <div id="z2SubmitStatus" style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">
+          ${(z2.invoiceCounter||0) > 0 ? `✅ ${z2.invoiceCounter} ${escapeHtml(t('zatca2.invoices_submitted') || 'invoice(s) submitted')}` : t('zatca2.no_submissions')}
         </div>
+        <div id="z2SubmissionLog" style="max-height:180px;overflow:auto;font-size:11px;"></div>
       </div>
 
       <button class="btn primary" id="btnZ2Save" style="margin-top:14px;" data-i18n="common.save">Save Phase 2 Settings</button>
@@ -821,6 +874,8 @@ function renderZatcaPhase2Settings() {
       org:         el.querySelector('#z2_org').value.trim(),
       city:        el.querySelector('#z2_city').value.trim(),
       industry:    el.querySelector('#z2_industry').value.trim(),
+      autoSubmit:  el.querySelector('#z2_autoSubmit')?.checked !== false,
+      emailAfterSubmit: !!el.querySelector('#z2_emailAfterSubmit')?.checked,
     };
     saveAll();
     toast(t('zatca2.saved'), 'success');
@@ -915,6 +970,29 @@ function renderZatcaPhase2Settings() {
       if (ps) ps.textContent = `❌ ${res?.error || JSON.stringify(res?.body || '')}`;
     }
   });
+
+  const logEl = el.querySelector('#z2SubmissionLog');
+  const subs = (settings.zatcaPhase2?.submissions || []).slice(0, 20);
+  if (logEl) {
+    if (!subs.length) {
+      logEl.innerHTML = `<p style="color:var(--text-muted);margin:0;">${escapeHtml(t('zatca2.log_empty') || 'No submission attempts yet.')}</p>`;
+    } else {
+      logEl.innerHTML = `<table style="width:100%;border-collapse:collapse;">
+        <thead><tr style="text-align:left;color:var(--text-muted);">
+          <th style="padding:4px 6px;">${escapeHtml(t('inv.date') || 'Date')}</th>
+          <th style="padding:4px 6px;">${escapeHtml(t('inv.invoice_no') || 'Invoice')}</th>
+          <th style="padding:4px 6px;">${escapeHtml(t('common.status') || 'Status')}</th>
+        </tr></thead>
+        <tbody>${subs.map(s => {
+          const color = s.status === 'accepted' ? 'var(--success)' : s.status === 'rejected' ? 'var(--danger)' : 'var(--warning)';
+          return `<tr style="border-top:1px solid var(--border);">
+            <td style="padding:4px 6px;">${escapeHtml((s.at || '').slice(0, 10))}</td>
+            <td style="padding:4px 6px;">${escapeHtml(s.invoiceNumber || s.orderId || '—')}</td>
+            <td style="padding:4px 6px;color:${color};">${escapeHtml(s.status || '—')}</td>
+          </tr>`;
+        }).join('')}</tbody></table>`;
+    }
+  }
 }
 
 function renderExchangeRatesSettings() {

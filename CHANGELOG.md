@@ -4,6 +4,11 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **ZATCA Phase 2 FATOORA submission** — auto-submit on invoice generation, manual retry from Orders log, submission audit log in Settings.
+- **Custom SMTP** provider in Settings (host/port/user/password) for invoice and notification email.
+
 ## [2.1.2] - 2026-05-30
 
 ### Fixed

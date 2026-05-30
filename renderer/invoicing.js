@@ -441,6 +441,196 @@ async function shareTrackingWhatsApp(orderId) {
   if (window.hubAPI?.shareWhatsApp) await window.hubAPI.shareWhatsApp({ phone, message: msg, pdfPath: null });
 }
 
+/* ============================================================
+   ZATCA Phase 2 — FATOORA submission
+   ============================================================ */
+function zatcaPhase2Ready() {
+  const z2 = settings.zatcaPhase2;
+  return !!(settings.enableZatca && z2?.enabled && (z2.pcsid || z2.csid));
+}
+
+function zatcaUtf8ToBase64(str) {
+  const bytes = new TextEncoder().encode(String(str || ''));
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+
+function ensureZatcaUuid(order) {
+  if (order.zatcaUuid) return order.zatcaUuid;
+  order.zatcaUuid = `${order.id}-${Date.now().toString(36)}`;
+  const idx = printLog.findIndex(o => o.id === order.id);
+  if (idx !== -1) {
+    printLog[idx] = { ...printLog[idx], zatcaUuid: order.zatcaUuid };
+    saveAll();
+  }
+  return order.zatcaUuid;
+}
+
+function nextZatcaIcv(order) {
+  const z2 = settings.zatcaPhase2 || {};
+  if (order.zatcaSubmission?.icv) return order.zatcaSubmission.icv;
+  return (z2.invoiceCounter || 0) + 1;
+}
+
+function appendZatcaSubmissionLog(entry) {
+  const z2 = settings.zatcaPhase2 || (settings.zatcaPhase2 = {});
+  if (!Array.isArray(z2.submissions)) z2.submissions = [];
+  z2.submissions.unshift(entry);
+  if (z2.submissions.length > 100) z2.submissions = z2.submissions.slice(0, 100);
+}
+
+function zatcaInvoiceAmounts(order) {
+  const ts = order.timestamp || new Date(order.date + 'T12:00:00').toISOString();
+  const price = +order.price || 0;
+  const rate = settings.enableVat ? (+settings.vatRate || 15) : 0;
+  const vatAmt = rate > 0 ? price * rate / (100 + rate) : 0;
+  const exVat = price - vatAmt;
+  return { ts, price, rate, vatAmt, exVat, total: fmtMoney(price), vatAmount: fmtMoney(vatAmt), subtotal: fmtMoney(exVat) };
+}
+
+async function prepareZatcaPhase2Payload(order) {
+  const z2 = settings.zatcaPhase2 || {};
+  const { ts, price, rate, vatAmt, exVat } = zatcaInvoiceAmounts(order);
+  const icv = nextZatcaIcv(order);
+  const uuid = ensureZatcaUuid(order);
+  const issueDt = ts.split('T');
+  const xml = buildZatcaInvoiceXml({
+    invoiceNumber: order.invoiceNumber || order.id,
+    uuid,
+    issueDate: issueDt[0],
+    issueTime: (issueDt[1] || '00:00:00').split('.')[0],
+    sellerName: settings.bizEn || settings.bizAr || '',
+    sellerStreet: settings.address || '',
+    sellerCity: z2.city || 'Riyadh',
+    vatNumber: settings.vat || '',
+    buyerName: order.client || '',
+    total: price,
+    subtotal: exVat,
+    vatAmount: vatAmt,
+    vatRate: settings.enableVat ? rate : 0,
+    itemName: order.project || order.id,
+    invoiceCounter: icv,
+    pih: z2.lastInvoiceHash || 'NWZlY2ViNjZmZmM4NmYzOGQ5NTI3ODZjNmQ2OTZjNzljMmRiYzIzOWRkNGU5MWI4NjJhNGRhNjM3NWQ2OGM5',
+  });
+  const signResult = await window.hubAPI?.zatcaSignInvoice?.({ canonicalData: xml });
+  if (!signResult?.ok) throw new Error(signResult?.error || 'Invoice signing failed');
+  return {
+    xml,
+    xmlBase64: zatcaUtf8ToBase64(xml),
+    invoiceHash: signResult.hashBase64,
+    uuid,
+    invoiceNumber: order.invoiceNumber || order.id,
+    invoiceCounter: icv,
+    invoiceType: 'simplified',
+    environment: z2.environment || 'sandbox',
+    pcsid: z2.pcsid,
+    csid: z2.csid,
+  };
+}
+
+function zatcaSubmitAccepted(httpOk, body) {
+  if (!httpOk) return false;
+  const status = body?.validationResults?.status || body?.reportingStatus || body?.clearanceStatus;
+  if (status && String(status).toUpperCase() === 'REJECTED') return false;
+  return true;
+}
+
+async function submitOrderToZatca(orderId, { manual = false, silent = false } = {}) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return { ok: false, error: 'Order not found' };
+  if (order.voidedAt) return { ok: false, error: 'Invoice voided' };
+  if (!zatcaPhase2Ready()) return { ok: false, error: 'ZATCA Phase 2 not configured' };
+  if (order.status !== 'completed' && order.status !== 'delivered') {
+    return { ok: false, error: 'Order must be completed before ZATCA submission' };
+  }
+  if (order.zatcaSubmission?.status === 'accepted' && !manual) {
+    return { ok: true, skipped: true };
+  }
+
+  try {
+    const payload = await prepareZatcaPhase2Payload(order);
+    const result = await window.hubAPI?.zatcaSubmit?.({
+      xmlBase64: payload.xmlBase64,
+      invoiceHash: payload.invoiceHash,
+      uuid: payload.uuid,
+      invoiceNumber: payload.invoiceNumber,
+      invoiceType: payload.invoiceType,
+      environment: payload.environment,
+      pcsid: payload.pcsid,
+      csid: payload.csid,
+    });
+    if (!result) throw new Error('ZATCA submit unavailable');
+
+    const accepted = zatcaSubmitAccepted(result.ok, result.body);
+    const errMsg = result.error
+      || result.body?.validationResults?.errorMessages?.[0]?.message
+      || (typeof result.body === 'object' ? JSON.stringify(result.body) : String(result.status || 'Unknown error'));
+
+    const logEntry = {
+      orderId: order.id,
+      invoiceNumber: payload.invoiceNumber,
+      uuid: payload.uuid,
+      icv: payload.invoiceCounter,
+      at: new Date().toISOString(),
+      httpStatus: result.status ?? null,
+      manual: !!manual,
+    };
+
+    if (accepted) {
+      settings.zatcaPhase2.invoiceCounter = payload.invoiceCounter;
+      settings.zatcaPhase2.lastInvoiceHash = payload.invoiceHash;
+      order.zatcaSubmission = { ...logEntry, status: 'accepted', message: 'OK' };
+      appendZatcaSubmissionLog({ ...logEntry, status: 'accepted', message: 'OK' });
+      saveAll();
+      if (!silent) toast(t('zatca2.submit_ok') || 'Invoice submitted to ZATCA', 'success');
+      if (settings.zatcaPhase2.emailAfterSubmit && typeof emailOrderToClient === 'function') {
+        emailOrderToClient(order.id, false).catch(() => {});
+      }
+      return { ok: true };
+    }
+
+    order.zatcaSubmission = { ...logEntry, status: 'rejected', message: errMsg };
+    appendZatcaSubmissionLog({ ...logEntry, status: 'rejected', message: errMsg });
+    saveAll();
+    if (!silent) toast(t('zatca2.submit_failed') || `ZATCA submission failed: ${errMsg}`, 'error', 6000);
+    return { ok: false, error: errMsg };
+  } catch (e) {
+    const msg = String(e.message || e);
+    order.zatcaSubmission = {
+      orderId: order.id,
+      status: 'error',
+      message: msg,
+      at: new Date().toISOString(),
+      manual: !!manual,
+    };
+    appendZatcaSubmissionLog({ orderId: order.id, status: 'error', message: msg, at: order.zatcaSubmission.at, manual: !!manual });
+    saveAll();
+    if (!silent) toast(t('zatca2.submit_failed') || `ZATCA submission failed: ${msg}`, 'error', 6000);
+    return { ok: false, error: msg };
+  }
+}
+
+function maybeAutoSubmitZatca(order) {
+  const z2 = settings.zatcaPhase2 || {};
+  if (!zatcaPhase2Ready() || z2.autoSubmit === false) return;
+  if (order.voidedAt || order.status === 'quote') return;
+  if (order.status !== 'completed' && order.status !== 'delivered') return;
+  if (order.zatcaSubmission?.status === 'accepted') return;
+  submitOrderToZatca(order.id, { silent: true }).then(r => {
+    if (r?.ok && !r.skipped) toast(t('zatca2.auto_submitted', { id: order.id }) || `Invoice ${order.id} submitted to ZATCA`, 'success', 4000);
+    else if (r?.ok === false && !r.skipped) toast(t('zatca2.auto_submit_failed', { id: order.id }) || `ZATCA auto-submit failed for ${order.id}`, 'warning', 5000);
+  });
+}
+
+function zatcaSubmissionStatusLabel(order) {
+  const s = order?.zatcaSubmission?.status;
+  if (s === 'accepted') return t('zatca2.status_accepted') || 'Submitted to ZATCA';
+  if (s === 'rejected') return t('zatca2.status_rejected') || 'ZATCA rejected';
+  if (s === 'error') return t('zatca2.status_error') || 'ZATCA error';
+  return t('zatca2.status_pending') || 'Not submitted';
+}
+
 // Render the invoice with QR (used by Print, PDF, and WhatsApp paths)
 async function renderInvoiceForOrder(order) {
   const ts = order.timestamp || new Date(order.date + 'T12:00:00').toISOString();
@@ -514,6 +704,7 @@ async function renderInvoiceForOrder(order) {
   }
 
   renderInvoice(order, { qrSvg, payQrSvg, total, vatAmount, subtotal, vatRate: rate, shipping });
+  maybeAutoSubmitZatca(order);
 }
 
 /* ============================================================
@@ -1421,6 +1612,9 @@ const BRAND_MARK_SVG = `
     buildZatcaTLV,
     buildZatcaInvoiceXml,
     buildZatcaPhase2TLV,
+    submitOrderToZatca,
+    zatcaPhase2Ready,
+    zatcaSubmissionStatusLabel,
     generateInvoice,
     voidInvoice,
     openCreditNoteModal,

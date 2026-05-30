@@ -186,6 +186,13 @@ function renderLogs() {
             <button class="menu-item pro-only" data-act="milestone-invoices" data-id="${log.id}">📋 ${escapeHtml(t('ord.milestone_invoices'))}</button>
             ${!log.voidedAt ? `<button class="menu-item pro-only" data-act="void-invoice" data-id="${log.id}">🚫 ${escapeHtml(t('inv.void_btn'))}</button>` : `<span class="menu-item" style="color:var(--danger);cursor:default;">🚫 ${escapeHtml(t('inv.already_voided'))}</span>`}
             ${(() => { const cl = log.clientId ? clients.find(c => c.id === log.clientId) : null; return cl?.email ? `<button class="menu-item" data-act="${log.status === 'quote' ? 'email-quote' : 'email-invoice'}" data-id="${log.id}">✉️ ${escapeHtml(t(log.status === 'quote' ? 'ord.email_quote' : 'ord.email_invoice'))}</button>` : ''; })()}
+            ${(() => {
+              if (typeof zatcaPhase2Ready !== 'function' || !zatcaPhase2Ready()) return '';
+              if (log.status !== 'completed' && log.status !== 'delivered') return '';
+              if (log.voidedAt) return '';
+              const lbl = log.zatcaSubmission?.status === 'accepted' ? (t('zatca2.resubmit') || 'Retry ZATCA') : (t('zatca2.submit') || 'Submit to ZATCA');
+              return `<button class="menu-item pro-only" data-act="zatca-submit" data-id="${log.id}">🇸🇦 ${escapeHtml(lbl)}</button>`;
+            })()}
             <div class="menu-sep"></div>
             <!-- Tracking & sharing -->
             <div class="menu-label">${escapeHtml(t('menu.tracking') || 'Tracking')}</div>

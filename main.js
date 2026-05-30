@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const QRCode = require('qrcode');
 const { safeJsonParse } = require('./lib/safe-json');
 const { isBlockedHost } = require('./lib/host-guard');
+const { sendCustomSmtp } = require('./lib/custom-smtp');
 const { normalizeStoreSnapshot } = require('./lib/store-validate');
 const { createStoreIo } = require('./lib/store-io');
 const { registerZatcaCrypto } = require('./lib/zatca-crypto');
@@ -838,6 +839,21 @@ ipcMain.handle('hub:send-email', async (_e, { to, subject, body, smtpConfig }) =
     } catch(e) {
       return { ok: false, error: String(e) };
     }
+  }
+  if (cfg?.provider === 'custom' && cfg?.smtpHost) {
+    cfg.smtpPassword = resolveStoreSecret(cfg.smtpPassword, d => d?.settings?.emailConfig?.smtpPassword);
+    return sendCustomSmtp({
+      host: cfg.smtpHost,
+      port: cfg.smtpPort || 587,
+      user: cfg.smtpUser || '',
+      pass: cfg.smtpPassword || '',
+      secure: !!cfg.smtpSecure,
+      from: cfg.fromEmail || cfg.smtpUser || 'noreply@khayt.app',
+      fromName: cfg.fromName || 'Khayt',
+      to,
+      subject,
+      html: body,
+    });
   }
   // Fallback: mailto link
   return { ok: false, fallback: true, mailtoUrl: `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}` };
