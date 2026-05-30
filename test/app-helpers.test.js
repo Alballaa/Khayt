@@ -35,3 +35,52 @@ test('KhaytAppHelpers exports shared helper entry points', () => {
   assert.equal(typeof helpers.openCsvImportModal, 'function');
   assert.equal(typeof helpers.toArabicNumerals, 'function');
 });
+
+test('parseTags dedupes, trims, and sorts', () => {
+  const { parseTags } = require('../renderer/app-helpers.js');
+  assert.deepEqual(parseTags(' rush, beta ,rush '), ['beta', 'rush']);
+  assert.deepEqual(parseTags(''), []);
+});
+
+test('payStatus handles voided orders and credit notes', () => {
+  const { payStatus } = require('../renderer/app-helpers.js');
+  assert.equal(payStatus({ price: 100, voidedAt: '2026-01-01' }), 'voided');
+  assert.equal(payStatus({ price: 100, paidAmount: 100, creditNotes: [{ amount: 30 }] }), 'partial');
+});
+
+test('clientOutstandingBalance sums unpaid non-quote orders', () => {
+  require('../renderer/format.js');
+  require('../renderer/currency.js');
+  const { clientOutstandingBalance } = require('../renderer/app-helpers.js');
+  global.settings = { currency: 'SAR' };
+  global.clients = [];
+  global.printLog = [
+    { id: 'O1', clientId: 'c1', status: 'pending', price: 100, paidAmount: 0 },
+    { id: 'O2', clientId: 'c1', status: 'completed', price: 50, paidAmount: 50 },
+    { id: 'O3', clientId: 'c2', status: 'pending', price: 200, paidAmount: 0 },
+  ];
+  assert.equal(clientOutstandingBalance('c1'), 100);
+  assert.equal(clientOutstandingBalance('c2'), 200);
+});
+
+test('machineDowntimeHoursInRange sums overlapping blocks', () => {
+  const { machineDowntimeHoursInRange } = require('../renderer/app-helpers.js');
+  const machine = {
+    downtimeBlocks: [{ from: '2026-05-30T10:00:00Z', to: '2026-05-30T12:00:00Z' }],
+  };
+  const hours = machineDowntimeHoursInRange(
+    machine,
+    '2026-05-30T09:00:00Z',
+    '2026-05-30T14:00:00Z',
+  );
+  assert.equal(hours, 2);
+});
+
+test('availableHoursUntil returns zero when target is today', () => {
+  const { availableHoursUntil } = require('../renderer/app-helpers.js');
+  global.settings = {
+    workingHours: { sun: 8, mon: 8, tue: 8, wed: 8, thu: 8, fri: 8, sat: 8 },
+    holidays: [],
+  };
+  assert.equal(availableHoursUntil(new Date()), 0);
+});
