@@ -367,6 +367,35 @@ function clientOutstandingBalance(clientId) {
     .reduce((s, o) => s + orderOwedBase(o), 0);
 }
 
+/* ============================================================
+   Locale helpers — Hijri date + Arabic numerals
+   ============================================================ */
+const ARABIC_DIGITS = '٠١٢٣٤٥٦٧٨٩';
+function toArabicNumerals(s) {
+  return String(s ?? '').replace(/[0-9]/g, d => ARABIC_DIGITS[+d]);
+}
+// Converts an ISO date string to a Saudi Hijri (Umm al-Qura) display string,
+// e.g. "٤ ذو القعدة ١٤٤٧" or "1447/11/04". Defaults to short numeric.
+function hijriDate(isoDate, format = 'short') {
+  if (!isoDate) return '';
+  try {
+    const d = new Date(isoDate);
+    if (format === 'long') {
+      return d.toLocaleDateString('ar-SA-u-ca-islamic-umalqura', {
+        day: 'numeric', month: 'long', year: 'numeric'
+      });
+    }
+    // Compact YYYY/MM/DD style
+    const parts = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura', {
+      day: '2-digit', month: '2-digit', year: 'numeric'
+    }).formatToParts(d);
+    const y = parts.find(p => p.type === 'year')?.value || '';
+    const m = parts.find(p => p.type === 'month')?.value || '';
+    const dd = parts.find(p => p.type === 'day')?.value || '';
+    return `${y}/${m}/${dd}`;
+  } catch { return ''; }
+}
+
 (function (global) {
   const api = {
     localName,
@@ -389,6 +418,8 @@ function clientOutstandingBalance(clientId) {
     avgDailyWorkingHours,
     machineDowntimeHoursInRange,
     clientOutstandingBalance,
+    toArabicNumerals,
+    hijriDate,
   };
   Object.assign(global, api);
   global.KhaytAppHelpers = api;
