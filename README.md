@@ -26,9 +26,19 @@ Built with Electron · Vanilla JS · No cloud · No subscription · Your data ne
 |:---------:|:---------:|
 | ![Analytics — revenue trends, filament usage, machine P&L](assets/screenshot-5-analytics.png) | ![Inventory — spool tracking with FIFO cost and reorder alerts](assets/screenshot-6-inventory.png) |
 
-| Clients & CRM |  |
-|:-------------:|:-:|
-| ![Clients — profiles, loyalty tiers, and purchase history](assets/screenshot-7-clients.png) | |
+| Clients & CRM | Gift Cards |
+|:-------------:|:----------:|
+| ![Clients — profiles, loyalty tiers, and purchase history](assets/screenshot-7-clients.png) | ![Gift cards — store credit with balance and expiry tracking](assets/screenshot-8-gift-cards.png) |
+
+| Product Catalog | Waste Log |
+|:---------------:|:---------:|
+| ![Product catalog — reusable SKUs with quote shortcuts](assets/screenshot-9-catalog.png) | ![Waste log — failure tracking and cost impact](assets/screenshot-10-waste.png) |
+
+| Invoice & ZATCA Settings | Print Portfolio |
+|:------------------------:|:---------------:|
+| ![Settings — ZATCA Phase 2 onboarding and custom SMTP](assets/screenshot-11-settings-invoice.png) | ![Portfolio — finished print gallery from order photos](assets/screenshot-12-portfolio.png) |
+
+Full-resolution PNGs are also attached to each [GitHub Release](https://github.com/Alballaa/Khayt/releases/latest).
 
 ---
 

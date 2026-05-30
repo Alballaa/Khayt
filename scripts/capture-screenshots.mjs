@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Capture README screenshots from the Studio UI with demo data + Claude logo.
+ * Capture README / release screenshots from the Studio UI with demo data.
  * Linux CI: xvfb-run -a npm run capture:screenshots
  */
 import { _electron as electron } from 'playwright-core';
@@ -23,6 +23,11 @@ const SHOTS = [
   { tab: 'analytics-tab', file: 'screenshot-5-analytics.png', wait: '#analytics-tab .analytics-grid, #analytics-tab' },
   { tab: 'inventory-tab', file: 'screenshot-6-inventory.png', wait: '#inventory-tab table tbody tr, #inventory-tab' },
   { tab: 'clients-tab', file: 'screenshot-7-clients.png', wait: '#clients-tab table tbody tr, #clients-tab' },
+  { tab: 'gift-cards-tab', file: 'screenshot-8-gift-cards.png', wait: '#giftCardsContainer table tbody tr, #gift-cards-tab' },
+  { tab: 'catalog-tab', file: 'screenshot-9-catalog.png', wait: '#catalogGrid .product-card, #catalogGrid' },
+  { tab: 'waste-tab', file: 'screenshot-10-waste.png', wait: '#wasteTable tbody tr, #waste-tab' },
+  { tab: 'settings-tab', file: 'screenshot-11-settings-invoice.png', wait: '#zatcaPhase2Section, #settings-panel-invoice', setup: 'settings-invoice' },
+  { tab: 'portfolio-tab', file: 'screenshot-12-portfolio.png', wait: '#portfolioGrid .portfolio-cell, #portfolioGrid' },
 ];
 
 const VIEWPORT = { width: 1440, height: 940 };
@@ -58,6 +63,21 @@ async function seedCalculator(page) {
   });
 }
 
+async function prepareShot(page, shot) {
+  if (shot.setup === 'calculator') {
+    await seedCalculator(page);
+    return;
+  }
+  if (shot.setup === 'settings-invoice') {
+    await page.evaluate(() => window.KhaytShell.switchTab('settings-tab'));
+    await page.evaluate(() => {
+      document.querySelector('.settings-nav-item[data-settings-section="invoice"]')?.click();
+    });
+    return;
+  }
+  await page.evaluate((tabId) => window.KhaytShell.switchTab(tabId), shot.tab);
+}
+
 let electronApp;
 try {
   const demoStore = buildScreenshotDemoStore();
@@ -90,7 +110,6 @@ try {
   );
   await page.waitForTimeout(800);
 
-  // Hide toasts / modals for clean captures
   await page.evaluate(() => {
     const wiz = document.querySelector('#setup-wizard');
     if (wiz) wiz.style.display = 'none';
@@ -99,11 +118,7 @@ try {
   });
 
   for (const shot of SHOTS) {
-    if (shot.setup === 'calculator') {
-      await seedCalculator(page);
-    } else {
-      await page.evaluate((tabId) => window.KhaytShell.switchTab(tabId), shot.tab);
-    }
+    await prepareShot(page, shot);
     await page.waitForTimeout(600);
     try {
       await page.waitForSelector(shot.wait, { timeout: 15_000 });
@@ -117,7 +132,7 @@ try {
     console.log(`  ${shot.file}`);
   }
 
-  console.log('\nScreenshots saved to assets/');
+  console.log(`\nScreenshots saved to assets/ (${SHOTS.length} files)`);
 } finally {
   if (electronApp) await electronApp.close().catch(() => {});
   fs.rmSync(userData, { recursive: true, force: true });

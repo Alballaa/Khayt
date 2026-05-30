@@ -6,7 +6,7 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
-- README screenshots refreshed for Studio UI on v2.2.0 (`npm run capture:screenshots`).
+- Full screenshot gallery (12 tabs): gift cards, catalog, waste, ZATCA settings, portfolio; `npm run publish:screenshots` uploads PNGs to GitHub Releases.
 
 ## [2.2.0] - 2026-05-30
 
