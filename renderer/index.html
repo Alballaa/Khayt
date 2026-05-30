@@ -1847,48 +1847,48 @@
     <!-- Step 1: Welcome -->
     <div class="wizard-step" id="wiz-step-1">
       <div class="wizard-logo">🖨️ Khayt</div>
-      <h1 class="wizard-title">Welcome to Khayt</h1>
-      <p class="wizard-subtitle">3D printing production management — let's get you set up in 60 seconds.</p>
-      <button class="btn btn-primary wizard-next" data-next="2">Get started →</button>
+      <h1 class="wizard-title" data-i18n="wiz.title">Welcome to Khayt</h1>
+      <p class="wizard-subtitle" data-i18n="wiz.intro_subtitle">3D printing production management — let's get you set up in 60 seconds.</p>
+      <button type="button" class="btn btn-primary wizard-next" data-next="2" data-i18n="wiz.get_started">Get started →</button>
     </div>
 
     <!-- Step 2: Business type -->
     <div class="wizard-step" id="wiz-step-2" style="display:none">
-      <h2 class="wizard-title">How do you use Khayt?</h2>
-      <p class="wizard-subtitle">This sets your starting experience. You can change it anytime in Settings.</p>
+      <h2 class="wizard-title" data-i18n="wiz.business_type">How do you use Khayt?</h2>
+      <p class="wizard-subtitle" data-i18n="wiz.mode_hint">This sets your starting experience. You can change it anytime in Settings.</p>
       <div class="wizard-options">
-        <button class="wizard-option" data-mode="simple" data-next="3">
-          <span class="wizard-option-icon">👤</span>
-          <strong>Solo maker</strong>
-          <span>Just me — quoting, invoicing, tracking jobs</span>
+        <button type="button" class="wizard-option" data-mode="simple" data-next="3">
+          <span class="wizard-option-icon" aria-hidden="true">👤</span>
+          <strong data-i18n="wiz.option_solo">Solo maker</strong>
+          <span data-i18n="wiz.option_solo_desc">Just me — quoting, invoicing, tracking jobs</span>
         </button>
-        <button class="wizard-option" data-mode="simple" data-next="3">
-          <span class="wizard-option-icon">🏪</span>
-          <strong>Small shop</strong>
-          <span>1–3 printers, occasional staff help</span>
+        <button type="button" class="wizard-option" data-mode="simple" data-next="3">
+          <span class="wizard-option-icon" aria-hidden="true">🏪</span>
+          <strong data-i18n="wiz.option_shop">Small shop</strong>
+          <span data-i18n="wiz.option_shop_desc">1–3 printers, occasional staff help</span>
         </button>
-        <button class="wizard-option" data-mode="professional" data-next="3">
-          <span class="wizard-option-icon">🏭</span>
-          <strong>Print farm</strong>
-          <span>4+ printers, multiple operators, analytics-driven</span>
+        <button type="button" class="wizard-option" data-mode="professional" data-next="3">
+          <span class="wizard-option-icon" aria-hidden="true">🏭</span>
+          <strong data-i18n="wiz.option_farm">Print farm</strong>
+          <span data-i18n="wiz.option_farm_desc">4+ printers, multiple operators, analytics-driven</span>
         </button>
-        <button class="wizard-option" data-mode="professional" data-next="3">
-          <span class="wizard-option-icon">🏢</span>
-          <strong>Company / B2B</strong>
-          <span>Corporate clients, VAT invoicing, multi-location</span>
+        <button type="button" class="wizard-option" data-mode="professional" data-next="3">
+          <span class="wizard-option-icon" aria-hidden="true">🏢</span>
+          <strong data-i18n="wiz.option_b2b">Company / B2B</strong>
+          <span data-i18n="wiz.option_b2b_desc">Corporate clients, VAT invoicing, multi-location</span>
         </button>
       </div>
     </div>
 
     <!-- Step 3: Business details -->
     <div class="wizard-step" id="wiz-step-3" style="display:none">
-      <h2 class="wizard-title">Your business details</h2>
-      <p class="wizard-subtitle">Used on invoices and documents. Edit anytime in Settings.</p>
+      <h2 class="wizard-title" data-i18n="wiz.details_title">Your business details</h2>
+      <p class="wizard-subtitle" data-i18n="wiz.details_subtitle">Used on invoices and documents. Edit anytime in Settings.</p>
       <div class="wizard-form">
-        <label>Business / Shop name
-          <input id="wizBizName" type="text" placeholder="e.g. Khayt Studio" class="form-control">
+        <label><span data-i18n="wiz.biz_name">Business / Shop name</span>
+          <input id="wizBizName" type="text" data-i18n-placeholder="wiz.biz_name_ph" placeholder="e.g. Khayt Studio" class="form-control">
         </label>
-        <label>Currency
+        <label><span data-i18n="wiz.currency">Currency</span>
           <select id="wizCurrency" class="form-control">
             <option value="SAR">SAR — Saudi Riyal</option>
             <option value="USD">USD — US Dollar</option>
@@ -1899,7 +1899,7 @@
             <option value="KWD">KWD — Kuwaiti Dinar</option>
           </select>
         </label>
-        <label>Language
+        <label><span data-i18n="wiz.language">Language</span>
           <select id="wizLang" class="form-control">
             <option value="en">English</option>
             <option value="ar">العربية</option>
@@ -1915,16 +1915,18 @@
           <span data-i18n="onboard.zatca">ZATCA e-invoicing fields on invoices</span>
         </label>
       </div>
-      <button class="btn btn-primary wizard-finish" id="wizFinish">Start using Khayt →</button>
+      <button type="button" class="btn btn-primary wizard-finish" id="wizFinish" data-i18n="wiz.finish">Start using Khayt →</button>
     </div>
   </div>
 
   <!-- Progress dots -->
-  <div class="wizard-dots">
+  <div class="wizard-dots" aria-hidden="true">
     <span class="wizard-dot active" data-step="1"></span>
     <span class="wizard-dot" data-step="2"></span>
     <span class="wizard-dot" data-step="3"></span>
   </div>
+</div>
+
 </div>
 
 <!-- Printable invoice area -->
@@ -1948,6 +1950,7 @@
 <script src="studio/icons.js"></script>
 <script src="studio/charts.js"></script>
 <script src="studio/studio.js"></script>
+<script src="store.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

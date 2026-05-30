@@ -31,7 +31,7 @@ const K = {
   TIME_ENTRIES: 'hub_time_entries_v1',
 };
 
-const STORE_SECRET_MASK = '__KHAYT_MASKED__';
+const STORE_SECRET_MASK = KhaytStore.SECRET_MASK;
 function secretInputValue(v) { return v === STORE_SECRET_MASK ? '' : (v || ''); }
 function secretInputSave(current, typed) {
   const t = (typed || '').trim();
@@ -52,31 +52,6 @@ function migrateLanApiSettings() {
     settings.lanApi.zidWebhookSecret = settings.zidWebhookSecret;
   }
 }
-function redactSettingsForExport(src) {
-  const s = JSON.parse(JSON.stringify(src || {}));
-  const mask = (obj, key) => { if (obj?.[key]) obj[key] = STORE_SECRET_MASK; };
-  mask(s.emailConfig, 'apiKey');
-  mask(s.telegram, 'botToken');
-  mask(s.webhooks, 'secret');
-  mask(s.zatcaPhase2, 'csid');
-  mask(s.zatcaPhase2, 'pcsid');
-  ['tabby', 'tamara', 'stripe'].forEach(prov => {
-    mask(s.bnpl?.[prov], 'apiKey');
-    if (prov === 'tamara') mask(s.bnpl?.tamara, 'notificationToken');
-  });
-  if (s.lanApi) ['pin', 'intakePin', 'intakeToken', 'webhookToken', 'sallaWebhookSecret', 'zidWebhookSecret'].forEach(k => mask(s.lanApi, k));
-  return s;
-}
-function redactMachinesForExport(arr) {
-  return (arr || []).map(m => {
-    if (!m?.printerApi) return m;
-    const pa = { ...m.printerApi };
-    if (pa.apiKey) pa.apiKey = STORE_SECRET_MASK;
-    if (pa.accessCode) pa.accessCode = STORE_SECRET_MASK;
-    return { ...m, printerApi: pa };
-  });
-}
-
 function sanitizePrintHtml(html) {
   return String(html || '')
     .replace(/<script[\s\S]*?<\/script>/gi, '')
@@ -1086,10 +1061,7 @@ function fillWaTemplate(body, order, client) {
 
 let _saveAllTimer = null;
 
-const STORE_VERSION = 5;
-
-/** Snapshot current in-memory state as a plain object. */
-function buildStoreSnapshot() {
+function collectStoreCollections() {
   return {
     printLog, inventory, templates, products, clients, settings, printers,
     expenses, machines, waTemplates, wasteLog, machMaintLog, consumables,
@@ -1098,17 +1070,18 @@ function buildStoreSnapshot() {
   };
 }
 
+/** Snapshot current in-memory state as a plain object. */
+function buildStoreSnapshot() {
+  return KhaytStore.buildSnapshot(collectStoreCollections());
+}
+
 /** Build a versioned export/backup payload; optionally redact secrets. */
 function buildExportPayload({ redactSecrets = false } = {}) {
-  const snap = buildStoreSnapshot();
-  return {
-    version: STORE_VERSION,
-    exportedAt: new Date().toISOString(),
-    ...snap,
-    settings: redactSecrets ? redactSettingsForExport(snap.settings) : snap.settings,
-    machines: redactSecrets ? redactMachinesForExport(snap.machines) : snap.machines,
-  };
+  return KhaytStore.buildExportPayload(collectStoreCollections(), { redactSecrets });
 }
+
+const redactSettingsForExport = (src) => KhaytStore.redactSettingsForExport(src);
+const redactMachinesForExport = (arr) => KhaytStore.redactMachinesForExport(arr);
 
 /** Load all collections from a store snapshot (disk load or import). */
 function applyStoreFromSnapshot(store) {
@@ -22250,6 +22223,7 @@ function initWizard() {
   const wiz = $('#setup-wizard');
   if (!wiz) return;
   wiz.style.display = 'flex';
+  i18n.applyToDom(wiz);
 
   let selectedMode = 'simple';
 
@@ -22300,11 +22274,9 @@ function initWizard() {
     settings.firstRunDone = true;
     saveAll();
 
-    if (lang !== 'en') {
-      i18n.set(lang);
-      settings.lang = lang;
-      saveAll();
-    }
+    settings.lang = lang || 'en';
+    i18n.set(settings.lang);
+    saveAll();
 
     wiz.style.display = 'none';
     applyMode();
@@ -22312,80 +22284,6 @@ function initWizard() {
     initialRender();
     toast(t('wiz.welcome_done'), 'success', 4000);
   }
-}
-
-/* ============================================================
-   First-run onboarding
-   ============================================================ */
-function openOnboarding() {
-  const curOptions = Object.entries(CURRENCIES)
-    .map(([code, c]) => `<option value="${code}"${code === 'SAR' ? ' selected' : ''}>${escapeHtml(c.label)}</option>`)
-    .join('');
-
-  openFormModal({
-    title: '👋 ' + t('onboard.title'),
-    sizeLg: true,
-    saveLabel: t('onboard.lets_go'),
-    bodyHtml: `
-      <div style="text-align:center; margin-bottom:20px;">
-        <div style="font-size:3rem; margin-bottom:8px;">🧵</div>
-        <h2 style="margin:0; font-size:1.35rem; color:var(--accent);">Khayt · خيط</h2>
-        <p style="margin:8px 0 0; color:var(--muted); font-size:.93rem;">${escapeHtml(t('onboard.subtitle'))}</p>
-      </div>
-
-      <div style="display:grid; gap:14px;">
-        <div class="form-group">
-          <label>${escapeHtml(t('onboard.biz_name'))}</label>
-          <input id="ob_bizEn" type="text" placeholder="My 3D Print Studio" value="${escapeHtml(settings.bizEn || '')}">
-        </div>
-        <div class="form-group">
-          <label>${escapeHtml(t('onboard.currency'))}</label>
-          <select id="ob_currency">${curOptions}</select>
-          <small style="color:var(--muted);">${escapeHtml(t('onboard.currency_hint'))}</small>
-        </div>
-        <div class="form-group">
-          <label>${escapeHtml(t('onboard.lang'))}</label>
-          <select id="ob_lang">
-            <option value="en"${(settings.lang||'en')==='en'?' selected':''}>English</option>
-            <option value="ar"${(settings.lang||'en')==='ar'?' selected':''}>العربية</option>
-            <option value="de"${(settings.lang||'en')==='de'?' selected':''}>Deutsch</option>
-            <option value="es"${(settings.lang||'en')==='es'?' selected':''}>Español</option>
-            <option value="fr"${(settings.lang||'en')==='fr'?' selected':''}>Français</option>
-            <option value="zh"${(settings.lang||'en')==='zh'?' selected':''}>中文</option>
-            <option value="ja"${(settings.lang||'en')==='ja'?' selected':''}>日本語</option>
-          </select>
-        </div>
-        <div class="form-group" style="background:var(--surface-2,rgba(255,255,255,.04)); padding:12px; border-radius:8px;">
-          <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin:0;">
-            <input type="checkbox" id="ob_enableZatca" style="width:auto; margin:0;" ${settings.enableZatca !== false ? 'checked' : ''}>
-            <span>${escapeHtml(t('onboard.zatca'))}</span>
-          </label>
-          <small style="color:var(--muted); margin-top:4px; display:block;">${escapeHtml(t('onboard.zatca_hint'))}</small>
-        </div>
-        <p style="text-align:center; color:var(--muted); font-size:.82rem; margin:4px 0 0;">${escapeHtml(t('onboard.change_later'))}</p>
-      </div>
-    `,
-    onMount() {},
-    onSave() {
-      const bizEn = $('#ob_bizEn').value.trim() || 'Khayt';
-      const currency = $('#ob_currency').value || 'SAR';
-      const lang     = $('#ob_lang').value || 'en';
-      const enableZatca = !!$('#ob_enableZatca').checked;
-      settings.bizEn        = bizEn;
-      settings.bizAr        = settings.bizAr || 'خيط';
-      settings.currency     = currency;
-      settings.lang         = lang;
-      settings.enableZatca  = enableZatca;
-      settings.firstRun = false;
-      settings.firstRunDone = true;
-      saveAll();
-      i18n.set(lang);
-      loadSettingsIntoForm();
-      initialRender();
-      toast('🎉 ' + t('onboard.welcome'), 'success');
-      // openFormModal auto-closes after onSave returns
-    }
-  });
 }
 
 /* ============================================================
@@ -22738,10 +22636,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Business Mode setup wizard (new first-run experience)
   initWizard();
 
-  // Legacy first-run onboarding — only if wizard was already completed but old onboarding never ran
-  // (firstRun=false means wizard was dismissed; firstRunDone=false means old onboarding still needed)
-  if (!settings.firstRun && !settings.firstRunDone) {
-    setTimeout(openOnboarding, 400);
+  // Upgraded installs: wizard already done but legacy onboarding flag never set
+  if (!settings.firstRunDone && !settings.firstRun) {
+    settings.firstRunDone = true;
+    saveAll();
   }
 
   // Global search keyboard shortcut ⌘K / Ctrl+K, plus tab-nav shortcuts
