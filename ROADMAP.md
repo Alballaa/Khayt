@@ -19,7 +19,7 @@ Living priorities for maintainers. Not a public commitment calendar — reorder 
 ## Later (2.x / 3.0.0 when justified)
 
 - [x] Locale files per language (`renderer/locales/*.js` + thin `i18n.js` loader; `npm run i18n:extract`)
-- [ ] E2E smoke test: launch app, store round-trip, LAN PIN gate (`npm run test:e2e`, CI with xvfb)
+- [x] E2E smoke test: launch app, store round-trip, LAN PIN gate (`npm run test:e2e`, CI with xvfb)
 - [x] Typed store contract (JSDoc + `renderer/store-validate.js`) validated on load
 - [ ] LAN tunnel: require PIN + in-app risk warning before exposing via localtunnel
 
