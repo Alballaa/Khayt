@@ -541,21 +541,7 @@ function renderFixedCostSettings() {
   });
 }
 
-/* ============================================================
-   Round 12 — Feature 5: Carrier tracking URL auto-generation
-   ============================================================ */
-const CARRIER_TRACKING_URLS = {
-  aramex:     n => `https://www.aramex.com/express/track?mode=0&ShipmentNumber=${n}`,
-  dhl:        n => `https://www.dhl.com/en/express/tracking.html?AWB=${n}&brand=DHL`,
-  fedex:      n => `https://www.fedex.com/fedextrack/?trknbr=${n}`,
-  ups:        n => `https://www.ups.com/track?loc=en_US&tracknum=${n}`,
-  'saudi post': n => `https://www.splonline.com.sa/en/track-your-shipment/?awb=${n}`,
-  spl:        n => `https://www.splonline.com.sa/en/track-your-shipment/?awb=${n}`,
-  smsa:       n => `https://www.smsaexpress.com/en/tracking?trackno=${n}`,
-  dpd:        n => `https://tracking.dpd.de/status/en_US/parcel/${n}`,
-  'j&t':      n => `https://www.jtexpress.sa/index/query/giftSearch.html?billcode=${n}`,
-};
-
+/* Carrier tracking URLs — renderer/integrations.js (getCarrierTrackingUrl) */
 
 function renderLanApiSettings() {
   const el = $('#lanApiSection');
