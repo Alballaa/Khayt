@@ -32,7 +32,10 @@ try {
 
 if (!fs.existsSync(pathTxt)) {
   console.error('\nElectron install finished but path.txt is still missing.');
-  console.error('Try: rm -rf node_modules/electron && npm install');
+  console.error('Node 24.16+ breaks npm extract-zip — Khayt uses system unzip on macOS.');
+  console.error('  xcode-select --install   # if unzip is missing');
+  console.error('  rm -rf node_modules/electron && npm install');
+  console.error('  node scripts/install-electron-await.js');
   process.exit(1);
 }
 

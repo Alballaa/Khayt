@@ -156,18 +156,27 @@ Go to **[Releases](https://github.com/Alballaa/Khayt/releases/latest)** and grab
 
 ### Build from source
 
-Requires **Node.js 22+**.
+Requires **Node.js 22.12+** (22 LTS or 24.x). On **Node 24.16+**, Electron’s zip step needs system `unzip` on macOS (`xcode-select --install` if missing).
 
 ```bash
 git clone https://github.com/Alballaa/Khayt.git
 cd Khayt
-npm install
+npm install            # downloads Electron (~150MB); wait until it finishes
 npm start              # development (live-reload with ⌘R / Ctrl+R)
 ```
 
 #### macOS: `path.txt` missing / Electron won't start
 
 If `npm start` fails with `ENOENT ... node_modules/electron/path.txt`, your tree is missing the awaited Electron installer (or `npm install` exited before the ~150MB download finished).
+
+Quick fix:
+
+```bash
+npm run install:electron
+npm start
+```
+
+If that does not help, follow these steps:
 
 1. **Update the repo** (you need `scripts/install-electron-await.js` on `main`):
 
@@ -201,7 +210,7 @@ If `npm start` fails with `ENOENT ... node_modules/electron/path.txt`, your tree
    node scripts/install-electron-await.js
    ```
 
-Use **Node.js 22.12+** (LTS 22 or 24 is fine). Do not run `node node_modules/electron/install.js` alone; it can return before the download completes.
+Use **Node.js 22.12+** (LTS 22 or 24 is fine). Do not run `node node_modules/electron/install.js` alone; it can return before the download completes. The await script uses `unzip` on macOS (not the broken `extract-zip` path on Node 24.16+).
 
 To build distributable packages:
 ```bash

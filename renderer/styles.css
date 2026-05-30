@@ -1,5 +1,5 @@
 /* ============================================================
-   Athar Tuwaiq Hub — Stylesheet
+   Khayt — Stylesheet
    - Modern dark theme by default (matches macOS native feel)
    - Auto light/dark via prefers-color-scheme + manual toggle
    - Full RTL support for Arabic via [dir="rtl"] selectors
@@ -8,6 +8,7 @@
 :root {
   --bg:           #0f172a;
   --bg-elev:      #111c33;
+  --bg-card:      var(--surface);
   --surface:      #1a2540;
   --surface-1:    #1a2540;
   --surface-2:    #213056;

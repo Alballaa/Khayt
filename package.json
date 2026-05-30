@@ -1,6 +1,6 @@
 {
   "name": "khayt",
-  "version": "2.0.15",
+  "version": "2.0.16",
   "description": "Khayt - 3D printing production management, invoicing and analytics. Free and open to all makers worldwide.",
   "main": "main.js",
   "author": {
@@ -10,9 +10,7 @@
   "license": "MIT-Commons-Clause",
   "private": false,
   "scripts": {
-    "postinstall": "node scripts/install-electron-await.js",
-    "install:electron": "node scripts/install-electron-await.js",
-    "start": "node scripts/ensure-electron.js && electron .",
+    "start": "electron .",
     "pack": "electron-builder --dir",
     "dist:mac:arm64": "electron-builder --mac --arm64",
     "dist:mac:x64": "electron-builder --mac --x64",
