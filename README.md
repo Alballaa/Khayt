@@ -232,9 +232,21 @@ Khayt/
 
 ---
 
+## Versioning
+
+Khayt continues from the **current shipped version** (`2.0.15` today) — no renumbering from zero:
+
+| Release type | Example | Use for |
+|--------------|---------|---------|
+| Patch (minor day-to-day updates) | `2.0.15` → `2.0.16` | Fixes and small improvements |
+| Minor (significant updates) | `2.0.x` → `2.1.0` | New features, compatible with existing data |
+| Major | `2.x.x` → `3.0.0` | Breaking changes or required migration |
+
+Full policy, tagging, and release steps: **[VERSIONING.md](./VERSIONING.md)**. Change history: **[CHANGELOG.md](./CHANGELOG.md)**.
+
 ## Contributing
 
-Issues and pull requests are welcome.
+Issues and pull requests are welcome. Maintainer workflow: **[CONTRIBUTING.md](./CONTRIBUTING.md)**. Planned engineering work: **[ROADMAP.md](./ROADMAP.md)**.
 
 When reporting a bug, please include:
 1. OS and app version (shown in **Settings → About**)
