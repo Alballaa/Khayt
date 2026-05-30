@@ -15,6 +15,7 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- `renderer/app.js` reduced to a thin entry shell; log operator filter and pagination state live in `app-state.js` with other log filters.
 - `safeJsonParse`, `isBlockedHost`, and ZATCA ASN.1 helpers moved from `main.js` into `lib/` for reuse and testing.
 
 ## [2.0.15] - (current)

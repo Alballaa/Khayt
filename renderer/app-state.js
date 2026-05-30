@@ -234,6 +234,9 @@ let machineStatusCache = {};
 // UI state for filters and search
 let logSearchTerm = '';
 let logClientFilter = '';       // filter logs by specific clientId
+let logOperatorFilter = '';
+let logDisplayLimit = 100;
+let _lastLogFilterHash = '';
 let kanSearchTerm = '';
 let kanbanCollapsed = new Set(settings?.kanbanCollapsed || []);
 let logStatusFilter = '';

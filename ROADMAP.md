@@ -11,7 +11,7 @@ Living priorities for maintainers. Not a public commitment calendar — reorder 
 
 ## Next (2.1.0 — significant)
 
-- [x] Split `renderer/app.js` into feature modules (`app.js` is now a thin entry shell ~73 lines)
+- [x] Split `renderer/app.js` into feature modules (`app.js` is a thin entry shell; log pagination state lives in `app-state.js`)
 - [ ] Unit tests for pure logic: more `app.js` splits (started: `lib/store-io` + `renderer/*` + `store.js` / `store-validate` + `npm test`)
 - [x] Finish CSP hardening: drop `script-src 'unsafe-inline'` in Electron CSP (renderer uses `data-act`; LAN/export HTML may still use inline scripts)
 - [x] Split `main.js` into feature modules (`lib/store-io.js`, `lib/updater.js`, `lib/lan-server.js`, `lib/zatca-crypto.js`)
