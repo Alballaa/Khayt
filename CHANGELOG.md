@@ -6,12 +6,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
-- Gift card redemption in the payment modal — apply a code at checkout with live outstanding balance.
-- WIP hard-limit option in Settings — block kanban moves when a column is full (default remains warn-only).
+- **Production shop (Bundle A)** — gift card checkout in payment modal; WIP hard-limit setting; LAN printer polling on private-network hosts.
+- **ZATCA & email (Bundle B)** — Phase 2 FATOORA auto-submit on invoice, submission audit log, manual retry, custom SMTP provider.
+- **LAN quote approval (Bundle C)** — public quote page, share approval link modal, portal survey, client-approval sync.
+- **Platform hardening (Bundle D)** — expanded E2E critical flows, `ensure-electron` wiring, stale branch cleanup helper.
 
 ### Fixed
 
-- LAN printer polling now connects to private-network hosts (`192.168.x.x`, `10.x`, hostnames like `octopi.local`). Previously `isBlockedHost` rejected all RFC1918 addresses, so live progress rings never worked for local OctoPrint/Moonraker/Bambu APIs.
+- LAN printer polling now connects to RFC1918 hosts (`192.168.x.x`, `10.x`, `octopi.local`). Previously `isBlockedHost` blocked all private addresses.
 
 ## [2.1.2] - 2026-05-30
 

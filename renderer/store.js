@@ -10,6 +10,7 @@
     const s = JSON.parse(JSON.stringify(src || {}));
     const mask = (obj, key) => { if (obj?.[key]) obj[key] = STORE_SECRET_MASK; };
     mask(s.emailConfig, 'apiKey');
+    mask(s.emailConfig, 'smtpPassword');
     mask(s.telegram, 'botToken');
     mask(s.webhooks, 'secret');
     mask(s.zatcaPhase2, 'csid');

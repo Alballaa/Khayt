@@ -164,7 +164,10 @@ async function emailOrderToClient(orderId, isQuote = false) {
 
   // Use configured SMTP if available, fall back to mailto
   const cfg = settings.emailConfig;
-  const smtpReady = cfg && cfg.provider !== 'none' && cfg.provider !== 'mailto' && cfg.apiKey;
+  const smtpReady = cfg && cfg.provider !== 'none' && cfg.provider !== 'mailto' && (
+    (cfg.provider === 'custom' && cfg.smtpHost && (cfg.fromEmail || cfg.smtpUser)) ||
+    (cfg.provider !== 'custom' && cfg.apiKey)
+  );
   if (smtpReady && window.hubAPI?.sendEmail) {
     const htmlBody = `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px;">
       <h2 style="color:${safeCssColor(settings.invAccentColor, '#5E2E14')};">${escapeHtml(shopName)}</h2>

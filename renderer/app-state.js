@@ -96,7 +96,7 @@ function defaultSettings() {
     // v2.0 — worldwide
     currency:        'SAR',
     enableZatca:     true,
-    zatcaPhase2:     { enabled: false, environment: 'sandbox', csid: '', pcsid: '', cn: '', invoiceCounter: 0, lastInvoiceHash: 'NWZlY2ViNjZmZmM4NmYzOGQ5NTI3ODZjNmQ2OTZjNzljMmRiYzIzOWRkNGU5MWI4NjJhNGRhNjM3NWQ2OGM5', org: '', city: 'Riyadh', industry: '3D Printing' },
+    zatcaPhase2:     { enabled: false, environment: 'sandbox', csid: '', pcsid: '', cn: '', invoiceCounter: 0, lastInvoiceHash: 'NWZlY2ViNjZmZmM4NmYzOGQ5NTI3ODZjNmQ2OTZjNzljMmRiYzIzOWRkNGU5MWI4NjJhNGRhNjM3NWQ2OGM5', org: '', city: 'Riyadh', industry: '3D Printing', autoSubmit: true, emailAfterSubmit: false, submissions: [] },
     bnpl: {
       tabby:  { enabled: false, apiKey: '', merchantCode: '', currency: 'SAR' },
       tamara: { enabled: false, apiKey: '', notificationToken: '', currency: 'SAR', country: 'SA' },

@@ -567,6 +567,11 @@ function wireEvents() {
     if (emailInv) emailOrderToClient(emailInv.dataset.id, false);
     const emailQuo = e.target.closest('[data-act="email-quote"]');
     if (emailQuo) emailOrderToClient(emailQuo.dataset.id, true);
+    const zatcaSubmitBtn = e.target.closest('[data-act="zatca-submit"]');
+    if (zatcaSubmitBtn) {
+      submitOrderToZatca(zatcaSubmitBtn.dataset.id, { manual: true });
+      return;
+    }
     const statusPage = e.target.closest('[data-act="export-status-page"]');
     if (statusPage) exportOrderStatusPage(statusPage.dataset.id);
     const portalQrBtn = e.target.closest('[data-act="portal-qr"]');

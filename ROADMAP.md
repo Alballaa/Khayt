@@ -2,24 +2,25 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (2.2.0 — in progress)
+## Now (2.2.x)
 
-- [x] Bundle A — production shop: LAN printer polling, gift card checkout, WIP hard limits
-- [ ] Bundle B — ZATCA auto-submit + invoice retry UI
-- [ ] Bundle C — LAN quote approval links
-- [ ] Bundle D — E2E flow tests + platform hardening
+- [ ] Triage post-2.2.0 feedback; plan 2.2.x patches or 2.3.0
 
-## Completed (2.1.x — 2026-05-30)
+## Shipped (2.2.0 — 2026-05-30)
 
-- [x] Triage post-2.1.0 feedback; ship 2.1.1 boot fix and 2.1.2 app icon
-- [x] README screenshots, Studio UI polish, Settings/About credits, locale gaps
+| Bundle | Theme | Status |
+|--------|--------|--------|
+| **A** | Production shop | LAN printer polling, gift card checkout, WIP hard limits |
+| **B** | ZATCA & email | Auto-submit, submission log, custom SMTP |
+| **C** | Customer portal | LAN quote approval links, portal survey |
+| **D** | Platform hardening | E2E critical flows, ensure-electron, stale branch helper |
 
 ## Completed (2.1.0 — 2026-05-30)
 
 - [x] Document versioning (`VERSIONING.md`), lint, and test harness
 - [x] Split `renderer/app.js` into feature modules (`app.js` is a thin entry shell)
 - [x] Split `main.js` into `lib/store-io.js`, `lib/updater.js`, `lib/lan-server.js`, `lib/zatca-crypto.js`
-- [x] Unit tests for pure logic (`npm test` — 120 cases)
+- [x] Unit tests for pure logic (`npm test` — 120+ cases)
 - [x] CSP hardening: drop `script-src 'unsafe-inline'` in Electron CSP
 - [x] Locale files per language (`renderer/locales/*.js` + `npm run i18n:extract`)
 - [x] E2E smoke test (`npm run test:e2e`)
