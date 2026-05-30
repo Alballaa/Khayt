@@ -40,6 +40,7 @@ Thank you for helping maintain Khayt. This document is the default workflow for 
 | `preload.js` | `hubAPI` context bridge |
 | `renderer/app.js` | UI and business logic |
 | `renderer/store.js` | Export/import and backup helpers |
+| `renderer/format.js` | Number, money, CSV, and unit-price helpers |
 | `renderer/i18n.js` | Translations |
 | `renderer/studio/*.js` | Khayt Studio UI module |
 | `lib/` | Shared main-process helpers (`safeJsonParse`, `isBlockedHost`) |

@@ -12,7 +12,7 @@ Living priorities for maintainers. Not a public commitment calendar — reorder 
 ## Next (2.1.0 — significant)
 
 - [ ] Split `renderer/app.js` into feature modules (store, calculator, kanban, invoicing, settings)
-- [ ] Unit tests for pure logic: costing helpers (started: `safeJsonParse`, `isBlockedHost`, ZATCA ASN.1 in `lib/` + `npm test`)
+- [ ] Unit tests for pure logic: more `app.js` splits (started: `lib/` security + ZATCA; `renderer/format.js` costing/CSV helpers + `npm test`)
 - [ ] Finish CSP hardening: drop `script-src 'unsafe-inline'` after all dynamic handlers use `data-act`
 - [ ] Split `main.js` into `lan-server`, `store-io`, `zatca-crypto`, `updater`
 

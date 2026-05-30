@@ -10,6 +10,7 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 - Maintainer guide (`CONTRIBUTING.md`) and engineering roadmap (`ROADMAP.md`).
 - `npm run lint`, `npm run check`, and `npm test` (unit tests for `lib/` helpers).
 - Unit tests for ZATCA ASN.1 DER encoding and CSR building.
+- `renderer/format.js` with tests for `num`, `fmtMoney`, `computeUnitPrice`, and CSV neutralization.
 
 ### Changed
 

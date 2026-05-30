@@ -280,15 +280,7 @@ function loadJSON(key, fallback) {
 function saveJSON(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
 function $(sel, root = document) { return root.querySelector(sel); }
 function $$(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
-function num(v, fallback = 0) { const n = parseFloat(v); return Number.isFinite(n) ? n : fallback; }
-function clampPositive(v) { return Math.max(0, num(v, 0)); }
-function fmtMoney(n) { return (Math.round((+n || 0) * 100) / 100).toFixed(2); }
-
-function computeUnitPrice(p) {
-  if (p?.unitPrice && +p.unitPrice > 0) return +p.unitPrice;
-  const qty = +p?.quantity || 1;
-  return (+p?.amount || 0) / qty;
-}
+/* num, clampPositive, fmtMoney, computeUnitPrice — renderer/format.js */
 
 /* ── Currency catalogue ────────────────────────────────────────────────── */
 const CURRENCIES = {
@@ -395,11 +387,7 @@ function payStatus(order) {
   if (effectivePaid >= price) return 'paid';
   return 'partial';
 }
-/** Escape a value for CSV (RFC 4180). */
-function csvFormulaNeutralize(v) {
-  const s = String(v ?? '');
-  return /^[=+\-@\t\r]/.test(s) ? "'" + s : s;
-}
+/* csvFormulaNeutralize — renderer/format.js */
 /** Escape a value for CSV (RFC 4180). */
 function csvEsc(v) { return '"' + csvFormulaNeutralize(v).replace(/"/g, '""') + '"'; }
 /** Trigger a file download from a Blob. */
