@@ -4,7 +4,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
 const { safeJsonParse } = require('./lib/safe-json');
-const { isBlockedHost } = require('./lib/host-guard');
+const { isBlockedHost, isAllowedPrinterHost } = require('./lib/host-guard');
 const { normalizeStoreSnapshot } = require('./lib/store-validate');
 const { createStoreIo } = require('./lib/store-io');
 const { registerZatcaCrypto } = require('./lib/zatca-crypto');
@@ -681,8 +681,8 @@ async function fetchPrinterStatus(machine) {
   const { type, host, port, apiKey, accessCode, printerSlug } = machine.printerApi || {};
   // Strip any characters that aren't valid in a hostname/IP (prevents URL injection via @, /, etc.)
   const printerHost = String(host || '').replace(/[^a-zA-Z0-9.\-]/g, '');
-  if (isBlockedHost(printerHost)) {
-    return { ok: false, error: 'Blocked host — cannot connect to loopback or private addresses' };
+  if (!isAllowedPrinterHost(printerHost)) {
+    return { ok: false, error: 'Invalid printer host' };
   }
   const portNum = parseInt(port || defaultPrinterPort(type), 10);
   if (!Number.isInteger(portNum) || portNum < 1 || portNum > 65535) {

@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { isBlockedHost } = require('../lib/host-guard');
+const { isBlockedHost, isAllowedPrinterHost } = require('../lib/host-guard');
 
 test('blocks empty and localhost names', () => {
   assert.equal(isBlockedHost(''), true);
@@ -24,4 +24,20 @@ test('blocks common IPv6 loopback and ULA prefixes', () => {
   assert.equal(isBlockedHost('::1'), true);
   assert.equal(isBlockedHost('fe80::1'), true);
   assert.equal(isBlockedHost('fc00::1'), true);
+});
+
+test('isAllowedPrinterHost allows LAN printer addresses', () => {
+  assert.equal(isAllowedPrinterHost('192.168.1.50'), true);
+  assert.equal(isAllowedPrinterHost('10.0.0.42'), true);
+  assert.equal(isAllowedPrinterHost('172.16.0.8'), true);
+  assert.equal(isAllowedPrinterHost('octopi.local'), true);
+  assert.equal(isAllowedPrinterHost('169.254.1.1'), true);
+});
+
+test('isAllowedPrinterHost blocks loopback and metadata', () => {
+  assert.equal(isAllowedPrinterHost(''), false);
+  assert.equal(isAllowedPrinterHost('localhost'), false);
+  assert.equal(isAllowedPrinterHost('127.0.0.1'), false);
+  assert.equal(isAllowedPrinterHost('169.254.169.254'), false);
+  assert.equal(isAllowedPrinterHost('0.0.0.0'), false);
 });

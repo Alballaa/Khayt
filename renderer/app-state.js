@@ -156,6 +156,7 @@ function defaultSettings() {
     rushFeePct:        25,
     // Analysis batch
     wipLimits:            {},           // e.g. { printing: 3, qc: 2 }
+    wipEnforceHardLimit:  false,        // when true, block moves that exceed WIP limits
     postProcessPresets:   [],           // [{ name, amount }]
     defaultPackagingCost: 0,
     paymentInstructions:  '',           // Shown in client portal and invoices

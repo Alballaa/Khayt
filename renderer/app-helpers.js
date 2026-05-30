@@ -356,6 +356,15 @@ function clientOutstandingBalance(clientId) {
     .reduce((s, o) => s + orderOwedBase(o), 0);
 }
 
+/** True when moving orderId into newStatus would meet or exceed the configured WIP limit. */
+function wouldExceedWipLimit(orders, orderId, newStatus, wipLimits) {
+  if (!newStatus || newStatus === 'completed' || newStatus === 'delivered' || newStatus === 'quote') return false;
+  const limit = (wipLimits || {})[newStatus] || 0;
+  if (limit <= 0) return false;
+  const colCount = (orders || []).filter(o => o.id !== orderId && o.status === newStatus).length;
+  return colCount >= limit;
+}
+
 
 /* ============================================================
    Locale helpers — Hijri date + Arabic numerals
@@ -413,6 +422,7 @@ function hijriDate(isoDate, format = 'short') {
     avgDailyWorkingHours,
     machineDowntimeHoursInRange,
     clientOutstandingBalance,
+    wouldExceedWipLimit,
     toArabicNumerals,
     hijriDate,
   };

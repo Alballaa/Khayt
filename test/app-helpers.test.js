@@ -29,6 +29,18 @@ test('hijriDate returns compact numeric string for valid ISO date', () => {
   assert.match(out, /^\d{4}\/\d{2}\/\d{2}$/);
 });
 
+test('wouldExceedWipLimit detects full columns', () => {
+  const { wouldExceedWipLimit } = require('../renderer/app-helpers.js');
+  const orders = [
+    { id: 'a', status: 'printing' },
+    { id: 'b', status: 'printing' },
+    { id: 'c', status: 'pending' },
+  ];
+  assert.equal(wouldExceedWipLimit(orders, 'c', 'printing', { printing: 2 }), true);
+  assert.equal(wouldExceedWipLimit(orders, 'a', 'printing', { printing: 2 }), false);
+  assert.equal(wouldExceedWipLimit(orders, 'c', 'completed', { printing: 2 }), false);
+});
+
 test('KhaytAppHelpers exports shared helper entry points', () => {
   const helpers = require('../renderer/app-helpers.js');
   assert.equal(typeof helpers.localName, 'function');

@@ -1225,6 +1225,8 @@ function loadSettingsIntoForm() {
     const el = $(`#set_wip_${col}`);
     if (el) el.value = (settings.wipLimits || {})[col] || '';
   });
+  const wipHardEl = $('#set_wipEnforceHardLimit');
+  if (wipHardEl) wipHardEl.checked = !!settings.wipEnforceHardLimit;
   // Post-process presets list
   renderPostProcessPresetsList();
   // Expense budgets
@@ -1396,6 +1398,7 @@ function saveSettingsFromForm() {
       });
       return wip;
     })(),
+    wipEnforceHardLimit: !!$('#set_wipEnforceHardLimit')?.checked,
     // Preserve fields managed outside this form — never silently drop them
     zatcaPhase2:        settings.zatcaPhase2        || {},
     emailDigest:        settings.emailDigest        || {},

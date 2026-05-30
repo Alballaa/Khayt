@@ -4,6 +4,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- Gift card redemption in the payment modal — apply a code at checkout with live outstanding balance.
+- WIP hard-limit option in Settings — block kanban moves when a column is full (default remains warn-only).
+
+### Fixed
+
+- LAN printer polling now connects to private-network hosts (`192.168.x.x`, `10.x`, hostnames like `octopi.local`). Previously `isBlockedHost` rejected all RFC1918 addresses, so live progress rings never worked for local OctoPrint/Moonraker/Bambu APIs.
+
 ## [2.1.2] - 2026-05-30
 
 ### Fixed

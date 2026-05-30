@@ -186,15 +186,13 @@ function updateStatus(id, newStatus) {
     toast(t('prod.paused_block'), 'warning');
     return;
   }
-  // WIP limit enforcement: warn (non-blocking) when moving into a limited column
-  if (newStatus !== 'completed') {
-    const wipLimit = (settings.wipLimits || {})[newStatus] || 0;
-    if (wipLimit > 0) {
-      const colCount = printLog.filter(o => o.id !== id && o.status === newStatus).length;
-      if (colCount >= wipLimit) {
-        toast(t('wip.limit_reached', { col: newStatus, n: wipLimit }) || `⚠ WIP limit (${wipLimit}) reached for "${newStatus}" column`, 'warning', 4000);
-      }
+  // WIP limit enforcement: warn or block when moving into a limited column
+  if (newStatus !== 'completed' && wouldExceedWipLimit(printLog, id, newStatus, settings.wipLimits)) {
+    if (settings.wipEnforceHardLimit) {
+      toast(t('wip.limit_blocked', { col: newStatus, n: (settings.wipLimits || {})[newStatus] }) || `WIP limit reached — cannot move to "${newStatus}"`, 'error', 4000);
+      return;
     }
+    toast(t('wip.limit_reached', { col: newStatus, n: (settings.wipLimits || {})[newStatus] }) || `⚠ WIP limit (${(settings.wipLimits || {})[newStatus]}) reached for "${newStatus}" column`, 'warning', 4000);
   }
   if (newStatus === 'completed') {
     promptActuals(order, () => {
@@ -552,6 +550,20 @@ function openPaymentModal(orderId) {
     ? `<p style="font-size:12px; color:var(--primary); margin:6px 0 0;">💰 ${escapeHtml(t('pay.deposit_on_file', { amt: fmtPrice(order.depositAmount) }))}</p>`
     : '';
 
+  function outstandingAmount() {
+    return Math.max(0, fullAmount - (+order.paidAmount || 0) - (+order.giftCardDiscount || 0));
+  }
+
+  function paySummaryHtml() {
+    const giftCredit = +order.giftCardDiscount || 0;
+    const owed = outstandingAmount();
+    return `
+      ${giftCredit > 0 ? `<p class="pay-gift-credit" style="font-size:12px;color:var(--success);margin:8px 0 0;">🎁 ${escapeHtml(t('pay.gift_card_credit'))}: ${fmtPrice(giftCredit)}</p>` : ''}
+      <p class="pay-outstanding" style="font-size:12px;color:var(--text-muted);margin:${giftCredit > 0 ? '4' : '8'}px 0 0;">
+        ${escapeHtml(t('pay.outstanding'))}: <strong>${fmtPrice(owed)}</strong>
+      </p>`;
+  }
+
   const bodyHtml = `
     <div class="inline-pair">
       <div>
@@ -565,6 +577,14 @@ function openPaymentModal(orderId) {
     </div>
     <label>${escapeHtml(t('pay.paid_on'))}</label>
     <input type="date" data-f="paidAt" value="${draft.paidAt}" max="${new Date().toISOString().split('T')[0]}">
+    <div style="display:flex;gap:8px;align-items:flex-end;margin-top:14px;">
+      <div style="flex:1;">
+        <label>${escapeHtml(t('giftCardCode'))}</label>
+        <input type="text" id="_payGiftCode" placeholder="ABC123" autocomplete="off" style="text-transform:uppercase;">
+      </div>
+      <button type="button" class="btn small ghost" id="_payApplyGift" style="margin-bottom:1px;">${escapeHtml(t('applyGiftCard'))}</button>
+    </div>
+    <div id="_paySummary">${paySummaryHtml()}</div>
     <p style="font-size:11.5px; color:var(--text-muted); margin:10px 0 0;">
       ${order.id} · ${escapeHtml(order.project)} · ${fmtPrice(fullAmount)}
     </p>
@@ -586,6 +606,26 @@ function openPaymentModal(orderId) {
             draft[input.dataset.f] = rawVal;
           }
         });
+      });
+      const refreshSummary = () => {
+        const el = modal.querySelector('#_paySummary');
+        if (el) el.innerHTML = paySummaryHtml();
+      };
+      modal.querySelector('#_payApplyGift')?.addEventListener('click', () => {
+        const code = modal.querySelector('#_payGiftCode')?.value?.trim();
+        if (!code) {
+          toast(t('giftCardCodeRequired') || 'Enter a code', 'warning');
+          return;
+        }
+        if (typeof applyGiftCard === 'function' && applyGiftCard(orderId, code)) {
+          refreshSummary();
+          const owed = outstandingAmount();
+          if (draft.paidAmount > owed) draft.paidAmount = owed;
+          const paidInput = modal.querySelector('[data-f="paidAmount"]');
+          if (paidInput) paidInput.value = draft.paidAmount;
+          const codeInput = modal.querySelector('#_payGiftCode');
+          if (codeInput) codeInput.value = '';
+        }
       });
     },
     async onSave() {

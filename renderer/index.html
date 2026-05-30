@@ -1631,13 +1631,17 @@
           </div>
         </div>
 
-        <div class="settings-section-head">WIP Limits per column</div>
+        <div class="settings-section-head" data-i18n="set.wip_limits">WIP Limits per column</div>
         <div class="inline-pair" style="flex-wrap:wrap;">
           <div><label>Pending</label><input type="number" id="set_wip_pending" min="0" step="1" placeholder="0 = unlimited"></div>
           <div><label>Printing</label><input type="number" id="set_wip_printing" min="0" step="1" placeholder="0 = unlimited"></div>
           <div><label>Post</label><input type="number" id="set_wip_post" min="0" step="1" placeholder="0 = unlimited"></div>
           <div><label>QC</label><input type="number" id="set_wip_qc" min="0" step="1" placeholder="0 = unlimited"></div>
         </div>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-weight:400;">
+          <input type="checkbox" id="set_wipEnforceHardLimit">
+          <span data-i18n="set.wip_enforce_hard">Block moves when WIP limit is reached (instead of warning only)</span>
+        </label>
 
         <div class="settings-section-head" data-i18n="set.post_process_presets">Post-process presets</div>
         <div id="postProcessPresetsList" style="margin-bottom:8px;"></div>

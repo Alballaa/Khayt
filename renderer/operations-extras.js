@@ -260,13 +260,13 @@ function applyGiftCard(orderId, code) {
   const order = printLog.find(o => o.id === orderId);
   if (!order) return false;
   const gc = giftCards.find(g => g.code === code.trim().toUpperCase());
-  if (!gc) { toast('Gift card not found', 'error'); return false; }
-  if (+gc.balance <= 0) { toast('Gift card has no remaining balance', 'error'); return false; }
+  if (!gc) { toast(t('giftCardInvalid') || 'Invalid or depleted gift card', 'error'); return false; }
+  if (+gc.balance <= 0) { toast(t('giftCardInvalid') || 'Invalid or depleted gift card', 'error'); return false; }
   const today = localDateStr();
-  if (gc.expiresAt && gc.expiresAt < today) { toast('Gift card is expired', 'error'); return false; }
+  if (gc.expiresAt && gc.expiresAt < today) { toast(t('giftCardExpired') || 'Gift card is expired', 'error'); return false; }
   const outstanding = Math.max(0, (+order.price || 0) - (+order.paidAmount || 0) - (+order.giftCardDiscount || 0));
   const deduct = Math.min(+gc.balance, outstanding);
-  if (deduct <= 0) { toast('Order is already fully covered', 'info'); return false; }
+  if (deduct <= 0) { toast(t('pay.order_fully_covered') || 'Order is already fully covered', 'info'); return false; }
   // Guard legacy/imported cards that predate the redeemedOrders field (avoids a
   // TypeError that would abort after the balance was already mutated in memory).
   if (!Array.isArray(gc.redeemedOrders)) gc.redeemedOrders = [];
@@ -277,7 +277,7 @@ function applyGiftCard(orderId, code) {
   // (outstanding above is already computed net of any existing giftCardDiscount).
   order.giftCardDiscount = (+order.giftCardDiscount || 0) + deduct;
   saveAll();
-  toast(`Gift card applied! ${fmtPrice(deduct)} deducted.`, 'success');
+  toast(t('giftCardAppliedAmount', { amt: fmtPrice(deduct) }) || `Gift card applied! ${fmtPrice(deduct)} deducted.`, 'success');
   return true;
 }
 
