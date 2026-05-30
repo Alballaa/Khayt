@@ -11,7 +11,7 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 - `npm run lint`, `npm run check`, and `npm test` (unit tests for `lib/` helpers).
 - Unit tests for ZATCA ASN.1 DER encoding and CSR building.
 - `renderer/format.js` with tests for `num`, `fmtMoney`, `computeUnitPrice`, and CSV neutralization.
-- Split from `app.js`: `util.js`, `currency.js`, `calculator-cost.js`, `kanban.js` (with unit tests).
+- Split from `app.js`: `util.js`, `currency.js`, `calculator-cost.js`, `kanban.js`, `invoicing.js` (with unit tests).
 
 ### Changed
 

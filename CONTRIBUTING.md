@@ -45,6 +45,7 @@ Thank you for helping maintain Khayt. This document is the default workflow for 
 | `renderer/currency.js` | Currency catalogue and conversion |
 | `renderer/calculator-cost.js` | Part costing (`computePartBaseCost`, tiers, breakdown) |
 | `renderer/kanban.js` | Production queue board, machine queues, drag-reorder |
+| `renderer/invoicing.js` | Invoice/quote render, ZATCA, PDF export, credit notes |
 | `renderer/i18n.js` | Translations |
 | `renderer/studio/*.js` | Khayt Studio UI module |
 | `lib/` | Shared main-process helpers (`safeJsonParse`, `isBlockedHost`) |
