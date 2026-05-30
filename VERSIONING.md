@@ -2,31 +2,31 @@
 
 Khayt uses [Semantic Versioning 2.0.0](https://semver.org/) as `MAJOR.MINOR.PATCH` (`X.Y.Z`).
 
-**Current release line:** `2.0.x` (latest: **2.0.15** in `package.json`). We continue from the shipped version — no reset to `1.1.0` or other baseline.
+**Current release line:** `2.1.x` (latest: **2.1.0** in `package.json`). We continue from the shipped version — no reset to `1.1.0` or other baseline.
 
 ## How your labels map to version numbers
 
-| What you call it | Semver bump | On the current `2.0` line | Git tag |
+| What you call it | Semver bump | On the current `2.1` line | Git tag |
 |------------------|-------------|---------------------------|---------|
-| **Minor updates** (day-to-day) | **Patch** | `2.0.15` → `2.0.16` | `v2.0.16` |
-| **Significant updates** | **Minor** | `2.0.16` → `2.1.0` | `v2.1.0` |
+| **Minor updates** (day-to-day) | **Patch** | `2.1.0` → `2.1.1` | `v2.1.1` |
+| **Significant updates** | **Minor** | `2.1.0` → `2.2.0` | `v2.2.0` |
 | **Major updates** | **Major** | `2.1.0` → `3.0.0` | `v3.0.0` |
 
-The pattern you described (`1.1.x` / `1.x` / `X.x.x`) is the same rule on any base: **patch** changes the last number, **significant** changes the middle number, **major** changes the first number. Today that base is **2.0**, not 1.1.
+The pattern you described (`1.1.x` / `1.x` / `X.x.x`) is the same rule on any base: **patch** changes the last number, **significant** changes the middle number, **major** changes the first number. Today that base is **2.1**, not 1.1.
 
 ## Single source of truth
 
 - App version: `package.json` → `"version"`
 - In-app **Settings → About**: `app.getVersion()` (Electron reads `package.json`)
-- GitHub Releases / auto-update: tag `vX.Y.Z` must match `package.json` (e.g. `v2.0.16` and version `2.0.16`)
+- GitHub Releases / auto-update: tag `vX.Y.Z` must match `package.json` (e.g. `v2.1.0` and version `2.1.0`)
 
 ## How to bump
 
 ```bash
-# Patch — minor day-to-day update (2.0.15 → 2.0.16)
+# Patch — minor day-to-day update (2.1.0 → 2.1.1)
 npm run version:patch
 
-# Minor — significant update (2.0.x → 2.1.0)
+# Minor — significant update (2.1.x → 2.2.0)
 npm run version:minor
 
 # Major — breaking / milestone (2.x.x → 3.0.0)
