@@ -44,9 +44,35 @@ try {
   const window = await electronApp.firstWindow();
   await window.waitForSelector('.khayt-app', { timeout: 60_000 });
   await window.waitForFunction(
-    () => typeof window.hubAPI?.loadStore === 'function' && typeof window.hubAPI?.saveStore === 'function',
+    () => typeof window.hubAPI?.loadStore === 'function'
+      && typeof window.hubAPI?.saveStore === 'function'
+      && typeof window.importClientsCsv === 'function'
+      && (document.querySelector('#dashboardContent')?.innerHTML?.length || 0) > 100,
     { timeout: 60_000 }
   );
+
+  const boot = await window.evaluate(() => ({
+    importClientsCsv: typeof importClientsCsv,
+    dashboardLen: document.querySelector('#dashboardContent')?.innerHTML?.length || 0,
+  }));
+  if (boot.importClientsCsv !== 'function') {
+    throw new Error('importClientsCsv is not on global scope — wireEvents may have failed');
+  }
+  if (boot.dashboardLen < 100) {
+    throw new Error(`dashboard did not render (content length ${boot.dashboardLen})`);
+  }
+
+  await window.evaluate(() => {
+    const wiz = document.querySelector('#setup-wizard');
+    if (wiz) wiz.style.display = 'none';
+  });
+
+  await window.evaluate(() => window.KhaytShell?.switchTab?.('settings-tab'));
+  await window.click('.settings-nav-item[data-settings-section="prefs"]');
+  const prefsActive = await window.evaluate(
+    () => document.querySelector('#settings-panel-prefs')?.classList.contains('active') === true
+  );
+  if (!prefsActive) throw new Error('settings sidebar navigation did not switch panels');
 
   const version = await window.evaluate(() => window.hubAPI.appVersion());
   if (!version) throw new Error('hub:app-version returned empty');

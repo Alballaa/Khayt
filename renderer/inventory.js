@@ -3042,6 +3042,7 @@ function recordSupplierInvoice(poId) {
 
   const api = {
     importSpoolsCsv,
+    importClientsCsv,
     importProductsCsv,
     openFilamentCatalog,
     openFilamentScanner,

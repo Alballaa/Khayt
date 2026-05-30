@@ -4,6 +4,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **Critical:** Export `importClientsCsv` globally so app boot completes — fixes blank dashboard and non-working Settings sidebar links (wireEvents aborted mid-setup).
+
 ### Changed
 
 - Settings → About credits AI-assisted development; production queue toolbar actions lay out horizontally again.
