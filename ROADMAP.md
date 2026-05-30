@@ -11,7 +11,7 @@ Living priorities for maintainers. Not a public commitment calendar — reorder 
 
 ## Next (2.1.0 — significant)
 
-- [ ] Split `renderer/app.js` into feature modules (started: `format`, `util`, `currency`, `calculator-cost`, `kanban`, `invoicing`, `logs`, `settings`, `order-flows`, `waiting-list`, `dashboard`, `analytics` (incl. capacity/break-even/receivables); next: `main.js` or build/calculator tab)
+- [ ] Split `renderer/app.js` into feature modules (started: `app-state`, `shell`, `format`, `util`, …; next: `build.js` or `app-boot.js`)
 - [ ] Unit tests for pure logic: more `app.js` splits (started: `lib/store-io` + `renderer/*` + `store.js` / `store-validate` + `npm test`)
 - [x] Finish CSP hardening: drop `script-src 'unsafe-inline'` in Electron CSP (renderer uses `data-act`; LAN/export HTML may still use inline scripts)
 - [x] Split `main.js` into feature modules (`lib/store-io.js`, `lib/updater.js`, `lib/lan-server.js`, `lib/zatca-crypto.js`)
