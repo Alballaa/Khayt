@@ -11,6 +11,8 @@ test('KhaytSettings exports core settings tab functions', () => {
     'exportData',
     'importData',
     'resetAllData',
+    'fullWipeData',
+    'renderSecuritySettings',
   ]) {
     assert.equal(typeof settings[name], 'function', name);
   }

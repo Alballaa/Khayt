@@ -2,6 +2,13 @@
  * Application boot: setup wizard and DOMContentLoaded initialization.
  */
 
+function detectSystemLang() {
+  const raw = (navigator.language || 'en').toLowerCase();
+  const map = { en: 'en', ar: 'ar', de: 'de', es: 'es', fr: 'fr', zh: 'zh', ja: 'ja' };
+  const base = raw.split('-')[0];
+  return map[base] || 'en';
+}
+
 /* ============================================================
    Setup wizard (Business Mode first-run)
    ============================================================ */
@@ -10,67 +17,155 @@ function initWizard() {
   const wiz = $('#setup-wizard');
   if (!wiz) return;
   wiz.style.display = 'flex';
-  i18n.applyToDom(wiz);
 
   let selectedMode = 'simple';
+  let pendingPin = null;
+  let pendingRecoveryCode = null;
+  let securitySkipped = true;
 
-  // Step navigation
-  wiz.addEventListener('click', e => {
-    const nextBtn   = e.target.closest('[data-next]');
-    const optionBtn = e.target.closest('.wizard-option');
-    const finishBtn = e.target.closest('#wizFinish');
-
-    if (optionBtn) {
-      wiz.querySelectorAll('.wizard-option').forEach(o => o.classList.remove('selected'));
-      optionBtn.classList.add('selected');
-      selectedMode = optionBtn.dataset.mode;
-      setTimeout(() => goToStep(parseInt(optionBtn.dataset.next)), 300);
-      return;
-    }
-
-    if (nextBtn && !optionBtn) {
-      goToStep(parseInt(nextBtn.dataset.next));
-      return;
-    }
-
-    if (finishBtn) {
-      finishWizard();
-    }
-  });
+  const langSel = $('#wizLang');
+  if (langSel) {
+    langSel.value = settings.lang || detectSystemLang();
+    i18n.set(langSel.value, { silent: true });
+  }
+  i18n.applyToDom(wiz);
 
   function goToStep(n) {
     wiz.querySelectorAll('.wizard-step').forEach(s => s.style.display = 'none');
     const step = $(`#wiz-step-${n}`);
     if (step) step.style.display = '';
     wiz.querySelectorAll('.wizard-dot').forEach(d => {
-      d.classList.toggle('active', parseInt(d.dataset.step) <= n);
+      d.classList.toggle('active', parseInt(d.dataset.step, 10) <= n);
     });
   }
 
-  function finishWizard() {
-    const bizName  = $('#wizBizName').value.trim();
-    const currency = $('#wizCurrency').value;
-    const lang     = $('#wizLang').value;
+  wiz.addEventListener('click', e => {
+    const nextBtn = e.target.closest('[data-next]');
+    const optionBtn = e.target.closest('.wizard-option');
+    const finishBtn = e.target.closest('#wizFinish');
 
-    if (bizName) settings.businessName = bizName;
-    if (bizName) settings.bizEn = bizName;
+    if (nextBtn && nextBtn.id !== 'wizRecoveryContinue') {
+      const step = parseInt(nextBtn.dataset.next, 10);
+      if (step === 2) {
+        const lang = $('#wizLang')?.value || 'en';
+        settings.lang = lang;
+        i18n.set(lang);
+        i18n.applyToDom(wiz);
+      }
+      goToStep(step);
+      return;
+    }
+
+    if (optionBtn) {
+      wiz.querySelectorAll('.wizard-option').forEach(o => o.classList.remove('selected'));
+      optionBtn.classList.add('selected');
+      selectedMode = optionBtn.dataset.mode;
+      setTimeout(() => goToStep(parseInt(optionBtn.dataset.next, 10)), 300);
+      return;
+    }
+
+    if (finishBtn) finishWizard();
+  });
+
+  $('#wizSecuritySkip')?.addEventListener('click', () => {
+    pendingPin = null;
+    pendingRecoveryCode = null;
+    securitySkipped = true;
+    goToStep(3);
+  });
+
+  $('#wizSecurityContinue')?.addEventListener('click', () => {
+    const errEl = $('#wizPinError');
+    const pin = ($('#wizPin')?.value || '').trim();
+    const confirm = ($('#wizPinConfirm')?.value || '').trim();
+    if (!isValidPin(pin)) {
+      if (errEl) errEl.textContent = t('sec.pin_invalid_format');
+      return;
+    }
+    if (isWeakPin(pin)) {
+      if (errEl) errEl.textContent = t('sec.pin_weak');
+      return;
+    }
+    if (pin !== confirm) {
+      if (errEl) errEl.textContent = t('sec.pin_mismatch');
+      return;
+    }
+    if (errEl) errEl.textContent = '';
+    pendingPin = pin;
+    pendingRecoveryCode = generateRecoveryCode();
+    securitySkipped = false;
+    $('#wizSecuritySetup').style.display = 'none';
+    $('#wizSecurityRecovery').style.display = '';
+    const codeEl = $('#wizRecoveryCode');
+    if (codeEl) codeEl.textContent = formatRecoveryCode(pendingRecoveryCode);
+    const savedCb = $('#wizRecoverySaved');
+    const contBtn = $('#wizRecoveryContinue');
+    if (savedCb) savedCb.checked = false;
+    if (contBtn) contBtn.disabled = true;
+    i18n.applyToDom($('#wizSecurityRecovery'));
+  });
+
+  $('#wizRecoverySaved')?.addEventListener('change', e => {
+    const contBtn = $('#wizRecoveryContinue');
+    if (contBtn) contBtn.disabled = !e.target.checked;
+  });
+
+  $('#wizRecoveryContinue')?.addEventListener('click', () => {
+    if (!$('#wizRecoverySaved')?.checked) return;
+    goToStep(3);
+  });
+
+  $('#wizRecoveryCopy')?.addEventListener('click', async () => {
+    if (!pendingRecoveryCode) return;
+    const res = await copyRecoveryCode(pendingRecoveryCode);
+    toast(res.ok ? t('sec.copied') : t('sec.copy_failed'), res.ok ? 'success' : 'error');
+  });
+
+  $('#wizRecoveryDownload')?.addEventListener('click', async () => {
+    if (!pendingRecoveryCode) return;
+    const res = await downloadRecoveryCode(pendingRecoveryCode);
+    toast(res.ok ? t('sec.downloaded') : t('sec.download_failed'), res.ok ? 'success' : 'error');
+  });
+
+  async function finishWizard() {
+    const bizName = $('#wizBizName')?.value.trim();
+    const currency = $('#wizCurrency')?.value;
+
+    if (bizName) {
+      settings.businessName = bizName;
+      settings.bizEn = bizName;
+    }
     settings.currency = currency;
-    settings.mode     = selectedMode;
+    settings.mode = selectedMode;
+    settings.theme = 'light';
     settings.enableZatca = $('#wizEnableZatca')?.checked !== false;
+
+    if (!securitySkipped && pendingPin && pendingRecoveryCode) {
+      await setupAdminSecurity({ pin: pendingPin, recoveryCodePlain: pendingRecoveryCode });
+      const admin = getAdminOperator();
+      if (admin && bizName) admin.name = bizName;
+    } else {
+      settings.securityEnabled = false;
+      settings.recoveryCodeHash = '';
+      settings.operatorLockEnabled = false;
+      operators = [];
+      settings.activeOperatorId = null;
+    }
+
     settings.firstRun = false;
     settings.firstRunDone = true;
     saveAll();
 
-    settings.lang = lang || 'en';
-    i18n.set(settings.lang);
-    saveAll();
-
     wiz.style.display = 'none';
+    applyTheme(settings.theme);
     applyMode();
     loadSettingsIntoForm();
+    applyOperatorPermissions();
     initialRender();
     toast(t('wiz.welcome_done'), 'success', 4000);
   }
+
+  goToStep(1);
 }
 
 /* ============================================================
@@ -96,7 +191,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     saveAll();
   }
 
-  applyTheme(settings.theme || 'dark');
+  applyTheme(settings.theme || 'light');
   applyMode();
   i18n.init();
   if (settings.lang) i18n.set(settings.lang, { silent: true });

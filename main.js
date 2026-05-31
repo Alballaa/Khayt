@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, shell, ipcMain, dialog, safeStorage } = require('electron');
+const { app, BrowserWindow, Menu, shell, ipcMain, dialog, safeStorage, clipboard } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
@@ -95,6 +95,49 @@ async function imageToDataUrl(fullPath) {
    ============================================================ */
 
 // --- QR / version (existing) ---
+const PENDING_WIPE_FLAG = '.pending-full-wipe';
+
+function completePendingFullWipe() {
+  const userData = app.getPath('userData');
+  const flag = path.join(userData, PENDING_WIPE_FLAG);
+  if (!fs.existsSync(flag)) return false;
+  try {
+    fs.unlinkSync(flag);
+    for (const entry of fs.readdirSync(userData)) {
+      fs.rmSync(path.join(userData, entry), { recursive: true, force: true });
+    }
+    console.log('Khayt: full data wipe completed on restart');
+    return true;
+  } catch (e) {
+    console.error('completePendingFullWipe failed:', e);
+    return false;
+  }
+}
+
+ipcMain.handle('hub:clipboard-write', async (_e, text) => {
+  clipboard.writeText(String(text || ''));
+  return { ok: true };
+});
+
+ipcMain.handle('hub:save-text-file', async (_e, { content, defaultName } = {}) => {
+  const win = BrowserWindow.getFocusedWindow();
+  const { filePath, canceled } = await dialog.showSaveDialog(win || undefined, {
+    defaultPath: defaultName || 'khayt-recovery.txt',
+    filters: [{ name: 'Text', extensions: ['txt'] }],
+  });
+  if (canceled || !filePath) return { ok: false, canceled: true };
+  await fs.promises.writeFile(filePath, String(content || ''), 'utf8');
+  return { ok: true, filePath };
+});
+
+ipcMain.handle('hub:request-full-wipe', async () => {
+  const flag = path.join(app.getPath('userData'), PENDING_WIPE_FLAG);
+  fs.writeFileSync(flag, new Date().toISOString());
+  app.relaunch();
+  app.exit(0);
+  return { ok: true };
+});
+
 ipcMain.handle('hub:generate-qr', async (_e, text, options = {}) => QRCode.toString(String(text || ''), {
   type: 'svg',
   errorCorrectionLevel: options.errorCorrectionLevel || 'M',
@@ -1129,6 +1172,7 @@ function buildMenu() {
 }
 
 app.whenReady().then(() => {
+  completePendingFullWipe();
   applyDockIcon();
   buildMenu();
   createWindow();

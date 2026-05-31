@@ -1191,6 +1191,7 @@ function wireEvents() {
     e.target.value = '';
   });
   $('#btnReset').addEventListener('click', resetAllData);
+  $('#btnFullWipe').addEventListener('click', fullWipeData);
   $('#btnRevealPhotos').addEventListener('click', () => {
     if (window.hubAPI?.revealProductsFolder) window.hubAPI.revealProductsFolder();
   });

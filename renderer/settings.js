@@ -1322,6 +1322,7 @@ function loadSettingsIntoForm() {
   renderInvoiceNumberingSection();
   // Feature 8 / Task 0: Storage usage display
   renderStorageUsage();
+  renderSecuritySettings();
   // Feature 7 (new 8-pack): Operator lock checkbox
   const opLockEl = $('#set_operatorLock');
   if (opLockEl) opLockEl.checked = !!settings.operatorLockEnabled;
@@ -1678,25 +1679,195 @@ function importData(file) {
   reader.readAsText(file);
 }
 
-async function resetAllData() {
-  const ok = await confirmModal(t('set.reset_q'), { danger: true });
-  if (!ok) return;
+async function clearAppDataForReset() {
   printLog = []; templates = []; products = []; clients = []; printers = [];
   expenses = []; machines = []; waTemplates = defaultWaTemplates(); wasteLog = [];
   machMaintLog = []; consumables = []; suppliers = []; purchaseOrders = []; testPrints = [];
   locations = []; operators = []; waitingList = []; waitingListHistory = [];
   timeEntries = []; shiftLogs = []; giftCards = []; slicerProfiles = []; envLogs = [];
-  inventory = [
-    { id: 'seed-1', material: 'PLA+ 2.0',   cost: 75, weight: 1000 },
-    { id: 'seed-2', material: 'Sunlu PETG', cost: 85, weight: 1000 },
-  ];
+  inventory = [];
   settings = defaultSettings();
+  settings.firstRun = true;
+  settings.firstRunDone = false;
   saveAll();
+}
+
+async function resetAllData() {
+  const ok = await verifyDestructiveGate({
+    phrase: 'RESET',
+    title: t('set.reset'),
+    message: t('set.reset_q'),
+    requireSecurity: securityIsEnabled(),
+  });
+  if (!ok) return;
+  await clearAppDataForReset();
+  applyTheme(settings.theme || 'light');
+  i18n.set(settings.lang || 'en');
   initialRender();
   loadSettingsIntoForm();
-  applyTheme('dark');
-  i18n.set('en');
+  renderSecuritySettings();
+  initWizard();
   toast(t('log.cleared'), 'success');
+}
+
+async function fullWipeData() {
+  const phrase = (settings.businessName || settings.bizEn || 'WIPE').trim() || 'WIPE';
+  const ok = await verifyDestructiveGate({
+    phrase,
+    title: t('set.full_wipe'),
+    message: t('set.full_wipe_q'),
+    requireSecurity: securityIsEnabled(),
+  });
+  if (!ok) return;
+  if (!window.hubAPI?.requestFullWipe) {
+    toast(t('set.full_wipe_unavailable'), 'error');
+    return;
+  }
+  await window.hubAPI.requestFullWipe();
+}
+
+function renderSecuritySettings() {
+  const el = $('#securitySettingsSection');
+  if (!el) return;
+  const enabled = securityIsEnabled();
+  el.innerHTML = `
+    <div style="padding:14px 16px;background:var(--bg-soft);border:1px solid var(--border-soft);border-radius:var(--radius);">
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px;" data-i18n="sec.settings_title">App security</div>
+      <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px;">
+        ${enabled
+          ? escapeHtml(t('sec.settings_enabled'))
+          : escapeHtml(t('sec.settings_disabled'))}
+      </p>
+      ${enabled ? `
+        <div class="btn-row" style="gap:8px;flex-wrap:wrap;">
+          <button type="button" class="btn small" id="btnChangeAdminPin">${escapeHtml(t('sec.change_pin'))}</button>
+          <button type="button" class="btn small" id="btnRegenRecovery">${escapeHtml(t('sec.regen_recovery'))}</button>
+          <button type="button" class="btn small ghost" id="btnDisableSecurity">${escapeHtml(t('sec.disable'))}</button>
+        </div>` : `
+        <button type="button" class="btn small primary" id="btnEnableSecurity">${escapeHtml(t('sec.enable'))}</button>`}
+    </div>`;
+  i18n.applyToDom(el);
+
+  el.querySelector('#btnEnableSecurity')?.addEventListener('click', () => openEnableSecurityModal());
+  el.querySelector('#btnChangeAdminPin')?.addEventListener('click', () => openChangePinModal());
+  el.querySelector('#btnRegenRecovery')?.addEventListener('click', () => openRegenRecoveryModal());
+  el.querySelector('#btnDisableSecurity')?.addEventListener('click', () => disableSecurity());
+}
+
+function openEnableSecurityModal() {
+  openFormModal({
+    title: t('sec.enable'),
+    sizeLg: false,
+    bodyHtml: `
+      <label>${escapeHtml(t('sec.pin_label'))}</label>
+      <input type="password" id="enableSecPin" inputmode="numeric" maxlength="8" class="form-control">
+      <label style="margin-top:10px;">${escapeHtml(t('sec.pin_confirm'))}</label>
+      <input type="password" id="enableSecPin2" inputmode="numeric" maxlength="8" class="form-control">
+      <p id="enableSecErr" style="color:var(--danger);font-size:12px;min-height:18px;margin-top:8px;"></p>`,
+    async onSave(modal) {
+      const pin = modal.querySelector('#enableSecPin').value.trim();
+      const pin2 = modal.querySelector('#enableSecPin2').value.trim();
+      const err = modal.querySelector('#enableSecErr');
+      if (!isValidPin(pin)) { if (err) err.textContent = t('sec.pin_invalid_format'); return false; }
+      if (isWeakPin(pin)) { if (err) err.textContent = t('sec.pin_weak'); return false; }
+      if (pin !== pin2) { if (err) err.textContent = t('sec.pin_mismatch'); return false; }
+      const code = generateRecoveryCode();
+      await setupAdminSecurity({ pin, recoveryCodePlain: code });
+      saveAll();
+      renderSecuritySettings();
+      renderOperatorsList();
+      renderOperatorLockSettings();
+      applyOperatorPermissions();
+      toast(t('sec.enabled_toast'), 'success');
+      showRecoveryCodeModal(code, t('sec.recovery_title'));
+      return true;
+    },
+  });
+}
+
+function showRecoveryCodeModal(code, title) {
+  const mount = $('#modalMount');
+  mount.innerHTML = `
+    <div class="modal-backdrop">
+      <div class="modal" role="dialog" aria-modal="true">
+        <h3>${escapeHtml(title || t('sec.recovery_title'))}</h3>
+        <p style="font-size:13px;color:var(--text-muted);">${escapeHtml(t('sec.recovery_subtitle'))}</p>
+        <div style="font-family:ui-monospace,monospace;font-size:17px;text-align:center;padding:12px;background:var(--bg-soft);border-radius:8px;margin:12px 0;" id="recoveryCodeDisplay">${escapeHtml(formatRecoveryCode(code))}</div>
+        <div class="btn-row" style="justify-content:center;gap:8px;">
+          <button class="btn" id="modalRecoveryCopy">${escapeHtml(t('sec.copy'))}</button>
+          <button class="btn" id="modalRecoveryDownload">${escapeHtml(t('sec.download'))}</button>
+        </div>
+        <div class="btn-row" style="margin-top:12px;">
+          <button class="btn primary" data-act="close">${escapeHtml(t('common.close'))}</button>
+        </div>
+      </div>
+    </div>`;
+  mount.querySelector('#modalRecoveryCopy')?.addEventListener('click', async () => {
+    const res = await copyRecoveryCode(code);
+    toast(res.ok ? t('sec.copied') : t('sec.copy_failed'), res.ok ? 'success' : 'error');
+  });
+  mount.querySelector('#modalRecoveryDownload')?.addEventListener('click', async () => {
+    const res = await downloadRecoveryCode(code);
+    toast(res.ok ? t('sec.downloaded') : t('sec.download_failed'), res.ok ? 'success' : 'error');
+  });
+  mount.querySelector('[data-act="close"]')?.addEventListener('click', () => { mount.innerHTML = ''; });
+  mount.querySelector('.modal-backdrop')?.addEventListener('click', (e) => {
+    if (e.target.classList.contains('modal-backdrop')) mount.innerHTML = '';
+  });
+}
+
+async function openChangePinModal() {
+  const verified = await pinOrRecoveryModal({ title: t('sec.change_pin'), message: t('sec.verify_body') });
+  if (!verified) return;
+  openFormModal({
+    title: t('sec.change_pin'),
+    sizeLg: false,
+    bodyHtml: `
+      <label>${escapeHtml(t('sec.pin_label'))}</label>
+      <input type="password" id="newSecPin" inputmode="numeric" maxlength="8" class="form-control">
+      <label style="margin-top:10px;">${escapeHtml(t('sec.pin_confirm'))}</label>
+      <input type="password" id="newSecPin2" inputmode="numeric" maxlength="8" class="form-control">`,
+    async onSave(modal) {
+      const pin = modal.querySelector('#newSecPin').value.trim();
+      const pin2 = modal.querySelector('#newSecPin2').value.trim();
+      if (!isValidPin(pin) || isWeakPin(pin) || pin !== pin2) {
+        toast(t('sec.pin_invalid_format'), 'error');
+        return false;
+      }
+      const admin = getAdminOperator();
+      if (!admin) return false;
+      admin.pinHash = await hashSecret(pin);
+      saveAll();
+      toast(t('sec.pin_changed'), 'success');
+      return true;
+    },
+  });
+}
+
+async function openRegenRecoveryModal() {
+  const verified = await pinOrRecoveryModal({ title: t('sec.regen_recovery'), message: t('sec.verify_body') });
+  if (!verified) return;
+  const code = generateRecoveryCode();
+  settings.recoveryCodeHash = await hashSecret(normalizeRecoveryCode(code));
+  settings.recoveryCodeCreatedAt = new Date().toISOString().slice(0, 10);
+  saveAll();
+  showRecoveryCodeModal(code, t('sec.regen_recovery'));
+}
+
+async function disableSecurity() {
+  const verified = await pinOrRecoveryModal({ title: t('sec.disable'), message: t('sec.disable_q') });
+  if (!verified) return;
+  settings.securityEnabled = false;
+  settings.recoveryCodeHash = '';
+  settings.operatorLockEnabled = false;
+  settings.activeOperatorId = null;
+  operators = [];
+  saveAll();
+  renderSecuritySettings();
+  renderOperatorsList();
+  renderOperatorLockSettings();
+  applyOperatorPermissions();
+  toast(t('sec.disabled_toast'), 'success');
 }
 
 function renderTelegramSettings() {
@@ -1779,6 +1950,8 @@ function renderTelegramSettings() {
     exportData,
     importData,
     resetAllData,
+    fullWipeData,
+    renderSecuritySettings,
     renderTelegramSettings,
   };
 

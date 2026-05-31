@@ -4,9 +4,18 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-05-30
+
+### Added
+
+- **Setup wizard** — language first; optional admin PIN with recovery code (copy/download); re-runs after data reset.
+- **App security** — optional admin PIN + recovery code; gates reset and full wipe when enabled.
+- **Full wipe** — deletes all local app data and restarts (Settings → Data).
+
 ### Changed
 
-- Full screenshot gallery (12 tabs): gift cards, catalog, waste, ZATCA settings, portfolio; `npm run publish:screenshots` uploads PNGs to GitHub Releases.
+- Default theme for new installs is **light**.
+- **Reset data** clears inventory completely (no starter spools) and re-opens the setup wizard.
 
 ## [2.2.0] - 2026-05-30
 

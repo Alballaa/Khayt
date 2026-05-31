@@ -67,7 +67,7 @@ function defaultSettings() {
     addrEn:    'Riyadh, Saudi Arabia',
     addrAr:    'الرياض، المملكة العربية السعودية',
     lang:      'en',
-    theme:     'dark',
+    theme:     'light',
     invPrefix: 'INV',
     footerEn:  'Thank you for your business!',
     footerAr:  'شكراً لتعاملكم معنا!',
@@ -135,6 +135,9 @@ function defaultSettings() {
     // Feature 7 (new batch): Operator lock
     activeOperatorId: null,
     operatorLockEnabled: false,
+    securityEnabled: false,
+    recoveryCodeHash: '',
+    recoveryCodeCreatedAt: '',
     // Feature 8 (new batch): Loyalty tiers
     loyaltyEnabled:   false,
     loyaltyTiers:     [],

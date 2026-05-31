@@ -1789,12 +1789,14 @@
         </div>
 
         <div class="settings-section-head" data-i18n="set.data_section">Data</div>
+        <div id="securitySettingsSection" style="margin-bottom:16px;"></div>
         <div class="btn-row">
           <button class="btn" id="btnExport" data-i18n="set.export">Export all data (JSON)</button>
           <button class="btn" id="btnImport" data-i18n="set.import">Import data (JSON)</button>
           <input type="file" id="importFile" accept="application/json" style="display:none;">
           <button class="btn" id="btnRevealPhotos" data-i18n="set.reveal_photos">Reveal product photos folder</button>
           <button class="btn danger" id="btnReset" data-i18n="set.reset">Reset all data…</button>
+          <button class="btn danger" id="btnFullWipe" data-i18n="set.full_wipe">Full wipe…</button>
         </div>
 
         <div style="margin-top:18px; padding:14px 16px; background:rgba(43,182,115,0.06); border:1px solid rgba(43,182,115,0.2); border-radius:var(--radius);">
@@ -1849,35 +1851,83 @@
 <!-- ===================== SETUP WIZARD ===================== -->
 <div id="setup-wizard" class="wizard-overlay" style="display:none">
   <div class="wizard-card">
-    <!-- Step 1: Welcome -->
+    <!-- Step 1: Language -->
     <div class="wizard-step" id="wiz-step-1">
       <div class="wizard-logo">🖨️ Khayt</div>
-      <h1 class="wizard-title" data-i18n="wiz.title">Welcome to Khayt</h1>
-      <p class="wizard-subtitle" data-i18n="wiz.intro_subtitle">3D printing production management — let's get you set up in 60 seconds.</p>
-      <button type="button" class="btn btn-primary wizard-next" data-next="2" data-i18n="wiz.get_started">Get started →</button>
+      <h1 class="wizard-title" data-i18n="wiz.lang_title">Choose your language</h1>
+      <p class="wizard-subtitle" data-i18n="wiz.lang_subtitle">You can change this anytime in Settings.</p>
+      <div class="wizard-form" style="max-width:320px;margin:0 auto;">
+        <label><span data-i18n="wiz.language">Language</span>
+          <select id="wizLang" class="form-control">
+            <option value="en">English</option>
+            <option value="ar">العربية</option>
+            <option value="de">Deutsch</option>
+            <option value="es">Español</option>
+            <option value="fr">Français</option>
+            <option value="zh">中文</option>
+            <option value="ja">日本語</option>
+          </select>
+        </label>
+      </div>
+      <button type="button" class="btn btn-primary wizard-next" data-next="2" data-i18n="wiz.continue">Continue →</button>
     </div>
 
-    <!-- Step 2: Business type -->
+    <!-- Step 2: Security (optional PIN) -->
     <div class="wizard-step" id="wiz-step-2" style="display:none">
+      <div id="wizSecuritySetup">
+        <h2 class="wizard-title" data-i18n="sec.wiz_title">Protect your shop (optional)</h2>
+        <p class="wizard-subtitle" data-i18n="sec.wiz_subtitle">Set an admin PIN to guard Settings, data reset, and operator switching. You can skip and enable later.</p>
+        <div class="wizard-form" style="max-width:340px;margin:0 auto;">
+          <label><span data-i18n="sec.pin_label">Admin PIN (4–8 digits)</span>
+            <input id="wizPin" type="password" inputmode="numeric" class="form-control" autocomplete="new-password" maxlength="8">
+          </label>
+          <label style="margin-top:10px;"><span data-i18n="sec.pin_confirm">Confirm PIN</span>
+            <input id="wizPinConfirm" type="password" inputmode="numeric" class="form-control" autocomplete="new-password" maxlength="8">
+          </label>
+          <p id="wizPinError" style="color:var(--danger);font-size:12px;min-height:18px;margin-top:8px;"></p>
+        </div>
+        <div class="btn-row" style="justify-content:center;gap:10px;margin-top:8px;">
+          <button type="button" class="btn ghost" id="wizSecuritySkip" data-i18n="sec.skip">Skip for now</button>
+          <button type="button" class="btn btn-primary" id="wizSecurityContinue" data-i18n="sec.set_pin">Set PIN →</button>
+        </div>
+      </div>
+      <div id="wizSecurityRecovery" style="display:none;">
+        <h2 class="wizard-title" data-i18n="sec.recovery_title">Save your recovery code</h2>
+        <p class="wizard-subtitle" data-i18n="sec.recovery_subtitle">Shown once. Use it if you forget your PIN. Khayt cannot recover it for you.</p>
+        <div style="font-family:ui-monospace,monospace;font-size:18px;letter-spacing:1px;text-align:center;padding:14px;background:var(--bg-soft);border-radius:8px;margin:12px 0;" id="wizRecoveryCode">KHAYT-XXXX-XXXX-XXXX</div>
+        <div class="btn-row" style="justify-content:center;gap:8px;">
+          <button type="button" class="btn" id="wizRecoveryCopy" data-i18n="sec.copy">Copy</button>
+          <button type="button" class="btn" id="wizRecoveryDownload" data-i18n="sec.download">Download</button>
+        </div>
+        <label style="display:flex;align-items:flex-start;gap:8px;margin-top:14px;cursor:pointer;font-size:13px;">
+          <input type="checkbox" id="wizRecoverySaved" style="width:auto;margin-top:3px;">
+          <span data-i18n="sec.recovery_saved">I have saved this recovery code in a safe place</span>
+        </label>
+        <button type="button" class="btn btn-primary wizard-next" data-next="3" id="wizRecoveryContinue" disabled style="margin-top:12px;" data-i18n="wiz.continue">Continue →</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Business type -->
+    <div class="wizard-step" id="wiz-step-3" style="display:none">
       <h2 class="wizard-title" data-i18n="wiz.business_type">How do you use Khayt?</h2>
       <p class="wizard-subtitle" data-i18n="wiz.mode_hint">This sets your starting experience. You can change it anytime in Settings.</p>
       <div class="wizard-options">
-        <button type="button" class="wizard-option" data-mode="simple" data-next="3">
+        <button type="button" class="wizard-option" data-mode="simple" data-next="4">
           <span class="wizard-option-icon" aria-hidden="true">👤</span>
           <strong data-i18n="wiz.option_solo">Solo maker</strong>
           <span data-i18n="wiz.option_solo_desc">Just me — quoting, invoicing, tracking jobs</span>
         </button>
-        <button type="button" class="wizard-option" data-mode="simple" data-next="3">
+        <button type="button" class="wizard-option" data-mode="simple" data-next="4">
           <span class="wizard-option-icon" aria-hidden="true">🏪</span>
           <strong data-i18n="wiz.option_shop">Small shop</strong>
           <span data-i18n="wiz.option_shop_desc">1–3 printers, occasional staff help</span>
         </button>
-        <button type="button" class="wizard-option" data-mode="professional" data-next="3">
+        <button type="button" class="wizard-option" data-mode="professional" data-next="4">
           <span class="wizard-option-icon" aria-hidden="true">🏭</span>
           <strong data-i18n="wiz.option_farm">Print farm</strong>
           <span data-i18n="wiz.option_farm_desc">4+ printers, multiple operators, analytics-driven</span>
         </button>
-        <button type="button" class="wizard-option" data-mode="professional" data-next="3">
+        <button type="button" class="wizard-option" data-mode="professional" data-next="4">
           <span class="wizard-option-icon" aria-hidden="true">🏢</span>
           <strong data-i18n="wiz.option_b2b">Company / B2B</strong>
           <span data-i18n="wiz.option_b2b_desc">Corporate clients, VAT invoicing, multi-location</span>
@@ -1885,8 +1935,8 @@
       </div>
     </div>
 
-    <!-- Step 3: Business details -->
-    <div class="wizard-step" id="wiz-step-3" style="display:none">
+    <!-- Step 4: Business details -->
+    <div class="wizard-step" id="wiz-step-4" style="display:none">
       <h2 class="wizard-title" data-i18n="wiz.details_title">Your business details</h2>
       <p class="wizard-subtitle" data-i18n="wiz.details_subtitle">Used on invoices and documents. Edit anytime in Settings.</p>
       <div class="wizard-form">
@@ -1904,17 +1954,6 @@
             <option value="KWD">KWD — Kuwaiti Dinar</option>
           </select>
         </label>
-        <label><span data-i18n="wiz.language">Language</span>
-          <select id="wizLang" class="form-control">
-            <option value="en">English</option>
-            <option value="ar">العربية</option>
-            <option value="de">Deutsch</option>
-            <option value="es">Español</option>
-            <option value="fr">Français</option>
-            <option value="zh">中文</option>
-            <option value="ja">日本語</option>
-          </select>
-        </label>
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:10px;">
           <input type="checkbox" id="wizEnableZatca" style="width:auto;margin:0;" checked>
           <span data-i18n="onboard.zatca">ZATCA e-invoicing fields on invoices</span>
@@ -1929,6 +1968,7 @@
     <span class="wizard-dot active" data-step="1"></span>
     <span class="wizard-dot" data-step="2"></span>
     <span class="wizard-dot" data-step="3"></span>
+    <span class="wizard-dot" data-step="4"></span>
   </div>
 </div>
 
@@ -1967,6 +2007,7 @@
 <script src="format.js"></script>
 <script src="util.js"></script>
 <script src="app-state.js"></script>
+<script src="app-security.js"></script>
 <script src="shell.js"></script>
 <script src="app-helpers.js"></script>
 <script src="currency.js"></script>

@@ -65,6 +65,9 @@ contextBridge.exposeInMainWorld('hubAPI', {
   saveStore:     (data)   => ipcRenderer.invoke('hub:save-store', data),
   storeSize:     ()       => ipcRenderer.invoke('hub:store-size'),
   revealStoreFile: ()     => ipcRenderer.invoke('hub:reveal-store-file'),
+  clipboardWrite: (text)  => ipcRenderer.invoke('hub:clipboard-write', text),
+  saveTextFile: (opts)    => ipcRenderer.invoke('hub:save-text-file', opts),
+  requestFullWipe: ()     => ipcRenderer.invoke('hub:request-full-wipe'),
 
   // Feature 1 (new batch): G-code / 3MF metadata extraction
   parsePrintFile: (filePath) => ipcRenderer.invoke('hub:parse-print-file', filePath),
