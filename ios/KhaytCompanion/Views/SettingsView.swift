@@ -24,13 +24,15 @@ struct SettingsView: View {
                     }
                 }
 
-                Section("Connection") {
+                Section {
                     TextField("Shop name", text: $settings.shopLabel)
                     TextField("Desktop IP or hostname", text: $settings.host)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                     Stepper("Port: \(settings.port)", value: $settings.port, in: 1024...65535)
                     SecureField("Owner LAN PIN", text: $settings.pin)
+                } header: {
+                    Text("Connection")
                 } footer: {
                     Text("Same PIN as Khayt → Settings → LAN API / kiosk. Desktop v2.2.1+ required.")
                 }
@@ -60,8 +62,10 @@ struct SettingsView: View {
                     Text("Clears paired state; PIN remains in Keychain until you change it.")
                 }
 
-                Section("Documentation") {
+                Section {
                     Link("LAN API reference", destination: URL(string: "https://github.com/Alballaa/Khayt/blob/main/docs/LAN_API.md")!)
+                } header: {
+                    Text("Documentation")
                 }
             }
             .navigationTitle("Settings")
