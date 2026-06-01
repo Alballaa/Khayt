@@ -4,6 +4,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **iOS Companion** (`ios/KhaytCompanion`) — SwiftUI app for dashboard, production queue, inventory, and NFC spool import over the LAN API. See [ios/README.md](./ios/README.md).
+
 ## [2.2.1] - 2026-05-30
 
 ### Added
