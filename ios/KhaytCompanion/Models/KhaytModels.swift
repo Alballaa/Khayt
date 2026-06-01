@@ -74,7 +74,7 @@ struct NFCFilamentTag: Sendable {
     }
 }
 
-enum OrderStatus: String, CaseIterable, Sendable {
+enum OrderStatus: String, CaseIterable, Hashable, Sendable {
     case pending, printing, post, qc, completed, on_hold
 
     var label: String {

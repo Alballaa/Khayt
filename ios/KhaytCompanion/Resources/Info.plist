@@ -29,12 +29,7 @@
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
 	<key>NFCReaderUsageDescription</key>
-	<string>Khayt reads filament spool NFC tags (OpenTag3D and OpenPrintTag) to add inventory.</string>
-	<key>com.apple.developer.nfc.readersession.formats</key>
-	<array>
-		<string>NDEF</string>
-		<string>TAG</string>
-	</array>
+	<string>Khayt reads filament spool NFC tags when NFC capability is enabled.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

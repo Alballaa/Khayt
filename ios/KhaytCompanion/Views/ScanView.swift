@@ -76,7 +76,7 @@ struct ScanView: View {
                 .padding()
             }
             .navigationTitle("Scan NFC")
-            .onChange(of: nfc.lastTag?.materialLabel) { _, _ in
+            .onChange(of: nfc.lastTag?.material ?? "") { _, _ in
                 successMessage = nil
                 errorMessage = nil
             }
