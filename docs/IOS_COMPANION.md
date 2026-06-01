@@ -11,7 +11,8 @@ Native **LAN-only** client. The desktop app remains the source of truth (`khayt-
 | Production queue | `GET /api/queue`, `PATCH /api/orders/:id` |
 | Light inventory | `GET /api/inventory`, `POST /api/inventory` |
 | Machines glance | `GET /api/machines` |
-| NFC add spool | `POST /api/inventory` (OpenTag3D / OpenPrintTag) |
+| Add spool (Inventory +) | Scan label, NFC, or manual → `POST /api/inventory` |
+| Label / NFC fields | Optional SKU, lot, print/bed temp when on label or tag |
 
 ## Out of scope (v1)
 

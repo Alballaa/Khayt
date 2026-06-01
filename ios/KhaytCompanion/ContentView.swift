@@ -27,8 +27,6 @@ struct MainTabView: View {
                 .tabItem { Label("Machines", systemImage: "printer") }
             InventoryView()
                 .tabItem { Label("Inventory", systemImage: "cylinder.split.1x2") }
-            AddFilamentView()
-                .tabItem { Label("Add spool", systemImage: "plus.viewfinder") }
             SettingsView()
                 .tabItem { Label("Settings", systemImage: "gearshape") }
         }

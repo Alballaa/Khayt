@@ -55,39 +55,66 @@ enum NFCParser {
             hex: hex,
             weight: weight > 0 ? weight : nil,
             printTemp: printTemp > 0 ? printTemp : nil,
-            bedTemp: bedTemp > 0 ? bedTemp : nil
+            bedTemp: bedTemp > 0 ? bedTemp : nil,
+            sku: nil,
+            lot: nil
         )
     }
 
     // MARK: - OpenPrintTag (minimal CBOR)
 
+    private static let optMaterials = [
+        0: "PLA", 1: "PETG", 2: "TPU", 3: "ABS", 4: "ASA", 5: "PC", 6: "PCTG",
+        7: "PP", 8: "PA6", 9: "PA11", 10: "PA12", 11: "PA66", 12: "CPE", 13: "TPE",
+        14: "HIPS", 15: "PHA", 16: "PET", 17: "PEI", 18: "PBT", 19: "PVB",
+        20: "PVA", 21: "PEKK", 22: "PEEK"
+    ]
+
     private static func parseOpenPrintTag(_ bytes: [UInt8]) -> NFCFilamentTag? {
-        guard let decoded = decodeCBOR(bytes, offset: 0)?.value as? [Any] else { return nil }
+        guard let decoded = decodeCBOR(bytes, offset: 0)?.value as? [[Any]] else { return nil }
         var data = [Int: Any]()
         for pair in decoded {
-            guard let arr = pair as? [Any], arr.count >= 2,
-                  let key = arr[0] as? Int else { continue }
-            data[key] = arr[1]
+            guard pair.count >= 2, let key = pair[0] as? Int else { continue }
+            data[key] = pair[1]
         }
-        let brand = data[1] as? String
-        let matName = data[2] as? String
-        let matType = data[3] as? String
-        let weight = (data[4] as? Double) ?? (data[4] as? Int).map(Double.init)
+        let matKey = data[9] as? Int
+        let matType = matKey.flatMap { optMaterials[$0] } ?? (data[9] as? String)
+        let matName = (data[10] as? String) ?? (data[52] as? String)
+        let brand = data[11] as? String
+        let weightVal = (data[16] as? Double) ?? (data[17] as? Double) ?? (data[16] as? Int).map(Double.init)
         var hex: String?
-        if let rgb = data[5] as? [Any], rgb.count >= 3,
-           let r = rgb[0] as? Int, let g = rgb[1] as? Int, let b = rgb[2] as? Int {
-            hex = String(format: "#%02x%02x%02x", r, g, b)
+        if let cd = data[19] {
+            var r: Int?, g: Int?, b: Int?
+            if let arr = cd as? [Any], arr.count >= 3 {
+                r = arr[0] as? Int; g = arr[1] as? Int; b = arr[2] as? Int
+            } else if let map = cd as? [Int: Any] {
+                r = map[0] as? Int; g = map[1] as? Int; b = map[2] as? Int
+            }
+            if let r, let g, let b { hex = String(format: "#%02x%02x%02x", r, g, b) }
         }
+        let material = matType ?? matName
+        guard material != nil || brand != nil else { return nil }
+        let printT = intCelsius(data[34]) ?? intCelsius(data[35])
+        let bedT = intCelsius(data[37]) ?? intCelsius(data[38])
         return NFCFilamentTag(
             standard: "OpenPrintTag",
             manufacturer: brand,
-            material: matType ?? matName,
+            material: material,
             colorName: nil,
             hex: hex,
-            weight: weight.map { Int($0.rounded()) },
-            printTemp: data[34] as? Int,
-            bedTemp: data[37] as? Int
+            weight: weightVal.map { Int($0.rounded()) },
+            printTemp: printT,
+            bedTemp: bedT,
+            sku: data[12] as? String,
+            lot: data[13] as? String
         )
+    }
+
+    private static func intCelsius(_ value: Any?) -> Int? {
+        guard let value else { return nil }
+        if let n = value as? Int { return n > 0 && n < 80 ? n * 5 : (n > 80 ? n : nil) }
+        if let n = value as? Double { return intCelsius(Int(n)) }
+        return nil
     }
 
     // MARK: - NDEF

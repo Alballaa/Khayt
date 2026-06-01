@@ -27,6 +27,10 @@ final class KhaytAPIClient: ObservableObject {
         try await get("/api/inventory", requiresPin: true, as: [InventorySpool].self)
     }
 
+    func fetchMachines() async throws -> [MachineInfo] {
+        try await get("/api/machines", requiresPin: true, as: [MachineInfo].self)
+    }
+
     func updateOrderStatus(orderId: String, status: String) async throws {
         let body = try JSONEncoder().encode(["status": status])
         _ = try await request(
@@ -38,21 +42,51 @@ final class KhaytAPIClient: ObservableObject {
     }
 
     func addSpool(from tag: NFCFilamentTag) async throws -> InventorySpool {
-        let today = ISO8601DateFormatter().string(from: Date()).prefix(10)
+        try await addSpool(draft: SpoolDraft.from(tag: tag))
+    }
+
+    func addSpool(material: String, weight: Int, color: String = "#888888", brand: String? = nil) async throws -> InventorySpool {
+        var draft = SpoolDraft()
+        draft.material = material
+        draft.weightGrams = weight
+        draft.colorHex = color
+        draft.brand = brand ?? ""
+        draft.sourceNote = "Manual"
+        return try await addSpool(draft: draft)
+    }
+
+    func addSpool(draft: SpoolDraft) async throws -> InventorySpool {
+        let today = String(ISO8601DateFormatter().string(from: Date()).prefix(10))
+        let material = draft.material.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !material.isEmpty else {
+            throw KhaytAPIError.server("Material name is required.")
+        }
+
         var payload: [String: Any] = [
             "id": "spool-\(Int(Date().timeIntervalSince1970 * 1000))",
-            "material": tag.materialLabel.isEmpty ? (tag.material ?? "Filament") : tag.materialLabel,
-            "brand": tag.manufacturer ?? "",
-            "color": tag.hex ?? tag.colorName ?? "#888888",
-            "weight": tag.weight ?? 1000,
-            "weightTotal": tag.weight ?? 1000,
-            "weightRemaining": tag.weight ?? 1000,
-            "remaining": tag.weight ?? 1000,
-            "purchasedAt": String(today),
-            "materialType": "fdm",
-            "nfcStandard": tag.standard
+            "material": material,
+            "brand": draft.brand.trimmingCharacters(in: .whitespacesAndNewlines),
+            "color": draft.colorHex.isEmpty ? "#888888" : draft.colorHex,
+            "weight": draft.weightGrams,
+            "weightTotal": draft.weightGrams,
+            "weightRemaining": draft.weightGrams,
+            "remaining": draft.weightGrams,
+            "purchasedAt": today,
+            "materialType": "fdm"
         ]
-        if let w = tag.weight { payload["weight"] = w }
+
+        let sku = draft.sku.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !sku.isEmpty { payload["sku"] = sku }
+
+        let lot = draft.lot.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !lot.isEmpty { payload["lot"] = lot }
+
+        let printTrim = draft.printTemp.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let printTemp = Int(printTrim), printTemp > 0 { payload["printTemp"] = printTemp }
+
+        let bedTrim = draft.bedTemp.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let bedTemp = Int(bedTrim), bedTemp > 0 { payload["bedTemp"] = bedTemp }
+
         let data = try JSONSerialization.data(withJSONObject: payload)
         let (responseData, response) = try await request(
             path: "/api/inventory",
@@ -67,55 +101,13 @@ final class KhaytAPIClient: ObservableObject {
         if let decoded = try? JSONDecoder().decode(AddResponse.self, from: responseData), let spool = decoded.spool {
             return spool
         }
-        return InventorySpool(
-            id: payload["id"] as? String ?? UUID().uuidString,
-            material: payload["material"] as? String,
-            brand: payload["brand"] as? String,
-            color: payload["color"] as? String,
-            weight: Double(tag.weight ?? 1000),
-            remaining: Double(tag.weight ?? 1000),
-            cost: nil,
-            purchasedAt: String(today),
-            addedAt: nil,
-            materialType: "fdm",
-            lot: nil
-        )
+        throw KhaytAPIError.server("Unexpected response adding spool")
     }
 
     func validatePairing() async throws -> ShopStatus {
         let status = try await fetchStatus()
         _ = try await fetchQueue()
         return status
-    }
-
-    func fetchMachines() async throws -> [MachineInfo] {
-        try await get("/api/machines", requiresPin: true, as: [MachineInfo].self)
-    }
-
-    func addSpool(material: String, weight: Int, color: String = "#888888", brand: String? = nil) async throws -> InventorySpool {
-        let today = String(ISO8601DateFormatter().string(from: Date()).prefix(10))
-        let payload: [String: Any] = [
-            "id": "spool-\(Int(Date().timeIntervalSince1970 * 1000))",
-            "material": material,
-            "brand": brand ?? "",
-            "color": color,
-            "weight": weight,
-            "weightTotal": weight,
-            "weightRemaining": weight,
-            "remaining": weight,
-            "purchasedAt": today,
-            "materialType": "fdm"
-        ]
-        let data = try JSONSerialization.data(withJSONObject: payload)
-        let (responseData, response) = try await request(path: "/api/inventory", method: "POST", body: data, requiresPin: true)
-        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-            throw try decodeAPIError(responseData, status: (response as? HTTPURLResponse)?.statusCode ?? 0)
-        }
-        struct AddResponse: Codable { let spool: InventorySpool? }
-        if let decoded = try? JSONDecoder().decode(AddResponse.self, from: responseData), let spool = decoded.spool {
-            return spool
-        }
-        throw KhaytAPIError.server("Unexpected response adding spool")
     }
 
     func probeConnection() async throws -> ShopStatus {

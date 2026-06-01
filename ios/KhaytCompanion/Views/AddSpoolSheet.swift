@@ -1,0 +1,337 @@
+import SwiftUI
+
+/// Presented from Inventory — pick how to add, then review optional fields.
+struct AddSpoolSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var api: KhaytAPIClient
+    @EnvironmentObject private var nfc: NFCReader
+
+    enum Step {
+        case chooseMethod
+        case scanLabel
+        case nfc
+        case review
+    }
+
+    @State private var step: Step = .chooseMethod
+    @State private var draft = SpoolDraft()
+    @State private var showCamera = false
+    @State private var scannedRaw: String?
+    @State private var isUploading = false
+    @State private var errorMessage: String?
+
+    var onAdded: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                switch step {
+                case .chooseMethod:
+                    chooseMethodView
+                case .scanLabel:
+                    scanLabelView
+                case .nfc:
+                    nfcView
+                case .review:
+                    SpoolReviewForm(
+                        draft: $draft,
+                        isUploading: isUploading,
+                        errorMessage: errorMessage
+                    ) {
+                        Task { await submit() }
+                    }
+                }
+            }
+            .navigationTitle(navTitle)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                if step != .chooseMethod && step != .review {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Back") { goBack() }
+                    }
+                }
+            }
+            .sheet(isPresented: $showCamera) {
+                if BarcodeScannerView.isSupported() {
+                    BarcodeScannerView(scannedText: $scannedRaw)
+                        .ignoresSafeArea()
+                } else {
+                    Text("Camera not available on this device.")
+                        .padding()
+                }
+            }
+            .onChange(of: scannedRaw) { _, value in
+                guard let value else { return }
+                draft = SpoolDraft.from(parsed: FilamentLabelParser.parse(text: value))
+                step = .review
+            }
+        }
+    }
+
+    private var navTitle: String {
+        switch step {
+        case .chooseMethod: return "Add filament"
+        case .scanLabel: return "Scan label"
+        case .nfc: return "NFC tag"
+        case .review: return "Confirm spool"
+        }
+    }
+
+    private var chooseMethodView: some View {
+        List {
+            Section {
+                Text("How would you like to add this spool?")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            Section {
+                methodRow(
+                    title: "Scan label",
+                    subtitle: "QR, barcode, or text on the spool",
+                    icon: "barcode.viewfinder"
+                ) {
+                    step = .scanLabel
+                }
+                methodRow(
+                    title: "Tap NFC tag",
+                    subtitle: "OpenTag3D or Prusa OpenPrintTag",
+                    icon: "wave.3.right"
+                ) {
+                    step = .nfc
+                }
+                methodRow(
+                    title: "Enter manually",
+                    subtitle: "Type details yourself",
+                    icon: "keyboard"
+                ) {
+                    draft = SpoolDraft()
+                    draft.sourceNote = "Manual"
+                    step = .review
+                }
+            }
+        }
+    }
+
+    private func methodRow(title: String, subtitle: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundStyle(Color.accentColor)
+                    .frame(width: 36)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.headline).foregroundStyle(.primary)
+                    Text(subtitle).font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.bold())
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.vertical, 4)
+        }
+    }
+
+    private var scanLabelView: some View {
+        VStack(spacing: 20) {
+            Spacer()
+            Image(systemName: "camera.viewfinder")
+                .font(.system(size: 56))
+                .foregroundStyle(Color.accentColor)
+            Text("Point at the label")
+                .font(.title3.bold())
+            Text("Works with English, Arabic, German, French, and other text on the label.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+            Button {
+                showCamera = true
+            } label: {
+                Label("Open camera", systemImage: "camera.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .padding(.horizontal)
+            Spacer()
+        }
+    }
+
+    private var nfcView: some View {
+        VStack(spacing: 20) {
+            Spacer()
+            Image(systemName: "nfc")
+                .font(.system(size: 56))
+                .foregroundStyle(Color.accentColor)
+            Text("Hold iPhone near the spool")
+                .font(.title3.bold())
+            if !nfc.isAvailable {
+                Text("NFC is not available on this device.")
+                    .foregroundStyle(.orange)
+                    .font(.caption)
+            }
+            Button {
+                nfc.beginScan()
+            } label: {
+                Label(nfc.isScanning ? "Scanning…" : "Scan NFC", systemImage: "wave.3.right")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(!nfc.isAvailable || nfc.isScanning)
+            .padding(.horizontal)
+
+            if let tag = nfc.lastTag {
+                TagPreviewCard(tag: tag)
+                    .padding(.horizontal)
+                Button("Continue") {
+                    draft = SpoolDraft.from(tag: tag)
+                    nfc.clearLastTag()
+                    step = .review
+                }
+                .buttonStyle(.borderedProminent)
+                .padding(.horizontal)
+            }
+            Spacer()
+        }
+        .padding()
+    }
+
+    private func goBack() {
+        switch step {
+        case .scanLabel, .nfc:
+            step = .chooseMethod
+        default:
+            step = .chooseMethod
+        }
+    }
+
+    private func submit() async {
+        isUploading = true
+        errorMessage = nil
+        defer { isUploading = false }
+        do {
+            _ = try await api.addSpool(draft: draft)
+            onAdded()
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+}
+
+// MARK: - Review form
+
+struct SpoolReviewForm: View {
+    @Binding var draft: SpoolDraft
+    let isUploading: Bool
+    var errorMessage: String?
+    let onSubmit: () -> Void
+
+    var body: some View {
+        Form {
+            if let errorMessage, !errorMessage.isEmpty {
+                Section {
+                    Text(errorMessage)
+                        .font(.subheadline)
+                        .foregroundStyle(.red)
+                }
+            }
+
+            if !draft.sourceNote.isEmpty {
+                Section {
+                    Text(draft.sourceNote)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Section(header: Text("Required")) {
+                TextField("Material name", text: $draft.material)
+                TextField("Weight (grams)", text: Binding(
+                    get: { String(draft.weightGrams) },
+                    set: { draft.weightGrams = Int($0) ?? draft.weightGrams }
+                ))
+                .keyboardType(.numberPad)
+            }
+
+            Section(header: Text("Optional")) {
+                TextField("Brand", text: $draft.brand)
+                TextField("SKU", text: $draft.sku)
+                TextField("Batch / lot no.", text: $draft.lot)
+                TextField("Print temp (°C)", text: $draft.printTemp)
+                    .keyboardType(.numberPad)
+                TextField("Bed temp (°C)", text: $draft.bedTemp)
+                    .keyboardType(.numberPad)
+            }
+
+            Section {
+                Button(action: onSubmit) {
+                    if isUploading {
+                        ProgressView().frame(maxWidth: .infinity)
+                    } else {
+                        Text("Add to Khayt inventory")
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                .disabled(isUploading || draft.material.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+    }
+}
+
+// MARK: - Tag preview
+
+struct TagPreviewCard: View {
+    let tag: NFCFilamentTag
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                if let hex = tag.hex {
+                    Circle()
+                        .fill(Color(hex: hex) ?? .gray)
+                        .frame(width: 28, height: 28)
+                }
+                VStack(alignment: .leading) {
+                    Text(tag.materialLabel.isEmpty ? "Filament" : tag.materialLabel)
+                        .font(.headline)
+                    Text(tag.standard)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            HStack(spacing: 12) {
+                if let w = tag.weight { meta("Weight", "\(w) g") }
+                if let p = tag.printTemp { meta("Print", "\(p)°C") }
+                if let b = tag.bedTemp { meta("Bed", "\(b)°C") }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func meta(_ label: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label).font(.caption2).foregroundStyle(.secondary)
+            Text(value).font(.caption.bold())
+        }
+    }
+}
+
+extension Color {
+    init?(hex: String) {
+        var s = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        if s.hasPrefix("#") { s.removeFirst() }
+        guard s.count == 6, let value = UInt64(s, radix: 16) else { return nil }
+        self.init(
+            red: Double((value >> 16) & 0xFF) / 255,
+            green: Double((value >> 8) & 0xFF) / 255,
+            blue: Double(value & 0xFF) / 255
+        )
+    }
+}

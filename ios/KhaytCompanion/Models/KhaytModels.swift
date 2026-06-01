@@ -68,6 +68,8 @@ struct NFCFilamentTag: Sendable {
     let weight: Int?
     let printTemp: Int?
     let bedTemp: Int?
+    let sku: String?
+    let lot: String?
 
     var materialLabel: String {
         [manufacturer, material, colorName].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " – ")

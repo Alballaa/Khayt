@@ -4,9 +4,9 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
-### Added
+### Changed
 
-- **iOS Companion v1** (`ios/KhaytCompanion`) — LAN PIN pairing, queue PATCH, inventory, machines glance, NFC; [docs/LAN_API.md](./docs/LAN_API.md).
+- **iOS Companion** — add spool from Inventory (+) with method picker (scan label, NFC, manual); removed separate Add spool tab. Optional SKU, batch/lot, print/bed temps on review form. Label parser supports more non-English patterns (AR/DE/FR/ES).
 
 ## [2.2.1] - 2026-05-30
 

@@ -25,7 +25,8 @@
 		B10000000000000000000013 /* ConnectionBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000013 /* ConnectionBadge.swift */; };
 		B10000000000000000000014 /* FilamentLabelParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000014 /* FilamentLabelParser.swift */; };
 		B10000000000000000000015 /* BarcodeScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000015 /* BarcodeScannerView.swift */; };
-		B10000000000000000000016 /* AddFilamentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000016 /* AddFilamentView.swift */; };
+		B10000000000000000000017 /* SpoolDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000017 /* SpoolDraft.swift */; };
+		B10000000000000000000018 /* AddSpoolSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000018 /* AddSpoolSheet.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -50,7 +51,8 @@
 		F10000000000000000000013 /* ConnectionBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ConnectionBadge.swift; path = Views/ConnectionBadge.swift; sourceTree = "<group>"; };
 		F10000000000000000000014 /* FilamentLabelParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FilamentLabelParser.swift; path = Services/FilamentLabelParser.swift; sourceTree = "<group>"; };
 		F10000000000000000000015 /* BarcodeScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BarcodeScannerView.swift; path = Views/BarcodeScannerView.swift; sourceTree = "<group>"; };
-		F10000000000000000000016 /* AddFilamentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AddFilamentView.swift; path = Views/AddFilamentView.swift; sourceTree = "<group>"; };
+		F10000000000000000000017 /* SpoolDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpoolDraft.swift; sourceTree = "<group>"; };
+		F10000000000000000000018 /* AddSpoolSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AddSpoolSheet.swift; path = Views/AddSpoolSheet.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -87,7 +89,6 @@
 				F10000000000000000000011 /* PairingView.swift */,
 				F10000000000000000000012 /* MachinesView.swift */,
 				F10000000000000000000013 /* ConnectionBadge.swift */,
-				F10000000000000000000016 /* AddFilamentView.swift */,
 				F10000000000000000000015 /* BarcodeScannerView.swift */,
 				F10000000000000000000014 /* FilamentLabelParser.swift */,
 			);
@@ -106,6 +107,7 @@
 			isa = PBXGroup;
 			children = (
 				F10000000000000000000003 /* KhaytModels.swift */,
+				F10000000000000000000017 /* SpoolDraft.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -134,7 +136,9 @@
 				F10000000000000000000008 /* DashboardView.swift */,
 				F10000000000000000000009 /* QueueView.swift */,
 				F1000000000000000000000A /* InventoryView.swift */,
-						F1000000000000000000000C /* SettingsView.swift */,
+				F1000000000000000000000C /* SettingsView.swift */,
+			
+				F10000000000000000000018 /* AddSpoolSheet.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -227,8 +231,9 @@
 				B10000000000000000000008 /* DashboardView.swift in Sources */,
 				B10000000000000000000009 /* QueueView.swift in Sources */,
 				B1000000000000000000000A /* InventoryView.swift in Sources */,
-						B1000000000000000000000C /* SettingsView.swift in Sources */,
-				B10000000000000000000016 /* AddFilamentView.swift in Sources */,
+				B10000000000000000000017 /* SpoolDraft.swift in Sources */,
+				B10000000000000000000018 /* AddSpoolSheet.swift in Sources */,
+				B1000000000000000000000C /* SettingsView.swift in Sources */,
 				B10000000000000000000015 /* BarcodeScannerView.swift in Sources */,
 				B10000000000000000000014 /* FilamentLabelParser.swift in Sources */,
 				B10000000000000000000010 /* ConnectionHealth.swift in Sources */,
