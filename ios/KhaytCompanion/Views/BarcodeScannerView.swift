@@ -10,7 +10,7 @@ struct BarcodeScannerView: View {
     var captureFullLabel: Bool = true
 
     @State private var liveLineCount = 0
-    @State private var scannerController: DataScannerViewController?
+    @State private var recognizedItems: [RecognizedItem] = []
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -19,7 +19,7 @@ struct BarcodeScannerView: View {
                 scannedText: $scannedText,
                 dismiss: dismiss,
                 liveLineCount: $liveLineCount,
-                scannerController: $scannerController
+                recognizedItems: $recognizedItems
             )
             .ignoresSafeArea()
 
@@ -64,8 +64,7 @@ struct BarcodeScannerView: View {
     }
 
     private func finishLabelCapture() {
-        guard let scanner = scannerController else { return }
-        let blob = ScannerHost.aggregateRecognizedText(from: scanner.recognizedItems)
+        let blob = ScannerHost.aggregateRecognizedText(from: recognizedItems)
         guard !blob.isEmpty else { return }
         scannedText = blob
         dismiss()
@@ -83,7 +82,7 @@ private struct ScannerHost: UIViewControllerRepresentable {
     @Binding var scannedText: String?
     let dismiss: DismissAction
     @Binding var liveLineCount: Int
-    @Binding var scannerController: DataScannerViewController?
+    @Binding var recognizedItems: [RecognizedItem]
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
@@ -91,7 +90,7 @@ private struct ScannerHost: UIViewControllerRepresentable {
             scannedText: $scannedText,
             dismiss: dismiss,
             liveLineCount: $liveLineCount,
-            scannerController: $scannerController
+            recognizedItems: $recognizedItems
         )
     }
 
@@ -109,9 +108,6 @@ private struct ScannerHost: UIViewControllerRepresentable {
 
     func updateUIViewController(_ uiViewController: DataScannerViewController, context: Context) {
         context.coordinator.scanner = uiViewController
-        DispatchQueue.main.async {
-            scannerController = uiViewController
-        }
         context.coordinator.startIfNeeded(scanner: uiViewController)
         context.coordinator.refreshLiveCount()
     }
@@ -145,7 +141,7 @@ private struct ScannerHost: UIViewControllerRepresentable {
         @Binding var scannedText: String?
         let dismiss: DismissAction
         @Binding var liveLineCount: Int
-        @Binding var scannerController: DataScannerViewController?
+        @Binding var recognizedItems: [RecognizedItem]
 
         weak var scanner: DataScannerViewController?
         private var didStart = false
@@ -155,13 +151,13 @@ private struct ScannerHost: UIViewControllerRepresentable {
             scannedText: Binding<String?>,
             dismiss: DismissAction,
             liveLineCount: Binding<Int>,
-            scannerController: Binding<DataScannerViewController?>
+            recognizedItems: Binding<[RecognizedItem]>
         ) {
             self.captureFullLabel = captureFullLabel
             _scannedText = scannedText
             self.dismiss = dismiss
             _liveLineCount = liveLineCount
-            _scannerController = scannerController
+            _recognizedItems = recognizedItems
         }
 
         func startIfNeeded(scanner: DataScannerViewController) {
@@ -174,14 +170,18 @@ private struct ScannerHost: UIViewControllerRepresentable {
         }
 
         func refreshLiveCount() {
-            guard let scanner else { return }
-            let count = ScannerHost.aggregateRecognizedText(from: scanner.recognizedItems)
+            let count = ScannerHost.aggregateRecognizedText(from: recognizedItems)
                 .components(separatedBy: .newlines)
                 .filter { !$0.isEmpty }
                 .count
             if liveLineCount != count {
                 liveLineCount = count
             }
+        }
+
+        private func syncItems(_ allItems: [RecognizedItem]) {
+            recognizedItems = allItems
+            refreshLiveCount()
         }
 
         func dataScanner(_ dataScanner: DataScannerViewController, didTapOn item: RecognizedItem) {
@@ -194,7 +194,7 @@ private struct ScannerHost: UIViewControllerRepresentable {
 
         func dataScanner(_ dataScanner: DataScannerViewController, didAdd addedItems: [RecognizedItem], allItems: [RecognizedItem]) {
             if captureFullLabel {
-                refreshLiveCount()
+                syncItems(allItems)
             } else if let first = addedItems.first {
                 applyQuick(first)
             }
@@ -202,13 +202,13 @@ private struct ScannerHost: UIViewControllerRepresentable {
 
         func dataScanner(_ dataScanner: DataScannerViewController, didUpdate updatedItems: [RecognizedItem], allItems: [RecognizedItem]) {
             if captureFullLabel {
-                refreshLiveCount()
+                syncItems(allItems)
             }
         }
 
         func dataScanner(_ dataScanner: DataScannerViewController, didRemove removedItems: [RecognizedItem], allItems: [RecognizedItem]) {
             if captureFullLabel {
-                refreshLiveCount()
+                syncItems(allItems)
             }
         }
 
