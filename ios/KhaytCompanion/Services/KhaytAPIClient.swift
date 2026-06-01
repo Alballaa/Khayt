@@ -92,11 +92,12 @@ final class KhaytAPIClient: ObservableObject {
         try await get("/api/machines", requiresPin: true, as: [MachineInfo].self)
     }
 
-    func addSpool(material: String, weight: Int, color: String = "#888888") async throws -> InventorySpool {
+    func addSpool(material: String, weight: Int, color: String = "#888888", brand: String? = nil) async throws -> InventorySpool {
         let today = String(ISO8601DateFormatter().string(from: Date()).prefix(10))
         let payload: [String: Any] = [
             "id": "spool-\(Int(Date().timeIntervalSince1970 * 1000))",
             "material": material,
+            "brand": brand ?? "",
             "color": color,
             "weight": weight,
             "weightTotal": weight,
