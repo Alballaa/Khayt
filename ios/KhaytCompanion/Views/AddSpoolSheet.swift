@@ -56,7 +56,7 @@ struct AddSpoolSheet: View {
             }
             .sheet(isPresented: $showCamera) {
                 if BarcodeScannerView.isSupported() {
-                    BarcodeScannerView(scannedText: $scannedRaw, captureFullLabel: true)
+                    BarcodeScannerView(scannedText: $scannedRaw)
                 } else {
                     Text("Camera not available on this device.")
                         .padding()
@@ -142,7 +142,7 @@ struct AddSpoolSheet: View {
                 .foregroundStyle(Color.accentColor)
             Text("Point at the label")
                 .font(.title3.bold())
-            Text("Pan across the printed label, then tap Use label text so SKU, batch, and temps can be read — not only the QR code.")
+            Text("Use Photo mode for best results — take a clear picture of the whole label.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

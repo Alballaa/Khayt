@@ -1,104 +1,231 @@
 import SwiftUI
 import VisionKit
 
-/// Camera scanner for filament labels — collects QR/barcode payloads **and** visible printed text.
+/// Filament label capture: live scanner + photo OCR, with persistent accumulation.
 struct BarcodeScannerView: View {
     @Binding var scannedText: String?
     @Environment(\.dismiss) private var dismiss
 
-    /// When true, waits for you to tap **Use label text** so SKU / batch / temps can be read from the label.
-    var captureFullLabel: Bool = true
+    @State private var mode: ScanMode = .photo
+    @State private var capturedLines: [String] = []
+    @State private var showPhotoPicker = false
+    @State private var pickedImage: UIImage?
+    @State private var isProcessingPhoto = false
+    @State private var photoError: String?
 
-    @State private var liveLineCount = 0
-    @State private var recognizedItems: [RecognizedItem] = []
+    @StateObject private var accumulator = LabelTextAccumulatorBox()
+
+    enum ScanMode: String, CaseIterable, Identifiable {
+        case photo = "Photo"
+        case live = "Live"
+        var id: String { rawValue }
+    }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            ScannerHost(
-                captureFullLabel: captureFullLabel,
-                scannedText: $scannedText,
-                dismiss: dismiss,
-                liveLineCount: $liveLineCount,
-                recognizedItems: $recognizedItems
-            )
-            .ignoresSafeArea()
+        NavigationStack {
+            ZStack {
+                if mode == .live, BarcodeScannerView.isLiveScannerSupported() {
+                    ScannerHost(accumulator: accumulator)
+                        .ignoresSafeArea()
+                } else if mode == .live {
+                    ContentUnavailableView(
+                        "Live scan unavailable",
+                        systemImage: "camera.fill",
+                        description: Text("Use Photo mode on this device.")
+                    )
+                } else {
+                    photoPlaceholder
+                }
 
-            if captureFullLabel {
-                captureOverlay
+                VStack {
+                    Spacer()
+                    capturePanel
+                }
+            }
+            .navigationTitle("Scan label")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                if !capturedLines.isEmpty {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Clear") {
+                            accumulator.value.clear()
+                            syncLines()
+                        }
+                    }
+                }
+            }
+            .onAppear { syncLines() }
+            .onReceive(accumulator.objectWillChange) { _ in syncLines() }
+            .sheet(isPresented: $showPhotoPicker) {
+                LabelCameraPicker(image: $pickedImage)
+                    .ignoresSafeArea()
+            }
+            .onChange(of: pickedImage) { _, image in
+                guard let image else { return }
+                pickedImage = nil
+                Task { await processPhoto(image) }
             }
         }
     }
 
-    private var captureOverlay: some View {
-        VStack(spacing: 12) {
-            VStack(spacing: 6) {
-                Text("Scan the whole label")
-                    .font(.headline)
-                Text("Include printed text for SKU, batch, and temperatures — not only the QR code.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                if liveLineCount > 0 {
-                    Text("\(liveLineCount) text region\(liveLineCount == 1 ? "" : "s") detected")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
-            }
-            .padding(.horizontal)
-
+    private var photoPlaceholder: some View {
+        VStack(spacing: 16) {
+            Spacer()
+            Image(systemName: "camera.fill")
+                .font(.system(size: 56))
+                .foregroundStyle(Color.accentColor)
+            Text("Take a clear photo of the label")
+                .font(.title3.bold())
+            Text("Fill the frame with text — SKU, batch, temps, and material. Works better than live scan for small print.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
             Button {
-                finishLabelCapture()
+                showPhotoPicker = true
             } label: {
-                Label("Use label text", systemImage: "checkmark.circle.fill")
+                Label("Take photo", systemImage: "camera.shutter.button")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-            .disabled(liveLineCount == 0)
-            .padding(.horizontal)
-            .padding(.bottom, 24)
+            .padding(.horizontal, 24)
+            Spacer()
         }
-        .padding(.top, 12)
-        .frame(maxWidth: .infinity)
-        .background(.ultraThinMaterial)
+        .background(Color(uiColor: .systemGroupedBackground))
     }
 
-    private func finishLabelCapture() {
-        let blob = ScannerHost.aggregateRecognizedText(from: recognizedItems)
+    private var capturePanel: some View {
+        VStack(spacing: 10) {
+            Picker("Mode", selection: $mode) {
+                ForEach(ScanMode.allCases) { m in
+                    Text(m.rawValue).tag(m)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal)
+
+            if mode == .photo {
+                Button {
+                    showPhotoPicker = true
+                } label: {
+                    Label(isProcessingPhoto ? "Reading label…" : "Take photo", systemImage: "camera.shutter.button")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .disabled(isProcessingPhoto)
+                .padding(.horizontal)
+            } else {
+                Text("Slowly pan across the label. Captured text is kept even when it leaves the frame.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
+
+            if let photoError {
+                Text(photoError)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .padding(.horizontal)
+            }
+
+            if !capturedLines.isEmpty {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(capturedLines.prefix(12), id: \.self) { line in
+                            Text(line)
+                                .font(.caption)
+                                .foregroundStyle(.primary)
+                        }
+                        if capturedLines.count > 12 {
+                            Text("+\(capturedLines.count - 12) more…")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxHeight: 100)
+                .padding(.horizontal)
+            }
+
+            Button {
+                finishCapture()
+            } label: {
+                Label("Use captured text (\(capturedLines.count))", systemImage: "checkmark.circle.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .disabled(capturedLines.isEmpty || isProcessingPhoto)
+            .padding(.horizontal)
+            .padding(.bottom, 12)
+        }
+        .padding(.top, 10)
+        .background(.ultraThinMaterial)
+        .onChange(of: mode) { _, _ in syncLines() }
+    }
+
+    private func processPhoto(_ image: UIImage) async {
+        isProcessingPhoto = true
+        photoError = nil
+        defer { isProcessingPhoto = false }
+        do {
+            let text = try await LabelPhotoOCR.recognizeText(in: image)
+            guard !text.isEmpty else {
+                photoError = "No text found. Try brighter light and fill the frame with the label."
+                return
+            }
+            accumulator.value.ingestPhotoText(text)
+            syncLines()
+        } catch {
+            photoError = error.localizedDescription
+        }
+    }
+
+    private func syncLines() {
+        capturedLines = accumulator.value.allLines
+    }
+
+    private func finishCapture() {
+        let blob = accumulator.value.combinedText
         guard !blob.isEmpty else { return }
         scannedText = blob
         dismiss()
     }
 
     static func isSupported() -> Bool {
+        UIImagePickerController.isSourceTypeAvailable(.camera)
+    }
+
+    static func isLiveScannerSupported() -> Bool {
         DataScannerViewController.isSupported && DataScannerViewController.isAvailable
     }
 }
 
-// MARK: - UIKit host
+/// Bridges `LabelTextAccumulator` into SwiftUI state.
+final class LabelTextAccumulatorBox: ObservableObject {
+    let value = LabelTextAccumulator()
+}
+
+// MARK: - Live VisionKit scanner
 
 private struct ScannerHost: UIViewControllerRepresentable {
-    let captureFullLabel: Bool
-    @Binding var scannedText: String?
-    let dismiss: DismissAction
-    @Binding var liveLineCount: Int
-    @Binding var recognizedItems: [RecognizedItem]
+    @ObservedObject var accumulator: LabelTextAccumulatorBox
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(
-            captureFullLabel: captureFullLabel,
-            scannedText: $scannedText,
-            dismiss: dismiss,
-            liveLineCount: $liveLineCount,
-            recognizedItems: $recognizedItems
-        )
+        Coordinator(accumulator: accumulator)
     }
 
     func makeUIViewController(context: Context) -> DataScannerViewController {
         let types: Set<DataScannerViewController.RecognizedDataType> = [.barcode(), .text()]
         let scanner = DataScannerViewController(
             recognizedDataTypes: types,
-            qualityLevel: captureFullLabel ? .accurate : .balanced,
+            qualityLevel: .accurate,
             recognizesMultipleItems: true,
             isHighlightingEnabled: true
         )
@@ -107,127 +234,41 @@ private struct ScannerHost: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ uiViewController: DataScannerViewController, context: Context) {
-        context.coordinator.scanner = uiViewController
         context.coordinator.startIfNeeded(scanner: uiViewController)
-        context.coordinator.refreshLiveCount()
-    }
-
-    static func aggregateRecognizedText(from items: [RecognizedItem]) -> String {
-        var lines: [String] = []
-        var seen = Set<String>()
-        for item in items {
-            let piece: String?
-            switch item {
-            case .barcode(let barcode):
-                piece = barcode.payloadStringValue
-            case .text(let text):
-                piece = text.transcript
-            @unknown default:
-                piece = nil
-            }
-            guard let piece else { continue }
-            let trimmed = piece.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else { continue }
-            let key = trimmed.lowercased()
-            guard !seen.contains(key) else { continue }
-            seen.insert(key)
-            lines.append(trimmed)
-        }
-        return lines.joined(separator: "\n")
     }
 
     final class Coordinator: NSObject, DataScannerViewControllerDelegate {
-        let captureFullLabel: Bool
-        @Binding var scannedText: String?
-        let dismiss: DismissAction
-        @Binding var liveLineCount: Int
-        @Binding var recognizedItems: [RecognizedItem]
-
-        weak var scanner: DataScannerViewController?
+        let accumulator: LabelTextAccumulatorBox
         private var didStart = false
 
-        init(
-            captureFullLabel: Bool,
-            scannedText: Binding<String?>,
-            dismiss: DismissAction,
-            liveLineCount: Binding<Int>,
-            recognizedItems: Binding<[RecognizedItem]>
-        ) {
-            self.captureFullLabel = captureFullLabel
-            _scannedText = scannedText
-            self.dismiss = dismiss
-            _liveLineCount = liveLineCount
-            _recognizedItems = recognizedItems
+        init(accumulator: LabelTextAccumulatorBox) {
+            self.accumulator = accumulator
         }
 
         func startIfNeeded(scanner: DataScannerViewController) {
             guard !didStart else { return }
             didStart = true
-            self.scanner = scanner
             Task { @MainActor in
                 try? await scanner.startScanning()
             }
         }
 
-        func refreshLiveCount() {
-            let count = ScannerHost.aggregateRecognizedText(from: recognizedItems)
-                .components(separatedBy: .newlines)
-                .filter { !$0.isEmpty }
-                .count
-            if liveLineCount != count {
-                liveLineCount = count
-            }
-        }
-
-        private func syncItems(_ allItems: [RecognizedItem]) {
-            recognizedItems = allItems
-            refreshLiveCount()
-        }
-
-        func dataScanner(_ dataScanner: DataScannerViewController, didTapOn item: RecognizedItem) {
-            if captureFullLabel {
-                refreshLiveCount()
-            } else {
-                applyQuick(item)
-            }
+        private func ingest(_ allItems: [RecognizedItem]) {
+            accumulator.value.ingestLiveItems(allItems)
+            accumulator.objectWillChange.send()
         }
 
         func dataScanner(_ dataScanner: DataScannerViewController, didAdd addedItems: [RecognizedItem], allItems: [RecognizedItem]) {
-            if captureFullLabel {
-                syncItems(allItems)
-            } else if let first = addedItems.first {
-                applyQuick(first)
-            }
+            ingest(allItems)
         }
 
         func dataScanner(_ dataScanner: DataScannerViewController, didUpdate updatedItems: [RecognizedItem], allItems: [RecognizedItem]) {
-            if captureFullLabel {
-                syncItems(allItems)
-            }
+            ingest(allItems)
         }
 
         func dataScanner(_ dataScanner: DataScannerViewController, didRemove removedItems: [RecognizedItem], allItems: [RecognizedItem]) {
-            if captureFullLabel {
-                syncItems(allItems)
-            }
-        }
-
-        private func applyQuick(_ item: RecognizedItem) {
-            switch item {
-            case .barcode(let barcode):
-                if let value = barcode.payloadStringValue, !value.isEmpty {
-                    scannedText = value
-                    dismiss()
-                }
-            case .text(let text):
-                let transcript = text.transcript.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !transcript.isEmpty {
-                    scannedText = transcript
-                    dismiss()
-                }
-            @unknown default:
-                break
-            }
+            accumulator.value.ingestLiveItems(removedItems)
+            ingest(allItems)
         }
     }
 }

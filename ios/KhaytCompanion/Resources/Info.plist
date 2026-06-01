@@ -29,7 +29,7 @@
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>Khayt uses the camera to scan QR codes and barcodes on filament spool labels.</string>
+	<string>Khayt uses the camera to photograph and read text on filament spool labels (SKU, batch, temperatures).</string>
 	<key>NFCReaderUsageDescription</key>
 	<string>Khayt reads filament spool NFC tags when NFC capability is enabled.</string>
 	<key>NSAppTransportSecurity</key>

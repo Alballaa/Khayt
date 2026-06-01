@@ -27,6 +27,9 @@
 		B10000000000000000000015 /* BarcodeScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000015 /* BarcodeScannerView.swift */; };
 		B10000000000000000000017 /* SpoolDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000017 /* SpoolDraft.swift */; };
 		B10000000000000000000018 /* AddSpoolSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000018 /* AddSpoolSheet.swift */; };
+		B10000000000000000000019 /* LabelTextAccumulator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000019 /* LabelTextAccumulator.swift */; };
+		B1000000000000000000001A /* LabelPhotoOCR.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000001A /* LabelPhotoOCR.swift */; };
+		B1000000000000000000001B /* LabelCameraPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000001B /* LabelCameraPicker.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -53,6 +56,9 @@
 		F10000000000000000000015 /* BarcodeScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BarcodeScannerView.swift; path = Views/BarcodeScannerView.swift; sourceTree = "<group>"; };
 		F10000000000000000000017 /* SpoolDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpoolDraft.swift; sourceTree = "<group>"; };
 		F10000000000000000000018 /* AddSpoolSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddSpoolSheet.swift; sourceTree = "<group>"; };
+		F10000000000000000000019 /* LabelTextAccumulator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LabelTextAccumulator.swift; path = Services/LabelTextAccumulator.swift; sourceTree = "<group>"; };
+		F1000000000000000000001A /* LabelPhotoOCR.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LabelPhotoOCR.swift; path = Services/LabelPhotoOCR.swift; sourceTree = "<group>"; };
+		F1000000000000000000001B /* LabelCameraPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LabelCameraPicker.swift; path = Views/LabelCameraPicker.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -117,6 +123,8 @@
 			children = (
 				F10000000000000000000004 /* ConnectionSettings.swift */,
 				F10000000000000000000005 /* KhaytAPIClient.swift */,
+				F10000000000000000000019 /* LabelTextAccumulator.swift */,
+				F1000000000000000000001A /* LabelPhotoOCR.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -137,8 +145,8 @@
 				F10000000000000000000009 /* QueueView.swift */,
 				F1000000000000000000000A /* InventoryView.swift */,
 				F1000000000000000000000C /* SettingsView.swift */,
-			
 				F10000000000000000000018 /* AddSpoolSheet.swift */,
+				F1000000000000000000001B /* LabelCameraPicker.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -233,6 +241,9 @@
 				B1000000000000000000000A /* InventoryView.swift in Sources */,
 				B10000000000000000000017 /* SpoolDraft.swift in Sources */,
 				B10000000000000000000018 /* AddSpoolSheet.swift in Sources */,
+				B1000000000000000000001B /* LabelCameraPicker.swift in Sources */,
+				B1000000000000000000001A /* LabelPhotoOCR.swift in Sources */,
+				B10000000000000000000019 /* LabelTextAccumulator.swift in Sources */,
 				B1000000000000000000000C /* SettingsView.swift in Sources */,
 				B10000000000000000000015 /* BarcodeScannerView.swift in Sources */,
 				B10000000000000000000014 /* FilamentLabelParser.swift in Sources */,
