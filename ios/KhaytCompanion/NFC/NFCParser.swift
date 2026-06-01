@@ -1,10 +1,20 @@
 import Foundation
 
+enum NFCParseError: Error, LocalizedError, Sendable {
+    case invalidData(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidData(let message): return message
+        }
+    }
+}
+
 /// Parses OpenTag3D and OpenPrintTag (Prusa) NFC payloads — parity with `renderer/inventory.js`.
 enum NFCParser {
-    static func parse(bytes: [UInt8]) -> Result<NFCFilamentTag, String> {
+    static func parse(bytes: [UInt8]) -> Result<NFCFilamentTag, NFCParseError> {
         if bytes.count < 10 {
-            return .failure("Tag data too short.")
+            return .failure(.invalidData("Tag data too short."))
         }
         if let payload = extractNDEFPayload(bytes, mimeType: "application/opentag3d"),
            let tag = parseOpenTag3D(payload) {
@@ -17,7 +27,7 @@ enum NFCParser {
         if let tag = parseOpenTag3D(bytes) {
             return .success(tag)
         }
-        return .failure("Could not parse as OpenTag3D or OpenPrintTag.")
+        return .failure(.invalidData("Could not parse as OpenTag3D or OpenPrintTag."))
     }
 
     // MARK: - OpenTag3D

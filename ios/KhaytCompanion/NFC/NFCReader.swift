@@ -126,8 +126,8 @@ extension NFCReader: NFCTagReaderSessionDelegate {
         switch NFCParser.parse(bytes: allBytes) {
         case .success(let tag):
             Task { @MainActor in self.finish(session: session, tag: tag) }
-        case .failure(let msg):
-            session.invalidate(errorMessage: msg)
+        case .failure(let err):
+            session.invalidate(errorMessage: err.localizedDescription)
         }
     }
 }
