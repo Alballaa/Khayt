@@ -166,8 +166,8 @@ enum NFCParser {
         guard offset < buf.count else { return nil }
         let first = buf[offset]
         var off = offset + 1
-        let major = first >> 5
-        let info = first & 0x1F
+        let major = Int(first >> 5)
+        let info = Int(first & 0x1F)
 
         func readCount() -> Int? {
             if info <= 23 { return info }
