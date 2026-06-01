@@ -24,17 +24,16 @@ struct SettingsView: View {
                     }
                 }
 
-                Section {
+                Section(
+                    header: Text("Connection"),
+                    footer: Text("Same PIN as Khayt Settings, LAN API / kiosk. Desktop v2.2.1+ required.")
+                ) {
                     TextField("Shop name", text: $settings.shopLabel)
                     TextField("Desktop IP or hostname", text: $settings.host)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                     Stepper("Port: \(settings.port)", value: $settings.port, in: 1024...65535)
                     SecureField("Owner LAN PIN", text: $settings.pin)
-                } header: {
-                    Text("Connection")
-                } footer: {
-                    Text("Same PIN as Khayt → Settings → LAN API / kiosk. Desktop v2.2.1+ required.")
                 }
 
                 Section {
@@ -54,18 +53,17 @@ struct SettingsView: View {
                     }
                 }
 
-                Section {
+                Section(footer: Text("Clears paired state; PIN stays in Keychain until you change it.")) {
                     Button("Unpair this device", role: .destructive) {
                         settings.isPaired = false
                     }
-                } footer: {
-                    Text("Clears paired state; PIN remains in Keychain until you change it.")
                 }
 
-                Section {
-                    Link("LAN API reference", destination: URL(string: "https://github.com/Alballaa/Khayt/blob/main/docs/LAN_API.md")!)
-                } header: {
-                    Text("Documentation")
+                Section(header: Text("Documentation")) {
+                    Link(
+                        "LAN API reference",
+                        destination: URL(string: "https://github.com/Alballaa/Khayt/blob/main/docs/LAN_API.md")!
+                    )
                 }
             }
             .navigationTitle("Settings")
