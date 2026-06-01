@@ -52,7 +52,7 @@
 		F10000000000000000000014 /* FilamentLabelParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FilamentLabelParser.swift; path = Services/FilamentLabelParser.swift; sourceTree = "<group>"; };
 		F10000000000000000000015 /* BarcodeScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BarcodeScannerView.swift; path = Views/BarcodeScannerView.swift; sourceTree = "<group>"; };
 		F10000000000000000000017 /* SpoolDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpoolDraft.swift; sourceTree = "<group>"; };
-		F10000000000000000000018 /* AddSpoolSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AddSpoolSheet.swift; path = Views/AddSpoolSheet.swift; sourceTree = "<group>"; };
+		F10000000000000000000018 /* AddSpoolSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddSpoolSheet.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
