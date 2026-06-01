@@ -47,6 +47,7 @@ struct DashboardView: View {
                 }
             }
             .navigationTitle("Dashboard")
+            .toolbar { ToolbarItem(placement: .topBarTrailing) { ConnectionBadge() } }
             .refreshable { await load() }
             .task { await load() }
         }

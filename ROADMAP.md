@@ -6,7 +6,7 @@ Living priorities for maintainers. Not a public commitment calendar — reorder 
 
 - [ ] Triage post-2.2.0 feedback; plan 2.2.x patches or 2.3.0
 - [ ] Run `node scripts/list-stale-branches.mjs --merged-into main` and delete merged `cursor/*` branches
-- [x] iOS Companion source in `ios/` (LAN API client + NFC); TestFlight / App Store when ready
+- [x] iOS Companion v1 in `ios/` — LAN PIN pairing, queue, inventory, machines, NFC; see [docs/LAN_API.md](./docs/LAN_API.md)
 
 ## Shipped (2.2.0 — 2026-05-30)
 

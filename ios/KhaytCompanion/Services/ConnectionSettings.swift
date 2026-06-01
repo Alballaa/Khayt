@@ -12,6 +12,9 @@ final class ConnectionSettings: ObservableObject {
     @Published var pin: String {
         didSet { KeychainHelper.set(pin, for: Keys.pinKeychain) }
     }
+    @Published var isPaired: Bool {
+        didSet { UserDefaults.standard.set(isPaired, forKey: Keys.paired) }
+    }
     @Published var shopLabel: String {
         didSet { UserDefaults.standard.set(shopLabel, forKey: Keys.shopLabel) }
     }
@@ -21,6 +24,7 @@ final class ConnectionSettings: ObservableObject {
         static let port = "khayt.port"
         static let shopLabel = "khayt.shopLabel"
         static let pinKeychain = "khayt.lanPin"
+        static let paired = "khayt.paired"
     }
 
     init() {
@@ -28,6 +32,7 @@ final class ConnectionSettings: ObservableObject {
         host = defaults.string(forKey: Keys.host) ?? ""
         port = defaults.object(forKey: Keys.port) as? Int ?? 3219
         shopLabel = defaults.string(forKey: Keys.shopLabel) ?? "My Shop"
+        isPaired = defaults.bool(forKey: Keys.paired)
         pin = KeychainHelper.get(Keys.pinKeychain) ?? ""
     }
 

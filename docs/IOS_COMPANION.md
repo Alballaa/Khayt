@@ -1,8 +1,25 @@
-# iOS Companion architecture
+# iOS Companion (v1)
 
-The iOS app is a thin native client for the LAN server embedded in Khayt desktop. It does not implement business logic or store data locally beyond connection settings.
+Native **LAN-only** client. The desktop app remains the source of truth (`khayt-store.json`).
 
-## Data flow
+## v1 scope
+
+| Feature | LAN API |
+|---------|---------|
+| Pairing (IP + owner PIN) | `GET /api/status` + `GET /api/queue` |
+| Connection health | Periodic `GET /api/status` |
+| Production queue | `GET /api/queue`, `PATCH /api/orders/:id` |
+| Light inventory | `GET /api/inventory`, `POST /api/inventory` |
+| Machines glance | `GET /api/machines` |
+| NFC add spool | `POST /api/inventory` (OpenTag3D / OpenPrintTag) |
+
+## Out of scope (v1)
+
+Calculator, ZATCA, invoicing, full settings, offline-first local database, cloud sync.
+
+Alternative: LAN **PWA** (Add to Home Screen) — good for quick queue view; native app adds NFC, Keychain PIN, and App Store path later.
+
+## Architecture
 
 ```mermaid
 sequenceDiagram
@@ -15,27 +32,27 @@ sequenceDiagram
     Phone->>LAN: PATCH /api/orders/id
     LAN->>Desktop: lan-order-updated IPC
     Desktop->>Desktop: saveAll + refresh UI
-
-    Phone->>LAN: POST /api/inventory (NFC spool)
-    LAN->>Desktop: lan-spool-added IPC
-    Desktop->>Desktop: push inventory + saveAll
 ```
 
-## NFC
+## Repo layout
 
-Tag parsing mirrors `renderer/inventory.js`:
+```
+ios/KhaytCompanion/          SwiftUI sources
+ios/KhaytCompanion.xcodeproj
+docs/LAN_API.md              Canonical API reference
+```
 
-- **OpenTag3D** — `application/opentag3d` NDEF or raw binary
-- **OpenPrintTag (Prusa)** — `application/vnd.openprinttag` CBOR
-
-Swift implementation: `ios/KhaytCompanion/NFC/NFCParser.swift`.
+Prior draft work lived on branch `claude/ios-app-mvwgj` (XcodeGen `ios/Khayt/`). Current target is `ios/KhaytCompanion/` on `cursor/ios-companion-app-2e93`.
 
 ## Security
 
-- PIN is stored in the iOS Keychain (`ConnectionSettings` / `KeychainHelper`).
-- Traffic is plain HTTP on the LAN; use only on trusted networks. The desktop app warns before enabling `localtunnel` for the same reason.
-- `NSAllowsLocalNetworking` is set in `Info.plist` so App Transport Security permits RFC1918 hosts.
+- Owner PIN in iOS Keychain
+- HTTP on trusted LAN only (`NSAllowsLocalNetworking`)
+- Same brute-force limits as desktop LAN server
 
 ## Extending
 
-New companion features should add LAN routes in `lib/lan-server.js` first, then call them from `KhaytAPIClient.swift`. Keep the desktop renderer in sync via IPC events when mutating the store.
+1. Add route in `lib/lan-server.js`
+2. Document in `docs/LAN_API.md`
+3. Call from `KhaytAPIClient.swift`
+4. If mutating store, emit IPC so desktop UI stays in sync

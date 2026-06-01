@@ -5,6 +5,8 @@ final class KhaytAPIClient: ObservableObject {
     private let settings: ConnectionSettings
     private let session: URLSession
 
+    var isConfigured: Bool { settings.isConfigured }
+
     init(settings: ConnectionSettings) {
         self.settings = settings
         let config = URLSessionConfiguration.default
@@ -80,8 +82,43 @@ final class KhaytAPIClient: ObservableObject {
         )
     }
 
+    func validatePairing() async throws -> ShopStatus {
+        let status = try await fetchStatus()
+        _ = try await fetchQueue()
+        return status
+    }
+
+    func fetchMachines() async throws -> [MachineInfo] {
+        try await get("/api/machines", requiresPin: true, as: [MachineInfo].self)
+    }
+
+    func addSpool(material: String, weight: Int, color: String = "#888888") async throws -> InventorySpool {
+        let today = String(ISO8601DateFormatter().string(from: Date()).prefix(10))
+        let payload: [String: Any] = [
+            "id": "spool-\(Int(Date().timeIntervalSince1970 * 1000))",
+            "material": material,
+            "color": color,
+            "weight": weight,
+            "weightTotal": weight,
+            "weightRemaining": weight,
+            "remaining": weight,
+            "purchasedAt": today,
+            "materialType": "fdm"
+        ]
+        let data = try JSONSerialization.data(withJSONObject: payload)
+        let (responseData, response) = try await request(path: "/api/inventory", method: "POST", body: data, requiresPin: true)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            throw try decodeAPIError(responseData, status: (response as? HTTPURLResponse)?.statusCode ?? 0)
+        }
+        struct AddResponse: Codable { let spool: InventorySpool? }
+        if let decoded = try? JSONDecoder().decode(AddResponse.self, from: responseData), let spool = decoded.spool {
+            return spool
+        }
+        throw KhaytAPIError.server("Unexpected response adding spool")
+    }
+
     func probeConnection() async throws -> ShopStatus {
-        try await fetchStatus()
+        try await validatePairing()
     }
 
     // MARK: - HTTP

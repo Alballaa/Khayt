@@ -23,7 +23,8 @@ struct QueueView: View {
                         QueueRow(
                             order: order,
                             isUpdating: updatingId == order.id,
-                            onAdvance: { Task { await advance(order) } }
+                            onAdvance: { Task { await advance(order) } },
+                            onSetStatus: { status in Task { await setStatus(order, status: status) } }
                         )
                     }
                     .listStyle(.insetGrouped)
@@ -41,6 +42,17 @@ struct QueueView: View {
             orders = try await api.fetchQueue()
         } catch {
             orders = []
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func setStatus(_ order: QueueOrder, status: String) async {
+        updatingId = order.id
+        defer { updatingId = nil }
+        do {
+            try await api.updateOrderStatus(orderId: order.id, status: status)
+            await load()
+        } catch {
             errorMessage = error.localizedDescription
         }
     }
@@ -63,6 +75,7 @@ private struct QueueRow: View {
     let order: QueueOrder
     let isUpdating: Bool
     let onAdvance: () -> Void
+    let onSetStatus: (String) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -80,6 +93,16 @@ private struct QueueRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            Menu {
+                ForEach(OrderStatus.allCases.filter { $0 != .completed }, id: \.self) { st in
+                    Button(st.label) { onSetStatus(st.rawValue) }
+                }
+            } label: {
+                Label("Set status", systemImage: "arrow.triangle.branch")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+
             if OrderStatus(rawValue: order.status)?.nextInQueue != nil {
                 Button(action: onAdvance) {
                     if isUpdating {
