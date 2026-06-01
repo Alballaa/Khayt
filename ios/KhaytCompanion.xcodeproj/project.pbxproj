@@ -43,10 +43,10 @@
 		F1000000000000000000000E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		F1000000000000000000000F /* KhaytCompanion.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = KhaytCompanion.entitlements; sourceTree = "<group>"; };
 		P10000000000000000000001 /* KhaytCompanion.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KhaytCompanion.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		F10000000000000000000010 /* ConnectionHealth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionHealth.swift; sourceTree = "<group>"; };
-		F10000000000000000000011 /* PairingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingView.swift; sourceTree = "<group>"; };
-		F10000000000000000000012 /* MachinesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MachinesView.swift; sourceTree = "<group>"; };
-		F10000000000000000000013 /* ConnectionBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionBadge.swift; sourceTree = "<group>"; };
+		F10000000000000000000010 /* ConnectionHealth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ConnectionHealth.swift; path = Services/ConnectionHealth.swift; sourceTree = "<group>"; };
+		F10000000000000000000011 /* PairingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PairingView.swift; path = Views/PairingView.swift; sourceTree = "<group>"; };
+		F10000000000000000000012 /* MachinesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MachinesView.swift; path = Views/MachinesView.swift; sourceTree = "<group>"; };
+		F10000000000000000000013 /* ConnectionBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ConnectionBadge.swift; path = Views/ConnectionBadge.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -79,6 +79,10 @@
 				G10000000000000000000007 /* Views */,
 				G10000000000000000000008 /* Resources */,
 				F1000000000000000000000F /* KhaytCompanion.entitlements */,
+				F10000000000000000000010 /* ConnectionHealth.swift */,
+				F10000000000000000000011 /* PairingView.swift */,
+				F10000000000000000000012 /* MachinesView.swift */,
+				F10000000000000000000013 /* ConnectionBadge.swift */,
 			);
 			path = KhaytCompanion;
 			sourceTree = "<group>";
@@ -102,7 +106,6 @@
 		G10000000000000000000005 /* Services */ = {
 			isa = PBXGroup;
 			children = (
-				F10000000000000000000010 /* ConnectionHealth.swift */,
 				F10000000000000000000004 /* ConnectionSettings.swift */,
 				F10000000000000000000005 /* KhaytAPIClient.swift */,
 			);
@@ -121,14 +124,11 @@
 		G10000000000000000000007 /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				F10000000000000000000011 /* PairingView.swift */,
 				F10000000000000000000008 /* DashboardView.swift */,
 				F10000000000000000000009 /* QueueView.swift */,
-				F10000000000000000000012 /* MachinesView.swift */,
 				F1000000000000000000000A /* InventoryView.swift */,
 				F1000000000000000000000B /* ScanView.swift */,
 				F1000000000000000000000C /* SettingsView.swift */,
-				F10000000000000000000013 /* ConnectionBadge.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -223,10 +223,10 @@
 				B1000000000000000000000A /* InventoryView.swift in Sources */,
 				B1000000000000000000000B /* ScanView.swift in Sources */,
 				B1000000000000000000000C /* SettingsView.swift in Sources */,
-				B10000000000000000000013 /* ConnectionBadge.swift in Sources */,
-				B10000000000000000000012 /* MachinesView.swift in Sources */,
-				B10000000000000000000011 /* PairingView.swift in Sources */,
 				B10000000000000000000010 /* ConnectionHealth.swift in Sources */,
+				B10000000000000000000011 /* PairingView.swift in Sources */,
+				B10000000000000000000012 /* MachinesView.swift in Sources */,
+				B10000000000000000000013 /* ConnectionBadge.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -296,8 +296,8 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.khaytapp.companion;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
 				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -325,8 +325,8 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.khaytapp.companion;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
 				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
