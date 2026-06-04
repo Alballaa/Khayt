@@ -59,11 +59,4 @@ struct MachinesView: View {
         }
     }
 
-    private func statusColor(_ status: String) -> Color {
-        switch status.lowercased() {
-        case "printing", "busy": return .orange
-        case "idle", "ready": return .green
-        default: return .secondary
-        }
-    }
 }
