@@ -13,6 +13,11 @@ Native **LAN-only** client. The desktop app remains the source of truth (`khayt-
 | Machines glance | `GET /api/machines` |
 | Add spool (Inventory +) | Scan label, NFC, or manual → `POST /api/inventory` |
 | Label / NFC fields | Optional SKU, lot, print/bed temp when on label or tag |
+| Order history | `GET /api/orders?limit=` (Recent tab under Orders) |
+| Dashboard alerts | Low-stock count, active order preview, quick actions |
+| Search & filters | Inventory search; low-stock filter; queue status chips |
+
+**UI redesign:** copy the prompt in [IOS_UI_REDESIGN_PROMPT.md](./IOS_UI_REDESIGN_PROMPT.md) into your design AI.
 
 ## Out of scope (v1)
 

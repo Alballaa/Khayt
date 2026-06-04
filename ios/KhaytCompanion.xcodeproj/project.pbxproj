@@ -30,6 +30,10 @@
 		B10000000000000000000019 /* LabelTextAccumulator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000019 /* LabelTextAccumulator.swift */; };
 		B1000000000000000000001A /* LabelPhotoOCR.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000001A /* LabelPhotoOCR.swift */; };
 		B1000000000000000000001B /* LabelCameraPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000001B /* LabelCameraPicker.swift */; };
+		B1000000000000000000001C /* CompanionTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000001C /* CompanionTheme.swift */; };
+		B1000000000000000000001D /* OrdersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000001D /* OrdersView.swift */; };
+		B1000000000000000000001E /* OrderDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000001E /* OrderDetailSheet.swift */; };
+		B1000000000000000000001F /* SpoolDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000001F /* SpoolDetailSheet.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -59,6 +63,10 @@
 		F10000000000000000000019 /* LabelTextAccumulator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LabelTextAccumulator.swift; path = Services/LabelTextAccumulator.swift; sourceTree = "<group>"; };
 		F1000000000000000000001A /* LabelPhotoOCR.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LabelPhotoOCR.swift; path = Services/LabelPhotoOCR.swift; sourceTree = "<group>"; };
 		F1000000000000000000001B /* LabelCameraPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LabelCameraPicker.swift; path = Views/LabelCameraPicker.swift; sourceTree = "<group>"; };
+		F1000000000000000000001C /* CompanionTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CompanionTheme.swift; path = Theme/CompanionTheme.swift; sourceTree = "<group>"; };
+		F1000000000000000000001D /* OrdersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrdersView.swift; sourceTree = "<group>"; };
+		F1000000000000000000001E /* OrderDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrderDetailSheet.swift; sourceTree = "<group>"; };
+		F1000000000000000000001F /* SpoolDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpoolDetailSheet.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -83,6 +91,7 @@
 		G10000000000000000000002 /* KhaytCompanion */ = {
 			isa = PBXGroup;
 			children = (
+				F1000000000000000000001C /* CompanionTheme.swift */,
 				F10000000000000000000001 /* KhaytCompanionApp.swift */,
 				F10000000000000000000002 /* ContentView.swift */,
 				G10000000000000000000004 /* Models */,
@@ -147,6 +156,9 @@
 				F1000000000000000000000C /* SettingsView.swift */,
 				F10000000000000000000018 /* AddSpoolSheet.swift */,
 				F1000000000000000000001B /* LabelCameraPicker.swift */,
+				F1000000000000000000001F /* SpoolDetailSheet.swift */,
+				F1000000000000000000001E /* OrderDetailSheet.swift */,
+				F1000000000000000000001D /* OrdersView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -237,7 +249,10 @@
 				B10000000000000000000006 /* NFCParser.swift in Sources */,
 				B10000000000000000000007 /* NFCReader.swift in Sources */,
 				B10000000000000000000008 /* DashboardView.swift in Sources */,
-				B10000000000000000000009 /* QueueView.swift in Sources */,
+				B1000000000000000000001F /* SpoolDetailSheet.swift in Sources */,
+				B1000000000000000000001E /* OrderDetailSheet.swift in Sources */,
+				B1000000000000000000001D /* OrdersView.swift in Sources */,
+				B1000000000000000000001C /* CompanionTheme.swift in Sources */,
 				B1000000000000000000000A /* InventoryView.swift in Sources */,
 				B10000000000000000000017 /* SpoolDraft.swift in Sources */,
 				B10000000000000000000018 /* AddSpoolSheet.swift in Sources */,

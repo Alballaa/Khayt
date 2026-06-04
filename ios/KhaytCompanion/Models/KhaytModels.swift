@@ -52,10 +52,42 @@ struct InventorySpool: Codable, Identifiable, Sendable {
     var addedAt: String?
     var materialType: String?
     var lot: String?
+    var sku: String?
+    var printTemp: Int?
+    var bedTemp: Int?
 
     var displayLabel: String {
         let parts = [brand, material, color].compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
         return parts.isEmpty ? id : parts.joined(separator: " · ")
+    }
+
+    var isLowStock: Bool {
+        let grams = remaining ?? weight ?? 0
+        return grams > 0 && grams <= 200
+    }
+
+    var hasOptionalMeta: Bool {
+        !(sku ?? "").isEmpty || !(lot ?? "").isEmpty || printTemp != nil || bedTemp != nil
+    }
+}
+
+struct OrderLogEntry: Codable, Identifiable, Sendable {
+    let id: String
+    let project: String?
+    let client: String?
+    let status: String
+    let material: String?
+    let price: Double?
+    let dueDate: String?
+    let date: String?
+    let paymentStatus: String?
+
+    var displayTitle: String {
+        (project?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? id
+    }
+
+    var displayClient: String {
+        client?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "—"
     }
 }
 

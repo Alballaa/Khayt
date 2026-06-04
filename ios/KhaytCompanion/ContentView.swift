@@ -20,16 +20,17 @@ struct MainTabView: View {
     var body: some View {
         TabView {
             DashboardView()
-                .tabItem { Label("Dashboard", systemImage: "gauge.with.dots.needle.67percent") }
-            QueueView()
-                .tabItem { Label("Queue", systemImage: "rectangle.stack") }
-            MachinesView()
-                .tabItem { Label("Machines", systemImage: "printer") }
+                .tabItem { Label("Home", systemImage: "house.fill") }
+            OrdersView()
+                .tabItem { Label("Orders", systemImage: "rectangle.stack.fill") }
             InventoryView()
-                .tabItem { Label("Inventory", systemImage: "cylinder.split.1x2") }
+                .tabItem { Label("Inventory", systemImage: "cylinder.split.1x2.fill") }
+            MachinesView()
+                .tabItem { Label("Machines", systemImage: "printer.fill") }
             SettingsView()
-                .tabItem { Label("Settings", systemImage: "gearshape") }
+                .tabItem { Label("Settings", systemImage: "gearshape.fill") }
         }
+        .tint(CompanionTheme.brand)
         .onAppear { health.startPolling() }
         .onDisappear { health.stopPolling() }
     }

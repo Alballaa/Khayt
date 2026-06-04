@@ -23,6 +23,15 @@ final class KhaytAPIClient: ObservableObject {
         try await get("/api/queue", requiresPin: true, as: [QueueOrder].self)
     }
 
+    func fetchRecentOrders(limit: Int = 40, status: String? = nil) async throws -> [OrderLogEntry] {
+        var path = "/api/orders?limit=\(min(max(limit, 1), 200))"
+        if let status, !status.isEmpty {
+            let encoded = status.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? status
+            path += "&status=\(encoded)"
+        }
+        return try await get(path, requiresPin: true, as: [OrderLogEntry].self)
+    }
+
     func fetchInventory() async throws -> [InventorySpool] {
         try await get("/api/inventory", requiresPin: true, as: [InventorySpool].self)
     }
