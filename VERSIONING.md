@@ -2,7 +2,7 @@
 
 Khayt uses [Semantic Versioning 2.0.0](https://semver.org/) as `MAJOR.MINOR.PATCH` (`X.Y.Z`).
 
-**Current release line:** `2.3.x` (latest: **2.3.2** in `package.json`). We continue from the shipped version — no reset to `1.1.0` or other baseline.
+**Current release line:** `2.3.x` (latest **published** tag: **v2.3.2**). `main` may be ahead under `[Unreleased]` — see [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md) (no new tags until hold is lifted).
 
 ## How your labels map to version numbers
 
