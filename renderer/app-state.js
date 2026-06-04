@@ -301,6 +301,7 @@ function isValidRecord(r) {
   return r && typeof r === 'object' && typeof r.id === 'string' && r.id.length > 0;
 }
 let _saveAllTimer = null;
+let _saveChain = Promise.resolve();
 
 function collectStoreCollections() {
   return {
@@ -323,6 +324,49 @@ function buildExportPayload({ redactSecrets = false } = {}) {
 
 const redactSettingsForExport = (src) => KhaytStore.redactSettingsForExport(src);
 const redactMachinesForExport = (arr) => KhaytStore.redactMachinesForExport(arr);
+
+/** Reset in-memory store then load snapshot (import / full replace). */
+function replaceStoreFromSnapshot(store) {
+  printLog = [];
+  inventory = [];
+  templates = [];
+  products = [];
+  clients = [];
+  printers = [];
+  expenses = [];
+  machines = [];
+  waTemplates = defaultWaTemplates();
+  wasteLog = [];
+  machMaintLog = [];
+  consumables = [];
+  suppliers = [];
+  purchaseOrders = [];
+  testPrints = [];
+  locations = [];
+  operators = [];
+  waitingList = [];
+  waitingListHistory = [];
+  timeEntries = [];
+  shiftLogs = [];
+  giftCards = [];
+  slicerProfiles = [];
+  envLogs = [];
+  settings = defaultSettings();
+  applyStoreFromSnapshot(store);
+}
+
+function ensureOrderTrackingTokens() {
+  let changed = false;
+  for (const o of printLog) {
+    if (!o?.trackingToken) {
+      const bytes = new Uint8Array(16);
+      crypto.getRandomValues(bytes);
+      o.trackingToken = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+      changed = true;
+    }
+  }
+  if (changed) saveAll();
+}
 
 /** Load all collections from a store snapshot (disk load or import). */
 function applyStoreFromSnapshot(store) {
@@ -369,13 +413,16 @@ function applyStoreFromSnapshot(store) {
   }
 }
 
-/** Write the store snapshot to disk; returns the IPC Promise. */
+/** Write the store snapshot to disk; serializes concurrent saves (last snapshot wins). */
 function _doSave(snapshot) {
   if (!window.hubAPI?.saveStore) return Promise.resolve();
-  return window.hubAPI.saveStore(snapshot).catch(e => {
-    console.error('Save failed:', e);
-    toast('⚠ ' + (t('common.save_failed') || 'Save failed — check disk space'), 'error', 6000);
-  });
+  _saveChain = _saveChain
+    .then(() => window.hubAPI.saveStore(snapshot))
+    .catch((e) => {
+      console.error('Save failed:', e);
+      toast('⚠ ' + (t('common.save_failed') || 'Save failed — check disk space'), 'error', 6000);
+    });
+  return _saveChain;
 }
 
 function saveAll() {
@@ -420,7 +467,7 @@ function migrateFromLocalStorage() {
     for (const [name, key] of Object.entries(keyMap)) {
       try {
         const raw = localStorage.getItem(key);
-        if (raw) store[name] = JSON.parse(raw);
+        if (raw) store[name] = safeJsonParse(raw);
       } catch(e) {}
     }
     if (Object.keys(store).length > 0) {
@@ -453,7 +500,7 @@ async function loadAll() {
   const legacyCollapsed = localStorage.getItem('khayt_kan_collapsed');
   if (legacyCollapsed && !settings.kanbanCollapsed?.length) {
     try {
-      settings.kanbanCollapsed = JSON.parse(legacyCollapsed);
+      settings.kanbanCollapsed = safeJsonParse(legacyCollapsed);
       localStorage.removeItem('khayt_kan_collapsed');
       saveAll(); // persist the migration
     } catch {}
@@ -502,6 +549,8 @@ async function loadAll() {
     }
   })();
 
+  ensureOrderTrackingTokens();
+
   // Feature 4 (batch-2): Process any due recurring orders on load
   processRecurringOrders();
 }
@@ -529,6 +578,8 @@ function pruneExpiredNotifs() {
     buildStoreSnapshot,
     buildExportPayload,
     applyStoreFromSnapshot,
+    replaceStoreFromSnapshot,
+    ensureOrderTrackingTokens,
     saveAll,
     flushSave,
     migrateFromLocalStorage,

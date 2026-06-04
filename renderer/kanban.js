@@ -410,6 +410,8 @@ function renderKanban() {
         wipBadge.style.cssText = 'font-size:10.5px;padding:1px 6px;border-radius:10px;background:rgba(220,38,38,0.2);color:var(--danger);font-weight:600;margin-inline-start:4px;';
         wipBadge.textContent = `WIP: ${sorted.length}/${wipLimit}`;
         colEl.querySelector('h3')?.appendChild(wipBadge);
+      } else if (overWip && existingWipBadge) {
+        existingWipBadge.textContent = `WIP: ${sorted.length}/${wipLimit}`;
       } else if (!overWip && existingWipBadge) {
         existingWipBadge.remove();
       }

@@ -455,7 +455,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
           toast('📱 ' + t('ord.status_updated_phone', { id, status }), 'info', 3000);
         }
-      } else if (id && payload.project) {
+      } else if (id && payload.project && isValidOrder(payload)) {
         // New order from Salla/Zid (or other source): add to printLog
         printLog.unshift({ ...payload });
         saveAll();
@@ -467,10 +467,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
   if (window.hubAPI?.onLanSurveySubmitted) {
-    window.hubAPI.onLanSurveySubmitted(({ orderId, rating }) => {
+    window.hubAPI.onLanSurveySubmitted(async ({ orderId, rating }) => {
+      try {
+        const store = await window.hubAPI.loadStore();
+        if (store && !store.__corrupt) applyStoreFromSnapshot(store);
+      } catch (e) {
+        console.error('reload store after survey:', e);
+      }
       const o = printLog.find(x => x.id === orderId);
       if (o) {
-        loadFromDisk();
         toast(`⭐ Survey received for "${o.project || orderId}": ${rating}/5`, 'success', 5000);
       }
     });
@@ -481,12 +486,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
   window.hubAPI?.onLanKanbanAdvanced?.(({ id, from, to, project }) => {
-    // Update the order in memory
     const idx = printLog.findIndex(o => o.id === id);
     if (idx !== -1) {
-      printLog[idx] = { ...printLog[idx], status: to };
+      const order = printLog[idx];
+      printLog[idx] = { ...order, status: to };
+      if (!printLog[idx].statusHistory) printLog[idx].statusHistory = [];
+      printLog[idx].statusHistory.push({ status: to, at: new Date().toISOString() });
+      saveAll();
       renderKanban();
-      renderLog();
+      renderLogs();
     }
     toast(`🖨️ ${escapeHtml(project || id)}: ${from} → ${to}`, 'success');
   });
@@ -529,6 +537,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
     Object.keys(draft).forEach(k => draft[k] === undefined && delete draft[k]);
     waitingList.unshift(draft);
+    saveAll();
     renderWaitingList();
     updateWaitingBadge();
     toast(t('intakeFormSubmitted'), 'success');

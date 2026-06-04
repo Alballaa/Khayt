@@ -99,10 +99,20 @@ function logPrint(asQuote = false) {
     rushFee:         logRushFeeAmt > 0 ? +logRushFeeAmt.toFixed(2) : undefined,
     rushFeeAmount:   logRushFeeAmt > 0 ? +logRushFeeAmt.toFixed(2) : 0,
     quoteExpiresAt:  asQuote ? new Date(now.getTime() + (settings.quoteValidityDays || 7) * 86400000).toISOString().split('T')[0] : null,
+    quoteApprovalToken: asQuote ? (() => {
+      const b = new Uint8Array(16);
+      crypto.getRandomValues(b);
+      return Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
+    })() : undefined,
     quoteAcceptedAt: null,
     // Feature 8: Quote revision history
     quoteVersion:    asQuote ? 1 : undefined,
     quoteRevisions:  asQuote ? [] : undefined,
+    trackingToken: (() => {
+      const b = new Uint8Array(16);
+      crypto.getRandomValues(b);
+      return Array.from(b, (b) => b.toString(16).padStart(2, '0')).join('');
+    })(),
   });
 
   saveAll();
@@ -282,7 +292,9 @@ function updateStatus(id, newStatus) {
   // Round 12 — Webhook: order_delivered
   if (newStatus === 'completed') fireWebhook('order_delivered', { orderId: order.id, project: order.project, client: order.client });
   if (newStatus === 'completed' && !order.surveyToken) {
-    order.surveyToken = 'srv-' + Date.now().toString(36);
+    const bytes = new Uint8Array(12);
+    crypto.getRandomValues(bytes);
+    order.surveyToken = 'srv-' + Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
     saveAll();
   }
 }
@@ -709,7 +721,7 @@ function openOrderEditor(orderId) {
   const photosHtml = () => {
     const cells = draft.printPhotos.map((ph, i) => `
       <div class="order-photo-cell" data-pi="${i}">
-        <img src="${ph.thumb}" alt="">
+        <img src="${safeImageSrc(ph.thumb)}" alt="">
         <button class="rm" data-act="rm-photo" data-pi="${i}" aria-label="Remove">×</button>
       </div>`).join('');
     const adder = `<div class="order-photo-cell add" data-act="add-photo">${escapeHtml(t('oe.add_photo'))}</div>`;
@@ -933,6 +945,7 @@ function openOrderEditor(orderId) {
     sizeLg: true,
     bodyHtml,
     onMount(modal) {
+      modal.querySelector('#oeOpenMilestones')?.addEventListener('click', () => openMilestoneInvoices(order.id));
       const plSel = modal.querySelector('[data-f="priorityLevel"]');
       if (plSel) plSel.addEventListener('change', (e) => {
         draft.priorityLevel = e.target.value;
@@ -1147,7 +1160,10 @@ function openOrderEditor(orderId) {
               draft.attachedFiles.push(result);
               refreshFiles();
             }
-          } catch (e) { console.error('attach file error', e); }
+          } catch (e) {
+            console.error('attach file error', e);
+            toast(t('oe.attach_failed') || 'Could not attach file', 'error');
+          }
         });
       }
       if (filesListEl) {
@@ -1203,7 +1219,10 @@ function openOrderEditor(orderId) {
           draft.printPhotos.push({ thumb, filename: null });
           pendingFulls.push({ idx, dataUrl: full });
           refresh();
-        } catch (err) { console.error(err); }
+        } catch (err) {
+          console.error(err);
+          toast(t('pe.upload_failed') || 'Photo upload failed', 'error');
+        }
       });
 
       // Round 12 Feature 10: Internal comment thread
@@ -1281,6 +1300,7 @@ function openOrderEditor(orderId) {
           draft.printPhotos[idx].filename = fname;
         } catch (e) {
           console.error('save order photo failed', e);
+          toast(t('pe.save_failed') || 'Could not save photo to disk', 'error');
         }
       }
       // Delete any queued removals
@@ -1541,14 +1561,8 @@ function openOrderTimeline(orderId) {
   const client = order.clientId ? clients.find(c => c.id === order.clientId) : null;
   const clientName = client ? (client.nameEn || client.nameAr || '') : (order.client || '');
 
-  const existing = document.querySelector('#timelineModal');
-  if (existing) existing.remove();
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-backdrop';
-  overlay.id = 'timelineModal';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);';
-  overlay.innerHTML = `
-    <div class="modal" style="max-width:480px;width:100%;">
+  const overlay = appendStackedModal(`
+    <div class="modal modal-form" style="max-width:480px;width:100%;">
       <div class="modal-header">
         <h3 id="modalTitle" style="margin:0;font-size:15px;">🕐 ${escapeHtml(t('ord.timeline_title'))} — ${escapeHtml(order.project || order.id)}</h3>
         <button class="btn ghost small" data-act="cancel" aria-label="Close">×</button>
@@ -1563,8 +1577,8 @@ function openOrderTimeline(orderId) {
       <div class="modal-footer">
         <button class="btn ghost" data-act="cancel">${escapeHtml(t('common.close') || 'Close')}</button>
       </div>
-    </div>`;
-  document.body.appendChild(overlay);
+    </div>`, { zIndex: 10040 });
+  if (!overlay) return;
   const closeTimeline = () => {
     document.removeEventListener('keydown', tlEscHandler);
     const idx = _escHandlerStack.indexOf(tlEscHandler);

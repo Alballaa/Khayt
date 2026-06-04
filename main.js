@@ -4,13 +4,24 @@ const fs = require('fs');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
 const { safeJsonParse } = require('./lib/safe-json');
-const { isBlockedHost, isAllowedPrinterHost } = require('./lib/host-guard');
+const { isBlockedHost, isAllowedPrinterHost, sanitizeMailgunDomain } = require('./lib/host-guard');
 const { sendCustomSmtp } = require('./lib/custom-smtp');
 const { normalizeStoreSnapshot } = require('./lib/store-validate');
 const { createStoreIo } = require('./lib/store-io');
 const { registerZatcaCrypto } = require('./lib/zatca-crypto');
+const { wrapHubIpc } = require('./lib/ipc-guard');
+const { sanitizeHtmlForFile, redactStatusHtmlClientRow } = require('./lib/status-html');
 
+let mainWindow;
 let lanServerStore = {};
+
+/** Only the main app window may invoke privileged hub:* IPC (blocks stray webContents). */
+function isTrustedRenderer(event) {
+  if (!mainWindow || mainWindow.isDestroyed()) return false;
+  return !!(event && event.sender === mainWindow.webContents);
+}
+
+wrapHubIpc(ipcMain, isTrustedRenderer);
 const {
   encryptStoreField,
   decryptStoreField,
@@ -37,9 +48,14 @@ const {
 
 registerZatcaCrypto({ app, fs, crypto, ipcMain, encryptStoreField, decryptStoreField });
 
-
-
-let mainWindow;
+function timingSafeEqualHex(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== 64 || b.length !== 64) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(a, 'utf8'), Buffer.from(b, 'utf8'));
+  } catch {
+    return false;
+  }
+}
 
 function appIconPath() {
   const png = path.join(__dirname, 'assets', 'icon_preview.png');
@@ -115,7 +131,8 @@ function completePendingFullWipe() {
 }
 
 ipcMain.handle('hub:clipboard-write', async (_e, text) => {
-  clipboard.writeText(String(text || ''));
+  const s = String(text ?? '').slice(0, 500_000);
+  clipboard.writeText(s);
   return { ok: true };
 });
 
@@ -130,7 +147,19 @@ ipcMain.handle('hub:save-text-file', async (_e, { content, defaultName } = {}) =
   return { ok: true, filePath };
 });
 
-ipcMain.handle('hub:request-full-wipe', async () => {
+ipcMain.handle('hub:request-full-wipe', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const { response } = await dialog.showMessageBox(win || undefined, {
+    type: 'warning',
+    buttons: ['Cancel', 'Delete everything'],
+    defaultId: 0,
+    cancelId: 0,
+    noLink: true,
+    title: 'Full wipe',
+    message: 'Delete ALL Khayt data on this computer?',
+    detail: 'Store, photos, invoices, backups, and keys will be removed. The app will restart empty. This cannot be undone.',
+  });
+  if (response !== 1) return { ok: false, canceled: true };
   const flag = path.join(app.getPath('userData'), PENDING_WIPE_FLAG);
   fs.writeFileSync(flag, new Date().toISOString());
   app.relaunch();
@@ -138,7 +167,7 @@ ipcMain.handle('hub:request-full-wipe', async () => {
   return { ok: true };
 });
 
-ipcMain.handle('hub:generate-qr', async (_e, text, options = {}) => QRCode.toString(String(text || ''), {
+ipcMain.handle('hub:generate-qr', async (_e, text, options = {}) => QRCode.toString(String(text || '').slice(0, 4000), {
   type: 'svg',
   errorCorrectionLevel: options.errorCorrectionLevel || 'M',
   margin: options.margin ?? 1,
@@ -313,7 +342,7 @@ ipcMain.handle('hub:icloud-available', async () => {
   return fs.existsSync(icloudBase);
 });
 
-ipcMain.handle('hub:write-icloud-backup', async (_e, jsonString) => {
+ipcMain.handle('hub:write-icloud-backup', async (event, jsonString) => {
   if (!jsonString || typeof jsonString !== 'string' || jsonString.length > 20_000_000) {
     return { ok: false, error: 'Backup data too large or invalid' };
   }
@@ -325,21 +354,21 @@ ipcMain.handle('hub:write-icloud-backup', async (_e, jsonString) => {
   const filename = `${new Date().toISOString().split('T')[0]}.json`;
   const fullPath = path.join(backupDir, filename);
   let parsed;
-  try { parsed = JSON.parse(jsonString); } catch(e) { return null; }
+  try { parsed = safeJsonParse(jsonString); } catch (e) { return null; }
   const encrypted = JSON.stringify(encryptForDisk(parsed));
   await fs.promises.writeFile(fullPath, encrypted, 'utf8');
   return fullPath;
 });
 
 // --- Daily auto-backup (new in 1.3) ---
-ipcMain.handle('hub:write-backup', async (_e, jsonString) => {
+ipcMain.handle('hub:write-backup', async (event, jsonString) => {
   if (!jsonString || typeof jsonString !== 'string' || jsonString.length > 20_000_000) {
     return { ok: false, error: 'Backup data too large or invalid' };
   }
   const filename = `${new Date().toISOString().split('T')[0]}.json`;
   const fullPath = path.join(backupsDir(), filename);
   let parsed;
-  try { parsed = JSON.parse(jsonString); } catch(e) { return { ok: false, error: 'Invalid JSON in backup data' }; }
+  try { parsed = safeJsonParse(jsonString); } catch (e) { return { ok: false, error: 'Invalid JSON in backup data' }; }
   const encrypted = JSON.stringify(encryptForDisk(parsed));
   await fs.promises.writeFile(fullPath, encrypted, 'utf8');
   // Keep only the most recent 30 backups
@@ -369,7 +398,7 @@ ipcMain.handle('hub:list-backups', async () => {
 });
 
 // Read a backup file by path (Feature 6)
-ipcMain.handle('hub:restore-backup', async (_e, backupPath) => {
+ipcMain.handle('hub:restore-backup', async (event, backupPath) => {
   const safe = path.join(backupsDir(), path.basename(String(backupPath || '')));
   if (!fs.existsSync(safe)) return null;
   try {
@@ -406,16 +435,6 @@ ipcMain.handle('hub:open-file', async (_e, filePath) => {
   if (confined && fs.existsSync(s)) await shell.openPath(s);
   return true;
 });
-
-// Strip <script> blocks and inline event handlers before writing any HTML to disk.
-// Defense-in-depth: renderer already escapes user data, but this prevents XSS if
-// a future escaping gap lets malicious content reach the template.
-function sanitizeHtmlForFile(html) {
-  return String(html || '')
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
-    .replace(/<script\b[^>]*/gi, '')
-    .replace(/\bon\w+\s*=/gi, 'data-removed=');
-}
 
 // --- Save HTML to temp and open (Feature 7) ---
 ipcMain.handle('hub:save-html', async (_e, html, filename) => {
@@ -491,7 +510,7 @@ ipcMain.handle('hub:load-store', async (event) => {
   }
 });
 
-ipcMain.handle('hub:save-store', async (_e, data) => {
+ipcMain.handle('hub:save-store', async (event, data) => {
   const fp = dataFilePath();
   const tmp = fp + '.tmp';
   try {
@@ -577,10 +596,42 @@ ipcMain.handle('hub:delete-vault-file', async (_e, fullPath) => {
 
 // --- Feature 8: Auto-export status page ---
 const statusPagesDir = () => ensureDir('status-pages');
-ipcMain.handle('hub:write-status-page', async (_e, { html, orderId }) => {
+
+async function migrateLegacyStatusPages() {
+  const dir = statusPagesDir();
+  let files;
+  try {
+    files = await fs.promises.readdir(dir);
+  } catch {
+    return;
+  }
+  for (const name of files) {
+    if (!name.startsWith('order-status-') || !name.endsWith('.html')) continue;
+    const fullPath = path.join(dir, name);
+    try {
+      const raw = await fs.promises.readFile(fullPath, 'utf8');
+      const next = sanitizeHtmlForFile(redactStatusHtmlClientRow(raw));
+      if (next !== raw) await fs.promises.writeFile(fullPath, next, 'utf8');
+    } catch (e) {
+      console.warn('migrateLegacyStatusPages:', name, e?.message || e);
+    }
+  }
+}
+
+ipcMain.handle('hub:verify-operator-pin', async (_event, { operatorId, pin } = {}) => {
+  syncLanServerStoreFromDisk();
+  const op = (lanServerStore?.operators || []).find(o => o.id === operatorId);
+  if (!op) return { ok: false, error: 'operator_not_found' };
+  if (!op.pinHash) return { ok: true, noPin: true };
+  const hash = crypto.createHash('sha256').update(String(pin || '')).digest('hex');
+  if (op.pinHash.length !== 64) return { ok: false, error: 'legacy_pin' };
+  return { ok: timingSafeEqualHex(hash, op.pinHash) };
+});
+
+ipcMain.handle('hub:write-status-page', async (_event, { html, orderId }) => {
   const safeId = path.basename(String(orderId || '')).replace(/[^a-zA-Z0-9_-]/g, '_');
   const dir = statusPagesDir();
-  const fullPath = path.join(dir, `${safeId}.html`);
+  const fullPath = path.join(dir, `order-status-${safeId}.html`);
   await fs.promises.writeFile(fullPath, sanitizeHtmlForFile(html), 'utf8');
   return fullPath;
 });
@@ -852,7 +903,7 @@ function defaultPrinterPort(type) {
 }
 
 // --- Feature 5 (new batch): Outbound email notifications ---
-ipcMain.handle('hub:send-email', async (_e, { to, subject, body, smtpConfig }) => {
+ipcMain.handle('hub:send-email', async (event, { to, subject, body, smtpConfig }) => {
   const cfg = smtpConfig ? { ...smtpConfig } : {};
   cfg.apiKey = resolveStoreSecret(cfg.apiKey, d => d?.settings?.emailConfig?.apiKey);
   if (cfg?.provider === 'sendgrid' && cfg?.apiKey) {
@@ -874,11 +925,13 @@ ipcMain.handle('hub:send-email', async (_e, { to, subject, body, smtpConfig }) =
   }
   if (cfg?.provider === 'mailgun' && cfg?.apiKey && cfg?.domain) {
     try {
+      const mgDomain = sanitizeMailgunDomain(cfg.domain);
+      if (!mgDomain) return { ok: false, error: 'Invalid Mailgun domain' };
       const formData = new URLSearchParams({
-        from: `${cfg.fromName||'Khayt'} <mailgun@${cfg.domain}>`,
+        from: `${cfg.fromName||'Khayt'} <mailgun@${mgDomain}>`,
         to, subject, html: body
       });
-      const res = await fetch(`https://api.mailgun.net/v3/${cfg.domain}/messages`, {
+      const res = await fetch(`https://api.mailgun.net/v3/${mgDomain}/messages`, {
         method: 'POST',
         headers: { 'Authorization': `Basic ${Buffer.from(`api:${cfg.apiKey}`).toString('base64')}` },
         body: formData
@@ -908,7 +961,7 @@ ipcMain.handle('hub:send-email', async (_e, { to, subject, body, smtpConfig }) =
 });
 
 // ── Feature R12-1: Outbound Webhooks ────────────────────────────────────────
-ipcMain.handle('hub:fire-webhook', async (_e, { url, event, payload, secret }) => {
+ipcMain.handle('hub:fire-webhook', async (event, { url, event: webhookEvent, payload, secret }) => {
   // Restrict to https:// only — prevents SSRF to localhost and internal network
   if (!url || !url.startsWith('https://')) return { ok: false, error: 'Invalid URL — only https:// allowed' };
   try {
@@ -916,11 +969,14 @@ ipcMain.handle('hub:fire-webhook', async (_e, { url, event, payload, secret }) =
     if (isBlockedHost(parsedWebhook.hostname)) return { ok: false, error: 'Blocked URL — cannot send webhooks to private/loopback addresses' };
   } catch { return { ok: false, error: 'Invalid webhook URL' }; }
   try {
-    const body = JSON.stringify({ event, payload, timestamp: Date.now() });
-    const headers = { 'Content-Type': 'application/json', 'X-Khayt-Event': event };
+    const body = JSON.stringify({ event: webhookEvent, payload, timestamp: Date.now() });
+    const headers = { 'Content-Type': 'application/json', 'X-Khayt-Event': webhookEvent };
     if (secret) headers['X-Khayt-Signature'] = require('crypto')
       .createHmac('sha256', secret).update(body).digest('hex');
-    const res = await fetch(url, { method: 'POST', headers, body });
+    const res = await fetch(url, { method: 'POST', headers, body, redirect: 'manual' });
+    if (res.status >= 300 && res.status < 400) {
+      return { ok: false, error: 'Webhook redirects are not allowed' };
+    }
     return { ok: res.ok, status: res.status };
   } catch(e) { return { ok: false, error: String(e) }; }
 });
@@ -1181,6 +1237,7 @@ app.whenReady().then(() => {
   applyDockIcon();
   buildMenu();
   createWindow();
+  migrateLegacyStatusPages().catch((e) => console.warn('status page migration:', e?.message || e));
   setupAutoUpdater(mainWindow);
 
   const { session } = require('electron');

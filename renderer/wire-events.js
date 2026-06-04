@@ -341,6 +341,30 @@ function wireEvents() {
     if (btn.dataset.act === 'inv-dry-log')       openDryingLog(btn.dataset.id);
     if (btn.dataset.act === 'inv-test-print')    openTestPrintLog(btn.dataset.id);
     if (btn.dataset.act === 'inv-price-history') openPriceHistory(btn.dataset.id);
+    if (btn.dataset.act === 'focus-inv-material') {
+      $('#invMaterial')?.focus();
+      $('#invMaterial')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  });
+
+  document.getElementById('slicerProfilesContainer')?.addEventListener('click', async (e) => {
+    const editBtn = e.target.closest('[data-act="edit-slicer-profile"]');
+    if (editBtn) { openSlicerProfileModal(editBtn.dataset.id); return; }
+    const delBtn = e.target.closest('[data-act="delete-slicer-profile"]');
+    if (delBtn) {
+      const ok = await confirmModal(t('common.delete') + '?', { danger: true });
+      if (ok) deleteSlicerProfile(delBtn.dataset.id);
+    }
+  });
+
+  $('#modalMount').addEventListener('click', (e) => {
+    const milestoneBtn = e.target.closest('[data-act="milestone-invoices"]');
+    if (milestoneBtn) openMilestoneInvoices(milestoneBtn.dataset.id);
+    const settingsBtn = e.target.closest('[data-act="open-settings-from-modal"]');
+    if (settingsBtn) {
+      $('#modalMount').innerHTML = '';
+      switchTab('settings-tab');
+    }
   });
 
   // Consumables
@@ -517,6 +541,8 @@ function wireEvents() {
   // QW6: Operator filter
   $('#logOperatorFilter')?.addEventListener('change', (e) => { logOperatorFilter = e.target.value; renderLogs(); });
   $('#logTable').addEventListener('click', (e) => {
+    const clearFiltersBtn = e.target.closest('[data-act="clear-log-filters"]');
+    if (clearFiltersBtn) { clearLogFilters(); return; }
     const newOrdBtn = e.target.closest('[data-act="new-order"]');
     if (newOrdBtn) { logPrint(); return; }
     const loadMoreBtn = e.target.closest('[data-act="load-more-logs"]');
@@ -589,10 +615,12 @@ function wireEvents() {
           toast(t('ord.tracking_no_lan') || 'LAN server is not running — enable it in Settings', 'warning', 4000);
           return;
         }
-        const url = `${lanInfo.url}/status/${copyUrlBtn.dataset.id}`;
+        const ord = printLog.find(o => o.id === copyUrlBtn.dataset.id);
+        const token = ord ? ensureTrackingToken(ord) : '';
+        const url = `${lanInfo.url}/order/${encodeURIComponent(copyUrlBtn.dataset.id)}?token=${encodeURIComponent(token)}`;
         try {
           await navigator.clipboard.writeText(url);
-          toast(`${escapeHtml(t('ord.tracking_copied') || 'Tracking URL copied')}: ${url}`, 'success', 4000);
+          toast(t('ord.tracking_copied') || 'Tracking URL copied', 'success', 4000);
         } catch {
           toast(url, 'info', 8000);
         }
@@ -716,10 +744,15 @@ function wireEvents() {
     if (wo) generateWorkOrder(wo.dataset.id);
     if (shareTrackBtn) {
       const ordId = shareTrackBtn.dataset.id;
-      exportOrderStatusPage(ordId).then(() => {
-        const path = `userData/status-pages/order-status-${ordId}.html`;
-        toast(`📄 ${escapeHtml(t('ord.status_page_saved') || 'Tracking page saved')} · ${path}`, 'success', 5000);
-      });
+      exportOrderStatusPage(ordId)
+        .then(() => {
+          const path = `userData/status-pages/order-status-${ordId}.html`;
+          toast(`📄 ${escapeHtml(t('ord.status_page_saved') || 'Tracking page saved')} · ${path}`, 'success', 5000);
+        })
+        .catch((e) => {
+          console.error('exportOrderStatusPage:', e);
+          toast(t('ord.status_page_error') || 'Could not save tracking page', 'error');
+        });
     }
     if (tps) {
       const order = printLog.find(o => o.id === tps.dataset.orderId);

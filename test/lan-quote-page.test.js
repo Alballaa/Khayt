@@ -4,6 +4,10 @@ const {
   applyQuoteApprovalToStore,
   isQuoteExpired,
   renderLanQuoteApprovalPage,
+  ensureQuoteApprovalToken,
+  ensureTrackingToken,
+  verifyOrderAccessToken,
+  verifyQuoteApprovalToken,
 } = require('../lib/lan-quote-page');
 
 test('applyQuoteApprovalToStore moves quote to pending', () => {
@@ -65,6 +69,22 @@ test('renderLanQuoteApprovalPage includes approve button when actionable', () =>
   });
   assert.match(html, /Approve Quote/);
   assert.match(html, /Q-9/);
+});
+
+test('ensureTrackingToken and verifyOrderAccessToken', () => {
+  const order = { id: 'O-1', status: 'printing' };
+  const token = ensureTrackingToken(order);
+  assert.equal(token.length, 32);
+  assert.equal(verifyOrderAccessToken(order, token, 'trackingToken'), true);
+  assert.equal(verifyOrderAccessToken(order, 'bad', 'trackingToken'), false);
+});
+
+test('ensureQuoteApprovalToken and verifyQuoteApprovalToken', () => {
+  const order = { id: 'Q-11', status: 'quote' };
+  const token = ensureQuoteApprovalToken(order);
+  assert.equal(token.length, 32);
+  assert.equal(verifyQuoteApprovalToken(order, token), true);
+  assert.equal(verifyQuoteApprovalToken(order, 'wrong'), false);
 });
 
 test('renderLanQuoteApprovalPage shows expired message', () => {

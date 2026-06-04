@@ -68,6 +68,7 @@ contextBridge.exposeInMainWorld('hubAPI', {
   clipboardWrite: (text)  => ipcRenderer.invoke('hub:clipboard-write', text),
   saveTextFile: (opts)    => ipcRenderer.invoke('hub:save-text-file', opts),
   requestFullWipe: ()     => ipcRenderer.invoke('hub:request-full-wipe'),
+  verifyOperatorPin: (opts) => ipcRenderer.invoke('hub:verify-operator-pin', opts),
 
   // Feature 1 (new batch): G-code / 3MF metadata extraction
   parsePrintFile: (filePath) => ipcRenderer.invoke('hub:parse-print-file', filePath),

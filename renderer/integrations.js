@@ -141,8 +141,13 @@ async function fireWebhook(eventName, payload) {
 async function generateSurveyPage(orderId) {
   const order = printLog.find(o => o.id === orderId);
   if (!order) return;
-  const token = order.surveyToken || ('srv-' + Date.now().toString(36));
-  if (!order.surveyToken) { order.surveyToken = token; saveAll(); }
+  if (!order.surveyToken) {
+    const bytes = new Uint8Array(12);
+    crypto.getRandomValues(bytes);
+    order.surveyToken = 'srv-' + Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+    saveAll();
+  }
+  const token = order.surveyToken;
 
   const lanInfo = await window.hubAPI?.getLanUrl?.();
   const surveyUrl = lanInfo?.ok ? lanInfo.url + '/api/survey' : null;
@@ -180,7 +185,12 @@ async function generateSurveyPage(orderId) {
 </div>
 <script id="survey-config" type="application/json">{"token":${JSON.stringify(token)},"orderId":${JSON.stringify(orderId)}}</script>
 <script>
-  const _cfg = JSON.parse(document.getElementById('survey-config').textContent);
+  let _cfg = {};
+  try {
+    _cfg = safeJsonParse(document.getElementById('survey-config').textContent);
+  } catch (e) {
+    console.error('survey-config parse:', e);
+  }
   let rating = 0;
   document.querySelectorAll('.star').forEach(s => {
     s.addEventListener('click', () => {
@@ -550,8 +560,7 @@ function renderOrderComments(orderId) {
 async function exportOrderStatusPage(orderId) {
   const order = printLog.find(o => o.id === orderId);
   if (!order) return;
-  const client = order.clientId ? clients.find(c => c.id === order.clientId) : null;
-  const clientName = client ? (localName(client) || order.project) : (order.project || '');
+  ensureTrackingToken(order);
   const bizName = settings.bizEn || settings.bizAr || 'Khayt';
   const accentColor = safeCssColor(settings.invAccentColor, '#5E2E14');
 
@@ -626,7 +635,6 @@ async function exportOrderStatusPage(orderId) {
       <div class="stepper">${connectors}</div>
       <div class="info-row"><span class="info-label">Order #</span><span class="info-value">${escapeHtml(order.id)}</span></div>
       <div class="info-row"><span class="info-label">Project</span><span class="info-value">${escapeHtml(order.project || '—')}</span></div>
-      <div class="info-row"><span class="info-label">Client</span><span class="info-value">${escapeHtml(clientName)}</span></div>
       <div class="info-row"><span class="info-label">Status</span><span class="info-value">${escapeHtml(STATUS_LABELS[order.status] || order.status)}</span></div>
       ${order.dueDate ? `<div class="info-row"><span class="info-label">Estimated completion</span><span class="info-value">${escapeHtml(order.dueDate)}</span></div>` : ''}
       <div class="message">${msg}</div>
@@ -658,8 +666,6 @@ async function autoExportStatusPage(order) {
   if (!window.hubAPI?.writeStatusPage) return;
   try {
     // Build the same HTML as exportOrderStatusPage but don't open it
-    const client = order.clientId ? clients.find(c => c.id === order.clientId) : null;
-    const clientName = client ? (localName(client) || order.project) : (order.project || '');
     const bizName = settings.bizEn || settings.bizAr || 'Khayt';
     const accentColor = safeCssColor(settings.invAccentColor, '#5E2E14');
     const STATUS_ORDER = ['quote', 'pending', 'on_hold', 'printing', 'post', 'completed'];
@@ -695,7 +701,6 @@ async function autoExportStatusPage(order) {
 <div class="body"><div class="stepper">${connectors}</div>
 <div class="info-row"><span class="info-label">Order #</span><span class="info-value">${escapeHtml(order.id)}</span></div>
 <div class="info-row"><span class="info-label">Project</span><span class="info-value">${escapeHtml(order.project || '—')}</span></div>
-<div class="info-row"><span class="info-label">Client</span><span class="info-value">${escapeHtml(clientName)}</span></div>
 <div class="info-row"><span class="info-label">Status</span><span class="info-value">${escapeHtml(order.status)}</span></div>
 ${order.dueDate ? `<div class="info-row"><span class="info-label">Due</span><span class="info-value">${escapeHtml(order.dueDate)}</span></div>` : ''}
 <div class="message">${escapeHtml(msg)}</div></div>
@@ -799,7 +804,8 @@ async function openQuoteApprovalLinkModal(orderId) {
     return;
   }
 
-  const url = `${lanInfo.url}/order/${orderId}/quote`;
+  const token = ensureQuoteApprovalToken(order);
+  const url = `${lanInfo.url}/order/${orderId}/quote?token=${encodeURIComponent(token)}`;
   let qrHtml = '';
   try {
     const qrDataUrl = await window.hubAPI.generateQR(url, { width: 200 });

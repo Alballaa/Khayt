@@ -4,7 +4,9 @@
 (function (global) {
   function loadJSON(key, fallback) {
     try {
-      const v = JSON.parse(localStorage.getItem(key));
+      const raw = localStorage.getItem(key);
+      if (raw == null) return fallback;
+      const v = safeJsonParse(raw);
       return v ?? fallback;
     } catch {
       return fallback;
@@ -29,6 +31,56 @@
 
   function localMonthStr(d = new Date()) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  /** Allow only safe image URLs in img src (blocks javascript: and markup injection). */
+  function safeImageSrc(url) {
+    const s = String(url || '').trim();
+    if (/^data:image\/(png|jpeg|jpg|gif|webp);base64,/i.test(s)) return s;
+    if (/^https?:\/\//i.test(s)) return escapeHtml(s);
+    if (/^file:\/\//i.test(s)) return escapeHtml(s);
+    return '';
+  }
+
+  /** Parse JSON without prototype-pollution keys (matches lib/safe-json.js). */
+  function safeJsonParse(text) {
+    return JSON.parse(text, (key, value) => {
+      if (key === '__proto__' || key === 'constructor') return undefined;
+      return value;
+    });
+  }
+
+  /** Per-order LAN live tracking secret; persists when newly generated. */
+  function ensureTrackingToken(order) {
+    if (!order) return '';
+    if (!order.trackingToken) {
+      const bytes = new Uint8Array(16);
+      crypto.getRandomValues(bytes);
+      order.trackingToken = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+      if (typeof saveAll === 'function') saveAll();
+    }
+    return order.trackingToken;
+  }
+
+  /** Per-order LAN quote approval secret; persists when newly generated. */
+  function ensureQuoteApprovalToken(order) {
+    if (!order) return '';
+    if (!order.quoteApprovalToken) {
+      const bytes = new Uint8Array(16);
+      crypto.getRandomValues(bytes);
+      order.quoteApprovalToken = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+      if (typeof saveAll === 'function') saveAll();
+    }
+    return order.quoteApprovalToken;
+  }
+
+  function timingSafeEqualHex(a, b) {
+    const sa = String(a || '');
+    const sb = String(b || '');
+    if (sa.length !== sb.length) return false;
+    let diff = 0;
+    for (let i = 0; i < sa.length; i++) diff |= sa.charCodeAt(i) ^ sb.charCodeAt(i);
+    return diff === 0;
   }
 
   function escapeHtml(s) {
@@ -95,6 +147,11 @@
     localDateStr,
     localMonthStr,
     escapeHtml,
+    timingSafeEqualHex,
+    safeJsonParse,
+    ensureQuoteApprovalToken,
+    ensureTrackingToken,
+    safeImageSrc,
     uid,
     safeCssColor,
     initials,
