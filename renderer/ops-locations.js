@@ -67,6 +67,13 @@ function locationBadgeHtml(locationId) {
    Feature 8 (this batch): Production pause
    ============================================================ */
 function applyProductionPause() {
+  const label = settings.productionPaused
+    ? `"${(t('prod.paused_label') || 'Production paused').replace(/"/g, '')}"`
+    : '';
+  document.documentElement.style.setProperty(
+    '--kanban-paused-label',
+    settings.productionPaused ? label : 'none',
+  );
   const banner = document.getElementById('pauseBanner');
   const btn = document.getElementById('btnPauseProduction');
   if (!banner) return;

@@ -3569,7 +3569,7 @@ body.mode-simple .pro-only { display: none !important; }
   position: relative;
 }
 .kanban-paused-overlay::after {
-  content: 'Production paused';
+  content: var(--kanban-paused-label, 'Production paused');
   position: absolute;
   inset: 0;
   display: flex;

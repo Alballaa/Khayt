@@ -67,11 +67,11 @@ function renderScheduleView() {
       <div style="position:relative; height:22px; margin-inline-start:130px; margin-bottom:4px;">
         ${tickMarks.map(h => {
           const pct = (h / totalHours) * 100;
-          return `<div style="position:absolute; left:${pct.toFixed(1)}%; transform:translateX(-50%); font-size:10.5px; color:var(--text-muted);">${h}h</div>`;
+          return `<div style="position:absolute; inset-inline-start:${pct.toFixed(1)}%; transform:translateX(-50%); font-size:10.5px; color:var(--text-muted);">${h}h</div>`;
         }).join('')}
       </div>
-      <div style="position:absolute; left:130px; top:22px; bottom:0; width:2px; background:var(--primary); opacity:0.6; z-index:2; pointer-events:none;">
-        <span style="position:absolute; top:-18px; left:50%; transform:translateX(-50%); font-size:9.5px; font-weight:700; color:var(--primary); white-space:nowrap; background:var(--bg-card); padding:0 3px;">▼ NOW</span>
+      <div style="position:absolute; inset-inline-start:130px; top:22px; bottom:0; width:2px; background:var(--primary); opacity:0.6; z-index:2; pointer-events:none;">
+        <span style="position:absolute; top:-18px; inset-inline-start:50%; transform:translateX(-50%); font-size:9.5px; font-weight:700; color:var(--primary); white-space:nowrap; background:var(--bg-card); padding:0 3px;">▼ NOW</span>
       </div>
       ${rowsHtml}
     </div>

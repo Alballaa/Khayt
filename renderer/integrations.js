@@ -141,8 +141,13 @@ async function fireWebhook(eventName, payload) {
 async function generateSurveyPage(orderId) {
   const order = printLog.find(o => o.id === orderId);
   if (!order) return;
-  const token = order.surveyToken || ('srv-' + Date.now().toString(36));
-  if (!order.surveyToken) { order.surveyToken = token; saveAll(); }
+  if (!order.surveyToken) {
+    const bytes = new Uint8Array(12);
+    crypto.getRandomValues(bytes);
+    order.surveyToken = 'srv-' + Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+    saveAll();
+  }
+  const token = order.surveyToken;
 
   const lanInfo = await window.hubAPI?.getLanUrl?.();
   const surveyUrl = lanInfo?.ok ? lanInfo.url + '/api/survey' : null;
@@ -180,7 +185,12 @@ async function generateSurveyPage(orderId) {
 </div>
 <script id="survey-config" type="application/json">{"token":${JSON.stringify(token)},"orderId":${JSON.stringify(orderId)}}</script>
 <script>
-  const _cfg = JSON.parse(document.getElementById('survey-config').textContent);
+  let _cfg = {};
+  try {
+    _cfg = safeJsonParse(document.getElementById('survey-config').textContent);
+  } catch (e) {
+    console.error('survey-config parse:', e);
+  }
   let rating = 0;
   document.querySelectorAll('.star').forEach(s => {
     s.addEventListener('click', () => {
@@ -550,6 +560,7 @@ function renderOrderComments(orderId) {
 async function exportOrderStatusPage(orderId) {
   const order = printLog.find(o => o.id === orderId);
   if (!order) return;
+  ensureTrackingToken(order);
   const client = order.clientId ? clients.find(c => c.id === order.clientId) : null;
   const clientName = client ? (localName(client) || order.project) : (order.project || '');
   const bizName = settings.bizEn || settings.bizAr || 'Khayt';

@@ -50,6 +50,18 @@
     });
   }
 
+  /** Per-order LAN live tracking secret; persists when newly generated. */
+  function ensureTrackingToken(order) {
+    if (!order) return '';
+    if (!order.trackingToken) {
+      const bytes = new Uint8Array(16);
+      crypto.getRandomValues(bytes);
+      order.trackingToken = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+      if (typeof saveAll === 'function') saveAll();
+    }
+    return order.trackingToken;
+  }
+
   /** Per-order LAN quote approval secret; persists when newly generated. */
   function ensureQuoteApprovalToken(order) {
     if (!order) return '';
@@ -128,6 +140,7 @@
     escapeHtml,
     safeJsonParse,
     ensureQuoteApprovalToken,
+    ensureTrackingToken,
     safeImageSrc,
     uid,
     safeCssColor,

@@ -2866,9 +2866,7 @@ function openReorderModal(itemId) {
   const supplierOptions = suppliers.map(s =>
     `<option value="${escapeHtml(s.id)}"${s.id === item.supplierId ? ' selected' : ''}>${escapeHtml(s.name)}</option>`
   ).join('');
-  const mount = $('#modalMount');
-  mount.innerHTML = `
-    <div class="modal-backdrop">
+  const overlay = appendStackedModal(`
       <div class="modal modal-form modal-lg" role="dialog" aria-modal="true" aria-labelledby="reorderModalTitle">
         <div class="modal-header">
           <h3 id="reorderModalTitle">${escapeHtml(t('inv.draft_po_title') || 'Draft Purchase Order')}</h3>
@@ -2911,32 +2909,29 @@ function openReorderModal(itemId) {
           <button class="btn" id="reorderDraftOnly">${escapeHtml(t('inv.draft_po_only') || 'Draft PO Only')}</button>
           <button class="btn primary" id="reorderDraftAndWa">${escapeHtml(t('inv.draft_po_whatsapp') || 'Draft PO + WhatsApp')}</button>
         </div>
-      </div>
-    </div>`;
+      </div>`, { zIndex: 10040 });
+  if (!overlay) return;
 
   const close = () => {
     document.removeEventListener('keydown', escH);
     const idx = _escHandlerStack.indexOf(escH);
     if (idx !== -1) _escHandlerStack.splice(idx, 1);
-    mount.innerHTML = '';
+    overlay.remove();
   };
   const escH = (e) => { if (e.key === 'Escape') close(); };
   _escHandlerStack.push(escH);
   document.addEventListener('keydown', escH);
-  mount.querySelector('#reorderModalClose').addEventListener('click', close);
-  mount.querySelector('#reorderModalCancel').addEventListener('click', close);
-  mount.querySelector('.modal-backdrop').addEventListener('click', (e) => {
-    if (e.target.classList.contains('modal-backdrop')) close();
-  });
-
+  overlay.querySelector('#reorderModalClose').addEventListener('click', close);
+  overlay.querySelector('#reorderModalCancel').addEventListener('click', close);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
   // Update phone when supplier changes
-  mount.querySelector('#reorderSupplier').addEventListener('change', function() {
+  overlay.querySelector('#reorderSupplier').addEventListener('change', function() {
     const sup = suppliers.find(s => s.id === this.value);
-    if (sup?.phone) mount.querySelector('#reorderPhone').value = sup.phone;
+    if (sup?.phone) overlay.querySelector('#reorderPhone').value = sup.phone;
   });
 
   const collectOpts = () => {
-    const modal = mount.querySelector('.modal');
+    const modal = overlay.querySelector('.modal');
     const supId = modal.querySelector('#reorderSupplier').value;
     const sup = suppliers.find(s => s.id === supId);
     return {
@@ -2949,9 +2944,9 @@ function openReorderModal(itemId) {
     };
   };
 
-  mount.querySelector('#reorderDraftOnly').addEventListener('click', () => {
+  overlay.querySelector('#reorderDraftOnly').addEventListener('click', () => {
     const opts = collectOpts();
-    const phone = mount.querySelector('#reorderPhone').value.trim();
+    const phone = overlay.querySelector('#reorderPhone').value.trim();
     if (phone && phone !== settings.supplierPhone) {
       settings.supplierPhone = phone;
       saveAll();
@@ -2962,10 +2957,10 @@ function openReorderModal(itemId) {
     close();
   });
 
-  mount.querySelector('#reorderDraftAndWa').addEventListener('click', async () => {
+  overlay.querySelector('#reorderDraftAndWa').addEventListener('click', async () => {
     const opts = collectOpts();
-    const phone = mount.querySelector('#reorderPhone').value.trim();
-    const msg   = mount.querySelector('#reorderMsg').value;
+    const phone = overlay.querySelector('#reorderPhone').value.trim();
+    const msg   = overlay.querySelector('#reorderMsg').value;
     if (phone && phone !== settings.supplierPhone) {
       settings.supplierPhone = phone;
       saveAll();

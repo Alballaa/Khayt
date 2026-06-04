@@ -424,7 +424,7 @@ function migrateFromLocalStorage() {
     for (const [name, key] of Object.entries(keyMap)) {
       try {
         const raw = localStorage.getItem(key);
-        if (raw) store[name] = JSON.parse(raw);
+        if (raw) store[name] = safeJsonParse(raw);
       } catch(e) {}
     }
     if (Object.keys(store).length > 0) {
@@ -457,7 +457,7 @@ async function loadAll() {
   const legacyCollapsed = localStorage.getItem('khayt_kan_collapsed');
   if (legacyCollapsed && !settings.kanbanCollapsed?.length) {
     try {
-      settings.kanbanCollapsed = JSON.parse(legacyCollapsed);
+      settings.kanbanCollapsed = safeJsonParse(legacyCollapsed);
       localStorage.removeItem('khayt_kan_collapsed');
       saveAll(); // persist the migration
     } catch {}

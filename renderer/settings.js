@@ -1741,7 +1741,8 @@ async function fullWipeData() {
     toast(t('set.full_wipe_unavailable'), 'error');
     return;
   }
-  await window.hubAPI.requestFullWipe();
+  const wipeRes = await window.hubAPI.requestFullWipe();
+  if (wipeRes?.canceled) return;
 }
 
 function renderSecuritySettings() {
@@ -1804,9 +1805,7 @@ function openEnableSecurityModal() {
 }
 
 function showRecoveryCodeModal(code, title) {
-  const mount = $('#modalMount');
-  mount.innerHTML = `
-    <div class="modal-backdrop">
+  const overlay = appendStackedModal(`
       <div class="modal modal-form" role="dialog" aria-modal="true" style="max-width:480px;">
         <div class="modal-header">
           <h3>${escapeHtml(title || t('sec.recovery_title'))}</h3>
@@ -1823,20 +1822,19 @@ function showRecoveryCodeModal(code, title) {
         <div class="modal-footer">
           <button class="btn primary" data-act="close">${escapeHtml(t('common.close'))}</button>
         </div>
-      </div>
-    </div>`;
-  mount.querySelector('#modalRecoveryCopy')?.addEventListener('click', async () => {
+      </div>`);
+  if (!overlay) return;
+  overlay.querySelector('#modalRecoveryCopy')?.addEventListener('click', async () => {
     const res = await copyRecoveryCode(code);
     toast(res.ok ? t('sec.copied') : t('sec.copy_failed'), res.ok ? 'success' : 'error');
   });
-  mount.querySelector('#modalRecoveryDownload')?.addEventListener('click', async () => {
+  overlay.querySelector('#modalRecoveryDownload')?.addEventListener('click', async () => {
     const res = await downloadRecoveryCode(code);
     toast(res.ok ? t('sec.downloaded') : t('sec.download_failed'), res.ok ? 'success' : 'error');
   });
-  mount.querySelector('[data-act="close"]')?.addEventListener('click', () => { mount.innerHTML = ''; });
-  mount.querySelector('.modal-backdrop')?.addEventListener('click', (e) => {
-    if (e.target.classList.contains('modal-backdrop')) mount.innerHTML = '';
-  });
+  const closeRecovery = () => overlay.remove();
+  overlay.querySelectorAll('[data-act="close"]').forEach(b => b.addEventListener('click', closeRecovery));
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeRecovery(); });
 }
 
 async function openChangePinModal() {

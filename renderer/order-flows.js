@@ -1155,7 +1155,10 @@ function openOrderEditor(orderId) {
               draft.attachedFiles.push(result);
               refreshFiles();
             }
-          } catch (e) { console.error('attach file error', e); }
+          } catch (e) {
+            console.error('attach file error', e);
+            toast(t('oe.attach_failed') || 'Could not attach file', 'error');
+          }
         });
       }
       if (filesListEl) {
@@ -1553,14 +1556,8 @@ function openOrderTimeline(orderId) {
   const client = order.clientId ? clients.find(c => c.id === order.clientId) : null;
   const clientName = client ? (client.nameEn || client.nameAr || '') : (order.client || '');
 
-  const existing = document.querySelector('#timelineModal');
-  if (existing) existing.remove();
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-backdrop';
-  overlay.id = 'timelineModal';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);';
-  overlay.innerHTML = `
-    <div class="modal" style="max-width:480px;width:100%;">
+  const overlay = appendStackedModal(`
+    <div class="modal modal-form" style="max-width:480px;width:100%;">
       <div class="modal-header">
         <h3 id="modalTitle" style="margin:0;font-size:15px;">🕐 ${escapeHtml(t('ord.timeline_title'))} — ${escapeHtml(order.project || order.id)}</h3>
         <button class="btn ghost small" data-act="cancel" aria-label="Close">×</button>
@@ -1575,8 +1572,8 @@ function openOrderTimeline(orderId) {
       <div class="modal-footer">
         <button class="btn ghost" data-act="cancel">${escapeHtml(t('common.close') || 'Close')}</button>
       </div>
-    </div>`;
-  document.body.appendChild(overlay);
+    </div>`, { zIndex: 10040 });
+  if (!overlay) return;
   const closeTimeline = () => {
     document.removeEventListener('keydown', tlEscHandler);
     const idx = _escHandlerStack.indexOf(tlEscHandler);

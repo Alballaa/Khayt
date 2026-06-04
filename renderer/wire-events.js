@@ -615,10 +615,12 @@ function wireEvents() {
           toast(t('ord.tracking_no_lan') || 'LAN server is not running — enable it in Settings', 'warning', 4000);
           return;
         }
-        const url = `${lanInfo.url}/status/${copyUrlBtn.dataset.id}`;
+        const ord = printLog.find(o => o.id === copyUrlBtn.dataset.id);
+        const token = ord ? ensureTrackingToken(ord) : '';
+        const url = `${lanInfo.url}/order/${encodeURIComponent(copyUrlBtn.dataset.id)}?token=${encodeURIComponent(token)}`;
         try {
           await navigator.clipboard.writeText(url);
-          toast(`${escapeHtml(t('ord.tracking_copied') || 'Tracking URL copied')}: ${url}`, 'success', 4000);
+          toast(t('ord.tracking_copied') || 'Tracking URL copied', 'success', 4000);
         } catch {
           toast(url, 'info', 8000);
         }

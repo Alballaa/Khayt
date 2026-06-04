@@ -115,7 +115,8 @@ function completePendingFullWipe() {
 }
 
 ipcMain.handle('hub:clipboard-write', async (_e, text) => {
-  clipboard.writeText(String(text || ''));
+  const s = String(text ?? '').slice(0, 500_000);
+  clipboard.writeText(s);
   return { ok: true };
 });
 
@@ -150,7 +151,7 @@ ipcMain.handle('hub:request-full-wipe', async (event) => {
   return { ok: true };
 });
 
-ipcMain.handle('hub:generate-qr', async (_e, text, options = {}) => QRCode.toString(String(text || ''), {
+ipcMain.handle('hub:generate-qr', async (_e, text, options = {}) => QRCode.toString(String(text || '').slice(0, 4000), {
   type: 'svg',
   errorCorrectionLevel: options.errorCorrectionLevel || 'M',
   margin: options.margin ?? 1,
