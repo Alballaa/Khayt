@@ -1,6 +1,6 @@
-# Stabilization checklist (v2.3.0)
+# Stabilization checklist (v2.3.x)
 
-Use this on **`main`** or branch `cursor/stabilization-2-3-x-d4c8` before the next public release. No version bump until you sign off.
+Use this before the next public release after **v2.3.1**. Shipped fixes: portal tracking `?token=`, operator PIN flush, UTC `calcNextDueDate`, npm audit overrides.
 
 ## Build verification
 

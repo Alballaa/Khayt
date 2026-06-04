@@ -4,7 +4,8 @@ Living priorities for maintainers. Not a public commitment calendar — reorder 
 
 ## Now (2.3.x)
 
-- [ ] Triage post-2.3.0 feedback; plan 2.3.x patches or next minor
+- [ ] Triage post-2.3.1 feedback; plan next patch or 2.4.0 features
+- [x] Stabilization patch **v2.3.1** (portal tracking URL, operator PIN, UTC recurring dates, npm audit overrides)
 - [x] Run `node scripts/list-stale-branches.mjs --merged-into main` and delete merged `cursor/*` branches (maintainer cleanup, 2026-06-04)
 
 ## Shipped (2.2.0 — 2026-05-30)

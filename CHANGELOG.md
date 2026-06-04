@@ -4,13 +4,21 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
-### Fixed (stabilization — not released yet)
+## [2.3.1] - 2026-06-04
+
+Stabilization patch after **v2.3.0** — bug fixes and dependency hygiene, no new features.
+
+### Fixed
 
 - **Portal QR / tracking links** — Customer portal modal and exported quote PDFs now include `?token=` (portal previously used `/order/:id/status` without a token and returned 403).
 - **Operator PIN** — Flush store to disk before main-process PIN verify; avoid stale disk read; renderer fallback if operator missing on disk snapshot.
+- **Recurring expenses** — `calcNextDueDate` uses UTC calendar dates so monthly advance is consistent across timezones (off-by-one day outside UTC).
+
+### Changed
+
 - Shared `buildLanOrderTrackingUrl` / `buildLanQuoteApprovalUrl` helpers for consistent LAN links.
-- **npm audit** — `overrides` bump `localtunnel`’s `axios`/`debug` and dev `tmp` (audit clean; tunnel still optional/high-risk).
-- **Recurring expenses** — `calcNextDueDate` uses UTC calendar dates so monthly advance is consistent across timezones (fixes off-by-one day outside UTC).
+- **npm audit** — `overrides` for `localtunnel` nested `axios`/`debug` and build `tmp` (**0** reported vulnerabilities in `npm audit`).
+- **155** unit tests in `npm run check`.
 
 ## [2.3.0] - 2026-06-04
 
