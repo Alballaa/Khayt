@@ -1354,6 +1354,8 @@ function loadSettingsIntoForm() {
   renderWebhookSettings();
   // Round 12: Fixed costs / break-even
   renderFixedCostSettings();
+  // Online (customer intake)
+  renderOnlineSettings?.();
   // Round 12: LAN API
   renderLanApiSettings();
   // ZATCA Phase 2

@@ -2,9 +2,12 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (2.3.x)
+## Now (2.3.x — on `main`, **no public release** until [RELEASE-HOLD.md](./RELEASE-HOLD.md) lifted)
 
-- [ ] Triage post-2.3.1 feedback; plan next patch or 2.4.0 features
+- [x] **Check for updates** UX (dev / error / version; merged to `main`, unreleased)
+- [x] **Online option** — LAN intake toggle, wizard, Job Intake link (merged to `main`, unreleased)
+- [ ] Desktop polish and stabilization on `main` (no tag)
+- [ ] **Multi-shop shared data (Khayt Cloud)** — **deferred** after initial batch; design: [docs/MULTI-SHOP-CLOUD.md](./docs/MULTI-SHOP-CLOUD.md)
 - [x] Stabilization patch **v2.3.1** (portal tracking URL, operator PIN, UTC recurring dates, npm audit overrides)
 - [x] Run `node scripts/list-stale-branches.mjs --merged-into main` and delete merged `cursor/*` branches (maintainer cleanup, 2026-06-04)
 

@@ -147,6 +147,8 @@ function defaultSettings() {
     }},
     // Round 12: Break-even / fixed overhead
     fixedCosts:       [],
+    // Online: customer intake + LAN-backed links (no Khayt cloud)
+    onlineEnabled:    false,
     // Round 12: LAN API
     lanApi:           { enabled: false, port: 3219, pin: '', intakePin: '', intakeToken: '', webhookToken: '', sallaWebhookSecret: '', zidWebhookSecret: '', tunnelEnabled: false, bindLan: false },
     // Round 12: Saved filter presets
