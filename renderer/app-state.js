@@ -301,6 +301,7 @@ function isValidRecord(r) {
   return r && typeof r === 'object' && typeof r.id === 'string' && r.id.length > 0;
 }
 let _saveAllTimer = null;
+let _saveChain = Promise.resolve();
 
 function collectStoreCollections() {
   return {
@@ -369,13 +370,16 @@ function applyStoreFromSnapshot(store) {
   }
 }
 
-/** Write the store snapshot to disk; returns the IPC Promise. */
+/** Write the store snapshot to disk; serializes concurrent saves (last snapshot wins). */
 function _doSave(snapshot) {
   if (!window.hubAPI?.saveStore) return Promise.resolve();
-  return window.hubAPI.saveStore(snapshot).catch(e => {
-    console.error('Save failed:', e);
-    toast('⚠ ' + (t('common.save_failed') || 'Save failed — check disk space'), 'error', 6000);
-  });
+  _saveChain = _saveChain
+    .then(() => window.hubAPI.saveStore(snapshot))
+    .catch((e) => {
+      console.error('Save failed:', e);
+      toast('⚠ ' + (t('common.save_failed') || 'Save failed — check disk space'), 'error', 6000);
+    });
+  return _saveChain;
 }
 
 function saveAll() {

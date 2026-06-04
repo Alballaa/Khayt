@@ -31,6 +31,15 @@
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   }
 
+  /** Allow only safe image URLs in img src (blocks javascript: and markup injection). */
+  function safeImageSrc(url) {
+    const s = String(url || '').trim();
+    if (/^data:image\/(png|jpeg|jpg|gif|webp);base64,/i.test(s)) return s;
+    if (/^https?:\/\//i.test(s)) return escapeHtml(s);
+    if (/^file:\/\//i.test(s)) return escapeHtml(s);
+    return '';
+  }
+
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, (c) => ({
       '&': '&amp;',
@@ -95,6 +104,7 @@
     localDateStr,
     localMonthStr,
     escapeHtml,
+    safeImageSrc,
     uid,
     safeCssColor,
     initials,

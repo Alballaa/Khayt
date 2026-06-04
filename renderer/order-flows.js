@@ -282,7 +282,9 @@ function updateStatus(id, newStatus) {
   // Round 12 — Webhook: order_delivered
   if (newStatus === 'completed') fireWebhook('order_delivered', { orderId: order.id, project: order.project, client: order.client });
   if (newStatus === 'completed' && !order.surveyToken) {
-    order.surveyToken = 'srv-' + Date.now().toString(36);
+    const bytes = new Uint8Array(12);
+    crypto.getRandomValues(bytes);
+    order.surveyToken = 'srv-' + Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
     saveAll();
   }
 }
@@ -709,7 +711,7 @@ function openOrderEditor(orderId) {
   const photosHtml = () => {
     const cells = draft.printPhotos.map((ph, i) => `
       <div class="order-photo-cell" data-pi="${i}">
-        <img src="${ph.thumb}" alt="">
+        <img src="${safeImageSrc(ph.thumb)}" alt="">
         <button class="rm" data-act="rm-photo" data-pi="${i}" aria-label="Remove">×</button>
       </div>`).join('');
     const adder = `<div class="order-photo-cell add" data-act="add-photo">${escapeHtml(t('oe.add_photo'))}</div>`;

@@ -716,10 +716,15 @@ function wireEvents() {
     if (wo) generateWorkOrder(wo.dataset.id);
     if (shareTrackBtn) {
       const ordId = shareTrackBtn.dataset.id;
-      exportOrderStatusPage(ordId).then(() => {
-        const path = `userData/status-pages/order-status-${ordId}.html`;
-        toast(`📄 ${escapeHtml(t('ord.status_page_saved') || 'Tracking page saved')} · ${path}`, 'success', 5000);
-      });
+      exportOrderStatusPage(ordId)
+        .then(() => {
+          const path = `userData/status-pages/order-status-${ordId}.html`;
+          toast(`📄 ${escapeHtml(t('ord.status_page_saved') || 'Tracking page saved')} · ${path}`, 'success', 5000);
+        })
+        .catch((e) => {
+          console.error('exportOrderStatusPage:', e);
+          toast(t('ord.status_page_error') || 'Could not save tracking page', 'error');
+        });
     }
     if (tps) {
       const order = printLog.find(o => o.id === tps.dataset.orderId);

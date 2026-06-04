@@ -325,7 +325,7 @@ ipcMain.handle('hub:write-icloud-backup', async (_e, jsonString) => {
   const filename = `${new Date().toISOString().split('T')[0]}.json`;
   const fullPath = path.join(backupDir, filename);
   let parsed;
-  try { parsed = JSON.parse(jsonString); } catch(e) { return null; }
+  try { parsed = safeJsonParse(jsonString); } catch (e) { return null; }
   const encrypted = JSON.stringify(encryptForDisk(parsed));
   await fs.promises.writeFile(fullPath, encrypted, 'utf8');
   return fullPath;
@@ -339,7 +339,7 @@ ipcMain.handle('hub:write-backup', async (_e, jsonString) => {
   const filename = `${new Date().toISOString().split('T')[0]}.json`;
   const fullPath = path.join(backupsDir(), filename);
   let parsed;
-  try { parsed = JSON.parse(jsonString); } catch(e) { return { ok: false, error: 'Invalid JSON in backup data' }; }
+  try { parsed = safeJsonParse(jsonString); } catch (e) { return { ok: false, error: 'Invalid JSON in backup data' }; }
   const encrypted = JSON.stringify(encryptForDisk(parsed));
   await fs.promises.writeFile(fullPath, encrypted, 'utf8');
   // Keep only the most recent 30 backups
@@ -580,7 +580,7 @@ const statusPagesDir = () => ensureDir('status-pages');
 ipcMain.handle('hub:write-status-page', async (_e, { html, orderId }) => {
   const safeId = path.basename(String(orderId || '')).replace(/[^a-zA-Z0-9_-]/g, '_');
   const dir = statusPagesDir();
-  const fullPath = path.join(dir, `${safeId}.html`);
+  const fullPath = path.join(dir, `order-status-${safeId}.html`);
   await fs.promises.writeFile(fullPath, sanitizeHtmlForFile(html), 'utf8');
   return fullPath;
 });
@@ -920,7 +920,10 @@ ipcMain.handle('hub:fire-webhook', async (_e, { url, event, payload, secret }) =
     const headers = { 'Content-Type': 'application/json', 'X-Khayt-Event': event };
     if (secret) headers['X-Khayt-Signature'] = require('crypto')
       .createHmac('sha256', secret).update(body).digest('hex');
-    const res = await fetch(url, { method: 'POST', headers, body });
+    const res = await fetch(url, { method: 'POST', headers, body, redirect: 'manual' });
+    if (res.status >= 300 && res.status < 400) {
+      return { ok: false, error: 'Webhook redirects are not allowed' };
+    }
     return { ok: res.ok, status: res.status };
   } catch(e) { return { ok: false, error: String(e) }; }
 });
