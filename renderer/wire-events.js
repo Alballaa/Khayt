@@ -360,6 +360,11 @@ function wireEvents() {
   $('#modalMount').addEventListener('click', (e) => {
     const milestoneBtn = e.target.closest('[data-act="milestone-invoices"]');
     if (milestoneBtn) openMilestoneInvoices(milestoneBtn.dataset.id);
+    const settingsBtn = e.target.closest('[data-act="open-settings-from-modal"]');
+    if (settingsBtn) {
+      $('#modalMount').innerHTML = '';
+      switchTab('settings-tab');
+    }
   });
 
   // Consumables

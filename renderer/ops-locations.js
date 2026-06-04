@@ -267,7 +267,10 @@ function openPinPadModal(afterUnlock) {
     mount.innerHTML = `
       <div class="modal-backdrop">
         <div class="modal modal-form" role="dialog" aria-modal="true" style="max-width:340px;">
-          <h3>${escapeHtml(t('op.switch') || 'Switch Operator')}</h3>
+          <div class="modal-header">
+            <h3>${escapeHtml(t('op.switch') || 'Switch Operator')}</h3>
+          </div>
+          <div class="modal-body">
           <div style="margin-bottom:12px;">
             <label style="font-size:12.5px;">${escapeHtml(t('op.enter_pin') || 'Select operator')}</label>
             <select id="pinOpSelect" style="margin-top:4px;">
@@ -282,7 +285,8 @@ function openPinPadModal(afterUnlock) {
             <button class="btn pin-key" data-k="⌫" style="font-size:18px;padding:12px;">⌫</button>
           </div>
           <div id="pinError" style="color:var(--danger);font-size:12.5px;min-height:20px;text-align:center;"></div>
-          <div class="btn-row" style="margin-top:8px;">
+          </div>
+          <div class="modal-footer btn-row">
             <button class="btn ghost" data-act="cancel-pin">${escapeHtml(t('common.cancel'))}</button>
             <button class="btn primary" id="btnConfirmPin">${escapeHtml(t('common.confirm'))}</button>
           </div>

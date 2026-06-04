@@ -216,7 +216,7 @@ function openNotifPanel() {
 
   let html = `<div style="padding:10px 14px 6px;font-size:13px;font-weight:700;border-bottom:1px solid var(--border-soft);">
     🔔 ${escapeHtml(t('notif.title') || 'Notifications')}
-    <span style="float:right;font-size:11px;font-weight:400;color:var(--text-muted);">${alerts.length} alert${alerts.length !== 1 ? 's' : ''}</span>
+    <span style="margin-inline-start:auto;font-size:11px;font-weight:400;color:var(--text-muted);">${alerts.length} alert${alerts.length !== 1 ? 's' : ''}</span>
   </div>`;
 
   for (const g of groups) {

@@ -4,7 +4,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
 const { safeJsonParse } = require('./lib/safe-json');
-const { isBlockedHost, isAllowedPrinterHost } = require('./lib/host-guard');
+const { isBlockedHost, isAllowedPrinterHost, sanitizeMailgunDomain } = require('./lib/host-guard');
 const { sendCustomSmtp } = require('./lib/custom-smtp');
 const { normalizeStoreSnapshot } = require('./lib/store-validate');
 const { createStoreIo } = require('./lib/store-io');
@@ -130,7 +130,19 @@ ipcMain.handle('hub:save-text-file', async (_e, { content, defaultName } = {}) =
   return { ok: true, filePath };
 });
 
-ipcMain.handle('hub:request-full-wipe', async () => {
+ipcMain.handle('hub:request-full-wipe', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const { response } = await dialog.showMessageBox(win || undefined, {
+    type: 'warning',
+    buttons: ['Cancel', 'Delete everything'],
+    defaultId: 0,
+    cancelId: 0,
+    noLink: true,
+    title: 'Full wipe',
+    message: 'Delete ALL Khayt data on this computer?',
+    detail: 'Store, photos, invoices, backups, and keys will be removed. The app will restart empty. This cannot be undone.',
+  });
+  if (response !== 1) return { ok: false, canceled: true };
   const flag = path.join(app.getPath('userData'), PENDING_WIPE_FLAG);
   fs.writeFileSync(flag, new Date().toISOString());
   app.relaunch();
@@ -414,7 +426,10 @@ function sanitizeHtmlForFile(html) {
   return String(html || '')
     .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
     .replace(/<script\b[^>]*/gi, '')
-    .replace(/\bon\w+\s*=/gi, 'data-removed=');
+    .replace(/<iframe\b[^>]*>[\s\S]*?<\/iframe\s*>/gi, '')
+    .replace(/<iframe\b[^>]*/gi, '')
+    .replace(/\bon\w+\s*=/gi, 'data-removed=')
+    .replace(/\bhref\s*=\s*["']?\s*javascript:/gi, 'href="blocked:');
 }
 
 // --- Save HTML to temp and open (Feature 7) ---
@@ -874,11 +889,13 @@ ipcMain.handle('hub:send-email', async (_e, { to, subject, body, smtpConfig }) =
   }
   if (cfg?.provider === 'mailgun' && cfg?.apiKey && cfg?.domain) {
     try {
+      const mgDomain = sanitizeMailgunDomain(cfg.domain);
+      if (!mgDomain) return { ok: false, error: 'Invalid Mailgun domain' };
       const formData = new URLSearchParams({
-        from: `${cfg.fromName||'Khayt'} <mailgun@${cfg.domain}>`,
+        from: `${cfg.fromName||'Khayt'} <mailgun@${mgDomain}>`,
         to, subject, html: body
       });
-      const res = await fetch(`https://api.mailgun.net/v3/${cfg.domain}/messages`, {
+      const res = await fetch(`https://api.mailgun.net/v3/${mgDomain}/messages`, {
         method: 'POST',
         headers: { 'Authorization': `Basic ${Buffer.from(`api:${cfg.apiKey}`).toString('base64')}` },
         body: formData

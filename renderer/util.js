@@ -4,7 +4,9 @@
 (function (global) {
   function loadJSON(key, fallback) {
     try {
-      const v = JSON.parse(localStorage.getItem(key));
+      const raw = localStorage.getItem(key);
+      if (raw == null) return fallback;
+      const v = safeJsonParse(raw);
       return v ?? fallback;
     } catch {
       return fallback;

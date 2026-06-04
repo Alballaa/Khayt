@@ -33,6 +33,17 @@ function toast(msg, kind = 'info', ms = 2800, opts = {}) {
 /* ============================================================
    Modals (confirm + form host)
    ============================================================ */
+/** Append a stacked modal overlay (does not replace an open form modal). */
+function appendStackedModal(innerHtml, { zIndex = 10050 } = {}) {
+  const mount = $('#modalMount');
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-backdrop confirm-modal-overlay';
+  overlay.style.zIndex = String(zIndex);
+  overlay.innerHTML = innerHtml;
+  mount.appendChild(overlay);
+  return overlay;
+}
+
 function confirmModal(message, { okText, cancelText, danger = false } = {}) {
   return new Promise(resolve => {
     const mount = $('#modalMount');
@@ -495,6 +506,7 @@ function openFeedbackModal() {
 
   const api = {
     toast,
+    appendStackedModal,
     confirmModal,
     openFormModal,
     applyTheme,

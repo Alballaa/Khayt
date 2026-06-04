@@ -1550,7 +1550,7 @@ async function openRestoreBackupModal() {
       try {
         const json = await window.hubAPI.restoreBackup(chosen.value);
         if (!json) { toast(t('set.restore_error'), 'error'); return false; }
-        const data = JSON.parse(json);
+        const data = safeJsonParse(json);
         applyStoreFromSnapshot(data);
         saveAll();
         initialRender();
