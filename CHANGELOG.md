@@ -4,6 +4,24 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [2.2.2] - 2026-06-04
+
+### Fixed
+
+- **Form modals** — Add client, add printer, and all `openFormModal` dialogs scroll on short screens (sticky header/footer).
+- **Currency labels** — Calculator, dashboard, and expense units follow Settings currency instead of locale defaults; labels refresh after language change and wizard setup.
+- **LAN quote approval** — Expired quotes can no longer be approved via POST; LAN quote page shows shop currency code.
+- **Intake sessions** — Session cookies are bound to the client IP that created them.
+- **Store save** — `hub:save-store` normalizes snapshots before writing (same validation as load).
+- **Custom SMTP** — Blocks loopback and cloud metadata hosts to reduce SSRF risk (LAN mail relays still allowed).
+- **Recovery code modal** and **operator PIN pad** — Scroll when content exceeds viewport.
+
+### Security
+
+- LAN API POST bodies use `safeJsonParse` instead of raw `JSON.parse`.
+- Intake PIN generation uses `crypto.randomInt` instead of `Math.random`.
+- Recovery code verification uses timing-safe hash comparison.
+
 ## [2.2.1] - 2026-05-30
 
 ### Added

@@ -721,6 +721,10 @@ tbody tr:hover { background: var(--surface-2); }
 .modal h3 { margin: 0 0 8px; font-size: 16px; }
 .modal p  { margin: 0 0 18px; color: var(--text-dim); font-size: 13.5px; }
 .modal .btn-row { justify-content: flex-end; }
+.modal-backdrop .modal:not(.modal-form) {
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+}
 
 /* -----------------------------------------------------------
    RTL adjustments

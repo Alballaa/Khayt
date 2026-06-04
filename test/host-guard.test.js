@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { isBlockedHost, isAllowedPrinterHost } = require('../lib/host-guard');
+const { isBlockedHost, isAllowedPrinterHost, isBlockedLoopbackOrMetadata } = require('../lib/host-guard');
 
 test('blocks empty and localhost names', () => {
   assert.equal(isBlockedHost(''), true);
@@ -32,6 +32,13 @@ test('isAllowedPrinterHost allows LAN printer addresses', () => {
   assert.equal(isAllowedPrinterHost('172.16.0.8'), true);
   assert.equal(isAllowedPrinterHost('octopi.local'), true);
   assert.equal(isAllowedPrinterHost('169.254.1.1'), true);
+});
+
+test('isBlockedLoopbackOrMetadata blocks loopback but allows LAN SMTP relays', () => {
+  assert.equal(isBlockedLoopbackOrMetadata('127.0.0.1'), true);
+  assert.equal(isBlockedLoopbackOrMetadata('169.254.169.254'), true);
+  assert.equal(isBlockedLoopbackOrMetadata('192.168.1.10'), false);
+  assert.equal(isBlockedLoopbackOrMetadata('mail.example.com'), false);
 });
 
 test('isAllowedPrinterHost blocks loopback and metadata', () => {

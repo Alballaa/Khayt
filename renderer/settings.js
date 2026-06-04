@@ -1801,15 +1801,20 @@ function showRecoveryCodeModal(code, title) {
   const mount = $('#modalMount');
   mount.innerHTML = `
     <div class="modal-backdrop">
-      <div class="modal" role="dialog" aria-modal="true">
-        <h3>${escapeHtml(title || t('sec.recovery_title'))}</h3>
-        <p style="font-size:13px;color:var(--text-muted);">${escapeHtml(t('sec.recovery_subtitle'))}</p>
+      <div class="modal modal-form" role="dialog" aria-modal="true" style="max-width:480px;">
+        <div class="modal-header">
+          <h3>${escapeHtml(title || t('sec.recovery_title'))}</h3>
+          <button class="btn ghost small" data-act="close" aria-label="Close">×</button>
+        </div>
+        <div class="modal-body">
+        <p style="font-size:13px;color:var(--text-muted);margin:0 0 8px;">${escapeHtml(t('sec.recovery_subtitle'))}</p>
         <div style="font-family:ui-monospace,monospace;font-size:17px;text-align:center;padding:12px;background:var(--bg-soft);border-radius:8px;margin:12px 0;" id="recoveryCodeDisplay">${escapeHtml(formatRecoveryCode(code))}</div>
         <div class="btn-row" style="justify-content:center;gap:8px;">
           <button class="btn" id="modalRecoveryCopy">${escapeHtml(t('sec.copy'))}</button>
           <button class="btn" id="modalRecoveryDownload">${escapeHtml(t('sec.download'))}</button>
         </div>
-        <div class="btn-row" style="margin-top:12px;">
+        </div>
+        <div class="modal-footer">
           <button class="btn primary" data-act="close">${escapeHtml(t('common.close'))}</button>
         </div>
       </div>

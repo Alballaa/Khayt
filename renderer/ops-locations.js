@@ -266,7 +266,7 @@ function openPinPadModal(afterUnlock) {
   const render = () => {
     mount.innerHTML = `
       <div class="modal-backdrop">
-        <div class="modal" role="dialog" aria-modal="true" style="max-width:340px;">
+        <div class="modal modal-form" role="dialog" aria-modal="true" style="max-width:340px;">
           <h3>${escapeHtml(t('op.switch') || 'Switch Operator')}</h3>
           <div style="margin-bottom:12px;">
             <label style="font-size:12.5px;">${escapeHtml(t('op.enter_pin') || 'Select operator')}</label>

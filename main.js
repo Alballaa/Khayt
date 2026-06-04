@@ -495,7 +495,12 @@ ipcMain.handle('hub:save-store', async (_e, data) => {
   const fp = dataFilePath();
   const tmp = fp + '.tmp';
   try {
-    const merged = mergeStoreSecretsFromDisk(data);
+    const { normalized, errors } = normalizeStoreSnapshot(data);
+    if (errors.length) {
+      console.error('hub:save-store: invalid store shape:', errors.join('; '));
+      return { ok: false, error: errors[0] || 'Invalid store' };
+    }
+    const merged = mergeStoreSecretsFromDisk(normalized || data);
     const serialized = JSON.stringify(encryptForDisk(merged));
     // Write-side guard: mirror the 50 MB read-side limit from hub:load-store.
     // Prevents runaway data-URL or blob embedding from silently bloating the store.

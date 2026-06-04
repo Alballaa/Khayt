@@ -26,6 +26,16 @@ test('applyQuoteApprovalToStore accepts on_hold with hasQuote', () => {
   assert.equal(result.order.status, 'pending');
 });
 
+test('applyQuoteApprovalToStore rejects expired quotes', () => {
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const store = {
+    printLog: [{ id: 'Q-4', status: 'quote', price: 50, quoteExpiresAt: yesterday }],
+  };
+  const result = applyQuoteApprovalToStore(store, 'Q-4');
+  assert.equal(result.error, 'expired');
+  assert.equal(store.printLog[0].status, 'quote');
+});
+
 test('applyQuoteApprovalToStore rejects non-quote status', () => {
   const store = {
     printLog: [{ id: 'Q-3', status: 'pending', price: 50 }],
