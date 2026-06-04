@@ -203,7 +203,7 @@
     });
 
     el.querySelector('#btnOnlineOpenLanSettings')?.addEventListener('click', () => {
-      openSettingsSection?.('online');
+      (typeof openSettingsSection === 'function' ? openSettingsSection : KhaytShell?.openSettingsSection)?.('online');
       setTimeout(() => {
         document.getElementById('lanApiSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 200);
@@ -239,7 +239,7 @@
     i18n.applyToDom(el);
     el.querySelector('#btnWaitingCopyIntake')?.addEventListener('click', (e) => copyOnlineIntakeUrl(e.currentTarget));
     el.querySelector('#btnWaitingOnlineSettings')?.addEventListener('click', () => {
-      openSettingsSection?.('online');
+      (typeof openSettingsSection === 'function' ? openSettingsSection : KhaytShell?.openSettingsSection)?.('online');
     });
     refreshOnlineIntakeUrlDisplay(el);
   }

@@ -1176,7 +1176,10 @@ function wireEvents() {
   document.addEventListener('click', e => {
     const navItem = e.target.closest('.settings-nav-item[data-settings-section]');
     if (!navItem) return;
-    openSettingsSection(navItem.dataset.settingsSection);
+    const open = typeof openSettingsSection === 'function'
+      ? openSettingsSection
+      : global.KhaytShell?.openSettingsSection;
+    if (open) open(navItem.dataset.settingsSection);
   });
 
   // Business Mode toggle buttons (in Settings tab)

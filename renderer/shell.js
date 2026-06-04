@@ -527,6 +527,7 @@ function openFeedbackModal() {
     initAppShell,
     syncTopbarTitle,
     switchTab,
+    openSettingsSection,
     openGlobalSearch,
     closeGlobalSearch,
     renderGlobalResults,
