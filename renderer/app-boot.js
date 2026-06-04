@@ -12,8 +12,35 @@ function detectSystemLang() {
 /* ============================================================
    Setup wizard (Business Mode first-run)
    ============================================================ */
+function shouldShowSetupWizard() {
+  if (settings.firstRunDone) return false;
+  if (settings.firstRun === false) return false;
+  return true;
+}
+
+/** One-time fix: shops with data but wizard flags never persisted (import / upgrade). */
+function normalizeWizardFlagsAfterLoad() {
+  if (settings.firstRunDone) {
+    if (settings.firstRun) {
+      settings.firstRun = false;
+      saveAll();
+    }
+    return;
+  }
+  const hasShopData =
+    printLog.length > 0 ||
+    clients.length > 0 ||
+    inventory.length > 0 ||
+    machines.length > 0;
+  if (hasShopData) {
+    settings.firstRun = false;
+    settings.firstRunDone = true;
+    saveAll();
+  }
+}
+
 function initWizard() {
-  if (!settings.firstRun) return;
+  if (!shouldShowSetupWizard()) return;
   const wiz = $('#setup-wizard');
   if (!wiz) return;
   wiz.style.display = 'flex';
@@ -154,7 +181,7 @@ function initWizard() {
 
     settings.firstRun = false;
     settings.firstRunDone = true;
-    saveAll();
+    await flushSave();
 
     wiz.style.display = 'none';
     applyTheme(settings.theme);
@@ -177,19 +204,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadAll();
   pruneExpiredNotifs();
 
-  // Existing users who had data before Business Mode was introduced:
-  // give them Professional mode and skip the wizard.
-  // Detection: firstRun=true but firstRunDone=true means old user (firstRun defaulted in).
-  // Also catch cases where firstRun is undefined/null.
-  const isExistingUser = (
-    (settings.firstRun === undefined || settings.firstRun === null) ||
-    (settings.firstRun === true && settings.firstRunDone === true)
-  ) && (printLog.length > 0 || clients.length > 0);
-  if (isExistingUser) {
+  normalizeWizardFlagsAfterLoad();
+  if (!settings.firstRunDone && (printLog.length > 0 || clients.length > 0)) {
     settings.mode = settings.mode || 'professional';
-    settings.firstRun = false;
-    settings.firstRunDone = true;
-    saveAll();
   }
 
   applyTheme(settings.theme || 'light');
@@ -553,12 +570,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Business Mode setup wizard (new first-run experience)
   initWizard();
-
-  // Upgraded installs: wizard already done but legacy onboarding flag never set
-  if (!settings.firstRunDone && !settings.firstRun) {
-    settings.firstRunDone = true;
-    saveAll();
-  }
 
   // Global search keyboard shortcut ⌘K / Ctrl+K, plus tab-nav shortcuts
   document.addEventListener('keydown', (e) => {
