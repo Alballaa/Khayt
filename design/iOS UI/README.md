@@ -37,3 +37,30 @@ git push -u origin cursor/ios-companion-app-2e93
 ```
 
 Common causes: wrong branch, files never staged (`git add`), or push went to a different remote/repo. After a good push, `git ls-tree -r HEAD -- "design/iOS UI"` should list more than `README.md`.
+
+### `git add` does nothing but `ls` shows files?
+
+Files are probably **already committed** locally. Check:
+
+```bash
+git ls-files "design/iOS UI"
+git log -1 --stat
+```
+
+If you see `Khayt Companion.html` and `khayt-*.jsx` above, you only need to **publish** (see below).
+
+### Push rejected: “fetch first” / remote has new commits
+
+The cloud agent may have pushed doc fixes. Integrate then push:
+
+```bash
+git fetch origin cursor/ios-companion-app-2e93
+git pull --rebase origin cursor/ios-companion-app-2e93
+git push -u origin cursor/ios-companion-app-2e93
+```
+
+If rebase stops with conflicts, run `git status`, fix files, then `git rebase --continue`.
+
+### Extra untracked `design/Khayt Companion.html`
+
+That is a **duplicate** outside `design/iOS UI/`. Either remove it or move it into `design/iOS UI/` — the mockup set should live only under `design/iOS UI/`.

@@ -18,7 +18,7 @@ def find_html_files() -> list[Path]:
     for base in SEARCH_DIRS:
         if not base.is_dir():
             continue
-        for ext in ("*.html", "*.htm", "*.css"):
+        for ext in ("*.html", "*.htm", "*.css", "*.jsx"):
             found.extend(base.rglob(ext))
     # de-dupe
     seen = set()
@@ -65,7 +65,18 @@ def main() -> int:
             all_vars.update(vars_found)
 
     if not all_vars:
-        print("\nNo --css-variables found. Share index.html or main .css from design/iOS UI")
+        hex_colors: set[str] = set()
+        for path in files:
+            if "iOS UI" not in str(path):
+                continue
+            text = path.read_text(encoding="utf-8", errors="replace")
+            hex_colors.update(re.findall(r"#[0-9A-Fa-f]{6}\b", text))
+        if hex_colors:
+            print("\nHex colors in design/iOS UI (from HTML/JSX):")
+            for c in sorted(hex_colors):
+                print(f"  {c}")
+            return 0
+        print("\nNo --css-variables found. Share HTML or khayt-design.jsx from design/iOS UI")
         return 1
 
     print("\nKey tokens:")
