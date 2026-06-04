@@ -26,7 +26,7 @@ struct KhaytCompanionApp: App {
                 .environmentObject(nfc)
                 .environmentObject(ordersNav)
                 .companionLocale(settings)
-                .tint(CompanionTheme.brand)
+                .tint(KhaytDesign.accent)
                 .task {
                     await CompanionNotifications.shared.requestAuthorizationIfNeeded()
                 }
