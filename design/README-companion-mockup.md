@@ -1,11 +1,19 @@
 # Khayt Companion UI mockup
 
-If you have **`Khayt Companion.html`** from a design tool (Figma AI, v0, etc.), add it here so the team can diff against the app:
+Add **`Khayt Companion.html`** here, then **push** so the cloud agent can read it:
 
 ```bash
+cd ~/Khayt
 cp ~/Downloads/Khayt\ Companion.html design/Khayt\ Companion.html
 git add design/Khayt\ Companion.html
 git commit -m "Add companion UI mockup HTML"
+git push origin cursor/ios-companion-app-2e93
+```
+
+Verify tokens locally:
+
+```bash
+python3 scripts/sync-companion-design-from-html.py
 ```
 
 ## Implemented in iOS (Studio design system)
