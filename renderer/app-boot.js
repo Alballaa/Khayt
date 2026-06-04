@@ -326,41 +326,53 @@ document.addEventListener('DOMContentLoaded', async () => {
       );
       banner.querySelector('#updBtnRestart')?.addEventListener('click', async () => {
         const btn = banner.querySelector('#updBtnRestart');
-        if (btn) { btn.disabled = true; btn.textContent = 'Saving data…'; }
+        const setBtn = (label) => { if (btn) btn.textContent = label; };
+        if (btn) btn.disabled = true;
 
-        // 1. Flush any pending debounced save immediately — closes the race window.
-        //    Cancel the timer BEFORE capturing the snapshot so no concurrent
-        //    debounced write can race with the explicit flush below.
-        if (_saveAllTimer) { clearTimeout(_saveAllTimer); _saveAllTimer = null; }
-        const snapshot = buildStoreSnapshot();
-        try { await _doSave(snapshot); } catch (_) {}
+        const withTimeout = (promise, ms, label) =>
+          Promise.race([
+            promise,
+            new Promise((resolve) => setTimeout(() => {
+              console.warn(`[update] ${label} timed out after ${ms}ms — continuing`);
+              resolve(null);
+            }, ms)),
+          ]);
 
-        // 2. Write a named pre-update backup so the user can always roll back.
-        if (btn) btn.textContent = 'Backing up…';
         try {
-          const json = JSON.stringify({
-            version: 5, exportedAt: new Date().toISOString(), ...snapshot,
-          });
-          await window.hubAPI?.writeUpdateBackup?.(json, info.version);
-        } catch (_) {}
-
-        // 3. Record the pending update version so we can show a "what's new" banner
-        //    after the app relaunches on the new version.
-        localStorage.setItem('khayt_pending_update_to', String(info.version));
-
-        // Safety valve: if the process hasn't quit after 30 s the install
-        // silently failed — clear the key so we never show a false "updated" toast.
-        setTimeout(() => {
-          if (localStorage.getItem('khayt_pending_update_to') === String(info.version)) {
-            localStorage.removeItem('khayt_pending_update_to');
-            toast('⚠ Update installation failed — please restart the app manually.', 'error', 8000);
-            if (btn) { btn.disabled = false; btn.textContent = 'Restart & install'; }
+          // 1. One flush to disk (large stores can take several seconds to encrypt).
+          setBtn('Saving data…');
+          if (typeof flushSave === 'function') {
+            await withTimeout(flushSave(), 20_000, 'flushSave');
           }
-        }, 30_000);
 
-        // 4. Hand the final snapshot to main.js so it can do one last atomic write
-        //    before killing the process.
-        window.hubAPI?.installUpdate?.(snapshot);
+          // 2. Pre-update backup — copy store file on disk (no huge JSON over IPC).
+          setBtn('Backing up…');
+          await withTimeout(
+            window.hubAPI?.writeUpdateBackup?.('__COPY_STORE__', info.version),
+            12_000,
+            'writeUpdateBackup',
+          );
+
+          // 3. Record pending version for post-relaunch toast.
+          localStorage.setItem('khayt_pending_update_to', String(info.version));
+
+          setTimeout(() => {
+            if (localStorage.getItem('khayt_pending_update_to') === String(info.version)) {
+              localStorage.removeItem('khayt_pending_update_to');
+              toast('⚠ Update installation failed — please restart the app manually.', 'error', 8000);
+              if (btn) { btn.disabled = false; btn.textContent = 'Restart & install'; }
+            }
+          }, 30_000);
+
+          // 4. Quit and install (store already flushed — do not re-send snapshot).
+          setBtn('Installing…');
+          await window.hubAPI?.installUpdate?.(null);
+        } catch (err) {
+          console.error('[update] install prep failed:', err);
+          toast('⚠ Could not prepare update — trying install anyway.', 'warning', 6000);
+          setBtn('Installing…');
+          try { await window.hubAPI?.installUpdate?.(null); } catch (_) {}
+        }
       });
       banner.querySelector('#updBtnClose2')?.addEventListener('click', () => banner.remove());
     });

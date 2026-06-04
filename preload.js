@@ -131,9 +131,9 @@ contextBridge.exposeInMainWorld('hubAPI', {
   // Auto-updater
   checkForUpdates:      ()               => ipcRenderer.invoke('hub:check-for-updates'),
   startUpdateDownload:  ()               => ipcRenderer.invoke('hub:start-update-download'),
-  // Pass the final in-memory store so main.js can flush it atomically before quitting.
+  // Quit and install; pass null after flushSave() (avoid duplicate encrypt+write on large stores).
   installUpdate:        (storeSnapshot)  => ipcRenderer.invoke('hub:install-update', storeSnapshot),
-  // Write a named pre-update backup (distinct from daily YYYY-MM-DD.json files).
+  // Pre-update backup: pass '__COPY_STORE__' to copy the on-disk store file (fast).
   writeUpdateBackup:    (json, version)  => ipcRenderer.invoke('hub:write-update-backup', json, version),
   onUpdateAvailable:        (() => { let _cb=null; ipcRenderer.on('update-available',         (_e,d)=>{ if(_cb) _cb(d); }); return cb=>{ _cb=cb; }; })(),
   onUpdateDownloadProgress: (() => { let _cb=null; ipcRenderer.on('update-download-progress', (_e,d)=>{ if(_cb) _cb(d); }); return cb=>{ _cb=cb; }; })(),
