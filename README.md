@@ -275,6 +275,8 @@ Khayt/
 │   └── …                # Feature modules (dashboard, kanban, inventory, …)
 ├── assets/              # App icons, README screenshots, store tiles
 ├── docs/LOCAL_SETUP.md  # Extended setup notes (macOS Electron, mirrors)
+├── docs/PLATFORM-MIGRATION.md  # Stay on Electron vs native rewrite (decision record)
+├── docs/FARM-FEATURES.md  # Print farm / multi-location on one machine
 ├── privacy.html         # Privacy policy (required for Store submissions)
 └── .github/workflows/
     └── release.yml      # CI: build DMG + EXE + AppImage on version tags
