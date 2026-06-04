@@ -1,14 +1,15 @@
 # Khayt Companion UI mockup
 
-Add **`Khayt Companion.html`** here, then **push** so the cloud agent can read it:
+Add your mockup under **`design/iOS UI/`**, then **push**:
 
 ```bash
-cd ~/Khayt
-cp ~/Downloads/Khayt\ Companion.html design/Khayt\ Companion.html
-git add design/Khayt\ Companion.html
-git commit -m "Add companion UI mockup HTML"
+cd ~/Documents/Khayt
+git add "design/iOS UI"
+git commit -m "Add iOS Companion UI mockup"
 git push origin cursor/ios-companion-app-2e93
 ```
+
+(Also works from `~/Khayt` if that is your clone — use the repo that contains `design/iOS UI`.)
 
 Verify tokens locally:
 

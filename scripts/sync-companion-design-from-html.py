@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Extract CSS tokens from design/Khayt Companion.html into KhaytDesign.swift hints."""
+"""Extract CSS tokens from companion UI mockups under design/."""
 from __future__ import annotations
 
 import re
@@ -7,18 +7,30 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-HTML_CANDIDATES = [
-    ROOT / "design" / "Khayt Companion.html",
-    ROOT / "design" / "Khayt-Companion.html",
-    ROOT / "design" / "companion" / "index.html",
+SEARCH_DIRS = [
+    ROOT / "design" / "iOS UI",
+    ROOT / "design",
 ]
 
 
-def find_html() -> Path | None:
-    for p in HTML_CANDIDATES:
-        if p.is_file():
-            return p
-    return None
+def find_html_files() -> list[Path]:
+    found: list[Path] = []
+    for base in SEARCH_DIRS:
+        if not base.is_dir():
+            continue
+        for ext in ("*.html", "*.htm", "*.css"):
+            found.extend(base.rglob(ext))
+    # de-dupe
+    seen = set()
+    out = []
+    for p in sorted(found):
+        if p.name.startswith("."):
+            continue
+        key = str(p.resolve())
+        if key not in seen:
+            seen.add(key)
+            out.append(p)
+    return out
 
 
 def extract_css_vars(text: str) -> dict[str, str]:
@@ -29,20 +41,38 @@ def extract_css_vars(text: str) -> dict[str, str]:
 
 
 def main() -> int:
-    html_path = find_html()
-    if not html_path:
-        print("No mockup found. Add:", file=sys.stderr)
-        for p in HTML_CANDIDATES:
-            print(f"  {p}", file=sys.stderr)
+    files = find_html_files()
+    ios_ui = ROOT / "design" / "iOS UI"
+    if ios_ui.is_dir():
+        print(f"iOS UI folder: {ios_ui}")
+        for child in sorted(ios_ui.iterdir()):
+            print(f"  {child.name}{'/' if child.is_dir() else ''}")
+    else:
+        print(f"Missing: {ios_ui}")
+
+    if not files:
+        print("\nNo HTML/CSS under design/iOS UI yet. Push your mockup files.", file=sys.stderr)
         return 1
 
-    text = html_path.read_text(encoding="utf-8", errors="replace")
-    vars_found = extract_css_vars(text)
-    print(f"Read {html_path} ({len(text)} chars)")
-    print(f"Found {len(vars_found)} CSS variables")
-    for key in sorted(vars_found.keys()):
-        if key in ("bg", "surface", "accent", "text", "text-dim", "text-muted", "ok", "warn", "danger", "info", "violet"):
-            print(f"  --{key}: {vars_found[key]}")
+    all_vars: dict[str, str] = {}
+    for path in files:
+        if "iOS UI" not in str(path) and path.name not in ("Khayt Companion.html",):
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        vars_found = extract_css_vars(text)
+        if vars_found:
+            print(f"\n{path.relative_to(ROOT)} — {len(vars_found)} variables")
+            all_vars.update(vars_found)
+
+    if not all_vars:
+        print("\nNo --css-variables found. Share index.html or main .css from design/iOS UI")
+        return 1
+
+    print("\nKey tokens:")
+    for key in sorted(all_vars.keys()):
+        if key in ("bg", "bg-2", "surface", "surface-2", "accent", "text", "text-dim",
+                   "text-muted", "ok", "warn", "danger", "info", "violet", "brand"):
+            print(f"  --{key}: {all_vars[key]}")
     return 0
 
 
