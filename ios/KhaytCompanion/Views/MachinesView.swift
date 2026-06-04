@@ -36,10 +36,10 @@ struct MachinesView: View {
                             }
                         }
                     }
-                    .listStyle(.insetGrouped)
+                    .listStyle(.plain)
                 }
             }
-            .navigationTitle("Machines")
+            .khaytScreen(title: L10n.tr("tab.machines"))
             .refreshable { await load() }
             .task { await load() }
         }

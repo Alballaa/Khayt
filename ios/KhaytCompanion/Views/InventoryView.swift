@@ -62,10 +62,10 @@ struct InventoryView: View {
                         }
                         .buttonStyle(.plain)
                     }
-                    .listStyle(.insetGrouped)
+                    .listStyle(.plain)
                 }
             }
-            .navigationTitle("Inventory")
+            .khaytScreen(title: L10n.tr("tab.inventory"))
             .searchable(text: $searchText, prompt: L10n.tr("inventory.search"))
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {

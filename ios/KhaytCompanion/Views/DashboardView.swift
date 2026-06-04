@@ -15,53 +15,51 @@ struct DashboardView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if let status {
-                    ScrollView {
-                        VStack(spacing: 20) {
-                            headerBlock
-
-                            KanbanStripView(status: status) { stage in
-                                ordersNav.pendingStatusFilter = stage
-                            }
-
-                            if overdueCount > 0 {
-                                overdueBanner
-                            }
-
-                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                                StatCard(title: L10n.tr("stat.in_queue"), value: "\(status.queued)", icon: "tray.full", tint: .blue)
-                                StatCard(title: L10n.tr("stat.printing"), value: "\(status.printing)", icon: "printer.fill", tint: .orange)
-                                StatCard(title: L10n.tr("stat.post"), value: "\(status.post)", icon: "paintbrush", tint: .purple)
-                                StatCard(title: L10n.tr("stat.qc"), value: "\(status.qc)", icon: "checkmark.seal", tint: .teal)
-                            }
-
-                            completedRow(status)
-
-                            if lowStockCount > 0 {
-                                lowStockBanner
-                            }
-
-                            quickActions
-
-                            if !queuePreview.isEmpty {
-                                queuePreviewSection
-                            }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    if let status {
+                        headerBlock
+                        KanbanStripView(status: status) { stage in
+                            ordersNav.pendingStatusFilter = stage
                         }
-                        .padding()
+                        if overdueCount > 0 { overdueBanner }
+                        kpiGrid(status)
+                        completedCard(status)
+                        if lowStockCount > 0 { lowStockBanner }
+                        quickActions
+                        if !queuePreview.isEmpty { ordersCard }
+                    } else if isLoading {
+                        ProgressView(L10n.tr("connection.checking"))
+                            .frame(maxWidth: .infinity, minHeight: 200)
+                    } else {
+                        emptyState
                     }
-                } else if isLoading {
-                    ProgressView(L10n.tr("connection.checking"))
-                } else {
-                    ContentUnavailableView(
-                        L10n.tr("connection.unreachable"),
-                        systemImage: "wifi.exclamationmark",
-                        description: Text(errorMessage ?? L10n.tr("connection.banner.unreachable"))
-                    )
                 }
+                .padding(KhaytDesign.pad)
+                .padding(.bottom, 8)
             }
-            .navigationTitle(L10n.tr("tab.home"))
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { ConnectionBadge() } }
+            .scrollIndicators(.hidden)
+            .background(Color.clear)
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    HStack(spacing: 10) {
+                        KhaytLogoMark(size: 28)
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(settings.shopLabel)
+                                .font(.headline)
+                                .foregroundStyle(KhaytDesign.text)
+                            Text(L10n.tr("home.subtitle"))
+                                .font(.caption2)
+                                .foregroundStyle(KhaytDesign.textMuted)
+                        }
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) { ConnectionBadge() }
+            }
+            .toolbarBackground(KhaytDesign.bg2, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .refreshable { await load() }
             .task { await load() }
             .sheet(isPresented: $showAddSpool) {
@@ -71,127 +69,182 @@ struct DashboardView: View {
     }
 
     private var headerBlock: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(settings.shopLabel)
-                .font(.title2.bold())
-            Text(L10n.tr("home.subtitle"))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        EmptyView()
     }
 
-    private func completedRow(_ status: ShopStatus) -> some View {
-        HStack {
-            Label(L10n.tr("home.completed_today"), systemImage: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-            Spacer()
-            Text("\(status.completedToday)")
-                .font(.title3.bold())
+    private func kpiGrid(_ status: ShopStatus) -> some View {
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+            kpiCell(L10n.tr("stat.printing"), "\(status.printing)", KhaytDesign.ok)
+            kpiCell(L10n.tr("stat.post"), "\(status.post)", KhaytDesign.violet)
+            kpiCell(L10n.tr("stat.qc"), "\(status.qc)", KhaytDesign.accent)
+            kpiCell(L10n.tr("stat.in_queue"), "\(status.queued)", KhaytDesign.info)
         }
-        .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func kpiCell(_ label: String, _ value: String, _ color: Color) -> some View {
+        KhaytCard(padding: 12) {
+            VStack(alignment: .leading, spacing: 8) {
+                KhaytEyebrow(text: label)
+                Text(value)
+                    .font(.system(size: 26, weight: .semibold, design: .rounded))
+                    .foregroundStyle(KhaytDesign.text)
+            }
+            .overlay(alignment: .topTrailing) {
+                Circle().fill(color).frame(width: 8, height: 8)
+            }
+        }
+    }
+
+    private func completedCard(_ status: ShopStatus) -> some View {
+        KhaytCard {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    KhaytEyebrow(text: L10n.tr("home.completed_today"))
+                    KhaytMetric(value: "\(status.completedToday)", unit: nil)
+                }
+                Spacer()
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.title)
+                    .foregroundStyle(KhaytDesign.ok)
+            }
+        }
+    }
+
+    private var overdueBanner: some View {
+        Button {
+            UserDefaults.standard.set("orders_overdue", forKey: "khayt.orders.filter")
+            ordersNav.pendingStatusFilter = nil
+        } label: {
+            KhaytCard(padding: 12) {
+                HStack {
+                    Image(systemName: "calendar.badge.exclamationmark")
+                        .foregroundStyle(KhaytDesign.danger)
+                    Text(String(format: L10n.tr("home.overdue"), overdueCount))
+                        .font(.subheadline.bold())
+                        .foregroundStyle(KhaytDesign.text)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption.bold())
+                        .foregroundStyle(KhaytDesign.textMuted)
+                }
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     private var lowStockBanner: some View {
         NavigationLink {
             InventoryView()
         } label: {
-            HStack {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
-                Text(String(format: L10n.tr("home.low_stock"), lowStockCount))
-                    .font(.subheadline.bold())
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption.bold())
-                    .foregroundStyle(.tertiary)
+            KhaytCard(padding: 12) {
+                HStack {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(KhaytDesign.warn)
+                    Text(String(format: L10n.tr("home.low_stock"), lowStockCount))
+                        .font(.subheadline.bold())
+                        .foregroundStyle(KhaytDesign.text)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .foregroundStyle(KhaytDesign.textMuted)
+                }
             }
-            .padding()
-            .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var overdueBanner: some View {
-        Button {
-            ordersNav.pendingStatusFilter = nil
-            UserDefaults.standard.set("orders_overdue", forKey: "khayt.orders.filter")
-        } label: {
-            HStack {
-                Image(systemName: "calendar.badge.exclamationmark")
-                    .foregroundStyle(.red)
-                Text(String(format: L10n.tr("home.overdue"), overdueCount))
-                    .font(.subheadline.bold())
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption.bold())
-                    .foregroundStyle(.tertiary)
-            }
-            .padding()
-            .background(Color.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
     }
 
     private var quickActions: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(L10n.tr("home.quick_actions"))
-                .font(.headline)
-            HStack(spacing: 12) {
-                QuickActionButton(title: L10n.tr("home.action.add_spool"), icon: "plus.circle.fill") {
-                    showAddSpool = true
+            KhaytSectionTitle(text: L10n.tr("home.quick_actions"))
+            HStack(spacing: 10) {
+                quickTile(L10n.tr("home.action.add_spool"), "plus.circle.fill") { showAddSpool = true }
+                NavigationLink { OrdersView() } label: {
+                    quickTileLabel(L10n.tr("home.action.orders"), "rectangle.stack.fill")
                 }
-                NavigationLink {
-                    OrdersView()
-                } label: {
-                    QuickActionLabel(title: L10n.tr("home.action.orders"), icon: "rectangle.stack.fill")
-                }
-                NavigationLink {
-                    InventoryView()
-                } label: {
-                    QuickActionLabel(title: L10n.tr("home.action.inventory"), icon: "cylinder.split.1x2.fill")
+                NavigationLink { InventoryView() } label: {
+                    quickTileLabel(L10n.tr("home.action.inventory"), "cylinder.split.1x2.fill")
                 }
             }
         }
     }
 
-    private var queuePreviewSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text(L10n.tr("home.active_orders"))
-                    .font(.headline)
-                Spacer()
-                NavigationLink(L10n.tr("home.see_all"), destination: OrdersView())
-                    .font(.caption.bold())
-            }
-            ForEach(queuePreview.prefix(5)) { order in
+    private func quickTile(_ title: String, _ icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            quickTileLabel(title, icon)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func quickTileLabel(_ title: String, _ icon: String) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundStyle(KhaytDesign.accent)
+            Text(title)
+                .font(.caption.bold())
+                .foregroundStyle(KhaytDesign.textDim)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 14)
+        .background(KhaytDesign.surface, in: RoundedRectangle(cornerRadius: KhaytDesign.radiusMD))
+        .overlay(RoundedRectangle(cornerRadius: KhaytDesign.radiusMD).stroke(KhaytDesign.border, lineWidth: 1))
+    }
+
+    private var ordersCard: some View {
+        KhaytCard {
+            VStack(alignment: .leading, spacing: 12) {
                 HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(order.displayTitle)
-                            .font(.subheadline.bold())
-                        Text(order.displayClient)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                    KhaytSectionTitle(text: L10n.tr("home.active_orders"))
                     Spacer()
-                    VStack(alignment: .trailing, spacing: 4) {
-                        CompanionStatusBadge(status: order.status, compact: true)
-                        if order.isOverdue {
-                            Text(L10n.tr("orders.overdue"))
-                                .font(.caption2.bold())
-                                .foregroundStyle(.red)
+                    NavigationLink(L10n.tr("home.see_all"), destination: OrdersView())
+                        .font(.caption.bold())
+                        .foregroundStyle(KhaytDesign.accent)
+                }
+                KhaytThreadDivider()
+                ForEach(queuePreview.prefix(5)) { order in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(order.displayTitle)
+                                .font(.subheadline.bold())
+                                .foregroundStyle(KhaytDesign.text)
+                            Text(order.displayClient)
+                                .font(.caption)
+                                .foregroundStyle(KhaytDesign.textMuted)
+                        }
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 4) {
+                            CompanionStatusBadge(status: order.status, compact: true)
+                            if order.isOverdue {
+                                Text(L10n.tr("orders.overdue"))
+                                    .font(.caption2.bold())
+                                    .foregroundStyle(KhaytDesign.danger)
+                            }
                         }
                     }
-                }
-                .padding(.vertical, 6)
-                if order.id != queuePreview.prefix(5).last?.id {
-                    Divider()
+                    if order.id != queuePreview.prefix(5).last?.id {
+                        Divider().overlay(KhaytDesign.hairline)
+                    }
                 }
             }
         }
-        .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var emptyState: some View {
+        KhaytCard {
+            VStack(spacing: 12) {
+                Image(systemName: "wifi.exclamationmark")
+                    .font(.largeTitle)
+                    .foregroundStyle(KhaytDesign.textMuted)
+                Text(L10n.tr("connection.unreachable"))
+                    .font(.headline)
+                    .foregroundStyle(KhaytDesign.text)
+                Text(errorMessage ?? L10n.tr("connection.banner.unreachable"))
+                    .font(.caption)
+                    .foregroundStyle(KhaytDesign.textMuted)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+        }
     }
 
     private func load() async {
@@ -208,10 +261,7 @@ struct DashboardView: View {
             lowStockCount = inv.filter(\.isLowStock).count
             overdueCount = q.filter(\.isOverdue).count
             CompanionNotifications.shared.handleDashboardSnapshot(
-                status: s,
-                queue: q,
-                lowStockCount: lowStockCount,
-                settings: settings
+                status: s, queue: q, lowStockCount: lowStockCount, settings: settings
             )
         } catch {
             status = nil
@@ -221,59 +271,5 @@ struct DashboardView: View {
             errorMessage = error.localizedDescription
             CompanionNotifications.shared.saveDisconnectedSnapshot(shopName: settings.shopLabel)
         }
-    }
-}
-
-private struct StatCard: View {
-    let title: String
-    let value: String
-    let icon: String
-    var tint: Color = .accentColor
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Image(systemName: icon)
-                .foregroundStyle(tint)
-            Text(value)
-                .font(.title.bold())
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-    }
-}
-
-private struct QuickActionButton: View {
-    let title: String
-    let icon: String
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            QuickActionLabel(title: title, icon: icon)
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-private struct QuickActionLabel: View {
-    let title: String
-    let icon: String
-
-    var body: some View {
-        VStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundStyle(CompanionTheme.brand)
-            Text(title)
-                .font(.caption.bold())
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 14)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
     }
 }

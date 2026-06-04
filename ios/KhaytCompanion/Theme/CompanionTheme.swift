@@ -1,22 +1,11 @@
 import SwiftUI
 
-/// Shared visual language for Khayt Companion (until a full redesign ships).
 enum CompanionTheme {
-    static let brand = Color(red: 0.39, green: 0.40, blue: 0.95)
+    static var brand: Color { KhaytDesign.accent }
     static let lowStockThresholdGrams = 200.0
 
     static func statusColor(for status: String) -> Color {
-        switch status.lowercased() {
-        case "pending": return .blue
-        case "printing": return .orange
-        case "post": return .purple
-        case "qc": return .teal
-        case "completed": return .green
-        case "on_hold": return .gray
-        case "idle", "ready": return .green
-        case "busy", "printing": return .orange
-        default: return .secondary
-        }
+        KhaytDesign.statusColor(for: status)
     }
 
     static func statusIcon(for status: String) -> String {
@@ -27,6 +16,9 @@ enum CompanionTheme {
         case "qc": return "checkmark.seal"
         case "completed": return "checkmark.circle.fill"
         case "on_hold": return "pause.circle"
+        case "idle", "ready": return "checkmark.circle"
+        case "busy", "printing": return "printer.fill"
+        case "error": return "exclamationmark.triangle.fill"
         default: return "circle"
         }
     }
@@ -37,15 +29,19 @@ struct CompanionStatusBadge: View {
     var compact = false
 
     var body: some View {
+        let color = KhaytDesign.statusColor(for: status)
         HStack(spacing: 4) {
-            Image(systemName: CompanionTheme.statusIcon(for: status))
+            Circle()
+                .fill(color)
+                .frame(width: compact ? 6 : 7, height: compact ? 6 : 7)
             Text(OrderStatus(rawValue: status)?.localizedLabel ?? status.capitalized)
         }
         .font(compact ? .caption2.bold() : .caption.bold())
-        .padding(.horizontal, compact ? 6 : 8)
-        .padding(.vertical, compact ? 3 : 4)
-        .foregroundStyle(CompanionTheme.statusColor(for: status))
-        .background(CompanionTheme.statusColor(for: status).opacity(0.15), in: Capsule())
+        .padding(.horizontal, compact ? 8 : 10)
+        .padding(.vertical, compact ? 4 : 5)
+        .foregroundStyle(color)
+        .background(KhaytDesign.statusSoft(for: status), in: Capsule())
+        .overlay(Capsule().stroke(color.opacity(0.25), lineWidth: 1))
     }
 }
 

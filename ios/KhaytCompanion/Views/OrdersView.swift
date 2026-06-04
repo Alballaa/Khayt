@@ -57,7 +57,7 @@ struct OrdersView: View {
                     recentContent
                 }
             }
-            .navigationTitle(L10n.tr("tab.orders"))
+            .khaytScreen(title: L10n.tr("tab.orders"))
             .toolbar { ToolbarItem(placement: .topBarTrailing) { ConnectionBadge() } }
             .refreshable { await load() }
             .task(id: segment) { await load() }
@@ -126,7 +126,8 @@ struct OrdersView: View {
                     }
                     .buttonStyle(.plain)
                 }
-                .listStyle(.insetGrouped)
+                .listStyle(.plain)
+                .environment(\.defaultMinListRowHeight, 56)
             }
         }
     }
@@ -169,7 +170,8 @@ struct OrdersView: View {
                     }
                     .padding(.vertical, 2)
                 }
-                .listStyle(.insetGrouped)
+                .listStyle(.plain)
+                .environment(\.defaultMinListRowHeight, 56)
             }
         }
     }

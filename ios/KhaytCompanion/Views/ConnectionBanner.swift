@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Shown app-wide when desktop LAN is not healthy.
 struct ConnectionBanner: View {
     @EnvironmentObject private var health: ConnectionHealth
 
@@ -8,17 +7,17 @@ struct ConnectionBanner: View {
         if health.state != .connected {
             HStack(spacing: 10) {
                 Image(systemName: health.state.systemImage)
+                    .foregroundStyle(iconColor)
                 Text(message)
-                    .font(.caption)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(KhaytDesign.text)
                     .multilineTextAlignment(.leading)
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, 14)
+            .padding(.horizontal, KhaytDesign.pad)
             .padding(.vertical, 10)
-            .foregroundStyle(.white)
-            .background(bannerColor, in: RoundedRectangle(cornerRadius: 10))
-            .padding(.horizontal)
-            .padding(.top, 6)
+            .background(iconColor.opacity(0.12))
+            .overlay(alignment: .bottom) { KhaytThreadDivider() }
         }
     }
 
@@ -31,11 +30,11 @@ struct ConnectionBanner: View {
         }
     }
 
-    private var bannerColor: Color {
+    private var iconColor: Color {
         switch health.state {
-        case .unauthorized: return .orange
-        case .unknown: return .gray
-        default: return .red
+        case .unauthorized: return KhaytDesign.warn
+        case .unknown: return KhaytDesign.textMuted
+        default: return KhaytDesign.danger
         }
     }
 }

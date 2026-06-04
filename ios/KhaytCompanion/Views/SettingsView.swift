@@ -96,7 +96,10 @@ struct SettingsView: View {
                     )
                 }
             }
-            .navigationTitle(L10n.tr("tab.settings"))
+            .scrollContentBackground(.hidden)
+            .background(KhaytDesign.bg)
+            .foregroundStyle(KhaytDesign.text)
+            .khaytScreen(title: L10n.tr("tab.settings"))
         }
     }
 
