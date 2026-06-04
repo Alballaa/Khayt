@@ -693,6 +693,7 @@ tbody tr:hover { background: var(--surface-2); }
 .toast.success { border-inline-start: 3px solid var(--success); }
 .toast.error   { border-inline-start: 3px solid var(--danger); }
 .toast.info    { border-inline-start: 3px solid var(--primary); }
+.toast.warning { border-inline-start: 3px solid var(--warning); }
 @keyframes toastIn {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -3346,10 +3347,13 @@ body.mode-simple .pro-only { display: none !important; }
   background: var(--bg); display: flex;
   flex-direction: column; align-items: center; justify-content: center;
   padding: 24px;
+  overflow-y: auto;
 }
 .wizard-card {
   background: var(--surface); border-radius: 16px;
   padding: 40px; max-width: 520px; width: 100%;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
   box-shadow: 0 8px 40px rgba(0,0,0,0.3);
 }
 .wizard-logo { font-size: 48px; text-align: center; margin-bottom: 8px; }

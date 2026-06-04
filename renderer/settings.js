@@ -1514,6 +1514,7 @@ function saveSettingsFromForm() {
   applyMode();
   renderInventory();
   refreshCurrencyLabels();
+  if (typeof renderBuild === 'function') renderBuild();
   toast(t('set.saved'), 'success');
 }
 
@@ -1671,11 +1672,16 @@ function exportData() {
 }
 
 
-function importData(file) {
+async function importData(file) {
+  const ok = await confirmModal(
+    t('set.import_confirm') || 'Replace all local data with this backup? This cannot be undone.',
+    { danger: true },
+  );
+  if (!ok) return;
   const reader = new FileReader();
   reader.onload = (ev) => {
     try {
-      const data = JSON.parse(ev.target.result);
+      const data = safeJsonParse(ev.target.result);
       applyStoreFromSnapshot(data);
       saveAll();
       initialRender();

@@ -2869,7 +2869,7 @@ function openReorderModal(itemId) {
   const mount = $('#modalMount');
   mount.innerHTML = `
     <div class="modal-backdrop">
-      <div class="modal modal-lg" role="dialog" aria-modal="true" aria-labelledby="reorderModalTitle">
+      <div class="modal modal-form modal-lg" role="dialog" aria-modal="true" aria-labelledby="reorderModalTitle">
         <div class="modal-header">
           <h3 id="reorderModalTitle">${escapeHtml(t('inv.draft_po_title') || 'Draft Purchase Order')}</h3>
           <button class="btn ghost small" id="reorderModalClose" aria-label="Close">×</button>

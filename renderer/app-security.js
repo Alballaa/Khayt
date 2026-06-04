@@ -13,10 +13,21 @@
 
   function randomBlock(size = 4) {
     let out = '';
+    const bytes = new Uint8Array(size);
+    crypto.getRandomValues(bytes);
     for (let i = 0; i < size; i++) {
-      out += RECOVERY_ALPHABET[Math.floor(Math.random() * RECOVERY_ALPHABET.length)];
+      out += RECOVERY_ALPHABET[bytes[i] % RECOVERY_ALPHABET.length];
     }
     return out;
+  }
+
+  function timingSafeEqualHex(a, b) {
+    const sa = String(a || '');
+    const sb = String(b || '');
+    if (sa.length !== sb.length) return false;
+    let diff = 0;
+    for (let i = 0; i < sa.length; i++) diff |= sa.charCodeAt(i) ^ sb.charCodeAt(i);
+    return diff === 0;
   }
 
   function generateRecoveryCode() {
@@ -39,7 +50,8 @@
 
   async function verifyRecoveryCode(code, hash) {
     if (!hash || !isValidRecoveryCode(code)) return false;
-    return (await hashSecret(normalizeRecoveryCode(code))) === hash;
+    const entered = await hashSecret(normalizeRecoveryCode(code));
+    return timingSafeEqualHex(entered, hash);
   }
 
   function isValidPin(pin) {
@@ -106,7 +118,7 @@
     if (!admin?.pinHash) return false;
     const entered = await hashSecret(String(pin || ''));
     if (admin.pinHash.length !== 64 && isLegacyPin?.(admin.pinHash)) return false;
-    return entered === admin.pinHash;
+    return timingSafeEqualHex(entered, admin.pinHash);
   }
 
   function promptTypeConfirmModal(message, confirmPhrase, { title, danger = true, extraHtml = '' } = {}) {

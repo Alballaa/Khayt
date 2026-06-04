@@ -799,7 +799,8 @@ async function openQuoteApprovalLinkModal(orderId) {
     return;
   }
 
-  const url = `${lanInfo.url}/order/${orderId}/quote`;
+  const token = ensureQuoteApprovalToken(order);
+  const url = `${lanInfo.url}/order/${orderId}/quote?token=${encodeURIComponent(token)}`;
   let qrHtml = '';
   try {
     const qrDataUrl = await window.hubAPI.generateQR(url, { width: 200 });

@@ -99,6 +99,11 @@ function logPrint(asQuote = false) {
     rushFee:         logRushFeeAmt > 0 ? +logRushFeeAmt.toFixed(2) : undefined,
     rushFeeAmount:   logRushFeeAmt > 0 ? +logRushFeeAmt.toFixed(2) : 0,
     quoteExpiresAt:  asQuote ? new Date(now.getTime() + (settings.quoteValidityDays || 7) * 86400000).toISOString().split('T')[0] : null,
+    quoteApprovalToken: asQuote ? (() => {
+      const b = new Uint8Array(16);
+      crypto.getRandomValues(b);
+      return Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
+    })() : undefined,
     quoteAcceptedAt: null,
     // Feature 8: Quote revision history
     quoteVersion:    asQuote ? 1 : undefined,
@@ -935,6 +940,7 @@ function openOrderEditor(orderId) {
     sizeLg: true,
     bodyHtml,
     onMount(modal) {
+      modal.querySelector('#oeOpenMilestones')?.addEventListener('click', () => openMilestoneInvoices(order.id));
       const plSel = modal.querySelector('[data-f="priorityLevel"]');
       if (plSel) plSel.addEventListener('change', (e) => {
         draft.priorityLevel = e.target.value;
@@ -1205,7 +1211,10 @@ function openOrderEditor(orderId) {
           draft.printPhotos.push({ thumb, filename: null });
           pendingFulls.push({ idx, dataUrl: full });
           refresh();
-        } catch (err) { console.error(err); }
+        } catch (err) {
+          console.error(err);
+          toast(t('pe.upload_failed') || 'Photo upload failed', 'error');
+        }
       });
 
       // Round 12 Feature 10: Internal comment thread
@@ -1283,6 +1292,7 @@ function openOrderEditor(orderId) {
           draft.printPhotos[idx].filename = fname;
         } catch (e) {
           console.error('save order photo failed', e);
+          toast(t('pe.save_failed') || 'Could not save photo to disk', 'error');
         }
       }
       // Delete any queued removals

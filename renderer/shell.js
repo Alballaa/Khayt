@@ -36,8 +36,10 @@ function toast(msg, kind = 'info', ms = 2800, opts = {}) {
 function confirmModal(message, { okText, cancelText, danger = false } = {}) {
   return new Promise(resolve => {
     const mount = $('#modalMount');
-    mount.innerHTML = `
-      <div class="modal-backdrop">
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-backdrop confirm-modal-overlay';
+    overlay.style.zIndex = '10050';
+    overlay.innerHTML = `
         <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirmModalTitle">
           <h3 id="confirmModalTitle">${escapeHtml(t('common.confirm'))}</h3>
           <p>${escapeHtml(message)}</p>
@@ -45,22 +47,22 @@ function confirmModal(message, { okText, cancelText, danger = false } = {}) {
             <button class="btn ghost" data-act="cancel">${escapeHtml(cancelText || t('common.cancel'))}</button>
             <button class="btn ${danger ? 'danger' : 'primary'}" data-act="ok">${escapeHtml(okText || t('common.confirm'))}</button>
           </div>
-        </div>
-      </div>`;
+        </div>`;
+    mount.appendChild(overlay);
     const cleanup = (val) => {
       document.removeEventListener('keydown', escHandler);
       const idx = _escHandlerStack.indexOf(escHandler);
       if (idx !== -1) _escHandlerStack.splice(idx, 1);
-      mount.innerHTML = '';
+      overlay.remove();
       resolve(val);
     };
     const escHandler = (e) => { if (e.key === 'Escape') cleanup(false); };
     _escHandlerStack.push(escHandler);
     document.addEventListener('keydown', escHandler);
-    mount.querySelector('[data-act="ok"]').addEventListener('click', () => cleanup(true));
-    mount.querySelector('[data-act="cancel"]').addEventListener('click', () => cleanup(false));
-    mount.querySelector('.modal-backdrop').addEventListener('click', (e) => {
-      if (e.target.classList.contains('modal-backdrop')) cleanup(false);
+    overlay.querySelector('[data-act="ok"]').addEventListener('click', () => cleanup(true));
+    overlay.querySelector('[data-act="cancel"]').addEventListener('click', () => cleanup(false));
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) cleanup(false);
     });
   });
 }

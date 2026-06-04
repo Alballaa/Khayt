@@ -40,6 +40,26 @@
     return '';
   }
 
+  /** Parse JSON without prototype-pollution keys (matches lib/safe-json.js). */
+  function safeJsonParse(text) {
+    return JSON.parse(text, (key, value) => {
+      if (key === '__proto__' || key === 'constructor') return undefined;
+      return value;
+    });
+  }
+
+  /** Per-order LAN quote approval secret; persists when newly generated. */
+  function ensureQuoteApprovalToken(order) {
+    if (!order) return '';
+    if (!order.quoteApprovalToken) {
+      const bytes = new Uint8Array(16);
+      crypto.getRandomValues(bytes);
+      order.quoteApprovalToken = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+      if (typeof saveAll === 'function') saveAll();
+    }
+    return order.quoteApprovalToken;
+  }
+
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, (c) => ({
       '&': '&amp;',
@@ -104,6 +124,8 @@
     localDateStr,
     localMonthStr,
     escapeHtml,
+    safeJsonParse,
+    ensureQuoteApprovalToken,
     safeImageSrc,
     uid,
     safeCssColor,

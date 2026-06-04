@@ -341,6 +341,25 @@ function wireEvents() {
     if (btn.dataset.act === 'inv-dry-log')       openDryingLog(btn.dataset.id);
     if (btn.dataset.act === 'inv-test-print')    openTestPrintLog(btn.dataset.id);
     if (btn.dataset.act === 'inv-price-history') openPriceHistory(btn.dataset.id);
+    if (btn.dataset.act === 'focus-inv-material') {
+      $('#invMaterial')?.focus();
+      $('#invMaterial')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  });
+
+  document.getElementById('slicerProfilesContainer')?.addEventListener('click', async (e) => {
+    const editBtn = e.target.closest('[data-act="edit-slicer-profile"]');
+    if (editBtn) { openSlicerProfileModal(editBtn.dataset.id); return; }
+    const delBtn = e.target.closest('[data-act="delete-slicer-profile"]');
+    if (delBtn) {
+      const ok = await confirmModal(t('common.delete') + '?', { danger: true });
+      if (ok) deleteSlicerProfile(delBtn.dataset.id);
+    }
+  });
+
+  $('#modalMount').addEventListener('click', (e) => {
+    const milestoneBtn = e.target.closest('[data-act="milestone-invoices"]');
+    if (milestoneBtn) openMilestoneInvoices(milestoneBtn.dataset.id);
   });
 
   // Consumables
@@ -517,6 +536,8 @@ function wireEvents() {
   // QW6: Operator filter
   $('#logOperatorFilter')?.addEventListener('change', (e) => { logOperatorFilter = e.target.value; renderLogs(); });
   $('#logTable').addEventListener('click', (e) => {
+    const clearFiltersBtn = e.target.closest('[data-act="clear-log-filters"]');
+    if (clearFiltersBtn) { clearLogFilters(); return; }
     const newOrdBtn = e.target.closest('[data-act="new-order"]');
     if (newOrdBtn) { logPrint(); return; }
     const loadMoreBtn = e.target.closest('[data-act="load-more-logs"]');
