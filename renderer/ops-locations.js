@@ -353,8 +353,15 @@ function openPinPadModal(afterUnlock) {
         enteredPin = '';
         return;
       }
-      const entered = await hashPin(enteredPin);
-      if (!timingSafeEqualHex(entered, op.pinHash)) {
+      const verified = await window.hubAPI?.verifyOperatorPin?.({ operatorId: selectedOpId, pin: enteredPin });
+      if (verified?.error === 'legacy_pin') {
+        op.pinHash = '';
+        saveAll();
+        if (errEl) errEl.textContent = 'PIN reset for security upgrade — please set a new PIN in Settings.';
+        enteredPin = '';
+        return;
+      }
+      if (!verified?.ok) {
         if (errEl) errEl.textContent = t('op.wrong_pin') || 'Incorrect PIN';
         enteredPin = '';
         const disp = overlay.querySelector('#pinDisplay');

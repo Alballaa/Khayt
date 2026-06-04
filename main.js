@@ -9,8 +9,19 @@ const { sendCustomSmtp } = require('./lib/custom-smtp');
 const { normalizeStoreSnapshot } = require('./lib/store-validate');
 const { createStoreIo } = require('./lib/store-io');
 const { registerZatcaCrypto } = require('./lib/zatca-crypto');
+const { wrapHubIpc } = require('./lib/ipc-guard');
+const { sanitizeHtmlForFile, redactStatusHtmlClientRow } = require('./lib/status-html');
 
+let mainWindow;
 let lanServerStore = {};
+
+/** Only the main app window may invoke privileged hub:* IPC (blocks stray webContents). */
+function isTrustedRenderer(event) {
+  if (!mainWindow || mainWindow.isDestroyed()) return false;
+  return !!(event && event.sender === mainWindow.webContents);
+}
+
+wrapHubIpc(ipcMain, isTrustedRenderer);
 const {
   encryptStoreField,
   decryptStoreField,
@@ -37,14 +48,13 @@ const {
 
 registerZatcaCrypto({ app, fs, crypto, ipcMain, encryptStoreField, decryptStoreField });
 
-
-
-let mainWindow;
-
-/** Only the main app window may invoke privileged hub:* IPC (blocks stray webContents). */
-function isTrustedRenderer(event) {
-  if (!mainWindow || mainWindow.isDestroyed()) return false;
-  return !!(event && event.sender === mainWindow.webContents);
+function timingSafeEqualHex(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== 64 || b.length !== 64) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(a, 'utf8'), Buffer.from(b, 'utf8'));
+  } catch {
+    return false;
+  }
 }
 
 function appIconPath() {
@@ -138,7 +148,6 @@ ipcMain.handle('hub:save-text-file', async (_e, { content, defaultName } = {}) =
 });
 
 ipcMain.handle('hub:request-full-wipe', async (event) => {
-  if (!isTrustedRenderer(event)) return { ok: false, error: 'unauthorized_sender' };
   const win = BrowserWindow.fromWebContents(event.sender);
   const { response } = await dialog.showMessageBox(win || undefined, {
     type: 'warning',
@@ -334,7 +343,6 @@ ipcMain.handle('hub:icloud-available', async () => {
 });
 
 ipcMain.handle('hub:write-icloud-backup', async (event, jsonString) => {
-  if (!isTrustedRenderer(event)) return null;
   if (!jsonString || typeof jsonString !== 'string' || jsonString.length > 20_000_000) {
     return { ok: false, error: 'Backup data too large or invalid' };
   }
@@ -354,7 +362,6 @@ ipcMain.handle('hub:write-icloud-backup', async (event, jsonString) => {
 
 // --- Daily auto-backup (new in 1.3) ---
 ipcMain.handle('hub:write-backup', async (event, jsonString) => {
-  if (!isTrustedRenderer(event)) return { ok: false, error: 'unauthorized_sender' };
   if (!jsonString || typeof jsonString !== 'string' || jsonString.length > 20_000_000) {
     return { ok: false, error: 'Backup data too large or invalid' };
   }
@@ -392,7 +399,6 @@ ipcMain.handle('hub:list-backups', async () => {
 
 // Read a backup file by path (Feature 6)
 ipcMain.handle('hub:restore-backup', async (event, backupPath) => {
-  if (!isTrustedRenderer(event)) return null;
   const safe = path.join(backupsDir(), path.basename(String(backupPath || '')));
   if (!fs.existsSync(safe)) return null;
   try {
@@ -429,19 +435,6 @@ ipcMain.handle('hub:open-file', async (_e, filePath) => {
   if (confined && fs.existsSync(s)) await shell.openPath(s);
   return true;
 });
-
-// Strip <script> blocks and inline event handlers before writing any HTML to disk.
-// Defense-in-depth: renderer already escapes user data, but this prevents XSS if
-// a future escaping gap lets malicious content reach the template.
-function sanitizeHtmlForFile(html) {
-  return String(html || '')
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
-    .replace(/<script\b[^>]*/gi, '')
-    .replace(/<iframe\b[^>]*>[\s\S]*?<\/iframe\s*>/gi, '')
-    .replace(/<iframe\b[^>]*/gi, '')
-    .replace(/\bon\w+\s*=/gi, 'data-removed=')
-    .replace(/\bhref\s*=\s*["']?\s*javascript:/gi, 'href="blocked:');
-}
 
 // --- Save HTML to temp and open (Feature 7) ---
 ipcMain.handle('hub:save-html', async (_e, html, filename) => {
@@ -487,7 +480,6 @@ async function maybeShowKeychainExplanation(win) {
 }
 
 ipcMain.handle('hub:load-store', async (event) => {
-  if (!isTrustedRenderer(event)) return { __corrupt: true, error: 'unauthorized_sender' };
   const win = BrowserWindow.fromWebContents(event.sender);
   await maybeShowKeychainExplanation(win);
 
@@ -519,7 +511,6 @@ ipcMain.handle('hub:load-store', async (event) => {
 });
 
 ipcMain.handle('hub:save-store', async (event, data) => {
-  if (!isTrustedRenderer(event)) return { ok: false, error: 'unauthorized_sender' };
   const fp = dataFilePath();
   const tmp = fp + '.tmp';
   try {
@@ -605,8 +596,39 @@ ipcMain.handle('hub:delete-vault-file', async (_e, fullPath) => {
 
 // --- Feature 8: Auto-export status page ---
 const statusPagesDir = () => ensureDir('status-pages');
-ipcMain.handle('hub:write-status-page', async (event, { html, orderId }) => {
-  if (!isTrustedRenderer(event)) return null;
+
+async function migrateLegacyStatusPages() {
+  const dir = statusPagesDir();
+  let files;
+  try {
+    files = await fs.promises.readdir(dir);
+  } catch {
+    return;
+  }
+  for (const name of files) {
+    if (!name.startsWith('order-status-') || !name.endsWith('.html')) continue;
+    const fullPath = path.join(dir, name);
+    try {
+      const raw = await fs.promises.readFile(fullPath, 'utf8');
+      const next = sanitizeHtmlForFile(redactStatusHtmlClientRow(raw));
+      if (next !== raw) await fs.promises.writeFile(fullPath, next, 'utf8');
+    } catch (e) {
+      console.warn('migrateLegacyStatusPages:', name, e?.message || e);
+    }
+  }
+}
+
+ipcMain.handle('hub:verify-operator-pin', async (_event, { operatorId, pin } = {}) => {
+  syncLanServerStoreFromDisk();
+  const op = (lanServerStore?.operators || []).find(o => o.id === operatorId);
+  if (!op) return { ok: false, error: 'operator_not_found' };
+  if (!op.pinHash) return { ok: true, noPin: true };
+  const hash = crypto.createHash('sha256').update(String(pin || '')).digest('hex');
+  if (op.pinHash.length !== 64) return { ok: false, error: 'legacy_pin' };
+  return { ok: timingSafeEqualHex(hash, op.pinHash) };
+});
+
+ipcMain.handle('hub:write-status-page', async (_event, { html, orderId }) => {
   const safeId = path.basename(String(orderId || '')).replace(/[^a-zA-Z0-9_-]/g, '_');
   const dir = statusPagesDir();
   const fullPath = path.join(dir, `order-status-${safeId}.html`);
@@ -882,7 +904,6 @@ function defaultPrinterPort(type) {
 
 // --- Feature 5 (new batch): Outbound email notifications ---
 ipcMain.handle('hub:send-email', async (event, { to, subject, body, smtpConfig }) => {
-  if (!isTrustedRenderer(event)) return { ok: false, error: 'unauthorized_sender' };
   const cfg = smtpConfig ? { ...smtpConfig } : {};
   cfg.apiKey = resolveStoreSecret(cfg.apiKey, d => d?.settings?.emailConfig?.apiKey);
   if (cfg?.provider === 'sendgrid' && cfg?.apiKey) {
@@ -941,7 +962,6 @@ ipcMain.handle('hub:send-email', async (event, { to, subject, body, smtpConfig }
 
 // ── Feature R12-1: Outbound Webhooks ────────────────────────────────────────
 ipcMain.handle('hub:fire-webhook', async (event, { url, event: webhookEvent, payload, secret }) => {
-  if (!isTrustedRenderer(event)) return { ok: false, error: 'unauthorized_sender' };
   // Restrict to https:// only — prevents SSRF to localhost and internal network
   if (!url || !url.startsWith('https://')) return { ok: false, error: 'Invalid URL — only https:// allowed' };
   try {
@@ -1217,6 +1237,7 @@ app.whenReady().then(() => {
   applyDockIcon();
   buildMenu();
   createWindow();
+  migrateLegacyStatusPages().catch((e) => console.warn('status page migration:', e?.message || e));
   setupAutoUpdater(mainWindow);
 
   const { session } = require('electron');

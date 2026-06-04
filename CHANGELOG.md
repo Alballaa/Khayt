@@ -12,7 +12,9 @@ Stability and security release — consolidate scan passes 4–6 and release har
 
 - **LAN order tracking** — `GET /order/:id` and static `/status/*.html` require a valid `?token=` matching the order `trackingToken`; new orders get a token at creation; legacy orders receive tokens on load via `ensureOrderTrackingTokens()`.
 - **Quote approval** — Per-order `quoteApprovalToken` closes IDOR on public approve routes.
-- **Privileged IPC** — `isTrustedRenderer()` limits wipe, store load/save, backups, restore, webhooks, email, and status-page writes to the main window.
+- **Privileged IPC** — Global `hub:*` guard (`lib/ipc-guard.js`): only the main `BrowserWindow` may invoke IPC; legacy per-handler checks retained where needed.
+- **Operator PIN** — Verified in the main process via `hub:verify-operator-pin` (timing-safe compare against on-disk store).
+- **Legacy status pages** — On-disk HTML scrubbed at startup and when served over LAN (client row removed, scripts stripped).
 - **Import / restore** — Full replace via `replaceStoreFromSnapshot()` (no merge-with-old-data on import).
 - **Operator PIN pad** — Stacked overlay (does not destroy open modals); timing-safe PIN compare.
 - **Status HTML** — Exported and auto-exported pages omit client name (privacy).
@@ -24,7 +26,7 @@ Stability and security release — consolidate scan passes 4–6 and release har
 
 ### Changed
 
-- **148** unit tests in `npm run check`.
+- **153** unit tests in `npm run check`.
 
 ## [2.2.3] - 2026-06-04
 
