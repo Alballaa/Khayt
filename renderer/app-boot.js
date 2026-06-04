@@ -404,20 +404,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     btn.addEventListener('click', async () => {
       btn.disabled = true;
       btn.textContent = 'Checking…';
-      if (msg) { msg.textContent = ''; }
+      if (msg) msg.textContent = '';
       try {
-        await window.hubAPI.checkForUpdates();
-        // Give the updater 4 seconds to fire onUpdateAvailable if there is one.
-        // If nothing fires we show "You're up to date".
-        setTimeout(() => {
-          if (!document.getElementById('updateBanner')) {
-            if (msg) msg.textContent = '✓ You\'re up to date';
+        const res = await window.hubAPI.checkForUpdates();
+        if (res?.status === 'dev') {
+          if (msg) {
+            msg.innerHTML =
+              'Updates apply to the <strong>installed</strong> app (DMG). ' +
+              'You are running from source — install ' +
+              '<a href="https://github.com/Alballaa/Khayt/releases/latest" target="_blank" rel="noopener">v2.3.2+ from GitHub</a>.';
           }
-          btn.disabled = false;
-          btn.textContent = t('set.check_updates') || 'Check for updates';
-        }, 4000);
+        } else if (res?.status === 'error') {
+          if (msg) msg.textContent = `⚠ Update check failed: ${res.message || 'unknown error'}`;
+        } else if (res?.status === 'available') {
+          if (msg) msg.textContent = `Khayt ${res.version} is available — use the banner to download.`;
+        } else if (res?.status === 'not-available') {
+          const ver = res.currentVersion || currentVersion || '';
+          if (msg) msg.textContent = ver ? `✓ You're up to date (${ver})` : '✓ You\'re up to date';
+        } else if (msg) {
+          msg.textContent = '⚠ Update check returned no result';
+        }
       } catch (e) {
         if (msg) msg.textContent = '⚠ Check failed';
+      } finally {
         btn.disabled = false;
         btn.textContent = t('set.check_updates') || 'Check for updates';
       }

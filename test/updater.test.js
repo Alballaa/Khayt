@@ -20,7 +20,36 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { registerUpdater } = require('../lib/updater');
+const { registerUpdater, isVersionNewer, interpretUpdateCheckResult } = require('../lib/updater');
+
+test('isVersionNewer compares dotted versions', () => {
+  assert.equal(isVersionNewer('2.3.2', '2.3.1'), true);
+  assert.equal(isVersionNewer('2.3.1', '2.3.2'), false);
+  assert.equal(isVersionNewer('2.3.1', '2.3.1'), false);
+});
+
+test('interpretUpdateCheckResult handles dev, available, and up to date', () => {
+  assert.equal(
+    interpretUpdateCheckResult({ isPackaged: false, currentVersion: '2.3.2' }).status,
+    'dev',
+  );
+  assert.equal(
+    interpretUpdateCheckResult({
+      isPackaged: true,
+      currentVersion: '2.3.1',
+      updateInfo: { version: '2.3.2' },
+    }).status,
+    'available',
+  );
+  assert.equal(
+    interpretUpdateCheckResult({
+      isPackaged: true,
+      currentVersion: '2.3.2',
+      updateInfo: { version: '2.3.2' },
+    }).status,
+    'not-available',
+  );
+});
 
 test('write-update-backup copies store file when json is __COPY_STORE__', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'khayt-upd-'));
