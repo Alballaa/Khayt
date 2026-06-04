@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [2.3.2] - 2026-06-04
+
+### Fixed
+
+- **Setup wizard** — No longer reopens on every launch when the shop already has data or wizard completion was not persisted (`firstRunDone` / `flushSave` on finish; one-time flag normalization after load).
+
 ## [2.3.1] - 2026-06-04
 
 Stabilization patch after **v2.3.0** — bug fixes and dependency hygiene, no new features.
