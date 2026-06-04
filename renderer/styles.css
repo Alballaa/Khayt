@@ -704,7 +704,9 @@ tbody tr:hover { background: var(--surface-2); }
 .modal-backdrop {
   position: fixed; inset: 0;
   background: rgba(0,0,0,0.55);
-  display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: flex-start; justify-content: center;
+  overflow-y: auto;
+  padding: 24px 0;
   z-index: 9998;
 }
 .modal {
@@ -1278,36 +1280,47 @@ tbody tr:hover { background: var(--surface-2); }
 }
 .product-actions .btn { flex: 1; padding: 7px 10px; font-size: 12.5px; }
 
-/* ----- Modal (form variant — larger) ----- */
+/* ----- Modal (form variant — scrollable body, sticky header/footer) ----- */
+.modal.modal-form {
+  width: 92%;
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+  margin: auto 0;
+}
+.modal.modal-form:not(.modal-lg) {
+  max-width: 560px;
+}
 .modal.modal-lg {
   max-width: 720px;
-  width: 92%;
-  max-height: calc(100vh - 60px);
-  overflow-y: auto;
-  padding: 0;
 }
-.modal.modal-lg .modal-header {
+.modal.modal-form .modal-header {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 18px 22px;
   border-bottom: 1px solid var(--border-soft);
-  position: sticky;
-  top: 0;
+  flex-shrink: 0;
   background: var(--surface);
-  z-index: 1;
 }
-.modal.modal-lg .modal-header h3 { margin: 0; flex: 1; font-size: 16px; }
-.modal.modal-lg .modal-body { padding: 18px 22px; }
-.modal.modal-lg .modal-footer {
+.modal.modal-form .modal-header h3 { margin: 0; flex: 1; font-size: 16px; }
+.modal.modal-form .modal-body {
+  padding: 18px 22px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+}
+.modal.modal-form .modal-footer {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
   padding: 14px 22px;
   border-top: 1px solid var(--border-soft);
   background: var(--surface);
-  position: sticky;
-  bottom: 0;
+  flex-shrink: 0;
 }
 
 /* ----- Photo uploader ----- */

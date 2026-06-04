@@ -162,6 +162,7 @@ function initWizard() {
     loadSettingsIntoForm();
     applyOperatorPermissions();
     initialRender();
+    refreshCurrencyLabels();
     toast(t('wiz.welcome_done'), 'success', 4000);
   }
 
@@ -577,6 +578,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 document.addEventListener('languagechange', () => {
   initialRender();
+  refreshCurrencyLabels();
 });
 }
 

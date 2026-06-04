@@ -69,7 +69,7 @@ function openFormModal({ title, bodyHtml, onMount, onSave, saveLabel, sizeLg = t
   const mount = $('#modalMount');
   mount.innerHTML = `
     <div class="modal-backdrop">
-      <div class="modal ${sizeLg ? 'modal-lg' : ''}" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal modal-form ${sizeLg ? 'modal-lg' : ''}" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
         <div class="modal-header">
           <h3 id="modalTitle">${escapeHtml(title)}</h3>
           <button class="btn ghost small" data-act="cancel" aria-label="Close">×</button>

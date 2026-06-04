@@ -1275,7 +1275,18 @@ function loadSettingsIntoForm() {
       .map(([code, c]) => `<option value="${code}">${escapeHtml(c.label)}</option>`)
       .join('');
   }
-  if (curSel) curSel.value = settings.currency || 'SAR';
+  if (curSel) {
+    curSel.value = settings.currency || 'SAR';
+    if (!curSel.dataset.currencyPreviewBound) {
+      curSel.dataset.currencyPreviewBound = '1';
+      curSel.addEventListener('change', () => {
+        const sym = (CURRENCIES[curSel.value] || CURRENCIES.SAR).symbol;
+        document.querySelectorAll('[data-i18n="common.currency"]').forEach((el) => {
+          el.textContent = sym;
+        });
+      });
+    }
+  }
   const langSelHdr = $('#langSelect');
   if (langSelHdr) langSelHdr.value = settings.lang || 'en';
   const zatcaEl = $('#set_enableZatca');
@@ -1545,6 +1556,7 @@ async function openRestoreBackupModal() {
         loadSettingsIntoForm();
         applyTheme(settings.theme);
         i18n.set(settings.lang);
+        refreshCurrencyLabels();
         toast(t('set.restore_success'), 'success');
         return true;
       } catch (e) {
