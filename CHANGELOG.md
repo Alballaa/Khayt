@@ -10,6 +10,7 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 - **Operator PIN** — Flush store to disk before main-process PIN verify; avoid stale disk read; renderer fallback if operator missing on disk snapshot.
 - Shared `buildLanOrderTrackingUrl` / `buildLanQuoteApprovalUrl` helpers for consistent LAN links.
 - **npm audit** — `overrides` bump `localtunnel`’s `axios`/`debug` and dev `tmp` (audit clean; tunnel still optional/high-risk).
+- **Recurring expenses** — `calcNextDueDate` uses UTC calendar dates so monthly advance is consistent across timezones (fixes off-by-one day outside UTC).
 
 ## [2.3.0] - 2026-06-04
 
