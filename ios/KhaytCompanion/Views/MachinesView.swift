@@ -27,7 +27,7 @@ struct MachinesView: View {
                                 if let type = machine.type {
                                     Text(type.uppercased())
                                         .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(KhaytDesign.textDim)
                                 }
                             }
                             Spacer()

@@ -19,6 +19,7 @@ enum KhaytDesign {
     static let brand = Color(hex: 0x8183FF)
     static let accent = brand
     static let accentSoft = brand.opacity(0.16)
+    static let brandDim = accentSoft
     static let accentText = Color(hex: 0xA5A8FF)
     static let accentLine = brand.opacity(0.45)
 
@@ -146,7 +147,7 @@ struct KhaytSectionHeader: View {
 
     var body: some View {
         HStack {
-            Text(text.uppercased())
+            Text(L10n.usesArabicLayout ? text : text.uppercased())
                 .font(.system(size: 12, weight: .semibold))
                 .tracking(0.7)
                 .foregroundStyle(KhaytDesign.textDim)

@@ -62,6 +62,7 @@ final class ConnectionHealth: ObservableObject {
     func refresh() async {
         guard api.isConfigured else {
             state = .unreachable
+            lastStatus = nil
             lastChecked = Date()
             notifyConnectionChange()
             if let settings { CompanionNotifications.shared.saveDisconnectedSnapshot(shopName: settings.shopLabel) }
@@ -75,18 +76,25 @@ final class ConnectionHealth: ObservableObject {
                 state = .connected
                 await refreshWidgetsAndAlerts(status: status, queue: queue)
             } catch let err as KhaytAPIError {
-                if case .unauthorized = err { state = .unauthorized }
-                else { state = .connected }
+                lastStatus = nil
+                if case .unauthorized = err {
+                    state = .unauthorized
+                } else {
+                    state = .unreachable
+                    if let settings { CompanionNotifications.shared.saveDisconnectedSnapshot(shopName: settings.shopLabel) }
+                }
             }
             lastChecked = Date()
             notifyConnectionChange()
         } catch let err as KhaytAPIError {
+            lastStatus = nil
             if case .unauthorized = err { state = .unauthorized }
             else { state = .unreachable }
             lastChecked = Date()
             notifyConnectionChange()
             if let settings { CompanionNotifications.shared.saveDisconnectedSnapshot(shopName: settings.shopLabel) }
         } catch {
+            lastStatus = nil
             state = .unreachable
             lastChecked = Date()
             notifyConnectionChange()

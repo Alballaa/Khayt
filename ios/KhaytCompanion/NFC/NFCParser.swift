@@ -189,8 +189,11 @@ enum NFCParser {
         return (Int(bytes[offset]) << 8) | Int(bytes[offset + 1])
     }
 
-    private static func decodeCBOR(_ buf: [UInt8], offset: Int) -> (value: Any, off: Int)? {
-        guard offset < buf.count else { return nil }
+    private static let maxCBORDepth = 12
+    private static let maxCBORCollectionCount = 64
+
+    private static func decodeCBOR(_ buf: [UInt8], offset: Int, depth: Int = 0) -> (value: Any, off: Int)? {
+        guard offset < buf.count, depth <= maxCBORDepth else { return nil }
         let first = buf[offset]
         var off = offset + 1
         let major = Int(first >> 5)
@@ -227,23 +230,23 @@ enum NFCParser {
             let str = String(bytes: buf[off..<(off + n)], encoding: .utf8) ?? ""
             return (str, off + n)
         case 4:
-            guard let n = readCount() else { return nil }
+            guard let n = readCount(), n <= maxCBORCollectionCount else { return nil }
             var arr: [Any] = []
             var cursor = off
             for _ in 0..<n {
-                guard let item = decodeCBOR(buf, offset: cursor) else { return nil }
+                guard let item = decodeCBOR(buf, offset: cursor, depth: depth + 1) else { return nil }
                 arr.append(item.value)
                 cursor = item.off
             }
             return (arr, cursor)
         case 5:
-            guard let n = readCount() else { return nil }
+            guard let n = readCount(), n <= maxCBORCollectionCount else { return nil }
             var pairs: [[Any]] = []
             var cursor = off
             for _ in 0..<n {
-                guard let k = decodeCBOR(buf, offset: cursor) else { return nil }
+                guard let k = decodeCBOR(buf, offset: cursor, depth: depth + 1) else { return nil }
                 cursor = k.off
-                guard let v = decodeCBOR(buf, offset: cursor) else { return nil }
+                guard let v = decodeCBOR(buf, offset: cursor, depth: depth + 1) else { return nil }
                 cursor = v.off
                 pairs.append([k.value, v.value])
             }

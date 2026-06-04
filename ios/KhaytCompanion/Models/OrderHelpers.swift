@@ -27,11 +27,26 @@ enum DueDateParser {
     }
 
     static func parse(_ raw: String) -> Date? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.count >= 10 {
+            let iso = ISO8601DateFormatter()
+            iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let d = iso.date(from: trimmed) { return d }
+            iso.formatOptions = [.withInternetDateTime]
+            if let d = iso.date(from: trimmed) { return d }
+            let prefix = String(trimmed.prefix(10))
+            for f in formats {
+                let df = DateFormatter()
+                df.locale = Locale(identifier: "en_US_POSIX")
+                df.dateFormat = f
+                if let d = df.date(from: prefix) { return d }
+            }
+        }
         for f in formats {
             let df = DateFormatter()
             df.locale = Locale(identifier: "en_US_POSIX")
             df.dateFormat = f
-            if let d = df.date(from: raw) { return d }
+            if let d = df.date(from: trimmed) { return d }
         }
         return nil
     }

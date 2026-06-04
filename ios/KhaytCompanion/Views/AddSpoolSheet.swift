@@ -67,6 +67,7 @@ struct AddSpoolSheet: View {
                 draft = SpoolDraft.from(parsed: FilamentLabelParser.parse(text: value))
                 step = .review
             }
+            .onDisappear { nfc.invalidate() }
         }
     }
 

@@ -20,7 +20,7 @@ struct SettingsView: View {
                     if let checked = health.lastChecked {
                         Text(checked.formatted(date: .omitted, time: .shortened))
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(KhaytDesign.textMuted)
                     }
                 }
 
@@ -85,7 +85,7 @@ struct SettingsView: View {
 
                 Section(footer: Text(L10n.tr("settings.unpair.footer"))) {
                     Button(L10n.tr("settings.unpair"), role: .destructive) {
-                        settings.isPaired = false
+                        settings.unpair()
                     }
                 }
 

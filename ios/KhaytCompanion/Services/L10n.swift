@@ -37,8 +37,19 @@ enum AppLanguage: String, CaseIterable, Identifiable {
 
 enum L10n {
     private static var bundle: Bundle = .main
+    private(set) static var currentLanguage: AppLanguage = .system
+
+    static var usesArabicLayout: Bool {
+        switch currentLanguage {
+        case .ar: return true
+        case .en: return false
+        case .system:
+            return Locale.current.language.languageCode?.identifier == "ar"
+        }
+    }
 
     static func setLanguage(_ language: AppLanguage) {
+        currentLanguage = language
         switch language {
         case .system:
             bundle = .main

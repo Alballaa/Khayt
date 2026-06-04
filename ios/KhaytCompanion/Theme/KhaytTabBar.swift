@@ -22,7 +22,7 @@ struct KhaytTabBar: View {
                         Text(item.title)
                             .font(.system(size: 10, weight: selection == item.id ? .semibold : .regular))
                     }
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: .infinity, minHeight: 49)
                     .padding(.top, 9)
                     .padding(.bottom, 4)
                     .foregroundStyle(selection == item.id ? KhaytDesign.brand : KhaytDesign.textMuted)

@@ -41,6 +41,7 @@ struct CompanionStatusBadge: View {
         .padding(.vertical, compact ? 4 : 5)
         .foregroundStyle(color)
         .background(KhaytDesign.statusSoft(for: status), in: Capsule())
+        .environment(\.layoutDirection, .leftToRight)
     }
 }
 

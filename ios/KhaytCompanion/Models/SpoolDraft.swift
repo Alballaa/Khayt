@@ -27,15 +27,18 @@ struct SpoolDraft: Sendable {
 
     static func from(tag: NFCFilamentTag) -> SpoolDraft {
         var d = SpoolDraft()
-        d.material = tag.materialLabel.isEmpty ? (tag.material ?? "Filament") : tag.materialLabel
-        d.brand = tag.manufacturer ?? ""
-        if let w = tag.weight { d.weightGrams = w }
-        if let hex = tag.hex { d.colorHex = hex }
+        d.material = InputLimits.clamp(
+            tag.materialLabel.isEmpty ? (tag.material ?? "Filament") : tag.materialLabel,
+            max: InputLimits.maxMaterial
+        )
+        d.brand = InputLimits.clamp(tag.manufacturer ?? "")
+        if let w = tag.weight { d.weightGrams = min(max(w, 1), 50_000) }
+        if let hex = tag.hex { d.colorHex = InputLimits.clamp(hex, max: 32) }
         if let p = tag.printTemp { d.printTemp = String(p) }
         if let b = tag.bedTemp { d.bedTemp = String(b) }
-        d.sku = tag.sku ?? ""
-        d.lot = tag.lot ?? ""
-        d.sourceNote = tag.standard
+        d.sku = InputLimits.clamp(tag.sku ?? "")
+        d.lot = InputLimits.clamp(tag.lot ?? "")
+        d.sourceNote = InputLimits.clamp(tag.standard, max: 64)
         return d
     }
 }

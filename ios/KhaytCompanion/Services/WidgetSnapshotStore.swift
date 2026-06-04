@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 
 /// Data shared with the Khayt home screen widget (App Group).
 struct WidgetSnapshot: Codable {
@@ -14,11 +17,15 @@ struct WidgetSnapshot: Codable {
 
 enum WidgetSnapshotStore {
     static let appGroupID = "group.com.khaytapp.companion"
+    static let widgetKind = "KhaytQueueWidget"
     private static let key = "khayt.widget.snapshot"
 
     static func save(_ snapshot: WidgetSnapshot) {
         guard let data = try? JSONEncoder().encode(snapshot) else { return }
         UserDefaults(suiteName: appGroupID)?.set(data, forKey: key)
+        #if canImport(WidgetKit)
+        WidgetCenter.shared.reloadTimelines(ofKind: widgetKind)
+        #endif
     }
 
     static func load() -> WidgetSnapshot? {

@@ -56,6 +56,50 @@ struct InventorySpool: Codable, Identifiable, Sendable {
     var printTemp: Int?
     var bedTemp: Int?
 
+    enum CodingKeys: String, CodingKey {
+        case id, material, brand, color, weight, remaining, cost, purchasedAt, addedAt
+        case materialType, lot, sku, printTemp, bedTemp
+        case weightRemaining, weightTotal
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        material = try c.decodeIfPresent(String.self, forKey: .material)
+        brand = try c.decodeIfPresent(String.self, forKey: .brand)
+        color = try c.decodeIfPresent(String.self, forKey: .color)
+        cost = try c.decodeIfPresent(Double.self, forKey: .cost)
+        purchasedAt = try c.decodeIfPresent(String.self, forKey: .purchasedAt)
+        addedAt = try c.decodeIfPresent(String.self, forKey: .addedAt)
+        materialType = try c.decodeIfPresent(String.self, forKey: .materialType)
+        lot = try c.decodeIfPresent(String.self, forKey: .lot)
+        sku = try c.decodeIfPresent(String.self, forKey: .sku)
+        printTemp = try c.decodeIfPresent(Int.self, forKey: .printTemp)
+        bedTemp = try c.decodeIfPresent(Int.self, forKey: .bedTemp)
+        remaining = try c.decodeIfPresent(Double.self, forKey: .remaining)
+            ?? c.decodeIfPresent(Double.self, forKey: .weightRemaining)
+        weight = try c.decodeIfPresent(Double.self, forKey: .weight)
+            ?? c.decodeIfPresent(Double.self, forKey: .weightTotal)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encodeIfPresent(material, forKey: .material)
+        try c.encodeIfPresent(brand, forKey: .brand)
+        try c.encodeIfPresent(color, forKey: .color)
+        try c.encodeIfPresent(weight, forKey: .weight)
+        try c.encodeIfPresent(remaining, forKey: .remaining)
+        try c.encodeIfPresent(cost, forKey: .cost)
+        try c.encodeIfPresent(purchasedAt, forKey: .purchasedAt)
+        try c.encodeIfPresent(addedAt, forKey: .addedAt)
+        try c.encodeIfPresent(materialType, forKey: .materialType)
+        try c.encodeIfPresent(lot, forKey: .lot)
+        try c.encodeIfPresent(sku, forKey: .sku)
+        try c.encodeIfPresent(printTemp, forKey: .printTemp)
+        try c.encodeIfPresent(bedTemp, forKey: .bedTemp)
+    }
+
     var displayLabel: String {
         let parts = [brand, material, color].compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
         return parts.isEmpty ? id : parts.joined(separator: " · ")

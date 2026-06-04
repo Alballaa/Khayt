@@ -145,6 +145,9 @@ struct PairingView: View {
             }
             .padding(.horizontal)
         }
+        .onChange(of: settings.host) { _, _ in invalidatePairingTest() }
+        .onChange(of: settings.port) { _, _ in invalidatePairingTest() }
+        .onChange(of: settings.pin) { _, _ in invalidatePairingTest() }
     }
 
     private var verifyStep: some View {
@@ -208,6 +211,11 @@ struct PairingView: View {
     private func checklistRow(_ text: String, icon: String) -> some View {
         Label(text, systemImage: icon)
             .font(.subheadline)
+    }
+
+    private func invalidatePairingTest() {
+        testOK = false
+        testMessage = nil
     }
 
     private func runPairingTest() async {

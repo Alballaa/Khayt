@@ -114,31 +114,32 @@ private struct SpoolRow: View {
             HStack {
                 Text(spool.displayLabel)
                     .font(.headline)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(KhaytDesign.text)
                 Spacer()
                 if spool.isLowStock {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.caption)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(KhaytDesign.warn)
                 }
             }
             HStack(spacing: 8) {
                 if let remaining = spool.remaining ?? spool.weight {
                     Text("\(Int(remaining)) g")
                         .font(.caption)
-                        .foregroundStyle(spool.isLowStock ? .orange : .secondary)
+                        .foregroundStyle(spool.isLowStock ? KhaytDesign.warn : KhaytDesign.textDim)
                 }
                 if let p = spool.printTemp, let b = spool.bedTemp {
                     Text("\(p)° / \(b)°")
                         .font(.caption2)
-                        .foregroundStyle(CompanionTheme.brand)
+                        .foregroundStyle(KhaytDesign.brand)
                 }
                 if let lot = spool.lot, !lot.isEmpty {
                     Text(lot)
                         .font(.caption2)
+                        .foregroundStyle(KhaytDesign.textMuted)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Color.secondary.opacity(0.12), in: Capsule())
+                        .background(KhaytDesign.surface2, in: Capsule())
                 }
             }
         }

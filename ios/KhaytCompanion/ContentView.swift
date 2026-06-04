@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var settings: ConnectionSettings
+    @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab = 0
 
     private let tabs: [KhaytTabItem] = [
@@ -22,6 +23,9 @@ struct ContentView: View {
         }
         .preferredColorScheme(.dark)
         .onAppear { applyPendingTab() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { applyPendingTab() }
+        }
     }
 
     private func applyPendingTab() {

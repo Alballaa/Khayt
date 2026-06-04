@@ -41,9 +41,10 @@ final class KhaytAPIClient: ObservableObject {
     }
 
     func updateOrderStatus(orderId: String, status: String) async throws {
+        let encodedId = try encodeOrderIdForPath(orderId)
         let body = try JSONEncoder().encode(["status": status])
         _ = try await request(
-            path: "/api/orders/\(orderId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? orderId)",
+            path: "/api/orders/\(encodedId)",
             method: "PATCH",
             body: body,
             requiresPin: true
@@ -73,9 +74,9 @@ final class KhaytAPIClient: ObservableObject {
 
         var payload: [String: Any] = [
             "id": "spool-\(Int(Date().timeIntervalSince1970 * 1000))",
-            "material": material,
-            "brand": draft.brand.trimmingCharacters(in: .whitespacesAndNewlines),
-            "color": draft.colorHex.isEmpty ? "#888888" : draft.colorHex,
+            "material": InputLimits.clamp(material, max: InputLimits.maxMaterial),
+            "brand": InputLimits.clamp(draft.brand.trimmingCharacters(in: .whitespacesAndNewlines)),
+            "color": InputLimits.clamp(draft.colorHex.isEmpty ? "#888888" : draft.colorHex, max: 32),
             "weight": draft.weightGrams,
             "weightTotal": draft.weightGrams,
             "weightRemaining": draft.weightGrams,
@@ -84,10 +85,10 @@ final class KhaytAPIClient: ObservableObject {
             "materialType": "fdm"
         ]
 
-        let sku = draft.sku.trimmingCharacters(in: .whitespacesAndNewlines)
+        let sku = InputLimits.clamp(draft.sku.trimmingCharacters(in: .whitespacesAndNewlines))
         if !sku.isEmpty { payload["sku"] = sku }
 
-        let lot = draft.lot.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lot = InputLimits.clamp(draft.lot.trimmingCharacters(in: .whitespacesAndNewlines))
         if !lot.isEmpty { payload["lot"] = lot }
 
         let printTrim = draft.printTemp.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -134,10 +135,37 @@ final class KhaytAPIClient: ObservableObject {
         return try JSONDecoder().decode(T.self, from: data)
     }
 
+    private func encodeOrderIdForPath(_ orderId: String) throws -> String {
+        let trimmed = orderId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,
+              trimmed.count <= 128,
+              !trimmed.contains("/"),
+              !trimmed.contains("..") else {
+            throw KhaytAPIError.server("Invalid order ID.")
+        }
+        var allowed = CharacterSet.alphanumerics
+        allowed.insert(charactersIn: "-_")
+        guard let encoded = trimmed.addingPercentEncoding(withAllowedCharacters: allowed) else {
+            throw KhaytAPIError.server("Invalid order ID.")
+        }
+        return encoded
+    }
+
+    private func makeURL(path: String) throws -> URL {
+        guard let base = settings.baseURL else { throw KhaytAPIError.notConfigured }
+        guard path.hasPrefix("/") else { throw KhaytAPIError.invalidURL }
+        var components = URLComponents()
+        components.scheme = base.scheme ?? "http"
+        components.host = base.host
+        components.port = base.port
+        components.path = path
+        guard let url = components.url else { throw KhaytAPIError.invalidURL }
+        return url
+    }
+
     @discardableResult
     private func request(path: String, method: String, body: Data?, requiresPin: Bool) async throws -> (Data, URLResponse) {
-        guard let base = settings.baseURL else { throw KhaytAPIError.notConfigured }
-        guard let url = URL(string: path, relativeTo: base) else { throw KhaytAPIError.invalidURL }
+        let url = try makeURL(path: path)
 
         var req = URLRequest(url: url)
         req.httpMethod = method

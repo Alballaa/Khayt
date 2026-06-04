@@ -27,9 +27,11 @@ struct OrdersView: View {
     @State private var queue: [QueueOrder] = []
     @State private var recent: [OrderLogEntry] = []
     @State private var activeFilter: ActiveFilter = .all
+    @State private var recentStatusFilter: String?
     @State private var errorMessage: String?
     @State private var updatingId: String?
     @State private var selectedOrder: QueueOrder?
+    @State private var loadGeneration = 0
 
     private var filteredQueue: [QueueOrder] {
         switch activeFilter {
@@ -63,6 +65,7 @@ struct OrdersView: View {
             .task(id: segment) { await load() }
             .onAppear { applyExternalFilters() }
             .onChange(of: ordersNav.pendingStatusFilter) { _, _ in applyExternalFilters() }
+            .onChange(of: ordersNav.ordersTabRequest) { _, _ in applyExternalFilters() }
             .sheet(item: $selectedOrder) { order in
                 OrderDetailSheet(
                     order: order,
@@ -76,12 +79,21 @@ struct OrdersView: View {
 
     private func applyExternalFilters() {
         if let pending = ordersNav.pendingStatusFilter {
-            activeFilter = .status(pending)
-            segment = .active
+            if pending == .completed {
+                segment = .recent
+                recentStatusFilter = OrderStatus.completed.rawValue
+                activeFilter = .all
+            } else {
+                activeFilter = .status(pending)
+                segment = .active
+                recentStatusFilter = nil
+            }
             ordersNav.pendingStatusFilter = nil
+            Task { await load() }
         } else if UserDefaults.standard.string(forKey: "khayt.orders.filter") == "orders_overdue" {
             activeFilter = .overdue
             segment = .active
+            recentStatusFilter = nil
             UserDefaults.standard.removeObject(forKey: "khayt.orders.filter")
         }
     }
@@ -93,7 +105,7 @@ struct OrdersView: View {
                 HStack(spacing: 8) {
                     FilterChip(title: L10n.tr("orders.filter.all"), selected: activeFilter == .all) { activeFilter = .all }
                     FilterChip(title: L10n.tr("orders.overdue"), selected: activeFilter == .overdue) { activeFilter = .overdue }
-                    ForEach([OrderStatus.pending, .printing, .post, .qc, .on_hold], id: \.self) { st in
+                    ForEach([OrderStatus.pending, .printing, .post, .qc], id: \.self) { st in
                         FilterChip(title: st.localizedLabel, selected: activeFilter == .status(st)) {
                             activeFilter = .status(st)
                         }
@@ -127,6 +139,7 @@ struct OrdersView: View {
                     .buttonStyle(.plain)
                 }
                 .listStyle(.plain)
+                .scrollContentBackground(.hidden)
                 .environment(\.defaultMinListRowHeight, 56)
             }
         }
@@ -149,43 +162,54 @@ struct OrdersView: View {
                         HStack {
                             Text(entry.displayTitle)
                                 .font(.headline)
+                                .foregroundStyle(KhaytDesign.text)
                             Spacer()
                             CompanionStatusBadge(status: entry.status, compact: true)
                         }
                         Text(entry.displayClient)
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(KhaytDesign.textDim)
                         HStack {
                             if let date = entry.date ?? entry.dueDate {
                                 Text(date)
                                     .font(.caption)
-                                    .foregroundStyle(.tertiary)
+                                    .foregroundStyle(KhaytDesign.textMuted)
                             }
                             if entry.isOverdue {
                                 Text(L10n.tr("orders.overdue"))
                                     .font(.caption2.bold())
-                                    .foregroundStyle(.red)
+                                    .foregroundStyle(KhaytDesign.danger)
                             }
                         }
                     }
                     .padding(.vertical, 2)
+                    .listRowBackground(KhaytDesign.surface)
                 }
                 .listStyle(.plain)
+                .scrollContentBackground(.hidden)
                 .environment(\.defaultMinListRowHeight, 56)
             }
         }
     }
 
     private func load() async {
+        let generation = loadGeneration + 1
+        loadGeneration = generation
         errorMessage = nil
         do {
             switch segment {
             case .active:
-                queue = try await api.fetchQueue()
+                let data = try await api.fetchQueue()
+                guard generation == loadGeneration else { return }
+                queue = data
             case .recent:
-                recent = try await api.fetchRecentOrders(limit: 40)
+                let data = try await api.fetchRecentOrders(limit: 40, status: recentStatusFilter)
+                guard generation == loadGeneration else { return }
+                recent = data
+                recentStatusFilter = nil
             }
         } catch {
+            guard generation == loadGeneration else { return }
             if segment == .active { queue = [] } else { recent = [] }
             errorMessage = error.localizedDescription
         }
@@ -198,6 +222,10 @@ struct OrdersView: View {
             try await api.updateOrderStatus(orderId: order.id, status: status)
             CompanionHaptics.success()
             await load()
+            if let id = selectedOrder?.id,
+               let updated = queue.first(where: { $0.id == id }) {
+                selectedOrder = updated
+            }
         } catch {
             errorMessage = error.localizedDescription
             CompanionHaptics.warning()
@@ -221,10 +249,12 @@ private struct FilterChip: View {
             Text(title)
                 .font(.caption.bold())
                 .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(selected ? CompanionTheme.brand : Color.secondary.opacity(0.12), in: Capsule())
-                .foregroundStyle(selected ? .white : .primary)
+                .padding(.vertical, 10)
+                .frame(minHeight: 44)
+                .background(selected ? KhaytDesign.brand : KhaytDesign.surface2, in: Capsule())
+                .foregroundStyle(selected ? Color.white : KhaytDesign.textDim)
         }
+        .buttonStyle(.plain)
     }
 }
 
@@ -238,28 +268,28 @@ private struct QueueOrderRow: View {
             HStack {
                 Text(order.displayTitle)
                     .font(.headline)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(KhaytDesign.text)
                 Spacer()
                 CompanionStatusBadge(status: order.status, compact: true)
             }
             Text(order.displayClient)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(KhaytDesign.textDim)
             if let machine = order.machine, !machine.isEmpty {
                 Label(machine, systemImage: "printer")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(KhaytDesign.textMuted)
             }
             HStack {
                 if let due = order.formattedDueDate {
                     Label(String(format: L10n.tr("orders.due"), due), systemImage: "calendar")
                         .font(.caption2)
-                        .foregroundStyle(order.isOverdue ? .red : .tertiary)
+                        .foregroundStyle(order.isOverdue ? KhaytDesign.danger : KhaytDesign.textMuted)
                 }
                 if order.isOverdue {
                     Text(L10n.tr("orders.overdue"))
                         .font(.caption2.bold())
-                        .foregroundStyle(.red)
+                        .foregroundStyle(KhaytDesign.danger)
                 }
             }
             if OrderStatus(rawValue: order.status)?.nextInQueue != nil {
@@ -271,8 +301,8 @@ private struct QueueOrderRow: View {
                             .font(.caption.bold())
                     }
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                .frame(minHeight: 44, alignment: .leading)
+                .foregroundStyle(KhaytDesign.brand)
                 .disabled(isUpdating)
             }
         }

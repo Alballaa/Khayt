@@ -1,6 +1,66 @@
 import Foundation
 import Security
 
+/// Validates desktop LAN host strings before building HTTP URLs (blocks userinfo / path injection).
+enum LANHostValidator {
+    private static let maxHostLength = 253
+
+    static func normalizeHost(_ raw: String) -> String? {
+        var h = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !h.isEmpty, h.count <= maxHostLength else { return nil }
+
+        if h.hasPrefix("http://") { h = String(h.dropFirst(7)) }
+        if h.hasPrefix("https://") { h = String(h.dropFirst(8)) }
+        if let slash = h.firstIndex(of: "/") { h = String(h[..<slash]) }
+        if let q = h.firstIndex(of: "?") { h = String(h[..<q]) }
+        if let hash = h.firstIndex(of: "#") { h = String(h[..<hash]) }
+
+        if h.contains("@") || h.contains("\\") || h.contains(" ") || h.contains("\t") { return nil }
+
+        if h.hasPrefix("[") {
+            guard h.hasSuffix("]"), h.count > 2 else { return nil }
+            let inner = String(h.dropFirst().dropLast())
+            return isValidIPv6Literal(inner) ? "[\(inner)]" : nil
+        }
+
+        guard isValidIPv4(h) || isValidHostname(h) else { return nil }
+        return h
+    }
+
+    private static func isValidIPv4(_ host: String) -> Bool {
+        let parts = host.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count == 4 else { return false }
+        for part in parts {
+            guard let n = Int(part), n >= 0, n <= 255, part.count <= 3 else { return false }
+            if part.count > 1 && part.hasPrefix("0") { return false }
+        }
+        return true
+    }
+
+    private static func isValidIPv6Literal(_ host: String) -> Bool {
+        guard !host.isEmpty, host.count <= 45 else { return false }
+        return host.unicodeScalars.allSatisfy {
+            CharacterSet(charactersIn: "0123456789abcdefABCDEF:").contains($0)
+        }
+    }
+
+    private static func isValidHostname(_ host: String) -> Bool {
+        guard !host.isEmpty, host.count <= maxHostLength else { return false }
+        if host.hasPrefix(".") || host.hasSuffix(".") || host.contains("..") { return false }
+        let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-")
+        return host.unicodeScalars.allSatisfy { allowed.contains($0) }
+    }
+}
+
+enum InputLimits {
+    static let maxTextField = 200
+    static let maxMaterial = 120
+
+    static func clamp(_ value: String, max: Int = maxTextField) -> String {
+        String(value.prefix(max))
+    }
+}
+
 @MainActor
 final class ConnectionSettings: ObservableObject {
     @Published var host: String {
@@ -37,7 +97,7 @@ final class ConnectionSettings: ObservableObject {
         didSet { UserDefaults.standard.set(notifyLowStock, forKey: Keys.notifyLowStock) }
     }
 
-    private enum Keys {
+    enum Keys {
         static let host = "khayt.host"
         static let port = "khayt.port"
         static let shopLabel = "khayt.shopLabel"
@@ -66,36 +126,50 @@ final class ConnectionSettings: ObservableObject {
         L10n.setLanguage(appLanguage)
     }
 
+    /// HTTP base URL built with `URLComponents` (no relative URL resolution).
     var baseURL: URL? {
-        let trimmed = host.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-        var hostPart = trimmed
-        if hostPart.hasPrefix("http://") { hostPart = String(hostPart.dropFirst(7)) }
-        if hostPart.hasPrefix("https://") { hostPart = String(hostPart.dropFirst(8)) }
-        if hostPart.hasSuffix("/") { hostPart = String(hostPart.dropLast()) }
-        return URL(string: "http://\(hostPart):\(port)")
+        guard let hostPart = LANHostValidator.normalizeHost(host) else { return nil }
+        var components = URLComponents()
+        components.scheme = "http"
+        components.host = hostPart
+        components.port = port
+        return components.url
     }
 
     var isConfigured: Bool { baseURL != nil }
+
+    func unpair() {
+        isPaired = false
+        pin = ""
+        KeychainHelper.delete(Keys.pinKeychain)
+    }
 }
 
 enum KeychainHelper {
+    private static let service = Bundle.main.bundleIdentifier ?? "com.khaytapp.companion"
+
     static func set(_ value: String, for key: String) {
         let data = Data(value.utf8)
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
             kSecAttrAccount as String: key,
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         ]
         SecItemDelete(query as CFDictionary)
+        guard !value.isEmpty else { return }
         var add = query
         add[kSecValueData as String] = data
-        SecItemAdd(add as CFDictionary, nil)
+        let status = SecItemAdd(add as CFDictionary, nil)
+        if status != errSecSuccess {
+            // Best-effort; UI still holds PIN until next launch.
+        }
     }
 
     static func get(_ key: String) -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
             kSecAttrAccount as String: key,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
@@ -105,5 +179,14 @@ enum KeychainHelper {
               let data = item as? Data,
               let str = String(data: data, encoding: .utf8) else { return nil }
         return str
+    }
+
+    static func delete(_ key: String) {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: key
+        ]
+        SecItemDelete(query as CFDictionary)
     }
 }

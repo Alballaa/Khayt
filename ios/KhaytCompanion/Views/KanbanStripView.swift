@@ -28,12 +28,9 @@ struct KanbanStripView: View {
                             Text("\(count)")
                                 .font(.system(size: 20, weight: .bold))
                                 .foregroundStyle(active ? color : KhaytDesign.textMuted)
-                            Text(stage.localizedLabel)
-                                .font(.system(size: 9, weight: .semibold))
-                                .textCase(.uppercase)
-                                .foregroundStyle(active ? color : KhaytDesign.textMuted)
+                            stageLabel(stage.localizedLabel, active: active, color: color)
                         }
-                        .frame(minWidth: 52)
+                        .frame(minWidth: 52, minHeight: 44)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 8)
                         .background(
@@ -56,6 +53,18 @@ struct KanbanStripView: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 12)
+        }
+    }
+
+    @ViewBuilder
+    private func stageLabel(_ label: String, active: Bool, color: Color) -> some View {
+        let text = Text(label)
+            .font(.system(size: 9, weight: .semibold))
+            .foregroundStyle(active ? color : KhaytDesign.textMuted)
+        if L10n.usesArabicLayout {
+            text
+        } else {
+            text.textCase(.uppercase)
         }
     }
 }

@@ -122,7 +122,7 @@ struct DashboardView: View {
                     .font(.subheadline.bold())
                     .foregroundStyle(KhaytDesign.text)
                 Spacer()
-                Image(systemName: "chevron.right")
+                Image(systemName: "chevron.forward")
                     .font(.caption.bold())
                     .foregroundStyle(KhaytDesign.textMuted)
             }
