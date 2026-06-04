@@ -2,10 +2,10 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (2.2.x)
+## Now (2.3.x)
 
-- [ ] Triage post-2.2.0 feedback; plan 2.2.x patches or 2.3.0
-- [ ] Run `node scripts/list-stale-branches.mjs --merged-into main` and delete merged `cursor/*` branches
+- [ ] Triage post-2.3.0 feedback; plan 2.3.x patches or next minor
+- [x] Run `node scripts/list-stale-branches.mjs --merged-into main` and delete merged `cursor/*` branches (maintainer cleanup, 2026-06-04)
 
 ## Shipped (2.2.0 — 2026-05-30)
 
@@ -20,7 +20,11 @@ Living priorities for maintainers. Not a public commitment calendar — reorder 
 
 | PR | Reason |
 |----|--------|
+| [#3](https://github.com/Alballaa/Khayt/pull/3) | Early sidebar shell; **Studio shell on `main`** replaced it. Close without merging. |
+| [#11](https://github.com/Alballaa/Khayt/pull/11) | Lint scope; superseded by `npm run lint` / `npm run check` on `main`. |
+| [#31](https://github.com/Alballaa/Khayt/pull/31) | `test/store-io.test.js` already on `main`; branch is an old refactor stack. |
 | [#52](https://github.com/Alballaa/Khayt/pull/52) | Wrong Bundle D scope (daily ops). Replaced by platform-hardening branch. |
+| [#59](https://github.com/Alballaa/Khayt/pull/59)–[#60](https://github.com/Alballaa/Khayt/pull/60) | Security scans consolidated in **v2.3.0** (`release-hardening`). |
 
 ## Completed (2.1.0 — 2026-05-30)
 
