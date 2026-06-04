@@ -6,6 +6,7 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Print farm — sites & location filter** — Top-bar location filter now scopes dashboard KPIs, production queue, machine queues, and orders log; **Sites overview** on dashboard (Professional, 2+ locations); wizard **Print farm** preset (Professional mode, default WIP limits, second site stub).
 - **Online option** — Settings and setup wizard toggle to enable customer quote requests via LAN intake link (`/intake`); panel on Job Intake with copy link; no Khayt cloud.
 - **Online hub** — Settings panel lists intake, quote-approval, and tracking links (copy per order) when LAN server is running.
 - **Intake → calculator** — Job Intake “Quote in calculator” pre-fills client, part name, and notes (creates client when needed).
