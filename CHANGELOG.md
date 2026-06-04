@@ -4,6 +4,28 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-06-04
+
+Stability and security release — consolidate scan passes 4–6 and release hardening. Treat this as the gate before new features.
+
+### Security
+
+- **LAN order tracking** — `GET /order/:id` and static `/status/*.html` require a valid `?token=` matching the order `trackingToken`; new orders get a token at creation; legacy orders receive tokens on load via `ensureOrderTrackingTokens()`.
+- **Quote approval** — Per-order `quoteApprovalToken` closes IDOR on public approve routes.
+- **Privileged IPC** — `isTrustedRenderer()` limits wipe, store load/save, backups, restore, webhooks, email, and status-page writes to the main window.
+- **Import / restore** — Full replace via `replaceStoreFromSnapshot()` (no merge-with-old-data on import).
+- **Operator PIN pad** — Stacked overlay (does not destroy open modals); timing-safe PIN compare.
+- **Status HTML** — Exported and auto-exported pages omit client name (privacy).
+- Prior 2.2.4–2.2.7 fixes retained: LAN persistence, serialized saves, webhook redirect block, intake/session hardening, renderer timing-safe secrets, calendar PIN, Mailgun domain sanitize, clipboard/QR limits, inventory POST validation, full-wipe main-process confirm, modal overlay stacking, dead handler wiring.
+
+### Fixed
+
+- Currency labels refresh after settings save; kanban WIP badge; reorder PO modal class; photo upload error toasts; schedule RTL and pause i18n.
+
+### Changed
+
+- **148** unit tests in `npm run check`.
+
 ## [2.2.3] - 2026-06-04
 
 ### Fixed

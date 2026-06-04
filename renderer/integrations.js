@@ -561,8 +561,6 @@ async function exportOrderStatusPage(orderId) {
   const order = printLog.find(o => o.id === orderId);
   if (!order) return;
   ensureTrackingToken(order);
-  const client = order.clientId ? clients.find(c => c.id === order.clientId) : null;
-  const clientName = client ? (localName(client) || order.project) : (order.project || '');
   const bizName = settings.bizEn || settings.bizAr || 'Khayt';
   const accentColor = safeCssColor(settings.invAccentColor, '#5E2E14');
 
@@ -637,7 +635,6 @@ async function exportOrderStatusPage(orderId) {
       <div class="stepper">${connectors}</div>
       <div class="info-row"><span class="info-label">Order #</span><span class="info-value">${escapeHtml(order.id)}</span></div>
       <div class="info-row"><span class="info-label">Project</span><span class="info-value">${escapeHtml(order.project || '—')}</span></div>
-      <div class="info-row"><span class="info-label">Client</span><span class="info-value">${escapeHtml(clientName)}</span></div>
       <div class="info-row"><span class="info-label">Status</span><span class="info-value">${escapeHtml(STATUS_LABELS[order.status] || order.status)}</span></div>
       ${order.dueDate ? `<div class="info-row"><span class="info-label">Estimated completion</span><span class="info-value">${escapeHtml(order.dueDate)}</span></div>` : ''}
       <div class="message">${msg}</div>
@@ -669,8 +666,6 @@ async function autoExportStatusPage(order) {
   if (!window.hubAPI?.writeStatusPage) return;
   try {
     // Build the same HTML as exportOrderStatusPage but don't open it
-    const client = order.clientId ? clients.find(c => c.id === order.clientId) : null;
-    const clientName = client ? (localName(client) || order.project) : (order.project || '');
     const bizName = settings.bizEn || settings.bizAr || 'Khayt';
     const accentColor = safeCssColor(settings.invAccentColor, '#5E2E14');
     const STATUS_ORDER = ['quote', 'pending', 'on_hold', 'printing', 'post', 'completed'];
@@ -706,7 +701,6 @@ async function autoExportStatusPage(order) {
 <div class="body"><div class="stepper">${connectors}</div>
 <div class="info-row"><span class="info-label">Order #</span><span class="info-value">${escapeHtml(order.id)}</span></div>
 <div class="info-row"><span class="info-label">Project</span><span class="info-value">${escapeHtml(order.project || '—')}</span></div>
-<div class="info-row"><span class="info-label">Client</span><span class="info-value">${escapeHtml(clientName)}</span></div>
 <div class="info-row"><span class="info-label">Status</span><span class="info-value">${escapeHtml(order.status)}</span></div>
 ${order.dueDate ? `<div class="info-row"><span class="info-label">Due</span><span class="info-value">${escapeHtml(order.dueDate)}</span></div>` : ''}
 <div class="message">${escapeHtml(msg)}</div></div>

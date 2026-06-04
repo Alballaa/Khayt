@@ -108,6 +108,11 @@ function logPrint(asQuote = false) {
     // Feature 8: Quote revision history
     quoteVersion:    asQuote ? 1 : undefined,
     quoteRevisions:  asQuote ? [] : undefined,
+    trackingToken: (() => {
+      const b = new Uint8Array(16);
+      crypto.getRandomValues(b);
+      return Array.from(b, (b) => b.toString(16).padStart(2, '0')).join('');
+    })(),
   });
 
   saveAll();

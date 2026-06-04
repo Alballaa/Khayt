@@ -41,6 +41,12 @@ registerZatcaCrypto({ app, fs, crypto, ipcMain, encryptStoreField, decryptStoreF
 
 let mainWindow;
 
+/** Only the main app window may invoke privileged hub:* IPC (blocks stray webContents). */
+function isTrustedRenderer(event) {
+  if (!mainWindow || mainWindow.isDestroyed()) return false;
+  return !!(event && event.sender === mainWindow.webContents);
+}
+
 function appIconPath() {
   const png = path.join(__dirname, 'assets', 'icon_preview.png');
   if (fs.existsSync(png)) return png;
@@ -132,6 +138,7 @@ ipcMain.handle('hub:save-text-file', async (_e, { content, defaultName } = {}) =
 });
 
 ipcMain.handle('hub:request-full-wipe', async (event) => {
+  if (!isTrustedRenderer(event)) return { ok: false, error: 'unauthorized_sender' };
   const win = BrowserWindow.fromWebContents(event.sender);
   const { response } = await dialog.showMessageBox(win || undefined, {
     type: 'warning',
@@ -326,7 +333,8 @@ ipcMain.handle('hub:icloud-available', async () => {
   return fs.existsSync(icloudBase);
 });
 
-ipcMain.handle('hub:write-icloud-backup', async (_e, jsonString) => {
+ipcMain.handle('hub:write-icloud-backup', async (event, jsonString) => {
+  if (!isTrustedRenderer(event)) return null;
   if (!jsonString || typeof jsonString !== 'string' || jsonString.length > 20_000_000) {
     return { ok: false, error: 'Backup data too large or invalid' };
   }
@@ -345,7 +353,8 @@ ipcMain.handle('hub:write-icloud-backup', async (_e, jsonString) => {
 });
 
 // --- Daily auto-backup (new in 1.3) ---
-ipcMain.handle('hub:write-backup', async (_e, jsonString) => {
+ipcMain.handle('hub:write-backup', async (event, jsonString) => {
+  if (!isTrustedRenderer(event)) return { ok: false, error: 'unauthorized_sender' };
   if (!jsonString || typeof jsonString !== 'string' || jsonString.length > 20_000_000) {
     return { ok: false, error: 'Backup data too large or invalid' };
   }
@@ -382,7 +391,8 @@ ipcMain.handle('hub:list-backups', async () => {
 });
 
 // Read a backup file by path (Feature 6)
-ipcMain.handle('hub:restore-backup', async (_e, backupPath) => {
+ipcMain.handle('hub:restore-backup', async (event, backupPath) => {
+  if (!isTrustedRenderer(event)) return null;
   const safe = path.join(backupsDir(), path.basename(String(backupPath || '')));
   if (!fs.existsSync(safe)) return null;
   try {
@@ -477,6 +487,7 @@ async function maybeShowKeychainExplanation(win) {
 }
 
 ipcMain.handle('hub:load-store', async (event) => {
+  if (!isTrustedRenderer(event)) return { __corrupt: true, error: 'unauthorized_sender' };
   const win = BrowserWindow.fromWebContents(event.sender);
   await maybeShowKeychainExplanation(win);
 
@@ -507,7 +518,8 @@ ipcMain.handle('hub:load-store', async (event) => {
   }
 });
 
-ipcMain.handle('hub:save-store', async (_e, data) => {
+ipcMain.handle('hub:save-store', async (event, data) => {
+  if (!isTrustedRenderer(event)) return { ok: false, error: 'unauthorized_sender' };
   const fp = dataFilePath();
   const tmp = fp + '.tmp';
   try {
@@ -593,7 +605,8 @@ ipcMain.handle('hub:delete-vault-file', async (_e, fullPath) => {
 
 // --- Feature 8: Auto-export status page ---
 const statusPagesDir = () => ensureDir('status-pages');
-ipcMain.handle('hub:write-status-page', async (_e, { html, orderId }) => {
+ipcMain.handle('hub:write-status-page', async (event, { html, orderId }) => {
+  if (!isTrustedRenderer(event)) return null;
   const safeId = path.basename(String(orderId || '')).replace(/[^a-zA-Z0-9_-]/g, '_');
   const dir = statusPagesDir();
   const fullPath = path.join(dir, `order-status-${safeId}.html`);
@@ -868,7 +881,8 @@ function defaultPrinterPort(type) {
 }
 
 // --- Feature 5 (new batch): Outbound email notifications ---
-ipcMain.handle('hub:send-email', async (_e, { to, subject, body, smtpConfig }) => {
+ipcMain.handle('hub:send-email', async (event, { to, subject, body, smtpConfig }) => {
+  if (!isTrustedRenderer(event)) return { ok: false, error: 'unauthorized_sender' };
   const cfg = smtpConfig ? { ...smtpConfig } : {};
   cfg.apiKey = resolveStoreSecret(cfg.apiKey, d => d?.settings?.emailConfig?.apiKey);
   if (cfg?.provider === 'sendgrid' && cfg?.apiKey) {
@@ -926,7 +940,8 @@ ipcMain.handle('hub:send-email', async (_e, { to, subject, body, smtpConfig }) =
 });
 
 // ── Feature R12-1: Outbound Webhooks ────────────────────────────────────────
-ipcMain.handle('hub:fire-webhook', async (_e, { url, event, payload, secret }) => {
+ipcMain.handle('hub:fire-webhook', async (event, { url, event: webhookEvent, payload, secret }) => {
+  if (!isTrustedRenderer(event)) return { ok: false, error: 'unauthorized_sender' };
   // Restrict to https:// only — prevents SSRF to localhost and internal network
   if (!url || !url.startsWith('https://')) return { ok: false, error: 'Invalid URL — only https:// allowed' };
   try {
@@ -934,8 +949,8 @@ ipcMain.handle('hub:fire-webhook', async (_e, { url, event, payload, secret }) =
     if (isBlockedHost(parsedWebhook.hostname)) return { ok: false, error: 'Blocked URL — cannot send webhooks to private/loopback addresses' };
   } catch { return { ok: false, error: 'Invalid webhook URL' }; }
   try {
-    const body = JSON.stringify({ event, payload, timestamp: Date.now() });
-    const headers = { 'Content-Type': 'application/json', 'X-Khayt-Event': event };
+    const body = JSON.stringify({ event: webhookEvent, payload, timestamp: Date.now() });
+    const headers = { 'Content-Type': 'application/json', 'X-Khayt-Event': webhookEvent };
     if (secret) headers['X-Khayt-Signature'] = require('crypto')
       .createHmac('sha256', secret).update(body).digest('hex');
     const res = await fetch(url, { method: 'POST', headers, body, redirect: 'manual' });

@@ -74,6 +74,15 @@
     return order.quoteApprovalToken;
   }
 
+  function timingSafeEqualHex(a, b) {
+    const sa = String(a || '');
+    const sb = String(b || '');
+    if (sa.length !== sb.length) return false;
+    let diff = 0;
+    for (let i = 0; i < sa.length; i++) diff |= sa.charCodeAt(i) ^ sb.charCodeAt(i);
+    return diff === 0;
+  }
+
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, (c) => ({
       '&': '&amp;',
@@ -138,6 +147,7 @@
     localDateStr,
     localMonthStr,
     escapeHtml,
+    timingSafeEqualHex,
     safeJsonParse,
     ensureQuoteApprovalToken,
     ensureTrackingToken,

@@ -263,16 +263,27 @@ function openOperatorEditor(opId = null) {
 
 /** Render the PIN lock settings sub-section inside settings tab */
 function openPinPadModal(afterUnlock) {
-  const mount = $('#modalMount');
   const opList = operators.filter(o => o.active !== false);
   if (opList.length === 0) { toast('No operators configured', 'info'); return; }
 
   let selectedOpId = opList[0].id;
   let enteredPin = '';
+  let overlay = document.getElementById('pinPadOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'pinPadOverlay';
+    overlay.className = 'modal-backdrop confirm-modal-overlay';
+    overlay.style.zIndex = '10050';
+    $('#modalMount').appendChild(overlay);
+  }
+
+  const closePinPad = () => {
+    overlay.remove();
+    overlay = null;
+  };
 
   const render = () => {
-    mount.innerHTML = `
-      <div class="modal-backdrop">
+    overlay.innerHTML = `
         <div class="modal modal-form" role="dialog" aria-modal="true" style="max-width:340px;">
           <div class="modal-header">
             <h3>${escapeHtml(t('op.switch') || 'Switch Operator')}</h3>
@@ -297,45 +308,43 @@ function openPinPadModal(afterUnlock) {
             <button class="btn ghost" data-act="cancel-pin">${escapeHtml(t('common.cancel'))}</button>
             <button class="btn primary" id="btnConfirmPin">${escapeHtml(t('common.confirm'))}</button>
           </div>
-        </div>
-      </div>`;
+        </div>`;
 
-    mount.querySelector('#pinOpSelect')?.addEventListener('change', e => {
+    overlay.querySelector('#pinOpSelect')?.addEventListener('change', e => {
       selectedOpId = e.target.value;
       enteredPin = '';
       render();
     });
 
-    mount.querySelectorAll('.pin-key').forEach(btn => {
+    overlay.querySelectorAll('.pin-key').forEach(btn => {
       btn.addEventListener('click', () => {
         const k = btn.dataset.k;
         if (k === 'C') { enteredPin = ''; }
         else if (k === '⌫') { enteredPin = enteredPin.slice(0, -1); }
         else if (enteredPin.length < 8) { enteredPin += k; }
-        const disp = mount.querySelector('#pinDisplay');
+        const disp = overlay.querySelector('#pinDisplay');
         if (disp) disp.textContent = '●'.repeat(enteredPin.length);
       });
     });
 
-    mount.querySelector('[data-act="cancel-pin"]')?.addEventListener('click', () => {
-      mount.innerHTML = '';
-    });
+    overlay.querySelector('[data-act="cancel-pin"]')?.addEventListener('click', closePinPad);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closePinPad(); });
 
-    mount.querySelector('#btnConfirmPin')?.addEventListener('click', async () => {
+    overlay.querySelector('#btnConfirmPin')?.addEventListener('click', async () => {
       const op = operators.find(o => o.id === selectedOpId);
-      if (!op) { mount.innerHTML = ''; return; }
+      if (!op) { closePinPad(); return; }
       // If no PIN set, allow free switch
       if (!op.pinHash) {
         settings.activeOperatorId = op.id;
         saveAll();
-        mount.innerHTML = '';
+        closePinPad();
         renderOperatorLockSettings();
         applyOperatorPermissions();
         toast(`Switched to ${op.name}`, 'success', 1800);
         if (afterUnlock) afterUnlock();
         return;
       }
-      const errEl = mount.querySelector('#pinError');
+      const errEl = overlay.querySelector('#pinError');
       // Support legacy btoa PINs (migration: clear them and prompt re-set)
       if (isLegacyPin(op.pinHash)) {
         op.pinHash = '';
@@ -345,16 +354,16 @@ function openPinPadModal(afterUnlock) {
         return;
       }
       const entered = await hashPin(enteredPin);
-      if (entered !== op.pinHash) {
+      if (!timingSafeEqualHex(entered, op.pinHash)) {
         if (errEl) errEl.textContent = t('op.wrong_pin') || 'Incorrect PIN';
         enteredPin = '';
-        const disp = mount.querySelector('#pinDisplay');
+        const disp = overlay.querySelector('#pinDisplay');
         if (disp) disp.textContent = '';
         return;
       }
       settings.activeOperatorId = op.id;
       saveAll();
-      mount.innerHTML = '';
+      closePinPad();
       renderOperatorLockSettings();
       applyOperatorPermissions();
       toast(`Switched to ${op.name}`, 'success', 1800);

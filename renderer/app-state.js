@@ -325,6 +325,49 @@ function buildExportPayload({ redactSecrets = false } = {}) {
 const redactSettingsForExport = (src) => KhaytStore.redactSettingsForExport(src);
 const redactMachinesForExport = (arr) => KhaytStore.redactMachinesForExport(arr);
 
+/** Reset in-memory store then load snapshot (import / full replace). */
+function replaceStoreFromSnapshot(store) {
+  printLog = [];
+  inventory = [];
+  templates = [];
+  products = [];
+  clients = [];
+  printers = [];
+  expenses = [];
+  machines = [];
+  waTemplates = defaultWaTemplates();
+  wasteLog = [];
+  machMaintLog = [];
+  consumables = [];
+  suppliers = [];
+  purchaseOrders = [];
+  testPrints = [];
+  locations = [];
+  operators = [];
+  waitingList = [];
+  waitingListHistory = [];
+  timeEntries = [];
+  shiftLogs = [];
+  giftCards = [];
+  slicerProfiles = [];
+  envLogs = [];
+  settings = defaultSettings();
+  applyStoreFromSnapshot(store);
+}
+
+function ensureOrderTrackingTokens() {
+  let changed = false;
+  for (const o of printLog) {
+    if (!o?.trackingToken) {
+      const bytes = new Uint8Array(16);
+      crypto.getRandomValues(bytes);
+      o.trackingToken = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+      changed = true;
+    }
+  }
+  if (changed) saveAll();
+}
+
 /** Load all collections from a store snapshot (disk load or import). */
 function applyStoreFromSnapshot(store) {
   if (!store) return;
@@ -506,6 +549,8 @@ async function loadAll() {
     }
   })();
 
+  ensureOrderTrackingTokens();
+
   // Feature 4 (batch-2): Process any due recurring orders on load
   processRecurringOrders();
 }
@@ -533,6 +578,8 @@ function pruneExpiredNotifs() {
     buildStoreSnapshot,
     buildExportPayload,
     applyStoreFromSnapshot,
+    replaceStoreFromSnapshot,
+    ensureOrderTrackingTokens,
     saveAll,
     flushSave,
     migrateFromLocalStorage,

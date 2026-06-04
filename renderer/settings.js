@@ -1551,7 +1551,7 @@ async function openRestoreBackupModal() {
         const json = await window.hubAPI.restoreBackup(chosen.value);
         if (!json) { toast(t('set.restore_error'), 'error'); return false; }
         const data = safeJsonParse(json);
-        applyStoreFromSnapshot(data);
+        replaceStoreFromSnapshot(data);
         saveAll();
         initialRender();
         loadSettingsIntoForm();
@@ -1682,7 +1682,7 @@ async function importData(file) {
   reader.onload = (ev) => {
     try {
       const data = safeJsonParse(ev.target.result);
-      applyStoreFromSnapshot(data);
+      replaceStoreFromSnapshot(data);
       saveAll();
       initialRender();
       loadSettingsIntoForm();
