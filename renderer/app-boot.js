@@ -417,10 +417,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         const res = await window.hubAPI.checkForUpdates();
         if (res?.status === 'dev') {
           if (msg) {
+            const ver = res.currentVersion || currentVersion || '';
             msg.innerHTML =
-              'Updates apply to the <strong>installed</strong> app (DMG). ' +
-              'You are running from source — install ' +
-              '<a href="https://github.com/Alballaa/Khayt/releases/latest" target="_blank" rel="noopener">v2.3.2+ from GitHub</a>.';
+              `Source build${ver ? ` (${escapeHtml(ver)})` : ''}. ` +
+              'New features ship on <strong>main</strong> first — in your repo folder run ' +
+              '<code>git pull origin main</code> then <code>npm start</code>. ' +
+              'Installed DMG/auto-update only moves when a new GitHub Release is published ' +
+              '(see <a href="https://github.com/Alballaa/Khayt/blob/main/docs/RELEASE-HOLD.md" target="_blank" rel="noopener">release hold</a>).';
           }
         } else if (res?.status === 'error') {
           if (msg) msg.textContent = `⚠ Update check failed: ${res.message || 'unknown error'}`;
