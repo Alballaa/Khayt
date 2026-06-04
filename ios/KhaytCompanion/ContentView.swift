@@ -55,8 +55,8 @@ struct MainTabView: View {
         .tint(KhaytDesign.accent)
         .onAppear { health.startPolling() }
         .onDisappear { health.stopPolling() }
-        .onChange(of: ordersNav.pendingStatusFilter) { _, filter in
-            if filter != nil { selectedTab = 1 }
+        .onChange(of: ordersNav.ordersTabRequest) { _, _ in
+            selectedTab = 1
         }
     }
 

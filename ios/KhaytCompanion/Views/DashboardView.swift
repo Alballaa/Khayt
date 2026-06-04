@@ -16,18 +16,14 @@ struct DashboardView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 14) {
                     if let status {
-                        headerBlock
-                        KanbanStripView(status: status) { stage in
-                            ordersNav.pendingStatusFilter = stage
-                        }
+                        statsRow(status)
+                        pipelineSection(status)
                         if overdueCount > 0 { overdueBanner }
-                        kpiGrid(status)
-                        completedCard(status)
                         if lowStockCount > 0 { lowStockBanner }
                         quickActions
-                        if !queuePreview.isEmpty { ordersCard }
+                        if !queuePreview.isEmpty { activeOrdersSection }
                     } else if isLoading {
                         ProgressView(L10n.tr("connection.checking"))
                             .frame(maxWidth: .infinity, minHeight: 200)
@@ -35,30 +31,16 @@ struct DashboardView: View {
                         emptyState
                     }
                 }
-                .padding(KhaytDesign.pad)
                 .padding(.bottom, 8)
             }
             .scrollIndicators(.hidden)
             .background(Color.clear)
-            .navigationTitle("")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationTitle(settings.shopLabel)
+            .navigationBarTitleDisplayMode(.large)
             .toolbar {
-                ToolbarItem(placement: .principal) {
-                    HStack(spacing: 10) {
-                        KhaytLogoMark(size: 28)
-                        VStack(alignment: .leading, spacing: 0) {
-                            Text(settings.shopLabel)
-                                .font(.headline)
-                                .foregroundStyle(KhaytDesign.text)
-                            Text(L10n.tr("home.subtitle"))
-                                .font(.caption2)
-                                .foregroundStyle(KhaytDesign.textMuted)
-                        }
-                    }
-                }
                 ToolbarItem(placement: .topBarTrailing) { ConnectionBadge() }
             }
-            .toolbarBackground(KhaytDesign.bg2, for: .navigationBar)
+            .toolbarBackground(KhaytDesign.navBg, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .refreshable { await load() }
             .task { await load() }
@@ -68,93 +50,93 @@ struct DashboardView: View {
         }
     }
 
-    private var headerBlock: some View {
-        EmptyView()
-    }
-
-    private func kpiGrid(_ status: ShopStatus) -> some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-            kpiCell(L10n.tr("stat.printing"), "\(status.printing)", KhaytDesign.ok)
-            kpiCell(L10n.tr("stat.post"), "\(status.post)", KhaytDesign.violet)
-            kpiCell(L10n.tr("stat.qc"), "\(status.qc)", KhaytDesign.accent)
-            kpiCell(L10n.tr("stat.in_queue"), "\(status.queued)", KhaytDesign.info)
+    private func statsRow(_ status: ShopStatus) -> some View {
+        HStack(spacing: 10) {
+            KhaytStatBlock(
+                value: "\(status.queued)",
+                label: L10n.tr("stat.in_queue"),
+                color: KhaytDesign.statusColor(for: "pending")
+            )
+            KhaytStatBlock(
+                value: "\(status.printing)",
+                label: L10n.tr("stat.printing"),
+                color: KhaytDesign.statusColor(for: "printing"),
+                subtitle: status.printing > 0 ? nil : L10n.tr("home.no_printing")
+            )
+            KhaytStatBlock(
+                value: "\(status.completedToday)",
+                label: L10n.tr("home.completed_today"),
+                color: KhaytDesign.statusColor(for: "completed")
+            )
         }
+        .padding(.horizontal, KhaytDesign.pad)
+        .padding(.top, 4)
     }
 
-    private func kpiCell(_ label: String, _ value: String, _ color: Color) -> some View {
-        KhaytCard(padding: 12) {
-            VStack(alignment: .leading, spacing: 8) {
-                KhaytEyebrow(text: label)
-                Text(value)
-                    .font(.system(size: 26, weight: .semibold, design: .rounded))
-                    .foregroundStyle(KhaytDesign.text)
+    private func pipelineSection(_ status: ShopStatus) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            KhaytSectionHeader(text: L10n.tr("home.pipeline"), actionTitle: L10n.tr("home.all_orders")) {
+                ordersNav.openOrders()
             }
-            .overlay(alignment: .topTrailing) {
-                Circle().fill(color).frame(width: 8, height: 8)
-            }
-        }
-    }
-
-    private func completedCard(_ status: ShopStatus) -> some View {
-        KhaytCard {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    KhaytEyebrow(text: L10n.tr("home.completed_today"))
-                    KhaytMetric(value: "\(status.completedToday)", unit: nil)
+            KhaytCard(padding: 0) {
+                KanbanStripView(status: status) { stage in
+                    ordersNav.openOrders(filter: stage)
                 }
-                Spacer()
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.title)
-                    .foregroundStyle(KhaytDesign.ok)
             }
+            .padding(.horizontal, KhaytDesign.pad)
         }
     }
 
     private var overdueBanner: some View {
         Button {
             UserDefaults.standard.set("orders_overdue", forKey: "khayt.orders.filter")
-            ordersNav.pendingStatusFilter = nil
+            ordersNav.openOrders()
         } label: {
-            KhaytCard(padding: 12) {
-                HStack {
-                    Image(systemName: "calendar.badge.exclamationmark")
-                        .foregroundStyle(KhaytDesign.danger)
-                    Text(String(format: L10n.tr("home.overdue"), overdueCount))
-                        .font(.subheadline.bold())
-                        .foregroundStyle(KhaytDesign.text)
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.caption.bold())
-                        .foregroundStyle(KhaytDesign.textMuted)
-                }
+            HStack {
+                Image(systemName: "calendar.badge.exclamationmark")
+                    .foregroundStyle(KhaytDesign.danger)
+                Text(String(format: L10n.tr("home.overdue"), overdueCount))
+                    .font(.subheadline.bold())
+                    .foregroundStyle(KhaytDesign.text)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.bold())
+                    .foregroundStyle(KhaytDesign.textMuted)
             }
+            .padding(12)
+            .background(KhaytDesign.dangerSoft, in: RoundedRectangle(cornerRadius: KhaytDesign.radiusLG))
+            .overlay(RoundedRectangle(cornerRadius: KhaytDesign.radiusLG).stroke(KhaytDesign.danger.opacity(0.2), lineWidth: 1))
         }
         .buttonStyle(.plain)
+        .padding(.horizontal, KhaytDesign.pad)
     }
 
     private var lowStockBanner: some View {
         NavigationLink {
             InventoryView()
         } label: {
-            KhaytCard(padding: 12) {
-                HStack {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(KhaytDesign.warn)
-                    Text(String(format: L10n.tr("home.low_stock"), lowStockCount))
-                        .font(.subheadline.bold())
-                        .foregroundStyle(KhaytDesign.text)
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .foregroundStyle(KhaytDesign.textMuted)
-                }
+            HStack {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(KhaytDesign.warn)
+                Text(String(format: L10n.tr("home.low_stock"), lowStockCount))
+                    .font(.subheadline.bold())
+                    .foregroundStyle(KhaytDesign.text)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.bold())
+                    .foregroundStyle(KhaytDesign.textMuted)
             }
+            .padding(12)
+            .background(KhaytDesign.warnSoft, in: RoundedRectangle(cornerRadius: KhaytDesign.radiusLG))
+            .overlay(RoundedRectangle(cornerRadius: KhaytDesign.radiusLG).stroke(KhaytDesign.warn.opacity(0.2), lineWidth: 1))
         }
         .buttonStyle(.plain)
+        .padding(.horizontal, KhaytDesign.pad)
     }
 
     private var quickActions: some View {
         VStack(alignment: .leading, spacing: 10) {
-            KhaytSectionTitle(text: L10n.tr("home.quick_actions"))
+            KhaytSectionHeader(text: L10n.tr("home.quick_actions"))
             HStack(spacing: 10) {
                 quickTile(L10n.tr("home.action.add_spool"), "plus.circle.fill") { showAddSpool = true }
                 NavigationLink { OrdersView() } label: {
@@ -164,6 +146,7 @@ struct DashboardView: View {
                     quickTileLabel(L10n.tr("home.action.inventory"), "cylinder.split.1x2.fill")
                 }
             }
+            .padding(.horizontal, KhaytDesign.pad)
         }
     }
 
@@ -175,58 +158,70 @@ struct DashboardView: View {
     }
 
     private func quickTileLabel(_ title: String, _ icon: String) -> some View {
-        VStack(spacing: 8) {
+        HStack(spacing: 8) {
             Image(systemName: icon)
-                .font(.title2)
-                .foregroundStyle(KhaytDesign.accent)
+                .font(.title3)
+                .foregroundStyle(KhaytDesign.brand)
             Text(title)
-                .font(.caption.bold())
-                .foregroundStyle(KhaytDesign.textDim)
-                .multilineTextAlignment(.center)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(KhaytDesign.text)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 14)
-        .background(KhaytDesign.surface, in: RoundedRectangle(cornerRadius: KhaytDesign.radiusMD))
-        .overlay(RoundedRectangle(cornerRadius: KhaytDesign.radiusMD).stroke(KhaytDesign.border, lineWidth: 1))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 12)
+        .background(KhaytDesign.surface, in: RoundedRectangle(cornerRadius: KhaytDesign.radiusLG))
     }
 
-    private var ordersCard: some View {
-        KhaytCard {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    KhaytSectionTitle(text: L10n.tr("home.active_orders"))
-                    Spacer()
-                    NavigationLink(L10n.tr("home.see_all"), destination: OrdersView())
-                        .font(.caption.bold())
-                        .foregroundStyle(KhaytDesign.accent)
-                }
-                KhaytThreadDivider()
-                ForEach(queuePreview.prefix(5)) { order in
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(order.displayTitle)
-                                .font(.subheadline.bold())
-                                .foregroundStyle(KhaytDesign.text)
-                            Text(order.displayClient)
-                                .font(.caption)
-                                .foregroundStyle(KhaytDesign.textMuted)
-                        }
-                        Spacer()
-                        VStack(alignment: .trailing, spacing: 4) {
-                            CompanionStatusBadge(status: order.status, compact: true)
-                            if order.isOverdue {
-                                Text(L10n.tr("orders.overdue"))
-                                    .font(.caption2.bold())
-                                    .foregroundStyle(KhaytDesign.danger)
-                            }
-                        }
-                    }
-                    if order.id != queuePreview.prefix(5).last?.id {
-                        Divider().overlay(KhaytDesign.hairline)
-                    }
-                }
+    private var activeOrdersSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            KhaytSectionHeader(text: L10n.tr("home.active_orders"), actionTitle: L10n.tr("home.see_all")) {
+                ordersNav.openOrders()
+            }
+            ForEach(queuePreview.prefix(4)) { order in
+                miniOrderRow(order)
             }
         }
+    }
+
+    private func miniOrderRow(_ order: QueueOrder) -> some View {
+        let stageColor = KhaytDesign.statusColor(for: order.status)
+        return HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 8) {
+                    Text(order.displayTitle)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(KhaytDesign.text)
+                        .lineLimit(1)
+                    if order.isOverdue {
+                        Text(L10n.tr("orders.overdue"))
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(KhaytDesign.danger)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 1)
+                            .background(KhaytDesign.dangerSoft, in: RoundedRectangle(cornerRadius: 6))
+                    }
+                }
+                Text(order.displayClient)
+                    .font(.system(size: 12))
+                    .foregroundStyle(KhaytDesign.textDim)
+            }
+            Spacer(minLength: 0)
+            VStack(alignment: .trailing, spacing: 5) {
+                CompanionStatusBadge(status: order.status, compact: true)
+                Text(order.id)
+                    .font(.system(size: 11))
+                    .foregroundStyle(KhaytDesign.textMuted)
+            }
+        }
+        .padding(12)
+        .background(KhaytDesign.surface, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(alignment: .leading) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(stageColor)
+                .frame(width: 3)
+                .padding(.vertical, 8)
+        }
+        .padding(.horizontal, KhaytDesign.pad)
     }
 
     private var emptyState: some View {
@@ -245,6 +240,7 @@ struct DashboardView: View {
             }
             .frame(maxWidth: .infinity)
         }
+        .padding(.horizontal, KhaytDesign.pad)
     }
 
     private func load() async {
@@ -257,7 +253,7 @@ struct DashboardView: View {
             async let inventoryTask = api.fetchInventory()
             let (s, q, inv) = try await (statusTask, queueTask, inventoryTask)
             status = s
-            queuePreview = q
+            queuePreview = q.filter { $0.status.lowercased() != "completed" }
             lowStockCount = inv.filter(\.isLowStock).count
             overdueCount = q.filter(\.isOverdue).count
             CompanionNotifications.shared.handleDashboardSnapshot(

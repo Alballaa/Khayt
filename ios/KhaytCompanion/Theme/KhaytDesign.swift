@@ -1,64 +1,73 @@
 import SwiftUI
 
-/// Khayt Studio design tokens — aligned with `design/khayt/ds.css`.
+/// Design tokens from `design/iOS UI/khayt-design.jsx` (DARK_TOKENS).
 enum KhaytDesign {
     // Backgrounds
-    static let bg = Color(hex: 0x0B0D12)
-    static let bg2 = Color(hex: 0x0F1218)
-    static let surface = Color(hex: 0x14181F)
-    static let surface2 = Color(hex: 0x1A1F28)
-    static let surface3 = Color(hex: 0x20262F)
+    static let bg = Color(hex: 0x0C0C0F)
+    static let bg2 = Color(hex: 0x141418)
+    static let surface = Color(hex: 0x1C1C26)
+    static let surface2 = Color(hex: 0x25252F)
+    static let surface3 = Color(hex: 0x2E2E3B)
 
-    // Text
-    static let text = Color(hex: 0xEEF1F6)
-    static let textDim = Color(hex: 0xA4ADBB)
-    static let textMuted = Color(hex: 0x6C7689)
-    static let textFaint = Color(hex: 0x4A5366)
+    // Labels
+    static let text = Color(hex: 0xFFFFFF)
+    static let textDim = Color.white.opacity(0.60)
+    static let textMuted = Color.white.opacity(0.32)
+    static let textFaint = Color.white.opacity(0.16)
 
-    // Accent — hsl(187 76% 53%)
-    static let accent = Color(hue: 187 / 360, saturation: 0.76, brightness: 0.58)
-    static let accentSoft = accent.opacity(0.14)
-    static let accentLine = accent.opacity(0.45)
+    // Brand / accent (mockup default #8183FF)
+    static let brand = Color(hex: 0x8183FF)
+    static let accent = brand
+    static let accentSoft = brand.opacity(0.16)
+    static let accentText = Color(hex: 0xA5A8FF)
+    static let accentLine = brand.opacity(0.45)
 
     // Semantic
-    static let ok = Color(hex: 0x3FB87F)
-    static let okSoft = ok.opacity(0.14)
-    static let warn = Color(hex: 0xE0A93C)
-    static let warnSoft = warn.opacity(0.14)
-    static let danger = Color(hex: 0xE5544B)
-    static let dangerSoft = danger.opacity(0.14)
-    static let info = Color(hex: 0x5B9CF0)
-    static let infoSoft = info.opacity(0.14)
-    static let violet = Color(hex: 0x9A86F5)
-    static let violetSoft = violet.opacity(0.14)
+    static let ok = Color(hex: 0x32D74B)
+    static let okSoft = ok.opacity(0.16)
+    static let warn = Color(hex: 0xFFD60A)
+    static let warnSoft = warn.opacity(0.16)
+    static let danger = Color(hex: 0xFF453A)
+    static let dangerSoft = danger.opacity(0.16)
+    static let orange = Color(hex: 0xFF9F0A)
+    static let orangeSoft = orange.opacity(0.16)
+    static let info = Color(hex: 0x8E8E93)
+    static let infoSoft = info.opacity(0.16)
+    static let violet = Color(hex: 0xBF5AF2)
+    static let violetSoft = violet.opacity(0.16)
 
-    static let border = Color.white.opacity(0.07)
-    static let hairline = Color.white.opacity(0.05)
+    static let border = Color.white.opacity(0.08)
+    static let hairline = Color.white.opacity(0.08)
+    static let sep = border
 
-    static let radiusSM: CGFloat = 7
-    static let radiusMD: CGFloat = 10
-    static let radiusLG: CGFloat = 14
-    static let radiusXL: CGFloat = 20
+    static let tabBg = Color(hex: 0x0A0A0E).opacity(0.94)
+    static let navBg = Color(hex: 0x0C0C10).opacity(0.92)
+    static let sheetBg = Color(hex: 0x1E1E28)
+
+    static let radiusSM: CGFloat = 10
+    static let radiusMD: CGFloat = 12
+    static let radiusLG: CGFloat = 16
+    static let radiusXL: CGFloat = 22
 
     static let pad: CGFloat = 16
 
     static func statusColor(for status: String) -> Color {
         switch status.lowercased() {
         case "pending": return info
-        case "printing": return ok
+        case "printing": return brand
         case "post": return violet
-        case "qc": return accent
-        case "completed": return ok.opacity(0.85)
+        case "qc": return warn
+        case "completed": return ok
         case "on_hold": return textMuted
         case "idle", "ready": return ok
-        case "busy": return warn
+        case "busy": return orange
         case "error": return danger
         default: return textDim
         }
     }
 
     static func statusSoft(for status: String) -> Color {
-        statusColor(for: status).opacity(0.14)
+        statusColor(for: status).opacity(0.16)
     }
 }
 
@@ -72,25 +81,17 @@ extension Color {
     }
 }
 
-/// Full-screen Khayt background with subtle accent glow.
+/// Full-screen background (flat; mockup has no accent glow).
 struct KhaytScreenBackground: View {
     var body: some View {
-        ZStack {
-            KhaytDesign.bg.ignoresSafeArea()
-            RadialGradient(
-                colors: [KhaytDesign.accent.opacity(0.12), .clear],
-                center: .topLeading,
-                startRadius: 20,
-                endRadius: 420
-            )
-            .ignoresSafeArea()
-        }
+        KhaytDesign.bg.ignoresSafeArea()
     }
 }
 
-/// Studio card surface.
+/// Card surface — `khayt-design.jsx` Card (radius 16, no border).
 struct KhaytCard<Content: View>: View {
     var padding: CGFloat = KhaytDesign.pad
+    var bordered: Bool = false
     @ViewBuilder var content: () -> Content
 
     var body: some View {
@@ -98,10 +99,65 @@ struct KhaytCard<Content: View>: View {
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(KhaytDesign.surface, in: RoundedRectangle(cornerRadius: KhaytDesign.radiusLG))
-            .overlay(
-                RoundedRectangle(cornerRadius: KhaytDesign.radiusLG)
-                    .stroke(KhaytDesign.border, lineWidth: 1)
-            )
+            .overlay {
+                if bordered {
+                    RoundedRectangle(cornerRadius: KhaytDesign.radiusLG)
+                        .stroke(KhaytDesign.border, lineWidth: 1)
+                }
+            }
+    }
+}
+
+/// Home stat tile — `khayt-home.jsx` StatBlock.
+struct KhaytStatBlock: View {
+    let value: String
+    let label: String
+    let color: Color
+    var subtitle: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(value)
+                .font(.system(size: 42, weight: .bold))
+                .foregroundStyle(color)
+                .minimumScaleFactor(0.7)
+                .lineLimit(1)
+            Text(label)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(KhaytDesign.textDim)
+            if let subtitle {
+                Text(subtitle)
+                    .font(.system(size: 10))
+                    .foregroundStyle(KhaytDesign.textMuted)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(KhaytDesign.surface, in: RoundedRectangle(cornerRadius: KhaytDesign.radiusLG))
+    }
+}
+
+/// Section header — `SectionLabel` in mockup.
+struct KhaytSectionHeader: View {
+    let text: String
+    var actionTitle: String?
+    var action: (() -> Void)?
+
+    var body: some View {
+        HStack {
+            Text(text.uppercased())
+                .font(.system(size: 12, weight: .semibold))
+                .tracking(0.7)
+                .foregroundStyle(KhaytDesign.textDim)
+            Spacer()
+            if let actionTitle, let action {
+                Button(actionTitle, action: action)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(KhaytDesign.brand)
+            }
+        }
+        .padding(.horizontal, KhaytDesign.pad)
     }
 }
 
@@ -144,14 +200,14 @@ struct KhaytMetric: View {
 
 struct KhaytPill: View {
     let text: String
-    var color: Color = KhaytDesign.accent
+    var color: Color = KhaytDesign.brand
     var body: some View {
         Text(text)
             .font(.caption.bold())
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
             .foregroundStyle(color)
-            .background(color.opacity(0.14), in: Capsule())
+            .background(color.opacity(0.16), in: Capsule())
     }
 }
 
@@ -174,8 +230,8 @@ struct KhaytPrimaryButton: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
-            .foregroundStyle(Color(hex: 0x04181C))
-            .background(KhaytDesign.accent, in: RoundedRectangle(cornerRadius: KhaytDesign.radiusMD))
+            .foregroundStyle(.white)
+            .background(KhaytDesign.brand, in: RoundedRectangle(cornerRadius: KhaytDesign.radiusMD))
         }
     }
 }
@@ -191,10 +247,6 @@ struct KhaytGhostButton: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .background(KhaytDesign.surface2, in: RoundedRectangle(cornerRadius: KhaytDesign.radiusSM))
-                .overlay(
-                    RoundedRectangle(cornerRadius: KhaytDesign.radiusSM)
-                        .stroke(KhaytDesign.border, lineWidth: 1)
-                )
         }
     }
 }
@@ -202,15 +254,8 @@ struct KhaytGhostButton: View {
 struct KhaytThreadDivider: View {
     var body: some View {
         Rectangle()
-            .fill(
-                LinearGradient(
-                    colors: [.clear, KhaytDesign.accentLine, .clear],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-            )
-            .frame(height: 1)
-            .opacity(0.6)
+            .fill(KhaytDesign.sep)
+            .frame(height: 0.5)
     }
 }
 
@@ -219,21 +264,14 @@ struct KhaytLogoMark: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: size * 0.28)
-                .fill(
-                    RadialGradient(
-                        colors: [KhaytDesign.accent.opacity(0.45), Color(hex: 0x0A1216)],
-                        center: .bottom,
-                        startRadius: 0,
-                        endRadius: size
-                    )
-                )
+                .fill(KhaytDesign.brandDim)
                 .overlay(
                     RoundedRectangle(cornerRadius: size * 0.28)
-                        .stroke(KhaytDesign.accent.opacity(0.4), lineWidth: 1)
+                        .stroke(KhaytDesign.brand.opacity(0.35), lineWidth: 1)
                 )
             Text("خ")
                 .font(.system(size: size * 0.55, weight: .semibold))
-                .foregroundStyle(KhaytDesign.accent)
+                .foregroundStyle(KhaytDesign.brand)
         }
         .frame(width: size, height: size)
     }

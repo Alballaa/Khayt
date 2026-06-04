@@ -6,7 +6,7 @@ extension View {
         self
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.large)
-            .toolbarBackground(KhaytDesign.bg2, for: .navigationBar)
+            .toolbarBackground(KhaytDesign.navBg, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .scrollContentBackground(.hidden)

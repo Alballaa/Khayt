@@ -17,7 +17,7 @@ enum CompanionTheme {
         case "completed": return "checkmark.circle.fill"
         case "on_hold": return "pause.circle"
         case "idle", "ready": return "checkmark.circle"
-        case "busy", "printing": return "printer.fill"
+        case "busy": return "printer.fill"
         case "error": return "exclamationmark.triangle.fill"
         default: return "circle"
         }
@@ -41,7 +41,6 @@ struct CompanionStatusBadge: View {
         .padding(.vertical, compact ? 4 : 5)
         .foregroundStyle(color)
         .background(KhaytDesign.statusSoft(for: status), in: Capsule())
-        .overlay(Capsule().stroke(color.opacity(0.25), lineWidth: 1))
     }
 }
 

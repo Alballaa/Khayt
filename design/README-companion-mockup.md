@@ -17,13 +17,12 @@ Verify tokens locally:
 python3 scripts/sync-companion-design-from-html.py
 ```
 
-## Implemented in iOS (Studio design system)
+## Implemented in iOS
 
-The companion app on branch `cursor/ios-companion-app-2e93` uses tokens from **`design/khayt/ds.css`**:
+SwiftUI on branch `cursor/ios-companion-app-2e93` follows **`design/iOS UI/khayt-design.jsx`** (`DARK_TOKENS`):
 
-- Dark surfaces (`#0b0d12` / `#14181f`)
-- Cyan accent `hsl(187 76% 53%)`
-- خ logo mark, thread dividers, KPI cards, custom tab bar
-- Files: `ios/KhaytCompanion/Theme/KhaytDesign.swift`, `KhaytTabBar.swift`
+- Surfaces `#0C0C0F` / `#1C1C26`, brand `#8183FF`, kanban stage colors
+- Home stat blocks, pipeline strip, mini order cards, blurred tab bar
+- Files: `ios/KhaytCompanion/Theme/KhaytDesign.swift`, `KhaytTabBar.swift`, `KanbanStripView.swift`
 
-If your HTML differs (e.g. light mode, different accent), paste the file into `design/` or describe deltas and we can align SwiftUI.
+Run `python3 scripts/sync-companion-design-from-html.py` after updating mockup files.

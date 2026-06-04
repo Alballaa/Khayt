@@ -56,7 +56,7 @@ struct OrderDetailSheet: View {
                                 Spacer()
                                 if order.status == st.rawValue {
                                     Image(systemName: "checkmark")
-                                        .foregroundStyle(CompanionTheme.brand)
+                                        .foregroundStyle(KhaytDesign.brand)
                                 }
                             }
                         }

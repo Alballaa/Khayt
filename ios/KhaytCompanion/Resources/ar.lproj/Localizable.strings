@@ -13,6 +13,10 @@
 "connection.banner.unreachable" = "لا يمكن الوصول إلى Khayt على الشبكة. تحقق من الواي فاي وتفعيل LAN API.";
 "connection.banner.pin" = "رمز LAN مرفوض. حدّث PIN في الإعدادات ليطابق سطح المكتب.";
 "connection.banner.checking" = "جاري الاتصال بسطح المكتب…";
+"connection.retry" = "إعادة المحاولة";
+"home.pipeline" = "سير العمل";
+"home.all_orders" = "كل الطلبات";
+"home.no_printing" = "لا مهام";
 
 /* Home */
 "home.subtitle" = "مباشر من تطبيق Khayt على الكمبيوتر";

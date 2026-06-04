@@ -16,27 +16,29 @@ struct KhaytTabBar: View {
                 Button {
                     withAnimation(.easeInOut(duration: 0.2)) { selection = item.id }
                 } label: {
-                    VStack(spacing: 4) {
+                    VStack(spacing: 3) {
                         Image(systemName: item.icon)
-                            .font(.system(size: 20, weight: selection == item.id ? .semibold : .regular))
+                            .font(.system(size: 22, weight: selection == item.id ? .semibold : .regular))
                         Text(item.title)
-                            .font(.system(size: 10, weight: selection == item.id ? .bold : .medium))
+                            .font(.system(size: 10, weight: selection == item.id ? .semibold : .regular))
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .foregroundStyle(selection == item.id ? KhaytDesign.accent : KhaytDesign.textMuted)
+                    .padding(.top, 9)
+                    .padding(.bottom, 4)
+                    .foregroundStyle(selection == item.id ? KhaytDesign.brand : KhaytDesign.textMuted)
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 8)
-        .padding(.top, 8)
-        .padding(.bottom, 6)
-        .background(
-            KhaytDesign.bg2
+        .padding(.horizontal, 4)
+        .padding(.bottom, 2)
+        .background {
+            Rectangle()
+                .fill(KhaytDesign.tabBg)
+                .background(.ultraThinMaterial)
                 .overlay(alignment: .top) {
-                    KhaytDesign.hairline.frame(height: 1)
+                    Rectangle().fill(KhaytDesign.sep).frame(height: 0.5)
                 }
-        )
+        }
     }
 }

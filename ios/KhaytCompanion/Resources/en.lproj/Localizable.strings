@@ -13,6 +13,10 @@
 "connection.banner.unreachable" = "Cannot reach Khayt on your network. Check Wi‑Fi and desktop LAN API.";
 "connection.banner.pin" = "LAN PIN rejected. Update PIN in Settings to match desktop.";
 "connection.banner.checking" = "Connecting to desktop…";
+"connection.retry" = "Retry";
+"home.pipeline" = "Pipeline";
+"home.all_orders" = "All orders";
+"home.no_printing" = "No jobs";
 
 /* Home */
 "home.subtitle" = "Live from your Khayt desktop";
