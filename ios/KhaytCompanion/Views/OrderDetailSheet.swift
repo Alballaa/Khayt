@@ -39,14 +39,14 @@ struct OrderDetailSheet: View {
                                     Spacer()
                                 }
                             } else {
-                                Label("Advance to next stage", systemImage: "arrow.right.circle.fill")
+                                Label(L10n.tr("orders.detail.advance"), systemImage: "arrow.right.circle.fill")
                             }
                         }
                         .disabled(isUpdating)
                     }
                 }
 
-                Section("Set status") {
+                Section(L10n.tr("orders.detail.set_status")) {
                     ForEach(OrderStatus.allCases.filter { $0 != .completed }, id: \.self) { st in
                         Button {
                             onSetStatus(st.rawValue)

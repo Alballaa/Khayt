@@ -18,6 +18,24 @@ final class ConnectionSettings: ObservableObject {
     @Published var shopLabel: String {
         didSet { UserDefaults.standard.set(shopLabel, forKey: Keys.shopLabel) }
     }
+    @Published var appLanguage: AppLanguage {
+        didSet {
+            UserDefaults.standard.set(appLanguage.rawValue, forKey: Keys.language)
+            L10n.setLanguage(appLanguage)
+        }
+    }
+    @Published var notifyQueueChanges: Bool {
+        didSet { UserDefaults.standard.set(notifyQueueChanges, forKey: Keys.notifyQueue) }
+    }
+    @Published var notifyConnection: Bool {
+        didSet { UserDefaults.standard.set(notifyConnection, forKey: Keys.notifyConnection) }
+    }
+    @Published var notifyOverdue: Bool {
+        didSet { UserDefaults.standard.set(notifyOverdue, forKey: Keys.notifyOverdue) }
+    }
+    @Published var notifyLowStock: Bool {
+        didSet { UserDefaults.standard.set(notifyLowStock, forKey: Keys.notifyLowStock) }
+    }
 
     private enum Keys {
         static let host = "khayt.host"
@@ -25,6 +43,11 @@ final class ConnectionSettings: ObservableObject {
         static let shopLabel = "khayt.shopLabel"
         static let pinKeychain = "khayt.lanPin"
         static let paired = "khayt.paired"
+        static let language = "khayt.language"
+        static let notifyQueue = "khayt.notify.queue"
+        static let notifyConnection = "khayt.notify.connection"
+        static let notifyOverdue = "khayt.notify.overdue"
+        static let notifyLowStock = "khayt.notify.lowstock"
     }
 
     init() {
@@ -34,6 +57,13 @@ final class ConnectionSettings: ObservableObject {
         shopLabel = defaults.string(forKey: Keys.shopLabel) ?? "My Shop"
         isPaired = defaults.bool(forKey: Keys.paired)
         pin = KeychainHelper.get(Keys.pinKeychain) ?? ""
+        let langRaw = defaults.string(forKey: Keys.language) ?? AppLanguage.system.rawValue
+        appLanguage = AppLanguage(rawValue: langRaw) ?? .system
+        notifyQueueChanges = defaults.object(forKey: Keys.notifyQueue) as? Bool ?? true
+        notifyConnection = defaults.object(forKey: Keys.notifyConnection) as? Bool ?? true
+        notifyOverdue = defaults.object(forKey: Keys.notifyOverdue) as? Bool ?? true
+        notifyLowStock = defaults.object(forKey: Keys.notifyLowStock) as? Bool ?? true
+        L10n.setLanguage(appLanguage)
     }
 
     var baseURL: URL? {

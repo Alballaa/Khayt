@@ -6,13 +6,15 @@ struct KhaytCompanionApp: App {
     @StateObject private var api: KhaytAPIClient
     @StateObject private var health: ConnectionHealth
     @StateObject private var nfc = NFCReader()
+    @StateObject private var ordersNav = OrdersNavigationState()
 
     init() {
         let s = ConnectionSettings()
         let apiClient = KhaytAPIClient(settings: s)
+        let healthMonitor = ConnectionHealth(api: apiClient, settings: s)
         _settings = StateObject(wrappedValue: s)
         _api = StateObject(wrappedValue: apiClient)
-        _health = StateObject(wrappedValue: ConnectionHealth(api: apiClient))
+        _health = StateObject(wrappedValue: healthMonitor)
     }
 
     var body: some Scene {
@@ -22,7 +24,12 @@ struct KhaytCompanionApp: App {
                 .environmentObject(api)
                 .environmentObject(health)
                 .environmentObject(nfc)
-                .tint(Color(red: 0.39, green: 0.40, blue: 0.95))
+                .environmentObject(ordersNav)
+                .companionLocale(settings)
+                .tint(CompanionTheme.brand)
+                .task {
+                    await CompanionNotifications.shared.requestAuthorizationIfNeeded()
+                }
         }
     }
 }

@@ -3,24 +3,40 @@ import SwiftUI
 /// Active production queue + recent order history.
 struct OrdersView: View {
     @EnvironmentObject private var api: KhaytAPIClient
+    @EnvironmentObject private var ordersNav: OrdersNavigationState
 
     enum Segment: String, CaseIterable, Identifiable {
-        case active = "Active"
-        case recent = "Recent"
+        case active
+        case recent
         var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .active: return L10n.tr("orders.active")
+            case .recent: return L10n.tr("orders.recent")
+            }
+        }
+    }
+
+    enum ActiveFilter: Equatable {
+        case all
+        case status(OrderStatus)
+        case overdue
     }
 
     @State private var segment: Segment = .active
     @State private var queue: [QueueOrder] = []
     @State private var recent: [OrderLogEntry] = []
-    @State private var statusFilter: OrderStatus?
+    @State private var activeFilter: ActiveFilter = .all
     @State private var errorMessage: String?
     @State private var updatingId: String?
     @State private var selectedOrder: QueueOrder?
 
     private var filteredQueue: [QueueOrder] {
-        guard let statusFilter else { return queue }
-        return queue.filter { $0.status == statusFilter.rawValue }
+        switch activeFilter {
+        case .all: return queue
+        case .status(let st): return queue.filter { $0.status == st.rawValue }
+        case .overdue: return queue.filter(\.isOverdue)
+        }
     }
 
     var body: some View {
@@ -28,7 +44,7 @@ struct OrdersView: View {
             VStack(spacing: 0) {
                 Picker("Orders", selection: $segment) {
                     ForEach(Segment.allCases) { s in
-                        Text(s.rawValue).tag(s)
+                        Text(s.title).tag(s)
                     }
                 }
                 .pickerStyle(.segmented)
@@ -41,10 +57,12 @@ struct OrdersView: View {
                     recentContent
                 }
             }
-            .navigationTitle("Orders")
+            .navigationTitle(L10n.tr("tab.orders"))
             .toolbar { ToolbarItem(placement: .topBarTrailing) { ConnectionBadge() } }
             .refreshable { await load() }
             .task(id: segment) { await load() }
+            .onAppear { applyExternalFilters() }
+            .onChange(of: ordersNav.pendingStatusFilter) { _, _ in applyExternalFilters() }
             .sheet(item: $selectedOrder) { order in
                 OrderDetailSheet(
                     order: order,
@@ -56,14 +74,29 @@ struct OrdersView: View {
         }
     }
 
+    private func applyExternalFilters() {
+        if let pending = ordersNav.pendingStatusFilter {
+            activeFilter = .status(pending)
+            segment = .active
+            ordersNav.pendingStatusFilter = nil
+        } else if UserDefaults.standard.string(forKey: "khayt.orders.filter") == "orders_overdue" {
+            activeFilter = .overdue
+            segment = .active
+            UserDefaults.standard.removeObject(forKey: "khayt.orders.filter")
+        }
+    }
+
     @ViewBuilder
     private var activeContent: some View {
         if !queue.isEmpty {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    FilterChip(title: "All", selected: statusFilter == nil) { statusFilter = nil }
+                    FilterChip(title: L10n.tr("orders.filter.all"), selected: activeFilter == .all) { activeFilter = .all }
+                    FilterChip(title: L10n.tr("orders.overdue"), selected: activeFilter == .overdue) { activeFilter = .overdue }
                     ForEach([OrderStatus.pending, .printing, .post, .qc, .on_hold], id: \.self) { st in
-                        FilterChip(title: st.label, selected: statusFilter == st) { statusFilter = st }
+                        FilterChip(title: st.localizedLabel, selected: activeFilter == .status(st)) {
+                            activeFilter = .status(st)
+                        }
                     }
                 }
                 .padding(.horizontal)
@@ -76,9 +109,9 @@ struct OrdersView: View {
                 ProgressView()
             } else if filteredQueue.isEmpty {
                 ContentUnavailableView(
-                    "No orders",
+                    L10n.tr("tab.orders"),
                     systemImage: "tray",
-                    description: Text(errorMessage ?? "Nothing in this filter.")
+                    description: Text(errorMessage ?? "—")
                 )
             } else {
                 List(filteredQueue) { order in
@@ -105,9 +138,9 @@ struct OrdersView: View {
                 ProgressView()
             } else if recent.isEmpty {
                 ContentUnavailableView(
-                    "No recent orders",
+                    L10n.tr("orders.recent"),
                     systemImage: "clock",
-                    description: Text(errorMessage ?? "Completed jobs appear here.")
+                    description: Text(errorMessage ?? "—")
                 )
             } else {
                 List(recent) { entry in
@@ -121,10 +154,17 @@ struct OrdersView: View {
                         Text(entry.displayClient)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
-                        if let date = entry.date ?? entry.dueDate {
-                            Text(date)
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
+                        HStack {
+                            if let date = entry.date ?? entry.dueDate {
+                                Text(date)
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                            if entry.isOverdue {
+                                Text(L10n.tr("orders.overdue"))
+                                    .font(.caption2.bold())
+                                    .foregroundStyle(.red)
+                            }
                         }
                     }
                     .padding(.vertical, 2)
@@ -156,9 +196,6 @@ struct OrdersView: View {
             try await api.updateOrderStatus(orderId: order.id, status: status)
             CompanionHaptics.success()
             await load()
-            if let updated = queue.first(where: { $0.id == order.id }) {
-                selectedOrder = updated
-            }
         } catch {
             errorMessage = error.localizedDescription
             CompanionHaptics.warning()
@@ -211,17 +248,24 @@ private struct QueueOrderRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            if let due = order.dueDate, !due.isEmpty {
-                Label(due, systemImage: "calendar")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+            HStack {
+                if let due = order.formattedDueDate {
+                    Label(String(format: L10n.tr("orders.due"), due), systemImage: "calendar")
+                        .font(.caption2)
+                        .foregroundStyle(order.isOverdue ? .red : .tertiary)
+                }
+                if order.isOverdue {
+                    Text(L10n.tr("orders.overdue"))
+                        .font(.caption2.bold())
+                        .foregroundStyle(.red)
+                }
             }
             if OrderStatus(rawValue: order.status)?.nextInQueue != nil {
                 Button(action: onAdvance) {
                     if isUpdating {
                         ProgressView().controlSize(.small)
                     } else {
-                        Label("Advance", systemImage: "arrow.right.circle")
+                        Label(L10n.tr("orders.advance"), systemImage: "arrow.right.circle")
                             .font(.caption.bold())
                     }
                 }

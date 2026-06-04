@@ -34,6 +34,15 @@
 		B1000000000000000000001D /* OrdersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000001D /* OrdersView.swift */; };
 		B1000000000000000000001E /* OrderDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000001E /* OrderDetailSheet.swift */; };
 		B1000000000000000000001F /* SpoolDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000001F /* SpoolDetailSheet.swift */; };
+		B10000000000000000000020 /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000020 /* L10n.swift */; };
+		B10000000000000000000021 /* CompanionNotifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000021 /* CompanionNotifications.swift */; };
+		B10000000000000000000022 /* OrdersNavigationState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000022 /* OrdersNavigationState.swift */; };
+		B10000000000000000000023 /* CompanionShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000023 /* CompanionShortcuts.swift */; };
+		B10000000000000000000024 /* OrderHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000024 /* OrderHelpers.swift */; };
+		B10000000000000000000025 /* ConnectionBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000025 /* ConnectionBanner.swift */; };
+		B10000000000000000000026 /* KanbanStripView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000026 /* KanbanStripView.swift */; };
+		B10000000000000000000027 /* en in Resources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000027 /* en */; };
+		B10000000000000000000028 /* ar in Resources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000028 /* ar */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -67,6 +76,15 @@
 		F1000000000000000000001D /* OrdersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrdersView.swift; sourceTree = "<group>"; };
 		F1000000000000000000001E /* OrderDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrderDetailSheet.swift; sourceTree = "<group>"; };
 		F1000000000000000000001F /* SpoolDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpoolDetailSheet.swift; sourceTree = "<group>"; };
+		F10000000000000000000020 /* L10n.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = L10n.swift; path = Services/L10n.swift; sourceTree = "<group>"; };
+		F10000000000000000000021 /* CompanionNotifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CompanionNotifications.swift; path = Services/CompanionNotifications.swift; sourceTree = "<group>"; };
+		F10000000000000000000022 /* OrdersNavigationState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OrdersNavigationState.swift; path = Services/OrdersNavigationState.swift; sourceTree = "<group>"; };
+		F10000000000000000000023 /* CompanionShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CompanionShortcuts.swift; path = Services/CompanionShortcuts.swift; sourceTree = "<group>"; };
+		F10000000000000000000024 /* OrderHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrderHelpers.swift; sourceTree = "<group>"; };
+		F10000000000000000000025 /* ConnectionBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionBanner.swift; sourceTree = "<group>"; };
+		F10000000000000000000026 /* KanbanStripView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KanbanStripView.swift; sourceTree = "<group>"; };
+		F10000000000000000000027 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
+		F10000000000000000000028 /* ar */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ar; path = ar.lproj/Localizable.strings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -167,6 +185,8 @@
 			isa = PBXGroup;
 			children = (
 				F1000000000000000000000D /* Assets.xcassets */,
+				F10000000000000000000027 /* en */,
+				F10000000000000000000028 /* ar */,
 				F1000000000000000000000E /* Info.plist */,
 			);
 			path = Resources;
@@ -231,6 +251,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				B1000000000000000000000D /* Assets.xcassets in Resources */,
+				B10000000000000000000027 /* en in Resources */,
+				B10000000000000000000028 /* ar in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -250,6 +272,13 @@
 				B10000000000000000000007 /* NFCReader.swift in Sources */,
 				B10000000000000000000008 /* DashboardView.swift in Sources */,
 				B1000000000000000000001F /* SpoolDetailSheet.swift in Sources */,
+				B10000000000000000000026 /* KanbanStripView.swift in Sources */,
+				B10000000000000000000025 /* ConnectionBanner.swift in Sources */,
+				B10000000000000000000024 /* OrderHelpers.swift in Sources */,
+				B10000000000000000000023 /* CompanionShortcuts.swift in Sources */,
+				B10000000000000000000022 /* OrdersNavigationState.swift in Sources */,
+				B10000000000000000000021 /* CompanionNotifications.swift in Sources */,
+				B10000000000000000000020 /* L10n.swift in Sources */,
 				B1000000000000000000001E /* OrderDetailSheet.swift in Sources */,
 				B1000000000000000000001D /* OrdersView.swift in Sources */,
 				B1000000000000000000001C /* CompanionTheme.swift in Sources */,

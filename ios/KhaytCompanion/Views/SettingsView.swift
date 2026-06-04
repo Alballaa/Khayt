@@ -13,27 +13,57 @@ struct SettingsView: View {
             Form {
                 Section {
                     HStack {
-                        Text("LAN status")
+                        Text(L10n.tr("settings.lan_status"))
                         Spacer()
                         ConnectionBadge()
                     }
                     if let checked = health.lastChecked {
-                        Text("Last checked \(checked.formatted(date: .omitted, time: .shortened))")
+                        Text(checked.formatted(date: .omitted, time: .shortened))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
 
                 Section(
-                    header: Text("Connection"),
-                    footer: Text("Same PIN as Khayt Settings, LAN API / kiosk. Desktop v2.2.1+ required.")
+                    header: Text(L10n.tr("settings.connection")),
+                    footer: Text(L10n.tr("settings.connection.footer"))
                 ) {
-                    TextField("Shop name", text: $settings.shopLabel)
-                    TextField("Desktop IP or hostname", text: $settings.host)
+                    TextField(L10n.tr("settings.shop_name"), text: $settings.shopLabel)
+                    TextField(L10n.tr("settings.host"), text: $settings.host)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
-                    Stepper("Port: \(settings.port)", value: $settings.port, in: 1024...65535)
-                    SecureField("Owner LAN PIN", text: $settings.pin)
+                    Stepper(String(format: L10n.tr("settings.port"), settings.port), value: $settings.port, in: 1024...65535)
+                    SecureField(L10n.tr("settings.pin"), text: $settings.pin)
+                }
+
+                Section(header: Text(L10n.tr("settings.language"))) {
+                    Picker(L10n.tr("settings.language"), selection: $settings.appLanguage) {
+                        ForEach(AppLanguage.allCases) { lang in
+                            Text(lang.label).tag(lang)
+                        }
+                    }
+                }
+
+                Section(
+                    header: Text(L10n.tr("settings.notifications")),
+                    footer: Text(L10n.tr("settings.notify.footer"))
+                ) {
+                    Toggle(L10n.tr("settings.notify.queue"), isOn: $settings.notifyQueueChanges)
+                    Toggle(L10n.tr("settings.notify.connection"), isOn: $settings.notifyConnection)
+                    Toggle(L10n.tr("settings.notify.overdue"), isOn: $settings.notifyOverdue)
+                    Toggle(L10n.tr("settings.notify.low_stock"), isOn: $settings.notifyLowStock)
+                    Button {
+                        Task { await CompanionNotifications.shared.requestAuthorizationIfNeeded() }
+                    } label: {
+                        Text("Allow notifications")
+                    }
+                }
+
+                Section(
+                    header: Text(L10n.tr("settings.widget")),
+                    footer: Text(L10n.tr("settings.widget.footer"))
+                ) {
+                    Link("Widget setup guide", destination: URL(string: "https://github.com/Alballaa/Khayt/blob/main/ios/XCODE_WIDGET.md")!)
                 }
 
                 Section {
@@ -41,7 +71,7 @@ struct SettingsView: View {
                         Task { await testConnection() }
                     } label: {
                         HStack {
-                            Text("Re-test pairing")
+                            Text(L10n.tr("settings.retest"))
                             Spacer()
                             if isTesting { ProgressView() }
                         }
@@ -53,20 +83,20 @@ struct SettingsView: View {
                     }
                 }
 
-                Section(footer: Text("Clears paired state; PIN stays in Keychain until you change it.")) {
-                    Button("Unpair this device", role: .destructive) {
+                Section(footer: Text(L10n.tr("settings.unpair.footer"))) {
+                    Button(L10n.tr("settings.unpair"), role: .destructive) {
                         settings.isPaired = false
                     }
                 }
 
-                Section(header: Text("Documentation")) {
+                Section(header: Text(L10n.tr("settings.docs"))) {
                     Link(
-                        "LAN API reference",
+                        L10n.tr("settings.docs"),
                         destination: URL(string: "https://github.com/Alballaa/Khayt/blob/main/docs/LAN_API.md")!
                     )
                 }
             }
-            .navigationTitle("Settings")
+            .navigationTitle(L10n.tr("tab.settings"))
         }
     }
 

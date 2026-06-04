@@ -39,7 +39,7 @@ struct CompanionStatusBadge: View {
     var body: some View {
         HStack(spacing: 4) {
             Image(systemName: CompanionTheme.statusIcon(for: status))
-            Text(OrderStatus(rawValue: status)?.label ?? status.capitalized)
+            Text(OrderStatus(rawValue: status)?.localizedLabel ?? status.capitalized)
         }
         .font(compact ? .caption2.bold() : .caption.bold())
         .padding(.horizontal, compact ? 6 : 8)

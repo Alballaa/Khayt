@@ -1,0 +1,91 @@
+/* Tabs */
+"tab.home" = "الرئيسية";
+"tab.orders" = "الطلبات";
+"tab.inventory" = "المخزون";
+"tab.machines" = "الآلات";
+"tab.settings" = "الإعدادات";
+
+/* Connection */
+"connection.checking" = "جاري الاتصال…";
+"connection.connected" = "متصل";
+"connection.unreachable" = "تعذر الوصول للكمبيوتر";
+"connection.unauthorized" = "رمز PIN خاطئ";
+"connection.banner.unreachable" = "لا يمكن الوصول إلى Khayt على الشبكة. تحقق من الواي فاي وتفعيل LAN API.";
+"connection.banner.pin" = "رمز LAN مرفوض. حدّث PIN في الإعدادات ليطابق سطح المكتب.";
+"connection.banner.checking" = "جاري الاتصال بسطح المكتب…";
+
+/* Home */
+"home.subtitle" = "مباشر من تطبيق Khayt على الكمبيوتر";
+"home.completed_today" = "مكتمل اليوم";
+"home.low_stock" = "%d بكرة منخفضة";
+"home.quick_actions" = "إجراءات سريعة";
+"home.action.add_spool" = "إضافة بكرة";
+"home.action.orders" = "الطلبات";
+"home.action.inventory" = "المخزون";
+"home.active_orders" = "طلبات نشطة";
+"home.see_all" = "عرض الكل";
+"home.overdue" = "%d متأخر";
+"stat.in_queue" = "في الطابور";
+"stat.printing" = "طباعة";
+"stat.post" = "ما بعد";
+"stat.qc" = "فحص الجودة";
+
+/* Orders */
+"orders.active" = "نشط";
+"orders.recent" = "الأخيرة";
+"orders.filter.all" = "الكل";
+"orders.advance" = "تقديم";
+"orders.overdue" = "متأخر";
+"orders.due" = "الاستحقاق %@";
+"orders.detail.set_status" = "تعيين الحالة";
+"orders.detail.advance" = "المرحلة التالية";
+
+/* Inventory */
+"inventory.search" = "مادة، SKU، دفعة…";
+"inventory.filter.all" = "الكل";
+"inventory.filter.low" = "مخزون منخفض";
+"inventory.sort.newest" = "الأحدث أولاً";
+"inventory.low_badge" = "منخفض";
+
+/* Settings */
+"settings.lan_status" = "حالة الشبكة";
+"settings.connection" = "الاتصال";
+"settings.connection.footer" = "نفس PIN من إعدادات Khayt → LAN API. يتطلب سطح المكتب 2.2.1+";
+"settings.shop_name" = "اسم المحل";
+"settings.host" = "IP أو اسم المضيف";
+"settings.port" = "المنفذ: %d";
+"settings.pin" = "رمز PIN";
+"settings.retest" = "إعادة اختبار الاتصال";
+"settings.unpair" = "إلغاء الربط";
+"settings.unpair.footer" = "يمسح حالة الربط؛ يبقى PIN في Keychain.";
+"settings.language" = "اللغة";
+"settings.notifications" = "الإشعارات";
+"settings.notify.queue" = "تغييرات الطابور";
+"settings.notify.connection" = "انقطاع الاتصال";
+"settings.notify.overdue" = "طلبات متأخرة";
+"settings.notify.low_stock" = "فيلامنت منخفض";
+"settings.notify.footer" = "تنبيهات محلية عند اكتشاف التطبيق للتغييرات (استطلاع LAN).";
+"settings.widget" = "ودجة الشاشة الرئيسية";
+"settings.widget.footer" = "أضف ودجة Khayt Queue من معرض الودجات بعد البناء.";
+"settings.docs" = "مرجع LAN API";
+
+/* Status */
+"status.pending" = "قيد الانتظار";
+"status.printing" = "طباعة";
+"status.post" = "ما بعد الطباعة";
+"status.qc" = "فحص الجودة";
+"status.completed" = "مكتمل";
+"status.on_hold" = "معلق";
+
+/* Lang */
+"lang.system" = "النظام";
+
+/* Notifications */
+"notify.queue.title" = "تحديث الطابور";
+"notify.queue.body" = "%d في الطابور (%d طباعة)";
+"notify.offline.title" = "انقطع الاتصال";
+"notify.offline.body" = "تعذر الوصول لسطح المكتب";
+"notify.overdue.title" = "طلبات متأخرة";
+"notify.overdue.body" = "%d طلب متأخر";
+"notify.low_stock.title" = "فيلامنت منخفض";
+"notify.low_stock.body" = "%d بكرة أقل من 200غ";

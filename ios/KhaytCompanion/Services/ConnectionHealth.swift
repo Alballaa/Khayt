@@ -8,10 +8,10 @@ enum ConnectionHealthState: String, Sendable {
 
     var label: String {
         switch self {
-        case .unknown: return "Checking…"
-        case .connected: return "Connected"
-        case .unreachable: return "Unreachable"
-        case .unauthorized: return "Wrong PIN"
+        case .unknown: return L10n.tr("connection.checking")
+        case .connected: return L10n.tr("connection.connected")
+        case .unreachable: return L10n.tr("connection.unreachable")
+        case .unauthorized: return L10n.tr("connection.unauthorized")
         }
     }
 
@@ -32,10 +32,16 @@ final class ConnectionHealth: ObservableObject {
     @Published private(set) var lastStatus: ShopStatus?
 
     private let api: KhaytAPIClient
+    private weak var settings: ConnectionSettings?
     private var task: Task<Void, Never>?
 
-    init(api: KhaytAPIClient) {
+    init(api: KhaytAPIClient, settings: ConnectionSettings? = nil) {
         self.api = api
+        self.settings = settings
+    }
+
+    func bind(settings: ConnectionSettings) {
+        self.settings = settings
     }
 
     func startPolling(intervalSeconds: UInt64 = 30) {
@@ -57,26 +63,53 @@ final class ConnectionHealth: ObservableObject {
         guard api.isConfigured else {
             state = .unreachable
             lastChecked = Date()
+            notifyConnectionChange()
+            if let settings { CompanionNotifications.shared.saveDisconnectedSnapshot(shopName: settings.shopLabel) }
             return
         }
         do {
             let status = try await api.fetchStatus()
             lastStatus = status
             do {
-                _ = try await api.fetchQueue()
+                let queue = try await api.fetchQueue()
                 state = .connected
+                await refreshWidgetsAndAlerts(status: status, queue: queue)
             } catch let err as KhaytAPIError {
                 if case .unauthorized = err { state = .unauthorized }
                 else { state = .connected }
             }
             lastChecked = Date()
+            notifyConnectionChange()
         } catch let err as KhaytAPIError {
             if case .unauthorized = err { state = .unauthorized }
             else { state = .unreachable }
             lastChecked = Date()
+            notifyConnectionChange()
+            if let settings { CompanionNotifications.shared.saveDisconnectedSnapshot(shopName: settings.shopLabel) }
         } catch {
             state = .unreachable
             lastChecked = Date()
+            notifyConnectionChange()
+            if let settings { CompanionNotifications.shared.saveDisconnectedSnapshot(shopName: settings.shopLabel) }
         }
+    }
+
+    private func notifyConnectionChange() {
+        guard let settings else { return }
+        CompanionNotifications.shared.handleHealthUpdate(state: state, status: lastStatus, settings: settings)
+    }
+
+    private func refreshWidgetsAndAlerts(status: ShopStatus, queue: [QueueOrder]) async {
+        guard let settings else { return }
+        var lowStock = 0
+        if settings.notifyLowStock {
+            lowStock = (try? await api.fetchInventory())?.filter(\.isLowStock).count ?? 0
+        }
+        CompanionNotifications.shared.handleDashboardSnapshot(
+            status: status,
+            queue: queue,
+            lowStockCount: lowStock,
+            settings: settings
+        )
     }
 }

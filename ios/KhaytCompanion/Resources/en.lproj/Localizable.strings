@@ -1,0 +1,91 @@
+/* Tabs */
+"tab.home" = "Home";
+"tab.orders" = "Orders";
+"tab.inventory" = "Inventory";
+"tab.machines" = "Machines";
+"tab.settings" = "Settings";
+
+/* Connection */
+"connection.checking" = "Checking…";
+"connection.connected" = "Connected";
+"connection.unreachable" = "Desktop unreachable";
+"connection.unauthorized" = "Wrong LAN PIN";
+"connection.banner.unreachable" = "Cannot reach Khayt on your network. Check Wi‑Fi and desktop LAN API.";
+"connection.banner.pin" = "LAN PIN rejected. Update PIN in Settings to match desktop.";
+"connection.banner.checking" = "Connecting to desktop…";
+
+/* Home */
+"home.subtitle" = "Live from your Khayt desktop";
+"home.completed_today" = "Completed today";
+"home.low_stock" = "%d spool(s) low on filament";
+"home.quick_actions" = "Quick actions";
+"home.action.add_spool" = "Add spool";
+"home.action.orders" = "Orders";
+"home.action.inventory" = "Inventory";
+"home.active_orders" = "Active orders";
+"home.see_all" = "See all";
+"home.overdue" = "%d overdue";
+"stat.in_queue" = "In queue";
+"stat.printing" = "Printing";
+"stat.post" = "Post-proc.";
+"stat.qc" = "QC";
+
+/* Orders */
+"orders.active" = "Active";
+"orders.recent" = "Recent";
+"orders.filter.all" = "All";
+"orders.advance" = "Advance";
+"orders.overdue" = "Overdue";
+"orders.due" = "Due %@";
+"orders.detail.set_status" = "Set status";
+"orders.detail.advance" = "Advance to next stage";
+
+/* Inventory */
+"inventory.search" = "Material, SKU, batch…";
+"inventory.filter.all" = "All";
+"inventory.filter.low" = "Low stock";
+"inventory.sort.newest" = "Newest first";
+"inventory.low_badge" = "Low stock";
+
+/* Settings */
+"settings.lan_status" = "LAN status";
+"settings.connection" = "Connection";
+"settings.connection.footer" = "Same PIN as Khayt Settings → LAN API. Desktop v2.2.1+ required.";
+"settings.shop_name" = "Shop name";
+"settings.host" = "Desktop IP or hostname";
+"settings.port" = "Port: %d";
+"settings.pin" = "Owner LAN PIN";
+"settings.retest" = "Re-test pairing";
+"settings.unpair" = "Unpair this device";
+"settings.unpair.footer" = "Clears paired state; PIN stays in Keychain until you change it.";
+"settings.language" = "Language";
+"settings.notifications" = "Notifications";
+"settings.notify.queue" = "Queue changes";
+"settings.notify.connection" = "Connection lost";
+"settings.notify.overdue" = "Overdue orders";
+"settings.notify.low_stock" = "Low filament";
+"settings.notify.footer" = "Local alerts on this iPhone when the app detects changes (LAN polling).";
+"settings.widget" = "Home Screen widget";
+"settings.widget.footer" = "Add the Khayt Queue widget from the home screen widget gallery after building.";
+"settings.docs" = "LAN API reference";
+
+/* Status */
+"status.pending" = "Pending";
+"status.printing" = "Printing";
+"status.post" = "Post-processing";
+"status.qc" = "QC";
+"status.completed" = "Completed";
+"status.on_hold" = "On hold";
+
+/* Lang */
+"lang.system" = "System";
+
+/* Notifications */
+"notify.queue.title" = "Queue updated";
+"notify.queue.body" = "%d jobs in queue (%d printing)";
+"notify.offline.title" = "Khayt disconnected";
+"notify.offline.body" = "Desktop unreachable on LAN";
+"notify.overdue.title" = "Overdue orders";
+"notify.overdue.body" = "%d order(s) past due date";
+"notify.low_stock.title" = "Low filament";
+"notify.low_stock.body" = "%d spool(s) under 200g";

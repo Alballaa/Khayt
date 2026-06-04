@@ -2,63 +2,53 @@
 
 Native **LAN-only** client. The desktop app remains the source of truth (`khayt-store.json`).
 
-## v1 scope
+## Feature set
 
-| Feature | LAN API |
-|---------|---------|
-| Pairing (IP + owner PIN) | `GET /api/status` + `GET /api/queue` |
-| Connection health | Periodic `GET /api/status` |
-| Production queue | `GET /api/queue`, `PATCH /api/orders/:id` |
-| Light inventory | `GET /api/inventory`, `POST /api/inventory` |
-| Machines glance | `GET /api/machines` |
-| Add spool (Inventory +) | Scan label, NFC, or manual → `POST /api/inventory` |
-| Label / NFC fields | Optional SKU, lot, print/bed temp when on label or tag |
-| Order history | `GET /api/orders?limit=` (Recent tab under Orders) |
-| Dashboard alerts | Low-stock count, active order preview, quick actions |
-| Search & filters | Inventory search; low-stock filter; queue status chips |
+| Area | Features |
+|------|----------|
+| **Pairing** | 4-step wizard (IP, port, LAN PIN, test) |
+| **Home** | Queue stats, kanban strip, completed today, low-stock & overdue alerts, quick actions, order preview |
+| **Orders** | Active queue + filters (status, overdue) + recent history; detail sheet; advance / set status; haptics |
+| **Inventory** | List, search, low-stock filter, sort, spool detail (SKU, lot, temps), add spool (photo OCR / NFC / manual) |
+| **Machines** | Printer list + status |
+| **Settings** | Connection, language (EN / AR / system), notification toggles, widget guide, unpair |
+| **Connection** | Polling health, top banner when offline/wrong PIN, badge in toolbar |
+| **Notifications** | Local alerts: queue changes, LAN disconnect, overdue orders, low filament |
+| **Widget** | Home Screen queue widget (see [ios/XCODE_WIDGET.md](../ios/XCODE_WIDGET.md)) |
+| **Shortcuts** | Siri / Shortcuts: open queue, open inventory |
+| **Localization** | English + Arabic strings, RTL layout for Arabic |
 
-**UI redesign:** copy the prompt in [IOS_UI_REDESIGN_PROMPT.md](./IOS_UI_REDESIGN_PROMPT.md) into your design AI.
+## LAN API
+
+| Feature | Endpoint |
+|---------|----------|
+| Status | `GET /api/status` |
+| Queue | `GET /api/queue`, `PATCH /api/orders/:id` |
+| Order log | `GET /api/orders?limit=` |
+| Inventory | `GET /api/inventory`, `POST /api/inventory` |
+| Machines | `GET /api/machines` |
+
+See [LAN_API.md](./LAN_API.md).
 
 ## Out of scope (v1)
 
-Calculator, ZATCA, invoicing, full settings, offline-first local database, cloud sync.
+Calculator, ZATCA, invoicing, full desktop settings, cloud sync, remote push server.
 
-Alternative: LAN **PWA** (Add to Home Screen) — good for quick queue view; native app adds NFC, Keychain PIN, and App Store path later.
+## UI redesign
 
-## Architecture
-
-```mermaid
-sequenceDiagram
-    participant Phone as iOS Companion
-    participant LAN as Khayt LAN server
-    participant Desktop as Electron renderer
-
-    Phone->>LAN: GET /api/queue (x-khayt-pin)
-    LAN-->>Phone: JSON queue
-    Phone->>LAN: PATCH /api/orders/id
-    LAN->>Desktop: lan-order-updated IPC
-    Desktop->>Desktop: saveAll + refresh UI
-```
+Copy the prompt in [IOS_UI_REDESIGN_PROMPT.md](./IOS_UI_REDESIGN_PROMPT.md) into a design AI.
 
 ## Repo layout
 
 ```
-ios/KhaytCompanion/          SwiftUI sources
+ios/KhaytCompanion/          SwiftUI app
+ios/KhaytWidget/             Widget extension source (add target in Xcode)
 ios/KhaytCompanion.xcodeproj
-docs/LAN_API.md              Canonical API reference
+docs/LAN_API.md
 ```
-
-Prior draft work lived on branch `claude/ios-app-mvwgj` (XcodeGen `ios/Khayt/`). Current target is `ios/KhaytCompanion/` on `cursor/ios-companion-app-2e93`.
 
 ## Security
 
-- Owner PIN in iOS Keychain
-- HTTP on trusted LAN only (`NSAllowsLocalNetworking`)
-- Same brute-force limits as desktop LAN server
-
-## Extending
-
-1. Add route in `lib/lan-server.js`
-2. Document in `docs/LAN_API.md`
-3. Call from `KhaytAPIClient.swift`
-4. If mutating store, emit IPC so desktop UI stays in sync
+- Owner PIN in iOS Keychain  
+- HTTP on trusted LAN only  
+- App Group `group.com.khaytapp.companion` for widget snapshot (optional capability)

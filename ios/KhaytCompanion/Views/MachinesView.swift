@@ -32,11 +32,7 @@ struct MachinesView: View {
                             }
                             Spacer()
                             if let status = machine.status {
-                                Text(status.capitalized)
-                                    .font(.caption.bold())
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 4)
-                                    .background(statusColor(status).opacity(0.2), in: Capsule())
+                                CompanionStatusBadge(status: status, compact: true)
                             }
                         }
                     }

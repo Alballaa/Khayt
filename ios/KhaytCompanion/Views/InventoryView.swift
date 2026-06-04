@@ -66,7 +66,7 @@ struct InventoryView: View {
                 }
             }
             .navigationTitle("Inventory")
-            .searchable(text: $searchText, prompt: "Material, SKU, batch…")
+            .searchable(text: $searchText, prompt: L10n.tr("inventory.search"))
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Menu {
