@@ -616,8 +616,11 @@ function wireEvents() {
           return;
         }
         const ord = printLog.find(o => o.id === copyUrlBtn.dataset.id);
-        const token = ord ? ensureTrackingToken(ord) : '';
-        const url = `${lanInfo.url}/order/${encodeURIComponent(copyUrlBtn.dataset.id)}?token=${encodeURIComponent(token)}`;
+        const url = ord ? buildLanOrderTrackingUrl(lanInfo.url, ord) : '';
+        if (!url) {
+          toast(t('ord.tracking_no_lan') || 'LAN server is not running — enable it in Settings', 'warning', 4000);
+          return;
+        }
         try {
           await navigator.clipboard.writeText(url);
           toast(t('ord.tracking_copied') || 'Tracking URL copied', 'success', 4000);

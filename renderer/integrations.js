@@ -743,7 +743,7 @@ async function openCustomerPortalModal(orderId) {
     return;
   }
 
-  const url = `${lanInfo.url}/order/${orderId}/status`;
+  const url = buildLanOrderTrackingUrl(lanInfo.url, order);
   let qrHtml = '';
   try {
     const qrDataUrl = await window.hubAPI.generateQR(url, { width: 200 });
@@ -804,8 +804,7 @@ async function openQuoteApprovalLinkModal(orderId) {
     return;
   }
 
-  const token = ensureQuoteApprovalToken(order);
-  const url = `${lanInfo.url}/order/${orderId}/quote?token=${encodeURIComponent(token)}`;
+  const url = buildLanQuoteApprovalUrl(lanInfo.url, order);
   let qrHtml = '';
   try {
     const qrDataUrl = await window.hubAPI.generateQR(url, { width: 200 });

@@ -619,7 +619,7 @@ async function migrateLegacyStatusPages() {
 }
 
 ipcMain.handle('hub:verify-operator-pin', async (_event, { operatorId, pin } = {}) => {
-  syncLanServerStoreFromDisk();
+  if (!lanServerStore?.operators?.length) syncLanServerStoreFromDisk();
   const op = (lanServerStore?.operators || []).find(o => o.id === operatorId);
   if (!op) return { ok: false, error: 'operator_not_found' };
   if (!op.pinHash) return { ok: true, noPin: true };

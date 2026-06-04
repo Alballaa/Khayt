@@ -353,7 +353,15 @@ function openPinPadModal(afterUnlock) {
         enteredPin = '';
         return;
       }
-      const verified = await window.hubAPI?.verifyOperatorPin?.({ operatorId: selectedOpId, pin: enteredPin });
+      if (typeof flushSave === 'function') await flushSave();
+      let verified = await window.hubAPI?.verifyOperatorPin?.({ operatorId: selectedOpId, pin: enteredPin });
+      if (!verified?.ok && verified?.error === 'operator_not_found' && op.pinHash?.length === 64) {
+        const entered = await hashPin(enteredPin);
+        if (timingSafeEqualHex(entered, op.pinHash)) verified = { ok: true };
+      } else if (!verified?.ok && verified == null && op.pinHash?.length === 64) {
+        const entered = await hashPin(enteredPin);
+        if (timingSafeEqualHex(entered, op.pinHash)) verified = { ok: true };
+      }
       if (verified?.error === 'legacy_pin') {
         op.pinHash = '';
         saveAll();

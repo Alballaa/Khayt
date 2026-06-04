@@ -50,6 +50,22 @@
     });
   }
 
+  /** Full LAN URL for live order tracking (includes token). */
+  function buildLanOrderTrackingUrl(lanBaseUrl, order) {
+    if (!lanBaseUrl || !order?.id) return '';
+    const base = String(lanBaseUrl).replace(/\/$/, '');
+    const token = ensureTrackingToken(order);
+    return `${base}/order/${encodeURIComponent(order.id)}?token=${encodeURIComponent(token)}`;
+  }
+
+  /** Full LAN URL for quote approval page (includes token when available). */
+  function buildLanQuoteApprovalUrl(lanBaseUrl, order) {
+    if (!lanBaseUrl || !order?.id) return '';
+    const base = String(lanBaseUrl).replace(/\/$/, '');
+    const token = ensureQuoteApprovalToken(order);
+    return `${base}/order/${encodeURIComponent(order.id)}/quote?token=${encodeURIComponent(token)}`;
+  }
+
   /** Per-order LAN live tracking secret; persists when newly generated. */
   function ensureTrackingToken(order) {
     if (!order) return '';
@@ -151,6 +167,8 @@
     safeJsonParse,
     ensureQuoteApprovalToken,
     ensureTrackingToken,
+    buildLanOrderTrackingUrl,
+    buildLanQuoteApprovalUrl,
     safeImageSrc,
     uid,
     safeCssColor,
