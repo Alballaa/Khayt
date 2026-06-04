@@ -405,6 +405,8 @@ async function startLanServer() {
     saveAll();
     loadLanQr(res.url);
     updateWebhookUrlDisplay(res.url);
+    refreshOnlineIntakeUrlDisplay?.($('#onlineDetails'));
+    renderWaitingOnlinePanel?.();
   } else {
     if (statusRow) statusRow.textContent = `❌ Failed: ${res?.error || 'unknown error'}`;
   }

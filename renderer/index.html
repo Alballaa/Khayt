@@ -556,6 +556,7 @@
           <span id="waitingChevron" style="font-size:10px;color:var(--text-muted);">▼</span>
           <button type="button" id="btnAddWaiting" class="btn small ghost" style="margin-inline-start:auto;">+ <span data-i18n="waiting.add">Add</span></button>
         </button>
+        <div id="waitingOnlinePanel" style="display:none;"></div>
         <div id="waitingFunnelSection" style="margin-bottom:10px;"></div>
         <div id="waitingListSection" style="display:none;"></div>
       </div>
@@ -1772,8 +1773,12 @@
           <button class="btn" id="btnRestoreBackup" data-i18n="set.restore_backup">Restore from backup…</button>
         </div>
 
+        <div class="settings-section-head" data-i18n="online.settings_title">Online</div>
+        <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;" data-i18n="online.settings_intro">Let customers submit quote requests via a link on your network. Your data stays on this computer.</p>
+        <div id="onlineSection"></div>
+
         <div class="settings-section-head">LAN API &amp; iCal</div>
-        <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">Start a local HTTP server so phones/tablets on the same Wi-Fi can view the queue without a desktop.</p>
+        <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;" data-i18n="lan.settings_intro">Advanced: REST API, printer webhooks, kiosk queue, and optional internet tunnel.</p>
         <div id="lanApiSection"></div>
         <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
           <button id="btnExportIcal" class="btn btn-sm btn-secondary" data-i18n="exportIcal">📅 Export iCal Feed</button>
@@ -1958,6 +1963,13 @@
           <input type="checkbox" id="wizEnableZatca" style="width:auto;margin:0;" checked>
           <span data-i18n="onboard.zatca">ZATCA e-invoicing fields on invoices</span>
         </label>
+        <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin-top:14px;">
+          <input type="checkbox" id="wizEnableOnline" style="width:auto;margin:3px 0 0;">
+          <span>
+            <span data-i18n="online.wiz_enable">Accept online quote requests</span>
+            <span style="display:block;font-size:12px;color:var(--text-muted);font-weight:400;margin-top:4px;" data-i18n="online.wiz_enable_desc">Share a link on your shop Wi‑Fi; requests appear in Job Intake. You can change this in Settings.</span>
+          </span>
+        </label>
       </div>
       <button type="button" class="btn btn-primary wizard-finish" id="wizFinish" data-i18n="wiz.finish">Start using Khayt →</button>
     </div>
@@ -2006,6 +2018,7 @@
 <script src="store-validate.js"></script>
 <script src="format.js"></script>
 <script src="util.js"></script>
+<script src="online.js"></script>
 <script src="app-state.js"></script>
 <script src="app-security.js"></script>
 <script src="shell.js"></script>

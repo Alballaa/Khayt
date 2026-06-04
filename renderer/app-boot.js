@@ -166,6 +166,11 @@ function initWizard() {
     settings.mode = selectedMode;
     settings.theme = 'light';
     settings.enableZatca = $('#wizEnableZatca')?.checked !== false;
+    const enableOnline = $('#wizEnableOnline')?.checked === true;
+    settings.onlineEnabled = enableOnline;
+    if (enableOnline && typeof applyOnlineLanPrefs === 'function') {
+      settings.lanApi = applyOnlineLanPrefs(settings.lanApi, true);
+    }
 
     if (!securitySkipped && pendingPin && pendingRecoveryCode) {
       await setupAdminSecurity({ pin: pendingPin, recoveryCodePlain: pendingRecoveryCode });
@@ -187,6 +192,9 @@ function initWizard() {
     applyTheme(settings.theme);
     applyMode();
     loadSettingsIntoForm();
+    if (enableOnline && typeof startLanServer === 'function') {
+      startLanServer().catch(() => {});
+    }
     applyOperatorPermissions();
     initialRender();
     refreshCurrencyLabels();

@@ -4,6 +4,7 @@
 (function (global) {
 /* ── Waiting List (Job Intake) ──────────────────────────── */
 function renderWaitingList() {
+  renderWaitingOnlinePanel?.();
   renderWaitingFunnel();
   const el = $('#waitingListSection');
   if (!el) return;
