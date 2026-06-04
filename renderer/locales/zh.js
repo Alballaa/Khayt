@@ -1940,6 +1940,7 @@
   "set.nav_invoice": "发票与税务",
   "set.nav_payments": "付款",
   "set.nav_printers": "打印机",
+  "set.nav_online": "在线",
   "set.nav_ops": "运营",
   "set.nav_automation": "自动化",
   "set.nav_access": "访问",

@@ -18,7 +18,7 @@
     const pin = settings.lanApi?.intakePin;
     if (!pin) return t('online.intake_pin_pending') || 'Starts when the server is running (auto-generated if blank).';
     if (typeof isSecretMasked === 'function' && isSecretMasked(pin)) {
-      return t('online.intake_pin_saved') || 'Configured — set or view in Settings → Online & LAN.';
+      return t('online.intake_pin_saved') || 'Configured — set or view in Settings → Online.';
     }
     return `${t('online.intake_pin_label') || 'Customer PIN'}: ${pin}`;
   }
@@ -203,7 +203,7 @@
     });
 
     el.querySelector('#btnOnlineOpenLanSettings')?.addEventListener('click', () => {
-      switchTab('settings-tab');
+      openSettingsSection?.('online');
       setTimeout(() => {
         document.getElementById('lanApiSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 200);
@@ -239,8 +239,7 @@
     i18n.applyToDom(el);
     el.querySelector('#btnWaitingCopyIntake')?.addEventListener('click', (e) => copyOnlineIntakeUrl(e.currentTarget));
     el.querySelector('#btnWaitingOnlineSettings')?.addEventListener('click', () => {
-      switchTab('settings-tab');
-      setTimeout(() => document.getElementById('onlineSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
+      openSettingsSection?.('online');
     });
     refreshOnlineIntakeUrlDisplay(el);
   }

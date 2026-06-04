@@ -602,6 +602,7 @@
   "set.nav_invoice": "請求書・税金",
   "set.nav_payments": "支払い",
   "set.nav_printers": "プリンター",
+  "set.nav_online": "オンライン",
   "set.nav_ops": "運用",
   "set.nav_automation": "自動化",
   "set.nav_access": "アクセス",

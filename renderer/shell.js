@@ -249,6 +249,16 @@ function syncTopbarTitle(tabId) {
 /* ============================================================
    Tabs
    ============================================================ */
+function openSettingsSection(section) {
+  switchTab('settings-tab');
+  $$('.settings-nav-item').forEach(el => el.classList.remove('active'));
+  $$('.settings-panel').forEach(el => el.classList.remove('active'));
+  const navItem = $(`.settings-nav-item[data-settings-section="${section}"]`);
+  navItem?.classList.add('active');
+  $(`#settings-panel-${section}`)?.classList.add('active');
+  if (section === 'online' && typeof renderOnlineSettings === 'function') renderOnlineSettings();
+}
+
 function switchTab(tabId) {
   $$('.tab-content').forEach(el => {
     const on = el.id === tabId;

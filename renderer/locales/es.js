@@ -1940,6 +1940,7 @@
   "set.nav_invoice": "Factura e Impuestos",
   "set.nav_payments": "Pagos",
   "set.nav_printers": "Impresoras",
+  "set.nav_online": "En línea",
   "set.nav_ops": "Operaciones",
   "set.nav_automation": "Automatización",
   "set.nav_access": "Acceso",

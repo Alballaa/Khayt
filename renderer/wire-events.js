@@ -1176,11 +1176,7 @@ function wireEvents() {
   document.addEventListener('click', e => {
     const navItem = e.target.closest('.settings-nav-item[data-settings-section]');
     if (!navItem) return;
-    const section = navItem.dataset.settingsSection;
-    $$('.settings-nav-item').forEach(el => el.classList.remove('active'));
-    $$('.settings-panel').forEach(el => el.classList.remove('active'));
-    navItem.classList.add('active');
-    $(`#settings-panel-${section}`)?.classList.add('active');
+    openSettingsSection(navItem.dataset.settingsSection);
   });
 
   // Business Mode toggle buttons (in Settings tab)
