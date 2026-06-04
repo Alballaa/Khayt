@@ -5,12 +5,119 @@
 /* ============================================================
    Khayt Studio — dashboard & queue presentation
    ============================================================ */
+function buildSoloDashboardQuickRow(ctx) {
+  const {
+    expiringQuotes, nowPrinting, todayRev, receivables, todayStr,
+  } = ctx;
+  const intakeCount = waitingList.filter((w) => w.status === 'active' || w.status === 'reminded').length;
+  const quotesCount = printLog.filter((o) => o.status === 'quote').length;
+  const printingLabel = nowPrinting.length
+    ? `${nowPrinting.length} · ${escapeHtml(nowPrinting[0].project || nowPrinting[0].id)}`
+    : escapeHtml(t('dash.solo_idle') || 'Nothing printing');
+
+  return `
+    <div class="solo-dash-quick card" style="padding:14px 16px;margin-bottom:14px;border:1px solid var(--border);">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:10px;" data-i18n="dash.solo_title">Your shop today</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;">
+        <button type="button" class="btn" data-act="goto-tab" data-tab="calculator-tab" style="justify-content:flex-start;text-align:start;">
+          <span style="font-size:18px;">◎</span>
+          <span class="col" style="gap:2px;align-items:flex-start;">
+            <strong style="font-size:13px;" data-i18n="dash.solo_new_quote">New quote</strong>
+            <span style="font-size:11px;color:var(--text-muted);font-weight:400;" data-i18n="dash.solo_new_quote_sub">Calculator</span>
+          </span>
+        </button>
+        <button type="button" class="btn ghost" data-act="goto-tab" data-tab="queue-tab" style="justify-content:flex-start;text-align:start;">
+          <span style="font-size:18px;">📥</span>
+          <span class="col" style="gap:2px;align-items:flex-start;">
+            <strong style="font-size:13px;">${escapeHtml(t('waiting.title') || 'Job Intake')}</strong>
+            <span style="font-size:11px;color:var(--text-muted);font-weight:400;">${intakeCount} ${escapeHtml(t('dash.solo_active') || 'active')}</span>
+          </span>
+        </button>
+        <button type="button" class="btn ghost" data-act="goto-tab" data-tab="queue-tab" style="justify-content:flex-start;text-align:start;">
+          <span style="font-size:18px;">📋</span>
+          <span class="col" style="gap:2px;align-items:flex-start;">
+            <strong style="font-size:13px;">${escapeHtml(t('dash.solo_quotes') || 'Open quotes')}</strong>
+            <span style="font-size:11px;color:var(--text-muted);font-weight:400;">${quotesCount}</span>
+          </span>
+        </button>
+        <div class="btn ghost" style="cursor:default;justify-content:flex-start;text-align:start;opacity:1;">
+          <span style="font-size:18px;">▤</span>
+          <span class="col" style="gap:2px;align-items:flex-start;">
+            <strong style="font-size:13px;">${escapeHtml(t('dash.now_printing') || 'Printing')}</strong>
+            <span style="font-size:11px;color:var(--text-muted);font-weight:400;">${printingLabel}</span>
+          </span>
+        </div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid var(--border-soft);font-size:12px;">
+        <span><strong>${fmtMoney(todayRev)}</strong> <span style="color:var(--text-muted);" data-i18n="dash.today_rev">today</span></span>
+        ${receivables > 0 ? `<span style="color:var(--warn);"><strong>${fmtMoney(receivables)}</strong> <span data-i18n="dash.receivables">due</span></span>` : ''}
+        ${settings.onlineEnabled ? `<button type="button" class="btn small" id="btnDashCopyIntake">${escapeHtml(t('dash.solo_copy_intake') || 'Copy customer link')}</button>` : ''}
+        ${expiringQuotes.length ? `<button type="button" class="btn small ghost" data-act="goto-tab" data-tab="queue-tab">${escapeHtml(t('dash.expiring_quotes'))} (${expiringQuotes.length})</button>` : ''}
+      </div>
+    </div>`;
+}
+
 function buildStudioDashboardPanels(ctx) {
   const {
     machines, printLog, nowPrinting, overdue, staleOrders, expiringQuotes,
     dueSoon, today, inventory, settings,
   } = ctx;
   if (!document.body.classList.contains('khayt-studio')) return '';
+
+  if (settings.mode === 'simple') {
+    const intakeCount = waitingList.filter((w) => w.status === 'active' || w.status === 'reminded').length;
+    const attention = [];
+    if (intakeCount > 0) {
+      attention.push({
+        iconKind: 'info', color: 'var(--primary)',
+        title: t('waiting.title') || 'Job Intake',
+        sub: `${intakeCount} ${t('dash.solo_active') || 'waiting'}`,
+        tab: 'queue-tab', label: t('common.view') || 'View',
+      });
+    }
+    if (expiringQuotes.length) {
+      attention.push({
+        iconKind: 'warn', color: 'var(--warning)',
+        title: t('dash.expiring_quotes') || 'Expiring quotes',
+        sub: String(expiringQuotes.length),
+        tab: 'queue-tab', label: t('common.view') || 'View',
+      });
+    }
+    if (nowPrinting.length) {
+      attention.push({
+        iconKind: 'queue', color: 'var(--ok)',
+        title: t('dash.now_printing') || 'Printing now',
+        sub: nowPrinting[0].project || nowPrinting[0].id,
+        tab: 'queue-tab', label: t('tab.queue') || 'Queue',
+      });
+    }
+    if (overdue.length) {
+      attention.push({
+        iconKind: 'danger', color: 'var(--danger)',
+        title: t('dash.overdue_section') || 'Overdue',
+        sub: String(overdue.length),
+        tab: 'queue-tab', label: t('common.view') || 'View',
+      });
+    }
+    const attnHtml = attention.length === 0
+      ? `<p class="dash-empty" style="padding:18px;">${escapeHtml(t('dash.all_clear') || 'All clear')}</p>`
+      : attention.map((a) => `
+      <div class="khayt-attn">
+        <div class="khayt-attn-ic" style="color:${a.color};background:color-mix(in srgb, ${a.color} 14%, transparent)">${window.KhaytStudio?.attentionIconSvg?.(a.iconKind) || '•'}</div>
+        <div class="col grow" style="gap:2px;min-width:0">
+          <span style="font-size:13px;font-weight:600">${escapeHtml(a.title)}</span>
+          <span style="font-size:11.5px;color:var(--text-muted);">${escapeHtml(a.sub)}</span>
+        </div>
+        <button type="button" class="btn sm subtle" data-act="goto-tab" data-tab="${a.tab}">${escapeHtml(a.label)}</button>
+      </div>`).join('');
+    return `
+      <div class="khayt-dash-grid" style="margin-bottom:16px;">
+        <div class="card khayt-panel">
+          <h3 class="card-head"><span class="swatch"></span><span data-i18n="dash.solo_needs_you">Needs attention</span></h3>
+          <div class="col gap8">${attnHtml}</div>
+        </div>
+      </div>`;
+  }
 
   const printingOrders = printLog.filter(o => o.status === 'printing');
   const lowSpools = inventory.filter(i => i.weight <= (i.reorderPoint ?? settings.lowStockThreshold));
@@ -338,6 +445,12 @@ function renderDashboard() {
     dueSoon, today, inventory, settings,
   });
 
+  const soloQuickRow = settings.mode === 'simple'
+    ? buildSoloDashboardQuickRow({
+      expiringQuotes, nowPrinting, todayRev, receivables, todayStr,
+    })
+    : '';
+
   el.innerHTML = `<div class="khayt-dash col gap16 fade">
     <div class="dash-hero khayt-dash-hero">
       <div class="dash-hero-brand">
@@ -354,8 +467,9 @@ function renderDashboard() {
       </div>
     </div>
 
-    ${renderDashKpiRow({ active: active.length, overdue: overdue.length, todayRev, receivables, revDeltaPct, sparkData })}
-    <div class="dash-stats dash-stats-secondary">
+    ${soloQuickRow}
+    ${settings.mode === 'simple' ? '' : renderDashKpiRow({ active: active.length, overdue: overdue.length, todayRev, receivables, revDeltaPct, sparkData })}
+    <div class="dash-stats dash-stats-secondary pro-only">
       <div class="dash-stat">
         <div class="dash-stat-val">${active.length}</div>
         <div class="dash-stat-lbl">${escapeHtml(t('dash.active_orders'))}</div>
@@ -437,7 +551,7 @@ function renderDashboard() {
         </div>`;
     })() : ''}
 
-    ${machines.length > 0 ? (() => {
+    ${settings.mode !== 'simple' && machines.length > 0 ? (() => {
       const activeOrds = printLog.filter(o => o.status !== 'completed' && o.status !== 'quote');
       const WORK_HRS_PER_DAY = Math.max(1, avgDailyWorkingHours()); // use configured working hours
       // Feature 1: Per-machine clearance forecast
@@ -685,7 +799,7 @@ function renderDashboard() {
     })()}
 
     ${studioPanels}
-    <div class="dash-quick">
+    <div class="dash-quick pro-only">
       <button class="btn primary" data-act="goto-tab" data-tab="calculator-tab" data-i18n="tab.calculator">Calculator</button>
       <button class="btn" data-act="goto-tab" data-tab="queue-tab" data-i18n="tab.queue">Production Queue</button>
       <button class="btn" data-act="goto-tab" data-tab="logs-tab" data-i18n="tab.logs">Orders Log</button>
@@ -699,6 +813,9 @@ function renderDashboard() {
   el.querySelectorAll('[data-act="goto-tab"]').forEach(btn =>
     btn.addEventListener('click', () => switchTab(btn.dataset.tab))
   );
+  el.querySelector('#btnDashCopyIntake')?.addEventListener('click', () => {
+    if (typeof copyOnlineIntakeUrl === 'function') copyOnlineIntakeUrl(el.querySelector('#btnDashCopyIntake'));
+  });
   // Feature 5: Render capacity gauge into its placeholder
   renderCapacityGauge();
   // Round 12: break-even card

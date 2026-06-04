@@ -177,6 +177,8 @@ function applyMode() {
   if (btnSimple) btnSimple.classList.toggle('active', settings.mode === 'simple');
   if (btnPro)    btnPro.classList.toggle('active',    settings.mode === 'professional');
   applyAnalyticsModeView();
+  if (typeof renderDashboard === 'function') renderDashboard();
+  if (typeof renderOnlineSettings === 'function') renderOnlineSettings();
 }
 
 

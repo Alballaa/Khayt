@@ -23,6 +23,29 @@
     return `${t('online.intake_pin_label') || 'Customer PIN'}: ${pin}`;
   }
 
+  async function getLanBaseUrl() {
+    const res = await window.hubAPI?.getLanUrl?.().catch(() => null);
+    return res?.ok && res.url ? res.url : null;
+  }
+
+  async function copyTextToClipboard(text, btn, okLabel) {
+    if (!text) {
+      toast(t('online.need_server') || 'Start the LAN server in Settings first', 'warning');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      toast(okLabel || t('common.copied') || 'Copied', 'success');
+      if (btn) {
+        const prev = btn.textContent;
+        btn.textContent = '✓';
+        setTimeout(() => { btn.textContent = prev; }, 2000);
+      }
+    } catch {
+      toast(t('common.copy_failed') || 'Copy failed', 'error');
+    }
+  }
+
   async function refreshOnlineIntakeUrlDisplay(wrapEl) {
     if (!wrapEl) return;
     const urlEl = wrapEl.querySelector('[data-online-intake-url]');
@@ -34,9 +57,9 @@
     wrapEl.style.display = '';
     if (pinEl) pinEl.textContent = formatIntakePinHint();
     if (!urlEl) return;
-    const res = await window.hubAPI?.getLanUrl?.().catch(() => null);
-    if (res?.ok && res.url) {
-      const intakeUrl = intakeUrlFromBase(res.url);
+    const base = await getLanBaseUrl();
+    if (base) {
+      const intakeUrl = intakeUrlFromBase(base);
       urlEl.innerHTML =
         `<a href="#" class="online-intake-link" data-url="${escapeHtml(intakeUrl)}" style="color:var(--primary);word-break:break-all;">${escapeHtml(intakeUrl)}</a>`;
       urlEl.querySelectorAll('.online-intake-link').forEach((a) => {
@@ -46,25 +69,84 @@
         });
       });
     } else {
-      urlEl.textContent = t('online.start_server_hint') || 'Start the server below (or enable Online and Save) to get your link.';
+      urlEl.textContent = t('online.start_server_hint') || 'Start the server below to get your link.';
     }
   }
 
   async function copyOnlineIntakeUrl(btn) {
-    const res = await window.hubAPI?.getLanUrl?.().catch(() => null);
-    if (!res?.ok) {
-      toast(t('online.need_server') || 'Start the LAN server in Settings first', 'warning');
+    const base = await getLanBaseUrl();
+    await copyTextToClipboard(base ? intakeUrlFromBase(base) : '', btn, t('copyIntakeUrl') || 'Copied');
+  }
+
+  async function renderOnlineCustomerLinks() {
+    const el = $('#onlineHubLinks');
+    if (!el || !settings.onlineEnabled) return;
+
+    const base = await getLanBaseUrl();
+    if (!base) {
+      el.innerHTML = `<p style="font-size:12px;color:var(--text-muted);margin:0;">${escapeHtml(t('online.hub_need_server') || 'Start the server to generate customer links.')}</p>`;
       return;
     }
-    const url = intakeUrlFromBase(res.url);
-    try {
-      await navigator.clipboard.writeText(url);
-      toast(t('intakeFormUrl') ? `${t('copyIntakeUrl') || 'Copied'}` : 'URL copied', 'success');
-      if (btn) btn.textContent = '✓';
-      setTimeout(() => { if (btn) btn.textContent = t('copyIntakeUrl') || 'Copy URL'; }, 2000);
-    } catch {
-      toast(t('common.copy_failed') || 'Copy failed', 'error');
-    }
+
+    const quotes = printLog
+      .filter((o) => o.status === 'quote')
+      .slice()
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+      .slice(0, 5);
+    const trackable = printLog
+      .filter((o) => o.status !== 'quote' && o.status !== 'completed')
+      .slice()
+      .sort((a, b) => (a.dueDate || a.date || '').localeCompare(b.dueDate || b.date || ''))
+      .slice(0, 5);
+
+    const linkRow = (label, url, orderId, kind) => {
+      if (!url) return '';
+      return `<div class="online-hub-row" style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border-soft);flex-wrap:wrap;">
+        <div class="col grow" style="min-width:140px;gap:2px;">
+          <span style="font-size:12px;font-weight:600;">${escapeHtml(label)}</span>
+          <span style="font-size:11px;color:var(--text-muted);word-break:break-all;">${escapeHtml(url)}</span>
+        </div>
+        <button type="button" class="btn small ghost" data-online-copy="${escapeHtml(url)}">${escapeHtml(t('common.copy') || 'Copy')}</button>
+        ${orderId ? `<button type="button" class="btn small subtle" data-online-open-order="${escapeHtml(orderId)}" data-online-kind="${kind}">${escapeHtml(t('common.view') || 'View')}</button>` : ''}
+      </div>`;
+    };
+
+    let html = `<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;" data-i18n="online.hub_intro">Share these links with customers on your shop network (same Wi‑Fi).</div>`;
+
+    html += `<div style="margin-bottom:12px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);margin-bottom:4px;" data-i18n="onlineIntakeForm">Online Intake Form</div>
+      <div data-online-intake-url style="font-size:12px;margin-bottom:6px;"></div>
+      <div data-online-intake-pin style="font-size:11px;color:var(--text-muted);margin-bottom:6px;"></div>
+      <button type="button" class="btn small primary" id="btnHubCopyIntake" data-i18n="copyIntakeUrl">Copy URL</button>
+    </div>`;
+
+    html += `<div style="margin-bottom:10px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);margin-bottom:4px;" data-i18n="online.hub_quotes">Open quotes (approve online)</div>
+      ${quotes.length ? quotes.map((o) => linkRow(o.project || o.id, buildLanQuoteApprovalUrl(base, o), o.id, 'quote')).join('') : `<p style="font-size:12px;color:var(--text-muted);margin:0;">${escapeHtml(t('online.hub_no_quotes') || 'No open quotes yet.')}</p>`}
+    </div>`;
+
+    html += `<div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);margin-bottom:4px;" data-i18n="online.hub_tracking">Active orders (live tracking)</div>
+      ${trackable.length ? trackable.map((o) => linkRow(o.project || o.id, buildLanOrderTrackingUrl(base, o), o.id, 'track')).join('') : `<p style="font-size:12px;color:var(--text-muted);margin:0;">${escapeHtml(t('online.hub_no_active') || 'No active orders to track.')}</p>`}
+    </div>`;
+
+    el.innerHTML = html;
+    i18n.applyToDom(el);
+
+    refreshOnlineIntakeUrlDisplay(el);
+
+    el.querySelector('#btnHubCopyIntake')?.addEventListener('click', (e) => copyOnlineIntakeUrl(e.currentTarget));
+    el.querySelectorAll('[data-online-copy]').forEach((btn) => {
+      btn.addEventListener('click', () => copyTextToClipboard(btn.dataset.onlineCopy, btn));
+    });
+    el.querySelectorAll('[data-online-open-order]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.onlineOpenOrder;
+        const kind = btn.dataset.onlineKind;
+        if (kind === 'quote' && typeof openQuoteApprovalLinkModal === 'function') openQuoteApprovalLinkModal(id);
+        else if (typeof openCustomerPortalModal === 'function') openCustomerPortalModal(id);
+      });
+    });
   }
 
   function renderOnlineSettings() {
@@ -83,18 +165,16 @@
           </div>
         </span>
       </label>
-      <div id="onlineDetails" style="display:${on ? 'block' : 'none'};padding:12px 14px;background:var(--bg-elev);border-radius:var(--radius);margin-bottom:14px;">
-        <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;" data-i18n="online.intake_heading">Online intake link</div>
-        <div data-online-intake-url style="font-size:13px;margin-bottom:8px;min-height:20px;">—</div>
-        <div data-online-intake-pin style="font-size:11px;color:var(--text-muted);margin-bottom:10px;"></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button type="button" class="btn small primary" id="btnCopyIntakeUrl" data-i18n="copyIntakeUrl">Copy URL</button>
-          <button type="button" class="btn small ghost" id="btnOpenIntakePreview" data-i18n="online.preview">Preview form</button>
+      <div id="onlineDetails" style="display:${on ? 'block' : 'none'};">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+          <span style="font-size:12px;">${lanOn ? '🟢 ' + (t('online.server_on') || 'Server running') : '⚫ ' + (t('online.server_off') || 'Server stopped')}</span>
+          <button type="button" class="btn small ghost" id="btnOnlineStartServer" data-i18n="lan.start">Start server</button>
+          <button type="button" class="btn small ghost" id="btnOnlineOpenLanSettings" data-i18n="online.open_lan">LAN & tunnel settings</button>
         </div>
-        <p style="font-size:11px;color:var(--text-muted);margin:12px 0 0;line-height:1.5;" data-i18n="online.remote_hint">
+        <div id="onlineHubLinks" style="padding:12px 14px;background:var(--bg-elev);border-radius:var(--radius);margin-bottom:12px;border:1px solid var(--border);"></div>
+        <p style="font-size:11px;color:var(--text-muted);margin:0;line-height:1.5;" data-i18n="online.remote_hint">
           For customers outside your shop Wi‑Fi, use <strong>Remote tunnel</strong> in the LAN section below (advanced; use a strong owner PIN).
         </p>
-        <p style="font-size:11px;color:var(--text-muted);margin:8px 0 0;">${lanOn ? '🟢 ' + (t('online.server_on') || 'Server running') : '⚫ ' + (t('online.server_off') || 'Server stopped — Save or Start below')}</p>
       </div>`;
 
     i18n.applyToDom(el);
@@ -107,7 +187,7 @@
       renderOnlineSettings();
       if (enabled) {
         startLanServer?.().then(() => {
-          refreshOnlineIntakeUrlDisplay(el.querySelector('#onlineDetails'));
+          renderOnlineCustomerLinks();
           renderWaitingOnlinePanel?.();
         });
       } else {
@@ -115,20 +195,21 @@
       }
     });
 
-    el.querySelector('#btnCopyIntakeUrl')?.addEventListener('click', (e) => {
-      copyOnlineIntakeUrl(e.currentTarget);
+    el.querySelector('#btnOnlineStartServer')?.addEventListener('click', () => {
+      startLanServer?.().then(() => {
+        renderOnlineSettings();
+        renderOnlineCustomerLinks();
+      });
     });
 
-    el.querySelector('#btnOpenIntakePreview')?.addEventListener('click', async () => {
-      const res = await window.hubAPI?.getLanUrl?.().catch(() => null);
-      if (!res?.ok) {
-        toast(t('online.need_server') || 'Start the server first', 'warning');
-        return;
-      }
-      window.hubAPI?.openExternal?.(intakeUrlFromBase(res.url));
+    el.querySelector('#btnOnlineOpenLanSettings')?.addEventListener('click', () => {
+      switchTab('settings-tab');
+      setTimeout(() => {
+        document.getElementById('lanApiSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 200);
     });
 
-    if (on) refreshOnlineIntakeUrlDisplay(el.querySelector('#onlineDetails'));
+    if (on) renderOnlineCustomerLinks();
   }
 
   function renderWaitingOnlinePanel() {
@@ -147,13 +228,20 @@
             <div style="font-weight:600;font-size:13px;">🌐 ${escapeHtml(t('onlineIntakeForm') || 'Online Intake Form')}</div>
             <div style="font-size:11px;color:var(--text-muted);margin-top:2px;" data-i18n="online.waiting_hint">Share this link; new requests land here.</div>
           </div>
-          <button type="button" class="btn small" id="btnWaitingCopyIntake" data-i18n="copyIntakeUrl">Copy URL</button>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button type="button" class="btn small" id="btnWaitingCopyIntake" data-i18n="copyIntakeUrl">Copy URL</button>
+            <button type="button" class="btn small ghost" id="btnWaitingOnlineSettings" data-i18n="online.hub_short">Online hub</button>
+          </div>
         </div>
         <div data-online-intake-url style="font-size:12px;margin-top:8px;word-break:break-all;">—</div>
         <div data-online-intake-pin style="font-size:11px;color:var(--text-muted);margin-top:6px;"></div>
       </div>`;
     i18n.applyToDom(el);
     el.querySelector('#btnWaitingCopyIntake')?.addEventListener('click', (e) => copyOnlineIntakeUrl(e.currentTarget));
+    el.querySelector('#btnWaitingOnlineSettings')?.addEventListener('click', () => {
+      switchTab('settings-tab');
+      setTimeout(() => document.getElementById('onlineSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
+    });
     refreshOnlineIntakeUrlDisplay(el);
   }
 
@@ -161,6 +249,7 @@
     applyOnlineLanPrefs,
     intakeUrlFromBase,
     renderOnlineSettings,
+    renderOnlineCustomerLinks,
     renderWaitingOnlinePanel,
     refreshOnlineIntakeUrlDisplay,
   };
