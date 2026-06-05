@@ -56,25 +56,16 @@
     }
     wrapEl.style.display = '';
     if (pinEl) {
-      const pin = settings.lanApi?.intakePin;
-      const masked = typeof isSecretMasked === 'function' && isSecretMasked(pin);
-      if (pin && !masked) {
-        pinEl.innerHTML = `<span style="font-weight:600;color:var(--text);">${escapeHtml(t('online.intake_pin_label') || 'Customer PIN')}:</span> <code style="background:var(--bg-elev);padding:2px 6px;border-radius:4px;font-size:13px;letter-spacing:.1em;">${escapeHtml(pin)}</code> <button type="button" class="btn tiny ghost" data-copy-pin="${escapeHtml(pin)}" style="font-size:11px;padding:2px 6px;">${escapeHtml(t('common.copy') || 'Copy')}</button>`;
-        pinEl.querySelectorAll('[data-copy-pin]').forEach((btn) => {
-          btn.addEventListener('click', () => {
-            navigator.clipboard.writeText(btn.dataset.copyPin).then(() => toast(t('common.copied') || 'Copied', 'success')).catch(() => {});
-          });
-        });
-      } else {
-        pinEl.textContent = formatIntakePinHint();
-      }
+      pinEl.textContent = settings.onlineEnabled
+        ? (t('online.intake_no_pin_needed') || 'Customers open the link above — no PIN required.')
+        : formatIntakePinHint();
     }
     if (!urlEl) return;
     const base = await getLanBaseUrl();
     if (base) {
       const intakeUrl = intakeUrlFromBase(base);
       urlEl.innerHTML =
-        `<a href="#" class="online-intake-link" data-url="${escapeHtml(intakeUrl)}" style="color:var(--primary);word-break:break-all;">${escapeHtml(intakeUrl)}</a>`;
+        `<a href="#" class="online-intake-link" data-url="${escapeHtml(intakeUrl)}" style="color:var(--primary);word-break:break-all;font-weight:600;font-size:13px;">${escapeHtml(intakeUrl)}</a>`;
       urlEl.querySelectorAll('.online-intake-link').forEach((a) => {
         a.addEventListener('click', (e) => {
           e.preventDefault();
@@ -128,7 +119,7 @@
 
     html += `<div style="margin-bottom:12px;">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);margin-bottom:4px;" data-i18n="onlineIntakeForm">Online Intake Form</div>
-      <div data-online-intake-url style="font-size:12px;margin-bottom:6px;"></div>
+      <div data-online-intake-url style="font-size:13px;margin-bottom:6px;"></div>
       <div data-online-intake-pin style="font-size:11px;color:var(--text-muted);margin-bottom:6px;"></div>
       <button type="button" class="btn small primary" id="btnHubCopyIntake" data-i18n="copyIntakeUrl">Copy URL</button>
     </div>`;

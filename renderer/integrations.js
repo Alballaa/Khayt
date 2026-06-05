@@ -429,7 +429,8 @@ async function startLanServer() {
   const qrWrap    = $('#lanQrWrap');
   if (res?.ok) {
     settings.lanApi = { ...settings.lanApi, enabled: true, bindLan: !res.loopbackOnly };
-    if (res.intakeTokenGenerated) settings.lanApi.intakeToken = STORE_SECRET_MASK;
+    if (res.intakeToken) settings.lanApi.intakeToken = res.intakeToken;
+    else if (res.intakeTokenGenerated) settings.lanApi.intakeToken = STORE_SECRET_MASK;
     // Keep the plaintext PIN in memory so the Online panel can display it; mask after first save
     if (res.intakePin) settings.lanApi.intakePin = res.intakePin;
     else if (res.intakePinGenerated) settings.lanApi.intakePin = STORE_SECRET_MASK;
@@ -487,24 +488,22 @@ async function loadLanQr(urlOverride) {
     url = res.url;
   }
   const base = String(url || '').replace(/\/$/, '');
-  // For shops using Online intake, QR should open a human-friendly form.
-  // Keep /api/status as fallback for LAN API-only setups.
-  const qrUrl = settings.onlineEnabled ? `${base}/intake` : `${base}/api/status`;
-  const svg = await window.hubAPI?.generateQR?.(qrUrl, { width: 150 });
-  if (svg) {
-    const pin = settings.lanApi?.pin;
-    const pinNote = pin && !isSecretMasked(pin)
-      ? `<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">PIN: <code style="background:var(--bg);padding:1px 5px;border-radius:4px;">${escapeHtml(pin)}</code> (send via <code>x-khayt-pin</code> header)</div>`
-      : pin && isSecretMasked(pin)
-        ? `<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">${escapeHtml(t('lan.pin_configured') || 'PIN configured — use Settings to view or change')}</div>`
-        : '';
+  const qrUrl = typeof intakeUrlFromBase === 'function' ? intakeUrlFromBase(base) : `${base}/intake`;
+  const qrImg = await window.hubAPI?.generateQR?.(qrUrl, { width: 150, dataUrl: true });
+  if (qrImg) {
     qrWrap.style.display = 'block';
     const label = settings.onlineEnabled
-      ? 'Scan from phone to open intake form:'
-      : 'Scan from phone to open LAN API status:';
-    qrWrap.innerHTML = `<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">${label} <span style="font-size:11px;opacity:0.7;">(click QR to copy URL)</span></div><div id="lanQrSvgWrap" style="cursor:pointer;display:inline-block;" title="Click to copy URL">${svg}</div>${pinNote}`;
+      ? (t('lan.qr_intake_label') || 'Scan from phone to open the customer intake form')
+      : (t('lan.qr_intake_label_off') || 'Scan from phone to open the intake form');
+    qrWrap.innerHTML = `<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">${escapeHtml(label)} <span style="font-size:11px;opacity:0.7;">(tap QR to copy URL)</span></div>
+      <div style="font-size:12px;margin-bottom:8px;word-break:break-all;"><a href="#" class="lan-qr-url-link" data-url="${escapeHtml(qrUrl)}" style="color:var(--primary);font-weight:600;">${escapeHtml(qrUrl)}</a></div>
+      <div id="lanQrSvgWrap" style="cursor:pointer;display:inline-block;" title="Click to copy URL"><img src="${qrImg}" alt="QR code" width="150" height="150" style="display:block;border-radius:8px;"></div>`;
+    qrWrap.querySelector('.lan-qr-url-link')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      window.hubAPI?.openExternal?.(e.currentTarget.dataset.url);
+    });
     document.getElementById('lanQrSvgWrap')?.addEventListener('click', () => {
-      navigator.clipboard.writeText(qrUrl).then(() => toast('URL copied to clipboard', 'success')).catch(() => {});
+      navigator.clipboard.writeText(qrUrl).then(() => toast(t('common.copied') || 'URL copied to clipboard', 'success')).catch(() => {});
     });
   }
 }
