@@ -158,7 +158,8 @@ async function testLanPinGate(window) {
 
   const port = lanStart.port || E2E_LAN_PORT;
 
-  assertStatus('GET /api/status', (await lanRequest(port, '/api/status')).status, 200);
+  assertStatus('GET /api/status?format=json', (await lanRequest(port, '/api/status?format=json')).status, 200);
+  assertStatus('GET /intake', (await lanRequest(port, '/intake')).status, 200);
   assertStatus('GET /api/orders without PIN', (await lanRequest(port, '/api/orders')).status, 401);
 
   const ordersWithPin = await lanRequest(port, '/api/orders', { pin: E2E_LAN_PIN });

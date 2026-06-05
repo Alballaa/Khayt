@@ -48,6 +48,7 @@
   "online.intake_no_pin_needed": "Customers open the link above — no PIN required.",
   "lan.qr_intake_label": "Scan from phone to open the customer intake form",
   "lan.qr_intake_label_off": "Scan from phone to open the intake form",
+  "lan.qr_url_hint": "Open this exact link on your phone (same Wi‑Fi). It must end with /intake",
   "online.start_server_hint": "Save with Online enabled or Start the LAN server below to get your link.",
   "online.need_server": "Start the LAN server in Settings first",
   "online.preview": "Preview form",

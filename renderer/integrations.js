@@ -489,15 +489,18 @@ async function loadLanQr(urlOverride) {
   }
   const base = String(url || '').replace(/\/$/, '');
   const qrUrl = typeof intakeUrlFromBase === 'function' ? intakeUrlFromBase(base) : `${base}/intake`;
-  const qrImg = await window.hubAPI?.generateQR?.(qrUrl, { width: 150, dataUrl: true });
-  if (qrImg) {
+  let qrVisual = await window.hubAPI?.generateQR?.(qrUrl, { width: 150, dataUrl: true });
+  if (!qrVisual) qrVisual = await window.hubAPI?.generateQR?.(qrUrl, { width: 150 });
+  if (qrVisual) {
     qrWrap.style.display = 'block';
-    const label = settings.onlineEnabled
-      ? (t('lan.qr_intake_label') || 'Scan from phone to open the customer intake form')
-      : (t('lan.qr_intake_label_off') || 'Scan from phone to open the intake form');
+    const label = t('lan.qr_intake_label') || 'Scan from phone to open the customer intake form';
+    const qrBlock = String(qrVisual).startsWith('data:')
+      ? `<img src="${qrVisual}" alt="QR code" width="150" height="150" style="display:block;border-radius:8px;">`
+      : qrVisual;
     qrWrap.innerHTML = `<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">${escapeHtml(label)} <span style="font-size:11px;opacity:0.7;">(tap QR to copy URL)</span></div>
-      <div style="font-size:12px;margin-bottom:8px;word-break:break-all;"><a href="#" class="lan-qr-url-link" data-url="${escapeHtml(qrUrl)}" style="color:var(--primary);font-weight:600;">${escapeHtml(qrUrl)}</a></div>
-      <div id="lanQrSvgWrap" style="cursor:pointer;display:inline-block;" title="Click to copy URL"><img src="${qrImg}" alt="QR code" width="150" height="150" style="display:block;border-radius:8px;"></div>`;
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">${escapeHtml(t('lan.qr_url_hint') || 'Open this exact link on your phone (same Wi‑Fi). It must end with /intake')}</div>
+      <div style="font-size:13px;margin-bottom:8px;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);word-break:break-all;"><a href="#" class="lan-qr-url-link" data-url="${escapeHtml(qrUrl)}" style="color:var(--primary);font-weight:600;">${escapeHtml(qrUrl)}</a></div>
+      <div id="lanQrSvgWrap" style="cursor:pointer;display:inline-block;" title="Click to copy URL">${qrBlock}</div>`;
     qrWrap.querySelector('.lan-qr-url-link')?.addEventListener('click', (e) => {
       e.preventDefault();
       window.hubAPI?.openExternal?.(e.currentTarget.dataset.url);
