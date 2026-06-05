@@ -32,6 +32,16 @@ struct SettingsView: View {
                     TextField(L10n.tr("settings.host"), text: $settings.host)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
+                        .keyboardType(.URL)
+                    if let err = settings.hostValidationError {
+                        Text(err)
+                            .font(.caption)
+                            .foregroundStyle(KhaytDesign.danger)
+                    } else if settings.isConfigured {
+                        Text("\(L10n.tr("settings.endpoint")) \(settings.displayURL)")
+                            .font(.caption)
+                            .foregroundStyle(KhaytDesign.textMuted)
+                    }
                     Stepper(String(format: L10n.tr("settings.port"), settings.port), value: $settings.port, in: 1024...65535)
                     SecureField(L10n.tr("settings.pin"), text: $settings.pin)
                 }

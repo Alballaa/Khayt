@@ -14,6 +14,10 @@
 "connection.banner.pin" = "رمز LAN مرفوض. حدّث PIN في الإعدادات ليطابق سطح المكتب.";
 "connection.banner.checking" = "جاري الاتصال بسطح المكتب…";
 "connection.retry" = "إعادة المحاولة";
+"connection.error.reach_status" = "تعذر الوصول إلى %@. نفس شبكة الواي فاي؟ سطح المكتب → الإعدادات → LAN API: مفعّل، الاستماع على كل الواجهات، وتأكد من IP والمنفذ.";
+"settings.host_required" = "أدخل عنوان IP للكمبيوتر.";
+"settings.host_invalid" = "عنوان غير صالح. استخدم مثلاً 192.168.1.42 (بدون http://).";
+"settings.endpoint" = "الاتصال بـ";
 "home.pipeline" = "سير العمل";
 "home.all_orders" = "كل الطلبات";
 "home.no_printing" = "لا مهام";

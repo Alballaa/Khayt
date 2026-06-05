@@ -60,3 +60,13 @@ open ios/KhaytCompanion.xcodeproj
 ```
 
 Test: overdue banner → Orders filter; pipeline “Done” → Recent completed; unpair clears PIN; invalid host (with `@`) fails connection test.
+
+## Cannot reach desktop (troubleshooting)
+
+1. **iPhone and Mac on the same Wi‑Fi** (not cellular, not guest network isolation).
+2. **Khayt desktop → Settings → LAN API**: enabled, **Owner LAN PIN** set, **Listen on all network interfaces** checked, note **IP + port** (default 3219).
+3. **iOS local network**: allow when iPhone prompts (requires `NSLocalNetworkUsageDescription` in Info.plist).
+4. **Companion Settings**: host = IP only (`192.168.1.42`) or `192.168.1.42:3219`; port = desktop port; PIN = owner PIN (not intake PIN).
+5. **Mac firewall**: allow incoming for Khayt / Node on the LAN port.
+6. **Test from iPhone Safari**: `http://<mac-ip>:3219/api/status` — should return JSON. If Safari fails, the app will too.
+7. **Wrong PIN** shows “Wrong LAN PIN”, not “unreachable”. **No PIN on phone** when desktop requires one → 401.

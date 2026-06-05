@@ -115,8 +115,32 @@ final class KhaytAPIClient: ObservableObject {
     }
 
     func validatePairing() async throws -> ShopStatus {
-        let status = try await fetchStatus()
-        _ = try await fetchQueue()
+        guard settings.isConfigured else { throw KhaytAPIError.notConfigured }
+        let status: ShopStatus
+        do {
+            status = try await fetchStatus()
+        } catch let err as KhaytAPIError {
+            switch err {
+            case .transport, .notConfigured, .invalidURL:
+                throw KhaytAPIError.server(
+                    String(format: L10n.tr("connection.error.reach_status"), settings.displayURL)
+                )
+            default:
+                throw err
+            }
+        } catch {
+            throw KhaytAPIError.server(
+                String(format: L10n.tr("connection.error.reach_status"), settings.displayURL)
+            )
+        }
+        do {
+            _ = try await fetchQueue()
+        } catch let err as KhaytAPIError {
+            if case .unauthorized = err {
+                throw KhaytAPIError.unauthorized
+            }
+            throw err
+        }
         return status
     }
 

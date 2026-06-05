@@ -5,7 +5,8 @@ import Security
 enum LANHostValidator {
     private static let maxHostLength = 253
 
-    static func normalizeHost(_ raw: String) -> String? {
+    /// Parses host field; if user pasted `192.168.1.5:3219`, updates `effectivePort` when valid.
+    static func normalizeHost(_ raw: String, effectivePort: inout Int) -> String? {
         var h = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !h.isEmpty, h.count <= maxHostLength else { return nil }
 
@@ -17,10 +18,19 @@ enum LANHostValidator {
 
         if h.contains("@") || h.contains("\\") || h.contains(" ") || h.contains("\t") { return nil }
 
+        // Allow `192.168.1.42:3219` or `hostname.local:3219` in the host field.
+        if !h.hasPrefix("["), let colon = h.lastIndex(of: ":") {
+            let portPart = h[h.index(after: colon)...]
+            if let parsed = Int(portPart), (1024...65535).contains(parsed) {
+                effectivePort = parsed
+                h = String(h[..<colon])
+            }
+        }
+
         if h.hasPrefix("[") {
             guard h.hasSuffix("]"), h.count > 2 else { return nil }
             let inner = String(h.dropFirst().dropLast())
-            return isValidIPv6Literal(inner) ? "[\(inner)]" : nil
+            return isValidIPv6Literal(inner) ? inner : nil
         }
 
         guard isValidIPv4(h) || isValidHostname(h) else { return nil }
@@ -126,13 +136,28 @@ final class ConnectionSettings: ObservableObject {
         L10n.setLanguage(appLanguage)
     }
 
+    /// Human-readable endpoint for errors (e.g. `http://192.168.1.42:3219`).
+    var displayURL: String {
+        guard let base = baseURL else { return host.isEmpty ? "—" : host }
+        return base.absoluteString
+    }
+
+    var hostValidationError: String? {
+        guard !host.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return L10n.tr("settings.host_required")
+        }
+        if baseURL == nil { return L10n.tr("settings.host_invalid") }
+        return nil
+    }
+
     /// HTTP base URL built with `URLComponents` (no relative URL resolution).
     var baseURL: URL? {
-        guard let hostPart = LANHostValidator.normalizeHost(host) else { return nil }
+        var effectivePort = port
+        guard let hostPart = LANHostValidator.normalizeHost(host, effectivePort: &effectivePort) else { return nil }
         var components = URLComponents()
         components.scheme = "http"
         components.host = hostPart
-        components.port = port
+        components.port = effectivePort
         return components.url
     }
 

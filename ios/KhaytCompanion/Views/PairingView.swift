@@ -120,7 +120,7 @@ struct PairingView: View {
                     TextField("Computer IP address", text: $settings.host)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
-                        .keyboardType(.decimalPad)
+                        .keyboardType(.URL)
                     Stepper("Port: \(settings.port)", value: $settings.port, in: 1024...65535)
                     SecureField("Owner LAN PIN", text: $settings.pin)
                 }
