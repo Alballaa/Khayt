@@ -446,6 +446,7 @@ async function startLanServer() {
       toast(t('lan.loopback_warn') || 'LAN is localhost-only — other devices cannot connect. Enable network listen in Settings → Online.', 'warning', 8000);
     }
     loadLanQr(res.url);
+    refreshLanIntakePinLive();
     updateWebhookUrlDisplay(res.url);
     refreshOnlineIntakeUrlDisplay?.($('#onlineDetails'));
     renderOnlineCustomerLinks?.();
@@ -476,6 +477,27 @@ function updateWebhookUrlDisplay(baseUrl) {
   }
   hint.textContent = t('lan.webhook_header_hint') || 'Send webhook token via x-khayt-webhook-token header (not in URL)';
   section.style.display = 'block';
+}
+
+async function refreshLanIntakePinLive() {
+  const el = document.getElementById('lanIntakePinLive');
+  const input = document.getElementById('lan_intake_pin');
+  if (!el) return;
+  const res = await window.hubAPI?.getLanUrl?.().catch(() => null);
+  if (!res?.ok) {
+    el.style.display = 'none';
+    return;
+  }
+  if (res.intakePin) {
+    settings.lanApi = { ...settings.lanApi, intakePin: res.intakePin };
+    if (input && (!input.value || isSecretMasked(settings.lanApi.intakePin))) {
+      input.value = res.intakePin;
+    }
+    el.style.display = 'block';
+    el.textContent = (t('lan.intake_pin_live') || 'Current intake PIN (legacy): {pin}').replace('{pin}', res.intakePin);
+  } else {
+    el.style.display = 'none';
+  }
 }
 
 async function loadLanQr(urlOverride) {
@@ -1061,6 +1083,7 @@ function trackShipment(trackingNumber, carrier) {
     startLanServer,
     updateWebhookUrlDisplay,
     loadLanQr,
+    refreshLanIntakePinLive,
     exportAccountingCSV,
     renderOrderComments,
     exportOrderStatusPage,

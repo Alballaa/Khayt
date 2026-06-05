@@ -612,7 +612,8 @@ function renderLanApiSettings() {
       <div>
         <label data-i18n="lan.intake_pin">Intake form PIN (customers)</label>
         <input type="text" id="lan_intake_pin" value="${escapeHtml(secretInputValue(lan.intakePin))}" maxlength="12" placeholder="${escapeHtml(secretFieldPlaceholder(lan.intakePin) || 'Auto-generated on start')}" autocomplete="off" style="font-family:monospace;letter-spacing:.1em;">
-        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;" data-i18n="lan.intake_pin_hint">Share this PIN with customers — they enter it to access the intake form</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;" data-i18n="lan.intake_pin_hint">Optional legacy PIN — customers open /intake directly; no PIN required on current versions</div>
+        <div id="lanIntakePinLive" style="font-size:11px;color:var(--text-muted);margin-top:4px;display:none;"></div>
       </div>
     </div>
     <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin-top:10px;">
@@ -623,7 +624,7 @@ function renderLanApiSettings() {
       </span>
     </label>
     <div style="font-size:11px;color:var(--text-muted);margin:4px 0 10px;padding:8px 10px;background:var(--bg-elev);border-radius:var(--radius);word-break:break-all;">
-      Customer intake form: <code style="font-size:11px;">/intake</code> — requires the intake PIN above (auto-generated when the server starts if blank).
+      Customer intake form: <code style="font-size:11px;">/intake</code> — scan the QR or open this path on your shop Wi‑Fi (no PIN required).
     </div>
     <div class="inline-pair" style="margin-top:10px;">
       <div style="flex:1;">
@@ -673,7 +674,10 @@ function renderLanApiSettings() {
       <div style="font-size:11px;color:var(--danger);margin-top:8px;padding:8px 10px;background:rgba(239,68,68,0.08);border-radius:var(--radius);" data-i18n="lan.tunnel_security_warning">Warning: the tunnel exposes your full LAN API surface to the internet. Set a strong owner PIN and disable when not needed.</div>
     </div>`;
 
-  if (lan.enabled) loadLanQr();
+  if (lan.enabled) {
+    loadLanQr();
+    refreshLanIntakePinLive?.();
+  }
 
   el.querySelector('#btnSaveLan')?.addEventListener('click', () => {
     const prev = settings.lanApi || {};
