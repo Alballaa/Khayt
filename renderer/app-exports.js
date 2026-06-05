@@ -75,7 +75,7 @@ async function exportQuoteApprovalPage(orderId) {
   let approveQrHtml = '';
   if (approveUrl) {
     try {
-      const qrDataUrl = await window.hubAPI.generateQR(approveUrl, { width: 160 });
+      const qrDataUrl = await window.hubAPI.generateQR(approveUrl, { width: 160, dataUrl: true });
       if (qrDataUrl) {
         approveQrHtml = `
         <div style="text-align:center;margin-top:16px;">

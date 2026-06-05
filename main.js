@@ -167,12 +167,19 @@ ipcMain.handle('hub:request-full-wipe', async (event) => {
   return { ok: true };
 });
 
-ipcMain.handle('hub:generate-qr', async (_e, text, options = {}) => QRCode.toString(String(text || '').slice(0, 4000), {
-  type: 'svg',
-  errorCorrectionLevel: options.errorCorrectionLevel || 'M',
-  margin: options.margin ?? 1,
-  width: options.width || 180
-}));
+ipcMain.handle('hub:generate-qr', async (_e, text, options = {}) => {
+  const svgStr = await QRCode.toString(String(text || '').slice(0, 4000), {
+    type: 'svg',
+    errorCorrectionLevel: options.errorCorrectionLevel || 'M',
+    margin: options.margin ?? 1,
+    width: options.width || 180,
+  });
+  // When caller wants a data URL (for <img src=...>) return base64-encoded SVG
+  if (options.dataUrl) {
+    return 'data:image/svg+xml;base64,' + Buffer.from(svgStr).toString('base64');
+  }
+  return svgStr;
+});
 ipcMain.handle('hub:app-version', async () => app.getVersion());
 
 // --- Product images (existing) ---

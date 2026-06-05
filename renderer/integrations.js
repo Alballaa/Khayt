@@ -790,7 +790,7 @@ async function openCustomerPortalModal(orderId) {
   const url = buildLanOrderTrackingUrl(lanInfo.url, order);
   let qrHtml = '';
   try {
-    const qrDataUrl = await window.hubAPI.generateQR(url, { width: 200 });
+    const qrDataUrl = await window.hubAPI.generateQR(url, { width: 200, dataUrl: true });
     if (qrDataUrl) qrHtml = `<img src="${escapeHtml(qrDataUrl)}" alt="QR" style="width:200px;height:200px;display:block;margin:0 auto;">`;
   } catch(e) { /* silent */ }
 
@@ -851,7 +851,7 @@ async function openQuoteApprovalLinkModal(orderId) {
   const url = buildLanQuoteApprovalUrl(lanInfo.url, order);
   let qrHtml = '';
   try {
-    const qrDataUrl = await window.hubAPI.generateQR(url, { width: 200 });
+    const qrDataUrl = await window.hubAPI.generateQR(url, { width: 200, dataUrl: true });
     if (qrDataUrl) qrHtml = `<img src="${escapeHtml(qrDataUrl)}" alt="QR" style="width:200px;height:200px;display:block;margin:0 auto;">`;
   } catch (e) { /* silent */ }
 
