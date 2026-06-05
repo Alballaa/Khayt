@@ -611,8 +611,8 @@ function renderLanApiSettings() {
     <div class="inline-pair" style="margin-top:10px;">
       <div>
         <label data-i18n="lan.intake_pin">Intake form PIN (customers)</label>
-        <input type="password" id="lan_intake_pin" value="${escapeHtml(secretInputValue(lan.intakePin))}" maxlength="12" placeholder="${escapeHtml(secretFieldPlaceholder(lan.intakePin) || 'Auto-generated on start')}" autocomplete="off">
-        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;" data-i18n="lan.intake_pin_hint">Separate from owner PIN — shown to customers at /intake</div>
+        <input type="text" id="lan_intake_pin" value="${escapeHtml(secretInputValue(lan.intakePin))}" maxlength="12" placeholder="${escapeHtml(secretFieldPlaceholder(lan.intakePin) || 'Auto-generated on start')}" autocomplete="off" style="font-family:monospace;letter-spacing:.1em;">
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;" data-i18n="lan.intake_pin_hint">Share this PIN with customers — they enter it to access the intake form</div>
       </div>
     </div>
     <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin-top:10px;">

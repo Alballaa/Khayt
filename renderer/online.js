@@ -16,11 +16,11 @@
 
   function formatIntakePinHint() {
     const pin = settings.lanApi?.intakePin;
-    if (!pin) return t('online.intake_pin_pending') || 'Starts when the server is running (auto-generated if blank).';
+    if (!pin) return t('online.intake_pin_pending') || 'PIN auto-generated when the server starts (or set one below).';
     if (typeof isSecretMasked === 'function' && isSecretMasked(pin)) {
-      return t('online.intake_pin_saved') || 'Configured — set or view in Settings → Online.';
+      return t('online.intake_pin_masked') || 'PIN is set — restart the server to see it again, or change it in LAN settings.';
     }
-    return `${t('online.intake_pin_label') || 'Customer PIN'}: ${pin}`;
+    return pin; // caller renders it with a label and copy button
   }
 
   async function getLanBaseUrl() {
@@ -55,7 +55,20 @@
       return;
     }
     wrapEl.style.display = '';
-    if (pinEl) pinEl.textContent = formatIntakePinHint();
+    if (pinEl) {
+      const pin = settings.lanApi?.intakePin;
+      const masked = typeof isSecretMasked === 'function' && isSecretMasked(pin);
+      if (pin && !masked) {
+        pinEl.innerHTML = `<span style="font-weight:600;color:var(--text);">${escapeHtml(t('online.intake_pin_label') || 'Customer PIN')}:</span> <code style="background:var(--bg-elev);padding:2px 6px;border-radius:4px;font-size:13px;letter-spacing:.1em;">${escapeHtml(pin)}</code> <button type="button" class="btn tiny ghost" data-copy-pin="${escapeHtml(pin)}" style="font-size:11px;padding:2px 6px;">${escapeHtml(t('common.copy') || 'Copy')}</button>`;
+        pinEl.querySelectorAll('[data-copy-pin]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            navigator.clipboard.writeText(btn.dataset.copyPin).then(() => toast(t('common.copied') || 'Copied', 'success')).catch(() => {});
+          });
+        });
+      } else {
+        pinEl.textContent = formatIntakePinHint();
+      }
+    }
     if (!urlEl) return;
     const base = await getLanBaseUrl();
     if (base) {

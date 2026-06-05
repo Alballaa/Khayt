@@ -430,7 +430,9 @@ async function startLanServer() {
   if (res?.ok) {
     settings.lanApi = { ...settings.lanApi, enabled: true, bindLan: !res.loopbackOnly };
     if (res.intakeTokenGenerated) settings.lanApi.intakeToken = STORE_SECRET_MASK;
-    if (res.intakePinGenerated) settings.lanApi.intakePin = STORE_SECRET_MASK;
+    // Keep the plaintext PIN in memory so the Online panel can display it; mask after first save
+    if (res.intakePin) settings.lanApi.intakePin = res.intakePin;
+    else if (res.intakePinGenerated) settings.lanApi.intakePin = STORE_SECRET_MASK;
     saveAll();
     const loopbackWarn = res.loopbackOnly
       ? `<div style="font-size:11px;color:var(--warn);margin-top:6px;">${escapeHtml(t('lan.loopback_warn') || 'Listening on this Mac only — enable “Listen on all network interfaces” for other devices on Wi‑Fi.')}</div>`
