@@ -484,8 +484,10 @@ async function loadLanQr(urlOverride) {
     if (!res?.ok) return;
     url = res.url;
   }
-  // PIN is passed via x-khayt-pin header by clients — never embed it in the QR URL
-  const qrUrl = url + '/api/status';
+  const base = String(url || '').replace(/\/$/, '');
+  // For shops using Online intake, QR should open a human-friendly form.
+  // Keep /api/status as fallback for LAN API-only setups.
+  const qrUrl = settings.onlineEnabled ? `${base}/intake` : `${base}/api/status`;
   const svg = await window.hubAPI?.generateQR?.(qrUrl, { width: 150 });
   if (svg) {
     const pin = settings.lanApi?.pin;
@@ -495,7 +497,10 @@ async function loadLanQr(urlOverride) {
         ? `<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">${escapeHtml(t('lan.pin_configured') || 'PIN configured — use Settings to view or change')}</div>`
         : '';
     qrWrap.style.display = 'block';
-    qrWrap.innerHTML = `<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">Scan from phone to view queue: <span style="font-size:11px;opacity:0.7;">(click QR to copy URL)</span></div><div id="lanQrSvgWrap" style="cursor:pointer;display:inline-block;" title="Click to copy URL">${svg}</div>${pinNote}`;
+    const label = settings.onlineEnabled
+      ? 'Scan from phone to open intake form:'
+      : 'Scan from phone to open LAN API status:';
+    qrWrap.innerHTML = `<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">${label} <span style="font-size:11px;opacity:0.7;">(click QR to copy URL)</span></div><div id="lanQrSvgWrap" style="cursor:pointer;display:inline-block;" title="Click to copy URL">${svg}</div>${pinNote}`;
     document.getElementById('lanQrSvgWrap')?.addEventListener('click', () => {
       navigator.clipboard.writeText(qrUrl).then(() => toast('URL copied to clipboard', 'success')).catch(() => {});
     });
