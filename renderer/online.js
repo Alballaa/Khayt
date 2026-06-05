@@ -179,17 +179,18 @@
 
     i18n.applyToDom(el);
 
-    el.querySelector('#online_enabled')?.addEventListener('change', (e) => {
+    el.querySelector('#online_enabled')?.addEventListener('change', async (e) => {
       const enabled = e.target.checked;
       settings.onlineEnabled = enabled;
       settings.lanApi = applyOnlineLanPrefs(settings.lanApi, enabled);
-      saveAll();
+      await saveAll();
       renderOnlineSettings();
       if (enabled) {
-        startLanServer?.().then(() => {
+        try {
+          await startLanServer?.();
           renderOnlineCustomerLinks();
           renderWaitingOnlinePanel?.();
-        });
+        } catch (_) {}
       } else {
         renderWaitingOnlinePanel?.();
       }

@@ -615,9 +615,12 @@ function renderLanApiSettings() {
         <div style="font-size:11px;color:var(--text-muted);margin-top:4px;" data-i18n="lan.intake_pin_hint">Separate from owner PIN — shown to customers at /intake</div>
       </div>
     </div>
-    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:10px;">
-      <input type="checkbox" id="lan_bind_lan" style="width:auto;margin:0;" ${lan.bindLan ? 'checked' : ''}>
-      <span>Listen on all network interfaces (LAN). Default is localhost only.</span>
+    <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin-top:10px;">
+      <input type="checkbox" id="lan_bind_lan" style="width:auto;margin:3px 0 0;" ${lan.bindLan || settings.onlineEnabled ? 'checked' : ''}>
+      <span>
+        <span data-i18n="lan.bind_lan">Listen on all network interfaces (LAN)</span>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;font-weight:400;" data-i18n="lan.bind_lan_hint">Required for phones and other computers on your shop Wi‑Fi. Off = this Mac only.</div>
+      </span>
     </label>
     <div style="font-size:11px;color:var(--text-muted);margin:4px 0 10px;padding:8px 10px;background:var(--bg-elev);border-radius:var(--radius);word-break:break-all;">
       Customer intake form: <code style="font-size:11px;">/intake</code> — requires the intake PIN above (auto-generated when the server starts if blank).

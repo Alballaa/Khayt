@@ -389,27 +389,68 @@ async function openBnplModal(orderId) {
   });
 }
 
+/** Sync LAN bind/enabled from the settings form when present (Start without Save). */
+function syncLanApiFromFormIfPresent() {
+  const section = $('#lanApiSection');
+  if (!section) return;
+  const prev = settings.lanApi || {};
+  const bindEl = section.querySelector('#lan_bind_lan');
+  const enabledEl = section.querySelector('#lan_enabled');
+  const portEl = section.querySelector('#lan_port');
+  settings.lanApi = {
+    ...prev,
+    ...(enabledEl ? { enabled: enabledEl.checked } : {}),
+    ...(portEl ? { port: parseInt(portEl.value, 10) || prev.port || 3219 } : {}),
+    ...(bindEl ? { bindLan: bindEl.checked } : {}),
+  };
+}
+
+/** Online intake requires LAN bind — not localhost-only. */
+function ensureLanNetworkAccess() {
+  if (!settings.onlineEnabled && !settings.lanApi?.bindLan) return;
+  settings.lanApi = {
+    ...(settings.lanApi || {}),
+    enabled: true,
+    bindLan: true,
+  };
+}
+
 async function startLanServer() {
+  syncLanApiFromFormIfPresent();
+  ensureLanNetworkAccess();
   const lan = settings.lanApi || {};
-  const res = await window.hubAPI?.startLanServer?.({ port: lan.port || 3219, pin: lan.pin || '', bindLan: lan.bindLan ? 'lan' : 'loopback' });
+  const bindLan = lan.bindLan || settings.onlineEnabled;
+  const res = await window.hubAPI?.startLanServer?.({
+    port: lan.port || 3219,
+    pin: lan.pin || '',
+    bindLan: bindLan ? 'lan' : 'loopback',
+  });
   const statusRow = $('#lanStatusRow');
   const qrWrap    = $('#lanQrWrap');
   if (res?.ok) {
-    if (statusRow) {
-      statusRow.innerHTML = `🟢 Active at <a href="#" class="lan-url-link" data-url="${escapeHtml(res.url)}" style="color:var(--primary);">${escapeHtml(res.url)}</a>`;
-      statusRow.querySelectorAll('.lan-url-link').forEach(a => { a.addEventListener('click', e => { e.preventDefault(); window.hubAPI?.openExternal?.(a.dataset.url); }); });
-    }
-    settings.lanApi = { ...settings.lanApi, enabled: true };
+    settings.lanApi = { ...settings.lanApi, enabled: true, bindLan: !res.loopbackOnly };
     if (res.intakeTokenGenerated) settings.lanApi.intakeToken = STORE_SECRET_MASK;
     if (res.intakePinGenerated) settings.lanApi.intakePin = STORE_SECRET_MASK;
     saveAll();
+    const loopbackWarn = res.loopbackOnly
+      ? `<div style="font-size:11px;color:var(--warn);margin-top:6px;">${escapeHtml(t('lan.loopback_warn') || 'Listening on this Mac only — enable “Listen on all network interfaces” for other devices on Wi‑Fi.')}</div>`
+      : `<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">${escapeHtml(t('lan.same_wifi_hint') || 'Other devices: same Wi‑Fi, open this URL. Test intake: /intake')}</div>`;
+    if (statusRow) {
+      statusRow.innerHTML = `🟢 Active at <a href="#" class="lan-url-link" data-url="${escapeHtml(res.url)}" style="color:var(--primary);">${escapeHtml(res.url)}</a>${loopbackWarn}`;
+      statusRow.querySelectorAll('.lan-url-link').forEach(a => { a.addEventListener('click', e => { e.preventDefault(); window.hubAPI?.openExternal?.(a.dataset.url); }); });
+    }
+    if (res.loopbackOnly && settings.onlineEnabled) {
+      toast(t('lan.loopback_warn') || 'LAN is localhost-only — other devices cannot connect. Enable network listen in Settings → Online.', 'warning', 8000);
+    }
     loadLanQr(res.url);
     updateWebhookUrlDisplay(res.url);
     refreshOnlineIntakeUrlDisplay?.($('#onlineDetails'));
     renderOnlineCustomerLinks?.();
     renderWaitingOnlinePanel?.();
+    renderOnlineSettings?.();
   } else {
     if (statusRow) statusRow.textContent = `❌ Failed: ${res?.error || 'unknown error'}`;
+    toast((t('lan.start_failed') || 'LAN server failed to start') + ': ' + (res?.error || 'unknown'), 'error', 8000);
   }
 }
 
