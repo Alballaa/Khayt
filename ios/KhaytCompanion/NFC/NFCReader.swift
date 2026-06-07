@@ -191,6 +191,11 @@ extension NFCReader: NFCTagReaderSessionDelegate {
                 if record.typeNameFormat == .media,
                    let type = String(data: record.type, encoding: .utf8) {
                     let payload = [UInt8](record.payload)
+                    if type == "application/json",
+                       case .success(let tag) = NFCParser.parse(bytes: payload) {
+                        Task { @MainActor in self.finishRead(session: session, tag: tag) }
+                        return
+                    }
                     if type == "application/opentag3d",
                        case .success(let tag) = NFCParser.parse(bytes: payload) {
                         Task { @MainActor in self.finishRead(session: session, tag: tag) }

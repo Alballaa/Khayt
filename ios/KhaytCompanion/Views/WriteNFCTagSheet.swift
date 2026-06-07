@@ -8,7 +8,7 @@ struct WriteNFCTagSheet: View {
     let draft: SpoolDraft
     var suggestedStandard: NFCFilamentStandard?
 
-    @State private var selectedStandard: NFCFilamentStandard = .openTag3D
+    @State private var selectedStandard: NFCFilamentStandard = .openSpool
     @State private var encodeError: String?
     @State private var hasStartedWrite = false
 
@@ -121,6 +121,8 @@ struct WriteNFCTagSheet: View {
                     selectedStandard = .openPrintTag
                 } else if draft.sourceNote.contains("OpenTag3D") {
                     selectedStandard = .openTag3D
+                } else if draft.sourceNote.contains("OpenSpool") {
+                    selectedStandard = .openSpool
                 }
             }
             .onDisappear { nfc.invalidate() }

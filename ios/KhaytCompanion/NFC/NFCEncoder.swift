@@ -2,6 +2,7 @@ import CoreNFC
 import Foundation
 
 enum NFCFilamentStandard: String, CaseIterable, Identifiable, Sendable {
+    case openSpool
     case openTag3D
     case openPrintTag
 
@@ -9,6 +10,7 @@ enum NFCFilamentStandard: String, CaseIterable, Identifiable, Sendable {
 
     var label: String {
         switch self {
+        case .openSpool: return L10n.tr("nfc.standard.openspool")
         case .openTag3D: return L10n.tr("nfc.standard.opentag3d")
         case .openPrintTag: return L10n.tr("nfc.standard.openprinttag")
         }
@@ -16,6 +18,7 @@ enum NFCFilamentStandard: String, CaseIterable, Identifiable, Sendable {
 
     var subtitle: String {
         switch self {
+        case .openSpool: return L10n.tr("nfc.standard.openspool.hint")
         case .openTag3D: return L10n.tr("nfc.standard.opentag3d.hint")
         case .openPrintTag: return L10n.tr("nfc.standard.openprinttag.hint")
         }
@@ -23,6 +26,7 @@ enum NFCFilamentStandard: String, CaseIterable, Identifiable, Sendable {
 
     var mimeType: String {
         switch self {
+        case .openSpool: return "application/json"
         case .openTag3D: return "application/opentag3d"
         case .openPrintTag: return "application/vnd.openprinttag"
         }
@@ -43,7 +47,7 @@ enum NFCEncodeError: Error, LocalizedError, Sendable {
     }
 }
 
-/// Builds OpenTag3D and OpenPrintTag NFC payloads — mirror of `NFCParser` / `renderer/inventory.js`.
+/// Builds OpenSpool, OpenTag3D, and OpenPrintTag NFC payloads — mirror of `NFCParser` / `renderer/inventory.js`.
 enum NFCEncoder {
     private static let openTag3DSize = 0x66
     private static let maxNDEFPayload = 888
@@ -58,6 +62,8 @@ enum NFCEncoder {
     static func encode(draft: SpoolDraft, standard: NFCFilamentStandard) throws -> NFCNDEFMessage {
         let payload: [UInt8]
         switch standard {
+        case .openSpool:
+            payload = try encodeOpenSpool(draft)
         case .openTag3D:
             payload = try encodeOpenTag3D(draft)
         case .openPrintTag:
@@ -76,6 +82,44 @@ enum NFCEncoder {
             payload: Data(payload)
         )
         return NFCNDEFMessage(records: [record])
+    }
+
+    // MARK: - OpenSpool
+
+    private static func encodeOpenSpool(_ draft: SpoolDraft) throws -> [UInt8] {
+        let material = draft.material.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !material.isEmpty else { throw NFCEncodeError.missingMaterial }
+
+        let parts = material.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
+        let type = String((parts.first ?? material).prefix(16))
+        let subtype = parts.count > 1 ? String(parts.dropFirst().joined(separator: " ").prefix(32)) : nil
+        let colorHex = try openspoolColorHex(from: draft.colorHex)
+
+        var json: [String: Any] = [
+            "protocol": "openspool",
+            "version": "1.0",
+            "type": type,
+            "color_hex": colorHex
+        ]
+        let brand = draft.brand.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !brand.isEmpty { json["brand"] = String(brand.prefix(32)) }
+        if let subtype, !subtype.isEmpty { json["subtype"] = subtype }
+        if draft.weightGrams > 0 { json["weight"] = draft.weightGrams }
+        json["diameter"] = 1.75
+
+        let printC = Int(draft.printTemp.trimmingCharacters(in: .whitespaces))
+        if let printC, printC > 0 {
+            json["min_temp"] = max(printC - 15, 150)
+            json["max_temp"] = printC + 15
+        }
+        let bedC = Int(draft.bedTemp.trimmingCharacters(in: .whitespaces))
+        if let bedC, bedC > 0 {
+            json["bed_min_temp"] = max(bedC - 10, 0)
+            json["bed_max_temp"] = bedC + 10
+        }
+
+        let data = try JSONSerialization.data(withJSONObject: json, options: [.sortedKeys])
+        return Array(data)
     }
 
     // MARK: - OpenTag3D
@@ -161,12 +205,22 @@ enum NFCEncoder {
     }
 
     private static func rgbComponents(from hex: String) throws -> (UInt8, UInt8, UInt8) {
+        let value = try parseHexColor(hex)
+        return (UInt8((value >> 16) & 0xFF), UInt8((value >> 8) & 0xFF), UInt8(value & 0xFF))
+    }
+
+    private static func openspoolColorHex(from hex: String) throws -> String {
+        let value = try parseHexColor(hex)
+        return String(format: "%06X", value)
+    }
+
+    private static func parseHexColor(_ hex: String) throws -> UInt32 {
         var s = hex.trimmingCharacters(in: .whitespacesAndNewlines)
         if s.hasPrefix("#") { s.removeFirst() }
         guard s.count == 6, let value = UInt32(s, radix: 16) else {
             throw NFCEncodeError.invalidColor
         }
-        return (UInt8((value >> 16) & 0xFF), UInt8((value >> 8) & 0xFF), UInt8(value & 0xFF))
+        return value
     }
 
     private static func writeString(_ bytes: inout [UInt8], offset: Int, value: String, maxLength: Int) {

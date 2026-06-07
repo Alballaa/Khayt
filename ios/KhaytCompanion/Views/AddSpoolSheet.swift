@@ -40,9 +40,15 @@ struct AddSpoolSheet: View {
                         isUploading: isUploading,
                         errorMessage: errorMessage,
                         onWriteNFC: {
-                            nfcWriteStandard = draft.sourceNote.contains("OpenPrintTag")
-                                ? .openPrintTag
-                                : draft.sourceNote.contains("OpenTag3D") ? .openTag3D : nil
+                            if draft.sourceNote.contains("OpenPrintTag") {
+                                nfcWriteStandard = .openPrintTag
+                            } else if draft.sourceNote.contains("OpenTag3D") {
+                                nfcWriteStandard = .openTag3D
+                            } else if draft.sourceNote.contains("OpenSpool") {
+                                nfcWriteStandard = .openSpool
+                            } else {
+                                nfcWriteStandard = nil
+                            }
                             showWriteNFC = true
                         }
                     ) {
@@ -108,7 +114,7 @@ struct AddSpoolSheet: View {
                 }
                 methodRow(
                     title: "Tap NFC tag",
-                    subtitle: "OpenTag3D or Prusa OpenPrintTag",
+                    subtitle: "OpenSpool, OpenTag3D, or Prusa OpenPrintTag",
                     icon: "wave.3.right"
                 ) {
                     step = .nfc
@@ -207,7 +213,11 @@ struct AddSpoolSheet: View {
                 .padding(.horizontal)
                 Button {
                     draft = SpoolDraft.from(tag: tag)
-                    nfcWriteStandard = tag.standard == "OpenPrintTag" ? .openPrintTag : .openTag3D
+                    switch tag.standard {
+                    case "OpenPrintTag": nfcWriteStandard = .openPrintTag
+                    case "OpenSpool": nfcWriteStandard = .openSpool
+                    default: nfcWriteStandard = .openTag3D
+                    }
                     showWriteNFC = true
                 } label: {
                     Label(L10n.tr("nfc.write.title"), systemImage: "square.and.pencil")

@@ -116,7 +116,9 @@
 "nfc.write.prompt" = "قرّب الآيفون من بطاقة NFC قابلة للكتابة.";
 "nfc.write.success" = "تمت كتابة البطاقة بنجاح.";
 "nfc.write.done" = "تم";
-"nfc.write.footer" = "استخدم NTAG213 أو أكبر. طابعات Prusa تستخدم OpenPrintTag؛ معظم الطابعات الأخرى OpenTag3D.";
+"nfc.write.footer" = "استخدم NTAG213+ قابل للكتابة (NTAG215/216 لـ OpenSpool). اختر الصيغة التي يتوقعها الطابعة أو البرنامج الثابت.";
+"nfc.standard.openspool" = "OpenSpool";
+"nfc.standard.openspool.hint" = "Snapmaker U1 بالبرنامج الموسّع، Bambu عبر قارئ OpenSpool — application/json";
 "nfc.standard.opentag3d" = "OpenTag3D";
 "nfc.standard.opentag3d.hint" = "Bambu وCreality والعام — application/opentag3d";
 "nfc.standard.openprinttag" = "OpenPrintTag (Prusa)";

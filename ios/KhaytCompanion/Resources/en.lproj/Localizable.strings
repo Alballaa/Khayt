@@ -116,7 +116,9 @@
 "nfc.write.prompt" = "Hold your iPhone near a blank writable NFC tag.";
 "nfc.write.success" = "Tag written successfully.";
 "nfc.write.done" = "Done";
-"nfc.write.footer" = "Use NTAG213 or larger writable tags. Prusa printers use OpenPrintTag; most others use OpenTag3D.";
+"nfc.write.footer" = "Use NTAG213+ writable tags (NTAG215/216 for OpenSpool). Pick the format your printer or firmware expects.";
+"nfc.standard.openspool" = "OpenSpool";
+"nfc.standard.openspool.hint" = "Snapmaker U1 extended firmware, Bambu via OpenSpool reader — application/json";
 "nfc.standard.opentag3d" = "OpenTag3D";
 "nfc.standard.opentag3d.hint" = "Bambu Lab, Creality, generic — application/opentag3d";
 "nfc.standard.openprinttag" = "OpenPrintTag (Prusa)";
