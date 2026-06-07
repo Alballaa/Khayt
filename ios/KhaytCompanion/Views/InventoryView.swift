@@ -2,6 +2,7 @@ import SwiftUI
 
 struct InventoryView: View {
     @EnvironmentObject private var api: KhaytAPIClient
+    @EnvironmentObject private var health: ConnectionHealth
 
     enum Filter: CaseIterable, Identifiable {
         case all
@@ -22,6 +23,8 @@ struct InventoryView: View {
     @State private var filter: Filter = .all
     @State private var selectedSpool: InventorySpool?
     @State private var sortNewestFirst = true
+    @State private var usingCachedData = false
+    @State private var cacheSavedAt: Date?
 
     private var displayed: [InventorySpool] {
         var list = spools
@@ -46,7 +49,10 @@ struct InventoryView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if spools.isEmpty && errorMessage == nil {
+                if usingCachedData {
+                    CachedDataBanner(savedAt: cacheSavedAt)
+                }
+                if spools.isEmpty && errorMessage == nil && !usingCachedData {
                     ProgressView()
                 } else if displayed.isEmpty {
                     ContentUnavailableView(
@@ -109,11 +115,30 @@ struct InventoryView: View {
 
     private func load() async {
         errorMessage = nil
+        usingCachedData = false
+        guard api.isConfigured else {
+            if let cached = CompanionDataCache.load(), let inv = cached.inventory, !inv.isEmpty {
+                spools = inv
+                usingCachedData = true
+                cacheSavedAt = cached.savedAt
+            }
+            return
+        }
         do {
-            spools = try await api.fetchInventory()
+            let data = try await api.fetchInventory()
+            spools = data
+            CompanionDataCache.save { $0.inventory = data }
+            cacheSavedAt = nil
         } catch {
-            spools = []
-            errorMessage = error.localizedDescription
+            if let cached = CompanionDataCache.load(), let inv = cached.inventory, !inv.isEmpty {
+                spools = inv
+                usingCachedData = true
+                cacheSavedAt = cached.savedAt
+                errorMessage = nil
+            } else {
+                spools = []
+                errorMessage = health.isDesktopReachable ? error.localizedDescription : L10n.tr("offline.connect_hint")
+            }
         }
     }
 }

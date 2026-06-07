@@ -3,6 +3,7 @@ import SwiftUI
 /// Active production queue + recent order history.
 struct OrdersView: View {
     @EnvironmentObject private var api: KhaytAPIClient
+    @EnvironmentObject private var health: ConnectionHealth
     @EnvironmentObject private var ordersNav: OrdersNavigationState
 
     enum Segment: String, CaseIterable, Identifiable {
@@ -41,6 +42,8 @@ struct OrdersView: View {
     @State private var selectedLogEntry: OrderLogEntry?
     @State private var recentSearch = ""
     @State private var loadGeneration = 0
+    @State private var usingCachedData = false
+    @State private var cacheSavedAt: Date?
 
     private var filteredQueue: [QueueOrder] {
         switch activeFilter {
@@ -53,6 +56,9 @@ struct OrdersView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                if usingCachedData {
+                    CachedDataBanner(savedAt: cacheSavedAt)
+                }
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         ForEach(Segment.allCases) { s in
@@ -83,6 +89,7 @@ struct OrdersView: View {
                         Button { showCreateOrder = true } label: {
                             Image(systemName: "plus")
                         }
+                        .disabled(!health.isDesktopReachable)
                         ConnectionBadge()
                     }
                 }
@@ -168,7 +175,7 @@ struct OrdersView: View {
         }
 
         Group {
-            if queue.isEmpty && errorMessage == nil && segment == .active {
+            if queue.isEmpty && errorMessage == nil && !usingCachedData && segment == .active {
                 ProgressView()
             } else if filteredQueue.isEmpty {
                 ContentUnavailableView(
@@ -184,6 +191,7 @@ struct OrdersView: View {
                         QueueOrderRow(
                             order: order,
                             isUpdating: updatingId == order.id,
+                            canMutate: health.isDesktopReachable,
                             onAdvance: { Task { await advance(order) } }
                         )
                     }
@@ -198,7 +206,7 @@ struct OrdersView: View {
     @ViewBuilder
     private var quotesContent: some View {
         Group {
-            if quotes.isEmpty && errorMessage == nil {
+            if quotes.isEmpty && errorMessage == nil && !usingCachedData {
                 ProgressView()
             } else if quotes.isEmpty {
                 ContentUnavailableView(
@@ -256,7 +264,7 @@ struct OrdersView: View {
     @ViewBuilder
     private var recentContent: some View {
         Group {
-            if recent.isEmpty && errorMessage == nil {
+            if recent.isEmpty && errorMessage == nil && !usingCachedData {
                 ProgressView()
             } else if filteredRecent.isEmpty {
                 ContentUnavailableView(
@@ -313,34 +321,70 @@ struct OrdersView: View {
         let generation = loadGeneration + 1
         loadGeneration = generation
         errorMessage = nil
+        usingCachedData = false
+        guard api.isConfigured else {
+            applyCacheFallback(for: segment)
+            return
+        }
         do {
             switch segment {
             case .active:
                 let data = try await api.fetchQueue()
                 guard generation == loadGeneration else { return }
                 queue = data
+                CompanionDataCache.save { $0.queue = data }
             case .quotes:
                 let data = try await api.fetchRecentOrders(limit: 50, status: "quote")
                 guard generation == loadGeneration else { return }
                 quotes = data
+                CompanionDataCache.save { $0.quotes = data }
             case .recent:
                 let data = try await api.fetchRecentOrders(limit: 40, status: recentStatusFilter)
                 guard generation == loadGeneration else { return }
                 recent = data
                 recentStatusFilter = nil
+                CompanionDataCache.save { $0.recentOrders = data }
             case .intake:
                 break
             }
+            cacheSavedAt = nil
         } catch {
             guard generation == loadGeneration else { return }
-            if segment == .active { queue = [] }
-            else if segment == .quotes { quotes = [] }
-            else if segment == .recent { recent = [] }
-            errorMessage = error.localizedDescription
+            if !applyCacheFallback(for: segment) {
+                if segment == .active { queue = [] }
+                else if segment == .quotes { quotes = [] }
+                else if segment == .recent { recent = [] }
+                errorMessage = health.isDesktopReachable ? error.localizedDescription : L10n.tr("offline.connect_hint")
+            }
         }
     }
 
+    private func applyCacheFallback(for segment: Segment) -> Bool {
+        guard let cached = CompanionDataCache.load() else { return false }
+        switch segment {
+        case .active:
+            guard let data = cached.queue, !data.isEmpty else { return false }
+            queue = data
+        case .quotes:
+            guard let data = cached.quotes, !data.isEmpty else { return false }
+            quotes = data
+        case .recent:
+            guard let data = cached.recentOrders, !data.isEmpty else { return false }
+            recent = data
+        case .intake:
+            return false
+        }
+        usingCachedData = true
+        cacheSavedAt = cached.savedAt
+        errorMessage = nil
+        return true
+    }
+
     private func setStatus(_ order: QueueOrder, status: String) async {
+        guard health.isDesktopReachable else {
+            errorMessage = L10n.tr("offline.action_unavailable")
+            return
+        }
         updatingId = order.id
         defer { updatingId = nil }
         do {
@@ -364,6 +408,10 @@ struct OrdersView: View {
     }
 
     private func assignMachine(_ order: QueueOrder, machineId: String?) async {
+        guard health.isDesktopReachable else {
+            errorMessage = L10n.tr("offline.action_unavailable")
+            return
+        }
         updatingId = order.id
         defer { updatingId = nil }
         do {
@@ -403,6 +451,7 @@ private struct FilterChip: View {
 private struct QueueOrderRow: View {
     let order: QueueOrder
     let isUpdating: Bool
+    var canMutate = true
     let onAdvance: () -> Void
 
     var body: some View {
@@ -434,7 +483,7 @@ private struct QueueOrderRow: View {
                         .foregroundStyle(KhaytDesign.danger)
                 }
             }
-            if OrderStatus(rawValue: order.status)?.nextInQueue != nil {
+            if canMutate, OrderStatus(rawValue: order.status)?.nextInQueue != nil {
                 Button(action: onAdvance) {
                     if isUpdating {
                         ProgressView().controlSize(.small)

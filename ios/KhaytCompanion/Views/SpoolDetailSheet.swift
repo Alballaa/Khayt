@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SpoolDetailSheet: View {
     @EnvironmentObject private var api: KhaytAPIClient
+    @EnvironmentObject private var health: ConnectionHealth
     @Environment(\.dismiss) private var dismiss
 
     @State private var spool: InventorySpool
@@ -69,7 +70,12 @@ struct SpoolDetailSheet: View {
                                 .frame(maxWidth: .infinity)
                         }
                     }
-                    .disabled(isSaving)
+                    .disabled(isSaving || !health.isDesktopReachable)
+                } footer: {
+                    if !health.isDesktopReachable {
+                        Text(L10n.tr("offline.action_unavailable"))
+                            .font(.caption)
+                    }
                 }
 
                 if spool.hasOptionalMeta {
@@ -106,7 +112,7 @@ struct SpoolDetailSheet: View {
                     } label: {
                         Label(L10n.tr("spool.delete"), systemImage: "trash")
                     }
-                    .disabled(isSaving)
+                    .disabled(isSaving || !health.isDesktopReachable)
                 }
 
                 Section {
@@ -144,6 +150,10 @@ struct SpoolDetailSheet: View {
     }
 
     private func saveRemaining() async {
+        guard health.isDesktopReachable else {
+            errorMessage = L10n.tr("offline.action_unavailable")
+            return
+        }
         isSaving = true
         errorMessage = nil
         defer { isSaving = false }
@@ -160,6 +170,10 @@ struct SpoolDetailSheet: View {
     }
 
     private func deleteSpool() async {
+        guard health.isDesktopReachable else {
+            errorMessage = L10n.tr("offline.action_unavailable")
+            return
+        }
         isSaving = true
         errorMessage = nil
         defer { isSaving = false }

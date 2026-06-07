@@ -4,7 +4,10 @@ import SwiftUI
 struct AddSpoolSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var api: KhaytAPIClient
+    @EnvironmentObject private var health: ConnectionHealth
     @EnvironmentObject private var nfc: NFCReader
+
+    private var canSyncToDesktop: Bool { health.isDesktopReachable }
 
     enum Step {
         case chooseMethod
@@ -38,6 +41,7 @@ struct AddSpoolSheet: View {
                     SpoolReviewForm(
                         draft: $draft,
                         isUploading: isUploading,
+                        canSyncToDesktop: canSyncToDesktop,
                         errorMessage: errorMessage,
                         onWriteNFC: {
                             if draft.sourceNote.contains("OpenPrintTag") {
@@ -72,7 +76,7 @@ struct AddSpoolSheet: View {
                 if BarcodeScannerView.isSupported() {
                     BarcodeScannerView(scannedText: $scannedRaw)
                 } else {
-                    Text("Camera not available on this device.")
+                    Text(L10n.tr("spool.add.camera_unavailable"))
                         .padding()
                 }
             }
@@ -90,42 +94,42 @@ struct AddSpoolSheet: View {
 
     private var navTitle: String {
         switch step {
-        case .chooseMethod: return "Add filament"
-        case .scanLabel: return "Scan label"
-        case .nfc: return "NFC tag"
-        case .review: return "Confirm spool"
+        case .chooseMethod: return L10n.tr("spool.add.title")
+        case .scanLabel: return L10n.tr("spool.add.scan")
+        case .nfc: return L10n.tr("spool.add.nfc")
+        case .review: return L10n.tr("spool.add.confirm")
         }
     }
 
     private var chooseMethodView: some View {
         List {
             Section {
-                Text("How would you like to add this spool?")
+                Text(L10n.tr("spool.add.intro"))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
             Section {
                 methodRow(
-                    title: "Scan label",
-                    subtitle: "QR, barcode, or text on the spool",
+                    title: L10n.tr("spool.add.method.scan"),
+                    subtitle: L10n.tr("spool.add.method.scan_hint"),
                     icon: "barcode.viewfinder"
                 ) {
                     step = .scanLabel
                 }
                 methodRow(
-                    title: "Tap NFC tag",
-                    subtitle: "OpenSpool, OpenTag3D, or Prusa OpenPrintTag",
+                    title: L10n.tr("spool.add.method.nfc"),
+                    subtitle: L10n.tr("spool.add.method.nfc_hint"),
                     icon: "wave.3.right"
                 ) {
                     step = .nfc
                 }
                 methodRow(
-                    title: "Enter manually",
-                    subtitle: "Type details yourself",
+                    title: L10n.tr("spool.add.method.manual"),
+                    subtitle: L10n.tr("spool.add.method.manual_hint"),
                     icon: "keyboard"
                 ) {
                     draft = SpoolDraft()
-                    draft.sourceNote = "Manual"
+                    draft.sourceNote = L10n.tr("spool.add.manual_source")
                     step = .review
                 }
             }
@@ -158,9 +162,9 @@ struct AddSpoolSheet: View {
             Image(systemName: "camera.viewfinder")
                 .font(.system(size: 56))
                 .foregroundStyle(Color.accentColor)
-            Text("Point at the label")
+            Text(L10n.tr("spool.add.scan.point"))
                 .font(.title3.bold())
-            Text("Use Photo mode for best results — take a clear picture of the whole label.")
+            Text(L10n.tr("spool.add.scan.hint"))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -168,7 +172,7 @@ struct AddSpoolSheet: View {
             Button {
                 showCamera = true
             } label: {
-                Label("Open camera", systemImage: "camera.fill")
+                Label(L10n.tr("spool.add.scan.camera"), systemImage: "camera.fill")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
@@ -184,17 +188,17 @@ struct AddSpoolSheet: View {
             Image(systemName: "nfc")
                 .font(.system(size: 56))
                 .foregroundStyle(Color.accentColor)
-            Text("Hold iPhone near the spool")
+            Text(L10n.tr("spool.add.nfc.hold"))
                 .font(.title3.bold())
             if !nfc.isAvailable {
-                Text("NFC is not available on this device.")
+                Text(L10n.tr("nfc.unavailable"))
                     .foregroundStyle(.orange)
                     .font(.caption)
             }
             Button {
                 nfc.beginScan()
             } label: {
-                Label(nfc.isScanning ? "Scanning…" : "Scan NFC", systemImage: "wave.3.right")
+                Label(nfc.isScanning ? L10n.tr("spool.add.nfc.scanning") : L10n.tr("spool.add.nfc.scan"), systemImage: "wave.3.right")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
@@ -204,7 +208,7 @@ struct AddSpoolSheet: View {
             if let tag = nfc.lastTag {
                 TagPreviewCard(tag: tag)
                     .padding(.horizontal)
-                Button("Continue") {
+                Button(L10n.tr("spool.add.continue")) {
                     draft = SpoolDraft.from(tag: tag)
                     nfc.clearLastTag()
                     step = .review
@@ -241,11 +245,18 @@ struct AddSpoolSheet: View {
     }
 
     private func submit() async {
+        guard canSyncToDesktop else {
+            errorMessage = L10n.tr("offline.action_unavailable")
+            return
+        }
         isUploading = true
         errorMessage = nil
         defer { isUploading = false }
         do {
             _ = try await api.addSpool(draft: draft)
+            if let inv = try? await api.fetchInventory() {
+                CompanionDataCache.save { $0.inventory = inv }
+            }
             onAdded()
             dismiss()
         } catch {
@@ -259,6 +270,7 @@ struct AddSpoolSheet: View {
 struct SpoolReviewForm: View {
     @Binding var draft: SpoolDraft
     let isUploading: Bool
+    var canSyncToDesktop = true
     var errorMessage: String?
     var onWriteNFC: (() -> Void)?
     let onSubmit: () -> Void
@@ -281,35 +293,37 @@ struct SpoolReviewForm: View {
                 }
             }
 
-            Section(header: Text("Required")) {
-                TextField("Material name", text: $draft.material)
-                TextField("Weight (grams)", text: Binding(
+            Section(header: Text(L10n.tr("spool.add.required"))) {
+                TextField(L10n.tr("spool.add.material"), text: $draft.material)
+                TextField(L10n.tr("spool.add.weight"), text: Binding(
                     get: { String(draft.weightGrams) },
                     set: { draft.weightGrams = Int($0) ?? draft.weightGrams }
                 ))
                 .keyboardType(.numberPad)
             }
 
-            Section(header: Text("Optional")) {
-                TextField("Brand", text: $draft.brand)
-                TextField("SKU", text: $draft.sku)
-                TextField("Batch / lot no.", text: $draft.lot)
-                TextField("Print temp (°C)", text: $draft.printTemp)
+            Section(header: Text(L10n.tr("spool.add.optional"))) {
+                TextField(L10n.tr("spool.brand"), text: $draft.brand)
+                TextField(L10n.tr("spool.sku"), text: $draft.sku)
+                TextField(L10n.tr("spool.batch"), text: $draft.lot)
+                TextField("\(L10n.tr("spool.print_temp")) (°C)", text: $draft.printTemp)
                     .keyboardType(.numberPad)
-                TextField("Bed temp (°C)", text: $draft.bedTemp)
+                TextField("\(L10n.tr("spool.bed_temp")) (°C)", text: $draft.bedTemp)
                     .keyboardType(.numberPad)
             }
 
             Section {
-                Button(action: onSubmit) {
-                    if isUploading {
-                        ProgressView().frame(maxWidth: .infinity)
-                    } else {
-                        Text("Add to Khayt inventory")
-                            .frame(maxWidth: .infinity)
+                if canSyncToDesktop {
+                    Button(action: onSubmit) {
+                        if isUploading {
+                            ProgressView().frame(maxWidth: .infinity)
+                        } else {
+                            Text(L10n.tr("spool.add.submit"))
+                                .frame(maxWidth: .infinity)
+                        }
                     }
+                    .disabled(isUploading || draft.material.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
-                .disabled(isUploading || draft.material.trimmingCharacters(in: .whitespaces).isEmpty)
 
                 if let onWriteNFC {
                     Button(action: onWriteNFC) {
@@ -317,6 +331,11 @@ struct SpoolReviewForm: View {
                             .frame(maxWidth: .infinity)
                     }
                     .disabled(draft.material.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            } footer: {
+                if !canSyncToDesktop {
+                    Text(L10n.tr("spool.add.offline_footer"))
+                        .font(.caption)
                 }
             }
         }
@@ -337,7 +356,7 @@ struct TagPreviewCard: View {
                         .frame(width: 28, height: 28)
                 }
                 VStack(alignment: .leading) {
-                    Text(tag.materialLabel.isEmpty ? "Filament" : tag.materialLabel)
+                    Text(tag.materialLabel.isEmpty ? L10n.tr("spool.tag.filament") : tag.materialLabel)
                         .font(.headline)
                     Text(tag.standard)
                         .font(.caption)
@@ -345,9 +364,9 @@ struct TagPreviewCard: View {
                 }
             }
             HStack(spacing: 12) {
-                if let w = tag.weight { meta("Weight", "\(w) g") }
-                if let p = tag.printTemp { meta("Print", "\(p)°C") }
-                if let b = tag.bedTemp { meta("Bed", "\(b)°C") }
+                if let w = tag.weight { meta(L10n.tr("spool.tag.weight"), "\(w) g") }
+                if let p = tag.printTemp { meta(L10n.tr("spool.tag.print"), "\(p)°C") }
+                if let b = tag.bedTemp { meta(L10n.tr("spool.tag.bed"), "\(b)°C") }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

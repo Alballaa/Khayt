@@ -274,3 +274,92 @@
 "settings.allow_notifications" = "السماح بالإشعارات";
 "settings.test_ok" = "تم — %d في الطابور.";
 "settings.widget_guide" = "دليل إعداد الودجة";
+"settings.setup_desktop" = "إعداد اتصال سطح المكتب";
+
+/* Pairing */
+"pairing.title" = "إعداد Khayt";
+"pairing.step" = "الخطوة %d من %d";
+"pairing.continue" = "متابعة";
+"pairing.open" = "فتح Khayt";
+"pairing.use_offline" = "أدوات بدون اتصال";
+"pairing.use_offline.footer" = "امسح الملصقات واقرأ NFC واكتب البطاقات دون الاتصال بسطح المكتب.";
+"pairing.welcome.title" = "رفيق محلك";
+"pairing.welcome.body" = "اتصل بـ Khayt على Mac أو PC عبر الواي فاي للطابور والمخزون. أو استخدم الأدوات المحلية للمسح وNFC.";
+"pairing.desktop.title" = "جهّز سطح المكتب";
+"pairing.desktop.body" = "على الكمبيوتر، افتح الإعدادات → LAN API وفعّل:";
+"pairing.desktop.check1" = "تفعيل LAN REST API";
+"pairing.desktop.check2" = "الاستماع على كل واجهات الشبكة";
+"pairing.desktop.check3" = "تعيين PIN (تذكّره)";
+"pairing.connection.title" = "أدخل الاتصال";
+"pairing.connection.body" = "الهاتف والكمبيوتر على نفس الواي فاي. المنفذ الافتراضي 3219.";
+"pairing.connection.shop_optional" = "اسم المحل (اختياري)";
+"pairing.connection.ip" = "عنوان IP للكمبيوتر";
+"pairing.connection.pin" = "رمز PIN";
+"pairing.connection.ip_help" = "كيف أجد عنوان IP؟";
+"pairing.connection.ip_help_terminal" = "على Mac، افتح Terminal ونفّذ:";
+"pairing.connection.ip_help_hint" = "استخدم الرقم الظاهر (مثلاً 192.168.1.42). إن كان فارغاً جرّب en1 أو الإعدادات → الواي فاي.";
+"pairing.verify.title" = "اختبار الاتصال";
+"pairing.verify.body" = "سنتصل بسطح المكتب ونتحقق من PIN بفحص سريع للطابور.";
+"pairing.verify.test" = "اختبار الآن";
+"pairing.verify.success" = "متصل — %d في الطابور. تم قبول PIN.";
+
+/* Add spool */
+"spool.add.title" = "إضافة فيلامنت";
+"spool.add.scan" = "مسح الملصق";
+"spool.add.nfc" = "بطاقة NFC";
+"spool.add.confirm" = "تأكيد البكرة";
+"spool.add.intro" = "كيف تريد إضافة هذه البكرة؟";
+"spool.add.method.scan" = "مسح الملصق";
+"spool.add.method.scan_hint" = "QR أو باركود أو نص على البكرة";
+"spool.add.method.nfc" = "لمس بطاقة NFC";
+"spool.add.method.nfc_hint" = "OpenSpool أو OpenTag3D أو OpenPrintTag";
+"spool.add.method.manual" = "إدخال يدوي";
+"spool.add.method.manual_hint" = "اكتب التفاصيل بنفسك";
+"spool.add.scan.point" = "وجّه نحو الملصق";
+"spool.add.scan.hint" = "وضع الصورة أفضل — التقط صورة واضحة للملصق كاملاً.";
+"spool.add.scan.camera" = "فتح الكاميرا";
+"spool.add.nfc.hold" = "قرّب الآيفون من البكرة";
+"spool.add.nfc.scan" = "مسح NFC";
+"spool.add.nfc.scanning" = "جاري المسح…";
+"spool.add.continue" = "متابعة";
+"spool.add.required" = "مطلوب";
+"spool.add.optional" = "اختياري";
+"spool.add.material" = "اسم المادة";
+"spool.add.weight" = "الوزن (غرام)";
+"spool.add.submit" = "إضافة لمخزون Khayt";
+"spool.add.offline_footer" = "سطح المكتب غير متاح — يمكنك كتابة بطاقة NFC. اتصل للمزامنة.";
+"spool.add.camera_unavailable" = "الكاميرا غير متاحة على هذا الجهاز.";
+"spool.add.manual_source" = "إدخال يدوي";
+"spool.tag.filament" = "فيلامنت";
+"spool.tag.weight" = "الوزن";
+"spool.tag.print" = "طباعة";
+"spool.tag.bed" = "سرير";
+
+/* Barcode scanner */
+"scanner.title" = "مسح الملصق";
+"scanner.mode" = "الوضع";
+"scanner.mode.photo" = "صورة";
+"scanner.mode.live" = "مباشر";
+"scanner.live_unavailable" = "المسح المباشر غير متاح";
+"scanner.live_unavailable_hint" = "استخدم وضع الصورة على هذا الجهاز.";
+"scanner.photo.title" = "التقط صورة واضحة للملصق";
+"scanner.photo.hint" = "املأ الإطار بالنص — SKU والدفعة ودرجات الحرارة والمادة.";
+"scanner.take_photo" = "التقط صورة";
+"scanner.reading" = "قراءة الملصق…";
+"scanner.live.hint" = "مرّر ببطء على الملصق. يُحفظ النص حتى لو خرج من الإطار.";
+"scanner.clear" = "مسح";
+"scanner.use_captured" = "استخدام النص (%d)";
+"scanner.more_lines" = "+%d أخرى…";
+"scanner.no_text" = "لم يُعثر على نص. جرّب إضاءة أفضل واملأ الإطار بالملصق.";
+
+/* Offline */
+"offline.tools_title" = "أدوات بدون اتصال";
+"offline.tools_subtitle" = "تعمل دون سطح المكتب — مسح الملصقات وNFC والكتابة.";
+"offline.cached_at" = "عرض بيانات محفوظة من %@";
+"offline.action_unavailable" = "اتصل بسطح المكتب لمزامنة التغييرات.";
+"offline.connect_hint" = "افتح الإعدادات لإدخال IP وPIN.";
+"offline.desktop_required" = "يتطلب اتصال سطح المكتب";
+"offline.welcome.title" = "وضع بدون اتصال";
+"offline.welcome.body" = "امسح ملصقات الفيلامنت واقرأ NFC واكتب بطاقات فارغة. اربط سطح المكتب من الإعدادات عند الجاهزية.";
+"home.action.scan_label" = "مسح ملصق";
+"home.action.nfc_tools" = "أدوات NFC";

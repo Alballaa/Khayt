@@ -274,3 +274,92 @@
 "settings.allow_notifications" = "Allow notifications";
 "settings.test_ok" = "OK — %d in queue.";
 "settings.widget_guide" = "Widget setup guide";
+"settings.setup_desktop" = "Set up desktop connection";
+
+/* Pairing */
+"pairing.title" = "Set up Khayt";
+"pairing.step" = "Step %d of %d";
+"pairing.continue" = "Continue";
+"pairing.open" = "Open Khayt";
+"pairing.use_offline" = "Use offline tools";
+"pairing.use_offline.footer" = "Scan labels, read NFC tags, and write spools without connecting to desktop.";
+"pairing.welcome.title" = "Companion for your shop";
+"pairing.welcome.body" = "Connect to Khayt on your Mac or PC over Wi‑Fi for queue and inventory. Or use offline tools for scanning and NFC tags.";
+"pairing.desktop.title" = "Prepare Khayt desktop";
+"pairing.desktop.body" = "On the computer running Khayt, open Settings → LAN API and turn on:";
+"pairing.desktop.check1" = "Enable LAN REST API";
+"pairing.desktop.check2" = "Listen on all network interfaces";
+"pairing.desktop.check3" = "Set an Owner LAN PIN (remember it)";
+"pairing.connection.title" = "Enter connection";
+"pairing.connection.body" = "Phone and computer must be on the same Wi‑Fi. Default port is 3219.";
+"pairing.connection.shop_optional" = "Shop name (optional label)";
+"pairing.connection.ip" = "Computer IP address";
+"pairing.connection.pin" = "Owner LAN PIN";
+"pairing.connection.ip_help" = "How do I find the IP address?";
+"pairing.connection.ip_help_terminal" = "On the Mac running Khayt, open Terminal and run:";
+"pairing.connection.ip_help_hint" = "Use the number shown (e.g. 192.168.1.42). If empty, try en1 or check System Settings → Wi‑Fi → Details.";
+"pairing.verify.title" = "Test connection";
+"pairing.verify.body" = "We'll reach your desktop and confirm the PIN with a quick queue check.";
+"pairing.verify.test" = "Test now";
+"pairing.verify.success" = "Connected — %d job(s) in queue. PIN accepted.";
+
+/* Add spool */
+"spool.add.title" = "Add filament";
+"spool.add.scan" = "Scan label";
+"spool.add.nfc" = "NFC tag";
+"spool.add.confirm" = "Confirm spool";
+"spool.add.intro" = "How would you like to add this spool?";
+"spool.add.method.scan" = "Scan label";
+"spool.add.method.scan_hint" = "QR, barcode, or text on the spool";
+"spool.add.method.nfc" = "Tap NFC tag";
+"spool.add.method.nfc_hint" = "OpenSpool, OpenTag3D, or Prusa OpenPrintTag";
+"spool.add.method.manual" = "Enter manually";
+"spool.add.method.manual_hint" = "Type details yourself";
+"spool.add.scan.point" = "Point at the label";
+"spool.add.scan.hint" = "Use Photo mode for best results — take a clear picture of the whole label.";
+"spool.add.scan.camera" = "Open camera";
+"spool.add.nfc.hold" = "Hold iPhone near the spool";
+"spool.add.nfc.scan" = "Scan NFC";
+"spool.add.nfc.scanning" = "Scanning…";
+"spool.add.continue" = "Continue";
+"spool.add.required" = "Required";
+"spool.add.optional" = "Optional";
+"spool.add.material" = "Material name";
+"spool.add.weight" = "Weight (grams)";
+"spool.add.submit" = "Add to Khayt inventory";
+"spool.add.offline_footer" = "Desktop unreachable — you can still write an NFC tag. Connect to sync inventory.";
+"spool.add.camera_unavailable" = "Camera not available on this device.";
+"spool.add.manual_source" = "Manual entry";
+"spool.tag.filament" = "Filament";
+"spool.tag.weight" = "Weight";
+"spool.tag.print" = "Print";
+"spool.tag.bed" = "Bed";
+
+/* Barcode scanner */
+"scanner.title" = "Scan label";
+"scanner.mode" = "Mode";
+"scanner.mode.photo" = "Photo";
+"scanner.mode.live" = "Live";
+"scanner.live_unavailable" = "Live scan unavailable";
+"scanner.live_unavailable_hint" = "Use Photo mode on this device.";
+"scanner.photo.title" = "Take a clear photo of the label";
+"scanner.photo.hint" = "Fill the frame with text — SKU, batch, temps, and material. Works better than live scan for small print.";
+"scanner.take_photo" = "Take photo";
+"scanner.reading" = "Reading label…";
+"scanner.live.hint" = "Slowly pan across the label. Captured text is kept even when it leaves the frame.";
+"scanner.clear" = "Clear";
+"scanner.use_captured" = "Use captured text (%d)";
+"scanner.more_lines" = "+%d more…";
+"scanner.no_text" = "No text found. Try brighter light and fill the frame with the label.";
+
+/* Offline */
+"offline.tools_title" = "Offline tools";
+"offline.tools_subtitle" = "Works without desktop — scan labels, read NFC, write tags.";
+"offline.cached_at" = "Showing saved data from %@";
+"offline.action_unavailable" = "Connect to desktop to sync changes.";
+"offline.connect_hint" = "Open Settings to enter your desktop IP and PIN.";
+"offline.desktop_required" = "Requires desktop connection";
+"offline.welcome.title" = "Offline mode";
+"offline.welcome.body" = "Scan filament labels, read NFC tags, and write blank tags. Pair with desktop in Settings when you're ready to sync queue and inventory.";
+"home.action.scan_label" = "Scan label";
+"home.action.nfc_tools" = "NFC tools";

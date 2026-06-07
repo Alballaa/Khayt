@@ -15,7 +15,7 @@ struct ContentView: View {
 
     var body: some View {
         Group {
-            if settings.isPaired && settings.isConfigured {
+            if settings.canUseApp {
                 MainTabView(selectedTab: $selectedTab, tabs: tabs)
             } else {
                 PairingView()

@@ -85,6 +85,10 @@ final class ConnectionSettings: ObservableObject {
     @Published var isPaired: Bool {
         didSet { UserDefaults.standard.set(isPaired, forKey: Keys.paired) }
     }
+    /// User chose offline tools without completing desktop pairing.
+    @Published var prefersOfflineTools: Bool {
+        didSet { UserDefaults.standard.set(prefersOfflineTools, forKey: Keys.offlineTools) }
+    }
     @Published var shopLabel: String {
         didSet { UserDefaults.standard.set(shopLabel, forKey: Keys.shopLabel) }
     }
@@ -113,6 +117,7 @@ final class ConnectionSettings: ObservableObject {
         static let shopLabel = "khayt.shopLabel"
         static let pinKeychain = "khayt.lanPin"
         static let paired = "khayt.paired"
+        static let offlineTools = "khayt.offlineTools"
         static let language = "khayt.language"
         static let notifyQueue = "khayt.notify.queue"
         static let notifyConnection = "khayt.notify.connection"
@@ -126,6 +131,7 @@ final class ConnectionSettings: ObservableObject {
         port = defaults.object(forKey: Keys.port) as? Int ?? 3219
         shopLabel = defaults.string(forKey: Keys.shopLabel) ?? "My Shop"
         isPaired = defaults.bool(forKey: Keys.paired)
+        prefersOfflineTools = defaults.bool(forKey: Keys.offlineTools)
         pin = KeychainHelper.get(Keys.pinKeychain) ?? ""
         let langRaw = defaults.string(forKey: Keys.language) ?? AppLanguage.system.rawValue
         appLanguage = AppLanguage(rawValue: langRaw) ?? .system
@@ -163,8 +169,12 @@ final class ConnectionSettings: ObservableObject {
 
     var isConfigured: Bool { baseURL != nil }
 
+    /// Main app shell: paired desktop or explicit offline-tools mode.
+    var canUseApp: Bool { (isPaired && isConfigured) || prefersOfflineTools }
+
     func unpair() {
         isPaired = false
+        prefersOfflineTools = false
         pin = ""
         KeychainHelper.delete(Keys.pinKeychain)
     }

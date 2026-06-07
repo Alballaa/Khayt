@@ -15,10 +15,16 @@ struct BarcodeScannerView: View {
 
     @StateObject private var accumulator = LabelTextAccumulatorBox()
 
-    enum ScanMode: String, CaseIterable, Identifiable {
-        case photo = "Photo"
-        case live = "Live"
-        var id: String { rawValue }
+    enum ScanMode: CaseIterable, Identifiable {
+        case photo
+        case live
+        var id: Self { self }
+        var label: String {
+            switch self {
+            case .photo: return L10n.tr("scanner.mode.photo")
+            case .live: return L10n.tr("scanner.mode.live")
+            }
+        }
     }
 
     var body: some View {
@@ -29,9 +35,9 @@ struct BarcodeScannerView: View {
                         .ignoresSafeArea()
                 } else if mode == .live {
                     ContentUnavailableView(
-                        "Live scan unavailable",
+                        L10n.tr("scanner.live_unavailable"),
                         systemImage: "camera.fill",
-                        description: Text("Use Photo mode on this device.")
+                        description: Text(L10n.tr("scanner.live_unavailable_hint"))
                     )
                 } else {
                     photoPlaceholder
@@ -42,7 +48,7 @@ struct BarcodeScannerView: View {
                     capturePanel
                 }
             }
-            .navigationTitle("Scan label")
+            .navigationTitle(L10n.tr("scanner.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -50,7 +56,7 @@ struct BarcodeScannerView: View {
                 }
                 if !capturedLines.isEmpty {
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button("Clear") {
+                        Button(L10n.tr("scanner.clear")) {
                             accumulator.value.clear()
                             syncLines()
                         }
@@ -77,9 +83,9 @@ struct BarcodeScannerView: View {
             Image(systemName: "camera.fill")
                 .font(.system(size: 56))
                 .foregroundStyle(Color.accentColor)
-            Text("Take a clear photo of the label")
+            Text(L10n.tr("scanner.photo.title"))
                 .font(.title3.bold())
-            Text("Fill the frame with text — SKU, batch, temps, and material. Works better than live scan for small print.")
+            Text(L10n.tr("scanner.photo.hint"))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -87,7 +93,7 @@ struct BarcodeScannerView: View {
             Button {
                 showPhotoPicker = true
             } label: {
-                Label("Take photo", systemImage: "camera.shutter.button")
+                Label(L10n.tr("scanner.take_photo"), systemImage: "camera.shutter.button")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
@@ -100,9 +106,9 @@ struct BarcodeScannerView: View {
 
     private var capturePanel: some View {
         VStack(spacing: 10) {
-            Picker("Mode", selection: $mode) {
+            Picker(L10n.tr("scanner.mode"), selection: $mode) {
                 ForEach(ScanMode.allCases) { m in
-                    Text(m.rawValue).tag(m)
+                    Text(m.label).tag(m)
                 }
             }
             .pickerStyle(.segmented)
@@ -112,14 +118,14 @@ struct BarcodeScannerView: View {
                 Button {
                     showPhotoPicker = true
                 } label: {
-                    Label(isProcessingPhoto ? "Reading label…" : "Take photo", systemImage: "camera.shutter.button")
+                    Label(isProcessingPhoto ? L10n.tr("scanner.reading") : L10n.tr("scanner.take_photo"), systemImage: "camera.shutter.button")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
                 .disabled(isProcessingPhoto)
                 .padding(.horizontal)
             } else {
-                Text("Slowly pan across the label. Captured text is kept even when it leaves the frame.")
+                Text(L10n.tr("scanner.live.hint"))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -142,7 +148,7 @@ struct BarcodeScannerView: View {
                                 .foregroundStyle(.primary)
                         }
                         if capturedLines.count > 12 {
-                            Text("+\(capturedLines.count - 12) more…")
+                            Text(String(format: L10n.tr("scanner.more_lines"), capturedLines.count - 12))
                                 .font(.caption2)
                                 .foregroundStyle(.tertiary)
                         }
@@ -156,7 +162,7 @@ struct BarcodeScannerView: View {
             Button {
                 finishCapture()
             } label: {
-                Label("Use captured text (\(capturedLines.count))", systemImage: "checkmark.circle.fill")
+                Label(String(format: L10n.tr("scanner.use_captured"), capturedLines.count), systemImage: "checkmark.circle.fill")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
@@ -177,7 +183,7 @@ struct BarcodeScannerView: View {
         do {
             let text = try await LabelPhotoOCR.recognizeText(in: image)
             guard !text.isEmpty else {
-                photoError = "No text found. Try brighter light and fill the frame with the label."
+                photoError = L10n.tr("scanner.no_text")
                 return
             }
             accumulator.value.ingestPhotoText(text)

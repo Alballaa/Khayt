@@ -3,6 +3,7 @@ import SwiftUI
 struct CreateOrderSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var api: KhaytAPIClient
+    @EnvironmentObject private var health: ConnectionHealth
 
     @State private var draft = NewOrderDraft()
     @State private var machines: [MachineInfo] = []
@@ -60,9 +61,9 @@ struct CreateOrderSheet: View {
                                 .frame(maxWidth: .infinity)
                         }
                     }
-                    .disabled(isSaving || draft.project.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .disabled(isSaving || !health.isDesktopReachable || draft.project.trimmingCharacters(in: .whitespaces).isEmpty)
                 } footer: {
-                    Text(L10n.tr("order.create.footer"))
+                    Text(health.isDesktopReachable ? L10n.tr("order.create.footer") : L10n.tr("offline.action_unavailable"))
                         .font(.caption)
                 }
             }
@@ -82,6 +83,10 @@ struct CreateOrderSheet: View {
     }
 
     private func submit() async {
+        guard health.isDesktopReachable else {
+            errorMessage = L10n.tr("offline.action_unavailable")
+            return
+        }
         isSaving = true
         errorMessage = nil
         defer { isSaving = false }

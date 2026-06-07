@@ -3,6 +3,7 @@ import SwiftUI
 struct DashboardView: View {
     @EnvironmentObject private var settings: ConnectionSettings
     @EnvironmentObject private var api: KhaytAPIClient
+    @EnvironmentObject private var health: ConnectionHealth
     @EnvironmentObject private var ordersNav: OrdersNavigationState
 
     @State private var status: ShopStatus?
@@ -13,11 +14,19 @@ struct DashboardView: View {
     @State private var errorMessage: String?
     @State private var isLoading = false
     @State private var showAddSpool = false
+    @State private var usingCachedData = false
+    @State private var cacheSavedAt: Date?
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
+                    if usingCachedData {
+                        CachedDataBanner(savedAt: cacheSavedAt)
+                    }
+                    if !health.isDesktopReachable {
+                        offlineToolsSection
+                    }
                     if let status {
                         statsRow(status)
                         pipelineSection(status)
@@ -29,6 +38,8 @@ struct DashboardView: View {
                     } else if isLoading {
                         ProgressView(L10n.tr("connection.checking"))
                             .frame(maxWidth: .infinity, minHeight: 200)
+                    } else if settings.prefersOfflineTools && !health.isDesktopReachable {
+                        offlineWelcome
                     } else {
                         emptyState
                     }
@@ -159,6 +170,40 @@ struct DashboardView: View {
         .padding(.horizontal, KhaytDesign.pad)
     }
 
+    private var offlineToolsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            KhaytSectionHeader(text: L10n.tr("offline.tools_title"))
+            Text(L10n.tr("offline.tools_subtitle"))
+                .font(.caption)
+                .foregroundStyle(KhaytDesign.textMuted)
+                .padding(.horizontal, KhaytDesign.pad)
+            HStack(spacing: 10) {
+                quickTile(L10n.tr("home.action.scan_label"), "barcode.viewfinder") { showAddSpool = true }
+                quickTile(L10n.tr("home.action.nfc_tools"), "wave.3.right") { showAddSpool = true }
+            }
+            .padding(.horizontal, KhaytDesign.pad)
+        }
+    }
+
+    private var offlineWelcome: some View {
+        KhaytCard {
+            VStack(spacing: 12) {
+                Image(systemName: "iphone.gen3")
+                    .font(.largeTitle)
+                    .foregroundStyle(KhaytDesign.brand)
+                Text(L10n.tr("offline.welcome.title"))
+                    .font(.headline)
+                    .foregroundStyle(KhaytDesign.text)
+                Text(L10n.tr("offline.welcome.body"))
+                    .font(.caption)
+                    .foregroundStyle(KhaytDesign.textMuted)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .padding(.horizontal, KhaytDesign.pad)
+    }
+
     private var quickActions: some View {
         VStack(alignment: .leading, spacing: 10) {
             KhaytSectionHeader(text: L10n.tr("home.quick_actions"))
@@ -168,10 +213,12 @@ struct DashboardView: View {
                 quickTile(L10n.tr("home.action.inventory"), "cylinder.split.1x2.fill") { ordersNav.openInventory() }
             }
             .padding(.horizontal, KhaytDesign.pad)
-            NavigationLink { ClientsView() } label: {
-                quickTileLabel(L10n.tr("clients.title"), "person.2.fill")
+            if health.isDesktopReachable {
+                NavigationLink { ClientsView() } label: {
+                    quickTileLabel(L10n.tr("clients.title"), "person.2.fill")
+                }
+                .padding(.horizontal, KhaytDesign.pad)
             }
-            .padding(.horizontal, KhaytDesign.pad)
         }
     }
 
@@ -271,7 +318,12 @@ struct DashboardView: View {
     private func load() async {
         isLoading = true
         errorMessage = nil
+        usingCachedData = false
         defer { isLoading = false }
+        guard api.isConfigured else {
+            _ = applyCacheFallback()
+            return
+        }
         do {
             async let statusTask = api.fetchStatus()
             async let queueTask = api.fetchQueue()
@@ -282,17 +334,41 @@ struct DashboardView: View {
             lowStockCount = inv.filter(\.isLowStock).count
             overdueCount = q.filter(\.isOverdue).count
             waitingCount = s.waitingCount
+            cacheSavedAt = nil
+            CompanionDataCache.save {
+                $0.status = s
+                $0.queue = q
+                $0.inventory = inv
+            }
             CompanionNotifications.shared.handleDashboardSnapshot(
                 status: s, queue: q, lowStockCount: lowStockCount, settings: settings
             )
         } catch {
-            status = nil
-            queuePreview = []
-            lowStockCount = 0
-            overdueCount = 0
-            waitingCount = 0
-            errorMessage = error.localizedDescription
+            if !applyCacheFallback() {
+                status = nil
+                queuePreview = []
+                lowStockCount = 0
+                overdueCount = 0
+                waitingCount = 0
+                errorMessage = error.localizedDescription
+            }
             CompanionNotifications.shared.saveDisconnectedSnapshot(shopName: settings.shopLabel)
         }
+    }
+
+    @discardableResult
+    private func applyCacheFallback() -> Bool {
+        guard let cached = CompanionDataCache.load(),
+              cached.status != nil || !(cached.queue ?? []).isEmpty else { return false }
+        status = cached.status
+        let q = cached.queue ?? []
+        queuePreview = q.filter { $0.status.lowercased() != "completed" }
+        lowStockCount = (cached.inventory ?? []).filter(\.isLowStock).count
+        overdueCount = q.filter(\.isOverdue).count
+        waitingCount = cached.status?.waitingCount ?? 0
+        usingCachedData = true
+        cacheSavedAt = cached.savedAt
+        errorMessage = nil
+        return true
     }
 }

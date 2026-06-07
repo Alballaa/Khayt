@@ -54,6 +54,8 @@
 		B10000000000000000000031 /* KhaytTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000031 /* KhaytTabBar.swift */; };
 		B10000000000000000000032 /* KhaytListStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000032 /* KhaytListStyle.swift */; };
 		B10000000000000000000033 /* WidgetSnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000033 /* WidgetSnapshotStore.swift */; };
+		B1000000000000000000003B /* CompanionDataCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000003B /* CompanionDataCache.swift */; };
+		B1000000000000000000003C /* CachedDataBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000003C /* CachedDataBanner.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -107,6 +109,8 @@
 		F10000000000000000000031 /* KhaytTabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KhaytTabBar.swift; sourceTree = "<group>"; };
 		F10000000000000000000032 /* KhaytListStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KhaytListStyle.swift; sourceTree = "<group>"; };
 		F10000000000000000000033 /* WidgetSnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSnapshotStore.swift; sourceTree = "<group>"; };
+		F1000000000000000000003B /* CompanionDataCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionDataCache.swift; sourceTree = "<group>"; };
+		F1000000000000000000003C /* CachedDataBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedDataBanner.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -176,6 +180,7 @@
 				F10000000000000000000022 /* OrdersNavigationState.swift */,
 				F10000000000000000000023 /* CompanionShortcuts.swift */,
 				F10000000000000000000033 /* WidgetSnapshotStore.swift */,
+				F1000000000000000000003B /* CompanionDataCache.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -215,6 +220,7 @@
 				F10000000000000000000025 /* ConnectionBanner.swift */,
 				F10000000000000000000026 /* KanbanStripView.swift */,
 				F10000000000000000000032 /* KhaytListStyle.swift */,
+				F1000000000000000000003C /* CachedDataBanner.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -328,6 +334,8 @@
 				B10000000000000000000022 /* OrdersNavigationState.swift in Sources */,
 				B10000000000000000000023 /* CompanionShortcuts.swift in Sources */,
 				B10000000000000000000033 /* WidgetSnapshotStore.swift in Sources */,
+				B1000000000000000000003B /* CompanionDataCache.swift in Sources */,
+				B1000000000000000000003C /* CachedDataBanner.swift in Sources */,
 				B10000000000000000000006 /* NFCParser.swift in Sources */,
 				B10000000000000000000007 /* NFCReader.swift in Sources */,
 				B10000000000000000000034 /* NFCEncoder.swift in Sources */,

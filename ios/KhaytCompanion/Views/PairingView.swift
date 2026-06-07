@@ -30,8 +30,25 @@ struct PairingView: View {
 
                 bottomBar
                     .padding()
+
+                Button {
+                    settings.prefersOfflineTools = true
+                } label: {
+                    VStack(spacing: 4) {
+                        Text(L10n.tr("pairing.use_offline"))
+                            .font(.subheadline.weight(.semibold))
+                        Text(L10n.tr("pairing.use_offline.footer"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal)
+                .padding(.bottom, 12)
             }
-            .navigationTitle("Set up Khayt")
+            .navigationTitle(L10n.tr("pairing.title"))
             .navigationBarTitleDisplayMode(.inline)
         }
     }
@@ -45,7 +62,7 @@ struct PairingView: View {
                         .frame(height: 4)
                 }
             }
-            Text("Step \(step + 1) of \(totalSteps)")
+            Text(String(format: L10n.tr("pairing.step"), step + 1, totalSteps))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -54,16 +71,17 @@ struct PairingView: View {
     private var bottomBar: some View {
         HStack {
             if step > 0 {
-                Button("Back") { step -= 1 }
+                Button(L10n.tr("common.back")) { step -= 1 }
             }
             Spacer()
             if step < totalSteps - 1 {
-                Button("Continue") { step += 1 }
+                Button(L10n.tr("pairing.continue")) { step += 1 }
                     .buttonStyle(.borderedProminent)
                     .disabled(!canAdvance)
             } else {
-                Button("Open Khayt") {
+                Button(L10n.tr("pairing.open")) {
                     settings.isPaired = true
+                    settings.prefersOfflineTools = false
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(!testOK)
@@ -78,13 +96,11 @@ struct PairingView: View {
         }
     }
 
-    // MARK: - Steps
-
     private var welcomeStep: some View {
         stepCard(
             icon: "iphone.and.arrow.forward",
-            title: "Companion for your shop",
-            body: "This app connects to **Khayt on your Mac or PC** over Wi‑Fi. Your data stays on the desktop — the phone is for queue, inventory, and scanning spools on the go."
+            title: L10n.tr("pairing.welcome.title"),
+            body: L10n.tr("pairing.welcome.body")
         )
     }
 
@@ -92,13 +108,13 @@ struct PairingView: View {
         VStack(alignment: .leading, spacing: 16) {
             stepCard(
                 icon: "desktopcomputer",
-                title: "Prepare Khayt desktop",
-                body: "On the computer running Khayt, open **Settings → LAN API** and turn on:"
+                title: L10n.tr("pairing.desktop.title"),
+                body: L10n.tr("pairing.desktop.body")
             )
             VStack(alignment: .leading, spacing: 10) {
-                checklistRow("Enable LAN REST API", icon: "network")
-                checklistRow("Listen on all network interfaces", icon: "antenna.radiowaves.left.and.right")
-                checklistRow("Set an Owner LAN PIN (remember it)", icon: "key.fill")
+                checklistRow(L10n.tr("pairing.desktop.check1"), icon: "network")
+                checklistRow(L10n.tr("pairing.desktop.check2"), icon: "antenna.radiowaves.left.and.right")
+                checklistRow(L10n.tr("pairing.desktop.check3"), icon: "key.fill")
             }
             .padding()
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
@@ -111,31 +127,31 @@ struct PairingView: View {
             VStack(alignment: .leading, spacing: 16) {
                 stepCard(
                     icon: "link",
-                    title: "Enter connection",
-                    body: "Phone and computer must be on the **same Wi‑Fi**. Default port is **3219**."
+                    title: L10n.tr("pairing.connection.title"),
+                    body: L10n.tr("pairing.connection.body")
                 )
 
                 Group {
-                    TextField("Shop name (optional label)", text: $settings.shopLabel)
-                    TextField("Computer IP address", text: $settings.host)
+                    TextField(L10n.tr("pairing.connection.shop_optional"), text: $settings.shopLabel)
+                    TextField(L10n.tr("pairing.connection.ip"), text: $settings.host)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .keyboardType(.URL)
-                    Stepper("Port: \(settings.port)", value: $settings.port, in: 1024...65535)
-                    SecureField("Owner LAN PIN", text: $settings.pin)
+                    Stepper(String(format: L10n.tr("settings.port"), settings.port), value: $settings.port, in: 1024...65535)
+                    SecureField(L10n.tr("pairing.connection.pin"), text: $settings.pin)
                 }
                 .textFieldStyle(.roundedBorder)
 
-                DisclosureGroup("How do I find the IP address?", isExpanded: $showIPHelp) {
+                DisclosureGroup(L10n.tr("pairing.connection.ip_help"), isExpanded: $showIPHelp) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("On the Mac running Khayt, open **Terminal** and run:")
+                        Text(L10n.tr("pairing.connection.ip_help_terminal"))
                             .font(.caption)
                         Text("ipconfig getifaddr en0")
                             .font(.system(.caption, design: .monospaced))
                             .padding(8)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
-                        Text("Use the number shown (e.g. 192.168.1.42). If empty, try **en1** or check **System Settings → Wi‑Fi → Details**.")
+                        Text(L10n.tr("pairing.connection.ip_help_hint"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -154,8 +170,8 @@ struct PairingView: View {
         VStack(spacing: 20) {
             stepCard(
                 icon: "checkmark.shield",
-                title: "Test connection",
-                body: "We’ll reach your desktop and confirm the PIN with a quick queue check."
+                title: L10n.tr("pairing.verify.title"),
+                body: L10n.tr("pairing.verify.body")
             )
             .padding(.horizontal)
 
@@ -163,7 +179,7 @@ struct PairingView: View {
                 Task { await runPairingTest() }
             } label: {
                 HStack {
-                    Label("Test now", systemImage: "bolt.fill")
+                    Label(L10n.tr("pairing.verify.test"), systemImage: "bolt.fill")
                     Spacer()
                     if isTesting { ProgressView() }
                 }
@@ -190,8 +206,6 @@ struct PairingView: View {
         }
     }
 
-    // MARK: - Helpers
-
     private func stepCard(icon: String, title: String, body: String) -> some View {
         VStack(spacing: 12) {
             Image(systemName: icon)
@@ -200,7 +214,7 @@ struct PairingView: View {
             Text(title)
                 .font(.title2.bold())
                 .multilineTextAlignment(.center)
-            Text(LocalizedStringKey(body))
+            Text(body)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -226,7 +240,7 @@ struct PairingView: View {
         do {
             let status = try await api.validatePairing()
             testOK = true
-            testMessage = "Connected — \(status.queued) job(s) in queue. PIN accepted."
+            testMessage = String(format: L10n.tr("pairing.verify.success"), status.queued)
         } catch {
             testMessage = error.localizedDescription
         }

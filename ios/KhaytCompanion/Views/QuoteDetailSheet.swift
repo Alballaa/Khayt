@@ -4,6 +4,7 @@ struct QuoteDetailSheet: View {
     let entry: OrderLogEntry
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var api: KhaytAPIClient
+    @EnvironmentObject private var health: ConnectionHealth
 
     @State private var linkInfo: QuoteLinkInfo?
     @State private var isLoading = true
@@ -63,7 +64,7 @@ struct QuoteDetailSheet: View {
                                         .frame(maxWidth: .infinity)
                                 }
                             }
-                            .disabled(isApproving)
+                            .disabled(isApproving || !health.isDesktopReachable)
                         } footer: {
                             Text(L10n.tr("quote.approve_footer"))
                                 .font(.caption)
@@ -85,6 +86,11 @@ struct QuoteDetailSheet: View {
     }
 
     private func loadLink() async {
+        guard health.isDesktopReachable else {
+            errorMessage = L10n.tr("offline.action_unavailable")
+            isLoading = false
+            return
+        }
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
@@ -96,6 +102,10 @@ struct QuoteDetailSheet: View {
     }
 
     private func approve() async {
+        guard health.isDesktopReachable else {
+            errorMessage = L10n.tr("offline.action_unavailable")
+            return
+        }
         isApproving = true
         errorMessage = nil
         defer { isApproving = false }

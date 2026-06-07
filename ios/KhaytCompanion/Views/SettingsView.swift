@@ -24,6 +24,16 @@ struct SettingsView: View {
                     }
                 }
 
+                if settings.prefersOfflineTools && !settings.isPaired {
+                    Section {
+                        Text(L10n.tr("offline.welcome.body"))
+                            .font(.subheadline)
+                            .foregroundStyle(KhaytDesign.textDim)
+                    } header: {
+                        Text(L10n.tr("offline.welcome.title"))
+                    }
+                }
+
                 Section(
                     header: Text(L10n.tr("settings.connection")),
                     footer: Text(L10n.tr("settings.connection.footer"))
@@ -127,6 +137,8 @@ struct SettingsView: View {
         do {
             let status = try await api.validatePairing()
             testResult = String(format: L10n.tr("settings.test_ok"), status.queued)
+            settings.isPaired = true
+            settings.prefersOfflineTools = false
             await health.refresh()
         } catch {
             testResult = error.localizedDescription

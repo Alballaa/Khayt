@@ -2,10 +2,13 @@ import SwiftUI
 
 struct ClientsView: View {
     @EnvironmentObject private var api: KhaytAPIClient
+    @EnvironmentObject private var health: ConnectionHealth
 
     @State private var clients: [ClientInfo] = []
     @State private var errorMessage: String?
     @State private var searchText = ""
+    @State private var usingCachedData = false
+    @State private var cacheSavedAt: Date?
 
     private var displayed: [ClientInfo] {
         let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -19,7 +22,10 @@ struct ClientsView: View {
 
     var body: some View {
         Group {
-            if clients.isEmpty && errorMessage == nil {
+            if usingCachedData {
+                CachedDataBanner(savedAt: cacheSavedAt)
+            }
+            if clients.isEmpty && errorMessage == nil && !usingCachedData {
                 ProgressView()
             } else if displayed.isEmpty {
                 ContentUnavailableView(
@@ -58,11 +64,31 @@ struct ClientsView: View {
 
     private func load() async {
         errorMessage = nil
-        do {
-            clients = try await api.fetchClients()
-        } catch {
-            clients = []
-            errorMessage = error.localizedDescription
+        usingCachedData = false
+        guard api.isConfigured else {
+            applyCacheFallback()
+            return
         }
+        do {
+            let data = try await api.fetchClients()
+            clients = data
+            CompanionDataCache.save { $0.clients = data }
+            cacheSavedAt = nil
+        } catch {
+            if !applyCacheFallback() {
+                clients = []
+                errorMessage = health.isDesktopReachable ? error.localizedDescription : L10n.tr("offline.connect_hint")
+            }
+        }
+    }
+
+    private func applyCacheFallback() -> Bool {
+        guard let cached = CompanionDataCache.load(),
+              let data = cached.clients, !data.isEmpty else { return false }
+        clients = data
+        usingCachedData = true
+        cacheSavedAt = cached.savedAt
+        errorMessage = nil
+        return true
     }
 }

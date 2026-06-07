@@ -9,11 +9,16 @@ struct MachinesView: View {
     @State private var queue: [QueueOrder] = []
     @State private var errorMessage: String?
     @State private var selectedMachine: MachineInfo?
+    @State private var usingCachedData = false
+    @State private var cacheSavedAt: Date?
 
     var body: some View {
         NavigationStack {
             Group {
-                if machines.isEmpty && errorMessage == nil {
+                if usingCachedData {
+                    CachedDataBanner(savedAt: cacheSavedAt)
+                }
+                if machines.isEmpty && errorMessage == nil && !usingCachedData {
                     ProgressView()
                 } else if machines.isEmpty {
                     ContentUnavailableView(
@@ -97,6 +102,11 @@ struct MachinesView: View {
 
     private func load() async {
         errorMessage = nil
+        usingCachedData = false
+        guard api.isConfigured else {
+            applyCacheFallback()
+            return
+        }
         do {
             async let machinesTask = api.fetchMachines()
             async let queueTask = api.fetchQueue()
@@ -105,11 +115,30 @@ struct MachinesView: View {
             machines = m
             queue = q
             live = l
+            CompanionDataCache.save {
+                $0.machines = m
+                $0.queue = q
+            }
+            cacheSavedAt = nil
         } catch {
-            machines = []
-            queue = []
-            live = []
-            errorMessage = error.localizedDescription
+            if !applyCacheFallback() {
+                machines = []
+                queue = []
+                live = []
+                errorMessage = health.isDesktopReachable ? error.localizedDescription : L10n.tr("offline.connect_hint")
+            }
         }
+    }
+
+    private func applyCacheFallback() -> Bool {
+        guard let cached = CompanionDataCache.load(),
+              let m = cached.machines, !m.isEmpty else { return false }
+        machines = m
+        queue = cached.queue ?? []
+        live = []
+        usingCachedData = true
+        cacheSavedAt = cached.savedAt
+        errorMessage = nil
+        return true
     }
 }

@@ -74,6 +74,10 @@ final class ConnectionHealth: ObservableObject {
             do {
                 let queue = try await api.fetchQueue()
                 state = .connected
+                CompanionDataCache.save {
+                    $0.status = status
+                    $0.queue = queue
+                }
                 await refreshWidgetsAndAlerts(status: status, queue: queue)
             } catch let err as KhaytAPIError {
                 lastStatus = nil

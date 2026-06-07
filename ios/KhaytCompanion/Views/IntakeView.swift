@@ -3,15 +3,21 @@ import SwiftUI
 /// Job intake / waiting list — triage leads from web intake or desktop.
 struct IntakeView: View {
     @EnvironmentObject private var api: KhaytAPIClient
+    @EnvironmentObject private var health: ConnectionHealth
 
     @State private var items: [WaitingListEntry] = []
     @State private var errorMessage: String?
     @State private var updatingId: String?
     @State private var selected: WaitingListEntry?
+    @State private var usingCachedData = false
+    @State private var cacheSavedAt: Date?
 
     var body: some View {
         Group {
-            if items.isEmpty && errorMessage == nil {
+            if usingCachedData {
+                CachedDataBanner(savedAt: cacheSavedAt)
+            }
+            if items.isEmpty && errorMessage == nil && !usingCachedData {
                 ProgressView()
             } else if items.isEmpty {
                 ContentUnavailableView(
@@ -61,15 +67,39 @@ struct IntakeView: View {
 
     func reload() async {
         errorMessage = nil
+        usingCachedData = false
+        guard api.isConfigured else {
+            applyCacheFallback()
+            return
+        }
         do {
-            items = try await api.fetchWaitingList()
+            let data = try await api.fetchWaitingList()
+            items = data
+            CompanionDataCache.save { $0.waitingList = data }
+            cacheSavedAt = nil
         } catch {
-            items = []
-            errorMessage = error.localizedDescription
+            if !applyCacheFallback() {
+                items = []
+                errorMessage = health.isDesktopReachable ? error.localizedDescription : L10n.tr("offline.connect_hint")
+            }
         }
     }
 
+    private func applyCacheFallback() -> Bool {
+        guard let cached = CompanionDataCache.load(),
+              let data = cached.waitingList, !data.isEmpty else { return false }
+        items = data
+        usingCachedData = true
+        cacheSavedAt = cached.savedAt
+        errorMessage = nil
+        return true
+    }
+
     private func decline(_ item: WaitingListEntry) async {
+        guard health.isDesktopReachable else {
+            errorMessage = L10n.tr("offline.action_unavailable")
+            return
+        }
         updatingId = item.id
         defer { updatingId = nil }
         do {
@@ -83,6 +113,10 @@ struct IntakeView: View {
     }
 
     private func markReminded(_ item: WaitingListEntry) async {
+        guard health.isDesktopReachable else {
+            errorMessage = L10n.tr("offline.action_unavailable")
+            return
+        }
         updatingId = item.id
         defer { updatingId = nil }
         do {
