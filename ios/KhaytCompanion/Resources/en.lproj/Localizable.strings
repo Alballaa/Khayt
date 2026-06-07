@@ -219,3 +219,58 @@
 "machine.eta" = "ETA";
 "machine.temps" = "Nozzle / bed";
 "machines.assigned_header" = "Assigned jobs";
+
+/* Common */
+"common.done" = "Done";
+"common.cancel" = "Cancel";
+"common.back" = "Back";
+"common.name" = "Name";
+"common.type" = "Type";
+"common.status" = "Status";
+"common.id" = "ID";
+"common.empty" = "Nothing here yet";
+"common.no_match" = "No match for \"%@\"";
+
+/* Field labels */
+"field.project" = "Project";
+"field.client" = "Client";
+"field.material" = "Material";
+"field.machine" = "Machine";
+"field.due" = "Due";
+"field.priority" = "Priority";
+"field.order_id" = "Order ID";
+
+/* Order detail */
+"order.detail.title" = "Order";
+
+/* Spool detail */
+"spool.title" = "Spool";
+"spool.section.filament" = "Filament";
+"spool.section.stock" = "Stock";
+"spool.section.label" = "Label / tag info";
+"spool.brand" = "Brand";
+"spool.sku" = "SKU";
+"spool.batch" = "Batch / lot";
+"spool.print_temp" = "Print temp";
+"spool.bed_temp" = "Bed temp";
+
+/* Inventory empty */
+"inventory.empty" = "No spools";
+"inventory.empty_low" = "No low stock";
+"inventory.empty_hint" = "Tap + to add a spool.";
+"inventory.filter" = "Filter";
+"inventory.sort" = "Sort";
+
+/* Machines empty */
+"machines.empty" = "No machines";
+"machines.empty_hint" = "Add printers in Khayt desktop.";
+
+/* Orders empty */
+"orders.empty_active" = "Queue is empty";
+"orders.empty_recent" = "No recent orders";
+"orders.section" = "Section";
+
+/* Settings extras */
+"settings.allow_notifications" = "Allow notifications";
+"settings.test_ok" = "OK — %d in queue.";
+"settings.widget_guide" = "Widget setup guide";

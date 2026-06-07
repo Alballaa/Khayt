@@ -45,8 +45,9 @@ struct ClientsView: View {
                         }
                     }
                     .padding(.vertical, 2)
+                    .listRowBackground(KhaytDesign.surface)
                 }
-                .listStyle(.plain)
+                .khaytPlainList()
             }
         }
         .khaytScreen(title: L10n.tr("clients.title"))

@@ -65,7 +65,7 @@ struct SettingsView: View {
                     Button {
                         Task { await CompanionNotifications.shared.requestAuthorizationIfNeeded() }
                     } label: {
-                        Text("Allow notifications")
+                        Text(L10n.tr("settings.allow_notifications"))
                     }
                 }
 
@@ -81,7 +81,7 @@ struct SettingsView: View {
                     header: Text(L10n.tr("settings.widget")),
                     footer: Text(L10n.tr("settings.widget.footer"))
                 ) {
-                    Link("Widget setup guide", destination: URL(string: "https://github.com/Alballaa/Khayt/blob/main/ios/XCODE_WIDGET.md")!)
+                    Link(L10n.tr("settings.widget_guide"), destination: URL(string: "https://github.com/Alballaa/Khayt/blob/main/ios/XCODE_WIDGET.md")!)
                 }
 
                 Section {
@@ -126,7 +126,7 @@ struct SettingsView: View {
         defer { isTesting = false }
         do {
             let status = try await api.validatePairing()
-            testResult = "OK — \(status.queued) in queue."
+            testResult = String(format: L10n.tr("settings.test_ok"), status.queued)
             await health.refresh()
         } catch {
             testResult = error.localizedDescription

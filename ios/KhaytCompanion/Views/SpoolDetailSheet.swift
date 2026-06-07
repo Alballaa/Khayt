@@ -31,17 +31,17 @@ struct SpoolDetailSheet: View {
                     }
                 }
 
-                Section("Filament") {
-                    LabeledContent("Name", value: spool.displayLabel)
+                Section(L10n.tr("spool.section.filament")) {
+                    LabeledContent(L10n.tr("common.name"), value: spool.displayLabel)
                     if let brand = spool.brand, !brand.isEmpty {
-                        LabeledContent("Brand", value: brand)
+                        LabeledContent(L10n.tr("spool.brand"), value: brand)
                     }
                     if let material = spool.material, !material.isEmpty {
-                        LabeledContent("Material", value: material)
+                        LabeledContent(L10n.tr("field.material"), value: material)
                     }
                 }
 
-                Section("Stock") {
+                Section(L10n.tr("spool.section.stock")) {
                     TextField(L10n.tr("spool.remaining"), text: $remainingText)
                         .keyboardType(.numberPad)
                     if let weight = spool.weight {
@@ -73,18 +73,18 @@ struct SpoolDetailSheet: View {
                 }
 
                 if spool.hasOptionalMeta {
-                    Section("Label / tag info") {
+                    Section(L10n.tr("spool.section.label")) {
                         if let sku = spool.sku, !sku.isEmpty {
-                            LabeledContent("SKU", value: sku)
+                            LabeledContent(L10n.tr("spool.sku"), value: sku)
                         }
                         if let lot = spool.lot, !lot.isEmpty {
-                            LabeledContent("Batch / lot", value: lot)
+                            LabeledContent(L10n.tr("spool.batch"), value: lot)
                         }
                         if let p = spool.printTemp {
-                            LabeledContent("Print temp", value: "\(p)°C")
+                            LabeledContent(L10n.tr("spool.print_temp"), value: "\(p)°C")
                         }
                         if let b = spool.bedTemp {
-                            LabeledContent("Bed temp", value: "\(b)°C")
+                            LabeledContent(L10n.tr("spool.bed_temp"), value: "\(b)°C")
                         }
                     }
                 }
@@ -110,15 +110,17 @@ struct SpoolDetailSheet: View {
                 }
 
                 Section {
-                    LabeledContent("ID", value: spool.id)
+                    LabeledContent(L10n.tr("common.id"), value: spool.id)
                         .font(.caption)
                 }
             }
-            .navigationTitle("Spool")
+            .scrollContentBackground(.hidden)
+            .background(KhaytDesign.sheetBg)
+            .navigationTitle(L10n.tr("spool.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                    Button(L10n.tr("common.done")) { dismiss() }
                 }
             }
             .sheet(isPresented: $showWriteNFC) {

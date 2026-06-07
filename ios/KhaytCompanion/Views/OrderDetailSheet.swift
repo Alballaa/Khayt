@@ -29,21 +29,21 @@ struct OrderDetailSheet: View {
         NavigationStack {
             List {
                 Section {
-                    LabeledContent("Project", value: order.displayTitle)
-                    LabeledContent("Client", value: order.displayClient)
-                    LabeledContent("Status") {
+                    LabeledContent(L10n.tr("field.project"), value: order.displayTitle)
+                    LabeledContent(L10n.tr("field.client"), value: order.displayClient)
+                    LabeledContent(L10n.tr("common.status")) {
                         CompanionStatusBadge(status: order.status)
                     }
                     if let machine = order.machine, !machine.isEmpty {
-                        LabeledContent("Machine", value: machine)
+                        LabeledContent(L10n.tr("field.machine"), value: machine)
                     }
                     if let due = order.dueDate, !due.isEmpty {
-                        LabeledContent("Due", value: due)
+                        LabeledContent(L10n.tr("field.due"), value: due)
                     }
                     if let priority = order.priority, !priority.isEmpty {
-                        LabeledContent("Priority", value: priority.capitalized)
+                        LabeledContent(L10n.tr("field.priority"), value: priority.capitalized)
                     }
-                    LabeledContent("Order ID", value: order.id)
+                    LabeledContent(L10n.tr("field.order_id"), value: order.id)
                         .font(.caption)
                 }
 
@@ -99,11 +99,13 @@ struct OrderDetailSheet: View {
                     }
                 }
             }
-            .navigationTitle("Order")
+            .scrollContentBackground(.hidden)
+            .background(KhaytDesign.sheetBg)
+            .navigationTitle(L10n.tr("order.detail.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                    Button(L10n.tr("common.done")) { dismiss() }
                 }
             }
             .task {
@@ -121,13 +123,13 @@ struct OrderLogDetailSheet: View {
         NavigationStack {
             List {
                 Section {
-                    LabeledContent("Project", value: entry.displayTitle)
-                    LabeledContent("Client", value: entry.displayClient)
-                    LabeledContent("Status") {
+                    LabeledContent(L10n.tr("field.project"), value: entry.displayTitle)
+                    LabeledContent(L10n.tr("field.client"), value: entry.displayClient)
+                    LabeledContent(L10n.tr("common.status")) {
                         CompanionStatusBadge(status: entry.status)
                     }
                     if let material = entry.material, !material.isEmpty {
-                        LabeledContent("Material", value: material)
+                        LabeledContent(L10n.tr("field.material"), value: material)
                     }
                     if let price = entry.price {
                         LabeledContent(L10n.tr("order.price"), value: String(format: "%.2f", price))
@@ -136,20 +138,22 @@ struct OrderLogDetailSheet: View {
                         LabeledContent(L10n.tr("order.payment"), value: payment.capitalized)
                     }
                     if let due = entry.dueDate, !due.isEmpty {
-                        LabeledContent("Due", value: due)
+                        LabeledContent(L10n.tr("field.due"), value: due)
                     }
                     if let date = entry.date, !date.isEmpty {
                         LabeledContent(L10n.tr("order.date"), value: date)
                     }
-                    LabeledContent("Order ID", value: entry.id)
+                    LabeledContent(L10n.tr("field.order_id"), value: entry.id)
                         .font(.caption)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(KhaytDesign.sheetBg)
             .navigationTitle(L10n.tr("order.history"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                    Button(L10n.tr("common.done")) { dismiss() }
                 }
             }
         }

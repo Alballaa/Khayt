@@ -46,7 +46,7 @@ struct BarcodeScannerView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(L10n.tr("common.cancel")) { dismiss() }
                 }
                 if !capturedLines.isEmpty {
                     ToolbarItem(placement: .topBarTrailing) {

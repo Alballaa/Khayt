@@ -66,11 +66,13 @@ struct CreateOrderSheet: View {
                         .font(.caption)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(KhaytDesign.sheetBg)
             .navigationTitle(L10n.tr("order.create.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(L10n.tr("nfc.write.done")) { dismiss() }
+                    Button(L10n.tr("common.cancel")) { dismiss() }
                 }
             }
             .task {

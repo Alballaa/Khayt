@@ -60,7 +60,12 @@ struct MainTabView: View {
         .onAppear { health.startPolling() }
         .onDisappear { health.stopPolling() }
         .onChange(of: ordersNav.ordersTabRequest) { _, _ in
-            selectedTab = 1
+            if let tab = ordersNav.requestedTab {
+                selectedTab = tab
+                ordersNav.requestedTab = nil
+            } else {
+                selectedTab = 1
+            }
         }
     }
 

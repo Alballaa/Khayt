@@ -219,3 +219,58 @@
 "machine.eta" = "الوقت المتبقي";
 "machine.temps" = "الفوهة / السرير";
 "machines.assigned_header" = "المهام المعيّنة";
+
+/* Common */
+"common.done" = "تم";
+"common.cancel" = "إلغاء";
+"common.back" = "رجوع";
+"common.name" = "الاسم";
+"common.type" = "النوع";
+"common.status" = "الحالة";
+"common.id" = "المعرف";
+"common.empty" = "لا يوجد شيء هنا";
+"common.no_match" = "لا نتائج لـ \"%@\"";
+
+/* Field labels */
+"field.project" = "المشروع";
+"field.client" = "العميل";
+"field.material" = "المادة";
+"field.machine" = "الآلة";
+"field.due" = "الاستحقاق";
+"field.priority" = "الأولوية";
+"field.order_id" = "معرف الطلب";
+
+/* Order detail */
+"order.detail.title" = "الطلب";
+
+/* Spool detail */
+"spool.title" = "البكرة";
+"spool.section.filament" = "الفيلامنت";
+"spool.section.stock" = "المخزون";
+"spool.section.label" = "معلومات الملصق";
+"spool.brand" = "العلامة";
+"spool.sku" = "SKU";
+"spool.batch" = "الدفعة";
+"spool.print_temp" = "حرارة الطباعة";
+"spool.bed_temp" = "حرارة السرير";
+
+/* Inventory empty */
+"inventory.empty" = "لا بكرات";
+"inventory.empty_low" = "لا مخزون منخفض";
+"inventory.empty_hint" = "اضغط + لإضافة بكرة.";
+"inventory.filter" = "تصفية";
+"inventory.sort" = "ترتيب";
+
+/* Machines empty */
+"machines.empty" = "لا آلات";
+"machines.empty_hint" = "أضف طابعات من تطبيق سطح المكتب.";
+
+/* Orders empty */
+"orders.empty_active" = "الطابور فارغ";
+"orders.empty_recent" = "لا طلبات حديثة";
+"orders.section" = "القسم";
+
+/* Settings extras */
+"settings.allow_notifications" = "السماح بالإشعارات";
+"settings.test_ok" = "تم — %d في الطابور.";
+"settings.widget_guide" = "دليل إعداد الودجة";

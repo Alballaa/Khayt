@@ -13,12 +13,12 @@ struct MachineDetailSheet: View {
         NavigationStack {
             List {
                 Section(L10n.tr("tab.machines")) {
-                    LabeledContent("Name", value: machine.name ?? machine.id)
+                    LabeledContent(L10n.tr("common.name"), value: machine.name ?? machine.id)
                     if let type = machine.type {
-                        LabeledContent("Type", value: type.uppercased())
+                        LabeledContent(L10n.tr("common.type"), value: type.uppercased())
                     }
                     if let status = machine.status {
-                        LabeledContent("Status") {
+                        LabeledContent(L10n.tr("common.status")) {
                             CompanionStatusBadge(status: status, compact: true)
                         }
                     }
@@ -75,11 +75,13 @@ struct MachineDetailSheet: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(KhaytDesign.sheetBg)
             .navigationTitle(machine.name ?? machine.id)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(L10n.tr("nfc.write.done")) { dismiss() }
+                    Button(L10n.tr("common.done")) { dismiss() }
                 }
             }
             .refreshable { await load() }

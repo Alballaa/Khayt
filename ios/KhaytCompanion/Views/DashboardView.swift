@@ -137,8 +137,8 @@ struct DashboardView: View {
     }
 
     private var lowStockBanner: some View {
-        NavigationLink {
-            InventoryView()
+        Button {
+            ordersNav.openInventory()
         } label: {
             HStack {
                 Image(systemName: "exclamationmark.triangle.fill")
@@ -147,7 +147,7 @@ struct DashboardView: View {
                     .font(.subheadline.bold())
                     .foregroundStyle(KhaytDesign.text)
                 Spacer()
-                Image(systemName: "chevron.forward")
+                Image(systemName: "chevron.right")
                     .font(.caption.bold())
                     .foregroundStyle(KhaytDesign.textMuted)
             }
@@ -164,17 +164,13 @@ struct DashboardView: View {
             KhaytSectionHeader(text: L10n.tr("home.quick_actions"))
             HStack(spacing: 10) {
                 quickTile(L10n.tr("home.action.add_spool"), "plus.circle.fill") { showAddSpool = true }
-                NavigationLink { OrdersView() } label: {
-                    quickTileLabel(L10n.tr("home.action.orders"), "rectangle.stack.fill")
-                }
-                NavigationLink { InventoryView() } label: {
-                    quickTileLabel(L10n.tr("home.action.inventory"), "cylinder.split.1x2.fill")
-                }
+                quickTile(L10n.tr("home.action.orders"), "rectangle.stack.fill") { ordersNav.openOrders() }
+                quickTile(L10n.tr("home.action.inventory"), "cylinder.split.1x2.fill") { ordersNav.openInventory() }
             }
+            .padding(.horizontal, KhaytDesign.pad)
             NavigationLink { ClientsView() } label: {
                 quickTileLabel(L10n.tr("clients.title"), "person.2.fill")
             }
-            .padding(.horizontal, KhaytDesign.pad)
             .padding(.horizontal, KhaytDesign.pad)
         }
     }

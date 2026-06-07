@@ -27,6 +27,7 @@ struct IntakeView: View {
                         IntakeRow(item: item)
                     }
                     .buttonStyle(.plain)
+                    .listRowBackground(KhaytDesign.surface)
                     .swipeActions(edge: .trailing) {
                         Button(role: .destructive) {
                             Task { await decline(item) }
@@ -43,12 +44,12 @@ struct IntakeView: View {
                         .tint(KhaytDesign.brand)
                     }
                 }
-                .listStyle(.plain)
+                .khaytPlainList()
             }
         }
-            .refreshable { await reload() }
-            .task { await reload() }
-            .sheet(item: $selected) { item in
+        .refreshable { await reload() }
+        .task { await reload() }
+        .sheet(item: $selected) { item in
             IntakeDetailSheet(
                 item: item,
                 isUpdating: updatingId == item.id,
@@ -176,9 +177,11 @@ struct IntakeDetailSheet: View {
             }
             .navigationTitle(L10n.tr("intake.title"))
             .navigationBarTitleDisplayMode(.inline)
+            .scrollContentBackground(.hidden)
+            .background(KhaytDesign.sheetBg)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(L10n.tr("nfc.write.done")) { dismiss() }
+                    Button(L10n.tr("common.done")) { dismiss() }
                 }
             }
         }

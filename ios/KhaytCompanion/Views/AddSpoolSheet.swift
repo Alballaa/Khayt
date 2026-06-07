@@ -60,11 +60,11 @@ struct AddSpoolSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(L10n.tr("common.cancel")) { dismiss() }
                 }
                 if step != .chooseMethod && step != .review {
                     ToolbarItem(placement: .topBarLeading) {
-                        Button("Back") { goBack() }
+                        Button(L10n.tr("common.back")) { goBack() }
                     }
                 }
             }

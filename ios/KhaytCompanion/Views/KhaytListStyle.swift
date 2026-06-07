@@ -23,3 +23,12 @@ struct KhaytListRow<Content: View>: View {
             .listRowSeparatorTint(KhaytDesign.hairline)
     }
 }
+
+extension View {
+    func khaytPlainList() -> some View {
+        self
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .environment(\.defaultMinListRowHeight, 56)
+    }
+}

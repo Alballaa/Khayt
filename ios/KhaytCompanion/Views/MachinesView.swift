@@ -17,9 +17,9 @@ struct MachinesView: View {
                     ProgressView()
                 } else if machines.isEmpty {
                     ContentUnavailableView(
-                        "No machines",
+                        L10n.tr("machines.empty"),
                         systemImage: "printer",
-                        description: Text(errorMessage ?? "Add printers in Khayt desktop.")
+                        description: Text(errorMessage ?? L10n.tr("machines.empty_hint"))
                     )
                 } else {
                     List(machines) { machine in
@@ -76,11 +76,17 @@ struct MachinesView: View {
                         .padding(.vertical, 4)
                         }
                         .buttonStyle(.plain)
+                        .listRowBackground(KhaytDesign.surface)
                     }
-                    .listStyle(.plain)
+                    .khaytPlainList()
                 }
             }
             .khaytScreen(title: L10n.tr("tab.machines"))
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    ConnectionBadge()
+                }
+            }
             .refreshable { await load() }
             .task { await load() }
             .sheet(item: $selectedMachine) { machine in

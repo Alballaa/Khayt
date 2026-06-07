@@ -3,10 +3,16 @@ import SwiftUI
 struct InventoryView: View {
     @EnvironmentObject private var api: KhaytAPIClient
 
-    enum Filter: String, CaseIterable, Identifiable {
-        case all = "All"
-        case lowStock = "Low stock"
-        var id: String { rawValue }
+    enum Filter: CaseIterable, Identifiable {
+        case all
+        case lowStock
+        var id: Self { self }
+        var label: String {
+            switch self {
+            case .all: return L10n.tr("inventory.filter.all")
+            case .lowStock: return L10n.tr("inventory.filter.low")
+            }
+        }
     }
 
     @State private var spools: [InventorySpool] = []
@@ -44,13 +50,13 @@ struct InventoryView: View {
                     ProgressView()
                 } else if displayed.isEmpty {
                     ContentUnavailableView(
-                        filter == .lowStock ? "No low stock" : "No spools",
+                        filter == .lowStock ? L10n.tr("inventory.empty_low") : L10n.tr("inventory.empty"),
                         systemImage: "cylinder",
                         description: Text(
                             errorMessage
                                 ?? (searchText.isEmpty
-                                    ? "Tap + to add a spool."
-                                    : "No match for \"\(searchText)\".")
+                                    ? L10n.tr("inventory.empty_hint")
+                                    : String(format: L10n.tr("common.no_match"), searchText))
                         )
                     )
                 } else {
@@ -61,8 +67,9 @@ struct InventoryView: View {
                             SpoolRow(spool: spool)
                         }
                         .buttonStyle(.plain)
+                        .listRowBackground(KhaytDesign.surface)
                     }
-                    .listStyle(.plain)
+                    .khaytPlainList()
                 }
             }
             .khaytScreen(title: L10n.tr("tab.inventory"))
@@ -70,18 +77,21 @@ struct InventoryView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Menu {
-                        Picker("Filter", selection: $filter) {
+                        Picker(L10n.tr("inventory.filter"), selection: $filter) {
                             ForEach(Filter.allCases) { f in
-                                Text(f.rawValue).tag(f)
+                                Text(f.label).tag(f)
                             }
                         }
-                        Toggle("Newest first", isOn: $sortNewestFirst)
+                        Toggle(L10n.tr("inventory.sort.newest"), isOn: $sortNewestFirst)
                     } label: {
                         Image(systemName: "line.3.horizontal.decrease.circle")
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button { showAddSpool = true } label: { Image(systemName: "plus") }
+                    HStack(spacing: 12) {
+                        Button { showAddSpool = true } label: { Image(systemName: "plus") }
+                        ConnectionBadge()
+                    }
                 }
             }
             .sheet(isPresented: $showAddSpool) {

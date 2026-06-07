@@ -71,11 +71,13 @@ struct QuoteDetailSheet: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(KhaytDesign.sheetBg)
             .navigationTitle(L10n.tr("quote.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(L10n.tr("nfc.write.done")) { dismiss() }
+                    Button(L10n.tr("common.done")) { dismiss() }
                 }
             }
             .task { await loadLink() }

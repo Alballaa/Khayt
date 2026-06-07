@@ -53,14 +53,17 @@ struct OrdersView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                Picker("Orders", selection: $segment) {
-                    ForEach(Segment.allCases) { s in
-                        Text(s.title).tag(s)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(Segment.allCases) { s in
+                            FilterChip(title: s.title, selected: segment == s) { segment = s }
+                        }
                     }
+                    .padding(.horizontal)
                 }
-                .pickerStyle(.segmented)
-                .padding(.horizontal)
                 .padding(.vertical, 8)
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel(L10n.tr("orders.section"))
 
                 switch segment {
                 case .active:
@@ -169,9 +172,9 @@ struct OrdersView: View {
                 ProgressView()
             } else if filteredQueue.isEmpty {
                 ContentUnavailableView(
-                    L10n.tr("tab.orders"),
+                    L10n.tr("orders.empty_active"),
                     systemImage: "tray",
-                    description: Text(errorMessage ?? "—")
+                    description: Text(errorMessage ?? L10n.tr("common.empty"))
                 )
             } else {
                 List(filteredQueue) { order in
@@ -185,10 +188,9 @@ struct OrdersView: View {
                         )
                     }
                     .buttonStyle(.plain)
+                    .listRowBackground(KhaytDesign.surface)
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
-                .environment(\.defaultMinListRowHeight, 56)
+                .khaytPlainList()
             }
         }
     }
@@ -233,8 +235,9 @@ struct OrdersView: View {
                         .padding(.vertical, 2)
                     }
                     .buttonStyle(.plain)
+                    .listRowBackground(KhaytDesign.surface)
                 }
-                .listStyle(.plain)
+                .khaytPlainList()
             }
         }
     }
@@ -257,9 +260,9 @@ struct OrdersView: View {
                 ProgressView()
             } else if filteredRecent.isEmpty {
                 ContentUnavailableView(
-                    L10n.tr("orders.recent"),
+                    L10n.tr("orders.empty_recent"),
                     systemImage: "clock",
-                    description: Text(errorMessage ?? "—")
+                    description: Text(errorMessage ?? L10n.tr("common.empty"))
                 )
             } else {
                 List(filteredRecent) { entry in
@@ -300,9 +303,7 @@ struct OrdersView: View {
                     .buttonStyle(.plain)
                     .listRowBackground(KhaytDesign.surface)
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
-                .environment(\.defaultMinListRowHeight, 56)
+                .khaytPlainList()
             }
         }
         .searchable(text: $recentSearch, prompt: L10n.tr("orders.search"))
