@@ -131,3 +131,51 @@
 "nfc.error.not_ndef" = "البطاقة لا تدعم NDEF.";
 "nfc.error.read_only" = "البطاقة للقراءة فقط أو مقفلة. استخدم بطاقة فارغة قابلة للكتابة.";
 "nfc.error.read_failed" = "تعذرت قراءة البطاقة.";
+
+/* Intake */
+"intake.title" = "الطلبات الواردة";
+"intake.empty" = "لا توجد طلبات واردة.";
+"intake.project" = "المشروع";
+"intake.client" = "العميل";
+"intake.priority" = "الأولوية";
+"intake.material" = "المادة";
+"intake.est_value" = "القيمة التقديرية";
+"intake.notes" = "ملاحظات";
+"intake.contact" = "التواصل";
+"intake.email" = "البريد";
+"intake.phone" = "الهاتف";
+"intake.decline" = "رفض";
+"intake.remind" = "تم التذكير";
+"waiting.untitled" = "طلب بدون عنوان";
+"waiting.priority.urgent" = "عاجل";
+"waiting.priority.high" = "عالي";
+"waiting.priority.normal" = "عادي";
+"waiting.priority.low" = "منخفض";
+
+/* Clients */
+"clients.title" = "العملاء";
+"clients.empty" = "لا يوجد عملاء بعد.";
+"clients.search" = "اسم، هاتف، بريد…";
+
+/* Spool */
+"spool.remaining" = "المتبقي (غ)";
+"spool.initial" = "الوزن الأولي";
+"spool.mark_empty" = "فارغة";
+"spool.save_remaining" = "حفظ المتبقي";
+"spool.delete" = "حذف البكرة";
+"spool.delete_confirm" = "إزالة هذه البكرة من المخزون؟";
+
+/* Orders */
+"orders.search" = "مشروع، عميل، معرف…";
+"order.assign_machine" = "الطابعة";
+"order.machine" = "تعيين إلى";
+"order.unassigned" = "غير معيّن";
+"order.price" = "السعر";
+"order.payment" = "الدفع";
+"order.date" = "التاريخ";
+"order.history" = "سجل الطلب";
+"machines.assigned" = "%d مهمة معيّنة";
+
+/* Home */
+"home.waiting" = "%d طلب وارد";
+"settings.shop_data" = "بيانات المحل";

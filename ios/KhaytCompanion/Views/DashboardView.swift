@@ -9,6 +9,7 @@ struct DashboardView: View {
     @State private var queuePreview: [QueueOrder] = []
     @State private var lowStockCount = 0
     @State private var overdueCount = 0
+    @State private var waitingCount = 0
     @State private var errorMessage: String?
     @State private var isLoading = false
     @State private var showAddSpool = false
@@ -20,6 +21,7 @@ struct DashboardView: View {
                     if let status {
                         statsRow(status)
                         pipelineSection(status)
+                        if waitingCount > 0 { waitingBanner }
                         if overdueCount > 0 { overdueBanner }
                         if lowStockCount > 0 { lowStockBanner }
                         quickActions
@@ -111,6 +113,29 @@ struct DashboardView: View {
         .padding(.horizontal, KhaytDesign.pad)
     }
 
+    private var waitingBanner: some View {
+        Button {
+            ordersNav.openIntake()
+        } label: {
+            HStack {
+                Image(systemName: "tray.and.arrow.down.fill")
+                    .foregroundStyle(KhaytDesign.brand)
+                Text(String(format: L10n.tr("home.waiting"), waitingCount))
+                    .font(.subheadline.bold())
+                    .foregroundStyle(KhaytDesign.text)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.bold())
+                    .foregroundStyle(KhaytDesign.textMuted)
+            }
+            .padding(12)
+            .background(KhaytDesign.accentSoft, in: RoundedRectangle(cornerRadius: KhaytDesign.radiusLG))
+            .overlay(RoundedRectangle(cornerRadius: KhaytDesign.radiusLG).stroke(KhaytDesign.brand.opacity(0.2), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, KhaytDesign.pad)
+    }
+
     private var lowStockBanner: some View {
         NavigationLink {
             InventoryView()
@@ -146,6 +171,10 @@ struct DashboardView: View {
                     quickTileLabel(L10n.tr("home.action.inventory"), "cylinder.split.1x2.fill")
                 }
             }
+            NavigationLink { ClientsView() } label: {
+                quickTileLabel(L10n.tr("clients.title"), "person.2.fill")
+            }
+            .padding(.horizontal, KhaytDesign.pad)
             .padding(.horizontal, KhaytDesign.pad)
         }
     }
@@ -256,6 +285,7 @@ struct DashboardView: View {
             queuePreview = q.filter { $0.status.lowercased() != "completed" }
             lowStockCount = inv.filter(\.isLowStock).count
             overdueCount = q.filter(\.isOverdue).count
+            waitingCount = s.waitingCount
             CompanionNotifications.shared.handleDashboardSnapshot(
                 status: s, queue: q, lowStockCount: lowStockCount, settings: settings
             )
@@ -264,6 +294,7 @@ struct DashboardView: View {
             queuePreview = []
             lowStockCount = 0
             overdueCount = 0
+            waitingCount = 0
             errorMessage = error.localizedDescription
             CompanionNotifications.shared.saveDisconnectedSnapshot(shopName: settings.shopLabel)
         }

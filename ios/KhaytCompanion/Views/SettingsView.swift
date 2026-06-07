@@ -69,6 +69,14 @@ struct SettingsView: View {
                     }
                 }
 
+                Section(header: Text(L10n.tr("settings.shop_data"))) {
+                    NavigationLink {
+                        ClientsView()
+                    } label: {
+                        Label(L10n.tr("clients.title"), systemImage: "person.2")
+                    }
+                }
+
                 Section(
                     header: Text(L10n.tr("settings.widget")),
                     footer: Text(L10n.tr("settings.widget.footer"))

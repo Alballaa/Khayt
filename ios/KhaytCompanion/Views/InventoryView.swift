@@ -88,7 +88,9 @@ struct InventoryView: View {
                 AddSpoolSheet { Task { await load() } }
             }
             .sheet(item: $selectedSpool) { spool in
-                SpoolDetailSheet(spool: spool)
+                SpoolDetailSheet(spool: spool) {
+                    Task { await load() }
+                }
             }
             .refreshable { await load() }
             .task { await load() }

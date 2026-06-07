@@ -53,9 +53,12 @@ Public aggregate counts for the active queue.
   "printing": 3,
   "post": 2,
   "qc": 3,
-  "completed_today": 7
+  "completed_today": 7,
+  "waiting": 2
 }
 ```
+
+`waiting` — active job intake / waiting-list entries (excludes declined).
 
 ### `GET /api/queue`
 
@@ -92,11 +95,21 @@ Order log slice. **Requires owner PIN.**
 
 Update order status. **Requires owner PIN.**
 
-**Body**
+**Body** (at least one field required)
 
 ```json
 { "status": "printing" }
 ```
+
+```json
+{ "machineId": "m1" }
+```
+
+```json
+{ "status": "printing", "machineId": "m1" }
+```
+
+Pass `"machineId": null` to unassign a printer.
 
 **Valid status values:** `pending`, `printing`, `post`, `qc`, `completed`, `on_hold`
 
@@ -125,6 +138,47 @@ Append a spool. **Requires owner PIN.**
 **Response 201:** `{ "ok": true, "spool": { ... } }`
 
 **Desktop side effect:** `lan-spool-added` IPC.
+
+### `PATCH /api/inventory/:id`
+
+Update spool remaining weight. **Requires owner PIN.**
+
+**Body**
+
+```json
+{ "remaining": 450 }
+```
+
+**Response 200:** `{ "ok": true, "spool": { ... } }`  
+**Desktop side effect:** `lan-spool-updated` IPC.
+
+### `DELETE /api/inventory/:id`
+
+Remove a spool. **Requires owner PIN.**
+
+**Response 200:** `{ "ok": true, "id": "spool-…" }`  
+**Desktop side effect:** `lan-spool-deleted` IPC.
+
+### `GET /api/waiting-list`
+
+Active intake / waiting-list entries (excludes declined). **Requires owner PIN.**
+
+**Response 200:** array of waiting-list objects (`id`, `project`, `clientName`, `notes`, `priority`, `status`, …).
+
+### `PATCH /api/waiting-list/:id`
+
+Update intake item status. **Requires owner PIN.**
+
+**Body:** `{ "status": "reminded" }` or `{ "status": "declined" }`  
+Declining moves the item to `waitingListHistory` on desktop.
+
+**Desktop side effect:** `lan-waiting-updated` IPC.
+
+### `GET /api/clients`
+
+Read-only client list from store. **Requires owner PIN.**
+
+**Response 200:** array with `id`, `nameEn`, `nameAr`, `phone`, `email`.
 
 ### `GET /api/machines`
 
@@ -157,7 +211,10 @@ Defined in `preload.js`:
 | Event | When |
 |-------|------|
 | `lan-spool-added` | After `POST /api/inventory` |
+| `lan-spool-updated` | After `PATCH /api/inventory/:id` |
+| `lan-spool-deleted` | After `DELETE /api/inventory/:id` |
 | `lan-order-updated` | After `PATCH /api/orders/:id` |
+| `lan-waiting-updated` | After `PATCH /api/waiting-list/:id` |
 | `lan-kanban-advanced` | Printer webhooks / auto-advance |
 
 Renderer handlers: `renderer/app-boot.js` (`onLanSpoolAdded`, `onLanOrderUpdated`).

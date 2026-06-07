@@ -131,3 +131,51 @@
 "nfc.error.not_ndef" = "Tag does not support NDEF.";
 "nfc.error.read_only" = "Tag is read-only or locked. Use a blank writable tag.";
 "nfc.error.read_failed" = "Could not read tag.";
+
+/* Intake / waiting list */
+"intake.title" = "Intake";
+"intake.empty" = "No pending intake requests.";
+"intake.project" = "Project";
+"intake.client" = "Client";
+"intake.priority" = "Priority";
+"intake.material" = "Material";
+"intake.est_value" = "Est. value";
+"intake.notes" = "Notes";
+"intake.contact" = "Contact";
+"intake.email" = "Email";
+"intake.phone" = "Phone";
+"intake.decline" = "Decline";
+"intake.remind" = "Mark reminded";
+"waiting.untitled" = "Untitled request";
+"waiting.priority.urgent" = "Urgent";
+"waiting.priority.high" = "High";
+"waiting.priority.normal" = "Normal";
+"waiting.priority.low" = "Low";
+
+/* Clients */
+"clients.title" = "Clients";
+"clients.empty" = "No clients on desktop yet.";
+"clients.search" = "Name, phone, email…";
+
+/* Spool edit */
+"spool.remaining" = "Remaining (g)";
+"spool.initial" = "Initial weight";
+"spool.mark_empty" = "Mark empty";
+"spool.save_remaining" = "Save remaining";
+"spool.delete" = "Delete spool";
+"spool.delete_confirm" = "Remove this spool from inventory?";
+
+/* Orders / machines */
+"orders.search" = "Project, client, ID…";
+"order.assign_machine" = "Printer";
+"order.machine" = "Assign to";
+"order.unassigned" = "Unassigned";
+"order.price" = "Price";
+"order.payment" = "Payment";
+"order.date" = "Date";
+"order.history" = "Order history";
+"machines.assigned" = "%d job(s) assigned";
+
+/* Home / settings */
+"home.waiting" = "%d intake request(s)";
+"settings.shop_data" = "Shop data";

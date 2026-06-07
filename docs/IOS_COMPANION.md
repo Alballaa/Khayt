@@ -8,9 +8,10 @@ Native **LAN-only** client. The desktop app remains the source of truth (`khayt-
 |------|----------|
 | **Pairing** | 4-step wizard (IP, port, LAN PIN, test) |
 | **Home** | Queue stats, kanban strip, completed today, low-stock & overdue alerts, quick actions, order preview |
-| **Orders** | Active queue + filters (status, overdue) + recent history; detail sheet; advance / set status; haptics |
-| **Inventory** | List, search, low-stock filter, sort, spool detail (SKU, lot, temps), add spool (photo OCR / NFC / manual), **write NFC tag** (OpenSpool / OpenTag3D / OpenPrintTag) |
-| **Machines** | Printer list + status |
+| **Orders** | Active queue + filters + **intake/waiting list** + searchable recent history; advance / set status; **assign printer**; order detail with payment |
+| **Inventory** | List, search, low-stock filter, sort, spool detail, **edit remaining / deduct / delete**, add spool (OCR / NFC / manual), write NFC tag |
+| **Clients** | Read-only client directory (from desktop store) |
+| **Machines** | Printer list, status, assigned queue jobs |
 | **Settings** | Connection, language (EN / AR / system), notification toggles, widget guide, unpair |
 | **Connection** | Polling health, top banner when offline/wrong PIN, badge in toolbar |
 | **Notifications** | Local alerts: queue changes, LAN disconnect, overdue orders, low filament |
@@ -22,10 +23,12 @@ Native **LAN-only** client. The desktop app remains the source of truth (`khayt-
 
 | Feature | Endpoint |
 |---------|----------|
-| Status | `GET /api/status` |
-| Queue | `GET /api/queue`, `PATCH /api/orders/:id` |
+| Status | `GET /api/status` (includes `waiting` count) |
+| Queue | `GET /api/queue`, `PATCH /api/orders/:id` (status + `machineId`) |
 | Order log | `GET /api/orders?limit=` |
-| Inventory | `GET /api/inventory`, `POST /api/inventory` |
+| Intake | `GET /api/waiting-list`, `PATCH /api/waiting-list/:id` |
+| Inventory | `GET/POST /api/inventory`, `PATCH/DELETE /api/inventory/:id` |
+| Clients | `GET /api/clients` |
 | Machines | `GET /api/machines` |
 
 See [LAN_API.md](./LAN_API.md).
@@ -55,9 +58,9 @@ Any individual with an **iPhone + blank NTAG tags** can write tags from the app.
 
 **Important:** Snapmaker U1 extended firmware is **not** issued by Snapmaker. It is **community/third-party** firmware (e.g. paxx12). Stock U1 firmware only reads proprietary Snapmaker tags. Installing extended firmware is optional and at your own risk.
 
-## Out of scope (v1)
+## Still out of scope
 
-Calculator, ZATCA, invoicing, full desktop settings, cloud sync, remote push server.
+Calculator, ZATCA, invoicing, expenses, analytics, waste log, gift cards, full CRM editing, desktop settings editor, cloud sync, remote push server.
 
 ## UI redesign
 

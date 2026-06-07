@@ -5,7 +5,25 @@ struct OrderDetailSheet: View {
     let isUpdating: Bool
     let onAdvance: () -> Void
     let onSetStatus: (String) -> Void
+    let onAssignMachine: (String?) -> Void
+
+    @EnvironmentObject private var api: KhaytAPIClient
     @Environment(\.dismiss) private var dismiss
+    @State private var machines: [MachineInfo] = []
+
+    init(
+        order: QueueOrder,
+        isUpdating: Bool,
+        onAdvance: @escaping () -> Void,
+        onSetStatus: @escaping (String) -> Void,
+        onAssignMachine: @escaping (String?) -> Void = { _ in }
+    ) {
+        self.order = order
+        self.isUpdating = isUpdating
+        self.onAdvance = onAdvance
+        self.onSetStatus = onSetStatus
+        self.onAssignMachine = onAssignMachine
+    }
 
     var body: some View {
         NavigationStack {
@@ -27,6 +45,23 @@ struct OrderDetailSheet: View {
                     }
                     LabeledContent("Order ID", value: order.id)
                         .font(.caption)
+                }
+
+                if !machines.isEmpty {
+                    Section(L10n.tr("order.assign_machine")) {
+                        Picker(L10n.tr("order.machine"), selection: Binding(
+                            get: { order.machineId ?? "" },
+                            set: { newValue in
+                                onAssignMachine(newValue.isEmpty ? nil : newValue)
+                            }
+                        )) {
+                            Text(L10n.tr("order.unassigned")).tag("")
+                            ForEach(machines) { machine in
+                                Text(machine.name ?? machine.id).tag(machine.id)
+                            }
+                        }
+                        .disabled(isUpdating)
+                    }
                 }
 
                 if OrderStatus(rawValue: order.status)?.nextInQueue != nil {
@@ -65,6 +100,52 @@ struct OrderDetailSheet: View {
                 }
             }
             .navigationTitle("Order")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+            .task {
+                machines = (try? await api.fetchMachines()) ?? []
+            }
+        }
+    }
+}
+
+struct OrderLogDetailSheet: View {
+    let entry: OrderLogEntry
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    LabeledContent("Project", value: entry.displayTitle)
+                    LabeledContent("Client", value: entry.displayClient)
+                    LabeledContent("Status") {
+                        CompanionStatusBadge(status: entry.status)
+                    }
+                    if let material = entry.material, !material.isEmpty {
+                        LabeledContent("Material", value: material)
+                    }
+                    if let price = entry.price {
+                        LabeledContent(L10n.tr("order.price"), value: String(format: "%.2f", price))
+                    }
+                    if let payment = entry.paymentStatus, !payment.isEmpty {
+                        LabeledContent(L10n.tr("order.payment"), value: payment.capitalized)
+                    }
+                    if let due = entry.dueDate, !due.isEmpty {
+                        LabeledContent("Due", value: due)
+                    }
+                    if let date = entry.date, !date.isEmpty {
+                        LabeledContent(L10n.tr("order.date"), value: date)
+                    }
+                    LabeledContent("Order ID", value: entry.id)
+                        .font(.caption)
+                }
+            }
+            .navigationTitle(L10n.tr("order.history"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {

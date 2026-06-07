@@ -41,14 +41,82 @@ final class KhaytAPIClient: ObservableObject {
     }
 
     func updateOrderStatus(orderId: String, status: String) async throws {
+        try await patchOrder(orderId: orderId, status: status, machineId: nil)
+    }
+
+    func assignOrderMachine(orderId: String, machineId: String?) async throws {
+        try await patchOrder(orderId: orderId, status: nil, machineId: machineId, includeMachine: true)
+    }
+
+    func fetchWaitingList() async throws -> [WaitingListEntry] {
+        try await get("/api/waiting-list", requiresPin: true, as: [WaitingListEntry].self)
+    }
+
+    func updateWaitingItem(id: String, status: String) async throws {
+        let encoded = try encodeResourceIdForPath(id)
+        let body = try JSONSerialization.data(withJSONObject: ["status": status])
+        _ = try await request(path: "/api/waiting-list/\(encoded)", method: "PATCH", body: body, requiresPin: true)
+    }
+
+    func fetchClients() async throws -> [ClientInfo] {
+        try await get("/api/clients", requiresPin: true, as: [ClientInfo].self)
+    }
+
+    func updateSpoolRemaining(id: String, grams: Int) async throws -> InventorySpool {
+        let encoded = try encodeResourceIdForPath(id)
+        let clamped = min(max(grams, 0), 50_000)
+        let body = try JSONSerialization.data(withJSONObject: ["remaining": clamped])
+        let (data, response) = try await request(
+            path: "/api/inventory/\(encoded)",
+            method: "PATCH",
+            body: body,
+            requiresPin: true
+        )
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            throw try decodeAPIError(data, status: (response as? HTTPURLResponse)?.statusCode ?? 0)
+        }
+        struct PatchResponse: Codable { let spool: InventorySpool? }
+        if let decoded = try? JSONDecoder().decode(PatchResponse.self, from: data), let spool = decoded.spool {
+            return spool
+        }
+        throw KhaytAPIError.server("Unexpected response updating spool")
+    }
+
+    func deleteSpool(id: String) async throws {
+        let encoded = try encodeResourceIdForPath(id)
+        _ = try await request(path: "/api/inventory/\(encoded)", method: "DELETE", body: nil, requiresPin: true)
+    }
+
+    private func patchOrder(
+        orderId: String,
+        status: String?,
+        machineId: String?,
+        includeMachine: Bool = false
+    ) async throws {
         let encodedId = try encodeOrderIdForPath(orderId)
-        let body = try JSONEncoder().encode(["status": status])
+        var payload: [String: Any] = [:]
+        if let status { payload["status"] = status }
+        if includeMachine {
+            if let machineId, !machineId.isEmpty {
+                payload["machineId"] = machineId
+            } else {
+                payload["machineId"] = NSNull()
+            }
+        }
+        guard !payload.isEmpty else {
+            throw KhaytAPIError.server("Nothing to update.")
+        }
+        let body = try JSONSerialization.data(withJSONObject: payload)
         _ = try await request(
             path: "/api/orders/\(encodedId)",
             method: "PATCH",
             body: body,
             requiresPin: true
         )
+    }
+
+    private func encodeResourceIdForPath(_ resourceId: String) throws -> String {
+        try encodeOrderIdForPath(resourceId)
     }
 
     func addSpool(from tag: NFCFilamentTag) async throws -> InventorySpool {

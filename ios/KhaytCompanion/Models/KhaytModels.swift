@@ -7,11 +7,14 @@ struct ShopStatus: Codable, Sendable {
     let post: Int
     let qc: Int
     let completedToday: Int
+    let waiting: Int?
 
     enum CodingKeys: String, CodingKey {
-        case queued, pending, printing, post, qc
+        case queued, pending, printing, post, qc, waiting
         case completedToday = "completed_today"
     }
+
+    var waitingCount: Int { waiting ?? 0 }
 }
 
 struct QueueOrder: Codable, Identifiable, Sendable {
@@ -20,6 +23,7 @@ struct QueueOrder: Codable, Identifiable, Sendable {
     let client: String?
     let status: String
     let machine: String?
+    let machineId: String?
     let dueDate: String?
     let priority: String?
 
@@ -30,6 +34,57 @@ struct QueueOrder: Codable, Identifiable, Sendable {
 
     var displayClient: String {
         client?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "—"
+    }
+}
+
+struct WaitingListEntry: Codable, Identifiable, Sendable {
+    let id: String
+    let project: String?
+    let clientName: String?
+    let notes: String?
+    let email: String?
+    let phone: String?
+    let material: String?
+    let priority: String?
+    let status: String?
+    let estValue: Double?
+    let reminderDate: String?
+    let source: String?
+    let submittedAt: String?
+
+    var displayTitle: String {
+        (project?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 }
+            ?? L10n.tr("waiting.untitled")
+    }
+
+    var displayClient: String {
+        (clientName?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? "—"
+    }
+
+    var priorityLabel: String {
+        switch priority?.lowercased() {
+        case "urgent": return L10n.tr("waiting.priority.urgent")
+        case "high": return L10n.tr("waiting.priority.high")
+        case "low": return L10n.tr("waiting.priority.low")
+        default: return L10n.tr("waiting.priority.normal")
+        }
+    }
+}
+
+struct ClientInfo: Codable, Identifiable, Sendable {
+    let id: String
+    let nameEn: String?
+    let nameAr: String?
+    let phone: String?
+    let email: String?
+
+    var displayName: String {
+        let en = nameEn?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let ar = nameAr?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if L10n.usesArabicLayout, !ar.isEmpty { return ar }
+        if !en.isEmpty { return en }
+        if !ar.isEmpty { return ar }
+        return id
     }
 }
 

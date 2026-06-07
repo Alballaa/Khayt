@@ -8,11 +8,13 @@ struct OrdersView: View {
     enum Segment: String, CaseIterable, Identifiable {
         case active
         case recent
+        case intake
         var id: String { rawValue }
         var title: String {
             switch self {
             case .active: return L10n.tr("orders.active")
             case .recent: return L10n.tr("orders.recent")
+            case .intake: return L10n.tr("intake.title")
             }
         }
     }
@@ -31,6 +33,8 @@ struct OrdersView: View {
     @State private var errorMessage: String?
     @State private var updatingId: String?
     @State private var selectedOrder: QueueOrder?
+    @State private var selectedLogEntry: OrderLogEntry?
+    @State private var recentSearch = ""
     @State private var loadGeneration = 0
 
     private var filteredQueue: [QueueOrder] {
@@ -53,10 +57,13 @@ struct OrdersView: View {
                 .padding(.horizontal)
                 .padding(.vertical, 8)
 
-                if segment == .active {
+                switch segment {
+                case .active:
                     activeContent
-                } else {
+                case .recent:
                     recentContent
+                case .intake:
+                    IntakeView()
                 }
             }
             .khaytScreen(title: L10n.tr("tab.orders"))
@@ -71,13 +78,27 @@ struct OrdersView: View {
                     order: order,
                     isUpdating: updatingId == order.id,
                     onAdvance: { Task { await advance(order) } },
-                    onSetStatus: { status in Task { await setStatus(order, status: status) } }
+                    onSetStatus: { status in Task { await setStatus(order, status: status) } },
+                    onAssignMachine: { machineId in Task { await assignMachine(order, machineId: machineId) } }
                 )
+            }
+            .sheet(item: $selectedLogEntry) { entry in
+                OrderLogDetailSheet(entry: entry)
             }
         }
     }
 
     private func applyExternalFilters() {
+        if let pendingSegment = ordersNav.pendingSegment {
+            segment = {
+                switch pendingSegment {
+                case .active: return .active
+                case .recent: return .recent
+                case .intake: return .intake
+                }
+            }()
+            ordersNav.pendingSegment = nil
+        }
         if let pending = ordersNav.pendingStatusFilter {
             if pending == .completed {
                 segment = .recent
@@ -145,44 +166,65 @@ struct OrdersView: View {
         }
     }
 
+    private var filteredRecent: [OrderLogEntry] {
+        let q = recentSearch.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !q.isEmpty else { return recent }
+        return recent.filter {
+            $0.displayTitle.lowercased().contains(q)
+                || $0.displayClient.lowercased().contains(q)
+                || $0.id.lowercased().contains(q)
+                || ($0.material ?? "").lowercased().contains(q)
+        }
+    }
+
     @ViewBuilder
     private var recentContent: some View {
         Group {
             if recent.isEmpty && errorMessage == nil {
                 ProgressView()
-            } else if recent.isEmpty {
+            } else if filteredRecent.isEmpty {
                 ContentUnavailableView(
                     L10n.tr("orders.recent"),
                     systemImage: "clock",
                     description: Text(errorMessage ?? "—")
                 )
             } else {
-                List(recent) { entry in
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack {
-                            Text(entry.displayTitle)
-                                .font(.headline)
-                                .foregroundStyle(KhaytDesign.text)
-                            Spacer()
-                            CompanionStatusBadge(status: entry.status, compact: true)
-                        }
-                        Text(entry.displayClient)
-                            .font(.subheadline)
-                            .foregroundStyle(KhaytDesign.textDim)
-                        HStack {
-                            if let date = entry.date ?? entry.dueDate {
-                                Text(date)
-                                    .font(.caption)
-                                    .foregroundStyle(KhaytDesign.textMuted)
+                List(filteredRecent) { entry in
+                    Button {
+                        selectedLogEntry = entry
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text(entry.displayTitle)
+                                    .font(.headline)
+                                    .foregroundStyle(KhaytDesign.text)
+                                Spacer()
+                                CompanionStatusBadge(status: entry.status, compact: true)
                             }
-                            if entry.isOverdue {
-                                Text(L10n.tr("orders.overdue"))
-                                    .font(.caption2.bold())
-                                    .foregroundStyle(KhaytDesign.danger)
+                            Text(entry.displayClient)
+                                .font(.subheadline)
+                                .foregroundStyle(KhaytDesign.textDim)
+                            HStack {
+                                if let date = entry.date ?? entry.dueDate {
+                                    Text(date)
+                                        .font(.caption)
+                                        .foregroundStyle(KhaytDesign.textMuted)
+                                }
+                                if let payment = entry.paymentStatus, !payment.isEmpty {
+                                    Text(payment.capitalized)
+                                        .font(.caption2)
+                                        .foregroundStyle(KhaytDesign.textMuted)
+                                }
+                                if entry.isOverdue {
+                                    Text(L10n.tr("orders.overdue"))
+                                        .font(.caption2.bold())
+                                        .foregroundStyle(KhaytDesign.danger)
+                                }
                             }
                         }
+                        .padding(.vertical, 2)
                     }
-                    .padding(.vertical, 2)
+                    .buttonStyle(.plain)
                     .listRowBackground(KhaytDesign.surface)
                 }
                 .listStyle(.plain)
@@ -190,6 +232,7 @@ struct OrdersView: View {
                 .environment(\.defaultMinListRowHeight, 56)
             }
         }
+        .searchable(text: $recentSearch, prompt: L10n.tr("orders.search"))
     }
 
     private func load() async {
@@ -207,6 +250,8 @@ struct OrdersView: View {
                 guard generation == loadGeneration else { return }
                 recent = data
                 recentStatusFilter = nil
+            case .intake:
+                break
             }
         } catch {
             guard generation == loadGeneration else { return }
@@ -236,6 +281,23 @@ struct OrdersView: View {
         guard let current = OrderStatus(rawValue: order.status),
               let next = current.nextInQueue else { return }
         await setStatus(order, status: next.rawValue)
+    }
+
+    private func assignMachine(_ order: QueueOrder, machineId: String?) async {
+        updatingId = order.id
+        defer { updatingId = nil }
+        do {
+            try await api.assignOrderMachine(orderId: order.id, machineId: machineId)
+            CompanionHaptics.success()
+            await load()
+            if let id = selectedOrder?.id,
+               let updated = queue.first(where: { $0.id == id }) {
+                selectedOrder = updated
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+            CompanionHaptics.warning()
+        }
     }
 }
 

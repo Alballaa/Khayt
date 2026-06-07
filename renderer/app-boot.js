@@ -414,12 +414,55 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
   }
+  if (window.hubAPI?.onLanSpoolUpdated) {
+    window.hubAPI.onLanSpoolUpdated(spool => {
+      if (!spool?.id) return;
+      const idx = inventory.findIndex(s => s.id === spool.id);
+      if (idx !== -1) {
+        inventory[idx] = { ...inventory[idx], ...spool };
+        saveAll();
+        renderInventory();
+        toast('📱 ' + (t('inv.spool_updated_phone') || 'Spool updated from phone'), 'success', 3000);
+      }
+    });
+  }
+  if (window.hubAPI?.onLanSpoolDeleted) {
+    window.hubAPI.onLanSpoolDeleted(payload => {
+      const id = payload?.id;
+      if (!id) return;
+      const before = inventory.length;
+      inventory = inventory.filter(s => s.id !== id);
+      if (inventory.length !== before) {
+        saveAll();
+        renderInventory();
+        toast('📱 ' + (t('inv.spool_deleted_phone') || 'Spool removed from phone'), 'info', 3000);
+      }
+    });
+  }
+  if (window.hubAPI?.onLanWaitingUpdated) {
+    window.hubAPI.onLanWaitingUpdated(payload => {
+      if (!payload?.id) return;
+      if (payload.status === 'declined') {
+        waitingList = waitingList.filter(w => w.id !== payload.id);
+      } else {
+        const idx = waitingList.findIndex(w => w.id === payload.id);
+        if (idx !== -1) waitingList[idx].status = payload.status;
+      }
+      saveAll();
+      if (typeof renderWaitingList === 'function') renderWaitingList();
+      if (typeof updateWaitingBadge === 'function') updateWaitingBadge();
+    });
+  }
   if (window.hubAPI?.onLanOrderUpdated) {
     window.hubAPI.onLanOrderUpdated((payload) => {
       const { id, status } = payload;
       const idx = printLog.findIndex(o => o.id === id);
       if (idx !== -1) {
-        printLog[idx].status = status;
+        if (status) printLog[idx].status = status;
+        if (payload.machineId !== undefined) {
+          printLog[idx].machineId = payload.machineId;
+          printLog[idx].machine = payload.machine || null;
+        }
         if (payload.clientApprovedAt) printLog[idx].clientApprovedAt = payload.clientApprovedAt;
         if (payload.quoteAcceptedAt) printLog[idx].quoteAcceptedAt = payload.quoteAcceptedAt;
         if (payload.quoteApproved) {
