@@ -97,3 +97,35 @@
 "notify.overdue.body" = "%d طلب متأخر";
 "notify.low_stock.title" = "فيلامنت منخفض";
 "notify.low_stock.body" = "%d بكرة أقل من 200غ";
+
+/* NFC */
+"nfc.unavailable" = "NFC غير متاح على هذا الجهاز.";
+"nfc.read.prompt" = "قرّب الآيفون من بطاقة NFC على البكرة.";
+"nfc.read.success" = "تمت قراءة البطاقة بنجاح.";
+"nfc.write.title" = "كتابة على بطاقة NFC";
+"nfc.write.intro" = "رمّز بيانات البكرة على ملصق NTAG213+ فارغ. اختر الصيغة التي يتوقعها الطابعة.";
+"nfc.write.standard" = "معيار البطاقة";
+"nfc.write.preview" = "البيانات للكتابة";
+"nfc.write.material" = "المادة";
+"nfc.write.brand" = "العلامة";
+"nfc.write.weight" = "الوزن";
+"nfc.write.print_temp" = "حرارة الطباعة";
+"nfc.write.bed_temp" = "حرارة السرير";
+"nfc.write.tap_blank" = "المس بطاقة فارغة للكتابة";
+"nfc.write.scanning" = "قرّب من بطاقة فارغة…";
+"nfc.write.prompt" = "قرّب الآيفون من بطاقة NFC قابلة للكتابة.";
+"nfc.write.success" = "تمت كتابة البطاقة بنجاح.";
+"nfc.write.done" = "تم";
+"nfc.write.footer" = "استخدم NTAG213 أو أكبر. طابعات Prusa تستخدم OpenPrintTag؛ معظم الطابعات الأخرى OpenTag3D.";
+"nfc.standard.opentag3d" = "OpenTag3D";
+"nfc.standard.opentag3d.hint" = "Bambu وCreality والعام — application/opentag3d";
+"nfc.standard.openprinttag" = "OpenPrintTag (Prusa)";
+"nfc.standard.openprinttag.hint" = "Prusa MK4 / XL / MINI — application/vnd.openprinttag";
+"nfc.error.missing_material" = "اسم المادة مطلوب لترميز البطاقة.";
+"nfc.error.payload_large" = "البيانات المرمّزة كبيرة جداً (%d بايت) لهذه البطاقة.";
+"nfc.error.invalid_color" = "لون hex غير صالح.";
+"nfc.error.no_tag" = "لم يُكتشف أي بطاقة.";
+"nfc.error.unsupported_tag" = "نوع بطاقة غير مدعوم.";
+"nfc.error.not_ndef" = "البطاقة لا تدعم NDEF.";
+"nfc.error.read_only" = "البطاقة للقراءة فقط أو مقفلة. استخدم بطاقة فارغة قابلة للكتابة.";
+"nfc.error.read_failed" = "تعذرت قراءة البطاقة.";

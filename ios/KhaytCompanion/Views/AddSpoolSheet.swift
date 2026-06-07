@@ -19,6 +19,8 @@ struct AddSpoolSheet: View {
     @State private var scannedRaw: String?
     @State private var isUploading = false
     @State private var errorMessage: String?
+    @State private var showWriteNFC = false
+    @State private var nfcWriteStandard: NFCFilamentStandard?
 
     var onAdded: () -> Void
 
@@ -36,7 +38,13 @@ struct AddSpoolSheet: View {
                     SpoolReviewForm(
                         draft: $draft,
                         isUploading: isUploading,
-                        errorMessage: errorMessage
+                        errorMessage: errorMessage,
+                        onWriteNFC: {
+                            nfcWriteStandard = draft.sourceNote.contains("OpenPrintTag")
+                                ? .openPrintTag
+                                : draft.sourceNote.contains("OpenTag3D") ? .openTag3D : nil
+                            showWriteNFC = true
+                        }
                     ) {
                         Task { await submit() }
                     }
@@ -68,6 +76,9 @@ struct AddSpoolSheet: View {
                 step = .review
             }
             .onDisappear { nfc.invalidate() }
+            .sheet(isPresented: $showWriteNFC) {
+                WriteNFCTagSheet(draft: draft, suggestedStandard: nfcWriteStandard)
+            }
         }
     }
 
@@ -194,6 +205,16 @@ struct AddSpoolSheet: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .padding(.horizontal)
+                Button {
+                    draft = SpoolDraft.from(tag: tag)
+                    nfcWriteStandard = tag.standard == "OpenPrintTag" ? .openPrintTag : .openTag3D
+                    showWriteNFC = true
+                } label: {
+                    Label(L10n.tr("nfc.write.title"), systemImage: "square.and.pencil")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .padding(.horizontal)
             }
             Spacer()
         }
@@ -229,6 +250,7 @@ struct SpoolReviewForm: View {
     @Binding var draft: SpoolDraft
     let isUploading: Bool
     var errorMessage: String?
+    var onWriteNFC: (() -> Void)?
     let onSubmit: () -> Void
 
     var body: some View {
@@ -278,6 +300,14 @@ struct SpoolReviewForm: View {
                     }
                 }
                 .disabled(isUploading || draft.material.trimmingCharacters(in: .whitespaces).isEmpty)
+
+                if let onWriteNFC {
+                    Button(action: onWriteNFC) {
+                        Label(L10n.tr("nfc.write.title"), systemImage: "wave.3.right")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .disabled(draft.material.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
             }
         }
     }

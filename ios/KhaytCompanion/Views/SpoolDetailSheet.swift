@@ -3,6 +3,7 @@ import SwiftUI
 struct SpoolDetailSheet: View {
     let spool: InventorySpool
     @Environment(\.dismiss) private var dismiss
+    @State private var showWriteNFC = false
 
     var body: some View {
         NavigationStack {
@@ -51,6 +52,17 @@ struct SpoolDetailSheet: View {
                 }
 
                 Section {
+                    Button {
+                        showWriteNFC = true
+                    } label: {
+                        Label(L10n.tr("nfc.write.title"), systemImage: "wave.3.right")
+                    }
+                } footer: {
+                    Text(L10n.tr("nfc.write.footer"))
+                        .font(.caption)
+                }
+
+                Section {
                     LabeledContent("ID", value: spool.id)
                         .font(.caption)
                 }
@@ -61,6 +73,9 @@ struct SpoolDetailSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
                 }
+            }
+            .sheet(isPresented: $showWriteNFC) {
+                WriteNFCTagSheet(draft: SpoolDraft.from(spool: spool))
             }
         }
     }

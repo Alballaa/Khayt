@@ -9,7 +9,7 @@ Native **LAN-only** client. The desktop app remains the source of truth (`khayt-
 | **Pairing** | 4-step wizard (IP, port, LAN PIN, test) |
 | **Home** | Queue stats, kanban strip, completed today, low-stock & overdue alerts, quick actions, order preview |
 | **Orders** | Active queue + filters (status, overdue) + recent history; detail sheet; advance / set status; haptics |
-| **Inventory** | List, search, low-stock filter, sort, spool detail (SKU, lot, temps), add spool (photo OCR / NFC / manual) |
+| **Inventory** | List, search, low-stock filter, sort, spool detail (SKU, lot, temps), add spool (photo OCR / NFC / manual), **write NFC tag** (OpenTag3D or OpenPrintTag) |
 | **Machines** | Printer list + status |
 | **Settings** | Connection, language (EN / AR / system), notification toggles, widget guide, unpair |
 | **Connection** | Polling health, top banner when offline/wrong PIN, badge in toolbar |
@@ -29,6 +29,17 @@ Native **LAN-only** client. The desktop app remains the source of truth (`khayt-
 | Machines | `GET /api/machines` |
 
 See [LAN_API.md](./LAN_API.md).
+
+## NFC write
+
+After reading a filament tag, scanning a label, or reviewing spool details, use **Write to NFC tag** to encode data onto a blank writable NTAG213+ sticker.
+
+| Standard | MIME type | Printers |
+|----------|-----------|----------|
+| **OpenTag3D** | `application/opentag3d` | Bambu Lab, Creality, generic |
+| **OpenPrintTag** | `application/vnd.openprinttag` | Prusa MK4 / XL / MINI |
+
+Encoding mirrors desktop `renderer/inventory.js` parsers (`NFCParser` / `NFCEncoder`). Requires a physical iPhone with NFC and paid Apple Developer entitlements (`NDEF` + `TAG`).
 
 ## Out of scope (v1)
 
