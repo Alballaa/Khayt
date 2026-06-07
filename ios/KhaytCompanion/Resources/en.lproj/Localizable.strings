@@ -179,3 +179,43 @@
 /* Home / settings */
 "home.waiting" = "%d intake request(s)";
 "settings.shop_data" = "Shop data";
+
+/* Quotes */
+"quote.title" = "Quotes";
+"quote.empty" = "No open quotes.";
+"quote.expires" = "Expires";
+"quote.expires_on" = "Expires %@";
+"quote.approval_link" = "Customer approval link";
+"quote.share_link" = "Share approval link";
+"quote.open_preview" = "Open quote page";
+"quote.approve_owner" = "Approve quote";
+"quote.approve_footer" = "Marks the quote accepted and moves it to the production queue on desktop.";
+"quote.already_approved" = "Already approved";
+"quote.expired" = "This quote has expired";
+
+/* Create order */
+"order.create.title" = "New order";
+"order.create.required" = "Required";
+"order.create.optional" = "Optional";
+"order.create.project" = "Project / job name";
+"order.create.client" = "Client";
+"order.create.material" = "Material";
+"order.create.price" = "Price";
+"order.create.due" = "Due date (YYYY-MM-DD)";
+"order.create.notes" = "Notes";
+"order.create.type" = "Type";
+"order.create.job" = "Job";
+"order.create.quote" = "Quote";
+"order.create.save_job" = "Add to queue";
+"order.create.save_quote" = "Save quote";
+"order.create.footer" = "Creates a simple job or quote on your desktop. Use the desktop calculator for full costing.";
+
+/* Machine live */
+"machine.live" = "Live printer";
+"machine.live_unconfigured" = "Connect OctoPrint, Moonraker, PrusaLink, or Bambu in desktop Settings → Printers to see live data.";
+"machine.state" = "State";
+"machine.progress" = "Progress";
+"machine.file" = "File";
+"machine.eta" = "ETA";
+"machine.temps" = "Nozzle / bed";
+"machines.assigned_header" = "Assigned jobs";

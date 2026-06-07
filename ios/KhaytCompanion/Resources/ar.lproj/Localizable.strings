@@ -179,3 +179,43 @@
 /* Home */
 "home.waiting" = "%d طلب وارد";
 "settings.shop_data" = "بيانات المحل";
+
+/* Quotes */
+"quote.title" = "عروض الأسعار";
+"quote.empty" = "لا توجد عروض مفتوحة.";
+"quote.expires" = "ينتهي";
+"quote.expires_on" = "ينتهي %@";
+"quote.approval_link" = "رابط موافقة العميل";
+"quote.share_link" = "مشاركة رابط الموافقة";
+"quote.open_preview" = "فتح صفحة العرض";
+"quote.approve_owner" = "الموافقة على العرض";
+"quote.approve_footer" = "يقبل العرض وينقله إلى طابور الإنتاج على سطح المكتب.";
+"quote.already_approved" = "تمت الموافقة";
+"quote.expired" = "انتهت صلاحية هذا العرض";
+
+/* Create order */
+"order.create.title" = "طلب جديد";
+"order.create.required" = "مطلوب";
+"order.create.optional" = "اختياري";
+"order.create.project" = "اسم المشروع";
+"order.create.client" = "العميل";
+"order.create.material" = "المادة";
+"order.create.price" = "السعر";
+"order.create.due" = "تاريخ الاستحقاق";
+"order.create.notes" = "ملاحظات";
+"order.create.type" = "النوع";
+"order.create.job" = "مهمة";
+"order.create.quote" = "عرض سعر";
+"order.create.save_job" = "إضافة للطابور";
+"order.create.save_quote" = "حفظ العرض";
+"order.create.footer" = "ينشئ مهمة أو عرضاً بسيطاً على سطح المكتب. استخدم الحاسبة للتكلفة الكاملة.";
+
+/* Machine live */
+"machine.live" = "الطابعة مباشرة";
+"machine.live_unconfigured" = "اربط OctoPrint أو Moonraker أو PrusaLink أو Bambu من إعدادات سطح المكتب.";
+"machine.state" = "الحالة";
+"machine.progress" = "التقدم";
+"machine.file" = "الملف";
+"machine.eta" = "الوقت المتبقي";
+"machine.temps" = "الفوهة / السرير";
+"machines.assigned_header" = "المهام المعيّنة";

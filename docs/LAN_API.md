@@ -180,6 +180,52 @@ Read-only client list from store. **Requires owner PIN.**
 
 **Response 200:** array with `id`, `nameEn`, `nameAr`, `phone`, `email`.
 
+### `POST /api/orders`
+
+Create a simple job or quote from the companion. **Requires owner PIN.**
+
+**Body**
+
+```json
+{
+  "project": "Bracket v2",
+  "client": "Acme Co",
+  "material": "PLA",
+  "price": 150,
+  "status": "pending",
+  "machineId": "MACH-1",
+  "dueDate": "2026-06-15",
+  "notes": "Rush job"
+}
+```
+
+Use `"status": "quote"` for a quote (sets expiry from desktop `quoteValidityDays`).
+
+**Response 201:** `{ "ok": true, "order": { ... } }`  
+**Desktop side effect:** `lan-order-created` IPC.
+
+### `GET /api/orders/:id/quote-url`
+
+Quote approval links for sharing with customers. **Requires owner PIN.**
+
+**Response 200:**
+
+```json
+{
+  "quoteUrl": "http://192.168.1.42:3219/order/QUO-2026-123/quote",
+  "statusUrl": "http://192.168.1.42:3219/order/QUO-2026-123/status",
+  "canApprove": true,
+  "expired": false,
+  "quoteExpiresAt": "2026-06-10"
+}
+```
+
+### `POST /api/orders/:id/approve`
+
+Owner approves a quote (same as customer web approval). **Requires owner PIN.**
+
+**Response 200:** `{ "ok": true, "order": { ... } }`
+
 ### `GET /api/machines`
 
 Machine list glance. **Requires owner PIN.**
@@ -188,9 +234,15 @@ Machine list glance. **Requires owner PIN.**
 
 ```json
 [
-  { "id": "m1", "name": "P1S", "type": "fdm", "status": "printing" }
+  { "id": "m1", "name": "P1S", "type": "fdm", "status": "printing", "hasPrinterApi": true }
 ]
 ```
+
+### `GET /api/machines/live`
+
+Live printer telemetry from desktop API polling (OctoPrint, Moonraker, PrusaLink, Bambu). **Requires owner PIN.**
+
+**Response 200** — array per machine with `state`, `progress`, `tempNozzle`, `tempBed`, `timeRemaining`, `filename`, `error`, `lastUpdated`.
 
 ## Errors
 
@@ -213,7 +265,8 @@ Defined in `preload.js`:
 | `lan-spool-added` | After `POST /api/inventory` |
 | `lan-spool-updated` | After `PATCH /api/inventory/:id` |
 | `lan-spool-deleted` | After `DELETE /api/inventory/:id` |
-| `lan-order-updated` | After `PATCH /api/orders/:id` |
+| `lan-order-created` | After `POST /api/orders` |
+| `lan-order-updated` | After `PATCH /api/orders/:id` or quote approval |
 | `lan-waiting-updated` | After `PATCH /api/waiting-list/:id` |
 | `lan-kanban-advanced` | Printer webhooks / auto-advance |
 

@@ -93,6 +93,51 @@ struct MachineInfo: Codable, Identifiable, Sendable {
     let name: String?
     let type: String?
     let status: String?
+    let hasPrinterApi: Bool?
+
+    var supportsLiveTelemetry: Bool { hasPrinterApi == true }
+}
+
+struct MachineLiveStatus: Codable, Identifiable, Sendable {
+    let id: String
+    let name: String?
+    let hasPrinterApi: Bool?
+    let state: String?
+    let progress: Int?
+    let filename: String?
+    let timeRemaining: Int?
+    let tempNozzle: Int?
+    let tempBed: Int?
+    let error: String?
+    let lastUpdated: Double?
+    let apiType: String?
+
+    var etaLabel: String? {
+        guard let secs = timeRemaining, secs > 0 else { return nil }
+        let mins = secs / 60
+        if mins >= 60 { return "\(mins / 60)h \(mins % 60)m" }
+        return "\(mins)m"
+    }
+}
+
+struct QuoteLinkInfo: Codable, Sendable {
+    let quoteUrl: String
+    let statusUrl: String
+    let canApprove: Bool?
+    let expired: Bool?
+    let quoteExpiresAt: String?
+    let alreadyApproved: Bool?
+}
+
+struct NewOrderDraft: Sendable {
+    var project: String = ""
+    var client: String = ""
+    var material: String = ""
+    var price: String = ""
+    var notes: String = ""
+    var dueDate: String = ""
+    var machineId: String = ""
+    var asQuote: Bool = false
 }
 
 struct InventorySpool: Codable, Identifiable, Sendable {
@@ -180,6 +225,8 @@ struct OrderLogEntry: Codable, Identifiable, Sendable {
     let dueDate: String?
     let date: String?
     let paymentStatus: String?
+    let quoteExpiresAt: String?
+    let quoteAcceptedAt: String?
 
     var displayTitle: String {
         (project?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? id

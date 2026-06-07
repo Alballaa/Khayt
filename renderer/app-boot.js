@@ -453,6 +453,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (typeof updateWaitingBadge === 'function') updateWaitingBadge();
     });
   }
+  if (window.hubAPI?.onLanOrderCreated) {
+    window.hubAPI.onLanOrderCreated(order => {
+      if (order?.id && !printLog.find(o => o.id === order.id)) {
+        printLog.unshift(order);
+        saveAll();
+        renderLogs();
+        renderKanban();
+        renderDashboard();
+        toast('📱 ' + (t('ord.created_phone') || 'Order created from phone'), 'success', 4000);
+      }
+    });
+  }
   if (window.hubAPI?.onLanOrderUpdated) {
     window.hubAPI.onLanOrderUpdated((payload) => {
       const { id, status } = payload;

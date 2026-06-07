@@ -18,6 +18,9 @@
 		B10000000000000000000035 /* WriteNFCTagSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000035 /* WriteNFCTagSheet.swift */; };
 		B10000000000000000000036 /* ClientsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000036 /* ClientsView.swift */; };
 		B10000000000000000000037 /* IntakeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000037 /* IntakeView.swift */; };
+		B10000000000000000000038 /* CreateOrderSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000038 /* CreateOrderSheet.swift */; };
+		B10000000000000000000039 /* QuoteDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000039 /* QuoteDetailSheet.swift */; };
+		B1000000000000000000003A /* MachineDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000003A /* MachineDetailSheet.swift */; };
 		B10000000000000000000008 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000008 /* DashboardView.swift */; };
 		B10000000000000000000009 /* QueueView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000009 /* QueueView.swift */; };
 		B1000000000000000000000A /* InventoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000A /* InventoryView.swift */; };
@@ -65,6 +68,9 @@
 		F10000000000000000000035 /* WriteNFCTagSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WriteNFCTagSheet.swift; sourceTree = "<group>"; };
 		F10000000000000000000036 /* ClientsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientsView.swift; sourceTree = "<group>"; };
 		F10000000000000000000037 /* IntakeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntakeView.swift; sourceTree = "<group>"; };
+		F10000000000000000000038 /* CreateOrderSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateOrderSheet.swift; sourceTree = "<group>"; };
+		F10000000000000000000039 /* QuoteDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuoteDetailSheet.swift; sourceTree = "<group>"; };
+		F1000000000000000000003A /* MachineDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MachineDetailSheet.swift; sourceTree = "<group>"; };
 		F10000000000000000000008 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		F10000000000000000000009 /* QueueView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueView.swift; sourceTree = "<group>"; };
 		F1000000000000000000000A /* InventoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InventoryView.swift; sourceTree = "<group>"; };
@@ -203,6 +209,9 @@
 				F10000000000000000000035 /* WriteNFCTagSheet.swift */,
 				F10000000000000000000036 /* ClientsView.swift */,
 				F10000000000000000000037 /* IntakeView.swift */,
+				F10000000000000000000038 /* CreateOrderSheet.swift */,
+				F10000000000000000000039 /* QuoteDetailSheet.swift */,
+				F1000000000000000000003A /* MachineDetailSheet.swift */,
 				F10000000000000000000025 /* ConnectionBanner.swift */,
 				F10000000000000000000026 /* KanbanStripView.swift */,
 				F10000000000000000000032 /* KhaytListStyle.swift */,
@@ -325,6 +334,9 @@
 				B10000000000000000000035 /* WriteNFCTagSheet.swift in Sources */,
 				B10000000000000000000036 /* ClientsView.swift in Sources */,
 				B10000000000000000000037 /* IntakeView.swift in Sources */,
+				B10000000000000000000038 /* CreateOrderSheet.swift in Sources */,
+				B10000000000000000000039 /* QuoteDetailSheet.swift in Sources */,
+				B1000000000000000000003A /* MachineDetailSheet.swift in Sources */,
 				B1000000000000000000001C /* CompanionTheme.swift in Sources */,
 				B10000000000000000000030 /* KhaytDesign.swift in Sources */,
 				B10000000000000000000031 /* KhaytTabBar.swift in Sources */,

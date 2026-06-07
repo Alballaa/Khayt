@@ -40,6 +40,59 @@ final class KhaytAPIClient: ObservableObject {
         try await get("/api/machines", requiresPin: true, as: [MachineInfo].self)
     }
 
+    func fetchMachineLive() async throws -> [MachineLiveStatus] {
+        try await get("/api/machines/live", requiresPin: true, as: [MachineLiveStatus].self)
+    }
+
+    func fetchQuoteLink(orderId: String) async throws -> QuoteLinkInfo {
+        let encoded = try encodeOrderIdForPath(orderId)
+        return try await get("/api/orders/\(encoded)/quote-url", requiresPin: true, as: QuoteLinkInfo.self)
+    }
+
+    func approveQuote(orderId: String) async throws {
+        let encoded = try encodeOrderIdForPath(orderId)
+        _ = try await request(
+            path: "/api/orders/\(encoded)/approve",
+            method: "POST",
+            body: try JSONSerialization.data(withJSONObject: ["action": "approve"]),
+            requiresPin: true
+        )
+    }
+
+    func createOrder(draft: NewOrderDraft) async throws -> OrderLogEntry {
+        let project = draft.project.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !project.isEmpty else {
+            throw KhaytAPIError.server("Project name is required.")
+        }
+        var payload: [String: Any] = [
+            "project": InputLimits.clamp(project, max: 200),
+            "status": draft.asQuote ? "quote" : "pending"
+        ]
+        let client = draft.client.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !client.isEmpty { payload["client"] = InputLimits.clamp(client, max: 200) }
+        let material = draft.material.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !material.isEmpty { payload["material"] = InputLimits.clamp(material, max: 120) }
+        if let price = Double(draft.price.trimmingCharacters(in: .whitespaces)), price >= 0 {
+            payload["price"] = price
+        }
+        let notes = draft.notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !notes.isEmpty { payload["notes"] = InputLimits.clamp(notes, max: 500) }
+        let due = draft.dueDate.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !due.isEmpty { payload["dueDate"] = due }
+        if !draft.machineId.isEmpty { payload["machineId"] = draft.machineId }
+
+        let body = try JSONSerialization.data(withJSONObject: payload)
+        let (data, response) = try await request(path: "/api/orders", method: "POST", body: body, requiresPin: true)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            throw try decodeAPIError(data, status: (response as? HTTPURLResponse)?.statusCode ?? 0)
+        }
+        struct CreateResponse: Codable { let order: OrderLogEntry? }
+        if let decoded = try? JSONDecoder().decode(CreateResponse.self, from: data), let order = decoded.order {
+            return order
+        }
+        throw KhaytAPIError.server("Unexpected response creating order")
+    }
+
     func updateOrderStatus(orderId: String, status: String) async throws {
         try await patchOrder(orderId: orderId, status: status, machineId: nil)
     }

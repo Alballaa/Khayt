@@ -8,10 +8,10 @@ Native **LAN-only** client. The desktop app remains the source of truth (`khayt-
 |------|----------|
 | **Pairing** | 4-step wizard (IP, port, LAN PIN, test) |
 | **Home** | Queue stats, kanban strip, completed today, low-stock & overdue alerts, quick actions, order preview |
-| **Orders** | Active queue + filters + **intake/waiting list** + searchable recent history; advance / set status; **assign printer**; order detail with payment |
+| **Orders** | Active queue + **quotes** (share/approve links) + intake + history; **create job/quote**; assign printer; advance status |
 | **Inventory** | List, search, low-stock filter, sort, spool detail, **edit remaining / deduct / delete**, add spool (OCR / NFC / manual), write NFC tag |
 | **Clients** | Read-only client directory (from desktop store) |
-| **Machines** | Printer list, status, assigned queue jobs |
+| **Machines** | Printer list, **live telemetry** (progress, temps, ETA), assigned jobs |
 | **Settings** | Connection, language (EN / AR / system), notification toggles, widget guide, unpair |
 | **Connection** | Polling health, top banner when offline/wrong PIN, badge in toolbar |
 | **Notifications** | Local alerts: queue changes, LAN disconnect, overdue orders, low filament |
@@ -24,12 +24,13 @@ Native **LAN-only** client. The desktop app remains the source of truth (`khayt-
 | Feature | Endpoint |
 |---------|----------|
 | Status | `GET /api/status` (includes `waiting` count) |
-| Queue | `GET /api/queue`, `PATCH /api/orders/:id` (status + `machineId`) |
+| Queue | `GET /api/queue`, `PATCH /api/orders/:id` (status + `machineId`), `POST /api/orders` (create) |
+| Quotes | `GET /api/orders?status=quote`, `GET …/quote-url`, `POST …/approve` |
 | Order log | `GET /api/orders?limit=` |
 | Intake | `GET /api/waiting-list`, `PATCH /api/waiting-list/:id` |
 | Inventory | `GET/POST /api/inventory`, `PATCH/DELETE /api/inventory/:id` |
 | Clients | `GET /api/clients` |
-| Machines | `GET /api/machines` |
+| Machines | `GET /api/machines`, `GET /api/machines/live` |
 
 See [LAN_API.md](./LAN_API.md).
 

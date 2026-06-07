@@ -580,6 +580,9 @@ ipcMain.handle('hub:write-status-page', async (_e, { html, orderId }) => {
   return fullPath;
 });
 
+// Shared with LAN API live telemetry endpoint (hub:start-printer-polling fills this)
+let printerStatusCache = {};
+
 const { registerLanServer } = require('./lib/lan-server');
 registerLanServer({
   fs,
@@ -599,6 +602,7 @@ registerLanServer({
   getMainWindow: () => mainWindow,
   statusPagesDir,
   appRoot: __dirname,
+  getPrinterStatusCache: () => printerStatusCache,
 });
 
 function isAllowedExternalUrl(s) {
@@ -691,7 +695,6 @@ ipcMain.handle('hub:parse-print-file', async (_e, filePath) => {
 });
 
 // --- Feature 2 (new batch): Printer API polling infrastructure ---
-const printerStatusCache = {};
 let printerPollInterval = null;
 
 ipcMain.handle('hub:start-printer-polling', async (_e, machines) => {

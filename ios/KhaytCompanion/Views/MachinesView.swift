@@ -5,8 +5,10 @@ struct MachinesView: View {
     @EnvironmentObject private var health: ConnectionHealth
 
     @State private var machines: [MachineInfo] = []
+    @State private var live: [MachineLiveStatus] = []
     @State private var queue: [QueueOrder] = []
     @State private var errorMessage: String?
+    @State private var selectedMachine: MachineInfo?
 
     var body: some View {
         NavigationStack {
@@ -21,6 +23,9 @@ struct MachinesView: View {
                     )
                 } else {
                     List(machines) { machine in
+                        Button {
+                            selectedMachine = machine
+                        } label: {
                         VStack(alignment: .leading, spacing: 6) {
                             HStack {
                                 VStack(alignment: .leading, spacing: 4) {
@@ -40,6 +45,22 @@ struct MachinesView: View {
                             let assigned = queue.filter {
                                 $0.machineId == machine.id || $0.machine == machine.name
                             }
+                            if let telemetry = live.first(where: { $0.id == machine.id }),
+                               machine.supportsLiveTelemetry, telemetry.error == nil,
+                               let progress = telemetry.progress, progress > 0 {
+                                HStack(spacing: 8) {
+                                    ProgressView(value: Double(progress), total: 100)
+                                        .frame(maxWidth: 120)
+                                    Text("\(progress)%")
+                                        .font(.caption2)
+                                        .foregroundStyle(KhaytDesign.brand)
+                                    if let state = telemetry.state {
+                                        Text(state)
+                                            .font(.caption2)
+                                            .foregroundStyle(KhaytDesign.textMuted)
+                                    }
+                                }
+                            }
                             if !assigned.isEmpty {
                                 Text(String(format: L10n.tr("machines.assigned"), assigned.count))
                                     .font(.caption)
@@ -53,6 +74,8 @@ struct MachinesView: View {
                             }
                         }
                         .padding(.vertical, 4)
+                        }
+                        .buttonStyle(.plain)
                     }
                     .listStyle(.plain)
                 }
@@ -60,6 +83,9 @@ struct MachinesView: View {
             .khaytScreen(title: L10n.tr("tab.machines"))
             .refreshable { await load() }
             .task { await load() }
+            .sheet(item: $selectedMachine) { machine in
+                MachineDetailSheet(machine: machine)
+            }
         }
     }
 
@@ -68,12 +94,15 @@ struct MachinesView: View {
         do {
             async let machinesTask = api.fetchMachines()
             async let queueTask = api.fetchQueue()
-            let (m, q) = try await (machinesTask, queueTask)
+            async let liveTask = api.fetchMachineLive()
+            let (m, q, l) = try await (machinesTask, queueTask, liveTask)
             machines = m
             queue = q
+            live = l
         } catch {
             machines = []
             queue = []
+            live = []
             errorMessage = error.localizedDescription
         }
     }

@@ -7,12 +7,14 @@ struct OrdersView: View {
 
     enum Segment: String, CaseIterable, Identifiable {
         case active
+        case quotes
         case recent
         case intake
         var id: String { rawValue }
         var title: String {
             switch self {
             case .active: return L10n.tr("orders.active")
+            case .quotes: return L10n.tr("quote.title")
             case .recent: return L10n.tr("orders.recent")
             case .intake: return L10n.tr("intake.title")
             }
@@ -28,6 +30,9 @@ struct OrdersView: View {
     @State private var segment: Segment = .active
     @State private var queue: [QueueOrder] = []
     @State private var recent: [OrderLogEntry] = []
+    @State private var quotes: [OrderLogEntry] = []
+    @State private var showCreateOrder = false
+    @State private var selectedQuote: OrderLogEntry?
     @State private var activeFilter: ActiveFilter = .all
     @State private var recentStatusFilter: String?
     @State private var errorMessage: String?
@@ -60,6 +65,8 @@ struct OrdersView: View {
                 switch segment {
                 case .active:
                     activeContent
+                case .quotes:
+                    quotesContent
                 case .recent:
                     recentContent
                 case .intake:
@@ -67,7 +74,19 @@ struct OrdersView: View {
                 }
             }
             .khaytScreen(title: L10n.tr("tab.orders"))
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { ConnectionBadge() } }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    HStack(spacing: 12) {
+                        Button { showCreateOrder = true } label: {
+                            Image(systemName: "plus")
+                        }
+                        ConnectionBadge()
+                    }
+                }
+            }
+            .sheet(isPresented: $showCreateOrder) {
+                CreateOrderSheet { Task { await load() } }
+            }
             .refreshable { await load() }
             .task(id: segment) { await load() }
             .onAppear { applyExternalFilters() }
@@ -83,7 +102,14 @@ struct OrdersView: View {
                 )
             }
             .sheet(item: $selectedLogEntry) { entry in
-                OrderLogDetailSheet(entry: entry)
+                if entry.status == "quote" {
+                    QuoteDetailSheet(entry: entry) { Task { await load() } }
+                } else {
+                    OrderLogDetailSheet(entry: entry)
+                }
+            }
+            .sheet(item: $selectedQuote) { entry in
+                QuoteDetailSheet(entry: entry) { Task { await load() } }
             }
         }
     }
@@ -93,6 +119,7 @@ struct OrdersView: View {
             segment = {
                 switch pendingSegment {
                 case .active: return .active
+                case .quotes: return .quotes
                 case .recent: return .recent
                 case .intake: return .intake
                 }
@@ -162,6 +189,52 @@ struct OrdersView: View {
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
                 .environment(\.defaultMinListRowHeight, 56)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var quotesContent: some View {
+        Group {
+            if quotes.isEmpty && errorMessage == nil {
+                ProgressView()
+            } else if quotes.isEmpty {
+                ContentUnavailableView(
+                    L10n.tr("quote.title"),
+                    systemImage: "doc.text",
+                    description: Text(errorMessage ?? L10n.tr("quote.empty"))
+                )
+            } else {
+                List(quotes) { entry in
+                    Button {
+                        selectedQuote = entry
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text(entry.displayTitle)
+                                    .font(.headline)
+                                    .foregroundStyle(KhaytDesign.text)
+                                Spacer()
+                                if let price = entry.price {
+                                    Text(String(format: "%.0f", price))
+                                        .font(.caption.bold())
+                                        .foregroundStyle(KhaytDesign.textMuted)
+                                }
+                            }
+                            Text(entry.displayClient)
+                                .font(.subheadline)
+                                .foregroundStyle(KhaytDesign.textDim)
+                            if let exp = entry.quoteExpiresAt {
+                                Text(String(format: L10n.tr("quote.expires_on"), exp))
+                                    .font(.caption)
+                                    .foregroundStyle(KhaytDesign.textMuted)
+                            }
+                        }
+                        .padding(.vertical, 2)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .listStyle(.plain)
             }
         }
     }
@@ -245,6 +318,10 @@ struct OrdersView: View {
                 let data = try await api.fetchQueue()
                 guard generation == loadGeneration else { return }
                 queue = data
+            case .quotes:
+                let data = try await api.fetchRecentOrders(limit: 50, status: "quote")
+                guard generation == loadGeneration else { return }
+                quotes = data
             case .recent:
                 let data = try await api.fetchRecentOrders(limit: 40, status: recentStatusFilter)
                 guard generation == loadGeneration else { return }
@@ -255,7 +332,9 @@ struct OrdersView: View {
             }
         } catch {
             guard generation == loadGeneration else { return }
-            if segment == .active { queue = [] } else { recent = [] }
+            if segment == .active { queue = [] }
+            else if segment == .quotes { quotes = [] }
+            else if segment == .recent { recent = [] }
             errorMessage = error.localizedDescription
         }
     }
