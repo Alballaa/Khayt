@@ -140,13 +140,14 @@ final class ConnectionSettings: ObservableObject {
         let langRaw = defaults.string(forKey: Keys.language) ?? AppLanguage.system.rawValue
         appLanguage = AppLanguage(rawValue: langRaw) ?? .system
         let appearanceRaw = defaults.string(forKey: Keys.appearance) ?? AppAppearance.light.rawValue
-        appAppearance = AppAppearance(rawValue: appearanceRaw) ?? .light
-        KhaytDesign.apply(appearance: appAppearance, systemColorScheme: .light)
+        let resolvedAppearance = AppAppearance(rawValue: appearanceRaw) ?? .light
+        appAppearance = resolvedAppearance
         notifyQueueChanges = defaults.object(forKey: Keys.notifyQueue) as? Bool ?? true
         notifyConnection = defaults.object(forKey: Keys.notifyConnection) as? Bool ?? true
         notifyOverdue = defaults.object(forKey: Keys.notifyOverdue) as? Bool ?? true
         notifyLowStock = defaults.object(forKey: Keys.notifyLowStock) as? Bool ?? true
         L10n.setLanguage(appLanguage)
+        KhaytDesign.apply(appearance: resolvedAppearance, systemColorScheme: .light)
     }
 
     /// Human-readable endpoint for errors (e.g. `http://192.168.1.42:3219`).
