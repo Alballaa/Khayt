@@ -6,12 +6,46 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Platform decision doc** — [docs/PLATFORM-MIGRATION.md](./docs/PLATFORM-MIGRATION.md): stay on Electron; when/how to revisit Tauri or shared core (not Swift+C++ per OS).
+- **Online option** — Settings and setup wizard toggle to enable customer quote requests via LAN intake link (`/intake`); panel on Job Intake with copy link; no Khayt cloud.
+- **Online hub** — Settings panel lists intake, quote-approval, and tracking links (copy per order) when LAN server is running.
+- **Intake → calculator** — Job Intake “Quote in calculator” pre-fills client, part name, and notes (creates client when needed).
+- **Solo maker dashboard** — Simple mode shows a focused “Your shop today” row; farm-style KPI/machine load stays in Professional mode.
 - **iOS Companion** — Home quick actions, low-stock alerts, order preview; Orders tab (active filters + recent history); order/spool detail sheets; inventory search and low-stock filter; [IOS_UI_REDESIGN_PROMPT.md](./docs/IOS_UI_REDESIGN_PROMPT.md) for AI UI redesign.
 - **iOS Companion (full v1)** — English/Arabic + RTL, connection banner, kanban strip, overdue filter, local notifications, home screen widget sources, Siri shortcuts, App Group widget snapshot.
+- **iOS Companion (v2)** — LAN API extensions (intake, clients, inventory edit, create order, quote links, live printer telemetry); offline tools mode (scan/NFC without desktop); cached data when LAN unreachable.
 
 ### Changed
 
+- **Check for updates (source builds)** — Explains that new work is on `main` via `git pull`, not the DMG feed, while release hold is active.
+- **Online settings discoverability** — Dedicated **Settings → Online** sidebar item (enable quote requests, intake link, LAN server); no longer buried at the bottom of Data & Locale.
 - **iOS Companion** — add spool from Inventory (+) with method picker (scan label, NFC, manual); removed separate Add spool tab. Optional SKU, batch/lot, print/bed temps on review form. Label parser supports more non-English patterns (AR/DE/FR/ES).
+
+### Fixed
+
+- **Intake — no customer PIN** — `/intake` always opens the order form when the LAN server is running; the intake PIN gate is removed.
+- **Intake QR opens form** — Scanning the LAN QR opens the customer order form directly (no PIN gate). QR always points to `/intake`. The full URL is shown in a box above the QR. Any phone browser hitting `/api/status` (including old QRs) is redirected to `/intake`; API clients use `/api/status?format=json`.
+- **Intake PIN visible** — The customer intake PIN is now displayed in plain text with a Copy button in Settings → Online (and as a visible field in LAN settings) so the shop owner can share it with customers. Previously it was masked immediately after server start, making the intake form inaccessible. The PIN value is now returned from the `hub:start-lan-server` IPC response and kept readable in memory.
+- **LAN QR target** — In Settings, the LAN QR now opens `/intake` when Online is enabled (phone-friendly) instead of raw `/api/status` JSON; `/api/status` remains fallback when Online is off.
+- **QR codes** — Customer portal, quote approval, and exported quote PDFs now show a real QR image; `hub:generate-qr` returns a base64 data URL when `{ dataUrl: true }` is passed (all `<img src>` callsites), raw SVG otherwise.
+- **LAN / Online access** — Starting the server with Online enabled (or “Listen on LAN”) now binds to all interfaces; prefers Wi‑Fi IP (192.168.x) over VPN; warns if still localhost-only.
+- **Settings sidebar** — Business / Online / Data & Locale (and other sections) switch correctly again; `openSettingsSection` is exported from the shell module (clicks had been failing silently).
+- **Store load on macOS** — Keychain explanation dialog used invalid Electron `showMessageBox` type (`information` → `info`); load no longer fails if the dialog errors.
+- **Check for updates** — Returns a real status from the updater (dev/source builds, errors, and version numbers) instead of assuming “up to date” after a timeout when the check failed or the app was not packaged.
+
+## [2.3.2] - 2026-06-04
+
+### Fixed
+
+- **Setup wizard** — No longer reopens on every launch when the shop already has data or wizard completion was not persisted (`firstRunDone` / `flushSave` on finish; one-time flag normalization after load).
+
+## [2.3.1] - 2026-06-04
+
+Stabilization patch after **v2.3.0** — bug fixes and dependency hygiene, no new features.
+
+### Fixed
+
+- **Portal QR / tracking links** — Customer portal modal and exported quote PDFs now include `?token=` (portal previously used `/order/:id/status` without a token and returned 403).
 
 ## [2.2.1] - 2026-05-30
 
