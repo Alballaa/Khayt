@@ -26,15 +26,20 @@ struct MachineDetailSheet: View {
 
                 Section(header: Text(L10n.tr("machine.live"))) {
                     if let errorMessage {
-                        Text(errorMessage).foregroundStyle(.red).font(.subheadline)
+                        Text(errorMessage)
+                            .foregroundStyle(KhaytDesign.danger)
+                            .font(.subheadline)
+                            .khaytListRows()
                     } else if !machine.supportsLiveTelemetry {
                         Text(L10n.tr("machine.live_unconfigured"))
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(KhaytDesign.textDim)
+                            .khaytListRows()
                     } else if let live {
                         if let err = live.error {
                             Label(err, systemImage: "exclamationmark.triangle")
-                                .foregroundStyle(.orange)
+                                .foregroundStyle(KhaytDesign.warn)
+                                .khaytListRows()
                         } else {
                             if let state = live.state {
                                 LabeledContent(L10n.tr("machine.state"), value: state)
@@ -75,8 +80,7 @@ struct MachineDetailSheet: View {
                     }
                 }
             }
-            .scrollContentBackground(.hidden)
-            .background(KhaytDesign.sheetBg)
+            .khaytSheetList()
             .navigationTitle(machine.name ?? machine.id)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

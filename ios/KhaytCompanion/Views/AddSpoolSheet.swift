@@ -60,8 +60,12 @@ struct AddSpoolSheet: View {
                     }
                 }
             }
+            .khaytSheet()
             .navigationTitle(navTitle)
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(KhaytDesign.navBg, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(KhaytDesign.isDark ? .dark : .light, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(L10n.tr("common.cancel")) { dismiss() }
@@ -106,24 +110,23 @@ struct AddSpoolSheet: View {
             Section {
                 Text(L10n.tr("spool.add.intro"))
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(KhaytDesign.textDim)
+                    .khaytListRows()
             }
             Section {
-                methodRow(
+                KhaytMethodRow(
                     title: L10n.tr("spool.add.method.scan"),
                     subtitle: L10n.tr("spool.add.method.scan_hint"),
                     icon: "barcode.viewfinder"
-                ) {
-                    step = .scanLabel
-                }
-                methodRow(
+                ) { step = .scanLabel }
+                .khaytListRows()
+                KhaytMethodRow(
                     title: L10n.tr("spool.add.method.nfc"),
                     subtitle: L10n.tr("spool.add.method.nfc_hint"),
                     icon: "wave.3.right"
-                ) {
-                    step = .nfc
-                }
-                methodRow(
+                ) { step = .nfc }
+                .khaytListRows()
+                KhaytMethodRow(
                     title: L10n.tr("spool.add.method.manual"),
                     subtitle: L10n.tr("spool.add.method.manual_hint"),
                     icon: "keyboard"
@@ -132,41 +135,22 @@ struct AddSpoolSheet: View {
                     draft.sourceNote = L10n.tr("spool.add.manual_source")
                     step = .review
                 }
+                .khaytListRows()
             }
         }
-    }
-
-    private func methodRow(title: String, subtitle: String, icon: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 14) {
-                Image(systemName: icon)
-                    .font(.title2)
-                    .foregroundStyle(Color.accentColor)
-                    .frame(width: 36)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.headline).foregroundStyle(.primary)
-                    Text(subtitle).font(.caption).foregroundStyle(.secondary)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption.bold())
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(.vertical, 4)
-        }
+        .khaytSheetList()
     }
 
     private var scanLabelView: some View {
         VStack(spacing: 20) {
             Spacer()
-            Image(systemName: "camera.viewfinder")
-                .font(.system(size: 56))
-                .foregroundStyle(Color.accentColor)
+            KhaytHeroIcon(systemName: "camera.viewfinder")
             Text(L10n.tr("spool.add.scan.point"))
                 .font(.title3.bold())
+                .foregroundStyle(KhaytDesign.text)
             Text(L10n.tr("spool.add.scan.hint"))
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(KhaytDesign.textDim)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
             Button {
@@ -185,14 +169,13 @@ struct AddSpoolSheet: View {
     private var nfcView: some View {
         VStack(spacing: 20) {
             Spacer()
-            Image(systemName: "nfc")
-                .font(.system(size: 56))
-                .foregroundStyle(Color.accentColor)
+            KhaytHeroIcon(systemName: "nfc")
             Text(L10n.tr("spool.add.nfc.hold"))
                 .font(.title3.bold())
+                .foregroundStyle(KhaytDesign.text)
             if !nfc.isAvailable {
                 Text(L10n.tr("nfc.unavailable"))
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(KhaytDesign.warn)
                     .font(.caption)
             }
             Button {
@@ -281,7 +264,8 @@ struct SpoolReviewForm: View {
                 Section {
                     Text(errorMessage)
                         .font(.subheadline)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(KhaytDesign.danger)
+                        .khaytListRows()
                 }
             }
 
@@ -289,27 +273,35 @@ struct SpoolReviewForm: View {
                 Section {
                     Text(draft.sourceNote)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(KhaytDesign.textDim)
+                        .khaytListRows()
                 }
             }
 
             Section(header: Text(L10n.tr("spool.add.required"))) {
                 TextField(L10n.tr("spool.add.material"), text: $draft.material)
+                    .khaytListRows()
                 TextField(L10n.tr("spool.add.weight"), text: Binding(
                     get: { String(draft.weightGrams) },
                     set: { draft.weightGrams = Int($0) ?? draft.weightGrams }
                 ))
                 .keyboardType(.numberPad)
+                .khaytListRows()
             }
 
             Section(header: Text(L10n.tr("spool.add.optional"))) {
                 TextField(L10n.tr("spool.brand"), text: $draft.brand)
+                    .khaytListRows()
                 TextField(L10n.tr("spool.sku"), text: $draft.sku)
+                    .khaytListRows()
                 TextField(L10n.tr("spool.batch"), text: $draft.lot)
+                    .khaytListRows()
                 TextField("\(L10n.tr("spool.print_temp")) (°C)", text: $draft.printTemp)
                     .keyboardType(.numberPad)
+                    .khaytListRows()
                 TextField("\(L10n.tr("spool.bed_temp")) (°C)", text: $draft.bedTemp)
                     .keyboardType(.numberPad)
+                    .khaytListRows()
             }
 
             Section {
@@ -323,6 +315,7 @@ struct SpoolReviewForm: View {
                         }
                     }
                     .disabled(isUploading || draft.material.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .khaytListRows()
                 }
 
                 if let onWriteNFC {
@@ -331,6 +324,7 @@ struct SpoolReviewForm: View {
                             .frame(maxWidth: .infinity)
                     }
                     .disabled(draft.material.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .khaytListRows()
                 }
             } footer: {
                 if !canSyncToDesktop {
@@ -339,6 +333,8 @@ struct SpoolReviewForm: View {
                 }
             }
         }
+        .khaytSheet()
+        .foregroundStyle(KhaytDesign.text)
     }
 }
 
@@ -348,36 +344,36 @@ struct TagPreviewCard: View {
     let tag: NFCFilamentTag
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                if let hex = tag.hex {
-                    Circle()
-                        .fill(Color(hex: hex) ?? .gray)
-                        .frame(width: 28, height: 28)
+        KhaytCard {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    if let hex = tag.hex {
+                        Circle()
+                            .fill(Color(hex: hex) ?? KhaytDesign.textMuted)
+                            .frame(width: 28, height: 28)
+                    }
+                    VStack(alignment: .leading) {
+                        Text(tag.materialLabel.isEmpty ? L10n.tr("spool.tag.filament") : tag.materialLabel)
+                            .font(.headline)
+                            .foregroundStyle(KhaytDesign.text)
+                        Text(tag.standard)
+                            .font(.caption)
+                            .foregroundStyle(KhaytDesign.textDim)
+                    }
                 }
-                VStack(alignment: .leading) {
-                    Text(tag.materialLabel.isEmpty ? L10n.tr("spool.tag.filament") : tag.materialLabel)
-                        .font(.headline)
-                    Text(tag.standard)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                HStack(spacing: 12) {
+                    if let w = tag.weight { meta(L10n.tr("spool.tag.weight"), "\(w) g") }
+                    if let p = tag.printTemp { meta(L10n.tr("spool.tag.print"), "\(p)°C") }
+                    if let b = tag.bedTemp { meta(L10n.tr("spool.tag.bed"), "\(b)°C") }
                 }
-            }
-            HStack(spacing: 12) {
-                if let w = tag.weight { meta(L10n.tr("spool.tag.weight"), "\(w) g") }
-                if let p = tag.printTemp { meta(L10n.tr("spool.tag.print"), "\(p)°C") }
-                if let b = tag.bedTemp { meta(L10n.tr("spool.tag.bed"), "\(b)°C") }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
     }
 
     private func meta(_ label: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(label).font(.caption2).foregroundStyle(.secondary)
-            Text(value).font(.caption.bold())
+            Text(label).font(.caption2).foregroundStyle(KhaytDesign.textDim)
+            Text(value).font(.caption.bold()).foregroundStyle(KhaytDesign.text)
         }
     }
 }

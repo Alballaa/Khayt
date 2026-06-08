@@ -27,8 +27,9 @@ struct SpoolDetailSheet: View {
                 if let errorMessage {
                     Section {
                         Text(errorMessage)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(KhaytDesign.danger)
                             .font(.subheadline)
+                            .khaytListRows()
                     }
                 }
 
@@ -50,7 +51,8 @@ struct SpoolDetailSheet: View {
                     }
                     if spool.isLowStock {
                         Label(L10n.tr("inventory.low_badge"), systemImage: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(KhaytDesign.warn)
+                            .khaytListRows()
                     }
                     HStack {
                         quickDeductButton(50)
@@ -122,8 +124,8 @@ struct SpoolDetailSheet: View {
                         .font(.caption)
                 }
             }
-            .scrollContentBackground(.hidden)
-            .background(KhaytDesign.sheetBg)
+            .khaytSheet()
+            .foregroundStyle(KhaytDesign.text)
             .navigationTitle(L10n.tr("spool.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

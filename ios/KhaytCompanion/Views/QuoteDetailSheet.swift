@@ -18,7 +18,10 @@ struct QuoteDetailSheet: View {
             List {
                 if let errorMessage {
                     Section {
-                        Text(errorMessage).foregroundStyle(.red).font(.subheadline)
+                        Text(errorMessage)
+                            .foregroundStyle(KhaytDesign.danger)
+                            .font(.subheadline)
+                            .khaytListRows()
                     }
                 }
 
@@ -39,10 +42,12 @@ struct QuoteDetailSheet: View {
                     Section(header: Text(L10n.tr("quote.approval_link"))) {
                         if link.alreadyApproved == true {
                             Label(L10n.tr("quote.already_approved"), systemImage: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
+                                .foregroundStyle(KhaytDesign.ok)
+                                .khaytListRows()
                         } else if link.expired == true {
                             Text(L10n.tr("quote.expired"))
-                                .foregroundStyle(.orange)
+                                .foregroundStyle(KhaytDesign.warn)
+                                .khaytListRows()
                         }
                         if let url = URL(string: link.quoteUrl) {
                             ShareLink(item: url) {
@@ -72,8 +77,7 @@ struct QuoteDetailSheet: View {
                     }
                 }
             }
-            .scrollContentBackground(.hidden)
-            .background(KhaytDesign.sheetBg)
+            .khaytSheetList()
             .navigationTitle(L10n.tr("quote.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

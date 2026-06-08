@@ -18,7 +18,8 @@ struct WriteNFCTagSheet: View {
                 Section {
                     Text(L10n.tr("nfc.write.intro"))
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(KhaytDesign.textDim)
+                        .khaytListRows()
                 }
 
                 Section(header: Text(L10n.tr("nfc.write.standard"))) {
@@ -31,34 +32,40 @@ struct WriteNFCTagSheet: View {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(standard.label)
                                         .font(.headline)
-                                        .foregroundStyle(.primary)
+                                        .foregroundStyle(KhaytDesign.text)
                                     Text(standard.subtitle)
                                         .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(KhaytDesign.textDim)
                                         .multilineTextAlignment(.leading)
                                 }
                                 Spacer()
                                 if selectedStandard == standard {
                                     Image(systemName: "checkmark.circle.fill")
-                                        .foregroundStyle(Color.accentColor)
+                                        .foregroundStyle(KhaytDesign.brand)
                                 }
                             }
                             .padding(.vertical, 4)
                         }
+                        .khaytListRows()
                     }
                 }
 
                 Section(header: Text(L10n.tr("nfc.write.preview"))) {
                     LabeledContent(L10n.tr("nfc.write.material"), value: draft.material.isEmpty ? "—" : draft.material)
+                        .khaytListRows()
                     if !draft.brand.isEmpty {
                         LabeledContent(L10n.tr("nfc.write.brand"), value: draft.brand)
+                            .khaytListRows()
                     }
                     LabeledContent(L10n.tr("nfc.write.weight"), value: "\(draft.weightGrams) g")
+                        .khaytListRows()
                     if !draft.printTemp.isEmpty {
                         LabeledContent(L10n.tr("nfc.write.print_temp"), value: "\(draft.printTemp)°C")
+                            .khaytListRows()
                     }
                     if !draft.bedTemp.isEmpty {
                         LabeledContent(L10n.tr("nfc.write.bed_temp"), value: "\(draft.bedTemp)°C")
+                            .khaytListRows()
                     }
                 }
 
@@ -66,20 +73,23 @@ struct WriteNFCTagSheet: View {
                     Section {
                         Text(encodeError)
                             .font(.subheadline)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(KhaytDesign.danger)
+                            .khaytListRows()
                     }
                 }
 
                 if nfc.writeSucceeded {
                     Section {
                         Label(L10n.tr("nfc.write.success"), systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
+                            .foregroundStyle(KhaytDesign.ok)
+                            .khaytListRows()
                     }
                 } else if let err = nfc.lastError, hasStartedWrite {
                     Section {
                         Text(err)
                             .font(.subheadline)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(KhaytDesign.danger)
+                            .khaytListRows()
                     }
                 }
 
@@ -87,7 +97,8 @@ struct WriteNFCTagSheet: View {
                     if !nfc.isAvailable {
                         Text(L10n.tr("nfc.unavailable"))
                             .font(.caption)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(KhaytDesign.warn)
+                            .khaytListRows()
                     }
                     Button {
                         startWrite()
@@ -99,13 +110,18 @@ struct WriteNFCTagSheet: View {
                         .frame(maxWidth: .infinity)
                     }
                     .disabled(!nfc.isAvailable || nfc.isWriting || draft.material.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .khaytListRows()
                 } footer: {
                     Text(L10n.tr("nfc.write.footer"))
                         .font(.caption)
                 }
             }
+            .khaytSheetList()
             .navigationTitle(L10n.tr("nfc.write.title"))
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(KhaytDesign.navBg, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(KhaytDesign.isDark ? .dark : .light, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(L10n.tr("nfc.write.done")) {

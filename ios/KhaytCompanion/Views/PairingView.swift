@@ -15,41 +15,44 @@ struct PairingView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                progressHeader
-                    .padding()
+            ZStack {
+                KhaytScreenBackground()
+                VStack(spacing: 0) {
+                    progressHeader
+                        .padding()
 
-                TabView(selection: $step) {
-                    welcomeStep.tag(0)
-                    desktopStep.tag(1)
-                    connectionStep.tag(2)
-                    verifyStep.tag(3)
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                .animation(.easeInOut, value: step)
-
-                bottomBar
-                    .padding()
-
-                Button {
-                    settings.prefersOfflineTools = true
-                } label: {
-                    VStack(spacing: 4) {
-                        Text(L10n.tr("pairing.use_offline"))
-                            .font(.subheadline.weight(.semibold))
-                        Text(L10n.tr("pairing.use_offline.footer"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
+                    TabView(selection: $step) {
+                        welcomeStep.tag(0)
+                        desktopStep.tag(1)
+                        connectionStep.tag(2)
+                        verifyStep.tag(3)
                     }
-                    .frame(maxWidth: .infinity)
+                    .tabViewStyle(.page(indexDisplayMode: .never))
+                    .animation(.easeInOut, value: step)
+
+                    bottomBar
+                        .padding()
+
+                    Button {
+                        settings.prefersOfflineTools = true
+                    } label: {
+                        VStack(spacing: 4) {
+                            Text(L10n.tr("pairing.use_offline"))
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(KhaytDesign.text)
+                            Text(L10n.tr("pairing.use_offline.footer"))
+                                .font(.caption)
+                                .foregroundStyle(KhaytDesign.textDim)
+                                .multilineTextAlignment(.center)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal)
+                    .padding(.bottom, 12)
                 }
-                .buttonStyle(.plain)
-                .padding(.horizontal)
-                .padding(.bottom, 12)
             }
-            .navigationTitle(L10n.tr("pairing.title"))
-            .navigationBarTitleDisplayMode(.inline)
+            .khaytInlineScreen(title: L10n.tr("pairing.title"))
         }
     }
 
@@ -58,20 +61,20 @@ struct PairingView: View {
             HStack(spacing: 8) {
                 ForEach(0..<totalSteps, id: \.self) { i in
                     Capsule()
-                        .fill(i <= step ? Color.accentColor : Color.secondary.opacity(0.25))
+                        .fill(i <= step ? KhaytDesign.brand : KhaytDesign.textFaint)
                         .frame(height: 4)
                 }
             }
             Text(String(format: L10n.tr("pairing.step"), step + 1, totalSteps))
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(KhaytDesign.textDim)
         }
     }
 
     private var bottomBar: some View {
         HStack {
             if step > 0 {
-                Button(L10n.tr("common.back")) { step -= 1 }
+                KhaytGhostButton(title: L10n.tr("common.back")) { step -= 1 }
             }
             Spacer()
             if step < totalSteps - 1 {
@@ -111,13 +114,13 @@ struct PairingView: View {
                 title: L10n.tr("pairing.desktop.title"),
                 body: L10n.tr("pairing.desktop.body")
             )
-            VStack(alignment: .leading, spacing: 10) {
-                checklistRow(L10n.tr("pairing.desktop.check1"), icon: "network")
-                checklistRow(L10n.tr("pairing.desktop.check2"), icon: "antenna.radiowaves.left.and.right")
-                checklistRow(L10n.tr("pairing.desktop.check3"), icon: "key.fill")
+            KhaytCard {
+                VStack(alignment: .leading, spacing: 10) {
+                    checklistRow(L10n.tr("pairing.desktop.check1"), icon: "network")
+                    checklistRow(L10n.tr("pairing.desktop.check2"), icon: "antenna.radiowaves.left.and.right")
+                    checklistRow(L10n.tr("pairing.desktop.check3"), icon: "key.fill")
+                }
             }
-            .padding()
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
         }
         .padding(.horizontal)
     }
@@ -131,33 +134,38 @@ struct PairingView: View {
                     body: L10n.tr("pairing.connection.body")
                 )
 
-                Group {
-                    TextField(L10n.tr("pairing.connection.shop_optional"), text: $settings.shopLabel)
-                    TextField(L10n.tr("pairing.connection.ip"), text: $settings.host)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .keyboardType(.URL)
-                    Stepper(String(format: L10n.tr("settings.port"), settings.port), value: $settings.port, in: 1024...65535)
-                    SecureField(L10n.tr("pairing.connection.pin"), text: $settings.pin)
-                }
-                .textFieldStyle(.roundedBorder)
-
-                DisclosureGroup(L10n.tr("pairing.connection.ip_help"), isExpanded: $showIPHelp) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(L10n.tr("pairing.connection.ip_help_terminal"))
-                            .font(.caption)
-                        Text("ipconfig getifaddr en0")
-                            .font(.system(.caption, design: .monospaced))
-                            .padding(8)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
-                        Text(L10n.tr("pairing.connection.ip_help_hint"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                KhaytCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        pairingField(L10n.tr("pairing.connection.shop_optional"), text: $settings.shopLabel)
+                        pairingField(L10n.tr("pairing.connection.ip"), text: $settings.host, keyboard: .URL)
+                        Stepper(String(format: L10n.tr("settings.port"), settings.port), value: $settings.port, in: 1024...65535)
+                            .foregroundStyle(KhaytDesign.text)
+                        SecureField(L10n.tr("pairing.connection.pin"), text: $settings.pin)
+                            .textFieldStyle(.roundedBorder)
                     }
-                    .padding(.top, 4)
                 }
-                .font(.subheadline)
+
+                KhaytCard(padding: 12) {
+                    DisclosureGroup(L10n.tr("pairing.connection.ip_help"), isExpanded: $showIPHelp) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(L10n.tr("pairing.connection.ip_help_terminal"))
+                                .font(.caption)
+                                .foregroundStyle(KhaytDesign.textDim)
+                            Text("ipconfig getifaddr en0")
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(KhaytDesign.text)
+                                .padding(8)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(KhaytDesign.surface2, in: RoundedRectangle(cornerRadius: KhaytDesign.radiusSM))
+                            Text(L10n.tr("pairing.connection.ip_help_hint"))
+                                .font(.caption)
+                                .foregroundStyle(KhaytDesign.textDim)
+                        }
+                        .padding(.top, 4)
+                    }
+                    .font(.subheadline)
+                    .foregroundStyle(KhaytDesign.text)
+                }
             }
             .padding(.horizontal)
         }
@@ -190,15 +198,10 @@ struct PairingView: View {
             .padding(.horizontal)
 
             if let testMessage {
-                HStack(spacing: 8) {
-                    Image(systemName: testOK ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .foregroundStyle(testOK ? .green : .red)
-                    Text(testMessage)
-                        .font(.subheadline)
-                }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                KhaytFeedbackPanel(
+                    tone: testOK ? .success : .error,
+                    message: testMessage
+                )
                 .padding(.horizontal)
             }
 
@@ -208,15 +211,14 @@ struct PairingView: View {
 
     private func stepCard(icon: String, title: String, body: String) -> some View {
         VStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 44))
-                .foregroundStyle(Color.accentColor)
+            KhaytHeroIcon(systemName: icon)
             Text(title)
                 .font(.title2.bold())
+                .foregroundStyle(KhaytDesign.text)
                 .multilineTextAlignment(.center)
             Text(body)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(KhaytDesign.textDim)
                 .multilineTextAlignment(.center)
         }
         .padding(.vertical, 8)
@@ -225,6 +227,15 @@ struct PairingView: View {
     private func checklistRow(_ text: String, icon: String) -> some View {
         Label(text, systemImage: icon)
             .font(.subheadline)
+            .foregroundStyle(KhaytDesign.text)
+    }
+
+    private func pairingField(_ placeholder: String, text: Binding<String>, keyboard: UIKeyboardType = .default) -> some View {
+        TextField(placeholder, text: text)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .keyboardType(keyboard)
+            .textFieldStyle(.roundedBorder)
     }
 
     private func invalidatePairingTest() {

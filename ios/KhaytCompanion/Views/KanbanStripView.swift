@@ -34,7 +34,7 @@ struct KanbanStripView: View {
                         .padding(.horizontal, 10)
                         .padding(.vertical, 8)
                         .background(
-                            active ? KhaytDesign.statusSoft(for: stage.rawValue) : Color.white.opacity(0.04),
+                            active ? KhaytDesign.statusSoft(for: stage.rawValue) : KhaytDesign.surface2,
                             in: RoundedRectangle(cornerRadius: KhaytDesign.radiusMD)
                         )
                         .overlay(

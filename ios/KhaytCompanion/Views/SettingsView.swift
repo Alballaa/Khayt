@@ -17,10 +17,12 @@ struct SettingsView: View {
                         Spacer()
                         ConnectionBadge()
                     }
+                    .khaytListRows()
                     if let checked = health.lastChecked {
                         Text(checked.formatted(date: .omitted, time: .shortened))
                             .font(.caption)
                             .foregroundStyle(KhaytDesign.textMuted)
+                            .khaytListRows()
                     }
                 }
 
@@ -29,6 +31,7 @@ struct SettingsView: View {
                         Text(L10n.tr("offline.welcome.body"))
                             .font(.subheadline)
                             .foregroundStyle(KhaytDesign.textDim)
+                            .khaytListRows()
                     } header: {
                         Text(L10n.tr("offline.welcome.title"))
                     }
@@ -39,21 +42,27 @@ struct SettingsView: View {
                     footer: Text(L10n.tr("settings.connection.footer"))
                 ) {
                     TextField(L10n.tr("settings.shop_name"), text: $settings.shopLabel)
+                        .khaytListRows()
                     TextField(L10n.tr("settings.host"), text: $settings.host)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .keyboardType(.URL)
+                        .khaytListRows()
                     if let err = settings.hostValidationError {
                         Text(err)
                             .font(.caption)
                             .foregroundStyle(KhaytDesign.danger)
+                            .khaytListRows()
                     } else if settings.isConfigured {
                         Text("\(L10n.tr("settings.endpoint")) \(settings.displayURL)")
                             .font(.caption)
                             .foregroundStyle(KhaytDesign.textMuted)
+                            .khaytListRows()
                     }
                     Stepper(String(format: L10n.tr("settings.port"), settings.port), value: $settings.port, in: 1024...65535)
+                        .khaytListRows()
                     SecureField(L10n.tr("settings.pin"), text: $settings.pin)
+                        .khaytListRows()
                 }
 
                 Section(header: Text(L10n.tr("settings.language"))) {
@@ -62,6 +71,7 @@ struct SettingsView: View {
                             Text(lang.label).tag(lang)
                         }
                     }
+                    .khaytListRows()
                 }
 
                 Section(header: Text(L10n.tr("settings.appearance"))) {
@@ -71,6 +81,7 @@ struct SettingsView: View {
                         }
                     }
                     .pickerStyle(.segmented)
+                    .khaytListRows()
                 }
 
                 Section(
@@ -78,14 +89,19 @@ struct SettingsView: View {
                     footer: Text(L10n.tr("settings.notify.footer"))
                 ) {
                     Toggle(L10n.tr("settings.notify.queue"), isOn: $settings.notifyQueueChanges)
+                        .khaytListRows()
                     Toggle(L10n.tr("settings.notify.connection"), isOn: $settings.notifyConnection)
+                        .khaytListRows()
                     Toggle(L10n.tr("settings.notify.overdue"), isOn: $settings.notifyOverdue)
+                        .khaytListRows()
                     Toggle(L10n.tr("settings.notify.low_stock"), isOn: $settings.notifyLowStock)
+                        .khaytListRows()
                     Button {
                         Task { await CompanionNotifications.shared.requestAuthorizationIfNeeded() }
                     } label: {
                         Text(L10n.tr("settings.allow_notifications"))
                     }
+                    .khaytListRows()
                 }
 
                 Section(header: Text(L10n.tr("settings.shop_data"))) {
@@ -94,6 +110,7 @@ struct SettingsView: View {
                     } label: {
                         Label(L10n.tr("clients.title"), systemImage: "person.2")
                     }
+                    .khaytListRows()
                 }
 
                 Section(
@@ -101,6 +118,7 @@ struct SettingsView: View {
                     footer: Text(L10n.tr("settings.widget.footer"))
                 ) {
                     Link(L10n.tr("settings.widget_guide"), destination: URL(string: "https://github.com/Alballaa/Khayt/blob/main/ios/XCODE_WIDGET.md")!)
+                        .khaytListRows()
                 }
 
                 Section {
@@ -113,10 +131,12 @@ struct SettingsView: View {
                             if isTesting { ProgressView() }
                         }
                     }
+                    .khaytListRows()
                     if let testResult {
                         Text(testResult)
                             .font(.caption)
-                            .foregroundStyle(testResult.hasPrefix("OK") ? .green : .red)
+                            .foregroundStyle(testResult.hasPrefix("OK") ? KhaytDesign.ok : KhaytDesign.danger)
+                            .khaytListRows()
                     }
                 }
 
@@ -124,6 +144,7 @@ struct SettingsView: View {
                     Button(L10n.tr("settings.unpair"), role: .destructive) {
                         settings.unpair()
                     }
+                    .khaytListRows()
                 }
 
                 Section(header: Text(L10n.tr("settings.docs"))) {
@@ -131,10 +152,10 @@ struct SettingsView: View {
                         L10n.tr("settings.docs"),
                         destination: URL(string: "https://github.com/Alballaa/Khayt/blob/main/docs/LAN_API.md")!
                     )
+                    .khaytListRows()
                 }
             }
-            .scrollContentBackground(.hidden)
-            .background(KhaytDesign.bg)
+            .khaytForm()
             .foregroundStyle(KhaytDesign.text)
             .khaytScreen(title: L10n.tr("tab.settings"))
         }

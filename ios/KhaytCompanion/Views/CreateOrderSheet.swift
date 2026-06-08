@@ -18,8 +18,9 @@ struct CreateOrderSheet: View {
                 if let errorMessage {
                     Section {
                         Text(errorMessage)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(KhaytDesign.danger)
                             .font(.subheadline)
+                            .khaytListRows()
                     }
                 }
 
@@ -67,8 +68,8 @@ struct CreateOrderSheet: View {
                         .font(.caption)
                 }
             }
-            .scrollContentBackground(.hidden)
-            .background(KhaytDesign.sheetBg)
+            .khaytSheet()
+            .foregroundStyle(KhaytDesign.text)
             .navigationTitle(L10n.tr("order.create.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

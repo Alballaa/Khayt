@@ -35,7 +35,6 @@ struct KhaytTabBar: View {
         .background {
             Rectangle()
                 .fill(KhaytDesign.tabBg)
-                .background(.ultraThinMaterial)
                 .overlay(alignment: .top) {
                     Rectangle().fill(KhaytDesign.sep).frame(height: 0.5)
                 }

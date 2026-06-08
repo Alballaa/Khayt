@@ -219,9 +219,15 @@ struct KhaytAppearanceModifier: ViewModifier {
     @ObservedObject var settings: ConnectionSettings
     @Environment(\.colorScheme) private var colorScheme
 
+    private var themeToken: String {
+        "\(settings.appAppearance.rawValue)-\(colorScheme == .dark ? "d" : "l")"
+    }
+
     func body(content: Content) -> some View {
         content
             .preferredColorScheme(settings.appAppearance.preferredColorScheme)
+            .tint(KhaytDesign.brand)
+            .id(themeToken)
             .onAppear { KhaytDesign.apply(appearance: settings.appAppearance, systemColorScheme: colorScheme) }
             .onChange(of: settings.appAppearance) { _, _ in
                 KhaytDesign.apply(appearance: settings.appAppearance, systemColorScheme: colorScheme)

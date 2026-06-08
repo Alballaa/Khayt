@@ -26,11 +26,12 @@ struct QueueView: View {
                             onAdvance: { Task { await advance(order) } },
                             onSetStatus: { status in Task { await setStatus(order, status: status) } }
                         )
+                        .khaytListRows()
                     }
-                    .listStyle(.insetGrouped)
+                    .khaytPlainList()
                 }
             }
-            .navigationTitle("Production queue")
+            .khaytScreen(title: "Production queue")
             .refreshable { await load() }
             .task { await load() }
         }
@@ -82,16 +83,17 @@ private struct QueueRow: View {
             HStack {
                 Text(order.displayTitle)
                     .font(.headline)
+                    .foregroundStyle(KhaytDesign.text)
                 Spacer()
                 StatusBadge(status: order.status)
             }
             Text(order.displayClient)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(KhaytDesign.textDim)
             if let machine = order.machine, !machine.isEmpty {
                 Label(machine, systemImage: "printer")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(KhaytDesign.textDim)
             }
             Menu {
                 ForEach(OrderStatus.allCases.filter { $0 != .completed }, id: \.self) { st in
@@ -131,6 +133,7 @@ private struct StatusBadge: View {
             .font(.caption2.bold())
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(Color.accentColor.opacity(0.2), in: Capsule())
+            .foregroundStyle(KhaytDesign.statusColor(for: status))
+            .background(KhaytDesign.statusSoft(for: status), in: Capsule())
     }
 }

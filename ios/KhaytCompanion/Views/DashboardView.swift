@@ -47,15 +47,10 @@ struct DashboardView: View {
                 .padding(.bottom, 8)
             }
             .scrollIndicators(.hidden)
-            .background(Color.clear)
-            .navigationTitle(settings.shopLabel)
-            .navigationBarTitleDisplayMode(.large)
+            .khaytScreen(title: settings.shopLabel)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) { ConnectionBadge() }
             }
-            .toolbarBackground(KhaytDesign.navBg, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarColorScheme(KhaytDesign.isDark ? .dark : .light, for: .navigationBar)
             .refreshable { await load() }
             .task { await load() }
             .sheet(isPresented: $showAddSpool) {

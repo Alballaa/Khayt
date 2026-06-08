@@ -48,8 +48,12 @@ struct BarcodeScannerView: View {
                     capturePanel
                 }
             }
+            .khaytSheet()
             .navigationTitle(L10n.tr("scanner.title"))
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(KhaytDesign.navBg, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(KhaytDesign.isDark ? .dark : .light, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(L10n.tr("common.cancel")) { dismiss() }
@@ -80,14 +84,13 @@ struct BarcodeScannerView: View {
     private var photoPlaceholder: some View {
         VStack(spacing: 16) {
             Spacer()
-            Image(systemName: "camera.fill")
-                .font(.system(size: 56))
-                .foregroundStyle(Color.accentColor)
+            KhaytHeroIcon(systemName: "camera.fill")
             Text(L10n.tr("scanner.photo.title"))
                 .font(.title3.bold())
+                .foregroundStyle(KhaytDesign.text)
             Text(L10n.tr("scanner.photo.hint"))
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(KhaytDesign.textDim)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
             Button {
@@ -101,7 +104,7 @@ struct BarcodeScannerView: View {
             .padding(.horizontal, 24)
             Spacer()
         }
-        .background(Color(uiColor: .systemGroupedBackground))
+        .background(KhaytDesign.sheetBg)
     }
 
     private var capturePanel: some View {
@@ -127,7 +130,7 @@ struct BarcodeScannerView: View {
             } else {
                 Text(L10n.tr("scanner.live.hint"))
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(KhaytDesign.textDim)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
             }
@@ -135,7 +138,7 @@ struct BarcodeScannerView: View {
             if let photoError {
                 Text(photoError)
                     .font(.caption)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(KhaytDesign.danger)
                     .padding(.horizontal)
             }
 
@@ -145,12 +148,12 @@ struct BarcodeScannerView: View {
                         ForEach(capturedLines.prefix(12), id: \.self) { line in
                             Text(line)
                                 .font(.caption)
-                                .foregroundStyle(.primary)
+                                .foregroundStyle(KhaytDesign.text)
                         }
                         if capturedLines.count > 12 {
                             Text(String(format: L10n.tr("scanner.more_lines"), capturedLines.count - 12))
                                 .font(.caption2)
-                                .foregroundStyle(.tertiary)
+                                .foregroundStyle(KhaytDesign.textMuted)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -172,7 +175,10 @@ struct BarcodeScannerView: View {
             .padding(.bottom, 12)
         }
         .padding(.top, 10)
-        .background(.ultraThinMaterial)
+        .background(KhaytDesign.surface)
+        .overlay(alignment: .top) {
+            Rectangle().fill(KhaytDesign.sep).frame(height: 0.5)
+        }
         .onChange(of: mode) { _, _ in syncLines() }
     }
 
