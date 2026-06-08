@@ -42,7 +42,7 @@ struct SpoolDetailSheet: View {
                     }
                 }
 
-                Section(L10n.tr("spool.section.stock")) {
+                Section {
                     TextField(L10n.tr("spool.remaining"), text: $remainingText)
                         .keyboardType(.numberPad)
                     if let weight = spool.weight {
@@ -71,6 +71,8 @@ struct SpoolDetailSheet: View {
                         }
                     }
                     .disabled(isSaving || !health.isDesktopReachable)
+                } header: {
+                    Text(L10n.tr("spool.section.stock"))
                 } footer: {
                     if !health.isDesktopReachable {
                         Text(L10n.tr("offline.action_unavailable"))
