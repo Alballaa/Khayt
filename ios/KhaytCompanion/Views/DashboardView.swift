@@ -55,6 +55,7 @@ struct DashboardView: View {
             }
             .toolbarBackground(KhaytDesign.navBg, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(KhaytDesign.isDark ? .dark : .light, for: .navigationBar)
             .refreshable { await load() }
             .task { await load() }
             .sheet(isPresented: $showAddSpool) {

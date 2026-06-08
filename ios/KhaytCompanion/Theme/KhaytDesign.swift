@@ -1,55 +1,186 @@
 import SwiftUI
 
-/// Design tokens from `design/iOS UI/khayt-design.jsx` (DARK_TOKENS).
+// MARK: - Appearance
+
+enum AppAppearance: String, CaseIterable, Identifiable {
+    case light
+    case dark
+    case system
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .light: return L10n.tr("settings.appearance.light")
+        case .dark: return L10n.tr("settings.appearance.dark")
+        case .system: return L10n.tr("settings.appearance.system")
+        }
+    }
+
+    var preferredColorScheme: ColorScheme? {
+        switch self {
+        case .light: return .light
+        case .dark: return .dark
+        case .system: return nil
+        }
+    }
+}
+
+// MARK: - Palette (`khayt-design.jsx` LIGHT_TOKENS / DARK_TOKENS)
+
+struct KhaytPalette {
+    let bg: Color
+    let bg2: Color
+    let surface: Color
+    let surface2: Color
+    let surface3: Color
+    let text: Color
+    let textDim: Color
+    let textMuted: Color
+    let textFaint: Color
+    let brand: Color
+    let accentSoft: Color
+    let accentText: Color
+    let ok: Color
+    let okSoft: Color
+    let warn: Color
+    let warnSoft: Color
+    let danger: Color
+    let dangerSoft: Color
+    let orange: Color
+    let orangeSoft: Color
+    let info: Color
+    let infoSoft: Color
+    let violet: Color
+    let violetSoft: Color
+    let border: Color
+    let hairline: Color
+    let sep: Color
+    let tabBg: Color
+    let navBg: Color
+    let sheetBg: Color
+    let isDark: Bool
+
+    static let light = KhaytPalette(
+        bg: Color(hex: 0xF2F2F7),
+        bg2: Color(hex: 0xE9E9EF),
+        surface: Color(hex: 0xFFFFFF),
+        surface2: Color(hex: 0xF2F2F7),
+        surface3: Color(hex: 0xE5E5EA),
+        text: Color(hex: 0x000000),
+        textDim: Color(hex: 0x3C3C43, alpha: 0.60),
+        textMuted: Color(hex: 0x3C3C43, alpha: 0.32),
+        textFaint: Color(hex: 0x3C3C43, alpha: 0.16),
+        brand: Color(hex: 0x5856D6),
+        accentSoft: Color(hex: 0x5856D6, alpha: 0.10),
+        accentText: Color(hex: 0x4B49C4),
+        ok: Color(hex: 0x34C759),
+        okSoft: Color(hex: 0x34C759, alpha: 0.12),
+        warn: Color(hex: 0xFF9500),
+        warnSoft: Color(hex: 0xFF9500, alpha: 0.12),
+        danger: Color(hex: 0xFF3B30),
+        dangerSoft: Color(hex: 0xFF3B30, alpha: 0.12),
+        orange: Color(hex: 0xFF9500),
+        orangeSoft: Color(hex: 0xFF9500, alpha: 0.12),
+        info: Color(hex: 0x8E8E93),
+        infoSoft: Color(hex: 0x8E8E93, alpha: 0.12),
+        violet: Color(hex: 0xAF52DE),
+        violetSoft: Color(hex: 0xAF52DE, alpha: 0.12),
+        border: Color(hex: 0x3C3C43, alpha: 0.12),
+        hairline: Color(hex: 0x3C3C43, alpha: 0.12),
+        sep: Color(hex: 0x3C3C43, alpha: 0.12),
+        tabBg: Color(hex: 0xF8F8FC, alpha: 0.94),
+        navBg: Color(hex: 0xF2F2F7, alpha: 0.94),
+        sheetBg: Color(hex: 0xF2F2F7),
+        isDark: false
+    )
+
+    static let dark = KhaytPalette(
+        bg: Color(hex: 0x0C0C0F),
+        bg2: Color(hex: 0x141418),
+        surface: Color(hex: 0x1C1C26),
+        surface2: Color(hex: 0x25252F),
+        surface3: Color(hex: 0x2E2E3B),
+        text: Color(hex: 0xFFFFFF),
+        textDim: Color.white.opacity(0.60),
+        textMuted: Color.white.opacity(0.32),
+        textFaint: Color.white.opacity(0.16),
+        brand: Color(hex: 0x8183FF),
+        accentSoft: Color(hex: 0x8183FF, alpha: 0.16),
+        accentText: Color(hex: 0xA5A8FF),
+        ok: Color(hex: 0x32D74B),
+        okSoft: Color(hex: 0x32D74B, alpha: 0.16),
+        warn: Color(hex: 0xFFD60A),
+        warnSoft: Color(hex: 0xFFD60A, alpha: 0.16),
+        danger: Color(hex: 0xFF453A),
+        dangerSoft: Color(hex: 0xFF453A, alpha: 0.16),
+        orange: Color(hex: 0xFF9F0A),
+        orangeSoft: Color(hex: 0xFF9F0A, alpha: 0.16),
+        info: Color(hex: 0x8E8E93),
+        infoSoft: Color(hex: 0x8E8E93, alpha: 0.16),
+        violet: Color(hex: 0xBF5AF2),
+        violetSoft: Color(hex: 0xBF5AF2, alpha: 0.16),
+        border: Color.white.opacity(0.08),
+        hairline: Color.white.opacity(0.08),
+        sep: Color.white.opacity(0.08),
+        tabBg: Color(hex: 0x0A0A0E, alpha: 0.94),
+        navBg: Color(hex: 0x0C0C10, alpha: 0.92),
+        sheetBg: Color(hex: 0x1E1E28),
+        isDark: true
+    )
+}
+
+/// Design tokens — resolves from the active palette (light default).
 enum KhaytDesign {
-    // Backgrounds
-    static let bg = Color(hex: 0x0C0C0F)
-    static let bg2 = Color(hex: 0x141418)
-    static let surface = Color(hex: 0x1C1C26)
-    static let surface2 = Color(hex: 0x25252F)
-    static let surface3 = Color(hex: 0x2E2E3B)
+    private(set) static var current: KhaytPalette = .light
 
-    // Labels
-    static let text = Color(hex: 0xFFFFFF)
-    static let textDim = Color.white.opacity(0.60)
-    static let textMuted = Color.white.opacity(0.32)
-    static let textFaint = Color.white.opacity(0.16)
+    static func apply(appearance: AppAppearance, systemColorScheme: ColorScheme) {
+        switch appearance {
+        case .light: current = .light
+        case .dark: current = .dark
+        case .system: current = systemColorScheme == .dark ? .dark : .light
+        }
+    }
 
-    // Brand / accent (mockup default #8183FF)
-    static let brand = Color(hex: 0x8183FF)
-    static let accent = brand
-    static let accentSoft = brand.opacity(0.16)
-    static let brandDim = accentSoft
-    static let accentText = Color(hex: 0xA5A8FF)
-    static let accentLine = brand.opacity(0.45)
-
-    // Semantic
-    static let ok = Color(hex: 0x32D74B)
-    static let okSoft = ok.opacity(0.16)
-    static let warn = Color(hex: 0xFFD60A)
-    static let warnSoft = warn.opacity(0.16)
-    static let danger = Color(hex: 0xFF453A)
-    static let dangerSoft = danger.opacity(0.16)
-    static let orange = Color(hex: 0xFF9F0A)
-    static let orangeSoft = orange.opacity(0.16)
-    static let info = Color(hex: 0x8E8E93)
-    static let infoSoft = info.opacity(0.16)
-    static let violet = Color(hex: 0xBF5AF2)
-    static let violetSoft = violet.opacity(0.16)
-
-    static let border = Color.white.opacity(0.08)
-    static let hairline = Color.white.opacity(0.08)
-    static let sep = border
-
-    static let tabBg = Color(hex: 0x0A0A0E).opacity(0.94)
-    static let navBg = Color(hex: 0x0C0C10).opacity(0.92)
-    static let sheetBg = Color(hex: 0x1E1E28)
+    static var bg: Color { current.bg }
+    static var bg2: Color { current.bg2 }
+    static var surface: Color { current.surface }
+    static var surface2: Color { current.surface2 }
+    static var surface3: Color { current.surface3 }
+    static var text: Color { current.text }
+    static var textDim: Color { current.textDim }
+    static var textMuted: Color { current.textMuted }
+    static var textFaint: Color { current.textFaint }
+    static var brand: Color { current.brand }
+    static var accent: Color { current.brand }
+    static var accentSoft: Color { current.accentSoft }
+    static var brandDim: Color { current.accentSoft }
+    static var accentText: Color { current.accentText }
+    static var accentLine: Color { current.brand.opacity(0.45) }
+    static var ok: Color { current.ok }
+    static var okSoft: Color { current.okSoft }
+    static var warn: Color { current.warn }
+    static var warnSoft: Color { current.warnSoft }
+    static var danger: Color { current.danger }
+    static var dangerSoft: Color { current.dangerSoft }
+    static var orange: Color { current.orange }
+    static var orangeSoft: Color { current.orangeSoft }
+    static var info: Color { current.info }
+    static var infoSoft: Color { current.infoSoft }
+    static var violet: Color { current.violet }
+    static var violetSoft: Color { current.violetSoft }
+    static var border: Color { current.border }
+    static var hairline: Color { current.hairline }
+    static var sep: Color { current.sep }
+    static var tabBg: Color { current.tabBg }
+    static var navBg: Color { current.navBg }
+    static var sheetBg: Color { current.sheetBg }
+    static var isDark: Bool { current.isDark }
 
     static let radiusSM: CGFloat = 10
     static let radiusMD: CGFloat = 12
     static let radiusLG: CGFloat = 16
     static let radiusXL: CGFloat = 22
-
     static let pad: CGFloat = 16
 
     static func statusColor(for status: String) -> Color {
@@ -68,17 +199,42 @@ enum KhaytDesign {
     }
 
     static func statusSoft(for status: String) -> Color {
-        statusColor(for: status).opacity(0.16)
+        statusColor(for: status).opacity(current.isDark ? 0.16 : 0.12)
     }
 }
 
 extension Color {
-    init(hex: UInt32) {
+    init(hex: UInt32, alpha: Double = 1) {
         self.init(
             red: Double((hex >> 16) & 0xFF) / 255,
             green: Double((hex >> 8) & 0xFF) / 255,
-            blue: Double(hex & 0xFF) / 255
+            blue: Double(hex & 0xFF) / 255,
+            opacity: alpha
         )
+    }
+}
+
+/// Applies palette when appearance or system theme changes.
+struct KhaytAppearanceModifier: ViewModifier {
+    @ObservedObject var settings: ConnectionSettings
+    @Environment(\.colorScheme) private var colorScheme
+
+    func body(content: Content) -> some View {
+        content
+            .preferredColorScheme(settings.appAppearance.preferredColorScheme)
+            .onAppear { KhaytDesign.apply(appearance: settings.appAppearance, systemColorScheme: colorScheme) }
+            .onChange(of: settings.appAppearance) { _, _ in
+                KhaytDesign.apply(appearance: settings.appAppearance, systemColorScheme: colorScheme)
+            }
+            .onChange(of: colorScheme) { _, scheme in
+                KhaytDesign.apply(appearance: settings.appAppearance, systemColorScheme: scheme)
+            }
+    }
+}
+
+extension View {
+    func khaytAppearance(_ settings: ConnectionSettings) -> some View {
+        modifier(KhaytAppearanceModifier(settings: settings))
     }
 }
 
@@ -208,7 +364,7 @@ struct KhaytPill: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
             .foregroundStyle(color)
-            .background(color.opacity(0.16), in: Capsule())
+            .background(color.opacity(KhaytDesign.isDark ? 0.16 : 0.12), in: Capsule())
     }
 }
 

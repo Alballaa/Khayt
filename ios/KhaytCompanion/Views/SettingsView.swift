@@ -64,6 +64,15 @@ struct SettingsView: View {
                     }
                 }
 
+                Section(header: Text(L10n.tr("settings.appearance"))) {
+                    Picker(L10n.tr("settings.appearance"), selection: $settings.appAppearance) {
+                        ForEach(AppAppearance.allCases) { mode in
+                            Text(mode.label).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+
                 Section(
                     header: Text(L10n.tr("settings.notifications")),
                     footer: Text(L10n.tr("settings.notify.footer"))

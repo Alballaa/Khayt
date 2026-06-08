@@ -67,6 +67,10 @@
 "settings.unpair" = "إلغاء الربط";
 "settings.unpair.footer" = "يمسح حالة الربط؛ يبقى PIN في Keychain.";
 "settings.language" = "اللغة";
+"settings.appearance" = "المظهر";
+"settings.appearance.light" = "فاتح";
+"settings.appearance.dark" = "داكن";
+"settings.appearance.system" = "النظام";
 "settings.notifications" = "الإشعارات";
 "settings.notify.queue" = "تغييرات الطابور";
 "settings.notify.connection" = "انقطاع الاتصال";

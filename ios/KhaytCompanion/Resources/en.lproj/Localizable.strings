@@ -67,6 +67,10 @@
 "settings.unpair" = "Unpair this device";
 "settings.unpair.footer" = "Clears paired state; PIN stays in Keychain until you change it.";
 "settings.language" = "Language";
+"settings.appearance" = "Appearance";
+"settings.appearance.light" = "Light";
+"settings.appearance.dark" = "Dark";
+"settings.appearance.system" = "System";
 "settings.notifications" = "Notifications";
 "settings.notify.queue" = "Queue changes";
 "settings.notify.connection" = "Connection lost";

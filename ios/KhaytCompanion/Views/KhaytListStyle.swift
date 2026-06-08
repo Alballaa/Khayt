@@ -8,7 +8,7 @@ extension View {
             .navigationBarTitleDisplayMode(.large)
             .toolbarBackground(KhaytDesign.navBg, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbarColorScheme(KhaytDesign.isDark ? .dark : .light, for: .navigationBar)
             .scrollContentBackground(.hidden)
             .background(Color.clear)
     }

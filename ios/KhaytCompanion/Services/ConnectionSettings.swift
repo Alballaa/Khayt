@@ -98,6 +98,9 @@ final class ConnectionSettings: ObservableObject {
             L10n.setLanguage(appLanguage)
         }
     }
+    @Published var appAppearance: AppAppearance {
+        didSet { UserDefaults.standard.set(appAppearance.rawValue, forKey: Keys.appearance) }
+    }
     @Published var notifyQueueChanges: Bool {
         didSet { UserDefaults.standard.set(notifyQueueChanges, forKey: Keys.notifyQueue) }
     }
@@ -119,6 +122,7 @@ final class ConnectionSettings: ObservableObject {
         static let paired = "khayt.paired"
         static let offlineTools = "khayt.offlineTools"
         static let language = "khayt.language"
+        static let appearance = "khayt.appearance"
         static let notifyQueue = "khayt.notify.queue"
         static let notifyConnection = "khayt.notify.connection"
         static let notifyOverdue = "khayt.notify.overdue"
@@ -135,6 +139,9 @@ final class ConnectionSettings: ObservableObject {
         pin = KeychainHelper.get(Keys.pinKeychain) ?? ""
         let langRaw = defaults.string(forKey: Keys.language) ?? AppLanguage.system.rawValue
         appLanguage = AppLanguage(rawValue: langRaw) ?? .system
+        let appearanceRaw = defaults.string(forKey: Keys.appearance) ?? AppAppearance.light.rawValue
+        appAppearance = AppAppearance(rawValue: appearanceRaw) ?? .light
+        KhaytDesign.apply(appearance: appAppearance, systemColorScheme: .light)
         notifyQueueChanges = defaults.object(forKey: Keys.notifyQueue) as? Bool ?? true
         notifyConnection = defaults.object(forKey: Keys.notifyConnection) as? Bool ?? true
         notifyOverdue = defaults.object(forKey: Keys.notifyOverdue) as? Bool ?? true
