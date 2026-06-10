@@ -1948,7 +1948,7 @@ function renderSuppliers() {
   }
   tbody.innerHTML = filtered.map(s => {
     const totalSpent = s.purchases ? s.purchases.reduce((sum, p) => sum + (+p.amount || 0), 0) : 0;
-    return `<tr>
+    return `<tr data-supplier-id="${escapeHtml(s.id)}">
       <td><strong>${escapeHtml(s.name)}</strong>${s.notes ? `<div style="font-size:11px;color:var(--text-muted);">${escapeHtml(s.notes)}</div>` : ''}</td>
       <td>${escapeHtml(t('sup.cat.' + (s.category || 'other')))}</td>
       <td>${s.phone ? `<button class="btn small ghost" data-act="sup-wa" data-id="${s.id}" title="WhatsApp">📲 ${escapeHtml(s.phone)}</button>` : '—'}</td>

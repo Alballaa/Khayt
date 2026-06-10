@@ -4,8 +4,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **Global search** — Fuzzy matching plus printers, suppliers, and expenses; main nav arrow-key tab switching.
+
 ### Fixed
 
+- **Modals** — Focus trap keeps Tab inside dialogs; focus restores on close.
+- **Feedback** — Error when the email app cannot be opened.
 - **Settings save** — Post-process presets are no longer wiped when saving other settings panels.
 - **Global search** — Client and product results navigate to the correct record; keyboard ↑/↓ + Enter works in search.
 - **Help shortcut** — `?` key opens help again (Shift was incorrectly blocked).
@@ -14,6 +20,9 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **Setup wizard** — Back buttons, explicit Continue on business-type step, Escape to skip with confirm, system theme default.
+- **Preferences** — Language and theme apply immediately when changed.
+- **Printers settings** — Autosave hint for machine/slicer editors.
 - **Settings on narrow windows** — Sidebar stacks horizontally on small screens.
 - **Automation settings** — Hint explains that each section saves individually.
 

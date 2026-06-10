@@ -1192,6 +1192,23 @@ function wireEvents() {
     renderExpenses();
   });
 
+  // Settings — language & theme apply immediately (consistent with mode pills)
+  $('#set_lang')?.addEventListener('change', (e) => {
+    settings.lang = e.target.value;
+    i18n.set(settings.lang);
+    const topLang = $('#langSelect');
+    if (topLang) topLang.value = settings.lang;
+    saveAll();
+    toast(t('set.saved'), 'success', 2000);
+  });
+  $('#set_theme')?.addEventListener('change', (e) => {
+    settings.theme = e.target.value;
+    applyTheme(settings.theme);
+    saveAll();
+    window.KhaytIcon?.hydrateTopbar?.();
+    toast(t('set.saved'), 'success', 2000);
+  });
+
   // Settings
   $('#btnSaveSettings')?.addEventListener('click', saveSettingsFromForm);
 
