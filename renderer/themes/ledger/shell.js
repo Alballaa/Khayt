@@ -3,16 +3,25 @@
  */
 (function (global) {
   let settingsTabMounted = false;
+  let settingsTabParent = null;
+  let settingsTabNextSibling = null;
 
   function ensureSettingsTab() {
     if (settingsTabMounted) return;
     const nav = document.querySelector('.khayt-nav.sidebar-nav');
     const settingsBtn = document.querySelector('.khayt-navfoot .tab-btn[data-tab="settings-tab"]');
     if (!nav || !settingsBtn) return;
-    const spacer = document.createElement('span');
-    spacer.className = 'ledger-tab-spacer';
-    spacer.style.marginInlineStart = 'auto';
-    nav.appendChild(spacer);
+
+    settingsTabParent = settingsBtn.parentElement;
+    settingsTabNextSibling = settingsBtn.nextElementSibling;
+
+    let spacer = nav.querySelector('.ledger-tab-spacer');
+    if (!spacer) {
+      spacer = document.createElement('span');
+      spacer.className = 'ledger-tab-spacer';
+      spacer.setAttribute('aria-hidden', 'true');
+      nav.appendChild(spacer);
+    }
     nav.appendChild(settingsBtn);
     settingsTabMounted = true;
   }
@@ -21,8 +30,16 @@
     if (!settingsTabMounted) return;
     const foot = document.querySelector('.khayt-navfoot');
     const settingsBtn = document.querySelector('.khayt-nav .tab-btn[data-tab="settings-tab"]');
-    if (foot && settingsBtn) foot.insertBefore(settingsBtn, foot.firstChild);
+    if (foot && settingsBtn && settingsTabParent) {
+      if (settingsTabNextSibling) {
+        settingsTabParent.insertBefore(settingsBtn, settingsTabNextSibling);
+      } else {
+        settingsTabParent.appendChild(settingsBtn);
+      }
+    }
     document.querySelector('.ledger-tab-spacer')?.remove();
+    settingsTabParent = null;
+    settingsTabNextSibling = null;
     settingsTabMounted = false;
   }
 

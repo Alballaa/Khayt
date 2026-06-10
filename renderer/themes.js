@@ -76,6 +76,13 @@
     const id = reg()?.normalizeDesignId(designId) || 'studio';
     const theme = reg()?.getTheme(id);
     const root = document.documentElement;
+    const wasLedger = document.body.classList.contains('khayt-ledger');
+    const isLedger = theme?.shell === 'ledger';
+
+    if (isLedger && !wasLedger) global.KhaytLedgerShell?.ensureSettingsTab?.();
+    if (!isLedger && wasLedger) global.KhaytLedgerShell?.restoreSettingsTab?.();
+    if (isLedger) document.getElementById('appSidebar')?.classList.remove('collapsed');
+
     root.dataset.design = id;
     loadCustomThemeStyles(theme);
     applyBodyClasses(id);
@@ -85,7 +92,11 @@
       if (settings.accent !== accent) settings.accent = accent;
       applyAccent(accent, reg()?.accentsForTheme(id));
     }
-    global.KhaytLedgerShell?.apply?.(id);
+    if (isLedger) {
+      global.KhaytLedgerShell?.syncLedgerPageHead?.(
+        document.querySelector('.tab-content.active')?.id || 'dashboard-tab',
+      );
+    }
   }
 
   function applyDesignSettings() {

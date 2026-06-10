@@ -2,7 +2,7 @@
 
 body.khayt-ledger .khayt-body {
   display: grid;
-  grid-template-rows: auto auto 1fr;
+  grid-template-rows: auto auto auto 1fr;
   grid-template-columns: 1fr;
   flex: 1;
   min-height: 0;
@@ -15,6 +15,8 @@ body.khayt-ledger .khayt-main {
 body.khayt-ledger .khayt-top {
   grid-row: 1;
   grid-column: 1;
+  display: flex;
+  align-items: center;
   height: 58px;
   padding: 0 20px;
   gap: 12px;
@@ -93,6 +95,7 @@ body.khayt-ledger #locationFilter {
   font-weight: 600;
 }
 
+/* Horizontal tab strip (sidebar becomes tab bar) */
 body.khayt-ledger .khayt-sidebar {
   grid-row: 2;
   grid-column: 1;
@@ -100,14 +103,19 @@ body.khayt-ledger .khayt-sidebar {
   max-width: none;
   height: auto;
   flex-shrink: 0;
+  display: block;
   border-inline-end: none;
   border-bottom: 1px solid var(--border-2);
   background: var(--surface);
   padding: 0;
+  overflow: visible;
 }
 
 body.khayt-ledger .khayt-brand,
-body.khayt-ledger .btn-sidebar-collapse,
+body.khayt-ledger .btn-sidebar-collapse {
+  display: none !important;
+}
+
 body.khayt-ledger .khayt-navfoot {
   display: none !important;
 }
@@ -115,18 +123,22 @@ body.khayt-ledger .khayt-navfoot {
 body.khayt-ledger .khayt-nav.sidebar-nav {
   display: flex;
   flex-direction: row;
+  flex-wrap: nowrap;
   align-items: stretch;
   overflow-x: auto;
   overflow-y: hidden;
   height: 44px;
   padding: 0 12px;
   gap: 2px;
+  flex: none;
 }
 
 body.khayt-ledger .khayt-navsec {
   display: flex;
   flex-direction: row;
   align-items: stretch;
+  margin-bottom: 0;
+  flex-shrink: 0;
 }
 
 body.khayt-ledger .khayt-navhead {
@@ -153,10 +165,12 @@ body.khayt-ledger .khayt-navsec:first-child .khayt-navhead {
 body.khayt-ledger .khayt-navitem {
   position: relative;
   flex-shrink: 0;
+  width: auto;
   display: inline-flex;
   align-items: center;
   gap: 7px;
   height: 44px;
+  margin-bottom: 0;
   padding: 0 12px;
   border-radius: 0;
   font-size: 13px;
@@ -165,6 +179,7 @@ body.khayt-ledger .khayt-navitem {
   background: transparent;
   border: none;
   white-space: nowrap;
+  cursor: pointer;
 }
 
 body.khayt-ledger .khayt-navitem:hover {
@@ -177,21 +192,34 @@ body.khayt-ledger .khayt-navitem.on {
   color: var(--text);
   background: transparent;
   box-shadow: none;
+  font-weight: 600;
+}
+
+body.khayt-ledger .khayt-navitem.active::before,
+body.khayt-ledger .khayt-navitem.on::before {
+  display: none;
 }
 
 body.khayt-ledger .khayt-navitem.active::after,
 body.khayt-ledger .khayt-navitem.on::after {
   content: "";
+  display: block;
   position: absolute;
   left: 8px;
   right: 8px;
   bottom: -1px;
   height: 3px;
   background: var(--accent);
+  border-radius: 0;
 }
 
 body.khayt-ledger .khayt-navitem .nav-icon {
   display: none;
+}
+
+body.khayt-ledger .ledger-tab-spacer {
+  flex: 1 1 auto;
+  min-width: 12px;
 }
 
 body.khayt-ledger .ledger-pagehead {
