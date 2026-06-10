@@ -277,6 +277,9 @@ function switchTab(tabId) {
   });
 
   syncTopbarTitle(tabId);
+  if (typeof KhaytLedgerShell?.syncLedgerPageHead === 'function') {
+    KhaytLedgerShell.syncLedgerPageHead(tabId);
+  }
 
   if (tabId === 'dashboard-tab')  renderDashboard();
   if (tabId === 'expenses-tab')   { renderExpenses(); populateExpOrderDatalist(); }

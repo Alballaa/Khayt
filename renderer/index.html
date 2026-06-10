@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; script-src 'self'; img-src 'self' data: blob:;">
+        content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self'; img-src 'self' data: blob:;">
   <title>Khayt</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="fonts/fonts.css" />
   <link rel="stylesheet" href="styles.css" />
-  <link rel="stylesheet" href="themes/ledger-tokens.css" />
-  <link rel="stylesheet" href="themes/ledger-compat.css" />
+  <link rel="stylesheet" href="themes/ledger/tokens.css" />
+  <link rel="stylesheet" href="themes/ledger/compat.css" />
+  <link rel="stylesheet" href="themes/ledger/shell.css" />
+  <link rel="stylesheet" href="themes/ledger/screens.css" />
   <link rel="stylesheet" href="studio/ds.css" />
   <link rel="stylesheet" href="studio/shell.css" />
   <link rel="stylesheet" href="studio/screens.css" />
@@ -118,6 +118,13 @@
 
     <div class="khayt-main app-body">
       <header class="khayt-top app-topbar">
+        <div class="ledger-masthead-brand" aria-hidden="true">
+          <div class="ledger-logo"><b>خ</b></div>
+          <div class="ledger-brand-text">
+            <strong>KHAYT</strong>
+            <span class="ledger-brandsub">خيط · Production Studio</span>
+          </div>
+        </div>
         <div class="khayt-toptitle topbar-heading">
           <h2 class="topbar-title" id="topbarPageTitle" data-i18n="tab.dashboard">Dashboard</h2>
           <span class="dim mono" id="topbarPageSubtitle" style="font-size:12px"></span>
@@ -153,6 +160,13 @@
           </select>
         </div>
       </header>
+
+      <div class="ledger-pagehead" id="ledgerPageHead" aria-hidden="true">
+        <h1 class="ledger-page-title" id="ledgerPageTitle" data-i18n="tab.dashboard">Dashboard</h1>
+        <span class="ledger-pagesub" id="ledgerPageSubtitle"></span>
+        <span class="grow"></span>
+        <span class="ledger-stamp" id="ledgerLocationStamp"></span>
+      </div>
 
       <main class="khayt-scroll content">
 
@@ -1387,6 +1401,10 @@
             <label for="set_designTheme" data-i18n="theme.design.label">Design</label>
             <select id="set_designTheme" aria-describedby="set_designTheme_hint"></select>
             <p id="set_designTheme_hint" class="settings-field-hint" data-i18n="theme.design.studio_desc">Studio — filament cyan instrument UI from the redesign.</p>
+            <p id="set_designTheme_coming_soon" class="settings-field-hint muted" style="margin-top:6px"></p>
+            <p class="settings-field-hint" style="margin-top:8px">
+              <a href="#" id="set_customThemeHelp" data-i18n="theme.design.custom_help">Create your own theme →</a>
+            </p>
           </div>
           <div id="set_accent_wrap">
             <label for="set_accent" data-i18n="theme.accent.label">Accent color</label>
@@ -2046,6 +2064,9 @@
 <script src="online.js"></script>
 <script src="app-state.js"></script>
 <script src="app-security.js"></script>
+<script src="themes/registry-core.js"></script>
+<script src="themes/custom-loader.js"></script>
+<script src="themes/ledger/shell.js"></script>
 <script src="themes.js"></script>
 <script src="shell.js"></script>
 <script src="app-helpers.js"></script>

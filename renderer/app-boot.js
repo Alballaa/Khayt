@@ -218,6 +218,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   applyTheme(settings.theme || 'light');
+  if (typeof KhaytCustomThemes?.loadCustomThemes === 'function') {
+    await KhaytCustomThemes.loadCustomThemes();
+  }
   if (typeof applyDesignSettings === 'function') applyDesignSettings();
   applyMode();
   i18n.init();

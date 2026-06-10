@@ -6,7 +6,9 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
-- **Design themes** — Settings → Preferences: **Studio** (filament cyan instrument UI) or **Workshop Ledger** (warm paper + ink); per-design accent presets from the Khayt-3 handoff (`design/khayt-3/handoff/`).
+- **Design themes** — Settings → Preferences: **Studio** (sidebar) or **Workshop Ledger** (masthead + horizontal tabs); per-design accents from the Khayt-3 handoff. Reserved slots: **Blueprint**, **Atlas**.
+- **Theme template system** — `renderer/themes/_template/` + `themes/custom/` registry for community themes; see [docs/THEMES.md](./docs/THEMES.md).
+- **Local UI fonts** — Archivo, Hanken Grotesk, IBM Plex Mono/Arabic vendored under `renderer/fonts/` (CSP-safe, no Google Fonts).
 
 ### Security
 

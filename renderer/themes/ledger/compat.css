@@ -32,8 +32,3 @@ html[data-design="ledger"] .dash-hero {
   box-shadow: var(--shadow-1);
 }
 
-html[data-design="ledger"] .khayt-navitem.active,
-html[data-design="ledger"] .khayt-navitem.on {
-  box-shadow: inset 3px 0 0 var(--accent);
-  background: var(--accent-soft);
-}
