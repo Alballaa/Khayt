@@ -742,10 +742,7 @@
 
   function init() {
     if (!useHandoffScreens()) return;
-    if (isStudio()) {
-      window.KhaytIcon?.hydrateNav?.();
-      window.KhaytIcon?.hydrateTopbar?.();
-    }
+    window.KhaytIcon?.hydrateHandoff?.();
     wireStudioQueueFilters();
     wireStudioClientFilters();
     initStudioCalculatorLayout();

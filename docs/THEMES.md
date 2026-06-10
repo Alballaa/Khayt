@@ -8,8 +8,10 @@ Khayt separates **appearance** (dark / light / system) from **design theme** (vi
 |----|------|-------|-------------------|
 | `studio` | Studio | Grouped left sidebar | Dark |
 | `ledger` | Workshop Ledger | Masthead + horizontal tabs | Light |
-| `blueprint` | Blueprint *(reserved)* | Sidebar | Dark |
-| `atlas` | Atlas *(reserved)* | Ledger-style | Light |
+| `console` | Control Room *(coming soon)* | Command bar + code rail | Dark |
+| `atelier` | Atelier *(coming soon)* | Soft sidebar | Light |
+| `vitrine` | Vitrine *(coming soon)* | Glass sidebar | Dark |
+| `cockpit` | Cockpit *(coming soon)* | Ops icon rail | Light |
 
 Reserved themes appear as “Coming soon” in Settings until art direction and tokens land.
 
@@ -66,9 +68,12 @@ after updating `@fontsource/*` devDependencies.
 4. Link stylesheets in `index.html` if always loaded
 5. Set `shell`, `bodyClass`, `defaultAccent`, `defaultAppearance`
 
+## Handoff screen layer
+
+Themes with shell `studio`, `ledger`, `console`, `atelier`, or `vitrine` set `body.khayt-handoff` and share screen polish via `renderer/themes/handoff-screens.css` + `KhaytStudio.useHandoffScreens()`.
+
 ## Roadmap
 
-- **Blueprint** — cool technical drawing aesthetic (sidebar shell)
-- **Atlas** — editorial light layout (ledger shell)
+- **Control Room, Atelier, Vitrine, Cockpit** — Khayt-4 directions C–F (coming soon in picker)
 - Theme import/export (zip manifest + CSS)
 - Theme preview thumbnails in Settings

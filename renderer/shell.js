@@ -243,6 +243,8 @@ function syncTopbarTitle(tabId) {
     sub.textContent = d.toLocaleDateString(i18n.current === 'ar' ? 'ar-SA' : 'en-US', {
       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
     });
+  } else if (document.body.classList.contains('khayt-handoff') && typeof KhaytLedgerShell?.ledgerTabSubtitle === 'function') {
+    sub.textContent = KhaytLedgerShell.ledgerTabSubtitle(tabId);
   } else {
     sub.textContent = '';
   }

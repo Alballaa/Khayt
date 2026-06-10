@@ -13,6 +13,7 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 - **Handoff screen parity** — Studio screen enhancements (KPI grid, queue filters, calculator breakdown, inventory stats, client cards) now apply to Workshop Ledger via shared `khayt-handoff` layer.
 - **Handoff analytics** — Analytics tab KPI row, machine P&L bars, production heatmap, and top-clients table for Studio and Ledger themes.
 - **Khayt-4 theme slots** — Control Room, Atelier, Vitrine, and Cockpit registered as coming-soon picker options (v1 target: six production-realistic themes).
+- **Phase 1 complete** — Studio `ds.css` scoped to prevent Ledger bleed; app-only tabs and Settings use handoff polish (SVG nav icons, themed toolbars/tables).
 
 ### Fixed
 

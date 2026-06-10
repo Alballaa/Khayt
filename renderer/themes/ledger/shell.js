@@ -89,6 +89,34 @@
     nav.dataset.ledgerTabsBound = '1';
   }
 
+  function ledgerTabSubtitle(tabId) {
+    if (typeof t !== 'function') return '';
+    if (tabId === 'dashboard-tab') {
+      const d = new Date();
+      return d.toLocaleDateString(
+        typeof i18n !== 'undefined' && i18n.current === 'ar' ? 'ar-SA' : 'en-US',
+        { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' },
+      );
+    }
+    const n = (v) => (typeof v !== 'undefined' && Array.isArray(v) ? v.length : 0);
+    const portfolioCount = () => {
+      if (typeof printLog === 'undefined') return 0;
+      let c = 0;
+      for (const o of printLog) c += (o.photos || []).length;
+      return c;
+    };
+    const subs = {
+      'catalog-tab': () => t('tab.sub.catalog', { n: n(typeof products !== 'undefined' ? products : []) }),
+      'logs-tab': () => t('tab.sub.logs', { n: n(typeof printLog !== 'undefined' ? printLog : []) }),
+      'waste-tab': () => t('tab.sub.waste', { n: n(typeof wasteLog !== 'undefined' ? wasteLog : []) }),
+      'expenses-tab': () => t('tab.sub.expenses', { n: n(typeof expenses !== 'undefined' ? expenses : []) }),
+      'gift-cards-tab': () => t('tab.sub.gift_cards', { n: n(typeof giftCards !== 'undefined' ? giftCards : []) }),
+      'portfolio-tab': () => t('tab.sub.portfolio', { n: portfolioCount() }),
+      'settings-tab': () => t('tab.sub.settings'),
+    };
+    return subs[tabId]?.() || '';
+  }
+
   function syncLedgerPageHead(tabId) {
     const head = document.getElementById('ledgerPageHead');
     if (!head || !document.body.classList.contains('khayt-ledger')) return;
@@ -99,17 +127,7 @@
     const activeBtn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
     const titleKey = activeBtn?.querySelector('[data-i18n]')?.getAttribute('data-i18n');
     if (titleEl && titleKey && typeof t === 'function') titleEl.textContent = t(titleKey);
-    if (subEl) {
-      if (tabId === 'dashboard-tab') {
-        const d = new Date();
-        subEl.textContent = d.toLocaleDateString(
-          typeof i18n !== 'undefined' && i18n.current === 'ar' ? 'ar-SA' : 'en-US',
-          { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' },
-        );
-      } else {
-        subEl.textContent = '';
-      }
-    }
+    if (subEl) subEl.textContent = ledgerTabSubtitle(tabId);
     if (stampEl && typeof settings !== 'undefined') {
       const loc = settings.locations?.find((l) => l.id === settings.activeLocationId);
       stampEl.textContent = loc?.name || settings.shopName || '';
@@ -132,6 +150,7 @@
     applyLedgerShell,
     teardownLedgerShell,
     syncLedgerPageHead,
+    ledgerTabSubtitle,
     ensureSettingsTab,
     restoreSettingsTab,
     mountLayout,

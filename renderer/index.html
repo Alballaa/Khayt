@@ -504,7 +504,7 @@
     </section>
 
     <!-- ===================== CATALOG ===================== -->
-    <section id="catalog-tab" class="tab-content" role="tabpanel" aria-labelledby="tabbtn-catalog-tab" aria-hidden="true" tabindex="-1">
+    <section id="catalog-tab" class="tab-content khayt-tab-page" role="tabpanel" aria-labelledby="tabbtn-catalog-tab" aria-hidden="true" tabindex="-1">
       <div class="toolbar">
         <h3 class="card-head" style="margin: 0; flex: 1;"><span class="swatch"></span><span data-i18n="cat.title">Product Catalog</span></h3>
         <input type="search" id="catalogSearch" class="toolbar-search" data-i18n-placeholder="cat.search_ph">
@@ -619,7 +619,7 @@
     </section>
 
     <!-- ===================== LOGS ===================== -->
-    <section id="logs-tab" class="tab-content" role="tabpanel" aria-labelledby="tabbtn-logs-tab" aria-hidden="true" tabindex="-1">
+    <section id="logs-tab" class="tab-content khayt-tab-page" role="tabpanel" aria-labelledby="tabbtn-logs-tab" aria-hidden="true" tabindex="-1">
       <div class="card">
         <div id="batchBar" class="batch-bar" style="display:none;">
           <span id="batchCount" class="batch-count"></span>
@@ -1093,7 +1093,7 @@
     </section>
 
     <!-- ===================== PORTFOLIO ===================== -->
-    <section id="portfolio-tab" class="tab-content" role="tabpanel" aria-labelledby="tabbtn-portfolio-tab" aria-hidden="true" tabindex="-1">
+    <section id="portfolio-tab" class="tab-content khayt-tab-page" role="tabpanel" aria-labelledby="tabbtn-portfolio-tab" aria-hidden="true" tabindex="-1">
       <div class="toolbar">
         <h3 class="card-head" style="margin: 0; flex: 1;"><span class="swatch"></span><span data-i18n="pf.title">Portfolio</span></h3>
         <input type="search" id="portfolioSearch" class="toolbar-search" data-i18n-placeholder="pf.search_ph">
@@ -1103,7 +1103,7 @@
     </section>
 
     <!-- ===================== EXPENSES ===================== -->
-    <section id="expenses-tab" class="tab-content" role="tabpanel" aria-labelledby="tabbtn-expenses-tab" aria-hidden="true" tabindex="-1">
+    <section id="expenses-tab" class="tab-content khayt-tab-page" role="tabpanel" aria-labelledby="tabbtn-expenses-tab" aria-hidden="true" tabindex="-1">
       <div class="toolbar" style="margin-bottom:16px;">
         <h3 class="card-head" style="margin:0; flex:1;"><span class="swatch"></span><span data-i18n="exp.title">Expense Tracker</span></h3>
         <button class="btn small" id="btnExportExpCsv" data-i18n="exp.export_csv">Export CSV</button>
@@ -1191,7 +1191,7 @@
     </section>
 
     <!-- ===================== WASTE LOG ===================== -->
-    <section id="waste-tab" class="tab-content" role="tabpanel" aria-labelledby="tabbtn-waste-tab" aria-hidden="true" tabindex="-1">
+    <section id="waste-tab" class="tab-content khayt-tab-page" role="tabpanel" aria-labelledby="tabbtn-waste-tab" aria-hidden="true" tabindex="-1">
       <div class="toolbar" style="margin-bottom:8px;">
         <h3 class="card-head" style="margin:0; flex:1;"><span class="swatch"></span><span data-i18n="waste.title">Failed Prints &amp; Waste Log</span></h3>
         <button class="btn primary" id="btnLogWaste" data-i18n="waste.add">Log Failed Print</button>
@@ -1237,7 +1237,7 @@
     </section>
 
     <!-- ===================== GIFT CARDS ===================== -->
-    <section id="gift-cards-tab" class="tab-content" role="tabpanel" aria-labelledby="tabbtn-gift-cards-tab" aria-hidden="true" tabindex="-1">
+    <section id="gift-cards-tab" class="tab-content khayt-tab-page" role="tabpanel" aria-labelledby="tabbtn-gift-cards-tab" aria-hidden="true" tabindex="-1">
       <div class="toolbar" style="margin-bottom:16px;">
         <h2 class="card-head" style="margin:0; flex:1;"><span class="swatch"></span><span data-i18n="giftCards">Gift Cards</span></h2>
         <button id="btnCreateGiftCard" class="btn btn-primary" data-i18n="issueGiftCard">Issue Gift Card</button>
@@ -1255,31 +1255,31 @@
       <span class="settings-nav-group-label" data-i18n="set.nav_group_general">General</span>
 
       <button class="settings-nav-item active" data-settings-section="biz">
-        <span class="nav-icon">🏢</span>
+        <span class="nav-icon" aria-hidden="true"></span>
         <span data-i18n="set.nav_biz">Business</span>
       </button>
       <button class="settings-nav-item" data-settings-section="prefs">
-        <span class="nav-icon">⚙️</span>
+        <span class="nav-icon" aria-hidden="true"></span>
         <span data-i18n="set.nav_prefs">Preferences</span>
       </button>
       <button class="settings-nav-item" data-settings-section="stock">
-        <span class="nav-icon">📦</span>
+        <span class="nav-icon" aria-hidden="true"></span>
         <span data-i18n="set.nav_stock">Inventory</span>
       </button>
       <button class="settings-nav-item" data-settings-section="invoice">
-        <span class="nav-icon">🧾</span>
+        <span class="nav-icon" aria-hidden="true"></span>
         <span data-i18n="set.nav_invoice">Invoice & Tax</span>
       </button>
       <button class="settings-nav-item" data-settings-section="payments">
-        <span class="nav-icon">💳</span>
+        <span class="nav-icon" aria-hidden="true"></span>
         <span data-i18n="set.nav_payments">Payments</span>
       </button>
       <button class="settings-nav-item" data-settings-section="printers">
-        <span class="nav-icon">🖨️</span>
+        <span class="nav-icon" aria-hidden="true"></span>
         <span data-i18n="set.nav_printers">Printers</span>
       </button>
       <button class="settings-nav-item" data-settings-section="online">
-        <span class="nav-icon">🌐</span>
+        <span class="nav-icon" aria-hidden="true"></span>
         <span data-i18n="set.nav_online">Online</span>
       </button>
 
@@ -1287,19 +1287,19 @@
       <span class="settings-nav-group-label" data-i18n="set.nav_group_advanced">Advanced</span>
 
       <button class="settings-nav-item pro-only" data-settings-section="ops">
-        <span class="nav-icon">🔧</span>
+        <span class="nav-icon" aria-hidden="true"></span>
         <span data-i18n="set.nav_ops">Operations</span>
       </button>
       <button class="settings-nav-item pro-only" data-settings-section="automation">
-        <span class="nav-icon">🔔</span>
+        <span class="nav-icon" aria-hidden="true"></span>
         <span data-i18n="set.nav_automation">Automation</span>
       </button>
       <button class="settings-nav-item pro-only" data-settings-section="access">
-        <span class="nav-icon">🔐</span>
+        <span class="nav-icon" aria-hidden="true"></span>
         <span data-i18n="set.nav_access">Access</span>
       </button>
       <button class="settings-nav-item" data-settings-section="data">
-        <span class="nav-icon">💾</span>
+        <span class="nav-icon" aria-hidden="true"></span>
         <span data-i18n="set.nav_data">Data & Locale</span>
       </button>
     </nav>
