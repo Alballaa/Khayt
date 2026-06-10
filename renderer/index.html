@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr" data-theme="dark">
+<html lang="en" dir="ltr" data-theme="dark" data-design="studio" data-accent="cyan">
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy"
@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="themes/classic-tokens.css" />
   <link rel="stylesheet" href="studio/ds.css" />
   <link rel="stylesheet" href="studio/shell.css" />
   <link rel="stylesheet" href="studio/screens.css" />
@@ -1379,9 +1380,21 @@
         <p style="font-size:12px; color:var(--text-muted); margin:0 0 20px;" data-i18n="set.mode_changed_hint">You can switch at any time — no data is lost.</p>
 
         <div class="settings-section-head" data-i18n="set.language">Language & Theme</div>
+        <p class="settings-panel-hint" data-i18n="set.lang_theme_auto">Language, appearance, and design apply immediately when changed.</p>
+        <div class="inline-pair" style="margin-bottom:12px;">
+          <div>
+            <label for="set_designTheme" data-i18n="theme.design.label">Design</label>
+            <select id="set_designTheme" aria-describedby="set_designTheme_hint"></select>
+            <p id="set_designTheme_hint" class="settings-field-hint" data-i18n="theme.design.studio_desc">Studio — filament cyan instrument UI from the redesign.</p>
+          </div>
+          <div id="set_accent_wrap">
+            <label for="set_accent" data-i18n="theme.accent.label">Accent color</label>
+            <select id="set_accent"></select>
+          </div>
+        </div>
         <div class="inline-pair">
           <div>
-            <label data-i18n="set.language">Default language</label>
+            <label for="set_lang" data-i18n="set.language">Default language</label>
             <select id="set_lang">
               <option value="en">English</option>
               <option value="ar">العربية</option>
@@ -2032,6 +2045,7 @@
 <script src="online.js"></script>
 <script src="app-state.js"></script>
 <script src="app-security.js"></script>
+<script src="themes.js"></script>
 <script src="shell.js"></script>
 <script src="app-helpers.js"></script>
 <script src="currency.js"></script>

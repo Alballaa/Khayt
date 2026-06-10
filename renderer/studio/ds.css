@@ -4,7 +4,7 @@
    Dark (default) + warm-paper light. Filament-thread motif.
    ============================================================ */
 
-:root {
+html[data-design="studio"] {
   /* ---- Dark (default) ---- */
   --bg:          #0b0d12;
   --bg-2:        #0f1218;
@@ -61,7 +61,7 @@
   --nav-w: 232px;
 }
 
-[data-theme="light"] {
+html[data-design="studio"][data-theme="light"] {
   --bg:          #ece8e1;
   --bg-2:        #f4f1ea;
   --surface:     #ffffff;

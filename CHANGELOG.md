@@ -4,6 +4,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **Design themes** — Settings → Preferences: **Studio** (redesign / filament cyan) or **Classic** (blue-orange); Studio accent presets (Cyan, Teal, Aqua, Sky, Azure).
+
 ### Security
 
 - **Calendar feed** — `/calendar.ics` requires `?token=` (auto-generated `calendarToken`); iCal export copies the subscription link.

@@ -204,9 +204,8 @@ function initAppShell() {
   mirror?.addEventListener('click', openSearch);
   mirror?.addEventListener('focus', openSearch);
 
-  document.documentElement.style.setProperty('--accent-h', '187');
-  document.documentElement.style.setProperty('--accent-s', '76%');
-  document.documentElement.style.setProperty('--accent-l', '53%');
+  if (typeof applyDesignSettings === 'function') applyDesignSettings();
+  else if (typeof populateDesignSelects === 'function') populateDesignSelects();
 
   syncTopbarTitle($('.tab-content.active')?.id || 'dashboard-tab');
 

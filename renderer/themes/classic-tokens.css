@@ -1,0 +1,65 @@
+/* Classic Khayt palette — blue primary, pre-Studio surfaces (styles.css values). */
+html[data-design="classic"] {
+  --bg:          #0f172a;
+  --bg-2:        #111c33;
+  --bg-elev:     #111c33;
+  --surface:     #1a2540;
+  --surface-1:   #1a2540;
+  --surface-2:   #213056;
+  --surface-3:   #213056;
+  --border:      #2a3656;
+  --border-2:    #2a3656;
+  --border-soft: #1f2a47;
+  --hairline:    #1f2a47;
+
+  --text:        #e6edf7;
+  --text-dim:    #9aa6c0;
+  --text-muted:  #6b7793;
+  --text-faint:  #6b7793;
+
+  --primary:     #5b9cf0;
+  --primary-2:   #4a8ee8;
+  --accent:      #f97316;
+  --accent-soft: rgba(249, 115, 22, 0.14);
+  --accent-line: rgba(249, 115, 22, 0.45);
+  --on-accent:   #1c1208;
+
+  --success:     #2bb673;
+  --warning:     #f5a623;
+  --danger:      #ef4d5e;
+  --info:        #8a7df0;
+  --ok:          var(--success);
+  --warn:        var(--warning);
+}
+
+html[data-design="classic"][data-theme="light"] {
+  --bg:          #f4f6fb;
+  --bg-2:        #ffffff;
+  --bg-elev:     #ffffff;
+  --surface:     #ffffff;
+  --surface-1:   #ffffff;
+  --surface-2:   #f7f9fc;
+  --surface-3:   #f7f9fc;
+  --border:      #e4e9f2;
+  --border-2:    #e4e9f2;
+  --border-soft: #eef1f7;
+  --hairline:    #eef1f7;
+
+  --text:        #1c2434;
+  --text-dim:    #5b6478;
+  --text-muted:  #8a93a8;
+  --text-faint:  #8a93a8;
+
+  --on-accent:   #1c1208;
+}
+
+/* Studio primary buttons use --accent; classic maps primary actions to blue. */
+html[data-design="classic"] .btn.primary {
+  background: var(--primary);
+  border-color: transparent;
+  color: #fff;
+}
+html[data-design="classic"] .btn.primary:hover {
+  background: var(--primary-2);
+  filter: none;
+}

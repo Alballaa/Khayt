@@ -1191,6 +1191,39 @@ function wireEvents() {
     if (open) open(navItem.dataset.settingsSection);
   });
 
+  $('#set_designTheme')?.addEventListener('change', (e) => {
+    settings.designTheme = e.target.value || 'studio';
+    const hint = document.getElementById('set_designTheme_hint');
+    if (hint) {
+      const key = settings.designTheme === 'classic' ? 'theme.design.classic_desc' : 'theme.design.studio_desc';
+      hint.textContent = typeof t === 'function' ? t(key) : hint.textContent;
+    }
+    if (typeof applyDesignSettings === 'function') applyDesignSettings();
+    saveAll();
+    toast(t('set.saved'), 'success', 2000);
+  });
+  $('#set_accent')?.addEventListener('change', (e) => {
+    settings.accent = e.target.value || 'cyan';
+    if (typeof applyDesignSettings === 'function') applyDesignSettings();
+    saveAll();
+    toast(t('set.saved'), 'success', 2000);
+  });
+  $('#set_lang')?.addEventListener('change', (e) => {
+    settings.lang = e.target.value;
+    i18n.set(settings.lang);
+    const topLang = $('#langSelect');
+    if (topLang) topLang.value = settings.lang;
+    saveAll();
+    toast(t('set.saved'), 'success', 2000);
+  });
+  $('#set_theme')?.addEventListener('change', (e) => {
+    settings.theme = e.target.value;
+    applyTheme(settings.theme);
+    saveAll();
+    window.KhaytIcon?.hydrateTopbar?.();
+    toast(t('set.saved'), 'success', 2000);
+  });
+
   // Business Mode toggle buttons (in Settings tab)
   $$('#btnModeSimple, #btnModePro').forEach(btn => {
     btn?.addEventListener('click', () => {

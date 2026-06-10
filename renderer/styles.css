@@ -4092,6 +4092,15 @@ th[data-sort]:hover {
   overflow: hidden;
 }
 
+.settings-panel-hint,
+.settings-field-hint {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+.settings-field-hint { margin-top: 4px; margin-bottom: 0; font-size: 11.5px; }
+
 .settings-layout {
   display: grid;
   grid-template-columns: 192px 1fr;

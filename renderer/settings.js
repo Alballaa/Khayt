@@ -1198,6 +1198,8 @@ function loadSettingsIntoForm() {
   $('#set_addrAr').value    = settings.addrAr    || '';
   $('#set_lang').value      = settings.lang      || 'en';
   $('#set_theme').value     = settings.theme     || 'dark';
+  if (typeof populateDesignSelects === 'function') populateDesignSelects();
+  if (typeof syncDesignSettingsUi === 'function') syncDesignSettingsUi();
   $('#set_invPrefix').value = settings.invPrefix || 'INV';
   $('#set_footerEn').value  = settings.footerEn  || '';
   $('#set_footerAr').value  = settings.footerAr  || '';
@@ -1408,7 +1410,9 @@ function saveSettingsFromForm() {
     addrEn:    $('#set_addrEn').value.trim(),
     addrAr:    $('#set_addrAr').value.trim(),
     lang:      $('#set_lang').value,
-    theme:     $('#set_theme').value,
+    theme:       $('#set_theme').value,
+    designTheme: $('#set_designTheme')?.value || settings.designTheme || 'studio',
+    accent:      $('#set_accent')?.value || settings.accent || 'cyan',
     invPrefix: $('#set_invPrefix').value.trim() || 'INV',
     footerEn:  $('#set_footerEn').value.trim(),
     footerAr:  $('#set_footerAr').value.trim(),
@@ -1519,6 +1523,7 @@ function saveSettingsFromForm() {
   saveAll();
   i18n.set(settings.lang);
   applyTheme(settings.theme);
+  if (typeof applyDesignSettings === 'function') applyDesignSettings();
   applyMode();
   renderInventory();
   refreshCurrencyLabels();

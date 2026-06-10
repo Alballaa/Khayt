@@ -218,6 +218,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   applyTheme(settings.theme || 'light');
+  if (typeof applyDesignSettings === 'function') applyDesignSettings();
   applyMode();
   i18n.init();
   if (settings.lang) i18n.set(settings.lang, { silent: true });
