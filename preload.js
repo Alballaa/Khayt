@@ -50,7 +50,8 @@ contextBridge.exposeInMainWorld('hubAPI', {
   openFile:  (filePath) => ipcRenderer.invoke('hub:open-file', filePath),
 
   // Feature 7: Save HTML to temp file and open
-  saveHtml:  (html, filename) => ipcRenderer.invoke('hub:save-html', html, filename),
+  saveHtml:  (html, filename, opts) => ipcRenderer.invoke('hub:save-html', html, filename, opts),
+  encryptionAvailable: () => ipcRenderer.invoke('hub:encryption-available'),
 
   // Feature 2 (new): File vault
   copyFileToVault: (srcPath, orderId) => ipcRenderer.invoke('hub:copy-file-to-vault', { srcPath, orderId }),

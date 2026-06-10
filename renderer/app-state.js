@@ -150,7 +150,7 @@ function defaultSettings() {
     // Online: customer intake + LAN-backed links (no Khayt cloud)
     onlineEnabled:    false,
     // Round 12: LAN API
-    lanApi:           { enabled: false, port: 3219, pin: '', intakePin: '', intakeToken: '', webhookToken: '', sallaWebhookSecret: '', zidWebhookSecret: '', tunnelEnabled: false, bindLan: false },
+    lanApi:           { enabled: false, port: 3219, pin: '', intakePin: '', intakeToken: '', calendarToken: '', webhookToken: '', sallaWebhookSecret: '', zidWebhookSecret: '', tunnelEnabled: false, bindLan: false },
     // Round 12: Saved filter presets
     savedFilters:     [],
     betaAcknowledged: true, // legacy field — kept so old saved data doesn't break

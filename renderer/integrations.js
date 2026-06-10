@@ -71,9 +71,16 @@ async function autoSendEmailNotification(order, newStatus) {
     if (result?.ok) {
       toast('📧 Email sent', 'success', 2000);
     } else if (result?.fallback && result?.mailtoUrl) {
-      // silently ignore fallback — user has WhatsApp
+      // mailto fallback — no toast
+    } else {
+      const msg = result?.error || t('notify.email_failed') || 'Email notification failed';
+      console.warn('autoSendEmailNotification:', msg);
+      toast(msg, 'warning', 4000);
     }
-  } catch(e) { /* silent */ }
+  } catch (e) {
+    console.warn('autoSendEmailNotification:', e);
+    toast(t('notify.email_failed') || 'Email notification failed', 'warning', 4000);
+  }
 }
 
 async function checkAndSendDigest() {
@@ -130,8 +137,15 @@ async function fireWebhook(eventName, payload) {
   const url = (wh.events || {})[eventName];
   if (!url) return;
   try {
-    await window.hubAPI?.fireWebhook?.(url, eventName, payload, wh.secret || '');
-  } catch(e) { /* silent — webhook failures must not block UI */ }
+    const result = await window.hubAPI?.fireWebhook?.(url, eventName, payload, wh.secret || '');
+    if (result && result.ok === false) {
+      console.warn(`fireWebhook(${eventName}):`, result.error || 'failed');
+      toast((t('webhook.failed') || 'Webhook failed') + `: ${eventName}`, 'warning', 4000);
+    }
+  } catch (e) {
+    console.warn(`fireWebhook(${eventName}):`, e);
+    toast((t('webhook.failed') || 'Webhook failed') + `: ${eventName}`, 'warning', 4000);
+  }
 }
 
 
@@ -187,7 +201,7 @@ async function generateSurveyPage(orderId) {
 <script>
   let _cfg = {};
   try {
-    _cfg = safeJsonParse(document.getElementById('survey-config').textContent);
+    _cfg = JSON.parse(document.getElementById('survey-config').textContent);
   } catch (e) {
     console.error('survey-config parse:', e);
   }
@@ -234,7 +248,7 @@ async function generateSurveyPage(orderId) {
 </script>
 </body></html>`;
 
-  window.hubAPI?.saveHtml?.(html, `survey-${orderId}.html`);
+  window.hubAPI?.saveHtml?.(html, `survey-${orderId}.html`, { interactive: true });
   toast(t('cl.portal_generated'), 'success', 4000);
 }
 
@@ -434,6 +448,8 @@ async function startLanServer() {
     // Keep the plaintext PIN in memory so the Online panel can display it; mask after first save
     if (res.intakePin) settings.lanApi.intakePin = res.intakePin;
     else if (res.intakePinGenerated) settings.lanApi.intakePin = STORE_SECRET_MASK;
+    if (res.calendarToken) settings.lanApi.calendarToken = res.calendarToken;
+    else if (res.calendarTokenGenerated) settings.lanApi.calendarToken = STORE_SECRET_MASK;
     saveAll();
     const loopbackWarn = res.loopbackOnly
       ? `<div style="font-size:11px;color:var(--warn);margin-top:6px;">${escapeHtml(t('lan.loopback_warn') || 'Listening on this Mac only — enable “Listen on all network interfaces” for other devices on Wi‑Fi.')}</div>`
@@ -477,6 +493,55 @@ function updateWebhookUrlDisplay(baseUrl) {
   }
   hint.textContent = t('lan.webhook_header_hint') || 'Send webhook token via x-khayt-webhook-token header (not in URL)';
   section.style.display = 'block';
+}
+
+async function reconcileLanServerStatus() {
+  const res = await window.hubAPI?.getLanUrl?.().catch(() => null);
+  const live = !!res?.ok;
+  settings.lanApi = { ...settings.lanApi, enabled: live };
+  const statusRow = document.getElementById('lanStatusRow');
+  if (statusRow) {
+    if (live) {
+      statusRow.innerHTML = `🟢 Active at <a href="#" class="lan-url-link" data-url="${escapeHtml(res.url)}" style="color:var(--primary);">${escapeHtml(res.url)}</a>`;
+      statusRow.querySelectorAll('.lan-url-link').forEach((a) => {
+        a.addEventListener('click', (e) => { e.preventDefault(); window.hubAPI?.openExternal?.(a.dataset.url); });
+      });
+    } else if (!settings.lanApi?.enabled) {
+      statusRow.textContent = '⚫ Server stopped';
+      document.getElementById('lanQrWrap')?.style && (document.getElementById('lanQrWrap').style.display = 'none');
+    }
+  }
+  return live;
+}
+
+async function startTunnelFromSettings({ confirm = false } = {}) {
+  if (!settings.lanApi?.enabled) {
+    toast(t('lan.tunnel_need_server') || 'Start the LAN server first', 'warning');
+    return { ok: false };
+  }
+  saveLanApiSettingsFromForm?.({ restartServer: false });
+  const port = settings.lanApi?.port || 3219;
+  if (confirm) {
+    const confirmMsg = t('lan.tunnel_confirm_msg') || t('lan.tunnel_security_warning');
+    if (!window.confirm(confirmMsg)) return { ok: false };
+  }
+  const tRow = document.getElementById('tunnelStatusRow');
+  if (tRow) tRow.textContent = '⏳ Connecting…';
+  const res = await window.hubAPI?.startTunnel?.(port, { acknowledgedRisk: true });
+  if (res?.ok) {
+    if (tRow) {
+      tRow.innerHTML = `🟢 Active at <a href="#" class="lan-url-link" data-url="${escapeHtml(res.url)}" style="color:var(--primary)">${escapeHtml(res.url)}</a>`;
+      tRow.querySelectorAll('.lan-url-link').forEach((a) => {
+        a.addEventListener('click', (e) => { e.preventDefault(); window.hubAPI?.openExternal?.(a.dataset.url); });
+      });
+    }
+    toast(t('lan.tunnel_active'), 'success');
+    updateWebhookUrlDisplay(res.url);
+  } else if (tRow) {
+    tRow.textContent = `❌ ${res?.error || 'Failed to connect'}`;
+    toast(res?.error || t('lan.tunnel_failed'), 'error');
+  }
+  return res;
 }
 
 async function refreshLanIntakePinLive() {
@@ -985,8 +1050,18 @@ function checkTelegramLowStock() {
 /* ── Feature 11: iCal Export ────────────────────────────────── */
 async function exportIcalFeed() {
   const lanUrl = await window.hubAPI?.getLanUrl?.().catch(() => null);
-  if (!lanUrl?.ok) { toast('Start LAN server first to use iCal', 'error'); return; }
-  const icalUrl = lanUrl.url + '/calendar.ics';
+  if (!lanUrl?.ok) { toast(t('ical.need_server') || 'Start LAN server first to use iCal', 'error'); return; }
+  if (!lanUrl.calendarToken) {
+    toast(t('ical.need_token') || 'Restart the LAN server to generate a calendar link', 'warning');
+    return;
+  }
+  const icalUrl = `${lanUrl.url}/calendar.ics?token=${encodeURIComponent(lanUrl.calendarToken)}`;
+  try {
+    await navigator.clipboard.writeText(icalUrl);
+    toast(t('ical.copied') || 'Calendar subscription link copied', 'success');
+  } catch {
+    toast(t('common.copy_failed') || 'Copy failed', 'warning');
+  }
   window.hubAPI?.openExternal?.(icalUrl);
 }
 
@@ -1084,6 +1159,8 @@ function trackShipment(trackingNumber, carrier) {
     updateWebhookUrlDisplay,
     loadLanQr,
     refreshLanIntakePinLive,
+    reconcileLanServerStatus,
+    startTunnelFromSettings,
     exportAccountingCSV,
     renderOrderComments,
     exportOrderStatusPage,

@@ -33,6 +33,8 @@ const {
   migrateLanApiSecrets,
   ensureLanIntakeToken,
   ensureLanIntakePin,
+  ensureLanCalendarToken,
+  isEncryptionAvailable,
   persistLanStoreUpdate,
   resolveStoreSecret,
   isStoreSecretMasked,
@@ -444,14 +446,22 @@ ipcMain.handle('hub:open-file', async (_e, filePath) => {
 });
 
 // --- Save HTML to temp and open (Feature 7) ---
-ipcMain.handle('hub:save-html', async (_e, html, filename) => {
+ipcMain.handle('hub:save-html', async (_e, html, filename, opts = {}) => {
   const tmpDir = app.getPath('temp');
   const safeName = (String(filename || 'status.html')).replace(/[^a-zA-Z0-9._-]/g, '_');
   const fullPath = path.join(tmpDir, safeName);
-  await fs.promises.writeFile(fullPath, sanitizeHtmlForFile(html), 'utf8');
+  const content = opts?.interactive
+    ? String(html || '').replace(/\bhref\s*=\s*["']?\s*javascript:/gi, 'href="blocked:')
+    : sanitizeHtmlForFile(html);
+  await fs.promises.writeFile(fullPath, content, 'utf8');
   await shell.openPath(fullPath);
   return fullPath;
 });
+
+ipcMain.handle('hub:encryption-available', async () => ({
+  ok: true,
+  available: isEncryptionAvailable(),
+}));
 
 // --- Main data store (file-based) ---
 // ── One-time keychain explanation ──────────────────────────────────────────
@@ -658,6 +668,7 @@ registerLanServer({
   migrateLanApiSecrets,
   ensureLanIntakeToken,
   ensureLanIntakePin,
+  ensureLanCalendarToken,
   writeStoreToDisk,
   persistLanStoreUpdate,
   getLanServerStore: () => lanServerStore,

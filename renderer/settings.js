@@ -698,30 +698,8 @@ function renderLanApiSettings() {
     el.querySelector('#lan_wh_token').value = token;
   });
 
-  el.querySelector('#btnStartTunnel')?.addEventListener('click', async () => {
-    if (!settings.lanApi?.enabled) {
-      toast(t('lan.tunnel_need_server') || 'Start the LAN server first', 'warning');
-      return;
-    }
-    if (!settings.lanApi?.pin || isSecretMasked(settings.lanApi.pin)) {
-      toast(t('lan.tunnel_need_pin') || 'Set an owner LAN PIN before starting the tunnel', 'warning');
-      return;
-    }
-    const port = settings.lanApi?.port || 3219;
-    const confirmMsg = t('lan.tunnel_confirm_msg') || t('lan.tunnel_security_warning');
-    if (!window.confirm(confirmMsg)) return;
-    const tRow = el.querySelector('#tunnelStatusRow');
-    if (tRow) tRow.textContent = '⏳ Connecting…';
-    const res = await window.hubAPI?.startTunnel?.(port, { acknowledgedRisk: true });
-    if (res?.ok) {
-      tRow.innerHTML = `🟢 Active at <a href="#" class="lan-url-link" data-url="${escapeHtml(res.url)}" style="color:var(--primary)">${escapeHtml(res.url)}</a>`;
-      tRow.querySelectorAll('.lan-url-link').forEach(a => { a.addEventListener('click', e => { e.preventDefault(); window.hubAPI?.openExternal?.(a.dataset.url); }); });
-      toast(t('lan.tunnel_active'), 'success');
-      updateWebhookUrlDisplay(res.url);
-    } else {
-      if (tRow) tRow.textContent = `❌ ${res?.error || 'Failed to connect'}`;
-      toast(res?.error || t('lan.tunnel_failed'), 'error');
-    }
+  el.querySelector('#btnStartTunnel')?.addEventListener('click', () => {
+    startTunnelFromSettings?.({ confirm: true });
   });
 
   el.querySelector('#btnStopTunnel')?.addEventListener('click', async () => {

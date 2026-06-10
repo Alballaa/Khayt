@@ -1889,8 +1889,8 @@ function renderSupplierReorderList() {
     const phoneBtn = sup?.phone
       ? `<a href="https://wa.me/${encodeURIComponent(sup.phone.replace(/\D/g, ''))}" target="_blank" class="btn small ghost" style="font-size:11px;">📲 ${escapeHtml(sup.phone)}</a>`
       : '';
-    const webBtn = sup?.website
-      ? `<a href="${escapeHtml(sup.website)}" target="_blank" class="btn small ghost" style="font-size:11px;">🌐 ${escapeHtml(t('sup.website') || 'Website')}</a>`
+    const webBtn = sup?.website && safeHttpUrl(sup.website)
+      ? `<a href="${safeHttpUrl(sup.website)}" target="_blank" rel="noopener noreferrer" class="btn small ghost" style="font-size:11px;">🌐 ${escapeHtml(t('sup.website') || 'Website')}</a>`
       : '';
     const itemRows = items.map(item => {
       const needed = Math.max(0, (item.reorderPoint ?? settings.lowStockThreshold ?? 200) * 2 - item.weight);
@@ -2193,8 +2193,8 @@ function renderCatalog() {
     const partsLabel = partsCount === 1 ? t('cat.part') : t('cat.parts');
     const printedLabel = stats.count > 0 ? t('cat.printed_n', { n: stats.count }) : t('cat.never_printed');
     const lastLabel = stats.lastDate ? t('cat.last', { date: stats.lastDate }) : '';
-    const photo = p.thumbnail
-      ? `<img src="${p.thumbnail}" alt="${escapeHtml(displayName)}">`
+    const photo = p.thumbnail && safeImageSrc(p.thumbnail)
+      ? `<img src="${safeImageSrc(p.thumbnail)}" alt="${escapeHtml(displayName)}">`
       : `<div class="no-photo">
            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
            <span>${escapeHtml(t('cat.no_photo'))}</span>

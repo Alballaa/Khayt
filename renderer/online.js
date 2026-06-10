@@ -158,6 +158,7 @@
     if (!el) return;
     const on = !!settings.onlineEnabled;
     const lanOn = !!settings.lanApi?.enabled;
+    const serverStatusId = 'onlineServerStatus';
 
     el.innerHTML = `
       <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin-bottom:12px;">
@@ -171,7 +172,7 @@
       </label>
       <div id="onlineDetails" style="display:${on ? 'block' : 'none'};">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-          <span style="font-size:12px;">${lanOn ? '🟢 ' + (t('online.server_on') || 'Server running') : '⚫ ' + (t('online.server_off') || 'Server stopped')}</span>
+          <span id="${serverStatusId}" style="font-size:12px;">${lanOn ? '🟢 ' + (t('online.server_on') || 'Server running') : '⚫ ' + (t('online.server_off') || 'Server stopped')}</span>
           <button type="button" class="btn small ghost" id="btnOnlineStartServer" data-i18n="lan.start">Start server</button>
           <button type="button" class="btn small ghost" id="btnOnlineOpenLanSettings" data-i18n="online.open_lan">LAN & tunnel settings</button>
         </div>
@@ -215,6 +216,18 @@
     });
 
     if (on) renderOnlineCustomerLinks();
+    syncOnlineServerStatusUI();
+  }
+
+  async function syncOnlineServerStatusUI() {
+    const el = document.getElementById('onlineServerStatus');
+    if (!el) return;
+    const res = await window.hubAPI?.getLanUrl?.().catch(() => null);
+    const live = !!res?.ok;
+    settings.lanApi = { ...settings.lanApi, enabled: live };
+    el.textContent = live
+      ? '🟢 ' + (t('online.server_on') || 'Server running')
+      : '⚫ ' + (t('online.server_off') || 'Server stopped');
   }
 
   function renderWaitingOnlinePanel() {
@@ -256,6 +269,7 @@
     renderOnlineCustomerLinks,
     renderWaitingOnlinePanel,
     refreshOnlineIntakeUrlDisplay,
+    syncOnlineServerStatusUI,
   };
   Object.assign(global, api);
   global.KhaytOnline = api;

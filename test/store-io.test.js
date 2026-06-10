@@ -42,6 +42,17 @@ test('isStoreSecretMasked recognises mask token', () => {
   assert.equal(isStoreSecretMasked(''), false);
 });
 
+test('ensureLanCalendarToken generates and reuses calendar token', () => {
+  const { ensureLanCalendarToken } = makeStoreIo();
+  const store = { settings: { lanApi: {} } };
+  const first = ensureLanCalendarToken(store);
+  assert.equal(first.generated, true);
+  assert.ok(first.token.length >= 16);
+  const second = ensureLanCalendarToken(store);
+  assert.equal(second.generated, false);
+  assert.equal(second.token, first.token);
+});
+
 test('maskStoreSecretsForRenderer masks accessCode-only printer configs', () => {
   const { maskStoreSecretsForRenderer } = makeStoreIo();
   const data = {
@@ -81,7 +92,7 @@ test('mergeStoreSecretsFromDisk keeps disk value when renderer sends mask', asyn
   const io = makeStoreIo({ encryption: false });
   const diskStore = {
     settings: { emailConfig: { apiKey: 'disk-smtp-key' } },
-    machines: [{ printerApi: { apiKey: 'disk-printer-key' } }],
+    machines: [{ id: 'm1', printerApi: { apiKey: 'disk-printer-key' } }],
   };
   await fs.promises.writeFile(
     io.dataFilePath(),
@@ -90,11 +101,35 @@ test('mergeStoreSecretsFromDisk keeps disk value when renderer sends mask', asyn
   );
   const incoming = {
     settings: { emailConfig: { apiKey: STORE_SECRET_MASK } },
-    machines: [{ printerApi: { apiKey: STORE_SECRET_MASK } }],
+    machines: [{ id: 'm1', printerApi: { apiKey: STORE_SECRET_MASK } }],
   };
   const merged = io.mergeStoreSecretsFromDisk(incoming);
   assert.equal(merged.settings.emailConfig.apiKey, 'disk-smtp-key');
   assert.equal(merged.machines[0].printerApi.apiKey, 'disk-printer-key');
+});
+
+test('mergeStoreSecretsFromDisk does not merge machine secrets by array index', async () => {
+  const io = makeStoreIo({ encryption: false });
+  const diskStore = {
+    machines: [
+      { id: 'a', printerApi: { apiKey: 'key-a' } },
+      { id: 'b', printerApi: { apiKey: 'key-b' } },
+    ],
+  };
+  await fs.promises.writeFile(
+    io.dataFilePath(),
+    JSON.stringify(io.encryptForDisk(diskStore)),
+    'utf8'
+  );
+  const incoming = {
+    machines: [
+      { id: 'b', printerApi: { apiKey: STORE_SECRET_MASK } },
+      { id: 'a', printerApi: { apiKey: STORE_SECRET_MASK } },
+    ],
+  };
+  const merged = io.mergeStoreSecretsFromDisk(incoming);
+  assert.equal(merged.machines[0].printerApi.apiKey, 'key-b');
+  assert.equal(merged.machines[1].printerApi.apiKey, 'key-a');
 });
 
 test('mergeStoreSecretsFromDisk keeps renderer value when not masked', async () => {

@@ -6,6 +6,22 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Security
 
+- **Calendar feed** — `/calendar.ics` requires `?token=` (auto-generated `calendarToken`); iCal export copies the subscription link.
+- **Intake abuse** — Rate limit on new intake session grants (40/hour per IP).
+- **URL sinks** — Supplier website links and product/portfolio thumbnails sanitized via `safeHttpUrl` / `safeImageSrc`.
+- **Keychain warning** — Boot toast when OS secure storage is unavailable.
+
+### Fixed
+
+- **Survey export** — Interactive HTML pages keep their scripts; `JSON.parse` replaces missing `safeJsonParse` in exported surveys.
+- **Start Tunnel** — Syncs LAN form before start; owner PIN resolved from disk (not blocked by masked UI state).
+- **Tunnel restore** — `tunnelEnabled` restores tunnel after LAN server starts on boot.
+- **LAN status UI** — Online/LAN panels reflect live server state via `getLanUrl()`, not just saved config.
+- **Email / webhooks** — Failures surface warning toasts instead of failing silently.
+- **Machine secrets** — Secret merge uses machine ID only (no array-index fallback).
+
+### Security
+
 - **Quote approval** — `GET /order/:id/quote` now requires a valid `?token=`; order IDs alone no longer expose quote details or mint approval tokens.
 - **Printer secrets** — Mask `printerApi.accessCode` in renderer even when `apiKey` is absent.
 - **LAN tunnel** — Stopping or restarting the LAN server now closes an active remote tunnel.

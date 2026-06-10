@@ -519,6 +519,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   if (window.hubAPI?.onLanStartFailed) {
     window.hubAPI.onLanStartFailed(() => {
+      settings.lanApi = { ...settings.lanApi, enabled: false };
+      reconcileLanServerStatus?.();
       toast(t('lan.start_failed') || 'LAN server failed to start — port may be in use', 'warning', 6000);
     });
   }
@@ -580,10 +582,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     toast(t('intakeFormSubmitted'), 'success');
   });
 
+  window.hubAPI?.encryptionAvailable?.().then((enc) => {
+    if (enc && enc.ok === true && enc.available === false) {
+      toast(t('security.no_keychain') || 'OS secure storage is unavailable — secrets may be stored unencrypted on disk.', 'warning', 10000);
+    }
+  }).catch(() => {});
+
   // Round 12: Start LAN API server if enabled
   if (settings.lanApi?.enabled) {
-    startLanServer().catch(e => {
+    startLanServer().then(async () => {
+      await reconcileLanServerStatus?.();
+      if (settings.lanApi?.tunnelEnabled) {
+        await startTunnelFromSettings?.({ confirm: false });
+      }
+    }).catch(e => {
       console.error('LAN server failed to start:', e);
+      settings.lanApi = { ...settings.lanApi, enabled: false };
       toast(t('lan.start_failed') || 'LAN server failed to start — port may be in use', 'warning', 6000);
     });
   }
