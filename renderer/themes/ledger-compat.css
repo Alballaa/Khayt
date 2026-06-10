@@ -1,0 +1,39 @@
+/* Ledger-specific component polish (Khayt-3 alt/ds.css patterns). */
+
+html[data-design="ledger"] .eyebrow,
+html[data-design="ledger"] .khayt-navhead,
+html[data-design="ledger"] .dash-stat-lbl,
+html[data-design="ledger"] table th {
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+}
+
+html[data-design="ledger"] .btn.primary {
+  background: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 70%, var(--text));
+  color: var(--on-accent);
+  font-weight: 700;
+  box-shadow: 2px 2px 0 color-mix(in srgb, var(--text) 32%, transparent);
+}
+
+html[data-design="ledger"] .btn.primary:hover {
+  filter: brightness(1.05);
+}
+
+html[data-design="ledger"] .btn.primary:active {
+  box-shadow: none;
+  transform: translate(2px, 2px);
+}
+
+html[data-design="ledger"] .card,
+html[data-design="ledger"] .dash-stat,
+html[data-design="ledger"] .dash-hero {
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+}
+
+html[data-design="ledger"] .khayt-navitem.active,
+html[data-design="ledger"] .khayt-navitem.on {
+  box-shadow: inset 3px 0 0 var(--accent);
+  background: var(--accent-soft);
+}

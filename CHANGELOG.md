@@ -6,7 +6,7 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
-- **Design themes** — Settings → Preferences: **Studio** (redesign / filament cyan) or **Classic** (blue-orange); Studio accent presets (Cyan, Teal, Aqua, Sky, Azure).
+- **Design themes** — Settings → Preferences: **Studio** (filament cyan instrument UI) or **Workshop Ledger** (warm paper + ink); per-design accent presets from the Khayt-3 handoff (`design/khayt-3/handoff/`).
 
 ### Security
 

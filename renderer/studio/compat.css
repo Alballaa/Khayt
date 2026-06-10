@@ -1,6 +1,6 @@
 /* Bridge legacy renderer/styles.css tokens → Khayt Studio (ds.css) */
 
-:root {
+html[data-design="studio"] {
   --bg-elev:      var(--bg-2);
   --bg-card:      var(--surface);
   --surface-1:    var(--surface);
@@ -18,7 +18,8 @@
   --font-num:     var(--font-mono);
 }
 
-html, body {
+html[data-design="studio"],
+html[data-design="studio"] body {
   background: #06070a;
 }
 

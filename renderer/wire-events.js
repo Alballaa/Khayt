@@ -1192,10 +1192,18 @@ function wireEvents() {
   });
 
   $('#set_designTheme')?.addEventListener('change', (e) => {
+    const prev = settings.designTheme;
     settings.designTheme = e.target.value || 'studio';
+    if (settings.designTheme === 'ledger' && prev !== 'ledger') {
+      settings.theme = 'light';
+      if (typeof applyTheme === 'function') applyTheme('light');
+    }
     const hint = document.getElementById('set_designTheme_hint');
     if (hint) {
-      const key = settings.designTheme === 'classic' ? 'theme.design.classic_desc' : 'theme.design.studio_desc';
+      const design = typeof normalizeDesign === 'function'
+        ? normalizeDesign(settings.designTheme)
+        : settings.designTheme;
+      const key = design === 'ledger' ? 'theme.design.ledger_desc' : 'theme.design.studio_desc';
       hint.textContent = typeof t === 'function' ? t(key) : hint.textContent;
     }
     if (typeof applyDesignSettings === 'function') applyDesignSettings();
