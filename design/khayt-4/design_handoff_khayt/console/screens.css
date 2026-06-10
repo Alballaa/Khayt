@@ -1,0 +1,90 @@
+/* console/screens.css — screen restyles for the Control Room direction.
+   Same class contract as the other directions. */
+
+.khayt-swatch { width: 12px; height: 12px; border-radius: 0; flex-shrink: 0; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18); }
+.khayt-swatch.lg { width: 20px; height: 20px; border-radius: 0; }
+[data-theme="light"] .khayt-swatch { box-shadow: inset 0 0 0 1px rgba(26,30,26,0.25); }
+
+/* shared screen helpers */
+.khayt-grid { display: grid; gap: var(--gap); }
+.sec-title {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap;
+}
+.kbadge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 650;
+  padding: 3px 7px; border-radius: var(--r-sm);
+}
+.delta-up { color: var(--ok); }
+.delta-down { color: var(--danger); }
+.khayt-live { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px var(--ok-soft); animation: kf-pulse 2s infinite; }
+@keyframes kf-pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+.khayt-ph-ico {
+  width: 56px; height: 56px; border-radius: var(--r-sm); display: grid; place-items: center;
+  background: var(--surface-2); color: var(--accent); border: 1px solid var(--border);
+}
+
+/* Dashboard — KPI panels get a readout top rule */
+.khayt-kpi { display: flex; flex-direction: column; position: relative; }
+.khayt-kpi::before {
+  content: ""; position: absolute; top: -1px; inset-inline-start: 12px; width: 34px; height: 2px;
+  background: var(--accent);
+}
+.khayt-ptile { transition: border-color .12s; }
+.khayt-ptile:hover { border-color: var(--border-2); }
+.khayt-attn { display: flex; align-items: center; gap: 12px; padding: 11px 16px; border-bottom: 1px solid var(--hairline); }
+.khayt-attn:last-child { border-bottom: none; }
+.khayt-attn-ic { width: 32px; height: 32px; border-radius: var(--r-sm); display: grid; place-items: center; flex-shrink: 0; }
+
+/* Kanban */
+.khayt-kanban {
+  flex: 1; display: grid; grid-template-columns: repeat(5, minmax(212px, 1fr));
+  gap: 10px; overflow-x: auto; padding-bottom: 4px; align-items: start;
+}
+.khayt-kcol { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-lg); display: flex; flex-direction: column; max-height: 100%; }
+.khayt-kcol-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 8px; }
+.khayt-kcol-head strong { white-space: nowrap; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
+.khayt-cname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.khayt-kcount { flex-shrink: 0; font-family: var(--font-mono); font-size: 10px; font-weight: 600; color: var(--text-muted); background: var(--surface-3); border-radius: 0; padding: 1px 6px; }
+.khayt-kbar { height: 2px; margin: 0 12px; opacity: 0.8; }
+.khayt-kcol-body { padding: 10px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
+.khayt-kcol-foot { display: flex; justify-content: space-between; padding: 9px 13px; border-top: 1px solid var(--hairline); }
+
+.khayt-kcard {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm);
+  padding: 11px; cursor: grab; transition: border-color .12s;
+}
+.khayt-kcard:hover { border-color: var(--accent-line); }
+.khayt-kcard:active { cursor: grabbing; }
+.khayt-due { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-mono); font-size: 10px; font-weight: 650; padding: 3px 6px; border-radius: 0; }
+.khayt-kadd {
+  display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%;
+  font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text-muted);
+  background: transparent; border: 1px dashed var(--border-2); border-radius: var(--r-sm);
+  padding: 8px; cursor: pointer; transition: .12s;
+}
+.khayt-kadd:hover { color: var(--text); border-color: var(--text-faint); background: var(--surface-2); }
+
+/* Calculator */
+.khayt-form { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+.khayt-unit { position: absolute; inset-inline-end: 10px; top: 50%; transform: translateY(-50%); font-family: var(--font-mono); font-size: 10.5px; color: var(--text-muted); pointer-events: none; }
+.khayt-sticky { position: sticky; top: 0; }
+.khayt-total { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 13px; }
+.khayt-total span { white-space: nowrap; }
+.khayt-cartrow { display: flex; align-items: center; gap: 9px; padding: 7px 9px; background: var(--surface-2); border-radius: var(--r-sm); }
+
+.khayt-range { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; border-radius: 0; background: var(--surface-3); outline: none; border: 1px solid var(--hairline); }
+.khayt-range::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 18px; border-radius: 0; background: var(--accent); cursor: pointer; border: 1px solid var(--bg); }
+.khayt-range::-moz-range-thumb { width: 14px; height: 18px; border-radius: 0; background: var(--accent); cursor: pointer; border: 1px solid var(--bg); }
+
+/* Clients */
+.khayt-client { transition: border-color .12s; }
+.khayt-client:hover { border-color: var(--accent-line); }
+.khayt-cavatar { width: 38px; height: 38px; border-radius: 0; display: grid; place-items: center; font-family: var(--font-mono); font-size: 12px; font-weight: 700; flex-shrink: 0; }
+
+/* responsive squeeze */
+@media (max-width: 1180px) {
+  .khayt-grid[style*="repeat(4"] { grid-template-columns: repeat(2, 1fr) !important; }
+}
