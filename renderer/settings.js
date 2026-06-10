@@ -680,27 +680,7 @@ function renderLanApiSettings() {
   }
 
   el.querySelector('#btnSaveLan')?.addEventListener('click', () => {
-    const prev = settings.lanApi || {};
-    settings.lanApi = {
-      ...prev,
-      enabled: el.querySelector('#lan_enabled').checked,
-      port: parseInt(el.querySelector('#lan_port').value) || 3219,
-      pin:  secretInputSave(prev.pin, el.querySelector('#lan_pin').value),
-      intakePin: secretInputSave(prev.intakePin, el.querySelector('#lan_intake_pin')?.value),
-      webhookToken: secretInputSave(prev.webhookToken, el.querySelector('#lan_wh_token').value),
-      sallaWebhookSecret: secretInputSave(prev.sallaWebhookSecret, el.querySelector('#lan_salla_secret')?.value),
-      zidWebhookSecret: secretInputSave(prev.zidWebhookSecret, el.querySelector('#lan_zid_secret')?.value),
-      tunnelEnabled: el.querySelector('#lan_tunnel_enabled').checked,
-      bindLan: !!el.querySelector('#lan_bind_lan')?.checked,
-    };
-    saveAll();
-    if (settings.lanApi.enabled) {
-      startLanServer();
-    } else {
-      window.hubAPI?.stopLanServer?.();
-      el.querySelector('#lanStatusRow').textContent = '⚫ Server stopped';
-      el.querySelector('#lanQrWrap').style.display = 'none';
-    }
+    saveLanApiSettingsFromForm({ restartServer: true });
     toast('LAN API settings saved', 'success');
   });
 
@@ -1403,6 +1383,40 @@ async function renderStorageUsage() {
   });
 }
 
+function saveLanApiSettingsFromForm({ restartServer = false } = {}) {
+  const section = document.getElementById('lanApiSection');
+  if (!section) return;
+  const prev = settings.lanApi || {};
+  settings.lanApi = {
+    ...prev,
+    enabled: section.querySelector('#lan_enabled')?.checked ?? prev.enabled,
+    port: parseInt(section.querySelector('#lan_port')?.value, 10) || 3219,
+    pin: secretInputSave(prev.pin, section.querySelector('#lan_pin')?.value),
+    intakePin: secretInputSave(prev.intakePin, section.querySelector('#lan_intake_pin')?.value),
+    webhookToken: secretInputSave(prev.webhookToken, section.querySelector('#lan_wh_token')?.value),
+    sallaWebhookSecret: secretInputSave(prev.sallaWebhookSecret, section.querySelector('#lan_salla_secret')?.value),
+    zidWebhookSecret: secretInputSave(prev.zidWebhookSecret, section.querySelector('#lan_zid_secret')?.value),
+    tunnelEnabled: !!section.querySelector('#lan_tunnel_enabled')?.checked,
+    bindLan: !!section.querySelector('#lan_bind_lan')?.checked,
+  };
+  if (!restartServer) return;
+  saveAll();
+  if (settings.lanApi.enabled) {
+    startLanServer?.();
+  } else {
+    window.hubAPI?.stopLanServer?.();
+    section.querySelector('#lanStatusRow').textContent = '⚫ Server stopped';
+    section.querySelector('#lanQrWrap').style.display = 'none';
+  }
+}
+
+function saveSettingsFromPanel() {
+  const onlineCb = document.getElementById('online_enabled');
+  if (onlineCb) settings.onlineEnabled = onlineCb.checked;
+  saveLanApiSettingsFromForm({ restartServer: false });
+  saveSettingsFromForm();
+}
+
 function saveSettingsFromForm() {
   const accepted = $$('#acceptedPaymentsList input[data-pm]')
     .filter(cb => cb.checked).map(cb => cb.dataset.pm);
@@ -1516,6 +1530,13 @@ function saveSettingsFromForm() {
     printerApi:         settings.printerApi          || {},
     locations:          settings.locations           || [],
     lanApi: (() => { migrateLanApiSettings(); return settings.lanApi || { enabled: false, port: 3219, pin: '' }; })(),
+    // Preserve fields not edited by this form — never silently drop them
+    onlineEnabled:        !!settings.onlineEnabled,
+    securityEnabled:      !!settings.securityEnabled,
+    recoveryCodeHash:     settings.recoveryCodeHash || '',
+    recoveryCodeCreatedAt: settings.recoveryCodeCreatedAt || '',
+    quoteNumYear:         settings.quoteNumYear ?? new Date().getFullYear(),
+    quoteNumNext:         settings.quoteNumNext ?? 1,
   };
   saveAll();
   i18n.set(settings.lang);
@@ -1969,6 +1990,8 @@ function renderTelegramSettings() {
     loadSettingsIntoForm,
     renderStorageUsage,
     saveSettingsFromForm,
+    saveSettingsFromPanel,
+    saveLanApiSettingsFromForm,
     openRestoreBackupModal,
     renderHolidayList,
     renderPostChecklistSettings,

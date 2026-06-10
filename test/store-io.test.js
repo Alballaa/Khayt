@@ -42,6 +42,15 @@ test('isStoreSecretMasked recognises mask token', () => {
   assert.equal(isStoreSecretMasked(''), false);
 });
 
+test('maskStoreSecretsForRenderer masks accessCode-only printer configs', () => {
+  const { maskStoreSecretsForRenderer } = makeStoreIo();
+  const data = {
+    machines: [{ id: 'm2', printerApi: { accessCode: 'code-only' } }],
+  };
+  maskStoreSecretsForRenderer(data);
+  assert.equal(data.machines[0].printerApi.accessCode, STORE_SECRET_MASK);
+});
+
 test('maskStoreSecretsForRenderer replaces sensitive fields', () => {
   const { maskStoreSecretsForRenderer } = makeStoreIo();
   const data = {

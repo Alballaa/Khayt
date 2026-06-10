@@ -1170,7 +1170,16 @@ function wireEvents() {
   });
 
   // Settings
-  $('#btnSaveSettings').addEventListener('click', saveSettingsFromForm);
+  $('#btnSaveSettings')?.addEventListener('click', saveSettingsFromForm);
+
+  // Settings panel Save buttons (Preferences, Stock, Invoice, Online, etc.)
+  document.addEventListener('click', (e) => {
+    const savePanel = e.target.closest('[data-act="save-settings-from-panel"]');
+    if (savePanel) {
+      (typeof saveSettingsFromPanel === 'function' ? saveSettingsFromPanel : saveSettingsFromForm)();
+      return;
+    }
+  });
 
   // Settings sidebar navigation
   document.addEventListener('click', e => {
