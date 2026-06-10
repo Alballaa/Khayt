@@ -11,6 +11,10 @@
   <link rel="stylesheet" href="themes/ledger/compat.css" />
   <link rel="stylesheet" href="themes/ledger/shell.css" />
   <link rel="stylesheet" href="themes/ledger/screens.css" />
+  <link rel="stylesheet" href="themes/console/tokens.css" />
+  <link rel="stylesheet" href="themes/console/compat.css" />
+  <link rel="stylesheet" href="themes/console/shell.css" />
+  <link rel="stylesheet" href="themes/console/screens.css" />
   <link rel="stylesheet" href="themes/theme-picker.css" />
   <link rel="stylesheet" href="themes/handoff-screens.css" />
   <link rel="stylesheet" href="studio/ds.css" />
@@ -127,6 +131,16 @@
             <span class="ledger-brandsub">خيط · Production Studio</span>
           </div>
         </div>
+        <div class="console-masthead-brand" aria-hidden="true">
+          <div class="console-mark"><b>خ</b></div>
+          <span class="console-brand-text">KHAYT<span class="console-ver">//STUDIO</span></span>
+        </div>
+        <div class="console-path" id="consoleCommandPath" aria-hidden="true">
+          <span class="sep">≫</span>
+          <span id="consolePathGroup"></span>
+          <span class="sep" id="consolePathSep" style="display:none">/</span>
+          <b id="consolePathCode">DSH</b>
+        </div>
         <div class="khayt-toptitle topbar-heading">
           <h2 class="topbar-title" id="topbarPageTitle" data-i18n="tab.dashboard">Dashboard</h2>
           <span class="dim mono" id="topbarPageSubtitle" style="font-size:12px"></span>
@@ -168,6 +182,13 @@
         <span class="ledger-pagesub" id="ledgerPageSubtitle"></span>
         <span class="grow"></span>
         <span class="ledger-stamp" id="ledgerLocationStamp"></span>
+      </div>
+
+      <div class="console-pagehead" id="consolePageHead" aria-hidden="true">
+        <h1 class="console-page-title" id="consolePageTitle" data-i18n="tab.dashboard">Dashboard</h1>
+        <span class="console-pagesub" id="consolePageSubtitle"></span>
+        <span class="grow"></span>
+        <span class="console-stamp" id="consoleLocationStamp"></span>
       </div>
 
       <main class="khayt-scroll content">
@@ -1892,6 +1913,14 @@
 
   </main>
     </div>
+
+    <div class="console-status" id="consoleStatusBar" aria-hidden="true">
+      <span class="item"><span class="dot" style="background:var(--ok)"></span> <span id="consoleStatusPrinters">—</span></span>
+      <span class="item"><span class="dot" style="background:var(--accent)"></span> <span id="consoleStatusQueue">—</span></span>
+      <span class="item" id="consoleStatusLocation"></span>
+      <span class="grow"></span>
+      <span class="item" id="consoleStatusClock"></span>
+    </div>
   </div>
 </div>
 
@@ -2081,6 +2110,7 @@
 <script src="themes/registry-core.js"></script>
 <script src="themes/custom-loader.js"></script>
 <script src="themes/ledger/shell.js"></script>
+<script src="themes/console/shell.js"></script>
 <script src="themes/theme-picker.js"></script>
 <script src="themes.js"></script>
 <script src="shell.js"></script>

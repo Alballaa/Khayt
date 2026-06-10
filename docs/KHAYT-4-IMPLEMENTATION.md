@@ -10,7 +10,7 @@ This document maps the **eight handoff directions** to the production theme syst
 |---------|------|--------|--------------------------|------------|---------------|
 | A | Production Studio | `khayt/` | `studio` | `studio` (sidebar) | **~75%** — shell, tokens, 5/6 screens |
 | B | Workshop Ledger | `alt/` | `ledger` | `ledger` (masthead + tabs) | **~40%** — shell strong, screens weak |
-| C | Control Room | `console/` | `console` | `console` (command bar + code rail) | Not started |
+| C | Control Room | `console/` | `console` | `console` (command bar + code rail) | **Shipped** — tokens, shell, screens, picker |
 | D | Atelier | `atelier/` | `atelier` | `atelier` (soft sidebar) | Not started |
 | E | Vitrine | `vitrine/` | `vitrine` | `vitrine` (glass sidebar) | Not started |
 | F | Cockpit | `cockpit/` | `cockpit` | `cockpit` (icon rail + ops layout) | Not started |
@@ -86,16 +86,17 @@ Run `node scripts/vendor-theme-fonts.mjs` after adding `@fontsource/*` deps.
 
 **Exit:** Switching Studio ↔ Ledger feels like two complete apps on all six handoff screens.
 
-### Phase 2 — Registry expansion + one new theme
+### Phase 2 — Registry expansion + one new theme — **Control Room complete**
 
-Pick **one** of C/D/E for first new built-in (recommend **Control Room** or **Atelier** — clearest differentiation from A/B).
+Shipped **Control Room** (`console`) as third selectable built-in:
 
-Per theme:
+1. ~~Port `console/ds.css` → `renderer/themes/console/tokens.css`~~
+2. ~~Port shell → `renderer/themes/console/shell.css` + `shell.js` (`KhaytConsoleShell`)~~
+3. ~~Register in `registry-core.js`, locale keys, IBM Plex Sans + JetBrains Mono fonts~~
+4. ~~Handoff screens via `body.khayt-handoff` + `screens.css`~~
+5. Preview: `themes/previews/console.png` via `npm run capture:theme-previews`
 
-1. Port `*/ds.css` tokens → `renderer/themes/<id>/tokens.css`
-2. Port shell (`*/shell.jsx` + `shell.css`) → vanilla JS shell module
-3. Register in `registry-core.js`, locale keys, preview image
-4. Lazy-load stylesheets per active theme
+**Remaining Phase 2+:** Atelier, Vitrine (same checklist per theme).
 
 ### Phase 3 — Remaining A–E themes
 

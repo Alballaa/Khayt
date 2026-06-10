@@ -286,6 +286,9 @@ function switchTab(tabId) {
   if (typeof KhaytLedgerShell?.syncLedgerPageHead === 'function') {
     KhaytLedgerShell.syncLedgerPageHead(tabId);
   }
+  if (typeof KhaytConsoleShell?.syncConsolePageHead === 'function') {
+    KhaytConsoleShell.syncConsolePageHead(tabId);
+  }
 
   if (tabId === 'dashboard-tab')  renderDashboard();
   if (tabId === 'expenses-tab')   { renderExpenses(); populateExpOrderDatalist(); }

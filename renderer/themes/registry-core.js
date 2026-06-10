@@ -17,6 +17,13 @@
     cyan:        { h: 189, s: '80%', l: '38%', labelKey: 'theme.accent.filament_cyan' },
   };
 
+  const CONSOLE_ACCENTS = {
+    signal: { h: 135, s: '62%', l: '52%', labelKey: 'theme.accent.signal' },
+    amber:  { h: 42,  s: '92%', l: '54%', labelKey: 'theme.accent.amber' },
+    cyan:   { h: 187, s: '76%', l: '53%', labelKey: 'theme.accent.cyan' },
+    white:  { h: 90,  s: '6%',  l: '88%', labelKey: 'theme.accent.white' },
+  };
+
   /** Shell types that share the Khayt handoff six-screen layer (A–E family). */
   const HANDOFF_SCREEN_SHELLS = ['studio', 'ledger', 'console', 'atelier', 'vitrine'];
 
@@ -24,20 +31,8 @@
     return HANDOFF_SCREEN_SHELLS.includes(shell);
   }
 
-  /** Reserved built-ins — Khayt-4 directions C–F (v1 picker shows all six). */
+  /** Reserved built-ins — Khayt-4 directions D–F (v1 picker shows all six). */
   const RESERVED_THEMES = {
-    console: {
-      labelKey: 'theme.design.console',
-      descKey: 'theme.design.console_desc',
-      shell: 'console',
-      enabled: false,
-      comingSoon: true,
-      defaultAccent: 'signal',
-      accents: { signal: { h: 135, s: '62%', l: '52%', labelKey: 'theme.accent.signal' } },
-      defaultAppearance: 'dark',
-      bodyClass: 'khayt-console',
-      stylesheets: [],
-    },
     atelier: {
       labelKey: 'theme.design.atelier',
       descKey: 'theme.design.atelier_desc',
@@ -111,6 +106,23 @@
         'themes/ledger/compat.css',
         'themes/ledger/shell.css',
         'themes/ledger/screens.css',
+      ],
+    },
+    console: {
+      labelKey: 'theme.design.console',
+      descKey: 'theme.design.console_desc',
+      preview: 'themes/previews/console.png',
+      shell: 'console',
+      enabled: true,
+      defaultAccent: 'signal',
+      accents: CONSOLE_ACCENTS,
+      defaultAppearance: 'dark',
+      bodyClass: 'khayt-console',
+      stylesheets: [
+        'themes/console/tokens.css',
+        'themes/console/compat.css',
+        'themes/console/shell.css',
+        'themes/console/screens.css',
       ],
     },
   };
@@ -237,6 +249,7 @@
   const api = {
     STUDIO_ACCENTS,
     LEDGER_ACCENTS,
+    CONSOLE_ACCENTS,
     BUILTIN_THEMES,
     RESERVED_THEMES,
     registry,

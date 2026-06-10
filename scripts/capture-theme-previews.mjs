@@ -18,6 +18,7 @@ const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'khayt-theme-previews-'))
 const THEMES = [
   { id: 'studio', appearance: 'dark', file: 'studio.png' },
   { id: 'ledger', appearance: 'light', file: 'ledger.png' },
+  { id: 'console', appearance: 'dark', file: 'console.png' },
 ];
 
 const VIEWPORT = { width: 1280, height: 800 };

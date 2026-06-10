@@ -35,6 +35,7 @@
     if (!sub) return;
     const theme = reg()?.getTheme(designId);
     if (theme?.shell === 'ledger') sub.textContent = 'خيط · LEDGER';
+    else if (theme?.shell === 'console') sub.textContent = 'خيط · CONTROL ROOM';
     else if (theme?.custom) sub.textContent = `خيط · ${(theme.label || designId).toUpperCase()}`;
     else sub.textContent = 'خيط · STUDIO';
   }
@@ -60,6 +61,7 @@
     const shell = theme?.shell || 'studio';
     document.body.classList.toggle('khayt-studio', shell === 'studio');
     document.body.classList.toggle('khayt-ledger', shell === 'ledger');
+    document.body.classList.toggle('khayt-console', shell === 'console');
     document.body.classList.toggle('khayt-shell-default', shell === 'default');
     document.body.classList.toggle('khayt-handoff', reg()?.usesHandoffScreens?.(shell) === true);
 
@@ -67,7 +69,7 @@
       el.classList.remove(el.dataset.khaytBodyClass);
       delete el.dataset.khaytBodyClass;
     });
-    if (theme?.bodyClass && !['khayt-studio', 'khayt-ledger'].includes(theme.bodyClass)) {
+    if (theme?.bodyClass && !['khayt-studio', 'khayt-ledger', 'khayt-console'].includes(theme.bodyClass)) {
       document.body.classList.add(theme.bodyClass);
       document.body.dataset.khaytBodyClass = theme.bodyClass;
     }
@@ -78,9 +80,12 @@
     const theme = reg()?.getTheme(id);
     const root = document.documentElement;
     const wasLedger = document.body.classList.contains('khayt-ledger');
-    const isLedger = theme?.shell === 'ledger';
+    const wasConsole = document.body.classList.contains('khayt-console');
+    const nextShell = theme?.shell || 'studio';
 
-    if (isLedger) document.getElementById('appSidebar')?.classList.remove('collapsed');
+    if (nextShell === 'ledger' || nextShell === 'console') {
+      document.getElementById('appSidebar')?.classList.remove('collapsed');
+    }
 
     root.dataset.design = id;
     loadCustomThemeStyles(theme);
@@ -91,11 +96,10 @@
       if (settings.accent !== accent) settings.accent = accent;
       applyAccent(accent, reg()?.accentsForTheme(id));
     }
-    if (isLedger) {
-      global.KhaytLedgerShell?.applyLedgerShell?.();
-    } else if (wasLedger) {
-      global.KhaytLedgerShell?.teardownLedgerShell?.();
-    }
+    if (wasLedger) global.KhaytLedgerShell?.teardownLedgerShell?.();
+    if (wasConsole) global.KhaytConsoleShell?.teardownConsoleShell?.();
+    if (nextShell === 'ledger') global.KhaytLedgerShell?.applyLedgerShell?.();
+    if (nextShell === 'console') global.KhaytConsoleShell?.applyConsoleShell?.();
     if (reg()?.usesHandoffScreens?.(theme?.shell)) {
       global.KhaytStudio?.init?.();
       if (typeof renderDashboard === 'function') renderDashboard();
@@ -168,6 +172,7 @@
     ACCENTS: reg()?.STUDIO_ACCENTS,
     STUDIO_ACCENTS: reg()?.STUDIO_ACCENTS,
     LEDGER_ACCENTS: reg()?.LEDGER_ACCENTS,
+    CONSOLE_ACCENTS: reg()?.CONSOLE_ACCENTS,
   };
 
   Object.assign(global, api);

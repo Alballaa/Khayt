@@ -722,6 +722,8 @@
   "theme.design.cockpit": "Cockpit",
   "theme.design.cockpit_desc": "Ops cockpit — fleet timeline and attention feed.",
   "theme.accent.signal": "Signal green",
+  "theme.accent.amber": "Console amber",
+  "theme.accent.white": "Monochrome",
   "theme.accent.clay": "Clay",
   "theme.accent.glow": "Glow cyan",
   "theme.accent.electric": "Electric blue",
