@@ -62,7 +62,7 @@ function buildStudioDashboardPanels(ctx) {
     machines, printLog, nowPrinting, overdue, staleOrders, expiringQuotes,
     dueSoon, today, inventory, settings,
   } = ctx;
-  if (!document.body.classList.contains('khayt-studio')) return '';
+  if (!document.body.classList.contains('khayt-handoff')) return '';
 
   if (settings.mode === 'simple') {
     const intakeCount = waitingList.filter((w) => w.status === 'active' || w.status === 'reminded').length;
@@ -837,7 +837,7 @@ function studioSparkSvg(data, w, h, color) {
 
 function renderDashKpiRow(ctx) {
   const { active, overdue, todayRev, receivables, revDeltaPct, sparkData } = ctx;
-  if (!document.body.classList.contains('khayt-studio')) return '';
+  if (!document.body.classList.contains('khayt-handoff')) return '';
 
   const deltaChip = (pct) => {
     if (pct === null || pct === undefined) return '';

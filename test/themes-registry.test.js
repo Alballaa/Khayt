@@ -13,14 +13,22 @@ test('reserved themes are not selectable', () => {
   const selectable = reg.listSelectableThemes();
   assert.ok(selectable.includes('studio'));
   assert.ok(selectable.includes('ledger'));
-  assert.ok(!selectable.includes('blueprint'));
-  assert.ok(!selectable.includes('atlas'));
+  assert.ok(!selectable.includes('console'));
+  assert.ok(!selectable.includes('cockpit'));
 });
 
-test('coming soon lists reserved themes', () => {
+test('coming soon lists reserved Khayt-4 themes', () => {
   const soon = reg.listComingSoonThemes();
-  assert.ok(soon.includes('blueprint'));
-  assert.ok(soon.includes('atlas'));
+  assert.ok(soon.includes('console'));
+  assert.ok(soon.includes('atelier'));
+  assert.ok(soon.includes('vitrine'));
+  assert.ok(soon.includes('cockpit'));
+});
+
+test('usesHandoffScreens covers studio and ledger shells', () => {
+  assert.equal(reg.usesHandoffScreens('studio'), true);
+  assert.equal(reg.usesHandoffScreens('ledger'), true);
+  assert.equal(reg.usesHandoffScreens('cockpit'), false);
 });
 
 test('validateCustomManifest catches invalid ids', () => {

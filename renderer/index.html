@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="themes/ledger/shell.css" />
   <link rel="stylesheet" href="themes/ledger/screens.css" />
   <link rel="stylesheet" href="themes/theme-picker.css" />
+  <link rel="stylesheet" href="themes/handoff-screens.css" />
   <link rel="stylesheet" href="studio/ds.css" />
   <link rel="stylesheet" href="studio/shell.css" />
   <link rel="stylesheet" href="studio/screens.css" />
@@ -737,7 +738,9 @@
       <div id="analyticsSimpleWrap" style="display:none;"></div>
       <div id="analyticsProWrap">
 
-      <div class="grid-4">
+      <div id="analyticsHandoffWrap" class="analytics-handoff-only col gap16" aria-live="polite"></div>
+
+      <div class="grid-4 analytics-legacy-hero">
         <div class="stat revenue">
           <div class="stat-label" data-i18n="an.revenue">Revenue</div>
           <div class="stat-value"><span id="stat-revenue">0.00</span><span class="unit" data-i18n="common.currency">SAR</span></div>

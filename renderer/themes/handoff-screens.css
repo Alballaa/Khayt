@@ -1,0 +1,149 @@
+/* Shared handoff screen polish — Studio + Ledger (+ future A–E themes) */
+
+body.khayt-handoff .dash-stats-secondary { display: none; }
+
+body.khayt-handoff .dash-section,
+body.khayt-handoff .dash-goal,
+body.khayt-handoff .dash-low-stock {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg, var(--radius));
+  padding: var(--pad-card, 16px);
+  margin-bottom: var(--gap, 16px);
+}
+
+body.khayt-handoff .kanban.khayt-kanban,
+body.khayt-handoff .khayt-kanban {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(216px, 1fr));
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  align-items: start;
+}
+
+body.khayt-handoff .kanban-col.khayt-kcol {
+  background: var(--bg-2);
+  border: 1px solid var(--hairline, var(--border));
+  border-radius: var(--r-lg, var(--radius));
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+  border-top-width: 1px !important;
+}
+
+body.khayt-handoff .kanban-card.khayt-kcard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md, var(--radius-sm));
+  padding: 12px;
+  cursor: grab;
+  transition: border-color .14s, transform .08s, box-shadow .14s;
+}
+
+body.khayt-handoff .kanban-card.khayt-kcard:hover {
+  border-color: var(--border-2, var(--border));
+  box-shadow: var(--shadow-2);
+  transform: translateY(-1px);
+}
+
+body.khayt-handoff #clientsTableWrap.khayt-clients-legacy-hidden,
+body.khayt-handoff #invValuationSummary { display: none !important; }
+
+body.khayt-handoff #inventoryTable thead th {
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+body.khayt-handoff .card.summary #costBreakdown.khayt-bd-legacy-hidden {
+  display: none !important;
+}
+
+body.khayt-handoff .khayt-queue-toolbar {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+body.khayt-handoff .khayt-client-card { padding: var(--pad-card, 16px); }
+
+body.khayt-handoff .khayt-cavatar {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-md, var(--radius-sm));
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+body.khayt-handoff .kanban-col > h3 .count {
+  font-family: var(--font-mono, var(--font-num));
+  font-size: 10.5px;
+  padding: 1px 7px;
+  border-radius: 100px;
+  background: var(--surface-2);
+  margin-inline-start: 6px;
+}
+
+body.khayt-handoff .analytics-legacy-hero { display: none !important; }
+
+body.khayt-handoff .analytics-handoff-only { display: block !important; }
+
+.analytics-handoff-only { display: none; }
+
+body.khayt-handoff #analyticsHandoffWrap .khayt-an-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+body.khayt-handoff #analyticsHandoffWrap .eyebrow {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+body.khayt-handoff #analyticsHandoffWrap .metric {
+  font-family: var(--font-mono, var(--font-num));
+  font-feature-settings: "tnum" 1;
+}
+
+body.khayt-handoff #analyticsHandoffWrap .meter {
+  height: 8px;
+  background: var(--surface-2, var(--bg-2));
+  border: 1px solid var(--border);
+  border-radius: var(--r-xs, 3px);
+  overflow: hidden;
+}
+
+body.khayt-handoff #analyticsHandoffWrap .meter > i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+body.khayt-handoff #analyticsHandoffWrap .heatmap-mini {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 4px;
+}
+
+body.khayt-handoff #analyticsHandoffWrap .heatmap-mini span {
+  aspect-ratio: 1;
+  border-radius: 3px;
+}
+
+@media (max-width: 1100px) {
+  body.khayt-handoff .khayt-an-grid-2 { grid-template-columns: 1fr !important; }
+  body.khayt-handoff .khayt-an-kpis { grid-template-columns: repeat(2, 1fr) !important; }
+}

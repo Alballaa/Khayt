@@ -75,15 +75,16 @@ Run `node scripts/vendor-theme-fonts.mjs` after adding `@fontsource/*` deps.
 - [ ] This implementation plan
 - [ ] Align `docs/THEMES.md` with Khayt-4 naming
 
-### Phase 1 — Finish A + B (ship what users can pick today)
+### Phase 1 — Finish A + B (ship what users can pick today) — **in progress**
 
 Priority: complete Studio + Ledger before adding new themes.
 
-1. Scope `renderer/studio/ds.css` to `html[data-design="studio"]` (stop Ledger bleed)
-2. Theme-agnostic screen layer — Ledger gets same KPI/queue/calc/inventory/clients polish as Studio
-3. Analytics screen (`khayt/analytics.jsx` → `renderer/analytics.js`)
-4. App-only tabs: Catalog, Expenses, Waste, Orders, Gift Cards, Portfolio, Settings sub-nav
-5. Theme preview PNGs for studio + ledger (`npm run capture:theme-previews`)
+1. ~~Theme-agnostic screen layer (`body.khayt-handoff`, `KhaytStudio.useHandoffScreens()`)~~ — **done**
+2. ~~Ledger gets KPI/queue/calc/inventory/clients polish~~ — **done**
+3. ~~Handoff analytics overview (KPI row, machine P&L, heatmap, top clients)~~ — **done**
+4. Scope `renderer/studio/ds.css` to `html[data-design="studio"]` (stop Ledger bleed) — pending
+5. App-only tabs: Catalog, Expenses, Waste, Orders, Gift Cards, Portfolio, Settings sub-nav — pending
+6. Theme preview PNGs for studio + ledger — done (committed)
 
 **Exit:** Switching Studio ↔ Ledger feels like two complete apps on all six handoff screens.
 

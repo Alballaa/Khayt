@@ -17,30 +17,61 @@
     cyan:        { h: 189, s: '80%', l: '38%', labelKey: 'theme.accent.filament_cyan' },
   };
 
-  /** Reserved built-ins — enable when art direction lands. */
+  /** Shell types that share the Khayt handoff six-screen layer (A–E family). */
+  const HANDOFF_SCREEN_SHELLS = ['studio', 'ledger', 'console', 'atelier', 'vitrine'];
+
+  function usesHandoffScreens(shell) {
+    return HANDOFF_SCREEN_SHELLS.includes(shell);
+  }
+
+  /** Reserved built-ins — Khayt-4 directions C–F (v1 picker shows all six). */
   const RESERVED_THEMES = {
-    blueprint: {
-      labelKey: 'theme.design.blueprint',
-      descKey: 'theme.design.blueprint_desc',
-      shell: 'studio',
+    console: {
+      labelKey: 'theme.design.console',
+      descKey: 'theme.design.console_desc',
+      shell: 'console',
       enabled: false,
       comingSoon: true,
-      defaultAccent: 'cyan',
-      accents: STUDIO_ACCENTS,
+      defaultAccent: 'signal',
+      accents: { signal: { h: 135, s: '62%', l: '52%', labelKey: 'theme.accent.signal' } },
       defaultAppearance: 'dark',
-      bodyClass: 'khayt-blueprint',
+      bodyClass: 'khayt-console',
       stylesheets: [],
     },
-    atlas: {
-      labelKey: 'theme.design.atlas',
-      descKey: 'theme.design.atlas_desc',
-      shell: 'ledger',
+    atelier: {
+      labelKey: 'theme.design.atelier',
+      descKey: 'theme.design.atelier_desc',
+      shell: 'atelier',
       enabled: false,
       comingSoon: true,
-      defaultAccent: 'safety',
-      accents: LEDGER_ACCENTS,
+      defaultAccent: 'clay',
+      accents: { clay: { h: 18, s: '55%', l: '47%', labelKey: 'theme.accent.clay' } },
       defaultAppearance: 'light',
-      bodyClass: 'khayt-atlas',
+      bodyClass: 'khayt-atelier',
+      stylesheets: [],
+    },
+    vitrine: {
+      labelKey: 'theme.design.vitrine',
+      descKey: 'theme.design.vitrine_desc',
+      shell: 'vitrine',
+      enabled: false,
+      comingSoon: true,
+      defaultAccent: 'glow',
+      accents: { glow: { h: 187, s: '80%', l: '60%', labelKey: 'theme.accent.glow' } },
+      defaultAppearance: 'dark',
+      bodyClass: 'khayt-vitrine',
+      stylesheets: [],
+    },
+    cockpit: {
+      labelKey: 'theme.design.cockpit',
+      descKey: 'theme.design.cockpit_desc',
+      shell: 'cockpit',
+      enabled: false,
+      comingSoon: true,
+      defaultAccent: 'electric',
+      accents: { electric: { h: 224, s: '88%', l: '54%', labelKey: 'theme.accent.electric' } },
+      defaultAppearance: 'light',
+      bodyClass: 'khayt-cockpit',
       stylesheets: [],
     },
   };
@@ -222,6 +253,8 @@
     validateCustomManifest,
     registerCustomTheme,
     registerBuiltinTheme,
+    HANDOFF_SCREEN_SHELLS,
+    usesHandoffScreens,
   };
 
   Object.assign(global, api);

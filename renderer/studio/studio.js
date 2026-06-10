@@ -6,6 +6,10 @@
     return document.body.classList.contains('khayt-studio');
   }
 
+  function useHandoffScreens() {
+    return document.body.classList.contains('khayt-handoff');
+  }
+
   function prefGet(key, fallback) {
     try {
       const v = localStorage.getItem(PREF + key);
@@ -161,7 +165,7 @@
 
   function initStudioCalculatorLayout() {
     const tab = $('#calculator-tab');
-    if (!tab || !isStudio()) return;
+    if (!tab || !useHandoffScreens()) return;
     if (tab.querySelector('.khayt-calc-layout')) return;
     const grid = tab.querySelector('.grid');
     if (!grid) return;
@@ -196,7 +200,7 @@
   };
 
   function ensureCalcStudioPanel() {
-    if (!isStudio()) return;
+    if (!useHandoffScreens()) return;
     const summary = document.querySelector('#calculator-tab .card.summary');
     if (!summary || summary.querySelector('#calcStudioBreakdown')) return;
     const liveLine = summary.querySelector('.live-line');
@@ -236,7 +240,7 @@
   }
 
   function updateCalcBreakdown(bd, opts) {
-    if (!isStudio()) return;
+    if (!useHandoffScreens()) return;
     ensureCalcStudioPanel();
     const panel = $('#calcStudioBreakdown');
     const host = $('#calcDonutHost');
@@ -296,7 +300,7 @@
   }
 
   function patchInventoryTableHead() {
-    if (!isStudio()) return;
+    if (!useHandoffScreens()) return;
     const table = $('#inventoryTable');
     if (!table) return;
     table.classList.add('tbl');
@@ -343,7 +347,7 @@
   }
 
   function renderInventoryRow(item, ctx) {
-    if (!isStudio()) return null;
+    if (!useHandoffScreens()) return null;
     const { forecastMap = {}, todayMs = Date.now() } = ctx || {};
     const low = item.weight <= (item.reorderPoint ?? settings.lowStockThreshold);
     const queued = Math.round(getQueuedWeight(item.id));
@@ -555,7 +559,7 @@
     return fold;
   }
   function initQueueStudioFolds() {
-    if (!isStudio()) return;
+    if (!useHandoffScreens()) return;
     const quotes = $('#quotesSection');
     if (quotes) {
       wrapQueueFold(quotes, 'quotes', 'queue.quotes_awaiting', () => printLog.filter(o => o.status === 'quote').length);
@@ -564,13 +568,13 @@
   }
 
   function syncQueueFolds() {
-    if (!isStudio()) return;
+    if (!useHandoffScreens()) return;
     document.querySelectorAll('.khayt-fold[data-fold-key="quotes"]').forEach(f => f._syncCount?.());
     document.querySelectorAll('.khayt-fold[data-fold-key="waiting"]').forEach(f => f._syncCount?.());
   }
 
   function initPhase5() {
-    if (!isStudio()) return;
+    if (!useHandoffScreens()) return;
     patchInventoryTableHead();
     ensureCalcStudioPanel();
     initQueueStudioFolds();
@@ -578,7 +582,7 @@
 
   function renderInventoryStudioStats() {
     const el = $('#invStudioStats');
-    if (!el || !isStudio()) return;
+    if (!el || !useHandoffScreens()) return;
     if (!inventory.length) {
       el.style.display = 'none';
       el.setAttribute('aria-hidden', 'true');
@@ -637,7 +641,7 @@
   function renderClientsStudioCards(filtered, maps) {
     const grid = $('#clientsCardsGrid');
     const tableWrap = $('#clientsTableWrap');
-    if (!grid || !isStudio()) return false;
+    if (!grid || !useHandoffScreens()) return false;
 
     const { clientStatsMap, clientBalanceMap, clientTierMap, clientSurveyMap } = maps;
     const tierColor = { Gold: 'var(--warn)', Silver: '#aeb6c4', Bronze: '#c08457' };
@@ -728,7 +732,7 @@
   }
 
   function patchInitAppShellKanbanCols() {
-    if (!isStudio()) return;
+    if (!useHandoffScreens()) return;
     $$('.kanban-col').forEach(col => {
       col.classList.add('khayt-kcol');
       const list = col.querySelector('[id^="list-"]');
@@ -737,9 +741,11 @@
   }
 
   function init() {
-    if (!isStudio()) return;
-    window.KhaytIcon?.hydrateNav?.();
-    window.KhaytIcon?.hydrateTopbar?.();
+    if (!useHandoffScreens()) return;
+    if (isStudio()) {
+      window.KhaytIcon?.hydrateNav?.();
+      window.KhaytIcon?.hydrateTopbar?.();
+    }
     wireStudioQueueFilters();
     wireStudioClientFilters();
     initStudioCalculatorLayout();
@@ -750,6 +756,7 @@
 
   window.KhaytStudio = {
     isStudio,
+    useHandoffScreens,
     init,
     initPhase5,
     syncQueueMachinePicker,

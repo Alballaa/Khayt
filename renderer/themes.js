@@ -61,6 +61,7 @@
     document.body.classList.toggle('khayt-studio', shell === 'studio');
     document.body.classList.toggle('khayt-ledger', shell === 'ledger');
     document.body.classList.toggle('khayt-shell-default', shell === 'default');
+    document.body.classList.toggle('khayt-handoff', reg()?.usesHandoffScreens?.(shell) === true);
 
     document.querySelectorAll('[data-khayt-body-class]').forEach((el) => {
       el.classList.remove(el.dataset.khaytBodyClass);
@@ -94,6 +95,13 @@
       global.KhaytLedgerShell?.applyLedgerShell?.();
     } else if (wasLedger) {
       global.KhaytLedgerShell?.teardownLedgerShell?.();
+    }
+    if (reg()?.usesHandoffScreens?.(theme?.shell)) {
+      global.KhaytStudio?.init?.();
+      if (typeof renderDashboard === 'function') renderDashboard();
+      if (typeof renderKanban === 'function') renderKanban();
+      if (typeof renderClients === 'function') renderClients();
+      if (typeof renderInventory === 'function') renderInventory();
     }
   }
 
