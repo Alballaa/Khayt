@@ -116,6 +116,9 @@
     const comingSoonEl = document.getElementById('set_designTheme_coming_soon');
     const design = reg()?.normalizeDesignId(settings?.designTheme || 'studio') || 'studio';
     if (designEl) designEl.value = design;
+    if (document.getElementById('set_designThemePicker')) {
+      global.KhaytThemePicker?.mountSettingsPicker?.();
+    }
     populateAccentSelect(design);
     const accent = reg()?.normalizeAccent(design, settings?.accent);
     if (accentEl) accentEl.value = accent;
@@ -129,38 +132,8 @@
   }
 
   function populateDesignSelects() {
-    const designEl = document.getElementById('set_designTheme');
-    if (!designEl || !reg()) return;
-
-    const selectable = reg().listSelectableThemes();
-    const comingSoon = reg().listComingSoonThemes();
-    let html = '<optgroup label="' + escapeHtml(tr('theme.design.group_builtin', 'Built-in')) + '">';
-    html += selectable.filter((id) => !reg().isCustomThemeId(id)).map((id) => {
-      const theme = reg().getTheme(id);
-      return `<option value="${escapeHtml(id)}">${escapeHtml(themeLabel(theme, id))}</option>`;
-    }).join('');
-    html += '</optgroup>';
-
-    const custom = selectable.filter((id) => reg().isCustomThemeId(id));
-    if (custom.length) {
-      html += '<optgroup label="' + escapeHtml(tr('theme.design.group_custom', 'Community')) + '">';
-      html += custom.map((id) => {
-        const theme = reg().getTheme(id);
-        return `<option value="${escapeHtml(id)}">${escapeHtml(themeLabel(theme, id))}</option>`;
-      }).join('');
-      html += '</optgroup>';
-    }
-
-    if (comingSoon.length) {
-      html += '<optgroup label="' + escapeHtml(tr('theme.design.group_soon', 'Coming soon')) + '">';
-      html += comingSoon.map((id) => {
-        const theme = reg().getTheme(id);
-        return `<option value="${escapeHtml(id)}" disabled>${escapeHtml(themeLabel(theme, id))}</option>`;
-      }).join('');
-      html += '</optgroup>';
-    }
-
-    designEl.innerHTML = html;
+    if (!reg()) return;
+    global.KhaytThemePicker?.mountSettingsPicker?.();
     populateAccentSelect(reg().normalizeDesignId(settings?.designTheme || 'studio'));
   }
 

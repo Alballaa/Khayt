@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="themes/ledger/compat.css" />
   <link rel="stylesheet" href="themes/ledger/shell.css" />
   <link rel="stylesheet" href="themes/ledger/screens.css" />
+  <link rel="stylesheet" href="themes/theme-picker.css" />
   <link rel="stylesheet" href="studio/ds.css" />
   <link rel="stylesheet" href="studio/shell.css" />
   <link rel="stylesheet" href="studio/screens.css" />
@@ -1396,16 +1397,17 @@
 
         <div class="settings-section-head" data-i18n="set.language">Language & Theme</div>
         <p class="settings-panel-hint" data-i18n="set.lang_theme_auto">Language, appearance, and design apply immediately when changed.</p>
+        <div style="margin-bottom:12px;">
+          <label data-i18n="theme.design.label">Design</label>
+          <input type="hidden" id="set_designTheme" value="studio" />
+          <div id="set_designThemePicker" class="theme-picker" aria-describedby="set_designTheme_hint"></div>
+          <p id="set_designTheme_hint" class="settings-field-hint" data-i18n="theme.design.studio_desc">Filament cyan instrument UI — warm-paper light mode.</p>
+          <p id="set_designTheme_coming_soon" class="settings-field-hint muted" style="margin-top:6px"></p>
+          <p class="settings-field-hint" style="margin-top:8px">
+            <a href="#" id="set_customThemeHelp" data-i18n="theme.design.custom_help">Create your own theme →</a>
+          </p>
+        </div>
         <div class="inline-pair" style="margin-bottom:12px;">
-          <div>
-            <label for="set_designTheme" data-i18n="theme.design.label">Design</label>
-            <select id="set_designTheme" aria-describedby="set_designTheme_hint"></select>
-            <p id="set_designTheme_hint" class="settings-field-hint" data-i18n="theme.design.studio_desc">Studio — filament cyan instrument UI from the redesign.</p>
-            <p id="set_designTheme_coming_soon" class="settings-field-hint muted" style="margin-top:6px"></p>
-            <p class="settings-field-hint" style="margin-top:8px">
-              <a href="#" id="set_customThemeHelp" data-i18n="theme.design.custom_help">Create your own theme →</a>
-            </p>
-          </div>
           <div id="set_accent_wrap">
             <label for="set_accent" data-i18n="theme.accent.label">Accent color</label>
             <select id="set_accent"></select>
@@ -1920,8 +1922,16 @@
       <button type="button" class="btn btn-primary wizard-next" data-next="2" data-i18n="wiz.continue">Continue →</button>
     </div>
 
-    <!-- Step 2: Security (optional PIN) -->
+    <!-- Step 2: Design theme -->
     <div class="wizard-step" id="wiz-step-2" style="display:none">
+      <h2 class="wizard-title" data-i18n="wiz.design_title">Choose your look</h2>
+      <p class="wizard-subtitle" data-i18n="wiz.design_subtitle">Pick the visual style that fits your shop. You can change it anytime in Settings.</p>
+      <div id="wizDesignThemePicker" class="theme-picker"></div>
+      <button type="button" class="btn btn-primary wizard-next" data-next="3" data-i18n="wiz.continue">Continue →</button>
+    </div>
+
+    <!-- Step 3: Security (optional PIN) -->
+    <div class="wizard-step" id="wiz-step-3" style="display:none">
       <div id="wizSecuritySetup">
         <h2 class="wizard-title" data-i18n="sec.wiz_title">Protect your shop (optional)</h2>
         <p class="wizard-subtitle" data-i18n="sec.wiz_subtitle">Set an admin PIN to guard Settings, data reset, and operator switching. You can skip and enable later.</p>
@@ -1935,7 +1945,7 @@
           <p id="wizPinError" style="color:var(--danger);font-size:12px;min-height:18px;margin-top:8px;"></p>
         </div>
         <div class="btn-row" style="justify-content:center;gap:10px;margin-top:8px;">
-          <button type="button" class="btn ghost" id="wizSecuritySkip" data-i18n="sec.skip">Skip for now</button>
+          <button type="button" class="btn ghost" id="wizSecuritySkip" data-next="4" data-i18n="sec.skip">Skip for now</button>
           <button type="button" class="btn btn-primary" id="wizSecurityContinue" data-i18n="sec.set_pin">Set PIN →</button>
         </div>
       </div>
@@ -1951,31 +1961,31 @@
           <input type="checkbox" id="wizRecoverySaved" style="width:auto;margin-top:3px;">
           <span data-i18n="sec.recovery_saved">I have saved this recovery code in a safe place</span>
         </label>
-        <button type="button" class="btn btn-primary wizard-next" data-next="3" id="wizRecoveryContinue" disabled style="margin-top:12px;" data-i18n="wiz.continue">Continue →</button>
+        <button type="button" class="btn btn-primary wizard-next" data-next="4" id="wizRecoveryContinue" disabled style="margin-top:12px;" data-i18n="wiz.continue">Continue →</button>
       </div>
     </div>
 
-    <!-- Step 3: Business type -->
-    <div class="wizard-step" id="wiz-step-3" style="display:none">
+    <!-- Step 4: Business type -->
+    <div class="wizard-step" id="wiz-step-4" style="display:none">
       <h2 class="wizard-title" data-i18n="wiz.business_type">How do you use Khayt?</h2>
       <p class="wizard-subtitle" data-i18n="wiz.mode_hint">This sets your starting experience. You can change it anytime in Settings.</p>
       <div class="wizard-options">
-        <button type="button" class="wizard-option selected" data-mode="simple" data-next="4" data-wiz-default="1">
+        <button type="button" class="wizard-option selected" data-mode="simple" data-next="5" data-wiz-default="1">
           <span class="wizard-option-icon" aria-hidden="true">👤</span>
           <strong data-i18n="wiz.option_solo">Solo maker</strong>
           <span data-i18n="wiz.option_solo_desc">Just me — quoting, invoicing, tracking jobs</span>
         </button>
-        <button type="button" class="wizard-option" data-mode="simple" data-next="4">
+        <button type="button" class="wizard-option" data-mode="simple" data-next="5">
           <span class="wizard-option-icon" aria-hidden="true">🏪</span>
           <strong data-i18n="wiz.option_shop">Small shop</strong>
           <span data-i18n="wiz.option_shop_desc">1–3 printers, occasional staff help</span>
         </button>
-        <button type="button" class="wizard-option" data-mode="professional" data-next="4">
+        <button type="button" class="wizard-option" data-mode="professional" data-next="5">
           <span class="wizard-option-icon" aria-hidden="true">🏭</span>
           <strong data-i18n="wiz.option_farm">Print farm</strong>
           <span data-i18n="wiz.option_farm_desc">4+ printers, multiple operators, analytics-driven</span>
         </button>
-        <button type="button" class="wizard-option" data-mode="professional" data-next="4">
+        <button type="button" class="wizard-option" data-mode="professional" data-next="5">
           <span class="wizard-option-icon" aria-hidden="true">🏢</span>
           <strong data-i18n="wiz.option_b2b">Company / B2B</strong>
           <span data-i18n="wiz.option_b2b_desc">Corporate clients, VAT invoicing, multi-location</span>
@@ -1983,8 +1993,8 @@
       </div>
     </div>
 
-    <!-- Step 4: Business details -->
-    <div class="wizard-step" id="wiz-step-4" style="display:none">
+    <!-- Step 5: Business details -->
+    <div class="wizard-step" id="wiz-step-5" style="display:none">
       <h2 class="wizard-title" data-i18n="wiz.details_title">Your business details</h2>
       <p class="wizard-subtitle" data-i18n="wiz.details_subtitle">Used on invoices and documents. Edit anytime in Settings.</p>
       <div class="wizard-form">
@@ -2024,6 +2034,7 @@
     <span class="wizard-dot" data-step="2"></span>
     <span class="wizard-dot" data-step="3"></span>
     <span class="wizard-dot" data-step="4"></span>
+    <span class="wizard-dot" data-step="5"></span>
   </div>
 </div>
 
@@ -2067,6 +2078,7 @@
 <script src="themes/registry-core.js"></script>
 <script src="themes/custom-loader.js"></script>
 <script src="themes/ledger/shell.js"></script>
+<script src="themes/theme-picker.js"></script>
 <script src="themes.js"></script>
 <script src="shell.js"></script>
 <script src="app-helpers.js"></script>

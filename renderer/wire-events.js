@@ -1191,22 +1191,6 @@ function wireEvents() {
     if (open) open(navItem.dataset.settingsSection);
   });
 
-  $('#set_designTheme')?.addEventListener('change', (e) => {
-    const prev = settings.designTheme;
-    settings.designTheme = e.target.value || 'studio';
-    const theme = global.KhaytThemeRegistry?.getTheme(settings.designTheme);
-    if (theme?.defaultAppearance && prev !== settings.designTheme) {
-      settings.theme = theme.defaultAppearance;
-      if (typeof applyTheme === 'function') applyTheme(theme.defaultAppearance);
-    }
-    const hint = document.getElementById('set_designTheme_hint');
-    if (hint && theme?.descKey) {
-      hint.textContent = typeof t === 'function' ? t(theme.descKey) : hint.textContent;
-    }
-    if (typeof applyDesignSettings === 'function') applyDesignSettings();
-    saveAll();
-    toast(t('set.saved'), 'success', 2000);
-  });
   $('#set_customThemeHelp')?.addEventListener('click', (e) => {
     e.preventDefault();
     toast(typeof t === 'function' ? t('theme.design.custom_toast') : 'See renderer/themes/_template/README.md to create a custom theme.', 'info', 5000);

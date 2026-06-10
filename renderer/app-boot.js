@@ -46,6 +46,7 @@ function initWizard() {
   wiz.style.display = 'flex';
 
   let selectedMode = 'simple';
+  let selectedDesign = settings.designTheme || 'studio';
   let pendingPin = null;
   let pendingRecoveryCode = null;
   let securitySkipped = true;
@@ -64,6 +65,12 @@ function initWizard() {
     wiz.querySelectorAll('.wizard-dot').forEach(d => {
       d.classList.toggle('active', parseInt(d.dataset.step, 10) <= n);
     });
+    if (n === 2) {
+      global.KhaytThemePicker?.mountWizardPicker?.(
+        $('#wizDesignThemePicker'),
+        selectedDesign,
+      );
+    }
   }
 
   wiz.addEventListener('click', e => {
@@ -78,6 +85,17 @@ function initWizard() {
         settings.lang = lang;
         i18n.set(lang);
         i18n.applyToDom(wiz);
+      }
+      if (nextBtn.closest('#wiz-step-2')) {
+        const picker = $('#wizDesignThemePicker');
+        selectedDesign = global.KhaytThemePicker?.getWizardSelection?.(picker) || selectedDesign;
+        settings.designTheme = selectedDesign;
+        const theme = global.KhaytThemeRegistry?.getTheme(selectedDesign);
+        if (theme?.defaultAppearance) {
+          settings.theme = theme.defaultAppearance;
+          if (typeof applyTheme === 'function') applyTheme(theme.defaultAppearance);
+        }
+        if (typeof applyDesignSettings === 'function') applyDesignSettings();
       }
       goToStep(step);
       return;
@@ -98,7 +116,7 @@ function initWizard() {
     pendingPin = null;
     pendingRecoveryCode = null;
     securitySkipped = true;
-    goToStep(3);
+    goToStep(4);
   });
 
   $('#wizSecurityContinue')?.addEventListener('click', () => {
@@ -139,7 +157,7 @@ function initWizard() {
 
   $('#wizRecoveryContinue')?.addEventListener('click', () => {
     if (!$('#wizRecoverySaved')?.checked) return;
-    goToStep(3);
+    goToStep(4);
   });
 
   $('#wizRecoveryCopy')?.addEventListener('click', async () => {
@@ -164,7 +182,10 @@ function initWizard() {
     }
     settings.currency = currency;
     settings.mode = selectedMode;
-    settings.theme = 'light';
+    settings.designTheme = selectedDesign || settings.designTheme || 'studio';
+    const finishTheme = global.KhaytThemeRegistry?.getTheme(settings.designTheme);
+    if (finishTheme?.defaultAppearance) settings.theme = finishTheme.defaultAppearance;
+    else if (!settings.theme) settings.theme = 'light';
     settings.enableZatca = $('#wizEnableZatca')?.checked !== false;
     const enableOnline = $('#wizEnableOnline')?.checked === true;
     settings.onlineEnabled = enableOnline;
@@ -190,6 +211,7 @@ function initWizard() {
 
     wiz.style.display = 'none';
     applyTheme(settings.theme);
+    if (typeof applyDesignSettings === 'function') applyDesignSettings();
     applyMode();
     loadSettingsIntoForm();
     if (enableOnline && typeof startLanServer === 'function') {

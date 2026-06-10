@@ -49,6 +49,7 @@
     studio: {
       labelKey: 'theme.design.studio',
       descKey: 'theme.design.studio_desc',
+      preview: 'themes/previews/studio.png',
       shell: 'studio',
       enabled: true,
       defaultAccent: 'cyan',
@@ -67,6 +68,7 @@
     ledger: {
       labelKey: 'theme.design.ledger',
       descKey: 'theme.design.ledger_desc',
+      preview: 'themes/previews/ledger.png',
       shell: 'ledger',
       enabled: true,
       defaultAccent: 'safety',
