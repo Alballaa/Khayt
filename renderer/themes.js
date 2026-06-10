@@ -79,8 +79,6 @@
     const wasLedger = document.body.classList.contains('khayt-ledger');
     const isLedger = theme?.shell === 'ledger';
 
-    if (isLedger && !wasLedger) global.KhaytLedgerShell?.ensureSettingsTab?.();
-    if (!isLedger && wasLedger) global.KhaytLedgerShell?.restoreSettingsTab?.();
     if (isLedger) document.getElementById('appSidebar')?.classList.remove('collapsed');
 
     root.dataset.design = id;
@@ -93,9 +91,9 @@
       applyAccent(accent, reg()?.accentsForTheme(id));
     }
     if (isLedger) {
-      global.KhaytLedgerShell?.syncLedgerPageHead?.(
-        document.querySelector('.tab-content.active')?.id || 'dashboard-tab',
-      );
+      global.KhaytLedgerShell?.applyLedgerShell?.();
+    } else if (wasLedger) {
+      global.KhaytLedgerShell?.teardownLedgerShell?.();
     }
   }
 

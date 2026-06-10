@@ -207,6 +207,10 @@ function initAppShell() {
   if (typeof applyDesignSettings === 'function') applyDesignSettings();
   else if (typeof populateDesignSelects === 'function') populateDesignSelects();
 
+  if (document.body.classList.contains('khayt-ledger')) {
+    global.KhaytLedgerShell?.bindTabNav?.();
+  }
+
   syncTopbarTitle($('.tab-content.active')?.id || 'dashboard-tab');
 
   window.KhaytStudio?.init?.();

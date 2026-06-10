@@ -1,5 +1,5 @@
 /**
- * Workshop Ledger shell helpers — page header sync, settings tab in strip.
+ * Workshop Ledger shell — DOM layout mount, settings tab, page header sync.
  */
 (function (global) {
   let settingsTabMounted = false;
@@ -28,9 +28,8 @@
 
   function restoreSettingsTab() {
     if (!settingsTabMounted) return;
-    const foot = document.querySelector('.khayt-navfoot');
     const settingsBtn = document.querySelector('.khayt-nav .tab-btn[data-tab="settings-tab"]');
-    if (foot && settingsBtn && settingsTabParent) {
+    if (settingsBtn && settingsTabParent) {
       if (settingsTabNextSibling) {
         settingsTabParent.insertBefore(settingsBtn, settingsTabNextSibling);
       } else {
@@ -43,9 +42,57 @@
     settingsTabMounted = false;
   }
 
+  function mountLayout() {
+    const body = document.querySelector('.khayt-body');
+    const sidebar = document.getElementById('appSidebar');
+    const main = document.querySelector('.khayt-main');
+    if (!body || !sidebar || !main || body.dataset.ledgerLayout === 'mounted') return;
+
+    const top = main.querySelector(':scope > .khayt-top');
+    const pagehead = document.getElementById('ledgerPageHead');
+    if (!top || !pagehead) return;
+
+    body.insertBefore(top, sidebar);
+    body.insertBefore(pagehead, main);
+    body.dataset.ledgerLayout = 'mounted';
+    bindTabNav();
+  }
+
+  function unmountLayout() {
+    const body = document.querySelector('.khayt-body');
+    const main = document.querySelector('.khayt-main');
+    if (!body || !main || body.dataset.ledgerLayout !== 'mounted') return;
+
+    const top = body.querySelector(':scope > .khayt-top') || main.querySelector(':scope > .khayt-top');
+    const pagehead = body.querySelector(':scope > .ledger-pagehead')
+      || main.querySelector(':scope > .ledger-pagehead');
+    const scroll = main.querySelector(':scope > .khayt-scroll');
+
+    if (top) main.insertBefore(top, main.firstChild);
+    if (pagehead) {
+      if (scroll) main.insertBefore(pagehead, scroll);
+      else main.appendChild(pagehead);
+    }
+    delete body.dataset.ledgerLayout;
+  }
+
+  function bindTabNav() {
+    const nav = document.querySelector('.khayt-nav.sidebar-nav');
+    if (!nav || nav.dataset.ledgerTabsBound === '1') return;
+    nav.addEventListener('click', (e) => {
+      if (!document.body.classList.contains('khayt-ledger')) return;
+      const btn = e.target.closest('.tab-btn[data-tab]');
+      if (!btn || !nav.contains(btn)) return;
+      e.preventDefault();
+      if (typeof switchTab === 'function') switchTab(btn.dataset.tab);
+    });
+    nav.dataset.ledgerTabsBound = '1';
+  }
+
   function syncLedgerPageHead(tabId) {
     const head = document.getElementById('ledgerPageHead');
     if (!head || !document.body.classList.contains('khayt-ledger')) return;
+    head.removeAttribute('aria-hidden');
     const titleEl = head.querySelector('.ledger-page-title');
     const subEl = head.querySelector('.ledger-pagesub');
     const stampEl = document.getElementById('ledgerLocationStamp');
@@ -70,16 +117,25 @@
     }
   }
 
-  function apply(designId) {
-    const theme = global.KhaytThemeRegistry?.getTheme(designId);
-    const isLedger = theme?.shell === 'ledger';
-    if (isLedger) {
-      ensureSettingsTab();
-      syncLedgerPageHead(document.querySelector('.tab-content.active')?.id || 'dashboard-tab');
-    } else {
-      restoreSettingsTab();
-    }
+  function applyLedgerShell() {
+    ensureSettingsTab();
+    mountLayout();
+    syncLedgerPageHead(document.querySelector('.tab-content.active')?.id || 'dashboard-tab');
   }
 
-  global.KhaytLedgerShell = { apply, syncLedgerPageHead, ensureSettingsTab, restoreSettingsTab };
+  function teardownLedgerShell() {
+    unmountLayout();
+    restoreSettingsTab();
+  }
+
+  global.KhaytLedgerShell = {
+    applyLedgerShell,
+    teardownLedgerShell,
+    syncLedgerPageHead,
+    ensureSettingsTab,
+    restoreSettingsTab,
+    mountLayout,
+    unmountLayout,
+    bindTabNav,
+  };
 })(typeof window !== 'undefined' ? window : globalThis);
