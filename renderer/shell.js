@@ -67,7 +67,11 @@ function confirmModal(message, { okText, cancelText, danger = false } = {}) {
       overlay.remove();
       resolve(val);
     };
-    const escHandler = (e) => { if (e.key === 'Escape') cleanup(false); };
+    const escHandler = (e) => {
+      if (e.key !== 'Escape') return;
+      if (_escHandlerStack[_escHandlerStack.length - 1] !== escHandler) return;
+      cleanup(false);
+    };
     _escHandlerStack.push(escHandler);
     document.addEventListener('keydown', escHandler);
     overlay.querySelector('[data-act="ok"]').addEventListener('click', () => cleanup(true));
@@ -85,7 +89,7 @@ function openFormModal({ title, bodyHtml, onMount, onSave, saveLabel, sizeLg = t
       <div class="modal modal-form ${sizeLg ? 'modal-lg' : ''}" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
         <div class="modal-header">
           <h3 id="modalTitle">${escapeHtml(title)}</h3>
-          <button class="btn ghost small" data-act="cancel" aria-label="Close">×</button>
+          <button class="btn ghost small" data-act="cancel" aria-label="${escapeHtml(t('common.close') || 'Close')}">×</button>
         </div>
         <div class="modal-body">${bodyHtml}</div>
         <div class="modal-footer">
@@ -104,7 +108,11 @@ function openFormModal({ title, bodyHtml, onMount, onSave, saveLabel, sizeLg = t
     if (idx !== -1) _escHandlerStack.splice(idx, 1);
     mount.innerHTML = '';
   };
-  const escHandler = (e) => { if (e.key === 'Escape') close(); };
+  const escHandler = (e) => {
+    if (e.key !== 'Escape') return;
+    if (_escHandlerStack[_escHandlerStack.length - 1] !== escHandler) return;
+    close();
+  };
   _escHandlerStack.push(escHandler);
   document.addEventListener('keydown', escHandler);
   mount.querySelectorAll('[data-act="cancel"]').forEach(b => b.addEventListener('click', close));
@@ -123,8 +131,8 @@ function openFormModal({ title, bodyHtml, onMount, onSave, saveLabel, sizeLg = t
     });
   }
   if (onMount) onMount(modal);
-  // Move focus into modal for keyboard/screen-reader users
-  const firstInput = modal.querySelector('input, select, textarea, button');
+  // Move focus into the first form field (skip header close button)
+  const firstInput = modal.querySelector('.modal-body input, .modal-body select, .modal-body textarea, .modal-body button');
   if (firstInput) firstInput.focus();
 }
 
@@ -251,11 +259,19 @@ function syncTopbarTitle(tabId) {
    ============================================================ */
 function openSettingsSection(section) {
   switchTab('settings-tab');
-  $$('.settings-nav-item').forEach(el => el.classList.remove('active'));
+  $$('.settings-nav-item').forEach(el => {
+    el.classList.remove('active');
+    el.removeAttribute('aria-current');
+  });
   $$('.settings-panel').forEach(el => el.classList.remove('active'));
   const navItem = $(`.settings-nav-item[data-settings-section="${section}"]`);
   navItem?.classList.add('active');
-  $(`#settings-panel-${section}`)?.classList.add('active');
+  navItem?.setAttribute('aria-current', 'page');
+  const panel = $(`#settings-panel-${section}`);
+  if (panel) {
+    panel.classList.add('active');
+    panel.scrollTop = 0;
+  }
   if (section === 'online' && typeof renderOnlineSettings === 'function') renderOnlineSettings();
 }
 
@@ -299,6 +315,7 @@ function switchTab(tabId) {
       if (firstNav) {
         const section = firstNav.dataset.settingsSection;
         firstNav.classList.add('active');
+        firstNav.setAttribute('aria-current', 'page');
         $(`#settings-panel-${section}`)?.classList.add('active');
       }
     }
@@ -308,12 +325,14 @@ function switchTab(tabId) {
    Global ⌘K / Ctrl+K search
    ============================================================ */
 let globalSearchOpen = false;
+let gsFocusedIndex = -1;
 
 function openGlobalSearch() {
   const overlay = $('#globalSearchOverlay');
   const input   = $('#globalSearchInput');
   if (!overlay) return;
   globalSearchOpen = true;
+  gsFocusedIndex = -1;
   overlay.style.display = 'flex';
   input.value = '';
   input.focus();
@@ -324,12 +343,46 @@ function closeGlobalSearch() {
   const overlay = $('#globalSearchOverlay');
   if (!overlay) return;
   globalSearchOpen = false;
+  gsFocusedIndex = -1;
   overlay.style.display = 'none';
+}
+
+function updateGsFocus(results) {
+  results.forEach((row, i) => row.classList.toggle('focused', i === gsFocusedIndex));
+  if (gsFocusedIndex >= 0 && results[gsFocusedIndex]) {
+    results[gsFocusedIndex].scrollIntoView({ block: 'nearest' });
+  }
+}
+
+function handleGlobalSearchKeydown(e) {
+  if (!globalSearchOpen) return false;
+  const results = [...($('#globalSearchResults')?.querySelectorAll('.gs-result') || [])];
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    gsFocusedIndex = results.length ? (gsFocusedIndex + 1) % results.length : -1;
+    updateGsFocus(results);
+    return true;
+  }
+  if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    gsFocusedIndex = results.length
+      ? (gsFocusedIndex <= 0 ? results.length - 1 : gsFocusedIndex - 1)
+      : -1;
+    updateGsFocus(results);
+    return true;
+  }
+  if (e.key === 'Enter' && gsFocusedIndex >= 0 && results[gsFocusedIndex]) {
+    e.preventDefault();
+    results[gsFocusedIndex].click();
+    return true;
+  }
+  return false;
 }
 
 function renderGlobalResults(term) {
   const el = $('#globalSearchResults');
   if (!el) return;
+  gsFocusedIndex = -1;
   if (!term.trim()) {
     el.innerHTML = `<div class="gs-hint">${escapeHtml(t('search.hint'))}</div>`;
     return;
@@ -414,7 +467,21 @@ function renderGlobalResults(term) {
       closeGlobalSearch();
       if (action === 'order')     { switchTab('logs-tab');       setTimeout(() => { logSearchTerm = id; renderLogs(); }, 50); }
       if (action === 'client')    { switchTab('clients-tab');    setTimeout(() => { clientSearchTerm = id; renderClients(); }, 50); }
-      if (action === 'product')   { switchTab('catalog-tab'); }
+      if (action === 'product') {
+        switchTab('catalog-tab');
+        catalogSearchTerm = '';
+        const catInput = $('#catalogSearch');
+        if (catInput) catInput.value = '';
+        setTimeout(() => {
+          renderCatalog();
+          const card = document.querySelector(`.product-card[data-id="${CSS.escape(id)}"]`);
+          if (card) {
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            card.classList.add('highlight-flash');
+            setTimeout(() => card.classList.remove('highlight-flash'), 1500);
+          }
+        }, 80);
+      }
       if (action === 'inventory') {
         switchTab('inventory-tab');
         if (id) setTimeout(() => {
@@ -531,6 +598,7 @@ function openFeedbackModal() {
     openGlobalSearch,
     closeGlobalSearch,
     renderGlobalResults,
+    handleGlobalSearchKeydown,
     openHelpModal,
     openFeedbackModal,
   };

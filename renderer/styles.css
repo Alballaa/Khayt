@@ -4100,6 +4100,28 @@ th[data-sort]:hover {
   min-height: 0;
 }
 
+@media (max-width: 760px) {
+  .settings-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+  .settings-sidebar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    max-height: 140px;
+  }
+  .settings-nav-group-label { width: 100%; }
+}
+
+.settings-panel-hint {
+  margin: 0 0 16px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
 /* ── Sidebar ───────────────────────────────────────────────── */
 .settings-sidebar {
   display: flex;

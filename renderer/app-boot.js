@@ -286,8 +286,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       localStorage.removeItem('khayt_pending_update_to');
       setTimeout(() => {
         toast(
-          `✅ Updated to Khayt ${escapeHtml(currentVersion)} — your data is intact. ` +
-          `A pre-update backup was saved to <em>Settings → Backup</em>.`,
+          `✅ Updated to Khayt ${currentVersion} — your data is intact. ` +
+          'A pre-update backup was saved to Settings → Backup.',
           'success', 7000
         );
       }, 2500); // slight delay so the UI is fully painted first
@@ -612,12 +612,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       globalSearchOpen ? closeGlobalSearch() : openGlobalSearch();
       return;
     }
+    if (globalSearchOpen && typeof handleGlobalSearchKeydown === 'function' && handleGlobalSearchKeydown(e)) {
+      return;
+    }
     if (e.key === 'Escape' && globalSearchOpen) {
       closeGlobalSearch();
       return;
     }
     // Single-key navigation shortcuts — only when no input/modal is focused
-    if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.shiftKey && e.key !== '?') return;
     const tag = (document.activeElement?.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
     if (document.querySelector('.modal-backdrop')) return; // modal open

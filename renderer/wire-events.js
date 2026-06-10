@@ -63,7 +63,10 @@ function wireEvents() {
   document.addEventListener('click', (e) => {
     if (!e.target.closest('#btnNotifBell') && !e.target.closest('#notifPanel')) {
       const panel = $('#notifPanel');
-      if (panel) panel.style.display = 'none';
+      if (panel && panel.style.display !== 'none') {
+        panel.style.display = 'none';
+        $('#btnNotifBell')?.setAttribute('aria-expanded', 'false');
+      }
     }
   });
 
@@ -130,6 +133,8 @@ function wireEvents() {
     const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
     applyTheme(next);
     settings.theme = next;
+    const setThemeEl = $('#set_theme');
+    if (setThemeEl) setThemeEl.value = next;
     saveAll();
     window.KhaytIcon?.hydrateTopbar?.();
   });
@@ -387,7 +392,11 @@ function wireEvents() {
     if (btn.dataset.act === 'sup-history')   openSupplierHistory(btn.dataset.id);
     if (btn.dataset.act === 'sup-wa') {
       const sup = suppliers.find(s => s.id === btn.dataset.id);
-      if (sup?.phone && window.hubAPI?.shareWhatsApp) {
+      if (!sup?.phone) {
+        toast(t('set.supplier_no_phone') || 'Add a phone number to this supplier first.', 'warning');
+        return;
+      }
+      if (window.hubAPI?.shareWhatsApp) {
         window.hubAPI.shareWhatsApp({ phone: sup.phone, message: '', pdfPath: null });
       }
     }
@@ -689,7 +698,7 @@ function wireEvents() {
   });
 
   // Kanban — production columns
-  document.querySelector('.kanban').addEventListener('click', (e) => {
+  document.querySelector('.kanban')?.addEventListener('click', (e) => {
     const kanbanTimeline = e.target.closest('[data-act="order-timeline"]');
     if (kanbanTimeline) { openOrderTimeline(kanbanTimeline.dataset.id); return; }
     const logWasteCard = e.target.closest('[data-act="log-waste-card"]');
@@ -986,10 +995,17 @@ function wireEvents() {
     if (!btn) return;
     if (btn.dataset.act === 'edit-loc') openLocationEditor(btn.dataset.id);
     if (btn.dataset.act === 'del-loc') {
-      locations = locations.filter(l => l.id !== btn.dataset.id);
-      saveAll();
-      renderLocationsSettings();
-      renderLocationFilter();
+      const loc = locations.find(l => l.id === btn.dataset.id);
+      confirmModal(
+        t('set.location_delete_confirm', { name: loc?.name || '' }) || `Delete location "${loc?.name || ''}"?`,
+        { danger: true, okText: t('common.delete') },
+      ).then((ok) => {
+        if (!ok) return;
+        locations = locations.filter(l => l.id !== btn.dataset.id);
+        saveAll();
+        renderLocationsSettings();
+        renderLocationFilter();
+      });
     }
   });
 
@@ -1010,9 +1026,16 @@ function wireEvents() {
     if (!btn) return;
     if (btn.dataset.act === 'edit-operator') openOperatorEditor(btn.dataset.id);
     if (btn.dataset.act === 'del-operator') {
-      operators = operators.filter(o => o.id !== btn.dataset.id);
-      saveAll();
-      renderOperatorsList();
+      const op = operators.find(o => o.id === btn.dataset.id);
+      confirmModal(
+        t('op.delete_confirm', { name: op?.name || '' }) || `Delete operator "${op?.name || ''}"?`,
+        { danger: true, okText: t('common.delete') },
+      ).then((ok) => {
+        if (!ok) return;
+        operators = operators.filter(o => o.id !== btn.dataset.id);
+        saveAll();
+        renderOperatorsList();
+      });
     }
   });
 

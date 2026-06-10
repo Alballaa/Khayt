@@ -4,6 +4,19 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **Settings save** — Post-process presets are no longer wiped when saving other settings panels.
+- **Global search** — Client and product results navigate to the correct record; keyboard ↑/↓ + Enter works in search.
+- **Help shortcut** — `?` key opens help again (Shift was incorrectly blocked).
+- **Delete safety** — Locations and operators require confirmation before deletion.
+- **Notifications** — Bell exposes `aria-expanded`; toast container announces to screen readers.
+
+### Changed
+
+- **Settings on narrow windows** — Sidebar stacks horizontally on small screens.
+- **Automation settings** — Hint explains that each section saves individually.
+
 ### Security
 
 - **Calendar feed** — `/calendar.ics` requires `?token=` (auto-generated `calendarToken`); iCal export copies the subscription link.
