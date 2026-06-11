@@ -4171,7 +4171,20 @@ th[data-sort]:hover {
 }
 
 .settings-panel { display: none; }
-.settings-panel.active { display: block; }
+/* Constrain panel content to a readable measure (forms were stretching the full
+   window width). Left-aligned against the nav — GitHub/macOS-settings style. */
+.settings-panel.active { display: block; max-width: 760px; }
+
+/* Card-based sub-sections: each settings group is a themed .card.settings-card.
+   The section-head becomes the card's title (its divider/border is dropped). */
+.settings-card { margin-bottom: 14px; }
+.settings-card > .settings-section-head {
+  border-top: none;
+  margin: 0 0 14px;
+  padding: 0;
+}
+.settings-card > .settings-section-head:first-child { margin-top: 0; }
+.settings-card > *:last-child { margin-bottom: 0; }
 
 /* Panel section dividers (replaces card-head inside kitchen-sink card) */
 .settings-section-head {
@@ -4198,6 +4211,11 @@ th[data-sort]:hover {
   gap: 0 18px;
 }
 .settings-fields-grid .span2 { grid-column: 1 / -1; }
+
+/* Collapse to a single column when the panel gets narrow (small window / RTL). */
+@media (max-width: 1040px) {
+  .settings-fields-grid { grid-template-columns: 1fr; }
+}
 
 /* Panel h2 title */
 .settings-panel-title {

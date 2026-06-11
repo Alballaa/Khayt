@@ -1348,73 +1348,81 @@
       <div class="settings-panel active" id="settings-panel-biz">
         <h2 class="settings-panel-title" data-i18n="set.biz_section">Business Information</h2>
 
-        <!-- Logo + business name -->
-        <div style="display:flex; align-items:flex-start; gap:16px; margin-bottom:14px;">
-          <div style="flex-shrink:0;">
-            <label style="font-size:11.5px; color:var(--text-muted); display:block; margin-bottom:6px;" data-i18n="set.logo">Logo</label>
-            <div style="display:flex; flex-direction:column; align-items:center; gap:6px;">
-              <img id="logoPreview" style="display:none; height:52px; width:auto; border-radius:6px; border:1px solid var(--border); padding:4px; background:var(--surface-2);" alt="logo">
-              <label class="btn small" style="cursor:pointer; margin:0; white-space:nowrap;">
-                <span data-i18n="set.logo_upload">Upload</span>
-                <input type="file" id="logoUploadInput" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;">
-              </label>
-              <button class="btn small danger" id="btnRemoveLogo" style="display:none; margin:0;" data-i18n="set.logo_remove">Remove</button>
-            </div>
-          </div>
-          <div style="flex:1; min-width:0;">
-            <div class="inline-pair" style="margin-bottom:10px;">
-              <div>
-                <label data-i18n="set.biz_en">Business name (English)</label>
-                <input type="text" id="set_bizEn" placeholder="Khayt">
-              </div>
-              <div>
-                <label data-i18n="set.biz_ar">Business name (Arabic)</label>
-                <input type="text" id="set_bizAr" dir="rtl" placeholder="خيط">
+        <div class="card settings-card">
+          <div class="settings-section-head" data-i18n="set.biz_identity">Identity</div>
+          <!-- Logo + business name -->
+          <div style="display:flex; align-items:flex-start; gap:16px;">
+            <div style="flex-shrink:0;">
+              <label style="font-size:11.5px; color:var(--text-muted); display:block; margin-bottom:6px;" data-i18n="set.logo">Logo</label>
+              <div style="display:flex; flex-direction:column; align-items:center; gap:6px;">
+                <img id="logoPreview" style="display:none; height:52px; width:auto; border-radius:6px; border:1px solid var(--border); padding:4px; background:var(--surface-2);" alt="logo">
+                <label class="btn small" style="cursor:pointer; margin:0; white-space:nowrap;">
+                  <span data-i18n="set.logo_upload">Upload</span>
+                  <input type="file" id="logoUploadInput" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;">
+                </label>
+                <button class="btn small danger" id="btnRemoveLogo" style="display:none; margin:0;" data-i18n="set.logo_remove">Remove</button>
               </div>
             </div>
-            <div class="inline-pair">
-              <div>
-                <label data-i18n="set.tagline_en">Tagline (English)</label>
-                <input type="text" id="set_taglineEn" data-i18n-placeholder="set.tagline_ph">
+            <div style="flex:1; min-width:0;">
+              <div class="inline-pair" style="margin-bottom:10px;">
+                <div>
+                  <label data-i18n="set.biz_en">Business name (English)</label>
+                  <input type="text" id="set_bizEn" placeholder="Khayt">
+                </div>
+                <div>
+                  <label data-i18n="set.biz_ar">Business name (Arabic)</label>
+                  <input type="text" id="set_bizAr" dir="rtl" placeholder="خيط">
+                </div>
               </div>
-              <div>
-                <label data-i18n="set.tagline_ar">Tagline (Arabic)</label>
-                <input type="text" id="set_taglineAr" dir="rtl" data-i18n-placeholder="set.tagline_ph_ar">
+              <div class="inline-pair">
+                <div>
+                  <label data-i18n="set.tagline_en">Tagline (English)</label>
+                  <input type="text" id="set_taglineEn" data-i18n-placeholder="set.tagline_ph">
+                </div>
+                <div>
+                  <label data-i18n="set.tagline_ar">Tagline (Arabic)</label>
+                  <input type="text" id="set_taglineAr" dir="rtl" data-i18n-placeholder="set.tagline_ph_ar">
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="inline-pair" style="margin-bottom:10px;">
-          <div>
-            <label data-i18n="set.phone">Phone</label>
-            <input type="tel" id="set_phone">
+        <div class="card settings-card">
+          <div class="settings-section-head" data-i18n="set.biz_contact">Contact</div>
+          <div class="inline-pair" style="margin-bottom:10px;">
+            <div>
+              <label data-i18n="set.phone">Phone</label>
+              <input type="tel" id="set_phone">
+            </div>
+            <div>
+              <label data-i18n="set.email">Email</label>
+              <input type="email" id="set_email">
+            </div>
           </div>
-          <div>
-            <label data-i18n="set.email">Email</label>
-            <input type="email" id="set_email">
+          <div class="inline-pair">
+            <div>
+              <label data-i18n="set.address_en">Address (English)</label>
+              <input type="text" id="set_addrEn">
+            </div>
+            <div>
+              <label data-i18n="set.address_ar">Address (Arabic)</label>
+              <input type="text" id="set_addrAr" dir="rtl">
+            </div>
           </div>
         </div>
 
-        <div class="inline-pair" style="margin-bottom:10px;">
-          <div>
-            <label data-i18n="set.address_en">Address (English)</label>
-            <input type="text" id="set_addrEn">
-          </div>
-          <div>
-            <label data-i18n="set.address_ar">Address (Arabic)</label>
-            <input type="text" id="set_addrAr" dir="rtl">
-          </div>
-        </div>
-
-        <div class="inline-pair pro-only">
-          <div>
-            <label data-i18n="set.vat">VAT number</label>
-            <input type="text" id="set_vat" placeholder="3xxxxxxxxxxxxx3" maxlength="15">
-          </div>
-          <div>
-            <label data-i18n="set.cr">CR #</label>
-            <input type="text" id="set_cr">
+        <div class="card settings-card pro-only">
+          <div class="settings-section-head" data-i18n="set.biz_tax">Tax &amp; Registration</div>
+          <div class="inline-pair">
+            <div>
+              <label data-i18n="set.vat">VAT number</label>
+              <input type="text" id="set_vat" placeholder="3xxxxxxxxxxxxx3" maxlength="15">
+            </div>
+            <div>
+              <label data-i18n="set.cr">CR #</label>
+              <input type="text" id="set_cr">
+            </div>
           </div>
         </div>
 
@@ -1427,6 +1435,7 @@
       <div class="settings-panel" id="settings-panel-prefs">
         <h2 class="settings-panel-title" data-i18n="set.prefs_section">Preferences</h2>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.experience">Experience</div>
         <p style="font-size:13px; color:var(--text-muted); margin:0 0 8px;" data-i18n="set.mode_subtitle">Choose the level of features that matches your workflow.</p>
         <div class="mode-toggle-pills">
@@ -1434,7 +1443,9 @@
           <button class="mode-pill" id="btnModePro" data-mode="professional" data-i18n="set.mode_pro">Professional</button>
         </div>
         <p style="font-size:12px; color:var(--text-muted); margin:0 0 20px;" data-i18n="set.mode_changed_hint">You can switch at any time — no data is lost.</p>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.language">Language & Theme</div>
         <p class="settings-panel-hint" data-i18n="set.lang_theme_auto">Language, appearance, and design apply immediately when changed.</p>
         <div style="margin-bottom:12px;">
@@ -1483,6 +1494,7 @@
               <option value="system" data-i18n="set.theme.system">System</option>
             </select>
           </div>
+        </div>
         </div>
 
         <div class="settings-save-row">
@@ -1540,6 +1552,7 @@
       <div class="settings-panel" id="settings-panel-invoice">
         <h2 class="settings-panel-title" data-i18n="set.invoice_section">Invoice & Tax</h2>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.worldwide_section">Currency & Region</div>
         <div class="inline-pair">
           <div>
@@ -1553,7 +1566,9 @@
             <p style="font-size:11.5px; color:var(--text-muted); margin:4px 0 0;" data-i18n="dash.goal_hint"></p>
           </div>
         </div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.invoice_section">Invoice Defaults</div>
         <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-top:0;">
           <input type="checkbox" id="set_enableZatca" style="width:auto; margin:0;">
@@ -1603,9 +1618,12 @@
         <textarea id="set_invTermsEn" rows="3" style="resize:vertical;"></textarea>
         <label data-i18n="set.inv_terms_ar">Terms & notes (Arabic)</label>
         <textarea id="set_invTermsAr" rows="3" dir="rtl" style="resize:vertical;"></textarea>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.inv_num_title">Invoice Numbering</div>
         <div id="invNumSection"></div>
+        </div>
 
         <div class="settings-save-row">
           <button type="button" class="btn primary" data-act="save-settings-from-panel" data-i18n="common.save">Save</button>
@@ -1843,6 +1861,7 @@
       <div class="settings-panel" id="settings-panel-data">
         <h2 class="settings-panel-title" data-i18n="set.nav_data">Data & Locale</h2>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.locale_section">Saudi Locale</div>
         <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; margin-top:0;">
           <input type="checkbox" id="set_useHijri" style="width:auto; margin:3px 0 0;">
@@ -1852,7 +1871,9 @@
           <input type="checkbox" id="set_useArabicNumerals" style="width:auto; margin:3px 0 0;">
           <span data-i18n="set.use_arabic_nums">Use Arabic-Indic numerals (٠١٢٣) in Arabic-mode invoices</span>
         </label>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="post.settings_title">Post-Processing Checklist</div>
         <p style="font-size:12px; color:var(--text-muted); margin:0 0 12px;" data-i18n="post.settings_hint">Define steps shown on every order card in the Post column of the queue.</p>
         <div id="postChecklistItems"></div>
@@ -1860,7 +1881,9 @@
           <input type="text" id="postCheckInput" style="flex:1;" data-i18n-placeholder="post.step_ph" placeholder="e.g. Sand &amp; polish">
           <button class="btn primary" id="btnAddPostCheck" data-i18n="post.add_step">+ Add step</button>
         </div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.backup_section">Backups</div>
         <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
           <input type="checkbox" id="set_autoBackup" style="width:auto; margin:0;">
@@ -1878,7 +1901,9 @@
           <button class="btn" id="btnRevealBackups" data-i18n="set.reveal_backups">Reveal backups folder</button>
           <button class="btn" id="btnRestoreBackup" data-i18n="set.restore_backup">Restore from backup…</button>
         </div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.custom_fields_title">Custom Order Fields</div>
         <p style="font-size:12px; color:var(--text-muted); margin:0 0 12px;" data-i18n="set.custom_fields_hint">Add extra fields that appear in every order form (e.g. "Customer Reference", "Color Choice").</p>
         <div id="customFieldsList"></div>
@@ -1886,7 +1911,9 @@
           <input type="text" id="customFieldInput" style="flex:1;" data-i18n-placeholder="set.custom_field_ph" placeholder="e.g. Customer Reference">
           <button class="btn primary" id="btnAddCustomField" data-i18n="set.add_custom_field">+ Add Field</button>
         </div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.data_section">Data</div>
         <div id="securitySettingsSection" style="margin-bottom:16px;"></div>
         <div class="btn-row">
@@ -1896,6 +1923,7 @@
           <button class="btn" id="btnRevealPhotos" data-i18n="set.reveal_photos">Reveal product photos folder</button>
           <button class="btn danger" id="btnReset" data-i18n="set.reset">Reset all data…</button>
           <button class="btn danger" id="btnFullWipe" data-i18n="set.full_wipe">Full wipe…</button>
+        </div>
         </div>
 
         <div style="margin-top:18px; padding:14px 16px; background:rgba(43,182,115,0.06); border:1px solid rgba(43,182,115,0.2); border-radius:var(--radius);">
@@ -1919,6 +1947,7 @@
           <button type="button" class="btn primary" data-act="save-settings-from-panel" data-i18n="common.save">Save</button>
         </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.updates_section">Updates</div>
         <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; margin-top:0;">
           <input type="checkbox" id="set_betaUpdates" style="width:auto; margin:3px 0 0;">
@@ -1937,6 +1966,7 @@
             <span id="updateStatusMsg" style="font-size:12px; color:var(--text-muted);"></span>
             <button id="btnCheckForUpdates" class="btn small" data-i18n="set.check_updates">Check for updates</button>
           </div>
+        </div>
         </div>
 
       </div><!-- /settings-panel-data -->

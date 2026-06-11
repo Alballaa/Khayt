@@ -3,6 +3,9 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.ja = {
+  "set.biz_identity": "基本情報",
+  "set.biz_contact": "連絡先",
+  "set.biz_tax": "税務・登録",
   "cat.sku": "SKU",
   "cl.address": "住所",
   "cl.city": "市区町村",

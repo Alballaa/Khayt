@@ -3,6 +3,9 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.zh = {
+  "set.biz_identity": "标识",
+  "set.biz_contact": "联系方式",
+  "set.biz_tax": "税务与注册",
   "cat.sku": "SKU",
   "cl.address": "地址",
   "cl.city": "城市",

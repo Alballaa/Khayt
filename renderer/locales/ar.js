@@ -3,6 +3,9 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.ar = {
+  "set.biz_identity": "الهوية",
+  "set.biz_contact": "معلومات الاتصال",
+  "set.biz_tax": "الضرائب والتسجيل",
   "an.avg_order": "متوسط قيمة الطلب",
   "an.last_12_weeks": "آخر 12 أسبوعًا",
   "an.net_profit": "صافي الربح",

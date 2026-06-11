@@ -3,6 +3,9 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.de = {
+  "set.biz_identity": "Identität",
+  "set.biz_contact": "Kontakt",
+  "set.biz_tax": "Steuer & Registrierung",
   "cat.sku": "SKU",
   "cl.address": "Adresse",
   "cl.city": "Stadt",

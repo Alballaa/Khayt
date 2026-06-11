@@ -3,6 +3,9 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.en = {
+  "set.biz_identity": "Identity",
+  "set.biz_contact": "Contact",
+  "set.biz_tax": "Tax & Registration",
   "cat.sku": "SKU",
   "cl.address": "Address",
   "cl.city": "City",
