@@ -24,7 +24,7 @@
         <div class="glyph" aria-hidden="true">خ</div>
         <div><b>Atlas</b><span id="atlasFloorLabel">Floor · live</span></div>
       </div>
-      <div class="kpis" id="atlasKpis" aria-hidden="true">
+      <div class="kpis" id="atlasKpis" role="group" aria-label="Workshop status">
         <div class="kpi"><b id="atlasKpiMachines">0</b><span>machines</span></div>
         <div class="kpi"><b id="atlasKpiUtil">0%</b><span>util</span></div>
         <div class="kpi"><b id="atlasKpiJobs">0</b><span>jobs today</span></div>

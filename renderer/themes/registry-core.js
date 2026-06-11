@@ -269,12 +269,32 @@
   }
 
   function validateCustomManifest(manifest) {
+    if (!manifest || typeof manifest !== 'object') return ['manifest must be an object'];
     const errors = [];
-    if (!manifest || typeof manifest !== 'object') errors.push('manifest must be an object');
     if (!manifest.id || !/^[a-z][a-z0-9-]{1,31}$/.test(manifest.id)) errors.push('id must be lowercase slug (2–32 chars)');
     if (!manifest.name || typeof manifest.name !== 'string') errors.push('name is required');
     if (!manifest.tokens || typeof manifest.tokens !== 'string') errors.push('tokens css path required');
-    if (manifest.accents && typeof manifest.accents !== 'object') errors.push('accents must be an object');
+    // Stylesheet refs must be plain .css filenames inside the theme folder — block path traversal.
+    const SAFE_CSS = /^[a-zA-Z0-9._-]+\.css$/;
+    for (const f of ['tokens', 'compat', 'shellCss']) {
+      if (manifest[f] && !SAFE_CSS.test(manifest[f])) errors.push(`${f} must be a .css filename (no path separators)`);
+    }
+    if (manifest.bodyClass && !/^[a-zA-Z][\w-]{0,63}$/.test(manifest.bodyClass)) errors.push('bodyClass must be a simple class name');
+    if (manifest.accents !== undefined) {
+      if (typeof manifest.accents !== 'object' || manifest.accents === null || Array.isArray(manifest.accents)) {
+        errors.push('accents must be an object');
+      } else {
+        const isPct = (v) => (typeof v === 'number' && v >= 0 && v <= 100)
+          || (typeof v === 'string' && /^\d{1,3}(\.\d+)?%$/.test(v.trim()));
+        for (const [key, a] of Object.entries(manifest.accents)) {
+          if (!a || typeof a !== 'object') { errors.push(`accent "${key}" must be an object`); continue; }
+          const h = Number(a.h);
+          if (!Number.isFinite(h) || h < 0 || h > 360) errors.push(`accent "${key}".h must be a number 0–360`);
+          if (!isPct(a.s)) errors.push(`accent "${key}".s must be a percentage`);
+          if (!isPct(a.l)) errors.push(`accent "${key}".l must be a percentage`);
+        }
+      }
+    }
     if (manifest.shell && !['studio', 'ledger', 'default'].includes(manifest.shell)) errors.push('shell must be studio, ledger, or default');
     return errors;
   }

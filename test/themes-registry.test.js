@@ -94,3 +94,21 @@ test('registerCustomTheme adds custom theme', () => {
   assert.equal(reg.normalizeDesignId('custom:test-shop'), 'custom:test-shop');
   assert.equal(reg.defaultAccentForTheme('custom:test-shop'), 'brand');
 });
+
+test('validateCustomManifest rejects path traversal in stylesheet refs', () => {
+  const base = { id: 'evil', name: 'Evil' };
+  assert.ok(reg.validateCustomManifest({ ...base, tokens: '../../../etc/x.css' }).some((e) => /tokens/.test(e)));
+  assert.ok(reg.validateCustomManifest({ ...base, tokens: 'ok.css', compat: 'a/b.css' }).some((e) => /compat/.test(e)));
+  assert.ok(reg.validateCustomManifest({ ...base, tokens: 'ok.css', shellCss: '..\\win.css' }).some((e) => /shellCss/.test(e)));
+  // A plain filename is accepted.
+  assert.equal(reg.validateCustomManifest({ ...base, tokens: 'tokens.css' }).length, 0);
+});
+
+test('validateCustomManifest rejects malformed accents and bodyClass', () => {
+  const base = { id: 'shop', name: 'Shop', tokens: 'tokens.css' };
+  assert.ok(reg.validateCustomManifest({ ...base, accents: { x: { h: 999, s: '70%', l: '50%' } } }).some((e) => /h must/.test(e)));
+  assert.ok(reg.validateCustomManifest({ ...base, accents: { x: { h: 200, s: 'red', l: '50%' } } }).some((e) => /s must/.test(e)));
+  assert.ok(reg.validateCustomManifest({ ...base, bodyClass: 'a b" onload=x' }).some((e) => /bodyClass/.test(e)));
+  // Valid accent (number or % forms) passes.
+  assert.equal(reg.validateCustomManifest({ ...base, accents: { x: { h: 200, s: 70, l: '50%' } } }).length, 0);
+});
