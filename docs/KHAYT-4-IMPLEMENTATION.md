@@ -15,7 +15,9 @@ This document maps the **eight handoff directions** to the production theme syst
 | E | Vitrine | `vitrine/` | `vitrine` | `vitrine` (glass sidebar) | **Shipped** |
 | F | Cockpit | `cockpit/` | `cockpit` | `cockpit` (icon rail + ops layout) | **Shipped** |
 | G | Spectrum | `spectrum/` | skins via `cockpitSkin` | `cockpit` + `data-skin` | **Shipped** (lumen/draft/clay) |
-| H | Frontier | `frontier/` | concepts only | bespoke per concept | Experimental — not v1 |
+| H | Frontier · Atlas | `frontier/` | `atlas` | `atlas` (spatial floor map) | **Shipped** |
+| H | Frontier · Pulse | `frontier/` | `pulse` | command palette | Reserved (coming soon) |
+| H | Frontier · Stream | `frontier/` | `stream` | conversational feed | Reserved (coming soon) |
 
 **Legacy reserved IDs** (`blueprint`, `atlas` in `registry-core.js`) should be renamed or aliased:
 
@@ -117,15 +119,16 @@ Shipped **Cockpit** as sixth selectable built-in with **Spectrum** skins:
 4. ~~Settings `cockpitSkin`: `poster` | `lumen` | `draft` | `clay` via `data-skin` on `<html>`~~
 5. ~~Bricolage Grotesque + Plus Jakarta Sans fonts; preview `cockpit.png`~~
 
-### Phase 5 — Frontier (optional / vNext)
+### Phase 5 — Frontier · Atlas — **complete**
 
-Concept screens only — requires paradigm decision:
+Shipped **Atlas** as seventh selectable built-in; Pulse and Stream reserved:
 
-- **Atlas** — spatial floor map + machine inspector
-- **Pulse** — command palette first
-- **Stream** — conversational ops feed
+1. ~~`renderer/themes/atlas/` — tokens, shell CSS, compat, spatial floor renderer~~
+2. ~~`KhaytAtlasShell` — chromeless layout, shared topbar, Floor/Queue/Settings nav~~
+3. ~~`KhaytAtlasFloor` — zone map, machine stations, inspector from real fleet data~~
+4. ~~Space Grotesk font; preview `atlas.png`; Pulse + Stream in coming-soon registry~~
 
-Not interchangeable with classic tab/sidebar shells; treat as separate product exploration.
+**Pulse** and **Stream** remain reserved Frontier concepts for a future vNext pass.
 
 ### Phase 6 — QA
 

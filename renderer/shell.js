@@ -292,6 +292,9 @@ function switchTab(tabId) {
   if (typeof KhaytCockpitShell?.syncCockpitPageHead === 'function') {
     KhaytCockpitShell.syncCockpitPageHead(tabId);
   }
+  if (typeof KhaytAtlasShell?.syncAtlasPageHead === 'function') {
+    KhaytAtlasShell.syncAtlasPageHead(tabId);
+  }
 
   if (tabId === 'dashboard-tab')  renderDashboard();
   if (tabId === 'expenses-tab')   { renderExpenses(); populateExpOrderDatalist(); }

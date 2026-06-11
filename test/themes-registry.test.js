@@ -9,7 +9,7 @@ test('normalizeDesignId maps classic to ledger', () => {
   assert.equal(reg.normalizeDesignId('unknown'), 'studio');
 });
 
-test('selectable themes include all six Khayt-4 production themes', () => {
+test('selectable themes include all seven Khayt-4 production themes', () => {
   const selectable = reg.listSelectableThemes();
   assert.ok(selectable.includes('studio'));
   assert.ok(selectable.includes('ledger'));
@@ -17,14 +17,16 @@ test('selectable themes include all six Khayt-4 production themes', () => {
   assert.ok(selectable.includes('atelier'));
   assert.ok(selectable.includes('vitrine'));
   assert.ok(selectable.includes('cockpit'));
+  assert.ok(selectable.includes('atlas'));
 });
 
-test('coming soon lists no shipped built-ins', () => {
+test('coming soon lists Frontier Pulse and Stream only', () => {
   const soon = reg.listComingSoonThemes();
   assert.ok(!soon.includes('console'));
-  assert.ok(!soon.includes('atelier'));
-  assert.ok(!soon.includes('vitrine'));
+  assert.ok(!soon.includes('atlas'));
   assert.ok(!soon.includes('cockpit'));
+  assert.ok(soon.includes('pulse'));
+  assert.ok(soon.includes('stream'));
 });
 
 test('usesHandoffScreens covers studio through vitrine shells', () => {
@@ -50,6 +52,20 @@ test('cockpit default accent is electric with four presets', () => {
   assert.ok(accents.violet);
   assert.ok(accents.emerald);
   assert.ok(accents.flare);
+});
+
+test('atlas default accent is phosphor with four presets', () => {
+  assert.equal(reg.defaultAccentForTheme('atlas'), 'phosphor');
+  const accents = reg.accentsForTheme('atlas');
+  assert.ok(accents.phosphor);
+  assert.ok(accents.ember);
+  assert.ok(accents.iris);
+  assert.ok(accents.signal);
+});
+
+test('usesHandoffScreens excludes atlas frontier shell', () => {
+  assert.equal(reg.usesHandoffScreens('atlas'), false);
+  assert.equal(reg.usesHandoffScreens('cockpit'), false);
 });
 
 test('console default accent is signal with four presets', () => {

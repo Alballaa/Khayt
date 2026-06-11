@@ -22,6 +22,7 @@ const THEMES = [
   { id: 'atelier', appearance: 'light', file: 'atelier.png' },
   { id: 'vitrine', appearance: 'dark', file: 'vitrine.png' },
   { id: 'cockpit', appearance: 'light', file: 'cockpit.png' },
+  { id: 'atlas', appearance: 'dark', file: 'atlas.png' },
 ];
 
 const VIEWPORT = { width: 1280, height: 800 };

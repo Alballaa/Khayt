@@ -45,6 +45,13 @@
     flare:    { h: 356, s: '78%', l: '54%', labelKey: 'theme.accent.flare' },
   };
 
+  const ATLAS_ACCENTS = {
+    phosphor: { h: 84,  s: '100%', l: '62%', labelKey: 'theme.accent.phosphor' },
+    ember:    { h: 12,  s: '100%', l: '60%', labelKey: 'theme.accent.ember' },
+    iris:     { h: 252, s: '100%', l: '74%', labelKey: 'theme.accent.iris' },
+    signal:   { h: 135, s: '62%',  l: '52%', labelKey: 'theme.accent.signal' },
+  };
+
   /** Shell types that share the Khayt handoff six-screen layer (A–E family). */
   const HANDOFF_SCREEN_SHELLS = ['studio', 'ledger', 'console', 'atelier', 'vitrine'];
 
@@ -52,8 +59,33 @@
     return HANDOFF_SCREEN_SHELLS.includes(shell);
   }
 
-  /** Reserved built-ins — none shipped yet (Frontier, etc.). */
-  const RESERVED_THEMES = {};
+  /** Reserved Frontier concepts — Pulse and Stream (vNext). */
+  const RESERVED_THEMES = {
+    pulse: {
+      labelKey: 'theme.design.pulse',
+      descKey: 'theme.design.pulse_desc',
+      shell: 'pulse',
+      enabled: false,
+      comingSoon: true,
+      defaultAccent: 'ember',
+      accents: { ember: { h: 12, s: '100%', l: '60%', labelKey: 'theme.accent.ember' } },
+      defaultAppearance: 'dark',
+      bodyClass: 'khayt-pulse',
+      stylesheets: [],
+    },
+    stream: {
+      labelKey: 'theme.design.stream',
+      descKey: 'theme.design.stream_desc',
+      shell: 'stream',
+      enabled: false,
+      comingSoon: true,
+      defaultAccent: 'iris',
+      accents: { iris: { h: 252, s: '100%', l: '74%', labelKey: 'theme.accent.iris' } },
+      defaultAppearance: 'dark',
+      bodyClass: 'khayt-stream',
+      stylesheets: [],
+    },
+  };
 
   const BUILTIN_THEMES = {
     studio: {
@@ -159,6 +191,22 @@
         'themes/cockpit/shell.css',
         'themes/cockpit/sections.css',
         'themes/cockpit/compat.css',
+      ],
+    },
+    atlas: {
+      labelKey: 'theme.design.atlas',
+      descKey: 'theme.design.atlas_desc',
+      preview: 'themes/previews/atlas.png',
+      shell: 'atlas',
+      enabled: true,
+      defaultAccent: 'phosphor',
+      accents: ATLAS_ACCENTS,
+      defaultAppearance: 'dark',
+      bodyClass: 'khayt-atlas',
+      stylesheets: [
+        'themes/atlas/tokens.css',
+        'themes/atlas/shell.css',
+        'themes/atlas/compat.css',
       ],
     },
   };
@@ -289,6 +337,7 @@
     ATELIER_ACCENTS,
     VITRINE_ACCENTS,
     COCKPIT_ACCENTS,
+    ATLAS_ACCENTS,
     BUILTIN_THEMES,
     RESERVED_THEMES,
     registry,

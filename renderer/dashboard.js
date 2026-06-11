@@ -265,6 +265,10 @@ function renderDashboard() {
     KhaytCockpitOverview.render();
     return;
   }
+  if (document.body.classList.contains('khayt-atlas') && typeof KhaytAtlasFloor?.render === 'function') {
+    KhaytAtlasFloor.render();
+    return;
+  }
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const todayStr = localDateStr(today);
