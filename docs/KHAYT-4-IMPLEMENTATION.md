@@ -130,12 +130,13 @@ Shipped **Atlas** as seventh selectable built-in; Pulse and Stream reserved:
 
 **Pulse** and **Stream** remain reserved Frontier concepts for a future vNext pass.
 
-### Phase 6 — QA
+### Phase 6 — QA — **complete**
 
-- E2e: tab/nav per shell type
-- Screenshot capture per selectable theme
-- RTL (AR) + light/dark per theme
-- Locale sweep for new UI strings
+1. ~~`test/themes-qa.test.js` — preview PNGs, en locale keys, shell body classes~~
+2. ~~`scripts/e2e-theme-shells.mjs` — dashboard + queue + settings per all 7 themes~~
+3. ~~RTL smoke: Atlas + Arabic (`document.documentElement.dir === 'rtl'`)~~
+4. ~~Arabic locale: theme design + cockpit skin keys in `ar.js`~~
+5. ~~Theme previews: `npm run capture:theme-previews` (7 PNGs)~~
 
 ## File reference (handoff → app)
 
