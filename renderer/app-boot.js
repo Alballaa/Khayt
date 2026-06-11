@@ -325,6 +325,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ── Auto-updater UI ─────────────────────────────────────────────────────────
   // electron-updater fires IPC events from main; we show a non-intrusive banner.
   (function wireUpdaterUI() {
+    // Push the saved beta-channel preference to main at boot, before the startup
+    // update check runs — otherwise opted-in testers aren't offered beta builds
+    // until they open Settings (which is the only other place this is synced).
+    if (typeof settings !== 'undefined') {
+      window.hubAPI?.setUpdateOptions?.({ allowBeta: !!settings.betaUpdates });
+    }
+
     const BANNER_CSS = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:9999;' +
       'background:var(--primary);color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;' +
       'font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,0.35);display:flex;align-items:center;gap:10px;white-space:nowrap;';

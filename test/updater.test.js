@@ -35,6 +35,19 @@ test('isVersionNewer compares dotted versions', () => {
   assert.equal(isVersionNewer('2.3.1', '2.3.1'), false);
 });
 
+test('isVersionNewer treats a stable release as newer than its prerelease', () => {
+  // The beta→stable graduation: a 2.4.0-beta.2 user must be offered final 2.4.0.
+  assert.equal(isVersionNewer('2.4.0', '2.4.0-beta.2'), true);
+  assert.equal(isVersionNewer('2.4.0-beta.2', '2.4.0'), false);
+  // Prerelease ordering within the same number.
+  assert.equal(isVersionNewer('2.4.0-beta.2', '2.4.0-beta.1'), true);
+  assert.equal(isVersionNewer('2.4.0-beta.1', '2.4.0-beta.2'), false);
+  assert.equal(isVersionNewer('2.4.0-rc.1', '2.4.0-beta.9'), true);
+  // A newer number still wins regardless of prerelease tags.
+  assert.equal(isVersionNewer('2.4.1', '2.4.0-beta.2'), true);
+  assert.equal(isVersionNewer('2.4.0-beta.1', '2.4.0-beta.1'), false);
+});
+
 test('isPrereleaseVersion detects beta, rc, and alpha tags', () => {
   assert.equal(isPrereleaseVersion('2.4.0-beta.1'), true);
   assert.equal(isPrereleaseVersion('2.4.0-rc.1'), true);

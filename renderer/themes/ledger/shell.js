@@ -64,7 +64,8 @@
     if (!body || !main || body.dataset.ledgerLayout !== 'mounted') return;
 
     const top = body.querySelector(':scope > .khayt-top') || main.querySelector(':scope > .khayt-top');
-    const pagehead = body.querySelector(':scope > .ledger-pagehead')
+    const pagehead = document.getElementById('ledgerPageHead')
+      || body.querySelector(':scope > .ledger-pagehead')
       || main.querySelector(':scope > .ledger-pagehead');
     const scroll = main.querySelector(':scope > .khayt-scroll');
 

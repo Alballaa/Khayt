@@ -57,7 +57,10 @@
   function syncNavActive() {
     const active = document.querySelector('.tab-content.active')?.id || 'dashboard-tab';
     document.querySelectorAll('#atlasNav [data-atlas-tab]').forEach((btn) => {
-      btn.classList.toggle('on', btn.dataset.atlasTab === active);
+      const on = btn.dataset.atlasTab === active;
+      btn.classList.toggle('on', on);
+      if (on) btn.setAttribute('aria-current', 'page');
+      else btn.removeAttribute('aria-current');
     });
   }
 
