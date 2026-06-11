@@ -3,6 +3,14 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.en = {
+  "common.view": "View",
+  "nav.settings": "Settings",
+  "build.material": "Material",
+  "mach.status": "Status",
+  "mach.empty": "No machines",
+  "mach.offline": "Offline",
+  "dash.now_printing": "Now printing",
+  "notif.empty": "All clear",
   "dash.completed_orders": "Completed orders",
   "whk.enabled": "Enable outbound webhooks",
   "whk.secret": "Signing secret (HMAC-SHA256, optional)",

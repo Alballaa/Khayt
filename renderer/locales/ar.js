@@ -3,6 +3,14 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.ar = {
+  "common.view": "عرض",
+  "nav.settings": "الإعدادات",
+  "build.material": "الخامة",
+  "mach.status": "الحالة",
+  "mach.empty": "لا توجد طابعات",
+  "mach.offline": "غير متصل",
+  "dash.now_printing": "الطباعة الآن",
+  "notif.empty": "لا توجد تنبيهات",
   "dash.completed_orders": "الطلبات المكتملة",
   "whk.enabled": "تفعيل الويب هوك الصادر",
   "whk.secret": "مفتاح التوقيع (HMAC-SHA256، اختياري)",
