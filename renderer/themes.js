@@ -52,6 +52,8 @@
     unloadCustomThemeStyles();
     if (!theme?.custom || !theme.stylesheets?.length) return;
     theme.stylesheets.forEach((href) => {
+      // Defense in depth: only load .css bundled under the custom-theme folder (no traversal).
+      if (typeof href !== 'string' || href.includes('..') || !href.startsWith('themes/custom/') || !href.endsWith('.css')) return;
       const link = document.createElement('link');
       link.rel = 'stylesheet';
       link.href = href;

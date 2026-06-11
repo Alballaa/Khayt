@@ -110,7 +110,8 @@
     if (!body || !main || body.dataset.consoleLayout !== 'mounted') return;
 
     const top = body.querySelector(':scope > .khayt-top') || main.querySelector(':scope > .khayt-top');
-    const pagehead = body.querySelector(':scope > .console-pagehead')
+    const pagehead = document.getElementById('consolePageHead')
+      || body.querySelector(':scope > .console-pagehead')
       || main.querySelector(':scope > .console-pagehead');
     const scroll = main.querySelector(':scope > .khayt-scroll');
 

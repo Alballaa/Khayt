@@ -7,7 +7,29 @@ const {
   uniqueLanId,
   pickLanSpoolFields,
   sanitizeLanHttpUrl,
+  tunnelClientIp,
+  scriptSafeJson,
 } = require('../lib/lan-server.js');
+
+test('tunnelClientIp trusts X-Forwarded-For only when tunnelling a loopback socket', () => {
+  // Direct LAN connection — always trust the real socket, never XFF (spoofable).
+  assert.equal(tunnelClientIp('192.168.1.5', '1.2.3.4', false), '192.168.1.5');
+  assert.equal(tunnelClientIp('192.168.1.5', '1.2.3.4', true), '192.168.1.5');
+  // Behind the tunnel the socket is loopback — fall back to the XFF first hop.
+  assert.equal(tunnelClientIp('127.0.0.1', '203.0.113.9, 10.0.0.1', true), '203.0.113.9');
+  assert.equal(tunnelClientIp('::ffff:127.0.0.1', '203.0.113.9', true), '203.0.113.9');
+  assert.equal(tunnelClientIp('::1', '203.0.113.9', true), '203.0.113.9');
+  // Loopback but no tunnel, or no XFF present — keep the direct address.
+  assert.equal(tunnelClientIp('127.0.0.1', '203.0.113.9', false), '127.0.0.1');
+  assert.equal(tunnelClientIp('127.0.0.1', '', true), '127.0.0.1');
+});
+
+test('scriptSafeJson neutralizes </script> and HTML metacharacters', () => {
+  assert.equal(scriptSafeJson('a</script>b'), '"a\\u003c/script\\u003eb"');
+  assert.equal(scriptSafeJson('x&y'), '"x\\u0026y"');
+  assert.equal(JSON.parse(scriptSafeJson('a</script>b')), 'a</script>b');
+  assert.ok(!scriptSafeJson('</script>').includes('</script>'));
+});
 
 test('lanEscapeHtml encodes HTML special characters', () => {
   assert.equal(lanEscapeHtml('<script>"&"'), '&lt;script&gt;&quot;&amp;&quot;');
