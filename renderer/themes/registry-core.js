@@ -24,6 +24,20 @@
     white:  { h: 90,  s: '6%',  l: '88%', labelKey: 'theme.accent.white' },
   };
 
+  const ATELIER_ACCENTS = {
+    clay:   { h: 18,  s: '55%', l: '47%', labelKey: 'theme.accent.clay' },
+    sage:   { h: 150, s: '28%', l: '40%', labelKey: 'theme.accent.sage' },
+    sea:    { h: 196, s: '42%', l: '42%', labelKey: 'theme.accent.sea' },
+    violet: { h: 262, s: '32%', l: '50%', labelKey: 'theme.accent.violet' },
+  };
+
+  const VITRINE_ACCENTS = {
+    aurora: { h: 187, s: '80%', l: '60%', labelKey: 'theme.accent.aurora' },
+    iris:   { h: 262, s: '72%', l: '68%', labelKey: 'theme.accent.iris' },
+    orchid: { h: 320, s: '65%', l: '64%', labelKey: 'theme.accent.orchid' },
+    sunset: { h: 28,  s: '88%', l: '60%', labelKey: 'theme.accent.sunset' },
+  };
+
   /** Shell types that share the Khayt handoff six-screen layer (A–E family). */
   const HANDOFF_SCREEN_SHELLS = ['studio', 'ledger', 'console', 'atelier', 'vitrine'];
 
@@ -31,32 +45,8 @@
     return HANDOFF_SCREEN_SHELLS.includes(shell);
   }
 
-  /** Reserved built-ins — Khayt-4 directions D–F (v1 picker shows all six). */
+  /** Reserved built-ins — Khayt-4 direction F (Cockpit). */
   const RESERVED_THEMES = {
-    atelier: {
-      labelKey: 'theme.design.atelier',
-      descKey: 'theme.design.atelier_desc',
-      shell: 'atelier',
-      enabled: false,
-      comingSoon: true,
-      defaultAccent: 'clay',
-      accents: { clay: { h: 18, s: '55%', l: '47%', labelKey: 'theme.accent.clay' } },
-      defaultAppearance: 'light',
-      bodyClass: 'khayt-atelier',
-      stylesheets: [],
-    },
-    vitrine: {
-      labelKey: 'theme.design.vitrine',
-      descKey: 'theme.design.vitrine_desc',
-      shell: 'vitrine',
-      enabled: false,
-      comingSoon: true,
-      defaultAccent: 'glow',
-      accents: { glow: { h: 187, s: '80%', l: '60%', labelKey: 'theme.accent.glow' } },
-      defaultAppearance: 'dark',
-      bodyClass: 'khayt-vitrine',
-      stylesheets: [],
-    },
     cockpit: {
       labelKey: 'theme.design.cockpit',
       descKey: 'theme.design.cockpit_desc',
@@ -123,6 +113,40 @@
         'themes/console/compat.css',
         'themes/console/shell.css',
         'themes/console/screens.css',
+      ],
+    },
+    atelier: {
+      labelKey: 'theme.design.atelier',
+      descKey: 'theme.design.atelier_desc',
+      preview: 'themes/previews/atelier.png',
+      shell: 'atelier',
+      enabled: true,
+      defaultAccent: 'clay',
+      accents: ATELIER_ACCENTS,
+      defaultAppearance: 'light',
+      bodyClass: 'khayt-atelier',
+      stylesheets: [
+        'themes/atelier/tokens.css',
+        'themes/atelier/compat.css',
+        'themes/atelier/shell.css',
+        'themes/atelier/screens.css',
+      ],
+    },
+    vitrine: {
+      labelKey: 'theme.design.vitrine',
+      descKey: 'theme.design.vitrine_desc',
+      preview: 'themes/previews/vitrine.png',
+      shell: 'vitrine',
+      enabled: true,
+      defaultAccent: 'aurora',
+      accents: VITRINE_ACCENTS,
+      defaultAppearance: 'dark',
+      bodyClass: 'khayt-vitrine',
+      stylesheets: [
+        'themes/vitrine/tokens.css',
+        'themes/vitrine/compat.css',
+        'themes/vitrine/shell.css',
+        'themes/vitrine/screens.css',
       ],
     },
   };
@@ -250,6 +274,8 @@
     STUDIO_ACCENTS,
     LEDGER_ACCENTS,
     CONSOLE_ACCENTS,
+    ATELIER_ACCENTS,
+    VITRINE_ACCENTS,
     BUILTIN_THEMES,
     RESERVED_THEMES,
     registry,

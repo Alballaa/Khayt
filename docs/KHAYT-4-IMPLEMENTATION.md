@@ -11,8 +11,8 @@ This document maps the **eight handoff directions** to the production theme syst
 | A | Production Studio | `khayt/` | `studio` | `studio` (sidebar) | **~75%** — shell, tokens, 5/6 screens |
 | B | Workshop Ledger | `alt/` | `ledger` | `ledger` (masthead + tabs) | **~40%** — shell strong, screens weak |
 | C | Control Room | `console/` | `console` | `console` (command bar + code rail) | **Shipped** — tokens, shell, screens, picker |
-| D | Atelier | `atelier/` | `atelier` | `atelier` (soft sidebar) | Not started |
-| E | Vitrine | `vitrine/` | `vitrine` | `vitrine` (glass sidebar) | Not started |
+| D | Atelier | `atelier/` | `atelier` | `atelier` (soft sidebar) | **Shipped** |
+| E | Vitrine | `vitrine/` | `vitrine` | `vitrine` (glass sidebar) | **Shipped** |
 | F | Cockpit | `cockpit/` | `cockpit` | `cockpit` (icon rail + ops layout) | Not started |
 | G | Spectrum | `spectrum/` | `spectrum` (+ skins) | `cockpit` + `data-skin` | Not started |
 | H | Frontier | `frontier/` | concepts only | bespoke per concept | Experimental — not v1 |
@@ -96,11 +96,16 @@ Shipped **Control Room** (`console`) as third selectable built-in:
 4. ~~Handoff screens via `body.khayt-handoff` + `screens.css`~~
 5. Preview: `themes/previews/console.png` via `npm run capture:theme-previews`
 
-**Remaining Phase 2+:** Atelier, Vitrine (same checklist per theme).
+### Phase 3 — Remaining A–E themes — **complete**
 
-### Phase 3 — Remaining A–E themes
+Shipped **Atelier** and **Vitrine** as fourth and fifth selectable built-ins:
 
-Ship C, D, E in order of product priority. Reuse Phase 1 screen layer; only tokens + shell differ.
+1. ~~`renderer/themes/atelier/` — tokens, compat, floating sidebar shell, screens~~
+2. ~~`renderer/themes/vitrine/` — tokens, compat, ambient glass shell, screens~~
+3. ~~Registry enabled; Albert Sans, Newsreader, Spline Sans Mono, Outfit fonts vendored~~
+4. ~~Previews: `atelier.png`, `vitrine.png` via `npm run capture:theme-previews`~~
+
+**v1 A–E picker is complete.** Only Cockpit remains reserved.
 
 ### Phase 4 — Cockpit + Spectrum
 

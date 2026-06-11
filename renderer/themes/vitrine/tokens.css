@@ -1,0 +1,113 @@
+/* Vitrine — spatial glass tokens (Khayt-4 direction E) */
+
+html[data-design="vitrine"] {
+  --bg:          #0d0f16;
+  --bg-2:        rgba(255,255,255,0.035);
+  --surface:     rgba(255,255,255,0.055);
+  --surface-2:   rgba(255,255,255,0.085);
+  --surface-3:   rgba(255,255,255,0.13);
+  --border:      rgba(255,255,255,0.09);
+  --border-2:    rgba(255,255,255,0.17);
+  --hairline:    rgba(255,255,255,0.06);
+
+  --text:        #f2f4fa;
+  --text-dim:    #b6bdd0;
+  --text-muted:  #7d86a0;
+  --text-faint:  #515a72;
+
+  --accent-h: 187;
+  --accent-s: 80%;
+  --accent-l: 60%;
+  --accent:      hsl(var(--accent-h) var(--accent-s) var(--accent-l));
+  --accent-soft: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.16);
+  --accent-line: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.5);
+  --on-accent:   #061318;
+
+  --ok:    #51cf8a;
+  --ok-soft: rgba(81,207,138,0.16);
+  --warn:  #e8b04b;
+  --warn-soft: rgba(232,176,75,0.16);
+  --danger:#ef6e60;
+  --danger-soft: rgba(239,110,96,0.15);
+  --info:  #6ea8f0;
+  --info-soft: rgba(110,168,240,0.15);
+  --violet: #a796f2;
+  --violet-soft: rgba(167,150,242,0.15);
+
+  --shadow-1: 0 1px 1px rgba(0,0,0,0.2), 0 4px 16px rgba(0,0,0,0.25);
+  --shadow-2: 0 2px 6px rgba(0,0,0,0.25), 0 16px 44px rgba(0,0,0,0.4);
+  --shadow-3: 0 10px 30px rgba(0,0,0,0.4), 0 36px 90px rgba(0,0,0,0.55);
+  --shadow-pop: 0 24px 70px rgba(0,0,0,0.6);
+
+  --r-xs: 9px;
+  --r-sm: 12px;
+  --r-md: 16px;
+  --r-lg: 20px;
+  --r-xl: 28px;
+
+  --u: 4.3px;
+  --pad-card: calc(var(--u) * 5);
+  --gap: calc(var(--u) * 4);
+  --glass: 22px;
+
+  --font-ui: "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", "IBM Plex Mono", ui-monospace, monospace;
+  --font-ar: "IBM Plex Sans Arabic", var(--font-ui);
+  --font-sans: var(--font-ui);
+  --font-num: var(--font-mono);
+
+  --nav-w: 218px;
+  --primary: var(--accent);
+  --success: var(--ok);
+  --warning: var(--warn);
+  --bg-elev: var(--bg-2);
+  --bg-card: var(--surface);
+  --surface-1: var(--surface);
+  --border-soft: var(--hairline);
+  --radius: var(--r-lg);
+  --radius-sm: var(--r-sm);
+}
+
+html[data-design="vitrine"][data-theme="light"] {
+  --bg:          #d8dce6;
+  --bg-2:        rgba(255,255,255,0.32);
+  --surface:     rgba(255,255,255,0.55);
+  --surface-2:   rgba(255,255,255,0.72);
+  --surface-3:   rgba(255,255,255,0.9);
+  --border:      rgba(28,34,58,0.09);
+  --border-2:    rgba(28,34,58,0.18);
+  --hairline:    rgba(28,34,58,0.07);
+
+  --text:        #1c2233;
+  --text-dim:    #4d5670;
+  --text-muted:  #7e879f;
+  --text-faint:  #aab1c4;
+
+  --ok:    #1f9d5e;
+  --ok-soft: rgba(31,157,94,0.14);
+  --warn:  #ad7d18;
+  --warn-soft: rgba(173,125,24,0.14);
+  --danger:#cc4a3c;
+  --danger-soft: rgba(204,74,60,0.12);
+  --info:  #3a6fc4;
+  --info-soft: rgba(58,111,196,0.12);
+  --violet: #7561cc;
+  --violet-soft: rgba(117,97,204,0.12);
+
+  --shadow-1: 0 1px 1px rgba(28,34,58,0.05), 0 4px 16px rgba(28,34,58,0.08);
+  --shadow-2: 0 2px 6px rgba(28,34,58,0.06), 0 16px 44px rgba(28,34,58,0.12);
+  --shadow-3: 0 10px 30px rgba(28,34,58,0.12), 0 36px 90px rgba(28,34,58,0.18);
+  --shadow-pop: 0 24px 70px rgba(28,34,58,0.22);
+}
+
+html[data-design="vitrine"],
+html[data-design="vitrine"] body {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+html[data-design="vitrine"][dir="rtl"],
+html[data-design="vitrine"][dir="rtl"] body {
+  font-family: var(--font-ar);
+}

@@ -9,27 +9,38 @@ test('normalizeDesignId maps classic to ledger', () => {
   assert.equal(reg.normalizeDesignId('unknown'), 'studio');
 });
 
-test('selectable themes include studio, ledger, and console', () => {
+test('selectable themes include all five A–E production themes', () => {
   const selectable = reg.listSelectableThemes();
   assert.ok(selectable.includes('studio'));
   assert.ok(selectable.includes('ledger'));
   assert.ok(selectable.includes('console'));
+  assert.ok(selectable.includes('atelier'));
+  assert.ok(selectable.includes('vitrine'));
   assert.ok(!selectable.includes('cockpit'));
 });
 
-test('coming soon lists reserved Khayt-4 themes', () => {
+test('coming soon lists only Cockpit', () => {
   const soon = reg.listComingSoonThemes();
   assert.ok(!soon.includes('console'));
-  assert.ok(soon.includes('atelier'));
-  assert.ok(soon.includes('vitrine'));
+  assert.ok(!soon.includes('atelier'));
+  assert.ok(!soon.includes('vitrine'));
   assert.ok(soon.includes('cockpit'));
 });
 
-test('usesHandoffScreens covers studio, ledger, and console shells', () => {
+test('usesHandoffScreens covers studio through vitrine shells', () => {
   assert.equal(reg.usesHandoffScreens('studio'), true);
   assert.equal(reg.usesHandoffScreens('ledger'), true);
   assert.equal(reg.usesHandoffScreens('console'), true);
+  assert.equal(reg.usesHandoffScreens('atelier'), true);
+  assert.equal(reg.usesHandoffScreens('vitrine'), true);
   assert.equal(reg.usesHandoffScreens('cockpit'), false);
+});
+
+test('atelier and vitrine accent presets', () => {
+  assert.equal(reg.defaultAccentForTheme('atelier'), 'clay');
+  assert.equal(reg.defaultAccentForTheme('vitrine'), 'aurora');
+  assert.ok(reg.accentsForTheme('atelier').sage);
+  assert.ok(reg.accentsForTheme('vitrine').iris);
 });
 
 test('console default accent is signal with four presets', () => {

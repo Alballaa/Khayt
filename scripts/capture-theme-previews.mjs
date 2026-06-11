@@ -19,6 +19,8 @@ const THEMES = [
   { id: 'studio', appearance: 'dark', file: 'studio.png' },
   { id: 'ledger', appearance: 'light', file: 'ledger.png' },
   { id: 'console', appearance: 'dark', file: 'console.png' },
+  { id: 'atelier', appearance: 'light', file: 'atelier.png' },
+  { id: 'vitrine', appearance: 'dark', file: 'vitrine.png' },
 ];
 
 const VIEWPORT = { width: 1280, height: 800 };

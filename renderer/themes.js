@@ -36,6 +36,8 @@
     const theme = reg()?.getTheme(designId);
     if (theme?.shell === 'ledger') sub.textContent = 'خيط · LEDGER';
     else if (theme?.shell === 'console') sub.textContent = 'خيط · CONTROL ROOM';
+    else if (theme?.shell === 'atelier') sub.textContent = 'خيط · ATELIER';
+    else if (theme?.shell === 'vitrine') sub.textContent = 'خيط · VITRINE';
     else if (theme?.custom) sub.textContent = `خيط · ${(theme.label || designId).toUpperCase()}`;
     else sub.textContent = 'خيط · STUDIO';
   }
@@ -62,6 +64,8 @@
     document.body.classList.toggle('khayt-studio', shell === 'studio');
     document.body.classList.toggle('khayt-ledger', shell === 'ledger');
     document.body.classList.toggle('khayt-console', shell === 'console');
+    document.body.classList.toggle('khayt-atelier', shell === 'atelier');
+    document.body.classList.toggle('khayt-vitrine', shell === 'vitrine');
     document.body.classList.toggle('khayt-shell-default', shell === 'default');
     document.body.classList.toggle('khayt-handoff', reg()?.usesHandoffScreens?.(shell) === true);
 
@@ -69,7 +73,7 @@
       el.classList.remove(el.dataset.khaytBodyClass);
       delete el.dataset.khaytBodyClass;
     });
-    if (theme?.bodyClass && !['khayt-studio', 'khayt-ledger', 'khayt-console'].includes(theme.bodyClass)) {
+    if (theme?.bodyClass && !['khayt-studio', 'khayt-ledger', 'khayt-console', 'khayt-atelier', 'khayt-vitrine'].includes(theme.bodyClass)) {
       document.body.classList.add(theme.bodyClass);
       document.body.dataset.khaytBodyClass = theme.bodyClass;
     }
@@ -81,9 +85,11 @@
     const root = document.documentElement;
     const wasLedger = document.body.classList.contains('khayt-ledger');
     const wasConsole = document.body.classList.contains('khayt-console');
+    const wasAtelier = document.body.classList.contains('khayt-atelier');
+    const wasVitrine = document.body.classList.contains('khayt-vitrine');
     const nextShell = theme?.shell || 'studio';
 
-    if (nextShell === 'ledger' || nextShell === 'console') {
+    if (['ledger', 'console', 'atelier', 'vitrine'].includes(nextShell)) {
       document.getElementById('appSidebar')?.classList.remove('collapsed');
     }
 
@@ -98,8 +104,12 @@
     }
     if (wasLedger) global.KhaytLedgerShell?.teardownLedgerShell?.();
     if (wasConsole) global.KhaytConsoleShell?.teardownConsoleShell?.();
+    if (wasAtelier) global.KhaytAtelierShell?.teardownAtelierShell?.();
+    if (wasVitrine) global.KhaytVitrineShell?.teardownVitrineShell?.();
     if (nextShell === 'ledger') global.KhaytLedgerShell?.applyLedgerShell?.();
     if (nextShell === 'console') global.KhaytConsoleShell?.applyConsoleShell?.();
+    if (nextShell === 'atelier') global.KhaytAtelierShell?.applyAtelierShell?.();
+    if (nextShell === 'vitrine') global.KhaytVitrineShell?.applyVitrineShell?.();
     if (reg()?.usesHandoffScreens?.(theme?.shell)) {
       global.KhaytStudio?.init?.();
       if (typeof renderDashboard === 'function') renderDashboard();
@@ -173,6 +183,8 @@
     STUDIO_ACCENTS: reg()?.STUDIO_ACCENTS,
     LEDGER_ACCENTS: reg()?.LEDGER_ACCENTS,
     CONSOLE_ACCENTS: reg()?.CONSOLE_ACCENTS,
+    ATELIER_ACCENTS: reg()?.ATELIER_ACCENTS,
+    VITRINE_ACCENTS: reg()?.VITRINE_ACCENTS,
   };
 
   Object.assign(global, api);
