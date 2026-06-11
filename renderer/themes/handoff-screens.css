@@ -103,37 +103,27 @@ body.khayt-handoff .khayt-tab-page .batch-bar {
   border: 1px solid var(--border);
 }
 
-/* ---- Settings ---- */
+/* ---- Settings (horizontal tab strip) ---- */
 body.khayt-handoff #settings-tab .settings-layout {
-  gap: var(--gap, 16px);
-  padding: var(--gap, 16px);
+  gap: 0;
+  padding: 0;
 }
 body.khayt-handoff #settings-tab .settings-sidebar {
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg, var(--radius));
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
   background: var(--surface);
-  box-shadow: var(--shadow-1);
-  padding: 14px 10px;
-}
-body.khayt-handoff #settings-tab .settings-nav-group-label {
-  font-family: var(--font-mono, var(--font-num));
-  letter-spacing: 0.1em;
-  font-size: 9.5px;
+  box-shadow: none;
+  padding: 8px 18px 0;
 }
 body.khayt-handoff #settings-tab .settings-nav-item {
-  border-radius: var(--r-sm, var(--radius-sm));
+  border-radius: 8px 8px 0 0;
   font-weight: 600;
 }
 body.khayt-handoff #settings-tab .settings-nav-item.active {
-  background: var(--accent-soft, rgba(91, 156, 240, 0.14));
+  background: transparent;
   color: var(--accent);
-}
-body.khayt-handoff #settings-tab .settings-nav-item .nav-icon {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 20px; height: 20px; font-size: 0;
-}
-body.khayt-handoff #settings-tab .settings-nav-item .nav-icon svg {
-  display: block; color: currentColor;
+  border-bottom-color: var(--accent);
 }
 body.khayt-handoff #settings-tab .settings-panel-title {
   font-size: 20px; letter-spacing: -0.02em; margin-bottom: 18px;
