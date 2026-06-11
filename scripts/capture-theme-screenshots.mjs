@@ -26,6 +26,19 @@ const THEMES = [
   { id: 'atlas', appearance: 'dark' },
 ];
 
+// Optional override, e.g. KHAYT_THEME_SET='[{"id":"studio","appearance":"light","dir":"studio-light"}]'
+// Each entry: { id, appearance, dir? } — `dir` defaults to the theme id.
+const themeSet = (() => {
+  if (!process.env.KHAYT_THEME_SET) return THEMES;
+  try {
+    const parsed = JSON.parse(process.env.KHAYT_THEME_SET);
+    if (Array.isArray(parsed) && parsed.length) return parsed;
+  } catch (e) {
+    console.warn('Invalid KHAYT_THEME_SET, using defaults:', e.message);
+  }
+  return THEMES;
+})();
+
 const SHOTS = [
   { tab: 'dashboard-tab', file: 'screenshot-1-dashboard.png', wait: '#dashboard-tab .dash-grid, #dashboard-tab .kpi-grid, #dashboard-tab' },
   { tab: 'calculator-tab', file: 'screenshot-2-calculator.png', wait: '#calculator-tab #buildTableBody tr', setup: 'calculator' },
@@ -145,8 +158,8 @@ try {
   );
   await page.waitForTimeout(800);
 
-  for (const theme of THEMES) {
-    const outDir = path.join(assetsRoot, theme.id);
+  for (const theme of themeSet) {
+    const outDir = path.join(assetsRoot, theme.dir || theme.id);
     fs.mkdirSync(outDir, { recursive: true });
     await applyTheme(page, theme);
     await page.waitForTimeout(900);
@@ -169,7 +182,7 @@ try {
     }
   }
 
-  console.log(`\nDone — ${total} screenshots saved to assets/themes/ (${THEMES.length} themes × ${SHOTS.length} screens)`);
+  console.log(`\nDone — ${total} screenshots saved to assets/themes/ (${themeSet.length} themes × ${SHOTS.length} screens)`);
 } finally {
   if (electronApp) await electronApp.close().catch(() => {});
   fs.rmSync(userData, { recursive: true, force: true });
