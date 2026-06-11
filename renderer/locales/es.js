@@ -3,6 +3,10 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.es = {
+  "set.stock_defaults": "Valores de inventario",
+  "set.ops_pricing": "Precios y presupuestos",
+  "set.printers_devices": "Impresoras conectadas",
+  "set.online_intake": "Recepción de clientes",
   "set.biz_identity": "Identidad",
   "set.biz_contact": "Contacto",
   "set.biz_tax": "Impuestos y registro",

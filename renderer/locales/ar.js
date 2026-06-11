@@ -3,6 +3,10 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.ar = {
+  "set.stock_defaults": "إعدادات المخزون",
+  "set.ops_pricing": "التسعير وعروض الأسعار",
+  "set.printers_devices": "الطابعات المتصلة",
+  "set.online_intake": "استقبال العملاء",
   "set.biz_identity": "الهوية",
   "set.biz_contact": "معلومات الاتصال",
   "set.biz_tax": "الضرائب والتسجيل",

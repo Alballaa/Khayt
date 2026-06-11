@@ -3,6 +3,10 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.de = {
+  "set.stock_defaults": "Lagerstandards",
+  "set.ops_pricing": "Preise & Angebote",
+  "set.printers_devices": "Verbundene Drucker",
+  "set.online_intake": "Kundenannahme",
   "set.biz_identity": "Identität",
   "set.biz_contact": "Kontakt",
   "set.biz_tax": "Steuer & Registrierung",

@@ -4127,8 +4127,20 @@ th[data-sort]:hover {
 .settings-sidebar::-webkit-scrollbar { height: 6px; }
 .settings-sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
-/* Group labels (General / Advanced) don't apply to a flat tab row. */
-.settings-nav-group-label { display: none; }
+/* Group labels become a thin vertical divider between General and Advanced.
+   The first one (before the very first tab) is hidden. */
+.settings-nav-group-label {
+  align-self: center;
+  flex-shrink: 0;
+  width: 1px;
+  height: 20px;
+  padding: 0;
+  margin: 0 9px;
+  background: var(--border);
+  font-size: 0;
+  color: transparent;
+}
+.settings-nav-group-label:first-child { display: none; }
 
 .settings-nav-item {
   display: flex;
@@ -4167,9 +4179,8 @@ th[data-sort]:hover {
 }
 
 .settings-panel { display: none; }
-/* Constrain panel content to a readable measure (forms were stretching the full
-   window width). Left-aligned against the nav — GitHub/macOS-settings style. */
-.settings-panel.active { display: block; max-width: 760px; }
+/* Constrain panel content to a readable measure and center it under the tab strip. */
+.settings-panel.active { display: block; max-width: 760px; margin: 0 auto; }
 
 /* Card-based sub-sections: each settings group is a themed .card.settings-card.
    The section-head becomes the card's title (its divider/border is dropped). */

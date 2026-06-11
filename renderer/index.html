@@ -1506,6 +1506,8 @@
       <div class="settings-panel" id="settings-panel-stock">
         <h2 class="settings-panel-title" data-i18n="set.stock_section">Stock & Inventory</h2>
 
+        <div class="card settings-card">
+        <div class="settings-section-head" data-i18n="set.stock_defaults">Stock Defaults</div>
         <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
           <input type="checkbox" id="set_autoDeduct" style="width:auto; margin:0;">
           <span data-i18n="set.auto_deduct">Auto-deduct filament when an order is completed</span>
@@ -1522,7 +1524,9 @@
             <input type="tel" id="set_supplierPhone" data-i18n-placeholder="set.supplier_ph">
           </div>
         </div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head pro-only" data-i18n="set.working_hours">Working Hours</div>
         <div class="pro-only">
           <p style="font-size:11.5px; color:var(--text-muted); margin:0 0 10px;">Available print hours per day of week (0 = closed)</p>
@@ -1541,6 +1545,7 @@
             <button class="btn small primary" id="btnAddHoliday" type="button" data-i18n="set.add_holiday">Add closure date</button>
           </div>
           <div id="holidayList" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:4px;"></div>
+        </div>
         </div>
 
         <div class="settings-save-row">
@@ -1634,6 +1639,7 @@
       <div class="settings-panel" id="settings-panel-payments">
         <h2 class="settings-panel-title" data-i18n="set.bank_section">Payments</h2>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.bank_section">Bank Details</div>
         <div class="inline-pair">
           <div>
@@ -1657,12 +1663,17 @@
           <label><input type="checkbox" data-pm="applepay"><span data-i18n="pay.method.applepay">Apple Pay</span></label>
           <label><input type="checkbox" data-pm="visa"><span data-i18n="pay.method.visa">Credit card</span></label>
         </div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="bnpl.section">Payment Services & BNPL</div>
         <div id="bnplSection"></div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="xr.section">Exchange Rates</div>
         <div id="exchangeRatesSection"></div>
+        </div>
 
         <div class="settings-save-row">
           <button type="button" class="btn primary" data-act="save-settings-from-panel" data-i18n="common.save">Save</button>
@@ -1672,35 +1683,47 @@
       <!-- ─── PRINTERS ──────────────────────────────────────── -->
       <div class="settings-panel" id="settings-panel-printers">
         <h2 class="settings-panel-title" data-i18n="mach.section">My Printers / Machines</h2>
+        <div class="card settings-card">
+        <div class="settings-section-head" data-i18n="set.printers_devices">Connected Printers</div>
         <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px;" data-i18n="mach.section_hint"></p>
         <div id="machinesList"></div>
         <button class="btn primary" id="btnAddMachine" style="margin-top:10px;" data-i18n="mach.add">+ Add Printer</button>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="slicerProfiles">Slicer Profiles</div>
         <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:6px;">
           <button id="btnAddSlicerProfile" class="btn btn-sm btn-secondary" data-i18n="addSlicerProfile">+ Add Profile</button>
         </div>
         <div id="slicerProfilesContainer"></div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="envLogs">Environment Log</div>
         <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:6px;">
           <button id="btnLogEnv" class="btn btn-sm btn-secondary" data-i18n="logEnvironment">+ Log</button>
         </div>
         <div id="envLogsContainer"></div>
+        </div>
       </div>
 
       <!-- ─── ONLINE (customer intake & LAN) ───────────────── -->
       <div class="settings-panel" id="settings-panel-online">
         <h2 class="settings-panel-title" data-i18n="online.settings_title">Online</h2>
+        <div class="card settings-card">
+        <div class="settings-section-head" data-i18n="set.online_intake">Customer Intake</div>
         <p style="font-size:12px;color:var(--text-muted);margin:0 0 16px;" data-i18n="online.settings_intro">Let customers submit quote requests via a link on your network. Your data stays on this computer.</p>
         <div id="onlineSection"></div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head">LAN API &amp; iCal</div>
         <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;" data-i18n="lan.settings_intro">Advanced: REST API, printer webhooks, kiosk queue, and optional internet tunnel.</p>
         <div id="lanApiSection"></div>
         <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
           <button id="btnExportIcal" class="btn btn-sm btn-secondary" data-i18n="exportIcal">📅 Export iCal Feed</button>
           <span style="font-size:11px;color:var(--text-muted);" data-i18n="icalDescription">Subscribe to upcoming order due dates in your calendar app</span>
+        </div>
         </div>
 
         <div class="settings-save-row">
@@ -1712,6 +1735,8 @@
       <div class="settings-panel pro-only" id="settings-panel-ops">
         <h2 class="settings-panel-title" data-i18n="set.ops_section">Operations</h2>
 
+        <div class="card settings-card">
+        <div class="settings-section-head" data-i18n="set.ops_pricing">Pricing & Quotes</div>
         <div class="inline-pair" style="align-items:flex-end; margin-top:0;">
           <div>
             <label data-i18n="set.min_margin">Minimum margin warning (%)</label>
@@ -1755,7 +1780,9 @@
             <textarea id="set_paymentInstructions" rows="3" style="resize:vertical;" placeholder="Bank name, IBAN, Mada/STCPay..."></textarea>
           </div>
         </div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.wip_limits">WIP Limits per column</div>
         <div class="inline-pair" style="flex-wrap:wrap;">
           <div><label>Pending</label><input type="number" id="set_wip_pending" min="0" step="1" placeholder="0 = unlimited"></div>
@@ -1767,7 +1794,9 @@
           <input type="checkbox" id="set_wipEnforceHardLimit">
           <span data-i18n="set.wip_enforce_hard">Block moves when WIP limit is reached (instead of warning only)</span>
         </label>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.post_process_presets">Post-process presets</div>
         <div id="postProcessPresetsList" style="margin-bottom:8px;"></div>
         <div style="display:flex; gap:8px; align-items:flex-end;">
@@ -1775,7 +1804,9 @@
           <div style="width:100px;"><label style="margin:0;">Amount</label><input type="number" id="set_ppAmount" min="0" step="0.01" placeholder="0"></div>
           <button class="btn small primary" id="btnAddPostPreset" style="margin-bottom:1px;">+ Add</button>
         </div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.exp_budgets">Monthly Expense Budgets</div>
         <div class="inline-pair" style="flex-wrap:wrap;">
           <div><label data-i18n="exp.cat.filament">Filament</label><input type="number" id="set_budget_filament" min="0" step="1" placeholder="0"></div>
@@ -1785,15 +1816,20 @@
           <div><label data-i18n="exp.cat.shipping">Shipping</label><input type="number" id="set_budget_shipping" min="0" step="1" placeholder="0"></div>
           <div><label data-i18n="exp.cat.other">Other</label><input type="number" id="set_budget_other" min="0" step="1" placeholder="0"></div>
         </div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head">Fixed Costs &amp; Break-Even</div>
         <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">Add monthly fixed costs (rent, salaries, subscriptions) to compute your break-even revenue on the dashboard.</p>
         <div id="fixedCostsSection"></div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.locations">Locations</div>
         <p style="font-size:12px; color:var(--text-muted); margin:0 0 12px;">Manage your shop locations or branches. Tag orders, machines, inventory and expenses to a location.</p>
         <div id="locationsSettingsSection"></div>
         <button class="btn primary" id="btnAddLocation" style="margin-top:10px;" data-i18n="set.location_add">+ Add location</button>
+        </div>
 
         <div class="settings-save-row">
           <button class="btn primary" id="btnSaveOpsSettings" data-i18n="common.save">Save</button>
@@ -1804,38 +1840,53 @@
       <div class="settings-panel pro-only" id="settings-panel-automation">
         <h2 class="settings-panel-title" data-i18n="set.nav_automation">Automation</h2>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="wa.settings_section">WhatsApp Quick-Reply Templates</div>
         <p style="font-size:12px; color:var(--text-muted); margin:0 0 12px;" data-i18n="wa.settings_hint"></p>
         <div id="waTemplatesList"></div>
         <button class="btn primary" id="btnAddWaTemplate" style="margin-top:10px;" data-i18n="wa.add_template">+ Add Template</button>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.notifications">Email Notifications</div>
         <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">Send automated status update emails to clients via SendGrid, Mailgun, or your default mail client.</p>
         <div id="emailNotificationsSection"></div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.digest_title">Email Digest</div>
         <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;" data-i18n="set.digest_hint">Send an automated daily or weekly summary email to yourself with revenue, orders, and stock alerts.</p>
         <div id="emailDigestSection"></div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head">Outbound Webhooks</div>
         <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">Fire HTTP POST requests to Zapier, Make.com, n8n, or any URL when order events happen.</p>
         <div id="webhookSettingsSection"></div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="telegramNotifications">Telegram Notifications</div>
         <div id="telegramSettingsContainer"></div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head">Salla / Zid Webhooks</div>
         <div id="sallaZidContainer"></div>
+        </div>
       </div>
 
       <!-- ─── ACCESS (pro-only) ─────────────────────────────── -->
       <div class="settings-panel pro-only" id="settings-panel-access">
         <h2 class="settings-panel-title" data-i18n="set.nav_access">Access</h2>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="op.title">Operators</div>
         <div id="operatorsList"></div>
         <button class="btn primary" id="btnAddOperator" style="margin-top:10px;" data-i18n="op.add">+ Add operator</button>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="op.lock">Operator Lock</div>
         <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;" data-i18n="op.lock_hint">Require a PIN to switch between operator accounts. Restricts access by role.</p>
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:12px;">
@@ -1843,7 +1894,9 @@
           <span data-i18n="op.lock_enabled">Enable operator PIN lock</span>
         </label>
         <div id="operatorLockSection"></div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.loyalty">Customer Loyalty Tiers</div>
         <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">Auto-assign tier badges and discounts based on completed orders or spend.</p>
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:12px;">
@@ -1851,6 +1904,7 @@
           <span data-i18n="set.loyalty_enabled">Enable loyalty tiers</span>
         </label>
         <div id="loyaltyTiersSection"></div>
+        </div>
 
         <div class="settings-save-row">
           <button type="button" class="btn primary" data-act="save-settings-from-panel" data-i18n="common.save">Save</button>
