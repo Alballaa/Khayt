@@ -285,6 +285,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     catch (_) {}
   }
   if ($('#appVersion')) $('#appVersion').textContent = currentVersion || '2.0.16 (dev)';
+  const betaBadge = $('#appVersionBeta');
+  if (betaBadge) betaBadge.hidden = !/-beta/i.test(String(currentVersion || ''));
 
   // ── Post-update "data survived" toast ────────────────────────────────────────
   // If the previous session stored a pending-update version and we're now running
