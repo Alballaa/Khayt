@@ -38,6 +38,13 @@
     sunset: { h: 28,  s: '88%', l: '60%', labelKey: 'theme.accent.sunset' },
   };
 
+  const COCKPIT_ACCENTS = {
+    electric: { h: 224, s: '88%', l: '54%', labelKey: 'theme.accent.electric' },
+    violet:   { h: 262, s: '72%', l: '58%', labelKey: 'theme.accent.violet' },
+    emerald:  { h: 158, s: '85%', l: '32%', labelKey: 'theme.accent.emerald' },
+    flare:    { h: 356, s: '78%', l: '54%', labelKey: 'theme.accent.flare' },
+  };
+
   /** Shell types that share the Khayt handoff six-screen layer (A–E family). */
   const HANDOFF_SCREEN_SHELLS = ['studio', 'ledger', 'console', 'atelier', 'vitrine'];
 
@@ -45,21 +52,8 @@
     return HANDOFF_SCREEN_SHELLS.includes(shell);
   }
 
-  /** Reserved built-ins — Khayt-4 direction F (Cockpit). */
-  const RESERVED_THEMES = {
-    cockpit: {
-      labelKey: 'theme.design.cockpit',
-      descKey: 'theme.design.cockpit_desc',
-      shell: 'cockpit',
-      enabled: false,
-      comingSoon: true,
-      defaultAccent: 'electric',
-      accents: { electric: { h: 224, s: '88%', l: '54%', labelKey: 'theme.accent.electric' } },
-      defaultAppearance: 'light',
-      bodyClass: 'khayt-cockpit',
-      stylesheets: [],
-    },
-  };
+  /** Reserved built-ins — none shipped yet (Frontier, etc.). */
+  const RESERVED_THEMES = {};
 
   const BUILTIN_THEMES = {
     studio: {
@@ -147,6 +141,24 @@
         'themes/vitrine/compat.css',
         'themes/vitrine/shell.css',
         'themes/vitrine/screens.css',
+      ],
+    },
+    cockpit: {
+      labelKey: 'theme.design.cockpit',
+      descKey: 'theme.design.cockpit_desc',
+      preview: 'themes/previews/cockpit.png',
+      shell: 'cockpit',
+      enabled: true,
+      defaultAccent: 'electric',
+      accents: COCKPIT_ACCENTS,
+      defaultAppearance: 'light',
+      bodyClass: 'khayt-cockpit',
+      stylesheets: [
+        'themes/cockpit/tokens.css',
+        'themes/cockpit/spectrum.css',
+        'themes/cockpit/shell.css',
+        'themes/cockpit/sections.css',
+        'themes/cockpit/compat.css',
       ],
     },
   };
@@ -276,6 +288,7 @@
     CONSOLE_ACCENTS,
     ATELIER_ACCENTS,
     VITRINE_ACCENTS,
+    COCKPIT_ACCENTS,
     BUILTIN_THEMES,
     RESERVED_THEMES,
     registry,

@@ -13,8 +13,8 @@ This document maps the **eight handoff directions** to the production theme syst
 | C | Control Room | `console/` | `console` | `console` (command bar + code rail) | **Shipped** — tokens, shell, screens, picker |
 | D | Atelier | `atelier/` | `atelier` | `atelier` (soft sidebar) | **Shipped** |
 | E | Vitrine | `vitrine/` | `vitrine` | `vitrine` (glass sidebar) | **Shipped** |
-| F | Cockpit | `cockpit/` | `cockpit` | `cockpit` (icon rail + ops layout) | Not started |
-| G | Spectrum | `spectrum/` | `spectrum` (+ skins) | `cockpit` + `data-skin` | Not started |
+| F | Cockpit | `cockpit/` | `cockpit` | `cockpit` (icon rail + ops layout) | **Shipped** |
+| G | Spectrum | `spectrum/` | skins via `cockpitSkin` | `cockpit` + `data-skin` | **Shipped** (lumen/draft/clay) |
 | H | Frontier | `frontier/` | concepts only | bespoke per concept | Experimental — not v1 |
 
 **Legacy reserved IDs** (`blueprint`, `atlas` in `registry-core.js`) should be renamed or aliased:
@@ -105,16 +105,17 @@ Shipped **Atelier** and **Vitrine** as fourth and fifth selectable built-ins:
 3. ~~Registry enabled; Albert Sans, Newsreader, Spline Sans Mono, Outfit fonts vendored~~
 4. ~~Previews: `atelier.png`, `vitrine.png` via `npm run capture:theme-previews`~~
 
-**v1 A–E picker is complete.** Only Cockpit remains reserved.
+**v1 A–E picker is complete.**
 
-### Phase 4 — Cockpit + Spectrum
+### Phase 4 — Cockpit + Spectrum — **complete**
 
-Largest structural change:
+Shipped **Cockpit** as sixth selectable built-in with **Spectrum** skins:
 
-1. New `cockpit` shell (74px rail, `ck-*` primitives, chunky borders)
-2. Overview: fleet list + day Gantt + attention feed (`cockpit/cockpit.jsx`)
-3. Wire Queue/Inventory/Calculator/Analytics/Clients via `cockpit/sections.jsx`
-4. Spectrum: `data-skin` = `lumen` | `draft` | `clay` as sub-setting or separate registry entries
+1. ~~`renderer/themes/cockpit/` — tokens, spectrum skins, shell CSS, sections scaffold, compat~~
+2. ~~`KhaytCockpitShell` — 74px icon rail, filtered nav, stats bar, skin sync~~
+3. ~~`KhaytCockpitOverview` — fleet list + day timeline + attention feed (real app data)~~
+4. ~~Settings `cockpitSkin`: `poster` | `lumen` | `draft` | `clay` via `data-skin` on `<html>`~~
+5. ~~Bricolage Grotesque + Plus Jakarta Sans fonts; preview `cockpit.png`~~
 
 ### Phase 5 — Frontier (optional / vNext)
 

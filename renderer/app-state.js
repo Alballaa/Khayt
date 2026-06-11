@@ -70,6 +70,7 @@ function defaultSettings() {
     theme:         'light',
     designTheme:   'studio',
     accent:        'cyan',
+    cockpitSkin:   'poster',
     invPrefix: 'INV',
     footerEn:  'Thank you for your business!',
     footerAr:  'شكراً لتعاملكم معنا!',

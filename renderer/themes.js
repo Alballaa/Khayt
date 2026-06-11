@@ -38,6 +38,7 @@
     else if (theme?.shell === 'console') sub.textContent = 'خيط · CONTROL ROOM';
     else if (theme?.shell === 'atelier') sub.textContent = 'خيط · ATELIER';
     else if (theme?.shell === 'vitrine') sub.textContent = 'خيط · VITRINE';
+    else if (theme?.shell === 'cockpit') sub.textContent = 'خيط · COCKPIT';
     else if (theme?.custom) sub.textContent = `خيط · ${(theme.label || designId).toUpperCase()}`;
     else sub.textContent = 'خيط · STUDIO';
   }
@@ -66,6 +67,7 @@
     document.body.classList.toggle('khayt-console', shell === 'console');
     document.body.classList.toggle('khayt-atelier', shell === 'atelier');
     document.body.classList.toggle('khayt-vitrine', shell === 'vitrine');
+    document.body.classList.toggle('khayt-cockpit', shell === 'cockpit');
     document.body.classList.toggle('khayt-shell-default', shell === 'default');
     document.body.classList.toggle('khayt-handoff', reg()?.usesHandoffScreens?.(shell) === true);
 
@@ -73,7 +75,7 @@
       el.classList.remove(el.dataset.khaytBodyClass);
       delete el.dataset.khaytBodyClass;
     });
-    if (theme?.bodyClass && !['khayt-studio', 'khayt-ledger', 'khayt-console', 'khayt-atelier', 'khayt-vitrine'].includes(theme.bodyClass)) {
+    if (theme?.bodyClass && !['khayt-studio', 'khayt-ledger', 'khayt-console', 'khayt-atelier', 'khayt-vitrine', 'khayt-cockpit'].includes(theme.bodyClass)) {
       document.body.classList.add(theme.bodyClass);
       document.body.dataset.khaytBodyClass = theme.bodyClass;
     }
@@ -87,9 +89,10 @@
     const wasConsole = document.body.classList.contains('khayt-console');
     const wasAtelier = document.body.classList.contains('khayt-atelier');
     const wasVitrine = document.body.classList.contains('khayt-vitrine');
+    const wasCockpit = document.body.classList.contains('khayt-cockpit');
     const nextShell = theme?.shell || 'studio';
 
-    if (['ledger', 'console', 'atelier', 'vitrine'].includes(nextShell)) {
+    if (['ledger', 'console', 'atelier', 'vitrine', 'cockpit'].includes(nextShell)) {
       document.getElementById('appSidebar')?.classList.remove('collapsed');
     }
 
@@ -106,16 +109,20 @@
     if (wasConsole) global.KhaytConsoleShell?.teardownConsoleShell?.();
     if (wasAtelier) global.KhaytAtelierShell?.teardownAtelierShell?.();
     if (wasVitrine) global.KhaytVitrineShell?.teardownVitrineShell?.();
+    if (wasCockpit) global.KhaytCockpitShell?.teardownCockpitShell?.();
     if (nextShell === 'ledger') global.KhaytLedgerShell?.applyLedgerShell?.();
     if (nextShell === 'console') global.KhaytConsoleShell?.applyConsoleShell?.();
     if (nextShell === 'atelier') global.KhaytAtelierShell?.applyAtelierShell?.();
     if (nextShell === 'vitrine') global.KhaytVitrineShell?.applyVitrineShell?.();
+    if (nextShell === 'cockpit') global.KhaytCockpitShell?.applyCockpitShell?.();
     if (reg()?.usesHandoffScreens?.(theme?.shell)) {
       global.KhaytStudio?.init?.();
       if (typeof renderDashboard === 'function') renderDashboard();
       if (typeof renderKanban === 'function') renderKanban();
       if (typeof renderClients === 'function') renderClients();
       if (typeof renderInventory === 'function') renderInventory();
+    } else if (nextShell === 'cockpit') {
+      if (typeof renderDashboard === 'function') renderDashboard();
     }
   }
 
@@ -135,6 +142,8 @@
     const designEl = document.getElementById('set_designTheme');
     const accentEl = document.getElementById('set_accent');
     const accentWrap = document.getElementById('set_accent_wrap');
+    const cockpitSkinWrap = document.getElementById('set_cockpit_skin_wrap');
+    const cockpitSkinEl = document.getElementById('set_cockpitSkin');
     const comingSoonEl = document.getElementById('set_designTheme_coming_soon');
     const design = reg()?.normalizeDesignId(settings?.designTheme || 'studio') || 'studio';
     if (designEl) designEl.value = design;
@@ -145,6 +154,11 @@
     const accent = reg()?.normalizeAccent(design, settings?.accent);
     if (accentEl) accentEl.value = accent;
     if (accentWrap) accentWrap.style.display = '';
+    if (cockpitSkinWrap) cockpitSkinWrap.style.display = design === 'cockpit' ? '' : 'none';
+    if (cockpitSkinEl) {
+      const skin = settings?.cockpitSkin || 'poster';
+      cockpitSkinEl.value = global.KhaytCockpitShell?.COCKPIT_SKINS?.includes(skin) ? skin : 'poster';
+    }
     if (comingSoonEl && reg()?.listComingSoonThemes) {
       const soon = reg().listComingSoonThemes();
       comingSoonEl.textContent = soon.length
@@ -185,6 +199,7 @@
     CONSOLE_ACCENTS: reg()?.CONSOLE_ACCENTS,
     ATELIER_ACCENTS: reg()?.ATELIER_ACCENTS,
     VITRINE_ACCENTS: reg()?.VITRINE_ACCENTS,
+    COCKPIT_ACCENTS: reg()?.COCKPIT_ACCENTS,
   };
 
   Object.assign(global, api);

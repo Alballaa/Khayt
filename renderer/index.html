@@ -23,6 +23,11 @@
   <link rel="stylesheet" href="themes/vitrine/compat.css" />
   <link rel="stylesheet" href="themes/vitrine/shell.css" />
   <link rel="stylesheet" href="themes/vitrine/screens.css" />
+  <link rel="stylesheet" href="themes/cockpit/tokens.css" />
+  <link rel="stylesheet" href="themes/cockpit/spectrum.css" />
+  <link rel="stylesheet" href="themes/cockpit/shell.css" />
+  <link rel="stylesheet" href="themes/cockpit/sections.css" />
+  <link rel="stylesheet" href="themes/cockpit/compat.css" />
   <link rel="stylesheet" href="themes/theme-picker.css" />
   <link rel="stylesheet" href="themes/handoff-screens.css" />
   <link rel="stylesheet" href="studio/ds.css" />
@@ -1444,6 +1449,15 @@
             <label for="set_accent" data-i18n="theme.accent.label">Accent color</label>
             <select id="set_accent"></select>
           </div>
+          <div id="set_cockpit_skin_wrap" style="display:none">
+            <label for="set_cockpitSkin" data-i18n="theme.cockpit.skin.label">Cockpit skin</label>
+            <select id="set_cockpitSkin">
+              <option value="poster" data-i18n="theme.cockpit.skin.poster">Poster</option>
+              <option value="lumen" data-i18n="theme.cockpit.skin.lumen">Lumen</option>
+              <option value="draft" data-i18n="theme.cockpit.skin.draft">Draft</option>
+              <option value="clay" data-i18n="theme.cockpit.skin.clay">Clay</option>
+            </select>
+          </div>
         </div>
         <div class="inline-pair">
           <div>
@@ -2121,6 +2135,8 @@
 <script src="themes/console/shell.js"></script>
 <script src="themes/atelier/shell.js"></script>
 <script src="themes/vitrine/shell.js"></script>
+<script src="themes/cockpit/shell.js"></script>
+<script src="themes/cockpit/overview.js"></script>
 <script src="themes/theme-picker.js"></script>
 <script src="themes.js"></script>
 <script src="shell.js"></script>

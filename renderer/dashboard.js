@@ -261,6 +261,10 @@ function buildStudioDashboardPanels(ctx) {
 function renderDashboard() {
   const el = $('#dashboardContent');
   if (!el) return;
+  if (document.body.classList.contains('khayt-cockpit') && typeof KhaytCockpitOverview?.render === 'function') {
+    KhaytCockpitOverview.render();
+    return;
+  }
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const todayStr = localDateStr(today);

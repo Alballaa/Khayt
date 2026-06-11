@@ -9,22 +9,22 @@ test('normalizeDesignId maps classic to ledger', () => {
   assert.equal(reg.normalizeDesignId('unknown'), 'studio');
 });
 
-test('selectable themes include all five A–E production themes', () => {
+test('selectable themes include all six Khayt-4 production themes', () => {
   const selectable = reg.listSelectableThemes();
   assert.ok(selectable.includes('studio'));
   assert.ok(selectable.includes('ledger'));
   assert.ok(selectable.includes('console'));
   assert.ok(selectable.includes('atelier'));
   assert.ok(selectable.includes('vitrine'));
-  assert.ok(!selectable.includes('cockpit'));
+  assert.ok(selectable.includes('cockpit'));
 });
 
-test('coming soon lists only Cockpit', () => {
+test('coming soon lists no shipped built-ins', () => {
   const soon = reg.listComingSoonThemes();
   assert.ok(!soon.includes('console'));
   assert.ok(!soon.includes('atelier'));
   assert.ok(!soon.includes('vitrine'));
-  assert.ok(soon.includes('cockpit'));
+  assert.ok(!soon.includes('cockpit'));
 });
 
 test('usesHandoffScreens covers studio through vitrine shells', () => {
@@ -41,6 +41,15 @@ test('atelier and vitrine accent presets', () => {
   assert.equal(reg.defaultAccentForTheme('vitrine'), 'aurora');
   assert.ok(reg.accentsForTheme('atelier').sage);
   assert.ok(reg.accentsForTheme('vitrine').iris);
+});
+
+test('cockpit default accent is electric with four presets', () => {
+  assert.equal(reg.defaultAccentForTheme('cockpit'), 'electric');
+  const accents = reg.accentsForTheme('cockpit');
+  assert.ok(accents.electric);
+  assert.ok(accents.violet);
+  assert.ok(accents.emerald);
+  assert.ok(accents.flare);
 });
 
 test('console default accent is signal with four presets', () => {

@@ -100,6 +100,16 @@
     });
   }
 
+  function hydrateCockpitNav() {
+    if (!document.body.classList.contains('khayt-cockpit')) return;
+    document.querySelectorAll('.khayt-navitem[data-tab]').forEach((btn) => {
+      const iconEl = btn.querySelector('.nav-icon');
+      if (!iconEl) return;
+      const name = TAB_ICON[btn.dataset.tab];
+      if (name) mount(iconEl, name, 20);
+    });
+  }
+
   function hydrateHandoff() {
     if (!document.body.classList.contains('khayt-handoff')) return;
     if (document.body.classList.contains('khayt-studio')) {
@@ -145,6 +155,6 @@
   }
 
   window.KhaytIcon = {
-    svg, mount, hydrateNav, hydrateTopbar, hydrateSettingsNav, hydrateHandoff, ICONS,
+    svg, mount, hydrateNav, hydrateTopbar, hydrateSettingsNav, hydrateHandoff, hydrateCockpitNav, ICONS,
   };
 })();
