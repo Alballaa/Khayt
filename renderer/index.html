@@ -1919,6 +1919,15 @@
           <button type="button" class="btn primary" data-act="save-settings-from-panel" data-i18n="common.save">Save</button>
         </div>
 
+        <div class="settings-section-head" data-i18n="set.updates_section">Updates</div>
+        <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; margin-top:0;">
+          <input type="checkbox" id="set_betaUpdates" style="width:auto; margin:3px 0 0;">
+          <span>
+            <span data-i18n="set.beta_updates">Include beta pre-releases when checking for updates</span>
+            <div style="font-size:11px; color:var(--text-muted); margin-top:4px;" data-i18n="set.beta_updates_hint">Off by default. Enable to receive Khayt beta builds (e.g. new themes) via in-app update.</div>
+          </span>
+        </label>
+
         <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border-soft); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
           <div style="font-size:12px; color:var(--text-muted);">
             <strong data-i18n="set.about">About</strong> · <span data-i18n="app.title">Khayt</span> · خيط · <span data-i18n="set.version">Version</span> <span id="appVersion">—</span><span id="appVersionBeta" hidden style="margin-left:6px;font-size:10px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;padding:2px 6px;border-radius:4px;background:var(--warning-soft,#fef3c7);color:var(--warning,#b45309);">Beta</span>

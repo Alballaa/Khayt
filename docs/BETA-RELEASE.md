@@ -38,7 +38,8 @@ CI **Build & Release** treats tags matching `-(beta|rc|alpha)` as GitHub **pre-r
 
 ## Updater behavior
 
-- **Stable app** (`2.3.2`): `allowPrerelease` is off; update checks ignore beta tags even though `2.4.0` numerically exceeds `2.3.2`.
-- **Beta app** (`2.4.0-beta.1`): `allowPrerelease` is on; in-app updates follow the beta feed.
+- **Default:** Settings → Data & Locale → **Include beta pre-releases** is **off**. Stable installs only see stable releases.
+- **Opt-in:** Enable the checkbox to set `allowPrerelease` and receive beta builds via in-app update.
+- The preference is stored as `settings.betaUpdates` and synced to the main-process updater on boot and save.
 
 Bump the next beta with `npm run version:beta`. When Khayt-4 is ready for stable, cut `v2.4.0` (no `-beta`) per [VERSIONING.md](../VERSIONING.md).

@@ -5,6 +5,7 @@ Module.prototype.require = function (id) {
     const autoUpdater = {
       autoDownload: false,
       autoInstallOnAppQuit: true,
+      allowPrerelease: false,
       on() {},
       checkForUpdates: () => ({ catch() {} }),
       downloadUpdate: async () => {},
@@ -22,6 +23,7 @@ const os = require('os');
 const path = require('path');
 const {
   registerUpdater,
+  applyUpdateOptions,
   isVersionNewer,
   isPrereleaseVersion,
   interpretUpdateCheckResult,
@@ -39,14 +41,29 @@ test('isPrereleaseVersion detects beta, rc, and alpha tags', () => {
   assert.equal(isPrereleaseVersion('2.3.2'), false);
 });
 
-test('interpretUpdateCheckResult ignores prerelease offers for stable installs', () => {
-  const res = interpretUpdateCheckResult({
+test('interpretUpdateCheckResult ignores prerelease offers unless allowBeta', () => {
+  const blocked = interpretUpdateCheckResult({
     isPackaged: true,
     currentVersion: '2.3.2',
     updateInfo: { version: '2.4.0-beta.1' },
+    allowBeta: false,
   });
-  assert.equal(res.status, 'not-available');
-  assert.equal(res.latestVersion, '2.3.2');
+  assert.equal(blocked.status, 'not-available');
+  assert.equal(blocked.latestVersion, '2.3.2');
+
+  const allowed = interpretUpdateCheckResult({
+    isPackaged: true,
+    currentVersion: '2.3.2',
+    updateInfo: { version: '2.4.0-beta.1' },
+    allowBeta: true,
+  });
+  assert.equal(allowed.status, 'available');
+  assert.equal(allowed.version, '2.4.0-beta.1');
+});
+
+test('applyUpdateOptions stores allowBeta preference', () => {
+  assert.deepEqual(applyUpdateOptions({ allowBeta: false }), { allowBeta: false });
+  assert.deepEqual(applyUpdateOptions({ allowBeta: true }), { allowBeta: true });
 });
 
 test('interpretUpdateCheckResult handles dev, available, and up to date', () => {
