@@ -260,6 +260,7 @@ function openSettingsSection(section) {
   $$('.settings-panel').forEach(el => el.classList.remove('active'));
   const navItem = $(`.settings-nav-item[data-settings-section="${section}"]`);
   navItem?.classList.add('active');
+  navItem?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
   $(`#settings-panel-${section}`)?.classList.add('active');
   if (section === 'online' && typeof renderOnlineSettings === 'function') renderOnlineSettings();
 }

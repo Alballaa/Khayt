@@ -3,6 +3,13 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.ja = {
+  "set.stock_defaults": "在庫の既定",
+  "set.ops_pricing": "価格と見積",
+  "set.printers_devices": "接続済みプリンター",
+  "set.online_intake": "顧客受付",
+  "set.biz_identity": "基本情報",
+  "set.biz_contact": "連絡先",
+  "set.biz_tax": "税務・登録",
   "cat.sku": "SKU",
   "cl.address": "住所",
   "cl.city": "市区町村",

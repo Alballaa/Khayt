@@ -3,6 +3,13 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.zh = {
+  "set.stock_defaults": "库存默认",
+  "set.ops_pricing": "定价与报价",
+  "set.printers_devices": "已连接的打印机",
+  "set.online_intake": "客户受理",
+  "set.biz_identity": "标识",
+  "set.biz_contact": "联系方式",
+  "set.biz_tax": "税务与注册",
   "cat.sku": "SKU",
   "cl.address": "地址",
   "cl.city": "城市",

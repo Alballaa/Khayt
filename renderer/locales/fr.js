@@ -3,6 +3,13 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.fr = {
+  "set.stock_defaults": "Réglages de stock",
+  "set.ops_pricing": "Tarifs et devis",
+  "set.printers_devices": "Imprimantes connectées",
+  "set.online_intake": "Réception client",
+  "set.biz_identity": "Identité",
+  "set.biz_contact": "Contact",
+  "set.biz_tax": "Taxe et immatriculation",
   "cat.sku": "Référence (SKU)",
   "cl.address": "Adresse",
   "cl.city": "Ville",
