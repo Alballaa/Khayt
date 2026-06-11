@@ -59,6 +59,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 - **Store load on macOS** — Keychain explanation dialog used invalid Electron `showMessageBox` type (`information` → `info`); load no longer fails if the dialog errors.
 - **Check for updates** — Returns a real status from the updater (dev/source builds, errors, and version numbers) instead of assuming “up to date” after a timeout when the check failed or the app was not packaged.
 
+## [2.3.3] - 2026-06-05
+
+### Added
+
+- **Opt-in beta updates** — Settings → Data & Locale: **Include beta pre-releases** (off by default). Stable installs stay on the stable feed unless enabled; then in-app update can offer beta builds (e.g. Khayt-4 themes). See [docs/BETA-RELEASE.md](./docs/BETA-RELEASE.md).
+
 ## [2.3.2] - 2026-06-04
 
 ### Fixed

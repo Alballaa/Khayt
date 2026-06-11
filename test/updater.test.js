@@ -5,6 +5,7 @@ Module.prototype.require = function (id) {
     const autoUpdater = {
       autoDownload: false,
       autoInstallOnAppQuit: true,
+      allowPrerelease: false,
       on() {},
       checkForUpdates: () => ({ catch() {} }),
       downloadUpdate: async () => {},
@@ -20,12 +21,49 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { registerUpdater, isVersionNewer, interpretUpdateCheckResult } = require('../lib/updater');
+const {
+  registerUpdater,
+  applyUpdateOptions,
+  isVersionNewer,
+  isPrereleaseVersion,
+  interpretUpdateCheckResult,
+} = require('../lib/updater');
 
 test('isVersionNewer compares dotted versions', () => {
   assert.equal(isVersionNewer('2.3.2', '2.3.1'), true);
   assert.equal(isVersionNewer('2.3.1', '2.3.2'), false);
   assert.equal(isVersionNewer('2.3.1', '2.3.1'), false);
+});
+
+test('isPrereleaseVersion detects beta, rc, and alpha tags', () => {
+  assert.equal(isPrereleaseVersion('2.4.0-beta.1'), true);
+  assert.equal(isPrereleaseVersion('2.4.0-rc.1'), true);
+  assert.equal(isPrereleaseVersion('2.3.2'), false);
+});
+
+test('interpretUpdateCheckResult ignores prerelease offers unless allowBeta', () => {
+  const blocked = interpretUpdateCheckResult({
+    isPackaged: true,
+    currentVersion: '2.3.2',
+    updateInfo: { version: '2.4.0-beta.1' },
+    allowBeta: false,
+  });
+  assert.equal(blocked.status, 'not-available');
+  assert.equal(blocked.latestVersion, '2.3.2');
+
+  const allowed = interpretUpdateCheckResult({
+    isPackaged: true,
+    currentVersion: '2.3.2',
+    updateInfo: { version: '2.4.0-beta.1' },
+    allowBeta: true,
+  });
+  assert.equal(allowed.status, 'available');
+  assert.equal(allowed.version, '2.4.0-beta.1');
+});
+
+test('applyUpdateOptions stores allowBeta preference', () => {
+  assert.deepEqual(applyUpdateOptions({ allowBeta: false }), { allowBeta: false });
+  assert.deepEqual(applyUpdateOptions({ allowBeta: true }), { allowBeta: true });
 });
 
 test('interpretUpdateCheckResult handles dev, available, and up to date', () => {
@@ -64,7 +102,7 @@ test('write-update-backup copies store file when json is __COPY_STORE__', async 
   };
 
   registerUpdater({
-    app: { isPackaged: false },
+    app: { isPackaged: false, getVersion: () => '2.3.2' },
     fs,
     ipcMain,
     BrowserWindow: { getAllWindows: () => [] },
