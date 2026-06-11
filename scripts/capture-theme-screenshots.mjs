@@ -13,7 +13,10 @@ import { buildScreenshotDemoStore } from './screenshot-demo-store.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
-const assetsRoot = path.join(root, 'assets', 'themes');
+// Language for the captured UI (e.g. KHAYT_LANG=ar for Arabic/RTL). Non-English
+// sets land in assets/themes-<lang>/ so they sit alongside the English set.
+const LANG = process.env.KHAYT_LANG || 'en';
+const assetsRoot = path.join(root, 'assets', LANG === 'en' ? 'themes' : `themes-${LANG}`);
 const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'khayt-theme-shots-'));
 
 const THEMES = [
@@ -131,6 +134,7 @@ try {
   demoStore.settings.firstRun = false;
   demoStore.settings.firstRunDone = true;
   demoStore.settings.designTheme = 'studio';
+  demoStore.settings.lang = LANG;
 
   electronApp = await electron.launch({
     args: ['.', '--no-sandbox', `--user-data-dir=${userData}`],
@@ -157,6 +161,13 @@ try {
     { timeout: 90_000 },
   );
   await page.waitForTimeout(800);
+
+  // Ensure the UI language (and RTL direction for Arabic) is applied.
+  await page.evaluate((lang) => {
+    if (typeof settings !== 'undefined') settings.lang = lang;
+    if (typeof i18n !== 'undefined' && typeof i18n.set === 'function') i18n.set(lang, { silent: true });
+  }, LANG);
+  await page.waitForTimeout(500);
 
   for (const theme of themeSet) {
     const outDir = path.join(assetsRoot, theme.dir || theme.id);
