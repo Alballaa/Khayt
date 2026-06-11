@@ -4,6 +4,29 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [2.4.0-beta.2] - 2026-06-05
+
+**Pre-release (beta)** — Security hardening pass + stable **v2.3.3** updater parity.
+
+### Added
+
+- **Opt-in beta updates** — same as stable v2.3.3: Settings → Data & Locale → **Include beta pre-releases** (off by default).
+
+### Security
+
+- **Printer webhook lockout** — failed auth uses isolated `printer` channel key (no longer locks owner PIN).
+- **LAN spool POST** — field allowlist on `/api/inventory/spools`; arbitrary keys dropped.
+- **Intake reference links** — `http`/`https` only at ingestion (`javascript:` / `data:` rejected).
+- **LAN HTML pages** — `CSP`, `X-Frame-Options`, `nosniff`, `Referrer-Policy` on customer-facing HTML.
+- **Update flush** — `hub:install-update` normalizes store snapshot before disk write.
+- **Confirm modal XSS** — `promptTypeConfirmModal` always escapes message text.
+- **`safeJsonParse`** — strips `prototype` keys (defense in depth).
+
+### Fixed
+
+- **LAN IDs** — spool/intake/Salla/Zid IDs include random suffix (collision-safe).
+- **PWA manifest** — `shopName` JSON escaping fixed (no double-escaped quotes).
+
 ## [2.4.0-beta.1] - 2026-06-05
 
 **Pre-release (beta)** — Khayt-4 design themes ship beside stable **v2.3.2**. Install from [GitHub Releases → Pre-releases](https://github.com/Alballaa/Khayt/releases). Stable installs do not auto-update to beta; see [docs/BETA-RELEASE.md](./docs/BETA-RELEASE.md).

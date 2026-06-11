@@ -127,7 +127,7 @@
       const overlay = (typeof appendStackedModal === 'function' ? appendStackedModal : null)?.(`
           <div class="modal" role="dialog" aria-modal="true">
             <h3>${escapeHtml(title || t('common.confirm'))}</h3>
-            <p>${typeof message === 'string' && message.includes('<') ? message : escapeHtml(message)}</p>
+            <p>${escapeHtml(message)}</p>
             ${extraHtml}
             <label style="display:block;margin-top:12px;font-size:13px;">${escapeHtml(t('sec.type_to_confirm', { phrase }))}</label>
             <input type="text" id="typeConfirmInput" class="form-control" autocomplete="off" spellcheck="false" style="margin-top:6px;">
