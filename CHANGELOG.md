@@ -4,6 +4,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **Beta → stable graduation (updater)** — `isVersionNewer` is now prerelease-aware on the stable line: a stable release outranks its own prerelease (`2.4.0 > 2.4.0-beta.4 > 2.4.0-beta.1`, and `2.4.0-rc.1 > 2.4.0-beta.9`). Previously the prerelease suffix was stripped before comparison, so a final `2.4.0` cut from `main` would report "up to date" to every `2.4.0-beta.x` tester and never offer the graduation build. Ports the fix already shipped in the `v2.4.0-beta.3` beta line onto the stable branch so the two channels share identical updater logic.
+
+### Added
+
+- **Opt-in beta updates (updater plumbing)** — `applyUpdateOptions` / `hub:set-update-options` and an `allowBeta` flag on `interpretUpdateCheckResult`; prerelease offers are hidden from stable installs unless beta is opted in. Matches the `v2.4.0-beta.2`/stable `v2.3.3` updater (the Settings toggle that drives it lands with the Khayt-4 beta merge).
+
 ## [2.4.0] - 2026-06-11
 
 ### Security
