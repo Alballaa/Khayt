@@ -342,7 +342,7 @@
   "cockpit.due_next": "المستحق التالي",
   "cockpit.today_so_far": "اليوم حتى الآن",
   "cockpit.jobs_done": "مهام منجزة",
-  "cockpit.booked": "محجوز",
+  "cockpit.booked": "إيرادات",
   "atlas.nav.floor": "الأرضية",
   "atlas.nav.queue": "الطابور",
   "atlas.nav.settings": "الإعدادات",
