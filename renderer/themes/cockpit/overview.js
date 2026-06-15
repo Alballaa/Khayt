@@ -5,12 +5,15 @@
   const DAY_START = 8;
   const DAY_END = 20;
 
+  // Translate with graceful English fallback (works even if a key is missing).
+  const tr = (k, d) => { const s = (typeof t === 'function') ? t(k) : null; return (s && s !== k) ? s : d; };
+
   const STATUS_META = {
-    printing: { c: 'var(--c-print)', ink: '#fff', label: 'Printing' },
-    idle: { c: 'var(--ink-4)', ink: '#fff', label: 'Idle' },
-    error: { c: 'var(--c-error)', ink: '#fff', label: 'Error' },
-    maint: { c: 'var(--c-maint)', ink: '#fff', label: 'Maint' },
-    offline: { c: 'var(--c-error)', ink: '#fff', label: 'Offline' },
+    printing: { c: 'var(--c-print)', ink: '#fff', lk: 'cockpit.st.printing', label: 'Printing' },
+    idle: { c: 'var(--ink-4)', ink: '#fff', lk: 'cockpit.st.idle', label: 'Idle' },
+    error: { c: 'var(--c-error)', ink: '#fff', lk: 'cockpit.st.error', label: 'Error' },
+    maint: { c: 'var(--c-maint)', ink: '#fff', lk: 'cockpit.st.maint', label: 'Maint' },
+    offline: { c: 'var(--c-error)', ink: '#fff', lk: 'cockpit.st.offline', label: 'Offline' },
   };
 
   let selectedMachineId = null;
@@ -105,10 +108,10 @@
           <div style="display:flex;align-items:center;gap:8px">
             <span class="nm" style="flex:1;min-width:0">${escapeHtml(m.name)}</span>
             <span class="tech">${escapeHtml((m.type || 'FDM').toUpperCase())}</span>
-            <span class="ck-stbadge">${escapeHtml(st.label)}</span>
+            <span class="ck-stbadge">${escapeHtml(tr(st.lk, st.label))}</span>
           </div>
-          <div class="job" style="margin-top:5px">${escapeHtml(active?.project || active?.id || 'No active job')}</div>
-          <div class="meta" style="margin:2px 0 8px">${active ? `${progress}%` : (m.isOffline ? 'Offline' : 'Ready')}</div>
+          <div class="job" style="margin-top:5px">${escapeHtml(active?.project || active?.id || tr('cockpit.no_job', 'No active job'))}</div>
+          <div class="meta" style="margin:2px 0 8px">${active ? `${progress}%` : escapeHtml(m.isOffline ? tr('cockpit.offline', 'Offline') : tr('cockpit.ready', 'Ready'))}</div>
           <div style="display:flex;align-items:center;gap:9px">
             <div class="ck-bar" style="flex:1"><i style="width:${progress}%"></i></div>
             <span class="mono" style="font-size:11px;font-weight:600;width:32px;text-align:end">${progress}%</span>
@@ -119,11 +122,11 @@
     return `
       <section class="ck-panel">
         <div class="ck-phead">
-          <h2>Fleet</h2>
-          <span class="n">${fleet.length} machines</span>
+          <h2>${escapeHtml(tr('cockpit.fleet', 'Fleet'))}</h2>
+          <span class="n">${fleet.length} ${escapeHtml(tr('cockpit.machines', 'machines'))}</span>
           <span class="grow"></span>
           <span class="ck-live"></span>
-          <span class="n">${printingN} printing</span>
+          <span class="n">${printingN} ${escapeHtml(tr('cockpit.printing_label', 'printing'))}</span>
         </div>
         <div class="ck-pscroll">${cards || `<p class="muted" style="padding:8px">${escapeHtml(typeof t === 'function' ? t('mach.empty') : 'No machines')}</p>`}</div>
       </section>`;
@@ -154,14 +157,14 @@
     return `
       <section class="ck-panel">
         <div class="ck-phead">
-          <h2>Today's schedule</h2>
+          <h2>${escapeHtml(tr('cockpit.schedule', "Today's schedule"))}</h2>
           <span class="n">${hourLabel(DAY_START)} — ${hourLabel(DAY_END)}</span>
         </div>
         <div class="ck-legend">
-          <span class="li"><span class="sw" style="background:var(--c-print)"></span>Printing</span>
-          <span class="li"><span class="sw" style="background:var(--c-post)"></span>Post</span>
-          <span class="li"><span class="sw" style="background:var(--c-maint)"></span>Maint</span>
-          <span class="li"><span class="sw" style="border:1.5px dashed var(--line-soft);background:transparent"></span>Queued</span>
+          <span class="li"><span class="sw" style="background:var(--c-print)"></span>${escapeHtml(tr('cockpit.leg.printing', 'Printing'))}</span>
+          <span class="li"><span class="sw" style="background:var(--c-post)"></span>${escapeHtml(tr('cockpit.leg.post', 'Post'))}</span>
+          <span class="li"><span class="sw" style="background:var(--c-maint)"></span>${escapeHtml(tr('cockpit.leg.maint', 'Maint'))}</span>
+          <span class="li"><span class="sw" style="border:1.5px dashed var(--line-soft);background:transparent"></span>${escapeHtml(tr('cockpit.leg.queued', 'Queued'))}</span>
         </div>
         <div class="ck-tl">
           <div class="ck-tlgrid">
@@ -187,9 +190,12 @@
       .sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''))
       .slice(0, 6);
 
+    // buildNotifications() returns title/body already HTML-escaped, so they are
+    // interpolated as trusted markup here (double-escaping would render entities
+    // literally). icon is not escaped at the source, so escape it defensively.
     const attnHtml = alerts.map((a, i) => `
       <div class="ck-attn${i === 0 ? ' hot' : ''}">
-        <div class="ic" style="background:var(--c-error)">${a.icon || '!'}</div>
+        <div class="ic" style="background:var(--c-error)">${escapeHtml(String(a.icon || '!'))}</div>
         <div style="min-width:0;display:flex;flex-direction:column">
           <span class="tt">${a.title || ''} ${a.body || ''}</span>
           <button type="button" class="act" data-ck-action="queue-tab">${escapeHtml(typeof t === 'function' ? t('common.view') : 'View')}</button>
@@ -217,17 +223,17 @@
     return `
       <section class="ck-panel">
         <div class="ck-phead">
-          <h2>Attention</h2>
+          <h2>${escapeHtml(tr('cockpit.attention', 'Attention'))}</h2>
           <span class="n">${alerts.length}</span>
         </div>
         <div class="ck-pscroll">
           ${attnHtml || `<p class="muted">${escapeHtml(typeof t === 'function' ? t('notif.empty') : 'All clear')}</p>`}
-          <div class="ck-sechead">Due next</div>
+          <div class="ck-sechead">${escapeHtml(tr('cockpit.due_next', 'Due next'))}</div>
           <div style="padding:0 2px">${dueHtml || `<p class="muted" style="font-size:12px">—</p>`}</div>
-          <div class="ck-sechead">Today so far</div>
+          <div class="ck-sechead">${escapeHtml(tr('cockpit.today_so_far', 'Today so far'))}</div>
           <div class="ck-sum">
-            <div class="ck-sumcell"><span class="v">${doneToday}</span><span class="l">jobs done</span></div>
-            <div class="ck-sumcell"><span class="v">${typeof fmtMoney === 'function' ? fmtMoney(revToday) : revToday}</span><span class="l">booked</span></div>
+            <div class="ck-sumcell"><span class="v">${doneToday}</span><span class="l">${escapeHtml(tr('cockpit.jobs_done', 'jobs done'))}</span></div>
+            <div class="ck-sumcell"><span class="v">${typeof fmtMoney === 'function' ? fmtMoney(revToday) : revToday}</span><span class="l">${escapeHtml(tr('cockpit.booked', 'booked'))}</span></div>
           </div>
         </div>
       </section>`;

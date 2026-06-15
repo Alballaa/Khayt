@@ -123,17 +123,25 @@
     delete body.dataset.consoleLayout;
   }
 
+  let navClickHandler = null;
   function bindTabNav() {
     const nav = document.querySelector('.khayt-nav.sidebar-nav');
     if (!nav || nav.dataset.consoleTabsBound === '1') return;
-    nav.addEventListener('click', (e) => {
+    navClickHandler = (e) => {
       if (!document.body.classList.contains('khayt-console')) return;
       const btn = e.target.closest('.tab-btn[data-tab]');
       if (!btn || !nav.contains(btn)) return;
       e.preventDefault();
       if (typeof switchTab === 'function') switchTab(btn.dataset.tab);
-    });
+    };
+    nav.addEventListener('click', navClickHandler);
     nav.dataset.consoleTabsBound = '1';
+  }
+  function unbindTabNav() {
+    const nav = document.querySelector('.khayt-nav.sidebar-nav');
+    if (nav && navClickHandler) nav.removeEventListener('click', navClickHandler);
+    if (nav) delete nav.dataset.consoleTabsBound;
+    navClickHandler = null;
   }
 
   function consoleTabSubtitle(tabId) {
@@ -251,6 +259,7 @@
 
   function teardownConsoleShell() {
     stopStatusClock();
+    unbindTabNav();
     unmountLayout();
     restoreSettingsTab();
     undecorateNav();
@@ -267,5 +276,6 @@
     mountLayout,
     unmountLayout,
     bindTabNav,
+    unbindTabNav,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

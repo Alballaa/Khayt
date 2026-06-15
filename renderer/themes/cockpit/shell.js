@@ -7,14 +7,18 @@
     'analytics-tab', 'clients-tab', 'settings-tab',
   ]);
 
+  // Translate with graceful English fallback (works even if a key is missing).
+  const tr = (k, d) => { const s = (typeof t === 'function') ? t(k) : null; return (s && s !== k) ? s : d; };
+
+  // [i18n key, English fallback] — resolved at render time so labels follow language changes.
   const RAIL_LABELS = {
-    'dashboard-tab': 'Cockpit',
-    'queue-tab': 'Queue',
-    'inventory-tab': 'Inventory',
-    'calculator-tab': 'Calculator',
-    'analytics-tab': 'Analytics',
-    'clients-tab': 'Clients',
-    'settings-tab': 'Settings',
+    'dashboard-tab': ['cockpit.nav.dashboard', 'Cockpit'],
+    'queue-tab': ['cockpit.nav.queue', 'Queue'],
+    'inventory-tab': ['cockpit.nav.inventory', 'Inventory'],
+    'calculator-tab': ['cockpit.nav.calculator', 'Calculator'],
+    'analytics-tab': ['cockpit.nav.analytics', 'Analytics'],
+    'clients-tab': ['cockpit.nav.clients', 'Clients'],
+    'settings-tab': ['cockpit.nav.settings', 'Settings'],
   };
 
   const COCKPIT_SKINS = ['poster', 'lumen', 'draft', 'clay'];
@@ -28,7 +32,8 @@
       const show = COCKPIT_TABS.has(btn.dataset.tab);
       btn.style.display = show ? '' : 'none';
       const label = btn.querySelector('.nav-label');
-      if (label && RAIL_LABELS[btn.dataset.tab]) label.textContent = RAIL_LABELS[btn.dataset.tab];
+      const rl = RAIL_LABELS[btn.dataset.tab];
+      if (label && rl) label.textContent = tr(rl[0], rl[1]);
     });
   }
 
@@ -97,10 +102,10 @@
       : 0;
 
     const stats = [
-      { v: typeof fmtMoney === 'function' ? fmtMoney(monthlyRev) : String(monthlyRev), l: 'MTD' },
-      { v: String(active), l: 'active' },
-      { v: `${util}%`, l: 'util' },
-      { v: String(printing), l: 'printing' },
+      { v: typeof fmtMoney === 'function' ? fmtMoney(monthlyRev) : String(monthlyRev), l: tr('cockpit.stat.mtd', 'MTD') },
+      { v: String(active), l: tr('cockpit.stat.active', 'active') },
+      { v: `${util}%`, l: tr('cockpit.stat.util', 'util') },
+      { v: String(printing), l: tr('cockpit.stat.printing', 'printing') },
     ];
 
     bar.innerHTML = stats.map((s) => `
