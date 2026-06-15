@@ -183,24 +183,27 @@
     codeEl.textContent = meta.code;
   }
 
+  // Translate with graceful English fallback (works even if a key is missing).
+  const trc = (k, d) => { const s = (typeof t === 'function') ? t(k) : null; return (s && s !== k) ? s : d; };
+
   function syncStatusBar() {
     const printersEl = document.getElementById('consoleStatusPrinters');
     const queueEl = document.getElementById('consoleStatusQueue');
     const locEl = document.getElementById('consoleStatusLocation');
     if (printersEl && typeof machines !== 'undefined') {
       const n = Array.isArray(machines) ? machines.length : 0;
-      printersEl.textContent = `${n} ${n === 1 ? 'PRINTER' : 'PRINTERS'}`;
+      printersEl.textContent = `${n} ${n === 1 ? trc('console.status.printer', 'PRINTER') : trc('console.status.printers', 'PRINTERS')}`;
     }
     if (queueEl && typeof printLog !== 'undefined') {
       const active = Array.isArray(printLog)
         ? printLog.filter((o) => o.status && !['done', 'cancelled', 'shipped'].includes(o.status)).length
         : 0;
-      queueEl.textContent = `${active} ACTIVE`;
+      queueEl.textContent = `${active} ${trc('console.status.active', 'ACTIVE')}`;
     }
     if (locEl && typeof settings !== 'undefined') {
       const loc = settings.locations?.find((l) => l.id === settings.activeLocationId);
       const name = loc?.name || settings.shopName || '';
-      locEl.textContent = name ? `LOC · ${name.toUpperCase()}` : '';
+      locEl.textContent = name ? `${trc('console.status.loc', 'LOC')} · ${name.toUpperCase()}` : '';
       locEl.style.display = name ? '' : 'none';
     }
   }

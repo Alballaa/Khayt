@@ -4,10 +4,14 @@
 (function (global) {
   const ATLAS_TABS = new Set(['dashboard-tab', 'queue-tab', 'settings-tab']);
 
+  // Translate with graceful English fallback (works even if a key is missing).
+  const tr = (k, d, vars) => { const s = (typeof t === 'function') ? t(k, vars) : null; return (s && s !== k) ? s : d; };
+
+  // [i18n key, English fallback]
   const NAV_LABELS = {
-    'dashboard-tab': 'Floor',
-    'queue-tab': 'Queue',
-    'settings-tab': 'Settings',
+    'dashboard-tab': ['atlas.nav.floor', 'Floor'],
+    'queue-tab': ['atlas.nav.queue', 'Queue'],
+    'settings-tab': ['atlas.nav.settings', 'Settings'],
   };
 
   let clockTimer = null;
@@ -22,12 +26,12 @@
     chrome.innerHTML = `
       <div class="brand">
         <div class="glyph" aria-hidden="true">خ</div>
-        <div><b>Atlas</b><span id="atlasFloorLabel">Floor · live</span></div>
+        <div><b>Atlas</b><span id="atlasFloorLabel">${escapeHtml(tr('atlas.floor', 'Floor'))} · ${escapeHtml(tr('atlas.live', 'live'))}</span></div>
       </div>
       <div class="kpis" id="atlasKpis" role="group" aria-label="Workshop status">
-        <div class="kpi"><b id="atlasKpiMachines">0</b><span>machines</span></div>
-        <div class="kpi"><b id="atlasKpiUtil">0%</b><span>util</span></div>
-        <div class="kpi"><b id="atlasKpiJobs">0</b><span>jobs today</span></div>
+        <div class="kpi"><b id="atlasKpiMachines">0</b><span>${escapeHtml(tr('atlas.kpi.machines', 'machines'))}</span></div>
+        <div class="kpi"><b id="atlasKpiUtil">0%</b><span>${escapeHtml(tr('atlas.kpi.util', 'util'))}</span></div>
+        <div class="kpi"><b id="atlasKpiJobs">0</b><span>${escapeHtml(tr('atlas.kpi.jobs_today', 'jobs today'))}</span></div>
       </div>
       <nav class="atlas-nav" id="atlasNav" aria-label="Atlas navigation"></nav>
       <div class="clock m" id="atlasClock" aria-hidden="true">00:00:00</div>`;
@@ -38,7 +42,8 @@
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.dataset.atlasTab = tabId;
-      btn.textContent = NAV_LABELS[tabId] || tabId;
+      const nl = NAV_LABELS[tabId];
+      btn.textContent = nl ? tr(nl[0], nl[1]) : tabId;
       btn.addEventListener('click', () => {
         if (typeof switchTab === 'function') switchTab(tabId);
       });
@@ -58,6 +63,8 @@
     const active = document.querySelector('.tab-content.active')?.id || 'dashboard-tab';
     document.querySelectorAll('#atlasNav [data-atlas-tab]').forEach((btn) => {
       const on = btn.dataset.atlasTab === active;
+      const nl = NAV_LABELS[btn.dataset.atlasTab];
+      if (nl) btn.textContent = tr(nl[0], nl[1]);
       btn.classList.toggle('on', on);
       if (on) btn.setAttribute('aria-current', 'page');
       else btn.removeAttribute('aria-current');
@@ -73,9 +80,9 @@
 
   function syncAtlasChrome(stats = {}) {
     if (!document.body.classList.contains('khayt-atlas')) return;
-    const loc = (typeof locations !== 'undefined' && locations[0]) ? locations[0].name : 'Floor';
+    const loc = (typeof locations !== 'undefined' && locations[0]) ? locations[0].name : tr('atlas.floor', 'Floor');
     const label = document.getElementById('atlasFloorLabel');
-    if (label) label.textContent = `${loc} · live`;
+    if (label) label.textContent = `${loc} · ${tr('atlas.live', 'live')}`;
 
     if (stats.machines != null) {
       const m = document.getElementById('atlasKpiMachines');

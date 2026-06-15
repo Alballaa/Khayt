@@ -2,10 +2,13 @@
  * Atlas spatial floor — machine stations, zones, inspector (real app data).
  */
 (function (global) {
+  // Translate with graceful English fallback (works even if a key is missing).
+  const tr = (k, d, vars) => { const s = (typeof t === 'function') ? t(k, vars) : null; return (s && s !== k) ? s : d; };
+
   const ZONES = [
-    { id: 'farm', label: 'Print Farm', left: 30, top: 48, width: 376, height: 290, labelTop: 28, labelLeft: 44 },
-    { id: 'finish', label: 'Finishing', left: 540, top: 48, width: 230, height: 290, labelTop: 28, labelLeft: 554 },
-    { id: 'qc', label: 'QC · Ship', left: 824, top: 48, width: 230, height: 290, labelTop: 28, labelLeft: 838 },
+    { id: 'farm', label: 'Print Farm', labelKey: 'atlas.zone.farm', left: 30, top: 48, width: 376, height: 290, labelTop: 28, labelLeft: 44 },
+    { id: 'finish', label: 'Finishing', labelKey: 'atlas.zone.finish', left: 540, top: 48, width: 230, height: 290, labelTop: 28, labelLeft: 554 },
+    { id: 'qc', label: 'QC · Ship', labelKey: 'atlas.zone.qc', left: 824, top: 48, width: 230, height: 290, labelTop: 28, labelLeft: 838 },
   ];
 
   const CARD_W = 168;
@@ -71,12 +74,12 @@
 
   function statusLabel(st, prog) {
     const map = {
-      print: 'Printing',
-      post: 'Post',
-      error: 'Offline',
-      idle: 'Idle',
+      print: tr('atlas.st.print', 'Printing'),
+      post: tr('atlas.st.post', 'Post'),
+      error: tr('atlas.st.error', 'Offline'),
+      idle: tr('atlas.st.idle', 'Idle'),
     };
-    const base = map[st] || 'Idle';
+    const base = map[st] || tr('atlas.st.idle', 'Idle');
     return prog > 0 && st === 'print' ? `${base} · ${prog}%` : base;
   }
 
@@ -115,7 +118,7 @@
     const C = 2 * Math.PI * 56;
     const accent = inspectorAccent(st);
     const state = statusLabel(st, prog);
-    const eta = order?.dueDate || (prog > 0 ? `${100 - prog}% left` : 'ready');
+    const eta = order?.dueDate || (prog > 0 ? tr('atlas.eta.left', `${100 - prog}% left`, { n: 100 - prog }) : tr('atlas.eta.ready', 'ready'));
     const temp = machine.isOffline
       ? (typeof t === 'function' ? t('mach.offline') : 'Offline')
       : (st === 'print' ? `${machine.nozzleTemp || '—'}°` : '—');
@@ -172,7 +175,7 @@
 
     const zoneHtml = ZONES.map((z) => `
       <div class="zonebox" style="left:${z.left}px;top:${z.top}px;width:${z.width}px;height:${z.height}px"></div>
-      <div class="zone" style="left:${z.labelLeft}px;top:${z.labelTop}px">${escapeHtml(z.label)}</div>`).join('');
+      <div class="zone" style="left:${z.labelLeft}px;top:${z.labelTop}px">${escapeHtml(tr(z.labelKey, z.label))}</div>`).join('');
 
     const cardsHtml = placed.map(({ machine: m, x, y }) => {
       const st = machineStatus(m);
