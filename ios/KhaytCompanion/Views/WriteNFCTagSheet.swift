@@ -8,7 +8,7 @@ struct WriteNFCTagSheet: View {
     let draft: SpoolDraft
     var suggestedStandard: NFCFilamentStandard?
 
-    @State private var selectedStandard: NFCFilamentStandard = .openSpool
+    @State private var selectedStandard: NFCFilamentStandard = .openTag3D
     @State private var encodeError: String?
     @State private var hasStartedWrite = false
 

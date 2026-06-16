@@ -1,6 +1,11 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { isBlockedHost, isAllowedPrinterHost } = require('../lib/host-guard');
+const {
+  isBlockedHost,
+  isAllowedPrinterHost,
+  isBlockedLoopbackOrMetadata,
+  sanitizeMailgunDomain,
+} = require('../lib/host-guard');
 
 test('blocks empty and localhost names', () => {
   assert.equal(isBlockedHost(''), true);
@@ -32,6 +37,21 @@ test('isAllowedPrinterHost allows LAN printer addresses', () => {
   assert.equal(isAllowedPrinterHost('172.16.0.8'), true);
   assert.equal(isAllowedPrinterHost('octopi.local'), true);
   assert.equal(isAllowedPrinterHost('169.254.1.1'), true);
+});
+
+test('isBlockedLoopbackOrMetadata blocks loopback but allows LAN SMTP relays', () => {
+  assert.equal(isBlockedLoopbackOrMetadata('127.0.0.1'), true);
+  assert.equal(isBlockedLoopbackOrMetadata('169.254.169.254'), true);
+  assert.equal(isBlockedLoopbackOrMetadata('192.168.1.10'), false);
+  assert.equal(isBlockedLoopbackOrMetadata('mail.example.com'), false);
+});
+
+test('sanitizeMailgunDomain accepts valid hostnames only', () => {
+  assert.equal(sanitizeMailgunDomain('mg.example.com'), 'mg.example.com');
+  assert.equal(sanitizeMailgunDomain('MG.Example.COM'), 'mg.example.com');
+  assert.equal(sanitizeMailgunDomain('evil.com/path'), null);
+  assert.equal(sanitizeMailgunDomain('user@evil.com'), null);
+  assert.equal(sanitizeMailgunDomain(''), null);
 });
 
 test('isAllowedPrinterHost blocks loopback and metadata', () => {

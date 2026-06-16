@@ -1,0 +1,60 @@
+/* Cockpit — chunky poster polish on shared app components */
+
+html[data-design="cockpit"] .btn {
+  border: var(--bw) solid var(--line);
+  box-shadow: var(--shadow-2);
+  font-weight: 700;
+  border-radius: 100px;
+}
+
+html[data-design="cockpit"] .btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: none;
+}
+
+html[data-design="cockpit"] .btn.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+html[data-design="cockpit"] .card {
+  border: var(--bw) solid var(--line);
+  box-shadow: var(--shadow-2);
+  border-radius: var(--r-md);
+}
+
+html[data-design="cockpit"] .input,
+html[data-design="cockpit"] select.input {
+  border: var(--bw) solid var(--line-soft);
+  border-radius: var(--r-sm);
+  font-weight: 550;
+}
+
+html[data-design="cockpit"] .pill,
+html[data-design="cockpit"] .eyebrow {
+  font-weight: 700;
+}
+
+html[data-design="cockpit"] table th {
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-size: 10px;
+  color: var(--ink-3);
+}
+
+body.khayt-cockpit .khayt-kanban {
+  gap: 12px;
+}
+
+body.khayt-cockpit .kanban-card.khayt-kcard {
+  border: var(--bw) solid var(--line-soft);
+  box-shadow: var(--shadow-2);
+  border-radius: var(--r-md);
+}
+
+body.khayt-cockpit .kanban-col.khayt-kcol {
+  border: var(--bw) solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+}

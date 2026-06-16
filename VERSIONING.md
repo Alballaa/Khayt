@@ -2,7 +2,12 @@
 
 Khayt uses [Semantic Versioning 2.0.0](https://semver.org/) as `MAJOR.MINOR.PATCH` (`X.Y.Z`).
 
-**Current release line:** `2.2.x` (latest: **2.2.1** in `package.json`). We continue from the shipped version — no reset to `1.1.0` or other baseline.
+**Current release lines:**
+
+- **Stable:** `2.3.x` — latest tag **v2.3.2** ([releases/latest](https://github.com/Alballaa/Khayt/releases/latest))
+- **Beta:** `2.4.0-beta.x` — Khayt-4 themes; see [docs/BETA-RELEASE.md](./docs/BETA-RELEASE.md)
+
+Stable hold: no new **stable** tags until [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md) is lifted. Beta pre-releases may ship alongside stable.
 
 ## How your labels map to version numbers
 
@@ -31,6 +36,9 @@ npm run version:minor
 
 # Major — breaking / milestone (2.x.x → 3.0.0)
 npm run version:major
+
+# Beta — pre-release on next minor (2.3.2 → 2.4.0-beta.1; 2.4.0-beta.1 → 2.4.0-beta.2)
+npm run version:beta
 ```
 
 Each command updates `package.json` and `package-lock.json`. Edit `CHANGELOG.md` under `[Unreleased]` before tagging.
@@ -46,4 +54,4 @@ Each command updates `package.json` and `package-lock.json`. Edit `CHANGELOG.md`
 
 ## Pre-release tags
 
-Optional: `v2.1.0-beta.1`, `v2.1.0-rc.1` (CI treats `-beta`, `-rc`, `-alpha` as pre-releases).
+Use `npm run version:beta` then tag `v2.4.0-beta.1` (CI treats `-beta`, `-rc`, `-alpha` as GitHub pre-releases). Stable installs must not auto-update to pre-releases — see `lib/updater.js`.

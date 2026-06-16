@@ -6,6 +6,7 @@ test('KhaytSettings exports core settings tab functions', () => {
   for (const name of [
     'loadSettingsIntoForm',
     'saveSettingsFromForm',
+    'saveSettingsFromPanel',
     'renderZatcaPhase2Settings',
     'renderLanApiSettings',
     'exportData',

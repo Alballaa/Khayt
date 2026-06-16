@@ -25,6 +25,7 @@ function renderClients() {
   let filtered = clients;
   if (term) {
     filtered = clients.filter(c =>
+      (c.id || '').toLowerCase().includes(term) ||
       (c.nameEn || '').toLowerCase().includes(term) ||
       (c.nameAr || '').toLowerCase().includes(term) ||
       (c.phone || '').toLowerCase().includes(term) ||
@@ -34,7 +35,7 @@ function renderClients() {
   if (clients.length === 0) {
     const grid0 = $('#clientsCardsGrid');
     const wrap0 = $('#clientsTableWrap');
-    if (grid0 && document.body.classList.contains('khayt-studio')) {
+    if (grid0 && document.body.classList.contains('khayt-handoff')) {
       grid0.innerHTML = `<p class="dash-empty" style="padding:18px">${escapeHtml(t('cl.empty'))}</p>`;
       grid0.style.display = 'grid';
       grid0.removeAttribute('aria-hidden');
@@ -45,7 +46,7 @@ function renderClients() {
   }
   if (filtered.length === 0) {
     const gridE = $('#clientsCardsGrid');
-    if (gridE && document.body.classList.contains('khayt-studio')) {
+    if (gridE && document.body.classList.contains('khayt-handoff')) {
       gridE.innerHTML = `<p class="dash-empty" style="padding:18px">${escapeHtml(t('cl.empty_search'))}</p>`;
       gridE.style.display = 'grid';
       if ($('#clientsTableWrap')) $('#clientsTableWrap').classList.add('khayt-clients-legacy-hidden');

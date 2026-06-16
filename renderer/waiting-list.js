@@ -4,6 +4,7 @@
 (function (global) {
 /* ── Waiting List (Job Intake) ──────────────────────────── */
 function renderWaitingList() {
+  renderWaitingOnlinePanel?.();
   renderWaitingFunnel();
   const el = $('#waitingListSection');
   if (!el) return;
@@ -39,7 +40,7 @@ function renderWaitingList() {
       <div class="waiting-item-actions">
         <button class="btn small ghost" data-act="waiting-remind" data-id="${item.id}">💬 ${escapeHtml(t('waiting.remind') || 'Remind')}</button>
         <button class="btn small ghost" data-act="waiting-decline" data-id="${item.id}">✕ ${escapeHtml(t('waiting.decline') || 'Decline')}</button>
-        <button class="btn small" data-act="waiting-promote" data-id="${item.id}" title="${escapeHtml(t('waiting.promote'))}">→ ${escapeHtml(t('waiting.promote'))}</button>
+        <button class="btn small" data-act="waiting-promote" data-id="${item.id}" title="${escapeHtml(settings.mode === 'simple' ? (t('waiting.promote_calc') || t('waiting.promote')) : t('waiting.promote'))}">→ ${escapeHtml(settings.mode === 'simple' ? (t('waiting.promote_calc') || 'Quote in calculator') : t('waiting.promote'))}</button>
         <button class="btn small ghost" data-act="waiting-edit" data-id="${item.id}">${escapeHtml(t('common.edit'))}</button>
         <button class="btn small ghost danger" data-act="waiting-del" data-id="${item.id}">🗑</button>
       </div>
@@ -105,22 +106,74 @@ function openWaitingItemEditor(itemId = null) {
   });
 }
 
+/** Match waiting-list client or create a lightweight client record. */
+function resolveClientFromWaitingItem(item) {
+  if (!item) return null;
+  if (item.clientId && clients.find((c) => c.id === item.clientId)) return item.clientId;
+  const name = String(item.clientName || '').trim();
+  if (!name) return null;
+  const lower = name.toLowerCase();
+  let existing = clients.find((c) => {
+    const en = (c.nameEn || '').trim().toLowerCase();
+    const ar = (c.nameAr || '').trim().toLowerCase();
+    return en === lower || ar === lower;
+  });
+  if (!existing && item.phone) {
+    const phone = String(item.phone).trim();
+    existing = clients.find((c) => String(c.phone || '').trim() === phone);
+  }
+  if (existing) return existing.id;
+  const created = {
+    id: uid('CLI'),
+    nameEn: name,
+    nameAr: '',
+    phone: item.phone || '',
+    email: item.email || '',
+  };
+  clients.push(created);
+  saveAll();
+  return created.id;
+}
+
+function prefillCalculatorFromWaitingItem(item) {
+  if (!item) return;
+  const clientId = resolveClientFromWaitingItem(item);
+  if (clientId) {
+    currentClientId = clientId;
+    const c = clients.find((x) => x.id === clientId);
+    if ($('#clientInput') && c) $('#clientInput').value = localName(c);
+  } else if ($('#clientInput')) {
+    $('#clientInput').value = item.clientName || '';
+    currentClientId = null;
+  }
+  if ($('#partName')) $('#partName').value = String(item.project || '').slice(0, 120);
+  if ($('#partNote')) {
+    const lines = [];
+    if (item.notes && item.notes !== item.project) lines.push(String(item.notes));
+    if (item.phone) lines.push(`Phone: ${item.phone}`);
+    if (item.email) lines.push(`Email: ${item.email}`);
+    if (item.material) lines.push(`Material: ${item.material}`);
+    if (item.budget) lines.push(`Budget: ${item.budget}`);
+    if (item.referenceLink) lines.push(`Link: ${item.referenceLink}`);
+    $('#partNote').value = lines.join('\n').slice(0, 800);
+  }
+  if (typeof renderBuild === 'function') renderBuild();
+  if (typeof updateGrandTotal === 'function') updateGrandTotal();
+}
+
 function promoteWaitingItem(itemId) {
   const item = waitingList.find(w => w.id === itemId);
   if (!item) return;
-  // Save to history with converted status
   waitingListHistory.push({ ...item, status: 'converted', convertedAt: new Date().toISOString() });
-  // Remove from waiting list first
   waitingList = waitingList.filter(w => w.id !== itemId);
   saveAll();
   renderWaitingList();
   updateWaitingBadge();
-  // Switch to calculator tab and pre-fill
   switchTab('calculator-tab');
   setTimeout(() => {
-    if ($('#clientInput')) $('#clientInput').value = item.clientName || item.project || '';
-    currentClientId = item.clientId || null;
-  }, 80);
+    prefillCalculatorFromWaitingItem(item);
+    toast(t('waiting.promote_done') || 'Calculator opened — finish your quote and save the order.', 'info', 4500);
+  }, 100);
 }
 
 function updateWaitingBadge() {
@@ -261,6 +314,8 @@ function openReminderModal(itemId) {
   const api = {
     renderWaitingList,
     openWaitingItemEditor,
+    resolveClientFromWaitingItem,
+    prefillCalculatorFromWaitingItem,
     promoteWaitingItem,
     updateWaitingBadge,
     renderWaitingFunnel,

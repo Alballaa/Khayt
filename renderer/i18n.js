@@ -22,6 +22,9 @@ const i18n = {
     document.documentElement.lang = lang;
     document.documentElement.dir = (lang === 'ar') ? 'rtl' : 'ltr';
     this.applyToDom();
+    if (typeof window.refreshCurrencyLabels === 'function') {
+      window.refreshCurrencyLabels();
+    }
     if (!opts.silent) {
       document.dispatchEvent(new CustomEvent('languagechange', { detail: { lang } }));
     }
@@ -39,7 +42,10 @@ const i18n = {
 
   applyToDom(root = document) {
     root.querySelectorAll('[data-i18n]').forEach(el => {
-      el.textContent = this.t(el.getAttribute('data-i18n'));
+      const key = el.getAttribute('data-i18n');
+      // Currency unit labels come from settings, not locale strings
+      if (key === 'common.currency') return;
+      el.textContent = this.t(key);
     });
     root.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
       el.setAttribute('placeholder', this.t(el.getAttribute('data-i18n-placeholder')));
