@@ -4,31 +4,31 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [2.6.0-beta.1] - 2026-06-16
+
+**Pre-release (beta)** — UI usability, accessibility, and update-review polish on top of stable **2.5.0**.
+
 ### Added
 
-- **Global search** — Fuzzy matching plus printers, suppliers, and expenses; main nav arrow-key tab switching.
+- **Global search** — Fuzzy/subsequence matching plus printers, suppliers, and expenses results; main-nav arrow-key (and Home/End) tab switching.
+- **Update changelog screen** — Manual “Check for updates” and the automatic launch check show release notes in a review modal before download/install (keeps the pre-update backup and hardened install flow).
 
 ### Fixed
 
-- **Modals** — Focus trap keeps Tab inside dialogs; focus restores on close.
-- **Feedback** — Error when the email app cannot be opened.
-- **Update changelog screen** — Manual “Check for updates” and automatic launch checks show release notes in a review modal before download/install.
-
-### Fixed
-
+- **Modals** — Focus trap keeps Tab inside dialogs; focus restores to the previous element on close.
 - **Settings save** — Post-process presets are no longer wiped when saving other settings panels.
-- **Global search** — Client and product results navigate to the correct record; keyboard ↑/↓ + Enter works in search.
-- **Help shortcut** — `?` key opens help again (Shift was incorrectly blocked).
+- **Global search** — Client and product results navigate to the correct record; keyboard ↑/↓ + Enter works.
+- **Help shortcut** — `?` opens help again (Shift was incorrectly blocked).
 - **Delete safety** — Locations and operators require confirmation before deletion.
 - **Notifications** — Bell exposes `aria-expanded`; toast container announces to screen readers.
+- **Feedback** — Toast when the email app cannot be opened (suggests the GitHub Issue button).
 
 ### Changed
 
-- **Setup wizard** — Back buttons, explicit Continue on business-type step, Escape to skip with confirm, system theme default.
 - **Preferences** — Language and theme apply immediately when changed.
-- **Printers settings** — Autosave hint for machine/slicer editors.
-- **Settings on narrow windows** — Sidebar stacks horizontally on small screens.
-- **Automation settings** — Hint explains that each section saves individually.
+- **Settings on narrow windows** — Section nav stacks/wraps on small screens.
+- New `upd.*`, `search.*`, and related strings added in English and Arabic; a `locale-parity` test now gates `ar ⊇ en`.
+
 ## [2.5.0] - 2026-06-16
 
 Graduates the Khayt-4 beta line (`v2.4.0-beta.1` → `beta.4`) to a stable release: seven selectable design themes, the Settings redesign, the LAN/security hardening pass, and the beta→stable updater. Released as **2.5.0** (minor) over stable `2.3.3` — the `2.4.0` number was only ever published as pre-releases. Per-prerelease detail is consolidated in the sections below.
