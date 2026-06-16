@@ -1123,6 +1123,7 @@ function wireEvents() {
     if (btn.dataset.act === 'cl-quote')   quoteForClient(btn.dataset.id);
     if (btn.dataset.act === 'edit-log')   openOrderEditor(btn.dataset.id);
     if (btn.dataset.act === 'pay-remind') sendPaymentReminder(btn.dataset.id);
+    if (btn.dataset.act === 'quote-followup') sendQuoteFollowUp(btn.dataset.id);
     if (btn.dataset.act === 'log-service') logMachineService(btn.dataset.id);
     if (btn.dataset.act === 'remind-instalment') {
       const order = printLog.find(o => o.id === btn.dataset.orderId);
