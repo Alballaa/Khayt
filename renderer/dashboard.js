@@ -332,6 +332,13 @@ function renderDashboard() {
     renderLocationScopeBanner?.();
     return;
   }
+  if (document.body.classList.contains('khayt-command')
+    && typeof KhaytCommand?.renderDashboard === 'function'
+    && KhaytCommand.renderDashboard(el)) {
+    updateTabBadges?.();
+    renderLocationScopeBanner?.();
+    return;
+  }
 
   const dashOrders = typeof orderMatchesActiveLocation === 'function'
     ? printLog.filter(orderMatchesActiveLocation)
