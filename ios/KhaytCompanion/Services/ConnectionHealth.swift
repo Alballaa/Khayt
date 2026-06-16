@@ -1,0 +1,123 @@
+import Foundation
+
+enum ConnectionHealthState: String, Sendable {
+    case unknown
+    case connected
+    case unreachable
+    case unauthorized
+
+    var label: String {
+        switch self {
+        case .unknown: return L10n.tr("connection.checking")
+        case .connected: return L10n.tr("connection.connected")
+        case .unreachable: return L10n.tr("connection.unreachable")
+        case .unauthorized: return L10n.tr("connection.unauthorized")
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .unknown: return "wifi.exclamationmark"
+        case .connected: return "wifi"
+        case .unreachable: return "wifi.slash"
+        case .unauthorized: return "lock.slash"
+        }
+    }
+}
+
+@MainActor
+final class ConnectionHealth: ObservableObject {
+    @Published private(set) var state: ConnectionHealthState = .unknown
+    @Published private(set) var lastChecked: Date?
+    @Published private(set) var lastStatus: ShopStatus?
+
+    private let api: KhaytAPIClient
+    private weak var settings: ConnectionSettings?
+    private var task: Task<Void, Never>?
+
+    init(api: KhaytAPIClient, settings: ConnectionSettings? = nil) {
+        self.api = api
+        self.settings = settings
+    }
+
+    func bind(settings: ConnectionSettings) {
+        self.settings = settings
+    }
+
+    func startPolling(intervalSeconds: UInt64 = 30) {
+        task?.cancel()
+        task = Task {
+            while !Task.isCancelled {
+                await refresh()
+                try? await Task.sleep(nanoseconds: intervalSeconds * 1_000_000_000)
+            }
+        }
+    }
+
+    func stopPolling() {
+        task?.cancel()
+        task = nil
+    }
+
+    func refresh() async {
+        guard api.isConfigured else {
+            state = .unreachable
+            lastStatus = nil
+            lastChecked = Date()
+            notifyConnectionChange()
+            if let settings { CompanionNotifications.shared.saveDisconnectedSnapshot(shopName: settings.shopLabel) }
+            return
+        }
+        do {
+            let status = try await api.fetchStatus()
+            lastStatus = status
+            do {
+                let queue = try await api.fetchQueue()
+                state = .connected
+                await refreshWidgetsAndAlerts(status: status, queue: queue)
+            } catch let err as KhaytAPIError {
+                lastStatus = nil
+                if case .unauthorized = err {
+                    state = .unauthorized
+                } else {
+                    state = .unreachable
+                    if let settings { CompanionNotifications.shared.saveDisconnectedSnapshot(shopName: settings.shopLabel) }
+                }
+            }
+            lastChecked = Date()
+            notifyConnectionChange()
+        } catch let err as KhaytAPIError {
+            lastStatus = nil
+            if case .unauthorized = err { state = .unauthorized }
+            else { state = .unreachable }
+            lastChecked = Date()
+            notifyConnectionChange()
+            if let settings { CompanionNotifications.shared.saveDisconnectedSnapshot(shopName: settings.shopLabel) }
+        } catch {
+            lastStatus = nil
+            state = .unreachable
+            lastChecked = Date()
+            notifyConnectionChange()
+            if let settings { CompanionNotifications.shared.saveDisconnectedSnapshot(shopName: settings.shopLabel) }
+        }
+    }
+
+    private func notifyConnectionChange() {
+        guard let settings else { return }
+        CompanionNotifications.shared.handleHealthUpdate(state: state, status: lastStatus, settings: settings)
+    }
+
+    private func refreshWidgetsAndAlerts(status: ShopStatus, queue: [QueueOrder]) async {
+        guard let settings else { return }
+        var lowStock = 0
+        if settings.notifyLowStock {
+            lowStock = (try? await api.fetchInventory())?.filter(\.isLowStock).count ?? 0
+        }
+        CompanionNotifications.shared.handleDashboardSnapshot(
+            status: status,
+            queue: queue,
+            lowStockCount: lowStock,
+            settings: settings
+        )
+    }
+}

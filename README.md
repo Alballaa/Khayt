@@ -123,6 +123,7 @@ Khayt replaces spreadsheets, WhatsApp notes, and separate invoicing tools with o
 
 ### 📱 LAN Server & Mobile Access
 - Embedded HTTP server — accessible from any device on your Wi-Fi
+- **iOS Companion app** ([`ios/`](./ios/)) — native SwiftUI client for queue, inventory, and NFC spool scanning ([docs]([docs/LAN_API.md](./docs/LAN_API.md) · [IOS_COMPANION.md](./docs/IOS_COMPANION.md)))
 - Live queue dashboard (PWA, works as a home-screen app)
 - Customer order tracking pages (`/order/:id`)
 - Public intake form (`/intake`) for quote requests

@@ -4,6 +4,8 @@ Living priorities for maintainers. Not a public commitment calendar — reorder 
 
 ## Now (2.3.x — on `main`, **no public release** until [RELEASE-HOLD.md](./RELEASE-HOLD.md) lifted)
 
+- [ ] Triage post-2.2.0 feedback; plan 2.2.x patches or 2.3.0
+- [x] iOS Companion v1 in `ios/` — LAN PIN pairing, queue, inventory, machines, NFC; see [docs/LAN_API.md](./docs/LAN_API.md)
 - [x] **Check for updates** UX (dev / error / version; merged to `main`, unreleased)
 - [x] **Online option** — LAN intake toggle, wizard, Job Intake link (merged to `main`, unreleased)
 - [x] **Solo maker polish** — Online hub, intake→calculator prefill, simple-mode dashboard (`main`, unreleased)
