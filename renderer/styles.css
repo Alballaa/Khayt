@@ -379,7 +379,7 @@ tbody tr:hover { background: var(--surface-2); }
 .table-wrap {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  overflow: hidden;
+  overflow-x: auto;
   background: var(--bg-elev);
 }
 

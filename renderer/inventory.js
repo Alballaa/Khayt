@@ -304,8 +304,8 @@ function parseOpenTag3DBytes(bytes) {
 }
 
 // ── Minimal CBOR decoder ───────────────────────────────────────────────────
-function _decodeCBOR(buf, off = 0) {
-  if (off >= buf.length) return { v: null, off };
+function _decodeCBOR(buf, off = 0, depth = 0) {
+  if (depth > 32 || off >= buf.length) return { v: null, off };
   const first = buf[off++];
   const major = first >> 5;
   const info  = first & 0x1F;
@@ -322,23 +322,23 @@ function _decodeCBOR(buf, off = 0) {
   switch (major) {
     case 0: return { v: n, off };                                      // uint
     case 1: return { v: -1 - n, off };                                 // negint
-    case 2: return { v: buf.slice(off, off + n), off: off + n };       // bytes
-    case 3: return { v: new TextDecoder().decode(buf.slice(off, off + n)), off: off + n }; // text
+    case 2: { const len = Math.min(n >>> 0, buf.length - off); return { v: buf.slice(off, off + len), off: off + len }; } // bytes
+    case 3: { const len = Math.min(n >>> 0, buf.length - off); return { v: new TextDecoder().decode(buf.slice(off, off + len)), off: off + len }; } // text
     case 4: {                                                           // array
       const arr = [];
-      for (let i = 0; i < n; i++) { const r = _decodeCBOR(buf, off); arr.push(r.v); off = r.off; }
+      for (let i = 0; i < n && off < buf.length; i++) { const r = _decodeCBOR(buf, off, depth + 1); arr.push(r.v); off = r.off; }
       return { v: arr, off };
     }
     case 5: {                                                           // map
       const map = {};
-      for (let i = 0; i < n; i++) {
-        const k = _decodeCBOR(buf, off); off = k.off;
-        const vv = _decodeCBOR(buf, off); off = vv.off;
+      for (let i = 0; i < n && off < buf.length; i++) {
+        const k = _decodeCBOR(buf, off, depth + 1); off = k.off;
+        const vv = _decodeCBOR(buf, off, depth + 1); off = vv.off;
         map[k.v] = vv.v;
       }
       return { v: map, off };
     }
-    case 6: return _decodeCBOR(buf, off);                              // tag — skip, decode inner
+    case 6: return _decodeCBOR(buf, off, depth + 1);                   // tag — skip, decode inner
     case 7: {                                                           // float / special
       if (info === 20) return { v: false, off };
       if (info === 21) return { v: true, off };
@@ -423,8 +423,9 @@ function _extractNDEFPayload(bytes, mimeType) {
     if (t === 0xFE) break; // Terminator
     if (t === 0x00) { pos++; continue; } // Null TLV
     let len, dataStart;
-    if (bytes[pos + 1] === 0xFF) { len = (bytes[pos + 2] << 8) | bytes[pos + 3]; dataStart = pos + 4; }
-    else                          { len = bytes[pos + 1];                          dataStart = pos + 2; }
+    if (bytes[pos + 1] === 0xFF) { len = ((bytes[pos + 2] << 8) | bytes[pos + 3]) >>> 0; dataStart = pos + 4; }
+    else                          { len = bytes[pos + 1];                                dataStart = pos + 2; }
+    len = Math.min(len, Math.max(0, bytes.length - dataStart));
     const tlv = bytes.slice(dataStart, dataStart + len);
     pos = dataStart + len;
 
@@ -439,10 +440,11 @@ function _extractNDEFPayload(bytes, mimeType) {
         const sr         = !!(flags & 0x10);
         let payloadLen;
         if (sr) { payloadLen = tlv[p++]; }
-        else    { payloadLen = (tlv[p]<<24)|(tlv[p+1]<<16)|(tlv[p+2]<<8)|tlv[p+3]; p += 4; }
+        else    { payloadLen = ((tlv[p]<<24)|(tlv[p+1]<<16)|(tlv[p+2]<<8)|tlv[p+3]) >>> 0; p += 4; }
         const il = !!(flags & 0x08);
         let idLen = 0;
         if (il) { idLen = tlv[p++]; }
+        if (payloadLen > tlv.length || typeLen > tlv.length) break; // malformed/overrun guard
         const recType   = new TextDecoder().decode(tlv.slice(p, p + typeLen)); p += typeLen;
         p += idLen;
         const payload   = tlv.slice(p, p + payloadLen); p += payloadLen;
@@ -457,6 +459,7 @@ function _extractNDEFPayload(bytes, mimeType) {
 // ── Main NFC hex entry point ───────────────────────────────────────────────
 function parseNFCHex(hexStr) {
   const clean = hexStr.replace(/[^0-9a-fA-F]/g, '');
+  if (clean.length > 16384) return { error: 'That is too large to be an NFC tag dump — paste only the tag memory.' };
   if (clean.length < 20) return { error: t('scan.hex_too_short') || 'Too short — paste the full NFC memory dump from your reader app.' };
   if (clean.length % 2 !== 0) return { error: 'Odd number of hex characters — check the dump.' };
   const bytes = new Uint8Array(clean.match(/../g).map(h => parseInt(h, 16)));
@@ -816,10 +819,18 @@ async function deleteInventoryItem(id) {
   const label = item ? `${item.material || ''} ${item.color || ''}`.trim() : id;
   const ok = await confirmModal(`${t('common.delete')} "${label}"?`, { danger: true });
   if (!ok) return;
+  const idx = inventory.findIndex(i => i.id === id);
+  const removed = idx >= 0 ? inventory[idx] : null;
   inventory = inventory.filter(i => i.id !== id);
   saveAll();
   renderInventory();
-  toast(t('inv.removed'), 'success');
+  toast(t('inv.removed'), 'success', 5000, removed ? {
+    undo: () => {
+      inventory.splice(Math.min(Math.max(idx, 0), inventory.length), 0, removed);
+      saveAll();
+      renderInventory();
+    },
+  } : {});
 }
 
 function openInventoryEditor(id) {

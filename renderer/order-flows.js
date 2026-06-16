@@ -236,6 +236,8 @@ function updateStatus(id, newStatus) {
     return;
   }
   const prevStatus = order.status;
+  const _undoIdx = printLog.indexOf(order);
+  const _undoSnap = structuredClone(order);
   order.status = newStatus;
   if (!order.statusHistory) order.statusHistory = [];
   order.statusHistory.push({ status: newStatus, at: new Date().toISOString() });
@@ -280,7 +282,14 @@ function updateStatus(id, newStatus) {
   }
   saveAll();
   renderKanban(); renderLogs(); renderAnalytics();
-  toast(t('toast.status_updated'), 'success');
+  toast(t('toast.status_updated'), 'success', 5000, _undoIdx >= 0 ? {
+    undo: () => {
+      printLog[_undoIdx] = _undoSnap;
+      saveAll();
+      renderKanban(); renderLogs(); renderAnalytics();
+      if (typeof renderDashboard === 'function') renderDashboard();
+    },
+  } : {});
   // Feature 8: Auto-export status page
   if (order.clientId) autoExportStatusPage(order);
   // Feature 5 (new batch): Auto-send email notification
@@ -414,7 +423,7 @@ function qcFailOrder(orderId) {
         weight: weight || 0,
         cost: weight > 0 ? (() => {
           const inv = inventory.find(i => i.material === order.material);
-          return inv ? (inv.cost / inv.weight) * weight : 0;
+          return (inv && inv.weight > 0) ? (inv.cost / inv.weight) * weight : 0;
         })() : 0,
         reason: reason || t('ord.qc_fail'),
         orderId: order.id,

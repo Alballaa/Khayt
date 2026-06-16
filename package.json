@@ -70,7 +70,8 @@
     "axios": {
       "follow-redirects": "1.16.0"
     },
-    "tmp": "0.2.7"
+    "tmp": "0.2.7",
+    "form-data": "^4.0.6"
   },
   "build": {
     "appId": "app.khayt.hub",

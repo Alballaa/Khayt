@@ -365,14 +365,24 @@ function openClientHistory(clientId) {
 async function deleteClient(clientId) {
   const ok = await confirmModal(t('ce.delete_q'), { danger: true });
   if (!ok) return;
+  const idx = clients.findIndex(c => c.id === clientId);
+  const removed = idx >= 0 ? clients[idx] : null;
   clients = clients.filter(c => c.id !== clientId);
-  // Null-out orders that reference the deleted client
+  // Null-out orders that reference the deleted client (tracked so undo can relink)
+  const unlinked = [];
   for (const o of printLog) {
-    if (o.clientId === clientId) o.clientId = null;
+    if (o.clientId === clientId) { unlinked.push(o); o.clientId = null; }
   }
   saveAll();
   renderClients();
-  toast(t('ce.deleted'), 'success');
+  toast(t('ce.deleted'), 'success', 5000, removed ? {
+    undo: () => {
+      clients.splice(Math.min(Math.max(idx, 0), clients.length), 0, removed);
+      for (const o of unlinked) o.clientId = clientId;
+      saveAll();
+      renderClients();
+    },
+  } : {});
 }
 
 function openClientEditor(clientId = null) {
@@ -1063,7 +1073,7 @@ function exportClientPortal(clientId) {
     window.hubAPI.saveHtml(html, `client-portal-${c.id}.html`).then(() => {
       toast(t('cl.portal_saved'), 'success');
     }).catch(() => {
-      toast(t('cl.portal_saved'), 'info');
+      toast(t('cl.portal_save_failed'), 'error');
     });
   } else {
     const blob = new Blob([html], { type: 'text/html' });
