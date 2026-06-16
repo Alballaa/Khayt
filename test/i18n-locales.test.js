@@ -20,3 +20,14 @@ test('all seven locale files exist', () => {
     assert.ok(fs.existsSync(path.join(root, 'renderer/locales', `${lang}.js`)));
   }
 });
+
+test('arabic locale exposes RTL dir via i18n contract keys', () => {
+  const ctx = vm.createContext({ globalThis: {} });
+  ctx.globalThis = ctx;
+  vm.runInContext(fs.readFileSync(path.join(root, 'renderer/locales/ar.js'), 'utf8'), ctx, {
+    filename: 'ar.js',
+  });
+  const ar = ctx.globalThis.KhaytLocales?.ar || {};
+  assert.ok(ar['theme.design.atlas']);
+  assert.ok(ar['theme.design.cockpit']);
+});

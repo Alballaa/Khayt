@@ -1200,7 +1200,7 @@ function renderInventory() {
   renderPipelineDemand();
   // Inventory valuation summary
   const valEl = $('#invValuationSummary');
-  if (valEl && !window.KhaytStudio?.isStudio?.()) {
+  if (valEl && !window.KhaytStudio?.useHandoffScreens?.()) {
     if (inventory.length > 0) {
       const totalValue = inventory.reduce((s, item) => {
         const pricePerG = item.weight > 0 && item.cost > 0 ? item.cost / Math.max(1, item.spoolWeight || item.weight || 1000) * item.weight : 0;
@@ -1220,7 +1220,7 @@ function renderInventory() {
   }
 
   window.KhaytStudio?.patchInventoryTableHead?.();
-  const _studioInv = window.KhaytStudio?.isStudio?.();
+  const _studioInv = window.KhaytStudio?.useHandoffScreens?.();
   const tbody = $('#inventoryTable tbody');
   if (inventory.length === 0) {
     tbody.innerHTML = `<tr><td colspan="${_studioInv ? 6 : 5}" class="empty-state">${escapeHtml(t('inv.empty'))} <button type="button" class="btn small primary" data-act="focus-inv-material" style="margin-inline-start:12px;">${escapeHtml(t('inv.add_title') || 'Add Filament')}</button></td></tr>`;
@@ -1286,7 +1286,7 @@ function renderInventory() {
           </td>
           <td style="font-variant-numeric: tabular-nums;">${fmtPrice(item.cost)}</td>
           <td style="font-variant-numeric: tabular-nums;">
-            ${window.KhaytStudio?.isStudio?.() ? window.KhaytStudio.invStockMeterHtml(item) : `${Math.round(item.weight)} ${weightUnit}`}
+            ${window.KhaytStudio?.useHandoffScreens?.() ? window.KhaytStudio.invStockMeterHtml(item) : `${Math.round(item.weight)} ${weightUnit}`}
           </td>
           <td style="font-variant-numeric: tabular-nums; color:${queued > 0 ? (warn ? 'var(--danger)' : 'var(--text-dim)') : 'var(--text-muted)'};">
             ${queued > 0 ? Math.round(queued) + ' ' + weightUnit : '—'}${warn ? ' <span style="color:var(--danger); font-size:11px;">⚠</span>' : ''}

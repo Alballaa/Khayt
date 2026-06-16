@@ -47,6 +47,7 @@ function initWizard() {
 
   let selectedMode = 'simple';
   let wizCurrentStep = 1;
+  let selectedDesign = settings.designTheme || 'studio';
   let pendingPin = null;
   let pendingRecoveryCode = null;
   let securitySkipped = true;
@@ -66,10 +67,11 @@ function initWizard() {
     wiz.querySelectorAll('.wizard-dot').forEach(d => {
       d.classList.toggle('active', parseInt(d.dataset.step, 10) <= n);
     });
-    const step3Continue = $('#wizStep3Continue');
-    if (step3Continue && n === 3) {
-      const hasSelection = !!wiz.querySelector('.wizard-option.selected');
-      step3Continue.disabled = !hasSelection;
+    if (n === 2) {
+      global.KhaytThemePicker?.mountWizardPicker?.(
+        $('#wizDesignThemePicker'),
+        selectedDesign,
+      );
     }
   }
 
@@ -103,6 +105,17 @@ function initWizard() {
         i18n.set(lang);
         i18n.applyToDom(wiz);
       }
+      if (nextBtn.closest('#wiz-step-2')) {
+        const picker = $('#wizDesignThemePicker');
+        selectedDesign = global.KhaytThemePicker?.getWizardSelection?.(picker) || selectedDesign;
+        settings.designTheme = selectedDesign;
+        const theme = global.KhaytThemeRegistry?.getTheme(selectedDesign);
+        if (theme?.defaultAppearance) {
+          settings.theme = theme.defaultAppearance;
+          if (typeof applyTheme === 'function') applyTheme(theme.defaultAppearance);
+        }
+        if (typeof applyDesignSettings === 'function') applyDesignSettings();
+      }
       goToStep(step);
       return;
     }
@@ -123,7 +136,7 @@ function initWizard() {
     pendingPin = null;
     pendingRecoveryCode = null;
     securitySkipped = true;
-    goToStep(3);
+    goToStep(4);
   });
 
   $('#wizSecurityContinue')?.addEventListener('click', () => {
@@ -164,7 +177,7 @@ function initWizard() {
 
   $('#wizRecoveryContinue')?.addEventListener('click', () => {
     if (!$('#wizRecoverySaved')?.checked) return;
-    goToStep(3);
+    goToStep(4);
   });
 
   $('#wizRecoveryCopy')?.addEventListener('click', async () => {
@@ -189,7 +202,10 @@ function initWizard() {
     }
     settings.currency = currency;
     settings.mode = selectedMode;
-    settings.theme = 'system';
+    settings.designTheme = selectedDesign || settings.designTheme || 'studio';
+    const finishTheme = global.KhaytThemeRegistry?.getTheme(settings.designTheme);
+    if (finishTheme?.defaultAppearance) settings.theme = finishTheme.defaultAppearance;
+    else if (!settings.theme) settings.theme = 'light';
     settings.enableZatca = $('#wizEnableZatca')?.checked !== false;
     const enableOnline = $('#wizEnableOnline')?.checked === true;
     settings.onlineEnabled = enableOnline;
@@ -216,6 +232,7 @@ function initWizard() {
     document.removeEventListener('keydown', wizEscHandler);
     wiz.style.display = 'none';
     applyTheme(settings.theme);
+    if (typeof applyDesignSettings === 'function') applyDesignSettings();
     applyMode();
     loadSettingsIntoForm();
     if (enableOnline && typeof startLanServer === 'function') {
@@ -244,6 +261,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   applyTheme(settings.theme || 'light');
+  if (typeof KhaytCustomThemes?.loadCustomThemes === 'function') {
+    await KhaytCustomThemes.loadCustomThemes();
+  }
+  if (typeof applyDesignSettings === 'function') applyDesignSettings();
   applyMode();
   i18n.init();
   if (settings.lang) i18n.set(settings.lang, { silent: true });
@@ -285,6 +306,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     catch (_) {}
   }
   if ($('#appVersion')) $('#appVersion').textContent = currentVersion || '2.0.16 (dev)';
+  const betaBadge = $('#appVersionBeta');
+  if (betaBadge) betaBadge.hidden = !/-beta/i.test(String(currentVersion || ''));
 
   // ── Post-update "data survived" toast ────────────────────────────────────────
   // If the previous session stored a pending-update version and we're now running
@@ -323,6 +346,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ── Auto-updater UI ─────────────────────────────────────────────────────────
   // electron-updater fires IPC events from main; we show a non-intrusive banner.
   (function wireUpdaterUI() {
+    // Push the saved beta-channel preference to main at boot, before the startup
+    // update check runs — otherwise opted-in testers aren't offered beta builds
+    // until they open Settings (which is the only other place this is synced).
+    if (typeof settings !== 'undefined') {
+      window.hubAPI?.setUpdateOptions?.({ allowBeta: !!settings.betaUpdates });
+    }
+
     const BANNER_CSS = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:9999;' +
       'background:var(--primary);color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;' +
       'font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,0.35);display:flex;align-items:center;gap:10px;white-space:nowrap;';

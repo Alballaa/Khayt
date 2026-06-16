@@ -1,0 +1,70 @@
+/* Atlas — spatial floor map tokens (Khayt-4 Frontier · Atlas) */
+
+html[data-design="atlas"] {
+  --bg:        #0a0d0b;
+  --panel:     #11150f;
+  --surface:   #11150f;
+  --surface-2: #182013;
+  --ink:       #e8f0e2;
+  --ink-2:     #b5c4a8;
+  --ink-3:     #7c8a72;
+  --ink-4:     #586352;
+  --dim:       #7c8a72;
+  --grid:      rgba(182,255,61,0.05);
+  --line:      rgba(182,255,61,0.16);
+  --line-soft: rgba(182,255,61,0.12);
+  --hairline:  rgba(255,255,255,0.06);
+
+  --accent-h: 84;
+  --accent-s: 100%;
+  --accent-l: 62%;
+  --accent:      hsl(var(--accent-h) var(--accent-s) var(--accent-l));
+  --accent-ink:  #0a0d0b;
+  --accent-soft: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.16);
+  --acc: var(--accent);
+  --acc-ink: var(--accent-ink);
+  --on-accent: var(--accent-ink);
+
+  --print: var(--accent);
+  --error: #ff5247;
+  --post:  #ffb43d;
+  --idle:  #586352;
+
+  --font-ui: "Space Grotesk", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-ar: "IBM Plex Sans Arabic", var(--font-ui);
+  --font-sans: var(--font-ui);
+  --font-num: var(--font-mono);
+  --mono: var(--font-mono);
+
+  --text: var(--ink);
+  --text-dim: var(--dim);
+  --text-muted: var(--ink-3);
+  --text-faint: var(--ink-4);
+  --border: var(--line-soft);
+  --border-2: var(--line);
+  --primary: var(--accent);
+  --success: var(--print);
+  --warning: var(--post);
+  --danger: var(--error);
+  --bg-elev: var(--panel);
+  --bg-card: var(--surface-2);
+  --surface-1: var(--surface);
+  --border-soft: var(--hairline);
+  --radius: 14px;
+  --radius-sm: 10px;
+}
+
+html[data-design="atlas"],
+html[data-design="atlas"] body {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.45;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+html[data-design="atlas"][dir="rtl"],
+html[data-design="atlas"][dir="rtl"] body {
+  font-family: var(--font-ar);
+}

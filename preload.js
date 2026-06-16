@@ -131,6 +131,7 @@ contextBridge.exposeInMainWorld('hubAPI', {
   onLanIntakeSubmitted: (() => { let _cb=null; ipcRenderer.on('lan-intake-submitted', (_e,d)=>{ if(_cb) _cb(d); }); return cb=>{ _cb=cb; }; })(),
 
   // Auto-updater
+  setUpdateOptions:     (opts)           => ipcRenderer.invoke('hub:set-update-options', opts),
   checkForUpdates:      ()               => ipcRenderer.invoke('hub:check-for-updates'),
   startUpdateDownload:  ()               => ipcRenderer.invoke('hub:start-update-download'),
   // Quit and install; pass null after flushSave() (avoid duplicate encrypt+write on large stores).
