@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * E2E: tab/nav smoke per Khayt-4 design shell (all seven selectable themes).
+ * E2E: tab/nav smoke per Khayt-4 design shell (all selectable themes).
  * Linux CI: xvfb-run -a node scripts/e2e-theme-shells.mjs
  */
 import fs from 'fs';
@@ -20,6 +20,7 @@ const THEME_CASES = [
   { id: 'vitrine', bodyClass: 'khayt-vitrine', appearance: 'dark', dashSel: '#dashboardContent', dashMin: 80 },
   { id: 'cockpit', bodyClass: 'khayt-cockpit', appearance: 'light', dashSel: '.ck-dash', dashMin: 40 },
   { id: 'atlas', bodyClass: 'khayt-atlas', appearance: 'dark', dashSel: '.atlas-floor-root', dashMin: 40, atlasNav: true },
+  { id: 'workbench', bodyClass: 'khayt-workbench', appearance: 'light', dashSel: '.wb-dash', dashMin: 80 },
 ];
 
 const userData = makeUserDataDir();
@@ -132,7 +133,7 @@ try {
   await testRtlAtlas(window);
   console.log('  atlas + ar RTL: ok');
 
-  console.log('e2e-theme-shells: ok (7 themes + RTL atlas)');
+  console.log('e2e-theme-shells: ok (8 themes + RTL atlas)');
 } finally {
   if (electronApp) await electronApp.close().catch(() => {});
   fs.rmSync(userData, { recursive: true, force: true });

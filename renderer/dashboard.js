@@ -325,6 +325,13 @@ function renderDashboard() {
     KhaytAtlasFloor.render();
     return;
   }
+  if (document.body.classList.contains('khayt-workbench')
+    && typeof KhaytWorkbench?.renderDashboard === 'function'
+    && KhaytWorkbench.renderDashboard(el)) {
+    updateTabBadges?.();
+    renderLocationScopeBanner?.();
+    return;
+  }
 
   const dashOrders = typeof orderMatchesActiveLocation === 'function'
     ? printLog.filter(orderMatchesActiveLocation)

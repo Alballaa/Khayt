@@ -380,6 +380,9 @@ function switchTab(tabId) {
   if (typeof KhaytAtlasShell?.syncAtlasPageHead === 'function') {
     KhaytAtlasShell.syncAtlasPageHead(tabId);
   }
+  if (typeof KhaytWorkbenchShell?.syncWorkbenchPageHead === 'function') {
+    KhaytWorkbenchShell.syncWorkbenchPageHead(tabId);
+  }
 
   if (tabId === 'dashboard-tab')  renderDashboard();
   if (tabId === 'expenses-tab')   { renderExpenses(); populateExpOrderDatalist(); }

@@ -40,6 +40,7 @@
     else if (theme?.shell === 'vitrine') sub.textContent = 'خيط · VITRINE';
     else if (theme?.shell === 'cockpit') sub.textContent = 'خيط · COCKPIT';
     else if (theme?.shell === 'atlas') sub.textContent = 'خيط · ATLAS';
+    else if (theme?.shell === 'workbench') sub.textContent = 'خيط · WORKBENCH';
     else if (theme?.custom) sub.textContent = `خيط · ${(theme.label || designId).toUpperCase()}`;
     else sub.textContent = 'خيط · STUDIO';
   }
@@ -72,6 +73,7 @@
     document.body.classList.toggle('khayt-vitrine', shell === 'vitrine');
     document.body.classList.toggle('khayt-cockpit', shell === 'cockpit');
     document.body.classList.toggle('khayt-atlas', shell === 'atlas');
+    document.body.classList.toggle('khayt-workbench', shell === 'workbench');
     document.body.classList.toggle('khayt-shell-default', shell === 'default');
     document.body.classList.toggle('khayt-handoff', reg()?.usesHandoffScreens?.(shell) === true);
 
@@ -79,7 +81,7 @@
       el.classList.remove(el.dataset.khaytBodyClass);
       delete el.dataset.khaytBodyClass;
     });
-    if (theme?.bodyClass && !['khayt-studio', 'khayt-ledger', 'khayt-console', 'khayt-atelier', 'khayt-vitrine', 'khayt-cockpit', 'khayt-atlas'].includes(theme.bodyClass)) {
+    if (theme?.bodyClass && !['khayt-studio', 'khayt-ledger', 'khayt-console', 'khayt-atelier', 'khayt-vitrine', 'khayt-cockpit', 'khayt-atlas', 'khayt-workbench'].includes(theme.bodyClass)) {
       document.body.classList.add(theme.bodyClass);
       document.body.dataset.khaytBodyClass = theme.bodyClass;
     }
@@ -95,9 +97,10 @@
     const wasVitrine = document.body.classList.contains('khayt-vitrine');
     const wasCockpit = document.body.classList.contains('khayt-cockpit');
     const wasAtlas = document.body.classList.contains('khayt-atlas');
+    const wasWorkbench = document.body.classList.contains('khayt-workbench');
     const nextShell = theme?.shell || 'studio';
 
-    if (['ledger', 'console', 'atelier', 'vitrine', 'cockpit', 'atlas'].includes(nextShell)) {
+    if (['ledger', 'console', 'atelier', 'vitrine', 'cockpit', 'atlas', 'workbench'].includes(nextShell)) {
       document.getElementById('appSidebar')?.classList.remove('collapsed');
     }
 
@@ -116,19 +119,21 @@
     if (wasVitrine) global.KhaytVitrineShell?.teardownVitrineShell?.();
     if (wasCockpit) global.KhaytCockpitShell?.teardownCockpitShell?.();
     if (wasAtlas) global.KhaytAtlasShell?.teardownAtlasShell?.();
+    if (wasWorkbench) global.KhaytWorkbenchShell?.teardownWorkbenchShell?.();
     if (nextShell === 'ledger') global.KhaytLedgerShell?.applyLedgerShell?.();
     if (nextShell === 'console') global.KhaytConsoleShell?.applyConsoleShell?.();
     if (nextShell === 'atelier') global.KhaytAtelierShell?.applyAtelierShell?.();
     if (nextShell === 'vitrine') global.KhaytVitrineShell?.applyVitrineShell?.();
     if (nextShell === 'cockpit') global.KhaytCockpitShell?.applyCockpitShell?.();
     if (nextShell === 'atlas') global.KhaytAtlasShell?.applyAtlasShell?.();
+    if (nextShell === 'workbench') global.KhaytWorkbenchShell?.applyWorkbenchShell?.();
     if (reg()?.usesHandoffScreens?.(theme?.shell)) {
       global.KhaytStudio?.init?.();
       if (typeof renderDashboard === 'function') renderDashboard();
       if (typeof renderKanban === 'function') renderKanban();
       if (typeof renderClients === 'function') renderClients();
       if (typeof renderInventory === 'function') renderInventory();
-    } else if (nextShell === 'cockpit' || nextShell === 'atlas') {
+    } else if (nextShell === 'cockpit' || nextShell === 'atlas' || nextShell === 'workbench') {
       if (typeof renderDashboard === 'function') renderDashboard();
     }
   }
