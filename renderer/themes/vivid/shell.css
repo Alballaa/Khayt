@@ -210,6 +210,11 @@ body.khayt-vivid .khayt-top::after {
   pointer-events: none;
 }
 body.khayt-vivid .khayt-top > * { position: relative; z-index: 1; }
+/* Keep the colored band a single slim row — the base .topbar-actions has a
+   `wrap` class that otherwise stacks the controls and inflates the band. */
+body.khayt-vivid .khayt-top { flex-wrap: nowrap; }
+body.khayt-vivid .topbar-actions { flex-wrap: nowrap; }
+body.khayt-vivid .khayt-search { flex: 0 1 340px; min-width: 0; }
 
 body.khayt-vivid .ledger-masthead-brand,
 body.khayt-vivid .console-masthead-brand,
