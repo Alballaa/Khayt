@@ -67,7 +67,10 @@ function defaultSettings() {
     addrEn:    'Riyadh, Saudi Arabia',
     addrAr:    'الرياض، المملكة العربية السعودية',
     lang:      'en',
-    theme:     'light',
+    theme:         'light',
+    designTheme:   'studio',
+    accent:        'cyan',
+    cockpitSkin:   'poster',
     invPrefix: 'INV',
     footerEn:  'Thank you for your business!',
     footerAr:  'شكراً لتعاملكم معنا!',
@@ -154,6 +157,7 @@ function defaultSettings() {
     // Round 12: Saved filter presets
     savedFilters:     [],
     betaAcknowledged: true, // legacy field — kept so old saved data doesn't break
+    betaUpdates:       false, // opt-in: include beta pre-releases in auto-update checks
     // Easy-wins batch: Calculator
     quoteValidityDays: 7,
     minOrderAmount:    0,

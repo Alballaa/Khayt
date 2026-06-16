@@ -919,7 +919,7 @@ function wireEvents() {
   // Waiting list
   $('#btnAddWaiting')?.addEventListener('click', () => openWaitingItemEditor(null));
   $('#waitingListToggle')?.addEventListener('click', () => {
-    if (window.KhaytStudio?.isStudio?.()) return;
+    if (window.KhaytStudio?.useHandoffScreens?.()) return;
     const section = $('#waitingListSection');
     const chevron = $('#waitingChevron');
     const toggle = $('#waitingListToggle');
@@ -1189,6 +1189,39 @@ function wireEvents() {
       ? openSettingsSection
       : global.KhaytShell?.openSettingsSection;
     if (open) open(navItem.dataset.settingsSection);
+  });
+
+  $('#set_customThemeHelp')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    toast(typeof t === 'function' ? t('theme.design.custom_toast') : 'See renderer/themes/_template/README.md to create a custom theme.', 'info', 5000);
+  });
+  $('#set_accent')?.addEventListener('change', (e) => {
+    settings.accent = e.target.value || 'cyan';
+    if (typeof applyDesignSettings === 'function') applyDesignSettings();
+    saveAll();
+    toast(t('set.saved'), 'success', 2000);
+  });
+  $('#set_cockpitSkin')?.addEventListener('change', (e) => {
+    settings.cockpitSkin = e.target.value || 'poster';
+    global.KhaytCockpitShell?.syncCockpitSkin?.();
+    if (typeof syncDesignSettingsUi === 'function') syncDesignSettingsUi();
+    saveAll();
+    toast(t('set.saved'), 'success', 2000);
+  });
+  $('#set_lang')?.addEventListener('change', (e) => {
+    settings.lang = e.target.value;
+    i18n.set(settings.lang);
+    const topLang = $('#langSelect');
+    if (topLang) topLang.value = settings.lang;
+    saveAll();
+    toast(t('set.saved'), 'success', 2000);
+  });
+  $('#set_theme')?.addEventListener('change', (e) => {
+    settings.theme = e.target.value;
+    applyTheme(settings.theme);
+    saveAll();
+    window.KhaytIcon?.hydrateTopbar?.();
+    toast(t('set.saved'), 'success', 2000);
   });
 
   // Business Mode toggle buttons (in Settings tab)

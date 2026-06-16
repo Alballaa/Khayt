@@ -20,6 +20,12 @@ test('strips constructor keys', () => {
   assert.equal(Object.hasOwn(obj, 'constructor'), false);
 });
 
+test('strips prototype keys', () => {
+  const obj = safeJsonParse('{"prototype":{"evil":true},"ok":1}');
+  assert.equal(obj.ok, 1);
+  assert.equal(Object.hasOwn(obj, 'prototype'), false);
+});
+
 test('throws on invalid JSON', () => {
   assert.throws(() => safeJsonParse('{'), SyntaxError);
 });

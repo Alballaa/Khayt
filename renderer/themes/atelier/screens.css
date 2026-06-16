@@ -1,0 +1,65 @@
+/* Atelier — screen restyles */
+
+body.khayt-atelier .sec-title {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 500;
+}
+
+body.khayt-atelier .khayt-kpi::before {
+  display: none;
+}
+
+body.khayt-atelier .khayt-ptile,
+body.khayt-atelier .dash-stat {
+  border-color: transparent;
+  box-shadow: var(--shadow-1);
+  background: var(--surface-2);
+  transition: box-shadow 0.16s, transform 0.12s;
+}
+
+body.khayt-atelier .khayt-ptile:hover,
+body.khayt-atelier .dash-stat:hover {
+  box-shadow: var(--shadow-2);
+  transform: translateY(-1px);
+}
+
+body.khayt-atelier .khayt-kanban {
+  grid-template-columns: repeat(5, minmax(218px, 1fr));
+  gap: 14px;
+}
+
+body.khayt-atelier .kanban-col.khayt-kcol {
+  background: var(--bg-2);
+  border: none;
+  border-radius: var(--r-xl);
+}
+
+body.khayt-atelier .kanban-col .khayt-kcol-head strong,
+body.khayt-atelier .kanban-col > h3 {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+body.khayt-atelier .kanban-card.khayt-kcard {
+  border: none;
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-1);
+}
+
+body.khayt-atelier .kanban-card.khayt-kcard:hover {
+  box-shadow: var(--shadow-2);
+  transform: translateY(-2px);
+  border-color: transparent;
+}
+
+body.khayt-atelier .khayt-cavatar {
+  border-radius: 50%;
+  font-family: var(--font-ui);
+}
+
+body.khayt-atelier .khayt-client:hover {
+  box-shadow: var(--shadow-2);
+  transform: translateY(-2px);
+}

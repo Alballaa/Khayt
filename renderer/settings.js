@@ -1187,6 +1187,14 @@ function updateLogoPreview() {
   }
 }
 
+async function syncUpdaterOptionsFromSettings() {
+  const allowBeta = !!settings.betaUpdates;
+  if (!window.hubAPI?.setUpdateOptions) return;
+  try {
+    await window.hubAPI.setUpdateOptions({ allowBeta });
+  } catch (_) {}
+}
+
 function loadSettingsIntoForm() {
   $('#set_bizEn').value     = settings.bizEn     || '';
   $('#set_bizAr').value     = settings.bizAr     || '';
@@ -1198,6 +1206,8 @@ function loadSettingsIntoForm() {
   $('#set_addrAr').value    = settings.addrAr    || '';
   $('#set_lang').value      = settings.lang      || 'en';
   $('#set_theme').value     = settings.theme     || 'dark';
+  if (typeof populateDesignSelects === 'function') populateDesignSelects();
+  if (typeof syncDesignSettingsUi === 'function') syncDesignSettingsUi();
   $('#set_invPrefix').value = settings.invPrefix || 'INV';
   $('#set_footerEn').value  = settings.footerEn  || '';
   $('#set_footerAr').value  = settings.footerAr  || '';
@@ -1335,6 +1345,18 @@ function loadSettingsIntoForm() {
   // New feature sections inside settings tab
   renderSlicerProfiles();
   renderEnvLogs();
+  const betaUpdEl = $('#set_betaUpdates');
+  if (betaUpdEl) {
+    betaUpdEl.checked = !!settings.betaUpdates;
+    if (!betaUpdEl.dataset.updaterBound) {
+      betaUpdEl.dataset.updaterBound = '1';
+      betaUpdEl.addEventListener('change', () => {
+        settings.betaUpdates = betaUpdEl.checked;
+        syncUpdaterOptionsFromSettings();
+      });
+    }
+  }
+  syncUpdaterOptionsFromSettings();
 }
 
 /* Feature 8 / Task 0: File-store size display in Settings */
@@ -1408,7 +1430,10 @@ function saveSettingsFromForm() {
     addrEn:    $('#set_addrEn').value.trim(),
     addrAr:    $('#set_addrAr').value.trim(),
     lang:      $('#set_lang').value,
-    theme:     $('#set_theme').value,
+    theme:       $('#set_theme').value,
+    designTheme: $('#set_designTheme')?.value || settings.designTheme || 'studio',
+    accent:      $('#set_accent')?.value || settings.accent || 'cyan',
+    cockpitSkin: $('#set_cockpitSkin')?.value || settings.cockpitSkin || 'poster',
     invPrefix: $('#set_invPrefix').value.trim() || 'INV',
     footerEn:  $('#set_footerEn').value.trim(),
     footerAr:  $('#set_footerAr').value.trim(),
@@ -1473,6 +1498,7 @@ function saveSettingsFromForm() {
     // Payment instructions (textarea, not auto-included by DOM reconstruction)
     paymentInstructions: $('#set_paymentInstructions')?.value ?? settings.paymentInstructions ?? '',
     betaAcknowledged: true, // legacy field — always true, beta phase is over
+    betaUpdates:       !!$('#set_betaUpdates')?.checked,
     // Easy-wins batch: Calculator
     quoteValidityDays: Math.max(1, num($('#set_quoteValidityDays')?.value, 7)),
     minOrderAmount:    Math.max(0, num($('#set_minOrderAmount')?.value, 0)),
@@ -1517,8 +1543,10 @@ function saveSettingsFromForm() {
     quoteNumNext:         settings.quoteNumNext ?? 1,
   };
   saveAll();
+  syncUpdaterOptionsFromSettings();
   i18n.set(settings.lang);
   applyTheme(settings.theme);
+  if (typeof applyDesignSettings === 'function') applyDesignSettings();
   applyMode();
   renderInventory();
   refreshCurrencyLabels();
@@ -1966,6 +1994,7 @@ function renderTelegramSettings() {
     saveCurrentFilterPreset,
     updateLogoPreview,
     loadSettingsIntoForm,
+    syncUpdaterOptionsFromSettings,
     renderStorageUsage,
     saveSettingsFromForm,
     saveSettingsFromPanel,

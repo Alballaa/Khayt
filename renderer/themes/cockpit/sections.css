@@ -1,0 +1,167 @@
+/* Cockpit sections — queue, inventory, calc, analytics, clients */
+
+body.khayt-cockpit .ck-section { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+body.khayt-cockpit .ck-secbar {
+  flex-shrink: 0; display: flex; align-items: center; gap: 10px;
+  padding: 11px 18px; border-bottom: var(--bw) solid var(--line-soft);
+}
+body.khayt-cockpit .ck-barnote { font-size: 11px; color: var(--ink-3); font-weight: 600; }
+body.khayt-cockpit .ck-scroll { flex: 1; overflow-y: auto; padding: 18px; }
+
+body.khayt-cockpit .ck-chips { display: flex; gap: 6px; }
+body.khayt-cockpit .ck-chip {
+  font-family: var(--font-ui); font-size: 11.5px; font-weight: 700;
+  padding: 5px 13px; border-radius: 100px; cursor: pointer;
+  border: var(--bw) solid var(--line-soft); background: var(--surface); color: var(--ink-2);
+  transition: background .12s, border-color .12s, color .12s;
+}
+body.khayt-cockpit .ck-chip:hover { border-color: var(--line); }
+body.khayt-cockpit .ck-chip.on { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+
+body.khayt-cockpit .ck-btn.sm { height: 30px; padding: 0 12px; font-size: 12px; box-shadow: none; }
+
+/* generic card + tags */
+body.khayt-cockpit .ck-card {
+  border: var(--bw) solid var(--line); border-radius: var(--r-md);
+  background: var(--surface); box-shadow: var(--shadow-2); overflow: hidden;
+}
+body.khayt-cockpit .ck-cardhead {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 14px; border-bottom: var(--bw) solid var(--line-soft);
+}
+body.khayt-cockpit .ck-cardhead h3 { margin: 0; font-size: 13.5px; font-weight: 800; letter-spacing: -0.01em; }
+body.khayt-cockpit .ck-cardhead .ck-barnote { margin-inline-start: auto; }
+
+body.khayt-cockpit .ck-tag {
+  font-family: var(--font-mono); font-size: 9px; font-weight: 600; letter-spacing: 0.07em;
+  border: 1px solid var(--line-soft); border-radius: 5px; padding: 2px 6px; color: var(--ink-3);
+}
+body.khayt-cockpit .ck-pill {
+  font-size: 9px; font-weight: 800; letter-spacing: 0.06em;
+  border-radius: 100px; padding: 3px 9px; white-space: nowrap;
+}
+body.khayt-cockpit .ck-pill.ok   { background: var(--surface-3); color: var(--ink-2); }
+body.khayt-cockpit .ck-pill.warn { background: var(--c-post); color: #1c1303; }
+body.khayt-cockpit .ck-pill.hot  { background: var(--c-error); color: #fff; }
+body.khayt-cockpit .ck-swatch { width: 26px; height: 26px; border-radius: 7px; flex-shrink: 0; border: var(--bw) solid var(--line); }
+body.khayt-cockpit .ck-swatch.sm { width: 20px; height: 20px; border-radius: 5px; }
+
+/* ============ KANBAN ============ */
+body.khayt-cockpit .ck-kanban { display: flex; gap: 12px; align-items: flex-start; min-width: min-content; padding-bottom: 6px; }
+body.khayt-cockpit .ck-kcol { width: 250px; flex-shrink: 0; display: flex; flex-direction: column; gap: 10px; }
+body.khayt-cockpit .ck-khead {
+  display: flex; align-items: center; gap: 8px; padding: 8px 11px;
+  border: var(--bw) solid var(--line); border-radius: var(--r-sm);
+  background: var(--surface);
+}
+body.khayt-cockpit .ck-khead .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--kc); flex-shrink: 0; }
+body.khayt-cockpit .ck-khead .lbl { font-size: 12px; font-weight: 800; letter-spacing: -0.01em; }
+body.khayt-cockpit .ck-khead .cnt { font-size: 11px; color: var(--ink-3); font-weight: 600; }
+body.khayt-cockpit .ck-khead .sum { font-size: 10.5px; color: var(--ink-3); font-weight: 600; }
+body.khayt-cockpit .ck-kcards { display: flex; flex-direction: column; gap: 9px; }
+body.khayt-cockpit .ck-kcard {
+  border: var(--bw) solid var(--line-soft); border-radius: var(--r-md);
+  background: var(--surface); padding: 11px 12px; position: relative; overflow: hidden;
+  cursor: grab; transition: border-color .12s, box-shadow .12s, transform .08s;
+}
+body.khayt-cockpit .ck-kcard::before { content: ""; position: absolute; inset-inline-start: 0; top: 0; bottom: 0; width: 4px; background: var(--kc); }
+body.khayt-cockpit .ck-kcard:hover { border-color: var(--line); box-shadow: var(--shadow-2); }
+body.khayt-cockpit .ck-kcard .row { display: flex; align-items: center; gap: 8px; }
+body.khayt-cockpit .ck-kcard .oid { font-size: 11px; font-weight: 600; color: var(--ink-3); }
+body.khayt-cockpit .ck-kcard .prio { font-size: 9px; font-weight: 700; letter-spacing: 0.05em; }
+body.khayt-cockpit .ck-kcard .due { font-size: 10px; color: var(--ink-3); font-weight: 600; }
+body.khayt-cockpit .ck-kcard .cl { font-size: 13.5px; font-weight: 750; letter-spacing: -0.01em; margin: 5px 0 6px; }
+body.khayt-cockpit .ck-kcard .mat { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--ink-2); font-weight: 550; }
+body.khayt-cockpit .ck-kcard .mat .sw { width: 12px; height: 12px; border-radius: 4px; border: 1px solid var(--line-soft); flex-shrink: 0; }
+body.khayt-cockpit .ck-kcard .mat .parts { margin-inline-start: auto; font-size: 10.5px; color: var(--ink-3); font-weight: 600; }
+body.khayt-cockpit .ck-kcard .foot { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+body.khayt-cockpit .ck-kcard .foot .mc { font-size: 10.5px; color: var(--ink-3); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.khayt-cockpit .ck-kcard .foot .val { font-size: 12px; font-weight: 700; }
+
+/* ============ TABLE (inventory / calc) ============ */
+body.khayt-cockpit .ck-tbl {
+  border: var(--bw) solid var(--line); border-radius: var(--r-md);
+  background: var(--surface); overflow: hidden; box-shadow: var(--shadow-2);
+}
+body.khayt-cockpit .ck-card .ck-tbl { border: none; border-radius: 0; box-shadow: none; }
+body.khayt-cockpit .ck-tr {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 16px; border-bottom: 1px solid var(--hairline);
+}
+body.khayt-cockpit .ck-tbl.tight .ck-tr { padding: 9px 14px; }
+body.khayt-cockpit .ck-tr:last-child { border-bottom: none; }
+body.khayt-cockpit .ck-th {
+  background: var(--surface-2); border-bottom: var(--bw) solid var(--line-soft);
+  font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-3);
+}
+body.khayt-cockpit .ck-tr .nm { font-size: 13px; font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.khayt-cockpit .ck-tr .sub { font-size: 10.5px; color: var(--ink-3); font-weight: 600; }
+
+/* ============ CALCULATOR ============ */
+body.khayt-cockpit .ck-calc { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; align-items: start; max-width: 1080px; }
+body.khayt-cockpit .ck-calc .ck-card > .ck-tbl { box-shadow: none; }
+body.khayt-cockpit .ck-stack { display: flex; height: 22px; border-radius: 7px; overflow: hidden; border: var(--bw) solid var(--line); }
+body.khayt-cockpit .ck-stack .seg { height: 100%; }
+body.khayt-cockpit .ck-legrows { margin-top: 14px; display: flex; flex-direction: column; gap: 2px; }
+body.khayt-cockpit .ck-legrow { display: flex; align-items: center; gap: 9px; padding: 5px 0; border-bottom: 1px solid var(--hairline); }
+body.khayt-cockpit .ck-legrow:last-child { border-bottom: none; }
+body.khayt-cockpit .ck-legrow .sw { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
+body.khayt-cockpit .ck-legrow .lb { font-size: 12px; font-weight: 600; color: var(--ink-2); flex: 1; }
+body.khayt-cockpit .ck-legrow .pc { font-size: 11px; color: var(--ink-3); width: 36px; text-align: end; }
+body.khayt-cockpit .ck-legrow .vl { font-size: 12px; font-weight: 600; width: 56px; text-align: end; }
+body.khayt-cockpit .ck-quote { margin-top: 16px; border-top: var(--bw) solid var(--line-soft); padding-top: 12px; display: flex; flex-direction: column; gap: 7px; }
+body.khayt-cockpit .ck-quote .qrow { display: flex; align-items: baseline; justify-content: space-between; font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
+body.khayt-cockpit .ck-quote .qrow .mono { font-size: 13px; color: var(--ink); }
+body.khayt-cockpit .ck-quote .qrow.total { border-top: 1px dashed var(--line-soft); padding-top: 9px; margin-top: 2px; }
+body.khayt-cockpit .ck-quote .qrow.total span:first-child { font-size: 14px; font-weight: 800; color: var(--ink); }
+body.khayt-cockpit .ck-quote .qrow.total .mono { font-size: 20px; font-weight: 700; color: var(--accent); letter-spacing: -0.02em; }
+
+/* ============ ANALYTICS ============ */
+body.khayt-cockpit .ck-anldash { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 1100px; }
+body.khayt-cockpit .ck-span2 { grid-column: 1 / -1; }
+body.khayt-cockpit .ck-kpis { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+body.khayt-cockpit .ck-kpi {
+  border: var(--bw) solid var(--line); border-radius: var(--r-md);
+  background: var(--surface); padding: 13px 14px; box-shadow: var(--shadow-2);
+  display: flex; flex-direction: column; gap: 4px;
+}
+body.khayt-cockpit .ck-kpi .lbl { font-size: 10.5px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.05em; }
+body.khayt-cockpit .ck-kpi .val { font-size: 26px; font-weight: 650; letter-spacing: -0.03em; line-height: 1; }
+body.khayt-cockpit .ck-kpi .val .u { font-size: 13px; color: var(--ink-3); margin-inline-start: 3px; font-weight: 600; }
+body.khayt-cockpit .ck-spark { display: flex; align-items: flex-end; gap: 2.5px; height: 34px; margin: 4px 0 2px; }
+body.khayt-cockpit .ck-spark span { flex: 1; background: var(--accent-soft); border-radius: 2px 2px 0 0; }
+body.khayt-cockpit .ck-spark span:last-child { background: var(--c-print); }
+body.khayt-cockpit .ck-kpi .delta { font-size: 11px; font-weight: 700; }
+body.khayt-cockpit .ck-kpi .delta.up { color: var(--c-ready); }
+body.khayt-cockpit .ck-kpi .delta.down { color: var(--c-error); }
+
+body.khayt-cockpit .ck-revchart { display: flex; align-items: flex-end; gap: 8px; height: 200px; padding: 18px 16px 10px; }
+body.khayt-cockpit .ck-revchart .bar { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end; }
+body.khayt-cockpit .ck-revchart .bar i { width: 100%; border-radius: 4px 4px 0 0; min-height: 4px; border: var(--bw) solid var(--line); border-bottom: none; }
+body.khayt-cockpit .ck-revchart .bar .x { font-size: 9.5px; color: var(--ink-3); font-weight: 600; }
+
+body.khayt-cockpit .ck-utilrow { display: flex; align-items: center; gap: 11px; }
+body.khayt-cockpit .ck-utilrow .nm { font-size: 12px; font-weight: 650; width: 116px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.khayt-cockpit .ck-utilrow .pct { font-size: 11px; font-weight: 600; width: 40px; text-align: end; color: var(--ink-2); }
+
+/* ============ CLIENTS ============ */
+body.khayt-cockpit .ck-clientgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; max-width: 1120px; }
+body.khayt-cockpit .ck-clientcard {
+  border: var(--bw) solid var(--line-soft); border-radius: var(--r-md);
+  background: var(--surface); padding: 14px; transition: border-color .12s, box-shadow .12s;
+}
+body.khayt-cockpit .ck-clientcard:hover { border-color: var(--line); box-shadow: var(--shadow-2); }
+body.khayt-cockpit .ck-clientcard .top { display: flex; align-items: center; gap: 11px; }
+body.khayt-cockpit .ck-avatar {
+  width: 40px; height: 40px; border-radius: 11px; flex-shrink: 0;
+  display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 14px;
+  border: var(--bw) solid var(--line);
+}
+body.khayt-cockpit .ck-clientcard .nm { font-size: 14.5px; font-weight: 750; letter-spacing: -0.01em; }
+body.khayt-cockpit .ck-clientcard .sub { font-size: 11px; color: var(--ink-3); font-weight: 600; }
+body.khayt-cockpit .ck-clientcard .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0 12px; }
+body.khayt-cockpit .ck-clientcard .st { display: flex; flex-direction: column; gap: 1px; }
+body.khayt-cockpit .ck-clientcard .st .v { font-size: 16px; font-weight: 650; letter-spacing: -0.02em; }
+body.khayt-cockpit .ck-clientcard .st .l { font-size: 9.5px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.05em; }
+body.khayt-cockpit .ck-clientcard .credit { display: flex; align-items: center; gap: 10px; font-size: 10.5px; color: var(--ink-3); font-weight: 600; }
+body.khayt-cockpit .ck-clientcard .credit .mono { white-space: nowrap; }

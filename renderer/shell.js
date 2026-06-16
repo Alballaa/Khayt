@@ -204,9 +204,12 @@ function initAppShell() {
   mirror?.addEventListener('click', openSearch);
   mirror?.addEventListener('focus', openSearch);
 
-  document.documentElement.style.setProperty('--accent-h', '187');
-  document.documentElement.style.setProperty('--accent-s', '76%');
-  document.documentElement.style.setProperty('--accent-l', '53%');
+  if (typeof applyDesignSettings === 'function') applyDesignSettings();
+  else if (typeof populateDesignSelects === 'function') populateDesignSelects();
+
+  if (document.body.classList.contains('khayt-ledger')) {
+    global.KhaytLedgerShell?.bindTabNav?.();
+  }
 
   syncTopbarTitle($('.tab-content.active')?.id || 'dashboard-tab');
 
@@ -240,6 +243,8 @@ function syncTopbarTitle(tabId) {
     sub.textContent = d.toLocaleDateString(i18n.current === 'ar' ? 'ar-SA' : 'en-US', {
       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
     });
+  } else if (document.body.classList.contains('khayt-handoff') && typeof KhaytLedgerShell?.ledgerTabSubtitle === 'function') {
+    sub.textContent = KhaytLedgerShell.ledgerTabSubtitle(tabId);
   } else {
     sub.textContent = '';
   }
@@ -255,6 +260,7 @@ function openSettingsSection(section) {
   $$('.settings-panel').forEach(el => el.classList.remove('active'));
   const navItem = $(`.settings-nav-item[data-settings-section="${section}"]`);
   navItem?.classList.add('active');
+  navItem?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
   $(`#settings-panel-${section}`)?.classList.add('active');
   if (section === 'online' && typeof renderOnlineSettings === 'function') renderOnlineSettings();
 }
@@ -278,6 +284,18 @@ function switchTab(tabId) {
   });
 
   syncTopbarTitle(tabId);
+  if (typeof KhaytLedgerShell?.syncLedgerPageHead === 'function') {
+    KhaytLedgerShell.syncLedgerPageHead(tabId);
+  }
+  if (typeof KhaytConsoleShell?.syncConsolePageHead === 'function') {
+    KhaytConsoleShell.syncConsolePageHead(tabId);
+  }
+  if (typeof KhaytCockpitShell?.syncCockpitPageHead === 'function') {
+    KhaytCockpitShell.syncCockpitPageHead(tabId);
+  }
+  if (typeof KhaytAtlasShell?.syncAtlasPageHead === 'function') {
+    KhaytAtlasShell.syncAtlasPageHead(tabId);
+  }
 
   if (tabId === 'dashboard-tab')  renderDashboard();
   if (tabId === 'expenses-tab')   { renderExpenses(); populateExpOrderDatalist(); }
