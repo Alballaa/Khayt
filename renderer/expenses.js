@@ -45,14 +45,14 @@ function checkRecurringExpenses() {
         recurring: null, // the new copy is not recurring
         orderId: null,
       });
-      exp.nextDue = calcNextDueDate(todayStr, exp.recurring);
+      exp.nextDue = calcNextDueDate(exp.nextDue || todayStr, exp.recurring);
       saveAll();
       renderExpenses();
       toast(t('exp.recurring_added'), 'success');
       c.remove();
     });
     skipBtn.addEventListener('click', () => {
-      exp.nextDue = calcNextDueDate(todayStr, exp.recurring);
+      exp.nextDue = calcNextDueDate(exp.nextDue || todayStr, exp.recurring);
       saveAll();
       c.remove();
     });

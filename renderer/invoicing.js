@@ -878,9 +878,15 @@ async function buildZatcaPhase2TLV({ sellerName, vatNumber, timestamp, total, va
   const enc = new TextEncoder();
   function tlvBytes(tag, value) {
     const len = value.length;
-    const header = len <= 127
-      ? new Uint8Array([tag, len])
-      : new Uint8Array([tag, 0x81, len]);
+    // BER-TLV length: 1-byte (≤127), 0x81 + 1-byte (≤255), 0x82 + 2-byte (>255).
+    let header;
+    if (len <= 127) {
+      header = new Uint8Array([tag, len]);
+    } else if (len <= 255) {
+      header = new Uint8Array([tag, 0x81, len]);
+    } else {
+      header = new Uint8Array([tag, 0x82, (len >> 8) & 0xff, len & 0xff]);
+    }
     const out = new Uint8Array(header.length + len);
     out.set(header, 0); out.set(value, header.length);
     return out;
