@@ -133,6 +133,7 @@ contextBridge.exposeInMainWorld('hubAPI', {
   // Auto-updater
   setUpdateOptions:     (opts)           => ipcRenderer.invoke('hub:set-update-options', opts),
   checkForUpdates:      ()               => ipcRenderer.invoke('hub:check-for-updates'),
+  formatReleaseNotes:   (notes, opts)    => ipcRenderer.invoke('hub:format-release-notes', notes, opts),
   startUpdateDownload:  ()               => ipcRenderer.invoke('hub:start-update-download'),
   // Quit and install; pass null after flushSave() (avoid duplicate encrypt+write on large stores).
   installUpdate:        (storeSnapshot)  => ipcRenderer.invoke('hub:install-update', storeSnapshot),

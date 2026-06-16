@@ -322,121 +322,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   })();
 
-  // ── Auto-updater UI ─────────────────────────────────────────────────────────
-  // electron-updater fires IPC events from main; we show a non-intrusive banner.
-  (function wireUpdaterUI() {
-    // Push the saved beta-channel preference to main at boot, before the startup
-    // update check runs — otherwise opted-in testers aren't offered beta builds
-    // until they open Settings (which is the only other place this is synced).
-    if (typeof settings !== 'undefined') {
-      window.hubAPI?.setUpdateOptions?.({ allowBeta: !!settings.betaUpdates });
-    }
-
-    const BANNER_CSS = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:9999;' +
-      'background:var(--primary);color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;' +
-      'font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,0.35);display:flex;align-items:center;gap:10px;white-space:nowrap;';
-
-    function makeBanner(html) {
-      const el = document.createElement('div');
-      el.id = 'updateBanner';
-      el.style.cssText = BANNER_CSS;
-      el.innerHTML = html;
-      document.getElementById('updateBanner')?.remove();
-      document.body.appendChild(el);
-      return el;
-    }
-
-    // 1. Update available — ask user to download
-    window.hubAPI?.onUpdateAvailable?.((info) => {
-      const banner = makeBanner(
-        `🎉 Khayt <strong>${escapeHtml(info.version)}</strong> is available! ` +
-        `<button id="updBtnDownload" style="background:rgba(255,255,255,0.25);border:none;color:#fff;padding:3px 12px;border-radius:12px;cursor:pointer;font-size:12px;">Download</button> ` +
-        `<span id="updBtnClose" style="opacity:.7;font-size:18px;cursor:pointer;line-height:1;">×</span>`
-      );
-      banner.querySelector('#updBtnDownload')?.addEventListener('click', () => {
-        banner.innerHTML = `⬇️ Downloading update… <span id="updProgress" style="opacity:.8;font-size:12px;">0%</span>`;
-        window.hubAPI?.startUpdateDownload?.();
-      });
-      banner.querySelector('#updBtnClose')?.addEventListener('click', () => banner.remove());
-    });
-
-    // 2. Download progress — update the % counter
-    window.hubAPI?.onUpdateDownloadProgress?.((progress) => {
-      const el = document.getElementById('updProgress');
-      if (el) el.textContent = `${progress.percent}%`;
-    });
-
-    // 2b. Update error — surface it instead of leaving the banner stuck at 0%
-    window.hubAPI?.onUpdateError?.((err) => {
-      const banner = document.getElementById('updateBanner');
-      if (!banner) return;
-      const msg = escapeHtml(err?.message || 'Update failed');
-      banner.innerHTML =
-        `⚠ Update failed: <span style="opacity:.85;font-size:12px;">${msg}</span> ` +
-        `<span id="updBtnCloseErr" style="opacity:.7;font-size:18px;cursor:pointer;line-height:1;margin-inline-start:6px;">×</span>`;
-      banner.querySelector('#updBtnCloseErr')?.addEventListener('click', () => banner.remove());
-    });
-
-    // 3. Download complete — show restart button
-    window.hubAPI?.onUpdateDownloaded?.((info) => {
-      const banner = makeBanner(
-        `✅ Khayt <strong>${escapeHtml(info.version)}</strong> ready — ` +
-        `<button id="updBtnRestart" style="background:rgba(255,255,255,0.25);border:none;color:#fff;padding:3px 12px;border-radius:12px;cursor:pointer;font-size:12px;">Restart &amp; install</button> ` +
-        `<span id="updBtnClose2" style="opacity:.7;font-size:18px;cursor:pointer;line-height:1;">×</span>`
-      );
-      banner.querySelector('#updBtnRestart')?.addEventListener('click', async () => {
-        const btn = banner.querySelector('#updBtnRestart');
-        const setBtn = (label) => { if (btn) btn.textContent = label; };
-        if (btn) btn.disabled = true;
-
-        const withTimeout = (promise, ms, label) =>
-          Promise.race([
-            promise,
-            new Promise((resolve) => setTimeout(() => {
-              console.warn(`[update] ${label} timed out after ${ms}ms — continuing`);
-              resolve(null);
-            }, ms)),
-          ]);
-
-        try {
-          // 1. One flush to disk (large stores can take several seconds to encrypt).
-          setBtn('Saving data…');
-          if (typeof flushSave === 'function') {
-            await withTimeout(flushSave(), 20_000, 'flushSave');
-          }
-
-          // 2. Pre-update backup — copy store file on disk (no huge JSON over IPC).
-          setBtn('Backing up…');
-          await withTimeout(
-            window.hubAPI?.writeUpdateBackup?.('__COPY_STORE__', info.version),
-            12_000,
-            'writeUpdateBackup',
-          );
-
-          // 3. Record pending version for post-relaunch toast.
-          localStorage.setItem('khayt_pending_update_to', String(info.version));
-
-          setTimeout(() => {
-            if (localStorage.getItem('khayt_pending_update_to') === String(info.version)) {
-              localStorage.removeItem('khayt_pending_update_to');
-              toast('⚠ Update installation failed — please restart the app manually.', 'error', 8000);
-              if (btn) { btn.disabled = false; btn.textContent = 'Restart & install'; }
-            }
-          }, 30_000);
-
-          // 4. Quit and install (store already flushed — do not re-send snapshot).
-          setBtn('Installing…');
-          await window.hubAPI?.installUpdate?.(null);
-        } catch (err) {
-          console.error('[update] install prep failed:', err);
-          toast('⚠ Could not prepare update — trying install anyway.', 'warning', 6000);
-          setBtn('Installing…');
-          try { await window.hubAPI?.installUpdate?.(null); } catch (_) {}
-        }
-      });
-      banner.querySelector('#updBtnClose2')?.addEventListener('click', () => banner.remove());
-    });
-  })();
+  // ── Auto-updater UI (changelog review before download/install) ─────
+  // Push the saved beta-channel preference to main before the startup check,
+  // so opted-in testers are offered beta builds on the launch auto-check.
+  if (typeof settings !== 'undefined') {
+    window.hubAPI?.setUpdateOptions?.({ allowBeta: !!settings.betaUpdates });
+  }
+  wireUpdateUI({ getCurrentVersion: () => currentVersion });
 
   // ── Manual "Check for updates" button in Settings ────────────────────────
   (function wireCheckForUpdatesBtn() {
@@ -450,26 +342,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (msg) msg.textContent = '';
       try {
         const res = await window.hubAPI.checkForUpdates();
-        if (res?.status === 'dev') {
-          if (msg) {
-            const ver = res.currentVersion || currentVersion || '';
-            msg.innerHTML =
-              `Source build${ver ? ` (${escapeHtml(ver)})` : ''}. ` +
-              'New features ship on <strong>main</strong> first — in your repo folder run ' +
-              '<code>git pull origin main</code> then <code>npm start</code>. ' +
-              'Installed DMG/auto-update only moves when a new GitHub Release is published ' +
-              '(see <a href="https://github.com/Alballaa/Khayt/blob/main/docs/RELEASE-HOLD.md" target="_blank" rel="noopener">release hold</a>).';
-          }
-        } else if (res?.status === 'error') {
-          if (msg) msg.textContent = `⚠ Update check failed: ${res.message || 'unknown error'}`;
-        } else if (res?.status === 'available') {
-          if (msg) msg.textContent = `Khayt ${res.version} is available — use the banner to download.`;
-        } else if (res?.status === 'not-available') {
-          const ver = res.currentVersion || currentVersion || '';
-          if (msg) msg.textContent = ver ? `✓ You're up to date (${ver})` : '✓ You\'re up to date';
-        } else if (msg) {
-          msg.textContent = '⚠ Update check returned no result';
-        }
+        await handleManualUpdateCheckResult(res, { currentVersion, statusEl: msg });
       } catch (e) {
         if (msg) msg.textContent = '⚠ Check failed';
       } finally {
