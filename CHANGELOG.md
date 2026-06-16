@@ -6,6 +6,7 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Print farm — sites & location filter** — Top-bar location filter now scopes dashboard KPIs, production queue, machine queues, and orders log; **Sites overview** on dashboard (Professional, 2+ locations); wizard **Print farm** preset (Professional mode, default WIP limits, second site stub).
 - **iOS Companion** — Home quick actions, low-stock alerts, order preview; Orders tab (active filters + recent history); order/spool detail sheets; inventory search and low-stock filter; [IOS_UI_REDESIGN_PROMPT.md](./docs/IOS_UI_REDESIGN_PROMPT.md) for AI UI redesign.
 - **iOS Companion (full v1)** — English/Arabic + RTL, connection banner, kanban strip, overdue filter, local notifications, home screen widget sources, Siri shortcuts, App Group widget snapshot.
 - **Global search** — Fuzzy matching plus printers, suppliers, and expenses; main nav arrow-key tab switching.

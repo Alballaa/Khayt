@@ -2,7 +2,7 @@
 
 **Stable channel:** do not tag or publish a new **stable** GitHub Release until this hold is lifted.
 
-`main` may receive merges for Khayt-4 and follow-on work. **Stable** installers and auto-update feeds stay on the last published stable tag until a deliberate stable release.
+`main` may receive merges for Khayt-4 and follow-on work (including the pre–Khayt Cloud batch: update check, online intake, polish, print-farm local features). **Stable** installers and auto-update feeds stay on the last published stable tag until a deliberate stable release.
 
 | Channel | Last published | Notes |
 |---------|----------------|-------|

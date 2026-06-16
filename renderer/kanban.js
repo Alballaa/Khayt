@@ -293,8 +293,10 @@ function renderKanban() {
   window.KhaytStudio?.syncQueueMachinePicker?.();
   renderWaitingList();
   updateWaitingBadge();
+  renderLocationScopeBanner?.();
+  const locMatch = typeof orderMatchesActiveLocation === 'function' ? orderMatchesActiveLocation : () => true;
   // --- Quotes awaiting approval ---
-  const quotes = printLog.filter(o => o.status === 'quote');
+  const quotes = printLog.filter(o => o.status === 'quote' && locMatch(o));
   const quotesSec = $('#quotesSection');
   if (quotesSec) {
     if (window.KhaytStudio?.useHandoffScreens?.()) {
@@ -340,6 +342,7 @@ function renderKanban() {
   const cols = { pending: [], on_hold: [], printing: [], post: [], qc: [], completed: [], delivered: [] };
   printLog.filter(o => {
     if (o.status === 'quote') return false;
+    if (!locMatch(o)) return false;
     if (kanTerm) {
       const client = o.clientId ? clients.find(c => c.id === o.clientId) : null;
       const hay = [o.project, o.id, o.client, client?.nameEn, client?.nameAr, client?.phone].join(' ').toLowerCase();
@@ -690,11 +693,20 @@ function renderMachineQueues() {
   if (machines.length === 0) { container.innerHTML = `<div class="empty-state" style="padding:24px;">${escapeHtml(t('mach.empty'))}</div>`; return; }
 
   const today = localDateStr();
+  const machList = typeof machineMatchesActiveLocation === 'function'
+    ? machines.filter(machineMatchesActiveLocation)
+    : machines;
+  if (machList.length === 0) {
+    container.innerHTML = `<div class="empty-state" style="padding:24px;">${escapeHtml(t('loc.no_machines'))}</div>`;
+    return;
+  }
 
-  const cards = machines.map(machine => {
-    const activeOrder = printLog.find(o => o.status === 'printing' && (o.machineId === machine.id || o.machine === machine.name));
+  const locMatch = typeof orderMatchesActiveLocation === 'function' ? orderMatchesActiveLocation : () => true;
+
+  const cards = machList.map(machine => {
+    const activeOrder = printLog.find(o => locMatch(o) && o.status === 'printing' && (o.machineId === machine.id || o.machine === machine.name));
     const queue = printLog
-      .filter(o => o.status === 'pending' && (o.machineId === machine.id || o.machine === machine.name))
+      .filter(o => locMatch(o) && o.status === 'pending' && (o.machineId === machine.id || o.machine === machine.name))
       .sort((a, b) => prioritySortValue(a) - prioritySortValue(b))
       .slice(0, 5);
 
