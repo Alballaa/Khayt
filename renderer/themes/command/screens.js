@@ -94,6 +94,16 @@
     </div>`;
   }
 
+  // Machines actively printing — single source of truth shared by the dashboard
+  // KPI and the status bar (uses machineProgress, so offline/error/100% are
+  // handled identically and the two surfaces never diverge).
+  function activePrinterCount() {
+    const mach = (typeof machines !== 'undefined' && Array.isArray(machines)) ? machines : [];
+    const log = (typeof printLog !== 'undefined' && Array.isArray(printLog)) ? printLog : [];
+    const nowPrinting = log.filter((o) => o.status === 'printing');
+    return mach.filter((m) => machineProgress(m, nowPrinting.find((o) => o.machineId === m.id)).state === 'printing').length;
+  }
+
   /* =========================================================
      Dashboard
      ========================================================= */
@@ -127,10 +137,7 @@
 
     const nowPrinting = log.filter((o) => o.status === 'printing');
     const printers = mach.length;
-    const activePrinters = mach.filter((m) => {
-      const { state } = machineProgress(m, nowPrinting.find((o) => o.machineId === m.id));
-      return state === 'printing';
-    }).length;
+    const activePrinters = activePrinterCount();
     const utilPct = printers > 0 ? Math.round(activePrinters / printers * 100) : 0;
 
     const lowStock = (typeof isLowStock === 'function') ? inv.filter(isLowStock) : [];
@@ -335,5 +342,6 @@
   global.KhaytCommand = {
     isOn,
     renderDashboard,
+    activePrinterCount,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
