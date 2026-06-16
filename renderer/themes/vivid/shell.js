@@ -251,18 +251,22 @@
     const openOrders = log.filter((o) => o.status !== 'completed' && o.status !== 'quote').length;
     const printing = log.filter((o) => o.status === 'printing').length;
 
-    // Filament used today (kg) — sum of grams on today's orders, if present.
-    let gramsToday = 0;
-    try {
-      const today = new Date(); today.setHours(0, 0, 0, 0);
-      const dayStr = (typeof localDateStr === 'function')
-        ? localDateStr(today)
-        : today.toISOString().slice(0, 10);
-      gramsToday = log
-        .filter((o) => dayStr && (o.date || '').startsWith(dayStr))
-        .reduce((s, o) => s + (Number(o.grams) || Number(o.weight) || 0), 0);
-    } catch (_) { gramsToday = 0; }
+    // Filament used today (kg) — inventory usageHistory, the SAME source as the
+    // dashboard "Filament used" tile (so the two chrome surfaces never disagree).
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const dayStr = (typeof localDateStr === 'function')
+      ? localDateStr(today)
+      : today.toISOString().slice(0, 10);
+    const inv = (typeof inventory !== 'undefined' && Array.isArray(inventory)) ? inventory : [];
+    const gramsToday = inv.reduce((s, item) => s
+      + (item.usageHistory || [])
+        .filter((h) => h.date === dayStr)
+        .reduce((a, h) => a + (+h.weightUsed || 0), 0), 0);
     const kgToday = (gramsToday / 1000).toFixed(1);
+
+    // Honest LAN indicator — only "online" when LAN/online serving is actually enabled.
+    const lanOn = !!((typeof settings !== 'undefined' && settings)
+      && (settings.onlineEnabled || (settings.lanApi && settings.lanApi.bindLan)));
 
     const now = new Date();
     const clock = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -275,7 +279,7 @@
       <span class="sepr"></span>
       <span class="vv-sb-item"><b>${escapeHtml(kgToday)} kg</b> ${escapeHtml(tr('vivid.status.today', 'today'))}</span>
       <span class="vv-sb-grow"></span>
-      <span class="vv-sb-item vv-ok">${escapeHtml(tr('vivid.status.synced', 'LAN online'))}</span>
+      <span class="vv-sb-item ${lanOn ? 'vv-ok' : ''}">${escapeHtml(lanOn ? tr('vivid.status.synced', 'LAN online') : tr('vivid.status.lan_off', 'LAN off'))}</span>
       <span class="sepr"></span>
       <span class="vv-sb-item kbd-hint">${escapeHtml(tr('vivid.status.updated', 'Updated'))} ${escapeHtml(clock)}</span>`;
   }

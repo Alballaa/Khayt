@@ -960,6 +960,7 @@
   "vivid.status.orders": "orders",
   "vivid.status.today": "today",
   "vivid.status.synced": "LAN online",
+  "vivid.status.lan_off": "LAN off",
   "vivid.status.updated": "Updated",
   "dash.vv_orders": "orders",
   "dash.vv_revenue_month": "Revenue (month)",

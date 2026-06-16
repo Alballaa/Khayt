@@ -406,6 +406,11 @@
     </div>`;
 
     if (typeof i18n !== 'undefined' && i18n.apply) i18n.apply(host);
+    // Keep the bottom status bar current with the freshly-rendered dashboard
+    // (it otherwise only refreshes on tab switch).
+    if (global.KhaytVividShell && typeof global.KhaytVividShell.syncStatusBar === 'function') {
+      global.KhaytVividShell.syncStatusBar();
+    }
     return true;
   }
 

@@ -1057,6 +1057,7 @@
   "vivid.status.orders": "طلبات",
   "vivid.status.today": "اليوم",
   "vivid.status.synced": "الشبكة متصلة",
+  "vivid.status.lan_off": "الشبكة متوقفة",
   "vivid.status.updated": "تحديث",
   "dash.vv_orders": "طلبات",
   "dash.vv_revenue_month": "الإيرادات (الشهر)",
