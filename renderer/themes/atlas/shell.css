@@ -74,7 +74,7 @@ body.khayt-atlas #dashboardContent {
   letter-spacing: 0.16em; text-transform: uppercase;
 }
 .atlas-chrome .kpis { display: flex; gap: 22px; }
-.atlas-chrome .kpi { text-align: right; }
+.atlas-chrome .kpi { text-align: end; }
 .atlas-chrome .kpi b {
   display: block; font-family: var(--mono); font-size: 17px; font-weight: 600; color: var(--accent);
 }
@@ -82,7 +82,7 @@ body.khayt-atlas #dashboardContent {
   font-size: 9.5px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.12em;
 }
 .atlas-chrome .clock {
-  margin-left: auto; font-family: var(--mono); font-size: 22px; font-weight: 500;
+  margin-inline-start: auto; font-family: var(--mono); font-size: 22px; font-weight: 500;
   letter-spacing: 0.02em; color: var(--ink);
 }
 .atlas-chrome .atlas-nav {

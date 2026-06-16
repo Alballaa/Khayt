@@ -239,12 +239,15 @@ function initAppShell() {
   const collapseBtn = $('#btnSidebarCollapse');
   if (localStorage.getItem('hub_sidebar_collapsed') === '1') {
     sidebar?.classList.add('collapsed');
+    collapseBtn?.setAttribute('aria-expanded', 'false');
   }
   collapseBtn?.addEventListener('click', () => {
     sidebar?.classList.toggle('collapsed');
-    localStorage.setItem('hub_sidebar_collapsed', sidebar?.classList.contains('collapsed') ? '1' : '0');
+    const collapsed = sidebar?.classList.contains('collapsed');
+    localStorage.setItem('hub_sidebar_collapsed', collapsed ? '1' : '0');
+    collapseBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
     const chevron = collapseBtn.querySelector('[aria-hidden="true"]');
-    if (chevron) chevron.textContent = sidebar?.classList.contains('collapsed') ? '›' : '‹';
+    if (chevron) chevron.textContent = collapsed ? '›' : '‹';
   });
 
   const mirror = $('#topbarSearchMirror');

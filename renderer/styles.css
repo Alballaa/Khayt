@@ -1508,8 +1508,7 @@ tbody tr:hover { background: var(--surface-2); }
 .suggest-list {
   position: absolute;
   top: 100%;
-  left: 0;
-  right: 0;
+  inset-inline: 0;
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -3036,7 +3035,7 @@ button.tag-chip, .tag-chip[data-act] {
   font-family: var(--font-num);
 }
 .dash-maint-section {
-  border-left: 3px solid var(--danger);
+  border-inline-start: 3px solid var(--danger);
   padding-inline-start: 12px;
 }
 
@@ -3596,8 +3595,7 @@ body.mode-simple .pro-only { display: none !important; }
 .pause-banner {
   position: fixed;
   top: 0;
-  left: 0;
-  right: 0;
+  inset-inline: 0;
   z-index: 9000;
   background: var(--danger, #dc2626);
   color: #fff;
@@ -4178,7 +4176,7 @@ th[data-sort]:hover {
   .settings-sidebar {
     flex-direction: row;
     flex-wrap: wrap;
-    border-right: none;
+    border-inline-end: none;
     border-bottom: 1px solid var(--border);
     max-height: 140px;
   }
@@ -4334,7 +4332,7 @@ th[data-sort]:hover {
   cursor: pointer;
   transition: background 0.12s, color 0.12s;
 }
-.mode-pill + .mode-pill { border-left: 1px solid var(--border); }
+.mode-pill + .mode-pill { border-inline-start: 1px solid var(--border); }
 .mode-pill.active {
   background: var(--accent, #5B9CF0);
   color: #fff;
