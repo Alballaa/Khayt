@@ -954,10 +954,20 @@ function wireEvents() {
       return;
     }
     if (btn.dataset.act === 'waiting-del') {
+      const idx = waitingList.findIndex(w => w.id === id);
+      const removed = idx >= 0 ? waitingList[idx] : null;
       waitingList = waitingList.filter(w => w.id !== id);
       saveAll();
       renderWaitingList();
       updateWaitingBadge();
+      toast(t('waiting.deleted'), 'success', 5000, removed ? {
+        undo: () => {
+          waitingList.splice(Math.min(Math.max(idx, 0), waitingList.length), 0, removed);
+          saveAll();
+          renderWaitingList();
+          updateWaitingBadge();
+        },
+      } : {});
     }
     if (btn.dataset.act === 'waiting-promote') promoteWaitingItem(id);
   });
