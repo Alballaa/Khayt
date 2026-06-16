@@ -13,6 +13,7 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 - **iOS Companion app** — native SwiftUI app over the desktop LAN API: home quick actions, queue/kanban strip, orders (active filters + history), order/spool detail, inventory search + low-stock, English/Arabic + RTL, connection banner, local notifications, home-screen widget, Siri shortcuts. NFC tag **read**, and NFC tag **write** with an OpenTag3D / OpenPrintTag / OpenSpool standard picker (default OpenTag3D for desktop-reader compatibility).
 - **Print farm — sites & location filter** — top-bar location filter scopes dashboard KPIs, production queue, machine queues, and orders log; **Sites overview** on the dashboard (Professional, 2+ locations); wizard **Print farm** preset (Professional mode, default WIP limits, second-site stub).
 - **LAN write endpoints** — `GET`/`PATCH /api/waiting-list`, `GET /api/clients`, `PATCH`/`DELETE /api/inventory/:id`, `machineId` on `PATCH /api/orders/:id`, `POST /api/orders`, and live telemetry — all with field allowlists, prototype-safe JSON parsing, and tunnel-aware rate limiting.
+- **Quote follow-up** — dashboard "Expiring quotes" card with one-click WhatsApp/email follow-up, plus an opt-in auto-nudge for quotes nearing expiry (off by default).
 - **Global search** — fuzzy/subsequence matching plus printers, suppliers, and expenses results; main-nav arrow-key (and Home/End) tab switching.
 - **Update changelog screen** — manual “Check for updates” and the automatic launch check show release notes in a review modal before download/install (keeps the pre-update backup and hardened install flow).
 
@@ -26,12 +27,23 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 - **Delete safety** — locations and operators require confirmation before deletion.
 - **Notifications** — bell exposes `aria-expanded`; toast container announces to screen readers.
 - **Feedback** — toast when the email app cannot be opened (suggests the GitHub Issue button).
+- **QC-fail analytics** — waste cost no longer divides by a depleted spool's zero weight (was writing `Infinity`/`NaN` into waste/profit totals).
+- **Recurring expenses** — the next-due date stays on its anchor day instead of drifting each cycle.
+- **ZATCA Phase-2 QR** — invoice fields over 255 bytes now encode a valid TLV length (no malformed signed QR).
+- **Inventory low-stock** — one consistent threshold check so the banner and row badge agree; multi-part completion now shows a single summary toast so the low-stock warning isn't dropped by the toast cap.
 
 ### Changed
 
 - **Preferences** — language and theme apply immediately when changed.
 - **Settings on narrow windows** — section nav stacks/wraps on small screens.
-- Removed dead wizard code/markup and 17 unused locale keys; new `upd.*`, `search.*`, `farm.*`, `loc.*`, and iOS/LAN strings added in English and Arabic; a `locale-parity` test now gates `ar ⊇ en`.
+- **Undo** on order status moves and on spool / client / waiting-list deletes; wide tables scroll horizontally instead of clipping columns.
+- Removed dead wizard code/markup, 17 unused legacy locale keys, and 57 orphaned flat keys; new `upd.*`, `search.*`, `farm.*`, `loc.*`, and iOS/LAN strings added in English and Arabic; a `locale-parity` test now gates `ar ⊇ en`.
+
+### Security
+
+- **NFC tag parsing** — CBOR/NDEF decoders bound all counts/lengths, cap recursion, and limit paste size, so a malformed tag dump can't hang the app.
+- **LAN tunnel** — added a global failed-auth throttle backstop (per-IP lockout can be bypassed via spoofed `X-Forwarded-For`) and a weak-PIN warning when exposing over a tunnel.
+- **Dependencies** — pinned `form-data ^4.0.6` (GHSA-hmw2-7cc7-3qxx).
 
 ## [2.5.0] - 2026-06-16
 
