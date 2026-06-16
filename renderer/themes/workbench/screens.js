@@ -340,14 +340,17 @@
     });
     // Overdue receivables (completed but unpaid past due) as a fallback signal.
     if (attention.length < 5) {
-      log.filter((o) => o.status === 'completed' && payStatus(o) !== 'paid' && orderOwedBase(o) > 0)
+      log.filter((o) => o.status === 'completed' && payStatus(o) !== 'paid' && payStatus(o) !== 'voided' && orderOwedBase(o) > 0)
         .slice(0, 5 - attention.length).forEach((o) => {
           const client = findClient(o.clientId);
           const bits = [`${fmtMoneyVal(orderOwedBase(o))} ${ccy()}`];
           if (client) bits.push(localName(client));
+          const payLbl = payStatus(o) === 'partial'
+            ? tr('dash.wb_partial', 'balance due')
+            : tr('dash.wb_unpaid', 'unpaid');
           attention.push({
             icon: ICON.money, fg: 'var(--wb-blue)', bg: 'var(--wb-blue-bg)',
-            title: `${tr('dash.wb_invoice', 'Invoice')} ${o.id} ${tr('dash.wb_unpaid', 'unpaid')}`,
+            title: `${tr('dash.wb_invoice', 'Invoice')} ${o.id} ${payLbl}`,
             sub: bits.join(' · '),
             chip: 'blue', chipLabel: tr('dash.wb_due', 'Due'),
           });

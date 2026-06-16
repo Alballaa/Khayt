@@ -1031,6 +1031,7 @@
   "dash.wb_quote": "عرض سعر",
   "dash.wb_invoice": "فاتورة",
   "dash.wb_unpaid": "غير مدفوعة",
+  "dash.wb_partial": "رصيد مستحق",
   "dash.idle_dash": "— خامل —",
   "dash.no_machines": "لا توجد طابعات بعد",
   "dash.due_today_sub": "مستحق اليوم",

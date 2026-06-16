@@ -934,6 +934,7 @@
   "dash.wb_quote": "Quote",
   "dash.wb_invoice": "Invoice",
   "dash.wb_unpaid": "unpaid",
+  "dash.wb_partial": "balance due",
   "dash.idle_dash": "— idle —",
   "dash.no_machines": "No printers yet",
   "dash.due_today_sub": "due today",
