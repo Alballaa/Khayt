@@ -20,6 +20,19 @@ if (typeof fetch === 'function' && typeof document !== 'undefined') {
 }
 
 (function (global) {
+/**
+ * Single source of truth for the low-stock test. An item is low when its
+ * remaining weight is at or below its reorder point, falling back to the
+ * configured threshold and finally the 200g default. Used by the banner,
+ * the inventory row badge, reorder lists and auto-deduction so they never
+ * disagree.
+ */
+function isLowStock(item) {
+  if (!item) return false;
+  const threshold = item.reorderPoint ?? (typeof settings !== 'undefined' ? settings.lowStockThreshold : undefined) ?? 200;
+  return (+item.weight || 0) <= threshold;
+}
+
 /* ============================================================
    CSV import — Spools / Inventory
    ============================================================ */
@@ -1143,9 +1156,7 @@ function renderReorderAlerts() {
   const el = $('#reorderAlertsSection');
   if (!el) return;
 
-  const lowItems = inventory.filter(i =>
-    i.weight <= (i.reorderPoint ?? settings.lowStockThreshold ?? 200)
-  );
+  const lowItems = inventory.filter(isLowStock);
 
   if (lowItems.length === 0) {
     el.innerHTML = '';
@@ -1207,7 +1218,7 @@ function renderInventory() {
         return s + pricePerG;
       }, 0);
       const totalGrams = inventory.reduce((s, item) => s + Math.max(0, +item.weight || 0), 0);
-      const lowCount = inventory.filter(i => i.weight <= (i.reorderPoint ?? settings.lowStockThreshold)).length;
+      const lowCount = inventory.filter(isLowStock).length;
       valEl.innerHTML = `
         <span>${escapeHtml(t('inv.total_value'))}: <strong style="color:var(--success);">${fmtMoney(totalValue)}</strong></span>
         <span style="margin-inline-start:16px;">${escapeHtml(t('inv.total_stock'))}: <strong>${Math.round(totalGrams).toLocaleString()}g</strong></span>
@@ -1238,7 +1249,7 @@ function renderInventory() {
     tbody.innerHTML = visibleInv.map(item => {
       const studioRow = window.KhaytStudio?.renderInventoryRow?.(item, { forecastMap, todayMs });
       if (studioRow) return studioRow;
-      const low = item.weight <= (item.reorderPoint ?? settings.lowStockThreshold);
+      const low = isLowStock(item);
       const queued = Math.round(getQueuedWeight(item.id));
       const warn   = queued > 0 && queued > item.weight;
       // Spool age badge
@@ -1671,6 +1682,9 @@ function deductFilamentForOrder(order, { skipRender = false } = {}) {
   if (!settings.autoDeduct) return;
   if (order.materialDeducted) return;
   let deductedAny = false;
+  let totalDeducted = 0;
+  const spoolsTouched = new Set();
+  const nowLow = [];
   const today = new Date().toISOString().split('T')[0];
   for (const part of (order.parts || [])) {
     if (!part.filamentId || !part.printWeight) continue;
@@ -1682,12 +1696,20 @@ function deductFilamentForOrder(order, { skipRender = false } = {}) {
     item.usageHistory.unshift({ orderId: order.id, project: order.project || '', weightUsed: deductAmt, date: today });
     if (item.usageHistory.length > 200) item.usageHistory.length = 200;
     deductedAny = true;
-    toast(t('inv.deducted', { material: item.material, weight: Math.round(deductAmt) }), 'info', 2200);
-    if (item.weight <= (item.reorderPoint ?? settings.lowStockThreshold)) {
-      toast(t('inv.low_stock', { material: item.material, weight: Math.round(item.weight) }), 'error', 3800);
-    }
+    totalDeducted += deductAmt;
+    spoolsTouched.add(item.id);
+    if (isLowStock(item) && !nowLow.some(x => x.id === item.id)) nowLow.push(item);
   }
   if (deductedAny) {
+    // Emit ONE aggregated toast instead of per-spool spam (which could blow the
+    // toast cap and silently drop the low-stock warning). Low-stock count is
+    // always surfaced in the summary.
+    const fields = { weight: Math.round(totalDeducted), spools: spoolsTouched.size, low: nowLow.length };
+    if (nowLow.length > 0) {
+      toast(t('inv.deducted_summary_low', fields), 'warning', 4200);
+    } else {
+      toast(t('inv.deducted_summary', fields), 'info', 2600);
+    }
     saveAll();
     if (!skipRender) renderInventory();
   }
@@ -1865,9 +1887,7 @@ function renderSupplierReorderList() {
   const el = $('#supplierReorderList');
   if (!el) return;
 
-  const lowItems = inventory.filter(i =>
-    i.weight <= (i.reorderPoint ?? settings.lowStockThreshold ?? 200)
-  );
+  const lowItems = inventory.filter(isLowStock);
 
   if (lowItems.length === 0) {
     el.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(34,197,94,0.08);border-radius:var(--radius);border:1px solid rgba(34,197,94,0.2);margin-bottom:12px;font-size:13px;color:var(--success);">
@@ -2664,9 +2684,7 @@ function renderProductTierChips(product) {
    Reorder reminder (inventory low-stock)
    ============================================================ */
 async function batchGenPOs() {
-  const lowStockItems = inventory.filter(item =>
-    (item.weight || 0) < (item.reorderPoint ?? settings.lowStockThreshold ?? 200)
-  );
+  const lowStockItems = inventory.filter(isLowStock);
   if (lowStockItems.length === 0) {
     toast(t('po.none_needed'), 'info');
     return;
@@ -3036,6 +3054,7 @@ function recordSupplierInvoice(poId) {
 }
 
   const api = {
+    isLowStock,
     importSpoolsCsv,
     importClientsCsv,
     importProductsCsv,

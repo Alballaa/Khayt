@@ -664,6 +664,8 @@
   "inv.updated": "Spool updated",
   "inv.low_stock": "{material} is running low — {weight}g remaining",
   "inv.deducted": "Stock deducted: {material} −{weight}g",
+  "inv.deducted_summary": "Deducted {weight}g across {spools} spool(s)",
+  "inv.deducted_summary_low": "Deducted {weight}g across {spools} spool(s); {low} now low",
   "exp.title": "Expense Tracker",
   "exp.add_title": "Add Expense",
   "exp.date": "Date",
