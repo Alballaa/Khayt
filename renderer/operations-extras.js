@@ -181,6 +181,46 @@ function processRecurringOrders() {
   }
 }
 
+/* ── Quote follow-up auto-nudge (opt-in, default OFF) ────────────
+   Mirrors the recurring-order auto-create pattern: on app start (and on a
+   timer) it finds quotes due for a follow-up via the pure selector and either
+   sends them (if a phone + transport is available) or logs them, recording
+   followUpSentAt/followUpCount so they are not repeated within the cooldown. */
+function processQuoteFollowUps() {
+  if (typeof KhaytQuoteFollowUp === 'undefined') return;
+  const cfg = KhaytQuoteFollowUp.followUpConfig(settings);
+  if (!cfg.enabled) return; // toggle OFF by default
+
+  const due = KhaytQuoteFollowUp.selectQuotesDueForFollowUp(printLog, settings, Date.now());
+  if (due.length === 0) return;
+
+  let sent = 0;
+  for (const q of due) {
+    const client = q.clientId ? clients.find(c => c.id === q.clientId) : null;
+    const phone = (client?.phone || '').replace(/\D/g, '');
+    if (phone && typeof sendQuoteFollowUp === 'function') {
+      // Reuse the existing transport; mark + persist happens inside.
+      sendQuoteFollowUp(q.id, { silent: true });
+    } else {
+      // No phone/transport — still record the nudge so we surface it once.
+      Object.assign(q, KhaytQuoteFollowUp.markFollowUpPatch(q, Date.now()));
+    }
+    sent++;
+  }
+  saveAll();
+  if (typeof renderDashboard === 'function') renderDashboard();
+  setTimeout(() => toast(t('quote.followup_auto', { n: sent }) || `Followed up on ${sent} quote(s)`, 'info', 4000), 600);
+}
+
+/** Start the periodic auto-nudge timer (re-checks every ~6h). Idempotent. */
+function startQuoteFollowUpTimer() {
+  if (typeof window === 'undefined') return;
+  if (window.__khaytQuoteFollowUpTimer) return;
+  window.__khaytQuoteFollowUpTimer = setInterval(() => {
+    try { processQuoteFollowUps(); } catch (e) { console.error('[quote-followup]', e); }
+  }, 6 * 60 * 60 * 1000);
+}
+
 /* ── Feature 5: Gift Cards / Store Credit ───────────────────── */
 function renderGiftCards() {
   const container = document.getElementById('giftCardsContainer');
@@ -565,6 +605,8 @@ function openLogEnvModal() {
     openShiftChecklistModal,
     openEndOfDayReport,
     processRecurringOrders,
+    processQuoteFollowUps,
+    startQuoteFollowUpTimer,
     renderGiftCards,
     openCreateGiftCardModal,
     applyGiftCard,

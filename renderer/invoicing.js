@@ -427,6 +427,51 @@ async function sendPaymentReminder(orderId) {
   }
 }
 
+/**
+ * Gently follow up on an unapproved quote that is nearing/has passed expiry.
+ * Reuses the existing WhatsApp transport (hubAPI.shareWhatsApp, with a wa.me
+ * fallback) and records the follow-up on the quote (followUpSentAt/Count) via the
+ * pure helper so the dashboard + auto-nudge de-duplicate correctly.
+ * @param {string} orderId
+ * @param {{ silent?: boolean }} [opts]  silent = no toast / for auto-nudge
+ */
+async function sendQuoteFollowUp(orderId, opts = {}) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order || order.status !== 'quote') return false;
+  const client = order.clientId ? clients.find(c => c.id === order.clientId) : null;
+  const phone = (client?.phone || '').replace(/\D/g, '');
+  if (!phone) {
+    if (!opts.silent) toast(t('quote.followup_no_phone'), 'info', 3200);
+    return false;
+  }
+  const name = client ? localName(client) : (order.project || order.id);
+  const message = t('quote.followup_msg', {
+    name,
+    id: order.id,
+    project: order.project || order.id,
+    total: fmtPrice(order.price),
+    expires: order.quoteExpiresAt || '',
+  });
+  if (window.hubAPI?.shareWhatsApp) {
+    await window.hubAPI.shareWhatsApp({ phone: client.phone, message, pdfPath: null });
+  } else if (window.hubAPI?.openExternal) {
+    window.hubAPI.openExternal(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`);
+  } else if (!opts.silent) {
+    toast(t('quote.followup_sent'), 'info');
+  }
+  // Record the follow-up so we don't repeat it within the cooldown window.
+  if (typeof KhaytQuoteFollowUp !== 'undefined') {
+    Object.assign(order, KhaytQuoteFollowUp.markFollowUpPatch(order, Date.now()));
+  } else {
+    order.followUpSentAt = new Date().toISOString();
+    order.followUpCount = (+order.followUpCount || 0) + 1;
+  }
+  saveAll();
+  if (typeof renderDashboard === 'function') renderDashboard();
+  if (!opts.silent) toast(t('quote.followup_sent'), 'success', 3000);
+  return true;
+}
+
 async function shareTrackingWhatsApp(orderId) {
   const order = printLog.find(o => o.id === orderId);
   if (!order?.trackingNumber) return;
@@ -1608,6 +1653,7 @@ const BRAND_MARK_SVG = `
     shareInvoiceWhatsApp,
     sendStatusWhatsApp,
     sendPaymentReminder,
+    sendQuoteFollowUp,
     shareTrackingWhatsApp,
     renderInvoiceForOrder,
     generateProformaInvoice,

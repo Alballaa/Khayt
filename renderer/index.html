@@ -1760,6 +1760,20 @@
         <div class="inline-pair" style="align-items:flex-end; margin-top:12px; flex-wrap:wrap;">
           <div>
             <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal;">
+              <input type="checkbox" id="set_quoteFollowUpEnabled" style="width:auto; margin:0;">
+              <span data-i18n="set.quote_followup_enabled">Auto-nudge expiring quotes</span>
+            </label>
+            <p style="font-size:11.5px; color:var(--text-muted); margin:4px 0 0;" data-i18n="set.quote_followup_hint">When on, Khayt automatically follows up on unapproved quotes near expiry. The dashboard always lists them for one-click follow-up.</p>
+          </div>
+          <div>
+            <label data-i18n="set.quote_followup_window">Follow up days before expiry</label>
+            <input type="number" id="set_quoteFollowUpWindow" min="0" max="60" step="1" placeholder="2">
+          </div>
+        </div>
+
+        <div class="inline-pair" style="align-items:flex-end; margin-top:12px; flex-wrap:wrap;">
+          <div>
+            <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal;">
               <input type="checkbox" id="set_rushFeeEnabled" style="width:auto; margin:0;">
               <span data-i18n="set.rush_fee_enabled">Enable rush/priority fee</span>
             </label>
@@ -2232,6 +2246,7 @@
 <script src="app-state.js"></script>
 <script src="app-security.js"></script>
 <script src="search-utils.js"></script>
+<script src="../lib/quote-followup.js"></script>
 <script src="themes/registry-core.js"></script>
 <script src="themes/custom-loader.js"></script>
 <script src="themes/ledger/shell.js"></script>
