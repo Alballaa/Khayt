@@ -355,7 +355,16 @@
     const inv = (typeof inventory !== 'undefined' && Array.isArray(inventory)) ? inventory : [];
 
     const queue = log.filter((o) => o.status !== 'completed' && o.status !== 'quote').length;
-    const printing = log.filter((o) => o.status === 'printing').length;
+    // "printers active" = machines actually printing (matches the dashboard KPI),
+    // not the number of orders in the printing column.
+    const cache = (typeof machineStatusCache !== 'undefined' && machineStatusCache) ? machineStatusCache : {};
+    const isPrintingMachine = (m) => {
+      const c = cache[m.id];
+      if (c && typeof c.state === 'string' && c.state.toLowerCase().includes('print')) return true;
+      if (c && +c.progress > 0 && +c.progress < 100) return true;
+      return log.some((o) => o.status === 'printing' && (o.machineId === m.id || (Array.isArray(o.parts) && o.parts.some((p) => p.machineId === m.id))));
+    };
+    const printing = mach.filter(isPrintingMachine).length;
     const printers = mach.length;
     const lowStock = (typeof isLowStock === 'function') ? inv.filter(isLowStock).length : 0;
 

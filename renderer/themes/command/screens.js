@@ -278,6 +278,11 @@
     });
 
     if (typeof i18n !== 'undefined' && i18n.apply) i18n.apply(host);
+    // Keep the bottom status bar in sync with the freshly-rendered dashboard
+    // (it otherwise only refreshes on tab switch).
+    if (global.KhaytCommandShell && typeof global.KhaytCommandShell.syncStatusBar === 'function') {
+      global.KhaytCommandShell.syncStatusBar();
+    }
     return true;
   }
 
@@ -313,7 +318,7 @@
     const m = mach.find((x) => x.id === machineId);
     if (!m) return;
     const log = (typeof printLog !== 'undefined' && Array.isArray(printLog)) ? printLog : [];
-    const job = log.find((o) => o.status === 'printing' && (o.machineId === m.id));
+    const job = log.find((o) => o.status === 'printing' && (o.machineId === m.id || (Array.isArray(o.parts) && o.parts.some((p) => p.machineId === m.id))));
     const { pct, state } = machineProgress(m, job);
     const kv = (k, v, mono) => `<div class="cmd-kv"><span class="k">${esc(k)}</span><span class="v${mono ? ' mono' : ''}">${esc(v)}</span></div>`;
     const body = `
