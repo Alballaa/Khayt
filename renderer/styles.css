@@ -260,6 +260,15 @@ input[readonly] {
 }
 input[type="number"] { font-variant-numeric: tabular-nums; }
 
+/* Top-bar selects (location filter, language) set a fixed height:34px inline.
+   The base select padding (9px) + border leaves too little room for the 14px
+   text under border-box, vertically clipping the label. Trim block padding so
+   the text fits and stays centered. */
+.topbar-actions select {
+  padding-block: 4px;
+  line-height: 1.2;
+}
+
 .inline-pair {
   display: grid;
   grid-template-columns: 1fr 1fr;
