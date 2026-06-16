@@ -9,7 +9,57 @@ const {
   sanitizeLanHttpUrl,
   tunnelClientIp,
   scriptSafeJson,
+  globalAuthThrottle,
+  weakTunnelPinWarning,
 } = require('../lib/lan-server.js');
+
+test('globalAuthThrottle trips after N failures and blocks all attempts during cooldown', () => {
+  const state = { count: 0, windowStart: 0, blockedUntil: 0 };
+  const opts = { limit: 5, windowMs: 60_000, cooldownMs: 60_000 };
+  const now = 1_000;
+  // First 4 failures within the window do not trip the gate.
+  for (let i = 0; i < 4; i++) {
+    assert.equal(globalAuthThrottle(state, now, true, opts), false, `failure ${i + 1} should not block`);
+  }
+  // 5th failure trips the gate.
+  assert.equal(globalAuthThrottle(state, now, true, opts), true);
+  // While in cooldown, even a non-failing probe is blocked.
+  assert.equal(globalAuthThrottle(state, now + 1, false, opts), true);
+  assert.equal(globalAuthThrottle(state, now + 30_000, true, opts), true);
+  // After cooldown elapses, attempts are allowed again.
+  assert.equal(globalAuthThrottle(state, now + 60_001, false, opts), false);
+});
+
+test('globalAuthThrottle rolling window resets the failure count', () => {
+  const state = { count: 0, windowStart: 0, blockedUntil: 0 };
+  const opts = { limit: 3, windowMs: 10_000, cooldownMs: 10_000 };
+  assert.equal(globalAuthThrottle(state, 1_000, true, opts), false); // count 1
+  assert.equal(globalAuthThrottle(state, 2_000, true, opts), false); // count 2
+  // Jump past the window — counter resets, so these start a fresh count.
+  assert.equal(globalAuthThrottle(state, 20_000, true, opts), false);
+  assert.equal(globalAuthThrottle(state, 21_000, true, opts), false);
+  assert.equal(globalAuthThrottle(state, 22_000, true, opts), true); // now 3 → trips
+});
+
+test('globalAuthThrottle never trips on successful (non-failed) attempts alone', () => {
+  const state = { count: 0, windowStart: 0, blockedUntil: 0 };
+  const opts = { limit: 2, windowMs: 60_000, cooldownMs: 60_000 };
+  for (let i = 0; i < 50; i++) {
+    assert.equal(globalAuthThrottle(state, 1_000 + i, false, opts), false);
+  }
+});
+
+test('weakTunnelPinWarning only warns when tunnel active and PIN is weak (never blocks)', () => {
+  // Tunnel off → never warns regardless of PIN strength.
+  assert.equal(weakTunnelPinWarning('123', false), null);
+  // Short PIN under tunnel → warns.
+  assert.ok(weakTunnelPinWarning('1234', true));
+  assert.ok(weakTunnelPinWarning('abc', true));
+  // All-digit 7-char under tunnel → still weak.
+  assert.ok(weakTunnelPinWarning('1234567', true));
+  // Strong alphanumeric PIN → no warning.
+  assert.equal(weakTunnelPinWarning('a1b2c3d4', true), null);
+});
 
 test('tunnelClientIp trusts X-Forwarded-For only when tunnelling a loopback socket', () => {
   // Direct LAN connection — always trust the real socket, never XFF (spoofable).

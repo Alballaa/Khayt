@@ -775,6 +775,8 @@
   "inv.updated": "تم تحديث البكرة",
   "inv.low_stock": "{material} على وشك النفاد — {weight}جم متبقي",
   "inv.deducted": "خصم من المخزون: {material} −{weight}جم",
+  "inv.deducted_summary": "تم خصم {weight}جم من {spools} بكرة",
+  "inv.deducted_summary_low": "تم خصم {weight}جم من {spools} بكرة؛ {low} على وشك النفاد",
   "exp.title": "تتبع المصروفات",
   "exp.add_title": "إضافة مصروف",
   "exp.date": "التاريخ",
