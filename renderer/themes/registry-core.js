@@ -59,6 +59,13 @@
     emerald: { h: 152, s: '74%', l: '37%', labelKey: 'theme.accent.emerald' },
   };
 
+  const COMMAND_ACCENTS = {
+    blue:    { h: 212, s: '73%',  l: '53%', labelKey: 'theme.accent.command_blue' },
+    teal:    { h: 168, s: '78%',  l: '37%', labelKey: 'theme.accent.command_teal' },
+    violet:  { h: 255, s: '100%', l: '68%', labelKey: 'theme.accent.violet' },
+    orange:  { h: 24,  s: '76%',  l: '53%', labelKey: 'theme.accent.command_orange' },
+  };
+
   /** Shell types that share the Khayt handoff six-screen layer (A–E family). */
   const HANDOFF_SCREEN_SHELLS = ['studio', 'ledger', 'console', 'atelier', 'vitrine'];
 
@@ -231,6 +238,21 @@
         'themes/workbench/shell.css',
       ],
     },
+    command: {
+      labelKey: 'theme.design.command',
+      descKey: 'theme.design.command_desc',
+      preview: 'themes/previews/command.png',
+      shell: 'command',
+      enabled: true,
+      defaultAccent: 'blue',
+      accents: COMMAND_ACCENTS,
+      defaultAppearance: 'light',
+      bodyClass: 'khayt-command',
+      stylesheets: [
+        'themes/command/tokens.css',
+        'themes/command/shell.css',
+      ],
+    },
   };
 
   const registry = { ...BUILTIN_THEMES, ...RESERVED_THEMES };
@@ -381,6 +403,7 @@
     COCKPIT_ACCENTS,
     ATLAS_ACCENTS,
     WORKBENCH_ACCENTS,
+    COMMAND_ACCENTS,
     BUILTIN_THEMES,
     RESERVED_THEMES,
     registry,
