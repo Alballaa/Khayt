@@ -6,7 +6,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **iOS Companion** — Home quick actions, low-stock alerts, order preview; Orders tab (active filters + recent history); order/spool detail sheets; inventory search and low-stock filter; [IOS_UI_REDESIGN_PROMPT.md](./docs/IOS_UI_REDESIGN_PROMPT.md) for AI UI redesign.
+- **iOS Companion (full v1)** — English/Arabic + RTL, connection banner, kanban strip, overdue filter, local notifications, home screen widget sources, Siri shortcuts, App Group widget snapshot.
 - **Global search** — Fuzzy matching plus printers, suppliers, and expenses; main nav arrow-key tab switching.
+
+### Changed
+
+- **iOS Companion** — add spool from Inventory (+) with method picker (scan label, NFC, manual); removed separate Add spool tab. Optional SKU, batch/lot, print/bed temps on review form. Label parser supports more non-English patterns (AR/DE/FR/ES).
 
 ### Fixed
 

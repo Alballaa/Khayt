@@ -29,3 +29,8 @@ userData/
 # Python cache
 __pycache__/
 *.pyc
+
+# Xcode user state
+ios/**/xcuserdata/
+ios/**/*.xcworkspace/xcuserdata/
+*.xcuserstate
