@@ -506,3 +506,6 @@ body.khayt-command .khayt-scroll.content .btn:not(.primary):not(.btn-primary):no
   body.khayt-command .khayt-search { display: none; }
   body.khayt-command .cmd-tabstrip { display: none; }
 }
+
+/* The shell provides its own .khayt-search field; hide the redundant global-search button. */
+body.khayt-command #btnGlobalSearch { display: none; }

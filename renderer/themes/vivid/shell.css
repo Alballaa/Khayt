@@ -382,3 +382,6 @@ body.khayt-vivid .btn-primary {
 @media (max-width: 720px) {
   body.khayt-vivid .khayt-search { display: none; }
 }
+
+/* The shell provides its own .khayt-search field; hide the redundant global-search button. */
+body.khayt-vivid #btnGlobalSearch { display: none; }
