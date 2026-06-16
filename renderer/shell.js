@@ -387,6 +387,7 @@ function switchTab(tabId) {
   if (tabId === 'clients-tab')    renderClients();
   if (tabId === 'calculator-tab')  window.KhaytStudio?.initStudioCalculatorLayout?.();
   if (tabId === 'queue-tab')      { renderMachineQueues(); renderKanban(); }
+  if (tabId === 'fleet-tab')      { if (typeof renderFleet === 'function') renderFleet(); }
   if (tabId === 'analytics-tab')  applyAnalyticsModeView();
   if (tabId === 'gift-cards-tab') renderGiftCards();
   if (tabId === 'logs-tab')       renderLogs();

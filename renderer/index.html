@@ -77,6 +77,11 @@
             <span class="nav-label grow" data-i18n="tab.queue">Production Queue</span>
             <span class="khayt-live" aria-hidden="true"></span>
           </button>
+          <button type="button" class="tab-btn khayt-navitem" data-tab="fleet-tab" role="tab" id="tabbtn-fleet-tab" aria-selected="false" aria-controls="fleet-tab" tabindex="-1">
+            <span class="nav-icon" aria-hidden="true">◫</span>
+            <span class="nav-label grow" data-i18n="tab.fleet">Fleet Monitor</span>
+            <span class="khayt-live" aria-hidden="true"></span>
+          </button>
           <button type="button" class="tab-btn khayt-navitem" data-tab="calculator-tab" role="tab" id="tabbtn-calculator-tab" aria-selected="false" aria-controls="calculator-tab" tabindex="-1">
             <span class="nav-icon" aria-hidden="true">◎</span>
             <span class="nav-label grow" data-i18n="tab.calculator">Calculator</span>
@@ -552,6 +557,10 @@
     </section>
 
     <!-- ===================== QUEUE ===================== -->
+    <section id="fleet-tab" class="tab-content khayt-tab-page" role="tabpanel" aria-labelledby="tabbtn-fleet-tab" aria-hidden="true" tabindex="-1">
+      <div id="fleetContent"></div>
+    </section>
+
     <section id="queue-tab" class="tab-content khayt-queue" role="tabpanel" aria-labelledby="tabbtn-queue-tab" aria-hidden="true" tabindex="-1">
       <div id="locationScopeBannerQueue" class="location-scope-banner" style="display:none;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px;padding:8px 12px;background:var(--bg-elev);border:1px solid var(--border);border-radius:var(--radius);"></div>
       <!-- Machine Queues -->
@@ -2258,6 +2267,8 @@
 <script src="notifications.js"></script>
 <script src="waiting-list.js"></script>
 <script src="kanban.js"></script>
+<script src="../lib/printer-alerts.js"></script>
+<script src="fleet.js"></script>
 <script src="invoicing.js"></script>
 <script src="app-exports.js"></script>
 <script src="logs.js"></script>

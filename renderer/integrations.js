@@ -1034,6 +1034,73 @@ function sendTelegramForOrder(order, newStatus) {
     .catch(e => console.warn('Telegram notify failed:', e));
 }
 
+/* ── Fleet Monitor: printer alerting ────────────────────────────
+ * Diffs each printer poll against the previous snapshot (pure logic in
+ * lib/printer-alerts.js) and fires the resulting alerts through the EXISTING
+ * Telegram / email / webhook transports — no new transport is introduced. */
+let _printerAlertState = {};
+let _printerAlertPrevCache = {};
+
+function dispatchPrinterAlerts(currCache) {
+  const compute = (typeof computePrinterAlerts === 'function')
+    ? computePrinterAlerts
+    : (window.KhaytPrinterAlerts && window.KhaytPrinterAlerts.computePrinterAlerts);
+  if (!compute) return;
+  let result;
+  try {
+    result = compute(_printerAlertPrevCache, currCache || {}, settings, Date.now(), {
+      alertState: _printerAlertState,
+      machines,
+    });
+  } catch (e) {
+    console.warn('computePrinterAlerts failed:', e);
+    _printerAlertPrevCache = currCache || {};
+    return;
+  }
+  _printerAlertState = result.state;
+  _printerAlertPrevCache = currCache || {};
+  for (const alert of result.alerts) firePrinterAlert(alert);
+}
+
+function firePrinterAlert(alert) {
+  // tgSafe: strip control chars and truncate to prevent message manipulation
+  const tgSafe = s => String(s ?? '').replace(/[\r\n\t]/g, ' ').slice(0, 200);
+  const icon = alert.type === 'error' ? '❌' : alert.type === 'offline' ? '📴' : '⏸';
+  const message = `${icon} ${tgSafe(alert.message)}`;
+
+  // Telegram (reuses the order-notification transport)
+  const tg = settings.telegram;
+  if (tg && tg.botToken && tg.chatId) {
+    window.hubAPI?.sendTelegram?.({ botToken: tg.botToken, chatId: tg.chatId, message })
+      .catch(e => console.warn('Telegram printer alert failed:', e));
+  }
+
+  // Webhook (reuses fireWebhook with a dedicated event name)
+  fireWebhook('printer_alert', {
+    machineId: alert.machineId,
+    type: alert.type,
+    state: alert.state,
+    filename: alert.filename,
+    progress: alert.progress,
+    message: alert.message,
+    at: new Date().toISOString(),
+  });
+
+  // Email digest recipient (reuses hub:send-email; only when an SMTP/provider is configured)
+  const cfg = settings.emailConfig;
+  const to = (settings.emailDigest && settings.emailDigest.recipientEmail) || settings.email;
+  if (cfg && cfg.provider && cfg.provider !== 'none' && to) {
+    const shopName = settings.bizEn || 'Khayt';
+    const subject = `${shopName} — Printer ${alert.type} alert`;
+    const body = `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px;">
+      <h2 style="color:#5E2E14;">${escapeHtml(shopName)}</h2>
+      <p>${escapeHtml(message)}</p>
+    </div>`;
+    window.hubAPI?.sendEmail?.({ to, subject, body, smtpConfig: cfg })
+      .catch(e => console.warn('Email printer alert failed:', e));
+  }
+}
+
 function checkTelegramLowStock() {
   const tg = settings.telegram;
   if (!tg || !tg.botToken || !tg.chatId || !tg.notifyOnLowStock) return;
@@ -1171,6 +1238,8 @@ function trackShipment(trackingNumber, carrier) {
     clearAllLogs,
     sendTelegramForOrder,
     checkTelegramLowStock,
+    dispatchPrinterAlerts,
+    firePrinterAlert,
     exportIcalFeed,
     renderReferralAnalytics,
     trackShipment,

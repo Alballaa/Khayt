@@ -299,12 +299,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.hubAPI.startPrinterPolling(apiMachines).then(cache => {
       machineStatusCache = cache || {};
       updateKanbanLiveStatus();
+      if (typeof renderFleet === 'function') renderFleet();
+      // Seed the alert baseline from the first poll; don't alert on initial state.
+      if (typeof dispatchPrinterAlerts === 'function') dispatchPrinterAlerts(machineStatusCache);
     }).catch(() => {});
   }
   if (window.hubAPI?.onPrinterStatusUpdate) {
     window.hubAPI.onPrinterStatusUpdate(data => {
       machineStatusCache = data || {};
       updateKanbanLiveStatus();
+      if (typeof renderFleet === 'function') renderFleet();
+      if (typeof dispatchPrinterAlerts === 'function') dispatchPrinterAlerts(machineStatusCache);
     });
   }
 
