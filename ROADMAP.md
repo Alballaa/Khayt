@@ -2,11 +2,18 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (2.2.x)
+## Now (2.3.x — on `main`, **no public release** until [RELEASE-HOLD.md](./RELEASE-HOLD.md) lifted)
 
 - [ ] Triage post-2.2.0 feedback; plan 2.2.x patches or 2.3.0
-- [ ] Run `node scripts/list-stale-branches.mjs --merged-into main` and delete merged `cursor/*` branches
 - [x] iOS Companion v1 in `ios/` — LAN PIN pairing, queue, inventory, machines, NFC; see [docs/LAN_API.md](./docs/LAN_API.md)
+- [x] **Check for updates** UX (dev / error / version; merged to `main`, unreleased)
+- [x] **Online option** — LAN intake toggle, wizard, Job Intake link (merged to `main`, unreleased)
+- [x] **Solo maker polish** — Online hub, intake→calculator prefill, simple-mode dashboard (`main`, unreleased)
+- [ ] Desktop stabilization smoke on `main` (no tag)
+- [ ] **Multi-shop shared data (Khayt Cloud)** — **deferred** after initial batch; design: [docs/MULTI-SHOP-CLOUD.md](./docs/MULTI-SHOP-CLOUD.md)
+- [x] **Platform strategy** — stay on Electron; rewrite (Swift/C++/native) deferred — [docs/PLATFORM-MIGRATION.md](./docs/PLATFORM-MIGRATION.md)
+- [x] Stabilization patch **v2.3.1** (portal tracking URL, operator PIN, UTC recurring dates, npm audit overrides)
+- [x] Run `node scripts/list-stale-branches.mjs --merged-into main` and delete merged `cursor/*` branches (maintainer cleanup, 2026-06-04)
 
 ## Shipped (2.2.0 — 2026-05-30)
 
@@ -21,7 +28,11 @@ Living priorities for maintainers. Not a public commitment calendar — reorder 
 
 | PR | Reason |
 |----|--------|
+| [#3](https://github.com/Alballaa/Khayt/pull/3) | Early sidebar shell; **Studio shell on `main`** replaced it. Close without merging. |
+| [#11](https://github.com/Alballaa/Khayt/pull/11) | Lint scope; superseded by `npm run lint` / `npm run check` on `main`. |
+| [#31](https://github.com/Alballaa/Khayt/pull/31) | `test/store-io.test.js` already on `main`; branch is an old refactor stack. |
 | [#52](https://github.com/Alballaa/Khayt/pull/52) | Wrong Bundle D scope (daily ops). Replaced by platform-hardening branch. |
+| [#59](https://github.com/Alballaa/Khayt/pull/59)–[#60](https://github.com/Alballaa/Khayt/pull/60) | Security scans consolidated in **v2.3.0** (`release-hardening`). |
 
 ## Completed (2.1.0 — 2026-05-30)
 

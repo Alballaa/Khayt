@@ -12,13 +12,42 @@ function detectSystemLang() {
 /* ============================================================
    Setup wizard (Business Mode first-run)
    ============================================================ */
+function shouldShowSetupWizard() {
+  if (settings.firstRunDone) return false;
+  if (settings.firstRun === false) return false;
+  return true;
+}
+
+/** One-time fix: shops with data but wizard flags never persisted (import / upgrade). */
+function normalizeWizardFlagsAfterLoad() {
+  if (settings.firstRunDone) {
+    if (settings.firstRun) {
+      settings.firstRun = false;
+      saveAll();
+    }
+    return;
+  }
+  const hasShopData =
+    printLog.length > 0 ||
+    clients.length > 0 ||
+    inventory.length > 0 ||
+    machines.length > 0;
+  if (hasShopData) {
+    settings.firstRun = false;
+    settings.firstRunDone = true;
+    saveAll();
+  }
+}
+
 function initWizard() {
-  if (!settings.firstRun) return;
+  if (!shouldShowSetupWizard()) return;
   const wiz = $('#setup-wizard');
   if (!wiz) return;
   wiz.style.display = 'flex';
 
   let selectedMode = 'simple';
+  let wizCurrentStep = 1;
+  let selectedDesign = settings.designTheme || 'studio';
   let pendingPin = null;
   let pendingRecoveryCode = null;
   let securitySkipped = true;
@@ -31,18 +60,42 @@ function initWizard() {
   i18n.applyToDom(wiz);
 
   function goToStep(n) {
+    wizCurrentStep = n;
     wiz.querySelectorAll('.wizard-step').forEach(s => s.style.display = 'none');
     const step = $(`#wiz-step-${n}`);
     if (step) step.style.display = '';
     wiz.querySelectorAll('.wizard-dot').forEach(d => {
       d.classList.toggle('active', parseInt(d.dataset.step, 10) <= n);
     });
+    if (n === 2) {
+      global.KhaytThemePicker?.mountWizardPicker?.(
+        $('#wizDesignThemePicker'),
+        selectedDesign,
+      );
+    }
   }
 
+  const wizEscHandler = (e) => {
+    if (e.key !== 'Escape' || wiz.style.display === 'none') return;
+    if (_escHandlerStack?.length) return;
+    e.preventDefault();
+    confirmModal(t('wiz.skip_confirm') || 'Skip setup and use defaults? You can finish this later in Settings.', {
+      okText: t('wiz.skip_ok') || 'Skip for now',
+      cancelText: t('common.cancel'),
+    }).then((ok) => { if (ok) finishWizard(); });
+  };
+  document.addEventListener('keydown', wizEscHandler);
+
   wiz.addEventListener('click', e => {
+    const backBtn = e.target.closest('[data-prev]');
     const nextBtn = e.target.closest('[data-next]');
     const optionBtn = e.target.closest('.wizard-option');
     const finishBtn = e.target.closest('#wizFinish');
+
+    if (backBtn) {
+      goToStep(parseInt(backBtn.dataset.prev, 10));
+      return;
+    }
 
     if (nextBtn && nextBtn.id !== 'wizRecoveryContinue') {
       const step = parseInt(nextBtn.dataset.next, 10);
@@ -52,6 +105,17 @@ function initWizard() {
         i18n.set(lang);
         i18n.applyToDom(wiz);
       }
+      if (nextBtn.closest('#wiz-step-2')) {
+        const picker = $('#wizDesignThemePicker');
+        selectedDesign = global.KhaytThemePicker?.getWizardSelection?.(picker) || selectedDesign;
+        settings.designTheme = selectedDesign;
+        const theme = global.KhaytThemeRegistry?.getTheme(selectedDesign);
+        if (theme?.defaultAppearance) {
+          settings.theme = theme.defaultAppearance;
+          if (typeof applyTheme === 'function') applyTheme(theme.defaultAppearance);
+        }
+        if (typeof applyDesignSettings === 'function') applyDesignSettings();
+      }
       goToStep(step);
       return;
     }
@@ -60,7 +124,8 @@ function initWizard() {
       wiz.querySelectorAll('.wizard-option').forEach(o => o.classList.remove('selected'));
       optionBtn.classList.add('selected');
       selectedMode = optionBtn.dataset.mode;
-      setTimeout(() => goToStep(parseInt(optionBtn.dataset.next, 10)), 300);
+      const step3Continue = $('#wizStep3Continue');
+      if (step3Continue) step3Continue.disabled = false;
       return;
     }
 
@@ -71,7 +136,7 @@ function initWizard() {
     pendingPin = null;
     pendingRecoveryCode = null;
     securitySkipped = true;
-    goToStep(3);
+    goToStep(4);
   });
 
   $('#wizSecurityContinue')?.addEventListener('click', () => {
@@ -112,7 +177,7 @@ function initWizard() {
 
   $('#wizRecoveryContinue')?.addEventListener('click', () => {
     if (!$('#wizRecoverySaved')?.checked) return;
-    goToStep(3);
+    goToStep(4);
   });
 
   $('#wizRecoveryCopy')?.addEventListener('click', async () => {
@@ -137,8 +202,16 @@ function initWizard() {
     }
     settings.currency = currency;
     settings.mode = selectedMode;
-    settings.theme = 'light';
+    settings.designTheme = selectedDesign || settings.designTheme || 'studio';
+    const finishTheme = global.KhaytThemeRegistry?.getTheme(settings.designTheme);
+    if (finishTheme?.defaultAppearance) settings.theme = finishTheme.defaultAppearance;
+    else if (!settings.theme) settings.theme = 'light';
     settings.enableZatca = $('#wizEnableZatca')?.checked !== false;
+    const enableOnline = $('#wizEnableOnline')?.checked === true;
+    settings.onlineEnabled = enableOnline;
+    if (enableOnline && typeof applyOnlineLanPrefs === 'function') {
+      settings.lanApi = applyOnlineLanPrefs(settings.lanApi, true);
+    }
 
     if (!securitySkipped && pendingPin && pendingRecoveryCode) {
       await setupAdminSecurity({ pin: pendingPin, recoveryCodePlain: pendingRecoveryCode });
@@ -154,14 +227,20 @@ function initWizard() {
 
     settings.firstRun = false;
     settings.firstRunDone = true;
-    saveAll();
+    await flushSave();
 
+    document.removeEventListener('keydown', wizEscHandler);
     wiz.style.display = 'none';
     applyTheme(settings.theme);
+    if (typeof applyDesignSettings === 'function') applyDesignSettings();
     applyMode();
     loadSettingsIntoForm();
+    if (enableOnline && typeof startLanServer === 'function') {
+      startLanServer().catch(() => {});
+    }
     applyOperatorPermissions();
     initialRender();
+    refreshCurrencyLabels();
     toast(t('wiz.welcome_done'), 'success', 4000);
   }
 
@@ -176,22 +255,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadAll();
   pruneExpiredNotifs();
 
-  // Existing users who had data before Business Mode was introduced:
-  // give them Professional mode and skip the wizard.
-  // Detection: firstRun=true but firstRunDone=true means old user (firstRun defaulted in).
-  // Also catch cases where firstRun is undefined/null.
-  const isExistingUser = (
-    (settings.firstRun === undefined || settings.firstRun === null) ||
-    (settings.firstRun === true && settings.firstRunDone === true)
-  ) && (printLog.length > 0 || clients.length > 0);
-  if (isExistingUser) {
+  normalizeWizardFlagsAfterLoad();
+  if (!settings.firstRunDone && (printLog.length > 0 || clients.length > 0)) {
     settings.mode = settings.mode || 'professional';
-    settings.firstRun = false;
-    settings.firstRunDone = true;
-    saveAll();
   }
 
   applyTheme(settings.theme || 'light');
+  if (typeof KhaytCustomThemes?.loadCustomThemes === 'function') {
+    await KhaytCustomThemes.loadCustomThemes();
+  }
+  if (typeof applyDesignSettings === 'function') applyDesignSettings();
   applyMode();
   i18n.init();
   if (settings.lang) i18n.set(settings.lang, { silent: true });
@@ -233,6 +306,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     catch (_) {}
   }
   if ($('#appVersion')) $('#appVersion').textContent = currentVersion || '2.0.16 (dev)';
+  const betaBadge = $('#appVersionBeta');
+  if (betaBadge) betaBadge.hidden = !/-beta/i.test(String(currentVersion || ''));
 
   // ── Post-update "data survived" toast ────────────────────────────────────────
   // If the previous session stored a pending-update version and we're now running
@@ -260,110 +335,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       localStorage.removeItem('khayt_pending_update_to');
       setTimeout(() => {
         toast(
-          `✅ Updated to Khayt ${escapeHtml(currentVersion)} — your data is intact. ` +
-          `A pre-update backup was saved to <em>Settings → Backup</em>.`,
+          `✅ Updated to Khayt ${currentVersion} — your data is intact. ` +
+          'A pre-update backup was saved to Settings → Backup.',
           'success', 7000
         );
       }, 2500); // slight delay so the UI is fully painted first
     }
   })();
 
-  // ── Auto-updater UI ─────────────────────────────────────────────────────────
-  // electron-updater fires IPC events from main; we show a non-intrusive banner.
-  (function wireUpdaterUI() {
-    const BANNER_CSS = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:9999;' +
-      'background:var(--primary);color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;' +
-      'font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,0.35);display:flex;align-items:center;gap:10px;white-space:nowrap;';
-
-    function makeBanner(html) {
-      const el = document.createElement('div');
-      el.id = 'updateBanner';
-      el.style.cssText = BANNER_CSS;
-      el.innerHTML = html;
-      document.getElementById('updateBanner')?.remove();
-      document.body.appendChild(el);
-      return el;
-    }
-
-    // 1. Update available — ask user to download
-    window.hubAPI?.onUpdateAvailable?.((info) => {
-      const banner = makeBanner(
-        `🎉 Khayt <strong>${escapeHtml(info.version)}</strong> is available! ` +
-        `<button id="updBtnDownload" style="background:rgba(255,255,255,0.25);border:none;color:#fff;padding:3px 12px;border-radius:12px;cursor:pointer;font-size:12px;">Download</button> ` +
-        `<span id="updBtnClose" style="opacity:.7;font-size:18px;cursor:pointer;line-height:1;">×</span>`
-      );
-      banner.querySelector('#updBtnDownload')?.addEventListener('click', () => {
-        banner.innerHTML = `⬇️ Downloading update… <span id="updProgress" style="opacity:.8;font-size:12px;">0%</span>`;
-        window.hubAPI?.startUpdateDownload?.();
-      });
-      banner.querySelector('#updBtnClose')?.addEventListener('click', () => banner.remove());
-    });
-
-    // 2. Download progress — update the % counter
-    window.hubAPI?.onUpdateDownloadProgress?.((progress) => {
-      const el = document.getElementById('updProgress');
-      if (el) el.textContent = `${progress.percent}%`;
-    });
-
-    // 2b. Update error — surface it instead of leaving the banner stuck at 0%
-    window.hubAPI?.onUpdateError?.((err) => {
-      const banner = document.getElementById('updateBanner');
-      if (!banner) return;
-      const msg = escapeHtml(err?.message || 'Update failed');
-      banner.innerHTML =
-        `⚠ Update failed: <span style="opacity:.85;font-size:12px;">${msg}</span> ` +
-        `<span id="updBtnCloseErr" style="opacity:.7;font-size:18px;cursor:pointer;line-height:1;margin-inline-start:6px;">×</span>`;
-      banner.querySelector('#updBtnCloseErr')?.addEventListener('click', () => banner.remove());
-    });
-
-    // 3. Download complete — show restart button
-    window.hubAPI?.onUpdateDownloaded?.((info) => {
-      const banner = makeBanner(
-        `✅ Khayt <strong>${escapeHtml(info.version)}</strong> ready — ` +
-        `<button id="updBtnRestart" style="background:rgba(255,255,255,0.25);border:none;color:#fff;padding:3px 12px;border-radius:12px;cursor:pointer;font-size:12px;">Restart &amp; install</button> ` +
-        `<span id="updBtnClose2" style="opacity:.7;font-size:18px;cursor:pointer;line-height:1;">×</span>`
-      );
-      banner.querySelector('#updBtnRestart')?.addEventListener('click', async () => {
-        const btn = banner.querySelector('#updBtnRestart');
-        if (btn) { btn.disabled = true; btn.textContent = 'Saving data…'; }
-
-        // 1. Flush any pending debounced save immediately — closes the race window.
-        //    Cancel the timer BEFORE capturing the snapshot so no concurrent
-        //    debounced write can race with the explicit flush below.
-        if (_saveAllTimer) { clearTimeout(_saveAllTimer); _saveAllTimer = null; }
-        const snapshot = buildStoreSnapshot();
-        try { await _doSave(snapshot); } catch (_) {}
-
-        // 2. Write a named pre-update backup so the user can always roll back.
-        if (btn) btn.textContent = 'Backing up…';
-        try {
-          const json = JSON.stringify({
-            version: 5, exportedAt: new Date().toISOString(), ...snapshot,
-          });
-          await window.hubAPI?.writeUpdateBackup?.(json, info.version);
-        } catch (_) {}
-
-        // 3. Record the pending update version so we can show a "what's new" banner
-        //    after the app relaunches on the new version.
-        localStorage.setItem('khayt_pending_update_to', String(info.version));
-
-        // Safety valve: if the process hasn't quit after 30 s the install
-        // silently failed — clear the key so we never show a false "updated" toast.
-        setTimeout(() => {
-          if (localStorage.getItem('khayt_pending_update_to') === String(info.version)) {
-            localStorage.removeItem('khayt_pending_update_to');
-            toast('⚠ Update installation failed — please restart the app manually.', 'error', 8000);
-            if (btn) { btn.disabled = false; btn.textContent = 'Restart & install'; }
-          }
-        }, 30_000);
-
-        // 4. Hand the final snapshot to main.js so it can do one last atomic write
-        //    before killing the process.
-        window.hubAPI?.installUpdate?.(snapshot);
-      });
-      banner.querySelector('#updBtnClose2')?.addEventListener('click', () => banner.remove());
-    });
-  })();
+  // ── Auto-updater UI (changelog review before download/install) ─────
+  // Push the saved beta-channel preference to main before the startup check,
+  // so opted-in testers are offered beta builds on the launch auto-check.
+  if (typeof settings !== 'undefined') {
+    window.hubAPI?.setUpdateOptions?.({ allowBeta: !!settings.betaUpdates });
+  }
+  wireUpdateUI({ getCurrentVersion: () => currentVersion });
 
   // ── Manual "Check for updates" button in Settings ────────────────────────
   (function wireCheckForUpdatesBtn() {
@@ -374,20 +360,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     btn.addEventListener('click', async () => {
       btn.disabled = true;
       btn.textContent = 'Checking…';
-      if (msg) { msg.textContent = ''; }
+      if (msg) msg.textContent = '';
       try {
-        await window.hubAPI.checkForUpdates();
-        // Give the updater 4 seconds to fire onUpdateAvailable if there is one.
-        // If nothing fires we show "You're up to date".
-        setTimeout(() => {
-          if (!document.getElementById('updateBanner')) {
-            if (msg) msg.textContent = '✓ You\'re up to date';
-          }
-          btn.disabled = false;
-          btn.textContent = t('set.check_updates') || 'Check for updates';
-        }, 4000);
+        const res = await window.hubAPI.checkForUpdates();
+        await handleManualUpdateCheckResult(res, { currentVersion, statusEl: msg });
       } catch (e) {
         if (msg) msg.textContent = '⚠ Check failed';
+      } finally {
         btn.disabled = false;
         btn.textContent = t('set.check_updates') || 'Check for updates';
       }
@@ -442,7 +421,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
           toast('📱 ' + t('ord.status_updated_phone', { id, status }), 'info', 3000);
         }
-      } else if (id && payload.project) {
+      } else if (id && payload.project && isValidOrder(payload)) {
         // New order from Salla/Zid (or other source): add to printLog
         printLog.unshift({ ...payload });
         saveAll();
@@ -454,26 +433,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
   if (window.hubAPI?.onLanSurveySubmitted) {
-    window.hubAPI.onLanSurveySubmitted(({ orderId, rating }) => {
+    window.hubAPI.onLanSurveySubmitted(async ({ orderId, rating }) => {
+      try {
+        const store = await window.hubAPI.loadStore();
+        if (store && !store.__corrupt) applyStoreFromSnapshot(store);
+      } catch (e) {
+        console.error('reload store after survey:', e);
+      }
       const o = printLog.find(x => x.id === orderId);
       if (o) {
-        loadFromDisk();
         toast(`⭐ Survey received for "${o.project || orderId}": ${rating}/5`, 'success', 5000);
       }
     });
   }
   if (window.hubAPI?.onLanStartFailed) {
     window.hubAPI.onLanStartFailed(() => {
+      settings.lanApi = { ...settings.lanApi, enabled: false };
+      reconcileLanServerStatus?.();
       toast(t('lan.start_failed') || 'LAN server failed to start — port may be in use', 'warning', 6000);
     });
   }
   window.hubAPI?.onLanKanbanAdvanced?.(({ id, from, to, project }) => {
-    // Update the order in memory
     const idx = printLog.findIndex(o => o.id === id);
     if (idx !== -1) {
-      printLog[idx] = { ...printLog[idx], status: to };
+      const order = printLog[idx];
+      printLog[idx] = { ...order, status: to };
+      if (!printLog[idx].statusHistory) printLog[idx].statusHistory = [];
+      printLog[idx].statusHistory.push({ status: to, at: new Date().toISOString() });
+      saveAll();
       renderKanban();
-      renderLog();
+      renderLogs();
     }
     toast(`🖨️ ${escapeHtml(project || id)}: ${from} → ${to}`, 'success');
   });
@@ -516,27 +505,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
     Object.keys(draft).forEach(k => draft[k] === undefined && delete draft[k]);
     waitingList.unshift(draft);
+    saveAll();
     renderWaitingList();
     updateWaitingBadge();
     toast(t('intakeFormSubmitted'), 'success');
   });
 
+  window.hubAPI?.encryptionAvailable?.().then((enc) => {
+    if (enc && enc.ok === true && enc.available === false) {
+      toast(t('security.no_keychain') || 'OS secure storage is unavailable — secrets may be stored unencrypted on disk.', 'warning', 10000);
+    }
+  }).catch(() => {});
+
   // Round 12: Start LAN API server if enabled
   if (settings.lanApi?.enabled) {
-    startLanServer().catch(e => {
+    startLanServer().then(async () => {
+      await reconcileLanServerStatus?.();
+      if (settings.lanApi?.tunnelEnabled) {
+        await startTunnelFromSettings?.({ confirm: false });
+      }
+    }).catch(e => {
       console.error('LAN server failed to start:', e);
+      settings.lanApi = { ...settings.lanApi, enabled: false };
       toast(t('lan.start_failed') || 'LAN server failed to start — port may be in use', 'warning', 6000);
     });
   }
 
   // Business Mode setup wizard (new first-run experience)
   initWizard();
-
-  // Upgraded installs: wizard already done but legacy onboarding flag never set
-  if (!settings.firstRunDone && !settings.firstRun) {
-    settings.firstRunDone = true;
-    saveAll();
-  }
 
   // Global search keyboard shortcut ⌘K / Ctrl+K, plus tab-nav shortcuts
   document.addEventListener('keydown', (e) => {
@@ -545,12 +541,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       globalSearchOpen ? closeGlobalSearch() : openGlobalSearch();
       return;
     }
+    if (globalSearchOpen && typeof handleGlobalSearchKeydown === 'function' && handleGlobalSearchKeydown(e)) {
+      return;
+    }
     if (e.key === 'Escape' && globalSearchOpen) {
       closeGlobalSearch();
       return;
     }
     // Single-key navigation shortcuts — only when no input/modal is focused
-    if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.shiftKey && e.key !== '?') return;
     const tag = (document.activeElement?.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
     if (document.querySelector('.modal-backdrop')) return; // modal open
@@ -577,6 +577,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 document.addEventListener('languagechange', () => {
   initialRender();
+  refreshCurrencyLabels();
 });
 }
 

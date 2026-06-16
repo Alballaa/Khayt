@@ -13,10 +13,21 @@
 
   function randomBlock(size = 4) {
     let out = '';
+    const bytes = new Uint8Array(size);
+    crypto.getRandomValues(bytes);
     for (let i = 0; i < size; i++) {
-      out += RECOVERY_ALPHABET[Math.floor(Math.random() * RECOVERY_ALPHABET.length)];
+      out += RECOVERY_ALPHABET[bytes[i] % RECOVERY_ALPHABET.length];
     }
     return out;
+  }
+
+  function timingSafeEqualHex(a, b) {
+    const sa = String(a || '');
+    const sb = String(b || '');
+    if (sa.length !== sb.length) return false;
+    let diff = 0;
+    for (let i = 0; i < sa.length; i++) diff |= sa.charCodeAt(i) ^ sb.charCodeAt(i);
+    return diff === 0;
   }
 
   function generateRecoveryCode() {
@@ -39,7 +50,8 @@
 
   async function verifyRecoveryCode(code, hash) {
     if (!hash || !isValidRecoveryCode(code)) return false;
-    return (await hashSecret(normalizeRecoveryCode(code))) === hash;
+    const entered = await hashSecret(normalizeRecoveryCode(code));
+    return timingSafeEqualHex(entered, hash);
   }
 
   function isValidPin(pin) {
@@ -106,18 +118,16 @@
     if (!admin?.pinHash) return false;
     const entered = await hashSecret(String(pin || ''));
     if (admin.pinHash.length !== 64 && isLegacyPin?.(admin.pinHash)) return false;
-    return entered === admin.pinHash;
+    return timingSafeEqualHex(entered, admin.pinHash);
   }
 
   function promptTypeConfirmModal(message, confirmPhrase, { title, danger = true, extraHtml = '' } = {}) {
     return new Promise(resolve => {
-      const mount = $('#modalMount');
       const phrase = String(confirmPhrase || '');
-      mount.innerHTML = `
-        <div class="modal-backdrop">
+      const overlay = (typeof appendStackedModal === 'function' ? appendStackedModal : null)?.(`
           <div class="modal" role="dialog" aria-modal="true">
             <h3>${escapeHtml(title || t('common.confirm'))}</h3>
-            <p>${typeof message === 'string' && message.includes('<') ? message : escapeHtml(message)}</p>
+            <p>${escapeHtml(message)}</p>
             ${extraHtml}
             <label style="display:block;margin-top:12px;font-size:13px;">${escapeHtml(t('sec.type_to_confirm', { phrase }))}</label>
             <input type="text" id="typeConfirmInput" class="form-control" autocomplete="off" spellcheck="false" style="margin-top:6px;">
@@ -125,29 +135,27 @@
               <button class="btn ghost" data-act="cancel">${escapeHtml(t('common.cancel'))}</button>
               <button class="btn ${danger ? 'danger' : 'primary'}" data-act="ok" disabled>${escapeHtml(t('common.confirm'))}</button>
             </div>
-          </div>
-        </div>`;
-      const input = mount.querySelector('#typeConfirmInput');
-      const okBtn = mount.querySelector('[data-act="ok"]');
+          </div>`);
+      if (!overlay) return resolve(false);
+      const input = overlay.querySelector('#typeConfirmInput');
+      const okBtn = overlay.querySelector('[data-act="ok"]');
       const sync = () => { okBtn.disabled = input.value.trim() !== phrase; };
       input.addEventListener('input', sync);
       setTimeout(() => input.focus(), 40);
-      const cleanup = (val) => { mount.innerHTML = ''; resolve(val); };
+      const cleanup = (val) => { overlay.remove(); resolve(val); };
       okBtn.addEventListener('click', () => { if (!okBtn.disabled) cleanup(true); });
-      mount.querySelector('[data-act="cancel"]').addEventListener('click', () => cleanup(false));
-      mount.querySelector('.modal-backdrop').addEventListener('click', (e) => {
-        if (e.target.classList.contains('modal-backdrop')) cleanup(false);
-      });
+      overlay.querySelector('[data-act="cancel"]').addEventListener('click', () => cleanup(false));
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(false); });
     });
   }
 
   function pinOrRecoveryModal({ title, message } = {}) {
     return new Promise(resolve => {
-      const mount = $('#modalMount');
       let mode = 'pin';
+      const overlay = (typeof appendStackedModal === 'function' ? appendStackedModal : null)?.('');
+      if (!overlay) return resolve(false);
       const render = () => {
-        mount.innerHTML = `
-          <div class="modal-backdrop">
+        overlay.innerHTML = `
             <div class="modal" role="dialog" aria-modal="true" style="max-width:380px;">
               <h3>${escapeHtml(title || t('sec.verify_title'))}</h3>
               <p style="font-size:13px;color:var(--text-muted);">${escapeHtml(message || t('sec.verify_body'))}</p>
@@ -163,24 +171,21 @@
                 <button class="btn ghost" data-act="cancel">${escapeHtml(t('common.cancel'))}</button>
                 <button class="btn primary" data-act="ok">${escapeHtml(t('common.confirm'))}</button>
               </div>
-            </div>
-          </div>`;
-        mount.querySelectorAll('[data-mode]').forEach(btn => {
+            </div>`;
+        overlay.querySelectorAll('[data-mode]').forEach(btn => {
           btn.addEventListener('click', () => { mode = btn.dataset.mode; render(); });
         });
-        const input = mount.querySelector('#secVerifyInput');
+        const input = overlay.querySelector('#secVerifyInput');
         setTimeout(() => input?.focus(), 30);
-        mount.querySelector('[data-act="cancel"]').addEventListener('click', () => { mount.innerHTML = ''; resolve(false); });
-        mount.querySelector('.modal-backdrop').addEventListener('click', (e) => {
-          if (e.target.classList.contains('modal-backdrop')) { mount.innerHTML = ''; resolve(false); }
-        });
-        mount.querySelector('[data-act="ok"]').addEventListener('click', async () => {
+        overlay.querySelector('[data-act="cancel"]').addEventListener('click', () => { overlay.remove(); resolve(false); });
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) { overlay.remove(); resolve(false); } });
+        overlay.querySelector('[data-act="ok"]').addEventListener('click', async () => {
           const val = input.value.trim();
-          const err = mount.querySelector('#secVerifyError');
+          const err = overlay.querySelector('#secVerifyError');
           let ok = false;
           if (mode === 'pin') ok = await verifyAdminPin(val);
           else ok = await verifyRecoveryCode(val, settings.recoveryCodeHash);
-          if (ok) { mount.innerHTML = ''; resolve(true); return; }
+          if (ok) { overlay.remove(); resolve(true); return; }
           if (err) err.textContent = mode === 'pin' ? t('sec.pin_invalid') : t('sec.recovery_invalid');
         });
       };

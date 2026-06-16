@@ -16,7 +16,7 @@ final class KhaytAPIClient: ObservableObject {
     }
 
     func fetchStatus() async throws -> ShopStatus {
-        try await get("/api/status", requiresPin: false, as: ShopStatus.self)
+        try await get("/api/status?format=json", requiresPin: false, as: ShopStatus.self)
     }
 
     func fetchQueue() async throws -> [QueueOrder] {

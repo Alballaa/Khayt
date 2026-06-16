@@ -74,3 +74,18 @@ export function assertStatus(label, actual, expected) {
     throw new Error(`${label}: expected HTTP ${expected}, got ${actual}`);
   }
 }
+
+/** Apply a built-in design theme + appearance inside the renderer. */
+export async function applyDesignTheme(window, { designId, appearance = 'dark' } = {}) {
+  await window.evaluate(({ id, app }) => {
+    settings.designTheme = id;
+    settings.theme = app;
+    if (typeof applyTheme === 'function') applyTheme(app);
+    if (typeof applyDesignSettings === 'function') applyDesignSettings();
+  }, { id: designId, app: appearance });
+  await window.waitForFunction(
+    (id) => document.documentElement.dataset.design === id,
+    designId,
+    { timeout: 15_000 },
+  );
+}

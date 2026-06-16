@@ -55,7 +55,7 @@ function renderMachines() {
       ? `<span style="font-size:10.5px;color:var(--text-muted);margin-inline-start:6px;">[${escapeHtml(m.compatMaterials.join(', '))}]</span>`
       : '';
     return `
-      <div class="machine-row" style="flex-wrap:wrap;">
+      <div class="machine-row" data-machine-id="${escapeHtml(m.id)}" style="flex-wrap:wrap;">
         <span class="machine-dot" style="background:${safeCssColor(m.color)};"></span>
         <span class="machine-name">${escapeHtml(m.name)}</span>
         ${compatHtml}

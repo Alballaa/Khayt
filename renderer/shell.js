@@ -4,6 +4,42 @@
 var _escHandlerStack = [];
 
 (function (global) {
+const FOCUSABLE_SEL = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function attachFocusTrap(root) {
+  const previousFocus = document.activeElement;
+  function onKeyDown(e) {
+    if (e.key !== 'Tab' || !root) return;
+    const focusables = [...root.querySelectorAll(FOCUSABLE_SEL)]
+      .filter((el) => !el.closest('[aria-hidden="true"]') && el.offsetParent !== null);
+    if (!focusables.length) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (e.shiftKey) {
+      if (document.activeElement === first || !root.contains(document.activeElement)) {
+        e.preventDefault();
+        last.focus();
+      }
+    } else if (document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
+  root.addEventListener('keydown', onKeyDown);
+  return () => {
+    root.removeEventListener('keydown', onKeyDown);
+    if (previousFocus && typeof previousFocus.focus === 'function') {
+      try { previousFocus.focus(); } catch (_) { /* ignore */ }
+    }
+  };
+}
+
+function rankSearch(items, query, getHaystack, limit) {
+  const rank = global.KhaytSearch?.rankByQuery;
+  if (rank) return rank(items, query, getHaystack, limit);
+  const q = String(query || '').toLowerCase().trim();
+  return items.filter((item) => getHaystack(item).toLowerCase().includes(q)).slice(0, limit);
+}
 /* ============================================================
    Toasts (now with optional undo button)
    ============================================================ */
@@ -33,11 +69,24 @@ function toast(msg, kind = 'info', ms = 2800, opts = {}) {
 /* ============================================================
    Modals (confirm + form host)
    ============================================================ */
+/** Append a stacked modal overlay (does not replace an open form modal). */
+function appendStackedModal(innerHtml, { zIndex = 10050 } = {}) {
+  const mount = $('#modalMount');
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-backdrop confirm-modal-overlay';
+  overlay.style.zIndex = String(zIndex);
+  overlay.innerHTML = innerHtml;
+  mount.appendChild(overlay);
+  return overlay;
+}
+
 function confirmModal(message, { okText, cancelText, danger = false } = {}) {
   return new Promise(resolve => {
     const mount = $('#modalMount');
-    mount.innerHTML = `
-      <div class="modal-backdrop">
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-backdrop confirm-modal-overlay';
+    overlay.style.zIndex = '10050';
+    overlay.innerHTML = `
         <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirmModalTitle">
           <h3 id="confirmModalTitle">${escapeHtml(t('common.confirm'))}</h3>
           <p>${escapeHtml(message)}</p>
@@ -45,22 +94,29 @@ function confirmModal(message, { okText, cancelText, danger = false } = {}) {
             <button class="btn ghost" data-act="cancel">${escapeHtml(cancelText || t('common.cancel'))}</button>
             <button class="btn ${danger ? 'danger' : 'primary'}" data-act="ok">${escapeHtml(okText || t('common.confirm'))}</button>
           </div>
-        </div>
-      </div>`;
+        </div>`;
+    mount.appendChild(overlay);
+    const dialog = overlay.querySelector('.modal');
+    const releaseFocus = attachFocusTrap(dialog || overlay);
     const cleanup = (val) => {
       document.removeEventListener('keydown', escHandler);
       const idx = _escHandlerStack.indexOf(escHandler);
       if (idx !== -1) _escHandlerStack.splice(idx, 1);
-      mount.innerHTML = '';
+      releaseFocus();
+      overlay.remove();
       resolve(val);
     };
-    const escHandler = (e) => { if (e.key === 'Escape') cleanup(false); };
+    const escHandler = (e) => {
+      if (e.key !== 'Escape') return;
+      if (_escHandlerStack[_escHandlerStack.length - 1] !== escHandler) return;
+      cleanup(false);
+    };
     _escHandlerStack.push(escHandler);
     document.addEventListener('keydown', escHandler);
-    mount.querySelector('[data-act="ok"]').addEventListener('click', () => cleanup(true));
-    mount.querySelector('[data-act="cancel"]').addEventListener('click', () => cleanup(false));
-    mount.querySelector('.modal-backdrop').addEventListener('click', (e) => {
-      if (e.target.classList.contains('modal-backdrop')) cleanup(false);
+    overlay.querySelector('[data-act="ok"]').addEventListener('click', () => cleanup(true));
+    overlay.querySelector('[data-act="cancel"]').addEventListener('click', () => cleanup(false));
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) cleanup(false);
     });
   });
 }
@@ -69,10 +125,10 @@ function openFormModal({ title, bodyHtml, onMount, onSave, saveLabel, sizeLg = t
   const mount = $('#modalMount');
   mount.innerHTML = `
     <div class="modal-backdrop">
-      <div class="modal ${sizeLg ? 'modal-lg' : ''}" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal modal-form ${sizeLg ? 'modal-lg' : ''}" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
         <div class="modal-header">
           <h3 id="modalTitle">${escapeHtml(title)}</h3>
-          <button class="btn ghost small" data-act="cancel" aria-label="Close">×</button>
+          <button class="btn ghost small" data-act="cancel" aria-label="${escapeHtml(t('common.close') || 'Close')}">×</button>
         </div>
         <div class="modal-body">${bodyHtml}</div>
         <div class="modal-footer">
@@ -85,13 +141,19 @@ function openFormModal({ title, bodyHtml, onMount, onSave, saveLabel, sizeLg = t
       </div>
     </div>`;
   const modal = mount.querySelector('.modal');
+  const releaseFocus = attachFocusTrap(modal);
   const close = () => {
     document.removeEventListener('keydown', escHandler);
     const idx = _escHandlerStack.indexOf(escHandler);
     if (idx !== -1) _escHandlerStack.splice(idx, 1);
+    releaseFocus();
     mount.innerHTML = '';
   };
-  const escHandler = (e) => { if (e.key === 'Escape') close(); };
+  const escHandler = (e) => {
+    if (e.key !== 'Escape') return;
+    if (_escHandlerStack[_escHandlerStack.length - 1] !== escHandler) return;
+    close();
+  };
   _escHandlerStack.push(escHandler);
   document.addEventListener('keydown', escHandler);
   mount.querySelectorAll('[data-act="cancel"]').forEach(b => b.addEventListener('click', close));
@@ -110,8 +172,8 @@ function openFormModal({ title, bodyHtml, onMount, onSave, saveLabel, sizeLg = t
     });
   }
   if (onMount) onMount(modal);
-  // Move focus into modal for keyboard/screen-reader users
-  const firstInput = modal.querySelector('input, select, textarea, button');
+  // Move focus into the first form field (skip header close button)
+  const firstInput = modal.querySelector('.modal-body input, .modal-body select, .modal-body textarea, .modal-body button');
   if (firstInput) firstInput.focus();
 }
 
@@ -164,6 +226,8 @@ function applyMode() {
   if (btnSimple) btnSimple.classList.toggle('active', settings.mode === 'simple');
   if (btnPro)    btnPro.classList.toggle('active',    settings.mode === 'professional');
   applyAnalyticsModeView();
+  if (typeof renderDashboard === 'function') renderDashboard();
+  if (typeof renderOnlineSettings === 'function') renderOnlineSettings();
 }
 
 
@@ -189,13 +253,43 @@ function initAppShell() {
   mirror?.addEventListener('click', openSearch);
   mirror?.addEventListener('focus', openSearch);
 
-  document.documentElement.style.setProperty('--accent-h', '187');
-  document.documentElement.style.setProperty('--accent-s', '76%');
-  document.documentElement.style.setProperty('--accent-l', '53%');
+  if (typeof applyDesignSettings === 'function') applyDesignSettings();
+  else if (typeof populateDesignSelects === 'function') populateDesignSelects();
+
+  if (document.body.classList.contains('khayt-ledger')) {
+    global.KhaytLedgerShell?.bindTabNav?.();
+  }
 
   syncTopbarTitle($('.tab-content.active')?.id || 'dashboard-tab');
 
   window.KhaytStudio?.init?.();
+
+  const nav = $('.khayt-nav[role="tablist"]');
+  nav?.addEventListener('keydown', (e) => {
+    const tabs = [...nav.querySelectorAll('.tab-btn[role="tab"]')]
+      .filter((btn) => btn.offsetParent !== null && !btn.disabled);
+    if (!tabs.length) return;
+    const idx = tabs.findIndex((btn) => btn.getAttribute('aria-selected') === 'true');
+    if (idx < 0) return;
+    let next = idx;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      next = (idx + 1) % tabs.length;
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      next = (idx - 1 + tabs.length) % tabs.length;
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      next = 0;
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      next = tabs.length - 1;
+    } else {
+      return;
+    }
+    tabs[next].focus();
+    switchTab(tabs[next].dataset.tab);
+  });
 
   $('.kanban')?.classList.add('khayt-kanban');
   $$('.kanban-col').forEach(col => {
@@ -225,6 +319,8 @@ function syncTopbarTitle(tabId) {
     sub.textContent = d.toLocaleDateString(i18n.current === 'ar' ? 'ar-SA' : 'en-US', {
       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
     });
+  } else if (document.body.classList.contains('khayt-handoff') && typeof KhaytLedgerShell?.ledgerTabSubtitle === 'function') {
+    sub.textContent = KhaytLedgerShell.ledgerTabSubtitle(tabId);
   } else {
     sub.textContent = '';
   }
@@ -234,6 +330,25 @@ function syncTopbarTitle(tabId) {
 /* ============================================================
    Tabs
    ============================================================ */
+function openSettingsSection(section) {
+  switchTab('settings-tab');
+  $$('.settings-nav-item').forEach(el => {
+    el.classList.remove('active');
+    el.removeAttribute('aria-current');
+  });
+  $$('.settings-panel').forEach(el => el.classList.remove('active'));
+  const navItem = $(`.settings-nav-item[data-settings-section="${section}"]`);
+  navItem?.classList.add('active');
+  navItem?.setAttribute('aria-current', 'page');
+  navItem?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+  const panel = $(`#settings-panel-${section}`);
+  if (panel) {
+    panel.classList.add('active');
+    panel.scrollTop = 0;
+  }
+  if (section === 'online' && typeof renderOnlineSettings === 'function') renderOnlineSettings();
+}
+
 function switchTab(tabId) {
   $$('.tab-content').forEach(el => {
     const on = el.id === tabId;
@@ -253,6 +368,18 @@ function switchTab(tabId) {
   });
 
   syncTopbarTitle(tabId);
+  if (typeof KhaytLedgerShell?.syncLedgerPageHead === 'function') {
+    KhaytLedgerShell.syncLedgerPageHead(tabId);
+  }
+  if (typeof KhaytConsoleShell?.syncConsolePageHead === 'function') {
+    KhaytConsoleShell.syncConsolePageHead(tabId);
+  }
+  if (typeof KhaytCockpitShell?.syncCockpitPageHead === 'function') {
+    KhaytCockpitShell.syncCockpitPageHead(tabId);
+  }
+  if (typeof KhaytAtlasShell?.syncAtlasPageHead === 'function') {
+    KhaytAtlasShell.syncAtlasPageHead(tabId);
+  }
 
   if (tabId === 'dashboard-tab')  renderDashboard();
   if (tabId === 'expenses-tab')   { renderExpenses(); populateExpOrderDatalist(); }
@@ -274,6 +401,7 @@ function switchTab(tabId) {
       if (firstNav) {
         const section = firstNav.dataset.settingsSection;
         firstNav.classList.add('active');
+        firstNav.setAttribute('aria-current', 'page');
         $(`#settings-panel-${section}`)?.classList.add('active');
       }
     }
@@ -283,12 +411,14 @@ function switchTab(tabId) {
    Global ⌘K / Ctrl+K search
    ============================================================ */
 let globalSearchOpen = false;
+let gsFocusedIndex = -1;
 
 function openGlobalSearch() {
   const overlay = $('#globalSearchOverlay');
   const input   = $('#globalSearchInput');
   if (!overlay) return;
   globalSearchOpen = true;
+  gsFocusedIndex = -1;
   overlay.style.display = 'flex';
   input.value = '';
   input.focus();
@@ -299,33 +429,62 @@ function closeGlobalSearch() {
   const overlay = $('#globalSearchOverlay');
   if (!overlay) return;
   globalSearchOpen = false;
+  gsFocusedIndex = -1;
   overlay.style.display = 'none';
+}
+
+function updateGsFocus(results) {
+  results.forEach((row, i) => row.classList.toggle('focused', i === gsFocusedIndex));
+  if (gsFocusedIndex >= 0 && results[gsFocusedIndex]) {
+    results[gsFocusedIndex].scrollIntoView({ block: 'nearest' });
+  }
+}
+
+function handleGlobalSearchKeydown(e) {
+  if (!globalSearchOpen) return false;
+  const results = [...($('#globalSearchResults')?.querySelectorAll('.gs-result') || [])];
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    gsFocusedIndex = results.length ? (gsFocusedIndex + 1) % results.length : -1;
+    updateGsFocus(results);
+    return true;
+  }
+  if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    gsFocusedIndex = results.length
+      ? (gsFocusedIndex <= 0 ? results.length - 1 : gsFocusedIndex - 1)
+      : -1;
+    updateGsFocus(results);
+    return true;
+  }
+  if (e.key === 'Enter' && gsFocusedIndex >= 0 && results[gsFocusedIndex]) {
+    e.preventDefault();
+    results[gsFocusedIndex].click();
+    return true;
+  }
+  return false;
 }
 
 function renderGlobalResults(term) {
   const el = $('#globalSearchResults');
   if (!el) return;
+  gsFocusedIndex = -1;
   if (!term.trim()) {
     el.innerHTML = `<div class="gs-hint">${escapeHtml(t('search.hint'))}</div>`;
     return;
   }
-  const q = term.toLowerCase();
   const sections = [];
 
-  // Orders — search id, project, material, tags, notes, tracking, and linked client name
-  const matchOrders = printLog.filter(o => {
-    if ((o.id || '').toLowerCase().includes(q)) return true;
-    if ((o.project || '').toLowerCase().includes(q)) return true;
-    if ((o.material || '').toLowerCase().includes(q)) return true;
-    if ((o.notes || '').toLowerCase().includes(q)) return true;
-    if ((o.trackingNumber || '').toLowerCase().includes(q)) return true;
-    if ((o.tags || []).some(tg => tg.toLowerCase().includes(q))) return true;
-    if (o.clientId) {
-      const c = clients.find(x => x.id === o.clientId);
-      if (c && ((c.nameEn || '').toLowerCase().includes(q) || (c.nameAr || '').toLowerCase().includes(q))) return true;
-    }
-    return false;
-  }).slice(0, 6);
+  const orderHaystack = (o) => {
+    const client = o.clientId ? clients.find((x) => x.id === o.clientId) : null;
+    return [
+      o.id, o.project, o.material, o.notes, o.trackingNumber,
+      ...(o.tags || []),
+      client?.nameEn, client?.nameAr,
+    ].filter(Boolean).join(' ');
+  };
+
+  const matchOrders = rankSearch(printLog, term, orderHaystack, 6);
   if (matchOrders.length) {
     sections.push(`<div class="gs-group-label">${escapeHtml(t('search.orders'))}</div>`);
     sections.push(matchOrders.map(o => `
@@ -336,13 +495,12 @@ function renderGlobalResults(term) {
       </div>`).join(''));
   }
 
-  // Clients
-  const matchClients = clients.filter(c =>
-    (c.nameEn || '').toLowerCase().includes(q) ||
-    (c.nameAr || '').toLowerCase().includes(q) ||
-    (c.phone  || '').toLowerCase().includes(q) ||
-    (c.email  || '').toLowerCase().includes(q)
-  ).slice(0, 4);
+  const matchClients = rankSearch(
+    clients,
+    term,
+    (c) => [c.id, c.nameEn, c.nameAr, c.phone, c.email].filter(Boolean).join(' '),
+    4,
+  );
   if (matchClients.length) {
     sections.push(`<div class="gs-group-label">${escapeHtml(t('search.clients'))}</div>`);
     sections.push(matchClients.map(c => `
@@ -353,11 +511,12 @@ function renderGlobalResults(term) {
       </div>`).join(''));
   }
 
-  // Products
-  const matchProducts = products.filter(p =>
-    (p.nameEn || '').toLowerCase().includes(q) ||
-    (p.nameAr || '').toLowerCase().includes(q)
-  ).slice(0, 4);
+  const matchProducts = rankSearch(
+    products,
+    term,
+    (p) => [p.nameEn, p.nameAr, p.description].filter(Boolean).join(' '),
+    4,
+  );
   if (matchProducts.length) {
     sections.push(`<div class="gs-group-label">${escapeHtml(t('search.products'))}</div>`);
     sections.push(matchProducts.map(p => `
@@ -368,8 +527,60 @@ function renderGlobalResults(term) {
       </div>`).join(''));
   }
 
-  // Inventory
-  const matchInv = inventory.filter(i => (i.material || '').toLowerCase().includes(q)).slice(0, 4);
+  const matchInv = rankSearch(
+    inventory,
+    term,
+    (i) => [i.material, i.brand, i.colour, i.id].filter(Boolean).join(' '),
+    4,
+  );
+
+  const matchMachines = rankSearch(
+    machines,
+    term,
+    (m) => [m.name, m.model, m.location, ...(m.compatMaterials || [])].filter(Boolean).join(' '),
+    3,
+  );
+  if (matchMachines.length) {
+    sections.push(`<div class="gs-group-label">${escapeHtml(t('search.machines'))}</div>`);
+    sections.push(matchMachines.map((m) => `
+      <div class="gs-result" data-gs-action="machine" data-gs-id="${escapeHtml(m.id)}">
+        <span class="gs-icon">🖨️</span>
+        <span class="gs-title">${escapeHtml(m.name)}</span>
+        <span class="gs-meta">${escapeHtml(m.model || t('mach.unassigned'))}</span>
+      </div>`).join(''));
+  }
+
+  const matchSuppliers = rankSearch(
+    suppliers,
+    term,
+    (s) => [s.name, s.phone, s.email, s.website].filter(Boolean).join(' '),
+    3,
+  );
+  if (matchSuppliers.length) {
+    sections.push(`<div class="gs-group-label">${escapeHtml(t('search.suppliers'))}</div>`);
+    sections.push(matchSuppliers.map((s) => `
+      <div class="gs-result" data-gs-action="supplier" data-gs-id="${escapeHtml(s.id)}">
+        <span class="gs-icon">🏭</span>
+        <span class="gs-title">${escapeHtml(s.name)}</span>
+        <span class="gs-meta">${escapeHtml(s.phone || s.email || '')}</span>
+      </div>`).join(''));
+  }
+
+  const matchExpenses = rankSearch(
+    expenses,
+    term,
+    (e) => [e.note, e.category, e.vendor, e.orderId].filter(Boolean).join(' '),
+    3,
+  );
+  if (matchExpenses.length) {
+    sections.push(`<div class="gs-group-label">${escapeHtml(t('search.expenses'))}</div>`);
+    sections.push(matchExpenses.map((e) => `
+      <div class="gs-result" data-gs-action="expense" data-gs-id="${escapeHtml(e.id)}">
+        <span class="gs-icon">◧</span>
+        <span class="gs-title">${escapeHtml(e.note || (typeof expCatLabel === 'function' ? expCatLabel(e.category) : e.category) || 'Expense')}</span>
+        <span class="gs-meta">${escapeHtml(e.date || '')} · ${fmtPrice(e.amount)}</span>
+      </div>`).join(''));
+  }
   if (matchInv.length) {
     sections.push(`<div class="gs-group-label">${escapeHtml(t('search.inventory'))}</div>`);
     sections.push(matchInv.map(i => `
@@ -389,12 +600,62 @@ function renderGlobalResults(term) {
       closeGlobalSearch();
       if (action === 'order')     { switchTab('logs-tab');       setTimeout(() => { logSearchTerm = id; renderLogs(); }, 50); }
       if (action === 'client')    { switchTab('clients-tab');    setTimeout(() => { clientSearchTerm = id; renderClients(); }, 50); }
-      if (action === 'product')   { switchTab('catalog-tab'); }
+      if (action === 'product') {
+        switchTab('catalog-tab');
+        catalogSearchTerm = '';
+        const catInput = $('#catalogSearch');
+        if (catInput) catInput.value = '';
+        setTimeout(() => {
+          renderCatalog();
+          const card = document.querySelector(`.product-card[data-id="${CSS.escape(id)}"]`);
+          if (card) {
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            card.classList.add('highlight-flash');
+            setTimeout(() => card.classList.remove('highlight-flash'), 1500);
+          }
+        }, 80);
+      }
       if (action === 'inventory') {
         switchTab('inventory-tab');
         if (id) setTimeout(() => {
           const row = document.querySelector(`[data-inv-id="${CSS.escape(id)}"]`);
           if (row) { row.scrollIntoView({ behavior: 'smooth', block: 'center' }); row.classList.add('highlight-flash'); setTimeout(() => row.classList.remove('highlight-flash'), 1500); }
+        }, 80);
+      }
+      if (action === 'machine') {
+        openSettingsSection('printers');
+        setTimeout(() => {
+          renderMachines();
+          const row = document.querySelector(`[data-machine-id="${CSS.escape(id)}"]`);
+          if (row) {
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            row.classList.add('highlight-flash');
+            setTimeout(() => row.classList.remove('highlight-flash'), 1500);
+          }
+        }, 80);
+      }
+      if (action === 'supplier') {
+        switchTab('inventory-tab');
+        setTimeout(() => {
+          renderSuppliers();
+          const row = document.querySelector(`[data-supplier-id="${CSS.escape(id)}"]`);
+          if (row) {
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            row.classList.add('highlight-flash');
+            setTimeout(() => row.classList.remove('highlight-flash'), 1500);
+          }
+        }, 80);
+      }
+      if (action === 'expense') {
+        switchTab('expenses-tab');
+        setTimeout(() => {
+          renderExpenses();
+          const row = document.querySelector(`[data-expense-id="${CSS.escape(id)}"]`);
+          if (row) {
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            row.classList.add('highlight-flash');
+            setTimeout(() => row.classList.remove('highlight-flash'), 1500);
+          }
         }, 80);
       }
     });
@@ -448,15 +709,15 @@ function openFeedbackModal() {
     saveLabel: t('feedback.send'),
     noSave: false,
     bodyHtml: `
-      <label style="margin-top:0;">${escapeHtml(t('feedback.type'))}</label>
+      <label for="fbType" style="margin-top:0;">${escapeHtml(t('feedback.type'))}</label>
       <select id="fbType">
         <option value="feedback">${escapeHtml(t('feedback.type_feedback'))}</option>
         <option value="suggestion">${escapeHtml(t('feedback.type_suggestion'))}</option>
         <option value="bug">${escapeHtml(t('feedback.type_bug'))}</option>
       </select>
-      <label style="margin-top:14px;">${escapeHtml(t('feedback.message'))}</label>
+      <label for="fbMessage" style="margin-top:14px;">${escapeHtml(t('feedback.message'))}</label>
       <textarea id="fbMessage" rows="5" style="resize:vertical;" placeholder="${escapeHtml(t('feedback.message_ph'))}"></textarea>
-      <label style="margin-top:14px;">${escapeHtml(t('feedback.email'))} <span style="color:var(--text-muted);font-size:11.5px;">(${escapeHtml(t('common.optional'))})</span></label>
+      <label for="fbEmail" style="margin-top:14px;">${escapeHtml(t('feedback.email'))} <span style="color:var(--text-muted);font-size:11.5px;">(${escapeHtml(t('common.optional'))})</span></label>
       <input type="email" id="fbEmail" placeholder="you@example.com">
       <p style="font-size:11.5px;color:var(--text-muted);margin:10px 0 0;">${escapeHtml(t('feedback.hint'))}</p>
       <div style="margin-top:12px;">
@@ -469,7 +730,7 @@ function openFeedbackModal() {
         else window.open(url);
       });
     },
-    onSave(modal) {
+    async onSave(modal) {
       const type    = modal.querySelector('#fbType').value;
       const message = (modal.querySelector('#fbMessage').value || '').trim();
       const email   = (modal.querySelector('#fbEmail').value  || '').trim();
@@ -479,8 +740,20 @@ function openFeedbackModal() {
         `Type: ${t('feedback.type_' + type)}\n\n${message}${email ? `\n\nFrom: ${email}` : ''}`
       );
       const mailto = `mailto:khayt@athartuwaiq.com?subject=${subject}&body=${body}`;
-      if (window.hubAPI?.openExternal) window.hubAPI.openExternal(mailto);
-      else window.open(mailto);
+      try {
+        if (window.hubAPI?.openExternal) {
+          const res = await window.hubAPI.openExternal(mailto);
+          if (!res?.ok) {
+            toast(t('feedback.err_no_mail') || 'Could not open your email app.', 'error');
+            return false;
+          }
+        } else {
+          window.open(mailto);
+        }
+      } catch (err) {
+        toast(t('feedback.err_no_mail') || 'Could not open your email app.', 'error');
+        return false;
+      }
       toast(t('feedback.sent'), 'success');
       return true;
     }
@@ -493,6 +766,7 @@ function openFeedbackModal() {
 
   const api = {
     toast,
+    appendStackedModal,
     confirmModal,
     openFormModal,
     applyTheme,
@@ -501,9 +775,11 @@ function openFeedbackModal() {
     initAppShell,
     syncTopbarTitle,
     switchTab,
+    openSettingsSection,
     openGlobalSearch,
     closeGlobalSearch,
     renderGlobalResults,
+    handleGlobalSearchKeydown,
     openHelpModal,
     openFeedbackModal,
   };

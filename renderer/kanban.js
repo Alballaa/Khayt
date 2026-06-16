@@ -151,7 +151,7 @@ function renderStudioKanbanCard(b) {
     postCheckHtml, resinCheckHtml, timerBadge, etaBadge, actions,
   } = b;
 
-  const useStudio = document.body.classList.contains('khayt-studio');
+  const useStudio = document.body.classList.contains('khayt-handoff');
   const prioColor = { urgent: 'var(--danger)', high: 'var(--warn)', normal: 'var(--text-muted)' }[_pl] || 'var(--text-muted)';
   const client = log.clientId ? clients.find(c => c.id === log.clientId) : null;
   const clientLine = client ? localName(client) : (log.client || '');
@@ -297,7 +297,7 @@ function renderKanban() {
   const quotes = printLog.filter(o => o.status === 'quote');
   const quotesSec = $('#quotesSection');
   if (quotesSec) {
-    if (window.KhaytStudio?.isStudio?.()) {
+    if (window.KhaytStudio?.useHandoffScreens?.()) {
       quotesSec.style.display = '';
     } else {
       quotesSec.style.display = quotes.length > 0 ? '' : 'none';
@@ -410,10 +410,12 @@ function renderKanban() {
         wipBadge.style.cssText = 'font-size:10.5px;padding:1px 6px;border-radius:10px;background:rgba(220,38,38,0.2);color:var(--danger);font-weight:600;margin-inline-start:4px;';
         wipBadge.textContent = `WIP: ${sorted.length}/${wipLimit}`;
         colEl.querySelector('h3')?.appendChild(wipBadge);
+      } else if (overWip && existingWipBadge) {
+        existingWipBadge.textContent = `WIP: ${sorted.length}/${wipLimit}`;
       } else if (!overWip && existingWipBadge) {
         existingWipBadge.remove();
       }
-      if (document.body.classList.contains('khayt-studio')) {
+      if (document.body.classList.contains('khayt-handoff')) {
         let foot = colEl.querySelector('.khayt-kcol-foot');
         if (!foot) {
           foot = document.createElement('div');

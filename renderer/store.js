@@ -20,7 +20,7 @@
       if (prov === 'tamara') mask(s.bnpl?.tamara, 'notificationToken');
     });
     if (s.lanApi) {
-      ['pin', 'intakePin', 'intakeToken', 'webhookToken', 'sallaWebhookSecret', 'zidWebhookSecret']
+      ['pin', 'intakePin', 'intakeToken', 'calendarToken', 'webhookToken', 'sallaWebhookSecret', 'zidWebhookSecret']
         .forEach(k => mask(s.lanApi, k));
     }
     return s;

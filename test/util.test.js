@@ -1,6 +1,13 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { escapeHtml, parseCsvString, safeCssColor, initials } = require('../renderer/util.js');
+const {
+  escapeHtml,
+  parseCsvString,
+  safeCssColor,
+  initials,
+  buildLanOrderTrackingUrl,
+  buildLanQuoteApprovalUrl,
+} = require('../renderer/util.js');
 
 test('escapeHtml encodes special characters', () => {
   assert.equal(escapeHtml('<b>&"'), '&lt;b&gt;&amp;&quot;');
@@ -20,4 +27,16 @@ test('safeCssColor accepts hex only', () => {
 test('initials from name', () => {
   assert.equal(initials('Ada Lovelace'), 'AL');
   assert.equal(initials(''), '?');
+});
+
+test('buildLanOrderTrackingUrl includes token query', () => {
+  const order = { id: 'O-1' };
+  const url = buildLanOrderTrackingUrl('http://127.0.0.1:3219/', order);
+  assert.match(url, /^http:\/\/127\.0\.0\.1:3219\/order\/O-1\?token=[0-9a-f]{32}$/);
+});
+
+test('buildLanQuoteApprovalUrl includes token query', () => {
+  const order = { id: 'Q-1', status: 'quote' };
+  const url = buildLanQuoteApprovalUrl('http://127.0.0.1:3219', order);
+  assert.match(url, /^http:\/\/127\.0\.0\.1:3219\/order\/Q-1\/quote\?token=[0-9a-f]{32}$/);
 });
