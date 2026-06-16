@@ -58,7 +58,7 @@ html[data-design="vivid"] {
   --vivid-portfolio:   #8b5cf6;  --vivid-portfolio-2: #6366f1;  /* grape   */
   --vivid-money:       #10b981;  --vivid-money-2:     #84cc16;  /* green   */
   --vivid-analytics:   #06b6d4;  --vivid-analytics-2: #3b82f6;  /* cyan    */
-  --vivid-settings:    #64748b;  --vivid-settings-2:  #475569;  /* slate   */
+  --vivid-settings:    #6366f1;  --vivid-settings-2:  #8b5cf6;  /* indigo (was washed slate) */
 
   /* ---- Status palette (text + soft fill pairs) ---- */
   --vv-blue:#3b82f6;   --vv-blue-bg:#e7f0ff;
