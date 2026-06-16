@@ -41,4 +41,18 @@ struct SpoolDraft: Sendable {
         d.sourceNote = InputLimits.clamp(tag.standard, max: 64)
         return d
     }
+
+    static func from(spool: InventorySpool) -> SpoolDraft {
+        var d = SpoolDraft()
+        d.material = InputLimits.clamp(spool.material ?? spool.materialType ?? "")
+        d.brand = InputLimits.clamp(spool.brand ?? "")
+        if let w = spool.weight { d.weightGrams = min(max(Int(w.rounded()), 1), 50_000) }
+        if let hex = spool.color, !hex.isEmpty { d.colorHex = InputLimits.clamp(hex, max: 32) }
+        if let p = spool.printTemp { d.printTemp = String(p) }
+        if let b = spool.bedTemp { d.bedTemp = String(b) }
+        d.sku = InputLimits.clamp(spool.sku ?? "")
+        d.lot = InputLimits.clamp(spool.lot ?? "")
+        d.sourceNote = "Inventory"
+        return d
+    }
 }

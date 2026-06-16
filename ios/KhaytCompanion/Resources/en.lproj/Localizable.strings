@@ -97,3 +97,37 @@
 "notify.overdue.body" = "%d order(s) past due date";
 "notify.low_stock.title" = "Low filament";
 "notify.low_stock.body" = "%d spool(s) under 200g";
+
+/* NFC */
+"nfc.unavailable" = "NFC is not available on this device.";
+"nfc.read.prompt" = "Hold your iPhone near the filament spool tag.";
+"nfc.read.success" = "Tag read successfully.";
+"nfc.write.title" = "Write to NFC tag";
+"nfc.write.intro" = "Encode this spool data onto a blank NTAG213+ sticker. Pick the format your printer expects.";
+"nfc.write.standard" = "Tag standard";
+"nfc.write.preview" = "Data to write";
+"nfc.write.material" = "Material";
+"nfc.write.brand" = "Brand";
+"nfc.write.weight" = "Weight";
+"nfc.write.print_temp" = "Print temp";
+"nfc.write.bed_temp" = "Bed temp";
+"nfc.write.tap_blank" = "Tap blank tag to write";
+"nfc.write.scanning" = "Hold near blank tag…";
+"nfc.write.prompt" = "Hold your iPhone near a blank writable NFC tag.";
+"nfc.write.success" = "Tag written successfully.";
+"nfc.write.done" = "Done";
+"nfc.write.footer" = "Use NTAG213+ writable tags (NTAG215/216 for OpenSpool). Pick the format your printer or firmware expects.";
+"nfc.standard.openspool" = "OpenSpool";
+"nfc.standard.openspool.hint" = "Snapmaker U1 extended firmware, Bambu via OpenSpool reader — application/json";
+"nfc.standard.opentag3d" = "OpenTag3D";
+"nfc.standard.opentag3d.hint" = "Bambu Lab, Creality, generic — application/opentag3d";
+"nfc.standard.openprinttag" = "OpenPrintTag (Prusa)";
+"nfc.standard.openprinttag.hint" = "Prusa MK4 / XL / MINI — application/vnd.openprinttag";
+"nfc.error.missing_material" = "Material name is required to encode a tag.";
+"nfc.error.payload_large" = "Encoded data is too large (%d bytes) for this tag.";
+"nfc.error.invalid_color" = "Color hex is invalid.";
+"nfc.error.no_tag" = "No tag detected.";
+"nfc.error.unsupported_tag" = "Unsupported tag type.";
+"nfc.error.not_ndef" = "Tag does not support NDEF.";
+"nfc.error.read_only" = "Tag is read-only or locked. Use a blank writable tag.";
+"nfc.error.read_failed" = "Could not read tag.";

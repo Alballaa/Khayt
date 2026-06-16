@@ -19,6 +19,8 @@ struct AddSpoolSheet: View {
     @State private var scannedRaw: String?
     @State private var isUploading = false
     @State private var errorMessage: String?
+    @State private var showWriteNFC = false
+    @State private var nfcWriteStandard: NFCFilamentStandard?
 
     var onAdded: () -> Void
 
@@ -36,7 +38,19 @@ struct AddSpoolSheet: View {
                     SpoolReviewForm(
                         draft: $draft,
                         isUploading: isUploading,
-                        errorMessage: errorMessage
+                        errorMessage: errorMessage,
+                        onWriteNFC: {
+                            if draft.sourceNote.contains("OpenPrintTag") {
+                                nfcWriteStandard = .openPrintTag
+                            } else if draft.sourceNote.contains("OpenTag3D") {
+                                nfcWriteStandard = .openTag3D
+                            } else if draft.sourceNote.contains("OpenSpool") {
+                                nfcWriteStandard = .openSpool
+                            } else {
+                                nfcWriteStandard = nil
+                            }
+                            showWriteNFC = true
+                        }
                     ) {
                         Task { await submit() }
                     }
@@ -68,6 +82,9 @@ struct AddSpoolSheet: View {
                 step = .review
             }
             .onDisappear { nfc.invalidate() }
+            .sheet(isPresented: $showWriteNFC) {
+                WriteNFCTagSheet(draft: draft, suggestedStandard: nfcWriteStandard)
+            }
         }
     }
 
@@ -97,7 +114,7 @@ struct AddSpoolSheet: View {
                 }
                 methodRow(
                     title: "Tap NFC tag",
-                    subtitle: "OpenTag3D or Prusa OpenPrintTag",
+                    subtitle: "OpenSpool, OpenTag3D, or Prusa OpenPrintTag",
                     icon: "wave.3.right"
                 ) {
                     step = .nfc
@@ -194,6 +211,20 @@ struct AddSpoolSheet: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .padding(.horizontal)
+                Button {
+                    draft = SpoolDraft.from(tag: tag)
+                    switch tag.standard {
+                    case "OpenPrintTag": nfcWriteStandard = .openPrintTag
+                    case "OpenSpool": nfcWriteStandard = .openSpool
+                    default: nfcWriteStandard = .openTag3D
+                    }
+                    showWriteNFC = true
+                } label: {
+                    Label(L10n.tr("nfc.write.title"), systemImage: "square.and.pencil")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .padding(.horizontal)
             }
             Spacer()
         }
@@ -229,6 +260,7 @@ struct SpoolReviewForm: View {
     @Binding var draft: SpoolDraft
     let isUploading: Bool
     var errorMessage: String?
+    var onWriteNFC: (() -> Void)?
     let onSubmit: () -> Void
 
     var body: some View {
@@ -278,6 +310,14 @@ struct SpoolReviewForm: View {
                     }
                 }
                 .disabled(isUploading || draft.material.trimmingCharacters(in: .whitespaces).isEmpty)
+
+                if let onWriteNFC {
+                    Button(action: onWriteNFC) {
+                        Label(L10n.tr("nfc.write.title"), systemImage: "wave.3.right")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .disabled(draft.material.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
             }
         }
     }

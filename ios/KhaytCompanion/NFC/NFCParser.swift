@@ -10,11 +10,15 @@ enum NFCParseError: Error, LocalizedError, Sendable {
     }
 }
 
-/// Parses OpenTag3D and OpenPrintTag (Prusa) NFC payloads — parity with `renderer/inventory.js`.
+/// Parses OpenSpool, OpenTag3D, and OpenPrintTag (Prusa) NFC payloads — parity with `renderer/inventory.js`.
 enum NFCParser {
     static func parse(bytes: [UInt8]) -> Result<NFCFilamentTag, NFCParseError> {
         if bytes.count < 10 {
             return .failure(.invalidData("Tag data too short."))
+        }
+        if let payload = extractNDEFPayload(bytes, mimeType: "application/json"),
+           let tag = parseOpenSpool(payload) {
+            return .success(tag)
         }
         if let payload = extractNDEFPayload(bytes, mimeType: "application/opentag3d"),
            let tag = parseOpenTag3D(payload) {
@@ -24,10 +28,63 @@ enum NFCParser {
            let tag = parseOpenPrintTag(payload) {
             return .success(tag)
         }
+        if let tag = parseOpenSpool(bytes) {
+            return .success(tag)
+        }
         if let tag = parseOpenTag3D(bytes) {
             return .success(tag)
         }
-        return .failure(.invalidData("Could not parse as OpenTag3D or OpenPrintTag."))
+        return .failure(.invalidData("Could not parse as OpenSpool, OpenTag3D, or OpenPrintTag."))
+    }
+
+    // MARK: - OpenSpool
+
+    private static func parseOpenSpool(_ bytes: [UInt8]) -> NFCFilamentTag? {
+        guard let obj = try? JSONSerialization.jsonObject(with: Data(bytes)) as? [String: Any],
+              (obj["protocol"] as? String)?.lowercased() == "openspool" else { return nil }
+
+        let type = (obj["type"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let subtype = (obj["subtype"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let brand = (obj["brand"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard type != nil || !(brand ?? "").isEmpty else { return nil }
+
+        var material = type
+        if let subtype, !subtype.isEmpty, let type {
+            material = "\(type) \(subtype)"
+        }
+
+        var hex: String?
+        if let raw = obj["color_hex"] as? String {
+            var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            if s.hasPrefix("#") { s.removeFirst() }
+            if s.count == 6 { hex = "#\(s.lowercased())" }
+        }
+
+        let weight = intValue(obj["weight"])
+        let printT = intValue(obj["max_temp"]) ?? intValue(obj["min_temp"])
+        let bedT = intValue(obj["bed_max_temp"]) ?? intValue(obj["bed_min_temp"])
+
+        return NFCFilamentTag(
+            standard: "OpenSpool",
+            manufacturer: brand?.isEmpty == false ? brand : nil,
+            material: material,
+            colorName: nil,
+            hex: hex,
+            weight: weight,
+            printTemp: printT,
+            bedTemp: bedT,
+            sku: nil,
+            lot: nil
+        )
+    }
+
+    private static func intValue(_ value: Any?) -> Int? {
+        switch value {
+        case let n as Int: return n > 0 ? n : nil
+        case let n as Double: return n > 0 ? Int(n.rounded()) : nil
+        case let s as String: return Int(s.trimmingCharacters(in: .whitespaces))
+        default: return nil
+        }
     }
 
     // MARK: - OpenTag3D

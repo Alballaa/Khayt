@@ -15,6 +15,7 @@ Living priorities for maintainers. Not a public commitment calendar — reorder 
 - [x] **Platform strategy** — stay on Electron; rewrite (Swift/C++/native) deferred — [docs/PLATFORM-MIGRATION.md](./docs/PLATFORM-MIGRATION.md)
 - [x] Stabilization patch **v2.3.1** (portal tracking URL, operator PIN, UTC recurring dates, npm audit overrides)
 - [x] Run `node scripts/list-stale-branches.mjs --merged-into main` and delete merged `cursor/*` branches (maintainer cleanup, 2026-06-04)
+- [x] iOS Companion v1 in `ios/` — LAN PIN pairing, queue, inventory, machines, NFC read/write; see [docs/LAN_API.md](./docs/LAN_API.md)
 
 ## Shipped (2.2.0 — 2026-05-30)
 
