@@ -4,9 +4,9 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
-## [2.4.0] - 2026-06-15
+## [2.5.0] - 2026-06-16
 
-Stable graduation of the Khayt-4 beta line (`v2.4.0-beta.1` → `beta.4`): seven selectable design themes, the Settings redesign, the LAN/security hardening pass, and the beta→stable updater. Per-prerelease detail is consolidated in the sections below.
+Graduates the Khayt-4 beta line (`v2.4.0-beta.1` → `beta.4`) to a stable release: seven selectable design themes, the Settings redesign, the LAN/security hardening pass, and the beta→stable updater. Released as **2.5.0** (minor) over stable `2.3.3` — the `2.4.0` number was only ever published as pre-releases. Per-prerelease detail is consolidated in the sections below.
 
 ### Fixed
 
