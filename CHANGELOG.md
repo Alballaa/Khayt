@@ -6,6 +6,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Global search** — Fuzzy matching plus printers, suppliers, and expenses; main nav arrow-key tab switching.
+
+### Fixed
+
+- **Modals** — Focus trap keeps Tab inside dialogs; focus restores on close.
+- **Feedback** — Error when the email app cannot be opened.
 - **Update changelog screen** — Manual “Check for updates” and automatic launch checks show release notes in a review modal before download/install.
 
 ### Fixed
@@ -18,6 +24,9 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **Setup wizard** — Back buttons, explicit Continue on business-type step, Escape to skip with confirm, system theme default.
+- **Preferences** — Language and theme apply immediately when changed.
+- **Printers settings** — Autosave hint for machine/slicer editors.
 - **Settings on narrow windows** — Sidebar stacks horizontally on small screens.
 - **Automation settings** — Hint explains that each section saves individually.
 ## [2.5.0] - 2026-06-16

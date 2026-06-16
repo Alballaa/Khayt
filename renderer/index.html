@@ -232,24 +232,24 @@
 
           <div class="inline-pair">
             <div>
-              <label data-i18n="calc.part.name">Part name</label>
+              <label for="partName" data-i18n="calc.part.name">Part name</label>
               <input type="text" id="partName" data-i18n-placeholder="calc.part.name_ph">
             </div>
             <div>
-              <label data-i18n="calc.part.qty">Qty</label>
+              <label for="partQty" data-i18n="calc.part.qty">Qty</label>
               <input type="number" id="partQty" value="1" min="1" step="1">
             </div>
           </div>
 
           <div style="margin-top:10px;">
-            <label data-i18n="calc.part_colour">Colour / variant</label>
+            <label for="partColour" data-i18n="calc.part_colour">Colour / variant</label>
             <input type="text" id="partColour" list="partColourList" data-i18n-placeholder="calc.part_colour" placeholder="e.g. Red, RAL 3020">
             <datalist id="partColourList"></datalist>
           </div>
 
           <div class="inline-pair" style="margin-top:10px;">
             <div>
-              <label data-i18n="calc.part.filament">Filament</label>
+              <label for="filamentSelect" data-i18n="calc.part.filament">Filament</label>
               <div style="display:flex; align-items:center; gap:8px;">
                 <span id="filColorDot" style="display:inline-block; width:14px; height:14px; border-radius:50%; background:#888; flex-shrink:0; border:1px solid rgba(255,255,255,0.15); transition:background 0.2s;"></span>
                 <select id="filamentSelect" style="flex:1;"></select>
@@ -258,23 +258,23 @@
               <select id="spoolIdPicker" style="width:100%; margin-top:5px; font-size:12px; display:none;"></select>
             </div>
             <div>
-              <label data-i18n="calc.part.printer">Printer (per part)</label>
+              <label for="partMachineId" data-i18n="calc.part.printer">Printer (per part)</label>
               <select id="partMachineId"></select>
             </div>
           </div>
 
           <div class="inline-pair">
             <div>
-              <label><span data-i18n="calc.part.spool_cost">Spool cost</span> (<span data-i18n="common.currency">SAR</span>)</label>
+              <label for="spoolCost"><span data-i18n="calc.part.spool_cost">Spool cost</span> (<span data-i18n="common.currency">SAR</span>)</label>
               <input type="number" id="spoolCost" value="75" step="1" min="0">
             </div>
             <div>
-              <label><span data-i18n="calc.part.spool_wt">Spool weight</span> (<span data-i18n="common.grams">g</span>)</label>
+              <label for="spoolWeight"><span data-i18n="calc.part.spool_wt">Spool weight</span> (<span data-i18n="common.grams">g</span>)</label>
               <input type="number" id="spoolWeight" value="1000" min="1">
             </div>
           </div>
 
-          <label><span data-i18n="calc.part.print_wt">Print weight</span> (<span id="printWeightUnit" data-i18n="common.grams">g</span>)</label>
+          <label for="printWeight"><span data-i18n="calc.part.print_wt">Print weight</span> (<span id="printWeightUnit" data-i18n="common.grams">g</span>)</label>
           <input type="number" id="printWeight" value="150" min="0">
 
           <label style="margin-top:8px;"><span data-i18n="calc.support_wt">Support weight (g)</span></label>
@@ -1487,7 +1487,7 @@
             </select>
           </div>
           <div>
-            <label data-i18n="set.theme">Theme</label>
+            <label for="set_theme" data-i18n="set.theme">Theme</label>
             <select id="set_theme">
               <option value="dark" data-i18n="set.theme.dark">Dark</option>
               <option value="light" data-i18n="set.theme.light">Light</option>
@@ -2050,7 +2050,7 @@
 <div id="modalMount"></div>
 
 <!-- ===================== SETUP WIZARD ===================== -->
-<div id="setup-wizard" class="wizard-overlay" style="display:none">
+<div id="setup-wizard" class="wizard-overlay" style="display:none" role="dialog" aria-modal="true" aria-label="Setup wizard">
   <div class="wizard-card">
     <!-- Step 1: Language -->
     <div class="wizard-step" id="wiz-step-1">
@@ -2058,7 +2058,7 @@
       <h1 class="wizard-title" data-i18n="wiz.lang_title">Choose your language</h1>
       <p class="wizard-subtitle" data-i18n="wiz.lang_subtitle">You can change this anytime in Settings.</p>
       <div class="wizard-form" style="max-width:320px;margin:0 auto;">
-        <label><span data-i18n="wiz.language">Language</span>
+        <label for="wizLang"><span data-i18n="wiz.language">Language</span>
           <select id="wizLang" class="form-control">
             <option value="en">English</option>
             <option value="ar">العربية</option>
@@ -2087,10 +2087,10 @@
         <h2 class="wizard-title" data-i18n="sec.wiz_title">Protect your shop (optional)</h2>
         <p class="wizard-subtitle" data-i18n="sec.wiz_subtitle">Set an admin PIN to guard Settings, data reset, and operator switching. You can skip and enable later.</p>
         <div class="wizard-form" style="max-width:340px;margin:0 auto;">
-          <label><span data-i18n="sec.pin_label">Admin PIN (4–8 digits)</span>
+          <label for="wizPin"><span data-i18n="sec.pin_label">Admin PIN (4–8 digits)</span>
             <input id="wizPin" type="password" inputmode="numeric" class="form-control" autocomplete="new-password" maxlength="8">
           </label>
-          <label style="margin-top:10px;"><span data-i18n="sec.pin_confirm">Confirm PIN</span>
+          <label for="wizPinConfirm" style="margin-top:10px;"><span data-i18n="sec.pin_confirm">Confirm PIN</span>
             <input id="wizPinConfirm" type="password" inputmode="numeric" class="form-control" autocomplete="new-password" maxlength="8">
           </label>
           <p id="wizPinError" style="color:var(--danger);font-size:12px;min-height:18px;margin-top:8px;"></p>
@@ -2142,6 +2142,10 @@
           <span data-i18n="wiz.option_b2b_desc">Corporate clients, VAT invoicing, multi-location</span>
         </button>
       </div>
+      <div class="btn-row" style="justify-content:center;gap:10px;margin-top:16px;">
+        <button type="button" class="btn ghost" data-prev="2" data-i18n="wiz.back">← Back</button>
+        <button type="button" class="btn btn-primary wizard-next" id="wizStep3Continue" data-next="4" data-i18n="wiz.continue">Continue →</button>
+      </div>
     </div>
 
     <!-- Step 5: Business details -->
@@ -2149,10 +2153,10 @@
       <h2 class="wizard-title" data-i18n="wiz.details_title">Your business details</h2>
       <p class="wizard-subtitle" data-i18n="wiz.details_subtitle">Used on invoices and documents. Edit anytime in Settings.</p>
       <div class="wizard-form">
-        <label><span data-i18n="wiz.biz_name">Business / Shop name</span>
+        <label for="wizBizName"><span data-i18n="wiz.biz_name">Business / Shop name</span>
           <input id="wizBizName" type="text" data-i18n-placeholder="wiz.biz_name_ph" placeholder="e.g. Khayt Studio" class="form-control">
         </label>
-        <label><span data-i18n="wiz.currency">Currency</span>
+        <label for="wizCurrency"><span data-i18n="wiz.currency">Currency</span>
           <select id="wizCurrency" class="form-control">
             <option value="SAR">SAR — Saudi Riyal</option>
             <option value="USD">USD — US Dollar</option>
@@ -2175,7 +2179,10 @@
           </span>
         </label>
       </div>
-      <button type="button" class="btn btn-primary wizard-finish" id="wizFinish" data-i18n="wiz.finish">Start using Khayt →</button>
+      <div class="btn-row" style="justify-content:center;gap:10px;margin-top:8px;">
+        <button type="button" class="btn ghost" data-prev="3" data-i18n="wiz.back">← Back</button>
+        <button type="button" class="btn btn-primary wizard-finish" id="wizFinish" data-i18n="wiz.finish">Start using Khayt →</button>
+      </div>
     </div>
   </div>
 
@@ -2224,6 +2231,7 @@
 <script src="online.js"></script>
 <script src="app-state.js"></script>
 <script src="app-security.js"></script>
+<script src="search-utils.js"></script>
 <script src="themes/registry-core.js"></script>
 <script src="themes/custom-loader.js"></script>
 <script src="themes/ledger/shell.js"></script>

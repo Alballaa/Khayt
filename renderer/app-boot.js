@@ -46,6 +46,7 @@ function initWizard() {
   wiz.style.display = 'flex';
 
   let selectedMode = 'simple';
+  let wizCurrentStep = 1;
   let selectedDesign = settings.designTheme || 'studio';
   let pendingPin = null;
   let pendingRecoveryCode = null;
@@ -59,6 +60,7 @@ function initWizard() {
   i18n.applyToDom(wiz);
 
   function goToStep(n) {
+    wizCurrentStep = n;
     wiz.querySelectorAll('.wizard-step').forEach(s => s.style.display = 'none');
     const step = $(`#wiz-step-${n}`);
     if (step) step.style.display = '';
@@ -73,10 +75,27 @@ function initWizard() {
     }
   }
 
+  const wizEscHandler = (e) => {
+    if (e.key !== 'Escape' || wiz.style.display === 'none') return;
+    if (_escHandlerStack?.length) return;
+    e.preventDefault();
+    confirmModal(t('wiz.skip_confirm') || 'Skip setup and use defaults? You can finish this later in Settings.', {
+      okText: t('wiz.skip_ok') || 'Skip for now',
+      cancelText: t('common.cancel'),
+    }).then((ok) => { if (ok) finishWizard(); });
+  };
+  document.addEventListener('keydown', wizEscHandler);
+
   wiz.addEventListener('click', e => {
+    const backBtn = e.target.closest('[data-prev]');
     const nextBtn = e.target.closest('[data-next]');
     const optionBtn = e.target.closest('.wizard-option');
     const finishBtn = e.target.closest('#wizFinish');
+
+    if (backBtn) {
+      goToStep(parseInt(backBtn.dataset.prev, 10));
+      return;
+    }
 
     if (nextBtn && nextBtn.id !== 'wizRecoveryContinue') {
       const step = parseInt(nextBtn.dataset.next, 10);
@@ -105,7 +124,8 @@ function initWizard() {
       wiz.querySelectorAll('.wizard-option').forEach(o => o.classList.remove('selected'));
       optionBtn.classList.add('selected');
       selectedMode = optionBtn.dataset.mode;
-      setTimeout(() => goToStep(parseInt(optionBtn.dataset.next, 10)), 300);
+      const step3Continue = $('#wizStep3Continue');
+      if (step3Continue) step3Continue.disabled = false;
       return;
     }
 
@@ -209,6 +229,7 @@ function initWizard() {
     settings.firstRunDone = true;
     await flushSave();
 
+    document.removeEventListener('keydown', wizEscHandler);
     wiz.style.display = 'none';
     applyTheme(settings.theme);
     if (typeof applyDesignSettings === 'function') applyDesignSettings();
