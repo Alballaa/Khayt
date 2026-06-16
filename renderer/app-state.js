@@ -161,6 +161,8 @@ function defaultSettings() {
     betaUpdates:       false, // opt-in: include beta pre-releases in auto-update checks
     // Easy-wins batch: Calculator
     quoteValidityDays: 7,
+    // Quote follow-up automation (auto-nudge OFF by default; dashboard card always on)
+    quoteFollowUp:     { enabled: false, windowDays: 2, graceDays: 1, cooldownDays: 2, maxCount: 2 },
     minOrderAmount:    0,
     rushFeeEnabled:    false,
     rushFeePct:        25,
@@ -560,6 +562,10 @@ async function loadAll() {
 
   // Feature 4 (batch-2): Process any due recurring orders on load
   processRecurringOrders();
+
+  // Quote follow-up auto-nudge (opt-in): run once on load + start periodic timer.
+  if (typeof processQuoteFollowUps === 'function') processQuoteFollowUps();
+  if (typeof startQuoteFollowUpTimer === 'function') startQuoteFollowUpTimer();
 }
 
 function pruneExpiredNotifs() {

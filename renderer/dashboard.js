@@ -428,6 +428,12 @@ function renderDashboard() {
     .filter(o => Math.round((new Date(o.quoteExpiresAt + 'T00:00:00') - today0) / 86400000) <= 2)
     .sort((a, b) => (a.quoteExpiresAt || '').localeCompare(b.quoteExpiresAt || ''));
 
+  // Quotes due for a gentle follow-up nudge (pure selector — see lib/quote-followup.js).
+  // Restricted to the active location and scoped by the configurable follow-up window/dedupe.
+  const followUpQuotes = (typeof KhaytQuoteFollowUp !== 'undefined'
+    ? KhaytQuoteFollowUp.selectQuotesDueForFollowUp(dashOrders, settings, Date.now())
+    : []);
+
   // Orders awaiting delivery (completed but not yet delivered)
   const awaitingDelivery = printLog.filter(o => o.status === 'completed' && !o.deliveredAt);
 
@@ -805,15 +811,36 @@ function renderDashboard() {
       </div>`;
     })() : ''}
 
-    ${expiringQuotes.length > 0 ? `
-    <div class="dash-section">
-      <h3 class="dash-section-head" style="color:var(--warning);">${escapeHtml(t('dash.expiring_quotes'))} (${expiringQuotes.length})</h3>
-      ${expiringQuotes.map(q => {
+    ${followUpQuotes.length > 0 ? `
+    <div class="dash-section" style="border-left:3px solid var(--warning); padding-inline-start:12px;">
+      <h3 class="dash-section-head" style="color:var(--warning);">⏳ ${escapeHtml(t('dash.expiring_quotes'))} (${followUpQuotes.length})</h3>
+      ${followUpQuotes.map(q => {
         const daysLeft = Math.round((new Date(q.quoteExpiresAt + 'T00:00:00') - today0) / 86400000);
         const badge = daysLeft < 0
           ? `<span class="due-badge overdue">${escapeHtml(t('quote.expired'))}</span>`
           : `<span class="due-badge due-soon">${escapeHtml(t('quote.expires_in', { n: daysLeft }))}</span>`;
-        return orderCard(q, badge);
+        const client = q.clientId ? clients.find(c => c.id === q.clientId) : null;
+        const hasPhone = !!(client?.phone || '').trim();
+        const sentCount = +q.followUpCount || 0;
+        const sentChip = sentCount > 0
+          ? `<span style="font-size:10.5px;color:var(--text-muted);" title="${escapeHtml(t('quote.followup_count', { n: sentCount }))}">✓${sentCount}</span>`
+          : '';
+        const followBtn = hasPhone
+          ? `<button class="btn small ghost" data-act="quote-followup" data-id="${q.id}" title="${escapeHtml(t('quote.followup_btn'))}">💬 ${escapeHtml(t('quote.followup_btn'))}</button>`
+          : `<span style="font-size:10.5px;color:var(--text-muted);">${escapeHtml(t('quote.followup_no_phone'))}</span>`;
+        return `<div class="dash-order-row">
+          <div class="dash-order-info">
+            <strong>${escapeHtml(q.project || t('inv.walk_in'))}</strong>
+            <span class="dash-order-id">${escapeHtml(q.id)}${client ? ' · ' + escapeHtml(localName(client)) : ''}</span>
+          </div>
+          <div class="dash-order-meta">
+            ${badge}
+            ${sentChip}
+            <span class="dash-price">${fmtPrice(q.price)}</span>
+            ${followBtn}
+            <button class="btn small" data-act="edit-log" data-id="${q.id}">${escapeHtml(t('common.edit'))}</button>
+          </div>
+        </div>`;
       }).join('')}
     </div>` : ''}
 

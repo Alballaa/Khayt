@@ -1272,6 +1272,10 @@ function loadSettingsIntoForm() {
   // Easy-wins: Calculator settings
   const qvEl = $('#set_quoteValidityDays');
   if (qvEl) qvEl.value = settings.quoteValidityDays ?? 7;
+  const qfEnEl = $('#set_quoteFollowUpEnabled');
+  if (qfEnEl) qfEnEl.checked = !!(settings.quoteFollowUp && settings.quoteFollowUp.enabled);
+  const qfWinEl = $('#set_quoteFollowUpWindow');
+  if (qfWinEl) qfWinEl.value = (settings.quoteFollowUp && settings.quoteFollowUp.windowDays != null) ? settings.quoteFollowUp.windowDays : 2;
   const moEl = $('#set_minOrderAmount');
   if (moEl) moEl.value = settings.minOrderAmount ?? 0;
   const rfEl = $('#set_rushFeeEnabled');
@@ -1501,6 +1505,12 @@ function saveSettingsFromForm() {
     betaUpdates:       !!$('#set_betaUpdates')?.checked,
     // Easy-wins batch: Calculator
     quoteValidityDays: Math.max(1, num($('#set_quoteValidityDays')?.value, 7)),
+    // Quote follow-up automation — preserve advanced fields, update toggle + window from form
+    quoteFollowUp: {
+      ...(settings.quoteFollowUp || { graceDays: 1, cooldownDays: 2, maxCount: 2 }),
+      enabled:    !!$('#set_quoteFollowUpEnabled')?.checked,
+      windowDays: Math.max(0, Math.min(60, num($('#set_quoteFollowUpWindow')?.value, 2))),
+    },
     minOrderAmount:    Math.max(0, num($('#set_minOrderAmount')?.value, 0)),
     rushFeeEnabled:    !!$('#set_rushFeeEnabled')?.checked,
     rushFeePct:        Math.max(0, Math.min(500, num($('#set_rushFeePct')?.value, 25))),
