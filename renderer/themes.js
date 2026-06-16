@@ -41,6 +41,7 @@
     else if (theme?.shell === 'cockpit') sub.textContent = 'خيط · COCKPIT';
     else if (theme?.shell === 'atlas') sub.textContent = 'خيط · ATLAS';
     else if (theme?.shell === 'workbench') sub.textContent = 'خيط · WORKBENCH';
+    else if (theme?.shell === 'command') sub.textContent = 'خيط · COMMAND';
     else if (theme?.shell === 'vivid') sub.textContent = 'خيط · VIVID';
     else if (theme?.custom) sub.textContent = `خيط · ${(theme.label || designId).toUpperCase()}`;
     else sub.textContent = 'خيط · STUDIO';
@@ -75,6 +76,7 @@
     document.body.classList.toggle('khayt-cockpit', shell === 'cockpit');
     document.body.classList.toggle('khayt-atlas', shell === 'atlas');
     document.body.classList.toggle('khayt-workbench', shell === 'workbench');
+    document.body.classList.toggle('khayt-command', shell === 'command');
     document.body.classList.toggle('khayt-vivid', shell === 'vivid');
     document.body.classList.toggle('khayt-shell-default', shell === 'default');
     document.body.classList.toggle('khayt-handoff', reg()?.usesHandoffScreens?.(shell) === true);
@@ -83,7 +85,7 @@
       el.classList.remove(el.dataset.khaytBodyClass);
       delete el.dataset.khaytBodyClass;
     });
-    if (theme?.bodyClass && !['khayt-studio', 'khayt-ledger', 'khayt-console', 'khayt-atelier', 'khayt-vitrine', 'khayt-cockpit', 'khayt-atlas', 'khayt-workbench', 'khayt-vivid'].includes(theme.bodyClass)) {
+    if (theme?.bodyClass && !['khayt-studio', 'khayt-ledger', 'khayt-console', 'khayt-atelier', 'khayt-vitrine', 'khayt-cockpit', 'khayt-atlas', 'khayt-workbench', 'khayt-command', 'khayt-vivid'].includes(theme.bodyClass)) {
       document.body.classList.add(theme.bodyClass);
       document.body.dataset.khaytBodyClass = theme.bodyClass;
     }
@@ -100,10 +102,11 @@
     const wasCockpit = document.body.classList.contains('khayt-cockpit');
     const wasAtlas = document.body.classList.contains('khayt-atlas');
     const wasWorkbench = document.body.classList.contains('khayt-workbench');
+    const wasCommand = document.body.classList.contains('khayt-command');
     const wasVivid = document.body.classList.contains('khayt-vivid');
     const nextShell = theme?.shell || 'studio';
 
-    if (['ledger', 'console', 'atelier', 'vitrine', 'cockpit', 'atlas', 'workbench', 'vivid'].includes(nextShell)) {
+    if (['ledger', 'console', 'atelier', 'vitrine', 'cockpit', 'atlas', 'workbench', 'command', 'vivid'].includes(nextShell)) {
       document.getElementById('appSidebar')?.classList.remove('collapsed');
     }
 
@@ -123,6 +126,7 @@
     if (wasCockpit) global.KhaytCockpitShell?.teardownCockpitShell?.();
     if (wasAtlas) global.KhaytAtlasShell?.teardownAtlasShell?.();
     if (wasWorkbench) global.KhaytWorkbenchShell?.teardownWorkbenchShell?.();
+    if (wasCommand) global.KhaytCommandShell?.teardownCommandShell?.();
     if (wasVivid) global.KhaytVividShell?.teardownVividShell?.();
     if (nextShell === 'ledger') global.KhaytLedgerShell?.applyLedgerShell?.();
     if (nextShell === 'console') global.KhaytConsoleShell?.applyConsoleShell?.();
@@ -131,6 +135,7 @@
     if (nextShell === 'cockpit') global.KhaytCockpitShell?.applyCockpitShell?.();
     if (nextShell === 'atlas') global.KhaytAtlasShell?.applyAtlasShell?.();
     if (nextShell === 'workbench') global.KhaytWorkbenchShell?.applyWorkbenchShell?.();
+    if (nextShell === 'command') global.KhaytCommandShell?.applyCommandShell?.();
     if (nextShell === 'vivid') global.KhaytVividShell?.applyVividShell?.();
     if (reg()?.usesHandoffScreens?.(theme?.shell)) {
       global.KhaytStudio?.init?.();
@@ -138,7 +143,7 @@
       if (typeof renderKanban === 'function') renderKanban();
       if (typeof renderClients === 'function') renderClients();
       if (typeof renderInventory === 'function') renderInventory();
-    } else if (nextShell === 'cockpit' || nextShell === 'atlas' || nextShell === 'workbench' || nextShell === 'vivid') {
+    } else if (nextShell === 'cockpit' || nextShell === 'atlas' || nextShell === 'workbench' || nextShell === 'command' || nextShell === 'vivid') {
       if (typeof renderDashboard === 'function') renderDashboard();
     }
   }
@@ -218,7 +223,6 @@
     VITRINE_ACCENTS: reg()?.VITRINE_ACCENTS,
     COCKPIT_ACCENTS: reg()?.COCKPIT_ACCENTS,
     ATLAS_ACCENTS: reg()?.ATLAS_ACCENTS,
-    VIVID_ACCENTS: reg()?.VIVID_ACCENTS,
   };
 
   Object.assign(global, api);

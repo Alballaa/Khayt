@@ -383,6 +383,9 @@ function switchTab(tabId) {
   if (typeof KhaytWorkbenchShell?.syncWorkbenchPageHead === 'function') {
     KhaytWorkbenchShell.syncWorkbenchPageHead(tabId);
   }
+  if (typeof KhaytCommandShell?.syncCommandPageHead === 'function') {
+    KhaytCommandShell.syncCommandPageHead(tabId);
+  }
   if (typeof KhaytVividShell?.syncVividPageHead === 'function') {
     KhaytVividShell.syncVividPageHead(tabId);
   }
