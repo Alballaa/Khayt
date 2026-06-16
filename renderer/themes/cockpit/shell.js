@@ -31,6 +31,14 @@
     document.querySelectorAll('.tab-btn[data-tab]').forEach((btn) => {
       const show = COCKPIT_TABS.has(btn.dataset.tab);
       btn.style.display = show ? '' : 'none';
+    });
+    relabelNav();
+  }
+
+  // Refresh rail labels from the current language (called on page-head sync so
+  // labels follow a language switch, matching the Atlas shell).
+  function relabelNav() {
+    document.querySelectorAll('.tab-btn[data-tab]').forEach((btn) => {
       const label = btn.querySelector('.nav-label');
       const rl = RAIL_LABELS[btn.dataset.tab];
       if (label && rl) label.textContent = tr(rl[0], rl[1]);
@@ -117,6 +125,7 @@
 
   function syncCockpitPageHead(tabId) {
     if (!document.body.classList.contains('khayt-cockpit')) return;
+    relabelNav();
     syncCockpitStats();
   }
 
