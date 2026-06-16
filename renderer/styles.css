@@ -4092,9 +4092,18 @@ th[data-sort]:hover {
   overflow: hidden;
 }
 
+.settings-panel-hint,
+.settings-field-hint {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+.settings-field-hint { margin-top: 4px; margin-bottom: 0; font-size: 11.5px; }
+
 .settings-layout {
-  display: grid;
-  grid-template-columns: 192px 1fr;
+  display: flex;
+  flex-direction: column;
   flex: 1;
   overflow: hidden;
   min-height: 0;
@@ -4115,76 +4124,89 @@ th[data-sort]:hover {
   .settings-nav-group-label { width: 100%; }
 }
 
-.settings-panel-hint {
-  margin: 0 0 16px;
-  font-size: 12.5px;
-  color: var(--text-muted);
-  line-height: 1.45;
-}
-
-/* ── Sidebar ───────────────────────────────────────────────── */
+/* ── Section nav: horizontal tab strip across the top ──────── */
 .settings-sidebar {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: stretch;
   gap: 2px;
-  padding: 16px 10px;
-  border-right: 1px solid var(--border);
-  overflow-y: auto;
+  padding: 8px 18px 0;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  flex-shrink: 0;
   background: var(--bg-elevated, var(--surface));
+  scrollbar-width: thin;
 }
+.settings-sidebar::-webkit-scrollbar { height: 6px; }
+.settings-sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
+/* Group labels become a thin vertical divider between General and Advanced.
+   The first one (before the very first tab) is hidden. */
 .settings-nav-group-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  padding: 12px 10px 4px;
-  pointer-events: none;
-  user-select: none;
+  align-self: center;
+  flex-shrink: 0;
+  width: 1px;
+  height: 20px;
+  padding: 0;
+  margin: 0 9px;
+  background: var(--border);
+  font-size: 0;
+  color: transparent;
 }
-.settings-nav-group-label:first-child { padding-top: 2px; }
+.settings-nav-group-label:first-child { display: none; }
 
 .settings-nav-item {
   display: flex;
   align-items: center;
-  gap: 9px;
-  width: 100%;
-  padding: 7px 12px;
-  border-radius: 8px;
+  gap: 7px;
+  flex-shrink: 0;
+  padding: 10px 14px;
   border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 8px 8px 0 0;
   background: transparent;
   color: var(--text-muted);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  text-align: start;
-  transition: background 0.12s, color 0.12s;
+  white-space: nowrap;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
 .settings-nav-item:hover {
   background: var(--surface-2);
   color: var(--text);
 }
 .settings-nav-item.active {
-  background: rgba(91, 156, 240, 0.14);
+  background: transparent;
   color: var(--accent, #5B9CF0);
   font-weight: 600;
+  border-bottom-color: var(--accent, #5B9CF0);
 }
-.settings-nav-item .nav-icon {
-  font-size: 15px;
-  width: 20px;
-  text-align: center;
-  flex-shrink: 0;
-}
+.settings-nav-item .nav-icon { display: none; }
 
 /* ── Panels ────────────────────────────────────────────────── */
 .settings-panels {
+  flex: 1;
   overflow-y: auto;
   padding: 24px 28px 48px;
 }
 
 .settings-panel { display: none; }
-.settings-panel.active { display: block; }
+/* Constrain panel content to a readable measure and center it under the tab strip. */
+.settings-panel.active { display: block; max-width: 760px; margin: 0 auto; }
+
+/* Card-based sub-sections: each settings group is a themed .card.settings-card.
+   The section-head becomes the card's title (its divider/border is dropped). */
+.settings-card { margin-bottom: 14px; }
+.settings-card > .settings-section-head {
+  border-top: none;
+  margin: 0 0 14px;
+  padding: 0;
+}
+.settings-card > .settings-section-head:first-child { margin-top: 0; }
+.settings-card > *:last-child { margin-bottom: 0; }
 
 /* Panel section dividers (replaces card-head inside kitchen-sink card) */
 .settings-section-head {
@@ -4211,6 +4233,11 @@ th[data-sort]:hover {
   gap: 0 18px;
 }
 .settings-fields-grid .span2 { grid-column: 1 / -1; }
+
+/* Collapse to a single column when the panel gets narrow (small window / RTL). */
+@media (max-width: 1040px) {
+  .settings-fields-grid { grid-template-columns: 1fr; }
+}
 
 /* Panel h2 title */
 .settings-panel-title {

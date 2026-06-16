@@ -77,6 +77,48 @@
     el.innerHTML = svg(name, size || 18);
   }
 
+  const SETTINGS_ICON = {
+    biz: 'doc',
+    prefs: 'settings',
+    stock: 'inventory',
+    invoice: 'doc',
+    payments: 'gift',
+    printers: 'printer',
+    online: 'globe',
+    ops: 'bolt',
+    automation: 'bell',
+    access: 'user',
+    data: 'doc',
+  };
+
+  function hydrateSettingsNav() {
+    if (!document.body.classList.contains('khayt-handoff')) return;
+    document.querySelectorAll('.settings-nav-item[data-settings-section]').forEach((btn) => {
+      const iconEl = btn.querySelector('.nav-icon');
+      const name = SETTINGS_ICON[btn.dataset.settingsSection];
+      if (iconEl && name) mount(iconEl, name, 16);
+    });
+  }
+
+  function hydrateCockpitNav() {
+    if (!document.body.classList.contains('khayt-cockpit')) return;
+    document.querySelectorAll('.khayt-navitem[data-tab]').forEach((btn) => {
+      const iconEl = btn.querySelector('.nav-icon');
+      if (!iconEl) return;
+      const name = TAB_ICON[btn.dataset.tab];
+      if (name) mount(iconEl, name, 20);
+    });
+  }
+
+  function hydrateHandoff() {
+    if (!document.body.classList.contains('khayt-handoff')) return;
+    if (document.body.classList.contains('khayt-studio')) {
+      hydrateNav();
+      hydrateTopbar();
+    }
+    hydrateSettingsNav();
+  }
+
   function hydrateNav() {
     if (!document.body.classList.contains('khayt-studio')) return;
     document.querySelectorAll('.khayt-navitem[data-tab]').forEach(btn => {
@@ -112,5 +154,7 @@
     }
   }
 
-  window.KhaytIcon = { svg, mount, hydrateNav, hydrateTopbar, ICONS };
+  window.KhaytIcon = {
+    svg, mount, hydrateNav, hydrateTopbar, hydrateSettingsNav, hydrateHandoff, hydrateCockpitNav, ICONS,
+  };
 })();
