@@ -169,10 +169,10 @@
         <span class="grow topbar-spacer"></span>
         <div class="row gap8 topbar-actions wrap">
           <button type="button" class="btn ghost icon sm" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">◐</button>
-          <button type="button" class="btn ghost sm" id="btnHelp" data-i18n="help.btn">?</button>
+          <button type="button" class="btn ghost sm" id="btnHelp" data-i18n="help.btn" data-i18n-title="help.btn_label" title="Help" aria-label="Help">?</button>
           <button type="button" class="btn ghost sm" id="btnGlobalSearch">🔍 <span class="muted" style="font-size:10px">⌘K</span></button>
           <div class="khayt-bell tb-notif-wrap" style="position:relative">
-            <button type="button" class="btn ghost icon sm" id="btnNotifBell" title="Notifications" aria-label="Notifications">🔔</button>
+            <button type="button" class="btn ghost icon sm" id="btnNotifBell" title="Notifications" aria-label="Notifications" aria-expanded="false" aria-controls="notifPanel">🔔</button>
             <span class="khayt-bdot" id="notifBadge" style="display:none"></span>
             <div id="notifPanel" style="display:none;position:absolute;inset-inline-end:0;top:calc(100% + 8px);width:340px;max-height:480px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:var(--shadow-pop);z-index:8000"></div>
           </div>
@@ -217,7 +217,7 @@
     </section>
 
     <!-- ===================== CALCULATOR ===================== -->
-    <section id="calculator-tab" class="tab-content khayt-calc">
+    <section id="calculator-tab" class="tab-content khayt-calc" role="tabpanel" aria-labelledby="tabbtn-calculator-tab" aria-hidden="true" tabindex="-1">
 
       <div class="grid">
 
@@ -552,7 +552,7 @@
     </section>
 
     <!-- ===================== QUEUE ===================== -->
-    <section id="queue-tab" class="tab-content khayt-queue">
+    <section id="queue-tab" class="tab-content khayt-queue" role="tabpanel" aria-labelledby="tabbtn-queue-tab" aria-hidden="true" tabindex="-1">
       <!-- Machine Queues -->
       <div id="machineQueuesContainer" class="mb-6"></div>
 
@@ -961,7 +961,7 @@
     </section>
 
     <!-- ===================== INVENTORY ===================== -->
-    <section id="inventory-tab" class="tab-content khayt-inventory">
+    <section id="inventory-tab" class="tab-content khayt-inventory" role="tabpanel" aria-labelledby="tabbtn-inventory-tab" aria-hidden="true" tabindex="-1">
       <div id="invStudioStats" class="khayt-inv-stats" style="display:none" aria-hidden="true"></div>
       <div id="reorderAlertsSection" style="display:none;"></div>
       <div id="supplierReorderList" style="margin-bottom:12px;"></div>
@@ -1839,6 +1839,7 @@
       <!-- ─── AUTOMATION (pro-only) ─────────────────────────── -->
       <div class="settings-panel pro-only" id="settings-panel-automation">
         <h2 class="settings-panel-title" data-i18n="set.nav_automation">Automation</h2>
+        <p class="settings-panel-hint" data-i18n="set.automation_save_hint">Each section below has its own Save button — changes are not applied until you save that section.</p>
 
         <div class="card settings-card">
         <div class="settings-section-head" data-i18n="wa.settings_section">WhatsApp Quick-Reply Templates</div>
@@ -2043,7 +2044,7 @@
 </div>
 
 <!-- Toast container -->
-<div class="toast-container" id="toastContainer"></div>
+<div class="toast-container" id="toastContainer" role="status" aria-live="polite" aria-atomic="true"></div>
 
 <!-- Modal mount point -->
 <div id="modalMount"></div>
@@ -2186,8 +2187,6 @@
     <span class="wizard-dot" data-step="4"></span>
     <span class="wizard-dot" data-step="5"></span>
   </div>
-</div>
-
 </div>
 
 <!-- Printable invoice area -->

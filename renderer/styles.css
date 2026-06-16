@@ -4109,6 +4109,21 @@ th[data-sort]:hover {
   min-height: 0;
 }
 
+@media (max-width: 760px) {
+  .settings-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+  .settings-sidebar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    max-height: 140px;
+  }
+  .settings-nav-group-label { width: 100%; }
+}
+
 /* ── Section nav: horizontal tab strip across the top ──────── */
 .settings-sidebar {
   display: flex;

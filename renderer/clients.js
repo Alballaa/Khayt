@@ -25,6 +25,7 @@ function renderClients() {
   let filtered = clients;
   if (term) {
     filtered = clients.filter(c =>
+      (c.id || '').toLowerCase().includes(term) ||
       (c.nameEn || '').toLowerCase().includes(term) ||
       (c.nameAr || '').toLowerCase().includes(term) ||
       (c.phone || '').toLowerCase().includes(term) ||

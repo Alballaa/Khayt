@@ -186,11 +186,17 @@ function updateNotifBadge() {
   }
 }
 
+function setNotifBellExpanded(open) {
+  const bell = $('#btnNotifBell');
+  if (bell) bell.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
 function openNotifPanel() {
   const panel = $('#notifPanel');
   if (!panel) return;
   if (panel.style.display !== 'none') {
     panel.style.display = 'none';
+    setNotifBellExpanded(false);
     return;
   }
 
@@ -201,6 +207,7 @@ function openNotifPanel() {
       ✅ ${escapeHtml(t('notif.all_clear') || 'All clear — no active alerts')}
     </div>`;
     panel.style.display = 'block';
+    setNotifBellExpanded(true);
     return;
   }
 
@@ -248,6 +255,9 @@ function openNotifPanel() {
 
   panel.innerHTML = html;
   panel.style.display = 'block';
+  panel.setAttribute('role', 'region');
+  panel.setAttribute('aria-label', t('notif.title') || 'Notifications');
+  setNotifBellExpanded(true);
 
   // Attach click handlers
   panel.querySelectorAll('.notif-row').forEach(row => {
@@ -256,6 +266,7 @@ function openNotifPanel() {
     row.addEventListener('mouseleave', () => row.style.background = '');
     row.addEventListener('click', () => {
       panel.style.display = 'none';
+      setNotifBellExpanded(false);
       if (alerts[idx]) alerts[idx].action();
     });
   });
