@@ -617,10 +617,12 @@ function maybeAutoSubmitZatca(order) {
   if (order.voidedAt || order.status === 'quote') return;
   if (order.status !== 'completed' && order.status !== 'delivered') return;
   if (order.zatcaSubmission?.status === 'accepted') return;
-  submitOrderToZatca(order.id, { silent: true }).then(r => {
-    if (r?.ok && !r.skipped) toast(t('zatca2.auto_submitted', { id: order.id }) || `Invoice ${order.id} submitted to ZATCA`, 'success', 4000);
-    else if (r?.ok === false && !r.skipped) toast(t('zatca2.auto_submit_failed', { id: order.id }) || `ZATCA auto-submit failed for ${order.id}`, 'warning', 5000);
-  });
+  submitOrderToZatca(order.id, { silent: true })
+    .then((r) => {
+      if (r?.ok && !r.skipped) toast(t('zatca2.auto_submitted', { id: order.id }) || `Invoice ${order.id} submitted to ZATCA`, 'success', 4000);
+      else if (r?.ok === false && !r.skipped) toast(t('zatca2.auto_submit_failed', { id: order.id }) || `ZATCA auto-submit failed for ${order.id}`, 'warning', 5000);
+    })
+    .catch((e) => console.error('ZATCA auto-submit:', e));
 }
 
 function zatcaSubmissionStatusLabel(order) {

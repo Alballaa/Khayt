@@ -71,11 +71,11 @@ async function exportQuoteApprovalPage(orderId) {
   }).join('');
 
   const lanInfo = await window.hubAPI?.getLanUrl?.();
-  const approveUrl = lanInfo?.ok ? `${lanInfo.url}/order/${orderId}/quote` : null;
+  const approveUrl = lanInfo?.ok ? buildLanQuoteApprovalUrl(lanInfo.url, order) : null;
   let approveQrHtml = '';
   if (approveUrl) {
     try {
-      const qrDataUrl = await window.hubAPI.generateQR(approveUrl, { width: 160 });
+      const qrDataUrl = await window.hubAPI.generateQR(approveUrl, { width: 160, dataUrl: true });
       if (qrDataUrl) {
         approveQrHtml = `
         <div style="text-align:center;margin-top:16px;">

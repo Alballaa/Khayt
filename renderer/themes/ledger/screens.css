@@ -1,0 +1,62 @@
+/* Ledger screen polish — scoped to Workshop Ledger theme. */
+
+html[data-design="ledger"] .khayt-swatch,
+body.khayt-ledger .khayt-swatch {
+  width: 13px;
+  height: 13px;
+  border-radius: var(--r-xs);
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(43,36,24,0.25);
+}
+
+html[data-design="ledger"][data-theme="dark"] .khayt-swatch,
+body.khayt-ledger[data-theme="dark"] .khayt-swatch {
+  box-shadow: inset 0 0 0 1px rgba(237,226,205,0.25);
+}
+
+body.khayt-ledger .khayt-kpi {
+  position: relative;
+}
+
+body.khayt-ledger .khayt-kpi::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: -1px;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  background: var(--accent);
+  opacity: 0.85;
+}
+
+body.khayt-ledger .dash-stat,
+body.khayt-ledger .card {
+  box-shadow: var(--shadow-1);
+}
+
+body.khayt-ledger .kanban-col.khayt-kcol,
+body.khayt-ledger .kanban-col {
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+}
+
+body.khayt-ledger .kanban-card.khayt-kcard,
+body.khayt-ledger .kanban-card {
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-1);
+}
+
+body.khayt-ledger table th {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: var(--surface-2);
+}
+
+body.khayt-ledger .metric,
+body.khayt-ledger .dash-stat-val,
+body.khayt-ledger .mono {
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum" 1;
+}

@@ -1,0 +1,56 @@
+/* Vitrine — screen restyles */
+
+body.khayt-vitrine .khayt-kpi::before {
+  display: none;
+}
+
+body.khayt-vitrine .khayt-ptile:hover,
+body.khayt-vitrine .dash-stat:hover {
+  border-color: var(--accent-line);
+  box-shadow: 0 0 24px var(--accent-soft);
+}
+
+body.khayt-vitrine .khayt-kanban {
+  grid-template-columns: repeat(5, minmax(216px, 1fr));
+  gap: 12px;
+}
+
+body.khayt-vitrine .kanban-col.khayt-kcol {
+  background: var(--bg-2);
+  border: 1px solid var(--hairline);
+  -webkit-backdrop-filter: blur(var(--glass)) saturate(1.4);
+  backdrop-filter: blur(var(--glass)) saturate(1.4);
+}
+
+body.khayt-vitrine .kanban-card.khayt-kcard {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+body.khayt-vitrine .kanban-card.khayt-kcard:hover {
+  border-color: var(--accent-line);
+  box-shadow: 0 8px 26px rgba(0,0,0,0.3), 0 0 18px var(--accent-soft);
+  transform: translateY(-2px);
+}
+
+html[data-design="vitrine"][data-theme="light"] body.khayt-vitrine .kanban-card.khayt-kcard:hover {
+  box-shadow: 0 8px 26px rgba(28,34,58,0.12), 0 0 18px var(--accent-soft);
+}
+
+body.khayt-vitrine .khayt-kbar {
+  box-shadow: 0 0 8px currentColor;
+}
+
+body.khayt-vitrine .khayt-client:hover {
+  border-color: var(--accent-line);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 34px rgba(0,0,0,0.3), 0 0 20px var(--accent-soft);
+}
+
+html[data-design="vitrine"][data-theme="light"] body.khayt-vitrine .khayt-client:hover {
+  box-shadow: 0 12px 34px rgba(28,34,58,0.12), 0 0 20px var(--accent-soft);
+}
+
+body.khayt-vitrine .khayt-ph-ico {
+  border-radius: var(--r-md);
+  box-shadow: 0 0 24px var(--accent-soft);
+}

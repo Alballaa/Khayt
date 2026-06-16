@@ -50,7 +50,8 @@ contextBridge.exposeInMainWorld('hubAPI', {
   openFile:  (filePath) => ipcRenderer.invoke('hub:open-file', filePath),
 
   // Feature 7: Save HTML to temp file and open
-  saveHtml:  (html, filename) => ipcRenderer.invoke('hub:save-html', html, filename),
+  saveHtml:  (html, filename, opts) => ipcRenderer.invoke('hub:save-html', html, filename, opts),
+  encryptionAvailable: () => ipcRenderer.invoke('hub:encryption-available'),
 
   // Feature 2 (new): File vault
   copyFileToVault: (srcPath, orderId) => ipcRenderer.invoke('hub:copy-file-to-vault', { srcPath, orderId }),
@@ -68,6 +69,7 @@ contextBridge.exposeInMainWorld('hubAPI', {
   clipboardWrite: (text)  => ipcRenderer.invoke('hub:clipboard-write', text),
   saveTextFile: (opts)    => ipcRenderer.invoke('hub:save-text-file', opts),
   requestFullWipe: ()     => ipcRenderer.invoke('hub:request-full-wipe'),
+  verifyOperatorPin: (opts) => ipcRenderer.invoke('hub:verify-operator-pin', opts),
 
   // Feature 1 (new batch): G-code / 3MF metadata extraction
   parsePrintFile: (filePath) => ipcRenderer.invoke('hub:parse-print-file', filePath),
@@ -133,11 +135,13 @@ contextBridge.exposeInMainWorld('hubAPI', {
   onLanIntakeSubmitted: (() => { let _cb=null; ipcRenderer.on('lan-intake-submitted', (_e,d)=>{ if(_cb) _cb(d); }); return cb=>{ _cb=cb; }; })(),
 
   // Auto-updater
+  setUpdateOptions:     (opts)           => ipcRenderer.invoke('hub:set-update-options', opts),
   checkForUpdates:      ()               => ipcRenderer.invoke('hub:check-for-updates'),
+  formatReleaseNotes:   (notes, opts)    => ipcRenderer.invoke('hub:format-release-notes', notes, opts),
   startUpdateDownload:  ()               => ipcRenderer.invoke('hub:start-update-download'),
-  // Pass the final in-memory store so main.js can flush it atomically before quitting.
+  // Quit and install; pass null after flushSave() (avoid duplicate encrypt+write on large stores).
   installUpdate:        (storeSnapshot)  => ipcRenderer.invoke('hub:install-update', storeSnapshot),
-  // Write a named pre-update backup (distinct from daily YYYY-MM-DD.json files).
+  // Pre-update backup: pass '__COPY_STORE__' to copy the on-disk store file (fast).
   writeUpdateBackup:    (json, version)  => ipcRenderer.invoke('hub:write-update-backup', json, version),
   onUpdateAvailable:        (() => { let _cb=null; ipcRenderer.on('update-available',         (_e,d)=>{ if(_cb) _cb(d); }); return cb=>{ _cb=cb; }; })(),
   onUpdateDownloadProgress: (() => { let _cb=null; ipcRenderer.on('update-download-progress', (_e,d)=>{ if(_cb) _cb(d); }); return cb=>{ _cb=cb; }; })(),

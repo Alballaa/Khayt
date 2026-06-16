@@ -102,6 +102,7 @@
 
   global.CURRENCIES = CURRENCIES;
   Object.assign(global, api);
+  global.refreshCurrencyLabels = refreshCurrencyLabels;
   global.KhaytCurrency = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : window);

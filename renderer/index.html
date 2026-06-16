@@ -1,14 +1,38 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr" data-theme="dark">
+<html lang="en" dir="ltr" data-theme="dark" data-design="studio" data-accent="cyan">
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; script-src 'self'; img-src 'self' data: blob:;">
+        content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self'; img-src 'self' data: blob:;">
   <title>Khayt</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="fonts/fonts.css" />
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="themes/ledger/tokens.css" />
+  <link rel="stylesheet" href="themes/ledger/compat.css" />
+  <link rel="stylesheet" href="themes/ledger/shell.css" />
+  <link rel="stylesheet" href="themes/ledger/screens.css" />
+  <link rel="stylesheet" href="themes/console/tokens.css" />
+  <link rel="stylesheet" href="themes/console/compat.css" />
+  <link rel="stylesheet" href="themes/console/shell.css" />
+  <link rel="stylesheet" href="themes/console/screens.css" />
+  <link rel="stylesheet" href="themes/atelier/tokens.css" />
+  <link rel="stylesheet" href="themes/atelier/compat.css" />
+  <link rel="stylesheet" href="themes/atelier/shell.css" />
+  <link rel="stylesheet" href="themes/atelier/screens.css" />
+  <link rel="stylesheet" href="themes/vitrine/tokens.css" />
+  <link rel="stylesheet" href="themes/vitrine/compat.css" />
+  <link rel="stylesheet" href="themes/vitrine/shell.css" />
+  <link rel="stylesheet" href="themes/vitrine/screens.css" />
+  <link rel="stylesheet" href="themes/cockpit/tokens.css" />
+  <link rel="stylesheet" href="themes/cockpit/spectrum.css" />
+  <link rel="stylesheet" href="themes/cockpit/shell.css" />
+  <link rel="stylesheet" href="themes/cockpit/sections.css" />
+  <link rel="stylesheet" href="themes/cockpit/compat.css" />
+  <link rel="stylesheet" href="themes/atlas/tokens.css" />
+  <link rel="stylesheet" href="themes/atlas/shell.css" />
+  <link rel="stylesheet" href="themes/atlas/compat.css" />
+  <link rel="stylesheet" href="themes/theme-picker.css" />
+  <link rel="stylesheet" href="themes/handoff-screens.css" />
   <link rel="stylesheet" href="studio/ds.css" />
   <link rel="stylesheet" href="studio/shell.css" />
   <link rel="stylesheet" href="studio/screens.css" />
@@ -95,7 +119,7 @@
             <span class="nav-icon" aria-hidden="true">◐</span>
             <span class="nav-label grow" data-i18n="tab.analytics">Analytics</span>
           </button>
-          <button type="button" class="tab-btn khayt-navitem pro-only" data-tab="expenses-tab">
+          <button type="button" class="tab-btn khayt-navitem pro-only" data-tab="expenses-tab" role="tab" id="tabbtn-expenses-tab" aria-selected="false" aria-controls="expenses-tab" tabindex="-1">
             <span class="nav-icon" aria-hidden="true">◧</span>
             <span class="nav-label grow" data-i18n="tab.expenses">Expenses</span>
             <span class="khayt-pro">PRO</span>
@@ -116,6 +140,23 @@
 
     <div class="khayt-main app-body">
       <header class="khayt-top app-topbar">
+        <div class="ledger-masthead-brand" aria-hidden="true">
+          <div class="ledger-logo"><b>خ</b></div>
+          <div class="ledger-brand-text">
+            <strong>KHAYT</strong>
+            <span class="ledger-brandsub">خيط · Production Studio</span>
+          </div>
+        </div>
+        <div class="console-masthead-brand" aria-hidden="true">
+          <div class="console-mark"><b>خ</b></div>
+          <span class="console-brand-text">KHAYT<span class="console-ver">//STUDIO</span></span>
+        </div>
+        <div class="console-path" id="consoleCommandPath" aria-hidden="true">
+          <span class="sep">≫</span>
+          <span id="consolePathGroup"></span>
+          <span class="sep" id="consolePathSep" style="display:none">/</span>
+          <b id="consolePathCode">DSH</b>
+        </div>
         <div class="khayt-toptitle topbar-heading">
           <h2 class="topbar-title" id="topbarPageTitle" data-i18n="tab.dashboard">Dashboard</h2>
           <span class="dim mono" id="topbarPageSubtitle" style="font-size:12px"></span>
@@ -128,10 +169,10 @@
         <span class="grow topbar-spacer"></span>
         <div class="row gap8 topbar-actions wrap">
           <button type="button" class="btn ghost icon sm" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">◐</button>
-          <button type="button" class="btn ghost sm" id="btnHelp" data-i18n="help.btn">?</button>
+          <button type="button" class="btn ghost sm" id="btnHelp" data-i18n="help.btn" data-i18n-title="help.btn_label" title="Help" aria-label="Help">?</button>
           <button type="button" class="btn ghost sm" id="btnGlobalSearch">🔍 <span class="muted" style="font-size:10px">⌘K</span></button>
           <div class="khayt-bell tb-notif-wrap" style="position:relative">
-            <button type="button" class="btn ghost icon sm" id="btnNotifBell" title="Notifications" aria-label="Notifications">🔔</button>
+            <button type="button" class="btn ghost icon sm" id="btnNotifBell" title="Notifications" aria-label="Notifications" aria-expanded="false" aria-controls="notifPanel">🔔</button>
             <span class="khayt-bdot" id="notifBadge" style="display:none"></span>
             <div id="notifPanel" style="display:none;position:absolute;inset-inline-end:0;top:calc(100% + 8px);width:340px;max-height:480px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:var(--shadow-pop);z-index:8000"></div>
           </div>
@@ -152,6 +193,20 @@
         </div>
       </header>
 
+      <div class="ledger-pagehead" id="ledgerPageHead" aria-hidden="true">
+        <h1 class="ledger-page-title" id="ledgerPageTitle" data-i18n="tab.dashboard">Dashboard</h1>
+        <span class="ledger-pagesub" id="ledgerPageSubtitle"></span>
+        <span class="grow"></span>
+        <span class="ledger-stamp" id="ledgerLocationStamp"></span>
+      </div>
+
+      <div class="console-pagehead" id="consolePageHead" aria-hidden="true">
+        <h1 class="console-page-title" id="consolePageTitle" data-i18n="tab.dashboard">Dashboard</h1>
+        <span class="console-pagesub" id="consolePageSubtitle"></span>
+        <span class="grow"></span>
+        <span class="console-stamp" id="consoleLocationStamp"></span>
+      </div>
+
       <main class="khayt-scroll content">
 
 
@@ -162,7 +217,7 @@
     </section>
 
     <!-- ===================== CALCULATOR ===================== -->
-    <section id="calculator-tab" class="tab-content khayt-calc">
+    <section id="calculator-tab" class="tab-content khayt-calc" role="tabpanel" aria-labelledby="tabbtn-calculator-tab" aria-hidden="true" tabindex="-1">
 
       <div class="grid">
 
@@ -177,24 +232,24 @@
 
           <div class="inline-pair">
             <div>
-              <label data-i18n="calc.part.name">Part name</label>
+              <label for="partName" data-i18n="calc.part.name">Part name</label>
               <input type="text" id="partName" data-i18n-placeholder="calc.part.name_ph">
             </div>
             <div>
-              <label data-i18n="calc.part.qty">Qty</label>
+              <label for="partQty" data-i18n="calc.part.qty">Qty</label>
               <input type="number" id="partQty" value="1" min="1" step="1">
             </div>
           </div>
 
           <div style="margin-top:10px;">
-            <label data-i18n="calc.part_colour">Colour / variant</label>
+            <label for="partColour" data-i18n="calc.part_colour">Colour / variant</label>
             <input type="text" id="partColour" list="partColourList" data-i18n-placeholder="calc.part_colour" placeholder="e.g. Red, RAL 3020">
             <datalist id="partColourList"></datalist>
           </div>
 
           <div class="inline-pair" style="margin-top:10px;">
             <div>
-              <label data-i18n="calc.part.filament">Filament</label>
+              <label for="filamentSelect" data-i18n="calc.part.filament">Filament</label>
               <div style="display:flex; align-items:center; gap:8px;">
                 <span id="filColorDot" style="display:inline-block; width:14px; height:14px; border-radius:50%; background:#888; flex-shrink:0; border:1px solid rgba(255,255,255,0.15); transition:background 0.2s;"></span>
                 <select id="filamentSelect" style="flex:1;"></select>
@@ -203,23 +258,23 @@
               <select id="spoolIdPicker" style="width:100%; margin-top:5px; font-size:12px; display:none;"></select>
             </div>
             <div>
-              <label data-i18n="calc.part.printer">Printer (per part)</label>
+              <label for="partMachineId" data-i18n="calc.part.printer">Printer (per part)</label>
               <select id="partMachineId"></select>
             </div>
           </div>
 
           <div class="inline-pair">
             <div>
-              <label><span data-i18n="calc.part.spool_cost">Spool cost</span> (<span data-i18n="common.currency">SAR</span>)</label>
+              <label for="spoolCost"><span data-i18n="calc.part.spool_cost">Spool cost</span> (<span data-i18n="common.currency">SAR</span>)</label>
               <input type="number" id="spoolCost" value="75" step="1" min="0">
             </div>
             <div>
-              <label><span data-i18n="calc.part.spool_wt">Spool weight</span> (<span data-i18n="common.grams">g</span>)</label>
+              <label for="spoolWeight"><span data-i18n="calc.part.spool_wt">Spool weight</span> (<span data-i18n="common.grams">g</span>)</label>
               <input type="number" id="spoolWeight" value="1000" min="1">
             </div>
           </div>
 
-          <label><span data-i18n="calc.part.print_wt">Print weight</span> (<span id="printWeightUnit" data-i18n="common.grams">g</span>)</label>
+          <label for="printWeight"><span data-i18n="calc.part.print_wt">Print weight</span> (<span id="printWeightUnit" data-i18n="common.grams">g</span>)</label>
           <input type="number" id="printWeight" value="150" min="0">
 
           <label style="margin-top:8px;"><span data-i18n="calc.support_wt">Support weight (g)</span></label>
@@ -486,7 +541,7 @@
     </section>
 
     <!-- ===================== CATALOG ===================== -->
-    <section id="catalog-tab" class="tab-content" role="tabpanel" aria-labelledby="tabbtn-catalog-tab" aria-hidden="true" tabindex="-1">
+    <section id="catalog-tab" class="tab-content khayt-tab-page" role="tabpanel" aria-labelledby="tabbtn-catalog-tab" aria-hidden="true" tabindex="-1">
       <div class="toolbar">
         <h3 class="card-head" style="margin: 0; flex: 1;"><span class="swatch"></span><span data-i18n="cat.title">Product Catalog</span></h3>
         <input type="search" id="catalogSearch" class="toolbar-search" data-i18n-placeholder="cat.search_ph">
@@ -497,7 +552,7 @@
     </section>
 
     <!-- ===================== QUEUE ===================== -->
-    <section id="queue-tab" class="tab-content khayt-queue">
+    <section id="queue-tab" class="tab-content khayt-queue" role="tabpanel" aria-labelledby="tabbtn-queue-tab" aria-hidden="true" tabindex="-1">
       <!-- Machine Queues -->
       <div id="machineQueuesContainer" class="mb-6"></div>
 
@@ -556,6 +611,7 @@
           <span id="waitingChevron" style="font-size:10px;color:var(--text-muted);">▼</span>
           <button type="button" id="btnAddWaiting" class="btn small ghost" style="margin-inline-start:auto;">+ <span data-i18n="waiting.add">Add</span></button>
         </button>
+        <div id="waitingOnlinePanel" style="display:none;"></div>
         <div id="waitingFunnelSection" style="margin-bottom:10px;"></div>
         <div id="waitingListSection" style="display:none;"></div>
       </div>
@@ -600,7 +656,7 @@
     </section>
 
     <!-- ===================== LOGS ===================== -->
-    <section id="logs-tab" class="tab-content" role="tabpanel" aria-labelledby="tabbtn-logs-tab" aria-hidden="true" tabindex="-1">
+    <section id="logs-tab" class="tab-content khayt-tab-page" role="tabpanel" aria-labelledby="tabbtn-logs-tab" aria-hidden="true" tabindex="-1">
       <div class="card">
         <div id="batchBar" class="batch-bar" style="display:none;">
           <span id="batchCount" class="batch-count"></span>
@@ -719,7 +775,9 @@
       <div id="analyticsSimpleWrap" style="display:none;"></div>
       <div id="analyticsProWrap">
 
-      <div class="grid-4">
+      <div id="analyticsHandoffWrap" class="analytics-handoff-only col gap16" aria-live="polite"></div>
+
+      <div class="grid-4 analytics-legacy-hero">
         <div class="stat revenue">
           <div class="stat-label" data-i18n="an.revenue">Revenue</div>
           <div class="stat-value"><span id="stat-revenue">0.00</span><span class="unit" data-i18n="common.currency">SAR</span></div>
@@ -903,7 +961,7 @@
     </section>
 
     <!-- ===================== INVENTORY ===================== -->
-    <section id="inventory-tab" class="tab-content khayt-inventory">
+    <section id="inventory-tab" class="tab-content khayt-inventory" role="tabpanel" aria-labelledby="tabbtn-inventory-tab" aria-hidden="true" tabindex="-1">
       <div id="invStudioStats" class="khayt-inv-stats" style="display:none" aria-hidden="true"></div>
       <div id="reorderAlertsSection" style="display:none;"></div>
       <div id="supplierReorderList" style="margin-bottom:12px;"></div>
@@ -1072,7 +1130,7 @@
     </section>
 
     <!-- ===================== PORTFOLIO ===================== -->
-    <section id="portfolio-tab" class="tab-content" role="tabpanel" aria-labelledby="tabbtn-portfolio-tab" aria-hidden="true" tabindex="-1">
+    <section id="portfolio-tab" class="tab-content khayt-tab-page" role="tabpanel" aria-labelledby="tabbtn-portfolio-tab" aria-hidden="true" tabindex="-1">
       <div class="toolbar">
         <h3 class="card-head" style="margin: 0; flex: 1;"><span class="swatch"></span><span data-i18n="pf.title">Portfolio</span></h3>
         <input type="search" id="portfolioSearch" class="toolbar-search" data-i18n-placeholder="pf.search_ph">
@@ -1082,7 +1140,7 @@
     </section>
 
     <!-- ===================== EXPENSES ===================== -->
-    <section id="expenses-tab" class="tab-content" role="tabpanel" aria-labelledby="tabbtn-expenses-tab" aria-hidden="true" tabindex="-1">
+    <section id="expenses-tab" class="tab-content khayt-tab-page" role="tabpanel" aria-labelledby="tabbtn-expenses-tab" aria-hidden="true" tabindex="-1">
       <div class="toolbar" style="margin-bottom:16px;">
         <h3 class="card-head" style="margin:0; flex:1;"><span class="swatch"></span><span data-i18n="exp.title">Expense Tracker</span></h3>
         <button class="btn small" id="btnExportExpCsv" data-i18n="exp.export_csv">Export CSV</button>
@@ -1116,7 +1174,7 @@
             <option value="shipping"    data-i18n="exp.cat.shipping">Shipping</option>
             <option value="other"       data-i18n="exp.cat.other">Other</option>
           </select>
-          <label data-i18n="exp.amount" style="margin-top:12px;">Amount (SAR)</label>
+          <label style="margin-top:12px;"><span data-i18n="exp.amount">Amount</span> (<span data-i18n="common.currency">SAR</span>)</label>
           <input type="number" id="expAmount" min="0" step="0.01" placeholder="0.00">
           <label data-i18n="exp.note" style="margin-top:12px;">Note</label>
           <input type="text" id="expNote" data-i18n-placeholder="exp.note_ph">
@@ -1170,7 +1228,7 @@
     </section>
 
     <!-- ===================== WASTE LOG ===================== -->
-    <section id="waste-tab" class="tab-content" role="tabpanel" aria-labelledby="tabbtn-waste-tab" aria-hidden="true" tabindex="-1">
+    <section id="waste-tab" class="tab-content khayt-tab-page" role="tabpanel" aria-labelledby="tabbtn-waste-tab" aria-hidden="true" tabindex="-1">
       <div class="toolbar" style="margin-bottom:8px;">
         <h3 class="card-head" style="margin:0; flex:1;"><span class="swatch"></span><span data-i18n="waste.title">Failed Prints &amp; Waste Log</span></h3>
         <button class="btn primary" id="btnLogWaste" data-i18n="waste.add">Log Failed Print</button>
@@ -1216,7 +1274,7 @@
     </section>
 
     <!-- ===================== GIFT CARDS ===================== -->
-    <section id="gift-cards-tab" class="tab-content" role="tabpanel" aria-labelledby="tabbtn-gift-cards-tab" aria-hidden="true" tabindex="-1">
+    <section id="gift-cards-tab" class="tab-content khayt-tab-page" role="tabpanel" aria-labelledby="tabbtn-gift-cards-tab" aria-hidden="true" tabindex="-1">
       <div class="toolbar" style="margin-bottom:16px;">
         <h2 class="card-head" style="margin:0; flex:1;"><span class="swatch"></span><span data-i18n="giftCards">Gift Cards</span></h2>
         <button id="btnCreateGiftCard" class="btn btn-primary" data-i18n="issueGiftCard">Issue Gift Card</button>
@@ -1234,47 +1292,51 @@
       <span class="settings-nav-group-label" data-i18n="set.nav_group_general">General</span>
 
       <button class="settings-nav-item active" data-settings-section="biz">
-        <span class="nav-icon">🏢</span>
+        <span class="nav-icon" aria-hidden="true"></span>
         <span data-i18n="set.nav_biz">Business</span>
       </button>
       <button class="settings-nav-item" data-settings-section="prefs">
-        <span class="nav-icon">⚙️</span>
+        <span class="nav-icon" aria-hidden="true"></span>
         <span data-i18n="set.nav_prefs">Preferences</span>
       </button>
       <button class="settings-nav-item" data-settings-section="stock">
-        <span class="nav-icon">📦</span>
+        <span class="nav-icon" aria-hidden="true"></span>
         <span data-i18n="set.nav_stock">Inventory</span>
       </button>
       <button class="settings-nav-item" data-settings-section="invoice">
-        <span class="nav-icon">🧾</span>
+        <span class="nav-icon" aria-hidden="true"></span>
         <span data-i18n="set.nav_invoice">Invoice & Tax</span>
       </button>
       <button class="settings-nav-item" data-settings-section="payments">
-        <span class="nav-icon">💳</span>
+        <span class="nav-icon" aria-hidden="true"></span>
         <span data-i18n="set.nav_payments">Payments</span>
       </button>
       <button class="settings-nav-item" data-settings-section="printers">
-        <span class="nav-icon">🖨️</span>
+        <span class="nav-icon" aria-hidden="true"></span>
         <span data-i18n="set.nav_printers">Printers</span>
+      </button>
+      <button class="settings-nav-item" data-settings-section="online">
+        <span class="nav-icon" aria-hidden="true"></span>
+        <span data-i18n="set.nav_online">Online</span>
       </button>
 
       <!-- Advanced group -->
       <span class="settings-nav-group-label" data-i18n="set.nav_group_advanced">Advanced</span>
 
       <button class="settings-nav-item pro-only" data-settings-section="ops">
-        <span class="nav-icon">🔧</span>
+        <span class="nav-icon" aria-hidden="true"></span>
         <span data-i18n="set.nav_ops">Operations</span>
       </button>
       <button class="settings-nav-item pro-only" data-settings-section="automation">
-        <span class="nav-icon">🔔</span>
+        <span class="nav-icon" aria-hidden="true"></span>
         <span data-i18n="set.nav_automation">Automation</span>
       </button>
       <button class="settings-nav-item pro-only" data-settings-section="access">
-        <span class="nav-icon">🔐</span>
+        <span class="nav-icon" aria-hidden="true"></span>
         <span data-i18n="set.nav_access">Access</span>
       </button>
       <button class="settings-nav-item" data-settings-section="data">
-        <span class="nav-icon">💾</span>
+        <span class="nav-icon" aria-hidden="true"></span>
         <span data-i18n="set.nav_data">Data & Locale</span>
       </button>
     </nav>
@@ -1286,73 +1348,81 @@
       <div class="settings-panel active" id="settings-panel-biz">
         <h2 class="settings-panel-title" data-i18n="set.biz_section">Business Information</h2>
 
-        <!-- Logo + business name -->
-        <div style="display:flex; align-items:flex-start; gap:16px; margin-bottom:14px;">
-          <div style="flex-shrink:0;">
-            <label style="font-size:11.5px; color:var(--text-muted); display:block; margin-bottom:6px;" data-i18n="set.logo">Logo</label>
-            <div style="display:flex; flex-direction:column; align-items:center; gap:6px;">
-              <img id="logoPreview" style="display:none; height:52px; width:auto; border-radius:6px; border:1px solid var(--border); padding:4px; background:var(--surface-2);" alt="logo">
-              <label class="btn small" style="cursor:pointer; margin:0; white-space:nowrap;">
-                <span data-i18n="set.logo_upload">Upload</span>
-                <input type="file" id="logoUploadInput" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;">
-              </label>
-              <button class="btn small danger" id="btnRemoveLogo" style="display:none; margin:0;" data-i18n="set.logo_remove">Remove</button>
-            </div>
-          </div>
-          <div style="flex:1; min-width:0;">
-            <div class="inline-pair" style="margin-bottom:10px;">
-              <div>
-                <label data-i18n="set.biz_en">Business name (English)</label>
-                <input type="text" id="set_bizEn" placeholder="Khayt">
-              </div>
-              <div>
-                <label data-i18n="set.biz_ar">Business name (Arabic)</label>
-                <input type="text" id="set_bizAr" dir="rtl" placeholder="خيط">
+        <div class="card settings-card">
+          <div class="settings-section-head" data-i18n="set.biz_identity">Identity</div>
+          <!-- Logo + business name -->
+          <div style="display:flex; align-items:flex-start; gap:16px;">
+            <div style="flex-shrink:0;">
+              <label style="font-size:11.5px; color:var(--text-muted); display:block; margin-bottom:6px;" data-i18n="set.logo">Logo</label>
+              <div style="display:flex; flex-direction:column; align-items:center; gap:6px;">
+                <img id="logoPreview" style="display:none; height:52px; width:auto; border-radius:6px; border:1px solid var(--border); padding:4px; background:var(--surface-2);" alt="logo">
+                <label class="btn small" style="cursor:pointer; margin:0; white-space:nowrap;">
+                  <span data-i18n="set.logo_upload">Upload</span>
+                  <input type="file" id="logoUploadInput" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;">
+                </label>
+                <button class="btn small danger" id="btnRemoveLogo" style="display:none; margin:0;" data-i18n="set.logo_remove">Remove</button>
               </div>
             </div>
-            <div class="inline-pair">
-              <div>
-                <label data-i18n="set.tagline_en">Tagline (English)</label>
-                <input type="text" id="set_taglineEn" data-i18n-placeholder="set.tagline_ph">
+            <div style="flex:1; min-width:0;">
+              <div class="inline-pair" style="margin-bottom:10px;">
+                <div>
+                  <label data-i18n="set.biz_en">Business name (English)</label>
+                  <input type="text" id="set_bizEn" placeholder="Khayt">
+                </div>
+                <div>
+                  <label data-i18n="set.biz_ar">Business name (Arabic)</label>
+                  <input type="text" id="set_bizAr" dir="rtl" placeholder="خيط">
+                </div>
               </div>
-              <div>
-                <label data-i18n="set.tagline_ar">Tagline (Arabic)</label>
-                <input type="text" id="set_taglineAr" dir="rtl" data-i18n-placeholder="set.tagline_ph_ar">
+              <div class="inline-pair">
+                <div>
+                  <label data-i18n="set.tagline_en">Tagline (English)</label>
+                  <input type="text" id="set_taglineEn" data-i18n-placeholder="set.tagline_ph">
+                </div>
+                <div>
+                  <label data-i18n="set.tagline_ar">Tagline (Arabic)</label>
+                  <input type="text" id="set_taglineAr" dir="rtl" data-i18n-placeholder="set.tagline_ph_ar">
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="inline-pair" style="margin-bottom:10px;">
-          <div>
-            <label data-i18n="set.phone">Phone</label>
-            <input type="tel" id="set_phone">
+        <div class="card settings-card">
+          <div class="settings-section-head" data-i18n="set.biz_contact">Contact</div>
+          <div class="inline-pair" style="margin-bottom:10px;">
+            <div>
+              <label data-i18n="set.phone">Phone</label>
+              <input type="tel" id="set_phone">
+            </div>
+            <div>
+              <label data-i18n="set.email">Email</label>
+              <input type="email" id="set_email">
+            </div>
           </div>
-          <div>
-            <label data-i18n="set.email">Email</label>
-            <input type="email" id="set_email">
+          <div class="inline-pair">
+            <div>
+              <label data-i18n="set.address_en">Address (English)</label>
+              <input type="text" id="set_addrEn">
+            </div>
+            <div>
+              <label data-i18n="set.address_ar">Address (Arabic)</label>
+              <input type="text" id="set_addrAr" dir="rtl">
+            </div>
           </div>
         </div>
 
-        <div class="inline-pair" style="margin-bottom:10px;">
-          <div>
-            <label data-i18n="set.address_en">Address (English)</label>
-            <input type="text" id="set_addrEn">
-          </div>
-          <div>
-            <label data-i18n="set.address_ar">Address (Arabic)</label>
-            <input type="text" id="set_addrAr" dir="rtl">
-          </div>
-        </div>
-
-        <div class="inline-pair pro-only">
-          <div>
-            <label data-i18n="set.vat">VAT number</label>
-            <input type="text" id="set_vat" placeholder="3xxxxxxxxxxxxx3" maxlength="15">
-          </div>
-          <div>
-            <label data-i18n="set.cr">CR #</label>
-            <input type="text" id="set_cr">
+        <div class="card settings-card pro-only">
+          <div class="settings-section-head" data-i18n="set.biz_tax">Tax &amp; Registration</div>
+          <div class="inline-pair">
+            <div>
+              <label data-i18n="set.vat">VAT number</label>
+              <input type="text" id="set_vat" placeholder="3xxxxxxxxxxxxx3" maxlength="15">
+            </div>
+            <div>
+              <label data-i18n="set.cr">CR #</label>
+              <input type="text" id="set_cr">
+            </div>
           </div>
         </div>
 
@@ -1365,6 +1435,7 @@
       <div class="settings-panel" id="settings-panel-prefs">
         <h2 class="settings-panel-title" data-i18n="set.prefs_section">Preferences</h2>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.experience">Experience</div>
         <p style="font-size:13px; color:var(--text-muted); margin:0 0 8px;" data-i18n="set.mode_subtitle">Choose the level of features that matches your workflow.</p>
         <div class="mode-toggle-pills">
@@ -1372,11 +1443,39 @@
           <button class="mode-pill" id="btnModePro" data-mode="professional" data-i18n="set.mode_pro">Professional</button>
         </div>
         <p style="font-size:12px; color:var(--text-muted); margin:0 0 20px;" data-i18n="set.mode_changed_hint">You can switch at any time — no data is lost.</p>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.language">Language & Theme</div>
+        <p class="settings-panel-hint" data-i18n="set.lang_theme_auto">Language, appearance, and design apply immediately when changed.</p>
+        <div style="margin-bottom:12px;">
+          <label data-i18n="theme.design.label">Design</label>
+          <input type="hidden" id="set_designTheme" value="studio" />
+          <div id="set_designThemePicker" class="theme-picker" aria-describedby="set_designTheme_hint"></div>
+          <p id="set_designTheme_hint" class="settings-field-hint" data-i18n="theme.design.studio_desc">Filament cyan instrument UI — warm-paper light mode.</p>
+          <p id="set_designTheme_coming_soon" class="settings-field-hint muted" style="margin-top:6px"></p>
+          <p class="settings-field-hint" style="margin-top:8px">
+            <a href="#" id="set_customThemeHelp" data-i18n="theme.design.custom_help">Create your own theme →</a>
+          </p>
+        </div>
+        <div class="inline-pair" style="margin-bottom:12px;">
+          <div id="set_accent_wrap">
+            <label for="set_accent" data-i18n="theme.accent.label">Accent color</label>
+            <select id="set_accent"></select>
+          </div>
+          <div id="set_cockpit_skin_wrap" style="display:none">
+            <label for="set_cockpitSkin" data-i18n="theme.cockpit.skin.label">Cockpit skin</label>
+            <select id="set_cockpitSkin">
+              <option value="poster" data-i18n="theme.cockpit.skin.poster">Poster</option>
+              <option value="lumen" data-i18n="theme.cockpit.skin.lumen">Lumen</option>
+              <option value="draft" data-i18n="theme.cockpit.skin.draft">Draft</option>
+              <option value="clay" data-i18n="theme.cockpit.skin.clay">Clay</option>
+            </select>
+          </div>
+        </div>
         <div class="inline-pair">
           <div>
-            <label data-i18n="set.language">Default language</label>
+            <label for="set_lang" data-i18n="set.language">Default language</label>
             <select id="set_lang">
               <option value="en">English</option>
               <option value="ar">العربية</option>
@@ -1388,13 +1487,14 @@
             </select>
           </div>
           <div>
-            <label data-i18n="set.theme">Theme</label>
+            <label for="set_theme" data-i18n="set.theme">Theme</label>
             <select id="set_theme">
               <option value="dark" data-i18n="set.theme.dark">Dark</option>
               <option value="light" data-i18n="set.theme.light">Light</option>
               <option value="system" data-i18n="set.theme.system">System</option>
             </select>
           </div>
+        </div>
         </div>
 
         <div class="settings-save-row">
@@ -1406,6 +1506,8 @@
       <div class="settings-panel" id="settings-panel-stock">
         <h2 class="settings-panel-title" data-i18n="set.stock_section">Stock & Inventory</h2>
 
+        <div class="card settings-card">
+        <div class="settings-section-head" data-i18n="set.stock_defaults">Stock Defaults</div>
         <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
           <input type="checkbox" id="set_autoDeduct" style="width:auto; margin:0;">
           <span data-i18n="set.auto_deduct">Auto-deduct filament when an order is completed</span>
@@ -1422,7 +1524,9 @@
             <input type="tel" id="set_supplierPhone" data-i18n-placeholder="set.supplier_ph">
           </div>
         </div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head pro-only" data-i18n="set.working_hours">Working Hours</div>
         <div class="pro-only">
           <p style="font-size:11.5px; color:var(--text-muted); margin:0 0 10px;">Available print hours per day of week (0 = closed)</p>
@@ -1442,6 +1546,7 @@
           </div>
           <div id="holidayList" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:4px;"></div>
         </div>
+        </div>
 
         <div class="settings-save-row">
           <button type="button" class="btn primary" data-act="save-settings-from-panel" data-i18n="common.save">Save</button>
@@ -1452,6 +1557,7 @@
       <div class="settings-panel" id="settings-panel-invoice">
         <h2 class="settings-panel-title" data-i18n="set.invoice_section">Invoice & Tax</h2>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.worldwide_section">Currency & Region</div>
         <div class="inline-pair">
           <div>
@@ -1465,7 +1571,9 @@
             <p style="font-size:11.5px; color:var(--text-muted); margin:4px 0 0;" data-i18n="dash.goal_hint"></p>
           </div>
         </div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.invoice_section">Invoice Defaults</div>
         <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-top:0;">
           <input type="checkbox" id="set_enableZatca" style="width:auto; margin:0;">
@@ -1515,9 +1623,12 @@
         <textarea id="set_invTermsEn" rows="3" style="resize:vertical;"></textarea>
         <label data-i18n="set.inv_terms_ar">Terms & notes (Arabic)</label>
         <textarea id="set_invTermsAr" rows="3" dir="rtl" style="resize:vertical;"></textarea>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.inv_num_title">Invoice Numbering</div>
         <div id="invNumSection"></div>
+        </div>
 
         <div class="settings-save-row">
           <button type="button" class="btn primary" data-act="save-settings-from-panel" data-i18n="common.save">Save</button>
@@ -1528,6 +1639,7 @@
       <div class="settings-panel" id="settings-panel-payments">
         <h2 class="settings-panel-title" data-i18n="set.bank_section">Payments</h2>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.bank_section">Bank Details</div>
         <div class="inline-pair">
           <div>
@@ -1551,12 +1663,17 @@
           <label><input type="checkbox" data-pm="applepay"><span data-i18n="pay.method.applepay">Apple Pay</span></label>
           <label><input type="checkbox" data-pm="visa"><span data-i18n="pay.method.visa">Credit card</span></label>
         </div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="bnpl.section">Payment Services & BNPL</div>
         <div id="bnplSection"></div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="xr.section">Exchange Rates</div>
         <div id="exchangeRatesSection"></div>
+        </div>
 
         <div class="settings-save-row">
           <button type="button" class="btn primary" data-act="save-settings-from-panel" data-i18n="common.save">Save</button>
@@ -1566,27 +1683,60 @@
       <!-- ─── PRINTERS ──────────────────────────────────────── -->
       <div class="settings-panel" id="settings-panel-printers">
         <h2 class="settings-panel-title" data-i18n="mach.section">My Printers / Machines</h2>
+        <div class="card settings-card">
+        <div class="settings-section-head" data-i18n="set.printers_devices">Connected Printers</div>
         <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px;" data-i18n="mach.section_hint"></p>
         <div id="machinesList"></div>
         <button class="btn primary" id="btnAddMachine" style="margin-top:10px;" data-i18n="mach.add">+ Add Printer</button>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="slicerProfiles">Slicer Profiles</div>
         <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:6px;">
           <button id="btnAddSlicerProfile" class="btn btn-sm btn-secondary" data-i18n="addSlicerProfile">+ Add Profile</button>
         </div>
         <div id="slicerProfilesContainer"></div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="envLogs">Environment Log</div>
         <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:6px;">
           <button id="btnLogEnv" class="btn btn-sm btn-secondary" data-i18n="logEnvironment">+ Log</button>
         </div>
         <div id="envLogsContainer"></div>
+        </div>
+      </div>
+
+      <!-- ─── ONLINE (customer intake & LAN) ───────────────── -->
+      <div class="settings-panel" id="settings-panel-online">
+        <h2 class="settings-panel-title" data-i18n="online.settings_title">Online</h2>
+        <div class="card settings-card">
+        <div class="settings-section-head" data-i18n="set.online_intake">Customer Intake</div>
+        <p style="font-size:12px;color:var(--text-muted);margin:0 0 16px;" data-i18n="online.settings_intro">Let customers submit quote requests via a link on your network. Your data stays on this computer.</p>
+        <div id="onlineSection"></div>
+        </div>
+
+        <div class="card settings-card">
+        <div class="settings-section-head">LAN API &amp; iCal</div>
+        <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;" data-i18n="lan.settings_intro">Advanced: REST API, printer webhooks, kiosk queue, and optional internet tunnel.</p>
+        <div id="lanApiSection"></div>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <button id="btnExportIcal" class="btn btn-sm btn-secondary" data-i18n="exportIcal">📅 Export iCal Feed</button>
+          <span style="font-size:11px;color:var(--text-muted);" data-i18n="icalDescription">Subscribe to upcoming order due dates in your calendar app</span>
+        </div>
+        </div>
+
+        <div class="settings-save-row">
+          <button type="button" class="btn primary" data-act="save-settings-from-panel" data-i18n="common.save">Save</button>
+        </div>
       </div>
 
       <!-- ─── OPERATIONS (pro-only) ─────────────────────────── -->
       <div class="settings-panel pro-only" id="settings-panel-ops">
         <h2 class="settings-panel-title" data-i18n="set.ops_section">Operations</h2>
 
+        <div class="card settings-card">
+        <div class="settings-section-head" data-i18n="set.ops_pricing">Pricing & Quotes</div>
         <div class="inline-pair" style="align-items:flex-end; margin-top:0;">
           <div>
             <label data-i18n="set.min_margin">Minimum margin warning (%)</label>
@@ -1630,7 +1780,9 @@
             <textarea id="set_paymentInstructions" rows="3" style="resize:vertical;" placeholder="Bank name, IBAN, Mada/STCPay..."></textarea>
           </div>
         </div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.wip_limits">WIP Limits per column</div>
         <div class="inline-pair" style="flex-wrap:wrap;">
           <div><label>Pending</label><input type="number" id="set_wip_pending" min="0" step="1" placeholder="0 = unlimited"></div>
@@ -1642,7 +1794,9 @@
           <input type="checkbox" id="set_wipEnforceHardLimit">
           <span data-i18n="set.wip_enforce_hard">Block moves when WIP limit is reached (instead of warning only)</span>
         </label>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.post_process_presets">Post-process presets</div>
         <div id="postProcessPresetsList" style="margin-bottom:8px;"></div>
         <div style="display:flex; gap:8px; align-items:flex-end;">
@@ -1650,7 +1804,9 @@
           <div style="width:100px;"><label style="margin:0;">Amount</label><input type="number" id="set_ppAmount" min="0" step="0.01" placeholder="0"></div>
           <button class="btn small primary" id="btnAddPostPreset" style="margin-bottom:1px;">+ Add</button>
         </div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.exp_budgets">Monthly Expense Budgets</div>
         <div class="inline-pair" style="flex-wrap:wrap;">
           <div><label data-i18n="exp.cat.filament">Filament</label><input type="number" id="set_budget_filament" min="0" step="1" placeholder="0"></div>
@@ -1660,15 +1816,20 @@
           <div><label data-i18n="exp.cat.shipping">Shipping</label><input type="number" id="set_budget_shipping" min="0" step="1" placeholder="0"></div>
           <div><label data-i18n="exp.cat.other">Other</label><input type="number" id="set_budget_other" min="0" step="1" placeholder="0"></div>
         </div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head">Fixed Costs &amp; Break-Even</div>
         <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">Add monthly fixed costs (rent, salaries, subscriptions) to compute your break-even revenue on the dashboard.</p>
         <div id="fixedCostsSection"></div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.locations">Locations</div>
         <p style="font-size:12px; color:var(--text-muted); margin:0 0 12px;">Manage your shop locations or branches. Tag orders, machines, inventory and expenses to a location.</p>
         <div id="locationsSettingsSection"></div>
         <button class="btn primary" id="btnAddLocation" style="margin-top:10px;" data-i18n="set.location_add">+ Add location</button>
+        </div>
 
         <div class="settings-save-row">
           <button class="btn primary" id="btnSaveOpsSettings" data-i18n="common.save">Save</button>
@@ -1678,39 +1839,55 @@
       <!-- ─── AUTOMATION (pro-only) ─────────────────────────── -->
       <div class="settings-panel pro-only" id="settings-panel-automation">
         <h2 class="settings-panel-title" data-i18n="set.nav_automation">Automation</h2>
+        <p class="settings-panel-hint" data-i18n="set.automation_save_hint">Each section below has its own Save button — changes are not applied until you save that section.</p>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="wa.settings_section">WhatsApp Quick-Reply Templates</div>
         <p style="font-size:12px; color:var(--text-muted); margin:0 0 12px;" data-i18n="wa.settings_hint"></p>
         <div id="waTemplatesList"></div>
         <button class="btn primary" id="btnAddWaTemplate" style="margin-top:10px;" data-i18n="wa.add_template">+ Add Template</button>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.notifications">Email Notifications</div>
         <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">Send automated status update emails to clients via SendGrid, Mailgun, or your default mail client.</p>
         <div id="emailNotificationsSection"></div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.digest_title">Email Digest</div>
         <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;" data-i18n="set.digest_hint">Send an automated daily or weekly summary email to yourself with revenue, orders, and stock alerts.</p>
         <div id="emailDigestSection"></div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head">Outbound Webhooks</div>
         <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">Fire HTTP POST requests to Zapier, Make.com, n8n, or any URL when order events happen.</p>
         <div id="webhookSettingsSection"></div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="telegramNotifications">Telegram Notifications</div>
         <div id="telegramSettingsContainer"></div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head">Salla / Zid Webhooks</div>
         <div id="sallaZidContainer"></div>
+        </div>
       </div>
 
       <!-- ─── ACCESS (pro-only) ─────────────────────────────── -->
       <div class="settings-panel pro-only" id="settings-panel-access">
         <h2 class="settings-panel-title" data-i18n="set.nav_access">Access</h2>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="op.title">Operators</div>
         <div id="operatorsList"></div>
         <button class="btn primary" id="btnAddOperator" style="margin-top:10px;" data-i18n="op.add">+ Add operator</button>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="op.lock">Operator Lock</div>
         <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;" data-i18n="op.lock_hint">Require a PIN to switch between operator accounts. Restricts access by role.</p>
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:12px;">
@@ -1718,7 +1895,9 @@
           <span data-i18n="op.lock_enabled">Enable operator PIN lock</span>
         </label>
         <div id="operatorLockSection"></div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.loyalty">Customer Loyalty Tiers</div>
         <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">Auto-assign tier badges and discounts based on completed orders or spend.</p>
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:12px;">
@@ -1726,6 +1905,7 @@
           <span data-i18n="set.loyalty_enabled">Enable loyalty tiers</span>
         </label>
         <div id="loyaltyTiersSection"></div>
+        </div>
 
         <div class="settings-save-row">
           <button type="button" class="btn primary" data-act="save-settings-from-panel" data-i18n="common.save">Save</button>
@@ -1736,6 +1916,7 @@
       <div class="settings-panel" id="settings-panel-data">
         <h2 class="settings-panel-title" data-i18n="set.nav_data">Data & Locale</h2>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.locale_section">Saudi Locale</div>
         <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; margin-top:0;">
           <input type="checkbox" id="set_useHijri" style="width:auto; margin:3px 0 0;">
@@ -1745,7 +1926,9 @@
           <input type="checkbox" id="set_useArabicNumerals" style="width:auto; margin:3px 0 0;">
           <span data-i18n="set.use_arabic_nums">Use Arabic-Indic numerals (٠١٢٣) in Arabic-mode invoices</span>
         </label>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="post.settings_title">Post-Processing Checklist</div>
         <p style="font-size:12px; color:var(--text-muted); margin:0 0 12px;" data-i18n="post.settings_hint">Define steps shown on every order card in the Post column of the queue.</p>
         <div id="postChecklistItems"></div>
@@ -1753,7 +1936,9 @@
           <input type="text" id="postCheckInput" style="flex:1;" data-i18n-placeholder="post.step_ph" placeholder="e.g. Sand &amp; polish">
           <button class="btn primary" id="btnAddPostCheck" data-i18n="post.add_step">+ Add step</button>
         </div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.backup_section">Backups</div>
         <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
           <input type="checkbox" id="set_autoBackup" style="width:auto; margin:0;">
@@ -1771,15 +1956,9 @@
           <button class="btn" id="btnRevealBackups" data-i18n="set.reveal_backups">Reveal backups folder</button>
           <button class="btn" id="btnRestoreBackup" data-i18n="set.restore_backup">Restore from backup…</button>
         </div>
-
-        <div class="settings-section-head">LAN API &amp; iCal</div>
-        <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">Start a local HTTP server so phones/tablets on the same Wi-Fi can view the queue without a desktop.</p>
-        <div id="lanApiSection"></div>
-        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-          <button id="btnExportIcal" class="btn btn-sm btn-secondary" data-i18n="exportIcal">📅 Export iCal Feed</button>
-          <span style="font-size:11px;color:var(--text-muted);" data-i18n="icalDescription">Subscribe to upcoming order due dates in your calendar app</span>
         </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.custom_fields_title">Custom Order Fields</div>
         <p style="font-size:12px; color:var(--text-muted); margin:0 0 12px;" data-i18n="set.custom_fields_hint">Add extra fields that appear in every order form (e.g. "Customer Reference", "Color Choice").</p>
         <div id="customFieldsList"></div>
@@ -1787,7 +1966,9 @@
           <input type="text" id="customFieldInput" style="flex:1;" data-i18n-placeholder="set.custom_field_ph" placeholder="e.g. Customer Reference">
           <button class="btn primary" id="btnAddCustomField" data-i18n="set.add_custom_field">+ Add Field</button>
         </div>
+        </div>
 
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.data_section">Data</div>
         <div id="securitySettingsSection" style="margin-bottom:16px;"></div>
         <div class="btn-row">
@@ -1797,6 +1978,7 @@
           <button class="btn" id="btnRevealPhotos" data-i18n="set.reveal_photos">Reveal product photos folder</button>
           <button class="btn danger" id="btnReset" data-i18n="set.reset">Reset all data…</button>
           <button class="btn danger" id="btnFullWipe" data-i18n="set.full_wipe">Full wipe…</button>
+        </div>
         </div>
 
         <div style="margin-top:18px; padding:14px 16px; background:rgba(43,182,115,0.06); border:1px solid rgba(43,182,115,0.2); border-radius:var(--radius);">
@@ -1820,15 +2002,26 @@
           <button type="button" class="btn primary" data-act="save-settings-from-panel" data-i18n="common.save">Save</button>
         </div>
 
+        <div class="card settings-card">
+        <div class="settings-section-head" data-i18n="set.updates_section">Updates</div>
+        <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; margin-top:0;">
+          <input type="checkbox" id="set_betaUpdates" style="width:auto; margin:3px 0 0;">
+          <span>
+            <span data-i18n="set.beta_updates">Include beta pre-releases when checking for updates</span>
+            <div style="font-size:11px; color:var(--text-muted); margin-top:4px;" data-i18n="set.beta_updates_hint">Off by default. Enable to receive Khayt beta builds (e.g. new themes) via in-app update.</div>
+          </span>
+        </label>
+
         <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border-soft); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
           <div style="font-size:12px; color:var(--text-muted);">
-            <strong data-i18n="set.about">About</strong> · <span data-i18n="app.title">Khayt</span> · خيط · <span data-i18n="set.version">Version</span> <span id="appVersion">—</span>
+            <strong data-i18n="set.about">About</strong> · <span data-i18n="app.title">Khayt</span> · خيط · <span data-i18n="set.version">Version</span> <span id="appVersion">—</span><span id="appVersionBeta" hidden style="margin-left:6px;font-size:10px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;padding:2px 6px;border-radius:4px;background:var(--warning-soft,#fef3c7);color:var(--warning,#b45309);">Beta</span>
             <div style="margin-top:4px; font-size:11px;" data-i18n="set.ai_credit">Built with assistance from AI tools.</div>
           </div>
           <div style="display:flex; align-items:center; gap:10px;">
             <span id="updateStatusMsg" style="font-size:12px; color:var(--text-muted);"></span>
             <button id="btnCheckForUpdates" class="btn small" data-i18n="set.check_updates">Check for updates</button>
           </div>
+        </div>
         </div>
 
       </div><!-- /settings-panel-data -->
@@ -1839,17 +2032,25 @@
 
   </main>
     </div>
+
+    <div class="console-status" id="consoleStatusBar" aria-hidden="true">
+      <span class="item"><span class="dot" style="background:var(--ok)"></span> <span id="consoleStatusPrinters">—</span></span>
+      <span class="item"><span class="dot" style="background:var(--accent)"></span> <span id="consoleStatusQueue">—</span></span>
+      <span class="item" id="consoleStatusLocation"></span>
+      <span class="grow"></span>
+      <span class="item" id="consoleStatusClock"></span>
+    </div>
   </div>
 </div>
 
 <!-- Toast container -->
-<div class="toast-container" id="toastContainer"></div>
+<div class="toast-container" id="toastContainer" role="status" aria-live="polite" aria-atomic="true"></div>
 
 <!-- Modal mount point -->
 <div id="modalMount"></div>
 
 <!-- ===================== SETUP WIZARD ===================== -->
-<div id="setup-wizard" class="wizard-overlay" style="display:none">
+<div id="setup-wizard" class="wizard-overlay" style="display:none" role="dialog" aria-modal="true" aria-label="Setup wizard">
   <div class="wizard-card">
     <!-- Step 1: Language -->
     <div class="wizard-step" id="wiz-step-1">
@@ -1857,7 +2058,7 @@
       <h1 class="wizard-title" data-i18n="wiz.lang_title">Choose your language</h1>
       <p class="wizard-subtitle" data-i18n="wiz.lang_subtitle">You can change this anytime in Settings.</p>
       <div class="wizard-form" style="max-width:320px;margin:0 auto;">
-        <label><span data-i18n="wiz.language">Language</span>
+        <label for="wizLang"><span data-i18n="wiz.language">Language</span>
           <select id="wizLang" class="form-control">
             <option value="en">English</option>
             <option value="ar">العربية</option>
@@ -1872,22 +2073,30 @@
       <button type="button" class="btn btn-primary wizard-next" data-next="2" data-i18n="wiz.continue">Continue →</button>
     </div>
 
-    <!-- Step 2: Security (optional PIN) -->
+    <!-- Step 2: Design theme -->
     <div class="wizard-step" id="wiz-step-2" style="display:none">
+      <h2 class="wizard-title" data-i18n="wiz.design_title">Choose your look</h2>
+      <p class="wizard-subtitle" data-i18n="wiz.design_subtitle">Pick the visual style that fits your shop. You can change it anytime in Settings.</p>
+      <div id="wizDesignThemePicker" class="theme-picker"></div>
+      <button type="button" class="btn btn-primary wizard-next" data-next="3" data-i18n="wiz.continue">Continue →</button>
+    </div>
+
+    <!-- Step 3: Security (optional PIN) -->
+    <div class="wizard-step" id="wiz-step-3" style="display:none">
       <div id="wizSecuritySetup">
         <h2 class="wizard-title" data-i18n="sec.wiz_title">Protect your shop (optional)</h2>
         <p class="wizard-subtitle" data-i18n="sec.wiz_subtitle">Set an admin PIN to guard Settings, data reset, and operator switching. You can skip and enable later.</p>
         <div class="wizard-form" style="max-width:340px;margin:0 auto;">
-          <label><span data-i18n="sec.pin_label">Admin PIN (4–8 digits)</span>
+          <label for="wizPin"><span data-i18n="sec.pin_label">Admin PIN (4–8 digits)</span>
             <input id="wizPin" type="password" inputmode="numeric" class="form-control" autocomplete="new-password" maxlength="8">
           </label>
-          <label style="margin-top:10px;"><span data-i18n="sec.pin_confirm">Confirm PIN</span>
+          <label for="wizPinConfirm" style="margin-top:10px;"><span data-i18n="sec.pin_confirm">Confirm PIN</span>
             <input id="wizPinConfirm" type="password" inputmode="numeric" class="form-control" autocomplete="new-password" maxlength="8">
           </label>
           <p id="wizPinError" style="color:var(--danger);font-size:12px;min-height:18px;margin-top:8px;"></p>
         </div>
         <div class="btn-row" style="justify-content:center;gap:10px;margin-top:8px;">
-          <button type="button" class="btn ghost" id="wizSecuritySkip" data-i18n="sec.skip">Skip for now</button>
+          <button type="button" class="btn ghost" id="wizSecuritySkip" data-next="4" data-i18n="sec.skip">Skip for now</button>
           <button type="button" class="btn btn-primary" id="wizSecurityContinue" data-i18n="sec.set_pin">Set PIN →</button>
         </div>
       </div>
@@ -1903,47 +2112,51 @@
           <input type="checkbox" id="wizRecoverySaved" style="width:auto;margin-top:3px;">
           <span data-i18n="sec.recovery_saved">I have saved this recovery code in a safe place</span>
         </label>
-        <button type="button" class="btn btn-primary wizard-next" data-next="3" id="wizRecoveryContinue" disabled style="margin-top:12px;" data-i18n="wiz.continue">Continue →</button>
+        <button type="button" class="btn btn-primary wizard-next" data-next="4" id="wizRecoveryContinue" disabled style="margin-top:12px;" data-i18n="wiz.continue">Continue →</button>
       </div>
     </div>
 
-    <!-- Step 3: Business type -->
-    <div class="wizard-step" id="wiz-step-3" style="display:none">
+    <!-- Step 4: Business type -->
+    <div class="wizard-step" id="wiz-step-4" style="display:none">
       <h2 class="wizard-title" data-i18n="wiz.business_type">How do you use Khayt?</h2>
       <p class="wizard-subtitle" data-i18n="wiz.mode_hint">This sets your starting experience. You can change it anytime in Settings.</p>
       <div class="wizard-options">
-        <button type="button" class="wizard-option" data-mode="simple" data-next="4">
+        <button type="button" class="wizard-option selected" data-mode="simple" data-next="5" data-wiz-default="1">
           <span class="wizard-option-icon" aria-hidden="true">👤</span>
           <strong data-i18n="wiz.option_solo">Solo maker</strong>
           <span data-i18n="wiz.option_solo_desc">Just me — quoting, invoicing, tracking jobs</span>
         </button>
-        <button type="button" class="wizard-option" data-mode="simple" data-next="4">
+        <button type="button" class="wizard-option" data-mode="simple" data-next="5">
           <span class="wizard-option-icon" aria-hidden="true">🏪</span>
           <strong data-i18n="wiz.option_shop">Small shop</strong>
           <span data-i18n="wiz.option_shop_desc">1–3 printers, occasional staff help</span>
         </button>
-        <button type="button" class="wizard-option" data-mode="professional" data-next="4">
+        <button type="button" class="wizard-option" data-mode="professional" data-next="5">
           <span class="wizard-option-icon" aria-hidden="true">🏭</span>
           <strong data-i18n="wiz.option_farm">Print farm</strong>
           <span data-i18n="wiz.option_farm_desc">4+ printers, multiple operators, analytics-driven</span>
         </button>
-        <button type="button" class="wizard-option" data-mode="professional" data-next="4">
+        <button type="button" class="wizard-option" data-mode="professional" data-next="5">
           <span class="wizard-option-icon" aria-hidden="true">🏢</span>
           <strong data-i18n="wiz.option_b2b">Company / B2B</strong>
           <span data-i18n="wiz.option_b2b_desc">Corporate clients, VAT invoicing, multi-location</span>
         </button>
       </div>
+      <div class="btn-row" style="justify-content:center;gap:10px;margin-top:16px;">
+        <button type="button" class="btn ghost" data-prev="2" data-i18n="wiz.back">← Back</button>
+        <button type="button" class="btn btn-primary wizard-next" id="wizStep3Continue" data-next="4" data-i18n="wiz.continue">Continue →</button>
+      </div>
     </div>
 
-    <!-- Step 4: Business details -->
-    <div class="wizard-step" id="wiz-step-4" style="display:none">
+    <!-- Step 5: Business details -->
+    <div class="wizard-step" id="wiz-step-5" style="display:none">
       <h2 class="wizard-title" data-i18n="wiz.details_title">Your business details</h2>
       <p class="wizard-subtitle" data-i18n="wiz.details_subtitle">Used on invoices and documents. Edit anytime in Settings.</p>
       <div class="wizard-form">
-        <label><span data-i18n="wiz.biz_name">Business / Shop name</span>
+        <label for="wizBizName"><span data-i18n="wiz.biz_name">Business / Shop name</span>
           <input id="wizBizName" type="text" data-i18n-placeholder="wiz.biz_name_ph" placeholder="e.g. Khayt Studio" class="form-control">
         </label>
-        <label><span data-i18n="wiz.currency">Currency</span>
+        <label for="wizCurrency"><span data-i18n="wiz.currency">Currency</span>
           <select id="wizCurrency" class="form-control">
             <option value="SAR">SAR — Saudi Riyal</option>
             <option value="USD">USD — US Dollar</option>
@@ -1958,8 +2171,18 @@
           <input type="checkbox" id="wizEnableZatca" style="width:auto;margin:0;" checked>
           <span data-i18n="onboard.zatca">ZATCA e-invoicing fields on invoices</span>
         </label>
+        <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin-top:14px;">
+          <input type="checkbox" id="wizEnableOnline" style="width:auto;margin:3px 0 0;">
+          <span>
+            <span data-i18n="online.wiz_enable">Accept online quote requests</span>
+            <span style="display:block;font-size:12px;color:var(--text-muted);font-weight:400;margin-top:4px;" data-i18n="online.wiz_enable_desc">Share a link on your shop Wi‑Fi; requests appear in Job Intake. You can change this in Settings.</span>
+          </span>
+        </label>
       </div>
-      <button type="button" class="btn btn-primary wizard-finish" id="wizFinish" data-i18n="wiz.finish">Start using Khayt →</button>
+      <div class="btn-row" style="justify-content:center;gap:10px;margin-top:8px;">
+        <button type="button" class="btn ghost" data-prev="3" data-i18n="wiz.back">← Back</button>
+        <button type="button" class="btn btn-primary wizard-finish" id="wizFinish" data-i18n="wiz.finish">Start using Khayt →</button>
+      </div>
     </div>
   </div>
 
@@ -1969,9 +2192,8 @@
     <span class="wizard-dot" data-step="2"></span>
     <span class="wizard-dot" data-step="3"></span>
     <span class="wizard-dot" data-step="4"></span>
+    <span class="wizard-dot" data-step="5"></span>
   </div>
-</div>
-
 </div>
 
 <!-- Printable invoice area -->
@@ -2006,8 +2228,22 @@
 <script src="store-validate.js"></script>
 <script src="format.js"></script>
 <script src="util.js"></script>
+<script src="online.js"></script>
 <script src="app-state.js"></script>
 <script src="app-security.js"></script>
+<script src="search-utils.js"></script>
+<script src="themes/registry-core.js"></script>
+<script src="themes/custom-loader.js"></script>
+<script src="themes/ledger/shell.js"></script>
+<script src="themes/console/shell.js"></script>
+<script src="themes/atelier/shell.js"></script>
+<script src="themes/vitrine/shell.js"></script>
+<script src="themes/cockpit/shell.js"></script>
+<script src="themes/cockpit/overview.js"></script>
+<script src="themes/atlas/shell.js"></script>
+<script src="themes/atlas/floor.js"></script>
+<script src="themes/theme-picker.js"></script>
+<script src="themes.js"></script>
 <script src="shell.js"></script>
 <script src="app-helpers.js"></script>
 <script src="currency.js"></script>
@@ -2033,6 +2269,7 @@
 <script src="analytics.js"></script>
 <script src="operations-extras.js"></script>
 <script src="wire-events.js"></script>
+<script src="update-ui.js"></script>
 <script src="app-boot.js"></script>
 <script src="app.js"></script>
 </body>
