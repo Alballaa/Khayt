@@ -1012,11 +1012,39 @@ function wireEvents() {
   // Feature 8 (new): Location filter
   $('#locationFilter')?.addEventListener('change', (e) => {
     activeLocation = e.target.value || null;
+    persistActiveLocation?.();
     renderDashboard();
     renderAnalytics();
     renderKanban();
+    renderMachineQueues?.();
     renderLogs();
     renderInventory();
+  });
+
+  document.addEventListener('click', (e) => {
+    const clearBtn = e.target.closest('[data-act="clear-location-filter"]');
+    if (clearBtn) {
+      activeLocation = null;
+      const sel = $('#locationFilter');
+      if (sel) sel.value = '';
+      persistActiveLocation?.();
+      renderDashboard();
+      renderKanban();
+      renderMachineQueues?.();
+      renderLogs();
+      return;
+    }
+    const locBtn = e.target.closest('[data-act="filter-location"]');
+    if (locBtn?.dataset.id) {
+      activeLocation = locBtn.dataset.id;
+      const sel = $('#locationFilter');
+      if (sel) sel.value = activeLocation;
+      persistActiveLocation?.();
+      renderDashboard();
+      renderKanban();
+      renderMachineQueues?.();
+      renderLogs();
+    }
   });
 
   // Operators management (settings section, Feature 1)

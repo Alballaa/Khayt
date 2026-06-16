@@ -124,6 +124,7 @@ function defaultSettings() {
     holidays:        [],
     // Business Mode (simple | professional)
     mode:            'simple',
+    businessType:    'solo',  // solo | shop | farm | b2b
     firstRun:        true,
     // Stale order alert thresholds (hours per status)
     staleHours: { printing: 48, post: 24, qc: 12, pending: 72 },

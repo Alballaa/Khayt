@@ -47,13 +47,81 @@ function openLocationEditor(locId = null) {
   });
 }
 
+const ACTIVE_LOCATION_KEY = 'khayt_active_location';
+
+/** Resolve site/branch for an order via assigned machine (or optional order.locationId). */
+function orderLocationId(order) {
+  if (!order) return null;
+  if (order.locationId) return order.locationId;
+  const mid = order.machineId;
+  const m = mid
+    ? machines.find(x => x.id === mid)
+    : machines.find(x => x.name && order.machine && x.name === order.machine);
+  return m?.locationId || null;
+}
+
+/** Top-bar location filter: all sites when unset; unassigned jobs stay visible at every site. */
+function orderMatchesActiveLocation(order) {
+  if (!activeLocation) return true;
+  const loc = orderLocationId(order);
+  if (!loc) return true;
+  return loc === activeLocation;
+}
+
+function machineMatchesActiveLocation(machine) {
+  if (!activeLocation) return true;
+  if (!machine?.locationId) return true;
+  return machine.locationId === activeLocation;
+}
+
+function restoreActiveLocationFromSession() {
+  try {
+    const v = sessionStorage.getItem(ACTIVE_LOCATION_KEY);
+    if (!v) {
+      activeLocation = null;
+      return;
+    }
+    activeLocation = locations.some(l => l.id === v) ? v : null;
+  } catch {
+    activeLocation = null;
+  }
+}
+
+function persistActiveLocation() {
+  try {
+    sessionStorage.setItem(ACTIVE_LOCATION_KEY, activeLocation || '');
+  } catch (_) {}
+}
+
 function renderLocationFilter() {
   const sel = $('#locationFilter');
   if (!sel) return;
-  const prev = sel.value;
+  if (activeLocation && !locations.some(l => l.id === activeLocation)) activeLocation = null;
   sel.innerHTML = `<option value="">${escapeHtml(t('loc.all'))}</option>` +
-    locations.map(l => `<option value="${l.id}"${l.id === prev ? ' selected' : ''}>${escapeHtml(l.name)}</option>`).join('');
-  sel.value = prev && locations.find(l => l.id === prev) ? prev : '';
+    locations.map(l => `<option value="${l.id}">${escapeHtml(l.name)}</option>`).join('');
+  sel.value = activeLocation || '';
+  renderLocationScopeBanner();
+}
+
+/** Banner when filtering queue/dashboard to one branch. */
+function renderLocationScopeBanner() {
+  const hosts = ['locationScopeBannerQueue', 'locationScopeBannerDash'];
+  const loc = activeLocation ? locations.find(l => l.id === activeLocation) : null;
+  hosts.forEach((id) => {
+    const host = document.getElementById(id);
+    if (!host) return;
+    if (!loc) {
+      host.innerHTML = '';
+      host.style.display = 'none';
+      return;
+    }
+    host.style.display = 'flex';
+    host.innerHTML = `
+      <span style="font-size:12px;color:var(--text-muted);">
+        ${escapeHtml(t('loc.filtering'))} <strong style="color:var(--text);">${escapeHtml(loc.name)}</strong>
+      </span>
+      <button type="button" class="btn small ghost" data-act="clear-location-filter">${escapeHtml(t('loc.show_all'))}</button>`;
+  });
 }
 
 function locationBadgeHtml(locationId) {
@@ -438,6 +506,12 @@ function applyOperatorPermissions() {
     ensureDefaultLocation,
     openLocationEditor,
     renderLocationFilter,
+    orderLocationId,
+    orderMatchesActiveLocation,
+    machineMatchesActiveLocation,
+    restoreActiveLocationFromSession,
+    persistActiveLocation,
+    renderLocationScopeBanner,
     locationBadgeHtml,
     applyProductionPause,
     pauseProduction,

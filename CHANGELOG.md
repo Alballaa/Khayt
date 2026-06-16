@@ -6,28 +6,32 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [2.6.0-beta.1] - 2026-06-16
 
-**Pre-release (beta)** — UI usability, accessibility, and update-review polish on top of stable **2.5.0**.
+**Pre-release (beta)** — UI usability & accessibility, the update-review modal, the iOS companion, print-farm multi-site, and new LAN write endpoints, on top of stable **2.5.0**.
 
 ### Added
 
-- **Global search** — Fuzzy/subsequence matching plus printers, suppliers, and expenses results; main-nav arrow-key (and Home/End) tab switching.
-- **Update changelog screen** — Manual “Check for updates” and the automatic launch check show release notes in a review modal before download/install (keeps the pre-update backup and hardened install flow).
+- **iOS Companion app** — native SwiftUI app over the desktop LAN API: home quick actions, queue/kanban strip, orders (active filters + history), order/spool detail, inventory search + low-stock, English/Arabic + RTL, connection banner, local notifications, home-screen widget, Siri shortcuts. NFC tag **read**, and NFC tag **write** with an OpenTag3D / OpenPrintTag / OpenSpool standard picker (default OpenTag3D for desktop-reader compatibility).
+- **Print farm — sites & location filter** — top-bar location filter scopes dashboard KPIs, production queue, machine queues, and orders log; **Sites overview** on the dashboard (Professional, 2+ locations); wizard **Print farm** preset (Professional mode, default WIP limits, second-site stub).
+- **LAN write endpoints** — `GET`/`PATCH /api/waiting-list`, `GET /api/clients`, `PATCH`/`DELETE /api/inventory/:id`, `machineId` on `PATCH /api/orders/:id`, `POST /api/orders`, and live telemetry — all with field allowlists, prototype-safe JSON parsing, and tunnel-aware rate limiting.
+- **Global search** — fuzzy/subsequence matching plus printers, suppliers, and expenses results; main-nav arrow-key (and Home/End) tab switching.
+- **Update changelog screen** — manual “Check for updates” and the automatic launch check show release notes in a review modal before download/install (keeps the pre-update backup and hardened install flow).
 
 ### Fixed
 
-- **Modals** — Focus trap keeps Tab inside dialogs; focus restores to the previous element on close.
-- **Settings save** — Post-process presets are no longer wiped when saving other settings panels.
-- **Global search** — Client and product results navigate to the correct record; keyboard ↑/↓ + Enter works.
+- **Setup wizard** — selecting **Print farm** / **Company B2B** now correctly saves Professional mode (was always saved as Simple); **Back** buttons no longer skip the security step.
+- **Modals** — focus trap keeps Tab inside dialogs; focus restores to the previous element on close.
+- **Settings save** — post-process presets are no longer wiped when saving other settings panels.
+- **Global search** — client and product results navigate to the correct record; keyboard ↑/↓ + Enter works.
 - **Help shortcut** — `?` opens help again (Shift was incorrectly blocked).
-- **Delete safety** — Locations and operators require confirmation before deletion.
-- **Notifications** — Bell exposes `aria-expanded`; toast container announces to screen readers.
-- **Feedback** — Toast when the email app cannot be opened (suggests the GitHub Issue button).
+- **Delete safety** — locations and operators require confirmation before deletion.
+- **Notifications** — bell exposes `aria-expanded`; toast container announces to screen readers.
+- **Feedback** — toast when the email app cannot be opened (suggests the GitHub Issue button).
 
 ### Changed
 
-- **Preferences** — Language and theme apply immediately when changed.
-- **Settings on narrow windows** — Section nav stacks/wraps on small screens.
-- New `upd.*`, `search.*`, and related strings added in English and Arabic; a `locale-parity` test now gates `ar ⊇ en`.
+- **Preferences** — language and theme apply immediately when changed.
+- **Settings on narrow windows** — section nav stacks/wraps on small screens.
+- Removed dead wizard code/markup and 17 unused locale keys; new `upd.*`, `search.*`, `farm.*`, `loc.*`, and iOS/LAN strings added in English and Arabic; a `locale-parity` test now gates `ar ⊇ en`.
 
 ## [2.5.0] - 2026-06-16
 

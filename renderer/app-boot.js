@@ -46,6 +46,7 @@ function initWizard() {
   wiz.style.display = 'flex';
 
   let selectedMode = 'simple';
+  let selectedBizType = 'solo';
   let selectedDesign = settings.designTheme || 'studio';
   let pendingPin = null;
   let pendingRecoveryCode = null;
@@ -102,6 +103,7 @@ function initWizard() {
         wiz.querySelectorAll('.wizard-option').forEach(o => o.classList.remove('selected'));
         nextBtn.classList.add('selected');
         selectedMode = nextBtn.dataset.mode;
+        selectedBizType = nextBtn.dataset.bizType || selectedMode;
       }
       if (step === 2) {
         const lang = $('#wizLang')?.value || 'en';
@@ -197,10 +199,20 @@ function initWizard() {
     }
     settings.currency = currency;
     settings.mode = selectedMode;
+    settings.businessType = selectedBizType;
     settings.designTheme = selectedDesign || settings.designTheme || 'studio';
     const finishTheme = global.KhaytThemeRegistry?.getTheme(settings.designTheme);
     if (finishTheme?.defaultAppearance) settings.theme = finishTheme.defaultAppearance;
     else if (!settings.theme) settings.theme = 'light';
+    if (selectedBizType === 'farm') {
+      const w = { ...(settings.wipLimits || {}) };
+      if (!w.printing) {
+        settings.wipLimits = { pending: 30, printing: 6, post: 8, qc: 4, ...w };
+      }
+      if (locations.length === 1) {
+        locations.push({ id: uid('LOC'), name: t('farm.second_site') || 'Site 2', address: '' });
+      }
+    }
     settings.enableZatca = $('#wizEnableZatca')?.checked !== false;
     const enableOnline = $('#wizEnableOnline')?.checked === true;
     settings.onlineEnabled = enableOnline;
@@ -250,6 +262,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadAll();
   pruneExpiredNotifs();
 
+  restoreActiveLocationFromSession?.();
   normalizeWizardFlagsAfterLoad();
   if (!settings.firstRunDone && (printLog.length > 0 || clients.length > 0)) {
     settings.mode = settings.mode || 'professional';

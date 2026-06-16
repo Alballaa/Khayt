@@ -5,6 +5,62 @@
 /* ============================================================
    Khayt Studio — dashboard & queue presentation
    ============================================================ */
+
+/** Multi-site summary for print farms (Professional mode, 2+ locations). */
+function buildFarmLocationOverview() {
+  if (settings.mode === 'simple' || locations.length < 2) return '';
+  if (typeof orderLocationId !== 'function') return '';
+
+  const todayStr = localDateStr(new Date());
+  const rows = locations.map((loc) => {
+    const locMachines = machines.filter(m => m.locationId === loc.id);
+    const locOrders = printLog.filter(o => orderLocationId(o) === loc.id);
+    const printing = locOrders.filter(o => o.status === 'printing').length;
+    const pending = locOrders.filter(o => o.status === 'pending').length;
+    const activeHrs = locOrders
+      .filter(o => o.status !== 'completed' && o.status !== 'quote')
+      .reduce((s, o) => s + (+o.printTime || 0), 0);
+    const todayRev = locOrders
+      .filter(o => o.status === 'completed' && o.date === todayStr)
+      .reduce((s, o) => s + orderRevenueBase(o), 0);
+    return { loc, printers: locMachines.length, printing, pending, activeHrs, todayRev };
+  });
+
+  const unassigned = printLog.filter(o => !orderLocationId(o) && o.status !== 'completed' && o.status !== 'quote');
+  const unassignedHrs = unassigned.reduce((s, o) => s + (+o.printTime || 0), 0);
+
+  const cards = rows.map((r) => `
+    <button type="button" class="farm-loc-card card" data-act="filter-location" data-id="${escapeHtml(r.loc.id)}"
+      style="text-align:start;padding:12px 14px;cursor:pointer;border:1px solid var(--border);${activeLocation === r.loc.id ? 'border-color:var(--primary);box-shadow:0 0 0 1px var(--primary);' : ''}">
+      <div style="font-weight:600;font-size:13px;margin-bottom:6px;">${escapeHtml(r.loc.name)}</div>
+      <div style="font-size:11px;color:var(--text-muted);line-height:1.5;">
+        ${r.printers} ${escapeHtml(t('farm.loc_printers') || 'printers')}
+        · ${r.printing} ${escapeHtml(t('farm.loc_printing') || 'printing')}
+        · ${r.pending} ${escapeHtml(t('farm.loc_pending') || 'pending')}
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">
+        ${r.activeHrs.toFixed(1)}h ${escapeHtml(t('farm.loc_queue') || 'in queue')}
+        · ${escapeHtml(t('farm.loc_today') || 'today')} ${fmtMoney(r.todayRev)}
+      </div>
+    </button>`).join('');
+
+  const unassignedHtml = unassigned.length
+    ? `<p style="font-size:11px;color:var(--text-muted);margin:8px 0 0;">
+        ${escapeHtml(t('farm.unassigned_jobs', { n: unassigned.length, h: unassignedHrs.toFixed(1) }) || `${unassigned.length} jobs (${unassignedHrs.toFixed(1)}h) not tied to a site printer yet`)}
+      </p>`
+    : '';
+
+  return `
+    <div class="dash-section farm-loc-overview pro-only" style="margin-bottom:14px;">
+      <div class="row between wrap gap8" style="margin-bottom:10px;">
+        <h3 class="dash-section-head" style="margin:0;">${escapeHtml(t('farm.loc_overview') || 'Sites overview')}</h3>
+        ${activeLocation ? `<button type="button" class="btn small ghost" data-act="clear-location-filter">${escapeHtml(t('loc.show_all'))}</button>` : ''}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;">${cards}</div>
+      ${unassignedHtml}
+    </div>`;
+}
+
 function buildSoloDashboardQuickRow(ctx) {
   const {
     expiringQuotes, nowPrinting, todayRev, receivables, todayStr,
@@ -270,6 +326,15 @@ function renderDashboard() {
     return;
   }
 
+  const dashOrders = typeof orderMatchesActiveLocation === 'function'
+    ? printLog.filter(orderMatchesActiveLocation)
+    : printLog;
+  const dashMachines = typeof machineMatchesActiveLocation === 'function'
+    ? machines.filter(machineMatchesActiveLocation)
+    : machines;
+
+  renderLocationScopeBanner?.();
+
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const todayStr = localDateStr(today);
 
@@ -423,7 +488,8 @@ function renderDashboard() {
   const dashTagline      = dashIsAr ? (settings.taglineAr || settings.taglineEn) : (settings.taglineEn || settings.taglineAr);
 
   // Stale order alerts
-  const staleOrders = getStaleOrders();
+  const staleOrders = getStaleOrders().filter(o =>
+    typeof orderMatchesActiveLocation !== 'function' || orderMatchesActiveLocation(o));
   const staleHtml = staleOrders.length === 0 ? '' : `
     <div class="card" style="margin-bottom:16px; border-left:3px solid var(--warning);">
       <h3 class="card-head" style="margin-bottom:10px;"><span class="swatch" style="background:var(--warning);"></span>
@@ -449,7 +515,7 @@ function renderDashboard() {
     </div>`;
 
   const studioPanels = buildStudioDashboardPanels({
-    machines, printLog, nowPrinting, overdue, staleOrders, expiringQuotes,
+    machines: dashMachines, printLog: dashOrders, nowPrinting, overdue, staleOrders, expiringQuotes,
     dueSoon, today, inventory, settings,
   });
 
@@ -475,6 +541,8 @@ function renderDashboard() {
       </div>
     </div>
 
+    <div id="locationScopeBannerDash" class="location-scope-banner" style="display:none;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:4px;padding:8px 12px;background:var(--bg-elev);border:1px solid var(--border);border-radius:var(--radius);"></div>
+    ${buildFarmLocationOverview()}
     ${soloQuickRow}
     ${settings.mode === 'simple' ? '' : renderDashKpiRow({ active: active.length, overdue: overdue.length, todayRev, receivables, revDeltaPct, sparkData })}
     <div class="dash-stats dash-stats-secondary pro-only">
@@ -829,6 +897,7 @@ function renderDashboard() {
   // Round 12: break-even card
   renderBreakEvenCard();
   updateTabBadges();
+  renderLocationScopeBanner?.();
 }
 
 
