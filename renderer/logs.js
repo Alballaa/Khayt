@@ -11,6 +11,7 @@ function getFilteredLogs() {
     if (logTagFilter && !(log.tags || []).includes(logTagFilter)) return false;
     if (logClientFilter && log.clientId !== logClientFilter) return false;
     if (logOperatorFilter && log.operatorId !== logOperatorFilter) return false;
+    if (typeof orderMatchesActiveLocation === 'function' && !orderMatchesActiveLocation(log)) return false;
     if (logSearchTerm) {
       const cl = log.clientId ? clients.find(c => c.id === log.clientId) : null;
       const hay = [log.project, log.client, cl?.nameEn, cl?.nameAr, log.id, log.material, ...(log.tags || [])].join(' ').toLowerCase();

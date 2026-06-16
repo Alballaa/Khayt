@@ -4,9 +4,12 @@ Living priorities for maintainers. Not a public commitment calendar — reorder 
 
 ## Now (2.3.x — on `main`, **no public release** until [RELEASE-HOLD.md](./RELEASE-HOLD.md) lifted)
 
+- [ ] Triage post-2.2.0 feedback; plan 2.2.x patches or 2.3.0
+- [x] iOS Companion v1 in `ios/` — LAN PIN pairing, queue, inventory, machines, NFC; see [docs/LAN_API.md](./docs/LAN_API.md)
 - [x] **Check for updates** UX (dev / error / version; merged to `main`, unreleased)
 - [x] **Online option** — LAN intake toggle, wizard, Job Intake link (merged to `main`, unreleased)
 - [x] **Solo maker polish** — Online hub, intake→calculator prefill, simple-mode dashboard (`main`, unreleased)
+- [x] **Print farm (local)** — Location filter wired to queue/dashboard/logs; sites overview; farm wizard preset (`main`, unreleased)
 - [ ] Desktop stabilization smoke on `main` (no tag)
 - [ ] **Multi-shop shared data (Khayt Cloud)** — **deferred** after initial batch; design: [docs/MULTI-SHOP-CLOUD.md](./docs/MULTI-SHOP-CLOUD.md)
 - [x] **Platform strategy** — stay on Electron; rewrite (Swift/C++/native) deferred — [docs/PLATFORM-MIGRATION.md](./docs/PLATFORM-MIGRATION.md)
