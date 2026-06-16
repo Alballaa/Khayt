@@ -84,14 +84,14 @@ test('interpretUpdateCheckResult handles dev, available, and up to date', () => 
     interpretUpdateCheckResult({ isPackaged: false, currentVersion: '2.3.2' }).status,
     'dev',
   );
-  assert.equal(
-    interpretUpdateCheckResult({
-      isPackaged: true,
-      currentVersion: '2.3.1',
-      updateInfo: { version: '2.3.2' },
-    }).status,
-    'available',
-  );
+  const available = interpretUpdateCheckResult({
+    isPackaged: true,
+    currentVersion: '2.3.1',
+    updateInfo: { version: '2.3.2', releaseNotes: '- Bug fix', releaseDate: '2026-06-05' },
+  });
+  assert.equal(available.status, 'available');
+  assert.equal(available.version, '2.3.2');
+  assert.equal(available.releaseNotes, '- Bug fix');
   assert.equal(
     interpretUpdateCheckResult({
       isPackaged: true,

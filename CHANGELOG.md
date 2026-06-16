@@ -12,6 +12,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 - **Modals** — Focus trap keeps Tab inside dialogs; focus restores on close.
 - **Feedback** — Error when the email app cannot be opened.
+- **Update changelog screen** — Manual “Check for updates” and automatic launch checks show release notes in a review modal before download/install.
+
+### Fixed
+
 - **Settings save** — Post-process presets are no longer wiped when saving other settings panels.
 - **Global search** — Client and product results navigate to the correct record; keyboard ↑/↓ + Enter works in search.
 - **Help shortcut** — `?` key opens help again (Shift was incorrectly blocked).
