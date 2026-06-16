@@ -52,6 +52,13 @@
     signal:   { h: 135, s: '62%',  l: '52%', labelKey: 'theme.accent.signal' },
   };
 
+  const WORKBENCH_ACCENTS = {
+    indigo:  { h: 236, s: '86%', l: '63%', labelKey: 'theme.accent.indigo' },
+    blue:    { h: 220, s: '100%', l: '59%', labelKey: 'theme.accent.workbench_blue' },
+    grape:   { h: 264, s: '72%', l: '60%', labelKey: 'theme.accent.grape' },
+    emerald: { h: 152, s: '74%', l: '37%', labelKey: 'theme.accent.emerald' },
+  };
+
   /** Shell types that share the Khayt handoff six-screen layer (A–E family). */
   const HANDOFF_SCREEN_SHELLS = ['studio', 'ledger', 'console', 'atelier', 'vitrine'];
 
@@ -209,6 +216,21 @@
         'themes/atlas/compat.css',
       ],
     },
+    workbench: {
+      labelKey: 'theme.design.workbench',
+      descKey: 'theme.design.workbench_desc',
+      preview: 'themes/previews/workbench.png',
+      shell: 'workbench',
+      enabled: true,
+      defaultAccent: 'indigo',
+      accents: WORKBENCH_ACCENTS,
+      defaultAppearance: 'light',
+      bodyClass: 'khayt-workbench',
+      stylesheets: [
+        'themes/workbench/tokens.css',
+        'themes/workbench/shell.css',
+      ],
+    },
   };
 
   const registry = { ...BUILTIN_THEMES, ...RESERVED_THEMES };
@@ -358,6 +380,7 @@
     VITRINE_ACCENTS,
     COCKPIT_ACCENTS,
     ATLAS_ACCENTS,
+    WORKBENCH_ACCENTS,
     BUILTIN_THEMES,
     RESERVED_THEMES,
     registry,
