@@ -4,8 +4,15 @@
    throughout so RTL mirrors automatically. */
 
 /* ---------- App frame: column with a bottom status bar ---------- */
+/* Keep a slim draggable title strip so the macOS traffic lights (hiddenInset,
+   positioned at 16,16) have room and don't overlap the sidebar brand. */
 body.khayt-workbench .khayt-titlebar {
-  display: none;
+  display: flex;
+  flex-shrink: 0;
+  height: 32px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--line);
+  -webkit-app-region: drag;
 }
 
 body.khayt-workbench .khayt-app {

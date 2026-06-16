@@ -5,8 +5,15 @@
    automatically. Scoped to body.khayt-command. */
 
 /* ---------- App frame: column with a bottom status bar ---------- */
+/* Keep a slim draggable title strip so the macOS traffic lights (hiddenInset,
+   positioned at 16,16) have room and don't overlap the rail / sidebar brand. */
 body.khayt-command .khayt-titlebar {
-  display: none;
+  display: flex;
+  flex-shrink: 0;
+  height: 32px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  -webkit-app-region: drag;
 }
 
 body.khayt-command .khayt-app {
