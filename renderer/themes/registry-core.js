@@ -114,6 +114,7 @@
       descKey: 'theme.design.studio_desc',
       preview: 'themes/previews/studio.png',
       shell: 'studio',
+      legacy: true,
       enabled: true,
       defaultAccent: 'cyan',
       accents: STUDIO_ACCENTS,
@@ -133,6 +134,7 @@
       descKey: 'theme.design.ledger_desc',
       preview: 'themes/previews/ledger.png',
       shell: 'ledger',
+      legacy: true,
       enabled: true,
       defaultAccent: 'safety',
       accents: LEDGER_ACCENTS,
@@ -150,6 +152,7 @@
       descKey: 'theme.design.console_desc',
       preview: 'themes/previews/console.png',
       shell: 'console',
+      legacy: true,
       enabled: true,
       defaultAccent: 'signal',
       accents: CONSOLE_ACCENTS,
@@ -167,6 +170,7 @@
       descKey: 'theme.design.atelier_desc',
       preview: 'themes/previews/atelier.png',
       shell: 'atelier',
+      legacy: true,
       enabled: true,
       defaultAccent: 'clay',
       accents: ATELIER_ACCENTS,
@@ -184,6 +188,7 @@
       descKey: 'theme.design.vitrine_desc',
       preview: 'themes/previews/vitrine.png',
       shell: 'vitrine',
+      legacy: true,
       enabled: true,
       defaultAccent: 'aurora',
       accents: VITRINE_ACCENTS,
@@ -201,6 +206,7 @@
       descKey: 'theme.design.cockpit_desc',
       preview: 'themes/previews/cockpit.png',
       shell: 'cockpit',
+      legacy: true,
       enabled: true,
       defaultAccent: 'electric',
       accents: COCKPIT_ACCENTS,
@@ -219,6 +225,7 @@
       descKey: 'theme.design.atlas_desc',
       preview: 'themes/previews/atlas.png',
       shell: 'atlas',
+      legacy: true,
       enabled: true,
       defaultAccent: 'phosphor',
       accents: ATLAS_ACCENTS,
@@ -290,14 +297,14 @@
   }
 
   function normalizeDesignId(designId) {
-    if (!designId) return 'studio';
+    if (!designId) return 'workbench';
     if (designId === 'classic') return 'ledger';
     if (isCustomThemeId(designId)) {
       const id = customIdFromTheme(designId);
-      return customThemes[id] ? designId : 'studio';
+      return customThemes[id] ? designId : 'workbench';
     }
     const theme = registry[designId];
-    if (!theme || theme.enabled === false) return 'studio';
+    if (!theme || theme.enabled === false) return 'workbench';
     return designId;
   }
 
@@ -309,7 +316,7 @@
 
   function listSelectableThemes() {
     const builtins = Object.entries(registry)
-      .filter(([, t]) => t.enabled !== false && !t.comingSoon)
+      .filter(([, t]) => t.enabled !== false && !t.comingSoon && !t.legacy)
       .map(([id]) => id);
     const custom = Object.keys(customThemes).map((id) => `custom:${id}`);
     return [...builtins, ...custom];

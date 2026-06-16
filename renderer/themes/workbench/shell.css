@@ -340,3 +340,7 @@ body.khayt-workbench .btn-primary {
 @media (max-width: 720px) {
   body.khayt-workbench .khayt-search { display: none; }
 }
+
+/* Keep the top bar one row — the base .topbar-actions carries a `wrap` class. */
+body.khayt-workbench .topbar-actions { flex-wrap: nowrap; }
+body.khayt-workbench .khayt-search { min-width: 0; }

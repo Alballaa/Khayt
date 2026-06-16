@@ -6,18 +6,17 @@ const reg = require('../renderer/themes/registry-core.js');
 test('normalizeDesignId maps classic to ledger', () => {
   assert.equal(reg.normalizeDesignId('classic'), 'ledger');
   assert.equal(reg.normalizeDesignId('studio'), 'studio');
-  assert.equal(reg.normalizeDesignId('unknown'), 'studio');
+  assert.equal(reg.normalizeDesignId('unknown'), 'workbench');
 });
 
-test('selectable themes include all seven Khayt-4 production themes', () => {
+test('selectable themes are the three 2.6 designs; the seven legacy designs are hidden', () => {
   const selectable = reg.listSelectableThemes();
-  assert.ok(selectable.includes('studio'));
-  assert.ok(selectable.includes('ledger'));
-  assert.ok(selectable.includes('console'));
-  assert.ok(selectable.includes('atelier'));
-  assert.ok(selectable.includes('vitrine'));
-  assert.ok(selectable.includes('cockpit'));
-  assert.ok(selectable.includes('atlas'));
+  assert.ok(selectable.includes('workbench'));
+  assert.ok(selectable.includes('command'));
+  assert.ok(selectable.includes('vivid'));
+  for (const legacy of ['studio', 'ledger', 'console', 'atelier', 'vitrine', 'cockpit', 'atlas']) {
+    assert.ok(!selectable.includes(legacy), `${legacy} should be hidden (legacy)`);
+  }
 });
 
 test('coming soon lists Frontier Pulse and Stream only', () => {

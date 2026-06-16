@@ -4,6 +4,11 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Changed
+
+- **New design system (Workbench / Command / Vivid)** — the theme line is consolidated to three light-default, native-app designs. **Workbench is now the default**; the seven legacy designs (Studio, Ledger, Console, Atelier, Vitrine, Cockpit, Atlas) are hidden from the picker (code retained for now). Existing installs are migrated automatically to the nearest new design (studio/ledger/console → Workbench, cockpit/atlas → Command, vitrine/atelier → Vivid).
+- Top bar shows a single search control and stays on one row across the new shells.
+
 ## [2.6.0-beta.1] - 2026-06-16
 
 **Pre-release (beta)** — UI usability & accessibility, the update-review modal, the iOS companion, print-farm multi-site, and new LAN write endpoints, on top of stable **2.5.0**.

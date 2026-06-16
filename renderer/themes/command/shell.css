@@ -506,3 +506,7 @@ body.khayt-command .khayt-scroll.content .btn:not(.primary):not(.btn-primary):no
   body.khayt-command .khayt-search { display: none; }
   body.khayt-command .cmd-tabstrip { display: none; }
 }
+
+/* Keep the top bar one row — the base .topbar-actions carries a `wrap` class. */
+body.khayt-command .topbar-actions { flex-wrap: nowrap; }
+body.khayt-command .khayt-search { min-width: 0; }
