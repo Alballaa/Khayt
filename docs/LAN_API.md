@@ -53,9 +53,12 @@ Public aggregate counts for the active queue.
   "printing": 3,
   "post": 2,
   "qc": 3,
-  "completed_today": 7
+  "completed_today": 7,
+  "waiting": 2
 }
 ```
+
+`waiting` — active job intake / waiting-list entries (excludes declined).
 
 ### `GET /api/queue`
 
@@ -92,11 +95,21 @@ Order log slice. **Requires owner PIN.**
 
 Update order status. **Requires owner PIN.**
 
-**Body**
+**Body** (at least one field required)
 
 ```json
 { "status": "printing" }
 ```
+
+```json
+{ "machineId": "m1" }
+```
+
+```json
+{ "status": "printing", "machineId": "m1" }
+```
+
+Pass `"machineId": null` to unassign a printer.
 
 **Valid status values:** `pending`, `printing`, `post`, `qc`, `completed`, `on_hold`
 
@@ -126,6 +139,93 @@ Append a spool. **Requires owner PIN.**
 
 **Desktop side effect:** `lan-spool-added` IPC.
 
+### `PATCH /api/inventory/:id`
+
+Update spool remaining weight. **Requires owner PIN.**
+
+**Body**
+
+```json
+{ "remaining": 450 }
+```
+
+**Response 200:** `{ "ok": true, "spool": { ... } }`  
+**Desktop side effect:** `lan-spool-updated` IPC.
+
+### `DELETE /api/inventory/:id`
+
+Remove a spool. **Requires owner PIN.**
+
+**Response 200:** `{ "ok": true, "id": "spool-…" }`  
+**Desktop side effect:** `lan-spool-deleted` IPC.
+
+### `GET /api/waiting-list`
+
+Active intake / waiting-list entries (excludes declined). **Requires owner PIN.**
+
+**Response 200:** array of waiting-list objects (`id`, `project`, `clientName`, `notes`, `priority`, `status`, …).
+
+### `PATCH /api/waiting-list/:id`
+
+Update intake item status. **Requires owner PIN.**
+
+**Body:** `{ "status": "reminded" }` or `{ "status": "declined" }`  
+Declining moves the item to `waitingListHistory` on desktop.
+
+**Desktop side effect:** `lan-waiting-updated` IPC.
+
+### `GET /api/clients`
+
+Read-only client list from store. **Requires owner PIN.**
+
+**Response 200:** array with `id`, `nameEn`, `nameAr`, `phone`, `email`.
+
+### `POST /api/orders`
+
+Create a simple job or quote from the companion. **Requires owner PIN.**
+
+**Body**
+
+```json
+{
+  "project": "Bracket v2",
+  "client": "Acme Co",
+  "material": "PLA",
+  "price": 150,
+  "status": "pending",
+  "machineId": "MACH-1",
+  "dueDate": "2026-06-15",
+  "notes": "Rush job"
+}
+```
+
+Use `"status": "quote"` for a quote (sets expiry from desktop `quoteValidityDays`).
+
+**Response 201:** `{ "ok": true, "order": { ... } }`  
+**Desktop side effect:** `lan-order-created` IPC.
+
+### `GET /api/orders/:id/quote-url`
+
+Quote approval links for sharing with customers. **Requires owner PIN.**
+
+**Response 200:**
+
+```json
+{
+  "quoteUrl": "http://192.168.1.42:3219/order/QUO-2026-123/quote",
+  "statusUrl": "http://192.168.1.42:3219/order/QUO-2026-123/status",
+  "canApprove": true,
+  "expired": false,
+  "quoteExpiresAt": "2026-06-10"
+}
+```
+
+### `POST /api/orders/:id/approve`
+
+Owner approves a quote (same as customer web approval). **Requires owner PIN.**
+
+**Response 200:** `{ "ok": true, "order": { ... } }`
+
 ### `GET /api/machines`
 
 Machine list glance. **Requires owner PIN.**
@@ -134,9 +234,15 @@ Machine list glance. **Requires owner PIN.**
 
 ```json
 [
-  { "id": "m1", "name": "P1S", "type": "fdm", "status": "printing" }
+  { "id": "m1", "name": "P1S", "type": "fdm", "status": "printing", "hasPrinterApi": true }
 ]
 ```
+
+### `GET /api/machines/live`
+
+Live printer telemetry from desktop API polling (OctoPrint, Moonraker, PrusaLink, Bambu). **Requires owner PIN.**
+
+**Response 200** — array per machine with `state`, `progress`, `tempNozzle`, `tempBed`, `timeRemaining`, `filename`, `error`, `lastUpdated`.
 
 ## Errors
 
@@ -157,7 +263,11 @@ Defined in `preload.js`:
 | Event | When |
 |-------|------|
 | `lan-spool-added` | After `POST /api/inventory` |
-| `lan-order-updated` | After `PATCH /api/orders/:id` |
+| `lan-spool-updated` | After `PATCH /api/inventory/:id` |
+| `lan-spool-deleted` | After `DELETE /api/inventory/:id` |
+| `lan-order-created` | After `POST /api/orders` |
+| `lan-order-updated` | After `PATCH /api/orders/:id` or quote approval |
+| `lan-waiting-updated` | After `PATCH /api/waiting-list/:id` |
 | `lan-kanban-advanced` | Printer webhooks / auto-advance |
 
 Renderer handlers: `renderer/app-boot.js` (`onLanSpoolAdded`, `onLanOrderUpdated`).
