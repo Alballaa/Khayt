@@ -292,3 +292,57 @@ body.khayt-workbench .wb-qa-glyph {
   color: #fff;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
+
+/* ============================================================
+   Re-skin polish for the SHARED (legacy) screen interiors.
+   Keeps all functionality; only adopts the Workbench field /
+   card-header visual language from the prototype. Scoped to the
+   scrolling content area so the bespoke .wb-* Dashboard markup
+   and the chrome (topbar/sidebar/status bar) stay untouched.
+   The .wb-* Dashboard uses its own classes, so these element
+   selectors don't collide with it.
+   ============================================================ */
+
+/* Native form fields (Calculator / Inventory / Settings forms). Restyle
+   color, border, radius and focus ring only — never size/padding — so the
+   shared layouts keep their spacing. */
+body.khayt-workbench .khayt-scroll.content input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+body.khayt-workbench .khayt-scroll.content select,
+body.khayt-workbench .khayt-scroll.content textarea {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font-family: inherit;
+}
+body.khayt-workbench .khayt-scroll.content input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):focus,
+body.khayt-workbench .khayt-scroll.content select:focus,
+body.khayt-workbench .khayt-scroll.content textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  background: var(--panel);
+  outline: none;
+}
+body.khayt-workbench .khayt-scroll.content label {
+  color: var(--ink-2);
+}
+
+/* Section card headers → prototype panel-header weight/size. */
+body.khayt-workbench .khayt-scroll.content .card-head {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.1px;
+  color: var(--ink);
+}
+
+/* Secondary / ghost buttons → native pill with hairline + soft shadow. */
+body.khayt-workbench .khayt-scroll.content .btn:not(.primary):not(.btn-primary) {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-1);
+}
+body.khayt-workbench .khayt-scroll.content .btn:not(.primary):not(.btn-primary):hover {
+  background: var(--bg-2);
+}
