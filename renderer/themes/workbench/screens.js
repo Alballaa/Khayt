@@ -115,7 +115,7 @@
       else if (diff === 1) parts.push(tr('dash.due_tomorrow_sub', 'due tomorrow'));
       else parts.push(tr('oe.due_in', `due in ${diff}d`));
     }
-    if (!parts.length) parts.push(escapeHtml(order.id));
+    if (!parts.length) parts.push(order.id);
     const sub = parts.join(' · ');
     const pct = jobProgress(order);
     const pctHtml = pct != null
@@ -340,7 +340,7 @@
     });
     // Overdue receivables (completed but unpaid past due) as a fallback signal.
     if (attention.length < 5) {
-      log.filter((o) => o.status === 'completed' && payStatus(o) === 'unpaid' && orderOwedBase(o) > 0)
+      log.filter((o) => o.status === 'completed' && payStatus(o) !== 'paid' && orderOwedBase(o) > 0)
         .slice(0, 5 - attention.length).forEach((o) => {
           const client = findClient(o.clientId);
           const bits = [`${fmtMoneyVal(orderOwedBase(o))} ${ccy()}`];
