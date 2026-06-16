@@ -1,6 +1,6 @@
 /* Bridge legacy renderer/styles.css tokens → Khayt Studio (ds.css) */
 
-:root {
+html[data-design="studio"] {
   --bg-elev:      var(--bg-2);
   --bg-card:      var(--surface);
   --surface-1:    var(--surface);
@@ -18,7 +18,8 @@
   --font-num:     var(--font-mono);
 }
 
-html, body {
+html[data-design="studio"],
+html[data-design="studio"] body {
   background: #06070a;
 }
 
@@ -33,7 +34,7 @@ body.khayt-studio::before {
     radial-gradient(1000px 700px at 110% 120%, rgba(56,134,240,0.07), transparent 55%);
 }
 
-.khayt-app {
+body.khayt-studio .khayt-app {
   position: relative;
   z-index: 1;
   display: flex;
@@ -44,15 +45,16 @@ body.khayt-studio::before {
   color: var(--text);
 }
 
-.khayt-body {
+body.khayt-studio .khayt-body,
+body.khayt-ledger .khayt-body {
   flex: 1;
   display: flex;
   min-height: 0;
 }
 
-/* Legacy layout hidden */
-nav.tabs,
-.header {
+/* Legacy layout hidden (Studio shell) */
+body.khayt-studio nav.tabs,
+body.khayt-studio .header {
   display: none !important;
 }
 
@@ -74,31 +76,31 @@ nav.tabs,
   /* tab-btn + khayt-navitem */
 }
 
-.app-sidebar.khayt-sidebar .tab-btn::after {
+body.khayt-studio .app-sidebar.khayt-sidebar .tab-btn::after {
   display: none;
 }
 
 /* Dashboard stat tiles → studio KPI cards */
-.dash-stats {
+body.khayt-studio .dash-stats {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: var(--gap);
   margin-bottom: var(--gap);
 }
-.dash-stat {
+body.khayt-studio .dash-stat {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   padding: var(--pad-card);
 }
-.dash-stat-val {
+body.khayt-studio .dash-stat-val {
   font-family: var(--font-mono);
   font-size: 28px;
   font-weight: 500;
   letter-spacing: -0.02em;
   color: var(--text);
 }
-.dash-stat-lbl {
+body.khayt-studio .dash-stat-lbl {
   font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -107,30 +109,30 @@ nav.tabs,
   margin-top: 6px;
 }
 
-.dash-hero {
+body.khayt-studio .dash-hero {
   border-radius: var(--r-lg);
   border: 1px solid var(--border);
   background: var(--surface);
 }
 
-.card {
+body.khayt-studio .card {
   border-radius: var(--r-lg);
 }
 
-.khayt-navitem.active,
-.khayt-navitem.on {
+body.khayt-studio .khayt-navitem.active,
+body.khayt-studio .khayt-navitem.on {
   background: var(--accent-soft);
   color: var(--text);
   font-weight: 650;
 }
-.app-sidebar.collapsed { width: 64px !important; }
-.app-sidebar.collapsed .sidebar-brand-text,
-.app-sidebar.collapsed .nav-group-label,
-.app-sidebar.collapsed .nav-label,
-.app-sidebar.collapsed .khayt-pro,
-.app-sidebar.collapsed .khayt-live,
-.app-sidebar.collapsed .collapse-label { display: none !important; }
-.app-sidebar.collapsed .khayt-brand { justify-content: center; padding-inline: 12px; }
+body.khayt-studio .app-sidebar.collapsed { width: 64px !important; }
+body.khayt-studio .app-sidebar.collapsed .sidebar-brand-text,
+body.khayt-studio .app-sidebar.collapsed .nav-group-label,
+body.khayt-studio .app-sidebar.collapsed .nav-label,
+body.khayt-studio .app-sidebar.collapsed .khayt-pro,
+body.khayt-studio .app-sidebar.collapsed .khayt-live,
+body.khayt-studio .app-sidebar.collapsed .collapse-label { display: none !important; }
+body.khayt-studio .app-sidebar.collapsed .khayt-brand { justify-content: center; padding-inline: 12px; }
 
 /* Phase 2: dashboard + queue content */
 .khayt-dash .dash-hero-right { display: none; }

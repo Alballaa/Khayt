@@ -61,6 +61,200 @@ function renderSimpleReports() {
   });
 }
 
+function useHandoffAnalytics() {
+  return document.body.classList.contains('khayt-handoff') && settings.mode === 'professional';
+}
+
+function handoffSparkSvg(data, w, h) {
+  if (!data?.length) return '';
+  const max = Math.max(...data, 1);
+  const pts = data.map((v, i) => {
+    const x = Math.round((i / Math.max(data.length - 1, 1)) * w);
+    const y = Math.round(h - (v / max) * h * 0.9);
+    return `${x},${y}`;
+  }).join(' ');
+  return `<svg width="${w}" height="${h}" class="khayt-spark" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/></svg>`;
+}
+
+function computeHandoffMachineRows() {
+  const orders = printLog.filter(o => inRange(o.date, analyticsRange, 'analytics') && o.status === 'completed');
+  const machMap = {};
+  for (const m of machines) {
+    machMap[m.id] = { name: m.name, profit: 0, hours: 0, util: null };
+  }
+  const now = new Date();
+  let rangeDays = 30;
+  if (analyticsRange === 'month') rangeDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  else if (analyticsRange === 'last_month') rangeDays = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
+  else if (analyticsRange === 'quarter') rangeDays = 91;
+  else if (analyticsRange === 'year') rangeDays = 365;
+
+  for (const o of orders) {
+    const key = o.machineId && machMap[o.machineId] ? o.machineId : null;
+    if (!key) continue;
+    const rev = orderRevenueBase(o);
+    const cost = (o.parts || []).reduce((s, p) => s + computePartBaseCost(p), 0);
+    machMap[key].profit += rev - cost;
+    machMap[key].hours += +o.printTime || 0;
+  }
+  for (const m of machines) {
+    if (!machMap[m.id]) continue;
+    const target = +(m.targetHoursPerDay || 0);
+    if (target > 0 && machMap[m.id].hours > 0) {
+      machMap[m.id].util = Math.min(100, Math.round((machMap[m.id].hours / (target * rangeDays)) * 100));
+    }
+  }
+  return Object.values(machMap).filter(r => r.hours > 0 || r.profit > 0).sort((a, b) => b.profit - a.profit);
+}
+
+function buildHandoffHeatmapCells() {
+  const completed = printLog.filter(o =>
+    o.status === 'completed' && o.completedAt && inRange(o.date, analyticsRange, 'analytics'),
+  );
+  const matrix = Array.from({ length: 7 }, () => Array(12).fill(0));
+  completed.forEach(o => {
+    try {
+      const d = new Date(o.completedAt);
+      const week = Math.min(11, Math.floor((Date.now() - d.getTime()) / (7 * 86400000)));
+      const dow = d.getDay();
+      if (week >= 0 && week < 12) matrix[dow][11 - week]++;
+    } catch (_) { /* ignore */ }
+  });
+  const maxVal = Math.max(1, ...matrix.flat());
+  const cells = [];
+  for (let w = 0; w < 12; w++) {
+    for (let d = 0; d < 7; d++) {
+      const v = matrix[d][w] / maxVal;
+      cells.push(`<span style="background:hsl(var(--accent-h) var(--accent-s) var(--accent-l) / ${(0.12 + v * 0.85).toFixed(2)})"></span>`);
+    }
+  }
+  return { cells: cells.join(''), maxVal, hasData: completed.length >= 5 };
+}
+
+function renderHandoffAnalyticsOverview(ctx) {
+  const wrap = $('#analyticsHandoffWrap');
+  if (!wrap) return;
+  if (!useHandoffAnalytics()) {
+    wrap.innerHTML = '';
+    return;
+  }
+
+  const { revenue, completed, receivables, convRate, revSpark } = ctx;
+  const cur = currencySymbol();
+  const netProfit = completed.reduce((s, o) => {
+    const rev = orderRevenueBase(o);
+    const cost = (o.parts || []).reduce((cs, p) => cs + computePartBaseCost(p), 0);
+    return s + (rev - cost);
+  }, 0);
+  const avgOrder = completed.length ? revenue / completed.length : 0;
+  const repeatClients = (() => {
+    const counts = {};
+    completed.forEach(o => { if (o.clientId) counts[o.clientId] = (counts[o.clientId] || 0) + 1; });
+    const ids = Object.keys(counts);
+    if (!ids.length) return null;
+    return Math.round((ids.filter(id => counts[id] > 1).length / ids.length) * 100);
+  })();
+
+  const kpis = [
+    { l: t('an.revenue') || 'Revenue', v: Math.round(revenue).toLocaleString(), u: cur, spark: revSpark },
+    { l: t('an.net_profit') || 'Net profit', v: Math.round(netProfit).toLocaleString(), u: cur },
+    { l: t('an.avg_order') || 'Avg. order value', v: Math.round(avgOrder).toLocaleString(), u: cur },
+    { l: t('an.repeat_rate') || 'Repeat rate', v: repeatClients != null ? String(repeatClients) : '—', u: repeatClients != null ? '%' : '' },
+  ];
+
+  const machines = computeHandoffMachineRows();
+  const maxP = Math.max(...machines.map(m => m.profit), 1);
+  const heat = buildHandoffHeatmapCells();
+  const dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+  const clientAgg = {};
+  completed.forEach(o => {
+    if (!o.clientId) return;
+    clientAgg[o.clientId] = clientAgg[o.clientId] || { count: 0, revenue: 0 };
+    clientAgg[o.clientId].count++;
+    clientAgg[o.clientId].revenue += orderRevenueBase(o);
+  });
+  const topClients = Object.entries(clientAgg)
+    .map(([id, agg]) => {
+      const c = clients.find(x => x.id === id);
+      const tier = typeof getClientTier === 'function' ? getClientTier(id) : null;
+      return { id, name: c ? localName(c) : id, color: c?.color || 'var(--accent)', tier: tier?.name || '—', ...agg };
+    })
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 8);
+  const maxLtv = Math.max(...topClients.map(c => c.revenue), 1);
+
+  wrap.innerHTML = `
+    <div class="khayt-grid khayt-an-kpis" style="grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--gap)">
+      ${kpis.map(k => `
+        <div class="card khayt-an-kpi">
+          <span class="eyebrow">${escapeHtml(k.l)}</span>
+          <span class="row" style="align-items:baseline;gap:4px">
+            <span class="metric" style="font-size:26px">${escapeHtml(k.v)}</span>
+            ${k.u ? `<span class="mono" style="font-size:11px;color:var(--text-muted)">${escapeHtml(k.u)}</span>` : ''}
+          </span>
+          ${k.spark ? `<div style="margin-top:8px">${handoffSparkSvg(k.spark, 200, 32)}</div>` : ''}
+        </div>`).join('')}
+    </div>
+    <div class="khayt-grid khayt-an-grid-2" style="grid-template-columns:1fr 1fr;gap:var(--gap)">
+      <div class="card">
+        <span class="sec-title">${escapeHtml(t('an.machine_pl') || 'Machine P&L')}</span>
+        <div class="col gap12" style="margin-top:14px">
+          ${machines.length ? machines.map(m => `
+            <div class="col gap6">
+              <div class="row between">
+                <span style="font-size:12.5px">${escapeHtml(m.name)}</span>
+                <span class="metric" style="font-size:12.5px">${escapeHtml(fmtMoney(m.profit))}</span>
+              </div>
+              <div class="row gap10" style="align-items:center">
+                <div class="meter grow"><i style="width:${Math.max(4, (m.profit / maxP) * 100)}%"></i></div>
+                <span class="mono" style="font-size:10.5px;color:var(--text-muted);width:78px;text-align:end">${m.hours.toFixed(1)}h${m.util != null ? ` · ${m.util}%` : ''}</span>
+              </div>
+            </div>`).join('') : `<p class="dash-empty">${escapeHtml(t('an.no_data'))}</p>`}
+        </div>
+      </div>
+      <div class="card">
+        <div class="row between">
+          <span class="sec-title">${escapeHtml(t('an.production_heatmap') || 'Production heatmap')}</span>
+          <span style="font-size:11.5px;color:var(--text-muted)">${escapeHtml(t('an.last_12_weeks') || 'last 12 weeks')}</span>
+        </div>
+        ${heat.hasData ? `
+        <div class="row gap10" style="margin-top:16px;align-items:flex-start">
+          <div class="col" style="gap:4px;padding-top:1px">
+            ${dayLabels.map((d2, i) => `<span class="mono" style="font-size:9px;color:var(--text-faint);height:16px;line-height:16px">${d2}</span>`).join('')}
+          </div>
+          <div class="heatmap-mini grow">${heat.cells}</div>
+        </div>` : `<p class="dash-empty" style="margin-top:14px">${escapeHtml(t('an.heatmap_no_data'))}</p>`}
+      </div>
+    </div>
+    <div class="card flush">
+      <div class="row between" style="padding:14px 18px">
+        <span class="sec-title">${escapeHtml(t('an.top_clients_revenue') || 'Top clients · revenue')}</span>
+      </div>
+      <div class="table-wrap">
+        <table class="tbl">
+          <thead><tr>
+            <th>${escapeHtml(t('log.client'))}</th>
+            <th>${escapeHtml(t('an.orders'))}</th>
+            <th>${escapeHtml(t('cl.revenue'))}</th>
+            <th>${escapeHtml(t('an.share'))}</th>
+            <th>${escapeHtml(t('cl.tier'))}</th>
+          </tr></thead>
+          <tbody>
+            ${topClients.length ? topClients.map(c => `
+              <tr>
+                <td><div class="row gap8" style="align-items:center"><span class="dot" style="background:${safeCssColor(c.color, 'var(--accent)')};width:8px;height:8px"></span><strong style="font-size:13">${escapeHtml(c.name)}</strong></div></td>
+                <td><span class="metric" style="font-size:13px">${c.count}</span></td>
+                <td><span class="metric" style="font-size:13px">${escapeHtml(fmtMoney(c.revenue))}</span></td>
+                <td style="width:160px"><div class="meter"><i style="width:${(c.revenue / maxLtv * 100).toFixed(1)}%;background:${safeCssColor(c.color, 'var(--accent)')}"></i></div></td>
+                <td><span class="pill" style="padding:2px 9px">${escapeHtml(c.tier)}</span></td>
+              </tr>`).join('') : `<tr><td colspan="5">${escapeHtml(t('an.no_top_clients'))}</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
 function renderAnalytics() {
   const orders = printLog.filter(o => inRange(o.date, analyticsRange, 'analytics'));
   const completed = orders.filter(o => o.status === 'completed');
@@ -71,6 +265,19 @@ function renderAnalytics() {
   const receivables = printLog
     .filter(o => (payStatus(o)) !== 'paid')
     .reduce((s, o) => s + orderOwedBase(o), 0);
+
+  const revSpark = (() => {
+    const months = [];
+    const now = new Date();
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const mRev = printLog.filter(o => o.status === 'completed' && (o.date || '').startsWith(key))
+        .reduce((s, o) => s + orderRevenueBase(o), 0);
+      months.push(mRev);
+    }
+    return months;
+  })();
 
   $('#stat-revenue').textContent = fmtMoney(revenue);
   $('#stat-orders').textContent  = completed.length;
@@ -87,6 +294,8 @@ function renderAnalytics() {
   if (qcEl) qcEl.textContent = quotesCreated.length;
   const crEl = $('#stat-conv-rate');
   if (crEl) crEl.textContent = convRate !== null ? `${convRate}%` : '—';
+
+  renderHandoffAnalyticsOverview({ revenue, completed, receivables, convRate, revSpark });
 
   // Top products
   const productAgg = {};

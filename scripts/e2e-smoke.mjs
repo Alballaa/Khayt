@@ -145,6 +145,46 @@ async function testOrderLifecycle(window) {
   return orderId;
 }
 
+async function testLedgerTabNavigation(window) {
+  await window.evaluate(() => {
+    settings.designTheme = 'ledger';
+    settings.theme = 'light';
+    if (typeof applyDesignSettings === 'function') applyDesignSettings();
+    if (typeof applyTheme === 'function') applyTheme('light');
+  });
+  await window.waitForFunction(
+    () => document.body.classList.contains('khayt-ledger')
+      && document.querySelector('.khayt-body')?.dataset.ledgerLayout === 'mounted',
+    { timeout: 10_000 }
+  );
+
+  await window.click('#tabbtn-queue-tab');
+  await window.waitForFunction(
+    () => document.getElementById('queue-tab')?.classList.contains('active') === true,
+    { timeout: 10_000 }
+  );
+  const queueReady = await window.evaluate(
+    () => !!document.querySelector('#list-pending') && document.querySelectorAll('.kanban-col').length >= 5
+  );
+  if (!queueReady) throw new Error('ledger theme: queue tab did not activate after click');
+
+  await window.click('#tabbtn-settings-tab');
+  await window.waitForFunction(
+    () => document.getElementById('settings-tab')?.classList.contains('active') === true,
+    { timeout: 10_000 }
+  );
+
+  await window.evaluate(() => {
+    settings.designTheme = 'studio';
+    if (typeof applyDesignSettings === 'function') applyDesignSettings();
+  });
+  await window.waitForFunction(
+    () => document.body.classList.contains('khayt-studio')
+      && !document.body.classList.contains('khayt-ledger'),
+    { timeout: 10_000 }
+  );
+}
+
 async function testLanPinGate(window) {
   const lanStart = await window.evaluate(async ({ port, pin }) => {
     const data = (await window.hubAPI.loadStore()) || {};
@@ -195,6 +235,7 @@ try {
   await testSettingsNav(window);
   const version = await testStoreRoundTrip(window);
   await testTabNavigation(window);
+  await testLedgerTabNavigation(window);
   const orderId = await testOrderLifecycle(window);
   await testLanPinGate(window);
 
