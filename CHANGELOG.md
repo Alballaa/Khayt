@@ -4,39 +4,35 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [2.6.0-beta.1] - 2026-06-16
+
+**Pre-release (beta)** — UI usability & accessibility, the update-review modal, the iOS companion, print-farm multi-site, and new LAN write endpoints, on top of stable **2.5.0**.
+
 ### Added
 
-- **iOS Companion** — Home quick actions, low-stock alerts, order preview; Orders tab (active filters + recent history); order/spool detail sheets; inventory search and low-stock filter; [IOS_UI_REDESIGN_PROMPT.md](./docs/IOS_UI_REDESIGN_PROMPT.md) for AI UI redesign.
-- **iOS Companion (full v1)** — English/Arabic + RTL, connection banner, kanban strip, overdue filter, local notifications, home screen widget sources, Siri shortcuts, App Group widget snapshot.
-- **iOS Companion — NFC tag write** — write spool data to NFC tags with an OpenTag3D / OpenPrintTag / OpenSpool standard picker (default OpenTag3D for desktop reader compatibility).
-- **Print farm — sites & location filter** — Top-bar location filter now scopes dashboard KPIs, production queue, machine queues, and orders log; **Sites overview** on dashboard (Professional, 2+ locations); wizard **Print farm** preset (Professional mode, default WIP limits, second site stub).
-- **iOS Companion** — Home quick actions, low-stock alerts, order preview; Orders tab (active filters + recent history); order/spool detail sheets; inventory search and low-stock filter; [IOS_UI_REDESIGN_PROMPT.md](./docs/IOS_UI_REDESIGN_PROMPT.md) for AI UI redesign.
-- **iOS Companion (full v1)** — English/Arabic + RTL, connection banner, kanban strip, overdue filter, local notifications, home screen widget sources, Siri shortcuts, App Group widget snapshot.
-- **Global search** — Fuzzy matching plus printers, suppliers, and expenses; main nav arrow-key tab switching.
-
-### Changed
-
-- **iOS Companion** — add spool from Inventory (+) with method picker (scan label, NFC, manual); removed separate Add spool tab. Optional SKU, batch/lot, print/bed temps on review form. Label parser supports more non-English patterns (AR/DE/FR/ES).
+- **iOS Companion app** — native SwiftUI app over the desktop LAN API: home quick actions, queue/kanban strip, orders (active filters + history), order/spool detail, inventory search + low-stock, English/Arabic + RTL, connection banner, local notifications, home-screen widget, Siri shortcuts. NFC tag **read**, and NFC tag **write** with an OpenTag3D / OpenPrintTag / OpenSpool standard picker (default OpenTag3D for desktop-reader compatibility).
+- **Print farm — sites & location filter** — top-bar location filter scopes dashboard KPIs, production queue, machine queues, and orders log; **Sites overview** on the dashboard (Professional, 2+ locations); wizard **Print farm** preset (Professional mode, default WIP limits, second-site stub).
+- **LAN write endpoints** — `GET`/`PATCH /api/waiting-list`, `GET /api/clients`, `PATCH`/`DELETE /api/inventory/:id`, `machineId` on `PATCH /api/orders/:id`, `POST /api/orders`, and live telemetry — all with field allowlists, prototype-safe JSON parsing, and tunnel-aware rate limiting.
+- **Global search** — fuzzy/subsequence matching plus printers, suppliers, and expenses results; main-nav arrow-key (and Home/End) tab switching.
+- **Update changelog screen** — manual “Check for updates” and the automatic launch check show release notes in a review modal before download/install (keeps the pre-update backup and hardened install flow).
 
 ### Fixed
 
-- **Modals** — Focus trap keeps Tab inside dialogs; focus restores on close.
-- **Feedback** — Error when the email app cannot be opened.
-- **Update changelog screen** — Manual “Check for updates” and automatic launch checks show release notes in a review modal before download/install.
-
-- **Settings save** — Post-process presets are no longer wiped when saving other settings panels.
-- **Global search** — Client and product results navigate to the correct record; keyboard ↑/↓ + Enter works in search.
-- **Help shortcut** — `?` key opens help again (Shift was incorrectly blocked).
-- **Delete safety** — Locations and operators require confirmation before deletion.
-- **Notifications** — Bell exposes `aria-expanded`; toast container announces to screen readers.
+- **Setup wizard** — selecting **Print farm** / **Company B2B** now correctly saves Professional mode (was always saved as Simple); **Back** buttons no longer skip the security step.
+- **Modals** — focus trap keeps Tab inside dialogs; focus restores to the previous element on close.
+- **Settings save** — post-process presets are no longer wiped when saving other settings panels.
+- **Global search** — client and product results navigate to the correct record; keyboard ↑/↓ + Enter works.
+- **Help shortcut** — `?` opens help again (Shift was incorrectly blocked).
+- **Delete safety** — locations and operators require confirmation before deletion.
+- **Notifications** — bell exposes `aria-expanded`; toast container announces to screen readers.
+- **Feedback** — toast when the email app cannot be opened (suggests the GitHub Issue button).
 
 ### Changed
 
-- **Setup wizard** — Back buttons, explicit Continue on business-type step, Escape to skip with confirm, system theme default.
-- **Preferences** — Language and theme apply immediately when changed.
-- **Printers settings** — Autosave hint for machine/slicer editors.
-- **Settings on narrow windows** — Sidebar stacks horizontally on small screens.
-- **Automation settings** — Hint explains that each section saves individually.
+- **Preferences** — language and theme apply immediately when changed.
+- **Settings on narrow windows** — section nav stacks/wraps on small screens.
+- Removed dead wizard code/markup and 17 unused locale keys; new `upd.*`, `search.*`, `farm.*`, `loc.*`, and iOS/LAN strings added in English and Arabic; a `locale-parity` test now gates `ar ⊇ en`.
+
 ## [2.5.0] - 2026-06-16
 
 Graduates the Khayt-4 beta line (`v2.4.0-beta.1` → `beta.4`) to a stable release: seven selectable design themes, the Settings redesign, the LAN/security hardening pass, and the beta→stable updater. Released as **2.5.0** (minor) over stable `2.3.3` — the `2.4.0` number was only ever published as pre-releases. Per-prerelease detail is consolidated in the sections below.

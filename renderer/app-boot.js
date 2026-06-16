@@ -47,7 +47,6 @@ function initWizard() {
 
   let selectedMode = 'simple';
   let selectedBizType = 'solo';
-  let wizCurrentStep = 1;
   let selectedDesign = settings.designTheme || 'studio';
   let pendingPin = null;
   let pendingRecoveryCode = null;
@@ -61,7 +60,6 @@ function initWizard() {
   i18n.applyToDom(wiz);
 
   function goToStep(n) {
-    wizCurrentStep = n;
     wiz.querySelectorAll('.wizard-step').forEach(s => s.style.display = 'none');
     const step = $(`#wiz-step-${n}`);
     if (step) step.style.display = '';
@@ -90,7 +88,6 @@ function initWizard() {
   wiz.addEventListener('click', e => {
     const backBtn = e.target.closest('[data-prev]');
     const nextBtn = e.target.closest('[data-next]');
-    const optionBtn = e.target.closest('.wizard-option');
     const finishBtn = e.target.closest('#wizFinish');
 
     if (backBtn) {
@@ -100,6 +97,8 @@ function initWizard() {
 
     if (nextBtn && nextBtn.id !== 'wizRecoveryContinue') {
       const step = parseInt(nextBtn.dataset.next, 10);
+      // Business-type options auto-advance via data-next; capture the chosen mode
+      // here because this branch runs before any .wizard-option handling.
       if (nextBtn.classList.contains('wizard-option') && nextBtn.dataset.mode) {
         wiz.querySelectorAll('.wizard-option').forEach(o => o.classList.remove('selected'));
         nextBtn.classList.add('selected');
@@ -124,16 +123,6 @@ function initWizard() {
         if (typeof applyDesignSettings === 'function') applyDesignSettings();
       }
       goToStep(step);
-      return;
-    }
-
-    if (optionBtn) {
-      wiz.querySelectorAll('.wizard-option').forEach(o => o.classList.remove('selected'));
-      optionBtn.classList.add('selected');
-      selectedMode = optionBtn.dataset.mode;
-      selectedBizType = optionBtn.dataset.bizType || selectedMode;
-      const step3Continue = $('#wizStep3Continue');
-      if (step3Continue) step3Continue.disabled = false;
       return;
     }
 
