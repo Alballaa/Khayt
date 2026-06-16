@@ -213,12 +213,27 @@ body.khayt-workbench #topbarPageSubtitle {
 
 body.khayt-workbench .khayt-search {
   height: 34px;
-  width: 220px;
+  flex: 0 1 220px;          /* shrink before the action cluster wraps */
+  min-width: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
   box-shadow: var(--shadow-1);
 }
+/* Keep the toolbar a single row. The base .topbar-actions isn't a flex row, so
+   its inline controls wrap like text once full — make it a non-wrapping flex
+   row and let the search shrink instead. */
+body.khayt-workbench .khayt-top { flex-wrap: nowrap; }
+body.khayt-workbench .topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+}
+body.khayt-workbench .khayt-toptitle { flex-shrink: 0; }
+/* Give "All locations" room so it isn't cramped to "Alllocations". */
+body.khayt-workbench #locationFilter { min-width: 116px; }
 
 body.khayt-workbench .topbar-actions .btn {
   border: 1px solid var(--line);

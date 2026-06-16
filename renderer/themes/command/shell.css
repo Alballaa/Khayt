@@ -271,14 +271,18 @@ body.khayt-command #topbarPageSubtitle {
   font-size: 11px;
   color: var(--ink-3);
 }
+body.khayt-command .khayt-top { flex-wrap: nowrap; }
+body.khayt-command .khayt-toptitle { flex-shrink: 0; }
 body.khayt-command .khayt-search {
   height: 28px;
   width: 230px;
+  flex: 0 0 auto;          /* keep its width; never collapse under the tab strip */
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--panel-2);
   font-size: 11.5px;
 }
+body.khayt-command .topbar-actions { flex-shrink: 0; }
 body.khayt-command .topbar-actions .btn {
   border: 1px solid var(--border);
   background: var(--panel);
@@ -294,15 +298,22 @@ body.khayt-command .topbar-actions .btn.primary {
   font-weight: 600;
 }
 
-/* Open-tab strip (injected by shell.js). */
+/* Open-tab strip (injected by shell.js). Takes the middle slack and scrolls
+   internally so it can never grow into / overlap the search field. */
 body.khayt-command .cmd-tabstrip {
   display: flex;
   align-items: stretch;
   gap: 0;
   height: var(--cmd-toolbar-h);
-  margin-inline-start: 6px;
-  overflow: hidden;
+  margin-inline: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
 }
+body.khayt-command .cmd-tabstrip::-webkit-scrollbar { display: none; }
+body.khayt-command .cmd-tab { flex: 0 0 auto; }
 body.khayt-command .cmd-tab {
   display: inline-flex;
   align-items: center;
