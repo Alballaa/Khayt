@@ -194,6 +194,17 @@ html, body {
   .kanban { grid-template-columns: repeat(2, 1fr); }
 }
 
+/* Narrow windows / modals (< 600px): collapse multi-column form grids so inputs
+   stay usable instead of being squeezed. Uses logical-property-friendly single
+   column. NEEDS VISUAL CHECK. */
+@media (max-width: 600px) {
+  .inline-pair,
+  .part-row .pair-3,
+  .pair-3 { grid-template-columns: 1fr; }
+  /* Production calendar week strip — stack days vertically when too narrow */
+  .cal-grid { grid-template-columns: 1fr; }
+}
+
 .card {
   background: var(--surface);
   border: 1px solid var(--border);

@@ -2,11 +2,42 @@
  * Clients tab, autocomplete, recurring orders, portal export.
  */
 let clientSearchTerm = '';
+let clientSortCol = 'name';   // 'name' | 'orders' | 'revenue' | 'last' | 'outstanding'
+let clientSortDir = 'asc';    // 'asc' | 'desc'
+let clientDisplayLimit = 50;  // rows shown before "show more"
 
 (function (global) {
 /* ============================================================
    Clients
    ============================================================ */
+
+/**
+ * Pure comparator for the clients table. Returns a sort fn for the given
+ * column/direction. `rowOf(client)` supplies the precomputed display fields
+ * { name, orders, revenue, outstanding, last } so it stays O(1) per compare
+ * and is unit-testable without DOM/state.
+ */
+function clientCompare(col, dir, rowOf) {
+  const mul = dir === 'desc' ? -1 : 1;
+  return (a, b) => {
+    const ra = rowOf(a);
+    const rb = rowOf(b);
+    let d;
+    switch (col) {
+      case 'orders':      d = (ra.orders || 0) - (rb.orders || 0); break;
+      case 'revenue':     d = (ra.revenue || 0) - (rb.revenue || 0); break;
+      case 'outstanding': d = (ra.outstanding || 0) - (rb.outstanding || 0); break;
+      case 'last':        d = (ra.last || '').localeCompare(rb.last || ''); break;
+      case 'name':
+      default:            d = (ra.name || '').localeCompare(rb.name || ''); break;
+    }
+    if (d !== 0) return mul * d;
+    // Stable, direction-independent tiebreak on name so equal primary values
+    // always read alphabetically regardless of the chosen sort direction.
+    return (ra.name || '').localeCompare(rb.name || '');
+  };
+}
+
 function getClientStats(clientId) {
   const orders = printLog.filter(o => o.clientId === clientId);
   const completed = orders.filter(o => o.status === 'completed');
@@ -108,7 +139,45 @@ function renderClients() {
   const clientMaps = { clientStatsMap, clientBalanceMap, clientTierMap, clientSurveyMap };
   if (window.KhaytStudio?.renderClientsStudioCards?.(filtered, clientMaps)) return;
 
-  tbody.innerHTML = filtered.map(c => {
+  // Sortable columns — mirror the orders-log pattern. rowOf maps a client to the
+  // comparable display fields using the precomputed O(n) aggregates above.
+  const rowOf = (c) => {
+    const s = clientStatsMap.get(c.id);
+    return {
+      name: localName(c) || '',
+      orders: s ? s.count : 0,
+      revenue: s ? s.revenue : 0,
+      outstanding: clientBalanceMap.get(c.id) || 0,
+      last: (s && s.lastDate) || '',
+    };
+  };
+  filtered = [...filtered].sort(clientCompare(clientSortCol, clientSortDir, rowOf));
+
+  // Reflect sort state in the header arrows
+  const thead = document.querySelector('#clientsTable thead');
+  if (thead) {
+    thead.querySelectorAll('th[data-sort]').forEach(th => {
+      th.querySelectorAll('.sort-arrow').forEach(el => el.remove());
+      if (th.dataset.sort === clientSortCol) {
+        const span = document.createElement('span');
+        span.className = 'sort-arrow';
+        span.textContent = clientSortDir === 'asc' ? ' ▲' : ' ▼';
+        span.style.cssText = 'font-size:10px;color:var(--primary);';
+        th.appendChild(span);
+      }
+    });
+  }
+
+  // Display cap with a "show more" footer to keep large client lists snappy
+  const totalRows = filtered.length;
+  const page = filtered.slice(0, clientDisplayLimit);
+  const moreRow = totalRows > clientDisplayLimit
+    ? `<tr><td colspan="7" style="text-align:center;padding:12px;">
+         <button class="btn small ghost" data-act="cl-show-more">${escapeHtml(t('cl.show_more', { n: totalRows - clientDisplayLimit }))}</button>
+       </td></tr>`
+    : '';
+
+  tbody.innerHTML = page.map(c => {
     const stats = clientStatsMap.get(c.id) || { count: 0, completedCount: 0, revenue: 0, lastDate: null };
     const displayName = localName(c);
     const altName     = i18n.current === 'ar' ? c.nameEn : c.nameAr;
@@ -157,7 +226,7 @@ function renderClients() {
           <button class="btn danger small" data-act="cl-del" data-id="${c.id}">${escapeHtml(t('common.delete'))}</button>
         </td>
       </tr>`;
-  }).join('');
+  }).join('') + moreRow;
 }
 
 function quoteForClient(clientId) {
@@ -1096,6 +1165,7 @@ function exportClientPortal(clientId) {
     patchRecurringOrdersWithLeadDays,
     exportClientsCsv,
     exportClientPortal,
+    clientCompare,
   };
   if (typeof global.importClientsCsv === 'function') api.importClientsCsv = global.importClientsCsv;
   Object.assign(global, api);

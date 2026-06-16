@@ -533,8 +533,8 @@
             </div>
           </div>
           <div class="save-btn-row">
-            <button class="btn success" id="btnSaveQuote" data-i18n="calc.quote.save" style="flex:1;">Save quote and send to queue</button>
-            <button class="btn ghost" id="btnSaveAsQuote" data-i18n="calc.quote.save_as_quote" title="Save as a quotation for client approval first">📄 Quote</button>
+            <button class="btn success" id="btnSaveQuote" data-i18n="calc.quote.save" title="Creates a numbered order and sends it to the production queue" style="flex:1;">Create order &amp; send to queue</button>
+            <button class="btn ghost" id="btnSaveAsQuote" data-i18n="calc.quote.save_as_quote" title="Save as a quotation for client approval first">📄 Save as Quote</button>
           </div>
         </div>
       </div>
@@ -1115,12 +1115,12 @@
           <table id="clientsTable">
             <thead>
               <tr>
-                <th data-i18n="cl.name">Name</th>
+                <th data-i18n="cl.name" data-sort="name" style="cursor:pointer;user-select:none;">Name</th>
                 <th data-i18n="cl.phone">Phone</th>
-                <th data-i18n="cl.orders">Orders</th>
-                <th data-i18n="cl.revenue">Revenue</th>
-                <th data-i18n="cl.last_order">Last order</th>
-                <th data-i18n="cl.outstanding" style="text-align:right;">Outstanding</th>
+                <th data-i18n="cl.orders" data-sort="orders" style="cursor:pointer;user-select:none;">Orders</th>
+                <th data-i18n="cl.revenue" data-sort="revenue" style="cursor:pointer;user-select:none;">Revenue</th>
+                <th data-i18n="cl.last_order" data-sort="last" style="cursor:pointer;user-select:none;">Last order</th>
+                <th data-i18n="cl.outstanding" data-sort="outstanding" style="text-align:right;cursor:pointer;user-select:none;">Outstanding</th>
                 <th data-i18n="common.actions">Actions</th>
               </tr>
             </thead>
