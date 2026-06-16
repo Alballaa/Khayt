@@ -73,6 +73,13 @@
       const sibs = [...sec.children];
       btn.dataset.wbHome = sec.id;
       btn.dataset.wbHomeIdx = String(sibs.indexOf(btn));
+      // Preserve simple-mode gating: a tab hidden only via its `pro-only` parent
+      // section must keep that gating after it's reparented into a new group
+      // (e.g. analytics-tab, whose button itself has no `pro-only` class).
+      if (!btn.classList.contains('pro-only') && sec.classList.contains('pro-only')) {
+        btn.classList.add('pro-only');
+        btn.dataset.wbProonly = '1';
+      }
     });
 
     GROUPS.forEach((grp) => {
@@ -116,6 +123,12 @@
         const idx = Number(btn.dataset.wbHomeIdx);
         const ref = sec.children[idx] || null;
         sec.insertBefore(btn, ref);
+      }
+      // Undo the pro-only class we added during regrouping (the button returns
+      // to its original pro-only section, which gates it again).
+      if (btn.dataset.wbProonly) {
+        btn.classList.remove('pro-only');
+        delete btn.dataset.wbProonly;
       }
       delete btn.dataset.wbHome;
       delete btn.dataset.wbHomeIdx;
