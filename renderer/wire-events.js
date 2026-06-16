@@ -149,7 +149,16 @@ function wireEvents() {
   // Rush fee checkbox uses 'change' not 'input'
   $('#calcRushFee')?.addEventListener('change', updateGrandTotal);
   $('#btnAddPart').addEventListener('click', addPart);
-  $('#btnSaveQuote').addEventListener('click', logPrint);
+  // Creating an order is destructive: it advances the invoice counter and clears
+  // the calculator. Confirm first when there's a meaningful build to lose so a
+  // misclick on the green button can't wipe an in-progress quote.
+  $('#btnSaveQuote').addEventListener('click', async () => {
+    if (typeof currentBuild !== 'undefined' && currentBuild.length > 0) {
+      const ok = await confirmModal(t('calc.quote.confirm_order'), { okText: t('calc.quote.save') });
+      if (!ok) return;
+    }
+    logPrint();
+  });
 
   // Resin: compute print time & volume from layer parameters
   document.addEventListener('click', (e) => {
@@ -1148,10 +1157,26 @@ function wireEvents() {
   $('#btnExportInventoryCsv')?.addEventListener('click', () => exportInventoryCsv());
   $('#btnAddClient').addEventListener('click', () => openClientEditor(null));
   $('#btnBlankIntakeForm')?.addEventListener('click', () => generateIntakeForm(null));
-  $('#clientSearch').addEventListener('input', (e) => { clientSearchTerm = e.target.value; renderClients(); });
+  $('#clientSearch').addEventListener('input', (e) => { clientSearchTerm = e.target.value; clientDisplayLimit = 50; renderClients(); });
+  // Sortable client table headers (mirrors the orders-log pattern)
+  $('#clientsTable thead')?.addEventListener('click', (e) => {
+    const th = e.target.closest('th[data-sort]');
+    if (!th) return;
+    const col = th.dataset.sort;
+    if (clientSortCol === col) {
+      clientSortDir = clientSortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      clientSortCol = col;
+      // Numeric/recency columns default to descending (biggest first); name ascends
+      clientSortDir = col === 'name' ? 'asc' : 'desc';
+    }
+    clientDisplayLimit = 50;
+    renderClients();
+  });
   $('#clientsTable').addEventListener('click', (e) => {
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
+    if (btn.dataset.act === 'cl-show-more') { clientDisplayLimit += 50; renderClients(); return; }
     if (btn.dataset.act === 'cl-history')     openClientHistory(btn.dataset.id);
     if (btn.dataset.act === 'cl-quote')       quoteForClient(btn.dataset.id);
     if (btn.dataset.act === 'cl-intake-form') generateIntakeForm(btn.dataset.id);
