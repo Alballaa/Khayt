@@ -101,7 +101,11 @@
     const mach = (typeof machines !== 'undefined' && Array.isArray(machines)) ? machines : [];
     const log = (typeof printLog !== 'undefined' && Array.isArray(printLog)) ? printLog : [];
     const nowPrinting = log.filter((o) => o.status === 'printing');
-    return mach.filter((m) => machineProgress(m, nowPrinting.find((o) => o.machineId === m.id)).state === 'printing').length;
+    // Match a printing order to a machine via order.machineId OR parts[].machineId,
+    // the same way the fleet panel and machine inspector resolve the current job.
+    const jobFor = (m) => nowPrinting.find((o) => o.machineId === m.id
+      || (Array.isArray(o.parts) && o.parts.some((p) => p.machineId === m.id)));
+    return mach.filter((m) => machineProgress(m, jobFor(m)).state === 'printing').length;
   }
 
   /* =========================================================
