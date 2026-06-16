@@ -21,6 +21,7 @@ const THEME_CASES = [
   { id: 'cockpit', bodyClass: 'khayt-cockpit', appearance: 'light', dashSel: '.ck-dash', dashMin: 40 },
   { id: 'atlas', bodyClass: 'khayt-atlas', appearance: 'dark', dashSel: '.atlas-floor-root', dashMin: 40, atlasNav: true },
   { id: 'workbench', bodyClass: 'khayt-workbench', appearance: 'light', dashSel: '.wb-dash', dashMin: 80 },
+  { id: 'vivid', bodyClass: 'khayt-vivid', appearance: 'light', dashSel: '.vv-dash', dashMin: 80 },
   { id: 'command', bodyClass: 'khayt-command', appearance: 'light', dashSel: '.cmd-dash', dashMin: 80 },
 ];
 

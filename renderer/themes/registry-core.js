@@ -59,6 +59,13 @@
     emerald: { h: 152, s: '74%', l: '37%', labelKey: 'theme.accent.emerald' },
   };
 
+  const VIVID_ACCENTS = {
+    indigo: { h: 244, s: '84%', l: '65%', labelKey: 'theme.accent.vivid_indigo' },
+    violet: { h: 271, s: '91%', l: '65%', labelKey: 'theme.accent.vivid_violet' },
+    pink:   { h: 330, s: '81%', l: '60%', labelKey: 'theme.accent.vivid_pink' },
+    cyan:   { h: 189, s: '94%', l: '43%', labelKey: 'theme.accent.vivid_cyan' },
+  };
+
   const COMMAND_ACCENTS = {
     blue:    { h: 212, s: '73%',  l: '53%', labelKey: 'theme.accent.command_blue' },
     teal:    { h: 168, s: '78%',  l: '37%', labelKey: 'theme.accent.command_teal' },
@@ -238,6 +245,22 @@
         'themes/workbench/shell.css',
       ],
     },
+    vivid: {
+      labelKey: 'theme.design.vivid',
+      descKey: 'theme.design.vivid_desc',
+      preview: 'themes/previews/vivid.png',
+      shell: 'vivid',
+      enabled: true,
+      defaultAccent: 'indigo',
+      accents: VIVID_ACCENTS,
+      defaultAppearance: 'light',
+      bodyClass: 'khayt-vivid',
+      stylesheets: [
+        'themes/vivid/tokens.css',
+        'themes/vivid/shell.css',
+        'themes/vivid/screens.css',
+      ],
+    },
     command: {
       labelKey: 'theme.design.command',
       descKey: 'theme.design.command_desc',
@@ -403,6 +426,7 @@
     COCKPIT_ACCENTS,
     ATLAS_ACCENTS,
     WORKBENCH_ACCENTS,
+    VIVID_ACCENTS,
     COMMAND_ACCENTS,
     BUILTIN_THEMES,
     RESERVED_THEMES,
