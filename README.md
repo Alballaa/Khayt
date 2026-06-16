@@ -151,7 +151,11 @@ Khayt replaces spreadsheets, WhatsApp notes, and separate invoicing tools with o
 
 ### Download (recommended)
 
-Go to **[Releases](https://github.com/Alballaa/Khayt/releases/latest)** and grab the file for your platform:
+**Stable (recommended):** **[Releases → Latest](https://github.com/Alballaa/Khayt/releases/latest)** — currently **v2.3.2**.
+
+**Beta (Khayt-4 themes):** **[Pre-releases](https://github.com/Alballaa/Khayt/releases)** — **v2.4.0-beta.1** adds Cockpit, Atlas, and five other theme shells. Pre-release builds; stable installs do not auto-update to beta. See [docs/BETA-RELEASE.md](docs/BETA-RELEASE.md).
+
+Grab the file for your platform:
 
 | Platform | File | Notes |
 |---|---|---|
@@ -275,6 +279,8 @@ Khayt/
 │   └── …                # Feature modules (dashboard, kanban, inventory, …)
 ├── assets/              # App icons, README screenshots, store tiles
 ├── docs/LOCAL_SETUP.md  # Extended setup notes (macOS Electron, mirrors)
+├── docs/PLATFORM-MIGRATION.md  # Stay on Electron vs native rewrite (decision record)
+├── docs/FARM-FEATURES.md  # Print farm / multi-location on one machine
 ├── privacy.html         # Privacy policy (required for Store submissions)
 └── .github/workflows/
     └── release.yml      # CI: build DMG + EXE + AppImage on version tags

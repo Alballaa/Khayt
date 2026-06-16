@@ -42,6 +42,13 @@
     return '';
   }
 
+  /** Allow only http(s) links in href attributes. */
+  function safeHttpUrl(url) {
+    const s = String(url || '').trim();
+    if (/^https?:\/\//i.test(s)) return escapeHtml(s);
+    return '';
+  }
+
   /** Parse JSON without prototype-pollution keys (matches lib/safe-json.js). */
   function safeJsonParse(text) {
     return JSON.parse(text, (key, value) => {
@@ -170,6 +177,7 @@
     buildLanOrderTrackingUrl,
     buildLanQuoteApprovalUrl,
     safeImageSrc,
+    safeHttpUrl,
     uid,
     safeCssColor,
     initials,

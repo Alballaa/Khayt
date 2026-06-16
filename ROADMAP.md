@@ -10,6 +10,7 @@ Living priorities for maintainers. Not a public commitment calendar — reorder 
 - [x] **Print farm (local)** — Location filter wired to queue/dashboard/logs; sites overview; farm wizard preset (`main`, unreleased)
 - [ ] Desktop stabilization smoke on `main` (no tag)
 - [ ] **Multi-shop shared data (Khayt Cloud)** — **deferred** after initial batch; design: [docs/MULTI-SHOP-CLOUD.md](./docs/MULTI-SHOP-CLOUD.md)
+- [x] **Platform strategy** — stay on Electron; rewrite (Swift/C++/native) deferred — [docs/PLATFORM-MIGRATION.md](./docs/PLATFORM-MIGRATION.md)
 - [x] Stabilization patch **v2.3.1** (portal tracking URL, operator PIN, UTC recurring dates, npm audit overrides)
 - [x] Run `node scripts/list-stale-branches.mjs --merged-into main` and delete merged `cursor/*` branches (maintainer cleanup, 2026-06-04)
 

@@ -71,9 +71,16 @@ async function autoSendEmailNotification(order, newStatus) {
     if (result?.ok) {
       toast('📧 Email sent', 'success', 2000);
     } else if (result?.fallback && result?.mailtoUrl) {
-      // silently ignore fallback — user has WhatsApp
+      // mailto fallback — no toast
+    } else {
+      const msg = result?.error || t('notify.email_failed') || 'Email notification failed';
+      console.warn('autoSendEmailNotification:', msg);
+      toast(msg, 'warning', 4000);
     }
-  } catch(e) { /* silent */ }
+  } catch (e) {
+    console.warn('autoSendEmailNotification:', e);
+    toast(t('notify.email_failed') || 'Email notification failed', 'warning', 4000);
+  }
 }
 
 async function checkAndSendDigest() {
@@ -130,8 +137,15 @@ async function fireWebhook(eventName, payload) {
   const url = (wh.events || {})[eventName];
   if (!url) return;
   try {
-    await window.hubAPI?.fireWebhook?.(url, eventName, payload, wh.secret || '');
-  } catch(e) { /* silent — webhook failures must not block UI */ }
+    const result = await window.hubAPI?.fireWebhook?.(url, eventName, payload, wh.secret || '');
+    if (result && result.ok === false) {
+      console.warn(`fireWebhook(${eventName}):`, result.error || 'failed');
+      toast((t('webhook.failed') || 'Webhook failed') + `: ${eventName}`, 'warning', 4000);
+    }
+  } catch (e) {
+    console.warn(`fireWebhook(${eventName}):`, e);
+    toast((t('webhook.failed') || 'Webhook failed') + `: ${eventName}`, 'warning', 4000);
+  }
 }
 
 
@@ -187,7 +201,7 @@ async function generateSurveyPage(orderId) {
 <script>
   let _cfg = {};
   try {
-    _cfg = safeJsonParse(document.getElementById('survey-config').textContent);
+    _cfg = JSON.parse(document.getElementById('survey-config').textContent);
   } catch (e) {
     console.error('survey-config parse:', e);
   }
@@ -234,7 +248,7 @@ async function generateSurveyPage(orderId) {
 </script>
 </body></html>`;
 
-  window.hubAPI?.saveHtml?.(html, `survey-${orderId}.html`);
+  window.hubAPI?.saveHtml?.(html, `survey-${orderId}.html`, { interactive: true });
   toast(t('cl.portal_generated'), 'success', 4000);
 }
 
@@ -389,27 +403,74 @@ async function openBnplModal(orderId) {
   });
 }
 
+/** Sync LAN bind/enabled from the settings form when present (Start without Save). */
+function syncLanApiFromFormIfPresent() {
+  const section = $('#lanApiSection');
+  if (!section) return;
+  const prev = settings.lanApi || {};
+  const bindEl = section.querySelector('#lan_bind_lan');
+  const enabledEl = section.querySelector('#lan_enabled');
+  const portEl = section.querySelector('#lan_port');
+  settings.lanApi = {
+    ...prev,
+    ...(enabledEl ? { enabled: enabledEl.checked } : {}),
+    ...(portEl ? { port: parseInt(portEl.value, 10) || prev.port || 3219 } : {}),
+    ...(bindEl ? { bindLan: bindEl.checked } : {}),
+  };
+}
+
+/** Online intake requires LAN bind — not localhost-only. */
+function ensureLanNetworkAccess() {
+  if (!settings.onlineEnabled && !settings.lanApi?.bindLan) return;
+  settings.lanApi = {
+    ...(settings.lanApi || {}),
+    enabled: true,
+    bindLan: true,
+  };
+}
+
 async function startLanServer() {
+  syncLanApiFromFormIfPresent();
+  ensureLanNetworkAccess();
   const lan = settings.lanApi || {};
-  const res = await window.hubAPI?.startLanServer?.({ port: lan.port || 3219, pin: lan.pin || '', bindLan: lan.bindLan ? 'lan' : 'loopback' });
+  const bindLan = lan.bindLan || settings.onlineEnabled;
+  const res = await window.hubAPI?.startLanServer?.({
+    port: lan.port || 3219,
+    pin: lan.pin || '',
+    bindLan: bindLan ? 'lan' : 'loopback',
+  });
   const statusRow = $('#lanStatusRow');
   const qrWrap    = $('#lanQrWrap');
   if (res?.ok) {
+    settings.lanApi = { ...settings.lanApi, enabled: true, bindLan: !res.loopbackOnly };
+    if (res.intakeToken) settings.lanApi.intakeToken = res.intakeToken;
+    else if (res.intakeTokenGenerated) settings.lanApi.intakeToken = STORE_SECRET_MASK;
+    // Keep the plaintext PIN in memory so the Online panel can display it; mask after first save
+    if (res.intakePin) settings.lanApi.intakePin = res.intakePin;
+    else if (res.intakePinGenerated) settings.lanApi.intakePin = STORE_SECRET_MASK;
+    if (res.calendarToken) settings.lanApi.calendarToken = res.calendarToken;
+    else if (res.calendarTokenGenerated) settings.lanApi.calendarToken = STORE_SECRET_MASK;
+    saveAll();
+    const loopbackWarn = res.loopbackOnly
+      ? `<div style="font-size:11px;color:var(--warn);margin-top:6px;">${escapeHtml(t('lan.loopback_warn') || 'Listening on this Mac only — enable “Listen on all network interfaces” for other devices on Wi‑Fi.')}</div>`
+      : `<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">${escapeHtml(t('lan.same_wifi_hint') || 'Other devices: same Wi‑Fi, open this URL. Test intake: /intake')}</div>`;
     if (statusRow) {
-      statusRow.innerHTML = `🟢 Active at <a href="#" class="lan-url-link" data-url="${escapeHtml(res.url)}" style="color:var(--primary);">${escapeHtml(res.url)}</a>`;
+      statusRow.innerHTML = `🟢 Active at <a href="#" class="lan-url-link" data-url="${escapeHtml(res.url)}" style="color:var(--primary);">${escapeHtml(res.url)}</a>${loopbackWarn}`;
       statusRow.querySelectorAll('.lan-url-link').forEach(a => { a.addEventListener('click', e => { e.preventDefault(); window.hubAPI?.openExternal?.(a.dataset.url); }); });
     }
-    settings.lanApi = { ...settings.lanApi, enabled: true };
-    if (res.intakeTokenGenerated) settings.lanApi.intakeToken = STORE_SECRET_MASK;
-    if (res.intakePinGenerated) settings.lanApi.intakePin = STORE_SECRET_MASK;
-    saveAll();
+    if (res.loopbackOnly && settings.onlineEnabled) {
+      toast(t('lan.loopback_warn') || 'LAN is localhost-only — other devices cannot connect. Enable network listen in Settings → Online.', 'warning', 8000);
+    }
     loadLanQr(res.url);
+    refreshLanIntakePinLive();
     updateWebhookUrlDisplay(res.url);
     refreshOnlineIntakeUrlDisplay?.($('#onlineDetails'));
     renderOnlineCustomerLinks?.();
     renderWaitingOnlinePanel?.();
+    renderOnlineSettings?.();
   } else {
     if (statusRow) statusRow.textContent = `❌ Failed: ${res?.error || 'unknown error'}`;
+    toast((t('lan.start_failed') || 'LAN server failed to start') + ': ' + (res?.error || 'unknown'), 'error', 8000);
   }
 }
 
@@ -434,6 +495,76 @@ function updateWebhookUrlDisplay(baseUrl) {
   section.style.display = 'block';
 }
 
+async function reconcileLanServerStatus() {
+  const res = await window.hubAPI?.getLanUrl?.().catch(() => null);
+  const live = !!res?.ok;
+  settings.lanApi = { ...settings.lanApi, enabled: live };
+  const statusRow = document.getElementById('lanStatusRow');
+  if (statusRow) {
+    if (live) {
+      statusRow.innerHTML = `🟢 Active at <a href="#" class="lan-url-link" data-url="${escapeHtml(res.url)}" style="color:var(--primary);">${escapeHtml(res.url)}</a>`;
+      statusRow.querySelectorAll('.lan-url-link').forEach((a) => {
+        a.addEventListener('click', (e) => { e.preventDefault(); window.hubAPI?.openExternal?.(a.dataset.url); });
+      });
+    } else if (!settings.lanApi?.enabled) {
+      statusRow.textContent = '⚫ Server stopped';
+      document.getElementById('lanQrWrap')?.style && (document.getElementById('lanQrWrap').style.display = 'none');
+    }
+  }
+  return live;
+}
+
+async function startTunnelFromSettings({ confirm = false } = {}) {
+  if (!settings.lanApi?.enabled) {
+    toast(t('lan.tunnel_need_server') || 'Start the LAN server first', 'warning');
+    return { ok: false };
+  }
+  saveLanApiSettingsFromForm?.({ restartServer: false });
+  const port = settings.lanApi?.port || 3219;
+  if (confirm) {
+    const confirmMsg = t('lan.tunnel_confirm_msg') || t('lan.tunnel_security_warning');
+    if (!window.confirm(confirmMsg)) return { ok: false };
+  }
+  const tRow = document.getElementById('tunnelStatusRow');
+  if (tRow) tRow.textContent = '⏳ Connecting…';
+  const res = await window.hubAPI?.startTunnel?.(port, { acknowledgedRisk: true });
+  if (res?.ok) {
+    if (tRow) {
+      tRow.innerHTML = `🟢 Active at <a href="#" class="lan-url-link" data-url="${escapeHtml(res.url)}" style="color:var(--primary)">${escapeHtml(res.url)}</a>`;
+      tRow.querySelectorAll('.lan-url-link').forEach((a) => {
+        a.addEventListener('click', (e) => { e.preventDefault(); window.hubAPI?.openExternal?.(a.dataset.url); });
+      });
+    }
+    toast(t('lan.tunnel_active'), 'success');
+    updateWebhookUrlDisplay(res.url);
+  } else if (tRow) {
+    tRow.textContent = `❌ ${res?.error || 'Failed to connect'}`;
+    toast(res?.error || t('lan.tunnel_failed'), 'error');
+  }
+  return res;
+}
+
+async function refreshLanIntakePinLive() {
+  const el = document.getElementById('lanIntakePinLive');
+  const input = document.getElementById('lan_intake_pin');
+  if (!el) return;
+  const res = await window.hubAPI?.getLanUrl?.().catch(() => null);
+  if (!res?.ok) {
+    el.style.display = 'none';
+    return;
+  }
+  if (res.intakePin) {
+    settings.lanApi = { ...settings.lanApi, intakePin: res.intakePin };
+    if (input && (!input.value || isSecretMasked(settings.lanApi.intakePin))) {
+      input.value = res.intakePin;
+    }
+    el.style.display = 'block';
+    el.textContent = (t('lan.intake_pin_live') || 'Current intake PIN (legacy): {pin}').replace('{pin}', res.intakePin);
+  } else {
+    el.style.display = 'none';
+  }
+}
+
 async function loadLanQr(urlOverride) {
   const qrWrap = $('#lanQrWrap');
   if (!qrWrap) return;
@@ -443,20 +574,26 @@ async function loadLanQr(urlOverride) {
     if (!res?.ok) return;
     url = res.url;
   }
-  // PIN is passed via x-khayt-pin header by clients — never embed it in the QR URL
-  const qrUrl = url + '/api/status';
-  const svg = await window.hubAPI?.generateQR?.(qrUrl, { width: 150 });
-  if (svg) {
-    const pin = settings.lanApi?.pin;
-    const pinNote = pin && !isSecretMasked(pin)
-      ? `<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">PIN: <code style="background:var(--bg);padding:1px 5px;border-radius:4px;">${escapeHtml(pin)}</code> (send via <code>x-khayt-pin</code> header)</div>`
-      : pin && isSecretMasked(pin)
-        ? `<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">${escapeHtml(t('lan.pin_configured') || 'PIN configured — use Settings to view or change')}</div>`
-        : '';
+  const base = String(url || '').replace(/\/$/, '');
+  const qrUrl = typeof intakeUrlFromBase === 'function' ? intakeUrlFromBase(base) : `${base}/intake`;
+  let qrVisual = await window.hubAPI?.generateQR?.(qrUrl, { width: 150, dataUrl: true });
+  if (!qrVisual) qrVisual = await window.hubAPI?.generateQR?.(qrUrl, { width: 150 });
+  if (qrVisual) {
     qrWrap.style.display = 'block';
-    qrWrap.innerHTML = `<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">Scan from phone to view queue: <span style="font-size:11px;opacity:0.7;">(click QR to copy URL)</span></div><div id="lanQrSvgWrap" style="cursor:pointer;display:inline-block;" title="Click to copy URL">${svg}</div>${pinNote}`;
+    const label = t('lan.qr_intake_label') || 'Scan from phone to open the customer intake form';
+    const qrBlock = String(qrVisual).startsWith('data:')
+      ? `<img src="${qrVisual}" alt="QR code" width="150" height="150" style="display:block;border-radius:8px;">`
+      : qrVisual;
+    qrWrap.innerHTML = `<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">${escapeHtml(label)} <span style="font-size:11px;opacity:0.7;">(tap QR to copy URL)</span></div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">${escapeHtml(t('lan.qr_url_hint') || 'Open this exact link on your phone (same Wi‑Fi). It must end with /intake')}</div>
+      <div style="font-size:13px;margin-bottom:8px;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);word-break:break-all;"><a href="#" class="lan-qr-url-link" data-url="${escapeHtml(qrUrl)}" style="color:var(--primary);font-weight:600;">${escapeHtml(qrUrl)}</a></div>
+      <div id="lanQrSvgWrap" style="cursor:pointer;display:inline-block;" title="Click to copy URL">${qrBlock}</div>`;
+    qrWrap.querySelector('.lan-qr-url-link')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      window.hubAPI?.openExternal?.(e.currentTarget.dataset.url);
+    });
     document.getElementById('lanQrSvgWrap')?.addEventListener('click', () => {
-      navigator.clipboard.writeText(qrUrl).then(() => toast('URL copied to clipboard', 'success')).catch(() => {});
+      navigator.clipboard.writeText(qrUrl).then(() => toast(t('common.copied') || 'URL copied to clipboard', 'success')).catch(() => {});
     });
   }
 }
@@ -749,7 +886,7 @@ async function openCustomerPortalModal(orderId) {
   const url = buildLanOrderTrackingUrl(lanInfo.url, order);
   let qrHtml = '';
   try {
-    const qrDataUrl = await window.hubAPI.generateQR(url, { width: 200 });
+    const qrDataUrl = await window.hubAPI.generateQR(url, { width: 200, dataUrl: true });
     if (qrDataUrl) qrHtml = `<img src="${escapeHtml(qrDataUrl)}" alt="QR" style="width:200px;height:200px;display:block;margin:0 auto;">`;
   } catch(e) { /* silent */ }
 
@@ -810,7 +947,7 @@ async function openQuoteApprovalLinkModal(orderId) {
   const url = buildLanQuoteApprovalUrl(lanInfo.url, order);
   let qrHtml = '';
   try {
-    const qrDataUrl = await window.hubAPI.generateQR(url, { width: 200 });
+    const qrDataUrl = await window.hubAPI.generateQR(url, { width: 200, dataUrl: true });
     if (qrDataUrl) qrHtml = `<img src="${escapeHtml(qrDataUrl)}" alt="QR" style="width:200px;height:200px;display:block;margin:0 auto;">`;
   } catch (e) { /* silent */ }
 
@@ -913,8 +1050,18 @@ function checkTelegramLowStock() {
 /* ── Feature 11: iCal Export ────────────────────────────────── */
 async function exportIcalFeed() {
   const lanUrl = await window.hubAPI?.getLanUrl?.().catch(() => null);
-  if (!lanUrl?.ok) { toast('Start LAN server first to use iCal', 'error'); return; }
-  const icalUrl = lanUrl.url + '/calendar.ics';
+  if (!lanUrl?.ok) { toast(t('ical.need_server') || 'Start LAN server first to use iCal', 'error'); return; }
+  if (!lanUrl.calendarToken) {
+    toast(t('ical.need_token') || 'Restart the LAN server to generate a calendar link', 'warning');
+    return;
+  }
+  const icalUrl = `${lanUrl.url}/calendar.ics?token=${encodeURIComponent(lanUrl.calendarToken)}`;
+  try {
+    await navigator.clipboard.writeText(icalUrl);
+    toast(t('ical.copied') || 'Calendar subscription link copied', 'success');
+  } catch {
+    toast(t('common.copy_failed') || 'Copy failed', 'warning');
+  }
   window.hubAPI?.openExternal?.(icalUrl);
 }
 
@@ -1011,6 +1158,9 @@ function trackShipment(trackingNumber, carrier) {
     startLanServer,
     updateWebhookUrlDisplay,
     loadLanQr,
+    refreshLanIntakePinLive,
+    reconcileLanServerStatus,
+    startTunnelFromSettings,
     exportAccountingCSV,
     renderOrderComments,
     exportOrderStatusPage,

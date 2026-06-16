@@ -357,7 +357,7 @@ function renderPortfolio() {
   }
   grid.innerHTML = entries.map(e => `
     <div class="portfolio-cell" data-oid="${e.orderId}" data-pi="${e.photoIndex}">
-      <img src="${e.thumb}" alt="">
+      <img src="${safeImageSrc(e.thumb)}" alt="">
       <div class="overlay">
         <div>${escapeHtml(e.project)}</div>
         <div class="id">${escapeHtml(e.orderId)} · ${escapeHtml(e.date)}</div>

@@ -611,16 +611,20 @@ function renderLanApiSettings() {
     <div class="inline-pair" style="margin-top:10px;">
       <div>
         <label data-i18n="lan.intake_pin">Intake form PIN (customers)</label>
-        <input type="password" id="lan_intake_pin" value="${escapeHtml(secretInputValue(lan.intakePin))}" maxlength="12" placeholder="${escapeHtml(secretFieldPlaceholder(lan.intakePin) || 'Auto-generated on start')}" autocomplete="off">
-        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;" data-i18n="lan.intake_pin_hint">Separate from owner PIN — shown to customers at /intake</div>
+        <input type="text" id="lan_intake_pin" value="${escapeHtml(secretInputValue(lan.intakePin))}" maxlength="12" placeholder="${escapeHtml(secretFieldPlaceholder(lan.intakePin) || 'Auto-generated on start')}" autocomplete="off" style="font-family:monospace;letter-spacing:.1em;">
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;" data-i18n="lan.intake_pin_hint">Optional legacy PIN — customers open /intake directly; no PIN required on current versions</div>
+        <div id="lanIntakePinLive" style="font-size:11px;color:var(--text-muted);margin-top:4px;display:none;"></div>
       </div>
     </div>
-    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:10px;">
-      <input type="checkbox" id="lan_bind_lan" style="width:auto;margin:0;" ${lan.bindLan ? 'checked' : ''}>
-      <span>Listen on all network interfaces (LAN). Default is localhost only.</span>
+    <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin-top:10px;">
+      <input type="checkbox" id="lan_bind_lan" style="width:auto;margin:3px 0 0;" ${lan.bindLan || settings.onlineEnabled ? 'checked' : ''}>
+      <span>
+        <span data-i18n="lan.bind_lan">Listen on all network interfaces (LAN)</span>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;font-weight:400;" data-i18n="lan.bind_lan_hint">Required for phones and other computers on your shop Wi‑Fi. Off = this Mac only.</div>
+      </span>
     </label>
     <div style="font-size:11px;color:var(--text-muted);margin:4px 0 10px;padding:8px 10px;background:var(--bg-elev);border-radius:var(--radius);word-break:break-all;">
-      Customer intake form: <code style="font-size:11px;">/intake</code> — requires the intake PIN above (auto-generated when the server starts if blank).
+      Customer intake form: <code style="font-size:11px;">/intake</code> — scan the QR or open this path on your shop Wi‑Fi (no PIN required).
     </div>
     <div class="inline-pair" style="margin-top:10px;">
       <div style="flex:1;">
@@ -670,30 +674,13 @@ function renderLanApiSettings() {
       <div style="font-size:11px;color:var(--danger);margin-top:8px;padding:8px 10px;background:rgba(239,68,68,0.08);border-radius:var(--radius);" data-i18n="lan.tunnel_security_warning">Warning: the tunnel exposes your full LAN API surface to the internet. Set a strong owner PIN and disable when not needed.</div>
     </div>`;
 
-  if (lan.enabled) loadLanQr();
+  if (lan.enabled) {
+    loadLanQr();
+    refreshLanIntakePinLive?.();
+  }
 
   el.querySelector('#btnSaveLan')?.addEventListener('click', () => {
-    const prev = settings.lanApi || {};
-    settings.lanApi = {
-      ...prev,
-      enabled: el.querySelector('#lan_enabled').checked,
-      port: parseInt(el.querySelector('#lan_port').value) || 3219,
-      pin:  secretInputSave(prev.pin, el.querySelector('#lan_pin').value),
-      intakePin: secretInputSave(prev.intakePin, el.querySelector('#lan_intake_pin')?.value),
-      webhookToken: secretInputSave(prev.webhookToken, el.querySelector('#lan_wh_token').value),
-      sallaWebhookSecret: secretInputSave(prev.sallaWebhookSecret, el.querySelector('#lan_salla_secret')?.value),
-      zidWebhookSecret: secretInputSave(prev.zidWebhookSecret, el.querySelector('#lan_zid_secret')?.value),
-      tunnelEnabled: el.querySelector('#lan_tunnel_enabled').checked,
-      bindLan: !!el.querySelector('#lan_bind_lan')?.checked,
-    };
-    saveAll();
-    if (settings.lanApi.enabled) {
-      startLanServer();
-    } else {
-      window.hubAPI?.stopLanServer?.();
-      el.querySelector('#lanStatusRow').textContent = '⚫ Server stopped';
-      el.querySelector('#lanQrWrap').style.display = 'none';
-    }
+    saveLanApiSettingsFromForm({ restartServer: true });
     toast('LAN API settings saved', 'success');
   });
 
@@ -711,30 +698,8 @@ function renderLanApiSettings() {
     el.querySelector('#lan_wh_token').value = token;
   });
 
-  el.querySelector('#btnStartTunnel')?.addEventListener('click', async () => {
-    if (!settings.lanApi?.enabled) {
-      toast(t('lan.tunnel_need_server') || 'Start the LAN server first', 'warning');
-      return;
-    }
-    if (!settings.lanApi?.pin || isSecretMasked(settings.lanApi.pin)) {
-      toast(t('lan.tunnel_need_pin') || 'Set an owner LAN PIN before starting the tunnel', 'warning');
-      return;
-    }
-    const port = settings.lanApi?.port || 3219;
-    const confirmMsg = t('lan.tunnel_confirm_msg') || t('lan.tunnel_security_warning');
-    if (!window.confirm(confirmMsg)) return;
-    const tRow = el.querySelector('#tunnelStatusRow');
-    if (tRow) tRow.textContent = '⏳ Connecting…';
-    const res = await window.hubAPI?.startTunnel?.(port, { acknowledgedRisk: true });
-    if (res?.ok) {
-      tRow.innerHTML = `🟢 Active at <a href="#" class="lan-url-link" data-url="${escapeHtml(res.url)}" style="color:var(--primary)">${escapeHtml(res.url)}</a>`;
-      tRow.querySelectorAll('.lan-url-link').forEach(a => { a.addEventListener('click', e => { e.preventDefault(); window.hubAPI?.openExternal?.(a.dataset.url); }); });
-      toast(t('lan.tunnel_active'), 'success');
-      updateWebhookUrlDisplay(res.url);
-    } else {
-      if (tRow) tRow.textContent = `❌ ${res?.error || 'Failed to connect'}`;
-      toast(res?.error || t('lan.tunnel_failed'), 'error');
-    }
+  el.querySelector('#btnStartTunnel')?.addEventListener('click', () => {
+    startTunnelFromSettings?.({ confirm: true });
   });
 
   el.querySelector('#btnStopTunnel')?.addEventListener('click', async () => {
@@ -1222,6 +1187,14 @@ function updateLogoPreview() {
   }
 }
 
+async function syncUpdaterOptionsFromSettings() {
+  const allowBeta = !!settings.betaUpdates;
+  if (!window.hubAPI?.setUpdateOptions) return;
+  try {
+    await window.hubAPI.setUpdateOptions({ allowBeta });
+  } catch (_) {}
+}
+
 function loadSettingsIntoForm() {
   $('#set_bizEn').value     = settings.bizEn     || '';
   $('#set_bizAr').value     = settings.bizAr     || '';
@@ -1233,6 +1206,8 @@ function loadSettingsIntoForm() {
   $('#set_addrAr').value    = settings.addrAr    || '';
   $('#set_lang').value      = settings.lang      || 'en';
   $('#set_theme').value     = settings.theme     || 'dark';
+  if (typeof populateDesignSelects === 'function') populateDesignSelects();
+  if (typeof syncDesignSettingsUi === 'function') syncDesignSettingsUi();
   $('#set_invPrefix').value = settings.invPrefix || 'INV';
   $('#set_footerEn').value  = settings.footerEn  || '';
   $('#set_footerAr').value  = settings.footerAr  || '';
@@ -1370,6 +1345,18 @@ function loadSettingsIntoForm() {
   // New feature sections inside settings tab
   renderSlicerProfiles();
   renderEnvLogs();
+  const betaUpdEl = $('#set_betaUpdates');
+  if (betaUpdEl) {
+    betaUpdEl.checked = !!settings.betaUpdates;
+    if (!betaUpdEl.dataset.updaterBound) {
+      betaUpdEl.dataset.updaterBound = '1';
+      betaUpdEl.addEventListener('change', () => {
+        settings.betaUpdates = betaUpdEl.checked;
+        syncUpdaterOptionsFromSettings();
+      });
+    }
+  }
+  syncUpdaterOptionsFromSettings();
 }
 
 /* Feature 8 / Task 0: File-store size display in Settings */
@@ -1396,6 +1383,40 @@ async function renderStorageUsage() {
   });
 }
 
+function saveLanApiSettingsFromForm({ restartServer = false } = {}) {
+  const section = document.getElementById('lanApiSection');
+  if (!section) return;
+  const prev = settings.lanApi || {};
+  settings.lanApi = {
+    ...prev,
+    enabled: section.querySelector('#lan_enabled')?.checked ?? prev.enabled,
+    port: parseInt(section.querySelector('#lan_port')?.value, 10) || 3219,
+    pin: secretInputSave(prev.pin, section.querySelector('#lan_pin')?.value),
+    intakePin: secretInputSave(prev.intakePin, section.querySelector('#lan_intake_pin')?.value),
+    webhookToken: secretInputSave(prev.webhookToken, section.querySelector('#lan_wh_token')?.value),
+    sallaWebhookSecret: secretInputSave(prev.sallaWebhookSecret, section.querySelector('#lan_salla_secret')?.value),
+    zidWebhookSecret: secretInputSave(prev.zidWebhookSecret, section.querySelector('#lan_zid_secret')?.value),
+    tunnelEnabled: !!section.querySelector('#lan_tunnel_enabled')?.checked,
+    bindLan: !!section.querySelector('#lan_bind_lan')?.checked,
+  };
+  if (!restartServer) return;
+  saveAll();
+  if (settings.lanApi.enabled) {
+    startLanServer?.();
+  } else {
+    window.hubAPI?.stopLanServer?.();
+    section.querySelector('#lanStatusRow').textContent = '⚫ Server stopped';
+    section.querySelector('#lanQrWrap').style.display = 'none';
+  }
+}
+
+function saveSettingsFromPanel() {
+  const onlineCb = document.getElementById('online_enabled');
+  if (onlineCb) settings.onlineEnabled = onlineCb.checked;
+  saveLanApiSettingsFromForm({ restartServer: false });
+  saveSettingsFromForm();
+}
+
 function saveSettingsFromForm() {
   const accepted = $$('#acceptedPaymentsList input[data-pm]')
     .filter(cb => cb.checked).map(cb => cb.dataset.pm);
@@ -1409,7 +1430,10 @@ function saveSettingsFromForm() {
     addrEn:    $('#set_addrEn').value.trim(),
     addrAr:    $('#set_addrAr').value.trim(),
     lang:      $('#set_lang').value,
-    theme:     $('#set_theme').value,
+    theme:       $('#set_theme').value,
+    designTheme: $('#set_designTheme')?.value || settings.designTheme || 'studio',
+    accent:      $('#set_accent')?.value || settings.accent || 'cyan',
+    cockpitSkin: $('#set_cockpitSkin')?.value || settings.cockpitSkin || 'poster',
     invPrefix: $('#set_invPrefix').value.trim() || 'INV',
     footerEn:  $('#set_footerEn').value.trim(),
     footerAr:  $('#set_footerAr').value.trim(),
@@ -1474,6 +1498,7 @@ function saveSettingsFromForm() {
     // Payment instructions (textarea, not auto-included by DOM reconstruction)
     paymentInstructions: $('#set_paymentInstructions')?.value ?? settings.paymentInstructions ?? '',
     betaAcknowledged: true, // legacy field — always true, beta phase is over
+    betaUpdates:       !!$('#set_betaUpdates')?.checked,
     // Easy-wins batch: Calculator
     quoteValidityDays: Math.max(1, num($('#set_quoteValidityDays')?.value, 7)),
     minOrderAmount:    Math.max(0, num($('#set_minOrderAmount')?.value, 0)),
@@ -1502,6 +1527,7 @@ function saveSettingsFromForm() {
     pausedAt:           settings.pausedAt            ?? null,
     filamentColours:    settings.filamentColours     || {},
     jobTemplates:       settings.jobTemplates        || [],
+    postProcessPresets: settings.postProcessPresets  || [],
     resinProfiles:      settings.resinProfiles       || [],
     dismissedNotifs:    settings.dismissedNotifs     || {},
     kanbanCollapsed:    settings.kanbanCollapsed     || [],
@@ -1509,10 +1535,19 @@ function saveSettingsFromForm() {
     printerApi:         settings.printerApi          || {},
     locations:          settings.locations           || [],
     lanApi: (() => { migrateLanApiSettings(); return settings.lanApi || { enabled: false, port: 3219, pin: '' }; })(),
+    // Preserve fields not edited by this form — never silently drop them
+    onlineEnabled:        !!settings.onlineEnabled,
+    securityEnabled:      !!settings.securityEnabled,
+    recoveryCodeHash:     settings.recoveryCodeHash || '',
+    recoveryCodeCreatedAt: settings.recoveryCodeCreatedAt || '',
+    quoteNumYear:         settings.quoteNumYear ?? new Date().getFullYear(),
+    quoteNumNext:         settings.quoteNumNext ?? 1,
   };
   saveAll();
+  syncUpdaterOptionsFromSettings();
   i18n.set(settings.lang);
   applyTheme(settings.theme);
+  if (typeof applyDesignSettings === 'function') applyDesignSettings();
   applyMode();
   renderInventory();
   refreshCurrencyLabels();
@@ -1960,8 +1995,11 @@ function renderTelegramSettings() {
     saveCurrentFilterPreset,
     updateLogoPreview,
     loadSettingsIntoForm,
+    syncUpdaterOptionsFromSettings,
     renderStorageUsage,
     saveSettingsFromForm,
+    saveSettingsFromPanel,
+    saveLanApiSettingsFromForm,
     openRestoreBackupModal,
     renderHolidayList,
     renderPostChecklistSettings,

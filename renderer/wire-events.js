@@ -63,7 +63,10 @@ function wireEvents() {
   document.addEventListener('click', (e) => {
     if (!e.target.closest('#btnNotifBell') && !e.target.closest('#notifPanel')) {
       const panel = $('#notifPanel');
-      if (panel) panel.style.display = 'none';
+      if (panel && panel.style.display !== 'none') {
+        panel.style.display = 'none';
+        $('#btnNotifBell')?.setAttribute('aria-expanded', 'false');
+      }
     }
   });
 
@@ -130,6 +133,8 @@ function wireEvents() {
     const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
     applyTheme(next);
     settings.theme = next;
+    const setThemeEl = $('#set_theme');
+    if (setThemeEl) setThemeEl.value = next;
     saveAll();
     window.KhaytIcon?.hydrateTopbar?.();
   });
@@ -387,7 +392,11 @@ function wireEvents() {
     if (btn.dataset.act === 'sup-history')   openSupplierHistory(btn.dataset.id);
     if (btn.dataset.act === 'sup-wa') {
       const sup = suppliers.find(s => s.id === btn.dataset.id);
-      if (sup?.phone && window.hubAPI?.shareWhatsApp) {
+      if (!sup?.phone) {
+        toast(t('set.supplier_no_phone') || 'Add a phone number to this supplier first.', 'warning');
+        return;
+      }
+      if (window.hubAPI?.shareWhatsApp) {
         window.hubAPI.shareWhatsApp({ phone: sup.phone, message: '', pdfPath: null });
       }
     }
@@ -689,7 +698,7 @@ function wireEvents() {
   });
 
   // Kanban — production columns
-  document.querySelector('.kanban').addEventListener('click', (e) => {
+  document.querySelector('.kanban')?.addEventListener('click', (e) => {
     const kanbanTimeline = e.target.closest('[data-act="order-timeline"]');
     if (kanbanTimeline) { openOrderTimeline(kanbanTimeline.dataset.id); return; }
     const logWasteCard = e.target.closest('[data-act="log-waste-card"]');
@@ -919,7 +928,7 @@ function wireEvents() {
   // Waiting list
   $('#btnAddWaiting')?.addEventListener('click', () => openWaitingItemEditor(null));
   $('#waitingListToggle')?.addEventListener('click', () => {
-    if (window.KhaytStudio?.isStudio?.()) return;
+    if (window.KhaytStudio?.useHandoffScreens?.()) return;
     const section = $('#waitingListSection');
     const chevron = $('#waitingChevron');
     const toggle = $('#waitingListToggle');
@@ -986,10 +995,17 @@ function wireEvents() {
     if (!btn) return;
     if (btn.dataset.act === 'edit-loc') openLocationEditor(btn.dataset.id);
     if (btn.dataset.act === 'del-loc') {
-      locations = locations.filter(l => l.id !== btn.dataset.id);
-      saveAll();
-      renderLocationsSettings();
-      renderLocationFilter();
+      const loc = locations.find(l => l.id === btn.dataset.id);
+      confirmModal(
+        t('set.location_delete_confirm', { name: loc?.name || '' }) || `Delete location "${loc?.name || ''}"?`,
+        { danger: true, okText: t('common.delete') },
+      ).then((ok) => {
+        if (!ok) return;
+        locations = locations.filter(l => l.id !== btn.dataset.id);
+        saveAll();
+        renderLocationsSettings();
+        renderLocationFilter();
+      });
     }
   });
 
@@ -1038,9 +1054,16 @@ function wireEvents() {
     if (!btn) return;
     if (btn.dataset.act === 'edit-operator') openOperatorEditor(btn.dataset.id);
     if (btn.dataset.act === 'del-operator') {
-      operators = operators.filter(o => o.id !== btn.dataset.id);
-      saveAll();
-      renderOperatorsList();
+      const op = operators.find(o => o.id === btn.dataset.id);
+      confirmModal(
+        t('op.delete_confirm', { name: op?.name || '' }) || `Delete operator "${op?.name || ''}"?`,
+        { danger: true, okText: t('common.delete') },
+      ).then((ok) => {
+        if (!ok) return;
+        operators = operators.filter(o => o.id !== btn.dataset.id);
+        saveAll();
+        renderOperatorsList();
+      });
     }
   });
 
@@ -1197,8 +1220,34 @@ function wireEvents() {
     renderExpenses();
   });
 
+  // Settings — language & theme apply immediately (consistent with mode pills)
+  $('#set_lang')?.addEventListener('change', (e) => {
+    settings.lang = e.target.value;
+    i18n.set(settings.lang);
+    const topLang = $('#langSelect');
+    if (topLang) topLang.value = settings.lang;
+    saveAll();
+    toast(t('set.saved'), 'success', 2000);
+  });
+  $('#set_theme')?.addEventListener('change', (e) => {
+    settings.theme = e.target.value;
+    applyTheme(settings.theme);
+    saveAll();
+    window.KhaytIcon?.hydrateTopbar?.();
+    toast(t('set.saved'), 'success', 2000);
+  });
+
   // Settings
-  $('#btnSaveSettings').addEventListener('click', saveSettingsFromForm);
+  $('#btnSaveSettings')?.addEventListener('click', saveSettingsFromForm);
+
+  // Settings panel Save buttons (Preferences, Stock, Invoice, Online, etc.)
+  document.addEventListener('click', (e) => {
+    const savePanel = e.target.closest('[data-act="save-settings-from-panel"]');
+    if (savePanel) {
+      (typeof saveSettingsFromPanel === 'function' ? saveSettingsFromPanel : saveSettingsFromForm)();
+      return;
+    }
+  });
 
   // Settings sidebar navigation
   document.addEventListener('click', e => {
@@ -1208,6 +1257,39 @@ function wireEvents() {
       ? openSettingsSection
       : global.KhaytShell?.openSettingsSection;
     if (open) open(navItem.dataset.settingsSection);
+  });
+
+  $('#set_customThemeHelp')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    toast(typeof t === 'function' ? t('theme.design.custom_toast') : 'See renderer/themes/_template/README.md to create a custom theme.', 'info', 5000);
+  });
+  $('#set_accent')?.addEventListener('change', (e) => {
+    settings.accent = e.target.value || 'cyan';
+    if (typeof applyDesignSettings === 'function') applyDesignSettings();
+    saveAll();
+    toast(t('set.saved'), 'success', 2000);
+  });
+  $('#set_cockpitSkin')?.addEventListener('change', (e) => {
+    settings.cockpitSkin = e.target.value || 'poster';
+    global.KhaytCockpitShell?.syncCockpitSkin?.();
+    if (typeof syncDesignSettingsUi === 'function') syncDesignSettingsUi();
+    saveAll();
+    toast(t('set.saved'), 'success', 2000);
+  });
+  $('#set_lang')?.addEventListener('change', (e) => {
+    settings.lang = e.target.value;
+    i18n.set(settings.lang);
+    const topLang = $('#langSelect');
+    if (topLang) topLang.value = settings.lang;
+    saveAll();
+    toast(t('set.saved'), 'success', 2000);
+  });
+  $('#set_theme')?.addEventListener('change', (e) => {
+    settings.theme = e.target.value;
+    applyTheme(settings.theme);
+    saveAll();
+    window.KhaytIcon?.hydrateTopbar?.();
+    toast(t('set.saved'), 'success', 2000);
   });
 
   // Business Mode toggle buttons (in Settings tab)

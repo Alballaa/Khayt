@@ -151,7 +151,7 @@ function renderStudioKanbanCard(b) {
     postCheckHtml, resinCheckHtml, timerBadge, etaBadge, actions,
   } = b;
 
-  const useStudio = document.body.classList.contains('khayt-studio');
+  const useStudio = document.body.classList.contains('khayt-handoff');
   const prioColor = { urgent: 'var(--danger)', high: 'var(--warn)', normal: 'var(--text-muted)' }[_pl] || 'var(--text-muted)';
   const client = log.clientId ? clients.find(c => c.id === log.clientId) : null;
   const clientLine = client ? localName(client) : (log.client || '');
@@ -299,7 +299,7 @@ function renderKanban() {
   const quotes = printLog.filter(o => o.status === 'quote' && locMatch(o));
   const quotesSec = $('#quotesSection');
   if (quotesSec) {
-    if (window.KhaytStudio?.isStudio?.()) {
+    if (window.KhaytStudio?.useHandoffScreens?.()) {
       quotesSec.style.display = '';
     } else {
       quotesSec.style.display = quotes.length > 0 ? '' : 'none';
@@ -418,7 +418,7 @@ function renderKanban() {
       } else if (!overWip && existingWipBadge) {
         existingWipBadge.remove();
       }
-      if (document.body.classList.contains('khayt-studio')) {
+      if (document.body.classList.contains('khayt-handoff')) {
         let foot = colEl.querySelector('.khayt-kcol-foot');
         if (!foot) {
           foot = document.createElement('div');

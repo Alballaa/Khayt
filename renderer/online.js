@@ -16,11 +16,11 @@
 
   function formatIntakePinHint() {
     const pin = settings.lanApi?.intakePin;
-    if (!pin) return t('online.intake_pin_pending') || 'Starts when the server is running (auto-generated if blank).';
+    if (!pin) return t('online.intake_pin_pending') || 'PIN auto-generated when the server starts (or set one below).';
     if (typeof isSecretMasked === 'function' && isSecretMasked(pin)) {
-      return t('online.intake_pin_saved') || 'Configured — set or view in Settings → Online.';
+      return t('online.intake_pin_masked') || 'PIN is set — restart the server to see it again, or change it in LAN settings.';
     }
-    return `${t('online.intake_pin_label') || 'Customer PIN'}: ${pin}`;
+    return pin; // caller renders it with a label and copy button
   }
 
   async function getLanBaseUrl() {
@@ -55,13 +55,17 @@
       return;
     }
     wrapEl.style.display = '';
-    if (pinEl) pinEl.textContent = formatIntakePinHint();
+    if (pinEl) {
+      pinEl.textContent = settings.onlineEnabled
+        ? (t('online.intake_no_pin_needed') || 'Customers open the link above — no PIN required.')
+        : formatIntakePinHint();
+    }
     if (!urlEl) return;
     const base = await getLanBaseUrl();
     if (base) {
       const intakeUrl = intakeUrlFromBase(base);
       urlEl.innerHTML =
-        `<a href="#" class="online-intake-link" data-url="${escapeHtml(intakeUrl)}" style="color:var(--primary);word-break:break-all;">${escapeHtml(intakeUrl)}</a>`;
+        `<a href="#" class="online-intake-link" data-url="${escapeHtml(intakeUrl)}" style="color:var(--primary);word-break:break-all;font-weight:600;font-size:13px;">${escapeHtml(intakeUrl)}</a>`;
       urlEl.querySelectorAll('.online-intake-link').forEach((a) => {
         a.addEventListener('click', (e) => {
           e.preventDefault();
@@ -115,7 +119,7 @@
 
     html += `<div style="margin-bottom:12px;">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);margin-bottom:4px;" data-i18n="onlineIntakeForm">Online Intake Form</div>
-      <div data-online-intake-url style="font-size:12px;margin-bottom:6px;"></div>
+      <div data-online-intake-url style="font-size:13px;margin-bottom:6px;"></div>
       <div data-online-intake-pin style="font-size:11px;color:var(--text-muted);margin-bottom:6px;"></div>
       <button type="button" class="btn small primary" id="btnHubCopyIntake" data-i18n="copyIntakeUrl">Copy URL</button>
     </div>`;
@@ -154,6 +158,7 @@
     if (!el) return;
     const on = !!settings.onlineEnabled;
     const lanOn = !!settings.lanApi?.enabled;
+    const serverStatusId = 'onlineServerStatus';
 
     el.innerHTML = `
       <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin-bottom:12px;">
@@ -167,7 +172,7 @@
       </label>
       <div id="onlineDetails" style="display:${on ? 'block' : 'none'};">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-          <span style="font-size:12px;">${lanOn ? '🟢 ' + (t('online.server_on') || 'Server running') : '⚫ ' + (t('online.server_off') || 'Server stopped')}</span>
+          <span id="${serverStatusId}" style="font-size:12px;">${lanOn ? '🟢 ' + (t('online.server_on') || 'Server running') : '⚫ ' + (t('online.server_off') || 'Server stopped')}</span>
           <button type="button" class="btn small ghost" id="btnOnlineStartServer" data-i18n="lan.start">Start server</button>
           <button type="button" class="btn small ghost" id="btnOnlineOpenLanSettings" data-i18n="online.open_lan">LAN & tunnel settings</button>
         </div>
@@ -179,17 +184,18 @@
 
     i18n.applyToDom(el);
 
-    el.querySelector('#online_enabled')?.addEventListener('change', (e) => {
+    el.querySelector('#online_enabled')?.addEventListener('change', async (e) => {
       const enabled = e.target.checked;
       settings.onlineEnabled = enabled;
       settings.lanApi = applyOnlineLanPrefs(settings.lanApi, enabled);
-      saveAll();
+      await saveAll();
       renderOnlineSettings();
       if (enabled) {
-        startLanServer?.().then(() => {
+        try {
+          await startLanServer?.();
           renderOnlineCustomerLinks();
           renderWaitingOnlinePanel?.();
-        });
+        } catch (_) {}
       } else {
         renderWaitingOnlinePanel?.();
       }
@@ -210,6 +216,18 @@
     });
 
     if (on) renderOnlineCustomerLinks();
+    syncOnlineServerStatusUI();
+  }
+
+  async function syncOnlineServerStatusUI() {
+    const el = document.getElementById('onlineServerStatus');
+    if (!el) return;
+    const res = await window.hubAPI?.getLanUrl?.().catch(() => null);
+    const live = !!res?.ok;
+    settings.lanApi = { ...settings.lanApi, enabled: live };
+    el.textContent = live
+      ? '🟢 ' + (t('online.server_on') || 'Server running')
+      : '⚫ ' + (t('online.server_off') || 'Server stopped');
   }
 
   function renderWaitingOnlinePanel() {
@@ -251,6 +269,7 @@
     renderOnlineCustomerLinks,
     renderWaitingOnlinePanel,
     refreshOnlineIntakeUrlDisplay,
+    syncOnlineServerStatusUI,
   };
   Object.assign(global, api);
   global.KhaytOnline = api;

@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const {
   redactStatusHtmlClientRow,
   prepareStatusHtmlForServe,
+  prepareInteractiveHtmlForFile,
 } = require('../lib/status-html');
 
 test('redactStatusHtmlClientRow removes client info row', () => {
@@ -17,4 +18,11 @@ test('prepareStatusHtmlForServe strips script tags', () => {
   const out = prepareStatusHtmlForServe(html);
   assert.doesNotMatch(out, /<script/i);
   assert.match(out, /ok/);
+});
+
+test('prepareInteractiveHtmlForFile keeps scripts but blocks javascript href', () => {
+  const html = '<script>ok()</script><a href="javascript:alert(1)">x</a>';
+  const out = prepareInteractiveHtmlForFile(html);
+  assert.match(out, /<script>ok\(\)<\/script>/);
+  assert.doesNotMatch(out, /javascript:/i);
 });

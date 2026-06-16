@@ -1,0 +1,111 @@
+/* Control Room — graphite console tokens (Khayt-4 direction C) */
+
+html[data-design="console"] {
+  --bg:          #0c0d0c;
+  --bg-2:        #101110;
+  --surface:     #141614;
+  --surface-2:   #1a1d1a;
+  --surface-3:   #222622;
+  --border:      rgba(225,240,225,0.10);
+  --border-2:    rgba(225,240,225,0.18);
+  --hairline:    rgba(225,240,225,0.07);
+
+  --text:        #e6ebe6;
+  --text-dim:    #a3aca3;
+  --text-muted:  #6e776e;
+  --text-faint:  #494f49;
+
+  --accent-h: 135;
+  --accent-s: 62%;
+  --accent-l: 52%;
+  --accent:      hsl(var(--accent-h) var(--accent-s) var(--accent-l));
+  --accent-soft: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.13);
+  --accent-line: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.5);
+  --on-accent:   #07130a;
+
+  --ok:    #46c07a;
+  --ok-soft: rgba(70,192,122,0.13);
+  --warn:  #d9a83a;
+  --warn-soft: rgba(217,168,58,0.14);
+  --danger:#e0584c;
+  --danger-soft: rgba(224,88,76,0.13);
+  --info:  #5e9fd8;
+  --info-soft: rgba(94,159,216,0.13);
+  --violet: #9c8ce0;
+  --violet-soft: rgba(156,140,224,0.13);
+
+  --shadow-1: 0 0 0 rgba(0,0,0,0);
+  --shadow-2: 0 2px 10px rgba(0,0,0,0.45);
+  --shadow-3: 0 10px 34px rgba(0,0,0,0.6);
+  --shadow-pop: 0 14px 40px rgba(0,0,0,0.65);
+
+  --r-xs: 0px;
+  --r-sm: 2px;
+  --r-md: 2px;
+  --r-lg: 3px;
+  --r-xl: 4px;
+
+  --u: 3.4px;
+  --pad-card: calc(var(--u) * 5);
+  --gap: calc(var(--u) * 4);
+
+  --font-ui: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
+  --font-ar: "IBM Plex Sans Arabic", var(--font-ui);
+  --font-sans: var(--font-ui);
+  --font-num: var(--font-mono);
+
+  --nav-w: 64px;
+  --primary: var(--accent);
+  --success: var(--ok);
+  --warning: var(--warn);
+  --danger: #e0584c;
+  --bg-elev: var(--bg-2);
+  --bg-card: var(--surface);
+  --surface-1: var(--surface);
+  --border-soft: var(--hairline);
+  --radius: var(--r-lg);
+  --radius-sm: var(--r-sm);
+}
+
+html[data-design="console"][data-theme="light"] {
+  --bg:          #ebebe5;
+  --bg-2:        #f1f1ec;
+  --surface:     #f8f8f4;
+  --surface-2:   #edede6;
+  --surface-3:   #e0e0d7;
+  --border:      rgba(26,30,26,0.18);
+  --border-2:    rgba(26,30,26,0.32);
+  --hairline:    rgba(26,30,26,0.10);
+
+  --text:        #1a1e1a;
+  --text-dim:    #4c544c;
+  --text-muted:  #7c847c;
+  --text-faint:  #aab0aa;
+
+  --ok:    #20754a;
+  --ok-soft: rgba(32,117,74,0.12);
+  --warn:  #95650c;
+  --warn-soft: rgba(149,101,12,0.13);
+  --danger:#b13a2e;
+  --danger-soft: rgba(177,58,46,0.11);
+  --info:  #2c5f9e;
+  --info-soft: rgba(44,95,158,0.11);
+  --violet: #5f4aa8;
+  --violet-soft: rgba(95,74,168,0.11);
+
+  --shadow-2: 0 2px 10px rgba(26,30,26,0.10);
+  --shadow-3: 0 10px 34px rgba(26,30,26,0.16);
+  --shadow-pop: 0 14px 40px rgba(26,30,26,0.2);
+}
+
+html[data-design="console"],
+html[data-design="console"] body {
+  font-family: var(--font-ui);
+  font-size: 13.5px;
+}
+
+html[data-design="console"][dir="rtl"],
+html[data-design="console"][dir="rtl"] body {
+  font-family: var(--font-ar);
+}

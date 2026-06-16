@@ -33,6 +33,8 @@ const {
   migrateLanApiSecrets,
   ensureLanIntakeToken,
   ensureLanIntakePin,
+  ensureLanCalendarToken,
+  isEncryptionAvailable,
   persistLanStoreUpdate,
   resolveStoreSecret,
   isStoreSecretMasked,
@@ -167,12 +169,19 @@ ipcMain.handle('hub:request-full-wipe', async (event) => {
   return { ok: true };
 });
 
-ipcMain.handle('hub:generate-qr', async (_e, text, options = {}) => QRCode.toString(String(text || '').slice(0, 4000), {
-  type: 'svg',
-  errorCorrectionLevel: options.errorCorrectionLevel || 'M',
-  margin: options.margin ?? 1,
-  width: options.width || 180
-}));
+ipcMain.handle('hub:generate-qr', async (_e, text, options = {}) => {
+  const svgStr = await QRCode.toString(String(text || '').slice(0, 4000), {
+    type: 'svg',
+    errorCorrectionLevel: options.errorCorrectionLevel || 'M',
+    margin: options.margin ?? 1,
+    width: options.width || 180,
+  });
+  // When caller wants a data URL (for <img src=...>) return base64-encoded SVG
+  if (options.dataUrl) {
+    return 'data:image/svg+xml;base64,' + Buffer.from(svgStr).toString('base64');
+  }
+  return svgStr;
+});
 ipcMain.handle('hub:app-version', async () => app.getVersion());
 
 // --- Product images (existing) ---
@@ -437,14 +446,22 @@ ipcMain.handle('hub:open-file', async (_e, filePath) => {
 });
 
 // --- Save HTML to temp and open (Feature 7) ---
-ipcMain.handle('hub:save-html', async (_e, html, filename) => {
+ipcMain.handle('hub:save-html', async (_e, html, filename, opts = {}) => {
   const tmpDir = app.getPath('temp');
   const safeName = (String(filename || 'status.html')).replace(/[^a-zA-Z0-9._-]/g, '_');
   const fullPath = path.join(tmpDir, safeName);
-  await fs.promises.writeFile(fullPath, sanitizeHtmlForFile(html), 'utf8');
+  const content = opts?.interactive
+    ? String(html || '').replace(/\bhref\s*=\s*["']?\s*javascript:/gi, 'href="blocked:')
+    : sanitizeHtmlForFile(html);
+  await fs.promises.writeFile(fullPath, content, 'utf8');
   await shell.openPath(fullPath);
   return fullPath;
 });
+
+ipcMain.handle('hub:encryption-available', async () => ({
+  ok: true,
+  available: isEncryptionAvailable(),
+}));
 
 // --- Main data store (file-based) ---
 // ── One-time keychain explanation ──────────────────────────────────────────
@@ -651,6 +668,7 @@ registerLanServer({
   migrateLanApiSecrets,
   ensureLanIntakeToken,
   ensureLanIntakePin,
+  ensureLanCalendarToken,
   writeStoreToDisk,
   persistLanStoreUpdate,
   getLanServerStore: () => lanServerStore,
@@ -1259,9 +1277,9 @@ app.whenReady().then(() => {
           [
             "default-src 'self'",
             "script-src 'self'",  // Renderer uses data-act delegation; exported LAN/survey HTML may use inline scripts outside this CSP
-            "style-src 'self' 'unsafe-inline'",
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",  // keep in sync with renderer/index.html meta CSP
             "img-src 'self' data: blob:",
-            "font-src 'self' data:",
+            "font-src 'self' data: https://fonts.gstatic.com",
             "connect-src 'self' https://api.telegram.org https://api.sendgrid.com https://api.mailgun.net https://api.tabby.ai https://api.tamara.co https://api.stripe.com https://gw-fatoorah.zatca.gov.sa https://gw-apic-gov.gazt.gov.sa",
             "media-src 'self' blob:",
             "object-src 'none'",

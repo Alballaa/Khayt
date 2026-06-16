@@ -50,7 +50,8 @@ contextBridge.exposeInMainWorld('hubAPI', {
   openFile:  (filePath) => ipcRenderer.invoke('hub:open-file', filePath),
 
   // Feature 7: Save HTML to temp file and open
-  saveHtml:  (html, filename) => ipcRenderer.invoke('hub:save-html', html, filename),
+  saveHtml:  (html, filename, opts) => ipcRenderer.invoke('hub:save-html', html, filename, opts),
+  encryptionAvailable: () => ipcRenderer.invoke('hub:encryption-available'),
 
   // Feature 2 (new): File vault
   copyFileToVault: (srcPath, orderId) => ipcRenderer.invoke('hub:copy-file-to-vault', { srcPath, orderId }),
@@ -130,7 +131,9 @@ contextBridge.exposeInMainWorld('hubAPI', {
   onLanIntakeSubmitted: (() => { let _cb=null; ipcRenderer.on('lan-intake-submitted', (_e,d)=>{ if(_cb) _cb(d); }); return cb=>{ _cb=cb; }; })(),
 
   // Auto-updater
+  setUpdateOptions:     (opts)           => ipcRenderer.invoke('hub:set-update-options', opts),
   checkForUpdates:      ()               => ipcRenderer.invoke('hub:check-for-updates'),
+  formatReleaseNotes:   (notes, opts)    => ipcRenderer.invoke('hub:format-release-notes', notes, opts),
   startUpdateDownload:  ()               => ipcRenderer.invoke('hub:start-update-download'),
   // Quit and install; pass null after flushSave() (avoid duplicate encrypt+write on large stores).
   installUpdate:        (storeSnapshot)  => ipcRenderer.invoke('hub:install-update', storeSnapshot),

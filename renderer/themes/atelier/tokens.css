@@ -1,0 +1,122 @@
+/* Atelier — warm gallery tokens (Khayt-4 direction D) */
+
+html[data-design="atelier"] {
+  --bg:          #f3efe8;
+  --bg-2:        #ece7de;
+  --surface:     #fdfcf9;
+  --surface-2:   #f4f1ea;
+  --surface-3:   #eae5da;
+  --border:      rgba(62,52,38,0.08);
+  --border-2:    rgba(62,52,38,0.16);
+  --hairline:    rgba(62,52,38,0.07);
+
+  --text:        #2b2620;
+  --text-dim:    #6b6354;
+  --text-muted:  #998f7c;
+  --text-faint:  #c2b9a7;
+
+  --accent-h: 18;
+  --accent-s: 55%;
+  --accent-l: 47%;
+  --accent:      hsl(var(--accent-h) var(--accent-s) var(--accent-l));
+  --accent-soft: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.11);
+  --accent-line: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.4);
+  --on-accent:   #fdf9f5;
+
+  --ok:    #4d8b68;
+  --ok-soft: rgba(77,139,104,0.13);
+  --warn:  #b3823a;
+  --warn-soft: rgba(179,130,58,0.14);
+  --danger:#bb5446;
+  --danger-soft: rgba(187,84,70,0.12);
+  --info:  #58779e;
+  --info-soft: rgba(88,119,158,0.12);
+  --violet: #7d6ba8;
+  --violet-soft: rgba(125,107,168,0.12);
+
+  --shadow-1: 0 1px 2px rgba(62,52,38,0.04), 0 2px 8px rgba(62,52,38,0.04);
+  --shadow-2: 0 2px 6px rgba(62,52,38,0.05), 0 12px 32px rgba(62,52,38,0.07);
+  --shadow-3: 0 8px 20px rgba(62,52,38,0.08), 0 28px 70px rgba(62,52,38,0.12);
+  --shadow-pop: 0 20px 60px rgba(62,52,38,0.16);
+
+  --r-xs: 8px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 18px;
+  --r-xl: 26px;
+
+  --u: 4.7px;
+  --pad-card: calc(var(--u) * 5);
+  --gap: calc(var(--u) * 4);
+
+  --font-ui: "Albert Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: "Newsreader", Georgia, serif;
+  --font-mono: "Spline Sans Mono", "IBM Plex Mono", ui-monospace, monospace;
+  --font-ar: "IBM Plex Sans Arabic", var(--font-ui);
+  --font-sans: var(--font-ui);
+  --font-num: var(--font-mono);
+
+  --nav-w: 230px;
+  --primary: var(--accent);
+  --success: var(--ok);
+  --warning: var(--warn);
+  --bg-elev: var(--bg-2);
+  --bg-card: var(--surface);
+  --surface-1: var(--surface);
+  --border-soft: var(--hairline);
+  --radius: var(--r-lg);
+  --radius-sm: var(--r-sm);
+}
+
+html[data-design="atelier"][data-theme="dark"] {
+  --bg:          #1b1916;
+  --bg-2:        #211e1a;
+  --surface:     #28241f;
+  --surface-2:   #2f2a24;
+  --surface-3:   #38322a;
+  --border:      rgba(240,230,212,0.09);
+  --border-2:    rgba(240,230,212,0.17);
+  --hairline:    rgba(240,230,212,0.07);
+
+  --text:        #efe9de;
+  --text-dim:    #b7ad9c;
+  --text-muted:  #847b6a;
+  --text-faint:  #57503f;
+
+  --ok:    #6fb38d;
+  --ok-soft: rgba(111,179,141,0.13);
+  --warn:  #cfa055;
+  --warn-soft: rgba(207,160,85,0.14);
+  --danger:#d4796c;
+  --danger-soft: rgba(212,121,108,0.13);
+  --info:  #84a3c9;
+  --info-soft: rgba(132,163,201,0.13);
+  --violet: #a394cc;
+  --violet-soft: rgba(163,148,204,0.13);
+
+  --shadow-1: 0 1px 2px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.2);
+  --shadow-2: 0 2px 6px rgba(0,0,0,0.25), 0 12px 32px rgba(0,0,0,0.3);
+  --shadow-3: 0 8px 20px rgba(0,0,0,0.35), 0 28px 70px rgba(0,0,0,0.45);
+  --shadow-pop: 0 20px 60px rgba(0,0,0,0.5);
+}
+
+html[data-design="atelier"],
+html[data-design="atelier"] body {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+html[data-design="atelier"] h1,
+html[data-design="atelier"] h2,
+html[data-design="atelier"] h3,
+html[data-design="atelier"] h4 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+html[data-design="atelier"][dir="rtl"],
+html[data-design="atelier"][dir="rtl"] body {
+  font-family: var(--font-ar);
+}

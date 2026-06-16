@@ -1,0 +1,39 @@
+/* Atlas — dark floor styling on shared components (non-dashboard tabs) */
+
+html[data-design="atlas"] .card {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--ink);
+}
+
+html[data-design="atlas"] .btn {
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,0.06);
+  color: var(--ink);
+  font-weight: 600;
+  border-radius: 10px;
+}
+
+html[data-design="atlas"] .btn.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: transparent;
+}
+
+html[data-design="atlas"] .input,
+html[data-design="atlas"] select.input {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  border-radius: var(--radius-sm);
+}
+
+html[data-design="atlas"] .settings-section-head {
+  color: var(--ink);
+}
+
+html[data-design="atlas"] .muted,
+html[data-design="atlas"] .settings-field-hint {
+  color: var(--dim);
+}

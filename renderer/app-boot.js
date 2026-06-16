@@ -47,6 +47,8 @@ function initWizard() {
 
   let selectedMode = 'simple';
   let selectedBizType = 'solo';
+  let wizCurrentStep = 1;
+  let selectedDesign = settings.designTheme || 'studio';
   let pendingPin = null;
   let pendingRecoveryCode = null;
   let securitySkipped = true;
@@ -59,26 +61,67 @@ function initWizard() {
   i18n.applyToDom(wiz);
 
   function goToStep(n) {
+    wizCurrentStep = n;
     wiz.querySelectorAll('.wizard-step').forEach(s => s.style.display = 'none');
     const step = $(`#wiz-step-${n}`);
     if (step) step.style.display = '';
     wiz.querySelectorAll('.wizard-dot').forEach(d => {
       d.classList.toggle('active', parseInt(d.dataset.step, 10) <= n);
     });
+    if (n === 2) {
+      global.KhaytThemePicker?.mountWizardPicker?.(
+        $('#wizDesignThemePicker'),
+        selectedDesign,
+      );
+    }
   }
 
+  const wizEscHandler = (e) => {
+    if (e.key !== 'Escape' || wiz.style.display === 'none') return;
+    if (_escHandlerStack?.length) return;
+    e.preventDefault();
+    confirmModal(t('wiz.skip_confirm') || 'Skip setup and use defaults? You can finish this later in Settings.', {
+      okText: t('wiz.skip_ok') || 'Skip for now',
+      cancelText: t('common.cancel'),
+    }).then((ok) => { if (ok) finishWizard(); });
+  };
+  document.addEventListener('keydown', wizEscHandler);
+
   wiz.addEventListener('click', e => {
+    const backBtn = e.target.closest('[data-prev]');
     const nextBtn = e.target.closest('[data-next]');
     const optionBtn = e.target.closest('.wizard-option');
     const finishBtn = e.target.closest('#wizFinish');
 
+    if (backBtn) {
+      goToStep(parseInt(backBtn.dataset.prev, 10));
+      return;
+    }
+
     if (nextBtn && nextBtn.id !== 'wizRecoveryContinue') {
       const step = parseInt(nextBtn.dataset.next, 10);
+      if (nextBtn.classList.contains('wizard-option') && nextBtn.dataset.mode) {
+        wiz.querySelectorAll('.wizard-option').forEach(o => o.classList.remove('selected'));
+        nextBtn.classList.add('selected');
+        selectedMode = nextBtn.dataset.mode;
+        selectedBizType = nextBtn.dataset.bizType || selectedMode;
+      }
       if (step === 2) {
         const lang = $('#wizLang')?.value || 'en';
         settings.lang = lang;
         i18n.set(lang);
         i18n.applyToDom(wiz);
+      }
+      if (nextBtn.closest('#wiz-step-2')) {
+        const picker = $('#wizDesignThemePicker');
+        selectedDesign = global.KhaytThemePicker?.getWizardSelection?.(picker) || selectedDesign;
+        settings.designTheme = selectedDesign;
+        const theme = global.KhaytThemeRegistry?.getTheme(selectedDesign);
+        if (theme?.defaultAppearance) {
+          settings.theme = theme.defaultAppearance;
+          if (typeof applyTheme === 'function') applyTheme(theme.defaultAppearance);
+        }
+        if (typeof applyDesignSettings === 'function') applyDesignSettings();
       }
       goToStep(step);
       return;
@@ -89,7 +132,8 @@ function initWizard() {
       optionBtn.classList.add('selected');
       selectedMode = optionBtn.dataset.mode;
       selectedBizType = optionBtn.dataset.bizType || selectedMode;
-      setTimeout(() => goToStep(parseInt(optionBtn.dataset.next, 10)), 300);
+      const step3Continue = $('#wizStep3Continue');
+      if (step3Continue) step3Continue.disabled = false;
       return;
     }
 
@@ -100,7 +144,7 @@ function initWizard() {
     pendingPin = null;
     pendingRecoveryCode = null;
     securitySkipped = true;
-    goToStep(3);
+    goToStep(4);
   });
 
   $('#wizSecurityContinue')?.addEventListener('click', () => {
@@ -141,7 +185,7 @@ function initWizard() {
 
   $('#wizRecoveryContinue')?.addEventListener('click', () => {
     if (!$('#wizRecoverySaved')?.checked) return;
-    goToStep(3);
+    goToStep(4);
   });
 
   $('#wizRecoveryCopy')?.addEventListener('click', async () => {
@@ -167,7 +211,10 @@ function initWizard() {
     settings.currency = currency;
     settings.mode = selectedMode;
     settings.businessType = selectedBizType;
-    settings.theme = 'light';
+    settings.designTheme = selectedDesign || settings.designTheme || 'studio';
+    const finishTheme = global.KhaytThemeRegistry?.getTheme(settings.designTheme);
+    if (finishTheme?.defaultAppearance) settings.theme = finishTheme.defaultAppearance;
+    else if (!settings.theme) settings.theme = 'light';
     if (selectedBizType === 'farm') {
       const w = { ...(settings.wipLimits || {}) };
       if (!w.printing) {
@@ -200,8 +247,10 @@ function initWizard() {
     settings.firstRunDone = true;
     await flushSave();
 
+    document.removeEventListener('keydown', wizEscHandler);
     wiz.style.display = 'none';
     applyTheme(settings.theme);
+    if (typeof applyDesignSettings === 'function') applyDesignSettings();
     applyMode();
     loadSettingsIntoForm();
     if (enableOnline && typeof startLanServer === 'function') {
@@ -231,6 +280,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   applyTheme(settings.theme || 'light');
+  if (typeof KhaytCustomThemes?.loadCustomThemes === 'function') {
+    await KhaytCustomThemes.loadCustomThemes();
+  }
+  if (typeof applyDesignSettings === 'function') applyDesignSettings();
   applyMode();
   i18n.init();
   if (settings.lang) i18n.set(settings.lang, { silent: true });
@@ -272,6 +325,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     catch (_) {}
   }
   if ($('#appVersion')) $('#appVersion').textContent = currentVersion || '2.0.16 (dev)';
+  const betaBadge = $('#appVersionBeta');
+  if (betaBadge) betaBadge.hidden = !/-beta/i.test(String(currentVersion || ''));
 
   // ── Post-update "data survived" toast ────────────────────────────────────────
   // If the previous session stored a pending-update version and we're now running
@@ -299,122 +354,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       localStorage.removeItem('khayt_pending_update_to');
       setTimeout(() => {
         toast(
-          `✅ Updated to Khayt ${escapeHtml(currentVersion)} — your data is intact. ` +
-          `A pre-update backup was saved to <em>Settings → Backup</em>.`,
+          `✅ Updated to Khayt ${currentVersion} — your data is intact. ` +
+          'A pre-update backup was saved to Settings → Backup.',
           'success', 7000
         );
       }, 2500); // slight delay so the UI is fully painted first
     }
   })();
 
-  // ── Auto-updater UI ─────────────────────────────────────────────────────────
-  // electron-updater fires IPC events from main; we show a non-intrusive banner.
-  (function wireUpdaterUI() {
-    const BANNER_CSS = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:9999;' +
-      'background:var(--primary);color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;' +
-      'font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,0.35);display:flex;align-items:center;gap:10px;white-space:nowrap;';
-
-    function makeBanner(html) {
-      const el = document.createElement('div');
-      el.id = 'updateBanner';
-      el.style.cssText = BANNER_CSS;
-      el.innerHTML = html;
-      document.getElementById('updateBanner')?.remove();
-      document.body.appendChild(el);
-      return el;
-    }
-
-    // 1. Update available — ask user to download
-    window.hubAPI?.onUpdateAvailable?.((info) => {
-      const banner = makeBanner(
-        `🎉 Khayt <strong>${escapeHtml(info.version)}</strong> is available! ` +
-        `<button id="updBtnDownload" style="background:rgba(255,255,255,0.25);border:none;color:#fff;padding:3px 12px;border-radius:12px;cursor:pointer;font-size:12px;">Download</button> ` +
-        `<span id="updBtnClose" style="opacity:.7;font-size:18px;cursor:pointer;line-height:1;">×</span>`
-      );
-      banner.querySelector('#updBtnDownload')?.addEventListener('click', () => {
-        banner.innerHTML = `⬇️ Downloading update… <span id="updProgress" style="opacity:.8;font-size:12px;">0%</span>`;
-        window.hubAPI?.startUpdateDownload?.();
-      });
-      banner.querySelector('#updBtnClose')?.addEventListener('click', () => banner.remove());
-    });
-
-    // 2. Download progress — update the % counter
-    window.hubAPI?.onUpdateDownloadProgress?.((progress) => {
-      const el = document.getElementById('updProgress');
-      if (el) el.textContent = `${progress.percent}%`;
-    });
-
-    // 2b. Update error — surface it instead of leaving the banner stuck at 0%
-    window.hubAPI?.onUpdateError?.((err) => {
-      const banner = document.getElementById('updateBanner');
-      if (!banner) return;
-      const msg = escapeHtml(err?.message || 'Update failed');
-      banner.innerHTML =
-        `⚠ Update failed: <span style="opacity:.85;font-size:12px;">${msg}</span> ` +
-        `<span id="updBtnCloseErr" style="opacity:.7;font-size:18px;cursor:pointer;line-height:1;margin-inline-start:6px;">×</span>`;
-      banner.querySelector('#updBtnCloseErr')?.addEventListener('click', () => banner.remove());
-    });
-
-    // 3. Download complete — show restart button
-    window.hubAPI?.onUpdateDownloaded?.((info) => {
-      const banner = makeBanner(
-        `✅ Khayt <strong>${escapeHtml(info.version)}</strong> ready — ` +
-        `<button id="updBtnRestart" style="background:rgba(255,255,255,0.25);border:none;color:#fff;padding:3px 12px;border-radius:12px;cursor:pointer;font-size:12px;">Restart &amp; install</button> ` +
-        `<span id="updBtnClose2" style="opacity:.7;font-size:18px;cursor:pointer;line-height:1;">×</span>`
-      );
-      banner.querySelector('#updBtnRestart')?.addEventListener('click', async () => {
-        const btn = banner.querySelector('#updBtnRestart');
-        const setBtn = (label) => { if (btn) btn.textContent = label; };
-        if (btn) btn.disabled = true;
-
-        const withTimeout = (promise, ms, label) =>
-          Promise.race([
-            promise,
-            new Promise((resolve) => setTimeout(() => {
-              console.warn(`[update] ${label} timed out after ${ms}ms — continuing`);
-              resolve(null);
-            }, ms)),
-          ]);
-
-        try {
-          // 1. One flush to disk (large stores can take several seconds to encrypt).
-          setBtn('Saving data…');
-          if (typeof flushSave === 'function') {
-            await withTimeout(flushSave(), 20_000, 'flushSave');
-          }
-
-          // 2. Pre-update backup — copy store file on disk (no huge JSON over IPC).
-          setBtn('Backing up…');
-          await withTimeout(
-            window.hubAPI?.writeUpdateBackup?.('__COPY_STORE__', info.version),
-            12_000,
-            'writeUpdateBackup',
-          );
-
-          // 3. Record pending version for post-relaunch toast.
-          localStorage.setItem('khayt_pending_update_to', String(info.version));
-
-          setTimeout(() => {
-            if (localStorage.getItem('khayt_pending_update_to') === String(info.version)) {
-              localStorage.removeItem('khayt_pending_update_to');
-              toast('⚠ Update installation failed — please restart the app manually.', 'error', 8000);
-              if (btn) { btn.disabled = false; btn.textContent = 'Restart & install'; }
-            }
-          }, 30_000);
-
-          // 4. Quit and install (store already flushed — do not re-send snapshot).
-          setBtn('Installing…');
-          await window.hubAPI?.installUpdate?.(null);
-        } catch (err) {
-          console.error('[update] install prep failed:', err);
-          toast('⚠ Could not prepare update — trying install anyway.', 'warning', 6000);
-          setBtn('Installing…');
-          try { await window.hubAPI?.installUpdate?.(null); } catch (_) {}
-        }
-      });
-      banner.querySelector('#updBtnClose2')?.addEventListener('click', () => banner.remove());
-    });
-  })();
+  // ── Auto-updater UI (changelog review before download/install) ─────
+  // Push the saved beta-channel preference to main before the startup check,
+  // so opted-in testers are offered beta builds on the launch auto-check.
+  if (typeof settings !== 'undefined') {
+    window.hubAPI?.setUpdateOptions?.({ allowBeta: !!settings.betaUpdates });
+  }
+  wireUpdateUI({ getCurrentVersion: () => currentVersion });
 
   // ── Manual "Check for updates" button in Settings ────────────────────────
   (function wireCheckForUpdatesBtn() {
@@ -428,26 +382,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (msg) msg.textContent = '';
       try {
         const res = await window.hubAPI.checkForUpdates();
-        if (res?.status === 'dev') {
-          if (msg) {
-            const ver = res.currentVersion || currentVersion || '';
-            msg.innerHTML =
-              `Source build${ver ? ` (${escapeHtml(ver)})` : ''}. ` +
-              'New features ship on <strong>main</strong> first — in your repo folder run ' +
-              '<code>git pull origin main</code> then <code>npm start</code>. ' +
-              'Installed DMG/auto-update only moves when a new GitHub Release is published ' +
-              '(see <a href="https://github.com/Alballaa/Khayt/blob/main/docs/RELEASE-HOLD.md" target="_blank" rel="noopener">release hold</a>).';
-          }
-        } else if (res?.status === 'error') {
-          if (msg) msg.textContent = `⚠ Update check failed: ${res.message || 'unknown error'}`;
-        } else if (res?.status === 'available') {
-          if (msg) msg.textContent = `Khayt ${res.version} is available — use the banner to download.`;
-        } else if (res?.status === 'not-available') {
-          const ver = res.currentVersion || currentVersion || '';
-          if (msg) msg.textContent = ver ? `✓ You're up to date (${ver})` : '✓ You\'re up to date';
-        } else if (msg) {
-          msg.textContent = '⚠ Update check returned no result';
-        }
+        await handleManualUpdateCheckResult(res, { currentVersion, statusEl: msg });
       } catch (e) {
         if (msg) msg.textContent = '⚠ Check failed';
       } finally {
@@ -532,6 +467,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   if (window.hubAPI?.onLanStartFailed) {
     window.hubAPI.onLanStartFailed(() => {
+      settings.lanApi = { ...settings.lanApi, enabled: false };
+      reconcileLanServerStatus?.();
       toast(t('lan.start_failed') || 'LAN server failed to start — port may be in use', 'warning', 6000);
     });
   }
@@ -593,10 +530,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     toast(t('intakeFormSubmitted'), 'success');
   });
 
+  window.hubAPI?.encryptionAvailable?.().then((enc) => {
+    if (enc && enc.ok === true && enc.available === false) {
+      toast(t('security.no_keychain') || 'OS secure storage is unavailable — secrets may be stored unencrypted on disk.', 'warning', 10000);
+    }
+  }).catch(() => {});
+
   // Round 12: Start LAN API server if enabled
   if (settings.lanApi?.enabled) {
-    startLanServer().catch(e => {
+    startLanServer().then(async () => {
+      await reconcileLanServerStatus?.();
+      if (settings.lanApi?.tunnelEnabled) {
+        await startTunnelFromSettings?.({ confirm: false });
+      }
+    }).catch(e => {
       console.error('LAN server failed to start:', e);
+      settings.lanApi = { ...settings.lanApi, enabled: false };
       toast(t('lan.start_failed') || 'LAN server failed to start — port may be in use', 'warning', 6000);
     });
   }
@@ -611,12 +560,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       globalSearchOpen ? closeGlobalSearch() : openGlobalSearch();
       return;
     }
+    if (globalSearchOpen && typeof handleGlobalSearchKeydown === 'function' && handleGlobalSearchKeydown(e)) {
+      return;
+    }
     if (e.key === 'Escape' && globalSearchOpen) {
       closeGlobalSearch();
       return;
     }
     // Single-key navigation shortcuts — only when no input/modal is focused
-    if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.shiftKey && e.key !== '?') return;
     const tag = (document.activeElement?.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
     if (document.querySelector('.modal-backdrop')) return; // modal open
