@@ -336,13 +336,13 @@ body.khayt-workbench .khayt-scroll.content .card-head {
 }
 
 /* Secondary / ghost buttons → native pill with hairline + soft shadow. */
-body.khayt-workbench .khayt-scroll.content .btn:not(.primary):not(.btn-primary) {
+body.khayt-workbench .khayt-scroll.content .btn:not(.primary):not(.btn-primary):not(.danger):not(.btn-danger) {
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--ink);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-1);
 }
-body.khayt-workbench .khayt-scroll.content .btn:not(.primary):not(.btn-primary):hover {
+body.khayt-workbench .khayt-scroll.content .btn:not(.primary):not(.btn-primary):not(.danger):not(.btn-danger):hover {
   background: var(--bg-2);
 }
