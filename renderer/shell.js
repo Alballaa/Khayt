@@ -383,6 +383,9 @@ function switchTab(tabId) {
   if (typeof KhaytWorkbenchShell?.syncWorkbenchPageHead === 'function') {
     KhaytWorkbenchShell.syncWorkbenchPageHead(tabId);
   }
+  if (typeof KhaytVividShell?.syncVividPageHead === 'function') {
+    KhaytVividShell.syncVividPageHead(tabId);
+  }
 
   if (tabId === 'dashboard-tab')  renderDashboard();
   if (tabId === 'expenses-tab')   { renderExpenses(); populateExpOrderDatalist(); }
