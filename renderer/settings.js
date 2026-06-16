@@ -1527,6 +1527,7 @@ function saveSettingsFromForm() {
     pausedAt:           settings.pausedAt            ?? null,
     filamentColours:    settings.filamentColours     || {},
     jobTemplates:       settings.jobTemplates        || [],
+    postProcessPresets: settings.postProcessPresets  || [],
     resinProfiles:      settings.resinProfiles       || [],
     dismissedNotifs:    settings.dismissedNotifs     || {},
     kanbanCollapsed:    settings.kanbanCollapsed     || [],
