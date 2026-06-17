@@ -40,6 +40,44 @@ final class KhaytAPIClient: ObservableObject {
         try await get("/api/machines", requiresPin: true, as: [MachineInfo].self)
     }
 
+    func fetchMachinesLive() async throws -> [MachineLiveStatus] {
+        try await get("/api/machines/live", requiresPin: true, as: [MachineLiveStatus].self)
+    }
+
+    func fetchClients() async throws -> [Client] {
+        try await get("/api/clients", requiresPin: true, as: [Client].self)
+    }
+
+    func fetchWaitingList() async throws -> [WaitingListItem] {
+        try await get("/api/waiting-list", requiresPin: true, as: [WaitingListItem].self)
+    }
+
+    func updateSpoolRemaining(id: String, grams: Int) async throws {
+        let encodedId = try encodeOrderIdForPath(id)
+        let body = try JSONEncoder().encode(["remaining": max(0, grams)])
+        let (data, response) = try await request(
+            path: "/api/inventory/\(encodedId)", method: "PATCH", body: body, requiresPin: true
+        )
+        try ensureOK(data, response)
+    }
+
+    func deleteSpool(id: String) async throws {
+        let encodedId = try encodeOrderIdForPath(id)
+        let (data, response) = try await request(
+            path: "/api/inventory/\(encodedId)", method: "DELETE", body: nil, requiresPin: true
+        )
+        try ensureOK(data, response)
+    }
+
+    func updateWaitingStatus(id: String, status: String) async throws {
+        let encodedId = try encodeOrderIdForPath(id)
+        let body = try JSONEncoder().encode(["status": status])
+        let (data, response) = try await request(
+            path: "/api/waiting-list/\(encodedId)", method: "PATCH", body: body, requiresPin: true
+        )
+        try ensureOK(data, response)
+    }
+
     func updateOrderStatus(orderId: String, status: String) async throws {
         let encodedId = try encodeOrderIdForPath(orderId)
         let body = try JSONEncoder().encode(["status": status])
@@ -182,7 +220,13 @@ final class KhaytAPIClient: ObservableObject {
         components.scheme = base.scheme ?? "http"
         components.host = base.host
         components.port = base.port
-        components.path = path
+        // Split path from query — otherwise URLComponents percent-encodes the
+        // "?" into the path (%3F), breaking ?format=json and ?status= filters.
+        let parts = path.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false)
+        components.path = String(parts[0])
+        if parts.count > 1, !parts[1].isEmpty {
+            components.percentEncodedQuery = String(parts[1])
+        }
         guard let url = components.url else { throw KhaytAPIError.invalidURL }
         return url
     }
@@ -207,6 +251,15 @@ final class KhaytAPIClient: ObservableObject {
             return try await session.data(for: req)
         } catch {
             throw KhaytAPIError.transport(error)
+        }
+    }
+
+    private func ensureOK(_ data: Data, _ response: URLResponse) throws {
+        guard let http = response as? HTTPURLResponse else {
+            throw KhaytAPIError.transport(URLError(.badServerResponse))
+        }
+        guard (200...299).contains(http.statusCode) else {
+            throw try decodeAPIError(data, status: http.statusCode)
         }
     }
 

@@ -21,6 +21,8 @@ struct KhaytTabBar: View {
                             .font(.system(size: 22, weight: selection == item.id ? .semibold : .regular))
                         Text(item.title)
                             .font(.system(size: 10, weight: selection == item.id ? .semibold : .regular))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
                     }
                     .frame(maxWidth: .infinity, minHeight: 49)
                     .padding(.top, 9)

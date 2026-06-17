@@ -38,6 +38,106 @@ struct MachineInfo: Codable, Identifiable, Sendable {
     let name: String?
     let type: String?
     let status: String?
+    var hasPrinterApi: Bool?
+}
+
+/// Real-time printer telemetry from `/api/machines/live`.
+struct MachineLiveStatus: Codable, Identifiable, Sendable {
+    let id: String
+    let name: String?
+    let hasPrinterApi: Bool
+    let state: String?
+    let progress: Int?          // 0–100
+    let filename: String?
+    let timeRemaining: Int?     // seconds remaining
+    let tempNozzle: Int?
+    let tempBed: Int?
+    let error: String?
+    let lastUpdated: String?
+    let apiType: String?
+
+    var displayName: String { name ?? id }
+
+    var isPrinting: Bool { (state ?? "").lowercased().contains("print") }
+    var hasError: Bool { !(error ?? "").isEmpty }
+    var isOnline: Bool { hasPrinterApi && (state != nil || hasError) }
+
+    /// ETA formatted like the desktop: "2h 14m" / "45m".
+    var etaText: String? {
+        guard let secs = timeRemaining, secs > 0 else { return nil }
+        let mins = Int((Double(secs) / 60).rounded())
+        return mins > 60 ? "\(mins / 60)h \(mins % 60)m" : "\(mins)m"
+    }
+
+    var tempText: String? {
+        guard tempNozzle != nil || tempBed != nil else { return nil }
+        let n = tempNozzle.map { "\($0)°" } ?? "?"
+        let b = tempBed.map { "\($0)°" } ?? "?"
+        return "\(n) / \(b)"
+    }
+}
+
+struct Client: Codable, Identifiable, Sendable {
+    let id: String
+    let nameEn: String?
+    let nameAr: String?
+    let phone: String?
+    let email: String?
+
+    var displayName: String {
+        let en = nameEn?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let ar = nameAr?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let en, !en.isEmpty { return en }
+        if let ar, !ar.isEmpty { return ar }
+        return id
+    }
+
+    var secondaryName: String? {
+        let en = nameEn?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let ar = nameAr?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return (!en.isEmpty && !ar.isEmpty) ? ar : nil
+    }
+
+    /// Digits-only phone for tel:/wa.me links (keeps a leading +).
+    var dialNumber: String? {
+        guard let phone, !phone.isEmpty else { return nil }
+        let allowed = phone.filter { $0.isNumber || $0 == "+" }
+        return allowed.isEmpty ? nil : allowed
+    }
+
+    var whatsappNumber: String? {
+        dialNumber.map { $0.hasPrefix("+") ? String($0.dropFirst()) : $0 }
+    }
+}
+
+/// Inbound job request from `/api/waiting-list` (the intake funnel).
+struct WaitingListItem: Codable, Identifiable, Sendable {
+    let id: String
+    let project: String?
+    let clientName: String?
+    let notes: String?
+    let email: String?
+    let phone: String?
+    let material: String?
+    let priority: String?
+    let status: String?
+    let estValue: Double?
+    let reminderDate: String?
+    let source: String?
+    let submittedAt: String?
+
+    var displayTitle: String {
+        let p = project?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (p?.isEmpty == false) ? p! : "Request \(id)"
+    }
+    var displayClient: String {
+        clientName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "—"
+    }
+    var dialNumber: String? {
+        guard let phone, !phone.isEmpty else { return nil }
+        let allowed = phone.filter { $0.isNumber || $0 == "+" }
+        return allowed.isEmpty ? nil : allowed
+    }
 }
 
 struct InventorySpool: Codable, Identifiable, Sendable {

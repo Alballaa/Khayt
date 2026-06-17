@@ -15,6 +15,7 @@ struct InventoryView: View {
     @State private var searchText = ""
     @State private var filter: Filter = .all
     @State private var selectedSpool: InventorySpool?
+    @State private var spoolToDelete: InventorySpool?
     @State private var sortNewestFirst = true
 
     private var displayed: [InventorySpool] {
@@ -68,9 +69,30 @@ struct InventoryView: View {
                 AddSpoolSheet { Task { await load() } }
             }
             .sheet(item: $selectedSpool) { spool in
-                SpoolDetailSheet(spool: spool)
+                SpoolDetailSheet(spool: spool) { Task { await load() } }
+            }
+            .alert("Remove spool?", isPresented: showDeleteAlert, presenting: spoolToDelete) { spool in
+                Button("Remove", role: .destructive) { Task { await delete(spool) } }
+                Button("Cancel", role: .cancel) {}
+            } message: { spool in
+                Text("\(spool.displayLabel) will be removed from inventory.")
             }
             .task { await load() }
+        }
+    }
+
+    private var showDeleteAlert: Binding<Bool> {
+        Binding(get: { spoolToDelete != nil }, set: { if !$0 { spoolToDelete = nil } })
+    }
+
+    private func delete(_ spool: InventorySpool) async {
+        do {
+            try await api.deleteSpool(id: spool.id)
+            CompanionHaptics.success()
+            await load()
+        } catch {
+            errorMessage = error.localizedDescription
+            CompanionHaptics.warning()
         }
     }
 
@@ -100,6 +122,13 @@ struct InventoryView: View {
                 }
                 .buttonStyle(.plain)
                 .listRowBackground(KhaytDesign.surface)
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button(role: .destructive) {
+                        spoolToDelete = spool
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                }
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)

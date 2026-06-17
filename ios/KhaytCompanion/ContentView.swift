@@ -10,7 +10,8 @@ struct ContentView: View {
         KhaytTabItem(id: 1, title: L10n.tr("tab.orders"), icon: "rectangle.stack.fill"),
         KhaytTabItem(id: 2, title: L10n.tr("tab.inventory"), icon: "cylinder.split.1x2.fill"),
         KhaytTabItem(id: 3, title: L10n.tr("tab.machines"), icon: "printer.fill"),
-        KhaytTabItem(id: 4, title: L10n.tr("tab.settings"), icon: "gearshape.fill")
+        KhaytTabItem(id: 4, title: L10n.tr("tab.clients"), icon: "person.2.fill"),
+        KhaytTabItem(id: 5, title: L10n.tr("tab.settings"), icon: "gearshape.fill")
     ]
 
     var body: some View {
@@ -34,7 +35,8 @@ struct ContentView: View {
         case "orders": selectedTab = 1
         case "inventory": selectedTab = 2
         case "machines": selectedTab = 3
-        case "settings": selectedTab = 4
+        case "clients": selectedTab = 4
+        case "settings": selectedTab = 5
         default: break
         }
     }
@@ -72,7 +74,8 @@ struct MainTabView: View {
         case 1: OrdersView()
         case 2: InventoryView()
         case 3: MachinesView()
-        case 4: SettingsView()
+        case 4: ClientsView()
+        case 5: SettingsView()
         default: DashboardView()
         }
     }

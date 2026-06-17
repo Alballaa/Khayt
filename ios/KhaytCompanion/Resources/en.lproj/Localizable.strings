@@ -3,6 +3,7 @@
 "tab.orders" = "Orders";
 "tab.inventory" = "Inventory";
 "tab.machines" = "Machines";
+"tab.clients" = "Clients";
 "tab.settings" = "Settings";
 
 /* Connection */

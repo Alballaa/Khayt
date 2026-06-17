@@ -31,6 +31,7 @@ struct OrdersView: View {
     @State private var errorMessage: String?
     @State private var updatingId: String?
     @State private var selectedOrder: QueueOrder?
+    @State private var showIntake = false
     @State private var loadGeneration = 0
 
     private var filteredQueue: [QueueOrder] {
@@ -60,10 +61,24 @@ struct OrdersView: View {
                 }
             }
             .khaytScreen(title: L10n.tr("tab.orders"))
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { ConnectionBadge() } }
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { showIntake = true } label: {
+                        Image(systemName: "tray.and.arrow.down")
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) { ConnectionBadge() }
+            }
+            .sheet(isPresented: $showIntake) { IntakeView() }
             .refreshable { await load() }
             .task(id: segment) { await load() }
-            .onAppear { applyExternalFilters() }
+            .onAppear {
+                applyExternalFilters()
+                if UserDefaults.standard.string(forKey: "khayt.pending.sheet") == "intake" {
+                    UserDefaults.standard.removeObject(forKey: "khayt.pending.sheet")
+                    showIntake = true
+                }
+            }
             .onChange(of: ordersNav.pendingStatusFilter) { _, _ in applyExternalFilters() }
             .onChange(of: ordersNav.ordersTabRequest) { _, _ in applyExternalFilters() }
             .sheet(item: $selectedOrder) { order in
