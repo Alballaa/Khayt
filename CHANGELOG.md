@@ -4,6 +4,23 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [2.6.0-beta.8] - 2026-06-17
+
+**Pre-release (beta)** — QA pass: language review, security + bug scan, UI review.
+
+### Fixed
+
+- **Invoices failed to render** — a missing variable (`subtotalShown`) threw on every invoice generate/print/PDF/WhatsApp path. (regression)
+- **Credit notes were double-counted** — a credit note reduced `paidAmount` *and* was subtracted again from the balance, so refunded/credited orders showed the wrong outstanding amount and payment status. Credit now reduces the amount **due** exactly once, consistently across balances, statements, and payment status.
+- **Saving could fail (data loss) for some shops** — the secret-merge step crashed when a ZATCA / BNPL / Telegram / LAN secret was stored on disk but the incoming snapshot had no `settings`, so that save was dropped.
+- **Analytics could show "NaN"** print-hours when an order lacked a print time.
+- **Localization** — restored dropped `{placeholders}` in **28 Arabic** strings (credit-limit and over-commit confirm dialogs, capacity/tier/progress toasts and badges) that were showing without their amounts/dates/counts; restored the material + quantity in the **German / Spanish / French / Chinese** low-stock alert; fixed the Arabic "view queue" / "go" arrows to point the right way in RTL.
+- **Command theme** — the status-bar clock now follows the app language instead of always rendering Western digits.
+
+### Added
+
+- CI guard (`locale-parity` test) that fails if an Arabic string drops an English `{placeholder}`.
+
 ## [2.6.0-beta.7] - 2026-06-17
 
 **Pre-release (beta)** — theme-picker polish + documentation refresh, on top of 2.6.0-beta.6.

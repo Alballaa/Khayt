@@ -51,3 +51,17 @@ test('locale coverage report (informational — does not fail)', () => {
   }
   assert.ok(true);
 });
+
+test('Arabic preserves every English {placeholder} (interpolation parity)', () => {
+  // A translation that drops a {token} silently shows the user a string missing
+  // its dynamic value (amounts, dates, counts) — see the credit-limit/overcommit
+  // confirm dialogs. Guard the actively-maintained ar locale against that drift.
+  const ph = (s) => [...new Set(String(s).match(/\{[a-zA-Z0-9_]+\}/g) || [])].sort();
+  const bad = [];
+  for (const k of Object.keys(L.en)) {
+    if (L.ar[k] === undefined) continue;
+    const e = ph(L.en[k]).join(','), a = ph(L.ar[k]).join(',');
+    if (e !== a) bad.push(`${k} (en:[${e}] ar:[${a}])`);
+  }
+  assert.deepEqual(bad, [], `ar drops/alters placeholders in ${bad.length} key(s): ${bad.slice(0, 15).join('; ')}`);
+});

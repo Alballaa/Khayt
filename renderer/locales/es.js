@@ -548,7 +548,7 @@
   "inv.brand": "Marca",
   "inv.weight": "Peso (g)",
   "inv.cost": "Precio del carrete",
-  "inv.low_stock": "Stock bajo",
+  "inv.low_stock": "{material} se está agotando — quedan {weight}g",
   "inv.empty": "Sin filamentos en inventario.",
   "inv.removed": "Filamento eliminado",
   "inv.reorder": "Reordenar",

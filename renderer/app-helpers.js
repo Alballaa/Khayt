@@ -18,10 +18,14 @@ function payStatus(order) {
   // Subtract any issued credit notes (refunds) from cash paid, then ADD gift-card
   // redemption as a credit toward the order (it pays the order down, like a payment).
   const totalCredited = (order.creditNotes || []).reduce((s, cn) => s + (+cn.amount || 0), 0);
-  const effectivePaid = Math.max(0, (+order.paidAmount || 0) - totalCredited) + (+order.giftCardDiscount || 0);
+  // Credit notes reduce the effective amount DUE (consistent with orderOwedBase);
+  // cash paid and gift-card redemption both pay the order down.
+  const effectivePrice = Math.max(0, price - totalCredited);
+  const paidTotal = (+order.paidAmount || 0) + (+order.giftCardDiscount || 0);
 
-  if (effectivePaid <= 0) return 'unpaid';
-  if (effectivePaid >= price) return 'paid';
+  if (effectivePrice <= 0) return 'paid';
+  if (paidTotal <= 0) return 'unpaid';
+  if (paidTotal >= effectivePrice) return 'paid';
   return 'partial';
 }
 /* csvFormulaNeutralize — renderer/format.js */

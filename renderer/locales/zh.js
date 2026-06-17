@@ -548,7 +548,7 @@
   "inv.brand": "品牌",
   "inv.weight": "重量 (g)",
   "inv.cost": "线卷价格",
-  "inv.low_stock": "库存不足",
+  "inv.low_stock": "{material} 库存不足 — 剩余 {weight}g",
   "inv.empty": "库存中暂无耗材。",
   "inv.removed": "耗材已删除",
   "inv.reorder": "补货",

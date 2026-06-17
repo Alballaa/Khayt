@@ -8,6 +8,20 @@ test('payStatus treats gift card discount as payment', () => {
   assert.equal(payStatus({ price: 100, paidAmount: 0 }), 'unpaid');
 });
 
+test('payStatus: credit notes reduce the amount due (not the amount paid)', () => {
+  global.settings = { currency: 'SAR' };
+  const { payStatus } = require('../renderer/app-helpers.js');
+  const cn = (n) => ({ creditNotes: [{ amount: n }] });
+  // Paid in full, then a partial refund/credit → still settled (effective due drops).
+  assert.equal(payStatus({ price: 100, paidAmount: 100, ...cn(30) }), 'paid');
+  // Nothing paid, partial credit → still owes the rest.
+  assert.equal(payStatus({ price: 100, paidAmount: 0, ...cn(30) }), 'unpaid');
+  // Partial payment + partial credit → partial.
+  assert.equal(payStatus({ price: 100, paidAmount: 50, ...cn(30) }), 'partial');
+  // Credit covers the whole price → settled even with no cash paid.
+  assert.equal(payStatus({ price: 100, paidAmount: 0, ...cn(100) }), 'paid');
+});
+
 test('getPriorityLevel normalises legacy boolean priority', () => {
   const { getPriorityLevel } = require('../renderer/app-helpers.js');
   assert.equal(getPriorityLevel({ priority: true }), 'high');
@@ -57,7 +71,10 @@ test('parseTags dedupes, trims, and sorts', () => {
 test('payStatus handles voided orders and credit notes', () => {
   const { payStatus } = require('../renderer/app-helpers.js');
   assert.equal(payStatus({ price: 100, voidedAt: '2026-01-01' }), 'voided');
-  assert.equal(payStatus({ price: 100, paidAmount: 100, creditNotes: [{ amount: 30 }] }), 'partial');
+  // Paid in full, then a 30 credit note (refund/reduction): the customer paid the
+  // full price, so the order is settled — the credit reduces the amount DUE, not
+  // what they paid. (Previously double-counted as "partial".)
+  assert.equal(payStatus({ price: 100, paidAmount: 100, creditNotes: [{ amount: 30 }] }), 'paid');
   // A fully-credited order is settled — must not keep showing outstanding.
   assert.equal(payStatus({ price: 100, paidAmount: 0, creditedAt: '2026-01-01' }), 'voided');
 });
