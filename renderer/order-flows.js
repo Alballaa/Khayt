@@ -965,7 +965,9 @@ function openOrderEditor(orderId) {
         const dueDateInput = modal.querySelector('[data-f="dueDate"]');
         if (dueDateInput && !dueDateInput.value) {
           const queueDepth = printLog.filter(o => o.status === 'pending' || o.status === 'printing').length;
-          const workingHoursPerDay = settings.workingHours || 8;
+          // settings.workingHours is an object ({mon:8,…}); use the numeric helper
+          // (raw object * 60 → NaN → setDate(NaN) → toISOString() RangeError).
+          const workingHoursPerDay = Math.max(1, avgDailyWorkingHours());
           const recentMins = printLog.filter(o => o.status === 'completed' && o.printTimeMins != null)
             .slice(-20).map(o => o.printTimeMins).filter(Boolean);
           const avgPrintMins = recentMins.length > 0 ? recentMins.reduce((s, v) => s + v, 0) / recentMins.length : 120;
@@ -1425,7 +1427,7 @@ function openBatchPlannerModal() {
       <input type="checkbox" class="batch-cb" data-id="${o.id}" data-time="${+o.printTime || 0}" data-weight="${totalWeight.toFixed(1)}" data-mat="${escapeHtml(matNames)}" style="margin-top:2px;width:auto;flex-shrink:0;">
       <div style="flex:1;">
         <div style="font-weight:600;font-size:13px;">${escapeHtml(o.project || o.id)}</div>
-        <div style="font-size:11.5px;color:var(--text-muted);">${escapeHtml(o.id)} · ${o.printTime}h · ${Math.round(totalWeight)}g${matNames ? ' · ' + escapeHtml(matNames) : ''}${machine ? ' · <span style="color:' + escapeHtml(machine.color) + ';">' + escapeHtml(machine.name) + '</span>' : ''}</div>
+        <div style="font-size:11.5px;color:var(--text-muted);">${escapeHtml(o.id)} · ${o.printTime}h · ${Math.round(totalWeight)}g${matNames ? ' · ' + escapeHtml(matNames) : ''}${machine ? ' · <span style="color:' + safeCssColor(machine.color) + ';">' + escapeHtml(machine.name) + '</span>' : ''}</div>
       </div>
       <span style="font-weight:600;color:var(--success);white-space:nowrap;">${fmtPrice(o.price)}</span>
     </label>`;

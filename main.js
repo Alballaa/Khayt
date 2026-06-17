@@ -448,7 +448,12 @@ ipcMain.handle('hub:open-file', async (_e, filePath) => {
 // --- Save HTML to temp and open (Feature 7) ---
 ipcMain.handle('hub:save-html', async (_e, html, filename, opts = {}) => {
   const tmpDir = app.getPath('temp');
-  const safeName = (String(filename || 'status.html')).replace(/[^a-zA-Z0-9._-]/g, '_');
+  // Force a .html extension. The file is written then shell.openPath'd, so a
+  // renderer-supplied name like "x.hta" / "x.url" / "x.command" would otherwise
+  // be launched by a native OS handler (e.g. mshta) → host code execution.
+  // Stripping the extension and appending .html makes it open in the browser.
+  const baseName = String(filename || 'status').replace(/[^a-zA-Z0-9._-]/g, '_').replace(/\.[^.]*$/, '');
+  const safeName = (baseName || 'status') + '.html';
   const fullPath = path.join(tmpDir, safeName);
   const content = opts?.interactive
     ? String(html || '').replace(/\bhref\s*=\s*["']?\s*javascript:/gi, 'href="blocked:')
@@ -997,7 +1002,7 @@ ipcMain.handle('hub:fire-webhook', async (event, { url, event: webhookEvent, pay
     const headers = { 'Content-Type': 'application/json', 'X-Khayt-Event': webhookEvent };
     if (secret) headers['X-Khayt-Signature'] = require('crypto')
       .createHmac('sha256', secret).update(body).digest('hex');
-    const res = await fetch(url, { method: 'POST', headers, body, redirect: 'manual' });
+    const res = await fetch(url, { method: 'POST', headers, body, redirect: 'manual', signal: AbortSignal.timeout(10000) });
     if (res.status >= 300 && res.status < 400) {
       return { ok: false, error: 'Webhook redirects are not allowed' };
     }

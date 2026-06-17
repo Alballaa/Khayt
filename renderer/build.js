@@ -455,7 +455,7 @@ function renderBuild() {
       <tr>
         <td>
           <strong>${escapeHtml(part.name)}</strong>
-          ${partMachine ? `<span class="machine-badge" style="background:${escapeHtml(partMachine.color)}; font-size:10px; padding:1px 6px; vertical-align:middle; margin-inline-start:4px;">${escapeHtml(partMachine.name)}</span>` : ''}
+          ${partMachine ? `<span class="machine-badge" style="background:${safeCssColor(partMachine.color)}; font-size:10px; padding:1px 6px; vertical-align:middle; margin-inline-start:4px;">${escapeHtml(partMachine.name)}</span>` : ''}
           ${tierBadge}
           <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">${escapeHtml(part.material)}</div>
           ${(part.extraMaterials || []).filter(m => m.material).map(m =>

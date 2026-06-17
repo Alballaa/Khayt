@@ -1384,7 +1384,7 @@ function renderMachineAccuracy() {
       <div style="display:flex; flex-direction:column; gap:5px;">
         ${rows.map(r => `
           <div style="display:flex; align-items:center; gap:10px; font-size:12.5px;">
-            <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:${escapeHtml(r.color)}; flex-shrink:0;"></span>
+            <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:${safeCssColor(r.color)}; flex-shrink:0;"></span>
             <span style="flex:1; font-weight:500;">${escapeHtml(r.name)}</span>
             <span style="color:var(--text-muted); font-size:11px;">${r.count} jobs</span>
             <span style="color:var(--text-muted); font-size:11px;">${r.avgEst.toFixed(1)}h est</span>
@@ -1502,11 +1502,11 @@ function renderPrinterUtilizationChart() {
     }
     return `<div style="margin-bottom:14px;">
       <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:3px; flex-wrap:wrap; gap:4px;">
-        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${escapeHtml(r.color||'#5b9cf0')};margin-inline-end:5px;vertical-align:middle;"></span><strong>${escapeHtml(r.name)}</strong></span>
+        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${safeCssColor(r.color||'#5b9cf0')};margin-inline-end:5px;vertical-align:middle;"></span><strong>${escapeHtml(r.name)}</strong></span>
         <span style="color:var(--text-muted);">${r.hours.toFixed(1)}h · ${r.count} ${escapeHtml(t('an.orders'))} · ${fmtPrice(r.revenue)} · <span style="color:${marginCol};font-weight:600;">${escapeHtml(t('an.margin_col'))}: ${marginStr}</span>${utilStr}</span>
       </div>
       <div style="background:rgba(255,255,255,0.08);border-radius:4px;height:10px;">
-        <div style="background:${escapeHtml(r.color||'#5b9cf0')};width:${pct.toFixed(1)}%;height:100%;border-radius:4px;opacity:0.8;transition:width 0.4s;"></div>
+        <div style="background:${safeCssColor(r.color||'#5b9cf0')};width:${pct.toFixed(1)}%;height:100%;border-radius:4px;opacity:0.8;transition:width 0.4s;"></div>
       </div>
     </div>`;
   }).join('');
@@ -1828,7 +1828,7 @@ function renderMachinePL() {
             const marginCol = margin >= 30 ? 'var(--success)' : margin >= 10 ? 'var(--warning)' : 'var(--danger)';
             return `<tr style="border-top:1px solid rgba(255,255,255,0.06);">
               <td style="padding:6px 8px;">
-                <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${escapeHtml(r.color)};margin-inline-end:6px;vertical-align:middle;"></span>
+                <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${safeCssColor(r.color)};margin-inline-end:6px;vertical-align:middle;"></span>
                 <strong>${escapeHtml(r.name)}</strong>
               </td>
               <td style="text-align:right; padding:6px 8px;">${r.jobs}</td>
@@ -2740,7 +2740,7 @@ function renderCapacityGauge() {
     return `<div style="margin-bottom:8px;">
       <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:3px;">
         <span style="display:flex; align-items:center; gap:6px;">
-          <span style="width:8px;height:8px;border-radius:50%;background:${escapeHtml(r.color)};display:inline-block;"></span>
+          <span style="width:8px;height:8px;border-radius:50%;background:${safeCssColor(r.color)};display:inline-block;"></span>
           ${escapeHtml(r.machineName)}
         </span>
         <span style="color:var(--text-muted);">${r.bookedHours.toFixed(1)}h / ${r.availableHours.toFixed(1)}h (${r.pct}%)</span>

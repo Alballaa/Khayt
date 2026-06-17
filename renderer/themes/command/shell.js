@@ -322,13 +322,16 @@
       </div>
       <div class="cmd-insp-scroll">${html || ''}</div>`;
     insp.hidden = false;
+    // Was created aria-hidden (duplicate-proxy default); it now holds unique,
+    // visible content — expose it to assistive tech while open.
+    insp.removeAttribute('aria-hidden');
     document.body.classList.add('cmd-has-insp');
     insp.querySelector('[data-cmd-insp-close]')?.addEventListener('click', closeInspector);
   }
 
   function closeInspector() {
     const insp = document.getElementById('commandInspector');
-    if (insp) { insp.hidden = true; insp.innerHTML = ''; }
+    if (insp) { insp.hidden = true; insp.innerHTML = ''; insp.setAttribute('aria-hidden', 'true'); }
     document.body.classList.remove('cmd-has-insp');
   }
 

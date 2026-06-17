@@ -237,7 +237,7 @@ function openFilamentCatalog() {
 
         grid.innerHTML = filtered.map((f, i) => `
           <div class="fil-card" data-idx="${i}">
-            <div class="fil-card-swatch" style="background:${escapeHtml(f.hex)};"></div>
+            <div class="fil-card-swatch" style="background:${safeCssColor(f.hex)};"></div>
             <div class="fil-card-info">
               <span class="fil-card-color">${escapeHtml(f.color)}</span>
               <span class="fil-card-brand">${escapeHtml(f.brand)}</span>
@@ -632,7 +632,7 @@ async function openFilamentScanner() {
         }
 
         const colorDot = nfcData.hex
-          ? `<span style="display:inline-block;width:22px;height:22px;border-radius:50%;background:${escapeHtml(nfcData.hex)};border:2px solid rgba(255,255,255,0.2);vertical-align:middle;margin-inline-end:8px;"></span>`
+          ? `<span style="display:inline-block;width:22px;height:22px;border-radius:50%;background:${safeCssColor(nfcData.hex)};border:2px solid rgba(255,255,255,0.2);vertical-align:middle;margin-inline-end:8px;"></span>`
           : '';
         const stdBadge = `<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:rgba(91,156,240,0.18);color:var(--primary);font-weight:600;">${escapeHtml(nfcData.standard)}</span>`;
 
@@ -718,7 +718,7 @@ async function openFilamentScanner() {
           resultC.style.display = 'block';
           resultC.innerHTML = `
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-              <span style="width:26px;height:26px;border-radius:50%;background:${escapeHtml(top.hex)};border:2px solid rgba(255,255,255,0.2);flex-shrink:0;"></span>
+              <span style="width:26px;height:26px;border-radius:50%;background:${safeCssColor(top.hex)};border:2px solid rgba(255,255,255,0.2);flex-shrink:0;"></span>
               <div style="flex:1;">
                 <div style="font-weight:600;font-size:13px;">${escapeHtml(top.color)}</div>
                 <div style="font-size:11px;color:var(--text-muted);">${escapeHtml(top.brand)} · ${escapeHtml(top.line)} · ${escapeHtml(top.type)}</div>
@@ -728,7 +728,7 @@ async function openFilamentScanner() {
             ${matches.length > 1 ? `<div style="font-size:11px;color:var(--text-muted);margin-bottom:5px;">${escapeHtml(t('scan.other_matches')||'Other matches:')}</div>
             <div style="display:flex;flex-wrap:wrap;gap:6px;">${matches.slice(1,6).map((m,i)=>`
               <button class="btn ghost small scan-alt" data-idx="${i+1}" style="display:flex;align-items:center;gap:5px;font-size:11px;">
-                <span style="width:10px;height:10px;border-radius:50%;background:${escapeHtml(m.hex)};flex-shrink:0;"></span>
+                <span style="width:10px;height:10px;border-radius:50%;background:${safeCssColor(m.hex)};flex-shrink:0;"></span>
                 ${escapeHtml(m.color)} (${escapeHtml(m.type)})</button>`).join('')}</div>` : ''}
             <div style="margin-top:8px;font-size:10.5px;color:var(--text-muted);">
               ${escapeHtml(t('scan.raw')||'Scanned:')} <code>${escapeHtml(rawText.slice(0,80))}</code></div>`;

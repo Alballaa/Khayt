@@ -83,8 +83,13 @@ body.khayt-vivid .khayt-navhead {
   font-weight: 700;
   letter-spacing: 1.4px;
   text-transform: uppercase;
-  color: var(--ink-4);
+  color: var(--ink-2);
   padding: 14px 10px 4px;
+}
+/* Keyboard focus ring on the primary nav (shared .btn ring doesn't cover it). */
+body.khayt-vivid .khayt-navitem:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 /* The Vivid shell re-groups nav into Work / Catalog / Money. The original
    group labels are hidden; the shell injects new group headers as nav items
@@ -201,17 +206,23 @@ body.khayt-vivid .khayt-top {
   border-bottom: 0;
   color: #fff;
   overflow: hidden;
-  background: linear-gradient(120deg, var(--hue, var(--accent)), var(--hue-2, var(--accent-2)));
+  /* Constant dark scrim over the per-module gradient so white text/controls keep
+     WCAG contrast even on the lighter hues (amber/lime/cyan/teal on
+     Calculator/Orders/Analytics). Keeps the vibrant identity, just grounded. */
+  background:
+    linear-gradient(rgba(17, 12, 36, 0.26), rgba(17, 12, 36, 0.26)),
+    linear-gradient(120deg, var(--hue, var(--accent)), var(--hue-2, var(--accent-2)));
   box-shadow: 0 10px 30px color-mix(in srgb, var(--hue, var(--accent)) 28%, transparent);
 }
-/* The band recolors per module; lighter hues (green/lime/cyan on Logs/Analytics)
-   wash out white text/controls. A soft shadow keeps them legible on any hue. */
+/* Scrim + a soft shadow keep white text/controls legible on any module hue. */
 body.khayt-vivid .khayt-top,
 body.khayt-vivid .khayt-top .topbar-actions .btn,
 body.khayt-vivid .khayt-top #topbarPageTitle,
 body.khayt-vivid .khayt-top #topbarPageSubtitle {
-  text-shadow: 0 1px 2px rgba(20, 16, 40, 0.22);
+  text-shadow: 0 1px 2px rgba(10, 8, 24, 0.32);
 }
+/* Brighter subtitle/placeholder so 12px text clears AA on the grounded band. */
+body.khayt-vivid #topbarPageSubtitle { color: rgba(255, 255, 255, 0.95); }
 /* Slightly deeper glass so translucent controls keep an edge on light hues. */
 body.khayt-vivid .topbar-actions .btn,
 body.khayt-vivid .topbar-actions select,
