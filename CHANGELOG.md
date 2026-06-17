@@ -4,10 +4,23 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [2.6.0-beta.2] - 2026-06-17
+
+**Pre-release (beta)** — a new default design system plus UI fixes, on top of 2.6.0-beta.1.
+
+### Added
+
+- **New design system — Workbench / Command / Vivid** — three light-default, native-app designs replacing the previous theme line. **Workbench is the new default.** The seven legacy designs (Studio, Ledger, Console, Atelier, Vitrine, Cockpit, Atlas) are hidden from the picker (code retained for now), and existing installs auto-migrate to the nearest new design (studio/ledger/console → Workbench, cockpit/atlas → Command, vitrine/atelier → Vivid).
+
+### Fixed
+
+- **Top bar** — the language/location dropdown text was vertically clipped; the new shells also showed a duplicate search control and could wrap to multiple rows. Now a single, slim, one-row bar.
+- **Calculator** — the primary button is correctly labelled “Create order & send to queue” (was mislabelled “Save quote”) and confirms before creating an order from a non-empty build.
+- **Clients** — sortable columns and a display cap on large lists.
+
 ### Changed
 
-- **New design system (Workbench / Command / Vivid)** — the theme line is consolidated to three light-default, native-app designs. **Workbench is now the default**; the seven legacy designs (Studio, Ledger, Console, Atelier, Vitrine, Cockpit, Atlas) are hidden from the picker (code retained for now). Existing installs are migrated automatically to the nearest new design (studio/ledger/console → Workbench, cockpit/atlas → Command, vitrine/atelier → Vivid).
-- Top bar shows a single search control and stays on one row across the new shells.
+- Form grids collapse to a single column below 600px, so inputs aren’t squeezed in narrow windows/modals.
 
 ## [2.6.0-beta.1] - 2026-06-16
 
