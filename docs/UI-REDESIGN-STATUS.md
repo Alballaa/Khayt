@@ -1,48 +1,33 @@
-# UI Redesign — status & how to continue (local Mac session)
+# UI Redesign — status
 
-## Goal
-Replace the 7 themes with **3** new ones — **Workbench** (default), **Command**
-(renamed from the prototype "Cockpit" to avoid clashing with the existing
-`cockpit` theme), **Vivid**. Light-default, colorful, native-app feel. **Phased**
-rollout: build the 3 behind the picker → switch default + migrate → remove old 7.
+**Status: shipped (Khayt 2.6).** The 7-theme set was replaced by **3** redesigned,
+light-default themes with a native-app feel: **Workbench** (default), **Command**,
+and **Vivid**. Screen interiors were rebuilt to match the approved prototypes
+(not just a chrome re-skin). The older themes remain selectable as legacy options.
 
-User decision: **rebuild the screen *interiors* to match the mockups** (not just a
-chrome re-skin).
+## What shipped
+- **Workbench** is the default design (`settings.designTheme: 'workbench'`).
+  Saved `studio` / `ledger` / `console` selections migrate to Workbench on upgrade.
+- **Command** and **Vivid** ship alongside it (all light by default), each with its
+  own shell/tokens.
+- Every screen interior (Dashboard, Calculator → order, Production Queue/Kanban,
+  Fleet, Inventory, Clients, Orders/Invoices, Analytics, Settings, Waste, Catalog,
+  Portfolio, Gift Cards) is rebuilt per theme, with dark + RTL (Arabic) variants.
+- README screenshots are captured from the Workbench theme with demo data
+  (`npm run capture:screenshots`); per-theme galleries via
+  `node scripts/capture-theme-screenshots.mjs`.
 
-## Where things are
-- **Prototypes (approved design targets):** `design/proto-a-workbench.html`,
-  `design/proto-b-cockpit.html`, `design/proto-c-vivid.html` (+ proposal
-  `docs/UI-REDESIGN.md`). Open in a browser.
-- **Branch `claude/theme-workbench`** (PR #102): the real Workbench theme.
-  - `renderer/themes/workbench/{tokens,shell}.css` + `shell.js` — chrome (sidebar
-    grouping, toolbar, status bar). Registered in `registry-core.js`, opt-in.
-  - `renderer/themes/workbench/screens.{js,css}` — **Dashboard interior** rebuilt
-    to match the mockup, wired to real data via the `KhaytWorkbench.renderDashboard`
-    hook (mirrors the `KhaytStudio.renderClientsStudioCards` pattern;
-    `renderer/dashboard.js` delegates when `body.khayt-workbench`).
+## How it's built (reference)
+- Theme definitions: `renderer/themes/registry-core.js` (`BUILTIN_THEMES`).
+- Per-theme chrome + screens: `renderer/themes/<theme>/{tokens,shell,screens}.{css,js}`.
+- Each theme exposes `Khayt<Theme>.render<Screen>(host)`; the shared
+  `render<Screen>()` delegates when the theme's `body.khayt-<theme>` class is set
+  (mirrors the original `KhaytStudio` pattern). Other themes are untouched.
+- Prototypes (design targets): `design/proto-a-workbench.html`,
+  `design/proto-b-cockpit.html`, `design/proto-c-vivid.html` (proposal in
+  `docs/UI-REDESIGN.md`).
 
-## The build pattern (reuse for every screen)
-Each screen gets a `KhaytWorkbench.render<Screen>(host)` that emits the prototype
-markup wired to real globals, and the existing `render<Screen>()` delegates to it
-when the Workbench body class is set. Other themes stay untouched.
-
-## Remaining work (screen-by-screen, with live screenshots each)
-1. Verify Dashboard live; fix to match mockup.
-2. Rebuild interiors: **Calculator → order**, **Queue (kanban)**, **Fleet**,
-   **Inventory**, **Clients**, **Invoices & Orders**, **Analytics**, **Settings**.
-3. Polish dark variant, RTL (Arabic), responsive.
-4. Replace placeholder `renderer/themes/previews/workbench.png` with a real capture.
-5. Once Workbench is signed off, clone the screens for **Command** + **Vivid**
-   (same markup, different tokens/chrome/color).
-6. Phase 2: default → Workbench + migrate saved `settings.designTheme`. Phase 3:
-   delete the old 7 shells.
-
-## How to run + self-review (local)
-`npm install` then `npm start`; Settings → Preferences → Design → **Workbench**.
-To self-review, capture the Electron window (e.g. an Electron `capturePage` script
-or macOS `screencapture`) and read the PNG back, iterating until it matches the
-prototype.
-
-## Note
-The current sandbox could not render/screenshot (no display/browser, blocked CDN),
-which is why this moved to a local Mac session.
+## Verify locally
+`npm install` then `npm start`. The app opens in Workbench; switch via
+**Settings → Preferences → Design**. To re-capture screenshots, run
+`npm run capture:screenshots` (output in `assets/screenshot-*.png`).
