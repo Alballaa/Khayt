@@ -49,6 +49,10 @@ body.khayt-command .cmd-kpi-v {
   margin-block-start: 2px;
   font-variant-numeric: tabular-nums;
 }
+body.khayt-command .cmd-kpi-v.muted {
+  color: var(--ink-3);
+  font-weight: 700;
+}
 body.khayt-command .cmd-kpi-d {
   font-size: 10.5px;
   font-weight: 700;

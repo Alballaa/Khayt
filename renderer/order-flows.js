@@ -1731,7 +1731,7 @@ async function generateOrderLabel(orderId) {
         ${totalParts > 1 ? `<span>🔧 ${totalParts} parts</span>` : ''}
         ${machine     ? `<span>🖨 ${escapeHtml(machine.name)}</span>` : ''}
         ${order.dueDate ? `<span>📅 ${escapeHtml(order.dueDate)}</span>` : ''}
-        ${order.priority && order.priority !== 'normal' ? `<span style="background:#fee2e2;color:#dc2626;">⚡ ${escapeHtml(order.priority)}</span>` : ''}
+        ${order.priorityLevel && order.priorityLevel !== 'normal' ? `<span style="background:#fee2e2;color:#dc2626;">⚡ ${escapeHtml(order.priorityLevel)}</span>` : ''}
       </div>
     </div>
   </div>

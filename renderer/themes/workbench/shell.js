@@ -139,48 +139,17 @@
 
   /* ---------- Toolbar (per-screen segment in the shared top bar) ---------- */
 
-  // [i18n key, English fallback] segment options per tab. Visual only — these
-  // are decorative filters in the prototype; left non-wired for now.
-  const SEGMENTS = {
-    'queue-tab': [['workbench.seg.kanban', 'Kanban'], ['workbench.seg.list', 'List']],
-    'logs-tab': [['workbench.seg.all', 'All'], ['workbench.seg.unpaid', 'Unpaid'], ['workbench.seg.paid', 'Paid']],
-    'analytics-tab': [['workbench.seg.week', 'Week'], ['workbench.seg.month', 'Month'], ['workbench.seg.year', 'Year']],
-  };
-
-  function ensureToolbar() {
-    const top = document.querySelector('.khayt-top');
-    if (!top) return null;
-    let bar = top.querySelector('.wb-toolbar');
-    if (!bar) {
-      bar = document.createElement('div');
-      bar.className = 'wb-toolbar';
-      const titleWrap = top.querySelector('.khayt-toptitle');
-      if (titleWrap && titleWrap.nextSibling) top.insertBefore(bar, titleWrap.nextSibling);
-      else if (titleWrap) titleWrap.after(bar);
-      else top.appendChild(bar);
-    }
-    return bar;
-  }
+  // The per-screen segment pills (Kanban/List, All/Unpaid/Paid, …) were purely
+  // decorative — rendered aria-hidden/tabindex=-1 and only toggled a class, so
+  // they did nothing but mislead users. Removed for accessibility; re-add here
+  // wired to real view-switches if/when those land.
 
   function removeToolbar() {
     document.querySelector('.khayt-top .wb-toolbar')?.remove();
   }
 
-  function syncToolbar(tabId) {
-    const bar = ensureToolbar();
-    if (!bar) return;
-    const active = tabId || document.querySelector('.tab-content.active')?.id || 'dashboard-tab';
-    const seg = SEGMENTS[active];
-    if (!seg) { bar.innerHTML = ''; return; }
-    bar.innerHTML = `<div class="wb-seg" role="group" aria-hidden="true">${
-      seg.map((s, i) => `<button type="button" tabindex="-1" class="${i === 0 ? 'on' : ''}">${escapeHtml(tr(s[0], s[1]))}</button>`).join('')
-    }</div>`;
-    bar.querySelectorAll('.wb-seg button').forEach((b) => {
-      b.addEventListener('click', () => {
-        bar.querySelectorAll('.wb-seg button').forEach((x) => x.classList.remove('on'));
-        b.classList.add('on');
-      });
-    });
+  function syncToolbar() {
+    removeToolbar();
   }
 
   /* ---------- Bottom status bar (live counts) ---------- */
@@ -254,9 +223,8 @@
     document.getElementById('appSidebar')?.classList.remove('collapsed');
     buildGroups();
     applyTiles();
-    ensureToolbar();
+    removeToolbar();
     ensureStatusBar();
-    syncToolbar();
     syncStatusBar();
   }
 

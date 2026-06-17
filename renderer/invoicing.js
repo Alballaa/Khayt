@@ -526,7 +526,10 @@ function appendZatcaSubmissionLog(entry) {
 }
 
 function zatcaInvoiceAmounts(order) {
-  const ts = order.timestamp || new Date(order.date + 'T12:00:00').toISOString();
+  const ts = order.timestamp
+    || (order.date && !Number.isNaN(Date.parse(`${order.date}T12:00:00`))
+      ? new Date(`${order.date}T12:00:00`).toISOString()
+      : '');
   const price = +order.price || 0;
   const rate = settings.enableVat ? (+settings.vatRate || 15) : 0;
   const vatAmt = rate > 0 ? price * rate / (100 + rate) : 0;
@@ -680,7 +683,10 @@ function zatcaSubmissionStatusLabel(order) {
 
 // Render the invoice with QR (used by Print, PDF, and WhatsApp paths)
 async function renderInvoiceForOrder(order) {
-  const ts = order.timestamp || new Date(order.date + 'T12:00:00').toISOString();
+  const ts = order.timestamp
+    || (order.date && !Number.isNaN(Date.parse(`${order.date}T12:00:00`))
+      ? new Date(`${order.date}T12:00:00`).toISOString()
+      : '');
   const price    = +order.price || 0;
   const shipping = +order.shippingCost || 0;
   const rate     = settings.enableVat ? (+settings.vatRate || 15) : 0;

@@ -76,11 +76,11 @@
   }
 
   /* ---------- KPI strip cell ---------- */
-  function kpi(label, value, delta, deltaCls, tokenColor) {
+  function kpi(label, value, delta, deltaCls, tokenColor, valueCls) {
     const d = delta ? `<div class="cmd-kpi-d ${deltaCls}">${esc(delta)}</div>` : '<div class="cmd-kpi-d"></div>';
     return `<div class="cmd-kpi" style="--kc:${tokenColor}">
       <div class="cmd-kpi-l">${esc(label)}</div>
-      <div class="cmd-kpi-v">${esc(value)}</div>
+      <div class="cmd-kpi-v${valueCls ? ` ${valueCls}` : ''}">${esc(value)}</div>
       ${d}
     </div>`;
   }
@@ -172,7 +172,14 @@
       kpi(tr('command.kpi.unpaid', 'Unpaid'), `${fmtMoneyVal(unpaidTotal)} ${ccy()}`,
         unpaidOrders.length > 0 ? tr('dash.wb_invoices', `${unpaidOrders.length} invoices`).replace('{n}', unpaidOrders.length) : '',
         '', 'var(--cmd-danger)'),
-      kpi(tr('command.kpi.avg_margin', 'Avg margin'), marginPct != null ? `${marginPct}%` : '—', '', '', 'var(--cmd-analytics)'),
+      kpi(tr('command.kpi.avg_margin', 'Avg margin'),
+        marginPct != null ? `${marginPct}%` : tr('command.kpi.na', 'n/a'),
+        marginPct != null
+          ? (withCost.length === 1
+              ? tr('command.kpi.from_one_order', '1 order')
+              : tr('command.kpi.from_n_orders', `${withCost.length} orders`).replace('{n}', withCost.length))
+          : tr('command.kpi.add_costs', 'add order costs'),
+        '', 'var(--cmd-analytics)', marginPct != null ? '' : 'muted'),
     ].join('');
 
     /* ---- Production board (real printing orders) ---- */

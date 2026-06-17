@@ -3005,7 +3005,6 @@ function openReorderModal(itemId) {
 }
 
 function exportInventoryCsv() {
-  const threshold = +(settings.lowStockThreshold || 200);
 
   const headers = [
     'ID', 'Material', 'Color', 'Brand',
@@ -3024,7 +3023,7 @@ function exportInventoryCsv() {
       +spool.remaining !== undefined ? +spool.remaining : +spool.weight || 0,
       spool.costPerGram != null ? (+spool.costPerGram).toFixed(4) : '',
       spool.location || '',
-      (+spool.remaining || +spool.weight || 0) < threshold ? 'Yes' : 'No'
+      isLowStock(spool) ? 'Yes' : 'No'   // use the shared check (<=, per-item reorderPoint)
     ].map(csvEsc).join(','))
   ];
 
@@ -3054,7 +3053,10 @@ function recordSupplierInvoice(poId) {
       const date   = modal.querySelector('#poSupInvDate').value;
       po.supplierInvoice = { number, amount, date };
       // Check discrepancy: compare invoiced amount vs. PO expected amount
-      const expectedAmt = (po.weightOrdered || 0) * ((po.unitCost || 0) / 1000);
+      // PO stores qty (grams) and unitPrice (per gram); the old formula used
+      // weightOrdered/unitCost which are never set, so expected was always 0 and
+      // no discrepancy ever flagged.
+      const expectedAmt = (+po.qty || 0) * (+po.unitPrice || 0);
       po.invoiceDiscrepancy = expectedAmt > 0 && Math.abs(amount - expectedAmt) > 1;
       saveAll();
       renderPurchaseOrders();

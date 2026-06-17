@@ -59,13 +59,13 @@
     'inventory-tab': '▣',
     'waste-tab': '△',
     'catalog-tab': '▤',
-    'clients-tab': '☺',
-    'gift-cards-tab': '♦',
+    'clients-tab': '☺︎',      /* U+FE0E forces text (monochrome) presentation */
+    'gift-cards-tab': '♦︎',
     'portfolio-tab': '◇',
     'logs-tab': '❖',
     'analytics-tab': '◔',
     'expenses-tab': '◧',
-    'settings-tab': '⛭',
+    'settings-tab': '⛭︎',
   };
 
   // The rail mirrors these tabs, top to bottom (settings rides the rail footer).

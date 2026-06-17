@@ -136,6 +136,8 @@ body.khayt-vivid .khayt-navitem.active::before {
   border-radius: 9px;
   background: var(--vv-tile, var(--accent));
 }
+/* Suppress the shared .tab-btn.active underline bleeding under vertical nav items. */
+body.khayt-vivid .khayt-navitem.active::after { display: none; }
 
 /* Color tile per nav item (set inline by shell.js via --vv-tile). */
 body.khayt-vivid .khayt-navitem .nav-icon {

@@ -43,6 +43,26 @@ test('normalizeStoreSnapshot drops invalid orders and keeps valid ones', () => {
   assert.ok(warnings.some(w => w.includes('printLog')));
 });
 
+test('normalizeStoreSnapshot salvages valid collections when one is malformed', () => {
+  // One bad collection (printLog not an array) must NOT discard the whole store.
+  const { normalized, errors } = normalizeStoreSnapshot({
+    printLog: 'corrupt',
+    clients: [{ id: 'C1' }, { id: 'C2' }],
+    inventory: [{ id: 'S1' }],
+  });
+  assert.ok(normalized, 'should salvage rather than return null');
+  assert.equal(normalized.clients.length, 2);
+  assert.equal(normalized.inventory.length, 1);
+  assert.equal(normalized.printLog, undefined); // bad collection skipped, not wiped
+  assert.ok(errors.some(e => e.includes('printLog')));
+});
+
+test('normalizeStoreSnapshot returns null only for fatal input', () => {
+  assert.equal(normalizeStoreSnapshot(null).normalized, null);
+  assert.equal(normalizeStoreSnapshot('nope').normalized, null);
+  assert.equal(normalizeStoreSnapshot([]).normalized, null);
+});
+
 test('normalizeStoreSnapshot strips prototype pollution keys from settings', () => {
   const polluted = JSON.parse('{"settings":{"lang":"en","__proto__":{"polluted":true}}}');
   const { normalized } = normalizeStoreSnapshot(polluted);

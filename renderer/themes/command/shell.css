@@ -197,6 +197,8 @@ body.khayt-command .khayt-navitem.active {
   color: var(--ink);
   font-weight: 600;
 }
+/* Suppress the shared .tab-btn.active underline bleeding under vertical nav items. */
+body.khayt-command .khayt-navitem.active::after { display: none; }
 /* Module-colored icon dot (set inline via --cmd-mod by shell.js). */
 body.khayt-command .khayt-navitem .nav-icon {
   inline-size: 16px;

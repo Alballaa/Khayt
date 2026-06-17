@@ -193,7 +193,7 @@ function updateGrandTotal() {
 
   let totalBase = 0;
   if (currentBuild.length > 0) {
-    totalBase = currentBuild.reduce((s, p) => s + p.baseCost, 0);
+    totalBase = currentBuild.reduce((s, p) => s + (+p.baseCost || 0), 0);
   } else {
     totalBase = liveBase * qty;
   }
