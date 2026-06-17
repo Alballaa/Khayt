@@ -4,6 +4,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [2.6.0-beta.7] - 2026-06-17
+
+**Pre-release (beta)** — theme-picker polish + documentation refresh, on top of 2.6.0-beta.6.
+
+### Changed
+
+- **Theme-picker previews** — Settings → Preferences → Design now shows real preview thumbnails for the **Workbench**, **Command**, and **Vivid** themes (they previously shipped as placeholders).
+- Refreshed the README screenshots and theme documentation to the current Workbench design, and removed unused legacy screenshot galleries.
+
 ## [2.6.0-beta.6] - 2026-06-17
 
 **Pre-release (beta)** — two features off the backlog plus repo cleanup, on top of 2.6.0-beta.5.
