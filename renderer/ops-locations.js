@@ -1,13 +1,31 @@
 /**
  * Locations, production pause, operators, time entries, and PIN lock.
  */
-/** Hash a PIN with SHA-256 (hex string, 64 chars). Used for operator PINs instead of btoa(). */
+/** Hash a PIN. Delegates to the main process for a salted PBKDF2 hash
+ *  ("p2$iters$salt$hash"); falls back to in-renderer SHA-256 hex only if the
+ *  bridge is unavailable (keeps the old format, still verifiable). */
 async function hashPin(pin) {
+  if (window.hubAPI?.hashPin) {
+    try {
+      const h = await window.hubAPI.hashPin(String(pin));
+      if (typeof h === 'string' && h.length) return h;
+    } catch (_) { /* fall through to legacy */ }
+  }
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(pin)));
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
-/** Detect legacy base64-encoded PINs (btoa output is always < 64 chars for 4-8 digit PINs). */
-function isLegacyPin(hash) { return typeof hash === 'string' && hash.length > 0 && hash.length !== 64; }
+/** True for a recognized PIN hash format (salted PBKDF2 or legacy 64-hex SHA-256). */
+function isManagedPinHash(hash) {
+  return typeof hash === 'string' && (/^p2\$\d+\$[0-9a-f]+\$[0-9a-f]+$/i.test(hash) || /^[0-9a-f]{64}$/i.test(hash));
+}
+/** Detect the very old base64 PINs (NOT a managed format) — these get re-prompted.
+ *  Critically, the salted PBKDF2 format is NOT legacy, so it is never wiped. */
+function isLegacyPin(hash) { return typeof hash === 'string' && hash.length > 0 && !isManagedPinHash(hash); }
+/** Plain SHA-256 hex — only for comparing against legacy 64-hex hashes. */
+async function sha256Hex(s) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(s)));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 /* ============================================================
    Feature 8 (new): Locations management
@@ -423,11 +441,11 @@ function openPinPadModal(afterUnlock) {
       }
       if (typeof flushSave === 'function') await flushSave();
       let verified = await window.hubAPI?.verifyOperatorPin?.({ operatorId: selectedOpId, pin: enteredPin });
-      if (!verified?.ok && verified?.error === 'operator_not_found' && op.pinHash?.length === 64) {
-        const entered = await hashPin(enteredPin);
-        if (timingSafeEqualHex(entered, op.pinHash)) verified = { ok: true };
-      } else if (!verified?.ok && verified == null && op.pinHash?.length === 64) {
-        const entered = await hashPin(enteredPin);
+      // Renderer fallback only when the main bridge couldn't resolve the operator.
+      // The stored hash here is legacy 64-hex (main verifies PBKDF2 directly), so
+      // compare with a plain SHA-256 — NOT hashPin(), which now returns PBKDF2.
+      if (!verified?.ok && (verified?.error === 'operator_not_found' || verified == null) && /^[0-9a-f]{64}$/i.test(op.pinHash || '')) {
+        const entered = await sha256Hex(enteredPin);
         if (timingSafeEqualHex(entered, op.pinHash)) verified = { ok: true };
       }
       if (verified?.error === 'legacy_pin') {
