@@ -1050,13 +1050,20 @@ function getQueuedWeight(itemId) {
 }
 
 // Feature 3: Compute grams reserved for a specific spool across active orders
+// Grams a part consumes. MUST mirror deductFilamentForOrder (print + support,
+// times quantity) so reservation, over-commit, and forecast never under-count
+// relative to the actual completion deduction.
+function partGramsConsumed(p) {
+  return ((+p.printWeight || 0) + (+p.supportWeight || 0)) * (+p.qty || 1);
+}
+
 function getSpoolReservedGrams(spoolId) {
   return printLog
     .filter(o => o.status !== 'completed' && o.status !== 'quote')
     .reduce((s, o) =>
       s + (o.parts || [])
         .filter(p => p.spoolId === spoolId)
-        .reduce((ps, p) => ps + (+p.weight || +p.printWeight || 0), 0)
+        .reduce((ps, p) => ps + partGramsConsumed(p), 0)
     , 0);
 }
 
@@ -1079,9 +1086,9 @@ function checkSpoolOvercommit(parts, excludeOrderId) {
       .reduce((s, o) =>
         s + (o.parts || [])
           .filter(p => p.spoolId === part.spoolId)
-          .reduce((ps, p) => ps + (+p.weight || +p.printWeight || 0), 0)
+          .reduce((ps, p) => ps + partGramsConsumed(p), 0)
       , 0);
-    const thisJobNeeds = +(part.weight || part.printWeight || 0);
+    const thisJobNeeds = partGramsConsumed(part);
     if (alreadyReserved + thisJobNeeds > item.weight) {
       warnings.push({
         spoolName: item.material,
@@ -1701,7 +1708,7 @@ function deductFilamentForOrder(order, { skipRender = false } = {}) {
     if (!part.filamentId || !part.printWeight) continue;
     const item = inventory.find(i => i.id === part.filamentId);
     if (!item) continue;
-    const deductAmt = ((+part.printWeight || 0) + (+part.supportWeight || 0)) * (part.qty || 1);
+    const deductAmt = partGramsConsumed(part);
     item.weight = Math.max(0, item.weight - deductAmt);
     if (!item.usageHistory) item.usageHistory = [];
     item.usageHistory.unshift({ orderId: order.id, project: order.project || '', weightUsed: deductAmt, date: today });
@@ -2636,7 +2643,7 @@ function computeMaterialForecast() {
     for (const o of printLog) {
       if (o.status === 'completed' || o.status === 'quote') continue;
       for (const p of (o.parts || [])) {
-        if (p.filamentId === item.id) queued += (+p.printWeight || 0);
+        if (p.filamentId === item.id) queued += partGramsConsumed(p);
       }
       if (!o.parts || o.parts.length === 0) {
         if (o.material && o.material === item.material) queued += (+o.weight || 0);
@@ -2649,7 +2656,7 @@ function computeMaterialForecast() {
     let recentGrams = 0;
     for (const o of recentCompleted) {
       for (const p of (o.parts || [])) {
-        if (p.filamentId === item.id) recentGrams += (+p.printWeight || 0);
+        if (p.filamentId === item.id) recentGrams += partGramsConsumed(p);
       }
     }
     const dailyUsage = recentGrams / 30;

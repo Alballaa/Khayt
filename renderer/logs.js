@@ -2,6 +2,17 @@
  * Orders log tab: filtering, table render, batch actions, CSV export.
  */
 (function (global) {
+// Net revenue base for margin display/sort: strip shipping and VAT so margin is
+// not overstated. Kept in the order's own currency to stay consistent with the
+// parts cost (baseCost). VAT is extracted with the same rate/(100+rate) formula
+// used in invoicing/expenses/analytics.
+function orderNetRevenue(o) {
+  const gross = (+o.price || 0) - (+o.shippingCost || 0);
+  if (gross <= 0) return 0;
+  const rate = settings.enableVat ? (+settings.vatRate || 15) : 0;
+  return rate > 0 ? gross * 100 / (100 + rate) : gross;
+}
+
 function getFilteredLogs() {
   const filtered = printLog.filter(log => {
     if (!showArchivedOrders && log.archived) return false;
@@ -29,8 +40,10 @@ function getFilteredLogs() {
     if (logSortCol === 'margin') {
       const costA = (a.parts || []).reduce((s, p) => s + (+p.baseCost || 0), 0);
       const costB = (b.parts || []).reduce((s, p) => s + (+p.baseCost || 0), 0);
-      const mA = costA > 0 && +a.price > 0 ? (+a.price - costA) / +a.price : -Infinity;
-      const mB = costB > 0 && +b.price > 0 ? (+b.price - costB) / +b.price : -Infinity;
+      const revA = orderNetRevenue(a);
+      const revB = orderNetRevenue(b);
+      const mA = costA > 0 && revA > 0 ? (revA - costA) / revA : -Infinity;
+      const mB = costB > 0 && revB > 0 ? (revB - costB) / revB : -Infinity;
       return dir * (mA - mB);
     }
     return 0;
@@ -122,8 +135,9 @@ function renderLogs() {
     const logSubBadge = log.parentOrderId ? `<span class="sub-order-badge">↳ ${escapeHtml(t('ord.sub_order'))} #${escapeHtml(log.parentOrderId)}</span>` : '';
     // Profit margin estimation
     const partsCost = (log.parts || []).reduce((s, p) => s + (+p.baseCost || 0), 0);
-    const hasMarginData = partsCost > 0 && (+log.price || 0) > 0;
-    const marginPct = hasMarginData ? ((+log.price - partsCost) / +log.price * 100) : null;
+    const netRevenue = orderNetRevenue(log);
+    const hasMarginData = partsCost > 0 && netRevenue > 0;
+    const marginPct = hasMarginData ? ((netRevenue - partsCost) / netRevenue * 100) : null;
     const marginHtml = marginPct !== null
       ? `<span style="font-size:11px;font-weight:600;padding:2px 6px;border-radius:10px;background:${marginPct >= 40 ? 'rgba(34,197,94,0.15)' : marginPct >= 20 ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)'};color:${marginPct >= 40 ? 'var(--success)' : marginPct >= 20 ? 'var(--warning)' : 'var(--danger)'};">${marginPct.toFixed(0)}%</span>`
       : `<span style="color:var(--text-muted);font-size:11px;">—</span>`;

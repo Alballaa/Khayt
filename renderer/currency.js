@@ -73,11 +73,14 @@
 
   function orderOwedBase(o) {
     const cur = clientCurrency(o.clientId);
+    // Credit notes reduce what's owed (refund / cancelled charge).
+    const credited = (o.creditNotes || []).reduce((s, cn) => s + (+cn.amount || 0), 0);
     return Math.max(
       0,
       convertToBase(+o.price || 0, cur) -
         convertToBase(+o.paidAmount || 0, cur) -
-        convertToBase(+o.giftCardDiscount || 0, cur),
+        convertToBase(+o.giftCardDiscount || 0, cur) -
+        convertToBase(credited, cur),
     );
   }
 

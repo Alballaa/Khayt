@@ -188,6 +188,21 @@ function promptActuals(order, onConfirm) {
   });
 }
 
+/* Round 12 — fire completion webhooks + ensure a survey token exists.
+   Call exactly once per completion (the early-return in updateStatus' 'completed'
+   branch otherwise made these unreachable). surveyToken generation is idempotent;
+   the webhooks are NOT, so call this once per completion path only. */
+function fireOrderCompletionEvents(order) {
+  fireWebhook('status_changed', { orderId: order.id, project: order.project, newStatus: 'completed', client: order.client });
+  fireWebhook('order_delivered', { orderId: order.id, project: order.project, client: order.client });
+  if (!order.surveyToken) {
+    const bytes = new Uint8Array(12);
+    crypto.getRandomValues(bytes);
+    order.surveyToken = 'srv-' + Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+    saveAll();
+  }
+}
+
 function updateStatus(id, newStatus) {
   const order = printLog.find(o => o.id === id);
   if (!order) return;
@@ -232,6 +247,8 @@ function updateStatus(id, newStatus) {
       if (order.clientId) autoExportStatusPage(order);
       // Batch-2 Feature 10: Telegram on completed
       sendTelegramForOrder(order, 'completed');
+      // Round 12 — webhooks (status_changed + order_delivered) + survey token on completion
+      fireOrderCompletionEvents(order);
     });
     return;
   }
@@ -296,16 +313,9 @@ function updateStatus(id, newStatus) {
   autoSendEmailNotification(order, newStatus);
   // Batch-2 Feature 10: Telegram notification on status change
   sendTelegramForOrder(order, newStatus);
-  // Round 12 — Webhook: status_changed
+  // Round 12 — Webhook: status_changed (non-completion transitions; completion is
+  // handled in the 'completed' branch above via fireOrderCompletionEvents).
   fireWebhook('status_changed', { orderId: order.id, project: order.project, newStatus, client: order.client });
-  // Round 12 — Webhook: order_delivered
-  if (newStatus === 'completed') fireWebhook('order_delivered', { orderId: order.id, project: order.project, client: order.client });
-  if (newStatus === 'completed' && !order.surveyToken) {
-    const bytes = new Uint8Array(12);
-    crypto.getRandomValues(bytes);
-    order.surveyToken = 'srv-' + Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
-    saveAll();
-  }
 }
 
 function holdOrder(id) {
@@ -372,6 +382,10 @@ function qcPassOrder(orderId) {
       saveAll();
       renderKanban(); renderLogs(); renderInventory();
       toast(t('ord.qc_passed'), 'success');
+      // Round 12 — fire completion webhooks + survey token now (once), since the
+      // actuals modal below may be cancelled. Not fired in the actuals callback to
+      // avoid double-firing the (non-idempotent) webhooks.
+      fireOrderCompletionEvents(order);
       // Prompt for actuals after QC modal closes (records actuals; deduction already done)
       setTimeout(() => promptActuals(order, () => {
         deductFilamentForOrder(order);

@@ -58,6 +58,8 @@ test('payStatus handles voided orders and credit notes', () => {
   const { payStatus } = require('../renderer/app-helpers.js');
   assert.equal(payStatus({ price: 100, voidedAt: '2026-01-01' }), 'voided');
   assert.equal(payStatus({ price: 100, paidAmount: 100, creditNotes: [{ amount: 30 }] }), 'partial');
+  // A fully-credited order is settled — must not keep showing outstanding.
+  assert.equal(payStatus({ price: 100, paidAmount: 0, creditedAt: '2026-01-01' }), 'voided');
 });
 
 test('clientOutstandingBalance sums unpaid non-quote orders', () => {
