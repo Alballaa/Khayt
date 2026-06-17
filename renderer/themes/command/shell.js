@@ -381,7 +381,7 @@
     const revStr = (typeof fmtMoney === 'function') ? fmtMoney(todayRev) : String(Math.round(todayRev));
 
     const now = new Date();
-    const clock = now.toLocaleTimeString('en-GB');
+    const clock = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 
     bar.innerHTML = `
       <span class="cmd-seg"><span class="cmd-live"></span><b>${escHtml(printing)}/${escHtml(printers)}</b> ${escHtml(tr('command.status.printers', 'printers active'))}</span>
@@ -399,7 +399,7 @@
     stopClock();
     clockTimer = setInterval(() => {
       const clk = document.querySelector('#commandStatusBar .cmd-clock');
-      if (clk) clk.textContent = new Date().toLocaleTimeString('en-GB');
+      if (clk) clk.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
       else stopClock();
     }, 1000);
   }

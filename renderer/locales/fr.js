@@ -548,7 +548,7 @@
   "inv.brand": "Marque",
   "inv.weight": "Poids (g)",
   "inv.cost": "Prix de la bobine",
-  "inv.low_stock": "Stock faible",
+  "inv.low_stock": "{material} bientôt épuisé — {weight}g restants",
   "inv.empty": "Aucun filament en inventaire.",
   "inv.removed": "Filament supprimé",
   "inv.reorder": "Réapprovisionner",

@@ -258,8 +258,8 @@ function renderHandoffAnalyticsOverview(ctx) {
 function renderAnalytics() {
   const orders = printLog.filter(o => inRange(o.date, analyticsRange, 'analytics'));
   const completed = orders.filter(o => o.status === 'completed');
-  const revenue = completed.reduce((s, o) => s + convertToBase(+o.price, clientCurrency(o.clientId)), 0);
-  const hours   = orders.reduce((s, o) => s + +o.printTime, 0);
+  const revenue = completed.reduce((s, o) => s + convertToBase(+o.price || 0, clientCurrency(o.clientId)), 0);
+  const hours   = orders.reduce((s, o) => s + (+o.printTime || 0), 0);
   const inProgress = orders.filter(o => o.status !== 'completed' && o.status !== 'pending').length;
   // Receivables — outstanding amount across all unpaid/partial orders, regardless of status
   const receivables = printLog

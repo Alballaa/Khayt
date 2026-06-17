@@ -548,7 +548,7 @@
   "inv.brand": "Marke",
   "inv.weight": "Gewicht (g)",
   "inv.cost": "Spulenpreis",
-  "inv.low_stock": "Niedriger Bestand",
+  "inv.low_stock": "{material} wird knapp — {weight}g übrig",
   "inv.empty": "Kein Filament im Lager.",
   "inv.removed": "Filament entfernt",
   "inv.reorder": "Nachbestellung",
