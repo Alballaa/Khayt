@@ -976,6 +976,7 @@
     <!-- ===================== INVENTORY ===================== -->
     <section id="inventory-tab" class="tab-content khayt-inventory" role="tabpanel" aria-labelledby="tabbtn-inventory-tab" aria-hidden="true" tabindex="-1">
       <div id="invStudioStats" class="khayt-inv-stats" style="display:none" aria-hidden="true"></div>
+      <div id="invLocationScopeBanner" style="display:none;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px;padding:8px 12px;background:var(--bg-elev);border:1px solid var(--border);border-radius:var(--radius);"></div>
       <div id="reorderAlertsSection" style="display:none;"></div>
       <div id="supplierReorderList" style="margin-bottom:12px;"></div>
       <div id="pipelineDemand"></div>
@@ -1025,6 +1026,10 @@
               <label data-i18n="inv.lot">Lot / Batch</label>
               <input type="text" id="invLot" data-i18n-placeholder="inv.lot_ph">
             </div>
+          </div>
+          <div id="invLocationField" style="display:none; margin-top:8px;">
+            <label data-i18n="inv.location_branch">Location / Branch</label>
+            <select id="invLocation"></select>
           </div>
 
           <button class="btn primary full" id="btnAddInv" style="margin-top: 12px;" data-i18n="inv.save">Save to inventory</button>

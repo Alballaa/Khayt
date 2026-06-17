@@ -34,6 +34,75 @@ function isLowStock(item) {
 }
 
 /* ============================================================
+   Per-location inventory — pure, unit-tested helpers (#65 follow-up)
+   ------------------------------------------------------------
+   Stock used to be a single global pool; the top-bar location filter
+   only scoped jobs/machines/dashboard. These helpers mirror
+   orderMatchesActiveLocation so the inventory list, low-stock banner,
+   reorder/PO list and valuation can scope to one branch.
+
+   Migration safety: spools/consumables saved before this change have no
+   `locationId`. They are treated as "unassigned" and stay visible under
+   ANY active location (never hidden), so existing stock is never lost.
+   ============================================================ */
+
+/**
+ * Does this stock item belong to the active location?
+ * - No active filter  → always true (showing all sites).
+ * - Item unassigned   → always true (legacy stock visible everywhere).
+ * - Otherwise         → exact location match.
+ */
+function spoolMatchesLocation(item, activeLoc) {
+  if (!activeLoc) return true;
+  if (!item || !item.locationId) return true;
+  return item.locationId === activeLoc;
+}
+
+/** Filter a list of stock items to those visible under the active location. */
+function filterInventoryByLocation(items, activeLoc) {
+  if (!Array.isArray(items)) return [];
+  if (!activeLoc) return items.slice();
+  return items.filter((it) => spoolMatchesLocation(it, activeLoc));
+}
+
+/**
+ * Count low-stock items per location id.
+ * Returns a map: { [locationId]: count, _unassigned: count }.
+ * Pure — caller supplies the low-stock predicate so this stays decoupled
+ * from settings/thresholds.
+ */
+function perLocationLowStockCounts(items, lowFn) {
+  const isLow = typeof lowFn === 'function' ? lowFn : isLowStock;
+  const out = {};
+  (Array.isArray(items) ? items : []).forEach((it) => {
+    if (!isLow(it)) return;
+    const key = it && it.locationId ? it.locationId : '_unassigned';
+    out[key] = (out[key] || 0) + 1;
+  });
+  return out;
+}
+
+/**
+ * Order candidate spools by location preference for deduction: spools at the
+ * order's location first, then unassigned (shared) spools, then any other
+ * branch. Pure & stable within each tier. Used by deductFilamentForOrder so
+ * multi-site deduction draws down local stock first.
+ */
+function orderSpoolsByLocationPreference(candidates, locId) {
+  const list = Array.isArray(candidates) ? candidates.slice() : [];
+  if (!locId) return list;
+  const tier = (s) => {
+    if (s && s.locationId === locId) return 0; // same branch
+    if (!s || !s.locationId) return 1;         // unassigned (shared)
+    return 2;                                   // other branch
+  };
+  return list
+    .map((s, i) => ({ s, i, tier: tier(s) }))
+    .sort((a, b) => (a.tier - b.tier) || (a.i - b.i))
+    .map((x) => x.s);
+}
+
+/* ============================================================
    CSV import — Spools / Inventory
    ============================================================ */
 function importSpoolsCsv() {
@@ -819,7 +888,10 @@ function addInventoryItem() {
   const today = new Date().toISOString().split('T')[0];
   const invMaterialType = $('#invMaterialType')?.value || 'fdm';
   const lot = ($('#invLot')?.value || '').trim() || undefined;
-  inventory.push({ id: uid('INV'), material, cost, weight, color, purchasedAt: today, materialType: invMaterialType, lot });
+  // Per-location: tag the spool with the chosen branch (default to active filter).
+  const activeLoc = (typeof activeLocation !== 'undefined') ? activeLocation : null;
+  const locationId = ($('#invLocation')?.value || activeLoc || '') || undefined;
+  inventory.push({ id: uid('INV'), material, cost, weight, color, purchasedAt: today, materialType: invMaterialType, lot, locationId });
   saveAll();
   renderInventory();
   $('#invMaterial').value = '';
@@ -905,9 +977,18 @@ function openInventoryEditor(id) {
         <input type="date" id="ieOpenedAt" value="${escapeHtml(item.openedAt || '')}">
       </div>
     </div>
-    <div style="margin-top:14px;">
-      <label style="margin-top:0;">${escapeHtml(t('inv.lot') || 'Lot / Batch')}</label>
-      <input type="text" id="ieLot" value="${escapeHtml(item.lot || '')}" placeholder="${escapeHtml(t('inv.lot_ph') || 'e.g. 2024-Q1-A')}">
+    <div class="inline-pair" style="margin-top:14px;">
+      <div>
+        <label style="margin-top:0;">${escapeHtml(t('inv.lot') || 'Lot / Batch')}</label>
+        <input type="text" id="ieLot" value="${escapeHtml(item.lot || '')}" placeholder="${escapeHtml(t('inv.lot_ph') || 'e.g. 2024-Q1-A')}">
+      </div>
+      <div>
+        <label style="margin-top:0;">${escapeHtml(t('inv.location_branch') || 'Location / Branch')}</label>
+        <select id="ieLocation">
+          <option value="">${escapeHtml(t('inv.location_unassigned') || 'Unassigned')}</option>
+          ${(typeof locations !== 'undefined' ? locations : []).map(l => `<option value="${escapeHtml(l.id)}"${item.locationId === l.id ? ' selected' : ''}>${escapeHtml(l.name)}</option>`).join('')}
+        </select>
+      </div>
     </div>
     <div class="inline-pair" style="margin-top:14px;">
       <div>
@@ -971,6 +1052,8 @@ function openInventoryEditor(id) {
       item.purchasedAt = document.getElementById('iePurchasedAt').value || undefined;
       item.openedAt    = document.getElementById('ieOpenedAt').value || undefined;
       item.lot         = (document.getElementById('ieLot')?.value || '').trim() || undefined;
+      // Per-location: branch assignment (empty = unassigned/shared)
+      item.locationId  = (document.getElementById('ieLocation')?.value || '') || undefined;
       // Feature 4: Print settings
       const pt = num(document.getElementById('iePrintTemp').value, 0);
       const bt = num(document.getElementById('ieBedTemp').value, 0);
@@ -1174,7 +1257,9 @@ function renderReorderAlerts() {
   const el = $('#reorderAlertsSection');
   if (!el) return;
 
-  const lowItems = inventory.filter(isLowStock);
+  const activeLoc = (typeof activeLocation !== 'undefined') ? activeLocation : null;
+  const scopedInv = filterInventoryByLocation(inventory, activeLoc);
+  const lowItems = scopedInv.filter(isLowStock);
 
   if (lowItems.length === 0) {
     el.innerHTML = '';
@@ -1222,21 +1307,48 @@ function renderReorderAlerts() {
   });
 }
 
+/** Inventory-tab scope banner: mirrors the queue/dashboard location banner. */
+function renderInventoryLocationScopeBanner(activeLoc, shownCount, totalCount) {
+  const host = document.getElementById('invLocationScopeBanner');
+  if (!host) return;
+  const loc = activeLoc && typeof locations !== 'undefined'
+    ? locations.find(l => l.id === activeLoc) : null;
+  if (!loc) {
+    host.innerHTML = '';
+    host.style.display = 'none';
+    return;
+  }
+  const hidden = Math.max(0, (totalCount || 0) - (shownCount || 0));
+  host.style.display = 'flex';
+  host.innerHTML = `
+    <span style="font-size:12px;color:var(--text-muted);">
+      ${escapeHtml(t('inv.scoped_to') || t('loc.filtering') || 'Showing stock at')}
+      <strong style="color:var(--text);">${escapeHtml(loc.name)}</strong>
+      ${hidden > 0 ? `<span style="margin-inline-start:6px;color:var(--text-dim);">(${hidden} ${escapeHtml(t('inv.scoped_hidden') || 'hidden at other sites')})</span>` : ''}
+    </span>
+    <button type="button" class="btn small ghost" data-act="clear-location-filter">${escapeHtml(t('loc.show_all') || 'Show all')}</button>`;
+}
+
 function renderInventory() {
   window.KhaytStudio?.renderInventoryStudioStats?.();
   renderReorderAlerts();
   renderSupplierReorderList();
   renderPipelineDemand();
+  // Per-location scope (#65 follow-up): valuation, banner, list all scope to
+  // the active branch (+ unassigned legacy stock). Null = all sites.
+  const activeLoc = (typeof activeLocation !== 'undefined') ? activeLocation : null;
+  const scopedInventory = filterInventoryByLocation(inventory, activeLoc);
+  renderInventoryLocationScopeBanner(activeLoc, scopedInventory.length, inventory.length);
   // Inventory valuation summary
   const valEl = $('#invValuationSummary');
   if (valEl && !window.KhaytStudio?.useHandoffScreens?.()) {
-    if (inventory.length > 0) {
-      const totalValue = inventory.reduce((s, item) => {
+    if (scopedInventory.length > 0) {
+      const totalValue = scopedInventory.reduce((s, item) => {
         const pricePerG = item.weight > 0 && item.cost > 0 ? item.cost / Math.max(1, item.spoolWeight || item.weight || 1000) * item.weight : 0;
         return s + pricePerG;
       }, 0);
-      const totalGrams = inventory.reduce((s, item) => s + Math.max(0, +item.weight || 0), 0);
-      const lowCount = inventory.filter(isLowStock).length;
+      const totalGrams = scopedInventory.reduce((s, item) => s + Math.max(0, +item.weight || 0), 0);
+      const lowCount = scopedInventory.filter(isLowStock).length;
       valEl.innerHTML = `
         <span>${escapeHtml(t('inv.total_value'))}: <strong style="color:var(--success);">${fmtMoney(totalValue)}</strong></span>
         <span style="margin-inline-start:16px;">${escapeHtml(t('inv.total_stock'))}: <strong>${Math.round(totalGrams).toLocaleString()}g</strong></span>
@@ -1253,12 +1365,15 @@ function renderInventory() {
   const tbody = $('#inventoryTable tbody');
   if (inventory.length === 0) {
     tbody.innerHTML = `<tr><td colspan="${_studioInv ? 6 : 5}" class="empty-state">${escapeHtml(t('inv.empty'))} <button type="button" class="btn small primary" data-act="focus-inv-material" style="margin-inline-start:12px;">${escapeHtml(t('inv.add_title') || 'Add Filament')}</button></td></tr>`;
+  } else if (scopedInventory.length === 0) {
+    // Stock exists but none at the active branch (and no unassigned spools).
+    tbody.innerHTML = `<tr><td colspan="${_studioInv ? 6 : 5}" class="empty-state">${escapeHtml(t('inv.empty_location') || 'No stock at this location.')}</td></tr>`;
   } else {
     const todayMs = Date.now();
     const invTerm = invSearchTerm.toLowerCase().trim();
     const visibleInv = invTerm
-      ? inventory.filter(i => (i.material || '').toLowerCase().includes(invTerm) || (i.colourVariant || '').toLowerCase().includes(invTerm))
-      : inventory;
+      ? scopedInventory.filter(i => (i.material || '').toLowerCase().includes(invTerm) || (i.colourVariant || '').toLowerCase().includes(invTerm))
+      : scopedInventory;
     // Build a forecast map: materialName → daysRemaining
     const forecastMap = {};
     try {
@@ -1306,11 +1421,15 @@ function renderInventory() {
       const resinBadge = isResin ? ` <span class="resin-badge">${escapeHtml(t('inv.type_resin'))}</span>` : '';
       const colourChip = item.colourVariant ? ` <span class="variant-chip">${escapeHtml(item.colourVariant)}</span>` : '';
       const lotChip = item.lot ? ` <span style="font-size:10px; color:var(--text-dim); background:var(--bg-elev); border:1px solid var(--border-soft); border-radius:3px; padding:0 4px;" title="${escapeHtml(t('inv.lot') || 'Lot')}">${escapeHtml(item.lot)}</span>` : '';
+      // Per-location: show which branch a spool belongs to (legacy/unassigned hidden).
+      const locChip = (item.locationId && typeof locationBadgeHtml === 'function')
+        ? ` ${locationBadgeHtml(item.locationId)}`
+        : '';
       return `
         <tr data-inv-id="${escapeHtml(item.id)}"${low ? ' style="background: rgba(245,166,35,0.08);"' : ''}>
           <td style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:${safeCssColor(item.color, '#888888')}; flex-shrink:0; border:1px solid rgba(255,255,255,0.15);"></span>
-            <strong>${escapeHtml(item.material)}</strong>${low ? ' <span style="color:var(--warning); font-size:11px;">· low</span>' : ''}${resinBadge}${colourChip}${lotChip}${ageBadge}${reservedBadge}${overcommitBadge}${testBadge}${runoutBadge}
+            <strong>${escapeHtml(item.material)}</strong>${low ? ' <span style="color:var(--warning); font-size:11px;">· low</span>' : ''}${resinBadge}${colourChip}${lotChip}${locChip}${ageBadge}${reservedBadge}${overcommitBadge}${testBadge}${runoutBadge}
             ${item.printTemp || item.bedTemp ? `<span style="font-size:10px; color:var(--primary);">🌡 ${item.printTemp ? item.printTemp + '°C print' : ''}${item.printTemp && item.bedTemp ? ' / ' : ''}${item.bedTemp ? item.bedTemp + '°C bed' : ''}</span>` : ''}
           </td>
           <td style="font-variant-numeric: tabular-nums;">${fmtPrice(item.cost)}</td>
@@ -1340,6 +1459,8 @@ function renderInventory() {
             <button class="btn small ghost" data-act="inv-test-print" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.test_prints'))}">🧪</button>
             <button class="btn small ghost" data-act="inv-dry-log" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.dry_log'))}">🌡</button>
             <button class="btn small ghost" data-act="inv-spool-history" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.spool_history'))}">📋</button>
+            <button class="btn small ghost" data-act="inv-print-label" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.print_label') || 'Print label')}">🏷</button>
+            ${(typeof locations !== 'undefined' && locations.length > 0) ? `<button class="btn small ghost" data-act="inv-transfer" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.transfer') || 'Transfer')}">↔</button>` : ''}
             <button class="btn small ghost" data-act="adj-inv" data-id="${item.id}" style="margin-inline-end:4px;">${escapeHtml(t('inv.adjust'))}</button>
             ${(item.priceHistory && item.priceHistory.length > 0) ? `<button class="btn small ghost" data-act="inv-price-history" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.price_history'))}">📈</button>` : ''}
             <button class="btn small" data-act="edit-inv" data-id="${item.id}" style="margin-inline-end:4px;">${escapeHtml(t('common.edit'))}</button>
@@ -1349,7 +1470,23 @@ function renderInventory() {
     }).join('');
   }
   populateFilamentDropdown();
+  populateInvLocationField();
   updateNotifBadge();
+}
+
+/** Show/populate the add-spool location picker only when branches are defined. */
+function populateInvLocationField() {
+  const wrap = document.getElementById('invLocationField');
+  const sel = document.getElementById('invLocation');
+  if (!wrap || !sel) return;
+  const locs = (typeof locations !== 'undefined') ? locations : [];
+  if (!locs.length) { wrap.style.display = 'none'; return; }
+  const activeLoc = (typeof activeLocation !== 'undefined') ? activeLocation : null;
+  const prev = sel.value;
+  sel.innerHTML = `<option value="">${escapeHtml(t('inv.location_unassigned') || 'Unassigned')}</option>` +
+    locs.map(l => `<option value="${escapeHtml(l.id)}">${escapeHtml(l.name)}</option>`).join('');
+  sel.value = (prev && locs.some(l => l.id === prev)) ? prev : (activeLoc || '');
+  wrap.style.display = '';
 }
 
 function openStockAdjustModal(itemId) {
@@ -1704,10 +1841,22 @@ function deductFilamentForOrder(order, { skipRender = false } = {}) {
   const spoolsTouched = new Set();
   const nowLow = [];
   const today = new Date().toISOString().split('T')[0];
+  // Per-location: prefer drawing from spools at the order's branch.
+  const orderLoc = typeof orderLocationId === 'function' ? orderLocationId(order) : (order.locationId || null);
   for (const part of (order.parts || [])) {
     if (!part.filamentId || !part.printWeight) continue;
-    const item = inventory.find(i => i.id === part.filamentId);
+    let item = inventory.find(i => i.id === part.filamentId);
     if (!item) continue;
+    // If the explicitly chosen spool is empty, redirect to a same-material spool,
+    // preferring the order's location, then unassigned, then any other branch.
+    if (orderLoc && (+item.weight || 0) <= 0) {
+      const sameMaterial = inventory.filter(s =>
+        s.material === item.material && (+s.weight || 0) > 0);
+      const preferred = orderSpoolsByLocationPreference(sameMaterial, orderLoc)[0];
+      if (preferred) item = preferred;
+    }
+    // Use the shared grams helper (print + support × qty) so reservation,
+    // forecast, and deduction stay consistent.
     const deductAmt = partGramsConsumed(part);
     item.weight = Math.max(0, item.weight - deductAmt);
     if (!item.usageHistory) item.usageHistory = [];
@@ -2702,7 +2851,9 @@ function renderProductTierChips(product) {
    Reorder reminder (inventory low-stock)
    ============================================================ */
 async function batchGenPOs() {
-  const lowStockItems = inventory.filter(isLowStock);
+  // Scope reorder generation to the active location (+ unassigned stock).
+  const activeLoc = (typeof activeLocation !== 'undefined') ? activeLocation : null;
+  const lowStockItems = filterInventoryByLocation(inventory, activeLoc).filter(isLowStock);
   if (lowStockItems.length === 0) {
     toast(t('po.none_needed'), 'info');
     return;
@@ -3073,8 +3224,180 @@ function recordSupplierInvoice(poId) {
   });
 }
 
+/* ============================================================
+   Feature 1: Stock transfer between locations (move and/or split)
+   ============================================================ */
+async function openStockTransferModal(itemId) {
+  const item = inventory.find(i => i.id === itemId);
+  if (!item) return;
+  const locs = (typeof locations !== 'undefined') ? locations : [];
+  if (!locs.length) { toast(t('inv.transfer_no_locations') || 'Add a location first (Settings → Locations).', 'info'); return; }
+  const isResin = item.materialType === 'resin';
+  const unit = isResin ? 'mL' : (t('common.grams') || 'g');
+  const curLoc = item.locationId ? (locs.find(l => l.id === item.locationId)?.name || '') : (t('inv.location_unassigned') || 'Unassigned');
+  const maxQty = Math.round(+item.weight || 0);
+
+  openFormModal({
+    title: `${t('inv.transfer_title') || 'Transfer Stock'} — ${escapeHtml(item.material)}`,
+    saveLabel: t('inv.transfer_confirm') || 'Transfer',
+    sizeLg: false,
+    bodyHtml: `
+      <p style="font-size:13px;color:var(--text-muted);margin:0 0 12px;">
+        ${escapeHtml(t('inv.transfer_from') || 'From')}: <strong>${escapeHtml(curLoc)}</strong>
+        · ${escapeHtml(t('inv.current_stock') || 'In stock')}: <strong>${maxQty} ${escapeHtml(unit)}</strong>
+      </p>
+      <label>${escapeHtml(t('inv.transfer_to') || 'To location')}</label>
+      <select id="stDest">
+        <option value="">${escapeHtml(t('inv.location_unassigned') || 'Unassigned')}</option>
+        ${locs.map(l => `<option value="${escapeHtml(l.id)}"${item.locationId === l.id ? ' disabled' : ''}>${escapeHtml(l.name)}${item.locationId === l.id ? ' ('+escapeHtml(t('inv.transfer_current')||'current')+')' : ''}</option>`).join('')}
+      </select>
+      <label style="margin-top:12px;">${escapeHtml(t('inv.transfer_qty') || 'Quantity to move')} (${escapeHtml(unit)})</label>
+      <input type="number" id="stQty" min="1" max="${maxQty}" step="1" value="${maxQty}">
+      <p style="font-size:11.5px;color:var(--text-dim);margin-top:6px;">
+        ${escapeHtml(t('inv.transfer_split_hint') || 'Moving less than the full amount splits the spool: a new spool is created at the destination.')}
+      </p>`,
+    async onSave(modal) {
+      const destRaw = modal.querySelector('#stDest').value || '';
+      const dest = destRaw || undefined;
+      const qty = Math.round(num(modal.querySelector('#stQty').value, 0));
+      if ((dest || null) === (item.locationId || null)) { toast(t('inv.transfer_same') || 'Pick a different location.', 'error'); return false; }
+      if (qty <= 0) { toast(t('inv.transfer_qty_invalid') || 'Enter a quantity greater than zero.', 'error'); return false; }
+      if (qty > maxQty) { toast(t('inv.transfer_qty_over') || 'Not enough stock to transfer.', 'error'); return false; }
+      const destName = dest ? (locs.find(l => l.id === dest)?.name || '') : (t('inv.location_unassigned') || 'Unassigned');
+      const ok = await confirmModal(
+        (t('inv.transfer_confirm_msg', { qty, unit, dest: destName }) ||
+         `Move ${qty}${unit} to ${destName}?`));
+      if (!ok) return false;
+      if (qty >= maxQty) {
+        // Move the whole spool.
+        item.locationId = dest;
+      } else {
+        // Split: reduce source, create a new spool at the destination.
+        item.weight = Math.max(0, (+item.weight || 0) - qty);
+        const clone = {
+          ...item,
+          id: uid('INV'),
+          weight: qty,
+          locationId: dest,
+          // Reset per-spool histories that should not carry to the split-off spool.
+          usageHistory: [],
+          adjustments: [],
+          priceHistory: (item.priceHistory || []).slice(),
+        };
+        inventory.push(clone);
+      }
+      saveAll();
+      renderInventory();
+      toast(t('inv.transfer_done') || 'Stock transferred', 'success');
+      return true;
+    }
+  });
+}
+
+/* ============================================================
+   Feature 2: Spool QR/barcode label (reuses hubAPI.generateQR + print path)
+   ============================================================ */
+async function printSpoolLabel(itemId) {
+  const item = inventory.find(i => i.id === itemId);
+  if (!item) return;
+  const shopName = (typeof settings !== 'undefined' && (settings.bizEn || settings.bizAr)) || 'Khayt';
+  const isResin = item.materialType === 'resin';
+  const unit = isResin ? 'mL' : 'g';
+  const weightStr = `${Math.round(+item.weight || 0)} ${unit}`;
+  const colorHex = safeCssColor(item.color, '#888888');
+  // Dry-by date: 30 days after last drying (hygroscopic spools), else blank.
+  let dryByStr = '';
+  const dryLog = item.dryingLog || [];
+  if (dryLog.length) {
+    const last = [...dryLog].sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
+    if (last && last.date) {
+      const due = new Date(last.date + 'T00:00:00');
+      due.setDate(due.getDate() + 30);
+      dryByStr = due.toISOString().split('T')[0];
+    }
+  }
+  const locName = item.locationId && typeof locations !== 'undefined'
+    ? (locations.find(l => l.id === item.locationId)?.name || '') : '';
+
+  // QR payload: compact, parseable key/value lines (matches NFC-style fields).
+  const qrPayload = [
+    `KHAYT-SPOOL`,
+    `id:${item.id}`,
+    `material:${item.material || ''}`,
+    `color:${item.colourVariant || item.color || ''}`,
+    `weight:${weightStr}`,
+    dryByStr ? `dryBy:${dryByStr}` : '',
+  ].filter(Boolean).join('\n');
+
+  let qrSvg = '';
+  if (window.hubAPI?.generateQR) {
+    try { qrSvg = await window.hubAPI.generateQR(qrPayload, { width: 120, margin: 0 }); }
+    catch (e) { /* graceful fallback — no QR */ }
+  }
+
+  const L = (k, fb) => escapeHtml(t(k) || fb);
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>${L('inv.spool_label', 'Spool Label')} — ${escapeHtml(item.id)}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,'Segoe UI',sans-serif; background:#fff; color:#111; }
+  .label { width:62mm; min-height:40mm; border:1px solid #ccc; border-radius:2mm;
+    padding:3mm 4mm; display:flex; gap:3mm; page-break-after:always; }
+  .info { flex:1; display:flex; flex-direction:column; gap:1mm; }
+  .shop { font-size:6.5pt; color:#888; font-weight:600; text-transform:uppercase; letter-spacing:.3pt; }
+  .mat { font-size:10pt; font-weight:800; line-height:1.15; display:flex; align-items:center; gap:2mm; }
+  .swatch { width:4mm; height:4mm; border-radius:50%; border:0.3mm solid #999; flex-shrink:0; }
+  .meta { font-size:7pt; color:#555; display:flex; flex-wrap:wrap; gap:1mm 2.5mm; margin-top:1mm; }
+  .meta span { background:#f3f4f6; border-radius:1.5mm; padding:0.4mm 1.5mm; }
+  .id { font-family:monospace; font-size:6.5pt; color:#999; margin-top:auto; }
+  .qr { width:18mm; height:18mm; flex-shrink:0; }
+  .qr svg { width:100%; height:100%; }
+  @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+</style>
+</head>
+<body>
+<div class="label">
+  <div class="info">
+    <div class="shop">${escapeHtml(shopName)}</div>
+    <div class="mat"><span class="swatch" style="background:${colorHex};"></span>${escapeHtml(item.material || '—')}</div>
+    <div class="meta">
+      ${item.colourVariant ? `<span>${escapeHtml(item.colourVariant)}</span>` : ''}
+      <span>${escapeHtml(weightStr)}</span>
+      ${item.lot ? `<span>${L('inv.lot', 'Lot')}: ${escapeHtml(item.lot)}</span>` : ''}
+      ${locName ? `<span>${escapeHtml(locName)}</span>` : ''}
+      ${dryByStr ? `<span>${L('inv.dry_by', 'Dry by')} ${escapeHtml(dryByStr)}</span>` : ''}
+    </div>
+    <div class="id">${escapeHtml(item.id)}</div>
+  </div>
+  ${qrSvg ? `<div class="qr">${qrSvg}</div>` : ''}
+</div>
+<script>window.onload = () => { setTimeout(() => window.print(), 250); };<\/script>
+</body></html>`;
+
+  const printable = typeof sanitizePrintHtml === 'function' ? sanitizePrintHtml(html) : html;
+  const win = window.open('', '_blank', 'width=360,height=280,toolbar=0,menubar=0,scrollbars=0');
+  if (win) {
+    win.document.open();
+    win.document.write(printable);
+    win.document.close();
+  } else if (window.hubAPI?.saveHtml) {
+    const saved = await window.hubAPI.saveHtml(html, `spool-label-${item.id}.html`);
+    if (saved?.path) window.hubAPI?.openPath?.(saved.path);
+    toast('🏷 ' + (t('inv.label_generated') || 'Label generated'), 'success');
+  }
+}
+
   const api = {
     isLowStock,
+    spoolMatchesLocation,
+    filterInventoryByLocation,
+    perLocationLowStockCounts,
+    orderSpoolsByLocationPreference,
+    openStockTransferModal,
+    printSpoolLabel,
     importSpoolsCsv,
     importClientsCsv,
     importProductsCsv,

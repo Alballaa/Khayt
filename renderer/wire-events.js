@@ -352,6 +352,8 @@ function wireEvents() {
     if (btn.dataset.act === 'reorder-inv')       openReorderModal(btn.dataset.id);
     if (btn.dataset.act === 'adj-inv')           openStockAdjustModal(btn.dataset.id);
     if (btn.dataset.act === 'inv-spool-history') openSpoolHistory(btn.dataset.id);
+    if (btn.dataset.act === 'inv-transfer')      openStockTransferModal(btn.dataset.id);
+    if (btn.dataset.act === 'inv-print-label')   printSpoolLabel(btn.dataset.id);
     if (btn.dataset.act === 'inv-dry-log')       openDryingLog(btn.dataset.id);
     if (btn.dataset.act === 'inv-test-print')    openTestPrintLog(btn.dataset.id);
     if (btn.dataset.act === 'inv-price-history') openPriceHistory(btn.dataset.id);
@@ -1051,6 +1053,7 @@ function wireEvents() {
       renderKanban();
       renderMachineQueues?.();
       renderLogs();
+      renderInventory?.();
       return;
     }
     const locBtn = e.target.closest('[data-act="filter-location"]');
