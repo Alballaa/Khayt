@@ -4,6 +4,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [2.6.0-beta.5] - 2026-06-17
+
+**Pre-release (beta)** — security hardening, on top of 2.6.0-beta.4.
+
+### Security
+
+- **Salted PIN hashing** — operator/admin PINs and recovery codes are now hashed with salted PBKDF2-SHA256 instead of unsalted SHA-256, so a leaked store can't be brute-forced offline as easily. Existing PINs keep working (verified transparently) and upgrade to the salted format when next set.
+
 ## [2.6.0-beta.4] - 2026-06-17
 
 **Pre-release (beta)** — a comprehensive security/correctness audit pass plus two new features, on top of 2.6.0-beta.3.
