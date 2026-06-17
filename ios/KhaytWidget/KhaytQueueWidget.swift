@@ -17,8 +17,8 @@ struct KhaytQueueProvider: TimelineProvider {
             shopName: "Tuwaiq 3D", queued: 8, printing: 2, post: 1, qc: 3,
             completedToday: 5, connected: true, updatedAt: Date(),
             prints: [
-                WidgetPrint(name: "Bambu Lab X1C", progress: 62, eta: "1h 29m"),
-                WidgetPrint(name: "Prusa MK4S", progress: 28, eta: "2h 33m")
+                WidgetPrint(id: "M1", name: "Bambu Lab X1C", progress: 62, eta: "1h 29m"),
+                WidgetPrint(id: "M2", name: "Prusa MK4S", progress: 28, eta: "2h 33m")
             ]
         )
     }
@@ -222,7 +222,7 @@ enum WidgetSnapshotStore {
 }
 
 struct WidgetPrint: Codable, Identifiable {
-    var id: String { name }
+    var id: String
     var name: String
     var progress: Int
     var eta: String?

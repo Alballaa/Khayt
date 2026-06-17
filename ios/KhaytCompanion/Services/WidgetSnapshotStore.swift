@@ -5,7 +5,7 @@ import WidgetKit
 
 /// A single active print for the live widget.
 struct WidgetPrint: Codable, Identifiable {
-    var id: String { name }
+    var id: String          // stable machine id
     var name: String
     var progress: Int       // 0–100
     var eta: String?        // formatted "2h 14m"

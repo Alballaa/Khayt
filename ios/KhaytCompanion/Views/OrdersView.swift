@@ -33,7 +33,6 @@ struct OrdersView: View {
     @State private var selectedOrder: QueueOrder?
     @State private var showIntake = false
     @State private var showNewOrder = false
-    @State private var pendingSelectFirst = false
     @State private var machines: [MachineInfo] = []
     @State private var loadGeneration = 0
 
@@ -83,17 +82,7 @@ struct OrdersView: View {
             }
             .refreshable { await load() }
             .task(id: segment) { await load() }
-            .onAppear {
-                applyExternalFilters()
-                let sheet = UserDefaults.standard.string(forKey: "khayt.pending.sheet")
-                if sheet != nil { UserDefaults.standard.removeObject(forKey: "khayt.pending.sheet") }
-                switch sheet {
-                case "intake": showIntake = true
-                case "neworder": showNewOrder = true
-                case "orderdetail": pendingSelectFirst = true
-                default: break
-                }
-            }
+            .onAppear { applyExternalFilters() }
             .onChange(of: ordersNav.pendingStatusFilter) { _, _ in applyExternalFilters() }
             .onChange(of: ordersNav.ordersTabRequest) { _, _ in applyExternalFilters() }
             .sheet(item: $selectedOrder) { order in
@@ -238,10 +227,6 @@ struct OrdersView: View {
                 let data = try await api.fetchQueue()
                 guard generation == loadGeneration else { return }
                 queue = data
-                if pendingSelectFirst {
-                    pendingSelectFirst = false
-                    selectedOrder = data.first
-                }
             case .recent:
                 let data = try await api.fetchRecentOrders(limit: 40, status: recentStatusFilter)
                 guard generation == loadGeneration else { return }

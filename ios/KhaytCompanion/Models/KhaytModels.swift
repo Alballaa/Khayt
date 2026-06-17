@@ -67,6 +67,7 @@ struct MachineLiveStatus: Codable, Identifiable, Sendable {
     var etaText: String? {
         guard let secs = timeRemaining, secs > 0 else { return nil }
         let mins = Int((Double(secs) / 60).rounded())
+        if mins < 1 { return "<1m" }
         return mins > 60 ? "\(mins / 60)h \(mins % 60)m" : "\(mins)m"
     }
 

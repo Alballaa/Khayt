@@ -265,7 +265,7 @@ struct DashboardView: View {
             let (s, q, inv) = try await (statusTask, queueTask, inventoryTask)
             let livePrints = await liveTask
                 .filter { $0.isPrinting }
-                .map { WidgetPrint(name: $0.displayName, progress: $0.progress ?? 0, eta: $0.etaText) }
+                .map { WidgetPrint(id: $0.id, name: $0.displayName, progress: $0.progress ?? 0, eta: $0.etaText) }
             status = s
             queuePreview = q.filter { $0.status.lowercased() != "completed" }
             lowStockCount = inv.filter(\.isLowStock).count
