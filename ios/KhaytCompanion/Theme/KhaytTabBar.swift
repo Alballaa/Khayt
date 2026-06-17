@@ -41,6 +41,9 @@ struct KhaytTabBar: View {
                 .overlay(alignment: .top) {
                     Rectangle().fill(KhaytDesign.sep).frame(height: 0.5)
                 }
+                // Bleed the bar background into the home-indicator area so no
+                // screen background shows through below the tab bar.
+                .ignoresSafeArea(edges: .bottom)
         }
     }
 }
