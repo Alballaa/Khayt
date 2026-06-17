@@ -211,8 +211,7 @@ body.khayt-ledger .khayt-navitem.on::after {
   content: "";
   display: block;
   position: absolute;
-  left: 8px;
-  right: 8px;
+  inset-inline: 8px;
   bottom: -1px;
   height: 3px;
   background: var(--accent);
