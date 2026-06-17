@@ -1,6 +1,15 @@
 // Preload — bridges a tiny, safe API to the renderer.
 const { contextBridge, ipcRenderer } = require('electron');
 
+// Tag the document with the host platform so themes can adapt their chrome —
+// e.g. only macOS (hiddenInset, traffic lights at 16,16) needs a drag strip;
+// Windows/Linux have a native frame and shouldn't reserve that space.
+try {
+  const tag = () => { document.documentElement?.classList.add('platform-' + process.platform); };
+  if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', tag, { once: true });
+  else tag();
+} catch { /* non-DOM context; ignore */ }
+
 contextBridge.exposeInMainWorld('hubAPI', {
   // QR + meta
   generateQR: (text, options) => ipcRenderer.invoke('hub:generate-qr', text, options),
