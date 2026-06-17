@@ -8,6 +8,17 @@
 body.khayt-vivid .khayt-titlebar {
   display: none;
 }
+/* macOS: window is frameless (hiddenInset) with traffic lights at (16,16).
+   Restore a slim drag strip so the buttons have a home and the window stays
+   draggable. Stays hidden on Windows/Linux (native frame). */
+html.platform-darwin body.khayt-vivid .khayt-titlebar {
+  display: block;
+  height: 30px;
+  flex-shrink: 0;
+  -webkit-app-region: drag;
+  background: var(--bg);
+  border-bottom: 0;
+}
 
 body.khayt-vivid .khayt-app {
   height: 100vh;

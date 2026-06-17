@@ -1,8 +1,25 @@
 // Preload — bridges a tiny, safe API to the renderer.
 const { contextBridge, ipcRenderer } = require('electron');
 
+// Tag the document with the host platform so themes can adapt their chrome
+// (e.g. reserve room for the macOS traffic-light buttons under hiddenInset).
+// The DOM is shared across worlds, so setting the class here is safe and runs
+// before the renderer paints. Mirrors `process.platform` ("darwin"/"win32"/…).
+try {
+  const tag = () => {
+    const root = document.documentElement;
+    if (root) root.classList.add('platform-' + process.platform);
+  };
+  if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', tag, { once: true });
+  } else {
+    tag();
+  }
+} catch { /* non-DOM context; ignore */ }
+
 contextBridge.exposeInMainWorld('hubAPI', {
   // QR + meta
+  platform: process.platform,
   generateQR: (text, options) => ipcRenderer.invoke('hub:generate-qr', text, options),
   appVersion: () => ipcRenderer.invoke('hub:app-version'),
 
