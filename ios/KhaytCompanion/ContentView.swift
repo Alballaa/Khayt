@@ -21,7 +21,6 @@ struct ContentView: View {
                 PairingView()
             }
         }
-        .preferredColorScheme(.dark)
         .onAppear { applyPendingTab() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { applyPendingTab() }

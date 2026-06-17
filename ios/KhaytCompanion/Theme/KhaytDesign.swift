@@ -1,49 +1,51 @@
 import SwiftUI
 
-/// Design tokens from `design/iOS UI/khayt-design.jsx` (DARK_TOKENS).
+/// Design tokens — native-first (adapts to light/dark via system colors) with the
+/// Khayt indigo brand accent. Surfaces use the iOS grouped-background hierarchy so
+/// cards/sections feel at home; labels use the system label hierarchy.
 enum KhaytDesign {
-    // Backgrounds
-    static let bg = Color(hex: 0x0C0C0F)
-    static let bg2 = Color(hex: 0x141418)
-    static let surface = Color(hex: 0x1C1C26)
-    static let surface2 = Color(hex: 0x25252F)
-    static let surface3 = Color(hex: 0x2E2E3B)
+    // Backgrounds (grouped hierarchy: screen → card → nested)
+    static let bg = Color(uiColor: .systemGroupedBackground)
+    static let bg2 = Color(uiColor: .systemBackground)
+    static let surface = Color(uiColor: .secondarySystemGroupedBackground)
+    static let surface2 = Color(uiColor: .tertiarySystemGroupedBackground)
+    static let surface3 = Color(uiColor: .tertiarySystemGroupedBackground)
 
-    // Labels
-    static let text = Color(hex: 0xFFFFFF)
-    static let textDim = Color.white.opacity(0.60)
-    static let textMuted = Color.white.opacity(0.32)
-    static let textFaint = Color.white.opacity(0.16)
+    // Labels (system hierarchy → automatic light/dark + accessibility contrast)
+    static let text = Color(uiColor: .label)
+    static let textDim = Color(uiColor: .secondaryLabel)
+    static let textMuted = Color(uiColor: .tertiaryLabel)
+    static let textFaint = Color(uiColor: .quaternaryLabel)
 
-    // Brand / accent (mockup default #8183FF)
-    static let brand = Color(hex: 0x8183FF)
+    // Brand / accent — Khayt indigo (desktop Workbench #4F5BF2), lifted in dark.
+    static let brand = Color(light: 0x4F5BF2, dark: 0x8183FF)
     static let accent = brand
-    static let accentSoft = brand.opacity(0.16)
+    static let accentSoft = brand.opacity(0.14)
     static let brandDim = accentSoft
-    static let accentText = Color(hex: 0xA5A8FF)
-    static let accentLine = brand.opacity(0.45)
+    static let accentText = brand
+    static let accentLine = brand.opacity(0.40)
 
-    // Semantic
-    static let ok = Color(hex: 0x32D74B)
+    // Semantic — system colors so they read in both modes.
+    static let ok = Color(uiColor: .systemGreen)
     static let okSoft = ok.opacity(0.16)
-    static let warn = Color(hex: 0xFFD60A)
+    static let warn = Color(uiColor: .systemOrange)
     static let warnSoft = warn.opacity(0.16)
-    static let danger = Color(hex: 0xFF453A)
+    static let danger = Color(uiColor: .systemRed)
     static let dangerSoft = danger.opacity(0.16)
-    static let orange = Color(hex: 0xFF9F0A)
+    static let orange = Color(uiColor: .systemOrange)
     static let orangeSoft = orange.opacity(0.16)
-    static let info = Color(hex: 0x8E8E93)
+    static let info = Color(uiColor: .systemGray)
     static let infoSoft = info.opacity(0.16)
-    static let violet = Color(hex: 0xBF5AF2)
+    static let violet = Color(uiColor: .systemPurple)
     static let violetSoft = violet.opacity(0.16)
 
-    static let border = Color.white.opacity(0.08)
-    static let hairline = Color.white.opacity(0.08)
-    static let sep = border
+    static let border = Color(uiColor: .separator)
+    static let hairline = Color(uiColor: .separator)
+    static let sep = Color(uiColor: .separator)
 
-    static let tabBg = Color(hex: 0x0A0A0E).opacity(0.94)
-    static let navBg = Color(hex: 0x0C0C10).opacity(0.92)
-    static let sheetBg = Color(hex: 0x1E1E28)
+    static let tabBg = Color(uiColor: .systemBackground)
+    static let navBg = Color(uiColor: .systemBackground)
+    static let sheetBg = Color(uiColor: .secondarySystemGroupedBackground)
 
     static let radiusSM: CGFloat = 10
     static let radiusMD: CGFloat = 12
@@ -79,6 +81,19 @@ extension Color {
             green: Double((hex >> 8) & 0xFF) / 255,
             blue: Double(hex & 0xFF) / 255
         )
+    }
+
+    /// Dynamic color that resolves differently in light vs dark mode.
+    init(light: UInt32, dark: UInt32) {
+        self.init(uiColor: UIColor { traits in
+            let v = traits.userInterfaceStyle == .dark ? dark : light
+            return UIColor(
+                red: CGFloat((v >> 16) & 0xFF) / 255,
+                green: CGFloat((v >> 8) & 0xFF) / 255,
+                blue: CGFloat(v & 0xFF) / 255,
+                alpha: 1
+            )
+        })
     }
 }
 

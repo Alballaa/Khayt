@@ -3,101 +3,33 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 56;
+	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		B10000000000000000000001 /* KhaytCompanionApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000001 /* KhaytCompanionApp.swift */; };
-		B10000000000000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000002 /* ContentView.swift */; };
-		B10000000000000000000003 /* KhaytModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000003 /* KhaytModels.swift */; };
-		B10000000000000000000004 /* ConnectionSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000004 /* ConnectionSettings.swift */; };
-		B10000000000000000000005 /* KhaytAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000005 /* KhaytAPIClient.swift */; };
-		B10000000000000000000006 /* NFCParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000006 /* NFCParser.swift */; };
-		B10000000000000000000007 /* NFCReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000007 /* NFCReader.swift */; };
-		B10000000000000000000034 /* NFCEncoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000034 /* NFCEncoder.swift */; };
-		B10000000000000000000035 /* WriteNFCTagSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000035 /* WriteNFCTagSheet.swift */; };
-		B10000000000000000000008 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000008 /* DashboardView.swift */; };
-		B10000000000000000000009 /* QueueView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000009 /* QueueView.swift */; };
-		B1000000000000000000000A /* InventoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000A /* InventoryView.swift */; };
-		B1000000000000000000000C /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000C /* SettingsView.swift */; };
-		B1000000000000000000000D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000000D /* Assets.xcassets */; };
-		B10000000000000000000010 /* ConnectionHealth.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000010 /* ConnectionHealth.swift */; };
-		B10000000000000000000011 /* PairingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000011 /* PairingView.swift */; };
-		B10000000000000000000012 /* MachinesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000012 /* MachinesView.swift */; };
-		B10000000000000000000013 /* ConnectionBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000013 /* ConnectionBadge.swift */; };
-		B10000000000000000000014 /* FilamentLabelParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000014 /* FilamentLabelParser.swift */; };
-		B10000000000000000000015 /* BarcodeScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000015 /* BarcodeScannerView.swift */; };
-		B10000000000000000000017 /* SpoolDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000017 /* SpoolDraft.swift */; };
-		B10000000000000000000018 /* AddSpoolSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000018 /* AddSpoolSheet.swift */; };
-		B10000000000000000000019 /* LabelTextAccumulator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000019 /* LabelTextAccumulator.swift */; };
-		B1000000000000000000001A /* LabelPhotoOCR.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000001A /* LabelPhotoOCR.swift */; };
-		B1000000000000000000001B /* LabelCameraPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000001B /* LabelCameraPicker.swift */; };
-		B1000000000000000000001C /* CompanionTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000001C /* CompanionTheme.swift */; };
-		B1000000000000000000001D /* OrdersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000001D /* OrdersView.swift */; };
-		B1000000000000000000001E /* OrderDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000001E /* OrderDetailSheet.swift */; };
-		B1000000000000000000001F /* SpoolDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000000000000000000001F /* SpoolDetailSheet.swift */; };
-		B10000000000000000000020 /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000020 /* L10n.swift */; };
-		B10000000000000000000021 /* CompanionNotifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000021 /* CompanionNotifications.swift */; };
-		B10000000000000000000022 /* OrdersNavigationState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000022 /* OrdersNavigationState.swift */; };
-		B10000000000000000000023 /* CompanionShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000023 /* CompanionShortcuts.swift */; };
-		B10000000000000000000024 /* OrderHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000024 /* OrderHelpers.swift */; };
-		B10000000000000000000025 /* ConnectionBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000025 /* ConnectionBanner.swift */; };
-		B10000000000000000000026 /* KanbanStripView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000026 /* KanbanStripView.swift */; };
-		B10000000000000000000027 /* en in Resources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000027 /* en */; };
-		B10000000000000000000028 /* ar in Resources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000028 /* ar */; };
-		B10000000000000000000030 /* KhaytDesign.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000030 /* KhaytDesign.swift */; };
-		B10000000000000000000031 /* KhaytTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000031 /* KhaytTabBar.swift */; };
-		B10000000000000000000032 /* KhaytListStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000032 /* KhaytListStyle.swift */; };
-		B10000000000000000000033 /* WidgetSnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000033 /* WidgetSnapshotStore.swift */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXFileReference section */
-		F10000000000000000000001 /* KhaytCompanionApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KhaytCompanionApp.swift; sourceTree = "<group>"; };
-		F10000000000000000000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		F10000000000000000000003 /* KhaytModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KhaytModels.swift; sourceTree = "<group>"; };
-		F10000000000000000000004 /* ConnectionSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionSettings.swift; sourceTree = "<group>"; };
-		F10000000000000000000005 /* KhaytAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KhaytAPIClient.swift; sourceTree = "<group>"; };
-		F10000000000000000000006 /* NFCParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NFCParser.swift; sourceTree = "<group>"; };
-		F10000000000000000000007 /* NFCReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NFCReader.swift; sourceTree = "<group>"; };
-		F10000000000000000000034 /* NFCEncoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NFCEncoder.swift; sourceTree = "<group>"; };
-		F10000000000000000000035 /* WriteNFCTagSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WriteNFCTagSheet.swift; sourceTree = "<group>"; };
-		F10000000000000000000008 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
-		F10000000000000000000009 /* QueueView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueView.swift; sourceTree = "<group>"; };
-		F1000000000000000000000A /* InventoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InventoryView.swift; sourceTree = "<group>"; };
-		F1000000000000000000000C /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		F1000000000000000000000D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		F1000000000000000000000E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		F1000000000000000000000F /* KhaytCompanion.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = KhaytCompanion.entitlements; sourceTree = "<group>"; };
 		P10000000000000000000001 /* KhaytCompanion.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KhaytCompanion.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		F10000000000000000000010 /* ConnectionHealth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionHealth.swift; sourceTree = "<group>"; };
-		F10000000000000000000011 /* PairingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingView.swift; sourceTree = "<group>"; };
-		F10000000000000000000012 /* MachinesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MachinesView.swift; sourceTree = "<group>"; };
-		F10000000000000000000013 /* ConnectionBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionBadge.swift; sourceTree = "<group>"; };
-		F10000000000000000000014 /* FilamentLabelParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilamentLabelParser.swift; sourceTree = "<group>"; };
-		F10000000000000000000015 /* BarcodeScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarcodeScannerView.swift; sourceTree = "<group>"; };
-		F10000000000000000000017 /* SpoolDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpoolDraft.swift; sourceTree = "<group>"; };
-		F10000000000000000000018 /* AddSpoolSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddSpoolSheet.swift; sourceTree = "<group>"; };
-		F10000000000000000000019 /* LabelTextAccumulator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabelTextAccumulator.swift; sourceTree = "<group>"; };
-		F1000000000000000000001A /* LabelPhotoOCR.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabelPhotoOCR.swift; sourceTree = "<group>"; };
-		F1000000000000000000001B /* LabelCameraPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabelCameraPicker.swift; sourceTree = "<group>"; };
-		F1000000000000000000001C /* CompanionTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionTheme.swift; sourceTree = "<group>"; };
-		F1000000000000000000001D /* OrdersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrdersView.swift; sourceTree = "<group>"; };
-		F1000000000000000000001E /* OrderDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrderDetailSheet.swift; sourceTree = "<group>"; };
-		F1000000000000000000001F /* SpoolDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpoolDetailSheet.swift; sourceTree = "<group>"; };
-		F10000000000000000000020 /* L10n.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = L10n.swift; sourceTree = "<group>"; };
-		F10000000000000000000021 /* CompanionNotifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionNotifications.swift; sourceTree = "<group>"; };
-		F10000000000000000000022 /* OrdersNavigationState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrdersNavigationState.swift; sourceTree = "<group>"; };
-		F10000000000000000000023 /* CompanionShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionShortcuts.swift; sourceTree = "<group>"; };
-		F10000000000000000000024 /* OrderHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrderHelpers.swift; sourceTree = "<group>"; };
-		F10000000000000000000025 /* ConnectionBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionBanner.swift; sourceTree = "<group>"; };
-		F10000000000000000000026 /* KanbanStripView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KanbanStripView.swift; sourceTree = "<group>"; };
-		F10000000000000000000027 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
-		F10000000000000000000028 /* ar */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ar; path = ar.lproj/Localizable.strings; sourceTree = "<group>"; };
-		F10000000000000000000030 /* KhaytDesign.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KhaytDesign.swift; sourceTree = "<group>"; };
-		F10000000000000000000031 /* KhaytTabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KhaytTabBar.swift; sourceTree = "<group>"; };
-		F10000000000000000000032 /* KhaytListStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KhaytListStyle.swift; sourceTree = "<group>"; };
-		F10000000000000000000033 /* WidgetSnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetSnapshotStore.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		EX1000000000000000000001 /* Exceptions for "KhaytCompanion" folder in "KhaytCompanion" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Resources/Info.plist,
+			);
+			target = T10000000000000000000001 /* KhaytCompanion */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		SR1000000000000000000001 /* KhaytCompanion */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				EX1000000000000000000001 /* Exceptions for "KhaytCompanion" folder in "KhaytCompanion" target */,
+			);
+			path = KhaytCompanion;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		FP1000000000000000000001 /* Frameworks */ = {
@@ -113,25 +45,9 @@
 		G10000000000000000000001 = {
 			isa = PBXGroup;
 			children = (
-				G10000000000000000000002 /* KhaytCompanion */,
+				SR1000000000000000000001 /* KhaytCompanion */,
 				G10000000000000000000003 /* Products */,
 			);
-			sourceTree = "<group>";
-		};
-		G10000000000000000000002 /* KhaytCompanion */ = {
-			isa = PBXGroup;
-			children = (
-				F10000000000000000000001 /* KhaytCompanionApp.swift */,
-				F10000000000000000000002 /* ContentView.swift */,
-				G10000000000000000000009 /* Theme */,
-				G10000000000000000000004 /* Models */,
-				G10000000000000000000005 /* Services */,
-				G10000000000000000000006 /* NFC */,
-				G10000000000000000000007 /* Views */,
-				G10000000000000000000008 /* Resources */,
-				F1000000000000000000000F /* KhaytCompanion.entitlements */,
-			);
-			path = KhaytCompanion;
 			sourceTree = "<group>";
 		};
 		G10000000000000000000003 /* Products */ = {
@@ -140,89 +56,6 @@
 				P10000000000000000000001 /* KhaytCompanion.app */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		G10000000000000000000004 /* Models */ = {
-			isa = PBXGroup;
-			children = (
-				F10000000000000000000003 /* KhaytModels.swift */,
-				F10000000000000000000017 /* SpoolDraft.swift */,
-				F10000000000000000000024 /* OrderHelpers.swift */,
-			);
-			path = Models;
-			sourceTree = "<group>";
-		};
-		G10000000000000000000005 /* Services */ = {
-			isa = PBXGroup;
-			children = (
-				F10000000000000000000004 /* ConnectionSettings.swift */,
-				F10000000000000000000005 /* KhaytAPIClient.swift */,
-				F10000000000000000000010 /* ConnectionHealth.swift */,
-				F10000000000000000000014 /* FilamentLabelParser.swift */,
-				F10000000000000000000019 /* LabelTextAccumulator.swift */,
-				F1000000000000000000001A /* LabelPhotoOCR.swift */,
-				F10000000000000000000020 /* L10n.swift */,
-				F10000000000000000000021 /* CompanionNotifications.swift */,
-				F10000000000000000000022 /* OrdersNavigationState.swift */,
-				F10000000000000000000023 /* CompanionShortcuts.swift */,
-				F10000000000000000000033 /* WidgetSnapshotStore.swift */,
-			);
-			path = Services;
-			sourceTree = "<group>";
-		};
-		G10000000000000000000006 /* NFC */ = {
-			isa = PBXGroup;
-			children = (
-				F10000000000000000000006 /* NFCParser.swift */,
-				F10000000000000000000007 /* NFCReader.swift */,
-				F10000000000000000000034 /* NFCEncoder.swift */,
-			);
-			path = NFC;
-			sourceTree = "<group>";
-		};
-		G10000000000000000000007 /* Views */ = {
-			isa = PBXGroup;
-			children = (
-				F10000000000000000000008 /* DashboardView.swift */,
-				F10000000000000000000009 /* QueueView.swift */,
-				F1000000000000000000000A /* InventoryView.swift */,
-				F1000000000000000000000C /* SettingsView.swift */,
-				F10000000000000000000011 /* PairingView.swift */,
-				F10000000000000000000012 /* MachinesView.swift */,
-				F10000000000000000000013 /* ConnectionBadge.swift */,
-				F10000000000000000000015 /* BarcodeScannerView.swift */,
-				F10000000000000000000018 /* AddSpoolSheet.swift */,
-				F1000000000000000000001B /* LabelCameraPicker.swift */,
-				F1000000000000000000001D /* OrdersView.swift */,
-				F1000000000000000000001E /* OrderDetailSheet.swift */,
-				F1000000000000000000001F /* SpoolDetailSheet.swift */,
-				F10000000000000000000035 /* WriteNFCTagSheet.swift */,
-				F10000000000000000000025 /* ConnectionBanner.swift */,
-				F10000000000000000000026 /* KanbanStripView.swift */,
-				F10000000000000000000032 /* KhaytListStyle.swift */,
-			);
-			path = Views;
-			sourceTree = "<group>";
-		};
-		G10000000000000000000008 /* Resources */ = {
-			isa = PBXGroup;
-			children = (
-				F1000000000000000000000D /* Assets.xcassets */,
-				F10000000000000000000027 /* en */,
-				F10000000000000000000028 /* ar */,
-				F1000000000000000000000E /* Info.plist */,
-			);
-			path = Resources;
-			sourceTree = "<group>";
-		};
-		G10000000000000000000009 /* Theme */ = {
-			isa = PBXGroup;
-			children = (
-				F1000000000000000000001C /* CompanionTheme.swift */,
-				F10000000000000000000030 /* KhaytDesign.swift */,
-				F10000000000000000000031 /* KhaytTabBar.swift */,
-			);
-			path = Theme;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -239,6 +72,9 @@
 			buildRules = (
 			);
 			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				SR1000000000000000000001 /* KhaytCompanion */,
 			);
 			name = KhaytCompanion;
 			productName = KhaytCompanion;
@@ -261,7 +97,7 @@
 				};
 			};
 			buildConfigurationList = C10000000000000000000001 /* Build configuration list for PBXProject "KhaytCompanion" */;
-			compatibilityVersion = "Xcode 14.0";
+			compatibilityVersion = "Xcode 16.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -284,9 +120,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B1000000000000000000000D /* Assets.xcassets in Resources */,
-				B10000000000000000000027 /* en in Resources */,
-				B10000000000000000000028 /* ar in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -297,45 +130,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B10000000000000000000001 /* KhaytCompanionApp.swift in Sources */,
-				B10000000000000000000002 /* ContentView.swift in Sources */,
-				B10000000000000000000003 /* KhaytModels.swift in Sources */,
-				B10000000000000000000017 /* SpoolDraft.swift in Sources */,
-				B10000000000000000000024 /* OrderHelpers.swift in Sources */,
-				B10000000000000000000004 /* ConnectionSettings.swift in Sources */,
-				B10000000000000000000005 /* KhaytAPIClient.swift in Sources */,
-				B10000000000000000000010 /* ConnectionHealth.swift in Sources */,
-				B10000000000000000000014 /* FilamentLabelParser.swift in Sources */,
-				B10000000000000000000019 /* LabelTextAccumulator.swift in Sources */,
-				B1000000000000000000001A /* LabelPhotoOCR.swift in Sources */,
-				B10000000000000000000020 /* L10n.swift in Sources */,
-				B10000000000000000000021 /* CompanionNotifications.swift in Sources */,
-				B10000000000000000000022 /* OrdersNavigationState.swift in Sources */,
-				B10000000000000000000023 /* CompanionShortcuts.swift in Sources */,
-				B10000000000000000000033 /* WidgetSnapshotStore.swift in Sources */,
-				B10000000000000000000006 /* NFCParser.swift in Sources */,
-				B10000000000000000000007 /* NFCReader.swift in Sources */,
-				B10000000000000000000034 /* NFCEncoder.swift in Sources */,
-				B10000000000000000000035 /* WriteNFCTagSheet.swift in Sources */,
-				B1000000000000000000001C /* CompanionTheme.swift in Sources */,
-				B10000000000000000000030 /* KhaytDesign.swift in Sources */,
-				B10000000000000000000031 /* KhaytTabBar.swift in Sources */,
-				B10000000000000000000008 /* DashboardView.swift in Sources */,
-				B10000000000000000000009 /* QueueView.swift in Sources */,
-				B1000000000000000000000A /* InventoryView.swift in Sources */,
-				B1000000000000000000000C /* SettingsView.swift in Sources */,
-				B10000000000000000000011 /* PairingView.swift in Sources */,
-				B10000000000000000000012 /* MachinesView.swift in Sources */,
-				B10000000000000000000013 /* ConnectionBadge.swift in Sources */,
-				B10000000000000000000015 /* BarcodeScannerView.swift in Sources */,
-				B10000000000000000000018 /* AddSpoolSheet.swift in Sources */,
-				B1000000000000000000001B /* LabelCameraPicker.swift in Sources */,
-				B1000000000000000000001D /* OrdersView.swift in Sources */,
-				B1000000000000000000001E /* OrderDetailSheet.swift in Sources */,
-				B1000000000000000000001F /* SpoolDetailSheet.swift in Sources */,
-				B10000000000000000000025 /* ConnectionBanner.swift in Sources */,
-				B10000000000000000000026 /* KanbanStripView.swift in Sources */,
-				B10000000000000000000032 /* KhaytListStyle.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
