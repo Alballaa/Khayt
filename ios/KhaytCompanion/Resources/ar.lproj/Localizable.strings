@@ -47,6 +47,8 @@
 "orders.due" = "الاستحقاق %@";
 "orders.detail.set_status" = "تعيين الحالة";
 "orders.detail.advance" = "المرحلة التالية";
+"orders.detail.assign_machine" = "إسناد طابعة";
+"orders.detail.no_machines" = "لا توجد طابعات متاحة";
 
 /* Inventory */
 "inventory.search" = "مادة، SKU، دفعة…";

@@ -51,6 +51,20 @@ final class KhaytAPIClient: ObservableObject {
         )
     }
 
+    /// Assign an order to a printer/machine (desktop PATCH /api/orders/:id accepts machineId).
+    func assignMachine(orderId: String, machineId: String, machineName: String?) async throws {
+        let encodedId = try encodeOrderIdForPath(orderId)
+        var payload: [String: String] = ["machineId": machineId]
+        if let machineName, !machineName.isEmpty { payload["machine"] = machineName }
+        let body = try JSONEncoder().encode(payload)
+        _ = try await request(
+            path: "/api/orders/\(encodedId)",
+            method: "PATCH",
+            body: body,
+            requiresPin: true
+        )
+    }
+
     func addSpool(from tag: NFCFilamentTag) async throws -> InventorySpool {
         try await addSpool(draft: SpoolDraft.from(tag: tag))
     }

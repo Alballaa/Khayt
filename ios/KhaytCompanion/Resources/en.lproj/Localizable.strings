@@ -47,6 +47,8 @@
 "orders.due" = "Due %@";
 "orders.detail.set_status" = "Set status";
 "orders.detail.advance" = "Advance to next stage";
+"orders.detail.assign_machine" = "Assign machine";
+"orders.detail.no_machines" = "No printers available";
 
 /* Inventory */
 "inventory.search" = "Material, SKU, batch…";

@@ -5,7 +5,12 @@ struct OrderDetailSheet: View {
     let isUpdating: Bool
     let onAdvance: () -> Void
     let onSetStatus: (String) -> Void
+    var onAssigned: () -> Void = {}
+    @EnvironmentObject private var api: KhaytAPIClient
     @Environment(\.dismiss) private var dismiss
+    @State private var machines: [MachineInfo] = []
+    @State private var assigning = false
+    @State private var assignError: String?
 
     var body: some View {
         NavigationStack {
@@ -46,6 +51,37 @@ struct OrderDetailSheet: View {
                     }
                 }
 
+                Section(L10n.tr("orders.detail.assign_machine")) {
+                    if machines.isEmpty {
+                        Text(L10n.tr("orders.detail.no_machines"))
+                            .font(.caption)
+                            .foregroundStyle(KhaytDesign.textMuted)
+                    } else {
+                        ForEach(machines) { m in
+                            Button {
+                                Task { await assign(m) }
+                            } label: {
+                                HStack {
+                                    Image(systemName: "printer")
+                                        .foregroundStyle(KhaytDesign.textMuted)
+                                    Text(m.name ?? m.id)
+                                    Spacer()
+                                    if order.machine == m.name {
+                                        Image(systemName: "checkmark").foregroundStyle(KhaytDesign.brand)
+                                    }
+                                }
+                            }
+                            .disabled(assigning || isUpdating)
+                        }
+                    }
+                    if assigning {
+                        HStack { Spacer(); ProgressView(); Spacer() }
+                    }
+                    if let assignError {
+                        Text(assignError).font(.caption).foregroundStyle(.red)
+                    }
+                }
+
                 Section(L10n.tr("orders.detail.set_status")) {
                     ForEach(OrderStatus.allCases.filter { $0 != .completed }, id: \.self) { st in
                         Button {
@@ -66,11 +102,25 @@ struct OrderDetailSheet: View {
             }
             .navigationTitle("Order")
             .navigationBarTitleDisplayMode(.inline)
+            .task { machines = (try? await api.fetchMachines()) ?? [] }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
                 }
             }
+        }
+    }
+
+    private func assign(_ machine: MachineInfo) async {
+        assigning = true
+        assignError = nil
+        defer { assigning = false }
+        do {
+            try await api.assignMachine(orderId: order.id, machineId: machine.id, machineName: machine.name)
+            onAssigned()
+            dismiss()
+        } catch {
+            assignError = error.localizedDescription
         }
     }
 }

@@ -71,7 +71,8 @@ struct OrdersView: View {
                     order: order,
                     isUpdating: updatingId == order.id,
                     onAdvance: { Task { await advance(order) } },
-                    onSetStatus: { status in Task { await setStatus(order, status: status) } }
+                    onSetStatus: { status in Task { await setStatus(order, status: status) } },
+                    onAssigned: { Task { await load() } }
                 )
             }
         }
