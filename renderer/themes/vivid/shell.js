@@ -179,49 +179,17 @@
 
   /* ---------- Toolbar (per-screen segment in the shared top bar) ---------- */
 
-  // [i18n key, English fallback] segment options per tab. Visual only — these
-  // are decorative filters in the prototype; left non-wired for now.
-  const SEGMENTS = {
-    'queue-tab': [['vivid.seg.board', 'Board'], ['vivid.seg.by_machine', 'By machine'], ['vivid.seg.calendar', 'Calendar']],
-    'logs-tab': [['vivid.seg.all', 'All'], ['vivid.seg.unpaid', 'Unpaid'], ['vivid.seg.paid', 'Paid']],
-    'analytics-tab': [['vivid.seg.revenue', 'Revenue'], ['vivid.seg.production', 'Production'], ['vivid.seg.materials', 'Materials']],
-    'inventory-tab': [['vivid.seg.filament', 'Filament'], ['vivid.seg.resin', 'Resin'], ['vivid.seg.reorder', 'Reorder']],
-  };
-
-  function ensureToolbar() {
-    const top = document.querySelector('.khayt-top');
-    if (!top) return null;
-    let bar = top.querySelector('.vv-toolbar');
-    if (!bar) {
-      bar = document.createElement('div');
-      bar.className = 'vv-toolbar';
-      const titleWrap = top.querySelector('.khayt-toptitle');
-      if (titleWrap && titleWrap.nextSibling) top.insertBefore(bar, titleWrap.nextSibling);
-      else if (titleWrap) titleWrap.after(bar);
-      else top.appendChild(bar);
-    }
-    return bar;
-  }
+  // The per-screen segment pills (Board/By machine/Calendar, All/Unpaid/Paid, …)
+  // were purely decorative — rendered aria-hidden/tabindex=-1 and only toggled a
+  // class, so they did nothing but mislead users. Removed for accessibility;
+  // re-add here wired to real view-switches if/when those land.
 
   function removeToolbar() {
     document.querySelector('.khayt-top .vv-toolbar')?.remove();
   }
 
-  function syncToolbar(tabId) {
-    const bar = ensureToolbar();
-    if (!bar) return;
-    const active = tabId || document.querySelector('.tab-content.active')?.id || 'dashboard-tab';
-    const seg = SEGMENTS[active];
-    if (!seg) { bar.innerHTML = ''; return; }
-    bar.innerHTML = `<div class="vv-seg" role="group" aria-hidden="true">${
-      seg.map((s, i) => `<button type="button" tabindex="-1" class="${i === 0 ? 'on' : ''}">${escapeHtml(tr(s[0], s[1]))}</button>`).join('')
-    }</div>`;
-    bar.querySelectorAll('.vv-seg button').forEach((b) => {
-      b.addEventListener('click', () => {
-        bar.querySelectorAll('.vv-seg button').forEach((x) => x.classList.remove('on'));
-        b.classList.add('on');
-      });
-    });
+  function syncToolbar() {
+    removeToolbar();
   }
 
   /* ---------- Bottom status bar (live counts) ---------- */
@@ -302,9 +270,8 @@
     applyHue(active);
     buildGroups();
     applyTiles();
-    ensureToolbar();
+    removeToolbar();
     ensureStatusBar();
-    syncToolbar(active);
     syncStatusBar();
   }
 

@@ -4,7 +4,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
 const { safeJsonParse } = require('./lib/safe-json');
-const { isBlockedHost, isAllowedPrinterHost, sanitizeMailgunDomain } = require('./lib/host-guard');
+const { isBlockedHost, isAllowedPrinterHost, sanitizeMailgunDomain, resolvesToBlockedHost } = require('./lib/host-guard');
 const { sendCustomSmtp } = require('./lib/custom-smtp');
 const { normalizeStoreSnapshot } = require('./lib/store-validate');
 const { createStoreIo } = require('./lib/store-io');
@@ -264,18 +264,16 @@ ipcMain.handle('hub:export-pdf', async (event, { savePath, askWhere = false, def
     printBackground: true,
     margins: { top: 0, right: 0, bottom: 0, left: 0 } // CSS @page handles margins
   });
-  let finalPath = savePath;
-  if (finalPath) {
-    const allowed = [
-      app.getPath('userData'),
-      app.getPath('documents'),
-      app.getPath('downloads'),
-      app.getPath('desktop'),
-    ];
-    const resolvedFinal = path.resolve(finalPath);
-    if (!allowed.some(d => resolvedFinal.startsWith(path.resolve(d) + path.sep) || resolvedFinal === path.resolve(d))) {
-      finalPath = null; // reject the path, fall through to dialog or invoicesDir
-    }
+  let finalPath = null;
+  if (savePath) {
+    // Silent (no-dialog) writes are confined to the app's own invoices dir under
+    // userData. A renderer-supplied savePath can therefore only ever land inside
+    // userData/invoices (with a sanitized basename) — it can never overwrite an
+    // arbitrary file under Documents/Downloads/Desktop. To save elsewhere the
+    // caller must request the save dialog (askWhere: true) below.
+    const invDir = path.resolve(invoicesDir());
+    const safeName = path.basename(String(savePath)).replace(/[^a-zA-Z0-9._-]/g, '_') || 'invoice.pdf';
+    finalPath = path.join(invDir, safeName);
   }
   if (askWhere) {
     const win = BrowserWindow.fromWebContents(wc);
@@ -448,7 +446,12 @@ ipcMain.handle('hub:open-file', async (_e, filePath) => {
 // --- Save HTML to temp and open (Feature 7) ---
 ipcMain.handle('hub:save-html', async (_e, html, filename, opts = {}) => {
   const tmpDir = app.getPath('temp');
-  const safeName = (String(filename || 'status.html')).replace(/[^a-zA-Z0-9._-]/g, '_');
+  // Force a .html extension. The file is written then shell.openPath'd, so a
+  // renderer-supplied name like "x.hta" / "x.url" / "x.command" would otherwise
+  // be launched by a native OS handler (e.g. mshta) → host code execution.
+  // Stripping the extension and appending .html makes it open in the browser.
+  const baseName = String(filename || 'status').replace(/[^a-zA-Z0-9._-]/g, '_').replace(/\.[^.]*$/, '');
+  const safeName = (baseName || 'status') + '.html';
   const fullPath = path.join(tmpDir, safeName);
   const content = opts?.interactive
     ? String(html || '').replace(/\bhref\s*=\s*["']?\s*javascript:/gi, 'href="blocked:')
@@ -517,13 +520,18 @@ ipcMain.handle('hub:load-store', async (event) => {
     const data = safeJsonParse(raw);
     syncLanServerStoreFromDisk();
     const { normalized, warnings, errors } = normalizeStoreSnapshot(data);
-    if (errors.length) {
-      console.error('hub:load-store: invalid store shape:', errors.join('; '));
+    // Salvage: normalizeStoreSnapshot returns null only for fatal input. For
+    // recoverable issues it returns a normalized store that keeps every valid
+    // collection — load that rather than discarding everything (which previously
+    // risked the next save overwriting good data with empty state).
+    if (!normalized) {
+      console.error('hub:load-store: unrecoverable store shape:', errors.join('; '));
       return { __corrupt: true, error: errors[0] || 'Invalid store' };
     }
+    if (errors.length) console.warn('hub:load-store: recovered with issues:', errors.join('; '));
     if (warnings.length) console.warn('hub:load-store:', warnings.join('; '));
     // Mask secrets — renderer must not receive plaintext credentials
-    return maskStoreSecretsForRenderer(normalized || data);
+    return maskStoreSecretsForRenderer(normalized);
   } catch (e) {
     console.error('hub:load-store error:', e);
     return { __corrupt: true, error: String(e.message || e) };
@@ -535,11 +543,12 @@ ipcMain.handle('hub:save-store', async (event, data) => {
   const tmp = fp + '.tmp';
   try {
     const { normalized, errors } = normalizeStoreSnapshot(data);
-    if (errors.length) {
-      console.error('hub:save-store: invalid store shape:', errors.join('; '));
+    if (!normalized) {
+      console.error('hub:save-store: unrecoverable store shape:', errors.join('; '));
       return { ok: false, error: errors[0] || 'Invalid store' };
     }
-    const merged = mergeStoreSecretsFromDisk(normalized || data);
+    if (errors.length) console.warn('hub:save-store: salvaged with issues:', errors.join('; '));
+    const merged = mergeStoreSecretsFromDisk(normalized);
     const serialized = JSON.stringify(encryptForDisk(merged));
     // Write-side guard: mirror the 50 MB read-side limit from hub:load-store.
     // Prevents runaway data-URL or blob embedding from silently bloating the store.
@@ -704,6 +713,24 @@ function isAllowedExternalUrl(s) {
   return false;
 }
 
+// Resolved file:// URL of the app's own entry page. Navigation is locked to
+// exactly this document — not just any file:// URL — so a compromised renderer
+// cannot navigate to other local files and read them under the privileged origin.
+const APP_INDEX_PATHNAME = (() => {
+  try { return decodeURIComponent(require('url').pathToFileURL(path.join(__dirname, 'renderer', 'index.html')).pathname); }
+  catch { return null; }
+})();
+
+function isAppIndexNavigation(navigationUrl) {
+  if (!APP_INDEX_PATHNAME) return false;
+  try {
+    const u = new URL(navigationUrl);
+    if (u.protocol !== 'file:') return false;
+    // Compare only the resolved pathname (ignore query/hash so in-app reloads work).
+    return decodeURIComponent(u.pathname) === APP_INDEX_PATHNAME;
+  } catch { return false; }
+}
+
 // --- Safe external URL opener (mailto, https, private LAN http) ---
 ipcMain.handle('hub:open-external', async (_e, url) => {
   const s = String(url || '');
@@ -776,6 +803,13 @@ let printerPollInterval = null;
 
 ipcMain.handle('hub:start-printer-polling', async (_e, machines) => {
   if (printerPollInterval) clearInterval(printerPollInterval);
+  // TRUST BOUNDARY: the `machines` array is renderer-supplied and is NOT
+  // re-validated against the persisted store here (doing so would require
+  // threading the store + machine identity through this handler). The SSRF
+  // surface is instead contained downstream in fetchPrinterStatus(), where
+  // isAllowedPrinterHost() now restricts every target to RFC1918 / link-local
+  // LAN ranges — so even a forged machine entry can only reach a LAN device,
+  // never an arbitrary public host or cloud metadata endpoint.
   const machineList = Array.isArray(machines) ? machines : [];
   const poll = async () => {
     for (const machine of machineList) {
@@ -988,16 +1022,25 @@ ipcMain.handle('hub:send-email', async (event, { to, subject, body, smtpConfig }
 ipcMain.handle('hub:fire-webhook', async (event, { url, event: webhookEvent, payload, secret }) => {
   // Restrict to https:// only — prevents SSRF to localhost and internal network
   if (!url || !url.startsWith('https://')) return { ok: false, error: 'Invalid URL — only https:// allowed' };
+  let parsedWebhook;
   try {
-    const parsedWebhook = new URL(url);
+    parsedWebhook = new URL(url);
     if (isBlockedHost(parsedWebhook.hostname)) return { ok: false, error: 'Blocked URL — cannot send webhooks to private/loopback addresses' };
   } catch { return { ok: false, error: 'Invalid webhook URL' }; }
+  // DNS-rebinding defence: the string check above only inspects the hostname,
+  // so a public-looking name (e.g. evil.example.com) could still resolve to an
+  // internal IP. Resolve it and reject if ANY answer is in a blocked range.
+  // NOTE: best-effort / TOCTOU — fetch() resolves again at connect time and
+  // Node does not expose the resolved peer address for a post-connect re-check.
+  if (await resolvesToBlockedHost(parsedWebhook.hostname)) {
+    return { ok: false, error: 'Blocked URL — hostname resolves to a private/loopback address' };
+  }
   try {
     const body = JSON.stringify({ event: webhookEvent, payload, timestamp: Date.now() });
     const headers = { 'Content-Type': 'application/json', 'X-Khayt-Event': webhookEvent };
     if (secret) headers['X-Khayt-Signature'] = require('crypto')
       .createHmac('sha256', secret).update(body).digest('hex');
-    const res = await fetch(url, { method: 'POST', headers, body, redirect: 'manual' });
+    const res = await fetch(url, { method: 'POST', headers, body, redirect: 'manual', signal: AbortSignal.timeout(10000) });
     if (res.status >= 300 && res.status < 400) {
       return { ok: false, error: 'Webhook redirects are not allowed' };
     }
@@ -1190,7 +1233,7 @@ function createWindow() {
   // Without this, renderer JS could do location.href = 'https://evil.com' and retain
   // full access to the contextBridge-exposed hubAPI under a foreign origin.
   mainWindow.webContents.on('will-navigate', (event, navigationUrl) => {
-    if (!navigationUrl.startsWith('file://')) {
+    if (!isAppIndexNavigation(navigationUrl)) {
       event.preventDefault();
     }
   });
@@ -1211,7 +1254,7 @@ function createWindow() {
 // Block navigation and new-window creation for any web contents spawned after startup.
 app.on('web-contents-created', (_event, wc) => {
   wc.on('will-navigate', (event, navigationUrl) => {
-    if (!navigationUrl.startsWith('file://')) {
+    if (!isAppIndexNavigation(navigationUrl)) {
       event.preventDefault();
     }
   });

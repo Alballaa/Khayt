@@ -76,11 +76,11 @@
   }
 
   /* ---------- KPI strip cell ---------- */
-  function kpi(label, value, delta, deltaCls, tokenColor) {
+  function kpi(label, value, delta, deltaCls, tokenColor, valueCls) {
     const d = delta ? `<div class="cmd-kpi-d ${deltaCls}">${esc(delta)}</div>` : '<div class="cmd-kpi-d"></div>';
     return `<div class="cmd-kpi" style="--kc:${tokenColor}">
       <div class="cmd-kpi-l">${esc(label)}</div>
-      <div class="cmd-kpi-v">${esc(value)}</div>
+      <div class="cmd-kpi-v${valueCls ? ` ${valueCls}` : ''}">${esc(value)}</div>
       ${d}
     </div>`;
   }
@@ -172,7 +172,14 @@
       kpi(tr('command.kpi.unpaid', 'Unpaid'), `${fmtMoneyVal(unpaidTotal)} ${ccy()}`,
         unpaidOrders.length > 0 ? tr('dash.wb_invoices', `${unpaidOrders.length} invoices`).replace('{n}', unpaidOrders.length) : '',
         '', 'var(--cmd-danger)'),
-      kpi(tr('command.kpi.avg_margin', 'Avg margin'), marginPct != null ? `${marginPct}%` : '—', '', '', 'var(--cmd-analytics)'),
+      kpi(tr('command.kpi.avg_margin', 'Avg margin'),
+        marginPct != null ? `${marginPct}%` : tr('command.kpi.na', 'n/a'),
+        marginPct != null
+          ? (withCost.length === 1
+              ? tr('command.kpi.from_one_order', '1 order')
+              : tr('command.kpi.from_n_orders', `${withCost.length} orders`).replace('{n}', withCost.length))
+          : tr('command.kpi.add_costs', 'add order costs'),
+        '', 'var(--cmd-analytics)', marginPct != null ? '' : 'muted'),
     ].join('');
 
     /* ---- Production board (real printing orders) ---- */
@@ -213,29 +220,34 @@
       const cache = (typeof machineStatusCache !== 'undefined') ? machineStatusCache[m.id] : null;
       if (m.isOffline || (cache && cache.error)) {
         alerts.push({ cls: 'cmd-b-red', ico: '⚠',
-          text: `${m.name} — ${cache && cache.error ? esc(String(cache.error)) : tr('mach.offline', 'offline')}`,
+          text: `${esc(m.name)} — ${cache && cache.error ? esc(String(cache.error)) : esc(tr('mach.offline', 'offline'))}`,
           act: tr('command.alert.open', 'Open'), tab: 'queue-tab' });
       }
     });
     lowStock.slice(0, 3).forEach((item) => {
       const unit = item.materialType === 'resin' ? 'mL' : 'g';
+      const matName = esc(item.material || tr('inv.material', 'Material'));
+      const grams = Math.round(+item.weight || 0);
       alerts.push({ cls: 'cmd-b-red', ico: '⚠',
-        text: tr('command.alert.low', `${item.material || 'Material'} low — ${Math.round(+item.weight || 0)} ${unit} left`)
-          .replace('{name}', item.material || tr('inv.material', 'Material'))
-          .replace('{n}', Math.round(+item.weight || 0)).replace('{unit}', unit),
+        text: tr('command.alert.low', `${matName} low — ${grams} ${unit} left`)
+          .replace('{name}', matName)
+          .replace('{n}', grams).replace('{unit}', unit),
         act: tr('command.alert.reorder', 'Reorder'), tab: 'inventory-tab' });
     });
     const followUps = (typeof KhaytQuoteFollowUp !== 'undefined')
       ? KhaytQuoteFollowUp.selectQuotesDueForFollowUp(log, cfg, Date.now()) : [];
     followUps.slice(0, 2).forEach((q) => {
+      const qName = esc(q.project || q.id);
       alerts.push({ cls: 'cmd-b-amber', ico: '◷',
-        text: tr('command.alert.quote_due', `${q.project || q.id} quote follow-up due`).replace('{name}', q.project || q.id),
+        text: tr('command.alert.quote_due', `${qName} quote follow-up due`).replace('{name}', qName),
         act: tr('command.alert.open', 'Open'), tab: 'logs-tab' });
     });
     unpaidOrders.filter((o) => o.status === 'completed').slice(0, Math.max(0, 5 - alerts.length)).forEach((o) => {
+      const oid = esc(o.id);
+      const amt = `${esc(fmtMoneyVal(owedBase(o)))} ${esc(ccy())}`;
       alerts.push({ cls: 'cmd-b-blue', ico: '❖',
-        text: tr('command.alert.unpaid', `${o.id} unpaid — ${fmtMoneyVal(owedBase(o))} ${ccy()}`)
-          .replace('{id}', o.id).replace('{amt}', `${fmtMoneyVal(owedBase(o))} ${ccy()}`),
+        text: tr('command.alert.unpaid', `${oid} unpaid — ${amt}`)
+          .replace('{id}', oid).replace('{amt}', amt),
         act: tr('command.alert.chase', 'Chase'), tab: 'logs-tab' });
     });
     const alertsBody = alerts.slice(0, 6).map((a) => `<div class="cmd-lrow">

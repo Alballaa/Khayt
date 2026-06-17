@@ -9,6 +9,9 @@ function localName(obj) {
 /** Normalise payment status with fallback, accounting for credit notes. */
 function payStatus(order) {
   if (order.voidedAt) return 'voided';
+  // A fully-credited order (credit notes >= price) is settled/cancelled — it must
+  // not keep showing as outstanding (generateCreditNote sets creditedAt at full credit).
+  if (order.creditedAt) return 'voided';
   const price = +order.price || 0;
   if (price === 0) return order.paymentStatus || 'paid';
 

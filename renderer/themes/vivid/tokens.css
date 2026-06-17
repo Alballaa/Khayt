@@ -61,14 +61,15 @@ html[data-design="vivid"] {
   --vivid-settings:    #6366f1;  --vivid-settings-2:  #8b5cf6;  /* indigo (was washed slate) */
 
   /* ---- Status palette (text + soft fill pairs) ---- */
-  --vv-blue:#3b82f6;   --vv-blue-bg:#e7f0ff;
-  --vv-green:#10b981;  --vv-green-bg:#e3f7ed;
-  --vv-red:#ef4444;    --vv-red-bg:#fdeaea;
-  --vv-amber:#f59e0b;  --vv-amber-bg:#fdf3da;
-  --vv-violet:#a855f7; --vv-violet-bg:#f3e9fd;
-  --vv-teal:#0ea5a4;   --vv-teal-bg:#def7f6;
-  --vv-pink:#ec4899;   --vv-pink-bg:#fde7f1;
-  --vv-cyan:#06b6d4;   --vv-cyan-bg:#def6fb;
+  /* foregrounds darkened to clear WCAG AA (~4.5:1) on their soft -bg fills */
+  --vv-blue:#1565d8;   --vv-blue-bg:#e7f0ff;
+  --vv-green:#107a52;  --vv-green-bg:#e3f7ed;
+  --vv-red:#c92020;    --vv-red-bg:#fdeaea;
+  --vv-amber:#8a6000;  --vv-amber-bg:#fdf3da;
+  --vv-violet:#8a3dd1; --vv-violet-bg:#f3e9fd;
+  --vv-teal:#0d7878;   --vv-teal-bg:#def7f6;
+  --vv-pink:#c22a72;   --vv-pink-bg:#fde7f1;
+  --vv-cyan:#0b7286;   --vv-cyan-bg:#def6fb;
 
   /* ---- Shadows ---- */
   --shadow-1: 0 1px 2px rgba(17,24,39,.06), 0 2px 8px rgba(17,24,39,.05);
@@ -135,6 +136,9 @@ html[data-design="vivid"][data-theme="dark"] {
 
   --vv-blue-bg:#16294d; --vv-green-bg:#143226; --vv-red-bg:#3a1c1a; --vv-amber-bg:#352b12;
   --vv-violet-bg:#2a1f44; --vv-teal-bg:#0e3133; --vv-pink-bg:#3a1f2e; --vv-cyan-bg:#0d3340;
+  /* lighten foregrounds for AA on the dark soft fills */
+  --vv-blue:#5b9bff; --vv-green:#2fcb8c; --vv-red:#f56b6b; --vv-amber:#f0a92a;
+  --vv-violet:#bd8af9; --vv-teal:#1fc6c4; --vv-pink:#f56fad; --vv-cyan:#2fcae0;
 
   --shadow-1: 0 1px 2px rgba(0,0,0,.4);
   --shadow-2: 0 8px 26px rgba(0,0,0,.5);

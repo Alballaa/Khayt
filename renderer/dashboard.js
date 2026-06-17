@@ -697,7 +697,7 @@ function renderDashboard() {
         <span class="dash-low-stock-icon">⚠</span>
         <span class="dash-low-stock-label">${escapeHtml(t('dash.low_stock_alert'))}</span>
         <span class="dash-low-stock-items">${lowSpools.map(i =>
-          `<span class="dash-low-spool"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${escapeHtml(i.color||'#888')};margin-inline-end:4px;vertical-align:middle;"></span>${escapeHtml(i.material)} (${Math.round(i.weight)}g)</span>`
+          `<span class="dash-low-spool"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${safeCssColor(i.color||'#888')};margin-inline-end:4px;vertical-align:middle;"></span>${escapeHtml(i.material)} (${Math.round(i.weight)}g)</span>`
         ).join('')}</span>
       </div>`;
     })()}
@@ -1058,7 +1058,7 @@ function renderFilamentAnalytics() {
             const mCol = margin >= 60 ? 'var(--success)' : margin >= 30 ? 'var(--primary)' : 'var(--warning)';
             return `<tr>
               <td style="display:flex;align-items:center;gap:8px;">
-                <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${escapeHtml(r.color)};flex-shrink:0;border:1px solid rgba(255,255,255,0.15);"></span>
+                <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${safeCssColor(r.color)};flex-shrink:0;border:1px solid rgba(255,255,255,0.15);"></span>
                 <strong>${escapeHtml(r.label)}</strong>
               </td>
               <td style="font-variant-numeric:tabular-nums;">${r.orderIds.size}</td>
@@ -1167,7 +1167,7 @@ function renderMaterialUsageChart() {
   // Legend
   const legendHtml = materials.map(mat =>
     `<span style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--text-dim);">
-      <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${escapeHtml(matColors[mat])};"></span>
+      <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${safeCssColor(matColors[mat])};"></span>
       ${escapeHtml(mat)}
     </span>`
   ).join('');

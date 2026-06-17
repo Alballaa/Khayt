@@ -159,8 +159,13 @@ body.khayt-command .khayt-navhead {
   font-weight: 700;
   letter-spacing: 1.2px;
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--ink-2);
   padding: 10px 8px 3px;
+}
+/* Keyboard focus ring on the primary nav (shared .btn ring doesn't cover it). */
+body.khayt-command .khayt-navitem:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 /* The shell re-groups nav into Work / Catalog / Money. Original group labels
    are hidden; the shell injects new group headers carrying [data-cmd-group-head]. */
@@ -192,6 +197,8 @@ body.khayt-command .khayt-navitem.active {
   color: var(--ink);
   font-weight: 600;
 }
+/* Suppress the shared .tab-btn.active underline bleeding under vertical nav items. */
+body.khayt-command .khayt-navitem.active::after { display: none; }
 /* Module-colored icon dot (set inline via --cmd-mod by shell.js). */
 body.khayt-command .khayt-navitem .nav-icon {
   inline-size: 16px;

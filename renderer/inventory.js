@@ -237,7 +237,7 @@ function openFilamentCatalog() {
 
         grid.innerHTML = filtered.map((f, i) => `
           <div class="fil-card" data-idx="${i}">
-            <div class="fil-card-swatch" style="background:${escapeHtml(f.hex)};"></div>
+            <div class="fil-card-swatch" style="background:${safeCssColor(f.hex)};"></div>
             <div class="fil-card-info">
               <span class="fil-card-color">${escapeHtml(f.color)}</span>
               <span class="fil-card-brand">${escapeHtml(f.brand)}</span>
@@ -632,7 +632,7 @@ async function openFilamentScanner() {
         }
 
         const colorDot = nfcData.hex
-          ? `<span style="display:inline-block;width:22px;height:22px;border-radius:50%;background:${escapeHtml(nfcData.hex)};border:2px solid rgba(255,255,255,0.2);vertical-align:middle;margin-inline-end:8px;"></span>`
+          ? `<span style="display:inline-block;width:22px;height:22px;border-radius:50%;background:${safeCssColor(nfcData.hex)};border:2px solid rgba(255,255,255,0.2);vertical-align:middle;margin-inline-end:8px;"></span>`
           : '';
         const stdBadge = `<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:rgba(91,156,240,0.18);color:var(--primary);font-weight:600;">${escapeHtml(nfcData.standard)}</span>`;
 
@@ -718,7 +718,7 @@ async function openFilamentScanner() {
           resultC.style.display = 'block';
           resultC.innerHTML = `
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-              <span style="width:26px;height:26px;border-radius:50%;background:${escapeHtml(top.hex)};border:2px solid rgba(255,255,255,0.2);flex-shrink:0;"></span>
+              <span style="width:26px;height:26px;border-radius:50%;background:${safeCssColor(top.hex)};border:2px solid rgba(255,255,255,0.2);flex-shrink:0;"></span>
               <div style="flex:1;">
                 <div style="font-weight:600;font-size:13px;">${escapeHtml(top.color)}</div>
                 <div style="font-size:11px;color:var(--text-muted);">${escapeHtml(top.brand)} · ${escapeHtml(top.line)} · ${escapeHtml(top.type)}</div>
@@ -728,7 +728,7 @@ async function openFilamentScanner() {
             ${matches.length > 1 ? `<div style="font-size:11px;color:var(--text-muted);margin-bottom:5px;">${escapeHtml(t('scan.other_matches')||'Other matches:')}</div>
             <div style="display:flex;flex-wrap:wrap;gap:6px;">${matches.slice(1,6).map((m,i)=>`
               <button class="btn ghost small scan-alt" data-idx="${i+1}" style="display:flex;align-items:center;gap:5px;font-size:11px;">
-                <span style="width:10px;height:10px;border-radius:50%;background:${escapeHtml(m.hex)};flex-shrink:0;"></span>
+                <span style="width:10px;height:10px;border-radius:50%;background:${safeCssColor(m.hex)};flex-shrink:0;"></span>
                 ${escapeHtml(m.color)} (${escapeHtml(m.type)})</button>`).join('')}</div>` : ''}
             <div style="margin-top:8px;font-size:10.5px;color:var(--text-muted);">
               ${escapeHtml(t('scan.raw')||'Scanned:')} <code>${escapeHtml(rawText.slice(0,80))}</code></div>`;
@@ -1050,13 +1050,20 @@ function getQueuedWeight(itemId) {
 }
 
 // Feature 3: Compute grams reserved for a specific spool across active orders
+// Grams a part consumes. MUST mirror deductFilamentForOrder (print + support,
+// times quantity) so reservation, over-commit, and forecast never under-count
+// relative to the actual completion deduction.
+function partGramsConsumed(p) {
+  return ((+p.printWeight || 0) + (+p.supportWeight || 0)) * (+p.qty || 1);
+}
+
 function getSpoolReservedGrams(spoolId) {
   return printLog
     .filter(o => o.status !== 'completed' && o.status !== 'quote')
     .reduce((s, o) =>
       s + (o.parts || [])
         .filter(p => p.spoolId === spoolId)
-        .reduce((ps, p) => ps + (+p.weight || +p.printWeight || 0), 0)
+        .reduce((ps, p) => ps + partGramsConsumed(p), 0)
     , 0);
 }
 
@@ -1079,9 +1086,9 @@ function checkSpoolOvercommit(parts, excludeOrderId) {
       .reduce((s, o) =>
         s + (o.parts || [])
           .filter(p => p.spoolId === part.spoolId)
-          .reduce((ps, p) => ps + (+p.weight || +p.printWeight || 0), 0)
+          .reduce((ps, p) => ps + partGramsConsumed(p), 0)
       , 0);
-    const thisJobNeeds = +(part.weight || part.printWeight || 0);
+    const thisJobNeeds = partGramsConsumed(part);
     if (alreadyReserved + thisJobNeeds > item.weight) {
       warnings.push({
         spoolName: item.material,
@@ -1701,7 +1708,7 @@ function deductFilamentForOrder(order, { skipRender = false } = {}) {
     if (!part.filamentId || !part.printWeight) continue;
     const item = inventory.find(i => i.id === part.filamentId);
     if (!item) continue;
-    const deductAmt = ((+part.printWeight || 0) + (+part.supportWeight || 0)) * (part.qty || 1);
+    const deductAmt = partGramsConsumed(part);
     item.weight = Math.max(0, item.weight - deductAmt);
     if (!item.usageHistory) item.usageHistory = [];
     item.usageHistory.unshift({ orderId: order.id, project: order.project || '', weightUsed: deductAmt, date: today });
@@ -2636,7 +2643,7 @@ function computeMaterialForecast() {
     for (const o of printLog) {
       if (o.status === 'completed' || o.status === 'quote') continue;
       for (const p of (o.parts || [])) {
-        if (p.filamentId === item.id) queued += (+p.printWeight || 0);
+        if (p.filamentId === item.id) queued += partGramsConsumed(p);
       }
       if (!o.parts || o.parts.length === 0) {
         if (o.material && o.material === item.material) queued += (+o.weight || 0);
@@ -2649,7 +2656,7 @@ function computeMaterialForecast() {
     let recentGrams = 0;
     for (const o of recentCompleted) {
       for (const p of (o.parts || [])) {
-        if (p.filamentId === item.id) recentGrams += (+p.printWeight || 0);
+        if (p.filamentId === item.id) recentGrams += partGramsConsumed(p);
       }
     }
     const dailyUsage = recentGrams / 30;
@@ -3005,7 +3012,6 @@ function openReorderModal(itemId) {
 }
 
 function exportInventoryCsv() {
-  const threshold = +(settings.lowStockThreshold || 200);
 
   const headers = [
     'ID', 'Material', 'Color', 'Brand',
@@ -3024,7 +3030,7 @@ function exportInventoryCsv() {
       +spool.remaining !== undefined ? +spool.remaining : +spool.weight || 0,
       spool.costPerGram != null ? (+spool.costPerGram).toFixed(4) : '',
       spool.location || '',
-      (+spool.remaining || +spool.weight || 0) < threshold ? 'Yes' : 'No'
+      isLowStock(spool) ? 'Yes' : 'No'   // use the shared check (<=, per-item reorderPoint)
     ].map(csvEsc).join(','))
   ];
 
@@ -3054,7 +3060,10 @@ function recordSupplierInvoice(poId) {
       const date   = modal.querySelector('#poSupInvDate').value;
       po.supplierInvoice = { number, amount, date };
       // Check discrepancy: compare invoiced amount vs. PO expected amount
-      const expectedAmt = (po.weightOrdered || 0) * ((po.unitCost || 0) / 1000);
+      // PO stores qty (grams) and unitPrice (per gram); the old formula used
+      // weightOrdered/unitCost which are never set, so expected was always 0 and
+      // no discrepancy ever flagged.
+      const expectedAmt = (+po.qty || 0) * (+po.unitPrice || 0);
       po.invoiceDiscrepancy = expectedAmt > 0 && Math.abs(amount - expectedAmt) > 1;
       saveAll();
       renderPurchaseOrders();

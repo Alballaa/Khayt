@@ -82,8 +82,13 @@ body.khayt-workbench .khayt-navhead {
   font-weight: 700;
   letter-spacing: 0.7px;
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--ink-2);
   padding: 8px 10px 4px;
+}
+/* Keyboard focus ring on the primary nav (shared .btn ring doesn't cover it). */
+body.khayt-workbench .khayt-navitem:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 /* The Workbench shell re-groups nav into Work / Catalog / Money. The original
    group labels are hidden; the shell injects new group headers as nav items
@@ -130,6 +135,8 @@ body.khayt-workbench .khayt-navitem.active::before {
   border-radius: 3px;
   background: var(--accent);
 }
+/* Suppress the shared .tab-btn.active underline bleeding under vertical nav items. */
+body.khayt-workbench .khayt-navitem.active::after { display: none; }
 
 /* Color tile per nav item (set inline by shell.js via --wb-tile). */
 body.khayt-workbench .khayt-navitem .nav-icon {

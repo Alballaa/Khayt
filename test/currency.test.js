@@ -28,4 +28,7 @@ test('orderOwedBase subtracts payments and gift card credit', () => {
   global.clients = [];
   assert.equal(orderOwedBase({ price: 100, paidAmount: 40, giftCardDiscount: 10 }), 50);
   assert.equal(orderOwedBase({ price: 100, paidAmount: 100 }), 0);
+  // Credit notes reduce what's owed (refund / cancelled charge).
+  assert.equal(orderOwedBase({ price: 100, paidAmount: 0, creditNotes: [{ amount: 100 }] }), 0);
+  assert.equal(orderOwedBase({ price: 100, paidAmount: 0, creditNotes: [{ amount: 30 }] }), 70);
 });

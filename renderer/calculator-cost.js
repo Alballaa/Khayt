@@ -57,6 +57,7 @@
 
   function computePartBreakdown(part) {
     const inventory = global.inventory || [];
+    const settings = global.settings || {};
     const spoolCost = Math.max(0, +part.spoolCost || 0);
     const spoolWeight = Math.max(1, +part.spoolWeight || 1);
     const printWeight = Math.max(0, +part.printWeight || 0);
@@ -64,7 +65,7 @@
       ? inventory.find((i) => i.id === part.filamentId)?.materialType === 'resin'
       : false;
     const supportWt = Math.max(0, +part.supportWeight || 0);
-    const material = isResin
+    let material = isResin
       ? (spoolCost / 1000) * (printWeight + supportWt)
       : (spoolCost / spoolWeight) * (printWeight + supportWt);
     const printTime = Math.max(0, +part.printTime || 0);
@@ -74,6 +75,22 @@
     const prepTime = Math.max(0, +part.prepTime || 0);
     const postTime = Math.max(0, +part.postTime || 0);
     const labor = (prepTime + postTime) * Math.max(0, +part.laborRate || 0);
+    // Mirror computePartBaseCost so the live preview equals the committed cart cost:
+    // include extra materials + packaging, and apply the failure buffer on the SAME base.
+    let extraMatCost = 0;
+    for (const em of part.extraMaterials || []) {
+      if (!em.material || !em.weight) continue;
+      const invItem = inventory.find((i) => i.material === em.material);
+      if (invItem && invItem.cost > 0 && invItem.weight > 0) {
+        const pricePerKg = (invItem.cost / invItem.weight) * 1000;
+        extraMatCost += (em.weight / 1000) * pricePerKg;
+      }
+    }
+    const packagingCost =
+      Math.max(0, +settings.defaultPackagingCost || 0) / Math.max(1, +part.qty || 1);
+    // Fold extra materials + packaging into the material bucket (no separate chip);
+    // this keeps the {material, machine, labor, buffer} sum == committed base cost.
+    material += extraMatCost + packagingCost;
     const base = material + machine + labor;
     const buffer = base * (Math.max(0, +part.failureRate || 0) / 100);
     return { material, machine, labor, buffer };

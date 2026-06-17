@@ -55,20 +55,31 @@ function generateClientStatement(clientId) {
     ? (settings.bizAr || settings.bizEn || 'Khayt')
     : (settings.bizEn || settings.bizAr || 'Khayt');
 
+  // All statement figures are in the shop's BASE currency so multi-currency
+  // clients' rows and totals reconcile (orderRevenueBase/orderOwedBase convert).
+  const curOf = (o) => (typeof clientCurrency === 'function') ? clientCurrency(o.clientId) : (settings.currency || 'SAR');
+  // Cash actually received (base). Falls back to price ONLY for legacy fully-paid
+  // orders with no recorded amount AND no gift settlement — otherwise a gift-card
+  // -settled order would be counted as both "paid" (price) and "gift".
+  const cashPaidBase = (o) => {
+    const recorded = +o.paidAmount || 0;
+    if (recorded > 0) return convertToBase(recorded, curOf(o));
+    return (payStatus(o) === 'paid' && !(+o.giftCardDiscount > 0)) ? convertToBase(+o.price || 0, curOf(o)) : 0;
+  };
   const totalCharges = orders.reduce((s, o) => s + orderRevenueBase(o), 0);
-  const totalPaid    = orders.reduce((s, o) => s + (+o.paidAmount || (payStatus(o) === 'paid' ? +o.price : 0)), 0);
+  const totalPaid    = orders.reduce((s, o) => s + cashPaidBase(o), 0);
   // Gift-card redemptions settle part of the balance just like a payment.
-  const totalGift    = orders.reduce((s, o) => s + (+o.giftCardDiscount || 0), 0);
-  const outstanding  = Math.max(0, totalCharges - totalPaid - totalGift);
+  const totalGift    = orders.reduce((s, o) => s + convertToBase(+o.giftCardDiscount || 0, curOf(o)), 0);
+  const outstanding  = orders.reduce((s, o) => s + orderOwedBase(o), 0);
 
   const rowsHtml = orders.map(o => {
-    const paid  = +o.paidAmount || (payStatus(o) === 'paid' ? +o.price : 0);
-    const bal   = Math.max(0, (+o.price || 0) - paid - (+o.giftCardDiscount || 0));
+    const paid  = cashPaidBase(o);
+    const bal   = orderOwedBase(o);
     return `<tr style="border-bottom:1px solid #eee;">
       <td style="padding:6px 8px; font-size:12px; white-space:nowrap;">${escapeHtml(o.date || '')}</td>
       <td style="padding:6px 8px; font-size:12px;">${escapeHtml(o.id)}</td>
       <td style="padding:6px 8px; font-size:12px;">${escapeHtml(o.project || '')}</td>
-      <td style="padding:6px 8px; font-size:12px; text-align:end;">${fmtPrice(o.price)}</td>
+      <td style="padding:6px 8px; font-size:12px; text-align:end;">${fmtPrice(orderRevenueBase(o))}</td>
       <td style="padding:6px 8px; font-size:12px; text-align:end; color:#2a9d8f;">${fmtPrice(paid)}</td>
       <td style="padding:6px 8px; font-size:12px; text-align:end; color:${bal > 0 ? '#e63946' : '#2a9d8f'};">${fmtPrice(bal)}</td>
     </tr>`;
@@ -526,7 +537,10 @@ function appendZatcaSubmissionLog(entry) {
 }
 
 function zatcaInvoiceAmounts(order) {
-  const ts = order.timestamp || new Date(order.date + 'T12:00:00').toISOString();
+  const ts = order.timestamp
+    || (order.date && !Number.isNaN(Date.parse(`${order.date}T12:00:00`))
+      ? new Date(`${order.date}T12:00:00`).toISOString()
+      : '');
   const price = +order.price || 0;
   const rate = settings.enableVat ? (+settings.vatRate || 15) : 0;
   const vatAmt = rate > 0 ? price * rate / (100 + rate) : 0;
@@ -680,7 +694,10 @@ function zatcaSubmissionStatusLabel(order) {
 
 // Render the invoice with QR (used by Print, PDF, and WhatsApp paths)
 async function renderInvoiceForOrder(order) {
-  const ts = order.timestamp || new Date(order.date + 'T12:00:00').toISOString();
+  const ts = order.timestamp
+    || (order.date && !Number.isNaN(Date.parse(`${order.date}T12:00:00`))
+      ? new Date(`${order.date}T12:00:00`).toISOString()
+      : '');
   const price    = +order.price || 0;
   const shipping = +order.shippingCost || 0;
   const rate     = settings.enableVat ? (+settings.vatRate || 15) : 0;
@@ -690,6 +707,16 @@ async function renderInvoiceForOrder(order) {
   const total     = fmtMoney(price);
   const vatAmount = fmtMoney(vatAmt);
   const subtotal  = fmtMoney(exVat);
+  // Reconciling summary (VAT-inclusive, matching the line-items table which is
+  // also VAT-inclusive): Subtotal(items) + Rush + Shipping == Total, with VAT
+  // shown as "included". order.price already bundles shipping+rush+extras
+  // (build.js: finalPrice = goods + rush + shipping + extras), so the old
+  // Subtotal=exVat double-counted the separate Rush/Shipping rows.
+  const _shipIncl  = +order.shippingCost || 0;
+  const _rushIncl  = +order.rushFeeAmount || 0;
+  const _discAmt   = Math.max(0, (+order.priceBeforeDiscount || 0) * (+order.discountPct || 0) / 100);
+  const itemsSubtotalIncl = price - _shipIncl - _rushIncl;          // parts + extras, post-discount
+  const subtotalShown = fmtMoney(order.discountPct > 0 ? itemsSubtotalIncl + _discAmt : itemsSubtotalIncl);
   let qrSvg = '';
   if (settings.enableZatca && window.hubAPI?.generateQR) {
     try {
@@ -1517,7 +1544,7 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
         <div class="summary">
           <div class="row">
             <span class="label-en">${escapeHtml(L.subtotal[0])}</span>
-            <span class="v">${order.priceBeforeDiscount ? fmtMoney(order.priceBeforeDiscount) : (subtotal || total)} ${invCurrSym}</span>
+            <span class="v">${subtotalShown} ${invCurrSym}</span>
           </div>
           ${order.discountPct > 0 ? `
           <div class="row" style="color:#22c55e;">
@@ -1536,7 +1563,7 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
           </div>` : ''}
           ${vatRate > 0 ? `
           <div class="row">
-            <span class="label-en">${escapeHtml(L.vat[0])}</span>
+            <span class="label-en">${escapeHtml(L.vat[0])} ${isAr ? '(شامل)' : '(incl.)'}</span>
             <span class="v">${vatAmount} ${invCurrSym}</span>
           </div>` : ''}
           <div class="row grand">

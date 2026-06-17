@@ -134,10 +134,15 @@
       return { normalized: store, warnings: [], errors: [] };
     }
 
-    const { ok, errors, warnings: validateWarnings } = validateStoreSnapshot(store);
+    const { errors, warnings: validateWarnings } = validateStoreSnapshot(store);
     const warnings = [...validateWarnings];
 
-    if (!ok || store == null || typeof store !== 'object') {
+    // Only bail completely for fatal input (unparseable / not an object). For
+    // recoverable issues (a collection isn't an array, settings isn't an object,
+    // bad version) we SALVAGE: the loop below skips the bad parts and keeps every
+    // valid collection, so one corrupt field can't discard the whole store on
+    // load (which previously risked overwriting good data with empty state).
+    if (store == null || typeof store !== 'object' || Array.isArray(store)) {
       return { normalized: null, warnings, errors };
     }
 
@@ -172,7 +177,9 @@
       normalized.exportedAt = store.exportedAt;
     }
 
-    return { normalized, warnings, errors: [] };
+    // Surface any recoverable validation errors (e.g. a skipped non-array
+    // collection) so callers can log them; the data itself was salvaged.
+    return { normalized, warnings, errors };
   }
 
   const api = {
