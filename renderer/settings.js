@@ -1531,7 +1531,7 @@ function saveSettingsFromForm() {
     loyaltyEnabled: !!$('#set_loyaltyEnabled')?.checked,
     loyaltyTiers:   settings.loyaltyTiers || [],
     // Batch-2 Feature 10: Telegram — preserved from renderTelegramSettings
-    telegram: settings.telegram || { botToken: '', chatId: '', notifyOnComplete: false, notifyOnHold: false, notifyOnLowStock: false },
+    telegram: settings.telegram || { botToken: '', chatId: '', notifyOnComplete: false, notifyOnHold: false, notifyOnLowStock: false, notifyPrinterError: true, notifyPrinterOffline: true, notifyPrinterStall: false },
     // Round 12 — preserve managed-in-place settings
     webhooks:     settings.webhooks     || { enabled: false, secret: '', events: {} },
     fixedCosts:   settings.fixedCosts   || [],
@@ -2000,6 +2000,15 @@ function renderTelegramSettings() {
       <label style="display:flex;align-items:center;gap:8px;margin-top:6px;">
         <input type="checkbox" id="tgNotifyLowStock" style="width:auto;" ${tg.notifyOnLowStock ? 'checked' : ''}> Notify on low stock
       </label>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+        <input type="checkbox" id="tgNotifyPrinterError" style="width:auto;" ${(tg.notifyPrinterError ?? true) ? 'checked' : ''}> ${escapeHtml(t('fleet.notify_error'))}
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+        <input type="checkbox" id="tgNotifyPrinterOffline" style="width:auto;" ${(tg.notifyPrinterOffline ?? true) ? 'checked' : ''}> ${escapeHtml(t('fleet.notify_offline'))}
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+        <input type="checkbox" id="tgNotifyPrinterStall" style="width:auto;" ${tg.notifyPrinterStall ? 'checked' : ''}> ${escapeHtml(t('fleet.notify_stall'))}
+      </label>
     </div>
     <button class="btn primary small" id="btnSaveTgSettings" style="margin-top:12px;">Save Telegram Settings</button>`;
 
@@ -2022,7 +2031,13 @@ function renderTelegramSettings() {
     const notifyOnComplete = el.querySelector('#tgNotifyComplete').checked;
     const notifyOnHold     = el.querySelector('#tgNotifyHold').checked;
     const notifyOnLowStock = el.querySelector('#tgNotifyLowStock').checked;
-    settings.telegram = { botToken, chatId, notifyOnComplete, notifyOnHold, notifyOnLowStock };
+    const notifyPrinterError   = el.querySelector('#tgNotifyPrinterError').checked;
+    const notifyPrinterOffline = el.querySelector('#tgNotifyPrinterOffline').checked;
+    const notifyPrinterStall   = el.querySelector('#tgNotifyPrinterStall').checked;
+    settings.telegram = {
+      botToken, chatId, notifyOnComplete, notifyOnHold, notifyOnLowStock,
+      notifyPrinterError, notifyPrinterOffline, notifyPrinterStall,
+    };
     saveAll();
     toast('Telegram settings saved', 'success');
   });
