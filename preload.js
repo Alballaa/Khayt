@@ -64,6 +64,7 @@ contextBridge.exposeInMainWorld('hubAPI', {
   // Task 0: File-based data store (replaces localStorage)
   loadStore:     ()       => ipcRenderer.invoke('hub:load-store'),
   saveStore:     (data)   => ipcRenderer.invoke('hub:save-store', data),
+  fetchExchangeRates: (base) => ipcRenderer.invoke('hub:fetch-exchange-rates', base),
   storeSize:     ()       => ipcRenderer.invoke('hub:store-size'),
   revealStoreFile: ()     => ipcRenderer.invoke('hub:reveal-store-file'),
   clipboardWrite: (text)  => ipcRenderer.invoke('hub:clipboard-write', text),

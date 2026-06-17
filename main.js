@@ -184,6 +184,31 @@ ipcMain.handle('hub:generate-qr', async (_e, text, options = {}) => {
 });
 ipcMain.handle('hub:app-version', async () => app.getVersion());
 
+// --- Live exchange rates (free, no-key FX API) ---
+// Renderer CSP forbids outbound fetch, so the main process pulls rates on demand.
+// open.er-api.com returns "1 BASE = rates[X] FOREIGN"; we store base-units-per-1
+// -foreign (= 1/rate) to match settings.exchangeRates' convention.
+ipcMain.handle('hub:fetch-exchange-rates', async (_e, base) => {
+  const code = String(base || 'SAR').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
+  if (code.length !== 3) return { ok: false, error: 'Invalid base currency' };
+  try {
+    const res = await fetch(`https://open.er-api.com/v6/latest/${code}`, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(10000),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || body.result !== 'success' || !body.rates || typeof body.rates !== 'object') {
+      return { ok: false, error: body['error-type'] || `HTTP ${res.status}` };
+    }
+    const rates = {};
+    for (const [cur, r] of Object.entries(body.rates)) {
+      const n = +r;
+      if (cur !== code && Number.isFinite(n) && n > 0) rates[cur] = 1 / n;
+    }
+    return { ok: true, base: code, rates, updatedAt: body.time_last_update_utc || null };
+  } catch (e) { return { ok: false, error: String(e.message || e) }; }
+});
+
 // --- Product images (existing) ---
 ipcMain.handle('hub:save-product-image', async (_e, productId, dataUrl) => {
   const { ext, buffer } = decodeDataUrl(dataUrl);

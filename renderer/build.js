@@ -14,6 +14,122 @@ let currentExtraMaterials = [];
 // Feature 5: Price tiers for the current part being configured
 let currentPriceTiers = [];
 
+/* ============================================================
+   Electricity tariff auto-fill (Calculator → "📍 Auto")
+   Approximate commercial/SME rates in LOCAL currency per kWh — starting values
+   only; users adjust to their actual bill (rates vary by tier/region/season).
+   There is no free global electricity-price API, so this is a maintained table.
+   ============================================================ */
+const ELEC_TARIFFS = {
+  SA: { name: 'Saudi Arabia',         rate: 0.18,  currency: 'SAR' },
+  AE: { name: 'United Arab Emirates', rate: 0.38,  currency: 'AED' },
+  QA: { name: 'Qatar',                rate: 0.13,  currency: 'QAR' },
+  KW: { name: 'Kuwait',               rate: 0.025, currency: 'KWD' },
+  BH: { name: 'Bahrain',              rate: 0.016, currency: 'BHD' },
+  OM: { name: 'Oman',                 rate: 0.024, currency: 'OMR' },
+  EG: { name: 'Egypt',                rate: 1.65,  currency: 'EGP' },
+  JO: { name: 'Jordan',               rate: 0.10,  currency: 'JOD' },
+  IQ: { name: 'Iraq',                 rate: 72,    currency: 'IQD' },
+  MA: { name: 'Morocco',              rate: 1.20,  currency: 'MAD' },
+  TN: { name: 'Tunisia',              rate: 0.30,  currency: 'TND' },
+  DZ: { name: 'Algeria',              rate: 4.50,  currency: 'DZD' },
+  TR: { name: 'Türkiye',              rate: 2.60,  currency: 'TRY' },
+  US: { name: 'United States',        rate: 0.13,  currency: 'USD' },
+  CA: { name: 'Canada',               rate: 0.14,  currency: 'CAD' },
+  GB: { name: 'United Kingdom',       rate: 0.25,  currency: 'GBP' },
+  DE: { name: 'Germany',              rate: 0.22,  currency: 'EUR' },
+  FR: { name: 'France',               rate: 0.18,  currency: 'EUR' },
+  IN: { name: 'India',                rate: 8.0,   currency: 'INR' },
+  CN: { name: 'China',                rate: 0.65,  currency: 'CNY' },
+  JP: { name: 'Japan',                rate: 22,    currency: 'JPY' },
+  AU: { name: 'Australia',            rate: 0.30,  currency: 'AUD' },
+  BR: { name: 'Brazil',               rate: 0.80,  currency: 'BRL' },
+  ZA: { name: 'South Africa',         rate: 2.50,  currency: 'ZAR' },
+  NG: { name: 'Nigeria',              rate: 70,    currency: 'NGN' },
+};
+
+// Best-effort base-currency → default country, to preselect the picker.
+const CURRENCY_DEFAULT_COUNTRY = {
+  SAR: 'SA', AED: 'AE', QAR: 'QA', KWD: 'KW', BHD: 'BH', OMR: 'OM', EGP: 'EG',
+  JOD: 'JO', IQD: 'IQ', MAD: 'MA', TND: 'TN', DZD: 'DZ', TRY: 'TR', USD: 'US',
+  CAD: 'CA', GBP: 'GB', EUR: 'DE', INR: 'IN', CNY: 'CN', JPY: 'JP', AUD: 'AU',
+  BRL: 'BR', ZAR: 'ZA', NGN: 'NG',
+};
+
+/** Resolve a country's tariff into the shop's base currency when possible. */
+function electricityRateForCountry(countryCode) {
+  const tar = ELEC_TARIFFS[countryCode];
+  if (!tar) return null;
+  const base = (typeof settings !== 'undefined' && settings.currency) || 'SAR';
+  if (tar.currency === base) return { rate: tar.rate, currency: base, converted: false };
+  const xr = (settings.exchangeRates || {})[tar.currency];
+  if (xr && xr > 0) {
+    return { rate: +(tar.rate * xr).toFixed(3), currency: base, converted: true, from: tar.currency };
+  }
+  // No exchange rate set — hand back the local value flagged so the UI can warn.
+  return { rate: tar.rate, currency: tar.currency, converted: false, noConvert: true };
+}
+
+/** Calculator "📍 Auto": ask the user for their country, then fill #elecRate. */
+function openElecRatePicker() {
+  const base = (typeof settings !== 'undefined' && settings.currency) || 'SAR';
+  const defCountry = CURRENCY_DEFAULT_COUNTRY[base] || 'SA';
+  const opts = Object.entries(ELEC_TARIFFS)
+    .sort((a, b) => a[1].name.localeCompare(b[1].name))
+    .map(([code, tar]) => `<option value="${escapeHtml(code)}"${code === defCountry ? ' selected' : ''}>${escapeHtml(tar.name)}</option>`)
+    .join('');
+  const renderPreview = (r) => {
+    if (!r) return '';
+    if (r.noConvert) {
+      return (t('calc.elec_preview_local') || '≈ {rate} {cur}/kWh — no {cur}→{base} rate set; value kept in {cur}. Fetch exchange rates in Settings to convert.')
+        .replace(/{rate}/g, r.rate).replace(/{cur}/g, r.currency).replace(/{base}/g, base);
+    }
+    return (t('calc.elec_preview') || '≈ {rate} {base}/kWh').replace('{rate}', r.rate).replace('{base}', r.currency)
+      + (r.converted ? ` (${(t('calc.elec_converted') || 'converted from {from}').replace('{from}', r.from)})` : '');
+  };
+  openFormModal({
+    title: t('calc.elec_pick_title') || 'Auto-fill electricity rate',
+    sizeLg: false,
+    saveLabel: t('calc.elec_fill') || 'Fill rate',
+    bodyHtml: `
+      <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 10px;">
+        ${escapeHtml(t('calc.elec_pick_hint') || 'Pick your country to fill a typical commercial electricity rate. These are approximate starting values — adjust to match your actual bill.')}
+      </p>
+      <label style="font-size:12px;font-weight:600;">${escapeHtml(t('calc.elec_country') || 'Country / location')}</label>
+      <select id="elecCountrySel" style="width:100%;margin-top:4px;">${opts}</select>
+      <p id="elecPickPreview" style="font-size:12px;color:var(--text-muted);margin:10px 0 0;"></p>`,
+    onMount() {
+      const sel = $('#elecCountrySel');
+      const prev = $('#elecPickPreview');
+      if (!sel || !prev) return;
+      const upd = () => { prev.textContent = renderPreview(electricityRateForCountry(sel.value)); };
+      sel.addEventListener('change', upd);
+      upd();
+    },
+    onSave() {
+      const sel = $('#elecCountrySel');
+      const r = sel && electricityRateForCountry(sel.value);
+      if (!r) return true;
+      const input = $('#elecRate');
+      if (input) {
+        input.value = r.rate;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      const cc = ELEC_TARIFFS[sel.value];
+      toast((t('calc.elec_filled') || 'Electricity set to {rate} {cur}/kWh ({country})')
+        .replace('{rate}', r.rate).replace('{cur}', r.currency).replace('{country}', cc ? cc.name : sel.value),
+        r.noConvert ? 'warning' : 'success', 4000);
+      return true;
+    },
+  });
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('btnElecAuto')?.addEventListener('click', openElecRatePicker);
+  }, { once: true });
+}
+
 // Restore in-progress build from previous session (browser only)
 (function restoreCurrentBuild() {
   if (typeof loadJSON !== 'function' || typeof document === 'undefined') return;

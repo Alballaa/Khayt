@@ -984,9 +984,17 @@ function renderExchangeRatesSettings() {
     </tr>`;
   }).join('');
 
+  const updatedAt = settings.exchangeRatesUpdatedAt;
+  const updatedHtml = updatedAt
+    ? `<span style="font-size:11px;color:var(--text-muted);">${escapeHtml((t('xr.updated') || 'Updated') + ' ' + new Date(updatedAt).toLocaleString())}</span>`
+    : '';
   el.innerHTML = `
     <div style="margin-bottom:6px;">
       <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px;">${escapeHtml(t('xr.hint') || 'Exchange rates are used to convert foreign-currency orders into your base currency for analytics reporting.')}</p>
+      <div style="display:flex;align-items:center;gap:10px;margin:0 0 10px;flex-wrap:wrap;">
+        <button type="button" id="xrFetchBtn" class="btn small">⟳ ${escapeHtml(t('xr.fetch') || 'Fetch live rates')}</button>
+        ${updatedHtml}
+      </div>
       <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
         <thead>
           <tr style="border-bottom:1px solid var(--border);">
@@ -1010,6 +1018,35 @@ function renderExchangeRatesSettings() {
       }
       saveAll();
     });
+  });
+
+  const fetchBtn = el.querySelector('#xrFetchBtn');
+  fetchBtn?.addEventListener('click', async () => {
+    if (!window.hubAPI?.fetchExchangeRates) return;
+    const base = settings.currency || 'SAR';
+    const orig = fetchBtn.textContent;
+    fetchBtn.disabled = true;
+    fetchBtn.textContent = (t('xr.fetching') || 'Fetching…');
+    try {
+      const res = await window.hubAPI.fetchExchangeRates(base);
+      if (res && res.ok && res.rates) {
+        if (!settings.exchangeRates) settings.exchangeRates = {};
+        let n = 0;
+        for (const [code, rate] of Object.entries(res.rates)) {
+          if (CURRENCIES[code] && +rate > 0) { settings.exchangeRates[code] = +(+rate).toFixed(4); n++; }
+        }
+        settings.exchangeRatesUpdatedAt = res.updatedAt || new Date().toISOString();
+        saveAll();
+        renderExchangeRatesSettings();
+        toast((t('xr.fetched') || 'Updated {n} rates vs {base}').replace('{n}', n).replace('{base}', base), 'success');
+      } else {
+        fetchBtn.disabled = false; fetchBtn.textContent = orig;
+        toast((t('xr.fetch_failed') || 'Could not fetch rates') + (res && res.error ? `: ${res.error}` : ''), 'error', 5000);
+      }
+    } catch (e) {
+      fetchBtn.disabled = false; fetchBtn.textContent = orig;
+      toast((t('xr.fetch_failed') || 'Could not fetch rates') + `: ${e.message || e}`, 'error', 5000);
+    }
   });
 }
 
@@ -1531,6 +1568,7 @@ function saveSettingsFromForm() {
     emailDigest:        settings.emailDigest        || {},
     bnpl:               settings.bnpl               || {},
     exchangeRates:      settings.exchangeRates       || {},
+    exchangeRatesUpdatedAt: settings.exchangeRatesUpdatedAt ?? null,
     staleHours:         settings.staleHours          || {},
     productionPaused:   settings.productionPaused    || false,
     pauseReason:        settings.pauseReason         || '',
