@@ -39,34 +39,14 @@ struct InventoryView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if spools.isEmpty && errorMessage == nil {
-                    ProgressView()
-                } else if displayed.isEmpty {
-                    ContentUnavailableView(
-                        filter == .lowStock ? "No low stock" : "No spools",
-                        systemImage: "cylinder",
-                        description: Text(
-                            errorMessage
-                                ?? (searchText.isEmpty
-                                    ? "Tap + to add a spool."
-                                    : "No match for \"\(searchText)\".")
-                        )
-                    )
-                } else {
-                    List(displayed) { spool in
-                        Button {
-                            selectedSpool = spool
-                        } label: {
-                            SpoolRow(spool: spool)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .listStyle(.plain)
-                }
+            VStack(spacing: 0) {
+                KhaytSearchField(text: $searchText, prompt: L10n.tr("inventory.search"))
+                    .padding(.horizontal, KhaytDesign.pad)
+                    .padding(.top, 4)
+                    .padding(.bottom, 8)
+                content
             }
             .khaytScreen(title: L10n.tr("tab.inventory"))
-            .searchable(text: $searchText, prompt: L10n.tr("inventory.search"))
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Menu {
@@ -90,8 +70,40 @@ struct InventoryView: View {
             .sheet(item: $selectedSpool) { spool in
                 SpoolDetailSheet(spool: spool)
             }
-            .refreshable { await load() }
             .task { await load() }
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if spools.isEmpty && errorMessage == nil {
+            Spacer()
+            ProgressView()
+            Spacer()
+        } else if displayed.isEmpty {
+            ContentUnavailableView(
+                filter == .lowStock ? "No low stock" : "No spools",
+                systemImage: "cylinder",
+                description: Text(
+                    errorMessage
+                        ?? (searchText.isEmpty
+                            ? "Tap + to add a spool."
+                            : "No match for \"\(searchText)\".")
+                )
+            )
+        } else {
+            List(displayed) { spool in
+                Button {
+                    selectedSpool = spool
+                } label: {
+                    SpoolRow(spool: spool)
+                }
+                .buttonStyle(.plain)
+                .listRowBackground(KhaytDesign.surface)
+            }
+            .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
+            .refreshable { await load() }
         }
     }
 
@@ -110,6 +122,26 @@ private struct SpoolRow: View {
     let spool: InventorySpool
 
     var body: some View {
+        HStack(spacing: 12) {
+            swatch
+            detail
+        }
+        .padding(.vertical, 2)
+    }
+
+    private var swatch: some View {
+        let fill = spool.colorHex.map { Color(hex: UInt32($0.dropFirst(), radix: 16) ?? 0x888888) }
+            ?? KhaytDesign.surface2
+        return RoundedRectangle(cornerRadius: 7)
+            .fill(fill)
+            .frame(width: 34, height: 34)
+            .overlay(
+                RoundedRectangle(cornerRadius: 7)
+                    .stroke(KhaytDesign.border, lineWidth: 0.5)
+            )
+    }
+
+    private var detail: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(spool.displayLabel)
@@ -143,6 +175,5 @@ private struct SpoolRow: View {
                 }
             }
         }
-        .padding(.vertical, 2)
     }
 }

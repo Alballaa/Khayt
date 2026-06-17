@@ -33,6 +33,8 @@ struct ContentView: View {
         switch key {
         case "orders": selectedTab = 1
         case "inventory": selectedTab = 2
+        case "machines": selectedTab = 3
+        case "settings": selectedTab = 4
         default: break
         }
     }

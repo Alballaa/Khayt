@@ -137,8 +137,9 @@ struct OrdersView: View {
                         )
                     }
                     .buttonStyle(.plain)
+                    .listRowBackground(KhaytDesign.surface)
                 }
-                .listStyle(.plain)
+                .listStyle(.insetGrouped)
                 .scrollContentBackground(.hidden)
                 .environment(\.defaultMinListRowHeight, 56)
             }
@@ -185,7 +186,7 @@ struct OrdersView: View {
                     .padding(.vertical, 2)
                     .listRowBackground(KhaytDesign.surface)
                 }
-                .listStyle(.plain)
+                .listStyle(.insetGrouped)
                 .scrollContentBackground(.hidden)
                 .environment(\.defaultMinListRowHeight, 56)
             }

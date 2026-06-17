@@ -132,25 +132,31 @@ struct KhaytStatBlock: View {
     var subtitle: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 2) {
             Text(value)
-                .font(.system(size: 42, weight: .bold))
+                .font(.system(size: 34, weight: .bold, design: .rounded))
                 .foregroundStyle(color)
                 .minimumScaleFactor(0.7)
                 .lineLimit(1)
             Text(label)
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(KhaytDesign.textDim)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
             if let subtitle {
                 Text(subtitle)
                     .font(.system(size: 10))
                     .foregroundStyle(KhaytDesign.textMuted)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: 84, alignment: .topLeading)
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
         .background(KhaytDesign.surface, in: RoundedRectangle(cornerRadius: KhaytDesign.radiusLG))
+        .overlay(
+            RoundedRectangle(cornerRadius: KhaytDesign.radiusLG)
+                .stroke(KhaytDesign.border, lineWidth: 0.5)
+        )
     }
 }
 

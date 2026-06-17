@@ -20,23 +20,11 @@ struct MachinesView: View {
                     )
                 } else {
                     List(machines) { machine in
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(machine.name ?? machine.id)
-                                    .font(.headline)
-                                if let type = machine.type {
-                                    Text(type.uppercased())
-                                        .font(.caption)
-                                        .foregroundStyle(KhaytDesign.textDim)
-                                }
-                            }
-                            Spacer()
-                            if let status = machine.status {
-                                CompanionStatusBadge(status: status, compact: true)
-                            }
-                        }
+                        MachineRow(machine: machine)
+                            .listRowBackground(KhaytDesign.surface)
                     }
-                    .listStyle(.plain)
+                    .listStyle(.insetGrouped)
+                    .scrollContentBackground(.hidden)
                 }
             }
             .khaytScreen(title: L10n.tr("tab.machines"))
@@ -55,4 +43,38 @@ struct MachinesView: View {
         }
     }
 
+}
+
+private struct MachineRow: View {
+    let machine: MachineInfo
+
+    private var glyph: String {
+        (machine.type ?? "").lowercased().contains("resin") ? "cube.transparent" : "printer.fill"
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            let color = machine.status.map { KhaytDesign.statusColor(for: $0) } ?? KhaytDesign.textMuted
+            Image(systemName: glyph)
+                .font(.system(size: 17))
+                .foregroundStyle(color)
+                .frame(width: 38, height: 38)
+                .background(color.opacity(0.14), in: RoundedRectangle(cornerRadius: 9))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(machine.name ?? machine.id)
+                    .font(.headline)
+                    .foregroundStyle(KhaytDesign.text)
+                if let type = machine.type {
+                    Text(type.uppercased())
+                        .font(.caption)
+                        .foregroundStyle(KhaytDesign.textDim)
+                }
+            }
+            Spacer()
+            if let status = machine.status {
+                CompanionStatusBadge(status: status, compact: true)
+            }
+        }
+        .padding(.vertical, 4)
+    }
 }

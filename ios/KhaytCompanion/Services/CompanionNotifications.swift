@@ -14,6 +14,8 @@ final class CompanionNotifications: ObservableObject {
     private var lastLowStock: Int?
 
     func requestAuthorizationIfNeeded() async {
+        // Skip the system permission prompt during automated screenshot runs.
+        if ProcessInfo.processInfo.environment["KHAYT_SCREENSHOT"] != nil { return }
         let center = UNUserNotificationCenter.current()
         let settings = await center.notificationSettings()
         if settings.authorizationStatus == .notDetermined {

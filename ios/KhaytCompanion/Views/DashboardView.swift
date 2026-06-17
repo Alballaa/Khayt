@@ -13,6 +13,10 @@ struct DashboardView: View {
     @State private var isLoading = false
     @State private var showAddSpool = false
 
+    private var navTitle: String {
+        settings.shopLabel.isEmpty ? "Khayt" : settings.shopLabel
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -34,14 +38,12 @@ struct DashboardView: View {
                 .padding(.bottom, 8)
             }
             .scrollIndicators(.hidden)
-            .background(Color.clear)
-            .navigationTitle(settings.shopLabel)
+            .background(KhaytDesign.bg.ignoresSafeArea())
+            .navigationTitle(navTitle)
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) { ConnectionBadge() }
             }
-            .toolbarBackground(KhaytDesign.navBg, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
             .refreshable { await load() }
             .task { await load() }
             .sheet(isPresented: $showAddSpool) {
@@ -158,18 +160,24 @@ struct DashboardView: View {
     }
 
     private func quickTileLabel(_ title: String, _ icon: String) -> some View {
-        HStack(spacing: 8) {
+        VStack(spacing: 8) {
             Image(systemName: icon)
-                .font(.title3)
+                .font(.system(size: 22))
                 .foregroundStyle(KhaytDesign.brand)
+                .frame(height: 26)
             Text(title)
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(KhaytDesign.text)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
         .background(KhaytDesign.surface, in: RoundedRectangle(cornerRadius: KhaytDesign.radiusLG))
+        .overlay(
+            RoundedRectangle(cornerRadius: KhaytDesign.radiusLG)
+                .stroke(KhaytDesign.border, lineWidth: 0.5)
+        )
     }
 
     private var activeOrdersSection: some View {

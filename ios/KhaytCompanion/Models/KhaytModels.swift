@@ -101,8 +101,22 @@ struct InventorySpool: Codable, Identifiable, Sendable {
     }
 
     var displayLabel: String {
-        let parts = [brand, material, color].compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        // Drop the color when it's a raw hex code (shown as a swatch instead);
+        // keep human-readable color names ("Galaxy Black").
+        let trimmedColor = color?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let colorName = (trimmedColor?.isEmpty == false && trimmedColor?.hasPrefix("#") == false)
+            ? trimmedColor : nil
+        let parts = [brand, material, colorName]
+            .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
         return parts.isEmpty ? id : parts.joined(separator: " · ")
+    }
+
+    /// Hex (`#rrggbb`) color of the spool, if stored as a hex string.
+    var colorHex: String? {
+        guard let c = color?.trimmingCharacters(in: .whitespacesAndNewlines),
+              c.hasPrefix("#"), c.count == 7 else { return nil }
+        return c
     }
 
     var isLowStock: Bool {
