@@ -9,6 +9,22 @@ struct SpoolDetailSheet: View {
         NavigationStack {
             List {
                 Section("Filament") {
+                    if let hex = spool.colorHex {
+                        LabeledContent("Color") {
+                            HStack(spacing: 8) {
+                                RoundedRectangle(cornerRadius: 5)
+                                    .fill(Color(hex: hex) ?? .gray)
+                                    .frame(width: 22, height: 22)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 5)
+                                            .stroke(KhaytDesign.border, lineWidth: 0.5)
+                                    )
+                                Text(hex.uppercased())
+                                    .font(.caption.monospaced())
+                                    .foregroundStyle(KhaytDesign.textDim)
+                            }
+                        }
+                    }
                     LabeledContent("Name", value: spool.displayLabel)
                     if let brand = spool.brand, !brand.isEmpty {
                         LabeledContent("Brand", value: brand)
