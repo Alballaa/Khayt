@@ -11,6 +11,7 @@ const { createStoreIo } = require('./lib/store-io');
 const { registerZatcaCrypto } = require('./lib/zatca-crypto');
 const { wrapHubIpc } = require('./lib/ipc-guard');
 const { sanitizeHtmlForFile, redactStatusHtmlClientRow } = require('./lib/status-html');
+const { hashPin: hashPinSalted, verifyPin, isManagedHash } = require('./lib/pin-hash');
 
 let mainWindow;
 let lanServerStore = {};
@@ -677,10 +678,20 @@ ipcMain.handle('hub:verify-operator-pin', async (_event, { operatorId, pin } = {
   const op = (lanServerStore?.operators || []).find(o => o.id === operatorId);
   if (!op) return { ok: false, error: 'operator_not_found' };
   if (!op.pinHash) return { ok: true, noPin: true };
-  const hash = crypto.createHash('sha256').update(String(pin || '')).digest('hex');
-  if (op.pinHash.length !== 64) return { ok: false, error: 'legacy_pin' };
-  return { ok: timingSafeEqualHex(hash, op.pinHash) };
+  // Verify against either the salted PBKDF2 format or a legacy SHA-256 hash.
+  // Unrecognized formats (the very old base64 scheme) report legacy_pin so the
+  // renderer re-prompts to set a fresh PIN.
+  if (!isManagedHash(op.pinHash)) return { ok: false, error: 'legacy_pin' };
+  return { ok: verifyPin(String(pin || ''), op.pinHash) };
 });
+
+// Hash a PIN/secret in the salted PBKDF2 format (renderer delegates here so all
+// hashing uses Node crypto + a fresh salt).
+ipcMain.handle('hub:hash-pin', async (_e, pin) => hashPinSalted(String(pin ?? '')));
+
+// Verify a plaintext against a stored hash (salted PBKDF2 or legacy SHA-256),
+// using the salt embedded in the stored hash. Used for admin-PIN + recovery-code.
+ipcMain.handle('hub:verify-pin', async (_e, plain, stored) => verifyPin(String(plain ?? ''), stored));
 
 ipcMain.handle('hub:write-status-page', async (_event, { html, orderId }) => {
   const safeId = path.basename(String(orderId || '')).replace(/[^a-zA-Z0-9_-]/g, '_');

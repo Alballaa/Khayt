@@ -48,10 +48,27 @@
     return normalizeRecoveryCode(code).length === 12;
   }
 
+  // Verify a plaintext against a stored hash. Salted PBKDF2 can't be checked by
+  // re-hashing (random salt), so delegate to the main process which uses the
+  // embedded salt; fall back to legacy 64-hex SHA-256 only if the bridge is gone.
+  async function verifyHash(plain, hash) {
+    if (typeof hash !== 'string' || !hash) return false;
+    if (window.hubAPI?.verifyPin) {
+      try {
+        const ok = await window.hubAPI.verifyPin(String(plain), hash);
+        if (typeof ok === 'boolean') return ok;
+      } catch (_) { /* fall through to legacy */ }
+    }
+    if (/^[0-9a-f]{64}$/i.test(hash) && typeof sha256Hex === 'function') {
+      const entered = await sha256Hex(String(plain));
+      return timingSafeEqualHex(entered, hash);
+    }
+    return false;
+  }
+
   async function verifyRecoveryCode(code, hash) {
     if (!hash || !isValidRecoveryCode(code)) return false;
-    const entered = await hashSecret(normalizeRecoveryCode(code));
-    return timingSafeEqualHex(entered, hash);
+    return verifyHash(normalizeRecoveryCode(code), hash);
   }
 
   function isValidPin(pin) {
@@ -116,9 +133,8 @@
   async function verifyAdminPin(pin) {
     const admin = getAdminOperator();
     if (!admin?.pinHash) return false;
-    const entered = await hashSecret(String(pin || ''));
-    if (admin.pinHash.length !== 64 && isLegacyPin?.(admin.pinHash)) return false;
-    return timingSafeEqualHex(entered, admin.pinHash);
+    if (isLegacyPin?.(admin.pinHash)) return false; // very-old base64 → re-prompt
+    return verifyHash(String(pin || ''), admin.pinHash);
   }
 
   function promptTypeConfirmModal(message, confirmPhrase, { title, danger = true, extraHtml = '' } = {}) {

@@ -74,6 +74,8 @@ contextBridge.exposeInMainWorld('hubAPI', {
   loadStore:     ()       => ipcRenderer.invoke('hub:load-store'),
   saveStore:     (data)   => ipcRenderer.invoke('hub:save-store', data),
   fetchExchangeRates: (base) => ipcRenderer.invoke('hub:fetch-exchange-rates', base),
+  hashPin: (pin) => ipcRenderer.invoke('hub:hash-pin', pin),
+  verifyPin: (plain, stored) => ipcRenderer.invoke('hub:verify-pin', plain, stored),
   storeSize:     ()       => ipcRenderer.invoke('hub:store-size'),
   revealStoreFile: ()     => ipcRenderer.invoke('hub:reveal-store-file'),
   clipboardWrite: (text)  => ipcRenderer.invoke('hub:clipboard-write', text),
