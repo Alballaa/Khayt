@@ -4,6 +4,33 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [2.6.0-beta.4] - 2026-06-17
+
+**Pre-release (beta)** — a comprehensive security/correctness audit pass plus two new features, on top of 2.6.0-beta.3.
+
+### Added
+
+- **Live currency rates** — Settings → Payments → Exchange rates has a **Fetch live rates** button that pulls current FX from a free no-key service (with a "last updated" stamp); manual edits still work.
+- **Electricity rate by location** — the Calculator's Electricity field has a **📍 Auto** button that asks for your country and fills a typical commercial rate, converting into your base currency via your saved exchange rates.
+
+### Fixed
+
+- **ZATCA Phase-2 signing (critical)** — invoice signatures were double-hashed and would have been rejected by ZATCA; they now sign `SHA256(canonical)` so the signature matches the reported invoice hash.
+- **Data safety** — a single malformed collection no longer discards the whole store on load (valid data is salvaged); fully-credited orders no longer show as outstanding.
+- **Invoicing** — invoice summary now reconciles (Subtotal + Rush + Shipping = Total, VAT shown as included); client statement is base-currency consistent and no longer double-counts gift-card-settled orders.
+- **Calculator** — live price preview matches the committed cart cost (includes extras + packaging).
+- **Inventory** — spool reservation, over-commit, and forecast now match actual deduction (support weight × quantity).
+- **Orders** — order-completion webhooks + post-sale survey token now fire (were unreachable); priority badge shows the level, not "true"; assorted crash guards (due-date suggest, invoice timestamps).
+- **macOS window controls** — the new themes' title strip is now macOS-only, so it doesn't add an empty strip on Windows/Linux.
+
+### Security
+
+- XSS escaping in the Command dashboard; `save-html` forced to a safe extension (RCE guard); CSS-injection sinks use a color sanitizer; SMTP refuses plaintext credential auth; webhook timeout + DNS-rebinding recheck; printer-poll host allowlist tightened; `export-pdf` write confinement; navigation locked to the app; tunnel refuses weak PINs; Salla/Zid webhook replay protection; webhook token header-only.
+
+### Accessibility
+
+- Vivid colored band contrast (dark scrim); nav group-label contrast and keyboard focus rings; status-chip contrast (light + dark); Command inspector exposed to screen readers when open; monochrome kanban/rail icons.
+
 ## [2.6.0-beta.3] - 2026-06-17
 
 **Pre-release (beta)** — visual QA pass over the new design system, on top of 2.6.0-beta.2.
