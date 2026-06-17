@@ -268,6 +268,11 @@
     // Cap the strip so it never overflows the toolbar.
     while (openTabs.length > 6) openTabs.shift();
 
+    // With a single open tab the strip just echoes the page title beside it —
+    // only show the editor-style strip once a second screen has been opened.
+    if (openTabs.length < 2) { bar.innerHTML = ''; bar.hidden = true; return; }
+    bar.hidden = false;
+
     bar.innerHTML = openTabs.map((id) => {
       const btn = document.querySelector(`.tab-btn[data-tab="${id}"]`);
       const label = btn?.querySelector('.nav-label')?.textContent?.trim() || id.replace('-tab', '');

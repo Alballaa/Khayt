@@ -5,8 +5,15 @@
    mirrors automatically. */
 
 /* ---------- App frame: column with a bottom status bar ---------- */
+/* Keep a slim draggable title strip so the macOS traffic lights (hiddenInset,
+   positioned at 16,16) have room and don't overlap the sidebar brand. */
 body.khayt-vivid .khayt-titlebar {
-  display: none;
+  display: flex;
+  flex-shrink: 0;
+  height: 32px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--line);
+  -webkit-app-region: drag;
 }
 
 body.khayt-vivid .khayt-app {
@@ -197,6 +204,21 @@ body.khayt-vivid .khayt-top {
   background: linear-gradient(120deg, var(--hue, var(--accent)), var(--hue-2, var(--accent-2)));
   box-shadow: 0 10px 30px color-mix(in srgb, var(--hue, var(--accent)) 28%, transparent);
 }
+/* The band recolors per module; lighter hues (green/lime/cyan on Logs/Analytics)
+   wash out white text/controls. A soft shadow keeps them legible on any hue. */
+body.khayt-vivid .khayt-top,
+body.khayt-vivid .khayt-top .topbar-actions .btn,
+body.khayt-vivid .khayt-top #topbarPageTitle,
+body.khayt-vivid .khayt-top #topbarPageSubtitle {
+  text-shadow: 0 1px 2px rgba(20, 16, 40, 0.22);
+}
+/* Slightly deeper glass so translucent controls keep an edge on light hues. */
+body.khayt-vivid .topbar-actions .btn,
+body.khayt-vivid .topbar-actions select,
+body.khayt-vivid .topbar-actions .input {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+}
 /* Decorative light bubbles in the band (match prototype). */
 body.khayt-vivid .khayt-top::after {
   content: "";
@@ -272,6 +294,34 @@ body.khayt-vivid .topbar-actions .btn.primary {
 body.khayt-vivid .topbar-actions .btn.primary:hover {
   transform: translateY(-1px);
   background: #fff;
+}
+
+/* Selects (location / language) sit on the colored band too — give them the
+   same translucent glass so they don't read as plain white boxes. */
+body.khayt-vivid .topbar-actions select,
+body.khayt-vivid .topbar-actions .input {
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  border-radius: 10px;
+  box-shadow: none;
+}
+body.khayt-vivid .topbar-actions select option {
+  /* Native dropdown list renders on the OS surface, not the band. */
+  color: var(--ink);
+  background: var(--surface);
+}
+
+/* Search field text/icon inside the glass wrapper read on the gradient. */
+body.khayt-vivid .khayt-search input {
+  background: transparent;
+  color: #fff;
+}
+body.khayt-vivid .khayt-search input::placeholder { color: rgba(255, 255, 255, 0.8); }
+body.khayt-vivid .khayt-search .dim,
+body.khayt-vivid .khayt-search kbd {
+  color: rgba(255, 255, 255, 0.85);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 /* ---------- Content scroll ---------- */

@@ -280,6 +280,31 @@ input[type="number"] { font-variant-numeric: tabular-nums; }
   line-height: 1.2;
 }
 
+/* Notification count badge. The markup ships it unstyled, so the count flowed
+   inline and drifted to the wrapping action row's far edge instead of sitting
+   on the bell. Anchor it to the (position:relative) .khayt-bell as a small
+   count pill. Shared by every theme. */
+.khayt-bell { display: inline-flex; }
+.khayt-bdot {
+  position: absolute;
+  top: -3px;
+  inset-inline-end: -3px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--danger, #e0453a);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 0 0 2px var(--surface, #fff);
+  pointer-events: none;
+}
+
 .inline-pair {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2554,6 +2579,13 @@ tr.row-overdue td { background: rgba(239,77,94,0.05); }
   height: 48px;
   width: 100%;
   flex-shrink: 0;
+}
+/* Color swatches carry a user/material hex fill; a near-black fill on a dark
+   panel becomes invisible. Add a faint ring in dark mode so the swatch edge
+   always reads against the surface (filament dot, spool card, NFC dot). */
+[data-theme="dark"] #filColorDot,
+[data-theme="dark"] .fil-card-swatch {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
 }
 .fil-card-info {
   padding: 7px 8px 8px;
