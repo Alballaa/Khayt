@@ -19,14 +19,12 @@ const LANG = process.env.KHAYT_LANG || 'en';
 const assetsRoot = path.join(root, 'assets', LANG === 'en' ? 'themes' : `themes-${LANG}`);
 const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'khayt-theme-shots-'));
 
+// Current default trio. Legacy theme galleries already exist under assets/themes/;
+// override with KHAYT_THEME_SET to re-capture any of them.
 const THEMES = [
-  { id: 'studio', appearance: 'dark' },
-  { id: 'ledger', appearance: 'light' },
-  { id: 'console', appearance: 'dark' },
-  { id: 'atelier', appearance: 'light' },
-  { id: 'vitrine', appearance: 'dark' },
-  { id: 'cockpit', appearance: 'light' },
-  { id: 'atlas', appearance: 'dark' },
+  { id: 'workbench', appearance: 'light' },
+  { id: 'command', appearance: 'light' },
+  { id: 'vivid', appearance: 'light' },
 ];
 
 // Optional override, e.g. KHAYT_THEME_SET='[{"id":"studio","appearance":"light","dir":"studio-light"}]'
@@ -161,6 +159,11 @@ try {
     { timeout: 90_000 },
   );
   await page.waitForTimeout(800);
+
+  // loadAll() applies the disk store asynchronously after reload; wait for the
+  // demo data to land so the first (dashboard) shot per theme isn't empty.
+  await page.evaluate(() => window.KhaytShell?.switchTab?.('logs-tab'));
+  await page.waitForSelector('#logs-tab table tbody tr', { timeout: 30_000 });
 
   // Ensure the UI language (and RTL direction for Arabic) is applied.
   await page.evaluate((lang) => {

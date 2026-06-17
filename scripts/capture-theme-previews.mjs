@@ -15,15 +15,17 @@ const root = path.join(__dirname, '..');
 const outDir = path.join(root, 'renderer/themes/previews');
 const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'khayt-theme-previews-'));
 
-const THEMES = [
-  { id: 'studio', appearance: 'dark', file: 'studio.png' },
-  { id: 'ledger', appearance: 'light', file: 'ledger.png' },
-  { id: 'console', appearance: 'dark', file: 'console.png' },
-  { id: 'atelier', appearance: 'light', file: 'atelier.png' },
-  { id: 'vitrine', appearance: 'dark', file: 'vitrine.png' },
-  { id: 'cockpit', appearance: 'light', file: 'cockpit.png' },
-  { id: 'atlas', appearance: 'dark', file: 'atlas.png' },
+// Current default trio (their preview thumbnails shipped as placeholders).
+// Legacy themes already have real captures; override with KHAYT_THEME_SET to
+// re-capture any of them.
+const DEFAULT_THEMES = [
+  { id: 'workbench', appearance: 'light', file: 'workbench.png' },
+  { id: 'command', appearance: 'light', file: 'command.png' },
+  { id: 'vivid', appearance: 'light', file: 'vivid.png' },
 ];
+const THEMES = process.env.KHAYT_THEME_SET
+  ? JSON.parse(process.env.KHAYT_THEME_SET)
+  : DEFAULT_THEMES;
 
 const VIEWPORT = { width: 1280, height: 800 };
 
@@ -47,33 +49,36 @@ try {
   await page.setViewportSize(VIEWPORT);
   await page.waitForSelector('.khayt-app', { timeout: 90_000 });
 
-  const saveResult = await page.evaluate(async (store) => window.hubAPI.saveStore(store), demoStore);
-  if (!saveResult?.ok) throw new Error(`saveStore failed: ${JSON.stringify(saveResult)}`);
-
-  await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.waitForSelector('.khayt-app', { timeout: 90_000 });
-  await page.waitForFunction(
-    () => document.querySelector('#setup-wizard')?.style.display === 'none',
-    { timeout: 60_000 },
-  );
-
+  // Bake each theme into the saved store and reload, so the app renders that
+  // design from a clean load with demo data already applied (switching design
+  // at runtime re-renders the dashboard mid-shell-swap and comes out empty).
   for (const theme of THEMES) {
-    await page.evaluate(({ id, appearance }) => {
-      settings.designTheme = id;
-      settings.theme = appearance;
-      if (typeof applyTheme === 'function') applyTheme(appearance);
-      if (typeof applyDesignSettings === 'function') applyDesignSettings();
+    demoStore.settings.designTheme = theme.id;
+    demoStore.settings.theme = theme.appearance;
+    const saveResult = await page.evaluate(async (store) => window.hubAPI.saveStore(store), demoStore);
+    if (!saveResult?.ok) throw new Error(`saveStore failed: ${JSON.stringify(saveResult)}`);
+
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('.khayt-app', { timeout: 90_000 });
+    await page.waitForFunction(
+      () => document.querySelector('#setup-wizard')?.style.display === 'none',
+      { timeout: 60_000 },
+    );
+    await page.waitForFunction(
+      (id) => document.documentElement.dataset.design === id || document.body.classList.contains(`khayt-${id}`),
+      theme.id,
+      { timeout: 30_000 },
+    );
+    // loadAll() applies the disk store asynchronously after reload — wait for the
+    // demo data to land, then render the dashboard, so the preview isn't empty.
+    await page.evaluate(() => window.KhaytShell?.switchTab?.('logs-tab'));
+    await page.waitForSelector('#logs-tab table tbody tr', { timeout: 30_000 });
+    await page.evaluate(() => {
       window.KhaytShell?.switchTab?.('dashboard-tab');
       const wiz = document.querySelector('#setup-wizard');
       if (wiz) wiz.style.display = 'none';
       document.querySelector('#toastContainer')?.replaceChildren();
-    }, theme);
-
-    await page.waitForFunction(
-      (id) => document.documentElement.dataset.design === id || document.body.classList.contains(`khayt-${id}`),
-      theme.id,
-      { timeout: 15_000 },
-    );
+    });
     await page.waitForTimeout(900);
 
     const out = path.join(outDir, theme.file);
