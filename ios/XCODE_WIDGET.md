@@ -1,15 +1,26 @@
-# Add Khayt home screen widget (one-time in Xcode)
+# Khayt home screen widget
 
-The widget source is in `ios/KhaytWidget/`. Xcode needs a **Widget Extension** target:
+The **Khayt Queue** widget is built into the app — the Widget Extension target
+(`KhaytWidgetExtension`) is already configured in `KhaytCompanion.xcodeproj`, so
+it ships automatically when you build and run. No manual Xcode setup is needed.
 
-1. Open `ios/KhaytCompanion.xcodeproj`
-2. **File → New → Target → Widget Extension**
-3. Product name: **KhaytWidget**, include Live Activity: **off**
-4. Delete the auto-generated Swift files in the new group
-5. Drag `ios/KhaytWidget/KhaytQueueWidget.swift` into the **KhaytWidget** target (check target membership)
-6. Replace the extension `Info.plist` with `ios/KhaytWidget/Info.plist` if needed
-7. Set extension **entitlements** to `ios/KhaytWidget/KhaytWidget.entitlements`
-8. Main app **KhaytCompanion** target → **Signing & Capabilities → + App Groups** → `group.com.khaytapp.companion` (same on widget target)
-9. Build & run app on device, then add **Khayt Queue** widget from home screen
+## Add it to your home screen
 
-The main app writes queue stats via `WidgetSnapshotStore` whenever LAN health refresh succeeds.
+1. Build & run the app on your device and pair it with the desktop (Settings → LAN).
+2. Long-press an empty area of the home screen → tap **+** (top-left).
+3. Search for **Khayt** and pick a size:
+   - **Small** — queue / printing / done counts, or the top print's progress.
+   - **Medium** — counts plus the active prints with progress bars and ETA.
+   - **Lock screen (rectangular)** — the top print's progress and ETA.
+4. Tap **Add Widget**.
+
+The widget reads a shared snapshot (App Group `group.com.khaytapp.companion`)
+that the app writes whenever it's open and on each LAN health refresh: shop name,
+pipeline counts, connection state, and live printer progress from
+`/api/machines/live`. Open the app on your shop Wi‑Fi to refresh it.
+
+## How it's wired (for maintainers)
+
+- Source: `ios/KhaytWidget/KhaytQueueWidget.swift` (+ `Info.plist`, `KhaytWidget.entitlements`).
+- The app writes the snapshot via `WidgetSnapshotStore` (`KhaytCompanion/Services/`).
+- Both targets carry the `group.com.khaytapp.companion` App Group entitlement.

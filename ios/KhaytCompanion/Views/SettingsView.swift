@@ -73,7 +73,7 @@ struct SettingsView: View {
                     header: Text(L10n.tr("settings.widget")),
                     footer: Text(L10n.tr("settings.widget.footer"))
                 ) {
-                    Link("Widget setup guide", destination: URL(string: "https://github.com/Alballaa/Khayt/blob/main/ios/XCODE_WIDGET.md")!)
+                    Link("How to add the widget", destination: URL(string: "https://github.com/Alballaa/Khayt/blob/main/ios/XCODE_WIDGET.md")!)
                 }
 
                 Section {
