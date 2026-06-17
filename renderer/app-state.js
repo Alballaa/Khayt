@@ -49,6 +49,21 @@ function migrateLanApiSettings() {
     settings.lanApi.zidWebhookSecret = settings.zidWebhookSecret;
   }
 }
+/**
+ * One-time migration to the 2.6 theme consolidation (7 legacy designs → 3).
+ * Maps a saved legacy designTheme to the nearest new theme, once.
+ */
+function migrateLegacyDesignTheme() {
+  if (!settings || settings.__designV26Migrated) return;
+  const map = {
+    studio: 'workbench', ledger: 'workbench', console: 'workbench',
+    cockpit: 'command', atlas: 'command',
+    vitrine: 'vivid', atelier: 'vivid',
+  };
+  const cur = settings.designTheme;
+  if (cur && map[cur]) settings.designTheme = map[cur];
+  settings.__designV26Migrated = true;
+}
 function sanitizePrintHtml(html) {
   return String(html || '')
     .replace(/<script[\s\S]*?<\/script>/gi, '')
@@ -68,7 +83,7 @@ function defaultSettings() {
     addrAr:    'الرياض، المملكة العربية السعودية',
     lang:      'en',
     theme:         'light',
-    designTheme:   'studio',
+    designTheme:   'workbench',
     accent:        'cyan',
     cockpitSkin:   'poster',
     invPrefix: 'INV',
@@ -412,6 +427,7 @@ function applyStoreFromSnapshot(store) {
   if (store.envLogs)             envLogs             = store.envLogs.filter(isObj);
   if (store.settings)            settings            = Object.assign({}, defaultSettings(), sanitiseForAssign(store.settings));
   migrateLanApiSettings();
+  migrateLegacyDesignTheme();
   if (store.settings) {
     const nested = ['emailDigest', 'emailConfig', 'zatcaPhase2', 'bnpl', 'lanApi', 'exchangeRates', 'printerApi'];
     for (const key of nested) {
