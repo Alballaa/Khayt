@@ -20,6 +20,7 @@ struct QueueOrder: Codable, Identifiable, Sendable {
     let client: String?
     let status: String
     let machine: String?
+    let machineId: String?
     let dueDate: String?
     let priority: String?
 
@@ -108,6 +109,17 @@ struct Client: Codable, Identifiable, Sendable {
     var whatsappNumber: String? {
         dialNumber.map { $0.hasPrefix("+") ? String($0.dropFirst()) : $0 }
     }
+}
+
+/// Draft for creating an order or quote via POST /api/orders.
+struct NewOrderDraft {
+    var project = ""
+    var client = ""
+    var material = ""
+    var price = ""
+    var dueDate = ""          // yyyy-MM-dd, empty = none
+    var machineId: String?
+    var isQuote = false
 }
 
 /// Inbound job request from `/api/waiting-list` (the intake funnel).

@@ -89,6 +89,41 @@ final class KhaytAPIClient: ObservableObject {
         )
     }
 
+    func assignMachine(orderId: String, machineId: String?) async throws {
+        let encodedId = try encodeOrderIdForPath(orderId)
+        // [String: String?] encodes a nil value as JSON null (unassign).
+        let body = try JSONEncoder().encode(["machineId": machineId])
+        let (data, response) = try await request(
+            path: "/api/orders/\(encodedId)", method: "PATCH", body: body, requiresPin: true
+        )
+        try ensureOK(data, response)
+    }
+
+    func createOrder(_ draft: NewOrderDraft) async throws {
+        let project = draft.project.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !project.isEmpty else { throw KhaytAPIError.server("Project name is required.") }
+
+        var payload: [String: Any] = [
+            "project": InputLimits.clamp(project, max: InputLimits.maxMaterial),
+            "status": draft.isQuote ? "quote" : "pending"
+        ]
+        let client = draft.client.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !client.isEmpty { payload["client"] = InputLimits.clamp(client) }
+        let material = draft.material.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !material.isEmpty { payload["material"] = InputLimits.clamp(material, max: InputLimits.maxMaterial) }
+        if let price = Double(draft.price.trimmingCharacters(in: .whitespaces)), price >= 0 {
+            payload["price"] = price
+        }
+        if !draft.dueDate.isEmpty { payload["dueDate"] = draft.dueDate }
+        if let machineId = draft.machineId, !machineId.isEmpty { payload["machineId"] = machineId }
+
+        let data = try JSONSerialization.data(withJSONObject: payload)
+        let (responseData, response) = try await request(
+            path: "/api/orders", method: "POST", body: data, requiresPin: true
+        )
+        try ensureOK(responseData, response)
+    }
+
     func addSpool(from tag: NFCFilamentTag) async throws -> InventorySpool {
         try await addSpool(draft: SpoolDraft.from(tag: tag))
     }
