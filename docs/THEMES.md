@@ -4,16 +4,21 @@ Khayt separates **appearance** (dark / light / system) from **design theme** (vi
 
 ## Built-in themes
 
+Khayt 2.6 ships three redesigned, light-default themes with a native-app feel:
+
 | ID | Name | Shell | Default appearance |
 |----|------|-------|-------------------|
-| `studio` | Studio | Grouped left sidebar | Dark |
-| `ledger` | Workshop Ledger | Masthead + horizontal tabs | Light |
-| `console` | Control Room *(coming soon)* | Command bar + code rail | Dark |
-| `atelier` | Atelier *(coming soon)* | Soft sidebar | Light |
-| `vitrine` | Vitrine *(coming soon)* | Glass sidebar | Dark |
-| `cockpit` | Cockpit *(coming soon)* | Ops icon rail | Light |
+| `workbench` | **Workbench** _(default)_ | Grouped left sidebar | Light |
+| `command` | Command | Command bar + rail | Light |
+| `vivid` | Vivid | Colorful sidebar | Light |
 
-Reserved themes appear as “Coming soon” in Settings until art direction and tokens land.
+### Legacy themes
+
+The earlier themes remain selectable under **Settings → Preferences → Design**:
+`studio` (Studio), `ledger` (Workshop Ledger), `console` (Control Room),
+`atelier`, `vitrine`, `cockpit`, and `atlas`. Saved selections of the older
+default themes (`studio` / `ledger` / `console`) migrate to **Workbench** on
+upgrade.
 
 ## Architecture
 
@@ -29,8 +34,11 @@ renderer/themes/
 
 **Shell types**
 
-- `studio` — sidebar navigation (`body.khayt-studio`)
-- `ledger` — masthead + horizontal tab strip (`body.khayt-ledger`)
+- `workbench` — grouped sidebar, light-default (`body.khayt-workbench`) — the default
+- `command` — command bar + rail (`body.khayt-command`)
+- `vivid` — colorful sidebar (`body.khayt-vivid`)
+- `studio` — sidebar navigation (`body.khayt-studio`, legacy)
+- `ledger` — masthead + horizontal tab strip (`body.khayt-ledger`, legacy)
 - `default` — legacy horizontal layout without Studio chrome
 
 **Token contract**
@@ -74,6 +82,5 @@ Themes with shell `studio`, `ledger`, `console`, `atelier`, or `vitrine` set `bo
 
 ## Roadmap
 
-- **Control Room, Atelier, Vitrine, Cockpit** — Khayt-4 directions C–F (coming soon in picker)
 - Theme import/export (zip manifest + CSS)
 - Theme preview thumbnails in Settings

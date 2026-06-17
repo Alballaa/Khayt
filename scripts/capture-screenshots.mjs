@@ -110,6 +110,13 @@ try {
   );
   await page.waitForTimeout(800);
 
+  // loadAll() applies the disk store asynchronously after reload. Gate on the
+  // data actually landing (orders rendered) before capturing — otherwise the
+  // dashboard (first shot) renders before the store applies and its
+  // date/status-relative widgets come out empty.
+  await page.evaluate(() => window.KhaytShell?.switchTab?.('logs-tab'));
+  await page.waitForSelector('#logs-tab table tbody tr', { timeout: 30_000 });
+
   await page.evaluate(() => {
     const wiz = document.querySelector('#setup-wizard');
     if (wiz) wiz.style.display = 'none';

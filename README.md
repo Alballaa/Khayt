@@ -144,7 +144,7 @@ Khayt replaces spreadsheets, WhatsApp notes, and separate invoicing tools with o
 - Import / Export all data
 - Custom invoice number prefix with gap detection
 - Working hours schedule and public holidays
-- Studio UI — sidebar navigation, Kanban production queue, and focused dashboards
+- Workbench UI — light, native-feel default design with sidebar navigation, Kanban production queue, and focused dashboards (plus Command, Vivid, and legacy theme options)
 
 ---
 
@@ -152,9 +152,9 @@ Khayt replaces spreadsheets, WhatsApp notes, and separate invoicing tools with o
 
 ### Download (recommended)
 
-**Stable (recommended):** **[Releases → Latest](https://github.com/Alballaa/Khayt/releases/latest)** — currently **v2.3.2**.
+**Stable (recommended):** **[Releases → Latest](https://github.com/Alballaa/Khayt/releases/latest)** — currently **v2.5.0**.
 
-**Beta (Khayt-4 themes):** **[Pre-releases](https://github.com/Alballaa/Khayt/releases)** — **v2.4.0-beta.1** adds Cockpit, Atlas, and five other theme shells. Pre-release builds; stable installs do not auto-update to beta. See [docs/BETA-RELEASE.md](docs/BETA-RELEASE.md).
+**Beta:** **[Pre-releases](https://github.com/Alballaa/Khayt/releases)** — **v2.6.0-beta** ships the redesigned **Workbench** (default), **Command**, and **Vivid** themes. Pre-release builds; stable installs do not auto-update to beta. See [docs/BETA-RELEASE.md](docs/BETA-RELEASE.md).
 
 Grab the file for your platform:
 
