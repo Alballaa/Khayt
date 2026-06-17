@@ -4,6 +4,18 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [2.6.0-beta.3] - 2026-06-17
+
+**Pre-release (beta)** — visual QA pass over the new design system, on top of 2.6.0-beta.2.
+
+### Fixed
+
+- **macOS window controls** — Workbench / Command / Vivid hid the title bar, so the traffic-light buttons overlapped the sidebar brand / icon rail. Restored a slim, draggable title strip that reserves room for them.
+- **Workbench top bar** — the language/location selects could drop onto a second row; the bar is now a single non-wrapping row (the search shrinks first), and "All locations" is no longer cramped.
+- **Command** — the open-tab strip no longer overlaps the ⌘K search, and is hidden when only one screen is open (it previously just echoed the page title).
+- **Vivid** — white top-band controls stay legible on the lighter per-module hues (Orders / Analytics); the location/language selects now match the band's glass treatment.
+- **All new themes** — the notification count badge is anchored to the bell instead of drifting to the toolbar edge; dark-mode colour swatches (filament dot, spool card) get a faint ring so near-black fills stay visible.
+
 ## [2.6.0-beta.2] - 2026-06-17
 
 **Pre-release (beta)** — a new default design system plus UI fixes, on top of 2.6.0-beta.1.
