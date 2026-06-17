@@ -259,13 +259,19 @@ struct DashboardView: View {
             async let statusTask = api.fetchStatus()
             async let queueTask = api.fetchQueue()
             async let inventoryTask = api.fetchInventory()
+            // Best-effort live printer data for the home screen widget — fetched
+            // concurrently so it isn't in the cancellable tail of the task.
+            async let liveTask: [MachineLiveStatus] = (try? await api.fetchMachinesLive()) ?? []
             let (s, q, inv) = try await (statusTask, queueTask, inventoryTask)
+            let livePrints = await liveTask
+                .filter { $0.isPrinting }
+                .map { WidgetPrint(name: $0.displayName, progress: $0.progress ?? 0, eta: $0.etaText) }
             status = s
             queuePreview = q.filter { $0.status.lowercased() != "completed" }
             lowStockCount = inv.filter(\.isLowStock).count
             overdueCount = q.filter(\.isOverdue).count
             CompanionNotifications.shared.handleDashboardSnapshot(
-                status: s, queue: q, lowStockCount: lowStockCount, settings: settings
+                status: s, queue: q, lowStockCount: lowStockCount, settings: settings, livePrints: livePrints
             )
         } catch {
             status = nil
