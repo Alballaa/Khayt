@@ -4,6 +4,19 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [2.6.0-beta.6] - 2026-06-17
+
+**Pre-release (beta)** — two features off the backlog plus repo cleanup, on top of 2.6.0-beta.5.
+
+### Added
+
+- **Printer alerting** — fires a notification when a printer goes into **error**, **offline** (after repeated failed polls), or **stall** (progress frozen mid-print), through the existing Telegram / webhook / email channels, with per-printer cooldowns. Toggle each under Settings → Telegram.
+- **Per-location inventory + spool QR labels** — spools can be assigned to a branch; the inventory list, low-stock/reorder alerts, valuation, and auto-deduction scope to the active location (legacy/unassigned stock stays visible). Transfer stock between branches, and print a 62 mm QR label for a spool.
+
+### Changed
+
+- Repository cleanup: pruned ~60 merged/closed branches and removed leftover dev scripts.
+
 ## [2.6.0-beta.5] - 2026-06-17
 
 **Pre-release (beta)** — security hardening, on top of 2.6.0-beta.4.
