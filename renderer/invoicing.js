@@ -777,7 +777,7 @@ async function renderInvoiceForOrder(order) {
     catch (e) { console.warn('Payment QR failed', e); }
   }
 
-  renderInvoice(order, { qrSvg, payQrSvg, total, vatAmount, subtotal, vatRate: rate, shipping });
+  renderInvoice(order, { qrSvg, payQrSvg, total, vatAmount, subtotal, subtotalShown, vatRate: rate, shipping });
   maybeAutoSubmitZatca(order);
 }
 
@@ -1097,14 +1097,13 @@ function openCreditNoteModal(orderId) {
 }
 
 function generateCreditNote(order, creditAmount, reason) {
-  // Record financial effect: reduce paidAmount or mark partial refund
+  // A credit note reduces the amount DUE (a refund / cancelled charge). It is
+  // recorded only in creditNotes[]; paidAmount is left untouched so the credit
+  // is applied exactly once — orderOwedBase and payStatus both subtract it from
+  // the effective price. (Mutating paidAmount here double-counted the credit.)
   if (!order.creditNotes) order.creditNotes = [];
   order.creditNotes.push({ id: 'CN-' + Date.now().toString(36), amount: creditAmount, reason, issuedAt: new Date().toISOString() });
   const totalCredited = order.creditNotes.reduce((s, cn) => s + (+cn.amount || 0), 0);
-  // Reduce paidAmount by credit amount (can't go below 0)
-  if ((order.paidAmount || 0) > 0) {
-    order.paidAmount = Math.max(0, (+order.paidAmount || 0) - creditAmount);
-  }
   // If credit equals full price, treat as voided for reporting
   if (totalCredited >= (+order.price || 0)) {
     order.creditedAt = new Date().toISOString();
@@ -1280,6 +1279,14 @@ async function generateMilestoneInvoice(orderId, milestone) {
   // Build a temporary order-like object with the milestone amount
   const tempOrder = Object.assign({}, order, {
     price: milestone.amount,
+    // The milestone bills a % of the full total; shipping/rush/extras/discount are
+    // already represented in that %, so don't re-show or re-bill them in full on
+    // top of the (smaller) milestone amount.
+    shippingCost: 0,
+    rushFeeAmount: 0,
+    extraLines: [],
+    discountPct: 0,
+    priceBeforeDiscount: 0,
     _milestoneLabel: milestone.label,
     _milestoneTotal: order.price,
     _milestonePct: milestone.percentage,
@@ -1290,7 +1297,7 @@ async function generateMilestoneInvoice(orderId, milestone) {
 }
 
 /* --- extracted 18874-19253 --- */
-function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal, vatRate, shipping = 0 }) {
+function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal, subtotalShown, vatRate, shipping = 0 }) {
   const area = $('#invoice-print-area');
   const issuedDate = formatPrintDate(order.date);
   const issuedTime = order.timestamp ? new Date(order.timestamp).toTimeString().slice(0, 5) : '';

@@ -4,6 +4,123 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [2.7.0] - 2026-06-18
+
+Graduates the 2.7.0 beta line (`v2.7.0-beta.1` → `beta.3`) to a stable release over `2.6.0`. A correctness/quality pass across inventory, invoicing, the production queue, analytics, settings, and localization. Highlights, consolidated from the per-prerelease sections below:
+
+### Fixed
+
+- **Filament accounting** — corrected spool reservation / over-commit (it was inert for normal parts), double-counted split prints, lost partial shortfalls, valuation that overstated partly-used spools, and a "NaN d" forecast.
+- **Invoicing** — milestone invoices no longer re-bill the full shipping / rush / extras on each milestone.
+- **Production queue** — a requeued card no longer jumps the queue after a column move; a paused print no longer shows a false "Overdue".
+- **Order status** — reopening a completed order resets its completion state; completing directly from on-hold clears the hold.
+- **Analytics** — quote conversion rate can no longer exceed 100%; no `-Infinity%` margins; SLA on-time uses local dates; client-LTV ranks by actual time.
+- **Settings** — nested config (BNPL/email/ZATCA/LAN) deep-merges, so a saved partial value keeps its defaults.
+
+### Changed
+
+- **Localization** — German, Spanish, French, Japanese, and Chinese brought to full key parity with English (previously English-only on newer surfaces), then reviewed for terminology consistency. Dead "orphan" keys removed.
+
+### Security
+
+- **`/api/survey`** is now per-IP rate-limited, and LAN **CORS** no longer reflects arbitrary origins on PIN-gated routes (limited to loopback / LAN).
+
+## [2.7.0-beta.3] - 2026-06-18
+
+**Pre-release (beta)** — accounting/inventory/UI correctness + CORS hardening, on top of 2.7.0-beta.2.
+
+### Fixed
+
+- **Inventory** — valuation no longer overstates the value of partly-used spools that lack a recorded original weight (M3); the days-remaining forecast no longer renders "NaN" for non-numeric weights (M8).
+- **Invoicing** — milestone invoices no longer re-bill the full shipping / rush / extras / discount on top of each milestone amount (M1).
+- **Settings** — nested config (BNPL, email, ZATCA, LAN, …) now deep-merges, so a saved partial value (e.g. one BNPL provider's key) keeps the sibling defaults instead of dropping them (M2).
+- **Production queue** — a manually-reordered card no longer jumps the queue after moving to another column (queue order is now column-scoped, M6); a paused print's estimated-completion badge no longer shows "Overdue" while paused (M7).
+
+### Security
+
+- **LAN CORS** — PIN-gated routes no longer reflect an arbitrary `http://` Origin; the reflected origin is limited to loopback / LAN hosts.
+
+### Changed
+
+- **Localization** — German, Spanish, French, Japanese, and Chinese are at full key parity with English (removed dead "orphan" keys left over from past renames).
+
+## [2.7.0-beta.2] - 2026-06-18
+
+**Pre-release (beta)** — correctness fixes, on top of 2.7.0-beta.1.
+
+### Fixed
+
+- **Order status transitions** — reopening a completed order (e.g. dragging it back for a reprint) now resets its completion state, so the print timer restarts fresh and the reprint re-deducts filament; completing directly from on-hold now clears the hold flags.
+- **Analytics** — the quote conversion rate no longer exceeds 100% (measured within the created cohort); product margin no longer shows `-Infinity%` for zero-revenue jobs; SLA on-time/late uses local dates (no day-boundary flips); client-LTV "last order" ranks by actual time rather than a mixed string compare.
+
+### Security
+
+- **`/api/survey`** is now per-IP rate-limited — it was the only store-mutating public LAN route without a throttle (token-gated only).
+
+## [2.7.0-beta.1] - 2026-06-18
+
+**Pre-release (beta)** — first 2.7 beta, on top of stable 2.6.0.
+
+### Fixed
+
+- **Filament accounting (inventory)** — three deduction bugs corrected:
+  - the over-commit / reservation check keyed on the optional per-part spool and so was inert for normal parts (which carry only a material) — it now mirrors the actual deduction, so over-commit warnings and reserved-grams reflect real demand;
+  - split prints recorded via the spool-switch flow no longer double-count filament (completion deducts only the remainder);
+  - a partial shortfall on the chosen spool is now drawn from other same-material spools (location-preferred) instead of being silently lost.
+
+### Changed
+
+- **Localization** — German, Spanish, French, Japanese, and Chinese reach full key parity with English: 296 previously-English-only strings (the Workbench/Command/Vivid/Cockpit/Atlas dashboards, the updater dialog, quote follow-up, per-location inventory + transfers, electricity/exchange-rate helpers, label printing) are now translated. These are AI-generated and pending a native-speaker review pass.
+
+## [2.6.0] - 2026-06-18
+
+Graduates the 2.6.0 beta line (`v2.6.0-beta.1` → `beta.8`) to a stable release over `2.5.0`. Highlights, consolidated from the per-prerelease sections below:
+
+### Added
+
+- **Redesigned themes** — three new light-default, native-feel designs: **Workbench** (the new default), **Command**, and **Vivid**, replacing the previous default. The earlier themes remain selectable as legacy options.
+- **Printer alerting** — notifications when a printer goes into error, offline, or stall, over Telegram / webhook / email, with per-printer cooldowns.
+- **Per-location inventory** — assign spools to a branch; inventory, low-stock/reorder, valuation, and auto-deduction scope to the active location. Stock transfers and 62 mm spool QR labels.
+- **Live currency rates** and **per-country electricity rates** in the calculator.
+- **Quote follow-up automation** — opt-in expiring-quote nudges.
+
+### Changed
+
+- **Salted PBKDF2 PIN hashing** — operator/admin PINs and recovery codes now use salted PBKDF2-SHA256 (existing PINs upgrade transparently).
+
+### Fixed
+
+- **ZATCA Phase-2 signing** — invoice signatures are no longer double-hashed (would have been rejected by ZATCA).
+- **Invoicing** — fixed a crash that broke all invoice rendering, and corrected credit-note accounting (was double-counted in balances/payment status).
+- **Data safety** — a malformed collection no longer discards the whole store on load; saves no longer fail for shops with a stored ZATCA/BNPL/Telegram/LAN secret.
+- **Localization** — restored dropped placeholders across Arabic confirm dialogs/toasts/badges and the de/es/fr/zh low-stock alert; RTL fixes.
+
+## [2.6.0-beta.8] - 2026-06-17
+
+**Pre-release (beta)** — QA pass: language review, security + bug scan, UI review.
+
+### Fixed
+
+- **Invoices failed to render** — a missing variable (`subtotalShown`) threw on every invoice generate/print/PDF/WhatsApp path. (regression)
+- **Credit notes were double-counted** — a credit note reduced `paidAmount` *and* was subtracted again from the balance, so refunded/credited orders showed the wrong outstanding amount and payment status. Credit now reduces the amount **due** exactly once, consistently across balances, statements, and payment status.
+- **Saving could fail (data loss) for some shops** — the secret-merge step crashed when a ZATCA / BNPL / Telegram / LAN secret was stored on disk but the incoming snapshot had no `settings`, so that save was dropped.
+- **Analytics could show "NaN"** print-hours when an order lacked a print time.
+- **Localization** — restored dropped `{placeholders}` in **28 Arabic** strings (credit-limit and over-commit confirm dialogs, capacity/tier/progress toasts and badges) that were showing without their amounts/dates/counts; restored the material + quantity in the **German / Spanish / French / Chinese** low-stock alert; fixed the Arabic "view queue" / "go" arrows to point the right way in RTL.
+- **Command theme** — the status-bar clock now follows the app language instead of always rendering Western digits.
+
+### Added
+
+- CI guard (`locale-parity` test) that fails if an Arabic string drops an English `{placeholder}`.
+
+## [2.6.0-beta.7] - 2026-06-17
+
+**Pre-release (beta)** — theme-picker polish + documentation refresh, on top of 2.6.0-beta.6.
+
+### Changed
+
+- **Theme-picker previews** — Settings → Preferences → Design now shows real preview thumbnails for the **Workbench**, **Command**, and **Vivid** themes (they previously shipped as placeholders).
+- Refreshed the README screenshots and theme documentation to the current Workbench design, and removed unused legacy screenshot galleries.
+
 ## [2.6.0-beta.6] - 2026-06-17
 
 **Pre-release (beta)** — two features off the backlog plus repo cleanup, on top of 2.6.0-beta.5.

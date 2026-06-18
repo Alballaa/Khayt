@@ -1141,11 +1141,13 @@ function partGramsConsumed(p) {
 }
 
 function getSpoolReservedGrams(spoolId) {
+  // Key on the same id the deduction uses: the explicitly chosen spool when set,
+  // otherwise the part's filament (most parts only carry filamentId).
   return printLog
     .filter(o => o.status !== 'completed' && o.status !== 'quote')
     .reduce((s, o) =>
       s + (o.parts || [])
-        .filter(p => p.spoolId === spoolId)
+        .filter(p => (p.spoolId || p.filamentId) === spoolId)
         .reduce((ps, p) => ps + partGramsConsumed(p), 0)
     , 0);
 }
@@ -1160,15 +1162,16 @@ function todayPlusDays(n) {
 function checkSpoolOvercommit(parts, excludeOrderId) {
   const warnings = [];
   for (const part of (parts || [])) {
-    if (!part.spoolId) continue;
-    const item = inventory.find(i => i.id === part.spoolId);
+    const key = part.spoolId || part.filamentId;
+    if (!key) continue;
+    const item = inventory.find(i => i.id === key);
     if (!item) continue;
     // Compute already-reserved excluding the order being edited
     const alreadyReserved = printLog
       .filter(o => o.status !== 'completed' && o.status !== 'quote' && o.id !== excludeOrderId)
       .reduce((s, o) =>
         s + (o.parts || [])
-          .filter(p => p.spoolId === part.spoolId)
+          .filter(p => (p.spoolId || p.filamentId) === key)
           .reduce((ps, p) => ps + partGramsConsumed(p), 0)
       , 0);
     const thisJobNeeds = partGramsConsumed(part);
@@ -1344,7 +1347,10 @@ function renderInventory() {
   if (valEl && !window.KhaytStudio?.useHandoffScreens?.()) {
     if (scopedInventory.length > 0) {
       const totalValue = scopedInventory.reduce((s, item) => {
-        const pricePerG = item.weight > 0 && item.cost > 0 ? item.cost / Math.max(1, item.spoolWeight || item.weight || 1000) * item.weight : 0;
+        // Value = cost × (remaining / original). Fall back to the standard spool
+        // size (1000) when the original weight wasn't recorded — dividing by the
+        // *remaining* weight valued every partly-used spool at full purchase cost.
+        const pricePerG = item.weight > 0 && item.cost > 0 ? item.cost / Math.max(1, item.spoolWeight || 1000) * item.weight : 0;
         return s + pricePerG;
       }, 0);
       const totalGrams = scopedInventory.reduce((s, item) => s + Math.max(0, +item.weight || 0), 0);
@@ -1845,27 +1851,36 @@ function deductFilamentForOrder(order, { skipRender = false } = {}) {
   const orderLoc = typeof orderLocationId === 'function' ? orderLocationId(order) : (order.locationId || null);
   for (const part of (order.parts || [])) {
     if (!part.filamentId || !part.printWeight) continue;
-    let item = inventory.find(i => i.id === part.filamentId);
-    if (!item) continue;
-    // If the explicitly chosen spool is empty, redirect to a same-material spool,
-    // preferring the order's location, then unassigned, then any other branch.
-    if (orderLoc && (+item.weight || 0) <= 0) {
-      const sameMaterial = inventory.filter(s =>
-        s.material === item.material && (+s.weight || 0) > 0);
-      const preferred = orderSpoolsByLocationPreference(sameMaterial, orderLoc)[0];
-      if (preferred) item = preferred;
+    const primary = inventory.find(i => i.id === part.filamentId);
+    if (!primary) continue;
+    // Grams still owed by the primary filament after any spools already deducted
+    // through the spool-switch flow (additionalSpools) — so those aren't counted
+    // twice. Uses the shared grams helper (print + support × qty).
+    const extra = (part.additionalSpools || []).reduce((s, a) => s + (+a.weight || 0), 0);
+    let remaining = Math.max(0, partGramsConsumed(part) - extra);
+    if (remaining <= 0) continue;
+    // Draw from the chosen spool first (honoring the user's pick), then cover any
+    // shortfall — or a fully-empty chosen spool — from other same-material spools,
+    // location-preferred when the order has a branch.
+    const others = inventory.filter(s =>
+      s.id !== primary.id && s.material === primary.material && (+s.weight || 0) > 0);
+    const fallback = (orderLoc && typeof orderSpoolsByLocationPreference === 'function')
+      ? orderSpoolsByLocationPreference(others, orderLoc) : others;
+    for (const sp of [primary, ...fallback]) {
+      if (remaining <= 0) break;
+      const avail = +sp.weight || 0;
+      if (avail <= 0) continue;
+      const take = Math.min(avail, remaining);
+      sp.weight = Math.max(0, avail - take);
+      remaining -= take;
+      if (!sp.usageHistory) sp.usageHistory = [];
+      sp.usageHistory.unshift({ orderId: order.id, project: order.project || '', weightUsed: take, date: today });
+      if (sp.usageHistory.length > 200) sp.usageHistory.length = 200;
+      deductedAny = true;
+      totalDeducted += take;
+      spoolsTouched.add(sp.id);
+      if (isLowStock(sp) && !nowLow.some(x => x.id === sp.id)) nowLow.push(sp);
     }
-    // Use the shared grams helper (print + support × qty) so reservation,
-    // forecast, and deduction stay consistent.
-    const deductAmt = partGramsConsumed(part);
-    item.weight = Math.max(0, item.weight - deductAmt);
-    if (!item.usageHistory) item.usageHistory = [];
-    item.usageHistory.unshift({ orderId: order.id, project: order.project || '', weightUsed: deductAmt, date: today });
-    if (item.usageHistory.length > 200) item.usageHistory.length = 200;
-    deductedAny = true;
-    totalDeducted += deductAmt;
-    spoolsTouched.add(item.id);
-    if (isLowStock(item) && !nowLow.some(x => x.id === item.id)) nowLow.push(item);
   }
   if (deductedAny) {
     // Emit ONE aggregated toast instead of per-spool spam (which could blow the
@@ -2046,8 +2061,12 @@ function estimateDaysRemaining(item) {
   const totalUsed = recent.reduce((s, h) => s + (+h.weightUsed || 0), 0);
   const days = recent.length > 0 ? Math.min(30, (Date.now() - new Date(recent[recent.length-1]?.date || Date.now()).getTime()) / 86400000 + recent.length) : 30;
   const dailyRate = totalUsed / Math.max(days, 1);
-  if (dailyRate <= 0) return null;
-  return Math.round((item.weight || 0) / dailyRate);
+  if (!(dailyRate > 0)) return null;
+  // A non-numeric weight (CSV/legacy rows) is "unknown", not zero — return null
+  // so the forecast shows nothing rather than a bogus "0 d" / "NaN d".
+  const w = +item.weight;
+  if (!Number.isFinite(w)) return null;
+  return Math.round(w / dailyRate);
 }
 
 function renderSupplierReorderList() {
@@ -3434,6 +3453,7 @@ async function printSpoolLabel(itemId) {
     openProductEditor,
     resizeImage,
     computeMaterialForecast,
+    estimateDaysRemaining,
     renderProductTierChips,
     batchGenPOs,
     createPurchaseOrder,
