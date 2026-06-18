@@ -4,6 +4,27 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [2.7.0] - 2026-06-18
+
+Graduates the 2.7.0 beta line (`v2.7.0-beta.1` → `beta.3`) to a stable release over `2.6.0`. A correctness/quality pass across inventory, invoicing, the production queue, analytics, settings, and localization. Highlights, consolidated from the per-prerelease sections below:
+
+### Fixed
+
+- **Filament accounting** — corrected spool reservation / over-commit (it was inert for normal parts), double-counted split prints, lost partial shortfalls, valuation that overstated partly-used spools, and a "NaN d" forecast.
+- **Invoicing** — milestone invoices no longer re-bill the full shipping / rush / extras on each milestone.
+- **Production queue** — a requeued card no longer jumps the queue after a column move; a paused print no longer shows a false "Overdue".
+- **Order status** — reopening a completed order resets its completion state; completing directly from on-hold clears the hold.
+- **Analytics** — quote conversion rate can no longer exceed 100%; no `-Infinity%` margins; SLA on-time uses local dates; client-LTV ranks by actual time.
+- **Settings** — nested config (BNPL/email/ZATCA/LAN) deep-merges, so a saved partial value keeps its defaults.
+
+### Changed
+
+- **Localization** — German, Spanish, French, Japanese, and Chinese brought to full key parity with English (previously English-only on newer surfaces), then reviewed for terminology consistency. Dead "orphan" keys removed.
+
+### Security
+
+- **`/api/survey`** is now per-IP rate-limited, and LAN **CORS** no longer reflects arbitrary origins on PIN-gated routes (limited to loopback / LAN).
+
 ## [2.7.0-beta.3] - 2026-06-18
 
 **Pre-release (beta)** — accounting/inventory/UI correctness + CORS hardening, on top of 2.7.0-beta.2.
