@@ -105,3 +105,56 @@ test('renderAnalytics: quote conversion stays within the created cohort, never >
   assert.equal($('#stat-quotes-created').textContent, '2', 'only quotes with quoteSentAt count as created');
   assert.equal($('#stat-conv-rate').textContent, '50%', '1 of 2 created quotes converted; the unsent-but-accepted order is excluded');
 });
+
+// --- Arg-taking HTML builders -------------------------------------------------
+// Self-contained render helpers that build HTML from explicit arguments — the
+// same class as renderInvoice (where C1 lived). A render-path sweep across all
+// 111 render functions (rich/empty/sparse state + edge args) found no crashes;
+// these lock in the stable builders, asserting empty-guards and HTML escaping.
+
+function loadBuilders() {
+  dom.loadI18n();
+  require('../renderer/format.js');
+  require('../renderer/currency.js');
+  require('../renderer/app-helpers.js'); // renderTagChips
+  require('../renderer/expenses.js');    // renderAttachedFiles
+  require('../renderer/invoicing.js');   // renderClientSub
+  require('../renderer/order-flows.js'); // renderOeExtraLinesHtml
+}
+
+test('renderTagChips: empty/null → "", escapes tag text (XSS guard)', () => {
+  loadBuilders();
+  assert.equal(renderTagChips([]), '');
+  assert.equal(renderTagChips(null), '');
+  const html = renderTagChips(['<img src=x onerror=alert(1)>'], true);
+  assert.ok(!html.includes('<img'), 'raw tag markup must be escaped');
+  assert.ok(html.includes('&lt;img'), 'tag text should be HTML-escaped');
+  assert.ok(html.includes('data-act="filter-tag"'), 'clickable chips carry the filter action');
+});
+
+test('renderAttachedFiles: empty → placeholder, escapes file names', () => {
+  loadBuilders();
+  const empty = renderAttachedFiles([]);
+  assert.ok(empty.includes('<p'), 'empty list renders a placeholder paragraph');
+  const html = renderAttachedFiles([{ originalName: '<b>r</b>.pdf', size: 2048 }]);
+  assert.ok(!html.includes('<b>r</b>.pdf'), 'file name must be escaped');
+  assert.ok(html.includes('&lt;b&gt;'), 'file name should be HTML-escaped');
+  assert.ok(html.includes('2 KB'), 'file size is formatted');
+});
+
+test('renderClientSub: joins phone · email, empty → ""', () => {
+  loadBuilders();
+  assert.equal(renderClientSub({}), '');
+  const html = renderClientSub({ phone: '050', email: 'a@b.c' });
+  assert.ok(html.includes('050') && html.includes('a@b.c'));
+  assert.ok(html.includes('·'), 'phone and email are separated by a middot');
+});
+
+test('renderOeExtraLinesHtml: empty/null → "", renders label + amount', () => {
+  loadBuilders();
+  assert.equal(renderOeExtraLinesHtml([]), '');
+  assert.equal(renderOeExtraLinesHtml(null), '');
+  const html = renderOeExtraLinesHtml([{ label: 'Setup', amount: 20 }]);
+  assert.ok(html.includes('Setup'), 'extra-line label appears');
+  assert.ok(html.includes('data-oeli="0"'), 'extra-line row is indexed');
+});
