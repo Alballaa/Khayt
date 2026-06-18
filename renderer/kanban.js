@@ -30,6 +30,13 @@ function updateKanbanLiveStatus() {
 let _kanbanDraggingId = null;
 let _kanbanTimerPrintingCount = -1;
 
+// Manual drag-reorder position is scoped to the column it was set in: an order
+// that moves to another column (e.g. a QC-fail requeued to pending) must not keep
+// a low position and jump the new column's queue.
+function kanbanQueuePos(o, col) {
+  return o.queueCol === col && typeof o.queuePos === 'number' ? o.queuePos : 9999;
+}
+
 function setupKanbanDrag() {
   _kanbanDraggingId = null;
   const cols = ['pending', 'on_hold', 'printing', 'post', 'qc', 'completed'];
@@ -86,7 +93,7 @@ function setupKanbanDrag() {
       const target = e.target.closest('.kanban-card[draggable="true"]');
       if (!target || target.dataset.orderId === _kanbanDraggingId) return;
       const colOrders = printLog.filter(o => o.status === status)
-        .sort((a, b) => (a.queuePos || 9999) - (b.queuePos || 9999));
+        .sort((a, b) => kanbanQueuePos(a, status) - kanbanQueuePos(b, status));
       const dragIdx   = colOrders.findIndex(o => o.id === _kanbanDraggingId);
       const targetIdx = colOrders.findIndex(o => o.id === target.dataset.orderId);
       if (dragIdx < 0 || targetIdx < 0) return;
@@ -97,7 +104,7 @@ function setupKanbanDrag() {
       const newIdx = reordered.findIndex(o => o.id === target.dataset.orderId);
       const insertAt = insertBefore ? newIdx : newIdx + 1;
       reordered.splice(insertAt, 0, dragged);
-      reordered.forEach((o, i) => { o.queuePos = i; });
+      reordered.forEach((o, i) => { o.queuePos = i; o.queueCol = status; });
       saveAll();
       renderKanban();
     });
@@ -393,7 +400,7 @@ function renderKanban() {
       ? [...items].sort((a, b) => {
           const pd = prioritySortValue(a) - prioritySortValue(b);
           if (pd !== 0) return pd;
-          return (a.queuePos || 9999) - (b.queuePos || 9999);
+          return kanbanQueuePos(a, 'pending') - kanbanQueuePos(b, 'pending');
         })
       : [...items].sort((a, b) => prioritySortValue(a) - prioritySortValue(b));
     if (kanbanSortByPriority) sorted = sorted.slice().sort((a, b) => kanbanUrgencyScore(a) - kanbanUrgencyScore(b));
@@ -596,7 +603,11 @@ function renderKanban() {
       // QW3: Est. completion badge for printing cards
       let etaBadge = '';
       if (status === 'printing' && log.printingStartedAt && +log.printTime > 0) {
-        const etaMs = new Date(log.printingStartedAt).getTime() + (+log.printTime * 3600000);
+        // Push the estimated finish out by paused time, matching the elapsed-timer
+        // badge — otherwise a paused print shows "Overdue" while the timer reads fine.
+        const _isPaused = !!log.timerPausedAt;
+        const _pausedMs = (log.timerPausedMs || 0) + (_isPaused ? Date.now() - new Date(log.timerPausedAt).getTime() : 0);
+        const etaMs = new Date(log.printingStartedAt).getTime() + (+log.printTime * 3600000) + _pausedMs;
         const nowMs = Date.now();
         const diffH = (etaMs - nowMs) / 3600000;
         const etaDate = new Date(etaMs);
@@ -766,6 +777,7 @@ function renderMachineQueues() {
     updateKanbanLiveStatus,
     setupKanbanDrag,
     kanbanUrgencyScore,
+    kanbanQueuePos,
     studioKanbanProgress,
     studioKanbanDuePill,
     renderStudioKanbanCard,
