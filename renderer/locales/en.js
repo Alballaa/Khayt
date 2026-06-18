@@ -2098,6 +2098,7 @@
   "prod.paused_toast": "Production paused.",
   "calc.parse_file": "Parse from file",
   "calc.parsed_toast": "Parsed: {time}h print time, {grams}g filament",
+  "calc.detected_material": "Detected material: {mat}",
   "calc.parse_partial": "Partially parsed — fill remaining fields",
   "calc.parse_failed": "Could not extract data from file — fill manually",
   "mach.api_type": "Printer API",

@@ -2095,6 +2095,7 @@
   "calc.resin_ml": "الحجم (مل)",
   "calc.parse_file": "استخراج بيانات الملف",
   "calc.parsed_toast": "تم الاستخراج: {time}س زمن طباعة، {grams}جم خيط",
+  "calc.detected_material": "الخامة المكتشفة: {mat}",
   "calc.parse_partial": "استخراج جزئي للبيانات",
   "calc.parse_failed": "تعذّر استخراج بيانات الملف",
   "calc.part_colour": "لون الجزء",

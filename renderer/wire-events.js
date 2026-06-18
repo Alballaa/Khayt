@@ -219,6 +219,9 @@ function wireEvents() {
         const frEl = $('#partFileRef');
         if (frEl && !frEl.value) frEl.value = result.filename;
       }
+      if (result.filamentType) {
+        toast(t('calc.detected_material', { mat: result.filamentType }), 'info', 4000);
+      }
       updateGrandTotal();
       if (result.printTimeMins && result.filamentGrams) {
         toast(t('calc.parsed_toast', { time: (result.printTimeMins/60).toFixed(2), grams: result.filamentGrams.toFixed(1) }), 'success');

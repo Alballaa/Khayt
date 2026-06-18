@@ -816,6 +816,7 @@ ipcMain.handle('hub:parse-print-file', async (_e, filePath) => {
       const parsed = parseGcodeText(text);
       result.printTimeMins = parsed.printTimeMins;
       result.filamentGrams = parsed.filamentGrams;
+      result.filamentType = parsed.filamentType;
       result.slicer = parsed.slicer;
     } else if (ext === '.3mf') {
       const mfStat = fs.statSync(resolvedParse);
@@ -824,6 +825,7 @@ ipcMain.handle('hub:parse-print-file', async (_e, filePath) => {
       const parsed = parseGcodeText(content);
       result.printTimeMins = parsed.printTimeMins;
       result.filamentGrams = parsed.filamentGrams;
+      result.filamentType = parsed.filamentType;
       result.slicer = parsed.slicer;
     }
   } catch(e) { /* silent fail */ }
