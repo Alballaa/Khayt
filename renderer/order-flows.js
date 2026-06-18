@@ -203,9 +203,34 @@ function fireOrderCompletionEvents(order) {
   }
 }
 
+// Clear on-hold state when an order leaves on_hold, and — unless it's being
+// completed — push the due date out by the days it spent on hold. Shared by the
+// completion and non-completion paths so a direct hold → completed still clears
+// the hold flags (they previously persisted because the completion branch
+// returned before the cleanup ran).
+function resumeFromHold(order, prevStatus, newStatus) {
+  if (prevStatus === 'on_hold' && newStatus !== 'on_hold') {
+    if (newStatus !== 'completed' && newStatus !== 'delivered' && order.dueDate && order.heldAt) {
+      const holdDays = Math.ceil((Date.now() - new Date(order.heldAt).getTime()) / 86400000);
+      if (holdDays > 0) {
+        const d = new Date(order.dueDate + 'T00:00:00');
+        d.setDate(d.getDate() + holdDays);
+        order.dueDate = d.toISOString().split('T')[0];
+        toast(t('ord.due_extended', { days: holdDays, date: order.dueDate }), 'info', 4000);
+      }
+    }
+    delete order.holdReason;
+    delete order.heldAt;
+  } else if (newStatus === 'pending' && order.holdReason !== undefined) {
+    delete order.holdReason;
+    delete order.heldAt;
+  }
+}
+
 function updateStatus(id, newStatus) {
   const order = printLog.find(o => o.id === id);
   if (!order) return;
+  const prevStatus = order.status;
   // Feature 8 (this batch): Block new prints when production is paused
   if (settings.productionPaused && newStatus === 'printing') {
     toast(t('prod.paused_block'), 'warning');
@@ -223,6 +248,7 @@ function updateStatus(id, newStatus) {
     promptActuals(order, () => {
       // Feature 8 (new 8-pack): Check loyalty tier upgrade BEFORE marking complete
       const prevTier = order.clientId ? getClientTier(order.clientId) : null;
+      resumeFromHold(order, prevStatus, 'completed');
       if (!order.statusHistory) order.statusHistory = [];
       order.statusHistory.push({ status: 'completed', at: new Date().toISOString() });
       if (order.statusHistory.length > 200) order.statusHistory = order.statusHistory.slice(-200);
@@ -252,13 +278,22 @@ function updateStatus(id, newStatus) {
     });
     return;
   }
-  const prevStatus = order.status;
   const _undoIdx = printLog.indexOf(order);
   const _undoSnap = structuredClone(order);
   order.status = newStatus;
   if (!order.statusHistory) order.statusHistory = [];
   order.statusHistory.push({ status: newStatus, at: new Date().toISOString() });
   if (order.statusHistory.length > 200) order.statusHistory = order.statusHistory.slice(-200);
+  // Re-opening a completed/delivered order: clear completion state so the print
+  // timer and material deduction behave like a fresh active job (otherwise a
+  // stale printingStartedAt skews elapsed/ETA, and the re-completion wouldn't
+  // re-deduct filament for the reprint).
+  if ((prevStatus === 'completed' || prevStatus === 'delivered') &&
+      newStatus !== 'completed' && newStatus !== 'delivered') {
+    delete order.completedAt;
+    delete order.materialDeducted;
+    delete order.printingStartedAt;
+  }
   // Feature 3 (new batch): Detect resin orders entering post-processing
   if (newStatus === 'post') {
     const invItem = inventory.find(i => i.id === order.filamentId || (order.parts || []).some(p => p.filamentId === i.id));
@@ -280,23 +315,8 @@ function updateStatus(id, newStatus) {
     delete order.timerPausedAt;
     delete order.timerPausedMs;
   }
-  // Auto-extend due date and clear hold state when resuming from on_hold
-  if (prevStatus === 'on_hold' && newStatus !== 'on_hold') {
-    if (order.dueDate && order.heldAt) {
-      const holdDays = Math.ceil((Date.now() - new Date(order.heldAt).getTime()) / 86400000);
-      if (holdDays > 0) {
-        const d = new Date(order.dueDate + 'T00:00:00');
-        d.setDate(d.getDate() + holdDays);
-        order.dueDate = d.toISOString().split('T')[0];
-        toast(t('ord.due_extended', { days: holdDays, date: order.dueDate }), 'info', 4000);
-      }
-    }
-    delete order.holdReason;
-    delete order.heldAt;
-  } else if (newStatus === 'pending' && order.holdReason !== undefined) {
-    delete order.holdReason;
-    delete order.heldAt;
-  }
+  // Auto-extend due date and clear hold state when resuming from on_hold.
+  resumeFromHold(order, prevStatus, newStatus);
   saveAll();
   renderKanban(); renderLogs(); renderAnalytics();
   toast(t('toast.status_updated'), 'success', 5000, _undoIdx >= 0 ? {
@@ -2285,6 +2305,7 @@ async function captureFailurePhoto(orderId) {
     logPrint,
     promptActuals,
     updateStatus,
+    resumeFromHold,
     holdOrder,
     qcPassOrder,
     qcFailOrder,

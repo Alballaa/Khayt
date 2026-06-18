@@ -16,3 +16,48 @@ test('KhaytOrderFlows exports order lifecycle functions', () => {
     assert.equal(typeof flows[name], 'function', name);
   }
 });
+
+test('H5: resumeFromHold clears hold flags on a direct hold → completed', () => {
+  global.toast = () => {}; global.t = (k) => k;
+  const o = { status: 'on_hold', holdReason: 'waiting on client', heldAt: '2026-01-01T00:00:00Z', dueDate: '2026-02-01' };
+  flows.resumeFromHold(o, 'on_hold', 'completed');
+  assert.equal(o.holdReason, undefined);
+  assert.equal(o.heldAt, undefined);
+  assert.equal(o.dueDate, '2026-02-01'); // not extended when completing
+});
+
+test('H5: resumeFromHold extends due date + clears hold when resuming to active', () => {
+  global.toast = () => {}; global.t = (k) => k;
+  const heldAt = new Date(Date.now() - 3 * 86400000).toISOString();
+  const o = { status: 'on_hold', holdReason: 'x', heldAt, dueDate: '2026-02-01' };
+  flows.resumeFromHold(o, 'on_hold', 'printing');
+  assert.equal(o.holdReason, undefined);
+  assert.equal(o.heldAt, undefined);
+  assert.equal(o.dueDate, '2026-02-04'); // +3 days on hold
+});
+
+test('H4: reopening a completed order clears stale completion state', () => {
+  const order = {
+    id: 'O1', status: 'completed', clientId: null, parts: [],
+    completedAt: '2026-01-01T10:00:00Z', materialDeducted: true,
+    printingStartedAt: '2026-01-01T08:00:00Z',
+  };
+  global.printLog = [order];
+  global.settings = {};
+  global.inventory = []; global.clients = [];
+  global.toast = () => {}; global.t = (k) => k;
+  global.wouldExceedWipLimit = () => false;
+  global.saveAll = () => {};
+  global.renderKanban = () => {}; global.renderLogs = () => {};
+  global.renderAnalytics = () => {}; global.renderDashboard = () => {};
+  global.autoExportStatusPage = () => {}; global.autoSendEmailNotification = () => {};
+  global.sendTelegramForOrder = () => {}; global.fireWebhook = () => {};
+
+  flows.updateStatus('O1', 'printing');
+
+  assert.equal(order.status, 'printing');
+  assert.equal(order.completedAt, undefined);
+  assert.equal(order.materialDeducted, undefined);
+  // a fresh print-start timestamp is set, not the stale one
+  assert.ok(order.printingStartedAt && order.printingStartedAt !== '2026-01-01T08:00:00Z');
+});
