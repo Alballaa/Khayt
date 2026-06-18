@@ -139,6 +139,24 @@ function buildNotifications() {
     }
   }
 
+  // 4c. Recurring-order subscriptions due (robust date logic via lib/subscriptions,
+  // over the existing per-client recurring config — reminder only, operator fulfils).
+  if (typeof KhaytSubscriptions !== 'undefined' && Array.isArray(clients)) {
+    const subView = clients
+      .filter(c => c.recurring && c.recurring.enabled && c.recurring.nextDue)
+      .map(c => ({ id: c.id, status: 'active', interval: c.recurring.interval || 'monthly', nextRunAt: c.recurring.nextDue, _name: c.name }));
+    for (const sub of KhaytSubscriptions.selectDueSubscriptions(subView, Date.now())) {
+      const key = 'recurdue:' + sub.id;
+      if (isDismissed(key)) continue;
+      alerts.push({
+        key, type: 'service', icon: '🔁',
+        title: escapeHtml(t('notif.recurring_due') || 'Recurring order due'),
+        body: escapeHtml(sub._name || ''),
+        action() { switchTab('clients-tab'); },
+      });
+    }
+  }
+
   // 5. Stale orders (uses existing helper)
   const stale = typeof getStaleOrders === 'function' ? getStaleOrders().slice(0, 5) : [];
   for (const o of stale) {

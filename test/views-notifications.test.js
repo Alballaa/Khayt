@@ -109,3 +109,29 @@ test('buildNotifications surfaces due recurring maintenance tasks', () => {
   assert.equal(due.type, 'service');
   assert.equal(alerts.some((a) => a.key === 'mtask:tk2'), false, 'not-yet-due task produces no alert');
 });
+
+test('buildNotifications surfaces due recurring-order subscriptions (lib/subscriptions)', () => {
+  require('../lib/subscriptions.js'); // sets global.KhaytSubscriptions (dual-export)
+  global.settings = { dismissedNotifs: {}, staleHours: {} };
+  global.printLog = [];
+  global.inventory = [];
+  global.consumables = [];
+  global.machines = [];
+  global.machineServiceStatus = () => ({ due: false, warning: false });
+  global.machMaintTasks = [];
+  global.clients = [
+    { id: 'c1', name: 'Acme', recurring: { enabled: true, interval: 'monthly', nextDue: '2020-01-01' } }, // overdue
+    { id: 'c2', name: 'Beta', recurring: { enabled: true, interval: 'monthly', nextDue: '2999-01-01' } }, // future
+    { id: 'c3', name: 'Gamma', recurring: { enabled: false, interval: 'monthly', nextDue: '2020-01-01' } }, // disabled
+  ];
+  global.escapeHtml = (s) => String(s ?? '');
+  global.t = (k) => k;
+  global.switchTab = () => {};
+  global.localName = () => '';
+
+  const { buildNotifications } = require('../renderer/notifications.js');
+  const alerts = buildNotifications();
+  assert.ok(alerts.find((a) => a.key === 'recurdue:c1'), 'overdue recurring client alerts');
+  assert.equal(alerts.some((a) => a.key === 'recurdue:c2'), false, 'future recurring → no alert');
+  assert.equal(alerts.some((a) => a.key === 'recurdue:c3'), false, 'disabled recurring → no alert');
+});
