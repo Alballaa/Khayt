@@ -89,8 +89,18 @@ test('no metadata → nulls (graceful, never throws)', () => {
 });
 
 test('empty / nullish input is safe', () => {
-  assert.deepEqual(parseGcodeText(''), { printTimeMins: null, filamentGrams: null, slicer: null });
-  assert.deepEqual(parseGcodeText(null), { printTimeMins: null, filamentGrams: null, slicer: null });
+  assert.deepEqual(parseGcodeText(''), { printTimeMins: null, filamentGrams: null, filamentType: null, slicer: null });
+  assert.deepEqual(parseGcodeText(null), { printTimeMins: null, filamentGrams: null, filamentType: null, slicer: null });
+});
+
+test('parseFilamentType extracts material (first extruder for multi-material)', () => {
+  const { parseFilamentType } = require('../lib/gcode-parse.js');
+  assert.equal(parseFilamentType('; filament_type = PLA'), 'PLA');
+  assert.equal(parseFilamentType('; filament_type : PETG'), 'PETG');
+  assert.equal(parseFilamentType('; filament_type = PLA;PETG'), 'PLA', 'first of a multi-material list');
+  assert.equal(parseFilamentType('; estimated printing time = 1h'), null, 'no material → null');
+  // surfaced on the full parse result
+  assert.equal(parseGcodeText('; filament_type = ABS\n; filament used [g] = 5').filamentType, 'ABS');
 });
 
 test('detectSlicer recognizes the common slicers', () => {
