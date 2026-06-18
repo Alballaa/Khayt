@@ -2,13 +2,37 @@ import SwiftUI
 
 struct SpoolDetailSheet: View {
     let spool: InventorySpool
+    var onChanged: () -> Void = {}
+    @EnvironmentObject private var api: KhaytAPIClient
     @Environment(\.dismiss) private var dismiss
     @State private var showWriteNFC = false
+    @State private var showAdjust = false
+    @State private var adjustText = ""
+    @State private var showDeleteConfirm = false
+    @State private var isWorking = false
+    @State private var errorMessage: String?
+    @State private var localRemaining: Int?
 
     var body: some View {
         NavigationStack {
             List {
                 Section("Filament") {
+                    if let hex = spool.colorHex {
+                        LabeledContent("Color") {
+                            HStack(spacing: 8) {
+                                RoundedRectangle(cornerRadius: 5)
+                                    .fill(Color(hex: hex) ?? .gray)
+                                    .frame(width: 22, height: 22)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 5)
+                                            .stroke(KhaytDesign.border, lineWidth: 0.5)
+                                    )
+                                Text(hex.uppercased())
+                                    .font(.caption.monospaced())
+                                    .foregroundStyle(KhaytDesign.textDim)
+                            }
+                        }
+                    }
                     LabeledContent("Name", value: spool.displayLabel)
                     if let brand = spool.brand, !brand.isEmpty {
                         LabeledContent("Brand", value: brand)
@@ -19,12 +43,10 @@ struct SpoolDetailSheet: View {
                 }
 
                 Section("Stock") {
-                    if let remaining = spool.remaining ?? spool.weight {
-                        LabeledContent("Remaining", value: "\(Int(remaining)) g")
-                        if spool.isLowStock {
-                            Label("Low stock", systemImage: "exclamationmark.triangle.fill")
-                                .foregroundStyle(.orange)
-                        }
+                    LabeledContent("Remaining", value: "\(remainingGrams) g")
+                    if spool.isLowStock && localRemaining == nil {
+                        Label("Low stock", systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
                     }
                     if let weight = spool.weight {
                         LabeledContent("Initial weight", value: "\(Int(weight)) g")
@@ -32,6 +54,13 @@ struct SpoolDetailSheet: View {
                     if let purchased = spool.purchasedAt {
                         LabeledContent("Purchased", value: purchased)
                     }
+                    Button {
+                        adjustText = "\(remainingGrams)"
+                        showAdjust = true
+                    } label: {
+                        Label("Adjust remaining", systemImage: "slider.horizontal.3")
+                    }
+                    .disabled(isWorking)
                 }
 
                 if spool.hasOptionalMeta {
@@ -62,6 +91,23 @@ struct SpoolDetailSheet: View {
                         .font(.caption)
                 }
 
+                if let errorMessage {
+                    Section {
+                        Text(errorMessage)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                }
+
+                Section {
+                    Button(role: .destructive) {
+                        showDeleteConfirm = true
+                    } label: {
+                        Label("Remove spool", systemImage: "trash")
+                    }
+                    .disabled(isWorking)
+                }
+
                 Section {
                     LabeledContent("ID", value: spool.id)
                         .font(.caption)
@@ -77,6 +123,58 @@ struct SpoolDetailSheet: View {
             .sheet(isPresented: $showWriteNFC) {
                 WriteNFCTagSheet(draft: SpoolDraft.from(spool: spool))
             }
+            .alert("Adjust remaining", isPresented: $showAdjust) {
+                TextField("Grams", text: $adjustText)
+                    .keyboardType(.numberPad)
+                Button("Save") { Task { await saveRemaining() } }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Set the remaining filament for this spool, in grams.")
+            }
+            .alert("Remove spool?", isPresented: $showDeleteConfirm) {
+                Button("Remove", role: .destructive) { Task { await removeSpool() } }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("\(spool.displayLabel) will be removed from inventory.")
+            }
+        }
+    }
+
+    private var remainingGrams: Int {
+        localRemaining ?? Int(spool.remaining ?? spool.weight ?? 0)
+    }
+
+    private func saveRemaining() async {
+        guard let grams = Int(adjustText.trimmingCharacters(in: .whitespaces)) else {
+            errorMessage = "Enter a number in grams."
+            return
+        }
+        isWorking = true
+        errorMessage = nil
+        defer { isWorking = false }
+        do {
+            try await api.updateSpoolRemaining(id: spool.id, grams: grams)
+            localRemaining = max(0, grams)
+            CompanionHaptics.success()
+            onChanged()
+        } catch {
+            errorMessage = error.localizedDescription
+            CompanionHaptics.warning()
+        }
+    }
+
+    private func removeSpool() async {
+        isWorking = true
+        errorMessage = nil
+        defer { isWorking = false }
+        do {
+            try await api.deleteSpool(id: spool.id)
+            CompanionHaptics.success()
+            onChanged()
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+            CompanionHaptics.warning()
         }
     }
 }

@@ -13,6 +13,10 @@ struct DashboardView: View {
     @State private var isLoading = false
     @State private var showAddSpool = false
 
+    private var navTitle: String {
+        settings.shopLabel.isEmpty ? "Khayt" : settings.shopLabel
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -34,14 +38,12 @@ struct DashboardView: View {
                 .padding(.bottom, 8)
             }
             .scrollIndicators(.hidden)
-            .background(Color.clear)
-            .navigationTitle(settings.shopLabel)
+            .background(KhaytDesign.bg.ignoresSafeArea())
+            .navigationTitle(navTitle)
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) { ConnectionBadge() }
             }
-            .toolbarBackground(KhaytDesign.navBg, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
             .refreshable { await load() }
             .task { await load() }
             .sheet(isPresented: $showAddSpool) {
@@ -158,18 +160,24 @@ struct DashboardView: View {
     }
 
     private func quickTileLabel(_ title: String, _ icon: String) -> some View {
-        HStack(spacing: 8) {
+        VStack(spacing: 8) {
             Image(systemName: icon)
-                .font(.title3)
+                .font(.system(size: 22))
                 .foregroundStyle(KhaytDesign.brand)
+                .frame(height: 26)
             Text(title)
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(KhaytDesign.text)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
         .background(KhaytDesign.surface, in: RoundedRectangle(cornerRadius: KhaytDesign.radiusLG))
+        .overlay(
+            RoundedRectangle(cornerRadius: KhaytDesign.radiusLG)
+                .stroke(KhaytDesign.border, lineWidth: 0.5)
+        )
     }
 
     private var activeOrdersSection: some View {
@@ -251,13 +259,19 @@ struct DashboardView: View {
             async let statusTask = api.fetchStatus()
             async let queueTask = api.fetchQueue()
             async let inventoryTask = api.fetchInventory()
+            // Best-effort live printer data for the home screen widget — fetched
+            // concurrently so it isn't in the cancellable tail of the task.
+            async let liveTask: [MachineLiveStatus] = (try? await api.fetchMachinesLive()) ?? []
             let (s, q, inv) = try await (statusTask, queueTask, inventoryTask)
+            let livePrints = await liveTask
+                .filter { $0.isPrinting }
+                .map { WidgetPrint(id: $0.id, name: $0.displayName, progress: $0.progress ?? 0, eta: $0.etaText) }
             status = s
             queuePreview = q.filter { $0.status.lowercased() != "completed" }
             lowStockCount = inv.filter(\.isLowStock).count
             overdueCount = q.filter(\.isOverdue).count
             CompanionNotifications.shared.handleDashboardSnapshot(
-                status: s, queue: q, lowStockCount: lowStockCount, settings: settings
+                status: s, queue: q, lowStockCount: lowStockCount, settings: settings, livePrints: livePrints
             )
         } catch {
             status = nil

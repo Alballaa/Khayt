@@ -3,6 +3,7 @@
 "tab.orders" = "الطلبات";
 "tab.inventory" = "المخزون";
 "tab.machines" = "الآلات";
+"tab.clients" = "العملاء";
 "tab.settings" = "الإعدادات";
 
 /* Connection */

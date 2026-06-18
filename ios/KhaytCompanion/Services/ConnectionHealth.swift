@@ -113,11 +113,16 @@ final class ConnectionHealth: ObservableObject {
         if settings.notifyLowStock {
             lowStock = (try? await api.fetchInventory())?.filter(\.isLowStock).count ?? 0
         }
+        // Keep the home-screen widget's live print progress fresh on each poll.
+        let livePrints = ((try? await api.fetchMachinesLive()) ?? [])
+            .filter { $0.isPrinting }
+            .map { WidgetPrint(id: $0.id, name: $0.displayName, progress: $0.progress ?? 0, eta: $0.etaText) }
         CompanionNotifications.shared.handleDashboardSnapshot(
             status: status,
             queue: queue,
             lowStockCount: lowStock,
-            settings: settings
+            settings: settings,
+            livePrints: livePrints
         )
     }
 }

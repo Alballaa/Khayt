@@ -3,8 +3,10 @@ import SwiftUI
 struct OrderDetailSheet: View {
     let order: QueueOrder
     let isUpdating: Bool
+    var machines: [MachineInfo] = []
     let onAdvance: () -> Void
     let onSetStatus: (String) -> Void
+    var onAssignMachine: ((String?) -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -27,6 +29,41 @@ struct OrderDetailSheet: View {
                     }
                     LabeledContent("Order ID", value: order.id)
                         .font(.caption)
+                }
+
+                if let onAssignMachine, !machines.isEmpty {
+                    Section("Machine") {
+                        Menu {
+                            Button {
+                                onAssignMachine(nil)
+                            } label: {
+                                Label("Unassigned", systemImage: order.machineId == nil ? "checkmark" : "circle")
+                            }
+                            ForEach(machines) { m in
+                                Button {
+                                    onAssignMachine(m.id)
+                                } label: {
+                                    Label(m.name ?? m.id, systemImage: order.machineId == m.id ? "checkmark" : "printer")
+                                }
+                            }
+                        } label: {
+                            HStack {
+                                Text("Assigned to")
+                                    .foregroundStyle(KhaytDesign.text)
+                                Spacer()
+                                Text(order.machine ?? "Unassigned")
+                                    .foregroundStyle(KhaytDesign.textDim)
+                                if isUpdating {
+                                    ProgressView().controlSize(.small)
+                                } else {
+                                    Image(systemName: "chevron.up.chevron.down")
+                                        .font(.caption)
+                                        .foregroundStyle(KhaytDesign.textMuted)
+                                }
+                            }
+                        }
+                        .disabled(isUpdating)
+                    }
                 }
 
                 if OrderStatus(rawValue: order.status)?.nextInQueue != nil {

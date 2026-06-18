@@ -6,17 +6,16 @@ struct ConnectionBadge: View {
     var body: some View {
         let connected = health.state == .connected
         let color = connected ? KhaytDesign.ok : KhaytDesign.danger
+        // No own capsule/border: in the nav bar the system already provides a
+        // container (a glass pill on iOS 26), so a second one looks like nested
+        // frames. Just a status dot + label.
         HStack(spacing: 5) {
             Circle()
                 .fill(color)
-                .frame(width: 6, height: 6)
+                .frame(width: 7, height: 7)
             Text(health.state.label)
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(color)
         }
-        .padding(.horizontal, 9)
-        .padding(.vertical, 3)
-        .background(color.opacity(0.16), in: Capsule())
-        .overlay(Capsule().stroke(color.opacity(0.2), lineWidth: 1))
     }
 }

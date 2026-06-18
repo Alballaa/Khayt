@@ -40,6 +40,44 @@ final class KhaytAPIClient: ObservableObject {
         try await get("/api/machines", requiresPin: true, as: [MachineInfo].self)
     }
 
+    func fetchMachinesLive() async throws -> [MachineLiveStatus] {
+        try await get("/api/machines/live", requiresPin: true, as: [MachineLiveStatus].self)
+    }
+
+    func fetchClients() async throws -> [Client] {
+        try await get("/api/clients", requiresPin: true, as: [Client].self)
+    }
+
+    func fetchWaitingList() async throws -> [WaitingListItem] {
+        try await get("/api/waiting-list", requiresPin: true, as: [WaitingListItem].self)
+    }
+
+    func updateSpoolRemaining(id: String, grams: Int) async throws {
+        let encodedId = try encodeOrderIdForPath(id)
+        let body = try JSONEncoder().encode(["remaining": max(0, grams)])
+        let (data, response) = try await request(
+            path: "/api/inventory/\(encodedId)", method: "PATCH", body: body, requiresPin: true
+        )
+        try ensureOK(data, response)
+    }
+
+    func deleteSpool(id: String) async throws {
+        let encodedId = try encodeOrderIdForPath(id)
+        let (data, response) = try await request(
+            path: "/api/inventory/\(encodedId)", method: "DELETE", body: nil, requiresPin: true
+        )
+        try ensureOK(data, response)
+    }
+
+    func updateWaitingStatus(id: String, status: String) async throws {
+        let encodedId = try encodeOrderIdForPath(id)
+        let body = try JSONEncoder().encode(["status": status])
+        let (data, response) = try await request(
+            path: "/api/waiting-list/\(encodedId)", method: "PATCH", body: body, requiresPin: true
+        )
+        try ensureOK(data, response)
+    }
+
     func updateOrderStatus(orderId: String, status: String) async throws {
         let encodedId = try encodeOrderIdForPath(orderId)
         let body = try JSONEncoder().encode(["status": status])
@@ -49,6 +87,41 @@ final class KhaytAPIClient: ObservableObject {
             body: body,
             requiresPin: true
         )
+    }
+
+    func assignMachine(orderId: String, machineId: String?) async throws {
+        let encodedId = try encodeOrderIdForPath(orderId)
+        // [String: String?] encodes a nil value as JSON null (unassign).
+        let body = try JSONEncoder().encode(["machineId": machineId])
+        let (data, response) = try await request(
+            path: "/api/orders/\(encodedId)", method: "PATCH", body: body, requiresPin: true
+        )
+        try ensureOK(data, response)
+    }
+
+    func createOrder(_ draft: NewOrderDraft) async throws {
+        let project = draft.project.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !project.isEmpty else { throw KhaytAPIError.server("Project name is required.") }
+
+        var payload: [String: Any] = [
+            "project": InputLimits.clamp(project, max: InputLimits.maxMaterial),
+            "status": draft.isQuote ? "quote" : "pending"
+        ]
+        let client = draft.client.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !client.isEmpty { payload["client"] = InputLimits.clamp(client) }
+        let material = draft.material.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !material.isEmpty { payload["material"] = InputLimits.clamp(material, max: InputLimits.maxMaterial) }
+        if let price = Double(draft.price.trimmingCharacters(in: .whitespaces)), price >= 0 {
+            payload["price"] = price
+        }
+        if !draft.dueDate.isEmpty { payload["dueDate"] = draft.dueDate }
+        if let machineId = draft.machineId, !machineId.isEmpty { payload["machineId"] = machineId }
+
+        let data = try JSONSerialization.data(withJSONObject: payload)
+        let (responseData, response) = try await request(
+            path: "/api/orders", method: "POST", body: data, requiresPin: true
+        )
+        try ensureOK(responseData, response)
     }
 
     func addSpool(from tag: NFCFilamentTag) async throws -> InventorySpool {
@@ -182,7 +255,13 @@ final class KhaytAPIClient: ObservableObject {
         components.scheme = base.scheme ?? "http"
         components.host = base.host
         components.port = base.port
-        components.path = path
+        // Split path from query — otherwise URLComponents percent-encodes the
+        // "?" into the path (%3F), breaking ?format=json and ?status= filters.
+        let parts = path.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false)
+        components.path = String(parts[0])
+        if parts.count > 1, !parts[1].isEmpty {
+            components.percentEncodedQuery = String(parts[1])
+        }
         guard let url = components.url else { throw KhaytAPIError.invalidURL }
         return url
     }
@@ -207,6 +286,15 @@ final class KhaytAPIClient: ObservableObject {
             return try await session.data(for: req)
         } catch {
             throw KhaytAPIError.transport(error)
+        }
+    }
+
+    private func ensureOK(_ data: Data, _ response: URLResponse) throws {
+        guard let http = response as? HTTPURLResponse else {
+            throw KhaytAPIError.transport(URLError(.badServerResponse))
+        }
+        guard (200...299).contains(http.statusCode) else {
+            throw try decodeAPIError(data, status: http.statusCode)
         }
     }
 

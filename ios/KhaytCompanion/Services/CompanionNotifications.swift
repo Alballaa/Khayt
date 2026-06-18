@@ -14,6 +14,8 @@ final class CompanionNotifications: ObservableObject {
     private var lastLowStock: Int?
 
     func requestAuthorizationIfNeeded() async {
+        // Skip the system permission prompt during automated screenshot runs.
+        if ProcessInfo.processInfo.environment["KHAYT_SCREENSHOT"] != nil { return }
         let center = UNUserNotificationCenter.current()
         let settings = await center.notificationSettings()
         if settings.authorizationStatus == .notDetermined {
@@ -45,7 +47,8 @@ final class CompanionNotifications: ObservableObject {
         status: ShopStatus,
         queue: [QueueOrder],
         lowStockCount: Int,
-        settings: ConnectionSettings
+        settings: ConnectionSettings,
+        livePrints: [WidgetPrint]? = nil
     ) {
         if settings.notifyQueueChanges {
             let q = status.queued
@@ -93,7 +96,10 @@ final class CompanionNotifications: ObservableObject {
                 qc: status.qc,
                 completedToday: status.completedToday,
                 connected: true,
-                updatedAt: Date()
+                updatedAt: Date(),
+                // Carry over the last known prints when a caller (e.g. a health
+                // poll) doesn't supply fresh live data, so it isn't clobbered.
+                prints: livePrints ?? WidgetSnapshotStore.load()?.prints
             )
         )
     }
@@ -108,7 +114,8 @@ final class CompanionNotifications: ObservableObject {
                 qc: 0,
                 completedToday: 0,
                 connected: false,
-                updatedAt: Date()
+                updatedAt: Date(),
+                prints: nil
             )
         )
     }

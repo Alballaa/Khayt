@@ -15,6 +15,7 @@ struct InventoryView: View {
     @State private var searchText = ""
     @State private var filter: Filter = .all
     @State private var selectedSpool: InventorySpool?
+    @State private var spoolToDelete: InventorySpool?
     @State private var sortNewestFirst = true
 
     private var displayed: [InventorySpool] {
@@ -39,34 +40,14 @@ struct InventoryView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if spools.isEmpty && errorMessage == nil {
-                    ProgressView()
-                } else if displayed.isEmpty {
-                    ContentUnavailableView(
-                        filter == .lowStock ? "No low stock" : "No spools",
-                        systemImage: "cylinder",
-                        description: Text(
-                            errorMessage
-                                ?? (searchText.isEmpty
-                                    ? "Tap + to add a spool."
-                                    : "No match for \"\(searchText)\".")
-                        )
-                    )
-                } else {
-                    List(displayed) { spool in
-                        Button {
-                            selectedSpool = spool
-                        } label: {
-                            SpoolRow(spool: spool)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .listStyle(.plain)
-                }
+            VStack(spacing: 0) {
+                KhaytSearchField(text: $searchText, prompt: L10n.tr("inventory.search"))
+                    .padding(.horizontal, KhaytDesign.pad)
+                    .padding(.top, 4)
+                    .padding(.bottom, 8)
+                content
             }
             .khaytScreen(title: L10n.tr("tab.inventory"))
-            .searchable(text: $searchText, prompt: L10n.tr("inventory.search"))
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Menu {
@@ -88,10 +69,70 @@ struct InventoryView: View {
                 AddSpoolSheet { Task { await load() } }
             }
             .sheet(item: $selectedSpool) { spool in
-                SpoolDetailSheet(spool: spool)
+                SpoolDetailSheet(spool: spool) { Task { await load() } }
             }
-            .refreshable { await load() }
+            .alert("Remove spool?", isPresented: showDeleteAlert, presenting: spoolToDelete) { spool in
+                Button("Remove", role: .destructive) { Task { await delete(spool) } }
+                Button("Cancel", role: .cancel) {}
+            } message: { spool in
+                Text("\(spool.displayLabel) will be removed from inventory.")
+            }
             .task { await load() }
+        }
+    }
+
+    private var showDeleteAlert: Binding<Bool> {
+        Binding(get: { spoolToDelete != nil }, set: { if !$0 { spoolToDelete = nil } })
+    }
+
+    private func delete(_ spool: InventorySpool) async {
+        do {
+            try await api.deleteSpool(id: spool.id)
+            CompanionHaptics.success()
+            await load()
+        } catch {
+            errorMessage = error.localizedDescription
+            CompanionHaptics.warning()
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if spools.isEmpty && errorMessage == nil {
+            Spacer()
+            ProgressView()
+            Spacer()
+        } else if displayed.isEmpty {
+            ContentUnavailableView(
+                filter == .lowStock ? "No low stock" : "No spools",
+                systemImage: "cylinder",
+                description: Text(
+                    errorMessage
+                        ?? (searchText.isEmpty
+                            ? "Tap + to add a spool."
+                            : "No match for \"\(searchText)\".")
+                )
+            )
+        } else {
+            List(displayed) { spool in
+                Button {
+                    selectedSpool = spool
+                } label: {
+                    SpoolRow(spool: spool)
+                }
+                .buttonStyle(.plain)
+                .listRowBackground(KhaytDesign.surface)
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button(role: .destructive) {
+                        spoolToDelete = spool
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                }
+            }
+            .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
+            .refreshable { await load() }
         }
     }
 
@@ -110,6 +151,26 @@ private struct SpoolRow: View {
     let spool: InventorySpool
 
     var body: some View {
+        HStack(spacing: 12) {
+            swatch
+            detail
+        }
+        .padding(.vertical, 2)
+    }
+
+    private var swatch: some View {
+        let fill = spool.colorHex.map { Color(hex: UInt32($0.dropFirst(), radix: 16) ?? 0x888888) }
+            ?? KhaytDesign.surface2
+        return RoundedRectangle(cornerRadius: 7)
+            .fill(fill)
+            .frame(width: 34, height: 34)
+            .overlay(
+                RoundedRectangle(cornerRadius: 7)
+                    .stroke(KhaytDesign.border, lineWidth: 0.5)
+            )
+    }
+
+    private var detail: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(spool.displayLabel)
@@ -143,6 +204,5 @@ private struct SpoolRow: View {
                 }
             }
         }
-        .padding(.vertical, 2)
     }
 }

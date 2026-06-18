@@ -3,6 +3,14 @@ import Foundation
 import WidgetKit
 #endif
 
+/// A single active print for the live widget.
+struct WidgetPrint: Codable, Identifiable {
+    var id: String          // stable machine id
+    var name: String
+    var progress: Int       // 0–100
+    var eta: String?        // formatted "2h 14m"
+}
+
 /// Data shared with the Khayt home screen widget (App Group).
 struct WidgetSnapshot: Codable {
     var shopName: String
@@ -13,6 +21,7 @@ struct WidgetSnapshot: Codable {
     var completedToday: Int
     var connected: Bool
     var updatedAt: Date
+    var prints: [WidgetPrint]?   // optional for backward-compatible decoding
 }
 
 enum WidgetSnapshotStore {

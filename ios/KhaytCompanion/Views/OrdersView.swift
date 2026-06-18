@@ -31,6 +31,9 @@ struct OrdersView: View {
     @State private var errorMessage: String?
     @State private var updatingId: String?
     @State private var selectedOrder: QueueOrder?
+    @State private var showIntake = false
+    @State private var showNewOrder = false
+    @State private var machines: [MachineInfo] = []
     @State private var loadGeneration = 0
 
     private var filteredQueue: [QueueOrder] {
@@ -60,7 +63,23 @@ struct OrdersView: View {
                 }
             }
             .khaytScreen(title: L10n.tr("tab.orders"))
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { ConnectionBadge() } }
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { showIntake = true } label: {
+                        Image(systemName: "tray.and.arrow.down")
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { showNewOrder = true } label: {
+                        Image(systemName: "plus")
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) { ConnectionBadge() }
+            }
+            .sheet(isPresented: $showIntake) { IntakeView() }
+            .sheet(isPresented: $showNewOrder) {
+                NewOrderSheet(machines: machines) { Task { await load() } }
+            }
             .refreshable { await load() }
             .task(id: segment) { await load() }
             .onAppear { applyExternalFilters() }
@@ -70,8 +89,10 @@ struct OrdersView: View {
                 OrderDetailSheet(
                     order: order,
                     isUpdating: updatingId == order.id,
+                    machines: machines,
                     onAdvance: { Task { await advance(order) } },
-                    onSetStatus: { status in Task { await setStatus(order, status: status) } }
+                    onSetStatus: { status in Task { await setStatus(order, status: status) } },
+                    onAssignMachine: { machineId in Task { await assignMachine(order, machineId: machineId) } }
                 )
             }
         }
@@ -137,8 +158,9 @@ struct OrdersView: View {
                         )
                     }
                     .buttonStyle(.plain)
+                    .listRowBackground(KhaytDesign.surface)
                 }
-                .listStyle(.plain)
+                .listStyle(.insetGrouped)
                 .scrollContentBackground(.hidden)
                 .environment(\.defaultMinListRowHeight, 56)
             }
@@ -185,7 +207,7 @@ struct OrdersView: View {
                     .padding(.vertical, 2)
                     .listRowBackground(KhaytDesign.surface)
                 }
-                .listStyle(.plain)
+                .listStyle(.insetGrouped)
                 .scrollContentBackground(.hidden)
                 .environment(\.defaultMinListRowHeight, 56)
             }
@@ -196,6 +218,9 @@ struct OrdersView: View {
         let generation = loadGeneration + 1
         loadGeneration = generation
         errorMessage = nil
+        if machines.isEmpty {
+            machines = (try? await api.fetchMachines()) ?? []
+        }
         do {
             switch segment {
             case .active:
@@ -236,6 +261,23 @@ struct OrdersView: View {
         guard let current = OrderStatus(rawValue: order.status),
               let next = current.nextInQueue else { return }
         await setStatus(order, status: next.rawValue)
+    }
+
+    private func assignMachine(_ order: QueueOrder, machineId: String?) async {
+        updatingId = order.id
+        defer { updatingId = nil }
+        do {
+            try await api.assignMachine(orderId: order.id, machineId: machineId)
+            CompanionHaptics.success()
+            await load()
+            if let id = selectedOrder?.id,
+               let updated = queue.first(where: { $0.id == id }) {
+                selectedOrder = updated
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+            CompanionHaptics.warning()
+        }
     }
 }
 
