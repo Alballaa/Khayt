@@ -124,6 +124,7 @@ Rough sizing is **t-shirt** (S/M/L/XL), not commitments — to compare phases, n
 Data-model changes above (central change-stamper, tombstones, delta format, Sync Engine interface + `local` backend). No cloud. **Cloud-independent by construction.** *Risk: low — one file, behind existing save path, unit-testable with the new harness.*
 
 ### Phase 1 — Identity + single-shop cloud  *(tenancy 1)* · **XL**
+*Full spec: [KHAYT-3.0-PHASE1-SPEC.md](./KHAYT-3.0-PHASE1-SPEC.md).*
 - Khayt Cloud API: sign up / sign in (email + magic link), one org = one shop.
 - Desktop **"Connect to Khayt Cloud"** toggle in Settings (opt-in, encrypted credentials).
 - Sync the store: **start with an encrypted full-store blob + `rev` guard** (desktop = single writer, §3.3), refine to deltas later.
