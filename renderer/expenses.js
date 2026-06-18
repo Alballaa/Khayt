@@ -435,6 +435,68 @@ function buildProfitabilityHtml(order) {
 /* ============================================================
    Monthly Tax Summary Export
    ============================================================ */
+/** Map orders → the accounting-export invoice row shape (VAT-inclusive price). */
+function ordersToInvoiceRows() {
+  const rate = settings.enableVat ? (+settings.vatRate || 15) : 0;
+  const baseCurrency = settings.currency || 'SAR';
+  return printLog
+    .filter(o => o && o.status !== 'quote' && (+o.price > 0))
+    .map(o => {
+      const cur = (typeof clientCurrency === 'function') ? clientCurrency(o.clientId) : baseCurrency;
+      const client = clients.find(c => c.id === o.clientId);
+      return {
+        id: o.id,
+        date: o.date || '',
+        clientName: (client && client.name) || o.clientName || '',
+        price: +o.price || 0,
+        currency: cur,
+        vatRate: rate,
+        baseCurrency,
+        baseAmount: (typeof convertToBase === 'function') ? convertToBase(+o.price || 0, cur) : (+o.price || 0),
+        status: o.status,
+      };
+    });
+}
+
+/** Export invoices/expenses as accountant-ready CSV (QuickBooks/Xero/Zoho/generic). */
+function exportAccounting() {
+  if (typeof KhaytAccountingExport === 'undefined') { toast('Accounting export unavailable', 'error'); return; }
+  openFormModal({
+    title: t('an.accounting_export') || 'Accounting CSV',
+    sizeLg: false,
+    saveLabel: t('set.export') || 'Export',
+    bodyHtml: `
+      <label>${escapeHtml(t('acct.dataset') || 'Data')}</label>
+      <select id="acctDataset" style="margin-bottom:10px;">
+        <option value="invoices">${escapeHtml(t('acct.invoices') || 'Invoices')}</option>
+        <option value="expenses">${escapeHtml(t('acct.expenses') || 'Expenses')}</option>
+      </select>
+      <label>${escapeHtml(t('acct.format') || 'Format')}</label>
+      <select id="acctFormat">
+        <option value="generic">${escapeHtml(t('acct.generic') || 'Generic CSV')}</option>
+        <option value="quickbooks">QuickBooks</option>
+        <option value="xero">Xero</option>
+        <option value="zoho">Zoho Books</option>
+      </select>`,
+    onSave(modal) {
+      const dataset = modal.querySelector('#acctDataset').value;
+      const format = modal.querySelector('#acctFormat').value;
+      const stamp = new Date().toISOString().slice(0, 10);
+      let csv, name;
+      if (dataset === 'expenses') {
+        csv = KhaytAccountingExport.buildExpenseCsv(expenses, { format });
+        name = `expenses-${format}-${stamp}.csv`;
+      } else {
+        csv = KhaytAccountingExport.buildInvoiceCsv(ordersToInvoiceRows(), { format });
+        name = `invoices-${format}-${stamp}.csv`;
+      }
+      downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8;' }), name);
+      toast(t('maint.saved') || 'Exported', 'success');
+      return true;
+    },
+  });
+}
+
 function exportTaxSummary() {
   // New Feature 4: Show period selector modal before exporting
   const now = new Date();
@@ -615,6 +677,8 @@ function _doExportTaxSummary(periodLabel, fromDate, toDate) {
     renderAttachedFiles,
     buildProfitabilityHtml,
     exportTaxSummary,
+    exportAccounting,
+    ordersToInvoiceRows,
   };
   Object.assign(global, api);
   global.KhaytExpenses = api;
