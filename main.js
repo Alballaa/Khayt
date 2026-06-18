@@ -8,6 +8,7 @@ const { isBlockedHost, isAllowedPrinterHost, sanitizeMailgunDomain, resolvesToBl
 const { sendCustomSmtp } = require('./lib/custom-smtp');
 const { normalizeStoreSnapshot } = require('./lib/store-validate');
 const { createStoreIo } = require('./lib/store-io');
+const { parseGcodeText } = require('./lib/gcode-parse');
 const { registerZatcaCrypto } = require('./lib/zatca-crypto');
 const { wrapHubIpc } = require('./lib/ipc-guard');
 const { sanitizeHtmlForFile, redactStatusHtmlClientRow } = require('./lib/status-html');
@@ -792,43 +793,38 @@ ipcMain.handle('hub:parse-print-file', async (_e, filePath) => {
   try {
     const ext = path.extname(filePath).toLowerCase();
     if (ext === '.gcode' || ext === '.gco') {
-      const fd = fs.openSync(filePath, 'r');
-      const buf = Buffer.alloc(8192);
-      fs.readSync(fd, buf, 0, 8192, 0);
-      fs.closeSync(fd);
-      const head = buf.toString('utf8');
-      // PrusaSlicer / Slic3r
-      const prusaTime = head.match(/estimated printing time[^=]*=\s*(?:(\d+)d\s*)?(?:(\d+)h\s*)?(?:(\d+)m\s*)?(?:(\d+)s)?/i);
-      if (prusaTime) {
-        const d = parseInt(prusaTime[1]||0), h = parseInt(prusaTime[2]||0), m = parseInt(prusaTime[3]||0);
-        result.printTimeMins = d*1440 + h*60 + m;
+      // Read HEAD + TAIL: PrusaSlicer/SuperSlicer/OrcaSlicer write their summary
+      // in the footer config block, so a head-only read misses most slicers.
+      const stat = fs.statSync(resolvedParse);
+      const HEAD = 32 * 1024;
+      const TAIL = 64 * 1024;
+      let text;
+      if (stat.size <= HEAD + TAIL) {
+        text = fs.readFileSync(resolvedParse, 'utf8');
+      } else {
+        const fd = fs.openSync(resolvedParse, 'r');
+        try {
+          const headBuf = Buffer.alloc(HEAD);
+          const tailBuf = Buffer.alloc(TAIL);
+          fs.readSync(fd, headBuf, 0, HEAD, 0);
+          fs.readSync(fd, tailBuf, 0, TAIL, stat.size - TAIL);
+          text = headBuf.toString('utf8') + '\n' + tailBuf.toString('utf8');
+        } finally {
+          fs.closeSync(fd);
+        }
       }
-      // Cura: ;TIME:12345 (seconds)
-      const curaTime = head.match(/^;TIME:(\d+)/m);
-      if (curaTime && !result.printTimeMins) result.printTimeMins = Math.round(parseInt(curaTime[1]) / 60);
-      // Bambu Studio
-      const bambuTime = head.match(/total estimated time\s*=\s*(?:(\d+)h)?(?:(\d+)m)?/i);
-      if (bambuTime && !result.printTimeMins) {
-        result.printTimeMins = parseInt(bambuTime[1]||0)*60 + parseInt(bambuTime[2]||0);
-      }
-      // PrusaSlicer filament grams
-      const prusaGrams = head.match(/filament used \[g\]\s*=\s*([\d.]+)/i);
-      if (prusaGrams) result.filamentGrams = parseFloat(prusaGrams[1]);
-      // Cura FILAMENT_WEIGHT
-      const curaGrams = head.match(/FILAMENT_WEIGHT\s*=\s*([\d.]+)/i);
-      if (curaGrams && !result.filamentGrams) result.filamentGrams = parseFloat(curaGrams[1]);
+      const parsed = parseGcodeText(text);
+      result.printTimeMins = parsed.printTimeMins;
+      result.filamentGrams = parsed.filamentGrams;
+      result.slicer = parsed.slicer;
     } else if (ext === '.3mf') {
       const mfStat = fs.statSync(resolvedParse);
       if (mfStat.size > 50_000_000) return { ok: false, error: '3MF file too large (max 50 MB)' };
-      const buf2 = fs.readFileSync(filePath);
-      const content = buf2.toString('latin1');
-      const prusaTime2 = content.match(/estimated printing time[^=]*=\s*(?:(\d+)d\s*)?(?:(\d+)h\s*)?(?:(\d+)m\s*)?/i);
-      if (prusaTime2) {
-        const d = parseInt(prusaTime2[1]||0), h = parseInt(prusaTime2[2]||0), m = parseInt(prusaTime2[3]||0);
-        result.printTimeMins = d*1440 + h*60 + m;
-      }
-      const prusaGrams2 = content.match(/filament used \[g\]\s*=\s*([\d.]+)/i);
-      if (prusaGrams2) result.filamentGrams = parseFloat(prusaGrams2[1]);
+      const content = fs.readFileSync(filePath).toString('latin1');
+      const parsed = parseGcodeText(content);
+      result.printTimeMins = parsed.printTimeMins;
+      result.filamentGrams = parsed.filamentGrams;
+      result.slicer = parsed.slicer;
     }
   } catch(e) { /* silent fail */ }
   return result;
