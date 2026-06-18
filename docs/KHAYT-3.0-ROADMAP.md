@@ -177,6 +177,8 @@ Model default: latest Claude (e.g. Opus/Sonnet 4.x). Cost model: **BYO-key first
 
 ## 7. Business model (because Cloud is a *service*, not just code)
 
+*Infrastructure, hosting, CI/CD, ops & DR: [KHAYT-3.0-CLOUD-INFRA-SPEC.md](./KHAYT-3.0-CLOUD-INFRA-SPEC.md).*
+
 Cloud introduces ongoing hosting, auth, billing, support, and region-hosting cost. Honest framing:
 
 - **Free, forever:** the full local desktop app + LAN + BYO-key AI. The product stands alone.
