@@ -199,7 +199,7 @@ Resolved enough to build against; revisit only if an assumption breaks.
 
 ## 9. Immediate next step
 
-**Phase 0 — the sync foundation — is the right first move:** it's cloud-independent, ships value now (incremental backups, change tracking), and de-risks the entire platform. The audit is done (§3); the design is grounded. Concrete start:
+**Phase 0 — the sync foundation — is the right first move:** it's cloud-independent, ships value now (incremental backups, change tracking), and de-risks the entire platform. The audit is done (§3); the design is grounded. **Full implementation spec: [KHAYT-3.0-PHASE0-SPEC.md](./KHAYT-3.0-PHASE0-SPEC.md)** (hook point, data shapes, stamper algorithm, edge cases, migration, test plan). Concrete start:
 
 1. **Central change-stamper** at `_doSave` — keep the last-saved snapshot, diff each record by `id`, stamp `updatedAt` + bump `rev` on change, emit tombstones for deletes. One file; no mutation-site changes.
 2. **Delta extractor/applier** ("changes since cursor") — used immediately for incremental backups; later as the sync wire format.
