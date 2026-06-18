@@ -158,3 +158,47 @@ test('renderOeExtraLinesHtml: empty/null → "", renders label + amount', () => 
   assert.ok(html.includes('Setup'), 'extra-line label appears');
   assert.ok(html.includes('data-oeli="0"'), 'extra-line row is indexed');
 });
+
+// --- RBAC tab gating (applyOperatorPermissions via the matrix) -----------------
+test('RBAC: operator hides settings/analytics, owner sees all, lock-off unrestricted', () => {
+  dom.loadI18n();
+  require('../lib/rbac.js');               // sets globalThis.KhaytRbac (dual-export)
+  require('../renderer/ops-locations.js'); // attaches applyOperatorPermissions
+
+  const settingsBtn = $('[data-tab="settings-tab"]');
+  const analyticsBtn = $('[data-tab="analytics-tab"]');
+  const clientsBtn = $('[data-tab="clients-tab"]');
+  assert.ok(settingsBtn && analyticsBtn && clientsBtn, 'tab buttons exist in index.html');
+
+  // operator under lock → settings + analytics hidden, clients visible (matrix)
+  dom.seedState({
+    settings: { operatorLockEnabled: true, activeOperatorId: 'op1' },
+    operators: [{ id: 'op1', name: 'Sam', roleKey: 'operator' }],
+  });
+  global.applyOperatorPermissions();
+  assert.equal(settingsBtn.style.display, 'none', 'operator: settings hidden');
+  assert.equal(analyticsBtn.style.display, 'none', 'operator: analytics hidden');
+  assert.equal(clientsBtn.style.display, '', 'operator: clients visible');
+
+  // owner under lock → everything visible
+  dom.seedState({
+    settings: { operatorLockEnabled: true, activeOperatorId: 'op2' },
+    operators: [{ id: 'op2', name: 'Boss', roleKey: 'owner' }],
+  });
+  global.applyOperatorPermissions();
+  assert.equal(settingsBtn.style.display, '', 'owner: settings visible');
+  assert.equal(analyticsBtn.style.display, '', 'owner: analytics visible');
+
+  // legacy free-text role 'admin' maps to owner → full access (backward compat)
+  dom.seedState({
+    settings: { operatorLockEnabled: true, activeOperatorId: 'op3' },
+    operators: [{ id: 'op3', name: 'Legacy', role: 'Admin' }], // no roleKey
+  });
+  global.applyOperatorPermissions();
+  assert.equal(settingsBtn.style.display, '', 'legacy admin → owner → settings visible');
+
+  // lock off → unrestricted regardless of role
+  dom.seedState({ settings: { operatorLockEnabled: false } });
+  global.applyOperatorPermissions();
+  assert.equal(settingsBtn.style.display, '', 'lock off: settings visible');
+});

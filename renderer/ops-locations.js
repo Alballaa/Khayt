@@ -321,6 +321,13 @@ function openOperatorEditor(opId = null) {
       <input type="text" id="opName" value="${escapeHtml(draft.name)}" placeholder="e.g. Ali Al-Hassan">
       <label style="margin-top:12px;">${escapeHtml(t('op.role'))}</label>
       <input type="text" id="opRole" value="${escapeHtml(draft.role || '')}" placeholder="e.g. Senior Technician">
+      <label style="margin-top:12px;">${escapeHtml(t('op.access_level') || 'Access level')}</label>
+      <select id="opRoleKey">
+        ${(typeof KhaytRbac !== 'undefined' ? KhaytRbac.ROLES : ['owner','manager','operator','viewer']).map(rk => {
+          const sel = (draft.roleKey || (typeof KhaytRbac !== 'undefined' ? KhaytRbac.roleFromLegacy(draft.role) : 'operator')) === rk ? ' selected' : '';
+          return `<option value="${rk}"${sel}>${escapeHtml(t('role.' + rk) || rk)}</option>`;
+        }).join('')}
+      </select>
       <label style="margin-top:12px;">${escapeHtml(t('op.hourly_rate') || 'Hourly Rate')} (${escapeHtml(currency)})</label>
       <input type="number" id="opHourlyRate" value="${+draft.hourlyRate || 0}" min="0" step="0.01">
       <label style="margin-top:12px;display:flex;align-items:center;gap:8px;cursor:pointer;">
@@ -330,6 +337,7 @@ function openOperatorEditor(opId = null) {
     async onSave(modal) {
       draft.name       = modal.querySelector('#opName').value.trim();
       draft.role       = modal.querySelector('#opRole').value.trim();
+      draft.roleKey    = modal.querySelector('#opRoleKey')?.value || draft.roleKey || 'operator';
       draft.hourlyRate = parseFloat(modal.querySelector('#opHourlyRate')?.value) || 0;
       draft.active     = modal.querySelector('#opActive').checked;
       if (!draft.name) { toast(t('mach.need_name'), 'error'); return false; }
@@ -475,45 +483,42 @@ function openPinPadModal(afterUnlock) {
   render();
 }
 
-/** Apply tab/feature restrictions based on active operator's role */
+/** Resolve the active operator's structured RBAC role key (owner when lock off). */
+function currentOperatorRoleKey() {
+  if (!settings.operatorLockEnabled) return 'owner';
+  const activeOp = settings.activeOperatorId ? operators.find(o => o.id === settings.activeOperatorId) : null;
+  if (!activeOp) return 'owner';
+  const rbac = (typeof KhaytRbac !== 'undefined') ? KhaytRbac : null;
+  return activeOp.roleKey || (rbac ? rbac.roleFromLegacy(activeOp.role) : 'operator');
+}
+
+/** Canonical permission check for the active operator. Fail-open if RBAC absent
+ *  or lock is off (matches the historical "no lock = unrestricted" behavior). */
+function operatorCan(area, action) {
+  const rbac = (typeof KhaytRbac !== 'undefined') ? KhaytRbac : null;
+  if (!rbac) return true;
+  return rbac.can(currentOperatorRoleKey(), area, action, { lockEnabled: !!settings.operatorLockEnabled });
+}
+
+/** Apply tab/feature restrictions based on the active operator's role (RBAC matrix). */
 function applyOperatorPermissions() {
   if (!settings.operatorLockEnabled) {
     // Remove all restrictions
     $$('.tab-btn').forEach(b => b.style.display = '');
     $$('.restricted-blur').forEach(el => el.classList.remove('restricted-blur'));
-    // Update nav operator badge if present
     const badge = $('#operatorNavBadge');
     if (badge) badge.textContent = '';
     return;
   }
+  // Tab visibility derives from the RBAC matrix (area-level 'view' permission).
+  const TAB_AREA = { 'settings-tab': 'settings', 'analytics-tab': 'analytics', 'clients-tab': 'clients' };
+  for (const [tab, area] of Object.entries(TAB_AREA)) {
+    const btn = $(`[data-tab="${tab}"]`);
+    if (btn) btn.style.display = operatorCan(area, 'view') ? '' : 'none';
+  }
   const activeOp = settings.activeOperatorId ? operators.find(o => o.id === settings.activeOperatorId) : null;
-  const role = activeOp?.role?.toLowerCase() || '';
-
-  // Role: 'sales' — hide settings, expenses, analytics deep features
-  // Role: 'technician' — hide clients, settings financial details
-  // Role: 'admin' — full access
-  const isAdmin = !role || role.includes('admin');
-  const isTech  = role.includes('tech');
-  const isSales = role.includes('sales');
-
-  // Settings tab restricted for non-admin
-  const settingsBtn = $('[data-tab="settings-tab"]');
-  if (settingsBtn) settingsBtn.style.display = isAdmin ? '' : 'none';
-
-  // Analytics/expenses restricted for technician
-  const analyticsBtn = $('[data-tab="analytics-tab"]');
-  if (analyticsBtn && isTech) analyticsBtn.style.display = 'none';
-  else if (analyticsBtn) analyticsBtn.style.display = '';
-
-  // Clients restricted for technician
-  const clientsBtn = $('[data-tab="clients-tab"]');
-  if (clientsBtn && isTech) clientsBtn.style.display = 'none';
-  else if (clientsBtn) clientsBtn.style.display = '';
-
-  // Update nav badge
   const badge = $('#operatorNavBadge');
-  if (badge && activeOp) badge.textContent = activeOp.name;
-  else if (badge) badge.textContent = '';
+  if (badge) badge.textContent = activeOp ? activeOp.name : '';
 }
 
 
@@ -539,6 +544,8 @@ function applyOperatorPermissions() {
     openOperatorEditor,
     openPinPadModal,
     applyOperatorPermissions,
+    currentOperatorRoleKey,
+    operatorCan,
   };
   Object.assign(global, api);
   global.KhaytOpsLocations = api;
