@@ -288,7 +288,10 @@ function renderAnalytics() {
 
   // Quote conversion rate
   const quotesCreated   = printLog.filter(o => o.quoteSentAt   && inRange(o.quoteSentAt,   analyticsRange, 'analytics'));
-  const quotesConverted = printLog.filter(o => o.quoteAcceptedAt && inRange(o.quoteAcceptedAt, analyticsRange, 'analytics'));
+  // Conversion is measured within the created cohort (quotes sent in range that
+  // were later accepted) — otherwise a quote accepted in-range but sent earlier
+  // inflates the rate above 100%.
+  const quotesConverted = quotesCreated.filter(o => o.quoteAcceptedAt);
   const convRate = quotesCreated.length > 0 ? Math.round(quotesConverted.length / quotesCreated.length * 100) : null;
   const qcEl = $('#stat-quotes-created');
   if (qcEl) qcEl.textContent = quotesCreated.length;
@@ -1190,7 +1193,11 @@ function renderClientLtvTable() {
     const ltv = cOrders.reduce((s, o) => s + orderRevenueBase(o), 0);
     const lastOrder = cOrders.reduce((latest, o) => {
       const d = o.completedAt || o.date;
-      return d && (!latest || d > latest) ? d : latest;
+      if (!d) return latest;
+      if (!latest) return d;
+      // Compare by actual time — completedAt is an ISO timestamp and date is a
+      // plain YYYY-MM-DD, so a raw string compare mis-ranks same-day records.
+      return new Date(d).getTime() > new Date(latest).getTime() ? d : latest;
     }, null);
     const churnRisk = !lastOrder || (now - new Date(lastOrder).getTime()) > CHURN_MS;
     return { name: c.name || c.company || '—', ltv, count: cOrders.length, avgVal: cOrders.length ? ltv / cOrders.length : 0, lastOrder, churnRisk };
@@ -1673,7 +1680,7 @@ function renderProductProfitability() {
         </thead>
         <tbody>
           ${rows.map(r => {
-            const margin = r.cost > 0 ? ((r.revenue - r.cost) / r.revenue * 100) : null;
+            const margin = (r.cost > 0 && r.revenue > 0) ? ((r.revenue - r.cost) / r.revenue * 100) : null;
             const marginStr = margin !== null ? `${margin.toFixed(1)}%` : '—';
             const marginCol = margin !== null ? (margin >= 30 ? 'var(--success)' : margin >= 10 ? 'var(--warning)' : 'var(--danger)') : 'var(--text-muted)';
             const barPct = (r.revenue / maxRev * 100).toFixed(1);
@@ -1713,21 +1720,22 @@ function renderSLASection() {
     return;
   }
 
-  const onTime = completed.filter(o => {
-    const delivered = (o.completedAt || o.deliveredAt || o.date || '').slice(0, 10);
-    return delivered <= o.dueDate;
-  });
-  const late = completed.filter(o => {
-    const delivered = (o.completedAt || o.deliveredAt || o.date || '').slice(0, 10);
-    return delivered > o.dueDate;
-  });
+  // Delivered date in LOCAL time, comparable with the local dueDate. completedAt/
+  // deliveredAt are ISO timestamps (UTC) — slicing them flips on-time vs late near
+  // the day boundary; o.date is already a local YYYY-MM-DD.
+  const deliveredDate = (o) => {
+    const v = o.completedAt || o.deliveredAt || o.date || '';
+    if (!v) return '';
+    return v.length > 10 ? localDateStr(new Date(v)) : v;
+  };
+  const onTime = completed.filter(o => deliveredDate(o) <= o.dueDate);
+  const late = completed.filter(o => deliveredDate(o) > o.dueDate);
 
   const rate = Math.round(onTime.length / completed.length * 100);
   const avgDelay = late.length > 0 ? Math.round(
-    late.reduce((s, o) => {
-      const delivered = (o.completedAt || o.deliveredAt || o.date || '').slice(0, 10);
-      return s + Math.round((new Date(delivered + 'T00:00:00') - new Date(o.dueDate + 'T00:00:00')) / 86400000);
-    }, 0) / late.length
+    late.reduce((s, o) =>
+      s + Math.round((new Date(deliveredDate(o) + 'T00:00:00') - new Date(o.dueDate + 'T00:00:00')) / 86400000)
+    , 0) / late.length
   ) : 0;
 
   const rateColor = rate >= 90 ? 'var(--success)' : rate >= 70 ? 'var(--warning)' : 'var(--danger)';
