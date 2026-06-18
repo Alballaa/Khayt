@@ -53,6 +53,16 @@ Beyond the four pillars, these features are spec'd and grounded in the current c
 
 ---
 
+### Engineering & readiness specs (cross-cutting, before/during build)
+| Concern | Spec |
+|---------|------|
+| Schema migration & versioning | [MIGRATION-SPEC](./KHAYT-3.0-MIGRATION-SPEC.md) — one ordered step registry; composes with Phase 0 stamping |
+| Testing strategy | [TESTING-SPEC](./KHAYT-3.0-TESTING-SPEC.md) — unifies the per-phase test plans; cloud-off golden invariant |
+| Feature flags & rollout | [FEATURE-FLAGS-SPEC](./KHAYT-3.0-FEATURE-FLAGS-SPEC.md) — local off-by-default flags; cloud kill-switch is subtractive only |
+| Telemetry & error reporting | [TELEMETRY-SPEC](./KHAYT-3.0-TELEMETRY-SPEC.md) — opt-in, no PII ever, off by default |
+
+> **Cross-spec note (from migration analysis):** the QC/shipping/scheduling specs say "no migration needed (lazy-on-read)", but any field that participates in **sync/export/audit** must be backfilled so it gets a `rev`/`updatedAt`. The migration spec resolves this with explicit backfill steps; purely-UI defaults stay lazy.
+
 ## 2. Architecture — offline-first, cloud-as-peer
 
 ```
