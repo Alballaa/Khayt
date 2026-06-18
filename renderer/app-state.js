@@ -430,9 +430,20 @@ function applyStoreFromSnapshot(store) {
   migrateLegacyDesignTheme();
   if (store.settings) {
     const nested = ['emailDigest', 'emailConfig', 'zatcaPhase2', 'bnpl', 'lanApi', 'exchangeRates', 'printerApi'];
+    const isPlainObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
     for (const key of nested) {
-      if (store.settings[key] && typeof store.settings[key] === 'object' && !Array.isArray(store.settings[key])) {
-        settings[key] = Object.assign({}, defaultSettings()[key] || {}, sanitiseForAssign(store.settings[key]));
+      if (isPlainObj(store.settings[key])) {
+        const dflt = defaultSettings()[key] || {};
+        const merged = Object.assign({}, dflt, sanitiseForAssign(store.settings[key]));
+        // Second level: re-merge sub-objects (e.g. bnpl.tabby) so a stored partial
+        // child keeps its sibling defaults (merchantCode/currency) instead of
+        // replacing the whole child object.
+        for (const sub of Object.keys(merged)) {
+          if (isPlainObj(dflt[sub]) && isPlainObj(store.settings[key][sub])) {
+            merged[sub] = Object.assign({}, dflt[sub], sanitiseForAssign(store.settings[key][sub]));
+          }
+        }
+        settings[key] = merged;
       }
     }
   }
