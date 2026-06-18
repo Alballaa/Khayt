@@ -1347,7 +1347,10 @@ function renderInventory() {
   if (valEl && !window.KhaytStudio?.useHandoffScreens?.()) {
     if (scopedInventory.length > 0) {
       const totalValue = scopedInventory.reduce((s, item) => {
-        const pricePerG = item.weight > 0 && item.cost > 0 ? item.cost / Math.max(1, item.spoolWeight || item.weight || 1000) * item.weight : 0;
+        // Value = cost × (remaining / original). Fall back to the standard spool
+        // size (1000) when the original weight wasn't recorded — dividing by the
+        // *remaining* weight valued every partly-used spool at full purchase cost.
+        const pricePerG = item.weight > 0 && item.cost > 0 ? item.cost / Math.max(1, item.spoolWeight || 1000) * item.weight : 0;
         return s + pricePerG;
       }, 0);
       const totalGrams = scopedInventory.reduce((s, item) => s + Math.max(0, +item.weight || 0), 0);
@@ -2058,8 +2061,12 @@ function estimateDaysRemaining(item) {
   const totalUsed = recent.reduce((s, h) => s + (+h.weightUsed || 0), 0);
   const days = recent.length > 0 ? Math.min(30, (Date.now() - new Date(recent[recent.length-1]?.date || Date.now()).getTime()) / 86400000 + recent.length) : 30;
   const dailyRate = totalUsed / Math.max(days, 1);
-  if (dailyRate <= 0) return null;
-  return Math.round((item.weight || 0) / dailyRate);
+  if (!(dailyRate > 0)) return null;
+  // A non-numeric weight (CSV/legacy rows) is "unknown", not zero — return null
+  // so the forecast shows nothing rather than a bogus "0 d" / "NaN d".
+  const w = +item.weight;
+  if (!Number.isFinite(w)) return null;
+  return Math.round(w / dailyRate);
 }
 
 function renderSupplierReorderList() {
@@ -3446,6 +3453,7 @@ async function printSpoolLabel(itemId) {
     openProductEditor,
     resizeImage,
     computeMaterialForecast,
+    estimateDaysRemaining,
     renderProductTierChips,
     batchGenPOs,
     createPurchaseOrder,
