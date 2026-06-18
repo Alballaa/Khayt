@@ -1279,6 +1279,14 @@ async function generateMilestoneInvoice(orderId, milestone) {
   // Build a temporary order-like object with the milestone amount
   const tempOrder = Object.assign({}, order, {
     price: milestone.amount,
+    // The milestone bills a % of the full total; shipping/rush/extras/discount are
+    // already represented in that %, so don't re-show or re-bill them in full on
+    // top of the (smaller) milestone amount.
+    shippingCost: 0,
+    rushFeeAmount: 0,
+    extraLines: [],
+    discountPct: 0,
+    priceBeforeDiscount: 0,
     _milestoneLabel: milestone.label,
     _milestoneTotal: order.price,
     _milestonePct: milestone.percentage,

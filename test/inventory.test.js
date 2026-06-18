@@ -152,3 +152,16 @@ test('H3: a shortfall is drawn from another same-material spool, not lost', () =
   assert.equal(global.inventory.find(s => s.id === 'S1').weight, 0);
   assert.equal(global.inventory.find(s => s.id === 'S2').weight, 970);
 });
+
+test('M8: estimateDaysRemaining never returns NaN for a non-numeric weight', () => {
+  const { estimateDaysRemaining } = require('../renderer/inventory.js');
+  const recent = new Date(Date.now() - 5 * 86400000).toISOString().slice(0, 10);
+  // Normal case → a finite estimate.
+  const ok = estimateDaysRemaining({ weight: 500, usageHistory: [{ weightUsed: 100, date: recent }] });
+  assert.ok(Number.isFinite(ok) && ok > 0, `expected a positive number, got ${ok}`);
+  // CSV/legacy row with a non-numeric weight → null, not NaN.
+  const bad = estimateDaysRemaining({ weight: 'n/a', usageHistory: [{ weightUsed: 100, date: recent }] });
+  assert.equal(bad, null);
+  // No usage history → null.
+  assert.equal(estimateDaysRemaining({ weight: 500, usageHistory: [] }), null);
+});
