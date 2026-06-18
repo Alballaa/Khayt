@@ -4,6 +4,21 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [2.7.0-beta.1] - 2026-06-18
+
+**Pre-release (beta)** — first 2.7 beta, on top of stable 2.6.0.
+
+### Fixed
+
+- **Filament accounting (inventory)** — three deduction bugs corrected:
+  - the over-commit / reservation check keyed on the optional per-part spool and so was inert for normal parts (which carry only a material) — it now mirrors the actual deduction, so over-commit warnings and reserved-grams reflect real demand;
+  - split prints recorded via the spool-switch flow no longer double-count filament (completion deducts only the remainder);
+  - a partial shortfall on the chosen spool is now drawn from other same-material spools (location-preferred) instead of being silently lost.
+
+### Changed
+
+- **Localization** — German, Spanish, French, Japanese, and Chinese reach full key parity with English: 296 previously-English-only strings (the Workbench/Command/Vivid/Cockpit/Atlas dashboards, the updater dialog, quote follow-up, per-location inventory + transfers, electricity/exchange-rate helpers, label printing) are now translated. These are AI-generated and pending a native-speaker review pass.
+
 ## [2.6.0] - 2026-06-18
 
 Graduates the 2.6.0 beta line (`v2.6.0-beta.1` → `beta.8`) to a stable release over `2.5.0`. Highlights, consolidated from the per-prerelease sections below:
