@@ -85,6 +85,7 @@ contextBridge.exposeInMainWorld('hubAPI', {
 
   // Feature 1 (new batch): G-code / 3MF metadata extraction
   parsePrintFile: (filePath) => ipcRenderer.invoke('hub:parse-print-file', filePath),
+  aiExtract: (opts) => ipcRenderer.invoke('hub:ai-extract', opts),
 
   // Feature 2 (new batch): Live printer API polling
   startPrinterPolling: (machines) => ipcRenderer.invoke('hub:start-printer-polling', machines),

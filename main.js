@@ -1053,6 +1053,38 @@ ipcMain.handle('hub:send-email', async (event, { to, subject, body, smtpConfig }
 });
 
 // ── Feature R12-1: Outbound Webhooks ────────────────────────────────────────
+// AI quote extraction (BYO Anthropic key) — opt-in; fails safe (renderer falls
+// back to the manual quote form on any error). Key resolved from the encrypted
+// store so it never round-trips the renderer in plaintext after first save.
+ipcMain.handle('hub:ai-extract', async (_e, { apiKey, model, system, request, image, schema } = {}) => {
+  apiKey = resolveStoreSecret(apiKey, d => d?.settings?.ai?.apiKey);
+  if (!apiKey) return { ok: false, error: 'No AI key configured' };
+  if (!request || !String(request).trim()) return { ok: false, error: 'Empty request' };
+  try {
+    const content = [{ type: 'text', text: String(request) }];
+    if (image) content.push({ type: 'image', source: { type: 'base64', media_type: 'image/png', data: String(image) } });
+    const tool = { name: 'quote_extract', description: 'Physical facts for a 3D-print quote', input_schema: schema };
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: model || 'claude-opus-4-8',
+        max_tokens: 1024,
+        system: String(system || ''),
+        tools: [tool],
+        tool_choice: { type: 'tool', name: 'quote_extract' },
+        messages: [{ role: 'user', content }],
+      }),
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!res.ok) return { ok: false, error: 'AI API error: HTTP ' + res.status };
+    const data = await res.json();
+    const toolUse = (data.content || []).find(c => c && c.type === 'tool_use');
+    if (!toolUse || !toolUse.input) return { ok: false, error: 'No structured output returned' };
+    return { ok: true, draft: toolUse.input };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
 ipcMain.handle('hub:fire-webhook', async (event, { url, event: webhookEvent, payload, secret }) => {
   // Restrict to https:// only — prevents SSRF to localhost and internal network
   if (!url || !url.startsWith('https://')) return { ok: false, error: 'Invalid URL — only https:// allowed' };

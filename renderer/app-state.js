@@ -75,6 +75,7 @@ function sanitizePrintHtml(html) {
 
 function defaultSettings() {
   return {
+    ai:        { enabled: false, model: 'claude-opus-4-8', apiKey: '' }, // AI assist (BYO key, opt-in)
     bizEn:     'Khayt',
     bizAr:     'خيط',
     vat:       '',
