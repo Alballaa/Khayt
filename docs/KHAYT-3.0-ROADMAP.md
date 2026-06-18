@@ -33,6 +33,19 @@ This principle is also a gift to engineering: it lets us build the **sync founda
 
 AI assist is deliberately **cloud-independent** so it can ship first and prove value without any platform investment.
 
+### Additional feature specs (ship across 3.x, mostly cloud-independent)
+Beyond the four pillars, these features are spec'd and grounded in the current code:
+
+| Feature | Spec | Notes |
+|---------|------|-------|
+| Print-file mgmt + gcode parsing | [PRINTFILES-SPEC](./KHAYT-3.0-PRINTFILES-SPEC.md) | Finishes wiring an *existing* partial gcode parser; auto-fills calculator + inventory |
+| Shipping & fulfillment | [SHIPPING-SPEC](./KHAYT-3.0-SHIPPING-SPEC.md) | Saudi carriers (SMSA/Aramex/SPL); pluggable adapter; manual fallback |
+| Print-farm scheduling | [SCHEDULING-SPEC](./KHAYT-3.0-SCHEDULING-SPEC.md) | Assistive, deterministic; reuses queue/assignment; optional AI tuning |
+| RBAC / team roles | [RBAC-SPEC](./KHAYT-3.0-RBAC-SPEC.md) | Expands the existing operator-lock; aligns with Cloud users |
+| Global sales channels | [CHANNELS-SPEC](./KHAYT-3.0-CHANNELS-SPEC.md) | Shopify/Woo/Etsy; mirrors the Salla/Zid webhook pattern |
+| Accounting export | [ACCOUNTING-SPEC](./KHAYT-3.0-ACCOUNTING-SPEC.md) | File-first (offline), optional API push; VAT/ZATCA-aware |
+| Maintenance scheduler | [MAINTENANCE-SPEC](./KHAYT-3.0-MAINTENANCE-SPEC.md) | Generalizes the existing single-service PM into N recurring tasks |
+
 ---
 
 ## 2. Architecture — offline-first, cloud-as-peer
