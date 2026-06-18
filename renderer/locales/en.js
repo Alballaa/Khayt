@@ -493,6 +493,7 @@
   "maint.empty": "No maintenance entries yet.",
   "maint.saved": "Entry saved",
   "maint.deleted": "Entry deleted",
+  "loyalty.points": "Loyalty points",
   "maint.recurring": "Recurring maintenance",
   "maint.no_tasks": "No recurring tasks",
   "maint.task_name": "Task",

@@ -186,6 +186,8 @@ function renderClients() {
     // Feature 8 (new 8-pack): Loyalty tier badge
     const tier = clientTierMap.get(c.id) || null;
     const tierHtml = tier ? `<span class="loyalty-tier-badge tier-${escapeHtml(tier.name.toLowerCase().replace(/\s+/g,''))}">${escapeHtml(tier.name)}</span>` : '';
+    const loyaltyPts = clientLoyaltyPoints(c.id);
+    const loyaltyHtml = loyaltyPts > 0 ? `<span class="loyalty-tier-badge" title="${escapeHtml(t('loyalty.points') || 'Loyalty points')}">⭐ ${loyaltyPts}</span>` : '';
     // Survey rating from completed orders (pre-computed above)
     const sv = clientSurveyMap.get(c.id);
     const avgRating = sv ? sv.sum / sv.count : null;
@@ -208,6 +210,7 @@ function renderClients() {
               ${(c.addresses && c.addresses.length > 0) ? `<span style="font-size:10px; color:var(--primary); margin-inline-start:4px;">📍 ${c.addresses.length}</span>` : ''}
               ${isOverLimit ? `<span class="machine-jobs-badge" style="background:var(--danger);color:#fff;font-size:10px;">⚠ ${escapeHtml(t('cl.over_limit'))}</span>` : ''}
               ${tierHtml}
+              ${loyaltyHtml}
               ${altName ? `<div style="font-size:11.5px; color:var(--text-muted);">${escapeHtml(altName)}</div>` : ''}
             </div>
           </div>
@@ -885,6 +888,27 @@ function hideClientSuggestions() {
   setTimeout(() => { $('#clientSuggestions').style.display = 'none'; }, 150);
 }
 
+/**
+ * Loyalty points a client has earned across completed orders (read-only display).
+ * Earns on the ex-VAT base × the tier's points multiplier, via lib/loyalty.
+ * Gated by settings.loyaltyEnabled; 0 when disabled or the lib is absent.
+ */
+function clientLoyaltyPoints(clientId) {
+  if (!settings.loyaltyEnabled || typeof KhaytLoyalty === 'undefined') return 0;
+  const perUnit = +settings.loyaltyPointsPerUnit || 1;
+  const tier = getClientTier(clientId);
+  const mult = (tier && +tier.pointsMultiplier) || 1;
+  const rate = settings.enableVat ? (+settings.vatRate || 15) : 0;
+  let pts = 0;
+  for (const o of printLog) {
+    if (o.clientId !== clientId || o.status !== 'completed') continue;
+    const price = +o.price || 0;
+    const exVat = rate > 0 ? price / (1 + rate / 100) : price;
+    pts += KhaytLoyalty.earnPoints(exVat, { pointsPerUnit: perUnit, tierMultiplier: mult });
+  }
+  return pts;
+}
+
 function getClientTier(clientId) {
   if (!settings.loyaltyEnabled) return null;
   const tiers = (settings.loyaltyTiers || []).filter(tier => tier.name);
@@ -1162,6 +1186,7 @@ function exportClientPortal(clientId) {
     renderClientSuggestions,
     hideClientSuggestions,
     getClientTier,
+    clientLoyaltyPoints,
     patchRecurringOrdersWithLeadDays,
     exportClientsCsv,
     exportClientPortal,
