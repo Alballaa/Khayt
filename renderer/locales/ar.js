@@ -1421,7 +1421,6 @@
   "set.donate_title": "ادعم مشروع Khayt",
   "set.donate_desc": "Khayt مجاني ومفتوح المصدر لجميع المصنّعين حول العالم. إن كان يوفّر عليك الوقت، فكر في دعمه عبر GitHub Sponsors — بدون PayPal أو Stripe.",
   "set.donate_btn": "❤️ ادعمنا على GitHub",
-  "set.donate_url_label": "رابط GitHub Sponsors الخاص بك (اختياري)",
   "onboard.zatca": "تفعيل الفواتير الإلكترونية (زاتكا)",
   "toast.order_deleted": "تم حذف الطلب",
   "toast.status_updated": "تم تحديث الحالة",

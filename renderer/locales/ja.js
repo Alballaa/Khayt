@@ -1502,7 +1502,6 @@
   "set.donate_title": "Khaytをサポート",
   "set.donate_desc": "Khaytは世界中のメーカー向けに無料・オープンソースで提供されています。時間の節約になった場合は、GitHubでのスポンサーをご検討ください — PayPalやStripeは不要です。",
   "set.donate_btn": "❤️ GitHubでスポンサーになる",
-  "set.donate_url_label": "GitHubスポンサーURL（任意）",
   "onboard.zatca": "ZATCA準拠の請求書を有効にする",
   "toast.order_deleted": "注文を削除しました",
   "toast.status_updated": "ステータスを更新しました",
