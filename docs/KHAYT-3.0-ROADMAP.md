@@ -54,6 +54,10 @@ Beyond the four pillars, these features are spec'd and grounded in the current c
 | Deposits & payment plans | [PAYMENTS-SPEC](./KHAYT-3.0-PAYMENTS-SPEC.md) | Unifies deposit/milestone/installment/BNPL into one `paymentPlan`; `payStatus` stays the source of truth |
 | Loyalty & store credit | [LOYALTY-SPEC](./KHAYT-3.0-LOYALTY-SPEC.md) | Builds on existing tiers + gift cards; redeems via the `giftCardDiscount` rail so payment math can't regress |
 | Assembly / BOM | [BOM-SPEC](./KHAYT-3.0-BOM-SPEC.md) | Formalizes the existing `parts[]` + consumables into multi-part assemblies with cost/material rollup |
+| Public API + webhooks + automation | [PUBLIC-API-SPEC](./KHAYT-3.0-PUBLIC-API-SPEC.md) | Formalizes the existing LAN API + `fireWebhook`; scoped tokens; Zapier/Make; opt-in cloud relay |
+| Privacy & PDPL compliance | [PRIVACY-COMPLIANCE-SPEC](./KHAYT-3.0-PRIVACY-COMPLIANCE-SPEC.md) | Maps Saudi PDPL/GDPR obligations to features; reuses export/redaction + delete-client; consent at intake |
+| Reporting builder & scheduled reports | [REPORTING-SPEC](./KHAYT-3.0-REPORTING-SPEC.md) | Saved report definitions over existing analytics compute; extends the existing email digest |
+| Onboarding & data import | [ONBOARDING-SPEC](./KHAYT-3.0-ONBOARDING-SPEC.md) | Extends the existing setup wizard + CSV importers; adds order import + safe merge |
 
 ---
 
