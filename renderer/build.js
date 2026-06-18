@@ -1140,7 +1140,31 @@ function updateResinFieldsVisibility() {
         bodyHtml: `
           <p style="font-size:13px;color:var(--text-muted);">${escapeHtml(t('calc.ai_byok_note') || 'Uses your own Anthropic API key. Sent only to Anthropic; stored encrypted on this device.')}</p>
           <label>${escapeHtml(t('calc.ai_key') || 'Anthropic API key')}</label>
-          <input type="password" id="aiKeyInput" value="${escapeHtml(secretInputValue(ai.apiKey))}" placeholder="sk-ant-...">`,
+          <input type="password" id="aiKeyInput" value="${escapeHtml(secretInputValue(ai.apiKey))}" placeholder="sk-ant-...">
+          <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+            <button type="button" class="btn small ghost" id="aiTestBtn">🔌 ${escapeHtml(t('calc.ai_test') || 'Test connection')}</button>
+            <span id="aiTestResult" style="font-size:12.5px;"></span>
+          </div>`,
+        onMount(modal) {
+          modal.querySelector('#aiTestBtn')?.addEventListener('click', async () => {
+            const res = modal.querySelector('#aiTestResult');
+            const typed = modal.querySelector('#aiKeyInput').value.trim();
+            const key = typed || settings.ai?.apiKey || ai.apiKey || '';
+            if (!key) { res.textContent = '✗ ' + (t('calc.ai_need_key') || 'Enter an API key'); res.style.color = 'var(--danger)'; return; }
+            res.textContent = t('calc.ai_testing') || 'Testing…'; res.style.color = 'var(--text-muted)';
+            try {
+              const r = await window.hubAPI.aiExtract({
+                apiKey: key,
+                model: (settings.ai && settings.ai.model) || 'claude-opus-4-8',
+                system: KhaytAiQuote.buildSystemContext(inventory),
+                request: 'Estimate: one small 20mm PLA calibration cube.',
+                schema: KhaytAiQuote.EXTRACTION_SCHEMA,
+              });
+              if (r && r.ok && r.draft) { res.textContent = '✓ ' + (t('calc.ai_test_ok') || 'Connection works'); res.style.color = 'var(--success)'; }
+              else { res.textContent = '✗ ' + ((r && r.error) || 'failed'); res.style.color = 'var(--danger)'; }
+            } catch (e) { res.textContent = '✗ ' + (e.message || e); res.style.color = 'var(--danger)'; }
+          });
+        },
         onSave(modal) {
           const typed = modal.querySelector('#aiKeyInput').value.trim();
           if (!typed && !ai.apiKey) { toast(t('calc.ai_need_key') || 'Enter an API key', 'error'); return false; }
