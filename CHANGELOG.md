@@ -4,6 +4,18 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [2.8.0-beta.1] - 2026-06-18
+
+**Pre-release (beta)** — opens the 2.8 line over 2.7.0. The desktop app is functionally **unchanged** from `2.7.0`; this cycle's work is the iOS companion and internal test infrastructure, so the desktop build here is a checkpoint rather than a feature drop.
+
+### Added
+
+- **iOS Companion v2** ([`ios/`](./ios/)) — native SwiftUI redesign plus: live printer monitoring (progress / temps), clients with history, walk-in intake triage, in-app order creation and machine assignment, inventory edit/delete, and a Home Screen queue widget. LAN-only; the desktop app remains the source of truth. (Companion ships via Xcode, not the desktop release artifacts.)
+
+### Changed
+
+- **Tests** — added a jsdom render-path harness (`test/helpers/dom.js`) that loads the real `renderer/index.html`, so DOM-rendering fixes get real regression coverage instead of throwaway scripts. Locks in the 2.7 invoicing/analytics render-path fixes; suite now 293 tests.
+
 ## [2.7.0] - 2026-06-18
 
 Graduates the 2.7.0 beta line (`v2.7.0-beta.1` → `beta.3`) to a stable release over `2.6.0`. A correctness/quality pass across inventory, invoicing, the production queue, analytics, settings, and localization. Highlights, consolidated from the per-prerelease sections below:
