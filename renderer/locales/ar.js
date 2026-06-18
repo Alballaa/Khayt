@@ -618,6 +618,7 @@
   "maint.empty": "لا سجلات صيانة بعد.",
   "maint.saved": "تم حفظ الإدخال",
   "maint.deleted": "تم الحذف",
+  "loyalty.points": "نقاط الولاء",
   "maint.recurring": "الصيانة الدورية",
   "maint.no_tasks": "لا توجد مهام دورية",
   "maint.task_name": "المهمة",
