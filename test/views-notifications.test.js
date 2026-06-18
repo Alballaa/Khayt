@@ -82,3 +82,30 @@ test('buildNotifications respects dismissed alert keys', () => {
   const { buildNotifications } = require('../renderer/notifications.js');
   assert.equal(buildNotifications().some((a) => a.key === 'overdue:O1'), false);
 });
+
+test('buildNotifications surfaces due recurring maintenance tasks', () => {
+  require('../lib/maintenance.js'); // sets global.KhaytMaintenance (dual-export)
+  global.settings = { dismissedNotifs: {}, staleHours: {} };
+  global.printLog = [];
+  global.inventory = [];
+  global.consumables = [];
+  global.clients = [];
+  global.machines = [{ id: 'm1', name: 'Printer 1' }];
+  global.machineHoursMeter = () => 600;                 // 600h on the machine
+  global.machineServiceStatus = () => ({ due: false, warning: false });
+  global.machMaintTasks = [
+    { id: 'tk1', machineId: 'm1', name: 'Nozzle', intervalHours: 500, lastDoneHours: 0 }, // 600>=500 -> due
+    { id: 'tk2', machineId: 'm1', name: 'Belt', intervalHours: 5000, lastDoneHours: 0 },  // not due
+  ];
+  global.escapeHtml = (s) => String(s ?? '');
+  global.t = (k) => k;
+  global.switchTab = () => {};
+  global.localName = () => '';
+
+  const { buildNotifications } = require('../renderer/notifications.js');
+  const alerts = buildNotifications();
+  const due = alerts.find((a) => a.key === 'mtask:tk1');
+  assert.ok(due, 'a due maintenance task produces an alert');
+  assert.equal(due.type, 'service');
+  assert.equal(alerts.some((a) => a.key === 'mtask:tk2'), false, 'not-yet-due task produces no alert');
+});

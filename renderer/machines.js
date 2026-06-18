@@ -482,6 +482,26 @@ function openMaintLog(machineId) {
     </table></div>`;
   }
 
+  // Recurring preventive-maintenance tasks (Feature: maintenance scheduler).
+  const STATUS_COLOR = { overdue: 'var(--danger)', due: 'var(--danger)', warning: 'var(--warning,#d97706)', ok: 'var(--text-muted)' };
+  function taskListHtml() {
+    const tasks = (typeof machMaintTasks !== 'undefined' ? machMaintTasks : []).filter(tk => tk.machineId === machineId);
+    if (!tasks.length)
+      return `<p style="color:var(--text-muted);font-size:13px;text-align:center;padding:10px 0;">${escapeHtml(t('maint.no_tasks') || 'No recurring tasks')}</p>`;
+    const hours = machineHoursMeter(machineId);
+    return `<div class="table-wrap"><table><tbody>${tasks.map(tk => {
+      const st = (typeof KhaytMaintenance !== 'undefined') ? KhaytMaintenance.taskStatus(tk, hours, Date.now()) : { status: 'ok' };
+      const every = tk.intervalHours ? `${tk.intervalHours}h` : (tk.intervalDays ? `${tk.intervalDays}d` : '—');
+      return `<tr>
+        <td><strong>${escapeHtml(tk.name || '')}</strong><br><span style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('maint.every') || 'every')} ${every}</span></td>
+        <td style="white-space:nowrap;color:${STATUS_COLOR[st.status] || 'var(--text-muted)'};font-weight:600;font-size:12px;">${escapeHtml(t('maint.status_' + st.status) || st.status)}</td>
+        <td style="white-space:nowrap;text-align:right;">
+          <button class="btn small" data-act="mt-done" data-id="${tk.id}">${escapeHtml(t('maint.mark_done') || 'Done')}</button>
+          <button class="btn danger small" data-act="mt-del" data-id="${tk.id}">×</button>
+        </td></tr>`;
+    }).join('')}</tbody></table></div>`;
+  }
+
   openFormModal({
     title: `${machine.name} — ${t('maint.title')}`,
     noSave: true,
@@ -510,12 +530,66 @@ function openMaintLog(machineId) {
           <button class="btn primary small" id="btnAddMaintEntry">${escapeHtml(t('maint.add'))}</button>
         </div>
       </div>
+      <div style="margin-bottom:6px;font-weight:600;font-size:13px;">${escapeHtml(t('maint.recurring') || 'Recurring maintenance')}</div>
+      <div style="background:var(--surface-2);padding:12px;border-radius:var(--radius);margin-bottom:8px;">
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;align-items:end;">
+          <div><label style="margin:0;">${escapeHtml(t('maint.task_name') || 'Task')}</label><input type="text" id="mtName" placeholder="${escapeHtml(t('maint.task_ph') || 'e.g. Replace nozzle')}"></div>
+          <div><label style="margin:0;">${escapeHtml(t('maint.every_hours') || 'Every (hours)')}</label><input type="number" id="mtHours" min="0" step="1"></div>
+          <div><label style="margin:0;">${escapeHtml(t('maint.or_days') || 'or (days)')}</label><input type="number" id="mtDays" min="0" step="1"></div>
+          <button class="btn primary small" id="btnAddMaintTask">${escapeHtml(t('maint.add') )}</button>
+        </div>
+      </div>
+      <div id="maintTasksList" style="margin-bottom:16px;">${taskListHtml()}</div>
       <div id="maintEntriesList">${listHtml()}</div>`,
     onMount(modal) {
       const refresh = () => {
         const el = modal.querySelector('#maintEntriesList');
         if (el) el.innerHTML = listHtml();
       };
+      const refreshTasks = () => {
+        const el = modal.querySelector('#maintTasksList');
+        if (el) el.innerHTML = taskListHtml();
+      };
+      modal.querySelector('#btnAddMaintTask')?.addEventListener('click', () => {
+        const name = modal.querySelector('#mtName').value.trim();
+        const intervalHours = Math.max(0, +(modal.querySelector('#mtHours').value) || 0);
+        const intervalDays = Math.max(0, +(modal.querySelector('#mtDays').value) || 0);
+        if (!name) { toast(t('maint.need_name') || t('maint.need_note'), 'error'); return; }
+        if (!intervalHours && !intervalDays) { toast(t('maint.need_interval') || 'Set an interval', 'error'); return; }
+        machMaintTasks.push({
+          id: uid('MTASK'), machineId, name,
+          intervalHours: intervalHours || null, intervalDays: intervalDays || null,
+          lastDoneHours: machineHoursMeter(machineId), lastDoneAt: new Date().toISOString(),
+        });
+        saveAll();
+        modal.querySelector('#mtName').value = '';
+        modal.querySelector('#mtHours').value = '';
+        modal.querySelector('#mtDays').value = '';
+        refreshTasks();
+        toast(t('maint.saved'), 'success');
+      });
+      modal.querySelector('#maintTasksList')?.addEventListener('click', async (e) => {
+        const doneBtn = e.target.closest('[data-act="mt-done"]');
+        const delBtn = e.target.closest('[data-act="mt-del"]');
+        if (doneBtn) {
+          const tk = machMaintTasks.find(x => x.id === doneBtn.dataset.id);
+          if (!tk) return;
+          const patch = KhaytMaintenance.markDone(tk, machineHoursMeter(machineId), new Date().toISOString());
+          Object.assign(tk, patch);
+          const today = new Date().toISOString().split('T')[0];
+          machMaintLog.unshift({ id: uid('MAINT'), machineId, date: today, note: tk.name, cost: 0 });
+          saveAll();
+          refreshTasks(); refresh();
+          toast(t('maint.saved'), 'success');
+        } else if (delBtn) {
+          const ok = await confirmModal(t('common.delete') + '?', { danger: true });
+          if (!ok) return;
+          machMaintTasks = machMaintTasks.filter(x => x.id !== delBtn.dataset.id);
+          saveAll();
+          refreshTasks();
+          toast(t('maint.deleted'), 'success');
+        }
+      });
       modal.querySelector('#btnAddMaintEntry').addEventListener('click', () => {
         const date  = modal.querySelector('#maintDate').value || new Date().toISOString().split('T')[0];
         const note  = modal.querySelector('#maintNote').value.trim();

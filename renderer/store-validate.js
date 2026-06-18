@@ -3,7 +3,7 @@
  * @see KhaytStore.VERSION for export payload version (optional on disk snapshots).
  */
 (function (global) {
-  const STORE_VERSION = 6; // v6: Phase 0 sync foundation (rev/updatedAt + tombstones)
+  const STORE_VERSION = 7; // v7: machMaintTasks (recurring maintenance)
   const MAX_EXPORT_VERSION = STORE_VERSION;
 
   /** @type {readonly string[]} */
@@ -12,7 +12,7 @@
     'expenses', 'machines', 'waTemplates', 'wasteLog', 'machMaintLog', 'consumables',
     'suppliers', 'purchaseOrders', 'testPrints', 'locations', 'operators',
     'waitingList', 'waitingListHistory', 'timeEntries', 'shiftLogs', 'giftCards',
-    'slicerProfiles', 'envLogs', 'tombstones',
+    'slicerProfiles', 'envLogs', 'tombstones', 'machMaintTasks',
   ];
 
   function sanitisePlainObject(obj) {
@@ -79,6 +79,7 @@
     slicerProfiles: isPlainObject,
     envLogs: isPlainObject,
     tombstones: (t) => isPlainObject(t) && typeof t.id === 'string' && typeof t.collection === 'string',
+    machMaintTasks: isValidRecord,
   };
 
   /**

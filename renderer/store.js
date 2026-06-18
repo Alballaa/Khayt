@@ -3,7 +3,7 @@
  * Loaded before app.js; collections live in app.js globals.
  */
 (function (global) {
-  const STORE_VERSION = 6;
+  const STORE_VERSION = 7;
   const STORE_SECRET_MASK = '__KHAYT_MASKED__';
 
   function redactSettingsForExport(src) {

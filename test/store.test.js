@@ -10,7 +10,7 @@ const {
 } = require('../renderer/store.js');
 
 test('VERSION and SECRET_MASK are stable contract tokens', () => {
-  assert.equal(VERSION, 6); // v6: Phase 0 sync foundation (rev/updatedAt + tombstones)
+  assert.equal(VERSION, 7); // v7: machMaintTasks (recurring maintenance)
   assert.equal(SECRET_MASK, '__KHAYT_MASKED__');
 });
 
