@@ -493,6 +493,8 @@ function wireEvents() {
   if (btnTaxExport) btnTaxExport.addEventListener('click', exportTaxSummary);
   const btnAccountingExport = $('#btnAccountingExport');
   if (btnAccountingExport) btnAccountingExport.addEventListener('click', exportAccounting);
+  const btnSuggestSchedule = $('#btnSuggestSchedule');
+  if (btnSuggestSchedule) btnSuggestSchedule.addEventListener('click', openScheduleSuggestions);
 
   // Logs — batch bar
   $('#btnBatchPdf').addEventListener('click', batchExportPDFs);
