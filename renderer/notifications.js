@@ -119,6 +119,26 @@ function buildNotifications() {
     }
   }
 
+  // 4b. Recurring maintenance tasks due/overdue (hours- or date-based)
+  if (typeof KhaytMaintenance !== 'undefined' && Array.isArray(machMaintTasks) && machMaintTasks.length) {
+    const hoursByMachine = {};
+    for (const m of machines) hoursByMachine[m.id] = machineHoursMeter(m.id);
+    const machineName = (id) => (machines.find(m => m.id === id) || {}).name || '';
+    for (const task of KhaytMaintenance.dueTasks(machMaintTasks, hoursByMachine, Date.now())) {
+      const key = 'mtask:' + task.id;
+      if (isDismissed(key)) continue;
+      const overdue = task.status === 'overdue';
+      alerts.push({
+        key,
+        type: 'service', icon: '🔧',
+        title: escapeHtml((overdue ? (t('notif.maint_overdue') || 'Maintenance overdue')
+                                   : (t('notif.maint_due') || 'Maintenance due')) + ': ' + (task.name || '')),
+        body: escapeHtml(machineName(task.machineId)),
+        action() { switchTab('settings-tab'); },
+      });
+    }
+  }
+
   // 5. Stale orders (uses existing helper)
   const stale = typeof getStaleOrders === 'function' ? getStaleOrders().slice(0, 5) : [];
   for (const o of stale) {

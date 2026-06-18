@@ -27,6 +27,7 @@ const K = {
   WAITING_HISTORY: 'hub_waiting_history_v1',
   TIME_ENTRIES: 'hub_time_entries_v1',
   TOMBSTONES: 'hub_tombstones_v1',
+  MAINT_TASKS: 'hub_maint_tasks_v1',
 };
 
 const STORE_SECRET_MASK = KhaytStore.SECRET_MASK;
@@ -246,6 +247,7 @@ let waitingList    = loadJSON(K.WAITING, []);
 let waitingListHistory = loadJSON(K.WAITING_HISTORY, []);
 let timeEntries    = loadJSON(K.TIME_ENTRIES, []);
 let tombstones     = loadJSON(K.TOMBSTONES, []); // Phase 0 sync: delete markers
+let machMaintTasks = loadJSON(K.MAINT_TASKS, []); // recurring preventive-maintenance task defs
 
 // Batch-2 new arrays
 let shiftLogs      = [];
@@ -335,7 +337,7 @@ function collectStoreCollections() {
     expenses, machines, waTemplates, wasteLog, machMaintLog, consumables,
     suppliers, purchaseOrders, testPrints, locations, operators, waitingList,
     waitingListHistory, timeEntries, shiftLogs, giftCards, slicerProfiles, envLogs,
-    tombstones,
+    tombstones, machMaintTasks,
   };
 }
 
@@ -379,6 +381,7 @@ function replaceStoreFromSnapshot(store) {
   slicerProfiles = [];
   envLogs = [];
   tombstones = [];
+  machMaintTasks = [];
   settings = defaultSettings();
   applyStoreFromSnapshot(store);
 }
@@ -430,6 +433,7 @@ function applyStoreFromSnapshot(store) {
   if (store.slicerProfiles)      slicerProfiles      = store.slicerProfiles.filter(isObj);
   if (store.envLogs)             envLogs             = store.envLogs.filter(isObj);
   if (store.tombstones)          tombstones          = store.tombstones.filter(isObj);
+  if (store.machMaintTasks)      machMaintTasks      = store.machMaintTasks.filter(isValidRecord);
   if (store.settings)            settings            = Object.assign({}, defaultSettings(), sanitiseForAssign(store.settings));
   migrateLanApiSettings();
   migrateLegacyDesignTheme();
