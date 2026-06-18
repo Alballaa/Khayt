@@ -1,0 +1,205 @@
+'use strict';
+
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+
+const {
+  BOM,
+  csvEscape,
+  vatSplit,
+  buildInvoiceCsv,
+  buildExpenseCsv,
+  INVOICE_HEADER_MAP,
+} = require('../lib/accounting-export');
+
+/** Parse a CSV document into { header: string[], rows: string[][] }, BOM-stripped.
+ * Minimal RFC-4180-ish parser sufficient for these tests (handles quoted fields,
+ * doubled quotes, embedded commas/newlines). */
+function parseCsv(doc) {
+  const text = doc.startsWith(BOM) ? doc.slice(BOM.length) : doc;
+  const rows = [];
+  let field = '';
+  let row = [];
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else inQuotes = false;
+      } else field += ch;
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ',') {
+      row.push(field); field = '';
+    } else if (ch === '\r') {
+      // skip; \n handles the row break
+    } else if (ch === '\n') {
+      row.push(field); rows.push(row); field = ''; row = [];
+    } else field += ch;
+  }
+  row.push(field); rows.push(row);
+  return { header: rows[0], rows: rows.slice(1) };
+}
+
+function col(header, row, name) {
+  return row[header.indexOf(name)];
+}
+
+test('vatSplit: 115 inclusive @ 15% → subtotal 100, VAT 15, total 115', () => {
+  const r = vatSplit(115, 15);
+  assert.equal(r.subtotal, 100);
+  assert.equal(r.vat, 15);
+  assert.equal(r.total, 115);
+  assert.equal(r.subtotal + r.vat, r.total);
+});
+
+test('vatSplit: awkward rounding (100.00 @ 15%) still balances', () => {
+  const r = vatSplit(100, 15);
+  // vat = 100*15/115 = 13.0434... → 13.04; subtotal reconciled to 86.96
+  assert.equal(r.vat, 13.04);
+  assert.equal(r.subtotal, 86.96);
+  assert.equal(r.total, 100);
+  assert.equal(Math.round((r.subtotal + r.vat) * 100) / 100, r.total);
+});
+
+test('vatSplit: zero VAT → vat 0, subtotal === total', () => {
+  const r = vatSplit(115, 0);
+  assert.equal(r.vat, 0);
+  assert.equal(r.subtotal, 115);
+  assert.equal(r.total, 115);
+});
+
+test('buildInvoiceCsv: VAT columns rendered to 2dp', () => {
+  const csv = buildInvoiceCsv([
+    { id: 'INV-1', date: '2026-01-10', clientName: 'Acme', price: 115, currency: 'SAR', vatRate: 15 },
+  ]);
+  const { header, rows } = parseCsv(csv);
+  assert.equal(rows.length, 1);
+  assert.equal(col(header, rows[0], 'Subtotal'), '100.00');
+  assert.equal(col(header, rows[0], 'VAT'), '15.00');
+  assert.equal(col(header, rows[0], 'Total'), '115.00');
+  assert.equal(col(header, rows[0], 'VATRate'), '15');
+});
+
+test('buildInvoiceCsv: zero-VAT invoice emits 0.00 VAT', () => {
+  const csv = buildInvoiceCsv([
+    { id: 'INV-Z', date: '2026-02-01', clientName: 'Beta', price: 200, currency: 'SAR', vatRate: 0 },
+  ]);
+  const { header, rows } = parseCsv(csv);
+  assert.equal(col(header, rows[0], 'VAT'), '0.00');
+  assert.equal(col(header, rows[0], 'Subtotal'), '200.00');
+  assert.equal(col(header, rows[0], 'Total'), '200.00');
+});
+
+test('buildInvoiceCsv: multi-currency native + base columns present', () => {
+  const csv = buildInvoiceCsv([
+    {
+      id: 'INV-2', date: '2026-03-05', clientName: 'Globex', price: 115,
+      currency: 'USD', vatRate: 15, baseCurrency: 'SAR', baseAmount: 431.25,
+    },
+  ]);
+  const { header, rows } = parseCsv(csv);
+  assert.ok(header.includes('Currency'));
+  assert.ok(header.includes('BaseCurrency'));
+  assert.ok(header.includes('BaseTotal'));
+  assert.equal(col(header, rows[0], 'Currency'), 'USD');
+  assert.equal(col(header, rows[0], 'BaseCurrency'), 'SAR');
+  assert.equal(col(header, rows[0], 'BaseTotal'), '431.25');
+});
+
+test('csvEscape: commas, quotes, newlines in customer name', () => {
+  assert.equal(csvEscape('Plain'), 'Plain');
+  assert.equal(csvEscape('Acme, Inc'), '"Acme, Inc"');
+  assert.equal(csvEscape('Say "hi"'), '"Say ""hi"""');
+  assert.equal(csvEscape('line1\nline2'), '"line1\nline2"');
+  assert.equal(csvEscape(null), '');
+});
+
+test('buildInvoiceCsv: nasty customer name round-trips through parser', () => {
+  const nasty = 'O\'Brien, "Custom" Co\nLLC';
+  const csv = buildInvoiceCsv([
+    { id: 'INV-3', date: '2026-04-01', clientName: nasty, price: 115, currency: 'SAR', vatRate: 15 },
+  ]);
+  const { header, rows } = parseCsv(csv);
+  assert.equal(rows.length, 1);
+  assert.equal(col(header, rows[0], 'Customer'), nasty);
+});
+
+test('buildInvoiceCsv: date-range filter includes/excludes correctly', () => {
+  const invoices = [
+    { id: 'A', date: '2026-01-15', clientName: 'X', price: 115, currency: 'SAR', vatRate: 15 },
+    { id: 'B', date: '2026-02-15', clientName: 'Y', price: 115, currency: 'SAR', vatRate: 15 },
+    { id: 'C', date: '2026-03-15', clientName: 'Z', price: 115, currency: 'SAR', vatRate: 15 },
+  ];
+  const csv = buildInvoiceCsv(invoices, { from: '2026-02-01', to: '2026-02-28' });
+  const { header, rows } = parseCsv(csv);
+  assert.equal(rows.length, 1);
+  assert.equal(col(header, rows[0], 'InvoiceNo'), 'B');
+});
+
+test('buildInvoiceCsv: provider format changes the header row', () => {
+  const inv = [{ id: 'A', date: '2026-01-01', clientName: 'X', price: 115, currency: 'SAR', vatRate: 15 }];
+  const generic = parseCsv(buildInvoiceCsv(inv, { format: 'generic' })).header;
+  const xero = parseCsv(buildInvoiceCsv(inv, { format: 'xero' })).header;
+  const qb = parseCsv(buildInvoiceCsv(inv, { format: 'quickbooks' })).header;
+  const zoho = parseCsv(buildInvoiceCsv(inv, { format: 'zoho' })).header;
+
+  assert.equal(generic[1], 'InvoiceNo');
+  assert.equal(xero[1], INVOICE_HEADER_MAP.xero.InvoiceNo); // 'InvoiceNumber'
+  assert.equal(qb[1], INVOICE_HEADER_MAP.quickbooks.InvoiceNo); // 'RefNumber'
+  assert.equal(zoho[1], INVOICE_HEADER_MAP.zoho.InvoiceNo); // 'Invoice Number'
+  assert.notDeepEqual(generic, xero);
+  assert.notDeepEqual(xero, qb);
+});
+
+test('buildInvoiceCsv: unknown format falls back to generic', () => {
+  const inv = [{ id: 'A', date: '2026-01-01', clientName: 'X', price: 115, currency: 'SAR', vatRate: 15 }];
+  const bogus = parseCsv(buildInvoiceCsv(inv, { format: 'sage-50' })).header;
+  const generic = parseCsv(buildInvoiceCsv(inv, { format: 'generic' })).header;
+  assert.deepEqual(bogus, generic);
+});
+
+test('BOM present on both exporters', () => {
+  assert.ok(buildInvoiceCsv([]).startsWith(BOM));
+  assert.ok(buildExpenseCsv([]).startsWith(BOM));
+  assert.equal(BOM, '﻿');
+});
+
+test('rows are joined with CRLF', () => {
+  const csv = buildInvoiceCsv([
+    { id: 'A', date: '2026-01-01', clientName: 'X', price: 115, currency: 'SAR', vatRate: 15 },
+  ]);
+  assert.ok(csv.includes('\r\n'));
+});
+
+test('empty input → header-only', () => {
+  for (const csv of [buildInvoiceCsv([]), buildInvoiceCsv(undefined), buildExpenseCsv([])]) {
+    const { rows } = parseCsv(csv);
+    assert.equal(rows.length, 0);
+  }
+});
+
+test('buildExpenseCsv: columns + category account mapping', () => {
+  const csv = buildExpenseCsv([
+    { date: '2026-01-10', category: 'filament', amount: 50, currency: 'SAR', note: 'spool' },
+    { date: '2026-01-11', category: 'weird-thing', amount: 12.5, currency: 'SAR', note: 'misc' },
+  ]);
+  const { header, rows } = parseCsv(csv);
+  assert.deepEqual(header, ['Date', 'Category', 'Amount', 'Currency', 'Note']);
+  assert.equal(col(header, rows[0], 'Category'), 'Cost of Goods Sold');
+  assert.equal(col(header, rows[0], 'Amount'), '50.00');
+  assert.equal(col(header, rows[1], 'Category'), 'weird-thing'); // unmapped fallback
+});
+
+test('buildExpenseCsv: date-range filter and provider header', () => {
+  const expenses = [
+    { date: '2026-01-05', category: 'rent', amount: 1000, currency: 'SAR', note: '' },
+    { date: '2026-02-05', category: 'rent', amount: 1000, currency: 'SAR', note: '' },
+  ];
+  const csv = buildExpenseCsv(expenses, { from: '2026-02-01', format: 'zoho' });
+  const { header, rows } = parseCsv(csv);
+  assert.equal(rows.length, 1);
+  assert.equal(header[0], 'Expense Date');
+  assert.equal(col(header, rows[0], 'Expense Date'), '2026-02-05');
+});
