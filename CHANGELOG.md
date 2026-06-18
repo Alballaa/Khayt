@@ -4,6 +4,19 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [2.7.0-beta.2] - 2026-06-18
+
+**Pre-release (beta)** — correctness fixes, on top of 2.7.0-beta.1.
+
+### Fixed
+
+- **Order status transitions** — reopening a completed order (e.g. dragging it back for a reprint) now resets its completion state, so the print timer restarts fresh and the reprint re-deducts filament; completing directly from on-hold now clears the hold flags.
+- **Analytics** — the quote conversion rate no longer exceeds 100% (measured within the created cohort); product margin no longer shows `-Infinity%` for zero-revenue jobs; SLA on-time/late uses local dates (no day-boundary flips); client-LTV "last order" ranks by actual time rather than a mixed string compare.
+
+### Security
+
+- **`/api/survey`** is now per-IP rate-limited — it was the only store-mutating public LAN route without a throttle (token-gated only).
+
 ## [2.7.0-beta.1] - 2026-06-18
 
 **Pre-release (beta)** — first 2.7 beta, on top of stable 2.6.0.
