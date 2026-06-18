@@ -1,20 +1,25 @@
-# Khayt iOS Companion (v1)
+# Khayt iOS Companion (v2)
 
 LAN-connected companion for iPhone/iPad. **Desktop is the source of truth** (`khayt-store.json` on Mac/PC). No cloud sync, no local business database.
 
-## v1 features
+## v2 features
 
 | Area | Implementation |
 |------|----------------|
 | **Pairing** | Shop IP + port + owner LAN PIN; validated with `GET /api/queue` |
 | **Connection health** | Polls `GET /api/status` + PIN check |
-| **Production queue** | View kanban orders, advance or set status (`PATCH /api/orders/:id`) |
-| **Inventory** | List spools, manual add, NFC add (`POST /api/inventory`) |
-| **Machines** | Glance at printer status (`GET /api/machines`) |
+| **Production queue** | View kanban orders, advance or set status, **assign machine** (`PATCH /api/orders/:id`) |
+| **New order** | Create orders from the app (`POST /api/orders`) |
+| **Live monitoring** | Real-time printer progress / temps (`GET /api/machines/live`) |
+| **Inventory** | List, manual/NFC add, **edit remaining / delete spool** (`POST` / `PATCH` / `DELETE /api/inventory`) |
+| **Clients** | Client list + history (`GET /api/clients`) |
+| **Intake** | Walk-in / waiting-list triage (`GET` / `PATCH /api/waiting-list`) |
+| **Machines** | Printer status (`GET /api/machines`) |
+| **Widget** | Home Screen queue widget (bundled extension target) |
 
-## Out of scope (v1)
+## Out of scope (v2)
 
-Calculator, ZATCA, invoicing, CRM, analytics, full settings, offline-first DB.
+Calculator, ZATCA, invoicing, analytics, full settings, offline-first DB.
 
 Use the **LAN PWA** (Add to Home Screen) for a zero-install alternative; native adds NFC, Keychain, and a future App Store path.
 

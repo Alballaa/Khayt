@@ -1,4 +1,4 @@
-# iOS Companion (v1)
+# iOS Companion (v2)
 
 Native **LAN-only** client. The desktop app remains the source of truth (`khayt-store.json`).
 
@@ -8,13 +8,17 @@ Native **LAN-only** client. The desktop app remains the source of truth (`khayt-
 |------|----------|
 | **Pairing** | 4-step wizard (IP, port, LAN PIN, test) |
 | **Home** | Queue stats, kanban strip, completed today, low-stock & overdue alerts, quick actions, order preview |
-| **Orders** | Active queue + filters (status, overdue) + recent history; detail sheet; advance / set status; haptics |
-| **Inventory** | List, search, low-stock filter, sort, spool detail (SKU, lot, temps), add spool (photo OCR / NFC / manual), **write NFC tag** (OpenSpool / OpenTag3D / OpenPrintTag) |
-| **Machines** | Printer list + status |
+| **Orders** | Active queue + filters (status, overdue) + recent history; detail sheet; advance / set status; **assign machine**; haptics |
+| **New order** | Create an order from the app (client, item, material, qty, due date) — posts to the queue |
+| **Live monitoring** | Real-time printer status (progress %, current job, nozzle/bed temps) from connected machines |
+| **Inventory** | List, search, low-stock filter, sort, spool detail (SKU, lot, temps); **edit remaining grams**; **delete spool**; add spool (photo OCR / NFC / manual), **write NFC tag** (OpenSpool / OpenTag3D / OpenPrintTag) |
+| **Clients** | Client list with order history and contact details |
+| **Intake** | Walk-in / waiting-list triage — review incoming requests, advance or dismiss |
+| **Machines** | Printer list + live status |
 | **Settings** | Connection, language (EN / AR / system), notification toggles, widget guide, unpair |
 | **Connection** | Polling health, top banner when offline/wrong PIN, badge in toolbar |
 | **Notifications** | Local alerts: queue changes, LAN disconnect, overdue orders, low filament |
-| **Widget** | Home Screen queue widget (see [ios/XCODE_WIDGET.md](../ios/XCODE_WIDGET.md)) |
+| **Widget** | Home Screen queue widget (bundled extension target — see [ios/XCODE_WIDGET.md](../ios/XCODE_WIDGET.md)) |
 | **Shortcuts** | Siri / Shortcuts: open queue, open inventory |
 | **Localization** | English + Arabic strings, RTL layout for Arabic |
 
@@ -23,10 +27,12 @@ Native **LAN-only** client. The desktop app remains the source of truth (`khayt-
 | Feature | Endpoint |
 |---------|----------|
 | Status | `GET /api/status` |
-| Queue | `GET /api/queue`, `PATCH /api/orders/:id` |
-| Order log | `GET /api/orders?limit=` |
-| Inventory | `GET /api/inventory`, `POST /api/inventory` |
-| Machines | `GET /api/machines` |
+| Queue | `GET /api/queue` |
+| Orders | `GET /api/orders?limit=`, `POST /api/orders`, `PATCH /api/orders/:id` |
+| Inventory | `GET /api/inventory`, `POST /api/inventory`, `PATCH /api/inventory/:id`, `DELETE /api/inventory/:id` |
+| Machines | `GET /api/machines`, `GET /api/machines/live` |
+| Clients | `GET /api/clients` |
+| Waiting list | `GET /api/waiting-list`, `PATCH /api/waiting-list/:id` |
 
 See [LAN_API.md](./LAN_API.md).
 
@@ -55,7 +61,7 @@ Any individual with an **iPhone + blank NTAG tags** can write tags from the app.
 
 **Important:** Snapmaker U1 extended firmware is **not** issued by Snapmaker. It is **community/third-party** firmware (e.g. paxx12). Stock U1 firmware only reads proprietary Snapmaker tags. Installing extended firmware is optional and at your own risk.
 
-## Out of scope (v1)
+## Out of scope (v2)
 
 Calculator, ZATCA, invoicing, full desktop settings, cloud sync, remote push server.
 
@@ -67,7 +73,7 @@ Copy the prompt in [IOS_UI_REDESIGN_PROMPT.md](./IOS_UI_REDESIGN_PROMPT.md) into
 
 ```
 ios/KhaytCompanion/          SwiftUI app
-ios/KhaytWidget/             Widget extension source (add target in Xcode)
+ios/KhaytWidget/             Widget extension source (target bundled in project)
 ios/KhaytCompanion.xcodeproj
 docs/LAN_API.md
 ```
@@ -76,4 +82,4 @@ docs/LAN_API.md
 
 - Owner PIN in iOS Keychain  
 - HTTP on trusted LAN only  
-- App Group `group.com.khaytapp.companion` for widget snapshot (optional capability)
+- App Group `group.com.khaytapp.companion` for widget snapshot
