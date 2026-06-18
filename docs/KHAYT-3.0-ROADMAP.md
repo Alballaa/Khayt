@@ -138,6 +138,7 @@ Data-model changes above (central change-stamper, tombstones, delta format, Sync
 - *Risk: medium — mostly client work + a public web surface; backend already exists from Phase 1.*
 
 ### Phase 3 — Multiple branches, one owner  *(tenancy 2)* · **L**
+*Full spec (incl. Phase 4 outline): [KHAYT-3.0-PHASE3-SPEC.md](./KHAYT-3.0-PHASE3-SPEC.md).*
 - Org with several shops; shared clients/inventory pool; **HQ read-only dashboard** (revenue, queue, low-stock across shops).
 - Per-shop `shopId` tagging on synced records.
 - **First point where true multi-writer delta-merge is required** (§3.2/§3.3) — the deferred hard part lands here.
@@ -163,6 +164,8 @@ Model default: latest Claude (e.g. Opus/Sonnet 4.x). Cost model: **BYO-key first
 ---
 
 ## 6. Security & KSA compliance
+
+*Full cross-cutting threat model: [KHAYT-3.0-SECURITY-MODEL.md](./KHAYT-3.0-SECURITY-MODEL.md).*
 
 - TLS everywhere; **tenant isolation** — `orgId` on every query, JWT scoped to `shopId`.
 - **End-to-end encryption** of synced payloads where feasible (preserves the privacy promise; complicates server-side HQ aggregation — design per-field).
