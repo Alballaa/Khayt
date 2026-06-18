@@ -26,6 +26,7 @@ const K = {
   WAITING:   'hub_waiting_v1',
   WAITING_HISTORY: 'hub_waiting_history_v1',
   TIME_ENTRIES: 'hub_time_entries_v1',
+  TOMBSTONES: 'hub_tombstones_v1',
 };
 
 const STORE_SECRET_MASK = KhaytStore.SECRET_MASK;
@@ -244,6 +245,7 @@ let operators      = loadJSON(K.OPERATORS, []);
 let waitingList    = loadJSON(K.WAITING, []);
 let waitingListHistory = loadJSON(K.WAITING_HISTORY, []);
 let timeEntries    = loadJSON(K.TIME_ENTRIES, []);
+let tombstones     = loadJSON(K.TOMBSTONES, []); // Phase 0 sync: delete markers
 
 // Batch-2 new arrays
 let shiftLogs      = [];
@@ -333,6 +335,7 @@ function collectStoreCollections() {
     expenses, machines, waTemplates, wasteLog, machMaintLog, consumables,
     suppliers, purchaseOrders, testPrints, locations, operators, waitingList,
     waitingListHistory, timeEntries, shiftLogs, giftCards, slicerProfiles, envLogs,
+    tombstones,
   };
 }
 
@@ -375,6 +378,7 @@ function replaceStoreFromSnapshot(store) {
   giftCards = [];
   slicerProfiles = [];
   envLogs = [];
+  tombstones = [];
   settings = defaultSettings();
   applyStoreFromSnapshot(store);
 }
@@ -425,6 +429,7 @@ function applyStoreFromSnapshot(store) {
   if (store.giftCards)           giftCards           = store.giftCards.filter(isObj);
   if (store.slicerProfiles)      slicerProfiles      = store.slicerProfiles.filter(isObj);
   if (store.envLogs)             envLogs             = store.envLogs.filter(isObj);
+  if (store.tombstones)          tombstones          = store.tombstones.filter(isObj);
   if (store.settings)            settings            = Object.assign({}, defaultSettings(), sanitiseForAssign(store.settings));
   migrateLanApiSettings();
   migrateLegacyDesignTheme();
@@ -452,6 +457,9 @@ function applyStoreFromSnapshot(store) {
 /** Write the store snapshot to disk; serializes concurrent saves (last snapshot wins). */
 function _doSave(snapshot) {
   if (!window.hubAPI?.saveStore) return Promise.resolve();
+  // Phase 0 sync foundation: stamp rev/updatedAt on changed records + tombstone
+  // deletes, in place, before persisting. No-op-safe if the module isn't loaded.
+  try { if (window.KhaytSync) KhaytSync.stampChanges(snapshot); } catch (e) { console.error('stampChanges failed:', e); }
   _saveChain = _saveChain
     .then(() => window.hubAPI.saveStore(snapshot))
     .catch((e) => {
@@ -586,6 +594,16 @@ async function loadAll() {
   })();
 
   ensureOrderTrackingTokens();
+
+  // Phase 0 sync foundation: backfill change metadata (rev/updatedAt) for records
+  // that predate it, then seed the in-memory index from the final loaded state so
+  // the next save only stamps records that actually changed (no churn on restart).
+  try {
+    if (window.KhaytSync) {
+      KhaytSync.backfill(collectStoreCollections());
+      KhaytSync.seedIndex(collectStoreCollections());
+    }
+  } catch (e) { console.error('sync foundation init failed:', e); }
 
   // Feature 4 (batch-2): Process any due recurring orders on load
   processRecurringOrders();
