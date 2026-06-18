@@ -4,6 +4,25 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [2.7.0-beta.3] - 2026-06-18
+
+**Pre-release (beta)** — accounting/inventory/UI correctness + CORS hardening, on top of 2.7.0-beta.2.
+
+### Fixed
+
+- **Inventory** — valuation no longer overstates the value of partly-used spools that lack a recorded original weight (M3); the days-remaining forecast no longer renders "NaN" for non-numeric weights (M8).
+- **Invoicing** — milestone invoices no longer re-bill the full shipping / rush / extras / discount on top of each milestone amount (M1).
+- **Settings** — nested config (BNPL, email, ZATCA, LAN, …) now deep-merges, so a saved partial value (e.g. one BNPL provider's key) keeps the sibling defaults instead of dropping them (M2).
+- **Production queue** — a manually-reordered card no longer jumps the queue after moving to another column (queue order is now column-scoped, M6); a paused print's estimated-completion badge no longer shows "Overdue" while paused (M7).
+
+### Security
+
+- **LAN CORS** — PIN-gated routes no longer reflect an arbitrary `http://` Origin; the reflected origin is limited to loopback / LAN hosts.
+
+### Changed
+
+- **Localization** — German, Spanish, French, Japanese, and Chinese are at full key parity with English (removed dead "orphan" keys left over from past renames).
+
 ## [2.7.0-beta.2] - 2026-06-18
 
 **Pre-release (beta)** — correctness fixes, on top of 2.7.0-beta.1.
