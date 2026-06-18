@@ -2238,6 +2238,7 @@
   "notif.service_due": "Service due",
   "notif.service_soon": "Service soon",
   "notif.maint_due": "Maintenance due",
+  "notif.recurring_due": "Recurring order due",
   "notif.maint_overdue": "Maintenance overdue",
   "notif.stale_order": "Order stalled",
   "notif.low_consumable": "Low consumable",

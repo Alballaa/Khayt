@@ -2242,6 +2242,7 @@
   "notif.service_due": "صيانة مطلوبة",
   "notif.service_soon": "صيانة قريباً",
   "notif.maint_due": "صيانة مستحقة",
+  "notif.recurring_due": "طلب متكرر مستحق",
   "notif.maint_overdue": "صيانة متأخرة",
   "notif.stale_order": "طلب متوقف",
   "notif.low_consumable": "مستلزمات منخفضة",
