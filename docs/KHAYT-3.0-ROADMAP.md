@@ -132,6 +132,7 @@ Data-model changes above (central change-stamper, tombstones, delta format, Sync
 - *Risk: high — this is the first real backend (auth, hosting, ops, billing). The biggest single step; everything after reuses it.*
 
 ### Phase 2 — Remote mobile + customer portal · **L**
+*Full spec: [KHAYT-3.0-PHASE2-SPEC.md](./KHAYT-3.0-PHASE2-SPEC.md).*
 - iOS companion gains a **"Cloud" connection mode** alongside LAN — same app, reaches the shop from anywhere.
 - Customer portal web app: order tracking, quote approval, online payment (extends today's LAN quote-approval tokens to internet URLs; reuse Stripe/Tabby/Tamara rails).
 - *Risk: medium — mostly client work + a public web surface; backend already exists from Phase 1.*
@@ -148,7 +149,7 @@ Data-model changes above (central change-stamper, tombstones, delta format, Sync
 
 ## 5. AI assist track (parallel, cloud-independent)
 
-Ships independently of Cloud. **BYO Anthropic API key** in Settings (encrypted like other secrets); no key → features hidden, app unaffected.
+Ships independently of Cloud. **BYO Anthropic API key** in Settings (encrypted like other secrets); no key → features hidden, app unaffected. *Full flagship spec: [KHAYT-3.0-AI-SPEC.md](./KHAYT-3.0-AI-SPEC.md).*
 
 1. **Quote from a description/photo** *(flagship)* — natural-language or image request → AI proposes material, print time, and price by driving the **existing calculator**. Owner reviews/edits before sending.
    - **Contract:** AI extracts structured fields (qty, material, color, dimensions/complexity, deadline) → those feed `calculator-cost.js` (deterministic pricing), **not** an AI-invented price. AI fills the form; the existing math computes the number.
