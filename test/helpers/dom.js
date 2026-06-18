@@ -137,6 +137,12 @@ function setupDom() {
         machineStatusCache: {},
         activeLocation: null,
         analyticsRange: 'all',
+        // UI filter / selection scalars (script-scope lets in app-state.js)
+        logSearchTerm: '', logClientFilter: '', logOperatorFilter: '',
+        logStatusFilter: '', logPayFilter: '', logRangeFilter: 'all',
+        logTagFilter: '', logDisplayLimit: 100,
+        logSortCol: 'date', logSortDir: 'desc',
+        kanSearchTerm: '', kanbanCollapsed: new Set(), selectedOrders: new Set(),
       };
       for (const k of STATE_COLLECTIONS) state[k] = [];
       Object.assign(state, overrides);
