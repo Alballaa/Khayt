@@ -63,15 +63,54 @@ AI assist is deliberately **cloud-independent** so it can ship first and prove v
 
 ## 3. Data-model foundation (Phase 0 — all local, no cloud)
 
-The prerequisite for *any* sync, built and shipped with **no backend**:
+The prerequisite for *any* sync, built and shipped with **no backend**. Grounded in the real store (audited against `renderer/app-state.js` / `renderer/store.js`):
 
-- **Per-record change metadata** — add `updatedAt` (and a monotonic `rev`) to every store entity (orders, clients, inventory, …). Most already have `date`/`timestamp`; standardize.
-- **Change log / tombstones** — track deletes so sync can propagate them (don't resurrect deleted records).
-- **Delta export/import format** — "changes since cursor X" — useful immediately for faster backups and as the sync wire format.
-- **Sync Engine abstraction** with the `local` no-op backend wired into the existing save path.
-- **Conflict policy table** (per entity): last-write-wins for notes/free-text; field-merge for inventory deltas; orders are append-mostly (never silently deleted).
+**What exists today (the good news):**
+- **One serialization hook** — `buildStoreSnapshot()` → `KhaytStore.buildSnapshot(collectStoreCollections())`. Every persist flows through it.
+- **One save path** — `saveAll()` (debounced 300 ms) → `_doSave(snapshot)`, plus `flushSave()` for immediate writes. **A single choke point to instrument.**
+- **25 collections** (24 arrays + `settings` object): `printLog, inventory, templates, products, clients, printers, expenses, machines, waTemplates, wasteLog, machMaintLog, consumables, suppliers, purchaseOrders, testPrints, locations, operators, waitingList, waitingListHistory, timeEntries, shiftLogs, giftCards, slicerProfiles, envLogs, settings`.
+- **Stable ids already exist** — `uid(prefix)` = `prefix-<base36 time>-<random>`, unique enough for sync (no global coordination needed).
 
-Ships in a 2.x point release as "internal plumbing + better backups." Zero user-visible cloud. De-risks everything after.
+**What's missing:** change metadata — `updatedAt` appears only ~4× in the whole codebase. Records carry no version/rev.
+
+### The key design decision — stamp at the save boundary, not at every mutation
+Mutations happen in *every* renderer module (each edits its collection then calls `saveAll()`). Instrumenting hundreds of mutation sites with `updatedAt = now()` would be huge and leak-prone. **Instead, derive change metadata centrally at the save choke point:**
+
+- Keep the **last-saved snapshot** in memory. On each `_doSave`, **diff each record by `id` against its previous version**; for changed/new records, set `updatedAt` and bump `rev`. Records present before but absent now → emit a **tombstone** (`{id, collection, deletedAt}`).
+- This touches **one file**, needs **zero changes to mutation sites**, and is inherently correct (it reflects what actually changed on disk). Cost: one structural diff per save (cheap at this data scale; the save is already debounced).
+
+This is the single biggest effort/risk reduction in the whole plan and it falls straight out of the single-save-path architecture.
+
+### Phase 0 deliverables
+- Central **change-stamper** at `_doSave` (above): `updatedAt` + `rev` per record, tombstone log.
+- **Delta format** — "changes since cursor `(updatedAt|rev)`" extractor + applier. Doubles as faster incremental backups *today* and the sync wire format *later*.
+- **Sync Engine interface** with a `local` no-op backend (see §3.1), wired behind `saveAll`/`loadAll`.
+- **Conflict-policy table** per real entity (§3.2).
+
+Ships in a 2.x point release as "internal plumbing + incremental backups." Zero user-visible cloud. De-risks everything after.
+
+### 3.1 Sync Engine interface (sketch)
+```
+interface SyncBackend {
+  pushDeltas(deltas, tombstones, cursor) -> { newCursor }
+  pullDeltas(cursor) -> { deltas, tombstones, newCursor }
+  status() -> 'off' | 'idle' | 'syncing' | 'error'
+}
+// Phase 0 ships LocalBackend = no-op (returns empty). Phase 1 adds CloudBackend.
+// The app calls engine.onSaved(snapshot) after _doSave and engine.merge(remote) on pull.
+```
+
+### 3.2 Conflict policy (per real entity)
+| Entity | Policy | Why |
+|--------|--------|-----|
+| `printLog` (orders) | Record-level **LWW with `rev` guard**; never auto-delete; surface true conflicts | The heart of the shop — correctness > convenience |
+| `inventory`, `giftCards` | **Delta-merge** (apply weight/balance *changes*, not absolutes) | Two devices deducting the same spool must not clobber |
+| `clients`, `products`, `templates`, `machines`, `suppliers`, `locations`, `operators` | LWW per record | Low concurrent-edit risk |
+| `settings` | **Per-key LWW** (reuse the 2.7 deep-merge) | Already merge-aware |
+| `timeEntries`, `shiftLogs`, `envLogs`, `waitingListHistory`, `machMaintLog` | **Append-only union** | Logs never conflict |
+
+### 3.3 The v1 simplification — desktop stays the single writer
+For **tenancy 1 (single shop)**, the desktop store remains the **authoritative single writer**, exactly as today: the iOS companion already routes writes *through* the desktop (LAN API). Cloud in Phase 1 is a **backup + relay**, not a second writer. That means **true multi-writer conflict resolution (delta-merge) is only required at tenancy 2 (multi-shop)** — Phase 1/2 can ship with LWW + `rev` guard and defer the hard merge. Make this explicit so we don't over-build early.
 
 ---
 
@@ -79,24 +118,29 @@ Ships in a 2.x point release as "internal plumbing + better backups." Zero user-
 
 Tenancy grows **1 → 2 → 3** per your call (single shop first).
 
-### Phase 0 — Sync foundation (local only)
-Data-model changes above. No cloud. **Cloud-independent by construction.**
+Rough sizing is **t-shirt** (S/M/L/XL), not commitments — to compare phases, not to schedule.
 
-### Phase 1 — Identity + single-shop cloud  *(tenancy 1)*
+### Phase 0 — Sync foundation (local only) · **M**
+Data-model changes above (central change-stamper, tombstones, delta format, Sync Engine interface + `local` backend). No cloud. **Cloud-independent by construction.** *Risk: low — one file, behind existing save path, unit-testable with the new harness.*
+
+### Phase 1 — Identity + single-shop cloud  *(tenancy 1)* · **XL**
 - Khayt Cloud API: sign up / sign in (email + magic link), one org = one shop.
 - Desktop **"Connect to Khayt Cloud"** toggle in Settings (opt-in, encrypted credentials).
-- Sync the store (start coarse: encrypted full-store blob with `rev` guard; refine to deltas).
+- Sync the store: **start with an encrypted full-store blob + `rev` guard** (desktop = single writer, §3.3), refine to deltas later.
 - **Deliverable for the user:** their shop's data is securely backed up + reachable — the basis for mobile and portal.
+- *Risk: high — this is the first real backend (auth, hosting, ops, billing). The biggest single step; everything after reuses it.*
 
-### Phase 2 — Remote mobile + customer portal
+### Phase 2 — Remote mobile + customer portal · **L**
 - iOS companion gains a **"Cloud" connection mode** alongside LAN — same app, reaches the shop from anywhere.
-- Customer portal web app: order tracking, quote approval, online payment (extends today's LAN quote-approval tokens to internet URLs).
+- Customer portal web app: order tracking, quote approval, online payment (extends today's LAN quote-approval tokens to internet URLs; reuse Stripe/Tabby/Tamara rails).
+- *Risk: medium — mostly client work + a public web surface; backend already exists from Phase 1.*
 
-### Phase 3 — Multiple branches, one owner  *(tenancy 2)*
+### Phase 3 — Multiple branches, one owner  *(tenancy 2)* · **L**
 - Org with several shops; shared clients/inventory pool; **HQ read-only dashboard** (revenue, queue, low-stock across shops).
 - Per-shop `shopId` tagging on synced records.
+- **First point where true multi-writer delta-merge is required** (§3.2/§3.3) — the deferred hard part lands here.
 
-### Phase 4 — Separate shops / franchise  *(tenancy 3)*
+### Phase 4 — Separate shops / franchise  *(tenancy 3)* · **L**
 - Hard tenant isolation, per-tenant billing, franchisor HQ with audit log on cross-shop reads.
 
 ---
@@ -106,6 +150,8 @@ Data-model changes above. No cloud. **Cloud-independent by construction.**
 Ships independently of Cloud. **BYO Anthropic API key** in Settings (encrypted like other secrets); no key → features hidden, app unaffected.
 
 1. **Quote from a description/photo** *(flagship)* — natural-language or image request → AI proposes material, print time, and price by driving the **existing calculator**. Owner reviews/edits before sending.
+   - **Contract:** AI extracts structured fields (qty, material, color, dimensions/complexity, deadline) → those feed `calculator-cost.js` (deterministic pricing), **not** an AI-invented price. AI fills the form; the existing math computes the number.
+   - **Guardrails:** always owner-reviewed before sending; AI never finalizes a quote or touches the store directly; show the AI's assumptions inline so they're correctable.
 2. **Customer message drafting (AR/EN)** — quote / follow-up / ready-for-pickup messages in the shop's voice. Plugs into the existing quote-follow-up automation.
 3. **Natural-language analytics** — "how did June compare to May, and why?" over already-computed metrics.
 4. **Smart reorder & demand forecast** — from order history + spool burn-down.
@@ -134,22 +180,30 @@ Cloud introduces ongoing hosting, auth, billing, support, and region-hosting cos
 
 ---
 
-## 8. Open decisions (revisit as we build)
+## 8. Decisions — recommendations
 
-1. **Sync granularity v1** — full-store encrypted blob (simple, safe) vs entity-level deltas (scalable). *Lean: blob first, deltas in 3.x.*
-2. **E2E vs server-readable** — full E2E maximizes privacy but blocks server-side HQ aggregation. *Likely hybrid: E2E for sensitive fields, server-readable aggregates for HQ.*
-3. **AI hosting** — BYO-key only (start) vs Khayt-proxied billing (later).
-4. **Hosting/region & provider** — and whether to offer self-hosted Cloud for enterprises.
-5. **Portal payments** — reuse existing Stripe/Tabby/Tamara rails over the internet.
+Resolved enough to build against; revisit only if an assumption breaks.
+
+1. **Sync granularity v1 → blob-first.** Encrypted full-store blob + `rev` guard in Phase 1 (desktop is the single writer, so a blob is safe and simple). Move to entity-level deltas when tenancy 2 introduces multi-writer. The Phase 0 delta format is built either way (for incremental backups).
+2. **E2E vs server-readable → hybrid.** End-to-end encrypt the operational payload (orders/clients/inventory) so Khayt can't read shop data; have the desktop also push a **small, owner-consented aggregate** (revenue, counts, low-stock) for the HQ dashboard. Decide the aggregate's exact fields with the user before Phase 3.
+3. **AI hosting → BYO-key only at first.** Zero cost/liability to Khayt, ships with no Cloud. A Khayt-billed proxy can follow once Cloud billing exists.
+4. **Hosting/region → Khayt-hosted, KSA region for ZATCA customers** (e.g. a Saudi/Bahrain region). Self-hosted Cloud: defer to an enterprise ask (tenancy 3).
+5. **Portal payments → reuse Stripe/Tabby/Tamara** over the internet (rails already integrated).
+
+### Still genuinely open (need the user, later)
+- Exact HQ aggregate fields (privacy vs usefulness) — before Phase 3.
+- Subscription pricing per shop — before Phase 1 launch.
+- Whether the customer portal is per-shop-branded or generic Khayt-branded.
 
 ---
 
 ## 9. Immediate next step
 
-**Phase 0 — the sync foundation — is the right first move:** it's cloud-independent, ships value now (better backups, change tracking), and de-risks the entire platform. Recommended start:
+**Phase 0 — the sync foundation — is the right first move:** it's cloud-independent, ships value now (incremental backups, change tracking), and de-risks the entire platform. The audit is done (§3); the design is grounded. Concrete start:
 
-1. Audit store entities for existing `updatedAt`/`timestamp` coverage; design the uniform change-metadata + tombstone scheme.
-2. Spec the delta format and the Sync Engine interface (with the `local` no-op backend).
-3. Land it behind the existing save path with tests — no user-visible cloud yet.
+1. **Central change-stamper** at `_doSave` — keep the last-saved snapshot, diff each record by `id`, stamp `updatedAt` + bump `rev` on change, emit tombstones for deletes. One file; no mutation-site changes.
+2. **Delta extractor/applier** ("changes since cursor") — used immediately for incremental backups; later as the sync wire format.
+3. **Sync Engine interface** (§3.1) + `local` no-op backend, wired behind `saveAll`/`loadAll`.
+4. Tests via the new jsdom/`node:test` harness — no user-visible cloud yet.
 
-After Phase 0 proves out, stand up Khayt Cloud Phase 1 (identity + single-shop sync).
+A natural parallel track: **AI flagship (quote-from-description, BYO-key)** — fully cloud-independent, fastest visible win. After Phase 0 proves out, stand up Khayt Cloud Phase 1 (identity + single-shop sync).
