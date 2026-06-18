@@ -29,6 +29,7 @@ test('redactSettingsForExport masks sensitive settings fields', () => {
     emailConfig: { apiKey: 'smtp' },
     telegram: { botToken: 'tg' },
     webhooks: { secret: 'wh' },
+    ai: { apiKey: 'sk-ant-secret', enabled: true },
     zatcaPhase2: { csid: 'c', pcsid: 'p' },
     bnpl: {
       tabby: { apiKey: 't' },
@@ -46,6 +47,7 @@ test('redactSettingsForExport masks sensitive settings fields', () => {
     lang: 'en',
   });
   assert.equal(out.emailConfig.apiKey, SECRET_MASK);
+  assert.equal(out.ai.apiKey, SECRET_MASK);
   assert.equal(out.telegram.botToken, SECRET_MASK);
   assert.equal(out.lanApi.pin, SECRET_MASK);
   assert.equal(out.bnpl.tamara.notificationToken, SECRET_MASK);

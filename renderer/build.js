@@ -1125,8 +1125,68 @@ function updateResinFieldsVisibility() {
   if (pwUnitEl) pwUnitEl.textContent = isResin ? 'mL' : (t('common.grams') || 'g');
 }
 
+  /**
+   * AI assist (BYO Anthropic key, opt-in): describe a job in plain language; the
+   * model fills the calculator form (the calculator still computes the price).
+   * Fails safe — any error leaves the manual form untouched. On first use without
+   * a key, prompts to paste one (stored encrypted, like other secrets).
+   */
+  async function aiQuoteAssist() {
+    const ai = settings.ai || {};
+    if (!ai.apiKey || !ai.enabled) {
+      openFormModal({
+        title: t('calc.ai_setup_title') || 'Set up AI assist',
+        saveLabel: t('common.save') || 'Save',
+        bodyHtml: `
+          <p style="font-size:13px;color:var(--text-muted);">${escapeHtml(t('calc.ai_byok_note') || 'Uses your own Anthropic API key. Sent only to Anthropic; stored encrypted on this device.')}</p>
+          <label>${escapeHtml(t('calc.ai_key') || 'Anthropic API key')}</label>
+          <input type="password" id="aiKeyInput" value="${escapeHtml(secretInputValue(ai.apiKey))}" placeholder="sk-ant-...">`,
+        onSave(modal) {
+          const typed = modal.querySelector('#aiKeyInput').value.trim();
+          if (!typed && !ai.apiKey) { toast(t('calc.ai_need_key') || 'Enter an API key', 'error'); return false; }
+          settings.ai = Object.assign({ model: 'claude-opus-4-8' }, settings.ai, { enabled: true, apiKey: secretInputSave(ai.apiKey, typed) });
+          saveAll();
+          toast(t('common.save') || 'Saved', 'success');
+          return true;
+        },
+      });
+      return;
+    }
+    openFormModal({
+      title: t('calc.ai_quote') || 'AI quote',
+      saveLabel: t('calc.ai_estimate') || 'Estimate',
+      bodyHtml: `
+        <label>${escapeHtml(t('calc.ai_describe') || 'Describe the job')}</label>
+        <textarea id="aiDesc" rows="3" placeholder="${escapeHtml(t('calc.ai_desc_ph') || 'e.g. 50 keychains in blue PLA, ~15g each, by Thursday')}"></textarea>`,
+      async onSave(modal) {
+        const desc = modal.querySelector('#aiDesc').value.trim();
+        if (!desc) { toast(t('calc.ai_need_desc') || 'Describe the job', 'error'); return false; }
+        toast(t('calc.ai_thinking') || 'Estimating…', 'info');
+        try {
+          const transport = async (p) => {
+            const r = await window.hubAPI.aiExtract({ apiKey: settings.ai.apiKey, model: settings.ai.model, system: p.system, request: p.request, schema: p.schema });
+            if (!r || !r.ok) throw new Error((r && r.error) || 'AI error');
+            return r.draft;
+          };
+          const client = KhaytAiQuote.createAiQuoteClient({ transport, model: settings.ai.model });
+          const draft = await client.extract(desc, { materials: inventory });
+          const { part, assumptions } = KhaytAiQuote.draftToPart(draft, { inventory, defaults: {} });
+          if (part.printTime && $('#printTime')) $('#printTime').value = (part.printTime / 60).toFixed(2);
+          if (part.printWeight && $('#printWeight')) $('#printWeight').value = part.printWeight.toFixed(1);
+          if (typeof updateGrandTotal === 'function') updateGrandTotal();
+          const note = assumptions.length ? '\n• ' + assumptions.join('\n• ') : '';
+          toast((t('calc.ai_filled') || 'Form filled — review before sending') + note, 'success', 8000);
+        } catch (e) {
+          toast((t('calc.ai_failed') || 'AI estimate failed — fill manually') + ': ' + (e.message || e), 'error', 6000);
+        }
+        return true; // close either way; manual form remains usable (fail-safe)
+      },
+    });
+  }
+
   const api = {
     saveBuildDraft,
+    aiQuoteAssist,
     suggestedFailureRate,
     updateFailureRateHint,
     calculateLivePartCost,
