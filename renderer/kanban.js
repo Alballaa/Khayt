@@ -773,8 +773,49 @@ function renderMachineQueues() {
   container.innerHTML = `<div style="display:flex;gap:12px;flex-wrap:wrap;padding:12px 0;">${cards}</div>`;
 }
 
+  /**
+   * Assistive print-farm scheduling: propose machine assignments for unassigned
+   * orders via lib/scheduling.js (deterministic), show them for review, and
+   * apply only on the operator's confirmation (no auto-moves).
+   */
+  function openScheduleSuggestions() {
+    if (typeof KhaytScheduling === 'undefined') { toast('Scheduling unavailable', 'error'); return; }
+    const schedulable = printLog.filter(o => o && (o.status === 'pending' || o.status === 'queued') && !o.machineId);
+    if (!schedulable.length) { toast(t('sched.none_to_assign') || 'No unassigned orders', 'info'); return; }
+    const { assignments, unassignable } = KhaytScheduling.proposeSchedule(machines, schedulable, { now: Date.now() });
+    const oName = (id) => { const o = printLog.find(x => x.id === id) || {}; return o.orderName || o.project || o.item || id; };
+    const mName = (id) => { const m = machines.find(x => x.id === id) || {}; return m.name || id; };
+    const rows = assignments.map(a => `
+      <tr data-oid="${escapeHtml(a.orderId)}" data-mid="${escapeHtml(a.machineId)}">
+        <td><strong>${escapeHtml(oName(a.orderId))}</strong></td>
+        <td>→ ${escapeHtml(mName(a.machineId))}</td>
+        <td style="font-size:11px;color:var(--text-muted);">${escapeHtml(a.reason || '')}</td>
+      </tr>`).join('');
+    const unrows = unassignable.map(u => `<li>${escapeHtml(oName(u.orderId))} — <span style="color:var(--text-muted);">${escapeHtml(u.reason || '')}</span></li>`).join('');
+    openFormModal({
+      title: t('sched.suggest_title') || 'Suggested assignments',
+      sizeLg: true,
+      saveLabel: t('sched.apply') || 'Apply all',
+      bodyHtml: `
+        ${assignments.length ? `<div class="table-wrap"><table><tbody>${rows}</tbody></table></div>`
+          : `<p style="color:var(--text-muted);text-align:center;padding:10px 0;">${escapeHtml(t('sched.none') || 'No assignments proposed')}</p>`}
+        ${unrows ? `<p style="margin-top:12px;font-weight:600;">${escapeHtml(t('sched.unassignable') || 'Could not assign')}</p><ul style="font-size:13px;">${unrows}</ul>` : ''}`,
+      onSave() {
+        let n = 0;
+        for (const a of assignments) {
+          const o = printLog.find(x => x.id === a.orderId);
+          if (o) { o.machineId = a.machineId; n++; }
+        }
+        if (n) { saveAll(); if (typeof renderKanban === 'function') renderKanban(); }
+        toast((t('sched.applied') || 'Assigned') + ' (' + n + ')', 'success');
+        return true;
+      },
+    });
+  }
+
   const api = {
     updateKanbanLiveStatus,
+    openScheduleSuggestions,
     setupKanbanDrag,
     kanbanUrgencyScore,
     kanbanQueuePos,
