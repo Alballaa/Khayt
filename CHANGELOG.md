@@ -4,6 +4,24 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **AI quote (BYO key)** — describe a job in plain language and the assistant fills the cost calculator (print time, weight, material); the existing calculator still computes the price. Opt-in, off by default, uses your own Anthropic API key (stored encrypted, redacted from exports), and falls back to the manual form on any error. *Set up via the "🤖 AI quote" button by the calculator.*
+- **Maintenance scheduler** — recurring, hours- or date-based preventive-maintenance tasks per machine, with due/overdue reminders in notifications and mark-done logging.
+- **Team roles (RBAC)** — operators get a structured access level (Owner / Manager / Operator / Viewer); tab visibility follows a permission matrix. Backward compatible with the existing operator lock; legacy roles map automatically.
+- **Accounting export** — export invoices and expenses to CSV (generic / QuickBooks / Xero / Zoho), VAT-aware and multi-currency, from the analytics toolbar.
+- **Print-farm scheduling** — an assistive "Suggest assignments" action proposes which printer prints which job (by material, capability, deadline, and load); you review and apply.
+- **Recurring-order reminders** — robust due-date detection for recurring customers surfaces as queue reminders.
+- **Loyalty points** — a per-client points balance (earned on completed orders) shown on the client card.
+
+### Fixed
+
+- **G-code parsing** — print time and filament weight are now read from the file **footer** too (PrusaSlicer / SuperSlicer / OrcaSlicer write their summary there), so auto-fill works for the common slicers; filament type is also detected.
+
+### Internal
+
+- 3.0 platform foundations (all opt-in, no behavior change when off): local sync engine with change-tracking + deltas, end-to-end sync crypto, and the cloud sync-protocol client. A jsdom render-path test harness and 8 feature-core libraries. Test suite 288 → 527.
+
 ## [2.8.0-beta.1] - 2026-06-18
 
 **Pre-release (beta)** — opens the 2.8 line over 2.7.0. The desktop app is functionally **unchanged** from `2.7.0`; this cycle's work is the iOS companion and internal test infrastructure, so the desktop build here is a checkpoint rather than a feature drop.

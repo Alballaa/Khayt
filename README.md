@@ -55,7 +55,8 @@ Khayt replaces spreadsheets, WhatsApp notes, and separate invoicing tools with o
 - FDM (gram-based) and Resin (mL-based) support
 - Multi-material / AMS / MMU job costing
 - Volume pricing tiers and automatic loyalty discounts
-- G-code & 3MF metadata auto-extraction (print time, weight)
+- G-code & 3MF metadata auto-extraction (print time, weight, filament type — reads slicer footer summaries)
+- **AI quote (BYO key)** — describe a job in plain language and the assistant fills the calculator (you review; the calculator computes the price). Opt-in, uses your own Anthropic API key
 - Quote PDF export with revision history and approval link
 - Slicer profile library per machine × material (layer height, infill, supports)
 
@@ -96,7 +97,7 @@ Khayt replaces spreadsheets, WhatsApp notes, and separate invoicing tools with o
 
 ### 👥 Clients & CRM
 - Client profiles with bilingual fields, VAT number, CR number
-- Credit limits, loyalty tiers with automatic discounts
+- Credit limits, loyalty tiers with automatic discounts, and per-client points balance
 - Referral attribution and acquisition-source analytics
 - Live customer portal (order tracking page, auto-refreshing)
 - NPS satisfaction surveys with one-time token links
@@ -108,9 +109,12 @@ Khayt replaces spreadsheets, WhatsApp notes, and separate invoicing tools with o
 - Environmental condition logging (temperature & humidity) with sparkline charts
 - Acquisition sources chart and top-referrer leaderboard
 - Production heatmap, retention rates, NPS trends
+- Accounting export — invoices & expenses to CSV (generic / QuickBooks / Xero / Zoho), VAT-aware
 
 ### 🏭 Machines & Operations
 - Maintenance log with service intervals and alerts
+- Recurring preventive-maintenance tasks (hours- or date-based) with due/overdue reminders
+- **Print-farm scheduling** — assistive "Suggest assignments" proposes printer-per-job by material, capability, deadline, and load (you review and apply)
 - Nozzle tracking (material, diameter, replacement threshold)
 - Environmental condition log per session
 - Operator time tracking with hourly rates and shift analytics
@@ -139,7 +143,7 @@ Khayt replaces spreadsheets, WhatsApp notes, and separate invoicing tools with o
 - 7 UI languages: English, Arabic, German, Spanish, French, Chinese, Japanese
 - Full RTL support for Arabic
 - Dark / Light / System theme
-- Operator PIN lock with role-based access (Admin / Technician / Sales)
+- Operator PIN lock with structured role-based access (Owner / Manager / Operator / Viewer)
 - Auto-backup (local JSON snapshots + iCloud on macOS)
 - Import / Export all data
 - Custom invoice number prefix with gap detection
