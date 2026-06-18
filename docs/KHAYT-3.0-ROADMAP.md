@@ -45,6 +45,11 @@ Beyond the four pillars, these features are spec'd and grounded in the current c
 | Global sales channels | [CHANNELS-SPEC](./KHAYT-3.0-CHANNELS-SPEC.md) | Shopify/Woo/Etsy; mirrors the Salla/Zid webhook pattern |
 | Accounting export | [ACCOUNTING-SPEC](./KHAYT-3.0-ACCOUNTING-SPEC.md) | File-first (offline), optional API push; VAT/ZATCA-aware |
 | Maintenance scheduler | [MAINTENANCE-SPEC](./KHAYT-3.0-MAINTENANCE-SPEC.md) | Generalizes the existing single-service PM into N recurring tasks |
+| QC, reprint & RMA | [QC-SPEC](./KHAYT-3.0-QC-SPEC.md) | Promotes the existing `qc` stage/badge into pass/fail + defects + linked reprints; material-accounting-safe |
+| Webcam & timelapse | [WEBCAM-SPEC](./KHAYT-3.0-WEBCAM-SPEC.md) | LAN-first camera/snapshot via printer host; opt-in Cloud relay; per-print timelapse |
+| Marketing & campaigns | [MARKETING-SPEC](./KHAYT-3.0-MARKETING-SPEC.md) | Segmented promo / abandoned-quote recovery over existing WhatsApp/email/Telegram + quote-followup |
+| Activity log / audit | [AUDIT-SPEC](./KHAYT-3.0-AUDIT-SPEC.md) | Append-only, hash-chained who-did-what; reuses the Phase 0 save choke point; required by RBAC + security |
+| Customer storefront | [STOREFRONT-SPEC](./KHAYT-3.0-STOREFRONT-SPEC.md) | Public catalog ordering; sibling of the portal under the same projection/token rules; orders via single-writer relay |
 
 ---
 
