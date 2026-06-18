@@ -50,6 +50,10 @@ Beyond the four pillars, these features are spec'd and grounded in the current c
 | Marketing & campaigns | [MARKETING-SPEC](./KHAYT-3.0-MARKETING-SPEC.md) | Segmented promo / abandoned-quote recovery over existing WhatsApp/email/Telegram + quote-followup |
 | Activity log / audit | [AUDIT-SPEC](./KHAYT-3.0-AUDIT-SPEC.md) | Append-only, hash-chained who-did-what; reuses the Phase 0 save choke point; required by RBAC + security |
 | Customer storefront | [STOREFRONT-SPEC](./KHAYT-3.0-STOREFRONT-SPEC.md) | Public catalog ordering; sibling of the portal under the same projection/token rules; orders via single-writer relay |
+| Subscriptions / recurring | [SUBSCRIPTIONS-SPEC](./KHAYT-3.0-SUBSCRIPTIONS-SPEC.md) | Standing orders auto-generated via the quote-followup timer pattern; supersedes the weak existing `processRecurringOrders` |
+| Deposits & payment plans | [PAYMENTS-SPEC](./KHAYT-3.0-PAYMENTS-SPEC.md) | Unifies deposit/milestone/installment/BNPL into one `paymentPlan`; `payStatus` stays the source of truth |
+| Loyalty & store credit | [LOYALTY-SPEC](./KHAYT-3.0-LOYALTY-SPEC.md) | Builds on existing tiers + gift cards; redeems via the `giftCardDiscount` rail so payment math can't regress |
+| Assembly / BOM | [BOM-SPEC](./KHAYT-3.0-BOM-SPEC.md) | Formalizes the existing `parts[]` + consumables into multi-part assemblies with cost/material rollup |
 
 ---
 
