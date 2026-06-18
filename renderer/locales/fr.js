@@ -131,7 +131,7 @@
   "dash.wb_jobs": "tâches",
   "dash.wb_est": "est.",
   "dash.wb_quick_actions": "Actions rapides",
-  "dash.wb_estimate": "Devis",
+  "dash.wb_estimate": "Estimation",
   "dash.wb_add_job": "Ajouter une tâche",
   "dash.wb_new_invoice": "Nouvelle facture",
   "dash.wb_add_stock": "Ajouter du stock",

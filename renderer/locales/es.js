@@ -75,7 +75,7 @@
   "console.status.printers": "IMPRESORAS",
   "console.status.active": "ACTIVO",
   "console.status.loc": "UBIC.",
-  "calc.quote.confirm_order": "¿Crear un pedido numerado a partir de este cálculo y limpiar la calculadora? Usa «Guardar como presupuesto» si el cliente aún no ha aprobado.",
+  "calc.quote.confirm_order": "¿Crear un pedido numerado a partir de este cálculo y limpiar la calculadora? Usa «Guardar como cotización» si el cliente aún no ha aprobado.",
   "feedback.err_no_mail": "No se pudo abrir tu app de correo. Prueba el botón de incidencia de GitHub.",
   "mach.autosave_hint": "Los cambios de impresora, slicer y entorno se guardan automáticamente al cerrar cada editor.",
   "wiz.back": "← Atrás",
