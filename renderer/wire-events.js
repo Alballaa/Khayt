@@ -491,6 +491,8 @@ function wireEvents() {
   // Monthly Tax Summary Export
   const btnTaxExport = $('#btnTaxExport');
   if (btnTaxExport) btnTaxExport.addEventListener('click', exportTaxSummary);
+  const btnAccountingExport = $('#btnAccountingExport');
+  if (btnAccountingExport) btnAccountingExport.addEventListener('click', exportAccounting);
 
   // Logs — batch bar
   $('#btnBatchPdf').addEventListener('click', batchExportPDFs);
