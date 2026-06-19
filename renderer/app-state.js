@@ -476,6 +476,9 @@ function _doSave(snapshot) {
       console.error('Save failed:', e);
       toast('⚠ ' + (t('common.save_failed') || 'Save failed — check disk space'), 'error', 6000);
     });
+  // Stage C: when Khayt Cloud is connected + unlocked, push changes in the
+  // background (debounced + conflict-merging). No-op when cloud is off.
+  try { if (window.KhaytCloudSync && KhaytCloudSync.isOn()) KhaytCloudSync.scheduleSync(); } catch (e) { console.error('cloud scheduleSync failed:', e); }
   return _saveChain;
 }
 
