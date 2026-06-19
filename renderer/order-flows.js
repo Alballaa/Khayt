@@ -928,6 +928,7 @@ function openOrderEditor(orderId) {
     <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--border-soft);">
       <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
         <label style="margin:0; flex:1; font-size:12.5px; font-weight:600;">${escapeHtml(t('inst.title'))}</label>
+        <button class="btn ghost small" id="oeGenInstalments" type="button">${escapeHtml(t('inst.generate') || 'Generate plan')}</button>
         <button class="btn ghost small" id="oeAddInstalment" type="button">${escapeHtml(t('inst.add'))}</button>
       </div>
       <div id="oeInstalmentList"></div>
@@ -1191,6 +1192,20 @@ function openOrderEditor(orderId) {
       modal.querySelector('#oeAddInstalment')?.addEventListener('click', () => {
         draft.instalments.push({ id: uid('INS'), amount: 0, note: '', dueDate: '', paid: false, paidAt: null });
         renderInstalments();
+      });
+      // Auto-generate an evenly-split dated plan (unpaid rows — no money moves;
+      // collection stays the existing mark-paid flow). Reuses lib/payment-plan.
+      modal.querySelector('#oeGenInstalments')?.addEventListener('click', async () => {
+        if (typeof KhaytPaymentPlan === 'undefined') { toast('Payment plan unavailable', 'error'); return; }
+        const total = +order.price || 0;
+        if (total <= 0) { toast(t('inst.need_price') || 'Set an order price first', 'error'); return; }
+        if (draft.instalments.length && !(await confirmModal(t('inst.replace_q') || 'Replace the current installments?', { danger: true }))) return;
+        const today = new Date();
+        const firstDue = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate()).toISOString().split('T')[0];
+        const schedule = KhaytPaymentPlan.buildSchedule({ total, depositAmount: 0, installments: 3, firstDueDate: firstDue, intervalDays: 30 });
+        draft.instalments = schedule.map((s, i) => ({ id: uid('INS'), amount: s.amount, dueDate: s.dueDate, note: '', paid: false, paidAt: null }));
+        renderInstalments();
+        toast(t('inst.generated') || 'Generated a 3-payment plan — edit amounts/dates as needed', 'success', 5000);
       });
 
       // File attachments
