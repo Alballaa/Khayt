@@ -1143,6 +1143,28 @@ ipcMain.handle('hub:cloud-verify-email', async (_e, { url, email, code } = {}) =
   catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
+// Customer portal: publish/unpublish an owner-curated (plaintext) item; list actions.
+ipcMain.handle('hub:cloud-publish', async (_e, { url, shopId, token, pubToken, kind, payload } = {}) => {
+  try {
+    token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
+    return { ok: true, ...(await cloudClient.publishPortal(url, shopId, token, pubToken, kind, payload)) };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:cloud-unpublish', async (_e, { url, shopId, token, pubToken } = {}) => {
+  try {
+    token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
+    return { ok: true, ...(await cloudClient.unpublishPortal(url, shopId, token, pubToken)) };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:cloud-published-list', async (_e, { url, shopId, token } = {}) => {
+  try {
+    token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
+    return { ok: true, items: await cloudClient.listPublished(url, shopId, token) };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
 // Store the (already-encrypted) keyset server-side so other devices can fetch it.
 ipcMain.handle('hub:cloud-put-keyset', async (_e, { url, shopId, token, keyset } = {}) => {
   try {

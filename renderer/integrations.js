@@ -861,10 +861,17 @@ async function openSavedStatusPage(orderId) {
   toast(t('ord.status_page_open'), 'success');
 }
 
-// Feature G1: Customer Portal QR modal
+// Feature G1: Customer Portal QR modal (LAN) + Khayt Cloud public status link.
 async function openCustomerPortalModal(orderId) {
   const order = printLog.find(o => o.id === orderId);
   if (!order) return;
+
+  const cloudOn = !!(settings.cloud?.enabled && settings.cloud?.shopId);
+  const cloudBtn = cloudOn
+    ? `<button class="btn small" id="portalCloudPublish">${escapeHtml(t('ord.portal_cloud_publish') || '☁ Publish public link (Khayt Cloud)')}</button>`
+    : '';
+  const wireCloud = (modal) => modal.querySelector('#portalCloudPublish')
+    ?.addEventListener('click', () => publishOrderToCloudPortal(orderId)); // replaces this modal
 
   const lanInfo = await window.hubAPI?.getLanUrl?.();
   if (!lanInfo?.ok) {
@@ -874,11 +881,15 @@ async function openCustomerPortalModal(orderId) {
       sizeLg: false,
       bodyHtml: `
         <div style="text-align:center;padding:16px 0;">
-          <div style="font-size:32px;margin-bottom:12px;">⚠</div>
-          <p style="color:var(--warning);font-weight:600;margin-bottom:8px;">${escapeHtml(t('lan.not_running') || 'LAN server is not running')}</p>
-          <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">${escapeHtml(t('lan.start_hint') || 'Start the LAN server in Settings first')}</p>
-          <button type="button" class="btn primary" data-act="open-settings-from-modal">${escapeHtml(t('nav.settings') || 'Go to Settings')}</button>
+          <div style="font-size:32px;margin-bottom:12px;">${cloudOn ? '☁' : '⚠'}</div>
+          <p style="${cloudOn ? '' : 'color:var(--warning);'}font-weight:600;margin-bottom:8px;">${escapeHtml(t('lan.not_running') || 'LAN server is not running')}</p>
+          <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">${escapeHtml(cloudOn ? (t('ord.portal_cloud_hint') || 'Publish a public status link via Khayt Cloud — works anywhere, no LAN needed.') : (t('lan.start_hint') || 'Start the LAN server in Settings first'))}</p>
+          <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+            <button type="button" class="btn ${cloudOn ? '' : 'primary'}" data-act="open-settings-from-modal">${escapeHtml(t('nav.settings') || 'Go to Settings')}</button>
+            ${cloudBtn}
+          </div>
         </div>`,
+      onMount(modal) { wireCloud(modal); },
     });
     return;
   }
@@ -901,7 +912,9 @@ async function openCustomerPortalModal(orderId) {
         <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px;">
           <button class="btn small" id="portalQrCopy">${escapeHtml(t('common.copy') || 'Copy URL')}</button>
           <button class="btn small primary" id="portalQrWa">${escapeHtml(t('inv.share_whatsapp') || 'Share WhatsApp')}</button>
+          ${cloudBtn}
         </div>
+        ${cloudOn ? `<p style="font-size:11px;color:var(--text-muted);margin-top:8px;">${escapeHtml(t('ord.portal_cloud_note') || 'The cloud link works outside your network.')}</p>` : ''}
       </div>`,
     onMount(modal) {
       modal.querySelector('#portalQrCopy')?.addEventListener('click', async () => {
@@ -918,6 +931,76 @@ async function openCustomerPortalModal(orderId) {
           const waUrl = `https://wa.me/?text=${encodeURIComponent(waMsg)}`;
           window.open(waUrl, '_blank');
         }
+      });
+      wireCloud(modal);
+    },
+  });
+}
+
+const CLOUD_PORTAL_STATUS_LABELS = {
+  quote: 'Quote', pending: 'Pending', on_hold: 'On hold',
+  printing: 'Printing', post: 'Post-processing', completed: 'Completed',
+};
+
+/** Publish an order's status to Khayt Cloud as a public link (owner-curated,
+ *  plaintext — only what's shown below; the rest of your data stays encrypted). */
+async function publishOrderToCloudPortal(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+  const c = settings.cloud || {};
+  if (!(c.enabled && c.shopId)) { toast(t('cloud.portal_need_connect') || 'Connect Khayt Cloud first (Settings)', 'error'); return; }
+  const pubToken = order.trackingToken;
+  if (!pubToken) { toast(t('cloud.portal_no_token') || 'This order has no tracking token yet', 'error'); return; }
+
+  const payload = {
+    shopName: settings.bizEn || settings.bizAr || 'Khayt',
+    ref: order.id,
+    status: order.status,
+    statusLabel: CLOUD_PORTAL_STATUS_LABELS[order.status] || order.status,
+    eta: order.dueDate || '',
+  };
+  if (order.status === 'on_hold' && order.holdReason) payload.note = String(order.holdReason);
+
+  const r = await window.hubAPI.cloudPublish({ url: c.url, shopId: c.shopId, token: c.token, pubToken, kind: 'order', payload });
+  if (!r.ok) { toast('✗ ' + (r.error || 'publish failed'), 'error'); return; }
+
+  const portalUrl = String(c.url || '').replace(/\/$/, '') + '/p/' + pubToken;
+  let qrHtml = '';
+  try {
+    const qr = await window.hubAPI.generateQR(portalUrl, { width: 200, dataUrl: true });
+    if (qr) qrHtml = `<img src="${escapeHtml(qr)}" alt="QR" style="width:200px;height:200px;display:block;margin:0 auto;">`;
+  } catch (e) { /* silent */ }
+
+  openFormModal({
+    title: t('cloud.portal_published_title') || 'Public status link',
+    noSave: true,
+    sizeLg: false,
+    bodyHtml: `
+      <div style="text-align:center;padding:12px 0;">
+        ${qrHtml}
+        <p style="font-size:12px;color:var(--text-muted);margin:12px 0 6px;word-break:break-all;">${escapeHtml(portalUrl)}</p>
+        <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 10px;">${escapeHtml(t('cloud.portal_shared_note') || 'Shares only: shop name, order #, status, due date. Updates when you re-publish.')}</p>
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+          <button class="btn small" id="cpCopy">${escapeHtml(t('common.copy') || 'Copy URL')}</button>
+          <button class="btn small primary" id="cpWa">${escapeHtml(t('inv.share_whatsapp') || 'Share WhatsApp')}</button>
+          <button class="btn small danger" id="cpUnpub">${escapeHtml(t('cloud.portal_unpublish') || 'Unpublish')}</button>
+        </div>
+      </div>`,
+    onMount(modal) {
+      modal.querySelector('#cpCopy')?.addEventListener('click', async () => {
+        try { await navigator.clipboard.writeText(portalUrl); toast(t('common.copied') || 'Copied!', 'success'); }
+        catch { toast(portalUrl, 'info', 6000); }
+      });
+      modal.querySelector('#cpWa')?.addEventListener('click', async () => {
+        const waMsg = `${t('ord.portal_track_msg') || 'Track your order'}: ${portalUrl}`;
+        const cl = order.clientId ? clients.find(x => x.id === order.clientId) : null;
+        if (window.hubAPI?.shareWhatsApp) await window.hubAPI.shareWhatsApp({ phone: cl?.phone || '', message: waMsg, pdfPath: null });
+        else window.open(`https://wa.me/?text=${encodeURIComponent(waMsg)}`, '_blank');
+      });
+      modal.querySelector('#cpUnpub')?.addEventListener('click', async () => {
+        const u = await window.hubAPI.cloudUnpublish({ url: c.url, shopId: c.shopId, token: c.token, pubToken });
+        if (u.ok) toast(t('cloud.portal_unpublished') || 'Link unpublished', 'success');
+        else toast('✗ ' + (u.error || 'failed'), 'error');
       });
     },
   });
