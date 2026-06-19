@@ -1133,6 +1133,16 @@ ipcMain.handle('hub:cloud-reset-password', async (_e, { url, email, code, newPas
   catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
+ipcMain.handle('hub:cloud-request-verify', async (_e, { url, email } = {}) => {
+  try { return { ok: true, ...(await cloudClient.requestVerify(url, { email })) }; }
+  catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:cloud-verify-email', async (_e, { url, email, code } = {}) => {
+  try { return { ok: true, ...(await cloudClient.verifyEmail(url, { email, code })) }; }
+  catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
 // Store the (already-encrypted) keyset server-side so other devices can fetch it.
 ipcMain.handle('hub:cloud-put-keyset', async (_e, { url, shopId, token, keyset } = {}) => {
   try {

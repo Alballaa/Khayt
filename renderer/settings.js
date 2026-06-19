@@ -351,6 +351,29 @@ function showResetPasswordModal(url, email) {
   });
 }
 
+/** Modal to enter the emailed verification code. On success marks the account verified. */
+function showVerifyEmailModal(url, email) {
+  openFormModal({
+    title: t('cloud.verify_title') || 'Verify your email',
+    saveLabel: t('cloud.verify_do') || 'Verify',
+    bodyHtml: `
+      <p style="font-size:13px;">${escapeHtml(t('cloud.verify_sent') || 'We emailed a verification code to')} <strong>${escapeHtml(email)}</strong>.</p>
+      <label>${escapeHtml(t('cloud.verify_code') || 'Verification code')}</label>
+      <input type="text" id="veCode" autocomplete="one-time-code" style="font-family:monospace;text-transform:uppercase;">
+      <p id="veErr" style="color:var(--danger);font-size:12px;min-height:14px;margin:6px 0 0;"></p>`,
+    onSave: async (modal) => {
+      const code = modal.querySelector('#veCode').value.trim().toUpperCase();
+      const errEl = modal.querySelector('#veErr');
+      if (!code) { errEl.textContent = t('cloud.verify_need_code') || 'Enter the code from your email'; return false; }
+      const r = await window.hubAPI.cloudVerifyEmail({ url, email, code });
+      if (!r.ok) { errEl.textContent = '✗ ' + (r.error || 'verification failed'); return false; }
+      if (settings.cloud) { settings.cloud.verified = true; saveAll(); }
+      renderCloudSettings();
+      toast(t('cloud.verify_done') || 'Email verified ✓', 'success');
+    },
+  });
+}
+
 // ---- Stage C: auto-sync wiring -------------------------------------------
 // Append-only collections (ledgers/logs) are unioned, never overwritten, on merge.
 const CLOUD_APPEND_ONLY = ['loyaltyLedger', 'wasteLog', 'machMaintLog', 'envLogs', 'shiftLogs', 'timeEntries', 'auditLog', '_auditLog'];
@@ -417,8 +440,10 @@ function renderCloudSettings() {
   const c = settings.cloud || {};
   const connected = !!(c.enabled && c.shopId);
   const syncStatus = (connected && window.KhaytCloudSync) ? cloudSyncStatusLabel(KhaytCloudSync.status()) : '';
+  const showUnverified = connected && c.email && c.verified === false;
   el.innerHTML = `
     ${connected ? `<p style="font-size:12.5px;margin:0 0 8px;">${escapeHtml(t('cloud.signed_in_as') || 'Signed in as')}: <strong>${escapeHtml(c.email || c.shopId)}</strong> · <span style="color:var(--text-muted);">${escapeHtml(c.url || '')}</span> <span id="cloudSyncStatus" style="font-size:12px;margin-inline-start:6px;color:var(--text-muted);">${escapeHtml(syncStatus)}</span></p>` : ''}
+    ${showUnverified ? `<div style="background:var(--warning-bg,#fff7ed);border:1px solid var(--warning,#d97706);border-radius:6px;padding:8px 10px;margin:0 0 8px;font-size:12.5px;">⚠ ${escapeHtml(t('cloud.unverified') || 'Email not verified.')} <button id="btnCloudVerify" class="btn small" style="margin-inline-start:6px;">${escapeHtml(t('cloud.verify_email') || 'Verify email')}</button></div>` : ''}
     <label>${escapeHtml(t('cloud.url') || 'Server URL')}</label>
     <input type="text" id="cloudUrl" value="${escapeHtml(c.url || 'https://cloud.khaytapp.com')}" ${connected ? 'disabled' : ''} placeholder="https://cloud.khaytapp.com">
     ${!connected ? `
@@ -473,7 +498,7 @@ function renderCloudSettings() {
     if (!su.ok) { result('✗ ' + (su.error || 'sign-up failed'), 'var(--danger)'); return; }
     const ks = await window.hubAPI.cloudCreateKeyset(f.pass);
     if (!ks.ok) { result('✗ ' + (ks.error || 'keyset failed'), 'var(--danger)'); return; }
-    settings.cloud = { enabled: true, url: f.url, email: f.email, accountId: su.accountId, shopId: su.shopId, token: su.token, keyset: ks.keyset, lastServerRev: 0 };
+    settings.cloud = { enabled: true, url: f.url, email: f.email, accountId: su.accountId, shopId: su.shopId, token: su.token, keyset: ks.keyset, lastServerRev: 0, verified: false };
     saveAll();
     await window.hubAPI.cloudUnlock({ url: f.url, shopId: su.shopId, token: su.token, keyset: ks.keyset, passphrase: f.pass });
     const up = await window.hubAPI.cloudPutKeyset({ url: f.url, shopId: su.shopId, token: su.token, keyset: ks.keyset });
@@ -497,7 +522,7 @@ function renderCloudSettings() {
       if (!ks.ok) { result('✗ ' + (ks.error || 'keyset failed'), 'var(--danger)'); return; }
       keyset = ks.keyset; recoveryKey = ks.recoveryKey;
     }
-    settings.cloud = { enabled: true, url: f.url, email: f.email, shopId: lr.shopId, token: lr.token, keyset, lastServerRev: 0 };
+    settings.cloud = { enabled: true, url: f.url, email: f.email, shopId: lr.shopId, token: lr.token, keyset, lastServerRev: 0, verified: !!lr.verified };
     saveAll();
     const un = await window.hubAPI.cloudUnlock({ url: f.url, shopId: lr.shopId, token: lr.token, keyset, passphrase: f.pass });
     if (!un.ok) { result('✗ ' + (t('cloud.wrong_pass') || 'Wrong sync passphrase for this account'), 'var(--danger)'); renderCloudSettings(); return; }
@@ -525,6 +550,15 @@ function renderCloudSettings() {
     if (!r.emailConfigured) { result(t('cloud.reset_no_email') || 'This server has no email set up — contact the admin', 'var(--danger)'); return; }
     result('');
     showResetPasswordModal(url, email);
+  });
+
+  // Verify email: (re)send a code, then open the verify modal.
+  el.querySelector('#btnCloudVerify')?.addEventListener('click', async () => {
+    const rv = await window.hubAPI.cloudRequestVerify({ url: c.url, email: c.email });
+    if (rv.ok && rv.alreadyVerified) { if (settings.cloud) { settings.cloud.verified = true; saveAll(); } renderCloudSettings(); toast(t('cloud.verify_done') || 'Email verified ✓', 'success'); return; }
+    if (!rv.ok) { toast('✗ ' + (rv.error || 'could not send code'), 'error'); return; }
+    if (!rv.emailConfigured) { toast(t('cloud.reset_no_email') || 'This server has no email set up — contact the admin', 'error'); return; }
+    showVerifyEmailModal(c.url, c.email);
   });
 
   el.querySelector('#btnCloudUnlock')?.addEventListener('click', async () => {
