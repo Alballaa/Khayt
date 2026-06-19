@@ -699,6 +699,7 @@ function renderDashboard() {
         <span class="dash-low-stock-items">${lowSpools.map(i =>
           `<span class="dash-low-spool"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${safeCssColor(i.color||'#888')};margin-inline-end:4px;vertical-align:middle;"></span>${escapeHtml(i.material)} (${Math.round(i.weight)}g)</span>`
         ).join('')}</span>
+        <button class="btn small" data-act="reorder-suggest" style="margin-inline-start:8px;">${escapeHtml(t('reorder.suggest_btn') || 'Reorder suggestions')}</button>
       </div>`;
     })()}
 
