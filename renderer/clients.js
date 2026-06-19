@@ -186,7 +186,7 @@ function renderClients() {
     // Feature 8 (new 8-pack): Loyalty tier badge
     const tier = clientTierMap.get(c.id) || null;
     const tierHtml = tier ? `<span class="loyalty-tier-badge tier-${escapeHtml(tier.name.toLowerCase().replace(/\s+/g,''))}">${escapeHtml(tier.name)}</span>` : '';
-    const loyaltyPts = clientLoyaltyPoints(c.id);
+    const loyaltyPts = clientLoyaltyAvailable(c.id);
     const loyaltyHtml = loyaltyPts > 0 ? `<span class="loyalty-tier-badge" title="${escapeHtml(t('loyalty.points') || 'Loyalty points')}">⭐ ${loyaltyPts}</span>` : '';
     // Survey rating from completed orders (pre-computed above)
     const sv = clientSurveyMap.get(c.id);
@@ -592,6 +592,11 @@ function openClientEditor(clientId = null) {
       </div>
       <div id="ceCommLogList" style="max-height:160px; overflow-y:auto;"></div>
     </div>
+    ${existing && settings.loyaltyEnabled && clientLoyaltyAvailable(existing.id) > 0 ? `
+    <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--border-soft); display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      <span style="font-weight:600; font-size:12.5px;">⭐ ${escapeHtml(t('loyalty.points') || 'Loyalty points')}: ${clientLoyaltyAvailable(existing.id)}</span>
+      <button type="button" id="btnRedeemLoyalty" class="btn small">${escapeHtml(t('loyalty.redeem_btn') || 'Redeem for store credit')}</button>
+    </div>` : ''}
   `;
 
   openFormModal({
@@ -602,6 +607,11 @@ function openClientEditor(clientId = null) {
     onMount(modal) {
       modal.querySelectorAll('[data-f]').forEach(input => {
         input.addEventListener('input', () => { draft[input.dataset.f] = input.value; });
+      });
+      modal.querySelector('#btnRedeemLoyalty')?.addEventListener('click', (e) => {
+        redeemLoyaltyPoints(existing.id);
+        e.target.disabled = true;
+        e.target.textContent = t('loyalty.redeemed_short') || 'Redeemed ✓';
       });
       const recCb  = modal.querySelector('#recEnabled');
       const recDiv = modal.querySelector('#recFields');
@@ -909,6 +919,45 @@ function clientLoyaltyPoints(clientId) {
   return pts;
 }
 
+/** Points a client has already redeemed (sum of loyaltyLedger redeem entries). */
+function clientLoyaltyRedeemed(clientId) {
+  if (!Array.isArray(loyaltyLedger)) return 0;
+  return loyaltyLedger
+    .filter(e => e && e.clientId === clientId && e.type === 'redeem')
+    .reduce((s, e) => s + (+e.points || 0), 0);
+}
+
+/** Spendable points = earned − already-redeemed (never negative). */
+function clientLoyaltyAvailable(clientId) {
+  return Math.max(0, clientLoyaltyPoints(clientId) - clientLoyaltyRedeemed(clientId));
+}
+
+/**
+ * Redeem a client's available points into STORE CREDIT — issues a gift card the
+ * owner applies via the existing gift-card flow (we never write giftCardDiscount
+ * directly), and records a ledger entry so points can't be double-spent.
+ */
+function redeemLoyaltyPoints(clientId) {
+  const avail = clientLoyaltyAvailable(clientId);
+  if (avail <= 0) { toast(t('loyalty.none_to_redeem') || 'No points to redeem', 'info'); return; }
+  const rate = +settings.loyaltyRedeemRate || 0.01; // credit per point (default 100 pts = 1)
+  const credit = (typeof KhaytLoyalty !== 'undefined')
+    ? KhaytLoyalty.pointsToCredit(avail, rate)
+    : Math.round(avail * rate * 100) / 100;
+  if (credit <= 0) { toast(t('loyalty.none_to_redeem') || 'No points to redeem', 'info'); return; }
+  const cl = clients.find(c => c.id === clientId);
+  const code = uid('LOY');
+  giftCards.push({
+    id: uid('GC'), code, initialBalance: credit, balance: credit,
+    issuedTo: clientId, issuedToName: cl ? localName(cl) : '',
+    issuedAt: new Date().toISOString(), expiresAt: null, redeemedOrders: [], source: 'loyalty',
+  });
+  loyaltyLedger.push({ id: uid('LOY'), clientId, type: 'redeem', points: avail, credit, giftCardCode: code, ts: new Date().toISOString() });
+  saveAll();
+  if (typeof renderClients === 'function') renderClients();
+  toast(t('loyalty.redeemed', { pts: avail, amt: fmtMoney(credit), code }) || `Redeemed ${avail} pts → ${fmtMoney(credit)} store credit (${code})`, 'success', 7000);
+}
+
 function getClientTier(clientId) {
   if (!settings.loyaltyEnabled) return null;
   const tiers = (settings.loyaltyTiers || []).filter(tier => tier.name);
@@ -1187,6 +1236,9 @@ function exportClientPortal(clientId) {
     hideClientSuggestions,
     getClientTier,
     clientLoyaltyPoints,
+    clientLoyaltyRedeemed,
+    clientLoyaltyAvailable,
+    redeemLoyaltyPoints,
     patchRecurringOrdersWithLeadDays,
     exportClientsCsv,
     exportClientPortal,
