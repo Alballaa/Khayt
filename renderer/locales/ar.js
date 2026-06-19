@@ -2631,6 +2631,7 @@
   "reorder.days_left": "الأيام المتبقية",
   "reorder.suggest": "إعادة الطلب",
   "reorder.restock": "إعادة التزويد",
+  "reorder.copy_list": "نسخ القائمة",
   "reorder.none": "المخزون بحالة جيدة — لا حاجة لإعادة الطلب الآن.",
   "ord.portal_copy": "نسخ الرابط",
   "ord.portal_copied": "تم نسخ الرابط!",

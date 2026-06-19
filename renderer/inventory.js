@@ -1163,6 +1163,7 @@ function openReorderSuggestions() {
     </tr>`;
   }).join('');
 
+  const listText = KhaytReorder.reorderText(sug, { header: (t('reorder.title') || 'Reorder suggestions') + ':' });
   openFormModal({
     title: t('reorder.title') || 'Reorder suggestions',
     noSave: true,
@@ -1177,8 +1178,22 @@ function openReorderSuggestions() {
           <th style="padding:6px 8px;text-align:end;">${escapeHtml(t('reorder.suggest') || 'Reorder')}</th>
         </tr></thead>
         <tbody>${rows}</tbody>
-      </table>`
+      </table>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+        <button class="btn small" id="reorderCopy">${escapeHtml(t('reorder.copy_list') || 'Copy list')}</button>
+        <button class="btn small primary" id="reorderWa">${escapeHtml(t('inv.share_whatsapp') || 'Share WhatsApp')}</button>
+      </div>`
       : `<p style="text-align:center;color:var(--text-muted);padding:20px 0;">${escapeHtml(t('reorder.none') || 'Stock looks healthy — nothing to reorder right now.')}</p>`,
+    onMount(modal) {
+      modal.querySelector('#reorderCopy')?.addEventListener('click', async () => {
+        try { await navigator.clipboard.writeText(listText); toast(t('common.copied') || 'Copied!', 'success'); }
+        catch { toast(listText, 'info', 8000); }
+      });
+      modal.querySelector('#reorderWa')?.addEventListener('click', async () => {
+        if (window.hubAPI?.shareWhatsApp) await window.hubAPI.shareWhatsApp({ phone: '', message: listText, pdfPath: null });
+        else window.open(`https://wa.me/?text=${encodeURIComponent(listText)}`, '_blank');
+      });
+    },
   });
 }
 

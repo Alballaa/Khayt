@@ -2626,6 +2626,7 @@
   "reorder.days_left": "Days left",
   "reorder.suggest": "Reorder",
   "reorder.restock": "restock",
+  "reorder.copy_list": "Copy list",
   "reorder.none": "Stock looks healthy — nothing to reorder right now.",
   "ord.portal_copy": "Copy Link",
   "ord.portal_copied": "Link copied!",
