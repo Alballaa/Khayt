@@ -2604,6 +2604,7 @@
   "cloud.portal_no_response": "لا يوجد رد بعد",
   "cloud.portal_approved": "وافق العميل على عرض السعر",
   "cloud.portal_declined": "رفض العميل عرض السعر",
+  "cloud.portal_approved_advanced": "وافق العميل — نُقل الطلب إلى قيد الانتظار",
   "ord.portal_copy": "نسخ الرابط",
   "ord.portal_copied": "تم نسخ الرابط!",
   "ord.portal_whatsapp": "مشاركة عبر واتساب",

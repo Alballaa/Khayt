@@ -2599,6 +2599,7 @@
   "cloud.portal_no_response": "No response yet",
   "cloud.portal_approved": "Customer approved the quote",
   "cloud.portal_declined": "Customer declined the quote",
+  "cloud.portal_approved_advanced": "Customer approved — order moved to Pending",
   "ord.portal_copy": "Copy Link",
   "ord.portal_copied": "Link copied!",
   "ord.portal_whatsapp": "Share via WhatsApp",
