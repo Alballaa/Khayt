@@ -1140,6 +1140,48 @@ function partGramsConsumed(p) {
   return ((+p.printWeight || 0) + (+p.supportWeight || 0)) * (+p.qty || 1);
 }
 
+/** Consumption-aware reorder suggestions modal (uses lib/reorder.js). */
+function openReorderSuggestions() {
+  if (typeof KhaytReorder === 'undefined') { toast('Reorder module not loaded', 'error'); return; }
+  const items = (typeof filterInventoryByLocation === 'function')
+    ? filterInventoryByLocation(inventory, settings.activeLocationId) : inventory;
+  const sug = KhaytReorder.reorderSuggestions(items, printLog, {
+    now: Date.now(), windowDays: 30, partGrams: partGramsConsumed, isLow: isLowStock, leadDays: 14, targetDays: 45,
+  });
+  const cur = (typeof currencySymbol === 'function') ? currencySymbol() : '';
+  const rows = sug.map((s) => {
+    const days = s.daysLeft == null ? '—' : (s.daysLeft + 'd');
+    const rate = s.gramsPerDay > 0 ? `${s.gramsPerDay} g/${t('reorder.day') || 'day'}` : '—';
+    const sugg = s.suggestG > 0 ? `${Math.round(s.suggestG)} g` : (s.low ? (t('reorder.restock') || 'restock') : '—');
+    const urgency = (s.daysLeft != null && s.daysLeft <= 7) ? 'var(--danger)' : (s.low ? 'var(--warning,#d97706)' : 'var(--text-muted)');
+    return `<tr>
+      <td style="padding:6px 8px;">${escapeHtml(s.label)}${s.low ? ' <span style="color:var(--warning,#d97706);">⚠</span>' : ''}</td>
+      <td style="padding:6px 8px;text-align:end;">${Math.round(s.weight)} g</td>
+      <td style="padding:6px 8px;text-align:end;color:var(--text-muted);">${escapeHtml(rate)}</td>
+      <td style="padding:6px 8px;text-align:end;color:${urgency};font-weight:600;">${escapeHtml(days)}</td>
+      <td style="padding:6px 8px;text-align:end;">${escapeHtml(sugg)}</td>
+    </tr>`;
+  }).join('');
+
+  openFormModal({
+    title: t('reorder.title') || 'Reorder suggestions',
+    noSave: true,
+    bodyHtml: sug.length ? `
+      <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px;">${escapeHtml(t('reorder.hint') || 'Based on the last 30 days of completed-order usage. “Days left” projects current stock at that rate.')}</p>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr style="text-align:start;color:var(--text-muted);border-bottom:1px solid var(--border,#eee);">
+          <th style="padding:6px 8px;text-align:start;">${escapeHtml(t('reorder.material') || 'Material')}</th>
+          <th style="padding:6px 8px;text-align:end;">${escapeHtml(t('reorder.in_stock') || 'In stock')}</th>
+          <th style="padding:6px 8px;text-align:end;">${escapeHtml(t('reorder.rate') || 'Usage')}</th>
+          <th style="padding:6px 8px;text-align:end;">${escapeHtml(t('reorder.days_left') || 'Days left')}</th>
+          <th style="padding:6px 8px;text-align:end;">${escapeHtml(t('reorder.suggest') || 'Reorder')}</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`
+      : `<p style="text-align:center;color:var(--text-muted);padding:20px 0;">${escapeHtml(t('reorder.none') || 'Stock looks healthy — nothing to reorder right now.')}</p>`,
+  });
+}
+
 function getSpoolReservedGrams(spoolId) {
   // Key on the same id the deduction uses: the explicitly chosen spool when set,
   // otherwise the part's filament (most parts only carry filamentId).
@@ -3459,6 +3501,7 @@ async function printSpoolLabel(itemId) {
     createPurchaseOrder,
     renderPurchaseOrders,
     openReorderModal,
+    openReorderSuggestions,
     exportInventoryCsv,
     recordSupplierInvoice,
   };
