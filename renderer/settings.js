@@ -314,6 +314,90 @@ function renderAiSettings() {
   });
 }
 
+function showRecoveryKeyModal(recoveryKey) {
+  openFormModal({
+    title: t('cloud.recovery_title') || 'Save your recovery key',
+    saveLabel: t('cloud.recovery_saved') || 'I saved it',
+    bodyHtml: `
+      <p style="font-size:13px;">${escapeHtml(t('cloud.recovery_hint') || 'This recovers your cloud data if you forget your passphrase. Shown ONCE — store it safely; it cannot be recovered for you.')}</p>
+      <input type="text" readonly value="${escapeHtml(recoveryKey)}" style="font-family:monospace;font-size:13px;" onclick="this.select()">`,
+  });
+}
+
+/** Settings → Khayt Cloud: connect / unlock / sync / disconnect (opt-in, E2E). */
+function renderCloudSettings() {
+  const el = $('#cloudSettingsSection');
+  if (!el) return;
+  const c = settings.cloud || {};
+  const connected = !!(c.enabled && c.shopId);
+  el.innerHTML = `
+    ${connected ? `<p style="font-size:12.5px;margin:0 0 8px;">${escapeHtml(t('cloud.connected_as') || 'Connected')}: <strong>${escapeHtml(c.shopId)}</strong> · <span style="color:var(--text-muted);">${escapeHtml(c.url || '')}</span></p>` : ''}
+    <label>${escapeHtml(t('cloud.url') || 'Server URL')}</label>
+    <input type="text" id="cloudUrl" value="${escapeHtml(c.url || 'https://cloud.khaytapp.com')}" ${connected ? 'disabled' : ''} placeholder="https://cloud.khaytapp.com">
+    ${!connected ? `
+      <label style="margin-top:8px;">${escapeHtml(t('cloud.secret') || 'Register secret (optional)')}</label>
+      <input type="password" id="cloudSecret" placeholder="${escapeHtml(t('cloud.secret_ph') || 'only if your server requires one')}">
+      <label style="margin-top:8px;">${escapeHtml(t('cloud.passphrase') || 'Sync passphrase')}</label>
+      <input type="password" id="cloudPass" placeholder="${escapeHtml(t('cloud.passphrase_ph') || 'encrypts your data — keep it safe')}">
+      <div style="margin-top:10px;"><button id="btnCloudConnect" class="btn primary small">${escapeHtml(t('cloud.connect') || 'Connect')}</button> <span id="cloudResult" style="font-size:12px;"></span></div>`
+    : `
+      <label style="margin-top:8px;">${escapeHtml(t('cloud.passphrase') || 'Sync passphrase')}</label>
+      <input type="password" id="cloudPass" placeholder="${escapeHtml(t('cloud.unlock_ph') || 'enter to unlock this session')}">
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <button id="btnCloudUnlock" class="btn small">${escapeHtml(t('cloud.unlock') || 'Unlock')}</button>
+        <button id="btnCloudSync" class="btn small">${escapeHtml(t('cloud.sync_now') || 'Sync now')}</button>
+        <button id="btnCloudDisconnect" class="btn danger small">${escapeHtml(t('cloud.disconnect') || 'Disconnect')}</button>
+        <span id="cloudResult" style="font-size:12px;"></span>
+      </div>`}`;
+
+  const result = (msg, color) => { const r = el.querySelector('#cloudResult'); if (r) { r.textContent = msg; r.style.color = color || 'var(--text-muted)'; } };
+
+  el.querySelector('#btnCloudConnect')?.addEventListener('click', async () => {
+    const url = el.querySelector('#cloudUrl').value.trim();
+    const secret = el.querySelector('#cloudSecret').value.trim();
+    const pass = el.querySelector('#cloudPass').value;
+    if (!url) { result(t('cloud.need_url') || 'Enter the server URL', 'var(--danger)'); return; }
+    if (!pass || pass.length < 6) { result(t('cloud.need_pass') || 'Choose a passphrase (6+ chars)', 'var(--danger)'); return; }
+    result(t('cloud.connecting') || 'Connecting…');
+    if (!(await window.hubAPI.cloudHealth(url))) { result((t('cloud.unreachable') || 'Server not reachable') + ' ' + url, 'var(--danger)'); return; }
+    const reg = await window.hubAPI.cloudRegister({ url, registerSecret: secret });
+    if (!reg.ok) { result('✗ ' + (reg.error || 'register failed'), 'var(--danger)'); return; }
+    const ks = await window.hubAPI.cloudCreateKeyset(pass);
+    if (!ks.ok) { result('✗ ' + (ks.error || 'keyset failed'), 'var(--danger)'); return; }
+    settings.cloud = { enabled: true, url, shopId: reg.shopId, token: reg.token, keyset: ks.keyset, lastServerRev: 0 };
+    saveAll();
+    await window.hubAPI.cloudUnlock({ url, shopId: reg.shopId, token: reg.token, keyset: ks.keyset, passphrase: pass });
+    showRecoveryKeyModal(ks.recoveryKey);
+    renderCloudSettings();
+    toast(t('cloud.connected') || 'Connected to Khayt Cloud', 'success');
+  });
+
+  el.querySelector('#btnCloudUnlock')?.addEventListener('click', async () => {
+    const pass = el.querySelector('#cloudPass').value;
+    const r = await window.hubAPI.cloudUnlock({ url: c.url, shopId: c.shopId, token: c.token, keyset: c.keyset, passphrase: pass });
+    if (r.ok) result('✓ ' + (t('cloud.unlocked') || 'Unlocked'), 'var(--success)');
+    else result('✗ ' + (t('cloud.wrong_pass') || 'Wrong passphrase'), 'var(--danger)');
+  });
+
+  el.querySelector('#btnCloudSync')?.addEventListener('click', async () => {
+    result(t('cloud.syncing') || 'Syncing…');
+    const r = await window.hubAPI.cloudPush(buildStoreSnapshot());
+    if (r.ok && !r.conflict) { settings.cloud.lastServerRev = r.rev; saveAll(); result('✓ ' + (t('cloud.synced') || 'Synced') + ' (rev ' + r.rev + ')', 'var(--success)'); }
+    else if (r.conflict) result('⚠ ' + (t('cloud.conflict') || 'Server has newer data'), 'var(--warning, #d97706)');
+    else if (r.error === 'locked') result('✗ ' + (t('cloud.locked') || 'Unlock first (enter passphrase)'), 'var(--danger)');
+    else result('✗ ' + (r.error || 'sync failed'), 'var(--danger)');
+  });
+
+  el.querySelector('#btnCloudDisconnect')?.addEventListener('click', async () => {
+    if (!(await confirmModal(t('cloud.disconnect_q') || 'Disconnect from Khayt Cloud? Local data stays; the cloud copy is kept.', { danger: true }))) return;
+    await window.hubAPI.cloudLock();
+    settings.cloud = Object.assign({}, settings.cloud, { enabled: false });
+    saveAll();
+    renderCloudSettings();
+    toast(t('cloud.disconnected') || 'Disconnected', 'success');
+  });
+}
+
 function renderDigestSettings() {
   const el = $('#emailDigestSection');
   if (!el) return;
@@ -1412,6 +1496,7 @@ function loadSettingsIntoForm() {
   // Feature I: Email digest scheduler
   renderDigestSettings();
   renderAiSettings();
+  renderCloudSettings();
   // Feature 7 (new 8-pack): Operator lock section
   renderOperatorLockSettings();
   // Feature 8 (new 8-pack): Loyalty tiers
@@ -2097,6 +2182,7 @@ function renderTelegramSettings() {
     renderEmailNotificationSettings,
     renderDigestSettings,
     renderAiSettings,
+    renderCloudSettings,
     renderOperatorLockSettings,
     renderLoyaltyTiersSettings,
     renderWebhookSettings,
