@@ -9,6 +9,7 @@ const { sendCustomSmtp } = require('./lib/custom-smtp');
 const { normalizeStoreSnapshot } = require('./lib/store-validate');
 const { createStoreIo } = require('./lib/store-io');
 const { parseGcodeText } = require('./lib/gcode-parse');
+const cloudClient = require('./lib/cloud-client');
 const { registerZatcaCrypto } = require('./lib/zatca-crypto');
 const { wrapHubIpc } = require('./lib/ipc-guard');
 const { sanitizeHtmlForFile, redactStatusHtmlClientRow } = require('./lib/status-html');
@@ -1083,6 +1084,47 @@ ipcMain.handle('hub:ai-extract', async (_e, { apiKey, model, system, request, im
     if (!toolUse || !toolUse.input) return { ok: false, error: 'No structured output returned' };
     return { ok: true, draft: toolUse.input };
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+// ── Khayt Cloud sync (opt-in, E2E) ────────────────────────────────────────────
+// The unlocked backend (with the in-memory DEK) lives only for the session; the
+// passphrase is never stored, so the renderer re-unlocks each launch.
+let cloudBackend = null;
+
+ipcMain.handle('hub:cloud-health', (_e, url) => cloudClient.health(url));
+
+ipcMain.handle('hub:cloud-create-keyset', (_e, passphrase) => {
+  try { return { ok: true, ...cloudClient.createKeyset(String(passphrase || '')) }; }
+  catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:cloud-register', async (_e, { url, registerSecret } = {}) => {
+  try { return { ok: true, ...(await cloudClient.register(url, registerSecret)) }; }
+  catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:cloud-unlock', (_e, { url, shopId, token, keyset, passphrase } = {}) => {
+  try {
+    token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
+    const dek = cloudClient.unlockWithPassphrase(String(passphrase || ''), keyset);
+    cloudBackend = cloudClient.backendFor(url, shopId, token, dek);
+    return { ok: true };
+  } catch (e) { cloudBackend = null; return { ok: false, error: 'Wrong passphrase or invalid keyset' }; }
+});
+
+ipcMain.handle('hub:cloud-lock', () => { cloudBackend = null; return { ok: true }; });
+ipcMain.handle('hub:cloud-status', () => ({ unlocked: !!cloudBackend, status: cloudBackend ? cloudBackend.status() : 'off' }));
+
+ipcMain.handle('hub:cloud-push', async (_e, snapshot) => {
+  if (!cloudBackend) return { ok: false, error: 'locked' };
+  try { return { ok: true, ...(await cloudBackend.push(snapshot)) }; }
+  catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:cloud-pull', async () => {
+  if (!cloudBackend) return { ok: false, error: 'locked' };
+  try { return { ok: true, ...(await cloudBackend.pull()) }; }
+  catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
 ipcMain.handle('hub:fire-webhook', async (event, { url, event: webhookEvent, payload, secret }) => {
