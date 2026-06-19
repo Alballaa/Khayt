@@ -1015,6 +1015,12 @@ async function publishOrderToCloudPortal(orderId) {
         const approved = act.type === 'approve';
         resp.textContent = (approved ? '✓ ' : '✗ ') + (approved ? (t('cloud.portal_approved') || 'Customer approved the quote') : (t('cloud.portal_declined') || 'Customer declined the quote'));
         resp.style.color = approved ? 'var(--success)' : 'var(--danger)';
+        // Close the loop: an approved quote advances the order to Pending via the
+        // normal status-change path (history, webhooks, re-renders all fire).
+        if (approved && order.status === 'quote' && typeof updateStatus === 'function') {
+          updateStatus(order.id, 'pending');
+          resp.textContent = '✓ ' + (t('cloud.portal_approved_advanced') || 'Customer approved — order moved to Pending');
+        }
       });
       modal.querySelector('#cpUnpub')?.addEventListener('click', async () => {
         const u = await window.hubAPI.cloudUnpublish({ url: c.url, shopId: c.shopId, token: c.token, pubToken });
