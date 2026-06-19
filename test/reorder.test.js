@@ -58,6 +58,19 @@ test('most-urgent (fewest days left) sorts first', () => {
   assert.equal(sug[0].id, 'a', 'fewest days-left first');
 });
 
+test('reorderText builds a supplier-ready list (qty, restock, empty)', () => {
+  const txt = R.reorderText([
+    { label: 'PLA Black', suggestG: 600, low: false },
+    { label: 'ABS', suggestG: 0, low: true },
+    { label: 'PETG', suggestG: 0, low: false },
+  ], { header: 'Reorder:' });
+  assert.match(txt, /^Reorder:/);
+  assert.match(txt, /PLA Black: ~600 g/);
+  assert.match(txt, /ABS: restock/);
+  assert.match(txt, /- PETG$/m);
+  assert.equal(R.reorderText([]), '');
+});
+
 test('completionMs falls back to statusHistory when no completedAt', () => {
   const ms = R.completionMs({ statusHistory: [{ status: 'pending', at: at(9) }, { status: 'completed', at: at(3) }] });
   assert.equal(ms, Date.parse(at(3)));
