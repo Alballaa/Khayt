@@ -952,16 +952,21 @@ async function publishOrderToCloudPortal(orderId) {
   const pubToken = order.trackingToken;
   if (!pubToken) { toast(t('cloud.portal_no_token') || 'This order has no tracking token yet', 'error'); return; }
 
+  const isQuote = order.status === 'quote';
   const payload = {
     shopName: settings.bizEn || settings.bizAr || 'Khayt',
     ref: order.id,
     status: order.status,
-    statusLabel: CLOUD_PORTAL_STATUS_LABELS[order.status] || order.status,
+    statusLabel: isQuote ? 'Quote' : (CLOUD_PORTAL_STATUS_LABELS[order.status] || order.status),
     eta: order.dueDate || '',
   };
+  if (isQuote && +order.price) {
+    payload.amount = (+order.price).toFixed(2);
+    try { if (typeof currencySymbol === 'function') payload.currency = currencySymbol(); } catch (e) { /* optional */ }
+  }
   if (order.status === 'on_hold' && order.holdReason) payload.note = String(order.holdReason);
 
-  const r = await window.hubAPI.cloudPublish({ url: c.url, shopId: c.shopId, token: c.token, pubToken, kind: 'order', payload });
+  const r = await window.hubAPI.cloudPublish({ url: c.url, shopId: c.shopId, token: c.token, pubToken, kind: isQuote ? 'quote' : 'order', payload });
   if (!r.ok) { toast('✗ ' + (r.error || 'publish failed'), 'error'); return; }
 
   const portalUrl = String(c.url || '').replace(/\/$/, '') + '/p/' + pubToken;
@@ -972,19 +977,21 @@ async function publishOrderToCloudPortal(orderId) {
   } catch (e) { /* silent */ }
 
   openFormModal({
-    title: t('cloud.portal_published_title') || 'Public status link',
+    title: isQuote ? (t('cloud.portal_quote_title') || 'Quote approval link') : (t('cloud.portal_published_title') || 'Public status link'),
     noSave: true,
     sizeLg: false,
     bodyHtml: `
       <div style="text-align:center;padding:12px 0;">
         ${qrHtml}
         <p style="font-size:12px;color:var(--text-muted);margin:12px 0 6px;word-break:break-all;">${escapeHtml(portalUrl)}</p>
-        <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 10px;">${escapeHtml(t('cloud.portal_shared_note') || 'Shares only: shop name, order #, status, due date. Updates when you re-publish.')}</p>
+        <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 10px;">${escapeHtml(isQuote ? (t('cloud.portal_quote_note') || 'The customer can Approve/Decline. Shares: shop name, ref, amount.') : (t('cloud.portal_shared_note') || 'Shares only: shop name, order #, status, due date. Updates when you re-publish.'))}</p>
         <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
           <button class="btn small" id="cpCopy">${escapeHtml(t('common.copy') || 'Copy URL')}</button>
           <button class="btn small primary" id="cpWa">${escapeHtml(t('inv.share_whatsapp') || 'Share WhatsApp')}</button>
+          ${isQuote ? `<button class="btn small" id="cpCheck">${escapeHtml(t('cloud.portal_check') || 'Check response')}</button>` : ''}
           <button class="btn small danger" id="cpUnpub">${escapeHtml(t('cloud.portal_unpublish') || 'Unpublish')}</button>
         </div>
+        <p id="cpResp" style="font-size:13px;margin-top:10px;min-height:16px;"></p>
       </div>`,
     onMount(modal) {
       modal.querySelector('#cpCopy')?.addEventListener('click', async () => {
@@ -992,10 +999,22 @@ async function publishOrderToCloudPortal(orderId) {
         catch { toast(portalUrl, 'info', 6000); }
       });
       modal.querySelector('#cpWa')?.addEventListener('click', async () => {
-        const waMsg = `${t('ord.portal_track_msg') || 'Track your order'}: ${portalUrl}`;
+        const waMsg = `${(isQuote ? (t('cloud.portal_quote_msg') || 'Please review your quote') : (t('ord.portal_track_msg') || 'Track your order'))}: ${portalUrl}`;
         const cl = order.clientId ? clients.find(x => x.id === order.clientId) : null;
         if (window.hubAPI?.shareWhatsApp) await window.hubAPI.shareWhatsApp({ phone: cl?.phone || '', message: waMsg, pdfPath: null });
         else window.open(`https://wa.me/?text=${encodeURIComponent(waMsg)}`, '_blank');
+      });
+      modal.querySelector('#cpCheck')?.addEventListener('click', async () => {
+        const resp = modal.querySelector('#cpResp');
+        resp.textContent = t('cloud.portal_checking') || 'Checking…'; resp.style.color = 'var(--text-muted)';
+        const lst = await window.hubAPI.cloudPublishedList({ url: c.url, shopId: c.shopId, token: c.token });
+        if (!lst.ok) { resp.textContent = '✗ ' + (lst.error || 'failed'); resp.style.color = 'var(--danger)'; return; }
+        const item = (lst.items || []).find(x => x.token === pubToken);
+        const act = item && item.action;
+        if (!act || !act.type) { resp.textContent = t('cloud.portal_no_response') || 'No response yet'; resp.style.color = 'var(--text-muted)'; return; }
+        const approved = act.type === 'approve';
+        resp.textContent = (approved ? '✓ ' : '✗ ') + (approved ? (t('cloud.portal_approved') || 'Customer approved the quote') : (t('cloud.portal_declined') || 'Customer declined the quote'));
+        resp.style.color = approved ? 'var(--success)' : 'var(--danger)';
       });
       modal.querySelector('#cpUnpub')?.addEventListener('click', async () => {
         const u = await window.hubAPI.cloudUnpublish({ url: c.url, shopId: c.shopId, token: c.token, pubToken });
