@@ -77,6 +77,7 @@ function sanitizePrintHtml(html) {
 function defaultSettings() {
   return {
     ai:        { enabled: false, model: 'claude-opus-4-8', apiKey: '' }, // AI assist (BYO key, opt-in)
+    cloud:     { enabled: false, url: 'https://cloud.khaytapp.com' },     // Khayt Cloud sync (opt-in, E2E)
     bizEn:     'Khayt',
     bizAr:     'خيط',
     vat:       '',
