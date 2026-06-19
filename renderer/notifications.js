@@ -157,6 +157,26 @@ function buildNotifications() {
     }
   }
 
+  // 4d. Installment payments due/overdue (per-order plans; existing instalments + lib).
+  if (typeof KhaytPaymentPlan !== 'undefined') {
+    const today = Date.now();
+    for (const o of printLog) {
+      if (!o || !Array.isArray(o.instalments) || !o.instalments.length) continue;
+      if (typeof payStatus === 'function' && payStatus(o) === 'paid') continue;
+      const sched = o.instalments.map(ins => ({ dueDate: ins.dueDate, amount: ins.amount, paidAt: ins.paid ? 'x' : null }));
+      const due = KhaytPaymentPlan.dueInstallments(sched, today);
+      if (!due.length) continue;
+      const key = 'instdue:' + o.id;
+      if (isDismissed(key)) continue;
+      alerts.push({
+        key, type: 'overdue', icon: '💸',
+        title: escapeHtml(t('notif.installment_due') || 'Installment due'),
+        body: escapeHtml((o.orderName || o.project || o.id) + ' · ' + due.length),
+        action() { switchTab('logs-tab'); },
+      });
+    }
+  }
+
   // 5. Stale orders (uses existing helper)
   const stale = typeof getStaleOrders === 'function' ? getStaleOrders().slice(0, 5) : [];
   for (const o of stale) {

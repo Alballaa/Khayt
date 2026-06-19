@@ -135,3 +135,30 @@ test('buildNotifications surfaces due recurring-order subscriptions (lib/subscri
   assert.equal(alerts.some((a) => a.key === 'recurdue:c2'), false, 'future recurring → no alert');
   assert.equal(alerts.some((a) => a.key === 'recurdue:c3'), false, 'disabled recurring → no alert');
 });
+
+test('buildNotifications surfaces due/overdue installments (payment-plan)', () => {
+  require('../lib/payment-plan.js'); // sets global.KhaytPaymentPlan
+  global.settings = { dismissedNotifs: {}, staleHours: {} };
+  global.inventory = [];
+  global.consumables = [];
+  global.clients = [];
+  global.machines = [];
+  global.machineServiceStatus = () => ({ due: false, warning: false });
+  global.machMaintTasks = [];
+  global.payStatus = () => 'partial'; // not fully paid → installments matter
+  global.printLog = [
+    { id: 'o1', project: 'A', instalments: [{ amount: 50, dueDate: '2020-01-01', paid: false }] }, // overdue
+    { id: 'o2', project: 'B', instalments: [{ amount: 50, dueDate: '2999-01-01', paid: false }] }, // future
+    { id: 'o3', project: 'C', instalments: [{ amount: 50, dueDate: '2020-01-01', paid: true }] },  // paid
+  ];
+  global.escapeHtml = (s) => String(s ?? '');
+  global.t = (k) => k;
+  global.switchTab = () => {};
+  global.localName = () => '';
+
+  const { buildNotifications } = require('../renderer/notifications.js');
+  const alerts = buildNotifications();
+  assert.ok(alerts.find((a) => a.key === 'instdue:o1'), 'overdue installment alerts');
+  assert.equal(alerts.some((a) => a.key === 'instdue:o2'), false, 'future installment → no alert');
+  assert.equal(alerts.some((a) => a.key === 'instdue:o3'), false, 'paid installment → no alert');
+});
