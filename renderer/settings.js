@@ -325,16 +325,74 @@ function showRecoveryKeyModal(recoveryKey) {
   });
 }
 
+// ---- Stage C: auto-sync wiring -------------------------------------------
+// Append-only collections (ledgers/logs) are unioned, never overwritten, on merge.
+const CLOUD_APPEND_ONLY = ['loyaltyLedger', 'wasteLog', 'machMaintLog', 'envLogs', 'shiftLogs', 'timeEntries', 'auditLog', '_auditLog'];
+
+/** I/O the auto-sync controller needs, bound to the live app + cloud IPC. */
+function cloudSyncDeps() {
+  return {
+    appendOnly: CLOUD_APPEND_ONLY,
+    buildSnapshot: () => buildStoreSnapshot(),
+    applySnapshot: (snap) => applyStoreFromSnapshot(snap),
+    save: () => saveAll(),
+    push: (snap) => window.hubAPI.cloudPush(snap),
+    pull: () => window.hubAPI.cloudPull(),
+  };
+}
+
+/** Turn on background auto-sync after a successful unlock. initialPull merges
+ *  any server-side changes first (safe on the same device); skip it right after
+ *  sign-up (server is empty) so we just push the new shop's data. */
+async function enableCloudAutoSync({ initialPull = true } = {}) {
+  if (!window.KhaytCloudSync) return;
+  KhaytCloudSync.configure(cloudSyncDeps());
+  try {
+    if (initialPull) await KhaytCloudSync.pullMerge();
+    KhaytCloudSync.syncNow();
+  } catch (e) { console.error('enableCloudAutoSync:', e); }
+}
+
+function cloudSyncStatusLabel(s) {
+  const map = {
+    syncing: t('cloud.status_syncing') || 'Syncing…',
+    synced: t('cloud.status_synced') || 'Synced ✓',
+    conflict: t('cloud.status_conflict') || 'Resolving…',
+    locked: t('cloud.status_locked') || 'Locked',
+    offline: t('cloud.status_offline') || 'Offline — will retry',
+    error: t('cloud.status_error') || 'Sync error',
+    idle: t('cloud.status_idle') || 'Auto-sync on',
+  };
+  return map[s] || '';
+}
+
+// One persistent status listener that paints the #cloudSyncStatus badge whenever
+// it exists (the element is recreated on each settings render).
+let _cloudStatusWired = false;
+function wireCloudSyncStatusOnce() {
+  if (_cloudStatusWired || !window.KhaytCloudSync) return;
+  _cloudStatusWired = true;
+  KhaytCloudSync.onStatus((s) => {
+    const badge = document.getElementById('cloudSyncStatus');
+    if (!badge) return;
+    badge.textContent = cloudSyncStatusLabel(s);
+    badge.style.color = (s === 'error' || s === 'offline') ? 'var(--danger)'
+      : (s === 'synced' ? 'var(--success)' : 'var(--text-muted)');
+  });
+}
+
 /** Settings → Khayt Cloud: account sign-up / log-in / sync / restore (opt-in, E2E).
  *  Two independent secrets: the ACCOUNT PASSWORD authenticates (reaches the shop);
  *  the SYNC PASSPHRASE encrypts (decrypts data) and never leaves this device. */
 function renderCloudSettings() {
   const el = $('#cloudSettingsSection');
   if (!el) return;
+  wireCloudSyncStatusOnce();
   const c = settings.cloud || {};
   const connected = !!(c.enabled && c.shopId);
+  const syncStatus = (connected && window.KhaytCloudSync) ? cloudSyncStatusLabel(KhaytCloudSync.status()) : '';
   el.innerHTML = `
-    ${connected ? `<p style="font-size:12.5px;margin:0 0 8px;">${escapeHtml(t('cloud.signed_in_as') || 'Signed in as')}: <strong>${escapeHtml(c.email || c.shopId)}</strong> · <span style="color:var(--text-muted);">${escapeHtml(c.url || '')}</span></p>` : ''}
+    ${connected ? `<p style="font-size:12.5px;margin:0 0 8px;">${escapeHtml(t('cloud.signed_in_as') || 'Signed in as')}: <strong>${escapeHtml(c.email || c.shopId)}</strong> · <span style="color:var(--text-muted);">${escapeHtml(c.url || '')}</span> <span id="cloudSyncStatus" style="font-size:12px;margin-inline-start:6px;color:var(--text-muted);">${escapeHtml(syncStatus)}</span></p>` : ''}
     <label>${escapeHtml(t('cloud.url') || 'Server URL')}</label>
     <input type="text" id="cloudUrl" value="${escapeHtml(c.url || 'https://cloud.khaytapp.com')}" ${connected ? 'disabled' : ''} placeholder="https://cloud.khaytapp.com">
     ${!connected ? `
@@ -394,6 +452,7 @@ function renderCloudSettings() {
     const up = await window.hubAPI.cloudPutKeyset({ url: f.url, shopId: su.shopId, token: su.token, keyset: ks.keyset });
     if (!up.ok) { result('✗ ' + (up.error || 'could not save keyset'), 'var(--danger)'); return; }
     showRecoveryKeyModal(ks.recoveryKey);
+    await enableCloudAutoSync({ initialPull: false }); // new shop: just push local
     renderCloudSettings();
     toast(t('cloud.account_created') || 'Account created — Khayt Cloud connected', 'success');
   });
@@ -419,6 +478,9 @@ function renderCloudSettings() {
       await window.hubAPI.cloudPutKeyset({ url: f.url, shopId: lr.shopId, token: lr.token, keyset });
       showRecoveryKeyModal(recoveryKey);
     }
+    // Configure auto-sync but DON'T auto-pull on a new device — let the user
+    // click "Restore from cloud" (full replace) to populate, then it stays synced.
+    if (window.KhaytCloudSync) KhaytCloudSync.configure(cloudSyncDeps());
     renderCloudSettings();
     toast(t('cloud.logged_in') || 'Logged in — use “Restore from cloud” to pull your data', 'success');
   });
@@ -426,12 +488,25 @@ function renderCloudSettings() {
   el.querySelector('#btnCloudUnlock')?.addEventListener('click', async () => {
     const pass = el.querySelector('#cloudPass').value;
     const r = await window.hubAPI.cloudUnlock({ url: c.url, shopId: c.shopId, token: c.token, keyset: c.keyset, passphrase: pass });
-    if (r.ok) result('✓ ' + (t('cloud.unlocked') || 'Unlocked'), 'var(--success)');
-    else result('✗ ' + (t('cloud.wrong_pass') || 'Wrong passphrase'), 'var(--danger)');
+    if (r.ok) {
+      result('✓ ' + (t('cloud.unlocked') || 'Unlocked'), 'var(--success)');
+      await enableCloudAutoSync({ initialPull: true }); // same device returning: merge in changes from elsewhere
+    } else {
+      result('✗ ' + (t('cloud.wrong_pass') || 'Wrong passphrase'), 'var(--danger)');
+    }
   });
 
   el.querySelector('#btnCloudSync')?.addEventListener('click', async () => {
     result(t('cloud.syncing') || 'Syncing…');
+    // Prefer the auto-sync controller (handles conflicts via pull+merge+re-push).
+    if (window.KhaytCloudSync && KhaytCloudSync.isOn()) {
+      const r = await KhaytCloudSync.syncNow();
+      if (r.ok) { settings.cloud.lastServerRev = r.rev; saveAll(); result('✓ ' + (t('cloud.synced') || 'Synced') + ' (rev ' + r.rev + ')', 'var(--success)'); }
+      else if (r.error === 'locked') result('✗ ' + (t('cloud.locked') || 'Unlock first (enter passphrase)'), 'var(--danger)');
+      else result('✗ ' + (r.error || 'sync failed'), 'var(--danger)');
+      return;
+    }
+    // Fallback (not unlocked this session): a plain push.
     const r = await window.hubAPI.cloudPush(buildStoreSnapshot());
     if (r.ok && !r.conflict) { settings.cloud.lastServerRev = r.rev; saveAll(); result('✓ ' + (t('cloud.synced') || 'Synced') + ' (rev ' + r.rev + ')', 'var(--success)'); }
     else if (r.conflict) result('⚠ ' + (t('cloud.conflict') || 'Server has newer data — Restore from cloud first'), 'var(--warning, #d97706)');
@@ -460,6 +535,8 @@ function renderCloudSettings() {
       loadSettingsIntoForm();
       applyTheme(settings.theme);
       i18n.set(settings.lang);
+      if (window.KhaytCloudSync) KhaytCloudSync.configure(cloudSyncDeps()); // local now == cloud; keep it synced going forward
+      renderCloudSettings();
       toast((t('cloud.restored') || 'Restored from cloud') + ' (rev ' + r.rev + ')', 'success');
     } catch (e) {
       console.error('cloud restore:', e);
@@ -469,6 +546,7 @@ function renderCloudSettings() {
 
   el.querySelector('#btnCloudDisconnect')?.addEventListener('click', async () => {
     if (!(await confirmModal(t('cloud.disconnect_q') || 'Sign out of Khayt Cloud on this device? Local data stays; the cloud copy is kept.', { danger: true }))) return;
+    if (window.KhaytCloudSync) KhaytCloudSync.stop(); // halt background auto-sync
     await window.hubAPI.cloudLock();
     settings.cloud = Object.assign({}, settings.cloud, { enabled: false });
     saveAll();
