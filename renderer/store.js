@@ -14,6 +14,7 @@
     mask(s.telegram, 'botToken');
     mask(s.webhooks, 'secret');
     mask(s.ai, 'apiKey');
+    mask(s.cloud, 'token');
     mask(s.zatcaPhase2, 'csid');
     mask(s.zatcaPhase2, 'pcsid');
     ['tabby', 'tamara', 'stripe'].forEach(prov => {

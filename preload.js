@@ -86,6 +86,14 @@ contextBridge.exposeInMainWorld('hubAPI', {
   // Feature 1 (new batch): G-code / 3MF metadata extraction
   parsePrintFile: (filePath) => ipcRenderer.invoke('hub:parse-print-file', filePath),
   aiExtract: (opts) => ipcRenderer.invoke('hub:ai-extract', opts),
+  cloudHealth: (url) => ipcRenderer.invoke('hub:cloud-health', url),
+  cloudCreateKeyset: (passphrase) => ipcRenderer.invoke('hub:cloud-create-keyset', passphrase),
+  cloudRegister: (opts) => ipcRenderer.invoke('hub:cloud-register', opts),
+  cloudUnlock: (opts) => ipcRenderer.invoke('hub:cloud-unlock', opts),
+  cloudLock: () => ipcRenderer.invoke('hub:cloud-lock'),
+  cloudStatus: () => ipcRenderer.invoke('hub:cloud-status'),
+  cloudPush: (snapshot) => ipcRenderer.invoke('hub:cloud-push', snapshot),
+  cloudPull: () => ipcRenderer.invoke('hub:cloud-pull'),
 
   // Feature 2 (new batch): Live printer API polling
   startPrinterPolling: (machines) => ipcRenderer.invoke('hub:start-printer-polling', machines),
