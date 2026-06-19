@@ -4,6 +4,24 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [2.8.0-beta.3] - 2026-06-19
+
+**Pre-release (beta)** — the 3.0 platform comes alive: **Khayt Cloud** (opt-in, end-to-end-encrypted sync) goes from dormant foundation to a working multi-device service, plus a **customer portal** and **AI-drafted customer messages**. Everything is opt-in — with cloud off, the app behaves exactly as before and runs fully offline.
+
+### Added
+
+- **Khayt Cloud — opt-in E2E sync.** Sign up with an email + password and sync your shop across devices, end-to-end encrypted: the server only ever stores ciphertext (it can't read your data). Two independent secrets — an **account password** (sign-in, resettable) and a **sync passphrase** (encryption, never uploaded; backed by a one-time recovery key). Settings → Khayt Cloud.
+  - **Multi-device** — log in on another device and pull your data; the encrypted keyset is delivered on login and unlocked locally with your passphrase.
+  - **Auto-sync on save** — changes sync in the background (debounced) with automatic conflict resolution (last-write-wins by revision, append-only logs preserved, deletes honored). Manual **Sync now** / **Restore from cloud** also available.
+  - **Account recovery** — **password reset** and **email verification** via an emailed code.
+- **Customer portal.** Publish a public, owner-curated status link for an order (`/p/…`) that works anywhere — shows only what you choose (shop, order #, status, due date). For quotes, the customer can **Approve / Decline** from the link, and an approved quote advances the order to Pending. Share via QR / Copy / WhatsApp.
+- **AI message drafting (BYO key).** A new **✨ Draft message (AI)** order action drafts a short, localized customer message — status update, ready-for-pickup, quote follow-up, payment reminder, or a custom note — from the order's facts. You edit before sending (Copy / WhatsApp / Email). Uses your own Anthropic key; never invents prices or dates.
+
+### Internal
+
+- Cloud backend (separate repo) with per-IP rate limiting, per-shop storage caps, admin usage stats, and CI (Node tests + PHP lint); runs on managed PHP/MySQL hosting with no process to babysit.
+- Test suite 527 → 549 desktop tests; cloud backend 15 tests.
+
 ## [2.8.0-beta.2] - 2026-06-19
 
 **Pre-release (beta)** — the first 2.8 desktop feature drop: AI-assisted quoting, recurring maintenance, team roles, accounting export, print-farm scheduling, and more. The 3.0 platform foundations are present but dormant (opt-in, no behavior change when off).
