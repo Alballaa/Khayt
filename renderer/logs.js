@@ -214,6 +214,7 @@ function renderLogs() {
             <button class="menu-item" data-act="export-status-page"  data-id="${log.id}">📄 ${escapeHtml(t('ord.status_page'))}</button>
             <button class="menu-item" data-act="portal-qr"           data-id="${log.id}">📱 ${escapeHtml(t('ord.portal_qr_title') || 'Portal QR')}</button>
             <button class="menu-item" data-act="copy-tracking-url"   data-id="${log.id}">🔗 ${escapeHtml(t('ord.copy_tracking_url') || 'Copy tracking URL')}</button>
+            <button class="menu-item" data-act="ai-reply"            data-id="${log.id}">✨ ${escapeHtml(t('ai.reply_menu') || 'Draft message (AI)')}</button>
             ${log.clientId ? `<button class="menu-item" data-act="open-status-page" data-id="${log.id}">🔗 ${escapeHtml(t('ord.status_page_open'))}</button>` : ''}
             ${log.trackingNumber ? `<button class="menu-item" data-act="share-tracking" data-id="${log.id}">📦 ${escapeHtml(t('ship.tracking_share'))}</button>` : ''}
             <div class="menu-sep"></div>

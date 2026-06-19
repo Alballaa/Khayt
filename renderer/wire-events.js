@@ -629,6 +629,8 @@ function wireEvents() {
     if (statusPage) exportOrderStatusPage(statusPage.dataset.id);
     const portalQrBtn = e.target.closest('[data-act="portal-qr"]');
     if (portalQrBtn) { openCustomerPortalModal(portalQrBtn.dataset.id); return; }
+    const aiReplyBtn = e.target.closest('[data-act="ai-reply"]');
+    if (aiReplyBtn) { aiDraftReply(aiReplyBtn.dataset.id); return; }
     const quoteLinkBtn = e.target.closest('[data-act="quote-approval-link"]');
     if (quoteLinkBtn) { openQuoteApprovalLinkModal(quoteLinkBtn.dataset.id); return; }
     const logTimeBtn = e.target.closest('[data-act="log-time"]');
