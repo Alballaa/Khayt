@@ -325,6 +325,32 @@ function showRecoveryKeyModal(recoveryKey) {
   });
 }
 
+/** Modal to enter the emailed reset code + a new account password. */
+function showResetPasswordModal(url, email) {
+  openFormModal({
+    title: t('cloud.reset_title') || 'Reset password',
+    saveLabel: t('cloud.reset_do') || 'Reset password',
+    bodyHtml: `
+      <p style="font-size:13px;">${escapeHtml(t('cloud.reset_sent') || 'If that email has an account, we sent a reset code to')} <strong>${escapeHtml(email)}</strong>. ${escapeHtml(t('cloud.reset_enter') || 'Enter it below with your new account password.')}</p>
+      <label>${escapeHtml(t('cloud.reset_code') || 'Reset code')}</label>
+      <input type="text" id="rpCode" autocomplete="one-time-code" style="font-family:monospace;text-transform:uppercase;">
+      <label style="margin-top:8px;">${escapeHtml(t('cloud.reset_newpw') || 'New account password')}</label>
+      <input type="password" id="rpPass" placeholder="${escapeHtml(t('cloud.password_ph') || 'signs you in on any device (8+ chars)')}">
+      <p style="font-size:11.5px;color:var(--text-muted);margin:6px 0 0;">${escapeHtml(t('cloud.reset_note') || 'This changes your account password only — your data stays encrypted; you’ll still unlock with your sync passphrase.')}</p>
+      <p id="rpErr" style="color:var(--danger);font-size:12px;min-height:14px;margin:6px 0 0;"></p>`,
+    onSave: async (modal) => {
+      const code = modal.querySelector('#rpCode').value.trim().toUpperCase();
+      const newPassword = modal.querySelector('#rpPass').value;
+      const errEl = modal.querySelector('#rpErr');
+      if (!code) { errEl.textContent = t('cloud.reset_need_code') || 'Enter the code from your email'; return false; }
+      if (!newPassword || newPassword.length < 8) { errEl.textContent = t('cloud.need_password') || 'Account password must be 8+ chars'; return false; }
+      const r = await window.hubAPI.cloudResetPassword({ url, email, code, newPassword });
+      if (!r.ok) { errEl.textContent = '✗ ' + (r.error || 'reset failed'); return false; }
+      toast(t('cloud.reset_done') || 'Password reset — log in with your new password', 'success');
+    },
+  });
+}
+
 // ---- Stage C: auto-sync wiring -------------------------------------------
 // Append-only collections (ledgers/logs) are unioned, never overwritten, on merge.
 const CLOUD_APPEND_ONLY = ['loyaltyLedger', 'wasteLog', 'machMaintLog', 'envLogs', 'shiftLogs', 'timeEntries', 'auditLog', '_auditLog'];
@@ -408,6 +434,7 @@ function renderCloudSettings() {
       <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
         <button id="btnCloudSignup" class="btn primary small">${escapeHtml(t('cloud.signup') || 'Create account')}</button>
         <button id="btnCloudLogin" class="btn small">${escapeHtml(t('cloud.login') || 'Log in (existing)')}</button>
+        <button id="btnCloudForgot" class="btn ghost small">${escapeHtml(t('cloud.forgot') || 'Forgot password?')}</button>
         <span id="cloudResult" style="font-size:12px;"></span>
       </div>`
     : `
@@ -483,6 +510,21 @@ function renderCloudSettings() {
     if (window.KhaytCloudSync) KhaytCloudSync.configure(cloudSyncDeps());
     renderCloudSettings();
     toast(t('cloud.logged_in') || 'Logged in — use “Restore from cloud” to pull your data', 'success');
+  });
+
+  // Forgot password: email a reset code, then open the reset modal.
+  el.querySelector('#btnCloudForgot')?.addEventListener('click', async () => {
+    const url = el.querySelector('#cloudUrl').value.trim();
+    const email = el.querySelector('#cloudEmail').value.trim();
+    if (!url) { result(t('cloud.need_url') || 'Enter the server URL', 'var(--danger)'); return; }
+    if (!email) { result(t('cloud.need_email') || 'Enter your email first', 'var(--danger)'); return; }
+    result(t('cloud.connecting') || 'Connecting…');
+    if (!(await window.hubAPI.cloudHealth(url))) { result((t('cloud.unreachable') || 'Server not reachable') + ' ' + url, 'var(--danger)'); return; }
+    const r = await window.hubAPI.cloudRequestReset({ url, email });
+    if (!r.ok) { result('✗ ' + (r.error || 'request failed'), 'var(--danger)'); return; }
+    if (!r.emailConfigured) { result(t('cloud.reset_no_email') || 'This server has no email set up — contact the admin', 'var(--danger)'); return; }
+    result('');
+    showResetPasswordModal(url, email);
   });
 
   el.querySelector('#btnCloudUnlock')?.addEventListener('click', async () => {

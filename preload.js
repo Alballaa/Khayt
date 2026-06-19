@@ -91,6 +91,8 @@ contextBridge.exposeInMainWorld('hubAPI', {
   cloudRegister: (opts) => ipcRenderer.invoke('hub:cloud-register', opts),
   cloudSignup: (opts) => ipcRenderer.invoke('hub:cloud-signup', opts),
   cloudLogin: (opts) => ipcRenderer.invoke('hub:cloud-login', opts),
+  cloudRequestReset: (opts) => ipcRenderer.invoke('hub:cloud-request-reset', opts),
+  cloudResetPassword: (opts) => ipcRenderer.invoke('hub:cloud-reset-password', opts),
   cloudPutKeyset: (opts) => ipcRenderer.invoke('hub:cloud-put-keyset', opts),
   cloudGetKeyset: (opts) => ipcRenderer.invoke('hub:cloud-get-keyset', opts),
   cloudUnlock: (opts) => ipcRenderer.invoke('hub:cloud-unlock', opts),
