@@ -1,6 +1,13 @@
 const { app, BrowserWindow, Menu, shell, ipcMain, dialog, safeStorage, clipboard } = require('electron');
 const path = require('path');
 const fs = require('fs');
+
+// Optional portable / multi-instance data dir override. Set KHAYT_USER_DATA to
+// run an isolated second instance (e.g. to test cloud sync between "devices").
+// Must run before any app.getPath('userData') call.
+if (process.env.KHAYT_USER_DATA) {
+  try { app.setPath('userData', process.env.KHAYT_USER_DATA); } catch (e) { console.error('KHAYT_USER_DATA:', e && e.message); }
+}
 const crypto = require('crypto');
 const QRCode = require('qrcode');
 const { safeJsonParse } = require('./lib/safe-json');
@@ -1101,6 +1108,34 @@ ipcMain.handle('hub:cloud-create-keyset', (_e, passphrase) => {
 ipcMain.handle('hub:cloud-register', async (_e, { url, registerSecret } = {}) => {
   try { return { ok: true, ...(await cloudClient.register(url, registerSecret)) }; }
   catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:cloud-signup', async (_e, { url, email, password, registerSecret } = {}) => {
+  try { return { ok: true, ...(await cloudClient.signup(url, { email, password, registerSecret })) }; }
+  catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:cloud-login', async (_e, { url, email, password } = {}) => {
+  try {
+    const r = await cloudClient.login(url, { email, password });
+    if (!r) return { ok: false, error: 'Wrong email or password' };
+    return { ok: true, ...r };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+// Store the (already-encrypted) keyset server-side so other devices can fetch it.
+ipcMain.handle('hub:cloud-put-keyset', async (_e, { url, shopId, token, keyset } = {}) => {
+  try {
+    token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
+    return { ok: true, ...(await cloudClient.putKeyset(url, shopId, token, keyset)) };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:cloud-get-keyset', async (_e, { url, shopId, token } = {}) => {
+  try {
+    token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
+    return { ok: true, keyset: await cloudClient.getKeyset(url, shopId, token) };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
 ipcMain.handle('hub:cloud-unlock', (_e, { url, shopId, token, keyset, passphrase } = {}) => {

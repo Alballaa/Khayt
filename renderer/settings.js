@@ -321,55 +321,106 @@ function showRecoveryKeyModal(recoveryKey) {
     bodyHtml: `
       <p style="font-size:13px;">${escapeHtml(t('cloud.recovery_hint') || 'This recovers your cloud data if you forget your passphrase. Shown ONCE — store it safely; it cannot be recovered for you.')}</p>
       <input type="text" readonly value="${escapeHtml(recoveryKey)}" style="font-family:monospace;font-size:13px;" onclick="this.select()">`,
+    onSave: () => {}, // acknowledgement only — just close on "I saved it"
   });
 }
 
-/** Settings → Khayt Cloud: connect / unlock / sync / disconnect (opt-in, E2E). */
+/** Settings → Khayt Cloud: account sign-up / log-in / sync / restore (opt-in, E2E).
+ *  Two independent secrets: the ACCOUNT PASSWORD authenticates (reaches the shop);
+ *  the SYNC PASSPHRASE encrypts (decrypts data) and never leaves this device. */
 function renderCloudSettings() {
   const el = $('#cloudSettingsSection');
   if (!el) return;
   const c = settings.cloud || {};
   const connected = !!(c.enabled && c.shopId);
   el.innerHTML = `
-    ${connected ? `<p style="font-size:12.5px;margin:0 0 8px;">${escapeHtml(t('cloud.connected_as') || 'Connected')}: <strong>${escapeHtml(c.shopId)}</strong> · <span style="color:var(--text-muted);">${escapeHtml(c.url || '')}</span></p>` : ''}
+    ${connected ? `<p style="font-size:12.5px;margin:0 0 8px;">${escapeHtml(t('cloud.signed_in_as') || 'Signed in as')}: <strong>${escapeHtml(c.email || c.shopId)}</strong> · <span style="color:var(--text-muted);">${escapeHtml(c.url || '')}</span></p>` : ''}
     <label>${escapeHtml(t('cloud.url') || 'Server URL')}</label>
     <input type="text" id="cloudUrl" value="${escapeHtml(c.url || 'https://cloud.khaytapp.com')}" ${connected ? 'disabled' : ''} placeholder="https://cloud.khaytapp.com">
     ${!connected ? `
-      <label style="margin-top:8px;">${escapeHtml(t('cloud.secret') || 'Register secret (optional)')}</label>
-      <input type="password" id="cloudSecret" placeholder="${escapeHtml(t('cloud.secret_ph') || 'only if your server requires one')}">
+      <label style="margin-top:8px;">${escapeHtml(t('cloud.email') || 'Email')}</label>
+      <input type="email" id="cloudEmail" placeholder="you@example.com" autocomplete="username">
+      <label style="margin-top:8px;">${escapeHtml(t('cloud.password') || 'Account password')}</label>
+      <input type="password" id="cloudAcctPass" placeholder="${escapeHtml(t('cloud.password_ph') || 'signs you in on any device (8+ chars)')}" autocomplete="current-password">
       <label style="margin-top:8px;">${escapeHtml(t('cloud.passphrase') || 'Sync passphrase')}</label>
-      <input type="password" id="cloudPass" placeholder="${escapeHtml(t('cloud.passphrase_ph') || 'encrypts your data — keep it safe')}">
-      <div style="margin-top:10px;"><button id="btnCloudConnect" class="btn primary small">${escapeHtml(t('cloud.connect') || 'Connect')}</button> <span id="cloudResult" style="font-size:12px;"></span></div>`
+      <input type="password" id="cloudPass" placeholder="${escapeHtml(t('cloud.passphrase_ph') || 'encrypts your data — never uploaded')}">
+      <p style="font-size:11.5px;color:var(--text-muted);margin:6px 0 0;">${escapeHtml(t('cloud.passphrase_explain') || 'The sync passphrase encrypts your data and is never sent to the server. Same passphrase on every device.')}</p>
+      <label style="margin-top:8px;">${escapeHtml(t('cloud.secret') || 'Invite secret (optional)')}</label>
+      <input type="password" id="cloudSecret" placeholder="${escapeHtml(t('cloud.secret_ph') || 'only if your server requires one for sign-up')}">
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <button id="btnCloudSignup" class="btn primary small">${escapeHtml(t('cloud.signup') || 'Create account')}</button>
+        <button id="btnCloudLogin" class="btn small">${escapeHtml(t('cloud.login') || 'Log in (existing)')}</button>
+        <span id="cloudResult" style="font-size:12px;"></span>
+      </div>`
     : `
       <label style="margin-top:8px;">${escapeHtml(t('cloud.passphrase') || 'Sync passphrase')}</label>
       <input type="password" id="cloudPass" placeholder="${escapeHtml(t('cloud.unlock_ph') || 'enter to unlock this session')}">
       <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
         <button id="btnCloudUnlock" class="btn small">${escapeHtml(t('cloud.unlock') || 'Unlock')}</button>
         <button id="btnCloudSync" class="btn small">${escapeHtml(t('cloud.sync_now') || 'Sync now')}</button>
-        <button id="btnCloudDisconnect" class="btn danger small">${escapeHtml(t('cloud.disconnect') || 'Disconnect')}</button>
+        <button id="btnCloudRestore" class="btn small">${escapeHtml(t('cloud.restore') || 'Restore from cloud')}</button>
+        <button id="btnCloudDisconnect" class="btn danger small">${escapeHtml(t('cloud.disconnect') || 'Sign out')}</button>
         <span id="cloudResult" style="font-size:12px;"></span>
       </div>`}`;
 
   const result = (msg, color) => { const r = el.querySelector('#cloudResult'); if (r) { r.textContent = msg; r.style.color = color || 'var(--text-muted)'; } };
 
-  el.querySelector('#btnCloudConnect')?.addEventListener('click', async () => {
+  // Shared validation for the not-connected form. Returns {url,email,password,pass,secret} or null.
+  const readConnectForm = async () => {
     const url = el.querySelector('#cloudUrl').value.trim();
-    const secret = el.querySelector('#cloudSecret').value.trim();
+    const email = el.querySelector('#cloudEmail').value.trim();
+    const password = el.querySelector('#cloudAcctPass').value;
     const pass = el.querySelector('#cloudPass').value;
-    if (!url) { result(t('cloud.need_url') || 'Enter the server URL', 'var(--danger)'); return; }
-    if (!pass || pass.length < 6) { result(t('cloud.need_pass') || 'Choose a passphrase (6+ chars)', 'var(--danger)'); return; }
+    const secret = el.querySelector('#cloudSecret').value.trim();
+    if (!url) { result(t('cloud.need_url') || 'Enter the server URL', 'var(--danger)'); return null; }
+    if (!email) { result(t('cloud.need_email') || 'Enter your email', 'var(--danger)'); return null; }
+    if (!password || password.length < 8) { result(t('cloud.need_password') || 'Account password must be 8+ chars', 'var(--danger)'); return null; }
+    if (!pass || pass.length < 6) { result(t('cloud.need_pass') || 'Choose a sync passphrase (6+ chars)', 'var(--danger)'); return null; }
     result(t('cloud.connecting') || 'Connecting…');
-    if (!(await window.hubAPI.cloudHealth(url))) { result((t('cloud.unreachable') || 'Server not reachable') + ' ' + url, 'var(--danger)'); return; }
-    const reg = await window.hubAPI.cloudRegister({ url, registerSecret: secret });
-    if (!reg.ok) { result('✗ ' + (reg.error || 'register failed'), 'var(--danger)'); return; }
-    const ks = await window.hubAPI.cloudCreateKeyset(pass);
+    if (!(await window.hubAPI.cloudHealth(url))) { result((t('cloud.unreachable') || 'Server not reachable') + ' ' + url, 'var(--danger)'); return null; }
+    return { url, email, password, pass, secret };
+  };
+
+  // Create account: signup → make keyset locally → save → unlock → upload encrypted keyset.
+  el.querySelector('#btnCloudSignup')?.addEventListener('click', async () => {
+    const f = await readConnectForm(); if (!f) return;
+    const su = await window.hubAPI.cloudSignup({ url: f.url, email: f.email, password: f.password, registerSecret: f.secret });
+    if (!su.ok) { result('✗ ' + (su.error || 'sign-up failed'), 'var(--danger)'); return; }
+    const ks = await window.hubAPI.cloudCreateKeyset(f.pass);
     if (!ks.ok) { result('✗ ' + (ks.error || 'keyset failed'), 'var(--danger)'); return; }
-    settings.cloud = { enabled: true, url, shopId: reg.shopId, token: reg.token, keyset: ks.keyset, lastServerRev: 0 };
+    settings.cloud = { enabled: true, url: f.url, email: f.email, accountId: su.accountId, shopId: su.shopId, token: su.token, keyset: ks.keyset, lastServerRev: 0 };
     saveAll();
-    await window.hubAPI.cloudUnlock({ url, shopId: reg.shopId, token: reg.token, keyset: ks.keyset, passphrase: pass });
+    await window.hubAPI.cloudUnlock({ url: f.url, shopId: su.shopId, token: su.token, keyset: ks.keyset, passphrase: f.pass });
+    const up = await window.hubAPI.cloudPutKeyset({ url: f.url, shopId: su.shopId, token: su.token, keyset: ks.keyset });
+    if (!up.ok) { result('✗ ' + (up.error || 'could not save keyset'), 'var(--danger)'); return; }
     showRecoveryKeyModal(ks.recoveryKey);
     renderCloudSettings();
-    toast(t('cloud.connected') || 'Connected to Khayt Cloud', 'success');
+    toast(t('cloud.account_created') || 'Account created — Khayt Cloud connected', 'success');
+  });
+
+  // Log in (existing account, e.g. a second device): login → get encrypted keyset → unlock with passphrase.
+  el.querySelector('#btnCloudLogin')?.addEventListener('click', async () => {
+    const f = await readConnectForm(); if (!f) return;
+    const lr = await window.hubAPI.cloudLogin({ url: f.url, email: f.email, password: f.password });
+    if (!lr.ok) { result('✗ ' + (lr.error || 'login failed'), 'var(--danger)'); return; }
+    let keyset = lr.keyset;
+    let recoveryKey = null;
+    if (!keyset) {
+      // Account exists but never finished keyset setup — create one now from this passphrase.
+      const ks = await window.hubAPI.cloudCreateKeyset(f.pass);
+      if (!ks.ok) { result('✗ ' + (ks.error || 'keyset failed'), 'var(--danger)'); return; }
+      keyset = ks.keyset; recoveryKey = ks.recoveryKey;
+    }
+    settings.cloud = { enabled: true, url: f.url, email: f.email, shopId: lr.shopId, token: lr.token, keyset, lastServerRev: 0 };
+    saveAll();
+    const un = await window.hubAPI.cloudUnlock({ url: f.url, shopId: lr.shopId, token: lr.token, keyset, passphrase: f.pass });
+    if (!un.ok) { result('✗ ' + (t('cloud.wrong_pass') || 'Wrong sync passphrase for this account'), 'var(--danger)'); renderCloudSettings(); return; }
+    if (recoveryKey) {
+      await window.hubAPI.cloudPutKeyset({ url: f.url, shopId: lr.shopId, token: lr.token, keyset });
+      showRecoveryKeyModal(recoveryKey);
+    }
+    renderCloudSettings();
+    toast(t('cloud.logged_in') || 'Logged in — use “Restore from cloud” to pull your data', 'success');
   });
 
   el.querySelector('#btnCloudUnlock')?.addEventListener('click', async () => {
@@ -383,18 +434,46 @@ function renderCloudSettings() {
     result(t('cloud.syncing') || 'Syncing…');
     const r = await window.hubAPI.cloudPush(buildStoreSnapshot());
     if (r.ok && !r.conflict) { settings.cloud.lastServerRev = r.rev; saveAll(); result('✓ ' + (t('cloud.synced') || 'Synced') + ' (rev ' + r.rev + ')', 'var(--success)'); }
-    else if (r.conflict) result('⚠ ' + (t('cloud.conflict') || 'Server has newer data'), 'var(--warning, #d97706)');
+    else if (r.conflict) result('⚠ ' + (t('cloud.conflict') || 'Server has newer data — Restore from cloud first'), 'var(--warning, #d97706)');
     else if (r.error === 'locked') result('✗ ' + (t('cloud.locked') || 'Unlock first (enter passphrase)'), 'var(--danger)');
     else result('✗ ' + (r.error || 'sync failed'), 'var(--danger)');
   });
 
+  // Restore from cloud: pull the encrypted store, decrypt, and replace local data
+  // (keeping THIS device's cloud identity/token). Mirrors the import-backup flow.
+  el.querySelector('#btnCloudRestore')?.addEventListener('click', async () => {
+    const r = await window.hubAPI.cloudPull();
+    if (!r.ok) {
+      if (r.error === 'locked') result('✗ ' + (t('cloud.locked') || 'Unlock first (enter passphrase)'), 'var(--danger)');
+      else result('✗ ' + (r.error || 'pull failed'), 'var(--danger)');
+      return;
+    }
+    if (!r.store) { result(t('cloud.nothing_yet') || 'Nothing in the cloud yet — Sync now first', 'var(--warning, #d97706)'); return; }
+    const ok = await confirmModal(t('cloud.restore_q') || 'Replace all local data with the cloud copy? This cannot be undone.', { danger: true });
+    if (!ok) return;
+    const keepCloud = Object.assign({}, settings.cloud);
+    try {
+      replaceStoreFromSnapshot(r.store);
+      settings.cloud = Object.assign({}, settings.cloud, keepCloud, { lastServerRev: r.rev }); // keep this device's token/login
+      saveAll();
+      initialRender();
+      loadSettingsIntoForm();
+      applyTheme(settings.theme);
+      i18n.set(settings.lang);
+      toast((t('cloud.restored') || 'Restored from cloud') + ' (rev ' + r.rev + ')', 'success');
+    } catch (e) {
+      console.error('cloud restore:', e);
+      toast(t('cloud.restore_error') || 'Could not restore from cloud', 'error');
+    }
+  });
+
   el.querySelector('#btnCloudDisconnect')?.addEventListener('click', async () => {
-    if (!(await confirmModal(t('cloud.disconnect_q') || 'Disconnect from Khayt Cloud? Local data stays; the cloud copy is kept.', { danger: true }))) return;
+    if (!(await confirmModal(t('cloud.disconnect_q') || 'Sign out of Khayt Cloud on this device? Local data stays; the cloud copy is kept.', { danger: true }))) return;
     await window.hubAPI.cloudLock();
     settings.cloud = Object.assign({}, settings.cloud, { enabled: false });
     saveAll();
     renderCloudSettings();
-    toast(t('cloud.disconnected') || 'Disconnected', 'success');
+    toast(t('cloud.disconnected') || 'Signed out', 'success');
   });
 }
 
