@@ -942,6 +942,84 @@ const CLOUD_PORTAL_STATUS_LABELS = {
   printing: 'Printing', post: 'Post-processing', completed: 'Completed',
 };
 
+/** AI assist: draft a customer message for an order (status update, quote
+ *  follow-up, payment reminder, …). Uses the existing aiExtract IPC + the
+ *  owner's Anthropic key. The draft is always editable before sending. */
+async function aiDraftReply(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+  const ai = settings.ai || {};
+  if (!ai.enabled || !ai.apiKey) {
+    toast(t('ai.reply_need_key') || 'Enable AI assist (with your API key) in Settings first', 'error');
+    return;
+  }
+  if (typeof KhaytAiReply === 'undefined') { toast('AI reply module not loaded', 'error'); return; }
+  const client = order.clientId ? clients.find(c => c.id === order.clientId) : null;
+  const cur = (typeof currencySymbol === 'function') ? currencySymbol() : '';
+  const intents = KhaytAiReply.REPLY_INTENTS;
+
+  const generate = async (intent, extra, statusEl) => {
+    statusEl.textContent = t('ai.reply_drafting') || 'Drafting…';
+    try {
+      const system = KhaytAiReply.buildReplySystem({ shopName: settings.bizEn || settings.bizAr || 'Khayt', lang: settings.lang });
+      const request = KhaytAiReply.buildReplyRequest({ order, client, intent, currency: cur, extra });
+      const r = await window.hubAPI.aiExtract({ apiKey: ai.apiKey, model: ai.model || 'claude-opus-4-8', system, request, schema: KhaytAiReply.REPLY_SCHEMA });
+      if (!r || !r.ok || !r.draft) return { ok: false, error: (r && r.error) || 'AI request failed' };
+      return { ok: true, message: KhaytAiReply.pickMessage(r.draft) };
+    } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+  };
+
+  const intentOpts = intents.map(i =>
+    `<option value="${escapeHtml(i.id)}">${escapeHtml(t('ai.reply_intent_' + i.id) || i.label)}</option>`).join('');
+
+  openFormModal({
+    title: t('ai.reply_title') || 'Draft message with AI',
+    saveLabel: t('ai.reply_generate') || 'Generate',
+    bodyHtml: `
+      <label>${escapeHtml(t('ai.reply_intent') || 'What kind of message?')}</label>
+      <select id="arIntent">${intentOpts}</select>
+      <label style="margin-top:8px;">${escapeHtml(t('ai.reply_extra') || 'Extra note (optional)')}</label>
+      <input type="text" id="arExtra" placeholder="${escapeHtml(t('ai.reply_extra_ph') || 'e.g. mention free delivery this week')}">
+      <p id="arStatus" style="font-size:12px;color:var(--text-muted);min-height:14px;margin:8px 0 0;"></p>
+      <textarea id="arDraft" rows="5" style="width:100%;margin-top:6px;display:none;"></textarea>
+      <div id="arSend" style="display:none;gap:8px;flex-wrap:wrap;margin-top:8px;">
+        <button type="button" class="btn small" id="arCopy">${escapeHtml(t('common.copy') || 'Copy')}</button>
+        <button type="button" class="btn small primary" id="arWa">${escapeHtml(t('inv.share_whatsapp') || 'Share WhatsApp')}</button>
+        ${client?.email ? `<button type="button" class="btn small" id="arEmail">${escapeHtml(t('ai.reply_email') || 'Email')}</button>` : ''}
+      </div>`,
+    onMount(modal) {
+      const draftEl = modal.querySelector('#arDraft');
+      modal.querySelector('#arCopy')?.addEventListener('click', async () => {
+        try { await navigator.clipboard.writeText(draftEl.value); toast(t('common.copied') || 'Copied!', 'success'); }
+        catch { toast(draftEl.value, 'info', 6000); }
+      });
+      modal.querySelector('#arWa')?.addEventListener('click', async () => {
+        const msg = draftEl.value;
+        if (window.hubAPI?.shareWhatsApp) await window.hubAPI.shareWhatsApp({ phone: client?.phone || '', message: msg, pdfPath: null });
+        else window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+      });
+      modal.querySelector('#arEmail')?.addEventListener('click', () => {
+        const subj = (settings.bizEn || settings.bizAr || 'Khayt') + ' — ' + (order.project || order.id);
+        window.hubAPI?.openExternal?.(`mailto:${client.email}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(draftEl.value)}`);
+      });
+    },
+    // "Generate" fills the draft area for editing instead of closing.
+    async onSave(modal) {
+      const intent = modal.querySelector('#arIntent').value;
+      const extra = modal.querySelector('#arExtra').value.trim();
+      const status = modal.querySelector('#arStatus');
+      const draftEl = modal.querySelector('#arDraft');
+      const r = await generate(intent, extra, status);
+      if (!r.ok) { status.textContent = '✗ ' + r.error; status.style.color = 'var(--danger)'; return false; }
+      status.textContent = t('ai.reply_review') || 'Review & edit, then send:';
+      status.style.color = 'var(--text-muted)';
+      draftEl.value = r.message; draftEl.style.display = 'block';
+      modal.querySelector('#arSend').style.display = 'flex';
+      return false; // keep the modal open for editing/sending
+    },
+  });
+}
+
 /** Publish an order's status to Khayt Cloud as a public link (owner-curated,
  *  plaintext — only what's shown below; the rest of your data stays encrypted). */
 async function publishOrderToCloudPortal(orderId) {
@@ -1342,6 +1420,7 @@ function trackShipment(trackingNumber, carrier) {
     autoExportStatusPage,
     openSavedStatusPage,
     openCustomerPortalModal,
+    aiDraftReply,
     openQuoteApprovalLinkModal,
     clearAllLogs,
     sendTelegramForOrder,
