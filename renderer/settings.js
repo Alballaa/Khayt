@@ -265,6 +265,55 @@ function buildDigestEmailHtml() {
 </html>`;
 }
 
+function renderAiSettings() {
+  const el = $('#aiSettingsSection');
+  if (!el) return;
+  const ai = settings.ai || {};
+  el.innerHTML = `
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:0;">
+      <input type="checkbox" id="aiEnabled" style="width:auto;margin:0;" ${ai.enabled ? 'checked' : ''}>
+      <span style="font-weight:600;font-size:13px;">${escapeHtml(t('calc.ai_quote') || 'AI quote')}</span>
+    </label>
+    <label style="margin-top:10px;">${escapeHtml(t('calc.ai_key') || 'Anthropic API key')}</label>
+    <input type="password" id="aiKeySetting" value="${escapeHtml(secretInputValue(ai.apiKey))}" placeholder="sk-ant-...">
+    <label style="margin-top:10px;">${escapeHtml(t('set.ai_model') || 'Model')}</label>
+    <input type="text" id="aiModelSetting" value="${escapeHtml(ai.model || 'claude-opus-4-8')}" placeholder="claude-opus-4-8">
+    <div style="display:flex;gap:8px;align-items:center;margin-top:10px;">
+      <button id="btnSaveAiSettings" class="btn primary small">${escapeHtml(t('common.save') || 'Save')}</button>
+      <button id="btnTestAiSettings" class="btn small">🔌 ${escapeHtml(t('calc.ai_test') || 'Test connection')}</button>
+      <span id="aiSettingsTestResult" style="font-size:12px;"></span>
+    </div>`;
+
+  el.querySelector('#btnSaveAiSettings')?.addEventListener('click', () => {
+    settings.ai = {
+      enabled: el.querySelector('#aiEnabled').checked,
+      model: el.querySelector('#aiModelSetting').value.trim() || 'claude-opus-4-8',
+      apiKey: secretInputSave(ai.apiKey, el.querySelector('#aiKeySetting').value.trim()),
+    };
+    saveAll();
+    toast(t('common.save') || 'Saved', 'success');
+  });
+
+  el.querySelector('#btnTestAiSettings')?.addEventListener('click', async () => {
+    const res = el.querySelector('#aiSettingsTestResult');
+    const typed = el.querySelector('#aiKeySetting').value.trim();
+    const key = typed || settings.ai?.apiKey || ai.apiKey || '';
+    if (!key) { res.textContent = '✗ ' + (t('calc.ai_need_key') || 'Enter an API key'); res.style.color = 'var(--danger)'; return; }
+    res.textContent = t('calc.ai_testing') || 'Testing…'; res.style.color = 'var(--text-muted)';
+    try {
+      const r = await window.hubAPI.aiExtract({
+        apiKey: key,
+        model: el.querySelector('#aiModelSetting').value.trim() || 'claude-opus-4-8',
+        system: (typeof KhaytAiQuote !== 'undefined') ? KhaytAiQuote.buildSystemContext(inventory) : '',
+        request: 'Estimate: one small 20mm PLA calibration cube.',
+        schema: (typeof KhaytAiQuote !== 'undefined') ? KhaytAiQuote.EXTRACTION_SCHEMA : {},
+      });
+      if (r && r.ok && r.draft) { res.textContent = '✓ ' + (t('calc.ai_test_ok') || 'Connection works'); res.style.color = 'var(--success)'; }
+      else { res.textContent = '✗ ' + ((r && r.error) || 'failed'); res.style.color = 'var(--danger)'; }
+    } catch (e) { res.textContent = '✗ ' + (e.message || e); res.style.color = 'var(--danger)'; }
+  });
+}
+
 function renderDigestSettings() {
   const el = $('#emailDigestSection');
   if (!el) return;
@@ -1362,6 +1411,7 @@ function loadSettingsIntoForm() {
   renderTelegramSettings();
   // Feature I: Email digest scheduler
   renderDigestSettings();
+  renderAiSettings();
   // Feature 7 (new 8-pack): Operator lock section
   renderOperatorLockSettings();
   // Feature 8 (new 8-pack): Loyalty tiers
@@ -2046,6 +2096,7 @@ function renderTelegramSettings() {
     renderLocationsSettings,
     renderEmailNotificationSettings,
     renderDigestSettings,
+    renderAiSettings,
     renderOperatorLockSettings,
     renderLoyaltyTiersSettings,
     renderWebhookSettings,
