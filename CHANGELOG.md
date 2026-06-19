@@ -4,6 +4,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [2.8.0-beta.2] - 2026-06-19
+
+**Pre-release (beta)** — the first 2.8 desktop feature drop: AI-assisted quoting, recurring maintenance, team roles, accounting export, print-farm scheduling, and more. The 3.0 platform foundations are present but dormant (opt-in, no behavior change when off).
+
 ### Added
 
 - **AI quote (BYO key)** — describe a job in plain language and the assistant fills the cost calculator (print time, weight, material); the existing calculator still computes the price. Opt-in, off by default, uses your own Anthropic API key (stored encrypted, redacted from exports), and falls back to the manual form on any error. *Set up via the "🤖 AI quote" button by the calculator.*
