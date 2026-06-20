@@ -4,6 +4,18 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [2.8.0-beta.4] - 2026-06-20
+
+**Pre-release (beta)** — follow-up to beta.3: smarter restocking and a self-maintaining customer portal.
+
+### Added
+
+- **Reorder suggestions** — beyond the low-stock badge: the dashboard low-stock card now opens a consumption-aware list that estimates each spool's usage from the last 30 days of completed orders, projects **days until empty**, and suggests a **reorder quantity** to cover the next ~45 days. **Copy list** / **Share WhatsApp** turns it into a supplier-ready order.
+
+### Changed
+
+- **Customer portal links stay current** — a published order/quote status link now **auto-refreshes when the order's status changes** (no manual re-publish). An approved quote that advances to Pending updates the public page automatically.
+
 ## [2.8.0-beta.3] - 2026-06-19
 
 **Pre-release (beta)** — the 3.0 platform comes alive: **Khayt Cloud** (opt-in, end-to-end-encrypted sync) goes from dormant foundation to a working multi-device service, plus a **customer portal** and **AI-drafted customer messages**. Everything is opt-in — with cloud off, the app behaves exactly as before and runs fully offline.
