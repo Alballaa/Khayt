@@ -2743,6 +2743,15 @@
   "notify.journal_exported": "تم تصدير قيد المحاسبة ✓",
   "dash.printers_live": "الطابعات — مباشر",
   "dash.printer_offline": "غير متصل",
-  "dash.no_job": "خامل"
+  "dash.no_job": "خامل",
+  "intake.requests": "طلبات العملاء",
+  "intake.empty": "لا توجد طلبات جديدة.",
+  "intake.import": "إنشاء عرض سعر",
+  "intake.dismiss": "تجاهل",
+  "intake.copy_link": "نسخ رابط الطلب",
+  "intake.link_copied": "تم نسخ رابط الطلب",
+  "intake.connect_first": "وصّل خَيط كلاود أولاً.",
+  "intake.load_fail": "تعذّر تحميل الطلبات:",
+  "intake.imported": "تم إنشاء عرض سعر من الطلب"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

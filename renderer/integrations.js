@@ -1459,8 +1459,156 @@ function trackShipment(trackingNumber, carrier) {
   window.hubAPI?.openExternal?.(url) || window.open(url, '_blank');
 }
 (function (global) {
+  /* ── Customer order intake (inbound requests → draft quotes) ──────
+   * Customers submit a request at {cloudUrl}/intake/{shopId}; the owner pulls
+   * the inbox here and turns a request into a draft quote (+ a linked client). */
+  function cloudCfgForIntake() {
+    const c = (typeof settings !== 'undefined' && settings.cloud) || {};
+    return (c.shopId && c.token && c.url) ? c : null;
+  }
+
+  async function copyIntakeLink() {
+    const c = cloudCfgForIntake();
+    if (!c) { toast(t('intake.connect_first'), 'error'); return; }
+    const link = `${String(c.url).replace(/\/+$/, '')}/intake/${c.shopId}`;
+    try { await navigator.clipboard.writeText(link); toast(t('intake.link_copied'), 'success'); }
+    catch (e) { toast(link, 'info', 6000); }
+  }
+
+  function intakeRequestRow(it) {
+    const p = it.payload || {};
+    const when = it.createdAt ? new Date(it.createdAt).toLocaleString() : '';
+    const meta = [
+      p.qty ? `× ${escapeHtml(p.qty)}` : '',
+      p.material ? `🧵 ${escapeHtml(p.material)}` : '',
+      p.name ? `👤 ${escapeHtml(p.name)}` : '',
+      p.contact ? `✉ ${escapeHtml(p.contact)}` : '',
+    ].filter(Boolean).join('  ·  ');
+    return `<div class="card" data-intake="${escapeHtml(it.id)}" style="padding:12px;margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;">
+        <strong style="font-size:14px;">${escapeHtml(p.title || (p.description || '').slice(0, 60) || '—')}</strong>
+        <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${escapeHtml(when)}</span>
+      </div>
+      ${p.description ? `<div style="font-size:13px;white-space:pre-wrap;margin-bottom:6px;">${escapeHtml(p.description)}</div>` : ''}
+      ${meta ? `<div style="font-size:12.5px;color:var(--text-muted);">${meta}</div>` : ''}
+      ${p.link ? `<div style="font-size:12.5px;margin-top:4px;"><a href="#" data-intake-link="${escapeHtml(p.link)}" style="color:var(--primary);">${escapeHtml(p.link)}</a></div>` : ''}
+      ${p.photo ? `<img src="${escapeHtml(p.photo)}" alt="" style="max-width:160px;border-radius:8px;margin-top:8px;border:1px solid var(--border-soft);">` : ''}
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button class="btn primary small" data-intake-import="${escapeHtml(it.id)}">${escapeHtml(t('intake.import'))}</button>
+        <button class="btn ghost small" data-intake-dismiss="${escapeHtml(it.id)}">${escapeHtml(t('intake.dismiss'))}</button>
+      </div>
+    </div>`;
+  }
+
+  async function openOrderRequestsModal() {
+    const c = cloudCfgForIntake();
+    if (!c) { toast(t('intake.connect_first'), 'error'); return; }
+    let items = [];
+    try {
+      const r = await window.hubAPI.cloudIntakeList({ url: c.url, shopId: c.shopId, token: c.token });
+      if (!r || !r.ok) throw new Error((r && r.error) || 'failed');
+      items = r.items || [];
+    } catch (e) { toast(`${t('intake.load_fail')} ${e.message}`, 'error'); return; }
+
+    openFormModal({
+      title: `🛎 ${t('intake.requests')} (${items.length})`,
+      noSave: true,
+      bodyHtml: items.length
+        ? `<div id="intakeList">${items.map(intakeRequestRow).join('')}</div>`
+        : `<p style="color:var(--text-muted);">${escapeHtml(t('intake.empty'))}</p>`,
+      onMount(modal) {
+        const byId = (id) => items.find(x => x.id === id);
+        modal.querySelectorAll('[data-intake-link]').forEach(a =>
+          a.addEventListener('click', (e) => { e.preventDefault(); window.hubAPI?.openExternal?.(a.dataset.intakeLink); }));
+        modal.querySelectorAll('[data-intake-import]').forEach(btn =>
+          btn.addEventListener('click', async () => {
+            const it = byId(btn.dataset.intakeImport);
+            if (it) { await importIntakeAsQuote(it, c); modal.querySelector('[data-act="cancel"]')?.click(); }
+          }));
+        modal.querySelectorAll('[data-intake-dismiss]').forEach(btn =>
+          btn.addEventListener('click', async () => {
+            await dismissIntake(btn.dataset.intakeDismiss, c);
+            modal.querySelector(`[data-intake="${CSS.escape(btn.dataset.intakeDismiss)}"]`)?.remove();
+          }));
+      },
+    });
+  }
+
+  // Find-or-create a client from the request's name/contact.
+  function clientFromIntake(p) {
+    const name = (p.name || '').trim();
+    const contact = (p.contact || '').trim();
+    if (!name && !contact) return null;
+    const isEmail = /@/.test(contact);
+    if (contact) {
+      const ex = clients.find(c => isEmail
+        ? String(c.email || '').trim().toLowerCase() === contact.toLowerCase()
+        : String(c.phone || '').trim() === contact);
+      if (ex) return ex.id;
+    }
+    const created = {
+      id: uid('CLI'), nameEn: name || contact, nameAr: '',
+      phone: isEmail ? '' : contact, email: isEmail ? contact : '', source: 'online',
+    };
+    clients.push(created);
+    return created.id;
+  }
+
+  async function importIntakeAsQuote(it, c) {
+    const p = it.payload || {};
+    const clientId = clientFromIntake(p);
+    const now = new Date();
+    const seq = (typeof nextQuoteSeq === 'function') ? nextQuoteSeq() : String(now.getTime()).slice(-4);
+    const prefix = (settings.quotePrefix || 'QUO');
+    const notes = [
+      p.description || '',
+      p.qty ? `Qty: ${p.qty}` : '',
+      p.material ? `Material: ${p.material}` : '',
+      p.link ? `Model: ${p.link}` : '',
+      p.contact ? `Contact: ${p.contact}` : '',
+    ].filter(Boolean).join('\n');
+    const order = {
+      id: `${prefix}-${now.getFullYear()}-${seq}`,
+      date: now.toISOString().split('T')[0],
+      timestamp: now.toISOString(),
+      project: p.title || p.description?.slice(0, 60) || t('intake.requests'),
+      clientId: clientId || null,
+      material: p.material || '',
+      printTime: 0,
+      price: 0,
+      status: 'quote',
+      statusHistory: [{ status: 'quote', at: now.toISOString() }],
+      paymentStatus: 'unpaid',
+      paidAmount: 0,
+      notes: notes,
+      internalNotes: `↳ ${t('intake.requests')}`,
+      attachedFiles: [],
+      parts: [],
+      tags: ['portal'],
+      quoteSentAt: null,
+      quoteVersion: 1,
+      quoteRevisions: [],
+      source: 'online',
+      trackingToken: (() => { const b = new Uint8Array(16); crypto.getRandomValues(b); return Array.from(b, x => x.toString(16).padStart(2, '0')).join(''); })(),
+    };
+    printLog.unshift(order);
+    await dismissIntake(it.id, c, true); // remove from the cloud inbox (best-effort)
+    saveAll();
+    toast(t('intake.imported'), 'success');
+    if (typeof switchTab === 'function') switchTab('logs-tab');
+  }
+
+  async function dismissIntake(id, c, silent) {
+    try {
+      const r = await window.hubAPI.cloudIntakeDelete({ url: c.url, shopId: c.shopId, token: c.token, id });
+      if (!r || !r.ok) throw new Error((r && r.error) || 'failed');
+    } catch (e) { if (!silent) toast(e.message, 'error'); }
+  }
+
   global.BNPL_CATALOG = BNPL_CATALOG;
   const api = {
+    openOrderRequestsModal,
+    copyIntakeLink,
     autoSendEmailNotification,
     checkAndSendDigest,
     fireWebhook,

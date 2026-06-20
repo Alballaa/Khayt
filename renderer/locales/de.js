@@ -2742,6 +2742,15 @@
   "notify.journal_exported": "Buchungsjournal exportiert ✓",
   "dash.printers_live": "Drucker — live",
   "dash.printer_offline": "Offline",
-  "dash.no_job": "Leerlauf"
+  "dash.no_job": "Leerlauf",
+  "intake.requests": "Auftragsanfragen",
+  "intake.empty": "Keine neuen Anfragen.",
+  "intake.import": "Angebot erstellen",
+  "intake.dismiss": "Verwerfen",
+  "intake.copy_link": "Anfrage-Link kopieren",
+  "intake.link_copied": "Anfrage-Link kopiert",
+  "intake.connect_first": "Zuerst Khayt Cloud verbinden.",
+  "intake.load_fail": "Anfragen konnten nicht geladen werden:",
+  "intake.imported": "Angebot aus Anfrage erstellt"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

@@ -2742,6 +2742,15 @@
   "notify.journal_exported": "Journal comptable exporté ✓",
   "dash.printers_live": "Imprimantes — en direct",
   "dash.printer_offline": "Hors ligne",
-  "dash.no_job": "Inactive"
+  "dash.no_job": "Inactive",
+  "intake.requests": "Demandes de commande",
+  "intake.empty": "Aucune nouvelle demande.",
+  "intake.import": "Créer un devis",
+  "intake.dismiss": "Ignorer",
+  "intake.copy_link": "Copier le lien de demande",
+  "intake.link_copied": "Lien de demande copié",
+  "intake.connect_first": "Connectez d'abord Khayt Cloud.",
+  "intake.load_fail": "Impossible de charger les demandes :",
+  "intake.imported": "Devis créé à partir de la demande"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
