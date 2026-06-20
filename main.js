@@ -1165,6 +1165,13 @@ ipcMain.handle('hub:cloud-published-list', async (_e, { url, shopId, token } = {
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
+ipcMain.handle('hub:cloud-billing-me', async (_e, { url, shopId, token } = {}) => {
+  try {
+    token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
+    return { ok: true, ...(await cloudClient.billingMe(url, shopId, token)) };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
 // Store the (already-encrypted) keyset server-side so other devices can fetch it.
 ipcMain.handle('hub:cloud-put-keyset', async (_e, { url, shopId, token, keyset } = {}) => {
   try {

@@ -402,6 +402,22 @@ async function enableCloudAutoSync({ initialPull = true } = {}) {
   } catch (e) { console.error('enableCloudAutoSync:', e); }
 }
 
+/** Fetch + show the shop's billing plan in the cloud card (silent if billing off). */
+async function showCloudPlan(c) {
+  const elx = document.getElementById('cloudPlan');
+  if (!elx || !window.hubAPI?.cloudBillingMe) return;
+  try {
+    const r = await window.hubAPI.cloudBillingMe({ url: c.url, shopId: c.shopId, token: c.token });
+    if (!r || !r.ok || !r.billingEnabled) { elx.textContent = ''; return; }
+    const mb = (r.limits && +r.limits.maxStoreBytes) ? Math.round(+r.limits.maxStoreBytes / (1024 * 1024)) : null;
+    const parts = [(t('cloud.plan') || 'Plan') + ': ' + (r.label || r.plan)];
+    if (!r.active) parts.push(t('cloud.plan_inactive') || 'inactive');
+    if (mb) parts.push((t('cloud.plan_storage') || 'up to') + ' ' + mb + ' MB');
+    elx.textContent = parts.join(' · ');
+    elx.style.color = r.active ? 'var(--text-muted)' : 'var(--danger)';
+  } catch (e) { /* billing is optional — stay silent */ }
+}
+
 function cloudSyncStatusLabel(s) {
   const map = {
     syncing: t('cloud.status_syncing') || 'Syncing…',
@@ -444,6 +460,7 @@ function renderCloudSettings() {
   el.innerHTML = `
     ${connected ? `<p style="font-size:12.5px;margin:0 0 8px;">${escapeHtml(t('cloud.signed_in_as') || 'Signed in as')}: <strong>${escapeHtml(c.email || c.shopId)}</strong> · <span style="color:var(--text-muted);">${escapeHtml(c.url || '')}</span> <span id="cloudSyncStatus" style="font-size:12px;margin-inline-start:6px;color:var(--text-muted);">${escapeHtml(syncStatus)}</span></p>` : ''}
     ${showUnverified ? `<div style="background:var(--warning-bg,#fff7ed);border:1px solid var(--warning,#d97706);border-radius:6px;padding:8px 10px;margin:0 0 8px;font-size:12.5px;">⚠ ${escapeHtml(t('cloud.unverified') || 'Email not verified.')} <button id="btnCloudVerify" class="btn small" style="margin-inline-start:6px;">${escapeHtml(t('cloud.verify_email') || 'Verify email')}</button></div>` : ''}
+    ${connected ? `<p id="cloudPlan" style="font-size:12.5px;margin:0 0 8px;color:var(--text-muted);"></p>` : ''}
     <label>${escapeHtml(t('cloud.url') || 'Server URL')}</label>
     <input type="text" id="cloudUrl" value="${escapeHtml(c.url || 'https://cloud.khaytapp.com')}" ${connected ? 'disabled' : ''} placeholder="https://cloud.khaytapp.com">
     ${!connected ? `
@@ -629,6 +646,8 @@ function renderCloudSettings() {
     renderCloudSettings();
     toast(t('cloud.disconnected') || 'Signed out', 'success');
   });
+
+  if (connected) showCloudPlan(c); // async; fills #cloudPlan if the server has billing on
 }
 
 function renderDigestSettings() {
