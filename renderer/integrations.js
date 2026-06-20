@@ -1036,6 +1036,12 @@ function buildPortalPayload(order) {
     payload.amount = (+order.price).toFixed(2);
     try { if (typeof currencySymbol === 'function') payload.currency = currencySymbol(); } catch (e) { /* optional */ }
   }
+  // Deposit (stored on the order so it survives status auto-refresh re-publishes).
+  if (isQuote && +order.cloudDeposit) {
+    payload.depositAmount = (+order.cloudDeposit).toFixed(2);
+    if (!payload.currency) { try { if (typeof currencySymbol === 'function') payload.currency = currencySymbol(); } catch (e) { /* optional */ } }
+  }
+  if (isQuote && order.cloudPayUrl) payload.payUrl = order.cloudPayUrl;
   if (order.status === 'on_hold' && order.holdReason) payload.note = String(order.holdReason);
   return { isQuote, payload };
 }
@@ -1060,6 +1066,32 @@ async function publishOrderToCloudPortal(orderId) {
   if (!(c.enabled && c.shopId)) { toast(t('cloud.portal_need_connect') || 'Connect Khayt Cloud first (Settings)', 'error'); return; }
   const pubToken = order.trackingToken;
   if (!pubToken) { toast(t('cloud.portal_no_token') || 'This order has no tracking token yet', 'error'); return; }
+
+  // For a quote, first let the owner attach an optional deposit + their own pay link.
+  if (order.status === 'quote' && !order._skipDepositPrompt) {
+    openFormModal({
+      title: t('cloud.portal_quote_title') || 'Quote approval link',
+      saveLabel: t('cloud.deposit_publish') || 'Publish link',
+      bodyHtml: `
+        <label>${escapeHtml(t('cloud.deposit_amount') || 'Deposit to request (optional)')}</label>
+        <input id="qpDep" type="number" min="0" step="0.01" value="${escapeHtml(order.cloudDeposit != null ? order.cloudDeposit : '')}">
+        <label style="margin-top:8px;">${escapeHtml(t('cloud.deposit_payurl') || 'Payment link (optional)')}</label>
+        <input id="qpPay" type="url" placeholder="https://… your provider's pay link" value="${escapeHtml(order.cloudPayUrl || settings.cloud?.lastPayUrl || '')}">
+        <p style="font-size:11.5px;color:var(--text-muted);margin-top:6px;">${escapeHtml(t('cloud.deposit_hint') || 'Paste a payment link from any provider. The customer pays there; "paid" updates via your provider webhook. Leave blank for no deposit.')}</p>`,
+      onSave: async (modal) => {
+        const dep = modal.querySelector('#qpDep').value.trim();
+        const payUrl = modal.querySelector('#qpPay').value.trim();
+        order.cloudDeposit = dep ? +dep : null;
+        order.cloudPayUrl = payUrl || null;
+        if (payUrl) { settings.cloud = settings.cloud || {}; settings.cloud.lastPayUrl = payUrl; }
+        saveAll();
+        order._skipDepositPrompt = true;
+        await publishOrderToCloudPortal(orderId); // re-enter; now skips the prompt
+        delete order._skipDepositPrompt;
+      },
+    });
+    return;
+  }
 
   const { isQuote, payload } = buildPortalPayload(order);
 
@@ -1109,15 +1141,21 @@ async function publishOrderToCloudPortal(orderId) {
         if (!lst.ok) { resp.textContent = '✗ ' + (lst.error || 'failed'); resp.style.color = 'var(--danger)'; return; }
         const item = (lst.items || []).find(x => x.token === pubToken);
         const act = item && item.action;
-        if (!act || !act.type) { resp.textContent = t('cloud.portal_no_response') || 'No response yet'; resp.style.color = 'var(--text-muted)'; return; }
+        const paid = item && item.payment && item.payment.status === 'paid';
+        const paidNote = paid ? ('  💰 ' + (t('cloud.portal_deposit_paid') || 'deposit paid')) : '';
+        if (!act || !act.type) {
+          resp.textContent = (paid ? ('✓ ' + (t('cloud.portal_deposit_paid') || 'Deposit paid')) : (t('cloud.portal_no_response') || 'No response yet'));
+          resp.style.color = paid ? 'var(--success)' : 'var(--text-muted)';
+          return;
+        }
         const approved = act.type === 'approve';
-        resp.textContent = (approved ? '✓ ' : '✗ ') + (approved ? (t('cloud.portal_approved') || 'Customer approved the quote') : (t('cloud.portal_declined') || 'Customer declined the quote'));
+        resp.textContent = (approved ? '✓ ' : '✗ ') + (approved ? (t('cloud.portal_approved') || 'Customer approved the quote') : (t('cloud.portal_declined') || 'Customer declined the quote')) + paidNote;
         resp.style.color = approved ? 'var(--success)' : 'var(--danger)';
         // Close the loop: an approved quote advances the order to Pending via the
         // normal status-change path (history, webhooks, re-renders all fire).
         if (approved && order.status === 'quote' && typeof updateStatus === 'function') {
           updateStatus(order.id, 'pending');
-          resp.textContent = '✓ ' + (t('cloud.portal_approved_advanced') || 'Customer approved — order moved to Pending');
+          resp.textContent = '✓ ' + (t('cloud.portal_approved_advanced') || 'Customer approved — order moved to Pending') + paidNote;
         }
       });
       modal.querySelector('#cpUnpub')?.addEventListener('click', async () => {
