@@ -2773,6 +2773,7 @@
   "slicer.send_title": "切片并打印",
   "slicer.start_confirm": "在 {name} 上切片并开始打印？",
   "slicer.sending": "切片并发送中…",
-  "slicer.sent": "已发送至 {name} — 已开始打印 ✓"
+  "slicer.sent": "已发送至 {name} — 已开始打印 ✓",
+  "slicer.send_gcode_confirm": "上传此 G-code 并在 {name} 上开始打印？"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

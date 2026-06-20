@@ -59,6 +59,7 @@ contextBridge.exposeInMainWorld('hubAPI', {
   openFile:  (filePath) => ipcRenderer.invoke('hub:open-file', filePath),
   slice:     (opts) => ipcRenderer.invoke('hub:slice', opts),
   sliceAndPrint: (opts) => ipcRenderer.invoke('hub:slice-and-print', opts),
+  printerSendGcode: (opts) => ipcRenderer.invoke('hub:printer-send-gcode', opts),
 
   // Feature 7: Save HTML to temp file and open
   saveHtml:  (html, filename, opts) => ipcRenderer.invoke('hub:save-html', html, filename, opts),

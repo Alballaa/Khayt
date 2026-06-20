@@ -2775,6 +2775,7 @@
   "slicer.send_title": "Slice & print",
   "slicer.start_confirm": "Slice and start printing on {name}?",
   "slicer.sending": "Slicing & sending…",
-  "slicer.sent": "Sent to {name} — printing started ✓"
+  "slicer.sent": "Sent to {name} — printing started ✓",
+  "slicer.send_gcode_confirm": "Upload this G-code and start printing on {name}?"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

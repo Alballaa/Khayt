@@ -819,15 +819,18 @@ function estimateMachineQueueClearDate(machineId, excludeOrderId) {
 async function sliceAndPrintForMachine(machineId) {
   const machine = machines.find((m) => m.id === machineId);
   if (!machine || !(machine.printerApi && machine.printerApi.type && machine.printerApi.type !== 'none')) return;
+  const filePath = await window.hubAPI?.pickFile?.({ filters: [{ name: 'Model or G-code', extensions: ['stl', '3mf', 'obj', 'step', 'stp', 'gcode', 'gco', 'g'] }] });
+  if (!filePath) return;
+  const isGcode = /\.(gcode|gco|g)$/i.test(filePath);
   const sl = settings.slicer || {};
-  if (!sl.path) { toast(t('slicer.no_config'), 'error'); return; }
-  const modelPath = await window.hubAPI?.pickFile?.({ filters: [{ name: '3D model', extensions: ['stl', '3mf', 'obj', 'step', 'stp'] }] });
-  if (!modelPath) return;
-  const ok = await confirmModal(t('slicer.start_confirm', { name: machine.name }) || `Slice and start printing on ${machine.name}?`);
+  if (!isGcode && !sl.path) { toast(t('slicer.no_config'), 'error'); return; } // slicing needs a slicer; pre-sliced G-code doesn't
+  const ok = await confirmModal(t(isGcode ? 'slicer.send_gcode_confirm' : 'slicer.start_confirm', { name: machine.name }));
   if (!ok) return;
   toast(t('slicer.sending') || 'Slicing & sending…', 'info');
   try {
-    const r = await window.hubAPI.sliceAndPrint({ modelPath, slicerPath: sl.path, args: sl.args, machine, startPrint: true });
+    const r = isGcode
+      ? await window.hubAPI.printerSendGcode({ machine, gcodePath: filePath, startPrint: true })
+      : await window.hubAPI.sliceAndPrint({ modelPath: filePath, slicerPath: sl.path, args: sl.args, machine, startPrint: true });
     if (!r || !r.ok) throw new Error((r && r.error) || 'failed');
     toast(t('slicer.sent', { name: machine.name }), 'success');
   } catch (e) {

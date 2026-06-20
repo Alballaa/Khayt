@@ -2773,6 +2773,7 @@
   "slicer.send_title": "Trancher et imprimer",
   "slicer.start_confirm": "Trancher et lancer l'impression sur {name} ?",
   "slicer.sending": "Découpe et envoi…",
-  "slicer.sent": "Envoyé à {name} — impression lancée ✓"
+  "slicer.sent": "Envoyé à {name} — impression lancée ✓",
+  "slicer.send_gcode_confirm": "Téléverser ce G-code et lancer l'impression sur {name} ?"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
