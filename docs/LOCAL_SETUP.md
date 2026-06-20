@@ -9,7 +9,7 @@
 ## First run
 
 ```bash
-git clone https://github.com/Alballaa/Khayt.git
+git clone https://github.com/khaytapp/Khayt.git
 cd Khayt
 npm install
 npm start

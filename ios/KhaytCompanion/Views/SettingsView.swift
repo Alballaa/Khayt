@@ -73,7 +73,7 @@ struct SettingsView: View {
                     header: Text(L10n.tr("settings.widget")),
                     footer: Text(L10n.tr("settings.widget.footer"))
                 ) {
-                    Link("How to add the widget", destination: URL(string: "https://github.com/Alballaa/Khayt/blob/main/ios/XCODE_WIDGET.md")!)
+                    Link("How to add the widget", destination: URL(string: "https://github.com/khaytapp/Khayt/blob/main/ios/XCODE_WIDGET.md")!)
                 }
 
                 Section {
@@ -102,7 +102,7 @@ struct SettingsView: View {
                 Section(header: Text(L10n.tr("settings.docs"))) {
                     Link(
                         L10n.tr("settings.docs"),
-                        destination: URL(string: "https://github.com/Alballaa/Khayt/blob/main/docs/LAN_API.md")!
+                        destination: URL(string: "https://github.com/khaytapp/Khayt/blob/main/docs/LAN_API.md")!
                     )
                 }
             }

@@ -29,4 +29,4 @@ if (files.length === 0) {
 const paths = files.map((f) => path.join('assets', f));
 console.log(`Uploading ${paths.length} screenshots to release ${tag}…`);
 execSync(`gh release upload ${tag} ${paths.join(' ')} --clobber`, { cwd: root, stdio: 'inherit' });
-console.log(`Done: https://github.com/Alballaa/Khayt/releases/tag/${tag}`);
+console.log(`Done: https://github.com/khaytapp/Khayt/releases/tag/${tag}`);

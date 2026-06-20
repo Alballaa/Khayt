@@ -79,7 +79,7 @@
     "productName": "Khayt",
     "publish": {
       "provider": "github",
-      "owner": "Alballaa",
+      "owner": "khaytapp",
       "repo": "Khayt"
     },
     "directories": {

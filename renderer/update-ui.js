@@ -240,7 +240,7 @@
           'New features ship on <strong>main</strong> first — in your repo folder run ' +
           '<code>git pull origin main</code> then <code>npm start</code>. ' +
           'Installed DMG/auto-update only moves when a new GitHub Release is published ' +
-          '(see <a href="https://github.com/Alballaa/Khayt/blob/main/docs/RELEASE-HOLD.md" target="_blank" rel="noopener">release hold</a>).';
+          '(see <a href="https://github.com/khaytapp/Khayt/blob/main/docs/RELEASE-HOLD.md" target="_blank" rel="noopener">release hold</a>).';
       }
       return;
     }

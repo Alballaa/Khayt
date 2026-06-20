@@ -21,20 +21,20 @@ Living priorities for maintainers. Not a public commitment calendar — reorder 
 
 | Bundle | Theme | PR | Highlights |
 |--------|--------|-----|------------|
-| **A** | Production shop | [#49](https://github.com/Alballaa/Khayt/pull/49) | LAN printer polling (RFC1918), gift card checkout, WIP hard limits |
-| **B** | ZATCA & email | [#50](https://github.com/Alballaa/Khayt/pull/50) | Auto-submit pipeline, submission log, custom SMTP |
-| **C** | Customer portal | [#51](https://github.com/Alballaa/Khayt/pull/51) | LAN quote approval links, portal survey, share modal |
-| **D** | Platform hardening | [#53](https://github.com/Alballaa/Khayt/pull/53) | E2E critical flows, ensure-electron, stale PR cleanup |
+| **A** | Production shop | [#49](https://github.com/khaytapp/Khayt/pull/49) | LAN printer polling (RFC1918), gift card checkout, WIP hard limits |
+| **B** | ZATCA & email | [#50](https://github.com/khaytapp/Khayt/pull/50) | Auto-submit pipeline, submission log, custom SMTP |
+| **C** | Customer portal | [#51](https://github.com/khaytapp/Khayt/pull/51) | LAN quote approval links, portal survey, share modal |
+| **D** | Platform hardening | [#53](https://github.com/khaytapp/Khayt/pull/53) | E2E critical flows, ensure-electron, stale PR cleanup |
 
 ### Superseded / closed
 
 | PR | Reason |
 |----|--------|
-| [#3](https://github.com/Alballaa/Khayt/pull/3) | Early sidebar shell; **Studio shell on `main`** replaced it. Close without merging. |
-| [#11](https://github.com/Alballaa/Khayt/pull/11) | Lint scope; superseded by `npm run lint` / `npm run check` on `main`. |
-| [#31](https://github.com/Alballaa/Khayt/pull/31) | `test/store-io.test.js` already on `main`; branch is an old refactor stack. |
-| [#52](https://github.com/Alballaa/Khayt/pull/52) | Wrong Bundle D scope (daily ops). Replaced by platform-hardening branch. |
-| [#59](https://github.com/Alballaa/Khayt/pull/59)–[#60](https://github.com/Alballaa/Khayt/pull/60) | Security scans consolidated in **v2.3.0** (`release-hardening`). |
+| [#3](https://github.com/khaytapp/Khayt/pull/3) | Early sidebar shell; **Studio shell on `main`** replaced it. Close without merging. |
+| [#11](https://github.com/khaytapp/Khayt/pull/11) | Lint scope; superseded by `npm run lint` / `npm run check` on `main`. |
+| [#31](https://github.com/khaytapp/Khayt/pull/31) | `test/store-io.test.js` already on `main`; branch is an old refactor stack. |
+| [#52](https://github.com/khaytapp/Khayt/pull/52) | Wrong Bundle D scope (daily ops). Replaced by platform-hardening branch. |
+| [#59](https://github.com/khaytapp/Khayt/pull/59)–[#60](https://github.com/khaytapp/Khayt/pull/60) | Security scans consolidated in **v2.3.0** (`release-hardening`). |
 
 ## Completed (2.1.0 — 2026-05-30)
 
