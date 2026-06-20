@@ -2774,6 +2774,7 @@
   "slicer.start_confirm": "Trancher et lancer l'impression sur {name} ?",
   "slicer.sending": "Découpe et envoi…",
   "slicer.sent": "Envoyé à {name} — impression lancée ✓",
-  "slicer.send_gcode_confirm": "Téléverser ce G-code et lancer l'impression sur {name} ?"
+  "slicer.send_gcode_confirm": "Téléverser ce G-code et lancer l'impression sur {name} ?",
+  "slicer.no_printer": "Affectez d'abord cette commande à une machine dotée d'une API d'imprimante."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

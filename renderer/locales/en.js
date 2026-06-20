@@ -2776,6 +2776,7 @@
   "slicer.start_confirm": "Slice and start printing on {name}?",
   "slicer.sending": "Slicing & sending…",
   "slicer.sent": "Sent to {name} — printing started ✓",
-  "slicer.send_gcode_confirm": "Upload this G-code and start printing on {name}?"
+  "slicer.send_gcode_confirm": "Upload this G-code and start printing on {name}?",
+  "slicer.no_printer": "Assign this order to a machine with a printer API first."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

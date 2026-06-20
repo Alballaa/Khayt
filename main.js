@@ -581,6 +581,24 @@ ipcMain.handle('hub:slice-and-print', async (_e, { modelPath, slicerPath, args, 
   finally { rmDir(outDir); }
 });
 
+// Print an order's attached file straight to a machine: resolve the file inside
+// the order-files folder (confined), slice it if it's a model or upload directly
+// if it's already G-code, then start the print.
+ipcMain.handle('hub:print-order-file', async (_e, { orderFile, machine, slicerPath, args, startPrint } = {}) => {
+  let outDir;
+  try {
+    const full = path.join(orderFilesDir(), path.basename(String(orderFile || '')));
+    if (!orderFile || !fs.existsSync(full)) return { ok: false, error: 'Attached file not found.' };
+    if (/\.(gcode|gco|g|nc)$/i.test(full)) return await uploadGcodeToPrinter(machine, full, startPrint);
+    const r = await runSlice({ modelPath: full, slicerPath, args });
+    if (!r.ok) return r;
+    outDir = r.outDir;
+    const up = await uploadGcodeToPrinter(machine, r.gcodePath, startPrint);
+    return up.ok ? { ok: true, meta: r.meta, ...up } : up;
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+  finally { rmDir(outDir); }
+});
+
 // --- Open file path — restricted to app userData and system temp directories ---
 ipcMain.handle('hub:open-file', async (_e, filePath) => {
   const s = path.resolve(String(filePath || ''));

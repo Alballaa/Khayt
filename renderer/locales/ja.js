@@ -2774,6 +2774,7 @@
   "slicer.start_confirm": "{name} でスライスして印刷を開始しますか？",
   "slicer.sending": "スライスして送信中…",
   "slicer.sent": "{name} に送信しました — 印刷を開始 ✓",
-  "slicer.send_gcode_confirm": "この G-code をアップロードして {name} で印刷を開始しますか？"
+  "slicer.send_gcode_confirm": "この G-code をアップロードして {name} で印刷を開始しますか？",
+  "slicer.no_printer": "先にこの注文をプリンターAPI対応のマシンに割り当ててください。"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

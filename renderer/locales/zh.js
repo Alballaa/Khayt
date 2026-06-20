@@ -2774,6 +2774,7 @@
   "slicer.start_confirm": "在 {name} 上切片并开始打印？",
   "slicer.sending": "切片并发送中…",
   "slicer.sent": "已发送至 {name} — 已开始打印 ✓",
-  "slicer.send_gcode_confirm": "上传此 G-code 并在 {name} 上开始打印？"
+  "slicer.send_gcode_confirm": "上传此 G-code 并在 {name} 上开始打印？",
+  "slicer.no_printer": "请先将此订单分配给具有打印机 API 的机器。"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

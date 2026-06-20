@@ -803,10 +803,12 @@ function wireEvents() {
     const resinCompleteBtn = e.target.closest('[data-act="resin-complete"]');
     const shareTrackBtn = e.target.closest('[data-act="share-tracking-link"]');
     const printLabelBtn = e.target.closest('[data-act="print-label"]');
+    const kanbanSliceBtn = e.target.closest('[data-act="kanban-slice-print"]');
     const pauseTimerBtn = e.target.closest('[data-act="pause-timer"]');
     const resumeTimerBtn = e.target.closest('[data-act="resume-timer"]');
     if (s)  updateStatus(s.dataset.id, s.dataset.to);
     if (printLabelBtn) { generateOrderLabel(printLabelBtn.dataset.id); return; }
+    if (kanbanSliceBtn) { kanbanSlicePrint(kanbanSliceBtn.dataset.id); return; }
     if (pauseTimerBtn) {
       const ord = printLog.find(o => o.id === pauseTimerBtn.dataset.id);
       if (ord && ord.timerStart && !ord.timerPausedAt) {

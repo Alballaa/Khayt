@@ -2774,6 +2774,7 @@
   "slicer.start_confirm": "Slicen und Druck auf {name} starten?",
   "slicer.sending": "Slicen & senden…",
   "slicer.sent": "An {name} gesendet — Druck gestartet ✓",
-  "slicer.send_gcode_confirm": "Diesen G-Code hochladen und Druck auf {name} starten?"
+  "slicer.send_gcode_confirm": "Diesen G-Code hochladen und Druck auf {name} starten?",
+  "slicer.no_printer": "Weise diesen Auftrag zuerst einer Maschine mit Drucker-API zu."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
