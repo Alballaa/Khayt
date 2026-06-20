@@ -1055,7 +1055,8 @@ function republishPortalIfPublished(orderId) {
   const c = settings.cloud || {};
   if (!(c.enabled && c.shopId) || !order.trackingToken) return;
   const { isQuote, payload } = buildPortalPayload(order);
-  Promise.resolve(window.hubAPI.cloudPublish({ url: c.url, shopId: c.shopId, token: c.token, pubToken: order.trackingToken, kind: isQuote ? 'quote' : 'order', payload }))
+  const custEmail = order.clientId ? (clients.find((x) => x.id === order.clientId)?.email || '') : '';
+  Promise.resolve(window.hubAPI.cloudPublish({ url: c.url, shopId: c.shopId, token: c.token, pubToken: order.trackingToken, kind: isQuote ? 'quote' : 'order', payload, customerEmail: custEmail }))
     .catch((e) => console.error('portal auto-refresh:', e));
 }
 
@@ -1094,8 +1095,9 @@ async function publishOrderToCloudPortal(orderId) {
   }
 
   const { isQuote, payload } = buildPortalPayload(order);
+  const custEmail = order.clientId ? (clients.find((x) => x.id === order.clientId)?.email || '') : '';
 
-  const r = await window.hubAPI.cloudPublish({ url: c.url, shopId: c.shopId, token: c.token, pubToken, kind: isQuote ? 'quote' : 'order', payload });
+  const r = await window.hubAPI.cloudPublish({ url: c.url, shopId: c.shopId, token: c.token, pubToken, kind: isQuote ? 'quote' : 'order', payload, customerEmail: custEmail });
   if (!r.ok) { toast('✗ ' + (r.error || 'publish failed'), 'error'); return; }
   order.cloudPublished = true; saveAll(); // track so status changes auto-refresh the link
 
