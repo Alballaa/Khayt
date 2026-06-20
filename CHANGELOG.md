@@ -4,11 +4,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
-### 3.0.0-beta.5 cycle (in progress)
+## [3.0.0-beta.5] - 2026-06-20
+
+**Pre-release (beta).** Also relicensed to the Functional Source License (FSL-1.1-Apache-2.0): free to use (incl. for your business), source-available, no reselling/hosting, and each release auto-converts to Apache-2.0 after two years. See [LICENSE](./LICENSE).
 
 ### Added
 
-- **Slicer integration** — point Khayt at your installed **PrusaSlicer / OrcaSlicer** (Settings → Slicer), then **"🧩 Slice for exact quote"** in the calculator slices an uploaded model and fills print weight + time from the slicer's *own* estimate (binary + ASCII; parses time/filament/cost from the G-code). Khayt never bundles a slicer — it shells out to yours, so it stays license-clean. Complements the offline STL geometry estimate.
+- **Slicer integration** — point Khayt at your installed **PrusaSlicer / OrcaSlicer** (Settings → Slicer), then **"🧩 Slice for exact quote"** in the calculator slices an uploaded model and fills print weight + time from the slicer's *own* estimate (parses time/filament/cost from the G-code). Khayt never bundles a slicer — it shells out to yours, so it stays license-clean. Complements the offline STL geometry estimate.
 
 ## [3.0.0-beta.4] - 2026-06-20
 
