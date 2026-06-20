@@ -57,6 +57,7 @@ contextBridge.exposeInMainWorld('hubAPI', {
   // Feature 5: Receipt file picker + open file
   pickFile:  (opts) => ipcRenderer.invoke('hub:pick-file', opts),
   openFile:  (filePath) => ipcRenderer.invoke('hub:open-file', filePath),
+  reportError: (info) => ipcRenderer.invoke('hub:report-error', info),
   slice:     (opts) => ipcRenderer.invoke('hub:slice', opts),
   sliceAndPrint: (opts) => ipcRenderer.invoke('hub:slice-and-print', opts),
   printerSendGcode: (opts) => ipcRenderer.invoke('hub:printer-send-gcode', opts),

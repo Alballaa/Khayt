@@ -37,6 +37,7 @@
     "capture:theme-previews": "node scripts/capture-theme-previews.mjs"
   },
   "dependencies": {
+    "@sentry/electron": "^7.13.0",
     "electron-updater": "^6.8.3",
     "localtunnel": "^2.0.2",
     "qrcode": "^1.5.3"

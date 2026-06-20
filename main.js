@@ -2,6 +2,26 @@ const { app, BrowserWindow, Menu, shell, ipcMain, dialog, safeStorage, clipboard
 const path = require('path');
 const fs = require('fs');
 
+// Crash/error reporting (Sentry). The DSN is publishable, so it's baked in for
+// official builds. Active in PACKAGED installs by default; in dev only when
+// SENTRY_DSN is set (so day-to-day development doesn't flood the project).
+// PII is off and the E2E store is never sent. Init early to catch startup errors.
+const SENTRY_DSN = process.env.SENTRY_DSN
+  || 'https://251a3951cae8d0e46b4349718d5ba054@o4511599597977600.ingest.de.sentry.io/4511599607152720';
+let sentry = null;
+if (SENTRY_DSN && (app.isPackaged || process.env.SENTRY_DSN)) {
+  try {
+    sentry = require('@sentry/electron/main');
+    sentry.init({
+      dsn: SENTRY_DSN,
+      release: `khayt@${app.getVersion()}`,
+      environment: app.isPackaged ? 'production' : 'development',
+      sendDefaultPii: false,
+      tracesSampleRate: 0,
+    });
+  } catch (e) { console.error('Sentry init:', e && e.message); sentry = null; }
+}
+
 // Optional portable / multi-instance data dir override. Set KHAYT_USER_DATA to
 // run an isolated second instance (e.g. to test cloud sync between "devices").
 // Must run before any app.getPath('userData') call.
@@ -32,6 +52,18 @@ function isTrustedRenderer(event) {
 }
 
 wrapHubIpc(ipcMain, isTrustedRenderer);
+
+// Renderer → main error forwarding for Sentry (the renderer is non-bundled with a
+// strict CSP, so it can't run the SDK directly). No-op unless Sentry is active.
+ipcMain.handle('hub:report-error', (_e, info = {}) => {
+  if (!sentry) return false;
+  try {
+    const err = new Error(String((info && info.message) || 'renderer error').slice(0, 500));
+    if (info && info.stack) err.stack = String(info.stack).slice(0, 8000);
+    sentry.captureException(err, { tags: { source: 'renderer' }, extra: { url: info && info.url, line: info && info.line } });
+  } catch { /* ignore */ }
+  return true;
+});
 const {
   encryptStoreField,
   decryptStoreField,
