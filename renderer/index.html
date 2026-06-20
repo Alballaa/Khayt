@@ -285,6 +285,9 @@
 
           <label for="printWeight"><span data-i18n="calc.part.print_wt">Print weight</span> (<span id="printWeightUnit" data-i18n="common.grams">g</span>)</label>
           <input type="number" id="printWeight" value="150" min="0">
+          <button type="button" class="btn ghost small" id="btnEstimateStl" style="margin-top:6px;" data-i18n="stl.estimate_btn">📐 Estimate from 3D model</button>
+          <input type="file" id="stlFileInput" accept=".stl,model/stl,application/sla" style="display:none;">
+          <div id="stlEstimateNote" style="display:none;font-size:12px;color:var(--text-muted);margin-top:6px;padding:8px 10px;background:var(--bg-elev);border-radius:var(--radius);"></div>
 
           <label style="margin-top:8px;"><span data-i18n="calc.support_wt">Support weight (g)</span></label>
           <input type="number" id="supportWeight" value="0" min="0" placeholder="0">
@@ -2290,6 +2293,8 @@
 <script src="../lib/ai-quote.js"></script>
 <script src="../lib/ai-reply.js"></script>
 <script src="../lib/ai-assistant.js"></script>
+<script src="../lib/stl-parse.js"></script>
+<script src="../lib/stl-estimate.js"></script>
 <script src="../lib/reorder.js"></script>
 <script src="../lib/payment-plan.js"></script>
 <script src="themes/registry-core.js"></script>

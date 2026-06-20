@@ -2753,6 +2753,11 @@
   "intake.link_copied": "Request link copied",
   "intake.connect_first": "Connect Khayt Cloud first.",
   "intake.load_fail": "Could not load requests:",
-  "intake.imported": "Quote created from request"
+  "intake.imported": "Quote created from request",
+  "stl.estimate_btn": "📐 Estimate from 3D model",
+  "stl.parse_fail": "Couldn't read that STL file.",
+  "stl.applied": "Estimate applied — review before saving.",
+  "stl.note_tpl": "Size {x}×{y}×{z} mm · solid {solid} g → est. {weight} g · ~{time} h",
+  "stl.note_assume": "{infill}% infill · {density} g/cm³"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
