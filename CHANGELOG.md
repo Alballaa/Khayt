@@ -4,6 +4,22 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.0.0-beta.1] - 2026-06-20
+
+**Khayt 3.0 — first beta.** Version realignment: the cloud platform shipped under the `2.8.0-beta.1…5` line is the **Khayt 3.0** initiative, so the version now reflects that. No features were removed; this is `2.8.0-beta.5` renamed to the 3.0 line, plus the items below. The app still runs fully offline — every 3.0 capability is opt-in.
+
+### The 3.0 platform (recap)
+
+- **Khayt Cloud** — opt-in, end-to-end-encrypted sync: email+password accounts, multi-device, background auto-sync, password reset + email verification. The server only ever stores ciphertext.
+- **Customer portal** — public, owner-curated order-status links and quote approve/decline (an approved quote advances the order). Auto-refreshes on status change.
+- **AI assist** — quote-from-description, AI-drafted customer messages, and consumption-aware reorder suggestions (your own Anthropic key).
+- **Remote mobile** — a PWA at `cloud.khaytapp.com/m`: read your shop and advance order status from your phone, decrypted in the browser, installable + offline + Arabic/RTL.
+- **Billing (optional)** — a provider-agnostic plan/entitlement system: define plans + limits in config; wire any payment provider via one normalized webhook. Your plan shows in the app and the PWA.
+
+### Added (since 2.8.0-beta.5)
+
+- **Your plan** is shown in the desktop Khayt Cloud card and the mobile PWA (silent when the server has billing disabled).
+
 ## [2.8.0-beta.5] - 2026-06-20
 
 **Pre-release (beta)** — **Khayt on your phone.** A mobile web app (PWA), served by Khayt Cloud, lets you check your shop anywhere — fully end-to-end encrypted.
