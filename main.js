@@ -466,6 +466,59 @@ ipcMain.handle('hub:pick-file', async (event, opts = {}) => {
   return result.filePaths[0];
 });
 
+// --- Slice a model with the user's INSTALLED slicer and return its own time +
+//     filament estimate (accurate quoting). We never bundle a slicer engine
+//     (keeps the license clean); we shell out to one the user installed and parse
+//     its G-code summary via lib/gcode-parse. spawn(shell:false) — no injection. ---
+function tokenizeSliceArgs(template) {
+  const out = []; let cur = ''; let q = null; let has = false;
+  for (const ch of String(template || '')) {
+    if (q) { if (ch === q) q = null; else { cur += ch; has = true; } }
+    else if (ch === '"' || ch === "'") { q = ch; has = true; }
+    else if (/\s/.test(ch)) { if (has) { out.push(cur); cur = ''; has = false; } }
+    else { cur += ch; has = true; }
+  }
+  if (has) out.push(cur);
+  return out;
+}
+
+ipcMain.handle('hub:slice', async (_e, { modelPath, slicerPath, args } = {}) => {
+  try {
+    const { spawn } = require('node:child_process');
+    const os = require('os');
+    if (!slicerPath || !fs.existsSync(slicerPath)) return { ok: false, error: 'Slicer not found — set its path in Settings → Slicer.' };
+    if (!modelPath || !fs.existsSync(modelPath)) return { ok: false, error: 'Model file not found.' };
+    const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'khayt-slice-'));
+    const outPath = path.join(outDir, 'out.gcode');
+    const argv = tokenizeSliceArgs(args || '--export-gcode -o {output} {model}')
+      .map((a) => a.replace(/\{model\}/g, modelPath).replace(/\{output\}/g, outPath).replace(/\{outdir\}/g, outDir));
+    const result = await new Promise((resolve) => {
+      let stderr = '';
+      let child;
+      try { child = spawn(slicerPath, argv, { timeout: 180000, windowsHide: true }); }
+      catch (err) { return resolve({ code: -1, stderr: String(err && err.message || err) }); }
+      child.stderr?.on('data', (d) => { stderr = (stderr + d.toString()).slice(-4000); });
+      child.on('error', (err) => resolve({ code: -1, stderr: String(err && err.message || err) }));
+      child.on('close', (code) => resolve({ code, stderr }));
+    });
+    let gpath = fs.existsSync(outPath) ? outPath : null;
+    if (!gpath) {
+      const gc = fs.readdirSync(outDir).filter((f) => /\.gcode$/i.test(f)).sort();
+      if (gc.length) gpath = path.join(outDir, gc[gc.length - 1]);
+    }
+    if (!gpath) {
+      try { fs.rmSync(outDir, { recursive: true, force: true }); } catch { /* ignore */ }
+      return { ok: false, error: 'No G-code produced. ' + String(result.stderr || `exit ${result.code}`).slice(0, 300) };
+    }
+    const buf = fs.readFileSync(gpath);
+    const head = buf.subarray(0, 65536).toString('utf8');
+    const tail = buf.subarray(Math.max(0, buf.length - 65536)).toString('utf8');
+    const meta = parseGcodeText(head + '\n' + tail);
+    try { fs.rmSync(outDir, { recursive: true, force: true }); } catch { /* ignore */ }
+    return { ok: true, ...meta };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
 // --- Open file path — restricted to app userData and system temp directories ---
 ipcMain.handle('hub:open-file', async (_e, filePath) => {
   const s = path.resolve(String(filePath || ''));

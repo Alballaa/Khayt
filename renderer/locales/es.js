@@ -2756,6 +2756,19 @@
   "stl.parse_fail": "No se pudo leer el archivo STL.",
   "stl.applied": "Estimación aplicada — revisa antes de guardar.",
   "stl.note_tpl": "Tamaño {x}×{y}×{z} mm · sólido {solid} g → est. {weight} g · ~{time} h",
-  "stl.note_assume": "{infill}% relleno · {density} g/cm³"
+  "stl.note_assume": "{infill}% relleno · {density} g/cm³",
+  "slicer.settings_title": "Integración del laminador",
+  "slicer.settings_help": "Lamina un modelo subido con tu laminador instalado para rellenar el presupuesto con su peso y tiempo exactos. Khayt no incluye ningún laminador.",
+  "slicer.path_label": "Programa del laminador",
+  "slicer.browse": "Examinar…",
+  "slicer.args_label": "Comando de laminado",
+  "slicer.args_help": "Usa {model} y {output} como marcadores; incluye tu perfil, p. ej. --load /path/to/profile.ini",
+  "slicer.preset": "Preajuste:",
+  "slicer.slice_btn": "🧩 Laminar para presupuesto exacto",
+  "slicer.slicing": "Laminando…",
+  "slicer.no_config": "Configura la ruta del laminador en Ajustes → Laminador primero.",
+  "slicer.fail": "Fallo al laminar:",
+  "slicer.note": "Laminado con {slicer}: {weight} g · {time} h",
+  "slicer.applied": "Estimación aplicada del laminado — revisa antes de guardar."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

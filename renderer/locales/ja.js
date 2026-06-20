@@ -2756,6 +2756,19 @@
   "stl.parse_fail": "STLファイルを読み込めませんでした。",
   "stl.applied": "見積を適用しました — 保存前に確認してください。",
   "stl.note_tpl": "サイズ {x}×{y}×{z} mm · ソリッド {solid} g → 推定 {weight} g · 約{time} h",
-  "stl.note_assume": "インフィル {infill}% · {density} g/cm³"
+  "stl.note_assume": "インフィル {infill}% · {density} g/cm³",
+  "slicer.settings_title": "スライサー連携",
+  "slicer.settings_help": "アップロードしたモデルをお使いのスライサーでスライスし、実際の重量と時間で見積を埋めます。Khayt はスライサーを同梱しません。",
+  "slicer.path_label": "スライサーのプログラム",
+  "slicer.browse": "参照…",
+  "slicer.args_label": "スライスコマンド",
+  "slicer.args_help": "{model} と {output} をプレースホルダーとして使用し、プロファイルを指定します（例: --load /path/to/profile.ini）",
+  "slicer.preset": "プリセット:",
+  "slicer.slice_btn": "🧩 スライスして正確な見積",
+  "slicer.slicing": "スライス中…",
+  "slicer.no_config": "先に 設定 → スライサー でスライサーのパスを設定してください。",
+  "slicer.fail": "スライスに失敗:",
+  "slicer.note": "{slicer} でスライス: {weight} g · {time} h",
+  "slicer.applied": "スライスから見積を適用しました — 保存前に確認してください。"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

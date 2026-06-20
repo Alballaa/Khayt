@@ -272,6 +272,34 @@ function wireEvents() {
     }
   });
 
+  // Slice an uploaded model with the user's installed slicer for an exact quote.
+  $('#btnSliceQuote')?.addEventListener('click', async () => {
+    const sl = (typeof settings !== 'undefined' && settings.slicer) || {};
+    if (!sl.path) { toast(t('slicer.no_config'), 'error'); return; }
+    const modelPath = await window.hubAPI?.pickFile?.({ filters: [{ name: '3D model', extensions: ['stl', '3mf', 'obj', 'step', 'stp'] }] });
+    if (!modelPath) return;
+    const btn = $('#btnSliceQuote');
+    const orig = btn.textContent; btn.disabled = true; btn.textContent = t('slicer.slicing');
+    try {
+      const r = await window.hubAPI.slice({ modelPath, slicerPath: sl.path, args: sl.args });
+      if (!r || !r.ok) throw new Error((r && r.error) || 'failed');
+      const g = r.filamentGrams != null ? Math.round(r.filamentGrams * 10) / 10 : null;
+      const h = r.printTimeMins != null ? Math.round((r.printTimeMins / 60) * 100) / 100 : null;
+      if (g != null) { const w = $('#printWeight'); if (w) { w.value = g; w.dispatchEvent(new Event('input', { bubbles: true })); } }
+      if (h != null) { const tt = $('#printTime'); if (tt) { tt.value = h; tt.dispatchEvent(new Event('input', { bubbles: true })); } }
+      const note = $('#stlEstimateNote');
+      if (note) {
+        note.textContent = t('slicer.note', { slicer: r.slicer || 'slicer', weight: g != null ? g : '?', time: h != null ? h : '?' });
+        note.style.display = 'block';
+      }
+      toast(t('slicer.applied'), 'success');
+      if (typeof updateGrandTotal === 'function') updateGrandTotal();
+    } catch (err) {
+      console.error('slice:', err);
+      toast(`${t('slicer.fail')} ${err.message}`, 'error');
+    } finally { btn.disabled = false; btn.textContent = orig; }
+  });
+
   // Job templates
   renderJobTemplateSelect();
   $('#jobTemplateSelect')?.addEventListener('change', e => { if (e.target.value) applyJobTemplate(e.target.value); });

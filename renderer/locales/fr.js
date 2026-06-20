@@ -2756,6 +2756,19 @@
   "stl.parse_fail": "Impossible de lire ce fichier STL.",
   "stl.applied": "Estimation appliquée — vérifiez avant d'enregistrer.",
   "stl.note_tpl": "Taille {x}×{y}×{z} mm · plein {solid} g → est. {weight} g · ~{time} h",
-  "stl.note_assume": "{infill}% remplissage · {density} g/cm³"
+  "stl.note_assume": "{infill}% remplissage · {density} g/cm³",
+  "slicer.settings_title": "Intégration du trancheur",
+  "slicer.settings_help": "Tranchez un modèle importé avec votre trancheur installé pour remplir le devis avec son poids et son temps exacts. Khayt n'intègre aucun trancheur.",
+  "slicer.path_label": "Programme du trancheur",
+  "slicer.browse": "Parcourir…",
+  "slicer.args_label": "Commande de découpe",
+  "slicer.args_help": "Utilisez {model} et {output} comme variables ; ajoutez votre profil, p. ex. --load /path/to/profile.ini",
+  "slicer.preset": "Préréglage :",
+  "slicer.slice_btn": "🧩 Trancher pour un devis exact",
+  "slicer.slicing": "Découpe…",
+  "slicer.no_config": "Définissez d'abord le chemin du trancheur dans Réglages → Trancheur.",
+  "slicer.fail": "Échec de la découpe :",
+  "slicer.note": "Tranché avec {slicer} : {weight} g · {time} h",
+  "slicer.applied": "Estimation appliquée depuis la découpe — vérifiez avant d'enregistrer."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
