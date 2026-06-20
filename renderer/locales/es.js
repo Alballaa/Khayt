@@ -2774,6 +2774,7 @@
   "slicer.start_confirm": "¿Laminar e iniciar la impresión en {name}?",
   "slicer.sending": "Laminando y enviando…",
   "slicer.sent": "Enviado a {name} — impresión iniciada ✓",
-  "slicer.send_gcode_confirm": "¿Subir este G-code e iniciar la impresión en {name}?"
+  "slicer.send_gcode_confirm": "¿Subir este G-code e iniciar la impresión en {name}?",
+  "slicer.no_printer": "Asigna primero este pedido a una máquina con API de impresora."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

@@ -467,6 +467,12 @@ function renderKanban() {
         ? `<button class="btn small ghost" data-act="share-tracking-link" data-id="${log.id}" title="${escapeHtml(t('ord.status_page') || 'Share tracking link')}">🔗</button>`
         : '';
       const labelBtn = `<button class="btn small ghost" data-act="print-label" data-id="${log.id}" title="${escapeHtml(t('ord.label_btn') || 'Print Label')}" style="padding:2px 6px;font-size:12px;">🏷</button>`;
+      // Slice & print: order on a machine with a printer API + an attached model/G-code.
+      const printMachine = log.machineId ? machines.find(m => m.id === log.machineId) : null;
+      const hasPrintFile = (log.attachedFiles || []).some(f => /\.(stl|3mf|obj|step|stp|gcode|gco|g|nc)$/i.test(f.filename || f.originalName || ''));
+      const sliceBtn = (printMachine && printMachine.printerApi && printMachine.printerApi.type && printMachine.printerApi.type !== 'none' && hasPrintFile)
+        ? `<button class="btn small ghost" data-act="kanban-slice-print" data-id="${log.id}" title="${escapeHtml(t('slicer.send_title') || 'Slice & print')}">🖨</button>`
+        : '';
       if (status === 'pending') {
         const qIdx = sorted.indexOf(log);
         const queueControls = `<span class="queue-pos-ctrl">
@@ -496,7 +502,7 @@ function renderKanban() {
         }
         const estStart = hrsBefore > 0 ? `<span class="est-start-badge">${escapeHtml(t('queue.est_start'))}: +${hrsBefore.toFixed(1)}h</span>` : '';
         const holdBtn = `<button class="btn small ghost" data-act="hold-order" data-id="${log.id}" title="${escapeHtml(t('ord.hold_btn'))}" style="color:var(--warning);">⏸</button>`;
-        actions = `${queueControls}<button class="btn small primary" data-act="status" data-id="${log.id}" data-to="printing">${escapeHtml(t('queue.start'))}</button>${holdBtn}${estStart}${woBtn}${notifyBtn}${trackBtn}${labelBtn}`;
+        actions = `${queueControls}<button class="btn small primary" data-act="status" data-id="${log.id}" data-to="printing">${escapeHtml(t('queue.start'))}</button>${holdBtn}${estStart}${sliceBtn}${woBtn}${notifyBtn}${trackBtn}${labelBtn}`;
       }
       if (status === 'on_hold') {
         const holdReason = log.holdReason ? `<div style="font-size:11px; color:var(--warning); margin-top:2px;">⏸ ${escapeHtml(log.holdReason)}</div>` : '';
@@ -813,8 +819,30 @@ function renderMachineQueues() {
     });
   }
 
+  // Slice (or upload) an order's attached file and start it on its assigned printer.
+  async function kanbanSlicePrint(orderId) {
+    const order = printLog.find(o => o.id === orderId);
+    if (!order) return;
+    const machine = order.machineId ? machines.find(m => m.id === order.machineId) : null;
+    if (!machine || !(machine.printerApi && machine.printerApi.type && machine.printerApi.type !== 'none')) { toast(t('slicer.no_printer') || 'Assign this order to a machine with a printer API first.', 'error'); return; }
+    const file = (order.attachedFiles || []).find(f => /\.(stl|3mf|obj|step|stp|gcode|gco|g|nc)$/i.test(f.filename || f.originalName || ''));
+    if (!file) return;
+    const isGcode = /\.(gcode|gco|g|nc)$/i.test(file.filename || file.originalName || '');
+    const sl = settings.slicer || {};
+    if (!isGcode && !sl.path) { toast(t('slicer.no_config'), 'error'); return; }
+    const ok = await confirmModal(t(isGcode ? 'slicer.send_gcode_confirm' : 'slicer.start_confirm', { name: machine.name }));
+    if (!ok) return;
+    toast(t('slicer.sending') || 'Slicing & sending…', 'info');
+    try {
+      const r = await window.hubAPI.printOrderFile({ orderFile: file.filename, machine, slicerPath: sl.path, args: sl.args, startPrint: true });
+      if (!r || !r.ok) throw new Error((r && r.error) || 'failed');
+      toast(t('slicer.sent', { name: machine.name }), 'success');
+    } catch (e) { toast(`${t('slicer.fail')} ${e.message}`, 'error'); }
+  }
+
   const api = {
     updateKanbanLiveStatus,
+    kanbanSlicePrint,
     openScheduleSuggestions,
     setupKanbanDrag,
     kanbanUrgencyScore,
