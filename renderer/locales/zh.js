@@ -2769,6 +2769,10 @@
   "slicer.no_config": "请先在 设置 → 切片软件 中设置切片软件路径。",
   "slicer.fail": "切片失败:",
   "slicer.note": "已用 {slicer} 切片: {weight} g · {time} h",
-  "slicer.applied": "已根据切片应用估算 — 保存前请检查。"
+  "slicer.applied": "已根据切片应用估算 — 保存前请检查。",
+  "slicer.send_title": "切片并打印",
+  "slicer.start_confirm": "在 {name} 上切片并开始打印？",
+  "slicer.sending": "切片并发送中…",
+  "slicer.sent": "已发送至 {name} — 已开始打印 ✓"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

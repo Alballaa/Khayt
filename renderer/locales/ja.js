@@ -2769,6 +2769,10 @@
   "slicer.no_config": "先に 設定 → スライサー でスライサーのパスを設定してください。",
   "slicer.fail": "スライスに失敗:",
   "slicer.note": "{slicer} でスライス: {weight} g · {time} h",
-  "slicer.applied": "スライスから見積を適用しました — 保存前に確認してください。"
+  "slicer.applied": "スライスから見積を適用しました — 保存前に確認してください。",
+  "slicer.send_title": "スライスして印刷",
+  "slicer.start_confirm": "{name} でスライスして印刷を開始しますか？",
+  "slicer.sending": "スライスして送信中…",
+  "slicer.sent": "{name} に送信しました — 印刷を開始 ✓"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

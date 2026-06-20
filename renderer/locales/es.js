@@ -2769,6 +2769,10 @@
   "slicer.no_config": "Configura la ruta del laminador en Ajustes → Laminador primero.",
   "slicer.fail": "Fallo al laminar:",
   "slicer.note": "Laminado con {slicer}: {weight} g · {time} h",
-  "slicer.applied": "Estimación aplicada del laminado — revisa antes de guardar."
+  "slicer.applied": "Estimación aplicada del laminado — revisa antes de guardar.",
+  "slicer.send_title": "Laminar e imprimir",
+  "slicer.start_confirm": "¿Laminar e iniciar la impresión en {name}?",
+  "slicer.sending": "Laminando y enviando…",
+  "slicer.sent": "Enviado a {name} — impresión iniciada ✓"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

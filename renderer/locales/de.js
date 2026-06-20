@@ -2769,6 +2769,10 @@
   "slicer.no_config": "Lege zuerst den Slicer-Pfad unter Einstellungen → Slicer fest.",
   "slicer.fail": "Slicen fehlgeschlagen:",
   "slicer.note": "Gesliced mit {slicer}: {weight} g · {time} h",
-  "slicer.applied": "Schätzung aus dem Slice übernommen — vor dem Speichern prüfen."
+  "slicer.applied": "Schätzung aus dem Slice übernommen — vor dem Speichern prüfen.",
+  "slicer.send_title": "Slicen & drucken",
+  "slicer.start_confirm": "Slicen und Druck auf {name} starten?",
+  "slicer.sending": "Slicen & senden…",
+  "slicer.sent": "An {name} gesendet — Druck gestartet ✓"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
