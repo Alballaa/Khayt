@@ -4,15 +4,16 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
-### 3.0.0-beta.4 cycle (in progress)
+## [3.0.0-beta.4] - 2026-06-20
 
-Planned: live printer monitoring (OctoPrint/Moonraker/Klipper), customer order intake via the portal, AI quote from an uploaded STL, and real web push notifications.
+**Pre-release (beta)** — four growth features: live printer monitoring, customer order intake, STL-based quoting, and web push.
 
 ### Added
 
 - **Live printer panel on the dashboard** — an at-a-glance card showing every API-connected machine's state, print progress, hotend/bed temps, current file, and ETA, refreshing in place each poll (reuses the existing OctoPrint/Moonraker/Klipper/PrusaLink/Bambu poller). Complements the kanban's per-machine live status.
 - **Customer order intake** — share a request link (`…/intake/<shop>`) and customers submit a print request (project, description, quantity, material, model link, photo, contact) with no login. New requests arrive in **Khayt Cloud → Order requests**; one click turns a request into a draft quote with a linked client. You're emailed when one comes in.
 - **Estimate from a 3D model (STL)** — in the calculator, upload an STL and Khayt reads its geometry (volume + bounding box) to auto-fill print weight and time using your infill setting; it shows the size, solid vs estimated weight, and the assumptions so you can adjust before saving. Works fully offline; handles binary and ASCII STL.
+- **Web push notifications** — install the remote-mobile app (PWA) and tap **Enable alerts** to get a push on your phone when a customer approves/declines a quote, pays a deposit, or submits an order request — even with the app closed. Payload-less (VAPID): the push service never sees your data. Requires the operator to set a VAPID key on the cloud.
 
 ## [3.0.0-beta.3] - 2026-06-20
 
