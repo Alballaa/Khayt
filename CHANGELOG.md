@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### 3.0.0-beta.6 cycle (in progress)
+
+### Added
+
+- **Slice & print** — on a machine that has a printer API configured (OctoPrint/Moonraker), the new 🖨 button slices a chosen model with your installed slicer and **uploads + starts the print** on that machine — slicing to printing without leaving Khayt. Composes the slicer integration with live printer monitoring.
+
 ## [3.0.0-beta.5] - 2026-06-20
 
 **Pre-release (beta).** Also relicensed to the Functional Source License (FSL-1.1-Apache-2.0): free to use (incl. for your business), source-available, no reselling/hosting, and each release auto-converts to Apache-2.0 after two years. See [LICENSE](./LICENSE).

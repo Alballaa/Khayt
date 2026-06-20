@@ -482,41 +482,92 @@ function tokenizeSliceArgs(template) {
   return out;
 }
 
-ipcMain.handle('hub:slice', async (_e, { modelPath, slicerPath, args } = {}) => {
-  try {
-    const { spawn } = require('node:child_process');
-    const os = require('os');
-    if (!slicerPath || !fs.existsSync(slicerPath)) return { ok: false, error: 'Slicer not found — set its path in Settings → Slicer.' };
-    if (!modelPath || !fs.existsSync(modelPath)) return { ok: false, error: 'Model file not found.' };
-    const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'khayt-slice-'));
-    const outPath = path.join(outDir, 'out.gcode');
-    const argv = tokenizeSliceArgs(args || '--export-gcode -o {output} {model}')
-      .map((a) => a.replace(/\{model\}/g, modelPath).replace(/\{output\}/g, outPath).replace(/\{outdir\}/g, outDir));
-    const result = await new Promise((resolve) => {
-      let stderr = '';
-      let child;
-      try { child = spawn(slicerPath, argv, { timeout: 180000, windowsHide: true }); }
-      catch (err) { return resolve({ code: -1, stderr: String(err && err.message || err) }); }
-      child.stderr?.on('data', (d) => { stderr = (stderr + d.toString()).slice(-4000); });
-      child.on('error', (err) => resolve({ code: -1, stderr: String(err && err.message || err) }));
-      child.on('close', (code) => resolve({ code, stderr }));
-    });
-    let gpath = fs.existsSync(outPath) ? outPath : null;
-    if (!gpath) {
-      const gc = fs.readdirSync(outDir).filter((f) => /\.gcode$/i.test(f)).sort();
-      if (gc.length) gpath = path.join(outDir, gc[gc.length - 1]);
-    }
-    if (!gpath) {
-      try { fs.rmSync(outDir, { recursive: true, force: true }); } catch { /* ignore */ }
-      return { ok: false, error: 'No G-code produced. ' + String(result.stderr || `exit ${result.code}`).slice(0, 300) };
-    }
-    const buf = fs.readFileSync(gpath);
-    const head = buf.subarray(0, 65536).toString('utf8');
-    const tail = buf.subarray(Math.max(0, buf.length - 65536)).toString('utf8');
-    const meta = parseGcodeText(head + '\n' + tail);
+// Slice a model with the user's installed slicer. Returns { ok, gcodePath, outDir,
+// meta, error } WITHOUT cleaning up outDir — the caller decides (parse only, or
+// also upload to a printer, then remove outDir).
+async function runSlice({ modelPath, slicerPath, args }) {
+  const { spawn } = require('node:child_process');
+  const os = require('os');
+  if (!slicerPath || !fs.existsSync(slicerPath)) return { ok: false, error: 'Slicer not found — set its path in Settings → Slicer.' };
+  if (!modelPath || !fs.existsSync(modelPath)) return { ok: false, error: 'Model file not found.' };
+  const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'khayt-slice-'));
+  const outPath = path.join(outDir, 'out.gcode');
+  const argv = tokenizeSliceArgs(args || '--export-gcode -o {output} {model}')
+    .map((a) => a.replace(/\{model\}/g, modelPath).replace(/\{output\}/g, outPath).replace(/\{outdir\}/g, outDir));
+  const result = await new Promise((resolve) => {
+    let stderr = '';
+    let child;
+    try { child = spawn(slicerPath, argv, { timeout: 180000, windowsHide: true }); }
+    catch (err) { return resolve({ code: -1, stderr: String(err && err.message || err) }); }
+    child.stderr?.on('data', (d) => { stderr = (stderr + d.toString()).slice(-4000); });
+    child.on('error', (err) => resolve({ code: -1, stderr: String(err && err.message || err) }));
+    child.on('close', (code) => resolve({ code, stderr }));
+  });
+  let gpath = fs.existsSync(outPath) ? outPath : null;
+  if (!gpath) {
+    const gc = fs.readdirSync(outDir).filter((f) => /\.gcode$/i.test(f)).sort();
+    if (gc.length) gpath = path.join(outDir, gc[gc.length - 1]);
+  }
+  if (!gpath) {
     try { fs.rmSync(outDir, { recursive: true, force: true }); } catch { /* ignore */ }
-    return { ok: true, ...meta };
+    return { ok: false, error: 'No G-code produced. ' + String(result.stderr || `exit ${result.code}`).slice(0, 300) };
+  }
+  const buf = fs.readFileSync(gpath);
+  const head = buf.subarray(0, 65536).toString('utf8');
+  const tail = buf.subarray(Math.max(0, buf.length - 65536)).toString('utf8');
+  return { ok: true, gcodePath: gpath, outDir, meta: parseGcodeText(head + '\n' + tail) };
+}
+const rmDir = (d) => { try { if (d) fs.rmSync(d, { recursive: true, force: true }); } catch { /* ignore */ } };
+
+ipcMain.handle('hub:slice', async (_e, opts = {}) => {
+  try {
+    const r = await runSlice(opts);
+    if (!r.ok) return r;
+    rmDir(r.outDir);
+    return { ok: true, ...r.meta };
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+// Upload a G-code file to a printer (OctoPrint / Moonraker) and optionally start
+// it. Uses the same host allowlist as the status poller (SSRF-safe).
+async function uploadGcodeToPrinter(machine, gcodePath, startPrint) {
+  const { type, host, port, apiKey } = (machine && machine.printerApi) || {};
+  const printerHost = String(host || '').replace(/[^a-zA-Z0-9.\-]/g, '');
+  if (!isAllowedPrinterHost(printerHost)) return { ok: false, error: 'Invalid printer host' };
+  const portNum = parseInt(port || defaultPrinterPort(type), 10);
+  if (!Number.isInteger(portNum) || portNum < 1 || portNum > 65535) return { ok: false, error: 'Invalid port' };
+  const base = `http://${printerHost}:${portNum}`;
+  const bytes = fs.readFileSync(gcodePath);
+  const name = `khayt-${Date.now().toString(36)}.gcode`;
+  const fd = new FormData();
+  fd.set('file', new Blob([bytes], { type: 'text/plain' }), name);
+  let url, headers = {};
+  if (type === 'octoprint') {
+    fd.set('select', 'true'); fd.set('print', startPrint ? 'true' : 'false');
+    url = `${base}/api/files/local`; headers['X-Api-Key'] = apiKey || '';
+  } else if (type === 'moonraker') {
+    fd.set('root', 'gcodes'); fd.set('print', startPrint ? 'true' : 'false');
+    url = `${base}/server/files/upload`;
+  } else {
+    return { ok: false, error: `Send-to-printer not supported for ${type || 'this printer'} yet (use OctoPrint or Moonraker).` };
+  }
+  try {
+    const res = await fetch(url, { method: 'POST', headers, body: fd, signal: AbortSignal.timeout(60000) });
+    if (res.status >= 200 && res.status < 300) return { ok: true, started: !!startPrint, filename: name };
+    return { ok: false, error: `Printer responded ${res.status}` };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+}
+
+ipcMain.handle('hub:slice-and-print', async (_e, { modelPath, slicerPath, args, machine, startPrint } = {}) => {
+  let outDir;
+  try {
+    const r = await runSlice({ modelPath, slicerPath, args });
+    if (!r.ok) return r;
+    outDir = r.outDir;
+    const up = await uploadGcodeToPrinter(machine, r.gcodePath, startPrint);
+    return up.ok ? { ok: true, meta: r.meta, ...up } : up;
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+  finally { rmDir(outDir); }
 });
 
 // --- Open file path — restricted to app userData and system temp directories ---

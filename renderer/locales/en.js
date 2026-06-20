@@ -2771,6 +2771,10 @@
   "slicer.no_config": "Set your slicer path in Settings → Slicer first.",
   "slicer.fail": "Slicing failed:",
   "slicer.note": "Sliced with {slicer}: {weight} g · {time} h",
-  "slicer.applied": "Estimate applied from slice — review before saving."
+  "slicer.applied": "Estimate applied from slice — review before saving.",
+  "slicer.send_title": "Slice & print",
+  "slicer.start_confirm": "Slice and start printing on {name}?",
+  "slicer.sending": "Slicing & sending…",
+  "slicer.sent": "Sent to {name} — printing started ✓"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

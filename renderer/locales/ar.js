@@ -2770,6 +2770,10 @@
   "slicer.no_config": "حدّد مسار المُقطّع في الإعدادات ← المُقطّع أولاً.",
   "slicer.fail": "فشل التقطيع:",
   "slicer.note": "تم التقطيع بواسطة {slicer}: {weight} غ · {time} ساعة",
-  "slicer.applied": "تم تطبيق التقدير من التقطيع — راجِع قبل الحفظ."
+  "slicer.applied": "تم تطبيق التقدير من التقطيع — راجِع قبل الحفظ.",
+  "slicer.send_title": "قطّع واطبع",
+  "slicer.start_confirm": "هل تريد التقطيع وبدء الطباعة على {name}؟",
+  "slicer.sending": "جارٍ التقطيع والإرسال…",
+  "slicer.sent": "تم الإرسال إلى {name} — بدأت الطباعة ✓"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

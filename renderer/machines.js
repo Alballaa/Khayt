@@ -64,6 +64,7 @@ function renderMachines() {
         ${svcBadge}
         ${downtimeBadge}
         ${hrsLine}
+        ${(m.printerApi && m.printerApi.type && m.printerApi.type !== 'none') ? `<button class="btn small ghost" data-act="slice-print" data-id="${m.id}" title="${escapeHtml(t('slicer.send_title') || 'Slice & print')}" style="font-size:11px;">🖨</button>` : ''}
         <button class="btn small" data-act="maint-log" data-id="${m.id}" title="${escapeHtml(t('maint.btn'))}">🔧</button>
         <button class="btn small ghost" data-act="log-nozzle-change" data-id="${m.id}" title="${escapeHtml(t('mach.log_nozzle'))}" style="font-size:11px;">🔩</button>
         <button class="btn small" data-act="edit-mach" data-id="${m.id}">${escapeHtml(t('common.edit'))}</button>
@@ -812,9 +813,32 @@ function estimateMachineQueueClearDate(machineId, excludeOrderId) {
   }
   return cursor;
 }
+
+// Slice a chosen model with the user's slicer and send it to this machine's
+// printer (OctoPrint/Moonraker), starting the print on confirm.
+async function sliceAndPrintForMachine(machineId) {
+  const machine = machines.find((m) => m.id === machineId);
+  if (!machine || !(machine.printerApi && machine.printerApi.type && machine.printerApi.type !== 'none')) return;
+  const sl = settings.slicer || {};
+  if (!sl.path) { toast(t('slicer.no_config'), 'error'); return; }
+  const modelPath = await window.hubAPI?.pickFile?.({ filters: [{ name: '3D model', extensions: ['stl', '3mf', 'obj', 'step', 'stp'] }] });
+  if (!modelPath) return;
+  const ok = await confirmModal(t('slicer.start_confirm', { name: machine.name }) || `Slice and start printing on ${machine.name}?`);
+  if (!ok) return;
+  toast(t('slicer.sending') || 'Slicing & sending…', 'info');
+  try {
+    const r = await window.hubAPI.sliceAndPrint({ modelPath, slicerPath: sl.path, args: sl.args, machine, startPrint: true });
+    if (!r || !r.ok) throw new Error((r && r.error) || 'failed');
+    toast(t('slicer.sent', { name: machine.name }), 'success');
+  } catch (e) {
+    toast(`${t('slicer.fail')} ${e.message}`, 'error');
+  }
+}
+
   const api = {
     machineGramsSinceNozzle,
     renderMachines,
+    sliceAndPrintForMachine,
     renderMachineDropdown,
     openMachineEditor,
     logNozzleChange,
