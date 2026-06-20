@@ -1208,9 +1208,56 @@ function updateResinFieldsVisibility() {
     });
   }
 
+  /** AI shop assistant — ask questions grounded in the shop's own data. */
+  async function openAiAssistant() {
+    const ai = settings.ai || {};
+    if (!ai.enabled || !ai.apiKey) { toast(t('ai.assistant_need_key') || 'Enable AI assist (with your API key) in Settings first', 'error'); return; }
+    if (typeof KhaytAiAssistant === 'undefined') { toast('AI assistant not loaded', 'error'); return; }
+    const ctx = KhaytAiAssistant.buildShopContext(collectStoreCollections(), { now: Date.now(), currency: (typeof currencySymbol === 'function' ? currencySymbol() : '') });
+    const sugg = [
+      t('ai.assistant_q1') || 'How much is outstanding?',
+      t('ai.assistant_q2') || 'What is overdue or due soon?',
+      t('ai.assistant_q3') || 'Which materials should I reorder?',
+      t('ai.assistant_q4') || 'How does revenue compare to last month?',
+    ];
+    openFormModal({
+      title: t('ai.assistant_title') || 'Ask Khayt AI',
+      saveLabel: t('ai.assistant_ask') || 'Ask',
+      bodyHtml: `
+        <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 8px;">${escapeHtml(t('ai.assistant_hint') || 'Answers come from your shop data — it won’t invent numbers.')}</p>
+        <input type="text" id="aiAskQ" placeholder="${escapeHtml(t('ai.assistant_ph') || 'Ask about orders, revenue, stock…')}">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
+          ${sugg.map((s) => `<button type="button" class="btn ghost small aiSug" data-q="${escapeHtml(s)}">${escapeHtml(s)}</button>`).join('')}
+        </div>
+        <div id="aiAskAns" style="margin-top:12px;white-space:pre-wrap;font-size:13.5px;min-height:18px;"></div>`,
+      onMount(modal) {
+        modal.querySelectorAll('.aiSug').forEach((b) => b.addEventListener('click', () => { modal.querySelector('#aiAskQ').value = b.dataset.q; }));
+        setTimeout(() => modal.querySelector('#aiAskQ')?.focus(), 40);
+      },
+      async onSave(modal) {
+        const q = modal.querySelector('#aiAskQ').value.trim();
+        const ansEl = modal.querySelector('#aiAskAns');
+        if (!q) { ansEl.textContent = t('ai.assistant_need_q') || 'Type a question first.'; ansEl.style.color = 'var(--danger)'; return false; }
+        ansEl.textContent = t('ai.assistant_thinking') || 'Thinking…'; ansEl.style.color = 'var(--text-muted)';
+        try {
+          const r = await window.hubAPI.aiExtract({
+            apiKey: ai.apiKey, model: ai.model || 'claude-opus-4-8',
+            system: KhaytAiAssistant.buildAssistantSystem({ shopName: settings.bizEn || settings.bizAr || 'Khayt', lang: settings.lang }),
+            request: KhaytAiAssistant.buildAssistantRequest(ctx, q),
+            schema: KhaytAiAssistant.ASSISTANT_SCHEMA,
+          });
+          if (!r || !r.ok || !r.draft) { ansEl.textContent = '✗ ' + ((r && r.error) || 'AI request failed'); ansEl.style.color = 'var(--danger)'; return false; }
+          ansEl.textContent = KhaytAiAssistant.pickAnswer(r.draft); ansEl.style.color = 'var(--text)';
+        } catch (e) { ansEl.textContent = '✗ ' + (e.message || e); ansEl.style.color = 'var(--danger)'; }
+        return false; // keep open for follow-up questions
+      },
+    });
+  }
+
   const api = {
     saveBuildDraft,
     aiQuoteAssist,
+    openAiAssistant,
     suggestedFailureRate,
     updateFailureRateHint,
     calculateLivePartCost,
