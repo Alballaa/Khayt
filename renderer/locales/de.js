@@ -2739,6 +2739,9 @@
   "po.aging_30_60": "30–60 T",
   "po.aging_60plus": "60+ T",
   "notify.email_sent": "📧 E-Mail gesendet",
-  "notify.journal_exported": "Buchungsjournal exportiert ✓"
+  "notify.journal_exported": "Buchungsjournal exportiert ✓",
+  "dash.printers_live": "Drucker — live",
+  "dash.printer_offline": "Offline",
+  "dash.no_job": "Leerlauf"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

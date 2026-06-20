@@ -2739,6 +2739,9 @@
   "po.aging_30_60": "30–60天",
   "po.aging_60plus": "60天以上",
   "notify.email_sent": "📧 邮件已发送",
-  "notify.journal_exported": "会计凭证已导出 ✓"
+  "notify.journal_exported": "会计凭证已导出 ✓",
+  "dash.printers_live": "打印机 — 实时",
+  "dash.printer_offline": "离线",
+  "dash.no_job": "空闲"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

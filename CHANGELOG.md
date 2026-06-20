@@ -8,6 +8,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 Planned: live printer monitoring (OctoPrint/Moonraker/Klipper), customer order intake via the portal, AI quote from an uploaded STL, and real web push notifications.
 
+### Added
+
+- **Live printer panel on the dashboard** — an at-a-glance card showing every API-connected machine's state, print progress, hotend/bed temps, current file, and ETA, refreshing in place each poll (reuses the existing OctoPrint/Moonraker/Klipper/PrusaLink/Bambu poller). Complements the kanban's per-machine live status.
+
 ## [3.0.0-beta.3] - 2026-06-20
 
 **Pre-release (beta)** — a hardening pass from a full UI / language / security / bug audit. No new features; everything below makes 3.0 safer and more complete.

@@ -655,6 +655,8 @@ function renderDashboard() {
         </div>`;
     })() : ''}
 
+    ${renderDashLivePrinters()}
+
     ${settings.mode !== 'simple' && machines.length > 0 ? (() => {
       const activeOrds = printLog.filter(o => o.status !== 'completed' && o.status !== 'quote');
       const WORK_HRS_PER_DAY = Math.max(1, avgDailyWorkingHours()); // use configured working hours
@@ -1179,6 +1181,69 @@ function renderMaterialUsageChart() {
     <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:6px;padding:0 4px;">${legendHtml}</div>`;
 }
 
+  /* ── Live printer monitoring (dashboard panel) ──────────────────
+   * At-a-glance state/progress/temps/ETA for every API-connected machine,
+   * fed by the existing main-process poller (machineStatusCache). Updates in
+   * place on each `printer-status-update` via updateDashLivePrinters(). */
+  function dashLivePrinterTiles() {
+    const apiMachines = (typeof machines !== 'undefined' ? machines : [])
+      .filter(m => m.printerApi && m.printerApi.type && m.printerApi.type !== 'none');
+    if (!apiMachines.length) return '';
+    const cache = (typeof machineStatusCache !== 'undefined' && machineStatusCache) || {};
+    return apiMachines.map(m => {
+      const dot = safeCssColor(m.color);
+      const s = cache[m.id];
+      let body;
+      if (!s || s.error) {
+        const msg = s && s.error ? escapeHtml(s.error) : escapeHtml(t('dash.printer_offline'));
+        body = `<div class="dash-printer-state" style="color:var(--text-muted);">⚠ ${msg}</div>`;
+      } else {
+        const st = String(s.state || '');
+        const lc = st.toLowerCase();
+        const printing = lc.includes('print');
+        const errState = lc.includes('error');
+        const col = errState ? 'var(--danger)' : printing ? 'var(--success)' : 'var(--text-muted)';
+        const pct = Math.min(100, Math.max(0, Math.round(+s.progress || 0)));
+        const label = st || t('dash.no_job');
+        const eta = s.timeRemaining ? (() => {
+          const mins = Math.round(s.timeRemaining / 60);
+          return mins > 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}m`;
+        })() : '';
+        const temps = (s.tempNozzle || s.tempBed)
+          ? `${s.tempNozzle ? Math.round(s.tempNozzle) + '°' : '?'}/${s.tempBed ? Math.round(s.tempBed) + '°' : '?'}`
+          : '';
+        const meta = [
+          temps ? `🌡 ${escapeHtml(temps)}` : '',
+          eta ? `⏱ ${escapeHtml(t('mach.api_eta'))} ${escapeHtml(eta)}` : '',
+        ].filter(Boolean).join(' · ');
+        body = `
+          <div class="dash-printer-state" style="color:${col};font-weight:600;">${escapeHtml(label)}${printing ? ` · ${pct}%` : ''}</div>
+          ${printing ? `<div class="dash-printer-bar"><div style="width:${pct}%;background:${col};"></div></div>` : ''}
+          ${s.filename ? `<div class="dash-printer-job" title="${escapeHtml(s.filename)}">${escapeHtml(s.filename)}</div>` : ''}
+          ${meta ? `<div class="dash-printer-meta">${meta}</div>` : ''}`;
+      }
+      return `<div class="dash-printer-tile">
+        <div class="dash-printer-head"><span class="dash-mach-dot" style="background:${dot};"></span><span class="dash-printer-name">${escapeHtml(m.name)}</span></div>
+        ${body}
+      </div>`;
+    }).join('');
+  }
+
+  function renderDashLivePrinters() {
+    const tiles = dashLivePrinterTiles();
+    if (!tiles) return '';
+    return `<div class="card khayt-panel" id="dashLivePrinters">
+      <h3 class="dash-section-head" style="margin-bottom:10px;">🖨 ${escapeHtml(t('dash.printers_live'))}</h3>
+      <div class="dash-printer-grid">${tiles}</div>
+    </div>`;
+  }
+
+  // Refresh the panel in place (called from the printer-status-update handler).
+  function updateDashLivePrinters() {
+    const grid = document.querySelector('#dashLivePrinters .dash-printer-grid');
+    if (grid) grid.innerHTML = dashLivePrinterTiles();
+  }
+
   const api = {
     buildStudioDashboardPanels,
     renderDashboard,
@@ -1186,6 +1251,8 @@ function renderMaterialUsageChart() {
     renderDashKpiRow,
     renderFilamentAnalytics,
     renderMaterialUsageChart,
+    renderDashLivePrinters,
+    updateDashLivePrinters,
   };
 
   Object.assign(global, api);

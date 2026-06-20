@@ -2740,6 +2740,9 @@
   "po.aging_30_60": "30–60 يوم",
   "po.aging_60plus": "60+ يوم",
   "notify.email_sent": "📧 تم إرسال البريد",
-  "notify.journal_exported": "تم تصدير قيد المحاسبة ✓"
+  "notify.journal_exported": "تم تصدير قيد المحاسبة ✓",
+  "dash.printers_live": "الطابعات — مباشر",
+  "dash.printer_offline": "غير متصل",
+  "dash.no_job": "خامل"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

@@ -2412,6 +2412,61 @@ tr.row-overdue td { background: rgba(239,77,94,0.05); }
   font-variant-numeric: tabular-nums;
 }
 
+/* Live printer monitoring — dashboard panel */
+.dash-printer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+.dash-printer-tile {
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  background: var(--bg-elev);
+  min-width: 0;
+}
+.dash-printer-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.dash-printer-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dash-printer-state { font-size: 12.5px; }
+.dash-printer-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border-soft);
+  overflow: hidden;
+  margin: 6px 0;
+}
+.dash-printer-bar > div {
+  height: 100%;
+  border-radius: 999px;
+  transition: width .4s ease;
+}
+.dash-printer-job {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+.dash-printer-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ============================================================
    Client editor — order history timeline
    ============================================================ */

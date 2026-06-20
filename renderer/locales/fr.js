@@ -2739,6 +2739,9 @@
   "po.aging_30_60": "30–60 j",
   "po.aging_60plus": "60+ j",
   "notify.email_sent": "📧 E-mail envoyé",
-  "notify.journal_exported": "Journal comptable exporté ✓"
+  "notify.journal_exported": "Journal comptable exporté ✓",
+  "dash.printers_live": "Imprimantes — en direct",
+  "dash.printer_offline": "Hors ligne",
+  "dash.no_job": "Inactive"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
