@@ -2742,6 +2742,15 @@
   "notify.journal_exported": "会计凭证已导出 ✓",
   "dash.printers_live": "打印机 — 实时",
   "dash.printer_offline": "离线",
-  "dash.no_job": "空闲"
+  "dash.no_job": "空闲",
+  "intake.requests": "订单请求",
+  "intake.empty": "暂无新请求。",
+  "intake.import": "创建报价",
+  "intake.dismiss": "忽略",
+  "intake.copy_link": "复制请求链接",
+  "intake.link_copied": "请求链接已复制",
+  "intake.connect_first": "请先连接 Khayt Cloud。",
+  "intake.load_fail": "无法加载请求：",
+  "intake.imported": "已根据请求创建报价"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

@@ -2742,6 +2742,15 @@
   "notify.journal_exported": "Asiento contable exportado ✓",
   "dash.printers_live": "Impresoras — en vivo",
   "dash.printer_offline": "Sin conexión",
-  "dash.no_job": "Inactiva"
+  "dash.no_job": "Inactiva",
+  "intake.requests": "Solicitudes de pedido",
+  "intake.empty": "No hay solicitudes nuevas.",
+  "intake.import": "Crear presupuesto",
+  "intake.dismiss": "Descartar",
+  "intake.copy_link": "Copiar enlace de solicitud",
+  "intake.link_copied": "Enlace de solicitud copiado",
+  "intake.connect_first": "Conecta Khayt Cloud primero.",
+  "intake.load_fail": "No se pudieron cargar las solicitudes:",
+  "intake.imported": "Presupuesto creado desde la solicitud"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

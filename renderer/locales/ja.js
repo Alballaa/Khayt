@@ -2742,6 +2742,15 @@
   "notify.journal_exported": "会計仕訳をエクスポートしました ✓",
   "dash.printers_live": "プリンター — ライブ",
   "dash.printer_offline": "オフライン",
-  "dash.no_job": "アイドル"
+  "dash.no_job": "アイドル",
+  "intake.requests": "注文リクエスト",
+  "intake.empty": "新しいリクエストはありません。",
+  "intake.import": "見積を作成",
+  "intake.dismiss": "破棄",
+  "intake.copy_link": "リクエストリンクをコピー",
+  "intake.link_copied": "リクエストリンクをコピーしました",
+  "intake.connect_first": "先に Khayt Cloud に接続してください。",
+  "intake.load_fail": "リクエストを読み込めませんでした:",
+  "intake.imported": "リクエストから見積を作成しました"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

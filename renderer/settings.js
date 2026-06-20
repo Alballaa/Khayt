@@ -486,6 +486,8 @@ function renderCloudSettings() {
         <button id="btnCloudUnlock" class="btn small">${escapeHtml(t('cloud.unlock') || 'Unlock')}</button>
         <button id="btnCloudSync" class="btn small">${escapeHtml(t('cloud.sync_now') || 'Sync now')}</button>
         <button id="btnCloudRestore" class="btn small">${escapeHtml(t('cloud.restore') || 'Restore from cloud')}</button>
+        <button id="btnCloudRequests" class="btn small">🛎 ${escapeHtml(t('intake.requests') || 'Order requests')}</button>
+        <button id="btnCloudIntakeLink" class="btn ghost small">${escapeHtml(t('intake.copy_link') || 'Copy request link')}</button>
         <button id="btnCloudDisconnect" class="btn danger small">${escapeHtml(t('cloud.disconnect') || 'Sign out')}</button>
         <span id="cloudResult" style="font-size:12px;"></span>
       </div>`}`;
@@ -635,6 +637,13 @@ function renderCloudSettings() {
       console.error('cloud restore:', e);
       toast(t('cloud.restore_error') || 'Could not restore from cloud', 'error');
     }
+  });
+
+  el.querySelector('#btnCloudRequests')?.addEventListener('click', () => {
+    if (typeof openOrderRequestsModal === 'function') openOrderRequestsModal();
+  });
+  el.querySelector('#btnCloudIntakeLink')?.addEventListener('click', () => {
+    if (typeof copyIntakeLink === 'function') copyIntakeLink();
   });
 
   el.querySelector('#btnCloudDisconnect')?.addEventListener('click', async () => {

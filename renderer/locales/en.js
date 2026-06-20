@@ -2744,6 +2744,15 @@
   "notify.journal_exported": "Accounting journal exported ✓",
   "dash.printers_live": "Printers — live",
   "dash.printer_offline": "Offline",
-  "dash.no_job": "Idle"
+  "dash.no_job": "Idle",
+  "intake.requests": "Order requests",
+  "intake.empty": "No new requests.",
+  "intake.import": "Create quote",
+  "intake.dismiss": "Dismiss",
+  "intake.copy_link": "Copy request link",
+  "intake.link_copied": "Request link copied",
+  "intake.connect_first": "Connect Khayt Cloud first.",
+  "intake.load_fail": "Could not load requests:",
+  "intake.imported": "Quote created from request"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
