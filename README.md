@@ -6,7 +6,7 @@ Quoting · Kanban · ZATCA e-invoicing · Inventory · Analytics · Customer por
 Built with Electron · Vanilla JS · No cloud · No subscription · Your data never leaves your machine.
 
 [![Release](https://img.shields.io/github/v/release/Alballaa/Khayt?label=latest)](https://github.com/Alballaa/Khayt/releases/latest)
-[![License: MIT + Commons Clause](https://img.shields.io/badge/license-MIT%20%2B%20Commons%20Clause-blue)](./LICENSE)
+[![License: FSL-1.1-Apache-2.0](https://img.shields.io/badge/license-FSL--1.1--Apache--2.0-blue)](./LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)](#installation)
 [![Website](https://img.shields.io/badge/website-khaytapp.com-informational)](https://khaytapp.com)
 
@@ -318,7 +318,14 @@ When reporting a bug, please include:
 
 ## License
 
-**MIT + Commons Clause** — free to use for running your 3D printing business, personal or commercial. You may not sell, resell, or offer Khayt as a hosted service. See [LICENSE](./LICENSE) for the full terms.
+**Functional Source License (FSL-1.1-Apache-2.0)** — source-available.
+
+- ✅ **Free** to use for anything, including running your 3D-printing business.
+- ✅ Read, modify, and share the source; [contributions welcome](./CONTRIBUTING.md).
+- ❌ You may not **sell** Khayt, **host it as a paid service**, or build a competing product from it (a "Competing Use") — only the author may. Need to? See [COMMERCIAL.md](./COMMERCIAL.md).
+- ⏳ Every release **auto-converts to Apache-2.0** (fully open source) two years after it ships.
+
+See [LICENSE](./LICENSE) for the full terms and [THIRD-PARTY-NOTICES](./THIRD-PARTY-NOTICES.md) for bundled components. "Khayt" and the logo are trademarks of the author.
 
 ---
 

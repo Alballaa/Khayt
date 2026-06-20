@@ -33,6 +33,22 @@ Thank you for helping maintain Khayt. This document is the default workflow for 
 
 3. Bump version only when preparing a **release** (see [VERSIONING.md](./VERSIONING.md)), not on every PR.
 
+## Contributor License Agreement (required)
+
+Khayt is offered under both a source-available license ([FSL-1.1-Apache-2.0](./LICENSE))
+and a commercial license. So contributions can be carried in both, every contributor
+agrees to the [Contributor License Agreement](./CLA.md) by signing off their commits
+with the Developer Certificate of Origin:
+
+```bash
+git commit -s -m "your message"   # adds: Signed-off-by: Your Name <email>
+```
+
+The `Signed-off-by` line certifies you wrote the change (or may submit it) and that
+you agree to the [CLA](./CLA.md) for that contribution. PRs without a sign-off can't
+be merged. Don't paste in code under a license incompatible with the CLA (e.g.
+GPL/AGPL).
+
 ## Pull requests
 
 - One logical change per PR when possible.
