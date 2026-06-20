@@ -4,11 +4,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
-### 3.0.0-beta.6 cycle (in progress)
+## [3.0.0-beta.6] - 2026-06-20
+
+**Pre-release (beta)** — the slice → print pipeline. Configure your slicer, then send jobs to the printer without leaving Khayt.
 
 ### Added
 
-- **Slice & print** — on a machine that has a printer API configured (OctoPrint/Moonraker), the new 🖨 button slices a chosen model with your installed slicer and **uploads + starts the print** on that machine — slicing to printing without leaving Khayt. Composes the slicer integration with live printer monitoring.
+- **Slice & print** — on a machine with a printer API (OctoPrint / Moonraker / PrusaLink), a 🖨 button slices a chosen model with your installed slicer and **uploads + starts the print** on that machine. You can also send an already-sliced `.gcode` directly (no slicing).
+- **Slice & print from the queue** — a pending order whose assigned machine has a printer API and an attached model/G-code gets a 🖨 action right on the kanban card: slices the attachment (or uploads it) and starts it on that printer.
+- **Slicer "Test" button** (Settings → Slicer) — verifies the configured slicer program runs before you rely on it.
 
 ## [3.0.0-beta.5] - 2026-06-20
 
