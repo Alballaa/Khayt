@@ -69,7 +69,7 @@ async function autoSendEmailNotification(order, newStatus) {
   try {
     const result = await window.hubAPI?.sendEmail?.({ to: client.email, subject, body, smtpConfig: cfg });
     if (result?.ok) {
-      toast('📧 Email sent', 'success', 2000);
+      toast(t('notify.email_sent'), 'success', 2000);
     } else if (result?.fallback && result?.mailtoUrl) {
       // mailto fallback — no toast
     } else {
@@ -256,15 +256,15 @@ function openRecordSurveyModal(orderId) {
   const order = printLog.find(o => o.id === orderId);
   if (!order) return;
   openFormModal({
-    title: '📊 Record Customer Feedback',
-    saveLabel: 'Save',
+    title: t('survey.title'),
+    saveLabel: t('common.save'),
     bodyHtml: `
-      <p style="color:var(--text-muted);margin:0 0 16px;">Manually record the customer's rating for order <strong>${escapeHtml(orderId)}</strong>.</p>
-      <label>Star Rating (1–5)</label>
+      <p style="color:var(--text-muted);margin:0 0 16px;">${t('survey.intro').split('{id}').map(escapeHtml).join(`<strong>${escapeHtml(orderId)}</strong>`)}</p>
+      <label>${escapeHtml(t('survey.star_rating'))}</label>
       <div style="display:flex;gap:8px;margin-bottom:16px;" id="surveyStarRow">
         ${[1,2,3,4,5].map(n => `<button class="btn${(order.survey?.rating||0)>=n ? ' primary' : ' ghost'}" data-star="${n}" style="font-size:20px;padding:6px 10px;" type="button">⭐</button>`).join('')}
       </div>
-      <label>Comment (optional)</label>
+      <label>${escapeHtml(t('survey.comment_optional'))}</label>
       <textarea id="surveyComment" rows="3">${escapeHtml(order.survey?.comment||'')}</textarea>`,
     onMount: () => {
       $$('#surveyStarRow button').forEach(btn => {
@@ -637,7 +637,7 @@ function exportAccountingCSV() {
   });
 
   downloadBlob(new Blob([rows.map(r => r.map(csvEsc).join(',')).join('\n')], { type: 'text/csv' }), 'khayt-accounting-journal.csv');
-  toast('Accounting journal exported ✓', 'success');
+  toast(t('notify.journal_exported'), 'success');
 }
 
 /* ============================================================
@@ -654,12 +654,12 @@ function renderOrderComments(orderId) {
   if (!order) return;
   const comments = order.comments || [];
   const opName = settings.activeOperatorId
-    ? (operators.find(op => op.id === settings.activeOperatorId)?.name || 'Operator')
-    : (settings.bizEn || 'Admin');
+    ? (operators.find(op => op.id === settings.activeOperatorId)?.name || t('comments.operator'))
+    : (settings.bizEn || t('comments.admin'));
 
   el.innerHTML = `
     <div id="commentFeed" style="max-height:260px;overflow-y:auto;margin-bottom:12px;display:flex;flex-direction:column;gap:8px;">
-      ${comments.length === 0 ? '<p style="color:var(--text-muted);font-size:12.5px;margin:0;">No internal notes yet.</p>' :
+      ${comments.length === 0 ? `<p style="color:var(--text-muted);font-size:12.5px;margin:0;">${escapeHtml(t('comments.none'))}</p>` :
         comments.map(c => `
           <div style="background:var(--bg-elev);border-radius:var(--radius);padding:8px 12px;border-left:3px solid var(--primary);">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
@@ -671,8 +671,8 @@ function renderOrderComments(orderId) {
       }
     </div>
     <div style="display:flex;gap:8px;align-items:flex-end;">
-      <textarea id="commentInput" rows="2" placeholder="Add internal note…" style="flex:1;resize:vertical;font-size:13px;"></textarea>
-      <button class="btn primary" id="btnPostComment">Post</button>
+      <textarea id="commentInput" rows="2" placeholder="${escapeHtml(t('comments.placeholder'))}" style="flex:1;resize:vertical;font-size:13px;"></textarea>
+      <button class="btn primary" id="btnPostComment">${escapeHtml(t('comments.post'))}</button>
     </div>`;
 
   // Auto-scroll to bottom
@@ -1425,12 +1425,12 @@ function renderReferralAnalytics() {
 
   el.innerHTML = `
     <div class="card" style="margin-bottom:16px;padding:14px;">
-      <h4 style="margin-bottom:10px;">Acquisition Sources</h4>
-      ${bars || '<span style="color:var(--text-muted);font-size:12px;">No data</span>'}
+      <h4 style="margin-bottom:10px;">${escapeHtml(t('ref.acquisition_sources'))}</h4>
+      ${bars || `<span style="color:var(--text-muted);font-size:12px;">${escapeHtml(t('ref.no_data'))}</span>`}
     </div>
     ${topReferrers ? `<div class="card" style="padding:14px;">
-      <h4 style="margin-bottom:10px;">Top Referrers</h4>
-      <table><thead><tr><th>Client</th><th>Referrals</th></tr></thead><tbody>${topReferrers}</tbody></table>
+      <h4 style="margin-bottom:10px;">${escapeHtml(t('ref.top_referrers'))}</h4>
+      <table><thead><tr><th>${escapeHtml(t('ref.client'))}</th><th>${escapeHtml(t('ref.referrals'))}</th></tr></thead><tbody>${topReferrers}</tbody></table>
     </div>` : ''}`;
 }
 
