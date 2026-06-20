@@ -275,6 +275,8 @@ function updateStatus(id, newStatus) {
       sendTelegramForOrder(order, 'completed');
       // Round 12 — webhooks (status_changed + order_delivered) + survey token on completion
       fireOrderCompletionEvents(order);
+      // Keep a published customer-portal link in sync.
+      if (typeof republishPortalIfPublished === 'function') republishPortalIfPublished(order.id);
     });
     return;
   }
@@ -336,6 +338,8 @@ function updateStatus(id, newStatus) {
   // Round 12 — Webhook: status_changed (non-completion transitions; completion is
   // handled in the 'completed' branch above via fireOrderCompletionEvents).
   fireWebhook('status_changed', { orderId: order.id, project: order.project, newStatus, client: order.client });
+  // Keep a published customer-portal link in sync with the new status.
+  if (typeof republishPortalIfPublished === 'function') republishPortalIfPublished(order.id);
 }
 
 function holdOrder(id) {

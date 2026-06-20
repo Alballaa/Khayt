@@ -1022,14 +1022,8 @@ async function aiDraftReply(orderId) {
 
 /** Publish an order's status to Khayt Cloud as a public link (owner-curated,
  *  plaintext — only what's shown below; the rest of your data stays encrypted). */
-async function publishOrderToCloudPortal(orderId) {
-  const order = printLog.find(o => o.id === orderId);
-  if (!order) return;
-  const c = settings.cloud || {};
-  if (!(c.enabled && c.shopId)) { toast(t('cloud.portal_need_connect') || 'Connect Khayt Cloud first (Settings)', 'error'); return; }
-  const pubToken = order.trackingToken;
-  if (!pubToken) { toast(t('cloud.portal_no_token') || 'This order has no tracking token yet', 'error'); return; }
-
+/** Build the owner-curated portal payload for an order (plaintext, minimal). */
+function buildPortalPayload(order) {
   const isQuote = order.status === 'quote';
   const payload = {
     shopName: settings.bizEn || settings.bizAr || 'Khayt',
@@ -1043,9 +1037,35 @@ async function publishOrderToCloudPortal(orderId) {
     try { if (typeof currencySymbol === 'function') payload.currency = currencySymbol(); } catch (e) { /* optional */ }
   }
   if (order.status === 'on_hold' && order.holdReason) payload.note = String(order.holdReason);
+  return { isQuote, payload };
+}
+
+/** Keep a published portal link current: re-publish when the order changes
+ *  (e.g. status advances). No-op unless the order is published + cloud is on.
+ *  Fire-and-forget; never blocks the caller. */
+function republishPortalIfPublished(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order || !order.cloudPublished) return;
+  const c = settings.cloud || {};
+  if (!(c.enabled && c.shopId) || !order.trackingToken) return;
+  const { isQuote, payload } = buildPortalPayload(order);
+  Promise.resolve(window.hubAPI.cloudPublish({ url: c.url, shopId: c.shopId, token: c.token, pubToken: order.trackingToken, kind: isQuote ? 'quote' : 'order', payload }))
+    .catch((e) => console.error('portal auto-refresh:', e));
+}
+
+async function publishOrderToCloudPortal(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+  const c = settings.cloud || {};
+  if (!(c.enabled && c.shopId)) { toast(t('cloud.portal_need_connect') || 'Connect Khayt Cloud first (Settings)', 'error'); return; }
+  const pubToken = order.trackingToken;
+  if (!pubToken) { toast(t('cloud.portal_no_token') || 'This order has no tracking token yet', 'error'); return; }
+
+  const { isQuote, payload } = buildPortalPayload(order);
 
   const r = await window.hubAPI.cloudPublish({ url: c.url, shopId: c.shopId, token: c.token, pubToken, kind: isQuote ? 'quote' : 'order', payload });
   if (!r.ok) { toast('✗ ' + (r.error || 'publish failed'), 'error'); return; }
+  order.cloudPublished = true; saveAll(); // track so status changes auto-refresh the link
 
   const portalUrl = String(c.url || '').replace(/\/$/, '') + '/p/' + pubToken;
   let qrHtml = '';
@@ -1102,7 +1122,7 @@ async function publishOrderToCloudPortal(orderId) {
       });
       modal.querySelector('#cpUnpub')?.addEventListener('click', async () => {
         const u = await window.hubAPI.cloudUnpublish({ url: c.url, shopId: c.shopId, token: c.token, pubToken });
-        if (u.ok) toast(t('cloud.portal_unpublished') || 'Link unpublished', 'success');
+        if (u.ok) { order.cloudPublished = false; saveAll(); toast(t('cloud.portal_unpublished') || 'Link unpublished', 'success'); }
         else toast('✗ ' + (u.error || 'failed'), 'error');
       });
     },
@@ -1421,6 +1441,8 @@ function trackShipment(trackingNumber, carrier) {
     openSavedStatusPage,
     openCustomerPortalModal,
     aiDraftReply,
+    publishOrderToCloudPortal,
+    republishPortalIfPublished,
     openQuoteApprovalLinkModal,
     clearAllLogs,
     sendTelegramForOrder,
