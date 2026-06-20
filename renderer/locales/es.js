@@ -2775,6 +2775,10 @@
   "slicer.sending": "Laminando y enviando…",
   "slicer.sent": "Enviado a {name} — impresión iniciada ✓",
   "slicer.send_gcode_confirm": "¿Subir este G-code e iniciar la impresión en {name}?",
-  "slicer.no_printer": "Asigna primero este pedido a una máquina con API de impresora."
+  "slicer.no_printer": "Asigna primero este pedido a una máquina con API de impresora.",
+  "slicer.test": "Probar",
+  "slicer.testing": "Probando…",
+  "slicer.test_ok": "El laminador funciona",
+  "slicer.test_fail": "No se pudo ejecutar el laminador:"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

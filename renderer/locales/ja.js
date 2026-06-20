@@ -2775,6 +2775,10 @@
   "slicer.sending": "スライスして送信中…",
   "slicer.sent": "{name} に送信しました — 印刷を開始 ✓",
   "slicer.send_gcode_confirm": "この G-code をアップロードして {name} で印刷を開始しますか？",
-  "slicer.no_printer": "先にこの注文をプリンターAPI対応のマシンに割り当ててください。"
+  "slicer.no_printer": "先にこの注文をプリンターAPI対応のマシンに割り当ててください。",
+  "slicer.test": "テスト",
+  "slicer.testing": "テスト中…",
+  "slicer.test_ok": "スライサーは動作します",
+  "slicer.test_fail": "スライサーを実行できませんでした:"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

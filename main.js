@@ -528,6 +528,24 @@ ipcMain.handle('hub:slice', async (_e, opts = {}) => {
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
+// Quick "does this slicer binary run?" check for Settings → Slicer.
+ipcMain.handle('hub:slice-test', async (_e, { slicerPath } = {}) => {
+  try {
+    const { spawn } = require('node:child_process');
+    if (!slicerPath || !fs.existsSync(slicerPath)) return { ok: false, error: 'Slicer not found at that path.' };
+    return await new Promise((resolve) => {
+      let out = '';
+      let child;
+      try { child = spawn(slicerPath, ['--help'], { timeout: 15000, windowsHide: true }); }
+      catch (err) { return resolve({ ok: false, error: String(err && err.message || err) }); }
+      child.stdout?.on('data', (d) => { out = (out + d.toString()).slice(0, 4000); });
+      child.stderr?.on('data', (d) => { out = (out + d.toString()).slice(0, 4000); });
+      child.on('error', (err) => resolve({ ok: false, error: String(err && err.message || err) }));
+      child.on('close', () => resolve({ ok: true, info: (out.split('\n').find((l) => l.trim()) || '').slice(0, 120) }));
+    });
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
 // Upload a G-code file to a printer (OctoPrint / Moonraker / PrusaLink) and
 // optionally start it. Uses the same host allowlist as the status poller (SSRF-safe).
 async function uploadGcodeToPrinter(machine, gcodePath, startPrint) {

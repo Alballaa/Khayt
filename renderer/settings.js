@@ -336,6 +336,7 @@ function renderSlicerSettings() {
       <button class="btn ghost small" type="button" data-slicer-preset="prusa">PrusaSlicer</button>
       <button class="btn ghost small" type="button" data-slicer-preset="orca">OrcaSlicer</button>
       <button id="btnSaveSlicer" class="btn primary small" type="button">${escapeHtml(t('common.save') || 'Save')}</button>
+      <button id="btnTestSlicer" class="btn small" type="button">🔌 ${escapeHtml(t('slicer.test') || 'Test')}</button>
       <span id="slicerSaveResult" style="font-size:12px;"></span>
     </div>`;
 
@@ -349,6 +350,16 @@ function renderSlicerSettings() {
     settings.slicer = { path: el.querySelector('#slicerPath').value.trim(), args: el.querySelector('#slicerArgs').value.trim() };
     saveAll();
     const r = el.querySelector('#slicerSaveResult'); if (r) { r.textContent = '✓ ' + (t('common.save') || 'Saved'); r.style.color = 'var(--success)'; }
+  });
+  el.querySelector('#btnTestSlicer')?.addEventListener('click', async () => {
+    const res = el.querySelector('#slicerSaveResult');
+    const p = el.querySelector('#slicerPath').value.trim();
+    if (res) { res.textContent = t('slicer.testing') || 'Testing…'; res.style.color = 'var(--text-muted)'; }
+    try {
+      const r = await window.hubAPI.sliceTest({ slicerPath: p });
+      if (r && r.ok) { if (res) { res.textContent = '✓ ' + (t('slicer.test_ok') || 'Slicer works') + (r.info ? ` — ${r.info}` : ''); res.style.color = 'var(--success)'; } }
+      else { if (res) { res.textContent = '✗ ' + (t('slicer.test_fail') || 'Could not run the slicer') + ' ' + ((r && r.error) || ''); res.style.color = 'var(--danger)'; } }
+    } catch (e) { if (res) { res.textContent = '✗ ' + (e.message || e); res.style.color = 'var(--danger)'; } }
   });
 }
 

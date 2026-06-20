@@ -2775,6 +2775,10 @@
   "slicer.sending": "切片并发送中…",
   "slicer.sent": "已发送至 {name} — 已开始打印 ✓",
   "slicer.send_gcode_confirm": "上传此 G-code 并在 {name} 上开始打印？",
-  "slicer.no_printer": "请先将此订单分配给具有打印机 API 的机器。"
+  "slicer.no_printer": "请先将此订单分配给具有打印机 API 的机器。",
+  "slicer.test": "测试",
+  "slicer.testing": "测试中…",
+  "slicer.test_ok": "切片软件可用",
+  "slicer.test_fail": "无法运行切片软件:"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

@@ -2775,6 +2775,10 @@
   "slicer.sending": "Découpe et envoi…",
   "slicer.sent": "Envoyé à {name} — impression lancée ✓",
   "slicer.send_gcode_confirm": "Téléverser ce G-code et lancer l'impression sur {name} ?",
-  "slicer.no_printer": "Affectez d'abord cette commande à une machine dotée d'une API d'imprimante."
+  "slicer.no_printer": "Affectez d'abord cette commande à une machine dotée d'une API d'imprimante.",
+  "slicer.test": "Tester",
+  "slicer.testing": "Test…",
+  "slicer.test_ok": "Le trancheur fonctionne",
+  "slicer.test_fail": "Impossible d'exécuter le trancheur :"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

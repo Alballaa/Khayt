@@ -2775,6 +2775,10 @@
   "slicer.sending": "Slicen & senden…",
   "slicer.sent": "An {name} gesendet — Druck gestartet ✓",
   "slicer.send_gcode_confirm": "Diesen G-Code hochladen und Druck auf {name} starten?",
-  "slicer.no_printer": "Weise diesen Auftrag zuerst einer Maschine mit Drucker-API zu."
+  "slicer.no_printer": "Weise diesen Auftrag zuerst einer Maschine mit Drucker-API zu.",
+  "slicer.test": "Testen",
+  "slicer.testing": "Test läuft…",
+  "slicer.test_ok": "Slicer funktioniert",
+  "slicer.test_fail": "Slicer konnte nicht ausgeführt werden:"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

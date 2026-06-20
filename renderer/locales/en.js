@@ -2777,6 +2777,10 @@
   "slicer.sending": "Slicing & sending…",
   "slicer.sent": "Sent to {name} — printing started ✓",
   "slicer.send_gcode_confirm": "Upload this G-code and start printing on {name}?",
-  "slicer.no_printer": "Assign this order to a machine with a printer API first."
+  "slicer.no_printer": "Assign this order to a machine with a printer API first.",
+  "slicer.test": "Test",
+  "slicer.testing": "Testing…",
+  "slicer.test_ok": "Slicer works",
+  "slicer.test_fail": "Could not run the slicer:"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
