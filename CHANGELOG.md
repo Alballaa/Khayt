@@ -4,6 +4,29 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.0.0-beta.3] - 2026-06-20
+
+**Pre-release (beta)** — a hardening pass from a full UI / language / security / bug audit. No new features; everything below makes 3.0 safer and more complete.
+
+### Security (Khayt Cloud)
+
+- **Customer portal sign-in required for quote decisions** — approving/declining a quote linked to a customer account now requires that signed-in customer, so a forwarded link can't be used to forge a decision. Unlinked links keep the one-tap flow.
+- **Faster, abuse-resistant auth** — device-token and portal-session lookups no longer verify every stored hash (a denial-of-service hazard); they match a single indexed row.
+- **Rate-limit hardening** — the limiter no longer trusts a spoofable `X-Forwarded-For`, so brute-force protection on sign-in / reset / portal can't be bypassed.
+- Added HSTS + Content-Security-Policy + clickjacking protection to the portal and mobile pages; admin endpoints are header-only (no secret in the URL); `customerEmail` is validated before an item is linked to a customer.
+
+### Fixed
+
+- **Plan expiry** is now compared in UTC consistently, so a subscription can't read as expired (or active) by the server's timezone offset.
+- **Billing plan updates** target the exact account (by email or id), never an unintended match.
+- **Remote-mobile app** locks immediately when you switch away/lock the phone (it previously extended the unlock window).
+- Dark-theme fix: the "email not verified" notice is now readable (was a light box on dark cards).
+
+### Internationalization
+
+- **Full translation parity across all 7 languages** — backfilled ~200 missing strings (cloud, AI assistant, quote estimator, maintenance, reorder, …) into German, Spanish, French, Japanese, and Chinese, plus 22 more previously-English strings (referral analytics, feedback modal, order notes, purchase-order headers). Nothing falls back to English anymore.
+- **Customer portal + remote-mobile** are fully localized (English/Arabic with RTL); the server-rendered status page now matches the dark portal theme.
+
 ## [3.0.0-beta.2] - 2026-06-20
 
 **Pre-release (beta)** — growth + customer-experience additions on top of the 3.0 platform. All opt-in; the app still runs fully offline.
