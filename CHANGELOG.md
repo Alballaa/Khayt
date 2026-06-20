@@ -4,6 +4,21 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.0.0-beta.2] - 2026-06-20
+
+**Pre-release (beta)** — growth + customer-experience additions on top of the 3.0 platform. All opt-in; the app still runs fully offline.
+
+### Added
+
+- **AI shop assistant** — an **Ask AI** button (dashboard) answers questions from your own shop data (revenue this/last month, outstanding, overdue, top materials, low stock). Grounded in a curated summary — it won't invent numbers. Uses your Anthropic key.
+- **Customer portal accounts** — customers sign in at `cloud.khaytapp.com/portal` with their email + a one-time code (no password) and see **all** their orders, quotes, and deposits in one place.
+- **Deposit on quote approval** — when publishing a quote, attach a deposit amount + a payment link from **any** provider; the customer pays from the portal and "paid" is confirmed via a secret-gated webhook (Khayt stays provider-agnostic).
+- **Owner notifications** — the cloud emails you when a customer approves/declines a quote or pays a deposit.
+
+### Changed
+
+- **Your plan** is shown in the desktop Khayt Cloud card and the mobile app; cloud plans are operator-defined and **runtime-managed** (no redeploy to change).
+
 ## [3.0.0-beta.1] - 2026-06-20
 
 **Khayt 3.0 — first beta.** Version realignment: the cloud platform shipped under the `2.8.0-beta.1…5` line is the **Khayt 3.0** initiative, so the version now reflects that. No features were removed; this is `2.8.0-beta.5` renamed to the 3.0 line, plus the items below. The app still runs fully offline — every 3.0 capability is opt-in.
