@@ -4,6 +4,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### 3.0.0-beta.4 cycle (in progress)
+
+Planned: live printer monitoring (OctoPrint/Moonraker/Klipper), customer order intake via the portal, AI quote from an uploaded STL, and real web push notifications.
+
 ## [3.0.0-beta.3] - 2026-06-20
 
 **Pre-release (beta)** — a hardening pass from a full UI / language / security / bug audit. No new features; everything below makes 3.0 safer and more complete.
