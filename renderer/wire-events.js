@@ -244,6 +244,34 @@ function wireEvents() {
   $('#btnSavePreset').addEventListener('click', saveCurrentAsPreset);
   $('#btnDeletePreset').addEventListener('click', deleteCurrentPreset);
 
+  // Estimate print weight + time from an uploaded STL (parse + heuristic).
+  $('#btnEstimateStl')?.addEventListener('click', () => $('#stlFileInput')?.click());
+  $('#stlFileInput')?.addEventListener('change', async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = ''; // allow re-picking the same file
+    if (!file || typeof KhaytStl === 'undefined') return;
+    try {
+      const buf = await file.arrayBuffer();
+      const geom = KhaytStl.parseStl(buf);
+      const infillPct = Math.max(0, num($('#infill')?.value, 20)) / 100;
+      const est = KhaytStl.estimateFromStl(geom, { infillPct });
+      const wEl = $('#printWeight'); if (wEl) { wEl.value = est.estWeightG; wEl.dispatchEvent(new Event('input', { bubbles: true })); }
+      const tEl = $('#printTime'); if (tEl) { tEl.value = est.estPrintTimeH; tEl.dispatchEvent(new Event('input', { bubbles: true })); }
+      const note = $('#stlEstimateNote');
+      if (note) {
+        const line1 = t('stl.note_tpl', { x: est.dimsMm.x, y: est.dimsMm.y, z: est.dimsMm.z, solid: est.solidWeightG, weight: est.estWeightG, time: est.estPrintTimeH });
+        const line2 = t('stl.note_assume', { infill: Math.round(infillPct * 100), density: est.assumptions.densityGPerCm3 });
+        note.textContent = `${line1}  —  ${line2}`;
+        note.style.display = 'block';
+      }
+      toast(t('stl.applied'), 'success');
+      if (typeof updateGrandTotal === 'function') updateGrandTotal();
+    } catch (err) {
+      console.error('STL estimate:', err);
+      toast(t('stl.parse_fail'), 'error');
+    }
+  });
+
   // Job templates
   renderJobTemplateSelect();
   $('#jobTemplateSelect')?.addEventListener('change', e => { if (e.target.value) applyJobTemplate(e.target.value); });

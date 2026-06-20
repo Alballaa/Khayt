@@ -12,6 +12,7 @@ Planned: live printer monitoring (OctoPrint/Moonraker/Klipper), customer order i
 
 - **Live printer panel on the dashboard** — an at-a-glance card showing every API-connected machine's state, print progress, hotend/bed temps, current file, and ETA, refreshing in place each poll (reuses the existing OctoPrint/Moonraker/Klipper/PrusaLink/Bambu poller). Complements the kanban's per-machine live status.
 - **Customer order intake** — share a request link (`…/intake/<shop>`) and customers submit a print request (project, description, quantity, material, model link, photo, contact) with no login. New requests arrive in **Khayt Cloud → Order requests**; one click turns a request into a draft quote with a linked client. You're emailed when one comes in.
+- **Estimate from a 3D model (STL)** — in the calculator, upload an STL and Khayt reads its geometry (volume + bounding box) to auto-fill print weight and time using your infill setting; it shows the size, solid vs estimated weight, and the assumptions so you can adjust before saving. Works fully offline; handles binary and ASCII STL.
 
 ## [3.0.0-beta.3] - 2026-06-20
 

@@ -2751,6 +2751,11 @@
   "intake.link_copied": "リクエストリンクをコピーしました",
   "intake.connect_first": "先に Khayt Cloud に接続してください。",
   "intake.load_fail": "リクエストを読み込めませんでした:",
-  "intake.imported": "リクエストから見積を作成しました"
+  "intake.imported": "リクエストから見積を作成しました",
+  "stl.estimate_btn": "📐 3Dモデルから見積",
+  "stl.parse_fail": "STLファイルを読み込めませんでした。",
+  "stl.applied": "見積を適用しました — 保存前に確認してください。",
+  "stl.note_tpl": "サイズ {x}×{y}×{z} mm · ソリッド {solid} g → 推定 {weight} g · 約{time} h",
+  "stl.note_assume": "インフィル {infill}% · {density} g/cm³"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

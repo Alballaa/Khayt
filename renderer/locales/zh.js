@@ -2751,6 +2751,11 @@
   "intake.link_copied": "请求链接已复制",
   "intake.connect_first": "请先连接 Khayt Cloud。",
   "intake.load_fail": "无法加载请求：",
-  "intake.imported": "已根据请求创建报价"
+  "intake.imported": "已根据请求创建报价",
+  "stl.estimate_btn": "📐 从3D模型估算",
+  "stl.parse_fail": "无法读取该STL文件。",
+  "stl.applied": "已应用估算 — 保存前请检查。",
+  "stl.note_tpl": "尺寸 {x}×{y}×{z} mm · 实心 {solid} g → 估计 {weight} g · ~{time} h",
+  "stl.note_assume": "填充 {infill}% · {density} g/cm³"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

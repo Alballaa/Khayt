@@ -2751,6 +2751,11 @@
   "intake.link_copied": "Anfrage-Link kopiert",
   "intake.connect_first": "Zuerst Khayt Cloud verbinden.",
   "intake.load_fail": "Anfragen konnten nicht geladen werden:",
-  "intake.imported": "Angebot aus Anfrage erstellt"
+  "intake.imported": "Angebot aus Anfrage erstellt",
+  "stl.estimate_btn": "📐 Aus 3D-Modell schätzen",
+  "stl.parse_fail": "STL-Datei konnte nicht gelesen werden.",
+  "stl.applied": "Schätzung übernommen — vor dem Speichern prüfen.",
+  "stl.note_tpl": "Größe {x}×{y}×{z} mm · massiv {solid} g → geschätzt {weight} g · ~{time} h",
+  "stl.note_assume": "{infill}% Infill · {density} g/cm³"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

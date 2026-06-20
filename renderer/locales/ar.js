@@ -2752,6 +2752,11 @@
   "intake.link_copied": "تم نسخ رابط الطلب",
   "intake.connect_first": "وصّل خَيط كلاود أولاً.",
   "intake.load_fail": "تعذّر تحميل الطلبات:",
-  "intake.imported": "تم إنشاء عرض سعر من الطلب"
+  "intake.imported": "تم إنشاء عرض سعر من الطلب",
+  "stl.estimate_btn": "📐 تقدير من نموذج ثلاثي الأبعاد",
+  "stl.parse_fail": "تعذّرت قراءة ملف STL.",
+  "stl.applied": "تم تطبيق التقدير — راجِع قبل الحفظ.",
+  "stl.note_tpl": "الحجم {x}×{y}×{z} مم · صلب {solid} غ → تقديري {weight} غ · ~{time} ساعة",
+  "stl.note_assume": "تعبئة {infill}٪ · {density} غ/سم³"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
