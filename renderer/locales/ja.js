@@ -2739,6 +2739,9 @@
   "po.aging_30_60": "30〜60日",
   "po.aging_60plus": "60日以上",
   "notify.email_sent": "📧 メールを送信しました",
-  "notify.journal_exported": "会計仕訳をエクスポートしました ✓"
+  "notify.journal_exported": "会計仕訳をエクスポートしました ✓",
+  "dash.printers_live": "プリンター — ライブ",
+  "dash.printer_offline": "オフライン",
+  "dash.no_job": "アイドル"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

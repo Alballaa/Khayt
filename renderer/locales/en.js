@@ -2741,6 +2741,9 @@
   "po.aging_30_60": "30-60d",
   "po.aging_60plus": "60d+",
   "notify.email_sent": "📧 Email sent",
-  "notify.journal_exported": "Accounting journal exported ✓"
+  "notify.journal_exported": "Accounting journal exported ✓",
+  "dash.printers_live": "Printers — live",
+  "dash.printer_offline": "Offline",
+  "dash.no_job": "Idle"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
