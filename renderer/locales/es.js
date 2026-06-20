@@ -2773,6 +2773,7 @@
   "slicer.send_title": "Laminar e imprimir",
   "slicer.start_confirm": "¿Laminar e iniciar la impresión en {name}?",
   "slicer.sending": "Laminando y enviando…",
-  "slicer.sent": "Enviado a {name} — impresión iniciada ✓"
+  "slicer.sent": "Enviado a {name} — impresión iniciada ✓",
+  "slicer.send_gcode_confirm": "¿Subir este G-code e iniciar la impresión en {name}?"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

@@ -528,8 +528,8 @@ ipcMain.handle('hub:slice', async (_e, opts = {}) => {
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
-// Upload a G-code file to a printer (OctoPrint / Moonraker) and optionally start
-// it. Uses the same host allowlist as the status poller (SSRF-safe).
+// Upload a G-code file to a printer (OctoPrint / Moonraker / PrusaLink) and
+// optionally start it. Uses the same host allowlist as the status poller (SSRF-safe).
 async function uploadGcodeToPrinter(machine, gcodePath, startPrint) {
   const { type, host, port, apiKey } = (machine && machine.printerApi) || {};
   const printerHost = String(host || '').replace(/[^a-zA-Z0-9.\-]/g, '');
@@ -539,24 +539,35 @@ async function uploadGcodeToPrinter(machine, gcodePath, startPrint) {
   const base = `http://${printerHost}:${portNum}`;
   const bytes = fs.readFileSync(gcodePath);
   const name = `khayt-${Date.now().toString(36)}.gcode`;
-  const fd = new FormData();
-  fd.set('file', new Blob([bytes], { type: 'text/plain' }), name);
-  let url, headers = {};
-  if (type === 'octoprint') {
-    fd.set('select', 'true'); fd.set('print', startPrint ? 'true' : 'false');
-    url = `${base}/api/files/local`; headers['X-Api-Key'] = apiKey || '';
-  } else if (type === 'moonraker') {
-    fd.set('root', 'gcodes'); fd.set('print', startPrint ? 'true' : 'false');
-    url = `${base}/server/files/upload`;
-  } else {
-    return { ok: false, error: `Send-to-printer not supported for ${type || 'this printer'} yet (use OctoPrint or Moonraker).` };
-  }
+  const ok = (res) => (res.status >= 200 && res.status < 300) ? { ok: true, started: !!startPrint, filename: name } : { ok: false, error: `Printer responded ${res.status}` };
   try {
-    const res = await fetch(url, { method: 'POST', headers, body: fd, signal: AbortSignal.timeout(60000) });
-    if (res.status >= 200 && res.status < 300) return { ok: true, started: !!startPrint, filename: name };
-    return { ok: false, error: `Printer responded ${res.status}` };
+    if (type === 'octoprint' || type === 'moonraker') {
+      const fd = new FormData();
+      fd.set('file', new Blob([bytes], { type: 'text/plain' }), name);
+      let url, headers = {};
+      if (type === 'octoprint') { fd.set('select', 'true'); fd.set('print', startPrint ? 'true' : 'false'); url = `${base}/api/files/local`; headers['X-Api-Key'] = apiKey || ''; }
+      else { fd.set('root', 'gcodes'); fd.set('print', startPrint ? 'true' : 'false'); url = `${base}/server/files/upload`; }
+      return ok(await fetch(url, { method: 'POST', headers, body: fd, signal: AbortSignal.timeout(60000) }));
+    }
+    if (type === 'prusalink') {
+      // PrusaLink v1: PUT raw G-code to USB storage; Print-After-Upload auto-starts.
+      return ok(await fetch(`${base}/api/v1/files/usb/${encodeURIComponent(name)}`, {
+        method: 'PUT',
+        headers: { 'X-Api-Key': apiKey || '', 'Content-Type': 'application/octet-stream', 'Print-After-Upload': startPrint ? '1' : '0' },
+        body: bytes, signal: AbortSignal.timeout(60000),
+      }));
+    }
+    return { ok: false, error: `Send-to-printer isn't supported for ${type || 'this printer'} yet (OctoPrint, Moonraker, PrusaLink).` };
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 }
+
+// Send an already-sliced G-code file straight to a printer (no slicing).
+ipcMain.handle('hub:printer-send-gcode', async (_e, { machine, gcodePath, startPrint } = {}) => {
+  try {
+    if (!gcodePath || !fs.existsSync(gcodePath)) return { ok: false, error: 'G-code file not found.' };
+    return await uploadGcodeToPrinter(machine, gcodePath, startPrint);
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
 
 ipcMain.handle('hub:slice-and-print', async (_e, { modelPath, slicerPath, args, machine, startPrint } = {}) => {
   let outDir;
