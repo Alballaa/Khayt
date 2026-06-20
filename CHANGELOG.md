@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### 3.0.0-beta.7 cycle (in progress)
+
+### Added
+
+- **Crash reporting (opt-in, privacy-safe)** — official builds report crashes and errors to Sentry so issues are caught fast. No personal data or your encrypted store is ever sent; it's active only in installed builds (off during local development) and off entirely in source/fork builds without the project key.
+
 ## [3.0.0-beta.6] - 2026-06-20
 
 **Pre-release (beta)** — the slice → print pipeline. Configure your slicer, then send jobs to the printer without leaving Khayt.
