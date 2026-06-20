@@ -4,6 +4,18 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [2.8.0-beta.5] - 2026-06-20
+
+**Pre-release (beta)** — **Khayt on your phone.** A mobile web app (PWA), served by Khayt Cloud, lets you check your shop anywhere — fully end-to-end encrypted.
+
+### Added
+
+- **Remote mobile (PWA)** — open `cloud.khaytapp.com/m` on your phone, log in, and unlock with your sync passphrase to see a read-only **Dashboard** (active orders, open quotes, low stock) and **Orders** list, plus **advance an order's status** from your phone. Everything is decrypted **in the browser** (the server only ever holds ciphertext); the passphrase never leaves your device. Installable, works offline (app shell), Arabic/RTL, and auto-locks when idle.
+
+### Internal
+
+- Browser-portable E2E crypto verified byte-compatible with the desktop: WebCrypto AES-256-GCM (`lib/sync-crypto-web.js`) + a pure-JS scrypt (`lib/scrypt-js.js`, matches Node incl. N=32768). The PWA + serving live in the cloud repo.
+
 ## [2.8.0-beta.4] - 2026-06-20
 
 **Pre-release (beta)** — follow-up to beta.3: smarter restocking and a self-maintaining customer portal.
