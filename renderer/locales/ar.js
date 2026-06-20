@@ -2757,6 +2757,19 @@
   "stl.parse_fail": "تعذّرت قراءة ملف STL.",
   "stl.applied": "تم تطبيق التقدير — راجِع قبل الحفظ.",
   "stl.note_tpl": "الحجم {x}×{y}×{z} مم · صلب {solid} غ → تقديري {weight} غ · ~{time} ساعة",
-  "stl.note_assume": "تعبئة {infill}٪ · {density} غ/سم³"
+  "stl.note_assume": "تعبئة {infill}٪ · {density} غ/سم³",
+  "slicer.settings_title": "تكامل المُقطّع (Slicer)",
+  "slicer.settings_help": "قطّع نموذجاً مرفوعاً باستخدام المُقطّع المثبّت لديك لتعبئة عرض السعر بالوزن والوقت الفعليين. لا يضمّن خَيط أي مُقطّع.",
+  "slicer.path_label": "برنامج المُقطّع",
+  "slicer.browse": "استعراض…",
+  "slicer.args_label": "أمر التقطيع",
+  "slicer.args_help": "استخدم {model} و{output} كعناصر نائبة؛ وأضف ملفك التعريفي، مثل --load /path/to/profile.ini",
+  "slicer.preset": "إعداد مسبق:",
+  "slicer.slice_btn": "🧩 قطّع لعرض سعر دقيق",
+  "slicer.slicing": "جارٍ التقطيع…",
+  "slicer.no_config": "حدّد مسار المُقطّع في الإعدادات ← المُقطّع أولاً.",
+  "slicer.fail": "فشل التقطيع:",
+  "slicer.note": "تم التقطيع بواسطة {slicer}: {weight} غ · {time} ساعة",
+  "slicer.applied": "تم تطبيق التقدير من التقطيع — راجِع قبل الحفظ."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

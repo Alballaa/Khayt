@@ -2756,6 +2756,19 @@
   "stl.parse_fail": "无法读取该STL文件。",
   "stl.applied": "已应用估算 — 保存前请检查。",
   "stl.note_tpl": "尺寸 {x}×{y}×{z} mm · 实心 {solid} g → 估计 {weight} g · ~{time} h",
-  "stl.note_assume": "填充 {infill}% · {density} g/cm³"
+  "stl.note_assume": "填充 {infill}% · {density} g/cm³",
+  "slicer.settings_title": "切片软件集成",
+  "slicer.settings_help": "用你已安装的切片软件对上传的模型进行切片，以其精确的重量和时间填充报价。Khayt 不内置切片软件。",
+  "slicer.path_label": "切片软件程序",
+  "slicer.browse": "浏览…",
+  "slicer.args_label": "切片命令",
+  "slicer.args_help": "使用 {model} 和 {output} 作为占位符；并包含你的配置文件，例如 --load /path/to/profile.ini",
+  "slicer.preset": "预设:",
+  "slicer.slice_btn": "🧩 切片以获得精确报价",
+  "slicer.slicing": "切片中…",
+  "slicer.no_config": "请先在 设置 → 切片软件 中设置切片软件路径。",
+  "slicer.fail": "切片失败:",
+  "slicer.note": "已用 {slicer} 切片: {weight} g · {time} h",
+  "slicer.applied": "已根据切片应用估算 — 保存前请检查。"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

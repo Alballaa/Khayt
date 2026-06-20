@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### 3.0.0-beta.5 cycle (in progress)
+
+### Added
+
+- **Slicer integration** — point Khayt at your installed **PrusaSlicer / OrcaSlicer** (Settings → Slicer), then **"🧩 Slice for exact quote"** in the calculator slices an uploaded model and fills print weight + time from the slicer's *own* estimate (binary + ASCII; parses time/filament/cost from the G-code). Khayt never bundles a slicer — it shells out to yours, so it stays license-clean. Complements the offline STL geometry estimate.
+
 ## [3.0.0-beta.4] - 2026-06-20
 
 **Pre-release (beta)** — four growth features: live printer monitoring, customer order intake, STL-based quoting, and web push.

@@ -2756,6 +2756,19 @@
   "stl.parse_fail": "STL-Datei konnte nicht gelesen werden.",
   "stl.applied": "Schätzung übernommen — vor dem Speichern prüfen.",
   "stl.note_tpl": "Größe {x}×{y}×{z} mm · massiv {solid} g → geschätzt {weight} g · ~{time} h",
-  "stl.note_assume": "{infill}% Infill · {density} g/cm³"
+  "stl.note_assume": "{infill}% Infill · {density} g/cm³",
+  "slicer.settings_title": "Slicer-Integration",
+  "slicer.settings_help": "Schneide ein hochgeladenes Modell mit deinem installierten Slicer, um das Angebot mit dessen genauem Gewicht & Zeit zu füllen. Khayt bündelt keinen Slicer.",
+  "slicer.path_label": "Slicer-Programm",
+  "slicer.browse": "Durchsuchen…",
+  "slicer.args_label": "Slice-Befehl",
+  "slicer.args_help": "Nutze {model} und {output} als Platzhalter; füge dein Profil hinzu, z. B. --load /path/to/profile.ini",
+  "slicer.preset": "Vorlage:",
+  "slicer.slice_btn": "🧩 Für genaues Angebot slicen",
+  "slicer.slicing": "Wird gesliced…",
+  "slicer.no_config": "Lege zuerst den Slicer-Pfad unter Einstellungen → Slicer fest.",
+  "slicer.fail": "Slicen fehlgeschlagen:",
+  "slicer.note": "Gesliced mit {slicer}: {weight} g · {time} h",
+  "slicer.applied": "Schätzung aus dem Slice übernommen — vor dem Speichern prüfen."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

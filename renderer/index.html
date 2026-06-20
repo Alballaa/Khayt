@@ -285,7 +285,10 @@
 
           <label for="printWeight"><span data-i18n="calc.part.print_wt">Print weight</span> (<span id="printWeightUnit" data-i18n="common.grams">g</span>)</label>
           <input type="number" id="printWeight" value="150" min="0">
-          <button type="button" class="btn ghost small" id="btnEstimateStl" style="margin-top:6px;" data-i18n="stl.estimate_btn">📐 Estimate from 3D model</button>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
+            <button type="button" class="btn ghost small" id="btnEstimateStl" data-i18n="stl.estimate_btn">📐 Estimate from 3D model</button>
+            <button type="button" class="btn ghost small" id="btnSliceQuote" data-i18n="slicer.slice_btn">🧩 Slice for exact quote</button>
+          </div>
           <input type="file" id="stlFileInput" accept=".stl,model/stl,application/sla" style="display:none;">
           <div id="stlEstimateNote" style="display:none;font-size:12px;color:var(--text-muted);margin-top:6px;padding:8px 10px;background:var(--bg-elev);border-radius:var(--radius);"></div>
 
@@ -1902,6 +1905,12 @@
         <div class="settings-section-head" data-i18n="set.ai_title">AI assist</div>
         <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;" data-i18n="set.ai_hint">Use your own Anthropic API key to estimate quotes from a plain-language description. Off by default; the key is stored encrypted and sent only to Anthropic.</p>
         <div id="aiSettingsSection"></div>
+        </div>
+
+        <div class="card settings-card">
+        <div class="settings-section-head" data-i18n="slicer.settings_title">Slicer integration</div>
+        <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;" data-i18n="slicer.settings_help">Slice an uploaded model with your own installed slicer to fill the quote with its exact weight &amp; time. Khayt never bundles a slicer.</p>
+        <div id="slicerSettingsSection"></div>
         </div>
 
         <div class="card settings-card">

@@ -314,6 +314,44 @@ function renderAiSettings() {
   });
 }
 
+function renderSlicerSettings() {
+  const el = $('#slicerSettingsSection');
+  if (!el) return;
+  const sl = settings.slicer || {};
+  const PRESETS = {
+    prusa: '--export-gcode --load /path/to/config.ini -o {output} {model}',
+    orca: '--slice 0 --load-settings "machine.json;process.json" --load-filaments "filament.json" --outputdir {outdir} {model}',
+  };
+  el.innerHTML = `
+    <label style="margin-top:0;">${escapeHtml(t('slicer.path_label') || 'Slicer program')}</label>
+    <div style="display:flex;gap:8px;">
+      <input type="text" id="slicerPath" value="${escapeHtml(sl.path || '')}" placeholder="/Applications/PrusaSlicer.app/Contents/MacOS/PrusaSlicer" style="flex:1;font-size:12.5px;">
+      <button id="btnSlicerBrowse" class="btn small" type="button">${escapeHtml(t('slicer.browse') || 'Browse…')}</button>
+    </div>
+    <label style="margin-top:10px;">${escapeHtml(t('slicer.args_label') || 'Slice command')}</label>
+    <textarea id="slicerArgs" rows="2" style="font-size:12px;font-family:var(--mono,monospace);" placeholder="--export-gcode -o {output} {model}">${escapeHtml(sl.args || '')}</textarea>
+    <p style="font-size:11.5px;color:var(--text-muted);margin:4px 0 0;">${escapeHtml(t('slicer.args_help') || '')}</p>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
+      <span style="font-size:12px;color:var(--text-muted);">${escapeHtml(t('slicer.preset') || 'Preset:')}</span>
+      <button class="btn ghost small" type="button" data-slicer-preset="prusa">PrusaSlicer</button>
+      <button class="btn ghost small" type="button" data-slicer-preset="orca">OrcaSlicer</button>
+      <button id="btnSaveSlicer" class="btn primary small" type="button">${escapeHtml(t('common.save') || 'Save')}</button>
+      <span id="slicerSaveResult" style="font-size:12px;"></span>
+    </div>`;
+
+  el.querySelector('#btnSlicerBrowse')?.addEventListener('click', async () => {
+    const p = await window.hubAPI?.pickFile?.({ filters: [{ name: 'Slicer program', extensions: ['*', 'exe', 'app', 'AppImage'] }] });
+    if (p) el.querySelector('#slicerPath').value = p;
+  });
+  el.querySelectorAll('[data-slicer-preset]').forEach((b) =>
+    b.addEventListener('click', () => { el.querySelector('#slicerArgs').value = PRESETS[b.dataset.slicerPreset] || ''; }));
+  el.querySelector('#btnSaveSlicer')?.addEventListener('click', () => {
+    settings.slicer = { path: el.querySelector('#slicerPath').value.trim(), args: el.querySelector('#slicerArgs').value.trim() };
+    saveAll();
+    const r = el.querySelector('#slicerSaveResult'); if (r) { r.textContent = '✓ ' + (t('common.save') || 'Saved'); r.style.color = 'var(--success)'; }
+  });
+}
+
 function showRecoveryKeyModal(recoveryKey) {
   openFormModal({
     title: t('cloud.recovery_title') || 'Save your recovery key',
@@ -1757,6 +1795,7 @@ function loadSettingsIntoForm() {
   // Feature I: Email digest scheduler
   renderDigestSettings();
   renderAiSettings();
+  renderSlicerSettings();
   renderCloudSettings();
   // Feature 7 (new 8-pack): Operator lock section
   renderOperatorLockSettings();
@@ -2443,6 +2482,7 @@ function renderTelegramSettings() {
     renderEmailNotificationSettings,
     renderDigestSettings,
     renderAiSettings,
+    renderSlicerSettings,
     renderCloudSettings,
     renderOperatorLockSettings,
     renderLoyaltyTiersSettings,

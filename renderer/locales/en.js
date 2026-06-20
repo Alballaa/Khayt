@@ -2758,6 +2758,19 @@
   "stl.parse_fail": "Couldn't read that STL file.",
   "stl.applied": "Estimate applied — review before saving.",
   "stl.note_tpl": "Size {x}×{y}×{z} mm · solid {solid} g → est. {weight} g · ~{time} h",
-  "stl.note_assume": "{infill}% infill · {density} g/cm³"
+  "stl.note_assume": "{infill}% infill · {density} g/cm³",
+  "slicer.settings_title": "Slicer integration",
+  "slicer.settings_help": "Slice an uploaded model with your own installed slicer to fill the quote with its exact weight & time. Khayt never bundles a slicer.",
+  "slicer.path_label": "Slicer program",
+  "slicer.browse": "Browse…",
+  "slicer.args_label": "Slice command",
+  "slicer.args_help": "Use {model} and {output} as placeholders; include your profile, e.g. --load /path/to/profile.ini",
+  "slicer.preset": "Preset:",
+  "slicer.slice_btn": "🧩 Slice for exact quote",
+  "slicer.slicing": "Slicing…",
+  "slicer.no_config": "Set your slicer path in Settings → Slicer first.",
+  "slicer.fail": "Slicing failed:",
+  "slicer.note": "Sliced with {slicer}: {weight} g · {time} h",
+  "slicer.applied": "Estimate applied from slice — review before saving."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

@@ -89,8 +89,16 @@ test('no metadata → nulls (graceful, never throws)', () => {
 });
 
 test('empty / nullish input is safe', () => {
-  assert.deepEqual(parseGcodeText(''), { printTimeMins: null, filamentGrams: null, filamentType: null, slicer: null });
-  assert.deepEqual(parseGcodeText(null), { printTimeMins: null, filamentGrams: null, filamentType: null, slicer: null });
+  assert.deepEqual(parseGcodeText(''), { printTimeMins: null, filamentGrams: null, filamentType: null, filamentCost: null, slicer: null });
+  assert.deepEqual(parseGcodeText(null), { printTimeMins: null, filamentGrams: null, filamentType: null, filamentCost: null, slicer: null });
+});
+
+test('parseFilamentCost extracts total filament cost', () => {
+  const { parseFilamentCost } = require('../lib/gcode-parse.js');
+  assert.equal(parseFilamentCost('; total filament cost = 1.87'), 1.87);
+  assert.equal(parseFilamentCost('; filament cost = 0.50, 0.25'), 0.75, 'sums a per-extruder list');
+  assert.equal(parseFilamentCost('; estimated printing time = 1h'), null);
+  assert.equal(parseGcodeText('; total filament cost = 2.40\n; filament used [g] = 30').filamentCost, 2.40);
 });
 
 test('parseFilamentType extracts material (first extruder for multi-material)', () => {
