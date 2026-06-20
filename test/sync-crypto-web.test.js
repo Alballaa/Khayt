@@ -40,6 +40,26 @@ test('wrong passphrase fails (GCM auth) in the web path', async () => {
   await assert.rejects(() => web.unlockDek({ keyset, passphrase: 'wrong', scrypt: scryptNode }));
 });
 
+test('web ENCRYPT is desktop-readable (phone writes → desktop reads)', async () => {
+  const { keyset } = sc.createKeyset('w-pass', { kdf: FAST_KDF });
+  const dek = sc.unlockWithPassphrase('w-pass', keyset);
+  const edited = { printLog: [{ id: 'o1', status: 'printing', rev: 3 }] };
+
+  // Phone encrypts with WebCrypto…
+  const blob = await web.encryptStore(edited, dek);
+  assert.ok(blob.v && blob.iv && blob.ct && blob.tag, 'matches the desktop envelope shape');
+  // …desktop decrypts it.
+  const back = sc.decryptStore(blob, dek);
+  assert.deepEqual(back, edited);
+});
+
+test('web encrypt → web decrypt round-trips', async () => {
+  const { keyset } = sc.createKeyset('rt', { kdf: FAST_KDF });
+  const dek = await web.unlockDek({ keyset, passphrase: 'rt', scrypt: scryptNode });
+  const blob = await web.encryptStore(STORE, dek);
+  assert.deepEqual(await web.decryptStore(blob, dek), STORE);
+});
+
 test('tampered store blob is rejected', async () => {
   const { keyset } = sc.createKeyset('p', { kdf: FAST_KDF });
   const dek = sc.unlockWithPassphrase('p', keyset);
