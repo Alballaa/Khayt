@@ -633,6 +633,8 @@ function wireEvents() {
     if (aiReplyBtn) { aiDraftReply(aiReplyBtn.dataset.id); return; }
     const reorderBtn = e.target.closest('[data-act="reorder-suggest"]');
     if (reorderBtn) { openReorderSuggestions(); return; }
+    const askAiBtn = e.target.closest('[data-act="ask-ai"]');
+    if (askAiBtn) { openAiAssistant(); return; }
     const quoteLinkBtn = e.target.closest('[data-act="quote-approval-link"]');
     if (quoteLinkBtn) { openQuoteApprovalLinkModal(quoteLinkBtn.dataset.id); return; }
     const logTimeBtn = e.target.closest('[data-act="log-time"]');

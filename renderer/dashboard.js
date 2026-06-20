@@ -565,6 +565,7 @@ function renderDashboard() {
       <div class="dash-hero-right">
         <span class="dash-greeting">${escapeHtml(t('dash.greeting'))}</span>
         <span class="dash-date">${today.toLocaleDateString(dashIsAr ? 'ar-SA' : 'en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}</span>
+        <button class="btn small" data-act="ask-ai" style="margin-top:8px;">✨ ${escapeHtml(t('ai.assistant_btn') || 'Ask AI')}</button>
       </div>
     </div>
 
