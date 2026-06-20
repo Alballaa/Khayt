@@ -2961,8 +2961,8 @@ async function batchGenPOs() {
             <thead><tr style="color:var(--text-muted);">
               <th style="text-align:left;padding:4px 6px;">${escapeHtml(t('po.supplier'))}</th>
               <th style="text-align:left;padding:4px 6px;">${escapeHtml(t('po.item'))}</th>
-              <th style="text-align:right;padding:4px 6px;">${escapeHtml('Current')}</th>
-              <th style="text-align:right;padding:4px 6px;">${escapeHtml('Order qty')}</th>
+              <th style="text-align:right;padding:4px 6px;">${escapeHtml(t('po.current'))}</th>
+              <th style="text-align:right;padding:4px 6px;">${escapeHtml(t('po.order_qty'))}</th>
             </tr></thead>
             <tbody>${rowsHtml}</tbody>
           </table>
@@ -3042,10 +3042,10 @@ function renderPurchaseOrders() {
   }
   const agingHtml = unpaidPOs.length > 0 ? `
     <div class="ap-aging-bar" style="display:flex;gap:12px;flex-wrap:wrap;padding:8px 12px;background:var(--surface-2);border-radius:var(--radius);margin-bottom:12px;font-size:12.5px;align-items:center;">
-      <span style="font-weight:600;color:var(--text-muted);">AP Aging:</span>
-      <span style="color:var(--success);">● ${aging.current} &lt;30d</span>
-      <span style="color:var(--warning);">● ${aging.d30} 30-60d</span>
-      <span style="color:var(--danger);">● ${aging.d60} 60d+</span>
+      <span style="font-weight:600;color:var(--text-muted);">${escapeHtml(t('po.ap_aging'))}</span>
+      <span style="color:var(--success);">● ${aging.current} ${escapeHtml(t('po.aging_lt30'))}</span>
+      <span style="color:var(--warning);">● ${aging.d30} ${escapeHtml(t('po.aging_30_60'))}</span>
+      <span style="color:var(--danger);">● ${aging.d60} ${escapeHtml(t('po.aging_60plus'))}</span>
       <span style="margin-inline-start:auto;color:var(--text-muted);">${unpaidPOs.length} ${escapeHtml(t('po.aging_unpaid'))}</span>
     </div>` : '';
 
