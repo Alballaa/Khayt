@@ -2776,6 +2776,10 @@
   "slicer.sending": "جارٍ التقطيع والإرسال…",
   "slicer.sent": "تم الإرسال إلى {name} — بدأت الطباعة ✓",
   "slicer.send_gcode_confirm": "هل تريد رفع ملف G-code هذا وبدء الطباعة على {name}؟",
-  "slicer.no_printer": "عيّن هذا الطلب إلى آلة مزوّدة بواجهة طابعة أولاً."
+  "slicer.no_printer": "عيّن هذا الطلب إلى آلة مزوّدة بواجهة طابعة أولاً.",
+  "slicer.test": "اختبار",
+  "slicer.testing": "جارٍ الاختبار…",
+  "slicer.test_ok": "المُقطّع يعمل",
+  "slicer.test_fail": "تعذّر تشغيل المُقطّع:"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
