@@ -4,8 +4,8 @@ Khayt publishes **two release channels** on GitHub:
 
 | Channel | Tag example | GitHub | Auto-update |
 |---------|-------------|--------|-------------|
-| **Stable** | `v2.3.3` | [Latest release](https://github.com/Alballaa/Khayt/releases/latest) | Default (beta off) |
-| **Beta** | `v2.4.0-beta.2` | [Pre-releases](https://github.com/Alballaa/Khayt/releases) (filter *Pre-release*) | Opt-in via Settings |
+| **Stable** | `v2.3.3` | [Latest release](https://github.com/khaytapp/Khayt/releases/latest) | Default (beta off) |
+| **Beta** | `v2.4.0-beta.2` | [Pre-releases](https://github.com/khaytapp/Khayt/releases) (filter *Pre-release*) | Opt-in via Settings |
 
 ## What beta includes
 
@@ -15,7 +15,7 @@ Shop data format is unchanged from stable **v2.3.3** — backup/restore works be
 
 ## Download beta
 
-1. Open [GitHub Releases](https://github.com/Alballaa/Khayt/releases).
+1. Open [GitHub Releases](https://github.com/khaytapp/Khayt/releases).
 2. Enable **Pre-release** (or open `v2.4.0-beta.2` directly).
 3. Download the installer for your platform.
 

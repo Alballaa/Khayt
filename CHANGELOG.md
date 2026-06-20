@@ -467,7 +467,7 @@ Graduates the Khayt-4 beta line (`v2.4.0-beta.1` → `beta.4`) to a stable relea
 
 ## [2.4.0-beta.1] - 2026-06-05
 
-**Pre-release (beta)** — Khayt-4 design themes ship beside stable **v2.3.2**. Install from [GitHub Releases → Pre-releases](https://github.com/Alballaa/Khayt/releases). Stable installs do not auto-update to beta; see [docs/BETA-RELEASE.md](./docs/BETA-RELEASE.md).
+**Pre-release (beta)** — Khayt-4 design themes ship beside stable **v2.3.2**. Install from [GitHub Releases → Pre-releases](https://github.com/khaytapp/Khayt/releases). Stable installs do not auto-update to beta; see [docs/BETA-RELEASE.md](./docs/BETA-RELEASE.md).
 
 ### Added
 
@@ -699,4 +699,4 @@ Significant release: modular renderer and main process, store validation, expand
 
 ## [2.0.16] - 2026-05-30
 
-Patch line preceding 2.1.0. See [GitHub Releases](https://github.com/Alballaa/Khayt/releases) for prior `2.0.x` notes.
+Patch line preceding 2.1.0. See [GitHub Releases](https://github.com/khaytapp/Khayt/releases) for prior `2.0.x` notes.

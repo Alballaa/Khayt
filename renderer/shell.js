@@ -737,7 +737,7 @@ function openFeedbackModal() {
       </div>`,
     onMount(modal) {
       modal.querySelector('#btnFbGithub').addEventListener('click', () => {
-        const url = 'https://github.com/Alballaa/Khayt/issues/new';
+        const url = 'https://github.com/khaytapp/Khayt/issues/new';
         if (window.hubAPI?.openExternal) window.hubAPI.openExternal(url);
         else window.open(url);
       });

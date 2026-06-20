@@ -4,7 +4,7 @@ Khayt uses [Semantic Versioning 2.0.0](https://semver.org/) as `MAJOR.MINOR.PATC
 
 **Current release lines:**
 
-- **Stable:** `2.3.x` — latest tag **v2.3.2** ([releases/latest](https://github.com/Alballaa/Khayt/releases/latest))
+- **Stable:** `2.3.x` — latest tag **v2.3.2** ([releases/latest](https://github.com/khaytapp/Khayt/releases/latest))
 - **Beta:** `2.4.0-beta.x` — Khayt-4 themes; see [docs/BETA-RELEASE.md](./docs/BETA-RELEASE.md)
 
 Stable hold: no new **stable** tags until [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md) is lifted. Beta pre-releases may ship alongside stable.

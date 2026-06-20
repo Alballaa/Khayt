@@ -5,7 +5,7 @@ Quoting · Kanban · ZATCA e-invoicing · Inventory · Analytics · Customer por
 
 Built with Electron · Vanilla JS · No cloud · No subscription · Your data never leaves your machine.
 
-[![Release](https://img.shields.io/github/v/release/Alballaa/Khayt?label=latest)](https://github.com/Alballaa/Khayt/releases/latest)
+[![Release](https://img.shields.io/github/v/release/khaytapp/Khayt?label=latest)](https://github.com/khaytapp/Khayt/releases/latest)
 [![License: FSL-1.1-Apache-2.0](https://img.shields.io/badge/license-FSL--1.1--Apache--2.0-blue)](./LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)](#installation)
 [![Website](https://img.shields.io/badge/website-khaytapp.com-informational)](https://khaytapp.com)
@@ -38,7 +38,7 @@ Built with Electron · Vanilla JS · No cloud · No subscription · Your data ne
 |:------------------------:|:---------------:|
 | ![Settings — ZATCA Phase 2 onboarding and custom SMTP](assets/screenshot-11-settings-invoice.png) | ![Portfolio — finished print gallery from order photos](assets/screenshot-12-portfolio.png) |
 
-Full-resolution PNGs are also attached to each [GitHub Release](https://github.com/Alballaa/Khayt/releases/latest).
+Full-resolution PNGs are also attached to each [GitHub Release](https://github.com/khaytapp/Khayt/releases/latest).
 
 ---
 
@@ -156,9 +156,9 @@ Khayt replaces spreadsheets, WhatsApp notes, and separate invoicing tools with o
 
 ### Download (recommended)
 
-**Stable (recommended):** **[Releases → Latest](https://github.com/Alballaa/Khayt/releases/latest)** — currently **v2.5.0**.
+**Stable (recommended):** **[Releases → Latest](https://github.com/khaytapp/Khayt/releases/latest)** — currently **v2.5.0**.
 
-**Beta:** **[Pre-releases](https://github.com/Alballaa/Khayt/releases)** — **v2.6.0-beta** ships the redesigned **Workbench** (default), **Command**, and **Vivid** themes. Pre-release builds; stable installs do not auto-update to beta. See [docs/BETA-RELEASE.md](docs/BETA-RELEASE.md).
+**Beta:** **[Pre-releases](https://github.com/khaytapp/Khayt/releases)** — **v2.6.0-beta** ships the redesigned **Workbench** (default), **Command**, and **Vivid** themes. Pre-release builds; stable installs do not auto-update to beta. See [docs/BETA-RELEASE.md](docs/BETA-RELEASE.md).
 
 Grab the file for your platform:
 
@@ -178,7 +178,7 @@ Grab the file for your platform:
 Requires **Node.js 22.12+** (22 LTS or 24.x). On **Node 24.16+**, Electron’s zip step needs system `unzip` on macOS (`xcode-select --install` if missing).
 
 ```bash
-git clone https://github.com/Alballaa/Khayt.git
+git clone https://github.com/khaytapp/Khayt.git
 cd Khayt
 npm install            # downloads Electron (~150MB); wait until it finishes
 npm start              # development (live-reload with ⌘R / Ctrl+R)
