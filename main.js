@@ -1144,10 +1144,10 @@ ipcMain.handle('hub:cloud-verify-email', async (_e, { url, email, code } = {}) =
 });
 
 // Customer portal: publish/unpublish an owner-curated (plaintext) item; list actions.
-ipcMain.handle('hub:cloud-publish', async (_e, { url, shopId, token, pubToken, kind, payload } = {}) => {
+ipcMain.handle('hub:cloud-publish', async (_e, { url, shopId, token, pubToken, kind, payload, customerEmail } = {}) => {
   try {
     token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
-    return { ok: true, ...(await cloudClient.publishPortal(url, shopId, token, pubToken, kind, payload)) };
+    return { ok: true, ...(await cloudClient.publishPortal(url, shopId, token, pubToken, kind, payload, customerEmail)) };
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
