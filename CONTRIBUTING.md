@@ -84,4 +84,4 @@ See [VERSIONING.md](./VERSIONING.md). Summary: update `CHANGELOG.md` → `npm ru
 
 ## Security
 
-Report sensitive issues privately to **support@khayt.app** rather than a public issue if exploitation is possible (LAN API, store format, ZATCA keys).
+Report sensitive issues privately to **support@khaytapp.com** rather than a public issue if exploitation is possible (LAN API, store format, ZATCA keys).

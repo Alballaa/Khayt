@@ -67,7 +67,7 @@ Both are **thin wrappers over §1 + §2** — zero bespoke server code. Publishe
 
 With Phase 1 connected, the same `/v1` surface becomes reachable over the internet **without** the user exposing their LAN — additive only; LAN keeps working with cloud off.
 
-- The Phase 1 cloud terminates a public HTTPS endpoint `https://api.khayt.app/v1/...` scoped per shop, authenticates the **same scoped API tokens** (validated against the shop's token set), and **relays** the request to the desktop over the existing authenticated channel (Phase 1 device connection / tunnel) — the desktop remains the single writer and source of truth. No shop operational data is stored cloud-side beyond Phase 1's E2E ciphertext.
+- The Phase 1 cloud terminates a public HTTPS endpoint `https://api.khaytapp.com/v1/...` scoped per shop, authenticates the **same scoped API tokens** (validated against the shop's token set), and **relays** the request to the desktop over the existing authenticated channel (Phase 1 device connection / tunnel) — the desktop remains the single writer and source of truth. No shop operational data is stored cloud-side beyond Phase 1's E2E ciphertext.
 - Tenant isolation is absolute (`shopId` on every relayed call; security model §1.3). Cloud applies its own per-shop rate limits and a global DoS backstop in front of the desktop's local limits.
 - Outbound webhooks can originate from the desktop directly (works offline) **or** be relayed via cloud when the desktop is asleep — owner-selectable per subscription. Replaces the manual `localtunnel` (`hub:start-tunnel`) as the recommended remote path; the weak-PIN/tunnel guards (`weakTunnelPinWarning`) remain for the legacy tunnel.
 
