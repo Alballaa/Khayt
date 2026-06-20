@@ -7,7 +7,7 @@ const fs = require('fs');
 // SENTRY_DSN is set (so day-to-day development doesn't flood the project).
 // PII is off and the E2E store is never sent. Init early to catch startup errors.
 const SENTRY_DSN = process.env.SENTRY_DSN
-  || 'https://251a3951cae8d0e46b4349718d5ba054@o4511599597977600.ingest.de.sentry.io/4511599607152720';
+  || 'https://7b05dbab160d7a1825f5b2fceab06122@o4511599597977600.ingest.de.sentry.io/4511599624126544';
 let sentry = null;
 if (SENTRY_DSN && (app.isPackaged || process.env.SENTRY_DSN)) {
   try {
