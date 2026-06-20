@@ -19,7 +19,7 @@ service, for example:
 If that's you, or you want the software under terms other than the FSL (e.g. a
 private/proprietary license, or without the 2-year Apache conversion), reach out:
 
-**Turki AlBallaa — support@khayt.app** · https://khaytapp.com
+**Turki AlBallaa — support@khaytapp.com** · https://khaytapp.com
 
 ## Hosted service
 

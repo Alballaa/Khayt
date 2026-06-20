@@ -1013,7 +1013,7 @@ ipcMain.handle('hub:send-email', async (event, { to, subject, body, smtpConfig }
         headers: { 'Authorization': `Bearer ${cfg.apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           personalizations: [{ to: [{ email: to }] }],
-          from: { email: cfg.fromEmail || 'noreply@khayt.app', name: cfg.fromName || 'Khayt' },
+          from: { email: cfg.fromEmail || 'noreply@khaytapp.com', name: cfg.fromName || 'Khayt' },
           subject,
           content: [{ type: 'text/html', value: body }]
         })
@@ -1049,7 +1049,7 @@ ipcMain.handle('hub:send-email', async (event, { to, subject, body, smtpConfig }
       user: cfg.smtpUser || '',
       pass: cfg.smtpPassword || '',
       secure: !!cfg.smtpSecure,
-      from: cfg.fromEmail || cfg.smtpUser || 'noreply@khayt.app',
+      from: cfg.fromEmail || cfg.smtpUser || 'noreply@khaytapp.com',
       fromName: cfg.fromName || 'Khayt',
       to,
       subject,
@@ -1280,9 +1280,9 @@ ipcMain.handle('hub:bnpl-tabby', async (_e, { apiKey, merchantCode, amount, curr
       lang: 'en',
       merchant_code: String(merchantCode || ''),
       merchant_urls: {
-        success: 'https://khayt.app/success',
-        cancel:  'https://khayt.app/cancel',
-        failure: 'https://khayt.app/failure',
+        success: 'https://khaytapp.com/success',
+        cancel:  'https://khaytapp.com/cancel',
+        failure: 'https://khaytapp.com/failure',
       },
     };
     const res = await fetch('https://api.tabby.ai/api/v2/checkout', {
@@ -1328,10 +1328,10 @@ ipcMain.handle('hub:bnpl-tamara', async (_e, { apiKey, amount, currency, country
         phone_number: String(buyer?.phone || ''),
       },
       merchant_url: {
-        success:      'https://khayt.app/success',
-        failure:      'https://khayt.app/failure',
-        cancel:       'https://khayt.app/cancel',
-        notification: 'https://khayt.app/notify',
+        success:      'https://khaytapp.com/success',
+        failure:      'https://khaytapp.com/failure',
+        cancel:       'https://khaytapp.com/cancel',
+        notification: 'https://khaytapp.com/notify',
       },
     };
     const res = await fetch('https://api.tamara.co/checkout', {
@@ -1361,8 +1361,8 @@ ipcMain.handle('hub:bnpl-stripe', async (_e, { apiKey, amount, currency, descrip
       return s;
     } catch { return fallback; }
   };
-  const safeSuccessUrl = validateStripeRedirectUrl(successUrl, 'https://khayt.app/success');
-  const safeCancelUrl  = validateStripeRedirectUrl(cancelUrl,  'https://khayt.app/cancel');
+  const safeSuccessUrl = validateStripeRedirectUrl(successUrl, 'https://khaytapp.com/success');
+  const safeCancelUrl  = validateStripeRedirectUrl(cancelUrl,  'https://khaytapp.com/cancel');
   try {
     const params = new URLSearchParams({
       'mode':                                         'payment',
