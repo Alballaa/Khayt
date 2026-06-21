@@ -4,11 +4,17 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
-### 3.0.0-beta.7 cycle (in progress)
+## [3.0.0-beta.7] - 2026-06-21
+
+**Pre-release (beta)** — reliability + project move.
 
 ### Added
 
 - **Crash reporting (opt-in, privacy-safe)** — official builds report crashes and errors to Sentry so issues are caught fast. No personal data or your encrypted store is ever sent; it's active only in installed builds (off during local development) and off entirely in source/fork builds without the project key.
+
+### Changed
+
+- Khayt now lives in the **`khaytapp` GitHub organization**; release downloads and auto-updates moved with it (old links auto-redirect). The contact address is now on `khaytapp.com`.
 
 ## [3.0.0-beta.6] - 2026-06-20
 
