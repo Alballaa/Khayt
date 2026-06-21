@@ -2779,6 +2779,9 @@
   "slicer.test": "Tester",
   "slicer.testing": "Test…",
   "slicer.test_ok": "Le trancheur fonctionne",
-  "slicer.test_fail": "Impossible d'exécuter le trancheur :"
+  "slicer.test_fail": "Impossible d'exécuter le trancheur :",
+  "dash.filament_title": "Filament — à surveiller",
+  "dash.spool_low": "Bas",
+  "dash.spool_days": "~{n} j restants"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

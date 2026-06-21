@@ -2779,6 +2779,9 @@
   "slicer.test": "テスト",
   "slicer.testing": "テスト中…",
   "slicer.test_ok": "スライサーは動作します",
-  "slicer.test_fail": "スライサーを実行できませんでした:"
+  "slicer.test_fail": "スライサーを実行できませんでした:",
+  "dash.filament_title": "フィラメント — 要確認",
+  "dash.spool_low": "残少",
+  "dash.spool_days": "残り~{n}日"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

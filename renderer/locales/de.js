@@ -2779,6 +2779,9 @@
   "slicer.test": "Testen",
   "slicer.testing": "Test läuft…",
   "slicer.test_ok": "Slicer funktioniert",
-  "slicer.test_fail": "Slicer konnte nicht ausgeführt werden:"
+  "slicer.test_fail": "Slicer konnte nicht ausgeführt werden:",
+  "dash.filament_title": "Filament — Aufmerksamkeit nötig",
+  "dash.spool_low": "Niedrig",
+  "dash.spool_days": "~{n} T übrig"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

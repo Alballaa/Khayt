@@ -2779,6 +2779,9 @@
   "slicer.test": "测试",
   "slicer.testing": "测试中…",
   "slicer.test_ok": "切片软件可用",
-  "slicer.test_fail": "无法运行切片软件:"
+  "slicer.test_fail": "无法运行切片软件:",
+  "dash.filament_title": "耗材 — 需要关注",
+  "dash.spool_low": "不足",
+  "dash.spool_days": "剩~{n}天"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

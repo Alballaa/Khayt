@@ -2781,6 +2781,9 @@
   "slicer.test": "Test",
   "slicer.testing": "Testing…",
   "slicer.test_ok": "Slicer works",
-  "slicer.test_fail": "Could not run the slicer:"
+  "slicer.test_fail": "Could not run the slicer:",
+  "dash.filament_title": "Filament — needs attention",
+  "dash.spool_low": "Low",
+  "dash.spool_days": "~{n}d left"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
