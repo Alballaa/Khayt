@@ -2779,6 +2779,9 @@
   "slicer.test": "Probar",
   "slicer.testing": "Probando…",
   "slicer.test_ok": "El laminador funciona",
-  "slicer.test_fail": "No se pudo ejecutar el laminador:"
+  "slicer.test_fail": "No se pudo ejecutar el laminador:",
+  "dash.filament_title": "Filamento — requiere atención",
+  "dash.spool_low": "Bajo",
+  "dash.spool_days": "~{n} d restantes"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

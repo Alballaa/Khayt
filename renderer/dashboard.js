@@ -656,6 +656,7 @@ function renderDashboard() {
     })() : ''}
 
     ${renderDashLivePrinters()}
+    ${renderDashFilament()}
 
     ${settings.mode !== 'simple' && machines.length > 0 ? (() => {
       const activeOrds = printLog.filter(o => o.status !== 'completed' && o.status !== 'quote');
@@ -1229,6 +1230,42 @@ function renderMaterialUsageChart() {
     }).join('');
   }
 
+  /* ── Filament status (dashboard panel) ──────────────────────────
+   * Surfaces spools that are low or projected to deplete soon, reusing the
+   * existing reorder engine (lib/reorder.js) + isLowStock — no new inventory
+   * logic. Read-only; reflects current state on each dashboard render. */
+  function renderDashFilament() {
+    const inv = (typeof inventory !== 'undefined' ? inventory : []);
+    if (!inv.length || typeof KhaytReorder === 'undefined' || typeof isLowStock !== 'function') return '';
+    let sug = [];
+    try {
+      sug = KhaytReorder.reorderSuggestions(inv, (typeof printLog !== 'undefined' ? printLog : []), {
+        now: Date.now(), windowDays: 30, partGrams: (typeof partGramsConsumed === 'function' ? partGramsConsumed : undefined),
+        isLow: isLowStock, leadDays: 14, targetDays: 45,
+      }) || [];
+    } catch (e) { return ''; }
+    if (!sug.length) return '';
+    const tiles = sug.slice(0, 8).map((s) => {
+      const it = s.item || {};
+      const name = it.name || [it.brand, it.material, it.colorName].filter(Boolean).join(' ') || it.material || 'Spool';
+      const total = +it.weightTotal || 0;
+      const pct = total > 0 ? Math.min(100, Math.max(0, Math.round((+it.weight || 0) / total * 100))) : null;
+      const col = s.low ? 'var(--danger)' : 'var(--warning)';
+      const days = (s.daysLeft != null && isFinite(s.daysLeft)) ? t('dash.spool_days', { n: Math.max(0, Math.round(s.daysLeft)) }) : '';
+      const meta = [`${Math.round(+it.weight || 0)}g${pct != null ? ` · ${pct}%` : ''}`, s.low ? t('dash.spool_low') : days].filter(Boolean).join('  ·  ');
+      const dot = it.hex && /^#?[0-9a-fA-F]{3,8}$/.test(it.hex) ? (it.hex[0] === '#' ? it.hex : '#' + it.hex) : col;
+      return `<div class="dash-printer-tile">
+        <div class="dash-printer-head"><span class="dash-mach-dot" style="background:${safeCssColor(dot)};"></span><span class="dash-printer-name">${escapeHtml(name)}</span></div>
+        ${pct != null ? `<div class="dash-printer-bar"><div style="width:${pct}%;background:${col};"></div></div>` : ''}
+        <div class="dash-printer-meta" style="color:${col};">${escapeHtml(meta)}</div>
+      </div>`;
+    }).join('');
+    return `<div class="card khayt-panel">
+      <h3 class="dash-section-head" style="margin-bottom:10px;">🧵 ${escapeHtml(t('dash.filament_title'))}</h3>
+      <div class="dash-printer-grid">${tiles}</div>
+    </div>`;
+  }
+
   function renderDashLivePrinters() {
     const tiles = dashLivePrinterTiles();
     if (!tiles) return '';
@@ -1252,6 +1289,7 @@ function renderMaterialUsageChart() {
     renderFilamentAnalytics,
     renderMaterialUsageChart,
     renderDashLivePrinters,
+    renderDashFilament,
     updateDashLivePrinters,
   };
 

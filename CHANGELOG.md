@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### 3.0.0-beta.8 cycle (in progress)
+
+### Added
+
+- **Filament status on the dashboard** — an at-a-glance panel showing spools that are low or projected to run out soon (remaining grams + %, days-left), reusing the existing reorder engine. Complements the inventory tab and low-stock alerts so you spot shortages from the home screen.
+
 ## [3.0.0-beta.7] - 2026-06-21
 
 **Pre-release (beta)** — reliability + project move.

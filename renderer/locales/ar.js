@@ -2780,6 +2780,9 @@
   "slicer.test": "اختبار",
   "slicer.testing": "جارٍ الاختبار…",
   "slicer.test_ok": "المُقطّع يعمل",
-  "slicer.test_fail": "تعذّر تشغيل المُقطّع:"
+  "slicer.test_fail": "تعذّر تشغيل المُقطّع:",
+  "dash.filament_title": "الفتلة — تحتاج انتباه",
+  "dash.spool_low": "منخفض",
+  "dash.spool_days": "~{n} يوم متبقٍ"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
