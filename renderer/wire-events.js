@@ -800,6 +800,8 @@ function wireEvents() {
   document.querySelector('.kanban')?.addEventListener('click', (e) => {
     const kanbanTimeline = e.target.closest('[data-act="order-timeline"]');
     if (kanbanTimeline) { openOrderTimeline(kanbanTimeline.dataset.id); return; }
+    const orderLabel = e.target.closest('[data-act="order-label"]');
+    if (orderLabel) { if (typeof printOrderLabels === 'function') printOrderLabels(orderLabel.dataset.id); return; }
     const logWasteCard = e.target.closest('[data-act="log-waste-card"]');
     if (logWasteCard) { openLogWasteFromCard(logWasteCard.dataset.id); return; }
     const bnplPay = e.target.closest('[data-act="bnpl-pay"]');
@@ -1250,6 +1252,7 @@ function wireEvents() {
   $('#btnExportClientsCsv')?.addEventListener('click', () => exportClientsCsv());
   $('#btnCampaign')?.addEventListener('click', () => openCampaignModal());
   $('#btnExportInventoryCsv')?.addEventListener('click', () => exportInventoryCsv());
+  $('#btnSpoolLabels')?.addEventListener('click', () => { if (typeof printSpoolLabels === 'function') printSpoolLabels(); });
   $('#btnAddClient').addEventListener('click', () => openClientEditor(null));
   $('#btnBlankIntakeForm')?.addEventListener('click', () => generateIntakeForm(null));
   $('#clientSearch').addEventListener('input', (e) => { clientSearchTerm = e.target.value; clientDisplayLimit = 50; renderClients(); });

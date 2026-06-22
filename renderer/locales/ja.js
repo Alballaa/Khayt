@@ -2886,6 +2886,12 @@
   "camp.sending": "送信中",
   "camp.done": "送信しました",
   "camp.failed": "失敗",
-  "camp.opt_out": "マーケティング配信から除外"
+  "camp.opt_out": "マーケティング配信から除外",
+  "lbl.print_spools": "ラベル",
+  "lbl.print_order": "ラベル印刷",
+  "lbl.orders": "注文ラベル",
+  "lbl.spools": "スプールラベル",
+  "lbl.due": "期限",
+  "lbl.none": "印刷対象なし"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

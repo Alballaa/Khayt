@@ -2887,6 +2887,12 @@
   "camp.sending": "جارٍ الإرسال",
   "camp.done": "تم الإرسال",
   "camp.failed": "فشل",
-  "camp.opt_out": "استثناء من الحملات التسويقية"
+  "camp.opt_out": "استثناء من الحملات التسويقية",
+  "lbl.print_spools": "ملصقات",
+  "lbl.print_order": "طباعة ملصق",
+  "lbl.orders": "ملصقات الطلبات",
+  "lbl.spools": "ملصقات البكرات",
+  "lbl.due": "الاستحقاق",
+  "lbl.none": "لا شيء لطباعته"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

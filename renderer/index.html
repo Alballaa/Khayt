@@ -992,6 +992,7 @@
       <div id="pipelineDemand"></div>
       <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
         <button class="btn ghost small" id="btnExportInventoryCsv" title="Export inventory to CSV">📥 <span data-i18n="common.export_csv">CSV</span></button>
+        <button class="btn ghost small" id="btnSpoolLabels" title="Print QR labels for spools">🏷 <span data-i18n="lbl.print_spools">Labels</span></button>
         <button id="btnImportSpoolsCsv" class="btn small ghost" data-i18n="csv.import_spools_btn">Import CSV</button>
       </div>
       <div class="grid">
@@ -2271,6 +2272,7 @@
 <!-- Printable invoice area -->
 <div id="invoice-print-area"></div>
 <div id="work-order-print-area"></div>
+<div id="label-print-area"></div>
 
 <!-- Global ⌘K Search Overlay -->
 <div id="globalSearchOverlay" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.65); backdrop-filter:blur(4px); align-items:flex-start; justify-content:center; padding-top:15vh;">
@@ -2321,6 +2323,7 @@
 <script src="../lib/reorder.js"></script>
 <script src="../lib/payment-plan.js"></script>
 <script src="../lib/campaigns.js"></script>
+<script src="../lib/labels.js"></script>
 <script src="themes/registry-core.js"></script>
 <script src="themes/custom-loader.js"></script>
 <script src="themes/ledger/shell.js"></script>
@@ -2348,6 +2351,7 @@
 <script src="machines.js"></script>
 <script src="clients.js"></script>
 <script src="expenses.js"></script>
+<script src="labels.js"></script>
 <script src="waste.js"></script>
 <script src="views.js"></script>
 <script src="notifications.js"></script>

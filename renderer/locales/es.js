@@ -2886,6 +2886,12 @@
   "camp.sending": "Enviando",
   "camp.done": "Enviado",
   "camp.failed": "fallido",
-  "camp.opt_out": "Excluir de campañas de marketing"
+  "camp.opt_out": "Excluir de campañas de marketing",
+  "lbl.print_spools": "Etiquetas",
+  "lbl.print_order": "Imprimir etiqueta",
+  "lbl.orders": "Etiquetas de pedidos",
+  "lbl.spools": "Etiquetas de bobinas",
+  "lbl.due": "vence",
+  "lbl.none": "Nada que etiquetar"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
