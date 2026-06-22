@@ -2800,6 +2800,20 @@
   "team.remove_q": "Remove {email} from the team?",
   "team.unverified": "unverified",
   "team.owner": "owner",
-  "common.remove": "Remove"
+  "common.remove": "Remove",
+  "store.title": "Storefront",
+  "store.intro": "Publish your product catalog as a public page customers can browse. Their selections arrive in Order requests as draft quotes.",
+  "store.note_label": "Shop note (optional)",
+  "store.note_ph": "e.g. Lead time ~3 days · Riyadh pickup",
+  "store.include_photos": "Include product photos",
+  "store.publish": "Publish",
+  "store.copy_link": "Copy link",
+  "store.unpublish": "Unpublish",
+  "store.copied": "Link copied",
+  "store.publishing": "Publishing…",
+  "store.published": "Storefront is live",
+  "store.unpublished": "Storefront is offline",
+  "store.no_products": "Add products to your catalog first",
+  "store.unpublish_q": "Take the storefront offline? The link will stop working."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

@@ -2798,6 +2798,20 @@
   "team.remove_q": "将 {email} 从团队中移除？",
   "team.unverified": "未验证",
   "team.owner": "店主",
-  "common.remove": "移除"
+  "common.remove": "移除",
+  "store.title": "店铺",
+  "store.intro": "将您的产品目录发布为客户可浏览的公开页面。他们的选择将作为草稿报价进入订单请求。",
+  "store.note_label": "店铺备注（可选）",
+  "store.note_ph": "例如：交期约3天 · 利雅得自取",
+  "store.include_photos": "包含产品照片",
+  "store.publish": "发布",
+  "store.copy_link": "复制链接",
+  "store.unpublish": "取消发布",
+  "store.copied": "链接已复制",
+  "store.publishing": "发布中…",
+  "store.published": "店铺已上线",
+  "store.unpublished": "店铺已下线",
+  "store.no_products": "请先向目录中添加产品",
+  "store.unpublish_q": "将店铺下线？链接将停止工作。"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
