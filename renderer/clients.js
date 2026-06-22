@@ -575,6 +575,10 @@ function openClientEditor(clientId = null) {
         <button type="button" id="recSkip" class="btn ghost small" style="margin-top:8px;">${escapeHtml(t('rec.skip_next') || 'Skip next cycle')}</button>
         <p style="font-size:11.5px;color:var(--text-muted);margin:6px 0 0;">${escapeHtml(t('rec.hint'))}</p>
       </div>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:12px;">
+        <input type="checkbox" id="ceMarketingOptOut" style="width:auto;margin:0;" ${draft.marketingOptOut ? 'checked' : ''}>
+        <span>${escapeHtml(t('camp.opt_out') || 'Exclude from marketing campaigns')}</span>
+      </label>
     </div>
 
     <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border-soft);">
@@ -797,6 +801,7 @@ function openClientEditor(clientId = null) {
         paused:   modal.querySelector('#recPaused')?.checked || false,
         endDate:  modal.querySelector('#recEndDate')?.value || null,
       };
+      draft.marketingOptOut = modal.querySelector('#ceMarketingOptOut')?.checked || false;
       draft.currency = modal.querySelector('#ceCurrency')?.value || null;
       draft.creditLimit = Math.max(0, num(modal.querySelector('#ceCreditLimit')?.value, 0)) || 0;
       draft.source = modal.querySelector('[data-f="source"]')?.value || 'other';
@@ -1259,6 +1264,121 @@ function exportClientPortal(clientId) {
     toast(t('cl.portal_saved'), 'info');
   }
 }
+
+/* ============================================================
+   Marketing campaigns — segment + broadcast over email / SMS
+   ============================================================ */
+function openCampaignModal() {
+  if (typeof KhaytCampaigns === 'undefined') { toast('Campaigns unavailable', 'error'); return; }
+  const tierOf = (id) => (getClientTier(id) || {}).name || '';
+  const tierNames = (settings.loyaltyEnabled ? (settings.loyaltyTiers || []) : []).map((x) => x.name).filter(Boolean);
+  const allTags = [...new Set(clients.flatMap((c) => Array.isArray(c.tags) ? c.tags : []))].filter(Boolean);
+  const fmtMoney = (n) => (typeof fmtPrice === 'function' ? fmtPrice(n) : String(n));
+  const emailReady = (settings.emailConfig?.provider || 'none') !== 'none';
+  const smsReady = (settings.smsConfig?.provider || 'none') !== 'none';
+
+  const criteriaFrom = (modal) => {
+    const c = {};
+    const minS = num(modal.querySelector('#campMinSpend').value, NaN);
+    if (!Number.isNaN(minS) && modal.querySelector('#campMinSpend').value !== '') c.minSpend = minS;
+    const noOrd = parseInt(modal.querySelector('#campNoOrder').value, 10);
+    if (Number.isFinite(noOrd) && modal.querySelector('#campNoOrder').value !== '') c.noOrderDays = noOrd;
+    const tag = modal.querySelector('#campTag').value.trim();
+    if (tag) c.tag = tag;
+    const tier = modal.querySelector('#campTier')?.value || '';
+    if (tier) c.tier = tier;
+    return c;
+  };
+  const channelOf = (modal) => modal.querySelector('#campChannel').value;
+  const recipientsOf = (modal) => KhaytCampaigns.segmentRecipients(clients, printLog, criteriaFrom(modal), channelOf(modal), Date.now(), { tierOf });
+
+  openFormModal({
+    title: `📣 ${t('camp.title') || 'Marketing campaign'}`,
+    sizeLg: true,
+    saveLabel: t('camp.send') || 'Send',
+    bodyHtml: `
+      <div class="inline-pair">
+        <div><label style="margin-top:0;">${escapeHtml(t('camp.channel') || 'Channel')}</label>
+          <select id="campChannel">
+            ${emailReady ? `<option value="email">${escapeHtml(t('camp.ch_email') || 'Email')}</option>` : ''}
+            ${smsReady ? `<option value="whatsapp">WhatsApp</option><option value="sms">SMS</option>` : ''}
+            ${!emailReady && !smsReady ? `<option value="">${escapeHtml(t('camp.no_channel') || 'Configure email or SMS in Settings first')}</option>` : ''}
+          </select>
+        </div>
+        <div><label style="margin-top:0;">${escapeHtml(t('camp.tag') || 'Tag (optional)')}</label>
+          <input id="campTag" list="campTagList" placeholder="${escapeHtml(t('camp.any') || 'any')}">
+          <datalist id="campTagList">${allTags.map((tg) => `<option value="${escapeHtml(tg)}">`).join('')}</datalist>
+        </div>
+      </div>
+      <div class="inline-pair" style="margin-top:8px;">
+        <div><label style="margin-top:0;">${escapeHtml(t('camp.min_spend') || 'Min lifetime spend')}</label>
+          <input id="campMinSpend" type="number" min="0" step="1" placeholder="${escapeHtml(t('camp.any') || 'any')}"></div>
+        <div><label style="margin-top:0;">${escapeHtml(t('camp.no_order_days') || 'No order in (days)')}</label>
+          <input id="campNoOrder" type="number" min="0" step="1" placeholder="${escapeHtml(t('camp.any') || 'any')}"></div>
+      </div>
+      ${tierNames.length ? `<label style="margin-top:8px;">${escapeHtml(t('camp.tier') || 'Loyalty tier')}</label>
+        <select id="campTier"><option value="">${escapeHtml(t('camp.any') || 'any')}</option>${tierNames.map((n) => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('')}</select>` : ''}
+      <label style="margin-top:10px;" id="campSubjLabel">${escapeHtml(t('camp.subject') || 'Subject (email)')}</label>
+      <input id="campSubject" maxlength="160" placeholder="${escapeHtml(t('camp.subject_ph') || 'A note from {{name}}…')}">
+      <label style="margin-top:8px;">${escapeHtml(t('camp.message') || 'Message')}</label>
+      <textarea id="campBody" rows="4" placeholder="${escapeHtml(t('camp.body_ph') || 'Hi {{name}}, …')}"></textarea>
+      <p style="font-size:11px;color:var(--text-muted);margin:4px 0 0;">${escapeHtml(t('camp.merge_hint') || 'Merge fields: {{name}} {{orders}} {{spend}} {{last_order}} · opted-out customers are skipped.')}</p>
+      <div style="margin-top:8px;font-size:12.5px;"><strong id="campCount">0</strong> ${escapeHtml(t('camp.recipients') || 'recipients')}</div>
+      <div id="campPreview" style="margin-top:6px;font-size:12px;color:var(--text-muted);white-space:pre-wrap;"></div>
+      <span id="campResult" style="font-size:12px;display:block;margin-top:6px;"></span>`,
+    onMount(modal) {
+      const refresh = () => {
+        const ch = channelOf(modal);
+        modal.querySelector('#campSubjLabel').style.display = ch === 'email' ? '' : 'none';
+        modal.querySelector('#campSubject').style.display = ch === 'email' ? '' : 'none';
+        const recips = ch ? recipientsOf(modal) : [];
+        modal.querySelector('#campCount').textContent = recips.length;
+        const sample = recips[0];
+        modal.querySelector('#campPreview').textContent = sample
+          ? (t('camp.preview') || 'Preview') + ' → ' + sample.contact + ':\n' + KhaytCampaigns.fillTemplate(modal.querySelector('#campBody').value, sample, fmtMoney)
+          : '';
+      };
+      modal.querySelectorAll('#campChannel,#campTag,#campMinSpend,#campNoOrder,#campTier,#campBody').forEach((el) => {
+        el.addEventListener('input', refresh); el.addEventListener('change', refresh);
+      });
+      refresh();
+    },
+    async onSave(modal) {
+      const ch = channelOf(modal);
+      const res = modal.querySelector('#campResult');
+      if (!ch) { res.textContent = '✗ ' + (t('camp.no_channel') || 'Configure email or SMS first'); res.style.color = 'var(--danger)'; return false; }
+      const body = modal.querySelector('#campBody').value.trim();
+      if (!body) { res.textContent = '✗ ' + (t('camp.need_body') || 'Write a message first'); res.style.color = 'var(--danger)'; return false; }
+      const subject = modal.querySelector('#campSubject').value.trim();
+      const recips = recipientsOf(modal);
+      if (!recips.length) { res.textContent = '✗ ' + (t('camp.none') || 'No recipients match'); res.style.color = 'var(--danger)'; return false; }
+      if (!(await confirmModal((t('camp.confirm', { n: recips.length }) || `Send to ${recips.length} customers?`)))) return false;
+      let sent = 0, failed = 0;
+      const btn = modal.querySelector('.modal-save'); if (btn) btn.disabled = true;
+      for (let i = 0; i < recips.length; i++) {
+        const r = recips[i];
+        res.textContent = `${t('camp.sending') || 'Sending'} ${i + 1}/${recips.length}…`; res.style.color = 'var(--text-muted)';
+        const msg = KhaytCampaigns.fillTemplate(body, r, fmtMoney);
+        try {
+          let ok;
+          if (ch === 'email') ok = await window.hubAPI.sendEmail({ to: r.contact, subject: KhaytCampaigns.fillTemplate(subject || 'Khayt', r, fmtMoney), body: msg.replace(/\n/g, '<br>'), smtpConfig: settings.emailConfig });
+          else ok = await window.hubAPI.sendSms({ to: r.contact, message: msg, channel: ch, smsConfig: settings.smsConfig });
+          (ok && ok.ok) ? sent++ : failed++;
+        } catch (e) { failed++; }
+        await new Promise((rs) => setTimeout(rs, 350)); // throttle: be gentle on the provider
+      }
+      // Record the campaign for history.
+      settings.campaignLog = (settings.campaignLog || []).slice(-49);
+      settings.campaignLog.push({ at: new Date().toISOString(), channel: ch, recipients: recips.length, sent, failed });
+      saveAll();
+      res.textContent = `✓ ${t('camp.done') || 'Sent'}: ${sent}${failed ? ` · ${failed} ${t('camp.failed') || 'failed'}` : ''}`;
+      res.style.color = failed ? 'var(--warning)' : 'var(--success)';
+      if (btn) btn.disabled = false;
+      return false; // keep open to show the result
+    },
+  });
+}
+
   const api = {
     getClientStats,
     renderClients,
@@ -1279,6 +1399,7 @@ function exportClientPortal(clientId) {
     exportClientsCsv,
     exportClientPortal,
     clientCompare,
+    openCampaignModal,
   };
   if (typeof global.importClientsCsv === 'function') api.importClientsCsv = global.importClientsCsv;
   Object.assign(global, api);

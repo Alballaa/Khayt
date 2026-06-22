@@ -1248,6 +1248,7 @@ function wireEvents() {
   $('#btnImportSpoolsCsv')?.addEventListener('click', importSpoolsCsv);
   $('#btnImportClientsCsv')?.addEventListener('click', importClientsCsv);
   $('#btnExportClientsCsv')?.addEventListener('click', () => exportClientsCsv());
+  $('#btnCampaign')?.addEventListener('click', () => openCampaignModal());
   $('#btnExportInventoryCsv')?.addEventListener('click', () => exportInventoryCsv());
   $('#btnAddClient').addEventListener('click', () => openClientEditor(null));
   $('#btnBlankIntakeForm')?.addEventListener('click', () => generateIntakeForm(null));
