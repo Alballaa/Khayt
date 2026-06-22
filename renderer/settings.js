@@ -553,6 +553,9 @@ async function openStorefrontModal() {
         </div>
       </div>
       <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">${escapeHtml(t('store.pay_url_hint') || 'Paste a payment link from any provider; use {amount} or {total} where the figure goes. The customer pays there before sending the order.')}</p>
+      <label style="margin-top:14px;">${escapeHtml(t('store.promos_label') || 'Promo codes')}</label>
+      <div id="sfPromos"></div>
+      <button id="sfAddPromo" class="btn ghost small" type="button" style="margin-top:6px;">+ ${escapeHtml(t('store.add_promo') || 'Add code')}</button>
       <label style="display:flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer;">
         <input type="checkbox" id="storePhotos" checked style="width:auto;"> ${escapeHtml(t('store.include_photos') || 'Include product photos')}
       </label>
@@ -566,7 +569,33 @@ async function openStorefrontModal() {
     onMount(modal) {
       const res = modal.querySelector('#storeResult');
       const setRes = (m, ok) => { res.textContent = m; res.style.color = ok ? 'var(--success)' : 'var(--danger)'; };
-      // Persist the owner's storefront config (prices, deposit, pay link, note).
+      // Promo-code editor (rows of code / type / value / expiry / max uses).
+      const promosEl = modal.querySelector('#sfPromos');
+      const promoRow = (p) => {
+        p = p || { code: '', type: 'pct', value: '', expires: '', maxUses: '' };
+        const row = document.createElement('div');
+        row.className = 'sfPromoRow';
+        row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap;';
+        row.innerHTML = `
+          <input class="pCode" type="text" maxlength="32" placeholder="${escapeHtml(t('store.promo_code') || 'CODE')}" value="${escapeHtml(p.code || '')}" style="flex:1;min-width:90px;font-size:12px;text-transform:uppercase;">
+          <select class="pType" style="font-size:12px;width:auto;"><option value="pct"${p.type !== 'fixed' ? ' selected' : ''}>%</option><option value="fixed"${p.type === 'fixed' ? ' selected' : ''}>${escapeHtml(cur)}</option></select>
+          <input class="pValue" type="number" min="0" step="0.01" placeholder="0" value="${escapeHtml(p.value != null ? String(p.value) : '')}" style="width:62px;font-size:12px;">
+          <input class="pExpires" type="date" value="${escapeHtml(p.expires || '')}" title="${escapeHtml(t('store.promo_expires') || 'Expires (optional)')}" style="width:130px;font-size:12px;">
+          <input class="pMax" type="number" min="0" step="1" placeholder="∞" value="${escapeHtml(p.maxUses ? String(p.maxUses) : '')}" title="${escapeHtml(t('store.promo_max') || 'Max uses (blank = unlimited)')}" style="width:54px;font-size:12px;">
+          <button type="button" class="btn danger small pDel" style="font-size:11px;">✕</button>`;
+        row.querySelector('.pDel').addEventListener('click', () => row.remove());
+        return row;
+      };
+      (sf.promos || []).forEach((p) => promosEl.appendChild(promoRow(p)));
+      modal.querySelector('#sfAddPromo').addEventListener('click', () => promosEl.appendChild(promoRow()));
+      const collectPromos = () => Array.from(promosEl.querySelectorAll('.sfPromoRow')).map((r) => ({
+        code: r.querySelector('.pCode').value.trim().toUpperCase(),
+        type: r.querySelector('.pType').value,
+        value: num(r.querySelector('.pValue').value, 0),
+        expires: r.querySelector('.pExpires').value || '',
+        maxUses: parseInt(r.querySelector('.pMax').value, 10) || 0,
+      })).filter((p) => p.code && p.value > 0);
+      // Persist the owner's storefront config (prices, deposit, pay link, note, promos).
       const captureConfig = () => {
         const prices = {};
         modal.querySelectorAll('.sfPrice').forEach((inp) => { const v = inp.value.trim(); if (v) prices[inp.dataset.pid] = v; });
@@ -574,6 +603,7 @@ async function openStorefrontModal() {
         sf.depositPct = Math.max(0, Math.min(100, num(modal.querySelector('#storeDeposit').value, 0)));
         sf.payUrl = modal.querySelector('#storePayUrl').value.trim();
         sf.note = modal.querySelector('#storeNote').value.trim();
+        sf.promos = collectPromos();
         settings.storefront = sf;
         saveAll();
       };
@@ -586,6 +616,7 @@ async function openStorefrontModal() {
           note: sf.note,
           depositPct: sf.depositPct || 0,
           payUrl: /^https?:\/\//i.test(sf.payUrl) ? sf.payUrl : '',
+          promos: sf.promos || [],
           items: pubProducts.map((p) => {
             const it = {
               id: p.id,

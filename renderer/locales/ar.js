@@ -2842,6 +2842,11 @@
   "sched.auto_toggle": "تعيين تلقائي",
   "sched.auto_hint": "تعيين المهام المنتظرة تلقائياً لأجهزة متوافقة ومتاحة",
   "sched.auto_on": "التعيين التلقائي مُفعّل",
-  "sched.auto_off": "التعيين التلقائي مُعطّل"
+  "sched.auto_off": "التعيين التلقائي مُعطّل",
+  "store.promos_label": "رموز الخصم",
+  "store.add_promo": "إضافة رمز",
+  "store.promo_code": "الرمز",
+  "store.promo_expires": "تاريخ الانتهاء (اختياري)",
+  "store.promo_max": "الحد الأقصى للاستخدام (فارغ = غير محدود)"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

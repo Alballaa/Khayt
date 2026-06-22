@@ -2841,6 +2841,11 @@
   "sched.auto_toggle": "Asignación automática",
   "sched.auto_hint": "Asignar automáticamente los trabajos en cola a máquinas libres y compatibles",
   "sched.auto_on": "Asignación automática activada",
-  "sched.auto_off": "Asignación automática desactivada"
+  "sched.auto_off": "Asignación automática desactivada",
+  "store.promos_label": "Códigos promocionales",
+  "store.add_promo": "Añadir código",
+  "store.promo_code": "CÓDIGO",
+  "store.promo_expires": "Caduca (opcional)",
+  "store.promo_max": "Usos máx. (vacío = ilimitado)"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

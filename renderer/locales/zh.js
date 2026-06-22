@@ -2841,6 +2841,11 @@
   "sched.auto_toggle": "自动分配",
   "sched.auto_hint": "自动将排队任务分配给空闲且兼容的机器",
   "sched.auto_on": "自动分配已开启",
-  "sched.auto_off": "自动分配已关闭"
+  "sched.auto_off": "自动分配已关闭",
+  "store.promos_label": "优惠码",
+  "store.add_promo": "添加优惠码",
+  "store.promo_code": "优惠码",
+  "store.promo_expires": "过期日期（可选）",
+  "store.promo_max": "最大使用次数（留空=不限）"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

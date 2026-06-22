@@ -2841,6 +2841,11 @@
   "sched.auto_toggle": "自動割り当て",
   "sched.auto_hint": "待機中のジョブを空いている互換マシンへ自動割り当て",
   "sched.auto_on": "自動割り当てオン",
-  "sched.auto_off": "自動割り当てオフ"
+  "sched.auto_off": "自動割り当てオフ",
+  "store.promos_label": "プロモコード",
+  "store.add_promo": "コードを追加",
+  "store.promo_code": "コード",
+  "store.promo_expires": "有効期限（任意）",
+  "store.promo_max": "最大利用回数（空欄=無制限）"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

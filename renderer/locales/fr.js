@@ -2841,6 +2841,11 @@
   "sched.auto_toggle": "Affectation auto",
   "sched.auto_hint": "Affecter automatiquement les tâches en file aux machines libres et compatibles",
   "sched.auto_on": "Affectation auto activée",
-  "sched.auto_off": "Affectation auto désactivée"
+  "sched.auto_off": "Affectation auto désactivée",
+  "store.promos_label": "Codes promo",
+  "store.add_promo": "Ajouter un code",
+  "store.promo_code": "CODE",
+  "store.promo_expires": "Expire (facultatif)",
+  "store.promo_max": "Utilisations max (vide = illimité)"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

@@ -9,6 +9,7 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 ### Added
 
 - **AI shop assistant — conversational** — the "✨ Ask AI" assistant now holds a **conversation**: it remembers earlier answers in the session, so follow-ups like "and last month?" or "which of those is overdue?" work in context, shown as a chat transcript. Still grounded strictly in your own shop data (no invented numbers) and uses your own Anthropic key.
+- **Storefront promo codes** — add discount codes to your storefront (**Khayt Cloud → 🏬 Storefront**): percentage or fixed amount, optional expiry, and an optional usage limit. Customers enter a code at checkout and the total + deposit update live; codes are validated on the server (expiry and usage count are enforced, not bypassable from the page). The applied code and discount are recorded on the order request.
 
 ## [3.0.0-beta.9] - 2026-06-23
 
