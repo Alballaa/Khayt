@@ -2898,6 +2898,9 @@
   "reorder.draft_po": "Bestellentwürfe erstellen",
   "reorder.draft_po_q": "{n} Bestellentwurf/-entwürfe erstellen?",
   "reorder.draft_note": "Automatisch aus der Nachbestellprognose entworfen",
-  "reorder.drafted": "{n} Bestellentwurf/-entwürfe erstellt"
+  "reorder.drafted": "{n} Bestellentwurf/-entwürfe erstellt",
+  "store.reviews": "Kundenbewertungen",
+  "store.reviews_hint": "Teilen Sie diesen Link nach einer Bestellung, um eine Bewertung zu sammeln; der Durchschnitt erscheint in Ihrem Shop.",
+  "store.review_link": "Bewertungslink kopieren"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

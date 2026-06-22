@@ -2898,6 +2898,9 @@
   "reorder.draft_po": "発注書の下書きを作成",
   "reorder.draft_po_q": "{n} 件の発注書の下書きを作成しますか？",
   "reorder.draft_note": "再発注予測から自動作成",
-  "reorder.drafted": "{n} 件の発注書の下書きを作成しました"
+  "reorder.drafted": "{n} 件の発注書の下書きを作成しました",
+  "store.reviews": "カスタマーレビュー",
+  "store.reviews_hint": "注文後にこのリンクを共有して評価を集めましょう。平均はストアに表示されます。",
+  "store.review_link": "レビューリンクをコピー"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

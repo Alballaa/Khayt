@@ -579,7 +579,9 @@ async function openTeamModal() {
 async function openStorefrontModal() {
   const c = settings.cloud || {};
   if (!c.shopId || !c.token) { toast(t('intake.connect_first'), 'error'); return; }
-  const link = `${String(c.url || '').replace(/\/+$/, '')}/shop/${c.shopId}`;
+  const baseUrl = String(c.url || '').replace(/\/+$/, '');
+  const link = `${baseUrl}/shop/${c.shopId}`;
+  const reviewLink = `${baseUrl}/review/${c.shopId}`;
   const sf = settings.storefront || (settings.storefront = { prices: {}, depositPct: 0, payUrl: '', note: '' });
   if (!sf.prices) sf.prices = {};
   const cur = settings.currency || 'SAR';
@@ -624,7 +626,12 @@ async function openStorefrontModal() {
         <button id="storeUnpublish" class="btn danger small" type="button">${escapeHtml(t('store.unpublish') || 'Unpublish')}</button>
       </div>
       <div style="margin-top:10px;font-size:11.5px;color:var(--text-muted);word-break:break-all;">${escapeHtml(link)}</div>
-      <span id="storeResult" style="font-size:12px;display:block;margin-top:8px;"></span>`,
+      <span id="storeResult" style="font-size:12px;display:block;margin-top:8px;"></span>
+      <hr style="border:none;border-top:1px solid var(--border-soft);margin:14px 0;">
+      <label style="margin-top:0;">${escapeHtml(t('store.reviews') || 'Customer reviews')} <span id="storeRating" style="color:var(--accent);font-weight:600;"></span></label>
+      <p style="font-size:11.5px;color:var(--text-muted);margin:2px 0 6px;">${escapeHtml(t('store.reviews_hint') || 'Share this link after an order to collect a rating; the average shows on your storefront.')}</p>
+      <button id="storeReviewCopy" class="btn ghost small" type="button">${escapeHtml(t('store.review_link') || 'Copy review link')}</button>
+      <div style="margin-top:6px;font-size:11.5px;color:var(--text-muted);word-break:break-all;">${escapeHtml(reviewLink)}</div>`,
     onMount(modal) {
       const res = modal.querySelector('#storeResult');
       const setRes = (m, ok) => { res.textContent = m; res.style.color = ok ? 'var(--success)' : 'var(--danger)'; };
@@ -693,6 +700,15 @@ async function openStorefrontModal() {
         try { await navigator.clipboard.writeText(link); setRes('✓ ' + (t('store.copied') || 'Link copied'), true); }
         catch { setRes(link, true); }
       });
+      modal.querySelector('#storeReviewCopy')?.addEventListener('click', async () => {
+        try { await navigator.clipboard.writeText(reviewLink); setRes('✓ ' + (t('store.copied') || 'Link copied'), true); }
+        catch { setRes(reviewLink, true); }
+      });
+      // Show the live aggregate rating (best-effort).
+      window.hubAPI.cloudReviewSummary({ url: c.url, shopId: c.shopId }).then((r) => {
+        const s = r && r.ok && r.summary;
+        if (s && s.count > 0) { const el = modal.querySelector('#storeRating'); if (el) el.textContent = `★ ${s.avg} (${s.count})`; }
+      }).catch(() => {});
       modal.querySelector('#storePublish')?.addEventListener('click', async () => {
         const cat = buildCatalog(modal.querySelector('#storePhotos').checked);
         if (!cat.items.length) { setRes('✗ ' + (t('store.no_products') || 'Add products to your catalog first'), false); return; }
