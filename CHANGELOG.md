@@ -4,7 +4,9 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
-### 3.0.0-beta.8 cycle (in progress)
+## [3.0.0-beta.8] - 2026-06-22
+
+**Pre-release (beta)** — the four community-picked features: filament-at-a-glance, multi-user team accounts, a public storefront, and real Bambu Lab support.
 
 ### Added
 
