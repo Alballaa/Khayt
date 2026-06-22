@@ -2850,6 +2850,17 @@
   "rec.paused": "Pausiert",
   "rec.end_date": "Stoppen nach (optional)",
   "rec.skip_next": "Nächsten Zyklus überspringen",
-  "rec.skipped": "Zum nächsten Zyklus übersprungen"
+  "rec.skipped": "Zum nächsten Zyklus übersprungen",
+  "acct.title": "Buchhaltungs-Sync",
+  "acct.intro": "Senden Sie bezahlte Rechnungen und Ausgaben per Webhook an Ihre Buchhaltung — Brücke zu QuickBooks, Zoho oder Xero mit Zapier/Make oder eigenem Endpunkt. Einseitig und idempotent.",
+  "acct.enable": "Buchhaltungs-Sync aktivieren",
+  "acct.format": "Format",
+  "acct.fmt_generic": "Generisch",
+  "acct.secret": "Gemeinsames Secret (optional)",
+  "acct.url": "Webhook-URL",
+  "acct.push_on_paid": "Automatisch senden, wenn eine Rechnung als bezahlt markiert wird",
+  "acct.test": "Test senden",
+  "acct.test_sent": "Gesendet",
+  "acct.need_url": "Geben Sie zuerst eine Webhook-URL ein."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

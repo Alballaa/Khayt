@@ -2850,6 +2850,17 @@
   "rec.paused": "En pause",
   "rec.end_date": "Arrêter après (facultatif)",
   "rec.skip_next": "Sauter le prochain cycle",
-  "rec.skipped": "Sauté au cycle suivant"
+  "rec.skipped": "Sauté au cycle suivant",
+  "acct.title": "Synchro comptable",
+  "acct.intro": "Envoyez les factures et dépenses payées vers votre logiciel comptable via un webhook — passerelle vers QuickBooks, Zoho ou Xero avec Zapier/Make ou votre propre point de terminaison. Unidirectionnel et idempotent.",
+  "acct.enable": "Activer la synchro comptable",
+  "acct.format": "Format",
+  "acct.fmt_generic": "Générique",
+  "acct.secret": "Secret partagé (facultatif)",
+  "acct.url": "URL du webhook",
+  "acct.push_on_paid": "Envoyer automatiquement quand une facture est marquée payée",
+  "acct.test": "Envoyer un test",
+  "acct.test_sent": "Envoyé",
+  "acct.need_url": "Saisissez d’abord une URL de webhook."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

@@ -2851,6 +2851,17 @@
   "rec.paused": "موقوف مؤقتاً",
   "rec.end_date": "الإيقاف بعد (اختياري)",
   "rec.skip_next": "تخطّي الدورة التالية",
-  "rec.skipped": "تم التخطّي للدورة التالية"
+  "rec.skipped": "تم التخطّي للدورة التالية",
+  "acct.title": "مزامنة المحاسبة",
+  "acct.intro": "أرسل الفواتير والمصروفات المدفوعة إلى نظام محاسبتك عبر Webhook — جسر إلى QuickBooks أو Zoho أو Xero باستخدام Zapier/Make أو نقطتك الخاصة. باتجاه واحد وغير مكرر.",
+  "acct.enable": "تفعيل مزامنة المحاسبة",
+  "acct.format": "الصيغة",
+  "acct.fmt_generic": "عام",
+  "acct.secret": "مفتاح مشترك (اختياري)",
+  "acct.url": "رابط الـ Webhook",
+  "acct.push_on_paid": "الإرسال تلقائياً عند تعليم الفاتورة كمدفوعة",
+  "acct.test": "إرسال تجربة",
+  "acct.test_sent": "تم الإرسال",
+  "acct.need_url": "أدخل رابط Webhook أولاً."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

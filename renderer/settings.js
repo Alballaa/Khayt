@@ -159,6 +159,65 @@ function renderEmailNotificationSettings() {
   });
 }
 
+/** Accounting sync (one-way webhook push) provider config. */
+function renderAccountingSyncSettings() {
+  const el = $('#accountingSyncSection');
+  if (!el) return;
+  const cfg = settings.accountingSync || {};
+  const v = (x) => escapeHtml(x || '');
+  const fmt = cfg.format || 'generic';
+  const fmtOpt = (val, label) => `<option value="${val}"${fmt === val ? ' selected' : ''}>${escapeHtml(label)}</option>`;
+  el.innerHTML = `
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:0;">
+      <input type="checkbox" id="acctEnabled" style="width:auto;margin:0;" ${cfg.enabled ? 'checked' : ''}>
+      <span>${escapeHtml(t('acct.enable') || 'Enable accounting sync')}</span>
+    </label>
+    <div class="inline-pair" style="margin-top:10px;">
+      <div>
+        <label style="margin-top:0;">${escapeHtml(t('acct.format') || 'Format')}</label>
+        <select id="acctFormat" style="font-size:12.5px;">
+          ${fmtOpt('generic', t('acct.fmt_generic') || 'Generic')}${fmtOpt('quickbooks', 'QuickBooks')}${fmtOpt('xero', 'Xero')}${fmtOpt('zoho', 'Zoho Books')}
+        </select>
+      </div>
+      <div>
+        <label style="margin-top:0;">${escapeHtml(t('acct.secret') || 'Shared secret (optional)')}</label>
+        <input type="password" id="acctSecret" value="${v(cfg.secret)}" placeholder="••••••••" style="font-size:12.5px;">
+      </div>
+    </div>
+    <label style="margin-top:8px;">${escapeHtml(t('acct.url') || 'Webhook URL')}</label>
+    <input type="url" id="acctUrl" value="${v(cfg.webhookUrl)}" placeholder="https://hooks…/khayt" style="font-size:12.5px;">
+    <label style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer;">
+      <input type="checkbox" id="acctPushOnPaid" style="width:auto;margin:0;" ${cfg.pushOnPaid !== false ? 'checked' : ''}>
+      <span>${escapeHtml(t('acct.push_on_paid') || 'Push automatically when an invoice is marked paid')}</span>
+    </label>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:12px;">
+      <button id="btnSaveAcct" class="btn small primary">${escapeHtml(t('common.save'))}</button>
+      <button id="btnTestAcct" class="btn small">${escapeHtml(t('acct.test') || 'Send test')}</button>
+      <span id="acctTestResult" style="font-size:12px;color:var(--text-muted);"></span>
+    </div>`;
+
+  const collect = () => ({
+    enabled: el.querySelector('#acctEnabled').checked,
+    format: el.querySelector('#acctFormat').value,
+    webhookUrl: el.querySelector('#acctUrl').value.trim(),
+    secret: secretInputSave((settings.accountingSync || {}).secret, el.querySelector('#acctSecret').value),
+    pushOnPaid: el.querySelector('#acctPushOnPaid').checked,
+  });
+  el.querySelector('#btnSaveAcct')?.addEventListener('click', () => {
+    settings.accountingSync = collect(); saveAll(); toast(t('common.save'), 'success');
+  });
+  el.querySelector('#btnTestAcct')?.addEventListener('click', async () => {
+    const res = el.querySelector('#acctTestResult');
+    settings.accountingSync = collect(); saveAll();
+    if (!/^https?:\/\//i.test(settings.accountingSync.webhookUrl)) { res.textContent = t('acct.need_url') || 'Enter a webhook URL first.'; res.style.color = 'var(--danger)'; return; }
+    res.textContent = '…';
+    const payload = { type: 'test', format: settings.accountingSync.format, idempotencyKey: 'test:' + Date.now(), note: 'Khayt accounting sync test' };
+    const r = await window.hubAPI?.accountingPush?.({ url: settings.accountingSync.webhookUrl, secret: settings.accountingSync.secret, payload });
+    if (r?.ok) { res.textContent = '✓ ' + (t('acct.test_sent') || 'Sent'); res.style.color = 'var(--success)'; }
+    else { res.textContent = '✗ ' + (r?.error || r?.status || 'failed'); res.style.color = 'var(--danger)'; }
+  });
+}
+
 /** SMS / WhatsApp notification provider config (mirrors the email section). */
 function renderSmsNotificationSettings() {
   const el = $('#smsNotificationsSection');
@@ -2123,6 +2182,7 @@ function loadSettingsIntoForm() {
   // Feature 5 (new 8-pack): Email notifications
   renderEmailNotificationSettings();
   renderSmsNotificationSettings();
+  renderAccountingSyncSettings();
   // Batch-2 Feature 10: Telegram settings
   renderTelegramSettings();
   // Feature I: Email digest scheduler
@@ -2294,6 +2354,8 @@ function saveSettingsFromForm() {
     emailConfig: settings.emailConfig || { provider: 'none', apiKey: '', fromEmail: '', fromName: '', domain: '', triggers: [] },
     // SMS/WhatsApp config — managed by renderSmsNotificationSettings, preserve as-is
     smsConfig: settings.smsConfig || { provider: 'none', channel: 'whatsapp' },
+    // Accounting sync — managed by renderAccountingSyncSettings, preserve as-is
+    accountingSync: settings.accountingSync || { enabled: false, format: 'generic', webhookUrl: '', secret: '', pushOnPaid: true },
     // Feature 7 (new 8-pack): Operator lock
     operatorLockEnabled: !!$('#set_operatorLock')?.checked,
     activeOperatorId: settings.activeOperatorId || null,
@@ -2816,6 +2878,7 @@ function renderTelegramSettings() {
     renderLocationsSettings,
     renderEmailNotificationSettings,
     renderSmsNotificationSettings,
+    renderAccountingSyncSettings,
     renderDigestSettings,
     renderAiSettings,
     renderSlicerSettings,

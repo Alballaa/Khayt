@@ -2850,6 +2850,17 @@
   "rec.paused": "En pausa",
   "rec.end_date": "Detener después de (opcional)",
   "rec.skip_next": "Saltar el próximo ciclo",
-  "rec.skipped": "Saltado al próximo ciclo"
+  "rec.skipped": "Saltado al próximo ciclo",
+  "acct.title": "Sincronización contable",
+  "acct.intro": "Envía facturas y gastos pagados a tu sistema contable mediante un webhook — puente a QuickBooks, Zoho o Xero con Zapier/Make o tu propio endpoint. Unidireccional e idempotente.",
+  "acct.enable": "Activar sincronización contable",
+  "acct.format": "Formato",
+  "acct.fmt_generic": "Genérico",
+  "acct.secret": "Secreto compartido (opcional)",
+  "acct.url": "URL del webhook",
+  "acct.push_on_paid": "Enviar automáticamente cuando una factura se marque como pagada",
+  "acct.test": "Enviar prueba",
+  "acct.test_sent": "Enviado",
+  "acct.need_url": "Introduce primero una URL de webhook."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

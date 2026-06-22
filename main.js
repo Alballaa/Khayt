@@ -1266,6 +1266,26 @@ ipcMain.handle('hub:send-sms', async (_e, { to, message, channel, smsConfig } = 
   return sendSms(provider, cfg, { to, message, channel });
 });
 
+// One-way accounting sync: POST a canonical invoice/expense payload to the
+// owner's webhook (bridge to QuickBooks/Zoho/Xero via Zapier/Make/own endpoint).
+// Idempotent by payload.idempotencyKey; secret resolves from the encrypted store.
+ipcMain.handle('hub:accounting-push', async (_e, { url, secret, payload } = {}) => {
+  if (!/^https?:\/\//i.test(String(url || ''))) return { ok: false, error: 'Accounting webhook needs an http(s) URL' };
+  secret = resolveStoreSecret(secret, d => d?.settings?.accountingSync?.secret);
+  try {
+    const headers = { 'content-type': 'application/json' };
+    if (secret) headers['X-Khayt-Secret'] = String(secret);
+    if (payload && payload.idempotencyKey) headers['Idempotency-Key'] = String(payload.idempotencyKey);
+    const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(payload || {}), signal: AbortSignal.timeout(15000) });
+    if (!res.ok) {
+      let detail = `HTTP ${res.status}`;
+      try { const txt = await res.text(); if (txt) detail += ` — ${txt.slice(0, 200)}`; } catch { /* ignore */ }
+      return { ok: false, status: res.status, error: detail };
+    }
+    return { ok: true, status: res.status };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
 // ── Feature R12-1: Outbound Webhooks ────────────────────────────────────────
 // AI quote extraction (BYO Anthropic key) — opt-in; fails safe (renderer falls
 // back to the manual quote form on any error). Key resolved from the encrypted

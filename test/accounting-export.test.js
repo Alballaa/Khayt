@@ -9,6 +9,8 @@ const {
   vatSplit,
   buildInvoiceCsv,
   buildExpenseCsv,
+  buildInvoicePayload,
+  buildExpensePayload,
   INVOICE_HEADER_MAP,
 } = require('../lib/accounting-export');
 
@@ -202,4 +204,24 @@ test('buildExpenseCsv: date-range filter and provider header', () => {
   assert.equal(rows.length, 1);
   assert.equal(header[0], 'Expense Date');
   assert.equal(col(header, rows[0], 'Expense Date'), '2026-02-05');
+});
+
+test('buildInvoicePayload: canonical JSON with VAT split + idempotency key', () => {
+  const p = buildInvoicePayload({ id: 'INV-2026-0007', date: '2026-06-22', clientName: 'Acme', price: 115, vatRate: 15, currency: 'SAR' });
+  assert.equal(p.type, 'invoice');
+  assert.equal(p.idempotencyKey, 'inv:INV-2026-0007');
+  assert.equal(p.subtotal, 100);
+  assert.equal(p.vat, 15);
+  assert.equal(p.total, 115);
+  assert.equal(p.customer, 'Acme');
+  assert.equal(p.currency, 'SAR');
+});
+
+test('buildExpensePayload: maps category→account + idempotency key', () => {
+  const p = buildExpensePayload({ id: 'EXP-9', date: '2026-06-01', category: 'filament', amount: 50, currency: 'SAR', note: 'PLA' });
+  assert.equal(p.type, 'expense');
+  assert.equal(p.idempotencyKey, 'exp:EXP-9');
+  assert.equal(p.amount, 50);
+  assert.ok(p.account); // mapped to an account name
+  assert.equal(p.note, 'PLA');
 });
