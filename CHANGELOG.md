@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### 3.0.0-beta.9 cycle (in progress)
+
+### Added
+
+- **Storefront checkout & deposits** — your storefront now shows prices and a running cart total, and can request a deposit. Set a price per product, a deposit %, and paste a payment link from any provider (**Khayt Cloud → 🏬 Storefront**); at checkout the customer sees the total, the deposit due, and a **Pay deposit** button (your link, with `{amount}`/`{total}` filled in), then sends the order — which arrives in **Order requests** itemised with the total and deposit.
+
 ## [3.0.0-beta.8] - 2026-06-22
 
 **Pre-release (beta)** — the four community-picked features: filament-at-a-glance, multi-user team accounts, a public storefront, and real Bambu Lab support.

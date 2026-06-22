@@ -2812,6 +2812,10 @@
   "store.published": "店铺已上线",
   "store.unpublished": "店铺已下线",
   "store.no_products": "请先向目录中添加产品",
-  "store.unpublish_q": "将店铺下线？链接将停止工作。"
+  "store.unpublish_q": "将店铺下线？链接将停止工作。",
+  "store.prices_label": "价格（留空则隐藏）",
+  "store.deposit_pct": "定金 %",
+  "store.pay_url": "支付链接",
+  "store.pay_url_hint": "粘贴任意服务商的支付链接；在金额处使用 {amount} 或 {total}。客户在发送订单前于此支付。"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

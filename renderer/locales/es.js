@@ -2812,6 +2812,10 @@
   "store.published": "La tienda está activa",
   "store.unpublished": "La tienda está desactivada",
   "store.no_products": "Primero añade productos a tu catálogo",
-  "store.unpublish_q": "¿Desactivar la tienda? El enlace dejará de funcionar."
+  "store.unpublish_q": "¿Desactivar la tienda? El enlace dejará de funcionar.",
+  "store.prices_label": "Precios (deja en blanco para ocultar)",
+  "store.deposit_pct": "Depósito %",
+  "store.pay_url": "Enlace de pago",
+  "store.pay_url_hint": "Pega un enlace de pago de cualquier proveedor; usa {amount} o {total} donde va la cifra. El cliente paga allí antes de enviar el pedido."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

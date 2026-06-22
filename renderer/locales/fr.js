@@ -2812,6 +2812,10 @@
   "store.published": "La boutique est en ligne",
   "store.unpublished": "La boutique est hors ligne",
   "store.no_products": "Ajoutez d’abord des produits à votre catalogue",
-  "store.unpublish_q": "Mettre la boutique hors ligne ? Le lien cessera de fonctionner."
+  "store.unpublish_q": "Mettre la boutique hors ligne ? Le lien cessera de fonctionner.",
+  "store.prices_label": "Prix (laisser vide pour masquer)",
+  "store.deposit_pct": "Acompte %",
+  "store.pay_url": "Lien de paiement",
+  "store.pay_url_hint": "Collez un lien de paiement de tout prestataire ; utilisez {amount} ou {total} à la place du montant. Le client paie là avant d’envoyer la commande."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

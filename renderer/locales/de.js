@@ -2812,6 +2812,10 @@
   "store.published": "Shop ist online",
   "store.unpublished": "Shop ist offline",
   "store.no_products": "Fügen Sie zuerst Produkte zu Ihrem Katalog hinzu",
-  "store.unpublish_q": "Shop offline nehmen? Der Link funktioniert dann nicht mehr."
+  "store.unpublish_q": "Shop offline nehmen? Der Link funktioniert dann nicht mehr.",
+  "store.prices_label": "Preise (leer lassen zum Ausblenden)",
+  "store.deposit_pct": "Anzahlung %",
+  "store.pay_url": "Zahlungslink",
+  "store.pay_url_hint": "Fügen Sie einen Zahlungslink eines beliebigen Anbieters ein; nutzen Sie {amount} oder {total} für den Betrag. Der Kunde zahlt dort, bevor er die Bestellung sendet."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

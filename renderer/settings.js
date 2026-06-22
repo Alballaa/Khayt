@@ -420,19 +420,43 @@ async function openStorefrontModal() {
   const c = settings.cloud || {};
   if (!c.shopId || !c.token) { toast(t('intake.connect_first'), 'error'); return; }
   const link = `${String(c.url || '').replace(/\/+$/, '')}/shop/${c.shopId}`;
-  const count = (products || []).length;
+  const sf = settings.storefront || (settings.storefront = { prices: {}, depositPct: 0, payUrl: '', note: '' });
+  if (!sf.prices) sf.prices = {};
+  const cur = settings.currency || 'SAR';
+  const pubProducts = (products || []).slice(0, 60).filter((p) => (p.nameEn || (typeof localName === 'function' ? localName(p) : '') || '').trim());
+  const priceRows = pubProducts.map((p) => {
+    const nm = (p.nameEn || (typeof localName === 'function' ? localName(p) : '') || '').trim();
+    return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+      <span style="flex:1;font-size:12.5px;">${escapeHtml(nm)}</span>
+      <input class="sfPrice" data-pid="${escapeHtml(p.id)}" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0" value="${escapeHtml(sf.prices[p.id] != null ? String(sf.prices[p.id]) : '')}" style="width:96px;font-size:12.5px;text-align:right;">
+      <span style="font-size:11px;color:var(--text-muted);width:34px;">${escapeHtml(cur)}</span>
+    </div>`;
+  }).join('') || `<p style="font-size:12px;color:var(--text-muted);">${escapeHtml(t('store.no_products') || 'Add products to your catalog first')}</p>`;
   openFormModal({
     title: `🏬 ${t('store.title') || 'Storefront'}`,
     noSave: true,
     bodyHtml: `
       <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 12px;">${escapeHtml(t('store.intro') || 'Publish your product catalog as a public page customers can browse. Their selections arrive in Order requests as draft quotes.')}</p>
       <label>${escapeHtml(t('store.note_label') || 'Shop note (optional)')}</label>
-      <input id="storeNote" type="text" maxlength="200" placeholder="${escapeHtml(t('store.note_ph') || 'e.g. Lead time ~3 days · Riyadh pickup')}">
+      <input id="storeNote" type="text" maxlength="200" placeholder="${escapeHtml(t('store.note_ph') || 'e.g. Lead time ~3 days · Riyadh pickup')}" value="${escapeHtml(sf.note || '')}">
+      <label style="margin-top:14px;">${escapeHtml(t('store.prices_label') || 'Prices (leave blank to hide)')}</label>
+      <div style="max-height:200px;overflow-y:auto;border:1px solid var(--border-soft);border-radius:8px;padding:8px;">${priceRows}</div>
+      <div class="inline-pair" style="margin-top:12px;">
+        <div>
+          <label style="margin-top:0;">${escapeHtml(t('store.deposit_pct') || 'Deposit %')}</label>
+          <input id="storeDeposit" type="number" min="0" max="100" step="1" inputmode="numeric" placeholder="0" value="${escapeHtml(sf.depositPct ? String(sf.depositPct) : '')}">
+        </div>
+        <div>
+          <label style="margin-top:0;">${escapeHtml(t('store.pay_url') || 'Payment link')}</label>
+          <input id="storePayUrl" type="url" placeholder="https://pay…/{amount}" value="${escapeHtml(sf.payUrl || '')}">
+        </div>
+      </div>
+      <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">${escapeHtml(t('store.pay_url_hint') || 'Paste a payment link from any provider; use {amount} or {total} where the figure goes. The customer pays there before sending the order.')}</p>
       <label style="display:flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer;">
         <input type="checkbox" id="storePhotos" checked style="width:auto;"> ${escapeHtml(t('store.include_photos') || 'Include product photos')}
       </label>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;">
-        <button id="storePublish" class="btn primary small" type="button">${escapeHtml(t('store.publish') || 'Publish')} (${count})</button>
+        <button id="storePublish" class="btn primary small" type="button">${escapeHtml(t('store.publish') || 'Publish')} (${pubProducts.length})</button>
         <button id="storeCopy" class="btn ghost small" type="button">${escapeHtml(t('store.copy_link') || 'Copy link')}</button>
         <button id="storeUnpublish" class="btn danger small" type="button">${escapeHtml(t('store.unpublish') || 'Unpublish')}</button>
       </div>
@@ -441,22 +465,39 @@ async function openStorefrontModal() {
     onMount(modal) {
       const res = modal.querySelector('#storeResult');
       const setRes = (m, ok) => { res.textContent = m; res.style.color = ok ? 'var(--success)' : 'var(--danger)'; };
-      const buildCatalog = (withPhotos) => ({
-        shopName: (settings.bizEn || settings.bizAr || 'Khayt').trim(),
-        currency: settings.currency || 'SAR',
-        lang: (typeof i18n !== 'undefined' && i18n.current) || 'en',
-        note: modal.querySelector('#storeNote').value.trim(),
-        items: (products || []).slice(0, 60).map((p) => {
-          const it = {
-            id: p.id,
-            name: (p.nameEn || (typeof localName === 'function' ? localName(p) : '') || '').trim(),
-            nameAr: (p.nameAr || '').trim(),
-            desc: (p.description || '').trim(),
-          };
-          if (withPhotos && typeof p.thumbnail === 'string' && /^data:image\//.test(p.thumbnail) && p.thumbnail.length <= 200000) it.photo = p.thumbnail;
-          return it;
-        }).filter((it) => it.name),
-      });
+      // Persist the owner's storefront config (prices, deposit, pay link, note).
+      const captureConfig = () => {
+        const prices = {};
+        modal.querySelectorAll('.sfPrice').forEach((inp) => { const v = inp.value.trim(); if (v) prices[inp.dataset.pid] = v; });
+        sf.prices = prices;
+        sf.depositPct = Math.max(0, Math.min(100, num(modal.querySelector('#storeDeposit').value, 0)));
+        sf.payUrl = modal.querySelector('#storePayUrl').value.trim();
+        sf.note = modal.querySelector('#storeNote').value.trim();
+        settings.storefront = sf;
+        saveAll();
+      };
+      const buildCatalog = (withPhotos) => {
+        captureConfig();
+        return {
+          shopName: (settings.bizEn || settings.bizAr || 'Khayt').trim(),
+          currency: cur,
+          lang: (typeof i18n !== 'undefined' && i18n.current) || 'en',
+          note: sf.note,
+          depositPct: sf.depositPct || 0,
+          payUrl: /^https?:\/\//i.test(sf.payUrl) ? sf.payUrl : '',
+          items: pubProducts.map((p) => {
+            const it = {
+              id: p.id,
+              name: (p.nameEn || (typeof localName === 'function' ? localName(p) : '') || '').trim(),
+              nameAr: (p.nameAr || '').trim(),
+              desc: (p.description || '').trim(),
+            };
+            if (sf.prices[p.id]) it.price = String(sf.prices[p.id]);
+            if (withPhotos && typeof p.thumbnail === 'string' && /^data:image\//.test(p.thumbnail) && p.thumbnail.length <= 200000) it.photo = p.thumbnail;
+            return it;
+          }).filter((it) => it.name),
+        };
+      };
       modal.querySelector('#storeCopy')?.addEventListener('click', async () => {
         try { await navigator.clipboard.writeText(link); setRes('✓ ' + (t('store.copied') || 'Link copied'), true); }
         catch { setRes(link, true); }

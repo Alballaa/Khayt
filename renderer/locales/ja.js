@@ -2812,6 +2812,10 @@
   "store.published": "ストアは公開中です",
   "store.unpublished": "ストアは停止しました",
   "store.no_products": "先にカタログに製品を追加してください",
-  "store.unpublish_q": "ストアを停止しますか？リンクは使用できなくなります。"
+  "store.unpublish_q": "ストアを停止しますか？リンクは使用できなくなります。",
+  "store.prices_label": "価格（空欄で非表示）",
+  "store.deposit_pct": "前金 %",
+  "store.pay_url": "支払いリンク",
+  "store.pay_url_hint": "任意のプロバイダーの支払いリンクを貼り付け、金額の位置に {amount} または {total} を使用します。顧客は注文送信前にそこで支払います。"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

@@ -2813,6 +2813,10 @@
   "store.published": "المتجر يعمل الآن",
   "store.unpublished": "تم إيقاف المتجر",
   "store.no_products": "أضف منتجات إلى الكتالوج أولاً",
-  "store.unpublish_q": "إيقاف المتجر؟ سيتوقف الرابط عن العمل."
+  "store.unpublish_q": "إيقاف المتجر؟ سيتوقف الرابط عن العمل.",
+  "store.prices_label": "الأسعار (اتركه فارغاً للإخفاء)",
+  "store.deposit_pct": "نسبة العربون %",
+  "store.pay_url": "رابط الدفع",
+  "store.pay_url_hint": "الصق رابط دفع من أي مزوّد؛ استخدم {amount} أو {total} مكان المبلغ. يدفع العميل هناك قبل إرسال الطلب."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
