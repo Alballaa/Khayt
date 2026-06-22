@@ -96,3 +96,27 @@ test('normalizeStoreSnapshot drops invalid clients', () => {
   assert.equal(normalized.clients.length, 1);
   assert.ok(warnings.some(w => w.includes('clients')));
 });
+
+test('upgrade: an older store snapshot (pre beta.7–11 keys) normalizes cleanly', () => {
+  // A representative store from an older version: orders/clients WITHOUT the
+  // fields beta.7–11 added (recurring.paused, marketingOptOut, accountingPushedAt),
+  // and settings WITHOUT the new config blocks (smsConfig/accountingSync/storefront/
+  // autoSchedule). Must round-trip without dropping data or erroring.
+  const old = {
+    version: 1,
+    printLog: [{ id: 'O-1', date: '2024-01-01', status: 'completed', project: 'Legacy', price: 100, parts: [{ filamentId: 'pla', grams: 50 }] }],
+    clients: [{ id: 'C-1', nameEn: 'Old Client', phone: '+966500000000' }],
+    inventory: [{ id: 'pla', material: 'PLA', weight: 800 }],
+    settings: { bizEn: 'Legacy Shop', currency: 'SAR' }, // none of the new keys
+  };
+  const { normalized, errors } = normalizeStoreSnapshot(old);
+  assert.deepEqual(errors, []);
+  assert.ok(normalized);
+  assert.equal(normalized.printLog.length, 1);
+  assert.equal(normalized.printLog[0].id, 'O-1');
+  assert.equal(normalized.clients[0].nameEn, 'Old Client');
+  assert.equal(normalized.inventory[0].material, 'PLA');
+  // settings preserved as-is here; the renderer merges defaults over them on load,
+  // so absent new keys (smsConfig/accountingSync/storefront/autoSchedule) get defaulted.
+  assert.equal(normalized.settings.bizEn, 'Legacy Shop');
+});
