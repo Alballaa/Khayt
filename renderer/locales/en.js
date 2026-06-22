@@ -2888,6 +2888,12 @@
   "camp.sending": "Sending",
   "camp.done": "Sent",
   "camp.failed": "failed",
-  "camp.opt_out": "Exclude from marketing campaigns"
+  "camp.opt_out": "Exclude from marketing campaigns",
+  "lbl.print_spools": "Labels",
+  "lbl.print_order": "Print label",
+  "lbl.orders": "Order labels",
+  "lbl.spools": "Spool labels",
+  "lbl.due": "due",
+  "lbl.none": "Nothing to label"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

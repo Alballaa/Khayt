@@ -2886,6 +2886,12 @@
   "camp.sending": "Senden",
   "camp.done": "Gesendet",
   "camp.failed": "fehlgeschlagen",
-  "camp.opt_out": "Von Marketingkampagnen ausschließen"
+  "camp.opt_out": "Von Marketingkampagnen ausschließen",
+  "lbl.print_spools": "Etiketten",
+  "lbl.print_order": "Etikett drucken",
+  "lbl.orders": "Auftragsetiketten",
+  "lbl.spools": "Spulenetiketten",
+  "lbl.due": "fällig",
+  "lbl.none": "Nichts zu etikettieren"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

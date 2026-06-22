@@ -2886,6 +2886,12 @@
   "camp.sending": "发送中",
   "camp.done": "已发送",
   "camp.failed": "失败",
-  "camp.opt_out": "排除在营销活动之外"
+  "camp.opt_out": "排除在营销活动之外",
+  "lbl.print_spools": "标签",
+  "lbl.print_order": "打印标签",
+  "lbl.orders": "订单标签",
+  "lbl.spools": "线材标签",
+  "lbl.due": "截止",
+  "lbl.none": "没有可打印的标签"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

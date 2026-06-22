@@ -785,6 +785,25 @@ tbody tr:hover { background: var(--surface-2); }
    hidden on screen and only visible in the print stream.
    ----------------------------------------------------------- */
 #invoice-print-area { display: none; }
+#label-print-area { display: none; }
+
+/* Label sheet (orders / spools) — grid of QR labels. Hidden on screen; the
+   .printing-labels class on <html> reveals only this area for window.print(). */
+html.printing-labels body * { visibility: hidden !important; }
+html.printing-labels #label-print-area,
+html.printing-labels #label-print-area * { visibility: visible !important; }
+html.printing-labels #label-print-area {
+  display: block !important; position: absolute; inset-inline-start: 0; top: 0; width: 100%;
+  background: #fff; color: #111;
+}
+#label-print-area .label-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8mm; }
+#label-print-area .lbl-card { display: flex; gap: 10px; align-items: center; border: 1px solid #bbb; border-radius: 6px; padding: 10px; break-inside: avoid; }
+#label-print-area .lbl-qr { width: 90px; height: 90px; flex-shrink: 0; }
+#label-print-area .lbl-title { font-weight: 700; font-size: 14px; margin-bottom: 3px; }
+#label-print-area .lbl-line { font-size: 11px; color: #333; }
+#label-print-area .lbl-sub { font-size: 10px; color: #777; margin-top: 4px; }
+#label-print-area .lbl-heading { font-size: 13px; font-weight: 600; margin: 0 0 6mm; }
+@media print { html.printing-labels { background: #fff; } html.printing-labels @page { size: A4; margin: 12mm; } }
 
 @media print {
   @page { size: A4; margin: 18mm; }

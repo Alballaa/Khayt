@@ -258,7 +258,7 @@ function renderStudioKanbanCard(b) {
         if (delivered === 0) return '';
         return `<div class="partial-delivery-badge">${escapeHtml(t('ord.parts_delivered', { done: delivered, total: log.parts.length }))}</div>`;
       })()}
-      <div class="actions khayt-kcard-actions"><button class="btn small ghost" data-act="order-timeline" data-id="${log.id}" title="${escapeHtml(t('ord.timeline'))}" aria-label="${escapeHtml(t('ord.timeline'))}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg></button>${actions}</div>
+      <div class="actions khayt-kcard-actions"><button class="btn small ghost" data-act="order-timeline" data-id="${log.id}" title="${escapeHtml(t('ord.timeline'))}" aria-label="${escapeHtml(t('ord.timeline'))}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg></button><button class="btn small ghost" data-act="order-label" data-id="${log.id}" title="${escapeHtml(t('lbl.print_order') || 'Print label')}" aria-label="${escapeHtml(t('lbl.print_order') || 'Print label')}">🏷</button>${actions}</div>
       ${(() => {
         if (status !== 'printing') return '';
         const mid = log.machineId;
