@@ -2798,6 +2798,20 @@
   "team.remove_q": "Retirer {email} de l’équipe ?",
   "team.unverified": "non vérifié",
   "team.owner": "propriétaire",
-  "common.remove": "Supprimer"
+  "common.remove": "Supprimer",
+  "store.title": "Boutique",
+  "store.intro": "Publiez votre catalogue de produits sous forme de page publique consultable par les clients. Leurs sélections arrivent dans Demandes de commande sous forme de devis provisoires.",
+  "store.note_label": "Note de la boutique (facultatif)",
+  "store.note_ph": "ex. Délai ~3 jours · Retrait à Riyad",
+  "store.include_photos": "Inclure les photos des produits",
+  "store.publish": "Publier",
+  "store.copy_link": "Copier le lien",
+  "store.unpublish": "Dépublier",
+  "store.copied": "Lien copié",
+  "store.publishing": "Publication…",
+  "store.published": "La boutique est en ligne",
+  "store.unpublished": "La boutique est hors ligne",
+  "store.no_products": "Ajoutez d’abord des produits à votre catalogue",
+  "store.unpublish_q": "Mettre la boutique hors ligne ? Le lien cessera de fonctionner."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

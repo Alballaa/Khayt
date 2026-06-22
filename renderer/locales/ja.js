@@ -2798,6 +2798,20 @@
   "team.remove_q": "{email} をチームから削除しますか？",
   "team.unverified": "未確認",
   "team.owner": "オーナー",
-  "common.remove": "削除"
+  "common.remove": "削除",
+  "store.title": "ストア",
+  "store.intro": "製品カタログを顧客が閲覧できる公開ページとして公開します。選択内容は注文リクエストに見積もり下書きとして届きます。",
+  "store.note_label": "ストアの注記（任意）",
+  "store.note_ph": "例：納期約3日・リヤド受け取り",
+  "store.include_photos": "製品写真を含める",
+  "store.publish": "公開",
+  "store.copy_link": "リンクをコピー",
+  "store.unpublish": "公開停止",
+  "store.copied": "リンクをコピーしました",
+  "store.publishing": "公開中…",
+  "store.published": "ストアは公開中です",
+  "store.unpublished": "ストアは停止しました",
+  "store.no_products": "先にカタログに製品を追加してください",
+  "store.unpublish_q": "ストアを停止しますか？リンクは使用できなくなります。"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

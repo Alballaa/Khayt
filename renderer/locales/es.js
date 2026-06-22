@@ -2798,6 +2798,20 @@
   "team.remove_q": "¿Eliminar a {email} del equipo?",
   "team.unverified": "sin verificar",
   "team.owner": "propietario",
-  "common.remove": "Eliminar"
+  "common.remove": "Eliminar",
+  "store.title": "Tienda",
+  "store.intro": "Publica tu catálogo de productos como una página pública que los clientes pueden explorar. Sus selecciones llegan a Solicitudes de pedido como presupuestos en borrador.",
+  "store.note_label": "Nota de la tienda (opcional)",
+  "store.note_ph": "p. ej. Plazo ~3 días · Recogida en Riad",
+  "store.include_photos": "Incluir fotos de productos",
+  "store.publish": "Publicar",
+  "store.copy_link": "Copiar enlace",
+  "store.unpublish": "Despublicar",
+  "store.copied": "Enlace copiado",
+  "store.publishing": "Publicando…",
+  "store.published": "La tienda está activa",
+  "store.unpublished": "La tienda está desactivada",
+  "store.no_products": "Primero añade productos a tu catálogo",
+  "store.unpublish_q": "¿Desactivar la tienda? El enlace dejará de funcionar."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

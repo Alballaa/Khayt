@@ -2798,6 +2798,20 @@
   "team.remove_q": "{email} aus dem Team entfernen?",
   "team.unverified": "unbestätigt",
   "team.owner": "Inhaber",
-  "common.remove": "Entfernen"
+  "common.remove": "Entfernen",
+  "store.title": "Shop",
+  "store.intro": "Veröffentlichen Sie Ihren Produktkatalog als öffentliche Seite, die Kunden durchsuchen können. Ihre Auswahl erscheint unter Bestellanfragen als Angebotsentwurf.",
+  "store.note_label": "Shop-Hinweis (optional)",
+  "store.note_ph": "z. B. Lieferzeit ~3 Tage · Abholung in Riad",
+  "store.include_photos": "Produktfotos einschließen",
+  "store.publish": "Veröffentlichen",
+  "store.copy_link": "Link kopieren",
+  "store.unpublish": "Zurückziehen",
+  "store.copied": "Link kopiert",
+  "store.publishing": "Wird veröffentlicht…",
+  "store.published": "Shop ist online",
+  "store.unpublished": "Shop ist offline",
+  "store.no_products": "Fügen Sie zuerst Produkte zu Ihrem Katalog hinzu",
+  "store.unpublish_q": "Shop offline nehmen? Der Link funktioniert dann nicht mehr."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

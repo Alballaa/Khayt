@@ -414,6 +414,72 @@ async function openTeamModal() {
   });
 }
 
+// Storefront modal (owner): publish the product catalog as a public shop page,
+// copy the link, or unpublish. Customer orders arrive in "Order requests".
+async function openStorefrontModal() {
+  const c = settings.cloud || {};
+  if (!c.shopId || !c.token) { toast(t('intake.connect_first'), 'error'); return; }
+  const link = `${String(c.url || '').replace(/\/+$/, '')}/shop/${c.shopId}`;
+  const count = (products || []).length;
+  openFormModal({
+    title: `🏬 ${t('store.title') || 'Storefront'}`,
+    noSave: true,
+    bodyHtml: `
+      <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 12px;">${escapeHtml(t('store.intro') || 'Publish your product catalog as a public page customers can browse. Their selections arrive in Order requests as draft quotes.')}</p>
+      <label>${escapeHtml(t('store.note_label') || 'Shop note (optional)')}</label>
+      <input id="storeNote" type="text" maxlength="200" placeholder="${escapeHtml(t('store.note_ph') || 'e.g. Lead time ~3 days · Riyadh pickup')}">
+      <label style="display:flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer;">
+        <input type="checkbox" id="storePhotos" checked style="width:auto;"> ${escapeHtml(t('store.include_photos') || 'Include product photos')}
+      </label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;">
+        <button id="storePublish" class="btn primary small" type="button">${escapeHtml(t('store.publish') || 'Publish')} (${count})</button>
+        <button id="storeCopy" class="btn ghost small" type="button">${escapeHtml(t('store.copy_link') || 'Copy link')}</button>
+        <button id="storeUnpublish" class="btn danger small" type="button">${escapeHtml(t('store.unpublish') || 'Unpublish')}</button>
+      </div>
+      <div style="margin-top:10px;font-size:11.5px;color:var(--text-muted);word-break:break-all;">${escapeHtml(link)}</div>
+      <span id="storeResult" style="font-size:12px;display:block;margin-top:8px;"></span>`,
+    onMount(modal) {
+      const res = modal.querySelector('#storeResult');
+      const setRes = (m, ok) => { res.textContent = m; res.style.color = ok ? 'var(--success)' : 'var(--danger)'; };
+      const buildCatalog = (withPhotos) => ({
+        shopName: (settings.bizEn || settings.bizAr || 'Khayt').trim(),
+        currency: settings.currency || 'SAR',
+        lang: (typeof i18n !== 'undefined' && i18n.current) || 'en',
+        note: modal.querySelector('#storeNote').value.trim(),
+        items: (products || []).slice(0, 60).map((p) => {
+          const it = {
+            id: p.id,
+            name: (p.nameEn || (typeof localName === 'function' ? localName(p) : '') || '').trim(),
+            nameAr: (p.nameAr || '').trim(),
+            desc: (p.description || '').trim(),
+          };
+          if (withPhotos && typeof p.thumbnail === 'string' && /^data:image\//.test(p.thumbnail) && p.thumbnail.length <= 200000) it.photo = p.thumbnail;
+          return it;
+        }).filter((it) => it.name),
+      });
+      modal.querySelector('#storeCopy')?.addEventListener('click', async () => {
+        try { await navigator.clipboard.writeText(link); setRes('✓ ' + (t('store.copied') || 'Link copied'), true); }
+        catch { setRes(link, true); }
+      });
+      modal.querySelector('#storePublish')?.addEventListener('click', async () => {
+        const cat = buildCatalog(modal.querySelector('#storePhotos').checked);
+        if (!cat.items.length) { setRes('✗ ' + (t('store.no_products') || 'Add products to your catalog first'), false); return; }
+        setRes(t('store.publishing') || 'Publishing…', true);
+        const r = await window.hubAPI.cloudCatalogPublish({ url: c.url, shopId: c.shopId, token: c.token, catalog: cat });
+        if (r.ok) setRes('✓ ' + (t('store.published') || 'Storefront is live') + ` — ${cat.items.length}`, true);
+        else setRes('✗ ' + (r.error || 'failed'), false);
+      });
+      modal.querySelector('#storeUnpublish')?.addEventListener('click', async () => {
+        if (!(await confirmModal(t('store.unpublish_q') || 'Take the storefront offline? The link will stop working.', { danger: true }))) return;
+        setRes(t('store.publishing') || 'Working…', true);
+        const r = await window.hubAPI.cloudCatalogPublish({ url: c.url, shopId: c.shopId, token: c.token, catalog: null });
+        if (r.ok) setRes('✓ ' + (t('store.unpublished') || 'Storefront is offline'), true);
+        else setRes('✗ ' + (r.error || 'failed'), false);
+      });
+    },
+  });
+}
+
 function showRecoveryKeyModal(recoveryKey) {
   openFormModal({
     title: t('cloud.recovery_title') || 'Save your recovery key',
@@ -590,6 +656,7 @@ function renderCloudSettings() {
         <button id="btnCloudRequests" class="btn small">🛎 ${escapeHtml(t('intake.requests') || 'Order requests')}</button>
         <button id="btnCloudIntakeLink" class="btn ghost small">${escapeHtml(t('intake.copy_link') || 'Copy request link')}</button>
         ${(settings.cloud?.role || 'owner') === 'owner' ? `<button id="btnCloudTeam" class="btn small">👥 ${escapeHtml(t('team.title') || 'Team')}</button>` : ''}
+        ${(settings.cloud?.role || 'owner') === 'owner' ? `<button id="btnCloudStorefront" class="btn small">🏬 ${escapeHtml(t('store.title') || 'Storefront')}</button>` : ''}
         <button id="btnCloudDisconnect" class="btn danger small">${escapeHtml(t('cloud.disconnect') || 'Sign out')}</button>
         <span id="cloudResult" style="font-size:12px;"></span>
       </div>`}`;
@@ -774,6 +841,7 @@ function renderCloudSettings() {
     if (typeof copyIntakeLink === 'function') copyIntakeLink();
   });
   el.querySelector('#btnCloudTeam')?.addEventListener('click', openTeamModal);
+  el.querySelector('#btnCloudStorefront')?.addEventListener('click', openStorefrontModal);
 
   el.querySelector('#btnCloudDisconnect')?.addEventListener('click', async () => {
     if (!(await confirmModal(t('cloud.disconnect_q') || 'Sign out of Khayt Cloud on this device? Local data stays; the cloud copy is kept.', { danger: true }))) return;

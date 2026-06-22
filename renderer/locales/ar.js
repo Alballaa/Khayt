@@ -2799,6 +2799,20 @@
   "team.remove_q": "إزالة {email} من الفريق؟",
   "team.unverified": "غير مُوثّق",
   "team.owner": "المالك",
-  "common.remove": "إزالة"
+  "common.remove": "إزالة",
+  "store.title": "المتجر",
+  "store.intro": "انشر كتالوج منتجاتك كصفحة عامة يتصفحها العملاء. تصل اختياراتهم إلى طلبات العملاء كعروض أسعار مبدئية.",
+  "store.note_label": "ملاحظة المتجر (اختياري)",
+  "store.note_ph": "مثال: مدة التنفيذ ٣ أيام · الاستلام من الرياض",
+  "store.include_photos": "تضمين صور المنتجات",
+  "store.publish": "نشر",
+  "store.copy_link": "نسخ الرابط",
+  "store.unpublish": "إلغاء النشر",
+  "store.copied": "تم نسخ الرابط",
+  "store.publishing": "جارٍ النشر…",
+  "store.published": "المتجر يعمل الآن",
+  "store.unpublished": "تم إيقاف المتجر",
+  "store.no_products": "أضف منتجات إلى الكتالوج أولاً",
+  "store.unpublish_q": "إيقاف المتجر؟ سيتوقف الرابط عن العمل."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

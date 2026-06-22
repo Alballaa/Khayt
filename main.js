@@ -1332,6 +1332,20 @@ ipcMain.handle('hub:cloud-member-remove', async (_e, { url, shopId, token, email
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
+ipcMain.handle('hub:cloud-catalog-publish', async (_e, { url, shopId, token, catalog } = {}) => {
+  try {
+    token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
+    return { ok: true, ...(await cloudClient.putCatalog(url, shopId, token, catalog)) };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:cloud-catalog-get', async (_e, { url, shopId, token } = {}) => {
+  try {
+    token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
+    return { ok: true, ...(await cloudClient.getCatalog(url, shopId, token)) };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
 ipcMain.handle('hub:cloud-request-reset', async (_e, { url, email } = {}) => {
   try { return { ok: true, ...(await cloudClient.requestReset(url, { email })) }; }
   catch (e) { return { ok: false, error: String(e && e.message || e) }; }
