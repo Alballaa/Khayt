@@ -2821,6 +2821,19 @@
   "track.printing": "打印中",
   "track.finishing": "后处理",
   "track.done": "完成",
-  "track.ready": "可取货"
+  "track.ready": "可取货",
+  "sms.title": "短信 / WhatsApp 通知",
+  "sms.intro": "通过 Twilio、WhatsApp Cloud API、Unifonic 或自有 Webhook，自动向客户发送订单更新短信或 WhatsApp 消息。",
+  "sms.provider": "服务商",
+  "sms.none": "关闭",
+  "sms.webhook": "自定义 Webhook",
+  "sms.channel": "渠道",
+  "sms.from": "发送号码",
+  "sms.sender": "发送者 ID",
+  "sms.url": "Webhook 网址",
+  "sms.secret": "共享密钥（可选）",
+  "sms.test": "发送测试",
+  "sms.test_sent": "已发送",
+  "sms.need_phone": "请在设置中填写店铺电话以进行测试。"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

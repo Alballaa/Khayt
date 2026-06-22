@@ -159,6 +159,107 @@ function renderEmailNotificationSettings() {
   });
 }
 
+/** SMS / WhatsApp notification provider config (mirrors the email section). */
+function renderSmsNotificationSettings() {
+  const el = $('#smsNotificationsSection');
+  if (!el) return;
+  const cfg = settings.smsConfig || {};
+  const prov = cfg.provider || 'none';
+  const v = (x) => escapeHtml(x || '');
+  const opt = (val, label) => `<option value="${val}"${prov === val ? ' selected' : ''}>${escapeHtml(label)}</option>`;
+  el.innerHTML = `
+    <div class="inline-pair">
+      <div>
+        <label style="margin-top:0;">${escapeHtml(t('sms.provider') || 'Provider')}</label>
+        <select id="smsProvider" style="font-size:12.5px;">
+          ${opt('none', t('sms.none') || 'Off')}
+          ${opt('twilio', 'Twilio (SMS + WhatsApp)')}
+          ${opt('whatsapp_cloud', 'WhatsApp Cloud API')}
+          ${opt('unifonic', 'Unifonic (SMS)')}
+          ${opt('webhook', t('sms.webhook') || 'Custom webhook')}
+        </select>
+      </div>
+      <div>
+        <label style="margin-top:0;">${escapeHtml(t('sms.channel') || 'Channel')}</label>
+        <select id="smsChannel" style="font-size:12.5px;">
+          <option value="whatsapp"${(cfg.channel || 'whatsapp') === 'whatsapp' ? ' selected' : ''}>WhatsApp</option>
+          <option value="sms"${cfg.channel === 'sms' ? ' selected' : ''}>SMS</option>
+        </select>
+      </div>
+    </div>
+    <div id="smsProviderFields" style="${prov !== 'none' ? '' : 'display:none;'}margin-top:8px;">
+      <div data-prov="twilio" style="${prov === 'twilio' ? '' : 'display:none;'}">
+        <div class="inline-pair">
+          <div><label style="margin-top:0;">Account SID</label><input id="smsTwSid" value="${v(cfg.accountSid)}" placeholder="AC…" style="font-size:12.5px;"></div>
+          <div><label style="margin-top:0;">Auth Token</label><input id="smsTwToken" type="password" value="${v(cfg.authToken)}" placeholder="••••••••" style="font-size:12.5px;"></div>
+        </div>
+        <label style="margin-top:8px;">${escapeHtml(t('sms.from') || 'From number')}</label>
+        <input id="smsTwFrom" value="${v(cfg.from)}" placeholder="+1 555…" style="font-size:12.5px;">
+      </div>
+      <div data-prov="whatsapp_cloud" style="${prov === 'whatsapp_cloud' ? '' : 'display:none;'}">
+        <div class="inline-pair">
+          <div><label style="margin-top:0;">Phone Number ID</label><input id="smsWaId" value="${v(cfg.phoneNumberId)}" placeholder="1234567890" style="font-size:12.5px;"></div>
+          <div><label style="margin-top:0;">Access Token</label><input id="smsWaToken" type="password" value="${v(cfg.token)}" placeholder="EAA…" style="font-size:12.5px;"></div>
+        </div>
+      </div>
+      <div data-prov="unifonic" style="${prov === 'unifonic' ? '' : 'display:none;'}">
+        <div class="inline-pair">
+          <div><label style="margin-top:0;">AppSid</label><input id="smsUnSid" type="password" value="${v(cfg.appSid)}" placeholder="••••••••" style="font-size:12.5px;"></div>
+          <div><label style="margin-top:0;">${escapeHtml(t('sms.sender') || 'Sender ID')}</label><input id="smsUnSender" value="${v(cfg.senderId)}" placeholder="Acme" style="font-size:12.5px;"></div>
+        </div>
+      </div>
+      <div data-prov="webhook" style="${prov === 'webhook' ? '' : 'display:none;'}">
+        <label style="margin-top:0;">${escapeHtml(t('sms.url') || 'Webhook URL')}</label>
+        <input id="smsHookUrl" value="${v(cfg.url)}" placeholder="https://…" style="font-size:12.5px;">
+        <label style="margin-top:8px;">${escapeHtml(t('sms.secret') || 'Shared secret (optional)')}</label>
+        <input id="smsHookSecret" type="password" value="${v(cfg.secret)}" placeholder="••••••••" style="font-size:12.5px;">
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:12px;">
+      <button id="btnSaveSmsCfg" class="btn small primary">${escapeHtml(t('common.save'))}</button>
+      <button id="btnTestSms" class="btn small">${escapeHtml(t('sms.test') || 'Send test')}</button>
+      <span id="smsTestResult" style="font-size:12px;color:var(--text-muted);"></span>
+    </div>`;
+
+  const refreshProvFields = () => {
+    const p = el.querySelector('#smsProvider').value;
+    el.querySelector('#smsProviderFields').style.display = p !== 'none' ? '' : 'none';
+    el.querySelectorAll('#smsProviderFields [data-prov]').forEach((d) => { d.style.display = d.dataset.prov === p ? '' : 'none'; });
+  };
+  el.querySelector('#smsProvider')?.addEventListener('change', refreshProvFields);
+
+  const collect = () => ({
+    provider:     el.querySelector('#smsProvider').value,
+    channel:      el.querySelector('#smsChannel').value,
+    accountSid:   el.querySelector('#smsTwSid')?.value.trim() || '',
+    authToken:    secretInputSave((settings.smsConfig || {}).authToken, el.querySelector('#smsTwToken')?.value),
+    from:         el.querySelector('#smsTwFrom')?.value.trim() || '',
+    phoneNumberId: el.querySelector('#smsWaId')?.value.trim() || '',
+    token:        secretInputSave((settings.smsConfig || {}).token, el.querySelector('#smsWaToken')?.value),
+    appSid:       secretInputSave((settings.smsConfig || {}).appSid, el.querySelector('#smsUnSid')?.value),
+    senderId:     el.querySelector('#smsUnSender')?.value.trim() || '',
+    url:          el.querySelector('#smsHookUrl')?.value.trim() || '',
+    secret:       secretInputSave((settings.smsConfig || {}).secret, el.querySelector('#smsHookSecret')?.value),
+  });
+
+  el.querySelector('#btnSaveSmsCfg')?.addEventListener('click', () => {
+    settings.smsConfig = collect();
+    saveAll();
+    toast(t('common.save'), 'success');
+  });
+
+  el.querySelector('#btnTestSms')?.addEventListener('click', async () => {
+    const res = el.querySelector('#smsTestResult');
+    const to = (settings.phone || '').trim();
+    if (!to) { res.textContent = t('sms.need_phone') || 'Set your shop phone in Settings to test.'; res.style.color = 'var(--danger)'; return; }
+    res.textContent = '…';
+    settings.smsConfig = collect(); saveAll();
+    const r = await window.hubAPI?.sendSms?.({ to, message: 'Khayt test message — notifications are working.', channel: settings.smsConfig.channel, smsConfig: settings.smsConfig });
+    if (r?.ok) { res.textContent = '✓ ' + (t('sms.test_sent') || 'Sent'); res.style.color = 'var(--success)'; }
+    else { res.textContent = '✗ ' + (r?.error || r?.status || 'failed'); res.style.color = 'var(--danger)'; }
+  });
+}
+
 /* ============================================================
    Feature I: Email Digest Scheduler
    ============================================================ */
@@ -1990,6 +2091,7 @@ function loadSettingsIntoForm() {
   if (loyaltyEl) loyaltyEl.checked = !!settings.loyaltyEnabled;
   // Feature 5 (new 8-pack): Email notifications
   renderEmailNotificationSettings();
+  renderSmsNotificationSettings();
   // Batch-2 Feature 10: Telegram settings
   renderTelegramSettings();
   // Feature I: Email digest scheduler
@@ -2159,6 +2261,8 @@ function saveSettingsFromForm() {
     customFields: settings.customFields || [],
     // Feature 5 (new 8-pack): Email config — managed by renderEmailNotificationSettings, preserve as-is
     emailConfig: settings.emailConfig || { provider: 'none', apiKey: '', fromEmail: '', fromName: '', domain: '', triggers: [] },
+    // SMS/WhatsApp config — managed by renderSmsNotificationSettings, preserve as-is
+    smsConfig: settings.smsConfig || { provider: 'none', channel: 'whatsapp' },
     // Feature 7 (new 8-pack): Operator lock
     operatorLockEnabled: !!$('#set_operatorLock')?.checked,
     activeOperatorId: settings.activeOperatorId || null,
@@ -2680,6 +2784,7 @@ function renderTelegramSettings() {
   const api = {
     renderLocationsSettings,
     renderEmailNotificationSettings,
+    renderSmsNotificationSettings,
     renderDigestSettings,
     renderAiSettings,
     renderSlicerSettings,

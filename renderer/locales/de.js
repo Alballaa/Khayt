@@ -2821,6 +2821,19 @@
   "track.printing": "Druckt",
   "track.finishing": "Nachbearbeitung",
   "track.done": "Fertig",
-  "track.ready": "Abholbereit"
+  "track.ready": "Abholbereit",
+  "sms.title": "SMS-/WhatsApp-Benachrichtigungen",
+  "sms.intro": "Senden Sie Kunden automatische Bestell-Updates per SMS oder WhatsApp über Twilio, die WhatsApp Cloud API, Unifonic oder einen eigenen Webhook.",
+  "sms.provider": "Anbieter",
+  "sms.none": "Aus",
+  "sms.webhook": "Eigener Webhook",
+  "sms.channel": "Kanal",
+  "sms.from": "Absendernummer",
+  "sms.sender": "Absender-ID",
+  "sms.url": "Webhook-URL",
+  "sms.secret": "Gemeinsames Secret (optional)",
+  "sms.test": "Test senden",
+  "sms.test_sent": "Gesendet",
+  "sms.need_phone": "Hinterlegen Sie die Shop-Telefonnummer in den Einstellungen zum Testen."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
