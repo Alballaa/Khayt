@@ -4,7 +4,9 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
-### 3.0.0-beta.10 cycle (in progress)
+## [3.0.0-beta.10] - 2026-06-23
+
+**Pre-release (beta)** — assist + automate: a conversational AI assistant, storefront promo codes, pause/skip/end for recurring orders, and one-way accounting sync.
 
 ### Added
 
