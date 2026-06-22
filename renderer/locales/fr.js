@@ -2834,6 +2834,13 @@
   "sms.secret": "Secret partagé (facultatif)",
   "sms.test": "Envoyer un test",
   "sms.test_sent": "Envoyé",
-  "sms.need_phone": "Renseignez le téléphone de la boutique dans les Réglages pour tester."
+  "sms.need_phone": "Renseignez le téléphone de la boutique dans les Réglages pour tester.",
+  "sched.assign": "Affecter",
+  "sched.auto_assign": "Affecter les tâches en file aux machines",
+  "sched.skipped": "ignorés",
+  "sched.auto_toggle": "Affectation auto",
+  "sched.auto_hint": "Affecter automatiquement les tâches en file aux machines libres et compatibles",
+  "sched.auto_on": "Affectation auto activée",
+  "sched.auto_off": "Affectation auto désactivée"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

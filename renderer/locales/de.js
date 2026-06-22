@@ -2834,6 +2834,13 @@
   "sms.secret": "Gemeinsames Secret (optional)",
   "sms.test": "Test senden",
   "sms.test_sent": "Gesendet",
-  "sms.need_phone": "Hinterlegen Sie die Shop-Telefonnummer in den Einstellungen zum Testen."
+  "sms.need_phone": "Hinterlegen Sie die Shop-Telefonnummer in den Einstellungen zum Testen.",
+  "sched.assign": "Zuweisen",
+  "sched.auto_assign": "Warteschlangen-Jobs Maschinen zuweisen",
+  "sched.skipped": "übersprungen",
+  "sched.auto_toggle": "Auto-Zuweisung",
+  "sched.auto_hint": "Wartende Jobs automatisch freien, kompatiblen Maschinen zuweisen",
+  "sched.auto_on": "Auto-Zuweisung ein",
+  "sched.auto_off": "Auto-Zuweisung aus"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

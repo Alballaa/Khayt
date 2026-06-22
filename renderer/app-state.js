@@ -158,6 +158,8 @@ function defaultSettings() {
     emailConfig:      { provider: 'none', apiKey: '', fromEmail: '', fromName: '', domain: '', triggers: [] },
     // SMS / WhatsApp notifications (automated, provider-based)
     smsConfig:        { provider: 'none', channel: 'whatsapp', accountSid: '', authToken: '', from: '', phoneNumberId: '', token: '', appSid: '', senderId: '', url: '', secret: '' },
+    // Print-farm auto-scheduling: when on, queued jobs are auto-assigned to free machines
+    autoSchedule:     false,
     // Feature 7 (new batch): Operator lock
     activeOperatorId: null,
     operatorLockEnabled: false,

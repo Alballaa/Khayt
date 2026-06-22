@@ -296,7 +296,41 @@ function studioKanbanDecorateColumns() {
   });
 }
 
+let _autoSchedRunning = false;
+
+/** Apply auto-assignments silently (used mid-render when autoSchedule is on).
+ *  Mutates orders + persists, but does NOT re-render (caller is rendering). */
+function applyAutoSchedule() {
+  if (typeof KhaytScheduling === 'undefined') return 0;
+  const schedulable = printLog.filter(o => o && o.status === 'pending' && !o.machineId);
+  if (!schedulable.length) return 0;
+  const { assignments } = KhaytScheduling.proposeSchedule(machines, schedulable, { now: Date.now() });
+  let n = 0;
+  for (const a of assignments) { const o = printLog.find(x => x.id === a.orderId); if (o) { o.machineId = a.machineId; n++; } }
+  if (n) saveAll();
+  return n;
+}
+
+/** One-click auto-assign (the 🪄 button): propose + apply immediately, then toast. */
+function runAutoSchedule() {
+  if (typeof KhaytScheduling === 'undefined') { toast('Scheduling unavailable', 'error'); return; }
+  const schedulable = printLog.filter(o => o && (o.status === 'pending' || o.status === 'queued') && !o.machineId);
+  if (!schedulable.length) { toast(t('sched.none_to_assign') || 'No unassigned orders', 'info'); return; }
+  const { assignments, unassignable } = KhaytScheduling.proposeSchedule(machines, schedulable, { now: Date.now() });
+  let n = 0;
+  for (const a of assignments) { const o = printLog.find(x => x.id === a.orderId); if (o) { o.machineId = a.machineId; n++; } }
+  if (n) { saveAll(); renderKanban(); }
+  const skipped = (unassignable || []).length;
+  toast((t('sched.applied') || 'Assigned') + ' (' + n + ')' + (skipped ? ' · ' + skipped + ' ' + (t('sched.skipped') || 'skipped') : ''), n ? 'success' : 'info');
+}
+
 function renderKanban() {
+  // Auto-assign mode: silently place queued jobs before drawing the board.
+  // The guard prevents re-entrancy (applyAutoSchedule → saveAll never re-renders).
+  if (settings.autoSchedule && !_autoSchedRunning) {
+    _autoSchedRunning = true;
+    try { applyAutoSchedule(); } finally { _autoSchedRunning = false; }
+  }
   window.KhaytStudio?.syncQueueMachinePicker?.();
   renderWaitingList();
   updateWaitingBadge();
@@ -844,6 +878,7 @@ function renderMachineQueues() {
     updateKanbanLiveStatus,
     kanbanSlicePrint,
     openScheduleSuggestions,
+    runAutoSchedule,
     setupKanbanDrag,
     kanbanUrgencyScore,
     kanbanQueuePos,
