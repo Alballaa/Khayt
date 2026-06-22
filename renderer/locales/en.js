@@ -2848,6 +2848,10 @@
   "store.add_promo": "Add code",
   "store.promo_code": "CODE",
   "store.promo_expires": "Expires (optional)",
-  "store.promo_max": "Max uses (blank = unlimited)"
+  "store.promo_max": "Max uses (blank = unlimited)",
+  "rec.paused": "Paused",
+  "rec.end_date": "Stop after (optional)",
+  "rec.skip_next": "Skip next cycle",
+  "rec.skipped": "Skipped to next cycle"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

@@ -768,7 +768,7 @@ function renderDashboard() {
       const sevenDays = new Date(today); sevenDays.setDate(sevenDays.getDate() + 7);
       const dueClients = clients.filter(c => {
         const rec = c.recurring;
-        if (!rec?.enabled || !rec.nextDue) return false;
+        if (!rec?.enabled || rec.paused || !rec.nextDue) return false;
         const nd = new Date(rec.nextDue + 'T00:00:00');
         return nd <= sevenDays;
       }).sort((a, b) => a.recurring.nextDue.localeCompare(b.recurring.nextDue));

@@ -560,7 +560,20 @@ function openClientEditor(clientId = null) {
             <input type="date" id="recNextDue" value="${escapeHtml(rec.nextDue || '')}">
           </div>
         </div>
-        <p style="font-size:11.5px;color:var(--text-muted);margin:4px 0 0;">${escapeHtml(t('rec.hint'))}</p>
+        <div class="inline-pair" style="margin-top:8px;">
+          <div>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="recPaused" style="width:auto;margin:0;" ${rec.paused ? 'checked' : ''}>
+              <span>${escapeHtml(t('rec.paused') || 'Paused')}</span>
+            </label>
+          </div>
+          <div>
+            <label>${escapeHtml(t('rec.end_date') || 'Stop after (optional)')}</label>
+            <input type="date" id="recEndDate" value="${escapeHtml(rec.endDate || '')}">
+          </div>
+        </div>
+        <button type="button" id="recSkip" class="btn ghost small" style="margin-top:8px;">${escapeHtml(t('rec.skip_next') || 'Skip next cycle')}</button>
+        <p style="font-size:11.5px;color:var(--text-muted);margin:6px 0 0;">${escapeHtml(t('rec.hint'))}</p>
       </div>
     </div>
 
@@ -618,6 +631,14 @@ function openClientEditor(clientId = null) {
       recCb.addEventListener('change', () => { recDiv.style.display = recCb.checked ? '' : 'none'; });
       modal.querySelector('#recInterval').addEventListener('change', e => { rec.interval = e.target.value; });
       modal.querySelector('#recNextDue').addEventListener('change', e => { rec.nextDue = e.target.value; });
+      modal.querySelector('#recSkip')?.addEventListener('click', () => {
+        const ndEl = modal.querySelector('#recNextDue');
+        const from = ndEl.value || new Date().toISOString().slice(0, 10);
+        const iv = modal.querySelector('#recInterval').value;
+        const next = (typeof KhaytSubscriptions !== 'undefined') ? KhaytSubscriptions.nextRunDate(from, iv) : from;
+        ndEl.value = next; rec.nextDue = next;
+        toast(t('rec.skipped') || 'Skipped to ' + next, 'info');
+      });
       // Currency (Feature 1)
       const ceCurrEl = modal.querySelector('#ceCurrency');
       if (ceCurrEl) ceCurrEl.addEventListener('change', e => { draft.currency = e.target.value || null; });
@@ -773,6 +794,8 @@ function openClientEditor(clientId = null) {
         enabled:  modal.querySelector('#recEnabled').checked,
         interval: modal.querySelector('#recInterval').value,
         nextDue:  modal.querySelector('#recNextDue').value || null,
+        paused:   modal.querySelector('#recPaused')?.checked || false,
+        endDate:  modal.querySelector('#recEndDate')?.value || null,
       };
       draft.currency = modal.querySelector('#ceCurrency')?.value || null;
       draft.creditLimit = Math.max(0, num(modal.querySelector('#ceCreditLimit')?.value, 0)) || 0;
@@ -800,7 +823,9 @@ function checkRecurringOrders() {
 
   clients.forEach(client => {
     const rec = client.recurring;
-    if (!rec?.enabled || !rec.nextDue || rec.nextDue > today) return;
+    if (!rec?.enabled || rec.paused || !rec.nextDue || rec.nextDue > today) return;
+    // Stop after the end date (if set): disable so it no longer recurs.
+    if (rec.endDate && rec.nextDue > rec.endDate) { rec.enabled = false; return; }
 
     // Use most recent completed order for this client as a template
     const template = printLog.find(o => o.clientId === client.id && o.status === 'completed');
@@ -847,10 +872,15 @@ function checkRecurringOrders() {
     });
     created++;
 
-    const days = INTERVAL_DAYS[rec.interval] || 30;
-    const next = new Date(rec.nextDue + 'T00:00:00');
-    next.setDate(next.getDate() + days);
-    rec.nextDue = next.toISOString().split('T')[0];
+    // Advance with true calendar math (month-end safe) when available.
+    if (typeof KhaytSubscriptions !== 'undefined') {
+      rec.nextDue = KhaytSubscriptions.nextRunDate(rec.nextDue, rec.interval);
+    } else {
+      const next = new Date(rec.nextDue + 'T00:00:00');
+      next.setDate(next.getDate() + (INTERVAL_DAYS[rec.interval] || 30));
+      rec.nextDue = next.toISOString().split('T')[0];
+    }
+    if (rec.endDate && rec.nextDue > rec.endDate) rec.enabled = false;
   });
 
   if (created > 0) {
@@ -994,7 +1024,8 @@ function patchRecurringOrdersWithLeadDays() {
 
   clients.forEach(client => {
     const rec = client.recurring;
-    if (!rec?.enabled || !rec.nextDue) return;
+    if (!rec?.enabled || rec.paused || !rec.nextDue) return;
+    if (rec.endDate && rec.nextDue > rec.endDate) { rec.enabled = false; return; }
     const leadDays = rec.leadDays || 0;
     const triggerDate = new Date(rec.nextDue + 'T00:00:00');
     triggerDate.setDate(triggerDate.getDate() - leadDays);
@@ -1046,10 +1077,15 @@ function patchRecurringOrdersWithLeadDays() {
     });
     created++;
 
-    const days = INTERVAL_DAYS[rec.interval] || 30;
-    const next = new Date(rec.nextDue + 'T00:00:00');
-    next.setDate(next.getDate() + days);
-    rec.nextDue = next.toISOString().split('T')[0];
+    // Advance with true calendar math (month-end safe) when available.
+    if (typeof KhaytSubscriptions !== 'undefined') {
+      rec.nextDue = KhaytSubscriptions.nextRunDate(rec.nextDue, rec.interval);
+    } else {
+      const next = new Date(rec.nextDue + 'T00:00:00');
+      next.setDate(next.getDate() + (INTERVAL_DAYS[rec.interval] || 30));
+      rec.nextDue = next.toISOString().split('T')[0];
+    }
+    if (rec.endDate && rec.nextDue > rec.endDate) rec.enabled = false;
   });
 
   if (created > 0) {

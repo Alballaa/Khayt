@@ -2847,6 +2847,10 @@
   "store.add_promo": "إضافة رمز",
   "store.promo_code": "الرمز",
   "store.promo_expires": "تاريخ الانتهاء (اختياري)",
-  "store.promo_max": "الحد الأقصى للاستخدام (فارغ = غير محدود)"
+  "store.promo_max": "الحد الأقصى للاستخدام (فارغ = غير محدود)",
+  "rec.paused": "موقوف مؤقتاً",
+  "rec.end_date": "الإيقاف بعد (اختياري)",
+  "rec.skip_next": "تخطّي الدورة التالية",
+  "rec.skipped": "تم التخطّي للدورة التالية"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
