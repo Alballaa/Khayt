@@ -2843,6 +2843,11 @@
   "sched.auto_toggle": "Auto-assign",
   "sched.auto_hint": "Automatically assign queued jobs to free, compatible machines",
   "sched.auto_on": "Auto-assign on",
-  "sched.auto_off": "Auto-assign off"
+  "sched.auto_off": "Auto-assign off",
+  "store.promos_label": "Promo codes",
+  "store.add_promo": "Add code",
+  "store.promo_code": "CODE",
+  "store.promo_expires": "Expires (optional)",
+  "store.promo_max": "Max uses (blank = unlimited)"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

@@ -2841,6 +2841,11 @@
   "sched.auto_toggle": "Auto-Zuweisung",
   "sched.auto_hint": "Wartende Jobs automatisch freien, kompatiblen Maschinen zuweisen",
   "sched.auto_on": "Auto-Zuweisung ein",
-  "sched.auto_off": "Auto-Zuweisung aus"
+  "sched.auto_off": "Auto-Zuweisung aus",
+  "store.promos_label": "Gutscheincodes",
+  "store.add_promo": "Code hinzufügen",
+  "store.promo_code": "CODE",
+  "store.promo_expires": "Läuft ab (optional)",
+  "store.promo_max": "Max. Nutzungen (leer = unbegrenzt)"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
