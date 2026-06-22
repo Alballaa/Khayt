@@ -2783,6 +2783,22 @@
   "slicer.test_fail": "تعذّر تشغيل المُقطّع:",
   "dash.filament_title": "الفتلة — تحتاج انتباه",
   "dash.spool_low": "منخفض",
-  "dash.spool_days": "~{n} يوم متبقٍ"
+  "dash.spool_days": "~{n} يوم متبقٍ",
+  "team.title": "الفريق",
+  "team.join": "الانضمام إلى فريق",
+  "team.join_hint": "أدخل رمز الدعوة من مالك المتجر. استخدم بريدك وكلمة مرورك (أعلاه) وعبارة مرور المزامنة المشتركة للمتجر.",
+  "team.code": "رمز الدعوة",
+  "team.no_keyset": "لم يفعّل المالك المزامنة بعد — اطلب منه تفعيل خَيط كلاود أولاً.",
+  "team.joined": "تم الانضمام — استخدم «استعادة من السحابة» لجلب البيانات",
+  "team.invite_label": "دعوة عضو",
+  "team.send_invite": "إرسال الدعوة",
+  "team.invite_hint": "يصله رمز بالبريد، يختار «الانضمام إلى فريق» في خَيط، ويفتح القفل بعبارة المزامنة المشتركة.",
+  "team.invite_sent": "تم إرسال الدعوة",
+  "team.sending": "جارٍ الإرسال…",
+  "team.removed": "تمت إزالة العضو",
+  "team.remove_q": "إزالة {email} من الفريق؟",
+  "team.unverified": "غير مُوثّق",
+  "team.owner": "المالك",
+  "common.remove": "إزالة"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

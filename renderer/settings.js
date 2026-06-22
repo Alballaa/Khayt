@@ -363,6 +363,57 @@ function renderSlicerSettings() {
   });
 }
 
+// Team management modal (owner): list members, invite by email+role, remove.
+async function openTeamModal() {
+  const c = settings.cloud || {};
+  if (!c.shopId || !c.token) { toast(t('intake.connect_first'), 'error'); return; }
+  let members = [];
+  try {
+    const r = await window.hubAPI.cloudMembersList({ url: c.url, shopId: c.shopId, token: c.token });
+    if (!r.ok) throw new Error(r.error);
+    members = r.members || [];
+  } catch (e) { toast('✗ ' + e.message, 'error'); return; }
+  const roleLabel = (r) => t('role.' + r) || r;
+  const rolesOpts = ['manager', 'operator', 'viewer'].map((r) => `<option value="${r}">${escapeHtml(roleLabel(r))}</option>`).join('');
+  const rows = members.map((m) => `<div class="card" data-mem="${escapeHtml(m.email)}" style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;margin-bottom:6px;">
+      <div><div style="font-size:13px;">${escapeHtml(m.email)}</div><div style="font-size:11px;color:var(--text-muted);">${escapeHtml(roleLabel(m.role))}${m.verified ? '' : ' · ' + escapeHtml(t('team.unverified') || 'unverified')}</div></div>
+      ${m.role === 'owner' ? `<span style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('team.owner') || 'owner')}</span>` : `<button class="btn danger small" data-rm="${escapeHtml(m.email)}">${escapeHtml(t('common.remove') || 'Remove')}</button>`}
+    </div>`).join('');
+  openFormModal({
+    title: `👥 ${t('team.title') || 'Team'}`,
+    noSave: true,
+    bodyHtml: `<div id="teamList">${rows}</div>
+      <hr style="border:none;border-top:1px solid var(--border-soft);margin:12px 0;">
+      <label>${escapeHtml(t('team.invite_label') || 'Invite a member')}</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <input id="invEmail" type="email" placeholder="name@email.com" style="flex:1;min-width:160px;">
+        <select id="invRole">${rolesOpts}</select>
+        <button id="invBtn" class="btn primary small" type="button">${escapeHtml(t('team.send_invite') || 'Send invite')}</button>
+      </div>
+      <p style="font-size:11.5px;color:var(--text-muted);margin-top:8px;">${escapeHtml(t('team.invite_hint') || 'They get an emailed code, choose “Join a team” in Khayt, and unlock with the shop’s shared sync passphrase.')}</p>
+      <span id="teamResult" style="font-size:12px;"></span>`,
+    onMount(modal) {
+      modal.querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', async () => {
+        const email = b.dataset.rm;
+        if (!(await confirmModal((t('team.remove_q') || 'Remove {email} from the team?').replace('{email}', email), { danger: true }))) return;
+        const r = await window.hubAPI.cloudMemberRemove({ url: c.url, shopId: c.shopId, token: c.token, email });
+        if (r.ok) { modal.querySelector(`[data-mem="${CSS.escape(email)}"]`)?.remove(); toast(t('team.removed') || 'Member removed', 'success'); }
+        else toast('✗ ' + (r.error || 'failed'), 'error');
+      }));
+      modal.querySelector('#invBtn')?.addEventListener('click', async () => {
+        const email = modal.querySelector('#invEmail').value.trim();
+        const role = modal.querySelector('#invRole').value;
+        const res = modal.querySelector('#teamResult');
+        if (!email) return;
+        res.textContent = t('team.sending') || 'Sending…'; res.style.color = 'var(--text-muted)';
+        const r = await window.hubAPI.cloudMemberInvite({ url: c.url, shopId: c.shopId, token: c.token, email, role });
+        if (r.ok) { res.textContent = '✓ ' + (t('team.invite_sent') || 'Invite sent'); res.style.color = 'var(--success)'; modal.querySelector('#invEmail').value = ''; }
+        else { res.textContent = '✗ ' + (r.error || 'failed'); res.style.color = 'var(--danger)'; }
+      });
+    },
+  });
+}
+
 function showRecoveryKeyModal(recoveryKey) {
   openFormModal({
     title: t('cloud.recovery_title') || 'Save your recovery key',
@@ -525,6 +576,7 @@ function renderCloudSettings() {
       <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
         <button id="btnCloudSignup" class="btn primary small">${escapeHtml(t('cloud.signup') || 'Create account')}</button>
         <button id="btnCloudLogin" class="btn small">${escapeHtml(t('cloud.login') || 'Log in (existing)')}</button>
+        <button id="btnCloudJoin" class="btn small">${escapeHtml(t('team.join') || 'Join a team')}</button>
         <button id="btnCloudForgot" class="btn ghost small">${escapeHtml(t('cloud.forgot') || 'Forgot password?')}</button>
         <span id="cloudResult" style="font-size:12px;"></span>
       </div>`
@@ -537,6 +589,7 @@ function renderCloudSettings() {
         <button id="btnCloudRestore" class="btn small">${escapeHtml(t('cloud.restore') || 'Restore from cloud')}</button>
         <button id="btnCloudRequests" class="btn small">🛎 ${escapeHtml(t('intake.requests') || 'Order requests')}</button>
         <button id="btnCloudIntakeLink" class="btn ghost small">${escapeHtml(t('intake.copy_link') || 'Copy request link')}</button>
+        ${(settings.cloud?.role || 'owner') === 'owner' ? `<button id="btnCloudTeam" class="btn small">👥 ${escapeHtml(t('team.title') || 'Team')}</button>` : ''}
         <button id="btnCloudDisconnect" class="btn danger small">${escapeHtml(t('cloud.disconnect') || 'Sign out')}</button>
         <span id="cloudResult" style="font-size:12px;"></span>
       </div>`}`;
@@ -566,7 +619,7 @@ function renderCloudSettings() {
     if (!su.ok) { result('✗ ' + (su.error || 'sign-up failed'), 'var(--danger)'); return; }
     const ks = await window.hubAPI.cloudCreateKeyset(f.pass);
     if (!ks.ok) { result('✗ ' + (ks.error || 'keyset failed'), 'var(--danger)'); return; }
-    settings.cloud = { enabled: true, url: f.url, email: f.email, accountId: su.accountId, shopId: su.shopId, token: su.token, keyset: ks.keyset, lastServerRev: 0, verified: false };
+    settings.cloud = { enabled: true, url: f.url, email: f.email, accountId: su.accountId, shopId: su.shopId, token: su.token, keyset: ks.keyset, lastServerRev: 0, verified: false, role: 'owner' };
     saveAll();
     await window.hubAPI.cloudUnlock({ url: f.url, shopId: su.shopId, token: su.token, keyset: ks.keyset, passphrase: f.pass });
     const up = await window.hubAPI.cloudPutKeyset({ url: f.url, shopId: su.shopId, token: su.token, keyset: ks.keyset });
@@ -590,7 +643,7 @@ function renderCloudSettings() {
       if (!ks.ok) { result('✗ ' + (ks.error || 'keyset failed'), 'var(--danger)'); return; }
       keyset = ks.keyset; recoveryKey = ks.recoveryKey;
     }
-    settings.cloud = { enabled: true, url: f.url, email: f.email, shopId: lr.shopId, token: lr.token, keyset, lastServerRev: 0, verified: !!lr.verified };
+    settings.cloud = { enabled: true, url: f.url, email: f.email, shopId: lr.shopId, token: lr.token, keyset, lastServerRev: 0, verified: !!lr.verified, role: lr.role || 'owner' };
     saveAll();
     const un = await window.hubAPI.cloudUnlock({ url: f.url, shopId: lr.shopId, token: lr.token, keyset, passphrase: f.pass });
     if (!un.ok) { result('✗ ' + (t('cloud.wrong_pass') || 'Wrong sync passphrase for this account'), 'var(--danger)'); renderCloudSettings(); return; }
@@ -603,6 +656,32 @@ function renderCloudSettings() {
     if (window.KhaytCloudSync) KhaytCloudSync.configure(cloudSyncDeps());
     renderCloudSettings();
     toast(t('cloud.logged_in') || 'Logged in — use “Restore from cloud” to pull your data', 'success');
+  });
+
+  // Join a team: accept an emailed invite → member account in the shared shop.
+  el.querySelector('#btnCloudJoin')?.addEventListener('click', async () => {
+    const f = await readConnectForm(); if (!f) return;
+    openFormModal({
+      title: t('team.join') || 'Join a team',
+      saveLabel: t('team.join') || 'Join',
+      bodyHtml: `<p style="color:var(--text-muted);font-size:12.5px;margin:0 0 10px;">${escapeHtml(t('team.join_hint') || 'Enter the invite code from your shop owner. Use your own email + password (above) and the shop’s shared sync passphrase.')}</p>
+        <label>${escapeHtml(t('team.code') || 'Invite code')}</label><input id="joinCode" autocomplete="off" style="text-transform:uppercase;">`,
+      onSave: async (modal) => {
+        const code = modal.querySelector('#joinCode').value.trim();
+        if (!code) { toast(t('team.code') || 'Invite code', 'error'); return false; }
+        const r = await window.hubAPI.cloudAcceptInvite({ url: f.url, email: f.email, password: f.password, code });
+        if (!r.ok) { toast('✗ ' + (r.error || 'join failed'), 'error'); return false; }
+        if (!r.keyset) { toast(t('team.no_keyset') || 'The owner hasn’t set up sync yet — ask them to enable Khayt Cloud first.', 'error'); return false; }
+        settings.cloud = { enabled: true, url: f.url, email: f.email, shopId: r.shopId, token: r.token, keyset: r.keyset, lastServerRev: 0, verified: false, role: r.role || 'operator' };
+        saveAll();
+        const un = await window.hubAPI.cloudUnlock({ url: f.url, shopId: r.shopId, token: r.token, keyset: r.keyset, passphrase: f.pass });
+        renderCloudSettings();
+        if (!un.ok) { toast(t('cloud.wrong_pass') || 'Wrong shared sync passphrase', 'error'); return true; }
+        if (window.KhaytCloudSync) KhaytCloudSync.configure(cloudSyncDeps());
+        toast(t('team.joined') || 'Joined the team — use “Restore from cloud” to pull data', 'success');
+        return true;
+      },
+    });
   });
 
   // Forgot password: email a reset code, then open the reset modal.
@@ -694,6 +773,7 @@ function renderCloudSettings() {
   el.querySelector('#btnCloudIntakeLink')?.addEventListener('click', () => {
     if (typeof copyIntakeLink === 'function') copyIntakeLink();
   });
+  el.querySelector('#btnCloudTeam')?.addEventListener('click', openTeamModal);
 
   el.querySelector('#btnCloudDisconnect')?.addEventListener('click', async () => {
     if (!(await confirmModal(t('cloud.disconnect_q') || 'Sign out of Khayt Cloud on this device? Local data stays; the cloud copy is kept.', { danger: true }))) return;

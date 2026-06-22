@@ -2784,6 +2784,22 @@
   "slicer.test_fail": "Could not run the slicer:",
   "dash.filament_title": "Filament — needs attention",
   "dash.spool_low": "Low",
-  "dash.spool_days": "~{n}d left"
+  "dash.spool_days": "~{n}d left",
+  "team.title": "Team",
+  "team.join": "Join a team",
+  "team.join_hint": "Enter the invite code from your shop owner. Use your own email + password (above) and the shop’s shared sync passphrase.",
+  "team.code": "Invite code",
+  "team.no_keyset": "The owner hasn’t set up sync yet — ask them to enable Khayt Cloud first.",
+  "team.joined": "Joined the team — use “Restore from cloud” to pull data",
+  "team.invite_label": "Invite a member",
+  "team.send_invite": "Send invite",
+  "team.invite_hint": "They get an emailed code, choose “Join a team” in Khayt, and unlock with the shop’s shared sync passphrase.",
+  "team.invite_sent": "Invite sent",
+  "team.sending": "Sending…",
+  "team.removed": "Member removed",
+  "team.remove_q": "Remove {email} from the team?",
+  "team.unverified": "unverified",
+  "team.owner": "owner",
+  "common.remove": "Remove"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
