@@ -2846,6 +2846,10 @@
   "store.add_promo": "Ajouter un code",
   "store.promo_code": "CODE",
   "store.promo_expires": "Expire (facultatif)",
-  "store.promo_max": "Utilisations max (vide = illimité)"
+  "store.promo_max": "Utilisations max (vide = illimité)",
+  "rec.paused": "En pause",
+  "rec.end_date": "Arrêter après (facultatif)",
+  "rec.skip_next": "Sauter le prochain cycle",
+  "rec.skipped": "Sauté au cycle suivant"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

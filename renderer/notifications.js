@@ -143,7 +143,7 @@ function buildNotifications() {
   // over the existing per-client recurring config — reminder only, operator fulfils).
   if (typeof KhaytSubscriptions !== 'undefined' && Array.isArray(clients)) {
     const subView = clients
-      .filter(c => c.recurring && c.recurring.enabled && c.recurring.nextDue)
+      .filter(c => c.recurring && c.recurring.enabled && !c.recurring.paused && c.recurring.nextDue)
       .map(c => ({ id: c.id, status: 'active', interval: c.recurring.interval || 'monthly', nextRunAt: c.recurring.nextDue, _name: c.name }));
     for (const sub of KhaytSubscriptions.selectDueSubscriptions(subView, Date.now())) {
       const key = 'recurdue:' + sub.id;

@@ -2846,6 +2846,10 @@
   "store.add_promo": "コードを追加",
   "store.promo_code": "コード",
   "store.promo_expires": "有効期限（任意）",
-  "store.promo_max": "最大利用回数（空欄=無制限）"
+  "store.promo_max": "最大利用回数（空欄=無制限）",
+  "rec.paused": "一時停止",
+  "rec.end_date": "以降は停止（任意）",
+  "rec.skip_next": "次のサイクルをスキップ",
+  "rec.skipped": "次のサイクルへスキップしました"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

@@ -2846,6 +2846,10 @@
   "store.add_promo": "添加优惠码",
   "store.promo_code": "优惠码",
   "store.promo_expires": "过期日期（可选）",
-  "store.promo_max": "最大使用次数（留空=不限）"
+  "store.promo_max": "最大使用次数（留空=不限）",
+  "rec.paused": "已暂停",
+  "rec.end_date": "在此之后停止（可选）",
+  "rec.skip_next": "跳过下一周期",
+  "rec.skipped": "已跳到下一周期"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
