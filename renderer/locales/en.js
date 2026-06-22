@@ -2814,6 +2814,10 @@
   "store.published": "Storefront is live",
   "store.unpublished": "Storefront is offline",
   "store.no_products": "Add products to your catalog first",
-  "store.unpublish_q": "Take the storefront offline? The link will stop working."
+  "store.unpublish_q": "Take the storefront offline? The link will stop working.",
+  "store.prices_label": "Prices (leave blank to hide)",
+  "store.deposit_pct": "Deposit %",
+  "store.pay_url": "Payment link",
+  "store.pay_url_hint": "Paste a payment link from any provider; use {amount} or {total} where the figure goes. The customer pays there before sending the order."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
