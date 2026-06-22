@@ -4,7 +4,9 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
-### 3.0.0-beta.11 cycle (in progress)
+## [3.0.0-beta.11] - 2026-06-23
+
+**Pre-release (beta)** — grow + operate: marketing campaigns, QR labels, demand-aware reordering with draft POs, and customer reviews.
 
 ### Added
 
