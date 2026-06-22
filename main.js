@@ -36,6 +36,8 @@ const { sendCustomSmtp } = require('./lib/custom-smtp');
 const { normalizeStoreSnapshot } = require('./lib/store-validate');
 const { createStoreIo } = require('./lib/store-io');
 const { parseGcodeText } = require('./lib/gcode-parse');
+const bambu = require('./lib/bambu');
+const { bambuFtpUpload } = require('./lib/bambu-ftp');
 const cloudClient = require('./lib/cloud-client');
 const { registerZatcaCrypto } = require('./lib/zatca-crypto');
 const { wrapHubIpc } = require('./lib/ipc-guard');
@@ -581,13 +583,26 @@ ipcMain.handle('hub:slice-test', async (_e, { slicerPath } = {}) => {
 // Upload a G-code file to a printer (OctoPrint / Moonraker / PrusaLink) and
 // optionally start it. Uses the same host allowlist as the status poller (SSRF-safe).
 async function uploadGcodeToPrinter(machine, gcodePath, startPrint) {
-  const { type, host, port, apiKey } = (machine && machine.printerApi) || {};
+  const { type, host, port, apiKey, accessCode, serial, printerSlug } = (machine && machine.printerApi) || {};
   const printerHost = String(host || '').replace(/[^a-zA-Z0-9.\-]/g, '');
   if (!isAllowedPrinterHost(printerHost)) return { ok: false, error: 'Invalid printer host' };
   const portNum = parseInt(port || defaultPrinterPort(type), 10);
   if (!Number.isInteger(portNum) || portNum < 1 || portNum > 65535) return { ok: false, error: 'Invalid port' };
-  const base = `http://${printerHost}:${portNum}`;
   const bytes = fs.readFileSync(gcodePath);
+  // Bambu Lab: upload over FTPS (:990), then start it over MQTT (:8883).
+  if (type === 'bambu') {
+    const dev = String(serial || printerSlug || '').trim();
+    if (!dev) return { ok: false, error: 'Bambu needs the printer serial number.' };
+    if (!accessCode) return { ok: false, error: 'Bambu needs the LAN access code.' };
+    const ext = /\.3mf$/i.test(gcodePath) ? '3mf' : 'gcode';
+    const remoteName = `khayt-${Date.now().toString(36)}.${ext}`;
+    try {
+      await bambuFtpUpload({ host: printerHost, accessCode, remoteName, data: bytes });
+      if (startPrint) await bambu.bambuSendPrint({ host: printerHost, accessCode, serial: dev, fileName: remoteName });
+      return { ok: true, started: !!startPrint, filename: remoteName };
+    } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+  }
+  const base = `http://${printerHost}:${portNum}`;
   const name = `khayt-${Date.now().toString(36)}.gcode`;
   const ok = (res) => (res.status >= 200 && res.status < 300) ? { ok: true, started: !!startPrint, filename: name } : { ok: false, error: `Printer responded ${res.status}` };
   try {
@@ -607,7 +622,7 @@ async function uploadGcodeToPrinter(machine, gcodePath, startPrint) {
         body: bytes, signal: AbortSignal.timeout(60000),
       }));
     }
-    return { ok: false, error: `Send-to-printer isn't supported for ${type || 'this printer'} yet (OctoPrint, Moonraker, PrusaLink).` };
+    return { ok: false, error: `Send-to-printer isn't supported for ${type || 'this printer'} yet (OctoPrint, Moonraker, PrusaLink, Bambu Lab).` };
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 }
 
@@ -1061,7 +1076,7 @@ ipcMain.handle('hub:stop-printer-polling', () => {
 ipcMain.handle('hub:get-printer-status', () => printerStatusCache);
 
 async function fetchPrinterStatus(machine) {
-  const { type, host, port, apiKey, accessCode, printerSlug } = machine.printerApi || {};
+  const { type, host, port, apiKey, accessCode, printerSlug, serial } = machine.printerApi || {};
   // Strip any characters that aren't valid in a hostname/IP (prevents URL injection via @, /, etc.)
   const printerHost = String(host || '').replace(/[^a-zA-Z0-9.\-]/g, '');
   if (!isAllowedPrinterHost(printerHost)) {
@@ -1070,6 +1085,13 @@ async function fetchPrinterStatus(machine) {
   const portNum = parseInt(port || defaultPrinterPort(type), 10);
   if (!Number.isInteger(portNum) || portNum < 1 || portNum > 65535) {
     return { ok: false, error: 'Invalid port number' };
+  }
+  // Bambu Lab: MQTT-over-TLS, not HTTP. Needs the device serial for its topics.
+  if (type === 'bambu') {
+    const dev = String(serial || printerSlug || '').trim();
+    if (!dev) return { ok: false, error: 'Bambu needs the printer serial number (Settings → Device on the printer).' };
+    if (!accessCode) return { ok: false, error: 'Bambu needs the LAN access code.' };
+    return bambu.fetchBambuStatus({ host: printerHost, port: portNum, accessCode, serial: dev });
   }
   const baseUrl = `http://${printerHost}:${portNum}`;
   const headers = {};
@@ -1123,20 +1145,7 @@ async function fetchPrinterStatus(machine) {
       type: 'prusalink'
     };
   }
-  if (type === 'bambu') {
-    const data = await get('/api/v1/info');
-    let jobData = {};
-    try { jobData = await get('/api/v1/print'); } catch(e) {}
-    return {
-      state: jobData.gcode_state || data.dev_product_name || 'Connected',
-      progress: jobData.mc_percent || 0,
-      filename: jobData.subtask_name || '',
-      timeRemaining: jobData.mc_remaining_time ? jobData.mc_remaining_time * 60 : null,
-      tempNozzle: jobData.nozzle_temper || null,
-      tempBed: jobData.bed_temper || null,
-      type: 'bambu'
-    };
-  }
+  // (Bambu is handled above via MQTT before the HTTP branches.)
   if (type === 'duet') {
     try {
       const data = await get('/rr_model?key=&flags=d99fn');
@@ -1181,7 +1190,7 @@ async function fetchPrinterStatus(machine) {
 }
 
 function defaultPrinterPort(type) {
-  const ports = { octoprint: 80, moonraker: 7125, bambu: 443, prusalink: 80, duet: 80, repetier: 3344 };
+  const ports = { octoprint: 80, moonraker: 7125, bambu: 8883, prusalink: 80, duet: 80, repetier: 3344 };
   return ports[type] || 80;
 }
 

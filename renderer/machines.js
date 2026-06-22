@@ -220,6 +220,8 @@ function openMachineEditor(machineId = null) {
             <input id="machApiKey" type="password" placeholder="API key / token" style="font-size:12.5px;" value="${escapeHtml(secretInputValue(draft.printerApi?.apiKey))}" autocomplete="off">
             <label style="margin-top:8px;">Access code (Bambu)</label>
             <input id="machApiAccessCode" type="password" placeholder="Bambu access code" style="font-size:12.5px;" value="${escapeHtml(secretInputValue(draft.printerApi?.accessCode))}" autocomplete="off">
+            <label style="margin-top:8px;">Serial number (Bambu)</label>
+            <input id="machApiSerial" placeholder="e.g. 00M00A000000000" style="font-size:12.5px;" value="${escapeHtml(draft.printerApi?.serial || '')}" autocomplete="off">
             <label style="margin-top:8px;">Printer slug (Repetier)</label>
             <input id="machApiSlug" placeholder="default" style="font-size:12.5px;" value="${escapeHtml(draft.printerApi?.printerSlug || '')}">
             <div style="display:flex; align-items:center; gap:8px; margin-top:10px;">
@@ -233,7 +235,7 @@ function openMachineEditor(machineId = null) {
       if (!draft.downtimeBlocks) draft.downtimeBlocks = [];
       if (!draft.compatMaterials) draft.compatMaterials = [];
       if (!draft.nozzle) draft.nozzle = { material: 'brass', installedAt: '', gramsThreshold: 2000, gramsAtInstall: 0 };
-      if (!draft.printerApi) draft.printerApi = { type: 'none', host: '', port: '', apiKey: '', accessCode: '', printerSlug: '' };
+      if (!draft.printerApi) draft.printerApi = { type: 'none', host: '', port: '', apiKey: '', accessCode: '', serial: '', printerSlug: '' };
       modal.querySelector('#machName').addEventListener('input', e => { draft.name = e.target.value; });
 
       // Feature 2 (new batch): Printer API section wiring
@@ -254,6 +256,7 @@ function openMachineEditor(machineId = null) {
       modal.querySelector('#machApiPort')?.addEventListener('input', e => { draft.printerApi.port = e.target.value ? parseInt(e.target.value) : null; });
       modal.querySelector('#machApiKey')?.addEventListener('input', e => { draft.printerApi.apiKey = e.target.value; });
       modal.querySelector('#machApiAccessCode')?.addEventListener('input', e => { draft.printerApi.accessCode = e.target.value; });
+      modal.querySelector('#machApiSerial')?.addEventListener('input', e => { draft.printerApi.serial = e.target.value.trim(); });
       modal.querySelector('#machApiSlug')?.addEventListener('input', e => { draft.printerApi.printerSlug = e.target.value; });
       modal.querySelector('#btnTestApi')?.addEventListener('click', async () => {
         const resultEl = modal.querySelector('#apiTestResult');
