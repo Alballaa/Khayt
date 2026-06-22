@@ -2892,6 +2892,12 @@
   "lbl.orders": "Étiquettes de commande",
   "lbl.spools": "Étiquettes de bobines",
   "lbl.due": "échéance",
-  "lbl.none": "Rien à étiqueter"
+  "lbl.none": "Rien à étiqueter",
+  "reorder.committed": "Engagé",
+  "reorder.hint2": "Selon les 30 derniers jours d’usage et les grammes déjà engagés sur des commandes ouvertes. « Jours restants » projette le stock disponible à ce rythme.",
+  "reorder.draft_po": "Brouillons de bons de commande",
+  "reorder.draft_po_q": "Créer {n} bon(s) de commande en brouillon ?",
+  "reorder.draft_note": "Brouillon auto issu de la prévision de réappro",
+  "reorder.drafted": "{n} bon(s) de commande en brouillon créé(s)"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

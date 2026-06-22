@@ -2894,6 +2894,12 @@
   "lbl.orders": "Order labels",
   "lbl.spools": "Spool labels",
   "lbl.due": "due",
-  "lbl.none": "Nothing to label"
+  "lbl.none": "Nothing to label",
+  "reorder.committed": "Committed",
+  "reorder.hint2": "Based on the last 30 days of usage and grams already committed to open orders. “Days left” projects available stock at that rate.",
+  "reorder.draft_po": "Draft purchase orders",
+  "reorder.draft_po_q": "Create {n} draft purchase order(s)?",
+  "reorder.draft_note": "Auto-drafted from reorder forecast",
+  "reorder.drafted": "Created {n} draft PO(s)"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

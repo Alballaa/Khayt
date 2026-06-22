@@ -76,3 +76,42 @@ test('completionMs falls back to statusHistory when no completedAt', () => {
   assert.equal(ms, Date.parse(at(3)));
   assert.equal(R.completionMs({ status: 'printing' }), null);
 });
+
+test('committedByItem sums grams from open orders only', () => {
+  const orders = [
+    { status: 'printing', parts: [{ filamentId: 'pla', grams: 200 }] },
+    { status: 'pending', parts: [{ filamentId: 'pla', grams: 150 }] },
+    { status: 'completed', completedAt: at(2), parts: [{ filamentId: 'pla', grams: 999 }] }, // not open
+    { status: 'quote', parts: [{ filamentId: 'pla', grams: 999 }] }, // not open
+  ];
+  const c = R.committedByItem(orders, { partGrams });
+  assert.equal(c.pla, 350);
+});
+
+test('open-order demand lowers days-left and raises the suggested qty', () => {
+  const inventory = [{ id: 'pla', material: 'PLA', weight: 1000 }];
+  // velocity: 600 g over 30d window = 20 g/day → 50 days on 1000g with no commitments
+  const baseOrders = [{ status: 'completed', completedAt: at(10), parts: [{ filamentId: 'pla', grams: 600 }] }];
+  const noOpen = R.reorderSuggestions(inventory, baseOrders, { now: NOW, partGrams, isLow: () => false, leadDays: 14, targetDays: 45 });
+  assert.equal(noOpen.length, 0); // 50d left, healthy
+
+  // add 700g of queued work → available 300g → 15 days left → surfaces
+  const withOpen = baseOrders.concat([{ status: 'printing', parts: [{ filamentId: 'pla', grams: 700 }] }]);
+  const sug = R.reorderSuggestions(inventory, withOpen, { now: NOW, partGrams, isLow: () => false, leadDays: 20, targetDays: 45 });
+  const pla = sug.find((s) => s.id === 'pla');
+  assert.ok(pla, 'should surface once committed demand is factored');
+  assert.equal(pla.committedG, 700);
+  assert.equal(pla.available, 300);
+  assert.equal(pla.daysLeft, 15); // 300 / 20
+  assert.ok(pla.suggestG > 0);
+});
+
+test('committed beyond stock → daysLeft 0 even with no usage history', () => {
+  const inventory = [{ id: 'abs', material: 'ABS', weight: 100 }];
+  const orders = [{ status: 'pending', parts: [{ filamentId: 'abs', grams: 400 }] }];
+  const sug = R.reorderSuggestions(inventory, orders, { now: NOW, partGrams, isLow: () => false });
+  const abs = sug.find((s) => s.id === 'abs');
+  assert.ok(abs);
+  assert.equal(abs.daysLeft, 0);
+  assert.equal(abs.suggestG, 300); // shortfall 400 - 100
+});
