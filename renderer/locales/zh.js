@@ -2782,6 +2782,22 @@
   "slicer.test_fail": "无法运行切片软件:",
   "dash.filament_title": "耗材 — 需要关注",
   "dash.spool_low": "不足",
-  "dash.spool_days": "剩~{n}天"
+  "dash.spool_days": "剩~{n}天",
+  "team.title": "团队",
+  "team.join": "加入团队",
+  "team.join_hint": "输入店主提供的邀请码。使用你自己的邮箱+密码（上方）以及店铺的共享同步口令。",
+  "team.code": "邀请码",
+  "team.no_keyset": "店主尚未设置同步 — 请先让其启用 Khayt Cloud。",
+  "team.joined": "已加入团队 — 使用“从云端恢复”拉取数据",
+  "team.invite_label": "邀请成员",
+  "team.send_invite": "发送邀请",
+  "team.invite_hint": "成员会收到邮件验证码，在 Khayt 中选择“加入团队”，并用共享同步口令解锁。",
+  "team.invite_sent": "邀请已发送",
+  "team.sending": "发送中…",
+  "team.removed": "已移除成员",
+  "team.remove_q": "将 {email} 从团队中移除？",
+  "team.unverified": "未验证",
+  "team.owner": "店主",
+  "common.remove": "移除"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

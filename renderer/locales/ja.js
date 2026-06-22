@@ -2782,6 +2782,22 @@
   "slicer.test_fail": "スライサーを実行できませんでした:",
   "dash.filament_title": "フィラメント — 要確認",
   "dash.spool_low": "残少",
-  "dash.spool_days": "残り~{n}日"
+  "dash.spool_days": "残り~{n}日",
+  "team.title": "チーム",
+  "team.join": "チームに参加",
+  "team.join_hint": "オーナーからの招待コードを入力します。自分のメール＋パスワード（上）と、店舗の共有同期パスフレーズを使用します。",
+  "team.code": "招待コード",
+  "team.no_keyset": "オーナーがまだ同期を設定していません — 先に Khayt Cloud を有効にするよう依頼してください。",
+  "team.joined": "チームに参加しました — 「クラウドから復元」でデータを取得してください",
+  "team.invite_label": "メンバーを招待",
+  "team.send_invite": "招待を送信",
+  "team.invite_hint": "メンバーはメールでコードを受け取り、Khayt で「チームに参加」を選び、共有同期パスフレーズで解除します。",
+  "team.invite_sent": "招待を送信しました",
+  "team.sending": "送信中…",
+  "team.removed": "メンバーを削除しました",
+  "team.remove_q": "{email} をチームから削除しますか？",
+  "team.unverified": "未確認",
+  "team.owner": "オーナー",
+  "common.remove": "削除"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

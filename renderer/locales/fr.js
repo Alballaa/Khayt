@@ -2782,6 +2782,22 @@
   "slicer.test_fail": "Impossible d'exécuter le trancheur :",
   "dash.filament_title": "Filament — à surveiller",
   "dash.spool_low": "Bas",
-  "dash.spool_days": "~{n} j restants"
+  "dash.spool_days": "~{n} j restants",
+  "team.title": "Équipe",
+  "team.join": "Rejoindre une équipe",
+  "team.join_hint": "Saisissez le code d'invitation du propriétaire. Utilisez vos propres e-mail + mot de passe (ci-dessus) et la phrase de synchronisation partagée de l'atelier.",
+  "team.code": "Code d'invitation",
+  "team.no_keyset": "Le propriétaire n'a pas encore configuré la synchronisation — demandez-lui d'activer Khayt Cloud d'abord.",
+  "team.joined": "Équipe rejointe — utilisez « Restaurer depuis le cloud » pour récupérer les données",
+  "team.invite_label": "Inviter un membre",
+  "team.send_invite": "Envoyer l'invitation",
+  "team.invite_hint": "Ils reçoivent un code par e-mail, choisissent « Rejoindre une équipe » dans Khayt et déverrouillent avec la phrase partagée.",
+  "team.invite_sent": "Invitation envoyée",
+  "team.sending": "Envoi…",
+  "team.removed": "Membre supprimé",
+  "team.remove_q": "Retirer {email} de l’équipe ?",
+  "team.unverified": "non vérifié",
+  "team.owner": "propriétaire",
+  "common.remove": "Supprimer"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

@@ -9,6 +9,7 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 ### Added
 
 - **Filament status on the dashboard** — an at-a-glance panel showing spools that are low or projected to run out soon (remaining grams + %, days-left), reusing the existing reorder engine. Complements the inventory tab and low-stock alerts so you spot shortages from the home screen.
+- **Team accounts (multi-user)** — invite staff to your shop with a role (manager / operator / viewer). They join with their own email + password via an emailed invite code (and the shop's shared sync passphrase), then share the same cloud data. Manage everyone from **Khayt Cloud → 👥 Team**; roles drive in-app permissions.
 
 ## [3.0.0-beta.7] - 2026-06-21
 

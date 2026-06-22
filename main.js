@@ -1306,6 +1306,32 @@ ipcMain.handle('hub:cloud-login', async (_e, { url, email, password } = {}) => {
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
+ipcMain.handle('hub:cloud-accept-invite', async (_e, { url, email, password, code } = {}) => {
+  try { return { ok: true, ...(await cloudClient.acceptInvite(url, { email, password, code })) }; }
+  catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:cloud-member-invite', async (_e, { url, shopId, token, email, role } = {}) => {
+  try {
+    token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
+    return { ok: true, ...(await cloudClient.inviteMember(url, shopId, token, email, role)) };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:cloud-members-list', async (_e, { url, shopId, token } = {}) => {
+  try {
+    token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
+    return { ok: true, members: await cloudClient.listMembers(url, shopId, token) };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:cloud-member-remove', async (_e, { url, shopId, token, email } = {}) => {
+  try {
+    token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
+    return { ok: true, ...(await cloudClient.removeMember(url, shopId, token, email)) };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
 ipcMain.handle('hub:cloud-request-reset', async (_e, { url, email } = {}) => {
   try { return { ok: true, ...(await cloudClient.requestReset(url, { email })) }; }
   catch (e) { return { ok: false, error: String(e && e.message || e) }; }

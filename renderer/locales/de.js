@@ -2782,6 +2782,22 @@
   "slicer.test_fail": "Slicer konnte nicht ausgeführt werden:",
   "dash.filament_title": "Filament — Aufmerksamkeit nötig",
   "dash.spool_low": "Niedrig",
-  "dash.spool_days": "~{n} T übrig"
+  "dash.spool_days": "~{n} T übrig",
+  "team.title": "Team",
+  "team.join": "Einem Team beitreten",
+  "team.join_hint": "Gib den Einladungscode des Inhabers ein. Nutze deine eigene E-Mail + Passwort (oben) und die geteilte Sync-Passphrase des Shops.",
+  "team.code": "Einladungscode",
+  "team.no_keyset": "Der Inhaber hat die Synchronisierung noch nicht eingerichtet — bitte zuerst Khayt Cloud aktivieren lassen.",
+  "team.joined": "Team beigetreten — „Aus Cloud wiederherstellen“, um Daten zu laden",
+  "team.invite_label": "Mitglied einladen",
+  "team.send_invite": "Einladung senden",
+  "team.invite_hint": "Sie erhalten einen Code per E-Mail, wählen „Einem Team beitreten“ in Khayt und entsperren mit der geteilten Sync-Passphrase.",
+  "team.invite_sent": "Einladung gesendet",
+  "team.sending": "Wird gesendet…",
+  "team.removed": "Mitglied entfernt",
+  "team.remove_q": "{email} aus dem Team entfernen?",
+  "team.unverified": "unbestätigt",
+  "team.owner": "Inhaber",
+  "common.remove": "Entfernen"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

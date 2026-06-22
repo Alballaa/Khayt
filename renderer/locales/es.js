@@ -2782,6 +2782,22 @@
   "slicer.test_fail": "No se pudo ejecutar el laminador:",
   "dash.filament_title": "Filamento — requiere atención",
   "dash.spool_low": "Bajo",
-  "dash.spool_days": "~{n} d restantes"
+  "dash.spool_days": "~{n} d restantes",
+  "team.title": "Equipo",
+  "team.join": "Unirse a un equipo",
+  "team.join_hint": "Introduce el código de invitación del propietario. Usa tu propio correo + contraseña (arriba) y la frase de sincronización compartida del taller.",
+  "team.code": "Código de invitación",
+  "team.no_keyset": "El propietario aún no configuró la sincronización — pídele que active Khayt Cloud primero.",
+  "team.joined": "Te uniste al equipo — usa «Restaurar desde la nube» para traer datos",
+  "team.invite_label": "Invitar a un miembro",
+  "team.send_invite": "Enviar invitación",
+  "team.invite_hint": "Reciben un código por correo, eligen «Unirse a un equipo» en Khayt y desbloquean con la frase de sincronización compartida.",
+  "team.invite_sent": "Invitación enviada",
+  "team.sending": "Enviando…",
+  "team.removed": "Miembro eliminado",
+  "team.remove_q": "¿Eliminar a {email} del equipo?",
+  "team.unverified": "sin verificar",
+  "team.owner": "propietario",
+  "common.remove": "Eliminar"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
