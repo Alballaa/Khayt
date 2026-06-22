@@ -1220,35 +1220,48 @@ function updateResinFieldsVisibility() {
       t('ai.assistant_q3') || 'Which materials should I reorder?',
       t('ai.assistant_q4') || 'How does revenue compare to last month?',
     ];
+    const convo = []; // [{ q, a }] — conversation memory for follow-ups
+    const renderTranscript = (modal) => {
+      const log = modal.querySelector('#aiChatLog');
+      if (!convo.length) { log.innerHTML = `<p style="font-size:11.5px;color:var(--text-muted);margin:0;">${escapeHtml(t('ai.assistant_hint') || 'Answers come from your shop data — it won’t invent numbers.')}</p>`; return; }
+      log.innerHTML = convo.map((turn) => `
+        <div style="display:flex;justify-content:flex-end;margin:6px 0;"><div style="background:var(--primary);color:#fff;border-radius:12px 12px 2px 12px;padding:7px 11px;font-size:13px;max-width:85%;">${escapeHtml(turn.q)}</div></div>
+        <div style="display:flex;justify-content:flex-start;margin:6px 0;"><div style="background:var(--surface-2);border:1px solid var(--border-soft);border-radius:12px 12px 12px 2px;padding:7px 11px;font-size:13.5px;max-width:85%;white-space:pre-wrap;">${escapeHtml(turn.a)}</div></div>`).join('');
+      log.scrollTop = log.scrollHeight;
+    };
     openFormModal({
       title: t('ai.assistant_title') || 'Ask Khayt AI',
       saveLabel: t('ai.assistant_ask') || 'Ask',
       bodyHtml: `
-        <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 8px;">${escapeHtml(t('ai.assistant_hint') || 'Answers come from your shop data — it won’t invent numbers.')}</p>
+        <div id="aiChatLog" style="max-height:320px;overflow-y:auto;margin-bottom:10px;padding-right:4px;"></div>
         <input type="text" id="aiAskQ" placeholder="${escapeHtml(t('ai.assistant_ph') || 'Ask about orders, revenue, stock…')}">
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
           ${sugg.map((s) => `<button type="button" class="btn ghost small aiSug" data-q="${escapeHtml(s)}">${escapeHtml(s)}</button>`).join('')}
-        </div>
-        <div id="aiAskAns" style="margin-top:12px;white-space:pre-wrap;font-size:13.5px;min-height:18px;"></div>`,
+        </div>`,
       onMount(modal) {
+        renderTranscript(modal);
         modal.querySelectorAll('.aiSug').forEach((b) => b.addEventListener('click', () => { modal.querySelector('#aiAskQ').value = b.dataset.q; }));
         setTimeout(() => modal.querySelector('#aiAskQ')?.focus(), 40);
       },
       async onSave(modal) {
-        const q = modal.querySelector('#aiAskQ').value.trim();
-        const ansEl = modal.querySelector('#aiAskAns');
-        if (!q) { ansEl.textContent = t('ai.assistant_need_q') || 'Type a question first.'; ansEl.style.color = 'var(--danger)'; return false; }
-        ansEl.textContent = t('ai.assistant_thinking') || 'Thinking…'; ansEl.style.color = 'var(--text-muted)';
+        const input = modal.querySelector('#aiAskQ');
+        const q = input.value.trim();
+        const log = modal.querySelector('#aiChatLog');
+        if (!q) { toast(t('ai.assistant_need_q') || 'Type a question first.', 'error'); return false; }
+        // Optimistically show the question + a thinking placeholder.
+        convo.push({ q, a: t('ai.assistant_thinking') || 'Thinking…' });
+        renderTranscript(modal); input.value = '';
+        const turn = convo[convo.length - 1];
         try {
           const r = await window.hubAPI.aiExtract({
             apiKey: ai.apiKey, model: ai.model || 'claude-opus-4-8',
             system: KhaytAiAssistant.buildAssistantSystem({ shopName: settings.bizEn || settings.bizAr || 'Khayt', lang: settings.lang }),
-            request: KhaytAiAssistant.buildAssistantRequest(ctx, q),
+            request: KhaytAiAssistant.buildAssistantRequest(ctx, q, convo.slice(0, -1)),
             schema: KhaytAiAssistant.ASSISTANT_SCHEMA,
           });
-          if (!r || !r.ok || !r.draft) { ansEl.textContent = '✗ ' + ((r && r.error) || 'AI request failed'); ansEl.style.color = 'var(--danger)'; return false; }
-          ansEl.textContent = KhaytAiAssistant.pickAnswer(r.draft); ansEl.style.color = 'var(--text)';
-        } catch (e) { ansEl.textContent = '✗ ' + (e.message || e); ansEl.style.color = 'var(--danger)'; }
+          turn.a = (r && r.ok && r.draft) ? KhaytAiAssistant.pickAnswer(r.draft) : ('✗ ' + ((r && r.error) || 'AI request failed'));
+        } catch (e) { turn.a = '✗ ' + (e.message || e); }
+        renderTranscript(modal);
         return false; // keep open for follow-up questions
       },
     });

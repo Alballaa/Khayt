@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### 3.0.0-beta.10 cycle (in progress)
+
+### Added
+
+- **AI shop assistant — conversational** — the "✨ Ask AI" assistant now holds a **conversation**: it remembers earlier answers in the session, so follow-ups like "and last month?" or "which of those is overdue?" work in context, shown as a chat transcript. Still grounded strictly in your own shop data (no invented numbers) and uses your own Anthropic key.
+
 ## [3.0.0-beta.9] - 2026-06-23
 
 **Pre-release (beta)** — selling + customer comms: storefront checkout & deposits, customer order tracking, automated SMS/WhatsApp updates, and print-farm auto-scheduling.
