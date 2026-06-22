@@ -11,6 +11,7 @@
     const mask = (obj, key) => { if (obj?.[key]) obj[key] = STORE_SECRET_MASK; };
     mask(s.emailConfig, 'apiKey');
     mask(s.emailConfig, 'smtpPassword');
+    for (const k of ['authToken', 'token', 'appSid', 'secret']) mask(s.smsConfig, k);
     mask(s.telegram, 'botToken');
     mask(s.webhooks, 'secret');
     mask(s.ai, 'apiKey');

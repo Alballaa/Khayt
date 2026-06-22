@@ -2821,6 +2821,19 @@
   "track.printing": "印刷中",
   "track.finishing": "仕上げ",
   "track.done": "完了",
-  "track.ready": "受け取り可能"
+  "track.ready": "受け取り可能",
+  "sms.title": "SMS / WhatsApp 通知",
+  "sms.intro": "Twilio、WhatsApp Cloud API、Unifonic、または独自の Webhook を使って、注文の更新を SMS や WhatsApp で顧客へ自動送信します。",
+  "sms.provider": "プロバイダー",
+  "sms.none": "オフ",
+  "sms.webhook": "カスタム Webhook",
+  "sms.channel": "チャネル",
+  "sms.from": "送信元番号",
+  "sms.sender": "送信者 ID",
+  "sms.url": "Webhook URL",
+  "sms.secret": "共有シークレット（任意）",
+  "sms.test": "テスト送信",
+  "sms.test_sent": "送信しました",
+  "sms.need_phone": "テストするには設定で店舗の電話番号を入力してください。"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

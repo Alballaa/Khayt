@@ -2822,6 +2822,19 @@
   "track.printing": "جارٍ الطباعة",
   "track.finishing": "اللمسات الأخيرة",
   "track.done": "اكتمل",
-  "track.ready": "جاهز للاستلام"
+  "track.ready": "جاهز للاستلام",
+  "sms.title": "إشعارات SMS / واتساب",
+  "sms.intro": "أرسل تحديثات الطلبات تلقائياً للعملاء عبر الرسائل أو واتساب باستخدام Twilio أو واجهة واتساب السحابية أو Unifonic أو Webhook خاص بك.",
+  "sms.provider": "المزوّد",
+  "sms.none": "معطّل",
+  "sms.webhook": "Webhook مخصص",
+  "sms.channel": "القناة",
+  "sms.from": "رقم المُرسِل",
+  "sms.sender": "معرّف المُرسِل",
+  "sms.url": "رابط الـ Webhook",
+  "sms.secret": "مفتاح مشترك (اختياري)",
+  "sms.test": "إرسال تجربة",
+  "sms.test_sent": "تم الإرسال",
+  "sms.need_phone": "أضف هاتف المتجر في الإعدادات للتجربة."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

@@ -2823,6 +2823,19 @@
   "track.printing": "Printing",
   "track.finishing": "Finishing",
   "track.done": "Done",
-  "track.ready": "Ready for pickup"
+  "track.ready": "Ready for pickup",
+  "sms.title": "SMS / WhatsApp Notifications",
+  "sms.intro": "Send automated order updates to customers over SMS or WhatsApp via Twilio, the WhatsApp Cloud API, Unifonic, or your own webhook.",
+  "sms.provider": "Provider",
+  "sms.none": "Off",
+  "sms.webhook": "Custom webhook",
+  "sms.channel": "Channel",
+  "sms.from": "From number",
+  "sms.sender": "Sender ID",
+  "sms.url": "Webhook URL",
+  "sms.secret": "Shared secret (optional)",
+  "sms.test": "Send test",
+  "sms.test_sent": "Sent",
+  "sms.need_phone": "Set your shop phone in Settings to test."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

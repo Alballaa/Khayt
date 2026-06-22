@@ -2821,6 +2821,19 @@
   "track.printing": "Imprimiendo",
   "track.finishing": "Acabado",
   "track.done": "Listo",
-  "track.ready": "Listo para recoger"
+  "track.ready": "Listo para recoger",
+  "sms.title": "Notificaciones SMS / WhatsApp",
+  "sms.intro": "Envía actualizaciones de pedidos automáticas a los clientes por SMS o WhatsApp mediante Twilio, la API de WhatsApp Cloud, Unifonic o tu propio webhook.",
+  "sms.provider": "Proveedor",
+  "sms.none": "Desactivado",
+  "sms.webhook": "Webhook personalizado",
+  "sms.channel": "Canal",
+  "sms.from": "Número remitente",
+  "sms.sender": "ID de remitente",
+  "sms.url": "URL del webhook",
+  "sms.secret": "Secreto compartido (opcional)",
+  "sms.test": "Enviar prueba",
+  "sms.test_sent": "Enviado",
+  "sms.need_phone": "Configura el teléfono de tu tienda en Ajustes para probar."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

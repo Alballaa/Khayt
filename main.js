@@ -38,6 +38,7 @@ const { createStoreIo } = require('./lib/store-io');
 const { parseGcodeText } = require('./lib/gcode-parse');
 const bambu = require('./lib/bambu');
 const { bambuFtpUpload } = require('./lib/bambu-ftp');
+const { sendSms } = require('./lib/sms');
 const cloudClient = require('./lib/cloud-client');
 const { registerZatcaCrypto } = require('./lib/zatca-crypto');
 const { wrapHubIpc } = require('./lib/ipc-guard');
@@ -1250,6 +1251,19 @@ ipcMain.handle('hub:send-email', async (event, { to, subject, body, smtpConfig }
   }
   // Fallback: mailto link
   return { ok: false, fallback: true, mailtoUrl: `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}` };
+});
+
+// Outbound SMS / WhatsApp via a configured provider (Twilio / WhatsApp Cloud /
+// Unifonic / webhook). Provider secrets resolve from the encrypted store so they
+// never round-trip the renderer in plaintext after first save.
+ipcMain.handle('hub:send-sms', async (_e, { to, message, channel, smsConfig } = {}) => {
+  const cfg = smsConfig ? { ...smsConfig } : {};
+  const provider = cfg.provider;
+  cfg.authToken = resolveStoreSecret(cfg.authToken, d => d?.settings?.smsConfig?.authToken);
+  cfg.token     = resolveStoreSecret(cfg.token,     d => d?.settings?.smsConfig?.token);
+  cfg.appSid    = resolveStoreSecret(cfg.appSid,    d => d?.settings?.smsConfig?.appSid);
+  cfg.secret    = resolveStoreSecret(cfg.secret,    d => d?.settings?.smsConfig?.secret);
+  return sendSms(provider, cfg, { to, message, channel });
 });
 
 // ── Feature R12-1: Outbound Webhooks ────────────────────────────────────────

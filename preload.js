@@ -134,6 +134,7 @@ contextBridge.exposeInMainWorld('hubAPI', {
 
   // Feature 5 (new batch): Outbound email notifications
   sendEmail: (opts) => ipcRenderer.invoke('hub:send-email', opts),
+  sendSms: (opts) => ipcRenderer.invoke('hub:send-sms', opts),
 
   // Round 12: Outbound webhooks
   fireWebhook: (url, event, payload, secret) => ipcRenderer.invoke('hub:fire-webhook', { url, event, payload, secret }),
