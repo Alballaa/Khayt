@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### 3.0.0-beta.11 cycle (in progress)
+
+### Added
+
+- **Marketing campaigns** — broadcast a message to a customer segment over email or WhatsApp/SMS (**Clients → 📣 Campaign**). Segment by minimum lifetime spend, "no order in N days" (win-back), tag, or loyalty tier; personalise with merge fields (`{{name}}`, `{{orders}}`, `{{spend}}`, `{{last_order}}`); see the live recipient count + a preview before sending. Sends are throttled, skip customers who lack the channel's contact, and respect a new per-client **"Exclude from marketing"** opt-out. Reuses your configured email + SMS providers.
+
 ## [3.0.0-beta.10] - 2026-06-23
 
 **Pre-release (beta)** — assist + automate: a conversational AI assistant, storefront promo codes, pause/skip/end for recurring orders, and one-way accounting sync.
