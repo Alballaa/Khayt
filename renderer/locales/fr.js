@@ -2816,6 +2816,11 @@
   "store.prices_label": "Prix (laisser vide pour masquer)",
   "store.deposit_pct": "Acompte %",
   "store.pay_url": "Lien de paiement",
-  "store.pay_url_hint": "Collez un lien de paiement de tout prestataire ; utilisez {amount} ou {total} à la place du montant. Le client paie là avant d’envoyer la commande."
+  "store.pay_url_hint": "Collez un lien de paiement de tout prestataire ; utilisez {amount} ou {total} à la place du montant. Le client paie là avant d’envoyer la commande.",
+  "track.received": "Reçu",
+  "track.printing": "Impression",
+  "track.finishing": "Finition",
+  "track.done": "Terminé",
+  "track.ready": "Prêt à retirer"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

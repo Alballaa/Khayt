@@ -9,6 +9,7 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 ### Added
 
 - **Storefront checkout & deposits** — your storefront now shows prices and a running cart total, and can request a deposit. Set a price per product, a deposit %, and paste a payment link from any provider (**Khayt Cloud → 🏬 Storefront**); at checkout the customer sees the total, the deposit due, and a **Pay deposit** button (your link, with `{amount}`/`{total}` filled in), then sends the order — which arrives in **Order requests** itemised with the total and deposit.
+- **Customer order tracking** — a published order link now shows a visual progress timeline (Received → Printing → Finishing → Done → Ready for pickup) with the current step highlighted, in the customer's language, instead of just a status label. Updates automatically as you advance the order; quotes are unchanged.
 
 ## [3.0.0-beta.8] - 2026-06-22
 

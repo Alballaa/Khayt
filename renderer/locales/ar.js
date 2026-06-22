@@ -2817,6 +2817,11 @@
   "store.prices_label": "الأسعار (اتركه فارغاً للإخفاء)",
   "store.deposit_pct": "نسبة العربون %",
   "store.pay_url": "رابط الدفع",
-  "store.pay_url_hint": "الصق رابط دفع من أي مزوّد؛ استخدم {amount} أو {total} مكان المبلغ. يدفع العميل هناك قبل إرسال الطلب."
+  "store.pay_url_hint": "الصق رابط دفع من أي مزوّد؛ استخدم {amount} أو {total} مكان المبلغ. يدفع العميل هناك قبل إرسال الطلب.",
+  "track.received": "تم الاستلام",
+  "track.printing": "جارٍ الطباعة",
+  "track.finishing": "اللمسات الأخيرة",
+  "track.done": "اكتمل",
+  "track.ready": "جاهز للاستلام"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

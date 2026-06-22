@@ -1043,6 +1043,19 @@ function buildPortalPayload(order) {
   }
   if (isQuote && order.cloudPayUrl) payload.payUrl = order.cloudPayUrl;
   if (order.status === 'on_hold' && order.holdReason) payload.note = String(order.holdReason);
+  // Order tracking timeline: a stage index into a localized 5-step flow. Quotes
+  // have no timeline. on_hold pauses at the print stage (the note explains why).
+  if (!isQuote) {
+    payload.stages = [
+      t('track.received') || 'Received',
+      t('track.printing') || 'Printing',
+      t('track.finishing') || 'Finishing',
+      t('track.done') || 'Done',
+      t('track.ready') || 'Ready for pickup',
+    ];
+    const STAGE_BY_STATUS = { pending: 0, queued: 0, accepted: 0, received: 0, ordered: 0, printing: 1, post: 2, qc: 2, completed: 3, delivered: 4 };
+    payload.stage = order.status === 'on_hold' ? 1 : (STAGE_BY_STATUS[order.status] != null ? STAGE_BY_STATUS[order.status] : 0);
+  }
   return { isQuote, payload };
 }
 
