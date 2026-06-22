@@ -54,3 +54,16 @@ test('request embeds the summary JSON + the question; pickAnswer extracts', () =
   assert.equal(A.pickAnswer({ answer: '  400 SAR ' }), '400 SAR');
   assert.equal(A.pickAnswer(null), '');
 });
+
+test('request includes prior conversation turns so follow-ups have context', () => {
+  const ctx = A.buildShopContext(COLLECTIONS, { now: NOW });
+  const history = [{ q: 'Revenue this month?', a: '1200 SAR' }];
+  const req = A.buildAssistantRequest(ctx, 'And last month?', history);
+  assert.match(req, /Conversation so far/);
+  assert.match(req, /Revenue this month\?/);
+  assert.match(req, /1200 SAR/);
+  assert.match(req, /Question: And last month\?$/);
+  // no history → no conversation block (backward compatible)
+  assert.doesNotMatch(A.buildAssistantRequest(ctx, 'Hi', []), /Conversation so far/);
+  assert.doesNotMatch(A.buildAssistantRequest(ctx, 'Hi'), /Conversation so far/);
+});
