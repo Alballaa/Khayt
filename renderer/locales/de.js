@@ -2892,6 +2892,12 @@
   "lbl.orders": "Auftragsetiketten",
   "lbl.spools": "Spulenetiketten",
   "lbl.due": "fällig",
-  "lbl.none": "Nichts zu etikettieren"
+  "lbl.none": "Nichts zu etikettieren",
+  "reorder.committed": "Reserviert",
+  "reorder.hint2": "Basierend auf 30 Tagen Verbrauch und bereits für offene Aufträge reservierten Gramm. „Tage übrig“ projiziert den verfügbaren Bestand zu dieser Rate.",
+  "reorder.draft_po": "Bestellentwürfe erstellen",
+  "reorder.draft_po_q": "{n} Bestellentwurf/-entwürfe erstellen?",
+  "reorder.draft_note": "Automatisch aus der Nachbestellprognose entworfen",
+  "reorder.drafted": "{n} Bestellentwurf/-entwürfe erstellt"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

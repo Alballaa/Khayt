@@ -2892,6 +2892,12 @@
   "lbl.orders": "Etiquetas de pedidos",
   "lbl.spools": "Etiquetas de bobinas",
   "lbl.due": "vence",
-  "lbl.none": "Nada que etiquetar"
+  "lbl.none": "Nada que etiquetar",
+  "reorder.committed": "Comprometido",
+  "reorder.hint2": "Según los últimos 30 días de uso y los gramos ya comprometidos en pedidos abiertos. «Días restantes» proyecta el stock disponible a ese ritmo.",
+  "reorder.draft_po": "Crear órdenes de compra (borrador)",
+  "reorder.draft_po_q": "¿Crear {n} órdenes de compra en borrador?",
+  "reorder.draft_note": "Borrador automático de la previsión de reabastecimiento",
+  "reorder.drafted": "{n} órdenes de compra en borrador creadas"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

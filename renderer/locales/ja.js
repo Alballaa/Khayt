@@ -2892,6 +2892,12 @@
   "lbl.orders": "注文ラベル",
   "lbl.spools": "スプールラベル",
   "lbl.due": "期限",
-  "lbl.none": "印刷対象なし"
+  "lbl.none": "印刷対象なし",
+  "reorder.committed": "引当",
+  "reorder.hint2": "直近30日の使用量と、進行中の注文に引き当て済みのグラム数に基づきます。「残り日数」はその速度で利用可能在庫を予測します。",
+  "reorder.draft_po": "発注書の下書きを作成",
+  "reorder.draft_po_q": "{n} 件の発注書の下書きを作成しますか？",
+  "reorder.draft_note": "再発注予測から自動作成",
+  "reorder.drafted": "{n} 件の発注書の下書きを作成しました"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

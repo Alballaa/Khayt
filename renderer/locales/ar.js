@@ -2893,6 +2893,12 @@
   "lbl.orders": "ملصقات الطلبات",
   "lbl.spools": "ملصقات البكرات",
   "lbl.due": "الاستحقاق",
-  "lbl.none": "لا شيء لطباعته"
+  "lbl.none": "لا شيء لطباعته",
+  "reorder.committed": "محجوز",
+  "reorder.hint2": "بناءً على استهلاك آخر ٣٠ يوماً والغرامات المحجوزة لطلبات مفتوحة. «الأيام المتبقية» تتوقع المخزون المتاح بهذا المعدل.",
+  "reorder.draft_po": "إنشاء أوامر شراء مبدئية",
+  "reorder.draft_po_q": "إنشاء {n} أمر شراء مبدئي؟",
+  "reorder.draft_note": "مسودة تلقائية من توقّع إعادة الطلب",
+  "reorder.drafted": "تم إنشاء {n} أمر شراء مبدئي"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

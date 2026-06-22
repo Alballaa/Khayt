@@ -2892,6 +2892,12 @@
   "lbl.orders": "订单标签",
   "lbl.spools": "线材标签",
   "lbl.due": "截止",
-  "lbl.none": "没有可打印的标签"
+  "lbl.none": "没有可打印的标签",
+  "reorder.committed": "已占用",
+  "reorder.hint2": "基于最近30天用量及已被未完成订单占用的克数。\"剩余天数\"按该速率预测可用库存。",
+  "reorder.draft_po": "生成采购单草稿",
+  "reorder.draft_po_q": "生成 {n} 个采购单草稿？",
+  "reorder.draft_note": "由补货预测自动生成的草稿",
+  "reorder.drafted": "已生成 {n} 个采购单草稿"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

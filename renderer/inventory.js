@@ -1154,25 +1154,29 @@ function openReorderSuggestions() {
     const rate = s.gramsPerDay > 0 ? `${s.gramsPerDay} g/${t('reorder.day') || 'day'}` : '—';
     const sugg = s.suggestG > 0 ? `${Math.round(s.suggestG)} g` : (s.low ? (t('reorder.restock') || 'restock') : '—');
     const urgency = (s.daysLeft != null && s.daysLeft <= 7) ? 'var(--danger)' : (s.low ? 'var(--warning,#d97706)' : 'var(--text-muted)');
+    const committed = s.committedG > 0 ? `${Math.round(s.committedG)} g` : '—';
     return `<tr>
       <td style="padding:6px 8px;">${escapeHtml(s.label)}${s.low ? ' <span style="color:var(--warning,#d97706);">⚠</span>' : ''}</td>
       <td style="padding:6px 8px;text-align:end;">${Math.round(s.weight)} g</td>
+      <td style="padding:6px 8px;text-align:end;color:var(--text-muted);">${escapeHtml(committed)}</td>
       <td style="padding:6px 8px;text-align:end;color:var(--text-muted);">${escapeHtml(rate)}</td>
       <td style="padding:6px 8px;text-align:end;color:${urgency};font-weight:600;">${escapeHtml(days)}</td>
       <td style="padding:6px 8px;text-align:end;">${escapeHtml(sugg)}</td>
     </tr>`;
   }).join('');
+  const draftable = sug.filter((s) => s.suggestG > 0);
 
   const listText = KhaytReorder.reorderText(sug, { header: (t('reorder.title') || 'Reorder suggestions') + ':' });
   openFormModal({
     title: t('reorder.title') || 'Reorder suggestions',
     noSave: true,
     bodyHtml: sug.length ? `
-      <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px;">${escapeHtml(t('reorder.hint') || 'Based on the last 30 days of completed-order usage. “Days left” projects current stock at that rate.')}</p>
+      <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px;">${escapeHtml(t('reorder.hint2') || 'Based on the last 30 days of usage and grams already committed to open orders. “Days left” projects available stock at that rate.')}</p>
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
         <thead><tr style="text-align:start;color:var(--text-muted);border-bottom:1px solid var(--border,#eee);">
           <th style="padding:6px 8px;text-align:start;">${escapeHtml(t('reorder.material') || 'Material')}</th>
           <th style="padding:6px 8px;text-align:end;">${escapeHtml(t('reorder.in_stock') || 'In stock')}</th>
+          <th style="padding:6px 8px;text-align:end;">${escapeHtml(t('reorder.committed') || 'Committed')}</th>
           <th style="padding:6px 8px;text-align:end;">${escapeHtml(t('reorder.rate') || 'Usage')}</th>
           <th style="padding:6px 8px;text-align:end;">${escapeHtml(t('reorder.days_left') || 'Days left')}</th>
           <th style="padding:6px 8px;text-align:end;">${escapeHtml(t('reorder.suggest') || 'Reorder')}</th>
@@ -1181,7 +1185,8 @@ function openReorderSuggestions() {
       </table>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
         <button class="btn small" id="reorderCopy">${escapeHtml(t('reorder.copy_list') || 'Copy list')}</button>
-        <button class="btn small primary" id="reorderWa">${escapeHtml(t('inv.share_whatsapp') || 'Share WhatsApp')}</button>
+        <button class="btn small" id="reorderWa">${escapeHtml(t('inv.share_whatsapp') || 'Share WhatsApp')}</button>
+        ${draftable.length ? `<button class="btn small primary" id="reorderDraftPo">${escapeHtml(t('reorder.draft_po') || 'Draft purchase orders')} (${draftable.length})</button>` : ''}
       </div>`
       : `<p style="text-align:center;color:var(--text-muted);padding:20px 0;">${escapeHtml(t('reorder.none') || 'Stock looks healthy — nothing to reorder right now.')}</p>`,
     onMount(modal) {
@@ -1192,6 +1197,23 @@ function openReorderSuggestions() {
       modal.querySelector('#reorderWa')?.addEventListener('click', async () => {
         if (window.hubAPI?.shareWhatsApp) await window.hubAPI.shareWhatsApp({ phone: '', message: listText, pdfPath: null });
         else window.open(`https://wa.me/?text=${encodeURIComponent(listText)}`, '_blank');
+      });
+      modal.querySelector('#reorderDraftPo')?.addEventListener('click', async (e) => {
+        if (!(await confirmModal((t('reorder.draft_po_q', { n: draftable.length }) || `Create ${draftable.length} draft purchase order(s)?`)))) return;
+        let n = 0;
+        for (const s of draftable) {
+          const kg = Math.max(0.25, Math.round((s.suggestG / 1000) * 4) / 4); // round to 0.25kg
+          const unitPrice = +s.item.costPerKg || undefined;
+          createPurchaseOrder(s.item, {
+            qty: Math.round(kg * 1000), unitPrice, status: 'draft', silent: true,
+            notes: (t('reorder.draft_note') || 'Auto-drafted from reorder forecast') + ` · ~${Math.round(s.suggestG)} g`,
+          });
+          n++;
+        }
+        saveAll();
+        if (typeof renderPurchaseOrders === 'function') renderPurchaseOrders();
+        toast((t('reorder.drafted', { n }) || `Created ${n} draft PO(s)`), 'success');
+        if (e.target) { e.target.disabled = true; }
       });
     },
   });
@@ -2997,15 +3019,17 @@ function createPurchaseOrder(item, opts) {
     qty: (opts && opts.qty) ? +opts.qty : (item.reorderQty || 1000),
     unitPrice: (opts && opts.unitPrice) ? +opts.unitPrice : undefined,
     estimatedDelivery: (opts && opts.estimatedDelivery) || null,
-    status: 'ordered',
+    status: (opts && opts.status) || 'ordered',
     orderedAt: new Date().toISOString().split('T')[0],
     receivedAt: null,
     notes: (opts && opts.notes) || '',
   };
   purchaseOrders.unshift(po);
+  if (opts && opts.silent) return po; // caller batches save/render/toast
   saveAll();
   renderPurchaseOrders();
   toast(t('po.created_toast'), 'success');
+  return po;
 }
 
 function renderPurchaseOrders() {
