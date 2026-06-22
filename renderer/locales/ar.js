@@ -2835,6 +2835,13 @@
   "sms.secret": "مفتاح مشترك (اختياري)",
   "sms.test": "إرسال تجربة",
   "sms.test_sent": "تم الإرسال",
-  "sms.need_phone": "أضف هاتف المتجر في الإعدادات للتجربة."
+  "sms.need_phone": "أضف هاتف المتجر في الإعدادات للتجربة.",
+  "sched.assign": "تعيين",
+  "sched.auto_assign": "تعيين المهام المنتظرة تلقائياً للأجهزة",
+  "sched.skipped": "مُتخطّى",
+  "sched.auto_toggle": "تعيين تلقائي",
+  "sched.auto_hint": "تعيين المهام المنتظرة تلقائياً لأجهزة متوافقة ومتاحة",
+  "sched.auto_on": "التعيين التلقائي مُفعّل",
+  "sched.auto_off": "التعيين التلقائي مُعطّل"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

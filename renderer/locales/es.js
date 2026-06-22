@@ -2834,6 +2834,13 @@
   "sms.secret": "Secreto compartido (opcional)",
   "sms.test": "Enviar prueba",
   "sms.test_sent": "Enviado",
-  "sms.need_phone": "Configura el teléfono de tu tienda en Ajustes para probar."
+  "sms.need_phone": "Configura el teléfono de tu tienda en Ajustes para probar.",
+  "sched.assign": "Asignar",
+  "sched.auto_assign": "Asignar trabajos en cola a máquinas",
+  "sched.skipped": "omitidos",
+  "sched.auto_toggle": "Asignación automática",
+  "sched.auto_hint": "Asignar automáticamente los trabajos en cola a máquinas libres y compatibles",
+  "sched.auto_on": "Asignación automática activada",
+  "sched.auto_off": "Asignación automática desactivada"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

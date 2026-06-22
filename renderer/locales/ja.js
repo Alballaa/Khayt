@@ -2834,6 +2834,13 @@
   "sms.secret": "共有シークレット（任意）",
   "sms.test": "テスト送信",
   "sms.test_sent": "送信しました",
-  "sms.need_phone": "テストするには設定で店舗の電話番号を入力してください。"
+  "sms.need_phone": "テストするには設定で店舗の電話番号を入力してください。",
+  "sched.assign": "割り当て",
+  "sched.auto_assign": "待機中のジョブをマシンに割り当て",
+  "sched.skipped": "スキップ",
+  "sched.auto_toggle": "自動割り当て",
+  "sched.auto_hint": "待機中のジョブを空いている互換マシンへ自動割り当て",
+  "sched.auto_on": "自動割り当てオン",
+  "sched.auto_off": "自動割り当てオフ"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

@@ -2834,6 +2834,13 @@
   "sms.secret": "共享密钥（可选）",
   "sms.test": "发送测试",
   "sms.test_sent": "已发送",
-  "sms.need_phone": "请在设置中填写店铺电话以进行测试。"
+  "sms.need_phone": "请在设置中填写店铺电话以进行测试。",
+  "sched.assign": "分配",
+  "sched.auto_assign": "将排队任务分配给机器",
+  "sched.skipped": "已跳过",
+  "sched.auto_toggle": "自动分配",
+  "sched.auto_hint": "自动将排队任务分配给空闲且兼容的机器",
+  "sched.auto_on": "自动分配已开启",
+  "sched.auto_off": "自动分配已关闭"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

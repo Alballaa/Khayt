@@ -2836,6 +2836,13 @@
   "sms.secret": "Shared secret (optional)",
   "sms.test": "Send test",
   "sms.test_sent": "Sent",
-  "sms.need_phone": "Set your shop phone in Settings to test."
+  "sms.need_phone": "Set your shop phone in Settings to test.",
+  "sched.assign": "Assign",
+  "sched.auto_assign": "Auto-assign queued jobs to machines",
+  "sched.skipped": "skipped",
+  "sched.auto_toggle": "Auto-assign",
+  "sched.auto_hint": "Automatically assign queued jobs to free, compatible machines",
+  "sched.auto_on": "Auto-assign on",
+  "sched.auto_off": "Auto-assign off"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

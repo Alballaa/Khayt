@@ -555,6 +555,17 @@ function wireEvents() {
   if (btnAccountingExport) btnAccountingExport.addEventListener('click', exportAccounting);
   const btnSuggestSchedule = $('#btnSuggestSchedule');
   if (btnSuggestSchedule) btnSuggestSchedule.addEventListener('click', openScheduleSuggestions);
+  $('#btnAutoAssign')?.addEventListener('click', () => runAutoSchedule());
+  const chkAutoSchedule = $('#chkAutoSchedule');
+  if (chkAutoSchedule) {
+    chkAutoSchedule.checked = !!settings.autoSchedule;
+    chkAutoSchedule.addEventListener('change', (e) => {
+      settings.autoSchedule = e.target.checked;
+      saveAll();
+      renderKanban(); // applies assignments immediately when switched on
+      toast(settings.autoSchedule ? (t('sched.auto_on') || 'Auto-assign on') : (t('sched.auto_off') || 'Auto-assign off'), 'info');
+    });
+  }
 
   // Logs — batch bar
   $('#btnBatchPdf').addEventListener('click', batchExportPDFs);
