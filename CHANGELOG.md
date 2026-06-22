@@ -4,7 +4,9 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
-### 3.0.0-beta.9 cycle (in progress)
+## [3.0.0-beta.9] - 2026-06-23
+
+**Pre-release (beta)** — selling + customer comms: storefront checkout & deposits, customer order tracking, automated SMS/WhatsApp updates, and print-farm auto-scheduling.
 
 ### Added
 
