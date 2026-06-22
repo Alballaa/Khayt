@@ -2899,6 +2899,9 @@
   "reorder.draft_po": "إنشاء أوامر شراء مبدئية",
   "reorder.draft_po_q": "إنشاء {n} أمر شراء مبدئي؟",
   "reorder.draft_note": "مسودة تلقائية من توقّع إعادة الطلب",
-  "reorder.drafted": "تم إنشاء {n} أمر شراء مبدئي"
+  "reorder.drafted": "تم إنشاء {n} أمر شراء مبدئي",
+  "store.reviews": "تقييمات العملاء",
+  "store.reviews_hint": "شارك هذا الرابط بعد الطلب لجمع تقييم؛ يظهر المعدل على واجهة متجرك.",
+  "store.review_link": "نسخ رابط التقييم"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

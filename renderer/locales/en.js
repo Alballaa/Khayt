@@ -2900,6 +2900,9 @@
   "reorder.draft_po": "Draft purchase orders",
   "reorder.draft_po_q": "Create {n} draft purchase order(s)?",
   "reorder.draft_note": "Auto-drafted from reorder forecast",
-  "reorder.drafted": "Created {n} draft PO(s)"
+  "reorder.drafted": "Created {n} draft PO(s)",
+  "store.reviews": "Customer reviews",
+  "store.reviews_hint": "Share this link after an order to collect a rating; the average shows on your storefront.",
+  "store.review_link": "Copy review link"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

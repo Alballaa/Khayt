@@ -1389,6 +1389,11 @@ ipcMain.handle('hub:cloud-catalog-get', async (_e, { url, shopId, token } = {}) 
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
+ipcMain.handle('hub:cloud-review-summary', async (_e, { url, shopId } = {}) => {
+  try { return { ok: true, summary: await cloudClient.getReviewSummary(url, shopId) }; }
+  catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
 ipcMain.handle('hub:cloud-request-reset', async (_e, { url, email } = {}) => {
   try { return { ok: true, ...(await cloudClient.requestReset(url, { email })) }; }
   catch (e) { return { ok: false, error: String(e && e.message || e) }; }

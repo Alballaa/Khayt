@@ -2898,6 +2898,9 @@
   "reorder.draft_po": "Brouillons de bons de commande",
   "reorder.draft_po_q": "Créer {n} bon(s) de commande en brouillon ?",
   "reorder.draft_note": "Brouillon auto issu de la prévision de réappro",
-  "reorder.drafted": "{n} bon(s) de commande en brouillon créé(s)"
+  "reorder.drafted": "{n} bon(s) de commande en brouillon créé(s)",
+  "store.reviews": "Avis clients",
+  "store.reviews_hint": "Partagez ce lien après une commande pour recueillir une note ; la moyenne s’affiche sur votre boutique.",
+  "store.review_link": "Copier le lien d’avis"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

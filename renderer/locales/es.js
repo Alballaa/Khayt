@@ -2898,6 +2898,9 @@
   "reorder.draft_po": "Crear órdenes de compra (borrador)",
   "reorder.draft_po_q": "¿Crear {n} órdenes de compra en borrador?",
   "reorder.draft_note": "Borrador automático de la previsión de reabastecimiento",
-  "reorder.drafted": "{n} órdenes de compra en borrador creadas"
+  "reorder.drafted": "{n} órdenes de compra en borrador creadas",
+  "store.reviews": "Reseñas de clientes",
+  "store.reviews_hint": "Comparte este enlace tras un pedido para recoger una valoración; la media aparece en tu tienda.",
+  "store.review_link": "Copiar enlace de reseña"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
