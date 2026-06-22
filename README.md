@@ -243,7 +243,7 @@ npm run dist:linux       # Linux AppImage + deb
 
 ## Data & Privacy
 
-- All data is stored locally on your device — never transmitted to Khayt's servers
+- All data is stored locally on your device by default. The optional Khayt Cloud (3.0 beta) is **opt-in and end-to-end encrypted** — the server only ever stores ciphertext, and your sync passphrase never leaves your device. With the cloud off, nothing is transmitted.
 - Data file: `~/Library/Application Support/Khayt/khayt-store.json` (macOS) or equivalent
 - API keys and secrets are encrypted at rest using your OS secure storage (macOS Keychain / Windows Credential Store)
 - No telemetry, no crash reporting, no usage analytics
