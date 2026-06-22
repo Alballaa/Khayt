@@ -2816,6 +2816,11 @@
   "store.prices_label": "Preise (leer lassen zum Ausblenden)",
   "store.deposit_pct": "Anzahlung %",
   "store.pay_url": "Zahlungslink",
-  "store.pay_url_hint": "Fügen Sie einen Zahlungslink eines beliebigen Anbieters ein; nutzen Sie {amount} oder {total} für den Betrag. Der Kunde zahlt dort, bevor er die Bestellung sendet."
+  "store.pay_url_hint": "Fügen Sie einen Zahlungslink eines beliebigen Anbieters ein; nutzen Sie {amount} oder {total} für den Betrag. Der Kunde zahlt dort, bevor er die Bestellung sendet.",
+  "track.received": "Eingegangen",
+  "track.printing": "Druckt",
+  "track.finishing": "Nachbearbeitung",
+  "track.done": "Fertig",
+  "track.ready": "Abholbereit"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

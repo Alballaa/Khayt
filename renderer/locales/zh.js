@@ -2816,6 +2816,11 @@
   "store.prices_label": "价格（留空则隐藏）",
   "store.deposit_pct": "定金 %",
   "store.pay_url": "支付链接",
-  "store.pay_url_hint": "粘贴任意服务商的支付链接；在金额处使用 {amount} 或 {total}。客户在发送订单前于此支付。"
+  "store.pay_url_hint": "粘贴任意服务商的支付链接；在金额处使用 {amount} 或 {total}。客户在发送订单前于此支付。",
+  "track.received": "已接收",
+  "track.printing": "打印中",
+  "track.finishing": "后处理",
+  "track.done": "完成",
+  "track.ready": "可取货"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

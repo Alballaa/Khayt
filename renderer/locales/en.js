@@ -2818,6 +2818,11 @@
   "store.prices_label": "Prices (leave blank to hide)",
   "store.deposit_pct": "Deposit %",
   "store.pay_url": "Payment link",
-  "store.pay_url_hint": "Paste a payment link from any provider; use {amount} or {total} where the figure goes. The customer pays there before sending the order."
+  "store.pay_url_hint": "Paste a payment link from any provider; use {amount} or {total} where the figure goes. The customer pays there before sending the order.",
+  "track.received": "Received",
+  "track.printing": "Printing",
+  "track.finishing": "Finishing",
+  "track.done": "Done",
+  "track.ready": "Ready for pickup"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

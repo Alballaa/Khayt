@@ -2816,6 +2816,11 @@
   "store.prices_label": "価格（空欄で非表示）",
   "store.deposit_pct": "前金 %",
   "store.pay_url": "支払いリンク",
-  "store.pay_url_hint": "任意のプロバイダーの支払いリンクを貼り付け、金額の位置に {amount} または {total} を使用します。顧客は注文送信前にそこで支払います。"
+  "store.pay_url_hint": "任意のプロバイダーの支払いリンクを貼り付け、金額の位置に {amount} または {total} を使用します。顧客は注文送信前にそこで支払います。",
+  "track.received": "受付",
+  "track.printing": "印刷中",
+  "track.finishing": "仕上げ",
+  "track.done": "完了",
+  "track.ready": "受け取り可能"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
