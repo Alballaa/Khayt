@@ -12,6 +12,7 @@
     mask(s.emailConfig, 'apiKey');
     mask(s.emailConfig, 'smtpPassword');
     for (const k of ['authToken', 'token', 'appSid', 'secret']) mask(s.smsConfig, k);
+    mask(s.accountingSync, 'secret');
     mask(s.telegram, 'botToken');
     mask(s.webhooks, 'secret');
     mask(s.ai, 'apiKey');

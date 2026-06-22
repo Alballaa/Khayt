@@ -707,6 +707,7 @@ function openPaymentModal(orderId) {
       // Round 12 — Webhook: payment_received
       fireWebhook('payment_received', { orderId: order.id, amount: order.paidAmount, paymentStatus: order.paymentStatus, client: order.client });
       if (order.paidAmount > 0) autoSendEmailNotification(order, 'payment_received');
+      if (typeof maybePushAccounting === 'function') maybePushAccounting(order);
       return true;
     }
   });

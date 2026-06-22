@@ -458,6 +458,36 @@ function ordersToInvoiceRows() {
     });
 }
 
+/** Map ONE order to the invoice row shape (same rules as ordersToInvoiceRows). */
+function orderToInvoiceRow(o) {
+  const rate = settings.enableVat ? (+settings.vatRate || 15) : 0;
+  const baseCurrency = settings.currency || 'SAR';
+  const cur = (typeof clientCurrency === 'function') ? clientCurrency(o.clientId) : baseCurrency;
+  const client = clients.find(c => c.id === o.clientId);
+  return {
+    id: o.invoiceNumber || o.id,
+    date: o.paidAt || o.date || '',
+    clientName: (client && client.name) || o.clientName || o.client || '',
+    price: +o.price || 0,
+    currency: cur,
+    vatRate: rate,
+    baseCurrency,
+    baseAmount: (typeof convertToBase === 'function') ? convertToBase(+o.price || 0, cur) : (+o.price || 0),
+  };
+}
+
+/** Push a paid order to the accounting webhook once (idempotent via accountingPushedAt). */
+function maybePushAccounting(order) {
+  const cfg = settings.accountingSync;
+  if (!cfg || !cfg.enabled || cfg.pushOnPaid === false) return;
+  if (!order || order.paymentStatus !== 'paid' || order.accountingPushedAt) return;
+  if (typeof KhaytAccountingExport === 'undefined' || !window.hubAPI?.accountingPush || !/^https?:\/\//i.test(cfg.webhookUrl || '')) return;
+  const payload = KhaytAccountingExport.buildInvoicePayload(orderToInvoiceRow(order), { format: cfg.format });
+  window.hubAPI.accountingPush({ url: cfg.webhookUrl, secret: cfg.secret, payload })
+    .then((r) => { if (r && r.ok) { order.accountingPushedAt = new Date().toISOString(); saveAll(); } })
+    .catch((e) => console.error('accounting push:', e));
+}
+
 /** Export invoices/expenses as accountant-ready CSV (QuickBooks/Xero/Zoho/generic). */
 function exportAccounting() {
   if (typeof KhaytAccountingExport === 'undefined') { toast('Accounting export unavailable', 'error'); return; }
@@ -679,6 +709,8 @@ function _doExportTaxSummary(periodLabel, fromDate, toDate) {
     exportTaxSummary,
     exportAccounting,
     ordersToInvoiceRows,
+    orderToInvoiceRow,
+    maybePushAccounting,
   };
   Object.assign(global, api);
   global.KhaytExpenses = api;

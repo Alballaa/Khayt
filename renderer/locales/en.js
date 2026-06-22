@@ -2852,6 +2852,17 @@
   "rec.paused": "Paused",
   "rec.end_date": "Stop after (optional)",
   "rec.skip_next": "Skip next cycle",
-  "rec.skipped": "Skipped to next cycle"
+  "rec.skipped": "Skipped to next cycle",
+  "acct.title": "Accounting Sync",
+  "acct.intro": "Push paid invoices and expenses to your accounting system via a webhook — bridge to QuickBooks, Zoho or Xero with Zapier/Make or your own endpoint. One-way and idempotent.",
+  "acct.enable": "Enable accounting sync",
+  "acct.format": "Format",
+  "acct.fmt_generic": "Generic",
+  "acct.secret": "Shared secret (optional)",
+  "acct.url": "Webhook URL",
+  "acct.push_on_paid": "Push automatically when an invoice is marked paid",
+  "acct.test": "Send test",
+  "acct.test_sent": "Sent",
+  "acct.need_url": "Enter a webhook URL first."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

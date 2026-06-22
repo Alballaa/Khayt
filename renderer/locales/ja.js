@@ -2850,6 +2850,17 @@
   "rec.paused": "一時停止",
   "rec.end_date": "以降は停止（任意）",
   "rec.skip_next": "次のサイクルをスキップ",
-  "rec.skipped": "次のサイクルへスキップしました"
+  "rec.skipped": "次のサイクルへスキップしました",
+  "acct.title": "会計連携",
+  "acct.intro": "支払い済みの請求書と経費を Webhook で会計システムへ送信します。Zapier/Make や独自エンドポイントで QuickBooks・Zoho・Xero へ橋渡し。一方向・冪等。",
+  "acct.enable": "会計連携を有効化",
+  "acct.format": "形式",
+  "acct.fmt_generic": "汎用",
+  "acct.secret": "共有シークレット（任意）",
+  "acct.url": "Webhook URL",
+  "acct.push_on_paid": "請求書が支払い済みになったら自動送信",
+  "acct.test": "テスト送信",
+  "acct.test_sent": "送信しました",
+  "acct.need_url": "先に Webhook URL を入力してください。"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

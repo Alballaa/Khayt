@@ -160,6 +160,8 @@ function defaultSettings() {
     smsConfig:        { provider: 'none', channel: 'whatsapp', accountSid: '', authToken: '', from: '', phoneNumberId: '', token: '', appSid: '', senderId: '', url: '', secret: '' },
     // Print-farm auto-scheduling: when on, queued jobs are auto-assigned to free machines
     autoSchedule:     false,
+    // Accounting sync: one-way webhook push of invoices/expenses (QuickBooks/Zoho/Xero bridge)
+    accountingSync:   { enabled: false, format: 'generic', webhookUrl: '', secret: '', pushOnPaid: true },
     // Feature 7 (new batch): Operator lock
     activeOperatorId: null,
     operatorLockEnabled: false,
@@ -448,7 +450,7 @@ function applyStoreFromSnapshot(store) {
   migrateLanApiSettings();
   migrateLegacyDesignTheme();
   if (store.settings) {
-    const nested = ['emailDigest', 'emailConfig', 'smsConfig', 'zatcaPhase2', 'bnpl', 'lanApi', 'exchangeRates', 'printerApi'];
+    const nested = ['emailDigest', 'emailConfig', 'smsConfig', 'accountingSync', 'zatcaPhase2', 'bnpl', 'lanApi', 'exchangeRates', 'printerApi'];
     const isPlainObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
     for (const key of nested) {
       if (isPlainObj(store.settings[key])) {

@@ -2850,6 +2850,17 @@
   "rec.paused": "已暂停",
   "rec.end_date": "在此之后停止（可选）",
   "rec.skip_next": "跳过下一周期",
-  "rec.skipped": "已跳到下一周期"
+  "rec.skipped": "已跳到下一周期",
+  "acct.title": "会计同步",
+  "acct.intro": "通过 Webhook 将已付款的发票和支出推送到会计系统——可用 Zapier/Make 或自有端点桥接 QuickBooks、Zoho 或 Xero。单向且幂等。",
+  "acct.enable": "启用会计同步",
+  "acct.format": "格式",
+  "acct.fmt_generic": "通用",
+  "acct.secret": "共享密钥（可选）",
+  "acct.url": "Webhook 网址",
+  "acct.push_on_paid": "发票标记为已付款时自动推送",
+  "acct.test": "发送测试",
+  "acct.test_sent": "已发送",
+  "acct.need_url": "请先输入 Webhook 网址。"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
