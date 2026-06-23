@@ -2901,6 +2901,11 @@
   "reorder.drafted": "{n} órdenes de compra en borrador creadas",
   "store.reviews": "Reseñas de clientes",
   "store.reviews_hint": "Comparte este enlace tras un pedido para recoger una valoración; la media aparece en tu tienda.",
-  "store.review_link": "Copiar enlace de reseña"
+  "store.review_link": "Copiar enlace de reseña",
+  "scan.manual_ph": "o escanea / escribe un código (bobina · pedido)",
+  "scan.go": "Ir",
+  "scan.manual_hint": "Funciona con un escáner de códigos USB/Bluetooth, o escanea el QR de una etiqueta Khayt con la cámara.",
+  "scan.spool_missing": "Esa bobina no está en tu inventario.",
+  "scan.order_missing": "No se encontró ese pedido."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

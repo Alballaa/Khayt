@@ -2901,6 +2901,11 @@
   "reorder.drafted": "{n} bon(s) de commande en brouillon créé(s)",
   "store.reviews": "Avis clients",
   "store.reviews_hint": "Partagez ce lien après une commande pour recueillir une note ; la moyenne s’affiche sur votre boutique.",
-  "store.review_link": "Copier le lien d’avis"
+  "store.review_link": "Copier le lien d’avis",
+  "scan.manual_ph": "ou scannez / saisissez un code (bobine · commande)",
+  "scan.go": "OK",
+  "scan.manual_hint": "Fonctionne avec un lecteur de code-barres USB/Bluetooth, ou scannez le QR d’une étiquette Khayt avec la caméra.",
+  "scan.spool_missing": "Cette bobine n’est pas dans votre inventaire.",
+  "scan.order_missing": "Commande introuvable."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

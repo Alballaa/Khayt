@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### 3.0.0-beta.12 cycle (in progress)
+
+### Added
+
+- **Scan-in workflow** — the camera/barcode scanner now recognises Khayt's own label QR codes: scan a **spool label** to open that spool (quick deduct/top-up), or an **order label** (or its customer tracking QR) to open that order. Works with the camera or a USB/Bluetooth barcode scanner (or just type/paste a code). Closes the loop with the QR labels added in beta.11.
+
 ## [3.0.0-beta.11] - 2026-06-23
 
 **Pre-release (beta)** — grow + operate: marketing campaigns, QR labels, demand-aware reordering with draft POs, and customer reviews.

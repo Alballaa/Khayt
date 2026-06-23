@@ -2901,6 +2901,11 @@
   "reorder.drafted": "已生成 {n} 个采购单草稿",
   "store.reviews": "客户评价",
   "store.reviews_hint": "下单后分享此链接以收集评分；平均分将显示在您的店铺。",
-  "store.review_link": "复制评价链接"
+  "store.review_link": "复制评价链接",
+  "scan.manual_ph": "或扫描 / 输入代码（线材 · 订单）",
+  "scan.go": "执行",
+  "scan.manual_hint": "支持 USB/蓝牙条码扫描器，或用相机扫描 Khayt 标签二维码。",
+  "scan.spool_missing": "该线材不在您的库存中。",
+  "scan.order_missing": "未找到该订单。"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
