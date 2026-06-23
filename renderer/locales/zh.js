@@ -2911,6 +2911,11 @@
   "store.sold_out": "已售罄",
   "store.lead_time": "交货周期（可选）",
   "store.lead_ph": "例如 3–5 天",
-  "store.min_order": "最低起订"
+  "store.min_order": "最低起订",
+  "an.forecast_title": "收入预测",
+  "an.forecast_next": "下月预测",
+  "an.forecast_actual": "实际",
+  "an.forecast_projected": "预测",
+  "an.forecast_avg": "基于平均值（历史有限）"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

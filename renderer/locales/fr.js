@@ -2911,6 +2911,11 @@
   "store.sold_out": "Épuisé",
   "store.lead_time": "Délai (facultatif)",
   "store.lead_ph": "ex. 3–5 jours",
-  "store.min_order": "Commande minimum"
+  "store.min_order": "Commande minimum",
+  "an.forecast_title": "Prévision de revenus",
+  "an.forecast_next": "Mois prochain prévu",
+  "an.forecast_actual": "Réel",
+  "an.forecast_projected": "Prévu",
+  "an.forecast_avg": "selon la moyenne (historique limité)"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
