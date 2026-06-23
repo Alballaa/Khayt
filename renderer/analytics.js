@@ -258,7 +258,7 @@ function renderHandoffAnalyticsOverview(ctx) {
 function renderAnalytics() {
   const orders = printLog.filter(o => inRange(o.date, analyticsRange, 'analytics'));
   const completed = orders.filter(o => o.status === 'completed');
-  const revenue = completed.reduce((s, o) => s + convertToBase(+o.price || 0, clientCurrency(o.clientId)), 0);
+  const revenue = completed.reduce((s, o) => s + convertToBase(+o.price || 0, orderCurrency(o)), 0);
   const hours   = orders.reduce((s, o) => s + (+o.printTime || 0), 0);
   const inProgress = orders.filter(o => o.status !== 'completed' && o.status !== 'pending').length;
   // Receivables — outstanding amount across all unpaid/partial orders, regardless of status
@@ -1627,7 +1627,7 @@ function renderPnLSection() {
     const key = `${d.getFullYear()}-Q${q}`;
     if (!qMap[key]) qMap[key] = { revenue: 0, shipping: 0, vatCollected: 0, orders: 0 };
     qMap[key].revenue += orderRevenueBase(o);
-    qMap[key].shipping += convertToBase(+o.shippingCost || 0, clientCurrency(o.clientId));
+    qMap[key].shipping += convertToBase(+o.shippingCost || 0, orderCurrency(o));
     qMap[key].orders++;
     const rate = settings.enableVat ? (+settings.vatRate || 15) : 0;
     qMap[key].vatCollected += rate > 0 ? orderRevenueBase(o) * rate / (100 + rate) : 0;
@@ -1935,7 +1935,7 @@ function renderLocationPL() {
   printLog.filter(o => o.status === 'completed' && inRange(o.date || (o.timestamp || '').slice(0,10), analyticsRange, 'analytics')).forEach(o => {
     const lid = (o.machineId && machLocById[o.machineId]) || (o.machine && machLocByName[o.machine]) || '__none__';
     const d = getD(lid);
-    d.revenue += convertToBase(+o.price || 0, clientCurrency(o.clientId));
+    d.revenue += convertToBase(+o.price || 0, orderCurrency(o));
     d.orders++;
     (o.parts || []).forEach(p => { d.matCost += computePartBaseCost ? (computePartBaseCost(p) || 0) : 0; });
   });
@@ -2566,7 +2566,7 @@ function exportPnlCsv() {
     .map(o => {
       const revenue = orderRevenueBase(o);
       const cogs = (o.parts || []).reduce((s, p) => s + computePartBaseCost(p), 0)
-        + convertToBase(+o.shippingCost || 0, clientCurrency(o.clientId));
+        + convertToBase(+o.shippingCost || 0, orderCurrency(o));
       return { revenue, cogs, vat: rate > 0 ? revenue * rate / (100 + rate) : 0 };
     });
   const exps = (expenses || [])

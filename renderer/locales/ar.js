@@ -1359,6 +1359,8 @@
   "calc.part_note": "ملاحظة القطعة",
   "calc.part_note_ph": "مثال: متطلبات خاصة…",
   "calc.client_ref": "رقم أمر الشراء / المرجع",
+  "calc.currency": "العملة",
+  "calc.currency_auto": "تلقائي",
   "calc.client_ref_ph": "مثال: PO-2024-001",
   "oe.internal_notes": "ملاحظات داخلية (لا تظهر للعميل)",
   "oe.internal_notes_ph": "مثال: تعليمات خاصة، تذكيرات…",

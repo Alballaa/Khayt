@@ -325,7 +325,21 @@ async function aiSuggestPrice() {
   });
 }
 
+/** Populate the quote currency selector (once): "Auto" + every known currency. */
+function populateCalcCurrency() {
+  const sel = $('#calcCurrency');
+  if (!sel || sel.options.length) return;
+  const base = settings.currency || 'SAR';
+  const auto = (t('calc.currency_auto') || 'Auto') + (base ? ` (${base})` : '');
+  const opts = [`<option value="">${escapeHtml(auto)}</option>`];
+  for (const [code, cur] of Object.entries(CURRENCIES || {})) {
+    opts.push(`<option value="${escapeHtml(code)}">${escapeHtml(cur.label || code)}</option>`);
+  }
+  sel.innerHTML = opts.join('');
+}
+
 function updateGrandTotal() {
+  populateCalcCurrency();
   const snap = {
     spoolCost: $('#spoolCost').value, spoolWeight: $('#spoolWeight').value,
     printWeight: $('#printWeight').value, supportWeight: $('#supportWeight')?.value || 0,

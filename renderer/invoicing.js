@@ -57,7 +57,7 @@ function generateClientStatement(clientId) {
 
   // All statement figures are in the shop's BASE currency so multi-currency
   // clients' rows and totals reconcile (orderRevenueBase/orderOwedBase convert).
-  const curOf = (o) => (typeof clientCurrency === 'function') ? clientCurrency(o.clientId) : (settings.currency || 'SAR');
+  const curOf = (o) => (typeof orderCurrency === 'function') ? orderCurrency(o) : (settings.currency || 'SAR');
   // Cash actually received (base). Falls back to price ONLY for legacy fully-paid
   // orders with no recorded amount AND no gift settlement — otherwise a gift-card
   // -settled order would be counted as both "paid" (price) and "gift".
@@ -1301,8 +1301,8 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
   const area = $('#invoice-print-area');
   const issuedDate = formatPrintDate(order.date);
   const issuedTime = order.timestamp ? new Date(order.timestamp).toTimeString().slice(0, 5) : '';
-  // Feature 1: use per-client currency if set
-  const invCurrencyCode = clientCurrency(order.clientId);
+  // Feature 1: use the order's currency (per-order override, else client, else base)
+  const invCurrencyCode = (typeof orderCurrency === 'function') ? orderCurrency(order) : clientCurrency(order.clientId);
   const invCurObj = CURRENCIES[invCurrencyCode] || CURRENCIES[settings.currency] || CURRENCIES.SAR;
   const invCurrSym = invCurObj.symbol;
 
