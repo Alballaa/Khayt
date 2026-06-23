@@ -2902,6 +2902,11 @@
   "reorder.drafted": "تم إنشاء {n} أمر شراء مبدئي",
   "store.reviews": "تقييمات العملاء",
   "store.reviews_hint": "شارك هذا الرابط بعد الطلب لجمع تقييم؛ يظهر المعدل على واجهة متجرك.",
-  "store.review_link": "نسخ رابط التقييم"
+  "store.review_link": "نسخ رابط التقييم",
+  "scan.manual_ph": "أو امسح / اكتب رمزاً (بكرة · طلب)",
+  "scan.go": "تنفيذ",
+  "scan.manual_hint": "يعمل مع ماسح باركود USB/بلوتوث، أو امسح رمز ملصق خيط بالكاميرا.",
+  "scan.spool_missing": "هذه البكرة غير موجودة في مخزونك.",
+  "scan.order_missing": "لم يُعثر على هذا الطلب."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

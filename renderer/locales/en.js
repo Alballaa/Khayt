@@ -2903,6 +2903,11 @@
   "reorder.drafted": "Created {n} draft PO(s)",
   "store.reviews": "Customer reviews",
   "store.reviews_hint": "Share this link after an order to collect a rating; the average shows on your storefront.",
-  "store.review_link": "Copy review link"
+  "store.review_link": "Copy review link",
+  "scan.manual_ph": "or scan / type a code (spool · order)",
+  "scan.go": "Go",
+  "scan.manual_hint": "Works with a USB/Bluetooth barcode scanner, or scan a Khayt label QR with the camera.",
+  "scan.spool_missing": "That spool is not in your inventory.",
+  "scan.order_missing": "That order was not found."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

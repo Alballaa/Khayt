@@ -562,6 +562,29 @@ function parseNFCHex(hexStr) {
 }
 
 // ── Filament scanner (camera + BarcodeDetector) ── */
+
+/** Route a Khayt label code (KHAYT-SPOOL / KHAYT-ORDER / tracking URL) to the
+ *  right record. Returns true if it was a Khayt code (handled), false otherwise
+ *  so the caller can fall back to filament parsing. */
+function routeKhaytScan(raw) {
+  if (typeof KhaytScan === 'undefined') return false;
+  const scan = KhaytScan.parseScanCode(raw);
+  if (scan.type !== 'spool' && scan.type !== 'order' && scan.type !== 'track') return false;
+  // Close the scanner modal, then open the target.
+  document.querySelector('#modalMount [data-act="cancel"]')?.click();
+  if (scan.type === 'spool') {
+    if ((inventory || []).some((i) => i.id === scan.id)) openInventoryEditor(scan.id);
+    else toast(t('scan.spool_missing') || 'That spool is not in your inventory.', 'error');
+  } else {
+    const order = scan.type === 'order'
+      ? (printLog || []).find((o) => o.id === scan.id)
+      : (printLog || []).find((o) => o.trackingToken === scan.token);
+    if (order && typeof openOrderEditor === 'function') openOrderEditor(order.id);
+    else toast(t('scan.order_missing') || 'That order was not found.', 'error');
+  }
+  return true;
+}
+
 function parseFilamentFromText(text) {
   // Extract material type (check compound types first)
   const materialMap = [
@@ -661,6 +684,12 @@ async function openFilamentScanner() {
         ${escapeHtml(t('scan.aim') || 'Point camera at the QR code or barcode on the spool…')}
       </p>
       <div id="scanResultCamera" style="display:none; margin-top:10px; padding:14px; background:var(--surface-2); border:1px solid var(--primary); border-radius:var(--radius); text-align:left;"></div>
+      <div style="display:flex; gap:6px; margin-top:12px;">
+        <input id="scanManual" type="text" autocomplete="off" placeholder="${escapeHtml(t('scan.manual_ph') || 'or scan / type a code (spool · order)')}"
+          style="flex:1; padding:8px 10px; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--surface-2); color:var(--text); font-size:13px;">
+        <button class="btn small primary" id="scanManualGo">${escapeHtml(t('scan.go') || 'Go')}</button>
+      </div>
+      <p style="font-size:11px; color:var(--text-muted); margin-top:5px;">${escapeHtml(t('scan.manual_hint') || 'Works with a USB/Bluetooth barcode scanner, or scan a Khayt label QR with the camera.')}</p>
     </div>
 
     <!-- ── NFC paste panel ── -->
@@ -692,6 +721,23 @@ async function openFilamentScanner() {
     bodyHtml,
     noSave: true,
     onMount() {
+      // ── manual / USB-scanner code entry (USB scanners "type" + Enter) ──────
+      const manual = document.getElementById('scanManual');
+      const submitManual = () => {
+        const v = (manual && manual.value || '').trim();
+        if (!v) return;
+        if (routeKhaytScan(v)) return; // spool / order / tracking code
+        // Otherwise treat it as filament text and show matches.
+        const parsed = parseFilamentFromText(v);
+        const scored = (filamentsDB || []).map((f) => ({ ...f, _score: scoreFil(f, parsed) })).filter((f) => f._score > 0).sort((a, b) => b._score - a._score);
+        if (typeof showCameraMatch === 'function') showCameraMatch(v, parsed, scored);
+      };
+      if (manual) {
+        manual.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submitManual(); } });
+        setTimeout(() => manual.focus(), 60);
+      }
+      document.getElementById('scanManualGo')?.addEventListener('click', submitManual);
+
       // ── shared: apply NFC/OpenTag result to form ──────────────────────────
       function applyNFCResult(nfcData, resultEl) {
         if (nfcData.error) {
@@ -865,6 +911,8 @@ async function openFilamentScanner() {
               status.textContent = `✓ ${t('scan.detected')||'Code detected!'}`;
               status.style.color = 'var(--success, #22c55e)';
               const raw    = codes[0].rawValue;
+              // A Khayt label QR (spool/order) routes straight to that record.
+              if (routeKhaytScan(raw)) return;
               const parsed = parseFilamentFromText(raw);
               const scored = (filamentsDB || []).map(f => ({ ...f, _score: scoreFil(f, parsed) })).filter(f => f._score > 0).sort((a,b) => b._score - a._score);
               showCameraMatch(raw, parsed, scored);

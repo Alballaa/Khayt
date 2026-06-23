@@ -2901,6 +2901,11 @@
   "reorder.drafted": "{n} 件の発注書の下書きを作成しました",
   "store.reviews": "カスタマーレビュー",
   "store.reviews_hint": "注文後にこのリンクを共有して評価を集めましょう。平均はストアに表示されます。",
-  "store.review_link": "レビューリンクをコピー"
+  "store.review_link": "レビューリンクをコピー",
+  "scan.manual_ph": "またはコードをスキャン／入力（スプール・注文）",
+  "scan.go": "実行",
+  "scan.manual_hint": "USB/Bluetooth バーコードスキャナー対応、またはカメラで Khayt ラベルの QR をスキャン。",
+  "scan.spool_missing": "そのスプールは在庫にありません。",
+  "scan.order_missing": "その注文は見つかりませんでした。"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

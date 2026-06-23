@@ -2901,6 +2901,11 @@
   "reorder.drafted": "{n} Bestellentwurf/-entwürfe erstellt",
   "store.reviews": "Kundenbewertungen",
   "store.reviews_hint": "Teilen Sie diesen Link nach einer Bestellung, um eine Bewertung zu sammeln; der Durchschnitt erscheint in Ihrem Shop.",
-  "store.review_link": "Bewertungslink kopieren"
+  "store.review_link": "Bewertungslink kopieren",
+  "scan.manual_ph": "oder Code scannen / eingeben (Spule · Auftrag)",
+  "scan.go": "Los",
+  "scan.manual_hint": "Funktioniert mit einem USB-/Bluetooth-Barcodescanner oder scannen Sie einen Khayt-Etiketten-QR mit der Kamera.",
+  "scan.spool_missing": "Diese Spule ist nicht in Ihrem Bestand.",
+  "scan.order_missing": "Dieser Auftrag wurde nicht gefunden."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
