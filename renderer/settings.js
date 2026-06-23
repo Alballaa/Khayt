@@ -209,6 +209,9 @@ function renderIntegrationsSettings() {
       ${markets.map((loc) => `<option value="${loc}"${loc === viewLoc ? ' selected' : ''}>${escapeHtml(KhaytIntegrations.forLocale(loc).country[lang] || KhaytIntegrations.forLocale(loc).country.en)}</option>`).join('')}
     </select>
     <div style="margin-top:14px;font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;">${escapeHtml(t('integ.storefronts') || 'Storefronts')} — ${escapeHtml(country(lang))}</div>
+    ${cloudReady
+      ? `<div style="font-size:11.5px;color:var(--text-muted);margin-top:4px;line-height:1.5;"><strong>${escapeHtml(t('integ.import') || 'Import orders')}:</strong> ${escapeHtml(t('integ.import_help') || 'paste the import link as an order webhook in your store — new orders arrive in Order requests.')}<br><strong>${escapeHtml(t('integ.publish') || 'Publish catalog')}:</strong> ${escapeHtml(t('integ.feed_help') || 'add the feed link as a product import URL in your store — it mirrors your published storefront catalog.')}</div>`
+      : `<div style="font-size:11.5px;color:var(--text-muted);margin-top:4px;line-height:1.5;">${escapeHtml(t('integ.cloud_hint') || 'Connect cloud sync (Settings → Cloud) to get import & feed links for these storefronts.')}</div>`}
     <div style="margin-top:4px;">${storefrontRows}</div>
     <div style="margin-top:16px;font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;">${escapeHtml(t('integ.payments') || 'Payment systems')}</div>
     <div style="margin-top:4px;">${payRows}</div>
