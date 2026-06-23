@@ -8,6 +8,7 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Remote control from your phone** — the mobile web app (sign in at your Khayt Cloud address → unlock with your sync passphrase) gains real control, not just viewing: a new **Printers** tab shows each machine with a live "Printing now / Idle" badge and the job currently on it, and **quotes** can now be **approved or declined** right from the order sheet (approve moves it to pending; decline voids it) — syncing straight back to the desktop. Requires cloud sync.
 - **Export all data (CSV)** — a one-click **Settings → Data → Export all data (CSV)** writes a clean CSV per collection (orders, clients, products, inventory, expenses, machines, suppliers, purchase orders) into a folder you choose, alongside the existing JSON backup. Every cell is quoted and formula-neutralized so the files open safely in Excel/Sheets — full data portability for spreadsheets, accountants, or migrating elsewhere.
 
 ## [3.0.0-beta.14] - 2026-06-23
