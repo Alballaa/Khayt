@@ -6,6 +6,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### 3.0.0-beta.15 cycle (in progress)
 
+### Added
+
+- **Export all data (CSV)** — a one-click **Settings → Data → Export all data (CSV)** writes a clean CSV per collection (orders, clients, products, inventory, expenses, machines, suppliers, purchase orders) into a folder you choose, alongside the existing JSON backup. Every cell is quoted and formula-neutralized so the files open safely in Excel/Sheets — full data portability for spreadsheets, accountants, or migrating elsewhere.
+
 ## [3.0.0-beta.14] - 2026-06-23
 
 **Pre-release (beta)** — a storefronts & payments integrations suite: a per-market directory, two-way storefront order import & catalog publishing, and guided setup.

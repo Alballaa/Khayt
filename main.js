@@ -194,6 +194,29 @@ ipcMain.handle('hub:save-text-file', async (_e, { content, defaultName } = {}) =
   return { ok: true, filePath };
 });
 
+// Write a set of CSV files (one-click "Export all data") into a chosen folder.
+ipcMain.handle('hub:export-csv-bundle', async (_e, files) => {
+  if (!Array.isArray(files) || files.length === 0) return { ok: false, error: 'nothing-to-export' };
+  const win = BrowserWindow.getFocusedWindow();
+  const { filePaths, canceled } = await dialog.showOpenDialog(win || undefined, {
+    title: 'Choose a folder for the CSV export',
+    properties: ['openDirectory', 'createDirectory'],
+  });
+  if (canceled || !filePaths || !filePaths[0]) return { ok: false, canceled: true };
+  const stamp = new Date().toISOString().slice(0, 10);
+  const dir = path.join(filePaths[0], `khayt-export-${stamp}`);
+  await fs.promises.mkdir(dir, { recursive: true });
+  let written = 0;
+  for (const f of files) {
+    if (!f || typeof f.name !== 'string') continue;
+    // Guard against path traversal in the supplied file name.
+    const safe = path.basename(f.name);
+    await fs.promises.writeFile(path.join(dir, safe), String(f.content || ''), 'utf8');
+    written++;
+  }
+  return { ok: true, dir, count: written };
+});
+
 ipcMain.handle('hub:request-full-wipe', async (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   const { response } = await dialog.showMessageBox(win || undefined, {

@@ -31,6 +31,22 @@ async function updateLastBackupDisplay() {
   } catch { /* ignore */ }
 }
 
+/** One-click "Export all data (CSV)" — writes a CSV per collection into a chosen folder. */
+async function exportAllCsv() {
+  if (!window.hubAPI?.exportCsvBundle) { toast(t('set.csv_export_error') || 'CSV export unavailable', 'error'); return; }
+  const files = KhaytCsvBundle.buildCsvBundle(collectStoreCollections());
+  if (!files.length) { toast(t('set.csv_export_empty') || 'No data to export yet', 'error'); return; }
+  try {
+    const r = await window.hubAPI.exportCsvBundle(files);
+    if (r?.canceled) return;
+    if (!r?.ok) throw new Error(r?.error || 'failed');
+    toast((t('set.csv_exported') || 'Exported {n} CSV files').replace('{n}', r.count), 'success');
+  } catch (e) {
+    console.error('CSV bundle export failed', e);
+    toast(t('set.csv_export_error') || 'CSV export failed', 'error');
+  }
+}
+
 /* ============================================================
    Dashboard
    ============================================================ */
@@ -404,6 +420,7 @@ function generateWorkOrder(id) {
   const api = {
     maybeAutoBackup,
     updateLastBackupDisplay,
+    exportAllCsv,
     exportQuoteApprovalPage,
     openMilestoneInvoices,
     generateWorkOrder,
