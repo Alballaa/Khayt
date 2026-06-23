@@ -4,7 +4,9 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
-### 3.0.0-beta.16 cycle (in progress)
+## [3.0.0-beta.16] - 2026-06-23
+
+**Pre-release (beta)** — a storefront, mobile, operations & finance release: product options, storefront insights, portal balance payment, phone order-request triage, a scheduling forecast, auto-draft POs, subscriptions/retainers, and account/tax-code accounting exports.
 
 ### Added
 
