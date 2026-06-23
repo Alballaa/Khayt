@@ -2552,6 +2552,41 @@ function renderTimeAnalytics() {
     </div>` : ''}`;
 }
 
+/** Export a P&L summary CSV scoped to the selected analytics date range. */
+function exportPnlCsv() {
+  const sel = $('#analyticsRange');
+  let label = sel?.selectedOptions?.[0]?.textContent?.trim() || t('an.range.all') || 'All time';
+  if (analyticsRange === 'custom') {
+    const f = customRangeFrom.analytics || '', tt = customRangeTo.analytics || '';
+    if (f || tt) label = `${f || '…'} → ${tt || '…'}`;
+  }
+  const rate = settings.enableVat ? (+settings.vatRate || 15) : 0;
+  const orders = (printLog || [])
+    .filter(o => o.status === 'completed' && inRange(o.date, analyticsRange, 'analytics'))
+    .map(o => {
+      const revenue = orderRevenueBase(o);
+      const cogs = (o.parts || []).reduce((s, p) => s + computePartBaseCost(p), 0)
+        + convertToBase(+o.shippingCost || 0, clientCurrency(o.clientId));
+      return { revenue, cogs, vat: rate > 0 ? revenue * rate / (100 + rate) : 0 };
+    });
+  const exps = (expenses || [])
+    .filter(e => inRange(e.date, analyticsRange, 'analytics'))
+    .map(e => ({ amount: +e.amount || 0, category: e.category || '' }));
+
+  if (!orders.length && !exps.length) { toast(t('an.pnl_empty') || 'No data for this period', 'error'); return; }
+
+  const summary = KhaytPnl.computePnl({ orders, expenses: exps, label });
+  const labels = {
+    title: t('pnl.title'), item: t('pnl.item'), amount: t('pnl.amount'), orders: t('an.pnl_orders'),
+    revenue: t('an.revenue'), cogs: t('pnl.cogs'), gross: t('pnl.gross'), gross_margin: t('pnl.gross_margin'),
+    opex: t('pnl.opex'), vat: t('an.pnl_vat'), net: t('an.pnl_net'),
+  };
+  const csv = KhaytPnl.pnlToCsv(summary, { currency: currencySymbol(), labels });
+  downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8;' }),
+    `pnl-${new Date().toISOString().slice(0, 10)}.csv`);
+  toast(t('pnl.exported') || 'P&L exported', 'success');
+}
+
 async function exportAnalyticsReport() {
   // 1. Make sure analytics is freshly rendered
   renderAnalytics();
@@ -3074,6 +3109,7 @@ function renderBreakEvenCard() {
     renderSimpleReports,
     renderAnalytics,
     exportAnalyticsReport,
+    exportPnlCsv,
     renderClientRetention,
     renderCostTrends,
     renderOperatorAnalytics,
