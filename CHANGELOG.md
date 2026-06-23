@@ -8,6 +8,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Storefront insights** — your published storefront now tracks **views → add-to-cart → orders**, and the Storefront editor shows the funnel, a **conversion rate**, and your **top products** by orders/carts — so you can see what's drawing interest and what's selling. (Aggregate counts only; no visitor tracking.)
+
 - **Pay outstanding balance from the portal** — when you publish an active order to the customer portal, the page now shows the **balance due** and a **Pay balance** button using your pay link (with the amount filled in), so customers can settle the remainder online — not just the upfront deposit on quotes. "Paid in full" is confirmed via your payment webhook.
 - **Triage order requests from your phone** — the mobile web app gains a **Requests** tab (with a live count) where you can **Accept** an incoming order request — it's added to your orders as a quote and synced to the desktop — or **Decline** it, all without opening your computer. Requires cloud sync.
 - **Storefront product options/variants** — give a published product selectable options (e.g. *Color: Black, White; Size: S, M*) in the Storefront editor. Customers pick their choices on each product card, the selection shows in the order summary, and it arrives with the order request — so you know exactly what they want.

@@ -752,6 +752,9 @@ async function openStorefrontModal() {
       <div style="margin-top:10px;font-size:11.5px;color:var(--text-muted);word-break:break-all;">${escapeHtml(link)}</div>
       <span id="storeResult" style="font-size:12px;display:block;margin-top:8px;"></span>
       <hr style="border:none;border-top:1px solid var(--border-soft);margin:14px 0;">
+      <label style="margin-top:0;">${escapeHtml(t('store.insights') || 'Storefront insights')}</label>
+      <div id="storeInsights" style="font-size:12.5px;color:var(--text-muted);margin-top:4px;">${escapeHtml(t('common.loading') || '…')}</div>
+      <hr style="border:none;border-top:1px solid var(--border-soft);margin:14px 0;">
       <label style="margin-top:0;">${escapeHtml(t('store.reviews') || 'Customer reviews')} <span id="storeRating" style="color:var(--accent);font-weight:600;"></span></label>
       <p style="font-size:11.5px;color:var(--text-muted);margin:2px 0 6px;">${escapeHtml(t('store.reviews_hint') || 'Share this link after an order to collect a rating; the average shows on your storefront.')}</p>
       <button id="storeReviewCopy" class="btn ghost small" type="button">${escapeHtml(t('store.review_link') || 'Copy review link')}</button>
@@ -868,6 +871,20 @@ async function openStorefrontModal() {
         const s = r && r.ok && r.summary;
         if (s && s.count > 0) { const el = modal.querySelector('#storeRating'); if (el) el.textContent = `★ ${s.avg} (${s.count})`; }
       }).catch(() => {});
+      // Storefront insights: views → carts → orders funnel + top products (best-effort).
+      const insEl = modal.querySelector('#storeInsights');
+      window.hubAPI.cloudStorefrontStats?.({ url: c.url, shopId: c.shopId, token: c.token }).then((r) => {
+        if (!insEl) return;
+        const s = r && r.ok && r.stats;
+        if (!s || (!s.views && !s.carts && !s.orders)) { insEl.textContent = t('store.insights_empty') || 'No storefront activity yet.'; return; }
+        const conv = s.views > 0 ? Math.round((s.orders / s.views) * 1000) / 10 : 0;
+        const stat = (n, lbl) => `<span style="display:inline-block;margin-inline-end:14px;"><b style="color:var(--text);font-size:15px;">${n}</b> ${escapeHtml(lbl)}</span>`;
+        const funnel = stat(s.views, t('store.ins_views') || 'views') + stat(s.carts, t('store.ins_carts') || 'carts')
+          + stat(s.orders, t('store.ins_orders') || 'orders') + stat(conv + '%', t('store.ins_conv') || 'conversion');
+        const top = (s.items || []).filter((it) => it.orders || it.carts).slice(0, 5)
+          .map((it) => `<div style="display:flex;justify-content:space-between;padding:2px 0;"><span>${escapeHtml(it.name || it.id)}</span><span class="muted">${it.orders || 0} ${escapeHtml(t('store.ins_orders') || 'orders')} · ${it.carts || 0} ${escapeHtml(t('store.ins_carts') || 'carts')}</span></div>`).join('');
+        insEl.innerHTML = `<div style="margin-bottom:6px;">${funnel}</div>` + (top ? `<div style="margin-top:6px;border-top:1px solid var(--border-soft);padding-top:6px;">${top}</div>` : '');
+      }).catch(() => { if (insEl) insEl.textContent = t('store.insights_empty') || 'No storefront activity yet.'; });
       modal.querySelector('#storePublish')?.addEventListener('click', async () => {
         const cat = buildCatalog(modal.querySelector('#storePhotos').checked);
         if (!cat.items.length) { setRes('✗ ' + (t('store.no_products') || 'Add products to your catalog first'), false); return; }

@@ -1473,6 +1473,13 @@ ipcMain.handle('hub:cloud-intake-delete', async (_e, { url, shopId, token, id } 
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
+ipcMain.handle('hub:cloud-storefront-stats', async (_e, { url, shopId, token } = {}) => {
+  try {
+    token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
+    return { ok: true, stats: await cloudClient.storefrontStats(url, shopId, token) };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
 ipcMain.handle('hub:cloud-billing-me', async (_e, { url, shopId, token } = {}) => {
   try {
     token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
