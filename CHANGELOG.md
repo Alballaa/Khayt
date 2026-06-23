@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### 3.0.0-beta.16 cycle (in progress)
+
 ## [3.0.0-beta.15] - 2026-06-23
 
 **Pre-release (beta)** — a portability, intelligence & resilience release: full CSV data export, real remote control from your phone, a P&L export, AI price suggestions, deeper storefront checkout, per-quote currency, and self-healing offline sync.
