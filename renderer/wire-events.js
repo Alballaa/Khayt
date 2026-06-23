@@ -1259,6 +1259,15 @@ function wireEvents() {
   $('#btnImportClientsCsv')?.addEventListener('click', importClientsCsv);
   $('#btnExportClientsCsv')?.addEventListener('click', () => exportClientsCsv());
   $('#btnCampaign')?.addEventListener('click', () => openCampaignModal());
+  const chkAutoDraftPo = $('#chkAutoDraftPo');
+  if (chkAutoDraftPo) {
+    chkAutoDraftPo.checked = !!settings.autoDraftPo;
+    chkAutoDraftPo.addEventListener('change', (e) => {
+      settings.autoDraftPo = e.target.checked;
+      saveAll();
+      if (e.target.checked && typeof maybeAutoDraftPurchaseOrders === 'function') maybeAutoDraftPurchaseOrders();
+    });
+  }
   $('#btnExportInventoryCsv')?.addEventListener('click', () => exportInventoryCsv());
   $('#btnSpoolLabels')?.addEventListener('click', () => { if (typeof printSpoolLabels === 'function') printSpoolLabels(); });
   $('#btnAddClient').addEventListener('click', () => openClientEditor(null));

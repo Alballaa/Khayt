@@ -115,3 +115,20 @@ test('committed beyond stock → daysLeft 0 even with no usage history', () => {
   assert.equal(abs.daysLeft, 0);
   assert.equal(abs.suggestG, 300); // shortfall 400 - 100
 });
+
+test('itemsNeedingDraftPo skips items with an open PO; keeps fresh low items', () => {
+  const sug = [
+    { suggestG: 800, item: { id: 'i1' } },   // needs PO
+    { suggestG: 500, item: { id: 'i2' } },   // already has an open draft → skip
+    { suggestG: 0, item: { id: 'i3' } },     // no quantity → skip
+    { suggestG: 300, item: { id: 'i4' } },   // had a received PO (closed) → still needs one
+  ];
+  const pos = [
+    { itemId: 'i2', status: 'draft' },
+    { itemId: 'i4', status: 'received' },
+    { itemId: 'i1', status: 'cancelled' },   // cancelled doesn't block i1
+  ];
+  const need = R.itemsNeedingDraftPo(sug, pos).map((s) => s.item.id).sort();
+  assert.deepEqual(need, ['i1', 'i4']);
+  assert.deepEqual(R.itemsNeedingDraftPo([], pos), []);
+});

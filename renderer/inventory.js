@@ -1189,6 +1189,38 @@ function partGramsConsumed(p) {
 }
 
 /** Consumption-aware reorder suggestions modal (uses lib/reorder.js). */
+/** Opt-in automation: silently draft purchase orders for low items that don't
+ *  already have an open PO. Drafts only (owner reviews before ordering). Called
+ *  on boot; no-op unless settings.autoDraftPo is on. Returns the count created. */
+function maybeAutoDraftPurchaseOrders() {
+  if (!settings.autoDraftPo || typeof KhaytReorder === 'undefined') return 0;
+  const items = (typeof filterInventoryByLocation === 'function')
+    ? filterInventoryByLocation(inventory, settings.activeLocationId) : inventory;
+  const sug = KhaytReorder.reorderSuggestions(items, printLog, {
+    now: Date.now(), windowDays: 30, partGrams: partGramsConsumed, isLow: isLowStock, leadDays: 14, targetDays: 45,
+  });
+  const need = KhaytReorder.itemsNeedingDraftPo(sug, purchaseOrders);
+  if (!need.length) return 0;
+  let n = 0;
+  for (const s of need) {
+    const kg = Math.max(0.25, Math.round((s.suggestG / 1000) * 4) / 4);
+    const perG = (+s.item.cost) || (s.item.costPerKg ? +s.item.costPerKg / 1000 : 0);
+    const unitPrice = perG > 0 ? Math.round(perG * 1000) / 1000 : undefined;
+    createPurchaseOrder(s.item, {
+      qty: Math.round(kg * 1000), unitPrice, status: 'draft', silent: true,
+      notes: (t('reorder.auto_note') || 'Auto-drafted at reorder point') + ` · ~${Math.round(s.suggestG)} g`,
+    });
+    n++;
+  }
+  if (n > 0) {
+    saveAll();
+    if (typeof renderPurchaseOrders === 'function') renderPurchaseOrders();
+    if (typeof renderReorderAlerts === 'function') renderReorderAlerts();
+    toast((t('reorder.auto_drafted', { n }) || `Auto-drafted ${n} purchase order(s) — review in Inventory`), 'info', 6000);
+  }
+  return n;
+}
+
 function openReorderSuggestions() {
   if (typeof KhaytReorder === 'undefined') { toast('Reorder module not loaded', 'error'); return; }
   const items = (typeof filterInventoryByLocation === 'function')
@@ -3660,6 +3692,7 @@ async function printSpoolLabel(itemId) {
     renderPurchaseOrders,
     openReorderModal,
     openReorderSuggestions,
+    maybeAutoDraftPurchaseOrders,
     exportInventoryCsv,
     recordSupplierInvoice,
   };
