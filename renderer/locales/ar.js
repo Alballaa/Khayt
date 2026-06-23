@@ -2912,6 +2912,11 @@
   "store.sold_out": "نفد",
   "store.lead_time": "مدة التنفيذ (اختياري)",
   "store.lead_ph": "مثال: ٣–٥ أيام",
-  "store.min_order": "الحد الأدنى للطلب"
+  "store.min_order": "الحد الأدنى للطلب",
+  "an.forecast_title": "توقّع الإيرادات",
+  "an.forecast_next": "المتوقّع للشهر القادم",
+  "an.forecast_actual": "فعلي",
+  "an.forecast_projected": "متوقّع",
+  "an.forecast_avg": "بناءً على المتوسط (سجل محدود)"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

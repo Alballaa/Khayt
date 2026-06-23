@@ -2911,6 +2911,11 @@
   "store.sold_out": "Agotado",
   "store.lead_time": "Plazo de entrega (opcional)",
   "store.lead_ph": "p. ej. 3–5 días",
-  "store.min_order": "Pedido mínimo"
+  "store.min_order": "Pedido mínimo",
+  "an.forecast_title": "Previsión de ingresos",
+  "an.forecast_next": "Próximo mes previsto",
+  "an.forecast_actual": "Real",
+  "an.forecast_projected": "Previsto",
+  "an.forecast_avg": "según el promedio (historial limitado)"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

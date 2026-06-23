@@ -2913,6 +2913,11 @@
   "store.sold_out": "Sold out",
   "store.lead_time": "Lead time (optional)",
   "store.lead_ph": "e.g. 3–5 days",
-  "store.min_order": "Minimum order"
+  "store.min_order": "Minimum order",
+  "an.forecast_title": "Revenue forecast",
+  "an.forecast_next": "Projected next month",
+  "an.forecast_actual": "Actual",
+  "an.forecast_projected": "Projected",
+  "an.forecast_avg": "based on average (limited history)"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

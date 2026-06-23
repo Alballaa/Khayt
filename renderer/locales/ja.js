@@ -2911,6 +2911,11 @@
   "store.sold_out": "売り切れ",
   "store.lead_time": "納期（任意）",
   "store.lead_ph": "例：3〜5日",
-  "store.min_order": "最低注文額"
+  "store.min_order": "最低注文額",
+  "an.forecast_title": "売上予測",
+  "an.forecast_next": "来月の予測",
+  "an.forecast_actual": "実績",
+  "an.forecast_projected": "予測",
+  "an.forecast_avg": "平均に基づく（履歴が少ない）"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

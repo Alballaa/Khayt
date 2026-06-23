@@ -479,6 +479,7 @@ function renderAnalytics() {
   renderNewVsReturning();
   renderQuoteFunnelChart();
   renderMonthlyTrendChart();
+  renderRevenueForecast();
   renderMachineRevenueChart();
   renderProfitMarginChart();
   renderMachineAccuracy();
@@ -689,6 +690,61 @@ function renderMonthlyTrendChart() {
         <span><span style="display:inline-block;width:10px;height:10px;background:#22c55e;border-radius:2px;margin-inline-end:4px;"></span>${escapeHtml(t('an.monthly_rev'))}</span>
         <span><span style="display:inline-block;width:10px;height:10px;background:#ef4444;border-radius:2px;margin-inline-end:4px;"></span>${escapeHtml(t('an.monthly_exp'))}</span>
         <span style="color:var(--text-muted);">${escapeHtml(t('an.monthly_profit_above'))}</span>
+      </div>
+      <svg viewBox="0 0 ${svgW} ${svgH}" style="width:100%;max-width:${svgW}px;overflow:visible;">
+        ${yLabels}
+        ${bars}
+        <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT + chartH}" stroke="var(--border)" stroke-width="1"/>
+        <line x1="${padL}" y1="${padT + chartH}" x2="${padL + chartW}" y2="${padT + chartH}" stroke="var(--border)" stroke-width="1"/>
+      </svg>
+    </div>`;
+}
+
+/* ── Revenue forecast (regression over recent months → next 3) ──────────── */
+function renderRevenueForecast() {
+  const el = $('#revenueForecastChart');
+  if (!el) return;
+  if (typeof KhaytForecast === 'undefined') { el.innerHTML = ''; return; }
+  const f = KhaytForecast.forecast(printLog, { now: Date.now(), months: 6, periods: 3, revenueOf: orderRevenueBase });
+  if (f.method === 'none') { el.innerHTML = ''; return; } // nothing to forecast yet
+
+  const monShort = (label) => { try { return new Date(label + '-01').toLocaleDateString(undefined, { month: 'short' }); } catch { return label; } };
+  const series = [
+    ...f.history.map((h) => ({ label: monShort(h.label), val: h.revenue, projected: false })),
+    ...f.projection.map((p) => ({ label: monShort(p.label), val: p.projected, projected: true })),
+  ];
+  const maxVal = Math.max(...series.map((s) => s.val), 1);
+  const svgW = 560, svgH = 160, padL = 50, padR = 12, padT = 24, padB = 36;
+  const chartW = svgW - padL - padR, chartH = svgH - padT - padB;
+  const groupW = chartW / series.length, barW = Math.min(26, groupW * 0.55);
+  const yLabels = [0, 0.5, 1].map((fr) => {
+    const y = padT + chartH - fr * chartH;
+    return `<text x="${padL - 6}" y="${y + 4}" text-anchor="end" font-size="9" fill="var(--text-muted)">${fmtMoney(Math.round(maxVal * fr))}</text>
+            <line x1="${padL}" y1="${y}" x2="${padL + chartW}" y2="${y}" stroke="var(--border)" stroke-dasharray="3,3" stroke-width="0.5"/>`;
+  }).join('');
+  const bars = series.map((s, i) => {
+    const cx = padL + i * groupW + groupW / 2;
+    const h = s.val > 0 ? Math.max(2, (s.val / maxVal) * chartH) : 0;
+    const y = padT + chartH - h;
+    const fill = s.projected ? 'var(--primary, #6366f1)' : '#22c55e';
+    const op = s.projected ? '0.45' : '0.85';
+    const dash = s.projected ? ' stroke="var(--primary,#6366f1)" stroke-width="1" stroke-dasharray="3,2"' : '';
+    return `<rect x="${cx - barW / 2}" y="${y}" width="${barW}" height="${h}" fill="${fill}" opacity="${op}" rx="2"${dash}/>
+      <text x="${cx}" y="${padT + chartH + 16}" text-anchor="middle" font-size="10" fill="var(--text-muted)">${escapeHtml(s.label)}</text>`;
+  }).join('');
+  const trend = f.trendPct == null ? ''
+    : `<span style="color:${f.trendPct >= 0 ? '#22c55e' : '#ef4444'};font-weight:600;">${f.trendPct >= 0 ? '▲' : '▼'} ${Math.abs(f.trendPct)}%</span>`;
+  const note = f.method === 'average' ? ` · <span style="color:var(--text-muted);">${escapeHtml(t('an.forecast_avg') || 'based on average (limited history)')}</span>` : '';
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px;">
+      <h3 class="card-head"><span class="swatch"></span>${escapeHtml(t('an.forecast_title') || 'Revenue forecast')}</h3>
+      <div style="font-size:13px;margin-bottom:8px;">
+        ${escapeHtml(t('an.forecast_next') || 'Projected next month')}: <strong>${fmtPrice(f.nextMonth)}</strong> ${trend}${note}
+      </div>
+      <div style="display:flex;gap:16px;margin-bottom:8px;font-size:11px;">
+        <span><span style="display:inline-block;width:10px;height:10px;background:#22c55e;border-radius:2px;margin-inline-end:4px;"></span>${escapeHtml(t('an.forecast_actual') || 'Actual')}</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:var(--primary,#6366f1);opacity:.5;border-radius:2px;margin-inline-end:4px;"></span>${escapeHtml(t('an.forecast_projected') || 'Projected')}</span>
       </div>
       <svg viewBox="0 0 ${svgW} ${svgH}" style="width:100%;max-width:${svgW}px;overflow:visible;">
         ${yLabels}

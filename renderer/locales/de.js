@@ -2911,6 +2911,11 @@
   "store.sold_out": "Ausverkauft",
   "store.lead_time": "Lieferzeit (optional)",
   "store.lead_ph": "z. B. 3–5 Tage",
-  "store.min_order": "Mindestbestellung"
+  "store.min_order": "Mindestbestellung",
+  "an.forecast_title": "Umsatzprognose",
+  "an.forecast_next": "Prognose nächster Monat",
+  "an.forecast_actual": "Ist",
+  "an.forecast_projected": "Prognose",
+  "an.forecast_avg": "basierend auf Durchschnitt (wenig Verlauf)"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
