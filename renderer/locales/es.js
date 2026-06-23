@@ -2920,6 +2920,17 @@
   "set.mode_current": "actual",
   "set.mode_pro_adds": "todo lo de Simple, y además",
   "wiz.first_machine": "Tu primera impresora (opcional)",
-  "wiz.first_machine_ph": "p. ej. Bambu P1S"
+  "wiz.first_machine_ph": "p. ej. Bambu P1S",
+  "bundle.btn": "🎁 Paquetes",
+  "bundle.title": "Paquetes",
+  "bundle.new": "Nuevo paquete",
+  "bundle.name_ph": "p. ej. Set de escritorio",
+  "bundle.create": "Crear paquete",
+  "bundle.none": "Aún no hay paquetes.",
+  "bundle.empty": "vacío",
+  "bundle.need": "Ponle nombre y elige al menos un producto",
+  "bundle.created": "Paquete creado",
+  "bundle.delete_q": "¿Eliminar este paquete?",
+  "bundle.quoted": "Cotizado «{name}» ({n})"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

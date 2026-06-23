@@ -2558,12 +2558,10 @@ function renderCatalog() {
   }).join('');
 }
 
-function quoteFromProduct(productId) {
-  const p = products.find(x => x.id === productId);
-  if (!p) return;
-  // Append parts to current build, each with a fresh id and freshly computed baseCost.
-  // Catalog parts only store raw inputs — baseCost is derived so it always reflects
-  // the part's current numbers (and any future calculator changes).
+/** Append a product's parts to the current build (fresh ids + derived baseCost).
+ *  Catalog parts store raw inputs only — baseCost is recomputed so it reflects
+ *  current numbers and any later calculator changes. */
+function appendProductParts(p) {
   for (const part of (p.parts || [])) {
     const partCopy = { ...part, id: uid('PRT') };
     if (!partCopy.material && partCopy.filamentId) {
@@ -2573,6 +2571,12 @@ function quoteFromProduct(productId) {
     partCopy.baseCost = computePartBaseCost(partCopy);
     currentBuild.push(partCopy);
   }
+}
+
+function quoteFromProduct(productId) {
+  const p = products.find(x => x.id === productId);
+  if (!p) return;
+  appendProductParts(p);
   currentBuildFromProductId = p.id;
   if (p.defaultMargin !== undefined && p.defaultMargin !== '') {
     $('#margin').value = p.defaultMargin;
@@ -2581,6 +2585,69 @@ function quoteFromProduct(productId) {
   renderBuild();
   renderProductTierChips(p);
   toast(t('calc.quote.from_catalog', { name: localName(p) }), 'info');
+}
+
+/** Quote a bundle: append every member product's parts into one build. */
+function quoteFromBundle(bundleId) {
+  const b = (settings.bundles || []).find(x => x.id === bundleId);
+  if (!b) return;
+  const members = (b.productIds || []).map(id => products.find(p => p.id === id)).filter(Boolean);
+  if (!members.length) { toast(t('bundle.empty') || 'This bundle has no products', 'error'); return; }
+  members.forEach(appendProductParts);
+  currentBuildFromProductId = null;
+  switchTab('calculator-tab');
+  renderBuild();
+  toast((t('bundle.quoted', { name: b.name, n: members.length })) || `Quoted "${b.name}" (${members.length})`, 'info');
+}
+
+/** Manage bundles: list (quote/delete) + create a new named set of products. */
+function openBundlesModal() {
+  if (!settings.bundles) settings.bundles = [];
+  const nameOf = (id) => { const p = products.find(x => x.id === id); return p ? (localName(p) || p.nameEn || id) : ''; };
+  const rows = settings.bundles.map((b) => `
+    <div class="card" data-bid="${escapeHtml(b.id)}" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 12px;margin-bottom:6px;">
+      <div><div style="font-size:13px;font-weight:600;">${escapeHtml(b.name)}</div>
+        <div style="font-size:11px;color:var(--text-muted);">${escapeHtml((b.productIds || []).map(nameOf).filter(Boolean).join(' · ') || (t('bundle.empty') || 'empty'))}</div></div>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <button class="btn small success" data-bq="${escapeHtml(b.id)}">${escapeHtml(t('cat.quote') || 'Quote')}</button>
+        <button class="btn small danger" data-bd="${escapeHtml(b.id)}">${escapeHtml(t('common.delete') || 'Delete')}</button>
+      </div>
+    </div>`).join('') || `<p style="font-size:12px;color:var(--text-muted);">${escapeHtml(t('bundle.none') || 'No bundles yet.')}</p>`;
+  const prodOpts = (products || []).map((p) => `<label style="display:flex;align-items:center;gap:6px;font-size:12.5px;padding:2px 0;cursor:pointer;"><input type="checkbox" class="bundleProd" value="${escapeHtml(p.id)}" style="width:auto;margin:0;"> ${escapeHtml(localName(p) || p.nameEn || p.id)}</label>`).join('')
+    || `<p style="font-size:12px;color:var(--text-muted);">${escapeHtml(t('store.no_products') || 'Add products first')}</p>`;
+  openFormModal({
+    title: `🎁 ${t('bundle.title') || 'Bundles'}`,
+    noSave: true,
+    bodyHtml: `
+      <div id="bundleList">${rows}</div>
+      <hr style="border:none;border-top:1px solid var(--border-soft);margin:12px 0;">
+      <label>${escapeHtml(t('bundle.new') || 'New bundle')}</label>
+      <input id="bundleName" type="text" maxlength="80" placeholder="${escapeHtml(t('bundle.name_ph') || 'e.g. Desk set')}">
+      <div style="max-height:180px;overflow-y:auto;border:1px solid var(--border-soft);border-radius:8px;padding:8px;margin-top:8px;">${prodOpts}</div>
+      <button id="bundleCreate" class="btn primary small" type="button" style="margin-top:10px;">${escapeHtml(t('bundle.create') || 'Create bundle')}</button>
+      <span id="bundleResult" style="font-size:12px;display:block;margin-top:8px;"></span>`,
+    onMount(modal) {
+      modal.querySelectorAll('[data-bq]').forEach((b) => b.addEventListener('click', () => {
+        const id = b.dataset.bq;
+        modal.closest('.modal-backdrop')?.querySelector('[data-act="cancel"]')?.click();
+        quoteFromBundle(id);
+      }));
+      modal.querySelectorAll('[data-bd]').forEach((b) => b.addEventListener('click', async () => {
+        if (!(await confirmModal(t('bundle.delete_q') || 'Delete this bundle?', { danger: true }))) return;
+        settings.bundles = settings.bundles.filter((x) => x.id !== b.dataset.bd); saveAll();
+        b.closest('[data-bid]')?.remove();
+      }));
+      modal.querySelector('#bundleCreate')?.addEventListener('click', () => {
+        const name = modal.querySelector('#bundleName').value.trim();
+        const ids = [...modal.querySelectorAll('.bundleProd:checked')].map((c) => c.value);
+        const res = modal.querySelector('#bundleResult');
+        if (!name || !ids.length) { res.textContent = '✗ ' + (t('bundle.need') || 'Name it and pick at least one product'); res.style.color = 'var(--danger)'; return; }
+        settings.bundles.push({ id: uid('BND'), name, productIds: ids, createdAt: new Date().toISOString() });
+        saveAll();
+        openBundlesModal(); // refresh the list
+      });
+    },
+  });
 }
 
 async function deleteProduct(productId) {
@@ -3581,6 +3648,8 @@ async function printSpoolLabel(itemId) {
     getProductStats,
     renderCatalog,
     quoteFromProduct,
+    quoteFromBundle,
+    openBundlesModal,
     openProductEditor,
     resizeImage,
     computeMaterialForecast,

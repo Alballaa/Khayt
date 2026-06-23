@@ -10,6 +10,7 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 - **Clearer Simple vs Professional modes** — the mode switch (Settings → Experience) now shows a side-by-side comparison of exactly what each tier includes: the Simple core (quoting, queue, invoices, inventory, clients) and everything Professional adds (full analytics & forecasting, ZATCA, proforma/milestone invoices, purchasing & A/P, multi-location, team accounts, maintenance, loyalty), with your current tier highlighted. Backed by a single canonical feature registry so the boundary is consistent.
 - **First-run setup adds your first printer** — the setup wizard now lets you name your first printer during onboarding, so the queue and calculator have a machine ready to go from the start.
+- **Quote bundles** — save a named set of catalog products as a **bundle** (e.g. "Desk set") and quote them all into the calculator in one tap (**Catalog → 🎁 Bundles**). Complements the existing per-part volume/tier pricing.
 
 ## [3.0.0-beta.12] - 2026-06-23
 

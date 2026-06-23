@@ -2920,6 +2920,17 @@
   "set.mode_current": "actuel",
   "set.mode_pro_adds": "tout ce qu’offre Simple, et en plus",
   "wiz.first_machine": "Votre première imprimante (facultatif)",
-  "wiz.first_machine_ph": "ex. Bambu P1S"
+  "wiz.first_machine_ph": "ex. Bambu P1S",
+  "bundle.btn": "🎁 Lots",
+  "bundle.title": "Lots",
+  "bundle.new": "Nouveau lot",
+  "bundle.name_ph": "ex. Ensemble bureau",
+  "bundle.create": "Créer le lot",
+  "bundle.none": "Aucun lot pour l’instant.",
+  "bundle.empty": "vide",
+  "bundle.need": "Nommez-le et choisissez au moins un produit",
+  "bundle.created": "Lot créé",
+  "bundle.delete_q": "Supprimer ce lot ?",
+  "bundle.quoted": "Devis « {name} » ({n})"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

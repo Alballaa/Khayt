@@ -2922,6 +2922,17 @@
   "set.mode_current": "current",
   "set.mode_pro_adds": "everything in Simple, plus",
   "wiz.first_machine": "Your first printer (optional)",
-  "wiz.first_machine_ph": "e.g. Bambu P1S"
+  "wiz.first_machine_ph": "e.g. Bambu P1S",
+  "bundle.btn": "🎁 Bundles",
+  "bundle.title": "Bundles",
+  "bundle.new": "New bundle",
+  "bundle.name_ph": "e.g. Desk set",
+  "bundle.create": "Create bundle",
+  "bundle.none": "No bundles yet.",
+  "bundle.empty": "empty",
+  "bundle.need": "Name it and pick at least one product",
+  "bundle.created": "Bundle created",
+  "bundle.delete_q": "Delete this bundle?",
+  "bundle.quoted": "Quoted “{name}” ({n})"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

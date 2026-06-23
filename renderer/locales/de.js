@@ -2920,6 +2920,17 @@
   "set.mode_current": "aktuell",
   "set.mode_pro_adds": "alles aus Simple, plus",
   "wiz.first_machine": "Ihr erster Drucker (optional)",
-  "wiz.first_machine_ph": "z. B. Bambu P1S"
+  "wiz.first_machine_ph": "z. B. Bambu P1S",
+  "bundle.btn": "🎁 Bündel",
+  "bundle.title": "Bündel",
+  "bundle.new": "Neues Bündel",
+  "bundle.name_ph": "z. B. Schreibtisch-Set",
+  "bundle.create": "Bündel erstellen",
+  "bundle.none": "Noch keine Bündel.",
+  "bundle.empty": "leer",
+  "bundle.need": "Benennen Sie es und wählen Sie mind. ein Produkt",
+  "bundle.created": "Bündel erstellt",
+  "bundle.delete_q": "Dieses Bündel löschen?",
+  "bundle.quoted": "„{name}“ angeboten ({n})"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
