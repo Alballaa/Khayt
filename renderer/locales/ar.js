@@ -2944,6 +2944,8 @@
   "integ.connect_cloud": "اربط السحابة",
   "integ.copy_import": "نسخ رابط الاستيراد",
   "integ.import_copied": "تم نسخ رابط الاستيراد — الصقه كـ webhook في متجرك",
+  "integ.copy_feed": "نسخ رابط الخلاصة",
+  "integ.feed_copied": "تم نسخ رابط الخلاصة — أضِفه كرابط استيراد للمنتجات في متجرك",
   "integ.pay_link_ph": "رابط الدفع الخاص بك (اختياري) — استخدم {amount}"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

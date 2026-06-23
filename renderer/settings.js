@@ -174,16 +174,20 @@ function renderIntegrationsSettings() {
 
   const cloud = settings.cloud || {};
   const cloudReady = !!(cloud.enabled && cloud.url && cloud.shopId);
-  const importUrl = (pid) => `${String(cloud.url || '').replace(/\/+$/, '')}/v1/shops/${cloud.shopId}/import/${pid}`;
+  const cloudBase = String(cloud.url || '').replace(/\/+$/, '');
+  const importUrl = (pid) => `${cloudBase}/v1/shops/${cloud.shopId}/import/${pid}`;
+  const feedUrl = (pid) => `${cloudBase}/v1/shops/${cloud.shopId}/feed/${pid}`;
+  const pill = (label) => `<span style="font-size:10px;color:var(--text-muted);border:1px solid var(--border-soft);border-radius:999px;padding:1px 7px;">${escapeHtml(label)}</span>`;
+  const linkBtn = (url, label) => `<button class="btn small ghost integCopy" type="button" data-url="${escapeHtml(url)}">${escapeHtml(label)}</button>`;
   const storefrontRows = m.storefronts.map((sf) => {
-    const canImport = sf.dir.includes('in');
-    const action = (canImport && cloudReady)
-      ? `<button class="btn small ghost integImport" type="button" data-url="${escapeHtml(importUrl(sf.id))}">${escapeHtml(t('integ.copy_import') || 'Copy import link')}</button>`
-      : `<span style="font-size:10px;color:var(--text-muted);border:1px solid var(--border-soft);border-radius:999px;padding:1px 7px;">${escapeHtml(canImport ? (t('integ.connect_cloud') || 'connect cloud') : (t('integ.soon') || 'soon'))}</span>`;
-    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border-soft);">
+    const actions = [];
+    if (sf.dir.includes('in')) actions.push(cloudReady ? linkBtn(importUrl(sf.id), t('integ.copy_import') || 'Copy import link') : pill(t('integ.connect_cloud') || 'connect cloud'));
+    if (sf.dir.includes('out')) actions.push(cloudReady ? linkBtn(feedUrl(sf.id), t('integ.copy_feed') || 'Copy feed link') : pill(t('integ.connect_cloud') || 'connect cloud'));
+    if (!actions.length) actions.push(pill(t('integ.soon') || 'soon'));
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border-soft);flex-wrap:wrap;">
       <span style="flex:1;font-size:13px;font-weight:600;">${escapeHtml(sf.name)}</span>
       <span style="font-size:10.5px;color:var(--text-muted);">${sf.dir.map(dirLabel).map(escapeHtml).join(' · ')}</span>
-      ${action}
+      ${actions.join('')}
     </div>`;
   }).join('');
 
@@ -214,10 +218,14 @@ function renderIntegrationsSettings() {
     </div>`;
 
   el.querySelector('#integMarket')?.addEventListener('change', (e) => { el.dataset.market = e.target.value; renderIntegrationsSettings(); });
-  el.querySelectorAll('.integImport').forEach((btn) => btn.addEventListener('click', async () => {
+  el.querySelectorAll('.integCopy').forEach((btn) => btn.addEventListener('click', async () => {
     try { await navigator.clipboard.writeText(btn.dataset.url || ''); } catch (_) { /* ignore */ }
+    const isFeed = /\/feed\//.test(btn.dataset.url || '');
+    const msg = isFeed
+      ? (t('integ.feed_copied') || 'Feed link copied — add it as a product import URL in your store')
+      : (t('integ.import_copied') || 'Import link copied — paste it as a webhook in your store');
     const r = el.querySelector('#integResult');
-    if (r) { r.textContent = '✓ ' + (t('integ.import_copied') || 'Import link copied — paste it as a webhook in your store'); r.style.color = 'var(--success)'; }
+    if (r) { r.textContent = '✓ ' + msg; r.style.color = 'var(--success)'; }
   }));
   el.querySelectorAll('.payEnable').forEach((cb) => cb.addEventListener('change', () => {
     const link = el.querySelector(`.payLink[data-pid="${cb.dataset.pid}"]`); if (link) link.style.opacity = cb.checked ? '1' : '.5';

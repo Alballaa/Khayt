@@ -2945,6 +2945,8 @@
   "integ.connect_cloud": "connect cloud",
   "integ.copy_import": "Copy import link",
   "integ.import_copied": "Import link copied — paste it as a webhook in your store",
+  "integ.copy_feed": "Copy feed link",
+  "integ.feed_copied": "Feed link copied — add it as a product import URL in your store",
   "integ.pay_link_ph": "your payment link (optional) — use {amount}"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
