@@ -2947,6 +2947,9 @@
   "integ.import_copied": "Import link copied — paste it as a webhook in your store",
   "integ.copy_feed": "Copy feed link",
   "integ.feed_copied": "Feed link copied — add it as a product import URL in your store",
+  "integ.import_help": "paste the import link as an order webhook in your store — new orders arrive in Order requests.",
+  "integ.feed_help": "add the feed link as a product import URL in your store — it mirrors your published storefront catalog.",
+  "integ.cloud_hint": "Connect cloud sync (Settings → Cloud) to get import & feed links for these storefronts.",
   "integ.pay_link_ph": "your payment link (optional) — use {amount}"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
