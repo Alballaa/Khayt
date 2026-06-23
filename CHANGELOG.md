@@ -8,6 +8,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Executive summary** — a one-screen KPI overview (Analytics → **Executive summary**) with quick date ranges (this month / last month / quarter / year / all): revenue, gross profit & margin, average order value, **on-time delivery %**, cash outstanding, and your **top clients & top jobs** for the period — at a glance, no scrolling through charts.
+
 - **Inventory on your phone** — the mobile web app gains an **Inventory** tab: see every spool sorted by how much is left (low stock first, flagged), and tap one to **deduct or top up** grams on the spot — synced back to the desktop. Requires cloud sync.
 
 - **Download invoice from the portal** — when you publish an order or quote to the customer portal, the page now offers a **Download invoice (PDF)** button that renders a clean printable invoice/receipt — your shop name, VAT & address, the reference, total, deposit/balance, and a PAID stamp — which the customer saves as a PDF straight from their browser.

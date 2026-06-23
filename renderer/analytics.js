@@ -2552,6 +2552,80 @@ function renderTimeAnalytics() {
     </div>` : ''}`;
 }
 
+/** Executive summary: at-a-glance KPIs (revenue, margin, on-time, cash) + top
+ *  clients/products, scoped to a quick date range. Self-contained modal. */
+function openExecutiveSummary() {
+  if (typeof KhaytKpi === 'undefined') { toast('KPI module not loaded', 'error'); return; }
+  const cur = (typeof currencySymbol === 'function') ? currencySymbol() : '';
+  let range = 'month';
+
+  const bounds = (r) => {
+    const now = new Date(); const y = now.getFullYear(); const m = now.getMonth();
+    const ymd = (d) => d.toISOString().slice(0, 10);
+    if (r === 'month') return [ymd(new Date(y, m, 1)), ymd(new Date(y, m + 1, 0))];
+    if (r === 'last_month') return [ymd(new Date(y, m - 1, 1)), ymd(new Date(y, m, 0))];
+    if (r === 'quarter') { const q = Math.floor(m / 3); return [ymd(new Date(y, q * 3, 1)), ymd(new Date(y, q * 3 + 3, 0))]; }
+    if (r === 'year') return [ymd(new Date(y, 0, 1)), ymd(new Date(y, 11, 31))];
+    return ['', '']; // all
+  };
+  const rowsFor = (r) => {
+    const [from, to] = bounds(r);
+    const inR = (d) => { const x = (d || '').slice(0, 10); if (!x) return !from && !to; return (!from || x >= from) && (!to || x <= to); };
+    return (printLog || []).filter((o) => !o.voidedAt && o.status !== 'quote' && inR(o.date)).map((o) => {
+      const done = o.status === 'completed' || o.status === 'delivered';
+      const completedAt = (o.completedAt || o.deliveredAt || o.date || '').slice(0, 10);
+      const client = o.clientId ? clients.find((c) => c.id === o.clientId) : null;
+      return {
+        revenue: orderRevenueBase(o),
+        cost: (o.parts || []).reduce((s, p) => s + computePartBaseCost(p), 0) + convertToBase(+o.shippingCost || 0, orderCurrency(o)),
+        completed: done,
+        onTime: (done && o.dueDate) ? (!!completedAt && completedAt <= o.dueDate) : null,
+        outstanding: (typeof orderOwedBase === 'function') ? orderOwedBase(o) : 0,
+        clientName: client ? (typeof localName === 'function' ? localName(client) : client.name) : (t('dash.unassigned') || '—'),
+        productName: o.project || o.id,
+      };
+    });
+  };
+
+  const card = (label, value, sub) => `<div style="flex:1;min-width:120px;background:var(--bg-elev,#1a1d24);border:1px solid var(--border-soft);border-radius:12px;padding:12px 14px;">
+    <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;">${escapeHtml(label)}</div>
+    <div style="font-size:21px;font-weight:700;margin-top:3px;">${escapeHtml(value)}</div>
+    ${sub ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${escapeHtml(sub)}</div>` : ''}
+  </div>`;
+  const topList = (title, items) => `<div style="flex:1;min-width:200px;">
+    <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">${escapeHtml(title)}</div>
+    ${items.length ? items.map((x) => `<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:13px;border-bottom:1px solid var(--border-soft);"><span>${escapeHtml(x.name)}</span><span style="font-variant-numeric:tabular-nums;">${escapeHtml(fmtMoney(x.revenue))} · ${x.count}</span></div>`).join('') : `<div style="font-size:12.5px;color:var(--text-muted);">${escapeHtml(t('exec.none') || '—')}</div>`}
+  </div>`;
+
+  const renderBody = (modal) => {
+    const k = KhaytKpi.computeKpis(rowsFor(range));
+    const ranges = [['month', t('an.range.month')], ['last_month', t('an.range.last_month')], ['quarter', t('an.range.quarter')], ['year', t('an.range.year')], ['all', t('an.range.all')]];
+    modal.querySelector('#execBody').innerHTML = `
+      <div class="seg" style="display:inline-flex;flex-wrap:wrap;gap:4px;margin-bottom:12px;">
+        ${ranges.map(([v, lbl]) => `<button type="button" class="execRange${v === range ? ' on' : ''}" data-r="${v}" style="font-size:12px;padding:5px 10px;">${escapeHtml(lbl || v)}</button>`).join('')}
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        ${card(t('an.revenue') || 'Revenue', fmtMoney(k.revenue) + ' ' + cur, k.completedCount + ' ' + (t('exec.completed') || 'completed'))}
+        ${card(t('pnl.gross') || 'Gross profit', fmtMoney(k.grossProfit) + ' ' + cur, (t('pnl.gross_margin') || 'Margin') + ' ' + k.grossMargin + '%')}
+        ${card(t('exec.aov') || 'Avg order', fmtMoney(k.avgOrderValue) + ' ' + cur, '')}
+        ${card(t('exec.on_time') || 'On-time', k.onTimePct == null ? '—' : k.onTimePct + '%', k.onTimeTotal + ' ' + (t('exec.with_due') || 'with due date'))}
+        ${card(t('exec.outstanding') || 'Outstanding', fmtMoney(k.outstanding) + ' ' + cur, '')}
+      </div>
+      <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:16px;">
+        ${topList(t('exec.top_clients') || 'Top clients', k.topClients)}
+        ${topList(t('exec.top_products') || 'Top jobs', k.topProducts)}
+      </div>`;
+    modal.querySelectorAll('.execRange').forEach((b) => b.addEventListener('click', () => { range = b.dataset.r; renderBody(modal); }));
+  };
+
+  openFormModal({
+    title: '📊 ' + (t('exec.title') || 'Executive summary'),
+    noSave: true,
+    bodyHtml: `<div id="execBody"></div>`,
+    onMount(modal) { renderBody(modal); },
+  });
+}
+
 /** Export a P&L summary CSV scoped to the selected analytics date range. */
 function exportPnlCsv() {
   const sel = $('#analyticsRange');
@@ -3110,6 +3184,7 @@ function renderBreakEvenCard() {
     renderAnalytics,
     exportAnalyticsReport,
     exportPnlCsv,
+    openExecutiveSummary,
     renderClientRetention,
     renderCostTrends,
     renderOperatorAnalytics,
