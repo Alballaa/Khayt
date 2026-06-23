@@ -2558,6 +2558,8 @@ function openExecutiveSummary() {
   if (typeof KhaytKpi === 'undefined') { toast('KPI module not loaded', 'error'); return; }
   const cur = (typeof currencySymbol === 'function') ? currencySymbol() : '';
   let range = 'month';
+  let locId = settings.activeLocationId || ''; // '' = all locations
+  const locList = (typeof locations !== 'undefined' && Array.isArray(locations)) ? locations : [];
 
   const bounds = (r) => {
     const now = new Date(); const y = now.getFullYear(); const m = now.getMonth();
@@ -2571,7 +2573,8 @@ function openExecutiveSummary() {
   const rowsFor = (r) => {
     const [from, to] = bounds(r);
     const inR = (d) => { const x = (d || '').slice(0, 10); if (!x) return !from && !to; return (!from || x >= from) && (!to || x <= to); };
-    return (printLog || []).filter((o) => !o.voidedAt && o.status !== 'quote' && inR(o.date)).map((o) => {
+    const inLoc = (o) => !locId || (typeof orderLocationId === 'function' ? orderLocationId(o) === locId : true);
+    return (printLog || []).filter((o) => !o.voidedAt && o.status !== 'quote' && inR(o.date) && inLoc(o)).map((o) => {
       const done = o.status === 'completed' || o.status === 'delivered';
       const completedAt = (o.completedAt || o.deliveredAt || o.date || '').slice(0, 10);
       const client = o.clientId ? clients.find((c) => c.id === o.clientId) : null;
@@ -2600,10 +2603,14 @@ function openExecutiveSummary() {
   const renderBody = (modal) => {
     const k = KhaytKpi.computeKpis(rowsFor(range));
     const ranges = [['month', t('an.range.month')], ['last_month', t('an.range.last_month')], ['quarter', t('an.range.quarter')], ['year', t('an.range.year')], ['all', t('an.range.all')]];
+    const locSelect = locList.length ? `<select id="execLoc" style="font-size:12px;margin-bottom:12px;margin-inline-start:8px;width:auto;">
+        <option value=""${locId === '' ? ' selected' : ''}>${escapeHtml(t('loc.all') || 'All locations')}</option>
+        ${locList.map((l) => `<option value="${escapeHtml(l.id)}"${l.id === locId ? ' selected' : ''}>${escapeHtml(l.name || l.id)}</option>`).join('')}
+      </select>` : '';
     modal.querySelector('#execBody').innerHTML = `
       <div class="seg" style="display:inline-flex;flex-wrap:wrap;gap:4px;margin-bottom:12px;">
         ${ranges.map(([v, lbl]) => `<button type="button" class="execRange${v === range ? ' on' : ''}" data-r="${v}" style="font-size:12px;padding:5px 10px;">${escapeHtml(lbl || v)}</button>`).join('')}
-      </div>
+      </div>${locSelect}
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         ${card(t('an.revenue') || 'Revenue', fmtMoney(k.revenue) + ' ' + cur, k.completedCount + ' ' + (t('exec.completed') || 'completed'))}
         ${card(t('pnl.gross') || 'Gross profit', fmtMoney(k.grossProfit) + ' ' + cur, (t('pnl.gross_margin') || 'Margin') + ' ' + k.grossMargin + '%')}
@@ -2616,6 +2623,7 @@ function openExecutiveSummary() {
         ${topList(t('exec.top_products') || 'Top jobs', k.topProducts)}
       </div>`;
     modal.querySelectorAll('.execRange').forEach((b) => b.addEventListener('click', () => { range = b.dataset.r; renderBody(modal); }));
+    modal.querySelector('#execLoc')?.addEventListener('change', (e) => { locId = e.target.value; renderBody(modal); });
   };
 
   openFormModal({
