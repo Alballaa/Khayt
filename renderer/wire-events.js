@@ -1205,6 +1205,7 @@ function wireEvents() {
   $('#btnImportProductsCsv')?.addEventListener('click', importProductsCsv);
   $('#btnAddProduct').addEventListener('click', () => openProductEditor(null));
   $('#catalogSearch').addEventListener('input', (e) => { catalogSearchTerm = e.target.value; renderCatalog(); });
+  $('#btnBundles')?.addEventListener('click', () => { if (typeof openBundlesModal === 'function') openBundlesModal(); });
   let _invSearchTimer = null;
   $('#invSearch')?.addEventListener('input', (e) => {
     invSearchTerm = e.target.value;

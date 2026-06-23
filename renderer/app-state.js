@@ -160,6 +160,8 @@ function defaultSettings() {
     smsConfig:        { provider: 'none', channel: 'whatsapp', accountSid: '', authToken: '', from: '', phoneNumberId: '', token: '', appSid: '', senderId: '', url: '', secret: '' },
     // Print-farm auto-scheduling: when on, queued jobs are auto-assigned to free machines
     autoSchedule:     false,
+    // Quote bundles: reusable named sets of products → one-tap multi-product quote
+    bundles:          [],
     // Accounting sync: one-way webhook push of invoices/expenses (QuickBooks/Zoho/Xero bridge)
     accountingSync:   { enabled: false, format: 'generic', webhookUrl: '', secret: '', pushOnPaid: true },
     // Feature 7 (new batch): Operator lock

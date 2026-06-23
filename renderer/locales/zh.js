@@ -2920,6 +2920,17 @@
   "set.mode_current": "当前",
   "set.mode_pro_adds": "简单版的全部，外加",
   "wiz.first_machine": "你的第一台打印机（可选）",
-  "wiz.first_machine_ph": "例如 Bambu P1S"
+  "wiz.first_machine_ph": "例如 Bambu P1S",
+  "bundle.btn": "🎁 套装",
+  "bundle.title": "套装",
+  "bundle.new": "新建套装",
+  "bundle.name_ph": "例如：桌面套装",
+  "bundle.create": "创建套装",
+  "bundle.none": "暂无套装。",
+  "bundle.empty": "空",
+  "bundle.need": "请命名并至少选择一个产品",
+  "bundle.created": "套装已创建",
+  "bundle.delete_q": "删除此套装？",
+  "bundle.quoted": "已报价\"{name}\"（{n}）"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

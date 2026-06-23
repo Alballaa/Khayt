@@ -2920,6 +2920,17 @@
   "set.mode_current": "現在",
   "set.mode_pro_adds": "シンプルのすべて＋",
   "wiz.first_machine": "最初のプリンター（任意）",
-  "wiz.first_machine_ph": "例：Bambu P1S"
+  "wiz.first_machine_ph": "例：Bambu P1S",
+  "bundle.btn": "🎁 バンドル",
+  "bundle.title": "バンドル",
+  "bundle.new": "新しいバンドル",
+  "bundle.name_ph": "例：デスクセット",
+  "bundle.create": "バンドルを作成",
+  "bundle.none": "バンドルはまだありません。",
+  "bundle.empty": "空",
+  "bundle.need": "名前を付けて製品を1つ以上選択",
+  "bundle.created": "バンドルを作成しました",
+  "bundle.delete_q": "このバンドルを削除しますか？",
+  "bundle.quoted": "「{name}」を見積もり（{n}）"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

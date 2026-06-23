@@ -2921,6 +2921,17 @@
   "set.mode_current": "الحالي",
   "set.mode_pro_adds": "كل ما في «المبسّط» بالإضافة إلى",
   "wiz.first_machine": "طابعتك الأولى (اختياري)",
-  "wiz.first_machine_ph": "مثال: Bambu P1S"
+  "wiz.first_machine_ph": "مثال: Bambu P1S",
+  "bundle.btn": "🎁 الحزم",
+  "bundle.title": "الحزم",
+  "bundle.new": "حزمة جديدة",
+  "bundle.name_ph": "مثال: طقم مكتب",
+  "bundle.create": "إنشاء حزمة",
+  "bundle.none": "لا حزم بعد.",
+  "bundle.empty": "فارغة",
+  "bundle.need": "أدخل اسماً واختر منتجاً واحداً على الأقل",
+  "bundle.created": "تم إنشاء الحزمة",
+  "bundle.delete_q": "حذف هذه الحزمة؟",
+  "bundle.quoted": "تم تسعير «{name}» ({n})"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
