@@ -246,3 +246,18 @@ test('selectDueSubscriptions is deterministic for a fixed now', () => {
   const subs = [sub({ id: 'A', nextRunAt: '2026-06-01' })];
   assert.deepEqual(selectDueSubscriptions(subs, NOW), selectDueSubscriptions(subs, NOW));
 });
+
+test('monthlyRecurringRevenue normalizes intervals + ignores non-active', () => {
+  const { monthlyRecurringRevenue } = require('../lib/subscriptions.js');
+  const subs = [
+    { status: 'active', amount: 100, interval: 'monthly' },    // 100/mo
+    { status: 'active', amount: 300, interval: 'quarterly' },  // 100/mo
+    { status: 'active', amount: 1200, interval: 'yearly' },    // 100/mo
+    { status: 'paused', amount: 999, interval: 'monthly' },    // ignored
+    { status: 'active', amount: 0, interval: 'monthly' },      // 0
+  ];
+  assert.equal(monthlyRecurringRevenue(subs), 300);
+  assert.equal(monthlyRecurringRevenue([]), 0);
+  // weekly ≈ 4.33 cycles/month
+  assert.ok(Math.abs(monthlyRecurringRevenue([{ status: 'active', amount: 10, interval: 'weekly' }]) - 43.45) < 0.2);
+});

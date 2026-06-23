@@ -8,6 +8,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Subscriptions & retainers** — bill clients a recurring fee on a schedule (Clients → 🔁 **Subscriptions**): set up plans like a monthly maintenance retainer or a print-credit package (daily → yearly), and Khayt auto-generates the invoice each cycle (catching up if the app was closed), pausing/ending on demand. The panel shows your **monthly recurring revenue (MRR)**. Distinct from recurring orders, which reprint a past job rather than billing a flat fee.
+
 - **Auto-draft purchase orders** — turn on **Auto-draft POs** in Inventory and Khayt will automatically create *draft* purchase orders for materials that have hit their reorder point (based on the demand forecast), skipping anything that already has an open PO so nothing piles up. Drafts only — you review and send them. Runs at startup and when you enable it.
 
 - **Schedule board with completion ETAs** — the Queue → **Schedule** view now estimates *when* each job will be ready: it sequences each printer's queue and projects completion dates from your working hours per day, shows a **"ready by …"** date per machine, and flags jobs that will **miss their due date** (outlined in red). Turns the load bars into an actual forecast.
