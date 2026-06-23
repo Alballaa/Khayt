@@ -1205,7 +1205,12 @@ function wireEvents() {
   $('#btnImportProductsCsv')?.addEventListener('click', importProductsCsv);
   $('#btnAddProduct').addEventListener('click', () => openProductEditor(null));
   $('#catalogSearch').addEventListener('input', (e) => { catalogSearchTerm = e.target.value; renderCatalog(); });
-  $('#invSearch')?.addEventListener('input', (e) => { invSearchTerm = e.target.value; renderInventory(); });
+  let _invSearchTimer = null;
+  $('#invSearch')?.addEventListener('input', (e) => {
+    invSearchTerm = e.target.value;
+    clearTimeout(_invSearchTimer);
+    _invSearchTimer = setTimeout(renderInventory, 150);
+  });
   $('#supplierSearch')?.addEventListener('input', (e) => { supplierSearchTerm = e.target.value; renderSuppliers(); });
   // QW9: Waste log filters
   $('#wasteSearch')?.addEventListener('input', (e) => { wasteSearchTerm = e.target.value; renderWasteLog(); });
