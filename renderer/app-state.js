@@ -104,6 +104,7 @@ function defaultSettings() {
     useHijri:        true,
     useArabicNumerals: false,
     autoBackup:      true,
+    autoDraftPo:     false,
     enableVat:       false,
     vatRate:         15,
     bizLogo:         '',

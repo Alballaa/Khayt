@@ -416,6 +416,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   maybeAutoBackup();
   updateLastBackupDisplay();
 
+  // Opt-in: auto-draft purchase orders for items at their reorder point.
+  if (typeof maybeAutoDraftPurchaseOrders === 'function') { try { maybeAutoDraftPurchaseOrders(); } catch (e) { console.warn('auto-draft PO:', e); } }
+
   // When connectivity returns, immediately flush any changes stranded offline
   // (resets the sync backoff). No-op when cloud sync is off.
   window.addEventListener('online', () => {
