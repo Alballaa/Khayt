@@ -1853,6 +1853,8 @@
   "ord.parts_delivered": "{done} of {total} parts delivered",
   "ord.mark_delivered_parts": "Mark selected as delivered",
   "kan.schedule_view": "Schedule",
+  "sched.ready_by": "ready",
+  "sched.late": "late",
   "kan.calendar_view": "Calendar",
   "kan.kiosk_view": "Kiosk",
   "kan.kanban_view": "Kanban",
