@@ -2906,6 +2906,11 @@
   "scan.go": "OK",
   "scan.manual_hint": "Fonctionne avec un lecteur de code-barres USB/Bluetooth, ou scannez le QR d’une étiquette Khayt avec la caméra.",
   "scan.spool_missing": "Cette bobine n’est pas dans votre inventaire.",
-  "scan.order_missing": "Commande introuvable."
+  "scan.order_missing": "Commande introuvable.",
+  "store.category_ph": "catégorie",
+  "store.sold_out": "Épuisé",
+  "store.lead_time": "Délai (facultatif)",
+  "store.lead_ph": "ex. 3–5 jours",
+  "store.min_order": "Commande minimum"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

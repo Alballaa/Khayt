@@ -2907,6 +2907,11 @@
   "scan.go": "تنفيذ",
   "scan.manual_hint": "يعمل مع ماسح باركود USB/بلوتوث، أو امسح رمز ملصق خيط بالكاميرا.",
   "scan.spool_missing": "هذه البكرة غير موجودة في مخزونك.",
-  "scan.order_missing": "لم يُعثر على هذا الطلب."
+  "scan.order_missing": "لم يُعثر على هذا الطلب.",
+  "store.category_ph": "الفئة",
+  "store.sold_out": "نفد",
+  "store.lead_time": "مدة التنفيذ (اختياري)",
+  "store.lead_ph": "مثال: ٣–٥ أيام",
+  "store.min_order": "الحد الأدنى للطلب"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

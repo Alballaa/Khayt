@@ -9,6 +9,7 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 ### Added
 
 - **Scan-in workflow** — the camera/barcode scanner now recognises Khayt's own label QR codes: scan a **spool label** to open that spool (quick deduct/top-up), or an **order label** (or its customer tracking QR) to open that order. Works with the camera or a USB/Bluetooth barcode scanner (or just type/paste a code). Closes the loop with the QR labels added in beta.11.
+- **Storefront depth** — the public storefront grew up: organise products into **categories** (shown as sections), set a **lead time** and a **minimum order**, and mark items **sold out** — all from **Khayt Cloud → 🏬 Storefront**. The shop page groups by category, shows the lead-time, blocks checkout below the minimum, and tightens the grid on small phones.
 
 ## [3.0.0-beta.11] - 2026-06-23
 

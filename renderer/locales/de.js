@@ -2906,6 +2906,11 @@
   "scan.go": "Los",
   "scan.manual_hint": "Funktioniert mit einem USB-/Bluetooth-Barcodescanner oder scannen Sie einen Khayt-Etiketten-QR mit der Kamera.",
   "scan.spool_missing": "Diese Spule ist nicht in Ihrem Bestand.",
-  "scan.order_missing": "Dieser Auftrag wurde nicht gefunden."
+  "scan.order_missing": "Dieser Auftrag wurde nicht gefunden.",
+  "store.category_ph": "Kategorie",
+  "store.sold_out": "Ausverkauft",
+  "store.lead_time": "Lieferzeit (optional)",
+  "store.lead_ph": "z. B. 3–5 Tage",
+  "store.min_order": "Mindestbestellung"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

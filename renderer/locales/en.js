@@ -2908,6 +2908,11 @@
   "scan.go": "Go",
   "scan.manual_hint": "Works with a USB/Bluetooth barcode scanner, or scan a Khayt label QR with the camera.",
   "scan.spool_missing": "That spool is not in your inventory.",
-  "scan.order_missing": "That order was not found."
+  "scan.order_missing": "That order was not found.",
+  "store.category_ph": "category",
+  "store.sold_out": "Sold out",
+  "store.lead_time": "Lead time (optional)",
+  "store.lead_ph": "e.g. 3–5 days",
+  "store.min_order": "Minimum order"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
