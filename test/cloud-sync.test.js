@@ -145,3 +145,48 @@ test('onStatus listener receives transitions', async () => {
   assert.ok(seen.includes('syncing'));
   assert.ok(seen.includes('synced'));
 });
+
+test('offline failure → status offline + auto-retry that succeeds when back online', async () => {
+  let attempts = 0;
+  const { deps, calls } = makeDeps({
+    push: async () => { attempts++; if (attempts === 1) throw new Error('network down'); return { ok: true, rev: 7 }; },
+  });
+  deps.retryBaseMs = 10; // fast backoff for the test
+  sync.configure(deps);
+  const r = await sync.syncNow();
+  assert.equal(r.ok, false, 'first push fails offline');
+  assert.equal(sync.status(), 'offline');
+  // the controller scheduled an automatic retry; wait for it
+  await new Promise((res) => setTimeout(res, 40));
+  assert.equal(attempts, 2, 'auto-retried after backoff');
+  assert.equal(sync.status(), 'synced', 'retry succeeded once connectivity returned');
+});
+
+test('flush() retries immediately and resets backoff', async () => {
+  let attempts = 0;
+  const { deps } = makeDeps({
+    push: async () => { attempts++; if (attempts === 1) throw new Error('offline'); return { ok: true, rev: 3 }; },
+  });
+  deps.retryBaseMs = 60_000; // long, so only an explicit flush would retry in time
+  sync.configure(deps);
+  await sync.syncNow();
+  assert.equal(sync.status(), 'offline');
+  const r = await sync.flush(); // e.g. the window 'online' event
+  assert.equal(r.ok, true);
+  assert.equal(attempts, 2);
+  assert.equal(sync.status(), 'synced');
+});
+
+test('a fresh edit supersedes the pending retry (no double-push)', async () => {
+  let attempts = 0;
+  const { deps } = makeDeps({
+    push: async () => { attempts++; if (attempts === 1) throw new Error('offline'); return { ok: true, rev: 1 }; },
+  });
+  deps.retryBaseMs = 10; deps.debounceMs = 5;
+  sync.configure(deps);
+  await sync.syncNow();          // attempt 1 fails → retry scheduled (~10ms)
+  sync.scheduleSync();           // a new edit arrives → supersedes the retry (~5ms)
+  await new Promise((res) => setTimeout(res, 40));
+  assert.equal(attempts, 2, 'exactly one more push, not two');
+  assert.equal(sync.status(), 'synced');
+});

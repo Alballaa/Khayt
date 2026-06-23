@@ -416,6 +416,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   maybeAutoBackup();
   updateLastBackupDisplay();
 
+  // When connectivity returns, immediately flush any changes stranded offline
+  // (resets the sync backoff). No-op when cloud sync is off.
+  window.addEventListener('online', () => {
+    try { if (window.KhaytCloudSync?.isOn()) KhaytCloudSync.flush(); } catch (e) { /* non-fatal */ }
+  });
+
   // iOS companion: react to spools/orders changed via LAN API from phone
   if (window.hubAPI?.onLanSpoolAdded) {
     window.hubAPI.onLanSpoolAdded(spool => {

@@ -19,14 +19,32 @@
   'use strict';
 
   const DEFAULT_DEBOUNCE_MS = 2500;
+  const DEFAULT_RETRY_BASE_MS = 5000;       // first auto-retry after a failed sync
+  const DEFAULT_RETRY_MAX_MS = 5 * 60 * 1000; // backoff ceiling (5 min)
 
-  let deps = null;          // { push, pull, buildSnapshot, applySnapshot, save, appendOnly?, debounceMs? }
+  let deps = null;          // { push, pull, buildSnapshot, applySnapshot, save, appendOnly?, debounceMs?, retryBaseMs?, retryMaxMs? }
   let timer = null;
+  let retryTimer = null;    // pending auto-retry after an offline/error failure
+  let retryAttempt = 0;     // backoff exponent; reset on success / new edit / flush
   let inFlight = false;
   let pendingAfter = false; // a change arrived mid-sync → run once more after
   let statusVal = 'off';    // off | idle | syncing | synced | conflict | locked | offline | error
   let lastError = null;
   let listeners = [];
+
+  function clearRetry() { if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; } }
+
+  /** Schedule an automatic retry after a transient failure, backing off
+   *  exponentially (base · 2^attempt, capped). A new edit or flush() supersedes. */
+  function scheduleRetry() {
+    if (!deps || inFlight) return;
+    clearRetry();
+    const base = (deps && typeof deps.retryBaseMs === 'number') ? deps.retryBaseMs : DEFAULT_RETRY_BASE_MS;
+    const max = (deps && typeof deps.retryMaxMs === 'number') ? deps.retryMaxMs : DEFAULT_RETRY_MAX_MS;
+    const delay = Math.min(base * Math.pow(2, retryAttempt), max);
+    retryAttempt++;
+    retryTimer = setTimeout(() => { retryTimer = null; syncNow(); }, delay);
+  }
 
   function setStatus(s, detail) {
     statusVal = s;
@@ -50,7 +68,8 @@
   /** Turn auto-sync off (called on lock / sign-out). */
   function stop() {
     if (timer) { clearTimeout(timer); timer = null; }
-    deps = null; inFlight = false; pendingAfter = false;
+    clearRetry();
+    deps = null; inFlight = false; pendingAfter = false; retryAttempt = 0;
     setStatus('off');
   }
 
@@ -62,9 +81,19 @@
   function scheduleSync() {
     if (!deps) return;
     if (inFlight) { pendingAfter = true; return; }
+    // A fresh edit supersedes any pending backoff retry and resets the backoff.
+    clearRetry(); retryAttempt = 0;
     if (timer) clearTimeout(timer);
     const ms = (deps && typeof deps.debounceMs === 'number') ? deps.debounceMs : DEFAULT_DEBOUNCE_MS;
     timer = setTimeout(() => { timer = null; syncNow(); }, ms);
+  }
+
+  /** Force an immediate sync, resetting backoff. Call when connectivity returns
+   *  (e.g. the window 'online' event) to flush changes stranded while offline. */
+  function flush() {
+    if (!deps) return Promise.resolve({ ok: false, error: 'off' });
+    clearRetry(); retryAttempt = 0;
+    return syncNow();
   }
 
   /**
@@ -75,6 +104,7 @@
     if (!deps) return { ok: false, error: 'off' };
     if (inFlight) { pendingAfter = true; return { ok: false, error: 'in-flight' }; }
     if (timer) { clearTimeout(timer); timer = null; }
+    clearRetry();
     inFlight = true;
     setStatus('syncing');
     try {
@@ -84,17 +114,22 @@
         if (!merged.ok) { setStatus('error', { error: merged.error }); return merged; }
         r = await deps.push(deps.buildSnapshot()); // re-push the merged result
       }
-      if (r && r.ok && !r.conflict) { setStatus('synced', { rev: r.rev }); return { ok: true, rev: r.rev }; }
+      if (r && r.ok && !r.conflict) { retryAttempt = 0; setStatus('synced', { rev: r.rev }); return { ok: true, rev: r.rev }; }
       if (r && r.error === 'locked') { setStatus('locked'); return { ok: false, error: 'locked' }; }
       if (r && r.conflict) { setStatus('conflict'); return { ok: false, error: 'conflict' }; }
       setStatus('error', { error: (r && r.error) || 'push failed' });
       return { ok: false, error: (r && r.error) || 'push failed' };
     } catch (e) {
+      // Thrown = transport/offline failure: keep the local change and auto-retry
+      // with backoff (also flushed immediately if the 'online' event fires).
       setStatus('offline', { error: String(e && e.message || e) });
       return { ok: false, error: String(e && e.message || e) };
     } finally {
       inFlight = false;
       if (pendingAfter) { pendingAfter = false; scheduleSync(); }
+      // A fresh edit (pendingAfter) already re-scheduled a push; otherwise, if
+      // this attempt left us offline/errored, queue an automatic backoff retry.
+      else if (statusVal === 'offline' || statusVal === 'error') scheduleRetry();
     }
   }
 
@@ -121,8 +156,8 @@
 
   const api = {
     configure, stop, isOn, status, error, onStatus,
-    scheduleSync, syncNow, pullMerge,
-    DEFAULT_DEBOUNCE_MS,
+    scheduleSync, syncNow, pullMerge, flush,
+    DEFAULT_DEBOUNCE_MS, DEFAULT_RETRY_BASE_MS, DEFAULT_RETRY_MAX_MS,
   };
 
   Object.assign(global, { KhaytCloudSync: api });
