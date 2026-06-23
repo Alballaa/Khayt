@@ -6,6 +6,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### 3.0.0-beta.17 cycle (in progress)
 
+### Added
+
+- **Supplier price lists** — give each supplier a per-material price list (price per kg) in their profile. Reorder drafts and auto-draft purchase orders now use the **cheapest matching supplier price** (and assign that supplier) instead of the spool's own cost — so POs reflect what you'll actually pay and you can compare suppliers.
+
 ## [3.0.0-beta.16] - 2026-06-23
 
 **Pre-release (beta)** — a storefront, mobile, operations & finance release: product options, storefront insights, portal balance payment, phone order-request triage, a scheduling forecast, auto-draft POs, subscriptions/retainers, and account/tax-code accounting exports.

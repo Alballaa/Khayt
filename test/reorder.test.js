@@ -132,3 +132,17 @@ test('itemsNeedingDraftPo skips items with an open PO; keeps fresh low items', (
   assert.deepEqual(need, ['i1', 'i4']);
   assert.deepEqual(R.itemsNeedingDraftPo([], pos), []);
 });
+
+test('supplierPriceFor picks the cheapest matching price across suppliers', () => {
+  const suppliers = [
+    { id: 's1', name: 'A', priceList: [{ material: 'PLA', pricePerKg: 40 }, { material: 'PETG', pricePerKg: 55 }] },
+    { id: 's2', name: 'B', priceList: [{ material: 'PLA Premium', pricePerKg: 35 }] },
+    { id: 's3', name: 'C', priceList: [{ material: 'ABS', pricePerKg: 0 }] }, // 0 ignored
+  ];
+  const pla = R.supplierPriceFor(suppliers, 'PLA Black');
+  assert.equal(pla.supplierId, 's2');     // 35 < 40
+  assert.equal(pla.pricePerKg, 35);
+  assert.equal(R.supplierPriceFor(suppliers, 'PETG').supplierId, 's1');
+  assert.equal(R.supplierPriceFor(suppliers, 'TPU'), null);   // no match
+  assert.equal(R.supplierPriceFor([], 'PLA'), null);
+});
