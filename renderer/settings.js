@@ -738,16 +738,20 @@ async function openStorefrontModal() {
         const cat = buildCatalog(modal.querySelector('#storePhotos').checked);
         if (!cat.items.length) { setRes('✗ ' + (t('store.no_products') || 'Add products to your catalog first'), false); return; }
         setRes(t('store.publishing') || 'Publishing…', true);
-        const r = await window.hubAPI.cloudCatalogPublish({ url: c.url, shopId: c.shopId, token: c.token, catalog: cat });
-        if (r.ok) setRes('✓ ' + (t('store.published') || 'Storefront is live') + ` — ${cat.items.length}`, true);
-        else setRes('✗ ' + (r.error || 'failed'), false);
+        try {
+          const r = await window.hubAPI.cloudCatalogPublish({ url: c.url, shopId: c.shopId, token: c.token, catalog: cat });
+          if (r.ok) setRes('✓ ' + (t('store.published') || 'Storefront is live') + ` — ${cat.items.length}`, true);
+          else setRes('✗ ' + (r.error || 'failed'), false);
+        } catch (e) { setRes('✗ ' + (e.message || e), false); }
       });
       modal.querySelector('#storeUnpublish')?.addEventListener('click', async () => {
         if (!(await confirmModal(t('store.unpublish_q') || 'Take the storefront offline? The link will stop working.', { danger: true }))) return;
         setRes(t('store.publishing') || 'Working…', true);
-        const r = await window.hubAPI.cloudCatalogPublish({ url: c.url, shopId: c.shopId, token: c.token, catalog: null });
-        if (r.ok) setRes('✓ ' + (t('store.unpublished') || 'Storefront is offline'), true);
-        else setRes('✗ ' + (r.error || 'failed'), false);
+        try {
+          const r = await window.hubAPI.cloudCatalogPublish({ url: c.url, shopId: c.shopId, token: c.token, catalog: null });
+          if (r.ok) setRes('✓ ' + (t('store.unpublished') || 'Storefront is offline'), true);
+          else setRes('✗ ' + (r.error || 'failed'), false);
+        } catch (e) { setRes('✗ ' + (e.message || e), false); }
       });
     },
   });

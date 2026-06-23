@@ -1244,10 +1244,13 @@ function updateResinFieldsVisibility() {
         setTimeout(() => modal.querySelector('#aiAskQ')?.focus(), 40);
       },
       async onSave(modal) {
+        if (modal._aiBusy) return false; // one request at a time
         const input = modal.querySelector('#aiAskQ');
         const q = input.value.trim();
         const log = modal.querySelector('#aiChatLog');
         if (!q) { toast(t('ai.assistant_need_q') || 'Type a question first.', 'error'); return false; }
+        modal._aiBusy = true;
+        const saveBtn = modal.querySelector('.modal-save'); if (saveBtn) saveBtn.disabled = true;
         // Optimistically show the question + a thinking placeholder.
         convo.push({ q, a: t('ai.assistant_thinking') || 'Thinking…' });
         renderTranscript(modal); input.value = '';
@@ -1261,6 +1264,8 @@ function updateResinFieldsVisibility() {
           });
           turn.a = (r && r.ok && r.draft) ? KhaytAiAssistant.pickAnswer(r.draft) : ('✗ ' + ((r && r.error) || 'AI request failed'));
         } catch (e) { turn.a = '✗ ' + (e.message || e); }
+        modal._aiBusy = false;
+        if (saveBtn) saveBtn.disabled = false;
         renderTranscript(modal);
         return false; // keep open for follow-up questions
       },

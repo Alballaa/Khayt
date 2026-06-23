@@ -302,7 +302,7 @@ let _autoSchedRunning = false;
  *  Mutates orders + persists, but does NOT re-render (caller is rendering). */
 function applyAutoSchedule() {
   if (typeof KhaytScheduling === 'undefined') return 0;
-  const schedulable = printLog.filter(o => o && o.status === 'pending' && !o.machineId);
+  const schedulable = printLog.filter(o => o && (o.status === 'pending' || o.status === 'queued') && !o.machineId);
   if (!schedulable.length) return 0;
   const { assignments } = KhaytScheduling.proposeSchedule(machines, schedulable, { now: Date.now() });
   let n = 0;

@@ -1251,7 +1251,9 @@ function openReorderSuggestions() {
         let n = 0;
         for (const s of draftable) {
           const kg = Math.max(0.25, Math.round((s.suggestG / 1000) * 4) / 4); // round to 0.25kg
-          const unitPrice = +s.item.costPerKg || undefined;
+          // PO unitPrice is per-GRAM (qty is in grams); costPerKg must be ÷1000.
+          const perG = (+s.item.cost) || (s.item.costPerKg ? +s.item.costPerKg / 1000 : 0);
+          const unitPrice = perG > 0 ? Math.round(perG * 1000) / 1000 : undefined;
           createPurchaseOrder(s.item, {
             qty: Math.round(kg * 1000), unitPrice, status: 'draft', silent: true,
             notes: (t('reorder.draft_note') || 'Auto-drafted from reorder forecast') + ` · ~${Math.round(s.suggestG)} g`,

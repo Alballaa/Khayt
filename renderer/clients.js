@@ -821,6 +821,18 @@ function openClientEditor(clientId = null) {
 /* ============================================================
    Recurring orders — auto-create on boot when overdue
    ============================================================ */
+/** Advance a recurring nextDue by one cycle. Never throws — KhaytSubscriptions
+ *  rejects unknown intervals, so we validate first and fall back to day math. */
+function advanceRecurringDate(nextDue, interval, intervalDays) {
+  const VALID = ['daily', 'weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'];
+  if (typeof KhaytSubscriptions !== 'undefined' && VALID.includes(interval)) {
+    try { return KhaytSubscriptions.nextRunDate(nextDue, interval); } catch (e) { /* fall through */ }
+  }
+  const next = new Date(nextDue + 'T00:00:00');
+  next.setDate(next.getDate() + ((intervalDays && intervalDays[interval]) || 30));
+  return next.toISOString().split('T')[0];
+}
+
 function checkRecurringOrders() {
   const today = new Date().toISOString().split('T')[0];
   const INTERVAL_DAYS = { weekly: 7, biweekly: 14, monthly: 30, quarterly: 91 };
@@ -877,14 +889,8 @@ function checkRecurringOrders() {
     });
     created++;
 
-    // Advance with true calendar math (month-end safe) when available.
-    if (typeof KhaytSubscriptions !== 'undefined') {
-      rec.nextDue = KhaytSubscriptions.nextRunDate(rec.nextDue, rec.interval);
-    } else {
-      const next = new Date(rec.nextDue + 'T00:00:00');
-      next.setDate(next.getDate() + (INTERVAL_DAYS[rec.interval] || 30));
-      rec.nextDue = next.toISOString().split('T')[0];
-    }
+    // Advance one cycle (calendar-safe; never throws on a bad interval).
+    rec.nextDue = advanceRecurringDate(rec.nextDue, rec.interval, INTERVAL_DAYS);
     if (rec.endDate && rec.nextDue > rec.endDate) rec.enabled = false;
   });
 
@@ -1031,6 +1037,10 @@ function patchRecurringOrdersWithLeadDays() {
     const rec = client.recurring;
     if (!rec?.enabled || rec.paused || !rec.nextDue) return;
     if (rec.endDate && rec.nextDue > rec.endDate) { rec.enabled = false; return; }
+    // Don't double-create: checkRecurringOrders() runs just before this on boot and
+    // may have already created today's recurring order for this client (a different
+    // cycle key), so skip any client that already got a recurring order today.
+    if (printLog.some(o => o.clientId === client.id && o.recurringCycle && o.date === today)) return;
     const leadDays = rec.leadDays || 0;
     const triggerDate = new Date(rec.nextDue + 'T00:00:00');
     triggerDate.setDate(triggerDate.getDate() - leadDays);
@@ -1082,14 +1092,8 @@ function patchRecurringOrdersWithLeadDays() {
     });
     created++;
 
-    // Advance with true calendar math (month-end safe) when available.
-    if (typeof KhaytSubscriptions !== 'undefined') {
-      rec.nextDue = KhaytSubscriptions.nextRunDate(rec.nextDue, rec.interval);
-    } else {
-      const next = new Date(rec.nextDue + 'T00:00:00');
-      next.setDate(next.getDate() + (INTERVAL_DAYS[rec.interval] || 30));
-      rec.nextDue = next.toISOString().split('T')[0];
-    }
+    // Advance one cycle (calendar-safe; never throws on a bad interval).
+    rec.nextDue = advanceRecurringDate(rec.nextDue, rec.interval, INTERVAL_DAYS);
     if (rec.endDate && rec.nextDue > rec.endDate) rec.enabled = false;
   });
 
@@ -1338,8 +1342,11 @@ function openCampaignModal() {
           ? (t('camp.preview') || 'Preview') + ' → ' + sample.contact + ':\n' + KhaytCampaigns.fillTemplate(modal.querySelector('#campBody').value, sample, fmtMoney)
           : '';
       };
+      // Debounce: segmentation is O(clients × orders), so don't recompute per keystroke.
+      let _refreshTimer = null;
+      const refreshDebounced = () => { clearTimeout(_refreshTimer); _refreshTimer = setTimeout(refresh, 180); };
       modal.querySelectorAll('#campChannel,#campTag,#campMinSpend,#campNoOrder,#campTier,#campBody').forEach((el) => {
-        el.addEventListener('input', refresh); el.addEventListener('change', refresh);
+        el.addEventListener('input', refreshDebounced); el.addEventListener('change', refreshDebounced);
       });
       refresh();
     },
