@@ -8,6 +8,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Team activity log** — a new **Clients → Activity** view records who did what and when (orders & quotes created, status changes), attributed to the signed-in operator, filterable by team member. Pairs with the existing per-operator job assignment and roles, and syncs across devices. (Built on the existing operator sign-in.)
+
 - **Per-location reports** — the Executive summary now has a **location switcher** (All locations / each site), so multi-site shops can see revenue, margin, on-time %, cash, and top clients/jobs for one branch at a time. It defaults to your currently active location and complements the existing per-location queue and inventory views.
 
 - **Executive summary** — a one-screen KPI overview (Analytics → **Executive summary**) with quick date ranges (this month / last month / quarter / year / all): revenue, gross profit & margin, average order value, **on-time delivery %**, cash outstanding, and your **top clients & top jobs** for the period — at a glance, no scrolling through charts.

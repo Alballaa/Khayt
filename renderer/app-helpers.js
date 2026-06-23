@@ -406,11 +406,67 @@ function hijriDate(isoDate, format = 'short') {
 
 
 
+/* ============================================================
+   Team activity log — append-only "who did what, when"
+   ============================================================ */
 
+/** Append an entry to the team activity log, attributed to the active operator.
+ *  Never throws (must not break the underlying action). Capped locally. */
+function logActivity(action, detail, ref) {
+  try {
+    if (typeof auditLog === 'undefined') return;
+    const opId = (typeof settings !== 'undefined' && settings.activeOperatorId) || null;
+    const op = opId && typeof operators !== 'undefined' ? operators.find((o) => o.id === opId) : null;
+    auditLog.push({
+      id: uid('AL'),
+      at: new Date().toISOString(),
+      action: String(action || ''),
+      detail: String(detail || ''),
+      ref: ref ? String(ref) : '',
+      operatorId: opId,
+      operatorName: op ? op.name : '',
+    });
+    if (auditLog.length > 2000) auditLog = auditLog.slice(-2000);
+  } catch (e) { /* logging must never break the action */ }
+}
+
+/** View the team activity log (newest first), optionally filtered by member. */
+function openActivityLog() {
+  if (typeof openFormModal !== 'function') return;
+  let opFilter = '';
+  const fmtWhen = (iso) => { try { return new Date(iso).toLocaleString(i18n.current === 'ar' ? 'ar-SA' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) { return iso; } };
+  const actionLabel = (a) => t('audit.act_' + a) || a;
+  const render = (modal) => {
+    const entries = (typeof auditLog !== 'undefined' ? auditLog : [])
+      .filter((e) => !opFilter || e.operatorId === opFilter)
+      .slice().reverse().slice(0, 300);
+    const ops = (typeof operators !== 'undefined' ? operators : []);
+    const rows = entries.length ? entries.map((e) => `
+      <div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--border-soft);font-size:13px;">
+        <div style="flex:1;"><strong>${escapeHtml(actionLabel(e.action))}</strong> ${escapeHtml(e.detail || '')}</div>
+        <div style="text-align:end;color:var(--text-muted);font-size:11.5px;white-space:nowrap;">${escapeHtml(e.operatorName || t('audit.system') || '—')}<br>${escapeHtml(fmtWhen(e.at))}</div>
+      </div>`).join('') : `<div style="text-align:center;color:var(--text-muted);padding:20px 0;">${escapeHtml(t('audit.empty') || 'No activity yet.')}</div>`;
+    modal.querySelector('#auditBody').innerHTML = `
+      <select id="auditOp" style="font-size:12.5px;margin-bottom:10px;width:auto;">
+        <option value="">${escapeHtml(t('audit.all_members') || 'All members')}</option>
+        ${ops.map((o) => `<option value="${escapeHtml(o.id)}"${o.id === opFilter ? ' selected' : ''}>${escapeHtml(o.name)}</option>`).join('')}
+      </select>
+      ${rows}`;
+    modal.querySelector('#auditOp')?.addEventListener('change', (e) => { opFilter = e.target.value; render(modal); });
+  };
+  openFormModal({
+    title: '🧾 ' + (t('audit.title') || 'Activity log'),
+    noSave: true,
+    bodyHtml: `<div id="auditBody"></div>`,
+    onMount(modal) { render(modal); },
+  });
+}
 
 
 (function (global) {
   const api = {
+    logActivity,
+    openActivityLog,
     localName,
     payStatus,
     csvEsc,

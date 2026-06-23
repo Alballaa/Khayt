@@ -116,6 +116,7 @@ function logPrint(asQuote = false) {
     })(),
   });
 
+  if (typeof logActivity === 'function') logActivity(asQuote ? 'quote_created' : 'order_created', `${id}${project ? ' · ' + project : ''}`, id);
   saveAll();
 
   currentBuild = [];
@@ -288,6 +289,7 @@ function updateStatus(id, newStatus) {
   if (!order.statusHistory) order.statusHistory = [];
   order.statusHistory.push({ status: newStatus, at: new Date().toISOString() });
   if (order.statusHistory.length > 200) order.statusHistory = order.statusHistory.slice(-200);
+  if (typeof logActivity === 'function') logActivity('status', `${order.id} → ${newStatus}`, order.id);
   // Re-opening a completed/delivered order: clear completion state so the print
   // timer and material deduction behave like a fresh active job (otherwise a
   // stale printingStartedAt skews elapsed/ETA, and the re-completion wouldn't
