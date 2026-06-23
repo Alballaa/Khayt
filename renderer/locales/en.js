@@ -2918,6 +2918,8 @@
   "an.forecast_next": "Projected next month",
   "an.forecast_actual": "Actual",
   "an.forecast_projected": "Projected",
-  "an.forecast_avg": "based on average (limited history)"
+  "an.forecast_avg": "based on average (limited history)",
+  "set.mode_current": "current",
+  "set.mode_pro_adds": "everything in Simple, plus"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### 3.0.0-beta.13 cycle (in progress)
+
+### Added
+
+- **Clearer Simple vs Professional modes** — the mode switch (Settings → Experience) now shows a side-by-side comparison of exactly what each tier includes: the Simple core (quoting, queue, invoices, inventory, clients) and everything Professional adds (full analytics & forecasting, ZATCA, proforma/milestone invoices, purchasing & A/P, multi-location, team accounts, maintenance, loyalty), with your current tier highlighted. Backed by a single canonical feature registry so the boundary is consistent.
+
 ## [3.0.0-beta.12] - 2026-06-23
 
 **Pre-release (beta)** — scan-in, a deeper storefront, a security/perf hardening pass, and a revenue forecast.

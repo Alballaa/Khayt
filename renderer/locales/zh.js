@@ -2916,6 +2916,8 @@
   "an.forecast_next": "下月预测",
   "an.forecast_actual": "实际",
   "an.forecast_projected": "预测",
-  "an.forecast_avg": "基于平均值（历史有限）"
+  "an.forecast_avg": "基于平均值（历史有限）",
+  "set.mode_current": "当前",
+  "set.mode_pro_adds": "简单版的全部，外加"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

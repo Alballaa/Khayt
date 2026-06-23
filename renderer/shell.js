@@ -225,9 +225,31 @@ function applyMode() {
   const btnPro    = $('#btnModePro');
   if (btnSimple) btnSimple.classList.toggle('active', settings.mode === 'simple');
   if (btnPro)    btnPro.classList.toggle('active',    settings.mode === 'professional');
+  renderModeTierCompare();
   applyAnalyticsModeView();
   if (typeof renderDashboard === 'function') renderDashboard();
   if (typeof renderOnlineSettings === 'function') renderOnlineSettings();
+}
+
+/** Render the Simple-vs-Professional tier comparison from the canonical registry
+ *  (lib/feature-tiers.js), highlighting the active tier. Makes the boundary clear. */
+function renderModeTierCompare() {
+  const el = $('#modeTierCompare');
+  if (!el || typeof KhaytTiers === 'undefined') return;
+  const lang = (typeof i18n !== 'undefined' && i18n.current) || 'en';
+  const cmp = KhaytTiers.tierComparison(lang);
+  const pro = !KhaytTiers.isProMode(settings.mode) ? false : true;
+  const check = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;"><path d="M20 6 9 17l-5-5"/></svg>';
+  const col = (title, rows, active, accent) => `
+    <div style="flex:1;min-width:180px;border:1px solid ${active ? accent : 'var(--border-soft)'};border-radius:10px;padding:12px 14px;${active ? 'box-shadow:0 0 0 1px ' + accent + ';' : 'opacity:.85;'}">
+      <div style="font-weight:700;font-size:13px;margin-bottom:8px;display:flex;align-items:center;gap:6px;">${escapeHtml(title)}${active ? `<span style="font-size:10px;color:${accent};border:1px solid ${accent};border-radius:999px;padding:1px 7px;">${escapeHtml(t('set.mode_current') || 'current')}</span>` : ''}</div>
+      ${rows.map((r) => `<div style="font-size:12px;color:var(--text-muted);padding:2px 0;display:flex;gap:6px;align-items:flex-start;"><span style="color:${accent};flex-shrink:0;">${check}</span>${escapeHtml(r.label)}</div>`).join('')}
+    </div>`;
+  el.innerHTML = `
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      ${col(t('set.mode_simple') || 'Simple', cmp.simple, !pro, 'var(--info,#5b9cf0)')}
+      ${col((t('set.mode_pro') || 'Professional') + ' — ' + (t('set.mode_pro_adds') || 'everything in Simple, plus'), cmp.pro, pro, 'var(--primary,#6366f1)')}
+    </div>`;
 }
 
 

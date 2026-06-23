@@ -2916,6 +2916,8 @@
   "an.forecast_next": "Mois prochain prévu",
   "an.forecast_actual": "Réel",
   "an.forecast_projected": "Prévu",
-  "an.forecast_avg": "selon la moyenne (historique limité)"
+  "an.forecast_avg": "selon la moyenne (historique limité)",
+  "set.mode_current": "actuel",
+  "set.mode_pro_adds": "tout ce qu’offre Simple, et en plus"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
