@@ -718,6 +718,16 @@ async function openStorefrontModal() {
         </div>
       </div>
       <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">${escapeHtml(t('store.pay_url_hint') || 'Paste a payment link from any provider; use {amount} or {total} where the figure goes. The customer pays there before sending the order.')}</p>
+      <div class="inline-pair" style="margin-top:12px;">
+        <div>
+          <label style="margin-top:0;">${escapeHtml(t('store.tax_rate') || 'Tax / VAT %')}</label>
+          <input id="storeTax" type="number" min="0" max="100" step="0.01" inputmode="decimal" placeholder="0" value="${escapeHtml(sf.taxRate ? String(sf.taxRate) : '')}">
+        </div>
+        <div></div>
+      </div>
+      <label style="margin-top:14px;">${escapeHtml(t('store.shipping_label') || 'Shipping methods')}</label>
+      <div id="sfShipping"></div>
+      <button id="sfAddShip" class="btn ghost small" type="button" style="margin-top:6px;">+ ${escapeHtml(t('store.add_shipping') || 'Add method')}</button>
       <label style="margin-top:14px;">${escapeHtml(t('store.promos_label') || 'Promo codes')}</label>
       <div id="sfPromos"></div>
       <button id="sfAddPromo" class="btn ghost small" type="button" style="margin-top:6px;">+ ${escapeHtml(t('store.add_promo') || 'Add code')}</button>
@@ -765,6 +775,26 @@ async function openStorefrontModal() {
         expires: r.querySelector('.pExpires').value || '',
         maxUses: parseInt(r.querySelector('.pMax').value, 10) || 0,
       })).filter((p) => p.code && p.value > 0);
+      // Shipping methods (label + price; ≤8). Blank-priced rows are free.
+      const shipEl = modal.querySelector('#sfShipping');
+      const shipRow = (m) => {
+        m = m || { label: '', price: '' };
+        const row = document.createElement('div');
+        row.className = 'sfShipRow';
+        row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px;';
+        row.innerHTML = `
+          <input class="shLabel" type="text" maxlength="60" placeholder="${escapeHtml(t('store.ship_label_ph') || 'e.g. Courier, Pickup')}" value="${escapeHtml(m.label || '')}" style="flex:1;font-size:12.5px;">
+          <input class="shPrice" type="number" min="0" step="0.01" placeholder="0" value="${escapeHtml(m.price != null && m.price !== '' ? String(m.price) : '')}" style="width:80px;font-size:12.5px;text-align:right;" title="${escapeHtml(cur)}">
+          <button type="button" class="btn danger small shDel" style="font-size:11px;">✕</button>`;
+        row.querySelector('.shDel').addEventListener('click', () => row.remove());
+        return row;
+      };
+      (sf.shipping || []).forEach((m) => shipEl.appendChild(shipRow(m)));
+      modal.querySelector('#sfAddShip').addEventListener('click', () => shipEl.appendChild(shipRow()));
+      const collectShipping = () => Array.from(shipEl.querySelectorAll('.sfShipRow')).map((r) => ({
+        label: r.querySelector('.shLabel').value.trim(),
+        price: Math.max(0, num(r.querySelector('.shPrice').value, 0)),
+      })).filter((m) => m.label).slice(0, 8);
       // Persist the owner's storefront config (prices, deposit, pay link, note, promos).
       const captureConfig = () => {
         const prices = {}, categories = {}, soldOut = {};
@@ -774,10 +804,12 @@ async function openStorefrontModal() {
         sf.prices = prices; sf.categories = categories; sf.soldOut = soldOut;
         sf.depositPct = Math.max(0, Math.min(100, num(modal.querySelector('#storeDeposit').value, 0)));
         sf.minOrder = Math.max(0, num(modal.querySelector('#storeMinOrder').value, 0));
+        sf.taxRate = Math.max(0, Math.min(100, num(modal.querySelector('#storeTax').value, 0)));
         sf.leadTime = modal.querySelector('#storeLead').value.trim();
         sf.payUrl = modal.querySelector('#storePayUrl').value.trim();
         sf.note = modal.querySelector('#storeNote').value.trim();
         sf.promos = collectPromos();
+        sf.shipping = collectShipping();
         settings.storefront = sf;
         saveAll();
       };
@@ -791,6 +823,8 @@ async function openStorefrontModal() {
           leadTime: sf.leadTime || '',
           minOrder: sf.minOrder || 0,
           depositPct: sf.depositPct || 0,
+          taxRate: sf.taxRate || 0,
+          shipping: sf.shipping || [],
           payUrl: /^https?:\/\//i.test(sf.payUrl) ? sf.payUrl : '',
           promos: sf.promos || [],
           items: pubProducts.map((p) => {
