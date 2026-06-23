@@ -2941,6 +2941,9 @@
   "integ.import": "استيراد الطلبات",
   "integ.publish": "نشر الكتالوج",
   "integ.soon": "قريباً",
+  "integ.connect_cloud": "اربط السحابة",
+  "integ.copy_import": "نسخ رابط الاستيراد",
+  "integ.import_copied": "تم نسخ رابط الاستيراد — الصقه كـ webhook في متجرك",
   "integ.pay_link_ph": "رابط الدفع الخاص بك (اختياري) — استخدم {amount}"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

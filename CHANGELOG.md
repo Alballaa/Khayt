@@ -9,6 +9,7 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 ### Added
 
 - **Storefronts & Payments directory** — a new **Settings → Storefronts & Payments** section lists the top 3 storefronts and top 3 payment systems for each translated market (Saudi/Gulf, US/Global, Spain, France, Germany, Japan, China) — switchable by market. You can enable the payment methods you accept and save your own payment link for each, ready to use at checkout. (First part of the integrations suite; storefront order import & catalog publishing follow.)
+- **Storefront order import (inbound)** — connect a store's order webhook to Khayt and new orders land directly in your **Order requests**. Each inbound-capable storefront in the directory now shows a **Copy import link** (once cloud sync is on); paste that URL as an order/checkout webhook in Shopify, WooCommerce, Etsy, Salla, Zid, Shopware, PrestaShop or BASE and incoming orders are mapped to a request automatically (customer, contact, line items, note), tagged with the source platform.
 
 ## [3.0.0-beta.13] - 2026-06-23
 

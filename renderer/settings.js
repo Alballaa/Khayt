@@ -172,12 +172,20 @@ function renderIntegrationsSettings() {
   const markets = Object.keys(KhaytIntegrations.MARKETS);
   const dirLabel = (d) => d === 'in' ? (t('integ.import') || 'Import orders') : (t('integ.publish') || 'Publish catalog');
 
-  const storefrontRows = m.storefronts.map((sf) => `
-    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border-soft);">
+  const cloud = settings.cloud || {};
+  const cloudReady = !!(cloud.enabled && cloud.url && cloud.shopId);
+  const importUrl = (pid) => `${String(cloud.url || '').replace(/\/+$/, '')}/v1/shops/${cloud.shopId}/import/${pid}`;
+  const storefrontRows = m.storefronts.map((sf) => {
+    const canImport = sf.dir.includes('in');
+    const action = (canImport && cloudReady)
+      ? `<button class="btn small ghost integImport" type="button" data-url="${escapeHtml(importUrl(sf.id))}">${escapeHtml(t('integ.copy_import') || 'Copy import link')}</button>`
+      : `<span style="font-size:10px;color:var(--text-muted);border:1px solid var(--border-soft);border-radius:999px;padding:1px 7px;">${escapeHtml(canImport ? (t('integ.connect_cloud') || 'connect cloud') : (t('integ.soon') || 'soon'))}</span>`;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border-soft);">
       <span style="flex:1;font-size:13px;font-weight:600;">${escapeHtml(sf.name)}</span>
       <span style="font-size:10.5px;color:var(--text-muted);">${sf.dir.map(dirLabel).map(escapeHtml).join(' · ')}</span>
-      <span style="font-size:10px;color:var(--text-muted);border:1px solid var(--border-soft);border-radius:999px;padding:1px 7px;">${escapeHtml(t('integ.soon') || 'soon')}</span>
-    </div>`).join('');
+      ${action}
+    </div>`;
+  }).join('');
 
   const payRows = m.payments.map((p) => {
     const cfg = settings.paymentProviders[p.id] || {};
@@ -206,6 +214,11 @@ function renderIntegrationsSettings() {
     </div>`;
 
   el.querySelector('#integMarket')?.addEventListener('change', (e) => { el.dataset.market = e.target.value; renderIntegrationsSettings(); });
+  el.querySelectorAll('.integImport').forEach((btn) => btn.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(btn.dataset.url || ''); } catch (_) { /* ignore */ }
+    const r = el.querySelector('#integResult');
+    if (r) { r.textContent = '✓ ' + (t('integ.import_copied') || 'Import link copied — paste it as a webhook in your store'); r.style.color = 'var(--success)'; }
+  }));
   el.querySelectorAll('.payEnable').forEach((cb) => cb.addEventListener('change', () => {
     const link = el.querySelector(`.payLink[data-pid="${cb.dataset.pid}"]`); if (link) link.style.opacity = cb.checked ? '1' : '.5';
   }));
