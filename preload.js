@@ -46,6 +46,7 @@ contextBridge.exposeInMainWorld('hubAPI', {
   revealBackupsFolder:() => ipcRenderer.invoke('hub:reveal-backups-folder'),
   listBackups:        () => ipcRenderer.invoke('hub:list-backups'),
   restoreBackup:      (backupPath) => ipcRenderer.invoke('hub:restore-backup', backupPath),
+  exportCsvBundle:    (files) => ipcRenderer.invoke('hub:export-csv-bundle', files),
 
   // iCloud backup (macOS)
   icloudAvailable:    () => ipcRenderer.invoke('hub:icloud-available'),

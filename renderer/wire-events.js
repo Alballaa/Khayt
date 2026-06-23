@@ -1469,6 +1469,7 @@ function wireEvents() {
     toast(t('set.logo_removed'), 'success');
   });
   $('#btnExport').addEventListener('click', exportData);
+  $('#btnExportCsvAll')?.addEventListener('click', exportAllCsv);
   $('#btnImport').addEventListener('click', () => $('#importFile').click());
   $('#importFile').addEventListener('change', (e) => {
     if (e.target.files[0]) importData(e.target.files[0]);
