@@ -1189,6 +1189,19 @@ function partGramsConsumed(p) {
 }
 
 /** Consumption-aware reorder suggestions modal (uses lib/reorder.js). */
+/** Resolve a reorder unit price (per gram) + supplier for an item: prefer a
+ *  matching supplier price-list entry (cheapest), else the item's own cost. */
+function resolveReorderPrice(item) {
+  if (typeof KhaytReorder !== 'undefined' && KhaytReorder.supplierPriceFor) {
+    const sp = KhaytReorder.supplierPriceFor(suppliers, item.material);
+    if (sp && sp.pricePerKg > 0) {
+      return { perG: Math.round((sp.pricePerKg / 1000) * 1000) / 1000, supplierId: sp.supplierId, supplierName: sp.supplierName };
+    }
+  }
+  const perG = (+item.cost) || (item.costPerKg ? +item.costPerKg / 1000 : 0);
+  return { perG: perG > 0 ? Math.round(perG * 1000) / 1000 : 0, supplierId: item.supplierId || null, supplierName: '' };
+}
+
 /** Opt-in automation: silently draft purchase orders for low items that don't
  *  already have an open PO. Drafts only (owner reviews before ordering). Called
  *  on boot; no-op unless settings.autoDraftPo is on. Returns the count created. */
@@ -1204,10 +1217,11 @@ function maybeAutoDraftPurchaseOrders() {
   let n = 0;
   for (const s of need) {
     const kg = Math.max(0.25, Math.round((s.suggestG / 1000) * 4) / 4);
-    const perG = (+s.item.cost) || (s.item.costPerKg ? +s.item.costPerKg / 1000 : 0);
-    const unitPrice = perG > 0 ? Math.round(perG * 1000) / 1000 : undefined;
+    const price = resolveReorderPrice(s.item);
     createPurchaseOrder(s.item, {
-      qty: Math.round(kg * 1000), unitPrice, status: 'draft', silent: true,
+      qty: Math.round(kg * 1000), unitPrice: price.perG > 0 ? price.perG : undefined,
+      supplierId: price.supplierId, supplierName: price.supplierName,
+      status: 'draft', silent: true,
       notes: (t('reorder.auto_note') || 'Auto-drafted at reorder point') + ` · ~${Math.round(s.suggestG)} g`,
     });
     n++;
@@ -1283,11 +1297,12 @@ function openReorderSuggestions() {
         let n = 0;
         for (const s of draftable) {
           const kg = Math.max(0.25, Math.round((s.suggestG / 1000) * 4) / 4); // round to 0.25kg
-          // PO unitPrice is per-GRAM (qty is in grams); costPerKg must be ÷1000.
-          const perG = (+s.item.cost) || (s.item.costPerKg ? +s.item.costPerKg / 1000 : 0);
-          const unitPrice = perG > 0 ? Math.round(perG * 1000) / 1000 : undefined;
+          // PO unitPrice is per-GRAM; prefer a supplier price-list match, else item cost.
+          const price = resolveReorderPrice(s.item);
           createPurchaseOrder(s.item, {
-            qty: Math.round(kg * 1000), unitPrice, status: 'draft', silent: true,
+            qty: Math.round(kg * 1000), unitPrice: price.perG > 0 ? price.perG : undefined,
+            supplierId: price.supplierId, supplierName: price.supplierName,
+            status: 'draft', silent: true,
             notes: (t('reorder.draft_note') || 'Auto-drafted from reorder forecast') + ` · ~${Math.round(s.suggestG)} g`,
           });
           n++;
@@ -2358,6 +2373,9 @@ function openSupplierEditor(id) {
     </div>
     <label style="margin-top:12px;">${escapeHtml(t('sup.website'))}</label>
     <input type="url" id="supWebInput" value="${escapeHtml(sup?.website || '')}" placeholder="https://…">
+    <label style="margin-top:12px;">${escapeHtml(t('sup.price_list') || 'Price list (per kg)')}</label>
+    <div id="supPriceList"></div>
+    <button type="button" id="supAddPrice" class="btn ghost small" style="margin-top:6px;">+ ${escapeHtml(t('sup.add_price') || 'Add material price')}</button>
     <label style="margin-top:12px;">${escapeHtml(t('common.notes'))}</label>
     <textarea id="supNotesInput" rows="2" style="resize:vertical;">${escapeHtml(sup?.notes || '')}</textarea>`;
 
@@ -2365,9 +2383,31 @@ function openSupplierEditor(id) {
     title: sup ? t('sup.edit') : t('sup.add'),
     saveLabel: t('common.save'),
     bodyHtml,
-    onSave() {
+    onMount(modal) {
+      const cur = (typeof currencySymbol === 'function') ? currencySymbol() : '';
+      const listEl = modal.querySelector('#supPriceList');
+      const row = (p) => {
+        p = p || { material: '', pricePerKg: '' };
+        const r = document.createElement('div');
+        r.className = 'supPriceRow';
+        r.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px;';
+        r.innerHTML = `
+          <input class="spMat" type="text" maxlength="60" placeholder="${escapeHtml(t('sup.price_material_ph') || 'Material (e.g. PLA)')}" value="${escapeHtml(p.material || '')}" style="flex:1;font-size:12.5px;">
+          <input class="spPk" type="number" min="0" step="0.01" placeholder="0" value="${escapeHtml(p.pricePerKg != null && p.pricePerKg !== '' ? String(p.pricePerKg) : '')}" style="width:90px;font-size:12.5px;text-align:right;" title="${escapeHtml(cur)}/kg">
+          <button type="button" class="btn danger small spDel" style="font-size:11px;">✕</button>`;
+        r.querySelector('.spDel').addEventListener('click', () => r.remove());
+        return r;
+      };
+      (sup?.priceList || []).forEach((p) => listEl.appendChild(row(p)));
+      modal.querySelector('#supAddPrice').addEventListener('click', () => listEl.appendChild(row()));
+    },
+    onSave(modal) {
       const name = document.getElementById('supNameInput').value.trim();
       if (!name) { toast(t('sup.name_required'), 'error'); return false; }
+      const priceList = Array.from((modal || document).querySelectorAll('.supPriceRow')).map((r) => ({
+        material: r.querySelector('.spMat').value.trim(),
+        pricePerKg: Math.max(0, num(r.querySelector('.spPk').value, 0)),
+      })).filter((p) => p.material && p.pricePerKg > 0);
       const data = {
         name,
         category: document.getElementById('supCatSelect').value,
@@ -2375,6 +2415,7 @@ function openSupplierEditor(id) {
         leadDays: num(document.getElementById('supLeadInput').value, 0) || null,
         website:  document.getElementById('supWebInput').value.trim(),
         notes:    document.getElementById('supNotesInput').value.trim(),
+        priceList,
       };
       if (sup) {
         Object.assign(sup, data);
