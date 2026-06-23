@@ -21,6 +21,22 @@ function renderScheduleView() {
     machineMap[mid].push(o);
   });
 
+  // Completion ETAs + due-date risk from queue depth × working hours/day.
+  const etaById = {}; const readyByMachine = {};
+  if (typeof KhaytSchedule !== 'undefined') {
+    const dailyHrs = (typeof avgDailyWorkingHours === 'function' && avgDailyWorkingHours() > 0) ? avgDailyWorkingHours() : 8;
+    const sched = KhaytSchedule.computeSchedule({
+      startDate: new Date().toISOString().slice(0, 10),
+      dailyHours: dailyHrs,
+      jobs: activeOrders.map(o => ({ id: o.id, machineId: o.machineId || '', hours: +o.printTime || 0, dueDate: o.dueDate || '', project: o.project || '', status: o.status })),
+    });
+    for (const m of sched.machines) {
+      readyByMachine[m.machineId || '__unassigned__'] = { readyDate: m.readyDate, lateCount: m.lateCount };
+      for (const j of m.jobs) etaById[j.id] = j;
+    }
+  }
+  const fmtDay = (iso) => { try { return new Date(iso + 'T00:00:00').toLocaleDateString(i18n.current === 'ar' ? 'ar-SA' : 'en-US', { month: 'short', day: 'numeric' }); } catch (e) { return iso; } };
+
   // Determine time horizon (max 48h or sum of queued)
   const totalHours = Math.max(48, activeOrders.reduce((s, o) => s + (+o.printTime || 0), 0));
   const tickMarks = [0, 4, 8, 12, 16, 24, 32, 48].filter(h => h <= totalHours + 4);
@@ -41,18 +57,26 @@ function renderScheduleView() {
     let offset = 0;
     const blocks = orders.map(o => {
       const pct = ((+o.printTime || 0) / totalHours) * 100;
+      const eta = etaById[o.id];
+      const late = eta && eta.late;
+      const etaTip = eta ? ` · ${t('sched.ready_by') || 'ready'} ${fmtDay(eta.etaDate)}${late ? ' ⚠' : ''}` : '';
       const blockHtml = `<div class="schedule-block status-${escapeHtml(o.status)}"
-        style="flex: 0 0 ${pct.toFixed(2)}%; background:${escapeHtml(dotColor)};"
-        title="${escapeHtml((o.invoiceNum || o.id) + ' · ' + (o.project || ''))}">
+        style="flex: 0 0 ${pct.toFixed(2)}%; background:${escapeHtml(dotColor)};${late ? 'outline:2px solid #f87171;outline-offset:-2px;' : ''}"
+        title="${escapeHtml((o.invoiceNum || o.id) + ' · ' + (o.project || '') + etaTip)}">
         ${pct > 5 ? escapeHtml((o.invoiceNum || o.id).slice(-6)) : ''}
       </div>`;
       offset += pct;
       return blockHtml;
     }).join('');
+    const summary = readyByMachine[mid];
+    const readyHtml = summary
+      ? `<span style="font-size:10.5px;color:var(--text-muted);">${escapeHtml(t('sched.ready_by') || 'ready')} ${escapeHtml(fmtDay(summary.readyDate))}</span>`
+        + (summary.lateCount ? ` <span style="font-size:10px;color:#f87171;font-weight:600;">${summary.lateCount} ${escapeHtml(t('sched.late') || 'late')}</span>` : '')
+      : '';
     return `<div class="schedule-machine-row">
       <div class="schedule-machine-label">
         <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${escapeHtml(dotColor)}; flex-shrink:0;"></span>
-        ${escapeHtml(label)}
+        <span style="display:flex;flex-direction:column;line-height:1.25;">${escapeHtml(label)}${readyHtml ? '<span>' + readyHtml + '</span>' : ''}</span>
       </div>
       <div class="schedule-track">${blocks}</div>
     </div>`;

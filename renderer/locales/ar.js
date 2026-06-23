@@ -1750,6 +1750,8 @@
   "kan.part_failed": "فشل",
   "kan.multi_machine": "موزّع على {n} طابعات",
   "kan.schedule_view": "عرض الجدول الزمني",
+  "sched.ready_by": "جاهز",
+  "sched.late": "متأخر",
   "kan.calendar_view": "التقويم",
   "kan.kiosk_view": "عرض كيوسك",
   "kan.kanban_view": "عرض كانبان",
