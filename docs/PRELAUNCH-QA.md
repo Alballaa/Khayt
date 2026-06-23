@@ -1,7 +1,7 @@
 # Khayt 3.0 beta — pre-launch manual QA
 
-Automated coverage (CI on every PR) already exercises: 620 desktop unit tests,
-46 cloud contract tests, the 9-theme + RTL render shells, and an end-to-end
+Automated coverage (CI on every PR) already exercises: 655 desktop unit tests,
+58 cloud contract tests, the 9-theme + RTL render shells, and an end-to-end
 smoke (tabs, order lifecycle, store, LAN PIN gate). This checklist covers what
 automation **can't** — paths that need real provider keys, a second device, or
 hardware. Run it against a real `cloud.khaytapp.com` account before announcing.
@@ -29,8 +29,11 @@ Legend: ☐ to test · note the build version + OS for each pass.
   total + deposit compute; **Pay deposit** opens the pay link with the amount.
 - ☐ Apply a promo: valid → discount; expired/maxed/invalid → correct message;
   total + deposit recompute.
+- ☐ **Shipping + tax** (beta.15): add shipping methods + a tax % in the editor →
+  on `/shop`, pick a shipping method and confirm the summary shows shipping, tax,
+  and a grand total = net + shipping + tax (deposit + pay link follow the total).
 - ☐ Submit the order → it lands in **Order requests** itemised (total, deposit,
-  promo code).
+  promo code, shipping, tax).
 - ☐ Unpublish → the `/shop` link shows "no storefront".
 
 ## Order tracking
@@ -82,9 +85,27 @@ Legend: ☐ to test · note the build version + OS for each pass.
 - ☐ Install this build **over a previous version** that has real data → app
   loads; all data intact; a backup exists; cloud schema migrates without error.
 
+## New in beta.15
+- ☐ **Export all data (CSV)**: Settings → Data → Export all data (CSV) → pick a
+  folder → a `khayt-export-<date>/` with one CSV per collection; opens cleanly in
+  Excel/Sheets (no formula injection). Empty shop → "no data" message.
+- ☐ **Remote mobile control**: on `/m` (login + unlock), Printers tab shows each
+  machine with a live Printing-now/Idle badge; a quote shows Approve/Decline →
+  approving moves it to pending on the desktop, declining voids it.
+- ☐ **P&L summary CSV**: Analytics → P&L summary → exports an income statement for
+  the selected date range (revenue, COGS, gross, opex by category, VAT, net).
+- ☐ **AI price suggest**: calculator margin field → ✨ Suggest → shows median
+  margin from comparable jobs (+ AI rationale when a key is set); Apply sets the
+  margin. With no priced history → "not enough history".
+- ☐ **Per-quote currency**: calculator Currency selector → set a non-base currency
+  → invoice/quote renders in that currency; "Auto" keeps client/base behavior.
+- ☐ **Offline auto-retry**: with cloud on, go offline → make an edit (status shows
+  offline) → restore connectivity → change uploads automatically (no manual sync).
+
 ## Cross-cutting
-- ☐ Arabic (RTL) spot-check of the new screens (storefront, review, campaign).
+- ☐ Arabic (RTL) spot-check of the new screens (storefront, review, campaign,
+  P&L/CSV export, AI price modal, remote `/m`).
 - ☐ Run fully **offline** (no cloud) → core app works; cloud features degrade
-  gracefully.
+  gracefully and auto-retry when back online.
 - ☐ Crash reporting: confirm Sentry receives nothing during normal use (privacy)
   and an opt-out path exists.

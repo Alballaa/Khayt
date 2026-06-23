@@ -6,6 +6,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### 3.0.0-beta.15 cycle (in progress)
 
+### Fixed
+
+- **Launch hardening** — duplicating or re-printing an order now carries its per-quote currency into the calculator (so it isn't silently reset on re-save). Refreshed the pre-launch QA checklist (`docs/PRELAUNCH-QA.md`) to cover all beta.15 features.
+
 ### Added
 
 - **Resilient cloud sync (auto-retry when offline)** — if a background sync fails because you're offline or the network blips, your change is kept locally and the app now **automatically retries** with exponential backoff instead of waiting for your next edit. The moment connectivity returns (the device comes back online), pending changes are flushed immediately, and a fresh edit supersedes any queued retry so there's never a double-push.

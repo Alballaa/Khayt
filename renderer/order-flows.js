@@ -1681,7 +1681,8 @@ function duplicateOrder(orderId) {
   switchTab('calculator-tab');
   renderBuild();
   renderExtraLines();
-  updateGrandTotal();
+  updateGrandTotal(); // populates #calcCurrency options
+  if ($('#calcCurrency')) $('#calcCurrency').value = order.currency || '';
   toast(t('oe.duplicated'), 'success');
 }
 
@@ -1704,7 +1705,8 @@ function reprintOrder(orderId) {
   switchTab('calculator-tab');
   renderBuild();
   renderExtraLines();
-  updateGrandTotal();
+  updateGrandTotal(); // populates #calcCurrency options
+  if ($('#calcCurrency')) $('#calcCurrency').value = order.currency || '';
   toast(t('oe.reprint_toast'), 'success');
 }
 
