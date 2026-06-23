@@ -1042,6 +1042,17 @@ function buildPortalPayload(order) {
     if (!payload.currency) { try { if (typeof currencySymbol === 'function') payload.currency = currencySymbol(); } catch (e) { /* optional */ } }
   }
   if (isQuote && order.cloudPayUrl) payload.payUrl = order.cloudPayUrl;
+  // Outstanding balance on an active order → let the customer pay it from the
+  // portal via the owner's pay link (mirrors the quote-deposit flow).
+  if (!isQuote && order.status !== 'completed' && order.status !== 'delivered') {
+    const bal = (+order.price || 0) - (+order.paidAmount || 0);
+    if (bal > 0.005) {
+      payload.balanceDue = bal.toFixed(2);
+      if (!payload.currency) { try { if (typeof currencySymbol === 'function') payload.currency = currencySymbol(); } catch (e) { /* optional */ } }
+      const payUrl = order.cloudPayUrl || (settings.cloud && settings.cloud.lastPayUrl) || '';
+      if (/^https?:\/\//i.test(payUrl)) payload.payUrl = payUrl;
+    }
+  }
   if (order.status === 'on_hold' && order.holdReason) payload.note = String(order.holdReason);
   // Order tracking timeline: a stage index into a localized 5-step flow. Quotes
   // have no timeline. on_hold pauses at the print stage (the note explains why).
