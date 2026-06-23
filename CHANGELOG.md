@@ -4,7 +4,9 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
-### 3.0.0-beta.12 cycle (in progress)
+## [3.0.0-beta.12] - 2026-06-23
+
+**Pre-release (beta)** — scan-in, a deeper storefront, a security/perf hardening pass, and a revenue forecast.
 
 ### Added
 
