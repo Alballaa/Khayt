@@ -11,6 +11,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 - **Scan-in workflow** — the camera/barcode scanner now recognises Khayt's own label QR codes: scan a **spool label** to open that spool (quick deduct/top-up), or an **order label** (or its customer tracking QR) to open that order. Works with the camera or a USB/Bluetooth barcode scanner (or just type/paste a code). Closes the loop with the QR labels added in beta.11.
 - **Storefront depth** — the public storefront grew up: organise products into **categories** (shown as sections), set a **lead time** and a **minimum order**, and mark items **sold out** — all from **Khayt Cloud → 🏬 Storefront**. The shop page groups by category, shows the lead-time, blocks checkout below the minimum, and tightens the grid on small phones.
 
+### Fixed & hardened
+
+- **Team-account security (cloud)** — only the **owner or a manager** can now invite or remove team members (previously any member could), and **removing a member revokes their access immediately** instead of waiting for a password reset.
+- **Draft purchase orders** no longer over-state cost (a per-kg price was used as per-gram).
+- **Recurring orders** can no longer double-create on a single launch, and a corrupt schedule interval no longer halts the recurring sweep.
+- **Auto-assign** now also places `queued` jobs (not just pending).
+- **Performance** — the inventory search and the campaign segment preview are debounced, so large shops (thousands of orders) stay smooth while typing.
+
 ## [3.0.0-beta.11] - 2026-06-23
 
 **Pre-release (beta)** — grow + operate: marketing campaigns, QR labels, demand-aware reordering with draft POs, and customer reviews.
