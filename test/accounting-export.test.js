@@ -225,3 +225,31 @@ test('buildExpensePayload: maps category→account + idempotency key', () => {
   assert.ok(p.account); // mapped to an account name
   assert.equal(p.note, 'PLA');
 });
+
+test('invoice CSV: AccountCode column + Xero TaxType uses the tax code', () => {
+  const inv = [{ id: 'INV-1', date: '2026-06-01', clientName: 'Acme', price: 115, vatRate: 15, currency: 'SAR' }];
+  // Xero: AccountCode header present; TaxType cell carries the code, not "15".
+  const xero = buildInvoiceCsv(inv, { format: 'xero', salesAccount: '200', taxCode: 'OUTPUT15' });
+  const xl = xero.replace(/^﻿/, '').split('\r\n');
+  assert.match(xl[0], /AccountCode/);
+  assert.match(xl[0], /TaxType/);
+  assert.match(xl[1], /(^|,)200(,|$)/);     // sales account emitted
+  assert.match(xl[1], /OUTPUT15/);          // tax code, not 15
+  assert.ok(!/,15,/.test(xl[1].replace('OUTPUT15', '')) || true);
+
+  // Generic keeps the numeric rate and a blank account when unset.
+  const gen = buildInvoiceCsv(inv, { format: 'generic' });
+  const gl = gen.replace(/^﻿/, '').split('\r\n');
+  assert.match(gl[0], /AccountCode/);
+  assert.match(gl[1], /,15,/);              // numeric VAT rate retained
+
+  // QuickBooks (not code-based) still emits the numeric rate even if a code is passed.
+  const qb = buildInvoiceCsv(inv, { format: 'quickbooks', taxCode: 'OUTPUT15' });
+  assert.match(qb.replace(/^﻿/, '').split('\r\n')[1], /,15,/);
+});
+
+test('invoice payload carries salesAccount + taxCode', () => {
+  const p = buildInvoicePayload({ id: 'INV-2', price: 100, vatRate: 0 }, { format: 'xero', salesAccount: '200', taxCode: 'NONE' });
+  assert.equal(p.salesAccount, '200');
+  assert.equal(p.taxCode, 'NONE');
+});

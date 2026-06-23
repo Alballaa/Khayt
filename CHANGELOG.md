@@ -8,6 +8,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Accounting exports: account & tax codes** — the Accounting CSV export (and the accounting-sync webhook) now let you set a **sales account code** and a **tax code**, written into the right columns for each provider — including Xero's `AccountCode`/`TaxType` and Zoho's `Account`/`Tax Name`, which their importers require. Your codes are remembered for next time.
+
 - **Subscriptions & retainers** — bill clients a recurring fee on a schedule (Clients → 🔁 **Subscriptions**): set up plans like a monthly maintenance retainer or a print-credit package (daily → yearly), and Khayt auto-generates the invoice each cycle (catching up if the app was closed), pausing/ending on demand. The panel shows your **monthly recurring revenue (MRR)**. Distinct from recurring orders, which reprint a past job rather than billing a flat fee.
 
 - **Auto-draft purchase orders** — turn on **Auto-draft POs** in Inventory and Khayt will automatically create *draft* purchase orders for materials that have hit their reorder point (based on the demand forecast), skipping anything that already has an open PO so nothing piles up. Drafts only — you review and send them. Runs at startup and when you enable it.

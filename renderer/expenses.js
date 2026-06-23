@@ -482,7 +482,7 @@ function maybePushAccounting(order) {
   if (!cfg || !cfg.enabled || cfg.pushOnPaid === false) return;
   if (!order || order.paymentStatus !== 'paid' || order.accountingPushedAt) return;
   if (typeof KhaytAccountingExport === 'undefined' || !window.hubAPI?.accountingPush || !/^https?:\/\//i.test(cfg.webhookUrl || '')) return;
-  const payload = KhaytAccountingExport.buildInvoicePayload(orderToInvoiceRow(order), { format: cfg.format });
+  const payload = KhaytAccountingExport.buildInvoicePayload(orderToInvoiceRow(order), { format: cfg.format, salesAccount: cfg.salesAccount, taxCode: cfg.taxCode });
   window.hubAPI.accountingPush({ url: cfg.webhookUrl, secret: cfg.secret, payload })
     .then((r) => { if (r && r.ok) { order.accountingPushedAt = new Date().toISOString(); saveAll(); } })
     .catch((e) => console.error('accounting push:', e));
@@ -507,17 +507,35 @@ function exportAccounting() {
         <option value="quickbooks">QuickBooks</option>
         <option value="xero">Xero</option>
         <option value="zoho">Zoho Books</option>
-      </select>`,
+      </select>
+      <div id="acctMapping" style="margin-top:10px;">
+        <div class="inline-pair">
+          <div>
+            <label style="margin-top:0;">${escapeHtml(t('acct.sales_account') || 'Sales account code')}</label>
+            <input id="acctSalesAccount" type="text" maxlength="40" placeholder="${escapeHtml(t('acct.sales_account_ph') || 'e.g. 200')}" value="${escapeHtml((settings.accountingSync && settings.accountingSync.salesAccount) || '')}">
+          </div>
+          <div>
+            <label style="margin-top:0;">${escapeHtml(t('acct.tax_code') || 'Tax code')}</label>
+            <input id="acctTaxCode" type="text" maxlength="40" placeholder="${escapeHtml(t('acct.tax_code_ph') || 'e.g. OUTPUT15')}" value="${escapeHtml((settings.accountingSync && settings.accountingSync.taxCode) || '')}">
+          </div>
+        </div>
+        <p style="font-size:11px;color:var(--text-muted);margin:4px 0 0;">${escapeHtml(t('acct.mapping_hint') || 'Xero/Zoho require an account code and a tax code on imported invoices.')}</p>
+      </div>`,
     onSave(modal) {
       const dataset = modal.querySelector('#acctDataset').value;
       const format = modal.querySelector('#acctFormat').value;
+      const salesAccount = (modal.querySelector('#acctSalesAccount')?.value || '').trim();
+      const taxCode = (modal.querySelector('#acctTaxCode')?.value || '').trim();
+      // Remember the mapping for next time + the webhook push.
+      settings.accountingSync = Object.assign({}, settings.accountingSync, { salesAccount, taxCode });
+      saveAll();
       const stamp = new Date().toISOString().slice(0, 10);
       let csv, name;
       if (dataset === 'expenses') {
         csv = KhaytAccountingExport.buildExpenseCsv(expenses, { format });
         name = `expenses-${format}-${stamp}.csv`;
       } else {
-        csv = KhaytAccountingExport.buildInvoiceCsv(ordersToInvoiceRows(), { format });
+        csv = KhaytAccountingExport.buildInvoiceCsv(ordersToInvoiceRows(), { format, salesAccount, taxCode });
         name = `invoices-${format}-${stamp}.csv`;
       }
       downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8;' }), name);
