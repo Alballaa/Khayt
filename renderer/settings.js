@@ -673,6 +673,15 @@ async function openStorefrontModal() {
   if (!sf.prices) sf.prices = {};
   if (!sf.categories) sf.categories = {};
   if (!sf.soldOut) sf.soldOut = {};
+  if (!sf.options) sf.options = {};
+  // Parse "Color: Black, White; Size: S, M" → [{name, values}]; ≤5 groups, ≤12 vals.
+  const parseOptionGroups = (raw) => String(raw || '').split(';').map((seg) => {
+    const ci = seg.indexOf(':');
+    if (ci < 0) return null;
+    const name = seg.slice(0, ci).trim().slice(0, 40);
+    const values = seg.slice(ci + 1).split(',').map((v) => v.trim().slice(0, 40)).filter(Boolean).slice(0, 12);
+    return (name && values.length) ? { name, values } : null;
+  }).filter(Boolean).slice(0, 5);
   const cur = settings.currency || 'SAR';
   const pubProducts = (products || []).slice(0, 60).filter((p) => (p.nameEn || (typeof localName === 'function' ? localName(p) : '') || '').trim());
   const priceRows = pubProducts.map((p) => {
@@ -684,6 +693,7 @@ async function openStorefrontModal() {
       <label style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:3px;cursor:pointer;" title="${escapeHtml(t('store.sold_out') || 'Sold out')}">
         <input class="sfSold" data-pid="${escapeHtml(p.id)}" type="checkbox" style="width:auto;margin:0;" ${sf.soldOut[p.id] ? 'checked' : ''}>${escapeHtml(t('store.sold_out') || 'Sold out')}
       </label>
+      <input class="sfOpts" data-pid="${escapeHtml(p.id)}" type="text" maxlength="240" placeholder="${escapeHtml(t('store.options_ph') || 'Options — Color: Black, White; Size: S, M')}" value="${escapeHtml(sf.options[p.id] || '')}" title="${escapeHtml(t('store.options_hint') || 'Optional product choices. Format: Group: value, value; Group: value')}" style="flex-basis:100%;font-size:12px;">
     </div>`;
   }).join('') || `<p style="font-size:12px;color:var(--text-muted);">${escapeHtml(t('store.no_products') || 'Add products to your catalog first')}</p>`;
   const catList = [...new Set(Object.values(sf.categories || {}).filter(Boolean))];
@@ -797,11 +807,12 @@ async function openStorefrontModal() {
       })).filter((m) => m.label).slice(0, 8);
       // Persist the owner's storefront config (prices, deposit, pay link, note, promos).
       const captureConfig = () => {
-        const prices = {}, categories = {}, soldOut = {};
+        const prices = {}, categories = {}, soldOut = {}, options = {};
         modal.querySelectorAll('.sfPrice').forEach((inp) => { const v = inp.value.trim(); if (v) prices[inp.dataset.pid] = v; });
         modal.querySelectorAll('.sfCat').forEach((inp) => { const v = inp.value.trim(); if (v) categories[inp.dataset.pid] = v; });
         modal.querySelectorAll('.sfSold').forEach((inp) => { if (inp.checked) soldOut[inp.dataset.pid] = true; });
-        sf.prices = prices; sf.categories = categories; sf.soldOut = soldOut;
+        modal.querySelectorAll('.sfOpts').forEach((inp) => { const v = inp.value.trim(); if (v) options[inp.dataset.pid] = v; });
+        sf.prices = prices; sf.categories = categories; sf.soldOut = soldOut; sf.options = options;
         sf.depositPct = Math.max(0, Math.min(100, num(modal.querySelector('#storeDeposit').value, 0)));
         sf.minOrder = Math.max(0, num(modal.querySelector('#storeMinOrder').value, 0));
         sf.taxRate = Math.max(0, Math.min(100, num(modal.querySelector('#storeTax').value, 0)));
@@ -837,6 +848,8 @@ async function openStorefrontModal() {
             if (sf.prices[p.id]) it.price = String(sf.prices[p.id]);
             if (sf.categories[p.id]) it.category = sf.categories[p.id];
             if (sf.soldOut[p.id]) it.soldOut = true;
+            const og = parseOptionGroups(sf.options[p.id]);
+            if (og.length) it.options = og;
             if (withPhotos && typeof p.thumbnail === 'string' && /^data:image\//.test(p.thumbnail) && p.thumbnail.length <= 200000) it.photo = p.thumbnail;
             return it;
           }).filter((it) => it.name),
