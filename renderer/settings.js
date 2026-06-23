@@ -159,6 +159,69 @@ function renderEmailNotificationSettings() {
   });
 }
 
+/** Storefronts & payments directory for the owner's market (+ a country switcher),
+ *  with payment providers the owner can enable + give their own pay link. */
+function renderIntegrationsSettings() {
+  const el = $('#integrationsSection');
+  if (!el || typeof KhaytIntegrations === 'undefined') return;
+  if (!settings.paymentProviders) settings.paymentProviders = {};
+  const lang = (typeof i18n !== 'undefined' && i18n.current) || 'en';
+  const viewLoc = el.dataset.market || lang;
+  const m = KhaytIntegrations.forLocale(viewLoc);
+  const country = (l) => (m.country[l] || m.country.en);
+  const markets = Object.keys(KhaytIntegrations.MARKETS);
+  const dirLabel = (d) => d === 'in' ? (t('integ.import') || 'Import orders') : (t('integ.publish') || 'Publish catalog');
+
+  const storefrontRows = m.storefronts.map((sf) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border-soft);">
+      <span style="flex:1;font-size:13px;font-weight:600;">${escapeHtml(sf.name)}</span>
+      <span style="font-size:10.5px;color:var(--text-muted);">${sf.dir.map(dirLabel).map(escapeHtml).join(' · ')}</span>
+      <span style="font-size:10px;color:var(--text-muted);border:1px solid var(--border-soft);border-radius:999px;padding:1px 7px;">${escapeHtml(t('integ.soon') || 'soon')}</span>
+    </div>`).join('');
+
+  const payRows = m.payments.map((p) => {
+    const cfg = settings.paymentProviders[p.id] || {};
+    return `<div style="padding:7px 0;border-bottom:1px solid var(--border-soft);">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+        <input type="checkbox" class="payEnable" data-pid="${escapeHtml(p.id)}" style="width:auto;margin:0;" ${cfg.enabled ? 'checked' : ''}>
+        <span style="font-weight:600;flex:1;">${escapeHtml(p.name)}</span>
+      </label>
+      <input class="payLink" data-pid="${escapeHtml(p.id)}" type="url" placeholder="${escapeHtml(t('integ.pay_link_ph') || 'your payment link (optional) — use {amount}')}"
+        value="${escapeHtml(cfg.payLink || '')}" style="font-size:12px;margin-top:5px;${cfg.enabled ? '' : 'opacity:.5;'}">
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <label style="margin-top:0;">${escapeHtml(t('integ.market') || 'Market')}</label>
+    <select id="integMarket" style="font-size:12.5px;">
+      ${markets.map((loc) => `<option value="${loc}"${loc === viewLoc ? ' selected' : ''}>${escapeHtml(KhaytIntegrations.forLocale(loc).country[lang] || KhaytIntegrations.forLocale(loc).country.en)}</option>`).join('')}
+    </select>
+    <div style="margin-top:14px;font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;">${escapeHtml(t('integ.storefronts') || 'Storefronts')} — ${escapeHtml(country(lang))}</div>
+    <div style="margin-top:4px;">${storefrontRows}</div>
+    <div style="margin-top:16px;font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;">${escapeHtml(t('integ.payments') || 'Payment systems')}</div>
+    <div style="margin-top:4px;">${payRows}</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:12px;">
+      <button id="btnSavePayProviders" class="btn small primary">${escapeHtml(t('common.save'))}</button>
+      <span id="integResult" style="font-size:12px;color:var(--text-muted);"></span>
+    </div>`;
+
+  el.querySelector('#integMarket')?.addEventListener('change', (e) => { el.dataset.market = e.target.value; renderIntegrationsSettings(); });
+  el.querySelectorAll('.payEnable').forEach((cb) => cb.addEventListener('change', () => {
+    const link = el.querySelector(`.payLink[data-pid="${cb.dataset.pid}"]`); if (link) link.style.opacity = cb.checked ? '1' : '.5';
+  }));
+  el.querySelector('#btnSavePayProviders')?.addEventListener('click', () => {
+    const pp = { ...(settings.paymentProviders || {}) };
+    el.querySelectorAll('.payEnable').forEach((cb) => {
+      const id = cb.dataset.pid;
+      const link = (el.querySelector(`.payLink[data-pid="${id}"]`)?.value || '').trim();
+      pp[id] = { enabled: cb.checked, payLink: /^https?:\/\//i.test(link) ? link : '' };
+    });
+    settings.paymentProviders = pp;
+    saveAll();
+    const r = el.querySelector('#integResult'); if (r) { r.textContent = '✓ ' + (t('common.save') || 'Saved'); r.style.color = 'var(--success)'; }
+  });
+}
+
 /** Accounting sync (one-way webhook push) provider config. */
 function renderAccountingSyncSettings() {
   const el = $('#accountingSyncSection');
@@ -2228,6 +2291,7 @@ function loadSettingsIntoForm() {
   renderEmailNotificationSettings();
   renderSmsNotificationSettings();
   renderAccountingSyncSettings();
+  renderIntegrationsSettings();
   // Batch-2 Feature 10: Telegram settings
   renderTelegramSettings();
   // Feature I: Email digest scheduler
@@ -2401,6 +2465,8 @@ function saveSettingsFromForm() {
     smsConfig: settings.smsConfig || { provider: 'none', channel: 'whatsapp' },
     // Accounting sync — managed by renderAccountingSyncSettings, preserve as-is
     accountingSync: settings.accountingSync || { enabled: false, format: 'generic', webhookUrl: '', secret: '', pushOnPaid: true },
+    // Payment providers — managed by renderIntegrationsSettings, preserve as-is
+    paymentProviders: settings.paymentProviders || {},
     // Feature 7 (new 8-pack): Operator lock
     operatorLockEnabled: !!$('#set_operatorLock')?.checked,
     activeOperatorId: settings.activeOperatorId || null,
@@ -2924,6 +2990,7 @@ function renderTelegramSettings() {
     renderEmailNotificationSettings,
     renderSmsNotificationSettings,
     renderAccountingSyncSettings,
+    renderIntegrationsSettings,
     renderDigestSettings,
     renderAiSettings,
     renderSlicerSettings,

@@ -2931,6 +2931,15 @@
   "bundle.need": "Nommez-le et choisissez au moins un produit",
   "bundle.created": "Lot créé",
   "bundle.delete_q": "Supprimer ce lot ?",
-  "bundle.quoted": "Devis « {name} » ({n})"
+  "bundle.quoted": "Devis « {name} » ({n})",
+  "integ.title": "Boutiques et paiements",
+  "integ.intro": "Les principales boutiques et systèmes de paiement de votre marché. Activez les moyens que vous acceptez et ajoutez votre lien de paiement pour chacun.",
+  "integ.market": "Marché",
+  "integ.storefronts": "Boutiques",
+  "integ.payments": "Systèmes de paiement",
+  "integ.import": "Importer les commandes",
+  "integ.publish": "Publier le catalogue",
+  "integ.soon": "bientôt",
+  "integ.pay_link_ph": "votre lien de paiement (facultatif) — utilisez {amount}"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

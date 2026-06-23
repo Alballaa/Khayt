@@ -2931,6 +2931,15 @@
   "bundle.need": "Ponle nombre y elige al menos un producto",
   "bundle.created": "Paquete creado",
   "bundle.delete_q": "¿Eliminar este paquete?",
-  "bundle.quoted": "Cotizado «{name}» ({n})"
+  "bundle.quoted": "Cotizado «{name}» ({n})",
+  "integ.title": "Tiendas y pagos",
+  "integ.intro": "Las principales tiendas y sistemas de pago de tu mercado. Activa los métodos que aceptas y añade tu enlace de pago para cada uno.",
+  "integ.market": "Mercado",
+  "integ.storefronts": "Tiendas",
+  "integ.payments": "Sistemas de pago",
+  "integ.import": "Importar pedidos",
+  "integ.publish": "Publicar catálogo",
+  "integ.soon": "pronto",
+  "integ.pay_link_ph": "tu enlace de pago (opcional) — usa {amount}"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
