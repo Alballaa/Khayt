@@ -1031,8 +1031,17 @@ function buildPortalPayload(order) {
     status: order.status,
     statusLabel: isQuote ? 'Quote' : (CLOUD_PORTAL_STATUS_LABELS[order.status] || order.status),
     eta: order.dueDate || '',
+    // Invoice/receipt fields the portal renders into a printable document.
+    issueDate: order.date || '',
+    invoiceNo: order.invoiceNumber || order.invoiceNum || order.id,
+    seller: {
+      name: settings.bizEn || settings.bizAr || 'Khayt',
+      vat: settings.vat || '',
+      address: settings.address || '',
+    },
+    paid: (typeof payStatus === 'function' ? payStatus(order) === 'paid' : order.paymentStatus === 'paid'),
   };
-  if (isQuote && +order.price) {
+  if (+order.price) {
     payload.amount = (+order.price).toFixed(2);
     try { if (typeof currencySymbol === 'function') payload.currency = currencySymbol(); } catch (e) { /* optional */ }
   }
