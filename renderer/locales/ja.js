@@ -2916,6 +2916,8 @@
   "an.forecast_next": "来月の予測",
   "an.forecast_actual": "実績",
   "an.forecast_projected": "予測",
-  "an.forecast_avg": "平均に基づく（履歴が少ない）"
+  "an.forecast_avg": "平均に基づく（履歴が少ない）",
+  "set.mode_current": "現在",
+  "set.mode_pro_adds": "シンプルのすべて＋"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

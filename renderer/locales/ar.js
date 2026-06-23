@@ -2917,6 +2917,8 @@
   "an.forecast_next": "المتوقّع للشهر القادم",
   "an.forecast_actual": "فعلي",
   "an.forecast_projected": "متوقّع",
-  "an.forecast_avg": "بناءً على المتوسط (سجل محدود)"
+  "an.forecast_avg": "بناءً على المتوسط (سجل محدود)",
+  "set.mode_current": "الحالي",
+  "set.mode_pro_adds": "كل ما في «المبسّط» بالإضافة إلى"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

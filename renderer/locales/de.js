@@ -2916,6 +2916,8 @@
   "an.forecast_next": "Prognose nächster Monat",
   "an.forecast_actual": "Ist",
   "an.forecast_projected": "Prognose",
-  "an.forecast_avg": "basierend auf Durchschnitt (wenig Verlauf)"
+  "an.forecast_avg": "basierend auf Durchschnitt (wenig Verlauf)",
+  "set.mode_current": "aktuell",
+  "set.mode_pro_adds": "alles aus Simple, plus"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
