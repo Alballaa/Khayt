@@ -261,6 +261,70 @@ function calculateLivePartCost() {
   });
 }
 
+/** AI price assist: recommend a margin from the shop's realized history for the
+ *  selected material, grounded in comparable completed jobs. Deterministic
+ *  baseline; an AI rationale is layered on when AI assist is enabled. */
+async function aiSuggestPrice() {
+  if (typeof KhaytAiPrice === 'undefined') { toast('AI price module not loaded', 'error'); return; }
+  const fsel = $('#filamentSelect');
+  const material = fsel?.options?.[fsel.selectedIndex]?.text || '';
+  const comps = KhaytAiPrice.buildComparables(printLog, { material, now: Date.now() });
+  if (!comps.count) { toast(t('ai.price_no_history') || 'Not enough priced history yet', 'error'); return; }
+
+  // Current job cost + specs (mirrors updateGrandTotal).
+  const qty = Math.max(1, Math.round(num($('#partQty').value, 1)));
+  const cost = currentBuild.length
+    ? currentBuild.reduce((s, p) => s + (+p.baseCost || 0), 0)
+    : calculateLivePartCost() * qty;
+  const grams = currentBuild.length
+    ? currentBuild.reduce((s, p) => s + ((+p.printWeight || 0) + (+p.supportWeight || 0)) * (+p.qty || 1), 0)
+    : ((clampPositive($('#printWeight').value) + num($('#supportWeight')?.value, 0)) * qty);
+  const hours = currentBuild.length
+    ? currentBuild.reduce((s, p) => s + (+p.printTime || 0) * (+p.qty || 1), 0)
+    : clampPositive($('#printTime').value) * qty;
+  const cur = (typeof currencySymbol === 'function') ? currencySymbol() : '';
+
+  // Default to the deterministic suggestion (median realized margin).
+  let reco = { suggestedMargin: comps.suggestedMargin, suggestedPrice: cost > 0 ? Math.round((cost / (1 - comps.suggestedMargin / 100)) * 100) / 100 : null, rationale: '' };
+
+  const ai = settings.ai || {};
+  const useAi = !!(ai.enabled && ai.apiKey);
+  if (useAi) {
+    const status = toast(t('ai.price_thinking') || 'Analyzing your pricing history…', 'info', 8000);
+    try {
+      const system = KhaytAiPrice.buildPriceSystem({ shopName: settings.bizEn || settings.bizAr || 'Khayt', lang: settings.lang });
+      const request = KhaytAiPrice.buildPriceRequest(comps, { material, grams, hours, cost, currency: cur });
+      const r = await window.hubAPI.aiExtract({ apiKey: ai.apiKey, model: ai.model || 'claude-opus-4-8', system, request, schema: KhaytAiPrice.PRICE_SCHEMA });
+      if (r && r.ok) reco = KhaytAiPrice.pickPrice(r, reco) || reco;
+    } catch (_) { /* fall back to deterministic */ }
+  }
+
+  const basisLabel = comps.basis === 'material'
+    ? (t('ai.price_basis_material') || 'similar {material} jobs').replace('{material}', comps.material || material)
+    : (t('ai.price_basis_all') || 'your priced jobs');
+  const line = (t('ai.price_summary') || '{count} {basis}: median margin {med}% (range {min}–{max}%)')
+    .replace('{count}', comps.count).replace('{basis}', basisLabel)
+    .replace('{med}', comps.medianMarginPct).replace('{min}', comps.minMarginPct).replace('{max}', comps.maxMarginPct);
+
+  openFormModal({
+    title: t('ai.price_title') || 'AI price suggestion',
+    saveLabel: t('ai.price_apply') || 'Apply margin',
+    bodyHtml: `
+      <p style="font-size:13px;margin:0 0 8px;">${escapeHtml(line)}</p>
+      ${reco.rationale ? `<p style="font-size:13px;color:var(--text-muted);margin:0 0 10px;">${escapeHtml(reco.rationale)}</p>` : ''}
+      <div style="display:flex;gap:16px;align-items:baseline;">
+        <div><div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('calc.quote.margin') || 'Target margin')}</div><div style="font-size:22px;font-weight:700;">${escapeHtml(String(reco.suggestedMargin))}%</div></div>
+        ${reco.suggestedPrice != null ? `<div><div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('ai.price_suggested') || 'Suggested price')}</div><div style="font-size:22px;font-weight:700;">${escapeHtml(fmtMoney(reco.suggestedPrice))}</div></div>` : ''}
+      </div>`,
+    onSave() {
+      const m = $('#margin');
+      if (m) { m.value = String(reco.suggestedMargin); updateGrandTotal(); }
+      toast(t('ai.price_applied') || 'Margin applied', 'success');
+      return true;
+    },
+  });
+}
+
 function updateGrandTotal() {
   const snap = {
     spoolCost: $('#spoolCost').value, spoolWeight: $('#spoolWeight').value,
@@ -1275,6 +1339,7 @@ function updateResinFieldsVisibility() {
   const api = {
     saveBuildDraft,
     aiQuoteAssist,
+    aiSuggestPrice,
     openAiAssistant,
     suggestedFailureRate,
     updateFailureRateHint,

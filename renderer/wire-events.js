@@ -207,6 +207,7 @@ function wireEvents() {
 
   // Feature 1 (new batch): Parse G-code / 3MF for print time and weight
   $('#btnAiQuote')?.addEventListener('click', () => { if (typeof aiQuoteAssist === 'function') aiQuoteAssist(); });
+  $('#btnAiPrice')?.addEventListener('click', () => { if (typeof aiSuggestPrice === 'function') aiSuggestPrice(); });
   $('#btnParseFile')?.addEventListener('click', async () => {
     if (!window.hubAPI?.pickFile || !window.hubAPI?.parsePrintFile) return;
     const filePath = await window.hubAPI.pickFile({ filters: [{ name: '3D Files', extensions: ['gcode', 'gco', '3mf'] }] });
