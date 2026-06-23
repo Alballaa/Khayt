@@ -2906,6 +2906,11 @@
   "scan.go": "执行",
   "scan.manual_hint": "支持 USB/蓝牙条码扫描器，或用相机扫描 Khayt 标签二维码。",
   "scan.spool_missing": "该线材不在您的库存中。",
-  "scan.order_missing": "未找到该订单。"
+  "scan.order_missing": "未找到该订单。",
+  "store.category_ph": "分类",
+  "store.sold_out": "已售罄",
+  "store.lead_time": "交货周期（可选）",
+  "store.lead_ph": "例如 3–5 天",
+  "store.min_order": "最低起订"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

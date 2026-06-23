@@ -2906,6 +2906,11 @@
   "scan.go": "実行",
   "scan.manual_hint": "USB/Bluetooth バーコードスキャナー対応、またはカメラで Khayt ラベルの QR をスキャン。",
   "scan.spool_missing": "そのスプールは在庫にありません。",
-  "scan.order_missing": "その注文は見つかりませんでした。"
+  "scan.order_missing": "その注文は見つかりませんでした。",
+  "store.category_ph": "カテゴリ",
+  "store.sold_out": "売り切れ",
+  "store.lead_time": "納期（任意）",
+  "store.lead_ph": "例：3〜5日",
+  "store.min_order": "最低注文額"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

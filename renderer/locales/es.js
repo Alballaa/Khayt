@@ -2906,6 +2906,11 @@
   "scan.go": "Ir",
   "scan.manual_hint": "Funciona con un escáner de códigos USB/Bluetooth, o escanea el QR de una etiqueta Khayt con la cámara.",
   "scan.spool_missing": "Esa bobina no está en tu inventario.",
-  "scan.order_missing": "No se encontró ese pedido."
+  "scan.order_missing": "No se encontró ese pedido.",
+  "store.category_ph": "categoría",
+  "store.sold_out": "Agotado",
+  "store.lead_time": "Plazo de entrega (opcional)",
+  "store.lead_ph": "p. ej. 3–5 días",
+  "store.min_order": "Pedido mínimo"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

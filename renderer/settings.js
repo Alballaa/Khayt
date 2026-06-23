@@ -584,16 +584,22 @@ async function openStorefrontModal() {
   const reviewLink = `${baseUrl}/review/${c.shopId}`;
   const sf = settings.storefront || (settings.storefront = { prices: {}, depositPct: 0, payUrl: '', note: '' });
   if (!sf.prices) sf.prices = {};
+  if (!sf.categories) sf.categories = {};
+  if (!sf.soldOut) sf.soldOut = {};
   const cur = settings.currency || 'SAR';
   const pubProducts = (products || []).slice(0, 60).filter((p) => (p.nameEn || (typeof localName === 'function' ? localName(p) : '') || '').trim());
   const priceRows = pubProducts.map((p) => {
     const nm = (p.nameEn || (typeof localName === 'function' ? localName(p) : '') || '').trim();
-    return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
-      <span style="flex:1;font-size:12.5px;">${escapeHtml(nm)}</span>
-      <input class="sfPrice" data-pid="${escapeHtml(p.id)}" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0" value="${escapeHtml(sf.prices[p.id] != null ? String(sf.prices[p.id]) : '')}" style="width:96px;font-size:12.5px;text-align:right;">
-      <span style="font-size:11px;color:var(--text-muted);width:34px;">${escapeHtml(cur)}</span>
+    return `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap;">
+      <span style="flex:1;min-width:90px;font-size:12.5px;">${escapeHtml(nm)}</span>
+      <input class="sfPrice" data-pid="${escapeHtml(p.id)}" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0" value="${escapeHtml(sf.prices[p.id] != null ? String(sf.prices[p.id]) : '')}" style="width:72px;font-size:12.5px;text-align:right;" title="${escapeHtml(cur)}">
+      <input class="sfCat" data-pid="${escapeHtml(p.id)}" type="text" maxlength="60" placeholder="${escapeHtml(t('store.category_ph') || 'category')}" value="${escapeHtml(sf.categories[p.id] || '')}" list="sfCatList" style="width:96px;font-size:12px;">
+      <label style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:3px;cursor:pointer;" title="${escapeHtml(t('store.sold_out') || 'Sold out')}">
+        <input class="sfSold" data-pid="${escapeHtml(p.id)}" type="checkbox" style="width:auto;margin:0;" ${sf.soldOut[p.id] ? 'checked' : ''}>${escapeHtml(t('store.sold_out') || 'Sold out')}
+      </label>
     </div>`;
   }).join('') || `<p style="font-size:12px;color:var(--text-muted);">${escapeHtml(t('store.no_products') || 'Add products to your catalog first')}</p>`;
+  const catList = [...new Set(Object.values(sf.categories || {}).filter(Boolean))];
   openFormModal({
     title: `🏬 ${t('store.title') || 'Storefront'}`,
     noSave: true,
@@ -602,7 +608,18 @@ async function openStorefrontModal() {
       <label>${escapeHtml(t('store.note_label') || 'Shop note (optional)')}</label>
       <input id="storeNote" type="text" maxlength="200" placeholder="${escapeHtml(t('store.note_ph') || 'e.g. Lead time ~3 days · Riyadh pickup')}" value="${escapeHtml(sf.note || '')}">
       <label style="margin-top:14px;">${escapeHtml(t('store.prices_label') || 'Prices (leave blank to hide)')}</label>
-      <div style="max-height:200px;overflow-y:auto;border:1px solid var(--border-soft);border-radius:8px;padding:8px;">${priceRows}</div>
+      <div style="max-height:220px;overflow-y:auto;border:1px solid var(--border-soft);border-radius:8px;padding:8px;">${priceRows}</div>
+      <datalist id="sfCatList">${catList.map((c) => `<option value="${escapeHtml(c)}">`).join('')}</datalist>
+      <div class="inline-pair" style="margin-top:12px;">
+        <div>
+          <label style="margin-top:0;">${escapeHtml(t('store.lead_time') || 'Lead time (optional)')}</label>
+          <input id="storeLead" type="text" maxlength="80" placeholder="${escapeHtml(t('store.lead_ph') || 'e.g. 3–5 days')}" value="${escapeHtml(sf.leadTime || '')}">
+        </div>
+        <div>
+          <label style="margin-top:0;">${escapeHtml(t('store.min_order') || 'Minimum order')}</label>
+          <input id="storeMinOrder" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0" value="${escapeHtml(sf.minOrder ? String(sf.minOrder) : '')}">
+        </div>
+      </div>
       <div class="inline-pair" style="margin-top:12px;">
         <div>
           <label style="margin-top:0;">${escapeHtml(t('store.deposit_pct') || 'Deposit %')}</label>
@@ -663,10 +680,14 @@ async function openStorefrontModal() {
       })).filter((p) => p.code && p.value > 0);
       // Persist the owner's storefront config (prices, deposit, pay link, note, promos).
       const captureConfig = () => {
-        const prices = {};
+        const prices = {}, categories = {}, soldOut = {};
         modal.querySelectorAll('.sfPrice').forEach((inp) => { const v = inp.value.trim(); if (v) prices[inp.dataset.pid] = v; });
-        sf.prices = prices;
+        modal.querySelectorAll('.sfCat').forEach((inp) => { const v = inp.value.trim(); if (v) categories[inp.dataset.pid] = v; });
+        modal.querySelectorAll('.sfSold').forEach((inp) => { if (inp.checked) soldOut[inp.dataset.pid] = true; });
+        sf.prices = prices; sf.categories = categories; sf.soldOut = soldOut;
         sf.depositPct = Math.max(0, Math.min(100, num(modal.querySelector('#storeDeposit').value, 0)));
+        sf.minOrder = Math.max(0, num(modal.querySelector('#storeMinOrder').value, 0));
+        sf.leadTime = modal.querySelector('#storeLead').value.trim();
         sf.payUrl = modal.querySelector('#storePayUrl').value.trim();
         sf.note = modal.querySelector('#storeNote').value.trim();
         sf.promos = collectPromos();
@@ -680,6 +701,8 @@ async function openStorefrontModal() {
           currency: cur,
           lang: (typeof i18n !== 'undefined' && i18n.current) || 'en',
           note: sf.note,
+          leadTime: sf.leadTime || '',
+          minOrder: sf.minOrder || 0,
           depositPct: sf.depositPct || 0,
           payUrl: /^https?:\/\//i.test(sf.payUrl) ? sf.payUrl : '',
           promos: sf.promos || [],
@@ -691,6 +714,8 @@ async function openStorefrontModal() {
               desc: (p.description || '').trim(),
             };
             if (sf.prices[p.id]) it.price = String(sf.prices[p.id]);
+            if (sf.categories[p.id]) it.category = sf.categories[p.id];
+            if (sf.soldOut[p.id]) it.soldOut = true;
             if (withPhotos && typeof p.thumbnail === 'string' && /^data:image\//.test(p.thumbnail) && p.thumbnail.length <= 200000) it.photo = p.thumbnail;
             return it;
           }).filter((it) => it.name),
