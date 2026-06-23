@@ -2842,6 +2842,8 @@
   "store.prices_label": "الأسعار (اتركه فارغاً للإخفاء)",
   "store.deposit_pct": "نسبة العربون %",
   "store.tax_rate": "الضريبة / ض.ق.م %",
+  "store.options_ph": "خيارات — اللون: أسود، أبيض؛ المقاس: S، M",
+  "store.options_hint": "خيارات اختيارية للمنتج. الصيغة: المجموعة: قيمة، قيمة؛ المجموعة: قيمة",
   "store.shipping_label": "طرق الشحن",
   "store.add_shipping": "إضافة طريقة",
   "store.ship_label_ph": "مثال: توصيل، استلام",

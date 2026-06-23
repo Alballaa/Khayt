@@ -2843,6 +2843,8 @@
   "store.prices_label": "Prices (leave blank to hide)",
   "store.deposit_pct": "Deposit %",
   "store.tax_rate": "Tax / VAT %",
+  "store.options_ph": "Options — Color: Black, White; Size: S, M",
+  "store.options_hint": "Optional product choices. Format: Group: value, value; Group: value",
   "store.shipping_label": "Shipping methods",
   "store.add_shipping": "Add method",
   "store.ship_label_ph": "e.g. Courier, Pickup",

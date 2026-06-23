@@ -6,6 +6,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### 3.0.0-beta.16 cycle (in progress)
 
+### Added
+
+- **Storefront product options/variants** — give a published product selectable options (e.g. *Color: Black, White; Size: S, M*) in the Storefront editor. Customers pick their choices on each product card, the selection shows in the order summary, and it arrives with the order request — so you know exactly what they want.
+
 ## [3.0.0-beta.15] - 2026-06-23
 
 **Pre-release (beta)** — a portability, intelligence & resilience release: full CSV data export, real remote control from your phone, a P&L export, AI price suggestions, deeper storefront checkout, per-quote currency, and self-healing offline sync.
