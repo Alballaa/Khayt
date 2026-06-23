@@ -2918,6 +2918,8 @@
   "an.forecast_projected": "Prévu",
   "an.forecast_avg": "selon la moyenne (historique limité)",
   "set.mode_current": "actuel",
-  "set.mode_pro_adds": "tout ce qu’offre Simple, et en plus"
+  "set.mode_pro_adds": "tout ce qu’offre Simple, et en plus",
+  "wiz.first_machine": "Votre première imprimante (facultatif)",
+  "wiz.first_machine_ph": "ex. Bambu P1S"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

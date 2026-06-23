@@ -2920,6 +2920,8 @@
   "an.forecast_projected": "Projected",
   "an.forecast_avg": "based on average (limited history)",
   "set.mode_current": "current",
-  "set.mode_pro_adds": "everything in Simple, plus"
+  "set.mode_pro_adds": "everything in Simple, plus",
+  "wiz.first_machine": "Your first printer (optional)",
+  "wiz.first_machine_ph": "e.g. Bambu P1S"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

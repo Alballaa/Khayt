@@ -2919,6 +2919,8 @@
   "an.forecast_projected": "متوقّع",
   "an.forecast_avg": "بناءً على المتوسط (سجل محدود)",
   "set.mode_current": "الحالي",
-  "set.mode_pro_adds": "كل ما في «المبسّط» بالإضافة إلى"
+  "set.mode_pro_adds": "كل ما في «المبسّط» بالإضافة إلى",
+  "wiz.first_machine": "طابعتك الأولى (اختياري)",
+  "wiz.first_machine_ph": "مثال: Bambu P1S"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
