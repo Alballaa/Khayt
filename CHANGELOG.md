@@ -8,6 +8,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Resilient cloud sync (auto-retry when offline)** — if a background sync fails because you're offline or the network blips, your change is kept locally and the app now **automatically retries** with exponential backoff instead of waiting for your next edit. The moment connectivity returns (the device comes back online), pending changes are flushed immediately, and a fresh edit supersedes any queued retry so there's never a double-push.
+
 - **Per-quote currency** — the calculator now has a **Currency** selector so an individual quote/order can be priced in any of the 27 supported currencies, independent of the client's default (handy for one-off international jobs or client-less quotes). "Auto" keeps the existing behavior (client currency, else your base). The chosen currency flows through the invoice/quote document (which already renders in the buyer's currency) and analytics conversions — building on the existing per-client currency and configurable FX rates.
 
 - **Storefront checkout: shipping & tax** — your published storefront now supports **shipping methods** (name + price, e.g. Courier / Pickup) and a **tax/VAT rate**, set in the Storefront editor. Customers pick a shipping option at checkout; the order summary shows shipping, tax, and a correct grand total (deposit and the pay link follow the new total), and the choices carry into the request that lands in your inbox.
