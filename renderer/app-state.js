@@ -162,6 +162,8 @@ function defaultSettings() {
     autoSchedule:     false,
     // Quote bundles: reusable named sets of products → one-tap multi-product quote
     bundles:          [],
+    // Payment providers enabled per market (registry-backed): { id: { enabled, payLink } }
+    paymentProviders: {},
     // Accounting sync: one-way webhook push of invoices/expenses (QuickBooks/Zoho/Xero bridge)
     accountingSync:   { enabled: false, format: 'generic', webhookUrl: '', secret: '', pushOnPaid: true },
     // Feature 7 (new batch): Operator lock

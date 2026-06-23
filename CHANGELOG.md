@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### 3.0.0-beta.14 cycle (in progress)
+
+### Added
+
+- **Storefronts & Payments directory** — a new **Settings → Storefronts & Payments** section lists the top 3 storefronts and top 3 payment systems for each translated market (Saudi/Gulf, US/Global, Spain, France, Germany, Japan, China) — switchable by market. You can enable the payment methods you accept and save your own payment link for each, ready to use at checkout. (First part of the integrations suite; storefront order import & catalog publishing follow.)
+
 ## [3.0.0-beta.13] - 2026-06-23
 
 **Pre-release (beta)** — clearer Simple/Pro modes, onboarding, quote bundles, and a customer self-service portal.

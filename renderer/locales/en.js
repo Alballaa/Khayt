@@ -2933,6 +2933,15 @@
   "bundle.need": "Name it and pick at least one product",
   "bundle.created": "Bundle created",
   "bundle.delete_q": "Delete this bundle?",
-  "bundle.quoted": "Quoted “{name}” ({n})"
+  "bundle.quoted": "Quoted “{name}” ({n})",
+  "integ.title": "Storefronts & Payments",
+  "integ.intro": "The top storefronts and payment systems for your market. Enable the payment methods you accept and add your own payment link for each.",
+  "integ.market": "Market",
+  "integ.storefronts": "Storefronts",
+  "integ.payments": "Payment systems",
+  "integ.import": "Import orders",
+  "integ.publish": "Publish catalog",
+  "integ.soon": "soon",
+  "integ.pay_link_ph": "your payment link (optional) — use {amount}"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

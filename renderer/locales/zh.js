@@ -2931,6 +2931,15 @@
   "bundle.need": "请命名并至少选择一个产品",
   "bundle.created": "套装已创建",
   "bundle.delete_q": "删除此套装？",
-  "bundle.quoted": "已报价\"{name}\"（{n}）"
+  "bundle.quoted": "已报价\"{name}\"（{n}）",
+  "integ.title": "店铺与支付",
+  "integ.intro": "您所在市场的主流店铺与支付系统。启用您接受的支付方式并为每种添加自己的支付链接。",
+  "integ.market": "市场",
+  "integ.storefronts": "店铺",
+  "integ.payments": "支付系统",
+  "integ.import": "导入订单",
+  "integ.publish": "发布目录",
+  "integ.soon": "即将推出",
+  "integ.pay_link_ph": "您的支付链接（可选）— 使用 {amount}"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

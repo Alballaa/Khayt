@@ -2931,6 +2931,15 @@
   "bundle.need": "Benennen Sie es und wählen Sie mind. ein Produkt",
   "bundle.created": "Bündel erstellt",
   "bundle.delete_q": "Dieses Bündel löschen?",
-  "bundle.quoted": "„{name}“ angeboten ({n})"
+  "bundle.quoted": "„{name}“ angeboten ({n})",
+  "integ.title": "Shops & Zahlungen",
+  "integ.intro": "Die wichtigsten Shops und Zahlungssysteme Ihres Marktes. Aktivieren Sie die akzeptierten Methoden und fügen Sie je einen eigenen Zahlungslink hinzu.",
+  "integ.market": "Markt",
+  "integ.storefronts": "Shops",
+  "integ.payments": "Zahlungssysteme",
+  "integ.import": "Bestellungen importieren",
+  "integ.publish": "Katalog veröffentlichen",
+  "integ.soon": "bald",
+  "integ.pay_link_ph": "Ihr Zahlungslink (optional) — {amount} verwenden"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

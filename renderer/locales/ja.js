@@ -2931,6 +2931,15 @@
   "bundle.need": "名前を付けて製品を1つ以上選択",
   "bundle.created": "バンドルを作成しました",
   "bundle.delete_q": "このバンドルを削除しますか？",
-  "bundle.quoted": "「{name}」を見積もり（{n}）"
+  "bundle.quoted": "「{name}」を見積もり（{n}）",
+  "integ.title": "ストアと決済",
+  "integ.intro": "あなたの市場で主要なストアと決済システム。受け付ける決済を有効にし、それぞれに自分の支払いリンクを追加します。",
+  "integ.market": "市場",
+  "integ.storefronts": "ストア",
+  "integ.payments": "決済システム",
+  "integ.import": "注文を取り込む",
+  "integ.publish": "カタログを公開",
+  "integ.soon": "近日",
+  "integ.pay_link_ph": "支払いリンク（任意）— {amount} を使用"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

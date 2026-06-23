@@ -2932,6 +2932,15 @@
   "bundle.need": "أدخل اسماً واختر منتجاً واحداً على الأقل",
   "bundle.created": "تم إنشاء الحزمة",
   "bundle.delete_q": "حذف هذه الحزمة؟",
-  "bundle.quoted": "تم تسعير «{name}» ({n})"
+  "bundle.quoted": "تم تسعير «{name}» ({n})",
+  "integ.title": "المتاجر والمدفوعات",
+  "integ.intro": "أبرز المتاجر وأنظمة الدفع في سوقك. فعّل طرق الدفع التي تقبلها وأضف رابط الدفع الخاص بك لكل منها.",
+  "integ.market": "السوق",
+  "integ.storefronts": "المتاجر",
+  "integ.payments": "أنظمة الدفع",
+  "integ.import": "استيراد الطلبات",
+  "integ.publish": "نشر الكتالوج",
+  "integ.soon": "قريباً",
+  "integ.pay_link_ph": "رابط الدفع الخاص بك (اختياري) — استخدم {amount}"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
