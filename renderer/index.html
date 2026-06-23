@@ -979,6 +979,7 @@
       <!-- Analytics CSV export bar -->
       <div id="analyticsExportBar" class="card" style="margin-top: 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:12px 16px;">
         <span style="font-size:13px; color:var(--text-muted); flex:1;" data-i18n="an.export_hint">Export data as CSV</span>
+        <button class="btn small ghost" id="btnAnPnlCsv">📊 <span data-i18n="pnl.export_btn">P&L summary</span></button>
         <button class="btn small ghost" id="btnAnOrdersCsv">📥 <span data-i18n="an.export_orders">Orders CSV</span></button>
         <button class="btn small ghost" id="btnAnExpensesCsv">📥 <span data-i18n="an.export_expenses">Expenses CSV</span></button>
       </div>
@@ -2341,6 +2342,7 @@
 <script src="../lib/forecast.js"></script>
 <script src="../lib/feature-tiers.js"></script>
 <script src="../lib/csv-bundle.js"></script>
+<script src="../lib/pnl-report.js"></script>
 <script src="../lib/integrations-registry.js"></script>
 <script src="themes/registry-core.js"></script>
 <script src="themes/custom-loader.js"></script>

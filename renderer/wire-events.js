@@ -600,6 +600,7 @@ function wireEvents() {
   });
 
   // Analytics tab — CSV export buttons
+  $('#btnAnPnlCsv')?.addEventListener('click', exportPnlCsv);
   $('#btnAnOrdersCsv')?.addEventListener('click', exportOrdersCsv);
   $('#btnAnExpensesCsv')?.addEventListener('click', exportExpensesCsv);
   $('#btnExportAnalytics')?.addEventListener('click', exportAnalyticsReport);
