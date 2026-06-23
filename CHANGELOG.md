@@ -8,6 +8,7 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Download invoice from the portal** — when you publish an order or quote to the customer portal, the page now offers a **Download invoice (PDF)** button that renders a clean printable invoice/receipt — your shop name, VAT & address, the reference, total, deposit/balance, and a PAID stamp — which the customer saves as a PDF straight from their browser.
 - **Supplier price lists** — give each supplier a per-material price list (price per kg) in their profile. Reorder drafts and auto-draft purchase orders now use the **cheapest matching supplier price** (and assign that supplier) instead of the spool's own cost — so POs reflect what you'll actually pay and you can compare suppliers.
 
 ## [3.0.0-beta.16] - 2026-06-23
