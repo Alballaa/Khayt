@@ -216,6 +216,12 @@ function initWizard() {
     settings.currency = currency;
     settings.mode = selectedMode;
     settings.businessType = selectedBizType;
+    // First printer (optional) — gives the queue + calculator a machine to use.
+    const machName = $('#wizMachine')?.value.trim();
+    if (machName && Array.isArray(machines) && machines.length === 0) {
+      const palette = (typeof MACHINE_COLORS !== 'undefined' && MACHINE_COLORS.length) ? MACHINE_COLORS : ['#5b9cf0'];
+      machines.push({ id: uid('MACH'), name: machName, color: palette[0] });
+    }
     settings.designTheme = selectedDesign || settings.designTheme || 'studio';
     const finishTheme = global.KhaytThemeRegistry?.getTheme(settings.designTheme);
     if (finishTheme?.defaultAppearance) settings.theme = finishTheme.defaultAppearance;

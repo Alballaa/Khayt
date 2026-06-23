@@ -2918,6 +2918,8 @@
   "an.forecast_projected": "预测",
   "an.forecast_avg": "基于平均值（历史有限）",
   "set.mode_current": "当前",
-  "set.mode_pro_adds": "简单版的全部，外加"
+  "set.mode_pro_adds": "简单版的全部，外加",
+  "wiz.first_machine": "你的第一台打印机（可选）",
+  "wiz.first_machine_ph": "例如 Bambu P1S"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

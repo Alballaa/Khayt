@@ -2918,6 +2918,8 @@
   "an.forecast_projected": "予測",
   "an.forecast_avg": "平均に基づく（履歴が少ない）",
   "set.mode_current": "現在",
-  "set.mode_pro_adds": "シンプルのすべて＋"
+  "set.mode_pro_adds": "シンプルのすべて＋",
+  "wiz.first_machine": "最初のプリンター（任意）",
+  "wiz.first_machine_ph": "例：Bambu P1S"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

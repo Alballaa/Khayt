@@ -2918,6 +2918,8 @@
   "an.forecast_projected": "Prognose",
   "an.forecast_avg": "basierend auf Durchschnitt (wenig Verlauf)",
   "set.mode_current": "aktuell",
-  "set.mode_pro_adds": "alles aus Simple, plus"
+  "set.mode_pro_adds": "alles aus Simple, plus",
+  "wiz.first_machine": "Ihr erster Drucker (optional)",
+  "wiz.first_machine_ph": "z. B. Bambu P1S"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
