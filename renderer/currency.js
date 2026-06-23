@@ -58,6 +58,14 @@
     return c && c.currency ? c.currency : settings.currency || 'SAR';
   }
 
+  /** Resolve an order's currency: an explicit per-order override wins, else the
+   *  client's currency, else the shop base. Lets a single quote be priced in a
+   *  currency that differs from the client default (or for a client-less quote). */
+  function orderCurrency(o) {
+    if (o && o.currency && CURRENCIES[o.currency]) return o.currency;
+    return clientCurrency(o && o.clientId);
+  }
+
   function convertToBase(amount, fromCurrency) {
     const settings = global.settings || {};
     const base = settings.currency || 'SAR';
@@ -68,11 +76,11 @@
   }
 
   function orderRevenueBase(o) {
-    return convertToBase(+o.price || 0, clientCurrency(o.clientId));
+    return convertToBase(+o.price || 0, orderCurrency(o));
   }
 
   function orderOwedBase(o) {
-    const cur = clientCurrency(o.clientId);
+    const cur = orderCurrency(o);
     // Credit notes reduce what's owed (refund / cancelled charge).
     const credited = (o.creditNotes || []).reduce((s, cn) => s + (+cn.amount || 0), 0);
     return Math.max(
@@ -97,6 +105,7 @@
     currencySymbol,
     fmtMoneyIn,
     clientCurrency,
+    orderCurrency,
     convertToBase,
     orderRevenueBase,
     orderOwedBase,

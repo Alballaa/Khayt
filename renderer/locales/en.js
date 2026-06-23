@@ -1311,6 +1311,8 @@
   "calc.part_note": "Part note",
   "calc.part_note_ph": "e.g. special requirements…",
   "calc.client_ref": "Client PO / reference",
+  "calc.currency": "Currency",
+  "calc.currency_auto": "Auto",
   "calc.client_ref_ph": "e.g. PO-2024-001",
   "oe.internal_notes": "Internal notes (not shown to client)",
   "oe.internal_notes_ph": "e.g. special handling, operator reminders…",

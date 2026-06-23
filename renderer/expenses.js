@@ -442,7 +442,7 @@ function ordersToInvoiceRows() {
   return printLog
     .filter(o => o && o.status !== 'quote' && (+o.price > 0))
     .map(o => {
-      const cur = (typeof clientCurrency === 'function') ? clientCurrency(o.clientId) : baseCurrency;
+      const cur = (typeof clientCurrency === 'function') ? orderCurrency(o) : baseCurrency;
       const client = clients.find(c => c.id === o.clientId);
       return {
         id: o.id,
@@ -462,7 +462,7 @@ function ordersToInvoiceRows() {
 function orderToInvoiceRow(o) {
   const rate = settings.enableVat ? (+settings.vatRate || 15) : 0;
   const baseCurrency = settings.currency || 'SAR';
-  const cur = (typeof clientCurrency === 'function') ? clientCurrency(o.clientId) : baseCurrency;
+  const cur = (typeof clientCurrency === 'function') ? orderCurrency(o) : baseCurrency;
   const client = clients.find(c => c.id === o.clientId);
   return {
     id: o.invoiceNumber || o.id,
@@ -631,7 +631,7 @@ function _doExportTaxSummary(periodLabel, fromDate, toDate) {
     if (!monthMap[month]) monthMap[month] = { orders: 0, revenue: 0, vatCollected: 0, shipping: 0 };
     monthMap[month].orders++;
     monthMap[month].revenue += orderRevenueBase(o);
-    monthMap[month].shipping += convertToBase(+o.shippingCost || 0, clientCurrency(o.clientId));
+    monthMap[month].shipping += convertToBase(+o.shippingCost || 0, orderCurrency(o));
     const rate = settings.enableVat ? (+settings.vatRate || 15) : 0;
     monthMap[month].vatCollected += rate > 0 ? orderRevenueBase(o) * rate / (100 + rate) : 0;
   }

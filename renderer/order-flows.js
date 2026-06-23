@@ -43,6 +43,7 @@ function logPrint(asQuote = false) {
     project,
     clientId: currentClientId || null,
     productId: currentBuildFromProductId || null,
+    currency: ($('#calcCurrency')?.value || '') || undefined,
     material: materials,
     printTime: +totalPrintTime.toFixed(1),
     price: +finalPrice.toFixed(2),
@@ -126,6 +127,7 @@ function logPrint(asQuote = false) {
   renderExtraLines();
   $('#clientInput').value = '';
   if ($('#calcClientRef')) $('#calcClientRef').value = '';
+  if ($('#calcCurrency')) $('#calcCurrency').value = '';
   $('#discountPct').value = '0';
   if ($('#shippingCost')) $('#shippingCost').value = '0';
   if ($('#depositAmount')) $('#depositAmount').value = '0';
