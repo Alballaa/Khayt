@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### 3.0.0-beta.15 cycle (in progress)
+
 ## [3.0.0-beta.14] - 2026-06-23
 
 **Pre-release (beta)** — a storefronts & payments integrations suite: a per-market directory, two-way storefront order import & catalog publishing, and guided setup.
