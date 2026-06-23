@@ -33,6 +33,7 @@ function initialRender() {
   checkDueDateNotifications();
   checkRecurringOrders();
   patchRecurringOrdersWithLeadDays();  // Round 12: leadDays-aware auto-clone
+  if (typeof checkSubscriptionBilling === 'function') { try { checkSubscriptionBilling(); } catch (e) { console.error('subscription billing:', e); } }
   checkRecurringExpenses();
   // Re-check recurring orders periodically so a long-running session still
   // auto-creates due cycles without a restart (idempotent; dedup by cycle).
@@ -1259,6 +1260,7 @@ function wireEvents() {
   $('#btnImportClientsCsv')?.addEventListener('click', importClientsCsv);
   $('#btnExportClientsCsv')?.addEventListener('click', () => exportClientsCsv());
   $('#btnCampaign')?.addEventListener('click', () => openCampaignModal());
+  $('#btnSubscriptions')?.addEventListener('click', () => { if (typeof openSubscriptionsModal === 'function') openSubscriptionsModal(); });
   const chkAutoDraftPo = $('#chkAutoDraftPo');
   if (chkAutoDraftPo) {
     chkAutoDraftPo.checked = !!settings.autoDraftPo;

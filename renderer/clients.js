@@ -901,6 +901,139 @@ function checkRecurringOrders() {
   }
 }
 
+/* ============================================================
+   Subscriptions / retainers — recurring revenue (distinct from
+   recurring orders: this bills a flat fee per cycle, not a reprint)
+   ============================================================ */
+
+/** Materialize due subscription billings into invoices. Runs on boot; creates
+ *  one invoice per due cycle (deduped by subscriptionId+cycle), advances the
+ *  schedule. Safe + idempotent. */
+function checkSubscriptionBilling() {
+  if (typeof KhaytSubscriptions === 'undefined') return;
+  const now = Date.now();
+  let created = 0;
+  for (const sub of subscriptions) {
+    if (!sub || sub.status !== 'active') continue;
+    // Catch up across every cycle boundary crossed while the app was closed.
+    let guard = 0;
+    while (KhaytSubscriptions.isDueForCycle(sub, now) && guard < 240) {
+      guard++;
+      const cycle = sub.nextRunAt;
+      const already = printLog.some(o => o.subscriptionId === sub.id && o.recurringCycle === cycle);
+      if (!already) {
+        const nowD = new Date();
+        const invoiceNum = nextInvoiceNumber();
+        const seq = String(settings.invNumNext - 1).padStart(4, '0');
+        const client = clients.find(c => c.id === sub.clientId);
+        printLog.unshift({
+          id: `${settings.invPrefix || 'INV'}-${nowD.getFullYear()}-${seq}`,
+          invoiceNum, invoiceNumber: invoiceNum,
+          date: cycle, timestamp: nowD.toISOString(),
+          project: sub.planName || (t('subs.plan') || 'Subscription'),
+          clientId: sub.clientId || null,
+          price: Math.max(0, +sub.amount || 0),
+          status: 'pending', statusHistory: [{ status: 'pending', at: nowD.toISOString() }],
+          paymentStatus: 'unpaid', paidAmount: 0,
+          parts: [], tags: ['subscription'], notes: '',
+          internalNotes: `↳ ${sub.planName || (t('subs.plan') || 'Subscription')}`,
+          subscriptionId: sub.id, recurringCycle: cycle,
+          currency: sub.currency || undefined,
+        });
+        created++;
+      }
+      // Advance one cycle (calendar-safe).
+      const patch = KhaytSubscriptions.markCyclePatch(sub, now);
+      sub.lastRunAt = patch.lastRunAt; sub.nextRunAt = patch.nextRunAt;
+      if (sub.endAt && sub.nextRunAt > sub.endAt) { sub.status = 'ended'; break; }
+    }
+  }
+  if (created > 0) {
+    saveAll();
+    if (typeof renderKanban === 'function') renderKanban();
+    if (typeof renderLogs === 'function') renderLogs();
+    if (typeof renderDashboard === 'function') renderDashboard();
+    toast((t('subs.billed', { n: created }) || `Billed ${created} subscription invoice(s)`), 'success', 4500);
+  }
+}
+
+/** Manage subscriptions/retainers: list, add, pause/resume, end. Shows MRR. */
+function openSubscriptionsModal() {
+  if (typeof KhaytSubscriptions === 'undefined') { toast('Subscriptions module not loaded', 'error'); return; }
+  const cur = (typeof currencySymbol === 'function') ? currencySymbol() : '';
+  const intervals = KhaytSubscriptions.INTERVALS;
+  const render = (modal) => {
+    const mrr = KhaytSubscriptions.monthlyRecurringRevenue(subscriptions);
+    const rows = subscriptions.length ? subscriptions.map(s => {
+      const client = clients.find(c => c.id === s.clientId);
+      const cname = client ? localName(client) : (t('subs.no_client') || '—');
+      const statusColor = s.status === 'active' ? 'var(--success)' : (s.status === 'paused' ? 'var(--warning,#d97706)' : 'var(--text-muted)');
+      return `<tr style="border-top:1px solid var(--border-soft);">
+        <td style="padding:6px 8px;">${escapeHtml(s.planName || '')}<div style="font-size:11px;color:var(--text-muted);">${escapeHtml(cname)}</div></td>
+        <td style="padding:6px 8px;text-align:end;">${escapeHtml(fmtMoney(+s.amount || 0))} ${escapeHtml(cur)}<div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('rec.badge.' + s.interval) || s.interval)}</div></td>
+        <td style="padding:6px 8px;text-align:end;font-size:12px;">${escapeHtml(s.nextRunAt || '—')}</td>
+        <td style="padding:6px 8px;text-align:center;color:${statusColor};font-size:12px;">${escapeHtml(t('subs.status_' + s.status) || s.status)}</td>
+        <td style="padding:6px 8px;text-align:end;white-space:nowrap;">
+          ${s.status !== 'ended' ? `<button class="btn ghost small subToggle" data-id="${escapeHtml(s.id)}">${escapeHtml(s.status === 'active' ? (t('subs.pause') || 'Pause') : (t('subs.resume') || 'Resume'))}</button>
+          <button class="btn ghost small subEnd" data-id="${escapeHtml(s.id)}" style="color:var(--danger);">${escapeHtml(t('subs.end') || 'End')}</button>` : ''}
+        </td>
+      </tr>`;
+    }).join('') : `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:18px 0;">${escapeHtml(t('subs.empty') || 'No subscriptions yet.')}</td></tr>`;
+
+    const clientOpts = clients.slice().sort((a, b) => localName(a).localeCompare(localName(b)))
+      .map(c => `<option value="${escapeHtml(c.id)}">${escapeHtml(localName(c))}</option>`).join('');
+    const intervalOpts = intervals.map(iv => `<option value="${escapeHtml(iv)}"${iv === 'monthly' ? ' selected' : ''}>${escapeHtml(t('rec.badge.' + iv) || iv)}</option>`).join('');
+
+    modal.querySelector('#subsBody').innerHTML = `
+      <div style="font-size:13px;margin-bottom:10px;">${escapeHtml(t('subs.mrr') || 'Monthly recurring revenue')}: <strong style="color:var(--success);">${escapeHtml(fmtMoney(mrr))} ${escapeHtml(cur)}</strong></div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="color:var(--text-muted);text-align:start;">
+        <th style="padding:6px 8px;text-align:start;">${escapeHtml(t('subs.plan') || 'Plan')}</th>
+        <th style="padding:6px 8px;text-align:end;">${escapeHtml(t('subs.amount') || 'Amount')}</th>
+        <th style="padding:6px 8px;text-align:end;">${escapeHtml(t('subs.next') || 'Next bill')}</th>
+        <th style="padding:6px 8px;text-align:center;">${escapeHtml(t('subs.status') || 'Status')}</th>
+        <th></th>
+      </tr></thead><tbody>${rows}</tbody></table>
+      <div style="margin-top:14px;border-top:1px solid var(--border-soft);padding-top:12px;">
+        <div style="font-weight:600;font-size:13px;margin-bottom:8px;">${escapeHtml(t('subs.add') || 'New subscription')}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <input id="subPlan" type="text" maxlength="80" placeholder="${escapeHtml(t('subs.plan_ph') || 'e.g. Monthly maintenance')}">
+          <select id="subClient">${clientOpts}</select>
+          <input id="subAmount" type="number" min="0" step="0.01" placeholder="${escapeHtml(t('subs.amount') || 'Amount')} (${escapeHtml(cur)})">
+          <select id="subInterval">${intervalOpts}</select>
+          <input id="subStart" type="date" value="${new Date().toISOString().slice(0, 10)}" title="${escapeHtml(t('subs.next') || 'Next bill')}">
+          <button class="btn primary small" id="subAdd">+ ${escapeHtml(t('subs.add') || 'Add')}</button>
+        </div>
+      </div>`;
+
+    modal.querySelectorAll('.subToggle').forEach(b => b.addEventListener('click', () => {
+      const s = subscriptions.find(x => x.id === b.dataset.id); if (!s) return;
+      s.status = s.status === 'active' ? 'paused' : 'active'; saveAll(); render(modal);
+    }));
+    modal.querySelectorAll('.subEnd').forEach(b => b.addEventListener('click', async () => {
+      if (!(await confirmModal(t('subs.end_q') || 'End this subscription? It will stop billing.', { danger: true }))) return;
+      const s = subscriptions.find(x => x.id === b.dataset.id); if (!s) return;
+      s.status = 'ended'; saveAll(); render(modal);
+    }));
+    modal.querySelector('#subAdd')?.addEventListener('click', () => {
+      const plan = modal.querySelector('#subPlan').value.trim();
+      const clientId = modal.querySelector('#subClient').value;
+      const amount = Math.max(0, num(modal.querySelector('#subAmount').value, 0));
+      const interval = modal.querySelector('#subInterval').value;
+      const start = modal.querySelector('#subStart').value || new Date().toISOString().slice(0, 10);
+      if (!plan || !amount) { toast(t('subs.need_fields') || 'Add a plan name and amount', 'error'); return; }
+      subscriptions.unshift({ id: uid('SUB'), planName: plan, clientId: clientId || null, amount, interval, nextRunAt: start, status: 'active', createdAt: new Date().toISOString() });
+      saveAll(); render(modal);
+      toast(t('subs.added') || 'Subscription added', 'success');
+    });
+  };
+  openFormModal({
+    title: `🔁 ${t('subs.title') || 'Subscriptions & retainers'}`,
+    noSave: true,
+    bodyHtml: `<div id="subsBody"></div>`,
+    onMount(modal) { render(modal); },
+  });
+}
+
 /* ----- Client autocomplete on the calculator ----- */
 function renderClientSuggestions() {
   const input = $('#clientInput');
@@ -1395,6 +1528,8 @@ function openCampaignModal() {
     openClientEditor,
     deleteClient,
     checkRecurringOrders,
+    checkSubscriptionBilling,
+    openSubscriptionsModal,
     renderClientSuggestions,
     hideClientSuggestions,
     getClientTier,
