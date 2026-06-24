@@ -1828,6 +1828,20 @@
         <div class="inline-pair" style="align-items:flex-end; margin-top:12px; flex-wrap:wrap;">
           <div>
             <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal;">
+              <input type="checkbox" id="set_payReminderEnabled" style="width:auto; margin:0;">
+              <span data-i18n="set.pay_reminder_enabled">Auto-flag overdue invoices</span>
+            </label>
+            <p style="font-size:11.5px; color:var(--text-muted); margin:4px 0 0;" data-i18n="set.pay_reminder_hint">When on, Khayt periodically flags unpaid invoices past their due date so you can send a payment reminder in one tap.</p>
+          </div>
+          <div>
+            <label data-i18n="set.pay_reminder_grace">Remind days after due</label>
+            <input type="number" id="set_payReminderGrace" min="0" max="90" step="1" placeholder="3">
+          </div>
+        </div>
+
+        <div class="inline-pair" style="align-items:flex-end; margin-top:12px; flex-wrap:wrap;">
+          <div>
+            <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal;">
               <input type="checkbox" id="set_rushFeeEnabled" style="width:auto; margin:0;">
               <span data-i18n="set.rush_fee_enabled">Enable rush/priority fee</span>
             </label>
@@ -2346,6 +2360,7 @@
 <script src="app-security.js"></script>
 <script src="search-utils.js"></script>
 <script src="../lib/quote-followup.js"></script>
+<script src="../lib/payment-reminder.js"></script>
 <script src="../lib/maintenance.js"></script>
 <script src="../lib/rbac.js"></script>
 <script src="../lib/accounting-export.js"></script>

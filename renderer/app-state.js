@@ -195,6 +195,8 @@ function defaultSettings() {
     quoteValidityDays: 7,
     // Quote follow-up automation (auto-nudge OFF by default; dashboard card always on)
     quoteFollowUp:     { enabled: false, windowDays: 2, graceDays: 1, cooldownDays: 2, maxCount: 2 },
+    // Overdue-invoice payment reminders (auto-flag OFF by default)
+    paymentReminder:   { enabled: false, graceDays: 3, cooldownDays: 3, maxCount: 3 },
     minOrderAmount:    0,
     rushFeeEnabled:    false,
     rushFeePct:        25,
@@ -462,7 +464,7 @@ function applyStoreFromSnapshot(store) {
   migrateLanApiSettings();
   migrateLegacyDesignTheme();
   if (store.settings) {
-    const nested = ['emailDigest', 'emailConfig', 'smsConfig', 'accountingSync', 'zatcaPhase2', 'bnpl', 'lanApi', 'exchangeRates', 'printerApi'];
+    const nested = ['emailDigest', 'emailConfig', 'smsConfig', 'accountingSync', 'zatcaPhase2', 'bnpl', 'lanApi', 'exchangeRates', 'printerApi', 'quoteFollowUp', 'paymentReminder'];
     const isPlainObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
     for (const key of nested) {
       if (isPlainObj(store.settings[key])) {
@@ -642,6 +644,9 @@ async function loadAll() {
   // Quote follow-up auto-nudge (opt-in): run once on load + start periodic timer.
   if (typeof processQuoteFollowUps === 'function') processQuoteFollowUps();
   if (typeof startQuoteFollowUpTimer === 'function') startQuoteFollowUpTimer();
+  // Overdue-invoice payment reminders (opt-in): same cadence.
+  if (typeof processPaymentReminders === 'function') processPaymentReminders();
+  if (typeof startPaymentReminderTimer === 'function') startPaymentReminderTimer();
 }
 
 function pruneExpiredNotifs() {

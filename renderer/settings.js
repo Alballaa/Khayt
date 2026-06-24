@@ -2350,6 +2350,10 @@ function loadSettingsIntoForm() {
   if (qfEnEl) qfEnEl.checked = !!(settings.quoteFollowUp && settings.quoteFollowUp.enabled);
   const qfWinEl = $('#set_quoteFollowUpWindow');
   if (qfWinEl) qfWinEl.value = (settings.quoteFollowUp && settings.quoteFollowUp.windowDays != null) ? settings.quoteFollowUp.windowDays : 2;
+  const prEnEl = $('#set_payReminderEnabled');
+  if (prEnEl) prEnEl.checked = !!(settings.paymentReminder && settings.paymentReminder.enabled);
+  const prGrEl = $('#set_payReminderGrace');
+  if (prGrEl) prGrEl.value = (settings.paymentReminder && settings.paymentReminder.graceDays != null) ? settings.paymentReminder.graceDays : 3;
   const moEl = $('#set_minOrderAmount');
   if (moEl) moEl.value = settings.minOrderAmount ?? 0;
   const rfEl = $('#set_rushFeeEnabled');
@@ -2597,6 +2601,11 @@ function saveSettingsFromForm() {
       ...(settings.quoteFollowUp || { graceDays: 1, cooldownDays: 2, maxCount: 2 }),
       enabled:    !!$('#set_quoteFollowUpEnabled')?.checked,
       windowDays: Math.max(0, Math.min(60, num($('#set_quoteFollowUpWindow')?.value, 2))),
+    },
+    paymentReminder: {
+      ...(settings.paymentReminder || { cooldownDays: 3, maxCount: 3 }),
+      enabled:   !!$('#set_payReminderEnabled')?.checked,
+      graceDays: Math.max(0, Math.min(90, num($('#set_payReminderGrace')?.value, 3))),
     },
     minOrderAmount:    Math.max(0, num($('#set_minOrderAmount')?.value, 0)),
     rushFeeEnabled:    !!$('#set_rushFeeEnabled')?.checked,
