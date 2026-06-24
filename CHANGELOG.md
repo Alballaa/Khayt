@@ -6,6 +6,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### 3.0.0-beta.18 cycle (in progress)
 
+### Docs
+
+- **1.0 launch-readiness pass** — refreshed the pre-launch QA checklist (`docs/PRELAUNCH-QA.md`) with the beta.16–18 features and current coverage counts, and added a **Road to 1.0** release-candidate plan (feature freeze → full QA → `rc.1` tag → soak → promote to `v3.0.0`). Full sweep verified green: 674 desktop tests, 61 cloud contract tests, e2e smoke, lint.
+
 ### Added
 
 - **Named restore points** — save a **labeled snapshot** of all your data (Settings → Backups → Restore points…) before a risky change like a big import or month-end, and **roll back in one click** anytime. Restore points are kept separately from the dated auto-backups (so they're never auto-pruned), encrypted on disk, and capped at the most recent 50.
