@@ -101,12 +101,19 @@ async function checkAndSendDigest() {
     const jan1 = new Date(now.getFullYear(), 0, 1);
     const week = Math.ceil(((now - jan1) / 86400000 + jan1.getDay() + 1) / 7);
     periodKey = `${now.getFullYear()}-W${String(week).padStart(2,'0')}`;
+  } else if (d.frequency === 'monthly') {
+    // Fire on the configured day-of-month (clamped to the month's length).
+    const lastDom = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const fireDom = Math.min(d.monthday ?? 1, lastDom);
+    if (now.getDate() !== fireDom) return;
+    periodKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   } else {
     periodKey = now.toISOString().split('T')[0];
   }
   if (d.lastSentDate === periodKey) return; // already sent
   const body = buildDigestEmailHtml();
-  const subject = `${settings.bizEn || 'Khayt'} — ${d.frequency === 'weekly' ? 'Weekly' : 'Daily'} Digest`;
+  const freqWord = d.frequency === 'weekly' ? 'Weekly' : (d.frequency === 'monthly' ? 'Monthly' : 'Daily');
+  const subject = `${settings.bizEn || 'Khayt'} — ${freqWord} Digest`;
   _digestInFlight = true;
   try {
     const result = await window.hubAPI?.sendEmail?.({ to, subject, body, smtpConfig: cfg });

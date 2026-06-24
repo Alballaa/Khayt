@@ -8,6 +8,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Monthly email digest** — the automated email digest (Settings → Email digest) now supports a **Monthly** cadence on a day-of-month you choose, alongside daily and weekly. It emails the period's revenue, outstanding balance, completed orders, low-stock spools, and intake — so you get a month-end business summary in your inbox automatically.
+
 - **Invoice templates** — pick a document look in **Settings → Business**: **Classic** (the current style), **Modern** (a bold accent-coloured header band), or **Minimal** (clean, no colour bar). It restyles your invoices, quotes, and receipts on top of the existing logo, tagline, accent colour, and terms — purely visual, so ZATCA fields and totals are unchanged.
 
 ## [3.0.0-beta.17] - 2026-06-24
