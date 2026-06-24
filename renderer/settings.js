@@ -2283,6 +2283,7 @@ function loadSettingsIntoForm() {
   $('#set_taglineEn').value     = settings.taglineEn   || '';
   $('#set_taglineAr').value     = settings.taglineAr   || '';
   $('#set_invAccent').value     = safeCssColor(settings.invAccentColor, '#5E2E14');
+  if ($('#set_invTemplate')) $('#set_invTemplate').value = settings.invTemplate || 'classic';
   $('#set_invTermsEn').value    = settings.invTermsEn  || '';
   $('#set_invTermsAr').value    = settings.invTermsAr  || '';
   $('#set_monthlyGoal').value     = settings.monthlyGoal ?? 0;
@@ -2519,6 +2520,7 @@ function saveSettingsFromForm() {
     taglineEn:     $('#set_taglineEn').value.trim(),
     taglineAr:     $('#set_taglineAr').value.trim(),
     invAccentColor:$('#set_invAccent').value || '#5E2E14',
+    invTemplate:   $('#set_invTemplate')?.value || 'classic',
     invTermsEn:    $('#set_invTermsEn').value.trim(),
     invTermsAr:    $('#set_invTermsAr').value.trim(),
     quotePrefix:   $('#set_quotePrefix').value.trim() || 'QUO',

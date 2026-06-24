@@ -850,6 +850,28 @@ html.printing-labels #label-print-area {
   letter-spacing: -0.005em;
 }
 
+/* ---------- Document templates (branding presets; structure-safe) ----------
+   classic = default. modern = accent header band + thicker bar. minimal =
+   no color bar, lighter borders, restrained accent. Applied on .inv-wrap. */
+.inv-tmpl-modern .inv-top-bar { height: 10px; }
+.inv-tmpl-modern .inv .inv-header {
+  background: var(--brand);
+  margin: -28px -28px 26px;
+  padding: 26px 28px;
+  border-bottom: 0;
+  border-radius: 0 0 10px 10px;
+}
+.inv-tmpl-modern .inv .inv-header,
+.inv-tmpl-modern .inv .inv-header h1,
+.inv-tmpl-modern .inv .inv-header .biz-tagline,
+.inv-tmpl-modern .inv .inv-header .biz-meta p { color: #fff; }
+.inv-tmpl-modern .inv .inv-header .biz-meta { opacity: 0.92; }
+.inv-tmpl-modern .inv .inv-header .mark { background: #fff; border-radius: 8px; padding: 4px; }
+
+.inv-tmpl-minimal .inv-top-bar { display: none; }
+.inv-tmpl-minimal .inv { --line: #eee; --line-soft: #f5f5f5; --highlight: #f6f6f6; }
+.inv-tmpl-minimal .inv .inv-header { border-bottom-width: 2px; padding-bottom: 18px; margin-bottom: 22px; }
+
 .inv .ar  { font-family: "SF Arabic", "Geeza Pro", "Tajawal", "Cairo", Arial, sans-serif; direction: rtl; }
 .inv .ltr { direction: ltr; unicode-bidi: isolate; }
 .inv .sub { font-weight: 500; color: var(--ink-mute); margin-inline-start: 4px; }

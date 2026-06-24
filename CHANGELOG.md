@@ -6,6 +6,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### 3.0.0-beta.18 cycle (in progress)
 
+### Added
+
+- **Invoice templates** — pick a document look in **Settings → Business**: **Classic** (the current style), **Modern** (a bold accent-coloured header band), or **Minimal** (clean, no colour bar). It restyles your invoices, quotes, and receipts on top of the existing logo, tagline, accent colour, and terms — purely visual, so ZATCA fields and totals are unchanged.
+
 ## [3.0.0-beta.17] - 2026-06-24
 
 **Pre-release (beta)** — a usability, finance & scale release: supplier price lists, downloadable portal invoices, mobile inventory, an executive KPI summary, per-location reports, a team activity log, more storefront/payment connectors, and one-click demo data.

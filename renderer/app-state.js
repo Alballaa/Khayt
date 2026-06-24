@@ -111,6 +111,7 @@ function defaultSettings() {
     taglineEn:       '',
     taglineAr:       '',
     invAccentColor:  '#5E2E14',
+    invTemplate:     'classic', // classic | modern | minimal
     invTermsEn:      '',
     invTermsAr:      '',
     quotePrefix:     'QUO',

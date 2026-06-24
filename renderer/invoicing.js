@@ -1459,8 +1459,9 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
   // "Paid" stamp overlay
   const paidStampHtml = isPaid ? `<div class="paid-stamp">${escapeHtml(isAr ? 'مدفوع' : 'PAID')}</div>` : '';
 
+  const invTmpl = ['classic', 'modern', 'minimal'].includes(settings.invTemplate) ? settings.invTemplate : 'classic';
   area.innerHTML = `
-    <div class="inv-wrap">
+    <div class="inv-wrap inv-tmpl-${invTmpl}">
     <div class="inv-top-bar" style="background:${invBrand};"></div>
     <div class="inv" dir="${dir}" lang="${i18n.current}" style="--brand:${invBrand}; --accent:${invAccent}; --highlight:${invHighlight};">
       ${paidStampHtml}
