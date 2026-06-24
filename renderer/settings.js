@@ -2713,6 +2713,56 @@ async function openRestoreBackupModal() {
   });
 }
 
+/** Named restore points: create labeled snapshots + one-click restore/delete.
+ *  Disaster recovery beyond the dated auto-backups (separate, non-pruned set). */
+async function openRestorePointsModal() {
+  if (!window.hubAPI?.listRestorePoints) { toast(t('rp.unavailable') || 'Restore points unavailable', 'error'); return; }
+  const fmtWhen = (ms) => { try { return new Date(ms).toLocaleString(i18n.current === 'ar' ? 'ar-SA' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) { return ''; } };
+  const render = async (modal) => {
+    let list = [];
+    try { list = await window.hubAPI.listRestorePoints() || []; } catch (e) { /* ignore */ }
+    const rows = list.length ? list.map((rp) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border-soft);">
+        <div style="flex:1;"><div style="font-size:13px;font-weight:600;">${escapeHtml(rp.label)}</div><div style="font-size:11px;color:var(--text-muted);">${escapeHtml(fmtWhen(rp.mtime))}</div></div>
+        <button class="btn small primary rpRestore" data-f="${escapeHtml(rp.filename)}">${escapeHtml(t('rp.restore') || 'Restore')}</button>
+        <button class="btn small ghost rpDelete" data-f="${escapeHtml(rp.filename)}" style="color:var(--danger);">✕</button>
+      </div>`).join('') : `<div style="text-align:center;color:var(--text-muted);padding:18px 0;">${escapeHtml(t('rp.empty') || 'No restore points yet.')}</div>`;
+    modal.querySelector('#rpBody').innerHTML = `
+      <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 10px;">${escapeHtml(t('rp.hint') || 'Save a labeled snapshot of all your data you can roll back to anytime — e.g. before a big import or month-end.')}</p>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <input id="rpLabel" type="text" maxlength="60" placeholder="${escapeHtml(t('rp.label_ph') || 'Label (e.g. Before June import)')}" style="flex:1;">
+        <button id="rpCreate" class="btn small primary">+ ${escapeHtml(t('rp.create') || 'Create')}</button>
+      </div>
+      ${rows}`;
+    modal.querySelector('#rpCreate')?.addEventListener('click', async () => {
+      const label = modal.querySelector('#rpLabel').value.trim();
+      const r = await window.hubAPI.createRestorePoint({ json: JSON.stringify(buildExportPayload({ redactSecrets: false })), label });
+      if (r?.ok) { toast(t('rp.created') || 'Restore point saved', 'success'); render(modal); }
+      else toast((r && r.error) || 'Failed', 'error');
+    });
+    modal.querySelectorAll('.rpRestore').forEach((b) => b.addEventListener('click', async () => {
+      if (!(await confirmModal(t('rp.restore_q') || 'Replace all current data with this restore point? This cannot be undone.', { danger: true }))) return;
+      const json = await window.hubAPI.readRestorePoint(b.dataset.f);
+      if (!json) { toast(t('set.restore_error') || 'Restore failed', 'error'); return; }
+      try {
+        replaceStoreFromSnapshot(safeJsonParse(json));
+        saveAll(); initialRender(); loadSettingsIntoForm(); applyTheme(settings.theme); i18n.set(settings.lang); refreshCurrencyLabels();
+        toast(t('set.restore_success') || 'Restored', 'success');
+        modal.querySelector('.modal-close')?.click();
+      } catch (e) { console.error('restore point failed', e); toast(t('set.restore_error') || 'Restore failed', 'error'); }
+    }));
+    modal.querySelectorAll('.rpDelete').forEach((b) => b.addEventListener('click', async () => {
+      await window.hubAPI.deleteRestorePoint(b.dataset.f); render(modal);
+    }));
+  };
+  openFormModal({
+    title: '🛟 ' + (t('rp.title') || 'Restore points'),
+    noSave: true,
+    bodyHtml: `<div id="rpBody"></div>`,
+    onMount(modal) { render(modal); },
+  });
+}
+
 /* ============================================================
    Post-processing checklist (settings management)
    ============================================================ */
@@ -3164,6 +3214,7 @@ function renderTelegramSettings() {
     saveSettingsFromPanel,
     saveLanApiSettingsFromForm,
     openRestoreBackupModal,
+    openRestorePointsModal,
     renderHolidayList,
     renderPostChecklistSettings,
     addPostCheckItem,
