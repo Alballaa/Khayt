@@ -1262,6 +1262,7 @@ function wireEvents() {
   $('#btnExportClientsCsv')?.addEventListener('click', () => exportClientsCsv());
   $('#btnCampaign')?.addEventListener('click', () => openCampaignModal());
   $('#btnSubscriptions')?.addEventListener('click', () => { if (typeof openSubscriptionsModal === 'function') openSubscriptionsModal(); });
+  $('#btnActivityLog')?.addEventListener('click', () => { if (typeof openActivityLog === 'function') openActivityLog(); });
   const chkAutoDraftPo = $('#chkAutoDraftPo');
   if (chkAutoDraftPo) {
     chkAutoDraftPo.checked = !!settings.autoDraftPo;

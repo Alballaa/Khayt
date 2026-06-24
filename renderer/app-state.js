@@ -270,6 +270,7 @@ let giftCards      = [];
 let slicerProfiles = [];
 let envLogs        = [];
 let subscriptions  = []; // retainer / subscription plans (recurring revenue)
+let auditLog       = []; // append-only team activity log (who did what, when)
 
 // Runtime-only state (not persisted)
 let kanbanTimerInterval = null;
@@ -353,7 +354,7 @@ function collectStoreCollections() {
     expenses, machines, waTemplates, wasteLog, machMaintLog, consumables,
     suppliers, purchaseOrders, testPrints, locations, operators, waitingList,
     waitingListHistory, timeEntries, shiftLogs, giftCards, slicerProfiles, envLogs,
-    tombstones, machMaintTasks, loyaltyLedger, subscriptions,
+    tombstones, machMaintTasks, loyaltyLedger, subscriptions, auditLog,
   };
 }
 
@@ -400,6 +401,7 @@ function replaceStoreFromSnapshot(store) {
   machMaintTasks = [];
   loyaltyLedger = [];
   subscriptions = [];
+  auditLog = [];
   settings = defaultSettings();
   applyStoreFromSnapshot(store);
 }
@@ -454,6 +456,7 @@ function applyStoreFromSnapshot(store) {
   if (store.machMaintTasks)      machMaintTasks      = store.machMaintTasks.filter(isValidRecord);
   if (store.loyaltyLedger)       loyaltyLedger       = store.loyaltyLedger.filter(isObj);
   if (store.subscriptions)       subscriptions       = store.subscriptions.filter(isObj);
+  if (store.auditLog)            auditLog            = store.auditLog.filter(isObj);
   if (store.settings)            settings            = Object.assign({}, defaultSettings(), sanitiseForAssign(store.settings));
   migrateLanApiSettings();
   migrateLegacyDesignTheme();
