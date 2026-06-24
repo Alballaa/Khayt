@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### 3.0.0-beta.19 cycle (in progress)
+
 ## [3.0.0-beta.18] - 2026-06-24
 
 **Pre-release (beta)** — a polish & launch-readiness release: invoice templates, a monthly email digest, overdue-invoice reminders, a guided tour, a Turkish interface, an accessibility pass, named restore points, and a Road-to-1.0 plan.
