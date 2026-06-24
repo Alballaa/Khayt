@@ -1,7 +1,7 @@
 # Khayt 3.0 beta — pre-launch manual QA
 
-Automated coverage (CI on every PR) already exercises: 655 desktop unit tests,
-58 cloud contract tests, the 9-theme + RTL render shells, and an end-to-end
+Automated coverage (CI on every PR) already exercises: 674 desktop unit tests,
+61 cloud contract tests, the 9-theme + RTL render shells, and an end-to-end
 smoke (tabs, order lifecycle, store, LAN PIN gate). This checklist covers what
 automation **can't** — paths that need real provider keys, a second device, or
 hardware. Run it against a real `cloud.khaytapp.com` account before announcing.
@@ -102,10 +102,43 @@ Legend: ☐ to test · note the build version + OS for each pass.
 - ☐ **Offline auto-retry**: with cloud on, go offline → make an edit (status shows
   offline) → restore connectivity → change uploads automatically (no manual sync).
 
+## New in beta.16–18
+- ☐ **Storefront variants + checkout**: a product with options (Color/Size) →
+  customer picks on `/shop`; shipping method + tax show; order arrives itemised.
+- ☐ **Mobile triage + inventory**: `/m` Requests tab accept→quote / decline;
+  Inventory tab deduct/top-up a spool → syncs to desktop.
+- ☐ **Portal balance + invoice PDF**: published order shows Pay balance (amount
+  filled in) + Download invoice (PDF) prints a clean invoice/receipt.
+- ☐ **Executive summary**: Analytics → Executive summary → KPIs + on-time % + top
+  lists; date-range + location switchers re-scope live.
+- ☐ **Scheduling board**: Queue → Schedule → per-machine "ready by" + late flags.
+- ☐ **Auto-draft POs / supplier prices**: enable Auto-draft POs → low items draft
+  POs at the cheapest matching supplier price.
+- ☐ **Subscriptions**: create a retainer → on the due date an invoice is generated;
+  MRR shows. **Activity log**: status changes attributed to the operator.
+- ☐ **Invoice template** (Classic/Modern/Minimal), **monthly digest**, **overdue
+  payment flagging**, **guided tour**, **Turkish UI**, **keyboard focus + skip
+  link**, **named restore points** (create → restore round-trips).
+
 ## Cross-cutting
 - ☐ Arabic (RTL) spot-check of the new screens (storefront, review, campaign,
-  P&L/CSV export, AI price modal, remote `/m`).
+  P&L/CSV export, AI price modal, remote `/m`, executive summary, restore points).
 - ☐ Run fully **offline** (no cloud) → core app works; cloud features degrade
   gracefully and auto-retry when back online.
 - ☐ Crash reporting: confirm Sentry receives nothing during normal use (privacy)
   and an opt-out path exists.
+
+## Road to 1.0 (release-candidate plan)
+A checklist to promote the 3.0 beta line to a 1.0 stable release.
+- ☐ **Feature freeze**: stop adding features for one cycle; only fixes + polish.
+- ☐ **Full manual QA pass** of this document on a clean machine + an upgrade from
+  the previous stable, on macOS, Windows, and Linux.
+- ☐ **i18n**: en⊆ar parity green (hard gate); spot-check each locale's nav/chrome
+  renders without overflow in LTR + RTL.
+- ☐ **Cut a release candidate** tag `v3.0.0-rc.1` → verify all three platform
+  builds sign/notarize and the website surfaces it.
+- ☐ **Soak the RC** for ~1 week with real shops; triage any regressions.
+- ☐ **Docs/site**: changelog, feature list, screenshots, and pricing/licensing
+  (FSL-1.1-Apache-2.0) reflect the shipped feature set.
+- ☐ **Promote**: re-tag the soaked RC as `v3.0.0` (drop the `-rc`/`-beta`
+  prerelease flag) and announce.
