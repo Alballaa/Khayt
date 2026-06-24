@@ -212,6 +212,31 @@ function processQuoteFollowUps() {
   setTimeout(() => toast(t('quote.followup_auto', { n: sent }) || `Followed up on ${sent} quote(s)`, 'info', 4000), 600);
 }
 
+/** Flag overdue unpaid invoices for a payment reminder (opt-in). Marks them
+ *  (dedup/cooldown/cap via the pure lib) and surfaces a single prompt; the owner
+ *  sends with the existing one-tap 💰 reminder. Does not auto-message customers. */
+function processPaymentReminders() {
+  if (typeof KhaytPaymentReminder === 'undefined') return;
+  const cfg = KhaytPaymentReminder.reminderConfig(settings);
+  if (!cfg.enabled) return;
+  const owedOf = (o) => (typeof orderOwedBase === 'function' ? orderOwedBase(o) : (+o.price || 0) - (+o.paidAmount || 0));
+  const due = KhaytPaymentReminder.selectInvoicesDueForReminder(printLog, settings, owedOf, Date.now());
+  if (due.length === 0) return;
+  for (const o of due) Object.assign(o, KhaytPaymentReminder.markReminderPatch(o, Date.now()));
+  saveAll();
+  if (typeof renderDashboard === 'function') renderDashboard();
+  setTimeout(() => toast(t('pay.reminder_auto', { n: due.length }) || `${due.length} invoice(s) overdue — send a payment reminder`, 'info', 5000), 800);
+}
+
+/** Periodic overdue-invoice check (~6h). Idempotent. */
+function startPaymentReminderTimer() {
+  if (typeof window === 'undefined') return;
+  if (window.__khaytPayReminderTimer) return;
+  window.__khaytPayReminderTimer = setInterval(() => {
+    try { processPaymentReminders(); } catch (e) { console.error('[payment-reminder]', e); }
+  }, 6 * 60 * 60 * 1000);
+}
+
 /** Start the periodic auto-nudge timer (re-checks every ~6h). Idempotent. */
 function startQuoteFollowUpTimer() {
   if (typeof window === 'undefined') return;
@@ -607,6 +632,8 @@ function openLogEnvModal() {
     processRecurringOrders,
     processQuoteFollowUps,
     startQuoteFollowUpTimer,
+    processPaymentReminders,
+    startPaymentReminderTimer,
     renderGiftCards,
     openCreateGiftCardModal,
     applyGiftCard,
