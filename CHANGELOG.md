@@ -8,6 +8,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Guided tour** — first-time owners now get a quick walkthrough after setup that steps through the dashboard, calculator, queue, inventory, clients, and analytics with a short explanation of each. Replay it anytime from **Settings → Data → Take a tour**. (Adapts to Simple/Pro mode and works in both English and Arabic/RTL.)
+
 - **Overdue-invoice reminders** — opt in (Settings → Automation) and Khayt periodically flags unpaid invoices past their due date — with a configurable grace period, cooldown, and per-invoice cap — so you can send a payment reminder in one tap from the dashboard. Complements the existing quote follow-up automation; it never messages customers automatically.
 
 - **Monthly email digest** — the automated email digest (Settings → Email digest) now supports a **Monthly** cadence on a day-of-month you choose, alongside daily and weekly. It emails the period's revenue, outstanding balance, completed orders, low-stock spools, and intake — so you get a month-end business summary in your inbox automatically.

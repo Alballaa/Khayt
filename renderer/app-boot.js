@@ -271,6 +271,8 @@ function initWizard() {
     initialRender();
     refreshCurrencyLabels();
     toast(t('wiz.welcome_done'), 'success', 4000);
+    // Kick off the guided tour for first-time owners.
+    if (typeof startTour === 'function') setTimeout(startTour, 800);
   }
 
   goToStep(1);
