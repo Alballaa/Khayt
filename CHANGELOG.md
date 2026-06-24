@@ -8,6 +8,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Demo data to explore** — new shops can now **Settings → Data → Load demo data** to fill Khayt with realistic sample clients, products, spools, printers, and orders (across quote → printing → delivered) and try every tab before entering real data. One click to **Remove demo data** later — your real records are never touched.
+
 - **More storefront & payment connectors** — the Storefronts & Payments directory grows from 3 to **5 per market**: added Wuilt & ExpandCart (Gulf), BigCommerce & Wix (US/Spain/France), Wix & Etsy (Germany), STORES & MakeShop (Japan), Pinduoduo & Weidian (China) — plus more payment options per market (Tamara, PayTabs, Apple/Google Pay, Redsys, Lydia, giropay, SOFORT, LINE Pay, Merpay, JD Pay, QQ Pay…). New storefronts work with the existing import links and catalog feeds.
 
 - **Team activity log** — a new **Clients → Activity** view records who did what and when (orders & quotes created, status changes), attributed to the signed-in operator, filterable by team member. Pairs with the existing per-operator job assignment and roles, and syncs across devices. (Built on the existing operator sign-in.)

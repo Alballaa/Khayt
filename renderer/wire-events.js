@@ -1485,6 +1485,8 @@ function wireEvents() {
   });
   $('#btnExport').addEventListener('click', exportData);
   $('#btnExportCsvAll')?.addEventListener('click', exportAllCsv);
+  $('#btnLoadSample')?.addEventListener('click', () => { if (typeof loadSampleData === 'function') loadSampleData(); });
+  $('#btnClearSample')?.addEventListener('click', () => { if (typeof clearSampleData === 'function') clearSampleData(); });
   $('#btnImport').addEventListener('click', () => $('#importFile').click());
   $('#importFile').addEventListener('change', (e) => {
     if (e.target.files[0]) importData(e.target.files[0]);
