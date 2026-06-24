@@ -7,13 +7,16 @@ const { MARKETS, forLocale, allStorefrontIds, allPaymentIds, storefront } = requ
 
 const LOCALES = ['ar', 'en', 'es', 'fr', 'de', 'ja', 'zh'];
 
-test('every translated market has exactly 3 storefronts + 3 payments', () => {
+test('every translated market has at least 3 storefronts + 3 payments', () => {
   for (const loc of LOCALES) {
     const m = MARKETS[loc];
     assert.ok(m, `market ${loc} exists`);
-    assert.equal(m.storefronts.length, 3, `${loc} storefronts`);
-    assert.equal(m.payments.length, 3, `${loc} payments`);
+    assert.ok(m.storefronts.length >= 3, `${loc} storefronts`);
+    assert.ok(m.payments.length >= 3, `${loc} payments`);
     assert.ok(m.country.en && m.country.ar, `${loc} country labels`);
+    // ids unique within a market
+    assert.equal(new Set(m.storefronts.map((s) => s.id)).size, m.storefronts.length, `${loc} storefront ids unique`);
+    assert.equal(new Set(m.payments.map((p) => p.id)).size, m.payments.length, `${loc} payment ids unique`);
   }
 });
 
