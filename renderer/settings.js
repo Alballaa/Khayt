@@ -2778,6 +2778,41 @@ function deleteCustomField(idx) {
   renderCustomFieldsSettings();
 }
 
+/** Load explorable demo data (clients, products, spools, machines, orders).
+ *  Each record is flagged sample:true and uses a stable DEMO-* id, so loading
+ *  is idempotent and it can be removed cleanly later. */
+async function loadSampleData() {
+  if (typeof KhaytSampleData === 'undefined') { toast('Sample data unavailable', 'error'); return; }
+  const ok = await confirmModal(t('set.sample_load_q') || 'Add demo clients, products, spools and orders to explore? You can remove them anytime.');
+  if (!ok) return;
+  const data = KhaytSampleData.buildSampleData({ today: new Date().toISOString().slice(0, 10) });
+  const targets = { machines, clients, products, inventory, printLog };
+  let added = 0;
+  for (const key of KhaytSampleData.SAMPLE_COLLECTIONS) {
+    const arr = targets[key]; if (!Array.isArray(arr)) continue;
+    for (const rec of data[key]) {
+      if (!arr.some((x) => x && x.id === rec.id)) { arr.push(rec); added++; }
+    }
+  }
+  saveAll();
+  initialRender();
+  loadSettingsIntoForm();
+  toast((t('set.sample_loaded', { n: added }) || `Added ${added} demo records`), 'success');
+}
+
+/** Remove every record previously added as sample/demo data. */
+async function clearSampleData() {
+  const ok = await confirmModal(t('set.sample_clear_q') || 'Remove all demo data? Your real records are kept.', { danger: true });
+  if (!ok) return;
+  const strip = (arr) => (Array.isArray(arr) ? arr.filter((x) => !(x && x.sample)) : arr);
+  machines = strip(machines); clients = strip(clients); products = strip(products);
+  inventory = strip(inventory); printLog = strip(printLog);
+  saveAll();
+  initialRender();
+  loadSettingsIntoForm();
+  toast(t('set.sample_cleared') || 'Demo data removed', 'success');
+}
+
 function exportData() {
   if (!confirm(t('set.export_secrets_warning') || 'Export will redact API keys and secrets. Continue?')) return;
   downloadBlob(
@@ -3110,6 +3145,8 @@ function renderTelegramSettings() {
     deleteCustomField,
     exportData,
     importData,
+    loadSampleData,
+    clearSampleData,
     resetAllData,
     fullWipeData,
     renderSecuritySettings,
