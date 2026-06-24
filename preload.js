@@ -47,6 +47,10 @@ contextBridge.exposeInMainWorld('hubAPI', {
   listBackups:        () => ipcRenderer.invoke('hub:list-backups'),
   restoreBackup:      (backupPath) => ipcRenderer.invoke('hub:restore-backup', backupPath),
   exportCsvBundle:    (files) => ipcRenderer.invoke('hub:export-csv-bundle', files),
+  createRestorePoint: (opts) => ipcRenderer.invoke('hub:create-restore-point', opts),
+  listRestorePoints:  () => ipcRenderer.invoke('hub:list-restore-points'),
+  readRestorePoint:   (filename) => ipcRenderer.invoke('hub:read-restore-point', filename),
+  deleteRestorePoint: (filename) => ipcRenderer.invoke('hub:delete-restore-point', filename),
 
   // iCloud backup (macOS)
   icloudAvailable:    () => ipcRenderer.invoke('hub:icloud-available'),

@@ -514,6 +514,53 @@ ipcMain.handle('hub:restore-backup', async (event, backupPath) => {
 ipcMain.handle('hub:reveal-order-photos-folder', async () => shell.openPath(orderPhotosDir()));
 ipcMain.handle('hub:reveal-backups-folder', async () => shell.openPath(backupsDir()));
 
+// --- Named restore points (disaster recovery) ---
+// Stored in a separate folder from the dated auto-backups so they are never
+// auto-pruned; each carries a user label. Encrypted on disk like backups.
+const restorePointsDir = () => ensureDir('restore-points');
+const sanitizeRpLabel = (s) => String(s || 'Restore point').replace(/[^\p{L}\p{N} _-]/gu, '').trim().slice(0, 60) || 'Restore point';
+
+ipcMain.handle('hub:create-restore-point', async (_e, { json, label } = {}) => {
+  if (!json || typeof json !== 'string' || json.length > 20_000_000) return { ok: false, error: 'Invalid data' };
+  let parsed;
+  try { parsed = safeJsonParse(json); } catch (e) { return { ok: false, error: 'Invalid JSON' }; }
+  const safeLabel = sanitizeRpLabel(label);
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const filename = `${stamp}__${safeLabel.replace(/\s+/g, '_')}.json`;
+  await fs.promises.writeFile(path.join(restorePointsDir(), filename), JSON.stringify(encryptForDisk(parsed)), 'utf8');
+  // Keep the most recent 50 restore points.
+  const all = (await fs.promises.readdir(restorePointsDir())).filter(f => f.endsWith('.json')).sort();
+  for (const f of all.slice(0, Math.max(0, all.length - 50))) {
+    await fs.promises.unlink(path.join(restorePointsDir(), f)).catch(() => {});
+  }
+  return { ok: true, filename, label: safeLabel };
+});
+
+ipcMain.handle('hub:list-restore-points', async () => {
+  const dir = restorePointsDir();
+  const files = (await fs.promises.readdir(dir)).filter(f => f.endsWith('.json')).sort().reverse();
+  return Promise.all(files.map(async (f) => {
+    const stat = await fs.promises.stat(path.join(dir, f));
+    const label = (f.replace(/\.json$/, '').split('__')[1] || 'Restore point').replace(/_/g, ' ');
+    return { filename: f, label, mtime: stat.mtimeMs };
+  }));
+});
+
+ipcMain.handle('hub:read-restore-point', async (_e, filename) => {
+  const safe = path.join(restorePointsDir(), path.basename(String(filename || '')));
+  if (!fs.existsSync(safe)) return null;
+  try {
+    const parsed = safeJsonParse(await fs.promises.readFile(safe, 'utf8'));
+    return JSON.stringify(decryptStoreSecrets(JSON.parse(JSON.stringify(parsed))));
+  } catch (e) { console.error('hub:read-restore-point error:', e); return null; }
+});
+
+ipcMain.handle('hub:delete-restore-point', async (_e, filename) => {
+  const safe = path.join(restorePointsDir(), path.basename(String(filename || '')));
+  await fs.promises.unlink(safe).catch(() => {});
+  return { ok: true };
+});
+
 // --- Receipt file picker (Feature 5) ---
 ipcMain.handle('hub:pick-file', async (event, opts = {}) => {
   const wc = event.sender;

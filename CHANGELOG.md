@@ -6,6 +6,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### 3.0.0-beta.18 cycle (in progress)
 
+### Added
+
+- **Named restore points** — save a **labeled snapshot** of all your data (Settings → Backups → Restore points…) before a risky change like a big import or month-end, and **roll back in one click** anytime. Restore points are kept separately from the dated auto-backups (so they're never auto-pruned), encrypted on disk, and capped at the most recent 50.
+
 ### Accessibility
 
 - **Keyboard & screen-reader pass** — a visible keyboard **focus ring** now appears across all interactive controls (buttons, inputs, selects, links, tabs), and a **“Skip to main content”** link lets keyboard and screen-reader users jump past the nav. Mouse interaction is unchanged (focus rings show only for keyboard navigation).

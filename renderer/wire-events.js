@@ -1502,6 +1502,7 @@ function wireEvents() {
     if (window.hubAPI?.revealBackupsFolder) window.hubAPI.revealBackupsFolder();
   });
   $('#btnRestoreBackup')?.addEventListener('click', openRestoreBackupModal);
+  $('#btnRestorePoints')?.addEventListener('click', () => { if (typeof openRestorePointsModal === 'function') openRestorePointsModal(); });
 
   // Purchase orders (Feature 3) — delegate from section
   $('#poSection')?.addEventListener('click', async (e) => {
