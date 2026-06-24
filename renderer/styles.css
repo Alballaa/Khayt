@@ -335,6 +335,39 @@ input[type="number"] { font-variant-numeric: tabular-nums; }
 .btn:active { transform: translateY(1px); }
 .btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
+/* ---------- Accessibility: keyboard focus + skip link ---------- */
+/* A consistent, visible focus ring for keyboard users across all interactive
+   controls (mouse clicks use :focus-visible, so this doesn't affect pointer UX). */
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="tab"]:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:not([tabindex="-1"]):focus-visible,
+[data-act]:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+#mainContent:focus { outline: none; }
+
+.skip-link {
+  position: fixed;
+  inset-inline-start: 12px;
+  top: -48px;
+  z-index: 10000;
+  background: var(--primary);
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: top .15s ease;
+}
+.skip-link:focus { top: 12px; }
+
 .btn.primary  { background: var(--primary); color: #fff; border-color: var(--primary); }
 .btn.primary:hover { background: var(--primary-2); border-color: var(--primary-2); }
 .btn.success  { background: var(--success); color: #fff; border-color: var(--success); }

@@ -3,6 +3,7 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.en = {
+  "a11y.skip": "Skip to main content",
   "set.stock_defaults": "Stock Defaults",
   "set.ops_pricing": "Pricing & Quotes",
   "set.printers_devices": "Connected Printers",

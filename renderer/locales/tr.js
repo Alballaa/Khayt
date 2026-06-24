@@ -4,6 +4,7 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.tr = {
+  "a11y.skip": "Ana içeriğe geç",
   // Navigation / tabs
   "tab.dashboard": "Panel",
   "tab.queue": "Üretim Kuyruğu",
