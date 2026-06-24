@@ -162,6 +162,8 @@
   "digest.send_hour": "ساعة الإرسال",
   "digest.send_test": "إرسال اختبار الآن",
   "digest.weekday": "يوم الأسبوع",
+  "digest.monthly": "شهري",
+  "digest.monthday": "يوم الشهر",
   "inv.brand": "العلامة التجارية",
   "inv.cost_per_kg": "التكلفة/كجم",
   "inv.diameter": "القطر (مم)",

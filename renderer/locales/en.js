@@ -37,6 +37,8 @@
   "digest.send_hour": "Send at hour",
   "digest.send_test": "Send Test Now",
   "digest.weekday": "Day of week",
+  "digest.monthly": "Monthly",
+  "digest.monthday": "Day of month",
   "inv.brand": "Brand",
   "inv.cost_per_kg": "Cost/kg",
   "inv.diameter": "Diameter (mm)",

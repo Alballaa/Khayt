@@ -413,11 +413,12 @@ function renderSmsNotificationSettings() {
 function buildDigestEmailHtml() {
   const now = new Date();
   const todayStr = now.toISOString().split('T')[0];
-  const isWeekly = settings.emailDigest?.frequency === 'weekly';
+  const freq = settings.emailDigest?.frequency || 'daily';
+  const freqLabel = freq === 'weekly' ? 'Weekly' : (freq === 'monthly' ? 'Monthly' : 'Daily');
 
   // Compute period bounds
   let periodLabel, periodFrom, periodTo;
-  if (isWeekly) {
+  if (freq === 'weekly') {
     const jan1 = new Date(now.getFullYear(), 0, 1);
     const weekNum = Math.ceil(((now - jan1) / 86400000 + jan1.getDay() + 1) / 7);
     periodLabel = `Week ${weekNum}, ${now.getFullYear()}`;
@@ -427,6 +428,10 @@ function buildDigestEmailHtml() {
     periodFrom = new Date(now);
     periodFrom.setDate(now.getDate() + diffToMon);
     periodFrom.setHours(0, 0, 0, 0);
+    periodTo = new Date(now);
+  } else if (freq === 'monthly') {
+    periodLabel = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    periodFrom = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
     periodTo = new Date(now);
   } else {
     periodLabel = todayStr;
@@ -465,7 +470,7 @@ function buildDigestEmailHtml() {
   <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1);">
     <div style="background:#6c47ff;padding:24px 32px;">
       <h1 style="margin:0;color:#fff;font-size:22px;">${shopName}</h1>
-      <p style="margin:4px 0 0;color:rgba(255,255,255,.8);font-size:13px;">${isWeekly ? 'Weekly' : 'Daily'} Digest · ${escapeHtml(periodLabel)}</p>
+      <p style="margin:4px 0 0;color:rgba(255,255,255,.8);font-size:13px;">${freqLabel} Digest · ${escapeHtml(periodLabel)}</p>
     </div>
     <div style="padding:28px 32px;">
       <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:24px;">
@@ -1315,6 +1320,10 @@ function renderDigestSettings() {
             <input type="radio" name="digestFreq" value="weekly" ${d.frequency === 'weekly' ? 'checked' : ''} style="width:auto;margin:0;">
             Weekly
           </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:normal;">
+            <input type="radio" name="digestFreq" value="monthly" ${d.frequency === 'monthly' ? 'checked' : ''} style="width:auto;margin:0;">
+            ${escapeHtml(t('digest.monthly') || 'Monthly')}
+          </label>
         </div>
       </div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
@@ -1325,6 +1334,10 @@ function renderDigestSettings() {
         <div id="digestWeekdayWrap" style="${d.frequency === 'weekly' ? '' : 'display:none;'}">
           <label style="margin-top:0;">${escapeHtml(t('digest.weekday') || 'Day of week')}</label>
           <select id="digestWeekday" style="font-size:12.5px;">${dayOpts}</select>
+        </div>
+        <div id="digestMonthdayWrap" style="${d.frequency === 'monthly' ? '' : 'display:none;'}">
+          <label style="margin-top:0;">${escapeHtml(t('digest.monthday') || 'Day of month')}</label>
+          <select id="digestMonthday" style="font-size:12.5px;">${Array.from({ length: 28 }, (_, i) => `<option value="${i + 1}" ${(d.monthday ?? 1) === i + 1 ? 'selected' : ''}>${i + 1}</option>`).join('')}</select>
         </div>
       </div>
       <div style="margin-bottom:10px;">
@@ -1345,8 +1358,11 @@ function renderDigestSettings() {
 
   el.querySelectorAll('[name="digestFreq"]').forEach(r => {
     r.addEventListener('change', () => {
+      const freq = el.querySelector('[name="digestFreq"]:checked')?.value;
       const wdWrap = el.querySelector('#digestWeekdayWrap');
-      if (wdWrap) wdWrap.style.display = r.value === 'weekly' && r.checked ? '' : 'none';
+      const mdWrap = el.querySelector('#digestMonthdayWrap');
+      if (wdWrap) wdWrap.style.display = freq === 'weekly' ? '' : 'none';
+      if (mdWrap) mdWrap.style.display = freq === 'monthly' ? '' : 'none';
     });
   });
 
@@ -1356,6 +1372,7 @@ function renderDigestSettings() {
       frequency:      el.querySelector('[name="digestFreq"]:checked')?.value || 'daily',
       hour:           parseInt(el.querySelector('#digestHour').value, 10) || 8,
       weekday:        parseInt(el.querySelector('#digestWeekday').value, 10) || 1,
+      monthday:       parseInt(el.querySelector('#digestMonthday')?.value, 10) || 1,
       recipientEmail: el.querySelector('#digestRecipient').value.trim(),
       lastSentDate:   settings.emailDigest?.lastSentDate || '',
     };
