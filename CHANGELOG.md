@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### 3.0.0-beta.18 cycle (in progress)
+
 ## [3.0.0-beta.17] - 2026-06-24
 
 **Pre-release (beta)** — a usability, finance & scale release: supplier price lists, downloadable portal invoices, mobile inventory, an executive KPI summary, per-location reports, a team activity log, more storefront/payment connectors, and one-click demo data.
