@@ -6,6 +6,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### 3.0.0-beta.18 cycle (in progress)
 
+### Accessibility
+
+- **Keyboard & screen-reader pass** — a visible keyboard **focus ring** now appears across all interactive controls (buttons, inputs, selects, links, tabs), and a **“Skip to main content”** link lets keyboard and screen-reader users jump past the nav. Mouse interaction is unchanged (focus rings show only for keyboard navigation).
+
 ### Added
 
 - **Turkish (beta)** — Khayt now offers a **Türkçe** interface option (top-bar language switcher, Settings, and setup wizard). The core navigation, common actions, order statuses, and tour are translated; remaining strings fall back to English while translation continues — bringing the supported language count to 8.
