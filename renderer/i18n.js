@@ -11,7 +11,7 @@ const i18n = {
 
   init() {
     const saved = localStorage.getItem('app_language');
-    const valid = ['en', 'ar', 'de', 'es', 'fr', 'zh', 'ja'];
+    const valid = ['en', 'ar', 'de', 'es', 'fr', 'zh', 'ja', 'tr'];
     this.set(valid.includes(saved) ? saved : 'en', { silent: true });
   },
 
