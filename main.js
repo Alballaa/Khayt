@@ -1356,6 +1356,36 @@ ipcMain.handle('hub:accounting-push', async (_e, { url, secret, payload } = {}) 
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
+// Generic outbound event webhook poster: signs the body with HMAC-SHA256
+// (X-Khayt-Signature: sha256=<hex>) so the receiver can verify authenticity, and
+// sends an Idempotency-Key (the event id) so retries dedupe. Same SSRF hardening
+// as hub:fire-webhook — https-only, blocked-host string + DNS-rebinding checks,
+// no redirects.
+ipcMain.handle('hub:webhook-post', async (_e, { url, secret, payload } = {}) => {
+  if (!url || !String(url).startsWith('https://')) return { ok: false, error: 'Webhook needs an https:// URL' };
+  let parsed;
+  try {
+    parsed = new URL(url);
+    if (isBlockedHost(parsed.hostname)) return { ok: false, error: 'Blocked URL — cannot send webhooks to private/loopback addresses' };
+  } catch { return { ok: false, error: 'Invalid webhook URL' }; }
+  if (await resolvesToBlockedHost(parsed.hostname)) {
+    return { ok: false, error: 'Blocked URL — hostname resolves to a private/loopback address' };
+  }
+  secret = resolveStoreSecret(secret, d => d?.settings?.eventWebhooks?.secret);
+  try {
+    const body = JSON.stringify(payload || {});
+    const headers = { 'content-type': 'application/json' };
+    if (payload && payload.id) headers['Idempotency-Key'] = String(payload.id);
+    if (secret) {
+      const sig = require('crypto').createHmac('sha256', String(secret)).update(body).digest('hex');
+      headers['X-Khayt-Signature'] = 'sha256=' + sig;
+    }
+    const res = await fetch(url, { method: 'POST', headers, body, redirect: 'manual', signal: AbortSignal.timeout(15000) });
+    if (res.status >= 300 && res.status < 400) return { ok: false, error: 'Webhook redirects are not allowed' };
+    return res.ok ? { ok: true, status: res.status } : { ok: false, status: res.status, error: `HTTP ${res.status}` };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
 // ── Feature R12-1: Outbound Webhooks ────────────────────────────────────────
 // AI quote extraction (BYO Anthropic key) — opt-in; fails safe (renderer falls
 // back to the manual quote form on any error). Key resolved from the encrypted

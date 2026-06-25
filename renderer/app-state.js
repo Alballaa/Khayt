@@ -200,6 +200,8 @@ function defaultSettings() {
     quoteFollowUp:     { enabled: false, windowDays: 2, graceDays: 1, cooldownDays: 2, maxCount: 2 },
     // Overdue-invoice payment reminders (auto-flag OFF by default)
     paymentReminder:   { enabled: false, graceDays: 3, cooldownDays: 3, maxCount: 3 },
+    // Outbound event webhooks (fire on order events; OFF by default)
+    eventWebhooks:     { enabled: false, url: '', secret: '', events: { created: true, status: true, paid: true } },
     minOrderAmount:    0,
     rushFeeEnabled:    false,
     rushFeePct:        25,
@@ -467,7 +469,7 @@ function applyStoreFromSnapshot(store) {
   migrateLanApiSettings();
   migrateLegacyDesignTheme();
   if (store.settings) {
-    const nested = ['emailDigest', 'emailConfig', 'smsConfig', 'accountingSync', 'zatcaPhase2', 'bnpl', 'lanApi', 'exchangeRates', 'printerApi', 'quoteFollowUp', 'paymentReminder'];
+    const nested = ['emailDigest', 'emailConfig', 'smsConfig', 'accountingSync', 'zatcaPhase2', 'bnpl', 'lanApi', 'exchangeRates', 'printerApi', 'quoteFollowUp', 'paymentReminder', 'eventWebhooks'];
     const isPlainObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
     for (const key of nested) {
       if (isPlainObj(store.settings[key])) {

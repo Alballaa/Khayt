@@ -368,6 +368,7 @@ async function batchMoveStatus() {
       autoSendEmailNotification(o, 'completed');
       fireWebhook('status_changed', { orderId: o.id, project: o.project, newStatus: 'completed', client: o.client });
       fireWebhook('order_delivered', { orderId: o.id, project: o.project, client: o.client });
+      fireOrderWebhook('status', o);
     }
   }
   renderInventory();
