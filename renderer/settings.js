@@ -1577,6 +1577,68 @@ function renderWebhookSettings() {
   });
 }
 
+/* beta.19 — Signed event webhooks (developer). One HTTPS endpoint receives the
+   normalized, HMAC-signed `order.*` envelope built by lib/webhooks.js. Distinct
+   from the per-event Zapier hooks above. */
+function renderEventWebhookSettings() {
+  const el = $('#eventWebhookSection');
+  if (!el) return;
+  const w = settings.eventWebhooks || {};
+  const ev = w.events || {};
+  const events = [
+    { key: 'created', label: t('ewh.ev_created') || 'order.created' },
+    { key: 'status',  label: t('ewh.ev_status')  || 'order.status (status changed)' },
+    { key: 'paid',    label: t('ewh.ev_paid')    || 'order.paid (fully paid)' },
+  ];
+  el.innerHTML = `
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:14px;">
+      <input type="checkbox" id="ewh_enabled" style="width:auto;margin:0;" ${w.enabled ? 'checked' : ''}>
+      <span data-i18n="ewh.enabled">Enable signed event webhooks</span>
+    </label>
+    <div style="margin-bottom:12px;">
+      <label data-i18n="ewh.url">Endpoint URL (https only)</label>
+      <input type="url" id="ewh_url" value="${escapeHtml(w.url || '')}" placeholder="https://api.example.com/khayt/webhook">
+    </div>
+    <div style="margin-bottom:12px;">
+      <label data-i18n="ewh.secret">Signing secret (HMAC-SHA256)</label>
+      <input type="text" id="ewh_secret" value="${escapeHtml(w.secret || '')}" placeholder="whsec_…" style="font-family:var(--font-mono,monospace);">
+    </div>
+    <h4 style="margin:0 0 10px;font-size:13px;font-weight:600;" data-i18n="ewh.events">Events to send</h4>
+    ${events.map(e => `
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:8px;font-size:12.5px;">
+        <input type="checkbox" id="ewh_ev_${e.key}" style="width:auto;margin:0;" ${ev[e.key] === false ? '' : 'checked'}>
+        <span>${escapeHtml(e.label)}</span>
+      </label>`).join('')}
+    <div style="margin-top:12px;">
+      <button class="btn primary" id="btnSaveEwh" data-i18n="common.save">Save</button>
+      <button class="btn ghost small" id="btnTestEwh" style="margin-inline-start:8px;" data-i18n="ewh.test">Test (send sample)</button>
+    </div>`;
+
+  el.querySelector('#btnSaveEwh').addEventListener('click', () => {
+    settings.eventWebhooks = {
+      enabled: el.querySelector('#ewh_enabled').checked,
+      url:     el.querySelector('#ewh_url').value.trim(),
+      secret:  el.querySelector('#ewh_secret').value.trim(),
+      events:  Object.fromEntries(events.map(e => [e.key, el.querySelector(`#ewh_ev_${e.key}`).checked])),
+    };
+    saveAll();
+    toast(t('webhook.saved') || 'Saved', 'success');
+  });
+  el.querySelector('#btnTestEwh').addEventListener('click', async () => {
+    const url = el.querySelector('#ewh_url').value.trim();
+    if (!/^https:\/\//i.test(url)) { toast(t('ewh.enter_url') || 'Enter an https:// URL first', 'warning'); return; }
+    const secret = el.querySelector('#ewh_secret').value.trim();
+    const sample = (typeof KhaytWebhooks !== 'undefined')
+      ? KhaytWebhooks.buildWebhookEvent('created',
+          { id: 'SAMPLE-1', project: 'Test order', status: 'pending', paymentStatus: 'unpaid', price: 100 },
+          { at: new Date().toISOString(), shopName: settings.bizEn || settings.bizAr || 'Khayt', clientName: 'Test client', currency: (typeof currencySymbol === 'function') ? currencySymbol() : '' })
+      : { id: 'SAMPLE-1', event: 'order.created' };
+    const res = await window.hubAPI?.webhookPost?.({ url, secret, payload: sample });
+    if (res?.ok) toast('✅ Webhook delivered!', 'success');
+    else toast(`⚠ ${res?.error || 'HTTP ' + (res?.status || '?')}`, 'error');
+  });
+}
+
 /* ============================================================
    Round 12 — Feature 2: Aged-Receivables Report
    ============================================================ */
@@ -2416,6 +2478,7 @@ function loadSettingsIntoForm() {
   renderLoyaltyTiersSettings();
   // Round 12: Webhooks
   renderWebhookSettings();
+  renderEventWebhookSettings();
   // Round 12: Fixed costs / break-even
   renderFixedCostSettings();
   // Online (customer intake)
@@ -3202,6 +3265,7 @@ function renderTelegramSettings() {
     renderOperatorLockSettings,
     renderLoyaltyTiersSettings,
     renderWebhookSettings,
+    renderEventWebhookSettings,
     renderFixedCostSettings,
     renderLanApiSettings,
     renderZatcaPhase2Settings,

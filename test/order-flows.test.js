@@ -56,6 +56,7 @@ test('H4: reopening a completed order clears stale completion state', () => {
   global.renderAnalytics = () => {}; global.renderDashboard = () => {};
   global.autoExportStatusPage = () => {}; global.autoSendEmailNotification = () => {};
   global.sendTelegramForOrder = () => {}; global.fireWebhook = () => {};
+  global.fireOrderWebhook = () => {};
 
   flows.updateStatus('O1', 'printing');
 

@@ -144,6 +144,7 @@ function logPrint(asQuote = false) {
   const newOrder = printLog[0];
   if (newOrder) {
     fireWebhook('order_created', { orderId: newOrder.id, project: newOrder.project, status: newOrder.status, price: newOrder.price });
+    fireOrderWebhook('created', newOrder);
     if (asQuote) autoSendEmailNotification(newOrder, 'quote');
   }
 }
@@ -197,6 +198,7 @@ function promptActuals(order, onConfirm) {
    the webhooks are NOT, so call this once per completion path only. */
 function fireOrderCompletionEvents(order) {
   fireWebhook('status_changed', { orderId: order.id, project: order.project, newStatus: 'completed', client: order.client });
+  fireOrderWebhook('status', order);
   fireWebhook('order_delivered', { orderId: order.id, project: order.project, client: order.client });
   if (!order.surveyToken) {
     const bytes = new Uint8Array(12);
@@ -342,6 +344,7 @@ function updateStatus(id, newStatus) {
   // Round 12 — Webhook: status_changed (non-completion transitions; completion is
   // handled in the 'completed' branch above via fireOrderCompletionEvents).
   fireWebhook('status_changed', { orderId: order.id, project: order.project, newStatus, client: order.client });
+  fireOrderWebhook('status', order);
   // Keep a published customer-portal link in sync with the new status.
   if (typeof republishPortalIfPublished === 'function') republishPortalIfPublished(order.id);
 }
@@ -710,6 +713,7 @@ function openPaymentModal(orderId) {
       toast(t('pay.saved'), 'success');
       // Round 12 — Webhook: payment_received
       fireWebhook('payment_received', { orderId: order.id, amount: order.paidAmount, paymentStatus: order.paymentStatus, client: order.client });
+      if (order.paymentStatus === 'paid') fireOrderWebhook('paid', order);
       if (order.paidAmount > 0) autoSendEmailNotification(order, 'payment_received');
       if (typeof maybePushAccounting === 'function') maybePushAccounting(order);
       return true;

@@ -212,6 +212,26 @@ function processQuoteFollowUps() {
   setTimeout(() => toast(t('quote.followup_auto', { n: sent }) || `Followed up on ${sent} quote(s)`, 'info', 4000), 600);
 }
 
+/** Fire an outbound event webhook for an order event (opt-in). Fire-and-forget;
+ *  HMAC-signed in the main process. No-op unless settings.eventWebhooks is on
+ *  with this event enabled + a URL set. */
+function fireOrderWebhook(type, order) {
+  try {
+    if (!order || typeof KhaytWebhooks === 'undefined' || !window.hubAPI?.webhookPost) return;
+    const w = settings.eventWebhooks;
+    if (!w || !w.enabled || !/^https:\/\//i.test(w.url || '')) return;
+    if (w.events && w.events[type] === false) return;
+    const client = order.clientId ? clients.find((c) => c.id === order.clientId) : null;
+    const payload = KhaytWebhooks.buildWebhookEvent(type, order, {
+      at: new Date().toISOString(),
+      shopName: settings.bizEn || settings.bizAr || 'Khayt',
+      clientName: client ? (typeof localName === 'function' ? localName(client) : client.name) : '',
+      currency: (typeof currencySymbol === 'function') ? currencySymbol() : '',
+    });
+    Promise.resolve(window.hubAPI.webhookPost({ url: w.url, secret: w.secret, payload })).catch(() => {});
+  } catch (e) { /* webhooks must never break the action */ }
+}
+
 /** Flag overdue unpaid invoices for a payment reminder (opt-in). Marks them
  *  (dedup/cooldown/cap via the pure lib) and surfaces a single prompt; the owner
  *  sends with the existing one-tap 💰 reminder. Does not auto-message customers. */
