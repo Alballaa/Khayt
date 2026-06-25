@@ -6,6 +6,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### 3.0.0-beta.19 cycle (in progress)
 
+### Added
+
+- **Plate nesting / batch suggestions** — the Batch Planner can now **auto-suggest build plates**: it packs your selected (or all pending) jobs into efficient batches by material and a configurable max print-time and weight per plate, so you can run several jobs per build instead of one at a time. Jobs too big for one plate are flagged.
+
 ## [3.0.0-beta.18] - 2026-06-24
 
 **Pre-release (beta)** — a polish & launch-readiness release: invoice templates, a monthly email digest, overdue-invoice reminders, a guided tour, a Turkish interface, an accessibility pass, named restore points, and a Road-to-1.0 plan.
