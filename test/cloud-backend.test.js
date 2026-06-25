@@ -18,8 +18,21 @@ const STORE = { printLog: [{ id: 'o1', price: 100 }], clients: [{ id: 'c1', name
 
 function makeRefServer() {
   const blobs = new Map(); // shopId -> { rev, ciphertext }
+  const snaps = new Map(); // shopId -> [{ id, rev, ciphertext, createdAt }]
+  let seq = 0, clock = 1;
   return {
     async handle({ method, path, body }) {
+      const sn = String(path).match(/^\/v1\/shops\/([^/]+)\/snapshots(?:\/(\d+))?$/);
+      if (sn) {
+        const shopId = sn[1];
+        const arr = snaps.get(shopId) || [];
+        if (method !== 'GET') return { status: 405 };
+        if (sn[2]) {
+          const s = arr.find((x) => String(x.id) === sn[2]);
+          return s ? { status: 200, body: { id: s.id, rev: s.rev, createdAt: s.createdAt, ciphertext: s.ciphertext } } : { status: 404 };
+        }
+        return { status: 200, body: { snapshots: arr.slice().reverse().map((s) => ({ id: s.id, rev: s.rev, createdAt: s.createdAt, bytes: JSON.stringify(s.ciphertext).length })) } };
+      }
       const m = String(path).match(/^\/v1\/shops\/([^/]+)\/store$/);
       if (!m) return { status: 404 };
       const shopId = m[1];
@@ -32,6 +45,9 @@ function makeRefServer() {
         if ((body.baseRev | 0) !== curRev) return { status: 409, body: { rev: curRev } };
         const rev = curRev + 1;
         blobs.set(shopId, { rev, ciphertext: body.ciphertext });
+        const arr = snaps.get(shopId) || [];
+        arr.push({ id: ++seq, rev, ciphertext: body.ciphertext, createdAt: clock++ });
+        snaps.set(shopId, arr);
         return { status: 200, body: { rev } };
       }
       return { status: 405 };
@@ -113,6 +129,38 @@ test('wrong DEK cannot decrypt a pulled blob (E2E holds across the protocol)', a
   await device(server, 'shopA', freshDek('right')).push(STORE);
   const wrong = device(server, 'shopA', freshDek('different')); // valid shop, wrong key
   await assert.rejects(() => wrong.pull(), /unable to authenticate|bad decrypt|tag/i);
+});
+
+test('snapshot history: list prior versions + restore one by decrypting (cross-device)', async () => {
+  const server = makeRefServer();
+  const dek = freshDek();
+  const a = device(server, 'shopA', dek);
+  const b = device(server, 'shopA', dek); // another device, same shop+key
+
+  await a.push(STORE);                                  // rev 1
+  await a.push({ ...STORE, extra: 'v2' });              // rev 2 (head)
+
+  const list = await b.listSnapshots();
+  assert.equal(list.length, 2);
+  assert.equal(list[0].rev, 2, 'newest first');
+  assert.equal(list[1].rev, 1);
+  assert.ok(list[0].bytes > 0);
+
+  // Restore the OLDER version on device B → decrypts to the original store.
+  const older = await b.getSnapshot(list[1].id);
+  assert.equal(older.rev, 1);
+  assert.deepEqual(older.store, STORE);
+
+  assert.equal(await b.getSnapshot(999999), null, 'unknown id → null');
+});
+
+test('snapshot restore respects E2E: wrong DEK cannot decrypt a fetched snapshot', async () => {
+  const server = makeRefServer();
+  await device(server, 'shopA', freshDek('right')).push(STORE);
+  const wrong = device(server, 'shopA', freshDek('different'));
+  const list = await wrong.listSnapshots(); // metadata is not encrypted
+  assert.equal(list.length, 1);
+  await assert.rejects(() => wrong.getSnapshot(list[0].id), /unable to authenticate|bad decrypt|tag/i);
 });
 
 test('SyncBackend interface: pushDeltas/pullDeltas/status integrate', async () => {

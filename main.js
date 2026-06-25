@@ -1615,6 +1615,23 @@ ipcMain.handle('hub:cloud-pull', async () => {
   catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
+// Cloud snapshot history (cross-device restore). list returns metadata only;
+// get decrypts the chosen version with the session DEK held in cloudBackend.
+ipcMain.handle('hub:cloud-snapshots-list', async () => {
+  if (!cloudBackend) return { ok: false, error: 'locked' };
+  try { return { ok: true, snapshots: await cloudBackend.listSnapshots() }; }
+  catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:cloud-snapshot-get', async (_e, { id } = {}) => {
+  if (!cloudBackend) return { ok: false, error: 'locked' };
+  try {
+    const snap = await cloudBackend.getSnapshot(id);
+    if (!snap) return { ok: false, error: 'Snapshot not found' };
+    return { ok: true, ...snap };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
 ipcMain.handle('hub:fire-webhook', async (event, { url, event: webhookEvent, payload, secret }) => {
   // Restrict to https:// only — prevents SSRF to localhost and internal network
   if (!url || !url.startsWith('https://')) return { ok: false, error: 'Invalid URL — only https:// allowed' };
