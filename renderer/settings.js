@@ -1086,6 +1086,7 @@ function renderCloudSettings() {
         <button id="btnCloudUnlock" class="btn small">${escapeHtml(t('cloud.unlock') || 'Unlock')}</button>
         <button id="btnCloudSync" class="btn small">${escapeHtml(t('cloud.sync_now') || 'Sync now')}</button>
         <button id="btnCloudRestore" class="btn small">${escapeHtml(t('cloud.restore') || 'Restore from cloud')}</button>
+        <button id="btnCloudSnapshots" class="btn small">🕑 ${escapeHtml(t('cloud.snapshots') || 'Snapshot history')}</button>
         <button id="btnCloudRequests" class="btn small">🛎 ${escapeHtml(t('intake.requests') || 'Order requests')}</button>
         <button id="btnCloudIntakeLink" class="btn ghost small">${escapeHtml(t('intake.copy_link') || 'Copy request link')}</button>
         ${(settings.cloud?.role || 'owner') === 'owner' ? `<button id="btnCloudTeam" class="btn small">👥 ${escapeHtml(t('team.title') || 'Team')}</button>` : ''}
@@ -1266,6 +1267,8 @@ function renderCloudSettings() {
       toast(t('cloud.restore_error') || 'Could not restore from cloud', 'error');
     }
   });
+
+  el.querySelector('#btnCloudSnapshots')?.addEventListener('click', () => { openCloudSnapshotsModal(); });
 
   el.querySelector('#btnCloudRequests')?.addEventListener('click', () => {
     if (typeof openOrderRequestsModal === 'function') openOrderRequestsModal();
@@ -2829,6 +2832,75 @@ async function openRestorePointsModal() {
   });
 }
 
+/** beta.19 #7 — Cloud snapshot history. Lists the server-side versioned snapshots
+ *  (kept automatically on each sync) and restores any one across devices. The
+ *  ciphertext is decrypted in the main process with the session DEK; restoring
+ *  replaces local data, then pushes it up as a new head revision. */
+async function applyCloudSnapshotRestore(store) {
+  const keepCloud = Object.assign({}, settings.cloud); // preserve this device's token/login/rev
+  replaceStoreFromSnapshot(store);
+  settings.cloud = Object.assign({}, settings.cloud, keepCloud);
+  saveAll();
+  initialRender();
+  loadSettingsIntoForm();
+  applyTheme(settings.theme);
+  i18n.set(settings.lang);
+  if (typeof refreshCurrencyLabels === 'function') refreshCurrencyLabels();
+  // Local now holds the restored version; push it as a new revision so every
+  // device converges on it (the backend keeps its head rev, so no false conflict).
+  if (window.KhaytCloudSync) { KhaytCloudSync.configure(cloudSyncDeps()); KhaytCloudSync.syncNow(); }
+  renderCloudSettings();
+}
+
+async function openCloudSnapshotsModal() {
+  if (!window.hubAPI?.cloudSnapshotsList) { toast(t('cloud.snapshots_unavailable') || 'Snapshot history unavailable', 'error'); return; }
+  const fmtWhen = (ms) => { try { return new Date(ms).toLocaleString(i18n.current === 'ar' ? 'ar-SA' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) { return ''; } };
+  const fmtBytes = (n) => (n >= 1024 * 1024 ? (n / (1024 * 1024)).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB');
+  const render = async (modal) => {
+    const body = modal.querySelector('#csBody');
+    body.innerHTML = `<div style="text-align:center;color:var(--text-muted);padding:18px 0;">${escapeHtml(t('common.loading') || 'Loading…')}</div>`;
+    const r = await window.hubAPI.cloudSnapshotsList();
+    if (!r?.ok) {
+      const msg = r?.error === 'locked' ? (t('cloud.locked') || 'Unlock first (enter passphrase)') : (r?.error || 'Failed to load');
+      body.innerHTML = `<div style="text-align:center;color:var(--danger);padding:18px 0;">${escapeHtml(msg)}</div>`;
+      return;
+    }
+    const list = r.snapshots || [];
+    const rows = list.length ? list.map((s) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border-soft);">
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:600;">${escapeHtml(t('cloud.snap_rev') || 'Version')} ${Number(s.rev)}</div>
+          <div style="font-size:11px;color:var(--text-muted);">${escapeHtml(fmtWhen(s.createdAt))} · ${escapeHtml(fmtBytes(Number(s.bytes) || 0))}</div>
+        </div>
+        <button class="btn small primary csRestore" data-id="${escapeHtml(String(s.id))}" data-rev="${Number(s.rev)}">${escapeHtml(t('cloud.restore_this') || 'Restore')}</button>
+      </div>`).join('') : `<div style="text-align:center;color:var(--text-muted);padding:18px 0;">${escapeHtml(t('cloud.snapshots_empty') || 'No cloud snapshots yet — Sync now first.')}</div>`;
+    body.innerHTML = `
+      <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 10px;">${escapeHtml(t('cloud.snapshots_hint') || 'Your shop is versioned in the cloud on every sync. Restore any version here — it replaces local data on this device and syncs to the others.')}</p>
+      ${rows}`;
+    body.querySelectorAll('.csRestore').forEach((b) => b.addEventListener('click', async () => {
+      const rev = b.dataset.rev;
+      if (!(await confirmModal((t('cloud.snap_restore_q') || 'Replace all data on this device with version {rev} from the cloud, and sync it everywhere? This cannot be undone.').replace('{rev}', rev), { danger: true }))) return;
+      b.disabled = true;
+      const g = await window.hubAPI.cloudSnapshotGet({ id: b.dataset.id });
+      if (!g?.ok || !g.store) {
+        toast((g && g.error) || (t('cloud.restore_error') || 'Could not restore from cloud'), 'error');
+        b.disabled = false; return;
+      }
+      try {
+        await applyCloudSnapshotRestore(g.store);
+        toast((t('cloud.restored') || 'Restored from cloud') + ' (' + (t('cloud.snap_rev') || 'Version').toLowerCase() + ' ' + rev + ')', 'success');
+        modal.querySelector('.modal-close')?.click();
+      } catch (e) { console.error('cloud snapshot restore:', e); toast(t('cloud.restore_error') || 'Could not restore from cloud', 'error'); b.disabled = false; }
+    }));
+  };
+  openFormModal({
+    title: '🕑 ' + (t('cloud.snapshots') || 'Cloud snapshot history'),
+    noSave: true,
+    bodyHtml: `<div id="csBody"></div>`,
+    onMount(modal) { render(modal); },
+  });
+}
+
 /* ============================================================
    Post-processing checklist (settings management)
    ============================================================ */
@@ -3282,6 +3354,7 @@ function renderTelegramSettings() {
     saveLanApiSettingsFromForm,
     openRestoreBackupModal,
     openRestorePointsModal,
+    openCloudSnapshotsModal,
     renderHolidayList,
     renderPostChecklistSettings,
     addPostCheckItem,
