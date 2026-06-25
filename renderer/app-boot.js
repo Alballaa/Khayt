@@ -421,6 +421,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Opt-in: auto-draft purchase orders for items at their reorder point.
   if (typeof maybeAutoDraftPurchaseOrders === 'function') { try { maybeAutoDraftPurchaseOrders(); } catch (e) { console.warn('auto-draft PO:', e); } }
 
+  // Inject contextual coach tips on tagged inputs (respects settings.coachTips).
+  if (typeof applyCoachTips === 'function') { try { applyCoachTips(document); } catch (e) { /* non-fatal */ } }
+
   // When connectivity returns, immediately flush any changes stranded offline
   // (resets the sync backoff). No-op when cloud sync is off.
   window.addEventListener('online', () => {
