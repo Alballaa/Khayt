@@ -715,6 +715,7 @@
   "exp.category": "Category",
   "exp.amount": "Amount",
   "exp.note": "Note",
+  "exp.suggested": "Suggested",
   "exp.note_ph": "e.g. 3× PLA+ spools from supplier",
   "exp.add_btn": "Add Expense",
   "exp.export_csv": "Export CSV",
