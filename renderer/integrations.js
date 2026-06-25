@@ -1100,6 +1100,48 @@ function republishPortalIfPublished(orderId) {
     .catch((e) => console.error('portal auto-refresh:', e));
 }
 
+/** Owner view + reply for an order's portal message thread (cloud). */
+async function openPortalMessages(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+  const c = settings.cloud || {};
+  if (!(c.enabled && c.shopId) || !order.trackingToken) { toast(t('pm.need_publish') || 'Publish this order to the portal first', 'info'); return; }
+
+  const render = async (modal) => {
+    const body = modal.querySelector('#pmBody');
+    let msgs = [];
+    try {
+      const r = await window.hubAPI.cloudPortalMessages({ url: c.url, token: order.trackingToken });
+      if (r && r.ok) msgs = r.messages || [];
+    } catch (e) { /* ignore */ }
+    const thread = msgs.length ? msgs.map(m => {
+      const mine = m.from === 'shop';
+      return `<div style="align-self:${mine ? 'flex-end' : 'flex-start'};max-width:80%;background:${mine ? 'var(--primary)' : 'var(--bg-elev)'};color:${mine ? '#fff' : 'var(--text)'};border:1px solid var(--border-soft);border-radius:12px;padding:7px 11px;font-size:13px;">${escapeHtml(m.text)}</div>`;
+    }).join('') : `<div style="color:var(--text-muted);font-size:13px;">${escapeHtml(t('pm.empty') || 'No messages yet.')}</div>`;
+    body.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto;margin-bottom:12px;">${thread}</div>
+      <div style="display:flex;gap:8px;">
+        <input id="pmText" type="text" maxlength="2000" placeholder="${escapeHtml(t('pm.reply_ph') || 'Write a reply…')}" style="flex:1;">
+        <button id="pmSend" class="btn small primary">${escapeHtml(t('pm.send') || 'Send')}</button>
+      </div>`;
+    const send = async () => {
+      const txt = body.querySelector('#pmText').value.trim();
+      if (!txt) return;
+      const r = await window.hubAPI.cloudPortalReply({ url: c.url, shopId: c.shopId, token: order.trackingToken, authToken: c.token, text: txt });
+      if (r && r.ok) render(modal); else toast((r && r.error) || 'Failed', 'error');
+    };
+    body.querySelector('#pmSend').addEventListener('click', send);
+    body.querySelector('#pmText').addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });
+  };
+
+  openFormModal({
+    title: '💬 ' + (t('pm.title') || 'Portal messages') + ' · ' + escapeHtml(order.id),
+    noSave: true,
+    bodyHtml: `<div id="pmBody"><p style="color:var(--text-muted);">${escapeHtml(t('common.loading') || '…')}</p></div>`,
+    onMount(modal) { render(modal); },
+  });
+}
+
 async function publishOrderToCloudPortal(orderId) {
   const order = printLog.find(o => o.id === orderId);
   if (!order) return;
@@ -1671,6 +1713,7 @@ function trackShipment(trackingNumber, carrier) {
     aiDraftReply,
     publishOrderToCloudPortal,
     republishPortalIfPublished,
+    openPortalMessages,
     openQuoteApprovalLinkModal,
     clearAllLogs,
     sendTelegramForOrder,

@@ -8,6 +8,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Portal messaging** — customers can now message you right on their order/quote portal page, and you reply from the order menu (**💬 Portal messages**) — a simple shared thread for questions, approvals, and updates. You're notified (email + push) when a customer writes. Requires cloud sync.
+
 - **Smart expense categorization** — when you type an expense note, Khayt suggests the right category (Filament, Electricity, Maintenance, Shipping, Tools) with one tap to apply. Works offline and understands English + common Arabic terms.
 
 - **Coach tips** — small ⓘ help icons now sit next to key inputs (profit margin, failure rate, VAT %, machine wear) explaining what they mean and how to set them — handy when you're starting out. Toggle them off anytime in **Settings → Data**. Completes the onboarding work from the guided tour.
