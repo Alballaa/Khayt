@@ -1503,7 +1503,13 @@ function openBatchPlannerModal() {
     </div>
     <div id="batchSummary" style="background:var(--bg-elev);border-radius:var(--radius);padding:12px 16px;font-size:13px;min-height:64px;">
       <span style="color:var(--text-muted);">${escapeHtml(t('batch.select_hint') || 'Select orders to see totals')}</span>
-    </div>`;
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;">
+      <button type="button" id="batchSuggest" class="btn small primary">🧩 ${escapeHtml(t('batch.suggest') || 'Suggest plates')}</button>
+      <label style="font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:4px;">${escapeHtml(t('batch.max_hours') || 'Max h/plate')} <input type="number" id="batchMaxHours" min="1" step="1" value="24" style="width:60px;"></label>
+      <label style="font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:4px;">${escapeHtml(t('batch.max_grams') || 'Max g/plate')} <input type="number" id="batchMaxGrams" min="1" step="50" value="1000" style="width:74px;"></label>
+    </div>
+    <div id="batchPlates" style="margin-top:12px;"></div>`;
 
   openFormModal({
     title: t('batch.title') || 'Batch Print Planner',
@@ -1557,6 +1563,30 @@ function openBatchPlannerModal() {
     document.querySelectorAll('.batch-row').forEach(row => {
       row.addEventListener('mouseenter', () => row.style.background = 'var(--bg-elev)');
       row.addEventListener('mouseleave', () => row.style.background = '');
+    });
+
+    // Auto-suggest plates: pack the selected orders (or all if none selected)
+    // into build batches by material + capacity (lib/plate-nesting.js).
+    document.getElementById('batchSuggest')?.addEventListener('click', () => {
+      const out = document.getElementById('batchPlates');
+      if (typeof KhaytPlateNesting === 'undefined' || !out) return;
+      const checked = [...document.querySelectorAll('.batch-cb:checked')];
+      const ids = checked.length ? new Set(checked.map(cb => cb.dataset.id)) : null;
+      const jobs = candidates.filter(o => !ids || ids.has(o.id)).map(o => ({
+        id: o.id, project: o.project || o.id, hours: +o.printTime || 0,
+        grams: (o.parts || []).reduce((s, p) => s + (+p.printWeight || 0) * (+p.qty || 1), 0),
+        material: [...new Set((o.parts || []).map(p => p.material).filter(Boolean))][0] || o.material || '',
+      }));
+      const maxHours = Math.max(1, num(document.getElementById('batchMaxHours')?.value, 24));
+      const maxGrams = Math.max(1, num(document.getElementById('batchMaxGrams')?.value, 1000));
+      const { plates } = KhaytPlateNesting.planPlates(jobs, { maxHours, maxGrams });
+      if (!plates.length) { out.innerHTML = `<span style="color:var(--text-muted);font-size:12.5px;">${escapeHtml(t('batch.select_hint') || 'Select orders first')}</span>`; return; }
+      out.innerHTML = `<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">${escapeHtml((t('batch.plates_n', { n: plates.length }) || `${plates.length} suggested plate(s)`))}</div>`
+        + plates.map((p, i) => `
+        <div style="border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;margin-bottom:8px;${p.oversize ? 'border-color:var(--warning,#d97706);' : ''}">
+          <div style="font-size:12.5px;font-weight:600;margin-bottom:4px;">${escapeHtml(t('batch.plate') || 'Plate')} ${i + 1}${p.material ? ' · ' + escapeHtml(p.material) : ''} <span style="color:var(--text-muted);font-weight:400;">· ${p.hours}h · ${p.grams}g${p.oversize ? ' · ⚠ ' + escapeHtml(t('batch.oversize') || 'oversize') : ''}</span></div>
+          <div style="font-size:12px;color:var(--text-soft,#c8ccd2);">${p.jobs.map(j => escapeHtml(j.project)).join(' · ')}</div>
+        </div>`).join('');
     });
   });
 }
