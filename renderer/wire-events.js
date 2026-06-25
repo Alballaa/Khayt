@@ -603,6 +603,7 @@ function wireEvents() {
 
   // Analytics tab — CSV export buttons
   $('#btnExecSummary')?.addEventListener('click', () => { if (typeof openExecutiveSummary === 'function') openExecutiveSummary(); });
+  $('#btnReportBuilder')?.addEventListener('click', () => { if (typeof openReportBuilder === 'function') openReportBuilder(); });
   $('#btnAnPnlCsv')?.addEventListener('click', exportPnlCsv);
   $('#btnAnOrdersCsv')?.addEventListener('click', exportOrdersCsv);
   $('#btnAnExpensesCsv')?.addEventListener('click', exportExpensesCsv);
