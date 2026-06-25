@@ -825,6 +825,7 @@
   "exp.category": "الفئة",
   "exp.amount": "المبلغ",
   "exp.note": "ملاحظة",
+  "exp.suggested": "مقترح",
   "exp.note_ph": "مثال: 3 بكرات PLA+ من المورد",
   "exp.add_btn": "إضافة مصروف",
   "exp.export_csv": "تصدير CSV",

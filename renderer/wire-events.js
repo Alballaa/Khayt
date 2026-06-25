@@ -485,6 +485,25 @@ function wireEvents() {
   // Expenses
   $('#btnAddExpense').addEventListener('click', addExpense);
   $('#btnExportExpCsv').addEventListener('click', exportExpensesCsv);
+  // Smart category suggestion from the note text (lib/expense-categorize.js).
+  const expNote = $('#expNote');
+  if (expNote && typeof KhaytExpenseCategorize !== 'undefined') {
+    const sg = $('#expCatSuggest');
+    expNote.addEventListener('input', () => {
+      const cat = KhaytExpenseCategorize.suggestCategory(expNote.value);
+      const cur = $('#expCategory')?.value;
+      if (!sg) return;
+      if (!cat || cat === cur) { sg.style.display = 'none'; sg.innerHTML = ''; return; }
+      const label = (typeof expCatLabel === 'function' ? expCatLabel(cat) : cat);
+      sg.style.display = 'block';
+      sg.innerHTML = `💡 ${escapeHtml(t('exp.suggested') || 'Suggested')}: <a href="#" id="expCatApply" style="color:var(--primary);font-weight:600;">${escapeHtml(label)}</a>`;
+      sg.querySelector('#expCatApply').addEventListener('click', (e) => {
+        e.preventDefault();
+        if ($('#expCategory')) $('#expCategory').value = cat;
+        sg.style.display = 'none';
+      });
+    });
+  }
   $('#expRangeFilter').addEventListener('change', (e) => {
     expRangeFilter = e.target.value;
     const cr = $('#expCustomRange');
