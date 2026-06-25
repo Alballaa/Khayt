@@ -130,6 +130,7 @@ function defaultSettings() {
     donationUrl:     '',
     firstRunDone:    false,
     tourDone:        false,
+    coachTips:       true,
     savedReports:    [],
     // v3.0 additions
     minMarginPct:    0,

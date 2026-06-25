@@ -368,6 +368,25 @@ textarea:focus-visible,
 }
 .skip-link:focus { top: 12px; }
 
+/* ---------- Coach tips (contextual inline hints) ---------- */
+.coach-tip {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; margin-inline-start: 6px; padding: 0;
+  border: 0; border-radius: 50%; background: transparent;
+  color: var(--text-muted); font-size: 13px; line-height: 1; cursor: help;
+  position: relative; vertical-align: middle;
+}
+.coach-tip:hover { color: var(--primary); }
+.coach-tip-text {
+  display: none; position: absolute; z-index: 60; inset-inline-start: 0; top: 130%;
+  width: max-content; max-width: 260px; text-align: start;
+  background: var(--bg-card, #1a1d24); color: var(--text, #e8eaed);
+  border: 1px solid var(--border, #2a2e38); border-radius: 8px;
+  padding: 8px 10px; font-size: 12px; line-height: 1.45; font-weight: 400;
+  box-shadow: 0 6px 20px rgba(0,0,0,.3); white-space: normal; cursor: default;
+}
+.coach-tip.open .coach-tip-text { display: block; }
+
 .btn.primary  { background: var(--primary); color: #fff; border-color: var(--primary); }
 .btn.primary:hover { background: var(--primary-2); border-color: var(--primary-2); }
 .btn.success  { background: var(--success); color: #fff; border-color: var(--success); }

@@ -8,6 +8,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Coach tips** — small ⓘ help icons now sit next to key inputs (profit margin, failure rate, VAT %, machine wear) explaining what they mean and how to set them — handy when you're starting out. Toggle them off anytime in **Settings → Data**. Completes the onboarding work from the guided tour.
+
 - **Custom report builder** — build your own order reports (Analytics → **Report builder**): pick the columns you want, filter by status and date range, preview live, and export to CSV. Save report definitions and re-run them with one click.
 
 - **Plate nesting / batch suggestions** — the Batch Planner can now **auto-suggest build plates**: it packs your selected (or all pending) jobs into efficient batches by material and a configurable max print-time and weight per plate, so you can run several jobs per build instead of one at a time. Jobs too big for one plate are flagged.

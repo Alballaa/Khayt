@@ -2293,6 +2293,7 @@ function loadSettingsIntoForm() {
   $('#set_useHijri').checked    = settings.useHijri !== false;
   $('#set_useArabicNumerals').checked = !!settings.useArabicNumerals;
   $('#set_autoBackup').checked  = settings.autoBackup !== false;
+  if ($('#set_coachTips')) $('#set_coachTips').checked = settings.coachTips !== false;
   $('#set_enableVat').checked   = !!settings.enableVat;
   $('#set_vatRate').value       = settings.vatRate ?? 15;
   $('#set_quotePrefix').value   = settings.quotePrefix || 'QUO';
@@ -2535,6 +2536,7 @@ function saveSettingsFromForm() {
     useHijri:      $('#set_useHijri').checked,
     useArabicNumerals: $('#set_useArabicNumerals').checked,
     autoBackup:    $('#set_autoBackup').checked,
+    coachTips:     $('#set_coachTips') ? $('#set_coachTips').checked : (settings.coachTips !== false),
     enableVat:     $('#set_enableVat').checked,
     vatRate:       Math.max(0, num($('#set_vatRate').value, 15)),
     bizLogo:       settings.bizLogo || '',
@@ -2659,6 +2661,7 @@ function saveSettingsFromForm() {
   renderInventory();
   refreshCurrencyLabels();
   if (typeof renderBuild === 'function') renderBuild();
+  if (typeof applyCoachTips === 'function') applyCoachTips(document);
   toast(t('set.saved'), 'success');
 }
 

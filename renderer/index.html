@@ -364,7 +364,7 @@
             </div>
             <div>
               <label><span data-i18n="calc.machine.wear">Wear & tear</span> (<span data-i18n="common.currency">SAR</span> <span data-i18n="calc.machine.per_hr">/ hr</span>)</label>
-              <input type="number" id="wearRate" value="0.75" step="0.05" min="0">
+              <input type="number" id="wearRate" value="0.75" step="0.05" min="0" data-tip="tip.wear_rate">
             </div>
           </div>
 
@@ -441,7 +441,7 @@
             <span data-i18n="calc.labor.failure">Failure buffer</span> (<span data-i18n="common.percent">%</span>)
             <span id="failureRateHint" style="font-size:11px; color:var(--primary); font-weight:500; margin-inline-start:auto;"></span>
           </label>
-          <input type="number" id="failureRate" value="10" min="0" max="100">
+          <input type="number" id="failureRate" value="10" min="0" max="100" data-tip="tip.failure_rate">
         </div>
 
         <div class="card summary">
@@ -483,7 +483,7 @@
                 <span><span data-i18n="calc.quote.margin">Target profit margin</span> (<span data-i18n="common.percent">%</span>)</span>
                 <button type="button" class="btn ghost small" id="btnAiPrice" title="Suggest a margin from your pricing history" style="margin:0;padding:2px 8px;">✨ <span data-i18n="ai.price_btn">Suggest</span></button>
               </label>
-              <input type="number" id="margin" value="30" min="0">
+              <input type="number" id="margin" value="30" min="0" data-tip="tip.margin">
             </div>
             <div>
               <label><span data-i18n="calc.quote.discount">Discount</span> (<span data-i18n="common.percent">%</span>)</label>
@@ -1641,7 +1641,7 @@
             </label>
             <div style="margin-top:8px;">
               <label data-i18n="set.vat_rate">VAT rate (%)</label>
-              <input type="number" id="set_vatRate" value="15" min="0" max="100" step="0.1">
+              <input type="number" id="set_vatRate" value="15" min="0" max="100" step="0.1" data-tip="tip.vat_rate">
               <p style="font-size:11.5px; color:var(--text-muted); margin:4px 0 0;" data-i18n="set.vat_rate_hint"></p>
             </div>
           </div>
@@ -2080,6 +2080,10 @@
           <button class="btn" id="btnRestoreBackup" data-i18n="set.restore_backup">Restore from backup…</button>
           <button class="btn" id="btnRestorePoints" data-i18n="rp.btn">Restore points…</button>
         </div>
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-top:12px;">
+          <input type="checkbox" id="set_coachTips" style="width:auto; margin:0;">
+          <span data-i18n="set.coach_tips">Show contextual help tips (ⓘ) on fields</span>
+        </label>
         </div>
 
         <div class="card settings-card">
@@ -2440,6 +2444,7 @@
 <script src="analytics.js"></script>
 <script src="operations-extras.js"></script>
 <script src="tour.js"></script>
+<script src="coach-tips.js"></script>
 <script src="wire-events.js"></script>
 <script src="update-ui.js"></script>
 <script src="app-boot.js"></script>
