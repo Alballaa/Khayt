@@ -4,9 +4,17 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
-### 3.0.0-beta.19 cycle (in progress)
+## [3.0.0-beta.19] - 2026-06-25
+
+**Pre-release (beta)** — power-user & polish release: plate-nesting batch suggestions, a custom report builder, per-field coach tips, smart expense categorization, portal messaging, signed developer webhooks, cross-device cloud snapshot history, and a fully translated Turkish interface.
 
 ### Added
+
+- **Complete Turkish interface** — the Türkçe locale is now **fully translated** (the whole UI, not just the core subset), so nothing falls back to English when you pick Turkish. Brings tr to parity with English and Arabic.
+
+- **Cloud snapshot history** — your shop is now **versioned in the cloud** on every sync. Open **Settings → Khayt Cloud → 🕑 Snapshot history** to see prior versions and **restore any of them in one click** — the chosen version replaces local data on this device and syncs to your others. Still fully end-to-end encrypted; the server only ever stores opaque ciphertext. Extends beta.18's local restore points across devices. Requires cloud sync.
+
+- **Signed event webhooks (for developers)** — point one HTTPS endpoint at Khayt and receive a clean, **HMAC-signed** `order.*` event stream (created / status changed / fully paid) with an idempotency key, so you can build your own integrations and trust each payload via the `X-Khayt-Signature` header. Configure under **Settings → Signed Event Webhooks**; off by default. Complements the existing per-event (Zapier/Make) webhooks.
 
 - **Portal messaging** — customers can now message you right on their order/quote portal page, and you reply from the order menu (**💬 Portal messages**) — a simple shared thread for questions, approvals, and updates. You're notified (email + push) when a customer writes. Requires cloud sync.
 
