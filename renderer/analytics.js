@@ -2634,6 +2634,94 @@ function openExecutiveSummary() {
   });
 }
 
+/** Custom report builder: choose fields/filters/range over orders → preview +
+ *  CSV, and save report definitions for re-use. */
+function openReportBuilder() {
+  if (typeof KhaytReportBuilder === 'undefined') { toast('Report module not loaded', 'error'); return; }
+  const STATUSES = ['quote', 'pending', 'printing', 'post', 'qc', 'completed', 'delivered', 'on_hold'];
+  const flatten = () => (printLog || []).filter((o) => !o.voidedAt).map((o) => {
+    const client = o.clientId ? clients.find((c) => c.id === o.clientId) : null;
+    const machine = o.machineId ? (machines || []).find((m) => m.id === o.machineId) : null;
+    return {
+      id: o.id, date: (o.date || '').slice(0, 10), project: o.project || '',
+      client: client ? (typeof localName === 'function' ? localName(client) : client.name) : '',
+      status: o.status, material: o.material || '', printTime: +o.printTime || 0,
+      machine: machine ? machine.name : '',
+      price: Math.round(orderRevenueBase(o)),
+      paidAmount: Math.round(convertToBase(+o.paidAmount || 0, orderCurrency(o))),
+      balance: Math.round(typeof orderOwedBase === 'function' ? orderOwedBase(o) : 0),
+      paymentStatus: typeof payStatus === 'function' ? payStatus(o) : (o.paymentStatus || ''),
+      dueDate: o.dueDate || '', tags: o.tags || [],
+    };
+  });
+  const fieldLabel = (k) => t('rb.f_' + k) || (KhaytReportBuilder.FIELDS.find((f) => f.key === k) || {}).label || k;
+  const statusLabel = (s) => t('status.' + s) || s;
+  let sel = { fields: KhaytReportBuilder.DEFAULT_FIELDS.slice(), statusIn: [], from: '', to: '' };
+
+  const render = (modal) => {
+    const labels = {}; KhaytReportBuilder.FIELD_KEYS.forEach((k) => { labels[k] = fieldLabel(k); });
+    const rep = KhaytReportBuilder.buildReport(flatten(), { ...sel, labels });
+    const fieldBoxes = KhaytReportBuilder.FIELDS.map((f) => `<label style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;margin:0 10px 6px 0;"><input type="checkbox" class="rbField" value="${f.key}" ${sel.fields.includes(f.key) ? 'checked' : ''} style="width:auto;margin:0;">${escapeHtml(fieldLabel(f.key))}</label>`).join('');
+    const statusBoxes = STATUSES.map((s) => `<label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;margin:0 8px 6px 0;"><input type="checkbox" class="rbStatus" value="${s}" ${sel.statusIn.includes(s) ? 'checked' : ''} style="width:auto;margin:0;">${escapeHtml(statusLabel(s))}</label>`).join('');
+    const saved = (settings.savedReports || []);
+    const preview = rep.rows.slice(0, 8);
+    modal.querySelector('#rbBody').innerHTML = `
+      ${saved.length ? `<div style="margin-bottom:10px;"><label style="font-size:12px;color:var(--text-muted);">${escapeHtml(t('rb.saved') || 'Saved reports')}</label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">${saved.map((r) => `<button type="button" class="btn ghost small rbLoad" data-id="${escapeHtml(r.id)}">${escapeHtml(r.name)}</button>`).join('')}</div></div>` : ''}
+      <label style="font-size:12px;color:var(--text-muted);">${escapeHtml(t('rb.fields') || 'Columns')}</label>
+      <div style="margin:4px 0 10px;">${fieldBoxes}</div>
+      <label style="font-size:12px;color:var(--text-muted);">${escapeHtml(t('rb.statuses') || 'Statuses (none = all)')}</label>
+      <div style="margin:4px 0 10px;">${statusBoxes}</div>
+      <div class="inline-pair" style="margin-bottom:10px;">
+        <div><label style="margin-top:0;">${escapeHtml(t('rb.from') || 'From')}</label><input type="date" id="rbFrom" value="${escapeHtml(sel.from)}"></div>
+        <div><label style="margin-top:0;">${escapeHtml(t('rb.to') || 'To')}</label><input type="date" id="rbTo" value="${escapeHtml(sel.to)}"></div>
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">${escapeHtml((t('rb.matches', { n: rep.count }) || `${rep.count} rows`))}</div>
+      <div style="overflow-x:auto;border:1px solid var(--border-soft);border-radius:8px;max-height:240px;">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr>${rep.headers.map((h) => `<th style="text-align:start;padding:5px 8px;color:var(--text-muted);border-bottom:1px solid var(--border-soft);white-space:nowrap;">${escapeHtml(h)}</th>`).join('')}</tr></thead>
+        <tbody>${preview.map((row) => `<tr>${row.map((c) => `<td style="padding:4px 8px;border-bottom:1px solid var(--border-soft);white-space:nowrap;">${escapeHtml(String(c))}</td>`).join('')}</tr>`).join('') || `<tr><td style="padding:10px;color:var(--text-muted);">${escapeHtml(t('rb.empty') || 'No matching rows')}</td></tr>`}</tbody></table>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+        <button type="button" id="rbExport" class="btn small primary">${escapeHtml(t('rb.export') || 'Export CSV')}</button>
+        <button type="button" id="rbSave" class="btn small ghost">${escapeHtml(t('rb.save') || 'Save report')}</button>
+      </div>`;
+
+    const sync = () => {
+      sel.fields = [...modal.querySelectorAll('.rbField:checked')].map((c) => c.value);
+      sel.statusIn = [...modal.querySelectorAll('.rbStatus:checked')].map((c) => c.value);
+      sel.from = modal.querySelector('#rbFrom').value; sel.to = modal.querySelector('#rbTo').value;
+    };
+    modal.querySelectorAll('.rbField, .rbStatus').forEach((c) => c.addEventListener('change', () => { sync(); render(modal); }));
+    modal.querySelector('#rbFrom').addEventListener('change', () => { sync(); render(modal); });
+    modal.querySelector('#rbTo').addEventListener('change', () => { sync(); render(modal); });
+    modal.querySelector('#rbExport').addEventListener('click', () => {
+      sync();
+      const out = KhaytReportBuilder.buildReport(flatten(), { ...sel, labels });
+      downloadBlob(new Blob([KhaytReportBuilder.reportToCsv(out)], { type: 'text/csv;charset=utf-8;' }), `report-${new Date().toISOString().slice(0, 10)}.csv`);
+      toast(t('rb.exported') || 'Report exported', 'success');
+    });
+    modal.querySelector('#rbSave').addEventListener('click', () => {
+      sync();
+      const name = (prompt(t('rb.name_prompt') || 'Report name:') || '').trim();
+      if (!name) return;
+      settings.savedReports = [...(settings.savedReports || []), { id: uid('RPT'), name, fields: sel.fields, statusIn: sel.statusIn, from: sel.from, to: sel.to }];
+      saveAll(); render(modal);
+      toast(t('rb.saved_ok') || 'Report saved', 'success');
+    });
+    modal.querySelectorAll('.rbLoad').forEach((b) => b.addEventListener('click', () => {
+      const r = (settings.savedReports || []).find((x) => x.id === b.dataset.id);
+      if (r) { sel = { fields: r.fields.slice(), statusIn: (r.statusIn || []).slice(), from: r.from || '', to: r.to || '' }; render(modal); }
+    }));
+  };
+
+  openFormModal({
+    title: '📑 ' + (t('rb.title') || 'Report builder'),
+    noSave: true,
+    bodyHtml: `<div id="rbBody"></div>`,
+    onMount(modal) { render(modal); },
+  });
+}
+
 /** Export a P&L summary CSV scoped to the selected analytics date range. */
 function exportPnlCsv() {
   const sel = $('#analyticsRange');
@@ -3193,6 +3281,7 @@ function renderBreakEvenCard() {
     exportAnalyticsReport,
     exportPnlCsv,
     openExecutiveSummary,
+    openReportBuilder,
     renderClientRetention,
     renderCostTrends,
     renderOperatorAnalytics,

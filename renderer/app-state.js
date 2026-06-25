@@ -130,6 +130,7 @@ function defaultSettings() {
     donationUrl:     '',
     firstRunDone:    false,
     tourDone:        false,
+    savedReports:    [],
     // v3.0 additions
     minMarginPct:    0,
     expBudgets:      {},
