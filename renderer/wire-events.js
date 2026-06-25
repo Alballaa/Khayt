@@ -729,6 +729,8 @@ function wireEvents() {
     if (portalQrBtn) { openCustomerPortalModal(portalQrBtn.dataset.id); return; }
     const aiReplyBtn = e.target.closest('[data-act="ai-reply"]');
     if (aiReplyBtn) { aiDraftReply(aiReplyBtn.dataset.id); return; }
+    const pmBtn = e.target.closest('[data-act="portal-messages"]');
+    if (pmBtn) { if (typeof openPortalMessages === 'function') openPortalMessages(pmBtn.dataset.id); return; }
     const reorderBtn = e.target.closest('[data-act="reorder-suggest"]');
     if (reorderBtn) { openReorderSuggestions(); return; }
     const askAiBtn = e.target.closest('[data-act="ask-ai"]');

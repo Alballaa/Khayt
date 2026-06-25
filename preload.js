@@ -119,6 +119,8 @@ contextBridge.exposeInMainWorld('hubAPI', {
   cloudIntakeList: (opts) => ipcRenderer.invoke('hub:cloud-intake-list', opts),
   cloudIntakeDelete: (opts) => ipcRenderer.invoke('hub:cloud-intake-delete', opts),
   cloudStorefrontStats: (opts) => ipcRenderer.invoke('hub:cloud-storefront-stats', opts),
+  cloudPortalMessages: (opts) => ipcRenderer.invoke('hub:cloud-portal-messages', opts),
+  cloudPortalReply: (opts) => ipcRenderer.invoke('hub:cloud-portal-reply', opts),
   cloudBillingMe: (opts) => ipcRenderer.invoke('hub:cloud-billing-me', opts),
   cloudPutKeyset: (opts) => ipcRenderer.invoke('hub:cloud-put-keyset', opts),
   cloudGetKeyset: (opts) => ipcRenderer.invoke('hub:cloud-get-keyset', opts),
