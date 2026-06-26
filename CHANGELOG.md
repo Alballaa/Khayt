@@ -6,6 +6,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### 3.0.0-beta.20 cycle (in progress)
 
+### Accessibility
+
+- **Form fields announce their purpose** — every input and dropdown is now programmatically tied to its label, so screen readers announce what each field is (previously ~39 fields across the calculator, inventory, logs, analytics, waste and settings had a visible label that wasn't linked to the control). Filter dropdowns also gained accessible names, and the Orders log status/payment filters now read **"All statuses" / "All payments"** instead of a bare "All" — clearer both on screen and to assistive tech.
+
 ### Fixed
 
 - **Settings market & locale selectors** — fixed a startup error (`KhaytIntegrations.forLocale is not a function`) caused by two modules claiming the same global name, which left the storefront/payment **integration market pickers** in Settings empty. The market registry now owns that name; the integrations feature module no longer clobbers it.
