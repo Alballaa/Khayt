@@ -4,7 +4,9 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
-### 3.0.0-beta.20 cycle (in progress)
+## [3.0.0-beta.20] - 2026-06-26
+
+**Pre-release (beta)** — a stability & accessibility release from a full UI review: a form-label accessibility pass (every field now announces its purpose to screen readers), a fix for the Settings market/locale pickers, and corrected release screenshots. Verified clean for RTL/Arabic, narrow-window layout, and runtime errors across every screen.
 
 ### Accessibility
 
