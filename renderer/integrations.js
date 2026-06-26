@@ -1725,6 +1725,10 @@ function trackShipment(trackingNumber, carrier) {
     trackShipment,
   };
   Object.assign(global, api);
-  global.KhaytIntegrations = api;
+  // NOTE: do NOT set global.KhaytIntegrations here — that name is owned by the
+  // market registry (lib/integrations-registry.js: MARKETS/forLocale/…), which
+  // loads first. Assigning the feature api to it clobbered the registry and broke
+  // KhaytIntegrations.forLocale() (settings market selectors). Feature functions
+  // are already exposed as globals via Object.assign(global, api) above.
   if (typeof module !== 'undefined' && module.exports) module.exports = { BNPL_CATALOG, ...api };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
