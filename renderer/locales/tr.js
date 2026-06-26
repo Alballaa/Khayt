@@ -1443,6 +1443,8 @@
   "oe.internal_notes_ph": "ör. özel işlem, operatör hatırlatmaları…",
   "common.save_failed": "Kaydedilemedi",
   "log.all_clients": "Tüm müşteriler",
+  "log.all_statuses": "Tüm durumlar",
+  "log.all_payments": "Tüm ödemeler",
   "log.all_operators": "Tüm operatörler",
   "log.load_more": "Daha fazla yükle",
   "log.remaining": "kalan",

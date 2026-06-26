@@ -6,6 +6,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### 3.0.0-beta.21 cycle (in progress)
 
+### Added
+
+- **All 8 interface languages now fully translated** — German, Spanish, French, Japanese and Chinese join English, Arabic and Turkish at full coverage (every one of the ~3,150 UI strings). Previously these five each fell back to English for ~210 strings; now the entire interface renders in your chosen language. A 1.0 readiness step toward a polished international release.
+
 ## [3.0.0-beta.20] - 2026-06-26
 
 **Pre-release (beta)** — a stability & accessibility release from a full UI review: a form-label accessibility pass (every field now announces its purpose to screen readers), a fix for the Settings market/locale pickers, and corrected release screenshots. Verified clean for RTL/Arabic, narrow-window layout, and runtime errors across every screen.
