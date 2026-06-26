@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### 3.0.0-beta.20 cycle (in progress)
+
 ## [3.0.0-beta.19] - 2026-06-25
 
 **Pre-release (beta)** — power-user & polish release: plate-nesting batch suggestions, a custom report builder, per-field coach tips, smart expense categorization, portal messaging, signed developer webhooks, cross-device cloud snapshot history, and a fully translated Turkish interface.
