@@ -1444,6 +1444,8 @@
   "oe.internal_notes_ph": "e.g. special handling, operator reminders…",
   "common.save_failed": "Save failed — check disk space",
   "log.all_clients": "All clients",
+  "log.all_statuses": "All statuses",
+  "log.all_payments": "All payments",
   "log.all_operators": "All operators",
   "log.load_more": "Load more",
   "log.remaining": "remaining",

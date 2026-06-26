@@ -1492,6 +1492,8 @@
   "oe.internal_notes_ph": "مثال: تعليمات خاصة، تذكيرات…",
   "common.save_failed": "فشل الحفظ — تحقق من مساحة القرص",
   "log.all_clients": "جميع العملاء",
+  "log.all_statuses": "جميع الحالات",
+  "log.all_payments": "جميع المدفوعات",
   "log.all_operators": "جميع المشغلين",
   "log.load_more": "تحميل المزيد",
   "log.remaining": "متبقية",

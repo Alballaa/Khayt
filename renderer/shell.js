@@ -121,6 +121,38 @@ function confirmModal(message, { okText, cancelText, danger = false } = {}) {
   });
 }
 
+/* a11y: programmatically tie visible <label>s to their control. Many field groups
+   render `<div><label>…</label><input id></div>` with no for=, so screen readers
+   don't announce the field's purpose. For each orphan label, if its field-group
+   holds exactly one labelable control, link them (minting an id if needed).
+   Conservative — skips groups with 0 or >1 controls, labels that already wrap or
+   point to a control, and already-labelled controls. Idempotent: once a label
+   gains for=, it drops out of the selector, so re-running after every render is
+   cheap and safe. */
+function wireFormLabels(root) {
+  root = root || document;
+  root.querySelectorAll('label:not([for])').forEach((label) => {
+    if (label.querySelector('input, select, textarea')) return; // already wraps its control
+    // The control is the label's next element sibling — covers both wrapped
+    // groups (`<div><label/><input/></div>`) and flat rows (`<label/><input/>`).
+    const ctrl = label.nextElementSibling;
+    if (!ctrl || !/^(INPUT|SELECT|TEXTAREA)$/.test(ctrl.tagName) || ctrl.type === 'hidden') return;
+    if (ctrl.getAttribute('aria-label') || ctrl.getAttribute('aria-labelledby')) return;
+    if (!ctrl.id) ctrl.id = 'fa11y_' + (wireFormLabels._n = (wireFormLabels._n || 0) + 1);
+    label.setAttribute('for', ctrl.id);
+  });
+  // Toolbar filter <select>s rarely have a visible <label>; their first option
+  // ("All statuses", "All time", "All clients", …) names the filter dimension.
+  // Use it as the accessible name so a screen reader announces the field's
+  // purpose, not only its current value. Skips selects already labelled above.
+  root.querySelectorAll('select:not([aria-label]):not([aria-labelledby])').forEach((sel) => {
+    if (sel.id && root.querySelector(`label[for="${CSS.escape(sel.id)}"]`)) return;
+    if (sel.closest('label')) return;
+    const name = sel.options && sel.options[0] && sel.options[0].textContent.trim();
+    if (name) sel.setAttribute('aria-label', name);
+  });
+}
+
 function openFormModal({ title, bodyHtml, onMount, onSave, saveLabel, sizeLg = true, noSave = false }) {
   const mount = $('#modalMount');
   mount.innerHTML = `
@@ -172,6 +204,7 @@ function openFormModal({ title, bodyHtml, onMount, onSave, saveLabel, sizeLg = t
     });
   }
   if (onMount) onMount(modal);
+  wireFormLabels(modal); // a11y: associate any orphan labels the modal rendered
   // Move focus into the first form field (skip header close button)
   const firstInput = modal.querySelector('.modal-body input, .modal-body select, .modal-body textarea, .modal-body button');
   if (firstInput) firstInput.focus();
@@ -440,6 +473,7 @@ function switchTab(tabId) {
       }
     }
   }
+  wireFormLabels(); // a11y: link any labels the just-rendered tab surfaced
 }
 /* ============================================================
    Global ⌘K / Ctrl+K search

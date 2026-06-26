@@ -307,6 +307,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadSettingsIntoForm();
   refreshCurrencyLabels();
   initialRender();
+  if (typeof wireFormLabels === 'function') wireFormLabels(); // a11y: associate static form labels
   updateNotifBadge();
   applyProductionPause();
   // Feature 7 (new 8-pack): Apply operator permissions at startup
