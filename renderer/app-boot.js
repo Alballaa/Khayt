@@ -43,10 +43,13 @@ function normalizeWizardFlagsAfterLoad() {
     }
     return;
   }
+  // Real user activity = orders, clients, or machines. Inventory is intentionally
+  // seeded with a few starter filaments on a fresh install, so it must NOT count
+  // here — otherwise a brand-new shop looks "existing" and the onboarding wizard
+  // is wrongly skipped for first-time users.
   const hasShopData =
     printLog.length > 0 ||
     clients.length > 0 ||
-    inventory.length > 0 ||
     machines.length > 0;
   if (hasShopData) {
     settings.firstRun = false;
