@@ -4,7 +4,9 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
-### 3.0.0-beta.21 cycle (in progress)
+## [3.0.0-beta.21] - 2026-06-27
+
+**Pre-release (beta) — 1.0 release candidate.** Feature-frozen readiness build: all 8 interface languages are now fully translated, the first-run onboarding wizard is fixed, and a release-candidate hardening pass verified fresh-install, large-dataset (3,000 orders), all-10-designs, and all-locale rendering with zero runtime errors. Intended to soak before promotion to v3.0.0.
 
 ### Added
 
