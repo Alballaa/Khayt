@@ -38,6 +38,12 @@ function buildNotifications() {
   const alerts = [];
   const today = new Date(); today.setHours(0,0,0,0);
 
+  // Enthusiast (hobbyist) mode has no commerce — skip quote/payment/recurring-order
+  // alerts. Personal alerts (overdue jobs, low stock, maintenance, stalls) still fire.
+  const biz = (typeof KhaytTiers !== 'undefined' && typeof settings !== 'undefined')
+    ? KhaytTiers.showsBusiness(settings.mode)
+    : (typeof settings === 'undefined' || settings.mode !== 'enthusiast');
+
   const dismissed = settings.dismissedNotifs || {};
   const now = new Date().toISOString();
   function isDismissed(key) {
@@ -66,22 +72,24 @@ function buildNotifications() {
   }
   if (overdue.length > 8) alerts.push({ key: 'overdue:more', type: 'overdue', icon: '🔴', title: '', body: `+${overdue.length - 8} more overdue`, action() { switchTab('queue-tab'); } });
 
-  // 2. Expiring quotes (≤ 2 days)
-  const expiringQuotes = printLog
-    .filter(o => o.status === 'quote' && o.quoteExpiresAt)
-    .filter(o => Math.round((new Date(o.quoteExpiresAt + 'T00:00:00') - today) / 86400000) <= 2)
-    .slice(0, 5);
-  for (const o of expiringQuotes) {
-    const key = 'quote:' + o.id;
-    if (!isDismissed(key)) {
-      const d = Math.round((new Date(o.quoteExpiresAt + 'T00:00:00') - today) / 86400000);
-      alerts.push({
-        key,
-        type: 'quote', icon: '📋',
-        title: escapeHtml(t('notif.quote_expiring') || 'Quote expiring'),
-        body:  `${escapeHtml(o.project || o.id)} — ${d <= 0 ? (t('oe.due_overdue', {n: Math.abs(d)}) || 'expired') : d + 'd left'}`,
-        action() { switchTab('logs-tab'); }
-      });
+  // 2. Expiring quotes (≤ 2 days) — commerce only.
+  if (biz) {
+    const expiringQuotes = printLog
+      .filter(o => o.status === 'quote' && o.quoteExpiresAt)
+      .filter(o => Math.round((new Date(o.quoteExpiresAt + 'T00:00:00') - today) / 86400000) <= 2)
+      .slice(0, 5);
+    for (const o of expiringQuotes) {
+      const key = 'quote:' + o.id;
+      if (!isDismissed(key)) {
+        const d = Math.round((new Date(o.quoteExpiresAt + 'T00:00:00') - today) / 86400000);
+        alerts.push({
+          key,
+          type: 'quote', icon: '📋',
+          title: escapeHtml(t('notif.quote_expiring') || 'Quote expiring'),
+          body:  `${escapeHtml(o.project || o.id)} — ${d <= 0 ? (t('oe.due_overdue', {n: Math.abs(d)}) || 'expired') : d + 'd left'}`,
+          action() { switchTab('logs-tab'); }
+        });
+      }
     }
   }
 
@@ -141,7 +149,7 @@ function buildNotifications() {
 
   // 4c. Recurring-order subscriptions due (robust date logic via lib/subscriptions,
   // over the existing per-client recurring config — reminder only, operator fulfils).
-  if (typeof KhaytSubscriptions !== 'undefined' && Array.isArray(clients)) {
+  if (biz && typeof KhaytSubscriptions !== 'undefined' && Array.isArray(clients)) {
     const subView = clients
       .filter(c => c.recurring && c.recurring.enabled && !c.recurring.paused && c.recurring.nextDue)
       .map(c => ({ id: c.id, status: 'active', interval: c.recurring.interval || 'monthly', nextRunAt: c.recurring.nextDue, _name: c.name }));
@@ -158,7 +166,7 @@ function buildNotifications() {
   }
 
   // 4d. Installment payments due/overdue (per-order plans; existing instalments + lib).
-  if (typeof KhaytPaymentPlan !== 'undefined') {
+  if (biz && typeof KhaytPaymentPlan !== 'undefined') {
     const today = Date.now();
     for (const o of printLog) {
       if (!o || !Array.isArray(o.instalments) || !o.instalments.length) continue;
@@ -207,8 +215,8 @@ function buildNotifications() {
     }
   }
 
-  // 7. Recurring order reminders
-  clients.filter(c => c.recurring?.enabled && c.recurring?.intervalDays).forEach(c => {
+  // 7. Recurring order reminders — commerce only.
+  if (biz) clients.filter(c => c.recurring?.enabled && c.recurring?.intervalDays).forEach(c => {
     const lastOrder = printLog.filter(o => o.clientId === c.id)
       .sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
     if (!lastOrder) return;

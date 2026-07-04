@@ -236,11 +236,20 @@ async function testEnthusiastAndPrintFiles(window) {
       body: document.body.classList.contains('mode-enthusiast'),
       logsHidden: !vis('tabbtn-logs-tab'),
       clientsHidden: !vis('tabbtn-clients-tab'),
+      catalogHidden: !vis('tabbtn-catalog-tab'),      // Product Catalog = commerce
+      analyticsHidden: !vis('tabbtn-analytics-tab'),  // Analytics = commerce
       printfilesVisible: vis('tabbtn-printfiles-tab'),
       calcVisible: vis('tabbtn-calculator-tab'),
     };
     switchTab('logs-tab'); // hidden business tab → must bounce to dashboard
     out.guarded = document.querySelector('.tab-content.active')?.id === 'dashboard-tab';
+    switchTab('catalog-tab'); // commerce tab → must bounce too
+    out.catalogGuarded = document.querySelector('.tab-content.active')?.id === 'dashboard-tab';
+    // Calculator stays, but its commerce affordances are hidden while the printer picker stays.
+    switchTab('calculator-tab');
+    out.calcQuoteHidden = !vis('btnSaveAsQuote');
+    out.calcClientHidden = !vis('clientInput');
+    out.calcPrinterVisible = vis('machineAssign');
     switchTab('printfiles-tab');
     out.pfRendered = document.querySelector('.tab-content.active')?.id === 'printfiles-tab'
       && (document.getElementById('printfiles-tab')?.innerHTML?.length || 0) > 50;
