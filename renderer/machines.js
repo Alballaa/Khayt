@@ -61,12 +61,12 @@ function renderMachines() {
         ${compatHtml}
         ${m.isOffline ? `<span class="machine-jobs-badge" style="background:var(--danger); color:#fff;">⚠ ${escapeHtml(t('mach.offline_badge'))}</span>` : ''}
         ${active > 0 ? `<span class="machine-jobs-badge">${active} ${escapeHtml(t('mach.active_jobs'))}</span>` : ''}
-        ${svcBadge}
-        ${downtimeBadge}
+        ${svcBadge ? `<span class="pro-only">${svcBadge}</span>` : ''}
+        ${downtimeBadge ? `<span class="pro-only">${downtimeBadge}</span>` : ''}
         ${hrsLine}
         ${(m.printerApi && m.printerApi.type && m.printerApi.type !== 'none') ? `<button class="btn small ghost" data-act="slice-print" data-id="${m.id}" title="${escapeHtml(t('slicer.send_title') || 'Slice & print')}" style="font-size:11px;">🖨</button>` : ''}
-        <button class="btn small" data-act="maint-log" data-id="${m.id}" title="${escapeHtml(t('maint.btn'))}">🔧</button>
-        <button class="btn small ghost" data-act="log-nozzle-change" data-id="${m.id}" title="${escapeHtml(t('mach.log_nozzle'))}" style="font-size:11px;">🔩</button>
+        <button class="btn small pro-only" data-act="maint-log" data-id="${m.id}" title="${escapeHtml(t('maint.btn'))}">🔧</button>
+        <button class="btn small ghost pro-only" data-act="log-nozzle-change" data-id="${m.id}" title="${escapeHtml(t('mach.log_nozzle'))}" style="font-size:11px;">🔩</button>
         <button class="btn small" data-act="edit-mach" data-id="${m.id}">${escapeHtml(t('common.edit'))}</button>
         <button class="btn danger small" data-act="del-mach" data-id="${m.id}">${escapeHtml(t('common.delete'))}</button>
         ${nozzleHtml}
@@ -184,7 +184,7 @@ function openMachineEditor(machineId = null) {
         </div>
       </div>
 
-      <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--border-soft);">
+      <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--border-soft);" class="pro-only">
         <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
           <label style="margin:0; flex:1; font-size:12.5px; font-weight:600;">${escapeHtml(t('mach.downtime'))}</label>
           <button class="btn ghost small" id="btnAddDowntime" type="button">${escapeHtml(t('mach.downtime_add'))}</button>
