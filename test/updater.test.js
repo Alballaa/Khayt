@@ -102,6 +102,40 @@ test('interpretUpdateCheckResult handles dev, available, and up to date', () => 
   );
 });
 
+test('interpretUpdateCheckResult never offers a downgrade (guards the auto update-available gate)', () => {
+  // Running a prerelease; /releases/latest resolves to an OLDER stable → must NOT offer it,
+  // even with beta updates enabled. This is what the gated auto event relies on.
+  assert.equal(
+    interpretUpdateCheckResult({
+      isPackaged: true,
+      currentVersion: '3.1.0-beta.3',
+      updateInfo: { version: '3.0.0' },
+      allowBeta: true,
+    }).status,
+    'not-available',
+  );
+  // Same number, older prerelease offered while on a newer prerelease → not an update.
+  assert.equal(
+    interpretUpdateCheckResult({
+      isPackaged: true,
+      currentVersion: '3.1.0-beta.3',
+      updateInfo: { version: '3.1.0-beta.2' },
+      allowBeta: true,
+    }).status,
+    'not-available',
+  );
+  // A genuinely newer prerelease with beta on → available.
+  assert.equal(
+    interpretUpdateCheckResult({
+      isPackaged: true,
+      currentVersion: '3.1.0-beta.3',
+      updateInfo: { version: '3.1.0-beta.4' },
+      allowBeta: true,
+    }).status,
+    'available',
+  );
+});
+
 test('write-update-backup copies store file when json is __COPY_STORE__', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'khayt-upd-'));
   const storePath = path.join(tmp, 'store.json');
