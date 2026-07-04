@@ -566,52 +566,122 @@ function renderAiSettings() {
   });
 }
 
+// Mirror the default slicer into the legacy settings.slicer so slice-and-print /
+// kanban-print / quote-slice consumers keep working with no change.
+function syncDefaultSlicer() {
+  const d = KhaytSlicers.defaultSlicer(settings);
+  settings.slicer = d ? { path: d.path, args: d.args || '' } : { path: '', args: '' };
+}
+
 function renderSlicerSettings() {
   const el = $('#slicerSettingsSection');
   if (!el) return;
-  const sl = settings.slicer || {};
+  // One-time migration from the legacy single slicer to the slicers[] array.
+  if (!Array.isArray(settings.slicers)) {
+    settings.slicers = (settings.slicer && settings.slicer.path)
+      ? [{ id: uid('SL'), name: KhaytSlicers.slicerDisplayName(settings.slicer.path) || 'Slicer', path: settings.slicer.path, args: settings.slicer.args || '' }]
+      : [];
+    if (settings.slicers.length && !settings.defaultSlicerId) settings.defaultSlicerId = settings.slicers[0].id;
+    saveAll();
+  }
+  const list = settings.slicers;
+  if (list.length && !list.some((s) => s.id === settings.defaultSlicerId)) settings.defaultSlicerId = list[0].id;
+  syncDefaultSlicer(); // keep the legacy settings.slicer mirror consistent with the default
+
   const PRESETS = {
     prusa: '--export-gcode --load /path/to/config.ini -o {output} {model}',
     orca: '--slice 0 --load-settings "machine.json;process.json" --load-filaments "filament.json" --outputdir {outdir} {model}',
   };
+
+  const rows = list.map((s) => `
+    <div class="slicer-row" data-id="${escapeHtml(s.id)}">
+      <label class="slicer-default" title="${escapeHtml(t('slicer.set_default') || 'Use as default')}">
+        <input type="radio" name="slicerDefault" value="${escapeHtml(s.id)}" ${s.id === settings.defaultSlicerId ? 'checked' : ''} data-act="slicer-default">
+      </label>
+      <div class="slicer-info">
+        <div class="slicer-name">${escapeHtml(s.name || KhaytSlicers.slicerDisplayName(s.path))}${s.id === settings.defaultSlicerId ? ` <span class="slicer-badge">${escapeHtml(t('slicer.default') || 'default')}</span>` : ''}</div>
+        <div class="slicer-path" title="${escapeHtml(s.path)}">${escapeHtml(s.path)}</div>
+      </div>
+      <button class="btn ghost small" type="button" data-act="slicer-test" data-id="${escapeHtml(s.id)}">🔌 ${escapeHtml(t('slicer.test') || 'Test')}</button>
+      <button class="btn ghost small danger" type="button" data-act="slicer-remove" data-id="${escapeHtml(s.id)}" title="${escapeHtml(t('common.delete') || 'Remove')}">🗑</button>
+      <span class="slicer-test-result" data-result="${escapeHtml(s.id)}"></span>
+    </div>`).join('');
+
   el.innerHTML = `
-    <label style="margin-top:0;">${escapeHtml(t('slicer.path_label') || 'Slicer program')}</label>
-    <div style="display:flex;gap:8px;">
-      <input type="text" id="slicerPath" value="${escapeHtml(sl.path || '')}" placeholder="/Applications/PrusaSlicer.app/Contents/MacOS/PrusaSlicer" style="flex:1;font-size:12.5px;">
-      <button id="btnSlicerBrowse" class="btn small" type="button">${escapeHtml(t('slicer.browse') || 'Browse…')}</button>
-    </div>
-    <label style="margin-top:10px;">${escapeHtml(t('slicer.args_label') || 'Slice command')}</label>
-    <textarea id="slicerArgs" rows="2" style="font-size:12px;font-family:var(--mono,monospace);" placeholder="--export-gcode -o {output} {model}">${escapeHtml(sl.args || '')}</textarea>
-    <p style="font-size:11.5px;color:var(--text-muted);margin:4px 0 0;">${escapeHtml(t('slicer.args_help') || '')}</p>
-    <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
-      <span style="font-size:12px;color:var(--text-muted);">${escapeHtml(t('slicer.preset') || 'Preset:')}</span>
-      <button class="btn ghost small" type="button" data-slicer-preset="prusa">PrusaSlicer</button>
-      <button class="btn ghost small" type="button" data-slicer-preset="orca">OrcaSlicer</button>
-      <button id="btnSaveSlicer" class="btn primary small" type="button">${escapeHtml(t('common.save') || 'Save')}</button>
-      <button id="btnTestSlicer" class="btn small" type="button">🔌 ${escapeHtml(t('slicer.test') || 'Test')}</button>
-      <span id="slicerSaveResult" style="font-size:12px;"></span>
-    </div>`;
+    <p class="slicer-intro" style="font-size:12.5px;color:var(--text-muted);margin:0 0 10px;">${escapeHtml(t('slicer.multi_intro') || 'Add the slicers you use. When you open a print file you can pick which one to launch; the default is used for slice-and-print elsewhere.')}</p>
+    <div class="slicer-list">${list.length ? rows : `<p class="slicer-empty" style="font-size:12.5px;color:var(--text-muted);">${escapeHtml(t('slicer.none') || 'No slicers configured yet.')}</p>`}</div>
+    <details class="slicer-add" ${list.length ? '' : 'open'}>
+      <summary style="cursor:pointer;font-size:12.5px;font-weight:600;margin-top:12px;">＋ ${escapeHtml(t('slicer.add') || 'Add a slicer')}</summary>
+      <div style="margin-top:10px;">
+        <label style="margin-top:0;">${escapeHtml(t('slicer.name_label') || 'Name (optional)')}</label>
+        <input type="text" id="slicerName" placeholder="PrusaSlicer" style="font-size:12.5px;">
+        <label style="margin-top:10px;">${escapeHtml(t('slicer.path_label') || 'Slicer program')}</label>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="slicerPath" placeholder="/Applications/PrusaSlicer.app/Contents/MacOS/PrusaSlicer" style="flex:1;font-size:12.5px;">
+          <button id="btnSlicerBrowse" class="btn small" type="button">${escapeHtml(t('slicer.browse') || 'Browse…')}</button>
+        </div>
+        <label style="margin-top:10px;">${escapeHtml(t('slicer.args_label') || 'Slice command (advanced)')}</label>
+        <textarea id="slicerArgs" rows="2" style="font-size:12px;font-family:var(--mono,monospace);" placeholder="--export-gcode -o {output} {model}"></textarea>
+        <p style="font-size:11.5px;color:var(--text-muted);margin:4px 0 0;">${escapeHtml(t('slicer.args_help') || 'Used for slice-and-print. Leave blank to just open the file in the slicer.')}</p>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
+          <span style="font-size:12px;color:var(--text-muted);">${escapeHtml(t('slicer.preset') || 'Preset:')}</span>
+          <button class="btn ghost small" type="button" data-slicer-preset="prusa">PrusaSlicer</button>
+          <button class="btn ghost small" type="button" data-slicer-preset="orca">OrcaSlicer</button>
+          <button id="btnAddSlicer" class="btn primary small" type="button">＋ ${escapeHtml(t('slicer.add') || 'Add slicer')}</button>
+          <span id="slicerAddResult" style="font-size:12px;"></span>
+        </div>
+      </div>
+    </details>`;
 
   el.querySelector('#btnSlicerBrowse')?.addEventListener('click', async () => {
     const p = await window.hubAPI?.pickFile?.({ filters: [{ name: 'Slicer program', extensions: ['*', 'exe', 'app', 'AppImage'] }] });
-    if (p) el.querySelector('#slicerPath').value = p;
+    if (p) {
+      el.querySelector('#slicerPath').value = p;
+      const nameEl = el.querySelector('#slicerName');
+      if (nameEl && !nameEl.value.trim()) nameEl.value = KhaytSlicers.slicerDisplayName(p) || '';
+    }
   });
   el.querySelectorAll('[data-slicer-preset]').forEach((b) =>
     b.addEventListener('click', () => { el.querySelector('#slicerArgs').value = PRESETS[b.dataset.slicerPreset] || ''; }));
-  el.querySelector('#btnSaveSlicer')?.addEventListener('click', () => {
-    settings.slicer = { path: el.querySelector('#slicerPath').value.trim(), args: el.querySelector('#slicerArgs').value.trim() };
+
+  el.querySelector('#btnAddSlicer')?.addEventListener('click', () => {
+    const path = el.querySelector('#slicerPath').value.trim();
+    const res = el.querySelector('#slicerAddResult');
+    if (!path) { if (res) { res.textContent = '✗ ' + (t('slicer.path_required') || 'Enter a slicer program path.'); res.style.color = 'var(--danger)'; } return; }
+    const name = el.querySelector('#slicerName').value.trim() || KhaytSlicers.slicerDisplayName(path) || 'Slicer';
+    const args = el.querySelector('#slicerArgs').value.trim();
+    const entry = { id: uid('SL'), name, path, args };
+    settings.slicers.push(entry);
+    if (settings.slicers.length === 1) settings.defaultSlicerId = entry.id;
+    syncDefaultSlicer();
     saveAll();
-    const r = el.querySelector('#slicerSaveResult'); if (r) { r.textContent = '✓ ' + (t('common.save') || 'Saved'); r.style.color = 'var(--success)'; }
+    renderSlicerSettings();
   });
-  el.querySelector('#btnTestSlicer')?.addEventListener('click', async () => {
-    const res = el.querySelector('#slicerSaveResult');
-    const p = el.querySelector('#slicerPath').value.trim();
-    if (res) { res.textContent = t('slicer.testing') || 'Testing…'; res.style.color = 'var(--text-muted)'; }
-    try {
-      const r = await window.hubAPI.sliceTest({ slicerPath: p });
-      if (r && r.ok) { if (res) { res.textContent = '✓ ' + (t('slicer.test_ok') || 'Slicer works') + (r.info ? ` — ${r.info}` : ''); res.style.color = 'var(--success)'; } }
-      else { if (res) { res.textContent = '✗ ' + (t('slicer.test_fail') || 'Could not run the slicer') + ' ' + ((r && r.error) || ''); res.style.color = 'var(--danger)'; } }
-    } catch (e) { if (res) { res.textContent = '✗ ' + (e.message || e); res.style.color = 'var(--danger)'; } }
+
+  // Delegated list actions (default / remove / test).
+  el.querySelector('.slicer-list')?.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-act]');
+    if (!btn) return;
+    const id = btn.dataset.id || (btn.matches('[data-act="slicer-default"]') ? btn.value : null);
+    if (btn.dataset.act === 'slicer-default') {
+      settings.defaultSlicerId = btn.value;
+      syncDefaultSlicer(); saveAll(); renderSlicerSettings();
+    } else if (btn.dataset.act === 'slicer-remove') {
+      settings.slicers = settings.slicers.filter((s) => s.id !== id);
+      if (settings.defaultSlicerId === id) settings.defaultSlicerId = settings.slicers[0] ? settings.slicers[0].id : null;
+      syncDefaultSlicer(); saveAll(); renderSlicerSettings();
+    } else if (btn.dataset.act === 'slicer-test') {
+      const sl = KhaytSlicers.getSlicer(settings, id);
+      const out = el.querySelector(`[data-result="${CSS.escape(id)}"]`);
+      if (out) { out.textContent = t('slicer.testing') || 'Testing…'; out.style.color = 'var(--text-muted)'; }
+      try {
+        const r = await window.hubAPI.sliceTest({ slicerPath: sl ? sl.path : '' });
+        if (out) {
+          if (r && r.ok) { out.textContent = '✓ ' + (t('slicer.test_ok') || 'Slicer works'); out.style.color = 'var(--success)'; }
+          else { out.textContent = '✗ ' + (t('slicer.test_fail') || 'Could not run the slicer'); out.style.color = 'var(--danger)'; }
+        }
+      } catch (err) { if (out) { out.textContent = '✗ ' + (err.message || err); out.style.color = 'var(--danger)'; } }
+    }
   });
 }
 
