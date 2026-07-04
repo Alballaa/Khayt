@@ -4,6 +4,16 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.1.0-beta.2] - 2026-07-04
+
+**Pre-release (beta) — the Colour Mixer suite.** Turns the colour every filament already stores, and the multicolour data parsed from 3MF files, into a set of colour tools for makers. Personal core: available in every mode, including Enthusiast.
+
+### Added
+
+- **Colour studio** — a new **Colour** tab (personal core, in every mode). It has two panels: a **stock matcher** that takes any target colour and ranks the filaments you actually own by perceptual closeness (ΔE / CIEDE2000 — the same distance metric print shops use), showing each one's grams in stock and a low-stock flag; and a **blend & gradient** tool that mixes two colours (gamma-correct, in linear light) and builds an N-step gradient for ombré or colour-swap plans, annotating every step with its nearest in-stock filament. Click any swatch to copy its hex.
+- **Multicolour print planner** — from any print-file library card that carries more than one colour (or from the Colour tab), assign each of the file's colours to a filament you own — defaulting to the closest ΔE match — tune the grams per colour, and see per-colour cost and the file's swap count live. **Add to calculator** pushes the whole thing into the cost calculator as a single part with the exact blended material cost, and remembers the assignment on the file. When that job later completes, filament is deducted from *each* colour's own spool (with same-material fallback), not just one.
+- **Filament hex input** — the colour picker in the add-filament form and the edit dialog now has a paired hex text field, so you can paste an exact colour code (e.g. from a filament maker's spec) instead of eyeballing the swatch.
+
 ## [3.1.0-beta.1] - 2026-07-04
 
 **Pre-release (beta) — opens the 3.1 cycle for 3D-printing enthusiasts.** Two foundation features that make Khayt work for hobbyists, not just print shops.
