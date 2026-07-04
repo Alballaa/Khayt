@@ -553,6 +553,12 @@ function renderDashboard() {
     })
     : '';
 
+  // Enthusiast (hobbyist) mode has NO commerce — hide every money/orders/quotes/
+  // receivables surface. Personal sections (printers, filament, queue, waste) stay.
+  const biz = (typeof KhaytTiers !== 'undefined')
+    ? KhaytTiers.showsBusiness(settings.mode)
+    : settings.mode !== 'enthusiast';
+
   el.innerHTML = `<div class="khayt-dash col gap16 fade">
     <div class="dash-hero khayt-dash-hero">
       <div class="dash-hero-brand">
@@ -616,7 +622,7 @@ function renderDashboard() {
           <span style="font-size:22px;font-weight:700;color:${todayDone.length > 0 ? 'var(--success)' : 'var(--text-muted)'};">${todayDone.length}</span>
           <span style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('dash.today_done'))}</span>
         </div>
-        ${todayDone.length > 0 ? `<div style="display:flex;flex-direction:column;align-items:center;min-width:90px;">
+        ${biz && todayDone.length > 0 ? `<div style="display:flex;flex-direction:column;align-items:center;min-width:90px;">
           <span style="font-size:22px;font-weight:700;color:var(--primary);">${fmtMoney(todayRev)}</span>
           <span style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('dash.today_rev'))}</span>
         </div>` : ''}
@@ -633,7 +639,7 @@ function renderDashboard() {
           <span style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('dash.today_mat'))}</span>
         </div>` : ''}
       </div>
-      ${todayDone.length > 0 ? `<div style="margin-top:10px;border-top:1px solid var(--border-soft);padding-top:8px;">${
+      ${biz && todayDone.length > 0 ? `<div style="margin-top:10px;border-top:1px solid var(--border-soft);padding-top:8px;">${
         todayDone.slice(0, 5).map(o => `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:12.5px;">
           <span style="color:var(--text);">${escapeHtml(o.project || t('inv.walk_in'))}</span>
           <span style="color:var(--success);font-weight:600;">${fmtPrice(o.price)}</span>
@@ -641,7 +647,7 @@ function renderDashboard() {
       }${todayDone.length > 5 ? `<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">+${todayDone.length - 5} more</div>` : ''}</div>` : ''}
     </div>` : ''}
 
-    ${settings.monthlyGoal > 0 ? (() => {
+    ${biz && settings.monthlyGoal > 0 ? (() => {
       const pct = Math.min(100, (monthlyRev / settings.monthlyGoal) * 100);
       const monthName = today.toLocaleDateString(dashIsAr ? 'ar-SA' : 'en-US', { month: 'long' });
       const col = pct >= 100 ? 'var(--success)' : pct >= 60 ? 'var(--primary)' : 'var(--warning)';
@@ -799,25 +805,25 @@ function renderDashboard() {
       </div>`;
     })()}
 
-    ${overdue.length > 0 ? `
+    ${biz && overdue.length > 0 ? `
     <div class="dash-section">
       <h3 class="dash-section-head overdue-head">${escapeHtml(t('dash.overdue_section'))} (${overdue.length})</h3>
       ${overdue.map(o => orderCard(o, formatDueDateBadge(o.dueDate))).join('')}
     </div>` : ''}
 
-    <div class="dash-section">
+    ${biz ? `<div class="dash-section">
       <h3 class="dash-section-head">${escapeHtml(t('dash.due_soon_section'))}</h3>
       ${dueSoon.length > 0 ? dueSoon.map(o => orderCard(o, formatDueDateBadge(o.dueDate))).join('') : noItems('dash.no_due_soon')}
-    </div>
+    </div>` : ''}
 
     ${staleHtml}
 
-    <div class="dash-section">
+    ${biz ? `<div class="dash-section">
       <h3 class="dash-section-head">${escapeHtml(t('dash.unpaid_section'))}</h3>
       ${unpaid.length > 0 ? unpaid.map(o => orderCard(o, paymentBadge(o))).join('') : noItems('dash.no_unpaid')}
-    </div>
+    </div>` : ''}
 
-    ${unpaidOrders.length > 0 ? (() => {
+    ${biz && unpaidOrders.length > 0 ? (() => {
       const agingCell = (label, bucket, urgency) => {
         if (bucket.count === 0) return '';
         const col = urgency === 'high' ? 'var(--danger)' : urgency === 'med' ? 'var(--warning)' : 'var(--text-dim)';
@@ -838,7 +844,7 @@ function renderDashboard() {
       </div>`;
     })() : ''}
 
-    ${followUpQuotes.length > 0 ? `
+    ${biz && followUpQuotes.length > 0 ? `
     <div class="dash-section" style="border-left:3px solid var(--warning); padding-inline-start:12px;">
       <h3 class="dash-section-head" style="color:var(--warning);">⏳ ${escapeHtml(t('dash.expiring_quotes'))} (${followUpQuotes.length})</h3>
       ${followUpQuotes.map(q => {

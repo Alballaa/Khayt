@@ -62,6 +62,29 @@ test('buildNotifications surfaces overdue orders and low stock', () => {
   assert.ok(types.includes('stock'));
 });
 
+test('buildNotifications suppresses commerce alerts in enthusiast mode', () => {
+  global.settings = { mode: 'enthusiast', dismissedNotifs: {}, lowStockThreshold: 200, staleHours: {} };
+  global.printLog = [
+    { id: 'Q1', project: 'A quote', status: 'quote', quoteExpiresAt: '2020-01-01' },
+    { id: 'O-late', project: 'Late job', dueDate: '2020-01-01', status: 'pending', date: '2020-01-01' },
+  ];
+  global.inventory = [{ id: 'S1', material: 'PLA', weight: 10, reorderPoint: 200 }];
+  global.machines = [];
+  global.consumables = [];
+  global.clients = [];
+  global.escapeHtml = (s) => String(s ?? '');
+  global.t = (k) => k;
+  global.switchTab = () => {};
+  global.machineServiceStatus = () => ({ due: false, warning: false });
+  global.localName = () => '';
+
+  const { buildNotifications } = require('../renderer/notifications.js');
+  const types = buildNotifications().map((a) => a.type);
+  assert.equal(types.includes('quote'), false); // commerce alert suppressed for hobbyist
+  assert.ok(types.includes('overdue'));          // personal job alert kept
+  assert.ok(types.includes('stock'));            // personal stock alert kept
+});
+
 test('buildNotifications respects dismissed alert keys', () => {
   global.settings = {
     dismissedNotifs: { 'overdue:O1': 'forever' },

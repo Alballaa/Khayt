@@ -4,6 +4,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.1.0-beta.6] - 2026-07-04
+
+**Pre-release (beta) — Enthusiast mode cleanup.** A review of the three-mode split (Enthusiast / Simple / Professional) found several business features still showing in **Enthusiast (hobbyist)** mode. Enthusiast mode is meant to have no commerce at all; these are now hidden.
+
+### Fixed
+
+- **Business features no longer appear in Enthusiast mode.** The **Product Catalog** and **Analytics** tabs (both commerce surfaces) were visible to hobbyists and are now hidden. The **dashboard** no longer shows unpaid/receivables, aging, quote follow-ups, order revenue or the monthly revenue goal in Enthusiast mode — only your printers, filament, production forecast and today's prints. The **notification bell** no longer raises quote-expiry, recurring-order or installment-payment alerts for hobbyists (overdue jobs, low stock and maintenance reminders still do). The **cost calculator** hides the client picker, client PO/reference, deposit field and "Save as Quote" — leaving the cost maths, printer assignment and "send to queue". Simple and Professional modes are unchanged.
+
 ## [3.1.0-beta.5] - 2026-07-04
 
 **Pre-release (beta) — the multi-printer 3MF converter.** The last of the BedReady-style colour tools: take a multicolour 3MF sliced for one printer and retarget it to another, or clean it up into a standard file any slicer opens.

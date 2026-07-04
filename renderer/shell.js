@@ -253,8 +253,10 @@ function applyAnalyticsModeView() {
   }
 }
 
-/** Business tabs hidden entirely in enthusiast (hobbyist) mode. */
-const BIZ_TABS = ['logs-tab', 'clients-tab', 'gift-cards-tab', 'portfolio-tab', 'expenses-tab'];
+/** Business/commerce tabs hidden entirely in enthusiast (hobbyist) mode — used to
+ *  bounce the active tab and to block keyboard/programmatic navigation to them. Keep
+ *  in sync with the .biz-only / .pro-only nav buttons in index.html. */
+const BIZ_TABS = ['logs-tab', 'clients-tab', 'gift-cards-tab', 'portfolio-tab', 'expenses-tab', 'catalog-tab', 'analytics-tab'];
 
 function applyMode() {
   document.body.classList.toggle('mode-simple', settings.mode === 'simple');
