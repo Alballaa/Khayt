@@ -4,9 +4,9 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
-## [3.0.0-beta.21] - 2026-06-27
+## [3.0.0] - 2026-07-04
 
-**Pre-release (beta) — 1.0 release candidate.** Feature-frozen readiness build: all 8 interface languages are now fully translated, the first-run onboarding wizard is fixed, and a release-candidate hardening pass verified fresh-install, large-dataset (3,000 orders), all-10-designs, and all-locale rendering with zero runtime errors. Intended to soak before promotion to v3.0.0.
+**Khayt 3.0 — stable release.** The 3.0 platform is now stable and generally available. Built on the fully-offline core (quoting, Kanban production queue, ZATCA Phase 2 e-invoicing, live printer monitoring, filament inventory and analytics), 3.0 adds an **optional, end-to-end-encrypted cloud** layer — sync, team accounts, an online storefront with checkout and deposits, a customer portal, remote mobile access, and an AI assistant — none of which is required to run the app. This release is the culmination of the 3.0 beta cycle (beta.1–beta.21): it ships all 8 interface languages fully translated, a fixed first-run onboarding wizard, and a full release-candidate hardening pass that verified fresh-install, large-dataset (3,000 orders), all-10-designs, and all-locale rendering with zero runtime errors.
 
 ### Added
 
