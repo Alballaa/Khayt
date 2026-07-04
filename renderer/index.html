@@ -99,6 +99,10 @@
             <span class="nav-icon" aria-hidden="true">🧊</span>
             <span class="nav-label grow" data-i18n="tab.printfiles">Print Files</span>
           </button>
+          <button type="button" class="tab-btn khayt-navitem" data-tab="colorstudio-tab" role="tab" id="tabbtn-colorstudio-tab" aria-selected="false" aria-controls="colorstudio-tab" tabindex="-1">
+            <span class="nav-icon" aria-hidden="true">🎨</span>
+            <span class="nav-label grow" data-i18n="tab.colorstudio">Colour</span>
+          </button>
           <button type="button" class="tab-btn khayt-navitem" data-tab="catalog-tab" role="tab" id="tabbtn-catalog-tab" aria-selected="false" aria-controls="catalog-tab" tabindex="-1">
             <span class="nav-icon" aria-hidden="true">▣</span>
             <span class="nav-label grow" data-i18n="tab.catalog">Catalog</span>
@@ -588,6 +592,7 @@
 
     <!-- ===================== PRINT-FILE LIBRARY ===================== -->
     <section id="printfiles-tab" class="tab-content khayt-tab-page" role="tabpanel" aria-labelledby="tabbtn-printfiles-tab" aria-hidden="true" tabindex="-1"></section>
+    <section id="colorstudio-tab" class="tab-content khayt-tab-page" role="tabpanel" aria-labelledby="tabbtn-colorstudio-tab" aria-hidden="true" tabindex="-1"></section>
 
     <!-- ===================== QUEUE ===================== -->
     <section id="queue-tab" class="tab-content khayt-queue" role="tabpanel" aria-labelledby="tabbtn-queue-tab" aria-hidden="true" tabindex="-1">
@@ -1030,7 +1035,12 @@
             </div>
             <div>
               <label data-i18n="inv.color">Colour</label>
-              <input type="color" id="invColor" value="#f5a623" style="width:100%; height:38px; padding:3px 4px; border-radius:var(--radius-sm); border:1px solid var(--border); cursor:pointer; background:var(--bg-elev);">
+              <div style="display:flex; gap:6px; align-items:center;">
+                <input type="color" id="invColor" value="#f5a623" style="width:46px; height:38px; padding:3px 4px; border-radius:var(--radius-sm); border:1px solid var(--border); cursor:pointer; background:var(--bg-elev); flex-shrink:0;"
+                  oninput="var h=document.getElementById('invColorHex'); if(h) h.value=this.value.toUpperCase();">
+                <input type="text" id="invColorHex" value="#F5A623" spellcheck="false" maxlength="7" aria-label="Hex" style="flex:1; min-width:0; font-family:ui-monospace,Menlo,monospace; text-transform:uppercase; height:38px; padding:0 8px; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--surface-2); color:var(--text); font-size:13px;"
+                  oninput="var v=this.value.trim(); if(/^#?[0-9a-fA-F]{6}$/.test(v)){ if(v[0]!=='#') v='#'+v; document.getElementById('invColor').value=v; }">
+              </div>
             </div>
           </div>
           <div style="display:flex; gap:8px; margin-top:8px;">
@@ -2414,6 +2424,7 @@
 <script src="../lib/scan.js"></script>
 <script src="../lib/forecast.js"></script>
 <script src="../lib/feature-tiers.js"></script>
+<script src="../lib/color-mix.js"></script>
 <script src="../lib/csv-bundle.js"></script>
 <script src="../lib/pnl-report.js"></script>
 <script src="../lib/ai-price.js"></script>
@@ -2454,6 +2465,8 @@
 <script src="waste.js"></script>
 <script src="views.js"></script>
 <script src="printfiles.js"></script>
+<script src="colorstudio.js"></script>
+<script src="color-planner.js"></script>
 <script src="notifications.js"></script>
 <script src="waiting-list.js"></script>
 <script src="kanban.js"></script>

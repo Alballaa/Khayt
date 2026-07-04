@@ -254,6 +254,55 @@ async function testEnthusiastAndPrintFiles(window) {
   if (bad.length) throw new Error(`enthusiast/print-file checks failed: ${bad.join(', ')} — ${JSON.stringify(r)}`);
 }
 
+// 3.1 beta.2: Colour studio renders (personal-core, incl. enthusiast); multicolour
+// planner cost-trick is exact and completion deduction draws from each colour's spool.
+async function testColourStudioAndPlanner(window) {
+  const r = await window.evaluate(async () => {
+    const out = {};
+    // Colour tab is personal core → visible in enthusiast mode and renders.
+    settings.mode = 'enthusiast'; applyMode();
+    out.colorTabVisible = !!(document.getElementById('tabbtn-colorstudio-tab')?.offsetParent);
+    switchTab('colorstudio-tab');
+    out.csRendered = document.querySelector('.tab-content.active')?.id === 'colorstudio-tab'
+      && !!document.getElementById('csMatchResults');
+    settings.mode = 'professional'; applyMode();
+
+    // Seed two coloured filaments.
+    const red = { id: 'INV-red', material: 'PLA Red', color: '#E23B3B', colourVariant: 'Red', cost: 20, weight: 1000, materialType: 'fdm' };
+    const blue = { id: 'INV-blue', material: 'PLA Blue', color: '#2C63E8', colourVariant: 'Blue', cost: 30, weight: 1000, materialType: 'fdm' };
+    inventory.push(red, blue);
+
+    // Matcher: nearest to pure red is the red spool.
+    out.nearRed = KhaytColor.nearest('#FF0000', inventory.filter((i) => KhaytColor.hexToRgb(i.color)))[0]?.id === 'INV-red';
+
+    // Synthesize a planned part exactly like the planner: 100 g red @0.02/g + 50 g blue @0.03/g.
+    const gRed = 100, gBlue = 50;
+    const cpg = (it) => it.cost / it.weight;
+    const colours = [
+      { filamentId: 'INV-red', hex: '#E23B3B', grams: gRed, cost: cpg(red) * gRed },   // 2.0
+      { filamentId: 'INV-blue', hex: '#2C63E8', grams: gBlue, cost: cpg(blue) * gBlue }, // 1.5
+    ];
+    const totalGrams = gRed + gBlue;                            // 150
+    const totalCost = colours.reduce((s, c) => s + c.cost, 0);  // 3.5
+    const part = {
+      name: 'MC', material: 'Multicolour', filamentId: 'INV-red',
+      spoolCost: totalCost, spoolWeight: totalGrams, printWeight: totalGrams, supportWeight: 0,
+      printTime: 0, qty: 1, extraMaterials: [], priceTiers: [], failureRate: 0, colours,
+    };
+    // The cost trick: material component of the synthesized part == Σ per-colour cost.
+    out.costTrick = Math.abs(computePartBreakdown(part).material - totalCost) < 1e-6;
+
+    // Completion deduction pulls each colour's grams from its own spool.
+    settings.autoDeduct = true;
+    deductFilamentForOrder({ id: 'ORD-mc', status: 'completed', parts: [{ ...part, id: 'PRT-mc' }] }, { skipRender: true });
+    out.redDeducted = inventory.find((i) => i.id === 'INV-red').weight === 1000 - gRed;   // 900
+    out.blueDeducted = inventory.find((i) => i.id === 'INV-blue').weight === 1000 - gBlue; // 950
+    return out;
+  });
+  const bad = Object.entries(r).filter(([, v]) => v !== true).map(([k]) => k);
+  if (bad.length) throw new Error(`colour-studio/planner checks failed: ${bad.join(', ')} — ${JSON.stringify(r)}`);
+}
+
 try {
   ({ electronApp } = await launchApp(userData));
   const window = await electronApp.firstWindow();
@@ -267,6 +316,7 @@ try {
   const orderId = await testOrderLifecycle(window);
   await testLanPinGate(window);
   await testEnthusiastAndPrintFiles(window);
+  await testColourStudioAndPlanner(window);
 
   console.log(
     'e2e-smoke: ok (version=%s, tabs + order %s + store + LAN PIN gate)',
