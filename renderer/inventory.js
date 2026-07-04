@@ -33,6 +33,13 @@ function isLowStock(item) {
   return (+item.weight || 0) <= threshold;
 }
 
+// Set the add-form colour picker + keep its hex text field in sync.
+function setInvColor(hex) {
+  if (!hex) return;
+  const c = $('#invColor'); if (c) c.value = hex;
+  const h = $('#invColorHex'); if (h) h.value = String(hex).toUpperCase();
+}
+
 /* ============================================================
    Per-location inventory — pure, unit-tested helpers (#65 follow-up)
    ------------------------------------------------------------
@@ -319,7 +326,7 @@ function openFilamentCatalog() {
           const f = filtered[+card.dataset.idx];
           card.addEventListener('click', () => {
             $('#invMaterial').value = `${f.brand} ${f.line} – ${f.color}`;
-            $('#invColor').value    = f.hex;
+            setInvColor(f.hex);
             $('#modalMount').innerHTML = '';
             toast(t('inv.catalog_picked') || `${f.color} selected`, 'success', 1800);
           });
@@ -775,7 +782,7 @@ async function openFilamentScanner() {
         document.getElementById('btnUseNFC').addEventListener('click', () => {
           const parts = [nfcData.manufacturer, nfcData.material, nfcData.colorName].filter(Boolean);
           $('#invMaterial').value = parts.join(' – ') || nfcData.material || '';
-          if (nfcData.hex)    $('#invColor').value  = nfcData.hex;
+          if (nfcData.hex)    setInvColor(nfcData.hex);
           if (nfcData.weight) $('#invWeight').value = nfcData.weight;
           $('#modalMount').innerHTML = '';
           toast(t('inv.catalog_picked') || 'Filament imported from NFC tag', 'success', 2000);
@@ -850,7 +857,7 @@ async function openFilamentScanner() {
 
           document.getElementById('btnUseScan').addEventListener('click', () => {
             $('#invMaterial').value = `${top.brand} ${top.line} – ${top.color}`;
-            $('#invColor').value    = top.hex;
+            setInvColor(top.hex);
             $('#modalMount').innerHTML = '';
             toast(t('inv.catalog_picked')||`${top.color} selected`, 'success', 1800);
           });
@@ -858,7 +865,7 @@ async function openFilamentScanner() {
             btn.addEventListener('click', () => {
               const m2 = matches[+btn.dataset.idx];
               $('#invMaterial').value = `${m2.brand} ${m2.line} – ${m2.color}`;
-              $('#invColor').value    = m2.hex;
+              setInvColor(m2.hex);
               $('#modalMount').innerHTML = '';
               toast(t('inv.catalog_picked')||`${m2.color} selected`, 'success', 1800);
             });
@@ -1008,7 +1015,12 @@ function openInventoryEditor(id) {
       </div>
       <div>
         <label>${escapeHtml(t('inv.color'))}</label>
-        <input type="color" id="ieColorInput" value="${escapeHtml(item.color || '#888888')}" style="width:100%; height:38px; padding:3px 4px; border-radius:var(--radius-sm); border:1px solid var(--border); cursor:pointer; background:var(--bg-elev);">
+        <div style="display:flex; gap:6px; align-items:center;">
+          <input type="color" id="ieColorInput" value="${escapeHtml(item.color || '#888888')}" style="width:46px; height:38px; padding:3px 4px; border-radius:var(--radius-sm); border:1px solid var(--border); cursor:pointer; background:var(--bg-elev); flex-shrink:0;"
+            oninput="var h=document.getElementById('ieColorHex'); if(h) h.value=this.value.toUpperCase();">
+          <input type="text" id="ieColorHex" value="${escapeHtml((item.color || '#888888').toUpperCase())}" spellcheck="false" maxlength="7" aria-label="Hex" style="flex:1; min-width:0; font-family:ui-monospace,Menlo,monospace; text-transform:uppercase; height:38px; padding:0 8px; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--surface-2); color:var(--text); font-size:13px;"
+            oninput="var v=this.value.trim(); if(/^#?[0-9a-fA-F]{6}$/.test(v)){ if(v[0]!=='#') v='#'+v; document.getElementById('ieColorInput').value=v; }">
+        </div>
       </div>
     </div>
     <label style="margin-top:14px;" id="ieCostLabel">${escapeHtml(t('inv.cost'))}</label>
@@ -1188,6 +1200,18 @@ function partGramsConsumed(p) {
   return ((+p.printWeight || 0) + (+p.supportWeight || 0)) * (+p.qty || 1);
 }
 
+// Grams THIS part draws from one specific spool id. For a multicolour part the
+// grams are split across the assigned colour filaments (× qty); for a normal part
+// it's the whole part when the spool matches its chosen spool/filament, else 0.
+function partGramsForSpool(p, spoolId) {
+  if (p && p.colours && p.colours.length) {
+    const q = +p.qty || 1;
+    return p.colours.filter(c => c.filamentId === spoolId)
+      .reduce((s, c) => s + (+c.grams || 0) * q, 0);
+  }
+  return ((p.spoolId || p.filamentId) === spoolId) ? partGramsConsumed(p) : 0;
+}
+
 /** Consumption-aware reorder suggestions modal (uses lib/reorder.js). */
 /** Resolve a reorder unit price (per gram) + supplier for an item: prefer a
  *  matching supplier price-list entry (cheapest), else the item's own cost. */
@@ -1323,8 +1347,7 @@ function getSpoolReservedGrams(spoolId) {
     .filter(o => o.status !== 'completed' && o.status !== 'quote')
     .reduce((s, o) =>
       s + (o.parts || [])
-        .filter(p => (p.spoolId || p.filamentId) === spoolId)
-        .reduce((ps, p) => ps + partGramsConsumed(p), 0)
+        .reduce((ps, p) => ps + partGramsForSpool(p, spoolId), 0)
     , 0);
 }
 
@@ -1337,20 +1360,31 @@ function todayPlusDays(n) {
 // Feature 3: Check if saving parts would over-commit any spool
 function checkSpoolOvercommit(parts, excludeOrderId) {
   const warnings = [];
+  // Grams needed per spool across the parts being saved (colour-aware: a multicolour
+  // part spreads its demand across each assigned colour filament).
+  const needBySpool = {};
   for (const part of (parts || [])) {
-    const key = part.spoolId || part.filamentId;
-    if (!key) continue;
+    if (part.colours && part.colours.length) {
+      const q = +part.qty || 1;
+      for (const c of part.colours) {
+        if (!c.filamentId) continue;
+        needBySpool[c.filamentId] = (needBySpool[c.filamentId] || 0) + (+c.grams || 0) * q;
+      }
+    } else {
+      const key = part.spoolId || part.filamentId;
+      if (!key) continue;
+      needBySpool[key] = (needBySpool[key] || 0) + partGramsConsumed(part);
+    }
+  }
+  for (const [key, thisJobNeeds] of Object.entries(needBySpool)) {
     const item = inventory.find(i => i.id === key);
     if (!item) continue;
     // Compute already-reserved excluding the order being edited
     const alreadyReserved = printLog
       .filter(o => o.status !== 'completed' && o.status !== 'quote' && o.id !== excludeOrderId)
       .reduce((s, o) =>
-        s + (o.parts || [])
-          .filter(p => (p.spoolId || p.filamentId) === key)
-          .reduce((ps, p) => ps + partGramsConsumed(p), 0)
+        s + (o.parts || []).reduce((ps, p) => ps + partGramsForSpool(p, key), 0)
       , 0);
-    const thisJobNeeds = partGramsConsumed(part);
     if (alreadyReserved + thisJobNeeds > item.weight) {
       warnings.push({
         spoolName: item.material,
@@ -2026,6 +2060,38 @@ function deductFilamentForOrder(order, { skipRender = false } = {}) {
   // Per-location: prefer drawing from spools at the order's branch.
   const orderLoc = typeof orderLocationId === 'function' ? orderLocationId(order) : (order.locationId || null);
   for (const part of (order.parts || [])) {
+    // Multicolour part: deduct each colour's grams from its own assigned filament,
+    // falling back to same-material spools — mirrors the single-filament path below.
+    // Guarded so normal single-filament parts are completely unaffected.
+    if (part.colours && part.colours.length) {
+      const perQty = Math.max(1, +part.qty || 1);
+      for (const col of part.colours) {
+        const primaryC = col.filamentId && inventory.find(i => i.id === col.filamentId);
+        if (!primaryC) continue;
+        let remaining = Math.max(0, (+col.grams || 0) * perQty);
+        if (remaining <= 0) continue;
+        const othersC = inventory.filter(s =>
+          s.id !== primaryC.id && s.material === primaryC.material && (+s.weight || 0) > 0);
+        const fbC = (orderLoc && typeof orderSpoolsByLocationPreference === 'function')
+          ? orderSpoolsByLocationPreference(othersC, orderLoc) : othersC;
+        for (const sp of [primaryC, ...fbC]) {
+          if (remaining <= 0) break;
+          const avail = +sp.weight || 0;
+          if (avail <= 0) continue;
+          const take = Math.min(avail, remaining);
+          sp.weight = Math.max(0, avail - take);
+          remaining -= take;
+          if (!sp.usageHistory) sp.usageHistory = [];
+          sp.usageHistory.unshift({ orderId: order.id, project: order.project || '', weightUsed: take, date: today });
+          if (sp.usageHistory.length > 200) sp.usageHistory.length = 200;
+          deductedAny = true;
+          totalDeducted += take;
+          spoolsTouched.add(sp.id);
+          if (isLowStock(sp) && !nowLow.some(x => x.id === sp.id)) nowLow.push(sp);
+        }
+      }
+      continue;
+    }
     if (!part.filamentId || !part.printWeight) continue;
     const primary = inventory.find(i => i.id === part.filamentId);
     if (!primary) continue;

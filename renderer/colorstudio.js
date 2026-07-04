@@ -1,0 +1,230 @@
+'use strict';
+/*
+ * Colour Studio (3.1) — the Colour Mixer the maker asked for (BedReady-style), personal
+ * core so it's available in every mode incl. enthusiast. Two panels:
+ *
+ *   • Matcher   — pick a target colour → the closest-matching filaments IN STOCK,
+ *                 ranked by perceptual distance (ΔE / CIEDE2000).
+ *   • Blend     — mix two filaments/hexes and build an N-step gradient (ombré / swap
+ *                 plans), each step annotated with its nearest in-stock filament.
+ *
+ * The multicolour print planner (assign a file's colours → filaments → cost) is
+ * contextual — launched from a print-file library card (see renderer/color-planner.js).
+ *
+ * All colour maths lives in lib/color-mix.js (global KhaytColor). No DOM there; no network
+ * here. Reads the live `inventory` collection (bare global) at render time.
+ */
+(function (global) {
+  const KC = () => global.KhaytColor;
+
+  // Inventory filaments that carry a usable hex colour (name-only colours are skipped).
+  function coloredFilaments() {
+    const list = Array.isArray(inventory) ? inventory : [];
+    const kc = KC();
+    return kc ? list.filter((it) => it && kc.hexToRgb(it.color)) : [];
+  }
+
+  function filamentLabel(it) {
+    return [it.material, it.colourVariant].filter(Boolean).join(' — ')
+      || (t('cmix.filament') || 'Filament');
+  }
+
+  function swatch(hex, size) {
+    const s = size || 16;
+    return `<span class="cs-swatch" style="background:${safeCssColor(hex, '#888')};width:${s}px;height:${s}px;"></span>`;
+  }
+
+  function filamentOptions() {
+    return coloredFilaments()
+      .map((it) => `<option value="${escapeHtml(it.color)}">${escapeHtml(filamentLabel(it))}</option>`)
+      .join('');
+  }
+
+  function qualityClass(de) {
+    return de < 2 ? 'exact' : de < 5 ? 'close' : de < 12 ? 'ok' : 'far';
+  }
+
+  // ---- state (persists across re-renders within a session) ----
+  let _target = '#3AA0FF';
+  let _blendA = '#E23B3B';
+  let _blendB = '#2C63E8';
+  let _steps = 5;
+
+  function shellHtml() {
+    const opts = filamentOptions();
+    const fromSel = (id) => opts
+      ? `<select id="${id}" class="cs-from"><option value="">${escapeHtml(t('cmix.from_filament') || 'From filament…')}</option>${opts}</select>`
+      : '';
+    return `
+      <div class="cs-head">
+        <h2 class="cs-title">🎨 ${escapeHtml(t('cmix.title') || 'Colour studio')}</h2>
+        <p class="cs-sub">${escapeHtml(t('cmix.subtitle') || 'Match a colour to filament you already own, or blend two spools into a gradient.')}</p>
+      </div>
+      <div class="cs-grid">
+        <section class="cs-card">
+          <h3 class="cs-card-title">${escapeHtml(t('cmix.matcher.title') || 'Closest filament in stock')}</h3>
+          <p class="cs-card-hint">${escapeHtml(t('cmix.matcher.hint') || 'Pick a target colour — filaments are ranked by how close they look (ΔE).')}</p>
+          <div class="cs-pickrow">
+            <input type="color" id="csTargetColor" class="cs-color" value="${escapeHtml(_target)}" aria-label="${escapeHtml(t('cmix.target') || 'Target colour')}">
+            <input type="text" id="csTargetHex" class="cs-hex-input" value="${escapeHtml(_target.toUpperCase())}" spellcheck="false" maxlength="7" aria-label="${escapeHtml(t('cmix.target') || 'Target colour')}">
+            ${fromSel('csTargetFrom')}
+          </div>
+          <div id="csMatchResults" class="cs-results"></div>
+        </section>
+
+        <section class="cs-card">
+          <h3 class="cs-card-title">${escapeHtml(t('cmix.blend.title') || 'Blend & gradient')}</h3>
+          <p class="cs-card-hint">${escapeHtml(t('cmix.blend.hint') || 'Mix two colours (gamma-correct) and build an N-step gradient for ombré or colour-swap plans.')}</p>
+          <div class="cs-pickrow">
+            <input type="color" id="csBlendAColor" class="cs-color" value="${escapeHtml(_blendA)}" aria-label="A">
+            <input type="text" id="csBlendAHex" class="cs-hex-input" value="${escapeHtml(_blendA.toUpperCase())}" spellcheck="false" maxlength="7" aria-label="A">
+            ${fromSel('csBlendAFrom')}
+          </div>
+          <div class="cs-pickrow">
+            <input type="color" id="csBlendBColor" class="cs-color" value="${escapeHtml(_blendB)}" aria-label="B">
+            <input type="text" id="csBlendBHex" class="cs-hex-input" value="${escapeHtml(_blendB.toUpperCase())}" spellcheck="false" maxlength="7" aria-label="B">
+            ${fromSel('csBlendBFrom')}
+          </div>
+          <div class="cs-midrow">
+            <label class="cs-steps-lbl">${escapeHtml(t('cmix.steps') || 'Steps')}
+              <input type="range" id="csSteps" min="2" max="10" step="1" value="${_steps}">
+              <span id="csStepsN" class="cs-steps-n">${_steps}</span>
+            </label>
+            <div class="cs-mid"><span class="cs-mid-lbl">${escapeHtml(t('cmix.midpoint') || '50/50')}</span><span id="csBlendMid"></span></div>
+          </div>
+          <div id="csGradient" class="cs-gradient"></div>
+        </section>
+      </div>
+      ${plannerCardHtml()}`;
+  }
+
+  // Files in the library with more than one colour can be planned into a costed part.
+  function plannableFiles() {
+    return (Array.isArray(printFiles) ? printFiles : [])
+      .filter((r) => Array.isArray(r.colors) && r.colors.filter((c) => c && c.hex).length > 1);
+  }
+
+  function plannerCardHtml() {
+    const files = plannableFiles();
+    if (!files.length) return '';
+    const rows = files.slice(0, 24).map((r) => {
+      const dots = r.colors.filter((c) => c && c.hex).slice(0, 8)
+        .map((c) => `<span class="pf-dot" style="background:${safeCssColor(c.hex)}" title="${escapeHtml(c.label || c.hex)}"></span>`).join('');
+      return `<div class="cs-plan-row">
+        <div class="cs-plan-dots">${dots}</div>
+        <div class="cs-plan-name">${escapeHtml(r.name || r.originalName || 'Untitled')}</div>
+        <button class="btn small ghost" data-plan-id="${escapeHtml(r.id)}">🎨 ${escapeHtml(t('plan.title') || 'Plan colours')}</button>
+      </div>`;
+    }).join('');
+    return `<section class="cs-card cs-plan-card">
+      <h3 class="cs-card-title">${escapeHtml(t('plan.files_title') || 'Multicolour files')}</h3>
+      <p class="cs-card-hint">${escapeHtml(t('plan.files_hint') || 'Assign filaments to each colour and push the job to the cost calculator.')}</p>
+      ${rows}
+    </section>`;
+  }
+
+  function updateMatcher() {
+    const box = document.getElementById('csMatchResults');
+    const kc = KC();
+    if (!box || !kc) return;
+    const cands = coloredFilaments();
+    if (!cands.length) {
+      box.innerHTML = `<p class="cs-empty">${escapeHtml(t('cmix.no_filaments') || 'No filaments with a hex colour yet — set a colour on a filament in Inventory.')}</p>`;
+      return;
+    }
+    const ranked = kc.nearest(_target, cands, { limit: 12 });
+    box.innerHTML = ranked.map((r) => {
+      const low = (typeof isLowStock === 'function' && isLowStock(r));
+      return `<div class="cs-row" data-hex="${escapeHtml(r.color)}" title="${escapeHtml(t('cmix.copy') || 'Copy hex')}">
+        ${swatch(r.color, 26)}
+        <div class="cs-row-main">
+          <div class="cs-row-name">${escapeHtml(filamentLabel(r))}</div>
+          <div class="cs-row-sub">${escapeHtml(String(r.color).toUpperCase())} · ${Math.round(+r.weight || 0)} g${low ? ` · <span class="cs-low">${escapeHtml(t('cmix.low') || 'Low')}</span>` : ''}</div>
+        </div>
+        <span class="cs-de cs-de-${qualityClass(r.deltaE)}" title="ΔE (CIEDE2000)">ΔE ${r.deltaE.toFixed(1)}</span>
+      </div>`;
+    }).join('');
+  }
+
+  function updateBlend() {
+    const kc = KC();
+    const strip = document.getElementById('csGradient');
+    const mid = document.getElementById('csBlendMid');
+    if (!strip || !kc) return;
+    const cands = coloredFilaments();
+    const bl = kc.blend(_blendA, _blendB, 0.5);
+    if (mid) mid.innerHTML = bl ? `${swatch(bl, 22)}<span class="cs-hex" data-hex="${bl}" title="${escapeHtml(t('cmix.copy') || 'Copy hex')}">${bl}</span>` : '';
+    const g = kc.gradient(_blendA, _blendB, _steps);
+    strip.innerHTML = g.map((hex) => {
+      const near = cands.length ? kc.nearest(hex, cands, { limit: 1 })[0] : null;
+      const nearTxt = near ? `${filamentLabel(near)} · ΔE ${near.deltaE.toFixed(1)}` : '';
+      return `<div class="cs-step" data-hex="${escapeHtml(hex)}" title="${escapeHtml((t('cmix.copy') || 'Copy hex') + (nearTxt ? ' · ' + nearTxt : ''))}">
+        <span class="cs-step-sw" style="background:${safeCssColor(hex)}"></span>
+        <span class="cs-step-hex">${escapeHtml(hex)}</span>
+        <span class="cs-step-near">${escapeHtml(nearTxt)}</span>
+      </div>`;
+    }).join('');
+  }
+
+  // Two-way sync between a <input type=color> and a hex text field; updates on change.
+  function bindPair(colorId, hexId, fromId, set, after) {
+    const kc = KC();
+    const c = document.getElementById(colorId);
+    const h = document.getElementById(hexId);
+    const f = fromId && document.getElementById(fromId);
+    if (c) c.oninput = () => { set(c.value); if (h) h.value = c.value.toUpperCase(); after(); };
+    if (h) h.oninput = () => {
+      const rgb = kc && kc.hexToRgb(h.value);
+      if (!rgb) return; // wait for a valid hex; don't fight the user mid-type
+      const hex = kc.rgbToHex(rgb.r, rgb.g, rgb.b);
+      set(hex); if (c) c.value = hex; after();
+    };
+    if (f) f.onchange = () => {
+      if (!f.value) return;
+      set(f.value); if (c) c.value = f.value; if (h) h.value = f.value.toUpperCase();
+      f.selectedIndex = 0; after();
+    };
+  }
+
+  function renderColorStudio() {
+    const host = document.getElementById('colorstudio-tab');
+    if (!host) return;
+    host.innerHTML = shellHtml();
+
+    bindPair('csTargetColor', 'csTargetHex', 'csTargetFrom', (v) => { _target = v; }, updateMatcher);
+    bindPair('csBlendAColor', 'csBlendAHex', 'csBlendAFrom', (v) => { _blendA = v; }, updateBlend);
+    bindPair('csBlendBColor', 'csBlendBHex', 'csBlendBFrom', (v) => { _blendB = v; }, updateBlend);
+
+    const steps = document.getElementById('csSteps');
+    const stepsN = document.getElementById('csStepsN');
+    if (steps) steps.oninput = () => { _steps = +steps.value; if (stepsN) stepsN.textContent = _steps; updateBlend(); };
+
+    // Click any swatch/step/row to copy its hex, or a "Plan colours" button to launch the planner.
+    host.onclick = (e) => {
+      const planBtn = e.target.closest('[data-plan-id]');
+      if (planBtn) {
+        const rec = (Array.isArray(printFiles) ? printFiles : []).find((r) => r.id === planBtn.getAttribute('data-plan-id'));
+        if (rec && typeof openColorPlanner === 'function') openColorPlanner(rec);
+        return;
+      }
+      const el = e.target.closest('[data-hex]');
+      if (!el) return;
+      const hex = el.getAttribute('data-hex');
+      if (!hex) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(hex.toUpperCase()).then(
+          () => toast((t('cmix.copied') || 'Copied') + ' ' + hex.toUpperCase(), 'success', 1600),
+          () => {},
+        );
+      }
+    };
+
+    updateMatcher();
+    updateBlend();
+  }
+
+  const pub = { renderColorStudio };
+  Object.assign(global, pub);
+  global.KhaytColorStudio = pub;
+  if (typeof module !== 'undefined' && module.exports) module.exports = pub;
+})(typeof globalThis !== 'undefined' ? globalThis : this);

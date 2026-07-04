@@ -3634,6 +3634,66 @@ body.mode-enthusiast .biz-only { display: none !important; }
 .pf-actions .btn { flex: 0 0 auto; }
 .pf-empty { padding: 48px 16px; text-align: center; color: var(--text-muted); border: 1px dashed var(--border); border-radius: 12px; }
 
+/* ── Colour Studio (matcher + blend/gradient) ─────────────── */
+.cs-head { margin-bottom: 14px; }
+.cs-title { font-size: 19px; margin: 0 0 4px; }
+.cs-sub { font-size: 13px; color: var(--text-muted); margin: 0; }
+.cs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; align-items: start; }
+.cs-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+.cs-card-title { font-size: 15px; margin: 0 0 4px; }
+.cs-card-hint { font-size: 12px; color: var(--text-muted); margin: 0 0 12px; }
+.cs-swatch { display: inline-block; border-radius: 5px; border: 1px solid rgba(255,255,255,.18); flex-shrink: 0; }
+.cs-pickrow { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.cs-color { width: 46px; height: 38px; padding: 3px 4px; border-radius: var(--radius-sm); border: 1px solid var(--border); cursor: pointer; background: var(--bg-elev); flex-shrink: 0; }
+.cs-hex-input { width: 92px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; text-transform: uppercase; padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: 13px; }
+.cs-from { flex: 1; min-width: 140px; padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: 13px; }
+.cs-results { display: flex; flex-direction: column; gap: 6px; }
+.cs-row { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 9px; border: 1px solid var(--border); cursor: pointer; }
+.cs-row:hover { background: var(--surface-2); }
+.cs-row-main { flex: 1; min-width: 0; }
+.cs-row-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cs-row-sub { font-size: 11.5px; color: var(--text-muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.cs-low { color: var(--danger); font-family: inherit; }
+.cs-de { font-size: 11.5px; font-weight: 700; padding: 3px 7px; border-radius: 999px; white-space: nowrap; }
+.cs-de-exact { background: rgba(34,197,94,.16); color: #22c55e; }
+.cs-de-close { background: rgba(132,204,22,.16); color: #84cc16; }
+.cs-de-ok    { background: rgba(234,179,8,.16); color: #eab308; }
+.cs-de-far   { background: rgba(148,163,184,.16); color: var(--text-muted); }
+.cs-midrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 12px; flex-wrap: wrap; }
+.cs-steps-lbl { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-muted); }
+.cs-steps-n { font-weight: 700; color: var(--text); min-width: 14px; }
+.cs-mid { display: flex; align-items: center; gap: 8px; }
+.cs-mid-lbl { font-size: 12px; color: var(--text-muted); }
+.cs-hex { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; cursor: pointer; }
+.cs-gradient { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.cs-step { flex: 1 0 64px; text-align: center; cursor: pointer; }
+.cs-step-sw { display: block; height: 56px; border-radius: 8px; border: 1px solid rgba(255,255,255,.14); }
+.cs-step-hex { display: block; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; margin-top: 4px; }
+.cs-step-near { display: block; font-size: 9.5px; color: var(--text-muted); line-height: 1.2; margin-top: 2px; }
+.cs-empty { padding: 24px 12px; text-align: center; color: var(--text-muted); font-size: 13px; }
+.cs-plan-card { margin-top: 16px; }
+.cs-plan-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-top: 1px solid var(--border); }
+.cs-plan-row:first-of-type { border-top: none; }
+.cs-plan-dots { display: flex; gap: 3px; flex-shrink: 0; }
+.cs-plan-name { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Multicolour planner modal */
+.cp-hint { font-size: 12.5px; color: var(--text-muted); margin: 0 0 12px; }
+.cp-table-wrap { overflow-x: auto; }
+.cp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.cp-table th { text-align: start; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); padding: 4px 8px; }
+.cp-table td { padding: 6px 8px; border-top: 1px solid var(--border); vertical-align: middle; }
+.cp-c { display: flex; align-items: center; gap: 8px; }
+.cp-hex { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; }
+.cp-lbl { color: var(--text-muted); font-size: 12px; }
+.cp-fil { max-width: 220px; padding: 6px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: 12.5px; }
+.cp-de { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+.cp-de.good { color: #22c55e; } .cp-de.ok { color: #eab308; } .cp-de.far { color: var(--text-muted); }
+.cp-cost, .cp-tot { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cp-table tfoot td { border-top: 2px solid var(--border); font-weight: 700; }
+.cp-tot-lbl { font-weight: 700; }
+.cp-swaps { font-weight: 500; color: var(--text-muted); font-size: 12px; }
+
 /* ── Setup wizard ─────────────────────────────────────────── */
 .wizard-overlay {
   position: fixed; inset: 0; z-index: 9999;

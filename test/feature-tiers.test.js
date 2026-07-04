@@ -31,7 +31,14 @@ test('isFeatureEnabled: pro gated by mode, business gated by enthusiast, core al
   assert.equal(isFeatureEnabled('clients', 'enthusiast'), false); // business — hidden for enthusiast
   assert.equal(isFeatureEnabled('quote', 'enthusiast'), true);    // core
   assert.equal(isFeatureEnabled('printFiles', 'enthusiast'), true); // core (personal library)
+  assert.equal(isFeatureEnabled('colorMix', 'enthusiast'), true);   // core (colour mixer)
   assert.equal(isFeatureEnabled('unknownFeature', 'enthusiast'), true); // unknown = core
+});
+
+test('colorMix is a personal-core feature (present in SIMPLE_CORE, on in every mode)', () => {
+  assert.ok(SIMPLE_CORE.some((f) => f.key === 'colorMix'), 'colorMix is core');
+  assert.equal(isFeatureEnabled('colorMix', 'simple'), true);
+  assert.equal(isFeatureEnabled('colorMix', 'professional'), true);
 });
 
 test('registries are non-empty and disjoint by key', () => {
