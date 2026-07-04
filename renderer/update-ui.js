@@ -5,6 +5,7 @@
   let updateOverlay = null;
   let activeUpdateInfo = null;
   let promptedVersion = null;
+  let openingModal = false; // synchronous latch: an open is in-flight across its await
 
   function tr(key, fallback, vars) {
     if (typeof t === 'function') {
@@ -163,7 +164,11 @@
 
   async function showUpdateChangesModal(info, { currentVersion, initialState = 'review' } = {}) {
     if (!info?.version || !window.hubAPI) return;
-    if (promptedVersion === info.version && updateOverlay) return;
+    // Already showing (or mid-open, across the async formatNotes gap) for this version →
+    // ignore the duplicate. A manual check fires BOTH the update-available event and the
+    // IPC result for the same version; without this latch they race into two stacked modals.
+    if (promptedVersion === info.version && (updateOverlay || openingModal)) return;
+    openingModal = true;
 
     promptedVersion = info.version;
     activeUpdateInfo = {
@@ -188,6 +193,7 @@
         <div class="modal-footer" id="updateModalFooter"></div>
       </div>
     `, { zIndex: 10060 });
+    openingModal = false;
 
     updateOverlay.querySelector('.modal-header [data-upd="later"]')?.addEventListener('click', closeUpdateModal);
     updateOverlay.addEventListener('click', (e) => {
