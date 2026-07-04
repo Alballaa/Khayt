@@ -807,7 +807,7 @@ function openFeedbackModal() {
       const body = encodeURIComponent(
         `Type: ${t('feedback.type_' + type)}\n\n${message}${email ? `\n\nFrom: ${email}` : ''}`
       );
-      const mailto = `mailto:khayt@athartuwaiq.com?subject=${subject}&body=${body}`;
+      const mailto = `mailto:support@khaytapp.com?subject=${subject}&body=${body}`;
       try {
         if (window.hubAPI?.openExternal) {
           const res = await window.hubAPI.openExternal(mailto);
