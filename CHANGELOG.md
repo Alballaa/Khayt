@@ -4,6 +4,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.1.0-beta.5] - 2026-07-04
+
+**Pre-release (beta) — the multi-printer 3MF converter.** The last of the BedReady-style colour tools: take a multicolour 3MF sliced for one printer and retarget it to another, or clean it up into a standard file any slicer opens.
+
+### Added
+
+- **3MF Converter** — a new **Converter** tab (personal core, every mode) plus a **Convert** action on every 3MF in your Print-File library. Pick a target printer — **Snapmaker U1, Bambu Lab (X1C / P1S / A1), Prusa (MK4 + MMU3, XL), Creality K2 Plus, Anycubic Kobra S1** — and Khayt rewrites the file's printer profile (model, bed size, nozzle) for it. For multicolour files you can **remap each source colour to a specific slot** on the target printer. Or choose **Generic 3MF** to strip vendor-locked slicer settings and produce a clean standard file. Your model geometry is never touched by the conversion — only the slicer metadata is rewritten — so a converted file can't come out corrupted; worst case you fine-tune a setting in your slicer. Everything runs locally.
+
 ## [3.1.0-beta.4] - 2026-07-04
 
 **Pre-release (beta) — update-system reliability fix.** The in-app updater could behave erratically; this release makes the automatic check as strict and consistent as the manual one.
