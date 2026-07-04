@@ -665,7 +665,7 @@ function renderDashboard() {
     ${renderDashLivePrinters()}
     ${renderDashFilament()}
 
-    ${settings.mode !== 'simple' && machines.length > 0 ? (() => {
+    ${machines.length > 0 ? (() => {
       const activeOrds = printLog.filter(o => o.status !== 'completed' && o.status !== 'quote');
       const WORK_HRS_PER_DAY = Math.max(1, avgDailyWorkingHours()); // use configured working hours
       // Feature 1: Per-machine clearance forecast

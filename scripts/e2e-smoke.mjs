@@ -257,6 +257,13 @@ async function testEnthusiastAndPrintFiles(window) {
     await window.hubAPI.saveStore(buildStoreSnapshot());
     const loaded = await window.hubAPI.loadStore();
     out.pfPersisted = Array.isArray(loaded.printFiles) && loaded.printFiles.some((x) => x.id === 'PF-e2e');
+    // Simple mode: business basics reachable (analytics/reports + catalog), Pro depth hidden (expenses).
+    settings.mode = 'simple'; applyMode();
+    out.simpleAnalyticsVisible = vis('tabbtn-analytics-tab'); // Sales reports available to small shops
+    out.simpleCatalogVisible = vis('tabbtn-catalog-tab');
+    out.simpleExpensesHidden = !vis('tabbtn-expenses-tab');   // Expense tracking = Pro only
+    switchTab('analytics-tab'); // reachable (not bounced) in simple
+    out.simpleAnalyticsReachable = document.querySelector('.tab-content.active')?.id === 'analytics-tab';
     settings.mode = 'professional'; applyMode();
     return out;
   });

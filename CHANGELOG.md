@@ -4,6 +4,17 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.1.0-beta.7] - 2026-07-04
+
+**Pre-release (beta) — Simple & Professional mode review.** Following the Enthusiast-mode cleanup, the same three-mode review was extended to **Simple** and **Professional**. It found the Analytics/reports tab unreachable in Simple, Pro-only machine maintenance leaking into Simple, and a dashboard widget hidden in the wrong mode.
+
+### Fixed
+
+- **Sales reports now reachable in Simple mode.** The **Analytics** tab was gated Professional-only, so small shops on Simple mode had no reports at all. It now opens in Simple as a focused **sales-reports** view (month revenue, orders, receivables, top products); Professional keeps the full analytics dashboard, and Enthusiast still hides it entirely.
+- **Machine maintenance is now Professional-only, everywhere.** The **maintenance log**, **nozzle-change logging**, **service-due / downtime badges** and the **downtime scheduler** were showing on printer rows in Simple mode even though machine maintenance is a Professional feature — they're now hidden unless you're in Professional mode.
+- **Production forecast now shows in Simple mode.** The per-printer "estimated time to clear the queue" widget on the dashboard was shown in Enthusiast and Professional but hidden in Simple. It's a personal planning widget (no revenue figures), so it now appears in all three modes.
+- **Expense tracking documented as Professional.** The in-app tier comparison now correctly lists **Expense tracking** and **Sales reports** under the right tiers.
+
 ## [3.1.0-beta.6] - 2026-07-04
 
 **Pre-release (beta) — Enthusiast mode cleanup.** A review of the three-mode split (Enthusiast / Simple / Professional) found several business features still showing in **Enthusiast (hobbyist)** mode. Enthusiast mode is meant to have no commerce at all; these are now hidden.
