@@ -4,6 +4,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.1.0-beta.3] - 2026-07-04
+
+**Pre-release (beta) — multiple slicers.** Many makers run more than one slicer (PrusaSlicer for FDM, a vendor slicer for a particular printer, a resin slicer). Khayt now supports a list of them instead of a single program.
+
+### Added
+
+- **Multiple slicers** — Settings → Slicer now holds a list. Add each slicer you use (name, program path, optional slice command), mark one as the **default**, and test each one. Your existing single-slicer setup is migrated automatically and keeps working everywhere it did before (slice-and-print from the queue, machine slice, quote slicing all use the default).
+- **Slicer chooser on open** — when you have more than one slicer configured and hit **Open in slicer** on a print-file library card, Khayt asks which one to launch and remembers your choice for that file. With a single slicer configured, it opens straight away as before.
+
 ## [3.1.0-beta.2] - 2026-07-04
 
 **Pre-release (beta) — the Colour Mixer suite.** Turns the colour every filament already stores, and the multicolour data parsed from 3MF files, into a set of colour tools for makers. Personal core: available in every mode, including Enthusiast.

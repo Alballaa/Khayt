@@ -221,9 +221,36 @@
     const hub = api(); if (!hub || !hub.printLibOpenSlicer) return;
     const full = await resolveModelPath(rec);
     if (!full) { toast(t('plib.file_missing') || 'File is missing.', 'error'); return; }
-    const r = await hub.printLibOpenSlicer(full, (settings.slicer && settings.slicer.path) || '');
+    const slicers = (global.KhaytSlicers ? KhaytSlicers.listSlicers(settings) : []);
+    // More than one slicer configured → let the maker pick which to launch.
+    if (slicers.length > 1) {
+      const preferId = rec.slicerId;
+      openFormModal({
+        title: t('slicer.pick_title') || 'Choose slicer',
+        sizeLg: false, noSave: true,
+        bodyHtml: `<p class="pf-pick-hint">${escapeHtml(t('slicer.pick_hint') || 'Open this file with which slicer?')}</p>
+          <div class="pf-slicer-list">${slicers.map((s) => `<button type="button" class="btn pf-slicer-pick${s.id === preferId ? ' primary' : ''}" data-slicer-id="${escapeHtml(s.id)}">🖨 ${escapeHtml(s.name)}</button>`).join('')}</div>`,
+        onMount(modal) {
+          modal.querySelectorAll('[data-slicer-id]').forEach((b) => b.addEventListener('click', async () => {
+            const s = slicers.find((x) => x.id === b.dataset.slicerId);
+            modal.querySelector('[data-act="cancel"]')?.click();
+            await doOpen(rec, full, s);
+          }));
+        },
+      });
+      return;
+    }
+    await doOpen(rec, full, (global.KhaytSlicers ? KhaytSlicers.defaultSlicer(settings) : null));
+  }
+
+  async function doOpen(rec, full, slicer) {
+    const hub = api(); if (!hub || !hub.printLibOpenSlicer) return;
+    const slicerPath = slicer ? slicer.path : ((settings.slicer && settings.slicer.path) || '');
+    // Remember the maker's choice on the file so next time it's pre-highlighted.
+    if (slicer && slicer.id && rec.slicerId !== slicer.id) { rec.slicerId = slicer.id; rec.updatedAt = Date.now(); saveAll(); }
+    const r = await hub.printLibOpenSlicer(full, slicerPath);
     if (!r || !r.ok) toast((r && r.error) || (t('plib.open_failed') || 'Could not open the file.'), 'error');
-    else if (r.opened === 'slicer') toast(t('plib.opened_slicer') || 'Opened in your slicer.', 'success');
+    else if (r.opened === 'slicer') toast((t('plib.opened_slicer') || 'Opened in your slicer.') + (slicer ? ` (${slicer.name})` : ''), 'success');
     else toast(t('plib.opened_os') || 'Opened. Set a slicer path in Settings → Printers to open there.', 'info', 4200);
   }
 

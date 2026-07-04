@@ -303,6 +303,39 @@ async function testColourStudioAndPlanner(window) {
   if (bad.length) throw new Error(`colour-studio/planner checks failed: ${bad.join(', ')} — ${JSON.stringify(r)}`);
 }
 
+// 3.1 beta.3: multi-slicer — legacy single slicer migrates into slicers[]; the settings
+// list renders a row per slicer and the default helper honours defaultSlicerId.
+async function testMultiSlicer(window) {
+  const r = await window.evaluate(async () => {
+    const out = {};
+    // Start from the legacy single-slicer shape.
+    settings.slicers = undefined;
+    settings.defaultSlicerId = null;
+    settings.slicer = { path: '/x/PrusaSlicer.app', args: '-a' };
+    switchTab('settings-tab');
+    renderSlicerSettings(); // runs the one-time migration
+    out.migrated = Array.isArray(settings.slicers) && settings.slicers.length === 1
+      && settings.slicers[0].path === '/x/PrusaSlicer.app';
+    out.rows1 = document.querySelectorAll('#slicerSettingsSection .slicer-row').length === 1;
+
+    // Add a second slicer and make it default.
+    settings.slicers.push({ id: 'sl-orca', name: 'OrcaSlicer', path: '/x/OrcaSlicer.exe', args: '' });
+    settings.defaultSlicerId = 'sl-orca';
+    out.list2 = KhaytSlicers.listSlicers(settings).length === 2;
+    out.defOrca = KhaytSlicers.defaultSlicer(settings).id === 'sl-orca';
+    renderSlicerSettings();
+    out.rows2 = document.querySelectorAll('#slicerSettingsSection .slicer-row').length === 2;
+    // Default is mirrored into the legacy field for slice-and-print consumers.
+    out.mirror = settings.slicer.path === '/x/OrcaSlicer.exe';
+
+    // Reset.
+    settings.slicers = undefined; settings.defaultSlicerId = null; settings.slicer = { path: '', args: '' };
+    return out;
+  });
+  const bad = Object.entries(r).filter(([, v]) => v !== true).map(([k]) => k);
+  if (bad.length) throw new Error(`multi-slicer checks failed: ${bad.join(', ')} — ${JSON.stringify(r)}`);
+}
+
 try {
   ({ electronApp } = await launchApp(userData));
   const window = await electronApp.firstWindow();
