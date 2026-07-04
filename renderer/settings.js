@@ -1404,9 +1404,6 @@ function renderDigestSettings() {
   });
 }
 
-let _digestInFlight = false;
-
-
 function renderOperatorLockSettings() {
   const el = $('#operatorLockSection');
   if (!el) return;
