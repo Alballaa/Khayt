@@ -88,6 +88,11 @@ contextBridge.exposeInMainWorld('hubAPI', {
   printLibReadBytes:  (fullPath)          => ipcRenderer.invoke('hub:printlib-read-bytes', fullPath),
   extractThumbnail:   (filePath)          => ipcRenderer.invoke('hub:extract-thumbnail', filePath),
 
+  // 3MF converter (multi-printer)
+  mfPick:     ()      => ipcRenderer.invoke('hub:mf-pick'),
+  mfAnalyze:  (p)     => ipcRenderer.invoke('hub:mf-analyze', { path: p }),
+  mfConvert:  (opts)  => ipcRenderer.invoke('hub:mf-convert', opts),
+
   // Feature 8 (new): Status page auto-export
   writeStatusPage: (html, orderId) => ipcRenderer.invoke('hub:write-status-page', { html, orderId }),
 

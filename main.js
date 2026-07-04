@@ -1045,6 +1045,70 @@ ipcMain.handle('hub:printlib-read-bytes', async (_e, fullPath) => {
   } catch (_) { return null; }
 });
 
+// ── 3MF converter (multi-printer) ───────────────────────────────────────────
+// Reading is confined to the app's own folders + any source the user explicitly
+// picked through our own open dialog (approved for this session). Writing goes
+// through a save dialog or is confined the same way — the renderer can never make
+// the main process read/write an arbitrary path.
+const MF_MAX_BYTES = 200_000_000;
+const approvedConvertSources = new Set();
+function mfAllowedDirs() {
+  return [
+    app.getPath('userData'), app.getPath('documents'), app.getPath('downloads'),
+    app.getPath('desktop'), app.getPath('temp'),
+  ].map((d) => path.resolve(d));
+}
+function mfReadAllowed(p) {
+  const safe = path.resolve(String(p || ''));
+  if (approvedConvertSources.has(safe)) return true;
+  return mfAllowedDirs().some((d) => safe === d || safe.startsWith(d + path.sep));
+}
+
+ipcMain.handle('hub:mf-pick', async (_e) => {
+  const win = BrowserWindow.fromWebContents(_e.sender);
+  const result = await dialog.showOpenDialog(win, {
+    filters: [{ name: '3MF model', extensions: ['3mf'] }], properties: ['openFile'],
+  });
+  if (result.canceled || !result.filePaths[0]) return { ok: false, canceled: true };
+  const p = path.resolve(result.filePaths[0]);
+  approvedConvertSources.add(p);
+  return { ok: true, path: p, name: path.basename(p) };
+});
+
+ipcMain.handle('hub:mf-analyze', async (_e, { path: srcPath } = {}) => {
+  try {
+    if (!srcPath || !mfReadAllowed(srcPath)) return { ok: false, error: 'File is outside an allowed folder.' };
+    const buf = await fs.promises.readFile(path.resolve(String(srcPath)));
+    if (buf.length > MF_MAX_BYTES) return { ok: false, error: 'File is too large.' };
+    return require('./lib/mf-convert').analyze(buf);
+  } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
+});
+
+ipcMain.handle('hub:mf-convert', async (_e, { path: srcPath, targetId, mode, slotMap, outPath } = {}) => {
+  try {
+    if (!srcPath || !mfReadAllowed(srcPath)) return { ok: false, error: 'Source file is outside an allowed folder.' };
+    const buf = await fs.promises.readFile(path.resolve(String(srcPath)));
+    if (buf.length > MF_MAX_BYTES) return { ok: false, error: 'File is too large.' };
+    const r = require('./lib/mf-convert').convert(buf, { targetId, mode, slotMap });
+    if (!r.ok) return r;
+
+    let finalPath = outPath ? path.resolve(String(outPath)) : null;
+    if (!finalPath) {
+      const win = BrowserWindow.fromWebContents(_e.sender);
+      const base = path.basename(String(srcPath)).replace(/\.3mf$/i, '') + `-${targetId || 'converted'}.3mf`;
+      const result = await dialog.showSaveDialog(win, {
+        defaultPath: base, filters: [{ name: '3MF model', extensions: ['3mf'] }],
+      });
+      if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+      finalPath = path.resolve(result.filePath);
+    } else if (!mfReadAllowed(finalPath)) {
+      return { ok: false, error: 'Output path is outside an allowed folder.' };
+    }
+    await fs.promises.writeFile(finalPath, r.buffer);
+    return { ok: true, outPath: finalPath, report: r.report };
+  } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
+});
+
 // Extract an embedded preview + (3MF) colour/swap info from a print file. Local only.
 ipcMain.handle('hub:extract-thumbnail', async (_e, filePath) => {
   const empty = { pngBase64: null, colors: [], swapCount: 0, source: null };

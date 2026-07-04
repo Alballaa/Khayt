@@ -98,6 +98,7 @@
         <div class="pf-actions">
           <button class="btn small primary" data-act="pf-slice" data-id="${escapeHtml(rec.id)}">🖨 ${escapeHtml(t('plib.open_slicer') || 'Open in slicer')}</button>
           ${Array.isArray(rec.colors) && rec.colors.filter((c) => c && c.hex).length > 1 ? `<button class="btn small ghost" data-act="pf-plan" data-id="${escapeHtml(rec.id)}">🎨 ${escapeHtml(t('plan.title') || 'Plan colours')}</button>` : ''}
+          ${rec.sourceFile?.ext === '3mf' ? `<button class="btn small ghost" data-act="pf-convert" data-id="${escapeHtml(rec.id)}">🔄 ${escapeHtml(t('conv.convert_short') || 'Convert')}</button>` : ''}
           <button class="btn small ghost" data-act="pf-edit" data-id="${escapeHtml(rec.id)}">${escapeHtml(t('common.edit') || 'Edit')}</button>
           <button class="btn small ghost danger" data-act="pf-del" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('common.delete') || 'Delete')}">🗑</button>
         </div>
@@ -144,6 +145,7 @@
       case 'pf-del':   deletePrintFile(id); break;
       case 'pf-fav':   toggleFav(id); break;
       case 'pf-plan':  { const r = (printFiles || []).find((x) => x.id === id); if (r && typeof openColorPlanner === 'function') openColorPlanner(r); break; }
+      case 'pf-convert': convertPrintFile(id); break;
     }
   }
 
@@ -252,6 +254,14 @@
     if (!r || !r.ok) toast((r && r.error) || (t('plib.open_failed') || 'Could not open the file.'), 'error');
     else if (r.opened === 'slicer') toast((t('plib.opened_slicer') || 'Opened in your slicer.') + (slicer ? ` (${slicer.name})` : ''), 'success');
     else toast(t('plib.opened_os') || 'Opened. Set a slicer path in Settings → Printers to open there.', 'info', 4200);
+  }
+
+  async function convertPrintFile(id) {
+    const rec = (printFiles || []).find((r) => r.id === id); if (!rec) return;
+    if (typeof openConverter !== 'function') { toast(t('conv.desktop_only') || 'The converter is available in the desktop app.', 'error'); return; }
+    const full = await resolveModelPath(rec);
+    if (!full) { toast(t('plib.file_missing') || 'File is missing.', 'error'); return; }
+    openConverter({ path: full, name: rec.originalName || rec.name || 'model.3mf' });
   }
 
   function toggleFav(id) {
