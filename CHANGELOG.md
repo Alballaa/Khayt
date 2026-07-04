@@ -4,7 +4,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
-## [3.0.0] - 2026-07-04
+## [3.1.0-beta.1] - 2026-07-04
+
+**Pre-release (beta) — opens the 3.1 cycle for 3D-printing enthusiasts.** Two foundation features that make Khayt work for hobbyists, not just print shops.
+
+### Added
+
+- **Enthusiast mode** — a new third experience alongside Simple and Professional, chosen in the first-run wizard or Settings → Preferences. Enthusiast mode is for personal/hobby printing: it hides everything commercial (customer orders, clients, invoicing & ZATCA e-invoicing, payments, the online storefront & customer portal, gift cards) and keeps just the personal core — the production queue, cost-per-print calculator, filament inventory, printers & monitoring, the new print-file library, waste log and personal reports. Switch modes anytime; no data is lost.
+- **Print-File Library** — a standalone, searchable catalogue of your STL, 3MF and G-code files, independent of any order. Each file gets a **real preview thumbnail** (the slicer's own embedded preview for G-code/3MF, or a software-rendered 3D view for STL — no cloud, no extra dependencies), parsed metadata (print time, filament grams, slicer, dimensions), an optional photo, tags, a "tested settings" note and an attached slicer profile, plus **multicolour 3MF info** (filament colours used and swap count). Open any file straight into your installed slicer in one click. Everything stays on your machine.
 
 **Khayt 3.0 — stable release.** The 3.0 platform is now stable and generally available. Built on the fully-offline core (quoting, Kanban production queue, ZATCA Phase 2 e-invoicing, live printer monitoring, filament inventory and analytics), 3.0 adds an **optional, end-to-end-encrypted cloud** layer — sync, team accounts, an online storefront with checkout and deposits, a customer portal, remote mobile access, and an AI assistant — none of which is required to run the app. This release is the culmination of the 3.0 beta cycle (beta.1–beta.21): it ships all 8 interface languages fully translated, a fixed first-run onboarding wizard, and a full release-candidate hardening pass that verified fresh-install, large-dataset (3,000 orders), all-10-designs, and all-locale rendering with zero runtime errors.
 

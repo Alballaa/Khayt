@@ -240,7 +240,9 @@ function applyTheme(theme) {
    Business Mode
    ============================================================ */
 function applyAnalyticsModeView() {
-  const simple = settings.mode === 'simple';
+  // Enthusiast + simple both get the personal "simple reports" view; only
+  // professional unlocks the full analytics dashboard.
+  const simple = settings.mode !== 'professional';
   const simpleWrap = $('#analyticsSimpleWrap');
   const proWrap = $('#analyticsProWrap');
   if (simpleWrap) simpleWrap.style.display = simple ? 'block' : 'none';
@@ -251,13 +253,24 @@ function applyAnalyticsModeView() {
   }
 }
 
+/** Business tabs hidden entirely in enthusiast (hobbyist) mode. */
+const BIZ_TABS = ['logs-tab', 'clients-tab', 'gift-cards-tab', 'portfolio-tab', 'expenses-tab'];
+
 function applyMode() {
   document.body.classList.toggle('mode-simple', settings.mode === 'simple');
   document.body.classList.toggle('mode-professional', settings.mode === 'professional');
+  document.body.classList.toggle('mode-enthusiast', settings.mode === 'enthusiast');
   const btnSimple = $('#btnModeSimple');
   const btnPro    = $('#btnModePro');
+  const btnEnth   = $('#btnModeEnthusiast');
   if (btnSimple) btnSimple.classList.toggle('active', settings.mode === 'simple');
   if (btnPro)    btnPro.classList.toggle('active',    settings.mode === 'professional');
+  if (btnEnth)   btnEnth.classList.toggle('active',   settings.mode === 'enthusiast');
+  // If the active tab is a business surface and we've entered enthusiast mode,
+  // bounce to the dashboard so the user isn't stranded on a now-hidden tab.
+  if (settings.mode === 'enthusiast' && BIZ_TABS.includes($('.tab-content.active')?.id)) {
+    if (typeof switchTab === 'function') switchTab('dashboard-tab');
+  }
   renderModeTierCompare();
   applyAnalyticsModeView();
   if (typeof renderDashboard === 'function') renderDashboard();
@@ -271,17 +284,18 @@ function renderModeTierCompare() {
   if (!el || typeof KhaytTiers === 'undefined') return;
   const lang = (typeof i18n !== 'undefined' && i18n.current) || 'en';
   const cmp = KhaytTiers.tierComparison(lang);
-  const pro = !KhaytTiers.isProMode(settings.mode) ? false : true;
+  const mode = settings.mode || 'professional';
   const check = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;"><path d="M20 6 9 17l-5-5"/></svg>';
   const col = (title, rows, active, accent) => `
-    <div style="flex:1;min-width:180px;border:1px solid ${active ? accent : 'var(--border-soft)'};border-radius:10px;padding:12px 14px;${active ? 'box-shadow:0 0 0 1px ' + accent + ';' : 'opacity:.85;'}">
+    <div style="flex:1;min-width:170px;border:1px solid ${active ? accent : 'var(--border-soft)'};border-radius:10px;padding:12px 14px;${active ? 'box-shadow:0 0 0 1px ' + accent + ';' : 'opacity:.85;'}">
       <div style="font-weight:700;font-size:13px;margin-bottom:8px;display:flex;align-items:center;gap:6px;">${escapeHtml(title)}${active ? `<span style="font-size:10px;color:${accent};border:1px solid ${accent};border-radius:999px;padding:1px 7px;">${escapeHtml(t('set.mode_current') || 'current')}</span>` : ''}</div>
       ${rows.map((r) => `<div style="font-size:12px;color:var(--text-muted);padding:2px 0;display:flex;gap:6px;align-items:flex-start;"><span style="color:${accent};flex-shrink:0;">${check}</span>${escapeHtml(r.label)}</div>`).join('')}
     </div>`;
   el.innerHTML = `
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
-      ${col(t('set.mode_simple') || 'Simple', cmp.simple, !pro, 'var(--info,#5b9cf0)')}
-      ${col((t('set.mode_pro') || 'Professional') + ' — ' + (t('set.mode_pro_adds') || 'everything in Simple, plus'), cmp.pro, pro, 'var(--primary,#6366f1)')}
+      ${col(t('set.mode_enthusiast') || 'Enthusiast', cmp.enthusiast, mode === 'enthusiast', 'var(--success,#22a06b)')}
+      ${col((t('set.mode_simple') || 'Simple') + ' — ' + (t('set.mode_simple_adds') || 'everything in Enthusiast, plus'), cmp.simple, mode === 'simple', 'var(--info,#5b9cf0)')}
+      ${col((t('set.mode_pro') || 'Professional') + ' — ' + (t('set.mode_pro_adds') || 'everything in Simple, plus'), cmp.pro, mode === 'professional', 'var(--primary,#6366f1)')}
     </div>`;
 }
 
@@ -388,7 +402,12 @@ function syncTopbarTitle(tabId) {
 /* ============================================================
    Tabs
    ============================================================ */
+/** Settings sections that are business-only (hidden/redirected in enthusiast mode). */
+const BIZ_SETTINGS_SECTIONS = ['invoice', 'payments', 'online'];
+
 function openSettingsSection(section) {
+  // Enthusiast (hobbyist) mode has no commerce — bounce business sections to Preferences.
+  if (settings.mode === 'enthusiast' && BIZ_SETTINGS_SECTIONS.includes(section)) section = 'prefs';
   switchTab('settings-tab');
   $$('.settings-nav-item').forEach(el => {
     el.classList.remove('active');
@@ -408,6 +427,9 @@ function openSettingsSection(section) {
 }
 
 function switchTab(tabId) {
+  // Enthusiast (hobbyist) mode hides all business tabs — redirect if one is reached
+  // via deep-link / global search / keyboard so the user never lands on a hidden tab.
+  if (settings.mode === 'enthusiast' && BIZ_TABS.includes(tabId)) tabId = 'dashboard-tab';
   $$('.tab-content').forEach(el => {
     const on = el.id === tabId;
     el.classList.toggle('active', on);
@@ -451,6 +473,7 @@ function switchTab(tabId) {
   if (tabId === 'dashboard-tab')  renderDashboard();
   if (tabId === 'expenses-tab')   { renderExpenses(); populateExpOrderDatalist(); }
   if (tabId === 'catalog-tab')    renderCatalog();
+  if (tabId === 'printfiles-tab') renderPrintFiles();
   if (tabId === 'clients-tab')    renderClients();
   if (tabId === 'calculator-tab')  window.KhaytStudio?.initStudioCalculatorLayout?.();
   if (tabId === 'queue-tab')      { renderMachineQueues(); renderKanban(); }

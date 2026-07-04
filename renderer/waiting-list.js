@@ -40,7 +40,7 @@ function renderWaitingList() {
       <div class="waiting-item-actions">
         <button class="btn small ghost" data-act="waiting-remind" data-id="${item.id}">💬 ${escapeHtml(t('waiting.remind') || 'Remind')}</button>
         <button class="btn small ghost" data-act="waiting-decline" data-id="${item.id}">✕ ${escapeHtml(t('waiting.decline') || 'Decline')}</button>
-        <button class="btn small" data-act="waiting-promote" data-id="${item.id}" title="${escapeHtml(settings.mode === 'simple' ? (t('waiting.promote_calc') || t('waiting.promote')) : t('waiting.promote'))}">→ ${escapeHtml(settings.mode === 'simple' ? (t('waiting.promote_calc') || 'Quote in calculator') : t('waiting.promote'))}</button>
+        <button class="btn small" data-act="waiting-promote" data-id="${item.id}" title="${escapeHtml(settings.mode !== 'professional' ? (t('waiting.promote_calc') || t('waiting.promote')) : t('waiting.promote'))}">→ ${escapeHtml(settings.mode !== 'professional' ? (t('waiting.promote_calc') || 'Quote in calculator') : t('waiting.promote'))}</button>
         <button class="btn small ghost" data-act="waiting-edit" data-id="${item.id}">${escapeHtml(t('common.edit'))}</button>
         <button class="btn small ghost danger" data-act="waiting-del" data-id="${item.id}">🗑</button>
       </div>

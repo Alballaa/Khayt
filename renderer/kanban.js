@@ -695,7 +695,7 @@ function renderKanban() {
 
   // Feature 3 (new batch): FEP film alert — fire once per threshold crossing, not on every render
   (() => {
-    if (!settings.mode || settings.mode === 'simple') return;
+    if (!KhaytTiers.isProMode(settings.mode)) return;
     if (!renderKanban._fepAlerted) renderKanban._fepAlerted = new Map();
     const resinCompleted = printLog.filter(o => o.isResin && o.status === 'completed');
     machines.forEach(m => {

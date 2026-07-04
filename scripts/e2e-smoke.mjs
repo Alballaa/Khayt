@@ -226,6 +226,34 @@ async function testLanPinGate(window) {
   await window.evaluate(() => window.hubAPI.stopLanServer());
 }
 
+// 3.1: enthusiast (hobbyist) mode hides commerce; print-file library tab works.
+async function testEnthusiastAndPrintFiles(window) {
+  const r = await window.evaluate(async () => {
+    settings.mode = 'enthusiast'; applyMode();
+    const vis = (id) => { const b = document.getElementById(id); return !!(b && b.offsetParent !== null); };
+    const out = {
+      body: document.body.classList.contains('mode-enthusiast'),
+      logsHidden: !vis('tabbtn-logs-tab'),
+      clientsHidden: !vis('tabbtn-clients-tab'),
+      printfilesVisible: vis('tabbtn-printfiles-tab'),
+      calcVisible: vis('tabbtn-calculator-tab'),
+    };
+    switchTab('logs-tab'); // hidden business tab → must bounce to dashboard
+    out.guarded = document.querySelector('.tab-content.active')?.id === 'dashboard-tab';
+    switchTab('printfiles-tab');
+    out.pfRendered = document.querySelector('.tab-content.active')?.id === 'printfiles-tab'
+      && (document.getElementById('printfiles-tab')?.innerHTML?.length || 0) > 50;
+    printFiles.unshift({ id: 'PF-e2e', name: 'E2E Model', originalName: 'e2e.stl', sourceFile: { filename: 'm.stl', ext: 'stl' }, createdAt: 1, updatedAt: 1 });
+    await window.hubAPI.saveStore(buildStoreSnapshot());
+    const loaded = await window.hubAPI.loadStore();
+    out.pfPersisted = Array.isArray(loaded.printFiles) && loaded.printFiles.some((x) => x.id === 'PF-e2e');
+    settings.mode = 'professional'; applyMode();
+    return out;
+  });
+  const bad = Object.entries(r).filter(([, v]) => v !== true).map(([k]) => k);
+  if (bad.length) throw new Error(`enthusiast/print-file checks failed: ${bad.join(', ')} — ${JSON.stringify(r)}`);
+}
+
 try {
   ({ electronApp } = await launchApp(userData));
   const window = await electronApp.firstWindow();
@@ -238,6 +266,7 @@ try {
   await testLedgerTabNavigation(window);
   const orderId = await testOrderLifecycle(window);
   await testLanPinGate(window);
+  await testEnthusiastAndPrintFiles(window);
 
   console.log(
     'e2e-smoke: ok (version=%s, tabs + order %s + store + LAN PIN gate)',

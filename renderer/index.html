@@ -95,6 +95,10 @@
             <span class="nav-icon" aria-hidden="true">⬡</span>
             <span class="nav-label grow" data-i18n="tab.inventory">Inventory</span>
           </button>
+          <button type="button" class="tab-btn khayt-navitem" data-tab="printfiles-tab" role="tab" id="tabbtn-printfiles-tab" aria-selected="false" aria-controls="printfiles-tab" tabindex="-1">
+            <span class="nav-icon" aria-hidden="true">🧊</span>
+            <span class="nav-label grow" data-i18n="tab.printfiles">Print Files</span>
+          </button>
           <button type="button" class="tab-btn khayt-navitem" data-tab="catalog-tab" role="tab" id="tabbtn-catalog-tab" aria-selected="false" aria-controls="catalog-tab" tabindex="-1">
             <span class="nav-icon" aria-hidden="true">▣</span>
             <span class="nav-label grow" data-i18n="tab.catalog">Catalog</span>
@@ -104,21 +108,21 @@
             <span class="nav-label grow" data-i18n="tab.waste">Waste Log</span>
           </button>
         </div>
-        <div class="khayt-navsec nav-group">
+        <div class="khayt-navsec nav-group biz-only">
           <div class="eyebrow khayt-navhead nav-group-label" data-i18n="nav.group.sales">Sales</div>
-          <button type="button" class="tab-btn khayt-navitem" data-tab="logs-tab" role="tab" id="tabbtn-logs-tab" aria-selected="false" aria-controls="logs-tab" tabindex="-1">
+          <button type="button" class="tab-btn khayt-navitem biz-only" data-tab="logs-tab" role="tab" id="tabbtn-logs-tab" aria-selected="false" aria-controls="logs-tab" tabindex="-1">
             <span class="nav-icon" aria-hidden="true">☰</span>
             <span class="nav-label grow" data-i18n="tab.logs">Orders Log</span>
           </button>
-          <button type="button" class="tab-btn khayt-navitem" data-tab="clients-tab" role="tab" id="tabbtn-clients-tab" aria-selected="false" aria-controls="clients-tab" tabindex="-1">
+          <button type="button" class="tab-btn khayt-navitem biz-only" data-tab="clients-tab" role="tab" id="tabbtn-clients-tab" aria-selected="false" aria-controls="clients-tab" tabindex="-1">
             <span class="nav-icon" aria-hidden="true">◈</span>
             <span class="nav-label grow" data-i18n="tab.clients">Clients</span>
           </button>
-          <button type="button" class="tab-btn khayt-navitem" data-tab="gift-cards-tab" role="tab" id="tabbtn-gift-cards-tab" aria-selected="false" aria-controls="gift-cards-tab" tabindex="-1">
+          <button type="button" class="tab-btn khayt-navitem biz-only" data-tab="gift-cards-tab" role="tab" id="tabbtn-gift-cards-tab" aria-selected="false" aria-controls="gift-cards-tab" tabindex="-1">
             <span class="nav-icon" aria-hidden="true">♦</span>
             <span class="nav-label grow" data-i18n="giftCards">Gift Cards</span>
           </button>
-          <button type="button" class="tab-btn khayt-navitem" data-tab="portfolio-tab" role="tab" id="tabbtn-portfolio-tab" aria-selected="false" aria-controls="portfolio-tab" tabindex="-1">
+          <button type="button" class="tab-btn khayt-navitem biz-only" data-tab="portfolio-tab" role="tab" id="tabbtn-portfolio-tab" aria-selected="false" aria-controls="portfolio-tab" tabindex="-1">
             <span class="nav-icon" aria-hidden="true">◇</span>
             <span class="nav-label grow" data-i18n="tab.portfolio">Portfolio</span>
           </button>
@@ -581,6 +585,9 @@
       </div>
       <div id="catalogGrid" class="product-grid"></div>
     </section>
+
+    <!-- ===================== PRINT-FILE LIBRARY ===================== -->
+    <section id="printfiles-tab" class="tab-content khayt-tab-page" role="tabpanel" aria-labelledby="tabbtn-printfiles-tab" aria-hidden="true" tabindex="-1"></section>
 
     <!-- ===================== QUEUE ===================== -->
     <section id="queue-tab" class="tab-content khayt-queue" role="tabpanel" aria-labelledby="tabbtn-queue-tab" aria-hidden="true" tabindex="-1">
@@ -1353,11 +1360,11 @@
         <span class="nav-icon" aria-hidden="true"></span>
         <span data-i18n="set.nav_stock">Inventory</span>
       </button>
-      <button class="settings-nav-item" data-settings-section="invoice">
+      <button class="settings-nav-item biz-only" data-settings-section="invoice">
         <span class="nav-icon" aria-hidden="true"></span>
         <span data-i18n="set.nav_invoice">Invoice & Tax</span>
       </button>
-      <button class="settings-nav-item" data-settings-section="payments">
+      <button class="settings-nav-item biz-only" data-settings-section="payments">
         <span class="nav-icon" aria-hidden="true"></span>
         <span data-i18n="set.nav_payments">Payments</span>
       </button>
@@ -1365,7 +1372,7 @@
         <span class="nav-icon" aria-hidden="true"></span>
         <span data-i18n="set.nav_printers">Printers</span>
       </button>
-      <button class="settings-nav-item" data-settings-section="online">
+      <button class="settings-nav-item biz-only" data-settings-section="online">
         <span class="nav-icon" aria-hidden="true"></span>
         <span data-i18n="set.nav_online">Online</span>
       </button>
@@ -1489,6 +1496,7 @@
         <div class="settings-section-head" data-i18n="set.experience">Experience</div>
         <p style="font-size:13px; color:var(--text-muted); margin:0 0 8px;" data-i18n="set.mode_subtitle">Choose the level of features that matches your workflow.</p>
         <div class="mode-toggle-pills">
+          <button class="mode-pill" id="btnModeEnthusiast" data-mode="enthusiast" data-i18n="set.mode_enthusiast">Enthusiast</button>
           <button class="mode-pill" id="btnModeSimple" data-mode="simple" data-i18n="set.mode_simple">Simple</button>
           <button class="mode-pill" id="btnModePro" data-mode="professional" data-i18n="set.mode_pro">Professional</button>
         </div>
@@ -2261,6 +2269,11 @@
       <h2 class="wizard-title" data-i18n="wiz.business_type">How do you use Khayt?</h2>
       <p class="wizard-subtitle" data-i18n="wiz.mode_hint">This sets your starting experience. You can change it anytime in Settings.</p>
       <div class="wizard-options">
+        <button type="button" class="wizard-option" data-mode="enthusiast" data-biz-type="hobby" data-next="5">
+          <span class="wizard-option-icon" aria-hidden="true">🖨️</span>
+          <strong data-i18n="wiz.option_hobby">Hobbyist / personal</strong>
+          <span data-i18n="wiz.option_hobby_desc">Just my printers — cost per print, my file library, no invoicing</span>
+        </button>
         <button type="button" class="wizard-option selected" data-mode="simple" data-biz-type="solo" data-next="5">
           <span class="wizard-option-icon" aria-hidden="true">👤</span>
           <strong data-i18n="wiz.option_solo">Solo maker</strong>
@@ -2393,6 +2406,7 @@
 <script src="../lib/ai-assistant.js"></script>
 <script src="../lib/stl-parse.js"></script>
 <script src="../lib/stl-estimate.js"></script>
+<script src="../lib/stl-thumbnail.js"></script>
 <script src="../lib/reorder.js"></script>
 <script src="../lib/payment-plan.js"></script>
 <script src="../lib/campaigns.js"></script>
@@ -2439,6 +2453,7 @@
 <script src="labels.js"></script>
 <script src="waste.js"></script>
 <script src="views.js"></script>
+<script src="printfiles.js"></script>
 <script src="notifications.js"></script>
 <script src="waiting-list.js"></script>
 <script src="kanban.js"></script>

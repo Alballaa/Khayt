@@ -36,6 +36,7 @@ const { sendCustomSmtp } = require('./lib/custom-smtp');
 const { normalizeStoreSnapshot } = require('./lib/store-validate');
 const { createStoreIo } = require('./lib/store-io');
 const { parseGcodeText } = require('./lib/gcode-parse');
+const { extract: extractPrintThumb } = require('./lib/thumbnail-extract');
 const bambu = require('./lib/bambu');
 const { bambuFtpUpload } = require('./lib/bambu-ftp');
 const { sendSms } = require('./lib/sms');
@@ -925,6 +926,156 @@ ipcMain.handle('hub:delete-vault-file', async (_e, fullPath) => {
   if (!safe.startsWith(vaultRoot + path.sep)) return false;
   try { await fs.promises.unlink(safe); } catch (_) {}
   return true;
+});
+
+// --- 3.1: Print-file library (standalone, order-independent) ---
+// A per-record subfolder under userData/print-files-vault/<id>/ holds the model
+// file plus its generated thumbnail/photo. All handlers are path-confined to that
+// root; nothing here touches the network (offline contract).
+const printLibDir = () => ensureDir('print-files-vault');
+const printLibItemDir = (id) => {
+  const safeId = path.basename(String(id || '')).replace(/[^a-zA-Z0-9_-]/g, '_') || 'unsorted';
+  return path.join(printLibDir(), safeId);
+};
+
+ipcMain.handle('hub:printlib-pick-and-copy', async (event, id) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const result = await dialog.showOpenDialog(win, {
+    title: 'Add print file',
+    filters: [
+      { name: '3D Print Files', extensions: ['stl', '3mf', 'obj', 'gcode', 'gco'] },
+      { name: 'All Files', extensions: ['*'] },
+    ],
+    properties: ['openFile'],
+  });
+  if (result.canceled || !result.filePaths.length) return null;
+  const src = result.filePaths[0];
+  const originalName = path.basename(src);
+  const ext = path.extname(originalName).slice(1).toLowerCase() || 'bin';
+  const dir = printLibItemDir(id);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  const filename = `model-${Date.now().toString(36)}.${ext}`;
+  const destPath = path.join(dir, filename);
+  await fs.promises.copyFile(src, destPath);
+  const stat = await fs.promises.stat(destPath);
+  return { filename, originalName, size: stat.size, ext, fullPath: destPath };
+});
+
+ipcMain.handle('hub:printlib-list', async (_e, id) => {
+  const dir = printLibItemDir(id);
+  if (!fs.existsSync(dir)) return [];
+  const files = await fs.promises.readdir(dir);
+  return Promise.all(files.map(async (f) => {
+    const fullPath = path.join(dir, f);
+    const stat = await fs.promises.stat(fullPath);
+    return { filename: f, fullPath, size: stat.size };
+  }));
+});
+
+ipcMain.handle('hub:printlib-delete', async (_e, fullPath) => {
+  const safe = path.resolve(String(fullPath || ''));
+  const root = path.resolve(printLibDir());
+  if (!safe.startsWith(root + path.sep)) return false; // confine to the library vault
+  try {
+    const stat = await fs.promises.stat(safe);
+    if (stat.isDirectory()) await fs.promises.rm(safe, { recursive: true, force: true });
+    else await fs.promises.unlink(safe);
+  } catch (_) {}
+  return true;
+});
+
+// Save a generated thumbnail / user photo (data URL from the renderer) into the item folder.
+ipcMain.handle('hub:printlib-save-image', async (_e, { id, name, dataUrl } = {}) => {
+  try {
+    const m = /^data:image\/(png|jpe?g|webp);base64,([A-Za-z0-9+/=]+)$/.exec(String(dataUrl || ''));
+    if (!m) return { ok: false, error: 'Unsupported image data' };
+    const dir = printLibItemDir(id);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const safeName = path.basename(String(name || 'img')).replace(/[^a-zA-Z0-9_.-]/g, '_');
+    const dest = path.join(dir, safeName);
+    await fs.promises.writeFile(dest, Buffer.from(m[2], 'base64'));
+    return { ok: true, filename: safeName, fullPath: dest };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+// Load a saved image back as a data URL for display.
+ipcMain.handle('hub:printlib-load-image', async (_e, fullPath) => {
+  const safe = path.resolve(String(fullPath || ''));
+  const root = path.resolve(printLibDir());
+  if (!safe.startsWith(root + path.sep)) return null;
+  try {
+    const buf = await fs.promises.readFile(safe);
+    const ext = path.extname(safe).slice(1).toLowerCase();
+    const mime = ext === 'png' ? 'image/png' : (ext === 'webp' ? 'image/webp' : 'image/jpeg');
+    return `data:${mime};base64,${buf.toString('base64')}`;
+  } catch (_) { return null; }
+});
+
+// Open a library model in the user's installed slicer GUI (detached — outlives us).
+ipcMain.handle('hub:printlib-open-in-slicer', async (_e, { filePath, slicerPath } = {}) => {
+  const safe = path.resolve(String(filePath || ''));
+  const root = path.resolve(printLibDir());
+  if (!safe.startsWith(root + path.sep)) return { ok: false, error: 'File is outside the library.' };
+  if (!fs.existsSync(safe)) return { ok: false, error: 'File not found.' };
+  if (slicerPath && fs.existsSync(slicerPath)) {
+    try {
+      const { spawn } = require('node:child_process');
+      const child = spawn(slicerPath, [safe], { detached: true, stdio: 'ignore', windowsHide: false });
+      child.on('error', () => {});
+      child.unref();
+      return { ok: true, opened: 'slicer' };
+    } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+  }
+  // No slicer configured — fall back to the OS default handler for the file type.
+  try { await shell.openPath(safe); return { ok: true, opened: 'os' }; }
+  catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+// Read a library model file's raw bytes (base64) so the renderer can parse/render an
+// STL preview. Confined to the library vault; capped so a giant file can't blow up IPC.
+ipcMain.handle('hub:printlib-read-bytes', async (_e, fullPath) => {
+  const safe = path.resolve(String(fullPath || ''));
+  const root = path.resolve(printLibDir());
+  if (!safe.startsWith(root + path.sep)) return null;
+  try {
+    const stat = await fs.promises.stat(safe);
+    if (stat.size > 60_000_000) return null; // too big to render a thumbnail for
+    const buf = await fs.promises.readFile(safe);
+    return buf.toString('base64');
+  } catch (_) { return null; }
+});
+
+// Extract an embedded preview + (3MF) colour/swap info from a print file. Local only.
+ipcMain.handle('hub:extract-thumbnail', async (_e, filePath) => {
+  const empty = { pngBase64: null, colors: [], swapCount: 0, source: null };
+  const safe = path.resolve(String(filePath || ''));
+  const allowed = [app.getPath('userData'), app.getPath('documents'), app.getPath('downloads'), app.getPath('desktop'), app.getPath('temp')];
+  if (!allowed.some(d => safe.startsWith(path.resolve(d) + path.sep) || safe === path.resolve(d))) return empty;
+  try {
+    const ext = path.extname(safe).slice(1).toLowerCase();
+    if (ext === 'gcode' || ext === 'gco') {
+      const stat = fs.statSync(safe);
+      const HEAD = 32 * 1024, TAIL = 64 * 1024;
+      let text;
+      if (stat.size <= HEAD + TAIL) text = fs.readFileSync(safe, 'latin1');
+      else {
+        const fd = fs.openSync(safe, 'r');
+        try {
+          const h = Buffer.alloc(HEAD), tb = Buffer.alloc(TAIL);
+          fs.readSync(fd, h, 0, HEAD, 0);
+          fs.readSync(fd, tb, 0, TAIL, stat.size - TAIL);
+          text = h.toString('latin1') + '\n' + tb.toString('latin1');
+        } finally { fs.closeSync(fd); }
+      }
+      return extractPrintThumb({ ext, text });
+    }
+    if (ext === '3mf') {
+      const stat = fs.statSync(safe);
+      if (stat.size > 50_000_000) return empty;
+      return extractPrintThumb({ ext, buf: fs.readFileSync(safe) });
+    }
+  } catch (_) { /* silent */ }
+  return empty;
 });
 
 // --- Feature 8: Auto-export status page ---
