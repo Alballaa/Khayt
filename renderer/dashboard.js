@@ -8,7 +8,8 @@
 
 /** Multi-site summary for print farms (Professional mode, 2+ locations). */
 function buildFarmLocationOverview() {
-  if (settings.mode === 'simple' || locations.length < 2) return '';
+  // Multi-location print-farm overview is Professional-only (hidden in simple + enthusiast).
+  if (!KhaytTiers.isProMode(settings.mode) || locations.length < 2) return '';
   if (typeof orderLocationId !== 'function') return '';
 
   const todayStr = localDateStr(new Date());
@@ -120,7 +121,7 @@ function buildStudioDashboardPanels(ctx) {
   } = ctx;
   if (!document.body.classList.contains('khayt-handoff')) return '';
 
-  if (settings.mode === 'simple') {
+  if (settings.mode !== 'professional') {
     const intakeCount = waitingList.filter((w) => w.status === 'active' || w.status === 'reminded').length;
     const attention = [];
     if (intakeCount > 0) {
@@ -572,7 +573,7 @@ function renderDashboard() {
     <div id="locationScopeBannerDash" class="location-scope-banner" style="display:none;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:4px;padding:8px 12px;background:var(--bg-elev);border:1px solid var(--border);border-radius:var(--radius);"></div>
     ${buildFarmLocationOverview()}
     ${soloQuickRow}
-    ${settings.mode === 'simple' ? '' : renderDashKpiRow({ active: active.length, overdue: overdue.length, todayRev, receivables, revDeltaPct, sparkData })}
+    ${KhaytTiers.isProMode(settings.mode) ? renderDashKpiRow({ active: active.length, overdue: overdue.length, todayRev, receivables, revDeltaPct, sparkData }) : ''}
     <div class="dash-stats dash-stats-secondary pro-only">
       <div class="dash-stat">
         <div class="dash-stat-val">${active.length}</div>

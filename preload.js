@@ -78,6 +78,16 @@ contextBridge.exposeInMainWorld('hubAPI', {
   listVaultFiles:  (orderId) => ipcRenderer.invoke('hub:list-vault-files', orderId),
   deleteVaultFile: (fullPath) => ipcRenderer.invoke('hub:delete-vault-file', fullPath),
 
+  // 3.1: Print-file library (standalone, order-independent)
+  printLibPick:       (id)                => ipcRenderer.invoke('hub:printlib-pick-and-copy', id),
+  printLibList:       (id)                => ipcRenderer.invoke('hub:printlib-list', id),
+  printLibDelete:     (fullPath)          => ipcRenderer.invoke('hub:printlib-delete', fullPath),
+  printLibSaveImage:  (id, name, dataUrl) => ipcRenderer.invoke('hub:printlib-save-image', { id, name, dataUrl }),
+  printLibLoadImage:  (fullPath)          => ipcRenderer.invoke('hub:printlib-load-image', fullPath),
+  printLibOpenSlicer: (filePath, slicerPath) => ipcRenderer.invoke('hub:printlib-open-in-slicer', { filePath, slicerPath }),
+  printLibReadBytes:  (fullPath)          => ipcRenderer.invoke('hub:printlib-read-bytes', fullPath),
+  extractThumbnail:   (filePath)          => ipcRenderer.invoke('hub:extract-thumbnail', filePath),
+
   // Feature 8 (new): Status page auto-export
   writeStatusPage: (html, orderId) => ipcRenderer.invoke('hub:write-status-page', { html, orderId }),
 

@@ -279,6 +279,7 @@ let slicerProfiles = [];
 let envLogs        = [];
 let subscriptions  = []; // retainer / subscription plans (recurring revenue)
 let auditLog       = []; // append-only team activity log (who did what, when)
+let printFiles     = []; // 3.1: standalone print-file library (STL/3MF/gcode + previews)
 
 // Runtime-only state (not persisted)
 let kanbanTimerInterval = null;
@@ -362,7 +363,7 @@ function collectStoreCollections() {
     expenses, machines, waTemplates, wasteLog, machMaintLog, consumables,
     suppliers, purchaseOrders, testPrints, locations, operators, waitingList,
     waitingListHistory, timeEntries, shiftLogs, giftCards, slicerProfiles, envLogs,
-    tombstones, machMaintTasks, loyaltyLedger, subscriptions, auditLog,
+    tombstones, machMaintTasks, loyaltyLedger, subscriptions, auditLog, printFiles,
   };
 }
 
@@ -410,6 +411,7 @@ function replaceStoreFromSnapshot(store) {
   loyaltyLedger = [];
   subscriptions = [];
   auditLog = [];
+  printFiles = [];
   settings = defaultSettings();
   applyStoreFromSnapshot(store);
 }
@@ -465,6 +467,7 @@ function applyStoreFromSnapshot(store) {
   if (store.loyaltyLedger)       loyaltyLedger       = store.loyaltyLedger.filter(isObj);
   if (store.subscriptions)       subscriptions       = store.subscriptions.filter(isObj);
   if (store.auditLog)            auditLog            = store.auditLog.filter(isObj);
+  if (store.printFiles)          printFiles          = store.printFiles.filter(isValidRecord);
   if (store.settings)            settings            = Object.assign({}, defaultSettings(), sanitiseForAssign(store.settings));
   migrateLanApiSettings();
   migrateLegacyDesignTheme();

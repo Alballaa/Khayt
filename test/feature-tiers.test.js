@@ -1,31 +1,51 @@
 /**
- * Feature tiers — the Simple/Pro single source of truth.
+ * Feature tiers — the Enthusiast/Simple/Professional single source of truth.
  */
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { PRO_FEATURES, SIMPLE_CORE, isProMode, isFeatureEnabled, tierComparison } = require('../lib/feature-tiers.js');
+const {
+  PRO_FEATURES, SIMPLE_CORE, BUSINESS_FEATURES,
+  isProMode, isEnthusiast, showsBusiness, isFeatureEnabled, tierComparison,
+} = require('../lib/feature-tiers.js');
 
-test('isProMode: default + simple', () => {
+test('isProMode: professional only (simple + enthusiast are not pro)', () => {
   assert.equal(isProMode('professional'), true);
   assert.equal(isProMode(undefined), true); // default mode is professional
   assert.equal(isProMode('simple'), false);
+  assert.equal(isProMode('enthusiast'), false);
 });
 
-test('isFeatureEnabled: Pro features gated by mode; core always on', () => {
-  assert.equal(isFeatureEnabled('zatca', 'simple'), false);
+test('isEnthusiast + showsBusiness', () => {
+  assert.equal(isEnthusiast('enthusiast'), true);
+  assert.equal(isEnthusiast('simple'), false);
+  assert.equal(showsBusiness('enthusiast'), false);
+  assert.equal(showsBusiness('simple'), true);
+  assert.equal(showsBusiness('professional'), true);
+  assert.equal(showsBusiness(undefined), true);
+});
+
+test('isFeatureEnabled: pro gated by mode, business gated by enthusiast, core always on', () => {
+  assert.equal(isFeatureEnabled('zatca', 'simple'), false);       // pro
   assert.equal(isFeatureEnabled('zatca', 'professional'), true);
-  assert.equal(isFeatureEnabled('quote', 'simple'), true);   // core
-  assert.equal(isFeatureEnabled('unknownFeature', 'simple'), true); // unknown = core
+  assert.equal(isFeatureEnabled('clients', 'simple'), true);      // business — on in simple
+  assert.equal(isFeatureEnabled('clients', 'enthusiast'), false); // business — hidden for enthusiast
+  assert.equal(isFeatureEnabled('quote', 'enthusiast'), true);    // core
+  assert.equal(isFeatureEnabled('printFiles', 'enthusiast'), true); // core (personal library)
+  assert.equal(isFeatureEnabled('unknownFeature', 'enthusiast'), true); // unknown = core
 });
 
 test('registries are non-empty and disjoint by key', () => {
-  assert.ok(PRO_FEATURES.length >= 5 && SIMPLE_CORE.length >= 3);
+  assert.ok(PRO_FEATURES.length >= 5 && SIMPLE_CORE.length >= 3 && BUSINESS_FEATURES.length >= 3);
   const proKeys = new Set(PRO_FEATURES.map((f) => f.key));
-  assert.ok(!SIMPLE_CORE.some((f) => proKeys.has(f.key)), 'no key is both core and pro');
+  const bizKeys = new Set(BUSINESS_FEATURES.map((f) => f.key));
+  assert.ok(!SIMPLE_CORE.some((f) => proKeys.has(f.key) || bizKeys.has(f.key)), 'core keys are distinct');
+  assert.ok(!BUSINESS_FEATURES.some((f) => proKeys.has(f.key)), 'business keys are not pro');
 });
 
-test('tierComparison returns localized labels (en/ar)', () => {
+test('tierComparison returns three localized columns (en/ar)', () => {
   const en = tierComparison('en');
+  assert.equal(en.enthusiast.length, SIMPLE_CORE.length);
+  assert.equal(en.simple.length, BUSINESS_FEATURES.length);
   assert.equal(en.pro.length, PRO_FEATURES.length);
   assert.ok(en.pro[0].label.length > 0);
   const ar = tierComparison('ar');

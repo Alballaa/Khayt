@@ -1470,7 +1470,7 @@ function wireEvents() {
   });
 
   // Business Mode toggle buttons (in Settings tab)
-  $$('#btnModeSimple, #btnModePro').forEach(btn => {
+  $$('#btnModeEnthusiast, #btnModeSimple, #btnModePro').forEach(btn => {
     btn?.addEventListener('click', () => {
       settings.mode = btn.dataset.mode;
       saveAll();

@@ -244,6 +244,11 @@ function initWizard() {
     if (enableOnline && typeof applyOnlineLanPrefs === 'function') {
       settings.lanApi = applyOnlineLanPrefs(settings.lanApi, true);
     }
+    // Enthusiast (hobbyist) mode has no commerce — force business toggles off.
+    if (selectedMode === 'enthusiast') {
+      settings.enableZatca = false;
+      settings.onlineEnabled = false;
+    }
 
     if (!securitySkipped && pendingPin && pendingRecoveryCode) {
       await setupAdminSecurity({ pin: pendingPin, recoveryCodePlain: pendingRecoveryCode });
