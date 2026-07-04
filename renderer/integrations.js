@@ -83,6 +83,10 @@ async function autoSendEmailNotification(order, newStatus) {
   }
 }
 
+// Re-entrancy guard for the periodic digest send. Declared here (where it's used)
+// — it must live in integrations.js's top-level scope, not another module's IIFE.
+let _digestInFlight = false;
+
 async function checkAndSendDigest() {
   if (_digestInFlight) return;
   const d = settings.emailDigest;
