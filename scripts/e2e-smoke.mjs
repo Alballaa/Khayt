@@ -4,6 +4,7 @@
  * Requires display (use xvfb-run on Linux CI).
  */
 import fs from 'fs';
+import zipWrite from '../lib/zip-write.js';
 import {
   E2E_LAN_PIN,
   E2E_LAN_PORT,
@@ -336,6 +337,46 @@ async function testMultiSlicer(window) {
   if (bad.length) throw new Error(`multi-slicer checks failed: ${bad.join(', ')} — ${JSON.stringify(r)}`);
 }
 
+// 3.1 beta.5: 3MF converter — the Converter tab renders, and the real main-process
+// pipeline analyzes a synthesized Bambu 3MF and retargets it (re-profile + slot remap).
+async function testConverter(window) {
+  const model = '<?xml version="1.0"?><model unit="millimeter"><resources><object id="1"/></resources></model>';
+  const proj = JSON.stringify({ printer_model: 'Orig', nozzle_diameter: ['0.4'], filament_colour: ['#FF0000', '#00FF00'], filament_type: ['PLA', 'PLA'] });
+  const srcPath = `${userData}/conv-src.3mf`;
+  const outPath = `${userData}/conv-out.3mf`;
+  fs.writeFileSync(srcPath, zipWrite.writeZip([
+    { name: '3D/3dmodel.model', data: model },
+    { name: 'Metadata/project_settings.config', data: proj },
+  ]));
+
+  const r = await window.evaluate(async ({ src, out }) => {
+    const res = {};
+    switchTab('converter-tab');
+    res.tabRendered = document.querySelector('.tab-content.active')?.id === 'converter-tab'
+      && (document.getElementById('converter-tab')?.innerHTML?.length || 0) > 50;
+    res.hasProfiles = !!(globalThis.KhaytPrinterProfiles && KhaytPrinterProfiles.listProfiles().length >= 4);
+    const a = await window.hubAPI.mfAnalyze(src);
+    res.analyzeOk = !!a.ok; res.flavour = a.flavour; res.colorCount = a.colorCount;
+    const c = await window.hubAPI.mfConvert({ path: src, targetId: 'snapmaker-u1', mode: 'retarget', slotMap: [1, 0], outPath: out });
+    res.convertOk = !!c.ok; res.target = c.report && c.report.target; res.remapped = c.report && c.report.colorsRemapped;
+    return res;
+  }, { src: srcPath, out: outPath });
+
+  const checks = {
+    tabRendered: r.tabRendered === true,
+    hasProfiles: r.hasProfiles === true,
+    analyzeOk: r.analyzeOk === true,
+    flavourBambu: r.flavour === 'bambu',
+    colorCount2: r.colorCount === 2,
+    convertOk: r.convertOk === true,
+    targetU1: r.target === 'snapmaker-u1',
+    remapped: r.remapped >= 1,
+    outWritten: fs.existsSync(outPath) && fs.statSync(outPath).size > 0,
+  };
+  const bad = Object.entries(checks).filter(([, v]) => v !== true).map(([k]) => k);
+  if (bad.length) throw new Error(`converter checks failed: ${bad.join(', ')} — ${JSON.stringify(r)}`);
+}
+
 try {
   ({ electronApp } = await launchApp(userData));
   const window = await electronApp.firstWindow();
@@ -350,6 +391,7 @@ try {
   await testLanPinGate(window);
   await testEnthusiastAndPrintFiles(window);
   await testColourStudioAndPlanner(window);
+  await testConverter(window);
 
   console.log(
     'e2e-smoke: ok (version=%s, tabs + order %s + store + LAN PIN gate)',

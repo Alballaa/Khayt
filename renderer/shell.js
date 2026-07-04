@@ -475,6 +475,7 @@ function switchTab(tabId) {
   if (tabId === 'catalog-tab')    renderCatalog();
   if (tabId === 'printfiles-tab') renderPrintFiles();
   if (tabId === 'colorstudio-tab') renderColorStudio();
+  if (tabId === 'converter-tab')  renderConverter();
   if (tabId === 'clients-tab')    renderClients();
   if (tabId === 'calculator-tab')  window.KhaytStudio?.initStudioCalculatorLayout?.();
   if (tabId === 'queue-tab')      { renderMachineQueues(); renderKanban(); }

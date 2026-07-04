@@ -3707,6 +3707,24 @@ body.mode-enthusiast .biz-only { display: none !important; }
 .pf-slicer-list { display: flex; flex-direction: column; gap: 8px; }
 .pf-slicer-pick { justify-content: flex-start; text-align: start; }
 
+/* ── 3MF Converter ────────────────────────────────────────── */
+.conv-wrap { max-width: 640px; }
+.conv-head { margin-bottom: 16px; }
+.conv-title { font-size: 19px; margin: 0 0 4px; }
+.conv-sub { font-size: 13px; color: var(--text-muted); margin: 0; }
+.conv-tip { font-size: 12px; color: var(--text-muted); margin: 12px 0 0; }
+.conv-src { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 14px; }
+.conv-src-name { font-size: 14px; font-weight: 600; }
+.conv-src-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; text-transform: capitalize; }
+.conv-label { display: block; font-size: 12.5px; font-weight: 600; margin: 0 0 6px; }
+.conv-target { width: 100%; padding: 9px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: 13px; margin-bottom: 14px; }
+.conv-note { font-size: 12.5px; color: var(--text-muted); background: var(--surface-2); border-radius: 8px; padding: 10px 12px; margin: 0; }
+.conv-remap-head { font-size: 12.5px; color: var(--text-muted); margin-bottom: 8px; }
+.conv-remap-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; }
+.conv-hex { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; min-width: 74px; }
+.conv-arrow { color: var(--text-muted); }
+.conv-slot { padding: 5px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: 12.5px; }
+
 /* ── Setup wizard ─────────────────────────────────────────── */
 .wizard-overlay {
   position: fixed; inset: 0; z-index: 9999;
