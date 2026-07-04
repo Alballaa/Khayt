@@ -4,6 +4,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.1.0-beta.4] - 2026-07-04
+
+**Pre-release (beta) — update-system reliability fix.** The in-app updater could behave erratically; this release makes the automatic check as strict and consistent as the manual one.
+
+### Fixed
+
+- **Erratic / duplicate update prompts** — the automatic update notification now goes through the exact same checks as the manual **Check for updates** button. Previously the automatic path could pop the update window for a beta when beta updates were switched off, prompt inconsistently with the manual check, offer an *older* release as a "downgrade update" when running a beta build, or — on a manual check — briefly stack two update windows at once. All of these are resolved; the updater will never offer a downgrade and only prompts for a genuinely newer, allowed release.
+
 ## [3.1.0-beta.3] - 2026-07-04
 
 **Pre-release (beta) — multiple slicers.** Many makers run more than one slicer (PrusaSlicer for FDM, a vendor slicer for a particular printer, a resin slicer). Khayt now supports a list of them instead of a single program.
