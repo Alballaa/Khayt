@@ -3,11 +3,11 @@
 // Guards against silent locale drift. `check-locale-files.js` only syntax-checks
 // each bundle; this asserts key coverage. English is the source of truth.
 //
-// - Hard gate: Arabic must cover every English key. ar is the actively
-//   maintained RTL locale, so a new English string without an ar translation
-//   (which would silently fall back to English and break RTL) fails CI.
-// - Soft signal: the other locales legitimately lag, so their missing-key
-//   counts are reported in the test output instead of failing the build.
+// Hard gate: EVERY shipped locale must cover every English key. A new English
+// string without a translation silently falls back to English (and breaks RTL
+// for ar) — which is exactly how the whole 3.1 feature suite shipped untranslated
+// in de/es/fr/ja/tr/zh before this gate was tightened. All 7 non-en locales are
+// now at full parity; keep them there.
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -19,49 +19,51 @@ const files = fs.readdirSync(dir).filter((f) => f.endsWith('.js')).sort();
 for (const f of files) require(path.join(dir, f));
 
 const L = global.KhaytLocales || {};
+const LOCALES = ['ar', 'de', 'es', 'fr', 'ja', 'tr', 'zh'];
 
 test('all locale bundles load', () => {
   assert.ok(L.en, 'en bundle present');
-  for (const code of ['ar', 'de', 'es', 'fr', 'ja', 'zh']) {
+  for (const code of LOCALES) {
     assert.ok(L[code], `${code} bundle present`);
   }
 });
 
-test('Arabic covers every English key (RTL parity gate)', () => {
+test('every locale covers every English key (parity gate)', () => {
   const en = Object.keys(L.en);
-  const ar = new Set(Object.keys(L.ar));
-  const missing = en.filter((k) => !ar.has(k));
-  assert.deepEqual(
-    missing,
-    [],
-    `ar is missing ${missing.length} key(s) present in en: ${missing.slice(0, 20).join(', ')}`,
-  );
+  for (const code of LOCALES) {
+    const have = new Set(Object.keys(L[code]));
+    const missing = en.filter((k) => !have.has(k));
+    assert.deepEqual(
+      missing,
+      [],
+      `${code} is missing ${missing.length} key(s) present in en: ${missing.slice(0, 20).join(', ')}`,
+    );
+  }
 });
 
-test('locale coverage report (informational — does not fail)', () => {
+test('locale orphan report (informational — does not fail)', () => {
   const en = new Set(Object.keys(L.en));
-  for (const code of Object.keys(L).sort()) {
-    if (code === 'en') continue;
-    const keys = Object.keys(L[code]);
-    const missing = [...en].filter((k) => !new Set(keys).has(k)).length;
-    const orphans = keys.filter((k) => !en.has(k)).length;
-    if (missing || orphans) {
-      console.log(`  [locale-parity] ${code}: missingVsEn=${missing} orphans(notInEn)=${orphans}`);
+  for (const code of LOCALES) {
+    const orphans = Object.keys(L[code]).filter((k) => !en.has(k));
+    if (orphans.length) {
+      console.log(`  [locale-parity] ${code}: orphans(notInEn)=${orphans.length} — ${orphans.slice(0, 10).join(', ')}`);
     }
   }
   assert.ok(true);
 });
 
-test('Arabic preserves every English {placeholder} (interpolation parity)', () => {
+test('every locale preserves every English {placeholder} (interpolation parity)', () => {
   // A translation that drops a {token} silently shows the user a string missing
   // its dynamic value (amounts, dates, counts) — see the credit-limit/overcommit
-  // confirm dialogs. Guard the actively-maintained ar locale against that drift.
+  // confirm dialogs. Guard every locale against that drift.
   const ph = (s) => [...new Set(String(s).match(/\{[a-zA-Z0-9_]+\}/g) || [])].sort();
   const bad = [];
-  for (const k of Object.keys(L.en)) {
-    if (L.ar[k] === undefined) continue;
-    const e = ph(L.en[k]).join(','), a = ph(L.ar[k]).join(',');
-    if (e !== a) bad.push(`${k} (en:[${e}] ar:[${a}])`);
+  for (const code of LOCALES) {
+    for (const k of Object.keys(L.en)) {
+      if (L[code][k] === undefined) continue;
+      const e = ph(L.en[k]).join(','), a = ph(L[code][k]).join(',');
+      if (e !== a) bad.push(`${code}:${k} (en:[${e}] ${code}:[${a}])`);
+    }
   }
-  assert.deepEqual(bad, [], `ar drops/alters placeholders in ${bad.length} key(s): ${bad.slice(0, 15).join('; ')}`);
+  assert.deepEqual(bad, [], `${bad.length} key(s) drop/alter placeholders: ${bad.slice(0, 15).join('; ')}`);
 });
