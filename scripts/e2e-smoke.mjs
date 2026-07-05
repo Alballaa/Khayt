@@ -257,6 +257,21 @@ async function testEnthusiastAndPrintFiles(window) {
     await window.hubAPI.saveStore(buildStoreSnapshot());
     const loaded = await window.hubAPI.loadStore();
     out.pfPersisted = Array.isArray(loaded.printFiles) && loaded.printFiles.some((x) => x.id === 'PF-e2e');
+    // Enthusiast production queue must not expose commerce actions or client/price on cards.
+    printLog.unshift({ id: 'K-e2e', project: 'E2E Print', client: 'E2E Client', status: 'completed', price: 42, parts: [{ material: 'PLA' }], date: '2026-01-01' });
+    switchTab('queue-tab');
+    if (typeof renderKanban === 'function') renderKanban();
+    const qhtml = document.getElementById('queue-tab')?.innerHTML || '';
+    out.enthQueueNoCommerce = !qhtml.includes('data-act="invoice"') && !qhtml.includes('data-act="pay"') && !qhtml.includes('data-act="bnpl-pay"');
+    // Enthusiast global search must not leak commerce entities (orders/clients).
+    clients.unshift({ id: 'C-e2e', nameEn: 'E2E Client' });
+    if (typeof renderGlobalResults === 'function' && document.getElementById('globalSearchResults')) {
+      renderGlobalResults('e2e');
+      const gs = document.getElementById('globalSearchResults')?.innerHTML || '';
+      out.enthSearchNoCommerce = !gs.includes('data-gs-action="client"') && !gs.includes('data-gs-action="order"');
+    } else {
+      out.enthSearchNoCommerce = true;
+    }
     // Simple mode: business basics reachable (analytics/reports + catalog), Pro depth hidden (expenses).
     settings.mode = 'simple'; applyMode();
     out.simpleAnalyticsVisible = vis('tabbtn-analytics-tab'); // Sales reports available to small shops

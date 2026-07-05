@@ -374,6 +374,7 @@
   "atlas.nav.floor": "Floor",
   "atlas.nav.queue": "Queue",
   "atlas.nav.settings": "Settings",
+  "atlas.nav.more": "More",
   "atlas.floor": "Floor",
   "atlas.live": "live",
   "atlas.kpi.machines": "machines",

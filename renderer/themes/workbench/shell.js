@@ -19,7 +19,7 @@
   // their original position (e.g. dashboard stays at top, settings in footer).
   const GROUPS = [
     { key: 'work', labelKey: 'workbench.group.work', label: 'Work',
-      tabs: ['calculator-tab', 'queue-tab', 'inventory-tab', 'waste-tab'] },
+      tabs: ['calculator-tab', 'queue-tab', 'printfiles-tab', 'colorstudio-tab', 'converter-tab', 'inventory-tab', 'waste-tab'] },
     { key: 'catalog', labelKey: 'workbench.group.catalog', label: 'Catalog',
       tabs: ['catalog-tab', 'clients-tab', 'gift-cards-tab', 'portfolio-tab'] },
     { key: 'money', labelKey: 'workbench.group.money', label: 'Money',

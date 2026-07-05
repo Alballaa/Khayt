@@ -15,6 +15,8 @@ const WASTE_FAILURE_TYPES = ['bed_adhesion','nozzle_jam','warping','stringing','
 function renderWasteLog() {
   const tbody = document.querySelector('#wasteTable tbody');
   if (!tbody) return;
+  // Enthusiast (hobbyist) mode has no revenue/customer orders — hide the % -of-revenue stat and the per-order table.
+  const biz = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.showsBusiness(settings.mode) : settings.mode !== 'enthusiast';
 
   const wasteFiltered = wasteLog.filter(w => {
     if (wasteMaterialFilter && w.material !== wasteMaterialFilter) return false;
@@ -61,7 +63,7 @@ function renderWasteLog() {
         <span style="width:24px;text-align:start;">${ftCounts[ft]}</span>
       </div>`;
     }).join('');
-    const wastePctHtml = wastePct !== null
+    const wastePctHtml = (biz && wastePct !== null)
       ? `<span>${escapeHtml(t('waste.pct_revenue'))}: <strong style="color:${wastePct > 5 ? 'var(--danger)' : wastePct > 2 ? 'var(--warning)' : 'var(--success)'};">${wastePct.toFixed(1)}%</strong></span>`
       : '';
     statEl.innerHTML = `
@@ -75,9 +77,11 @@ function renderWasteLog() {
     `;
   }
 
-  // Top orders by waste cost
+  // Top orders by waste cost — commerce surface, business modes only
   const topWasteOrdersEl = $('#wasteTopOrdersSection');
-  if (topWasteOrdersEl) {
+  if (topWasteOrdersEl && !biz) {
+    topWasteOrdersEl.innerHTML = '';
+  } else if (topWasteOrdersEl) {
     const orderWaste = {};
     for (const w of wasteLog) {
       if (!w.orderId) continue;
@@ -103,8 +107,8 @@ function renderWasteLog() {
           <label style="margin-top:0; font-size:12px; font-weight:600; color:var(--text-muted);">${escapeHtml(t('waste.top_orders'))}</label>
           <div class="table-wrap" style="margin-top:6px;"><table style="width:100%;">
             <thead><tr>
-              <th>${escapeHtml(t('log.filter_status'))}</th>
-              <th>${escapeHtml(t('log.client'))}</th>
+              <th>${escapeHtml(t('log.order_id'))}</th>
+              <th>${escapeHtml(t('ord.project'))}</th>
               <th style="text-align:right;">${escapeHtml(t('waste.est_cost'))}</th>
             </tr></thead>
             <tbody>${order_rows}</tbody>

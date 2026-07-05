@@ -4,6 +4,17 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.1.0-beta.8] - 2026-07-05
+
+**Pre-release (beta) — full UI review, part 1: correctness.** A comprehensive review of the whole interface (mode split, theme shells, RTL, event wiring) turned up a set of real bugs. This release fixes the functional ones; visual/accessibility polish and localization follow in the next betas.
+
+### Fixed
+
+- **Some themes made features unreachable.** In the **Atlas** and **Cockpit** themes several tabs (including the new Print-File Library, Colour Studio and 3MF Converter) had no way to be opened, and in **Workbench / Command / Vivid** those three tools appeared as unlabelled orphan buttons. All tabs are now reachable in every theme — Atlas gained a **"More" menu** for its minimal top bar, Cockpit shows the full set, and the three tools are grouped correctly (and added to Command's icon rail). Switching away from Cockpit no longer leaves its renamed labels on the other themes.
+- **Business features leaked into Enthusiast (hobbyist) mode.** The **Production Queue** cards showed Invoice / Mark-paid / Buy-Now-Pay-Later buttons, payment badges, the customer name and the sale price for hobbyists — all now hidden in Enthusiast mode (the cost, hours, parts and delivery controls stay). **Global search** no longer returns orders, clients, products or expenses in Enthusiast mode, and can no longer open the Pro-only Expenses tab from a search result in Simple mode. The **Waste Log** no longer shows the "% of revenue" figure or the per-order table for hobbyists.
+- **Waste Log "top orders" table had mismatched headers** — the columns showed order ID and project under "Status" and "Client" headings. Headers now read **Order** and **Product**, matching the data.
+- **"Auto-draft POs" toggle** in Inventory is now hidden in Simple/Enthusiast, where the Purchase-Orders surface it feeds is unavailable.
+
 ## [3.1.0-beta.7] - 2026-07-04
 
 **Pre-release (beta) — Simple & Professional mode review.** Following the Enthusiast-mode cleanup, the same three-mode review was extended to **Simple** and **Professional**. It found the Analytics/reports tab unreachable in Simple, Pro-only machine maintenance leaking into Simple, and a dashboard widget hidden in the wrong mode.

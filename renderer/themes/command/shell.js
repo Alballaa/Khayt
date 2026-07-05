@@ -27,7 +27,7 @@
   // original position (e.g. dashboard stays at top, settings in footer).
   const GROUPS = [
     { key: 'work', labelKey: 'command.group.work', label: 'Work',
-      tabs: ['calculator-tab', 'queue-tab', 'inventory-tab', 'waste-tab'] },
+      tabs: ['calculator-tab', 'queue-tab', 'printfiles-tab', 'colorstudio-tab', 'converter-tab', 'inventory-tab', 'waste-tab'] },
     { key: 'catalog', labelKey: 'command.group.catalog', label: 'Catalog',
       tabs: ['catalog-tab', 'clients-tab', 'gift-cards-tab', 'portfolio-tab'] },
     { key: 'money', labelKey: 'command.group.money', label: 'Money',
@@ -39,6 +39,9 @@
     'dashboard-tab': 'var(--cmd-dash)',
     'calculator-tab': 'var(--cmd-calc)',
     'queue-tab': 'var(--cmd-queue)',
+    'printfiles-tab': 'var(--cmd-calc)',
+    'colorstudio-tab': 'var(--cmd-analytics)',
+    'converter-tab': 'var(--cmd-queue)',
     'inventory-tab': 'var(--cmd-inv)',
     'waste-tab': 'var(--cmd-warn)',
     'catalog-tab': 'var(--cmd-dash)',
@@ -56,6 +59,9 @@
     'dashboard-tab': '◳',
     'calculator-tab': '∑',
     'queue-tab': '▦',
+    'printfiles-tab': '▧',
+    'colorstudio-tab': '◑',
+    'converter-tab': '⇄',
     'inventory-tab': '▣',
     'waste-tab': '△',
     'catalog-tab': '▤',
@@ -70,7 +76,9 @@
 
   // The rail mirrors these tabs, top to bottom (settings rides the rail footer).
   const RAIL_ORDER = [
-    'dashboard-tab', 'calculator-tab', 'queue-tab', 'inventory-tab', 'waste-tab',
+    'dashboard-tab', 'calculator-tab', 'queue-tab',
+    'printfiles-tab', 'colorstudio-tab', 'converter-tab',
+    'inventory-tab', 'waste-tab',
     'catalog-tab', 'clients-tab', 'gift-cards-tab', 'portfolio-tab',
     'logs-tab', 'analytics-tab', 'expenses-tab',
   ];

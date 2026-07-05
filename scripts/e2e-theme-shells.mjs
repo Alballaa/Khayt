@@ -89,6 +89,25 @@ async function navigateSecondaryTab(window, themeCase) {
   if (!settingsReady) throw new Error(`${themeCase.id}: settings tab did not activate`);
 }
 
+// Guard the theme tab-reachability regression: the 3.1 tabs (printfiles/colorstudio/
+// converter) and others must have a nav entry point in every shell.
+async function assertNewTabsReachable(window, themeCase) {
+  if (themeCase.atlasNav) {
+    // Atlas hides the main sidebar → the overflow "More" menu must expose the rest.
+    await window.click('.atlas-chrome .atlas-more-btn');
+    const items = await window.evaluate(
+      () => document.querySelectorAll('.atlas-more-menu .atlas-more-item').length,
+    );
+    if (items < 3) throw new Error(`${themeCase.id}: overflow "More" menu missing tabs (${items})`);
+  } else {
+    const ok = await window.evaluate(() => {
+      const b = document.getElementById('tabbtn-converter-tab');
+      return !!(b && b.offsetParent !== null);
+    });
+    if (!ok) throw new Error(`${themeCase.id}: converter tab has no visible nav entry`);
+  }
+}
+
 async function testRtlAtlas(window) {
   await window.evaluate(() => {
     settings.lang = 'ar';
@@ -129,7 +148,8 @@ try {
     await applyThemeCase(window, themeCase);
     await assertDashboard(window, themeCase);
     await navigateSecondaryTab(window, themeCase);
-    console.log(`  ${themeCase.id}: dashboard + queue + settings ok`);
+    await assertNewTabsReachable(window, themeCase);
+    console.log(`  ${themeCase.id}: dashboard + queue + settings + reach ok`);
   }
 
   await testRtlAtlas(window);

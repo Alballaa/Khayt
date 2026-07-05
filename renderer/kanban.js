@@ -159,9 +159,11 @@ function renderStudioKanbanCard(b) {
   } = b;
 
   const useStudio = document.body.classList.contains('khayt-handoff');
+  // Enthusiast (hobbyist) mode has no commerce — hide client identity, sale price and payment state on cards.
+  const biz = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.showsBusiness(settings.mode) : settings.mode !== 'enthusiast';
   const prioColor = { urgent: 'var(--danger)', high: 'var(--warn)', normal: 'var(--text-muted)' }[_pl] || 'var(--text-muted)';
   const client = log.clientId ? clients.find(c => c.id === log.clientId) : null;
-  const clientLine = client ? localName(client) : (log.client || '');
+  const clientLine = biz ? (client ? localName(client) : (log.client || '')) : '';
   const part0 = (log.parts || [])[0];
   let swatchHex = '#6b7280';
   let swatchLabel = part0?.colour || part0?.material || '';
@@ -214,20 +216,20 @@ function renderStudioKanbanCard(b) {
     ? `<hr class="thread" style="margin:11px 0 9px" />
       <div class="row between" style="align-items:center">
         <span style="font-size:11px;color:var(--text-muted)">${log.printTime || 0} ${escapeHtml(t('common.hours'))}</span>
-        <span class="metric" style="font-size:12.5px">${fmtPrice(log.price)}</span>
+        ${biz ? `<span class="metric" style="font-size:12.5px">${fmtPrice(log.price)}</span>` : ''}
       </div>
       <div class="row gap6 khayt-kcard-pills" style="margin-top:8px;flex-wrap:wrap">
-        ${duePill}${unassignedPill}${paymentBadge(log)}${timerBadge}${etaBadge}
+        ${duePill}${unassignedPill}${biz ? paymentBadge(log) : ''}${timerBadge}${etaBadge}
       </div>
       ${machineBadge || operatorBadge || kanbanSplitBadge || kanbanSubBadge || qcBadge
         ? `<div class="khayt-kcard-badges">${machineBadge}${operatorBadge}${kanbanSplitBadge}${kanbanSubBadge}${qcBadge}</div>` : ''}`
     : `
       <div class="meta">
-        <span class="price">${fmtPrice(log.price)}</span><span>·</span>
+        ${biz ? `<span class="price">${fmtPrice(log.price)}</span><span>·</span>` : ''}
         <span>${log.printTime} ${escapeHtml(t('common.hours'))}</span><span>·</span>
         <span>${escapeHtml(partsLabel)}</span>
       </div>
-      <div class="order-meta-row">${paymentBadge(log)}${log.dueDate && status !== 'completed' ? ' ' + formatDueDateBadge(log.dueDate) : ''}${timerBadge}${etaBadge}</div>`;
+      <div class="order-meta-row">${biz ? paymentBadge(log) : ''}${log.dueDate && status !== 'completed' ? ' ' + formatDueDateBadge(log.dueDate) : ''}${timerBadge}${etaBadge}</div>`;
 
   return `
     <div class="kanban-card khayt-kcard${_pl === 'urgent' ? ' kanban-priority-urgent' : _pl === 'high' ? ' kanban-priority-high' : ''}${pausedClass}" draggable="true" data-order-id="${log.id}" style="${cardClientAccent}">
@@ -494,10 +496,12 @@ function renderKanban() {
     }
     container.innerHTML = sorted.map(log => {
       let actions = '';
-      const notifyBtn = `<button class="btn small ghost" data-act="wa-quick" data-id="${log.id}" title="${escapeHtml(t('queue.notify'))}">📲</button>`;
+      // Enthusiast (hobbyist) mode = no commerce: hide customer-notify, invoice, payment and BNPL actions.
+      const biz = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.showsBusiness(settings.mode) : settings.mode !== 'enthusiast';
+      const notifyBtn = biz ? `<button class="btn small ghost" data-act="wa-quick" data-id="${log.id}" title="${escapeHtml(t('queue.notify'))}">📲</button>` : '';
       const woBtn = `<button class="btn small ghost" data-act="wo-kanban" data-id="${log.id}" title="${escapeHtml(t('wo.title'))}">WO</button>`;
       // Tracking link button — shown on all active cards that have a client
-      const trackBtn = log.clientId
+      const trackBtn = (biz && log.clientId)
         ? `<button class="btn small ghost" data-act="share-tracking-link" data-id="${log.id}" title="${escapeHtml(t('ord.status_page') || 'Share tracking link')}">🔗</button>`
         : '';
       const labelBtn = `<button class="btn small ghost" data-act="print-label" data-id="${log.id}" title="${escapeHtml(t('ord.label_btn') || 'Print Label')}" style="padding:2px 6px;font-size:12px;">🏷</button>`;
@@ -557,21 +561,23 @@ function renderKanban() {
         actions = `<button class="btn small success" data-act="qc-pass" data-id="${log.id}">✅ ${escapeHtml(t('ord.qc_pass'))}</button>
           <button class="btn small danger" data-act="qc-fail" data-id="${log.id}" style="margin-inline-start:4px;">❌ ${escapeHtml(t('ord.qc_fail'))}</button>${woBtn}${notifyBtn}${trackBtn}${labelBtn}`;
       }
-      const bnplBtn = (settings.bnpl?.tabby?.enabled || settings.bnpl?.tamara?.enabled || settings.bnpl?.stripe?.enabled)
+      const bnplBtn = (biz && (settings.bnpl?.tabby?.enabled || settings.bnpl?.tamara?.enabled || settings.bnpl?.stripe?.enabled))
         ? `<button class="btn small ghost" data-act="bnpl-pay" data-id="${log.id}" title="${escapeHtml(t('bnpl.payment_modal'))}">💳</button>`
         : '';
       if (status === 'completed') {
         const deliverBtn = `<button class="btn small success" data-act="mark-delivered" data-id="${log.id}">${escapeHtml(t('queue.mark_delivered'))}</button>`;
         const wasteBtn = `<button class="btn ghost small" data-act="log-waste-card" data-id="${log.id}" title="${escapeHtml(t('waste.log_from_card'))}">🗑</button>`;
         const isPaidCard = payStatus(log) === 'paid';
-        const payBtn = isPaidCard ? '' : `<button class="btn small primary" data-act="pay" data-id="${log.id}" title="${escapeHtml(t('pay.mark_paid'))}">💳 ${escapeHtml(t('pay.mark_paid'))}</button>`;
-        actions = `<button class="btn small" data-act="invoice" data-id="${log.id}">${escapeHtml(t('queue.invoice'))}</button>${payBtn}${bnplBtn}${deliverBtn}${wasteBtn}${notifyBtn}${labelBtn}`;
+        const payBtn = (biz && !isPaidCard) ? `<button class="btn small primary" data-act="pay" data-id="${log.id}" title="${escapeHtml(t('pay.mark_paid'))}">💳 ${escapeHtml(t('pay.mark_paid'))}</button>` : '';
+        const invoiceBtn = biz ? `<button class="btn small" data-act="invoice" data-id="${log.id}">${escapeHtml(t('queue.invoice'))}</button>` : '';
+        actions = `${invoiceBtn}${payBtn}${bnplBtn}${deliverBtn}${wasteBtn}${notifyBtn}${labelBtn}`;
       }
       if (status === 'delivered') {
         const isPaidCard = payStatus(log) === 'paid';
-        const payBtn = isPaidCard ? '' : `<button class="btn small primary" data-act="pay" data-id="${log.id}" title="${escapeHtml(t('pay.mark_paid'))}">💳 ${escapeHtml(t('pay.mark_paid'))}</button>`;
+        const payBtn = (biz && !isPaidCard) ? `<button class="btn small primary" data-act="pay" data-id="${log.id}" title="${escapeHtml(t('pay.mark_paid'))}">💳 ${escapeHtml(t('pay.mark_paid'))}</button>` : '';
         const wasteBtn = `<button class="btn ghost small" data-act="log-waste-card" data-id="${log.id}" title="${escapeHtml(t('waste.log_from_card'))}">🗑</button>`;
-        actions = `<button class="btn small" data-act="invoice" data-id="${log.id}">${escapeHtml(t('queue.invoice'))}</button>${payBtn}${bnplBtn}${wasteBtn}${notifyBtn}${labelBtn}`;
+        const invoiceBtn = biz ? `<button class="btn small" data-act="invoice" data-id="${log.id}">${escapeHtml(t('queue.invoice'))}</button>` : '';
+        actions = `${invoiceBtn}${payBtn}${bnplBtn}${wasteBtn}${notifyBtn}${labelBtn}`;
       }
       const partCount = log.parts ? log.parts.length : 1;
       const partsLabel = partCount === 1 ? t('queue.parts_count_1') : t('queue.parts_count', { n: partCount });

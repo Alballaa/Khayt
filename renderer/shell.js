@@ -257,6 +257,8 @@ function applyAnalyticsModeView() {
  *  bounce the active tab and to block keyboard/programmatic navigation to them. Keep
  *  in sync with the .biz-only / .pro-only nav buttons in index.html. */
 const BIZ_TABS = ['logs-tab', 'clients-tab', 'gift-cards-tab', 'portfolio-tab', 'expenses-tab', 'catalog-tab', 'analytics-tab'];
+/** Professional-only tabs — never reachable in Simple/Enthusiast (nav buttons are .pro-only). */
+const PRO_TABS = ['expenses-tab'];
 
 function applyMode() {
   document.body.classList.toggle('mode-simple', settings.mode === 'simple');
@@ -432,6 +434,9 @@ function switchTab(tabId) {
   // Enthusiast (hobbyist) mode hides all business tabs — redirect if one is reached
   // via deep-link / global search / keyboard so the user never lands on a hidden tab.
   if (settings.mode === 'enthusiast' && BIZ_TABS.includes(tabId)) tabId = 'dashboard-tab';
+  // Pro-only tabs must not be reachable in Simple/Enthusiast via search/deep-link either.
+  const isPro = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.isProMode(settings.mode) : (settings.mode || 'professional') === 'professional';
+  if (!isPro && PRO_TABS.includes(tabId)) tabId = 'dashboard-tab';
   $$('.tab-content').forEach(el => {
     const on = el.id === tabId;
     el.classList.toggle('active', on);
@@ -569,6 +574,9 @@ function renderGlobalResults(term) {
     return;
   }
   const sections = [];
+  // Respect mode gating: enthusiast sees no commerce entities; simple sees business but not Pro-only ones.
+  const biz = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.showsBusiness(settings.mode) : settings.mode !== 'enthusiast';
+  const pro = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.isProMode(settings.mode) : (settings.mode || 'professional') === 'professional';
 
   const orderHaystack = (o) => {
     const client = o.clientId ? clients.find((x) => x.id === o.clientId) : null;
@@ -579,7 +587,7 @@ function renderGlobalResults(term) {
     ].filter(Boolean).join(' ');
   };
 
-  const matchOrders = rankSearch(printLog, term, orderHaystack, 6);
+  const matchOrders = biz ? rankSearch(printLog, term, orderHaystack, 6) : [];
   if (matchOrders.length) {
     sections.push(`<div class="gs-group-label">${escapeHtml(t('search.orders'))}</div>`);
     sections.push(matchOrders.map(o => `
@@ -590,12 +598,12 @@ function renderGlobalResults(term) {
       </div>`).join(''));
   }
 
-  const matchClients = rankSearch(
+  const matchClients = biz ? rankSearch(
     clients,
     term,
     (c) => [c.id, c.nameEn, c.nameAr, c.phone, c.email].filter(Boolean).join(' '),
     4,
-  );
+  ) : [];
   if (matchClients.length) {
     sections.push(`<div class="gs-group-label">${escapeHtml(t('search.clients'))}</div>`);
     sections.push(matchClients.map(c => `
@@ -606,12 +614,12 @@ function renderGlobalResults(term) {
       </div>`).join(''));
   }
 
-  const matchProducts = rankSearch(
+  const matchProducts = biz ? rankSearch(
     products,
     term,
     (p) => [p.nameEn, p.nameAr, p.description].filter(Boolean).join(' '),
     4,
-  );
+  ) : [];
   if (matchProducts.length) {
     sections.push(`<div class="gs-group-label">${escapeHtml(t('search.products'))}</div>`);
     sections.push(matchProducts.map(p => `
@@ -645,12 +653,12 @@ function renderGlobalResults(term) {
       </div>`).join(''));
   }
 
-  const matchSuppliers = rankSearch(
+  const matchSuppliers = pro ? rankSearch(
     suppliers,
     term,
     (s) => [s.name, s.phone, s.email, s.website].filter(Boolean).join(' '),
     3,
-  );
+  ) : [];
   if (matchSuppliers.length) {
     sections.push(`<div class="gs-group-label">${escapeHtml(t('search.suppliers'))}</div>`);
     sections.push(matchSuppliers.map((s) => `
@@ -661,12 +669,12 @@ function renderGlobalResults(term) {
       </div>`).join(''));
   }
 
-  const matchExpenses = rankSearch(
+  const matchExpenses = pro ? rankSearch(
     expenses,
     term,
     (e) => [e.note, e.category, e.vendor, e.orderId].filter(Boolean).join(' '),
     3,
-  );
+  ) : [];
   if (matchExpenses.length) {
     sections.push(`<div class="gs-group-label">${escapeHtml(t('search.expenses'))}</div>`);
     sections.push(matchExpenses.map((e) => `
