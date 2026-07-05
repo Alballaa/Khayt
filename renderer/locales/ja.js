@@ -44,6 +44,8 @@
   "conv.batch_done": "{total} 個中 {ok} 個のファイルを変換しました。",
   "conv.batch_fail": "失敗",
   "conv.family_note": "この {f} ファイルと互換性のあるプリンターを表示しています。別のエコシステムを対象にするには、Generic 3MF に変換してスライサーでプリンターを設定してください。",
+  "conv.near_generic": "在庫あり",
+  "conv.near_stock": "在庫にある最も近いフィラメント",
   "store.recovered": "✓ 保存が中断された後、バックアップからデータを復元しました。",
   "slicer.detect": "インストール済みスライサーを検出",
   "slicer.detecting": "スライサーを検索中…",

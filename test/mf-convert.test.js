@@ -140,6 +140,11 @@ test('a big-enough target bed produces no fit warning', () => {
   assert.ok(!r.report.warnings.some((w) => /fit/i.test(w)));
 });
 
+test('convert output passes the self-check (report.verified)', () => {
+  assert.equal(convert(makeBambu3mf(), { targetId: 'bambu-x1c' }).report.verified, true);
+  assert.equal(convert(makeBambu3mf(), { targetId: 'generic-3mf' }).report.verified, true); // normalize
+});
+
 test('cross-family retarget (Bambu → Prusa) warns and does NOT rewrite the printer model', () => {
   const src = makeBambu3mf();
   const r = convert(src, { targetId: 'prusa-mk4-mmu3' }); // prusa family ≠ bambu

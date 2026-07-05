@@ -75,6 +75,20 @@
     return html;
   }
 
+  // Nearest filament you actually have in stock for a target colour (helps you know which
+  // spool to load into each slot). Uses the shared colour-maths + inventory colour matcher.
+  function nearestStock(hex) {
+    const stock = (typeof inventory !== 'undefined' ? inventory : []).filter((i) => i && i.color && (i.weight || 0) > 0);
+    if (!stock.length || typeof KhaytColor === 'undefined' || !KhaytColor.nearest) return null;
+    return KhaytColor.nearest(hex, stock)[0] || null;
+  }
+  function stockHintHtml(hex) {
+    const n = nearestStock(hex);
+    if (!n) return '';
+    const label = ((n.material || '') + (n.colourVariant ? ' · ' + n.colourVariant : '')).trim() || (t('conv.near_generic') || 'in stock');
+    return `<span class="conv-near" title="${escapeHtml(t('conv.near_stock') || 'Nearest filament you have in stock')}">≈ ${escapeHtml(label)} <span class="conv-de">ΔE ${Math.round(n.deltaE)}</span></span>`;
+  }
+
   // Remap table: one row per source colour → a target-slot number select (identity default).
   function remapTableHtml(filaments, maxColors) {
     if (!filaments || !filaments.length) return `<p class="conv-note">${escapeHtml(t('conv.no_colours') || 'No colours detected — geometry and settings are retargeted as-is.')}</p>`;
@@ -87,6 +101,7 @@
         <select class="conv-slot" data-i="${i}">
           ${Array.from({ length: slots }, (_, s) => `<option value="${s}"${s === i ? ' selected' : ''}>${t('conv.slot') || 'Slot'} ${s + 1}</option>`).join('')}
         </select>
+        ${stockHintHtml(f.color)}
       </div>`).join('');
     return `<div class="conv-remap"><div class="conv-remap-head">${escapeHtml(t('conv.remap_hint') || 'Map each source colour to a slot on the target printer:')}</div>${rows}</div>`;
   }

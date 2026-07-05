@@ -4,7 +4,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
-## [3.2.0-beta.4] - 2026-07-05
+## [3.2.0-beta.5] - 2026-07-05
+
+**Pre-release (beta) — a smarter, safer converter.** Two converter improvements: it now tells you which spool to load for each colour, and it double-checks its own output.
+
+### Added
+
+- **"Nearest in stock" hint per colour.** When you map a multicolour file's colours to slots, each colour now shows the closest filament **you actually have in stock** (by perceptual colour distance, ΔE) — so you know which spool to load into each slot. Uses your inventory's colours and the same colour-matching maths as the Colour Studio.
+- **Output self-check.** After converting, Khayt re-opens the file it just wrote and confirms it still parses with its geometry (and, for a retarget, its colours) intact. If anything looks off, it warns you to check in your slicer before printing — cheap insurance behind the "it always opens" guarantee.
 
 **Pre-release (beta) — scale & performance.** Follow-up to the store audit: keep the app fast as your order history grows into the thousands, and stop internal sync data from growing without bound.
 
