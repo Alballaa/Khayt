@@ -4,6 +4,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.9] - 2026-07-05
+
+**Pre-release (beta) — prune archived orders.** Keep the app fast as your history grows into the thousands.
+
+### Added
+
+- **Prune archived orders (Settings → Data).** A new maintenance action exports every **archived** order to a dated JSON file and then removes those orders from the live store — so a long-running shop can keep its working data lean without losing history. The export always runs first (the file is your keepsake copy), the removal is behind a clear confirmation, and it only ever touches orders you already archived. The cleanup syncs like any other change (removed orders won't reappear on other devices). Runs locally.
+
 ## [3.2.0-beta.8] - 2026-07-05
 
 **Pre-release (beta) — 3MF → STL.** Round out the converter: pull the raw mesh back out of any 3MF.

@@ -3159,6 +3159,46 @@ function exportData() {
 }
 
 
+/**
+ * Prune archived orders: export them to a JSON file, then remove them from the
+ * live store. Export-first is mandatory (the download is the user's only copy
+ * afterwards) and the removal is gated behind a danger confirm. Deletions
+ * propagate to cloud automatically — the next save tombstones the missing ids.
+ */
+async function pruneArchivedOrders() {
+  // Logic is intentionally inline (not via a browser global) — the pure helpers
+  // in lib/order-archive.js exist for Node unit coverage; the renderer keeps the
+  // filter here so no extra <script> tag is needed. See test/order-archive.test.js.
+  const archived = (printLog || []).filter((o) => o && typeof o === 'object' && o.archived);
+  if (archived.length === 0) {
+    toast(t('prune.none') || 'No archived orders to prune.', 'info');
+    return;
+  }
+  let version = null;
+  try { version = window.hubAPI?.appVersion ? await window.hubAPI.appVersion() : null; } catch { /* ignore */ }
+  const stamp = new Date().toISOString();
+  const payload = { type: 'khayt-archived-orders', version, exportedAt: stamp, count: archived.length, orders: archived };
+  // Export first — always, before anything is removed.
+  downloadBlob(
+    new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }),
+    `khayt-archived-orders-${stamp.split('T')[0]}.json`,
+  );
+  const ok = await confirmModal(
+    (t('prune.confirm') || 'Remove {n} archived order(s) from the app? They were just exported to a file — keep it safe. This cannot be undone.')
+      .replace('{n}', archived.length),
+    { danger: true },
+  );
+  if (!ok) return;
+  const removed = new Set(archived.map((o) => o.id));
+  printLog = printLog.filter((o) => !removed.has(o.id));
+  saveAll();
+  if (typeof renderLogs === 'function') renderLogs();
+  if (typeof renderDashboard === 'function') renderDashboard();
+  if (typeof renderStorageUsage === 'function') renderStorageUsage();
+  toast((t('prune.done') || 'Removed {n} archived order(s).').replace('{n}', archived.length), 'success');
+}
+
+
 async function importData(file) {
   const ok = await confirmModal(
     t('set.import_confirm') || 'Replace all local data with this backup? This cannot be undone.',
@@ -3483,6 +3523,7 @@ function renderTelegramSettings() {
     addCustomField,
     deleteCustomField,
     exportData,
+    pruneArchivedOrders,
     importData,
     loadSampleData,
     clearSampleData,
