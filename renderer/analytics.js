@@ -517,14 +517,23 @@ function renderClientSourceChart() {
     other:      '#6b7280',
   };
 
+  // Revenue per source in a single pass (was O(sources × orders × clients) with a nested
+  // clients.find inside the per-source loop; now O(orders) using the clientById index).
+  const revBySrc = {};
+  for (const o of printLog) {
+    if (o.status !== 'completed' || !o.clientId) continue;
+    const c = clientById(o.clientId);
+    if (!c) continue;
+    const src = c.source || 'other';
+    revBySrc[src] = (revBySrc[src] || 0) + orderRevenueBase(o);
+  }
+
   const rows = sources
     .filter(s => counts[s] > 0)
     .sort((a, b) => counts[b] - counts[a])
     .map(s => {
       const pct = Math.round((counts[s] / maxCount) * 100);
-      const revBySource = printLog
-        .filter(o => o.status === 'completed' && o.clientId && clients.find(c => c.id === o.clientId && (c.source || 'other') === s))
-        .reduce((sum, o) => sum + orderRevenueBase(o), 0);
+      const revBySource = revBySrc[s] || 0;
       return `
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
           <div style="min-width:90px;font-size:12px;color:var(--text);text-align:end;">${escapeHtml(t('cl.source_' + s))}</div>
