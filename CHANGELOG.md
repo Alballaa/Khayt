@@ -4,7 +4,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
-## [3.2.0-beta.5] - 2026-07-05
+## [3.2.0-beta.6] - 2026-07-05
+
+**Pre-release (beta) — saved conversion presets.** Stop re-picking the same target and colour mapping every time.
+
+### Added
+
+- **Conversion presets.** In the convert dialog you can now **save** your chosen target printer (and colour→slot mapping) as a named preset, then **apply** it with one click on any file — the colour mapping is reused when it fits the file's colour count. Manage your presets (list and remove) in the Converter tab. Saved locally.
 
 **Pre-release (beta) — a smarter, safer converter.** Two converter improvements: it now tells you which spool to load for each colour, and it double-checks its own output.
 

@@ -443,6 +443,10 @@ async function testConverter(window) {
     // 3.2: batch pickers exposed, and the custom-printer manager renders in the tab.
     res.pickers = typeof window.hubAPI.mfPickMulti === 'function' && typeof window.hubAPI.mfPickOutdir === 'function';
     res.cpManager = (document.getElementById('converter-tab')?.innerHTML || '').includes('conv-cp');
+    // 3.2 beta.6: a saved conversion preset renders in the tab's preset manager.
+    settings.convPresets = [{ id: 'cvp-e2e', name: 'E2E Preset', targetId: 'bambu-x1c', slotMap: null }];
+    renderConverter();
+    res.presetShown = (document.getElementById('converter-tab')?.innerHTML || '').includes('E2E Preset');
     const a = await window.hubAPI.mfAnalyze(src);
     res.analyzeOk = !!a.ok; res.flavour = a.flavour; res.colorCount = a.colorCount;
     res.hasMeta = !!(a.meta && typeof a.meta === 'object');
@@ -471,6 +475,7 @@ async function testConverter(window) {
     hasProfiles: r.hasProfiles === true,
     pickers: r.pickers === true,
     cpManager: r.cpManager === true,
+    presetShown: r.presetShown === true,
     analyzeOk: r.analyzeOk === true,
     hasMeta: r.hasMeta === true,
     customOk: r.customOk === true,
