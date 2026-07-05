@@ -44,6 +44,7 @@
   "conv.batch_done": "{ok} fichiers convertis sur {total}.",
   "conv.batch_fail": "échec",
   "conv.family_note": "Affichage des imprimantes compatibles avec ce fichier {f}. Pour un autre écosystème, convertissez en 3MF générique et configurez l’imprimante dans votre trancheur.",
+  "store.recovered": "✓ Vos données ont été récupérées depuis une sauvegarde après un enregistrement interrompu.",
   "slicer.detect": "Détecter les trancheurs installés",
   "slicer.detecting": "Recherche de trancheurs…",
   "slicer.detected_n": "{n} trancheur(s) ajouté(s)",
