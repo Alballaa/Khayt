@@ -4,6 +4,18 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.1.0-beta.14] - 2026-07-05
+
+**Pre-release (beta) — dashboard due-date fix + refreshed marketing screenshots.**
+
+### Fixed
+
+- **The Workbench and Vivid dashboards showed a literal "Due in {n}d"** in the "Today's work" list instead of the actual number of days (e.g. "Due in 2d"). The `{n}` placeholder wasn't being substituted for the due-date and overdue labels. Now fixed in both themes.
+
+### Internal
+
+- Screenshot tooling overhauled for the marketing site: the demo store seeds a Print-File library (with real PNG preview thumbnails) so the new 3.1 screens capture non-empty; the capture scripts gate on the demo data actually landing (fixing empty dashboards/queues); and new scripts capture the full website gallery (Workbench/Command/Vivid × EN/AR, including Print Files and Colour Studio) plus a three-modes dashboard showcase.
+
 ## [3.1.0-beta.13] - 2026-07-05
 
 **Pre-release (beta) — every installed slicer, not just one.** Khayt now finds the slicers already on your computer instead of expecting you to type a program path by hand.

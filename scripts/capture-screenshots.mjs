@@ -101,6 +101,9 @@ try {
     return window.hubAPI.saveStore(store);
   }, demoStore);
   if (!saveResult?.ok) throw new Error(`saveStore failed: ${JSON.stringify(saveResult)}`);
+  // Round-trip the store back from disk before reloading — forces the write to
+  // flush so loadAll() reads the demo data (not the pre-save empty snapshot).
+  await page.evaluate(async () => { await window.hubAPI.loadStore(); });
 
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.khayt-app', { timeout: 90_000 });
@@ -108,24 +111,16 @@ try {
     () => document.querySelector('#setup-wizard')?.style.display === 'none' && typeof window.KhaytShell?.switchTab === 'function',
     { timeout: 90_000 },
   );
-  await page.waitForTimeout(800);
 
-  // loadAll() applies the disk store asynchronously after reload. Gate on the
-  // data actually landing (orders rendered) before capturing — otherwise the
-  // dashboard (first shot) renders before the store applies and its
-  // date/status-relative widgets come out empty.
-  // Gate on the demo data actually landing before the first shot (the dashboard,
-  // whose date/status-relative widgets would otherwise render blank). loadAll()
-  // applies the disk store asynchronously after reload; a single <tr> is NOT a
-  // reliable signal (the "no orders yet" empty state is also one <tr>). The demo
-  // store's business name is the surest cross-cutting signal: it only appears in
-  // the dashboard hero once the store has applied AND the dashboard re-rendered.
-  for (let i = 0; i < 60; i++) {
-    await page.evaluate(() => { window.KhaytShell?.switchTab?.('dashboard-tab'); renderDashboard?.(); });
-    const name = await page.evaluate(() => document.querySelector('.dash-hero-name')?.textContent || '');
-    if (/athar|demo/i.test(name)) break;
-    await page.waitForTimeout(500);
-  }
+  // Gate on the demo data actually landing in the app global — loadAll() applies
+  // the disk store asynchronously after reload. The global printLog length is an
+  // unambiguous, theme-independent signal (an empty-state <tr> is not).
+  await page.waitForFunction(
+    () => typeof printLog !== 'undefined' && Array.isArray(printLog) && printLog.length > 5,
+    { timeout: 30_000 },
+  );
+  await page.evaluate(() => window.KhaytShell?.switchTab?.('dashboard-tab'));
+  await page.waitForTimeout(800);
 
   await page.evaluate(() => {
     const wiz = document.querySelector('#setup-wizard');

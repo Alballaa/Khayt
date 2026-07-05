@@ -112,10 +112,10 @@
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const due = new Date(order.dueDate + 'T00:00:00');
       const diff = Math.round((due - today) / 86400000);
-      if (diff < 0) parts.push(tr('oe.due_overdue', `${Math.abs(diff)}d overdue`));
+      if (diff < 0) parts.push(tr('oe.due_overdue', 'Overdue by {n}d').replace('{n}', Math.abs(diff)));
       else if (diff === 0) parts.push(tr('dash.due_today_sub', 'due today'));
       else if (diff === 1) parts.push(tr('dash.due_tomorrow_sub', 'due tomorrow'));
-      else parts.push(tr('oe.due_in', `due in ${diff}d`));
+      else parts.push(tr('oe.due_in', 'Due in {n}d').replace('{n}', diff));
     }
     if (!parts.length) parts.push(order.id);
     const sub = parts.join(' · ');
