@@ -4,6 +4,18 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.1.0-beta.10] - 2026-07-05
+
+**Pre-release (beta) — full UI review, part 3: localization.** The final pass from the interface review closes a translation gap.
+
+### Fixed
+
+- **The whole 3.1 feature set was only in English and Arabic.** The Colour Studio, Print-File Library, 3MF Converter, colour planner and multi-slicer picker — 97 interface strings in total — showed in English for users running the app in **German, Spanish, French, Japanese, Turkish or Chinese** (the parity check only covered Arabic, so the gap went unnoticed). All 97 strings are now translated in every one of the eight languages.
+
+### Internal
+
+- The locale parity check was tightened from "Arabic only" to **all eight languages** — every English string must now be translated in every locale (and keep its `{placeholders}`), so a feature can't ship half-localized again.
+
 ## [3.1.0-beta.9] - 2026-07-05
 
 **Pre-release (beta) — full UI review, part 2: visual polish, accessibility & cleanup.** The second pass from the interface review fixes rendering bugs, improves keyboard/screen-reader support, and removes dead code.
