@@ -429,12 +429,14 @@ async function testConverter(window) {
   const proj = JSON.stringify({ printer_model: 'Orig', nozzle_diameter: ['0.4'], filament_colour: ['#FF0000', '#00FF00'], filament_type: ['PLA', 'PLA'] });
   const srcPath = `${userData}/conv-src.3mf`;
   const outPath = `${userData}/conv-out.3mf`;
+  const stlPath = `${userData}/conv-src.stl`;
+  fs.writeFileSync(stlPath, 'solid s\nfacet normal 0 0 0\n outer loop\n  vertex 0 0 0\n  vertex 30 0 0\n  vertex 0 15 8\n endloop\nendfacet\nendsolid s');
   fs.writeFileSync(srcPath, zipWrite.writeZip([
     { name: '3D/3dmodel.model', data: model },
     { name: 'Metadata/project_settings.config', data: proj },
   ]));
 
-  const r = await window.evaluate(async ({ src, out }) => {
+  const r = await window.evaluate(async ({ src, out, stl }) => {
     const res = {};
     switchTab('converter-tab');
     res.tabRendered = document.querySelector('.tab-content.active')?.id === 'converter-tab'
@@ -454,6 +456,10 @@ async function testConverter(window) {
     const cust = await window.hubAPI.mfConvert({ path: src, targetId: 'x', mode: 'retarget', intoVaultId: 'PF-conv-cust',
       targetProfile: { id: 'custom-e2e', name: 'E2E Bot', flavour: 'bambu', maxColors: 4, bed: { x: 300, y: 300, z: 300 }, nozzle: 0.4, printerModel: 'E2E Bot' } });
     res.customOk = !!(cust.ok && cust.report && /E2E Bot/.test(cust.report.targetName || ''));
+    // 3.2 beta.7: STL → 3MF wrapper produces a readable 3MF.
+    const s2m = await window.hubAPI.stlTo3mf({ path: stl, intoVaultId: 'PF-stl-e2e' });
+    res.stlOk = !!(s2m.ok && s2m.vault && s2m.filename);
+    if (s2m.ok) { const sa = await window.hubAPI.mfAnalyze(s2m.outPath); res.stlAnalyzed = !!(sa.ok && sa.hasGeometry); }
     const c = await window.hubAPI.mfConvert({ path: src, targetId: 'snapmaker-u1', mode: 'retarget', slotMap: [1, 0], outPath: out });
     res.convertOk = !!c.ok; res.target = c.report && c.report.target; res.remapped = c.report && c.report.colorsRemapped;
 
@@ -468,7 +474,7 @@ async function testConverter(window) {
       res.recordCreated = (printFiles || []).some((p) => p.id === vaultId);
     }
     return res;
-  }, { src: srcPath, out: outPath });
+  }, { src: srcPath, out: outPath, stl: stlPath });
 
   const checks = {
     tabRendered: r.tabRendered === true,
@@ -479,6 +485,8 @@ async function testConverter(window) {
     analyzeOk: r.analyzeOk === true,
     hasMeta: r.hasMeta === true,
     customOk: r.customOk === true,
+    stlOk: r.stlOk === true,
+    stlAnalyzed: r.stlAnalyzed === true,
     flavourBambu: r.flavour === 'bambu',
     colorCount2: r.colorCount === 2,
     convertOk: r.convertOk === true,
