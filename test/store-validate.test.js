@@ -43,6 +43,17 @@ test('normalizeStoreSnapshot drops invalid orders and keeps valid ones', () => {
   assert.ok(warnings.some(w => w.includes('printLog')));
 });
 
+test('normalizeStoreSnapshot persists subscriptions and auditLog (regression: were being dropped)', () => {
+  const { normalized } = normalizeStoreSnapshot({
+    subscriptions: [{ id: 'SUB1', clientId: 'C1', amount: 100 }],
+    auditLog: [{ at: 1, actor: 'me', action: 'edit' }],
+  });
+  assert.equal(normalized.subscriptions.length, 1);
+  assert.equal(normalized.subscriptions[0].id, 'SUB1');
+  assert.equal(normalized.auditLog.length, 1);
+  assert.equal(normalized.auditLog[0].action, 'edit');
+});
+
 test('normalizeStoreSnapshot salvages valid collections when one is malformed', () => {
   // One bad collection (printLog not an array) must NOT discard the whole store.
   const { normalized, errors } = normalizeStoreSnapshot({

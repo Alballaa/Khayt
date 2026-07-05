@@ -43,6 +43,7 @@
   "conv.batch_dest_folder": "すべてをフォルダーに保存…",
   "conv.batch_done": "{total} 個中 {ok} 個のファイルを変換しました。",
   "conv.batch_fail": "失敗",
+  "conv.family_note": "この {f} ファイルと互換性のあるプリンターを表示しています。別のエコシステムを対象にするには、Generic 3MF に変換してスライサーでプリンターを設定してください。",
   "slicer.detect": "インストール済みスライサーを検出",
   "slicer.detecting": "スライサーを検索中…",
   "slicer.detected_n": "{n} 個のスライサーを追加しました",

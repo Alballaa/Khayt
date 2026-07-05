@@ -43,6 +43,7 @@
   "conv.batch_dest_folder": "Tümünü bir klasöre kaydet…",
   "conv.batch_done": "{total} dosyadan {ok} tanesi dönüştürüldü.",
   "conv.batch_fail": "başarısız",
+  "conv.family_note": "Bu {f} dosyasıyla uyumlu yazıcılar gösteriliyor. Başka bir ekosistemi hedeflemek için Genel 3MF’ye dönüştürün ve yazıcıyı dilimleyicinizde ayarlayın.",
   "slicer.detect": "Yüklü dilimleyicileri algıla",
   "slicer.detecting": "Dilimleyiciler aranıyor…",
   "slicer.detected_n": "{n} dilimleyici eklendi",

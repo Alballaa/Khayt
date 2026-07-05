@@ -13,7 +13,7 @@
     'suppliers', 'purchaseOrders', 'testPrints', 'locations', 'operators',
     'waitingList', 'waitingListHistory', 'timeEntries', 'shiftLogs', 'giftCards',
     'slicerProfiles', 'envLogs', 'tombstones', 'machMaintTasks', 'loyaltyLedger',
-    'printFiles',
+    'printFiles', 'subscriptions', 'auditLog',
   ];
 
   function sanitisePlainObject(obj) {
@@ -83,6 +83,8 @@
     machMaintTasks: isValidRecord,
     loyaltyLedger: isPlainObject,
     printFiles: isValidRecord,
+    subscriptions: isValidRecord,
+    auditLog: isPlainObject,
   };
 
   /**

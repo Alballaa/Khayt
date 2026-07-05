@@ -50,16 +50,28 @@ async function testStoreRoundTrip(window) {
     data.settings = data.settings || {};
     data.settings.shopName = 'E2E Smoke Test';
     data.printLog = data.printLog || [];
+    // Regression: subscriptions + auditLog must survive the save/load round-trip
+    // (they used to be stripped by normalizeStoreSnapshot and reset on restart).
+    data.subscriptions = [{ id: 'SUB-e2e', clientId: 'C-e2e', amount: 250 }];
+    data.auditLog = [{ at: 1, actor: 'e2e', action: 'test' }];
     return window.hubAPI.saveStore(data);
   });
   if (!saveResult?.ok) throw new Error(`saveStore failed: ${JSON.stringify(saveResult)}`);
 
   const reloaded = await window.evaluate(async () => {
     const data = await window.hubAPI.loadStore();
-    return data?.settings?.shopName;
+    return {
+      shopName: data?.settings?.shopName,
+      subCount: (data?.subscriptions || []).length,
+      subId: (data?.subscriptions || [])[0]?.id,
+      auditCount: (data?.auditLog || []).length,
+    };
   });
-  if (reloaded !== 'E2E Smoke Test') {
+  if (reloaded.shopName !== 'E2E Smoke Test') {
     throw new Error(`store round-trip mismatch: got ${JSON.stringify(reloaded)}`);
+  }
+  if (reloaded.subCount !== 1 || reloaded.subId !== 'SUB-e2e' || reloaded.auditCount !== 1) {
+    throw new Error(`subscriptions/auditLog not persisted: ${JSON.stringify(reloaded)}`);
   }
   return version;
 }
