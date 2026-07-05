@@ -4,6 +4,30 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-07-05
+
+**Stable release — Khayt for makers, not just print shops.** 3.1 opens the app up to hobbyists and gives everyone a full suite of colour and print-file tools, while keeping the promise that nothing here needs the cloud. It's the culmination of the 3.1 beta cycle (beta.1–beta.15), which also ran a top-to-bottom, three-mode interface review and a final security/correctness hardening pass.
+
+### Added
+
+- **Enthusiast mode** — a third experience alongside Simple and Professional, for personal/hobby printing. It hides everything commercial (orders, clients, invoicing & ZATCA e-invoicing, payments, storefront, customer portal, gift cards) and keeps the personal core: production queue, cost-per-print calculator, filament inventory, printers & monitoring, print-file library, waste log and personal reports. Switch modes anytime with no data loss.
+- **Print-File Library** — a standalone, searchable catalogue of your STL / 3MF / G-code files, each with a real preview thumbnail (the slicer's own embedded preview, or a software-rendered 3D view for STL — no cloud), parsed metadata, an optional photo, tags, a tested-settings note, an attached slicer profile, and parsed **multicolour 3MF info** (colours used and swap count). Open any file into your slicer in one click.
+- **Colour Mixer suite** — a new **Colour Studio** tab with a **stock matcher** (rank the filaments you own by perceptual closeness / ΔE CIEDE2000, with grams-in-stock and low-stock flags) and a gamma-correct **blend & gradient** tool; a **multicolour print planner** that assigns each of a file's colours to a spool you own, shows per-colour cost and swaps live, and pushes the job into the calculator as one part with the exact blended cost (deducting from each colour's own spool on completion); and a **filament hex input** for pasting exact colour codes.
+- **Multiple slicers** — Settings → Slicer holds a list of slicers (name, path, optional command) with a default and per-slicer test, and a **chooser on "Open in slicer"** when more than one is configured. **"Detect installed slicers"** scans your machine (macOS / Windows / Linux) and adds every supported slicer it finds — PrusaSlicer, OrcaSlicer, Bambu Studio, Cura, SuperSlicer, ideaMaker, Simplify3D, Creality Print, Lychee, CHITUBOX, FlashPrint — and runs automatically on first setup.
+- **3MF Converter** — a **Converter** tab and a **Convert** action on every 3MF: retarget a multicolour file to another printer (Snapmaker U1, Bambu X1C/P1S/A1, Prusa MK4+MMU3/XL, Creality K2 Plus, Anycubic Kobra S1) with per-colour slot remapping, or produce a clean **Generic 3MF**. Only slicer metadata is rewritten — your geometry is never touched. Converted files stay in-app, attached to the source print file, by default.
+
+### Changed
+
+- **Three-mode interface review.** Every surface was audited for the Enthusiast / Simple / Professional split. Enthusiast mode no longer leaks any commerce (dashboards, themed dashboards, queue cards, calculator, global search, waste log, notifications); Simple gained a focused sales-reports view and no longer showed Professional-only machine-maintenance tools; the profit-margin tile is Professional-only. Every tab is now reachable in all nine themes (Atlas gained a "More" menu).
+
+### Fixed
+
+- **Full UI review** across correctness, visual polish, accessibility (focus-trapped dialogs, accessible names on icon buttons, focus outlines) and RTL, plus dead-code cleanup. **All 3.1 features are now translated in all eight languages** (the parity check was tightened from Arabic-only to all eight), and the in-app updater no longer produces erratic, duplicate or downgrade prompts.
+
+### Security
+
+- Final hardening pass: **SSRF guards on the accounting webhook** (matching the other senders) and a **shell/interpreter blocklist on slicer launch**, so a restored/synced URL or slicer path can't become a request to an internal host or arbitrary code execution.
+
 ## [3.1.0-beta.15] - 2026-07-05
 
 **Pre-release (beta) — pre-1.0 hardening pass.** A comprehensive bug, security and UI audit ahead of promoting 3.1 to a stable release. No data-loss or crash bugs were found; the fixes below close real edge-case and mode-separation gaps.
