@@ -1,4 +1,5 @@
 /** Demo store for README screenshots — rich but self-contained. */
+import zlib from 'node:zlib';
 
 function isoDate(d) {
   return d.toISOString().slice(0, 10);
@@ -10,9 +11,46 @@ function daysAgo(n) {
   return isoDate(d);
 }
 
-const DEMO_THUMB = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0f172a"/><stop offset="1" stop-color="#1e293b"/></linearGradient></defs><rect width="320" height="240" fill="url(#g)"/><rect x="88" y="56" width="144" height="128" rx="8" fill="#334155"/><rect x="104" y="72" width="112" height="96" rx="4" fill="#38bdf8" opacity="0.85"/></svg>',
-);
+// Minimal RGB PNG encoder — the app's safeImageSrc only accepts base64 PNG/JPEG
+// data URIs (not SVG), so demo thumbnails are generated as real PNGs. Renders a
+// diagonal gradient with a lighter centred "part" block, tinted per call.
+function pngChunk(type, data) {
+  const len = Buffer.alloc(4); len.writeUInt32BE(data.length, 0);
+  const body = Buffer.concat([Buffer.from(type, 'ascii'), data]);
+  const crc = Buffer.alloc(4); crc.writeUInt32BE(zlib.crc32(body) >>> 0, 0);
+  return Buffer.concat([len, body, crc]);
+}
+function makeThumbPng(a, b, accent) {
+  const w = 320, h = 240;
+  const raw = Buffer.alloc((w * 3 + 1) * h);
+  let o = 0;
+  const inBlock = (x, y) => x >= 92 && x < 228 && y >= 60 && y < 180;
+  for (let y = 0; y < h; y++) {
+    raw[o++] = 0; // filter byte
+    for (let x = 0; x < w; x++) {
+      const t = (x / w + y / h) / 2;
+      let r = Math.round(a[0] + (b[0] - a[0]) * t);
+      let g = Math.round(a[1] + (b[1] - a[1]) * t);
+      let bl = Math.round(a[2] + (b[2] - a[2]) * t);
+      if (inBlock(x, y)) { r = accent[0]; g = accent[1]; bl = accent[2]; }
+      raw[o++] = r; raw[o++] = g; raw[o++] = bl;
+    }
+  }
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 2;
+  const png = Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    pngChunk('IHDR', ihdr),
+    pngChunk('IDAT', zlib.deflateSync(raw)),
+    pngChunk('IEND', Buffer.alloc(0)),
+  ]);
+  return 'data:image/png;base64,' + png.toString('base64');
+}
+
+const DEMO_THUMB = makeThumbPng([15, 23, 42], [30, 41, 59], [56, 189, 248]);
+const THUMB_GOLD = makeThumbPng([32, 26, 12], [60, 48, 20], [201, 162, 39]);
+const THUMB_GREEN = makeThumbPng([12, 30, 24], [22, 52, 40], [52, 211, 153]);
+const THUMB_ROSE = makeThumbPng([34, 14, 24], [58, 24, 40], [244, 114, 182]);
 
 export function buildScreenshotDemoStore() {
   const today = isoDate(new Date());
@@ -183,5 +221,39 @@ export function buildScreenshotDemoStore() {
     ],
     slicerProfiles: [],
     envLogs: [],
+    printFiles: [
+      {
+        id: 'PF1', name: 'Gearbox housing v4', originalName: 'gearbox-housing-v4.3mf',
+        createdAt: daysAgo(2) && Date.parse(daysAgo(2)), updatedAt: Date.parse(daysAgo(1)),
+        sourceFile: { filename: 'gearbox.3mf', originalName: 'gearbox-housing-v4.3mf', size: 4_820_000, ext: '3mf', kind: 'model' },
+        parsed: { layerHeight: 0.2, printTime: 6.1 }, material: 'PLA+ Black',
+        colors: [{ hex: '#1a1a1a', grams: 96, label: 'Black' }, { hex: '#c9a227', grams: 24, label: 'Gold' }],
+        swapCount: 3, thumb: THUMB_GOLD, tags: ['production', 'gearbox'], favorite: true,
+        converted: [{ filename: 'converted-a1.3mf', ext: '3mf', size: 4_610_000, targetName: 'Bambu A1', createdAt: Date.parse(daysAgo(1)) }],
+      },
+      {
+        id: 'PF2', name: 'Articulated dragon', originalName: 'dragon-print-in-place.3mf',
+        createdAt: Date.parse(daysAgo(6)), updatedAt: Date.parse(daysAgo(6)),
+        sourceFile: { filename: 'dragon.3mf', originalName: 'dragon-print-in-place.3mf', size: 12_400_000, ext: '3mf', kind: 'model' },
+        parsed: { layerHeight: 0.16, printTime: 9.4 }, material: 'PLA Silk Gold',
+        colors: [{ hex: '#c9a227', grams: 180, label: 'Silk Gold' }],
+        swapCount: 0, thumb: THUMB_ROSE, tags: ['minis'], favorite: false,
+      },
+      {
+        id: 'PF3', name: 'Enclosure front panel', originalName: 'enclosure-front.stl',
+        createdAt: Date.parse(daysAgo(9)), updatedAt: Date.parse(daysAgo(8)),
+        sourceFile: { filename: 'enclosure.stl', originalName: 'enclosure-front.stl', size: 2_100_000, ext: 'stl', kind: 'model' },
+        parsed: {}, material: 'PETG White',
+        colors: [], swapCount: 0, thumb: THUMB_GREEN, tags: ['enclosure', 'petg'], favorite: false,
+      },
+      {
+        id: 'PF4', name: 'Cable clip (multicolour)', originalName: 'cable-clip-2c.3mf',
+        createdAt: Date.parse(daysAgo(12)), updatedAt: Date.parse(daysAgo(12)),
+        sourceFile: { filename: 'clip.3mf', originalName: 'cable-clip-2c.3mf', size: 640_000, ext: '3mf', kind: 'model' },
+        parsed: { layerHeight: 0.2, printTime: 0.6 }, material: 'PLA+ Black',
+        colors: [{ hex: '#1a1a1a', grams: 6, label: 'Black' }, { hex: '#f0f0f0', grams: 2, label: 'White' }],
+        swapCount: 1, thumb: DEMO_THUMB, tags: ['functional'], favorite: false,
+      },
+    ],
   };
 }
