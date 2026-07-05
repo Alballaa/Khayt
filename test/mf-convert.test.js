@@ -89,6 +89,69 @@ test('convert refuses a 3MF with no geometry', () => {
   assert.equal(convert(src, { targetId: 'bambu-x1c' }).ok, false);
 });
 
+// A mesh-bearing 3MF (footprint 300×150×20 mm) for bounds + fit checks.
+const MESH = '<?xml version="1.0"?><model unit="millimeter"><resources>'
+  + '<object id="1" type="model"><mesh><vertices>'
+  + '<vertex x="0" y="0" z="0"/><vertex x="300" y="0" z="0"/>'
+  + '<vertex x="0" y="150" z="0"/><vertex x="0" y="0" z="20"/>'
+  + '</vertices><triangles/></mesh></object></resources>'
+  + '<build><item objectid="1" transform="1 0 0 0 1 0 0 0 1 0 0 0"/></build></model>';
+
+function makeMeshBambu() {
+  const proj = JSON.stringify({
+    printer_model: 'OrigPrinter', nozzle_diameter: ['0.4'], layer_height: 0.2,
+    printable_area: ['0x0', '256x0', '256x256', '0x256'],
+    filament_colour: ['#FF0000', '#00FF00'],
+  });
+  const slice = '<config><plate><filament id="1" color="#FF0000" used_g="12.5"/>'
+    + '<filament id="2" color="#00FF00" used_g="7.5"/>'
+    + '<metadata key="prediction" value="3600"/></plate></config>';
+  return writeZip([
+    { name: '3D/3dmodel.model', data: MESH },
+    { name: 'Metadata/project_settings.config', data: proj },
+    { name: 'Metadata/slice_info.config', data: slice },
+  ]);
+}
+
+test('analyze surfaces source metadata: printer, bed, nozzle, grams', () => {
+  const a = analyze(makeMeshBambu());
+  assert.equal(a.meta.printerModel, 'OrigPrinter');
+  assert.equal(a.meta.nozzle, 0.4);
+  assert.deepEqual(a.meta.bed, { x: 256, y: 256 });
+  assert.equal(a.meta.totalGrams, 20);
+  assert.equal(a.filaments[0].grams, 12.5);
+});
+
+test('computeBounds returns the transformed model footprint', () => {
+  const a = analyze(makeMeshBambu());
+  assert.deepEqual(a.bounds, { x: 300, y: 150, z: 20 });
+});
+
+test('retarget warns when the model is larger than the target bed', () => {
+  const r = convert(makeMeshBambu(), { targetId: 'snapmaker-u1' }); // 220×220 bed
+  assert.equal(r.ok, true);
+  assert.ok(r.report.warnings.some((w) => /larger than|may not fit/i.test(w)));
+  assert.deepEqual(r.report.bounds, { x: 300, y: 150, z: 20 });
+});
+
+test('a big-enough target bed produces no fit warning', () => {
+  const r = convert(makeMeshBambu(), { targetId: 'sovol-sv08' }); // 350×350
+  assert.equal(r.ok, true);
+  assert.ok(!r.report.warnings.some((w) => /fit/i.test(w)));
+});
+
+test('a custom target profile re-profiles without registry state', () => {
+  const r = convert(makeMeshBambu(), {
+    targetId: 'ignored',
+    targetProfile: { id: 'custom-mybot', name: 'MyBot', flavour: 'bambu', maxColors: 4, bed: { x: 400, y: 400, z: 400 }, nozzle: 0.6, printerModel: 'MyBot' },
+  });
+  assert.equal(r.ok, true);
+  assert.equal(r.report.mode, 'retarget');
+  const proj = JSON.parse(openZip(r.buffer).file('Metadata/project_settings.config').toString('utf8'));
+  assert.equal(proj.printer_model, 'MyBot');
+  assert.ok(!r.report.warnings.some((w) => /fit/i.test(w))); // 400×400 fits 300×150
+});
+
 test('Prusa flavour: filament_colour list + printer_model rewrite', () => {
   const cfg = 'printer_model = MK3S\nnozzle_diameter = 0.4\nfilament_colour = #AA0000;#00BB00;#0000CC\n';
   const src = writeZip([

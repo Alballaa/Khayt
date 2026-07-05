@@ -223,7 +223,8 @@
       const f = (files || []).find((x) => x.filename === meta.filename);
       if (f) enrichPrintFile(rec, f.fullPath);
     } catch (_) { /* thumbnail is best-effort */ }
-    if (typeof switchTab === 'function') switchTab('printfiles-tab');
+    if (!meta.noSwitch && typeof switchTab === 'function') switchTab('printfiles-tab');
+    return rec;
   }
 
   async function openConvertedInSlicer(id, filename) {

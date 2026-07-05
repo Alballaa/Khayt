@@ -3656,6 +3656,48 @@ body.mode-enthusiast .biz-only { display: none !important; }
 .conv-dest-q { font-size: 12.5px; font-weight: 600; color: var(--text-dim); margin-bottom: 8px; }
 .conv-dest-opt { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 5px 0; cursor: pointer; }
 .conv-dest-opt input { width: auto; margin: 0; }
+
+/* Rich source summary + change diff (3.2) */
+.conv-stats { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; }
+.conv-stat { display: flex; flex-direction: column; }
+.conv-stat .cs-k { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
+.conv-stat .cs-v { font-size: 12.5px; font-weight: 600; }
+.conv-src-cols { display: flex; align-items: center; gap: 4px; margin-top: 9px; }
+.conv-src-coln { font-size: 11.5px; color: var(--text-muted); margin-inline-start: 4px; }
+.conv-grams { font-size: 11px; color: var(--text-muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.conv-changes { background: var(--surface-2); border: 1px solid var(--border-soft); border-radius: 10px; padding: 10px 12px; margin-bottom: 14px; }
+.conv-changes-h { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 8px; }
+.conv-chg-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 12.5px; }
+.conv-chg-k { min-width: 66px; color: var(--text-muted); }
+.conv-chg-from { color: var(--text-dim); }
+.conv-chg-to { font-weight: 600; }
+.conv-fit { margin-inline-start: auto; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 100px; }
+.conv-fit.ok { color: var(--success, #22a06b); background: color-mix(in srgb, var(--success, #22a06b) 14%, transparent); }
+.conv-fit.no { color: var(--danger, #d4444b); background: color-mix(in srgb, var(--danger, #d4444b) 14%, transparent); }
+
+/* Converter tab: actions, batch, custom printers (3.2) */
+.conv-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.conv-batch { margin-top: 16px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+.conv-batch-list { display: flex; flex-direction: column; gap: 3px; margin: 10px 0; max-height: 260px; overflow: auto; }
+.conv-batch-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 3px 0; }
+.conv-batch-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.conv-batch-stat { min-width: 54px; text-align: end; font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.conv-batch-stat.working { color: var(--accent); }
+.conv-batch-stat.ok { color: var(--success, #22a06b); }
+.conv-batch-stat.fail { color: var(--danger, #d4444b); }
+.conv-cp { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border-soft); }
+.conv-cp-h { font-size: 14px; margin: 0 0 10px; }
+.conv-cp-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.conv-cp-item { display: flex; align-items: center; gap: 10px; background: var(--surface-2); border-radius: 8px; padding: 6px 8px 6px 12px; }
+.conv-cp-nm { font-weight: 600; font-size: 13px; }
+.conv-cp-sub { flex: 1; min-width: 0; font-size: 11.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.conv-cp-add summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--accent); }
+.conv-cp-form { margin-top: 12px; }
+.conv-cp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+.conv-cp-grid label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--text-muted); }
+.conv-cp-grid input, .conv-cp-grid select { padding: 6px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 12.5px; }
+@media (max-width: 560px) { .conv-cp-grid { grid-template-columns: repeat(2, 1fr); } }
+
 .pf-converted { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
 .pf-conv-row { display: flex; align-items: center; gap: 6px; background: var(--surface-2); border-radius: 6px; padding: 3px 4px 3px 8px; }
 .pf-conv-name { flex: 1; min-width: 0; font-size: 11.5px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

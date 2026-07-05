@@ -414,8 +414,16 @@ async function testConverter(window) {
     res.tabRendered = document.querySelector('.tab-content.active')?.id === 'converter-tab'
       && (document.getElementById('converter-tab')?.innerHTML?.length || 0) > 50;
     res.hasProfiles = !!(globalThis.KhaytPrinterProfiles && KhaytPrinterProfiles.listProfiles().length >= 4);
+    // 3.2: batch pickers exposed, and the custom-printer manager renders in the tab.
+    res.pickers = typeof window.hubAPI.mfPickMulti === 'function' && typeof window.hubAPI.mfPickOutdir === 'function';
+    res.cpManager = (document.getElementById('converter-tab')?.innerHTML || '').includes('conv-cp');
     const a = await window.hubAPI.mfAnalyze(src);
     res.analyzeOk = !!a.ok; res.flavour = a.flavour; res.colorCount = a.colorCount;
+    res.hasMeta = !!(a.meta && typeof a.meta === 'object');
+    // 3.2: convert for a user-defined printer via an explicit target profile (no registry entry).
+    const cust = await window.hubAPI.mfConvert({ path: src, targetId: 'x', mode: 'retarget', intoVaultId: 'PF-conv-cust',
+      targetProfile: { id: 'custom-e2e', name: 'E2E Bot', flavour: 'bambu', maxColors: 4, bed: { x: 300, y: 300, z: 300 }, nozzle: 0.4, printerModel: 'E2E Bot' } });
+    res.customOk = !!(cust.ok && cust.report && /E2E Bot/.test(cust.report.targetName || ''));
     const c = await window.hubAPI.mfConvert({ path: src, targetId: 'snapmaker-u1', mode: 'retarget', slotMap: [1, 0], outPath: out });
     res.convertOk = !!c.ok; res.target = c.report && c.report.target; res.remapped = c.report && c.report.colorsRemapped;
 
@@ -435,7 +443,11 @@ async function testConverter(window) {
   const checks = {
     tabRendered: r.tabRendered === true,
     hasProfiles: r.hasProfiles === true,
+    pickers: r.pickers === true,
+    cpManager: r.cpManager === true,
     analyzeOk: r.analyzeOk === true,
+    hasMeta: r.hasMeta === true,
+    customOk: r.customOk === true,
     flavourBambu: r.flavour === 'bambu',
     colorCount2: r.colorCount === 2,
     convertOk: r.convertOk === true,
