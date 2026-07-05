@@ -3,6 +3,12 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.ja = {
+  "conv.dest_q": "変換したファイルの保存先は？",
+  "conv.dest_this": "この印刷ファイルと一緒に保存",
+  "conv.dest_new": "印刷ファイルライブラリに追加",
+  "conv.dest_folder": "フォルダーに保存…",
+  "conv.added_this": "印刷ファイルと一緒に保存しました。",
+  "conv.added_new": "印刷ファイルライブラリに追加しました。",
   "dash.pstat_prints_today": "本日の印刷",
   "dash.pstat_print_hours": "本日の印刷時間",
   "dash.pstat_prints_month": "今月の印刷",

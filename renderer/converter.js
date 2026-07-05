@@ -64,7 +64,12 @@
       </div>
       <label class="conv-label">${escapeHtml(t('conv.target') || 'Target printer')}</label>
       <select id="convTarget" class="conv-target">${targetOptions(targetId)}</select>
-      <div id="convRemapWrap">${remapTableHtml(filaments, currentMax(targetId))}</div>`;
+      <div id="convRemapWrap">${remapTableHtml(filaments, currentMax(targetId))}</div>
+      <div class="conv-dest">
+        <div class="conv-dest-q">${escapeHtml(t('conv.dest_q') || 'Where should the converted file go?')}</div>
+        <label class="conv-dest-opt"><input type="radio" name="convDest" value="library" checked> ${escapeHtml(src.recordId ? (t('conv.dest_this') || 'Keep it with this print file') : (t('conv.dest_new') || 'Add it to my Print-File library'))}</label>
+        <label class="conv-dest-opt"><input type="radio" name="convDest" value="folder"> ${escapeHtml(t('conv.dest_folder') || 'Save to a folder…')}</label>
+      </div>`;
 
     function currentMax(id) {
       const p = P && P.getProfile(id);
@@ -93,18 +98,37 @@
           slotMap = Array.from(modal.querySelectorAll('.conv-slot')).map((s) => parseInt(s.value, 10) || 0);
           if (slotMap.every((v, i) => v === i)) slotMap = null; // identity → no remap
         }
+        const dest = (modal.querySelector('input[name="convDest"]:checked') || {}).value || 'library';
+        const mode = isGeneric ? 'normalize' : 'retarget';
+        const targetName = (P && P.getProfile(targetId) && P.getProfile(targetId).name)
+          || (isGeneric ? (t('conv.normalize_opt') || 'Generic 3MF') : targetId);
+        // In-app destinations write straight into a print-file vault (no random folder).
+        const intoVaultId = dest === 'folder'
+          ? null
+          : (src.recordId || (typeof uid === 'function' ? uid('PF') : ('PF' + Date.now().toString(36))));
+
         const btn = modal.querySelector('[data-act="save"]');
         if (btn) { btn.disabled = true; btn.textContent = t('conv.converting') || 'Converting…'; }
         let r;
         try {
-          r = await hub().mfConvert({ path: src.path, targetId, mode: isGeneric ? 'normalize' : 'retarget', slotMap });
+          r = await hub().mfConvert({ path: src.path, targetId, mode, slotMap, intoVaultId });
         } catch (e) { toast(String((e && e.message) || e), 'error'); if (btn) { btn.disabled = false; } return false; }
         if (r && r.canceled) { if (btn) { btn.disabled = false; btn.textContent = t('conv.convert') || 'Convert & save…'; } return false; }
         if (!r || !r.ok) { toast((r && r.error) || (t('conv.failed') || 'Conversion failed.'), 'error'); if (btn) { btn.disabled = false; } return false; }
         const rep = r.report || {};
-        toast((t('conv.done') || 'Converted to {name}').replace('{name}', rep.targetName || targetId), 'success', 3200);
         for (const w of (rep.warnings || [])) toast('⚠ ' + w, 'warning', 5200);
-        if (typeof window.hubAPI?.openPath === 'function' && r.outPath) { /* file saved where the user chose */ }
+
+        if (dest === 'folder') {
+          toast((t('conv.done') || 'Converted to {name}').replace('{name}', rep.targetName || targetName), 'success', 3200);
+        } else if (src.recordId) {
+          if (typeof attachConverted === 'function') attachConverted(src.recordId, { filename: r.filename, ext: r.ext, size: r.size, targetId, targetName });
+          toast(t('conv.added_this') || 'Saved with your print file.', 'success', 3200);
+        } else {
+          if (typeof importConvertedAsNew === 'function') {
+            await importConvertedAsNew({ vaultId: intoVaultId, filename: r.filename, ext: r.ext, size: r.size, targetId, targetName, sourceName: src.name });
+          }
+          toast(t('conv.added_new') || 'Added to your Print-File library.', 'success', 3200);
+        }
         return true;
       },
     });

@@ -3,6 +3,12 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.zh = {
+  "conv.dest_q": "转换后的文件保存到哪里？",
+  "conv.dest_this": "与此打印文件一起保存",
+  "conv.dest_new": "添加到我的打印文件库",
+  "conv.dest_folder": "保存到文件夹…",
+  "conv.added_this": "已与您的打印文件一起保存。",
+  "conv.added_new": "已添加到您的打印文件库。",
   "dash.pstat_prints_today": "今日打印",
   "dash.pstat_print_hours": "今日打印时长",
   "dash.pstat_prints_month": "本月打印",

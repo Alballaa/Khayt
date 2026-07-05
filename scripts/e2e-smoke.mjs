@@ -390,6 +390,17 @@ async function testConverter(window) {
     res.analyzeOk = !!a.ok; res.flavour = a.flavour; res.colorCount = a.colorCount;
     const c = await window.hubAPI.mfConvert({ path: src, targetId: 'snapmaker-u1', mode: 'retarget', slotMap: [1, 0], outPath: out });
     res.convertOk = !!c.ok; res.target = c.report && c.report.target; res.remapped = c.report && c.report.colorsRemapped;
+
+    // 3.1: in-app destination — convert straight into a print-file vault (no folder dialog).
+    const vaultId = 'PF-conv-e2e';
+    const v = await window.hubAPI.mfConvert({ path: src, targetId: 'snapmaker-u1', mode: 'retarget', slotMap: [1, 0], intoVaultId: vaultId });
+    res.vaultOk = !!(v.ok && v.vault && v.filename && v.outPath);
+    const files = await window.hubAPI.printLibList(vaultId);
+    res.vaultListed = Array.isArray(files) && files.some((f) => f.filename === v.filename);
+    if (typeof importConvertedAsNew === 'function') {
+      await importConvertedAsNew({ vaultId, filename: v.filename, ext: v.ext, size: v.size, targetId: 'snapmaker-u1', targetName: 'Snapmaker U1', sourceName: 'conv-src.3mf' });
+      res.recordCreated = (printFiles || []).some((p) => p.id === vaultId);
+    }
     return res;
   }, { src: srcPath, out: outPath });
 
@@ -403,6 +414,9 @@ async function testConverter(window) {
     targetU1: r.target === 'snapmaker-u1',
     remapped: r.remapped >= 1,
     outWritten: fs.existsSync(outPath) && fs.statSync(outPath).size > 0,
+    vaultConvertOk: r.vaultOk === true,
+    vaultListed: r.vaultListed === true,
+    recordCreated: r.recordCreated === true,
   };
   const bad = Object.entries(checks).filter(([, v]) => v !== true).map(([k]) => k);
   if (bad.length) throw new Error(`converter checks failed: ${bad.join(', ')} — ${JSON.stringify(r)}`);

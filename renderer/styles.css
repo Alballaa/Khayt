@@ -3652,6 +3652,13 @@ body.mode-enthusiast .biz-only { display: none !important; }
 .conv-hex { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; min-width: 74px; }
 .conv-arrow { color: var(--text-muted); }
 .conv-slot { padding: 5px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: 12.5px; }
+.conv-dest { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-soft); }
+.conv-dest-q { font-size: 12.5px; font-weight: 600; color: var(--text-dim); margin-bottom: 8px; }
+.conv-dest-opt { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 5px 0; cursor: pointer; }
+.conv-dest-opt input { width: auto; margin: 0; }
+.pf-converted { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.pf-conv-row { display: flex; align-items: center; gap: 6px; background: var(--surface-2); border-radius: 6px; padding: 3px 4px 3px 8px; }
+.pf-conv-name { flex: 1; min-width: 0; font-size: 11.5px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ── Setup wizard ─────────────────────────────────────────── */
 .wizard-overlay {

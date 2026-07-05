@@ -3,6 +3,12 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.de = {
+  "conv.dest_q": "Wohin soll die konvertierte Datei?",
+  "conv.dest_this": "Bei dieser Druckdatei behalten",
+  "conv.dest_new": "Zu meiner Druckdatei-Bibliothek hinzufügen",
+  "conv.dest_folder": "In einem Ordner speichern…",
+  "conv.added_this": "Bei deiner Druckdatei gespeichert.",
+  "conv.added_new": "Zu deiner Druckdatei-Bibliothek hinzugefügt.",
   "dash.pstat_prints_today": "Drucke heute",
   "dash.pstat_print_hours": "Druckstunden heute",
   "dash.pstat_prints_month": "Drucke diesen Monat",

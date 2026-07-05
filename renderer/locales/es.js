@@ -3,6 +3,12 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.es = {
+  "conv.dest_q": "¿Dónde debe ir el archivo convertido?",
+  "conv.dest_this": "Guardar junto a este archivo de impresión",
+  "conv.dest_new": "Añadir a mi biblioteca de archivos",
+  "conv.dest_folder": "Guardar en una carpeta…",
+  "conv.added_this": "Guardado con tu archivo de impresión.",
+  "conv.added_new": "Añadido a tu biblioteca de archivos.",
   "dash.pstat_prints_today": "Impresiones hoy",
   "dash.pstat_print_hours": "Horas de impresión hoy",
   "dash.pstat_prints_month": "Impresiones este mes",

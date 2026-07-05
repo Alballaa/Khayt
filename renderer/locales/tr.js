@@ -3,6 +3,12 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.tr = {
+  "conv.dest_q": "Dönüştürülen dosya nereye gitsin?",
+  "conv.dest_this": "Bu baskı dosyasıyla birlikte tut",
+  "conv.dest_new": "Baskı dosyası kitaplığıma ekle",
+  "conv.dest_folder": "Bir klasöre kaydet…",
+  "conv.added_this": "Baskı dosyanızla birlikte kaydedildi.",
+  "conv.added_new": "Baskı dosyası kitaplığınıza eklendi.",
   "dash.pstat_prints_today": "Bugünkü baskılar",
   "dash.pstat_print_hours": "Bugünkü baskı saatleri",
   "dash.pstat_prints_month": "Bu ayki baskılar",

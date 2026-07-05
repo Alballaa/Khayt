@@ -94,6 +94,12 @@
           ${colorDotsHtml(rec)}
           ${prof ? `<div class="pf-prof">🛠 ${escapeHtml(prof.name)}</div>` : ''}
           ${rec.testedNotes ? `<div class="pf-notes">${escapeHtml(rec.testedNotes)}</div>` : ''}
+          ${Array.isArray(rec.converted) && rec.converted.length ? `<div class="pf-converted">${rec.converted.map((c) => `
+            <div class="pf-conv-row">
+              <span class="pf-conv-name" title="${escapeHtml(c.filename)}">🔄 ${escapeHtml(c.targetName || c.targetId || (t('conv.convert_short') || 'Converted'))}</span>
+              <button class="btn small ghost" data-act="pf-conv-open" data-id="${escapeHtml(rec.id)}" data-fn="${escapeHtml(c.filename)}" title="${escapeHtml(t('plib.open_slicer') || 'Open in slicer')}">🖨</button>
+              <button class="btn small ghost danger" data-act="pf-conv-del" data-id="${escapeHtml(rec.id)}" data-fn="${escapeHtml(c.filename)}" aria-label="${escapeHtml(t('common.delete') || 'Delete')}">🗑</button>
+            </div>`).join('')}</div>` : ''}
         </div>
         <div class="pf-actions">
           <button class="btn small primary" data-act="pf-slice" data-id="${escapeHtml(rec.id)}">🖨 ${escapeHtml(t('plib.open_slicer') || 'Open in slicer')}</button>
@@ -146,6 +152,8 @@
       case 'pf-fav':   toggleFav(id); break;
       case 'pf-plan':  { const r = (printFiles || []).find((x) => x.id === id); if (r && typeof openColorPlanner === 'function') openColorPlanner(r); break; }
       case 'pf-convert': convertPrintFile(id); break;
+      case 'pf-conv-open': openConvertedInSlicer(id, btn.dataset.fn); break;
+      case 'pf-conv-del':  deleteConverted(id, btn.dataset.fn); break;
     }
   }
 
@@ -172,6 +180,74 @@
     renderPrintFiles();
     toast(t('plib.added') || 'File added', 'success');
     enrichPrintFile(rec, picked.fullPath);
+  }
+
+  // ---- 3MF converter integration -------------------------------------------
+  // A converted 3MF is written straight into the record's own vault folder (main
+  // process), so it lives WITH the print file instead of a random export folder.
+
+  /** Attach a just-converted file (already in this record's vault) to the record. */
+  function attachConverted(recordId, meta) {
+    const rec = (printFiles || []).find((r) => r.id === recordId); if (!rec) return;
+    if (!Array.isArray(rec.converted)) rec.converted = [];
+    rec.converted.unshift({
+      filename: meta.filename, ext: (meta.ext || '3mf').toLowerCase(), size: meta.size || 0,
+      targetId: meta.targetId || '', targetName: meta.targetName || '', createdAt: Date.now(),
+    });
+    rec.updatedAt = Date.now();
+    saveAll();
+    renderPrintFiles();
+  }
+
+  /** Create a NEW print-file record from a standalone conversion (bytes already in vaultId's folder). */
+  async function importConvertedAsNew(meta) {
+    const id = meta.vaultId;
+    const ext = (meta.ext || '3mf').toLowerCase();
+    const baseName = String(meta.sourceName || 'model').replace(/\.[^.]+$/, '');
+    const name = meta.targetName ? `${baseName} → ${meta.targetName}` : `${baseName} (${t('conv.convert_short') || 'Converted'})`;
+    const rec = {
+      id, name, originalName: meta.filename,
+      createdAt: Date.now(), updatedAt: Date.now(),
+      sourceFile: { filename: meta.filename, originalName: meta.filename, size: meta.size || 0, ext, kind: 'model' },
+      parsed: {}, colors: [], swapCount: 0,
+      thumb: null, thumbSource: null, userPhoto: null,
+      slicerProfileId: null, testedNotes: '', tags: [], material: '', favorite: false, converted: [],
+    };
+    if (!Array.isArray(printFiles)) printFiles = [];
+    printFiles.unshift(rec);
+    saveAll();
+    renderPrintFiles();
+    try {
+      const hub = api();
+      const files = hub && hub.printLibList ? await hub.printLibList(id) : [];
+      const f = (files || []).find((x) => x.filename === meta.filename);
+      if (f) enrichPrintFile(rec, f.fullPath);
+    } catch (_) { /* thumbnail is best-effort */ }
+    if (typeof switchTab === 'function') switchTab('printfiles-tab');
+  }
+
+  async function openConvertedInSlicer(id, filename) {
+    const hub = api(); if (!hub || !hub.printLibList) return;
+    const files = await hub.printLibList(id);
+    const f = (files || []).find((x) => x.filename === filename);
+    if (!f) { toast(t('plib.file_missing') || 'File is missing.', 'error'); return; }
+    await openInSlicer(id, f.fullPath);
+  }
+
+  function deleteConverted(id, filename) {
+    const rec = (printFiles || []).find((r) => r.id === id); if (!rec) return;
+    const hub = api();
+    (async () => {
+      try {
+        const files = hub && hub.printLibList ? await hub.printLibList(id) : [];
+        const f = (files || []).find((x) => x.filename === filename);
+        if (f && hub.printLibDelete) await hub.printLibDelete(f.fullPath);
+      } catch (_) {}
+      rec.converted = (rec.converted || []).filter((c) => c.filename !== filename);
+      rec.updatedAt = Date.now();
+      saveAll();
+      renderPrintFiles();
+    })();
   }
 
   async function enrichPrintFile(rec, fullPath) {
@@ -218,10 +294,10 @@
     return (files.find((f) => f.filename === rec.sourceFile.filename) || files[0]).fullPath;
   }
 
-  async function openInSlicer(id) {
+  async function openInSlicer(id, overrideFull) {
     const rec = (printFiles || []).find((r) => r.id === id); if (!rec) return;
     const hub = api(); if (!hub || !hub.printLibOpenSlicer) return;
-    const full = await resolveModelPath(rec);
+    const full = overrideFull || await resolveModelPath(rec);
     if (!full) { toast(t('plib.file_missing') || 'File is missing.', 'error'); return; }
     const slicers = (global.KhaytSlicers ? KhaytSlicers.listSlicers(settings) : []);
     // More than one slicer configured → let the maker pick which to launch.
@@ -261,7 +337,7 @@
     if (typeof openConverter !== 'function') { toast(t('conv.desktop_only') || 'The converter is available in the desktop app.', 'error'); return; }
     const full = await resolveModelPath(rec);
     if (!full) { toast(t('plib.file_missing') || 'File is missing.', 'error'); return; }
-    openConverter({ path: full, name: rec.originalName || rec.name || 'model.3mf' });
+    openConverter({ path: full, name: rec.originalName || rec.name || 'model.3mf', recordId: rec.id });
   }
 
   function toggleFav(id) {
@@ -351,7 +427,7 @@
     });
   }
 
-  const pub = { renderPrintFiles, addPrintFile, openInSlicer, editPrintFile, deletePrintFile };
+  const pub = { renderPrintFiles, addPrintFile, openInSlicer, editPrintFile, deletePrintFile, attachConverted, importConvertedAsNew };
   Object.assign(global, pub);
   global.KhaytPrintFiles = pub;
   if (typeof module !== 'undefined' && module.exports) module.exports = pub;
