@@ -1084,13 +1084,26 @@ ipcMain.handle('hub:mf-analyze', async (_e, { path: srcPath } = {}) => {
   } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
 });
 
-ipcMain.handle('hub:mf-convert', async (_e, { path: srcPath, targetId, mode, slotMap, outPath } = {}) => {
+ipcMain.handle('hub:mf-convert', async (_e, { path: srcPath, targetId, mode, slotMap, outPath, intoVaultId } = {}) => {
   try {
     if (!srcPath || !mfReadAllowed(srcPath)) return { ok: false, error: 'Source file is outside an allowed folder.' };
     const buf = await fs.promises.readFile(path.resolve(String(srcPath)));
     if (buf.length > MF_MAX_BYTES) return { ok: false, error: 'File is too large.' };
     const r = require('./lib/mf-convert').convert(buf, { targetId, mode, slotMap });
     if (!r.ok) return r;
+
+    // In-app destination: write the converted 3MF straight into a print-file
+    // record's vault (userData/print-files-vault/<id>/), no save dialog.
+    if (intoVaultId) {
+      const dir = printLibItemDir(intoVaultId);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      const tag = String(targetId || 'out').replace(/[^a-zA-Z0-9]/g, '').slice(0, 14) || 'out';
+      const filename = `converted-${Date.now().toString(36)}-${tag}.3mf`;
+      const dest = path.join(dir, filename);
+      await fs.promises.writeFile(dest, r.buffer);
+      const stat = await fs.promises.stat(dest);
+      return { ok: true, vault: true, filename, ext: '3mf', size: stat.size, outPath: dest, report: r.report };
+    }
 
     let finalPath = outPath ? path.resolve(String(outPath)) : null;
     if (!finalPath) {

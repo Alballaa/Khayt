@@ -3,6 +3,12 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.en = {
+  "conv.dest_q": "Where should the converted file go?",
+  "conv.dest_this": "Keep it with this print file",
+  "conv.dest_new": "Add it to my Print-File library",
+  "conv.dest_folder": "Save to a folder…",
+  "conv.added_this": "Saved with your print file.",
+  "conv.added_new": "Added to your Print-File library.",
   "dash.pstat_prints_today": "Prints today",
   "dash.pstat_print_hours": "Print hours today",
   "dash.pstat_prints_month": "Prints this month",

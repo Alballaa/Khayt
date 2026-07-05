@@ -4,6 +4,17 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.1.0-beta.12] - 2026-07-05
+
+**Pre-release (beta) — converted 3MFs stay with your print file.** Converting a 3MF used to always pop a save dialog and drop the result in whatever folder you picked. Now the conversion is kept **in-app, with the file it came from** by default.
+
+### Changed
+
+- **The 3MF converter now asks where the result should go** — "Keep it with this print file", "Add it to my Print-File library", or "Save to a folder…". The in-app options are the default.
+  - Converting from a **library card** attaches the converted 3MF to that same print file. It appears under the card with its own **Open-in-slicer** and remove buttons, and is stored alongside the original in the file's vault.
+  - Converting from the standalone **Converter tab** (in-app option) adds the result to your Print-File library as a new entry, with a preview generated automatically.
+  - "Save to a folder…" keeps the previous behaviour (choose a location on disk).
+
 ## [3.1.0-beta.11] - 2026-07-05
 
 **Pre-release (beta) — mode separation in themed dashboards.** Follow-up to the earlier three-mode work: each visual theme draws its **own** dashboard, and those bespoke dashboards were still showing business figures (revenue, receivables, and a profit-margin %) to **Enthusiast (hobbyist)** users, who should see none. This release cleanly separates the three experiences everywhere.

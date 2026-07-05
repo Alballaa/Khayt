@@ -3,6 +3,12 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.ar = {
+  "conv.dest_q": "أين يُحفظ الملف المُحوَّل؟",
+  "conv.dest_this": "احتفظ به مع ملف الطباعة هذا",
+  "conv.dest_new": "أضِفه إلى مكتبة ملفات الطباعة",
+  "conv.dest_folder": "حفظ في مجلد…",
+  "conv.added_this": "حُفظ مع ملف الطباعة.",
+  "conv.added_new": "أُضيف إلى مكتبة ملفات الطباعة.",
   "dash.pstat_prints_today": "مطبوعات اليوم",
   "dash.pstat_print_hours": "ساعات الطباعة اليوم",
   "dash.pstat_prints_month": "مطبوعات هذا الشهر",
