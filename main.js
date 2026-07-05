@@ -652,6 +652,117 @@ ipcMain.handle('hub:slice-test', async (_e, { slicerPath } = {}) => {
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
+// Resolve a macOS .app bundle to the inner Mach-O binary that spawn() needs
+// (spawning the .app directory itself does not launch it).
+function macAppBinary(appPath, preferred) {
+  const macos = path.join(appPath, 'Contents', 'MacOS');
+  if (preferred && fs.existsSync(path.join(macos, preferred))) return path.join(macos, preferred);
+  try {
+    const files = fs.readdirSync(macos);
+    const exe = files.find((f) => !/helper|crashpad|update|renderer|gpu/i.test(f)) || files[0];
+    if (exe) return path.join(macos, exe);
+  } catch (_) {}
+  return null;
+}
+
+// Scan the machine for every installed slicer so Settings can offer them all,
+// not just a single hard-coded default. Returns [{ name, path }] (path = the
+// executable spawn() can launch directly).
+function detectInstalledSlicers() {
+  const home = require('node:os').homedir();
+  const out = [];
+  const seen = new Set();
+  const add = (name, p) => {
+    if (!p) return;
+    const rp = path.resolve(p);
+    if (seen.has(rp) || !fs.existsSync(rp)) return;
+    seen.add(rp);
+    out.push({ name, path: rp });
+  };
+  const plat = process.platform;
+
+  if (plat === 'darwin') {
+    const apps = [
+      { name: 'PrusaSlicer', app: 'PrusaSlicer.app', bin: 'PrusaSlicer' },
+      { name: 'OrcaSlicer', app: 'OrcaSlicer.app', bin: 'OrcaSlicer' },
+      { name: 'Bambu Studio', app: 'BambuStudio.app', bin: 'BambuStudio' },
+      { name: 'SuperSlicer', app: 'SuperSlicer.app', bin: 'SuperSlicer' },
+      { name: 'ideaMaker', app: 'ideaMaker.app', bin: 'ideaMaker' },
+      { name: 'Simplify3D', app: 'Simplify3D.app', bin: 'Simplify3D' },
+      { name: 'Creality Print', app: 'Creality Print.app', bin: 'Creality Print' },
+      { name: 'Lychee Slicer', app: 'Lychee Slicer.app', bin: 'LycheeSlicer' },
+      { name: 'CHITUBOX', app: 'CHITUBOX.app', bin: 'CHITUBOX' },
+      { name: 'FlashPrint', app: 'FlashPrint.app', bin: 'FlashPrint' },
+    ];
+    const dirs = ['/Applications', path.join(home, 'Applications')];
+    for (const d of dirs) {
+      for (const k of apps) {
+        const appPath = path.join(d, k.app);
+        if (fs.existsSync(appPath)) add(k.name, macAppBinary(appPath, k.bin));
+      }
+      let entries = [];
+      try { entries = fs.readdirSync(d); } catch (_) {}
+      for (const e of entries) {
+        if (!/\.app$/i.test(e)) continue;
+        if (/cura/i.test(e)) add(e.replace(/\.app$/i, ''), macAppBinary(path.join(d, e)));
+      }
+    }
+  } else if (plat === 'win32') {
+    const pf = process.env['ProgramFiles'] || 'C:\\Program Files';
+    const pfx86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
+    const lad = process.env['LOCALAPPDATA'] || path.join(home, 'AppData', 'Local');
+    const cands = [
+      { name: 'PrusaSlicer', rels: ['Prusa3D\\PrusaSlicer\\prusa-slicer.exe'] },
+      { name: 'OrcaSlicer', rels: ['OrcaSlicer\\orca-slicer.exe', 'OrcaSlicer\\OrcaSlicer.exe'] },
+      { name: 'Bambu Studio', rels: ['Bambu Studio\\bambu-studio.exe', 'Bambu Studio\\BambuStudio.exe'] },
+      { name: 'SuperSlicer', rels: ['SuperSlicer\\superslicer.exe'] },
+      { name: 'ideaMaker', rels: ['Raise3D\\ideaMaker\\ideaMaker.exe'] },
+      { name: 'Simplify3D', rels: ['Simplify3D\\Simplify3D.exe'] },
+      { name: 'Creality Print', rels: ['Creality\\Creality Print\\CrealityPrint.exe'] },
+      { name: 'FlashPrint', rels: ['FlashForge\\FlashPrint\\FlashPrint.exe'] },
+    ];
+    const roots = [pf, pfx86, path.join(lad, 'Programs')];
+    for (const c of cands) for (const root of roots) for (const rel of c.rels) add(c.name, path.join(root, rel));
+    for (const root of [pf, pfx86]) {
+      let entries = [];
+      try { entries = fs.readdirSync(root); } catch (_) {}
+      for (const e of entries) {
+        if (!/cura/i.test(e)) continue;
+        for (const bin of ['UltiMaker-Cura.exe', 'Ultimaker Cura.exe', 'Cura.exe']) add(e, path.join(root, e, bin));
+      }
+    }
+  } else {
+    const bins = [
+      { name: 'PrusaSlicer', cmds: ['prusa-slicer', 'PrusaSlicer'] },
+      { name: 'OrcaSlicer', cmds: ['orca-slicer', 'OrcaSlicer'] },
+      { name: 'Bambu Studio', cmds: ['bambu-studio', 'BambuStudio'] },
+      { name: 'UltiMaker Cura', cmds: ['cura', 'UltiMaker-Cura'] },
+      { name: 'SuperSlicer', cmds: ['superslicer', 'SuperSlicer'] },
+    ];
+    const dirs = ['/usr/bin', '/usr/local/bin', path.join(home, '.local', 'bin'),
+      '/var/lib/flatpak/exports/bin', path.join(home, '.local', 'share', 'flatpak', 'exports', 'bin')];
+    for (const b of bins) for (const cmd of b.cmds) for (const d of dirs) add(b.name, path.join(d, cmd));
+    let dn = null;
+    try { dn = require('./lib/slicers').slicerDisplayName; } catch (_) {}
+    for (const d of [path.join(home, 'Applications'), path.join(home, 'Downloads'), path.join(home, '.local', 'bin')]) {
+      let entries = [];
+      try { entries = fs.readdirSync(d); } catch (_) {}
+      for (const e of entries) {
+        if (!/\.AppImage$/i.test(e)) continue;
+        if (!/slic|cura|prusa|orca|bambu/i.test(e)) continue;
+        add((dn && dn(e)) || e.replace(/\.AppImage$/i, ''), path.join(d, e));
+      }
+    }
+  }
+  return out;
+}
+
+// Settings → Slicer: find every slicer installed on this computer.
+ipcMain.handle('hub:detect-slicers', async () => {
+  try { return { ok: true, slicers: detectInstalledSlicers() }; }
+  catch (e) { return { ok: false, error: String(e && e.message || e), slicers: [] }; }
+});
+
 // Upload a G-code file to a printer (OctoPrint / Moonraker / PrusaLink) and
 // optionally start it. Uses the same host allowlist as the status poller (SSRF-safe).
 async function uploadGcodeToPrinter(machine, gcodePath, startPrint) {

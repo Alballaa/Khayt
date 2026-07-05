@@ -3,6 +3,10 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.ar = {
+  "slicer.detect": "اكتشاف برامج التقطيع المثبّتة",
+  "slicer.detecting": "جارٍ البحث عن برامج التقطيع…",
+  "slicer.detected_n": "تمت إضافة {n} برنامج تقطيع",
+  "slicer.detected_none": "لم يُعثر على برامج تقطيع جديدة — أضِف واحداً يدوياً أدناه.",
   "conv.dest_q": "أين يُحفظ الملف المُحوَّل؟",
   "conv.dest_this": "احتفظ به مع ملف الطباعة هذا",
   "conv.dest_new": "أضِفه إلى مكتبة ملفات الطباعة",

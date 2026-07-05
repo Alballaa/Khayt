@@ -573,6 +573,29 @@ function syncDefaultSlicer() {
   settings.slicer = d ? { path: d.path, args: d.args || '' } : { path: '', args: '' };
 }
 
+// Scan the machine for installed slicers and add any that aren't already listed
+// (matched by executable path). Returns the number newly added.
+async function detectAndMergeSlicers() {
+  if (!window.hubAPI?.detectSlicers) return 0;
+  let r;
+  try { r = await window.hubAPI.detectSlicers(); } catch (_) { return 0; }
+  if (!r || !r.ok || !Array.isArray(r.slicers)) return 0;
+  if (!Array.isArray(settings.slicers)) settings.slicers = [];
+  const have = new Set(settings.slicers.map((s) => String(s.path || '').toLowerCase()));
+  let added = 0;
+  for (const found of r.slicers) {
+    const key = String(found.path || '').toLowerCase();
+    if (!key || have.has(key)) continue;
+    have.add(key);
+    const entry = { id: uid('SL'), name: found.name || KhaytSlicers.slicerDisplayName(found.path) || 'Slicer', path: found.path, args: '' };
+    settings.slicers.push(entry);
+    if (!settings.defaultSlicerId) settings.defaultSlicerId = entry.id;
+    added++;
+  }
+  if (added > 0) { syncDefaultSlicer(); saveAll(); }
+  return added;
+}
+
 function renderSlicerSettings() {
   const el = $('#slicerSettingsSection');
   if (!el) return;
@@ -584,6 +607,14 @@ function renderSlicerSettings() {
     if (settings.slicers.length && !settings.defaultSlicerId) settings.defaultSlicerId = settings.slicers[0].id;
     saveAll();
   }
+  // First time here with nothing configured: offer every slicer on the machine
+  // automatically (the user can still remove any they don't want).
+  if (!settings.slicersAutoDetected && !settings.slicers.length) {
+    settings.slicersAutoDetected = true;
+    saveAll();
+    detectAndMergeSlicers().then((n) => { if (n > 0) renderSlicerSettings(); });
+  }
+
   const list = settings.slicers;
   if (list.length && !list.some((s) => s.id === settings.defaultSlicerId)) settings.defaultSlicerId = list[0].id;
   syncDefaultSlicer(); // keep the legacy settings.slicer mirror consistent with the default
@@ -609,6 +640,10 @@ function renderSlicerSettings() {
 
   el.innerHTML = `
     <p class="slicer-intro" style="font-size:12.5px;color:var(--text-muted);margin:0 0 10px;">${escapeHtml(t('slicer.multi_intro') || 'Add the slicers you use. When you open a print file you can pick which one to launch; the default is used for slice-and-print elsewhere.')}</p>
+    <div style="display:flex;gap:8px;align-items:center;margin:0 0 10px;flex-wrap:wrap;">
+      <button id="btnDetectSlicers" class="btn small" type="button">🔍 ${escapeHtml(t('slicer.detect') || 'Detect installed slicers')}</button>
+      <span id="slicerDetectResult" style="font-size:12px;color:var(--text-muted);"></span>
+    </div>
     <div class="slicer-list">${list.length ? rows : `<p class="slicer-empty" style="font-size:12.5px;color:var(--text-muted);">${escapeHtml(t('slicer.none') || 'No slicers configured yet.')}</p>`}</div>
     <details class="slicer-add" ${list.length ? '' : 'open'}>
       <summary style="cursor:pointer;font-size:12.5px;font-weight:600;margin-top:12px;">＋ ${escapeHtml(t('slicer.add') || 'Add a slicer')}</summary>
@@ -632,6 +667,17 @@ function renderSlicerSettings() {
         </div>
       </div>
     </details>`;
+
+  el.querySelector('#btnDetectSlicers')?.addEventListener('click', async () => {
+    const out = el.querySelector('#slicerDetectResult');
+    if (out) { out.textContent = t('slicer.detecting') || 'Scanning for slicers…'; out.style.color = 'var(--text-muted)'; }
+    const added = await detectAndMergeSlicers();
+    if (out) {
+      if (added > 0) { out.textContent = '✓ ' + (t('slicer.detected_n') || 'Added {n} slicer(s)').replace('{n}', added); out.style.color = 'var(--success)'; }
+      else { out.textContent = (t('slicer.detected_none') || 'No new slicers found — add one manually below.'); out.style.color = 'var(--text-muted)'; }
+    }
+    if (added > 0) renderSlicerSettings();
+  });
 
   el.querySelector('#btnSlicerBrowse')?.addEventListener('click', async () => {
     const p = await window.hubAPI?.pickFile?.({ filters: [{ name: 'Slicer program', extensions: ['*', 'exe', 'app', 'AppImage'] }] });

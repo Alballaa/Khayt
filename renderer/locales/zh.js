@@ -3,6 +3,10 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.zh = {
+  "slicer.detect": "检测已安装的切片软件",
+  "slicer.detecting": "正在搜索切片软件…",
+  "slicer.detected_n": "已添加 {n} 个切片软件",
+  "slicer.detected_none": "未找到新的切片软件 — 请在下方手动添加。",
   "conv.dest_q": "转换后的文件保存到哪里？",
   "conv.dest_this": "与此打印文件一起保存",
   "conv.dest_new": "添加到我的打印文件库",

@@ -360,8 +360,20 @@ async function testMultiSlicer(window) {
     // Default is mirrored into the legacy field for slice-and-print consumers.
     out.mirror = settings.slicer.path === '/x/OrcaSlicer.exe';
 
+    // Auto-detect scans the machine and returns a well-formed {ok, slicers[]}
+    // list of {name, path}; merging never duplicates paths already listed.
+    const det = await window.hubAPI.detectSlicers();
+    out.detectShape = !!(det && det.ok === true && Array.isArray(det.slicers)
+      && det.slicers.every((s) => s && typeof s.name === 'string' && typeof s.path === 'string'));
+    const before = settings.slicers.length;
+    const added = await detectAndMergeSlicers();
+    out.mergeNoDupes = settings.slicers.length === before + added && added >= 0;
+    const paths = settings.slicers.map((s) => s.path.toLowerCase());
+    out.uniquePaths = new Set(paths).size === paths.length;
+
     // Reset.
-    settings.slicers = undefined; settings.defaultSlicerId = null; settings.slicer = { path: '', args: '' };
+    settings.slicers = undefined; settings.defaultSlicerId = null;
+    settings.slicer = { path: '', args: '' }; settings.slicersAutoDetected = false;
     return out;
   });
   const bad = Object.entries(r).filter(([, v]) => v !== true).map(([k]) => k);
