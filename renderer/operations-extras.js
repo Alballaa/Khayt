@@ -469,7 +469,7 @@ function renderSlicerProfiles() {
       <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(p.notes || '')}</td>
       <td>
         <button type="button" class="btn small ghost" data-act="edit-slicer-profile" data-id="${escapeHtml(p.id)}">Edit</button>
-        <button type="button" class="btn danger small" data-act="delete-slicer-profile" data-id="${escapeHtml(p.id)}">×</button>
+        <button type="button" class="btn danger small" data-act="delete-slicer-profile" data-id="${escapeHtml(p.id)}" aria-label="${escapeHtml(t('common.delete'))}">×</button>
       </td>
     </tr>`;
   }).join('');

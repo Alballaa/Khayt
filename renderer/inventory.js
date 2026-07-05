@@ -2460,7 +2460,7 @@ function openSupplierEditor(id) {
         r.innerHTML = `
           <input class="spMat" type="text" maxlength="60" placeholder="${escapeHtml(t('sup.price_material_ph') || 'Material (e.g. PLA)')}" value="${escapeHtml(p.material || '')}" style="flex:1;font-size:12.5px;">
           <input class="spPk" type="number" min="0" step="0.01" placeholder="0" value="${escapeHtml(p.pricePerKg != null && p.pricePerKg !== '' ? String(p.pricePerKg) : '')}" style="width:90px;font-size:12.5px;text-align:right;" title="${escapeHtml(cur)}/kg">
-          <button type="button" class="btn danger small spDel" style="font-size:11px;">✕</button>`;
+          <button type="button" class="btn danger small spDel" style="font-size:11px;" aria-label="${escapeHtml(t('common.delete'))}">✕</button>`;
         r.querySelector('.spDel').addEventListener('click', () => r.remove());
         return r;
       };
@@ -2931,7 +2931,7 @@ function openProductEditor(productId = null) {
             <input type="text" class="tier-lbl" value="${escapeHtml(tier.label)}" placeholder="${escapeHtml(t('cat.tier_label'))}" style="flex:1;margin:0;">
             <input type="number" class="tier-mg" value="${tier.margin}" min="0" step="1" style="width:70px;margin:0;">
             <span style="font-size:12px;color:var(--text-muted);">%</span>
-            <button class="btn danger small" data-act="rm-tier" data-ti="${i}" style="margin:0;">×</button>
+            <button class="btn danger small" data-act="rm-tier" data-ti="${i}" style="margin:0;" aria-label="${escapeHtml(t('common.delete'))}">×</button>
           </div>`).join('');
       };
       const refreshTiers = () => { tiersContainer.innerHTML = tiersHtml(); };
@@ -3385,7 +3385,7 @@ function renderPurchaseOrders() {
                 ${(po.status === 'ordered' || isPartial) ? `<button class="btn small success" data-act="po-receive" data-id="${po.id}">${escapeHtml(isPartial ? t('po.receive_more') : t('po.receive'))}</button>` : `<span style="font-size:11px; color:var(--text-muted);">${escapeHtml(po.receivedAt || '')}</span>`}
                 ${isPartial ? `<button class="btn small ghost" data-act="po-close" data-id="${po.id}" style="margin-inline-start:4px;">${escapeHtml(t('po.close_po'))}</button>` : ''}
                 ${(po.status === 'received' || isPartial) ? `<button class="btn small ghost pro-only" data-act="po-record-invoice" data-id="${po.id}" style="margin-inline-start:4px;" title="${escapeHtml(t('po.ap_record'))}">🧾 ${escapeHtml(t('po.ap_record'))}</button>` : ''}
-                <button class="btn danger small" data-act="po-del" data-id="${po.id}" style="margin-inline-start:4px;">×</button>
+                <button class="btn danger small" data-act="po-del" data-id="${po.id}" style="margin-inline-start:4px;" aria-label="${escapeHtml(t('common.delete'))}">×</button>
               </td>
             </tr>`;
           }).join('')}

@@ -3260,7 +3260,7 @@ function renderBreakEvenCard() {
         ${fixedCosts.map((c, i) => `<tr style="border-top:1px solid var(--border);">
           <td style="padding:6px;">${escapeHtml(c.name)}</td>
           <td style="padding:6px;text-align:right;color:var(--danger);">${fmtPrice(c.amount)}</td>
-          <td style="padding:6px;"><button class="btn danger small" data-del-cost="${i}">✕</button></td>
+          <td style="padding:6px;"><button class="btn danger small" data-del-cost="${i}" aria-label="${escapeHtml(t('common.delete'))}">✕</button></td>
         </tr>`).join('')}
       </tbody>
     </table>`;

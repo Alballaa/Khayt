@@ -12,8 +12,7 @@ async function maybeAutoBackup() {
     const localJson  = JSON.stringify(buildExportPayload({ redactSecrets: false }));
     const icloudJson = JSON.stringify(buildExportPayload({ redactSecrets: true }));
     if (last !== today) {
-      const p = await window.hubAPI.writeBackup(localJson);
-      if (p) console.debug('Auto-backup written:', p);
+      await window.hubAPI.writeBackup(localJson);
       updateLastBackupDisplay();
     }
     if (settings.useIcloud && window.hubAPI?.writeIcloudBackup) {
@@ -230,7 +229,7 @@ function openMilestoneInvoices(orderId) {
           <td style="padding:6px 8px;color:var(--text-muted);">${m.issuedAt ? escapeHtml(m.issuedAt) : '—'}</td>
           <td style="padding:6px 8px;">
             <button class="btn small" data-mi="${i}">${escapeHtml(t('ord.milestone_issue'))}</button>
-            <button class="btn danger small" data-mi-del="${i}" style="margin-inline-start:4px;">×</button>
+            <button class="btn danger small" data-mi-del="${i}" style="margin-inline-start:4px;" aria-label="${escapeHtml(t('common.delete'))}">×</button>
           </td>
         </tr>`).join('')}
       </tbody>

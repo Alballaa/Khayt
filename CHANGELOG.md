@@ -4,6 +4,27 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.1.0-beta.9] - 2026-07-05
+
+**Pre-release (beta) — full UI review, part 2: visual polish, accessibility & cleanup.** The second pass from the interface review fixes rendering bugs, improves keyboard/screen-reader support, and removes dead code.
+
+### Fixed
+
+- **Kiosk cards and Waiting-list items rendered with no background** in every theme (an undefined colour variable) — now use the standard surface colour.
+- **Print-file thumbnails and part-status indicators looked wrong in light themes** — a hardcoded near-black thumbnail placeholder and a couple of hardcoded greys now follow the active theme.
+- **The favorite ⭐ button on print-file cards** sat on the wrong side in Arabic (RTL) — now mirrors correctly.
+- **A duplicate "quote" status-badge style** (one of two conflicting definitions never applied) was removed.
+
+### Accessibility
+
+- **Pop-up dialogs now trap keyboard focus, move focus into the dialog on open, and restore it on close** (reorder, recovery-code, PIN, delete-confirmation and update dialogs) — previously you could Tab out of them into the page behind.
+- **Icon-only delete buttons (× / ✕) across the app now have accessible names** so screen readers announce them.
+- Added focus outlines to the studio sliders and the global-search box, an accessible name to the Settings side navigation, and hid a decorative check-mark from screen readers.
+
+### Cleanup
+
+- Removed ~90 lines of dead CSS (old language/theme toggles, superseded badge/grid/mode styles), a dead invoice-number helper, a broken PDF-export progress hook (now wired to the real button), and two leftover debug log lines. No behaviour change.
+
 ## [3.1.0-beta.8] - 2026-07-05
 
 **Pre-release (beta) — full UI review, part 1: correctness.** A comprehensive review of the whole interface (mode split, theme shells, RTL, event wiring) turned up a set of real bugs. This release fixes the functional ones; visual/accessibility polish and localization follow in the next betas.

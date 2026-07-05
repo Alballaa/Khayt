@@ -727,7 +727,7 @@ function openClientEditor(clientId = null) {
               <span style="color:var(--text-dim);font-size:11px;margin-inline-start:6px;">${escapeHtml((e.at || '').slice(0, 10))}</span>
               <div style="color:var(--text-muted);">${escapeHtml(e.note || '')}</div>
             </div>
-            <button class="btn danger small comm-del" data-ci="${idx}" style="flex-shrink:0;">×</button>
+            <button class="btn danger small comm-del" data-ci="${idx}" style="flex-shrink:0;" aria-label="${escapeHtml(t('common.delete'))}">×</button>
           </div>`).join('');
         commListEl.querySelectorAll('.comm-del').forEach(btn => {
           btn.addEventListener('click', () => {

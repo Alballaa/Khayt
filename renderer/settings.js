@@ -850,7 +850,7 @@ async function openStorefrontModal() {
           <input class="pValue" type="number" min="0" step="0.01" placeholder="0" value="${escapeHtml(p.value != null ? String(p.value) : '')}" style="width:62px;font-size:12px;">
           <input class="pExpires" type="date" value="${escapeHtml(p.expires || '')}" title="${escapeHtml(t('store.promo_expires') || 'Expires (optional)')}" style="width:130px;font-size:12px;">
           <input class="pMax" type="number" min="0" step="1" placeholder="∞" value="${escapeHtml(p.maxUses ? String(p.maxUses) : '')}" title="${escapeHtml(t('store.promo_max') || 'Max uses (blank = unlimited)')}" style="width:54px;font-size:12px;">
-          <button type="button" class="btn danger small pDel" style="font-size:11px;">✕</button>`;
+          <button type="button" class="btn danger small pDel" style="font-size:11px;" aria-label="${escapeHtml(t('common.delete'))}">✕</button>`;
         row.querySelector('.pDel').addEventListener('click', () => row.remove());
         return row;
       };
@@ -873,7 +873,7 @@ async function openStorefrontModal() {
         row.innerHTML = `
           <input class="shLabel" type="text" maxlength="60" placeholder="${escapeHtml(t('store.ship_label_ph') || 'e.g. Courier, Pickup')}" value="${escapeHtml(m.label || '')}" style="flex:1;font-size:12.5px;">
           <input class="shPrice" type="number" min="0" step="0.01" placeholder="0" value="${escapeHtml(m.price != null && m.price !== '' ? String(m.price) : '')}" style="width:80px;font-size:12.5px;text-align:right;" title="${escapeHtml(cur)}">
-          <button type="button" class="btn danger small shDel" style="font-size:11px;">✕</button>`;
+          <button type="button" class="btn danger small shDel" style="font-size:11px;" aria-label="${escapeHtml(t('common.delete'))}">✕</button>`;
         row.querySelector('.shDel').addEventListener('click', () => row.remove());
         return row;
       };
@@ -1724,7 +1724,7 @@ function renderFixedCostSettings() {
           <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);">
             <span style="flex:1;">${escapeHtml(c.name)}</span>
             <strong>${fmtPrice(c.amount)}</strong>
-            <button class="btn danger small" data-del-fc="${i}">✕</button>
+            <button class="btn danger small" data-del-fc="${i}" aria-label="${escapeHtml(t('common.delete'))}">✕</button>
           </div>`).join('')
       }
     </div>
@@ -2861,7 +2861,7 @@ async function openRestorePointsModal() {
       <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border-soft);">
         <div style="flex:1;"><div style="font-size:13px;font-weight:600;">${escapeHtml(rp.label)}</div><div style="font-size:11px;color:var(--text-muted);">${escapeHtml(fmtWhen(rp.mtime))}</div></div>
         <button class="btn small primary rpRestore" data-f="${escapeHtml(rp.filename)}">${escapeHtml(t('rp.restore') || 'Restore')}</button>
-        <button class="btn small ghost rpDelete" data-f="${escapeHtml(rp.filename)}" style="color:var(--danger);">✕</button>
+        <button class="btn small ghost rpDelete" data-f="${escapeHtml(rp.filename)}" style="color:var(--danger);" aria-label="${escapeHtml(t('common.delete'))}">✕</button>
       </div>`).join('') : `<div style="text-align:center;color:var(--text-muted);padding:18px 0;">${escapeHtml(t('rp.empty') || 'No restore points yet.')}</div>`;
     modal.querySelector('#rpBody').innerHTML = `
       <p style="font-size:12.5px;color:var(--text-muted);margin:0 0 10px;">${escapeHtml(t('rp.hint') || 'Save a labeled snapshot of all your data you can roll back to anytime — e.g. before a big import or month-end.')}</p>
@@ -2983,7 +2983,7 @@ function renderHolidayList() {
   el.innerHTML = [...holidays].sort().map(d => `
     <span class="holiday-chip" style="display:inline-flex; align-items:center; gap:4px; background:var(--surface-2); border:1px solid var(--border-soft); border-radius:16px; padding:2px 10px; font-size:12px;">
       ${escapeHtml(d)}
-      <button type="button" data-act="rm-holiday" data-date="${escapeHtml(d)}" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:13px; padding:0; line-height:1;">×</button>
+      <button type="button" data-act="rm-holiday" data-date="${escapeHtml(d)}" aria-label="${escapeHtml(t('common.delete'))}" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:13px; padding:0; line-height:1;">×</button>
     </span>`).join('');
 }
 
