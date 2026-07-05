@@ -94,7 +94,9 @@
     const title = order.project || tr('inv.walk_in', 'Walk-in');
     const cls = statusChipClass(order.status);
     const label = tr('queue.' + order.status, order.status);
-    const client = findClient(order.clientId);
+    // Enthusiast (hobbyist) mode has no clients — show project/id only.
+    const showBiz = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.showsBusiness(typeof settings !== 'undefined' ? settings.mode : undefined) : (typeof settings === 'undefined' || settings.mode !== 'enthusiast');
+    const client = showBiz ? findClient(order.clientId) : null;
     const parts = [];
     if (client) parts.push(localName(client));
     if (order.dueDate) {
@@ -220,15 +222,18 @@
     const mach = (typeof machines !== 'undefined' && Array.isArray(machines)) ? machines : [];
     const inv = (typeof inventory !== 'undefined' && Array.isArray(inventory)) ? inventory : [];
     const cfg = (typeof settings !== 'undefined') ? settings : {};
+    // Mode separation: enthusiast = no commerce — substitute revenue KPI + revenue
+    // chart with personal print stats so the dashboard stays visually complete.
+    const biz = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.showsBusiness(cfg.mode) : cfg.mode !== 'enthusiast';
 
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const todayStr = (typeof localDateStr === 'function') ? localDateStr(today) : today.toISOString().slice(0, 10);
 
     /* ---- KPI figures (real) — Revenue (month), Active orders, Fleet util, Filament ---- */
     const thisMonthStr = (typeof localMonthStr === 'function') ? localMonthStr(today) : todayStr.slice(0, 7);
-    const monthRev = log
-      .filter((o) => o.status === 'completed' && (o.date || '').startsWith(thisMonthStr))
-      .reduce((s, o) => s + orderRevenueBase(o), 0);
+    const monthDone = log.filter((o) => o.status === 'completed' && (o.date || '').startsWith(thisMonthStr));
+    const monthRev = monthDone.reduce((s, o) => s + orderRevenueBase(o), 0);
+    const printsMonth = monthDone.length;
     // Previous month delta.
     const prevMonth = new Date(today); prevMonth.setMonth(prevMonth.getMonth() - 1);
     const prevMonthStr = (typeof localMonthStr === 'function') ? localMonthStr(prevMonth) : '';
@@ -273,19 +278,21 @@
       : '';
 
     const tiles = [
-      tile('vv-t-indigo', ICON.money, tr('dash.vv_revenue_month', 'Revenue (month)'), fmtMoneyVal(monthRev), ` ${ccy()}`, revDelta),
+      biz
+        ? tile('vv-t-indigo', ICON.money, tr('dash.vv_revenue_month', 'Revenue (month)'), fmtMoneyVal(monthRev), ` ${ccy()}`, revDelta)
+        : tile('vv-t-indigo', ICON.printer, tr('dash.pstat_prints_month', 'Prints this month'), String(printsMonth), '', ''),
       tile('vv-t-blue', ICON.queue, tr('dash.vv_active_orders', 'Active orders'), String(openOrders.length), '', activeDelta),
       tile('vv-t-teal', ICON.printer, tr('dash.vv_fleet_util', 'Fleet utilisation'), String(utilPct), '%', utilSub),
       tile('vv-t-violet', ICON.inv, tr('dash.vv_filament_used', 'Filament used'), filamentVal, filamentUnit, filamentSub),
     ].join('');
 
-    /* ---- Revenue bars (last 7 days, real) ---- */
+    /* ---- 7-day bars: revenue (business) or prints/day (enthusiast) ---- */
     const barData = [];
     for (let i = 6; i >= 0; i -= 1) {
       const d = new Date(today); d.setDate(d.getDate() - i);
       const ds = (typeof localDateStr === 'function') ? localDateStr(d) : d.toISOString().slice(0, 10);
-      const v = log.filter((o) => o.status === 'completed' && o.date === ds)
-        .reduce((s, o) => s + orderRevenueBase(o), 0);
+      const doneThatDay = log.filter((o) => o.status === 'completed' && o.date === ds);
+      const v = biz ? doneThatDay.reduce((s, o) => s + orderRevenueBase(o), 0) : doneThatDay.length;
       const cap = d.toLocaleDateString([], { weekday: 'short' });
       barData.push({ cap, v });
     }
@@ -351,7 +358,7 @@
         });
       });
     }
-    const followUps = (typeof KhaytQuoteFollowUp !== 'undefined' && typeof cfg === 'object')
+    const followUps = (biz && typeof KhaytQuoteFollowUp !== 'undefined' && typeof cfg === 'object')
       ? KhaytQuoteFollowUp.selectQuotesDueForFollowUp(log, cfg, Date.now())
       : [];
     followUps.slice(0, 2).forEach((q) => {
@@ -376,7 +383,7 @@
 
       <div class="vv-grid2">
         <div class="vv-card">
-          <h3>${escapeHtml(tr('dash.vv_revenue_7d', 'Revenue — last 7 days'))}</h3>
+          <h3>${escapeHtml(biz ? tr('dash.vv_revenue_7d', 'Revenue — last 7 days') : tr('dash.pstat_prints_7d', 'Prints — last 7 days'))}</h3>
           <div class="vv-bars">${barChart(barData)}</div>
         </div>
         <div class="vv-card">

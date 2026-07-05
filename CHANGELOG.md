@@ -4,6 +4,16 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.1.0-beta.11] - 2026-07-05
+
+**Pre-release (beta) — mode separation in themed dashboards.** Follow-up to the earlier three-mode work: each visual theme draws its **own** dashboard, and those bespoke dashboards were still showing business figures (revenue, receivables, and a profit-margin %) to **Enthusiast (hobbyist)** users, who should see none. This release cleanly separates the three experiences everywhere.
+
+### Fixed
+
+- **Themed dashboards no longer show revenue, receivables or profit margin in Enthusiast mode.** The **Command, Cockpit, Workbench and Vivid** theme dashboards (and Command's status bar, Cockpit's stats bar) hid revenue "today"/"this month", the "booked"/"unpaid" totals, quote follow-ups, and — on Command — the average **profit-margin %**. Where a money figure sat in a fixed grid, it's replaced with a personal stat (prints today, print hours, prints this month) so the dashboard stays complete rather than leaving a gap. The profit-margin tile is now **Professional-only**; revenue is shown in Simple and Professional.
+- **The cost calculator's margin strip** (in the studio/default theme) now shows only the **cost** in Enthusiast mode — the margin %, the "at margin" selling price and the project total are hidden (a hobbyist prices nothing).
+- **Customer identity and sale values removed from Enthusiast queue surfaces.** The **Job-Intake funnel** no longer shows client names, per-item estimated value, or the sales "Pipeline value"; the **kiosk display** and every themed queue card drop the client name; and the **quotes-awaiting-approval** strip is hidden entirely in Enthusiast mode.
+
 ## [3.1.0-beta.10] - 2026-07-05
 
 **Pre-release (beta) — full UI review, part 3: localization.** The final pass from the interface review closes a translation gap.

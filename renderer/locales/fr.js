@@ -3,6 +3,13 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.fr = {
+  "dash.pstat_prints_today": "Impressions aujourd’hui",
+  "dash.pstat_print_hours": "Heures d’impression aujourd’hui",
+  "dash.pstat_prints_month": "Impressions ce mois",
+  "dash.pstat_filament_month": "Filament ce mois",
+  "dash.pstat_open_jobs": "Travaux en cours",
+  "dash.pstat_jobs": "travaux",
+  "dash.pstat_prints_7d": "Impressions — 7 derniers jours",
   "tab.printfiles": "Fichiers d'impression",
   "tab.colorstudio": "Couleur",
   "cmix.title": "Studio couleur",

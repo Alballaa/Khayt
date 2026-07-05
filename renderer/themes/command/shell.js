@@ -398,7 +398,7 @@
       <span class="cmd-seg">${escHtml(tr('command.status.low_stock', 'low stock'))} <b style="color:var(--cmd-danger)">${escHtml(lowStock)}</b></span>
       <span class="cmd-sp"></span>
       <span class="cmd-seg">${escHtml(tr('command.status.palette', '⌘K palette'))}</span>
-      <span class="cmd-seg">${escHtml(tr('command.status.today', 'today'))} <b>${escHtml(revStr)} ${escHtml(ccy)}</b></span>
+      ${(typeof KhaytTiers === 'undefined' || KhaytTiers.showsBusiness(settings.mode)) ? `<span class="cmd-seg">${escHtml(tr('command.status.today', 'today'))} <b>${escHtml(revStr)} ${escHtml(ccy)}</b></span>` : ''}
       <span class="cmd-seg cmd-clock">${escHtml(clock)}</span>`;
   }
 

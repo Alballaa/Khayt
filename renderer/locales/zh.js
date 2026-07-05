@@ -3,6 +3,13 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.zh = {
+  "dash.pstat_prints_today": "今日打印",
+  "dash.pstat_print_hours": "今日打印时长",
+  "dash.pstat_prints_month": "本月打印",
+  "dash.pstat_filament_month": "本月耗材",
+  "dash.pstat_open_jobs": "进行中的任务",
+  "dash.pstat_jobs": "任务",
+  "dash.pstat_prints_7d": "打印 — 最近7天",
   "tab.printfiles": "打印文件",
   "tab.colorstudio": "颜色",
   "cmix.title": "颜色工坊",

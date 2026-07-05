@@ -12,6 +12,9 @@ function renderWaitingList() {
     el.innerHTML = `<p class="dash-empty">${escapeHtml(t('waiting.empty'))}</p>`;
     return;
   }
+  // Enthusiast (hobbyist) mode has no clients/sales pipeline — hide client names
+  // and estimated sale value on intake items (the project/notes stay).
+  const biz = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.showsBusiness(settings.mode) : settings.mode !== 'enthusiast';
   const priorityOrder = { urgent: 0, high: 1, normal: 2, low: 3 };
   const visible = waitingList.filter(w => w.status !== 'declined');
   const sorted = [...visible].sort((a, b) =>
@@ -22,7 +25,7 @@ function renderWaitingList() {
   const today = new Date().toISOString().split('T')[0];
 
   el.innerHTML = sorted.map(item => {
-    const client = item.clientId ? clients.find(c => c.id === item.clientId) : null;
+    const client = (biz && item.clientId) ? clients.find(c => c.id === item.clientId) : null;
     const clientName = client ? (client.nameEn || client.nameAr || '') : '';
     const dot = priorityLabels[item.priority] || '🔵';
     const isDueReminder = item.reminderDate && item.reminderDate <= today && item.status !== 'declined';
@@ -33,7 +36,7 @@ function renderWaitingList() {
           <div class="waiting-item-project">${escapeHtml(item.project || t('waiting.untitled'))}${item.status === 'reminded' ? ` <span style="font-size:10px;background:var(--primary);color:#fff;padding:1px 5px;border-radius:3px;">${escapeHtml(t('waiting.status_reminded') || 'reminded')}</span>` : ''}</div>
           ${clientName ? `<div class="waiting-item-client">👤 ${escapeHtml(clientName)}</div>` : ''}
           ${item.notes ? `<div class="waiting-item-notes">${escapeHtml(item.notes)}</div>` : ''}
-          ${(item.estValue || item.estimatedValue) ? `<div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('waiting.est_prefix') || 'Est.')} ${fmtPrice(+(item.estValue || item.estimatedValue))}</div>` : ''}
+          ${(biz && (item.estValue || item.estimatedValue)) ? `<div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('waiting.est_prefix') || 'Est.')} ${fmtPrice(+(item.estValue || item.estimatedValue))}</div>` : ''}
           ${isDueReminder ? `<div style="font-size:11px;color:var(--primary);">⏰ Reminder due: ${escapeHtml(item.reminderDate)}</div>` : ''}
         </div>
       </div>
@@ -199,6 +202,8 @@ function renderWaitingFunnel() {
   const converted = waitingListHistory.filter(w => w.status === 'converted').length;
   const declined = allItems.filter(w => w.status === 'declined').length;
   const convRate = totalAdded > 0 ? ((converted / totalAdded) * 100).toFixed(1) : '0.0';
+  // Pipeline value is a sales figure — business modes only.
+  const biz = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.showsBusiness(settings.mode) : settings.mode !== 'enthusiast';
   const pipeline = waitingList
     .filter(w => w.status === 'active' || w.status === 'reminded')
     .reduce((s, w) => s + (+(w.estValue || w.estimatedValue) || 0), 0);
@@ -227,10 +232,10 @@ function renderWaitingFunnel() {
         <div style="font-size:22px;font-weight:700;color:var(--danger);">${declined}</div>
         <div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('waiting.funnel_declined') || 'Declined')}</div>
       </div>
-      <div style="flex:1;min-width:120px;text-align:center;">
+      ${biz ? `<div style="flex:1;min-width:120px;text-align:center;">
         <div style="font-size:16px;font-weight:700;color:#f59e0b;">${fmtPrice(pipeline)}</div>
         <div style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('waiting.funnel_pipeline') || 'Pipeline Value')}</div>
-      </div>
+      </div>` : ''}
     </div>
     ${totalAdded > 0 ? `
     <div style="height:10px;border-radius:5px;overflow:hidden;display:flex;margin-top:4px;">

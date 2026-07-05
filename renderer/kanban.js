@@ -341,7 +341,12 @@ function renderKanban() {
   // --- Quotes awaiting approval ---
   const quotes = printLog.filter(o => o.status === 'quote' && locMatch(o));
   const quotesSec = $('#quotesSection');
-  if (quotesSec) {
+  // Quotes are commerce — never shown in enthusiast (hobbyist) mode.
+  const quotesBiz = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.showsBusiness(settings.mode) : settings.mode !== 'enthusiast';
+  if (quotesSec && !quotesBiz) {
+    quotesSec.style.display = 'none';
+    const ql0 = $('#list-quote'); if (ql0) ql0.innerHTML = '';
+  } else if (quotesSec) {
     if (window.KhaytStudio?.useHandoffScreens?.()) {
       quotesSec.style.display = '';
     } else {

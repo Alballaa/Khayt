@@ -3,6 +3,13 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.ja = {
+  "dash.pstat_prints_today": "本日の印刷",
+  "dash.pstat_print_hours": "本日の印刷時間",
+  "dash.pstat_prints_month": "今月の印刷",
+  "dash.pstat_filament_month": "今月のフィラメント",
+  "dash.pstat_open_jobs": "進行中のジョブ",
+  "dash.pstat_jobs": "ジョブ",
+  "dash.pstat_prints_7d": "印刷 — 過去7日間",
   "tab.printfiles": "印刷ファイル",
   "tab.colorstudio": "カラー",
   "cmix.title": "カラースタジオ",

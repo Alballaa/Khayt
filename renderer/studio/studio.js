@@ -290,12 +290,15 @@
     if (strip && opts) {
       const margin = opts.margin ?? 0;
       const priced = total * (1 + margin / 100);
+      // Enthusiast (hobbyist) mode has no selling price — show COST only, hide
+      // margin %, the at-margin sell price and the project total.
+      const biz = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.showsBusiness(settings.mode) : (typeof settings === 'undefined' || settings.mode !== 'enthusiast');
       strip.innerHTML = `
         <span>${escapeHtml(scopeLabel)}</span>
         <span>${escapeHtml(t('calc.breakdown_unit_cost') || 'Unit cost')}: <strong>${escapeHtml(fmtMoney(total))}</strong></span>
-        <span>${escapeHtml(t('calc.quote.margin') || 'Margin')}: <strong>${Math.round(margin)}%</strong></span>
+        ${biz ? `<span>${escapeHtml(t('calc.quote.margin') || 'Margin')}: <strong>${Math.round(margin)}%</strong></span>
         <span>${escapeHtml(t('calc.breakdown_at_margin') || 'At margin')}: <strong>${escapeHtml(fmtMoney(priced))}</strong></span>
-        ${opts.finalPrice != null ? `<span>${escapeHtml(t('calc.quote.total') || 'Project total')}: <strong>${escapeHtml(fmtMoney(opts.finalPrice))}</strong></span>` : ''}`;
+        ${opts.finalPrice != null ? `<span>${escapeHtml(t('calc.quote.total') || 'Project total')}: <strong>${escapeHtml(fmtMoney(opts.finalPrice))}</strong></span>` : ''}` : ''}`;
     }
   }
 

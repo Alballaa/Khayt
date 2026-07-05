@@ -118,6 +118,10 @@
     const mach = (typeof machines !== 'undefined' && Array.isArray(machines)) ? machines : [];
     const inv = (typeof inventory !== 'undefined' && Array.isArray(inventory)) ? inventory : [];
     const cfg = (typeof settings !== 'undefined') ? settings : {};
+    // Mode separation: enthusiast = no commerce (no revenue/receivables/margin/quotes/clients);
+    // margin analytics is Pro-only. Personal stats fill the vacated KPI slots.
+    const biz = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.showsBusiness(cfg.mode) : cfg.mode !== 'enthusiast';
+    const pro = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.isProMode(cfg.mode) : (cfg.mode || 'professional') === 'professional';
 
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const todayStr = (typeof localDateStr === 'function') ? localDateStr(today) : today.toISOString().slice(0, 10);
@@ -158,8 +162,31 @@
       if (totRev > 0) marginPct = Math.round((totRev - totCost) / totRev * 100);
     }
 
+    // Personal stats (enthusiast substitutes for the revenue/unpaid money tiles).
+    const doneToday = log.filter((o) => o.status === 'completed' && o.date === todayStr);
+    const printHoursToday = doneToday.reduce((s, o) => s + (+o.printTime || 0), 0);
+
+    const revenueTile = biz
+      ? kpi(tr('command.kpi.revenue_today', 'Revenue today'), `${fmtMoneyVal(todayRev)} ${ccy()}`, revDelta, revDeltaCls, 'var(--cmd-invoice)')
+      : kpi(tr('dash.pstat_prints_today', 'Prints today'), String(doneToday.length), '', '', 'var(--cmd-invoice)');
+    const secondMoneyTile = biz
+      ? kpi(tr('command.kpi.unpaid', 'Unpaid'), `${fmtMoneyVal(unpaidTotal)} ${ccy()}`,
+          unpaidOrders.length > 0 ? tr('dash.wb_invoices', `${unpaidOrders.length} invoices`).replace('{n}', unpaidOrders.length) : '',
+          '', 'var(--cmd-danger)')
+      : kpi(tr('dash.pstat_print_hours', 'Print hours today'), `${printHoursToday.toFixed(1)}h`, '', '', 'var(--cmd-danger)');
+    const marginTile = pro
+      ? kpi(tr('command.kpi.avg_margin', 'Avg margin'),
+          marginPct != null ? `${marginPct}%` : tr('command.kpi.na', 'n/a'),
+          marginPct != null
+            ? (withCost.length === 1
+                ? tr('command.kpi.from_one_order', '1 order')
+                : tr('command.kpi.from_n_orders', `${withCost.length} orders`).replace('{n}', withCost.length))
+            : tr('command.kpi.add_costs', 'add order costs'),
+          '', 'var(--cmd-analytics)', marginPct != null ? '' : 'muted')
+      : '';
+
     const kpis = [
-      kpi(tr('command.kpi.revenue_today', 'Revenue today'), `${fmtMoneyVal(todayRev)} ${ccy()}`, revDelta, revDeltaCls, 'var(--cmd-invoice)'),
+      revenueTile,
       kpi(tr('command.kpi.open_queue', 'Open queue'), String(openOrders.length),
         dueToday > 0 ? tr('dash.wb_due_today', `${dueToday} due today`).replace('{n}', dueToday) : '',
         dueToday > 0 ? 'down' : '', 'var(--cmd-queue)'),
@@ -169,23 +196,14 @@
       kpi(tr('command.kpi.low_stock', 'Low stock'), String(lowStock.length),
         lowStock.length > 0 ? tr('command.kpi.reorder_needed', 'reorder needed') : '',
         lowStock.length > 0 ? 'down' : '', 'var(--cmd-inv)'),
-      kpi(tr('command.kpi.unpaid', 'Unpaid'), `${fmtMoneyVal(unpaidTotal)} ${ccy()}`,
-        unpaidOrders.length > 0 ? tr('dash.wb_invoices', `${unpaidOrders.length} invoices`).replace('{n}', unpaidOrders.length) : '',
-        '', 'var(--cmd-danger)'),
-      kpi(tr('command.kpi.avg_margin', 'Avg margin'),
-        marginPct != null ? `${marginPct}%` : tr('command.kpi.na', 'n/a'),
-        marginPct != null
-          ? (withCost.length === 1
-              ? tr('command.kpi.from_one_order', '1 order')
-              : tr('command.kpi.from_n_orders', `${withCost.length} orders`).replace('{n}', withCost.length))
-          : tr('command.kpi.add_costs', 'add order costs'),
-        '', 'var(--cmd-analytics)', marginPct != null ? '' : 'muted'),
+      secondMoneyTile,
+      marginTile,
     ].join('');
 
     /* ---- Production board (real printing orders) ---- */
     const boardRows = nowPrinting.slice(0, 8).map((o) => {
       const pct = jobProgress(o) ?? 0;
-      const client = findClient(o.clientId);
+      const client = biz ? findClient(o.clientId) : null;
       const title = o.project || tr('inv.walk_in', 'Walk-in');
       const sub = `${o.id}${client ? ' · ' + esc(clientName(client)) : ''}`;
       return `<button type="button" class="cmd-lrow" data-cmd-order="${esc(o.id)}">
@@ -234,7 +252,7 @@
           .replace('{n}', grams).replace('{unit}', unit),
         act: tr('command.alert.reorder', 'Reorder'), tab: 'inventory-tab' });
     });
-    const followUps = (typeof KhaytQuoteFollowUp !== 'undefined')
+    const followUps = (biz && typeof KhaytQuoteFollowUp !== 'undefined')
       ? KhaytQuoteFollowUp.selectQuotesDueForFollowUp(log, cfg, Date.now()) : [];
     followUps.slice(0, 2).forEach((q) => {
       const qName = esc(q.project || q.id);
@@ -242,14 +260,16 @@
         text: tr('command.alert.quote_due', `${qName} quote follow-up due`).replace('{name}', qName),
         act: tr('command.alert.open', 'Open'), tab: 'logs-tab' });
     });
-    unpaidOrders.filter((o) => o.status === 'completed').slice(0, Math.max(0, 5 - alerts.length)).forEach((o) => {
-      const oid = esc(o.id);
-      const amt = `${esc(fmtMoneyVal(owedBase(o)))} ${esc(ccy())}`;
-      alerts.push({ cls: 'cmd-b-blue', ico: '❖',
-        text: tr('command.alert.unpaid', `${oid} unpaid — ${amt}`)
-          .replace('{id}', oid).replace('{amt}', amt),
-        act: tr('command.alert.chase', 'Chase'), tab: 'logs-tab' });
-    });
+    if (biz) {
+      unpaidOrders.filter((o) => o.status === 'completed').slice(0, Math.max(0, 5 - alerts.length)).forEach((o) => {
+        const oid = esc(o.id);
+        const amt = `${esc(fmtMoneyVal(owedBase(o)))} ${esc(ccy())}`;
+        alerts.push({ cls: 'cmd-b-blue', ico: '❖',
+          text: tr('command.alert.unpaid', `${oid} unpaid — ${amt}`)
+            .replace('{id}', oid).replace('{amt}', amt),
+          act: tr('command.alert.chase', 'Chase'), tab: 'logs-tab' });
+      });
+    }
     const alertsBody = alerts.slice(0, 6).map((a) => `<div class="cmd-lrow">
       <span class="cmd-badge ${a.cls}">${a.ico}</span>
       <span class="cmd-grow">${a.text}</span>
@@ -261,10 +281,11 @@
       .filter((o) => o.status === 'completed' && o.date === todayStr)
       .slice(-4).reverse();
     const activityBody = recent.map((o) => {
-      const client = findClient(o.clientId);
+      const client = biz ? findClient(o.clientId) : null;
+      const subText = biz ? (client ? clientName(client) : o.id) : (o.printTime ? `${(+o.printTime).toFixed(1)}h` : o.id);
       return `<div class="cmd-lrow">
-        <span class="cmd-grow"><span class="cmd-lrow-t">${esc(o.project || o.id)}</span><span class="cmd-sub">${esc(client ? clientName(client) : o.id)}</span></span>
-        <span class="cmd-money">${esc(fmtMoneyVal(revBase(o)))} ${esc(ccy())}</span>
+        <span class="cmd-grow"><span class="cmd-lrow-t">${esc(o.project || o.id)}</span><span class="cmd-sub">${esc(subText)}</span></span>
+        ${biz ? `<span class="cmd-money">${esc(fmtMoneyVal(revBase(o)))} ${esc(ccy())}</span>` : ''}
       </div>`;
     }).join('') || `<div class="cmd-empty">${esc(tr('command.activity.none', 'No activity yet today'))}</div>`;
 
@@ -316,7 +337,9 @@
     const log = (typeof printLog !== 'undefined' && Array.isArray(printLog)) ? printLog : [];
     const o = log.find((x) => x.id === orderId);
     if (!o) return;
-    const client = findClient(o.clientId);
+    const cfg = (typeof settings !== 'undefined') ? settings : {};
+    const biz = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.showsBusiness(cfg.mode) : cfg.mode !== 'enthusiast';
+    const client = biz ? findClient(o.clientId) : null;
     const pct = jobProgress(o) ?? 0;
     const revBase = (typeof orderRevenueBase === 'function') ? orderRevenueBase(o) : (+o.price || 0);
     const kv = (k, v, mono) => `<div class="cmd-kv"><span class="k">${esc(k)}</span><span class="v${mono ? ' mono' : ''}">${esc(v)}</span></div>`;
@@ -328,8 +351,8 @@
       ${client ? kv(tr('command.insp.client', 'Client'), clientName(client)) : ''}
       ${o.dueDate ? kv(tr('command.insp.due', 'Due'), o.dueDate, true) : ''}
       ${o.machineId ? kv(tr('command.insp.printer', 'Printer'), (typeof machines !== 'undefined' && machines.find((m) => m.id === o.machineId)?.name) || o.machineId) : ''}
-      <div class="cmd-insp-sec">${esc(tr('command.insp.pricing', 'Pricing'))}</div>
-      ${kv(tr('command.insp.total', 'Total'), `${fmtMoneyVal(revBase)} ${ccy()}`, true)}`;
+      ${biz ? `<div class="cmd-insp-sec">${esc(tr('command.insp.pricing', 'Pricing'))}</div>
+      ${kv(tr('command.insp.total', 'Total'), `${fmtMoneyVal(revBase)} ${ccy()}`, true)}` : ''}`;
     const title = `${esc(o.project || tr('inv.walk_in', 'Walk-in'))}<span class="cmd-insp-sub">${esc(o.id)}${client ? ' · ' + esc(clientName(client)) : ''}</span>`;
     shell.openInspector(body, title);
   }

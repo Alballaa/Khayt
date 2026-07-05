@@ -243,7 +243,7 @@
       <span class="vv-live" aria-hidden="true"></span>
       <span class="vv-sb-item"><b>${escapeHtml(String(printing))}</b> ${escapeHtml(tr('vivid.status.printing', 'printing'))}</span>
       <span class="sepr"></span>
-      <span class="vv-sb-item"><b>${escapeHtml(String(openOrders))}</b> ${escapeHtml(tr('vivid.status.orders', 'orders'))}</span>
+      <span class="vv-sb-item"><b>${escapeHtml(String(openOrders))}</b> ${escapeHtml((typeof KhaytTiers === 'undefined' || KhaytTiers.showsBusiness(settings.mode)) ? tr('vivid.status.orders', 'orders') : tr('dash.pstat_jobs', 'jobs'))}</span>
       <span class="sepr"></span>
       <span class="vv-sb-item"><b>${escapeHtml(kgToday)} kg</b> ${escapeHtml(tr('vivid.status.today', 'today'))}</span>
       <span class="vv-sb-grow"></span>
