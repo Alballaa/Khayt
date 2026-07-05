@@ -156,9 +156,9 @@ Khayt replaces spreadsheets, WhatsApp notes, and separate invoicing tools with o
 
 ### Download (recommended)
 
-**Stable (recommended):** **[Releases → Latest](https://github.com/khaytapp/Khayt/releases/latest)** — currently **v2.5.0**.
+**Stable (recommended):** **[Releases → Latest](https://github.com/khaytapp/Khayt/releases/latest)** — currently **v3.1.0**, which adds **Enthusiast mode**, the **Print-File Library**, the **Colour Mixer** suite, multi-slicer support and the **3MF Converter**.
 
-**Beta:** **[Pre-releases](https://github.com/khaytapp/Khayt/releases)** — **v2.6.0-beta** ships the redesigned **Workbench** (default), **Command**, and **Vivid** themes. Pre-release builds; stable installs do not auto-update to beta. See [docs/BETA-RELEASE.md](docs/BETA-RELEASE.md).
+**Beta:** **[Pre-releases](https://github.com/khaytapp/Khayt/releases)** — early builds of upcoming features. Pre-release builds; stable installs do not auto-update to beta. See [docs/BETA-RELEASE.md](docs/BETA-RELEASE.md).
 
 Grab the file for your platform:
 
@@ -243,7 +243,7 @@ npm run dist:linux       # Linux AppImage + deb
 
 ## Data & Privacy
 
-- All data is stored locally on your device by default. The optional Khayt Cloud (3.0 beta) is **opt-in and end-to-end encrypted** — the server only ever stores ciphertext, and your sync passphrase never leaves your device. With the cloud off, nothing is transmitted.
+- All data is stored locally on your device by default. The optional Khayt Cloud is **opt-in and end-to-end encrypted** — the server only ever stores ciphertext, and your sync passphrase never leaves your device. With the cloud off, nothing is transmitted.
 - Data file: `~/Library/Application Support/Khayt/khayt-store.json` (macOS) or equivalent
 - API keys and secrets are encrypted at rest using your OS secure storage (macOS Keychain / Windows Credential Store)
 - No telemetry, no crash reporting, no usage analytics
