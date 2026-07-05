@@ -44,6 +44,8 @@
   "conv.batch_done": "Converted {ok} of {total} files.",
   "conv.batch_fail": "failed",
   "conv.family_note": "Showing printers compatible with this {f} file. To target another ecosystem, convert to Generic 3MF and set up the printer in your slicer.",
+  "conv.near_generic": "in stock",
+  "conv.near_stock": "Nearest filament you have in stock",
   "store.recovered": "✓ Recovered your data from a backup after an interrupted save.",
   "slicer.detect": "Detect installed slicers",
   "slicer.detecting": "Scanning for slicers…",

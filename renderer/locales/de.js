@@ -44,6 +44,8 @@
   "conv.batch_done": "{ok} von {total} Dateien konvertiert.",
   "conv.batch_fail": "fehlgeschlagen",
   "conv.family_note": "Zeigt Drucker, die mit dieser {f}-Datei kompatibel sind. Für ein anderes Ökosystem in Generic 3MF konvertieren und den Drucker im Slicer einrichten.",
+  "conv.near_generic": "im Bestand",
+  "conv.near_stock": "Nächstgelegenes Filament in deinem Bestand",
   "store.recovered": "✓ Deine Daten wurden nach einem unterbrochenen Speichern aus einer Sicherung wiederhergestellt.",
   "slicer.detect": "Installierte Slicer erkennen",
   "slicer.detecting": "Suche nach Slicern…",

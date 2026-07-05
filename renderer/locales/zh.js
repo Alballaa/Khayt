@@ -44,6 +44,8 @@
   "conv.batch_done": "已转换 {total} 个文件中的 {ok} 个。",
   "conv.batch_fail": "失败",
   "conv.family_note": "正在显示与此 {f} 文件兼容的打印机。要面向其他生态系统，请转换为通用 3MF 并在切片软件中设置打印机。",
+  "conv.near_generic": "有库存",
+  "conv.near_stock": "库存中最接近的耗材",
   "store.recovered": "✓ 已在保存中断后从备份恢复您的数据。",
   "slicer.detect": "检测已安装的切片软件",
   "slicer.detecting": "正在搜索切片软件…",

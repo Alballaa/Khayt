@@ -3652,6 +3652,8 @@ body.mode-enthusiast .biz-only { display: none !important; }
 .conv-hex { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; min-width: 74px; }
 .conv-arrow { color: var(--text-muted); }
 .conv-slot { padding: 5px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: 12.5px; }
+.conv-near { font-size: 11px; color: var(--text-muted); margin-inline-start: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.conv-near .conv-de { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; opacity: 0.75; }
 .conv-dest { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-soft); }
 .conv-dest-q { font-size: 12.5px; font-weight: 600; color: var(--text-dim); margin-bottom: 8px; }
 .conv-dest-opt { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 5px 0; cursor: pointer; }
