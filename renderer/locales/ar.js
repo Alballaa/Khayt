@@ -3,6 +3,8 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.ar = {
+  "calc.total_cost": "التكلفة الإجمالية",
+  "conv.dup_slots": "لونان معيّنان لنفس الفتحة — سيُحذف أحدهما. امنح كل لون فتحته الخاصة.",
   "slicer.detect": "اكتشاف برامج التقطيع المثبّتة",
   "slicer.detecting": "جارٍ البحث عن برامج التقطيع…",
   "slicer.detected_n": "تمت إضافة {n} برنامج تقطيع",

@@ -1579,7 +1579,7 @@ function renderPrinterUtilizationChart() {
   if (existingUtilBtn) existingUtilBtn.remove();
   const dlUtilBtn = document.createElement('button');
   dlUtilBtn.className = 'btn small ghost chart-dl-btn';
-  dlUtilBtn.style.cssText = 'position:absolute;top:6px;right:6px;font-size:11px;padding:3px 8px;opacity:0.7;';
+  dlUtilBtn.style.cssText = 'position:absolute;top:6px;inset-inline-end:6px;font-size:11px;padding:3px 8px;opacity:0.7;';
   dlUtilBtn.textContent = '⬇ PNG';
   dlUtilBtn.title = 'Download chart as PNG';
   if (el.parentElement) el.parentElement.style.position = 'relative';
@@ -2216,7 +2216,7 @@ function renderRevenueChart() {
   if (existingBtn) existingBtn.remove();
   const dlBtn = document.createElement('button');
   dlBtn.className = 'btn small ghost chart-dl-btn';
-  dlBtn.style.cssText = 'position:absolute;top:6px;right:6px;font-size:11px;padding:3px 8px;opacity:0.7;';
+  dlBtn.style.cssText = 'position:absolute;top:6px;inset-inline-end:6px;font-size:11px;padding:3px 8px;opacity:0.7;';
   dlBtn.textContent = '⬇ PNG';
   dlBtn.title = 'Download chart as PNG';
   if (wrap.parentElement) wrap.parentElement.style.position = 'relative';

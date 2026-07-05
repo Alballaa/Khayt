@@ -4,6 +4,25 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.1.0-beta.15] - 2026-07-05
+
+**Pre-release (beta) — pre-1.0 hardening pass.** A comprehensive bug, security and UI audit ahead of promoting 3.1 to a stable release. No data-loss or crash bugs were found; the fixes below close real edge-case and mode-separation gaps.
+
+### Fixed
+
+- **Enthusiast (hobbyist) mode no longer shows any pricing in the cost calculator.** The target profit margin, the "✨ Suggest" price helper, the discount field, shipping/extra-charge fees, price tiers, the rush-fee toggle, and the marked-up "Project total" were all still visible. Enthusiast mode now shows **Total cost** only (margin/discount/fees are treated as zero); business modes are unchanged.
+- **ZATCA Phase 2 (cryptographic e-invoicing) no longer appears in Simple mode.** It is a Professional-only feature but its onboarding panel was rendering in the Simple invoice settings. (Phase 1 QR invoicing stays available in Simple.)
+- **Multicolour planner cost with a resin dominant spool.** A blended multicolour part whose fallback filament happened to be a resin spool was mis-costed by ~1000× (it hit the resin per-kg formula). Blended parts now always use the correct pre-summed material cost.
+- **Filament forecast now splits multicolour jobs per spool.** The material-depletion forecast and "queued" totals charged all of a multicolour part's grams to one spool (and zero to the others); they now use the same colour-aware split as reservation and over-commit checks.
+- **3MF converter warns when two colours map to the same target slot** (previously one colour was silently dropped).
+- **Colour Studio "from filament" picker** now updates the colour swatch for 3- and 8-digit hex inventory colours.
+- **RTL polish:** dashboard accent stripes, Atlas floor-card markers and the chart "Download PNG" button now use logical (`inset-inline`/`border-inline`) properties so they mirror correctly in Arabic.
+
+### Security
+
+- **`hub:accounting-push` now applies the same SSRF hardening as the other webhook senders** — private/loopback/cloud-metadata targets, DNS-rebinding and redirects are blocked (the accounting webhook URL comes from the store, which can arrive via restore/sync).
+- **Slicer launch rejects shells/interpreters.** The slicer executable (from `settings.slicers[]`, which can be restored/synced) is checked against a blocklist of shells/interpreters (bash, sh, cmd, powershell, python, node, …) before spawning, so a poisoned slicer path can't become code execution on Slice / Open-in-slicer.
+
 ## [3.1.0-beta.14] - 2026-07-05
 
 **Pre-release (beta) — dashboard due-date fix + refreshed marketing screenshots.**

@@ -250,6 +250,13 @@ async function testEnthusiastAndPrintFiles(window) {
     out.calcQuoteHidden = !vis('btnSaveAsQuote');
     out.calcClientHidden = !vis('clientInput');
     out.calcPrinterVisible = vis('machineAssign');
+    // beta.15: enthusiast must not show margin / discount / AI price-suggest, and
+    // the "Project total" (a selling price) must be relabelled to Total cost.
+    out.calcMarginHidden = !vis('margin');
+    out.calcDiscountHidden = !vis('discountPct');
+    out.calcAiPriceHidden = !vis('btnAiPrice');
+    if (typeof updateGrandTotal === 'function') updateGrandTotal();
+    out.calcTotalCostLabel = /cost/i.test(document.querySelector('.total-display .label')?.textContent || '');
     switchTab('printfiles-tab');
     out.pfRendered = document.querySelector('.tab-content.active')?.id === 'printfiles-tab'
       && (document.getElementById('printfiles-tab')?.innerHTML?.length || 0) > 50;
@@ -279,7 +286,16 @@ async function testEnthusiastAndPrintFiles(window) {
     out.simpleExpensesHidden = !vis('tabbtn-expenses-tab');   // Expense tracking = Pro only
     switchTab('analytics-tab'); // reachable (not bounced) in simple
     out.simpleAnalyticsReachable = document.querySelector('.tab-content.active')?.id === 'analytics-tab';
+    // beta.15: ZATCA Phase 2 (Pro-only e-invoicing) must not render in Simple mode.
+    if (typeof renderZatcaPhase2Settings === 'function') {
+      renderZatcaPhase2Settings();
+      out.simpleZatca2Empty = (document.getElementById('zatcaPhase2Section')?.innerHTML || '') === '';
+    } else { out.simpleZatca2Empty = true; }
     settings.mode = 'professional'; applyMode();
+    if (typeof renderZatcaPhase2Settings === 'function') {
+      renderZatcaPhase2Settings();
+      out.proZatca2Rendered = (document.getElementById('zatcaPhase2Section')?.innerHTML || '').length > 20;
+    } else { out.proZatca2Rendered = true; }
     return out;
   });
   const bad = Object.entries(r).filter(([, v]) => v !== true).map(([k]) => k);

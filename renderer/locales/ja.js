@@ -3,6 +3,8 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.ja = {
+  "calc.total_cost": "総コスト",
+  "conv.dup_slots": "2つの色が同じスロットに割り当てられています。片方は破棄されます。各色に個別のスロットを割り当ててください。",
   "slicer.detect": "インストール済みスライサーを検出",
   "slicer.detecting": "スライサーを検索中…",
   "slicer.detected_n": "{n} 個のスライサーを追加しました",

@@ -3,6 +3,8 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.es = {
+  "calc.total_cost": "Costo total",
+  "conv.dup_slots": "Dos colores están asignados a la misma ranura: uno se descartará. Asigna a cada color su propia ranura.",
   "slicer.detect": "Detectar laminadores instalados",
   "slicer.detecting": "Buscando laminadores…",
   "slicer.detected_n": "Se añadieron {n} laminador(es)",

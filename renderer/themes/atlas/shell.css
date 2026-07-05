@@ -170,7 +170,7 @@ body.khayt-atlas #dashboardContent {
 .atlas-floor-root .mc .nm { font-size: 13px; font-weight: 600; letter-spacing: -0.01em; }
 .atlas-floor-root .mc .sub { font-family: var(--mono); font-size: 9.5px; color: var(--dim); margin-top: 1px; }
 .atlas-floor-root .mc .pin {
-  position: absolute; top: 12px; right: 13px; width: 9px; height: 9px; border-radius: 50%;
+  position: absolute; top: 12px; inset-inline-end: 13px; width: 9px; height: 9px; border-radius: 50%;
 }
 .atlas-floor-root .mc .ringbar {
   position: absolute; left: 13px; right: 13px; bottom: 13px; height: 5px;
@@ -178,7 +178,7 @@ body.khayt-atlas #dashboardContent {
 }
 .atlas-floor-root .mc .ringbar > i { display: block; height: 100%; border-radius: 100px; }
 .atlas-floor-root .mc .state {
-  position: absolute; bottom: 24px; left: 13px;
+  position: absolute; bottom: 24px; inset-inline-start: 13px;
   font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
 }
 

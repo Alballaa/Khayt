@@ -3,6 +3,8 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.tr = {
+  "calc.total_cost": "Toplam maliyet",
+  "conv.dup_slots": "İki renk aynı yuvaya atanmış — biri atılacak. Her renge kendi yuvasını verin.",
   "slicer.detect": "Yüklü dilimleyicileri algıla",
   "slicer.detecting": "Dilimleyiciler aranıyor…",
   "slicer.detected_n": "{n} dilimleyici eklendi",

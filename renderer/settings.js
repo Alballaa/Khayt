@@ -1931,6 +1931,13 @@ function renderLanApiSettings() {
 function renderZatcaPhase2Settings() {
   const el = $('#zatcaPhase2Section');
   if (!el) return;
+  // ZATCA Phase 2 (cryptographic e-invoicing) is a Professional-only feature —
+  // don't render its onboarding UI in Simple mode (nav pane is .biz-only, but
+  // this Pro block sits inside it). CSS .pro-only hides it too; this skips work.
+  const pro = (typeof KhaytTiers !== 'undefined')
+    ? KhaytTiers.isProMode(settings.mode)
+    : ((settings.mode || 'professional') === 'professional');
+  if (!pro) { el.innerHTML = ''; return; }
   const z2 = settings.zatcaPhase2 || {};
   const hasKey = !!(z2.cn); // crude check — replaced by IPC status
   const hasCsid  = !!z2.csid;

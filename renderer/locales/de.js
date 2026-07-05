@@ -3,6 +3,8 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.de = {
+  "calc.total_cost": "Gesamtkosten",
+  "conv.dup_slots": "Zwei Farben sind demselben Slot zugewiesen – eine wird verworfen. Geben Sie jeder Farbe einen eigenen Slot.",
   "slicer.detect": "Installierte Slicer erkennen",
   "slicer.detecting": "Suche nach Slicern…",
   "slicer.detected_n": "{n} Slicer hinzugefügt",
