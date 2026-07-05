@@ -3,6 +3,10 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.ja = {
+  "slicer.detect": "インストール済みスライサーを検出",
+  "slicer.detecting": "スライサーを検索中…",
+  "slicer.detected_n": "{n} 個のスライサーを追加しました",
+  "slicer.detected_none": "新しいスライサーは見つかりませんでした — 下から手動で追加してください。",
   "conv.dest_q": "変換したファイルの保存先は？",
   "conv.dest_this": "この印刷ファイルと一緒に保存",
   "conv.dest_new": "印刷ファイルライブラリに追加",

@@ -3,6 +3,10 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.fr = {
+  "slicer.detect": "Détecter les trancheurs installés",
+  "slicer.detecting": "Recherche de trancheurs…",
+  "slicer.detected_n": "{n} trancheur(s) ajouté(s)",
+  "slicer.detected_none": "Aucun nouveau trancheur trouvé — ajoutez-en un manuellement ci-dessous.",
   "conv.dest_q": "Où placer le fichier converti ?",
   "conv.dest_this": "Le garder avec ce fichier d’impression",
   "conv.dest_new": "L’ajouter à ma bibliothèque de fichiers",

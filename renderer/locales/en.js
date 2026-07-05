@@ -3,6 +3,10 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.en = {
+  "slicer.detect": "Detect installed slicers",
+  "slicer.detecting": "Scanning for slicers…",
+  "slicer.detected_n": "Added {n} slicer(s)",
+  "slicer.detected_none": "No new slicers found — add one manually below.",
   "conv.dest_q": "Where should the converted file go?",
   "conv.dest_this": "Keep it with this print file",
   "conv.dest_new": "Add it to my Print-File library",

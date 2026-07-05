@@ -4,6 +4,17 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.1.0-beta.13] - 2026-07-05
+
+**Pre-release (beta) — every installed slicer, not just one.** Khayt now finds the slicers already on your computer instead of expecting you to type a program path by hand.
+
+### Added
+
+- **"Detect installed slicers" in Settings → Slicer.** One click scans your machine for every supported slicer (PrusaSlicer, OrcaSlicer, Bambu Studio, Cura, SuperSlicer, ideaMaker, Simplify3D, Creality Print, Lychee, CHITUBOX, FlashPrint) and adds each one it finds — so when you open a print file, **all** of them are offered, not just a single default.
+  - The first time you open the Slicer settings with nothing configured, this scan runs **automatically** and populates the list for you. You can still remove any you don't want, or add one manually.
+  - Detection is cross-platform: macOS `/Applications` (resolving each app bundle to its real executable), Windows Program Files / Local App Data, and Linux `PATH`, common bin directories, Flatpak exports and `.AppImage` files.
+  - Merging never creates duplicates — a slicer already in your list (by path) is skipped.
+
 ## [3.1.0-beta.12] - 2026-07-05
 
 **Pre-release (beta) — converted 3MFs stay with your print file.** Converting a 3MF used to always pop a save dialog and drop the result in whatever folder you picked. Now the conversion is kept **in-app, with the file it came from** by default.

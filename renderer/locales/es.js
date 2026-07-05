@@ -3,6 +3,10 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.es = {
+  "slicer.detect": "Detectar laminadores instalados",
+  "slicer.detecting": "Buscando laminadores…",
+  "slicer.detected_n": "Se añadieron {n} laminador(es)",
+  "slicer.detected_none": "No se encontraron laminadores nuevos: añade uno manualmente abajo.",
   "conv.dest_q": "¿Dónde debe ir el archivo convertido?",
   "conv.dest_this": "Guardar junto a este archivo de impresión",
   "conv.dest_new": "Añadir a mi biblioteca de archivos",

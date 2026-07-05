@@ -3,6 +3,10 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.tr = {
+  "slicer.detect": "Yüklü dilimleyicileri algıla",
+  "slicer.detecting": "Dilimleyiciler aranıyor…",
+  "slicer.detected_n": "{n} dilimleyici eklendi",
+  "slicer.detected_none": "Yeni dilimleyici bulunamadı — aşağıdan elle ekleyin.",
   "conv.dest_q": "Dönüştürülen dosya nereye gitsin?",
   "conv.dest_this": "Bu baskı dosyasıyla birlikte tut",
   "conv.dest_new": "Baskı dosyası kitaplığıma ekle",

@@ -3,6 +3,10 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.de = {
+  "slicer.detect": "Installierte Slicer erkennen",
+  "slicer.detecting": "Suche nach Slicern…",
+  "slicer.detected_n": "{n} Slicer hinzugefügt",
+  "slicer.detected_none": "Keine neuen Slicer gefunden – unten manuell hinzufügen.",
   "conv.dest_q": "Wohin soll die konvertierte Datei?",
   "conv.dest_this": "Bei dieser Druckdatei behalten",
   "conv.dest_new": "Zu meiner Druckdatei-Bibliothek hinzufügen",
