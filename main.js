@@ -1316,6 +1316,28 @@ ipcMain.handle('hub:stl-to-3mf', async (_e, { path: srcPath, intoVaultId } = {})
   } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
 });
 
+// 3MF → STL: extract the raw mesh from a 3MF and save it as a binary STL.
+ipcMain.handle('hub:mf-to-stl', async (_e, { path: srcPath } = {}) => {
+  try {
+    if (!srcPath || !mfReadAllowed(srcPath)) return { ok: false, error: 'Source file is outside an allowed folder.' };
+    const buf = await fs.promises.readFile(path.resolve(String(srcPath)));
+    if (buf.length > MF_MAX_BYTES) return { ok: false, error: 'File is too large.' };
+    const mf = require('./lib/mf-convert');
+    const tris = mf.extractTriangles(mf.readMembers(buf));
+    if (!tris || !tris.length) return { ok: false, error: 'No mesh geometry found in that 3MF.' };
+    const stl = require('./lib/mf-write').trianglesToStl(tris);
+    if (!stl) return { ok: false, error: 'Failed to build the STL.' };
+    const win = BrowserWindow.fromWebContents(_e.sender);
+    const base = path.basename(String(srcPath)).replace(/\.3mf$/i, '') + '.stl';
+    const result = await dialog.showSaveDialog(win, { defaultPath: base, filters: [{ name: 'STL model', extensions: ['stl'] }] });
+    if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+    const finalPath = path.resolve(result.filePath);
+    if (!mfReadAllowed(finalPath)) return { ok: false, error: 'Output path is outside an allowed folder.' };
+    await fs.promises.writeFile(finalPath, stl);
+    return { ok: true, outPath: finalPath, triangleCount: tris.length };
+  } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
+});
+
 // Extract an embedded preview + (3MF) colour/swap info from a print file. Local only.
 ipcMain.handle('hub:extract-thumbnail', async (_e, filePath) => {
   const empty = { pngBase64: null, colors: [], swapCount: 0, source: null };
