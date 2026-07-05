@@ -4,7 +4,21 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
-## [3.1.0] - 2026-07-05
+## [3.2.0-beta.1] - 2026-07-05
+
+**Pre-release (beta) — a better, more capable 3MF Converter.** Opens the 3.2 cycle by making the converter far more useful before you hit Convert, and adding batch and custom-printer support.
+
+### Added
+
+- **Pre-convert summary + live "what changes" diff.** The convert dialog now reads the source file properly — original **printer, bed, nozzle, layer height, per-colour grams, total material and estimated print time** — and shows a side-by-side **what-will-change** panel (printer → target, bed, nozzle, colours vs the target's slots) that updates as you pick a target, instead of only warning you after the fact.
+- **Bed-fit check.** Khayt computes the model's real footprint from the mesh and tells you up front whether it **fits the target printer's build volume** ("Fits" / "May not fit"), with a warning if the footprint or height is too large — so you catch it before slicing, not after.
+- **Many more target printers.** The built-in list grew from 8 to 22: added **Bambu H2D, X1E, A1 mini**, **Prusa Core One, MK4S, MK3S+ & MMU2S**, **Creality K1C / K1 Max**, **Qidi Plus4 / X-Max 3**, **Sovol SV08**, **Anycubic Kobra 3**, **FlashForge Adventurer 5M Pro** and **Elegoo Centauri Carbon**.
+- **Custom printers.** Define your own printer (name, brand, slicer format, bed X/Y/Z, nozzle, colour slots, model id) in the Converter tab. It's saved locally and offered as a target everywhere the built-ins are — so you can convert for a machine that isn't on the list.
+- **Batch conversion.** Pick several 3MF files at once and convert them all to one target printer (or to Generic) in a single run, saving them to a folder or adding them all to your Print-File library, with a per-file progress list and a summary.
+
+### Notes
+
+Geometry is still never touched — the converter only rewrites slicer metadata, so a conversion can't corrupt your model. Everything runs locally.
 
 **Stable release — Khayt for makers, not just print shops.** 3.1 opens the app up to hobbyists and gives everyone a full suite of colour and print-file tools, while keeping the promise that nothing here needs the cloud. It's the culmination of the 3.1 beta cycle (beta.1–beta.15), which also ran a top-to-bottom, three-mode interface review and a final security/correctness hardening pass.
 

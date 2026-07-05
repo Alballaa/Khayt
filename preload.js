@@ -90,7 +90,9 @@ contextBridge.exposeInMainWorld('hubAPI', {
   extractThumbnail:   (filePath)          => ipcRenderer.invoke('hub:extract-thumbnail', filePath),
 
   // 3MF converter (multi-printer)
-  mfPick:     ()      => ipcRenderer.invoke('hub:mf-pick'),
+  mfPick:      ()     => ipcRenderer.invoke('hub:mf-pick'),
+  mfPickMulti: ()     => ipcRenderer.invoke('hub:mf-pick-multi'),
+  mfPickOutdir:()     => ipcRenderer.invoke('hub:mf-pick-outdir'),
   mfAnalyze:  (p)     => ipcRenderer.invoke('hub:mf-analyze', { path: p }),
   mfConvert:  (opts)  => ipcRenderer.invoke('hub:mf-convert', opts),
 

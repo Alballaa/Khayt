@@ -1182,6 +1182,7 @@ ipcMain.handle('hub:printlib-read-bytes', async (_e, fullPath) => {
 // the main process read/write an arbitrary path.
 const MF_MAX_BYTES = 200_000_000;
 const approvedConvertSources = new Set();
+const approvedConvertDirs = new Set(); // user-picked output folders (batch) — writes allowed under these
 function mfAllowedDirs() {
   return [
     app.getPath('userData'), app.getPath('documents'), app.getPath('downloads'),
@@ -1191,6 +1192,7 @@ function mfAllowedDirs() {
 function mfReadAllowed(p) {
   const safe = path.resolve(String(p || ''));
   if (approvedConvertSources.has(safe)) return true;
+  if ([...approvedConvertDirs].some((d) => safe === d || safe.startsWith(d + path.sep))) return true;
   return mfAllowedDirs().some((d) => safe === d || safe.startsWith(d + path.sep));
 }
 
@@ -1205,6 +1207,28 @@ ipcMain.handle('hub:mf-pick', async (_e) => {
   return { ok: true, path: p, name: path.basename(p) };
 });
 
+// Multi-select 3MF picker for batch conversion.
+ipcMain.handle('hub:mf-pick-multi', async (_e) => {
+  const win = BrowserWindow.fromWebContents(_e.sender);
+  const result = await dialog.showOpenDialog(win, {
+    filters: [{ name: '3MF model', extensions: ['3mf'] }], properties: ['openFile', 'multiSelections'],
+  });
+  if (result.canceled || !result.filePaths.length) return { ok: false, canceled: true };
+  const files = result.filePaths.map((fp) => path.resolve(fp));
+  files.forEach((fp) => approvedConvertSources.add(fp));
+  return { ok: true, files: files.map((fp) => ({ path: fp, name: path.basename(fp) })) };
+});
+
+// Output-folder picker for batch conversion (grants write access under the chosen dir).
+ipcMain.handle('hub:mf-pick-outdir', async (_e) => {
+  const win = BrowserWindow.fromWebContents(_e.sender);
+  const result = await dialog.showOpenDialog(win, { properties: ['openDirectory', 'createDirectory'] });
+  if (result.canceled || !result.filePaths[0]) return { ok: false, canceled: true };
+  const dir = path.resolve(result.filePaths[0]);
+  approvedConvertDirs.add(dir);
+  return { ok: true, dir };
+});
+
 ipcMain.handle('hub:mf-analyze', async (_e, { path: srcPath } = {}) => {
   try {
     if (!srcPath || !mfReadAllowed(srcPath)) return { ok: false, error: 'File is outside an allowed folder.' };
@@ -1214,12 +1238,12 @@ ipcMain.handle('hub:mf-analyze', async (_e, { path: srcPath } = {}) => {
   } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
 });
 
-ipcMain.handle('hub:mf-convert', async (_e, { path: srcPath, targetId, mode, slotMap, outPath, intoVaultId } = {}) => {
+ipcMain.handle('hub:mf-convert', async (_e, { path: srcPath, targetId, mode, slotMap, outPath, intoVaultId, targetProfile } = {}) => {
   try {
     if (!srcPath || !mfReadAllowed(srcPath)) return { ok: false, error: 'Source file is outside an allowed folder.' };
     const buf = await fs.promises.readFile(path.resolve(String(srcPath)));
     if (buf.length > MF_MAX_BYTES) return { ok: false, error: 'File is too large.' };
-    const r = require('./lib/mf-convert').convert(buf, { targetId, mode, slotMap });
+    const r = require('./lib/mf-convert').convert(buf, { targetId, mode, slotMap, targetProfile });
     if (!r.ok) return r;
 
     // In-app destination: write the converted 3MF straight into a print-file
