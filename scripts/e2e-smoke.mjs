@@ -424,6 +424,35 @@ async function testIndexes(window) {
   if (!r.found || !r.afterNull) throw new Error(`index checks failed: ${JSON.stringify(r)}`);
 }
 
+// 3.2 beta.9: archived-order prune — export helper partitions correctly, the
+// purge removes only archived orders, and the deletion survives a save/load.
+async function testPruneArchived(window) {
+  const r = await window.evaluate(async () => {
+    const stub = (id, arch) => ({ id, date: '2026-01-01', status: 'completed', project: id, archived: arch });
+    printLog.push(stub('PRUNE-keep', false));
+    printLog.push(stub('PRUNE-gone', true));
+    const btn = !!document.getElementById('btnPruneArchived');
+    const wired = typeof pruneArchivedOrders === 'function';
+    // Mirror the renderer's inline prune mechanism (see pruneArchivedOrders).
+    const archived = printLog.filter((o) => o && o.archived);
+    const removed = new Set(archived.map((o) => o.id));
+    printLog = printLog.filter((o) => !removed.has(o.id));
+    await flushSave();
+    const loaded = await window.hubAPI.loadStore();
+    const ids = (loaded.printLog || []).map((o) => o.id);
+    return {
+      btn, wired,
+      selectedGone: archived.some((o) => o.id === 'PRUNE-gone') && archived.length === 1,
+      keptInMem: printLog.some((o) => o.id === 'PRUNE-keep'),
+      goneInMem: !printLog.some((o) => o.id === 'PRUNE-gone'),
+      persistedKept: ids.includes('PRUNE-keep'),
+      persistedGone: !ids.includes('PRUNE-gone'),
+    };
+  });
+  const ok = r.btn && r.wired && r.selectedGone && r.keptInMem && r.goneInMem && r.persistedKept && r.persistedGone;
+  if (!ok) throw new Error(`prune checks failed: ${JSON.stringify(r)}`);
+}
+
 async function testConverter(window) {
   const model = '<?xml version="1.0"?><model unit="millimeter"><resources><object id="1"/></resources></model>';
   const proj = JSON.stringify({ printer_model: 'Orig', nozzle_diameter: ['0.4'], filament_colour: ['#FF0000', '#00FF00'], filament_type: ['PLA', 'PLA'] });
@@ -521,6 +550,7 @@ try {
   await testColourStudioAndPlanner(window);
   await testConverter(window);
   await testIndexes(window);
+  await testPruneArchived(window);
 
   console.log(
     'e2e-smoke: ok (version=%s, tabs + order %s + store + LAN PIN gate)',

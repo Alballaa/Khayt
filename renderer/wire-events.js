@@ -1515,6 +1515,7 @@ function wireEvents() {
     if (e.target.files[0]) importData(e.target.files[0]);
     e.target.value = '';
   });
+  $('#btnPruneArchived')?.addEventListener('click', pruneArchivedOrders);
   $('#btnReset').addEventListener('click', resetAllData);
   $('#btnFullWipe').addEventListener('click', fullWipeData);
   $('#btnRevealPhotos').addEventListener('click', () => {
