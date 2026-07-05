@@ -220,3 +220,54 @@ test('resolveStoreSecret reads from disk when masked', async () => {
   const v = io.resolveStoreSecret(STORE_SECRET_MASK, d => d?.settings?.telegram?.botToken);
   assert.equal(v, 'disk-bot');
 });
+
+// --- Atomic/durable write + crash recovery (Beat B data-safety) ---
+
+test('atomicWriteStore writes the store and keeps a one-generation .prev rollback', async () => {
+  const io = makeStoreIo();
+  const fp = io.dataFilePath();
+  await io.atomicWriteStore(JSON.stringify({ v: 1 }));
+  assert.equal(safeJsonParse(fs.readFileSync(fp, 'utf8')).v, 1);
+  assert.equal(fs.existsSync(fp + '.prev'), false); // nothing to roll back on the first write
+  await io.atomicWriteStore(JSON.stringify({ v: 2 }));
+  assert.equal(safeJsonParse(fs.readFileSync(fp, 'utf8')).v, 2);
+  assert.equal(safeJsonParse(fs.readFileSync(fp + '.prev', 'utf8')).v, 1); // previous generation preserved
+});
+
+test('recoverStoreRaw reads a valid primary', () => {
+  const io = makeStoreIo();
+  fs.writeFileSync(io.dataFilePath(), JSON.stringify({ printLog: [{ id: 'O' }] }));
+  const r = io.recoverStoreRaw();
+  assert.equal(r.source, 'primary');
+  assert.equal(r.data.printLog[0].id, 'O');
+});
+
+test('recoverStoreRaw quarantines a corrupt primary and restores from .prev', () => {
+  const io = makeStoreIo();
+  const fp = io.dataFilePath();
+  fs.writeFileSync(fp + '.prev', JSON.stringify({ good: true }));
+  fs.writeFileSync(fp, '{ this is not valid json');
+  const r = io.recoverStoreRaw();
+  assert.equal(r.source, 'prev');
+  assert.equal(r.data.good, true);
+  assert.ok(r.quarantined && fs.existsSync(r.quarantined), 'corrupt primary preserved aside');
+  assert.equal(fs.readFileSync(r.quarantined, 'utf8'), '{ this is not valid json');
+  assert.ok(fs.existsSync(fp), 'primary restored from prev');
+});
+
+test('recoverStoreRaw recovers from a completed .tmp when the primary is missing', () => {
+  const io = makeStoreIo();
+  const fp = io.dataFilePath();
+  fs.writeFileSync(fp + '.tmp', JSON.stringify({ fromTmp: 1 }));
+  const r = io.recoverStoreRaw();
+  assert.equal(r.source, 'tmp');
+  assert.equal(r.data.fromTmp, 1);
+  assert.ok(fs.existsSync(fp), 'tmp promoted to primary');
+});
+
+test('recoverStoreRaw reports a fresh install when nothing is on disk', () => {
+  const io = makeStoreIo();
+  const r = io.recoverStoreRaw();
+  assert.equal(r.data, null);
+  assert.equal(r.existed, false);
+});

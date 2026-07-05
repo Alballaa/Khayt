@@ -75,6 +75,8 @@ const {
   maskStoreSecretsForRenderer,
   mergeStoreSecretsFromDisk,
   writeStoreToDisk,
+  atomicWriteStore,
+  recoverStoreRaw,
   syncLanServerStoreFromDisk,
   migrateLanApiSecrets,
   ensureLanIntakeToken,
@@ -941,24 +943,20 @@ ipcMain.handle('hub:load-store', async (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   await maybeShowKeychainExplanation(win);
 
-  const fp = dataFilePath();
-  if (!fs.existsSync(fp)) return null;
   try {
-    // Guard: reject suspiciously large store files before parsing
-    const stat = await fs.promises.stat(fp);
-    if (stat.size > 50_000_000) {
-      console.error('hub:load-store: store file exceeds 50 MB size limit');
-      return { __corrupt: true, error: 'Store file too large' };
+    // Read the best available copy, transparently recovering from a crash (completed .tmp
+    // or previous-generation .prev) and quarantining an unreadable primary so it's never
+    // overwritten. This closes the window where a corrupt/partial read led the app to run
+    // on empty state and then overwrite the good file on the next save.
+    const rec = recoverStoreRaw(50_000_000);
+    if (!rec.data) {
+      if (!rec.existed) return null; // genuinely a fresh install
+      console.error('hub:load-store: store unreadable; quarantined to', rec.quarantined);
+      return { __corrupt: true, error: 'Store unreadable', quarantined: rec.quarantined };
     }
-    const raw = await fs.promises.readFile(fp, 'utf8');
-    // Use safeJsonParse to strip __proto__ / constructor prototype-pollution keys
-    const data = safeJsonParse(raw);
+    if (rec.source !== 'primary') console.warn('hub:load-store: recovered store from', rec.source, rec.quarantined ? `(quarantined ${rec.quarantined})` : '');
     syncLanServerStoreFromDisk();
-    const { normalized, warnings, errors } = normalizeStoreSnapshot(data);
-    // Salvage: normalizeStoreSnapshot returns null only for fatal input. For
-    // recoverable issues it returns a normalized store that keeps every valid
-    // collection — load that rather than discarding everything (which previously
-    // risked the next save overwriting good data with empty state).
+    const { normalized, warnings, errors } = normalizeStoreSnapshot(rec.data);
     if (!normalized) {
       console.error('hub:load-store: unrecoverable store shape:', errors.join('; '));
       return { __corrupt: true, error: errors[0] || 'Invalid store' };
@@ -966,7 +964,9 @@ ipcMain.handle('hub:load-store', async (event) => {
     if (errors.length) console.warn('hub:load-store: recovered with issues:', errors.join('; '));
     if (warnings.length) console.warn('hub:load-store:', warnings.join('; '));
     // Mask secrets — renderer must not receive plaintext credentials
-    return maskStoreSecretsForRenderer(normalized);
+    const masked = maskStoreSecretsForRenderer(normalized);
+    if (rec.source && rec.source !== 'primary') masked.__recovered = rec.source;
+    return masked;
   } catch (e) {
     console.error('hub:load-store error:', e);
     return { __corrupt: true, error: String(e.message || e) };
@@ -974,8 +974,6 @@ ipcMain.handle('hub:load-store', async (event) => {
 });
 
 ipcMain.handle('hub:save-store', async (event, data) => {
-  const fp = dataFilePath();
-  const tmp = fp + '.tmp';
   try {
     const { normalized, errors } = normalizeStoreSnapshot(data);
     if (!normalized) {
@@ -991,8 +989,8 @@ ipcMain.handle('hub:save-store', async (event, data) => {
       console.error('hub:save-store: refusing to write store exceeding 50 MB');
       return { ok: false, error: 'Store too large' };
     }
-    await fs.promises.writeFile(tmp, serialized, 'utf8');
-    await fs.promises.rename(tmp, fp);
+    // Atomic + durable: fsync'd temp swap, with a one-generation .prev rollback.
+    await atomicWriteStore(serialized);
     lanServerStore = merged;  // keep LAN server in sync (plaintext in-memory)
     return { ok: true };
   } catch (e) {

@@ -4,7 +4,18 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
-## [3.2.0-beta.2] - 2026-07-05
+## [3.2.0-beta.3] - 2026-07-05
+
+**Pre-release (beta) — data-safety hardening.** Follow-up to the store audit: make the local data file resilient to crashes and power loss, and stop a bad read from ever overwriting good data.
+
+### Fixed
+
+- **A corrupted or half-written data file can no longer be overwritten with empty data.** Previously, if the store failed to read (a disk hiccup, a partial write), the app started on empty state and the next save would clobber the original — losing everything. Now an unreadable file is **quarantined** (renamed aside, never overwritten) so it's kept for recovery, and the app **automatically recovers** from a completed-but-unswapped temporary write or the previous saved version, with a message confirming your data was restored.
+- **The app no longer starts fresh after a crash that left the file mid-swap.** Loading now also checks the temp and previous-generation files, so an interrupted save is recovered instead of looking like a brand-new install.
+
+### Changed
+
+- **Every store write is now atomic and durable.** The data file is written to a temp file and **flushed to disk (fsync) before** being swapped into place, so a power loss can't leave a truncated store; and the previous version is kept as a one-generation rollback (`khayt-store.prev.json`) on every save.
 
 **Pre-release (beta) — correctness & safety pass.** A comprehensive research audit of the data store and the 3MF converter turned up a real data-loss bug and several converter correctness gaps. This release fixes them.
 

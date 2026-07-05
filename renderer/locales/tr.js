@@ -44,6 +44,7 @@
   "conv.batch_done": "{total} dosyadan {ok} tanesi dönüştürüldü.",
   "conv.batch_fail": "başarısız",
   "conv.family_note": "Bu {f} dosyasıyla uyumlu yazıcılar gösteriliyor. Başka bir ekosistemi hedeflemek için Genel 3MF’ye dönüştürün ve yazıcıyı dilimleyicinizde ayarlayın.",
+  "store.recovered": "✓ Kesintiye uğrayan bir kayıttan sonra verileriniz bir yedekten kurtarıldı.",
   "slicer.detect": "Yüklü dilimleyicileri algıla",
   "slicer.detecting": "Dilimleyiciler aranıyor…",
   "slicer.detected_n": "{n} dilimleyici eklendi",

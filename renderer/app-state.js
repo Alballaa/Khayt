@@ -570,8 +570,12 @@ async function loadAll() {
 
   if (store && store.__corrupt) {
     console.error('Store corruption detected:', store.error);
-    setTimeout(() => toast('⚠ Data file could not be read — starting fresh. Check backups!', 'error', 10000), 1500);
+    setTimeout(() => toast('⚠ Data file could not be read — starting fresh. Your old file was kept aside; check backups!', 'error', 10000), 1500);
     store = null;
+  } else if (store && store.__recovered) {
+    // The main process recovered from a completed temp write or the previous generation
+    // after the primary file was unreadable — reassure the user their data is intact.
+    setTimeout(() => toast(t('store.recovered') || '✓ Recovered your data from a backup after an interrupted save.', 'success', 8000), 1500);
   }
 
   if (!store) {
