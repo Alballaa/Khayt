@@ -119,6 +119,7 @@ body.khayt-studio .khayt-navfoot { padding: 8px 12px 14px; border-top: 1px solid
   flex: 1; background: transparent; border: none; outline: none;
   font-family: var(--font-ui); font-size: 13px; color: var(--text); min-width: 0;
 }
+.khayt-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(91, 156, 240, 0.18); }
 .khayt-search input::placeholder { color: var(--text-faint); }
 .khayt-search kbd {
   font-family: var(--font-mono); font-size: 10px; color: var(--text-muted);

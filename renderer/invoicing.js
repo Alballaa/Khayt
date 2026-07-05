@@ -3,11 +3,6 @@
  */
 (function (global) {
 
-/* --- extracted 392-429 --- */
-function nextInvoiceSeq() {
-  return String(settings.invNumNext || 1).padStart(4, '0');
-}
-
 /* Feature 7: Configurable invoice number sequence */
 function nextInvoiceNumber() {
   const currentYear = new Date().getFullYear();
@@ -352,7 +347,7 @@ function openQuoteRevisionsModal(orderId) {
 async function exportInvoicePDF(orderId, { askWhere = true, openAfter = true } = {}) {
   const order = printLog.find(o => o.id === orderId);
   if (!order) return null;
-  const btn = document.querySelector(`[data-act="export-pdf"][data-id="${orderId}"]`) || $('#btnExportPdf');
+  const btn = document.querySelector(`[data-act="inv-pdf"][data-id="${orderId}"]`);
   if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
   try {
     // Render invoice into print area, then call printToPDF via IPC
@@ -1680,7 +1675,6 @@ const BRAND_MARK_SVG = `
 </svg>`;
 
   const api = {
-    nextInvoiceSeq,
     nextInvoiceNumber,
     nextQuoteSeq,
     generateClientStatement,

@@ -336,7 +336,7 @@ function openMachineEditor(machineId = null) {
             <input type="datetime-local" class="dt-from" data-dti="${i}" value="${escapeHtml(b.from || '')}" style="font-size:11.5px;">
             <input type="datetime-local" class="dt-to" data-dti="${i}" value="${escapeHtml(b.to || '')}" style="font-size:11.5px;">
             <input type="text" class="dt-reason" data-dti="${i}" value="${escapeHtml(b.reason || '')}" placeholder="${escapeHtml(t('mach.downtime_reason'))}" style="font-size:11.5px; min-width:80px;">
-            <button class="btn danger small dt-rm" data-dti="${i}">×</button>
+            <button class="btn danger small dt-rm" data-dti="${i}" aria-label="${escapeHtml(t('common.delete'))}">×</button>
           </div>`).join('');
         el.querySelectorAll('.dt-from').forEach(inp => { inp.addEventListener('change', () => { draft.downtimeBlocks[+inp.dataset.dti].from = inp.value; }); });
         el.querySelectorAll('.dt-to').forEach(inp => { inp.addEventListener('change', () => { draft.downtimeBlocks[+inp.dataset.dti].to = inp.value; }); });
@@ -480,7 +480,7 @@ function openMaintLog(machineId) {
           <td style="white-space:nowrap;">${escapeHtml(e.date)}</td>
           <td>${escapeHtml(e.note || '')}</td>
           <td style="white-space:nowrap;">${e.cost > 0 ? fmtPrice(e.cost) : '—'}</td>
-          <td><button class="btn danger small" data-act="del-maint" data-id="${e.id}">×</button></td>
+          <td><button class="btn danger small" data-act="del-maint" data-id="${e.id}" aria-label="${escapeHtml(t('common.delete'))}">×</button></td>
         </tr>`).join('')}
       </tbody>
     </table></div>`;
@@ -501,7 +501,7 @@ function openMaintLog(machineId) {
         <td style="white-space:nowrap;color:${STATUS_COLOR[st.status] || 'var(--text-muted)'};font-weight:600;font-size:12px;">${escapeHtml(t('maint.status_' + st.status) || st.status)}</td>
         <td style="white-space:nowrap;text-align:right;">
           <button class="btn small" data-act="mt-done" data-id="${tk.id}">${escapeHtml(t('maint.mark_done') || 'Done')}</button>
-          <button class="btn danger small" data-act="mt-del" data-id="${tk.id}">×</button>
+          <button class="btn danger small" data-act="mt-del" data-id="${tk.id}" aria-label="${escapeHtml(t('common.delete'))}">×</button>
         </td></tr>`;
     }).join('')}</tbody></table></div>`;
   }

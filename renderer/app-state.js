@@ -556,7 +556,6 @@ function migrateFromLocalStorage() {
       } catch(e) {}
     }
     if (Object.keys(store).length > 0) {
-      console.debug('Migrated data from localStorage to file store');
       return store;
     }
   } catch(e) {}

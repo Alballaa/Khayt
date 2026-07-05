@@ -56,6 +56,9 @@ const i18n = {
     root.querySelectorAll('[data-i18n-html]').forEach(el => {
       el.innerHTML = this.t(el.getAttribute('data-i18n-html'));
     });
+    root.querySelectorAll('[data-i18n-aria-label]').forEach(el => {
+      el.setAttribute('aria-label', this.t(el.getAttribute('data-i18n-aria-label')));
+    });
   }
 };
 

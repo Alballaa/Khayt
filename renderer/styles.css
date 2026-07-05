@@ -127,7 +127,6 @@ html, body {
   color: var(--text);
   letter-spacing: -0.01em;
 }
-.header .header-spacer { flex: 1; }
 
 .tabs {
   display: flex;
@@ -182,12 +181,10 @@ html, body {
    Grids and cards
    ----------------------------------------------------------- */
 .grid    { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.grid-3  { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
 .grid-4  { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 .full    { grid-column: 1 / -1; }
 @media (max-width: 1100px) {
   .grid   { grid-template-columns: 1fr; }
-  .grid-3 { grid-template-columns: 1fr; }
   .kanban { grid-template-columns: repeat(3, minmax(160px, 1fr)); }
 }
 @media (max-width: 700px) {
@@ -406,44 +403,6 @@ textarea:focus-visible,
 .btn.full     { width: 100%; }
 
 .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
-
-/* Language pill */
-.lang-toggle {
-  display: inline-flex;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 2px;
-}
-.lang-toggle button {
-  border: none;
-  background: transparent;
-  color: var(--text-dim);
-  padding: 5px 12px;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  border-radius: 999px;
-  cursor: pointer;
-}
-.lang-toggle button.active {
-  background: var(--primary);
-  color: #fff;
-}
-
-.theme-toggle {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: var(--text-dim);
-}
-.theme-toggle:hover { color: var(--text); }
 
 /* -----------------------------------------------------------
    Tables
@@ -733,7 +692,6 @@ tbody tr:hover { background: var(--surface-2); }
 .badge.post      { background: rgba(245,166,35,0.18); color: var(--warning); }
 .badge.completed { background: rgba(43,182,115,0.18); color: var(--success); }
 .badge.qc        { background: rgba(138,125,240,0.18); color: var(--info); }
-.badge.quote     { background: rgba(249,115,22,0.15); color: var(--accent); }
 
 /* Highlight-flash for search navigation */
 @keyframes highlight-flash {
@@ -1176,7 +1134,6 @@ html.printing-labels #label-print-area {
   margin-top: 10px;
   padding: 14px 16px;
   background: var(--highlight);
-  border-radius: 6px;
   border-inline-start: 3px solid var(--accent);
   border-radius: 4px;
 }
@@ -2193,20 +2150,6 @@ tr.row-overdue td { background: rgba(239,77,94,0.05); }
 /* -----------------------------------------------------------
    Priority badge (Kanban + Log)
    ----------------------------------------------------------- */
-.priority-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--danger);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  vertical-align: middle;
-  flex-shrink: 0;
-}
 .kanban-card.kanban-priority {
   border-inline-start: 3px solid var(--danger);
 }
@@ -2846,17 +2789,6 @@ tr.row-overdue td { background: rgba(239,77,94,0.05); }
   font-weight: 600;
   color: var(--text);
 }
-.gs-result .gs-sub {
-  font-size: 12px;
-  color: var(--text-dim);
-  margin-top: 1px;
-}
-.gs-no-results {
-  padding: 24px 16px;
-  text-align: center;
-  font-size: 13px;
-  color: var(--text-muted);
-}
 
 /* ── Tag chips ─────────────────────────────────────────────── */
 .tag-chip {
@@ -3194,10 +3126,6 @@ button.tag-chip, .tag-chip[data-act] {
 .price-list-table td { padding:6px 8px; border-bottom:1px solid rgba(255,255,255,0.04); vertical-align:middle; }
 .price-list-table tr:last-child td { border-bottom:none; }
 
-/* ── Feature 5: Utilization bar ────────────────────────────── */
-.utilization-bar-wrap { background:rgba(255,255,255,0.08); border-radius:4px; height:8px; flex:1; overflow:hidden; }
-.utilization-bar { height:100%; border-radius:4px; transition:width 0.4s; }
-
 /* ── Feature 7: Queue position controls ────────────────────── */
 .queue-pos-ctrl { display:inline-flex; gap:2px; vertical-align:middle; margin-inline-end:4px; }
 .queue-pos-ctrl button { padding:2px 5px; font-size:11px; line-height:1; border-radius:4px; border:1px solid var(--border); background:var(--surface-2); color:var(--text-dim); cursor:pointer; }
@@ -3263,7 +3191,7 @@ button.tag-chip, .tag-chip[data-act] {
   transition: transform 0.1s;
 }
 .part-status-dot:hover { transform: scale(1.2); }
-.part-status-dot.pending  { background: #888; }
+.part-status-dot.pending  { background: var(--text-muted); }
 .part-status-dot.printing { background: var(--primary); }
 .part-status-dot.done     { background: var(--success); }
 .part-status-dot.failed   { background: var(--danger); }
@@ -3284,7 +3212,7 @@ button.tag-chip, .tag-chip[data-act] {
   letter-spacing: .3px;
   flex-shrink: 0;
 }
-.part-status-badge.pending  { background: rgba(136,136,136,0.18); color: #aaa; }
+.part-status-badge.pending  { background: rgba(136,136,136,0.18); color: var(--text-muted); }
 .part-status-badge.printing { background: rgba(91,156,240,0.15);  color: var(--primary); }
 .part-status-badge.done     { background: rgba(43,182,115,0.15);  color: var(--success); }
 .part-status-badge.failed   { background: rgba(239,77,94,0.15);   color: var(--danger); }
@@ -3618,9 +3546,9 @@ body.mode-enthusiast .biz-only { display: none !important; }
 .pf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
 .pf-card { position: relative; display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-elev); overflow: hidden; transition: box-shadow .15s, transform .15s; }
 .pf-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,.12); transform: translateY(-1px); }
-.pf-thumb { width: 100%; height: 168px; object-fit: cover; background: #0e1116; display: block; }
+.pf-thumb { width: 100%; height: 168px; object-fit: cover; background: var(--surface-2); display: block; }
 .pf-thumb-icon { display: flex; align-items: center; justify-content: center; font-size: 52px; }
-.pf-fav { position: absolute; top: 8px; right: 8px; z-index: 2; border: none; background: rgba(0,0,0,.45); color: #ffd45e; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-size: 15px; line-height: 1; }
+.pf-fav { position: absolute; top: 8px; inset-inline-end: 8px; z-index: 2; border: none; background: rgba(0,0,0,.45); color: #ffd45e; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-size: 15px; line-height: 1; }
 .pf-fav.on { background: rgba(0,0,0,.6); }
 .pf-body { padding: 10px 12px 6px; flex: 1; }
 .pf-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -3762,18 +3690,6 @@ body.mode-enthusiast .biz-only { display: none !important; }
 .wizard-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); transition: background .2s; }
 .wizard-dot.active { background: var(--accent); }
 
-/* ── Mode toggle in settings ──────────────────────────────── */
-.mode-toggle-group { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
-.mode-btn {
-  background: var(--bg); border: 2px solid var(--border);
-  border-radius: 10px; padding: 16px; cursor: pointer;
-  display: flex; flex-direction: column; gap: 4px; text-align: start;
-  transition: border-color .15s;
-}
-.mode-btn:hover { border-color: var(--accent); }
-.mode-btn.active { border-color: var(--accent); background: rgba(91,156,240,0.08); }
-.mode-btn strong { font-size: 14px; color: var(--text); }
-.mode-btn span { font-size: 12px; color: var(--text-muted); }
 
 /* ── New 8-pack feature styles ────────────────────────────── */
 
@@ -3965,12 +3881,6 @@ body.mode-enthusiast .biz-only { display: none !important; }
 }
 
 /* Feature 5: Variant chips */
-.variant-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 4px;
-}
 .variant-chip {
   display: inline-block;
   font-size: 10px;
@@ -4005,12 +3915,6 @@ body.mode-enthusiast .biz-only { display: none !important; }
   border-radius: 3px;
   overflow: hidden;
   min-width: 60px;
-}
-.live-progress-fill {
-  height: 100%;
-  background: var(--primary);
-  border-radius: 3px;
-  transition: width 0.4s ease;
 }
 .live-state-badge {
   font-size: 10px;
@@ -4220,7 +4124,7 @@ th[data-sort]:hover {
   gap: 16px;
 }
 .kiosk-card {
-  background: var(--card-bg);
+  background: var(--surface);
   border: 2px solid var(--border);
   border-radius: 12px;
   padding: 18px 16px;
@@ -4292,7 +4196,7 @@ th[data-sort]:hover {
   justify-content: space-between;
   gap: 12px;
   padding: 10px 12px;
-  background: var(--card-bg);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
   margin-bottom: 6px;
@@ -4607,19 +4511,6 @@ th[data-sort]:hover {
   border-top: none;
   padding-top: 0;
   margin-top: 0;
-}
-
-/* Two-column field grid inside panels */
-.settings-fields-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0 18px;
-}
-.settings-fields-grid .span2 { grid-column: 1 / -1; }
-
-/* Collapse to a single column when the panel gets narrow (small window / RTL). */
-@media (max-width: 1040px) {
-  .settings-fields-grid { grid-template-columns: 1fr; }
 }
 
 /* Panel h2 title */

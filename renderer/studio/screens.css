@@ -49,6 +49,7 @@
 .khayt-cartrow { display: flex; align-items: center; gap: 9px; padding: 8px 10px; background: var(--surface-2); border-radius: var(--r-sm); }
 
 .khayt-range { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; border-radius: 100px; background: var(--surface-3); outline: none; }
+.khayt-range:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .khayt-range::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); cursor: pointer; border: 3px solid var(--surface); box-shadow: var(--shadow-1); }
 .khayt-range::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); cursor: pointer; border: 3px solid var(--surface); }
 
