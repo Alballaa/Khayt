@@ -489,7 +489,7 @@
 
           <hr class="divider">
 
-          <div class="inline-pair">
+          <div class="inline-pair biz-only">
             <div>
               <label style="display:flex;align-items:center;gap:8px;">
                 <span><span data-i18n="calc.quote.margin">Target profit margin</span> (<span data-i18n="common.percent">%</span>)</span>
@@ -502,14 +502,14 @@
               <input type="number" id="discountPct" value="0" min="0" max="100" step="1">
             </div>
           </div>
-          <div class="inline-pair" style="margin-top:10px;">
+          <div class="inline-pair biz-only" style="margin-top:10px;">
             <div>
               <label><span data-i18n="oe.shipping">Shipping cost</span> (<span data-i18n="common.currency">SAR</span>)</label>
               <input type="number" id="shippingCost" value="0" min="0" step="0.01">
             </div>
           </div>
 
-          <div id="extraLinesWrap" style="margin-top:12px;">
+          <div id="extraLinesWrap" class="biz-only" style="margin-top:12px;">
             <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
               <label style="margin:0; flex:1; font-size:12.5px;" data-i18n="calc.extra_lines">Extra charges</label>
               <button class="btn ghost small" id="btnAddExtraLine" data-i18n="calc.add_extra_line">+ Add fee</button>
@@ -521,7 +521,7 @@
             </div>
           </div>
 
-          <div id="priceTiersStrip" class="tier-chips" style="display:none;"></div>
+          <div id="priceTiersStrip" class="tier-chips biz-only" style="display:none;"></div>
 
           <div class="inline-pair" style="margin-top:10px;">
             <div class="biz-only">
@@ -551,7 +551,7 @@
           <div id="minOrderWarning" class="margin-warning" style="display:none; background:rgba(249,115,22,0.12); color:var(--accent);"></div>
 
           <!-- Rush fee toggle -->
-          <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:13px;">
+          <div class="biz-only" style="display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:13px;">
             <label style="display:flex; align-items:center; gap:6px; cursor:pointer; margin:0; font-weight:normal;">
               <input type="checkbox" id="calcRushFee" style="width:auto; margin:0;">
               <span data-i18n="calc.rush_fee_label">⚡ Rush / priority order</span>
@@ -1655,7 +1655,7 @@
           <span data-i18n="set.enable_zatca">ZATCA-compliant invoices (Saudi Arabia)</span>
         </label>
         <p style="font-size:11.5px; color:var(--text-muted); margin:3px 0 10px;" data-i18n="set.enable_zatca_hint">Adds ZATCA Phase 1 TLV QR code to invoices. Turn off for international use.</p>
-        <div id="zatcaPhase2Section" style="margin-bottom:12px;padding:12px;background:var(--bg-elev);border-radius:var(--radius);"></div>
+        <div id="zatcaPhase2Section" class="pro-only" style="margin-bottom:12px;padding:12px;background:var(--bg-elev);border-radius:var(--radius);"></div>
 
         <div class="inline-pair" style="margin-top:10px;">
           <div>

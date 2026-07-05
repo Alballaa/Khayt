@@ -3146,7 +3146,7 @@ function computeMaterialForecast() {
     for (const o of printLog) {
       if (o.status === 'completed' || o.status === 'quote') continue;
       for (const p of (o.parts || [])) {
-        if (p.filamentId === item.id) queued += partGramsConsumed(p);
+        queued += partGramsForSpool(p, item.id); // colour-aware: splits multicolour parts per spool
       }
       if (!o.parts || o.parts.length === 0) {
         if (o.material && o.material === item.material) queued += (+o.weight || 0);
@@ -3159,7 +3159,7 @@ function computeMaterialForecast() {
     let recentGrams = 0;
     for (const o of recentCompleted) {
       for (const p of (o.parts || [])) {
-        if (p.filamentId === item.id) recentGrams += partGramsConsumed(p);
+        recentGrams += partGramsForSpool(p, item.id); // colour-aware per-spool split
       }
     }
     const dailyUsage = recentGrams / 30;

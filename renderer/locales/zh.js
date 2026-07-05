@@ -3,6 +3,8 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.zh = {
+  "calc.total_cost": "总成本",
+  "conv.dup_slots": "两种颜色映射到同一插槽——其中一个将被丢弃。请为每种颜色分配各自的插槽。",
   "slicer.detect": "检测已安装的切片软件",
   "slicer.detecting": "正在搜索切片软件…",
   "slicer.detected_n": "已添加 {n} 个切片软件",

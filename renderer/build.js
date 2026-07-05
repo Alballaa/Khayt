@@ -354,7 +354,12 @@ function updateGrandTotal() {
   const bd = computePartBreakdown(snap);
   const liveBase = bd.material + bd.machine + bd.labor + bd.buffer;
   const qty = Math.max(1, Math.round(num($('#partQty').value, 1)));
-  const margin = clampPositive($('#margin').value);
+  // Enthusiast (hobbyist) mode prices nothing: no margin, discount, fees or
+  // selling price — the "total" is pure cost. Business modes are unchanged.
+  const biz = (typeof KhaytTiers !== 'undefined')
+    ? KhaytTiers.showsBusiness(settings.mode)
+    : (settings.mode !== 'enthusiast');
+  const margin = biz ? clampPositive($('#margin').value) : 0;
   // Apply price tier if one matches current qty
   const activeTier = (() => {
     const tiers = currentPriceTiers.filter(ti => ti.minQty > 0 && ti.pricePerUnit > 0);
@@ -391,16 +396,16 @@ function updateGrandTotal() {
   } else {
     totalBase = liveBase * qty;
   }
-  const discountPct = Math.min(100, Math.max(0, num($('#discountPct').value, 0)));
-  const shippingCost = Math.max(0, num($('#shippingCost')?.value, 0));
-  const extraLinesTotal = currentExtraLines.reduce((s, l) => s + Math.max(0, +l.amount || 0), 0);
+  const discountPct = biz ? Math.min(100, Math.max(0, num($('#discountPct').value, 0))) : 0;
+  const shippingCost = biz ? Math.max(0, num($('#shippingCost')?.value, 0)) : 0;
+  const extraLinesTotal = biz ? currentExtraLines.reduce((s, l) => s + Math.max(0, +l.amount || 0), 0) : 0;
   const priceBeforeDiscount = (currentBuild.length === 0 && activeTier)
     ? activeTier.pricePerUnit * qty
     : totalBase * (1 + margin / 100);
   const discountAmt = priceBeforeDiscount * discountPct / 100;
   const subAfterDiscount = priceBeforeDiscount - discountAmt;
   // Rush fee
-  const rushEnabled = !!$('#calcRushFee')?.checked;
+  const rushEnabled = biz && !!$('#calcRushFee')?.checked;
   const rushPct = rushEnabled ? num(settings.rushFeePct, 25) : 0;
   const rushFeeAmt = subAfterDiscount * rushPct / 100;
   const finalPrice = subAfterDiscount + rushFeeAmt + shippingCost + extraLinesTotal;
@@ -409,6 +414,11 @@ function updateGrandTotal() {
     if (!finalEl.getAttribute('aria-live')) finalEl.setAttribute('aria-live', 'polite');
     finalEl.textContent = fmtMoney(finalPrice);
   }
+  // In enthusiast mode the "Project total" is really the cost — relabel it.
+  const totalLabel = document.querySelector('.total-display .label');
+  if (totalLabel) totalLabel.textContent = biz
+    ? (t('calc.quote.total') || 'Project total')
+    : (t('calc.total_cost') || 'Total cost');
 
   let bdForChart = bd;
   let breakdownScope = 'live';

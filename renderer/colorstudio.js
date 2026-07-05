@@ -181,7 +181,11 @@
     };
     if (f) f.onchange = () => {
       if (!f.value) return;
-      set(f.value); if (c) c.value = f.value; if (h) h.value = f.value.toUpperCase();
+      // Inventory colours may be #abc or #rrggbbaa; normalise to a 6-digit hex so
+      // the native <input type="color"> swatch actually updates.
+      const rgb = kc && kc.hexToRgb(f.value);
+      const hex = rgb ? kc.rgbToHex(rgb.r, rgb.g, rgb.b) : f.value;
+      set(hex); if (c) c.value = hex; if (h) h.value = hex.toUpperCase();
       f.selectedIndex = 0; after();
     };
   }

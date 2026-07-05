@@ -10,6 +10,10 @@
     const spoolWeight = Math.max(1, +part.spoolWeight || 1);
     const printWeight = Math.max(0, +part.printWeight || 0);
     const isResin = (() => {
+      // A blended multicolour part carries a pre-summed spoolCost/spoolWeight
+      // (both in grams), so its material cost is the FDM ratio by construction —
+      // never the resin per-kg branch, even if its fallback filamentId is resin.
+      if (part.colours && part.colours.length) return false;
       if (part.filamentId) {
         const invItem = inventory.find((i) => i.id === part.filamentId);
         if (invItem) return invItem.materialType === 'resin';
@@ -61,9 +65,11 @@
     const spoolCost = Math.max(0, +part.spoolCost || 0);
     const spoolWeight = Math.max(1, +part.spoolWeight || 1);
     const printWeight = Math.max(0, +part.printWeight || 0);
-    const isResin = part.filamentId
-      ? inventory.find((i) => i.id === part.filamentId)?.materialType === 'resin'
-      : false;
+    const isResin = (part.colours && part.colours.length)
+      ? false
+      : (part.filamentId
+        ? inventory.find((i) => i.id === part.filamentId)?.materialType === 'resin'
+        : false);
     const supportWt = Math.max(0, +part.supportWeight || 0);
     let material = isResin
       ? (spoolCost / 1000) * (printWeight + supportWt)

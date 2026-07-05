@@ -591,10 +591,28 @@ function tokenizeSliceArgs(template) {
 // Slice a model with the user's installed slicer. Returns { ok, gcodePath, outDir,
 // meta, error } WITHOUT cleaning up outDir — the caller decides (parse only, or
 // also upload to a printer, then remove outDir).
+// Reject shells/interpreters posing as a "slicer" executable. The slicer path
+// comes from settings.slicers[] which can arrive via a restored/synced snapshot,
+// so a poisoned path (e.g. /bin/bash with an -c arg template) must not become
+// arbitrary code execution when the user clicks Slice / Open-in-slicer. spawn is
+// already shell:false (no metachar injection); this blocks the interpreter path.
+const DISALLOWED_SLICER_BINARIES = new Set([
+  'bash', 'sh', 'zsh', 'dash', 'ksh', 'csh', 'tcsh', 'fish', 'cmd', 'command',
+  'powershell', 'pwsh', 'python', 'python2', 'python3', 'node', 'nodejs', 'deno',
+  'bun', 'ruby', 'perl', 'php', 'osascript', 'wscript', 'cscript', 'env', 'sudo',
+  'doas', 'xterm', 'open', 'start', 'rundll32', 'regsvr32', 'mshta',
+]);
+function isSafeSlicerBinary(p) {
+  const base = path.basename(String(p || '')).toLowerCase()
+    .replace(/\.(exe|app|appimage|bat|cmd|com|scr|ps1)$/i, '');
+  return base.length > 0 && !DISALLOWED_SLICER_BINARIES.has(base);
+}
+
 async function runSlice({ modelPath, slicerPath, args }) {
   const { spawn } = require('node:child_process');
   const os = require('os');
   if (!slicerPath || !fs.existsSync(slicerPath)) return { ok: false, error: 'Slicer not found — set its path in Settings → Slicer.' };
+  if (!isSafeSlicerBinary(slicerPath)) return { ok: false, error: 'That program is not allowed as a slicer.' };
   if (!modelPath || !fs.existsSync(modelPath)) return { ok: false, error: 'Model file not found.' };
   const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'khayt-slice-'));
   const outPath = path.join(outDir, 'out.gcode');
@@ -639,6 +657,7 @@ ipcMain.handle('hub:slice-test', async (_e, { slicerPath } = {}) => {
   try {
     const { spawn } = require('node:child_process');
     if (!slicerPath || !fs.existsSync(slicerPath)) return { ok: false, error: 'Slicer not found at that path.' };
+    if (!isSafeSlicerBinary(slicerPath)) return { ok: false, error: 'That program is not allowed as a slicer.' };
     return await new Promise((resolve) => {
       let out = '';
       let child;
@@ -1128,7 +1147,7 @@ ipcMain.handle('hub:printlib-open-in-slicer', async (_e, { filePath, slicerPath 
   const root = path.resolve(printLibDir());
   if (!safe.startsWith(root + path.sep)) return { ok: false, error: 'File is outside the library.' };
   if (!fs.existsSync(safe)) return { ok: false, error: 'File not found.' };
-  if (slicerPath && fs.existsSync(slicerPath)) {
+  if (slicerPath && fs.existsSync(slicerPath) && isSafeSlicerBinary(slicerPath)) {
     try {
       const { spawn } = require('node:child_process');
       const child = spawn(slicerPath, [safe], { detached: true, stdio: 'ignore', windowsHide: false });
@@ -1680,12 +1699,24 @@ ipcMain.handle('hub:send-sms', async (_e, { to, message, channel, smsConfig } = 
 // Idempotent by payload.idempotencyKey; secret resolves from the encrypted store.
 ipcMain.handle('hub:accounting-push', async (_e, { url, secret, payload } = {}) => {
   if (!/^https?:\/\//i.test(String(url || ''))) return { ok: false, error: 'Accounting webhook needs an http(s) URL' };
+  // Same SSRF hardening as hub:webhook-post — the URL comes from the store
+  // (settings.accountingSync.webhookUrl), which can arrive via restore/sync, so
+  // block private/loopback/metadata targets, DNS-rebinding and redirects.
+  let parsed;
+  try {
+    parsed = new URL(url);
+    if (isBlockedHost(parsed.hostname)) return { ok: false, error: 'Blocked URL — cannot send to private/loopback addresses' };
+  } catch { return { ok: false, error: 'Invalid accounting webhook URL' }; }
+  if (await resolvesToBlockedHost(parsed.hostname)) {
+    return { ok: false, error: 'Blocked URL — hostname resolves to a private/loopback address' };
+  }
   secret = resolveStoreSecret(secret, d => d?.settings?.accountingSync?.secret);
   try {
     const headers = { 'content-type': 'application/json' };
     if (secret) headers['X-Khayt-Secret'] = String(secret);
     if (payload && payload.idempotencyKey) headers['Idempotency-Key'] = String(payload.idempotencyKey);
-    const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(payload || {}), signal: AbortSignal.timeout(15000) });
+    const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(payload || {}), redirect: 'manual', signal: AbortSignal.timeout(15000) });
+    if (res.status >= 300 && res.status < 400) return { ok: false, error: 'Blocked redirect from accounting webhook' };
     if (!res.ok) {
       let detail = `HTTP ${res.status}`;
       try { const txt = await res.text(); if (txt) detail += ` — ${txt.slice(0, 200)}`; } catch { /* ignore */ }

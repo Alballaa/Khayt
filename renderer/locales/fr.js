@@ -3,6 +3,8 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.fr = {
+  "calc.total_cost": "Coût total",
+  "conv.dup_slots": "Deux couleurs sont associées au même emplacement — l'une sera supprimée. Donnez à chaque couleur son propre emplacement.",
   "slicer.detect": "Détecter les trancheurs installés",
   "slicer.detecting": "Recherche de trancheurs…",
   "slicer.detected_n": "{n} trancheur(s) ajouté(s)",

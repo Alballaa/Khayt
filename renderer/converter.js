@@ -97,6 +97,11 @@
         if (!isGeneric && filaments.length) {
           slotMap = Array.from(modal.querySelectorAll('.conv-slot')).map((s) => parseInt(s.value, 10) || 0);
           if (slotMap.every((v, i) => v === i)) slotMap = null; // identity → no remap
+          // Two source colours mapped to one slot isn't a permutation — the engine
+          // would keep the last write and silently drop the other colour. Warn.
+          if (slotMap && new Set(slotMap).size !== slotMap.length) {
+            toast(t('conv.dup_slots') || 'Two colours are mapped to the same slot — one will be dropped. Give each colour its own slot.', 'warning', 5600);
+          }
         }
         const dest = (modal.querySelector('input[name="convDest"]:checked') || {}).value || 'library';
         const mode = isGeneric ? 'normalize' : 'retarget';

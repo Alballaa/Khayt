@@ -519,7 +519,7 @@ function renderDashboard() {
   const staleOrders = getStaleOrders().filter(o =>
     typeof orderMatchesActiveLocation !== 'function' || orderMatchesActiveLocation(o));
   const staleHtml = staleOrders.length === 0 ? '' : `
-    <div class="card" style="margin-bottom:16px; border-left:3px solid var(--warning);">
+    <div class="card" style="margin-bottom:16px; border-inline-start:3px solid var(--warning);">
       <h3 class="card-head" style="margin-bottom:10px;"><span class="swatch" style="background:var(--warning);"></span>
         ⚠ ${escapeHtml(t('dash.stale_title') || 'Orders Stalled')}
         <span class="count" style="background:var(--warning);color:#000;margin-inline-start:8px;">${staleOrders.length}</span>
@@ -780,7 +780,7 @@ function renderDashboard() {
         return nd <= sevenDays;
       }).sort((a, b) => a.recurring.nextDue.localeCompare(b.recurring.nextDue));
       if (dueClients.length === 0) return '';
-      return `<div class="dash-section pro-only" style="border-left:3px solid var(--primary); padding-inline-start:12px;">
+      return `<div class="dash-section pro-only" style="border-inline-start:3px solid var(--primary); padding-inline-start:12px;">
         <h3 class="dash-section-head" style="color:var(--primary);">${escapeHtml(t('dash.recurring_due'))} (${dueClients.length})</h3>
         ${dueClients.map(c => {
           const nd = new Date(c.recurring.nextDue + 'T00:00:00');
@@ -845,7 +845,7 @@ function renderDashboard() {
     })() : ''}
 
     ${biz && followUpQuotes.length > 0 ? `
-    <div class="dash-section" style="border-left:3px solid var(--warning); padding-inline-start:12px;">
+    <div class="dash-section" style="border-inline-start:3px solid var(--warning); padding-inline-start:12px;">
       <h3 class="dash-section-head" style="color:var(--warning);">⏳ ${escapeHtml(t('dash.expiring_quotes'))} (${followUpQuotes.length})</h3>
       ${followUpQuotes.map(q => {
         const daysLeft = Math.round((new Date(q.quoteExpiresAt + 'T00:00:00') - today0) / 86400000);
@@ -890,7 +890,7 @@ function renderDashboard() {
         });
       }
       if (paymentsDue.length === 0) return '';
-      return `<div class="dash-section pro-only" style="border-left:3px solid var(--primary); padding-inline-start:12px; margin-bottom:14px;">
+      return `<div class="dash-section pro-only" style="border-inline-start:3px solid var(--primary); padding-inline-start:12px; margin-bottom:14px;">
         <h3 class="dash-section-head" style="color:var(--primary);">💳 ${escapeHtml(t('dash.payments_due'))} (${paymentsDue.length})</h3>
         ${paymentsDue.map(({ order: o, inst, instIndex, client }) => {
           const clientName = client ? localName(client) : (o.project || o.id);
