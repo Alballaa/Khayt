@@ -140,6 +140,62 @@ test('a big-enough target bed produces no fit warning', () => {
   assert.ok(!r.report.warnings.some((w) => /fit/i.test(w)));
 });
 
+test('cross-family retarget (Bambu → Prusa) warns and does NOT rewrite the printer model', () => {
+  const src = makeBambu3mf();
+  const r = convert(src, { targetId: 'prusa-mk4-mmu3' }); // prusa family ≠ bambu
+  assert.equal(r.ok, true);
+  assert.equal(r.report.crossFamily, true);
+  assert.ok(r.report.warnings.some((w) => /different slicer format|Generic/i.test(w)));
+  // The Bambu JSON must NOT get a Prusa model name written into it.
+  const proj = JSON.parse(openZip(r.buffer).file('Metadata/project_settings.config').toString('utf8'));
+  assert.equal(proj.printer_model, 'OrigPrinter');
+  assert.ok(!r.report.fieldsChanged.includes('printer_model'));
+});
+
+test('same-family Bambu retarget writes printable_height', () => {
+  const r = convert(makeMeshBambu(), { targetId: 'bambu-x1c' }); // 256×256×256
+  assert.equal(r.ok, true);
+  assert.equal(r.report.crossFamily, undefined);
+  const proj = JSON.parse(openZip(r.buffer).file('Metadata/project_settings.config').toString('utf8'));
+  assert.equal(proj.printable_height, '256');
+  assert.ok(r.report.fieldsChanged.includes('printable_height'));
+});
+
+test('same-family Prusa retarget rewrites bed_shape and max_print_height', () => {
+  const cfg = 'printer_model = MK3S\nnozzle_diameter = 0.4\nbed_shape = 0x0,250x0,250x210,0x210\nmax_print_height = 210\nfilament_colour = #AA0000\n';
+  const src = writeZip([{ name: '3D/3dmodel.model', data: MODEL }, { name: 'Metadata/Slic3r_PE.config', data: cfg }]);
+  const r = convert(src, { targetId: 'prusa-xl-5t' }); // 360×360×360
+  assert.equal(r.ok, true);
+  const text = openZip(r.buffer).file('Metadata/Slic3r_PE.config').toString('utf8');
+  assert.match(text, /bed_shape = 0x0,360x0,360x360,0x360/);
+  assert.match(text, /max_print_height = 360/);
+});
+
+test('computeBounds honours a non-mm model unit (inch → mm)', () => {
+  const inchModel = MESH.replace('unit="millimeter"', 'unit="inch"');
+  const src = writeZip([{ name: '3D/3dmodel.model', data: inchModel }, { name: 'Metadata/project_settings.config', data: '{}' }]);
+  const a = analyze(src);
+  // 300×150×20 inches → ×25.4 mm
+  assert.equal(a.bounds.x, Math.round(300 * 25.4 * 10) / 10);
+  assert.equal(a.bounds.y, Math.round(150 * 25.4 * 10) / 10);
+});
+
+test('computeBounds resolves a <component>-composed assembly (no false Fits)', () => {
+  // Object 1 is a 10×10×10 mesh; object 2 is an assembly placing it at x+500. Footprint spans 510mm.
+  const model = '<?xml version="1.0"?><model unit="millimeter"><resources>'
+    + '<object id="1" type="model"><mesh><vertices>'
+    + '<vertex x="0" y="0" z="0"/><vertex x="10" y="10" z="10"/>'
+    + '</vertices><triangles/></mesh></object>'
+    + '<object id="2" type="model"><components>'
+    + '<component objectid="1" transform="1 0 0 0 1 0 0 0 1 0 0 0"/>'
+    + '<component objectid="1" transform="1 0 0 0 1 0 0 0 1 500 0 0"/>'
+    + '</components></object></resources>'
+    + '<build><item objectid="2" transform="1 0 0 0 1 0 0 0 1 0 0 0"/></build></model>';
+  const a = analyze(writeZip([{ name: '3D/3dmodel.model', data: model }, { name: 'Metadata/project_settings.config', data: '{}' }]));
+  assert.equal(a.bounds.x, 510); // 0..510, not the 10 a vertex-only scan would report
+  assert.equal(a.bounds.y, 10);
+});
+
 test('a custom target profile re-profiles without registry state', () => {
   const r = convert(makeMeshBambu(), {
     targetId: 'ignored',

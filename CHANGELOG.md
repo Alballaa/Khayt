@@ -4,7 +4,24 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
-## [3.2.0-beta.1] - 2026-07-05
+## [3.2.0-beta.2] - 2026-07-05
+
+**Pre-release (beta) — correctness & safety pass.** A comprehensive research audit of the data store and the 3MF converter turned up a real data-loss bug and several converter correctness gaps. This release fixes them.
+
+### Fixed
+
+- **Subscriptions and the team activity log now persist.** Retainer/subscription plans (and their recurring-revenue totals) and the entire team **activity log** were being silently dropped on save and came back empty after every restart — the store's save routine only wrote a fixed list of collections and these two weren't on it. Both are now saved and reloaded correctly. (Existing plans/logs that were lost can't be recovered, but new ones stick.)
+- **The converter no longer offers incoherent cross-ecosystem conversions.** Retargeting a Bambu/Orca file to a Prusa printer (or vice-versa) can't be done by rewriting metadata — the slicer settings are fundamentally different — but the app used to offer it and produce a file that opened but targeted nothing. The target list now shows only printers compatible with the source file's format; to move between ecosystems, convert to **Generic 3MF** and set the printer up in your slicer. (If a cross-format conversion is triggered another way, the colours are still remapped but the printer settings are left alone, with a clear warning, instead of writing a bad profile.)
+- **Retarget now writes the full build volume it promised.** Prusa conversions now rewrite **bed shape and max print height** (not just the model + nozzle), and Bambu/Orca conversions now also write the **printable height** — so the "what changes" summary matches what actually ends up in the file.
+- **The bed-fit check is now unit-aware and assembly-aware.** It honours the file's declared unit (a micron- or inch-unit model is no longer mis-measured by 1000×/25×), and it correctly measures multi-part **assemblies** built from components — so it can no longer show a false "Fits" for a model that's actually too big. When the geometry can't be fully measured it now shows no verdict rather than a wrong one.
+
+### Security
+
+- **3MF reader now caps decompression** (guards against a maliciously crafted "zip-bomb" member inflating to gigabytes and crashing the app).
+
+### Changed
+
+- **Deleting a supplier or product now cleans up references.** Removing a supplier un-links it from inventory items and purchase orders; removing a product un-links it from past orders and drops it from any quote bundles — no more dangling references (with one-tap **undo**).
 
 **Pre-release (beta) — a better, more capable 3MF Converter.** Opens the 3.2 cycle by making the converter far more useful before you hit Convert, and adding batch and custom-printer support.
 

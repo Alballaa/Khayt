@@ -2608,9 +2608,20 @@ async function deleteSupplier(id) {
   const ok = await confirmModal(`${t('common.delete')} "${sup.name}"?`, { danger: true });
   if (!ok) return;
   suppliers = suppliers.filter(s => s.id !== id);
+  // Null-out references so nothing points at a supplier that no longer exists (undo relinks).
+  const unlinked = [];
+  for (const it of inventory) { if (it.supplierId === id) { unlinked.push(it); it.supplierId = null; } }
+  for (const po of purchaseOrders) { if (po.supplierId === id) { unlinked.push(po); po.supplierId = null; } }
   saveAll();
   renderSuppliers();
-  toast(t('sup.deleted'), 'success');
+  toast(t('sup.deleted'), 'success', 5000, {
+    undo: () => {
+      suppliers.push(sup);
+      for (const r of unlinked) r.supplierId = id;
+      saveAll();
+      renderSuppliers();
+    },
+  });
 }
 
 /* ============================================================
@@ -2798,9 +2809,27 @@ async function deleteProduct(productId) {
     try { await window.hubAPI.deleteProductImage(p.imagePath); } catch (_) {}
   }
   products = products.filter(x => x.id !== productId);
+  // Clean up references: unlink orders and drop the product from any quote bundles (undo relinks).
+  const unlinked = [];
+  for (const o of printLog) { if (o.productId === productId) { unlinked.push(o); o.productId = null; } }
+  const bundleHits = [];
+  for (const b of (settings.bundles || [])) {
+    if (Array.isArray(b.productIds) && b.productIds.includes(productId)) {
+      bundleHits.push(b);
+      b.productIds = b.productIds.filter(pid => pid !== productId);
+    }
+  }
   saveAll();
   renderCatalog();
-  toast(t('pe.deleted'), 'success');
+  toast(t('pe.deleted'), 'success', 5000, {
+    undo: () => {
+      products.push(p);
+      for (const o of unlinked) o.productId = productId;
+      for (const b of bundleHits) if (Array.isArray(b.productIds) && !b.productIds.includes(productId)) b.productIds.push(productId);
+      saveAll();
+      renderCatalog();
+    },
+  });
 }
 
 /* ----- Product editor modal ----- */

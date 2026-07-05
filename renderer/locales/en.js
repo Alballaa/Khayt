@@ -43,6 +43,7 @@
   "conv.batch_dest_folder": "Save all to a folder…",
   "conv.batch_done": "Converted {ok} of {total} files.",
   "conv.batch_fail": "failed",
+  "conv.family_note": "Showing printers compatible with this {f} file. To target another ecosystem, convert to Generic 3MF and set up the printer in your slicer.",
   "slicer.detect": "Detect installed slicers",
   "slicer.detecting": "Scanning for slicers…",
   "slicer.detected_n": "Added {n} slicer(s)",

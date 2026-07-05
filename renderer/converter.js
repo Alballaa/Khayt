@@ -44,15 +44,30 @@
   function fmtVol(b) { return b ? `${b.x}×${b.y}×${b.z} mm` : null; }
   function fmtTime(min) { if (!min) return null; const h = Math.floor(min / 60), m = Math.round(min % 60); return h ? `${h}h ${m}m` : `${m}m`; }
 
-  function targetOptions(selectedId) {
+  // A retarget only makes sense within one slicer config family. When we know the source
+  // flavour, offer only compatible printers (+ Generic) so an incoherent cross-ecosystem
+  // conversion can't be picked; for an unknown source, only Generic is meaningful.
+  function compatibleWith(sourceFlavour, p) {
+    const P = profiles();
+    if (!sourceFlavour || sourceFlavour === 'generic' || !P || !P.configFamily) return true;
+    return P.configFamily(p.flavour) === P.configFamily(sourceFlavour);
+  }
+  function firstCompatibleId(sourceFlavour) {
+    const P = profiles();
+    const all = [...customPrinters(), ...(P ? P.listProfiles() : [])];
+    const hit = all.find((p) => compatibleWith(sourceFlavour, p));
+    return hit ? hit.id : (P ? P.GENERIC.id : '');
+  }
+
+  function targetOptions(selectedId, sourceFlavour) {
     const P = profiles();
     if (!P) return '';
     const opt = (p) => `<option value="${escapeHtml(p.id)}"${p.id === selectedId ? ' selected' : ''}>${escapeHtml(p.name)}${p.system ? ' · ' + escapeHtml(p.system) : ''}</option>`;
     let html = '';
-    const custom = customPrinters();
+    const custom = customPrinters().filter((p) => compatibleWith(sourceFlavour, p));
     if (custom.length) html += `<optgroup label="${escapeHtml(t('conv.my_printers') || 'My printers')}">${custom.map(opt).join('')}</optgroup>`;
     const byVendor = {};
-    for (const p of P.listProfiles()) { (byVendor[p.vendor] = byVendor[p.vendor] || []).push(p); }
+    for (const p of P.listProfiles()) { if (compatibleWith(sourceFlavour, p)) (byVendor[p.vendor] = byVendor[p.vendor] || []).push(p); }
     html += Object.keys(byVendor).map((vendor) =>
       `<optgroup label="${escapeHtml(vendor)}">${byVendor[vendor].map(opt).join('')}</optgroup>`).join('');
     const g = P.GENERIC;
@@ -140,14 +155,19 @@
 
     const P = profiles();
     const filaments = a.filaments || [];
-    let targetId = firstTargetId();
+    let targetId = firstCompatibleId(a.flavour);
 
     function currentMax(id) { const p = getProfileById(id); return p ? p.maxColors : filaments.length; }
+
+    const crossNote = (a.flavour && a.flavour !== 'generic')
+      ? `<p class="conv-tip">${escapeHtml((t('conv.family_note') || 'Showing printers compatible with this {f} file. To target another ecosystem, convert to Generic 3MF and set up the printer in your slicer.').replace('{f}', a.flavour))}</p>`
+      : '';
 
     const body = `
       ${metaCardHtml(src, a)}
       <label class="conv-label">${escapeHtml(t('conv.target') || 'Target printer')}</label>
-      <select id="convTarget" class="conv-target">${targetOptions(targetId)}</select>
+      <select id="convTarget" class="conv-target">${targetOptions(targetId, a.flavour)}</select>
+      ${crossNote}
       <div id="convChanges">${changesHtml(a, targetId)}</div>
       <div id="convRemapWrap">${remapTableHtml(filaments, currentMax(targetId))}</div>
       <div class="conv-dest">

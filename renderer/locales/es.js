@@ -43,6 +43,7 @@
   "conv.batch_dest_folder": "Guardar todo en una carpeta…",
   "conv.batch_done": "Convertidos {ok} de {total} archivos.",
   "conv.batch_fail": "falló",
+  "conv.family_note": "Mostrando impresoras compatibles con este archivo {f}. Para otro ecosistema, convierte a 3MF genérico y configura la impresora en tu slicer.",
   "slicer.detect": "Detectar laminadores instalados",
   "slicer.detecting": "Buscando laminadores…",
   "slicer.detected_n": "Se añadieron {n} laminador(es)",
