@@ -38,17 +38,83 @@
     main.insertBefore(chrome, main.firstChild);
 
     const nav = chrome.querySelector('#atlasNav');
-    ATLAS_TABS.forEach((tabId) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.dataset.atlasTab = tabId;
-      const nl = NAV_LABELS[tabId];
-      btn.textContent = nl ? tr(nl[0], nl[1]) : tabId;
-      btn.addEventListener('click', () => {
-        if (typeof switchTab === 'function') switchTab(tabId);
-      });
-      nav.appendChild(btn);
+    ATLAS_TABS.forEach((tabId) => { nav.appendChild(makeNavBtn(tabId)); });
+
+    // Overflow menu — every other mode-visible tab stays reachable (Atlas hides
+    // the main sidebar, so without this those tabs would have no entry point).
+    const moreWrap = document.createElement('div');
+    moreWrap.className = 'atlas-more';
+    const moreBtn = document.createElement('button');
+    moreBtn.type = 'button';
+    moreBtn.className = 'atlas-more-btn';
+    moreBtn.setAttribute('aria-haspopup', 'menu');
+    moreBtn.setAttribute('aria-expanded', 'false');
+    moreBtn.textContent = `${tr('atlas.nav.more', 'More')} ▾`;
+    const menu = document.createElement('div');
+    menu.className = 'atlas-more-menu';
+    menu.setAttribute('role', 'menu');
+    menu.hidden = true;
+    moreBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const willOpen = menu.hidden;
+      if (willOpen) buildMoreMenu(menu);
+      menu.hidden = !willOpen;
+      moreBtn.setAttribute('aria-expanded', String(willOpen));
     });
+    document.addEventListener('click', () => {
+      if (!menu.hidden) { menu.hidden = true; moreBtn.setAttribute('aria-expanded', 'false'); }
+    });
+    moreWrap.appendChild(moreBtn);
+    moreWrap.appendChild(menu);
+    nav.appendChild(moreWrap);
+  }
+
+  function makeNavBtn(tabId) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.dataset.atlasTab = tabId;
+    const nl = NAV_LABELS[tabId];
+    btn.textContent = nl ? tr(nl[0], nl[1]) : tabId;
+    btn.addEventListener('click', () => { if (typeof switchTab === 'function') switchTab(tabId); });
+    return btn;
+  }
+
+  // Is a sidebar nav button hidden by the current mode's gating classes?
+  function tabHiddenByMode(btn) {
+    const mode = (typeof settings !== 'undefined' && settings.mode) || 'professional';
+    const isPro = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.isProMode(mode) : mode === 'professional';
+    const biz = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.showsBusiness(mode) : mode !== 'enthusiast';
+    if (btn.classList.contains('pro-only') && !isPro) return true;
+    if (btn.classList.contains('biz-only') && !biz) return true;
+    return false;
+  }
+
+  // Build the overflow menu from the real sidebar buttons, so labels + mode gating stay in sync.
+  function buildMoreMenu(menu) {
+    menu.innerHTML = '';
+    document.querySelectorAll('#appSidebar .tab-btn[data-tab], .khayt-sidebar .tab-btn[data-tab]').forEach((src) => {
+      const tabId = src.dataset.tab;
+      if (!tabId || ATLAS_TABS.has(tabId)) return;
+      if (tabHiddenByMode(src)) return;
+      const label = src.querySelector('.nav-label')?.textContent?.trim() || tabId;
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'atlas-more-item';
+      item.setAttribute('role', 'menuitem');
+      item.textContent = label;
+      item.addEventListener('click', () => {
+        if (typeof switchTab === 'function') switchTab(tabId);
+        menu.hidden = true;
+      });
+      menu.appendChild(item);
+    });
+    if (!menu.children.length) {
+      const empty = document.createElement('div');
+      empty.className = 'atlas-more-item';
+      empty.style.opacity = '0.5';
+      empty.textContent = '—';
+      menu.appendChild(empty);
+    }
   }
 
   function removeChrome() {

@@ -502,6 +502,7 @@
   "atlas.nav.floor": "الأرضية",
   "atlas.nav.queue": "الطابور",
   "atlas.nav.settings": "الإعدادات",
+  "atlas.nav.more": "المزيد",
   "atlas.floor": "الأرضية",
   "atlas.live": "مباشر",
   "atlas.kpi.machines": "طابعات",

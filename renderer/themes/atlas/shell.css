@@ -97,6 +97,28 @@ body.khayt-atlas #dashboardContent {
   background: var(--accent-soft); color: var(--accent); border-color: var(--accent);
 }
 
+/* Overflow "More" menu — keeps every non-primary tab reachable in Atlas. */
+.atlas-chrome .atlas-more { position: relative; }
+.atlas-chrome .atlas-more-btn {
+  height: 34px; padding: 0 14px; border-radius: 100px; border: 1px solid var(--line);
+  background: transparent; color: var(--dim); font-family: var(--font-ui);
+  font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.atlas-chrome .atlas-more-menu {
+  position: absolute; inset-inline-end: 0; top: calc(100% + 6px); z-index: 60;
+  min-width: 190px; max-height: 62vh; overflow-y: auto;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 12px;
+  padding: 6px; display: flex; flex-direction: column; gap: 2px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+}
+.atlas-chrome .atlas-more-menu[hidden] { display: none; }
+.atlas-chrome .atlas-more-item {
+  text-align: start; padding: 8px 12px; border-radius: 8px; border: 0;
+  background: transparent; color: var(--ink); font-family: var(--font-ui);
+  font-size: 12.5px; font-weight: 500; cursor: pointer; white-space: nowrap;
+}
+.atlas-chrome .atlas-more-item:hover { background: var(--accent-soft); color: var(--accent); }
+
 /* Floor map */
 .atlas-floor-root {
   position: relative;

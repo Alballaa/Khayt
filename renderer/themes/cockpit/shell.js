@@ -2,9 +2,13 @@
  * Cockpit shell — 74px icon rail, filtered nav, stats bar, Spectrum skin sync.
  */
 (function (global) {
+  // Full tab set stays reachable; RAIL_LABELS below only re-skins the primary ones.
   const COCKPIT_TABS = new Set([
-    'dashboard-tab', 'queue-tab', 'inventory-tab', 'calculator-tab',
-    'analytics-tab', 'clients-tab', 'settings-tab',
+    'dashboard-tab', 'queue-tab', 'calculator-tab',
+    'printfiles-tab', 'colorstudio-tab', 'converter-tab',
+    'inventory-tab', 'waste-tab', 'catalog-tab', 'clients-tab',
+    'gift-cards-tab', 'portfolio-tab', 'logs-tab', 'analytics-tab',
+    'expenses-tab', 'settings-tab',
   ]);
 
   // Translate with graceful English fallback (works even if a key is missing).
@@ -51,6 +55,13 @@
     });
     document.querySelectorAll('.tab-btn[data-tab]').forEach((btn) => {
       btn.style.display = '';
+    });
+    // relabelNav() overwrote shared nav-label text in place — restore the real
+    // i18n labels so other themes don't inherit Cockpit's names after a switch.
+    document.querySelectorAll('.tab-btn[data-tab] .nav-label[data-i18n]').forEach((label) => {
+      const key = label.getAttribute('data-i18n');
+      const s = (typeof t === 'function') ? t(key) : null;
+      if (s && s !== key) label.textContent = s;
     });
   }
 
