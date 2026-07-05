@@ -471,6 +471,7 @@
         <div class="conv-actions">
           <button class="btn primary" id="convPick">＋ ${escapeHtml(t('conv.pick') || 'Choose a 3MF file…')}</button>
           <button class="btn ghost" id="convBatchPick">🗂 ${escapeHtml(t('conv.batch_pick') || 'Batch convert…')}</button>
+          ${hub() && hub().stlPick ? `<button class="btn ghost" id="convStlBtn">📐 ${escapeHtml(t('conv.stl_pick') || 'STL → 3MF…')}</button>` : ''}
         </div>
         <p class="conv-tip">${escapeHtml(t('conv.tip') || 'Tip: you can also hit Convert on any 3MF in your Print-File library.')}</p>
         <div id="convBatchPanel">${batchPanelHtml()}</div>
@@ -498,6 +499,22 @@
     };
     const run = document.getElementById('convBatchRun');
     if (run) run.onclick = runBatch;
+
+    const stlBtn = document.getElementById('convStlBtn');
+    if (stlBtn) stlBtn.onclick = async () => {
+      const r = await hub().stlPick();
+      if (!r || !r.ok) return;
+      toast(t('conv.stl_working') || 'Converting STL…', 'info', 1600);
+      const vaultId = typeof uid === 'function' ? uid('PF') : ('PF' + Date.now().toString(36));
+      let c;
+      try { c = await hub().stlTo3mf({ path: r.path, intoVaultId: vaultId }); }
+      catch (e) { toast(String((e && e.message) || e), 'error'); return; }
+      if (!c || !c.ok) { toast((c && c.error) || (t('conv.stl_failed') || 'Could not convert that STL.'), 'error'); return; }
+      if (typeof importConvertedAsNew === 'function') {
+        await importConvertedAsNew({ vaultId, filename: c.filename, ext: c.ext, size: c.size, targetName: '3MF', sourceName: r.name });
+      }
+      toast(t('conv.stl_done') || 'STL converted to 3MF and added to your library.', 'success', 3600);
+    };
 
     const cpSave = document.getElementById('convCpSave');
     if (cpSave) cpSave.onclick = () => saveCustomPrinter(document.getElementById('convCpForm'));

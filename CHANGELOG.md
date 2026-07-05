@@ -4,7 +4,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
-## [3.2.0-beta.6] - 2026-07-05
+## [3.2.0-beta.7] - 2026-07-05
+
+**Pre-release (beta) — STL → 3MF.** Bring plain STL files into the 3MF workflow.
+
+### Added
+
+- **Convert an STL to a 3MF.** A new **STL → 3MF** action in the Converter tab wraps any STL's mesh into a clean, standard 3MF and adds it to your Print-File library (with an auto-generated preview). The result opens in any slicer, and — like every conversion — your geometry is never altered, only re-packaged. Works locally.
 
 **Pre-release (beta) — saved conversion presets.** Stop re-picking the same target and colour mapping every time.
 

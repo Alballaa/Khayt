@@ -1274,6 +1274,48 @@ ipcMain.handle('hub:mf-convert', async (_e, { path: srcPath, targetId, mode, slo
   } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
 });
 
+// STL → 3MF: pick an STL and wrap its mesh into a clean generic 3MF any slicer opens.
+ipcMain.handle('hub:stl-pick', async (_e) => {
+  const win = BrowserWindow.fromWebContents(_e.sender);
+  const result = await dialog.showOpenDialog(win, {
+    filters: [{ name: 'STL model', extensions: ['stl'] }], properties: ['openFile'],
+  });
+  if (result.canceled || !result.filePaths[0]) return { ok: false, canceled: true };
+  const p = path.resolve(result.filePaths[0]);
+  approvedConvertSources.add(p);
+  return { ok: true, path: p, name: path.basename(p) };
+});
+
+ipcMain.handle('hub:stl-to-3mf', async (_e, { path: srcPath, intoVaultId } = {}) => {
+  try {
+    if (!srcPath || !mfReadAllowed(srcPath)) return { ok: false, error: 'Source file is outside an allowed folder.' };
+    const buf = await fs.promises.readFile(path.resolve(String(srcPath)));
+    if (buf.length > MF_MAX_BYTES) return { ok: false, error: 'File is too large.' };
+    const parsed = require('./lib/stl-parse').parseStl(buf, { keepTriangles: true });
+    if (!parsed || !parsed.triangleCount) return { ok: false, error: 'No mesh found in that STL.' };
+    const out = require('./lib/mf-write').meshTo3mf(parsed.triangles);
+    if (!out) return { ok: false, error: 'Failed to build the 3MF.' };
+    const report = { triangleCount: parsed.triangleCount, bbox: parsed.bbox };
+    if (intoVaultId) {
+      const dir = printLibItemDir(intoVaultId);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      const filename = `stl2mf-${Date.now().toString(36)}.3mf`;
+      const dest = path.join(dir, filename);
+      await fs.promises.writeFile(dest, out);
+      const stat = await fs.promises.stat(dest);
+      return { ok: true, vault: true, filename, ext: '3mf', size: stat.size, outPath: dest, report };
+    }
+    const win = BrowserWindow.fromWebContents(_e.sender);
+    const base = path.basename(String(srcPath)).replace(/\.stl$/i, '') + '.3mf';
+    const result = await dialog.showSaveDialog(win, { defaultPath: base, filters: [{ name: '3MF model', extensions: ['3mf'] }] });
+    if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+    const finalPath = path.resolve(result.filePath);
+    if (!mfReadAllowed(finalPath)) return { ok: false, error: 'Output path is outside an allowed folder.' };
+    await fs.promises.writeFile(finalPath, out);
+    return { ok: true, outPath: finalPath, report };
+  } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
+});
+
 // Extract an embedded preview + (3MF) colour/swap info from a print file. Local only.
 ipcMain.handle('hub:extract-thumbnail', async (_e, filePath) => {
   const empty = { pngBase64: null, colors: [], swapCount: 0, source: null };
