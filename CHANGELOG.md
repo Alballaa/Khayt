@@ -4,6 +4,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.8] - 2026-07-05
+
+**Pre-release (beta) — 3MF → STL.** Round out the converter: pull the raw mesh back out of any 3MF.
+
+### Added
+
+- **Export a 3MF to STL.** A new **3MF → STL** action in the Converter tab extracts the mesh geometry from a 3MF — resolving nested components, build transforms, and units — and saves it as a standard binary STL. Pairs with beta.7's STL → 3MF so you can move a model both directions without a slicer. Geometry is preserved exactly; runs locally.
+
 ## [3.2.0-beta.7] - 2026-07-05
 
 **Pre-release (beta) — STL → 3MF.** Bring plain STL files into the 3MF workflow.

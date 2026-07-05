@@ -460,6 +460,9 @@ async function testConverter(window) {
     const s2m = await window.hubAPI.stlTo3mf({ path: stl, intoVaultId: 'PF-stl-e2e' });
     res.stlOk = !!(s2m.ok && s2m.vault && s2m.filename);
     if (s2m.ok) { const sa = await window.hubAPI.mfAnalyze(s2m.outPath); res.stlAnalyzed = !!(sa.ok && sa.hasGeometry); }
+    // 3.2 beta.8: reverse direction — 3MF → STL export is wired (preload fn + tab button).
+    res.toStlWired = typeof window.hubAPI.mfToStl === 'function'
+      && (document.getElementById('converter-tab')?.innerHTML || '').includes('convToStlBtn');
     const c = await window.hubAPI.mfConvert({ path: src, targetId: 'snapmaker-u1', mode: 'retarget', slotMap: [1, 0], outPath: out });
     res.convertOk = !!c.ok; res.target = c.report && c.report.target; res.remapped = c.report && c.report.colorsRemapped;
 
@@ -487,6 +490,7 @@ async function testConverter(window) {
     customOk: r.customOk === true,
     stlOk: r.stlOk === true,
     stlAnalyzed: r.stlAnalyzed === true,
+    toStlWired: r.toStlWired === true,
     flavourBambu: r.flavour === 'bambu',
     colorCount2: r.colorCount === 2,
     convertOk: r.convertOk === true,
