@@ -24,7 +24,7 @@ function getFilteredLogs() {
     if (logOperatorFilter && log.operatorId !== logOperatorFilter) return false;
     if (typeof orderMatchesActiveLocation === 'function' && !orderMatchesActiveLocation(log)) return false;
     if (logSearchTerm) {
-      const cl = log.clientId ? clients.find(c => c.id === log.clientId) : null;
+      const cl = log.clientId ? clientById(log.clientId) : null;
       const hay = [log.project, log.client, cl?.nameEn, cl?.nameAr, log.id, log.material, ...(log.tags || [])].join(' ').toLowerCase();
       if (!hay.includes(logSearchTerm.toLowerCase())) return false;
     }
@@ -200,7 +200,7 @@ function renderLogs() {
             ${(log.status === 'pending' || log.status === 'printing') && log.clientId && (+log.price || 0) > 0 ? `<button class="menu-item pro-only" data-act="gen-proforma" data-id="${log.id}">📄 ${escapeHtml(t('ord.gen_proforma'))}</button>` : ''}
             <button class="menu-item pro-only" data-act="milestone-invoices" data-id="${log.id}">📋 ${escapeHtml(t('ord.milestone_invoices'))}</button>
             ${!log.voidedAt ? `<button class="menu-item pro-only" data-act="void-invoice" data-id="${log.id}">🚫 ${escapeHtml(t('inv.void_btn'))}</button>` : `<span class="menu-item" style="color:var(--danger);cursor:default;">🚫 ${escapeHtml(t('inv.already_voided'))}</span>`}
-            ${(() => { const cl = log.clientId ? clients.find(c => c.id === log.clientId) : null; return cl?.email ? `<button class="menu-item" data-act="${log.status === 'quote' ? 'email-quote' : 'email-invoice'}" data-id="${log.id}">✉️ ${escapeHtml(t(log.status === 'quote' ? 'ord.email_quote' : 'ord.email_invoice'))}</button>` : ''; })()}
+            ${(() => { const cl = log.clientId ? clientById(log.clientId) : null; return cl?.email ? `<button class="menu-item" data-act="${log.status === 'quote' ? 'email-quote' : 'email-invoice'}" data-id="${log.id}">✉️ ${escapeHtml(t(log.status === 'quote' ? 'ord.email_quote' : 'ord.email_invoice'))}</button>` : ''; })()}
             ${(() => {
               if (typeof zatcaPhase2Ready !== 'function' || !zatcaPhase2Ready()) return '';
               if (log.status !== 'completed' && log.status !== 'delivered') return '';
@@ -312,7 +312,7 @@ function batchWaSend() {
   const ordersHtml = ids.map(id => {
     const o = printLog.find(x => x.id === id);
     if (!o) return '';
-    const client = o.clientId ? clients.find(c => c.id === o.clientId) : null;
+    const client = o.clientId ? clientById(o.clientId) : null;
     const name = client ? (localName(client)) : (o.project || '');
     return `<div style="font-size:12px;color:var(--text-dim);padding:2px 0;">${escapeHtml(o.id)} — ${escapeHtml(name)} — ${fmtPrice(o.price)}</div>`;
   }).join('');
@@ -330,7 +330,7 @@ function batchWaSend() {
       for (const id of ids) {
         const order = printLog.find(o => o.id === id);
         if (!order) continue;
-        const client = order.clientId ? clients.find(c => c.id === order.clientId) : null;
+        const client = order.clientId ? clientById(order.clientId) : null;
         const msg = fillWaTemplate(tpl.body, order, client);
         if (window.hubAPI?.shareWhatsApp) {
           await window.hubAPI.shareWhatsApp({ phone: client?.phone || '', message: msg, pdfPath: null });

@@ -410,6 +410,20 @@ async function testMultiSlicer(window) {
 
 // 3.1 beta.5: 3MF converter — the Converter tab renders, and the real main-process
 // pipeline analyzes a synthesized Bambu 3MF and retargets it (re-profile + slot remap).
+// Lazy id→record index: correct hits, and invalidation when the collection changes.
+async function testIndexes(window) {
+  const r = await window.evaluate(() => {
+    const c = { id: 'IDX-e2e', name: 'Index Test' };
+    clients.push(c);
+    const hit = clientById('IDX-e2e');
+    const found = !!(hit && hit.id === 'IDX-e2e');
+    clients = clients.filter((x) => x.id !== 'IDX-e2e'); // reassign → index must rebuild
+    const afterNull = clientById('IDX-e2e') === null;
+    return { found, afterNull };
+  });
+  if (!r.found || !r.afterNull) throw new Error(`index checks failed: ${JSON.stringify(r)}`);
+}
+
 async function testConverter(window) {
   const model = '<?xml version="1.0"?><model unit="millimeter"><resources><object id="1"/></resources></model>';
   const proj = JSON.stringify({ printer_model: 'Orig', nozzle_diameter: ['0.4'], filament_colour: ['#FF0000', '#00FF00'], filament_type: ['PLA', 'PLA'] });
@@ -489,6 +503,7 @@ try {
   await testEnthusiastAndPrintFiles(window);
   await testColourStudioAndPlanner(window);
   await testConverter(window);
+  await testIndexes(window);
 
   console.log(
     'e2e-smoke: ok (version=%s, tabs + order %s + store + LAN PIN gate)',

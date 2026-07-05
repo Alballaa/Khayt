@@ -4,7 +4,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
-## [3.2.0-beta.3] - 2026-07-05
+## [3.2.0-beta.4] - 2026-07-05
+
+**Pre-release (beta) — scale & performance.** Follow-up to the store audit: keep the app fast as your order history grows into the thousands, and stop internal sync data from growing without bound.
+
+### Changed
+
+- **Faster lists and reports with large datasets.** Order, dashboard, kanban and analytics views used to scan the whole client list once for every row/section they drew — so with thousands of orders and clients, rendering slowed down noticeably. Lookups now use fast in-memory indexes, so drawing a list is roughly proportional to what's on screen, not to the size of your whole database. The lead-source revenue breakdown in Analytics in particular went from re-scanning every order for every source to a single pass.
+- **Sync delete-markers no longer grow without limit.** Internal "tombstone" records (used to propagate deletions to your other devices during cloud sync) are now capped to the most recent set, so they can't slowly bloat your data file over time.
 
 **Pre-release (beta) — data-safety hardening.** Follow-up to the store audit: make the local data file resilient to crashes and power loss, and stop a bad read from ever overwriting good data.
 

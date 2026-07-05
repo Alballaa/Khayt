@@ -281,6 +281,32 @@ let subscriptions  = []; // retainer / subscription plans (recurring revenue)
 let auditLog       = []; // append-only team activity log (who did what, when)
 let printFiles     = []; // 3.1: standalone print-file library (STL/3MF/gcode + previews)
 
+/* ---------- Lazy id→record indexes ----------
+ * O(1) lookups instead of a linear `.find` scan — the difference that keeps lookups fast at
+ * the 3,000-order target, especially inside render loops. Each index rebuilds only when its
+ * collection's identity or length changes (an add / remove / reassign). Field mutations need
+ * no rebuild because the map stores live object *references*; and record ids are immutable
+ * primary keys, so an unchanged (ref, length) means the id set is unchanged too. Declared at
+ * top level (like the collections) so every renderer script can call them bare.
+ */
+function _makeIdIndex(getArr) {
+  let ref = null, len = -1, map = new Map();
+  return (id) => {
+    const arr = getArr() || [];
+    if (arr !== ref || arr.length !== len) {
+      map = new Map();
+      for (const x of arr) if (x && x.id != null) map.set(x.id, x);
+      ref = arr; len = arr.length;
+    }
+    return (id == null) ? null : (map.get(id) || null);
+  };
+}
+const orderById = _makeIdIndex(() => printLog);
+const clientById = _makeIdIndex(() => clients);
+const productById = _makeIdIndex(() => products);
+const inventoryById = _makeIdIndex(() => inventory);
+const machineById = _makeIdIndex(() => machines);
+
 // Runtime-only state (not persisted)
 let kanbanTimerInterval = null;
 let activeLocation = null; // Feature 8: null = all locations

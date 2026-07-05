@@ -487,7 +487,7 @@ function renderDashboard() {
 
   const orderCard = (o, badge) => {
     const isUnpaid = payStatus(o) !== 'paid';
-    const client = o.clientId ? clients.find(c => c.id === o.clientId) : null;
+    const client = o.clientId ? clientById(o.clientId) : null;
     const hasPhone = !!(client?.phone || '').trim();
     const reminderBtn = (isUnpaid && hasPhone)
       ? `<button class="btn small ghost" data-act="pay-remind" data-id="${o.id}" title="${escapeHtml(t('pay.remind_btn'))}">💰</button>`
@@ -852,7 +852,7 @@ function renderDashboard() {
         const badge = daysLeft < 0
           ? `<span class="due-badge overdue">${escapeHtml(t('quote.expired'))}</span>`
           : `<span class="due-badge due-soon">${escapeHtml(t('quote.expires_in', { n: daysLeft }))}</span>`;
-        const client = q.clientId ? clients.find(c => c.id === q.clientId) : null;
+        const client = q.clientId ? clientById(q.clientId) : null;
         const hasPhone = !!(client?.phone || '').trim();
         const sentCount = +q.followUpCount || 0;
         const sentChip = sentCount > 0
@@ -882,7 +882,7 @@ function renderDashboard() {
       const paymentsDue = [];
       for (const o of printLog) {
         if (!o.instalments) continue;
-        const client = o.clientId ? clients.find(c => c.id === o.clientId) : null;
+        const client = o.clientId ? clientById(o.clientId) : null;
         o.instalments.forEach((inst, i) => {
           if (!inst.paidAt && inst.dueDate && inst.dueDate <= sevenDaysFromNow) {
             paymentsDue.push({ order: o, inst, instIndex: i, client });

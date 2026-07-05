@@ -143,3 +143,12 @@ test('golden invariant: load (seed) → save with no edits → zero churn', () =
   assert.equal(s.tombstones.length, 0);
   assert.equal(s.printLog[0].rev, 1, 'rev untouched');
 });
+
+test('tombstones are capped so they cannot grow without bound', () => {
+  const many = Array.from({ length: 5100 }, (_, i) => ({ id: 'D' + i, collection: 'printLog', deletedAt: i }));
+  const s = snap({ tombstones: many });
+  sync.stampChanges(s);
+  assert.equal(s.tombstones.length, 5000);
+  assert.ok(s.tombstones.some(t => t.id === 'D5099'), 'newest tombstone kept');
+  assert.ok(!s.tombstones.some(t => t.id === 'D0'), 'oldest tombstone dropped');
+});

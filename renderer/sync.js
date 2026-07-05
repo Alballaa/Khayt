@@ -143,6 +143,12 @@
       }
     }
 
+    // Bound growth: tombstones are transient delete-markers for sync; once every device has
+    // seen a delete they're dead weight. Keep the most recent set (appended oldest-first) so
+    // the array can't grow without limit and bloat every save/sync blob.
+    const TOMB_CAP = 5000;
+    if (tomb && tomb.length > TOMB_CAP) tomb.splice(0, tomb.length - TOMB_CAP);
+
     lastIndex = next;
     return summary;
   }

@@ -162,7 +162,7 @@ function renderStudioKanbanCard(b) {
   // Enthusiast (hobbyist) mode has no commerce — hide client identity, sale price and payment state on cards.
   const biz = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.showsBusiness(settings.mode) : settings.mode !== 'enthusiast';
   const prioColor = { urgent: 'var(--danger)', high: 'var(--warn)', normal: 'var(--text-muted)' }[_pl] || 'var(--text-muted)';
-  const client = log.clientId ? clients.find(c => c.id === log.clientId) : null;
+  const client = log.clientId ? clientById(log.clientId) : null;
   const clientLine = biz ? (client ? localName(client) : (log.client || '')) : '';
   const part0 = (log.parts || [])[0];
   let swatchHex = '#6b7280';
@@ -392,7 +392,7 @@ function renderKanban() {
     if (o.status === 'quote') return false;
     if (!locMatch(o)) return false;
     if (kanTerm) {
-      const client = o.clientId ? clients.find(c => c.id === o.clientId) : null;
+      const client = o.clientId ? clientById(o.clientId) : null;
       const hay = [o.project, o.id, o.client, client?.nameEn, client?.nameAr, client?.phone].join(' ').toLowerCase();
       if (!hay.includes(kanTerm)) return false;
     }
@@ -690,7 +690,7 @@ function renderKanban() {
         `<span class="part-colour-chip">${escapeHtml(p.colour)}</span>`
       ).join('');
       // Client accent colour on card left border
-      const cardClient = log.clientId ? clients.find(c => c.id === log.clientId) : null;
+      const cardClient = log.clientId ? clientById(log.clientId) : null;
       const cardClientAccent = cardClient?.color ? `border-inline-start:3px solid ${safeCssColor(cardClient.color)};padding-inline-start:7px;` : '';
       return renderStudioKanbanCard({
         log, status, _pl, pausedClass, cardClientAccent, partColourHtml, partsLabel,
