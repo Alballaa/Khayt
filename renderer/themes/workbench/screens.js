@@ -103,7 +103,9 @@
     const cls = statusChipClass(order.status);
     const label = tr('queue.' + order.status, order.status);
     // Subtitle: client + due hint, reusing the shared due-date language.
-    const client = findClient(order.clientId);
+    // Enthusiast (hobbyist) mode has no clients — show project/id only.
+    const showBiz = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.showsBusiness(typeof settings !== 'undefined' ? settings.mode : undefined) : (typeof settings === 'undefined' || settings.mode !== 'enthusiast');
+    const client = showBiz ? findClient(order.clientId) : null;
     const parts = [];
     if (client) parts.push(localName(client));
     if (order.dueDate) {
@@ -204,6 +206,10 @@
     const mach = (typeof machines !== 'undefined' && Array.isArray(machines)) ? machines : [];
     const inv = (typeof inventory !== 'undefined' && Array.isArray(inventory)) ? inventory : [];
     const cfg = (typeof settings !== 'undefined') ? settings : {};
+    // Mode separation: enthusiast = no commerce (revenue/receivables/quotes/clients);
+    // the revenue delta is Pro depth. Personal stats fill vacated slots.
+    const biz = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.showsBusiness(cfg.mode) : cfg.mode !== 'enthusiast';
+    const pro = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.isProMode(cfg.mode) : (cfg.mode || 'professional') === 'professional';
 
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const todayStr = (typeof localDateStr === 'function') ? localDateStr(today) : today.toISOString().slice(0, 10);
@@ -211,6 +217,7 @@
     /* ---- KPI figures (real) ---- */
     const todayDone = log.filter((o) => o.status === 'completed' && o.date === todayStr);
     const todayRev = todayDone.reduce((s, o) => s + orderRevenueBase(o), 0);
+    const printHoursToday = todayDone.reduce((s, o) => s + (+o.printTime || 0), 0);
     // Yesterday revenue for the delta chip.
     const yest = new Date(today); yest.setDate(yest.getDate() - 1);
     const yestStr = (typeof localDateStr === 'function') ? localDateStr(yest) : yest.toISOString().slice(0, 10);
@@ -252,20 +259,23 @@
       ? tr('dash.wb_due_today', `${dueToday} due today`).replace('{n}', dueToday)
       : '';
 
-    // Outstanding receivables — base owed across all non-fully-paid, non-void orders.
-    const outstanding = log
+    // Outstanding receivables — base owed across all non-fully-paid, non-void orders (business only).
+    const outstanding = biz ? log
       .filter((o) => payStatus(o) !== 'paid' && payStatus(o) !== 'voided')
-      .reduce((s, o) => s + orderOwedBase(o), 0);
-    const outstandingCount = log.filter((o) => payStatus(o) !== 'paid' && payStatus(o) !== 'voided' && orderOwedBase(o) > 0).length;
+      .reduce((s, o) => s + orderOwedBase(o), 0) : 0;
+    const outstandingCount = biz ? log.filter((o) => payStatus(o) !== 'paid' && payStatus(o) !== 'voided' && orderOwedBase(o) > 0).length : 0;
     const outstandingSub = outstandingCount > 0
       ? tr('dash.wb_invoices', `${outstandingCount} invoices`).replace('{n}', outstandingCount)
       : '';
 
+    const revenueTile = biz
+      ? statTile(tr('dash.wb_revenue_today', 'Revenue today'), `${fmtMoneyVal(todayRev)} ${ccy()}`, pro ? revDelta : '', pro ? revDeltaCls : 'mut', ICON.money, 'var(--wb-green)')
+      : statTile(tr('dash.pstat_print_hours', 'Print hours today'), `${printHoursToday.toFixed(1)}h`, '', 'mut', ICON.printer, 'var(--wb-green)');
     const stats = [
-      statTile(tr('dash.wb_revenue_today', 'Revenue today'), `${fmtMoneyVal(todayRev)} ${ccy()}`, revDelta, revDeltaCls, ICON.money, 'var(--wb-green)'),
+      revenueTile,
       statTile(tr('dash.wb_active_prints', 'Active prints'), String(nowPrinting.length), activeSub, 'mut', ICON.printer, 'var(--wb-blue)'),
       statTile(tr('dash.wb_filament_today', 'Filament today'), filamentVal, filamentSub, 'mut', ICON.inv, 'var(--wb-amber)'),
-      statTile(tr('dash.wb_open_orders', 'Open orders'), String(openOrders.length), dueSub, dueToday > 0 ? 'dn' : 'mut', ICON.queue, 'var(--wb-purple)'),
+      statTile(biz ? tr('dash.wb_open_orders', 'Open orders') : tr('dash.pstat_open_jobs', 'Open jobs'), String(openOrders.length), dueSub, dueToday > 0 ? 'dn' : 'mut', ICON.queue, 'var(--wb-purple)'),
     ].join('');
 
     /* ---- Today's work (real active orders) ---- */
@@ -323,8 +333,8 @@
         });
       });
     }
-    // Expiring / follow-up quotes via the shared selector.
-    const followUps = (typeof KhaytQuoteFollowUp !== 'undefined' && typeof cfg === 'object')
+    // Expiring / follow-up quotes via the shared selector (business modes only).
+    const followUps = (biz && typeof KhaytQuoteFollowUp !== 'undefined' && typeof cfg === 'object')
       ? KhaytQuoteFollowUp.selectQuotesDueForFollowUp(log, cfg, Date.now())
       : [];
     followUps.slice(0, 3).forEach((q) => {
@@ -338,8 +348,8 @@
         chip: 'blue', chipLabel: tr('dash.wb_due', 'Due'),
       });
     });
-    // Overdue receivables (completed but unpaid past due) as a fallback signal.
-    if (attention.length < 5) {
+    // Overdue receivables (completed but unpaid past due) as a fallback signal (business only).
+    if (biz && attention.length < 5) {
       log.filter((o) => o.status === 'completed' && payStatus(o) !== 'paid' && payStatus(o) !== 'voided' && orderOwedBase(o) > 0)
         .slice(0, 5 - attention.length).forEach((o) => {
           const client = findClient(o.clientId);
@@ -389,7 +399,9 @@
           <div class="wb-panel wb-qa-grid">
             ${qa('calculator-tab', tr('dash.wb_estimate', 'Estimate'), 'var(--wb-purple)', ICON.calc)}
             ${qa('queue-tab', tr('dash.wb_add_job', 'Add job'), 'var(--wb-blue)', ICON.plus)}
-            ${qa('logs-tab', tr('dash.wb_new_invoice', 'New invoice'), 'var(--wb-green)', ICON.money)}
+            ${biz
+              ? qa('logs-tab', tr('dash.wb_new_invoice', 'New invoice'), 'var(--wb-green)', ICON.money)
+              : qa('waste-tab', tr('waste.log_from_card', 'Log waste'), 'var(--wb-green)', ICON.inv)}
             ${qa('inventory-tab', tr('dash.wb_add_stock', 'Add stock'), 'var(--wb-amber)', ICON.inv)}
           </div>
         </div>

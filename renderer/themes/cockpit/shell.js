@@ -120,8 +120,16 @@
       ? Math.round((printing / machines.length) * 100)
       : 0;
 
+    // Enthusiast (hobbyist) mode has no revenue — swap the MTD money cell for a
+    // personal stat (prints this month) so the 4-cell bar stays balanced.
+    const biz = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.showsBusiness(settings.mode) : (typeof settings === 'undefined' || settings.mode !== 'enthusiast');
+    const printsMonth = (typeof printLog !== 'undefined' ? printLog : [])
+      .filter((o) => o.status === 'completed' && monthStr && (o.date || '').startsWith(monthStr)).length;
+    const firstCell = biz
+      ? { v: typeof fmtMoney === 'function' ? fmtMoney(monthlyRev) : String(monthlyRev), l: tr('cockpit.stat.mtd', 'MTD') }
+      : { v: String(printsMonth), l: tr('dash.pstat_prints_month', 'Prints this month') };
     const stats = [
-      { v: typeof fmtMoney === 'function' ? fmtMoney(monthlyRev) : String(monthlyRev), l: tr('cockpit.stat.mtd', 'MTD') },
+      firstCell,
       { v: String(active), l: tr('cockpit.stat.active', 'active') },
       { v: `${util}%`, l: tr('cockpit.stat.util', 'util') },
       { v: String(printing), l: tr('cockpit.stat.printing', 'printing') },

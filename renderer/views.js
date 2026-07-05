@@ -255,8 +255,10 @@ function renderKioskView() {
         etaStr = `~${printHrs}h total`;
       }
 
-      const client = job.clientId ? clients.find(c => c.id === job.clientId) : null;
-      const clientName = client ? (client.nameEn || client.nameAr || '') : (job.client || '');
+      // Enthusiast (hobbyist) mode has no clients — don't show a client name on kiosk cards.
+      const kioskBiz = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.showsBusiness(settings.mode) : settings.mode !== 'enthusiast';
+      const client = (kioskBiz && job.clientId) ? clients.find(c => c.id === job.clientId) : null;
+      const clientName = kioskBiz ? (client ? (client.nameEn || client.nameAr || '') : (job.client || '')) : '';
 
       progressHtml = `
         <div class="kiosk-job">

@@ -3,6 +3,13 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.es = {
+  "dash.pstat_prints_today": "Impresiones hoy",
+  "dash.pstat_print_hours": "Horas de impresión hoy",
+  "dash.pstat_prints_month": "Impresiones este mes",
+  "dash.pstat_filament_month": "Filamento este mes",
+  "dash.pstat_open_jobs": "Trabajos abiertos",
+  "dash.pstat_jobs": "trabajos",
+  "dash.pstat_prints_7d": "Impresiones — últimos 7 días",
   "tab.printfiles": "Archivos de impresión",
   "tab.colorstudio": "Color",
   "cmix.title": "Estudio de color",

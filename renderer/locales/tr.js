@@ -3,6 +3,13 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.tr = {
+  "dash.pstat_prints_today": "Bugünkü baskılar",
+  "dash.pstat_print_hours": "Bugünkü baskı saatleri",
+  "dash.pstat_prints_month": "Bu ayki baskılar",
+  "dash.pstat_filament_month": "Bu ayki filament",
+  "dash.pstat_open_jobs": "Açık işler",
+  "dash.pstat_jobs": "iş",
+  "dash.pstat_prints_7d": "Baskılar — son 7 gün",
   "tab.printfiles": "Baskı Dosyaları",
   "tab.colorstudio": "Renk",
   "cmix.title": "Renk stüdyosu",

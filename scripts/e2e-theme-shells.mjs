@@ -108,6 +108,48 @@ async function assertNewTabsReachable(window, themeCase) {
   }
 }
 
+// Enthusiast (hobbyist) mode must not leak revenue/margin into the bespoke
+// per-theme dashboards. Seed a completed order with revenue + cost, render each
+// themed dashboard in enthusiast mode, and assert the currency symbol and the
+// word "margin" are absent from the dashboard (and, for cockpit, its stats bar).
+async function assertEnthusiastThemesNoMoney(window) {
+  const THEMES = [
+    { id: 'command', sel: '.cmd-dash', extra: '#commandStatusBar' },
+    { id: 'cockpit', sel: '.ck-dash', extra: '#cockpitStatsBar' },
+    { id: 'workbench', sel: '.wb-dash', extra: null },
+    { id: 'vivid', sel: '.vv-dash', extra: null },
+  ];
+  for (const th of THEMES) {
+    const r = await window.evaluate(({ id, sel, extra }) => {
+      const ccy = (typeof currencySymbol === 'function') ? currencySymbol() : 'SAR';
+      const todayStr = (typeof localDateStr === 'function') ? localDateStr(new Date()) : new Date().toISOString().slice(0, 10);
+      printLog.unshift({ id: 'REV-e2e', project: 'Rev probe', status: 'completed', price: 73219, cost: 21000, date: todayStr, printTime: 3, clientId: '' });
+      settings.mode = 'enthusiast';
+      settings.designTheme = id;
+      if (typeof applyDesignSettings === 'function') applyDesignSettings();
+      window.KhaytShell?.switchTab?.('dashboard-tab');
+      const root = document.querySelector(sel);
+      let html = root ? root.innerHTML : null;
+      if (extra) { const e = document.querySelector(extra); if (e) html = (html || '') + e.innerHTML; }
+      // Match the profit-margin KPI label specifically ("Avg margin") — a bare
+      // /margin/i would false-match CSS "margin:" in inline styles.
+      const out = {
+        found: !!root,
+        hasCcy: html != null && html.includes(ccy),
+        hasMargin: html != null && /Avg margin|profit margin/i.test(html),
+        ccy,
+      };
+      printLog.shift();
+      settings.mode = 'professional';
+      if (typeof applyDesignSettings === 'function') applyDesignSettings();
+      return out;
+    }, th);
+    if (!r.found) throw new Error(`${th.id}: enthusiast dashboard ${th.sel} not found`);
+    if (r.hasCcy) throw new Error(`${th.id}: enthusiast dashboard leaks currency (${r.ccy})`);
+    if (r.hasMargin) throw new Error(`${th.id}: enthusiast dashboard leaks "margin"`);
+  }
+}
+
 async function testRtlAtlas(window) {
   await window.evaluate(() => {
     settings.lang = 'ar';
@@ -151,6 +193,9 @@ try {
     await assertNewTabsReachable(window, themeCase);
     console.log(`  ${themeCase.id}: dashboard + queue + settings + reach ok`);
   }
+
+  await assertEnthusiastThemesNoMoney(window);
+  console.log('  enthusiast themed dashboards: no revenue/margin ok');
 
   await testRtlAtlas(window);
   console.log('  atlas + ar RTL: ok');

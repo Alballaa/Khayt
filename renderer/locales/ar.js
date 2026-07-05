@@ -3,6 +3,13 @@
   var g = root;
   g.KhaytLocales = g.KhaytLocales || {};
   g.KhaytLocales.ar = {
+  "dash.pstat_prints_today": "مطبوعات اليوم",
+  "dash.pstat_print_hours": "ساعات الطباعة اليوم",
+  "dash.pstat_prints_month": "مطبوعات هذا الشهر",
+  "dash.pstat_filament_month": "الخيوط هذا الشهر",
+  "dash.pstat_open_jobs": "مهام مفتوحة",
+  "dash.pstat_jobs": "مهام",
+  "dash.pstat_prints_7d": "المطبوعات — آخر ٧ أيام",
   "tab.printfiles": "ملفات الطباعة",
   "tab.colorstudio": "الألوان",
   "cmix.title": "استوديو الألوان",

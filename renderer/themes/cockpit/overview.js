@@ -202,23 +202,26 @@
         </div>
       </div>`).join('');
 
+    // Mode separation: enthusiast (hobbyist) has no clients/revenue — hide the
+    // client name + per-order price, and swap "booked" for print hours.
+    const biz = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.showsBusiness(settings.mode) : (typeof settings === 'undefined' || settings.mode !== 'enthusiast');
     const dueHtml = due.map((o) => {
       const hot = o.dueDate && new Date(o.dueDate + 'T00:00:00') <= today;
-      const client = (typeof clients !== 'undefined' ? clients : []).find((c) => c.id === o.clientId);
+      const client = biz ? (typeof clients !== 'undefined' ? clients : []).find((c) => c.id === o.clientId) : null;
       return `
         <div class="ck-due">
           <span class="id">${escapeHtml(o.id)}</span>
-          <span class="who" style="flex:1;min-width:0">${escapeHtml(client?.name || o.project || '')}</span>
-          <span class="val">${typeof fmtMoney === 'function' ? fmtMoney(typeof orderRevenueBase === 'function' ? orderRevenueBase(o) : 0) : ''}</span>
+          <span class="who" style="flex:1;min-width:0">${escapeHtml(biz ? (client?.name || o.project || '') : (o.project || o.id))}</span>
+          ${biz ? `<span class="val">${typeof fmtMoney === 'function' ? fmtMoney(typeof orderRevenueBase === 'function' ? orderRevenueBase(o) : 0) : ''}</span>` : ''}
           <span class="tag" style="background:${hot ? 'var(--c-error)' : 'var(--surface-3)'};color:${hot ? '#fff' : 'var(--ink-2)'}">${escapeHtml(o.dueDate || '')}</span>
         </div>`;
     }).join('');
 
     const todayStr = typeof localDateStr === 'function' ? localDateStr(today) : '';
-    const doneToday = (typeof printLog !== 'undefined' ? printLog : []).filter((o) => o.status === 'completed' && o.date === todayStr).length;
-    const revToday = (typeof printLog !== 'undefined' ? printLog : [])
-      .filter((o) => o.status === 'completed' && o.date === todayStr)
-      .reduce((s, o) => s + (typeof orderRevenueBase === 'function' ? orderRevenueBase(o) : 0), 0);
+    const completedToday = (typeof printLog !== 'undefined' ? printLog : []).filter((o) => o.status === 'completed' && o.date === todayStr);
+    const doneToday = completedToday.length;
+    const revToday = completedToday.reduce((s, o) => s + (typeof orderRevenueBase === 'function' ? orderRevenueBase(o) : 0), 0);
+    const hoursToday = completedToday.reduce((s, o) => s + (+o.printTime || 0), 0);
 
     return `
       <section class="ck-panel">
@@ -233,7 +236,9 @@
           <div class="ck-sechead">${escapeHtml(tr('cockpit.today_so_far', 'Today so far'))}</div>
           <div class="ck-sum">
             <div class="ck-sumcell"><span class="v">${doneToday}</span><span class="l">${escapeHtml(tr('cockpit.jobs_done', 'jobs done'))}</span></div>
-            <div class="ck-sumcell"><span class="v">${typeof fmtMoney === 'function' ? fmtMoney(revToday) : revToday}</span><span class="l">${escapeHtml(tr('cockpit.booked', 'booked'))}</span></div>
+            ${biz
+              ? `<div class="ck-sumcell"><span class="v">${typeof fmtMoney === 'function' ? fmtMoney(revToday) : revToday}</span><span class="l">${escapeHtml(tr('cockpit.booked', 'booked'))}</span></div>`
+              : `<div class="ck-sumcell"><span class="v">${hoursToday.toFixed(1)}h</span><span class="l">${escapeHtml(tr('dash.pstat_print_hours', 'Print hours today'))}</span></div>`}
           </div>
         </div>
       </section>`;
