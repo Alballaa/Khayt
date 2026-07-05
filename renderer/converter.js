@@ -49,8 +49,32 @@
   // conversion can't be picked; for an unknown source, only Generic is meaningful.
   function compatibleWith(sourceFlavour, p) {
     const P = profiles();
-    if (!sourceFlavour || sourceFlavour === 'generic' || !P || !P.configFamily) return true;
+    if (!p || !P || !P.configFamily) return true;
+    if (P.configFamily(p.flavour) === 'generic') return true; // Generic normalize is always valid
+    if (!sourceFlavour || sourceFlavour === 'generic') return true;
     return P.configFamily(p.flavour) === P.configFamily(sourceFlavour);
+  }
+
+  /* ---------------- Conversion presets ---------------- */
+  function convPresets() { return (typeof settings !== 'undefined' && Array.isArray(settings.convPresets)) ? settings.convPresets : []; }
+  function savePreset(name, tId, slotMap) {
+    if (typeof settings === 'undefined') return;
+    if (!Array.isArray(settings.convPresets)) settings.convPresets = [];
+    settings.convPresets.push({
+      id: typeof uid === 'function' ? uid('cvp') : ('cvp' + Date.now().toString(36)),
+      name: String(name).slice(0, 40), targetId: tId, slotMap: Array.isArray(slotMap) ? slotMap : null,
+    });
+    if (typeof saveAll === 'function') saveAll();
+  }
+  function removePreset(id) {
+    if (typeof settings === 'undefined' || !Array.isArray(settings.convPresets)) return;
+    settings.convPresets = settings.convPresets.filter((p) => p.id !== id);
+    if (typeof saveAll === 'function') saveAll();
+    renderConverter();
+  }
+  function presetOptions(sourceFlavour) {
+    return convPresets().filter((p) => compatibleWith(sourceFlavour, getProfileById(p.targetId)))
+      .map((p) => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}</option>`).join('');
   }
   function firstCompatibleId(sourceFlavour) {
     const P = profiles();
@@ -183,6 +207,11 @@
       <label class="conv-label">${escapeHtml(t('conv.target') || 'Target printer')}</label>
       <select id="convTarget" class="conv-target">${targetOptions(targetId, a.flavour)}</select>
       ${crossNote}
+      <div class="conv-presets">
+        <select id="convPresetApply" class="conv-target"><option value="">${escapeHtml(t('conv.preset_apply') || 'Apply a preset…')}</option>${presetOptions(a.flavour)}</select>
+        <input id="convPresetName" class="conv-preset-name" type="text" maxlength="40" placeholder="${escapeHtml(t('conv.preset_name') || 'Preset name')}">
+        <button type="button" class="btn small ghost" id="convPresetSave">★ ${escapeHtml(t('conv.preset_save') || 'Save')}</button>
+      </div>
       <div id="convChanges">${changesHtml(a, targetId)}</div>
       <div id="convRemapWrap">${remapTableHtml(filaments, currentMax(targetId))}</div>
       <div class="conv-dest">
@@ -199,13 +228,45 @@
         const sel = modal.querySelector('#convTarget');
         const wrap = modal.querySelector('#convRemapWrap');
         const chg = modal.querySelector('#convChanges');
-        if (sel) sel.onchange = () => {
-          targetId = sel.value;
+        const renderForTarget = () => {
           const isGeneric = P && targetId === P.GENERIC.id;
           if (chg) chg.innerHTML = changesHtml(a, targetId);
           wrap.innerHTML = isGeneric
             ? `<p class="conv-note">${escapeHtml(t('conv.normalize_note') || 'Vendor-locked slicer settings are stripped; geometry and colours are kept. Opens cleanly in any slicer.')}</p>`
             : remapTableHtml(filaments, currentMax(targetId));
+          return isGeneric;
+        };
+        if (sel) sel.onchange = () => { targetId = sel.value; renderForTarget(); };
+
+        // Apply a saved preset: set the target and, when the slot map fits this file's colours, the mapping.
+        const applySel = modal.querySelector('#convPresetApply');
+        if (applySel) applySel.onchange = () => {
+          const preset = convPresets().find((p) => p.id === applySel.value);
+          applySel.value = '';
+          if (!preset) return;
+          targetId = preset.targetId;
+          if (sel) sel.value = targetId;
+          const isGeneric = renderForTarget();
+          if (!isGeneric && Array.isArray(preset.slotMap) && preset.slotMap.length === filaments.length) {
+            Array.from(wrap.querySelectorAll('.conv-slot')).forEach((s, i) => { if (preset.slotMap[i] != null) s.value = String(preset.slotMap[i]); });
+          }
+        };
+
+        // Save the current target + slot mapping as a reusable preset.
+        const saveBtn = modal.querySelector('#convPresetSave');
+        if (saveBtn) saveBtn.onclick = () => {
+          const nameEl = modal.querySelector('#convPresetName');
+          const name = ((nameEl && nameEl.value) || '').trim();
+          if (!name) { toast(t('conv.preset_name_req') || 'Name the preset first.', 'warning'); if (nameEl) nameEl.focus(); return; }
+          let slotMap = null;
+          if (!(P && targetId === P.GENERIC.id)) {
+            const sm = Array.from(modal.querySelectorAll('.conv-slot')).map((s) => parseInt(s.value, 10) || 0);
+            if (sm.length && !sm.every((v, i) => v === i)) slotMap = sm;
+          }
+          savePreset(name, targetId, slotMap);
+          if (nameEl) nameEl.value = '';
+          if (applySel) applySel.innerHTML = `<option value="">${escapeHtml(t('conv.preset_apply') || 'Apply a preset…')}</option>` + presetOptions(a.flavour);
+          toast(t('conv.preset_saved') || 'Preset saved.', 'success');
         };
       },
       async onSave(modal) {
@@ -381,6 +442,17 @@
       </div>`;
   }
 
+  function presetManagerHtml() {
+    const list = convPresets();
+    if (!list.length) return '';
+    const rows = list.map((p) => {
+      const prof = getProfileById(p.targetId);
+      const tgt = prof ? prof.name : (p.targetId || '');
+      return `<div class="conv-cp-item"><span class="conv-cp-nm">${escapeHtml(p.name)}</span><span class="conv-cp-sub">→ ${escapeHtml(tgt)}${Array.isArray(p.slotMap) ? ' · ' + p.slotMap.length + '★' : ''}</span><button class="btn small ghost" data-act="preset-remove" data-id="${escapeHtml(p.id)}">✕ ${escapeHtml(t('conv.preset_remove') || 'Remove')}</button></div>`;
+    }).join('');
+    return `<div class="conv-cp"><h3 class="conv-cp-h">★ ${escapeHtml(t('conv.presets_title') || 'Conversion presets')}</h3><div class="conv-cp-list">${rows}</div></div>`;
+  }
+
   // Standalone Converter tab.
   function renderConverter() {
     const el = document.getElementById('converter-tab');
@@ -402,6 +474,7 @@
         </div>
         <p class="conv-tip">${escapeHtml(t('conv.tip') || 'Tip: you can also hit Convert on any 3MF in your Print-File library.')}</p>
         <div id="convBatchPanel">${batchPanelHtml()}</div>
+        ${presetManagerHtml()}
         ${customManagerHtml()}
       </div>`;
 
@@ -429,6 +502,7 @@
     const cpSave = document.getElementById('convCpSave');
     if (cpSave) cpSave.onclick = () => saveCustomPrinter(document.getElementById('convCpForm'));
     el.querySelectorAll('[data-act="cp-remove"]').forEach((b) => { b.onclick = () => removeCustomPrinter(b.dataset.id); });
+    el.querySelectorAll('[data-act="preset-remove"]').forEach((b) => { b.onclick = () => removePreset(b.dataset.id); });
   }
 
   const pub = { renderConverter, openConverter };
