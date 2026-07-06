@@ -1301,6 +1301,7 @@ function wireEvents() {
   }
   $('#btnExportInventoryCsv')?.addEventListener('click', () => exportInventoryCsv());
   $('#btnSpoolLabels')?.addEventListener('click', () => { if (typeof printSpoolLabels === 'function') printSpoolLabels(); });
+  $('#btnShoppingList')?.addEventListener('click', () => { if (typeof openShoppingList === 'function') openShoppingList(); });
   $('#btnAddClient')?.addEventListener('click', () => openClientEditor(null));
   $('#btnBlankIntakeForm')?.addEventListener('click', () => generateIntakeForm(null));
   $('#clientSearch')?.addEventListener('input', (e) => { clientSearchTerm = e.target.value; clientDisplayLimit = 50; renderClients(); });

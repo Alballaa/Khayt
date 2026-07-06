@@ -399,6 +399,31 @@ html[data-app="bedready"] .br-action .t b { font-family: var(--font-display); fo
 html[data-app="bedready"] .br-action .t span { font-size: 12px; color: var(--text-muted); }
 html[data-app="bedready"] .br-home-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-top: 16px; }
 
+/* Maker stats panel (home) — "your printing so far" */
+html[data-app="bedready"] .br-stats {
+  margin-top: 16px; padding: 18px 20px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-1);
+}
+html[data-app="bedready"] .br-stats-head {
+  font-family: var(--font-mono, ui-monospace); font-size: 10.5px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px;
+}
+html[data-app="bedready"] .br-stat-row { display: flex; flex-wrap: wrap; gap: 28px; }
+html[data-app="bedready"] .br-stat { min-width: 92px; }
+html[data-app="bedready"] .br-stat-val {
+  font-family: var(--font-display); font-weight: 600; font-size: 26px;
+  letter-spacing: -0.02em; color: var(--text); font-variant-numeric: tabular-nums;
+}
+html[data-app="bedready"] .br-stat-lab { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+html[data-app="bedready"] .br-mat-list { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+html[data-app="bedready"] .br-mat-row { display: flex; align-items: center; gap: 10px; font-size: 12.5px; }
+html[data-app="bedready"] .br-mat-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; border: 1px solid rgba(127,127,127,0.25); }
+html[data-app="bedready"] .br-mat-name { min-width: 84px; color: var(--text-dim); }
+html[data-app="bedready"] .br-mat-bar { flex: 1; height: 6px; border-radius: 3px; background: var(--surface-3, var(--bg-2)); overflow: hidden; }
+html[data-app="bedready"] .br-mat-bar > span { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+html[data-app="bedready"] .br-mat-g { min-width: 54px; text-align: right; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
 /* ============================================================
    Onboarding wizard — branded spectrum mark, on-brand card
    ============================================================ */

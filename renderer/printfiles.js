@@ -94,6 +94,7 @@
           ${colorDotsHtml(rec)}
           ${prof ? `<div class="pf-prof">🛠 ${escapeHtml(prof.name)}</div>` : ''}
           ${rec.testedNotes ? `<div class="pf-notes">${escapeHtml(rec.testedNotes)}</div>` : ''}
+          ${(rec.timesPrinted || rec.timesFailed) ? `<div class="pf-history" title="${escapeHtml(t('plib.history_title') || 'Print history')}">🖨 ${(rec.timesPrinted || 0)}× ${escapeHtml(t('plib.printed') || 'printed')}${rec.timesFailed ? ` · ${rec.timesFailed} ${escapeHtml(t('plib.failed') || 'failed')}` : ''}${rec.lastPrinted ? ` · ${escapeHtml(t('plib.last') || 'last')} ${escapeHtml(fmtPfDate(rec.lastPrinted))}` : ''}</div>` : ''}
           ${Array.isArray(rec.converted) && rec.converted.length ? `<div class="pf-converted">${rec.converted.map((c) => `
             <div class="pf-conv-row">
               <span class="pf-conv-name" title="${escapeHtml(c.filename)}">🔄 ${escapeHtml(c.targetName || c.targetId || (t('conv.convert_short') || 'Converted'))}</span>
@@ -103,6 +104,8 @@
         </div>
         <div class="pf-actions">
           <button class="btn small primary" data-act="pf-slice" data-id="${escapeHtml(rec.id)}">🖨 ${escapeHtml(t('plib.open_slicer') || 'Open in slicer')}</button>
+          <button class="btn small ghost" data-act="pf-log-print" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('plib.log_print') || 'Log a successful print')}">✓ ${escapeHtml(t('plib.log_print_short') || 'Printed')}</button>
+          <button class="btn small ghost" data-act="pf-log-fail" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('plib.log_fail') || 'Log a failed print')}" aria-label="${escapeHtml(t('plib.log_fail') || 'Log a failed print')}">✗</button>
           ${Array.isArray(rec.colors) && rec.colors.filter((c) => c && c.hex).length > 1 ? `<button class="btn small ghost" data-act="pf-plan" data-id="${escapeHtml(rec.id)}">🎨 ${escapeHtml(t('plan.title') || 'Plan colours')}</button>` : ''}
           ${rec.sourceFile?.ext === '3mf' ? `<button class="btn small ghost" data-act="pf-convert" data-id="${escapeHtml(rec.id)}">🔄 ${escapeHtml(t('conv.convert_short') || 'Convert')}</button>` : ''}
           <button class="btn small ghost" data-act="pf-edit" data-id="${escapeHtml(rec.id)}">${escapeHtml(t('common.edit') || 'Edit')}</button>
@@ -154,7 +157,32 @@
       case 'pf-convert': convertPrintFile(id); break;
       case 'pf-conv-open': openConvertedInSlicer(id, btn.dataset.fn); break;
       case 'pf-conv-del':  deleteConverted(id, btn.dataset.fn); break;
+      case 'pf-log-print': logPrint(id, true); break;
+      case 'pf-log-fail':  logPrint(id, false); break;
     }
+  }
+
+  // Short, locale-aware date for the print-history line.
+  function fmtPfDate(iso) {
+    try { return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); }
+    catch (e) { return String(iso || '').slice(0, 10); }
+  }
+
+  // Print journal: a self-contained tally of successful/failed prints per file
+  // (no queue linkage needed). Increments the counter, stamps the date, saves.
+  function logPrint(id, ok) {
+    const rec = (printFiles || []).find((x) => x.id === id);
+    if (!rec) return;
+    if (ok) {
+      rec.timesPrinted = (rec.timesPrinted || 0) + 1;
+      rec.lastPrinted = new Date().toISOString();
+      toast(t('plib.logged_print') || 'Logged a print ✓', 'success');
+    } else {
+      rec.timesFailed = (rec.timesFailed || 0) + 1;
+      toast(t('plib.logged_fail') || 'Logged a failed print', 'info');
+    }
+    saveAll();
+    renderPrintFiles();
   }
 
   async function addPrintFile() {

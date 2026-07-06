@@ -1373,7 +1373,54 @@ function sendTelegramForOrder(order, newStatus) {
 let _printerAlertState = {};
 let _printerAlertPrevCache = {};
 
+// Per-machine phase tracker for print-done/failed desktop notifications. We only
+// notify on a transition OUT of a "printing" phase we actually observed, so the
+// app never fires a spurious "complete" on the first poll of an idle printer.
+let _printPhase = {};
+
+/**
+ * Fire a local desktop notification when a monitored printer finishes or fails a
+ * print. Purely local/offline (telemetry → OS notification), opt-out via
+ * settings.notifyPrintDone === false. Self-contained: derives the previous phase
+ * from _printPhase rather than the alert cache, so it's robust even if the alert
+ * engine isn't loaded.
+ */
+function notifyPrintTransitions(currCache) {
+  if (typeof Notification === 'undefined') return;
+  if (settings && settings.notifyPrintDone === false) return;
+  const curr = currCache || {};
+  Object.keys(curr).forEach((mid) => {
+    const c = curr[mid];
+    if (!c || c.error === undefined && !c.state && c.progress == null) return;
+    const st = String(c.state || '').toLowerCase();
+    const printing = /print|run|busy/i.test(st) && !/error|fault|halt/i.test(st);
+    const isError = !!c.error || /error|fault|halt|attention|fail/i.test(st);
+    const isDone = /finish|complete|success|done|standby/i.test(st) || (!printing && !isError && Number(c.progress) >= 99);
+    const prev = _printPhase[mid];
+    if (printing) { _printPhase[mid] = 'printing'; return; }
+    const machine = (typeof machines !== 'undefined') ? machines.find((m) => m.id === mid) : null;
+    const name = (machine && (machine.name || machine.label)) || t('notif.print_a_printer') || 'Your printer';
+    const fn = c.filename ? String(c.filename).replace(/[\r\n\t]/g, ' ').slice(0, 120) : '';
+    if (prev === 'printing' && isDone) {
+      _printPhase[mid] = 'done';
+      _firePrintNotification('✅ ' + (t('notif.print_done_title', { name }) || (name + ' — print complete')), fn);
+    } else if (prev === 'printing' && isError) {
+      _printPhase[mid] = 'error';
+      _firePrintNotification('⚠️ ' + (t('notif.print_fail_title', { name }) || (name + ' — print failed')), fn || (c.error ? String(c.error).slice(0, 120) : ''));
+    }
+  });
+}
+
+function _firePrintNotification(title, body) {
+  try { new Notification(title, { body: body || undefined, tag: 'hub-print-done' }); }
+  catch (e) { /* notifications unavailable — non-fatal */ }
+}
+
 function dispatchPrinterAlerts(currCache) {
+  // Local print-done/failed desktop notification (independent of the Telegram/
+  // webhook alert engine below, and of whether it's even loaded).
+  try { notifyPrintTransitions(currCache); } catch (e) { /* non-fatal */ }
+
   const compute = (typeof computePrinterAlerts === 'function')
     ? computePrinterAlerts
     : (window.KhaytPrinterAlerts && window.KhaytPrinterAlerts.computePrinterAlerts);

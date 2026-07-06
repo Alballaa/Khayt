@@ -60,6 +60,66 @@
     }
   } catch (e) { /* non-fatal */ }
 
+  // Maker stats — computed from completed prints (grams used, spend, top
+  // materials). Reuses the same per-part fields the shared analytics use, but
+  // framed for a hobbyist (no revenue/margin). Returns '' when there's nothing
+  // printed yet so the home stays clean on a fresh install.
+  function makerStatsHtml() {
+    var log = (typeof printLog !== 'undefined' && Array.isArray(printLog)) ? printLog : [];
+    var inv = (typeof inventory !== 'undefined' && Array.isArray(inventory)) ? inventory : [];
+    var done = log.filter(function (o) { return o && o.status === 'completed'; });
+    if (done.length === 0) return '';
+
+    var grams = 0, spend = 0;
+    var byMat = {};
+    done.forEach(function (o) {
+      (o.parts || []).forEach(function (p) {
+        var pw = (+p.printWeight || 0) + (+p.supportWeight || 0);
+        if (pw <= 0) return;
+        grams += pw;
+        var spoolC = +p.spoolCost || 0, spoolW = Math.max(1, +p.spoolWeight || 1000);
+        spend += (spoolC / spoolW) * pw;
+        var fil = inv.find(function (i) { return i.id === p.filamentId; });
+        var label = p.material || (fil && fil.material) || 'Filament';
+        var color = (fil && fil.color) || '#888';
+        if (!byMat[label]) byMat[label] = { label: label, color: color, grams: 0 };
+        byMat[label].grams += pw;
+      });
+    });
+
+    var top = Object.keys(byMat).map(function (k) { return byMat[k]; })
+      .sort(function (a, b) { return b.grams - a.grams; }).slice(0, 4);
+    var esc = (typeof escapeHtml === 'function') ? escapeHtml : function (s) { return s; };
+    var money = (typeof fmtPrice === 'function') ? fmtPrice(spend) : String(Math.round(spend));
+    var kg = grams >= 1000 ? (grams / 1000).toFixed(grams >= 10000 ? 0 : 1) + ' kg' : Math.round(grams) + ' g';
+
+    var stat = function (val, lab) {
+      return '<div class="br-stat"><div class="br-stat-val">' + val + '</div><div class="br-stat-lab">' + lab + '</div></div>';
+    };
+    var topHtml = top.map(function (m) {
+      var pct = grams > 0 ? Math.round(m.grams / grams * 100) : 0;
+      var g = m.grams >= 1000 ? (m.grams / 1000).toFixed(1) + ' kg' : Math.round(m.grams) + ' g';
+      return '<div class="br-mat-row">'
+        + '<span class="br-mat-dot" style="background:' + esc(String(m.color)) + '"></span>'
+        + '<span class="br-mat-name">' + esc(m.label) + '</span>'
+        + '<span class="br-mat-bar"><span style="width:' + pct + '%"></span></span>'
+        + '<span class="br-mat-g">' + g + '</span>'
+        + '</div>';
+    }).join('');
+
+    return [
+      '<section class="br-stats">',
+        '<div class="br-stats-head">Your printing so far</div>',
+        '<div class="br-stat-row">',
+          stat(String(done.length), done.length === 1 ? 'print done' : 'prints done'),
+          stat(esc(kg), 'filament used'),
+          stat(esc(money), 'material spend'),
+        '</div>',
+        top.length ? '<div class="br-mat-list">' + topHtml + '</div>' : '',
+      '</section>',
+    ].join('');
+  }
+
   function homeHtml() {
     return [
       '<div class="br-home">',
@@ -79,6 +139,7 @@
             '<button type="button" class="br-action" data-go="queue-tab"><span class="ico" aria-hidden="true">▤</span><span class="t"><b>Production queue</b><span>track your jobs</span></span></button>',
           '</div>',
         '</section>',
+        makerStatsHtml(),
         '<div class="br-home-grid">',
           '<button type="button" class="br-action" data-go="inventory-tab"><span class="ico" aria-hidden="true">⬡</span><span class="t"><b>Inventory</b><span>filament & stock</span></span></button>',
           '<button type="button" class="br-action" data-go="printfiles-tab"><span class="ico" aria-hidden="true">🧊</span><span class="t"><b>Print files</b><span>your model library</span></span></button>',

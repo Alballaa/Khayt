@@ -3548,6 +3548,74 @@ function openReorderModal(itemId) {
   });
 }
 
+// Consolidated "what to buy" list — every filament at/under its reorder point,
+// grouped by supplier, with how much you have and how much to buy. Purely a
+// planning aid (no purchasing), so it stays commerce-free. Copyable + printable.
+function openShoppingList() {
+  const low = inventory.filter(isLowStock);
+  if (!low.length) {
+    toast(t('shop.none') || 'Nothing to buy — every filament is above its reorder point.', 'success');
+    return;
+  }
+  const groups = {};
+  low.forEach((item) => {
+    let supName = '';
+    try {
+      const price = (typeof resolveReorderPrice === 'function') ? resolveReorderPrice(item) : null;
+      supName = (price && price.supplierName) || '';
+    } catch (e) { /* ignore */ }
+    if (!supName && item.supplierId && typeof suppliers !== 'undefined') {
+      const s = suppliers.find((x) => x.id === item.supplierId);
+      supName = (s && s.name) || '';
+    }
+    if (!supName) supName = t('shop.no_supplier') || 'No supplier set';
+    (groups[supName] = groups[supName] || []).push({
+      name: item.material || 'Filament',
+      have: Math.round(+item.weight || 0),
+      buy: Math.round(+item.reorderQty || 1000),
+      color: item.color || '#888',
+    });
+  });
+
+  const supNames = Object.keys(groups).sort();
+  // Language-neutral item line: "Name   120 g → 1000 g"
+  const textLines = [(t('shop.title') || 'Shopping list') + ' — ' + (settings.bizEn || 'Bed Ready'), ''];
+  let html = '';
+  supNames.forEach((sup) => {
+    textLines.push(sup);
+    html += `<div class="shop-group"><div class="shop-sup">${escapeHtml(sup)}</div>`;
+    groups[sup].forEach((r) => {
+      textLines.push(`  • ${r.name}   ${r.have} g → ${r.buy} g`);
+      html += `<div class="shop-row"><span class="shop-dot" style="background:${safeCssColor(r.color)}"></span>`
+        + `<span class="shop-name">${escapeHtml(r.name)}</span>`
+        + `<span class="shop-amt">${r.have} g <span class="shop-arrow">→</span> ${r.buy} g</span></div>`;
+    });
+    textLines.push('');
+    html += `</div>`;
+  });
+  const text = textLines.join('\n');
+
+  openFormModal({
+    title: '🛒 ' + (t('shop.title') || 'Shopping list'),
+    noSave: true,
+    bodyHtml: `<div class="shop-list">${html}</div>
+      <div style="display:flex;gap:8px;margin-top:14px;">
+        <button type="button" class="btn primary" id="shopCopyBtn">📋 ${escapeHtml(t('shop.copy') || 'Copy list')}</button>
+        <button type="button" class="btn ghost" id="shopPrintBtn">🖨 ${escapeHtml(t('common.print') || 'Print')}</button>
+      </div>`,
+    onMount(modal) {
+      modal.querySelector('#shopCopyBtn')?.addEventListener('click', () => {
+        navigator.clipboard?.writeText(text)
+          .then(() => toast(t('common.copied') || 'Copied!', 'success'))
+          .catch(() => {});
+      });
+      modal.querySelector('#shopPrintBtn')?.addEventListener('click', () => {
+        if (typeof window.print === 'function') window.print();
+      });
+    },
+  });
+}
+
 function exportInventoryCsv() {
 
   const headers = [
@@ -3831,6 +3899,7 @@ async function printSpoolLabel(itemId) {
     openReorderSuggestions,
     maybeAutoDraftPurchaseOrders,
     exportInventoryCsv,
+    openShoppingList,
     recordSupplierInvoice,
   };
   Object.assign(global, api);
