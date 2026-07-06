@@ -113,6 +113,11 @@ module.exports = {
     '!renderer/themes/theme-picker.css',
   ],
 
+  // Bed Ready branded icons (spectrum print-bed mark).
+  mac: { ...(base.mac || {}), icon: 'assets/bedready.icns' },
+  win: { ...(base.win || {}), icon: 'assets/bedready-512.png' },
+  linux: { ...(base.linux || {}), icon: 'assets/bedready-512.png' },
+
   dmg: {
     ...(base.dmg || {}),
     title: 'Bed Ready ${version}',

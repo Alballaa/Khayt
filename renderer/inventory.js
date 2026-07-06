@@ -2640,6 +2640,7 @@ function getProductStats(productId) {
 
 function renderCatalog() {
   const grid = $('#catalogGrid');
+  if (!grid) return; // Catalog section is dropped in the Bed Ready flavor.
   const term = (catalogSearchTerm || '').toLowerCase().trim();
   let filtered = products;
   if (term) {
