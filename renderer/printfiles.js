@@ -115,12 +115,37 @@
   }
 
   let _query = '';
+  let _view = 'library'; // 'library' | 'gallery'
+
+  // Finished-prints gallery: a photo-forward showcase of every print file you've
+  // added a photo to, with its material, tested settings and print tally. A local
+  // personal portfolio — nothing to sell, just what you've made and how.
+  function galleryHtml() {
+    const shots = (printFiles || []).filter((r) => r.userPhoto);
+    if (!shots.length) {
+      return `<div class="pf-empty">${escapeHtml(t('plib.gallery_empty') || 'No print photos yet — add a photo to a print file to start your gallery.')}</div>`;
+    }
+    return `<div class="pf-gallery">${shots.map((r) => `
+      <figure class="pf-shot" data-act="pf-edit" data-id="${escapeHtml(r.id)}" title="${escapeHtml(t('common.edit') || 'Edit')}">
+        <img src="${safeImageSrc(r.userPhoto)}" alt="${escapeHtml(r.name || '')}" loading="lazy">
+        <figcaption>
+          <div class="pf-shot-name">${escapeHtml(r.name || r.originalName || 'Untitled')}</div>
+          <div class="pf-shot-meta">
+            ${r.material ? `<span>${escapeHtml(r.material)}</span>` : ''}
+            ${(r.timesPrinted || r.timesFailed) ? `<span>🖨 ${(r.timesPrinted || 0)}×${r.timesFailed ? ` · ${r.timesFailed} ${escapeHtml(t('plib.failed') || 'failed')}` : ''}</span>` : ''}
+          </div>
+          ${r.testedNotes ? `<div class="pf-shot-notes">${escapeHtml(r.testedNotes)}</div>` : ''}
+        </figcaption>
+      </figure>`).join('')}</div>`;
+  }
+
   function renderPrintFiles() {
     const el = document.getElementById('printfiles-tab');
     if (!el) return;
     const hasHub = !!(api() && api().printLibPick);
     const rows = filtered(_query);
     const total = (printFiles || []).length;
+    const isGallery = _view === 'gallery';
     el.innerHTML = `
       <div class="pf-wrap">
         <div class="pf-head">
@@ -129,11 +154,16 @@
             <p class="pf-sub">${escapeHtml(t('plib.subtitle') || 'Your STL, 3MF and G-code library — previews, tested settings, open in your slicer.')}</p>
           </div>
           <div class="pf-head-actions">
-            <input type="search" id="pfSearch" class="pf-search" placeholder="${escapeHtml(t('common.search') || 'Search')}" value="${escapeHtml(_query)}" aria-label="${escapeHtml(t('common.search') || 'Search')}">
+            <div class="pf-view-toggle" role="group" aria-label="${escapeHtml(t('plib.view') || 'View')}">
+              <button class="pf-view-btn ${isGallery ? '' : 'on'}" data-act="pf-view-library" aria-pressed="${!isGallery}">${escapeHtml(t('plib.view_library') || 'Library')}</button>
+              <button class="pf-view-btn ${isGallery ? 'on' : ''}" data-act="pf-view-gallery" aria-pressed="${isGallery}">${escapeHtml(t('plib.view_gallery') || 'Gallery')}</button>
+            </div>
+            ${isGallery ? '' : `<input type="search" id="pfSearch" class="pf-search" placeholder="${escapeHtml(t('common.search') || 'Search')}" value="${escapeHtml(_query)}" aria-label="${escapeHtml(t('common.search') || 'Search')}">`}
             <button class="btn primary" data-act="pf-add" ${hasHub ? '' : 'disabled'}>＋ ${escapeHtml(t('plib.add') || 'Add file')}</button>
           </div>
         </div>
         ${!hasHub ? `<div class="pf-empty">${escapeHtml(t('plib.desktop_only') || 'The print-file library is available in the desktop app.')}</div>`
+          : isGallery ? galleryHtml()
           : rows.length ? `<div class="pf-grid">${rows.map(cardHtml).join('')}</div>`
           : `<div class="pf-empty">${escapeHtml(total ? (t('plib.no_match') || 'No files match your search.') : (t('plib.empty') || 'No print files yet. Add your first STL, 3MF or G-code file.'))}</div>`}
       </div>`;
@@ -159,6 +189,8 @@
       case 'pf-conv-del':  deleteConverted(id, btn.dataset.fn); break;
       case 'pf-log-print': logPrint(id, true); break;
       case 'pf-log-fail':  logPrint(id, false); break;
+      case 'pf-view-library': if (_view !== 'library') { _view = 'library'; renderPrintFiles(); } break;
+      case 'pf-view-gallery': if (_view !== 'gallery') { _view = 'gallery'; renderPrintFiles(); } break;
     }
   }
 
