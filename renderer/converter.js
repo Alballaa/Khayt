@@ -214,7 +214,7 @@
           else { ctl.setView(a); const s = bar.querySelector('[data-pv="spin"]'); if (s) s.classList.remove('on'); }
         }));
       }
-      return;
+      return ctl;
     }
     if (canvasEl) canvasEl.style.display = 'none';
     if (mesh && mesh.thumb) {
@@ -309,9 +309,18 @@
         // 3D preview of the source model — "know what you're converting". Best-effort:
         // if the mesh can't be read, quietly drop the panel rather than block the convert.
         const pvCanvas = modal.querySelector('#convPreviewCanvas');
+        let previewCtl = null, previewBbox = null;
+        // Lay the TARGET printer's bed under the model so you see scale, orientation and fit.
+        const applyBed = () => {
+          if (!previewCtl || !previewBbox) return;
+          const p = getProfileById(targetId);
+          if (!p || !p.bed || !p.bed.x) { previewCtl.setBed(null); return; }
+          const fits = !(previewBbox.x > p.bed.x + 1 || previewBbox.y > p.bed.y + 1);
+          previewCtl.setBed({ x: p.bed.x, y: p.bed.y, fits });
+        };
         if (pvCanvas && h.convertMesh) {
           h.convertMesh({ path: src.path })
-            .then((mesh) => renderPreviewInto(modal.querySelector('#convPreview'), pvCanvas, mesh, filaments.map((f) => f.color).filter(Boolean)))
+            .then((mesh) => { previewBbox = mesh && mesh.bbox; previewCtl = renderPreviewInto(modal.querySelector('#convPreview'), pvCanvas, mesh, filaments.map((f) => f.color).filter(Boolean)); applyBed(); })
             .catch((e) => renderPreviewInto(modal.querySelector('#convPreview'), pvCanvas, { error: String((e && e.message) || e) }));
         }
         const renderForTarget = () => {
@@ -320,6 +329,7 @@
           wrap.innerHTML = isGeneric
             ? `<p class="conv-note">${escapeHtml(t('conv.normalize_note') || 'Vendor-locked slicer settings are stripped; geometry and colours are kept. Opens cleanly in any slicer.')}</p>`
             : remapTableHtml(filaments, currentMax(targetId));
+          applyBed();
           return isGeneric;
         };
         if (sel) sel.onchange = () => { targetId = sel.value; renderForTarget(); };

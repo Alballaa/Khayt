@@ -45,8 +45,9 @@
     top:   { yaw: -Math.PI / 2, pitch: 1.4 },
   };
 
-  function mountMeshViewer(canvas, { verts, count, colors }) {
+  function mountMeshViewer(canvas, { verts, count, colors, bed }) {
     const tris = trisFromVerts(verts, count);
+    let plate = bed || null;
     // 2× supersampling: back the canvas at twice its display size for crisp, anti-aliased
     // edges — CSS keeps the on-screen size, the browser downsamples.
     const SS = 2;
@@ -68,6 +69,7 @@
         size: S, yaw, pitch, zoom, panX, panY, canvasFactory: factory,
         background: bg, color: col, colorRamp: ramp.length ? ramp : null,
         wireframe: wire && !fast, wireWidth: SS,
+        bed: plate ? { x: plate.x, y: plate.y } : null, bedFits: plate ? plate.fits !== false : undefined,
         maxTriangles: fast ? 22000 : 120000,
       });
     };
@@ -107,6 +109,7 @@
     return {
       reset() { stopSpin(); yaw = VIEWS.iso.yaw; pitch = VIEWS.iso.pitch; zoom = 1; panX = 0; panY = 0; draw(false); },
       setView(name) { const v = VIEWS[name] || VIEWS.iso; stopSpin(); yaw = v.yaw; pitch = v.pitch; draw(false); },
+      setBed(b) { plate = b || null; draw(false); },
       zoomBy(f) { zoom = clamp(zoom * f, 0.3, 8); draw(false); },
       toggleWire() { wire = !wire; draw(false); return wire; },
       toggleSpin() { if (spinning) { stopSpin(); draw(false); } else { spinning = true; tick(); } return spinning; },

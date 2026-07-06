@@ -126,6 +126,23 @@ async function main() {
   }, nm);
   assert('fallback renders a 2D <img> (canvas hidden, hint updated)', fbImg.hasImg && /^data:image/.test(fbImg.src) && fbImg.canvasHidden && /preview/i.test(fbImg.hint));
 
+  // 1d) build-plate: the grid/outline appears only when a bed is given. Colour-keyed —
+  // render the model RED so the grayish-blue bed grid is countable (blue-dominant pixels).
+  const bedCmp = await w.evaluate(() => {
+    const mk = () => { const c = document.createElement('canvas'); c.width = c.height = 300; return c; };
+    const cube = (() => { const s = 20, v = (x, y, z) => [x, y, z], q = (a, b, c, d) => [[a, b, c], [a, c, d]]; let t = [];
+      t = t.concat(q(v(0, 0, 0), v(s, 0, 0), v(s, s, 0), v(0, s, 0))); t = t.concat(q(v(0, 0, s), v(0, s, s), v(s, s, s), v(s, 0, s)));
+      t = t.concat(q(v(0, 0, 0), v(0, 0, s), v(s, 0, s), v(s, 0, 0))); t = t.concat(q(v(0, s, 0), v(s, s, 0), v(s, s, s), v(0, s, s)));
+      t = t.concat(q(v(0, 0, 0), v(0, s, 0), v(0, s, s), v(0, 0, s))); t = t.concat(q(v(s, 0, 0), v(s, 0, s), v(s, s, s), v(s, s, 0))); return t; })();
+    const bluish = (c) => { const d = c.getContext('2d').getImageData(0, 0, 300, 300).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i + 2] > d[i] + 15 && d[i] + d[i + 1] + d[i + 2] > 40) n++; return n; };
+    const opt = (bed) => ({ size: 300, yaw: Math.atan2(-1, 1), pitch: 0.6, background: '#000000', color: [230, 55, 55], bed, canvasFactory: mk });
+    return {
+      noBed: bluish(window.KhaytStlThumb.renderStlThumbnail(cube, opt(null)).canvas),
+      withBed: bluish(window.KhaytStlThumb.renderStlThumbnail(cube, opt({ x: 120, y: 120 })).canvas),
+    };
+  });
+  assert(`build-plate grid renders only with a bed (${bedCmp.noBed} → ${bedCmp.withBed})`, bedCmp.noBed < 30 && bedCmp.withBed > 200);
+
   // 2) full converter modal on the 3MF — preview canvas mounts + hint flips to "Drag to rotate".
   await w.evaluate(() => window.switchTab('converter-tab'));
   await w.waitForTimeout(200);
