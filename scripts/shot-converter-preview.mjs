@@ -101,6 +101,30 @@ async function main() {
   });
   assert(`spectrum ramp shows red+blue+green bands (r=${hues.red} b=${hues.blue} g=${hues.green})`, hues.red > 30 && hues.blue > 30 && hues.green > 30);
 
+  // 1c) always-load fallback: a 3MF whose geometry can't be parsed but which has an
+  // embedded plate thumbnail → convertMesh returns {ok:false, thumb}, and the preview
+  // shows that 2D image instead of vanishing.
+  const PNG1x1 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+  const noGeoMf = path.join(dir, 'nogeo.3mf');
+  fs.writeFileSync(noGeoMf, require(path.join(root, 'lib/zip-write.js')).writeZip([
+    { name: '[Content_Types].xml', data: '<?xml version="1.0"?><Types/>' },
+    { name: '3D/3dmodel.model', data: '<?xml version="1.0"?><model unit="millimeter"><resources></resources><build></build></model>' },
+    { name: 'Metadata/plate_1.png', data: Buffer.from(PNG1x1, 'base64') },
+  ]));
+  const nm = await w.evaluate((p) => window.hubAPI.convertMesh({ path: p }), noGeoMf);
+  assert('no-geometry 3MF → convertMesh returns a thumbnail fallback', nm && nm.ok === false && typeof nm.thumb === 'string' && nm.thumb.startsWith('data:image/'));
+  const fbImg = await w.evaluate((mesh) => {
+    const panel = document.createElement('div'); panel.id = 'tPanel';
+    const cv = document.createElement('canvas'); cv.className = 'conv-preview-canvas'; cv.width = cv.height = 100;
+    const hint = document.createElement('div'); hint.className = 'conv-preview-hint';
+    panel.appendChild(cv); panel.appendChild(hint); document.body.appendChild(panel);
+    window.KhaytConverter._renderPreviewInto(panel, cv, mesh, []);
+    const img = panel.querySelector('img.conv-preview-img');
+    const r = { hasImg: !!img, src: img && img.src.slice(0, 15), canvasHidden: cv.style.display === 'none', hint: hint.textContent };
+    panel.remove(); return r;
+  }, nm);
+  assert('fallback renders a 2D <img> (canvas hidden, hint updated)', fbImg.hasImg && /^data:image/.test(fbImg.src) && fbImg.canvasHidden && /preview/i.test(fbImg.hint));
+
   // 2) full converter modal on the 3MF — preview canvas mounts + hint flips to "Drag to rotate".
   await w.evaluate(() => window.switchTab('converter-tab'));
   await w.waitForTimeout(200);

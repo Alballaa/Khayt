@@ -145,6 +145,7 @@
   "conv.detected": "Algılandı",
   "conv.preview_loading": "3B önizleme yükleniyor…",
   "conv.preview_hint": "Döndürmek için sürükle",
+  "conv.preview_thumb": "Dilimleyici önizleme",
   "conv.preview_none": "Önizleme yok — yine de dönüştürebilirsin.",
   "conv.stl_go": "3MF’e dönüştür",
   "conv.tostl_go": "STL çıkar",

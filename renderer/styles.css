@@ -4682,3 +4682,6 @@ th[data-sort]:hover {
 .conv-preview-canvas { width: min(300px, 60vw); height: auto; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-2); touch-action: none; cursor: grab; }
 .conv-preview-canvas:active { cursor: grabbing; }
 .conv-preview-hint { font-size: 11px; color: var(--text-muted); }
+
+/* Converter preview: 2D slicer-thumbnail fallback when a 3D mesh can't be built */
+.conv-preview-img { cursor: default; object-fit: contain; image-rendering: auto; }

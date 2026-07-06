@@ -145,6 +145,7 @@
   "conv.detected": "Detected",
   "conv.preview_loading": "Loading 3D preview…",
   "conv.preview_hint": "Drag to rotate",
+  "conv.preview_thumb": "Slicer preview",
   "conv.preview_none": "Preview unavailable — you can still convert.",
   "conv.stl_go": "Convert to 3MF",
   "conv.tostl_go": "Extract STL",

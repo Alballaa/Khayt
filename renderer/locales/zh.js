@@ -145,6 +145,7 @@
   "conv.detected": "已检测",
   "conv.preview_loading": "正在加载 3D 预览…",
   "conv.preview_hint": "拖动以旋转",
+  "conv.preview_thumb": "切片器预览",
   "conv.preview_none": "预览不可用 — 仍可转换。",
   "conv.stl_go": "转换为 3MF",
   "conv.tostl_go": "提取 STL",

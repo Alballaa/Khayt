@@ -186,13 +186,29 @@
     return `<div class="conv-changes"><div class="conv-changes-h">${escapeHtml(t('conv.changes') || 'What changes')}</div>${rows}</div>`;
   }
 
-  // Keep the preview box (with a message) instead of letting it vanish, and log why.
-  function previewUnavailable(panel, mesh) {
-    if (mesh && mesh.error) try { console.warn('[converter] preview mesh unavailable:', mesh.error); } catch (_) {}
+  // Decide what to show in a preview panel from a convertMesh() result:
+  //   3D mesh  → interactive viewer
+  //   no mesh but an embedded slicer thumbnail → show that 2D image (always-load fallback)
+  //   nothing  → a small "unavailable" note (never blocks converting)
+  function renderPreviewInto(panel, canvasEl, mesh, fallbackColors) {
     if (!panel) return;
-    const cv = panel.querySelector('.conv-preview-canvas');
-    if (cv) cv.style.display = 'none';
     const hint = panel.querySelector('.conv-preview-hint');
+    if (mesh && mesh.ok && mesh.verts && mesh.count) {
+      const cols = (mesh.colors && mesh.colors.length) ? mesh.colors : (fallbackColors || []);
+      mountMeshViewer(canvasEl, { verts: mesh.verts, count: mesh.count, colors: cols });
+      if (hint) hint.textContent = t('conv.preview_hint') || 'Drag to rotate';
+      return;
+    }
+    if (canvasEl) canvasEl.style.display = 'none';
+    if (mesh && mesh.thumb) {
+      const img = document.createElement('img');
+      img.className = 'conv-preview-canvas conv-preview-img';
+      img.alt = 'preview'; img.src = mesh.thumb;
+      if (canvasEl && canvasEl.parentNode) canvasEl.parentNode.insertBefore(img, canvasEl);
+      if (hint) hint.textContent = t('conv.preview_thumb') || 'Slicer preview';
+      return;
+    }
+    if (mesh && mesh.error) try { console.warn('[converter] preview mesh unavailable:', mesh.error); } catch (_) {}
     if (hint) hint.textContent = t('conv.preview_none') || 'Preview unavailable — you can still convert.';
   }
 
@@ -213,14 +229,9 @@
       onMount(modal) {
         const c = modal.querySelector('#pcPreviewCanvas');
         if (c && h.convertMesh) {
-          h.convertMesh({ path }).then((m) => {
-            const panel = modal.querySelector('#pcPreview');
-            if (m && m.ok && m.verts && m.count) {
-              mountMeshViewer(c, { verts: m.verts, count: m.count, colors: m.colors });
-              const hint = panel && panel.querySelector('.conv-preview-hint');
-              if (hint) hint.textContent = t('conv.preview_hint') || 'Drag to rotate';
-            } else { previewUnavailable(panel, m); }
-          }).catch((e) => previewUnavailable(modal.querySelector('#pcPreview'), { error: String((e && e.message) || e) }));
+          h.convertMesh({ path })
+            .then((m) => renderPreviewInto(modal.querySelector('#pcPreview'), c, m))
+            .catch((e) => renderPreviewInto(modal.querySelector('#pcPreview'), c, { error: String((e && e.message) || e) }));
         }
       },
       onSave() { Promise.resolve().then(onConfirm); return true; },
@@ -282,15 +293,9 @@
         // if the mesh can't be read, quietly drop the panel rather than block the convert.
         const pvCanvas = modal.querySelector('#convPreviewCanvas');
         if (pvCanvas && h.convertMesh) {
-          h.convertMesh({ path: src.path }).then((mesh) => {
-            const panel = modal.querySelector('#convPreview');
-            if (mesh && mesh.ok && mesh.verts && mesh.count) {
-              const cols = (mesh.colors && mesh.colors.length) ? mesh.colors : filaments.map((f) => f.color).filter(Boolean);
-              mountMeshViewer(pvCanvas, { verts: mesh.verts, count: mesh.count, colors: cols });
-              const hint = panel && panel.querySelector('.conv-preview-hint');
-              if (hint) hint.textContent = t('conv.preview_hint') || 'Drag to rotate';
-            } else { previewUnavailable(panel, mesh); }
-          }).catch((e) => previewUnavailable(modal.querySelector('#convPreview'), { error: String((e && e.message) || e) }));
+          h.convertMesh({ path: src.path })
+            .then((mesh) => renderPreviewInto(modal.querySelector('#convPreview'), pvCanvas, mesh, filaments.map((f) => f.color).filter(Boolean)))
+            .catch((e) => renderPreviewInto(modal.querySelector('#convPreview'), pvCanvas, { error: String((e && e.message) || e) }));
         }
         const renderForTarget = () => {
           const isGeneric = P && targetId === P.GENERIC.id;
@@ -606,7 +611,7 @@
     el.querySelectorAll('[data-act="preset-remove"]').forEach((b) => { b.onclick = () => removePreset(b.dataset.id); });
   }
 
-  const pub = { renderConverter, openConverter };
+  const pub = { renderConverter, openConverter, _renderPreviewInto: renderPreviewInto };
   Object.assign(global, pub);
   global.KhaytConverter = pub;
   if (typeof module !== 'undefined' && module.exports) module.exports = pub;

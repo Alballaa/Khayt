@@ -145,6 +145,7 @@
   "conv.detected": "検出",
   "conv.preview_loading": "3Dプレビューを読み込み中…",
   "conv.preview_hint": "ドラッグで回転",
+  "conv.preview_thumb": "スライサープレビュー",
   "conv.preview_none": "プレビュー利用不可 — 変換は可能です。",
   "conv.stl_go": "3MFに変換",
   "conv.tostl_go": "STLを抽出",

@@ -145,6 +145,7 @@
   "conv.detected": "Détecté",
   "conv.preview_loading": "Chargement de l’aperçu 3D…",
   "conv.preview_hint": "Glisser pour pivoter",
+  "conv.preview_thumb": "Aperçu du slicer",
   "conv.preview_none": "Aperçu indisponible — vous pouvez quand même convertir.",
   "conv.stl_go": "Convertir en 3MF",
   "conv.tostl_go": "Extraire le STL",

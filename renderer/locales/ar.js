@@ -145,6 +145,7 @@
   "conv.detected": "المُكتشف",
   "conv.preview_loading": "جارٍ تحميل المعاينة ثلاثية الأبعاد…",
   "conv.preview_hint": "اسحب للتدوير",
+  "conv.preview_thumb": "معاينة المُقطّع",
   "conv.preview_none": "المعاينة غير متاحة — لا يزال بإمكانك التحويل.",
   "conv.stl_go": "حوّل إلى 3MF",
   "conv.tostl_go": "استخرج STL",

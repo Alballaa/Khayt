@@ -1209,7 +1209,18 @@ function meshFromBuffer(buf, ext) {
     tris = mf.extractTriangles(members);
     try { colors = (mf.extractFilaments(members) || []).map((f) => f.color).filter(Boolean); } catch (_) { colors = []; }
   }
-  if (!Array.isArray(tris) || !tris.length) return { ok: false, error: 'no-geometry' };
+  if (!Array.isArray(tris) || !tris.length) {
+    // Geometry couldn't be parsed (e.g. an unusual 3MF structure or an oversized model
+    // file) — fall back to the slicer's own embedded plate thumbnail so the preview still
+    // shows the model. Every mainstream slicer bakes one in.
+    if (ext === '3mf') {
+      try {
+        const th = extractPrintThumb({ ext, buf });
+        if (th && th.pngBase64) return { ok: false, error: 'no-geometry', thumb: 'data:image/png;base64,' + th.pngBase64 };
+      } catch (_) { /* no thumbnail either */ }
+    }
+    return { ok: false, error: 'no-geometry' };
+  }
   const MAX = 80000;
   if (tris.length > MAX) { const s = Math.ceil(tris.length / MAX); const out = []; for (let i = 0; i < tris.length; i += s) out.push(tris[i]); tris = out; }
   const verts = new Float32Array(tris.length * 9);

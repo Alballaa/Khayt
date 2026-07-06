@@ -145,6 +145,7 @@
   "conv.detected": "Erkannt",
   "conv.preview_loading": "3D-Vorschau wird geladen…",
   "conv.preview_hint": "Zum Drehen ziehen",
+  "conv.preview_thumb": "Slicer-Vorschau",
   "conv.preview_none": "Vorschau nicht verfügbar — du kannst trotzdem konvertieren.",
   "conv.stl_go": "In 3MF umwandeln",
   "conv.tostl_go": "STL extrahieren",
