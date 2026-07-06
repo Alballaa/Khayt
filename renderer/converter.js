@@ -186,6 +186,16 @@
     return `<div class="conv-changes"><div class="conv-changes-h">${escapeHtml(t('conv.changes') || 'What changes')}</div>${rows}</div>`;
   }
 
+  // Keep the preview box (with a message) instead of letting it vanish, and log why.
+  function previewUnavailable(panel, mesh) {
+    if (mesh && mesh.error) try { console.warn('[converter] preview mesh unavailable:', mesh.error); } catch (_) {}
+    if (!panel) return;
+    const cv = panel.querySelector('.conv-preview-canvas');
+    if (cv) cv.style.display = 'none';
+    const hint = panel.querySelector('.conv-preview-hint');
+    if (hint) hint.textContent = t('conv.preview_none') || 'Preview unavailable — you can still convert.';
+  }
+
   // A lightweight "see what you're converting" step for the one-click STL↔3MF actions:
   // shows a live 3D preview of the picked file, then runs onConfirm when the user proceeds.
   function previewConfirm({ path, name, title, confirmLabel, note, onConfirm }) {
@@ -209,8 +219,8 @@
               mountMeshViewer(c, { verts: m.verts, count: m.count, colors: m.colors });
               const hint = panel && panel.querySelector('.conv-preview-hint');
               if (hint) hint.textContent = t('conv.preview_hint') || 'Drag to rotate';
-            } else if (panel) { panel.style.display = 'none'; }
-          }).catch(() => { const panel = modal.querySelector('#pcPreview'); if (panel) panel.style.display = 'none'; });
+            } else { previewUnavailable(panel, m); }
+          }).catch((e) => previewUnavailable(modal.querySelector('#pcPreview'), { error: String((e && e.message) || e) }));
         }
       },
       onSave() { Promise.resolve().then(onConfirm); return true; },
@@ -279,8 +289,8 @@
               mountMeshViewer(pvCanvas, { verts: mesh.verts, count: mesh.count, colors: cols });
               const hint = panel && panel.querySelector('.conv-preview-hint');
               if (hint) hint.textContent = t('conv.preview_hint') || 'Drag to rotate';
-            } else if (panel) { panel.style.display = 'none'; }
-          }).catch(() => { const panel = modal.querySelector('#convPreview'); if (panel) panel.style.display = 'none'; });
+            } else { previewUnavailable(panel, mesh); }
+          }).catch((e) => previewUnavailable(modal.querySelector('#convPreview'), { error: String((e && e.message) || e) }));
         }
         const renderForTarget = () => {
           const isGeneric = P && targetId === P.GENERIC.id;

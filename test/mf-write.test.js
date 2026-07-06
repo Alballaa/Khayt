@@ -52,6 +52,30 @@ test('extractTriangles recovers the mesh from a 3MF we wrote', () => {
   assert.deepEqual(tris[0], [[0, 0, 0], [10, 0, 0], [0, 20, 5]]);
 });
 
+test('extractTriangles recovers a SPLIT 3MF (geometry in a referenced 3D/Objects/*.model)', () => {
+  // Mirrors Bambu/Orca: root 3dmodel.model has only a build item → object → component
+  // with p:path into a separate object file that holds the actual mesh (a tetrahedron).
+  const { writeZip } = require('../lib/zip-write');
+  const objModel = `<?xml version="1.0"?><model unit="millimeter"><resources>
+    <object id="1" type="model"><mesh>
+      <vertices><vertex x="0" y="0" z="0"/><vertex x="10" y="0" z="0"/><vertex x="0" y="10" z="0"/><vertex x="0" y="0" z="10"/></vertices>
+      <triangles><triangle v1="0" v2="1" v3="2"/><triangle v1="0" v2="1" v3="3"/><triangle v1="0" v2="2" v3="3"/><triangle v1="1" v2="2" v3="3"/></triangles>
+    </mesh></object></resources></model>`;
+  const rootModel = `<?xml version="1.0"?><model unit="millimeter" xmlns:p="http://schemas.microsoft.com/3dmanufacturing/production/2015/06"><resources>
+    <object id="5" type="model"><components>
+      <component objectid="1" p:path="/3D/Objects/o.model" transform="1 0 0 0 1 0 0 0 1 0 0 0"/>
+    </components></object></resources>
+    <build><item objectid="5"/></build></model>`;
+  const buf = writeZip([
+    { name: '[Content_Types].xml', data: '<?xml version="1.0"?><Types/>' },
+    { name: '3D/3dmodel.model', data: rootModel },
+    { name: '3D/Objects/o.model', data: objModel },
+  ]);
+  const tris = extractTriangles(readMembers(buf));
+  assert.equal(tris.length, 4, 'recovered all 4 tetrahedron faces across files');
+  assert.deepEqual(tris[0], [[0, 0, 0], [10, 0, 0], [0, 10, 0]]);
+});
+
 test('trianglesToStl writes a binary STL that parses back to the same mesh', () => {
   const stl = trianglesToStl(TRIS);
   assert.ok(Buffer.isBuffer(stl));
