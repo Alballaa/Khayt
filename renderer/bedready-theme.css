@@ -495,6 +495,11 @@ html[data-app="bedready"] div:has(> #waitingListToggle),
 html[data-app="bedready"] .khayt-fold:has(#btnAddWaiting),
 html[data-app="bedready"] .khayt-fold-head:has(#btnAddWaiting) { display: none !important; }
 
+/* Hide the "Delivered" board column — it only ever fills from a business
+   deliveredAt stamp (customer hand-off), which Bed Ready doesn't set, so it's
+   permanently empty here. QC stays (relabelled "Inspect" in bedready-home.js). */
+html[data-app="bedready"] .kanban-col[data-status="delivered"] { display: none !important; }
+
 /* ============================================================
    Remove-not-needed: Khayt design-picker + accent/skin fields.
    Bed Ready ships a single look + the light/dark theme select (stays).

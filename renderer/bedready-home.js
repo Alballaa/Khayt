@@ -35,6 +35,11 @@
         'queue.title': 'Print queue',
         'kan.search_ph': 'Filter jobs…',
         'kan.orders': 'jobs',
+        // "QC" reads as a business/factory term; a solo maker still inspects a print,
+        // so relabel to "Inspect" (keeps the post→qc→completed board flow intact). The
+        // "Delivered" column is hidden in bedready-theme.css — it only ever fills from a
+        // business deliveredAt stamp (customer hand-off) that Bed Ready never sets.
+        'kan.col_qc': 'Inspect',
         'slicer.slice_btn': '🧩 Slice for exact weight',
         'tab.sub.settings': 'Preferences, inventory & data',
         'set.biz_ar': 'Studio name (Arabic)',
