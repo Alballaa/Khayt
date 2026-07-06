@@ -159,6 +159,7 @@
               <button class="pf-view-btn ${isGallery ? 'on' : ''}" data-act="pf-view-gallery" aria-pressed="${isGallery}">${escapeHtml(t('plib.view_gallery') || 'Gallery')}</button>
             </div>
             ${isGallery ? '' : `<input type="search" id="pfSearch" class="pf-search" placeholder="${escapeHtml(t('common.search') || 'Search')}" value="${escapeHtml(_query)}" aria-label="${escapeHtml(t('common.search') || 'Search')}">`}
+            ${typeof openCalibration === 'function' ? `<button class="btn ghost" data-act="pf-calibrate">🎯 ${escapeHtml(t('plib.calibrate') || 'Calibrate')}</button>` : ''}
             <button class="btn primary" data-act="pf-add" ${hasHub ? '' : 'disabled'}>＋ ${escapeHtml(t('plib.add') || 'Add file')}</button>
           </div>
         </div>
@@ -179,6 +180,7 @@
     const id = btn.dataset.id;
     switch (btn.dataset.act) {
       case 'pf-add':   addPrintFile(); break;
+      case 'pf-calibrate': if (typeof openCalibration === 'function') openCalibration(); break;
       case 'pf-slice': openInSlicer(id); break;
       case 'pf-edit':  editPrintFile(id); break;
       case 'pf-del':   deletePrintFile(id); break;

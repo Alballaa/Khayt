@@ -164,6 +164,7 @@
   "plib.view_library": "Library",
   "plib.view_gallery": "Gallery",
   "plib.gallery_empty": "No print photos yet — add a photo to a print file to start your gallery.",
+  "plib.calibrate": "Calibrate",
   "plib.printed": "printed",
   "plib.failed": "failed",
   "plib.last": "last",

@@ -164,6 +164,7 @@
   "plib.view_library": "المكتبة",
   "plib.view_gallery": "المعرض",
   "plib.gallery_empty": "لا توجد صور طباعة بعد — أضف صورة إلى ملف طباعة لبدء معرضك.",
+  "plib.calibrate": "معايرة",
   "plib.printed": "طُبع",
   "plib.failed": "فشل",
   "plib.last": "آخر",

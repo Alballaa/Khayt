@@ -164,6 +164,7 @@
   "plib.view_library": "库",
   "plib.view_gallery": "图库",
   "plib.gallery_empty": "还没有打印照片 — 为打印文件添加照片以开始你的图库。",
+  "plib.calibrate": "校准",
   "plib.printed": "已打印",
   "plib.failed": "失败",
   "plib.last": "上次",

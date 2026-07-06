@@ -206,11 +206,14 @@ ipcMain.handle('hub:clipboard-write', async (_e, text) => {
   return { ok: true };
 });
 
-ipcMain.handle('hub:save-text-file', async (_e, { content, defaultName } = {}) => {
+ipcMain.handle('hub:save-text-file', async (_e, { content, defaultName, filters } = {}) => {
   const win = BrowserWindow.getFocusedWindow();
+  const okFilters = Array.isArray(filters) && filters.length
+    ? filters.filter((f) => f && f.name && Array.isArray(f.extensions))
+    : [{ name: 'Text', extensions: ['txt'] }];
   const { filePath, canceled } = await dialog.showSaveDialog(win || undefined, {
     defaultPath: defaultName || 'khayt-recovery.txt',
-    filters: [{ name: 'Text', extensions: ['txt'] }],
+    filters: okFilters.length ? okFilters : [{ name: 'Text', extensions: ['txt'] }],
   });
   if (canceled || !filePath) return { ok: false, canceled: true };
   await fs.promises.writeFile(filePath, String(content || ''), 'utf8');

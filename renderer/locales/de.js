@@ -164,6 +164,7 @@
   "plib.view_library": "Bibliothek",
   "plib.view_gallery": "Galerie",
   "plib.gallery_empty": "Noch keine Druckfotos — füge einer Druckdatei ein Foto hinzu, um deine Galerie zu starten.",
+  "plib.calibrate": "Kalibrieren",
   "plib.printed": "gedruckt",
   "plib.failed": "fehlgeschlagen",
   "plib.last": "zuletzt",

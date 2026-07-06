@@ -164,6 +164,7 @@
   "plib.view_library": "ライブラリ",
   "plib.view_gallery": "ギャラリー",
   "plib.gallery_empty": "印刷写真はまだありません — プリントファイルに写真を追加してギャラリーを始めましょう。",
+  "plib.calibrate": "キャリブレーション",
   "plib.printed": "印刷済み",
   "plib.failed": "失敗",
   "plib.last": "前回",

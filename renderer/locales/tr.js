@@ -164,6 +164,7 @@
   "plib.view_library": "Kitaplık",
   "plib.view_gallery": "Galeri",
   "plib.gallery_empty": "Henüz baskı fotoğrafı yok — galerini başlatmak için bir baskı dosyasına fotoğraf ekle.",
+  "plib.calibrate": "Kalibre et",
   "plib.printed": "yazdırıldı",
   "plib.failed": "başarısız",
   "plib.last": "son",
