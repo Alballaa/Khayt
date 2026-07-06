@@ -83,7 +83,28 @@
             <td id="cpTotCost" class="cp-tot">—</td>
           </tr></tfoot>
         </table>
-      </div>`;
+      </div>
+      <div id="cpSlotMap" class="cp-slotmap"></div>`;
+
+    // Physical AMS/MMU slot layout + swap guidance, derived from the assignment.
+    // One slot per unique filament (colours sharing a filament share a slot).
+    const AMS_SLOTS = 4;
+    const slotMapHtml = () => {
+      const assigned = plan.filter((p) => p.filamentId && p.grams > 0);
+      if (!assigned.length) return '';
+      const slots = [];
+      assigned.forEach((p) => { if (!slots.some((s) => s.filamentId === p.filamentId)) slots.push({ filamentId: p.filamentId }); });
+      const chips = slots.map((s, idx) => {
+        const it = cands.find((x) => x.id === s.filamentId);
+        return `<div class="cp-slot${idx >= AMS_SLOTS ? ' overflow' : ''}"><span class="cp-slot-n">${idx + 1}</span>${swatch(it ? it.color : '#888', 15)}<span class="cp-slot-name">${escapeHtml(it ? filamentLabel(it) : '?')}</span></div>`;
+      }).join('');
+      const note = slots.length <= AMS_SLOTS
+        ? (t('plan.slot_single', { n: slots.length }) || `${slots.length} filament(s) load in one AMS set — no manual swaps.`)
+        : (t('plan.slot_over', { max: AMS_SLOTS, rest: slots.length - AMS_SLOTS }) || `More than ${AMS_SLOTS} colours — load slots 1–${AMS_SLOTS}, then swap the remaining ${slots.length - AMS_SLOTS} by hand.`);
+      return `<div class="cp-slotmap-head">🎚 ${escapeHtml(t('plan.slotmap_head') || 'AMS / slot map')}</div>`
+        + `<div class="cp-slots">${chips}</div>`
+        + `<div class="cp-slot-note">${escapeHtml(note)}</div>`;
+    };
 
     openFormModal({
       title: `🎨 ${t('plan.title') || 'Plan colours'} — ${rec.name || rec.originalName || ''}`,
@@ -109,6 +130,8 @@
           const tc = modal.querySelector('#cpTotCost'); if (tc) tc.textContent = money(totC);
           const sw = modal.querySelector('#cpSwaps');
           if (sw) sw.textContent = rec.swapCount > 0 ? `· ↔ ${rec.swapCount} ${t('plib.swaps') || 'swaps'}` : '';
+          const sm = modal.querySelector('#cpSlotMap');
+          if (sm) sm.innerHTML = slotMapHtml();
         };
         modal.querySelectorAll('.cp-fil').forEach((sel) => {
           sel.onchange = () => { plan[+sel.dataset.i].filamentId = sel.value; recompute(); };

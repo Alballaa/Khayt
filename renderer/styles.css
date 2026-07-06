@@ -3649,6 +3649,17 @@ body.mode-enthusiast .biz-only { display: none !important; }
 .cp-tot-lbl { font-weight: 700; }
 .cp-swaps { font-weight: 500; color: var(--text-muted); font-size: 12px; }
 
+/* AMS / slot map */
+.cp-slotmap { margin-top: 16px; }
+.cp-slotmap:empty { display: none; }
+.cp-slotmap-head { font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
+.cp-slots { display: flex; flex-wrap: wrap; gap: 8px; }
+.cp-slot { display: flex; align-items: center; gap: 7px; padding: 6px 10px 6px 6px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); font-size: 12.5px; }
+.cp-slot.overflow { border-style: dashed; border-color: var(--warn, #c9821b); }
+.cp-slot-n { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 5px; background: var(--accent); color: var(--on-accent, #fff); font-size: 11px; font-weight: 700; flex-shrink: 0; }
+.cp-slot-name { color: var(--text-dim); }
+.cp-slot-note { font-size: 12px; color: var(--text-muted); margin-top: 8px; }
+
 /* ── Multi-slicer settings + chooser ──────────────────────── */
 .slicer-list { display: flex; flex-direction: column; gap: 8px; }
 .slicer-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
