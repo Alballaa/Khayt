@@ -60,16 +60,29 @@ function normalizeWizardFlagsAfterLoad() {
 
 function initWizard() {
   if (!shouldShowSetupWizard()) return;
+
+  // Bed Ready is a solo maker app with sane defaults (enthusiast/commerce-free
+  // mode, "Bed Ready" identity, one look). There's nothing to onboard, so skip
+  // the wizard entirely — detect the system language for a good first start,
+  // mark first-run done, and drop straight into the app.
+  const IS_BR = (typeof document !== 'undefined' && document.documentElement.dataset.app === 'bedready');
+  if (IS_BR) {
+    const lang = settings.lang || detectSystemLang();
+    settings.lang = lang;
+    try { i18n.set(lang, { silent: true }); } catch (e) { /* non-fatal */ }
+    settings.firstRun = false;
+    settings.firstRunDone = true;
+    saveAll();
+    return;
+  }
+
   const wiz = $('#setup-wizard');
   if (!wiz) return;
   wiz.style.display = 'flex';
 
-  // Bed Ready is the standalone maker app: it forces enthusiast (commerce-free)
-  // mode and ships one look, so its wizard skips the design (step 2) and
-  // business-type (step 4) steps entirely — flow is 1 (lang) → 3 (security) → 5.
-  const IS_BR = (typeof document !== 'undefined' && document.documentElement.dataset.app === 'bedready');
-  let selectedMode = IS_BR ? 'enthusiast' : 'simple';
-  let selectedBizType = IS_BR ? 'hobby' : 'solo';
+  // (Bed Ready returned above — the wizard below only runs for Khayt.)
+  let selectedMode = 'simple';
+  let selectedBizType = 'solo';
   let selectedDesign = settings.designTheme || 'studio';
   let pendingPin = null;
   let pendingRecoveryCode = null;
