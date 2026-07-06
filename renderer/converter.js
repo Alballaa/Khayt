@@ -204,8 +204,14 @@
       ? `<p class="conv-tip">${escapeHtml((t('conv.family_note') || 'Showing printers compatible with this {f} file. To target another ecosystem, convert to Generic 3MF and set up the printer in your slicer.').replace('{f}', a.flavour))}</p>`
       : '';
 
+    const canPreview = typeof mountMeshViewer === 'function' && !!h.convertMesh;
     const body = `
       ${metaCardHtml(src, a)}
+      ${canPreview ? `
+      <div id="convPreview" class="conv-preview">
+        <canvas id="convPreviewCanvas" width="300" height="300" class="conv-preview-canvas" aria-label="3D preview"></canvas>
+        <div class="conv-preview-hint">${escapeHtml(t('conv.preview_loading') || 'Loading 3D preview…')}</div>
+      </div>` : ''}
       <label class="conv-label">${escapeHtml(t('conv.target') || 'Target printer')}</label>
       <select id="convTarget" class="conv-target">${targetOptions(targetId, a.flavour)}</select>
       ${crossNote}
@@ -230,6 +236,20 @@
         const sel = modal.querySelector('#convTarget');
         const wrap = modal.querySelector('#convRemapWrap');
         const chg = modal.querySelector('#convChanges');
+
+        // 3D preview of the source model — "know what you're converting". Best-effort:
+        // if the mesh can't be read, quietly drop the panel rather than block the convert.
+        const pvCanvas = modal.querySelector('#convPreviewCanvas');
+        if (pvCanvas && h.convertMesh) {
+          h.convertMesh({ path: src.path }).then((mesh) => {
+            const panel = modal.querySelector('#convPreview');
+            if (mesh && mesh.ok && mesh.verts && mesh.count) {
+              mountMeshViewer(pvCanvas, { verts: mesh.verts, count: mesh.count });
+              const hint = panel && panel.querySelector('.conv-preview-hint');
+              if (hint) hint.textContent = t('conv.preview_hint') || 'Drag to rotate';
+            } else if (panel) { panel.style.display = 'none'; }
+          }).catch(() => { const panel = modal.querySelector('#convPreview'); if (panel) panel.style.display = 'none'; });
+        }
         const renderForTarget = () => {
           const isGeneric = P && targetId === P.GENERIC.id;
           if (chg) chg.innerHTML = changesHtml(a, targetId);

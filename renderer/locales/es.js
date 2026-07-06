@@ -143,6 +143,8 @@
   "conv.remap_hint": "Asigna cada color de origen a una ranura de la impresora objetivo:",
   "conv.slot": "Ranura",
   "conv.detected": "Detectado",
+  "conv.preview_loading": "Cargando vista 3D…",
+  "conv.preview_hint": "Arrastra para rotar",
   "conv.colours": "colores",
   "conv.desktop_only": "El conversor está disponible en la aplicación de escritorio.",
   "conv.failed": "La conversión falló.",

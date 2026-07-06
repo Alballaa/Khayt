@@ -143,6 +143,8 @@
   "conv.remap_hint": "اربط كل لون مصدر بفتحة على الطابعة الهدف:",
   "conv.slot": "فتحة",
   "conv.detected": "المُكتشف",
+  "conv.preview_loading": "جارٍ تحميل المعاينة ثلاثية الأبعاد…",
+  "conv.preview_hint": "اسحب للتدوير",
   "conv.colours": "ألوان",
   "conv.desktop_only": "المحوّل متاح في تطبيق سطح المكتب.",
   "conv.failed": "فشل التحويل.",

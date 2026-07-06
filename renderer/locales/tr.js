@@ -143,6 +143,8 @@
   "conv.remap_hint": "Her kaynak rengi, hedef yazıcıdaki bir yuvaya eşleyin:",
   "conv.slot": "Yuva",
   "conv.detected": "Algılandı",
+  "conv.preview_loading": "3B önizleme yükleniyor…",
+  "conv.preview_hint": "Döndürmek için sürükle",
   "conv.colours": "renk",
   "conv.desktop_only": "Dönüştürücü masaüstü uygulamasında kullanılabilir.",
   "conv.failed": "Dönüştürme başarısız.",

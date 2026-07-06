@@ -1196,9 +1196,35 @@ ipcMain.handle('hub:printlib-read-bytes', async (_e, fullPath) => {
   } catch (_) { return null; }
 });
 
-// Parse a print file (STL or 3MF) in the vault into a decimated triangle mesh for the
-// in-app 3D viewer. Returns a flat Float32Array (9 floats/triangle) so it clones cheaply
-// over IPC. Confined to the print-files vault, same as read-bytes.
+// Parse an STL/3MF buffer into a decimated triangle mesh for the in-app 3D viewer.
+// Returns a flat Float32Array (9 floats/triangle) so it clones cheaply over IPC.
+function meshFromBuffer(buf, ext) {
+  let tris = null;
+  if (ext === 'stl') {
+    const g = require('./lib/stl-parse').parseStl(buf, { keepTriangles: true });
+    tris = g && g.triangles;
+  } else if (ext === '3mf') {
+    const mf = require('./lib/mf-convert');
+    tris = mf.extractTriangles(mf.readMembers(buf));
+  }
+  if (!Array.isArray(tris) || !tris.length) return { ok: false, error: 'no-geometry' };
+  const MAX = 80000;
+  if (tris.length > MAX) { const s = Math.ceil(tris.length / MAX); const out = []; for (let i = 0; i < tris.length; i += s) out.push(tris[i]); tris = out; }
+  const verts = new Float32Array(tris.length * 9);
+  let bx0 = Infinity, by0 = Infinity, bz0 = Infinity, bx1 = -Infinity, by1 = -Infinity, bz1 = -Infinity, k = 0;
+  for (const t of tris) {
+    for (let j = 0; j < 3; j++) {
+      const p = t[j];
+      verts[k++] = p[0]; verts[k++] = p[1]; verts[k++] = p[2];
+      if (p[0] < bx0) bx0 = p[0]; if (p[0] > bx1) bx1 = p[0];
+      if (p[1] < by0) by0 = p[1]; if (p[1] > by1) by1 = p[1];
+      if (p[2] < bz0) bz0 = p[2]; if (p[2] > bz1) bz1 = p[2];
+    }
+  }
+  return { ok: true, verts, count: tris.length, bbox: { x: bx1 - bx0, y: by1 - by0, z: bz1 - bz0 } };
+}
+
+// Mesh for a print file in the vault (STL or 3MF). Confined to the vault, like read-bytes.
 ipcMain.handle('hub:printlib-mesh', async (_e, fullPath) => {
   const safe = path.resolve(String(fullPath || ''));
   const root = path.resolve(printLibDir());
@@ -1207,30 +1233,7 @@ ipcMain.handle('hub:printlib-mesh', async (_e, fullPath) => {
     const stat = await fs.promises.stat(safe);
     if (stat.size > 200_000_000) return { ok: false, error: 'too-large' };
     const buf = await fs.promises.readFile(safe);
-    const ext = path.extname(safe).slice(1).toLowerCase();
-    let tris = null;
-    if (ext === 'stl') {
-      const g = require('./lib/stl-parse').parseStl(buf, { keepTriangles: true });
-      tris = g && g.triangles;
-    } else if (ext === '3mf') {
-      const mf = require('./lib/mf-convert');
-      tris = mf.extractTriangles(mf.readMembers(buf));
-    }
-    if (!Array.isArray(tris) || !tris.length) return { ok: false, error: 'no-geometry' };
-    const MAX = 80000;
-    if (tris.length > MAX) { const s = Math.ceil(tris.length / MAX); const out = []; for (let i = 0; i < tris.length; i += s) out.push(tris[i]); tris = out; }
-    const verts = new Float32Array(tris.length * 9);
-    let bx0 = Infinity, by0 = Infinity, bz0 = Infinity, bx1 = -Infinity, by1 = -Infinity, bz1 = -Infinity, k = 0;
-    for (const t of tris) {
-      for (let j = 0; j < 3; j++) {
-        const p = t[j];
-        verts[k++] = p[0]; verts[k++] = p[1]; verts[k++] = p[2];
-        if (p[0] < bx0) bx0 = p[0]; if (p[0] > bx1) bx1 = p[0];
-        if (p[1] < by0) by0 = p[1]; if (p[1] > by1) by1 = p[1];
-        if (p[2] < bz0) bz0 = p[2]; if (p[2] > bz1) bz1 = p[2];
-      }
-    }
-    return { ok: true, verts, count: tris.length, bbox: { x: bx1 - bx0, y: by1 - by0, z: bz1 - bz0 } };
+    return meshFromBuffer(buf, path.extname(safe).slice(1).toLowerCase());
   } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
 });
 
@@ -1294,6 +1297,18 @@ ipcMain.handle('hub:mf-analyze', async (_e, { path: srcPath } = {}) => {
     const buf = await fs.promises.readFile(path.resolve(String(srcPath)));
     if (buf.length > MF_MAX_BYTES) return { ok: false, error: 'File is too large.' };
     return require('./lib/mf-convert').analyze(buf);
+  } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
+});
+
+// Decimated mesh for a converter SOURCE file (STL or 3MF) — for the "what am I
+// converting?" 3D preview. Same allow-list as analyze/convert (picked sources only).
+ipcMain.handle('hub:convert-mesh', async (_e, { path: srcPath } = {}) => {
+  try {
+    if (!srcPath || !mfReadAllowed(srcPath)) return { ok: false, error: 'outside-allowed' };
+    const safe = path.resolve(String(srcPath));
+    const buf = await fs.promises.readFile(safe);
+    if (buf.length > MF_MAX_BYTES) return { ok: false, error: 'too-large' };
+    return meshFromBuffer(buf, path.extname(safe).slice(1).toLowerCase());
   } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
 });
 

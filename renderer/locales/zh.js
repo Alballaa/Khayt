@@ -143,6 +143,8 @@
   "conv.remap_hint": "将每种源颜色映射到目标打印机的插槽：",
   "conv.slot": "插槽",
   "conv.detected": "已检测",
+  "conv.preview_loading": "正在加载 3D 预览…",
+  "conv.preview_hint": "拖动以旋转",
   "conv.colours": "种颜色",
   "conv.desktop_only": "转换器仅在桌面应用中可用。",
   "conv.failed": "转换失败。",

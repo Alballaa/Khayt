@@ -143,6 +143,8 @@
   "conv.remap_hint": "各ソースカラーをターゲットプリンターのスロットに対応付けます：",
   "conv.slot": "スロット",
   "conv.detected": "検出",
+  "conv.preview_loading": "3Dプレビューを読み込み中…",
+  "conv.preview_hint": "ドラッグで回転",
   "conv.colours": "色",
   "conv.desktop_only": "コンバーターはデスクトップアプリで利用できます。",
   "conv.failed": "変換に失敗しました。",

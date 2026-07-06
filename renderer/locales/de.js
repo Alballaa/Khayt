@@ -143,6 +143,8 @@
   "conv.remap_hint": "Ordne jede Ausgangsfarbe einem Slot am Zieldrucker zu:",
   "conv.slot": "Slot",
   "conv.detected": "Erkannt",
+  "conv.preview_loading": "3D-Vorschau wird geladen…",
+  "conv.preview_hint": "Zum Drehen ziehen",
   "conv.colours": "Farben",
   "conv.desktop_only": "Der Konverter ist in der Desktop-App verfügbar.",
   "conv.failed": "Konvertierung fehlgeschlagen.",

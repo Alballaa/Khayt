@@ -143,6 +143,8 @@
   "conv.remap_hint": "Map each source colour to a slot on the target printer:",
   "conv.slot": "Slot",
   "conv.detected": "Detected",
+  "conv.preview_loading": "Loading 3D preview…",
+  "conv.preview_hint": "Drag to rotate",
   "conv.colours": "colours",
   "conv.desktop_only": "The converter is available in the desktop app.",
   "conv.failed": "Conversion failed.",

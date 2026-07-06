@@ -143,6 +143,8 @@
   "conv.remap_hint": "Associez chaque couleur source à un emplacement sur l'imprimante cible :",
   "conv.slot": "Emplacement",
   "conv.detected": "Détecté",
+  "conv.preview_loading": "Chargement de l’aperçu 3D…",
+  "conv.preview_hint": "Glisser pour pivoter",
   "conv.colours": "couleurs",
   "conv.desktop_only": "Le convertisseur est disponible dans l'application de bureau.",
   "conv.failed": "Échec de la conversion.",
