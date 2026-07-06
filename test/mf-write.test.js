@@ -99,6 +99,43 @@ test('extractTrianglesWithPaint captures per-facet paint codes aligned to triang
   assert.equal(extractTriangles(readMembers(buf)).length, 4);
 });
 
+test('extractTriangles keeps facets whose attributes contain a "/" (regex not truncated)', () => {
+  const { writeZip } = require('../lib/zip-write');
+  const model = `<?xml version="1.0"?><model unit="millimeter"><resources>
+    <object id="1" type="model"><mesh>
+      <vertices><vertex x="0" y="0" z="0"/><vertex x="10" y="0" z="0"/><vertex x="0" y="10" z="0"/><vertex x="0" y="0" z="10"/></vertices>
+      <triangles>
+        <triangle v1="0" v2="1" v3="2" custom="a/b"/>
+        <triangle v1="0" v2="1" v3="3" paint_color="4/8"/>
+        <triangle v1="0" v2="2" v3="3"/>
+        <triangle v1="1" v2="2" v3="3"/>
+      </triangles>
+    </mesh></object></resources><build><item objectid="1"/></build></model>`;
+  const buf = writeZip([
+    { name: '[Content_Types].xml', data: '<?xml version="1.0"?><Types/>' },
+    { name: '3D/3dmodel.model', data: model },
+  ]);
+  assert.equal(extractTriangles(readMembers(buf)).length, 4, 'all 4 facets survive a "/" in attributes');
+  assert.deepEqual(extractTrianglesWithPaint(readMembers(buf)).paint, [null, '4/8', null, null]);
+});
+
+test('extractTriangles falls back to raw meshes when the build graph resolves to nothing', () => {
+  // Build item points at a missing object id (99) and the real mesh (id 1) is not referenced.
+  const { writeZip } = require('../lib/zip-write');
+  const model = `<?xml version="1.0"?><model unit="millimeter"><resources>
+    <object id="1" type="model"><mesh>
+      <vertices><vertex x="0" y="0" z="0"/><vertex x="10" y="0" z="0"/><vertex x="0" y="10" z="0"/></vertices>
+      <triangles><triangle v1="0" v2="1" v3="2"/></triangles>
+    </mesh></object></resources><build><item objectid="99"/></build></model>`;
+  const buf = writeZip([
+    { name: '[Content_Types].xml', data: '<?xml version="1.0"?><Types/>' },
+    { name: '3D/3dmodel.model', data: model },
+  ]);
+  const tris = extractTriangles(readMembers(buf));
+  assert.equal(tris.length, 1, 'raw mesh rendered even though the build item was unresolvable');
+  assert.deepEqual(tris[0], [[0, 0, 0], [10, 0, 0], [0, 10, 0]]);
+});
+
 test('trianglesToStl writes a binary STL that parses back to the same mesh', () => {
   const stl = trianglesToStl(TRIS);
   assert.ok(Buffer.isBuffer(stl));
