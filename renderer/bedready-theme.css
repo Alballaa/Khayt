@@ -433,6 +433,39 @@ html[data-app="bedready"] .wizard-dot.active { background: var(--accent); }
 html[data-app="bedready"] #calculator-tab .card.labor { display: none !important; }
 html[data-app="bedready"] #calculator-tab .preset-row:has(#quoteTplSelect) { display: none !important; }
 html[data-app="bedready"] #btnSaveAsQuote { display: none !important; }
+/* margin / volume-pricing / min-order warnings are all commerce concepts */
+html[data-app="bedready"] #marginWarning,
+html[data-app="bedready"] #minOrderWarning,
+html[data-app="bedready"] #volumePricingDetails { display: none !important; }
+/* The cost total + primary "Add to print queue" CTA inherit Khayt's success
+   green — recolour to the Bed Ready teal so the calculator reads on-brand
+   (it's a cost figure, not a "profit" figure). Semantic status pills keep
+   their green; this is scoped to the calc total and this one button. */
+html[data-app="bedready"] #calculator-tab .total-display .value { color: var(--accent) !important; }
+html[data-app="bedready"] #btnSaveQuote.btn.success {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+}
+
+/* ============================================================
+   Print Queue → a maker's job board, not a shop-floor console.
+   Bed Ready is commerce-free and single-operator, so strip the
+   production-management chrome: shift tracking, farm scheduling,
+   kiosk, pause-production, and the client/job intake funnel. The
+   kanban board + search + sort stay.
+   ============================================================ */
+html[data-app="bedready"] #btnStartShift,
+html[data-app="bedready"] #btnEndOfDay,
+html[data-app="bedready"] #btnBatchPlanner,
+html[data-app="bedready"] #btnSuggestSchedule,
+html[data-app="bedready"] #btnKioskView,
+html[data-app="bedready"] #btnPauseProduction,
+html[data-app="bedready"] #btnAutoAssign,
+html[data-app="bedready"] .khayt-queue-toolbar-actions label:has(#chkAutoSchedule),
+html[data-app="bedready"] div:has(> #waitingListToggle),
+/* the studio shell rewraps the waiting list into a collapsible ".khayt-fold" */
+html[data-app="bedready"] .khayt-fold:has(#btnAddWaiting),
+html[data-app="bedready"] .khayt-fold-head:has(#btnAddWaiting) { display: none !important; }
 
 /* ============================================================
    Remove-not-needed: Khayt design-picker + accent/skin fields.

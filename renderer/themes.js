@@ -33,6 +33,8 @@
   function syncSidebarSubtitle(designId) {
     const sub = document.querySelector('.sidebar-subtitle');
     if (!sub) return;
+    // Bed Ready is its own product — never stamp the Khayt (خيط) wordmark here.
+    if (document.documentElement.dataset.app === 'bedready') { sub.textContent = 'MAKER STUDIO'; return; }
     const theme = reg()?.getTheme(designId);
     if (theme?.shell === 'ledger') sub.textContent = 'خيط · LEDGER';
     else if (theme?.shell === 'console') sub.textContent = 'خيط · CONTROL ROOM';

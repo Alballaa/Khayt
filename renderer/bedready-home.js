@@ -21,6 +21,40 @@
 (function () {
   if (typeof document === 'undefined' || document.documentElement.dataset.app !== 'bedready') return;
 
+  // ── Copy overrides ─────────────────────────────────────────────────────────
+  // Rename Khayt / business terms to Bed Ready maker terms across every language.
+  // i18n's STRINGS table aliases globalThis.KhaytLocales, and this renderer runs
+  // in its own process, so mutating it here re-labels nav + topbar + placeholders
+  // at once and never touches Khayt. Applied to all loaded locales (English maker
+  // wording is fine for these product-specific terms).
+  try {
+    var LOC = (typeof globalThis !== 'undefined' && globalThis.KhaytLocales) || (typeof window !== 'undefined' && window.KhaytLocales) || null;
+    if (LOC) {
+      var OV = {
+        'tab.queue': 'Print Queue',
+        'queue.title': 'Print queue',
+        'kan.search_ph': 'Filter jobs…',
+        'kan.orders': 'jobs',
+        'slicer.slice_btn': '🧩 Slice for exact weight',
+        'tab.sub.settings': 'Studio, preferences & data',
+        'set.biz_ar': 'Studio name (Arabic)',
+        'set.logo': 'Logo',
+        'set.biz_identity': 'Studio identity',
+        'waiting.title': 'Job intake',
+        'mach.empty': 'No printers added yet — add one to assign jobs to a machine.',
+        'queue.empty': 'No jobs here.',
+        'calc.quote.empty': 'No parts in this project yet. The live preview below reflects the current form.',
+        'calc.quote.add_part': '+ Add part to project',
+        'set.tagline_ph': 'e.g. Multi-colour minis & functional prints',
+      };
+      Object.keys(LOC).forEach(function (lang) {
+        if (LOC[lang] && typeof LOC[lang] === 'object') {
+          Object.keys(OV).forEach(function (k) { LOC[lang][k] = OV[k]; });
+        }
+      });
+    }
+  } catch (e) { /* non-fatal */ }
+
   function homeHtml() {
     return [
       '<div class="br-home">',
@@ -87,8 +121,15 @@
     }
   }
 
+  // Re-apply translations once the app has booted, so the copy overrides above
+  // land on nav / placeholders / labels that were painted before this ran.
+  function reapplyI18n() {
+    try { if (typeof i18n !== 'undefined' && typeof i18n.applyToDom === 'function') i18n.applyToDom(); } catch (e) {}
+  }
+
   function startHealing() {
     ensureHome();
+    reapplyI18n();
     var sec = document.getElementById('dashboard-tab');
     if (sec && typeof MutationObserver === 'function') {
       var obs = new MutationObserver(function () { ensureHome(); });
@@ -98,8 +139,9 @@
       setTimeout(function () { obs.disconnect(); }, 4000);
     }
     // Belt-and-braces poll in case the observer misses an out-of-subtree swap.
+    // Also re-apply i18n for the first ~1s so overrides land after boot renders.
     var tries = 0;
-    var iv = setInterval(function () { ensureHome(); if (++tries >= 30) clearInterval(iv); }, 120);
+    var iv = setInterval(function () { ensureHome(); if (tries < 8) reapplyI18n(); if (++tries >= 30) clearInterval(iv); }, 120);
   }
 
   if (document.readyState === 'loading') {

@@ -474,7 +474,9 @@ function renderKanban() {
           colEl.appendChild(foot);
         }
         const totalValFoot = sorted.reduce((s, o) => s + orderRevenueBase(o), 0);
-        foot.innerHTML = `<span style="font-size:11px;color:var(--text-muted)">${sorted.length} ${escapeHtml(t('kan.orders') || 'orders')}</span><span class="metric" style="font-size:11.5px;color:var(--text-dim)">${fmtPrice(totalValFoot)}</span>`;
+        // Enthusiast/maker mode has no commerce — omit the per-column money total.
+        const showColMoney = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.showsBusiness(settings.mode) : settings.mode !== 'enthusiast';
+        foot.innerHTML = `<span style="font-size:11px;color:var(--text-muted)">${sorted.length} ${escapeHtml(t('kan.orders') || 'orders')}</span>${showColMoney ? `<span class="metric" style="font-size:11.5px;color:var(--text-dim)">${fmtPrice(totalValFoot)}</span>` : ''}`;
       }
     }
 
@@ -483,8 +485,9 @@ function renderKanban() {
     const totalVal = sorted.reduce((s, o) => s + orderRevenueBase(o), 0);
     const metaEl = $('#meta-' + status);
     if (metaEl) {
+      const showMetaMoney = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.showsBusiness(settings.mode) : settings.mode !== 'enthusiast';
       metaEl.textContent = sorted.length > 0
-        ? `${totalHrs.toFixed(1)} ${t('common.hours')} · ${fmtPrice(totalVal)}`
+        ? (showMetaMoney ? `${totalHrs.toFixed(1)} ${t('common.hours')} · ${fmtPrice(totalVal)}` : `${totalHrs.toFixed(1)} ${t('common.hours')}`)
         : '';
     }
 
