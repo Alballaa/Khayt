@@ -416,6 +416,7 @@ html[data-app="bedready"] .br-stat-val {
   letter-spacing: -0.02em; color: var(--text); font-variant-numeric: tabular-nums;
 }
 html[data-app="bedready"] .br-stat-lab { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+html[data-app="bedready"] .br-stat-unit { font-size: 14px; font-weight: 500; color: var(--text-dim); }
 html[data-app="bedready"] .br-mat-list { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
 html[data-app="bedready"] .br-mat-row { display: flex; align-items: center; gap: 10px; font-size: 12.5px; }
 html[data-app="bedready"] .br-mat-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; border: 1px solid rgba(127,127,127,0.25); }

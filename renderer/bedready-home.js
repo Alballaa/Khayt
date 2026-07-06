@@ -120,6 +120,52 @@
     ].join('');
   }
 
+  // Energy & impact — cumulative electricity, its cost, an estimated carbon
+  // footprint, and filament wasted. All from data already stored on completed
+  // prints (parts carry printTime / powerDraw / elecRate) plus the Waste Log —
+  // no new inputs. Hidden until there's something to show.
+  function energyStatsHtml() {
+    var log = (typeof printLog !== 'undefined' && Array.isArray(printLog)) ? printLog : [];
+    var done = log.filter(function (o) { return o && o.status === 'completed'; });
+    var kwh = 0, energyCost = 0;
+    done.forEach(function (o) {
+      (o.parts || []).forEach(function (p) {
+        var pt = Math.max(0, +p.printTime || 0);
+        var partKwh = pt * (Math.max(0, +p.powerDraw || 0) / 1000);
+        kwh += partKwh;
+        energyCost += partKwh * Math.max(0, +p.elecRate || 0);
+      });
+    });
+    var wasteG = (typeof wasteLog !== 'undefined' && Array.isArray(wasteLog))
+      ? wasteLog.reduce(function (s, w) { return s + (+w.weight || 0); }, 0) : 0;
+    if (kwh <= 0 && wasteG <= 0) return '';
+
+    var GRID_KG_PER_KWH = 0.42; // global grid average CO2e; labelled "est."
+    var co2 = kwh * GRID_KG_PER_KWH;
+    var esc = (typeof escapeHtml === 'function') ? escapeHtml : function (s) { return s; };
+    var kwhStr = kwh >= 100 ? Math.round(kwh) : kwh.toFixed(1);
+    var co2Str = co2 >= 10 ? Math.round(co2) + ' kg' : co2.toFixed(1) + ' kg';
+    var wasteStr = wasteG >= 1000 ? (wasteG / 1000).toFixed(1) + ' kg' : Math.round(wasteG) + ' g';
+    var cost = (typeof fmtPrice === 'function') ? fmtPrice(energyCost) : String(Math.round(energyCost));
+    var stat = function (val, lab) {
+      return '<div class="br-stat"><div class="br-stat-val">' + val + '</div><div class="br-stat-lab">' + lab + '</div></div>';
+    };
+    var cells = [];
+    if (kwh > 0) {
+      cells.push(stat(esc(kwhStr) + ' <span class="br-stat-unit">kWh</span>', 'electricity'));
+      cells.push(stat(esc(cost), 'energy cost'));
+      cells.push(stat('~' + esc(co2Str), 'CO₂e (est.)'));
+    }
+    if (wasteG > 0) cells.push(stat(esc(wasteStr), 'filament wasted'));
+
+    return [
+      '<section class="br-stats">',
+        '<div class="br-stats-head">Energy &amp; impact</div>',
+        '<div class="br-stat-row">', cells.join(''), '</div>',
+      '</section>',
+    ].join('');
+  }
+
   function homeHtml() {
     return [
       '<div class="br-home">',
@@ -140,6 +186,7 @@
           '</div>',
         '</section>',
         makerStatsHtml(),
+        energyStatsHtml(),
         '<div class="br-home-grid">',
           '<button type="button" class="br-action" data-go="inventory-tab"><span class="ico" aria-hidden="true">⬡</span><span class="t"><b>Inventory</b><span>filament & stock</span></span></button>',
           '<button type="button" class="br-action" data-go="printfiles-tab"><span class="ico" aria-hidden="true">🧊</span><span class="t"><b>Print files</b><span>your model library</span></span></button>',
