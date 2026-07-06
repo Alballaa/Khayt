@@ -1,101 +1,107 @@
 /* ============================================================
-   BED READY — bespoke identity
+   BED READY — bespoke identity  (true to bedready.io)
    ------------------------------------------------------------
    Bed Ready is the standalone maker app. It reuses Khayt's shared
-   maker components (so there is zero duplicated logic) but wears a
-   completely different skin: a playful, warm, "built for makers"
-   look inspired by bedready.io — light-first, chunky and friendly,
-   with a full-spectrum filament motif.
+   maker components (zero duplicated logic) but wears a completely
+   different skin, modelled on bedready.io: light, clean, minimal and
+   technical — geometric sans, a teal→orange FULL-SPECTRUM filament
+   motif, and die-cut "sticker" badges. Deliberately NOT Khayt's busy
+   studio chrome.
 
-   Mechanism: the shared components all consume design TOKENS
-   (--bg, --accent, --surface, --r-*, --font-*, --shadow-*). This
-   file redefines those tokens for the Bed Ready flavor and adds a
-   thin bespoke chrome layer on top of the studio shell. It is
-   loaded LAST and ONLY by renderer/bedready.html (scoped to
-   html[data-app="bedready"]) so Khayt is never affected.
+   Mechanism: the shared components consume design TOKENS (--bg,
+   --accent, --surface, --r-*, --font-*, --shadow-*). This file
+   redefines those tokens for the Bed Ready flavor and layers a lean
+   bespoke chrome over the studio shell. Loaded LAST and ONLY by
+   renderer/bedready.html (scoped to html[data-app="bedready"]) so
+   Khayt is never affected.
    ============================================================ */
 
-/* ---------- Tokens: shared (both appearances) ---------- */
+/* ---------- Tokens: shared ---------- */
 html[data-app="bedready"] {
-  /* Signature accent — warm coral/persimmon (filament-hot), NOT Khayt cyan.
-     !important beats the inline accent that applyAccent() writes on <html>. */
-  --accent-h: 12 !important; --accent-s: 90% !important; --accent-l: 57% !important;
+  /* Signature accent — TEAL (bedready.io), not Khayt cyan/blue.
+     !important beats the inline accent applyAccent() writes on <html>. */
+  --accent-h: 176 !important; --accent-s: 74% !important; --accent-l: 38% !important;
   --accent:      hsl(var(--accent-h) var(--accent-s) var(--accent-l));
-  --accent-soft: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.13);
-  --accent-line: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.42);
+  --accent-soft: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.12);
+  --accent-line: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.40);
   --on-accent:   #ffffff;
   --primary:     var(--accent);          /* legacy alias used by styles.css */
   --primary-soft: var(--accent-soft);
 
-  /* The "full-spectrum" filament gradient — brand mark, hero accents, stickers. */
+  /* Secondary brand pop — warm orange, the teal's counterweight. */
+  --br-orange:   #ff6a3d;
+  --br-orange-soft: rgba(255,106,61,0.13);
+
+  /* The "full-spectrum" filament gradient — brand mark, hero, stickers.
+     Teal-first so the brand colour leads, then a true rainbow. */
   --spectrum: linear-gradient(100deg,
-     #ff5a3c 0%, #ff9a3d 20%, #ffcf3d 38%, #3ecf7a 60%, #37a6ff 80%, #8b6cf0 100%);
+     #12b3a6 0%, #4cc98a 20%, #ffd23d 42%, #ff9a3d 62%, #ff5a3c 80%, #8b6cf0 100%);
   --spectrum-soft: linear-gradient(100deg,
-     rgba(255,90,60,.16), rgba(255,207,61,.16), rgba(62,207,122,.16), rgba(55,166,255,.16), rgba(139,108,240,.16));
+     rgba(18,179,166,.16), rgba(76,201,138,.14), rgba(255,210,61,.16), rgba(255,154,61,.16), rgba(255,90,60,.14), rgba(139,108,240,.14));
 
-  /* Friendlier, chunkier corners than studio. */
-  --r-xs: 8px;  --r-sm: 11px; --r-md: 14px; --r-lg: 18px; --r-xl: 26px;
+  /* Clean, slightly-chunky corners. */
+  --r-xs: 7px;  --r-sm: 10px; --r-md: 13px; --r-lg: 17px; --r-xl: 24px;
 
-  /* Type: characterful display + friendly body + technical mono. */
-  --font-display: "Bricolage Grotesque", "Hanken Grotesk", -apple-system, sans-serif;
-  --font-ui:  "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  /* Type: geometric technical display + clean geometric body + mono. */
+  --font-display: "Space Grotesk", "Plus Jakarta Sans", -apple-system, sans-serif;
+  --font-ui:  "Plus Jakarta Sans", "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: "Spline Sans Mono", ui-monospace, "IBM Plex Mono", monospace;
 
-  --nav-w: 240px;
+  --nav-w: 232px;
 }
 
-/* ---------- Tokens: LIGHT (default) — warm clean canvas ---------- */
+/* ---------- Tokens: LIGHT (default) — clean, cool, technical ---------- */
 html[data-app="bedready"][data-theme="light"] {
-  --bg:         #f4f2ec;
-  --bg-2:       #fbfaf6;
+  --bg:         #eef2f1;
+  --bg-2:       #f7faf9;
   --surface:    #ffffff;
-  --surface-2:  #f6f3ec;
-  --surface-3:  #eee9df;
-  --border:     rgba(38,30,20,0.10);
-  --border-2:   rgba(38,30,20,0.16);
-  --hairline:   rgba(38,30,20,0.06);
+  --surface-2:  #f2f6f5;
+  --surface-3:  #e8efed;
+  --border:     rgba(17,40,37,0.10);
+  --border-2:   rgba(17,40,37,0.16);
+  --hairline:   rgba(17,40,37,0.06);
 
-  --text:       #211d17;
-  --text-dim:   #5b5348;
-  --text-muted: #8f877a;
-  --text-faint: #bcb4a5;
+  --text:       #14201e;
+  --text-dim:   #52605d;
+  --text-muted: #869390;
+  --text-faint: #b3bebb;
   --on-accent:  #ffffff;
 
-  --ok:#1f9d63; --ok-soft:rgba(31,157,99,.13);
+  --ok:#159d68; --ok-soft:rgba(21,157,104,.13);
   --warn:#c9821b; --warn-soft:rgba(201,130,27,.14);
-  --danger:#e04a34; --danger-soft:rgba(224,74,52,.13);
-  --info:#2f86e0; --info-soft:rgba(47,134,224,.13);
+  --danger:#e0492f; --danger-soft:rgba(224,73,47,.13);
+  --info:#1f8fd6; --info-soft:rgba(31,143,214,.13);
   --violet:#7a5cf0; --violet-soft:rgba(122,92,240,.13);
   --success:var(--ok); --warning:var(--warn); /* legacy aliases */
 
-  --shadow-1: 0 1px 2px rgba(45,33,20,0.07);
-  --shadow-2: 0 10px 26px rgba(45,33,20,0.09), 0 2px 6px rgba(45,33,20,0.05);
-  --shadow-3: 0 26px 64px rgba(45,33,20,0.15), 0 6px 16px rgba(45,33,20,0.08);
-  --shadow-pop: 0 20px 54px rgba(45,33,20,0.22);
+  --shadow-1: 0 1px 2px rgba(16,38,35,0.06);
+  --shadow-2: 0 10px 26px rgba(16,38,35,0.08), 0 2px 6px rgba(16,38,35,0.05);
+  --shadow-3: 0 26px 64px rgba(16,38,35,0.14), 0 6px 16px rgba(16,38,35,0.07);
+  --shadow-pop: 0 20px 54px rgba(16,38,35,0.20);
 }
 
-/* ---------- Tokens: DARK — cozy warm charcoal (not Khayt blue-black) ---------- */
+/* ---------- Tokens: DARK — cool teal charcoal (not Khayt blue-black) ---------- */
 html[data-app="bedready"][data-theme="dark"] {
-  --accent-l: 62% !important;
-  --bg:         #191510;
-  --bg-2:       #1f1a14;
-  --surface:    #241f18;
-  --surface-2:  #2c261e;
-  --surface-3:  #362f25;
-  --border:     rgba(255,246,232,0.09);
-  --border-2:   rgba(255,246,232,0.15);
-  --hairline:   rgba(255,246,232,0.055);
+  --accent-l: 55% !important;
+  --bg:         #0e1514;
+  --bg-2:       #121a19;
+  --surface:    #16201e;
+  --surface-2:  #1c2725;
+  --surface-3:  #24302d;
+  --border:     rgba(230,246,243,0.09);
+  --border-2:   rgba(230,246,243,0.15);
+  --hairline:   rgba(230,246,243,0.055);
 
-  --text:       #f4efe6;
-  --text-dim:   #b6aea0;
-  --text-muted: #857c6d;
-  --text-faint: #5b5348;
+  --text:       #e9f2ef;
+  --text-dim:   #a6b3b0;
+  --text-muted: #778380;
+  --text-faint: #4e5b58;
   --on-accent:  #ffffff;
 
-  --ok:#40c07f; --ok-soft:rgba(64,192,127,.15);
+  --ok:#3ec489; --ok-soft:rgba(62,196,137,.15);
   --warn:#e3ab45; --warn-soft:rgba(227,171,69,.15);
   --danger:#f0654e; --danger-soft:rgba(240,101,78,.15);
-  --info:#5ba2f2; --info-soft:rgba(91,162,242,.15);
+  --info:#4ca6ea; --info-soft:rgba(76,166,234,.15);
   --violet:#a48cf7; --violet-soft:rgba(164,140,247,.15);
   --success:var(--ok); --warning:var(--warn);
 
@@ -106,9 +112,9 @@ html[data-app="bedready"][data-theme="dark"] {
 }
 
 /* ============================================================
-   Typography — characterful display voice
+   Typography — geometric technical voice
    ============================================================ */
-html[data-app="bedready"] body { font-family: var(--font-ui); }
+html[data-app="bedready"] body { font-family: var(--font-ui); letter-spacing: -0.005em; }
 html[data-app="bedready"] h1,
 html[data-app="bedready"] h2,
 html[data-app="bedready"] h3,
@@ -117,15 +123,14 @@ html[data-app="bedready"] .card-head strong,
 html[data-app="bedready"] .settings-panel-title {
   font-family: var(--font-display);
   letter-spacing: -0.02em;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 /* ============================================================
    Own the shell layout the removed theme CSS used to provide.
-   Bed Ready ships ONLY the studio design, so hide every other
-   design's masthead / pagehead chrome (their default `display:none`
-   lived in the theme CSS we no longer ship), and pin the sidebar
-   width so it never depends on a theme file.
+   Hide every other design's masthead / pagehead chrome (their
+   default display:none lived in the theme CSS we no longer ship),
+   and pin the sidebar width so it never depends on a theme file.
    ============================================================ */
 html[data-app="bedready"] .ledger-masthead-brand,
 html[data-app="bedready"] .ledger-pagehead,
@@ -144,43 +149,46 @@ html[data-app="bedready"] body.khayt-studio .khayt-sidebar {
   flex-shrink: 0;
 }
 html[data-app="bedready"] body.khayt-studio .app-sidebar.collapsed {
-  width: 68px !important; min-width: 68px !important; max-width: 68px !important;
+  width: 66px !important; min-width: 66px !important; max-width: 66px !important;
 }
 
 /* ============================================================
-   Window / stage — warm, softly-lit, spectrum-kissed
+   Window / stage — clean cool light, a soft teal wash
    ============================================================ */
 html[data-app="bedready"] .khayt-app,
 html[data-app="bedready"] .app {
   background:
-    radial-gradient(1100px 640px at 12% -8%, hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.10), transparent 55%),
-    radial-gradient(900px 620px at 108% 116%, rgba(139,108,240,0.07), transparent 55%),
+    radial-gradient(1100px 620px at 8% -10%, hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.09), transparent 55%),
+    radial-gradient(900px 600px at 112% 118%, rgba(255,106,61,0.05), transparent 55%),
     var(--bg);
 }
 html[data-app="bedready"] .khayt-titlebar { background: var(--bg-2); }
 html[data-app="bedready"] .khayt-tdot { background: none; background-image: var(--spectrum); box-shadow: none; }
 
 /* ============================================================
-   Sidebar — brand wordmark + spectrum mark + chunky nav pills
+   Sidebar — lean brand rail + spectrum mark + quiet nav
    ============================================================ */
-html[data-app="bedready"] body.khayt-studio .khayt-sidebar { background: var(--bg-2); }
+html[data-app="bedready"] body.khayt-studio .khayt-sidebar {
+  background: var(--bg-2);
+  border-inline-end: 1px solid var(--hairline);
+}
 
 html[data-app="bedready"] body.khayt-studio .khayt-brand {
-  height: 64px; gap: 12px;
+  height: 62px; gap: 11px;
   border-bottom: 1px solid var(--hairline);
 }
-/* Spectrum mark: hide the Khayt logo img, paint a filament-spectrum tile. */
+/* Spectrum mark: hide the Khayt logo img, paint a filament-spectrum tile
+   with three stacked "bed layers". */
 html[data-app="bedready"] .khayt-logo {
-  width: 34px; height: 34px; border-radius: 11px;
+  width: 32px; height: 32px; border-radius: 10px;
   background: var(--spectrum);
   border: none;
-  box-shadow: 0 4px 14px rgba(255,90,60,0.28), inset 0 1px 0 rgba(255,255,255,0.35);
+  box-shadow: 0 3px 12px rgba(18,179,166,0.30), inset 0 1px 0 rgba(255,255,255,0.4);
   position: relative;
 }
 html[data-app="bedready"] .khayt-logo img { display: none; }
-/* three stacked "bed layers" drawn in white on the mark */
 html[data-app="bedready"] .khayt-logo::after {
-  content: ""; position: absolute; inset: 10px 8px;
+  content: ""; position: absolute; inset: 9px 7px;
   background:
     linear-gradient(#fff,#fff) top/100% 3px no-repeat,
     linear-gradient(rgba(255,255,255,.85),rgba(255,255,255,.85)) center/100% 3px no-repeat,
@@ -189,65 +197,86 @@ html[data-app="bedready"] .khayt-logo::after {
 }
 html[data-app="bedready"] .sidebar-title,
 html[data-app="bedready"] .khayt-brand strong {
-  font-family: var(--font-display); font-weight: 700; font-size: 16.5px !important;
+  font-family: var(--font-display); font-weight: 600; font-size: 16px !important;
   letter-spacing: -0.03em; color: var(--text);
 }
 html[data-app="bedready"] .sidebar-subtitle {
-  font-family: var(--font-mono); font-size: 9px !important; letter-spacing: 0.18em;
+  font-family: var(--font-mono); font-size: 9px !important; letter-spacing: 0.2em;
   color: var(--accent); text-transform: uppercase;
 }
 
-/* Nav items → rounded sticker pills */
+/* Nav group labels + items — quiet, technical */
 html[data-app="bedready"] body.khayt-studio .khayt-navhead {
-  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em;
+  font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.16em;
   text-transform: uppercase; color: var(--text-faint);
 }
 html[data-app="bedready"] body.khayt-studio .khayt-navitem {
-  font-size: 13.5px; font-weight: 600; padding: 9px 13px;
-  border-radius: 12px; gap: 12px;
+  font-size: 13.5px; font-weight: 550; padding: 9px 12px;
+  border-radius: 10px; gap: 11px; color: var(--text-dim);
 }
-html[data-app="bedready"] body.khayt-studio .khayt-navitem:hover { background: var(--surface-2); }
+html[data-app="bedready"] body.khayt-studio .khayt-navitem:hover { background: var(--surface-2); color: var(--text); }
 html[data-app="bedready"] body.khayt-studio .khayt-navitem.on {
-  background: var(--accent-soft); color: var(--accent); font-weight: 700;
-  box-shadow: inset 0 0 0 1px var(--accent-line);
+  background: var(--surface); color: var(--text); font-weight: 650;
+  box-shadow: var(--shadow-1), inset 0 0 0 1px var(--border);
 }
-/* replace the left tick with a spectrum dot */
+/* spectrum accent bar on the active item (inline-start) */
 html[data-app="bedready"] body.khayt-studio .khayt-navitem.on::before {
-  content: ""; position: absolute; inset-inline-start: auto; inset-inline-end: 12px;
+  content: ""; position: absolute; inset-inline-start: 0; inset-inline-end: auto;
   top: 50%; transform: translateY(-50%);
-  width: 7px; height: 7px; border-radius: 50%;
-  background: var(--spectrum); box-shadow: 0 0 0 3px var(--accent-soft);
+  width: 3px; height: 20px; border-radius: 0 3px 3px 0;
+  background: var(--spectrum);
 }
+html[data-app="bedready"] body.khayt-studio .khayt-navitem.on .nav-icon,
 html[data-app="bedready"] body.khayt-studio .khayt-navitem.on svg { color: var(--accent); }
 
 /* ============================================================
-   Topbar — lean; hide business-only chrome
+   Topbar — strip Khayt clutter down to a minimal maker bar
    ============================================================ */
-html[data-app="bedready"] .khayt-top { background: color-mix(in srgb, var(--bg-2) 82%, transparent); }
-html[data-app="bedready"] #locationFilter,           /* multi-location = business */
-html[data-app="bedready"] #btnNavSwitchOp { display: none !important; }
-html[data-app="bedready"] .khayt-search:focus-within {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+html[data-app="bedready"] .khayt-top {
+  background: color-mix(in srgb, var(--bg-2) 85%, transparent);
+  border-bottom: 1px solid var(--hairline);
+  position: relative;
 }
+/* thin spectrum hairline under the topbar — signature */
+html[data-app="bedready"] .khayt-top::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
+  background: var(--spectrum); opacity: 0.85;
+}
+html[data-app="bedready"] .khayt-toptitle .topbar-title {
+  font-family: var(--font-display); font-weight: 600; letter-spacing: -0.025em;
+}
+/* Hide the busy centre search mirror + secondary-action clutter that reads
+   "Khayt". Keep only: theme toggle, notifications, language. */
+html[data-app="bedready"] .khayt-search,          /* redundant readonly mirror */
+html[data-app="bedready"] #btnHelp,
+html[data-app="bedready"] #btnGlobalSearch,
+html[data-app="bedready"] #btnFeedback,
+html[data-app="bedready"] #locationFilter,        /* multi-location = business */
+html[data-app="bedready"] #btnNavSwitchOp { display: none !important; }
+
+html[data-app="bedready"] .topbar-actions .btn.ghost {
+  border-radius: 9px; color: var(--text-dim);
+}
+html[data-app="bedready"] #langSelect { border-radius: 9px; }
 
 /* ============================================================
-   Cards, buttons, inputs, pills — chunky & friendly
+   Cards, buttons, inputs — clean & tactile
    ============================================================ */
 html[data-app="bedready"] .card {
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-1);
+  border: 1px solid var(--border);
 }
 html[data-app="bedready"] .card:hover { box-shadow: var(--shadow-2); }
 
 html[data-app="bedready"] .btn {
-  border-radius: 12px; font-weight: 650; font-family: var(--font-ui);
+  border-radius: 10px; font-weight: 600; font-family: var(--font-ui);
 }
 html[data-app="bedready"] .btn.primary {
-  background: var(--accent); color: #fff; font-weight: 750;
-  box-shadow: 0 4px 14px hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.32);
+  background: var(--accent); color: #fff; font-weight: 700;
+  box-shadow: 0 4px 13px hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.30);
 }
-html[data-app="bedready"] .btn.primary:hover { filter: brightness(1.05); transform: translateY(-1px); }
+html[data-app="bedready"] .btn.primary:hover { filter: brightness(1.06); transform: translateY(-1px); }
 html[data-app="bedready"] .btn.primary:active { transform: translateY(0); }
 
 html[data-app="bedready"] .input,
@@ -255,7 +284,7 @@ html[data-app="bedready"] input[type="text"],
 html[data-app="bedready"] input[type="number"],
 html[data-app="bedready"] select,
 html[data-app="bedready"] textarea {
-  border-radius: 11px;
+  border-radius: 10px;
 }
 html[data-app="bedready"] .input:focus,
 html[data-app="bedready"] input:focus,
@@ -265,13 +294,30 @@ html[data-app="bedready"] textarea:focus {
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
-/* Badges / pills → sticker look */
-html[data-app="bedready"] .kbadge,
-html[data-app="bedready"] .pill,
-html[data-app="bedready"] .badge {
-  border-radius: 999px; font-weight: 700; letter-spacing: 0.01em;
+/* ============================================================
+   STICKER BADGES — the signature bedready.io motif.
+   Die-cut look: white fill, thick soft ring, slight tilt, drop shadow.
+   Use: <span class="br-sticker">u1-ready</span>
+        <span class="br-sticker spectrum">full-spectrum</span>
+   ============================================================ */
+html[data-app="bedready"] .br-sticker {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border-radius: 999px;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+  letter-spacing: 0.02em; text-transform: lowercase;
+  color: var(--text); background: var(--surface);
+  border: 1.5px solid var(--border-2);
+  box-shadow: 0 2px 6px rgba(16,38,35,0.10), inset 0 0 0 2px #fff;
+  transform: rotate(-2deg);
 }
-/* "full-spectrum" sticker helper (used by hero) */
+html[data-app="bedready"] .br-sticker::before {
+  content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--accent);
+}
+html[data-app="bedready"] .br-sticker.orange::before { background: var(--br-orange); }
+html[data-app="bedready"] .br-sticker.spectrum::before { background: var(--spectrum); }
+html[data-app="bedready"] .br-sticker:nth-child(even) { transform: rotate(1.5deg); }
+
+/* legacy alias kept for any existing hero markup */
 html[data-app="bedready"] .br-spectrum-chip {
   display: inline-flex; align-items: center; gap: 7px;
   padding: 5px 12px; border-radius: 999px; font-weight: 700; font-size: 12px;
@@ -282,17 +328,101 @@ html[data-app="bedready"] .br-spectrum-chip::before {
   content: ""; width: 12px; height: 12px; border-radius: 50%; background: var(--spectrum);
 }
 
+/* Badges / pills → sticker-ish */
+html[data-app="bedready"] .kbadge,
+html[data-app="bedready"] .pill,
+html[data-app="bedready"] .badge {
+  border-radius: 999px; font-weight: 650; letter-spacing: 0.01em;
+}
+
 /* ============================================================
-   Placeholder / empty-state icons — friendlier
+   Empty-state icons — friendlier, spectrum-tinted
    ============================================================ */
 html[data-app="bedready"] .khayt-ph-ico {
-  border-radius: 18px; background: var(--spectrum-soft);
+  border-radius: 16px; background: var(--spectrum-soft);
   color: var(--accent); border: 1px solid var(--border-2);
 }
 
 /* ============================================================
+   Bed Ready branded HOME hero (injected into #dashboardContent by
+   bedready-home.js). Big geometric headline + sticker row + quick
+   actions, echoing bedready.io.
+   ============================================================ */
+html[data-app="bedready"] .br-home { max-width: 980px; }
+html[data-app="bedready"] .br-hero {
+  position: relative; overflow: hidden;
+  border-radius: var(--r-xl);
+  background:
+    radial-gradient(680px 300px at 100% 0%, var(--accent-soft), transparent 60%),
+    var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-1);
+  padding: 34px 34px 30px;
+}
+html[data-app="bedready"] .br-hero::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px;
+  background: var(--spectrum);
+}
+html[data-app="bedready"] .br-hero-eyebrow {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--accent); margin: 0 0 10px;
+}
+html[data-app="bedready"] .br-hero h1 {
+  font-family: var(--font-display); font-weight: 600;
+  font-size: clamp(30px, 4vw, 46px); line-height: 1.02; letter-spacing: -0.03em;
+  margin: 0 0 8px; color: var(--text);
+}
+html[data-app="bedready"] .br-hero h1 .accent { color: var(--accent); }
+html[data-app="bedready"] .br-hero-sub {
+  font-size: 15px; color: var(--text-dim); margin: 0 0 18px; max-width: 46ch;
+}
+html[data-app="bedready"] .br-stickers { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 22px; }
+html[data-app="bedready"] .br-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+html[data-app="bedready"] .br-action {
+  display: flex; align-items: center; gap: 12px; text-align: start;
+  padding: 14px 16px; min-width: 190px;
+  border-radius: var(--r-md); border: 1px solid var(--border);
+  background: var(--surface); cursor: pointer;
+  box-shadow: var(--shadow-1); transition: transform .12s ease, box-shadow .12s ease;
+}
+html[data-app="bedready"] .br-action:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-color: var(--accent-line); }
+html[data-app="bedready"] .br-action .ico {
+  width: 40px; height: 40px; flex-shrink: 0; border-radius: 11px;
+  display: grid; place-items: center; font-size: 20px;
+  background: var(--accent-soft); color: var(--accent);
+}
+html[data-app="bedready"] .br-action.orange .ico { background: var(--br-orange-soft); color: var(--br-orange); }
+html[data-app="bedready"] .br-action .t { display: flex; flex-direction: column; line-height: 1.2; }
+html[data-app="bedready"] .br-action .t b { font-family: var(--font-display); font-weight: 600; font-size: 14.5px; color: var(--text); }
+html[data-app="bedready"] .br-action .t span { font-size: 12px; color: var(--text-muted); }
+html[data-app="bedready"] .br-home-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-top: 16px; }
+
+/* ============================================================
+   Onboarding wizard — branded spectrum mark, on-brand card
+   ============================================================ */
+html[data-app="bedready"] .wizard-card { border-radius: var(--r-xl); }
+html[data-app="bedready"] .br-wiz-logo {
+  display: inline-flex; align-items: center; gap: 11px;
+  font-family: var(--font-display); font-weight: 600; font-size: 26px;
+  letter-spacing: -0.03em; color: var(--text);
+}
+html[data-app="bedready"] .br-wiz-mark {
+  width: 34px; height: 34px; border-radius: 10px; background: var(--spectrum);
+  box-shadow: 0 3px 12px rgba(18,179,166,0.30), inset 0 1px 0 rgba(255,255,255,0.4);
+  position: relative;
+}
+html[data-app="bedready"] .br-wiz-mark::after {
+  content: ""; position: absolute; inset: 9px 7px;
+  background:
+    linear-gradient(#fff,#fff) top/100% 3px no-repeat,
+    linear-gradient(rgba(255,255,255,.85),rgba(255,255,255,.85)) center/100% 3px no-repeat,
+    linear-gradient(rgba(255,255,255,.6),rgba(255,255,255,.6)) bottom/100% 3px no-repeat;
+  border-radius: 1px;
+}
+html[data-app="bedready"] .wizard-dot.active { background: var(--accent); }
+
+/* ============================================================
    Remove-not-needed: Khayt design-picker + accent/skin fields.
-   (Bed Ready ships a single look + the light/dark theme select, which
-   stays.) #brDesignFields wraps only the design-specific controls.
+   Bed Ready ships a single look + the light/dark theme select (stays).
    ============================================================ */
 html[data-app="bedready"] #brDesignFields { display: none !important; }

@@ -841,7 +841,7 @@
 
       <button class="settings-nav-item active" data-settings-section="biz">
         <span class="nav-icon" aria-hidden="true"></span>
-        <span data-i18n="set.nav_biz">Business</span>
+        <span>Studio</span>
       </button>
       <button class="settings-nav-item" data-settings-section="prefs">
         <span class="nav-icon" aria-hidden="true"></span>
@@ -894,7 +894,7 @@
 
       <!-- ─── BUSINESS ─────────────────────────────────────── -->
       <div class="settings-panel active" id="settings-panel-biz">
-        <h2 class="settings-panel-title" data-i18n="set.biz_section">Business Information</h2>
+        <h2 class="settings-panel-title">Studio</h2>
 
         <div class="card settings-card">
           <div class="settings-section-head" data-i18n="set.biz_identity">Identity</div>
@@ -914,8 +914,8 @@
             <div style="flex:1; min-width:0;">
               <div class="inline-pair" style="margin-bottom:10px;">
                 <div>
-                  <label data-i18n="set.biz_en">Business name (English)</label>
-                  <input type="text" id="set_bizEn" placeholder="Khayt">
+                  <label>Studio name</label>
+                  <input type="text" id="set_bizEn" placeholder="Bed Ready">
                 </div>
                 <div>
                   <label data-i18n="set.biz_ar">Business name (Arabic)</label>
@@ -1475,13 +1475,13 @@
 
         <div class="card settings-card">
         <div class="settings-section-head" data-i18n="slicer.settings_title">Slicer integration</div>
-        <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;" data-i18n="slicer.settings_help">Slice an uploaded model with your own installed slicer to fill the quote with its exact weight &amp; time. Khayt never bundles a slicer.</p>
+        <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">Slice an uploaded model with your own installed slicer to fill in its exact weight &amp; time. Bed Ready never bundles a slicer.</p>
         <div id="slicerSettingsSection"></div>
         </div>
 
         <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.cloud_title">Khayt Cloud (sync)</div>
-        <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;" data-i18n="set.cloud_hint">Opt-in, end-to-end-encrypted backup/sync of your shop to your own Khayt Cloud server. The server only stores encrypted data; your sync passphrase (never uploaded) is the key.</p>
+        <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;">Opt-in, end-to-end-encrypted backup/sync of your studio to your own cloud server. The server only stores encrypted data; your sync passphrase (never uploaded) is the key.</p>
         <div id="cloudSettingsSection"></div>
         </div>
 
@@ -1629,13 +1629,13 @@
 
         <div style="margin-top:18px; padding:14px 16px; background:rgba(100,200,100,0.06); border:1px solid rgba(100,200,100,0.2); border-radius:var(--radius);">
           <div style="font-size:13px; font-weight:600; margin-bottom:6px;">💬 <span data-i18n="feedback.settings_title">Feedback &amp; Bug Reports</span></div>
-          <p style="font-size:12px; color:var(--text-muted); margin:0 0 10px;" data-i18n="feedback.settings_desc">Help us improve Khayt by reporting bugs, suggesting features, or sharing your experience.</p>
+          <p style="font-size:12px; color:var(--text-muted); margin:0 0 10px;">Help us improve Bed Ready by reporting bugs, suggesting features, or sharing your experience.</p>
           <button id="btnFeedbackSettings" class="btn small primary" data-i18n="feedback.title">Send Feedback</button>
         </div>
 
         <div style="margin-top:18px; padding:14px 16px; background:rgba(91,156,240,0.06); border:1px solid rgba(91,156,240,0.2); border-radius:var(--radius);">
-          <div style="font-size:13px; font-weight:600; margin-bottom:6px;">❤️ <span data-i18n="set.donate_title">Support Khayt</span></div>
-          <p style="font-size:12px; color:var(--text-muted); margin:0 0 10px;" data-i18n="set.donate_desc">Khayt is free &amp; open source for makers worldwide. If it saves you time, consider sponsoring on GitHub.</p>
+          <div style="font-size:13px; font-weight:600; margin-bottom:6px;">❤️ <span>Support Bed Ready</span></div>
+          <p style="font-size:12px; color:var(--text-muted); margin:0 0 10px;">Bed Ready is free &amp; open source for makers worldwide. If it saves you time, consider sponsoring on GitHub.</p>
           <a id="btnGithubSponsors" href="https://github.com/sponsors/Alballaa" target="_blank" rel="noopener" class="btn small primary" style="text-decoration:none;display:inline-block;" data-i18n="set.donate_btn">❤️ Sponsor on GitHub</a>
         </div>
 
@@ -1649,13 +1649,13 @@
           <input type="checkbox" id="set_betaUpdates" style="width:auto; margin:3px 0 0;">
           <span>
             <span data-i18n="set.beta_updates">Include beta pre-releases when checking for updates</span>
-            <div style="font-size:11px; color:var(--text-muted); margin-top:4px;" data-i18n="set.beta_updates_hint">Off by default. Enable to receive Khayt beta builds (e.g. new themes) via in-app update.</div>
+            <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">Off by default. Enable to receive Bed Ready beta builds via in-app update.</div>
           </span>
         </label>
 
         <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border-soft); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
           <div style="font-size:12px; color:var(--text-muted);">
-            <strong data-i18n="set.about">About</strong> · <span data-i18n="app.title">Khayt</span> · خيط · <span data-i18n="set.version">Version</span> <span id="appVersion">—</span><span id="appVersionBeta" hidden style="margin-left:6px;font-size:10px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;padding:2px 6px;border-radius:4px;background:var(--warning-soft,#fef3c7);color:var(--warning,#b45309);">Beta</span>
+            <strong data-i18n="set.about">About</strong> · <span>Bed Ready</span> · <span data-i18n="set.version">Version</span> <span id="appVersion">—</span><span id="appVersionBeta" hidden style="margin-left:6px;font-size:10px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;padding:2px 6px;border-radius:4px;background:var(--warning-soft,#fef3c7);color:var(--warning,#b45309);">Beta</span>
             <div style="margin-top:4px; font-size:11px;" data-i18n="set.ai_credit">Built with assistance from AI tools.</div>
           </div>
           <div style="display:flex; align-items:center; gap:10px;">
@@ -1695,7 +1695,7 @@
   <div class="wizard-card">
     <!-- Step 1: Language -->
     <div class="wizard-step" id="wiz-step-1">
-      <div class="wizard-logo">🖨️ Khayt</div>
+      <div class="wizard-logo br-wiz-logo"><span class="br-wiz-mark" aria-hidden="true"></span>Bed Ready</div>
       <h1 class="wizard-title" data-i18n="wiz.lang_title">Choose your language</h1>
       <p class="wizard-subtitle" data-i18n="wiz.lang_subtitle">You can change this anytime in Settings.</p>
       <div class="wizard-form" style="max-width:320px;margin:0 auto;">
@@ -1712,7 +1712,8 @@
           </select>
         </label>
       </div>
-      <button type="button" class="btn btn-primary wizard-next" data-next="2" data-i18n="wiz.continue">Continue →</button>
+      <!-- Bed Ready skips the design step (one look) — jump straight to security. -->
+      <button type="button" class="btn btn-primary wizard-next" data-next="3" data-i18n="wiz.continue">Continue →</button>
     </div>
 
     <!-- Step 2: Design theme -->
@@ -1744,7 +1745,7 @@
       </div>
       <div id="wizSecurityRecovery" style="display:none;">
         <h2 class="wizard-title" data-i18n="sec.recovery_title">Save your recovery code</h2>
-        <p class="wizard-subtitle" data-i18n="sec.recovery_subtitle">Shown once. Use it if you forget your PIN. Khayt cannot recover it for you.</p>
+        <p class="wizard-subtitle">Shown once. Use it if you forget your PIN. Bed Ready cannot recover it for you.</p>
         <div style="font-family:ui-monospace,monospace;font-size:18px;letter-spacing:1px;text-align:center;padding:14px;background:var(--bg-soft);border-radius:8px;margin:12px 0;" id="wizRecoveryCode">KHAYT-XXXX-XXXX-XXXX</div>
         <div class="btn-row" style="justify-content:center;gap:8px;">
           <button type="button" class="btn" id="wizRecoveryCopy" data-i18n="sec.copy">Copy</button>
@@ -1794,20 +1795,20 @@
       </div>
     </div>
 
-    <!-- Step 5: Business details -->
+    <!-- Step 5: Studio (Bed Ready — no business/invoicing fields) -->
     <div class="wizard-step" id="wiz-step-5" style="display:none">
-      <h2 class="wizard-title" data-i18n="wiz.details_title">Your business details</h2>
-      <p class="wizard-subtitle" data-i18n="wiz.details_subtitle">Used on invoices and documents. Edit anytime in Settings.</p>
+      <h2 class="wizard-title">Set up your studio</h2>
+      <p class="wizard-subtitle">Just a name to personalise your studio. Edit anytime in Settings.</p>
       <div class="wizard-form">
-        <label for="wizBizName"><span data-i18n="wiz.biz_name">Business / Shop name</span>
-          <input id="wizBizName" type="text" data-i18n-placeholder="wiz.biz_name_ph" placeholder="e.g. Khayt Studio" class="form-control">
+        <label for="wizBizName"><span>Studio name</span>
+          <input id="wizBizName" type="text" placeholder="e.g. Bed Ready Studio" class="form-control">
         </label>
         <label for="wizCurrency"><span data-i18n="wiz.currency">Currency</span>
           <select id="wizCurrency" class="form-control">
-            <option value="SAR">SAR — Saudi Riyal</option>
             <option value="USD">USD — US Dollar</option>
             <option value="EUR">EUR — Euro</option>
             <option value="GBP">GBP — British Pound</option>
+            <option value="SAR">SAR — Saudi Riyal</option>
             <option value="AED">AED — UAE Dirham</option>
             <option value="QAR">QAR — Qatari Riyal</option>
             <option value="KWD">KWD — Kuwaiti Dinar</option>
@@ -1816,31 +1817,19 @@
         <label for="wizMachine"><span data-i18n="wiz.first_machine">Your first printer (optional)</span>
           <input id="wizMachine" type="text" data-i18n-placeholder="wiz.first_machine_ph" placeholder="e.g. Bambu P1S" class="form-control">
         </label>
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:10px;">
-          <input type="checkbox" id="wizEnableZatca" style="width:auto;margin:0;" checked>
-          <span data-i18n="onboard.zatca">ZATCA e-invoicing fields on invoices</span>
-        </label>
-        <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin-top:14px;">
-          <input type="checkbox" id="wizEnableOnline" style="width:auto;margin:3px 0 0;">
-          <span>
-            <span data-i18n="online.wiz_enable">Accept online quote requests</span>
-            <span style="display:block;font-size:12px;color:var(--text-muted);font-weight:400;margin-top:4px;" data-i18n="online.wiz_enable_desc">Share a link on your shop Wi‑Fi; requests appear in Job Intake. You can change this in Settings.</span>
-          </span>
-        </label>
       </div>
       <div class="btn-row" style="justify-content:center;gap:10px;margin-top:8px;">
-        <button type="button" class="btn ghost" data-prev="4" data-i18n="wiz.back">← Back</button>
-        <button type="button" class="btn btn-primary wizard-finish" id="wizFinish" data-i18n="wiz.finish">Start using Khayt →</button>
+        <!-- Bed Ready skips the business-type step (4) — back goes to security (3). -->
+        <button type="button" class="btn ghost" data-prev="3" data-i18n="wiz.back">← Back</button>
+        <button type="button" class="btn btn-primary wizard-finish" id="wizFinish">Enter Bed Ready →</button>
       </div>
     </div>
   </div>
 
-  <!-- Progress dots -->
+  <!-- Progress dots — Bed Ready flow is 3 steps: language → security → studio. -->
   <div class="wizard-dots" aria-hidden="true">
     <span class="wizard-dot active" data-step="1"></span>
-    <span class="wizard-dot" data-step="2"></span>
     <span class="wizard-dot" data-step="3"></span>
-    <span class="wizard-dot" data-step="4"></span>
     <span class="wizard-dot" data-step="5"></span>
   </div>
 </div>
@@ -1961,6 +1950,7 @@
 <script src="coach-tips.js"></script>
 <script src="wire-events.js"></script>
 <script src="update-ui.js"></script>
+<script src="bedready-home.js"></script>
 <script src="app-boot.js"></script>
 <script src="app.js"></script>
 </body>

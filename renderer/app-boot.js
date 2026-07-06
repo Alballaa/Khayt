@@ -64,8 +64,12 @@ function initWizard() {
   if (!wiz) return;
   wiz.style.display = 'flex';
 
-  let selectedMode = 'simple';
-  let selectedBizType = 'solo';
+  // Bed Ready is the standalone maker app: it forces enthusiast (commerce-free)
+  // mode and ships one look, so its wizard skips the design (step 2) and
+  // business-type (step 4) steps entirely — flow is 1 (lang) → 3 (security) → 5.
+  const IS_BR = (typeof document !== 'undefined' && document.documentElement.dataset.app === 'bedready');
+  let selectedMode = IS_BR ? 'enthusiast' : 'simple';
+  let selectedBizType = IS_BR ? 'hobby' : 'solo';
   let selectedDesign = settings.designTheme || 'studio';
   let pendingPin = null;
   let pendingRecoveryCode = null;
@@ -124,7 +128,10 @@ function initWizard() {
         selectedMode = nextBtn.dataset.mode;
         selectedBizType = nextBtn.dataset.bizType || selectedMode;
       }
-      if (step === 2) {
+      // Persist the chosen language when leaving the language step — keyed on the
+      // source step (not the destination) so it fires whether the next step is 2
+      // (Khayt) or 3 (Bed Ready, which skips the design step).
+      if (nextBtn.closest('#wiz-step-1')) {
         const lang = $('#wizLang')?.value || 'en';
         settings.lang = lang;
         i18n.set(lang);
@@ -152,7 +159,7 @@ function initWizard() {
     pendingPin = null;
     pendingRecoveryCode = null;
     securitySkipped = true;
-    goToStep(4);
+    goToStep(IS_BR ? 5 : 4);   // Bed Ready skips the business-type step
   });
 
   $('#wizSecurityContinue')?.addEventListener('click', () => {
@@ -193,7 +200,7 @@ function initWizard() {
 
   $('#wizRecoveryContinue')?.addEventListener('click', () => {
     if (!$('#wizRecoverySaved')?.checked) return;
-    goToStep(4);
+    goToStep(IS_BR ? 5 : 4);   // Bed Ready skips the business-type step
   });
 
   $('#wizRecoveryCopy')?.addEventListener('click', async () => {

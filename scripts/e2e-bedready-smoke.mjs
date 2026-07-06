@@ -129,8 +129,25 @@ async function main() {
   assert(`design pinned to studio (was ${design.designTheme})`, design.designTheme === 'studio');
   assert('design/theme picker hidden', design.designPickerHidden === true);
   assert(`no alternate-theme CSS loaded (${design.altThemeCss})`, design.altThemeCss === 0);
-  assert(`coral accent applied (--accent-h=${design.accent})`, design.accent === '12');
-  assert(`Bricolage display font on headings (${design.brandFont.slice(0, 24)}…)`, /Bricolage/.test(design.brandFont));
+  // Bespoke bedready.io palette (teal accent) + geometric display face.
+  assert(`teal accent applied (--accent-h=${design.accent})`, design.accent === '176');
+  assert(`Space Grotesk display font on headings (${design.brandFont.slice(0, 24)}…)`, /Space Grotesk/.test(design.brandFont));
+
+  console.log('\n[branded Bed Ready home]');
+  const home = await window.evaluate(() => {
+    if (window.KhaytShell?.switchTab) window.KhaytShell.switchTab('dashboard-tab');
+    const hero = document.querySelector('.br-hero');
+    return {
+      hasHero: !!hero,
+      headline: (hero?.querySelector('h1')?.textContent || '').replace(/\s+/g, ' ').trim(),
+      stickers: document.querySelectorAll('.br-hero .br-sticker').length,
+      noKhaytText: !/\bKhayt\b/i.test(document.querySelector('#dashboardContent')?.textContent || ''),
+    };
+  });
+  assert('Bed Ready home hero renders on dashboard', home.hasHero === true);
+  assert(`hero headline is the Bed Ready tagline (${home.headline.slice(0, 32)}…)`, /any bed/i.test(home.headline));
+  assert(`hero shows sticker badges (${home.stickers})`, home.stickers >= 3);
+  assert('dashboard home has no "Khayt" text', home.noKhaytText === true);
 
   console.log('\n[no uncaught renderer errors during boot]');
   assert(`pageerror count === 0 (${pageErrors.join(' | ') || 'none'})`, pageErrors.length === 0);
