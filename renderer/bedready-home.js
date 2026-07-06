@@ -36,7 +36,7 @@
         'kan.search_ph': 'Filter jobs…',
         'kan.orders': 'jobs',
         'slicer.slice_btn': '🧩 Slice for exact weight',
-        'tab.sub.settings': 'Studio, preferences & data',
+        'tab.sub.settings': 'Preferences, inventory & data',
         'set.biz_ar': 'Studio name (Arabic)',
         'set.logo': 'Logo',
         'set.biz_identity': 'Studio identity',
@@ -46,6 +46,9 @@
         'calc.quote.empty': 'No parts in this project yet. The live preview below reflects the current form.',
         'calc.quote.add_part': '+ Add part to project',
         'set.tagline_ph': 'e.g. Multi-colour minis & functional prints',
+        // Updater copy that bakes in the Khayt product name.
+        'upd.ready_version': 'Bed Ready {version} will install after restart.',
+        'set.beta_updates': 'Include Bed Ready beta pre-releases when checking for updates',
       };
       Object.keys(LOC).forEach(function (lang) {
         if (LOC[lang] && typeof LOC[lang] === 'object') {

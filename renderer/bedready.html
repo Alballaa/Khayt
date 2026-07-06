@@ -839,11 +839,11 @@
       <!-- General group -->
       <span class="settings-nav-group-label" data-i18n="set.nav_group_general">General</span>
 
-      <button class="settings-nav-item active" data-settings-section="biz">
-        <span class="nav-icon" aria-hidden="true"></span>
-        <span>Studio</span>
-      </button>
-      <button class="settings-nav-item" data-settings-section="prefs">
+      <!-- Studio identity/contact/tax settings removed for Bed Ready (a solo maker
+           app, not a business). The panel + its inputs stay in the DOM below but
+           hidden + never activated, because shared settings.js reads those fields
+           (#set_bizEn, #set_phone, …) without null-guards on every save/load. -->
+      <button class="settings-nav-item active" data-settings-section="prefs">
         <span class="nav-icon" aria-hidden="true"></span>
         <span data-i18n="set.nav_prefs">Preferences</span>
       </button>
@@ -892,8 +892,8 @@
     <!-- ═══ PANELS ═══ -->
     <div class="settings-panels">
 
-      <!-- ─── BUSINESS ─────────────────────────────────────── -->
-      <div class="settings-panel active" id="settings-panel-biz">
+      <!-- ─── STUDIO IDENTITY (hidden for Bed Ready — inputs kept for shared JS) ─ -->
+      <div class="settings-panel" id="settings-panel-biz" hidden aria-hidden="true">
         <h2 class="settings-panel-title">Studio</h2>
 
         <div class="card settings-card">
@@ -979,8 +979,8 @@
         </div>
       </div>
 
-      <!-- ─── PREFERENCES ───────────────────────────────────── -->
-      <div class="settings-panel" id="settings-panel-prefs">
+      <!-- ─── PREFERENCES (default panel for Bed Ready) ─────────── -->
+      <div class="settings-panel active" id="settings-panel-prefs">
         <h2 class="settings-panel-title" data-i18n="set.prefs_section">Preferences</h2>
 
         <div class="card settings-card" id="brExperienceCard">
@@ -1066,17 +1066,14 @@
           <span data-i18n="set.auto_deduct">Auto-deduct filament when an order is completed</span>
         </label>
 
-        <div class="inline-pair" style="margin-top:14px;">
-          <div>
-            <label data-i18n="set.low_stock">Low-stock threshold (grams)</label>
-            <input type="number" id="set_lowStock" value="200" min="0">
-            <p style="font-size:11.5px; color:var(--text-muted); margin:4px 0 0;" data-i18n="set.low_stock_hint"></p>
-          </div>
-          <div>
-            <label data-i18n="set.supplier_phone">Supplier WhatsApp</label>
-            <input type="tel" id="set_supplierPhone" data-i18n-placeholder="set.supplier_ph">
-          </div>
+        <div style="margin-top:14px; max-width:320px;">
+          <label data-i18n="set.low_stock">Low-stock threshold (grams)</label>
+          <input type="number" id="set_lowStock" value="200" min="0">
+          <p style="font-size:11.5px; color:var(--text-muted); margin:4px 0 0;" data-i18n="set.low_stock_hint"></p>
         </div>
+        <!-- Supplier WhatsApp field removed for Bed Ready (solo maker). Input kept
+             hidden so shared settings.js save/load of set_supplierPhone stays null-safe. -->
+        <input type="hidden" id="set_supplierPhone">
         </div>
 
         <div class="card settings-card">

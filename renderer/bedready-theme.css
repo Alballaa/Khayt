@@ -472,3 +472,53 @@ html[data-app="bedready"] .khayt-fold-head:has(#btnAddWaiting) { display: none !
    Bed Ready ships a single look + the light/dark theme select (stays).
    ============================================================ */
 html[data-app="bedready"] #brDesignFields { display: none !important; }
+
+/* ============================================================
+   Inventory row actions — a clean, uncramped cluster.
+   The shared stock table packs up to ~10 action buttons into one narrow
+   cell (test-print history, spool history, price history, transfer, …),
+   which staircased into an unreadable stack. For a solo maker most are
+   noise, so drop the audit/pro icons and lay the rest out as a tidy,
+   right-aligned flex cluster (gap instead of per-button margins so nothing
+   staircases). Scoped to the Bed Ready inventory table only.
+   ============================================================ */
+/* Trim to a consistent 3-action set (adjust / edit / delete). The audit & pro
+   icons (test-print, spool/price history, transfer, label) and the inline
+   dry-log button are noise for a solo maker — drying is already flagged by the
+   "Dry before use" badge, and the rest live in the item's Edit sheet. */
+html[data-app="bedready"] #inventoryTable [data-act="inv-test-print"],
+html[data-app="bedready"] #inventoryTable [data-act="inv-spool-history"],
+html[data-app="bedready"] #inventoryTable [data-act="inv-price-history"],
+html[data-app="bedready"] #inventoryTable [data-act="inv-transfer"],
+html[data-app="bedready"] #inventoryTable [data-act="inv-print-label"],
+html[data-app="bedready"] #inventoryTable [data-act="inv-dry-log"] { display: none !important; }
+
+/* Reclaim width: the SPOOLS count column is low value for a solo maker (the
+   stock-level bar already conveys quantity) — drop it so the actions have room. */
+html[data-app="bedready"] #inventoryTable thead th:nth-child(4),
+html[data-app="bedready"] #inventoryTable tbody td:nth-child(4) { display: none !important; }
+
+/* One tidy right-aligned row of compact ICON buttons. The studio shell wraps
+   the row actions in .khayt-inv-actions (a flex-wrap container that let them
+   staircase); pin it to a single no-wrap row. The Edit/Adjust/Delete text
+   buttons become icon-only via font-size:0 + a ::before glyph; the text node
+   stays in the a11y tree for screen readers. */
+html[data-app="bedready"] .khayt-inv-actions {
+  flex-wrap: nowrap;
+  gap: 5px;
+  white-space: nowrap;
+}
+html[data-app="bedready"] .khayt-inv-actions > * { margin: 0 !important; }
+html[data-app="bedready"] .khayt-inv-actions .btn {
+  min-width: 32px;
+  padding-left: 8px;
+  padding-right: 8px;
+  justify-content: center;
+}
+/* Icon-ify the text actions */
+html[data-app="bedready"] #inventoryTable [data-act="edit-inv"],
+html[data-app="bedready"] #inventoryTable [data-act="adj-inv"],
+html[data-app="bedready"] #inventoryTable [data-act="del-inv"] { font-size: 0 !important; }
+html[data-app="bedready"] #inventoryTable [data-act="edit-inv"]::before { content: "✏️"; font-size: 14px; }
+html[data-app="bedready"] #inventoryTable [data-act="adj-inv"]::before  { content: "±";  font-size: 15px; font-weight: 700; }
+html[data-app="bedready"] #inventoryTable [data-act="del-inv"]::before  { content: "🗑"; font-size: 14px; }
