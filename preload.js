@@ -87,6 +87,7 @@ contextBridge.exposeInMainWorld('hubAPI', {
   printLibLoadImage:  (fullPath)          => ipcRenderer.invoke('hub:printlib-load-image', fullPath),
   printLibOpenSlicer: (filePath, slicerPath) => ipcRenderer.invoke('hub:printlib-open-in-slicer', { filePath, slicerPath }),
   printLibReadBytes:  (fullPath)          => ipcRenderer.invoke('hub:printlib-read-bytes', fullPath),
+  printLibMesh:       (fullPath)          => ipcRenderer.invoke('hub:printlib-mesh', fullPath),
   extractThumbnail:   (filePath)          => ipcRenderer.invoke('hub:extract-thumbnail', filePath),
 
   // 3MF converter (multi-printer)

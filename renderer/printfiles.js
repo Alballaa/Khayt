@@ -104,6 +104,7 @@
         </div>
         <div class="pf-actions">
           <button class="btn small primary" data-act="pf-slice" data-id="${escapeHtml(rec.id)}">🖨 ${escapeHtml(t('plib.open_slicer') || 'Open in slicer')}</button>
+          ${typeof openModelViewer === 'function' && /^(stl|3mf)$/i.test(rec.sourceFile?.ext || '') ? `<button class="btn small ghost" data-act="pf-view3d" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('plib.view3d') || 'View in 3D')}">🧊 ${escapeHtml(t('plib.view3d_short') || '3D')}</button>` : ''}
           <button class="btn small ghost" data-act="pf-log-print" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('plib.log_print') || 'Log a successful print')}">✓ ${escapeHtml(t('plib.log_print_short') || 'Printed')}</button>
           <button class="btn small ghost" data-act="pf-log-fail" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('plib.log_fail') || 'Log a failed print')}" aria-label="${escapeHtml(t('plib.log_fail') || 'Log a failed print')}">✗</button>
           ${Array.isArray(rec.colors) && rec.colors.filter((c) => c && c.hex).length > 1 ? `<button class="btn small ghost" data-act="pf-plan" data-id="${escapeHtml(rec.id)}">🎨 ${escapeHtml(t('plan.title') || 'Plan colours')}</button>` : ''}
@@ -182,6 +183,7 @@
       case 'pf-add':   addPrintFile(); break;
       case 'pf-calibrate': if (typeof openCalibration === 'function') openCalibration(); break;
       case 'pf-slice': openInSlicer(id); break;
+      case 'pf-view3d': view3d(id); break;
       case 'pf-edit':  editPrintFile(id); break;
       case 'pf-del':   deletePrintFile(id); break;
       case 'pf-fav':   toggleFav(id); break;
@@ -355,6 +357,18 @@
     const files = await hub.printLibList(rec.id);
     if (!Array.isArray(files) || !files.length) return null;
     return (files.find((f) => f.filename === rec.sourceFile.filename) || files[0]).fullPath;
+  }
+
+  async function view3d(id) {
+    const rec = (printFiles || []).find((r) => r.id === id); if (!rec) return;
+    const hub = api();
+    if (!hub || !hub.printLibMesh || typeof openModelViewer !== 'function') return;
+    const full = await resolveModelPath(rec);
+    if (!full) { toast(t('plib.view3d_nofile') || 'Model file not found.', 'error'); return; }
+    let m;
+    try { m = await hub.printLibMesh(full); } catch (_) { m = null; }
+    if (!m || !m.ok || !m.verts) { toast(t('plib.view3d_nomesh') || 'No 3D geometry in that file.', 'error'); return; }
+    openModelViewer({ verts: m.verts, count: m.count, bbox: m.bbox, name: rec.name || rec.sourceFile?.filename || '' });
   }
 
   async function openInSlicer(id, overrideFull) {
