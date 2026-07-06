@@ -422,6 +422,19 @@ html[data-app="bedready"] .br-wiz-mark::after {
 html[data-app="bedready"] .wizard-dot.active { background: var(--accent); }
 
 /* ============================================================
+   Calculator → a maker "cost per print" estimator, not a quoting tool.
+   Bed Ready is commerce-free, so hide the business machinery: the whole
+   Labor & Overhead section, the quote-template row, and the "Save as
+   Quote" action. The margin / labour / failure inputs are also zeroed in
+   bedready.html so the total is pure material + machine cost. (The rest —
+   margin, discount, client, deposit, price tiers — is already `.biz-only`
+   and hidden in enthusiast mode.)
+   ============================================================ */
+html[data-app="bedready"] #calculator-tab .card.labor { display: none !important; }
+html[data-app="bedready"] #calculator-tab .preset-row:has(#quoteTplSelect) { display: none !important; }
+html[data-app="bedready"] #btnSaveAsQuote { display: none !important; }
+
+/* ============================================================
    Remove-not-needed: Khayt design-picker + accent/skin fields.
    Bed Ready ships a single look + the light/dark theme select (stays).
    ============================================================ */

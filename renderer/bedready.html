@@ -374,23 +374,23 @@
           <h3 class="card-head"><span class="swatch"></span><span data-i18n="calc.labor.title">3. Labor & Overhead</span></h3>
 
           <label><span data-i18n="calc.labor.prep">Slicer / prep time</span> (<span data-i18n="common.hours">hrs</span>)</label>
-          <input type="number" id="prepTime" value="0.25" step="0.1" min="0">
+          <input type="number" id="prepTime" value="0" step="0.1" min="0">
 
           <label><span data-i18n="calc.labor.post">Post-processing / assembly</span> (<span data-i18n="common.hours">hrs</span>)</label>
-          <input type="number" id="postTime" value="0.5" step="0.1" min="0">
+          <input type="number" id="postTime" value="0" step="0.1" min="0">
 
           <label><span data-i18n="calc.labor.rate">Labor rate</span> (<span data-i18n="common.currency">SAR</span> <span data-i18n="calc.labor.per_hour">/ hour</span>)</label>
-          <input type="number" id="laborRate" value="90" min="0">
+          <input type="number" id="laborRate" value="0" min="0">
 
           <label style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <span data-i18n="calc.labor.failure">Failure buffer</span> (<span data-i18n="common.percent">%</span>)
             <span id="failureRateHint" style="font-size:11px; color:var(--primary); font-weight:500; margin-inline-start:auto;"></span>
           </label>
-          <input type="number" id="failureRate" value="10" min="0" max="100" data-tip="tip.failure_rate">
+          <input type="number" id="failureRate" value="0" min="0" max="100" data-tip="tip.failure_rate">
         </div>
 
         <div class="card summary">
-          <h3 class="card-head"><span class="swatch"></span><span data-i18n="calc.quote.title">4. Build Cart & Quote</span></h3>
+          <h3 class="card-head"><span class="swatch"></span><span>3. Cost</span></h3>
 
           <!-- Quote templates -->
           <div class="preset-row" style="margin-bottom: 12px;">
@@ -413,7 +413,7 @@
           </div>
 
           <div class="live-line">
-            <span><span data-i18n="calc.quote.live">Live part value</span>:
+            <span><span>Part cost</span>:
               <strong><span id="partLivePrice">0.00</span> <span data-i18n="common.currency">SAR</span></strong>
             </span>
             <button class="btn" id="btnAddPart" data-i18n="calc.quote.add_part">+ Add part to cart</button>
@@ -428,7 +428,7 @@
                 <span><span data-i18n="calc.quote.margin">Target profit margin</span> (<span data-i18n="common.percent">%</span>)</span>
                 <button type="button" class="btn ghost small" id="btnAiPrice" title="Suggest a margin from your pricing history" style="margin:0;padding:2px 8px;">✨ <span data-i18n="ai.price_btn">Suggest</span></button>
               </label>
-              <input type="number" id="margin" value="30" min="0" data-tip="tip.margin">
+              <input type="number" id="margin" value="0" min="0" data-tip="tip.margin">
             </div>
             <div>
               <label><span data-i18n="calc.quote.discount">Discount</span> (<span data-i18n="common.percent">%</span>)</label>
@@ -493,7 +493,7 @@
           </div>
 
           <div class="total-display">
-            <div class="label" data-i18n="calc.quote.total">Project total</div>
+            <div class="label">Print cost</div>
             <div class="value">
               <span id="discountLine" style="display:none; font-size:12px; color:var(--success); margin-inline-end:8px;"></span>
               <span id="finalPrice">0.00</span><span class="unit" data-i18n="common.currency">SAR</span>
@@ -508,7 +508,7 @@
             </div>
           </div>
           <div class="save-btn-row">
-            <button class="btn success" id="btnSaveQuote" data-i18n="calc.quote.save" title="Creates a numbered order and sends it to the production queue" style="flex:1;">Create order &amp; send to queue</button>
+            <button class="btn success" id="btnSaveQuote" title="Adds this print to your production queue" style="flex:1;">Add to print queue</button>
             <button class="btn ghost biz-only" id="btnSaveAsQuote" data-i18n="calc.quote.save_as_quote" title="Save as a quotation for client approval first">📄 Save as Quote</button>
           </div>
         </div>
