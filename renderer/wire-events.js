@@ -20,24 +20,27 @@ function initialRender() {
   renderConsumables();
   renderSuppliers();
   renderPurchaseOrders();
-  renderLogs();
+  // Business renderers are guarded with typeof: the Bed Ready flavor ships a trimmed
+  // script set (no logs/analytics/clients/portfolio/expenses modules), so these are
+  // absent there. On Khayt they're always defined → identical behaviour.
+  if (typeof renderLogs === 'function') renderLogs();
   renderKanban();
-  renderAnalytics();
+  if (typeof renderAnalytics === 'function') renderAnalytics();
   if (typeof renderReferralAnalytics === 'function') renderReferralAnalytics();
   renderBuild();
   renderCatalog();
-  renderClients();
-  renderPortfolio();
+  if (typeof renderClients === 'function') renderClients();
+  if (typeof renderPortfolio === 'function') renderPortfolio();
   renderDashboard();
-  renderExpenses();
+  if (typeof renderExpenses === 'function') renderExpenses();
   checkDueDateNotifications();
-  checkRecurringOrders();
-  patchRecurringOrdersWithLeadDays();  // Round 12: leadDays-aware auto-clone
+  if (typeof checkRecurringOrders === 'function') checkRecurringOrders();
+  if (typeof patchRecurringOrdersWithLeadDays === 'function') patchRecurringOrdersWithLeadDays();  // Round 12: leadDays-aware auto-clone
   if (typeof checkSubscriptionBilling === 'function') { try { checkSubscriptionBilling(); } catch (e) { console.error('subscription billing:', e); } }
-  checkRecurringExpenses();
+  if (typeof checkRecurringExpenses === 'function') checkRecurringExpenses();
   // Re-check recurring orders periodically so a long-running session still
   // auto-creates due cycles without a restart (idempotent; dedup by cycle).
-  if (!window._recurringTimer) {
+  if (!window._recurringTimer && typeof checkRecurringOrders === 'function') {
     window._recurringTimer = setInterval(() => {
       try { checkRecurringOrders(); patchRecurringOrdersWithLeadDays(); } catch (e) { console.error('recurring timer:', e); }
     }, 6 * 60 * 60 * 1000);

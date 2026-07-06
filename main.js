@@ -46,6 +46,14 @@ const { wrapHubIpc } = require('./lib/ipc-guard');
 const { sanitizeHtmlForFile, redactStatusHtmlClientRow } = require('./lib/status-html');
 const { hashPin: hashPinSalted, verifyPin, isManagedHash } = require('./lib/pin-hash');
 
+// Which product this build is. 'bedready' = the standalone maker app (no business
+// surfaces); anything else = the full Khayt business app. Drives the entry HTML,
+// window branding, and which business-only main-process code gets wired up.
+const { FLAVOR, isBedReady, productName: FLAVOR_NAME } = require('./lib/flavor');
+// Entry document, relative to renderer/. Used BOTH for loadFile and the navigation
+// lock below — they must agree, or in-app reloads of the Bed Ready page get blocked.
+const ENTRY_HTML = isBedReady ? 'bedready.html' : 'index.html';
+
 let mainWindow;
 let lanServerStore = {};
 
@@ -96,7 +104,10 @@ const {
   onStoreUpdated(data) { lanServerStore = data; },
 });
 
-registerZatcaCrypto({ app, fs, crypto, ipcMain, encryptStoreField, decryptStoreField });
+// ZATCA e-invoicing is a business-only surface — skip its IPC on the Bed Ready flavor.
+if (!isBedReady) {
+  registerZatcaCrypto({ app, fs, crypto, ipcMain, encryptStoreField, decryptStoreField });
+}
 
 function timingSafeEqualHex(a, b) {
   if (typeof a !== 'string' || typeof b !== 'string' || a.length !== 64 || b.length !== 64) return false;
@@ -108,8 +119,14 @@ function timingSafeEqualHex(a, b) {
 }
 
 function appIconPath() {
-  const png = path.join(__dirname, 'assets', 'icon_preview.png');
-  if (fs.existsSync(png)) return png;
+  // Prefer a flavor-specific icon when present (Bed Ready branding TODO), else
+  // fall back to the shared Khayt preview so the window/dock always has an icon.
+  const candidates = [];
+  if (isBedReady) candidates.push(path.join(__dirname, 'assets', 'bedready-preview.png'));
+  candidates.push(path.join(__dirname, 'assets', 'icon_preview.png'));
+  for (const png of candidates) {
+    if (fs.existsSync(png)) return png;
+  }
   return undefined;
 }
 
@@ -1475,7 +1492,7 @@ function isAllowedExternalUrl(s) {
 // exactly this document — not just any file:// URL — so a compromised renderer
 // cannot navigate to other local files and read them under the privileged origin.
 const APP_INDEX_PATHNAME = (() => {
-  try { return decodeURIComponent(require('url').pathToFileURL(path.join(__dirname, 'renderer', 'index.html')).pathname); }
+  try { return decodeURIComponent(require('url').pathToFileURL(path.join(__dirname, 'renderer', ENTRY_HTML)).pathname); }
   catch { return null; }
 })();
 
@@ -2281,7 +2298,7 @@ function createWindow() {
     height: 900,
     minWidth: 1024,
     minHeight: 700,
-    title: 'Khayt',
+    title: FLAVOR_NAME,
     icon: appIconPath(),
     backgroundColor: '#0f172a',
     titleBarStyle: 'hiddenInset',
@@ -2296,7 +2313,7 @@ function createWindow() {
     }
   });
 
-  mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  mainWindow.loadFile(path.join(__dirname, 'renderer', ENTRY_HTML));
 
   // Prevent same-frame navigation away from the local app file.
   // Without this, renderer JS could do location.href = 'https://evil.com' and retain

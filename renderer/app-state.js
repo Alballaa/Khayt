@@ -78,8 +78,10 @@ function defaultSettings() {
   return {
     ai:        { enabled: false, model: 'claude-opus-4-8', apiKey: '' }, // AI assist (BYO key, opt-in)
     cloud:     { enabled: false, url: 'https://cloud.khaytapp.com' },     // Khayt Cloud sync (opt-in, E2E)
-    bizEn:     'Khayt',
-    bizAr:     'خيط',
+    // Flavor-aware default shop name: the Bed Ready standalone app seeds its own
+    // brand (guarded by the html data-app marker; Khayt is unaffected).
+    bizEn:     (typeof document !== 'undefined' && document.documentElement?.dataset.app === 'bedready') ? 'Bed Ready' : 'Khayt',
+    bizAr:     (typeof document !== 'undefined' && document.documentElement?.dataset.app === 'bedready') ? 'بيد ريدي' : 'خيط',
     vat:       '',
     cr:        '',
     phone:     '',
@@ -675,8 +677,9 @@ async function loadAll() {
     }
   } catch (e) { console.error('sync foundation init failed:', e); }
 
-  // Feature 4 (batch-2): Process any due recurring orders on load
-  processRecurringOrders();
+  // Feature 4 (batch-2): Process any due recurring orders on load.
+  // Guarded: the Bed Ready flavor ships no operations-extras module.
+  if (typeof processRecurringOrders === 'function') processRecurringOrders();
 
   // Quote follow-up auto-nudge (opt-in): run once on load + start periodic timer.
   if (typeof processQuoteFollowUps === 'function') processQuoteFollowUps();

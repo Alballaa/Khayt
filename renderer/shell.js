@@ -272,6 +272,12 @@ const BIZ_TABS = ['logs-tab', 'clients-tab', 'gift-cards-tab', 'portfolio-tab', 
 const PRO_TABS = ['expenses-tab'];
 
 function applyMode() {
+  // Bed Ready (the standalone maker app, data-flavor="bedready") is always the
+  // commerce-free "enthusiast" experience — coerce here, the single chokepoint every
+  // caller funnels through, so stored/switcher changes can never surface business UI.
+  if (document.body && document.body.dataset.flavor === 'bedready' && settings.mode !== 'enthusiast') {
+    settings.mode = 'enthusiast';
+  }
   document.body.classList.toggle('mode-simple', settings.mode === 'simple');
   document.body.classList.toggle('mode-professional', settings.mode === 'professional');
   document.body.classList.toggle('mode-enthusiast', settings.mode === 'enthusiast');
