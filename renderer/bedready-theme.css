@@ -70,7 +70,9 @@ html[data-app="bedready"][data-theme="light"] {
   --ok:#159d68; --ok-soft:rgba(21,157,104,.13);
   --warn:#c9821b; --warn-soft:rgba(201,130,27,.14);
   --danger:#e0492f; --danger-soft:rgba(224,73,47,.13);
-  --info:#1f8fd6; --info-soft:rgba(31,143,214,.13);
+  /* Route "info" to the brand orange so charts/queue read teal + orange, never
+     the parent-app blue (donut "Machine" slice, queue "Pending" column, …). */
+  --info:#ff6a3d; --info-soft:rgba(255,106,61,.13);
   --violet:#7a5cf0; --violet-soft:rgba(122,92,240,.13);
   --success:var(--ok); --warning:var(--warn); /* legacy aliases */
 
@@ -101,7 +103,7 @@ html[data-app="bedready"][data-theme="dark"] {
   --ok:#3ec489; --ok-soft:rgba(62,196,137,.15);
   --warn:#e3ab45; --warn-soft:rgba(227,171,69,.15);
   --danger:#f0654e; --danger-soft:rgba(240,101,78,.15);
-  --info:#4ca6ea; --info-soft:rgba(76,166,234,.15);
+  --info:#ff7d54; --info-soft:rgba(255,125,84,.15);
   --violet:#a48cf7; --violet-soft:rgba(164,140,247,.15);
   --success:var(--ok); --warning:var(--warn);
 
@@ -522,3 +524,16 @@ html[data-app="bedready"] #inventoryTable [data-act="del-inv"] { font-size: 0 !i
 html[data-app="bedready"] #inventoryTable [data-act="edit-inv"]::before { content: "✏️"; font-size: 14px; }
 html[data-app="bedready"] #inventoryTable [data-act="adj-inv"]::before  { content: "±";  font-size: 15px; font-weight: 700; }
 html[data-app="bedready"] #inventoryTable [data-act="del-inv"]::before  { content: "🗑"; font-size: 14px; }
+/* Bump the icon action tap targets from ~24px to a comfier 30px min. */
+html[data-app="bedready"] .khayt-inv-actions .btn { min-height: 30px; }
+
+/* ============================================================
+   Native controls (range sliders, checkboxes, colour pickers, the theme
+   select) default to the OS blue — the exact parent-Khayt look this flavor
+   escapes. Tint them all with the brand accent in one shot.
+   ============================================================ */
+html[data-app="bedready"] { accent-color: var(--accent); }
+
+/* The add-spool "Location / Branch" picker is multi-store language with no
+   meaning for a solo maker — hide it (new spools stay "Unassigned"). */
+html[data-app="bedready"] #invLocationField { display: none !important; }

@@ -2426,9 +2426,11 @@ app.whenReady().then(() => {
     });
   });
 
-  // Grant camera access so the filament label scanner can use getUserMedia
+  // Grant camera access so the filament label scanner can use getUserMedia({video}).
+  // Microphone is intentionally NOT granted — the app never captures audio, so this
+  // keeps the permission surface to exactly what the scanner needs.
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
-    const allowed = ['media', 'camera', 'microphone'];
+    const allowed = ['media', 'camera'];
     callback(allowed.includes(permission));
   });
 

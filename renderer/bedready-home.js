@@ -49,6 +49,8 @@
         // Updater copy that bakes in the Khayt product name.
         'upd.ready_version': 'Bed Ready {version} will install after restart.',
         'set.beta_updates': 'Include Bed Ready beta pre-releases when checking for updates',
+        // Settings card holds both language + theme selects.
+        'set.lang_theme_head': 'Language & Theme',
       };
       Object.keys(LOC).forEach(function (lang) {
         if (LOC[lang] && typeof LOC[lang] === 'object') {

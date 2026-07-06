@@ -17,6 +17,8 @@
 (function (global) {
   const hub = () => (typeof window !== 'undefined' && window.hubAPI) || null;
   const profiles = () => global.KhaytPrinterProfiles;
+  // Bed Ready keeps headings plain (no leading emoji) to match its monoline chrome.
+  const _titleIco = (typeof document !== 'undefined' && document.documentElement.dataset.app === 'bedready') ? '' : '🔄 ';
 
   function customPrinters() {
     return (typeof settings !== 'undefined' && Array.isArray(settings.customPrinters)) ? settings.customPrinters : [];
@@ -221,7 +223,7 @@
       </div>`;
 
     openFormModal({
-      title: `🔄 ${t('conv.title') || 'Convert 3MF'}`,
+      title: `${_titleIco}${t('conv.title') || 'Convert 3MF'}`,
       bodyHtml: body,
       saveLabel: t('conv.convert') || 'Convert & save…',
       onMount(modal) {
@@ -459,13 +461,13 @@
     if (!el) return;
     const hasHub = !!(hub() && hub().mfPick);
     if (!hasHub) {
-      el.innerHTML = `<div class="conv-wrap"><div class="conv-head"><h2 class="conv-title">🔄 ${escapeHtml(t('conv.title') || 'Convert 3MF')}</h2></div><div class="pf-empty">${escapeHtml(t('conv.desktop_only') || 'The converter is available in the desktop app.')}</div></div>`;
+      el.innerHTML = `<div class="conv-wrap"><div class="conv-head"><h2 class="conv-title">${_titleIco}${escapeHtml(t('conv.title') || 'Convert 3MF')}</h2></div><div class="pf-empty">${escapeHtml(t('conv.desktop_only') || 'The converter is available in the desktop app.')}</div></div>`;
       return;
     }
     el.innerHTML = `
       <div class="conv-wrap">
         <div class="conv-head">
-          <h2 class="conv-title">🔄 ${escapeHtml(t('conv.title') || 'Convert 3MF')}</h2>
+          <h2 class="conv-title">${_titleIco}${escapeHtml(t('conv.title') || 'Convert 3MF')}</h2>
           <p class="conv-sub">${escapeHtml(t('conv.subtitle') || 'Retarget a multicolour 3MF to a different printer, or normalize it to a clean standard 3MF. Geometry is never altered.')}</p>
         </div>
         <div class="conv-actions">

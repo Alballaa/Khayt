@@ -67,7 +67,11 @@ function initWizard() {
   // mark first-run done, and drop straight into the app.
   const IS_BR = (typeof document !== 'undefined' && document.documentElement.dataset.app === 'bedready');
   if (IS_BR) {
-    const lang = settings.lang || detectSystemLang();
+    // This runs only on a genuine first launch (shouldShowSetupWizard gate), so
+    // there's no user-chosen language yet — match the OS locale for a good start.
+    // (settings.lang defaults to 'en', so we must detect unconditionally here, not
+    // fall back with `settings.lang || …`, which would always pick 'en'.)
+    const lang = detectSystemLang();
     settings.lang = lang;
     try { i18n.set(lang, { silent: true }); } catch (e) { /* non-fatal */ }
     settings.firstRun = false;

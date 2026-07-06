@@ -45,9 +45,12 @@
   }
 
   // ---- state (persists across re-renders within a session) ----
-  let _target = '#3AA0FF';
-  let _blendA = '#E23B3B';
-  let _blendB = '#2C63E8';
+  // Seed the demo gradient with the app's own accent pair so the first open
+  // reinforces the brand: Bed Ready → teal→orange, Khayt → its red→blue.
+  const _isBedReady = (typeof document !== 'undefined' && document.documentElement.dataset.app === 'bedready');
+  let _target = _isBedReady ? '#19A99F' : '#3AA0FF';
+  let _blendA = _isBedReady ? '#19A99F' : '#E23B3B';
+  let _blendB = _isBedReady ? '#FF6A3D' : '#2C63E8';
   let _steps = 5;
 
   function shellHtml() {
@@ -57,7 +60,7 @@
       : '';
     return `
       <div class="cs-head">
-        <h2 class="cs-title">🎨 ${escapeHtml(t('cmix.title') || 'Colour studio')}</h2>
+        <h2 class="cs-title">${_isBedReady ? '' : '🎨 '}${escapeHtml(t('cmix.title') || 'Colour studio')}</h2>
         <p class="cs-sub">${escapeHtml(t('cmix.subtitle') || 'Match a colour to filament you already own, or blend two spools into a gradient.')}</p>
       </div>
       <div class="cs-grid">
