@@ -56,6 +56,17 @@
     if (!sourceFlavour || sourceFlavour === 'generic') return true;
     return P.configFamily(p.flavour) === P.configFamily(sourceFlavour);
   }
+  // A printer from a *different* slicer ecosystem than the source. We still let you pick it,
+  // but the output is written as a clean Generic 3MF (geometry + colours kept, vendor config
+  // stripped) — a coherent Prusa→Bambu config port isn't possible, so normalize instead of
+  // producing a broken file. The user opens the Generic 3MF in that printer's own slicer.
+  function isCrossEcosystem(sourceFlavour, id) {
+    const P = profiles();
+    const p = getProfileById(id);
+    if (!p || !P || !P.configFamily) return false;
+    if (P.configFamily(p.flavour) === 'generic') return false;
+    return !compatibleWith(sourceFlavour, p);
+  }
 
   /* ---------------- Conversion presets ---------------- */
   function convPresets() { return (typeof settings !== 'undefined' && Array.isArray(settings.convPresets)) ? settings.convPresets : []; }
@@ -98,6 +109,11 @@
       `<optgroup label="${escapeHtml(vendor)}">${byVendor[vendor].map(opt).join('')}</optgroup>`).join('');
     const g = P.GENERIC;
     html += `<optgroup label="${escapeHtml(t('conv.other') || 'Other')}"><option value="${escapeHtml(g.id)}"${g.id === selectedId ? ' selected' : ''}>${escapeHtml(t('conv.normalize_opt') || 'Generic 3MF (strip vendor lock)')}</option></optgroup>`;
+    // Printers from other ecosystems: still selectable, but produced as a Generic 3MF you open
+    // in that printer's slicer. Vendor-prefixed so a bare model name isn't ambiguous.
+    const optCross = (p) => { const nm = (p.vendor && !String(p.name || '').startsWith(p.vendor)) ? p.vendor + ' · ' + p.name : p.name; return `<option value="${escapeHtml(p.id)}"${p.id === selectedId ? ' selected' : ''}>${escapeHtml(nm)}</option>`; };
+    const cross = [...customPrinters(), ...P.listProfiles()].filter((p) => isCrossEcosystem(sourceFlavour, p.id));
+    if (cross.length) html += `<optgroup label="${escapeHtml(t('conv.other_eco') || 'Other ecosystems · saved as Generic 3MF')}">${cross.map(optCross).join('')}</optgroup>`;
     return html;
   }
 
@@ -163,6 +179,10 @@
     if (!target) return '';
     const isGeneric = P && targetId === P.GENERIC.id;
     if (isGeneric) return `<div class="conv-changes"><div class="conv-changes-h">${escapeHtml(t('conv.changes') || 'What changes')}</div><p class="conv-note">${escapeHtml(t('conv.normalize_note') || 'Vendor-locked slicer settings are stripped; geometry and colours are kept. Opens cleanly in any slicer.')}</p></div>`;
+    if (isCrossEcosystem(a.flavour, targetId)) {
+      const note = (t('conv.cross_note') || 'Different ecosystem — we save a clean Generic 3MF (geometry + colours kept). Open it in {t}’s slicer and pick {t}.').replace(/\{t\}/g, target.name || '');
+      return `<div class="conv-changes"><div class="conv-changes-h">${escapeHtml(t('conv.changes') || 'What changes')}</div><p class="conv-note">${escapeHtml(note)}</p></div>`;
+    }
     const m = a.meta || {};
     const row = (k, from, to, badge) => `<div class="conv-chg-row"><span class="conv-chg-k">${escapeHtml(k)}</span><span class="conv-chg-from">${escapeHtml(from || '—')}</span><span class="conv-arrow">→</span><span class="conv-chg-to">${escapeHtml(to || '—')}</span>${badge || ''}</div>`;
     // Bed-fit badge from the model footprint vs the target bed.
@@ -222,7 +242,10 @@
       img.className = 'conv-preview-canvas conv-preview-img';
       img.alt = 'preview'; img.src = mesh.thumb;
       if (canvasEl && canvasEl.parentNode) canvasEl.parentNode.insertBefore(img, canvasEl);
-      if (hint) hint.textContent = t('conv.preview_thumb') || 'Slicer preview';
+      // Be honest about why there's no rotate/zoom here: we couldn't read this file's geometry,
+      // so we're showing the slicer's own baked-in picture instead of the interactive model.
+      if (hint) hint.textContent = t('conv.preview_thumb') || 'Couldn’t read 3D geometry — showing the slicer’s own preview image (no rotate/zoom).';
+      try { console.warn('[converter] 3D geometry unavailable, using embedded thumbnail:', mesh && mesh.error); } catch (_) {}
       return;
     }
     if (mesh && mesh.error) try { console.warn('[converter] preview mesh unavailable:', mesh.error); } catch (_) {}
@@ -270,7 +293,7 @@
     function currentMax(id) { const p = getProfileById(id); return p ? p.maxColors : filaments.length; }
 
     const crossNote = (a.flavour && a.flavour !== 'generic')
-      ? `<p class="conv-tip">${escapeHtml((t('conv.family_note') || 'Showing printers compatible with this {f} file. To target another ecosystem, convert to Generic 3MF and set up the printer in your slicer.').replace('{f}', a.flavour))}</p>`
+      ? `<p class="conv-tip">${escapeHtml((t('conv.family_note') || 'Same-ecosystem printers keep their slicer settings. Printers from other ecosystems are listed too — pick one and it’s saved as a Generic 3MF you open in that printer’s slicer.').replace('{f}', a.flavour))}</p>`
       : '';
 
     const canPreview = typeof mountMeshViewer === 'function' && !!h.convertMesh;
@@ -324,13 +347,13 @@
             .catch((e) => renderPreviewInto(modal.querySelector('#convPreview'), pvCanvas, { error: String((e && e.message) || e) }));
         }
         const renderForTarget = () => {
-          const isGeneric = P && targetId === P.GENERIC.id;
+          const asGeneric = (P && targetId === P.GENERIC.id) || isCrossEcosystem(a.flavour, targetId);
           if (chg) chg.innerHTML = changesHtml(a, targetId);
-          wrap.innerHTML = isGeneric
+          wrap.innerHTML = asGeneric
             ? `<p class="conv-note">${escapeHtml(t('conv.normalize_note') || 'Vendor-locked slicer settings are stripped; geometry and colours are kept. Opens cleanly in any slicer.')}</p>`
             : remapTableHtml(filaments, currentMax(targetId));
           applyBed();
-          return isGeneric;
+          return asGeneric;
         };
         if (sel) sel.onchange = () => { targetId = sel.value; renderForTarget(); };
 
@@ -366,7 +389,7 @@
         };
       },
       async onSave(modal) {
-        const isGeneric = P && targetId === P.GENERIC.id;
+        const isGeneric = (P && targetId === P.GENERIC.id) || isCrossEcosystem(a.flavour, targetId);
         let slotMap = null;
         if (!isGeneric && filaments.length) {
           slotMap = Array.from(modal.querySelectorAll('.conv-slot')).map((s) => parseInt(s.value, 10) || 0);

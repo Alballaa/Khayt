@@ -1207,8 +1207,15 @@ function meshFromBuffer(buf, ext) {
     const mf = require('./lib/mf-convert');
     const members = mf.readMembers(buf);
     try { colors = (mf.extractFilaments(members) || []).map((f) => f.color).filter(Boolean); } catch (_) { colors = []; }
-    const wp = mf.extractTrianglesWithPaint(members);
-    if (wp && wp.triangles) { tris = wp.triangles; paint = wp.paint; }
+    // Prefer geometry+paint together, but never let a paint-parse hiccup cost us the mesh:
+    // fall back to plain triangle extraction so a valid model still renders in 3D.
+    try {
+      const wp = mf.extractTrianglesWithPaint(members);
+      if (wp && wp.triangles) { tris = wp.triangles; paint = wp.paint; }
+    } catch (_) { paint = null; }
+    if (!Array.isArray(tris) || !tris.length) {
+      try { tris = mf.extractTriangles(members); paint = null; } catch (_) { /* no geometry */ }
+    }
   }
   if (!Array.isArray(tris) || !tris.length) {
     // Geometry couldn't be parsed (e.g. an unusual 3MF structure or an oversized model
