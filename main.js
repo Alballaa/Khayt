@@ -1199,7 +1199,7 @@ ipcMain.handle('hub:printlib-read-bytes', async (_e, fullPath) => {
 // Parse an STL/3MF buffer into a decimated triangle mesh for the in-app 3D viewer.
 // Returns a flat Float32Array (9 floats/triangle) so it clones cheaply over IPC.
 function meshFromBuffer(buf, ext) {
-  let tris = null, colors = [], paint = null;
+  let tris = null, colors = [], paint = null, objIds = null, platesRaw = [];
   if (ext === 'stl') {
     const g = require('./lib/stl-parse').parseStl(buf, { keepTriangles: true });
     tris = g && g.triangles;
@@ -1211,11 +1211,12 @@ function meshFromBuffer(buf, ext) {
     // fall back to plain triangle extraction so a valid model still renders in 3D.
     try {
       const wp = mf.extractTrianglesWithPaint(members);
-      if (wp && wp.triangles) { tris = wp.triangles; paint = wp.paint; }
-    } catch (_) { paint = null; }
+      if (wp && wp.triangles) { tris = wp.triangles; paint = wp.paint; objIds = wp.objIds || null; }
+    } catch (_) { paint = null; objIds = null; }
     if (!Array.isArray(tris) || !tris.length) {
-      try { tris = mf.extractTriangles(members); paint = null; } catch (_) { /* no geometry */ }
+      try { tris = mf.extractTriangles(members); paint = null; objIds = null; } catch (_) { /* no geometry */ }
     }
+    try { platesRaw = mf.extractPlates(members) || []; } catch (_) { platesRaw = []; }
   }
   if (!Array.isArray(tris) || !tris.length) {
     // Geometry couldn't be parsed (e.g. an unusual 3MF structure or an oversized model
@@ -1239,22 +1240,47 @@ function meshFromBuffer(buf, ext) {
   const volumeMm3 = Math.abs(vol6) / 6;
   const MAX = 80000;
   if (tris.length > MAX) {
-    const s = Math.ceil(tris.length / MAX); const out = []; const pout = paint ? [] : null;
-    for (let i = 0; i < tris.length; i += s) { out.push(tris[i]); if (pout) pout.push(paint[i]); }
-    tris = out; if (pout) paint = pout;
+    const s = Math.ceil(tris.length / MAX); const out = []; const pout = paint ? [] : null; const oout = objIds ? [] : null;
+    for (let i = 0; i < tris.length; i += s) { out.push(tris[i]); if (pout) pout.push(paint[i]); if (oout) oout.push(objIds[i]); }
+    tris = out; if (pout) paint = pout; if (oout) objIds = oout;
   }
-  // True multicolour: if the 3MF carries per-facet paint codes, colour each triangle by its
-  // real painted region (mapped into the model's declared palette) instead of a height ramp.
-  let triColors = null;
+  // Per-triangle palette index (triCode) + the palette itself, so the renderer can recolour the
+  // model live as the maker edits filament colours — instead of baking one fixed colouring.
+  // 65535 = "base/unpainted" (uses palette[0]). triColors is still baked for the initial view.
+  const hx = (h) => { const m = /^#?([0-9a-f]{6})/i.exec(String(h || '')); return m ? [parseInt(m[1].slice(0, 2), 16), parseInt(m[1].slice(2, 4), 16), parseInt(m[1].slice(4, 6), 16)] : [180, 180, 185]; };
+  let triColors = null, triCode = null, palette = null;
   if (paint && colors.length) {
-    const hx = (h) => { const m = /^#?([0-9a-f]{6})/i.exec(String(h || '')); return m ? [parseInt(m[1].slice(0, 2), 16), parseInt(m[1].slice(2, 4), 16), parseInt(m[1].slice(4, 6), 16)] : [180, 180, 185]; };
     const distinct = Array.from(new Set(paint.filter((c) => c != null))).sort();
     if (distinct.length) {
-      const base = hx(colors[0]);
-      const codeColor = {};
-      distinct.forEach((code, i) => { codeColor[code] = hx(colors[(i + 1) % colors.length]); });
+      // palette[0] = base filament; palette[1..] = one entry per distinct paint code (in order).
+      palette = [colors[0], ...distinct.map((_c, i) => colors[(i + 1) % colors.length])];
+      const codeIndex = {}; distinct.forEach((code, i) => { codeIndex[code] = i + 1; });
+      const pal = palette.map(hx);
       triColors = new Uint8Array(tris.length * 3);
-      for (let i = 0; i < tris.length; i++) { const c = paint[i] != null ? codeColor[paint[i]] : base; triColors[i * 3] = c[0]; triColors[i * 3 + 1] = c[1]; triColors[i * 3 + 2] = c[2]; }
+      triCode = new Uint16Array(tris.length);
+      for (let i = 0; i < tris.length; i++) {
+        const idx = paint[i] != null ? codeIndex[paint[i]] : 0;
+        triCode[i] = paint[i] != null ? idx : 0xffff;
+        const c = pal[idx] || pal[0];
+        triColors[i * 3] = c[0]; triColors[i * 3 + 1] = c[1]; triColors[i * 3 + 2] = c[2];
+      }
+    }
+  }
+  // Group triangles by build-plate for a per-plate preview. Map each plate's object ids onto the
+  // triangle object-index space; keep only plates that actually resolve (Bambu id spaces vary),
+  // and only expose the selector when there's genuinely more than one.
+  let triObj = null, plates = null;
+  if (objIds && objIds.length === tris.length) {
+    const objList = Array.from(new Set(objIds.filter((x) => x != null)));
+    if (objList.length) {
+      const objIndex = {}; objList.forEach((id, i) => { objIndex[id] = i; });
+      triObj = new Uint16Array(tris.length);
+      for (let i = 0; i < tris.length; i++) triObj[i] = objIndex[objIds[i]] != null ? objIndex[objIds[i]] : 0;
+      const mapped = platesRaw.map((p, i) => ({
+        name: p.name || ('Plate ' + (i + 1)),
+        objs: (p.objectIds || []).map((id) => objIndex[id]).filter((x) => x != null),
+      })).filter((p) => p.objs.length);
+      if (mapped.length > 1) plates = mapped;
     }
   }
   const verts = new Float32Array(tris.length * 9);
@@ -1268,7 +1294,7 @@ function meshFromBuffer(buf, ext) {
       if (p[2] < bz0) bz0 = p[2]; if (p[2] > bz1) bz1 = p[2];
     }
   }
-  return { ok: true, verts, count: tris.length, bbox: { x: bx1 - bx0, y: by1 - by0, z: bz1 - bz0 }, colors, volumeMm3, triColors };
+  return { ok: true, verts, count: tris.length, bbox: { x: bx1 - bx0, y: by1 - by0, z: bz1 - bz0 }, colors, volumeMm3, triColors, triObj, plates, triCode, palette };
 }
 
 // Mesh for a print file in the vault (STL or 3MF). Confined to the vault, like read-bytes.

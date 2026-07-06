@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { meshTo3mf, buildModelXml, trianglesToStl } = require('../lib/mf-write');
-const { analyze, readMembers, extractTriangles, extractTrianglesWithPaint } = require('../lib/mf-convert');
+const { analyze, readMembers, extractTriangles, extractTrianglesWithPaint, extractPlates } = require('../lib/mf-convert');
 const { parseStl } = require('../lib/stl-parse');
 
 // A single 10×20×5 triangle (footprint used for the bounds check).
@@ -134,6 +134,40 @@ test('extractTriangles falls back to raw meshes when the build graph resolves to
   const tris = extractTriangles(readMembers(buf));
   assert.equal(tris.length, 1, 'raw mesh rendered even though the build item was unresolvable');
   assert.deepEqual(tris[0], [[0, 0, 0], [10, 0, 0], [0, 10, 0]]);
+});
+
+test('extractPlates + per-triangle object ids power a multi-plate preview', () => {
+  const { writeZip } = require('../lib/zip-write');
+  // Two objects, both built; a Bambu-style model_settings.config assigns each to its own plate.
+  const model = `<?xml version="1.0"?><model unit="millimeter"><resources>
+    <object id="1" type="model"><mesh>
+      <vertices><vertex x="0" y="0" z="0"/><vertex x="1" y="0" z="0"/><vertex x="0" y="1" z="0"/></vertices>
+      <triangles><triangle v1="0" v2="1" v3="2"/></triangles></mesh></object>
+    <object id="2" type="model"><mesh>
+      <vertices><vertex x="5" y="5" z="0"/><vertex x="6" y="5" z="0"/><vertex x="5" y="6" z="0"/></vertices>
+      <triangles><triangle v1="0" v2="1" v3="2"/></triangles></mesh></object>
+  </resources><build><item objectid="1"/><item objectid="2"/></build></model>`;
+  const settings = `<?xml version="1.0"?><config>
+    <object id="1"><metadata key="name" value="A"/></object>
+    <object id="2"><metadata key="name" value="B"/></object>
+    <plate><metadata key="plater_id" value="1"/><metadata key="plater_name" value="Left"/>
+      <model_instance><metadata key="object_id" value="1"/></model_instance></plate>
+    <plate><metadata key="plater_id" value="2"/><metadata key="plater_name" value="Right"/>
+      <model_instance><metadata key="object_id" value="2"/></model_instance></plate>
+  </config>`;
+  const buf = writeZip([
+    { name: '[Content_Types].xml', data: '<?xml version="1.0"?><Types/>' },
+    { name: '3D/3dmodel.model', data: model },
+    { name: 'Metadata/model_settings.config', data: settings },
+  ]);
+  const members = readMembers(buf);
+  const plates = extractPlates(members);
+  assert.equal(plates.length, 2);
+  assert.deepEqual(plates[0], { name: 'Left', objectIds: ['1'] });
+  assert.deepEqual(plates[1], { name: 'Right', objectIds: ['2'] });
+  const wp = extractTrianglesWithPaint(members);
+  assert.equal(wp.triangles.length, 2);
+  assert.deepEqual(wp.objIds, ['1', '2'], 'each facet is tagged with its build-item object id');
 });
 
 test('trianglesToStl writes a binary STL that parses back to the same mesh', () => {

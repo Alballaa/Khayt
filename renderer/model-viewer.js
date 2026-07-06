@@ -45,10 +45,16 @@
     top:   { yaw: -Math.PI / 2, pitch: 1.4 },
   };
 
-  function mountMeshViewer(canvas, { verts, count, colors, bed, triColors }) {
-    const tris = trisFromVerts(verts, count);
+  function mountMeshViewer(canvas, { verts, count, colors, bed, triColors, triObj, triCode, palette }) {
+    const allTris = trisFromVerts(verts, count);
     let plate = bed || null;
-    const tcol = (triColors && triColors.length) ? triColors : null;
+    const bakedTcol = (triColors && triColors.length) ? triColors : null;
+    const hasCode = !!(triCode && triCode.length === count);
+    let curPalette = Array.isArray(palette) ? palette.slice() : null;
+    let activeObjs = null;           // null = every plate/object; else a Set of object indices
+    let tris = allTris;              // triangle soup currently drawn
+    let tcol = bakedTcol;            // per-triangle colours currently drawn (or null → height ramp)
+
     // 2× supersampling: back the canvas at twice its display size for crisp, anti-aliased
     // edges — CSS keeps the on-screen size, the browser downsamples.
     const SS = 2;
@@ -63,6 +69,39 @@
     const bg = cssVar('--surface-2', '#0e1116');
     const col = hexToRgb(cssVar('--accent', '')) || [120, 144, 168];
     const ramp = Array.isArray(colors) ? colors.map(hexToRgb).filter(Boolean) : [];
+    const palRgb = () => (curPalette || []).map((h) => hexToRgb(h) || [180, 180, 185]);
+
+    // Which global triangle indices are visible (null sentinel = all — draw allTris directly).
+    function activeIndexList() {
+      if (activeObjs === null) return null;
+      const idx = [];
+      for (let i = 0; i < count; i++) if (activeObjs.has(triObj ? triObj[i] : 0)) idx.push(i);
+      return idx;
+    }
+    // Per-triangle colours for a visible-index list (null = all). Live from triCode+palette when
+    // the file was painted; otherwise the baked colouring the main process sent.
+    function computeTcol(idx) {
+      const n = idx ? idx.length : count;
+      if (hasCode && curPalette) {
+        const pal = palRgb(), baseC = pal[0] || [180, 180, 185];
+        const out = new Uint8Array(n * 3);
+        for (let j = 0; j < n; j++) { const gi = idx ? idx[j] : j; const code = triCode[gi]; const c = code === 0xffff ? baseC : (pal[code] || baseC); out[j * 3] = c[0]; out[j * 3 + 1] = c[1]; out[j * 3 + 2] = c[2]; }
+        return out;
+      }
+      if (bakedTcol) {
+        if (!idx) return bakedTcol;
+        const out = new Uint8Array(n * 3);
+        for (let j = 0; j < n; j++) { const gi = idx[j]; out[j * 3] = bakedTcol[gi * 3]; out[j * 3 + 1] = bakedTcol[gi * 3 + 1]; out[j * 3 + 2] = bakedTcol[gi * 3 + 2]; }
+        return out;
+      }
+      return null;
+    }
+    function rebuild() {
+      const idx = activeIndexList();
+      tris = idx ? idx.map((i) => allTris[i]) : allTris;
+      tcol = computeTcol(idx);
+      draw(false);
+    }
 
     const draw = (fast) => {
       if (dead) return;
@@ -74,6 +113,8 @@
         maxTriangles: fast ? 22000 : 120000,
       });
     };
+    // Initial colouring: live if painted, else baked.
+    tcol = computeTcol(null);
 
     function stopSpin() { spinning = false; if (raf) cancelAnimationFrame(raf); raf = 0; }
     function tick() { yaw += 0.012; draw(true); raf = requestAnimationFrame(tick); }
@@ -111,6 +152,12 @@
       reset() { stopSpin(); yaw = VIEWS.iso.yaw; pitch = VIEWS.iso.pitch; zoom = 1; panX = 0; panY = 0; draw(false); },
       setView(name) { const v = VIEWS[name] || VIEWS.iso; stopSpin(); yaw = v.yaw; pitch = v.pitch; draw(false); },
       setBed(b) { plate = b || null; draw(false); },
+      // Live-recolour the model from a new filament palette (index 0 = base, 1.. = paint slots).
+      recolor(newPalette) { if (Array.isArray(newPalette)) curPalette = newPalette.slice(); rebuild(); },
+      hasLiveColor() { return hasCode && !!curPalette; },
+      palette() { return curPalette ? curPalette.slice() : null; },
+      // Show only a build plate's objects (array of object indices), or null for all plates.
+      setPlate(objs) { stopSpin(); activeObjs = (objs && objs.length) ? new Set(objs) : null; zoom = 1; panX = 0; panY = 0; rebuild(); },
       zoomBy(f) { zoom = clamp(zoom * f, 0.3, 8); draw(false); },
       toggleWire() { wire = !wire; draw(false); return wire; },
       toggleSpin() { if (spinning) { stopSpin(); draw(false); } else { spinning = true; tick(); } return spinning; },
@@ -119,13 +166,17 @@
     };
   }
 
-  function openModelViewer({ verts, count, bbox, name, colors, volumeMm3, triColors }) {
+  function openModelViewer({ verts, count, bbox, name, colors, volumeMm3, triColors, triObj, triCode, palette, plates }) {
     if (!verts || !count) { toast('No mesh to show.', 'error'); return; }
     const S = 460;
     const dims = bbox ? `${fmtMm(bbox.x)} × ${fmtMm(bbox.y)} × ${fmtMm(bbox.z)} mm` : '';
     const cm3 = volumeMm3 ? volumeMm3 / 1000 : 0;
     const volStr = cm3 ? ` · ${cm3 < 10 ? cm3.toFixed(2) : cm3.toFixed(1)} cm³ · ~${Math.max(1, Math.round(cm3 * 1.24))} g` : '';
     const viewBtn = (k, lbl) => `<button type="button" class="btn ghost small mv-view" data-view="${k}">${escapeHtml(lbl)}</button>`;
+    const multiPlate = Array.isArray(plates) && plates.length > 1;
+    const plateSel = multiPlate
+      ? `<label class="mv-plate"><span>${escapeHtml(t('conv.plate') || 'Plate')}</span><select id="mvPlate"><option value="-1">${escapeHtml(t('conv.all_plates') || 'All plates')}</option>${plates.map((p, i) => `<option value="${i}">${escapeHtml(p.name || ('Plate ' + (i + 1)))}</option>`).join('')}</select></label>`
+      : '';
     const body = `
       <div class="mv-wrap">
         <div class="mv-stage">
@@ -134,7 +185,9 @@
         </div>
         <div class="mv-views">
           ${viewBtn('iso', t('view3d.iso') || 'Iso')}${viewBtn('front', t('view3d.front') || 'Front')}${viewBtn('top', t('view3d.top') || 'Top')}${viewBtn('side', t('view3d.side') || 'Side')}
+          ${plateSel}
         </div>
+        <div id="mvColors" class="mv-colors"></div>
         <div class="mv-bar">
           <span class="mv-meta">${escapeHtml(name || '')}${dims ? ` · <b>${escapeHtml(dims)}</b>` : ''}${escapeHtml(volStr)} · ${count.toLocaleString()} △</span>
           <span class="mv-btns">
@@ -150,13 +203,23 @@
       bodyHtml: body,
       noSave: true,
       onMount(modal) {
-        const ctl = mountMeshViewer(modal.querySelector('#mvCanvas'), { verts, count, colors, triColors });
+        const ctl = mountMeshViewer(modal.querySelector('#mvCanvas'), { verts, count, colors, triColors, triObj, triCode, palette });
         const spinBtn = modal.querySelector('#mvSpin');
         spinBtn.addEventListener('click', () => spinBtn.classList.toggle('on', ctl.toggleSpin()));
         const wireBtn = modal.querySelector('#mvWire');
         wireBtn.addEventListener('click', () => wireBtn.classList.toggle('on', ctl.toggleWire()));
         modal.querySelector('#mvReset').addEventListener('click', () => { ctl.reset(); spinBtn.classList.remove('on'); });
         modal.querySelectorAll('.mv-view').forEach((b) => b.addEventListener('click', () => { ctl.setView(b.dataset.view); spinBtn.classList.remove('on'); }));
+        const plateEl = modal.querySelector('#mvPlate');
+        if (plateEl) plateEl.addEventListener('change', () => { const i = parseInt(plateEl.value, 10); ctl.setPlate(i >= 0 && plates[i] ? plates[i].objs : null); });
+        // Live colour swatches — edit a filament colour and the model recolours instantly.
+        const pal = ctl.hasLiveColor && ctl.hasLiveColor() ? ctl.palette() : null;
+        const colBox = modal.querySelector('#mvColors');
+        if (pal && pal.length && colBox) {
+          colBox.innerHTML = pal.map((hex, i) => `<input type="color" class="mv-col" data-i="${i}" value="${safeCssColor(hex, '#cccccc')}" title="${escapeHtml((t('conv.filament') || 'Filament') + ' ' + (i + 1))}">`).join('');
+          const cols = colBox.querySelectorAll('.mv-col');
+          cols.forEach((inp) => inp.addEventListener('input', () => { const next = ctl.palette() || []; cols.forEach((c) => { next[+c.dataset.i] = c.value; }); ctl.recolor(next); }));
+        }
       },
     });
   }

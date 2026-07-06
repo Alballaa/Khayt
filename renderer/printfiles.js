@@ -368,7 +368,7 @@
     let m;
     try { m = await hub.printLibMesh(full); } catch (_) { m = null; }
     if (!m || !m.ok || !m.verts) { toast(t('plib.view3d_nomesh') || 'No 3D geometry in that file.', 'error'); return; }
-    openModelViewer({ verts: m.verts, count: m.count, bbox: m.bbox, colors: m.colors, triColors: m.triColors, volumeMm3: m.volumeMm3, name: rec.name || rec.sourceFile?.filename || '' });
+    openModelViewer({ verts: m.verts, count: m.count, bbox: m.bbox, colors: m.colors, triColors: m.triColors, triObj: m.triObj, triCode: m.triCode, palette: m.palette, plates: m.plates, volumeMm3: m.volumeMm3, name: rec.name || rec.sourceFile?.filename || '' });
   }
 
   async function openInSlicer(id, overrideFull) {

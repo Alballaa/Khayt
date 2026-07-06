@@ -4696,3 +4696,14 @@ th[data-sort]:hover {
 .conv-preview-ctrls .btn { padding: 3px 9px; font-size: 12px; }
 .conv-preview-ctrls .btn.pv-icon { padding: 3px 8px; font-size: 14px; line-height: 1; }
 .conv-preview-ctrls .btn.on { background: var(--accent); color: var(--on-accent, #fff); }
+
+/* Plate picker + live colour swatches under a mounted preview (converter inline + big modal). */
+.conv-preview-extras { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px 16px; margin-top: 8px; }
+.conv-pv-plate, .mv-plate { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-2, #9aa); }
+.conv-pv-plate select, .mv-plate select { padding: 3px 6px; font-size: 12px; }
+.conv-pv-cols, .mv-colors { display: inline-flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.mv-colors { justify-content: center; margin-top: 6px; }
+.conv-pv-cols-h { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3, #778); margin-right: 2px; }
+.conv-pv-col, .mv-col { width: 24px; height: 24px; padding: 0; border: 1px solid var(--border, #333); border-radius: 6px; background: none; cursor: pointer; }
+.conv-pv-col::-webkit-color-swatch, .mv-col::-webkit-color-swatch { border: none; border-radius: 5px; }
+.conv-pv-col::-webkit-color-swatch-wrapper, .mv-col::-webkit-color-swatch-wrapper { padding: 2px; }

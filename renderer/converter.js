@@ -206,6 +206,38 @@
     return `<div class="conv-changes"><div class="conv-changes-h">${escapeHtml(t('conv.changes') || 'What changes')}</div>${rows}</div>`;
   }
 
+  // Under a mounted 3D preview: a plate picker (multi-plate files) and a live colour strip
+  // (painted files) so the maker can flip plates and see colour changes reflected instantly.
+  function buildPreviewExtras(panel, ctl, mesh) {
+    if (!panel || !ctl || panel.querySelector('.conv-preview-extras')) return;
+    const rows = [];
+    // Plate picker.
+    if (Array.isArray(mesh.plates) && mesh.plates.length > 1) {
+      const opts = [`<option value="-1">${escapeHtml(t('conv.all_plates') || 'All plates')}</option>`]
+        .concat(mesh.plates.map((p, i) => `<option value="${i}">${escapeHtml(p.name || ('Plate ' + (i + 1)))}</option>`)).join('');
+      rows.push(`<label class="conv-pv-plate"><span>${escapeHtml(t('conv.plate') || 'Plate')}</span><select class="conv-pv-plate-sel">${opts}</select></label>`);
+    }
+    // Live colour swatches (only meaningful when the model carries per-facet paint + a palette).
+    const pal = ctl.hasLiveColor && ctl.hasLiveColor() ? ctl.palette() : null;
+    if (pal && pal.length) {
+      const sw = pal.map((hex, i) => `<input type="color" class="conv-pv-col" data-i="${i}" value="${safeCssColor(hex, '#cccccc')}" title="${escapeHtml((t('conv.filament') || 'Filament') + ' ' + (i + 1))}">`).join('');
+      rows.push(`<div class="conv-pv-cols"><span class="conv-pv-cols-h">${escapeHtml(t('conv.colours') || 'colours')}</span>${sw}</div>`);
+    }
+    if (!rows.length) return;
+    const box = document.createElement('div');
+    box.className = 'conv-preview-extras';
+    box.innerHTML = rows.join('');
+    panel.appendChild(box);
+    const sel = box.querySelector('.conv-pv-plate-sel');
+    if (sel) sel.addEventListener('change', () => { const i = parseInt(sel.value, 10); ctl.setPlate(i >= 0 && mesh.plates[i] ? mesh.plates[i].objs : null); });
+    const cols = box.querySelectorAll('.conv-pv-col');
+    if (cols.length) cols.forEach((inp) => inp.addEventListener('input', () => {
+      const next = ctl.palette() || [];
+      cols.forEach((c) => { next[+c.dataset.i] = c.value; });
+      ctl.recolor(next);
+    }));
+  }
+
   // Decide what to show in a preview panel from a convertMesh() result:
   //   3D mesh  → interactive viewer
   //   no mesh but an embedded slicer thumbnail → show that 2D image (always-load fallback)
@@ -215,8 +247,10 @@
     const hint = panel.querySelector('.conv-preview-hint');
     if (mesh && mesh.ok && mesh.verts && mesh.count) {
       const cols = (mesh.colors && mesh.colors.length) ? mesh.colors : (fallbackColors || []);
-      const ctl = mountMeshViewer(canvasEl, { verts: mesh.verts, count: mesh.count, colors: cols, triColors: mesh.triColors });
+      const ctl = mountMeshViewer(canvasEl, { verts: mesh.verts, count: mesh.count, colors: cols, triColors: mesh.triColors, triObj: mesh.triObj, triCode: mesh.triCode, palette: mesh.palette });
       if (hint) hint.textContent = t('conv.preview_hint2') || 'Drag · scroll to zoom';
+      // Plate picker (multi-plate Bambu/Orca files) + live colour swatches (painted files).
+      buildPreviewExtras(panel, ctl, mesh);
       // Control bar: preset angles, spin, reset, and expand to the big viewer.
       if (!panel.querySelector('.conv-preview-ctrls')) {
         const bar = document.createElement('div');
@@ -230,7 +264,7 @@
           if (a === 'spin') btn.classList.toggle('on', ctl.toggleSpin());
           else if (a === 'wire') btn.classList.toggle('on', ctl.toggleWire());
           else if (a === 'reset') { ctl.reset(); const s = bar.querySelector('[data-pv="spin"]'); if (s) s.classList.remove('on'); }
-          else if (a === 'expand') { if (typeof openModelViewer === 'function') openModelViewer({ verts: mesh.verts, count: mesh.count, colors: cols, triColors: mesh.triColors, bbox: mesh.bbox, volumeMm3: mesh.volumeMm3, name: '' }); }
+          else if (a === 'expand') { if (typeof openModelViewer === 'function') openModelViewer({ verts: mesh.verts, count: mesh.count, colors: cols, triColors: mesh.triColors, triObj: mesh.triObj, triCode: mesh.triCode, palette: mesh.palette, plates: mesh.plates, bbox: mesh.bbox, volumeMm3: mesh.volumeMm3, name: '' }); }
           else { ctl.setView(a); const s = bar.querySelector('[data-pv="spin"]'); if (s) s.classList.remove('on'); }
         }));
       }
