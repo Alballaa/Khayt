@@ -67,6 +67,40 @@ async function main() {
     assert(`convertMesh(${label}) rasterizes (${shades} shades)`, shades >= 3);
   }
 
+  // 1b) "full spectrum" colour ramp — a multicolour model shades its declared colours
+  // as a height gradient (red bottom → blue → green top), not one flat colour. Rendered
+  // directly on a black background so the three hue bands are cleanly separable.
+  const hues = await w.evaluate(() => {
+    // A tall stack of thin slabs — many triangles distributed across the height, like a
+    // real mesh, so the ramp is sampled top-to-bottom (a single box only has 2 tris/face).
+    const box = (() => {
+      const s = 20, v = (x, y, z) => [x, y, z], q = (a, b, c, d) => [[a, b, c], [a, c, d]]; let t = [];
+      for (let k = 0; k < 24; k++) {
+        const z0 = k * 4, z1 = z0 + 3.6;
+        t = t.concat(q(v(0, 0, z0), v(s, 0, z0), v(s, s, z0), v(0, s, z0)));
+        t = t.concat(q(v(0, 0, z1), v(0, s, z1), v(s, s, z1), v(s, 0, z1)));
+        t = t.concat(q(v(0, 0, z0), v(0, 0, z1), v(s, 0, z1), v(s, 0, z0)));
+        t = t.concat(q(v(0, s, z0), v(s, s, z0), v(s, s, z1), v(0, s, z1)));
+        t = t.concat(q(v(0, 0, z0), v(0, s, z0), v(0, s, z1), v(0, 0, z1)));
+        t = t.concat(q(v(s, 0, z0), v(s, 0, z1), v(s, s, z1), v(s, s, z0)));
+      }
+      return t;
+    })();
+    const r = window.KhaytStlThumb.renderStlThumbnail(box, { size: 240, yaw: Math.atan2(-1, 1), pitch: 0.55, background: '#000000',
+      colorRamp: [[255, 45, 45], [45, 107, 255], [45, 255, 136]], canvasFactory: (s) => { const c = document.createElement('canvas'); c.width = c.height = s; return c; } });
+    const d = r.canvas.getContext('2d').getImageData(0, 0, 240, 240).data;
+    let red = 0, blue = 0, green = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      const R = d[i], G = d[i + 1], B = d[i + 2];
+      if (R + G + B < 45) continue; // black background
+      if (R > G + 20 && R > B + 20) red++;
+      else if (B > R + 20 && B > G) blue++;
+      else if (G > R + 20 && G > B + 20) green++;
+    }
+    return { red, blue, green };
+  });
+  assert(`spectrum ramp shows red+blue+green bands (r=${hues.red} b=${hues.blue} g=${hues.green})`, hues.red > 30 && hues.blue > 30 && hues.green > 30);
+
   // 2) full converter modal on the 3MF — preview canvas mounts + hint flips to "Drag to rotate".
   await w.evaluate(() => window.switchTab('converter-tab'));
   await w.waitForTimeout(200);

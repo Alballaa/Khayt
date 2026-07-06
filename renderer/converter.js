@@ -186,6 +186,37 @@
     return `<div class="conv-changes"><div class="conv-changes-h">${escapeHtml(t('conv.changes') || 'What changes')}</div>${rows}</div>`;
   }
 
+  // A lightweight "see what you're converting" step for the one-click STL↔3MF actions:
+  // shows a live 3D preview of the picked file, then runs onConfirm when the user proceeds.
+  function previewConfirm({ path, name, title, confirmLabel, note, onConfirm }) {
+    const h = hub();
+    const canPreview = typeof mountMeshViewer === 'function' && h && !!h.convertMesh;
+    const body = `
+      <div class="conv-src"><div class="conv-src-name">📦 ${escapeHtml(name || 'model')}</div>${note ? `<div class="conv-src-meta">${escapeHtml(note)}</div>` : ''}</div>
+      ${canPreview ? `
+      <div id="pcPreview" class="conv-preview">
+        <canvas id="pcPreviewCanvas" width="320" height="320" class="conv-preview-canvas" aria-label="3D preview"></canvas>
+        <div class="conv-preview-hint">${escapeHtml(t('conv.preview_loading') || 'Loading 3D preview…')}</div>
+      </div>` : `<p class="conv-note">${escapeHtml(t('conv.preview_none') || 'Preview unavailable — you can still convert.')}</p>`}`;
+    openFormModal({
+      title, bodyHtml: body, saveLabel: confirmLabel,
+      onMount(modal) {
+        const c = modal.querySelector('#pcPreviewCanvas');
+        if (c && h.convertMesh) {
+          h.convertMesh({ path }).then((m) => {
+            const panel = modal.querySelector('#pcPreview');
+            if (m && m.ok && m.verts && m.count) {
+              mountMeshViewer(c, { verts: m.verts, count: m.count, colors: m.colors });
+              const hint = panel && panel.querySelector('.conv-preview-hint');
+              if (hint) hint.textContent = t('conv.preview_hint') || 'Drag to rotate';
+            } else if (panel) { panel.style.display = 'none'; }
+          }).catch(() => { const panel = modal.querySelector('#pcPreview'); if (panel) panel.style.display = 'none'; });
+        }
+      },
+      onSave() { Promise.resolve().then(onConfirm); return true; },
+    });
+  }
+
   async function openConverter(src) {
     const h = hub();
     if (!h || !h.mfAnalyze) { toast(t('conv.desktop_only') || 'The converter is available in the desktop app.', 'error'); return; }
@@ -244,7 +275,8 @@
           h.convertMesh({ path: src.path }).then((mesh) => {
             const panel = modal.querySelector('#convPreview');
             if (mesh && mesh.ok && mesh.verts && mesh.count) {
-              mountMeshViewer(pvCanvas, { verts: mesh.verts, count: mesh.count });
+              const cols = (mesh.colors && mesh.colors.length) ? mesh.colors : filaments.map((f) => f.color).filter(Boolean);
+              mountMeshViewer(pvCanvas, { verts: mesh.verts, count: mesh.count, colors: cols });
               const hint = panel && panel.querySelector('.conv-preview-hint');
               if (hint) hint.textContent = t('conv.preview_hint') || 'Drag to rotate';
             } else if (panel) { panel.style.display = 'none'; }
@@ -527,29 +559,35 @@
     if (stlBtn) stlBtn.onclick = async () => {
       const r = await hub().stlPick();
       if (!r || !r.ok) return;
-      toast(t('conv.stl_working') || 'Converting STL…', 'info', 1600);
-      const vaultId = typeof uid === 'function' ? uid('PF') : ('PF' + Date.now().toString(36));
-      let c;
-      try { c = await hub().stlTo3mf({ path: r.path, intoVaultId: vaultId }); }
-      catch (e) { toast(String((e && e.message) || e), 'error'); return; }
-      if (!c || !c.ok) { toast((c && c.error) || (t('conv.stl_failed') || 'Could not convert that STL.'), 'error'); return; }
-      if (typeof importConvertedAsNew === 'function') {
-        await importConvertedAsNew({ vaultId, filename: c.filename, ext: c.ext, size: c.size, targetName: '3MF', sourceName: r.name });
-      }
-      toast(t('conv.stl_done') || 'STL converted to 3MF and added to your library.', 'success', 3600);
+      const doConvert = async () => {
+        toast(t('conv.stl_working') || 'Converting STL…', 'info', 1600);
+        const vaultId = typeof uid === 'function' ? uid('PF') : ('PF' + Date.now().toString(36));
+        let c;
+        try { c = await hub().stlTo3mf({ path: r.path, intoVaultId: vaultId }); }
+        catch (e) { toast(String((e && e.message) || e), 'error'); return; }
+        if (!c || !c.ok) { toast((c && c.error) || (t('conv.stl_failed') || 'Could not convert that STL.'), 'error'); return; }
+        if (typeof importConvertedAsNew === 'function') {
+          await importConvertedAsNew({ vaultId, filename: c.filename, ext: c.ext, size: c.size, targetName: '3MF', sourceName: r.name });
+        }
+        toast(t('conv.stl_done') || 'STL converted to 3MF and added to your library.', 'success', 3600);
+      };
+      previewConfirm({ path: r.path, name: r.name, title: `${_titleIco}${t('conv.stl_pick') || 'STL → 3MF'}`, confirmLabel: t('conv.stl_go') || 'Convert to 3MF', onConfirm: doConvert });
     };
 
     const toStlBtn = document.getElementById('convToStlBtn');
     if (toStlBtn) toStlBtn.onclick = async () => {
       const r = await hub().mfPick();
       if (!r || !r.ok) return;
-      toast(t('conv.tostl_working') || 'Extracting mesh…', 'info', 1600);
-      let c;
-      try { c = await hub().mfToStl({ path: r.path }); }
-      catch (e) { toast(String((e && e.message) || e), 'error'); return; }
-      if (c && c.canceled) return;
-      if (!c || !c.ok) { toast((c && c.error) || (t('conv.tostl_none') || 'No mesh found in that 3MF.'), 'error'); return; }
-      toast(t('conv.tostl_done') || 'Saved STL.', 'success', 3200);
+      const doExtract = async () => {
+        toast(t('conv.tostl_working') || 'Extracting mesh…', 'info', 1600);
+        let c;
+        try { c = await hub().mfToStl({ path: r.path }); }
+        catch (e) { toast(String((e && e.message) || e), 'error'); return; }
+        if (c && c.canceled) return;
+        if (!c || !c.ok) { toast((c && c.error) || (t('conv.tostl_none') || 'No mesh found in that 3MF.'), 'error'); return; }
+        toast(t('conv.tostl_done') || 'Saved STL.', 'success', 3200);
+      };
+      previewConfirm({ path: r.path, name: r.name, title: `${_titleIco}${t('conv.tostl_pick') || '3MF → STL'}`, confirmLabel: t('conv.tostl_go') || 'Extract STL', onConfirm: doExtract });
     };
 
     const cpSave = document.getElementById('convCpSave');

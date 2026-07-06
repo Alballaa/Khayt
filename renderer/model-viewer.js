@@ -32,7 +32,12 @@
    * Attach a drag-to-rotate / auto-spin software renderer to an existing <canvas>.
    * @returns {{ reset:fn, toggleSpin:fn, spinning:()=>boolean, destroy:fn }}
    */
-  function mountMeshViewer(canvas, { verts, count }) {
+  const hexToRgb = (h) => {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(h || '').trim());
+    return m ? [parseInt(m[1].slice(0, 2), 16), parseInt(m[1].slice(2, 4), 16), parseInt(m[1].slice(4, 6), 16)] : null;
+  };
+
+  function mountMeshViewer(canvas, { verts, count, colors }) {
     const tris = trisFromVerts(verts, count);
     const S = canvas.width || 460;
     const factory = () => canvas; // draw straight into the on-screen canvas (already S×S)
@@ -43,15 +48,16 @@
     const cssVar = (n, fb) => (getComputedStyle(document.documentElement).getPropertyValue(n).trim() || fb);
     const bg = cssVar('--surface-2', '#0e1116');
     const accent = cssVar('--accent', '');
-    const col = /^#([0-9a-f]{6})$/i.test(accent)
-      ? [parseInt(accent.slice(1, 3), 16), parseInt(accent.slice(3, 5), 16), parseInt(accent.slice(5, 7), 16)]
-      : [120, 144, 168];
+    const col = hexToRgb(accent) || [120, 144, 168];
+    // A model's declared filament colours drive a height ramp ("full spectrum" preview).
+    const ramp = Array.isArray(colors) ? colors.map(hexToRgb).filter(Boolean) : [];
 
     const draw = (fast) => {
       if (dead) return;
       KhaytStlThumb.renderStlThumbnail(tris, {
         size: S, yaw, pitch, canvasFactory: factory,
-        background: bg, color: col, maxTriangles: fast ? 22000 : 90000,
+        background: bg, color: col, colorRamp: ramp.length ? ramp : null,
+        maxTriangles: fast ? 22000 : 90000,
       });
     };
 
@@ -83,7 +89,7 @@
     };
   }
 
-  function openModelViewer({ verts, count, bbox, name }) {
+  function openModelViewer({ verts, count, bbox, name, colors }) {
     if (!verts || !count) { toast('No mesh to show.', 'error'); return; }
     const S = 460;
     const dims = bbox ? `${fmtMm(bbox.x)} × ${fmtMm(bbox.y)} × ${fmtMm(bbox.z)} mm` : '';
@@ -107,7 +113,7 @@
       bodyHtml: body,
       noSave: true,
       onMount(modal) {
-        const ctl = mountMeshViewer(modal.querySelector('#mvCanvas'), { verts, count });
+        const ctl = mountMeshViewer(modal.querySelector('#mvCanvas'), { verts, count, colors });
         const spinBtn = modal.querySelector('#mvSpin');
         spinBtn.addEventListener('click', () => spinBtn.classList.toggle('on', ctl.toggleSpin()));
         modal.querySelector('#mvReset').addEventListener('click', () => { ctl.reset(); spinBtn.classList.remove('on'); });

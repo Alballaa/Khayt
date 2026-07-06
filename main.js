@@ -1199,13 +1199,15 @@ ipcMain.handle('hub:printlib-read-bytes', async (_e, fullPath) => {
 // Parse an STL/3MF buffer into a decimated triangle mesh for the in-app 3D viewer.
 // Returns a flat Float32Array (9 floats/triangle) so it clones cheaply over IPC.
 function meshFromBuffer(buf, ext) {
-  let tris = null;
+  let tris = null, colors = [];
   if (ext === 'stl') {
     const g = require('./lib/stl-parse').parseStl(buf, { keepTriangles: true });
     tris = g && g.triangles;
   } else if (ext === '3mf') {
     const mf = require('./lib/mf-convert');
-    tris = mf.extractTriangles(mf.readMembers(buf));
+    const members = mf.readMembers(buf);
+    tris = mf.extractTriangles(members);
+    try { colors = (mf.extractFilaments(members) || []).map((f) => f.color).filter(Boolean); } catch (_) { colors = []; }
   }
   if (!Array.isArray(tris) || !tris.length) return { ok: false, error: 'no-geometry' };
   const MAX = 80000;
@@ -1221,7 +1223,7 @@ function meshFromBuffer(buf, ext) {
       if (p[2] < bz0) bz0 = p[2]; if (p[2] > bz1) bz1 = p[2];
     }
   }
-  return { ok: true, verts, count: tris.length, bbox: { x: bx1 - bx0, y: by1 - by0, z: bz1 - bz0 } };
+  return { ok: true, verts, count: tris.length, bbox: { x: bx1 - bx0, y: by1 - by0, z: bz1 - bz0 }, colors };
 }
 
 // Mesh for a print file in the vault (STL or 3MF). Confined to the vault, like read-bytes.
