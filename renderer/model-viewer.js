@@ -37,44 +37,66 @@
     return m ? [parseInt(m[1].slice(0, 2), 16), parseInt(m[1].slice(2, 4), 16), parseInt(m[1].slice(4, 6), 16)] : null;
   };
 
+  // Named camera angles (yaw, pitch). "iso" matches the classic 3/4 thumbnail view.
+  const VIEWS = {
+    iso:   { yaw: Math.atan2(-1, 1), pitch: 0.6 },
+    front: { yaw: -Math.PI / 2, pitch: 0.05 },
+    side:  { yaw: 0, pitch: 0.05 },
+    top:   { yaw: -Math.PI / 2, pitch: 1.4 },
+  };
+
   function mountMeshViewer(canvas, { verts, count, colors }) {
     const tris = trisFromVerts(verts, count);
-    const S = canvas.width || 460;
-    const factory = () => canvas; // draw straight into the on-screen canvas (already S×S)
-    const HOME = { yaw: Math.atan2(-1, 1), pitch: 0.6 }; // matches the fixed 3/4 thumbnail view
-    let yaw = HOME.yaw, pitch = HOME.pitch;
-    let spinning = false, raf = 0, dragging = false, lastX = 0, lastY = 0, dead = false;
+    // 2× supersampling: back the canvas at twice its display size for crisp, anti-aliased
+    // edges — CSS keeps the on-screen size, the browser downsamples.
+    const SS = 2;
+    const base = canvas.width || 460;
+    canvas.width = canvas.height = base * SS;
+    const S = canvas.width;
+    const factory = () => canvas;
+    let yaw = VIEWS.iso.yaw, pitch = VIEWS.iso.pitch, zoom = 1, panX = 0, panY = 0;
+    let spinning = false, raf = 0, mode = null, lastX = 0, lastY = 0, dead = false;
 
     const cssVar = (n, fb) => (getComputedStyle(document.documentElement).getPropertyValue(n).trim() || fb);
     const bg = cssVar('--surface-2', '#0e1116');
-    const accent = cssVar('--accent', '');
-    const col = hexToRgb(accent) || [120, 144, 168];
-    // A model's declared filament colours drive a height ramp ("full spectrum" preview).
+    const col = hexToRgb(cssVar('--accent', '')) || [120, 144, 168];
     const ramp = Array.isArray(colors) ? colors.map(hexToRgb).filter(Boolean) : [];
 
     const draw = (fast) => {
       if (dead) return;
       KhaytStlThumb.renderStlThumbnail(tris, {
-        size: S, yaw, pitch, canvasFactory: factory,
+        size: S, yaw, pitch, zoom, panX, panY, canvasFactory: factory,
         background: bg, color: col, colorRamp: ramp.length ? ramp : null,
-        maxTriangles: fast ? 22000 : 90000,
+        maxTriangles: fast ? 22000 : 120000,
       });
     };
 
     function stopSpin() { spinning = false; if (raf) cancelAnimationFrame(raf); raf = 0; }
     function tick() { yaw += 0.012; draw(true); raf = requestAnimationFrame(tick); }
 
-    canvas.addEventListener('pointerdown', (e) => { dragging = true; lastX = e.clientX; lastY = e.clientY; try { canvas.setPointerCapture(e.pointerId); } catch (_) {} stopSpin(); });
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    canvas.addEventListener('pointerdown', (e) => {
+      mode = (e.button === 2 || e.button === 1 || e.shiftKey) ? 'pan' : 'rotate';
+      lastX = e.clientX; lastY = e.clientY; try { canvas.setPointerCapture(e.pointerId); } catch (_) {} stopSpin();
+    });
     canvas.addEventListener('pointermove', (e) => {
-      if (!dragging) return;
-      yaw -= (e.clientX - lastX) * 0.01;
-      pitch = clamp(pitch + (e.clientY - lastY) * 0.01, -1.4, 1.4);
+      if (!mode) return;
+      const w = canvas.getBoundingClientRect().width || base;
+      const dx = e.clientX - lastX, dy = e.clientY - lastY;
+      if (mode === 'pan') { panX += dx / w; panY -= dy / w; }
+      else { yaw -= dx * 0.01; pitch = clamp(pitch + dy * 0.01, -1.4, 1.4); }
       lastX = e.clientX; lastY = e.clientY;
       draw(true);
     });
-    const endDrag = () => { if (dragging) { dragging = false; draw(false); } };
+    const endDrag = () => { if (mode) { mode = null; draw(false); } };
     canvas.addEventListener('pointerup', endDrag);
     canvas.addEventListener('pointercancel', endDrag);
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      zoom = clamp(zoom * (e.deltaY < 0 ? 1.12 : 0.89), 0.3, 8);
+      stopSpin(); draw(true);
+      clearTimeout(canvas._wz); canvas._wz = setTimeout(() => draw(false), 140);
+    }, { passive: false });
 
     // Stop the animation loop when the canvas leaves the DOM (modal torn down).
     const mo = new MutationObserver(() => { if (!document.body.contains(canvas)) { dead = true; stopSpin(); mo.disconnect(); } });
@@ -82,7 +104,9 @@
 
     draw(false);
     return {
-      reset() { stopSpin(); yaw = HOME.yaw; pitch = HOME.pitch; draw(false); },
+      reset() { stopSpin(); yaw = VIEWS.iso.yaw; pitch = VIEWS.iso.pitch; zoom = 1; panX = 0; panY = 0; draw(false); },
+      setView(name) { const v = VIEWS[name] || VIEWS.iso; stopSpin(); yaw = v.yaw; pitch = v.pitch; draw(false); },
+      zoomBy(f) { zoom = clamp(zoom * f, 0.3, 8); draw(false); },
       toggleSpin() { if (spinning) { stopSpin(); draw(false); } else { spinning = true; tick(); } return spinning; },
       spinning: () => spinning,
       destroy() { dead = true; stopSpin(); mo.disconnect(); },
@@ -93,11 +117,15 @@
     if (!verts || !count) { toast('No mesh to show.', 'error'); return; }
     const S = 460;
     const dims = bbox ? `${fmtMm(bbox.x)} × ${fmtMm(bbox.y)} × ${fmtMm(bbox.z)} mm` : '';
+    const viewBtn = (k, lbl) => `<button type="button" class="btn ghost small mv-view" data-view="${k}">${escapeHtml(lbl)}</button>`;
     const body = `
       <div class="mv-wrap">
         <div class="mv-stage">
           <canvas id="mvCanvas" width="${S}" height="${S}" class="mv-canvas" aria-label="3D preview"></canvas>
-          <div class="mv-hint">${escapeHtml(t('plib.view3d_hint') || 'Drag to rotate')}</div>
+          <div class="mv-hint">${escapeHtml(t('plib.view3d_hint2') || 'Drag rotate · scroll zoom · shift-drag pan')}</div>
+        </div>
+        <div class="mv-views">
+          ${viewBtn('iso', t('view3d.iso') || 'Iso')}${viewBtn('front', t('view3d.front') || 'Front')}${viewBtn('top', t('view3d.top') || 'Top')}${viewBtn('side', t('view3d.side') || 'Side')}
         </div>
         <div class="mv-bar">
           <span class="mv-meta">${escapeHtml(name || '')}${dims ? ` · <b>${escapeHtml(dims)}</b>` : ''} · ${count.toLocaleString()} △</span>
@@ -117,6 +145,7 @@
         const spinBtn = modal.querySelector('#mvSpin');
         spinBtn.addEventListener('click', () => spinBtn.classList.toggle('on', ctl.toggleSpin()));
         modal.querySelector('#mvReset').addEventListener('click', () => { ctl.reset(); spinBtn.classList.remove('on'); });
+        modal.querySelectorAll('.mv-view').forEach((b) => b.addEventListener('click', () => { ctl.setView(b.dataset.view); spinBtn.classList.remove('on'); }));
       },
     });
   }

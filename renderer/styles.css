@@ -4685,3 +4685,14 @@ th[data-sort]:hover {
 
 /* Converter preview: 2D slicer-thumbnail fallback when a 3D mesh can't be built */
 .conv-preview-img { cursor: default; object-fit: contain; image-rendering: auto; }
+
+/* 3D viewer: preset-angle row (standalone modal) */
+.mv-views { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+.mv-view.on, .mv-views .btn.on { background: var(--accent); color: var(--on-accent, #fff); }
+
+/* Converter preview: control bar (presets, spin, reset, expand) */
+.conv-preview-ctrls { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; justify-content: center; margin-top: 2px; }
+.conv-preview-ctrls .conv-preview-sp { flex: 0 0 8px; }
+.conv-preview-ctrls .btn { padding: 3px 9px; font-size: 12px; }
+.conv-preview-ctrls .btn.pv-icon { padding: 3px 8px; font-size: 14px; line-height: 1; }
+.conv-preview-ctrls .btn.on { background: var(--accent); color: var(--on-accent, #fff); }

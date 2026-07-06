@@ -90,6 +90,30 @@ async function main() {
   await w.evaluate(() => document.querySelector('#mvSpin').click()); // stop
   assert('auto-spin advanced the frame', s3.sum !== s2.sum);
 
+  await w.evaluate(() => document.querySelector('#mvSpin').classList.contains('on') && document.querySelector('#mvSpin').click());
+  await w.waitForTimeout(150);
+
+  // Preset angle buttons change the view.
+  assert('has preset view buttons', await w.evaluate(() => document.querySelectorAll('.mv-view').length === 4));
+  const sBefore = await sample();
+  await w.evaluate(() => document.querySelector('.mv-view[data-view="top"]').click());
+  await w.waitForTimeout(200);
+  assert('preset "Top" changed the view', (await sample()).sum !== sBefore.sum);
+
+  // Scroll wheel zooms (changes the rendered image).
+  const sZoom0 = await sample();
+  await w.evaluate(() => {
+    const c = document.querySelector('#mvCanvas'); const r = c.getBoundingClientRect();
+    c.dispatchEvent(new WheelEvent('wheel', { deltaY: -240, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, bubbles: true, cancelable: true }));
+  });
+  await w.waitForTimeout(250);
+  assert('scroll wheel zoomed', (await sample()).sum !== sZoom0.sum);
+
+  // Reset returns to the iso home view.
+  await w.evaluate(() => document.querySelector('#mvReset').click());
+  await w.waitForTimeout(200);
+  assert('supersampled backing store (2×)', await w.evaluate(() => document.querySelector('#mvCanvas').width >= 900));
+
   assert('no renderer errors', errs.length === 0);
   if (errs.length) console.log(errs);
   await app.close();
