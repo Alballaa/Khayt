@@ -20,17 +20,19 @@
  * NOTE: we deliberately do NOT use electron-builder `extraMetadata` to bake the
  * flavor/version — for this repo layout (app at project root) it rewrites the
  * SOURCE package.json in place (strips scripts, injects version) and does not
- * restore it. The afterPack marker avoids touching source entirely. Bed Ready's
- * independent 1.0.0-beta.N version therefore lives at the release/tag lane
- * (bedready-v*) for now; baking it into the binary is a follow-up (would need a
- * separate app manifest, not extraMetadata).
+ * restore it. Instead, Bed Ready's independent version (1.0.0-*) is baked by the
+ * scripts/build-bedready.mjs wrapper, which swaps package.json's version for the
+ * duration of the electron-builder run and restores the exact source bytes in a
+ * finally. The afterPack marker (below) is what routes the runtime to bedready.
  *
- * Build:  npm run pack:bedready   (unpacked, quick)
- *         npm run dist:bedready:mac:arm64
+ * Build:  npm run pack:bedready            (unpacked, quick — via the wrapper)
+ *         npm run dist:bedready:mac:arm64  (installer — via the wrapper)
  * Dev:    npm run start:bedready
  *
- * TODO(bedready): ship branded icons (assets/bedready.icns / .ico); for now it
- * reuses the Khayt icons inherited from the base config.
+ * The build always goes through the wrapper (the npm scripts call
+ * scripts/build-bedready.mjs, never electron-builder directly) so the version
+ * bake + restore is guaranteed. Branded icons + Sentry/OTel trim are configured
+ * below.
  */
 
 const base = require('./package.json').build;
@@ -111,6 +113,20 @@ module.exports = {
     // Drop the 8 alternate theme designs' CSS (bespoke look ships instead).
     ...EXCLUDED_THEME_DIRS.map((d) => `!renderer/themes/${d}/*.css`),
     '!renderer/themes/theme-picker.css',
+    // Bed Ready does not initialise Sentry (main.js gates it behind !isBedReady),
+    // so the crash-reporter SDK and its OpenTelemetry tree are dead weight — drop
+    // them for a ~55 MB smaller install. Safe: the ENTIRE @sentry / @opentelemetry
+    // / @fastify/otel subtree reaches the app ONLY via @sentry/electron (verified
+    // with `npm why`), which Bed Ready never loads. The `**/` variants catch the
+    // nested copies electron-builder hoists under intermediate packages.
+    '!node_modules/@sentry/**',
+    '!node_modules/@sentry-internal/**',
+    '!node_modules/@opentelemetry/**',
+    '!node_modules/@fastify/otel/**',
+    '!node_modules/**/@sentry/**',
+    '!node_modules/**/@sentry-internal/**',
+    '!node_modules/**/@opentelemetry/**',
+    '!node_modules/**/@fastify/otel/**',
   ],
 
   // Bed Ready branded icons (spectrum print-bed mark).

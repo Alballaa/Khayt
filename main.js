@@ -1,15 +1,18 @@
 const { app, BrowserWindow, Menu, shell, ipcMain, dialog, safeStorage, clipboard } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { FLAVOR, isBedReady, productName: FLAVOR_NAME } = require('./lib/flavor');
 
 // Crash/error reporting (Sentry). The DSN is publishable, so it's baked in for
 // official builds. Active in PACKAGED installs by default; in dev only when
 // SENTRY_DSN is set (so day-to-day development doesn't flood the project).
 // PII is off and the E2E store is never sent. Init early to catch startup errors.
+// Bed Ready is a separate product and does NOT report to Khayt's Sentry project;
+// the SDK is also excluded from its build (see electron-builder.bedready.js).
 const SENTRY_DSN = process.env.SENTRY_DSN
   || 'https://7b05dbab160d7a1825f5b2fceab06122@o4511599597977600.ingest.de.sentry.io/4511599624126544';
 let sentry = null;
-if (SENTRY_DSN && (app.isPackaged || process.env.SENTRY_DSN)) {
+if (!isBedReady && SENTRY_DSN && (app.isPackaged || process.env.SENTRY_DSN)) {
   try {
     sentry = require('@sentry/electron/main');
     sentry.init({
@@ -46,10 +49,10 @@ const { wrapHubIpc } = require('./lib/ipc-guard');
 const { sanitizeHtmlForFile, redactStatusHtmlClientRow } = require('./lib/status-html');
 const { hashPin: hashPinSalted, verifyPin, isManagedHash } = require('./lib/pin-hash');
 
-// Which product this build is. 'bedready' = the standalone maker app (no business
-// surfaces); anything else = the full Khayt business app. Drives the entry HTML,
-// window branding, and which business-only main-process code gets wired up.
-const { FLAVOR, isBedReady, productName: FLAVOR_NAME } = require('./lib/flavor');
+// FLAVOR / isBedReady / FLAVOR_NAME are resolved at the top of this file (needed
+// before the Sentry block). 'bedready' = the standalone maker app (no business
+// surfaces); anything else = the full Khayt business app. They drive the entry
+// HTML, window branding, and which business-only main-process code gets wired up.
 // Entry document, relative to renderer/. Used BOTH for loadFile and the navigation
 // lock below — they must agree, or in-app reloads of the Bed Ready page get blocked.
 const ENTRY_HTML = isBedReady ? 'bedready.html' : 'index.html';
