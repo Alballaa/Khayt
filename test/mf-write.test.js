@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { meshTo3mf, buildModelXml, trianglesToStl } = require('../lib/mf-write');
-const { analyze, readMembers, extractTriangles } = require('../lib/mf-convert');
+const { analyze, readMembers, extractTriangles, extractTrianglesWithPaint } = require('../lib/mf-convert');
 const { parseStl } = require('../lib/stl-parse');
 
 // A single 10×20×5 triangle (footprint used for the bounds check).
@@ -74,6 +74,29 @@ test('extractTriangles recovers a SPLIT 3MF (geometry in a referenced 3D/Objects
   const tris = extractTriangles(readMembers(buf));
   assert.equal(tris.length, 4, 'recovered all 4 tetrahedron faces across files');
   assert.deepEqual(tris[0], [[0, 0, 0], [10, 0, 0], [0, 10, 0]]);
+});
+
+test('extractTrianglesWithPaint captures per-facet paint codes aligned to triangles', () => {
+  const { writeZip } = require('../lib/zip-write');
+  const model = `<?xml version="1.0"?><model unit="millimeter"><resources>
+    <object id="1" type="model"><mesh>
+      <vertices><vertex x="0" y="0" z="0"/><vertex x="10" y="0" z="0"/><vertex x="0" y="10" z="0"/><vertex x="0" y="0" z="10"/></vertices>
+      <triangles>
+        <triangle v1="0" v2="1" v3="2" paint_color="4"/>
+        <triangle v1="0" v2="1" v3="3"/>
+        <triangle v1="0" v2="2" v3="3" paint_color="8"/>
+        <triangle v1="1" v2="2" v3="3"/>
+      </triangles>
+    </mesh></object></resources><build><item objectid="1"/></build></model>`;
+  const buf = writeZip([
+    { name: '[Content_Types].xml', data: '<?xml version="1.0"?><Types/>' },
+    { name: '3D/3dmodel.model', data: model },
+  ]);
+  const r = extractTrianglesWithPaint(readMembers(buf));
+  assert.equal(r.triangles.length, 4);
+  assert.deepEqual(r.paint, ['4', null, '8', null]);
+  // extractTriangles (no paint) still returns a plain array of the same 4 faces.
+  assert.equal(extractTriangles(readMembers(buf)).length, 4);
 });
 
 test('trianglesToStl writes a binary STL that parses back to the same mesh', () => {

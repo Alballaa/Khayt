@@ -1199,15 +1199,16 @@ ipcMain.handle('hub:printlib-read-bytes', async (_e, fullPath) => {
 // Parse an STL/3MF buffer into a decimated triangle mesh for the in-app 3D viewer.
 // Returns a flat Float32Array (9 floats/triangle) so it clones cheaply over IPC.
 function meshFromBuffer(buf, ext) {
-  let tris = null, colors = [];
+  let tris = null, colors = [], paint = null;
   if (ext === 'stl') {
     const g = require('./lib/stl-parse').parseStl(buf, { keepTriangles: true });
     tris = g && g.triangles;
   } else if (ext === '3mf') {
     const mf = require('./lib/mf-convert');
     const members = mf.readMembers(buf);
-    tris = mf.extractTriangles(members);
     try { colors = (mf.extractFilaments(members) || []).map((f) => f.color).filter(Boolean); } catch (_) { colors = []; }
+    const wp = mf.extractTrianglesWithPaint(members);
+    if (wp && wp.triangles) { tris = wp.triangles; paint = wp.paint; }
   }
   if (!Array.isArray(tris) || !tris.length) {
     // Geometry couldn't be parsed (e.g. an unusual 3MF structure or an oversized model
@@ -1230,7 +1231,25 @@ function meshFromBuffer(buf, ext) {
   }
   const volumeMm3 = Math.abs(vol6) / 6;
   const MAX = 80000;
-  if (tris.length > MAX) { const s = Math.ceil(tris.length / MAX); const out = []; for (let i = 0; i < tris.length; i += s) out.push(tris[i]); tris = out; }
+  if (tris.length > MAX) {
+    const s = Math.ceil(tris.length / MAX); const out = []; const pout = paint ? [] : null;
+    for (let i = 0; i < tris.length; i += s) { out.push(tris[i]); if (pout) pout.push(paint[i]); }
+    tris = out; if (pout) paint = pout;
+  }
+  // True multicolour: if the 3MF carries per-facet paint codes, colour each triangle by its
+  // real painted region (mapped into the model's declared palette) instead of a height ramp.
+  let triColors = null;
+  if (paint && colors.length) {
+    const hx = (h) => { const m = /^#?([0-9a-f]{6})/i.exec(String(h || '')); return m ? [parseInt(m[1].slice(0, 2), 16), parseInt(m[1].slice(2, 4), 16), parseInt(m[1].slice(4, 6), 16)] : [180, 180, 185]; };
+    const distinct = Array.from(new Set(paint.filter((c) => c != null))).sort();
+    if (distinct.length) {
+      const base = hx(colors[0]);
+      const codeColor = {};
+      distinct.forEach((code, i) => { codeColor[code] = hx(colors[(i + 1) % colors.length]); });
+      triColors = new Uint8Array(tris.length * 3);
+      for (let i = 0; i < tris.length; i++) { const c = paint[i] != null ? codeColor[paint[i]] : base; triColors[i * 3] = c[0]; triColors[i * 3 + 1] = c[1]; triColors[i * 3 + 2] = c[2]; }
+    }
+  }
   const verts = new Float32Array(tris.length * 9);
   let bx0 = Infinity, by0 = Infinity, bz0 = Infinity, bx1 = -Infinity, by1 = -Infinity, bz1 = -Infinity, k = 0;
   for (const t of tris) {
@@ -1242,7 +1261,7 @@ function meshFromBuffer(buf, ext) {
       if (p[2] < bz0) bz0 = p[2]; if (p[2] > bz1) bz1 = p[2];
     }
   }
-  return { ok: true, verts, count: tris.length, bbox: { x: bx1 - bx0, y: by1 - by0, z: bz1 - bz0 }, colors, volumeMm3 };
+  return { ok: true, verts, count: tris.length, bbox: { x: bx1 - bx0, y: by1 - by0, z: bz1 - bz0 }, colors, volumeMm3, triColors };
 }
 
 // Mesh for a print file in the vault (STL or 3MF). Confined to the vault, like read-bytes.

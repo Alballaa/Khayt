@@ -195,7 +195,7 @@
     const hint = panel.querySelector('.conv-preview-hint');
     if (mesh && mesh.ok && mesh.verts && mesh.count) {
       const cols = (mesh.colors && mesh.colors.length) ? mesh.colors : (fallbackColors || []);
-      const ctl = mountMeshViewer(canvasEl, { verts: mesh.verts, count: mesh.count, colors: cols });
+      const ctl = mountMeshViewer(canvasEl, { verts: mesh.verts, count: mesh.count, colors: cols, triColors: mesh.triColors });
       if (hint) hint.textContent = t('conv.preview_hint2') || 'Drag · scroll to zoom';
       // Control bar: preset angles, spin, reset, and expand to the big viewer.
       if (!panel.querySelector('.conv-preview-ctrls')) {
@@ -210,7 +210,7 @@
           if (a === 'spin') btn.classList.toggle('on', ctl.toggleSpin());
           else if (a === 'wire') btn.classList.toggle('on', ctl.toggleWire());
           else if (a === 'reset') { ctl.reset(); const s = bar.querySelector('[data-pv="spin"]'); if (s) s.classList.remove('on'); }
-          else if (a === 'expand') { if (typeof openModelViewer === 'function') openModelViewer({ verts: mesh.verts, count: mesh.count, colors: cols, bbox: mesh.bbox, volumeMm3: mesh.volumeMm3, name: '' }); }
+          else if (a === 'expand') { if (typeof openModelViewer === 'function') openModelViewer({ verts: mesh.verts, count: mesh.count, colors: cols, triColors: mesh.triColors, bbox: mesh.bbox, volumeMm3: mesh.volumeMm3, name: '' }); }
           else { ctl.setView(a); const s = bar.querySelector('[data-pv="spin"]'); if (s) s.classList.remove('on'); }
         }));
       }

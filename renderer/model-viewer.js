@@ -45,9 +45,10 @@
     top:   { yaw: -Math.PI / 2, pitch: 1.4 },
   };
 
-  function mountMeshViewer(canvas, { verts, count, colors, bed }) {
+  function mountMeshViewer(canvas, { verts, count, colors, bed, triColors }) {
     const tris = trisFromVerts(verts, count);
     let plate = bed || null;
+    const tcol = (triColors && triColors.length) ? triColors : null;
     // 2× supersampling: back the canvas at twice its display size for crisp, anti-aliased
     // edges — CSS keeps the on-screen size, the browser downsamples.
     const SS = 2;
@@ -67,7 +68,7 @@
       if (dead) return;
       KhaytStlThumb.renderStlThumbnail(tris, {
         size: S, yaw, pitch, zoom, panX, panY, canvasFactory: factory,
-        background: bg, color: col, colorRamp: ramp.length ? ramp : null,
+        background: bg, color: col, colorRamp: ramp.length ? ramp : null, triColors: tcol,
         wireframe: wire && !fast, wireWidth: SS,
         bed: plate ? { x: plate.x, y: plate.y } : null, bedFits: plate ? plate.fits !== false : undefined,
         maxTriangles: fast ? 22000 : 120000,
@@ -118,7 +119,7 @@
     };
   }
 
-  function openModelViewer({ verts, count, bbox, name, colors, volumeMm3 }) {
+  function openModelViewer({ verts, count, bbox, name, colors, volumeMm3, triColors }) {
     if (!verts || !count) { toast('No mesh to show.', 'error'); return; }
     const S = 460;
     const dims = bbox ? `${fmtMm(bbox.x)} × ${fmtMm(bbox.y)} × ${fmtMm(bbox.z)} mm` : '';
@@ -149,7 +150,7 @@
       bodyHtml: body,
       noSave: true,
       onMount(modal) {
-        const ctl = mountMeshViewer(modal.querySelector('#mvCanvas'), { verts, count, colors });
+        const ctl = mountMeshViewer(modal.querySelector('#mvCanvas'), { verts, count, colors, triColors });
         const spinBtn = modal.querySelector('#mvSpin');
         spinBtn.addEventListener('click', () => spinBtn.classList.toggle('on', ctl.toggleSpin()));
         const wireBtn = modal.querySelector('#mvWire');

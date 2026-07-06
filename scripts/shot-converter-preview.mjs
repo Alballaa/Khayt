@@ -143,6 +143,35 @@ async function main() {
   });
   assert(`build-plate grid renders only with a bed (${bedCmp.noBed} → ${bedCmp.withBed})`, bedCmp.noBed < 30 && bedCmp.withBed > 200);
 
+  // 1e) TRUE multicolour: a painted 3MF (per-facet paint_color + a filament palette) →
+  // convertMesh returns per-triangle colours that render the real painted regions.
+  const paintedMf = path.join(dir, 'painted.3mf');
+  const V = [[0,0,0],[20,0,0],[20,20,0],[0,20,0],[0,0,20],[20,0,20],[20,20,20],[0,20,20]];
+  const F = [[0,1,2],[0,2,3],[4,5,6,'4'],[4,6,7,'4'],[0,1,5],[0,5,4],[1,2,6],[1,6,5],[2,3,7],[2,7,6],[3,0,4],[3,4,7]]; // top 2 painted
+  const model = `<?xml version="1.0"?><model unit="millimeter"><resources><object id="1" type="model"><mesh>`
+    + `<vertices>${V.map(([x,y,z]) => `<vertex x="${x}" y="${y}" z="${z}"/>`).join('')}</vertices>`
+    + `<triangles>${F.map((f) => `<triangle v1="${f[0]}" v2="${f[1]}" v3="${f[2]}"${f[3] ? ` paint_color="${f[3]}"` : ''}/>`).join('')}</triangles>`
+    + `</mesh></object></resources><build><item objectid="1"/></build></model>`;
+  fs.writeFileSync(paintedMf, require(path.join(root, 'lib/zip-write.js')).writeZip([
+    { name: '[Content_Types].xml', data: '<?xml version="1.0"?><Types/>' },
+    { name: '3D/3dmodel.model', data: model },
+    { name: 'Metadata/project_settings.config', data: JSON.stringify({ filament_colour: ['#E23030', '#3060E0'] }) },
+  ]));
+  const pm = await w.evaluate(async (p) => {
+    const mesh = await window.hubAPI.convertMesh({ path: p });
+    if (!mesh || !mesh.ok || !mesh.triColors) return { ok: false };
+    const c = document.createElement('canvas'); c.width = c.height = 240;
+    window.mountMeshViewer(c, { verts: mesh.verts, count: mesh.count, triColors: mesh.triColors });
+    const W = c.width; // mountMeshViewer resizes the backing store for supersampling
+    const d = c.getContext('2d').getImageData(0, 0, W, W).data;
+    let red = 0, blue = 0;
+    for (let i = 0; i < d.length; i += 4) { const R = d[i], G = d[i + 1], B = d[i + 2]; if (R + G + B < 40) continue; if (R > B + 25) red++; else if (B > R + 25) blue++; }
+    c.remove();
+    return { ok: true, len: mesh.triColors.length, count: mesh.count, red, blue };
+  }, paintedMf);
+  assert('painted 3MF → per-triangle colours present', pm.ok && pm.len === pm.count * 3);
+  assert(`painted regions render two distinct colours (red=${pm.red} blue=${pm.blue})`, pm.red > 100 && pm.blue > 100);
+
   // 2) full converter modal on the 3MF — preview canvas mounts + hint flips to "Drag to rotate".
   await w.evaluate(() => window.switchTab('converter-tab'));
   await w.waitForTimeout(200);
