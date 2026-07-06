@@ -182,6 +182,7 @@
   "view3d.front": "Ön",
   "view3d.top": "Üst",
   "view3d.side": "Yan",
+  "view3d.wireframe": "Tel kafes",
   "plib.view3d_nofile": "Model dosyası bulunamadı.",
   "plib.view3d_nomesh": "Bu dosyada 3B geometri yok.",  "plib.printed": "yazdırıldı",
   "plib.failed": "başarısız",

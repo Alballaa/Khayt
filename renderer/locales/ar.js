@@ -182,6 +182,7 @@
   "view3d.front": "أمام",
   "view3d.top": "أعلى",
   "view3d.side": "جانب",
+  "view3d.wireframe": "إطار سلكي",
   "plib.view3d_nofile": "لم يُعثر على ملف النموذج.",
   "plib.view3d_nomesh": "لا توجد هندسة ثلاثية الأبعاد في هذا الملف.",  "plib.printed": "طُبع",
   "plib.failed": "فشل",

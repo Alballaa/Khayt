@@ -57,6 +57,7 @@ async function main() {
     const m = await w.evaluate((p) => window.hubAPI.convertMesh({ path: p }), p);
     assert(`convertMesh(${label}) → ok mesh (${m && m.count} tri)`, m && m.ok && m.count === 12);
     assert(`convertMesh(${label}) bbox ≈ 20mm`, m && Math.round(m.bbox.x) === 20 && Math.round(m.bbox.z) === 20);
+    assert(`convertMesh(${label}) volume ≈ 8000 mm³ (20³ cube)`, m && Math.abs(m.volumeMm3 - 8000) < 50);
     const shades = await w.evaluate((mesh) => {
       const c = document.createElement('canvas'); c.width = c.height = 200; document.body.appendChild(c);
       window.mountMeshViewer(c, { verts: mesh.verts, count: mesh.count });

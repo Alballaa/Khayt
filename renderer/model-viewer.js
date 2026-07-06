@@ -54,7 +54,7 @@
     canvas.width = canvas.height = base * SS;
     const S = canvas.width;
     const factory = () => canvas;
-    let yaw = VIEWS.iso.yaw, pitch = VIEWS.iso.pitch, zoom = 1, panX = 0, panY = 0;
+    let yaw = VIEWS.iso.yaw, pitch = VIEWS.iso.pitch, zoom = 1, panX = 0, panY = 0, wire = false;
     let spinning = false, raf = 0, mode = null, lastX = 0, lastY = 0, dead = false;
 
     const cssVar = (n, fb) => (getComputedStyle(document.documentElement).getPropertyValue(n).trim() || fb);
@@ -67,6 +67,7 @@
       KhaytStlThumb.renderStlThumbnail(tris, {
         size: S, yaw, pitch, zoom, panX, panY, canvasFactory: factory,
         background: bg, color: col, colorRamp: ramp.length ? ramp : null,
+        wireframe: wire && !fast, wireWidth: SS,
         maxTriangles: fast ? 22000 : 120000,
       });
     };
@@ -107,16 +108,19 @@
       reset() { stopSpin(); yaw = VIEWS.iso.yaw; pitch = VIEWS.iso.pitch; zoom = 1; panX = 0; panY = 0; draw(false); },
       setView(name) { const v = VIEWS[name] || VIEWS.iso; stopSpin(); yaw = v.yaw; pitch = v.pitch; draw(false); },
       zoomBy(f) { zoom = clamp(zoom * f, 0.3, 8); draw(false); },
+      toggleWire() { wire = !wire; draw(false); return wire; },
       toggleSpin() { if (spinning) { stopSpin(); draw(false); } else { spinning = true; tick(); } return spinning; },
       spinning: () => spinning,
       destroy() { dead = true; stopSpin(); mo.disconnect(); },
     };
   }
 
-  function openModelViewer({ verts, count, bbox, name, colors }) {
+  function openModelViewer({ verts, count, bbox, name, colors, volumeMm3 }) {
     if (!verts || !count) { toast('No mesh to show.', 'error'); return; }
     const S = 460;
     const dims = bbox ? `${fmtMm(bbox.x)} × ${fmtMm(bbox.y)} × ${fmtMm(bbox.z)} mm` : '';
+    const cm3 = volumeMm3 ? volumeMm3 / 1000 : 0;
+    const volStr = cm3 ? ` · ${cm3 < 10 ? cm3.toFixed(2) : cm3.toFixed(1)} cm³ · ~${Math.max(1, Math.round(cm3 * 1.24))} g` : '';
     const viewBtn = (k, lbl) => `<button type="button" class="btn ghost small mv-view" data-view="${k}">${escapeHtml(lbl)}</button>`;
     const body = `
       <div class="mv-wrap">
@@ -128,8 +132,9 @@
           ${viewBtn('iso', t('view3d.iso') || 'Iso')}${viewBtn('front', t('view3d.front') || 'Front')}${viewBtn('top', t('view3d.top') || 'Top')}${viewBtn('side', t('view3d.side') || 'Side')}
         </div>
         <div class="mv-bar">
-          <span class="mv-meta">${escapeHtml(name || '')}${dims ? ` · <b>${escapeHtml(dims)}</b>` : ''} · ${count.toLocaleString()} △</span>
+          <span class="mv-meta">${escapeHtml(name || '')}${dims ? ` · <b>${escapeHtml(dims)}</b>` : ''}${escapeHtml(volStr)} · ${count.toLocaleString()} △</span>
           <span class="mv-btns">
+            <button type="button" class="btn ghost small" id="mvWire">${escapeHtml(t('view3d.wireframe') || 'Wireframe')}</button>
             <button type="button" class="btn ghost small" id="mvSpin">${escapeHtml(t('plib.view3d_spin') || 'Auto-spin')}</button>
             <button type="button" class="btn ghost small" id="mvReset">${escapeHtml(t('plib.view3d_reset') || 'Reset')}</button>
           </span>
@@ -144,6 +149,8 @@
         const ctl = mountMeshViewer(modal.querySelector('#mvCanvas'), { verts, count, colors });
         const spinBtn = modal.querySelector('#mvSpin');
         spinBtn.addEventListener('click', () => spinBtn.classList.toggle('on', ctl.toggleSpin()));
+        const wireBtn = modal.querySelector('#mvWire');
+        wireBtn.addEventListener('click', () => wireBtn.classList.toggle('on', ctl.toggleWire()));
         modal.querySelector('#mvReset').addEventListener('click', () => { ctl.reset(); spinBtn.classList.remove('on'); });
         modal.querySelectorAll('.mv-view').forEach((b) => b.addEventListener('click', () => { ctl.setView(b.dataset.view); spinBtn.classList.remove('on'); }));
       },

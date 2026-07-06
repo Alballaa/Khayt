@@ -182,6 +182,7 @@
   "view3d.front": "Vorn",
   "view3d.top": "Oben",
   "view3d.side": "Seite",
+  "view3d.wireframe": "Drahtgitter",
   "plib.view3d_nofile": "Modelldatei nicht gefunden.",
   "plib.view3d_nomesh": "Keine 3D-Geometrie in dieser Datei.",  "plib.printed": "gedruckt",
   "plib.failed": "fehlgeschlagen",

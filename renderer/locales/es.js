@@ -182,6 +182,7 @@
   "view3d.front": "Frente",
   "view3d.top": "Arriba",
   "view3d.side": "Lado",
+  "view3d.wireframe": "Malla",
   "plib.view3d_nofile": "Archivo del modelo no encontrado.",
   "plib.view3d_nomesh": "Sin geometría 3D en ese archivo.",  "plib.printed": "impreso",
   "plib.failed": "fallido",

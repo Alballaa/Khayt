@@ -203,13 +203,14 @@
         bar.className = 'conv-preview-ctrls';
         const b = (act, lbl, cls) => `<button type="button" class="btn ghost small${cls || ''}" data-pv="${act}">${escapeHtml(lbl)}</button>`;
         bar.innerHTML = b('iso', t('view3d.iso') || 'Iso') + b('front', t('view3d.front') || 'Front') + b('top', t('view3d.top') || 'Top') + b('side', t('view3d.side') || 'Side')
-          + `<span class="conv-preview-sp"></span>` + b('spin', '↻', ' pv-icon') + b('reset', '⤾', ' pv-icon') + b('expand', '⤢', ' pv-icon');
+          + `<span class="conv-preview-sp"></span>` + b('wire', '▦', ' pv-icon') + b('spin', '↻', ' pv-icon') + b('reset', '⤾', ' pv-icon') + b('expand', '⤢', ' pv-icon');
         panel.appendChild(bar);
         bar.querySelectorAll('[data-pv]').forEach((btn) => btn.addEventListener('click', () => {
           const a = btn.dataset.pv;
           if (a === 'spin') btn.classList.toggle('on', ctl.toggleSpin());
+          else if (a === 'wire') btn.classList.toggle('on', ctl.toggleWire());
           else if (a === 'reset') { ctl.reset(); const s = bar.querySelector('[data-pv="spin"]'); if (s) s.classList.remove('on'); }
-          else if (a === 'expand') { if (typeof openModelViewer === 'function') openModelViewer({ verts: mesh.verts, count: mesh.count, colors: cols, bbox: mesh.bbox, name: '' }); }
+          else if (a === 'expand') { if (typeof openModelViewer === 'function') openModelViewer({ verts: mesh.verts, count: mesh.count, colors: cols, bbox: mesh.bbox, volumeMm3: mesh.volumeMm3, name: '' }); }
           else { ctl.setView(a); const s = bar.querySelector('[data-pv="spin"]'); if (s) s.classList.remove('on'); }
         }));
       }

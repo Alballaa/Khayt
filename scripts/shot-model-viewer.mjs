@@ -114,6 +114,13 @@ async function main() {
   await w.waitForTimeout(200);
   assert('supersampled backing store (2×)', await w.evaluate(() => document.querySelector('#mvCanvas').width >= 900));
 
+  // Wireframe overlay toggles the rendering.
+  const sWire0 = await sample();
+  await w.evaluate(() => document.querySelector('#mvWire').click());
+  await w.waitForTimeout(200);
+  assert('wireframe toggle engaged', await w.evaluate(() => document.querySelector('#mvWire').classList.contains('on')));
+  assert('wireframe changed the image', (await sample()).sum !== sWire0.sum);
+
   assert('no renderer errors', errs.length === 0);
   if (errs.length) console.log(errs);
   await app.close();

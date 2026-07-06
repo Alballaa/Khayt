@@ -182,6 +182,7 @@
   "view3d.front": "Front",
   "view3d.top": "Top",
   "view3d.side": "Side",
+  "view3d.wireframe": "Wireframe",
   "plib.view3d_nofile": "Model file not found.",
   "plib.view3d_nomesh": "No 3D geometry in that file.",  "plib.printed": "printed",
   "plib.failed": "failed",

@@ -182,6 +182,7 @@
   "view3d.front": "正面",
   "view3d.top": "顶部",
   "view3d.side": "侧面",
+  "view3d.wireframe": "线框",
   "plib.view3d_nofile": "未找到模型文件。",
   "plib.view3d_nomesh": "该文件中没有 3D 几何。",  "plib.printed": "已打印",
   "plib.failed": "失败",

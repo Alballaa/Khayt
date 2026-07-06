@@ -1221,6 +1221,14 @@ function meshFromBuffer(buf, ext) {
     }
     return { ok: false, error: 'no-geometry' };
   }
+  // Solid volume via signed tetrahedra — computed from the FULL mesh (before decimation).
+  let vol6 = 0;
+  for (const t of tris) {
+    const a = t[0], b = t[1], c = t[2];
+    if (!a || !b || !c) continue;
+    vol6 += a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0]) + a[2] * (b[0] * c[1] - b[1] * c[0]);
+  }
+  const volumeMm3 = Math.abs(vol6) / 6;
   const MAX = 80000;
   if (tris.length > MAX) { const s = Math.ceil(tris.length / MAX); const out = []; for (let i = 0; i < tris.length; i += s) out.push(tris[i]); tris = out; }
   const verts = new Float32Array(tris.length * 9);
@@ -1234,7 +1242,7 @@ function meshFromBuffer(buf, ext) {
       if (p[2] < bz0) bz0 = p[2]; if (p[2] > bz1) bz1 = p[2];
     }
   }
-  return { ok: true, verts, count: tris.length, bbox: { x: bx1 - bx0, y: by1 - by0, z: bz1 - bz0 }, colors };
+  return { ok: true, verts, count: tris.length, bbox: { x: bx1 - bx0, y: by1 - by0, z: bz1 - bz0 }, colors, volumeMm3 };
 }
 
 // Mesh for a print file in the vault (STL or 3MF). Confined to the vault, like read-bytes.

@@ -182,6 +182,7 @@
   "view3d.front": "Face",
   "view3d.top": "Dessus",
   "view3d.side": "Côté",
+  "view3d.wireframe": "Filaire",
   "plib.view3d_nofile": "Fichier du modèle introuvable.",
   "plib.view3d_nomesh": "Aucune géométrie 3D dans ce fichier.",  "plib.printed": "imprimé",
   "plib.failed": "échoué",

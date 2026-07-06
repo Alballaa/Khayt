@@ -182,6 +182,7 @@
   "view3d.front": "正面",
   "view3d.top": "上",
   "view3d.side": "側面",
+  "view3d.wireframe": "ワイヤーフレーム",
   "plib.view3d_nofile": "モデルファイルが見つかりません。",
   "plib.view3d_nomesh": "このファイルに3D形状がありません。",  "plib.printed": "印刷済み",
   "plib.failed": "失敗",
