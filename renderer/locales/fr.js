@@ -29,6 +29,7 @@
   "conv.fil_generic": "Générique (auto)",
   "conv.fil_hint": "Choisissez le filament chargé dans chaque emplacement (bibliothèque Snapmaker Orca) :",
   "conv.fil_none": "Installez Snapmaker Orca pour choisir des filaments ; sinon Générique par défaut.",
+  "conv.print_quality": "Qualité d’impression",
   "conv.my_printers": "Mes imprimantes",
   "conv.add_printer": "Ajouter une imprimante",
   "conv.cp_name": "Nom",

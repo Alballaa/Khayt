@@ -29,6 +29,7 @@
   "conv.fil_generic": "汎用（自動）",
   "conv.fil_hint": "各スロットに入っているフィラメントを選択（Snapmaker Orca ライブラリから）:",
   "conv.fil_none": "Snapmaker Orca をインストールすると個別に選べます。既定は汎用です。",
+  "conv.print_quality": "印刷品質",
   "conv.my_printers": "マイプリンター",
   "conv.add_printer": "プリンターを追加",
   "conv.cp_name": "名前",

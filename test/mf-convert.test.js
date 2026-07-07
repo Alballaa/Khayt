@@ -280,3 +280,23 @@ test('Snapmaker U1: filament presets default to Generic <type>; per-slot picks o
   assert.equal(picked.filament_settings_id[0], 'Snapmaker PLA Matte @U1');
   assert.equal(picked.filament_settings_id[1], 'Generic PETG');
 });
+
+test('Snapmaker U1: overlays native machine + process settings when the slicer DB is present', () => {
+  const orca = require('../lib/orca-db');
+  if (!orca.available() || !orca.listU1Processes().length) return; // no installed slicer → skip
+  const proj = JSON.stringify({
+    printer_model: 'X1C', gcode_flavor: 'marlin', nozzle_diameter: ['0.4'],
+    filament_colour: ['#FF0000', '#00FF00'], filament_type: ['PLA', 'PLA'],
+    machine_start_gcode: 'BAMBU_START',
+  });
+  const src = writeZip([
+    { name: '3D/3dmodel.model', data: MODEL },
+    { name: 'Metadata/project_settings.config', data: proj },
+  ]);
+  const r = convert(src, { targetId: 'snapmaker-u1' });
+  const out = JSON.parse(openZip(r.buffer).file('Metadata/project_settings.config').toString('utf8'));
+  assert.equal(r.report.u1Native, true);
+  assert.notEqual(out.machine_start_gcode, 'BAMBU_START'); // replaced with the U1's own G-code
+  assert.match(String(out.print_settings_id), /@Snapmaker U1/i);
+  assert.equal(out.printer_settings_id, 'Snapmaker U1 (0.4 nozzle)');
+});

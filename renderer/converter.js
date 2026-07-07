@@ -387,13 +387,17 @@
         const filWrap = modal.querySelector('#convFilamentWrap');
         let fsEnabled = false, fsPlanData = null;
 
-        // Filament presets from the maker's installed Snapmaker Orca (loaded once, lazily).
-        let orcaFilaments = null, orcaLoaded = false, filPicks = {};
+        // Filament + process presets from the maker's installed Snapmaker Orca (loaded once, lazily).
+        let orcaFilaments = null, orcaProcesses = [], procPick = null, orcaLoaded = false, filPicks = {};
         async function ensureOrcaFilaments() {
           if (orcaLoaded) return;
           orcaLoaded = true;
-          try { const r = await hub().orcaFilaments(); orcaFilaments = (r && r.available && r.filaments) ? r.filaments : []; }
-          catch (_) { orcaFilaments = []; }
+          try {
+            const r = await hub().orcaFilaments();
+            orcaFilaments = (r && r.available && r.filaments) ? r.filaments : [];
+            orcaProcesses = (r && r.available && r.processes) ? r.processes : [];
+            procPick = (r && r.defaultProcess) || null;
+          } catch (_) { orcaFilaments = []; orcaProcesses = []; }
           paintFilaments();
         }
 
@@ -426,7 +430,12 @@
           const rows = Array.from({ length: slotCount }, (_, i) =>
             `<label class="conv-fil-row"><span class="conv-fil-slot">${swatch(slotHex(i), 16)} ${escapeHtml((t('conv.slot') || 'Slot') + ' ' + (i + 1))}</span>
               <select class="conv-fil-sel" data-slot="${i}"${(orcaFilaments && orcaFilaments.length) ? '' : ' disabled'}>${optionsFor(filPicks[i] && filPicks[i].name)}</select></label>`).join('');
-          filWrap.innerHTML = `<div class="conv-fil"><div class="conv-fil-head">${escapeHtml(dbNote)}</div>${rows}</div>`;
+          // Print-quality (process) preset — its layer height etc. become the file's U1-native settings.
+          const procRow = (orcaProcesses && orcaProcesses.length) ? `
+            <label class="conv-fil-row"><span class="conv-fil-slot">${escapeHtml(t('conv.print_quality') || 'Print quality')}</span>
+              <select class="conv-proc-sel">${orcaProcesses.map((p) =>
+                `<option value="${escapeHtml(p.name)}"${procPick === p.name ? ' selected' : ''}>${escapeHtml(p.name.replace(/ @Snapmaker U1.*/i, ''))}${p.layer ? ` (${escapeHtml(p.layer)} mm)` : ''}</option>`).join('')}</select></label>` : '';
+          filWrap.innerHTML = `<div class="conv-fil"><div class="conv-fil-head">${escapeHtml(dbNote)}</div>${rows}${procRow}</div>`;
           Array.from(filWrap.querySelectorAll('.conv-fil-sel')).forEach((sel) => {
             sel.onchange = () => {
               const i = parseInt(sel.dataset.slot, 10);
@@ -434,8 +443,11 @@
               filPicks[i] = sel.value ? { name: sel.value, type: opt.dataset.type || 'PLA' } : null;
             };
           });
+          const procSel = filWrap.querySelector('.conv-proc-sel');
+          if (procSel) procSel.onchange = () => { procPick = procSel.value || null; };
         }
         modal._filPicks = () => filPicks;
+        modal._procPick = () => procPick;
 
         // Ask the main process to plan the physical heads + mixes for the current target.
         async function loadFsPlan() {
@@ -580,7 +592,8 @@
           const filaments = Object.keys(picksMap).length
             ? Array.from({ length: Math.max(...Object.keys(picksMap).map((k) => +k + 1)) }, (_, i) => picksMap[i] || null)
             : null;
-          r = await hub().mfConvert({ path: src.path, targetId, mode, slotMap, intoVaultId, targetProfile, fullSpectrum: fsOn, filaments });
+          const process = (typeof modal._procPick === 'function') ? modal._procPick() : null;
+          r = await hub().mfConvert({ path: src.path, targetId, mode, slotMap, intoVaultId, targetProfile, fullSpectrum: fsOn, filaments, process });
         } catch (e) { toast(String((e && e.message) || e), 'error'); if (btn) { btn.disabled = false; } return false; }
         if (r && r.canceled) { if (btn) { btn.disabled = false; btn.textContent = t('conv.convert') || 'Convert & save…'; } return false; }
         if (!r || !r.ok) { toast((r && r.error) || (t('conv.failed') || 'Conversion failed.'), 'error'); if (btn) { btn.disabled = false; } return false; }

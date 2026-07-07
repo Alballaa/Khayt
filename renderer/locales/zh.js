@@ -29,6 +29,7 @@
   "conv.fil_generic": "通用（自动）",
   "conv.fil_hint": "选择每个槽位装载的耗材（来自你的 Snapmaker Orca 库）：",
   "conv.fil_none": "安装 Snapmaker Orca 可选择具体耗材；槽位默认使用通用。",
+  "conv.print_quality": "打印质量",
   "conv.my_printers": "我的打印机",
   "conv.add_printer": "添加打印机",
   "conv.cp_name": "名称",

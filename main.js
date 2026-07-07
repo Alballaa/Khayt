@@ -1382,12 +1382,12 @@ ipcMain.handle('hub:convert-mesh', async (_e, { path: srcPath } = {}) => {
   } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
 });
 
-ipcMain.handle('hub:mf-convert', async (_e, { path: srcPath, targetId, mode, slotMap, outPath, intoVaultId, targetProfile, fullSpectrum, fsPhysical, fsPhysicalHex, filaments } = {}) => {
+ipcMain.handle('hub:mf-convert', async (_e, { path: srcPath, targetId, mode, slotMap, outPath, intoVaultId, targetProfile, fullSpectrum, fsPhysical, fsPhysicalHex, filaments, process } = {}) => {
   try {
     if (!srcPath || !mfReadAllowed(srcPath)) return { ok: false, error: 'Source file is outside an allowed folder.' };
     const buf = await fs.promises.readFile(path.resolve(String(srcPath)));
     if (buf.length > MF_MAX_BYTES) return { ok: false, error: 'File is too large.' };
-    const r = require('./lib/mf-convert').convert(buf, { targetId, mode, slotMap, targetProfile, fullSpectrum, fsPhysical, fsPhysicalHex, filaments });
+    const r = require('./lib/mf-convert').convert(buf, { targetId, mode, slotMap, targetProfile, fullSpectrum, fsPhysical, fsPhysicalHex, filaments, process });
     if (!r.ok) return r;
 
     // In-app destination: write the converted 3MF straight into a print-file
@@ -1423,8 +1423,11 @@ ipcMain.handle('hub:mf-convert', async (_e, { path: srcPath, targetId, mode, slo
 // Filament presets from the maker's installed Snapmaker Orca / OrcaSlicer, for the converter's
 // per-slot "what's loaded" picker. Empty list → the converter falls back to "Generic <type>".
 ipcMain.handle('hub:orca-filaments', async () => {
-  try { const db = require('./lib/orca-db'); return { ok: true, available: db.available(), filaments: db.listU1Filaments() }; }
-  catch (e) { return { ok: false, available: false, filaments: [], error: String((e && e.message) || e) }; }
+  try {
+    const db = require('./lib/orca-db');
+    return { ok: true, available: db.available(), filaments: db.listU1Filaments(),
+      processes: db.listU1Processes(), defaultProcess: db.defaultU1Process() };
+  } catch (e) { return { ok: false, available: false, filaments: [], processes: [], error: String((e && e.message) || e) }; }
 });
 
 // Full Spectrum plan preview: which filaments load physically + how the extra colours are mixed.
