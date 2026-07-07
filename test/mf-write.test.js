@@ -136,6 +136,28 @@ test('extractTriangles falls back to raw meshes when the build graph resolves to
   assert.deepEqual(tris[0], [[0, 0, 0], [10, 0, 0], [0, 10, 0]]);
 });
 
+test('extractTriangles parses scientific-notation and single-quoted vertices', () => {
+  const { writeZip } = require('../lib/zip-write');
+  // Negative exponents (1.5e-3) and single quotes — a CAD exporter dialect that used to make
+  // every vertex fail to parse, collapsing the whole mesh to the "no geometry" fallback.
+  const model = `<?xml version="1.0"?><model unit="millimeter"><resources>
+    <object id="1" type="model"><mesh>
+      <vertices>
+        <vertex x='0' y='0' z='0'/>
+        <vertex x="1.0e1" y="0" z="0"/>
+        <vertex x="0" y="2.5e-1" z="-3.0E-2"/>
+      </vertices>
+      <triangles><triangle v1='0' v2='1' v3='2'/></triangles>
+    </mesh></object></resources><build><item objectid="1"/></build></model>`;
+  const buf = writeZip([
+    { name: '[Content_Types].xml', data: '<?xml version="1.0"?><Types/>' },
+    { name: '3D/3dmodel.model', data: model },
+  ]);
+  const tris = extractTriangles(readMembers(buf));
+  assert.equal(tris.length, 1, 'the facet survives — its vertices all parsed');
+  assert.deepEqual(tris[0], [[0, 0, 0], [10, 0, 0], [0, 0.25, -0.03]]);
+});
+
 test('extractPlates + per-triangle object ids power a multi-plate preview', () => {
   const { writeZip } = require('../lib/zip-write');
   // Two objects, both built; a Bambu-style model_settings.config assigns each to its own plate.

@@ -1222,13 +1222,23 @@ function meshFromBuffer(buf, ext) {
     // Geometry couldn't be parsed (e.g. an unusual 3MF structure or an oversized model
     // file) — fall back to the slicer's own embedded plate thumbnail so the preview still
     // shows the model. Every mainstream slicer bakes one in.
+    let diag = '';
     if (ext === '3mf') {
+      // Diagnostic counts so a genuine parse failure is debuggable rather than opaque:
+      // vertices/triangles > 0 but no mesh means a resolution bug; 0 means an unread format.
+      try {
+        const mf = require('./lib/mf-convert');
+        const texts = mf.readMembers(buf).filter((m) => /\.model$/i.test(m.name)).map((m) => m.data.toString('utf8'));
+        const joined = texts.join('');
+        const n = (re) => (joined.match(re) || []).length;
+        diag = ` (models:${texts.length} objects:${n(/<object\b/gi)} vertices:${n(/<vertex\b/gi)} triangles:${n(/<triangle\b/gi)})`;
+      } catch (_) { /* diagnostics best-effort */ }
       try {
         const th = extractPrintThumb({ ext, buf });
-        if (th && th.pngBase64) return { ok: false, error: 'no-geometry', thumb: 'data:image/png;base64,' + th.pngBase64 };
+        if (th && th.pngBase64) return { ok: false, error: 'no-geometry' + diag, thumb: 'data:image/png;base64,' + th.pngBase64 };
       } catch (_) { /* no thumbnail either */ }
     }
-    return { ok: false, error: 'no-geometry' };
+    return { ok: false, error: 'no-geometry' + diag };
   }
   // Solid volume via signed tetrahedra — computed from the FULL mesh (before decimation).
   let vol6 = 0;
