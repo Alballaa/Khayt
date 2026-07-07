@@ -30,6 +30,8 @@
   "conv.fil_hint": "Pick the filament loaded in each slot (from your Snapmaker Orca library):",
   "conv.fil_none": "Install Snapmaker Orca to pick specific filaments; slots default to Generic.",
   "conv.print_quality": "Print quality",
+  "conv.slicer_catalogue": "— Installed-slicer printers —",
+  "conv.printer_loading": "Reading printer profile…",
   "conv.my_printers": "My printers",
   "conv.add_printer": "Add a printer",
   "conv.cp_name": "Name",

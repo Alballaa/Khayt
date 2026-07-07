@@ -1430,6 +1430,22 @@ ipcMain.handle('hub:orca-filaments', async () => {
   } catch (e) { return { ok: false, available: false, filaments: [], processes: [], error: String((e && e.message) || e) }; }
 });
 
+// The maker's installed-slicer printer catalogue (Snapmaker Orca + OrcaSlicer), for the converter's
+// "target any printer" list. Names only — cheap; details resolved on selection via hub:orca-machine-info.
+ipcMain.handle('hub:orca-printers', async () => {
+  try { const db = require('./lib/orca-db'); return { ok: true, available: db.available(), printers: db.listMachines() }; }
+  catch (e) { return { ok: false, available: false, printers: [], error: String((e && e.message) || e) }; }
+});
+
+// Resolved details (bed, nozzle, colour slots, process presets) for one catalogue printer.
+ipcMain.handle('hub:orca-machine-info', async (_e, { name } = {}) => {
+  try {
+    const db = require('./lib/orca-db');
+    const n = String(name || '');
+    return { ok: true, info: db.machineInfo(n), processes: db.listProcessesFor(n), defaultProcess: db.defaultProcessFor(n) };
+  } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
+});
+
 // Full Spectrum plan preview: which filaments load physically + how the extra colours are mixed.
 ipcMain.handle('hub:fs-plan', async (_e, { path: srcPath, targetId, targetProfile, fsPhysical, fsPhysicalHex } = {}) => {
   try {

@@ -30,6 +30,8 @@
   "conv.fil_hint": "选择每个槽位装载的耗材（来自你的 Snapmaker Orca 库）：",
   "conv.fil_none": "安装 Snapmaker Orca 可选择具体耗材；槽位默认使用通用。",
   "conv.print_quality": "打印质量",
+  "conv.slicer_catalogue": "— 已安装切片软件的打印机 —",
+  "conv.printer_loading": "正在读取打印机配置…",
   "conv.my_printers": "我的打印机",
   "conv.add_printer": "添加打印机",
   "conv.cp_name": "名称",

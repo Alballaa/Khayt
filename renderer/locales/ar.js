@@ -30,6 +30,8 @@
   "conv.fil_hint": "اختر الخيط المُحمّل في كل فتحة (من مكتبة Snapmaker Orca):",
   "conv.fil_none": "ثبّت Snapmaker Orca لاختيار خيوط محددة؛ تكون الفتحات عامة افتراضيًا.",
   "conv.print_quality": "جودة الطباعة",
+  "conv.slicer_catalogue": "— طابعات المُقطِّع المثبَّتة —",
+  "conv.printer_loading": "جارٍ قراءة ملف الطابعة…",
   "conv.my_printers": "طابعاتي",
   "conv.add_printer": "إضافة طابعة",
   "conv.cp_name": "الاسم",

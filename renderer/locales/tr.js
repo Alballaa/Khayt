@@ -30,6 +30,8 @@
   "conv.fil_hint": "Her yuvaya yüklü filamenti seçin (Snapmaker Orca kitaplığınızdan):",
   "conv.fil_none": "Belirli filament seçmek için Snapmaker Orca kurun; yuvalar varsayılan olarak Genel.",
   "conv.print_quality": "Baskı kalitesi",
+  "conv.slicer_catalogue": "— Kurulu dilimleyici yazıcıları —",
+  "conv.printer_loading": "Yazıcı profili okunuyor…",
   "conv.my_printers": "Yazıcılarım",
   "conv.add_printer": "Yazıcı ekle",
   "conv.cp_name": "Ad",

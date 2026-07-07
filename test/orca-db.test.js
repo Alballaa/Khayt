@@ -31,3 +31,16 @@ test('orca-db: resolves U1 machine + process (or no-ops when no slicer)', () => 
     assert.ok(Object.keys(db.u1ProcessSettings(def)).length > 0);
   }
 });
+
+test('orca-db: listMachines + machineInfo (or empty when no slicer)', () => {
+  const machines = db.listMachines();
+  assert.ok(Array.isArray(machines));
+  for (const m of machines.slice(0, 20)) { assert.equal(typeof m.name, 'string'); assert.equal(typeof m.vendor, 'string'); }
+  if (db.available() && machines.length) {
+    const info = db.machineInfo(machines[0].name);
+    assert.ok(info && typeof info === 'object');
+    assert.equal(info.name, machines[0].name);
+    assert.ok(info.colors >= 1);
+  }
+  assert.equal(db.machineInfo('definitely not a real printer xyz'), null);
+});

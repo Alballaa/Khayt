@@ -30,6 +30,8 @@
   "conv.fil_hint": "Wähle das Filament in jedem Slot (aus deiner Snapmaker-Orca-Bibliothek):",
   "conv.fil_none": "Installiere Snapmaker Orca, um Filamente zu wählen; Slots sind sonst generisch.",
   "conv.print_quality": "Druckqualität",
+  "conv.slicer_catalogue": "— Drucker aus installiertem Slicer —",
+  "conv.printer_loading": "Druckerprofil wird gelesen…",
   "conv.my_printers": "Meine Drucker",
   "conv.add_printer": "Drucker hinzufügen",
   "conv.cp_name": "Name",

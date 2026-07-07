@@ -99,6 +99,8 @@ contextBridge.exposeInMainWorld('hubAPI', {
   mfConvert:  (opts)  => ipcRenderer.invoke('hub:mf-convert', opts),
   fsPlan:     (opts)  => ipcRenderer.invoke('hub:fs-plan', opts),
   orcaFilaments: ()   => ipcRenderer.invoke('hub:orca-filaments'),
+  orcaPrinters:  ()   => ipcRenderer.invoke('hub:orca-printers'),
+  orcaMachineInfo: (name) => ipcRenderer.invoke('hub:orca-machine-info', { name }),
   stlPick:    ()      => ipcRenderer.invoke('hub:stl-pick'),
   stlTo3mf:   (opts)  => ipcRenderer.invoke('hub:stl-to-3mf', opts),
   mfToStl:    (opts)  => ipcRenderer.invoke('hub:mf-to-stl', opts),

@@ -23,8 +23,18 @@
   function customPrinters() {
     return (typeof settings !== 'undefined' && Array.isArray(settings.customPrinters)) ? settings.customPrinters : [];
   }
+  // Printers from the maker's installed slicer catalogue (Snapmaker Orca + OrcaSlicer). Names loaded
+  // once when the converter opens; each printer's full profile (bed, slots, native machine) is resolved
+  // lazily the first time it's selected and cached under its "orca:<name>" id.
+  let _orcaPrinters = null;      // [{ name, vendor }] or null until loaded
+  const _orcaProfileCache = {};  // machineName → normalized profile
+  function orcaIdFor(name) { return 'orca:' + name; }
+  function isOrcaId(id) { return typeof id === 'string' && id.indexOf('orca:') === 0; }
+  function orcaNameFromId(id) { return isOrcaId(id) ? id.slice(5) : null; }
+
   // All selectable targets: user printers first, then the built-in registry, then Generic.
   function getProfileById(id) {
+    if (isOrcaId(id)) return _orcaProfileCache[orcaNameFromId(id)] || null;
     const c = customPrinters().find((p) => p.id === id);
     if (c) return c;
     const P = profiles();
@@ -107,6 +117,16 @@
     for (const p of P.listProfiles()) { if (compatibleWith(sourceFlavour, p)) (byVendor[p.vendor] = byVendor[p.vendor] || []).push(p); }
     html += Object.keys(byVendor).map((vendor) =>
       `<optgroup label="${escapeHtml(vendor)}">${byVendor[vendor].map(opt).join('')}</optgroup>`).join('');
+    // Full installed-slicer catalogue (thousands of printers, grouped by vendor). Selecting one builds a
+    // native config from that printer's own profile. Shown only once the catalogue has loaded.
+    if (Array.isArray(_orcaPrinters) && _orcaPrinters.length) {
+      const byV = {};
+      for (const p of _orcaPrinters) (byV[p.vendor] = byV[p.vendor] || []).push(p);
+      const catOpt = (p) => `<option value="${escapeHtml(orcaIdFor(p.name))}"${orcaIdFor(p.name) === selectedId ? ' selected' : ''}>${escapeHtml(p.name)}</option>`;
+      html += `<optgroup label="${escapeHtml(t('conv.slicer_catalogue') || '— Installed-slicer printers —')}"></optgroup>`;
+      html += Object.keys(byV).sort().map((vendor) =>
+        `<optgroup label="${escapeHtml(vendor)}">${byV[vendor].map(catOpt).join('')}</optgroup>`).join('');
+    }
     const g = P.GENERIC;
     html += `<optgroup label="${escapeHtml(t('conv.other') || 'Other')}"><option value="${escapeHtml(g.id)}"${g.id === selectedId ? ' selected' : ''}>${escapeHtml(t('conv.normalize_opt') || 'Generic 3MF (strip vendor lock)')}</option></optgroup>`;
     // Printers from other ecosystems: still selectable, but produced as a Generic 3MF you open
@@ -407,7 +427,10 @@
         function paintFilaments() {
           if (!filWrap) return;
           const p = getProfileById(targetId);
-          const isOrca = p && p.flavour === 'orca' && !isCrossEcosystem(a.flavour, targetId);
+          // The curated filament list + print-quality presets are the Snapmaker U1's; other catalogue
+          // printers still convert natively (their default process + Generic filaments), just without this
+          // picker. Gate to the built-in U1 so we never show U1 filament names for a different printer.
+          const isOrca = p && p.id === 'snapmaker-u1' && !isCrossEcosystem(a.flavour, targetId);
           if (!isOrca) { filWrap.innerHTML = ''; return; }
           if (orcaFilaments == null) { ensureOrcaFilaments(); filWrap.innerHTML = `<div class="conv-fs-loading">${escapeHtml(t('conv.fil_loading') || 'Reading your slicer’s filament list…')}</div>`; return; }
           // Slots = the physical heads (FS) or the mapped colours, capped at the target's slot count.
@@ -526,7 +549,43 @@
           applyBed();
           return asGeneric;
         };
-        if (sel) sel.onchange = () => { targetId = sel.value; renderForTarget(); };
+        // Resolve a catalogue printer's full profile (bed, slots, native machine) the first time it's
+        // picked, caching it under its orca:<name> id, then render for it.
+        async function ensureOrcaProfile(id) {
+          const name = orcaNameFromId(id);
+          if (!name || _orcaProfileCache[name]) return;
+          try {
+            const r = await hub().orcaMachineInfo(name);
+            if (r && r.ok && r.info) {
+              const info = r.info;
+              _orcaProfileCache[name] = {
+                id, name: info.printerModel || name, vendor: ((_orcaPrinters || []).find((p) => p.name === name) || {}).vendor || '',
+                flavour: 'orca', bed: info.bed, nozzle: info.nozzle, maxColors: info.colors,
+                orcaMachine: name, printableArea: info.printableArea, printableHeight: info.printableHeight,
+                printerModel: info.printerModel, printerSettingsId: name,
+                process: r.defaultProcess || info.defaultProcess || null,
+                system: info.colors > 1 ? info.colors + '-colour' : '', fromOrca: true,
+              };
+            }
+          } catch (_) { /* best-effort */ }
+        }
+        if (sel) sel.onchange = async () => {
+          targetId = sel.value;
+          if (isOrcaId(targetId) && !getProfileById(targetId)) {
+            if (chg) chg.innerHTML = `<div class="conv-fs-loading">${escapeHtml(t('conv.printer_loading') || 'Reading printer profile…')}</div>`;
+            await ensureOrcaProfile(targetId);
+          }
+          renderForTarget();
+        };
+        // Load the installed-slicer printer catalogue, then fold it into the target dropdown.
+        if (hub().orcaPrinters) {
+          hub().orcaPrinters().then((r) => {
+            if (r && r.available && Array.isArray(r.printers) && r.printers.length) {
+              _orcaPrinters = r.printers;
+              if (sel) sel.innerHTML = targetOptions(targetId, a.flavour);
+            }
+          }).catch(() => {});
+        }
         paintFs();
         paintFilaments();
 
@@ -576,7 +635,8 @@
         }
         const dest = (modal.querySelector('input[name="convDest"]:checked') || {}).value || 'library';
         const mode = isGeneric ? 'normalize' : 'retarget';
-        const targetProfile = isCustomId(targetId) ? getProfileById(targetId) : null;
+        // Custom printers AND installed-slicer catalogue printers convert via an explicit targetProfile.
+        const targetProfile = (isCustomId(targetId) || isOrcaId(targetId)) ? getProfileById(targetId) : null;
         const targetName = (getProfileById(targetId) && getProfileById(targetId).name)
           || (isGeneric ? (t('conv.normalize_opt') || 'Generic 3MF') : targetId);
         const intoVaultId = dest === 'folder'
