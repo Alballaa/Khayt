@@ -803,8 +803,8 @@ function openBedReadyHelp(initial) {
           <li><b>Convert / retarget</b> it to the printer you actually own, if it was made for a different one.</li>
           <li><b>Open it in your slicer</b> to slice and print. Bed Ready can launch your slicer for you.</li>
         </ul>
-        <h4>Simple vs. Pro</h4>
-        <p>Use the mode switch to show just the essentials (Simple) or the full maker toolset — inventory, costing, queue (Pro). Nothing is deleted when you switch; it only changes what’s on screen.</p>
+        <h4>The full maker toolset</h4>
+        <p>Bed Ready shows the complete maker toolset — library, 3D preview, converter, inventory, costing, and a print queue — all in one place. Use what you need; ignore the rest.</p>
       </div>` },
     { id: 'convert', label: '3MF Converter', html: `
       <div class="help-section">
@@ -839,7 +839,7 @@ function openBedReadyHelp(initial) {
         <p>Every <code>.3mf</code>/<code>.stl</code> gets an interactive 3D preview — drag to orbit, scroll to zoom. Multi-plate files show a plate picker, and you can recolour swatches live to see how a colour change looks.</p>
         <h4>Print-file library</h4>
         <p>Keep your models with notes, tags, the slicer profile you use, and any converted versions, so you always find the right file fast.</p>
-        <h4>Inventory &amp; costing (Pro)</h4>
+        <h4>Inventory &amp; costing</h4>
         <p>Track filament spools and get a per-print cost estimate. The converter can even hint the nearest colour you have in stock for each slot.</p>
       </div>` },
     { id: 'data', label: 'Your data &amp; privacy', html: `

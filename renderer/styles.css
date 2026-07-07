@@ -3728,6 +3728,8 @@ body.mode-enthusiast .biz-only { display: none !important; }
 .conv-fs-mixes { display: flex; flex-direction: column; gap: 4px; }
 .conv-fs-mix { display: flex; align-items: center; gap: 6px; font-size: 12.5px; }
 .conv-fs-de { margin-inline-start: auto; font-size: 10.5px; color: var(--text-3, #778); font-variant-numeric: tabular-nums; }
+.conv-fs-head-ref { font-family: var(--font-mono, monospace); font-size: 11px; }
+.conv-fs-head-slot { color: var(--text-3, #778); }
 .conv-fs-loading { font-size: 12.5px; color: var(--text-muted); padding: 6px 2px; }
 
 /* Help / FAQ callouts */
@@ -3737,7 +3739,8 @@ body.mode-enthusiast .biz-only { display: none !important; }
 .help-section h4:first-child { margin-top: 2px; }
 
 /* Public-beta pill (Bed Ready brand) */
-.br-beta-pill { display: inline-block; vertical-align: middle; margin-inline-start: 5px; font-size: 9px; font-weight: 800; letter-spacing: 0.08em; line-height: 1; padding: 3px 5px; border-radius: 4px; background: var(--accent, #ff6f5b); color: #fff; font-family: var(--font-mono, monospace); }
+/* Darker coral so 9px-bold white text clears WCAG AA (≈5.6:1 on #b3301c vs 2.7:1 on the light accent). */
+.br-beta-pill { display: inline-block; vertical-align: middle; margin-inline-start: 5px; font-size: 9px; font-weight: 800; letter-spacing: 0.08em; line-height: 1; padding: 3px 5px; border-radius: 4px; background: #b3301c; color: #fff; font-family: var(--font-mono, monospace); }
 
 /* Per-slot filament picker (from installed Snapmaker Orca) */
 .conv-fil { margin: 8px 0; padding: 10px 12px; border-radius: 9px; background: var(--surface-2); border: 1px solid var(--border, #333); }

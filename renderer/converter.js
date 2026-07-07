@@ -151,16 +151,23 @@
     return `<span class="conv-near" title="${escapeHtml(t('conv.near_stock') || 'Nearest filament you have in stock')}">≈ ${escapeHtml(label)} <span class="conv-de">ΔE ${Math.round(n.deltaE)}</span></span>`;
   }
 
-  // Full Spectrum applies when a Snapmaker-Orca target (which supports colour mixing) has FEWER slots
-  // than the file uses — keep N filaments physical and reproduce the rest as dithered mixes.
+  // Full Spectrum applies only to a target that supports colour mixing in hardware (Snapmaker U1) when
+  // the file uses MORE colours than it has slots — keep N filaments physical, reproduce the rest as
+  // dithered mixes. Gate on supportsMixedFilament, NOT flavour==='orca' (single-extruder Orca-family
+  // printers can't mix), and require ≥2 physical heads to mix between.
   function fsCapable(sourceFlavour, targetId, usedColours) {
     const p = getProfileById(targetId);
-    return !!(p && p.flavour === 'orca' && p.maxColors >= 1 && usedColours > p.maxColors && !isCrossEcosystem(sourceFlavour, targetId));
+    return !!(p && p.supportsMixedFilament && p.maxColors >= 2 && usedColours > p.maxColors && !isCrossEcosystem(sourceFlavour, targetId));
   }
 
-  // "65% White + 35% Red" style description of a mix recipe against the physical heads.
+  // "65% [◼] #FFFFFF (head 1) + 35% [◼] #FF0000 (head 2)" — carries the head hex + slot as TEXT so the
+  // recipe isn't colour-only (screen-reader + colourblind accessible), matching the swatch to a label.
   function fsRecipeText(mix, heads) {
-    const nameOf = (id) => { const hd = heads[id - 1]; return hd ? swatch(hd.hex, 12) : ('#' + id); };
+    const nameOf = (id) => {
+      const hd = heads[id - 1];
+      if (!hd) return `<span class="conv-fs-head-ref">#${id}</span>`;
+      return `${swatch(hd.hex, 12)}<span class="conv-fs-head-ref">${escapeHtml(hd.hex)} <span class="conv-fs-head-slot">(${(t('conv.fs_head') || 'head {n}').replace('{n}', id)})</span></span>`;
+    };
     if (!mix.weights || mix.weights.length <= 1) return nameOf(mix.ids ? mix.ids[0] : 1);
     return mix.ids.map((id, i) => `${mix.weights[i]}% ${nameOf(id)}`).join(' + ');
   }
@@ -475,10 +482,13 @@
         // Ask the main process to plan the physical heads + mixes for the current target.
         async function loadFsPlan() {
           fsPlanData = null;
+          const reqTarget = targetId; // guard against the user switching target mid-flight
           try {
             const r = await hub().fsPlan({ path: src.path, targetId, targetProfile: isCustomId(targetId) ? getProfileById(targetId) : null });
+            if (targetId !== reqTarget) return; // a newer target won — drop this stale plan
             if (r && r.available) fsPlanData = r;
           } catch (_) { /* best-effort */ }
+          if (targetId !== reqTarget) return;
           paintFs();
           paintFilaments();
         }

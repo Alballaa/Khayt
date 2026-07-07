@@ -332,3 +332,43 @@ test('Snapmaker U1: multi-plate layout is re-tiled onto the target bed', () => {
   // plate 2 re-tiled to the 270-bed stride (270 + 51 gap = 321), so ~135 + 321
   assert.ok(o4 > 400 && o4 < 470, `plate-2 object re-tiled at target stride (got ${o4})`);
 });
+
+// --- Full Spectrum gating (regression: mixing is a U1 hardware feature, NOT every orca-flavour target) ---
+function make5colourBambu() {
+  const proj = JSON.stringify({
+    printer_model: 'X1C', nozzle_diameter: ['0.4'],
+    filament_colour: ['#FF0000', '#00AA00', '#0000FF', '#FFFF00', '#FF00FF'],
+    filament_type: ['PLA', 'PLA', 'PLA', 'PLA', 'PLA'],
+  });
+  return writeZip([
+    { name: '3D/3dmodel.model', data: MODEL },
+    { name: 'Metadata/project_settings.config', data: proj },
+  ]);
+}
+
+test('Full Spectrum applies on a Snapmaker U1 (4 slots, 5 colours)', () => {
+  const r = convert(make5colourBambu(), { targetId: 'snapmaker-u1', fullSpectrum: true });
+  assert.equal(r.ok, true);
+  assert.equal(r.report.fullSpectrum, true);
+  const proj = JSON.parse(openZip(r.buffer).file('Metadata/project_settings.config').toString('utf8'));
+  assert.equal(proj.filament_colour.length, 4, 'keeps exactly 4 physical heads');
+  assert.ok(proj.mixed_filament_definitions, 'writes mixed_filament_definitions');
+});
+
+test('Full Spectrum is refused on a single-extruder orca printer (Sovol SV08)', () => {
+  const r = convert(make5colourBambu(), { targetId: 'sovol-sv08', fullSpectrum: true });
+  assert.equal(r.ok, true);
+  assert.ok(!r.report.fullSpectrum, 'FS not applied to a printer that cannot mix');
+  const proj = JSON.parse(openZip(r.buffer).file('Metadata/project_settings.config').toString('utf8'));
+  assert.ok(!proj.mixed_filament_definitions, 'no mixed_filament_definitions on a non-mixing printer');
+});
+
+test('planFullSpectrum honours a non-4 physical head count', () => {
+  const fs = require('../lib/full-spectrum');
+  const colors = ['#FF0000', '#00AA00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF'];
+  const plan = fs.planFullSpectrum(colors, [], { maxPhysical: 3 });
+  assert.equal(plan.physical.length, 3, 'exactly 3 physical heads');
+  // Every virtual (mix) slot must be numbered after the physical heads (>= 4), never colliding with 1..3.
+  const virtuals = Object.values(plan.newOf).filter((v) => v > 3);
+  assert.ok(virtuals.every((v) => v >= 4), 'virtual slots start after the physical heads');
+});
