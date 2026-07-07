@@ -28,6 +28,7 @@ const root = path.join(__dirname, '..');
 const outDir = path.join(root, 'assets', 'bedready');
 const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'bedready-shots-'));
 const VIEWPORT = { width: 1480, height: 940 };
+const THEME = process.env.BEDREADY_THEME || 'light'; // 'light' | 'dark' | 'system'
 
 // Samples for the converter shots (optional). FS needs >4 colours (Mario = 8);
 // the 3D-preview hero looks best with a single dramatic model (the dragon).
@@ -47,6 +48,7 @@ function buildBedReadyStore() {
     businessName: 'My Workshop',
     bizEn: 'My Workshop', bizAr: '',
     taglineEn: '', taglineAr: '',
+    theme: THEME,
     currency: 'USD',
     monthlyGoal: 0,
     loyaltyEnabled: false,
@@ -168,10 +170,15 @@ try {
     document.querySelector('#toastContainer')?.replaceChildren();
     document.querySelector('#modalMount')?.replaceChildren();
   });
+  // Force the requested appearance (light by default) — drives [data-theme] CSS.
+  await page.evaluate((theme) => {
+    try { window.KhaytShell?.applyTheme?.(theme); } catch (_) {}
+    document.documentElement.dataset.theme = theme === 'system' ? document.documentElement.dataset.theme : theme;
+  }, THEME);
   await page.evaluate(() => window.KhaytShell?.switchTab?.('dashboard-tab'));
-  await page.waitForTimeout(700);
+  await page.waitForTimeout(800);
 
-  console.log(`\nBed Ready screenshot library → assets/bedready/`);
+  console.log(`\nBed Ready screenshot library (${THEME}) → assets/bedready/`);
   for (const shot of TABS) {
     await prepareTab(page, shot);
     try { await page.waitForSelector(shot.wait, { timeout: 12_000 }); } catch { /* capture anyway */ }
