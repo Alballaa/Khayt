@@ -144,7 +144,8 @@ html[data-app="bedready"] .cockpit-pagehead,
 html[data-app="bedready"] .atlas-pagehead,
 html[data-app="bedready"] .workbench-pagehead,
 html[data-app="bedready"] .vivid-pagehead,
-html[data-app="bedready"] .command-pagehead { display: none !important; }
+html[data-app="bedready"] .command-pagehead,
+html[data-app="bedready"] .console-status { display: none !important; }  /* Console theme's top-right status bar (the stray "— —") */
 
 html[data-app="bedready"] body.khayt-studio .khayt-sidebar {
   width: var(--nav-w); min-width: var(--nav-w); max-width: var(--nav-w);
@@ -248,11 +249,10 @@ html[data-app="bedready"] .khayt-toptitle .topbar-title {
   font-family: var(--font-display); font-weight: 600; letter-spacing: -0.025em;
 }
 /* Hide the busy centre search mirror + secondary-action clutter that reads
-   "Khayt". Keep only: theme toggle, notifications, language. */
+   "Khayt". Keep: theme toggle, notifications, language — and the beta Feedback
+   button (kept visible + emphasised below). */
 html[data-app="bedready"] .khayt-search,          /* redundant readonly mirror */
-html[data-app="bedready"] #btnHelp,
 html[data-app="bedready"] #btnGlobalSearch,
-html[data-app="bedready"] #btnFeedback,
 html[data-app="bedready"] #locationFilter,        /* multi-location = business */
 html[data-app="bedready"] #btnNavSwitchOp { display: none !important; }
 
@@ -260,6 +260,16 @@ html[data-app="bedready"] .topbar-actions .btn.ghost {
   border-radius: 9px; color: var(--text-dim);
 }
 html[data-app="bedready"] #langSelect { border-radius: 9px; }
+
+/* Beta: keep the Feedback button front-and-centre in the top bar. Solid coral
+   accent so it's the one obviously-clickable call to action up there. */
+html[data-app="bedready"] #btnFeedback {
+  display: inline-flex !important; align-items: center; gap: 6px;
+  background: var(--accent); color: #fff; border: 0; border-radius: 9px;
+  font-weight: 600; padding: 0 14px; height: 34px; box-shadow: var(--shadow-1);
+}
+html[data-app="bedready"] #btnFeedback:hover { filter: brightness(1.06); }
+html[data-app="bedready"] #btnFeedback:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ============================================================
    Cards, buttons, inputs — clean & tactile
