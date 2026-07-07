@@ -121,7 +121,10 @@
     gl.enable(gl.DEPTH_TEST);
     gl.clearColor(0.549, 0.576, 0.639, 1); // #8c93a3 studio grey, matches software stage
     const uMV = gl.getUniformLocation(prog, 'uMV'), uProj = gl.getUniformLocation(prog, 'uProj');
-    const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+    // Separate VAOs for the mesh and the bed grid — they both use attribute location 0, so sharing
+    // one VAO let the bed's tiny buffer clobber the mesh's binding ("buffer not big enough").
+    const vao = gl.createVertexArray();
+    const bedVao = gl.createVertexArray();
     const posBuf = gl.createBuffer(), colBuf = gl.createBuffer();
     let drawN = 0;
 
@@ -137,6 +140,7 @@
       return idx.length ? idx : null;
     }
     function upload() {
+      gl.bindVertexArray(vao);
       const idx = activeIdx();
       frame(idx);
       const n = idx ? idx.length : count;
@@ -170,7 +174,9 @@
       for (let gx = 0; gx <= bx + 1e-6; gx += step) segs.push(gx, 0, 0, gx, by, 0);
       for (let gy = 0; gy <= by + 1e-6; gy += step) segs.push(0, gy, 0, bx, gy, 0);
       bedFits = bed.fits !== false;
+      gl.bindVertexArray(bedVao);
       bedBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, bedBuf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(segs), gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
       bedN = segs.length / 3;
     }
 
@@ -196,11 +202,10 @@
       // Bed first (under the model), then mesh.
       if (bedN && lprog) {
         gl.useProgram(lprog);
+        gl.bindVertexArray(bedVao);
         gl.uniformMatrix4fv(gl.getUniformLocation(lprog, 'uMV'), false, view);
         gl.uniformMatrix4fv(gl.getUniformLocation(lprog, 'uProj'), false, proj);
         gl.uniform4f(gl.getUniformLocation(lprog, 'uColor'), bedFits ? 0.35 : 0.8, bedFits ? 0.55 : 0.3, bedFits ? 0.7 : 0.3, 0.55);
-        gl.bindBuffer(gl.ARRAY_BUFFER, bedBuf);
-        gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
         gl.drawArrays(gl.LINES, 0, bedN);
       }
       gl.useProgram(prog);
