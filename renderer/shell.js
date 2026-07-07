@@ -865,7 +865,7 @@ function openBedReadyHelp(initial) {
           <li>The converter <b>reads</b> printer/filament/print profiles from your installed <b>OrcaSlicer</b> / <b>Snapmaker Orca</b> (GPL/AGPL projects). Bed Ready does not bundle or redistribute those profiles.</li>
           <li>The 3D preview is a custom WebGL renderer — no third-party 3D engine.</li>
         </ul>
-        <p class="help-muted">Bed Ready’s source is available under FSL-1.1-Apache-2.0. Full third-party notices ship in <code>CREDITS.md</code>. Questions or takedown requests: use Feedback or email support@khaytapp.com.</p>
+        <p class="help-muted">Bed Ready’s source is available under FSL-1.1-Apache-2.0. Full third-party notices ship in <code>CREDITS.md</code>. Questions, feedback or takedown requests: use the Feedback button or visit <b>bedready.io</b>.</p>
       </div>` },
   ];
   const nav = SECTIONS.map((s, i) => `<button class="help-tab-btn${i === 0 ? ' active' : ''}" data-htab="${s.id}">${s.label}</button>`).join('');
@@ -929,7 +929,18 @@ function openHelpModal() {
 /* ============================================================
    Feedback / Bug report modal
    ============================================================ */
+// Bed Ready routes feedback to its own site (bedready.io), not Khayt's support
+// inbox. Change here if a dedicated feedback path is added (e.g. /feedback).
+const BEDREADY_SITE_URL = 'https://bedready.io';
+
 function openFeedbackModal() {
+  // Bed Ready (the standalone maker app) sends people to the bedready.io website
+  // instead of showing Khayt's email-a-report form.
+  if (isBedReadyFlavor()) {
+    if (window.hubAPI?.openExternal) window.hubAPI.openExternal(BEDREADY_SITE_URL);
+    else window.open(BEDREADY_SITE_URL);
+    return;
+  }
   openFormModal({
     title: t('feedback.title'),
     saveLabel: t('feedback.send'),

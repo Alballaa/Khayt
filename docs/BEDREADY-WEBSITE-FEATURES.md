@@ -126,5 +126,5 @@ Details:
   Bed Ready is **not affiliated with or endorsed by** them. Product names are used for compatibility
   reference only.
 - Licensing: source-available under **FSL-1.1-Apache-2.0**. See `CREDITS.md` for third-party notices.
-- Contact / feedback: **support@khaytapp.com** and the in-app Feedback button.
+- Contact / feedback: the in-app **Feedback** button opens **bedready.io** (the site should host a feedback/contact route). Bed Ready does **not** route users to Khayt's support inbox.
 - Do **not** claim Bed Ready slices or prints — it complements a slicer, it doesn’t replace one.
