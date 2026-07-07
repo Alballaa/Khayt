@@ -227,3 +227,21 @@ test('Prusa flavour: filament_colour list + printer_model rewrite', () => {
   assert.match(text, /printer_model = MK4IS/);
   assert.match(text, /filament_colour = #0000CC;#00BB00;#AA0000/);
 });
+
+test('Snapmaker Orca target: normalises Bambu enum values Orca rejects', () => {
+  const proj = JSON.stringify({
+    printer_model: 'X1C', nozzle_diameter: ['0.4'],
+    filament_colour: ['#FF0000', '#00FF00'], filament_type: ['PLA', 'PLA'],
+    ensure_vertical_shell_thickness: 'enabled',
+    support_style: 'tree_organic',
+  });
+  const src = writeZip([
+    { name: '3D/3dmodel.model', data: MODEL },
+    { name: 'Metadata/project_settings.config', data: proj },
+  ]);
+  const r = convert(src, { targetId: 'snapmaker-u1' });
+  assert.equal(r.ok, true);
+  const out = JSON.parse(openZip(r.buffer).file('Metadata/project_settings.config').toString('utf8'));
+  assert.equal(out.ensure_vertical_shell_thickness, 'ensure_all');
+  assert.equal(out.support_style, 'default');
+});
