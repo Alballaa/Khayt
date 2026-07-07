@@ -300,3 +300,35 @@ test('Snapmaker U1: overlays native machine + process settings when the slicer D
   assert.match(String(out.print_settings_id), /@Snapmaker U1/i);
   assert.equal(out.printer_settings_id, 'Snapmaker U1 (0.4 nozzle)');
 });
+
+test('Snapmaker U1: multi-plate layout is re-tiled onto the target bed', () => {
+  // Two plates, objects positioned on a 256-bed grid (plate 2 offset by ~307mm).
+  const proj = JSON.stringify({ printer_model: 'X1C', nozzle_diameter: ['0.4'],
+    printable_area: ['0x0', '256x0', '256x256', '0x256'],
+    filament_colour: ['#FF0000'], filament_type: ['PLA'] });
+  const model = `<?xml version="1.0"?><model><resources>
+    <object id="2" type="model"><mesh><vertices><vertex x="0" y="0" z="0"/><vertex x="1" y="0" z="0"/><vertex x="0" y="1" z="0"/></vertices><triangles><triangle v1="0" v2="1" v3="2"/></triangles></mesh></object>
+    <object id="4" type="model"><mesh><vertices><vertex x="0" y="0" z="0"/><vertex x="1" y="0" z="0"/><vertex x="0" y="1" z="0"/></vertices><triangles><triangle v1="0" v2="1" v3="2"/></triangles></mesh></object>
+    </resources><build>
+    <item objectid="2" transform="1 0 0 0 1 0 0 0 1 128 128 0"/>
+    <item objectid="4" transform="1 0 0 0 1 0 0 0 1 435 128 0"/>
+    </build></model>`;
+  const msc = `<?xml version="1.0"?><config>
+    <plate><metadata key="plater_id" value="1"/><model_instance><metadata key="object_id" value="2"/></model_instance></plate>
+    <plate><metadata key="plater_id" value="2"/><model_instance><metadata key="object_id" value="4"/></model_instance></plate>
+    </config>`;
+  const src = writeZip([
+    { name: '3D/3dmodel.model', data: model },
+    { name: 'Metadata/project_settings.config', data: proj },
+    { name: 'Metadata/model_settings.config', data: msc },
+  ]);
+  const r = convert(src, { targetId: 'snapmaker-u1' });
+  assert.equal(r.report.platesRetiled, 2);
+  const out = openZip(r.buffer).file('3D/3dmodel.model').toString('utf8');
+  const tx = [...out.matchAll(/objectid="(\d+)"\s+transform="([^"]+)"/g)]
+    .map((m) => ({ id: m[1], x: +m[2].trim().split(/\s+/)[9] }));
+  const o2 = tx.find((t) => t.id === '2').x, o4 = tx.find((t) => t.id === '4').x;
+  assert.ok(Math.abs(o2 - 135) < 1, `plate-1 object centred on 270 bed (got ${o2})`);
+  // plate 2 re-tiled to the 270-bed stride (270 + 51 gap = 321), so ~135 + 321
+  assert.ok(o4 > 400 && o4 < 470, `plate-2 object re-tiled at target stride (got ${o4})`);
+});
