@@ -94,11 +94,15 @@ try {
   writeFileSync(GUARDED[0].file, JSON.stringify(pkg, null, 2) + '\n');
 
   console.log(`[build-bedready] packaging Bed Ready ${BEDREADY_VERSION} (${builderArgs.join(' ')})`);
+  // On Windows the executable is `npx.cmd`; spawning bare `npx` without a shell
+  // fails with ENOENT (res.status null → the CI build silently exits 1).
+  const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
   const res = spawnSync(
-    'npx',
+    npx,
     ['electron-builder', ...builderArgs, '--config', 'electron-builder.bedready.js'],
     { cwd: root, stdio: 'inherit', env: process.env },
   );
+  if (res.error) console.error('[build-bedready] failed to launch electron-builder:', res.error.message);
   exitCode = res.status == null ? 1 : res.status;
 } finally {
   const ok = restoreSources('finally');
