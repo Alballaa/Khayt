@@ -130,7 +130,9 @@ module.exports = {
   ],
 
   // Bed Ready branded icons (spectrum print-bed mark).
-  mac: { ...(base.mac || {}), icon: 'assets/bedready.icns' },
+  // Space-free, platform+arch-tagged artifact names so the download URLs on the
+  // website are stable and predictable (GitHub munges spaces in asset URLs).
+  mac: { ...(base.mac || {}), icon: 'assets/bedready.icns', artifactName: 'BedReady-${version}-mac-${arch}.${ext}' },
   // Drop the appx target — the Microsoft Store package needs a signing cert we
   // don't ship for the public beta. Bed Ready's Windows download is the NSIS
   // installer + a portable .exe (neither needs a cert to produce).
@@ -139,15 +141,22 @@ module.exports = {
     ...(base.linux || {}), icon: 'assets/bedready-512.png', target: ['AppImage', 'deb'],
     category: 'Graphics',
     description: 'Desktop 3D-printing maker app — convert, recolour, preview and queue your prints.',
+    artifactName: 'BedReady-${version}-linux-${arch}.${ext}',
   },
 
   dmg: {
     ...(base.dmg || {}),
     title: 'Bed Ready ${version}',
+    artifactName: 'BedReady-${version}-mac-${arch}.${ext}',
   },
 
   nsis: {
     ...(base.nsis || {}),
     shortcutName: 'Bed Ready',
+    artifactName: 'BedReady-${version}-win-${arch}-Setup.${ext}',
+  },
+
+  portable: {
+    artifactName: 'BedReady-${version}-win-${arch}-portable.${ext}',
   },
 };
