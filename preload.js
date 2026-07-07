@@ -97,6 +97,7 @@ contextBridge.exposeInMainWorld('hubAPI', {
   mfPickOutdir:()     => ipcRenderer.invoke('hub:mf-pick-outdir'),
   mfAnalyze:  (p)     => ipcRenderer.invoke('hub:mf-analyze', { path: p }),
   mfConvert:  (opts)  => ipcRenderer.invoke('hub:mf-convert', opts),
+  fsPlan:     (opts)  => ipcRenderer.invoke('hub:fs-plan', opts),
   stlPick:    ()      => ipcRenderer.invoke('hub:stl-pick'),
   stlTo3mf:   (opts)  => ipcRenderer.invoke('hub:stl-to-3mf', opts),
   mfToStl:    (opts)  => ipcRenderer.invoke('hub:mf-to-stl', opts),

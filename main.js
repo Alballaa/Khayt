@@ -1373,12 +1373,12 @@ ipcMain.handle('hub:convert-mesh', async (_e, { path: srcPath } = {}) => {
   } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
 });
 
-ipcMain.handle('hub:mf-convert', async (_e, { path: srcPath, targetId, mode, slotMap, outPath, intoVaultId, targetProfile } = {}) => {
+ipcMain.handle('hub:mf-convert', async (_e, { path: srcPath, targetId, mode, slotMap, outPath, intoVaultId, targetProfile, fullSpectrum, fsPhysical, fsPhysicalHex } = {}) => {
   try {
     if (!srcPath || !mfReadAllowed(srcPath)) return { ok: false, error: 'Source file is outside an allowed folder.' };
     const buf = await fs.promises.readFile(path.resolve(String(srcPath)));
     if (buf.length > MF_MAX_BYTES) return { ok: false, error: 'File is too large.' };
-    const r = require('./lib/mf-convert').convert(buf, { targetId, mode, slotMap, targetProfile });
+    const r = require('./lib/mf-convert').convert(buf, { targetId, mode, slotMap, targetProfile, fullSpectrum, fsPhysical, fsPhysicalHex });
     if (!r.ok) return r;
 
     // In-app destination: write the converted 3MF straight into a print-file
@@ -1409,6 +1409,16 @@ ipcMain.handle('hub:mf-convert', async (_e, { path: srcPath, targetId, mode, slo
     await fs.promises.writeFile(finalPath, r.buffer);
     return { ok: true, outPath: finalPath, report: r.report };
   } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
+});
+
+// Full Spectrum plan preview: which filaments load physically + how the extra colours are mixed.
+ipcMain.handle('hub:fs-plan', async (_e, { path: srcPath, targetId, targetProfile, fsPhysical, fsPhysicalHex } = {}) => {
+  try {
+    if (!srcPath || !mfReadAllowed(srcPath)) return { available: false, error: 'Source file is outside an allowed folder.' };
+    const buf = await fs.promises.readFile(path.resolve(String(srcPath)));
+    if (buf.length > MF_MAX_BYTES) return { available: false, error: 'File is too large.' };
+    return require('./lib/mf-convert').fsPreview(buf, { targetId, targetProfile, fsPhysical, fsPhysicalHex });
+  } catch (e) { return { available: false, error: String((e && e.message) || e) }; }
 });
 
 // STL → 3MF: pick an STL and wrap its mesh into a clean generic 3MF any slicer opens.

@@ -47,11 +47,25 @@
   in vec3 vColor; in vec3 vView; out vec4 frag;
   void main(){
     vec3 n = normalize(cross(dFdx(vView), dFdy(vView)));
-    vec3 L = normalize(vec3(0.35,0.45,0.85));
-    float key = max(0.0, dot(n, L));
-    float fill = max(0.0, n.z);
-    float sh = 0.34 + 0.66*(0.8*key + 0.2*fill);
-    frag = vec4(vColor*sh, 1.0);
+    if (n.z < 0.0) n = -n;              // face the camera (flat-shaded, so treat both sides as lit)
+    vec3 V = vec3(0.0,0.0,1.0);         // view direction (camera space)
+    vec3 key = normalize(vec3(0.35,0.55,0.75));
+    vec3 fillL = normalize(vec3(-0.5,0.1,0.4));
+    // Soft hemispheric ambient: sky slightly cool, ground slightly warm — gives volume without shadows.
+    vec3 sky = vec3(0.62,0.66,0.72), ground = vec3(0.42,0.40,0.38);
+    vec3 amb = mix(ground, sky, 0.5 + 0.5*n.y);
+    float kd = max(0.0, dot(n, key));
+    float fd = max(0.0, dot(n, fillL));
+    // Wrapped diffuse softens the terminator so detailed meshes don't read as noisy.
+    kd = kd*0.7 + 0.3;
+    vec3 lit = vColor * (amb*0.55 + kd*0.85 + fd*0.18);
+    // Gentle rim/fresnel to lift silhouettes off the background.
+    float rim = pow(1.0 - max(0.0, dot(n, V)), 3.0) * 0.25;
+    lit += rim * vec3(0.9,0.93,1.0);
+    // Soft filmic-ish tone + gamma for a less flat, more "studio" look.
+    lit = lit / (lit + vec3(0.9)) * 1.9;
+    lit = pow(clamp(lit, 0.0, 1.0), vec3(0.9));
+    frag = vec4(lit, 1.0);
   }`;
   // Bed grid: plain position-only lines.
   const LVS = `#version 300 es

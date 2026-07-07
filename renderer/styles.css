@@ -3718,6 +3718,18 @@ body.mode-enthusiast .biz-only { display: none !important; }
 .conv-fit.ok { color: var(--success, #22a06b); background: color-mix(in srgb, var(--success, #22a06b) 14%, transparent); }
 .conv-fit.no { color: var(--danger, #d4444b); background: color-mix(in srgb, var(--danger, #d4444b) 14%, transparent); }
 
+/* Full Spectrum (colour mixing) option */
+.conv-fs-toggle { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; line-height: 1.4; padding: 9px 11px; margin: 8px 0; border-radius: 9px; background: var(--surface-2); border: 1px solid var(--border, #333); cursor: pointer; }
+.conv-fs-toggle input { margin-top: 2px; flex: none; }
+.conv-fs-plan { margin: 4px 0 8px; padding: 10px 12px; border-radius: 9px; background: color-mix(in srgb, var(--accent, #ff6f5b) 7%, var(--surface-2)); border: 1px solid color-mix(in srgb, var(--accent, #ff6f5b) 22%, transparent); }
+.conv-fs-sub { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3, #778); margin: 2px 0 6px; }
+.conv-fs-heads { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+.conv-fs-head { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.conv-fs-mixes { display: flex; flex-direction: column; gap: 4px; }
+.conv-fs-mix { display: flex; align-items: center; gap: 6px; font-size: 12.5px; }
+.conv-fs-de { margin-inline-start: auto; font-size: 10.5px; color: var(--text-3, #778); font-variant-numeric: tabular-nums; }
+.conv-fs-loading { font-size: 12.5px; color: var(--text-muted); padding: 6px 2px; }
+
 /* Converter tab: actions, batch, custom printers (3.2) */
 .conv-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .conv-batch { margin-top: 16px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }

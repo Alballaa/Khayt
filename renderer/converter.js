@@ -131,6 +131,20 @@
     return `<span class="conv-near" title="${escapeHtml(t('conv.near_stock') || 'Nearest filament you have in stock')}">≈ ${escapeHtml(label)} <span class="conv-de">ΔE ${Math.round(n.deltaE)}</span></span>`;
   }
 
+  // Full Spectrum applies when a Snapmaker-Orca target (which supports colour mixing) has FEWER slots
+  // than the file uses — keep N filaments physical and reproduce the rest as dithered mixes.
+  function fsCapable(sourceFlavour, targetId, usedColours) {
+    const p = getProfileById(targetId);
+    return !!(p && p.flavour === 'orca' && p.maxColors >= 1 && usedColours > p.maxColors && !isCrossEcosystem(sourceFlavour, targetId));
+  }
+
+  // "65% White + 35% Red" style description of a mix recipe against the physical heads.
+  function fsRecipeText(mix, heads) {
+    const nameOf = (id) => { const hd = heads[id - 1]; return hd ? swatch(hd.hex, 12) : ('#' + id); };
+    if (!mix.weights || mix.weights.length <= 1) return nameOf(mix.ids ? mix.ids[0] : 1);
+    return mix.ids.map((id, i) => `${mix.weights[i]}% ${nameOf(id)}`).join(' + ');
+  }
+
   // Remap table: one row per source colour → a target-slot number select (identity default).
   function remapTableHtml(filaments, maxColors) {
     if (!filaments || !filaments.length) return `<p class="conv-note">${escapeHtml(t('conv.no_colours') || 'No colours detected — geometry and settings are retargeted as-is.')}</p>`;
@@ -352,6 +366,7 @@
         <button type="button" class="btn small ghost" id="convPresetSave">★ ${escapeHtml(t('conv.preset_save') || 'Save')}</button>
       </div>
       <div id="convChanges">${changesHtml(a, targetId)}</div>
+      <div id="convFsWrap"></div>
       <div id="convRemapWrap">${remapTableHtml(filaments, currentMax(targetId))}</div>
       <div class="conv-dest">
         <div class="conv-dest-q">${escapeHtml(t('conv.dest_q') || 'Where should the converted file go?')}</div>
@@ -367,6 +382,53 @@
         const sel = modal.querySelector('#convTarget');
         const wrap = modal.querySelector('#convRemapWrap');
         const chg = modal.querySelector('#convChanges');
+        const fsWrap = modal.querySelector('#convFsWrap');
+        let fsEnabled = false, fsPlanData = null;
+
+        // Ask the main process to plan the physical heads + mixes for the current target.
+        async function loadFsPlan() {
+          fsPlanData = null;
+          try {
+            const r = await hub().fsPlan({ path: src.path, targetId, targetProfile: isCustomId(targetId) ? getProfileById(targetId) : null });
+            if (r && r.available) fsPlanData = r;
+          } catch (_) { /* best-effort */ }
+          paintFs();
+        }
+
+        function paintFs() {
+          if (!fsWrap) return;
+          const usedColours = filaments.length;
+          if (!fsCapable(a.flavour, targetId, usedColours)) { fsWrap.innerHTML = ''; fsEnabled = false; if (wrap) wrap.style.display = ''; return; }
+          const p = getProfileById(targetId);
+          const extra = usedColours - p.maxColors;
+          const label = (t('conv.fs_toggle') || 'Use Full Spectrum — reproduce {n} extra colour(s) by mixing').replace('{n}', extra);
+          let planHtml = '';
+          if (fsEnabled) {
+            if (!fsPlanData) planHtml = `<div class="conv-fs-loading">${escapeHtml(t('conv.fs_planning') || 'Planning colour mixes…')}</div>`;
+            else {
+              const heads = fsPlanData.heads.map((hd) => `<div class="conv-fs-head">${swatch(hd.hex, 20)}<span>${escapeHtml(hd.hex)}</span></div>`).join('');
+              const mixes = fsPlanData.mixes.length
+                ? fsPlanData.mixes.map((mx) => `<div class="conv-fs-mix">${swatch(mx.srcHex, 16)} → ${fsRecipeText(mx, fsPlanData.heads)} <span class="conv-fs-de">ΔE ${mx.deltaE}</span></div>`).join('')
+                : `<div class="conv-fs-mix">${escapeHtml(t('conv.fs_no_mix') || 'All colours fit as pure filaments.')}</div>`;
+              planHtml = `<div class="conv-fs-plan">
+                  <div class="conv-fs-sub">${escapeHtml(t('conv.fs_load') || 'Load these filaments:')}</div>
+                  <div class="conv-fs-heads">${heads}</div>
+                  <div class="conv-fs-sub">${escapeHtml(t('conv.fs_mixes') || 'Printed by mixing:')}</div>
+                  <div class="conv-fs-mixes">${mixes}</div>
+                </div>`;
+            }
+          }
+          fsWrap.innerHTML = `<label class="conv-fs-toggle"><input type="checkbox" id="convFsOn"${fsEnabled ? ' checked' : ''}> ${escapeHtml(label)}</label>${planHtml}`;
+          const cb = fsWrap.querySelector('#convFsOn');
+          if (cb) cb.onchange = () => {
+            fsEnabled = cb.checked;
+            if (fsEnabled && !fsPlanData) { paintFs(); loadFsPlan(); } else paintFs();
+          };
+          // Full Spectrum owns the colour mapping — hide the manual remap table while it's on.
+          if (wrap) wrap.style.display = fsEnabled ? 'none' : '';
+        }
+        // Expose current FS state to onSave.
+        modal._fsState = () => ({ enabled: fsEnabled, plan: fsPlanData });
 
         // 3D preview of the source model — "know what you're converting". Best-effort:
         // if the mesh can't be read, quietly drop the panel rather than block the convert.
@@ -391,10 +453,14 @@
           wrap.innerHTML = asGeneric
             ? `<p class="conv-note">${escapeHtml(t('conv.normalize_note') || 'Vendor-locked slicer settings are stripped; geometry and colours are kept. Opens cleanly in any slicer.')}</p>`
             : remapTableHtml(filaments, currentMax(targetId));
+          // Target changed → drop any stale Full Spectrum plan and re-evaluate for the new printer.
+          fsEnabled = false; fsPlanData = null;
+          paintFs();
           applyBed();
           return asGeneric;
         };
         if (sel) sel.onchange = () => { targetId = sel.value; renderForTarget(); };
+        paintFs();
 
         // Apply a saved preset: set the target and, when the slot map fits this file's colours, the mapping.
         const applySel = modal.querySelector('#convPresetApply');
@@ -429,8 +495,11 @@
       },
       async onSave(modal) {
         const isGeneric = (P && targetId === P.GENERIC.id) || isCrossEcosystem(a.flavour, targetId);
+        const fsState = (typeof modal._fsState === 'function') ? modal._fsState() : { enabled: false };
+        const fsOn = !isGeneric && fsState.enabled && !!fsState.plan;
         let slotMap = null;
-        if (!isGeneric && filaments.length) {
+        // Full Spectrum handles all colours itself — the manual slot map doesn't apply.
+        if (!isGeneric && !fsOn && filaments.length) {
           slotMap = Array.from(modal.querySelectorAll('.conv-slot')).map((s) => parseInt(s.value, 10) || 0);
           if (slotMap.every((v, i) => v === i)) slotMap = null; // identity → no remap
           if (slotMap && new Set(slotMap).size !== slotMap.length) {
@@ -450,7 +519,7 @@
         if (btn) { btn.disabled = true; btn.textContent = t('conv.converting') || 'Converting…'; }
         let r;
         try {
-          r = await hub().mfConvert({ path: src.path, targetId, mode, slotMap, intoVaultId, targetProfile });
+          r = await hub().mfConvert({ path: src.path, targetId, mode, slotMap, intoVaultId, targetProfile, fullSpectrum: fsOn });
         } catch (e) { toast(String((e && e.message) || e), 'error'); if (btn) { btn.disabled = false; } return false; }
         if (r && r.canceled) { if (btn) { btn.disabled = false; btn.textContent = t('conv.convert') || 'Convert & save…'; } return false; }
         if (!r || !r.ok) { toast((r && r.error) || (t('conv.failed') || 'Conversion failed.'), 'error'); if (btn) { btn.disabled = false; } return false; }
