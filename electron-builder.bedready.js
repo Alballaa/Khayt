@@ -76,9 +76,14 @@ module.exports = {
     output: 'build-bedready',
   },
 
-  // No publish target wired for Bed Ready yet (its own bedready-v* release lane
-  // is a later step). Local builds only for Phase 1.
-  publish: null,
+  // Bed Ready's own release lane: the public KhaytApp/bedready repo (downloads
+  // only — the source stays in KhaytApp/Khayt). Setting this makes electron-builder
+  // bake `app-update.yml` into the app AND emit the update-feed metadata
+  // (latest-mac.yml / latest.yml / latest-linux.yml + .blockmap) alongside the
+  // installers, which is what electron-updater needs to auto-update the app.
+  // Uploading is done by the release step (CI for win/linux, local for the signed
+  // mac build) — not by electron-builder (we pass --publish never at build time).
+  publish: [{ provider: 'github', owner: 'KhaytApp', repo: 'bedready' }],
 
   // Write the flavor marker into the packaged app's resources dir (build output
   // only — never the source tree). lib/flavor.js reads it via process.resourcesPath.

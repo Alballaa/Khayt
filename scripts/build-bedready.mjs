@@ -85,6 +85,16 @@ process.on('uncaughtException', (err) => {
 const builderArgs = process.argv.slice(2);
 if (builderArgs.length === 0) builderArgs.push('--dir'); // default: quick unpacked
 
+// The bedready config now has a `publish` provider (so app-update.yml gets baked
+// in and the latest*.yml/.blockmap update-feed metadata is generated). But we do
+// NOT want electron-builder to upload during the build: the signed mac artifacts
+// are published locally and win/linux by CI, each after their own post-build step
+// (notarize / sign). `--publish never` keeps generation on, upload off. Skip it
+// for --dir (unpacked) builds, where publish is irrelevant.
+if (!builderArgs.includes('--dir') && !builderArgs.some((a) => a === '--publish')) {
+  builderArgs.push('--publish', 'never');
+}
+
 let exitCode = 0;
 try {
   const pkg = JSON.parse(GUARDED[0].bytes.toString('utf8'));
