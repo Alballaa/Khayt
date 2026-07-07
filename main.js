@@ -725,10 +725,14 @@ function detectInstalledSlicers() {
   };
   const plat = process.platform;
 
+  // Any .app whose name looks like a slicer — catches vendor OrcaSlicer forks (Snapmaker Orca,
+  // QIDIStudio, Elegoo, Anker, Creality/Bambu variants…) and Cura builds that aren't in the list below.
+  const SLICER_APP_RE = /(slic|orca|snapmaker|bambu|prusa|cura|creality|chitubox|lychee|flashprint|ideamaker|simplify|qidi|elegoo|anycubic|anker)/i;
   if (plat === 'darwin') {
     const apps = [
       { name: 'PrusaSlicer', app: 'PrusaSlicer.app', bin: 'PrusaSlicer' },
       { name: 'OrcaSlicer', app: 'OrcaSlicer.app', bin: 'OrcaSlicer' },
+      { name: 'Snapmaker Orca', app: 'Snapmaker Orca.app', bin: 'Snapmaker_Orca' },
       { name: 'Bambu Studio', app: 'BambuStudio.app', bin: 'BambuStudio' },
       { name: 'SuperSlicer', app: 'SuperSlicer.app', bin: 'SuperSlicer' },
       { name: 'ideaMaker', app: 'ideaMaker.app', bin: 'ideaMaker' },
@@ -738,6 +742,8 @@ function detectInstalledSlicers() {
       { name: 'CHITUBOX', app: 'CHITUBOX.app', bin: 'CHITUBOX' },
       { name: 'FlashPrint', app: 'FlashPrint.app', bin: 'FlashPrint' },
     ];
+    let displayName = null;
+    try { displayName = require('./lib/slicers').slicerDisplayName; } catch (_) {}
     const dirs = ['/Applications', path.join(home, 'Applications')];
     for (const d of dirs) {
       for (const k of apps) {
@@ -747,8 +753,9 @@ function detectInstalledSlicers() {
       let entries = [];
       try { entries = fs.readdirSync(d); } catch (_) {}
       for (const e of entries) {
-        if (!/\.app$/i.test(e)) continue;
-        if (/cura/i.test(e)) add(e.replace(/\.app$/i, ''), macAppBinary(path.join(d, e)));
+        if (!/\.app$/i.test(e) || !SLICER_APP_RE.test(e)) continue;
+        const stem = e.replace(/\.app$/i, '');
+        add((displayName && displayName(e)) || stem, macAppBinary(path.join(d, e)));
       }
     }
   } else if (plat === 'win32') {
@@ -758,6 +765,7 @@ function detectInstalledSlicers() {
     const cands = [
       { name: 'PrusaSlicer', rels: ['Prusa3D\\PrusaSlicer\\prusa-slicer.exe'] },
       { name: 'OrcaSlicer', rels: ['OrcaSlicer\\orca-slicer.exe', 'OrcaSlicer\\OrcaSlicer.exe'] },
+      { name: 'Snapmaker Orca', rels: ['Snapmaker Orca\\Snapmaker Orca.exe', 'Snapmaker Orca\\snapmaker_orca.exe', 'Snapmaker_Orca\\Snapmaker_Orca.exe'] },
       { name: 'Bambu Studio', rels: ['Bambu Studio\\bambu-studio.exe', 'Bambu Studio\\BambuStudio.exe'] },
       { name: 'SuperSlicer', rels: ['SuperSlicer\\superslicer.exe'] },
       { name: 'ideaMaker', rels: ['Raise3D\\ideaMaker\\ideaMaker.exe'] },
@@ -779,6 +787,7 @@ function detectInstalledSlicers() {
     const bins = [
       { name: 'PrusaSlicer', cmds: ['prusa-slicer', 'PrusaSlicer'] },
       { name: 'OrcaSlicer', cmds: ['orca-slicer', 'OrcaSlicer'] },
+      { name: 'Snapmaker Orca', cmds: ['snapmaker-orca', 'Snapmaker_Orca', 'SnapmakerOrca'] },
       { name: 'Bambu Studio', cmds: ['bambu-studio', 'BambuStudio'] },
       { name: 'UltiMaker Cura', cmds: ['cura', 'UltiMaker-Cura'] },
       { name: 'SuperSlicer', cmds: ['superslicer', 'SuperSlicer'] },
@@ -793,7 +802,7 @@ function detectInstalledSlicers() {
       try { entries = fs.readdirSync(d); } catch (_) {}
       for (const e of entries) {
         if (!/\.AppImage$/i.test(e)) continue;
-        if (!/slic|cura|prusa|orca|bambu/i.test(e)) continue;
+        if (!/slic|cura|prusa|orca|bambu|snapmaker/i.test(e)) continue;
         add((dn && dn(e)) || e.replace(/\.AppImage$/i, ''), path.join(d, e));
       }
     }
