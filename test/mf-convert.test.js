@@ -245,3 +245,38 @@ test('Snapmaker Orca target: normalises Bambu enum values Orca rejects', () => {
   assert.equal(out.ensure_vertical_shell_thickness, 'ensure_all');
   assert.equal(out.support_style, 'default');
 });
+
+test('Snapmaker U1: writes exact bed + printer preset name (plate layout stays correct)', () => {
+  const proj = JSON.stringify({
+    printer_model: 'X1C', printer_settings_id: 'Bambu Lab X1 Carbon 0.4 nozzle',
+    nozzle_diameter: ['0.4'], filament_colour: ['#FF0000', '#00FF00'], filament_type: ['PLA', 'PLA'],
+  });
+  const src = writeZip([
+    { name: '3D/3dmodel.model', data: MODEL },
+    { name: 'Metadata/project_settings.config', data: proj },
+  ]);
+  const out = JSON.parse(openZip(convert(src, { targetId: 'snapmaker-u1' }).buffer)
+    .file('Metadata/project_settings.config').toString('utf8'));
+  assert.deepEqual(out.printable_area, ['0.5x1', '270.5x1', '270.5x271', '0.5x271']);
+  assert.equal(out.printable_height, '270.05');
+  assert.equal(out.printer_settings_id, 'Snapmaker U1 (0.4 nozzle)');
+});
+
+test('Snapmaker U1: filament presets default to Generic <type>; per-slot picks override', () => {
+  const proj = JSON.stringify({
+    printer_model: 'X1C', nozzle_diameter: ['0.4'],
+    filament_colour: ['#FF0000', '#00FF00'], filament_settings_id: ['Bambu PLA Basic @BBL X1C', 'Bambu PLA Basic @BBL X1C'],
+    filament_type: ['PLA', 'PETG'],
+  });
+  const src = writeZip([
+    { name: '3D/3dmodel.model', data: MODEL },
+    { name: 'Metadata/project_settings.config', data: proj },
+  ]);
+  const def = JSON.parse(openZip(convert(src, { targetId: 'snapmaker-u1' }).buffer)
+    .file('Metadata/project_settings.config').toString('utf8'));
+  assert.deepEqual(def.filament_settings_id, ['Generic PLA', 'Generic PETG']);
+  const picked = JSON.parse(openZip(convert(src, { targetId: 'snapmaker-u1', filaments: [{ name: 'Snapmaker PLA Matte @U1', type: 'PLA' }, null] }).buffer)
+    .file('Metadata/project_settings.config').toString('utf8'));
+  assert.equal(picked.filament_settings_id[0], 'Snapmaker PLA Matte @U1');
+  assert.equal(picked.filament_settings_id[1], 'Generic PETG');
+});

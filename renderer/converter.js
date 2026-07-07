@@ -367,6 +367,7 @@
       </div>
       <div id="convChanges">${changesHtml(a, targetId)}</div>
       <div id="convFsWrap"></div>
+      <div id="convFilamentWrap"></div>
       <div id="convRemapWrap">${remapTableHtml(filaments, currentMax(targetId))}</div>
       <div class="conv-dest">
         <div class="conv-dest-q">${escapeHtml(t('conv.dest_q') || 'Where should the converted file go?')}</div>
@@ -383,7 +384,58 @@
         const wrap = modal.querySelector('#convRemapWrap');
         const chg = modal.querySelector('#convChanges');
         const fsWrap = modal.querySelector('#convFsWrap');
+        const filWrap = modal.querySelector('#convFilamentWrap');
         let fsEnabled = false, fsPlanData = null;
+
+        // Filament presets from the maker's installed Snapmaker Orca (loaded once, lazily).
+        let orcaFilaments = null, orcaLoaded = false, filPicks = {};
+        async function ensureOrcaFilaments() {
+          if (orcaLoaded) return;
+          orcaLoaded = true;
+          try { const r = await hub().orcaFilaments(); orcaFilaments = (r && r.available && r.filaments) ? r.filaments : []; }
+          catch (_) { orcaFilaments = []; }
+          paintFilaments();
+        }
+
+        // For an Orca (U1-class) target, let the maker say which real filament sits in each slot so the
+        // converted file references presets their slicer knows (no "customized preset" warning) and
+        // carries the right material. Falls back silently when no slicer DB is found.
+        function paintFilaments() {
+          if (!filWrap) return;
+          const p = getProfileById(targetId);
+          const isOrca = p && p.flavour === 'orca' && !isCrossEcosystem(a.flavour, targetId);
+          if (!isOrca) { filWrap.innerHTML = ''; return; }
+          if (orcaFilaments == null) { ensureOrcaFilaments(); filWrap.innerHTML = `<div class="conv-fs-loading">${escapeHtml(t('conv.fil_loading') || 'Reading your slicer’s filament list…')}</div>`; return; }
+          // Slots = the physical heads (FS) or the mapped colours, capped at the target's slot count.
+          const slotCount = fsEnabled && fsPlanData ? fsPlanData.heads.length : Math.min(filaments.length, p.maxColors || filaments.length);
+          const slotHex = (i) => (fsEnabled && fsPlanData) ? fsPlanData.heads[i].hex : ((filaments[i] && filaments[i].color) || '#CCCCCC');
+          if (!slotCount) { filWrap.innerHTML = ''; return; }
+          // Group DB presets by material type for tidy <optgroup>s.
+          const groups = {};
+          (orcaFilaments || []).forEach((f) => { (groups[f.type] = groups[f.type] || []).push(f); });
+          const optionsFor = (sel) => {
+            const gen = `<option value=""${!sel ? ' selected' : ''}>${escapeHtml(t('conv.fil_generic') || 'Generic (auto)')}</option>`;
+            const body = Object.keys(groups).sort().map((type) =>
+              `<optgroup label="${escapeHtml(type)}">${groups[type].map((f) =>
+                `<option value="${escapeHtml(f.name)}" data-type="${escapeHtml(f.type)}"${sel === f.name ? ' selected' : ''}>${escapeHtml(f.name)}</option>`).join('')}</optgroup>`).join('');
+            return gen + body;
+          };
+          const dbNote = (orcaFilaments && orcaFilaments.length)
+            ? (t('conv.fil_hint') || 'Pick the filament loaded in each slot (from your Snapmaker Orca library):')
+            : (t('conv.fil_none') || 'Install Snapmaker Orca to pick specific filaments; slots default to Generic.');
+          const rows = Array.from({ length: slotCount }, (_, i) =>
+            `<label class="conv-fil-row"><span class="conv-fil-slot">${swatch(slotHex(i), 16)} ${escapeHtml((t('conv.slot') || 'Slot') + ' ' + (i + 1))}</span>
+              <select class="conv-fil-sel" data-slot="${i}"${(orcaFilaments && orcaFilaments.length) ? '' : ' disabled'}>${optionsFor(filPicks[i] && filPicks[i].name)}</select></label>`).join('');
+          filWrap.innerHTML = `<div class="conv-fil"><div class="conv-fil-head">${escapeHtml(dbNote)}</div>${rows}</div>`;
+          Array.from(filWrap.querySelectorAll('.conv-fil-sel')).forEach((sel) => {
+            sel.onchange = () => {
+              const i = parseInt(sel.dataset.slot, 10);
+              const opt = sel.options[sel.selectedIndex];
+              filPicks[i] = sel.value ? { name: sel.value, type: opt.dataset.type || 'PLA' } : null;
+            };
+          });
+        }
+        modal._filPicks = () => filPicks;
 
         // Ask the main process to plan the physical heads + mixes for the current target.
         async function loadFsPlan() {
@@ -393,6 +445,7 @@
             if (r && r.available) fsPlanData = r;
           } catch (_) { /* best-effort */ }
           paintFs();
+          paintFilaments();
         }
 
         function paintFs() {
@@ -423,6 +476,7 @@
           if (cb) cb.onchange = () => {
             fsEnabled = cb.checked;
             if (fsEnabled && !fsPlanData) { paintFs(); loadFsPlan(); } else paintFs();
+            paintFilaments();
           };
           // Full Spectrum owns the colour mapping — hide the manual remap table while it's on.
           if (wrap) wrap.style.display = fsEnabled ? 'none' : '';
@@ -454,13 +508,15 @@
             ? `<p class="conv-note">${escapeHtml(t('conv.normalize_note') || 'Vendor-locked slicer settings are stripped; geometry and colours are kept. Opens cleanly in any slicer.')}</p>`
             : remapTableHtml(filaments, currentMax(targetId));
           // Target changed → drop any stale Full Spectrum plan and re-evaluate for the new printer.
-          fsEnabled = false; fsPlanData = null;
+          fsEnabled = false; fsPlanData = null; filPicks = {};
           paintFs();
+          paintFilaments();
           applyBed();
           return asGeneric;
         };
         if (sel) sel.onchange = () => { targetId = sel.value; renderForTarget(); };
         paintFs();
+        paintFilaments();
 
         // Apply a saved preset: set the target and, when the slot map fits this file's colours, the mapping.
         const applySel = modal.querySelector('#convPresetApply');
@@ -519,7 +575,12 @@
         if (btn) { btn.disabled = true; btn.textContent = t('conv.converting') || 'Converting…'; }
         let r;
         try {
-          r = await hub().mfConvert({ path: src.path, targetId, mode, slotMap, intoVaultId, targetProfile, fullSpectrum: fsOn });
+          // Per-slot filament picks (Orca DB) → array indexed by slot.
+          const picksMap = (typeof modal._filPicks === 'function') ? modal._filPicks() : {};
+          const filaments = Object.keys(picksMap).length
+            ? Array.from({ length: Math.max(...Object.keys(picksMap).map((k) => +k + 1)) }, (_, i) => picksMap[i] || null)
+            : null;
+          r = await hub().mfConvert({ path: src.path, targetId, mode, slotMap, intoVaultId, targetProfile, fullSpectrum: fsOn, filaments });
         } catch (e) { toast(String((e && e.message) || e), 'error'); if (btn) { btn.disabled = false; } return false; }
         if (r && r.canceled) { if (btn) { btn.disabled = false; btn.textContent = t('conv.convert') || 'Convert & save…'; } return false; }
         if (!r || !r.ok) { toast((r && r.error) || (t('conv.failed') || 'Conversion failed.'), 'error'); if (btn) { btn.disabled = false; } return false; }

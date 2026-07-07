@@ -3730,6 +3730,13 @@ body.mode-enthusiast .biz-only { display: none !important; }
 .conv-fs-de { margin-inline-start: auto; font-size: 10.5px; color: var(--text-3, #778); font-variant-numeric: tabular-nums; }
 .conv-fs-loading { font-size: 12.5px; color: var(--text-muted); padding: 6px 2px; }
 
+/* Per-slot filament picker (from installed Snapmaker Orca) */
+.conv-fil { margin: 8px 0; padding: 10px 12px; border-radius: 9px; background: var(--surface-2); border: 1px solid var(--border, #333); }
+.conv-fil-head { font-size: 12.5px; color: var(--text-muted); margin-bottom: 8px; }
+.conv-fil-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+.conv-fil-slot { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; min-width: 88px; }
+.conv-fil-sel { flex: 1; font-size: 12.5px; min-width: 0; }
+
 /* Converter tab: actions, batch, custom printers (3.2) */
 .conv-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .conv-batch { margin-top: 16px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
