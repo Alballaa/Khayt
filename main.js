@@ -1230,10 +1230,11 @@ function meshFromBuffer(buf, ext) {
       // vertices/triangles > 0 but no mesh means a resolution bug; 0 means an unread format.
       try {
         const mf = require('./lib/mf-convert');
-        const texts = mf.readMembers(buf).filter((m) => /\.model$/i.test(m.name)).map((m) => m.data.toString('utf8'));
-        const joined = texts.join('');
-        const n = (re) => (joined.match(re) || []).length;
-        diag = ` (models:${texts.length} objects:${n(/<object\b/gi)} vertices:${n(/<vertex\b/gi)} triangles:${n(/<triangle\b/gi)})`;
+        const models = mf.readMembers(buf).filter((m) => /\.model$/i.test(m.name));
+        const cnt = (b, s) => { const nd = Buffer.from(s); let c = 0, i = 0; while ((i = b.indexOf(nd, i)) !== -1) { c++; i += nd.length; } return c; };
+        let nO = 0, nV = 0, nT = 0;
+        const sizes = models.map((m) => { nO += cnt(m.data, '<object'); nV += cnt(m.data, '<vertex'); nT += cnt(m.data, '<triangle'); return Math.round(m.data.length / 1048576) + 'MB'; });
+        diag = ` (models:${models.length}[${sizes.join(',')}] objects:${nO} vertices:${nV} triangles:${nT})`;
       } catch (_) { /* diagnostics best-effort */ }
       try {
         const th = extractPrintThumb({ ext, buf });
