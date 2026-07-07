@@ -1210,7 +1210,7 @@ function meshFromBuffer(buf, ext) {
     // Prefer geometry+paint together, but never let a paint-parse hiccup cost us the mesh:
     // fall back to plain triangle extraction so a valid model still renders in 3D. maxTris caps
     // the built mesh so multi-million-triangle files render fast instead of stalling / OOMing.
-    const EXTRACT_MAX = 250000;
+    const EXTRACT_MAX = 700000;
     try {
       const wp = mf.extractTrianglesWithPaint(members, { maxTris: EXTRACT_MAX });
       if (wp && wp.triangles) { tris = wp.triangles; paint = wp.paint; objIds = wp.objIds || null; thinned = !!wp.thinned; }
@@ -1258,7 +1258,7 @@ function meshFromBuffer(buf, ext) {
   // Preview geometry is already capped during extraction (EXTRACT_MAX). Only STL — parsed in
   // full above — needs a decimation pass here; decimating a 3MF again would keep just 1/Nth of an
   // already-thinned mesh (holes everywhere). So cap STL to the same budget; leave 3MF untouched.
-  const MAX = 250000;
+  const MAX = 700000;
   if (ext !== '3mf' && tris.length > MAX) {
     const s = Math.ceil(tris.length / MAX); const out = [];
     for (let i = 0; i < tris.length; i += s) out.push(tris[i]);

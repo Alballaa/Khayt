@@ -45,7 +45,16 @@
     top:   { yaw: -Math.PI / 2, pitch: 1.4 },
   };
 
-  function mountMeshViewer(canvas, { verts, count, colors, bed, triColors, triObj, triCode, palette }) {
+  // Prefer the GPU (depth-buffered, solid, no decimation artifacts); fall back to the software
+  // rasterizer only when WebGL2 is unavailable. Both expose the identical control interface.
+  function mountMeshViewer(canvas, opts) {
+    if (typeof mountWebglViewer === 'function') {
+      try { const v = mountWebglViewer(canvas, opts); if (v) return v; } catch (e) { try { console.warn('[viewer] WebGL failed, using software renderer:', e && e.message); } catch (_) {} }
+    }
+    return mountSoftwareViewer(canvas, opts);
+  }
+
+  function mountSoftwareViewer(canvas, { verts, count, colors, bed, triColors, triObj, triCode, palette }) {
     const allTris = trisFromVerts(verts, count);
     let plate = bed || null;
     const bakedTcol = (triColors && triColors.length) ? triColors : null;
