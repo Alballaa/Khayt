@@ -727,17 +727,26 @@ function detectInstalledSlicers() {
 
   // Any .app whose name looks like a slicer — catches vendor OrcaSlicer forks (Snapmaker Orca,
   // QIDIStudio, Elegoo, Anker, Creality/Bambu variants…) and Cura builds that aren't in the list below.
-  const SLICER_APP_RE = /(slic|orca|snapmaker|bambu|prusa|cura|creality|chitubox|lychee|flashprint|ideamaker|simplify|qidi|elegoo|anycubic|anker)/i;
+  const SLICER_APP_RE = /(slic|orca|snapmaker|bambu|prusa|cura|creality|chitubox|lychee|flashprint|ideamaker|simplify|qidi|elegoo|anycubic|anker|eufymake|photon|satellite|voxeldance|icesl|kisslicer|sovol)/i;
   if (plat === 'darwin') {
+    // macOS Contents/MacOS/ executable names verified from each project's build config / bundle.
+    // Orca/Bambu C++ forks use a CamelCase app-key on macOS (OrcaSlicer, BambuStudio, QIDIStudio,
+    // ElegooSlicer, CrealityPrint); Snapmaker's .app has a space but its binary an underscore.
     const apps = [
       { name: 'PrusaSlicer', app: 'PrusaSlicer.app', bin: 'PrusaSlicer' },
       { name: 'OrcaSlicer', app: 'OrcaSlicer.app', bin: 'OrcaSlicer' },
       { name: 'Snapmaker Orca', app: 'Snapmaker Orca.app', bin: 'Snapmaker_Orca' },
       { name: 'Bambu Studio', app: 'BambuStudio.app', bin: 'BambuStudio' },
+      { name: 'Bambu Studio', app: 'Bambu Studio.app', bin: 'BambuStudio' },
+      { name: 'UltiMaker Cura', app: 'UltiMaker-Cura.app', bin: 'UltiMaker-Cura' },
+      { name: 'Elegoo Slicer', app: 'ElegooSlicer.app', bin: 'ElegooSlicer' },
+      { name: 'QIDIStudio', app: 'QIDIStudio.app', bin: 'QIDIStudio' },
+      { name: 'Creality Print', app: 'CrealityPrint.app', bin: 'CrealityPrint' },
       { name: 'SuperSlicer', app: 'SuperSlicer.app', bin: 'SuperSlicer' },
+      { name: 'Slic3r', app: 'Slic3r.app', bin: 'Slic3r' },
       { name: 'ideaMaker', app: 'ideaMaker.app', bin: 'ideaMaker' },
       { name: 'Simplify3D', app: 'Simplify3D.app', bin: 'Simplify3D' },
-      { name: 'Creality Print', app: 'Creality Print.app', bin: 'Creality Print' },
+      { name: 'Lychee Slicer', app: 'LycheeSlicer.app', bin: 'LycheeSlicer' },
       { name: 'Lychee Slicer', app: 'Lychee Slicer.app', bin: 'LycheeSlicer' },
       { name: 'CHITUBOX', app: 'CHITUBOX.app', bin: 'CHITUBOX' },
       { name: 'FlashPrint', app: 'FlashPrint.app', bin: 'FlashPrint' },
@@ -762,25 +771,36 @@ function detectInstalledSlicers() {
     const pf = process.env['ProgramFiles'] || 'C:\\Program Files';
     const pfx86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
     const lad = process.env['LOCALAPPDATA'] || path.join(home, 'AppData', 'Local');
+    // Windows/Linux binaries for the Orca/Bambu forks use the lowercase-dash SLIC3R_APP_CMD
+    // (orca-slicer, bambu-studio, qidi-studio, elegoo-slicer, snapmaker-orca); Creality is CamelCase.
     const cands = [
       { name: 'PrusaSlicer', rels: ['Prusa3D\\PrusaSlicer\\prusa-slicer.exe'] },
       { name: 'OrcaSlicer', rels: ['OrcaSlicer\\orca-slicer.exe', 'OrcaSlicer\\OrcaSlicer.exe'] },
-      { name: 'Snapmaker Orca', rels: ['Snapmaker Orca\\Snapmaker Orca.exe', 'Snapmaker Orca\\snapmaker_orca.exe', 'Snapmaker_Orca\\Snapmaker_Orca.exe'] },
+      { name: 'Snapmaker Orca', rels: ['Snapmaker Orca\\snapmaker-orca.exe', 'Snapmaker Orca\\Snapmaker Orca.exe', 'Snapmaker Orca\\snapmaker_orca.exe', 'Snapmaker_Orca\\Snapmaker_Orca.exe'] },
       { name: 'Bambu Studio', rels: ['Bambu Studio\\bambu-studio.exe', 'Bambu Studio\\BambuStudio.exe'] },
+      { name: 'Elegoo Slicer', rels: ['ElegooSlicer\\elegoo-slicer.exe', 'ElegooSlicer\\ElegooSlicer.exe'] },
+      { name: 'QIDIStudio', rels: ['QIDIStudio\\qidi-studio.exe', 'QIDIStudio\\QIDIStudio.exe'] },
+      { name: 'Sovol Slicer', rels: ['SovolSlicer\\sovol-slicer.exe'] },
       { name: 'SuperSlicer', rels: ['SuperSlicer\\superslicer.exe'] },
       { name: 'ideaMaker', rels: ['Raise3D\\ideaMaker\\ideaMaker.exe'] },
       { name: 'Simplify3D', rels: ['Simplify3D\\Simplify3D.exe'] },
-      { name: 'Creality Print', rels: ['Creality\\Creality Print\\CrealityPrint.exe'] },
-      { name: 'FlashPrint', rels: ['FlashForge\\FlashPrint\\FlashPrint.exe'] },
+      { name: 'Creality Print', rels: ['Creality\\Creality Print\\CrealityPrint.exe', 'CrealityPrint\\CrealityPrint.exe'] },
+      { name: 'FlashPrint', rels: ['FlashForge\\FlashPrint 5\\FlashPrint.exe', 'FlashForge\\FlashPrint\\FlashPrint.exe'] },
+      { name: 'Lychee Slicer', rels: ['LycheeSlicer\\LycheeSlicer.exe'] },
+      { name: 'CHITUBOX', rels: ['ChiTuBox\\CHITUBOX.exe'] },
     ];
     const roots = [pf, pfx86, path.join(lad, 'Programs')];
     for (const c of cands) for (const root of roots) for (const rel of c.rels) add(c.name, path.join(root, rel));
+    // Folder layout varies by version for some vendors — scan for Cura / Creality Print dirs.
     for (const root of [pf, pfx86]) {
       let entries = [];
       try { entries = fs.readdirSync(root); } catch (_) {}
       for (const e of entries) {
-        if (!/cura/i.test(e)) continue;
-        for (const bin of ['UltiMaker-Cura.exe', 'Ultimaker Cura.exe', 'Cura.exe']) add(e, path.join(root, e, bin));
+        if (/cura/i.test(e)) {
+          for (const bin of ['UltiMaker-Cura.exe', 'Ultimaker Cura.exe', 'Cura.exe']) add(e, path.join(root, e, bin));
+        } else if (/creality/i.test(e)) {
+          for (const bin of ['CrealityPrint.exe', 'Creality Print\\CrealityPrint.exe']) add('Creality Print', path.join(root, e, bin));
+        }
       }
     }
   } else {
@@ -789,8 +809,14 @@ function detectInstalledSlicers() {
       { name: 'OrcaSlicer', cmds: ['orca-slicer', 'OrcaSlicer'] },
       { name: 'Snapmaker Orca', cmds: ['snapmaker-orca', 'Snapmaker_Orca', 'SnapmakerOrca'] },
       { name: 'Bambu Studio', cmds: ['bambu-studio', 'BambuStudio'] },
+      { name: 'Elegoo Slicer', cmds: ['elegoo-slicer', 'ElegooSlicer'] },
+      { name: 'QIDIStudio', cmds: ['qidi-studio', 'qidi-slicer', 'QIDIStudio'] },
+      { name: 'Creality Print', cmds: ['CrealityPrint', 'creality-print'] },
       { name: 'UltiMaker Cura', cmds: ['cura', 'UltiMaker-Cura'] },
       { name: 'SuperSlicer', cmds: ['superslicer', 'SuperSlicer'] },
+      { name: 'Slic3r', cmds: ['slic3r'] },
+      { name: 'ideaMaker', cmds: ['ideaMaker', 'ideamaker'] },
+      { name: 'Lychee Slicer', cmds: ['lycheeslicer', 'LycheeSlicer'] },
     ];
     const dirs = ['/usr/bin', '/usr/local/bin', path.join(home, '.local', 'bin'),
       '/var/lib/flatpak/exports/bin', path.join(home, '.local', 'share', 'flatpak', 'exports', 'bin')];
@@ -802,7 +828,7 @@ function detectInstalledSlicers() {
       try { entries = fs.readdirSync(d); } catch (_) {}
       for (const e of entries) {
         if (!/\.AppImage$/i.test(e)) continue;
-        if (!/slic|cura|prusa|orca|bambu|snapmaker/i.test(e)) continue;
+        if (!/slic|cura|prusa|orca|bambu|snapmaker|elegoo|qidi|creality|lychee|ideamaker|anycubic|sovol/i.test(e)) continue;
         add((dn && dn(e)) || e.replace(/\.AppImage$/i, ''), path.join(d, e));
       }
     }
