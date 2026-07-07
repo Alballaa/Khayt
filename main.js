@@ -1198,149 +1198,91 @@ ipcMain.handle('hub:printlib-read-bytes', async (_e, fullPath) => {
 
 // Parse an STL/3MF buffer into a decimated triangle mesh for the in-app 3D viewer.
 // Returns a flat Float32Array (9 floats/triangle) so it clones cheaply over IPC.
-function meshFromBuffer(buf, ext) {
-  let tris = null, colors = [], paint = null, objIds = null, platesRaw = [], thinned = false;
-  if (ext === 'stl') {
-    const g = require('./lib/stl-parse').parseStl(buf, { keepTriangles: true });
-    tris = g && g.triangles;
-  } else if (ext === '3mf') {
-    const mf = require('./lib/mf-convert');
-    const members = mf.readMembers(buf);
-    try { colors = (mf.extractFilaments(members) || []).map((f) => f.color).filter(Boolean); } catch (_) { colors = []; }
-    // Prefer geometry+paint together, but never let a paint-parse hiccup cost us the mesh:
-    // fall back to plain triangle extraction so a valid model still renders in 3D. maxTris caps
-    // the built mesh so multi-million-triangle files render fast instead of stalling / OOMing.
-    const EXTRACT_MAX = 700000;
-    try {
-      const wp = mf.extractTrianglesWithPaint(members, { maxTris: EXTRACT_MAX });
-      if (wp && wp.triangles) { tris = wp.triangles; paint = wp.paint; objIds = wp.objIds || null; thinned = !!wp.thinned; }
-    } catch (_) { paint = null; objIds = null; }
-    if (!Array.isArray(tris) || !tris.length) {
-      try { tris = mf.extractTriangles(members, { maxTris: EXTRACT_MAX }); paint = null; objIds = null; } catch (_) { /* no geometry */ }
-    }
-    try { platesRaw = mf.extractPlates(members) || []; } catch (_) { platesRaw = []; }
+function bboxOfPositions(pos) {
+  let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;
+  for (let i = 0; i < pos.length; i += 3) {
+    const x = pos[i], y = pos[i + 1], z = pos[i + 2];
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; if (z < z0) z0 = z; if (z > z1) z1 = z;
   }
-  if (!Array.isArray(tris) || !tris.length) {
-    // Geometry couldn't be parsed (e.g. an unusual 3MF structure or an oversized model
-    // file) — fall back to the slicer's own embedded plate thumbnail so the preview still
-    // shows the model. Every mainstream slicer bakes one in.
-    let diag = '';
-    if (ext === '3mf') {
-      // Diagnostic counts so a genuine parse failure is debuggable rather than opaque:
-      // vertices/triangles > 0 but no mesh means a resolution bug; 0 means an unread format.
+  return Number.isFinite(x0) ? { x: x1 - x0, y: y1 - y0, z: z1 - z0 } : { x: 0, y: 0, z: 0 };
+}
+const _hx = (h) => { const m = /^#?([0-9a-f]{6})/i.exec(String(h || '')); return m ? [parseInt(m[1].slice(0, 2), 16), parseInt(m[1].slice(2, 4), 16), parseInt(m[1].slice(4, 6), 16)] : [180, 180, 185]; };
+
+function meshFromBuffer(buf, ext) {
+  if (ext === '3mf') {
+    // Painted-mesh extraction ported from the bedready.io reference (lib/mf-mesh.js): flat world-
+    // space positions + a correctly-decoded filament state per face + the real filament palette.
+    const mfMesh = require('./lib/mf-mesh');
+    let mesh = null;
+    try { mesh = mfMesh.extractMeshFromBuffer(buf); } catch (e) { try { console.warn('[mesh] extract failed', e && e.message); } catch (_) {} }
+    if (!mesh || !mesh.positions || !mesh.positions.length) {
+      // No renderable geometry — fall back to the slicer's own embedded thumbnail, with a
+      // diagnostic (counts + part sizes) so any genuine failure is debuggable rather than opaque.
+      let diag = '';
       try {
         const mf = require('./lib/mf-convert');
         const models = mf.readMembers(buf).filter((m) => /\.model$/i.test(m.name));
         const cnt = (b, s) => { const nd = Buffer.from(s); let c = 0, i = 0; while ((i = b.indexOf(nd, i)) !== -1) { c++; i += nd.length; } return c; };
         let nO = 0, nV = 0, nT = 0;
         const sizes = models.map((m) => { nO += cnt(m.data, '<object'); nV += cnt(m.data, '<vertex'); nT += cnt(m.data, '<triangle'); return Math.round(m.data.length / 1048576) + 'MB'; });
-        diag = ` (models:${models.length}[${sizes.join(',')}] objects:${nO} vertices:${nV} triangles:${nT})`;
-      } catch (_) { /* diagnostics best-effort */ }
-      try {
-        const th = extractPrintThumb({ ext, buf });
-        if (th && th.pngBase64) return { ok: false, error: 'no-geometry' + diag, thumb: 'data:image/png;base64,' + th.pngBase64 };
-      } catch (_) { /* no thumbnail either */ }
+        diag = ` (models:${models.length}[${sizes.join(',')}] objects:${nO} vertices:${nV} triangles:${nT}${mesh && mesh.skipped ? ' skipped:too-big' : ''})`;
+      } catch (_) { /* best-effort */ }
+      try { const th = extractPrintThumb({ ext, buf }); if (th && th.pngBase64) return { ok: false, error: 'no-geometry' + diag, thumb: 'data:image/png;base64,' + th.pngBase64 }; } catch (_) {}
+      return { ok: false, error: 'no-geometry' + diag };
     }
-    return { ok: false, error: 'no-geometry' + diag };
-  }
-  // Solid volume via signed tetrahedra. Needs the full closed mesh, so skip it when the mesh was
-  // thinned for preview (a sampled surface isn't watertight — the number would be meaningless).
-  let volumeMm3 = null;
-  if (!thinned) {
-    let vol6 = 0;
-    for (const t of tris) {
-      const a = t[0], b = t[1], c = t[2];
-      if (!a || !b || !c) continue;
-      vol6 += a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0]) + a[2] * (b[0] * c[1] - b[1] * c[0]);
-    }
-    volumeMm3 = Math.abs(vol6) / 6;
-  }
-  // Preview geometry is already capped during extraction (EXTRACT_MAX). Only STL — parsed in
-  // full above — needs a decimation pass here; decimating a 3MF again would keep just 1/Nth of an
-  // already-thinned mesh (holes everywhere). So cap STL to the same budget; leave 3MF untouched.
-  const MAX = 700000;
-  if (ext !== '3mf' && tris.length > MAX) {
-    const s = Math.ceil(tris.length / MAX); const out = [];
-    for (let i = 0; i < tris.length; i += s) out.push(tris[i]);
-    tris = out; paint = null; objIds = null;
-  }
-  // Drop extreme sliver triangles (a long edge with almost no area) — these are the "spikes" that
-  // stab across a model from a stray/degenerate vertex. Ratio maxEdge²/(2·area) is ~1–10 for
-  // healthy facets (incl. big base-plate triangles) and explodes for slivers, so a high cut is safe.
-  {
-    const kept = [], kp = paint ? [] : null, ko = objIds ? [] : null;
-    for (let i = 0; i < tris.length; i++) {
-      const t = tris[i], a = t[0], b = t[1], c = t[2];
-      let spike = !a || !b || !c;
-      if (!spike) {
-        const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2], vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
-        const cxp = uy * vz - uz * vy, cyp = uz * vx - ux * vz, czp = ux * vy - uy * vx;
-        const area2 = Math.sqrt(cxp * cxp + cyp * cyp + czp * czp);
-        const ab = (b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2 + (b[2] - a[2]) ** 2;
-        const bc = (c[0] - b[0]) ** 2 + (c[1] - b[1]) ** 2 + (c[2] - b[2]) ** 2;
-        const ca = (a[0] - c[0]) ** 2 + (a[1] - c[1]) ** 2 + (a[2] - c[2]) ** 2;
-        spike = area2 <= 1e-9 || Math.max(ab, bc, ca) / area2 > 40;
+    const verts = mesh.positions;
+    const count = verts.length / 9 | 0;
+    const palette = (mesh.palette && mesh.palette.length) ? mesh.palette.slice() : null;
+    const fs = mesh.faceState;
+    // Per-face palette index (state − 1; state 0 → base filament 0) + baked colours for the first view.
+    let triColors = null, triCode = null;
+    if (palette && palette.length && fs) {
+      const n = palette.length, pal = palette.map(_hx);
+      triColors = new Uint8Array(count * 3);
+      triCode = new Uint16Array(count);
+      for (let i = 0; i < count; i++) {
+        const s = fs[i];
+        const idx = s >= 1 ? Math.min(s - 1, n - 1) : 0;
+        triCode[i] = idx;
+        const c = pal[idx] || pal[0];
+        triColors[i * 3] = c[0]; triColors[i * 3 + 1] = c[1]; triColors[i * 3 + 2] = c[2];
       }
-      if (!spike) { kept.push(t); if (kp) kp.push(paint[i]); if (ko) ko.push(objIds[i]); }
     }
-    if (kept.length) { tris = kept; if (kp) paint = kp; if (ko) objIds = ko; }
-  }
-  const hx = (h) => { const m = /^#?([0-9a-f]{6})/i.exec(String(h || '')); return m ? [parseInt(m[1].slice(0, 2), 16), parseInt(m[1].slice(2, 4), 16), parseInt(m[1].slice(4, 6), 16)] : [180, 180, 185]; };
-  // True multicolour. A 3MF paint_color / mmu_segmentation code is NOT a filament index — it's a
-  // recursive triangle-subdivision code (a painted model can have hundreds of distinct codes). So
-  // map each facet to one of the REAL filament colours: a "solid" facet (low 2 bits 0) sorts by
-  // value into extruder order; subdivided/boundary facets fall back to the base filament. The
-  // palette we expose is the real filament list — never one swatch per code.
-  let triColors = null, triCode = null, palette = null;
-  if (paint && colors.length) {
-    const n = colors.length;
-    palette = colors.slice();
-    const hasAbsent = paint.some((c) => c == null);
-    const start = hasAbsent ? 1 : 0; // absent code → base(0); fully-painted files start at 0
-    const solid = Array.from(new Set(paint.filter((c) => c != null && (parseInt(c, 16) & 3) === 0)));
-    solid.sort((a, b) => parseInt(a, 16) - parseInt(b, 16));
-    const codeFil = {};
-    solid.forEach((code, i) => { codeFil[code] = Math.min(n - 1, start + i); });
-    const pal = palette.map(hx);
-    triColors = new Uint8Array(tris.length * 3);
-    triCode = new Uint16Array(tris.length);
-    for (let i = 0; i < tris.length; i++) {
-      const code = paint[i];
-      const fi = code == null ? 0 : (codeFil[code] != null ? codeFil[code] : 0);
-      triCode[i] = fi;
-      const c = pal[fi] || pal[0];
-      triColors[i * 3] = c[0]; triColors[i * 3 + 1] = c[1]; triColors[i * 3 + 2] = c[2];
+    // Per-face part index + plate grouping so the preview can show one plate/part at a time.
+    let triObj = null, plates = null;
+    const parts = mesh.parts || [];
+    if (parts.length > 1) {
+      triObj = new Uint32Array(count);
+      parts.forEach((p, pi) => { for (let f = p.start; f < p.end && f < count; f++) triObj[f] = pi; });
+      const grp = (mesh.plates || []).map((pl) => ({ name: pl.name || '', objs: pl.partIndices.slice() })).filter((pl) => pl.objs.length);
+      if (grp.length > 1) plates = grp;
     }
-  }
-  // Group triangles by build-plate for a per-plate preview. Map each plate's object ids onto the
-  // triangle object-index space; keep only plates that actually resolve (Bambu id spaces vary),
-  // and only expose the selector when there's genuinely more than one.
-  let triObj = null, plates = null;
-  if (objIds && objIds.length === tris.length) {
-    const objList = Array.from(new Set(objIds.filter((x) => x != null)));
-    if (objList.length) {
-      const objIndex = {}; objList.forEach((id, i) => { objIndex[id] = i; });
-      triObj = new Uint16Array(tris.length);
-      for (let i = 0; i < tris.length; i++) triObj[i] = objIndex[objIds[i]] != null ? objIndex[objIds[i]] : 0;
-      const mapped = platesRaw.map((p, i) => ({
-        name: p.name || ('Plate ' + (i + 1)),
-        objs: (p.objectIds || []).map((id) => objIndex[id]).filter((x) => x != null),
-      })).filter((p) => p.objs.length);
-      if (mapped.length > 1) plates = mapped;
+    // Solid volume only when the full mesh was rendered (a sampled surface isn't watertight).
+    let volumeMm3 = null;
+    if (!mesh.sampled) {
+      let vol6 = 0;
+      for (let i = 0; i < verts.length; i += 9) {
+        const ax = verts[i], ay = verts[i + 1], az = verts[i + 2], bx = verts[i + 3], by = verts[i + 4], bz = verts[i + 5], cx = verts[i + 6], cy = verts[i + 7], cz = verts[i + 8];
+        vol6 += ax * (by * cz - bz * cy) - ay * (bx * cz - bz * cx) + az * (bx * cy - by * cx);
+      }
+      volumeMm3 = Math.abs(vol6) / 6;
     }
+    return { ok: true, verts, count, bbox: bboxOfPositions(verts), colors: palette || [], volumeMm3, triColors, triObj, plates, triCode, palette };
   }
+
+  // STL: full mesh (usually already low enough poly for a preview), decimated only if huge.
+  const g = require('./lib/stl-parse').parseStl(buf, { keepTriangles: true });
+  let tris = g && g.triangles;
+  if (!Array.isArray(tris) || !tris.length) return { ok: false, error: 'no-geometry' };
+  let vol6 = 0;
+  for (const t of tris) { const a = t[0], b = t[1], c = t[2]; if (!a || !b || !c) continue; vol6 += a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0]) + a[2] * (b[0] * c[1] - b[1] * c[0]); }
+  const volumeMm3 = Math.abs(vol6) / 6;
+  const MAX = 1500000;
+  if (tris.length > MAX) { const s = Math.ceil(tris.length / MAX); const out = []; for (let i = 0; i < tris.length; i += s) out.push(tris[i]); tris = out; }
   const verts = new Float32Array(tris.length * 9);
-  let bx0 = Infinity, by0 = Infinity, bz0 = Infinity, bx1 = -Infinity, by1 = -Infinity, bz1 = -Infinity, k = 0;
-  for (const t of tris) {
-    for (let j = 0; j < 3; j++) {
-      const p = t[j];
-      verts[k++] = p[0]; verts[k++] = p[1]; verts[k++] = p[2];
-      if (p[0] < bx0) bx0 = p[0]; if (p[0] > bx1) bx1 = p[0];
-      if (p[1] < by0) by0 = p[1]; if (p[1] > by1) by1 = p[1];
-      if (p[2] < bz0) bz0 = p[2]; if (p[2] > bz1) bz1 = p[2];
-    }
-  }
-  return { ok: true, verts, count: tris.length, bbox: { x: bx1 - bx0, y: by1 - by0, z: bz1 - bz0 }, colors, volumeMm3, triColors, triObj, plates, triCode, palette };
+  let k = 0;
+  for (const t of tris) for (let j = 0; j < 3; j++) { const p = t[j]; verts[k++] = p[0]; verts[k++] = p[1]; verts[k++] = p[2]; }
+  return { ok: true, verts, count: tris.length, bbox: bboxOfPositions(verts), colors: [], volumeMm3, triColors: null, triObj: null, plates: null, triCode: null, palette: null };
 }
 
 // Mesh for a print file in the vault (STL or 3MF). Confined to the vault, like read-bytes.
