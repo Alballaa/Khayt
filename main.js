@@ -1199,7 +1199,7 @@ ipcMain.handle('hub:printlib-read-bytes', async (_e, fullPath) => {
 // Parse an STL/3MF buffer into a decimated triangle mesh for the in-app 3D viewer.
 // Returns a flat Float32Array (9 floats/triangle) so it clones cheaply over IPC.
 function meshFromBuffer(buf, ext) {
-  let tris = null, colors = [], paint = null, objIds = null, platesRaw = [];
+  let tris = null, colors = [], paint = null, objIds = null, platesRaw = [], thinned = false;
   if (ext === 'stl') {
     const g = require('./lib/stl-parse').parseStl(buf, { keepTriangles: true });
     tris = g && g.triangles;
@@ -1208,13 +1208,15 @@ function meshFromBuffer(buf, ext) {
     const members = mf.readMembers(buf);
     try { colors = (mf.extractFilaments(members) || []).map((f) => f.color).filter(Boolean); } catch (_) { colors = []; }
     // Prefer geometry+paint together, but never let a paint-parse hiccup cost us the mesh:
-    // fall back to plain triangle extraction so a valid model still renders in 3D.
+    // fall back to plain triangle extraction so a valid model still renders in 3D. maxTris caps
+    // the built mesh so multi-million-triangle files render fast instead of stalling / OOMing.
+    const EXTRACT_MAX = 240000;
     try {
-      const wp = mf.extractTrianglesWithPaint(members);
-      if (wp && wp.triangles) { tris = wp.triangles; paint = wp.paint; objIds = wp.objIds || null; }
+      const wp = mf.extractTrianglesWithPaint(members, { maxTris: EXTRACT_MAX });
+      if (wp && wp.triangles) { tris = wp.triangles; paint = wp.paint; objIds = wp.objIds || null; thinned = !!wp.thinned; }
     } catch (_) { paint = null; objIds = null; }
     if (!Array.isArray(tris) || !tris.length) {
-      try { tris = mf.extractTriangles(members); paint = null; objIds = null; } catch (_) { /* no geometry */ }
+      try { tris = mf.extractTriangles(members, { maxTris: EXTRACT_MAX }); paint = null; objIds = null; } catch (_) { /* no geometry */ }
     }
     try { platesRaw = mf.extractPlates(members) || []; } catch (_) { platesRaw = []; }
   }
@@ -1240,14 +1242,18 @@ function meshFromBuffer(buf, ext) {
     }
     return { ok: false, error: 'no-geometry' + diag };
   }
-  // Solid volume via signed tetrahedra — computed from the FULL mesh (before decimation).
-  let vol6 = 0;
-  for (const t of tris) {
-    const a = t[0], b = t[1], c = t[2];
-    if (!a || !b || !c) continue;
-    vol6 += a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0]) + a[2] * (b[0] * c[1] - b[1] * c[0]);
+  // Solid volume via signed tetrahedra. Needs the full closed mesh, so skip it when the mesh was
+  // thinned for preview (a sampled surface isn't watertight — the number would be meaningless).
+  let volumeMm3 = null;
+  if (!thinned) {
+    let vol6 = 0;
+    for (const t of tris) {
+      const a = t[0], b = t[1], c = t[2];
+      if (!a || !b || !c) continue;
+      vol6 += a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0]) + a[2] * (b[0] * c[1] - b[1] * c[0]);
+    }
+    volumeMm3 = Math.abs(vol6) / 6;
   }
-  const volumeMm3 = Math.abs(vol6) / 6;
   const MAX = 80000;
   if (tris.length > MAX) {
     const s = Math.ceil(tris.length / MAX); const out = []; const pout = paint ? [] : null; const oout = objIds ? [] : null;

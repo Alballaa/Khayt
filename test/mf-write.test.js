@@ -136,6 +136,28 @@ test('extractTriangles falls back to raw meshes when the build graph resolves to
   assert.deepEqual(tris[0], [[0, 0, 0], [10, 0, 0], [0, 10, 0]]);
 });
 
+test('extractTrianglesWithPaint thins huge meshes for preview but keeps full mesh otherwise', () => {
+  const { writeZip } = require('../lib/zip-write');
+  const N = 900; // facets — small but enough to exercise the stride
+  let s = '<?xml version="1.0"?><model unit="millimeter"><resources><object id="1" type="model"><mesh><vertices>';
+  for (let i = 0; i < N + 2; i++) s += `<vertex x="${i}" y="0" z="0"/>`;
+  s += '</vertices><triangles>';
+  for (let i = 0; i < N; i++) s += `<triangle v1="${i}" v2="${i + 1}" v3="${i + 2}"/>`;
+  s += '</triangles></mesh></object></resources><build><item objectid="1"/></build></model>';
+  const buf = writeZip([
+    { name: '[Content_Types].xml', data: '<?xml version="1.0"?><Types/>' },
+    { name: '3D/3dmodel.model', data: s },
+  ]);
+  const members = readMembers(buf);
+  const full = extractTrianglesWithPaint(members);
+  assert.equal(full.triangles.length, N, 'no cap → full mesh');
+  assert.equal(full.thinned, false);
+  const capped = extractTrianglesWithPaint(members, { maxTris: 100 });
+  assert.equal(capped.thinned, true);
+  assert.ok(capped.triangles.length <= 100 && capped.triangles.length >= 90, `~100 facets kept, got ${capped.triangles.length}`);
+  assert.equal(capped.paint.length, capped.triangles.length, 'paint stays aligned after thinning');
+});
+
 test('extractTriangles parses scientific-notation and single-quoted vertices', () => {
   const { writeZip } = require('../lib/zip-write');
   // Negative exponents (1.5e-3) and single quotes — a CAD exporter dialect that used to make
