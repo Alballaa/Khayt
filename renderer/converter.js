@@ -213,8 +213,10 @@
     const rows = [];
     // Plate picker.
     if (Array.isArray(mesh.plates) && mesh.plates.length > 1) {
-      const opts = [`<option value="-1">${escapeHtml(t('conv.all_plates') || 'All plates')}</option>`]
-        .concat(mesh.plates.map((p, i) => `<option value="${i}">${escapeHtml(p.name || ('Plate ' + (i + 1)))}</option>`)).join('');
+      // Default to the first plate (like a slicer) — "All plates" lays every plate's objects out
+      // at their real bed positions, which looks tiny and scattered.
+      const opts = mesh.plates.map((p, i) => `<option value="${i}"${i === 0 ? ' selected' : ''}>${escapeHtml(p.name || ('Plate ' + (i + 1)))}</option>`)
+        .concat(`<option value="-1">${escapeHtml(t('conv.all_plates') || 'All plates')}</option>`).join('');
       rows.push(`<label class="conv-pv-plate"><span>${escapeHtml(t('conv.plate') || 'Plate')}</span><select class="conv-pv-plate-sel">${opts}</select></label>`);
     }
     // Live colour swatches (only meaningful when the model carries per-facet paint + a palette).
@@ -229,7 +231,10 @@
     box.innerHTML = rows.join('');
     panel.appendChild(box);
     const sel = box.querySelector('.conv-pv-plate-sel');
-    if (sel) sel.addEventListener('change', () => { const i = parseInt(sel.value, 10); ctl.setPlate(i >= 0 && mesh.plates[i] ? mesh.plates[i].objs : null); });
+    if (sel) {
+      sel.addEventListener('change', () => { const i = parseInt(sel.value, 10); ctl.setPlate(i >= 0 && mesh.plates[i] ? mesh.plates[i].objs : null); });
+      if (mesh.plates && mesh.plates[0]) ctl.setPlate(mesh.plates[0].objs); // start on plate 1
+    }
     const cols = box.querySelectorAll('.conv-pv-col');
     if (cols.length) cols.forEach((inp) => inp.addEventListener('input', () => {
       const next = ctl.palette() || [];

@@ -66,7 +66,9 @@
     let spinning = false, raf = 0, mode = null, lastX = 0, lastY = 0, dead = false;
 
     const cssVar = (n, fb) => (getComputedStyle(document.documentElement).getPropertyValue(n).trim() || fb);
-    const bg = cssVar('--surface-2', '#0e1116');
+    // A medium studio grey (not the theme surface) so BOTH a white-filament model and a black one
+    // read against the background via Lambert shading — a near-white stage makes white models vanish.
+    const bg = '#8c93a3';
     const col = hexToRgb(cssVar('--accent', '')) || [120, 144, 168];
     const ramp = Array.isArray(colors) ? colors.map(hexToRgb).filter(Boolean) : [];
     const palRgb = () => (curPalette || []).map((h) => hexToRgb(h) || [180, 180, 185]);
@@ -110,7 +112,9 @@
         background: bg, color: col, colorRamp: ramp.length ? ramp : null, triColors: tcol,
         wireframe: wire && !fast, wireWidth: SS,
         bed: plate ? { x: plate.x, y: plate.y } : null, bedFits: plate ? plate.fits !== false : undefined,
-        maxTriangles: fast ? 22000 : 120000,
+        // Draw the full preview mesh when settled (it's already capped upstream), a lighter
+        // sample only while dragging for responsiveness.
+        maxTriangles: fast ? 60000 : 300000,
       });
     };
     // Initial colouring: live if painted, else baked.
@@ -175,7 +179,7 @@
     const viewBtn = (k, lbl) => `<button type="button" class="btn ghost small mv-view" data-view="${k}">${escapeHtml(lbl)}</button>`;
     const multiPlate = Array.isArray(plates) && plates.length > 1;
     const plateSel = multiPlate
-      ? `<label class="mv-plate"><span>${escapeHtml(t('conv.plate') || 'Plate')}</span><select id="mvPlate"><option value="-1">${escapeHtml(t('conv.all_plates') || 'All plates')}</option>${plates.map((p, i) => `<option value="${i}">${escapeHtml(p.name || ('Plate ' + (i + 1)))}</option>`).join('')}</select></label>`
+      ? `<label class="mv-plate"><span>${escapeHtml(t('conv.plate') || 'Plate')}</span><select id="mvPlate">${plates.map((p, i) => `<option value="${i}"${i === 0 ? ' selected' : ''}>${escapeHtml(p.name || ('Plate ' + (i + 1)))}</option>`).join('')}<option value="-1">${escapeHtml(t('conv.all_plates') || 'All plates')}</option></select></label>`
       : '';
     const body = `
       <div class="mv-wrap">
@@ -211,7 +215,10 @@
         modal.querySelector('#mvReset').addEventListener('click', () => { ctl.reset(); spinBtn.classList.remove('on'); });
         modal.querySelectorAll('.mv-view').forEach((b) => b.addEventListener('click', () => { ctl.setView(b.dataset.view); spinBtn.classList.remove('on'); }));
         const plateEl = modal.querySelector('#mvPlate');
-        if (plateEl) plateEl.addEventListener('change', () => { const i = parseInt(plateEl.value, 10); ctl.setPlate(i >= 0 && plates[i] ? plates[i].objs : null); });
+        if (plateEl) {
+          plateEl.addEventListener('change', () => { const i = parseInt(plateEl.value, 10); ctl.setPlate(i >= 0 && plates[i] ? plates[i].objs : null); });
+          if (plates && plates[0]) ctl.setPlate(plates[0].objs); // start on plate 1, like a slicer
+        }
         // Live colour swatches — edit a filament colour and the model recolours instantly.
         const pal = ctl.hasLiveColor && ctl.hasLiveColor() ? ctl.palette() : null;
         const colBox = modal.querySelector('#mvColors');

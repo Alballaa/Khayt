@@ -1210,7 +1210,7 @@ function meshFromBuffer(buf, ext) {
     // Prefer geometry+paint together, but never let a paint-parse hiccup cost us the mesh:
     // fall back to plain triangle extraction so a valid model still renders in 3D. maxTris caps
     // the built mesh so multi-million-triangle files render fast instead of stalling / OOMing.
-    const EXTRACT_MAX = 240000;
+    const EXTRACT_MAX = 250000;
     try {
       const wp = mf.extractTrianglesWithPaint(members, { maxTris: EXTRACT_MAX });
       if (wp && wp.triangles) { tris = wp.triangles; paint = wp.paint; objIds = wp.objIds || null; thinned = !!wp.thinned; }
@@ -1255,32 +1255,61 @@ function meshFromBuffer(buf, ext) {
     }
     volumeMm3 = Math.abs(vol6) / 6;
   }
-  const MAX = 80000;
-  if (tris.length > MAX) {
-    const s = Math.ceil(tris.length / MAX); const out = []; const pout = paint ? [] : null; const oout = objIds ? [] : null;
-    for (let i = 0; i < tris.length; i += s) { out.push(tris[i]); if (pout) pout.push(paint[i]); if (oout) oout.push(objIds[i]); }
-    tris = out; if (pout) paint = pout; if (oout) objIds = oout;
+  // Preview geometry is already capped during extraction (EXTRACT_MAX). Only STL — parsed in
+  // full above — needs a decimation pass here; decimating a 3MF again would keep just 1/Nth of an
+  // already-thinned mesh (holes everywhere). So cap STL to the same budget; leave 3MF untouched.
+  const MAX = 250000;
+  if (ext !== '3mf' && tris.length > MAX) {
+    const s = Math.ceil(tris.length / MAX); const out = [];
+    for (let i = 0; i < tris.length; i += s) out.push(tris[i]);
+    tris = out; paint = null; objIds = null;
   }
-  // Per-triangle palette index (triCode) + the palette itself, so the renderer can recolour the
-  // model live as the maker edits filament colours — instead of baking one fixed colouring.
-  // 65535 = "base/unpainted" (uses palette[0]). triColors is still baked for the initial view.
+  // Drop extreme sliver triangles (a long edge with almost no area) — these are the "spikes" that
+  // stab across a model from a stray/degenerate vertex. Ratio maxEdge²/(2·area) is ~1–10 for
+  // healthy facets (incl. big base-plate triangles) and explodes for slivers, so a high cut is safe.
+  {
+    const kept = [], kp = paint ? [] : null, ko = objIds ? [] : null;
+    for (let i = 0; i < tris.length; i++) {
+      const t = tris[i], a = t[0], b = t[1], c = t[2];
+      let spike = !a || !b || !c;
+      if (!spike) {
+        const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2], vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+        const cxp = uy * vz - uz * vy, cyp = uz * vx - ux * vz, czp = ux * vy - uy * vx;
+        const area2 = Math.sqrt(cxp * cxp + cyp * cyp + czp * czp);
+        const ab = (b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2 + (b[2] - a[2]) ** 2;
+        const bc = (c[0] - b[0]) ** 2 + (c[1] - b[1]) ** 2 + (c[2] - b[2]) ** 2;
+        const ca = (a[0] - c[0]) ** 2 + (a[1] - c[1]) ** 2 + (a[2] - c[2]) ** 2;
+        spike = area2 <= 1e-9 || Math.max(ab, bc, ca) / area2 > 40;
+      }
+      if (!spike) { kept.push(t); if (kp) kp.push(paint[i]); if (ko) ko.push(objIds[i]); }
+    }
+    if (kept.length) { tris = kept; if (kp) paint = kp; if (ko) objIds = ko; }
+  }
   const hx = (h) => { const m = /^#?([0-9a-f]{6})/i.exec(String(h || '')); return m ? [parseInt(m[1].slice(0, 2), 16), parseInt(m[1].slice(2, 4), 16), parseInt(m[1].slice(4, 6), 16)] : [180, 180, 185]; };
+  // True multicolour. A 3MF paint_color / mmu_segmentation code is NOT a filament index — it's a
+  // recursive triangle-subdivision code (a painted model can have hundreds of distinct codes). So
+  // map each facet to one of the REAL filament colours: a "solid" facet (low 2 bits 0) sorts by
+  // value into extruder order; subdivided/boundary facets fall back to the base filament. The
+  // palette we expose is the real filament list — never one swatch per code.
   let triColors = null, triCode = null, palette = null;
   if (paint && colors.length) {
-    const distinct = Array.from(new Set(paint.filter((c) => c != null))).sort();
-    if (distinct.length) {
-      // palette[0] = base filament; palette[1..] = one entry per distinct paint code (in order).
-      palette = [colors[0], ...distinct.map((_c, i) => colors[(i + 1) % colors.length])];
-      const codeIndex = {}; distinct.forEach((code, i) => { codeIndex[code] = i + 1; });
-      const pal = palette.map(hx);
-      triColors = new Uint8Array(tris.length * 3);
-      triCode = new Uint16Array(tris.length);
-      for (let i = 0; i < tris.length; i++) {
-        const idx = paint[i] != null ? codeIndex[paint[i]] : 0;
-        triCode[i] = paint[i] != null ? idx : 0xffff;
-        const c = pal[idx] || pal[0];
-        triColors[i * 3] = c[0]; triColors[i * 3 + 1] = c[1]; triColors[i * 3 + 2] = c[2];
-      }
+    const n = colors.length;
+    palette = colors.slice();
+    const hasAbsent = paint.some((c) => c == null);
+    const start = hasAbsent ? 1 : 0; // absent code → base(0); fully-painted files start at 0
+    const solid = Array.from(new Set(paint.filter((c) => c != null && (parseInt(c, 16) & 3) === 0)));
+    solid.sort((a, b) => parseInt(a, 16) - parseInt(b, 16));
+    const codeFil = {};
+    solid.forEach((code, i) => { codeFil[code] = Math.min(n - 1, start + i); });
+    const pal = palette.map(hx);
+    triColors = new Uint8Array(tris.length * 3);
+    triCode = new Uint16Array(tris.length);
+    for (let i = 0; i < tris.length; i++) {
+      const code = paint[i];
+      const fi = code == null ? 0 : (codeFil[code] != null ? codeFil[code] : 0);
+      triCode[i] = fi;
+      const c = pal[fi] || pal[0];
+      triColors[i * 3] = c[0]; triColors[i * 3 + 1] = c[1]; triColors[i * 3 + 2] = c[2];
     }
   }
   // Group triangles by build-plate for a per-plate preview. Map each plate's object ids onto the
