@@ -239,36 +239,27 @@ async function testLanPinGate(window) {
   await window.evaluate(() => window.hubAPI.stopLanServer());
 }
 
-// 3.1: enthusiast (hobbyist) mode hides commerce; print-file library tab works.
-async function testEnthusiastAndPrintFiles(window) {
+// 3.2 (Bed Ready split): "enthusiast" is RETIRED as a Khayt-selectable mode — its maker
+// tools (converter / Colour Studio / print-file library) are now core Simple/Pro features.
+// Verify the retirement (no switcher pill + stored enthusiast migrates to Simple), that the
+// maker surfaces stay available, and that Simple/Pro gating still works. (The commerce-free
+// enthusiast experience now lives only in the Bed Ready flavor — see e2e-bedready-smoke.)
+async function testModesAndPrintFiles(window) {
   const r = await window.evaluate(async () => {
-    settings.mode = 'enthusiast'; applyMode();
     const vis = (id) => { const b = document.getElementById(id); return !!(b && b.offsetParent !== null); };
-    const out = {
-      body: document.body.classList.contains('mode-enthusiast'),
-      logsHidden: !vis('tabbtn-logs-tab'),
-      clientsHidden: !vis('tabbtn-clients-tab'),
-      catalogHidden: !vis('tabbtn-catalog-tab'),      // Product Catalog = commerce
-      analyticsHidden: !vis('tabbtn-analytics-tab'),  // Analytics = commerce
-      printfilesVisible: vis('tabbtn-printfiles-tab'),
-      calcVisible: vis('tabbtn-calculator-tab'),
-    };
-    switchTab('logs-tab'); // hidden business tab → must bounce to dashboard
-    out.guarded = document.querySelector('.tab-content.active')?.id === 'dashboard-tab';
-    switchTab('catalog-tab'); // commerce tab → must bounce too
-    out.catalogGuarded = document.querySelector('.tab-content.active')?.id === 'dashboard-tab';
-    // Calculator stays, but its commerce affordances are hidden while the printer picker stays.
-    switchTab('calculator-tab');
-    out.calcQuoteHidden = !vis('btnSaveAsQuote');
-    out.calcClientHidden = !vis('clientInput');
-    out.calcPrinterVisible = vis('machineAssign');
-    // beta.15: enthusiast must not show margin / discount / AI price-suggest, and
-    // the "Project total" (a selling price) must be relabelled to Total cost.
-    out.calcMarginHidden = !vis('margin');
-    out.calcDiscountHidden = !vis('discountPct');
-    out.calcAiPriceHidden = !vis('btnAiPrice');
-    if (typeof updateGrandTotal === 'function') updateGrandTotal();
-    out.calcTotalCostLabel = /cost/i.test(document.querySelector('.total-display .label')?.textContent || '');
+    const out = {};
+    // Enthusiast is gone from the Khayt switcher, and any stored enthusiast mode
+    // migrates to Simple the moment applyMode() runs.
+    out.noEnthusiastPill = !document.getElementById('btnModeEnthusiast');
+    settings.mode = 'enthusiast'; applyMode();
+    out.enthusiastMigratedToSimple = settings.mode === 'simple'
+      && document.body.classList.contains('mode-simple')
+      && !document.body.classList.contains('mode-enthusiast');
+    // The maker tools remain available (Simple/Pro core, not commerce-gated).
+    out.printfilesVisible = vis('tabbtn-printfiles-tab');
+    out.converterVisible = vis('tabbtn-converter-tab');
+    out.colorstudioVisible = vis('tabbtn-colorstudio-tab');
+    out.calcVisible = vis('tabbtn-calculator-tab');
     switchTab('printfiles-tab');
     out.pfRendered = document.querySelector('.tab-content.active')?.id === 'printfiles-tab'
       && (document.getElementById('printfiles-tab')?.innerHTML?.length || 0) > 50;
@@ -276,21 +267,6 @@ async function testEnthusiastAndPrintFiles(window) {
     await window.hubAPI.saveStore(buildStoreSnapshot());
     const loaded = await window.hubAPI.loadStore();
     out.pfPersisted = Array.isArray(loaded.printFiles) && loaded.printFiles.some((x) => x.id === 'PF-e2e');
-    // Enthusiast production queue must not expose commerce actions or client/price on cards.
-    printLog.unshift({ id: 'K-e2e', project: 'E2E Print', client: 'E2E Client', status: 'completed', price: 42, parts: [{ material: 'PLA' }], date: '2026-01-01' });
-    switchTab('queue-tab');
-    if (typeof renderKanban === 'function') renderKanban();
-    const qhtml = document.getElementById('queue-tab')?.innerHTML || '';
-    out.enthQueueNoCommerce = !qhtml.includes('data-act="invoice"') && !qhtml.includes('data-act="pay"') && !qhtml.includes('data-act="bnpl-pay"');
-    // Enthusiast global search must not leak commerce entities (orders/clients).
-    clients.unshift({ id: 'C-e2e', nameEn: 'E2E Client' });
-    if (typeof renderGlobalResults === 'function' && document.getElementById('globalSearchResults')) {
-      renderGlobalResults('e2e');
-      const gs = document.getElementById('globalSearchResults')?.innerHTML || '';
-      out.enthSearchNoCommerce = !gs.includes('data-gs-action="client"') && !gs.includes('data-gs-action="order"');
-    } else {
-      out.enthSearchNoCommerce = true;
-    }
     // Simple mode: business basics reachable (analytics/reports + catalog), Pro depth hidden (expenses).
     settings.mode = 'simple'; applyMode();
     out.simpleAnalyticsVisible = vis('tabbtn-analytics-tab'); // Sales reports available to small shops
@@ -546,7 +522,7 @@ try {
   await testLedgerTabNavigation(window);
   const orderId = await testOrderLifecycle(window);
   await testLanPinGate(window);
-  await testEnthusiastAndPrintFiles(window);
+  await testModesAndPrintFiles(window);
   await testColourStudioAndPlanner(window);
   await testConverter(window);
   await testIndexes(window);

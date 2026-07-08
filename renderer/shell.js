@@ -275,8 +275,14 @@ function applyMode() {
   // Bed Ready (the standalone maker app, data-flavor="bedready") is always the
   // commerce-free "enthusiast" experience — coerce here, the single chokepoint every
   // caller funnels through, so stored/switcher changes can never surface business UI.
-  if (document.body && document.body.dataset.flavor === 'bedready' && settings.mode !== 'enthusiast') {
-    settings.mode = 'enthusiast';
+  if (document.body && document.body.dataset.flavor === 'bedready') {
+    if (settings.mode !== 'enthusiast') settings.mode = 'enthusiast';
+  } else if (settings.mode === 'enthusiast') {
+    // Enthusiast is retired as a Khayt-selectable mode: its maker tools (3MF converter,
+    // Colour Studio, print-file library) are now core features of Simple/Professional.
+    // Migrate any existing Khayt enthusiast user to Simple (persists on next save). The
+    // mode still exists internally — Bed Ready uses it above as its commerce-free pin.
+    settings.mode = 'simple';
   }
   document.body.classList.toggle('mode-simple', settings.mode === 'simple');
   document.body.classList.toggle('mode-professional', settings.mode === 'professional');
@@ -312,10 +318,12 @@ function renderModeTierCompare() {
       <div style="font-weight:700;font-size:13px;margin-bottom:8px;display:flex;align-items:center;gap:6px;">${escapeHtml(title)}${active ? `<span style="font-size:10px;color:${accent};border:1px solid ${accent};border-radius:999px;padding:1px 7px;">${escapeHtml(t('set.mode_current') || 'current')}</span>` : ''}</div>
       ${rows.map((r) => `<div style="font-size:12px;color:var(--text-muted);padding:2px 0;display:flex;gap:6px;align-items:flex-start;"><span style="color:${accent};flex-shrink:0;">${check}</span>${escapeHtml(r.label)}</div>`).join('')}
     </div>`;
+  // Enthusiast is retired as a Khayt mode, so the comparison is Simple vs Professional.
+  // Simple's column folds in the former enthusiast (maker-core) features so it reads as a
+  // complete list, not "everything in Enthusiast, plus". (Bed Ready hides this card.)
   el.innerHTML = `
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
-      ${col(t('set.mode_enthusiast') || 'Enthusiast', cmp.enthusiast, mode === 'enthusiast', 'var(--success,#22a06b)')}
-      ${col((t('set.mode_simple') || 'Simple') + ' — ' + (t('set.mode_simple_adds') || 'everything in Enthusiast, plus'), cmp.simple, mode === 'simple', 'var(--info,#5b9cf0)')}
+      ${col(t('set.mode_simple') || 'Simple', [...cmp.enthusiast, ...cmp.simple], mode === 'simple', 'var(--info,#5b9cf0)')}
       ${col((t('set.mode_pro') || 'Professional') + ' — ' + (t('set.mode_pro_adds') || 'everything in Simple, plus'), cmp.pro, mode === 'professional', 'var(--primary,#6366f1)')}
     </div>`;
 }

@@ -115,6 +115,28 @@ async function main() {
   });
   assert('mode switcher card hidden', modeSwitchVisible === false);
 
+  // Commerce-free affordances (the enthusiast/maker gating, now Bed-Ready-only after the
+  // Khayt "enthusiast mode" retirement): the calculator shows no selling-price knobs and
+  // the production queue exposes no invoice/pay actions.
+  console.log('\n[commerce-free affordances]');
+  const aff = await window.evaluate(async () => {
+    const vis = (id) => { const b = document.getElementById(id); return !!(b && b.offsetParent !== null); };
+    window.KhaytShell.switchTab('calculator-tab');
+    await new Promise((r) => setTimeout(r, 120));
+    const calc = { margin: vis('margin'), discount: vis('discountPct'), aiPrice: vis('btnAiPrice'), saveQuote: vis('btnSaveAsQuote') };
+    if (Array.isArray(printLog)) printLog.unshift({ id: 'BR-e2e', project: 'E2E', status: 'completed', parts: [{ material: 'PLA' }], date: '2026-01-01' });
+    window.KhaytShell.switchTab('queue-tab');
+    if (typeof renderKanban === 'function') renderKanban();
+    await new Promise((r) => setTimeout(r, 120));
+    const qhtml = document.getElementById('queue-tab')?.innerHTML || '';
+    return { ...calc, queueNoCommerce: !qhtml.includes('data-act="invoice"') && !qhtml.includes('data-act="pay"') && !qhtml.includes('data-act="bnpl-pay"') };
+  });
+  assert('calculator hides margin', aff.margin === false);
+  assert('calculator hides discount', aff.discount === false);
+  assert('calculator hides AI price-suggest', aff.aiPrice === false);
+  assert('calculator hides save-as-quote', aff.saveQuote === false);
+  assert('production queue exposes no commerce actions', aff.queueNoCommerce === true);
+
   console.log('\n[bespoke Bed Ready identity]');
   const design = await window.evaluate(() => ({
     dataApp: document.documentElement.dataset.app || null,
