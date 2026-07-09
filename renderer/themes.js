@@ -33,6 +33,8 @@
   function syncSidebarSubtitle(designId) {
     const sub = document.querySelector('.sidebar-subtitle');
     if (!sub) return;
+    // Bed Ready is its own product — never stamp the Khayt (خيط) wordmark here.
+    if (document.documentElement.dataset.app === 'bedready') { sub.textContent = 'MAKER STUDIO'; return; }
     const theme = reg()?.getTheme(designId);
     if (theme?.shell === 'ledger') sub.textContent = 'خيط · LEDGER';
     else if (theme?.shell === 'console') sub.textContent = 'خيط · CONTROL ROOM';
@@ -149,6 +151,13 @@
   }
 
   function applyDesignSettings() {
+    // Bed Ready ships ONE bespoke look built on the studio design (skinned by
+    // bedready-theme.css) — pin it so the design picker / wizard default can't
+    // switch to a design whose CSS Bed Ready doesn't ship. Guarded by the html
+    // data-app marker, so Khayt is unaffected.
+    if (typeof settings !== 'undefined' && document.documentElement.dataset.app === 'bedready') {
+      settings.designTheme = 'studio';
+    }
     if (typeof settings !== 'undefined' && settings.designTheme === 'classic') {
       settings.designTheme = 'ledger';
     }

@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const { writeZip } = require('../lib/zip-write');
 const { openZip } = require('../lib/zip-read');
 const { analyze, convert } = require('../lib/mf-convert');
+const { encodeSolidPaint, dominantState } = require('../lib/mf-mesh');
 
 const MODEL = '<?xml version="1.0"?><model unit="millimeter"><resources><object id="1"/></resources></model>';
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4]);
@@ -201,6 +202,30 @@ test('computeBounds resolves a <component>-composed assembly (no false Fits)', (
   assert.equal(a.bounds.y, 10);
 });
 
+test('computeBounds resolves a split 3MF whose geometry lives in a separate .model part', () => {
+  // Bambu/Orca "split" export: the root model holds only the build + an assembly of components
+  // that reference an object in 3D/Objects/*.model via p:path. A single-member scan saw no
+  // vertices and returned null (no fit verdict); the cross-file resolver must find the footprint.
+  const root = '<?xml version="1.0"?><model unit="millimeter"><resources>'
+    + '<object id="2" type="model"><components>'
+    + '<component objectid="1" p:path="/3D/Objects/part1.model" transform="1 0 0 0 1 0 0 0 1 0 0 0"/>'
+    + '<component objectid="1" p:path="/3D/Objects/part1.model" transform="1 0 0 0 1 0 0 0 1 500 0 0"/>'
+    + '</components></object></resources>'
+    + '<build><item objectid="2" transform="1 0 0 0 1 0 0 0 1 0 0 0"/></build></model>';
+  const part = '<?xml version="1.0"?><model unit="millimeter"><resources>'
+    + '<object id="1" type="model"><mesh><vertices>'
+    + '<vertex x="0" y="0" z="0"/><vertex x="10" y="10" z="10"/>'
+    + '</vertices><triangles/></mesh></object></resources></model>';
+  const a = analyze(writeZip([
+    { name: '3D/3dmodel.model', data: root },
+    { name: '3D/Objects/part1.model', data: part },
+    { name: 'Metadata/project_settings.config', data: '{}' },
+  ]));
+  assert.equal(a.bounds.x, 510, '0..510 across the two placed instances, resolved across members');
+  assert.equal(a.bounds.y, 10);
+  assert.equal(a.bounds.z, 10);
+});
+
 test('a custom target profile re-profiles without registry state', () => {
   const r = convert(makeMeshBambu(), {
     targetId: 'ignored',
@@ -211,6 +236,18 @@ test('a custom target profile re-profiles without registry state', () => {
   const proj = JSON.parse(openZip(r.buffer).file('Metadata/project_settings.config').toString('utf8'));
   assert.equal(proj.printer_model, 'MyBot');
   assert.ok(!r.report.warnings.some((w) => /fit/i.test(w))); // 400×400 fits 300×150
+});
+
+test('a custom profile can opt into Full Spectrum via supportsMixedFilament', () => {
+  const base = { id: 'custom-mixer', name: 'Mixer', flavour: 'bambu', maxColors: 4, bed: { x: 400, y: 400, z: 400 }, nozzle: 0.4, printerModel: 'Mixer' };
+  // Without the flag, mixing is unavailable — extra colours fall through to a plain reduce.
+  const off = convert(make5colourBambu(), { targetId: 'ignored', targetProfile: base, fullSpectrum: true });
+  assert.ok(!off.report.fullSpectrum, 'no FS on a custom profile that did not opt in');
+  // With it, the same custom printer reproduces the 5th colour as a dithered mix.
+  const on = convert(make5colourBambu(), { targetId: 'ignored', targetProfile: { ...base, supportsMixedFilament: true }, fullSpectrum: true });
+  assert.equal(on.report.fullSpectrum, true, 'opt-in custom profile gets Full Spectrum');
+  const proj = JSON.parse(openZip(on.buffer).file('Metadata/project_settings.config').toString('utf8'));
+  assert.ok(proj.mixed_filament_definitions, 'writes mixed_filament_definitions for the custom mixer');
 });
 
 test('Prusa flavour: filament_colour list + printer_model rewrite', () => {
@@ -226,4 +263,195 @@ test('Prusa flavour: filament_colour list + printer_model rewrite', () => {
   const text = openZip(r.buffer).file('Metadata/Slic3r_PE.config').toString('utf8');
   assert.match(text, /printer_model = MK4IS/);
   assert.match(text, /filament_colour = #0000CC;#00BB00;#AA0000/);
+});
+
+test('Snapmaker Orca target: normalises Bambu enum values Orca rejects', () => {
+  const proj = JSON.stringify({
+    printer_model: 'X1C', nozzle_diameter: ['0.4'],
+    filament_colour: ['#FF0000', '#00FF00'], filament_type: ['PLA', 'PLA'],
+    ensure_vertical_shell_thickness: 'enabled',
+    support_style: 'tree_organic',
+  });
+  const src = writeZip([
+    { name: '3D/3dmodel.model', data: MODEL },
+    { name: 'Metadata/project_settings.config', data: proj },
+  ]);
+  const r = convert(src, { targetId: 'snapmaker-u1' });
+  assert.equal(r.ok, true);
+  const out = JSON.parse(openZip(r.buffer).file('Metadata/project_settings.config').toString('utf8'));
+  assert.equal(out.ensure_vertical_shell_thickness, 'ensure_all');
+  assert.equal(out.support_style, 'default');
+});
+
+test('Snapmaker U1: writes exact bed + printer preset name (plate layout stays correct)', () => {
+  const proj = JSON.stringify({
+    printer_model: 'X1C', printer_settings_id: 'Bambu Lab X1 Carbon 0.4 nozzle',
+    nozzle_diameter: ['0.4'], filament_colour: ['#FF0000', '#00FF00'], filament_type: ['PLA', 'PLA'],
+  });
+  const src = writeZip([
+    { name: '3D/3dmodel.model', data: MODEL },
+    { name: 'Metadata/project_settings.config', data: proj },
+  ]);
+  const out = JSON.parse(openZip(convert(src, { targetId: 'snapmaker-u1' }).buffer)
+    .file('Metadata/project_settings.config').toString('utf8'));
+  assert.deepEqual(out.printable_area, ['0.5x1', '270.5x1', '270.5x271', '0.5x271']);
+  assert.equal(out.printable_height, '270.05');
+  assert.equal(out.printer_settings_id, 'Snapmaker U1 (0.4 nozzle)');
+});
+
+test('Snapmaker U1: filament presets default to Generic <type>; per-slot picks override', () => {
+  const proj = JSON.stringify({
+    printer_model: 'X1C', nozzle_diameter: ['0.4'],
+    filament_colour: ['#FF0000', '#00FF00'], filament_settings_id: ['Bambu PLA Basic @BBL X1C', 'Bambu PLA Basic @BBL X1C'],
+    filament_type: ['PLA', 'PETG'],
+  });
+  const src = writeZip([
+    { name: '3D/3dmodel.model', data: MODEL },
+    { name: 'Metadata/project_settings.config', data: proj },
+  ]);
+  const def = JSON.parse(openZip(convert(src, { targetId: 'snapmaker-u1' }).buffer)
+    .file('Metadata/project_settings.config').toString('utf8'));
+  assert.deepEqual(def.filament_settings_id, ['Generic PLA', 'Generic PETG']);
+  const picked = JSON.parse(openZip(convert(src, { targetId: 'snapmaker-u1', filaments: [{ name: 'Snapmaker PLA Matte @U1', type: 'PLA' }, null] }).buffer)
+    .file('Metadata/project_settings.config').toString('utf8'));
+  assert.equal(picked.filament_settings_id[0], 'Snapmaker PLA Matte @U1');
+  assert.equal(picked.filament_settings_id[1], 'Generic PETG');
+});
+
+test('Snapmaker U1: overlays native machine + process settings when the slicer DB is present', () => {
+  const orca = require('../lib/orca-db');
+  if (!orca.available() || !orca.listU1Processes().length) return; // no installed slicer → skip
+  const proj = JSON.stringify({
+    printer_model: 'X1C', gcode_flavor: 'marlin', nozzle_diameter: ['0.4'],
+    filament_colour: ['#FF0000', '#00FF00'], filament_type: ['PLA', 'PLA'],
+    machine_start_gcode: 'BAMBU_START',
+  });
+  const src = writeZip([
+    { name: '3D/3dmodel.model', data: MODEL },
+    { name: 'Metadata/project_settings.config', data: proj },
+  ]);
+  const r = convert(src, { targetId: 'snapmaker-u1' });
+  const out = JSON.parse(openZip(r.buffer).file('Metadata/project_settings.config').toString('utf8'));
+  assert.equal(r.report.u1Native, true);
+  assert.notEqual(out.machine_start_gcode, 'BAMBU_START'); // replaced with the U1's own G-code
+  assert.match(String(out.print_settings_id), /@Snapmaker U1/i);
+  assert.equal(out.printer_settings_id, 'Snapmaker U1 (0.4 nozzle)');
+});
+
+test('Snapmaker U1: multi-plate layout is re-tiled onto the target bed', () => {
+  // Two plates, objects positioned on a 256-bed grid (plate 2 offset by ~307mm).
+  const proj = JSON.stringify({ printer_model: 'X1C', nozzle_diameter: ['0.4'],
+    printable_area: ['0x0', '256x0', '256x256', '0x256'],
+    filament_colour: ['#FF0000'], filament_type: ['PLA'] });
+  const model = `<?xml version="1.0"?><model><resources>
+    <object id="2" type="model"><mesh><vertices><vertex x="0" y="0" z="0"/><vertex x="1" y="0" z="0"/><vertex x="0" y="1" z="0"/></vertices><triangles><triangle v1="0" v2="1" v3="2"/></triangles></mesh></object>
+    <object id="4" type="model"><mesh><vertices><vertex x="0" y="0" z="0"/><vertex x="1" y="0" z="0"/><vertex x="0" y="1" z="0"/></vertices><triangles><triangle v1="0" v2="1" v3="2"/></triangles></mesh></object>
+    </resources><build>
+    <item objectid="2" transform="1 0 0 0 1 0 0 0 1 128 128 0"/>
+    <item objectid="4" transform="1 0 0 0 1 0 0 0 1 435 128 0"/>
+    </build></model>`;
+  const msc = `<?xml version="1.0"?><config>
+    <plate><metadata key="plater_id" value="1"/><model_instance><metadata key="object_id" value="2"/></model_instance></plate>
+    <plate><metadata key="plater_id" value="2"/><model_instance><metadata key="object_id" value="4"/></model_instance></plate>
+    </config>`;
+  const src = writeZip([
+    { name: '3D/3dmodel.model', data: model },
+    { name: 'Metadata/project_settings.config', data: proj },
+    { name: 'Metadata/model_settings.config', data: msc },
+  ]);
+  const r = convert(src, { targetId: 'snapmaker-u1' });
+  assert.equal(r.report.platesRetiled, 2);
+  const out = openZip(r.buffer).file('3D/3dmodel.model').toString('utf8');
+  const tx = [...out.matchAll(/objectid="(\d+)"\s+transform="([^"]+)"/g)]
+    .map((m) => ({ id: m[1], x: +m[2].trim().split(/\s+/)[9] }));
+  const o2 = tx.find((t) => t.id === '2').x, o4 = tx.find((t) => t.id === '4').x;
+  assert.ok(Math.abs(o2 - 135) < 1, `plate-1 object centred on 270 bed (got ${o2})`);
+  // plate 2 re-tiled to the 270-bed stride (270 + 51 gap = 321), so ~135 + 321
+  assert.ok(o4 > 400 && o4 < 470, `plate-2 object re-tiled at target stride (got ${o4})`);
+});
+
+// --- Full Spectrum gating (regression: mixing is a U1 hardware feature, NOT every orca-flavour target) ---
+function make5colourBambu() {
+  const proj = JSON.stringify({
+    printer_model: 'X1C', nozzle_diameter: ['0.4'],
+    filament_colour: ['#FF0000', '#00AA00', '#0000FF', '#FFFF00', '#FF00FF'],
+    filament_type: ['PLA', 'PLA', 'PLA', 'PLA', 'PLA'],
+  });
+  return writeZip([
+    { name: '3D/3dmodel.model', data: MODEL },
+    { name: 'Metadata/project_settings.config', data: proj },
+  ]);
+}
+
+test('Full Spectrum applies on a Snapmaker U1 (4 slots, 5 colours)', () => {
+  const r = convert(make5colourBambu(), { targetId: 'snapmaker-u1', fullSpectrum: true });
+  assert.equal(r.ok, true);
+  assert.equal(r.report.fullSpectrum, true);
+  const proj = JSON.parse(openZip(r.buffer).file('Metadata/project_settings.config').toString('utf8'));
+  assert.equal(proj.filament_colour.length, 4, 'keeps exactly 4 physical heads');
+  assert.ok(proj.mixed_filament_definitions, 'writes mixed_filament_definitions');
+});
+
+test('Full Spectrum is refused on a single-extruder orca printer (Sovol SV08)', () => {
+  const r = convert(make5colourBambu(), { targetId: 'sovol-sv08', fullSpectrum: true });
+  assert.equal(r.ok, true);
+  assert.ok(!r.report.fullSpectrum, 'FS not applied to a printer that cannot mix');
+  const proj = JSON.parse(openZip(r.buffer).file('Metadata/project_settings.config').toString('utf8'));
+  assert.ok(!proj.mixed_filament_definitions, 'no mixed_filament_definitions on a non-mixing printer');
+});
+
+// A real painted mesh (not the bare MODEL): 5 filaments, geometry carrying a solid
+// paint_color for each of the 1-based states 1..5. Exercises the full FS pipeline end to
+// end — plan → remapModelPaint over actual paint codes → self-check — and guards against a
+// remap that corrupts geometry, drops paint, or leaves a state pointing past the last slot.
+function make5colourPaintedU1() {
+  const verts = [];
+  for (let i = 0; i < 15; i++) verts.push(`<vertex x="${i}" y="${(i * 7) % 13}" z="${(i * 3) % 11}"/>`);
+  const tris = [1, 2, 3, 4, 5].map((s, i) =>
+    `<triangle v1="${i * 3}" v2="${i * 3 + 1}" v3="${i * 3 + 2}" paint_color="${encodeSolidPaint(s)}"/>`).join('');
+  const model = `<?xml version="1.0"?><model unit="millimeter"><resources><object id="1" type="model">`
+    + `<mesh><vertices>${verts.join('')}</vertices><triangles>${tris}</triangles></mesh></object></resources>`
+    + `<build><item objectid="1" transform="1 0 0 0 1 0 0 0 1 0 0 0"/></build></model>`;
+  const proj = JSON.stringify({
+    printer_model: 'X1C', nozzle_diameter: ['0.4'],
+    filament_colour: ['#FF0000', '#00AA00', '#0000FF', '#FFFF00', '#FF00FF'],
+    filament_type: ['PLA', 'PLA', 'PLA', 'PLA', 'PLA'],
+  });
+  return writeZip([
+    { name: '3D/3dmodel.model', data: model },
+    { name: 'Metadata/project_settings.config', data: proj },
+  ]);
+}
+
+test('Full Spectrum on a painted mesh preserves geometry and remaps every paint code into a real slot', () => {
+  const r = convert(make5colourPaintedU1(), { targetId: 'snapmaker-u1', fullSpectrum: true });
+  assert.equal(r.ok, true);
+  assert.equal(r.report.fullSpectrum, true);
+  assert.ok(r.report.fullSpectrumMixes >= 1, 'at least one colour realised as a mix');
+  assert.equal(r.report.verified, true, 'self-check re-validated the FS output (4 colours + geometry)');
+
+  const out = openZip(r.buffer).file('3D/3dmodel.model').toString('utf8');
+  // Geometry byte-count invariants: FS only rewrites paint_color, never mesh topology.
+  assert.equal((out.match(/<vertex\b/g) || []).length, 15, 'all vertices preserved');
+  assert.equal((out.match(/<triangle\b/g) || []).length, 5, 'all triangles preserved');
+
+  // Every painted facet survives, stays a valid hex code, and points at a slot that exists
+  // (physical 1..4 plus the virtual mix slots 5..4+mixes) — never a dangling reference.
+  const codes = [...out.matchAll(/paint_color="([0-9A-Fa-f]+)"/g)].map((m) => m[1]);
+  assert.equal(codes.length, 5, 'all paint_color attributes survive the remap');
+  const maxSlot = 4 + r.report.fullSpectrumMixes;
+  for (const c of codes) {
+    const s = dominantState(c);
+    assert.ok(s >= 1 && s <= maxSlot, `paint state ${s} within [1,${maxSlot}]`);
+  }
+});
+
+test('planFullSpectrum honours a non-4 physical head count', () => {
+  const fs = require('../lib/full-spectrum');
+  const colors = ['#FF0000', '#00AA00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF'];
+  const plan = fs.planFullSpectrum(colors, [], { maxPhysical: 3 });
+  assert.equal(plan.physical.length, 3, 'exactly 3 physical heads');
+  // Every virtual (mix) slot must be numbered after the physical heads (>= 4), never colliding with 1..3.
+  const virtuals = Object.values(plan.newOf).filter((v) => v > 3);
+  assert.ok(virtuals.every((v) => v >= 4), 'virtual slots start after the physical heads');
 });

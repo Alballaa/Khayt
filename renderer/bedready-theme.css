@@ -1,0 +1,580 @@
+/* ============================================================
+   BED READY — bespoke identity  (true to bedready.io)
+   ------------------------------------------------------------
+   Bed Ready is the standalone maker app. It reuses Khayt's shared
+   maker components (zero duplicated logic) but wears a completely
+   different skin, modelled on bedready.io: light, clean, minimal and
+   technical — geometric sans, a teal→orange FULL-SPECTRUM filament
+   motif, and die-cut "sticker" badges. Deliberately NOT Khayt's busy
+   studio chrome.
+
+   Mechanism: the shared components consume design TOKENS (--bg,
+   --accent, --surface, --r-*, --font-*, --shadow-*). This file
+   redefines those tokens for the Bed Ready flavor and layers a lean
+   bespoke chrome over the studio shell. Loaded LAST and ONLY by
+   renderer/bedready.html (scoped to html[data-app="bedready"]) so
+   Khayt is never affected.
+   ============================================================ */
+
+/* ---------- Tokens: shared ---------- */
+html[data-app="bedready"] {
+  /* Signature accent — TEAL (bedready.io), not Khayt cyan/blue.
+     !important beats the inline accent applyAccent() writes on <html>. */
+  --accent-h: 176 !important; --accent-s: 74% !important; --accent-l: 38% !important;
+  --accent:      hsl(var(--accent-h) var(--accent-s) var(--accent-l));
+  --accent-soft: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.12);
+  --accent-line: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.40);
+  --on-accent:   #ffffff;
+  --primary:     var(--accent);          /* legacy alias used by styles.css */
+  --primary-soft: var(--accent-soft);
+
+  /* Secondary brand pop — warm orange, the teal's counterweight. */
+  --br-orange:   #ff6a3d;
+  --br-orange-soft: rgba(255,106,61,0.13);
+
+  /* The "full-spectrum" filament gradient — brand mark, hero, stickers.
+     Teal-first so the brand colour leads, then a true rainbow. */
+  --spectrum: linear-gradient(100deg,
+     #12b3a6 0%, #4cc98a 20%, #ffd23d 42%, #ff9a3d 62%, #ff5a3c 80%, #8b6cf0 100%);
+  --spectrum-soft: linear-gradient(100deg,
+     rgba(18,179,166,.16), rgba(76,201,138,.14), rgba(255,210,61,.16), rgba(255,154,61,.16), rgba(255,90,60,.14), rgba(139,108,240,.14));
+
+  /* Clean, slightly-chunky corners. */
+  --r-xs: 7px;  --r-sm: 10px; --r-md: 13px; --r-lg: 17px; --r-xl: 24px;
+
+  /* Type: geometric technical display + clean geometric body + mono. */
+  --font-display: "Space Grotesk", "Plus Jakarta Sans", -apple-system, sans-serif;
+  --font-ui:  "Plus Jakarta Sans", "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "Spline Sans Mono", ui-monospace, "IBM Plex Mono", monospace;
+
+  --nav-w: 232px;
+}
+
+/* ---------- Tokens: LIGHT (default) — clean, cool, technical ---------- */
+html[data-app="bedready"][data-theme="light"] {
+  --bg:         #eef2f1;
+  --bg-2:       #f7faf9;
+  --surface:    #ffffff;
+  --surface-2:  #f2f6f5;
+  --surface-3:  #e8efed;
+  --border:     rgba(17,40,37,0.10);
+  --border-2:   rgba(17,40,37,0.16);
+  --hairline:   rgba(17,40,37,0.06);
+
+  --text:       #14201e;
+  --text-dim:   #52605d;
+  --text-muted: #869390;
+  --text-faint: #b3bebb;
+  --on-accent:  #ffffff;
+
+  --ok:#159d68; --ok-soft:rgba(21,157,104,.13);
+  --warn:#c9821b; --warn-soft:rgba(201,130,27,.14);
+  --danger:#e0492f; --danger-soft:rgba(224,73,47,.13);
+  /* Route "info" to the brand orange so charts/queue read teal + orange, never
+     the parent-app blue (donut "Machine" slice, queue "Pending" column, …). */
+  --info:#ff6a3d; --info-soft:rgba(255,106,61,.13);
+  --violet:#7a5cf0; --violet-soft:rgba(122,92,240,.13);
+  --success:var(--ok); --warning:var(--warn); /* legacy aliases */
+
+  --shadow-1: 0 1px 2px rgba(16,38,35,0.06);
+  --shadow-2: 0 10px 26px rgba(16,38,35,0.08), 0 2px 6px rgba(16,38,35,0.05);
+  --shadow-3: 0 26px 64px rgba(16,38,35,0.14), 0 6px 16px rgba(16,38,35,0.07);
+  --shadow-pop: 0 20px 54px rgba(16,38,35,0.20);
+}
+
+/* ---------- Tokens: DARK — cool teal charcoal (not Khayt blue-black) ---------- */
+html[data-app="bedready"][data-theme="dark"] {
+  --accent-l: 55% !important;
+  --bg:         #0e1514;
+  --bg-2:       #121a19;
+  --surface:    #16201e;
+  --surface-2:  #1c2725;
+  --surface-3:  #24302d;
+  --border:     rgba(230,246,243,0.09);
+  --border-2:   rgba(230,246,243,0.15);
+  --hairline:   rgba(230,246,243,0.055);
+
+  --text:       #e9f2ef;
+  --text-dim:   #a6b3b0;
+  --text-muted: #778380;
+  --text-faint: #4e5b58;
+  --on-accent:  #ffffff;
+
+  --ok:#3ec489; --ok-soft:rgba(62,196,137,.15);
+  --warn:#e3ab45; --warn-soft:rgba(227,171,69,.15);
+  --danger:#f0654e; --danger-soft:rgba(240,101,78,.15);
+  --info:#ff7d54; --info-soft:rgba(255,125,84,.15);
+  --violet:#a48cf7; --violet-soft:rgba(164,140,247,.15);
+  --success:var(--ok); --warning:var(--warn);
+
+  --shadow-1: 0 1px 2px rgba(0,0,0,0.45);
+  --shadow-2: 0 10px 28px rgba(0,0,0,0.42), 0 2px 6px rgba(0,0,0,0.34);
+  --shadow-3: 0 28px 66px rgba(0,0,0,0.6), 0 6px 16px rgba(0,0,0,0.44);
+  --shadow-pop: 0 20px 56px rgba(0,0,0,0.64);
+}
+
+/* ============================================================
+   Typography — geometric technical voice
+   ============================================================ */
+html[data-app="bedready"] body { font-family: var(--font-ui); letter-spacing: -0.005em; }
+html[data-app="bedready"] h1,
+html[data-app="bedready"] h2,
+html[data-app="bedready"] h3,
+html[data-app="bedready"] .sec-title,
+html[data-app="bedready"] .card-head strong,
+html[data-app="bedready"] .settings-panel-title {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+
+/* ============================================================
+   Own the shell layout the removed theme CSS used to provide.
+   Hide every other design's masthead / pagehead chrome (their
+   default display:none lived in the theme CSS we no longer ship),
+   and pin the sidebar width so it never depends on a theme file.
+   ============================================================ */
+html[data-app="bedready"] .ledger-masthead-brand,
+html[data-app="bedready"] .ledger-pagehead,
+html[data-app="bedready"] .ledger-path,
+html[data-app="bedready"] .console-masthead-brand,
+html[data-app="bedready"] .console-pagehead,
+html[data-app="bedready"] .console-path,
+html[data-app="bedready"] .cockpit-pagehead,
+html[data-app="bedready"] .atlas-pagehead,
+html[data-app="bedready"] .workbench-pagehead,
+html[data-app="bedready"] .vivid-pagehead,
+html[data-app="bedready"] .command-pagehead,
+html[data-app="bedready"] .console-status { display: none !important; }  /* Console theme's top-right status bar (the stray "— —") */
+
+html[data-app="bedready"] body.khayt-studio .khayt-sidebar {
+  width: var(--nav-w); min-width: var(--nav-w); max-width: var(--nav-w);
+  flex-shrink: 0;
+}
+html[data-app="bedready"] body.khayt-studio .app-sidebar.collapsed {
+  width: 66px !important; min-width: 66px !important; max-width: 66px !important;
+}
+
+/* ============================================================
+   Window / stage — clean cool light, a soft teal wash
+   ============================================================ */
+html[data-app="bedready"] .khayt-app,
+html[data-app="bedready"] .app {
+  background:
+    radial-gradient(1100px 620px at 8% -10%, hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.09), transparent 55%),
+    radial-gradient(900px 600px at 112% 118%, rgba(255,106,61,0.05), transparent 55%),
+    var(--bg);
+}
+html[data-app="bedready"] .khayt-titlebar { background: var(--bg-2); }
+html[data-app="bedready"] .khayt-tdot { background: none; background-image: var(--spectrum); box-shadow: none; }
+
+/* ============================================================
+   Sidebar — lean brand rail + spectrum mark + quiet nav
+   ============================================================ */
+html[data-app="bedready"] body.khayt-studio .khayt-sidebar {
+  background: var(--bg-2);
+  border-inline-end: 1px solid var(--hairline);
+}
+
+html[data-app="bedready"] body.khayt-studio .khayt-brand {
+  height: 62px; gap: 11px;
+  border-bottom: 1px solid var(--hairline);
+}
+/* Spectrum mark: hide the Khayt logo img, paint a filament-spectrum tile
+   with three stacked "bed layers". */
+html[data-app="bedready"] .khayt-logo {
+  width: 32px; height: 32px; border-radius: 10px;
+  background: var(--spectrum);
+  border: none;
+  box-shadow: 0 3px 12px rgba(18,179,166,0.30), inset 0 1px 0 rgba(255,255,255,0.4);
+  position: relative;
+}
+html[data-app="bedready"] .khayt-logo img { display: none; }
+html[data-app="bedready"] .khayt-logo::after {
+  content: ""; position: absolute; inset: 9px 7px;
+  background:
+    linear-gradient(#fff,#fff) top/100% 3px no-repeat,
+    linear-gradient(rgba(255,255,255,.85),rgba(255,255,255,.85)) center/100% 3px no-repeat,
+    linear-gradient(rgba(255,255,255,.6),rgba(255,255,255,.6)) bottom/100% 3px no-repeat;
+  border-radius: 1px;
+}
+html[data-app="bedready"] .sidebar-title,
+html[data-app="bedready"] .khayt-brand strong {
+  font-family: var(--font-display); font-weight: 600; font-size: 16px !important;
+  letter-spacing: -0.03em; color: var(--text);
+}
+html[data-app="bedready"] .sidebar-subtitle {
+  font-family: var(--font-mono); font-size: 9px !important; letter-spacing: 0.2em;
+  color: var(--accent); text-transform: uppercase;
+}
+
+/* Nav group labels + items — quiet, technical */
+html[data-app="bedready"] body.khayt-studio .khayt-navhead {
+  font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--text-faint);
+}
+html[data-app="bedready"] body.khayt-studio .khayt-navitem {
+  font-size: 13.5px; font-weight: 550; padding: 9px 12px;
+  border-radius: 10px; gap: 11px; color: var(--text-dim);
+}
+html[data-app="bedready"] body.khayt-studio .khayt-navitem:hover { background: var(--surface-2); color: var(--text); }
+html[data-app="bedready"] body.khayt-studio .khayt-navitem.on {
+  background: var(--surface); color: var(--text); font-weight: 650;
+  box-shadow: var(--shadow-1), inset 0 0 0 1px var(--border);
+}
+/* spectrum accent bar on the active item (inline-start) */
+html[data-app="bedready"] body.khayt-studio .khayt-navitem.on::before {
+  content: ""; position: absolute; inset-inline-start: 0; inset-inline-end: auto;
+  top: 50%; transform: translateY(-50%);
+  width: 3px; height: 20px; border-radius: 0 3px 3px 0;
+  background: var(--spectrum);
+}
+html[data-app="bedready"] body.khayt-studio .khayt-navitem.on .nav-icon,
+html[data-app="bedready"] body.khayt-studio .khayt-navitem.on svg { color: var(--accent); }
+
+/* ============================================================
+   Topbar — strip Khayt clutter down to a minimal maker bar
+   ============================================================ */
+html[data-app="bedready"] .khayt-top {
+  background: color-mix(in srgb, var(--bg-2) 85%, transparent);
+  border-bottom: 1px solid var(--hairline);
+  position: relative;
+}
+/* thin spectrum hairline under the topbar — signature */
+html[data-app="bedready"] .khayt-top::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
+  background: var(--spectrum); opacity: 0.85;
+}
+html[data-app="bedready"] .khayt-toptitle .topbar-title {
+  font-family: var(--font-display); font-weight: 600; letter-spacing: -0.025em;
+}
+/* Hide the busy centre search mirror + secondary-action clutter that reads
+   "Khayt". Keep: theme toggle, notifications, language — and the beta Feedback
+   button (kept visible + emphasised below). */
+html[data-app="bedready"] .khayt-search,          /* redundant readonly mirror */
+html[data-app="bedready"] #btnGlobalSearch,
+html[data-app="bedready"] #locationFilter,        /* multi-location = business */
+html[data-app="bedready"] #btnNavSwitchOp { display: none !important; }
+
+html[data-app="bedready"] .topbar-actions .btn.ghost {
+  border-radius: 9px; color: var(--text-dim);
+}
+html[data-app="bedready"] #langSelect { border-radius: 9px; }
+
+/* Beta: keep the Feedback button front-and-centre in the top bar. Solid coral
+   accent so it's the one obviously-clickable call to action up there. */
+html[data-app="bedready"] #btnFeedback {
+  display: inline-flex !important; align-items: center; gap: 6px;
+  background: var(--accent); color: #fff; border: 0; border-radius: 9px;
+  font-weight: 600; padding: 0 14px; height: 34px; box-shadow: var(--shadow-1);
+}
+html[data-app="bedready"] #btnFeedback:hover { filter: brightness(1.06); }
+html[data-app="bedready"] #btnFeedback:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ============================================================
+   Cards, buttons, inputs — clean & tactile
+   ============================================================ */
+html[data-app="bedready"] .card {
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+  border: 1px solid var(--border);
+}
+html[data-app="bedready"] .card:hover { box-shadow: var(--shadow-2); }
+
+html[data-app="bedready"] .btn {
+  border-radius: 10px; font-weight: 600; font-family: var(--font-ui);
+}
+html[data-app="bedready"] .btn.primary {
+  background: var(--accent); color: #fff; font-weight: 700;
+  box-shadow: 0 4px 13px hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.30);
+}
+html[data-app="bedready"] .btn.primary:hover { filter: brightness(1.06); transform: translateY(-1px); }
+html[data-app="bedready"] .btn.primary:active { transform: translateY(0); }
+
+html[data-app="bedready"] .input,
+html[data-app="bedready"] input[type="text"],
+html[data-app="bedready"] input[type="number"],
+html[data-app="bedready"] select,
+html[data-app="bedready"] textarea {
+  border-radius: 10px;
+}
+html[data-app="bedready"] .input:focus,
+html[data-app="bedready"] input:focus,
+html[data-app="bedready"] select:focus,
+html[data-app="bedready"] textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* ============================================================
+   STICKER BADGES — the signature bedready.io motif.
+   Die-cut look: white fill, thick soft ring, slight tilt, drop shadow.
+   Use: <span class="br-sticker">u1-ready</span>
+        <span class="br-sticker spectrum">full-spectrum</span>
+   ============================================================ */
+html[data-app="bedready"] .br-sticker {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border-radius: 999px;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+  letter-spacing: 0.02em; text-transform: lowercase;
+  color: var(--text); background: var(--surface);
+  border: 1.5px solid var(--border-2);
+  box-shadow: 0 2px 6px rgba(16,38,35,0.10), inset 0 0 0 2px #fff;
+  transform: rotate(-2deg);
+}
+html[data-app="bedready"] .br-sticker::before {
+  content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--accent);
+}
+html[data-app="bedready"] .br-sticker.orange::before { background: var(--br-orange); }
+html[data-app="bedready"] .br-sticker.spectrum::before { background: var(--spectrum); }
+html[data-app="bedready"] .br-sticker:nth-child(even) { transform: rotate(1.5deg); }
+
+/* legacy alias kept for any existing hero markup */
+html[data-app="bedready"] .br-spectrum-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 5px 12px; border-radius: 999px; font-weight: 700; font-size: 12px;
+  color: var(--text); background: var(--spectrum-soft);
+  border: 1px solid var(--border-2);
+}
+html[data-app="bedready"] .br-spectrum-chip::before {
+  content: ""; width: 12px; height: 12px; border-radius: 50%; background: var(--spectrum);
+}
+
+/* Badges / pills → sticker-ish */
+html[data-app="bedready"] .kbadge,
+html[data-app="bedready"] .pill,
+html[data-app="bedready"] .badge {
+  border-radius: 999px; font-weight: 650; letter-spacing: 0.01em;
+}
+
+/* ============================================================
+   Empty-state icons — friendlier, spectrum-tinted
+   ============================================================ */
+html[data-app="bedready"] .khayt-ph-ico {
+  border-radius: 16px; background: var(--spectrum-soft);
+  color: var(--accent); border: 1px solid var(--border-2);
+}
+
+/* ============================================================
+   Bed Ready branded HOME hero (injected into #dashboardContent by
+   bedready-home.js). Big geometric headline + sticker row + quick
+   actions, echoing bedready.io.
+   ============================================================ */
+html[data-app="bedready"] .br-home { max-width: 980px; }
+html[data-app="bedready"] .br-hero {
+  position: relative; overflow: hidden;
+  border-radius: var(--r-xl);
+  background:
+    radial-gradient(680px 300px at 100% 0%, var(--accent-soft), transparent 60%),
+    var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-1);
+  padding: 34px 34px 30px;
+}
+html[data-app="bedready"] .br-hero::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px;
+  background: var(--spectrum);
+}
+html[data-app="bedready"] .br-hero-eyebrow {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--accent); margin: 0 0 10px;
+}
+html[data-app="bedready"] .br-hero h1 {
+  font-family: var(--font-display); font-weight: 600;
+  font-size: clamp(30px, 4vw, 46px); line-height: 1.02; letter-spacing: -0.03em;
+  margin: 0 0 8px; color: var(--text);
+}
+html[data-app="bedready"] .br-hero h1 .accent { color: var(--accent); }
+html[data-app="bedready"] .br-hero-sub {
+  font-size: 15px; color: var(--text-dim); margin: 0 0 18px; max-width: 46ch;
+}
+html[data-app="bedready"] .br-stickers { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 22px; }
+html[data-app="bedready"] .br-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+html[data-app="bedready"] .br-action {
+  display: flex; align-items: center; gap: 12px; text-align: start;
+  padding: 14px 16px; min-width: 190px;
+  border-radius: var(--r-md); border: 1px solid var(--border);
+  background: var(--surface); cursor: pointer;
+  box-shadow: var(--shadow-1); transition: transform .12s ease, box-shadow .12s ease;
+}
+html[data-app="bedready"] .br-action:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-color: var(--accent-line); }
+html[data-app="bedready"] .br-action .ico {
+  width: 40px; height: 40px; flex-shrink: 0; border-radius: 11px;
+  display: grid; place-items: center; font-size: 20px;
+  background: var(--accent-soft); color: var(--accent);
+}
+html[data-app="bedready"] .br-action.orange .ico { background: var(--br-orange-soft); color: var(--br-orange); }
+html[data-app="bedready"] .br-action .t { display: flex; flex-direction: column; line-height: 1.2; }
+html[data-app="bedready"] .br-action .t b { font-family: var(--font-display); font-weight: 600; font-size: 14.5px; color: var(--text); }
+html[data-app="bedready"] .br-action .t span { font-size: 12px; color: var(--text-muted); }
+html[data-app="bedready"] .br-home-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-top: 16px; }
+
+/* Maker stats panel (home) — "your printing so far" */
+html[data-app="bedready"] .br-stats {
+  margin-top: 16px; padding: 18px 20px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-1);
+}
+html[data-app="bedready"] .br-stats-head {
+  font-family: var(--font-mono, ui-monospace); font-size: 10.5px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px;
+}
+html[data-app="bedready"] .br-stat-row { display: flex; flex-wrap: wrap; gap: 28px; }
+html[data-app="bedready"] .br-stat { min-width: 92px; }
+html[data-app="bedready"] .br-stat-val {
+  font-family: var(--font-display); font-weight: 600; font-size: 26px;
+  letter-spacing: -0.02em; color: var(--text); font-variant-numeric: tabular-nums;
+}
+html[data-app="bedready"] .br-stat-lab { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+html[data-app="bedready"] .br-stat-unit { font-size: 14px; font-weight: 500; color: var(--text-dim); }
+html[data-app="bedready"] .br-mat-list { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+html[data-app="bedready"] .br-mat-row { display: flex; align-items: center; gap: 10px; font-size: 12.5px; }
+html[data-app="bedready"] .br-mat-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; border: 1px solid rgba(127,127,127,0.25); }
+html[data-app="bedready"] .br-mat-name { min-width: 84px; color: var(--text-dim); }
+html[data-app="bedready"] .br-mat-bar { flex: 1; height: 6px; border-radius: 3px; background: var(--surface-3, var(--bg-2)); overflow: hidden; }
+html[data-app="bedready"] .br-mat-bar > span { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+html[data-app="bedready"] .br-mat-g { min-width: 54px; text-align: right; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+/* ============================================================
+   Onboarding wizard — branded spectrum mark, on-brand card
+   ============================================================ */
+html[data-app="bedready"] .wizard-card { border-radius: var(--r-xl); }
+html[data-app="bedready"] .br-wiz-logo {
+  display: inline-flex; align-items: center; gap: 11px;
+  font-family: var(--font-display); font-weight: 600; font-size: 26px;
+  letter-spacing: -0.03em; color: var(--text);
+}
+html[data-app="bedready"] .br-wiz-mark {
+  width: 34px; height: 34px; border-radius: 10px; background: var(--spectrum);
+  box-shadow: 0 3px 12px rgba(18,179,166,0.30), inset 0 1px 0 rgba(255,255,255,0.4);
+  position: relative;
+}
+html[data-app="bedready"] .br-wiz-mark::after {
+  content: ""; position: absolute; inset: 9px 7px;
+  background:
+    linear-gradient(#fff,#fff) top/100% 3px no-repeat,
+    linear-gradient(rgba(255,255,255,.85),rgba(255,255,255,.85)) center/100% 3px no-repeat,
+    linear-gradient(rgba(255,255,255,.6),rgba(255,255,255,.6)) bottom/100% 3px no-repeat;
+  border-radius: 1px;
+}
+html[data-app="bedready"] .wizard-dot.active { background: var(--accent); }
+
+/* ============================================================
+   Calculator → a maker "cost per print" estimator, not a quoting tool.
+   Bed Ready is commerce-free, so hide the business machinery: the whole
+   Labor & Overhead section, the quote-template row, and the "Save as
+   Quote" action. The margin / labour / failure inputs are also zeroed in
+   bedready.html so the total is pure material + machine cost. (The rest —
+   margin, discount, client, deposit, price tiers — is already `.biz-only`
+   and hidden in enthusiast mode.)
+   ============================================================ */
+html[data-app="bedready"] #calculator-tab .card.labor { display: none !important; }
+html[data-app="bedready"] #calculator-tab .preset-row:has(#quoteTplSelect) { display: none !important; }
+html[data-app="bedready"] #btnSaveAsQuote { display: none !important; }
+/* margin / volume-pricing / min-order warnings are all commerce concepts */
+html[data-app="bedready"] #marginWarning,
+html[data-app="bedready"] #minOrderWarning,
+html[data-app="bedready"] #volumePricingDetails { display: none !important; }
+/* The cost total + primary "Add to print queue" CTA inherit Khayt's success
+   green — recolour to the Bed Ready teal so the calculator reads on-brand
+   (it's a cost figure, not a "profit" figure). Semantic status pills keep
+   their green; this is scoped to the calc total and this one button. */
+html[data-app="bedready"] #calculator-tab .total-display .value { color: var(--accent) !important; }
+html[data-app="bedready"] #btnSaveQuote.btn.success {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+}
+
+/* ============================================================
+   Print Queue → a maker's job board, not a shop-floor console.
+   Bed Ready is commerce-free and single-operator, so strip the
+   production-management chrome: shift tracking, farm scheduling,
+   kiosk, pause-production, and the client/job intake funnel. The
+   kanban board + search + sort stay.
+   ============================================================ */
+html[data-app="bedready"] #btnStartShift,
+html[data-app="bedready"] #btnEndOfDay,
+html[data-app="bedready"] #btnBatchPlanner,
+html[data-app="bedready"] #btnSuggestSchedule,
+html[data-app="bedready"] #btnKioskView,
+html[data-app="bedready"] #btnPauseProduction,
+html[data-app="bedready"] #btnAutoAssign,
+html[data-app="bedready"] .khayt-queue-toolbar-actions label:has(#chkAutoSchedule),
+html[data-app="bedready"] div:has(> #waitingListToggle),
+/* the studio shell rewraps the waiting list into a collapsible ".khayt-fold" */
+html[data-app="bedready"] .khayt-fold:has(#btnAddWaiting),
+html[data-app="bedready"] .khayt-fold-head:has(#btnAddWaiting) { display: none !important; }
+
+/* Hide the "Delivered" board column — it only ever fills from a business
+   deliveredAt stamp (customer hand-off), which Bed Ready doesn't set, so it's
+   permanently empty here. QC stays (relabelled "Inspect" in bedready-home.js). */
+html[data-app="bedready"] .kanban-col[data-status="delivered"] { display: none !important; }
+
+/* ============================================================
+   Remove-not-needed: Khayt design-picker + accent/skin fields.
+   Bed Ready ships a single look + the light/dark theme select (stays).
+   ============================================================ */
+html[data-app="bedready"] #brDesignFields { display: none !important; }
+
+/* ============================================================
+   Inventory row actions — a clean, uncramped cluster.
+   The shared stock table packs up to ~10 action buttons into one narrow
+   cell (test-print history, spool history, price history, transfer, …),
+   which staircased into an unreadable stack. For a solo maker most are
+   noise, so drop the audit/pro icons and lay the rest out as a tidy,
+   right-aligned flex cluster (gap instead of per-button margins so nothing
+   staircases). Scoped to the Bed Ready inventory table only.
+   ============================================================ */
+/* Trim to a consistent 3-action set (adjust / edit / delete). The audit & pro
+   icons (test-print, spool/price history, transfer, label) and the inline
+   dry-log button are noise for a solo maker — drying is already flagged by the
+   "Dry before use" badge, and the rest live in the item's Edit sheet. */
+html[data-app="bedready"] #inventoryTable [data-act="inv-test-print"],
+html[data-app="bedready"] #inventoryTable [data-act="inv-spool-history"],
+html[data-app="bedready"] #inventoryTable [data-act="inv-price-history"],
+html[data-app="bedready"] #inventoryTable [data-act="inv-transfer"],
+html[data-app="bedready"] #inventoryTable [data-act="inv-print-label"],
+html[data-app="bedready"] #inventoryTable [data-act="inv-dry-log"] { display: none !important; }
+
+/* Reclaim width: the SPOOLS count column is low value for a solo maker (the
+   stock-level bar already conveys quantity) — drop it so the actions have room. */
+html[data-app="bedready"] #inventoryTable thead th:nth-child(4),
+html[data-app="bedready"] #inventoryTable tbody td:nth-child(4) { display: none !important; }
+
+/* One tidy right-aligned row of compact ICON buttons. The studio shell wraps
+   the row actions in .khayt-inv-actions (a flex-wrap container that let them
+   staircase); pin it to a single no-wrap row. The Edit/Adjust/Delete text
+   buttons become icon-only via font-size:0 + a ::before glyph; the text node
+   stays in the a11y tree for screen readers. */
+html[data-app="bedready"] .khayt-inv-actions {
+  flex-wrap: nowrap;
+  gap: 5px;
+  white-space: nowrap;
+}
+html[data-app="bedready"] .khayt-inv-actions > * { margin: 0 !important; }
+html[data-app="bedready"] .khayt-inv-actions .btn {
+  min-width: 32px;
+  padding-left: 8px;
+  padding-right: 8px;
+  justify-content: center;
+}
+/* Icon-ify the text actions */
+html[data-app="bedready"] #inventoryTable [data-act="edit-inv"],
+html[data-app="bedready"] #inventoryTable [data-act="adj-inv"],
+html[data-app="bedready"] #inventoryTable [data-act="del-inv"] { font-size: 0 !important; }
+html[data-app="bedready"] #inventoryTable [data-act="edit-inv"]::before { content: "✏️"; font-size: 14px; }
+html[data-app="bedready"] #inventoryTable [data-act="adj-inv"]::before  { content: "±";  font-size: 15px; font-weight: 700; }
+html[data-app="bedready"] #inventoryTable [data-act="del-inv"]::before  { content: "🗑"; font-size: 14px; }
+/* Bump the icon action tap targets from ~24px to a comfier 30px min. */
+html[data-app="bedready"] .khayt-inv-actions .btn { min-height: 30px; }
+
+/* ============================================================
+   Native controls (range sliders, checkboxes, colour pickers, the theme
+   select) default to the OS blue — the exact parent-Khayt look this flavor
+   escapes. Tint them all with the brand accent in one shot.
+   ============================================================ */
+html[data-app="bedready"] { accent-color: var(--accent); }
+
+/* The add-spool "Location / Branch" picker is multi-store language with no
+   meaning for a solo maker — hide it (new spools stay "Unassigned"). */
+html[data-app="bedready"] #invLocationField { display: none !important; }

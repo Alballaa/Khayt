@@ -272,6 +272,19 @@ const BIZ_TABS = ['logs-tab', 'clients-tab', 'gift-cards-tab', 'portfolio-tab', 
 const PRO_TABS = ['expenses-tab'];
 
 function applyMode() {
+  // Bed Ready (the standalone maker app) is always the commerce-free "enthusiast"
+  // experience — coerce here, the single chokepoint every caller funnels through, so
+  // stored/switcher changes can never surface business UI. Detect via isBedReadyFlavor()
+  // (data-app) so every flavor check in this file uses one canonical marker, not two.
+  if (isBedReadyFlavor()) {
+    if (settings.mode !== 'enthusiast') settings.mode = 'enthusiast';
+  } else if (settings.mode === 'enthusiast') {
+    // Enthusiast is retired as a Khayt-selectable mode: its maker tools (3MF converter,
+    // Colour Studio, print-file library) are now core features of Simple/Professional.
+    // Migrate any existing Khayt enthusiast user to Simple (persists on next save). The
+    // mode still exists internally — Bed Ready uses it above as its commerce-free pin.
+    settings.mode = 'simple';
+  }
   document.body.classList.toggle('mode-simple', settings.mode === 'simple');
   document.body.classList.toggle('mode-professional', settings.mode === 'professional');
   document.body.classList.toggle('mode-enthusiast', settings.mode === 'enthusiast');
@@ -306,10 +319,12 @@ function renderModeTierCompare() {
       <div style="font-weight:700;font-size:13px;margin-bottom:8px;display:flex;align-items:center;gap:6px;">${escapeHtml(title)}${active ? `<span style="font-size:10px;color:${accent};border:1px solid ${accent};border-radius:999px;padding:1px 7px;">${escapeHtml(t('set.mode_current') || 'current')}</span>` : ''}</div>
       ${rows.map((r) => `<div style="font-size:12px;color:var(--text-muted);padding:2px 0;display:flex;gap:6px;align-items:flex-start;"><span style="color:${accent};flex-shrink:0;">${check}</span>${escapeHtml(r.label)}</div>`).join('')}
     </div>`;
+  // Enthusiast is retired as a Khayt mode, so the comparison is Simple vs Professional.
+  // Simple's column folds in the former enthusiast (maker-core) features so it reads as a
+  // complete list, not "everything in Enthusiast, plus". (Bed Ready hides this card.)
   el.innerHTML = `
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
-      ${col(t('set.mode_enthusiast') || 'Enthusiast', cmp.enthusiast, mode === 'enthusiast', 'var(--success,#22a06b)')}
-      ${col((t('set.mode_simple') || 'Simple') + ' — ' + (t('set.mode_simple_adds') || 'everything in Enthusiast, plus'), cmp.simple, mode === 'simple', 'var(--info,#5b9cf0)')}
+      ${col(t('set.mode_simple') || 'Simple', [...cmp.enthusiast, ...cmp.simple], mode === 'simple', 'var(--info,#5b9cf0)')}
       ${col((t('set.mode_pro') || 'Professional') + ' — ' + (t('set.mode_pro_adds') || 'everything in Simple, plus'), cmp.pro, mode === 'professional', 'var(--primary,#6366f1)')}
     </div>`;
 }
@@ -779,7 +794,113 @@ function renderGlobalResults(term) {
 /* ============================================================
    In-app help system (Feature 9)
    ============================================================ */
+function isBedReadyFlavor() {
+  try { return document.documentElement.dataset.app === 'bedready'; } catch (_) { return false; }
+}
+
+// Bed Ready's own help + FAQ (maker-focused). English-first for the public beta.
+function openBedReadyHelp(initial) {
+  const SECTIONS = [
+    { id: 'start', label: 'Getting started', html: `
+      <div class="help-section">
+        <h4>What is Bed Ready?</h4>
+        <p>Bed Ready is a desktop workbench for solo 3D-printing makers. It helps you keep your print files organised, preview them in 3D, retarget a model to a different printer, cost a print, and track filament — all offline on your own computer. It does <b>not</b> slice or print by itself; it works alongside your existing slicer (OrcaSlicer, PrusaSlicer, Bambu Studio, Snapmaker Orca, and more).</p>
+        <h4>The typical workflow</h4>
+        <ul>
+          <li><b>Add a print file</b> (a <code>.3mf</code> or <code>.stl</code>) to your library.</li>
+          <li><b>Preview</b> it in 3D — check the plates and colours.</li>
+          <li><b>Convert / retarget</b> it to the printer you actually own, if it was made for a different one.</li>
+          <li><b>Open it in your slicer</b> to slice and print. Bed Ready can launch your slicer for you.</li>
+        </ul>
+        <h4>The full maker toolset</h4>
+        <p>Bed Ready shows the complete maker toolset — library, 3D preview, converter, inventory, costing, and a print queue — all in one place. Use what you need; ignore the rest.</p>
+      </div>` },
+    { id: 'convert', label: '3MF Converter', html: `
+      <div class="help-section">
+        <h4>Retarget a model to your printer</h4>
+        <p>Open a <code>.3mf</code> from your library and choose <b>Convert</b>. Pick your printer as the target and Bed Ready rewrites the file’s printer + print settings to match, keeps the geometry and colours, and saves a new <code>.3mf</code>.</p>
+        <h4>Target (almost) any printer</h4>
+        <p>The target list includes a built-in set <i>plus every printer in your installed OrcaSlicer / Snapmaker Orca profile library</i> (~1,000+ models, grouped by vendor). Picking one builds a file using that printer’s own machine profile and a matching print-quality preset, so it opens cleanly.</p>
+        <h4>Colours &amp; slots</h4>
+        <p>If a model uses more colours than your printer has slots, you can map colours to slots — or use <b>Full Spectrum</b> (see the next tab) on a Snapmaker U1.</p>
+        <p class="help-warn">⚠ Always open the converted file in your slicer and check it before printing. Conversion rewrites settings automatically and can’t account for every printer quirk — you are responsible for verifying the result.</p>
+      </div>` },
+    { id: 'spectrum', label: 'Full Spectrum', html: `
+      <div class="help-section">
+        <h4>Reproduce extra colours by mixing</h4>
+        <p>When a file has more colours than a Snapmaker U1’s four slots, <b>Full Spectrum</b> keeps four filaments physical and reproduces the rest as dithered mixes of those four. The converter shows which four to load and the recipe for each extra colour (e.g. “65% White + 35% Red”).</p>
+        <h4>How good is a mix?</h4>
+        <p>Each mix shows a <b>ΔE</b> — the perceptual colour difference from the original (lower is closer). A pure colour a mix can’t fake stays a physical filament; only the “mixable” colours are virtualised.</p>
+        <p class="help-muted">The pigment-mixing model approximates Snapmaker Orca’s own Full-Spectrum matching, so a mix should print close to what Bed Ready previews. Test prints are still the final word.</p>
+      </div>` },
+    { id: 'slicers', label: 'Slicers &amp; printers', html: `
+      <div class="help-section">
+        <h4>Connect your slicer</h4>
+        <p>Open <b>Settings → Slicer integration</b> and click <b>Detect installed slicers</b>. Bed Ready finds slicers you already have (OrcaSlicer, Snapmaker Orca, PrusaSlicer, Bambu Studio, Cura, and others) and lets you set a default. Bed Ready never bundles a slicer.</p>
+        <h4>Where the printer &amp; filament lists come from</h4>
+        <p>The converter reads the printer, print, and filament <i>profiles that already ship with your installed OrcaSlicer / Snapmaker Orca</i>. Nothing is downloaded — if a printer or filament isn’t there, install/update that slicer and it appears.</p>
+        <h4>On a Snapmaker U1</h4>
+        <p>You can pick the exact filament loaded in each slot from your Orca library, and choose the print-quality preset. Those choices are written into the converted file.</p>
+      </div>` },
+    { id: 'files', label: 'Files, preview &amp; colours', html: `
+      <div class="help-section">
+        <h4>3D preview</h4>
+        <p>Every <code>.3mf</code>/<code>.stl</code> gets an interactive 3D preview — drag to orbit, scroll to zoom. Multi-plate files show a plate picker, and you can recolour swatches live to see how a colour change looks.</p>
+        <h4>Print-file library</h4>
+        <p>Keep your models with notes, tags, the slicer profile you use, and any converted versions, so you always find the right file fast.</p>
+        <h4>Inventory &amp; costing</h4>
+        <p>Track filament spools and get a per-print cost estimate. The converter can even hint the nearest colour you have in stock for each slot.</p>
+      </div>` },
+    { id: 'data', label: 'Your data &amp; privacy', html: `
+      <div class="help-section">
+        <h4>Local-first</h4>
+        <p>Your data lives on <b>your</b> computer. Bed Ready works fully offline and does not send your models or data anywhere by default. There is no analytics/telemetry tracking built in.</p>
+        <h4>Backups</h4>
+        <p>Use <b>Settings → Backup</b> to export a full backup file, and set restore points before big changes. Keep your backups somewhere safe.</p>
+        <h4>Optional cloud</h4>
+        <p>Cloud sync is opt-in and end-to-end encrypted — only you hold the key. You never need an account to use Bed Ready.</p>
+      </div>` },
+    { id: 'legal', label: 'Beta, disclaimers &amp; credits', html: `
+      <div class="help-section">
+        <h4>This is a public beta</h4>
+        <p>Bed Ready is early software shared to gather feedback. Expect rough edges and occasional bugs. Please <b>keep backups</b>, and tell us what breaks via the <b>Feedback</b> button.</p>
+        <h4>Safety &amp; no warranty</h4>
+        <p>Bed Ready is provided <b>“as is”, without warranty of any kind</b>. 3D printing involves high temperatures and moving parts. <b>Always review any file — especially a converted one — in your own slicer before printing</b>, and supervise your printer. You are solely responsible for what you print and for any damage to your printer, materials, or surroundings. Bed Ready is not affiliated with, or endorsed by, Snapmaker, Bambu Lab, Prusa Research, Creality, UltiMaker, or any other maker mentioned; product names are trademarks of their respective owners.</p>
+        <h4>Credits &amp; open source</h4>
+        <ul>
+          <li>Built on <b>Electron</b> and <b>Node.js</b>.</li>
+          <li>The colour-mixing (“Full Spectrum”) model is ported from Bed Ready’s own web app and <b>approximates Snapmaker Orca’s pigment mixer</b> (<code>filament_mixer_model.h</code>, MIT, © Justin Hayes), itself an approximation of the <b>Mixbox</b> pigment model.</li>
+          <li>Colour distance uses the <b>CIEDE2000</b> standard.</li>
+          <li>The converter <b>reads</b> printer/filament/print profiles from your installed <b>OrcaSlicer</b> / <b>Snapmaker Orca</b> (GPL/AGPL projects). Bed Ready does not bundle or redistribute those profiles.</li>
+          <li>The 3D preview is a custom WebGL renderer — no third-party 3D engine.</li>
+        </ul>
+        <p class="help-muted">Bed Ready’s source is available under FSL-1.1-Apache-2.0. Full third-party notices ship in <code>CREDITS.md</code>. Questions, feedback or takedown requests: use the Feedback button or visit <b>bedready.io</b>.</p>
+      </div>` },
+  ];
+  const nav = SECTIONS.map((s, i) => `<button class="help-tab-btn${i === 0 ? ' active' : ''}" data-htab="${s.id}">${s.label}</button>`).join('');
+  const body = SECTIONS.map((s, i) => `<div class="help-tab-content${i === 0 ? ' active' : ''}" id="htab-${s.id}">${s.html}</div>`).join('');
+  openFormModal({
+    title: 'Bed Ready — Help & FAQ',
+    noSave: true,
+    sizeLg: true,
+    bodyHtml: `<div class="help-tab-nav">${nav}</div><div id="helpTabContents">${body}</div>`,
+    onMount(modal) {
+      modal.querySelector('.help-tab-nav').addEventListener('click', (e) => {
+        const btn = e.target.closest('.help-tab-btn');
+        if (!btn) return;
+        modal.querySelectorAll('.help-tab-btn').forEach(b => b.classList.remove('active'));
+        modal.querySelectorAll('.help-tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        const tc = modal.querySelector('#htab-' + btn.dataset.htab);
+        if (tc) tc.classList.add('active');
+      });
+      if (initial) { const b = modal.querySelector(`.help-tab-btn[data-htab="${initial}"]`); if (b) b.click(); }
+    }
+  });
+}
+
 function openHelpModal() {
+  if (isBedReadyFlavor()) return openBedReadyHelp();
   const tabs = ['start', 'calc', 'queue', 'invoice', 'backup'];
   const tabNavHtml = tabs.map((tab, i) => `<button class="help-tab-btn${i === 0 ? ' active' : ''}" data-htab="${tab}">${escapeHtml(t('help.tab.' + tab))}</button>`).join('');
   const tabContentHtml = tabs.map((tab, i) => `
@@ -817,7 +938,18 @@ function openHelpModal() {
 /* ============================================================
    Feedback / Bug report modal
    ============================================================ */
+// Bed Ready routes feedback to its own site (bedready.io), not Khayt's support
+// inbox. Change here if a dedicated feedback path is added (e.g. /feedback).
+const BEDREADY_SITE_URL = 'https://bedready.io';
+
 function openFeedbackModal() {
+  // Bed Ready (the standalone maker app) sends people to the bedready.io website
+  // instead of showing Khayt's email-a-report form.
+  if (isBedReadyFlavor()) {
+    if (window.hubAPI?.openExternal) window.hubAPI.openExternal(BEDREADY_SITE_URL);
+    else window.open(BEDREADY_SITE_URL);
+    return;
+  }
   openFormModal({
     title: t('feedback.title'),
     saveLabel: t('feedback.send'),
@@ -849,7 +981,8 @@ function openFeedbackModal() {
       const message = (modal.querySelector('#fbMessage').value || '').trim();
       const email   = (modal.querySelector('#fbEmail').value  || '').trim();
       if (!message) { toast(t('feedback.err_empty'), 'error'); return false; }
-      const subject = encodeURIComponent(`[Khayt] ${t('feedback.type_' + type)}`);
+      const appTag = isBedReadyFlavor() ? 'Bed Ready beta' : 'Khayt';
+      const subject = encodeURIComponent(`[${appTag}] ${t('feedback.type_' + type)}`);
       const body = encodeURIComponent(
         `Type: ${t('feedback.type_' + type)}\n\n${message}${email ? `\n\nFrom: ${email}` : ''}`
       );
@@ -895,6 +1028,7 @@ function openFeedbackModal() {
     renderGlobalResults,
     handleGlobalSearchKeydown,
     openHelpModal,
+    openBedReadyHelp,
     openFeedbackModal,
   };
 

@@ -17,12 +17,24 @@
 (function (global) {
   const hub = () => (typeof window !== 'undefined' && window.hubAPI) || null;
   const profiles = () => global.KhaytPrinterProfiles;
+  // Bed Ready keeps headings plain (no leading emoji) to match its monoline chrome.
+  const _titleIco = (typeof document !== 'undefined' && document.documentElement.dataset.app === 'bedready') ? '' : '🔄 ';
 
   function customPrinters() {
     return (typeof settings !== 'undefined' && Array.isArray(settings.customPrinters)) ? settings.customPrinters : [];
   }
+  // Printers from the maker's installed slicer catalogue (Snapmaker Orca + OrcaSlicer). Names loaded
+  // once when the converter opens; each printer's full profile (bed, slots, native machine) is resolved
+  // lazily the first time it's selected and cached under its "orca:<name>" id.
+  let _orcaPrinters = null;      // [{ name, vendor }] or null until loaded
+  const _orcaProfileCache = {};  // machineName → normalized profile
+  function orcaIdFor(name) { return 'orca:' + name; }
+  function isOrcaId(id) { return typeof id === 'string' && id.indexOf('orca:') === 0; }
+  function orcaNameFromId(id) { return isOrcaId(id) ? id.slice(5) : null; }
+
   // All selectable targets: user printers first, then the built-in registry, then Generic.
   function getProfileById(id) {
+    if (isOrcaId(id)) return _orcaProfileCache[orcaNameFromId(id)] || null;
     const c = customPrinters().find((p) => p.id === id);
     if (c) return c;
     const P = profiles();
@@ -53,6 +65,17 @@
     if (P.configFamily(p.flavour) === 'generic') return true; // Generic normalize is always valid
     if (!sourceFlavour || sourceFlavour === 'generic') return true;
     return P.configFamily(p.flavour) === P.configFamily(sourceFlavour);
+  }
+  // A printer from a *different* slicer ecosystem than the source. We still let you pick it,
+  // but the output is written as a clean Generic 3MF (geometry + colours kept, vendor config
+  // stripped) — a coherent Prusa→Bambu config port isn't possible, so normalize instead of
+  // producing a broken file. The user opens the Generic 3MF in that printer's own slicer.
+  function isCrossEcosystem(sourceFlavour, id) {
+    const P = profiles();
+    const p = getProfileById(id);
+    if (!p || !P || !P.configFamily) return false;
+    if (P.configFamily(p.flavour) === 'generic') return false;
+    return !compatibleWith(sourceFlavour, p);
   }
 
   /* ---------------- Conversion presets ---------------- */
@@ -94,8 +117,23 @@
     for (const p of P.listProfiles()) { if (compatibleWith(sourceFlavour, p)) (byVendor[p.vendor] = byVendor[p.vendor] || []).push(p); }
     html += Object.keys(byVendor).map((vendor) =>
       `<optgroup label="${escapeHtml(vendor)}">${byVendor[vendor].map(opt).join('')}</optgroup>`).join('');
+    // Full installed-slicer catalogue (thousands of printers, grouped by vendor). Selecting one builds a
+    // native config from that printer's own profile. Shown only once the catalogue has loaded.
+    if (Array.isArray(_orcaPrinters) && _orcaPrinters.length) {
+      const byV = {};
+      for (const p of _orcaPrinters) (byV[p.vendor] = byV[p.vendor] || []).push(p);
+      const catOpt = (p) => `<option value="${escapeHtml(orcaIdFor(p.name))}"${orcaIdFor(p.name) === selectedId ? ' selected' : ''}>${escapeHtml(p.name)}</option>`;
+      html += `<optgroup label="${escapeHtml(t('conv.slicer_catalogue') || '— Installed-slicer printers —')}"></optgroup>`;
+      html += Object.keys(byV).sort().map((vendor) =>
+        `<optgroup label="${escapeHtml(vendor)}">${byV[vendor].map(catOpt).join('')}</optgroup>`).join('');
+    }
     const g = P.GENERIC;
     html += `<optgroup label="${escapeHtml(t('conv.other') || 'Other')}"><option value="${escapeHtml(g.id)}"${g.id === selectedId ? ' selected' : ''}>${escapeHtml(t('conv.normalize_opt') || 'Generic 3MF (strip vendor lock)')}</option></optgroup>`;
+    // Printers from other ecosystems: still selectable, but produced as a Generic 3MF you open
+    // in that printer's slicer. Vendor-prefixed so a bare model name isn't ambiguous.
+    const optCross = (p) => { const nm = (p.vendor && !String(p.name || '').startsWith(p.vendor)) ? p.vendor + ' · ' + p.name : p.name; return `<option value="${escapeHtml(p.id)}"${p.id === selectedId ? ' selected' : ''}>${escapeHtml(nm)}</option>`; };
+    const cross = [...customPrinters(), ...P.listProfiles()].filter((p) => isCrossEcosystem(sourceFlavour, p.id));
+    if (cross.length) html += `<optgroup label="${escapeHtml(t('conv.other_eco') || 'Other ecosystems · saved as Generic 3MF')}">${cross.map(optCross).join('')}</optgroup>`;
     return html;
   }
 
@@ -111,6 +149,27 @@
     if (!n) return '';
     const label = ((n.material || '') + (n.colourVariant ? ' · ' + n.colourVariant : '')).trim() || (t('conv.near_generic') || 'in stock');
     return `<span class="conv-near" title="${escapeHtml(t('conv.near_stock') || 'Nearest filament you have in stock')}">≈ ${escapeHtml(label)} <span class="conv-de">ΔE ${Math.round(n.deltaE)}</span></span>`;
+  }
+
+  // Full Spectrum applies only to a target that supports colour mixing in hardware (Snapmaker U1) when
+  // the file uses MORE colours than it has slots — keep N filaments physical, reproduce the rest as
+  // dithered mixes. Gate on supportsMixedFilament, NOT flavour==='orca' (single-extruder Orca-family
+  // printers can't mix), and require ≥2 physical heads to mix between.
+  function fsCapable(sourceFlavour, targetId, usedColours) {
+    const p = getProfileById(targetId);
+    return !!(p && p.supportsMixedFilament && p.maxColors >= 2 && usedColours > p.maxColors && !isCrossEcosystem(sourceFlavour, targetId));
+  }
+
+  // "65% [◼] #FFFFFF (head 1) + 35% [◼] #FF0000 (head 2)" — carries the head hex + slot as TEXT so the
+  // recipe isn't colour-only (screen-reader + colourblind accessible), matching the swatch to a label.
+  function fsRecipeText(mix, heads) {
+    const nameOf = (id) => {
+      const hd = heads[id - 1];
+      if (!hd) return `<span class="conv-fs-head-ref">#${id}</span>`;
+      return `${swatch(hd.hex, 12)}<span class="conv-fs-head-ref">${escapeHtml(hd.hex)} <span class="conv-fs-head-slot">(${(t('conv.fs_head') || 'head {n}').replace('{n}', id)})</span></span>`;
+    };
+    if (!mix.weights || mix.weights.length <= 1) return nameOf(mix.ids ? mix.ids[0] : 1);
+    return mix.ids.map((id, i) => `${mix.weights[i]}% ${nameOf(id)}`).join(' + ');
   }
 
   // Remap table: one row per source colour → a target-slot number select (identity default).
@@ -161,6 +220,10 @@
     if (!target) return '';
     const isGeneric = P && targetId === P.GENERIC.id;
     if (isGeneric) return `<div class="conv-changes"><div class="conv-changes-h">${escapeHtml(t('conv.changes') || 'What changes')}</div><p class="conv-note">${escapeHtml(t('conv.normalize_note') || 'Vendor-locked slicer settings are stripped; geometry and colours are kept. Opens cleanly in any slicer.')}</p></div>`;
+    if (isCrossEcosystem(a.flavour, targetId)) {
+      const note = (t('conv.cross_note') || 'Different ecosystem — we save a clean Generic 3MF (geometry + colours kept). Open it in {t}’s slicer and pick {t}.').replace(/\{t\}/g, target.name || '');
+      return `<div class="conv-changes"><div class="conv-changes-h">${escapeHtml(t('conv.changes') || 'What changes')}</div><p class="conv-note">${escapeHtml(note)}</p></div>`;
+    }
     const m = a.meta || {};
     const row = (k, from, to, badge) => `<div class="conv-chg-row"><span class="conv-chg-k">${escapeHtml(k)}</span><span class="conv-chg-from">${escapeHtml(from || '—')}</span><span class="conv-arrow">→</span><span class="conv-chg-to">${escapeHtml(to || '—')}</span>${badge || ''}</div>`;
     // Bed-fit badge from the model footprint vs the target bed.
@@ -184,6 +247,117 @@
     return `<div class="conv-changes"><div class="conv-changes-h">${escapeHtml(t('conv.changes') || 'What changes')}</div>${rows}</div>`;
   }
 
+  // Under a mounted 3D preview: a plate picker (multi-plate files) and a live colour strip
+  // (painted files) so the maker can flip plates and see colour changes reflected instantly.
+  function buildPreviewExtras(panel, ctl, mesh) {
+    if (!panel || !ctl || panel.querySelector('.conv-preview-extras')) return;
+    const rows = [];
+    // Plate picker.
+    if (Array.isArray(mesh.plates) && mesh.plates.length > 1) {
+      // Default to the first plate (like a slicer) — "All plates" lays every plate's objects out
+      // at their real bed positions, which looks tiny and scattered.
+      const opts = mesh.plates.map((p, i) => `<option value="${i}"${i === 0 ? ' selected' : ''}>${escapeHtml(p.name || ('Plate ' + (i + 1)))}</option>`)
+        .concat(`<option value="-1">${escapeHtml(t('conv.all_plates') || 'All plates')}</option>`).join('');
+      rows.push(`<label class="conv-pv-plate"><span>${escapeHtml(t('conv.plate') || 'Plate')}</span><select class="conv-pv-plate-sel">${opts}</select></label>`);
+    }
+    // Live colour swatches (only meaningful when the model carries per-facet paint + a palette).
+    const pal = ctl.hasLiveColor && ctl.hasLiveColor() ? ctl.palette() : null;
+    if (pal && pal.length) {
+      const sw = pal.map((hex, i) => `<input type="color" class="conv-pv-col" data-i="${i}" value="${safeCssColor(hex, '#cccccc')}" title="${escapeHtml((t('conv.filament') || 'Filament') + ' ' + (i + 1))}">`).join('');
+      rows.push(`<div class="conv-pv-cols"><span class="conv-pv-cols-h">${escapeHtml(t('conv.colours') || 'colours')}</span>${sw}</div>`);
+    }
+    if (!rows.length) return;
+    const box = document.createElement('div');
+    box.className = 'conv-preview-extras';
+    box.innerHTML = rows.join('');
+    panel.appendChild(box);
+    const sel = box.querySelector('.conv-pv-plate-sel');
+    if (sel) {
+      sel.addEventListener('change', () => { const i = parseInt(sel.value, 10); ctl.setPlate(i >= 0 && mesh.plates[i] ? mesh.plates[i].objs : null); });
+      if (mesh.plates && mesh.plates[0]) ctl.setPlate(mesh.plates[0].objs); // start on plate 1
+    }
+    const cols = box.querySelectorAll('.conv-pv-col');
+    if (cols.length) cols.forEach((inp) => inp.addEventListener('input', () => {
+      const next = ctl.palette() || [];
+      cols.forEach((c) => { next[+c.dataset.i] = c.value; });
+      ctl.recolor(next);
+    }));
+  }
+
+  // Decide what to show in a preview panel from a convertMesh() result:
+  //   3D mesh  → interactive viewer
+  //   no mesh but an embedded slicer thumbnail → show that 2D image (always-load fallback)
+  //   nothing  → a small "unavailable" note (never blocks converting)
+  function renderPreviewInto(panel, canvasEl, mesh, fallbackColors) {
+    if (!panel) return;
+    const hint = panel.querySelector('.conv-preview-hint');
+    if (mesh && mesh.ok && mesh.verts && mesh.count) {
+      const cols = (mesh.colors && mesh.colors.length) ? mesh.colors : (fallbackColors || []);
+      const ctl = mountMeshViewer(canvasEl, { verts: mesh.verts, count: mesh.count, colors: cols, triColors: mesh.triColors, triObj: mesh.triObj, triCode: mesh.triCode, palette: mesh.palette });
+      if (hint) hint.textContent = t('conv.preview_hint2') || 'Drag · scroll to zoom';
+      // Plate picker (multi-plate Bambu/Orca files) + live colour swatches (painted files).
+      buildPreviewExtras(panel, ctl, mesh);
+      // Control bar: preset angles, spin, reset, and expand to the big viewer.
+      if (!panel.querySelector('.conv-preview-ctrls')) {
+        const bar = document.createElement('div');
+        bar.className = 'conv-preview-ctrls';
+        const b = (act, lbl, cls) => `<button type="button" class="btn ghost small${cls || ''}" data-pv="${act}">${escapeHtml(lbl)}</button>`;
+        bar.innerHTML = b('iso', t('view3d.iso') || 'Iso') + b('front', t('view3d.front') || 'Front') + b('top', t('view3d.top') || 'Top') + b('side', t('view3d.side') || 'Side')
+          + `<span class="conv-preview-sp"></span>` + b('wire', '▦', ' pv-icon') + b('spin', '↻', ' pv-icon') + b('reset', '⤾', ' pv-icon') + b('expand', '⤢', ' pv-icon');
+        panel.appendChild(bar);
+        bar.querySelectorAll('[data-pv]').forEach((btn) => btn.addEventListener('click', () => {
+          const a = btn.dataset.pv;
+          if (a === 'spin') btn.classList.toggle('on', ctl.toggleSpin());
+          else if (a === 'wire') btn.classList.toggle('on', ctl.toggleWire());
+          else if (a === 'reset') { ctl.reset(); const s = bar.querySelector('[data-pv="spin"]'); if (s) s.classList.remove('on'); }
+          else if (a === 'expand') { if (typeof openModelViewer === 'function') openModelViewer({ verts: mesh.verts, count: mesh.count, colors: cols, triColors: mesh.triColors, triObj: mesh.triObj, triCode: mesh.triCode, palette: mesh.palette, plates: mesh.plates, bbox: mesh.bbox, volumeMm3: mesh.volumeMm3, name: '' }); }
+          else { ctl.setView(a); const s = bar.querySelector('[data-pv="spin"]'); if (s) s.classList.remove('on'); }
+        }));
+      }
+      return ctl;
+    }
+    if (canvasEl) canvasEl.style.display = 'none';
+    if (mesh && mesh.thumb) {
+      const img = document.createElement('img');
+      img.className = 'conv-preview-canvas conv-preview-img';
+      img.alt = 'preview'; img.src = mesh.thumb;
+      if (canvasEl && canvasEl.parentNode) canvasEl.parentNode.insertBefore(img, canvasEl);
+      // Be honest about why there's no rotate/zoom here: we couldn't read this file's geometry,
+      // so we're showing the slicer's own baked-in picture instead of the interactive model.
+      if (hint) hint.textContent = t('conv.preview_thumb') || 'Couldn’t read 3D geometry — showing the slicer’s own preview image (no rotate/zoom).';
+      try { console.warn('[converter] 3D geometry unavailable, using embedded thumbnail:', mesh && mesh.error); } catch (_) {}
+      return;
+    }
+    if (mesh && mesh.error) try { console.warn('[converter] preview mesh unavailable:', mesh.error); } catch (_) {}
+    if (hint) hint.textContent = t('conv.preview_none') || 'Preview unavailable — you can still convert.';
+  }
+
+  // A lightweight "see what you're converting" step for the one-click STL↔3MF actions:
+  // shows a live 3D preview of the picked file, then runs onConfirm when the user proceeds.
+  function previewConfirm({ path, name, title, confirmLabel, note, onConfirm }) {
+    const h = hub();
+    const canPreview = typeof mountMeshViewer === 'function' && h && !!h.convertMesh;
+    const body = `
+      <div class="conv-src"><div class="conv-src-name">📦 ${escapeHtml(name || 'model')}</div>${note ? `<div class="conv-src-meta">${escapeHtml(note)}</div>` : ''}</div>
+      ${canPreview ? `
+      <div id="pcPreview" class="conv-preview">
+        <canvas id="pcPreviewCanvas" width="320" height="320" class="conv-preview-canvas" aria-label="3D preview"></canvas>
+        <div class="conv-preview-hint">${escapeHtml(t('conv.preview_loading') || 'Loading 3D preview…')}</div>
+      </div>` : `<p class="conv-note">${escapeHtml(t('conv.preview_none') || 'Preview unavailable — you can still convert.')}</p>`}`;
+    openFormModal({
+      title, bodyHtml: body, saveLabel: confirmLabel,
+      onMount(modal) {
+        const c = modal.querySelector('#pcPreviewCanvas');
+        if (c && h.convertMesh) {
+          h.convertMesh({ path })
+            .then((m) => renderPreviewInto(modal.querySelector('#pcPreview'), c, m))
+            .catch((e) => renderPreviewInto(modal.querySelector('#pcPreview'), c, { error: String((e && e.message) || e) }));
+        }
+      },
+      onSave() { Promise.resolve().then(onConfirm); return true; },
+    });
+  }
+
   async function openConverter(src) {
     const h = hub();
     if (!h || !h.mfAnalyze) { toast(t('conv.desktop_only') || 'The converter is available in the desktop app.', 'error'); return; }
@@ -199,11 +373,17 @@
     function currentMax(id) { const p = getProfileById(id); return p ? p.maxColors : filaments.length; }
 
     const crossNote = (a.flavour && a.flavour !== 'generic')
-      ? `<p class="conv-tip">${escapeHtml((t('conv.family_note') || 'Showing printers compatible with this {f} file. To target another ecosystem, convert to Generic 3MF and set up the printer in your slicer.').replace('{f}', a.flavour))}</p>`
+      ? `<p class="conv-tip">${escapeHtml((t('conv.family_note') || 'Same-ecosystem printers keep their slicer settings. Printers from other ecosystems are listed too — pick one and it’s saved as a Generic 3MF you open in that printer’s slicer.').replace('{f}', a.flavour))}</p>`
       : '';
 
+    const canPreview = typeof mountMeshViewer === 'function' && !!h.convertMesh;
     const body = `
       ${metaCardHtml(src, a)}
+      ${canPreview ? `
+      <div id="convPreview" class="conv-preview">
+        <canvas id="convPreviewCanvas" width="300" height="300" class="conv-preview-canvas" aria-label="3D preview"></canvas>
+        <div class="conv-preview-hint">${escapeHtml(t('conv.preview_loading') || 'Loading 3D preview…')}</div>
+      </div>` : ''}
       <label class="conv-label">${escapeHtml(t('conv.target') || 'Target printer')}</label>
       <select id="convTarget" class="conv-target">${targetOptions(targetId, a.flavour)}</select>
       ${crossNote}
@@ -213,6 +393,8 @@
         <button type="button" class="btn small ghost" id="convPresetSave">★ ${escapeHtml(t('conv.preset_save') || 'Save')}</button>
       </div>
       <div id="convChanges">${changesHtml(a, targetId)}</div>
+      <div id="convFsWrap"></div>
+      <div id="convFilamentWrap"></div>
       <div id="convRemapWrap">${remapTableHtml(filaments, currentMax(targetId))}</div>
       <div class="conv-dest">
         <div class="conv-dest-q">${escapeHtml(t('conv.dest_q') || 'Where should the converted file go?')}</div>
@@ -221,22 +403,201 @@
       </div>`;
 
     openFormModal({
-      title: `🔄 ${t('conv.title') || 'Convert 3MF'}`,
+      title: `${_titleIco}${t('conv.title') || 'Convert 3MF'}`,
       bodyHtml: body,
       saveLabel: t('conv.convert') || 'Convert & save…',
       onMount(modal) {
         const sel = modal.querySelector('#convTarget');
         const wrap = modal.querySelector('#convRemapWrap');
         const chg = modal.querySelector('#convChanges');
+        const fsWrap = modal.querySelector('#convFsWrap');
+        const filWrap = modal.querySelector('#convFilamentWrap');
+        let fsEnabled = false, fsPlanData = null;
+
+        // Filament + process presets from the maker's installed Snapmaker Orca (loaded once, lazily).
+        let orcaFilaments = null, orcaProcesses = [], procPick = null, orcaLoaded = false, filPicks = {};
+        async function ensureOrcaFilaments() {
+          if (orcaLoaded) return;
+          orcaLoaded = true;
+          try {
+            const r = await hub().orcaFilaments();
+            orcaFilaments = (r && r.available && r.filaments) ? r.filaments : [];
+            orcaProcesses = (r && r.available && r.processes) ? r.processes : [];
+            procPick = (r && r.defaultProcess) || null;
+          } catch (_) { orcaFilaments = []; orcaProcesses = []; }
+          paintFilaments();
+        }
+
+        // For an Orca (U1-class) target, let the maker say which real filament sits in each slot so the
+        // converted file references presets their slicer knows (no "customized preset" warning) and
+        // carries the right material. Falls back silently when no slicer DB is found.
+        function paintFilaments() {
+          if (!filWrap) return;
+          const p = getProfileById(targetId);
+          // The curated filament list + print-quality presets are the Snapmaker U1's; other catalogue
+          // printers still convert natively (their default process + Generic filaments), just without this
+          // picker. Gate to the built-in U1 so we never show U1 filament names for a different printer.
+          const isOrca = p && p.id === 'snapmaker-u1' && !isCrossEcosystem(a.flavour, targetId);
+          if (!isOrca) { filWrap.innerHTML = ''; return; }
+          if (orcaFilaments == null) { ensureOrcaFilaments(); filWrap.innerHTML = `<div class="conv-fs-loading">${escapeHtml(t('conv.fil_loading') || 'Reading your slicer’s filament list…')}</div>`; return; }
+          // Slots = the physical heads (FS) or the mapped colours, capped at the target's slot count.
+          const slotCount = fsEnabled && fsPlanData ? fsPlanData.heads.length : Math.min(filaments.length, p.maxColors || filaments.length);
+          const slotHex = (i) => (fsEnabled && fsPlanData) ? fsPlanData.heads[i].hex : ((filaments[i] && filaments[i].color) || '#CCCCCC');
+          if (!slotCount) { filWrap.innerHTML = ''; return; }
+          // Group DB presets by material type for tidy <optgroup>s.
+          const groups = {};
+          (orcaFilaments || []).forEach((f) => { (groups[f.type] = groups[f.type] || []).push(f); });
+          const optionsFor = (sel) => {
+            const gen = `<option value=""${!sel ? ' selected' : ''}>${escapeHtml(t('conv.fil_generic') || 'Generic (auto)')}</option>`;
+            const body = Object.keys(groups).sort().map((type) =>
+              `<optgroup label="${escapeHtml(type)}">${groups[type].map((f) =>
+                `<option value="${escapeHtml(f.name)}" data-type="${escapeHtml(f.type)}"${sel === f.name ? ' selected' : ''}>${escapeHtml(f.name)}</option>`).join('')}</optgroup>`).join('');
+            return gen + body;
+          };
+          const dbNote = (orcaFilaments && orcaFilaments.length)
+            ? (t('conv.fil_hint') || 'Pick the filament loaded in each slot (from your Snapmaker Orca library):')
+            : (t('conv.fil_none') || 'Install Snapmaker Orca to pick specific filaments; slots default to Generic.');
+          const rows = Array.from({ length: slotCount }, (_, i) =>
+            `<label class="conv-fil-row"><span class="conv-fil-slot">${swatch(slotHex(i), 16)} ${escapeHtml((t('conv.slot') || 'Slot') + ' ' + (i + 1))}</span>
+              <select class="conv-fil-sel" data-slot="${i}"${(orcaFilaments && orcaFilaments.length) ? '' : ' disabled'}>${optionsFor(filPicks[i] && filPicks[i].name)}</select></label>`).join('');
+          // Print-quality (process) preset — its layer height etc. become the file's U1-native settings.
+          const procRow = (orcaProcesses && orcaProcesses.length) ? `
+            <label class="conv-fil-row"><span class="conv-fil-slot">${escapeHtml(t('conv.print_quality') || 'Print quality')}</span>
+              <select class="conv-proc-sel">${orcaProcesses.map((p) =>
+                `<option value="${escapeHtml(p.name)}"${procPick === p.name ? ' selected' : ''}>${escapeHtml(p.name.replace(/ @Snapmaker U1.*/i, ''))}${p.layer ? ` (${escapeHtml(p.layer)} mm)` : ''}</option>`).join('')}</select></label>` : '';
+          filWrap.innerHTML = `<div class="conv-fil"><div class="conv-fil-head">${escapeHtml(dbNote)}</div>${rows}${procRow}</div>`;
+          Array.from(filWrap.querySelectorAll('.conv-fil-sel')).forEach((sel) => {
+            sel.onchange = () => {
+              const i = parseInt(sel.dataset.slot, 10);
+              const opt = sel.options[sel.selectedIndex];
+              filPicks[i] = sel.value ? { name: sel.value, type: opt.dataset.type || 'PLA' } : null;
+            };
+          });
+          const procSel = filWrap.querySelector('.conv-proc-sel');
+          if (procSel) procSel.onchange = () => { procPick = procSel.value || null; };
+        }
+        modal._filPicks = () => filPicks;
+        modal._procPick = () => procPick;
+
+        // Ask the main process to plan the physical heads + mixes for the current target.
+        async function loadFsPlan() {
+          fsPlanData = null;
+          const reqTarget = targetId; // guard against the user switching target mid-flight
+          try {
+            const r = await hub().fsPlan({ path: src.path, targetId, targetProfile: isCustomId(targetId) ? getProfileById(targetId) : null });
+            if (targetId !== reqTarget) return; // a newer target won — drop this stale plan
+            if (r && r.available) fsPlanData = r;
+          } catch (_) { /* best-effort */ }
+          if (targetId !== reqTarget) return;
+          paintFs();
+          paintFilaments();
+        }
+
+        function paintFs() {
+          if (!fsWrap) return;
+          const usedColours = filaments.length;
+          if (!fsCapable(a.flavour, targetId, usedColours)) { fsWrap.innerHTML = ''; fsEnabled = false; if (wrap) wrap.style.display = ''; return; }
+          const p = getProfileById(targetId);
+          const extra = usedColours - p.maxColors;
+          const label = (t('conv.fs_toggle') || 'Use Full Spectrum — reproduce {n} extra colour(s) by mixing').replace('{n}', extra);
+          let planHtml = '';
+          if (fsEnabled) {
+            if (!fsPlanData) planHtml = `<div class="conv-fs-loading">${escapeHtml(t('conv.fs_planning') || 'Planning colour mixes…')}</div>`;
+            else {
+              const heads = fsPlanData.heads.map((hd) => `<div class="conv-fs-head">${swatch(hd.hex, 20)}<span>${escapeHtml(hd.hex)}</span></div>`).join('');
+              const mixes = fsPlanData.mixes.length
+                ? fsPlanData.mixes.map((mx) => `<div class="conv-fs-mix">${swatch(mx.srcHex, 16)} → ${fsRecipeText(mx, fsPlanData.heads)} <span class="conv-fs-de">ΔE ${mx.deltaE}</span></div>`).join('')
+                : `<div class="conv-fs-mix">${escapeHtml(t('conv.fs_no_mix') || 'All colours fit as pure filaments.')}</div>`;
+              planHtml = `<div class="conv-fs-plan">
+                  <div class="conv-fs-sub">${escapeHtml(t('conv.fs_load') || 'Load these filaments:')}</div>
+                  <div class="conv-fs-heads">${heads}</div>
+                  <div class="conv-fs-sub">${escapeHtml(t('conv.fs_mixes') || 'Printed by mixing:')}</div>
+                  <div class="conv-fs-mixes">${mixes}</div>
+                </div>`;
+            }
+          }
+          fsWrap.innerHTML = `<label class="conv-fs-toggle"><input type="checkbox" id="convFsOn"${fsEnabled ? ' checked' : ''}> ${escapeHtml(label)}</label>${planHtml}`;
+          const cb = fsWrap.querySelector('#convFsOn');
+          if (cb) cb.onchange = () => {
+            fsEnabled = cb.checked;
+            if (fsEnabled && !fsPlanData) { paintFs(); loadFsPlan(); } else paintFs();
+            paintFilaments();
+          };
+          // Full Spectrum owns the colour mapping — hide the manual remap table while it's on.
+          if (wrap) wrap.style.display = fsEnabled ? 'none' : '';
+        }
+        // Expose current FS state to onSave.
+        modal._fsState = () => ({ enabled: fsEnabled, plan: fsPlanData });
+
+        // 3D preview of the source model — "know what you're converting". Best-effort:
+        // if the mesh can't be read, quietly drop the panel rather than block the convert.
+        const pvCanvas = modal.querySelector('#convPreviewCanvas');
+        let previewCtl = null, previewBbox = null;
+        // Lay the TARGET printer's bed under the model so you see scale, orientation and fit.
+        const applyBed = () => {
+          if (!previewCtl || !previewBbox) return;
+          const p = getProfileById(targetId);
+          if (!p || !p.bed || !p.bed.x) { previewCtl.setBed(null); return; }
+          const fits = !(previewBbox.x > p.bed.x + 1 || previewBbox.y > p.bed.y + 1);
+          previewCtl.setBed({ x: p.bed.x, y: p.bed.y, fits });
+        };
+        if (pvCanvas && h.convertMesh) {
+          h.convertMesh({ path: src.path })
+            .then((mesh) => { previewBbox = mesh && mesh.bbox; previewCtl = renderPreviewInto(modal.querySelector('#convPreview'), pvCanvas, mesh, filaments.map((f) => f.color).filter(Boolean)); applyBed(); })
+            .catch((e) => renderPreviewInto(modal.querySelector('#convPreview'), pvCanvas, { error: String((e && e.message) || e) }));
+        }
         const renderForTarget = () => {
-          const isGeneric = P && targetId === P.GENERIC.id;
+          const asGeneric = (P && targetId === P.GENERIC.id) || isCrossEcosystem(a.flavour, targetId);
           if (chg) chg.innerHTML = changesHtml(a, targetId);
-          wrap.innerHTML = isGeneric
+          wrap.innerHTML = asGeneric
             ? `<p class="conv-note">${escapeHtml(t('conv.normalize_note') || 'Vendor-locked slicer settings are stripped; geometry and colours are kept. Opens cleanly in any slicer.')}</p>`
             : remapTableHtml(filaments, currentMax(targetId));
-          return isGeneric;
+          // Target changed → drop any stale Full Spectrum plan and re-evaluate for the new printer.
+          fsEnabled = false; fsPlanData = null; filPicks = {};
+          paintFs();
+          paintFilaments();
+          applyBed();
+          return asGeneric;
         };
-        if (sel) sel.onchange = () => { targetId = sel.value; renderForTarget(); };
+        // Resolve a catalogue printer's full profile (bed, slots, native machine) the first time it's
+        // picked, caching it under its orca:<name> id, then render for it.
+        async function ensureOrcaProfile(id) {
+          const name = orcaNameFromId(id);
+          if (!name || _orcaProfileCache[name]) return;
+          try {
+            const r = await hub().orcaMachineInfo(name);
+            if (r && r.ok && r.info) {
+              const info = r.info;
+              _orcaProfileCache[name] = {
+                id, name: info.printerModel || name, vendor: ((_orcaPrinters || []).find((p) => p.name === name) || {}).vendor || '',
+                flavour: 'orca', bed: info.bed, nozzle: info.nozzle, maxColors: info.colors,
+                orcaMachine: name, printableArea: info.printableArea, printableHeight: info.printableHeight,
+                printerModel: info.printerModel, printerSettingsId: name,
+                process: r.defaultProcess || info.defaultProcess || null,
+                system: info.colors > 1 ? info.colors + '-colour' : '', fromOrca: true,
+              };
+            }
+          } catch (_) { /* best-effort */ }
+        }
+        if (sel) sel.onchange = async () => {
+          targetId = sel.value;
+          if (isOrcaId(targetId) && !getProfileById(targetId)) {
+            if (chg) chg.innerHTML = `<div class="conv-fs-loading">${escapeHtml(t('conv.printer_loading') || 'Reading printer profile…')}</div>`;
+            await ensureOrcaProfile(targetId);
+          }
+          renderForTarget();
+        };
+        // Load the installed-slicer printer catalogue, then fold it into the target dropdown.
+        if (hub().orcaPrinters) {
+          hub().orcaPrinters().then((r) => {
+            if (r && r.available && Array.isArray(r.printers) && r.printers.length) {
+              _orcaPrinters = r.printers;
+              if (sel) sel.innerHTML = targetOptions(targetId, a.flavour);
+            }
+          }).catch(() => {});
+        }
+        paintFs();
+        paintFilaments();
 
         // Apply a saved preset: set the target and, when the slot map fits this file's colours, the mapping.
         const applySel = modal.querySelector('#convPresetApply');
@@ -270,9 +631,12 @@
         };
       },
       async onSave(modal) {
-        const isGeneric = P && targetId === P.GENERIC.id;
+        const isGeneric = (P && targetId === P.GENERIC.id) || isCrossEcosystem(a.flavour, targetId);
+        const fsState = (typeof modal._fsState === 'function') ? modal._fsState() : { enabled: false };
+        const fsOn = !isGeneric && fsState.enabled && !!fsState.plan;
         let slotMap = null;
-        if (!isGeneric && filaments.length) {
+        // Full Spectrum handles all colours itself — the manual slot map doesn't apply.
+        if (!isGeneric && !fsOn && filaments.length) {
           slotMap = Array.from(modal.querySelectorAll('.conv-slot')).map((s) => parseInt(s.value, 10) || 0);
           if (slotMap.every((v, i) => v === i)) slotMap = null; // identity → no remap
           if (slotMap && new Set(slotMap).size !== slotMap.length) {
@@ -281,7 +645,8 @@
         }
         const dest = (modal.querySelector('input[name="convDest"]:checked') || {}).value || 'library';
         const mode = isGeneric ? 'normalize' : 'retarget';
-        const targetProfile = isCustomId(targetId) ? getProfileById(targetId) : null;
+        // Custom printers AND installed-slicer catalogue printers convert via an explicit targetProfile.
+        const targetProfile = (isCustomId(targetId) || isOrcaId(targetId)) ? getProfileById(targetId) : null;
         const targetName = (getProfileById(targetId) && getProfileById(targetId).name)
           || (isGeneric ? (t('conv.normalize_opt') || 'Generic 3MF') : targetId);
         const intoVaultId = dest === 'folder'
@@ -292,7 +657,13 @@
         if (btn) { btn.disabled = true; btn.textContent = t('conv.converting') || 'Converting…'; }
         let r;
         try {
-          r = await hub().mfConvert({ path: src.path, targetId, mode, slotMap, intoVaultId, targetProfile });
+          // Per-slot filament picks (Orca DB) → array indexed by slot.
+          const picksMap = (typeof modal._filPicks === 'function') ? modal._filPicks() : {};
+          const filaments = Object.keys(picksMap).length
+            ? Array.from({ length: Math.max(...Object.keys(picksMap).map((k) => +k + 1)) }, (_, i) => picksMap[i] || null)
+            : null;
+          const process = (typeof modal._procPick === 'function') ? modal._procPick() : null;
+          r = await hub().mfConvert({ path: src.path, targetId, mode, slotMap, intoVaultId, targetProfile, fullSpectrum: fsOn, filaments, process });
         } catch (e) { toast(String((e && e.message) || e), 'error'); if (btn) { btn.disabled = false; } return false; }
         if (r && r.canceled) { if (btn) { btn.disabled = false; btn.textContent = t('conv.convert') || 'Convert & save…'; } return false; }
         if (!r || !r.ok) { toast((r && r.error) || (t('conv.failed') || 'Conversion failed.'), 'error'); if (btn) { btn.disabled = false; } return false; }
@@ -459,13 +830,13 @@
     if (!el) return;
     const hasHub = !!(hub() && hub().mfPick);
     if (!hasHub) {
-      el.innerHTML = `<div class="conv-wrap"><div class="conv-head"><h2 class="conv-title">🔄 ${escapeHtml(t('conv.title') || 'Convert 3MF')}</h2></div><div class="pf-empty">${escapeHtml(t('conv.desktop_only') || 'The converter is available in the desktop app.')}</div></div>`;
+      el.innerHTML = `<div class="conv-wrap"><div class="conv-head"><h2 class="conv-title">${_titleIco}${escapeHtml(t('conv.title') || 'Convert 3MF')}</h2></div><div class="pf-empty">${escapeHtml(t('conv.desktop_only') || 'The converter is available in the desktop app.')}</div></div>`;
       return;
     }
     el.innerHTML = `
       <div class="conv-wrap">
         <div class="conv-head">
-          <h2 class="conv-title">🔄 ${escapeHtml(t('conv.title') || 'Convert 3MF')}</h2>
+          <h2 class="conv-title">${_titleIco}${escapeHtml(t('conv.title') || 'Convert 3MF')}</h2>
           <p class="conv-sub">${escapeHtml(t('conv.subtitle') || 'Retarget a multicolour 3MF to a different printer, or normalize it to a clean standard 3MF. Geometry is never altered.')}</p>
         </div>
         <div class="conv-actions">
@@ -505,29 +876,35 @@
     if (stlBtn) stlBtn.onclick = async () => {
       const r = await hub().stlPick();
       if (!r || !r.ok) return;
-      toast(t('conv.stl_working') || 'Converting STL…', 'info', 1600);
-      const vaultId = typeof uid === 'function' ? uid('PF') : ('PF' + Date.now().toString(36));
-      let c;
-      try { c = await hub().stlTo3mf({ path: r.path, intoVaultId: vaultId }); }
-      catch (e) { toast(String((e && e.message) || e), 'error'); return; }
-      if (!c || !c.ok) { toast((c && c.error) || (t('conv.stl_failed') || 'Could not convert that STL.'), 'error'); return; }
-      if (typeof importConvertedAsNew === 'function') {
-        await importConvertedAsNew({ vaultId, filename: c.filename, ext: c.ext, size: c.size, targetName: '3MF', sourceName: r.name });
-      }
-      toast(t('conv.stl_done') || 'STL converted to 3MF and added to your library.', 'success', 3600);
+      const doConvert = async () => {
+        toast(t('conv.stl_working') || 'Converting STL…', 'info', 1600);
+        const vaultId = typeof uid === 'function' ? uid('PF') : ('PF' + Date.now().toString(36));
+        let c;
+        try { c = await hub().stlTo3mf({ path: r.path, intoVaultId: vaultId }); }
+        catch (e) { toast(String((e && e.message) || e), 'error'); return; }
+        if (!c || !c.ok) { toast((c && c.error) || (t('conv.stl_failed') || 'Could not convert that STL.'), 'error'); return; }
+        if (typeof importConvertedAsNew === 'function') {
+          await importConvertedAsNew({ vaultId, filename: c.filename, ext: c.ext, size: c.size, targetName: '3MF', sourceName: r.name });
+        }
+        toast(t('conv.stl_done') || 'STL converted to 3MF and added to your library.', 'success', 3600);
+      };
+      previewConfirm({ path: r.path, name: r.name, title: `${_titleIco}${t('conv.stl_pick') || 'STL → 3MF'}`, confirmLabel: t('conv.stl_go') || 'Convert to 3MF', onConfirm: doConvert });
     };
 
     const toStlBtn = document.getElementById('convToStlBtn');
     if (toStlBtn) toStlBtn.onclick = async () => {
       const r = await hub().mfPick();
       if (!r || !r.ok) return;
-      toast(t('conv.tostl_working') || 'Extracting mesh…', 'info', 1600);
-      let c;
-      try { c = await hub().mfToStl({ path: r.path }); }
-      catch (e) { toast(String((e && e.message) || e), 'error'); return; }
-      if (c && c.canceled) return;
-      if (!c || !c.ok) { toast((c && c.error) || (t('conv.tostl_none') || 'No mesh found in that 3MF.'), 'error'); return; }
-      toast(t('conv.tostl_done') || 'Saved STL.', 'success', 3200);
+      const doExtract = async () => {
+        toast(t('conv.tostl_working') || 'Extracting mesh…', 'info', 1600);
+        let c;
+        try { c = await hub().mfToStl({ path: r.path }); }
+        catch (e) { toast(String((e && e.message) || e), 'error'); return; }
+        if (c && c.canceled) return;
+        if (!c || !c.ok) { toast((c && c.error) || (t('conv.tostl_none') || 'No mesh found in that 3MF.'), 'error'); return; }
+        toast(t('conv.tostl_done') || 'Saved STL.', 'success', 3200);
+      };
+      previewConfirm({ path: r.path, name: r.name, title: `${_titleIco}${t('conv.tostl_pick') || '3MF → STL'}`, confirmLabel: t('conv.tostl_go') || 'Extract STL', onConfirm: doExtract });
     };
 
     const cpSave = document.getElementById('convCpSave');
@@ -536,7 +913,7 @@
     el.querySelectorAll('[data-act="preset-remove"]').forEach((b) => { b.onclick = () => removePreset(b.dataset.id); });
   }
 
-  const pub = { renderConverter, openConverter };
+  const pub = { renderConverter, openConverter, _renderPreviewInto: renderPreviewInto };
   Object.assign(global, pub);
   global.KhaytConverter = pub;
   if (typeof module !== 'undefined' && module.exports) module.exports = pub;

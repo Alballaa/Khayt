@@ -94,6 +94,7 @@
           ${colorDotsHtml(rec)}
           ${prof ? `<div class="pf-prof">🛠 ${escapeHtml(prof.name)}</div>` : ''}
           ${rec.testedNotes ? `<div class="pf-notes">${escapeHtml(rec.testedNotes)}</div>` : ''}
+          ${(rec.timesPrinted || rec.timesFailed) ? `<div class="pf-history" title="${escapeHtml(t('plib.history_title') || 'Print history')}">🖨 ${(rec.timesPrinted || 0)}× ${escapeHtml(t('plib.printed') || 'printed')}${rec.timesFailed ? ` · ${rec.timesFailed} ${escapeHtml(t('plib.failed') || 'failed')}` : ''}${rec.lastPrinted ? ` · ${escapeHtml(t('plib.last') || 'last')} ${escapeHtml(fmtPfDate(rec.lastPrinted))}` : ''}</div>` : ''}
           ${Array.isArray(rec.converted) && rec.converted.length ? `<div class="pf-converted">${rec.converted.map((c) => `
             <div class="pf-conv-row">
               <span class="pf-conv-name" title="${escapeHtml(c.filename)}">🔄 ${escapeHtml(c.targetName || c.targetId || (t('conv.convert_short') || 'Converted'))}</span>
@@ -103,6 +104,9 @@
         </div>
         <div class="pf-actions">
           <button class="btn small primary" data-act="pf-slice" data-id="${escapeHtml(rec.id)}">🖨 ${escapeHtml(t('plib.open_slicer') || 'Open in slicer')}</button>
+          ${typeof openModelViewer === 'function' && /^(stl|3mf)$/i.test(rec.sourceFile?.ext || '') ? `<button class="btn small ghost" data-act="pf-view3d" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('plib.view3d') || 'View in 3D')}">🧊 ${escapeHtml(t('plib.view3d_short') || '3D')}</button>` : ''}
+          <button class="btn small ghost" data-act="pf-log-print" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('plib.log_print') || 'Log a successful print')}">✓ ${escapeHtml(t('plib.log_print_short') || 'Printed')}</button>
+          <button class="btn small ghost" data-act="pf-log-fail" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('plib.log_fail') || 'Log a failed print')}" aria-label="${escapeHtml(t('plib.log_fail') || 'Log a failed print')}">✗</button>
           ${Array.isArray(rec.colors) && rec.colors.filter((c) => c && c.hex).length > 1 ? `<button class="btn small ghost" data-act="pf-plan" data-id="${escapeHtml(rec.id)}">🎨 ${escapeHtml(t('plan.title') || 'Plan colours')}</button>` : ''}
           ${rec.sourceFile?.ext === '3mf' ? `<button class="btn small ghost" data-act="pf-convert" data-id="${escapeHtml(rec.id)}">🔄 ${escapeHtml(t('conv.convert_short') || 'Convert')}</button>` : ''}
           <button class="btn small ghost" data-act="pf-edit" data-id="${escapeHtml(rec.id)}">${escapeHtml(t('common.edit') || 'Edit')}</button>
@@ -112,12 +116,37 @@
   }
 
   let _query = '';
+  let _view = 'library'; // 'library' | 'gallery'
+
+  // Finished-prints gallery: a photo-forward showcase of every print file you've
+  // added a photo to, with its material, tested settings and print tally. A local
+  // personal portfolio — nothing to sell, just what you've made and how.
+  function galleryHtml() {
+    const shots = (printFiles || []).filter((r) => r.userPhoto);
+    if (!shots.length) {
+      return `<div class="pf-empty">${escapeHtml(t('plib.gallery_empty') || 'No print photos yet — add a photo to a print file to start your gallery.')}</div>`;
+    }
+    return `<div class="pf-gallery">${shots.map((r) => `
+      <figure class="pf-shot" data-act="pf-edit" data-id="${escapeHtml(r.id)}" title="${escapeHtml(t('common.edit') || 'Edit')}">
+        <img src="${safeImageSrc(r.userPhoto)}" alt="${escapeHtml(r.name || '')}" loading="lazy">
+        <figcaption>
+          <div class="pf-shot-name">${escapeHtml(r.name || r.originalName || 'Untitled')}</div>
+          <div class="pf-shot-meta">
+            ${r.material ? `<span>${escapeHtml(r.material)}</span>` : ''}
+            ${(r.timesPrinted || r.timesFailed) ? `<span>🖨 ${(r.timesPrinted || 0)}×${r.timesFailed ? ` · ${r.timesFailed} ${escapeHtml(t('plib.failed') || 'failed')}` : ''}</span>` : ''}
+          </div>
+          ${r.testedNotes ? `<div class="pf-shot-notes">${escapeHtml(r.testedNotes)}</div>` : ''}
+        </figcaption>
+      </figure>`).join('')}</div>`;
+  }
+
   function renderPrintFiles() {
     const el = document.getElementById('printfiles-tab');
     if (!el) return;
     const hasHub = !!(api() && api().printLibPick);
     const rows = filtered(_query);
     const total = (printFiles || []).length;
+    const isGallery = _view === 'gallery';
     el.innerHTML = `
       <div class="pf-wrap">
         <div class="pf-head">
@@ -126,11 +155,17 @@
             <p class="pf-sub">${escapeHtml(t('plib.subtitle') || 'Your STL, 3MF and G-code library — previews, tested settings, open in your slicer.')}</p>
           </div>
           <div class="pf-head-actions">
-            <input type="search" id="pfSearch" class="pf-search" placeholder="${escapeHtml(t('common.search') || 'Search')}" value="${escapeHtml(_query)}" aria-label="${escapeHtml(t('common.search') || 'Search')}">
+            <div class="pf-view-toggle" role="group" aria-label="${escapeHtml(t('plib.view') || 'View')}">
+              <button class="pf-view-btn ${isGallery ? '' : 'on'}" data-act="pf-view-library" aria-pressed="${!isGallery}">${escapeHtml(t('plib.view_library') || 'Library')}</button>
+              <button class="pf-view-btn ${isGallery ? 'on' : ''}" data-act="pf-view-gallery" aria-pressed="${isGallery}">${escapeHtml(t('plib.view_gallery') || 'Gallery')}</button>
+            </div>
+            ${isGallery ? '' : `<input type="search" id="pfSearch" class="pf-search" placeholder="${escapeHtml(t('common.search') || 'Search')}" value="${escapeHtml(_query)}" aria-label="${escapeHtml(t('common.search') || 'Search')}">`}
+            ${typeof openCalibration === 'function' ? `<button class="btn ghost" data-act="pf-calibrate">🎯 ${escapeHtml(t('plib.calibrate') || 'Calibrate')}</button>` : ''}
             <button class="btn primary" data-act="pf-add" ${hasHub ? '' : 'disabled'}>＋ ${escapeHtml(t('plib.add') || 'Add file')}</button>
           </div>
         </div>
         ${!hasHub ? `<div class="pf-empty">${escapeHtml(t('plib.desktop_only') || 'The print-file library is available in the desktop app.')}</div>`
+          : isGallery ? galleryHtml()
           : rows.length ? `<div class="pf-grid">${rows.map(cardHtml).join('')}</div>`
           : `<div class="pf-empty">${escapeHtml(total ? (t('plib.no_match') || 'No files match your search.') : (t('plib.empty') || 'No print files yet. Add your first STL, 3MF or G-code file.'))}</div>`}
       </div>`;
@@ -146,7 +181,9 @@
     const id = btn.dataset.id;
     switch (btn.dataset.act) {
       case 'pf-add':   addPrintFile(); break;
+      case 'pf-calibrate': if (typeof openCalibration === 'function') openCalibration(); break;
       case 'pf-slice': openInSlicer(id); break;
+      case 'pf-view3d': view3d(id); break;
       case 'pf-edit':  editPrintFile(id); break;
       case 'pf-del':   deletePrintFile(id); break;
       case 'pf-fav':   toggleFav(id); break;
@@ -154,7 +191,34 @@
       case 'pf-convert': convertPrintFile(id); break;
       case 'pf-conv-open': openConvertedInSlicer(id, btn.dataset.fn); break;
       case 'pf-conv-del':  deleteConverted(id, btn.dataset.fn); break;
+      case 'pf-log-print': logPrint(id, true); break;
+      case 'pf-log-fail':  logPrint(id, false); break;
+      case 'pf-view-library': if (_view !== 'library') { _view = 'library'; renderPrintFiles(); } break;
+      case 'pf-view-gallery': if (_view !== 'gallery') { _view = 'gallery'; renderPrintFiles(); } break;
     }
+  }
+
+  // Short, locale-aware date for the print-history line.
+  function fmtPfDate(iso) {
+    try { return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); }
+    catch (e) { return String(iso || '').slice(0, 10); }
+  }
+
+  // Print journal: a self-contained tally of successful/failed prints per file
+  // (no queue linkage needed). Increments the counter, stamps the date, saves.
+  function logPrint(id, ok) {
+    const rec = (printFiles || []).find((x) => x.id === id);
+    if (!rec) return;
+    if (ok) {
+      rec.timesPrinted = (rec.timesPrinted || 0) + 1;
+      rec.lastPrinted = new Date().toISOString();
+      toast(t('plib.logged_print') || 'Logged a print ✓', 'success');
+    } else {
+      rec.timesFailed = (rec.timesFailed || 0) + 1;
+      toast(t('plib.logged_fail') || 'Logged a failed print', 'info');
+    }
+    saveAll();
+    renderPrintFiles();
   }
 
   async function addPrintFile() {
@@ -293,6 +357,18 @@
     const files = await hub.printLibList(rec.id);
     if (!Array.isArray(files) || !files.length) return null;
     return (files.find((f) => f.filename === rec.sourceFile.filename) || files[0]).fullPath;
+  }
+
+  async function view3d(id) {
+    const rec = (printFiles || []).find((r) => r.id === id); if (!rec) return;
+    const hub = api();
+    if (!hub || !hub.printLibMesh || typeof openModelViewer !== 'function') return;
+    const full = await resolveModelPath(rec);
+    if (!full) { toast(t('plib.view3d_nofile') || 'Model file not found.', 'error'); return; }
+    let m;
+    try { m = await hub.printLibMesh(full); } catch (_) { m = null; }
+    if (!m || !m.ok || !m.verts) { toast(t('plib.view3d_nomesh') || 'No 3D geometry in that file.', 'error'); return; }
+    openModelViewer({ verts: m.verts, count: m.count, bbox: m.bbox, colors: m.colors, triColors: m.triColors, triObj: m.triObj, triCode: m.triCode, palette: m.palette, plates: m.plates, volumeMm3: m.volumeMm3, name: rec.name || rec.sourceFile?.filename || '' });
   }
 
   async function openInSlicer(id, overrideFull) {

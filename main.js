@@ -1,15 +1,18 @@
 const { app, BrowserWindow, Menu, shell, ipcMain, dialog, safeStorage, clipboard } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { FLAVOR, isBedReady, productName: FLAVOR_NAME } = require('./lib/flavor');
 
 // Crash/error reporting (Sentry). The DSN is publishable, so it's baked in for
 // official builds. Active in PACKAGED installs by default; in dev only when
 // SENTRY_DSN is set (so day-to-day development doesn't flood the project).
 // PII is off and the E2E store is never sent. Init early to catch startup errors.
+// Bed Ready is a separate product and does NOT report to Khayt's Sentry project;
+// the SDK is also excluded from its build (see electron-builder.bedready.js).
 const SENTRY_DSN = process.env.SENTRY_DSN
   || 'https://7b05dbab160d7a1825f5b2fceab06122@o4511599597977600.ingest.de.sentry.io/4511599624126544';
 let sentry = null;
-if (SENTRY_DSN && (app.isPackaged || process.env.SENTRY_DSN)) {
+if (!isBedReady && SENTRY_DSN && (app.isPackaged || process.env.SENTRY_DSN)) {
   try {
     sentry = require('@sentry/electron/main');
     sentry.init({
@@ -45,6 +48,14 @@ const { registerZatcaCrypto } = require('./lib/zatca-crypto');
 const { wrapHubIpc } = require('./lib/ipc-guard');
 const { sanitizeHtmlForFile, redactStatusHtmlClientRow } = require('./lib/status-html');
 const { hashPin: hashPinSalted, verifyPin, isManagedHash } = require('./lib/pin-hash');
+
+// FLAVOR / isBedReady / FLAVOR_NAME are resolved at the top of this file (needed
+// before the Sentry block). 'bedready' = the standalone maker app (no business
+// surfaces); anything else = the full Khayt business app. They drive the entry
+// HTML, window branding, and which business-only main-process code gets wired up.
+// Entry document, relative to renderer/. Used BOTH for loadFile and the navigation
+// lock below — they must agree, or in-app reloads of the Bed Ready page get blocked.
+const ENTRY_HTML = isBedReady ? 'bedready.html' : 'index.html';
 
 let mainWindow;
 let lanServerStore = {};
@@ -96,7 +107,10 @@ const {
   onStoreUpdated(data) { lanServerStore = data; },
 });
 
-registerZatcaCrypto({ app, fs, crypto, ipcMain, encryptStoreField, decryptStoreField });
+// ZATCA e-invoicing is a business-only surface — skip its IPC on the Bed Ready flavor.
+if (!isBedReady) {
+  registerZatcaCrypto({ app, fs, crypto, ipcMain, encryptStoreField, decryptStoreField });
+}
 
 function timingSafeEqualHex(a, b) {
   if (typeof a !== 'string' || typeof b !== 'string' || a.length !== 64 || b.length !== 64) return false;
@@ -108,8 +122,14 @@ function timingSafeEqualHex(a, b) {
 }
 
 function appIconPath() {
-  const png = path.join(__dirname, 'assets', 'icon_preview.png');
-  if (fs.existsSync(png)) return png;
+  // Prefer a flavor-specific icon when present (Bed Ready branding TODO), else
+  // fall back to the shared Khayt preview so the window/dock always has an icon.
+  const candidates = [];
+  if (isBedReady) candidates.push(path.join(__dirname, 'assets', 'bedready-preview.png'));
+  candidates.push(path.join(__dirname, 'assets', 'icon_preview.png'));
+  for (const png of candidates) {
+    if (fs.existsSync(png)) return png;
+  }
   return undefined;
 }
 
@@ -186,11 +206,14 @@ ipcMain.handle('hub:clipboard-write', async (_e, text) => {
   return { ok: true };
 });
 
-ipcMain.handle('hub:save-text-file', async (_e, { content, defaultName } = {}) => {
+ipcMain.handle('hub:save-text-file', async (_e, { content, defaultName, filters } = {}) => {
   const win = BrowserWindow.getFocusedWindow();
+  const okFilters = Array.isArray(filters) && filters.length
+    ? filters.filter((f) => f && f.name && Array.isArray(f.extensions))
+    : [{ name: 'Text', extensions: ['txt'] }];
   const { filePath, canceled } = await dialog.showSaveDialog(win || undefined, {
     defaultPath: defaultName || 'khayt-recovery.txt',
-    filters: [{ name: 'Text', extensions: ['txt'] }],
+    filters: okFilters.length ? okFilters : [{ name: 'Text', extensions: ['txt'] }],
   });
   if (canceled || !filePath) return { ok: false, canceled: true };
   await fs.promises.writeFile(filePath, String(content || ''), 'utf8');
@@ -702,19 +725,34 @@ function detectInstalledSlicers() {
   };
   const plat = process.platform;
 
+  // Any .app whose name looks like a slicer — catches vendor OrcaSlicer forks (Snapmaker Orca,
+  // QIDIStudio, Elegoo, Anker, Creality/Bambu variants…) and Cura builds that aren't in the list below.
+  const SLICER_APP_RE = /(slic|orca|snapmaker|bambu|prusa|cura|creality|chitubox|lychee|flashprint|ideamaker|simplify|qidi|elegoo|anycubic|anker|eufymake|photon|satellite|voxeldance|icesl|kisslicer|sovol)/i;
   if (plat === 'darwin') {
+    // macOS Contents/MacOS/ executable names verified from each project's build config / bundle.
+    // Orca/Bambu C++ forks use a CamelCase app-key on macOS (OrcaSlicer, BambuStudio, QIDIStudio,
+    // ElegooSlicer, CrealityPrint); Snapmaker's .app has a space but its binary an underscore.
     const apps = [
       { name: 'PrusaSlicer', app: 'PrusaSlicer.app', bin: 'PrusaSlicer' },
       { name: 'OrcaSlicer', app: 'OrcaSlicer.app', bin: 'OrcaSlicer' },
+      { name: 'Snapmaker Orca', app: 'Snapmaker Orca.app', bin: 'Snapmaker_Orca' },
       { name: 'Bambu Studio', app: 'BambuStudio.app', bin: 'BambuStudio' },
+      { name: 'Bambu Studio', app: 'Bambu Studio.app', bin: 'BambuStudio' },
+      { name: 'UltiMaker Cura', app: 'UltiMaker-Cura.app', bin: 'UltiMaker-Cura' },
+      { name: 'Elegoo Slicer', app: 'ElegooSlicer.app', bin: 'ElegooSlicer' },
+      { name: 'QIDIStudio', app: 'QIDIStudio.app', bin: 'QIDIStudio' },
+      { name: 'Creality Print', app: 'CrealityPrint.app', bin: 'CrealityPrint' },
       { name: 'SuperSlicer', app: 'SuperSlicer.app', bin: 'SuperSlicer' },
+      { name: 'Slic3r', app: 'Slic3r.app', bin: 'Slic3r' },
       { name: 'ideaMaker', app: 'ideaMaker.app', bin: 'ideaMaker' },
       { name: 'Simplify3D', app: 'Simplify3D.app', bin: 'Simplify3D' },
-      { name: 'Creality Print', app: 'Creality Print.app', bin: 'Creality Print' },
+      { name: 'Lychee Slicer', app: 'LycheeSlicer.app', bin: 'LycheeSlicer' },
       { name: 'Lychee Slicer', app: 'Lychee Slicer.app', bin: 'LycheeSlicer' },
       { name: 'CHITUBOX', app: 'CHITUBOX.app', bin: 'CHITUBOX' },
       { name: 'FlashPrint', app: 'FlashPrint.app', bin: 'FlashPrint' },
     ];
+    let displayName = null;
+    try { displayName = require('./lib/slicers').slicerDisplayName; } catch (_) {}
     const dirs = ['/Applications', path.join(home, 'Applications')];
     for (const d of dirs) {
       for (const k of apps) {
@@ -724,41 +762,61 @@ function detectInstalledSlicers() {
       let entries = [];
       try { entries = fs.readdirSync(d); } catch (_) {}
       for (const e of entries) {
-        if (!/\.app$/i.test(e)) continue;
-        if (/cura/i.test(e)) add(e.replace(/\.app$/i, ''), macAppBinary(path.join(d, e)));
+        if (!/\.app$/i.test(e) || !SLICER_APP_RE.test(e)) continue;
+        const stem = e.replace(/\.app$/i, '');
+        add((displayName && displayName(e)) || stem, macAppBinary(path.join(d, e)));
       }
     }
   } else if (plat === 'win32') {
     const pf = process.env['ProgramFiles'] || 'C:\\Program Files';
     const pfx86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
     const lad = process.env['LOCALAPPDATA'] || path.join(home, 'AppData', 'Local');
+    // Windows/Linux binaries for the Orca/Bambu forks use the lowercase-dash SLIC3R_APP_CMD
+    // (orca-slicer, bambu-studio, qidi-studio, elegoo-slicer, snapmaker-orca); Creality is CamelCase.
     const cands = [
       { name: 'PrusaSlicer', rels: ['Prusa3D\\PrusaSlicer\\prusa-slicer.exe'] },
       { name: 'OrcaSlicer', rels: ['OrcaSlicer\\orca-slicer.exe', 'OrcaSlicer\\OrcaSlicer.exe'] },
+      { name: 'Snapmaker Orca', rels: ['Snapmaker Orca\\snapmaker-orca.exe', 'Snapmaker Orca\\Snapmaker Orca.exe', 'Snapmaker Orca\\snapmaker_orca.exe', 'Snapmaker_Orca\\Snapmaker_Orca.exe'] },
       { name: 'Bambu Studio', rels: ['Bambu Studio\\bambu-studio.exe', 'Bambu Studio\\BambuStudio.exe'] },
+      { name: 'Elegoo Slicer', rels: ['ElegooSlicer\\elegoo-slicer.exe', 'ElegooSlicer\\ElegooSlicer.exe'] },
+      { name: 'QIDIStudio', rels: ['QIDIStudio\\qidi-studio.exe', 'QIDIStudio\\QIDIStudio.exe'] },
+      { name: 'Sovol Slicer', rels: ['SovolSlicer\\sovol-slicer.exe'] },
       { name: 'SuperSlicer', rels: ['SuperSlicer\\superslicer.exe'] },
       { name: 'ideaMaker', rels: ['Raise3D\\ideaMaker\\ideaMaker.exe'] },
       { name: 'Simplify3D', rels: ['Simplify3D\\Simplify3D.exe'] },
-      { name: 'Creality Print', rels: ['Creality\\Creality Print\\CrealityPrint.exe'] },
-      { name: 'FlashPrint', rels: ['FlashForge\\FlashPrint\\FlashPrint.exe'] },
+      { name: 'Creality Print', rels: ['Creality\\Creality Print\\CrealityPrint.exe', 'CrealityPrint\\CrealityPrint.exe'] },
+      { name: 'FlashPrint', rels: ['FlashForge\\FlashPrint 5\\FlashPrint.exe', 'FlashForge\\FlashPrint\\FlashPrint.exe'] },
+      { name: 'Lychee Slicer', rels: ['LycheeSlicer\\LycheeSlicer.exe'] },
+      { name: 'CHITUBOX', rels: ['ChiTuBox\\CHITUBOX.exe'] },
     ];
     const roots = [pf, pfx86, path.join(lad, 'Programs')];
     for (const c of cands) for (const root of roots) for (const rel of c.rels) add(c.name, path.join(root, rel));
+    // Folder layout varies by version for some vendors — scan for Cura / Creality Print dirs.
     for (const root of [pf, pfx86]) {
       let entries = [];
       try { entries = fs.readdirSync(root); } catch (_) {}
       for (const e of entries) {
-        if (!/cura/i.test(e)) continue;
-        for (const bin of ['UltiMaker-Cura.exe', 'Ultimaker Cura.exe', 'Cura.exe']) add(e, path.join(root, e, bin));
+        if (/cura/i.test(e)) {
+          for (const bin of ['UltiMaker-Cura.exe', 'Ultimaker Cura.exe', 'Cura.exe']) add(e, path.join(root, e, bin));
+        } else if (/creality/i.test(e)) {
+          for (const bin of ['CrealityPrint.exe', 'Creality Print\\CrealityPrint.exe']) add('Creality Print', path.join(root, e, bin));
+        }
       }
     }
   } else {
     const bins = [
       { name: 'PrusaSlicer', cmds: ['prusa-slicer', 'PrusaSlicer'] },
       { name: 'OrcaSlicer', cmds: ['orca-slicer', 'OrcaSlicer'] },
+      { name: 'Snapmaker Orca', cmds: ['snapmaker-orca', 'Snapmaker_Orca', 'SnapmakerOrca'] },
       { name: 'Bambu Studio', cmds: ['bambu-studio', 'BambuStudio'] },
+      { name: 'Elegoo Slicer', cmds: ['elegoo-slicer', 'ElegooSlicer'] },
+      { name: 'QIDIStudio', cmds: ['qidi-studio', 'qidi-slicer', 'QIDIStudio'] },
+      { name: 'Creality Print', cmds: ['CrealityPrint', 'creality-print'] },
       { name: 'UltiMaker Cura', cmds: ['cura', 'UltiMaker-Cura'] },
       { name: 'SuperSlicer', cmds: ['superslicer', 'SuperSlicer'] },
+      { name: 'Slic3r', cmds: ['slic3r'] },
+      { name: 'ideaMaker', cmds: ['ideaMaker', 'ideamaker'] },
+      { name: 'Lychee Slicer', cmds: ['lycheeslicer', 'LycheeSlicer'] },
     ];
     const dirs = ['/usr/bin', '/usr/local/bin', path.join(home, '.local', 'bin'),
       '/var/lib/flatpak/exports/bin', path.join(home, '.local', 'share', 'flatpak', 'exports', 'bin')];
@@ -770,7 +828,7 @@ function detectInstalledSlicers() {
       try { entries = fs.readdirSync(d); } catch (_) {}
       for (const e of entries) {
         if (!/\.AppImage$/i.test(e)) continue;
-        if (!/slic|cura|prusa|orca|bambu/i.test(e)) continue;
+        if (!/slic|cura|prusa|orca|bambu|snapmaker|elegoo|qidi|creality|lychee|ideamaker|anycubic|sovol/i.test(e)) continue;
         add((dn && dn(e)) || e.replace(/\.AppImage$/i, ''), path.join(d, e));
       }
     }
@@ -1173,6 +1231,108 @@ ipcMain.handle('hub:printlib-read-bytes', async (_e, fullPath) => {
   } catch (_) { return null; }
 });
 
+// Parse an STL/3MF buffer into a decimated triangle mesh for the in-app 3D viewer.
+// Returns a flat Float32Array (9 floats/triangle) so it clones cheaply over IPC.
+function bboxOfPositions(pos) {
+  let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;
+  for (let i = 0; i < pos.length; i += 3) {
+    const x = pos[i], y = pos[i + 1], z = pos[i + 2];
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; if (z < z0) z0 = z; if (z > z1) z1 = z;
+  }
+  return Number.isFinite(x0) ? { x: x1 - x0, y: y1 - y0, z: z1 - z0 } : { x: 0, y: 0, z: 0 };
+}
+const _hx = (h) => { const m = /^#?([0-9a-f]{6})/i.exec(String(h || '')); return m ? [parseInt(m[1].slice(0, 2), 16), parseInt(m[1].slice(2, 4), 16), parseInt(m[1].slice(4, 6), 16)] : [180, 180, 185]; };
+
+function meshFromBuffer(buf, ext) {
+  if (ext === '3mf') {
+    // Painted-mesh extraction ported from the bedready.io reference (lib/mf-mesh.js): flat world-
+    // space positions + a correctly-decoded filament state per face + the real filament palette.
+    const mfMesh = require('./lib/mf-mesh');
+    let mesh = null;
+    try { mesh = mfMesh.extractMeshFromBuffer(buf); } catch (e) { try { console.warn('[mesh] extract failed', e && e.message); } catch (_) {} }
+    if (!mesh || !mesh.positions || !mesh.positions.length) {
+      // No renderable geometry — fall back to the slicer's own embedded thumbnail, with a
+      // diagnostic (counts + part sizes) so any genuine failure is debuggable rather than opaque.
+      let diag = '';
+      try {
+        const mf = require('./lib/mf-convert');
+        const models = mf.readMembers(buf).filter((m) => /\.model$/i.test(m.name));
+        const cnt = (b, s) => { const nd = Buffer.from(s); let c = 0, i = 0; while ((i = b.indexOf(nd, i)) !== -1) { c++; i += nd.length; } return c; };
+        let nO = 0, nV = 0, nT = 0;
+        const sizes = models.map((m) => { nO += cnt(m.data, '<object'); nV += cnt(m.data, '<vertex'); nT += cnt(m.data, '<triangle'); return Math.round(m.data.length / 1048576) + 'MB'; });
+        diag = ` (models:${models.length}[${sizes.join(',')}] objects:${nO} vertices:${nV} triangles:${nT}${mesh && mesh.skipped ? ' skipped:too-big' : ''})`;
+      } catch (_) { /* best-effort */ }
+      try { const th = extractPrintThumb({ ext, buf }); if (th && th.pngBase64) return { ok: false, error: 'no-geometry' + diag, thumb: 'data:image/png;base64,' + th.pngBase64 }; } catch (_) {}
+      return { ok: false, error: 'no-geometry' + diag };
+    }
+    const verts = mesh.positions;
+    const count = verts.length / 9 | 0;
+    const palette = (mesh.palette && mesh.palette.length) ? mesh.palette.slice() : null;
+    const fs = mesh.faceState;
+    // Per-face palette index (state − 1; state 0 → base filament 0) + baked colours for the first view.
+    let triColors = null, triCode = null;
+    if (palette && palette.length && fs) {
+      const n = palette.length, pal = palette.map(_hx);
+      triColors = new Uint8Array(count * 3);
+      triCode = new Uint16Array(count);
+      for (let i = 0; i < count; i++) {
+        const s = fs[i];
+        const idx = s >= 1 ? Math.min(s - 1, n - 1) : 0;
+        triCode[i] = idx;
+        const c = pal[idx] || pal[0];
+        triColors[i * 3] = c[0]; triColors[i * 3 + 1] = c[1]; triColors[i * 3 + 2] = c[2];
+      }
+    }
+    // Per-face part index + plate grouping so the preview can show one plate/part at a time.
+    let triObj = null, plates = null;
+    const parts = mesh.parts || [];
+    if (parts.length > 1) {
+      triObj = new Uint32Array(count);
+      parts.forEach((p, pi) => { for (let f = p.start; f < p.end && f < count; f++) triObj[f] = pi; });
+      const grp = (mesh.plates || []).map((pl) => ({ name: pl.name || '', objs: pl.partIndices.slice() })).filter((pl) => pl.objs.length);
+      if (grp.length > 1) plates = grp;
+    }
+    // Solid volume only when the full mesh was rendered (a sampled surface isn't watertight).
+    let volumeMm3 = null;
+    if (!mesh.sampled) {
+      let vol6 = 0;
+      for (let i = 0; i < verts.length; i += 9) {
+        const ax = verts[i], ay = verts[i + 1], az = verts[i + 2], bx = verts[i + 3], by = verts[i + 4], bz = verts[i + 5], cx = verts[i + 6], cy = verts[i + 7], cz = verts[i + 8];
+        vol6 += ax * (by * cz - bz * cy) - ay * (bx * cz - bz * cx) + az * (bx * cy - by * cx);
+      }
+      volumeMm3 = Math.abs(vol6) / 6;
+    }
+    return { ok: true, verts, count, bbox: bboxOfPositions(verts), colors: palette || [], volumeMm3, triColors, triObj, plates, triCode, palette };
+  }
+
+  // STL: full mesh (usually already low enough poly for a preview), decimated only if huge.
+  const g = require('./lib/stl-parse').parseStl(buf, { keepTriangles: true });
+  let tris = g && g.triangles;
+  if (!Array.isArray(tris) || !tris.length) return { ok: false, error: 'no-geometry' };
+  let vol6 = 0;
+  for (const t of tris) { const a = t[0], b = t[1], c = t[2]; if (!a || !b || !c) continue; vol6 += a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0]) + a[2] * (b[0] * c[1] - b[1] * c[0]); }
+  const volumeMm3 = Math.abs(vol6) / 6;
+  const MAX = 1500000;
+  if (tris.length > MAX) { const s = Math.ceil(tris.length / MAX); const out = []; for (let i = 0; i < tris.length; i += s) out.push(tris[i]); tris = out; }
+  const verts = new Float32Array(tris.length * 9);
+  let k = 0;
+  for (const t of tris) for (let j = 0; j < 3; j++) { const p = t[j]; verts[k++] = p[0]; verts[k++] = p[1]; verts[k++] = p[2]; }
+  return { ok: true, verts, count: tris.length, bbox: bboxOfPositions(verts), colors: [], volumeMm3, triColors: null, triObj: null, plates: null, triCode: null, palette: null };
+}
+
+// Mesh for a print file in the vault (STL or 3MF). Confined to the vault, like read-bytes.
+ipcMain.handle('hub:printlib-mesh', async (_e, fullPath) => {
+  const safe = path.resolve(String(fullPath || ''));
+  const root = path.resolve(printLibDir());
+  if (!safe.startsWith(root + path.sep)) return { ok: false };
+  try {
+    const stat = await fs.promises.stat(safe);
+    if (stat.size > 200_000_000) return { ok: false, error: 'too-large' };
+    const buf = await fs.promises.readFile(safe);
+    return meshFromBuffer(buf, path.extname(safe).slice(1).toLowerCase());
+  } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
+});
+
 // ── 3MF converter (multi-printer) ───────────────────────────────────────────
 // Reading is confined to the app's own folders + any source the user explicitly
 // picked through our own open dialog (approved for this session). Writing goes
@@ -1236,12 +1396,24 @@ ipcMain.handle('hub:mf-analyze', async (_e, { path: srcPath } = {}) => {
   } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
 });
 
-ipcMain.handle('hub:mf-convert', async (_e, { path: srcPath, targetId, mode, slotMap, outPath, intoVaultId, targetProfile } = {}) => {
+// Decimated mesh for a converter SOURCE file (STL or 3MF) — for the "what am I
+// converting?" 3D preview. Same allow-list as analyze/convert (picked sources only).
+ipcMain.handle('hub:convert-mesh', async (_e, { path: srcPath } = {}) => {
+  try {
+    if (!srcPath || !mfReadAllowed(srcPath)) return { ok: false, error: 'outside-allowed' };
+    const safe = path.resolve(String(srcPath));
+    const buf = await fs.promises.readFile(safe);
+    if (buf.length > MF_MAX_BYTES) return { ok: false, error: 'too-large' };
+    return meshFromBuffer(buf, path.extname(safe).slice(1).toLowerCase());
+  } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
+});
+
+ipcMain.handle('hub:mf-convert', async (_e, { path: srcPath, targetId, mode, slotMap, outPath, intoVaultId, targetProfile, fullSpectrum, fsPhysical, fsPhysicalHex, filaments, process } = {}) => {
   try {
     if (!srcPath || !mfReadAllowed(srcPath)) return { ok: false, error: 'Source file is outside an allowed folder.' };
     const buf = await fs.promises.readFile(path.resolve(String(srcPath)));
     if (buf.length > MF_MAX_BYTES) return { ok: false, error: 'File is too large.' };
-    const r = require('./lib/mf-convert').convert(buf, { targetId, mode, slotMap, targetProfile });
+    const r = require('./lib/mf-convert').convert(buf, { targetId, mode, slotMap, targetProfile, fullSpectrum, fsPhysical, fsPhysicalHex, filaments, process });
     if (!r.ok) return r;
 
     // In-app destination: write the converted 3MF straight into a print-file
@@ -1272,6 +1444,42 @@ ipcMain.handle('hub:mf-convert', async (_e, { path: srcPath, targetId, mode, slo
     await fs.promises.writeFile(finalPath, r.buffer);
     return { ok: true, outPath: finalPath, report: r.report };
   } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
+});
+
+// Filament presets from the maker's installed Snapmaker Orca / OrcaSlicer, for the converter's
+// per-slot "what's loaded" picker. Empty list → the converter falls back to "Generic <type>".
+ipcMain.handle('hub:orca-filaments', async () => {
+  try {
+    const db = require('./lib/orca-db');
+    return { ok: true, available: db.available(), filaments: db.listU1Filaments(),
+      processes: db.listU1Processes(), defaultProcess: db.defaultU1Process() };
+  } catch (e) { return { ok: false, available: false, filaments: [], processes: [], error: String((e && e.message) || e) }; }
+});
+
+// The maker's installed-slicer printer catalogue (Snapmaker Orca + OrcaSlicer), for the converter's
+// "target any printer" list. Names only — cheap; details resolved on selection via hub:orca-machine-info.
+ipcMain.handle('hub:orca-printers', async () => {
+  try { const db = require('./lib/orca-db'); return { ok: true, available: db.available(), printers: db.listMachines() }; }
+  catch (e) { return { ok: false, available: false, printers: [], error: String((e && e.message) || e) }; }
+});
+
+// Resolved details (bed, nozzle, colour slots, process presets) for one catalogue printer.
+ipcMain.handle('hub:orca-machine-info', async (_e, { name } = {}) => {
+  try {
+    const db = require('./lib/orca-db');
+    const n = String(name || '');
+    return { ok: true, info: db.machineInfo(n), processes: db.listProcessesFor(n), defaultProcess: db.defaultProcessFor(n) };
+  } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
+});
+
+// Full Spectrum plan preview: which filaments load physically + how the extra colours are mixed.
+ipcMain.handle('hub:fs-plan', async (_e, { path: srcPath, targetId, targetProfile, fsPhysical, fsPhysicalHex } = {}) => {
+  try {
+    if (!srcPath || !mfReadAllowed(srcPath)) return { available: false, error: 'Source file is outside an allowed folder.' };
+    const buf = await fs.promises.readFile(path.resolve(String(srcPath)));
+    if (buf.length > MF_MAX_BYTES) return { available: false, error: 'File is too large.' };
+    return require('./lib/mf-convert').fsPreview(buf, { targetId, targetProfile, fsPhysical, fsPhysicalHex });
+  } catch (e) { return { available: false, error: String((e && e.message) || e) }; }
 });
 
 // STL → 3MF: pick an STL and wrap its mesh into a clean generic 3MF any slicer opens.
@@ -1475,7 +1683,7 @@ function isAllowedExternalUrl(s) {
 // exactly this document — not just any file:// URL — so a compromised renderer
 // cannot navigate to other local files and read them under the privileged origin.
 const APP_INDEX_PATHNAME = (() => {
-  try { return decodeURIComponent(require('url').pathToFileURL(path.join(__dirname, 'renderer', 'index.html')).pathname); }
+  try { return decodeURIComponent(require('url').pathToFileURL(path.join(__dirname, 'renderer', ENTRY_HTML)).pathname); }
   catch { return null; }
 })();
 
@@ -2281,7 +2489,7 @@ function createWindow() {
     height: 900,
     minWidth: 1024,
     minHeight: 700,
-    title: 'Khayt',
+    title: FLAVOR_NAME,
     icon: appIconPath(),
     backgroundColor: '#0f172a',
     titleBarStyle: 'hiddenInset',
@@ -2296,7 +2504,7 @@ function createWindow() {
     }
   });
 
-  mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  mainWindow.loadFile(path.join(__dirname, 'renderer', ENTRY_HTML));
 
   // Prevent same-frame navigation away from the local app file.
   // Without this, renderer JS could do location.href = 'https://evil.com' and retain
@@ -2406,9 +2614,11 @@ app.whenReady().then(() => {
     });
   });
 
-  // Grant camera access so the filament label scanner can use getUserMedia
+  // Grant camera access so the filament label scanner can use getUserMedia({video}).
+  // Microphone is intentionally NOT granted — the app never captures audio, so this
+  // keeps the permission surface to exactly what the scanner needs.
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
-    const allowed = ['media', 'camera', 'microphone'];
+    const allowed = ['media', 'camera'];
     callback(allowed.includes(permission));
   });
 

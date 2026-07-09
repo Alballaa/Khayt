@@ -20,24 +20,27 @@ function initialRender() {
   renderConsumables();
   renderSuppliers();
   renderPurchaseOrders();
-  renderLogs();
+  // Business renderers are guarded with typeof: the Bed Ready flavor ships a trimmed
+  // script set (no logs/analytics/clients/portfolio/expenses modules), so these are
+  // absent there. On Khayt they're always defined → identical behaviour.
+  if (typeof renderLogs === 'function') renderLogs();
   renderKanban();
-  renderAnalytics();
+  if (typeof renderAnalytics === 'function') renderAnalytics();
   if (typeof renderReferralAnalytics === 'function') renderReferralAnalytics();
   renderBuild();
   renderCatalog();
-  renderClients();
-  renderPortfolio();
+  if (typeof renderClients === 'function') renderClients();
+  if (typeof renderPortfolio === 'function') renderPortfolio();
   renderDashboard();
-  renderExpenses();
+  if (typeof renderExpenses === 'function') renderExpenses();
   checkDueDateNotifications();
-  checkRecurringOrders();
-  patchRecurringOrdersWithLeadDays();  // Round 12: leadDays-aware auto-clone
+  if (typeof checkRecurringOrders === 'function') checkRecurringOrders();
+  if (typeof patchRecurringOrdersWithLeadDays === 'function') patchRecurringOrdersWithLeadDays();  // Round 12: leadDays-aware auto-clone
   if (typeof checkSubscriptionBilling === 'function') { try { checkSubscriptionBilling(); } catch (e) { console.error('subscription billing:', e); } }
-  checkRecurringExpenses();
+  if (typeof checkRecurringExpenses === 'function') checkRecurringExpenses();
   // Re-check recurring orders periodically so a long-running session still
   // auto-creates due cycles without a restart (idempotent; dedup by cycle).
-  if (!window._recurringTimer) {
+  if (!window._recurringTimer && typeof checkRecurringOrders === 'function') {
     window._recurringTimer = setInterval(() => {
       try { checkRecurringOrders(); patchRecurringOrdersWithLeadDays(); } catch (e) { console.error('recurring timer:', e); }
     }, 6 * 60 * 60 * 1000);
@@ -123,7 +126,7 @@ function wireEvents() {
   $$('.tab-btn').forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
 
   // Language select
-  $('#langSelect').addEventListener('change', (e) => {
+  $('#langSelect')?.addEventListener('change', (e) => {
     const lang = e.target.value;
     i18n.set(lang);
     settings.lang = lang;
@@ -136,7 +139,7 @@ function wireEvents() {
   });
 
   // Theme toggle
-  $('#themeToggle').addEventListener('click', () => {
+  $('#themeToggle')?.addEventListener('click', () => {
     const root = document.documentElement;
     const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
     applyTheme(next);
@@ -148,19 +151,19 @@ function wireEvents() {
   });
 
   // Calculator
-  $('#filamentSelect').addEventListener('change', handleFilamentChange);
-  $('#filamentSelect').addEventListener('change', updateFailureRateHint);
+  $('#filamentSelect')?.addEventListener('change', handleFilamentChange);
+  $('#filamentSelect')?.addEventListener('change', updateFailureRateHint);
   $('#partMachineId')?.addEventListener('change', updateFailureRateHint);
   $$('#calculator-tab input, #calculator-tab select').forEach(el => {
     if (el.id !== 'clientInput' && el.id !== 'printerPreset') el.addEventListener('input', updateGrandTotal);
   });
   // Rush fee checkbox uses 'change' not 'input'
   $('#calcRushFee')?.addEventListener('change', updateGrandTotal);
-  $('#btnAddPart').addEventListener('click', addPart);
+  $('#btnAddPart')?.addEventListener('click', addPart);
   // Creating an order is destructive: it advances the invoice counter and clears
   // the calculator. Confirm first when there's a meaningful build to lose so a
   // misclick on the green button can't wipe an in-progress quote.
-  $('#btnSaveQuote').addEventListener('click', async () => {
+  $('#btnSaveQuote')?.addEventListener('click', async () => {
     if (typeof currentBuild !== 'undefined' && currentBuild.length > 0) {
       const ok = await confirmModal(t('calc.quote.confirm_order'), { okText: t('calc.quote.save') });
       if (!ok) return;
@@ -246,12 +249,12 @@ function wireEvents() {
   });
 
   // Printer presets
-  $('#printerPreset').addEventListener('change', (e) => {
+  $('#printerPreset')?.addEventListener('change', (e) => {
     if (e.target.value) applyPreset(e.target.value);
     updateDeletePresetBtn();
   });
-  $('#btnSavePreset').addEventListener('click', saveCurrentAsPreset);
-  $('#btnDeletePreset').addEventListener('click', deleteCurrentPreset);
+  $('#btnSavePreset')?.addEventListener('click', saveCurrentAsPreset);
+  $('#btnDeletePreset')?.addEventListener('click', deleteCurrentPreset);
 
   // Estimate print weight + time from an uploaded STL (parse + heuristic).
   $('#btnEstimateStl')?.addEventListener('click', () => $('#stlFileInput')?.click());
@@ -324,10 +327,10 @@ function wireEvents() {
   $('#btnDeleteResinProfile')?.addEventListener('click', deleteCurrentResinProfile);
 
   // Quote templates
-  $('#quoteTplSelect').addEventListener('change', updateDeleteTplBtn);
-  $('#btnLoadTpl').addEventListener('click', loadQuoteTemplate);
-  $('#btnSaveTpl').addEventListener('click', saveQuoteTemplate);
-  $('#btnDeleteTpl').addEventListener('click', deleteQuoteTemplate);
+  $('#quoteTplSelect')?.addEventListener('change', updateDeleteTplBtn);
+  $('#btnLoadTpl')?.addEventListener('click', loadQuoteTemplate);
+  $('#btnSaveTpl')?.addEventListener('click', saveQuoteTemplate);
+  $('#btnDeleteTpl')?.addEventListener('click', deleteQuoteTemplate);
 
   // Client autocomplete
   const clientInput = $('#clientInput');
@@ -337,7 +340,7 @@ function wireEvents() {
     renderClientSuggestions();
   });
   clientInput.addEventListener('blur', hideClientSuggestions);
-  $('#clientSuggestions').addEventListener('mousedown', (e) => {
+  $('#clientSuggestions')?.addEventListener('mousedown', (e) => {
     e.preventDefault();
     const item = e.target.closest('.suggest-item');
     if (!item) return;
@@ -378,11 +381,12 @@ function wireEvents() {
         }
       }, 30);
     }
-    $('#clientSuggestions').style.display = 'none';
+    const _cs = $('#clientSuggestions');
+    if (_cs) _cs.style.display = 'none';
   });
 
   // Build cart row clicks
-  $('#buildTableBody').addEventListener('click', (e) => {
+  $('#buildTableBody')?.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
     if (btn.dataset.act === 'remove-part') removePart(+btn.dataset.idx);
@@ -402,8 +406,8 @@ function wireEvents() {
   });
 
   // Inventory
-  $('#btnAddInv').addEventListener('click', addInventoryItem);
-  $('#btnBrowseCatalog').addEventListener('click', openFilamentCatalog);
+  $('#btnAddInv')?.addEventListener('click', addInventoryItem);
+  $('#btnBrowseCatalog')?.addEventListener('click', openFilamentCatalog);
   // QW7: Dynamic unit label for Resin vs FDM in add form
   $('#invMaterialType')?.addEventListener('change', (e) => {
     const isResin = e.target.value === 'resin';
@@ -412,8 +416,8 @@ function wireEvents() {
     const weightLabel = $('#invWeightLabel');
     if (weightLabel) weightLabel.textContent = isResin ? (t('inv.volume_ml') || 'Volume') : (t('inv.weight') || 'Spool weight');
   });
-  $('#btnScanLabel').addEventListener('click', openFilamentScanner);
-  $('#inventoryTable').addEventListener('click', (e) => {
+  $('#btnScanLabel')?.addEventListener('click', openFilamentScanner);
+  $('#inventoryTable')?.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
     if (btn.dataset.act === 'del-inv')           deleteInventoryItem(btn.dataset.id);
@@ -442,7 +446,7 @@ function wireEvents() {
     }
   });
 
-  $('#modalMount').addEventListener('click', (e) => {
+  $('#modalMount')?.addEventListener('click', (e) => {
     const milestoneBtn = e.target.closest('[data-act="milestone-invoices"]');
     if (milestoneBtn) openMilestoneInvoices(milestoneBtn.dataset.id);
     const settingsBtn = e.target.closest('[data-act="open-settings-from-modal"]');
@@ -483,8 +487,8 @@ function wireEvents() {
   });
 
   // Expenses
-  $('#btnAddExpense').addEventListener('click', addExpense);
-  $('#btnExportExpCsv').addEventListener('click', exportExpensesCsv);
+  $('#btnAddExpense')?.addEventListener('click', addExpense);
+  $('#btnExportExpCsv')?.addEventListener('click', exportExpensesCsv);
   // Smart category suggestion from the note text (lib/expense-categorize.js).
   const expNote = $('#expNote');
   if (expNote && typeof KhaytExpenseCategorize !== 'undefined') {
@@ -504,7 +508,7 @@ function wireEvents() {
       });
     });
   }
-  $('#expRangeFilter').addEventListener('change', (e) => {
+  $('#expRangeFilter')?.addEventListener('change', (e) => {
     expRangeFilter = e.target.value;
     const cr = $('#expCustomRange');
     if (cr) cr.style.display = expRangeFilter === 'custom' ? 'inline-flex' : 'none';
@@ -512,7 +516,7 @@ function wireEvents() {
   });
   $('#expRangeFrom')?.addEventListener('change', (e) => { customRangeFrom.expenses = e.target.value; renderExpenses(); });
   $('#expRangeTo')?.addEventListener('change',   (e) => { customRangeTo.expenses   = e.target.value; renderExpenses(); });
-  $('#expenseTable').addEventListener('click', async (e) => {
+  $('#expenseTable')?.addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-act="del-exp"]');
     if (btn) { deleteExpense(btn.dataset.id); return; }
     const receiptBtn = e.target.closest('[data-act="open-receipt"]');
@@ -562,10 +566,11 @@ function wireEvents() {
       addBtn.parentNode.insertBefore(lbl, sel);
     }
   })();
-  // Set default date to today (and enforce max = today)
+  // Set default date to today (and enforce max = today). #expDate lives in the
+  // expenses section, which the Bed Ready flavor drops — guard the direct writes.
   const _expTodayStr = new Date().toISOString().split('T')[0];
-  $('#expDate').value = _expTodayStr;
-  $('#expDate').max   = _expTodayStr;
+  const _expDateEl = $('#expDate');
+  if (_expDateEl) { _expDateEl.value = _expTodayStr; _expDateEl.max = _expTodayStr; }
 
   // Waste Log
   const btnLogWaste = $('#btnLogWaste');
@@ -596,10 +601,10 @@ function wireEvents() {
   }
 
   // Logs — batch bar
-  $('#btnBatchPdf').addEventListener('click', batchExportPDFs);
-  $('#btnBatchWa').addEventListener('click', batchWaSend);
-  $('#btnBatchClear').addEventListener('click', () => { selectedOrders.clear(); renderBatchBar(); renderLogs(); });
-  $('#logSelectAll').addEventListener('change', (e) => {
+  $('#btnBatchPdf')?.addEventListener('click', batchExportPDFs);
+  $('#btnBatchWa')?.addEventListener('click', batchWaSend);
+  $('#btnBatchClear')?.addEventListener('click', () => { selectedOrders.clear(); renderBatchBar(); renderLogs(); });
+  $('#logSelectAll')?.addEventListener('change', (e) => {
     const checked = e.target.checked;
     const visible = Array.from($('#logTable tbody').querySelectorAll('.log-sel')).map(cb => cb.dataset.id);
     if (checked) visible.forEach(id => selectedOrders.add(id));
@@ -609,7 +614,7 @@ function wireEvents() {
   });
 
   // Logs — row checkbox delegation
-  $('#logTable').addEventListener('change', (e) => {
+  $('#logTable')?.addEventListener('change', (e) => {
     const cb = e.target.closest('.log-sel');
     if (!cb) return;
     if (cb.checked) selectedOrders.add(cb.dataset.id);
@@ -629,19 +634,19 @@ function wireEvents() {
   $('#btnExportAnalytics')?.addEventListener('click', exportAnalyticsReport);
 
   // Logs — search/filter/export
-  $('#btnExportCsv').addEventListener('click', exportOrdersCsv);
-  $('#btnClearLogs').addEventListener('click', clearAllLogs);
+  $('#btnExportCsv')?.addEventListener('click', exportOrdersCsv);
+  $('#btnClearLogs')?.addEventListener('click', clearAllLogs);
   $('#btnSaveFilterPreset')?.addEventListener('click', saveCurrentFilterPreset);
   $('#btnExportAccounting')?.addEventListener('click', exportAccountingCSV);
   let _logSearchTimer = null;
-  $('#logSearch').addEventListener('input', (e) => {
+  $('#logSearch')?.addEventListener('input', (e) => {
     logSearchTerm = e.target.value;
     clearTimeout(_logSearchTimer);
     _logSearchTimer = setTimeout(renderLogs, 150);
   });
-  $('#logStatusFilter').addEventListener('change', (e) => { logStatusFilter = e.target.value; renderLogs(); });
-  $('#logPayFilter').addEventListener('change', (e) => { logPayFilter = e.target.value; renderLogs(); });
-  $('#logRangeFilter').addEventListener('change', (e) => {
+  $('#logStatusFilter')?.addEventListener('change', (e) => { logStatusFilter = e.target.value; renderLogs(); });
+  $('#logPayFilter')?.addEventListener('change', (e) => { logPayFilter = e.target.value; renderLogs(); });
+  $('#logRangeFilter')?.addEventListener('change', (e) => {
     logRangeFilter = e.target.value;
     const cr = $('#logCustomRange');
     if (cr) cr.style.display = logRangeFilter === 'custom' ? 'inline-flex' : 'none';
@@ -652,7 +657,7 @@ function wireEvents() {
   $('#logTagFilter')?.addEventListener('change', (e) => { logTagFilter = e.target.value; renderLogs(); });
   $('#logClientFilter')?.addEventListener('change', (e) => { logClientFilter = e.target.value; renderLogs(); });
   // QW1: Sortable log table headers
-  $('#logTable thead').addEventListener('click', (e) => {
+  $('#logTable thead')?.addEventListener('click', (e) => {
     const th = e.target.closest('th[data-sort]');
     if (!th) return;
     const col = th.dataset.sort;
@@ -666,7 +671,7 @@ function wireEvents() {
   });
   // QW6: Operator filter
   $('#logOperatorFilter')?.addEventListener('change', (e) => { logOperatorFilter = e.target.value; renderLogs(); });
-  $('#logTable').addEventListener('click', (e) => {
+  $('#logTable')?.addEventListener('click', (e) => {
     const clearFiltersBtn = e.target.closest('[data-act="clear-log-filters"]');
     if (clearFiltersBtn) { clearLogFilters(); return; }
     const newOrdBtn = e.target.closest('[data-act="new-order"]');
@@ -813,12 +818,12 @@ function wireEvents() {
   });
 
   // Portfolio
-  $('#portfolioSearch').addEventListener('input', (e) => { portfolioSearchTerm = e.target.value; renderPortfolio(); });
-  $('#portfolioGrid').addEventListener('click', (e) => {
+  $('#portfolioSearch')?.addEventListener('input', (e) => { portfolioSearchTerm = e.target.value; renderPortfolio(); });
+  $('#portfolioGrid')?.addEventListener('click', (e) => {
     const cell = e.target.closest('.portfolio-cell');
     if (cell) openOrderEditor(cell.dataset.oid);
   });
-  $('#btnRevealOrderPhotos').addEventListener('click', () => {
+  $('#btnRevealOrderPhotos')?.addEventListener('click', () => {
     if (window.hubAPI?.revealOrderPhotosFolder) window.hubAPI.revealOrderPhotosFolder();
   });
 
@@ -959,7 +964,7 @@ function wireEvents() {
   });
 
   // Kanban — quotes section
-  $('#quotesSection').addEventListener('click', (e) => {
+  $('#quotesSection')?.addEventListener('click', (e) => {
     const approve = e.target.closest('[data-act="approve-quote"]');
     const reject  = e.target.closest('[data-act="reject-quote"]');
     const share   = e.target.closest('[data-act="share-quote"]');
@@ -971,7 +976,7 @@ function wireEvents() {
   });
 
   // Save-as-Quote button
-  $('#btnSaveAsQuote').addEventListener('click', () => logPrint(true));
+  $('#btnSaveAsQuote')?.addEventListener('click', () => logPrint(true));
 
   // Production pause button
   $('#btnPauseProduction')?.addEventListener('click', pauseProduction);
@@ -1117,8 +1122,8 @@ function wireEvents() {
   });
 
   // Machine profiles (settings section)
-  $('#btnAddMachine').addEventListener('click', () => openMachineEditor(null));
-  $('#machinesList').addEventListener('click', (e) => {
+  $('#btnAddMachine')?.addEventListener('click', () => openMachineEditor(null));
+  $('#machinesList')?.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
     if (btn.dataset.act === 'maint-log') openMaintLog(btn.dataset.id);
@@ -1209,8 +1214,8 @@ function wireEvents() {
   });
 
   // WA template management (settings section)
-  $('#btnAddWaTemplate').addEventListener('click', () => openWaTemplateEditor(null));
-  $('#waTemplatesList').addEventListener('click', (e) => {
+  $('#btnAddWaTemplate')?.addEventListener('click', () => openWaTemplateEditor(null));
+  $('#waTemplatesList')?.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
     if (btn.dataset.act === 'edit-wa-tpl') openWaTemplateEditor(btn.dataset.id);
@@ -1218,7 +1223,7 @@ function wireEvents() {
   });
 
   // Analytics range
-  $('#analyticsRange').addEventListener('change', (e) => {
+  $('#analyticsRange')?.addEventListener('change', (e) => {
     analyticsRange = e.target.value;
     const cr = $('#analyticsCustomRange');
     if (cr) cr.style.display = analyticsRange === 'custom' ? 'inline-flex' : 'none';
@@ -1229,8 +1234,8 @@ function wireEvents() {
 
   // Catalog
   $('#btnImportProductsCsv')?.addEventListener('click', importProductsCsv);
-  $('#btnAddProduct').addEventListener('click', () => openProductEditor(null));
-  $('#catalogSearch').addEventListener('input', (e) => { catalogSearchTerm = e.target.value; renderCatalog(); });
+  $('#btnAddProduct')?.addEventListener('click', () => openProductEditor(null));
+  $('#catalogSearch')?.addEventListener('input', (e) => { catalogSearchTerm = e.target.value; renderCatalog(); });
   $('#btnBundles')?.addEventListener('click', () => { if (typeof openBundlesModal === 'function') openBundlesModal(); });
   let _invSearchTimer = null;
   $('#invSearch')?.addEventListener('input', (e) => {
@@ -1244,7 +1249,7 @@ function wireEvents() {
   $('#wasteMaterialFilter')?.addEventListener('change', (e) => { wasteMaterialFilter = e.target.value; renderWasteLog(); });
   $('#wasteFailureFilter')?.addEventListener('change', (e) => { wasteFailureFilter = e.target.value; renderWasteLog(); });
   $('#wasteDateFilter')?.addEventListener('change', (e) => { wasteDateFilter = e.target.value; renderWasteLog(); });
-  $('#catalogGrid').addEventListener('click', (e) => {
+  $('#catalogGrid')?.addEventListener('click', (e) => {
     const quote = e.target.closest('[data-act="cat-quote"]');
     const edit  = e.target.closest('[data-act="cat-edit"]');
     const del   = e.target.closest('[data-act="cat-del"]');
@@ -1296,9 +1301,10 @@ function wireEvents() {
   }
   $('#btnExportInventoryCsv')?.addEventListener('click', () => exportInventoryCsv());
   $('#btnSpoolLabels')?.addEventListener('click', () => { if (typeof printSpoolLabels === 'function') printSpoolLabels(); });
-  $('#btnAddClient').addEventListener('click', () => openClientEditor(null));
+  $('#btnShoppingList')?.addEventListener('click', () => { if (typeof openShoppingList === 'function') openShoppingList(); });
+  $('#btnAddClient')?.addEventListener('click', () => openClientEditor(null));
   $('#btnBlankIntakeForm')?.addEventListener('click', () => generateIntakeForm(null));
-  $('#clientSearch').addEventListener('input', (e) => { clientSearchTerm = e.target.value; clientDisplayLimit = 50; renderClients(); });
+  $('#clientSearch')?.addEventListener('input', (e) => { clientSearchTerm = e.target.value; clientDisplayLimit = 50; renderClients(); });
   // Sortable client table headers (mirrors the orders-log pattern)
   $('#clientsTable thead')?.addEventListener('click', (e) => {
     const th = e.target.closest('th[data-sort]');
@@ -1314,7 +1320,7 @@ function wireEvents() {
     clientDisplayLimit = 50;
     renderClients();
   });
-  $('#clientsTable').addEventListener('click', (e) => {
+  $('#clientsTable')?.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
     if (btn.dataset.act === 'cl-show-more') { clientDisplayLimit += 50; renderClients(); return; }
@@ -1480,7 +1486,7 @@ function wireEvents() {
       applyAnalyticsModeView();
     });
   });
-  $('#logoUploadInput').addEventListener('change', (e) => {
+  $('#logoUploadInput')?.addEventListener('change', (e) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
@@ -1499,29 +1505,29 @@ function wireEvents() {
     };
     reader.readAsDataURL(file);
   });
-  $('#btnRemoveLogo').addEventListener('click', () => {
+  $('#btnRemoveLogo')?.addEventListener('click', () => {
     settings.bizLogo = '';
     saveAll();
     updateLogoPreview();
     toast(t('set.logo_removed'), 'success');
   });
-  $('#btnExport').addEventListener('click', exportData);
+  $('#btnExport')?.addEventListener('click', exportData);
   $('#btnExportCsvAll')?.addEventListener('click', exportAllCsv);
   $('#btnTakeTour')?.addEventListener('click', () => { if (typeof startTour === 'function') startTour(); });
   $('#btnLoadSample')?.addEventListener('click', () => { if (typeof loadSampleData === 'function') loadSampleData(); });
   $('#btnClearSample')?.addEventListener('click', () => { if (typeof clearSampleData === 'function') clearSampleData(); });
-  $('#btnImport').addEventListener('click', () => $('#importFile').click());
-  $('#importFile').addEventListener('change', (e) => {
+  $('#btnImport')?.addEventListener('click', () => $('#importFile').click());
+  $('#importFile')?.addEventListener('change', (e) => {
     if (e.target.files[0]) importData(e.target.files[0]);
     e.target.value = '';
   });
   $('#btnPruneArchived')?.addEventListener('click', pruneArchivedOrders);
-  $('#btnReset').addEventListener('click', resetAllData);
-  $('#btnFullWipe').addEventListener('click', fullWipeData);
-  $('#btnRevealPhotos').addEventListener('click', () => {
+  $('#btnReset')?.addEventListener('click', resetAllData);
+  $('#btnFullWipe')?.addEventListener('click', fullWipeData);
+  $('#btnRevealPhotos')?.addEventListener('click', () => {
     if (window.hubAPI?.revealProductsFolder) window.hubAPI.revealProductsFolder();
   });
-  $('#btnRevealBackups').addEventListener('click', () => {
+  $('#btnRevealBackups')?.addEventListener('click', () => {
     if (window.hubAPI?.revealBackupsFolder) window.hubAPI.revealBackupsFolder();
   });
   $('#btnRestoreBackup')?.addEventListener('click', openRestoreBackupModal);

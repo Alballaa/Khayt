@@ -37,3 +37,4 @@ ios/**/*.xcworkspace/xcuserdata/
 
 # Local Workbench theme screenshot captures (scripts/shot-workbench.mjs)
 .wb-shots/
+build-bedready/

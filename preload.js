@@ -87,6 +87,8 @@ contextBridge.exposeInMainWorld('hubAPI', {
   printLibLoadImage:  (fullPath)          => ipcRenderer.invoke('hub:printlib-load-image', fullPath),
   printLibOpenSlicer: (filePath, slicerPath) => ipcRenderer.invoke('hub:printlib-open-in-slicer', { filePath, slicerPath }),
   printLibReadBytes:  (fullPath)          => ipcRenderer.invoke('hub:printlib-read-bytes', fullPath),
+  printLibMesh:       (fullPath)          => ipcRenderer.invoke('hub:printlib-mesh', fullPath),
+  convertMesh:        (opts)              => ipcRenderer.invoke('hub:convert-mesh', opts),
   extractThumbnail:   (filePath)          => ipcRenderer.invoke('hub:extract-thumbnail', filePath),
 
   // 3MF converter (multi-printer)
@@ -95,6 +97,10 @@ contextBridge.exposeInMainWorld('hubAPI', {
   mfPickOutdir:()     => ipcRenderer.invoke('hub:mf-pick-outdir'),
   mfAnalyze:  (p)     => ipcRenderer.invoke('hub:mf-analyze', { path: p }),
   mfConvert:  (opts)  => ipcRenderer.invoke('hub:mf-convert', opts),
+  fsPlan:     (opts)  => ipcRenderer.invoke('hub:fs-plan', opts),
+  orcaFilaments: ()   => ipcRenderer.invoke('hub:orca-filaments'),
+  orcaPrinters:  ()   => ipcRenderer.invoke('hub:orca-printers'),
+  orcaMachineInfo: (name) => ipcRenderer.invoke('hub:orca-machine-info', { name }),
   stlPick:    ()      => ipcRenderer.invoke('hub:stl-pick'),
   stlTo3mf:   (opts)  => ipcRenderer.invoke('hub:stl-to-3mf', opts),
   mfToStl:    (opts)  => ipcRenderer.invoke('hub:mf-to-stl', opts),

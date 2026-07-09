@@ -78,14 +78,16 @@ function defaultSettings() {
   return {
     ai:        { enabled: false, model: 'claude-opus-4-8', apiKey: '' }, // AI assist (BYO key, opt-in)
     cloud:     { enabled: false, url: 'https://cloud.khaytapp.com' },     // Khayt Cloud sync (opt-in, E2E)
-    bizEn:     'Khayt',
-    bizAr:     'خيط',
+    // Flavor-aware default shop name: the Bed Ready standalone app seeds its own
+    // brand (guarded by the html data-app marker; Khayt is unaffected).
+    bizEn:     (typeof document !== 'undefined' && document.documentElement?.dataset.app === 'bedready') ? 'Bed Ready' : 'Khayt',
+    bizAr:     (typeof document !== 'undefined' && document.documentElement?.dataset.app === 'bedready') ? 'بيد ريدي' : 'خيط',
     vat:       '',
     cr:        '',
     phone:     '',
     email:     '',
-    addrEn:    'Riyadh, Saudi Arabia',
-    addrAr:    'الرياض، المملكة العربية السعودية',
+    addrEn:    (typeof document !== 'undefined' && document.documentElement?.dataset.app === 'bedready') ? '' : 'Riyadh, Saudi Arabia',
+    addrAr:    (typeof document !== 'undefined' && document.documentElement?.dataset.app === 'bedready') ? '' : 'الرياض، المملكة العربية السعودية',
     lang:      'en',
     theme:         'light',
     designTheme:   'workbench',
@@ -119,7 +121,7 @@ function defaultSettings() {
     monthlyGoal:     0,
     supplierPhone:   '',
     // v2.0 — worldwide
-    currency:        'SAR',
+    currency:        (typeof document !== 'undefined' && document.documentElement?.dataset.app === 'bedready') ? 'USD' : 'SAR',
     enableZatca:     true,
     zatcaPhase2:     { enabled: false, environment: 'sandbox', csid: '', pcsid: '', cn: '', invoiceCounter: 0, lastInvoiceHash: 'NWZlY2ViNjZmZmM4NmYzOGQ5NTI3ODZjNmQ2OTZjNzljMmRiYzIzOWRkNGU5MWI4NjJhNGRhNjM3NWQ2OGM5', org: '', city: 'Riyadh', industry: '3D Printing', autoSubmit: true, emailAfterSubmit: false, submissions: [] },
     bnpl: {
@@ -259,6 +261,16 @@ let settings   = loadJSON(K.SETTINGS, defaultSettings());
 let expenses   = loadJSON(K.EXPENSES, []);
 let wasteLog      = loadJSON(K.WASTE, []);
 let machMaintLog  = loadJSON(K.MAINT, []);
+
+// currency.js (and other IIFE modules) read `global.settings` / `global.clients`
+// off globalThis, but the `let` bindings above are lexical globals that are NOT
+// attached to globalThis — so those reads returned undefined and currencySymbol()
+// / fmtPrice() silently fell back to SAR. This was invisible in Khayt (SAR is the
+// default) but wrong for any other currency (e.g. the Bed Ready flavor defaults
+// to USD). Live accessors keep globalThis in sync across every reassignment
+// (init / reset / loadStore) without having to touch each assignment site.
+Object.defineProperty(globalThis, 'settings', { get: () => settings, set: (v) => { settings = v; }, configurable: true });
+Object.defineProperty(globalThis, 'clients',  { get: () => clients,  set: (v) => { clients = v; },  configurable: true });
 let consumables   = loadJSON(K.CONSUMABLES, []);
 let suppliers     = loadJSON(K.SUPPLIERS, []);
 let purchaseOrders = loadJSON(K.PURCHASE_ORDERS, []);
@@ -675,8 +687,9 @@ async function loadAll() {
     }
   } catch (e) { console.error('sync foundation init failed:', e); }
 
-  // Feature 4 (batch-2): Process any due recurring orders on load
-  processRecurringOrders();
+  // Feature 4 (batch-2): Process any due recurring orders on load.
+  // Guarded: the Bed Ready flavor ships no operations-extras module.
+  if (typeof processRecurringOrders === 'function') processRecurringOrders();
 
   // Quote follow-up auto-nudge (opt-in): run once on load + start periodic timer.
   if (typeof processQuoteFollowUps === 'function') processQuoteFollowUps();

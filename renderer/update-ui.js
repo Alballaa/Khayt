@@ -7,6 +7,11 @@
   let promptedVersion = null;
   let openingModal = false; // synchronous latch: an open is in-flight across its await
 
+  // Product name for update copy — Bed Ready runs the same renderer via its own
+  // flavor marker on <html>, so never hard-code "Khayt" in user-facing strings.
+  const PRODUCT = (typeof document !== 'undefined' && document.documentElement.dataset.app === 'bedready')
+    ? 'Bed Ready' : 'Khayt';
+
   function tr(key, fallback, vars) {
     if (typeof t === 'function') {
       const v = t(key, vars);
@@ -134,7 +139,7 @@
     const version = activeUpdateInfo.version;
     setModalBody(`
       <p class="update-notes-intro">${escapeHtml(tr('upd.ready', 'Update downloaded and ready to install.'))}</p>
-      <p class="update-notes-meta">${escapeHtml(tr('upd.ready_version', 'Khayt {version} will install after restart.', { version }))}</p>
+      <p class="update-notes-meta">${escapeHtml(tr('upd.ready_version', PRODUCT + ' {version} will install after restart.', { version }))}</p>
       <p class="update-notes-hint">${escapeHtml(tr('upd.backup_hint', 'A pre-update backup is saved automatically before restart.'))}</p>
     `);
     setModalFooter(`
@@ -186,7 +191,7 @@
     updateOverlay = appendStackedModal(`
       <div class="modal modal-form modal-lg update-modal" role="dialog" aria-modal="true" aria-labelledby="updateModalTitle">
         <div class="modal-header">
-          <h3 id="updateModalTitle">${escapeHtml(tr('upd.title', 'Update available'))} — Khayt ${version}</h3>
+          <h3 id="updateModalTitle">${escapeHtml(tr('upd.title', 'Update available'))} — ${escapeHtml(PRODUCT)} ${version}</h3>
           <button class="btn ghost small" data-upd="later" aria-label="${escapeHtml(tr('common.close', 'Close'))}">×</button>
         </div>
         <div class="modal-body" id="updateModalBody"></div>
@@ -241,12 +246,17 @@
     if (res?.status === 'dev') {
       if (statusEl) {
         const ver = res.currentVersion || currentVersion || '';
-        statusEl.innerHTML =
-          `Source build${ver ? ` (${escapeHtml(ver)})` : ''}. ` +
-          'New features ship on <strong>main</strong> first — in your repo folder run ' +
-          '<code>git pull origin main</code> then <code>npm start</code>. ' +
-          'Installed DMG/auto-update only moves when a new GitHub Release is published ' +
-          '(see <a href="https://github.com/khaytapp/Khayt/blob/main/docs/RELEASE-HOLD.md" target="_blank" rel="noopener">release hold</a>).';
+        if (PRODUCT !== 'Khayt') {
+          // Bed Ready: no Khayt-repo workflow — show the flavor's own dev message.
+          statusEl.textContent = res.message || `Source build${ver ? ` (${ver})` : ''}.`;
+        } else {
+          statusEl.innerHTML =
+            `Source build${ver ? ` (${escapeHtml(ver)})` : ''}. ` +
+            'New features ship on <strong>main</strong> first — in your repo folder run ' +
+            '<code>git pull origin main</code> then <code>npm start</code>. ' +
+            'Installed DMG/auto-update only moves when a new GitHub Release is published ' +
+            '(see <a href="https://github.com/khaytapp/Khayt/blob/main/docs/RELEASE-HOLD.md" target="_blank" rel="noopener">release hold</a>).';
+        }
       }
       return;
     }

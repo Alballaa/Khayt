@@ -60,10 +60,31 @@ function normalizeWizardFlagsAfterLoad() {
 
 function initWizard() {
   if (!shouldShowSetupWizard()) return;
+
+  // Bed Ready is a solo maker app with sane defaults (enthusiast/commerce-free
+  // mode, "Bed Ready" identity, one look). There's nothing to onboard, so skip
+  // the wizard entirely — detect the system language for a good first start,
+  // mark first-run done, and drop straight into the app.
+  const IS_BR = (typeof document !== 'undefined' && document.documentElement.dataset.app === 'bedready');
+  if (IS_BR) {
+    // This runs only on a genuine first launch (shouldShowSetupWizard gate), so
+    // there's no user-chosen language yet — match the OS locale for a good start.
+    // (settings.lang defaults to 'en', so we must detect unconditionally here, not
+    // fall back with `settings.lang || …`, which would always pick 'en'.)
+    const lang = detectSystemLang();
+    settings.lang = lang;
+    try { i18n.set(lang, { silent: true }); } catch (e) { /* non-fatal */ }
+    settings.firstRun = false;
+    settings.firstRunDone = true;
+    saveAll();
+    return;
+  }
+
   const wiz = $('#setup-wizard');
   if (!wiz) return;
   wiz.style.display = 'flex';
 
+  // (Bed Ready returned above — the wizard below only runs for Khayt.)
   let selectedMode = 'simple';
   let selectedBizType = 'solo';
   let selectedDesign = settings.designTheme || 'studio';
@@ -124,7 +145,10 @@ function initWizard() {
         selectedMode = nextBtn.dataset.mode;
         selectedBizType = nextBtn.dataset.bizType || selectedMode;
       }
-      if (step === 2) {
+      // Persist the chosen language when leaving the language step — keyed on the
+      // source step (not the destination) so it fires whether the next step is 2
+      // (Khayt) or 3 (Bed Ready, which skips the design step).
+      if (nextBtn.closest('#wiz-step-1')) {
         const lang = $('#wizLang')?.value || 'en';
         settings.lang = lang;
         i18n.set(lang);
@@ -152,7 +176,7 @@ function initWizard() {
     pendingPin = null;
     pendingRecoveryCode = null;
     securitySkipped = true;
-    goToStep(4);
+    goToStep(IS_BR ? 5 : 4);   // Bed Ready skips the business-type step
   });
 
   $('#wizSecurityContinue')?.addEventListener('click', () => {
@@ -193,7 +217,7 @@ function initWizard() {
 
   $('#wizRecoveryContinue')?.addEventListener('click', () => {
     if (!$('#wizRecoverySaved')?.checked) return;
-    goToStep(4);
+    goToStep(IS_BR ? 5 : 4);   // Bed Ready skips the business-type step
   });
 
   $('#wizRecoveryCopy')?.addEventListener('click', async () => {
