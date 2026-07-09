@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const { writeZip } = require('../lib/zip-write');
 const { openZip } = require('../lib/zip-read');
 const { analyze, convert } = require('../lib/mf-convert');
+const { encodeSolidPaint, dominantState } = require('../lib/mf-mesh');
 
 const MODEL = '<?xml version="1.0"?><model unit="millimeter"><resources><object id="1"/></resources></model>';
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4]);
@@ -201,6 +202,30 @@ test('computeBounds resolves a <component>-composed assembly (no false Fits)', (
   assert.equal(a.bounds.y, 10);
 });
 
+test('computeBounds resolves a split 3MF whose geometry lives in a separate .model part', () => {
+  // Bambu/Orca "split" export: the root model holds only the build + an assembly of components
+  // that reference an object in 3D/Objects/*.model via p:path. A single-member scan saw no
+  // vertices and returned null (no fit verdict); the cross-file resolver must find the footprint.
+  const root = '<?xml version="1.0"?><model unit="millimeter"><resources>'
+    + '<object id="2" type="model"><components>'
+    + '<component objectid="1" p:path="/3D/Objects/part1.model" transform="1 0 0 0 1 0 0 0 1 0 0 0"/>'
+    + '<component objectid="1" p:path="/3D/Objects/part1.model" transform="1 0 0 0 1 0 0 0 1 500 0 0"/>'
+    + '</components></object></resources>'
+    + '<build><item objectid="2" transform="1 0 0 0 1 0 0 0 1 0 0 0"/></build></model>';
+  const part = '<?xml version="1.0"?><model unit="millimeter"><resources>'
+    + '<object id="1" type="model"><mesh><vertices>'
+    + '<vertex x="0" y="0" z="0"/><vertex x="10" y="10" z="10"/>'
+    + '</vertices><triangles/></mesh></object></resources></model>';
+  const a = analyze(writeZip([
+    { name: '3D/3dmodel.model', data: root },
+    { name: '3D/Objects/part1.model', data: part },
+    { name: 'Metadata/project_settings.config', data: '{}' },
+  ]));
+  assert.equal(a.bounds.x, 510, '0..510 across the two placed instances, resolved across members');
+  assert.equal(a.bounds.y, 10);
+  assert.equal(a.bounds.z, 10);
+});
+
 test('a custom target profile re-profiles without registry state', () => {
   const r = convert(makeMeshBambu(), {
     targetId: 'ignored',
@@ -361,6 +386,52 @@ test('Full Spectrum is refused on a single-extruder orca printer (Sovol SV08)', 
   assert.ok(!r.report.fullSpectrum, 'FS not applied to a printer that cannot mix');
   const proj = JSON.parse(openZip(r.buffer).file('Metadata/project_settings.config').toString('utf8'));
   assert.ok(!proj.mixed_filament_definitions, 'no mixed_filament_definitions on a non-mixing printer');
+});
+
+// A real painted mesh (not the bare MODEL): 5 filaments, geometry carrying a solid
+// paint_color for each of the 1-based states 1..5. Exercises the full FS pipeline end to
+// end — plan → remapModelPaint over actual paint codes → self-check — and guards against a
+// remap that corrupts geometry, drops paint, or leaves a state pointing past the last slot.
+function make5colourPaintedU1() {
+  const verts = [];
+  for (let i = 0; i < 15; i++) verts.push(`<vertex x="${i}" y="${(i * 7) % 13}" z="${(i * 3) % 11}"/>`);
+  const tris = [1, 2, 3, 4, 5].map((s, i) =>
+    `<triangle v1="${i * 3}" v2="${i * 3 + 1}" v3="${i * 3 + 2}" paint_color="${encodeSolidPaint(s)}"/>`).join('');
+  const model = `<?xml version="1.0"?><model unit="millimeter"><resources><object id="1" type="model">`
+    + `<mesh><vertices>${verts.join('')}</vertices><triangles>${tris}</triangles></mesh></object></resources>`
+    + `<build><item objectid="1" transform="1 0 0 0 1 0 0 0 1 0 0 0"/></build></model>`;
+  const proj = JSON.stringify({
+    printer_model: 'X1C', nozzle_diameter: ['0.4'],
+    filament_colour: ['#FF0000', '#00AA00', '#0000FF', '#FFFF00', '#FF00FF'],
+    filament_type: ['PLA', 'PLA', 'PLA', 'PLA', 'PLA'],
+  });
+  return writeZip([
+    { name: '3D/3dmodel.model', data: model },
+    { name: 'Metadata/project_settings.config', data: proj },
+  ]);
+}
+
+test('Full Spectrum on a painted mesh preserves geometry and remaps every paint code into a real slot', () => {
+  const r = convert(make5colourPaintedU1(), { targetId: 'snapmaker-u1', fullSpectrum: true });
+  assert.equal(r.ok, true);
+  assert.equal(r.report.fullSpectrum, true);
+  assert.ok(r.report.fullSpectrumMixes >= 1, 'at least one colour realised as a mix');
+  assert.equal(r.report.verified, true, 'self-check re-validated the FS output (4 colours + geometry)');
+
+  const out = openZip(r.buffer).file('3D/3dmodel.model').toString('utf8');
+  // Geometry byte-count invariants: FS only rewrites paint_color, never mesh topology.
+  assert.equal((out.match(/<vertex\b/g) || []).length, 15, 'all vertices preserved');
+  assert.equal((out.match(/<triangle\b/g) || []).length, 5, 'all triangles preserved');
+
+  // Every painted facet survives, stays a valid hex code, and points at a slot that exists
+  // (physical 1..4 plus the virtual mix slots 5..4+mixes) — never a dangling reference.
+  const codes = [...out.matchAll(/paint_color="([0-9A-Fa-f]+)"/g)].map((m) => m[1]);
+  assert.equal(codes.length, 5, 'all paint_color attributes survive the remap');
+  const maxSlot = 4 + r.report.fullSpectrumMixes;
+  for (const c of codes) {
+    const s = dominantState(c);
+    assert.ok(s >= 1 && s <= maxSlot, `paint state ${s} within [1,${maxSlot}]`);
+  }
 });
 
 test('planFullSpectrum honours a non-4 physical head count', () => {

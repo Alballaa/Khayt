@@ -42,6 +42,18 @@ test('planFullSpectrum: 5 colours → 4 physical + ≥1 mixDef, stateMap remaps 
   assert.strictEqual(plan.stateMap(0), 0, 'base state stays base');
 });
 
+test('planFullSpectrum: caps the palette so a pathological colour count cannot blow up the O(n³) reducer', () => {
+  // bestPhysicalSet drops colours one at a time, re-scoring every remaining mix each pass —
+  // O(n³). An adversarial 3MF with thousands of colours would wedge the main process, so the
+  // planner refuses an over-large palette outright rather than trying to reduce it.
+  const huge = [];
+  for (let i = 0; i < 300; i++) huge.push('#' + (i * 977 % 0x1000000).toString(16).padStart(6, '0'));
+  assert.strictEqual(fs.planFullSpectrum(huge, []), null, 'over-cap palette rejected');
+  // A palette right at the cap (32 = 2x a full 4-unit AMS) is still planned normally.
+  const atCap = huge.slice(0, 32);
+  assert.ok(fs.planFullSpectrum(atCap, []), 'palette at the cap still plans');
+});
+
 test('serializeMixedDefs: matches the Orca token format', () => {
   const s = fs.serializeMixedDefs([{ componentA: 1, componentB: 2, mixBPercent: 35, stableId: 1 }]);
   assert.strictEqual(s, '1,2,1,1,35,0,g,w,m2,z0,xa0,xb0,d0,o0,u1,cm0');
