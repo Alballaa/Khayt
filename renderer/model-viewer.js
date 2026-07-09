@@ -1,13 +1,14 @@
 'use strict';
 /*
- * Interactive 3D model viewer (Bed Ready) — orbit a print file's mesh right in the app,
- * no WebGL / three.js. It reuses the existing software rasterizer (lib/stl-thumbnail.js,
- * extended with yaw/pitch) and the mesh the main process already knows how to parse for
- * STL and 3MF (a flat Float32Array). Drag to rotate, toggle auto-spin.
+ * Interactive 3D model viewer — orbit a print file's mesh right in the app, no WebGL /
+ * three.js. It reuses the existing software rasterizer (lib/stl-thumbnail.js, extended with
+ * yaw/pitch) and the mesh the main process already knows how to parse for STL and 3MF (a
+ * flat Float32Array). Drag to rotate, toggle auto-spin.
  *
- * Loaded only by bedready.html, so the "3D" print-file action + converter preview are
- * Bed Ready-only. `mountMeshViewer` wires a bare <canvas> so it can live in its own modal
- * (openModelViewer) or inline in another panel (the converter's "what am I converting?").
+ * Loaded by BOTH index.html (Khayt) and bedready.html — the "3D" print-file action + the
+ * converter preview are shared-core, active in every flavour. `mountMeshViewer` wires a bare
+ * <canvas> so it can live in its own modal (openModelViewer) or inline in another panel
+ * (the converter's "what am I converting?").
  */
 (function (global) {
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
