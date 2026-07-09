@@ -114,6 +114,29 @@ function buildSoloDashboardQuickRow(ctx) {
     </div>`;
 }
 
+// Maker-tools quick row: one-click into the personal-core maker tools (Converter, Colour Studio,
+// Print files) so they're discoverable from the dashboard, not just the side nav. These tabs are
+// shown in every mode; this row surfaces them in the maker-centric tiers (enthusiast + simple).
+function buildMakerToolsRow() {
+  const card = (tab, icon, titleKey, titleFallback, subKey, subFallback) => `
+    <button type="button" class="btn ghost" data-act="goto-tab" data-tab="${tab}" style="justify-content:flex-start;text-align:start;">
+      <span style="font-size:18px;" aria-hidden="true">${icon}</span>
+      <span class="col" style="gap:2px;align-items:flex-start;">
+        <strong style="font-size:13px;">${escapeHtml(t(titleKey) || titleFallback)}</strong>
+        <span style="font-size:11px;color:var(--text-muted);font-weight:400;">${escapeHtml(t(subKey) || subFallback)}</span>
+      </span>
+    </button>`;
+  return `
+    <div class="maker-tools-quick card" style="padding:14px 16px;margin-bottom:14px;border:1px solid var(--border);">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:10px;">${escapeHtml(t('dash.maker_tools') || 'Maker tools')}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;">
+        ${card('converter-tab', '🔄', 'tab.converter', 'Converter', 'dash.maker_convert_sub', '3MF / STL → any printer')}
+        ${card('colorstudio-tab', '🎨', 'tab.colorstudio', 'Colour Studio', 'dash.maker_colour_sub', 'Plan multi-colour prints')}
+        ${card('printfiles-tab', '🧊', 'tab.printfiles', 'Print files', 'dash.maker_files_sub', 'Your model library')}
+      </div>
+    </div>`;
+}
+
 function buildStudioDashboardPanels(ctx) {
   const {
     machines, printLog, nowPrinting, overdue, staleOrders, expiringQuotes,
@@ -553,6 +576,12 @@ function renderDashboard() {
     })
     : '';
 
+  // Maker-tools shortcuts — surfaced in the maker-centric tiers (enthusiast + simple), where
+  // discovering the Converter / Colour Studio / Print-files tools matters most.
+  const makerToolsRow = (settings.mode === 'enthusiast' || settings.mode === 'simple')
+    ? buildMakerToolsRow()
+    : '';
+
   // Enthusiast (hobbyist) mode has NO commerce — hide every money/orders/quotes/
   // receivables surface. Personal sections (printers, filament, queue, waste) stay.
   const biz = (typeof KhaytTiers !== 'undefined')
@@ -579,6 +608,7 @@ function renderDashboard() {
     <div id="locationScopeBannerDash" class="location-scope-banner" style="display:none;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:4px;padding:8px 12px;background:var(--bg-elev);border:1px solid var(--border);border-radius:var(--radius);"></div>
     ${buildFarmLocationOverview()}
     ${soloQuickRow}
+    ${makerToolsRow}
     ${KhaytTiers.isProMode(settings.mode) ? renderDashKpiRow({ active: active.length, overdue: overdue.length, todayRev, receivables, revDeltaPct, sparkData }) : ''}
     <div class="dash-stats dash-stats-secondary pro-only">
       <div class="dash-stat">

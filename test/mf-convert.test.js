@@ -167,6 +167,108 @@ test('same-family Bambu retarget writes printable_height', () => {
   assert.ok(r.report.fieldsChanged.includes('printable_height'));
 });
 
+// ---------- PrusaSlicer "Full Spectrum" (ColorMix) palette read ----------
+// A ColorMix file's filament_colour only lists the physical bases; the virtual (mixed) colours live in a
+// *_full_spectrum.json. The converter must see ALL of them, mirroring the preview reader.
+const { analyzeColorBands } = require('../lib/mf-convert');
+
+test('extractFilaments prefers the full-spectrum palette when it is longer', () => {
+  const proj = JSON.stringify({ filament_colour: ['#FF0000', '#00FF00', '#0000FF', '#FFFF00'] }); // 4 bases
+  const fullSpectrum = JSON.stringify({
+    physical_extruders: [
+      { id: 1, color: '#FF0000' }, { id: 2, color: '#00FF00' }, { id: 3, color: '#0000FF' }, { id: 4, color: '#FFFF00' },
+    ],
+    virtual_extruders: [
+      { id: 5, color: '#FF8000', components: [{ extruder: 1, ratio: 0.5 }, { extruder: 2, ratio: 0.5 }] },
+      { id: 6, color: '#8000FF', components: [{ extruder: 1, ratio: 0.5 }, { extruder: 3, ratio: 0.5 }] },
+    ],
+  });
+  const src = writeZip([
+    { name: '3D/3dmodel.model', data: MODEL },
+    { name: 'Metadata/project_settings.config', data: proj },
+    { name: 'Metadata/Prusa_Slicer_full_spectrum.json', data: fullSpectrum },
+  ]);
+  const a = analyze(src);
+  assert.equal(a.colorCount, 6, 'sees 4 physical + 2 virtual mixed colours');
+  assert.equal(a.filaments[4].color, '#FF8000');
+  assert.equal(a.filaments[5].color, '#8000FF');
+});
+
+test('no full_spectrum.json → filament count unchanged (narrow blast radius)', () => {
+  assert.equal(analyze(makeBambu3mf()).colorCount, 3);
+});
+
+// ---------- vertical colour-band analysis on a real painted mesh ----------
+// A tall model split into N vertical Z bands, each triangle solid-painted with its band's filament state.
+function makeBandedPainted3mf(states) {
+  // One vertical wall triangle per band, stacked up the Z axis (10 mm tall each).
+  const verts = [], tris = [];
+  states.forEach((s, i) => {
+    const z0 = i * 10, z1 = z0 + 10, base = i * 3;
+    verts.push(`<vertex x="0" y="0" z="${z0}"/>`, `<vertex x="10" y="0" z="${z0}"/>`, `<vertex x="0" y="0" z="${z1}"/>`);
+    tris.push(`<triangle v1="${base}" v2="${base + 1}" v3="${base + 2}" paint_color="${encodeSolidPaint(s)}"/>`);
+  });
+  const model = `<?xml version="1.0"?><model unit="millimeter"><resources><object id="1" type="model"><mesh>`
+    + `<vertices>${verts.join('')}</vertices><triangles>${tris.join('')}</triangles>`
+    + `</mesh></object></resources><build><item objectid="1"/></build></model>`;
+  const proj = JSON.stringify({ layer_height: 0.2, filament_colour: ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF'] });
+  return writeZip([
+    { name: '3D/3dmodel.model', data: model },
+    { name: 'Metadata/project_settings.config', data: proj },
+  ]);
+}
+
+test('analyzeColorBands detects a clean vertical stack → banded, no manual swaps', () => {
+  const r = analyzeColorBands(makeBandedPainted3mf([1, 2, 3]));
+  assert.equal(r.available, true);
+  assert.equal(r.banded, true);
+  assert.equal(r.colorCount, 3);
+  assert.equal(r.manualSwaps, 0);
+  assert.deepEqual(r.bands.map((b) => b.state), [1, 2, 3]);
+});
+
+test('analyzeColorBands: >4 bands produce M600 swap instructions + a custom_gcode file', () => {
+  const r = analyzeColorBands(makeBandedPainted3mf([1, 2, 3, 4, 5]));
+  assert.equal(r.banded, true);
+  assert.equal(r.manualSwaps, 1);
+  assert.equal(r.instructions.length, 1);
+  assert.equal(r.instructions[0].toSlot, 5);
+  assert.match(r.customGcodeXml, /gcode="M600"/);
+});
+
+test('analyzeColorBands returns available:false on a file with no readable mesh', () => {
+  const r = analyzeColorBands(writeZip([{ name: 'Metadata/project_settings.config', data: '{}' }]));
+  assert.equal(r.available, false);
+});
+
+test('convert bandSwap: >4-band model → all colours kept, M600 custom_gcode added, self-verifies', () => {
+  const r = convert(makeBandedPainted3mf([1, 2, 3, 4, 5]), { targetId: 'snapmaker-u1', bandSwap: true });
+  assert.equal(r.ok, true);
+  assert.equal(r.report.bandSwap, true);
+  assert.equal(r.report.bandSwaps, 1); // 5 colours on 4 heads → 1 manual swap
+  assert.equal(r.report.verified, true);
+  const zip = openZip(r.buffer);
+  // Head palette reduced to the 4 physical heads.
+  const proj = JSON.parse(zip.file('Metadata/project_settings.config').toString('utf8'));
+  assert.equal(proj.filament_colour.length, 4);
+  // Synthesized custom_gcode carries an M600 pause.
+  const cg = zip.file('Metadata/custom_gcode_per_layer.xml');
+  assert.ok(cg, 'custom_gcode_per_layer.xml present');
+  assert.match(cg.toString('utf8'), /gcode="M600"/);
+  // Paint codes remapped: state 5 folds onto head 0 (slot 1), so no facet references slot 5 any more.
+  const model = zip.file('3D/3dmodel.model').toString('utf8');
+  const states = [...model.matchAll(/paint_color="([0-9A-Fa-f]+)"/g)].map((m) => dominantState(m[1]));
+  assert.ok(states.every((s) => s >= 1 && s <= 4), `all paint states fold onto ≤4 heads (got ${states})`);
+  assert.ok(r.report.warnings.some((w) => /Colour-banded|manual filament swap/i.test(w)));
+});
+
+test('convert bandSwap is a no-op when the model is NOT vertically banded (falls back)', () => {
+  // makeBambu3mf has a stub mesh (no real geometry) → not banded → normal retarget, no band-swap report.
+  const r = convert(makeBambu3mf(), { targetId: 'snapmaker-u1', bandSwap: true });
+  assert.equal(r.ok, true);
+  assert.notEqual(r.report.bandSwap, true);
+});
+
 test('same-family Prusa retarget rewrites bed_shape and max_print_height', () => {
   const cfg = 'printer_model = MK3S\nnozzle_diameter = 0.4\nbed_shape = 0x0,250x0,250x210,0x210\nmax_print_height = 210\nfilament_colour = #AA0000\n';
   const src = writeZip([{ name: '3D/3dmodel.model', data: MODEL }, { name: 'Metadata/Slic3r_PE.config', data: cfg }]);
