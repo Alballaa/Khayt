@@ -4,6 +4,27 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.10] - 2026-07-09
+
+**Pre-release (beta) — maker tools for everyone, plus a tougher converter.** The 3D-printing toolset that used to live behind "Enthusiast" mode is now simply part of Khayt, and the converter gained a 3D preview, a calibration helper, and real hardening against malformed files.
+
+### Added
+
+- **3D model preview.** The Converter and Print-File library now render a rotatable 3D view of a model (WebGL, with a mesh fallback) so you can see what you're about to convert or print — no slicer round-trip. Runs locally.
+- **Calibration Assistant.** A new guided helper for dialling in a printer (temperature towers, flow, retraction and first-layer checks) is now available in Khayt. Runs locally.
+- **Full Spectrum on custom printers.** If you define a **custom printer profile** for a mixing-capable machine, you can now opt it into Full Spectrum (mixed-filament) conversion — previously only the built-in Snapmaker U1 could mix.
+
+### Changed
+
+- **"Enthusiast" is retired as a mode — its tools are now core features.** The 3MF converter, Colour Studio, print-file library, slicer detection and printer profiles are available in **both Simple and Professional** modes; there's no separate hobbyist mode to pick. Any existing Enthusiast user is migrated to Simple automatically (nothing is lost — the maker tools all stay). The mode picker is now a clean Simple / Professional choice.
+- **Bed-fit check now works on "split" 3MF files.** Files that keep their geometry in separate model parts (common in Bambu/Orca exports) now get a proper does-it-fit-the-bed verdict instead of none.
+
+### Fixed
+
+- **Hardened the converter against malformed 3MF files.** A crafted file could previously make the converter do an enormous amount of work (a self-referencing component "bomb", or a palette declaring thousands of colours) and stall the app. The converter now bails safely and quickly on both, and a real painted mesh is verified to survive Full Spectrum with its geometry and colours intact.
+
+> Note: the maker toolset in this release also ships as **Bed Ready**, a separate standalone app for makers. Khayt itself is unchanged in scope — it just no longer hides these tools behind a mode.
+
 ## [3.2.0-beta.9] - 2026-07-05
 
 **Pre-release (beta) — prune archived orders.** Keep the app fast as your history grows into the thousands.
