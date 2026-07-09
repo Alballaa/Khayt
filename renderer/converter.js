@@ -393,6 +393,7 @@
         <button type="button" class="btn small ghost" id="convPresetSave">★ ${escapeHtml(t('conv.preset_save') || 'Save')}</button>
       </div>
       <div id="convChanges">${changesHtml(a, targetId)}</div>
+      <div id="convBandWrap"></div>
       <div id="convFsWrap"></div>
       <div id="convFilamentWrap"></div>
       <div id="convRemapWrap">${remapTableHtml(filaments, currentMax(targetId))}</div>
@@ -411,8 +412,13 @@
         const wrap = modal.querySelector('#convRemapWrap');
         const chg = modal.querySelector('#convChanges');
         const fsWrap = modal.querySelector('#convFsWrap');
+        const bandWrap = modal.querySelector('#convBandWrap');
         const filWrap = modal.querySelector('#convFilamentWrap');
         let fsEnabled = false, fsPlanData = null;
+        // Band-swap: an exact-colour alternative to Full Spectrum, offered only when the source model is
+        // detected as cleanly vertically colour-banded. bandData is a property of the MODEL (not the target),
+        // so it's fetched once per file; paintBand() re-checks target eligibility.
+        let bandEnabled = false, bandData = null;
 
         // Filament + process presets from the maker's installed Snapmaker Orca (loaded once, lazily).
         let orcaFilaments = null, orcaProcesses = [], procPick = null, orcaLoaded = false, filPicks = {};
@@ -520,6 +526,7 @@
           const cb = fsWrap.querySelector('#convFsOn');
           if (cb) cb.onchange = () => {
             fsEnabled = cb.checked;
+            if (fsEnabled) { bandEnabled = false; paintBand(); } // mutually exclusive with band-swap
             if (fsEnabled && !fsPlanData) { paintFs(); loadFsPlan(); } else paintFs();
             paintFilaments();
           };
@@ -528,6 +535,55 @@
         }
         // Expose current FS state to onSave.
         modal._fsState = () => ({ enabled: fsEnabled, plan: fsPlanData });
+
+        // Ask the main process (once) whether this model is cleanly vertically colour-banded.
+        async function loadBandPlan() {
+          if (bandData || !hub().mfBands) return;
+          try { bandData = await hub().mfBands(src.path); } catch (_) { bandData = { available: false }; }
+          paintBand();
+        }
+
+        // Offer band-swap when the model is banded AND the target is a swap-capable printer (U1) carrying
+        // more colours than heads — the same situation where Full Spectrum would otherwise mix. Band-swap
+        // keeps every colour EXACT via M600 pauses; it's mutually exclusive with Full Spectrum.
+        function paintBand() {
+          if (!bandWrap) return;
+          const p = getProfileById(targetId);
+          const usedColours = filaments.length;
+          const eligible = bandData && bandData.available && bandData.banded
+            && p && p.supportsMixedFilament && p.maxColors >= 2 && usedColours > p.maxColors
+            && !isCrossEcosystem(a.flavour, targetId);
+          if (!eligible) { bandWrap.innerHTML = ''; if (bandEnabled) { bandEnabled = false; } return; }
+          const swaps = bandData.manualSwaps || 0;
+          const label = (t('conv.band_toggle') || 'Colour-banded model — print all {n} colours exactly with {s} filament swap(s), no mixing')
+            .replace('{n}', usedColours).replace('{s}', swaps);
+          let detail = '';
+          if (bandEnabled) {
+            const rows = (bandData.instructions || []).length
+              ? bandData.instructions.map((s) => `<div class="conv-fs-mix">${swatch(s.toColour || '#CCCCCC', 16)} <span>${escapeHtml((t('conv.band_swap_at') || 'Swap on head {h} at {z} mm').replace('{h}', s.toolhead).replace('{z}', Math.round(s.z * 10) / 10))}</span></div>`).join('')
+              : `<div class="conv-fs-mix">${escapeHtml(t('conv.band_no_swap') || 'No manual swap needed — every colour fits a head.')}</div>`;
+            detail = `<div class="conv-fs-plan">
+                <div class="conv-fs-sub">${escapeHtml(t('conv.band_pauses') || 'The app adds an M600 pause at each swap height:')}</div>
+                <div class="conv-fs-mixes">${rows}</div>
+              </div>`;
+          }
+          bandWrap.innerHTML = `<label class="conv-fs-toggle"><input type="checkbox" id="convBandOn"${bandEnabled ? ' checked' : ''}> ${escapeHtml(label)}</label>${detail}`;
+          const cb = bandWrap.querySelector('#convBandOn');
+          if (cb) cb.onchange = () => {
+            bandEnabled = cb.checked;
+            if (bandEnabled) { fsEnabled = false; } // mutually exclusive with Full Spectrum
+            paintBand();
+            if (fsWrap) fsWrap.style.display = bandEnabled ? 'none' : '';
+            paintFs();
+            if (wrap) wrap.style.display = (bandEnabled || fsEnabled) ? 'none' : '';
+            paintFilaments();
+          };
+          // Band-swap owns the colour mapping — hide the manual remap + FS panels while it's on.
+          if (fsWrap) fsWrap.style.display = bandEnabled ? 'none' : '';
+          if (wrap) wrap.style.display = (bandEnabled || fsEnabled) ? 'none' : '';
+        }
+        // Expose current band-swap state to onSave.
+        modal._bandState = () => ({ enabled: bandEnabled, plan: bandData });
 
         // 3D preview of the source model — "know what you're converting". Best-effort:
         // if the mesh can't be read, quietly drop the panel rather than block the convert.
@@ -553,8 +609,9 @@
             ? `<p class="conv-note">${escapeHtml(t('conv.normalize_note') || 'Vendor-locked slicer settings are stripped; geometry and colours are kept. Opens cleanly in any slicer.')}</p>`
             : remapTableHtml(filaments, currentMax(targetId));
           // Target changed → drop any stale Full Spectrum plan and re-evaluate for the new printer.
-          fsEnabled = false; fsPlanData = null; filPicks = {};
+          fsEnabled = false; fsPlanData = null; filPicks = {}; bandEnabled = false;
           paintFs();
+          paintBand();
           paintFilaments();
           applyBed();
           return asGeneric;
@@ -598,6 +655,7 @@
         }
         paintFs();
         paintFilaments();
+        loadBandPlan();
 
         // Apply a saved preset: set the target and, when the slot map fits this file's colours, the mapping.
         const applySel = modal.querySelector('#convPresetApply');
@@ -632,11 +690,14 @@
       },
       async onSave(modal) {
         const isGeneric = (P && targetId === P.GENERIC.id) || isCrossEcosystem(a.flavour, targetId);
+        const bandState = (typeof modal._bandState === 'function') ? modal._bandState() : { enabled: false };
+        const bandOn = !isGeneric && bandState.enabled && !!(bandState.plan && bandState.plan.banded);
         const fsState = (typeof modal._fsState === 'function') ? modal._fsState() : { enabled: false };
-        const fsOn = !isGeneric && fsState.enabled && !!fsState.plan;
+        // Band-swap and Full Spectrum are mutually exclusive; band-swap wins if somehow both are set.
+        const fsOn = !isGeneric && !bandOn && fsState.enabled && !!fsState.plan;
         let slotMap = null;
-        // Full Spectrum handles all colours itself — the manual slot map doesn't apply.
-        if (!isGeneric && !fsOn && filaments.length) {
+        // Band-swap / Full Spectrum handle all colours themselves — the manual slot map doesn't apply.
+        if (!isGeneric && !fsOn && !bandOn && filaments.length) {
           slotMap = Array.from(modal.querySelectorAll('.conv-slot')).map((s) => parseInt(s.value, 10) || 0);
           if (slotMap.every((v, i) => v === i)) slotMap = null; // identity → no remap
           if (slotMap && new Set(slotMap).size !== slotMap.length) {
@@ -663,7 +724,7 @@
             ? Array.from({ length: Math.max(...Object.keys(picksMap).map((k) => +k + 1)) }, (_, i) => picksMap[i] || null)
             : null;
           const process = (typeof modal._procPick === 'function') ? modal._procPick() : null;
-          r = await hub().mfConvert({ path: src.path, targetId, mode, slotMap, intoVaultId, targetProfile, fullSpectrum: fsOn, filaments, process });
+          r = await hub().mfConvert({ path: src.path, targetId, mode, slotMap, intoVaultId, targetProfile, fullSpectrum: fsOn, bandSwap: bandOn, filaments, process });
         } catch (e) { toast(String((e && e.message) || e), 'error'); if (btn) { btn.disabled = false; } return false; }
         if (r && r.canceled) { if (btn) { btn.disabled = false; btn.textContent = t('conv.convert') || 'Convert & save…'; } return false; }
         if (!r || !r.ok) { toast((r && r.error) || (t('conv.failed') || 'Conversion failed.'), 'error'); if (btn) { btn.disabled = false; } return false; }

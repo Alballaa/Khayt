@@ -241,6 +241,34 @@ test('analyzeColorBands returns available:false on a file with no readable mesh'
   assert.equal(r.available, false);
 });
 
+test('convert bandSwap: >4-band model → all colours kept, M600 custom_gcode added, self-verifies', () => {
+  const r = convert(makeBandedPainted3mf([1, 2, 3, 4, 5]), { targetId: 'snapmaker-u1', bandSwap: true });
+  assert.equal(r.ok, true);
+  assert.equal(r.report.bandSwap, true);
+  assert.equal(r.report.bandSwaps, 1); // 5 colours on 4 heads → 1 manual swap
+  assert.equal(r.report.verified, true);
+  const zip = openZip(r.buffer);
+  // Head palette reduced to the 4 physical heads.
+  const proj = JSON.parse(zip.file('Metadata/project_settings.config').toString('utf8'));
+  assert.equal(proj.filament_colour.length, 4);
+  // Synthesized custom_gcode carries an M600 pause.
+  const cg = zip.file('Metadata/custom_gcode_per_layer.xml');
+  assert.ok(cg, 'custom_gcode_per_layer.xml present');
+  assert.match(cg.toString('utf8'), /gcode="M600"/);
+  // Paint codes remapped: state 5 folds onto head 0 (slot 1), so no facet references slot 5 any more.
+  const model = zip.file('3D/3dmodel.model').toString('utf8');
+  const states = [...model.matchAll(/paint_color="([0-9A-Fa-f]+)"/g)].map((m) => dominantState(m[1]));
+  assert.ok(states.every((s) => s >= 1 && s <= 4), `all paint states fold onto ≤4 heads (got ${states})`);
+  assert.ok(r.report.warnings.some((w) => /Colour-banded|manual filament swap/i.test(w)));
+});
+
+test('convert bandSwap is a no-op when the model is NOT vertically banded (falls back)', () => {
+  // makeBambu3mf has a stub mesh (no real geometry) → not banded → normal retarget, no band-swap report.
+  const r = convert(makeBambu3mf(), { targetId: 'snapmaker-u1', bandSwap: true });
+  assert.equal(r.ok, true);
+  assert.notEqual(r.report.bandSwap, true);
+});
+
 test('same-family Prusa retarget rewrites bed_shape and max_print_height', () => {
   const cfg = 'printer_model = MK3S\nnozzle_diameter = 0.4\nbed_shape = 0x0,250x0,250x210,0x210\nmax_print_height = 210\nfilament_colour = #AA0000\n';
   const src = writeZip([{ name: '3D/3dmodel.model', data: MODEL }, { name: 'Metadata/Slic3r_PE.config', data: cfg }]);
