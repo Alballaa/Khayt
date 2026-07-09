@@ -238,6 +238,18 @@ test('a custom target profile re-profiles without registry state', () => {
   assert.ok(!r.report.warnings.some((w) => /fit/i.test(w))); // 400×400 fits 300×150
 });
 
+test('a custom profile can opt into Full Spectrum via supportsMixedFilament', () => {
+  const base = { id: 'custom-mixer', name: 'Mixer', flavour: 'bambu', maxColors: 4, bed: { x: 400, y: 400, z: 400 }, nozzle: 0.4, printerModel: 'Mixer' };
+  // Without the flag, mixing is unavailable — extra colours fall through to a plain reduce.
+  const off = convert(make5colourBambu(), { targetId: 'ignored', targetProfile: base, fullSpectrum: true });
+  assert.ok(!off.report.fullSpectrum, 'no FS on a custom profile that did not opt in');
+  // With it, the same custom printer reproduces the 5th colour as a dithered mix.
+  const on = convert(make5colourBambu(), { targetId: 'ignored', targetProfile: { ...base, supportsMixedFilament: true }, fullSpectrum: true });
+  assert.equal(on.report.fullSpectrum, true, 'opt-in custom profile gets Full Spectrum');
+  const proj = JSON.parse(openZip(on.buffer).file('Metadata/project_settings.config').toString('utf8'));
+  assert.ok(proj.mixed_filament_definitions, 'writes mixed_filament_definitions for the custom mixer');
+});
+
 test('Prusa flavour: filament_colour list + printer_model rewrite', () => {
   const cfg = 'printer_model = MK3S\nnozzle_diameter = 0.4\nfilament_colour = #AA0000;#00BB00;#0000CC\n';
   const src = writeZip([

@@ -272,10 +272,11 @@ const BIZ_TABS = ['logs-tab', 'clients-tab', 'gift-cards-tab', 'portfolio-tab', 
 const PRO_TABS = ['expenses-tab'];
 
 function applyMode() {
-  // Bed Ready (the standalone maker app, data-flavor="bedready") is always the
-  // commerce-free "enthusiast" experience — coerce here, the single chokepoint every
-  // caller funnels through, so stored/switcher changes can never surface business UI.
-  if (document.body && document.body.dataset.flavor === 'bedready') {
+  // Bed Ready (the standalone maker app) is always the commerce-free "enthusiast"
+  // experience — coerce here, the single chokepoint every caller funnels through, so
+  // stored/switcher changes can never surface business UI. Detect via isBedReadyFlavor()
+  // (data-app) so every flavor check in this file uses one canonical marker, not two.
+  if (isBedReadyFlavor()) {
     if (settings.mode !== 'enthusiast') settings.mode = 'enthusiast';
   } else if (settings.mode === 'enthusiast') {
     // Enthusiast is retired as a Khayt-selectable mode: its maker tools (3MF converter,
