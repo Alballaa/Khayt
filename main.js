@@ -45,6 +45,10 @@ const { bambuFtpUpload } = require('./lib/bambu-ftp');
 const { sendSms } = require('./lib/sms');
 const cloudClient = require('./lib/cloud-client');
 const bedreadyLibrary = require('./lib/bedready-library');
+// Login-CSRF guard for the bedready:// sign-in handoff: only honour a deep link the app itself just
+// initiated (user clicked "Connect"). Armed by hub:bedready-open-signin, checked in handleBedreadyLink.
+let bedreadyLinkArmedAt = 0;
+const BEDREADY_LINK_ARM_WINDOW_MS = 10 * 60 * 1000; // 10 min to finish signing in on the website
 const { registerZatcaCrypto } = require('./lib/zatca-crypto');
 const { wrapHubIpc } = require('./lib/ipc-guard');
 const { sanitizeHtmlForFile, redactStatusHtmlClientRow } = require('./lib/status-html');
@@ -2195,8 +2199,11 @@ ipcMain.handle('hub:bedready-download-all', async (_e, { items } = {}) => {
 });
 
 ipcMain.handle('hub:bedready-open-signin', () => {
-  try { require('electron').shell.openExternal(bedreadyLibrary.signInUrl()); return { ok: true }; }
-  catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+  try {
+    bedreadyLinkArmedAt = Date.now(); // arm: the next bedready:// link is user-initiated and expected
+    require('electron').shell.openExternal(bedreadyLibrary.signInUrl());
+    return { ok: true };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
 ipcMain.handle('hub:cloud-review-summary', async (_e, { url, shopId } = {}) => {
@@ -2631,10 +2638,18 @@ if (!app.requestSingleInstanceLock()) {
   app.quit();
   return;
 }
-try { app.setAsDefaultProtocolClient('bedready'); } catch { /* unpackaged/dev — fine */ }
+// Only the Bed Ready flavor owns the bedready:// scheme — Khayt has no BedReady-account UI and must
+// not claim the scheme (it would cold-launch Khayt and write a token file it can't use).
+if (isBedReady) { try { app.setAsDefaultProtocolClient('bedready'); } catch { /* unpackaged/dev — fine */ } }
 
 function handleBedreadyLink(url) {
+  if (!isBedReady) return; // defence in depth — never link a BedReady account on the Khayt flavor
   if (!url || String(url).indexOf('bedready://') !== 0) return;
+  // Login-CSRF defence: accept only a link the app itself initiated within the arm window. A drive-by
+  // bedready://auth#refresh_token=… fired by a random web page finds the app un-armed → ignored, so it
+  // can't silently re-link the app to an attacker's account (session fixation).
+  if (!bedreadyLinkArmedAt || Date.now() - bedreadyLinkArmedAt > BEDREADY_LINK_ARM_WINDOW_MS) return;
+  bedreadyLinkArmedAt = 0; // single-use
   const tokens = bedreadyAccount.parseDeepLink(url);
   if (tokens && bedreadyAccount.link(app.getPath('userData'), tokens)) {
     const win = mainWindow || BrowserWindow.getAllWindows()[0];

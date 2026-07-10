@@ -37,6 +37,18 @@ test('downloadAll skips file-less items without hitting the network', async () =
   assert.equal(r.skipped.length, 2);
 });
 
+test('downloadItem refuses a non-HTTPS download URL (SSRF guard, no network)', async () => {
+  await assert.rejects(
+    () => lib.downloadItem({ title: 'x', downloadUrl: 'http://bedready.io/f.3mf' }, '/tmp/nope'),
+    /HTTPS/);
+});
+
+test('downloadItem refuses a URL resolving to a loopback/private address (SSRF guard, no network)', async () => {
+  await assert.rejects(
+    () => lib.downloadItem({ title: 'x', downloadUrl: 'https://127.0.0.1/f.3mf' }, '/tmp/nope'),
+    /private|internal/);
+});
+
 test('fetchLibrary rejects an empty token before any request', async () => {
   await assert.rejects(() => lib.fetchLibrary(''), /Sign in to BedReady/);
   await assert.rejects(() => lib.fetchLibrary('   '), /Sign in to BedReady/);
