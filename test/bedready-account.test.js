@@ -18,6 +18,12 @@ test('parseDeepLink reads tokens from the fragment', () => {
   assert.deepEqual(t, { access: 'AAA', refresh: 'RRR', expires: 1234 });
 });
 
+test('parseDeepLink normalizes a millisecond expires_at to seconds', () => {
+  // Supabase sends seconds; guard against contract drift that sends ms (else the token never refreshes).
+  const t = acct.parseDeepLink('bedready://auth#refresh_token=R&expires_at=1700000000000');
+  assert.equal(t.expires, 1700000000);
+});
+
 test('parseDeepLink rejects malformed / token-less links', () => {
   assert.equal(acct.parseDeepLink('bedready://auth'), null); // no fragment
   assert.equal(acct.parseDeepLink('bedready://auth#access_token=AAA'), null); // no refresh_token
