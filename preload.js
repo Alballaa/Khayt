@@ -16,9 +16,12 @@ contextBridge.exposeInMainWorld('hubAPI', {
   appVersion: () => ipcRenderer.invoke('hub:app-version'),
 
   // BedReady library sync (site ↔ app): pull the user's saved designs and download them locally.
-  bedreadyLibrary:      (token) => ipcRenderer.invoke('hub:bedready-library', { token }),
+  bedreadyLinked:       () => ipcRenderer.invoke('hub:bedready-linked'),
+  bedreadyLibrary:      () => ipcRenderer.invoke('hub:bedready-library'),
   bedreadyDownloadAll:  (items) => ipcRenderer.invoke('hub:bedready-download-all', { items }),
   bedreadyOpenSignIn:   () => ipcRenderer.invoke('hub:bedready-open-signin'),
+  bedreadyUnlink:       () => ipcRenderer.invoke('hub:bedready-unlink'),
+  onBedreadyLinked:     (cb) => { ipcRenderer.on('bedready-linked', () => { try { cb(); } catch { /* noop */ } }); },
 
   // Product images (full-resolution on disk in userData/products/)
   saveProductImage:   (productId, dataUrl) => ipcRenderer.invoke('hub:save-product-image', productId, dataUrl),

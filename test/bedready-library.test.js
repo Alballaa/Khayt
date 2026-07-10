@@ -42,6 +42,6 @@ test('fetchLibrary rejects an empty token before any request', async () => {
   await assert.rejects(() => lib.fetchLibrary('   '), /Sign in to BedReady/);
 });
 
-test('signInUrl points at the BedReady account page', () => {
-  assert.equal(lib.signInUrl(), 'https://bedready.io/account');
+test('signInUrl points at the BedReady app-link page', () => {
+  assert.equal(lib.signInUrl(), 'https://bedready.io/app-link');
 });

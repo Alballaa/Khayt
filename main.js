@@ -2167,8 +2167,20 @@ ipcMain.handle('hub:cloud-catalog-get', async (_e, { url, shopId, token } = {}) 
 
 // ── BedReady library sync (site ↔ app) — pull the user's saved designs from bedready.io. Separate from
 // Khayt Cloud above: read-only, no encryption, no shop token; just the user's BedReady access token.
-ipcMain.handle('hub:bedready-library', async (_e, { token } = {}) => {
-  try { return { ok: true, items: await bedreadyLibrary.fetchLibrary(token) }; }
+ipcMain.handle('hub:bedready-linked', () => {
+  try { return { ok: true, linked: bedreadyAccount.isLinked(app.getPath('userData')) }; }
+  catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:bedready-library', async () => {
+  try {
+    const token = await bedreadyAccount.getAccessToken(app.getPath('userData')); // refreshes if needed
+    return { ok: true, items: await bedreadyLibrary.fetchLibrary(token) };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:bedready-unlink', () => {
+  try { bedreadyAccount.clear(app.getPath('userData')); return { ok: true }; }
   catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
@@ -2610,11 +2622,45 @@ function buildMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+// ── BedReady deep-link sign-in (bedready://auth#access_token=…&refresh_token=…) ────────────────────────
+// Single-instance so a protocol activation (Windows/Linux relaunch) forwards its argv to the running app
+// instead of opening a second window; macOS delivers the URL via 'open-url'. Also gives Khayt one instance
+// (one data store), which is the desired behaviour for a business app.
+const bedreadyAccount = require('./lib/bedready-account');
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+  return;
+}
+try { app.setAsDefaultProtocolClient('bedready'); } catch { /* unpackaged/dev — fine */ }
+
+function handleBedreadyLink(url) {
+  if (!url || String(url).indexOf('bedready://') !== 0) return;
+  const tokens = bedreadyAccount.parseDeepLink(url);
+  if (tokens && bedreadyAccount.link(app.getPath('userData'), tokens)) {
+    const win = mainWindow || BrowserWindow.getAllWindows()[0];
+    if (win) { try { if (win.isMinimized()) win.restore(); win.focus(); win.webContents.send('bedready-linked'); } catch { /* window gone */ } }
+  }
+}
+const isBedreadyLink = (a) => typeof a === 'string' && a.indexOf('bedready://') === 0;
+let pendingBedreadyLink = process.argv.find(isBedreadyLink) || null; // cold-start (Windows/Linux) via argv
+
+app.on('second-instance', (_e, argv) => {
+  const win = mainWindow || BrowserWindow.getAllWindows()[0];
+  if (win) { try { if (win.isMinimized()) win.restore(); win.focus(); } catch { /* window gone */ } }
+  const link = (argv || []).find(isBedreadyLink);
+  if (link) handleBedreadyLink(link);
+});
+app.on('open-url', (event, url) => { // macOS
+  event.preventDefault();
+  if (mainWindow) handleBedreadyLink(url); else pendingBedreadyLink = url;
+});
+
 app.whenReady().then(() => {
   completePendingFullWipe();
   applyDockIcon();
   buildMenu();
   createWindow();
+  if (pendingBedreadyLink) { handleBedreadyLink(pendingBedreadyLink); pendingBedreadyLink = null; }
   migrateLegacyStatusPages().catch((e) => console.warn('status page migration:', e?.message || e));
   setupAutoUpdater(mainWindow);
 
