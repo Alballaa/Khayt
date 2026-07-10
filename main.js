@@ -44,6 +44,7 @@ const bambu = require('./lib/bambu');
 const { bambuFtpUpload } = require('./lib/bambu-ftp');
 const { sendSms } = require('./lib/sms');
 const cloudClient = require('./lib/cloud-client');
+const bedreadyLibrary = require('./lib/bedready-library');
 const { registerZatcaCrypto } = require('./lib/zatca-crypto');
 const { wrapHubIpc } = require('./lib/ipc-guard');
 const { sanitizeHtmlForFile, redactStatusHtmlClientRow } = require('./lib/status-html');
@@ -2162,6 +2163,28 @@ ipcMain.handle('hub:cloud-catalog-get', async (_e, { url, shopId, token } = {}) 
     token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
     return { ok: true, ...(await cloudClient.getCatalog(url, shopId, token)) };
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+// ── BedReady library sync (site ↔ app) — pull the user's saved designs from bedready.io. Separate from
+// Khayt Cloud above: read-only, no encryption, no shop token; just the user's BedReady access token.
+ipcMain.handle('hub:bedready-library', async (_e, { token } = {}) => {
+  try { return { ok: true, items: await bedreadyLibrary.fetchLibrary(token) }; }
+  catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:bedready-download-all', async (_e, { items } = {}) => {
+  try {
+    const { app, shell } = require('electron');
+    const dest = require('path').join(app.getPath('downloads'), 'BedReady-Library');
+    const r = await bedreadyLibrary.downloadAll(items, dest);
+    if (r.saved.length) shell.openPath(dest).catch(() => {});
+    return { ok: true, dest, ...r };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:bedready-open-signin', () => {
+  try { require('electron').shell.openExternal(bedreadyLibrary.signInUrl()); return { ok: true }; }
+  catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
 ipcMain.handle('hub:cloud-review-summary', async (_e, { url, shopId } = {}) => {

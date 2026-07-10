@@ -15,6 +15,11 @@ contextBridge.exposeInMainWorld('hubAPI', {
   generateQR: (text, options) => ipcRenderer.invoke('hub:generate-qr', text, options),
   appVersion: () => ipcRenderer.invoke('hub:app-version'),
 
+  // BedReady library sync (site ↔ app): pull the user's saved designs and download them locally.
+  bedreadyLibrary:      (token) => ipcRenderer.invoke('hub:bedready-library', { token }),
+  bedreadyDownloadAll:  (items) => ipcRenderer.invoke('hub:bedready-download-all', { items }),
+  bedreadyOpenSignIn:   () => ipcRenderer.invoke('hub:bedready-open-signin'),
+
   // Product images (full-resolution on disk in userData/products/)
   saveProductImage:   (productId, dataUrl) => ipcRenderer.invoke('hub:save-product-image', productId, dataUrl),
   loadProductImage:   (filename) => ipcRenderer.invoke('hub:load-product-image', filename),
