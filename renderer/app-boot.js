@@ -404,8 +404,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (isStable && gte(currentVersion, pendingVer)) {
       localStorage.removeItem('khayt_pending_update_to');
       setTimeout(() => {
+        const brand = (typeof document !== 'undefined' && document.documentElement.dataset.app === 'bedready') ? 'Bed Ready' : 'Khayt';
         toast(
-          `✅ Updated to Khayt ${currentVersion} — your data is intact. ` +
+          `✅ Updated to ${brand} ${currentVersion} — your data is intact. ` +
           'A pre-update backup was saved to Settings → Backup.',
           'success', 7000
         );

@@ -982,15 +982,15 @@ async function maybeShowKeychainExplanation(win) {
   try {
     await dialog.showMessageBox(win || undefined, {
       type: 'info',
-      title: 'Khayt — Secure Storage',
+      title: `${FLAVOR_NAME} — Secure Storage`,
       message: 'Your API keys are encrypted',
       detail:
-        `Khayt encrypts sensitive credentials — ZATCA keys, printer API tokens, ` +
+        `${FLAVOR_NAME} encrypts sensitive credentials — ZATCA keys, printer API tokens, ` +
         `payment gateway secrets, and email passwords — using ${storeName}.\n\n` +
         `This is the same secure storage that protects your browser passwords and ` +
         `iCloud data. Nothing is sent to any server.\n\n` +
         `${process.platform === 'darwin'
-          ? 'macOS will ask for permission once. Click "Always Allow" so Khayt can read these keys each time it opens.'
+          ? `macOS will ask for permission once. Click "Always Allow" so ${FLAVOR_NAME} can read these keys each time it opens.`
           : 'Your OS may ask for permission to access the credential store — please allow it.'}`,
       buttons: ['Allow Secure Access'],
       defaultId: 0,

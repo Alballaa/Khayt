@@ -96,9 +96,10 @@
   function buildRecoveryCodeFile(code) {
     const formatted = formatRecoveryCode(code);
     const date = new Date().toISOString().slice(0, 10);
-    const biz = settings?.businessName || settings?.bizEn || 'Khayt';
+    const brand = (typeof document !== 'undefined' && document.documentElement.dataset.app === 'bedready') ? 'Bed Ready' : 'Khayt';
+    const biz = settings?.businessName || settings?.bizEn || brand;
     return [
-      'Khayt Recovery Code',
+      brand + ' Recovery Code',
       `Business: ${biz}`,
       `Created: ${date}`,
       '',
@@ -123,7 +124,8 @@
 
   async function downloadRecoveryCode(code) {
     const content = buildRecoveryCodeFile(code);
-    const defaultName = `khayt-recovery-${new Date().toISOString().slice(0, 10)}.txt`;
+    const brandSlug = (typeof document !== 'undefined' && document.documentElement.dataset.app === 'bedready') ? 'bedready' : 'khayt';
+    const defaultName = `${brandSlug}-recovery-${new Date().toISOString().slice(0, 10)}.txt`;
     if (window.hubAPI?.saveTextFile) {
       return window.hubAPI.saveTextFile({ content, defaultName });
     }
