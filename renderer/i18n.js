@@ -6,6 +6,21 @@ const STRINGS = (typeof globalThis !== 'undefined' && globalThis.KhaytLocales)
   ? globalThis.KhaytLocales
   : (typeof window !== 'undefined' && window.KhaytLocales ? window.KhaytLocales : {});
 
+// Bed Ready is a standalone product built from the SHARED (Khayt) locale files, so any visible
+// "Khayt" in a translated string must read as the flavor's product name — in every language.
+// This rebrands at the single t() chokepoint (render-time; the locale data is never mutated).
+// Capital-K, word-bounded only: lowercase infra tokens (khaytapp.com, storage keys) are untouched,
+// and the few "Khayt Cloud"/"X-Khayt-Signature"-style tokens live in business-only UI the Bed Ready
+// flavor never shows (and the real header/URL strings are set in lib code, not via t()).
+let _brand;
+function productBrand() {
+  if (_brand === undefined) {
+    _brand = (typeof document !== 'undefined' && document.documentElement &&
+      document.documentElement.dataset.app === 'bedready') ? 'Bed Ready' : 'Khayt';
+  }
+  return _brand;
+}
+
 const i18n = {
   current: 'en',
 
@@ -37,6 +52,8 @@ const i18n = {
         s = s.replaceAll('{' + k + '}', String(vars[k]));
       }
     }
+    const b = productBrand();
+    if (b !== 'Khayt' && s.indexOf('Khayt') !== -1) s = s.replace(/\bKhayt\b/g, b);
     return s;
   },
 
