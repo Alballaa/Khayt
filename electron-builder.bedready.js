@@ -70,6 +70,14 @@ module.exports = {
   appId: 'app.bedready.desktop',
   productName: 'Bed Ready',
 
+  // Register the `bedready://` URL scheme so the website's sign-in handoff
+  // (bedready://auth#access_token=…&refresh_token=…) actually routes to the app.
+  // At build time electron-builder bakes this into the macOS Info.plist
+  // (CFBundleURLTypes) and the Windows NSIS installer / Linux .desktop handler.
+  // main.js also calls app.setAsDefaultProtocolClient('bedready') at runtime, but
+  // on macOS LaunchServices only honours the scheme when it's declared here.
+  protocols: [{ name: 'Bed Ready', schemes: ['bedready'] }],
+
   // Separate output dir so Bed Ready artifacts never clobber Khayt's build/.
   directories: {
     ...base.directories,
