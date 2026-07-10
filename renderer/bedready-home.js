@@ -196,6 +196,7 @@
           '<button type="button" class="br-action" data-go="inventory-tab"><span class="ico" aria-hidden="true">⬡</span><span class="t"><b>Inventory</b><span>filament & stock</span></span></button>',
           '<button type="button" class="br-action" data-go="printfiles-tab"><span class="ico" aria-hidden="true">🧊</span><span class="t"><b>Print files</b><span>your model library</span></span></button>',
           '<button type="button" class="br-action" data-go="calculator-tab"><span class="ico" aria-hidden="true">◎</span><span class="t"><b>Calculator</b><span>cost per print</span></span></button>',
+          '<button type="button" class="br-action" data-library="1"><span class="ico" aria-hidden="true">☁️</span><span class="t"><b>My BedReady library</b><span>sync your saved designs</span></span></button>',
         '</div>',
       '</div>',
     ].join('');
@@ -205,6 +206,11 @@
     el.innerHTML = homeHtml();
     el.querySelectorAll('.br-action').forEach(function (b) {
       b.addEventListener('click', function () {
+        // BedReady library card opens the sync modal; the rest switch tabs.
+        if (b.getAttribute('data-library') && window.BedReadyLibrary && typeof window.BedReadyLibrary.open === 'function') {
+          window.BedReadyLibrary.open();
+          return;
+        }
         var go = b.getAttribute('data-go');
         if (go && window.KhaytShell && typeof window.KhaytShell.switchTab === 'function') {
           window.KhaytShell.switchTab(go);
