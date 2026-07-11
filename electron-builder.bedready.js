@@ -93,6 +93,13 @@ module.exports = {
   // mac build) — not by electron-builder (we pass --publish never at build time).
   publish: [{ provider: 'github', owner: 'KhaytApp', repo: 'bedready' }],
 
+  // Give Bed Ready its own electron-updater cache dir. The base config's default
+  // (khayt-updater) is a machine-wide path (~/Library/Caches/<name>, %LOCALAPPDATA%\<name>),
+  // so a user who runs BOTH Khayt and Bed Ready would otherwise share one updater
+  // cache — their pending-download metadata (update-info.json) collides. Bed Ready
+  // is fully independent on disk (separate userData too), so it gets its own lane.
+  updaterCacheDirName: 'bedready-updater',
+
   // Write the flavor marker into the packaged app's resources dir (build output
   // only — never the source tree). lib/flavor.js reads it via process.resourcesPath.
   afterPack: async (context) => {

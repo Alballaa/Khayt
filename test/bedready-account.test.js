@@ -15,7 +15,14 @@ function tmpDir() {
 
 test('parseDeepLink reads tokens from the fragment', () => {
   const t = acct.parseDeepLink('bedready://auth#access_token=AAA&refresh_token=RRR&expires_at=1234');
-  assert.deepEqual(t, { access: 'AAA', refresh: 'RRR', expires: 1234 });
+  assert.deepEqual(t, { access: 'AAA', refresh: 'RRR', expires: 1234, state: '' });
+});
+
+test('parseDeepLink surfaces the state nonce when present, else empty string', () => {
+  const withState = acct.parseDeepLink('bedready://auth#access_token=A&refresh_token=R&expires_at=1&state=abc123');
+  assert.equal(withState.state, 'abc123');
+  const without = acct.parseDeepLink('bedready://auth#refresh_token=R');
+  assert.equal(without.state, '');
 });
 
 test('parseDeepLink normalizes a millisecond expires_at to seconds', () => {
