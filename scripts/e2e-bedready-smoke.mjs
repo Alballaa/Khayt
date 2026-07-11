@@ -171,6 +171,45 @@ async function main() {
   assert(`hero shows sticker badges (${home.stickers})`, home.stickers >= 3);
   assert('dashboard home has no "Khayt" text', home.noKhaytText === true);
 
+  // ── Branding guard: the standalone product must never surface "Khayt" ──────────────────────────────
+  // Bed Ready shares Khayt's locale files + shared core, so leaks recur as features land. Assert the
+  // three surfaces that have leaked before: localized strings, generated files, and the native menu.
+  console.log('\n[branding — no "Khayt" leaks]');
+
+  // (a) Every en-locale value that contains "Khayt" must rebrand when rendered via t().
+  const locale = await window.evaluate(() => {
+    const en = (window.KhaytLocales && window.KhaytLocales.en) || {};
+    const bearing = Object.keys(en).filter((k) => typeof en[k] === 'string' && /Khayt/.test(en[k]));
+    const leaks = bearing.filter((k) => /\bKhayt\b/.test(window.t(k)));
+    return { checked: bearing.length, leaks };
+  });
+  assert(
+    `all ${locale.checked} "Khayt"-bearing locale keys rebrand via t() (${locale.leaks.length ? 'LEAKS: ' + locale.leaks.slice(0, 6).join(', ') : '0 leaks'})`,
+    locale.checked > 0 && locale.leaks.length === 0
+  );
+
+  // (b) The generated recovery-code file must be product-branded, not "Khayt".
+  const recovery = await window.evaluate(() =>
+    (window.KhaytAppSecurity && typeof window.KhaytAppSecurity.buildRecoveryCodeFile === 'function')
+      ? String(window.KhaytAppSecurity.buildRecoveryCodeFile('AAAA-BBBB-CCCC-DDDD') || '') : '(unavailable)');
+  assert(`recovery-code file is not "Khayt"-branded (${recovery.split('\n')[0]})`, recovery !== '' && !/Khayt/.test(recovery));
+
+  // (c) The native macOS menu bar (About / Hide / Quit …) must read the product name, not "khayt".
+  // The app menu only exists on darwin; on other platforms items[0] is the File menu, so skip there.
+  if (process.platform === 'darwin') {
+    const menu = await electronApp.evaluate(({ Menu }) => {
+      const appMenu = Menu.getApplicationMenu()?.items?.[0];
+      return {
+        label: appMenu?.label || '',
+        items: (appMenu?.submenu?.items || []).map((i) => i.label).filter(Boolean),
+      };
+    });
+    assert(`native menu app label not "khayt" (${menu.label})`, !/khayt/i.test(menu.label));
+    assert(`native menu items free of "khayt" (${menu.items.join(', ')})`, menu.items.length > 0 && !menu.items.some((l) => /khayt/i.test(l)));
+  } else {
+    console.log('  – native menu check skipped (darwin-only)');
+  }
+
   console.log('\n[no uncaught renderer errors during boot]');
   assert(`pageerror count === 0 (${pageErrors.join(' | ') || 'none'})`, pageErrors.length === 0);
 
