@@ -7,7 +7,10 @@ const { FLAVOR, isBedReady, productName: FLAVOR_NAME } = require('./lib/flavor')
 // userData dir (…/BedReady) instead of sharing Khayt's (…/khayt, which app.name still derives to).
 // One-time migration copies any existing Bed Ready data across. MUST run before app is ready and before
 // anything reads app.getPath('userData'), so it sits here at the very top.
-if (isBedReady) {
+// Defer to an explicit --user-data-dir (dev / e2e / CI isolation) — otherwise we'd override it and every
+// test instance would collide on the single real …/BedReady dir (and its single-instance lock).
+const hasExplicitUserDataDir = process.argv.some((a) => a === '--user-data-dir' || a.startsWith('--user-data-dir='));
+if (isBedReady && !hasExplicitUserDataDir) {
   try {
     app.setPath('userData', require('./lib/bedready-data').migrateAndResolveUserData(app.getPath('appData')));
   } catch (e) {
