@@ -23,11 +23,11 @@ contextBridge.exposeInMainWorld('hubAPI', {
   bedreadyUnlink:       () => ipcRenderer.invoke('hub:bedready-unlink'),
   onBedreadyLinked:     (cb) => { ipcRenderer.on('bedready-linked', () => { try { cb(); } catch { /* noop */ } }); },
 
-  // Orca filament installer (Bed Ready): install OrcaSlicer profiles into Snapmaker Orca.
-  orcaFilaTarget:       () => ipcRenderer.invoke('hub:orca-fila-target'),
+  // Orca filament installer (Bed Ready): install OrcaSlicer profiles into any Orca-family slicer.
+  orcaFilaSlicers:      () => ipcRenderer.invoke('hub:orca-fila-slicers'),
   orcaFilaManifest:     () => ipcRenderer.invoke('hub:orca-fila-manifest'),
-  orcaFilaInstall:      (item) => ipcRenderer.invoke('hub:orca-fila-install', { item }),
-  orcaFilaReveal:       () => ipcRenderer.invoke('hub:orca-fila-reveal'),
+  orcaFilaInstall:      (item, slicerId, printerLabel) => ipcRenderer.invoke('hub:orca-fila-install', { item, slicerId, printerLabel }),
+  orcaFilaReveal:       (slicerId) => ipcRenderer.invoke('hub:orca-fila-reveal', { slicerId }),
 
   // Product images (full-resolution on disk in userData/products/)
   saveProductImage:   (productId, dataUrl) => ipcRenderer.invoke('hub:save-product-image', productId, dataUrl),

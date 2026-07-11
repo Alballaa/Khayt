@@ -2228,9 +2228,9 @@ ipcMain.handle('hub:bedready-open-signin', () => {
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
-// ── Orca filament installer (Bed Ready) — install OrcaSlicer profiles into Snapmaker Orca ──
-ipcMain.handle('hub:orca-fila-target', () => {
-  try { return { ok: true, ...orcaFila.resolveFilamentDir() }; }
+// ── Orca filament installer (Bed Ready) — install OrcaSlicer profiles into any Orca-family slicer ──
+ipcMain.handle('hub:orca-fila-slicers', () => {
+  try { return { ok: true, slicers: orcaFila.targets() }; }
   catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
@@ -2239,17 +2239,18 @@ ipcMain.handle('hub:orca-fila-manifest', async () => {
   catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
-ipcMain.handle('hub:orca-fila-install', async (_e, { item } = {}) => {
+ipcMain.handle('hub:orca-fila-install', async (_e, { item, slicerId, printerLabel } = {}) => {
   try {
-    const r = await orcaFila.installProfile(item);
-    return { ok: true, path: r.path };
+    const r = await orcaFila.installProfile(item, { slicerId, printerLabel });
+    return { ok: true, path: r.path, slicer: r.slicer, printer: r.printer };
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
-ipcMain.handle('hub:orca-fila-reveal', () => {
+ipcMain.handle('hub:orca-fila-reveal', (_e, { slicerId } = {}) => {
   try {
     const { shell } = require('electron');
-    const { dir } = orcaFila.resolveFilamentDir();
+    const dir = orcaFila.filamentDirFor(slicerId);
+    if (!dir) return { ok: false, error: 'No slicer found.' };
     require('fs').mkdirSync(dir, { recursive: true });
     shell.openPath(dir).catch(() => {});
     return { ok: true, dir };
