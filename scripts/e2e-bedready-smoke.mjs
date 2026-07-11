@@ -171,6 +171,16 @@ async function main() {
   assert(`hero shows sticker badges (${home.stickers})`, home.stickers >= 3);
   assert('dashboard home has no "Khayt" text', home.noKhaytText === true);
 
+  // Orca filament installer: home card present + the modal API is exposed (Bed Ready flavor only).
+  const orcaFila = await window.evaluate(() => ({
+    card: !!document.querySelector('#dashboardContent [data-filaments]'),
+    api: typeof window.BedReadyFilaments?.open,
+    bridge: typeof window.hubAPI?.orcaFilaManifest,
+  }));
+  assert('filament installer card present on home', orcaFila.card === true);
+  assert('window.BedReadyFilaments.open exposed', orcaFila.api === 'function');
+  assert('hubAPI.orcaFilaManifest bridge exposed', orcaFila.bridge === 'function');
+
   // ── Branding guard: the standalone product must never surface "Khayt" ──────────────────────────────
   // Bed Ready shares Khayt's locale files + shared core, so leaks recur as features land. Assert the
   // three surfaces that have leaked before: localized strings, generated files, and the native menu.

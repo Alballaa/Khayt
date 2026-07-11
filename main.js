@@ -60,6 +60,7 @@ const { bambuFtpUpload } = require('./lib/bambu-ftp');
 const { sendSms } = require('./lib/sms');
 const cloudClient = require('./lib/cloud-client');
 const bedreadyLibrary = require('./lib/bedready-library');
+const orcaFila = require('./lib/orca-filament-install');
 // Login-CSRF guard for the bedready:// sign-in handoff: only honour a deep link the app itself just
 // initiated (user clicked "Connect"). Armed by hub:bedready-open-signin, checked in handleBedreadyLink.
 let bedreadyLinkArmedAt = 0;
@@ -2224,6 +2225,34 @@ ipcMain.handle('hub:bedready-open-signin', () => {
     const url = bedreadyLibrary.signInUrl() + '?state=' + encodeURIComponent(bedreadyLinkNonce);
     require('electron').shell.openExternal(url);
     return { ok: true };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+// ── Orca filament installer (Bed Ready) — install OrcaSlicer profiles into Snapmaker Orca ──
+ipcMain.handle('hub:orca-fila-target', () => {
+  try { return { ok: true, ...orcaFila.resolveFilamentDir() }; }
+  catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:orca-fila-manifest', async () => {
+  try { return { ok: true, manifest: await orcaFila.fetchManifest() }; }
+  catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:orca-fila-install', async (_e, { item } = {}) => {
+  try {
+    const r = await orcaFila.installProfile(item);
+    return { ok: true, path: r.path };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:orca-fila-reveal', () => {
+  try {
+    const { shell } = require('electron');
+    const { dir } = orcaFila.resolveFilamentDir();
+    require('fs').mkdirSync(dir, { recursive: true });
+    shell.openPath(dir).catch(() => {});
+    return { ok: true, dir };
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
