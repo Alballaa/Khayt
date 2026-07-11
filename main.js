@@ -64,6 +64,10 @@ const bedreadyLibrary = require('./lib/bedready-library');
 // initiated (user clicked "Connect"). Armed by hub:bedready-open-signin, checked in handleBedreadyLink.
 let bedreadyLinkArmedAt = 0;
 const BEDREADY_LINK_ARM_WINDOW_MS = 10 * 60 * 1000; // 10 min to finish signing in on the website
+// Per-handshake nonce: minted when the user opens the sign-in page (passed as ?state=), echoed back in
+// the bedready:// link. Binds the returned link to THIS app's own sign-in click — a drive-by link from a
+// different tab can't be consumed even inside the arm window. '' before any sign-in attempt.
+let bedreadyLinkNonce = '';
 const { registerZatcaCrypto } = require('./lib/zatca-crypto');
 const { wrapHubIpc } = require('./lib/ipc-guard');
 const { sanitizeHtmlForFile, redactStatusHtmlClientRow } = require('./lib/status-html');
@@ -2216,7 +2220,9 @@ ipcMain.handle('hub:bedready-download-all', async (_e, { items } = {}) => {
 ipcMain.handle('hub:bedready-open-signin', () => {
   try {
     bedreadyLinkArmedAt = Date.now(); // arm: the next bedready:// link is user-initiated and expected
-    require('electron').shell.openExternal(bedreadyLibrary.signInUrl());
+    bedreadyLinkNonce = crypto.randomBytes(16).toString('hex'); // bind the handshake to this click
+    const url = bedreadyLibrary.signInUrl() + '?state=' + encodeURIComponent(bedreadyLinkNonce);
+    require('electron').shell.openExternal(url);
     return { ok: true };
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
@@ -2670,7 +2676,19 @@ function handleBedreadyLink(url) {
   if (!bedreadyLinkArmedAt || Date.now() - bedreadyLinkArmedAt > BEDREADY_LINK_ARM_WINDOW_MS) return;
   bedreadyLinkArmedAt = 0; // single-use
   const tokens = bedreadyAccount.parseDeepLink(url);
-  if (tokens && bedreadyAccount.link(app.getPath('userData'), tokens)) {
+  if (!tokens) return;
+  // Nonce check (defence-in-depth over the arm window): if the link carries a state, it MUST equal the
+  // nonce we minted for this sign-in. A link with no state comes from a pre-nonce website build — accept
+  // it on the arm-window guarantee alone so a mid-rollout version skew can't break sign-in. Timing-safe
+  // compare avoids leaking the nonce via response timing.
+  const expected = bedreadyLinkNonce;
+  bedreadyLinkNonce = ''; // single-use regardless of outcome
+  if (tokens.state) {
+    const a = Buffer.from(tokens.state);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return;
+  }
+  if (bedreadyAccount.link(app.getPath('userData'), tokens)) {
     const win = mainWindow || BrowserWindow.getAllWindows()[0];
     if (win) { try { if (win.isMinimized()) win.restore(); win.focus(); win.webContents.send('bedready-linked'); } catch { /* window gone */ } }
   }
