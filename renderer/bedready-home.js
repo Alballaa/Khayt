@@ -256,16 +256,21 @@
     reapplyI18n();
     var sec = document.getElementById('dashboard-tab');
     if (sec && typeof MutationObserver === 'function') {
+      // Observe for the WHOLE session and never time out. Boot is async (store load), so the
+      // studio shell's re-mount of #dashboardContent — which empties it — can land at an
+      // unpredictable time, sometimes seconds after initialRender's first paint. Any fixed
+      // window (the old 4s, or a "stable for 1s" heuristic) can expire before that clobber and
+      // leave the home permanently blank on a slow/first launch. A persistent observer is cheap
+      // and self-limiting: ensureHome() only refills when the dashboard tab is ACTIVE and EMPTY,
+      // so it heals the clobber whenever it happens and no-ops during normal use (tab switches
+      // call renderDashboard(), leaving it non-empty).
       var obs = new MutationObserver(function () { ensureHome(); });
       obs.observe(sec, { childList: true, subtree: true });
-      // Boot settles well under 4s; stop observing afterwards so normal
-      // renderDashboard() calls own the content from then on.
-      setTimeout(function () { obs.disconnect(); }, 4000);
     }
-    // Belt-and-braces poll in case the observer misses an out-of-subtree swap.
-    // Also re-apply i18n for the first ~1s so overrides land after boot renders.
+    // Short startup poll: covers any out-of-subtree swap the observer wouldn't see, and re-applies
+    // i18n for the first ~1s so the copy overrides land on nav/placeholders painted during boot.
     var tries = 0;
-    var iv = setInterval(function () { ensureHome(); if (tries < 8) reapplyI18n(); if (++tries >= 30) clearInterval(iv); }, 120);
+    var iv = setInterval(function () { ensureHome(); if (tries < 8) reapplyI18n(); if (++tries >= 40) clearInterval(iv); }, 120);
   }
 
   if (document.readyState === 'loading') {
