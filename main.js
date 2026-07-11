@@ -3,6 +3,18 @@ const path = require('path');
 const fs = require('fs');
 const { FLAVOR, isBedReady, productName: FLAVOR_NAME } = require('./lib/flavor');
 
+// Bed Ready is a fully independent product that shares Khayt's codebase: give it its OWN Electron
+// userData dir (…/BedReady) instead of sharing Khayt's (…/khayt, which app.name still derives to).
+// One-time migration copies any existing Bed Ready data across. MUST run before app is ready and before
+// anything reads app.getPath('userData'), so it sits here at the very top.
+if (isBedReady) {
+  try {
+    app.setPath('userData', require('./lib/bedready-data').migrateAndResolveUserData(app.getPath('appData')));
+  } catch (e) {
+    console.warn('[bedready] userData independence setup failed, using default:', e && e.message);
+  }
+}
+
 // Crash/error reporting (Sentry). The DSN is publishable, so it's baked in for
 // official builds. Active in PACKAGED installs by default; in dev only when
 // SENTRY_DSN is set (so day-to-day development doesn't flood the project).
@@ -480,7 +492,7 @@ ipcMain.handle('hub:write-icloud-backup', async (event, jsonString) => {
   if (process.platform !== 'darwin') return null;
   const icloudBase = path.join(app.getPath('home'), 'Library', 'Mobile Documents', 'com~apple~CloudDocs');
   if (!fs.existsSync(icloudBase)) return null;
-  const backupDir = path.join(icloudBase, 'Khayt', 'backups');
+  const backupDir = path.join(icloudBase, isBedReady ? 'Bed Ready' : 'Khayt', 'backups');
   if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
   const filename = `${new Date().toISOString().split('T')[0]}.json`;
   const fullPath = path.join(backupDir, filename);
