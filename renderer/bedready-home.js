@@ -197,7 +197,7 @@
           '<button type="button" class="br-action" data-go="printfiles-tab"><span class="ico" aria-hidden="true">🧊</span><span class="t"><b>Print files</b><span>your model library</span></span></button>',
           '<button type="button" class="br-action" data-go="calculator-tab"><span class="ico" aria-hidden="true">◎</span><span class="t"><b>Calculator</b><span>cost per print</span></span></button>',
           '<button type="button" class="br-action" data-library="1"><span class="ico" aria-hidden="true">☁️</span><span class="t"><b>My BedReady library</b><span>sync your saved designs</span></span></button>',
-          '<button type="button" class="br-action" data-filaments="1"><span class="ico" aria-hidden="true">🎨</span><span class="t"><b>Filament profiles</b><span>add to Snapmaker Orca</span></span></button>',
+          '<button type="button" class="br-action" data-filaments="1"><span class="ico" aria-hidden="true">🎨</span><span class="t"><b>Filament profiles</b><span>add to your slicer</span></span></button>',
         '</div>',
       '</div>',
     ].join('');

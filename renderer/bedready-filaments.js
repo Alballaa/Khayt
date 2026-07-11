@@ -29,9 +29,9 @@
     root.className = 'brf-overlay';
     root.style.cssText = 'position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);padding:24px;';
     root.innerHTML =
-      '<div class="brf-modal" role="dialog" aria-modal="true" aria-label="Add filament to Snapmaker Orca" style="width:100%;max-width:640px;max-height:86vh;display:flex;flex-direction:column;border-radius:18px;background:var(--surface,#ffffff);color:var(--text,#14201e);border:1px solid var(--border,rgba(17,40,37,0.10));box-shadow:0 20px 60px rgba(0,0,0,.5);">' +
+      '<div class="brf-modal" role="dialog" aria-modal="true" aria-label="Add filament to your slicer" style="width:100%;max-width:640px;max-height:86vh;display:flex;flex-direction:column;border-radius:18px;background:var(--surface,#ffffff);color:var(--text,#14201e);border:1px solid var(--border,rgba(17,40,37,0.10));box-shadow:0 20px 60px rgba(0,0,0,.5);">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--border,rgba(17,40,37,0.10));flex:0 0 auto;">' +
-          '<b style="font-size:16px;">🎨 Add filament to Snapmaker Orca</b>' +
+          '<b style="font-size:16px;">🎨 Add filament to your slicer</b>' +
           '<button type="button" class="brf-close" aria-label="Close" style="border:0;background:transparent;color:inherit;font-size:20px;cursor:pointer;line-height:1;">✕</button>' +
         '</div>' +
         '<div class="brf-body" style="padding:18px 20px;overflow:auto;"></div>' +
