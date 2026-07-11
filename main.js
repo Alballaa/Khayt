@@ -2595,12 +2595,16 @@ function buildMenu() {
   const isMac = process.platform === 'darwin';
   const template = [
     ...(isMac ? [{
-      label: app.name,
+      // Electron derives app.name from package.json ("khayt"), so these role items would otherwise read
+      // "About khayt" / "Hide khayt" / "Quit khayt" — even in Bed Ready. Override the name-bearing labels
+      // with the flavor's product name (Bed Ready / Khayt). Deliberately NOT app.setName(): that would
+      // repoint app.getPath('userData') from …/khayt and orphan every user's data.
+      label: FLAVOR_NAME,
       submenu: [
-        { role: 'about' }, { type: 'separator' },
+        { role: 'about', label: `About ${FLAVOR_NAME}` }, { type: 'separator' },
         { role: 'services' }, { type: 'separator' },
-        { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' },
-        { role: 'quit' }
+        { role: 'hide', label: `Hide ${FLAVOR_NAME}` }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' },
+        { role: 'quit', label: `Quit ${FLAVOR_NAME}` }
       ]
     }] : []),
     { label: 'File', submenu: [ isMac ? { role: 'close' } : { role: 'quit' } ] },
