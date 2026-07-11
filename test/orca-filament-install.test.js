@@ -8,10 +8,21 @@ const path = require('path');
 
 const inst = require('../lib/orca-filament-install');
 
+// Build a fake Orca-family slicer config tree under a temp base and point the module at it.
+function fakeSlicer({ name = 'OrcaSlicer', machines = ['Foo 0.4 nozzle', 'Foo 0.2 nozzle', 'fdm_base', 'MyKlipper'], userPresets = {} } = {}) {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'orcabase-'));
+  const sys = path.join(base, name, 'system', 'Vendor', 'machine');
+  fs.mkdirSync(sys, { recursive: true });
+  for (const m of machines) fs.writeFileSync(path.join(sys, m + '.json'), JSON.stringify({ type: 'machine', name: m }));
+  const userFil = path.join(base, name, 'user', 'default', 'filament');
+  fs.mkdirSync(userFil, { recursive: true });
+  for (const [fn, obj] of Object.entries(userPresets)) fs.writeFileSync(path.join(userFil, fn), JSON.stringify(obj));
+  return { base, userFil };
+}
+
 test('safeFileBase keeps clean names and strips anything path-unsafe', () => {
-  assert.equal(inst.safeFileBase('SUNLU PLA Matte'), 'SUNLU PLA Matte'); // clean name untouched
-  assert.equal(inst.safeFileBase(''), 'filament'); // empty → fallback
-  // No path separator or reserved char survives, for any hostile input.
+  assert.equal(inst.safeFileBase('SUNLU PLA Matte'), 'SUNLU PLA Matte');
+  assert.equal(inst.safeFileBase(''), 'filament');
   for (const s of ['../../etc/passwd', 'a/b\\c:d*e?', '..\\..\\win', 'x/y']) {
     const out = inst.safeFileBase(s);
     assert.ok(out.length > 0, `${s} → non-empty`);
@@ -19,44 +30,65 @@ test('safeFileBase keeps clean names and strips anything path-unsafe', () => {
   }
 });
 
-test('resolveFilamentDir returns a user/<profile>/filament path and an appFound flag', () => {
-  const r = inst.resolveFilamentDir();
-  assert.equal(typeof r.dir, 'string');
-  assert.equal(typeof r.appFound, 'boolean');
-  assert.match(r.dir, /[\\/]user[\\/][^\\/]+[\\/]filament$/);
+test('detectSlicers / targets: finds the slicer, folds nozzle variants, drops internal + template machines', () => {
+  const { base } = fakeSlicer();
+  process.env.KHAYT_ORCA_CONFIG_BASE = base;
+  try {
+    const ts = inst.targets();
+    assert.equal(ts.length, 1);
+    assert.equal(ts[0].id, 'orcaslicer');
+    const labels = ts[0].printers.map((p) => p.label);
+    assert.deepEqual(labels, ['Foo']); // fdm_base + MyKlipper filtered out; nozzle variants folded
+    assert.deepEqual(ts[0].printers[0].machines.sort(), ['Foo 0.2 nozzle', 'Foo 0.4 nozzle']);
+  } finally { delete process.env.KHAYT_ORCA_CONFIG_BASE; }
 });
 
-test('installProfile rejects a file reference outside the profiles set (no traversal)', async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'orcafila-'));
+test('resolveVersion reads the target’s own user presets, else the fork fallback, else none', () => {
+  // Snapmaker with a versioned user preset → that version.
+  const snap = fakeSlicer({ name: 'Snapmaker_Orca', userPresets: { 'a.json': { type: 'filament', version: '02.03.01.10' } } });
+  process.env.KHAYT_ORCA_CONFIG_BASE = snap.base;
+  try {
+    const s = inst.detectSlicers().find((x) => x.id === 'snapmaker');
+    assert.equal(inst.resolveVersion(s), '02.03.01.10');
+  } finally { delete process.env.KHAYT_ORCA_CONFIG_BASE; }
+
+  // OrcaSlicer with no versioned presets → none.
+  const orca = fakeSlicer({ name: 'OrcaSlicer' });
+  process.env.KHAYT_ORCA_CONFIG_BASE = orca.base;
+  try {
+    const s = inst.detectSlicers().find((x) => x.id === 'orcaslicer');
+    assert.equal(inst.resolveVersion(s), null);
+  } finally { delete process.env.KHAYT_ORCA_CONFIG_BASE; }
+});
+
+test('installProfile rejects a file reference outside the profiles set (before any FS/network)', async () => {
   for (const bad of ['../../etc/passwd', 'profiles/../secret.json', '/etc/passwd', 'profiles/x.txt', 'notprofiles/x.json']) {
-    await assert.rejects(() => inst.installProfile({ file: bad, name: 'x' }, dir), /invalid file reference/i, `should reject ${bad}`);
+    await assert.rejects(() => inst.installProfile({ file: bad, name: 'x' }, {}), /invalid file reference/i, `should reject ${bad}`);
   }
 });
 
-test('installProfile fetches, validates and writes a preset as <name>.json', async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'orcafila-'));
-  const preset = { type: 'filament', name: 'SUNLU PLA Matte', filament_type: ['PLA'], nozzle_temperature: ['220'], compatible_printers: ['Snapmaker U1 (0.4 nozzle)'] };
+test('installProfile fetches, retargets compatible_printers + version, and writes to the slicer dir', async () => {
+  const { base, userFil } = fakeSlicer({ name: 'Snapmaker_Orca', userPresets: { 'seed.json': { type: 'filament', version: '02.03.01.10' } } });
+  process.env.KHAYT_ORCA_CONFIG_BASE = base;
+  const preset = { type: 'filament', name: 'SUNLU PLA Matte', filament_type: ['PLA'], nozzle_temperature: ['220'], compatible_printers: ['Snapmaker U1 (0.4 nozzle)'], version: 'wrong' };
   const orig = global.fetch;
-  global.fetch = async () => ({
-    ok: true,
-    headers: { get: () => String(Buffer.byteLength(JSON.stringify(preset))) },
-    arrayBuffer: async () => Buffer.from(JSON.stringify(preset)),
-  });
+  global.fetch = async () => ({ ok: true, headers: { get: () => String(Buffer.byteLength(JSON.stringify(preset))) }, arrayBuffer: async () => Buffer.from(JSON.stringify(preset)) });
   try {
-    const r = await inst.installProfile({ file: 'profiles/sunlu-sunlu-pla-matte.json', name: 'SUNLU PLA Matte' }, dir);
+    const r = await inst.installProfile({ file: 'profiles/sunlu-pla-matte.json', name: 'SUNLU PLA Matte' }, { slicerId: 'snapmaker', printerLabel: 'Foo' });
     assert.ok(r.ok);
-    assert.equal(r.path, path.join(dir, 'SUNLU PLA Matte.json'));
-    const written = JSON.parse(fs.readFileSync(r.path, 'utf8'));
-    assert.equal(written.type, 'filament');
-    assert.equal(written.name, 'SUNLU PLA Matte');
-  } finally { global.fetch = orig; }
+    assert.equal(r.path, path.join(userFil, 'SUNLU PLA Matte.json'));
+    const w = JSON.parse(fs.readFileSync(r.path, 'utf8'));
+    assert.deepEqual(w.compatible_printers.sort(), ['Foo 0.2 nozzle', 'Foo 0.4 nozzle']); // retargeted to the chosen printer
+    assert.equal(w.version, '02.03.01.10'); // restamped from the slicer’s own presets
+  } finally { global.fetch = orig; delete process.env.KHAYT_ORCA_CONFIG_BASE; }
 });
 
-test('installProfile rejects a malformed (non-filament) preset', async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'orcafila-'));
+test('installProfile errors clearly when no supported slicer is present', async () => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'orcabase-empty-'));
+  process.env.KHAYT_ORCA_CONFIG_BASE = base;
   const orig = global.fetch;
-  global.fetch = async () => ({ ok: true, headers: { get: () => '20' }, arrayBuffer: async () => Buffer.from('{"type":"printer"}') });
+  global.fetch = async () => ({ ok: true, headers: { get: () => '20' }, arrayBuffer: async () => Buffer.from('{"type":"filament","name":"x","nozzle_temperature":["200"]}') });
   try {
-    await assert.rejects(() => inst.installProfile({ file: 'profiles/x.json', name: 'x' }, dir), /malformed/i);
-  } finally { global.fetch = orig; }
+    await assert.rejects(() => inst.installProfile({ file: 'profiles/x.json', name: 'x' }, {}), /no supported slicer/i);
+  } finally { global.fetch = orig; delete process.env.KHAYT_ORCA_CONFIG_BASE; }
 });

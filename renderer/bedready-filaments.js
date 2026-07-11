@@ -12,7 +12,10 @@
   if (!api || typeof api.orcaFilaManifest !== 'function') return; // older preload — silently unavailable
 
   var root = null, body = null, lastFocus = null;
-  var manifest = null, target = null, installed = {}; // installed: id → true (this session)
+  var manifest = null, slicers = [], sel = { slicerId: null, printerLabel: null };
+  var installed = {}; // installed: id → true (this session)
+
+  function curSlicer() { return slicers.find(function (s) { return s.id === sel.slicerId; }) || slicers[0] || null; }
   var CAP = 60; // max rows rendered at once — filters/search narrow the 1200+ library
 
   function esc(s) {
@@ -77,19 +80,20 @@
     body.querySelector('.brf-retry').addEventListener('click', load);
   }
 
-  // Header: where files land + reveal + the "quit first" nudge.
+  // Header: pick the target slicer + printer, reveal the folder, and the "quit first" nudge.
   function headerHtml() {
-    var dir = (target && target.dir) || '';
-    var warn = (target && target.appFound)
-      ? '' : '<div style="margin-top:8px;font-size:12px;color:#d97706;">Snapmaker Orca wasn’t detected — the folder will be created; open Snapmaker Orca at least once if the filament doesn’t appear.</div>';
-    return '<div style="background:var(--surface-2,#f2f6f5);border:1px solid var(--border,rgba(17,40,37,0.12));border-radius:12px;padding:10px 12px;margin-bottom:14px;">' +
-      '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">' +
-        '<div style="min-width:0;font-size:12px;color:var(--text-muted,#869390);">Installs into your Snapmaker Orca filament folder</div>' +
-        '<button type="button" class="brf-reveal" style="cursor:pointer;border-radius:9px;padding:6px 10px;font-size:12px;font-weight:600;' + PLAIN + '">Reveal folder</button>' +
+    var s = curSlicer();
+    var slicerOpts = slicers.map(function (x) { return '<option value="' + esc(x.id) + '"' + (x.id === sel.slicerId ? ' selected' : '') + '>' + esc(x.label) + '</option>'; }).join('');
+    var printers = (s && s.printers) || [];
+    var printerOpts = printers.map(function (p) { return '<option value="' + esc(p.label) + '"' + (p.label === sel.printerLabel ? ' selected' : '') + '>' + esc(p.label) + '</option>'; }).join('');
+    var selCss = 'style="' + PLAIN + 'border-radius:10px;padding:8px 10px;font-size:13px;flex:1 1 46%;min-width:0;"';
+    return '<div style="background:var(--surface-2,#f2f6f5);border:1px solid var(--border,rgba(17,40,37,0.12));border-radius:12px;padding:12px;margin-bottom:14px;">' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
+        '<select class="brf-slicer" aria-label="Slicer" ' + selCss + '>' + slicerOpts + '</select>' +
+        '<select class="brf-printer" aria-label="Printer" ' + selCss + '>' + printerOpts + '</select>' +
+        '<button type="button" class="brf-reveal" style="cursor:pointer;border-radius:9px;padding:7px 11px;font-size:12px;font-weight:600;' + PLAIN + '">Reveal folder</button>' +
       '</div>' +
-      '<div style="font-size:11px;color:var(--text-muted,#869390);word-break:break-all;margin-top:4px;">' + esc(dir) + '</div>' +
-      '<div style="margin-top:8px;font-size:12px;color:var(--text,#14201e);">⚠️ Quit Snapmaker Orca before installing — it reads filament profiles at startup. Relaunch it after.</div>' +
-      warn +
+      '<div style="margin-top:9px;font-size:12px;color:var(--text,#14201e);">⚠️ Quit ' + esc((s && s.label) || 'your slicer') + ' before installing — it reads filament profiles at startup. Relaunch it after.</div>' +
     '</div>';
   }
 
@@ -141,7 +145,17 @@
       '<div class="brf-count" role="status" aria-live="polite" style="font-size:12px;color:var(--text-muted,#869390);margin-bottom:8px;"></div>' +
       '<div class="brf-list" style="display:grid;gap:7px;"></div>' +
       '<div class="brf-result" role="status" aria-live="polite" style="margin-top:12px;font-size:13px;min-height:18px;"></div>';
-    body.querySelector('.brf-reveal').addEventListener('click', function () { try { api.orcaFilaReveal(); } catch (e) {} });
+    body.querySelector('.brf-reveal').addEventListener('click', function () { try { api.orcaFilaReveal(sel.slicerId); } catch (e) {} });
+    body.querySelector('.brf-slicer').addEventListener('change', function (e) {
+      sel.slicerId = e.target.value;
+      var s = curSlicer();
+      sel.printerLabel = s && s.defaultPrinter;
+      var ps = (s && s.printers) || [];
+      body.querySelector('.brf-printer').innerHTML = ps.map(function (p) {
+        return '<option value="' + esc(p.label) + '"' + (p.label === sel.printerLabel ? ' selected' : '') + '>' + esc(p.label) + '</option>';
+      }).join('');
+    });
+    body.querySelector('.brf-printer').addEventListener('change', function (e) { sel.printerLabel = e.target.value; });
     body.querySelector('.brf-q').addEventListener('input', renderList);
     body.querySelector('.brf-vendor').addEventListener('change', renderList);
     body.querySelector('.brf-type').addEventListener('change', renderList);
@@ -163,11 +177,11 @@
     if (b) { b.disabled = true; b.textContent = 'Installing…'; b.style.opacity = '0.7'; }
     result('Installing “' + esc(p.name) + '”…');
     try {
-      var r = await api.orcaFilaInstall({ file: p.file, name: p.name });
+      var r = await api.orcaFilaInstall({ file: p.file, name: p.name }, sel.slicerId, sel.printerLabel);
       if (!r || !r.ok) throw new Error((r && r.error) || 'Install failed.');
       installed[id] = true;
       renderList(); // re-render so this row now shows "Installed ✓"
-      result('Installed “' + esc(p.name) + '”. Relaunch Snapmaker Orca to see it under the Snapmaker U1.', '#16a34a');
+      result('Installed “' + esc(p.name) + '” for ' + esc(r.printer || 'your printer') + '. Relaunch ' + esc(r.slicer || 'your slicer') + ' to see it.', '#16a34a');
     } catch (e) {
       if (b) { b.disabled = false; b.textContent = 'Install'; b.style.opacity = '1'; }
       result(esc(e && e.message ? e.message : 'Install failed.'), '#f87171');
@@ -177,8 +191,16 @@
   async function load() {
     loadingView();
     try {
-      var t = await api.orcaFilaTarget();
-      target = (t && t.ok) ? t : { dir: '', appFound: false };
+      var sres = await api.orcaFilaSlicers();
+      slicers = (sres && sres.ok && Array.isArray(sres.slicers)) ? sres.slicers : [];
+      if (!slicers.length) {
+        errorView('No supported slicer detected. Install and open OrcaSlicer, Snapmaker Orca, Bambu Studio, or another Orca-family slicer, then reopen this.');
+        return;
+      }
+      // Default to Snapmaker Orca if present (this app’s core printer), else the first detected slicer.
+      var def = slicers.find(function (s) { return s.id === 'snapmaker'; }) || slicers[0];
+      sel.slicerId = def.id;
+      sel.printerLabel = def.defaultPrinter;
       var r = await api.orcaFilaManifest();
       if (!r || !r.ok || !r.manifest) throw new Error((r && r.error) || 'Couldn’t load the filament library.');
       manifest = r.manifest;
