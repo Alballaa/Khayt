@@ -513,6 +513,9 @@ async function testConverter(window) {
 try {
   ({ electronApp } = await launchApp(userData));
   const window = await electronApp.firstWindow();
+  // Generous default so the many waitForFunction gates below don't trip on a busy dev machine
+  // (Electron boot/render can lag well past 30s under load). CI is fast, so this only adds headroom.
+  window.setDefaultTimeout(120_000);
   await dismissWizard(window);
 
   await testBootAndDashboard(window);

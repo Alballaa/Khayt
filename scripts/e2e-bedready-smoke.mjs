@@ -37,6 +37,9 @@ async function main() {
   });
 
   const window = await electronApp.firstWindow();
+  // Generous default so the boot/tab gates don't trip on a busy dev machine (Electron boot can lag
+  // past 30s under load — the failure mode that looks like a hang). CI is fast; this only adds headroom.
+  window.setDefaultTimeout(120_000);
   // Fail loudly on any uncaught renderer error (this is how a ReferenceError from a
   // dropped business module would surface at boot).
   window.on('pageerror', (err) => pageErrors.push(String(err && err.message || err)));
