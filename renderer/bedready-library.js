@@ -67,10 +67,11 @@
   }
 
   function btn(label, kind) {
-    // text-shadow keeps the white label legible over the low-contrast cyan/lime end of the gradient.
-    var grad = 'background:linear-gradient(100deg,#7c3aed,#06b6d4 55%,#84cc16);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.45);';
+    // Solid brand teal (matches .btn.primary); the old purple→cyan→lime gradient was off-identity and
+    // failed contrast at the lime end. --accent resolves in both light/dark themes.
+    var cta = 'background:var(--accent,#199e8f);color:#fff;';
     var plain = 'background:var(--surface-2,#f2f6f5);color:var(--text,#14201e);border:1px solid var(--border,rgba(17,40,37,0.16));';
-    return '<button type="button" class="brl-btn" data-act="' + kind + '" style="cursor:pointer;border:0;border-radius:12px;padding:11px 18px;font-weight:600;font-size:14px;' + (kind === 'primary' || kind === 'connect' || kind === 'sync' || kind === 'download' ? grad : plain) + '">' + esc(label) + '</button>';
+    return '<button type="button" class="brl-btn" data-act="' + kind + '" style="cursor:pointer;border:0;border-radius:12px;padding:11px 18px;font-weight:600;font-size:14px;' + (kind === 'primary' || kind === 'connect' || kind === 'sync' || kind === 'download' ? cta : plain) + '">' + esc(label) + '</button>';
   }
 
   function setBody(html) { if (body) body.innerHTML = html; bindActions(); }
@@ -142,8 +143,8 @@
       if (!r || !r.ok) { result(esc((r && r.error) || 'Sync failed.'), '#f87171'); return; }
       items = r.items || [];
       renderLinked();
-      result(items.length ? ('Found ' + items.length + ' saved design' + (items.length === 1 ? '' : 's') + '.') : 'No saved designs yet — save some on bedready.io.', '#4ade80');
-    } catch (e) { result(esc(e && e.message ? e.message : 'Sync failed.'), '#f87171'); }
+      result(items.length ? ('Found ' + items.length + ' saved design' + (items.length === 1 ? '' : 's') + '.') : 'No saved designs yet — save some on bedready.io.', 'var(--ok,#159d68)');
+    } catch (e) { result(esc(e && e.message ? e.message : 'Sync failed.'), 'var(--danger,#e0492f)'); }
   }
 
   async function downloadAll() {
@@ -154,8 +155,8 @@
       var msg = 'Saved ' + r.saved.length + ' file' + (r.saved.length === 1 ? '' : 's') + ' to your Downloads/BedReady-Library folder.';
       if (r.failed && r.failed.length) msg += ' ' + r.failed.length + ' failed.';
       if (r.skipped && r.skipped.length) msg += ' ' + r.skipped.length + ' skipped.';
-      result(esc(msg), r.failed && r.failed.length ? '#fbbf24' : '#4ade80');
-    } catch (e) { result(esc(e && e.message ? e.message : 'Download failed.'), '#f87171'); }
+      result(esc(msg), r.failed && r.failed.length ? '#fbbf24' : 'var(--ok,#159d68)');
+    } catch (e) { result(esc(e && e.message ? e.message : 'Download failed.'), 'var(--danger,#e0492f)'); }
   }
 
   async function refresh() {

@@ -3,7 +3,7 @@
    A self-contained modal that browses the OrcaSlicer filament library (served by
    bedready.io) and installs a profile straight into the user's Snapmaker Orca so it
    shows up for the Snapmaker U1. Uses the main-process bridge on window.hubAPI:
-     orcaFilaTarget / orcaFilaManifest / orcaFilaInstall / orcaFilaReveal
+     orcaFilaSlicers / orcaFilaManifest / orcaFilaInstall / orcaFilaReveal
    Bed Ready flavor only; no dependency on the app's nav/tab system.
    ============================================================ */
 (function () {
@@ -16,6 +16,7 @@
   var installed = {}; // installed: id → true (this session)
 
   function curSlicer() { return slicers.find(function (s) { return s.id === sel.slicerId; }) || slicers[0] || null; }
+  function hasPrinter() { var s = curSlicer(); return !!(s && s.printers && s.printers.length); }
   var CAP = 60; // max rows rendered at once — filters/search narrow the 1200+ library
 
   function esc(s) {
@@ -68,7 +69,9 @@
     lastFocus = null;
   }
 
-  var GRAD = 'background:linear-gradient(100deg,#7c3aed,#06b6d4 55%,#84cc16);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.45);border:0;';
+  // Solid brand teal (matches .btn.primary) — the old purple→cyan→lime gradient was off-identity and
+  // white-on-lime failed WCAG AA. --accent resolves in both light/dark themes.
+  var CTA = 'background:var(--accent,#199e8f);color:#fff;border:0;';
   var PLAIN = 'background:var(--surface-2,#f2f6f5);color:var(--text,#14201e);border:1px solid var(--border,rgba(17,40,37,0.16));';
 
   function loadingView() {
@@ -76,7 +79,7 @@
   }
   function errorView(msg) {
     body.innerHTML = '<p style="margin:0 0 14px;">' + esc(msg) + '</p>' +
-      '<button type="button" class="brf-retry" style="cursor:pointer;border-radius:12px;padding:10px 16px;font-weight:600;' + GRAD + '">Try again</button>';
+      '<button type="button" class="brf-retry" style="cursor:pointer;border-radius:12px;padding:10px 16px;font-weight:600;' + CTA + '">Try again</button>';
     body.querySelector('.brf-retry').addEventListener('click', load);
   }
 
@@ -87,10 +90,15 @@
     var printers = (s && s.printers) || [];
     var printerOpts = printers.map(function (p) { return '<option value="' + esc(p.label) + '"' + (p.label === sel.printerLabel ? ' selected' : '') + '>' + esc(p.label) + '</option>'; }).join('');
     var selCss = 'style="' + PLAIN + 'border-radius:10px;padding:8px 10px;font-size:13px;flex:1 1 46%;min-width:0;"';
+    // A detected slicer with no printers can't receive an install — show an inline note instead of a
+    // blank dropdown (which would otherwise send an undefined printer to the installer).
+    var printerControl = printers.length
+      ? '<select class="brf-printer" aria-label="Printer" ' + selCss + '>' + printerOpts + '</select>'
+      : '<span class="brf-noprinter" style="flex:1 1 46%;min-width:0;font-size:12px;color:var(--danger,#e0492f);font-weight:600;">No printers in ' + esc((s && s.label) || 'this slicer') + ' — add one there first.</span>';
     return '<div style="background:var(--surface-2,#f2f6f5);border:1px solid var(--border,rgba(17,40,37,0.12));border-radius:12px;padding:12px;margin-bottom:14px;">' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
         '<select class="brf-slicer" aria-label="Slicer" ' + selCss + '>' + slicerOpts + '</select>' +
-        '<select class="brf-printer" aria-label="Printer" ' + selCss + '>' + printerOpts + '</select>' +
+        printerControl +
         '<button type="button" class="brf-reveal" style="cursor:pointer;border-radius:9px;padding:7px 11px;font-size:12px;font-weight:600;' + PLAIN + '">Reveal folder</button>' +
       '</div>' +
       '<div style="margin-top:9px;font-size:12px;color:var(--text,#14201e);">⚠️ Quit ' + esc((s && s.label) || 'your slicer') + ' before installing — it reads filament profiles at startup. Relaunch it after.</div>' +
@@ -116,9 +124,12 @@
 
   function rowHtml(p) {
     var done = installed[p.id];
+    var canInstall = hasPrinter();
     var btn = done
-      ? '<span class="brf-done" style="font-size:12px;color:#16a34a;font-weight:600;white-space:nowrap;">Installed ✓</span>'
-      : '<button type="button" class="brf-install" data-id="' + esc(p.id) + '" style="cursor:pointer;border-radius:10px;padding:8px 14px;font-weight:600;font-size:13px;white-space:nowrap;' + GRAD + '">Install</button>';
+      ? '<span class="brf-done" style="font-size:12px;color:var(--ok,#159d68);font-weight:600;white-space:nowrap;">Installed ✓</span>'
+      : canInstall
+        ? '<button type="button" class="brf-install" data-id="' + esc(p.id) + '" style="cursor:pointer;border-radius:10px;padding:8px 14px;font-weight:600;font-size:13px;white-space:nowrap;' + CTA + '">Install</button>'
+        : '<button type="button" class="brf-install" disabled title="Add a printer to this slicer first" style="border-radius:10px;padding:8px 14px;font-weight:600;font-size:13px;white-space:nowrap;opacity:.45;cursor:not-allowed;' + CTA + '">Install</button>';
     return '<div class="brf-row" data-id="' + esc(p.id) + '" style="display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid var(--border,rgba(17,40,37,0.10));border-radius:10px;">' +
       '<div style="min-width:0;flex:1 1 auto;">' +
         '<div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(p.name) + '</div>' +
@@ -140,22 +151,30 @@
     listEl.innerHTML = shown.map(rowHtml).join('');
   }
 
+  // (Re)render the slicer/printer header and bind its controls. Split out so switching to a slicer
+  // with no printers can swap the printer <select> for the inline note and refresh the install state.
+  function renderHeader() {
+    var h = body.querySelector('.brf-header');
+    if (!h) return;
+    h.innerHTML = headerHtml();
+    h.querySelector('.brf-reveal').addEventListener('click', function () { try { api.orcaFilaReveal(sel.slicerId); } catch (e) {} });
+    h.querySelector('.brf-slicer').addEventListener('change', function (e) {
+      sel.slicerId = e.target.value;
+      var s = curSlicer();
+      sel.printerLabel = (s && s.defaultPrinter) || null;
+      renderHeader(); // swap the printer control for the newly selected slicer
+      renderList();   // reflect whether the new slicer can install
+    });
+    var ps = h.querySelector('.brf-printer');
+    if (ps) ps.addEventListener('change', function (e) { sel.printerLabel = e.target.value; });
+  }
+
   function mainView() {
-    body.innerHTML = headerHtml() + filtersHtml() +
+    body.innerHTML = '<div class="brf-header"></div>' + filtersHtml() +
       '<div class="brf-count" role="status" aria-live="polite" style="font-size:12px;color:var(--text-muted,#869390);margin-bottom:8px;"></div>' +
       '<div class="brf-list" style="display:grid;gap:7px;"></div>' +
       '<div class="brf-result" role="status" aria-live="polite" style="margin-top:12px;font-size:13px;min-height:18px;"></div>';
-    body.querySelector('.brf-reveal').addEventListener('click', function () { try { api.orcaFilaReveal(sel.slicerId); } catch (e) {} });
-    body.querySelector('.brf-slicer').addEventListener('change', function (e) {
-      sel.slicerId = e.target.value;
-      var s = curSlicer();
-      sel.printerLabel = s && s.defaultPrinter;
-      var ps = (s && s.printers) || [];
-      body.querySelector('.brf-printer').innerHTML = ps.map(function (p) {
-        return '<option value="' + esc(p.label) + '"' + (p.label === sel.printerLabel ? ' selected' : '') + '>' + esc(p.label) + '</option>';
-      }).join('');
-    });
-    body.querySelector('.brf-printer').addEventListener('change', function (e) { sel.printerLabel = e.target.value; });
+    renderHeader();
     body.querySelector('.brf-q').addEventListener('input', renderList);
     body.querySelector('.brf-vendor').addEventListener('change', renderList);
     body.querySelector('.brf-type').addEventListener('change', renderList);
@@ -174,6 +193,7 @@
   async function install(id, b) {
     var p = manifest.profiles.find(function (x) { return x.id === id; });
     if (!p) return;
+    if (!sel.printerLabel) { result('Add a printer to this slicer first, then reopen this.', 'var(--danger,#e0492f)'); return; }
     if (b) { b.disabled = true; b.textContent = 'Installing…'; b.style.opacity = '0.7'; }
     result('Installing “' + esc(p.name) + '”…');
     try {
@@ -181,10 +201,10 @@
       if (!r || !r.ok) throw new Error((r && r.error) || 'Install failed.');
       installed[id] = true;
       renderList(); // re-render so this row now shows "Installed ✓"
-      result('Installed “' + esc(p.name) + '” for ' + esc(r.printer || 'your printer') + '. Relaunch ' + esc(r.slicer || 'your slicer') + ' to see it.', '#16a34a');
+      result('Installed “' + esc(p.name) + '” for ' + esc(r.printer || 'your printer') + '. Relaunch ' + esc(r.slicer || 'your slicer') + ' to see it.', 'var(--ok,#159d68)');
     } catch (e) {
       if (b) { b.disabled = false; b.textContent = 'Install'; b.style.opacity = '1'; }
-      result(esc(e && e.message ? e.message : 'Install failed.'), '#f87171');
+      result(esc(e && e.message ? e.message : 'Install failed.'), 'var(--danger,#e0492f)');
     }
   }
 
