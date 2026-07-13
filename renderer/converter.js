@@ -803,7 +803,7 @@
   function batchPanelHtml() {
     if (!batchFiles.length) return '';
     const rows = batchFiles.map((f, i) => `
-      <div class="conv-batch-row"><span class="conv-batch-name" title="${escapeHtml(f.path)}">📄 ${escapeHtml(f.name)}</span><span class="conv-batch-stat" data-i="${i}"></span></div>`).join('');
+      <div class="conv-batch-row"><span class="conv-batch-name" title="${escapeHtml(f.path)}">📄 ${escapeHtml(f.name)}</span><span class="conv-batch-stat" data-i="${i}"></span><button type="button" class="conv-batch-x" data-batch-x="${i}" title="${escapeHtml(t('conv.batch_remove') || 'Remove from batch')}" aria-label="${escapeHtml(t('conv.batch_remove') || 'Remove from batch')}">✕</button></div>`).join('');
     return `
       <div class="conv-batch">
         <label class="conv-label">${escapeHtml(t('conv.batch_target') || 'Convert all to')}</label>
@@ -815,6 +815,27 @@
         <div class="conv-batch-list">${rows}</div>
         <button class="btn primary" id="convBatchRun">🔄 ${escapeHtml((t('conv.batch_run') || 'Convert {n} files').replace('{n}', batchFiles.length))}</button>
       </div>`;
+  }
+
+  // Re-render the batch panel in place and (re)wire its Run + per-row remove buttons. Called after the
+  // list changes (file picked or a row removed) so the two stay in sync without a full tab re-render.
+  function refreshBatchPanel() {
+    const panel = document.getElementById('convBatchPanel');
+    if (!panel) return;
+    panel.innerHTML = batchPanelHtml();
+    wireBatchPanel();
+  }
+
+  function wireBatchPanel() {
+    const run = document.getElementById('convBatchRun');
+    if (run) run.onclick = runBatch;
+    document.querySelectorAll('#convBatchPanel [data-batch-x]').forEach((b) => {
+      b.onclick = () => {
+        const i = parseInt(b.getAttribute('data-batch-x'), 10);
+        if (i >= 0 && i < batchFiles.length) batchFiles.splice(i, 1);
+        refreshBatchPanel();
+      };
+    });
   }
 
   /* ---------------- Custom printers ---------------- */
@@ -927,15 +948,9 @@
       const r = await hub().mfPickMulti();
       if (!r || !r.ok || !r.files || !r.files.length) return;
       batchFiles = r.files;
-      const panel = document.getElementById('convBatchPanel');
-      if (panel) {
-        panel.innerHTML = batchPanelHtml();
-        const run = document.getElementById('convBatchRun');
-        if (run) run.onclick = runBatch;
-      }
+      refreshBatchPanel();
     };
-    const run = document.getElementById('convBatchRun');
-    if (run) run.onclick = runBatch;
+    wireBatchPanel();
 
     // Drag-and-drop: dropping a .3mf opens the converter; a .stl runs the STL→3MF flow. Makers live in
     // Finder/Explorer and reach for a drop before a file dialog.

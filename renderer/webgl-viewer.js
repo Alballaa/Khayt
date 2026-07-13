@@ -247,6 +247,25 @@
     canvas.addEventListener('pointercancel', end);
     canvas.addEventListener('wheel', (e) => { e.preventDefault(); zoom = clamp(zoom * (e.deltaY < 0 ? 1.12 : 0.89), 0.2, 20); stopSpin(); draw(); }, { passive: false });
 
+    // Keyboard orbit/zoom so the preview is operable without a pointer (accessibility). Arrows orbit,
+    // +/- zoom, Home resets. Only act on keys we own so Tab/Esc still bubble out of the modal.
+    canvas.tabIndex = 0;
+    canvas.setAttribute('role', 'img');
+    if (!canvas.getAttribute('aria-label')) canvas.setAttribute('aria-label', '3D model preview — arrow keys orbit, plus/minus zoom');
+    canvas.addEventListener('keydown', (e) => {
+      const k = e.key;
+      let hit = true;
+      if (k === 'ArrowLeft') yaw -= 0.14;
+      else if (k === 'ArrowRight') yaw += 0.14;
+      else if (k === 'ArrowUp') pitch = clamp(pitch - 0.12, -Math.PI / 2 + 0.02, Math.PI / 2 - 0.02);
+      else if (k === 'ArrowDown') pitch = clamp(pitch + 0.12, -Math.PI / 2 + 0.02, Math.PI / 2 - 0.02);
+      else if (k === '+' || k === '=') zoom = clamp(zoom * 1.12, 0.2, 20);
+      else if (k === '-' || k === '_') zoom = clamp(zoom * 0.89, 0.2, 20);
+      else if (k === 'Home') { yaw = VIEWS.iso.yaw; pitch = VIEWS.iso.pitch; zoom = 1; panX = 0; panY = 0; }
+      else hit = false;
+      if (hit) { e.preventDefault(); stopSpin(); draw(); }
+    });
+
     const mo = new MutationObserver(() => { if (!document.body.contains(canvas)) { destroy(); } });
     mo.observe(document.getElementById('modalMount') || document.body, { childList: true, subtree: true });
 
