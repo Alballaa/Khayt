@@ -751,6 +751,8 @@
 
   /* ---------------- Batch conversion ---------------- */
   let batchFiles = [];
+  let batchTargetId = null;   // remembered across panel re-renders (row removal, target change)
+  let batchColorMode = 'merge'; // 'merge' | 'fs' (Full Spectrum) | 'band' (band-swap M600)
 
   async function runBatch() {
     const el = document.getElementById('convBatchPanel');
@@ -758,8 +760,16 @@
     const targetId = (el.querySelector('#convBatchTarget') || {}).value || firstTargetId();
     const P = profiles();
     const isGeneric = P && targetId === P.GENERIC.id;
-    const targetProfile = isCustomId(targetId) ? getProfileById(targetId) : null;
+    // Match the single-file path: installed-slicer (Orca) AND custom printers convert via an explicit profile.
+    const targetProfile = (isCustomId(targetId) || isOrcaId(targetId)) ? getProfileById(targetId) : null;
     const targetName = (getProfileById(targetId) && getProfileById(targetId).name) || targetId;
+    // Colour handling only applies to a real mixing/swap-capable target in retarget mode. The engine
+    // no-ops each flag per file where it can't apply (too few colours, not banded, etc.), so it's safe
+    // to pass a blanket flag across a mixed batch.
+    const tp = getProfileById(targetId);
+    const colourCapable = !isGeneric && !!(tp && tp.supportsMixedFilament && tp.maxColors >= 2);
+    const fullSpectrum = colourCapable && batchColorMode === 'fs';
+    const bandSwap = colourCapable && batchColorMode === 'band';
     const dest = (el.querySelector('input[name="convBatchDest"]:checked') || {}).value || 'library';
 
     let outdir = null;
@@ -782,12 +792,15 @@
       const outPath = dest === 'folder' ? `${outdir}/${base}-${tag}.3mf` : null;
       let r;
       try {
-        r = await hub().mfConvert({ path: f.path, targetId, mode: isGeneric ? 'normalize' : 'retarget', intoVaultId, outPath, targetProfile });
+        r = await hub().mfConvert({ path: f.path, targetId, mode: isGeneric ? 'normalize' : 'retarget', intoVaultId, outPath, targetProfile, fullSpectrum, bandSwap });
       } catch (e) { r = { ok: false, error: String((e && e.message) || e) }; }
       if (r && r.ok) {
         ok++;
-        const nWarn = ((r.report || {}).warnings || []).length;
-        if (stat) { stat.textContent = nWarn ? `✓ ⚠${nWarn}` : '✓'; stat.className = 'conv-batch-stat ok'; stat.dataset.i = i; }
+        const rep = r.report || {};
+        const nWarn = (rep.warnings || []).length;
+        // Surface whether the colour flag actually kicked in for this file (engine reports it per file).
+        const cbadge = rep.fullSpectrum ? ' ✦' : rep.bandSwap ? ` ⇄${rep.bandSwaps || ''}` : '';
+        if (stat) { stat.textContent = (nWarn ? `✓ ⚠${nWarn}` : '✓') + cbadge; stat.className = 'conv-batch-stat ok'; stat.dataset.i = i; if (cbadge) stat.title = rep.fullSpectrum ? (t('conv.fs_applied') || 'Full Spectrum mix applied') : (t('conv.band_applied') || 'Band-swap pauses added'); }
         if (dest === 'library' && typeof importConvertedAsNew === 'function') {
           await importConvertedAsNew({ vaultId: intoVaultId, filename: r.filename, ext: r.ext, size: r.size, targetId, targetName, sourceName: f.name, noSwitch: true });
         }
@@ -804,14 +817,29 @@
     if (!batchFiles.length) return '';
     const rows = batchFiles.map((f, i) => `
       <div class="conv-batch-row"><span class="conv-batch-name" title="${escapeHtml(f.path)}">📄 ${escapeHtml(f.name)}</span><span class="conv-batch-stat" data-i="${i}"></span><button type="button" class="conv-batch-x" data-batch-x="${i}" title="${escapeHtml(t('conv.batch_remove') || 'Remove from batch')}" aria-label="${escapeHtml(t('conv.batch_remove') || 'Remove from batch')}">✕</button></div>`).join('');
+    const selTarget = batchTargetId || firstTargetId();
+    const tp = getProfileById(selTarget);
+    const P = profiles();
+    const isGeneric = P && selTarget === P.GENERIC.id;
+    // Multicolour handling row: only when the target can actually mix/swap. Applied blanket across the
+    // batch; the engine no-ops it per file where it doesn't apply, so it never corrupts a plain file.
+    const colourCapable = !isGeneric && !!(tp && tp.supportsMixedFilament && tp.maxColors >= 2);
+    const heads = (tp && tp.maxColors) || 4;
+    const colourRow = !colourCapable ? '' : `
+        <div class="conv-batch-colour">
+          <label class="conv-label">${escapeHtml(t('conv.batch_colour') || 'Files with more colours than slots')}</label>
+          <label class="conv-dest-opt"><input type="radio" name="convBatchColour" value="merge"${batchColorMode === 'merge' ? ' checked' : ''}> ${escapeHtml((t('conv.batch_colour_merge') || 'Merge to the nearest {n} slots').replace('{n}', heads))}</label>
+          <label class="conv-dest-opt"><input type="radio" name="convBatchColour" value="fs"${batchColorMode === 'fs' ? ' checked' : ''}> ${escapeHtml((t('conv.batch_colour_fs') || 'Full Spectrum — mix extra colours across {n} heads').replace('{n}', heads))}</label>
+          <label class="conv-dest-opt"><input type="radio" name="convBatchColour" value="band"${batchColorMode === 'band' ? ' checked' : ''}> ${escapeHtml(t('conv.batch_colour_band') || 'Band-swap (M600) for cleanly banded files')}</label>
+        </div>`;
     return `
       <div class="conv-batch">
         <label class="conv-label">${escapeHtml(t('conv.batch_target') || 'Convert all to')}</label>
-        <select id="convBatchTarget" class="conv-target">${targetOptions(firstTargetId())}</select>
+        <select id="convBatchTarget" class="conv-target">${targetOptions(selTarget)}</select>
         <div class="conv-dest">
           <label class="conv-dest-opt"><input type="radio" name="convBatchDest" value="library" checked> ${escapeHtml(t('conv.batch_dest_lib') || 'Add all to my Print-File library')}</label>
           <label class="conv-dest-opt"><input type="radio" name="convBatchDest" value="folder"> ${escapeHtml(t('conv.batch_dest_folder') || 'Save all to a folder…')}</label>
-        </div>
+        </div>${colourRow}
         <div class="conv-batch-list">${rows}</div>
         <button class="btn primary" id="convBatchRun">🔄 ${escapeHtml((t('conv.batch_run') || 'Convert {n} files').replace('{n}', batchFiles.length))}</button>
       </div>`;
@@ -835,6 +863,12 @@
         if (i >= 0 && i < batchFiles.length) batchFiles.splice(i, 1);
         refreshBatchPanel();
       };
+    });
+    // Changing the target changes which colour options apply → re-render so the row appears/updates.
+    const tsel = document.getElementById('convBatchTarget');
+    if (tsel) tsel.onchange = () => { batchTargetId = tsel.value; batchColorMode = 'merge'; refreshBatchPanel(); };
+    document.querySelectorAll('#convBatchPanel input[name="convBatchColour"]').forEach((r) => {
+      r.onchange = () => { if (r.checked) batchColorMode = r.value; };
     });
   }
 
