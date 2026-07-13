@@ -60,6 +60,7 @@ const { bambuFtpUpload } = require('./lib/bambu-ftp');
 const { sendSms } = require('./lib/sms');
 const cloudClient = require('./lib/cloud-client');
 const bedreadyLibrary = require('./lib/bedready-library');
+const calibProfile = require('./lib/calibration-profile');
 const orcaFila = require('./lib/orca-filament-install');
 // Login-CSRF guard for the bedready:// sign-in handoff: only honour a deep link the app itself just
 // initiated (user clicked "Connect"). Armed by hub:bedready-open-signin, checked in handleBedreadyLink.
@@ -2305,6 +2306,17 @@ ipcMain.handle('hub:orca-fila-reveal', async (_e, { slicerId } = {}) => {
 
 ipcMain.handle('hub:orca-fila-installed', (_e, { slicerId } = {}) => {
   try { return { ok: true, names: orcaFila.installedFilamentNames(slicerId) }; }
+  catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+// Calibration → tuned OrcaSlicer filament profile (Bed Ready). Targets = detected slicers with their
+// printers + the user's own filament presets (bases to tune from); save writes the tuned preset in.
+ipcMain.handle('hub:calib-targets', () => {
+  try { return { ok: true, targets: calibProfile.calibrationTargets() }; }
+  catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+ipcMain.handle('hub:calib-save-profile', (_e, opts = {}) => {
+  try { return calibProfile.saveCalibratedProfile(opts); }
   catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 

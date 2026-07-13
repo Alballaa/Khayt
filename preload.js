@@ -31,6 +31,8 @@ contextBridge.exposeInMainWorld('hubAPI', {
   orcaFilaInstall:      (item, slicerId, printerLabel) => ipcRenderer.invoke('hub:orca-fila-install', { item, slicerId, printerLabel }),
   orcaFilaReveal:       (slicerId) => ipcRenderer.invoke('hub:orca-fila-reveal', { slicerId }),
   orcaFilaInstalled:    (slicerId) => ipcRenderer.invoke('hub:orca-fila-installed', { slicerId }),
+  calibTargets:         () => ipcRenderer.invoke('hub:calib-targets'),
+  calibSaveProfile:     (opts) => ipcRenderer.invoke('hub:calib-save-profile', opts),
 
   // Product images (full-resolution on disk in userData/products/)
   saveProductImage:   (productId, dataUrl) => ipcRenderer.invoke('hub:save-product-image', productId, dataUrl),
