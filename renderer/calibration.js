@@ -165,6 +165,23 @@
           <button type="button" class="btn ghost" id="calSave">Save result</button>
         </div>
         <div id="calLog"></div>
+
+        <div class="cal-log-head">Save as a tuned OrcaSlicer profile</div>
+        <div class="cal-save" id="calSaveWrap" style="display:none;">
+          <div class="cal-blurb">Turn your measured results into a tuned filament preset in your slicer — based on one you already have, so nothing else changes. Leave a field blank to keep its current value (shown as the hint).</div>
+          <div class="cal-row"><label>Slicer</label><select id="calSlicer"></select><label>Base filament</label><select id="calBase"></select></div>
+          <div class="cal-row"><label>Printer</label><select id="calPrinter"></select><label>New name</label><input type="text" id="calName" placeholder="e.g. PolyLite PLA (tuned)"></div>
+          <div class="cal-vals" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(116px,1fr));gap:8px;margin:10px 0;">
+            <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--text-muted,#869390);">Nozzle °C<input type="number" id="cvTemp" min="150" max="350" step="1"></label>
+            <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--text-muted,#869390);">Flow ratio<input type="number" id="cvFlow" min="0.5" max="1.5" step="0.001"></label>
+            <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--text-muted,#869390);">Pressure adv.<input type="number" id="cvPa" min="0" max="2" step="0.001"></label>
+            <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--text-muted,#869390);">Retraction mm<input type="number" id="cvRet" min="0" max="10" step="0.1"></label>
+            <label style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--text-muted,#869390);">Max vol mm³/s<input type="number" id="cvMvs" min="1" max="80" step="0.5"></label>
+          </div>
+          <button type="button" class="btn primary" id="calWrite">💾 Save tuned profile to slicer</button>
+          <div id="calWriteMsg" role="status" aria-live="polite" style="margin-top:8px;font-size:13px;min-height:16px;"></div>
+        </div>
+        <div id="calSaveEmpty" class="cal-log-empty" style="display:none;">No slicer detected — open OrcaSlicer or Snapmaker Orca (and add a filament) to save a tuned profile. Tip: use <b>Filament profiles</b> on the home screen to install a base filament first.</div>
       </div>`;
 
     const detailHtml = () => {
@@ -220,6 +237,66 @@
         });
         paint();
         paintLog();
+
+        // ---- Calibration → tuned OrcaSlicer profile (desktop only) -------------
+        const saveWrap = modal.querySelector('#calSaveWrap');
+        const saveEmpty = modal.querySelector('#calSaveEmpty');
+        let targets = [];
+        const opt = (v, label, sel) => `<option value="${esc(v)}"${sel ? ' selected' : ''}>${esc(label)}</option>`;
+        const curSlicerT = () => { const s = modal.querySelector('#calSlicer'); const id = s ? s.value : ''; return targets.find((x) => x.id === id) || targets[0]; };
+
+        const prefillFromBase = () => {
+          const s = curSlicerT(); if (!s) return;
+          const f = s.filaments.find((x) => x.file === modal.querySelector('#calBase').value);
+          const cur = (f && f.current) || {};
+          const set = (id, val, ph) => { const el = modal.querySelector(id); if (el) { el.value = ''; el.placeholder = (val != null && val !== '') ? String(val) : ph; } };
+          set('#cvTemp', cur.nozzleTemp, 'e.g. 205'); set('#cvFlow', cur.flowRatio, 'e.g. 0.98');
+          set('#cvPa', cur.pressureAdvance, 'e.g. 0.02'); set('#cvRet', cur.retractionLength, 'e.g. 0.8');
+          set('#cvMvs', cur.maxVolSpeed, 'e.g. 12');
+          const nameEl = modal.querySelector('#calName'); if (nameEl && f) nameEl.placeholder = f.name + ' (tuned)';
+        };
+        const fillBaseAndPrinter = () => {
+          const s = curSlicerT(); if (!s) return;
+          modal.querySelector('#calBase').innerHTML = s.filaments.length
+            ? s.filaments.map((f) => opt(f.file, f.name, false)).join('')
+            : '<option value="">— no filament presets —</option>';
+          const def = s.printers.find((p) => /snapmaker u1/i.test(p.label)) || s.printers[0];
+          modal.querySelector('#calPrinter').innerHTML = s.printers.length
+            ? s.printers.map((p) => opt(p.label, p.label, def && p.label === def.label)).join('')
+            : '<option value="">— any —</option>';
+          prefillFromBase();
+        };
+        const writeProfile = async () => {
+          const s = curSlicerT(); if (!s) return;
+          const msg = modal.querySelector('#calWriteMsg');
+          const say = (html, color) => { if (msg) msg.innerHTML = '<span style="color:' + (color || 'var(--text-muted,#869390)') + '">' + html + '</span>'; };
+          const baseFile = modal.querySelector('#calBase').value;
+          if (!baseFile) { say('Add a filament preset to your slicer first (Home → Filament profiles).', 'var(--danger,#e0492f)'); return; }
+          const val = (id) => { const v = modal.querySelector(id).value.trim(); return v === '' ? undefined : v; };
+          const values = { nozzleTemp: val('#cvTemp'), flowRatio: val('#cvFlow'), pressureAdvance: val('#cvPa'), retractionLength: val('#cvRet'), maxVolSpeed: val('#cvMvs') };
+          if (!Object.keys(values).some((k) => values[k] !== undefined)) { say('Enter at least one measured value.', 'var(--danger,#e0492f)'); return; }
+          say('Saving…');
+          try {
+            const r = await hub().calibSaveProfile({ slicerId: s.id, baseFile, printerLabel: modal.querySelector('#calPrinter').value || undefined, name: modal.querySelector('#calName').value.trim() || undefined, values });
+            if (!r || !r.ok) { say(esc((r && r.error) || 'Could not save the profile.'), 'var(--danger,#e0492f)'); return; }
+            say('Saved “' + esc(r.name) + '” to ' + esc(r.slicer) + '. Relaunch it to see the tuned filament.', 'var(--ok,#159d68)');
+            if (typeof toast === 'function') toast('Tuned profile saved ✓', 'success');
+          } catch (e) { say(esc((e && e.message) || 'Could not save the profile.'), 'var(--danger,#e0492f)'); }
+        };
+
+        const H = hub();
+        if (H && typeof H.calibTargets === 'function') {
+          H.calibTargets().then((r) => {
+            targets = (r && r.ok && Array.isArray(r.targets)) ? r.targets : [];
+            if (!targets.length) { if (saveEmpty) saveEmpty.style.display = ''; return; }
+            if (saveWrap) saveWrap.style.display = '';
+            modal.querySelector('#calSlicer').innerHTML = targets.map((s) => opt(s.id, s.label, false)).join('');
+            modal.querySelector('#calSlicer').addEventListener('change', fillBaseAndPrinter);
+            modal.querySelector('#calBase').addEventListener('change', prefillFromBase);
+            modal.querySelector('#calWrite').addEventListener('click', writeProfile);
+            fillBaseAndPrinter();
+          }).catch(() => { if (saveEmpty) saveEmpty.style.display = ''; });
+        }
       },
     });
   }
