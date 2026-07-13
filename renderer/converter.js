@@ -907,6 +907,7 @@
           <button class="btn ghost" id="convBatchPick">🗂 ${escapeHtml(t('conv.batch_pick') || 'Batch convert…')}</button>
           ${hub() && hub().stlPick ? `<button class="btn ghost" id="convStlBtn">📐 ${escapeHtml(t('conv.stl_pick') || 'STL → 3MF…')}</button>` : ''}
           ${hub() && hub().mfToStl ? `<button class="btn ghost" id="convToStlBtn">📤 ${escapeHtml(t('conv.tostl_pick') || '3MF → STL…')}</button>` : ''}
+          ${hub() && hub().mfBands ? `<button class="btn ghost" id="convSwapBtn">🎨 ${escapeHtml(t('conv.swap_pick') || 'Colour-swap plan…')}</button>` : ''}
         </div>
         <div class="conv-dropzone" id="convDrop" style="margin-top:14px;padding:20px;border:2px dashed var(--border,#cbd5d1);border-radius:14px;text-align:center;color:var(--text-muted,#869390);font-size:13.5px;transition:border-color .15s ease, background .15s ease;">⤓ ${escapeHtml(t('conv.drop') || 'or drag a 3MF / STL file here')}</div>
         <p class="conv-tip">${escapeHtml(t('conv.tip') || 'Tip: you can also hit Convert on any 3MF in your Print-File library.')}</p>
@@ -1003,10 +1004,82 @@
       previewConfirm({ path: r.path, name: r.name, title: `${_titleIco}${t('conv.tostl_pick') || '3MF → STL'}`, confirmLabel: t('conv.tostl_go') || 'Extract STL', onConfirm: doExtract });
     };
 
+    const swapBtn = document.getElementById('convSwapBtn');
+    if (swapBtn) swapBtn.onclick = async () => {
+      const r = await hub().mfPick();
+      if (!r || !r.ok) return;
+      toast(t('conv.swap_working') || 'Analysing colours…', 'info', 1400);
+      let a;
+      try { a = await hub().mfBands(r.path, { heads: 1 }); }
+      catch (e) { toast(String((e && e.message) || e), 'error'); return; }
+      openSwapPlanModal(a, r.name);
+    };
+
     const cpSave = document.getElementById('convCpSave');
     if (cpSave) cpSave.onclick = () => saveCustomPrinter(document.getElementById('convCpForm'));
     el.querySelectorAll('[data-act="cp-remove"]').forEach((b) => { b.onclick = () => removeCustomPrinter(b.dataset.id); });
     el.querySelectorAll('[data-act="preset-remove"]').forEach((b) => { b.onclick = () => removePreset(b.dataset.id); });
+  }
+
+  // ---- Single-extruder colour-swap plan ------------------------------------
+  // A vertically colour-banded painted 3MF can be printed on ANY pause-capable printer by swapping
+  // filament at each colour change (M600). analyzeColorBands(heads:1) gives the swap heights + a ready
+  // Orca custom_gcode_per_layer.xml. This generalizes the U1 band-swap to single-extruder printers.
+  const cssHex = (h) => (/^#[0-9a-fA-F]{3,8}$/.test(String(h || '')) ? h : '#888');
+  const swapChip = (hex) => `<span style="display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:middle;border:1px solid rgba(0,0,0,.2);background:${cssHex(hex)}"></span>`;
+
+  function swapStartColour(a) {
+    const pal = Array.isArray(a.palette) ? a.palette : [];
+    return (a.bands && a.bands[0] && pal[a.bands[0].state - 1]) || pal[0] || '';
+  }
+  function swapPlanText(a, name) {
+    if (!a || !a.instructions) return '';
+    const start = swapStartColour(a);
+    const lines = [`Colour-swap plan — ${name || 'model'}`, `Load to start: ${start || '?'}`, `${a.instructions.length} swaps (single extruder, M600):`];
+    a.instructions.forEach((s) => lines.push(`  ${(+s.z).toFixed(2)} mm — swap to ${s.toColour || ('colour ' + s.toSlot)}`));
+    return lines.join('\n');
+  }
+
+  function openSwapPlanModal(a, name) {
+    const esc = (s) => escapeHtml(String(s == null ? '' : s));
+    let body;
+    if (!a || !a.available) {
+      body = `<p>${esc((a && a.error) || 'Could not read colour data from that file.')}</p>`;
+    } else if (!a.banded) {
+      body = `<p>This model isn’t vertically colour-banded — its colours share layers, so a single-extruder swap can’t reproduce it (it needs a multi-material printer).</p><p class="conv-tip">${esc(a.reason || '')}</p>`;
+    } else if (!a.instructions || !a.instructions.length) {
+      body = `<p>No swaps needed — this model is effectively a single colour.</p>`;
+    } else {
+      const start = swapStartColour(a);
+      const steps = a.instructions.map((s) => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--border,#e1dace);">
+        <b style="font-family:monospace;min-width:70px;">${esc((+s.z).toFixed(2))} mm</b>
+        ${swapChip(s.toColour)} <span>Swap to ${esc((s.toColour || '').toUpperCase() || ('colour ' + s.toSlot))}</span>
+      </div>`).join('');
+      body = `
+        <p>${swapChip(start)} <b>Load to start:</b> ${esc((start || '').toUpperCase() || '—')}</p>
+        <p class="conv-sub">${a.colorCount} colours · <b>${a.instructions.length}</b> filament swap${a.instructions.length === 1 ? '' : 's'} (M600) for a single-extruder printer.</p>
+        <div style="margin:8px 0 12px;">${steps}</div>
+        <div class="cal-actions"><button type="button" class="btn primary" id="swapSaveXml">💾 Save pauses (.xml)</button><button type="button" class="btn ghost" id="swapCopy">📋 Copy plan</button></div>
+        <p class="conv-tip">Slice your model as a single colour, then pause at each height above (each is an M600 filament change) — or drop the saved Orca <code>custom_gcode_per_layer.xml</code> into your project.</p>`;
+    }
+    openFormModal({
+      title: `${_titleIco}Colour-swap plan`,
+      bodyHtml: `<div class="conv-swap-wrap">${body}</div>`,
+      noSave: true,
+      onMount(modal) {
+        const saveBtn = modal.querySelector('#swapSaveXml');
+        if (saveBtn) saveBtn.onclick = async () => {
+          if (!(hub() && hub().saveTextFile)) return;
+          const base = String(name || 'model').replace(/\.[^.]+$/, '').replace(/[^a-z0-9._-]+/gi, '_') || 'model';
+          const rr = await hub().saveTextFile({ content: a.customGcodeXml, defaultName: base + '-swap-pauses.xml', filters: [{ name: 'Orca custom G-code', extensions: ['xml'] }] });
+          if (rr && rr.ok !== false) toast('Saved swap pauses ✓', 'success');
+        };
+        const copyBtn = modal.querySelector('#swapCopy');
+        if (copyBtn) copyBtn.onclick = () => {
+          if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(swapPlanText(a, name)).then(() => toast(t('common.copied') || 'Copied!', 'success')).catch(() => {});
+        };
+      },
+    });
   }
 
   const pub = { renderConverter, openConverter, _renderPreviewInto: renderPreviewInto };

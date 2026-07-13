@@ -118,7 +118,7 @@ contextBridge.exposeInMainWorld('hubAPI', {
   mfAnalyze:  (p)     => ipcRenderer.invoke('hub:mf-analyze', { path: p }),
   mfConvert:  (opts)  => ipcRenderer.invoke('hub:mf-convert', opts),
   fsPlan:     (opts)  => ipcRenderer.invoke('hub:fs-plan', opts),
-  mfBands:    (p)     => ipcRenderer.invoke('hub:mf-bands', { path: p }),
+  mfBands:    (p, opts) => ipcRenderer.invoke('hub:mf-bands', { path: p, heads: opts && opts.heads, pauseGcode: opts && opts.pauseGcode }),
   orcaFilaments: ()   => ipcRenderer.invoke('hub:orca-filaments'),
   orcaPrinters:  ()   => ipcRenderer.invoke('hub:orca-printers'),
   orcaMachineInfo: (name) => ipcRenderer.invoke('hub:orca-machine-info', { name }),
