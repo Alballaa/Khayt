@@ -198,6 +198,7 @@
           '<button type="button" class="br-action" data-go="calculator-tab"><span class="ico" aria-hidden="true">◎</span><span class="t"><b>Calculator</b><span>cost per print</span></span></button>',
           '<button type="button" class="br-action" data-library="1"><span class="ico" aria-hidden="true">☁️</span><span class="t"><b>My BedReady library</b><span>sync your saved designs</span></span></button>',
           '<button type="button" class="br-action" data-filaments="1"><span class="ico" aria-hidden="true">🧵</span><span class="t"><b>Filament profiles</b><span>add to your slicer</span></span></button>',
+          '<button type="button" class="br-action" data-drylog="1"><span class="ico" aria-hidden="true">💧</span><span class="t"><b>Filament care</b><span>drying &amp; storage log</span></span></button>',
         '</div>',
       '</div>',
     ].join('');
@@ -214,6 +215,10 @@
         }
         if (b.getAttribute('data-filaments') && window.BedReadyFilaments && typeof window.BedReadyFilaments.open === 'function') {
           window.BedReadyFilaments.open();
+          return;
+        }
+        if (b.getAttribute('data-drylog') && window.BedReadyDryLog && typeof window.BedReadyDryLog.open === 'function') {
+          window.BedReadyDryLog.open();
           return;
         }
         var go = b.getAttribute('data-go');

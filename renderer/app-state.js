@@ -292,6 +292,7 @@ let envLogs        = [];
 let subscriptions  = []; // retainer / subscription plans (recurring revenue)
 let auditLog       = []; // append-only team activity log (who did what, when)
 let printFiles     = []; // 3.1: standalone print-file library (STL/3MF/gcode + previews)
+let filamentDryLog = []; // 3.2 (Bed Ready): filament drying/storage tracker
 
 /* ---------- Lazy id→record indexes ----------
  * O(1) lookups instead of a linear `.find` scan — the difference that keeps lookups fast at
@@ -402,6 +403,7 @@ function collectStoreCollections() {
     suppliers, purchaseOrders, testPrints, locations, operators, waitingList,
     waitingListHistory, timeEntries, shiftLogs, giftCards, slicerProfiles, envLogs,
     tombstones, machMaintTasks, loyaltyLedger, subscriptions, auditLog, printFiles,
+    filamentDryLog,
   };
 }
 
@@ -450,6 +452,7 @@ function replaceStoreFromSnapshot(store) {
   subscriptions = [];
   auditLog = [];
   printFiles = [];
+  filamentDryLog = [];
   settings = defaultSettings();
   applyStoreFromSnapshot(store);
 }
@@ -506,6 +509,7 @@ function applyStoreFromSnapshot(store) {
   if (store.subscriptions)       subscriptions       = store.subscriptions.filter(isObj);
   if (store.auditLog)            auditLog            = store.auditLog.filter(isObj);
   if (store.printFiles)          printFiles          = store.printFiles.filter(isValidRecord);
+  if (store.filamentDryLog)      filamentDryLog      = store.filamentDryLog.filter(isValidRecord);
   if (store.settings)            settings            = Object.assign({}, defaultSettings(), sanitiseForAssign(store.settings));
   migrateLanApiSettings();
   migrateLegacyDesignTheme();
