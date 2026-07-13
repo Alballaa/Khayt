@@ -143,6 +143,7 @@
   function renderPrintFiles() {
     const el = document.getElementById('printfiles-tab');
     if (!el) return;
+    wirePfDrop();
     const hasHub = !!(api() && api().printLibPick);
     const rows = filtered(_query);
     const total = (printFiles || []).length;
@@ -221,12 +222,8 @@
     renderPrintFiles();
   }
 
-  async function addPrintFile() {
-    const hub = api(); if (!hub || !hub.printLibPick) return;
-    const id = uid('PF');
-    let picked;
-    try { picked = await hub.printLibPick(id); } catch (err) { toast(String(err.message || err), 'error'); return; }
-    if (!picked) return;
+  // Build + persist a record from a copied-in file (shape from printLibPick / printLibCopyPath).
+  function ingestPicked(id, picked) {
     const ext = (picked.ext || '').toLowerCase();
     const rec = {
       id,
@@ -242,8 +239,55 @@
     printFiles.unshift(rec);
     saveAll();
     renderPrintFiles();
-    toast(t('plib.added') || 'File added', 'success');
     enrichPrintFile(rec, picked.fullPath);
+    return rec;
+  }
+
+  async function addPrintFile() {
+    const hub = api(); if (!hub || !hub.printLibPick) return;
+    const id = uid('PF');
+    let picked;
+    try { picked = await hub.printLibPick(id); } catch (err) { toast(String(err.message || err), 'error'); return; }
+    if (!picked) return;
+    ingestPicked(id, picked);
+    toast(t('plib.added') || 'File added', 'success');
+  }
+
+  // Import files dropped onto the library (each copied into its own record's vault). Skips anything the
+  // main-process handler rejects (non-print extensions).
+  async function addDroppedFiles(paths) {
+    const hub = api(); if (!hub || !hub.printLibCopyPath) return;
+    let added = 0, bad = 0;
+    for (const p of paths) {
+      const id = uid('PF');
+      let r;
+      try { r = await hub.printLibCopyPath(id, p); } catch (_) { bad++; continue; }
+      if (!r || !r.ok) { bad++; continue; }
+      ingestPicked(id, r);
+      added++;
+    }
+    if (added) toast(added === 1 ? (t('plib.added') || 'File added') : `${added} ${t('plib.files_added') || 'files added'}`, 'success');
+    else if (bad) toast(t('plib.drop_bad') || 'Drop STL, 3MF, OBJ or G-code files.', 'error');
+  }
+
+  // Bind drag-and-drop once to the (persistent) tab element; renderPrintFiles only swaps its innerHTML.
+  let _dropWired = false;
+  function wirePfDrop() {
+    if (_dropWired) return;
+    const host = document.getElementById('printfiles-tab');
+    if (!host) return;
+    _dropWired = true;
+    const hi = (on) => { const w = host.querySelector('.pf-wrap'); if (w) { w.style.outline = on ? '2px dashed var(--accent,#199e8f)' : ''; w.style.outlineOffset = on ? '6px' : ''; } };
+    const over = (e) => { if (!(api() && api().printLibCopyPath)) return; e.preventDefault(); e.stopPropagation(); hi(true); };
+    host.addEventListener('dragover', over);
+    host.addEventListener('dragenter', over);
+    host.addEventListener('dragleave', (e) => { e.preventDefault(); e.stopPropagation(); hi(false); });
+    host.addEventListener('drop', (e) => {
+      e.preventDefault(); e.stopPropagation(); hi(false);
+      const files = (e.dataTransfer && e.dataTransfer.files) ? Array.prototype.slice.call(e.dataTransfer.files) : [];
+      const paths = files.map((f) => f.path).filter(Boolean);
+      if (paths.length) addDroppedFiles(paths);
+    });
   }
 
   // ---- 3MF converter integration -------------------------------------------
@@ -268,7 +312,11 @@
     const id = meta.vaultId;
     const ext = (meta.ext || '3mf').toLowerCase();
     const baseName = String(meta.sourceName || 'model').replace(/\.[^.]+$/, '');
-    const name = meta.targetName ? `${baseName} → ${meta.targetName}` : `${baseName} (${t('conv.convert_short') || 'Converted'})`;
+    // displayName wins verbatim (e.g. a cloud-library design keeps its own title); otherwise fall back
+    // to the converted-file naming ("Model → Target" / "Model (Converted)").
+    const name = meta.displayName
+      ? String(meta.displayName)
+      : (meta.targetName ? `${baseName} → ${meta.targetName}` : `${baseName} (${t('conv.convert_short') || 'Converted'})`);
     const rec = {
       id, name, originalName: meta.filename,
       createdAt: Date.now(), updatedAt: Date.now(),

@@ -19,6 +19,8 @@ contextBridge.exposeInMainWorld('hubAPI', {
   bedreadyLinked:       () => ipcRenderer.invoke('hub:bedready-linked'),
   bedreadyLibrary:      () => ipcRenderer.invoke('hub:bedready-library'),
   bedreadyDownloadAll:  (items) => ipcRenderer.invoke('hub:bedready-download-all', { items }),
+  bedreadyImportToLib:  (item, vaultId) => ipcRenderer.invoke('hub:bedready-download-into-vault', { item, vaultId }),
+  bedreadyCover:        (url) => ipcRenderer.invoke('hub:bedready-cover', { url }),
   bedreadyOpenSignIn:   () => ipcRenderer.invoke('hub:bedready-open-signin'),
   bedreadyUnlink:       () => ipcRenderer.invoke('hub:bedready-unlink'),
   onBedreadyLinked:     (cb) => { ipcRenderer.on('bedready-linked', () => { try { cb(); } catch { /* noop */ } }); },
@@ -96,6 +98,7 @@ contextBridge.exposeInMainWorld('hubAPI', {
 
   // 3.1: Print-file library (standalone, order-independent)
   printLibPick:       (id)                => ipcRenderer.invoke('hub:printlib-pick-and-copy', id),
+  printLibCopyPath:   (id, srcPath)       => ipcRenderer.invoke('hub:printlib-copy-path', { id, srcPath }),
   printLibList:       (id)                => ipcRenderer.invoke('hub:printlib-list', id),
   printLibDelete:     (fullPath)          => ipcRenderer.invoke('hub:printlib-delete', fullPath),
   printLibSaveImage:  (id, name, dataUrl) => ipcRenderer.invoke('hub:printlib-save-image', { id, name, dataUrl }),

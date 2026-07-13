@@ -75,12 +75,27 @@
     lastFocus = null;
   }
 
+  // 1×1 transparent GIF — a cover <img> shows this until the main process returns the real data: URI,
+  // so there's no broken-image flash (remote img-src is blocked by the CSP; covers are proxied instead).
+  var BLANK = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
   function btn(label, kind) {
     // Solid brand teal (matches .btn.primary); the old purple→cyan→lime gradient was off-identity and
     // failed contrast at the lime end. --accent resolves in both light/dark themes.
     var cta = 'background:var(--accent,#199e8f);color:#fff;';
     var plain = 'background:var(--surface-2,#f2f6f5);color:var(--text,#14201e);border:1px solid var(--border,rgba(17,40,37,0.16));';
-    return '<button type="button" class="brl-btn" data-act="' + kind + '" style="cursor:pointer;border:0;border-radius:12px;padding:11px 18px;font-weight:600;font-size:14px;' + (kind === 'primary' || kind === 'connect' || kind === 'sync' || kind === 'download' ? cta : plain) + '">' + esc(label) + '</button>';
+    var primary = (kind === 'primary' || kind === 'connect' || kind === 'sync' || kind === 'import');
+    return '<button type="button" class="brl-btn" data-act="' + kind + '" style="cursor:pointer;border:0;border-radius:12px;padding:11px 18px;font-weight:600;font-size:14px;' + (primary ? cta : plain) + '">' + esc(label) + '</button>';
+  }
+
+  function loadCovers() {
+    if (!body || typeof api.bedreadyCover !== 'function') return;
+    Array.prototype.forEach.call(body.querySelectorAll('img.brl-cover[data-cover]'), function (img) {
+      var url = img.getAttribute('data-cover');
+      img.removeAttribute('data-cover'); // fetch each cover once
+      if (!url) return;
+      api.bedreadyCover(url).then(function (r) { if (r && r.ok && r.dataUrl) img.src = r.dataUrl; }).catch(function () {});
+    });
   }
 
   function setBody(html) { if (body) body.innerHTML = html; bindActions(); }
@@ -96,6 +111,7 @@
     if (act === 'connect') { try { api.bedreadyOpenSignIn(); } catch (e) {} renderConnecting(); return; }
     if (act === 'recheck') { await refresh(); return; }
     if (act === 'sync') { await sync(); return; }
+    if (act === 'import') { await importAll(); return; }
     if (act === 'download') { await downloadAll(); return; }
     if (act === 'unlink') { try { await api.bedreadyUnlink(); } catch (e) {} items = []; await refresh(); return; }
     if (act === 'close') { close(); return; }
@@ -119,7 +135,8 @@
     var list = '';
     if (items.length) {
       list = '<div style="margin:14px 0;display:grid;gap:8px;">' + items.map(function (it) {
-        var cover = it.cover ? '<img src="' + esc(it.cover) + '" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:8px;flex:0 0 auto;">'
+        var cover = it.cover
+          ? '<img class="brl-cover" data-cover="' + esc(it.cover) + '" src="' + BLANK + '" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:8px;flex:0 0 auto;background:var(--surface-3,#e8efed);">'
           : '<div style="width:44px;height:44px;border-radius:8px;background:var(--surface-3,#e8efed);flex:0 0 auto;"></div>';
         var meta = it.downloadUrl ? '' : '<span style="font-size:11px;color:var(--text-muted,#869390);"> · link only</span>';
         return '<div style="display:flex;align-items:center;gap:10px;padding:8px;border:1px solid var(--border,rgba(17,40,37,0.10));border-radius:10px;">' +
@@ -128,16 +145,19 @@
       }).join('') + '</div>';
     }
     var downloadable = items.filter(function (i) { return i.downloadUrl; }).length;
+    var canImport = downloadable && typeof api.bedreadyImportToLib === 'function' && typeof window.importConvertedAsNew === 'function';
     setBody(
       '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">' +
         '<span style="color:var(--text-muted,#869390);font-size:13px;">' + (items.length ? (items.length + ' saved design' + (items.length === 1 ? '' : 's')) : 'Connected — sync to pull your saves.') + '</span>' +
         btn('Sync', 'sync') +
       '</div>' + list +
       '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">' +
-        (downloadable ? btn('Download all (' + downloadable + ')', 'download') : '') +
+        (canImport ? btn('＋ Add all to Print Files (' + downloadable + ')', 'import') : '') +
+        (downloadable ? btn('Download to folder', 'download') : '') +
         btn('Disconnect', 'unlink') +
       '</div>' +
       '<div class="brl-result" role="status" aria-live="polite" style="margin-top:12px;font-size:13px;"></div>');
+    loadCovers();
   }
 
   function result(html, color) {
@@ -154,6 +174,36 @@
       renderLinked();
       result(items.length ? ('Found ' + items.length + ' saved design' + (items.length === 1 ? '' : 's') + '.') : 'No saved designs yet — save some on bedready.io.', 'var(--ok,#159d68)');
     } catch (e) { result(esc(e && e.message ? e.message : 'Sync failed.'), 'var(--danger,#e0492f)'); }
+  }
+
+  // Import saved designs straight into the Print-File Library (via a per-design vault download +
+  // importConvertedAsNew), so a synced design lands IN the app with a thumbnail instead of orphaned
+  // in a Downloads folder. Falls back to "Download to folder" if the bridge isn't available.
+  async function importAll() {
+    var list = items.filter(function (i) { return i.downloadUrl; });
+    if (!list.length) { result('Nothing to import.', 'var(--text-muted,#869390)'); return; }
+    if (typeof api.bedreadyImportToLib !== 'function' || typeof window.importConvertedAsNew !== 'function') {
+      result('This build can’t import into Print Files — use “Download to folder”.', 'var(--danger,#e0492f)'); return;
+    }
+    result('Adding ' + list.length + ' design' + (list.length === 1 ? '' : 's') + ' to your Print Files…');
+    var added = 0, failed = 0;
+    for (var i = 0; i < list.length; i++) {
+      var it = list[i];
+      try {
+        var vaultId = (typeof uid === 'function') ? uid('PF') : ('PF' + Date.now().toString(36) + i);
+        var r = await api.bedreadyImportToLib(it, vaultId);
+        if (!r || !r.ok) { failed++; continue; }
+        await window.importConvertedAsNew({
+          vaultId: vaultId, filename: r.filename, ext: r.ext, size: r.size,
+          displayName: it.title || it.slug, sourceName: r.filename, noSwitch: true,
+        });
+        added++;
+      } catch (e) { failed++; }
+    }
+    var msg = 'Added ' + added + ' design' + (added === 1 ? '' : 's') + ' to your Print Files.';
+    if (failed) msg += ' ' + failed + ' couldn’t be added.';
+    result(esc(msg), added ? 'var(--ok,#159d68)' : 'var(--danger,#e0492f)');
+    if (added && typeof switchTab === 'function') { close(); switchTab('printfiles-tab'); }
   }
 
   async function downloadAll() {
