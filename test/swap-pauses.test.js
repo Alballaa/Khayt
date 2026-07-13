@@ -77,3 +77,32 @@ test('insertSwapPauses is a no-op when no head is shared', () => {
   assert.equal(out, xml);
   assert.equal(instructions.length, 0);
 });
+
+// ── Single-extruder / variable head count (heads:1 = M600 at every colour change) ──
+test('single-extruder (nHeads=1) → a swap at every colour change', () => {
+  // 3 colours stacked, base = state 1. On one head: start 1, swap→2, swap→3 = 2 swaps.
+  const { instructions, customGcodeXml } = buildBandSwapPlan(
+    [band(1, 0, 4), band(2, 4, 8), band(3, 8, 12)], PALETTE, 'M600', 0.2, 1, 1);
+  assert.equal(instructions.length, 2);
+  assert.equal((customGcodeXml.match(/type="1"/g) || []).length, 2, 'one pause layer per swap');
+  assert.ok(customGcodeXml.includes('M600'));
+});
+
+test('nHeads=2 → the third colour reuses a head (1 swap)', () => {
+  // base(1)→h0, 2→h1, 3→h0(reuse) ⇒ one swap on head 0.
+  const { instructions } = buildBandSwapPlan(
+    [band(1, 0, 4), band(2, 4, 8), band(3, 8, 12)], PALETTE, 'M600', 0.2, 1, 2);
+  assert.equal(instructions.length, 1);
+});
+
+test('omitting nHeads preserves the U1 4-head default (3 colours → 0 swaps)', () => {
+  const { instructions } = buildBandSwapPlan(
+    [band(1, 0, 4), band(2, 4, 8), band(3, 8, 12)], PALETTE, 'M600', 0.2, 1);
+  assert.equal(instructions.length, 0);
+});
+
+test('single-extruder with a returning colour (A,B,A) → 2 swaps', () => {
+  const { instructions } = buildBandSwapPlan(
+    [band(1, 0, 4), band(2, 4, 8), band(1, 8, 12)], PALETTE, 'M600', 0.2, 1, 1);
+  assert.equal(instructions.length, 2); // 1→2, then 2→1
+});

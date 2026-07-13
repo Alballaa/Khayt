@@ -1529,12 +1529,13 @@ ipcMain.handle('hub:fs-plan', async (_e, { path: srcPath, targetId, targetProfil
 
 // Colour-band analysis: is this painted model cleanly VERTICALLY banded, so a swap-capable printer can
 // print every colour EXACTLY via M600 filament-swap pauses (instead of Full-Spectrum mixing)? Read-only.
-ipcMain.handle('hub:mf-bands', async (_e, { path: srcPath } = {}) => {
+ipcMain.handle('hub:mf-bands', async (_e, { path: srcPath, heads, pauseGcode } = {}) => {
   try {
     if (!srcPath || !mfReadAllowed(srcPath)) return { available: false, error: 'Source file is outside an allowed folder.' };
     const buf = await fs.promises.readFile(path.resolve(String(srcPath)));
     if (buf.length > MF_MAX_BYTES) return { available: false, error: 'File is too large.' };
-    return require('./lib/mf-convert').analyzeColorBands(buf);
+    // heads omitted → U1 4-head default (existing converter flow). heads:1 → single-extruder M600 plan.
+    return require('./lib/mf-convert').analyzeColorBands(buf, { heads: heads || undefined, pauseGcode: pauseGcode || undefined });
   } catch (e) { return { available: false, error: String((e && e.message) || e) }; }
 });
 
