@@ -578,3 +578,34 @@ html[data-app="bedready"] { accent-color: var(--accent); }
 /* The add-spool "Location / Branch" picker is multi-store language with no
    meaning for a solo maker — hide it (new spools stay "Unassigned"). */
 html[data-app="bedready"] #invLocationField { display: none !important; }
+
+/* ============================================================
+   A11Y — keyboard focus + reduced motion (Bed Ready flavor).
+   ============================================================ */
+/* The home quick-action cards and the two modal buttons (filament installer +
+   library) are bare <button>s that miss the shared focus system (which keys off
+   .btn / [role=button] / [data-act]). Give them the same 2px accent ring so
+   keyboard focus is consistent and visible across the new maker surfaces. */
+html[data-app="bedready"] .br-action:focus-visible,
+html[data-app="bedready"] .brf-install:focus-visible,
+html[data-app="bedready"] .brf-close:focus-visible,
+html[data-app="bedready"] .brf-retry:focus-visible,
+html[data-app="bedready"] .brf-reveal:focus-visible,
+html[data-app="bedready"] .brl-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Honour the OS "reduce motion" setting — the hero cards and primary buttons
+   animate translateY on hover; drop transforms/transitions/animations for users
+   who ask for less movement. Scoped to the flavor so it never touches Khayt. */
+@media (prefers-reduced-motion: reduce) {
+  html[data-app="bedready"] *,
+  html[data-app="bedready"] *::before,
+  html[data-app="bedready"] *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

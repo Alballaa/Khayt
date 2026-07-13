@@ -187,7 +187,7 @@
           '<div class="br-actions">',
             '<button type="button" class="br-action" data-go="converter-tab"><span class="ico" aria-hidden="true">🔄</span><span class="t"><b>Convert a file</b><span>3MF / STL → any printer</span></span></button>',
             '<button type="button" class="br-action orange" data-go="colorstudio-tab"><span class="ico" aria-hidden="true">🎨</span><span class="t"><b>Colour Studio</b><span>plan multi-colour prints</span></span></button>',
-            '<button type="button" class="br-action" data-go="queue-tab"><span class="ico" aria-hidden="true">▤</span><span class="t"><b>Production queue</b><span>track your jobs</span></span></button>',
+            '<button type="button" class="br-action" data-go="queue-tab"><span class="ico" aria-hidden="true">▤</span><span class="t"><b>Print queue</b><span>track your jobs</span></span></button>',
           '</div>',
         '</section>',
         makerStatsHtml(),

@@ -30,6 +30,27 @@ test('safeFileBase keeps clean names and strips anything path-unsafe', () => {
   }
 });
 
+test('installedFilamentNames lists on-disk preset basenames for the "Installed ✓" check', () => {
+  const { base } = fakeSlicer({
+    name: 'OrcaSlicer',
+    userPresets: { 'SUNLU PLA Matte.json': { type: 'filament' }, 'eSUN PETG.json': { type: 'filament' }, 'notes.txt': {} },
+  });
+  process.env.KHAYT_ORCA_CONFIG_BASE = base;
+  try {
+    const names = inst.installedFilamentNames('orcaslicer').sort();
+    assert.deepEqual(names, ['SUNLU PLA Matte', 'eSUN PETG']); // .json only, extension stripped; notes.txt ignored
+    // Matches what the installer would name a profile (safeFileBase), so the renderer can pre-mark rows.
+    assert.ok(names.includes(inst.safeFileBase('SUNLU PLA Matte')));
+  } finally { delete process.env.KHAYT_ORCA_CONFIG_BASE; }
+});
+
+test('installedFilamentNames returns [] when no slicer is present', () => {
+  const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'orcabase-empty-'));
+  process.env.KHAYT_ORCA_CONFIG_BASE = empty;
+  try { assert.deepEqual(inst.installedFilamentNames('orcaslicer'), []); }
+  finally { delete process.env.KHAYT_ORCA_CONFIG_BASE; }
+});
+
 test('detectSlicers / targets: finds the slicer, folds nozzle variants, drops internal + template machines', () => {
   const { base } = fakeSlicer();
   process.env.KHAYT_ORCA_CONFIG_BASE = base;

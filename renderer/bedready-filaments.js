@@ -13,7 +13,21 @@
 
   var root = null, body = null, lastFocus = null;
   var manifest = null, slicers = [], sel = { slicerId: null, printerLabel: null };
-  var installed = {}; // installed: id → true (this session)
+  var installed = {}; // installed this session: id → true
+  var installedSet = new Set(); // preset basenames already on disk for the selected slicer (reported by main)
+
+  // Mirror of lib/orca-filament-install.js safeFileBase — lets us match a manifest profile to the file
+  // the installer would write, so a profile already on disk shows "Installed ✓" across sessions.
+  function safeName(name) {
+    return String(name || 'filament').replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').replace(/^[.\s]+|[.\s]+$/g, '').slice(0, 120) || 'filament';
+  }
+  function isDone(p) { return !!installed[p.id] || installedSet.has(safeName(p.name)); }
+  async function refreshInstalled() {
+    installedSet = new Set();
+    if (typeof api.orcaFilaInstalled !== 'function') return; // older preload
+    try { var r = await api.orcaFilaInstalled(sel.slicerId); if (r && r.ok && Array.isArray(r.names)) installedSet = new Set(r.names); }
+    catch (e) { /* leave empty — worst case a row shows Install when it's already there */ }
+  }
 
   function curSlicer() { return slicers.find(function (s) { return s.id === sel.slicerId; }) || slicers[0] || null; }
   function hasPrinter() { var s = curSlicer(); return !!(s && s.printers && s.printers.length); }
@@ -63,8 +77,18 @@
   }
 
   var isOpen = function () { return root && root.style.display !== 'none'; };
+  // Make the app behind the modal inert (non-focusable / hidden from AT), so a screen-reader virtual
+  // cursor can't wander the page underneath. Complements the Tab focus-trap.
+  function bgInert(on) {
+    if (!document.body) return;
+    Array.prototype.forEach.call(document.body.children, function (el) {
+      if (el === root) return;
+      try { if (on) el.setAttribute('inert', ''); else el.removeAttribute('inert'); } catch (e) { /* noop */ }
+    });
+  }
   function close() {
     if (root) root.style.display = 'none';
+    bgInert(false);
     if (lastFocus && lastFocus.focus) { try { lastFocus.focus(); } catch (e) { /* trigger gone */ } }
     lastFocus = null;
   }
@@ -123,7 +147,7 @@
   }
 
   function rowHtml(p) {
-    var done = installed[p.id];
+    var done = isDone(p);
     var canInstall = hasPrinter();
     var btn = done
       ? '<span class="brf-done" style="font-size:12px;color:var(--ok,#159d68);font-weight:600;white-space:nowrap;">Installed ✓</span>'
@@ -132,7 +156,7 @@
         : '<button type="button" class="brf-install" disabled title="Add a printer to this slicer first" style="border-radius:10px;padding:8px 14px;font-weight:600;font-size:13px;white-space:nowrap;opacity:.45;cursor:not-allowed;' + CTA + '">Install</button>';
     return '<div class="brf-row" data-id="' + esc(p.id) + '" style="display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid var(--border,rgba(17,40,37,0.10));border-radius:10px;">' +
       '<div style="min-width:0;flex:1 1 auto;">' +
-        '<div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(p.name) + '</div>' +
+        '<div title="' + esc(p.name) + '" style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(p.name) + '</div>' +
         '<div style="font-size:11px;color:var(--text-muted,#869390);">' + esc(p.vendor) + ' · ' + esc(p.type) + ' · 🌡️ ' + esc(p.nozzleTemp) + '°/' + esc(p.bedTemp) + '°</div>' +
       '</div>' + btn +
     '</div>';
@@ -157,13 +181,20 @@
     var h = body.querySelector('.brf-header');
     if (!h) return;
     h.innerHTML = headerHtml();
-    h.querySelector('.brf-reveal').addEventListener('click', function () { try { api.orcaFilaReveal(sel.slicerId); } catch (e) {} });
-    h.querySelector('.brf-slicer').addEventListener('change', function (e) {
+    h.querySelector('.brf-reveal').addEventListener('click', async function () {
+      try {
+        var r = await api.orcaFilaReveal(sel.slicerId);
+        if (!r || !r.ok) result(esc((r && r.error) || 'Couldn’t open the folder.'), 'var(--danger,#e0492f)');
+      } catch (e) { result('Couldn’t open the folder.', 'var(--danger,#e0492f)'); }
+    });
+    h.querySelector('.brf-slicer').addEventListener('change', async function (e) {
       sel.slicerId = e.target.value;
       var s = curSlicer();
       sel.printerLabel = (s && s.defaultPrinter) || null;
-      renderHeader(); // swap the printer control for the newly selected slicer
-      renderList();   // reflect whether the new slicer can install
+      renderHeader();          // swap the printer control for the newly selected slicer
+      renderList();            // reflect whether the new slicer can install
+      await refreshInstalled(); // re-read what's already installed for this slicer
+      renderList();
     });
     var ps = h.querySelector('.brf-printer');
     if (ps) ps.addEventListener('change', function (e) { sel.printerLabel = e.target.value; });
@@ -224,6 +255,7 @@
       var r = await api.orcaFilaManifest();
       if (!r || !r.ok || !r.manifest) throw new Error((r && r.error) || 'Couldn’t load the filament library.');
       manifest = r.manifest;
+      await refreshInstalled();
       mainView();
     } catch (e) { errorView(e && e.message ? e.message : 'Couldn’t load the filament library. Check your connection and try again.'); }
   }
@@ -232,6 +264,7 @@
     if (!root) build();
     lastFocus = (typeof document !== 'undefined' && document.activeElement) || null;
     root.style.display = 'flex';
+    bgInert(true);
     load();
     var closeBtn = root.querySelector('.brf-close');
     if (closeBtn && closeBtn.focus) { try { closeBtn.focus(); } catch (e) { /* noop */ } }

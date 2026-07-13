@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('hubAPI', {
   orcaFilaManifest:     () => ipcRenderer.invoke('hub:orca-fila-manifest'),
   orcaFilaInstall:      (item, slicerId, printerLabel) => ipcRenderer.invoke('hub:orca-fila-install', { item, slicerId, printerLabel }),
   orcaFilaReveal:       (slicerId) => ipcRenderer.invoke('hub:orca-fila-reveal', { slicerId }),
+  orcaFilaInstalled:    (slicerId) => ipcRenderer.invoke('hub:orca-fila-installed', { slicerId }),
 
   // Product images (full-resolution on disk in userData/products/)
   saveProductImage:   (productId, dataUrl) => ipcRenderer.invoke('hub:save-product-image', productId, dataUrl),

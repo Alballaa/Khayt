@@ -49,6 +49,23 @@ test('link / isLinked / read / clear round-trip', () => {
   assert.equal(acct.read(dir), null);
 });
 
+test('read decodes a legacy plaintext token file (backward compat)', () => {
+  // Files written before at-rest encryption have no __enc__ prefix — they must still read cleanly.
+  const dir = tmpDir();
+  fs.writeFileSync(path.join(dir, 'bedready-account.json'), JSON.stringify({ access: 'A', refresh: 'R', expires: 5 }));
+  assert.deepEqual(acct.read(dir), { access: 'A', refresh: 'R', expires: 5 });
+});
+
+test('read tolerates an encrypted field it cannot decrypt (returns it, never throws)', () => {
+  // On a machine without safeStorage (or after a device move) an __enc__ value can't be decrypted;
+  // read() must not throw — it returns the ciphertext, which the caller treats as an unusable token.
+  const dir = tmpDir();
+  fs.writeFileSync(path.join(dir, 'bedready-account.json'), JSON.stringify({ access: '__enc__abc', refresh: '__enc__def', expires: 5 }));
+  const d = acct.read(dir);
+  assert.equal(d.expires, 5);
+  assert.equal(d.refresh, '__enc__def');
+});
+
 test('link refuses tokens without a refresh token', () => {
   const dir = tmpDir();
   assert.equal(acct.link(dir, { access: 'A' }), false);

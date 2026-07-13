@@ -60,8 +60,17 @@
   }
 
   var isOpen = function () { return root && root.style.display !== 'none'; };
+  // Make the app behind the modal inert so an AT virtual cursor can't wander the page underneath.
+  function bgInert(on) {
+    if (!document.body) return;
+    Array.prototype.forEach.call(document.body.children, function (el) {
+      if (el === root) return;
+      try { if (on) el.setAttribute('inert', ''); else el.removeAttribute('inert'); } catch (e) { /* noop */ }
+    });
+  }
   function close() {
     if (root) root.style.display = 'none';
+    bgInert(false);
     if (lastFocus && lastFocus.focus) { try { lastFocus.focus(); } catch (e) { /* trigger gone */ } }
     lastFocus = null;
   }
@@ -175,6 +184,7 @@
     }
     lastFocus = (typeof document !== 'undefined' && document.activeElement) || null;
     root.style.display = 'flex';
+    bgInert(true);
     refresh();
     // Move focus into the dialog for keyboard/AT users (the close button is always present).
     var closeBtn = root.querySelector('.brl-close');

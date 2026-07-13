@@ -34,6 +34,14 @@ test('extFor prefers declared fileType, then filename, then .3mf', () => {
   assert.equal(lib.extFor({}), '.3mf');
 });
 
+test('extFor never returns a non-model extension from a hostile filename', () => {
+  // A renderer-supplied filename must not be able to land e.g. a .command/.bat in ~/Downloads.
+  assert.equal(lib.extFor({ filename: 'payload.command' }), '.3mf');
+  assert.equal(lib.extFor({ filename: 'x.bat' }), '.3mf');
+  assert.equal(lib.extFor({ fileType: 'exe', filename: 'run.sh' }), '.3mf');
+  assert.equal(lib.extFor({ filename: 'model.STL' }), '.stl'); // allowlisted, case-insensitive
+});
+
 test('downloadItem returns null when the item has no downloadUrl (no network)', async () => {
   assert.equal(await lib.downloadItem({ title: 'x' }, '/tmp/nope'), null);
   assert.equal(await lib.downloadItem(null, '/tmp/nope'), null);
