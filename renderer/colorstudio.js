@@ -44,6 +44,41 @@
     return de < 2 ? 'exact' : de < 5 ? 'close' : de < 12 ? 'ok' : 'far';
   }
 
+  // Bundled reference swatches (Bed Ready only; absent in Khayt) as extra match candidates, so the
+  // matcher answers "closest known filament" even with an empty inventory. Cached; matched via the `hex` key.
+  let _catalog = null;
+  function catalogCands() {
+    if (_catalog) return _catalog;
+    const src = Array.isArray(global.BedReadyFilamentSwatches) ? global.BedReadyFilamentSwatches : [];
+    const kc = KC();
+    _catalog = kc ? src.filter((s) => s && kc.hexToRgb(s.hex)) : [];
+    return _catalog;
+  }
+  const catalogLabel = (s) => [s.brand, s.name].filter(Boolean).join(' ') || (s.name || 'Filament');
+  const groupLbl = (txt) => `<div class="cs-group-lbl" style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted,#869390);margin:12px 0 6px;">${escapeHtml(txt)}</div>`;
+
+  function invRow(r) {
+    const low = (typeof isLowStock === 'function' && isLowStock(r));
+    return `<div class="cs-row" data-hex="${escapeHtml(r.color)}" title="${escapeHtml(t('cmix.copy') || 'Copy hex')}">
+      ${swatch(r.color, 26)}
+      <div class="cs-row-main">
+        <div class="cs-row-name">${escapeHtml(filamentLabel(r))}</div>
+        <div class="cs-row-sub">${escapeHtml(String(r.color).toUpperCase())} · ${Math.round(+r.weight || 0)} g${low ? ` · <span class="cs-low">${escapeHtml(t('cmix.low') || 'Low')}</span>` : ''}</div>
+      </div>
+      <span class="cs-de cs-de-${qualityClass(r.deltaE)}" title="ΔE (CIEDE2000)">ΔE ${r.deltaE.toFixed(1)}</span>
+    </div>`;
+  }
+  function catRow(r) {
+    return `<div class="cs-row" data-hex="${escapeHtml(r.hex)}" title="${escapeHtml(t('cmix.copy') || 'Copy hex')}">
+      ${swatch(r.hex, 26)}
+      <div class="cs-row-main">
+        <div class="cs-row-name">${escapeHtml(catalogLabel(r))}</div>
+        <div class="cs-row-sub">${escapeHtml(String(r.hex).toUpperCase())}${r.material ? ' · ' + escapeHtml(r.material) : ''}</div>
+      </div>
+      <span class="cs-de cs-de-${qualityClass(r.deltaE)}" title="ΔE (CIEDE2000)">ΔE ${r.deltaE.toFixed(1)}</span>
+    </div>`;
+  }
+
   // ---- state (persists across re-renders within a session) ----
   // Seed the demo gradient with the app's own accent pair so the first open
   // reinforces the brand: Bed Ready → teal→orange, Khayt → its red→blue.
@@ -130,23 +165,25 @@
     const box = document.getElementById('csMatchResults');
     const kc = KC();
     if (!box || !kc) return;
-    const cands = coloredFilaments();
-    if (!cands.length) {
+    const inv = coloredFilaments();
+    const cat = catalogCands();
+    if (!inv.length && !cat.length) {
       box.innerHTML = `<p class="cs-empty">${escapeHtml(t('cmix.no_filaments') || 'No filaments with a hex colour yet — set a colour on a filament in Inventory.')}</p>`;
       return;
     }
-    const ranked = kc.nearest(_target, cands, { limit: 12 });
-    box.innerHTML = ranked.map((r) => {
-      const low = (typeof isLowStock === 'function' && isLowStock(r));
-      return `<div class="cs-row" data-hex="${escapeHtml(r.color)}" title="${escapeHtml(t('cmix.copy') || 'Copy hex')}">
-        ${swatch(r.color, 26)}
-        <div class="cs-row-main">
-          <div class="cs-row-name">${escapeHtml(filamentLabel(r))}</div>
-          <div class="cs-row-sub">${escapeHtml(String(r.color).toUpperCase())} · ${Math.round(+r.weight || 0)} g${low ? ` · <span class="cs-low">${escapeHtml(t('cmix.low') || 'Low')}</span>` : ''}</div>
-        </div>
-        <span class="cs-de cs-de-${qualityClass(r.deltaE)}" title="ΔE (CIEDE2000)">ΔE ${r.deltaE.toFixed(1)}</span>
-      </div>`;
-    }).join('');
+    let html = '';
+    if (inv.length) {
+      const ranked = kc.nearest(_target, inv, { limit: cat.length ? 8 : 12 });
+      if (cat.length) html += groupLbl(t('cmix.from_stock') || 'In your inventory');
+      html += ranked.map(invRow).join('');
+    }
+    if (cat.length) {
+      const ranked = kc.nearest(_target, cat, { key: 'hex', limit: inv.length ? 6 : 12 });
+      html += groupLbl(t('cmix.from_catalog') || 'Closest known filaments');
+      html += ranked.map(catRow).join('');
+      if (!inv.length) html += `<p class="cs-hint-sm" style="font-size:12px;color:var(--text-muted,#869390);margin:8px 0 0;">${escapeHtml(t('cmix.catalog_hint') || 'Add a colour to a filament in Inventory to match against your own stock and get exact grams.')}</p>`;
+    }
+    box.innerHTML = html;
   }
 
   function updateBlend() {
@@ -155,12 +192,14 @@
     const mid = document.getElementById('csBlendMid');
     if (!strip || !kc) return;
     const cands = coloredFilaments();
+    const cat = cands.length ? null : catalogCands(); // fall back to the reference library when stock is empty
     const bl = kc.blend(_blendA, _blendB, 0.5);
     if (mid) mid.innerHTML = bl ? `${swatch(bl, 22)}<span class="cs-hex" data-hex="${bl}" title="${escapeHtml(t('cmix.copy') || 'Copy hex')}">${bl}</span>` : '';
     const g = kc.gradient(_blendA, _blendB, _steps);
     strip.innerHTML = g.map((hex) => {
-      const near = cands.length ? kc.nearest(hex, cands, { limit: 1 })[0] : null;
-      const nearTxt = near ? `${filamentLabel(near)} · ΔE ${near.deltaE.toFixed(1)}` : '';
+      const near = cands.length ? kc.nearest(hex, cands, { limit: 1 })[0]
+        : (cat && cat.length ? kc.nearest(hex, cat, { key: 'hex', limit: 1 })[0] : null);
+      const nearTxt = near ? `${cands.length ? filamentLabel(near) : catalogLabel(near)} · ΔE ${near.deltaE.toFixed(1)}` : '';
       return `<div class="cs-step" data-hex="${escapeHtml(hex)}" title="${escapeHtml((t('cmix.copy') || 'Copy hex') + (nearTxt ? ' · ' + nearTxt : ''))}">
         <span class="cs-step-sw" style="background:${safeCssColor(hex)}"></span>
         <span class="cs-step-hex">${escapeHtml(hex)}</span>
