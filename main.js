@@ -1860,7 +1860,10 @@ async function fetchPrinterStatus(machine) {
   if (type === 'bambu')     headers['Authorization'] = `Bearer ${accessCode}`;
 
   const get = async (p) => {
-    const res = await fetch(`${baseUrl}${p}`, { headers, signal: AbortSignal.timeout(5000) });
+    // redirect:'manual' so a compromised/misconfigured printer host can't 302 the poller off the
+    // validated LAN address to loopback/metadata (the response here IS returned to the renderer).
+    const res = await fetch(`${baseUrl}${p}`, { headers, redirect: 'manual', signal: AbortSignal.timeout(5000) });
+    if (res.status >= 300 && res.status < 400) throw new Error('Unexpected redirect from printer');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
   };
@@ -2246,15 +2249,23 @@ ipcMain.handle('hub:orca-fila-install', async (_e, { item, slicerId, printerLabe
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
-ipcMain.handle('hub:orca-fila-reveal', (_e, { slicerId } = {}) => {
+ipcMain.handle('hub:orca-fila-reveal', async (_e, { slicerId } = {}) => {
   try {
     const { shell } = require('electron');
     const dir = orcaFila.filamentDirFor(slicerId);
-    if (!dir) return { ok: false, error: 'No slicer found.' };
+    if (!dir) return { ok: false, error: 'No slicer detected yet.' };
     require('fs').mkdirSync(dir, { recursive: true });
-    shell.openPath(dir).catch(() => {});
+    // openPath resolves with an error STRING (not a rejection) when it can't open — surface it so the
+    // renderer can tell the user instead of the click silently doing nothing.
+    const err = await shell.openPath(dir);
+    if (err) return { ok: false, error: err };
     return { ok: true, dir };
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:orca-fila-installed', (_e, { slicerId } = {}) => {
+  try { return { ok: true, names: orcaFila.installedFilamentNames(slicerId) }; }
+  catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
 ipcMain.handle('hub:cloud-review-summary', async (_e, { url, shopId } = {}) => {
@@ -2707,17 +2718,16 @@ function handleBedreadyLink(url) {
   bedreadyLinkArmedAt = 0; // single-use
   const tokens = bedreadyAccount.parseDeepLink(url);
   if (!tokens) return;
-  // Nonce check (defence-in-depth over the arm window): if the link carries a state, it MUST equal the
-  // nonce we minted for this sign-in. A link with no state comes from a pre-nonce website build — accept
-  // it on the arm-window guarantee alone so a mid-rollout version skew can't break sign-in. Timing-safe
-  // compare avoids leaking the nonce via response timing.
+  // Nonce check (defence-in-depth over the arm window): the link MUST carry a `state` equal to the nonce
+  // we minted when we opened this sign-in (the website always echoes it). This closes the login-CSRF
+  // residual where a state-less link was accepted on the arm window alone. Timing-safe compare avoids
+  // leaking the nonce via response timing.
   const expected = bedreadyLinkNonce;
   bedreadyLinkNonce = ''; // single-use regardless of outcome
-  if (tokens.state) {
-    const a = Buffer.from(tokens.state);
-    const b = Buffer.from(expected);
-    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return;
-  }
+  if (!tokens.state || !expected) return;
+  const a = Buffer.from(tokens.state);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return;
   if (bedreadyAccount.link(app.getPath('userData'), tokens)) {
     const win = mainWindow || BrowserWindow.getAllWindows()[0];
     if (win) { try { if (win.isMinimized()) win.restore(); win.focus(); win.webContents.send('bedready-linked'); } catch { /* window gone */ } }
