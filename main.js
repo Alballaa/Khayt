@@ -1172,6 +1172,25 @@ ipcMain.handle('hub:printlib-pick-and-copy', async (event, id) => {
   return { filename, originalName, size: stat.size, ext, fullPath: destPath };
 });
 
+// Copy a KNOWN file path (e.g. from a drag-and-drop) into a record's vault — the no-dialog twin of
+// pick-and-copy. Extension-gated to real print files so a stray drop can't smuggle in something else.
+ipcMain.handle('hub:printlib-copy-path', async (_e, { id, srcPath } = {}) => {
+  try {
+    const src = path.resolve(String(srcPath || ''));
+    if (!src || !fs.existsSync(src) || !fs.statSync(src).isFile()) return { ok: false, error: 'File not found.' };
+    const originalName = path.basename(src);
+    const ext = path.extname(originalName).slice(1).toLowerCase();
+    if (!/^(stl|3mf|obj|gcode|gco)$/.test(ext)) return { ok: false, error: 'Not a print file (need STL, 3MF, OBJ or G-code).' };
+    const dir = printLibItemDir(id);
+    fs.mkdirSync(dir, { recursive: true });
+    const filename = `model-${Date.now().toString(36)}.${ext}`;
+    const destPath = path.join(dir, filename);
+    await fs.promises.copyFile(src, destPath);
+    const stat = await fs.promises.stat(destPath);
+    return { ok: true, filename, originalName, size: stat.size, ext, fullPath: destPath };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
 ipcMain.handle('hub:printlib-list', async (_e, id) => {
   const dir = printLibItemDir(id);
   if (!fs.existsSync(dir)) return [];
@@ -2219,6 +2238,27 @@ ipcMain.handle('hub:bedready-download-all', async (_e, { items } = {}) => {
     if (r.saved.length) shell.openPath(dest).catch(() => {});
     return { ok: true, dest, ...r };
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+// Download one library design straight into a Print-File Library record's vault folder, so a synced
+// design lands IN the app (with a thumbnail) instead of orphaned in ~/Downloads. Renderer mints the
+// vaultId, calls this, then creates the print-file record via importConvertedAsNew().
+ipcMain.handle('hub:bedready-download-into-vault', async (_e, { item, vaultId } = {}) => {
+  try {
+    if (!vaultId) return { ok: false, error: 'Missing library id.' };
+    const dir = printLibItemDir(vaultId);
+    fs.mkdirSync(dir, { recursive: true });
+    const out = await bedreadyLibrary.downloadItem(item, dir);
+    if (!out) return { ok: false, skipped: true };
+    const stat = fs.statSync(out);
+    return { ok: true, filename: path.basename(out), ext: path.extname(out).slice(1).toLowerCase() || '3mf', size: stat.size };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+// Fetch a design cover as a data: URI (the renderer CSP forbids remote img-src). SSRF-guarded in the lib.
+ipcMain.handle('hub:bedready-cover', async (_e, { url } = {}) => {
+  try { return { ok: true, dataUrl: await bedreadyLibrary.fetchCoverDataUrl(url) }; }
+  catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
 ipcMain.handle('hub:bedready-open-signin', () => {

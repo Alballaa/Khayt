@@ -303,7 +303,9 @@
         bar.className = 'conv-preview-ctrls';
         const b = (act, lbl, cls) => `<button type="button" class="btn ghost small${cls || ''}" data-pv="${act}">${escapeHtml(lbl)}</button>`;
         bar.innerHTML = b('iso', t('view3d.iso') || 'Iso') + b('front', t('view3d.front') || 'Front') + b('top', t('view3d.top') || 'Top') + b('side', t('view3d.side') || 'Side')
-          + `<span class="conv-preview-sp"></span>` + b('wire', '▦', ' pv-icon') + b('spin', '↻', ' pv-icon') + b('reset', '⤾', ' pv-icon') + b('expand', '⤢', ' pv-icon');
+          // Wireframe only exists on the software mesh path; the GPU (depth-buffered) viewer doesn't offer
+          // it, so hide the button there instead of showing a dead control.
+          + `<span class="conv-preview-sp"></span>` + (ctl._webgl ? '' : b('wire', '▦', ' pv-icon')) + b('spin', '↻', ' pv-icon') + b('reset', '⤾', ' pv-icon') + b('expand', '⤢', ' pv-icon');
         panel.appendChild(bar);
         bar.querySelectorAll('[data-pv]').forEach((btn) => btn.addEventListener('click', () => {
           const a = btn.dataset.pv;
@@ -906,6 +908,7 @@
           ${hub() && hub().stlPick ? `<button class="btn ghost" id="convStlBtn">📐 ${escapeHtml(t('conv.stl_pick') || 'STL → 3MF…')}</button>` : ''}
           ${hub() && hub().mfToStl ? `<button class="btn ghost" id="convToStlBtn">📤 ${escapeHtml(t('conv.tostl_pick') || '3MF → STL…')}</button>` : ''}
         </div>
+        <div class="conv-dropzone" id="convDrop" style="margin-top:14px;padding:20px;border:2px dashed var(--border,#cbd5d1);border-radius:14px;text-align:center;color:var(--text-muted,#869390);font-size:13.5px;transition:border-color .15s ease, background .15s ease;">⤓ ${escapeHtml(t('conv.drop') || 'or drag a 3MF / STL file here')}</div>
         <p class="conv-tip">${escapeHtml(t('conv.tip') || 'Tip: you can also hit Convert on any 3MF in your Print-File library.')}</p>
         <div id="convBatchPanel">${batchPanelHtml()}</div>
         ${presetManagerHtml()}
@@ -932,6 +935,38 @@
     };
     const run = document.getElementById('convBatchRun');
     if (run) run.onclick = runBatch;
+
+    // Drag-and-drop: dropping a .3mf opens the converter; a .stl runs the STL→3MF flow. Makers live in
+    // Finder/Explorer and reach for a drop before a file dialog.
+    (function wireDrop() {
+      const wrap = el.querySelector('.conv-wrap') || el;
+      const dz = document.getElementById('convDrop');
+      if (!wrap) return;
+      const hi = (on) => { if (!dz) return; dz.style.borderColor = on ? 'var(--accent,#199e8f)' : 'var(--border,#cbd5d1)'; dz.style.background = on ? 'var(--accent-soft,rgba(25,158,143,.08))' : 'transparent'; };
+      const over = (e) => { e.preventDefault(); e.stopPropagation(); hi(true); };
+      wrap.addEventListener('dragover', over);
+      wrap.addEventListener('dragenter', over);
+      wrap.addEventListener('dragleave', (e) => { e.preventDefault(); e.stopPropagation(); hi(false); });
+      wrap.addEventListener('drop', async (e) => {
+        e.preventDefault(); e.stopPropagation(); hi(false);
+        const files = (e.dataTransfer && e.dataTransfer.files) ? Array.prototype.slice.call(e.dataTransfer.files) : [];
+        const f = files.find((x) => /\.(3mf|stl)$/i.test(x.name));
+        if (!f) { if (files.length) toast(t('conv.drop_bad') || 'Drop a 3MF or STL file.', 'error'); return; }
+        const p = f.path; if (!p) return;
+        if (/\.3mf$/i.test(f.name)) { openConverter({ path: p, name: f.name }); return; }
+        const doConvert = async () => {
+          toast(t('conv.stl_working') || 'Converting STL…', 'info', 1600);
+          const vaultId = typeof uid === 'function' ? uid('PF') : ('PF' + Date.now().toString(36));
+          let c;
+          try { c = await hub().stlTo3mf({ path: p, intoVaultId: vaultId }); }
+          catch (err) { toast(String((err && err.message) || err), 'error'); return; }
+          if (!c || !c.ok) { toast((c && c.error) || (t('conv.stl_failed') || 'Could not convert that STL.'), 'error'); return; }
+          if (typeof importConvertedAsNew === 'function') await importConvertedAsNew({ vaultId, filename: c.filename, ext: c.ext, size: c.size, targetName: '3MF', sourceName: f.name });
+          toast(t('conv.stl_done') || 'STL converted to 3MF and added to your library.', 'success', 3600);
+        };
+        previewConfirm({ path: p, name: f.name, title: `${_titleIco}${t('conv.stl_pick') || 'STL → 3MF'}`, confirmLabel: t('conv.stl_go') || 'Convert to 3MF', onConfirm: doConvert });
+      });
+    })();
 
     const stlBtn = document.getElementById('convStlBtn');
     if (stlBtn) stlBtn.onclick = async () => {

@@ -106,6 +106,26 @@ test('downloadAll gives same-named designs distinct files instead of clobbering'
   }
 });
 
+test('fetchCoverDataUrl returns a data: URI for an image response', async () => {
+  await withFetch(async () => ({
+    ok: true, status: 200,
+    headers: { get: (h) => { h = String(h).toLowerCase(); return h === 'content-type' ? 'image/png' : (h === 'content-length' ? '3' : null); } },
+    body: null, arrayBuffer: async () => Buffer.from([1, 2, 3]),
+  }), async () => {
+    const d = await lib.fetchCoverDataUrl(PUBLIC);
+    assert.match(d, /^data:image\/png;base64,/);
+  });
+});
+
+test('fetchCoverDataUrl rejects a non-image, and a redirect to a private address (SSRF)', async () => {
+  await withFetch(async () => ({ ok: true, status: 200, headers: { get: (h) => (String(h).toLowerCase() === 'content-type' ? 'text/html' : null) }, body: null, arrayBuffer: async () => Buffer.from('x') }),
+    async () => { await assert.rejects(() => lib.fetchCoverDataUrl(PUBLIC), /not an image/); });
+  await withFetch(async (url) => {
+    if (String(url).includes('127.0.0.1')) return { ok: true, status: 200, headers: { get: () => null }, body: null, arrayBuffer: async () => Buffer.from('x') };
+    return { status: 302, ok: false, headers: { get: (h) => (String(h).toLowerCase() === 'location' ? 'https://127.0.0.1/c.png' : null) } };
+  }, async () => { await assert.rejects(() => lib.fetchCoverDataUrl(PUBLIC), /private|internal/); });
+});
+
 test('fetchLibrary rejects an empty token before any request', async () => {
   await assert.rejects(() => lib.fetchLibrary(''), /Sign in to BedReady/);
   await assert.rejects(() => lib.fetchLibrary('   '), /Sign in to BedReady/);
