@@ -10,7 +10,7 @@ const {
 } = require('../renderer/store.js');
 
 test('VERSION and SECRET_MASK are stable contract tokens', () => {
-  assert.equal(VERSION, 9); // v9: printFiles (standalone print-file library)
+  assert.equal(VERSION, 10); // v10: filamentDryLog (filament drying/storage tracker)
   assert.equal(SECRET_MASK, '__KHAYT_MASKED__');
 });
 

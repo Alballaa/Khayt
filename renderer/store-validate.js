@@ -3,7 +3,7 @@
  * @see KhaytStore.VERSION for export payload version (optional on disk snapshots).
  */
 (function (global) {
-  const STORE_VERSION = 9; // v9: printFiles (standalone print-file library); v8: machMaintTasks
+  const STORE_VERSION = 10; // v10: filamentDryLog (filament drying/storage tracker); v9: printFiles
   const MAX_EXPORT_VERSION = STORE_VERSION;
 
   /** @type {readonly string[]} */
@@ -13,7 +13,7 @@
     'suppliers', 'purchaseOrders', 'testPrints', 'locations', 'operators',
     'waitingList', 'waitingListHistory', 'timeEntries', 'shiftLogs', 'giftCards',
     'slicerProfiles', 'envLogs', 'tombstones', 'machMaintTasks', 'loyaltyLedger',
-    'printFiles', 'subscriptions', 'auditLog',
+    'printFiles', 'subscriptions', 'auditLog', 'filamentDryLog',
   ];
 
   function sanitisePlainObject(obj) {
@@ -85,6 +85,7 @@
     printFiles: isValidRecord,
     subscriptions: isValidRecord,
     auditLog: isPlainObject,
+    filamentDryLog: isValidRecord,
   };
 
   /**
