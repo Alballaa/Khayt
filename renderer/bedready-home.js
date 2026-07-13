@@ -176,7 +176,7 @@
       '<div class="br-home">',
         '<section class="br-hero">',
           '<p class="br-hero-eyebrow">Bed Ready · Maker Studio</p>',
-          '<h1>3D-print files,<br>ready for <span class="accent">any bed</span>.</h1>',
+          '<h1>3D-print files, ready for <span class="accent">any bed</span>.</h1>',
           '<p class="br-hero-sub">Convert, recolour and queue your prints — agnostic by design, nothing ever uploaded.</p>',
           '<div class="br-stickers">',
             '<span class="br-sticker spectrum">full-spectrum</span>',
@@ -197,7 +197,7 @@
           '<button type="button" class="br-action" data-go="printfiles-tab"><span class="ico" aria-hidden="true">🧊</span><span class="t"><b>Print files</b><span>your model library</span></span></button>',
           '<button type="button" class="br-action" data-go="calculator-tab"><span class="ico" aria-hidden="true">◎</span><span class="t"><b>Calculator</b><span>cost per print</span></span></button>',
           '<button type="button" class="br-action" data-library="1"><span class="ico" aria-hidden="true">☁️</span><span class="t"><b>My BedReady library</b><span>sync your saved designs</span></span></button>',
-          '<button type="button" class="br-action" data-filaments="1"><span class="ico" aria-hidden="true">🎨</span><span class="t"><b>Filament profiles</b><span>add to your slicer</span></span></button>',
+          '<button type="button" class="br-action" data-filaments="1"><span class="ico" aria-hidden="true">🧵</span><span class="t"><b>Filament profiles</b><span>add to your slicer</span></span></button>',
         '</div>',
       '</div>',
     ].join('');

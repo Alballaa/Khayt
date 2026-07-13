@@ -140,13 +140,30 @@
       </figure>`).join('')}</div>`;
   }
 
+  // Inner HTML of the results area only (grid / gallery / empty state). Kept separate from the
+  // header + search box so a keystroke re-renders just the list, leaving the <input> — and its
+  // caret — untouched.
+  function listInnerHtml() {
+    const hasHub = !!(api() && api().printLibPick);
+    const isGallery = _view === 'gallery';
+    const rows = filtered(_query);
+    const total = (printFiles || []).length;
+    return !hasHub ? `<div class="pf-empty">${escapeHtml(t('plib.desktop_only') || 'The print-file library is available in the desktop app.')}</div>`
+      : isGallery ? galleryHtml()
+      : rows.length ? `<div class="pf-grid">${rows.map(cardHtml).join('')}</div>`
+      : `<div class="pf-empty">${escapeHtml(total ? (t('plib.no_match') || 'No files match your search.') : (t('plib.empty') || 'No print files yet. Add your first STL, 3MF or G-code file.'))}</div>`;
+  }
+
+  function renderList() {
+    const list = document.getElementById('pfList');
+    if (list) list.innerHTML = listInnerHtml();
+  }
+
   function renderPrintFiles() {
     const el = document.getElementById('printfiles-tab');
     if (!el) return;
     wirePfDrop();
     const hasHub = !!(api() && api().printLibPick);
-    const rows = filtered(_query);
-    const total = (printFiles || []).length;
     const isGallery = _view === 'gallery';
     el.innerHTML = `
       <div class="pf-wrap">
@@ -165,15 +182,12 @@
             <button class="btn primary" data-act="pf-add" ${hasHub ? '' : 'disabled'}>＋ ${escapeHtml(t('plib.add') || 'Add file')}</button>
           </div>
         </div>
-        ${!hasHub ? `<div class="pf-empty">${escapeHtml(t('plib.desktop_only') || 'The print-file library is available in the desktop app.')}</div>`
-          : isGallery ? galleryHtml()
-          : rows.length ? `<div class="pf-grid">${rows.map(cardHtml).join('')}</div>`
-          : `<div class="pf-empty">${escapeHtml(total ? (t('plib.no_match') || 'No files match your search.') : (t('plib.empty') || 'No print files yet. Add your first STL, 3MF or G-code file.'))}</div>`}
+        <div id="pfList">${listInnerHtml()}</div>
       </div>`;
 
     el.onclick = onClick;
     const search = document.getElementById('pfSearch');
-    if (search) search.oninput = (e) => { _query = e.target.value; renderPrintFiles(); const s = document.getElementById('pfSearch'); if (s) { s.focus(); s.selectionStart = s.selectionEnd = s.value.length; } };
+    if (search) search.oninput = (e) => { _query = e.target.value; renderList(); };
   }
 
   function onClick(e) {
