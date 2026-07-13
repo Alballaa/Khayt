@@ -49,10 +49,30 @@
   function filtered(query) {
     const list = Array.isArray(printFiles) ? printFiles : [];
     const q = (query || '').trim().toLowerCase();
-    const rows = q
+    let rows = q
       ? list.filter((r) => (r.name + ' ' + (r.originalName || '') + ' ' + (r.tags || []).join(' ') + ' ' + (r.material || '')).toLowerCase().includes(q))
       : list.slice();
+    if (_tagFilter) rows = rows.filter((r) => (r.tags || []).some((tg) => tg.toLowerCase() === _tagFilter.toLowerCase()));
     return rows.sort((a, b) => (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0) || (b.updatedAt || 0) - (a.updatedAt || 0));
+  }
+
+  // Distinct tags across all files, most-used first, for the filter bar.
+  function allTags() {
+    const counts = new Map();
+    for (const r of (printFiles || [])) for (const tg of (r.tags || [])) {
+      const key = String(tg).trim();
+      if (key) counts.set(key, (counts.get(key) || 0) + 1);
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  }
+
+  function tagBarHtml() {
+    const tags = allTags();
+    if (!tags.length) return '';
+    const chips = tags.map(([tg, n]) =>
+      `<button type="button" class="pf-tagchip ${_tagFilter && _tagFilter.toLowerCase() === tg.toLowerCase() ? 'on' : ''}" data-act="pf-tag" data-tag="${escapeHtml(tg)}">${escapeHtml(tg)} <span class="pf-tagchip-n">${n}</span></button>`).join('');
+    const clear = _tagFilter ? `<button type="button" class="pf-tagchip pf-tagclear" data-act="pf-tag-clear">✕ ${escapeHtml(t('plib.tag_clear') || 'Clear')}</button>` : '';
+    return `<div class="pf-tagbar" role="group" aria-label="${escapeHtml(t('plib.filter_tags') || 'Filter by tag')}">${chips}${clear}</div>`;
   }
 
   function thumbHtml(rec) {
@@ -94,6 +114,7 @@
           ${colorDotsHtml(rec)}
           ${prof ? `<div class="pf-prof">🛠 ${escapeHtml(prof.name)}</div>` : ''}
           ${rec.testedNotes ? `<div class="pf-notes">${escapeHtml(rec.testedNotes)}</div>` : ''}
+          ${Array.isArray(rec.tags) && rec.tags.length ? `<div class="pf-tags">${rec.tags.map((tg) => `<button type="button" class="pf-tag ${_tagFilter && _tagFilter.toLowerCase() === String(tg).toLowerCase() ? 'on' : ''}" data-act="pf-tag" data-tag="${escapeHtml(tg)}">${escapeHtml(tg)}</button>`).join('')}</div>` : ''}
           ${(rec.timesPrinted || rec.timesFailed) ? `<div class="pf-history" title="${escapeHtml(t('plib.history_title') || 'Print history')}">🖨 ${(rec.timesPrinted || 0)}× ${escapeHtml(t('plib.printed') || 'printed')}${rec.timesFailed ? ` · ${rec.timesFailed} ${escapeHtml(t('plib.failed') || 'failed')}` : ''}${rec.lastPrinted ? ` · ${escapeHtml(t('plib.last') || 'last')} ${escapeHtml(fmtPfDate(rec.lastPrinted))}` : ''}</div>` : ''}
           ${Array.isArray(rec.converted) && rec.converted.length ? `<div class="pf-converted">${rec.converted.map((c) => `
             <div class="pf-conv-row">
@@ -116,6 +137,7 @@
   }
 
   let _query = '';
+  let _tagFilter = ''; // active tag filter (empty = all)
   let _view = 'library'; // 'library' | 'gallery'
 
   // Finished-prints gallery: a photo-forward showcase of every print file you've
@@ -148,10 +170,12 @@
     const isGallery = _view === 'gallery';
     const rows = filtered(_query);
     const total = (printFiles || []).length;
-    return !hasHub ? `<div class="pf-empty">${escapeHtml(t('plib.desktop_only') || 'The print-file library is available in the desktop app.')}</div>`
-      : isGallery ? galleryHtml()
-      : rows.length ? `<div class="pf-grid">${rows.map(cardHtml).join('')}</div>`
-      : `<div class="pf-empty">${escapeHtml(total ? (t('plib.no_match') || 'No files match your search.') : (t('plib.empty') || 'No print files yet. Add your first STL, 3MF or G-code file.'))}</div>`;
+    if (!hasHub) return `<div class="pf-empty">${escapeHtml(t('plib.desktop_only') || 'The print-file library is available in the desktop app.')}</div>`;
+    if (isGallery) return galleryHtml();
+    const grid = rows.length
+      ? `<div class="pf-grid">${rows.map(cardHtml).join('')}</div>`
+      : `<div class="pf-empty">${escapeHtml(total ? (_tagFilter ? (t('plib.no_tag_match') || 'No files with this tag.') : (t('plib.no_match') || 'No files match your search.')) : (t('plib.empty') || 'No print files yet. Add your first STL, 3MF or G-code file.'))}</div>`;
+    return tagBarHtml() + grid;
   }
 
   function renderList() {
@@ -210,6 +234,8 @@
       case 'pf-log-fail':  logPrint(id, false); break;
       case 'pf-view-library': if (_view !== 'library') { _view = 'library'; renderPrintFiles(); } break;
       case 'pf-view-gallery': if (_view !== 'gallery') { _view = 'gallery'; renderPrintFiles(); } break;
+      case 'pf-tag': { const tg = btn.dataset.tag || ''; _tagFilter = (_tagFilter.toLowerCase() === tg.toLowerCase()) ? '' : tg; renderList(); break; }
+      case 'pf-tag-clear': _tagFilter = ''; renderList(); break;
     }
   }
 
