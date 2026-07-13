@@ -66,3 +66,46 @@ test('getAccessToken throws a helpful error when not linked', async () => {
   const dir = tmpDir();
   await assert.rejects(() => acct.getAccessToken(dir), /Not linked/);
 });
+
+test('getAccessToken single-flights concurrent refreshes (no rotating-token replay)', async () => {
+  const dir = tmpDir();
+  acct.link(dir, { access: 'OLD', refresh: 'R0', expires: 100 }); // already expired vs now below
+  const real = global.fetch;
+  let calls = 0;
+  global.fetch = async () => {
+    calls++;
+    await new Promise((r) => setTimeout(r, 5)); // hold the request open so a second call can overlap
+    return { status: 200, ok: true, json: async () => ({ access_token: 'NEW', refresh_token: 'R1', expires_at: 9_999 }) };
+  };
+  try {
+    // Two overlapping callers (e.g. a double-clicked Sync) with an expired token.
+    const [a, b] = await Promise.all([
+      acct.getAccessToken(dir, /* now */ 1_000),
+      acct.getAccessToken(dir, /* now */ 1_000),
+    ]);
+    assert.equal(a, 'NEW');
+    assert.equal(b, 'NEW');
+    assert.equal(calls, 1, 'the refresh token is exchanged exactly once, never replayed');
+    assert.equal(acct.read(dir).refresh, 'R1', 'the rotated refresh token is persisted');
+  } finally {
+    global.fetch = real;
+  }
+});
+
+test('getAccessToken keeps a racing-refresh session on 401 for a stale token', async () => {
+  const dir = tmpDir();
+  acct.link(dir, { access: 'OLD', refresh: 'R_STALE', expires: 100 });
+  const real = global.fetch;
+  global.fetch = async () => {
+    // Simulate that another refresh already rotated the stored token in while our request was in flight.
+    acct.link(dir, { access: 'LIVE', refresh: 'R_FRESH', expires: 9_999 });
+    return { status: 401, ok: false, json: async () => ({}) };
+  };
+  try {
+    await assert.rejects(() => acct.getAccessToken(dir, /* now */ 1_000), /link expired/);
+    assert.equal(acct.isLinked(dir), true, 'a 401 for a stale token must not wipe the freshly-rotated link');
+    assert.equal(acct.read(dir).refresh, 'R_FRESH');
+  } finally {
+    global.fetch = real;
+  }
+});

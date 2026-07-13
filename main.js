@@ -2763,7 +2763,7 @@ app.whenReady().then(() => {
             "default-src 'self'",
             "script-src 'self'",  // Renderer uses data-act delegation; exported LAN/survey HTML may use inline scripts outside this CSP
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",  // keep in sync with renderer/index.html meta CSP
-            "img-src 'self' data: blob:",
+            "img-src 'self' data: blob: https://*.supabase.co",  // *.supabase.co: BedReady library cover thumbnails (Supabase storage) in the Bed Ready flavor
             "font-src 'self' data: https://fonts.gstatic.com",
             "connect-src 'self' https://api.telegram.org https://api.sendgrid.com https://api.mailgun.net https://api.tabby.ai https://api.tamara.co https://api.stripe.com https://gw-fatoorah.zatca.gov.sa https://gw-apic-gov.gazt.gov.sa",
             "media-src 'self' blob:",
