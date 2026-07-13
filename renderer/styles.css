@@ -3762,6 +3762,8 @@ body.mode-enthusiast .biz-only { display: none !important; }
 .conv-batch-x { flex: 0 0 auto; width: 20px; height: 20px; padding: 0; border: none; background: transparent; color: var(--text-muted); font-size: 12px; line-height: 1; border-radius: 6px; cursor: pointer; opacity: 0.6; transition: opacity .12s ease, background .12s ease, color .12s ease; }
 .conv-batch-x:hover { opacity: 1; background: var(--danger-soft, rgba(212,68,75,.12)); color: var(--danger, #d4444b); }
 .conv-batch-x:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; opacity: 1; }
+.conv-batch-colour { margin: 10px 0 4px; display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--border-soft); border-radius: 10px; background: var(--surface-2, rgba(0,0,0,.02)); }
+.conv-batch-colour .conv-label { margin-bottom: 2px; }
 .conv-cp { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border-soft); }
 .conv-cp-h { font-size: 14px; margin: 0 0 10px; }
 .conv-cp-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
