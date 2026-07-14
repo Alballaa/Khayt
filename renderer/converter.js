@@ -22,6 +22,8 @@
   const _titleIco = _bdr ? '' : '🔄 ';
   // Toolbar/label emoji clash with Bed Ready's drafting chrome — strip them there, keep for Khayt.
   const _emo = (e) => _bdr ? '' : e + ' ';
+  // Where a marker carries meaning (fit/over warnings, file/status glyphs), swap to a bespoke icon.
+  const _emoI = (name, emoji, size) => (_bdr && window.BedReadyIcons) ? `<span class="br-ico">${window.BedReadyIcons.get(name, size || 15)}</span>` : emoji + ' ';
 
   function customPrinters() {
     return (typeof settings !== 'undefined' && Array.isArray(settings.customPrinters)) ? settings.customPrinters : [];
@@ -209,7 +211,7 @@
       : '';
     return `
       <div class="conv-src">
-        <div class="conv-src-name">📦 ${escapeHtml(src.name || 'model.3mf')}</div>
+        <div class="conv-src-name">${_emoI('cube', '📦')}${escapeHtml(src.name || 'model.3mf')}</div>
         <div class="conv-src-meta">${escapeHtml((t('conv.detected') || 'Detected') + ': ' + a.flavour)}</div>
         ${stats ? `<div class="conv-stats">${stats}</div>` : ''}
         ${cols}
@@ -235,12 +237,12 @@
       const b = target.bed, bb = a.bounds;
       const noFit = bb.x > b.x + 1 || bb.y > b.y + 1 || (b.z && bb.z > b.z + 1);
       bedBadge = noFit
-        ? `<span class="conv-fit no">⚠ ${escapeHtml(t('conv.fit_no') || 'May not fit')}</span>`
+        ? `<span class="conv-fit no">${_emoI('alert', '⚠', 12)}${escapeHtml(t('conv.fit_no') || 'May not fit')}</span>`
         : `<span class="conv-fit ok">✓ ${escapeHtml(t('conv.fit_ok') || 'Fits')}</span>`;
     }
     const used = (a.filaments || []).length;
     let colBadge = '';
-    if (target.maxColors && used > target.maxColors) colBadge = `<span class="conv-fit no">⚠ ${escapeHtml((t('conv.over_slots') || '{n} over').replace('{n}', used - target.maxColors))}</span>`;
+    if (target.maxColors && used > target.maxColors) colBadge = `<span class="conv-fit no">${_emoI('alert', '⚠', 12)}${escapeHtml((t('conv.over_slots') || '{n} over').replace('{n}', used - target.maxColors))}</span>`;
     const rows = [
       row(t('conv.chg_printer') || 'Printer', m.printerModel, target.name),
       row(t('conv.chg_bed') || 'Bed', fmtBed(m.bed), fmtBed(target.bed), bedBadge),
@@ -343,7 +345,7 @@
     const h = hub();
     const canPreview = typeof mountMeshViewer === 'function' && h && !!h.convertMesh;
     const body = `
-      <div class="conv-src"><div class="conv-src-name">📦 ${escapeHtml(name || 'model')}</div>${note ? `<div class="conv-src-meta">${escapeHtml(note)}</div>` : ''}</div>
+      <div class="conv-src"><div class="conv-src-name">${_emoI('cube', '📦')}${escapeHtml(name || 'model')}</div>${note ? `<div class="conv-src-meta">${escapeHtml(note)}</div>` : ''}</div>
       ${canPreview ? `
       <div id="pcPreview" class="conv-preview">
         <canvas id="pcPreviewCanvas" width="320" height="320" class="conv-preview-canvas" aria-label="3D preview"></canvas>
@@ -734,7 +736,7 @@
         if (r && r.canceled) { if (btn) { btn.disabled = false; btn.textContent = t('conv.convert') || 'Convert & save…'; } return false; }
         if (!r || !r.ok) { toast((r && r.error) || (t('conv.failed') || 'Conversion failed.'), 'error'); if (btn) { btn.disabled = false; } return false; }
         const rep = r.report || {};
-        for (const w of (rep.warnings || [])) toast('⚠ ' + w, 'warning', 5200);
+        for (const w of (rep.warnings || [])) toast((_bdr ? '' : '⚠ ') + w, 'warning', 5200);
 
         if (dest === 'folder') {
           toast((t('conv.done') || 'Converted to {name}').replace('{name}', rep.targetName || targetName), 'success', 3200);
@@ -821,7 +823,7 @@
         // Surface whether the colour flag actually kicked in for this file (engine reports it per file),
         // or that it fell back to Generic because it came from another ecosystem.
         const cbadge = crossed ? ' →Generic' : rep.fullSpectrum ? ' ✦' : rep.bandSwap ? ` ⇄${rep.bandSwaps || ''}` : '';
-        if (stat) { stat.textContent = (nWarn ? `✓ ⚠${nWarn}` : '✓') + cbadge; stat.className = 'conv-batch-stat ok'; stat.dataset.i = i; stat.title = crossed ? (t('conv.batch_crossed') || 'From another ecosystem — saved as a Generic 3MF (open in that printer’s slicer).') : cbadge ? (rep.fullSpectrum ? (t('conv.fs_applied') || 'Full Spectrum mix applied') : (t('conv.band_applied') || 'Band-swap pauses added')) : ''; }
+        if (stat) { stat.textContent = (nWarn ? (_bdr ? `✓ ${nWarn}` : `✓ ⚠${nWarn}`) : '✓') + cbadge; stat.className = 'conv-batch-stat ok'; stat.dataset.i = i; stat.title = crossed ? (t('conv.batch_crossed') || 'From another ecosystem — saved as a Generic 3MF (open in that printer’s slicer).') : cbadge ? (rep.fullSpectrum ? (t('conv.fs_applied') || 'Full Spectrum mix applied') : (t('conv.band_applied') || 'Band-swap pauses added')) : ''; }
         if (dest === 'library' && typeof importConvertedAsNew === 'function') {
           const gid = (P && P.GENERIC && P.GENERIC.id) || 'generic';
           await importConvertedAsNew({
@@ -854,7 +856,7 @@
   function batchPanelHtml() {
     if (!batchFiles.length) return '';
     const rows = batchFiles.map((f, i) => `
-      <div class="conv-batch-row"><span class="conv-batch-name" title="${escapeHtml(f.path)}">📄 ${escapeHtml(f.name)}</span><span class="conv-batch-stat" data-i="${i}"></span><button type="button" class="conv-batch-x" data-batch-x="${i}" title="${escapeHtml(t('conv.batch_remove') || 'Remove from batch')}" aria-label="${escapeHtml(t('conv.batch_remove') || 'Remove from batch')}">✕</button></div>`).join('');
+      <div class="conv-batch-row"><span class="conv-batch-name" title="${escapeHtml(f.path)}">${_emoI('doc', '📄')}${escapeHtml(f.name)}</span><span class="conv-batch-stat" data-i="${i}"></span><button type="button" class="conv-batch-x" data-batch-x="${i}" title="${escapeHtml(t('conv.batch_remove') || 'Remove from batch')}" aria-label="${escapeHtml(t('conv.batch_remove') || 'Remove from batch')}">✕</button></div>`).join('');
     const selTarget = batchTargetId || firstTargetId();
     const tp = getProfileById(selTarget);
     const P = profiles();
@@ -882,7 +884,7 @@
           <label class="conv-dest-opt"><input type="radio" name="convBatchDest" value="folder"> ${escapeHtml(t('conv.batch_dest_folder') || 'Save all to a folder…')}</label>
         </div>${colourRow}${crossNote}
         <div class="conv-batch-list">${rows}</div>
-        <button class="btn primary" id="convBatchRun">🔄 ${escapeHtml((t('conv.batch_run') || 'Convert {n} files').replace('{n}', batchFiles.length))}</button>
+        <button class="btn primary" id="convBatchRun">${_emoI('convert', '🔄')}${escapeHtml((t('conv.batch_run') || 'Convert {n} files').replace('{n}', batchFiles.length))}</button>
       </div>`;
   }
 
@@ -1149,7 +1151,7 @@
         <p>${swapChip(start)} <b>Load to start:</b> ${esc((start || '').toUpperCase() || '—')}</p>
         <p class="conv-sub">${a.colorCount} colours · <b>${a.instructions.length}</b> filament swap${a.instructions.length === 1 ? '' : 's'} (M600) for a single-extruder printer.</p>
         <div style="margin:8px 0 12px;">${steps}</div>
-        <div class="cal-actions"><button type="button" class="btn primary" id="swapSaveXml">💾 Save pauses (.xml)</button><button type="button" class="btn ghost" id="swapCopy">📋 Copy plan</button></div>
+        <div class="cal-actions"><button type="button" class="btn primary" id="swapSaveXml">${_emoI('doc', '💾')}Save pauses (.xml)</button><button type="button" class="btn ghost" id="swapCopy">${_emoI('clipboard', '📋')}Copy plan</button></div>
         <p class="conv-tip">Slice your model as a single colour, then pause at each height above (each is an M600 filament change) — or drop the saved Orca <code>custom_gcode_per_layer.xml</code> into your project.</p>`;
     }
     openFormModal({

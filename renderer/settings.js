@@ -2,6 +2,10 @@
  * Settings tab: form load/save, integrations, ZATCA, LAN API, BNPL, backups.
  */
 (function (global) {
+// Bed Ready swaps decorative emoji for its bespoke drafting glyphs; Khayt keeps the emoji.
+const _sBdr = (typeof document !== 'undefined' && document.documentElement && document.documentElement.dataset.app === 'bedready');
+function _sIco(name, emoji, size) { return (_sBdr && window.BedReadyIcons) ? `<span class="br-ico">${window.BedReadyIcons.get(name, size || 15)}</span>` : emoji; }
+function _sIcoL(name, emoji, size) { return (_sBdr && window.BedReadyIcons) ? `<span class="br-ico">${window.BedReadyIcons.get(name, size || 15)}</span>` : emoji + ' '; }
 function renderLocationsSettings() {
   const el = $('#locationsSettingsSection');
   if (!el) return;
@@ -633,15 +637,15 @@ function renderSlicerSettings() {
         <div class="slicer-name">${escapeHtml(s.name || KhaytSlicers.slicerDisplayName(s.path))}${s.id === settings.defaultSlicerId ? ` <span class="slicer-badge">${escapeHtml(t('slicer.default') || 'default')}</span>` : ''}</div>
         <div class="slicer-path" title="${escapeHtml(s.path)}">${escapeHtml(s.path)}</div>
       </div>
-      <button class="btn ghost small" type="button" data-act="slicer-test" data-id="${escapeHtml(s.id)}">🔌 ${escapeHtml(t('slicer.test') || 'Test')}</button>
-      <button class="btn ghost small danger" type="button" data-act="slicer-remove" data-id="${escapeHtml(s.id)}" title="${escapeHtml(t('common.delete') || 'Remove')}">🗑</button>
+      <button class="btn ghost small" type="button" data-act="slicer-test" data-id="${escapeHtml(s.id)}">${_sIcoL('play', '🔌')}${escapeHtml(t('slicer.test') || 'Test')}</button>
+      <button class="btn ghost small danger" type="button" data-act="slicer-remove" data-id="${escapeHtml(s.id)}" title="${escapeHtml(t('common.delete') || 'Remove')}">${_sIco('trash', '🗑')}</button>
       <span class="slicer-test-result" data-result="${escapeHtml(s.id)}"></span>
     </div>`).join('');
 
   el.innerHTML = `
     <p class="slicer-intro" style="font-size:12.5px;color:var(--text-muted);margin:0 0 10px;">${escapeHtml(t('slicer.multi_intro') || 'Add the slicers you use. When you open a print file you can pick which one to launch; the default is used for slice-and-print elsewhere.')}</p>
     <div style="display:flex;gap:8px;align-items:center;margin:0 0 10px;flex-wrap:wrap;">
-      <button id="btnDetectSlicers" class="btn small" type="button">🔍 ${escapeHtml(t('slicer.detect') || 'Detect installed slicers')}</button>
+      <button id="btnDetectSlicers" class="btn small" type="button">${_sIcoL('search', '🔍')}${escapeHtml(t('slicer.detect') || 'Detect installed slicers')}</button>
       <span id="slicerDetectResult" style="font-size:12px;color:var(--text-muted);"></span>
     </div>
     <div class="slicer-list">${list.length ? rows : `<p class="slicer-empty" style="font-size:12.5px;color:var(--text-muted);">${escapeHtml(t('slicer.none') || 'No slicers configured yet.')}</p>`}</div>

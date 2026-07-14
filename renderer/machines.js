@@ -2,6 +2,10 @@
  * Machine profiles, maintenance log, service status, WhatsApp templates.
  */
 (function (global) {
+// Bed Ready swaps decorative emoji for its bespoke drafting glyphs; Khayt keeps the emoji.
+const _mBdr = (typeof document !== 'undefined' && document.documentElement && document.documentElement.dataset.app === 'bedready');
+function _mIco(name, emoji, size) { return (_mBdr && window.BedReadyIcons) ? `<span class="br-ico">${window.BedReadyIcons.get(name, size || 15)}</span>` : emoji; }
+function _mIcoL(name, emoji, size) { return (_mBdr && window.BedReadyIcons) ? `<span class="br-ico">${window.BedReadyIcons.get(name, size || 15)}</span>` : emoji + ' '; }
 /* ============================================================
    Machine profiles (physical printers you assign jobs to)
    ============================================================ */
@@ -30,7 +34,7 @@ function renderMachines() {
       : svc.warning
         ? `<span class="machine-jobs-badge" style="background:var(--warning); color:#000;">⚠ ${escapeHtml(t('mach.service_warn'))}</span>`
         : '';
-    const hrsLine = `<span class="machine-hrs-stat">🔧 ${svc.total.toFixed(1)}h ${escapeHtml(t('mach.hours_total'))}${m.serviceInterval > 0 ? ` · ${svc.hours.toFixed(1)}h since service` : ''}</span>`;
+    const hrsLine = `<span class="machine-hrs-stat">${_mIcoL('wrench', '🔧', 13)}${svc.total.toFixed(1)}h ${escapeHtml(t('mach.hours_total'))}${m.serviceInterval > 0 ? ` · ${svc.hours.toFixed(1)}h since service` : ''}</span>`;
     const now2Str = new Date().toISOString();
     const hasDowntime = (m.downtimeBlocks || []).some(b => b.to && b.to > now2Str);
     const downtimeBadge = hasDowntime
@@ -43,9 +47,9 @@ function renderMachines() {
     const nozzleOver = nozzleGrams >= nozzleThreshold && nozzleThreshold > 0;
     const nozzleHtml = m.nozzle?.installedAt ? `
       <div style="margin-top:4px; font-size:11px; color:var(--text-muted);">
-        🔩 ${escapeHtml(m.nozzle.material || 'brass')} nozzle${m.nozzleDiameter ? ` · ${m.nozzleDiameter}mm` : ''}${m.extruderType ? ` · ${escapeHtml(m.extruderType)}` : ''}
+        ${_mIcoL('nozzle', '🔩', 13)}${escapeHtml(m.nozzle.material || 'brass')} nozzle${m.nozzleDiameter ? ` · ${m.nozzleDiameter}mm` : ''}${m.extruderType ? ` · ${escapeHtml(m.extruderType)}` : ''}
         · ${nozzleGrams.toFixed(0)}g/${nozzleThreshold}g
-        ${nozzleOver ? `<span class="machine-jobs-badge" style="background:var(--danger);color:#fff;">🔩 ${escapeHtml(t('mach.nozzle_replace'))}</span>` : ''}
+        ${nozzleOver ? `<span class="machine-jobs-badge" style="background:var(--danger);color:#fff;">${_mIcoL('nozzle', '🔩', 12)}${escapeHtml(t('mach.nozzle_replace'))}</span>` : ''}
       </div>
       <div class="nozzle-progress" style="max-width:200px;margin-top:3px;">
         <div class="nozzle-progress-bar" style="width:${nozzlePct.toFixed(1)}%;background:${nozzleOver ? 'var(--danger)' : 'var(--primary)'};"></div>
@@ -59,12 +63,12 @@ function renderMachines() {
         <span class="machine-dot" style="background:${safeCssColor(m.color)};"></span>
         <span class="machine-name">${escapeHtml(m.name)}</span>
         ${compatHtml}
-        ${m.isOffline ? `<span class="machine-jobs-badge" style="background:var(--danger); color:#fff;">⚠ ${escapeHtml(t('mach.offline_badge'))}</span>` : ''}
+        ${m.isOffline ? `<span class="machine-jobs-badge" style="background:var(--danger); color:#fff;">${_mIcoL('alert', '⚠', 12)}${escapeHtml(t('mach.offline_badge'))}</span>` : ''}
         ${active > 0 ? `<span class="machine-jobs-badge">${active} ${escapeHtml(t('mach.active_jobs'))}</span>` : ''}
         ${svcBadge ? `<span class="pro-only">${svcBadge}</span>` : ''}
         ${downtimeBadge ? `<span class="pro-only">${downtimeBadge}</span>` : ''}
         ${hrsLine}
-        ${(m.printerApi && m.printerApi.type && m.printerApi.type !== 'none') ? `<button class="btn small ghost" data-act="slice-print" data-id="${m.id}" title="${escapeHtml(t('slicer.send_title') || 'Slice & print')}" style="font-size:11px;">🖨</button>` : ''}
+        ${(m.printerApi && m.printerApi.type && m.printerApi.type !== 'none') ? `<button class="btn small ghost" data-act="slice-print" data-id="${m.id}" title="${escapeHtml(t('slicer.send_title') || 'Slice & print')}" style="font-size:11px;">${_mIco('printer', '🖨')}</button>` : ''}
         <button class="btn small pro-only" data-act="maint-log" data-id="${m.id}" title="${escapeHtml(t('maint.btn'))}">🔧</button>
         <button class="btn small ghost pro-only" data-act="log-nozzle-change" data-id="${m.id}" title="${escapeHtml(t('mach.log_nozzle'))}" style="font-size:11px;">🔩</button>
         <button class="btn small" data-act="edit-mach" data-id="${m.id}">${escapeHtml(t('common.edit'))}</button>
