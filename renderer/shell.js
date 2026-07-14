@@ -511,6 +511,7 @@ function switchTab(tabId) {
   if (tabId === 'printfiles-tab') renderPrintFiles();
   if (tabId === 'colorstudio-tab') renderColorStudio();
   if (tabId === 'converter-tab')  renderConverter();
+  if (tabId === 'hueforge-tab' && typeof renderHueForge === 'function') renderHueForge();
   if (tabId === 'clients-tab')    renderClients();
   if (tabId === 'calculator-tab')  window.KhaytStudio?.initStudioCalculatorLayout?.();
   if (tabId === 'queue-tab')      { renderMachineQueues(); renderKanban(); }
