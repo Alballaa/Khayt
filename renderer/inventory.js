@@ -1,6 +1,11 @@
 /**
  * Inventory tab, product catalog, purchase orders, NFC spool import.
  */
+// Bed Ready swaps decorative emoji for its bespoke drafting glyphs (evaluated at render time,
+// after bedready-icons.js loads); Khayt keeps the emoji. `_iIco` = icon only, `_iIcoL` adds a space.
+const _invBdr = (typeof document !== 'undefined' && document.documentElement && document.documentElement.dataset.app === 'bedready');
+function _iIco(name, emoji, size) { return (_invBdr && window.BedReadyIcons) ? `<span class="br-ico">${window.BedReadyIcons.get(name, size || 15)}</span>` : emoji; }
+function _iIcoL(name, emoji, size) { return (_invBdr && window.BedReadyIcons) ? `<span class="br-ico">${window.BedReadyIcons.get(name, size || 15)}</span>` : emoji + ' '; }
 let catalogSearchTerm = '';
 let invSearchTerm = '';
 let supplierSearchTerm = '';
@@ -15,7 +20,7 @@ if (typeof fetch === 'function' && typeof document !== 'undefined') {
     console.warn('filaments-db.json not loaded:', e);
     filamentsDB = null;
     const catalogEl = document.getElementById('filamentCatalog') || document.getElementById('filamentDbSection');
-    if (catalogEl) catalogEl.innerHTML = `<p style="color:var(--text-muted);padding:12px;font-size:13px;">⚠ ${escapeHtml(t('inv.catalog_unavailable') || 'Filament catalog unavailable')}</p>`;
+    if (catalogEl) catalogEl.innerHTML = `<p style="color:var(--text-muted);padding:12px;font-size:13px;">${_iIcoL('alert', '⚠', 12)}${escapeHtml(t('inv.catalog_unavailable') || 'Filament catalog unavailable')}</p>`;
   });
 }
 
@@ -749,7 +754,7 @@ async function openFilamentScanner() {
       function applyNFCResult(nfcData, resultEl) {
         if (nfcData.error) {
           resultEl.style.display = 'block';
-          resultEl.innerHTML = `<div style="color:var(--danger); font-size:12.5px;">⚠ ${escapeHtml(nfcData.error)}</div>`;
+          resultEl.innerHTML = `<div style="color:var(--danger); font-size:12.5px;">${_iIcoL('alert', '⚠', 12)}${escapeHtml(nfcData.error)}</div>`;
           return;
         }
 
@@ -1061,7 +1066,7 @@ function openInventoryEditor(id) {
       </div>
     </div>
     <div style="margin-top:14px; padding:10px 12px; background:rgba(255,255,255,0.04); border-radius:var(--radius-sm); border:1px solid var(--border-soft);">
-      <label style="margin-top:0; font-size:12px; font-weight:600;">🌡 ${escapeHtml(t('inv.print_settings'))}</label>
+      <label style="margin-top:0; font-size:12px; font-weight:600;">${_iIcoL('thermo', '🌡')}${escapeHtml(t('inv.print_settings'))}</label>
       <div class="inline-pair" style="margin-top:8px;">
         <div>
           <label style="margin-top:0; font-size:11.5px;">${escapeHtml(t('inv.print_temp'))}</label>
@@ -1274,7 +1279,7 @@ function openReorderSuggestions() {
     const urgency = (s.daysLeft != null && s.daysLeft <= 7) ? 'var(--danger)' : (s.low ? 'var(--warning,#d97706)' : 'var(--text-muted)');
     const committed = s.committedG > 0 ? `${Math.round(s.committedG)} g` : '—';
     return `<tr>
-      <td style="padding:6px 8px;">${escapeHtml(s.label)}${s.low ? ' <span style="color:var(--warning,#d97706);">⚠</span>' : ''}</td>
+      <td style="padding:6px 8px;">${escapeHtml(s.label)}${s.low ? ` <span style="color:var(--warning,#d97706);">${_iIco('alert', '⚠', 12)}</span>` : ''}</td>
       <td style="padding:6px 8px;text-align:end;">${Math.round(s.weight)} g</td>
       <td style="padding:6px 8px;text-align:end;color:var(--text-muted);">${escapeHtml(committed)}</td>
       <td style="padding:6px 8px;text-align:end;color:var(--text-muted);">${escapeHtml(rate)}</td>
@@ -1442,9 +1447,9 @@ function renderPipelineDemand() {
       .reduce((s, spool) => s + (+spool.remaining || +spool.weight || 0), 0);
     const deficit = totalStock - d.grams;
     const color = deficit >= 0 ? 'var(--success)' : 'var(--danger)';
-    const icon  = deficit >= 0 ? '✅' : '⚠';
+    const icon  = deficit >= 0 ? _iIco('check', '✅') : _iIco('alert', '⚠');
     return `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);">
-      <span style="font-size:13px;">${icon}</span>
+      <span style="font-size:13px;color:${color};">${icon}</span>
       <div style="flex:1;min-width:0;">
         <span style="font-size:12.5px;font-weight:500;">${escapeHtml(key)}</span>
       </div>
@@ -1485,7 +1490,7 @@ function renderReorderAlerts() {
   const itemRows = lowItems.map(item => {
     const daysLeft = estimateDaysRemaining(item);
     const daysHtml = daysLeft !== null
-      ? `<span style="font-size:11px;color:${daysLeft <= 3 ? 'var(--danger)' : 'var(--warning)'};margin-inline-start:6px;" title="${escapeHtml(t('inv.usage_prediction') || 'Usage prediction')}">⏱ ${escapeHtml(t('inv.est_days_remaining') || 'Est.')} ${daysLeft}d</span>`
+      ? `<span style="font-size:11px;color:${daysLeft <= 3 ? 'var(--danger)' : 'var(--warning)'};margin-inline-start:6px;" title="${escapeHtml(t('inv.usage_prediction') || 'Usage prediction')}">${_iIcoL('clock', '⏱', 12)}${escapeHtml(t('inv.est_days_remaining') || 'Est.')} ${daysLeft}d</span>`
       : '';
     const threshold = item.reorderPoint ?? settings.lowStockThreshold ?? 200;
     return `<div style="display:flex;align-items:center;gap:8px;padding:5px 10px;background:rgba(245,166,35,0.08);border-radius:var(--radius-sm);margin-bottom:4px;flex-wrap:wrap;">
@@ -1501,7 +1506,7 @@ function renderReorderAlerts() {
   el.innerHTML = `
     <div style="border:1px solid rgba(245,166,35,0.4);border-radius:var(--radius);background:rgba(245,166,35,0.06);margin-bottom:14px;overflow:hidden;">
       <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;background:rgba(245,166,35,0.1);" id="reorderAlertToggle">
-        <span style="font-size:16px;">⚠</span>
+        <span style="font-size:16px;color:var(--warning);">${_iIco('alert', '⚠', 17)}</span>
         <span style="font-weight:700;color:var(--warning);flex:1;">${escapeHtml(t('inv.low_stock_alert') || 'Low Stock Alert')} <span style="background:var(--warning);color:#000;font-size:11px;padding:1px 6px;border-radius:10px;margin-inline-start:4px;">${lowItems.length}</span></span>
         <span style="font-size:12px;color:var(--text-muted);">${collapsed ? '▶' : '▼'}</span>
       </div>
@@ -1568,7 +1573,7 @@ function renderInventory() {
       valEl.innerHTML = `
         <span>${escapeHtml(t('inv.total_value'))}: <strong style="color:var(--success);">${fmtMoney(totalValue)}</strong></span>
         <span style="margin-inline-start:16px;">${escapeHtml(t('inv.total_stock'))}: <strong>${Math.round(totalGrams).toLocaleString()}g</strong></span>
-        ${lowCount > 0 ? `<span style="margin-inline-start:16px; color:var(--warning);">⚠ ${lowCount} ${escapeHtml(t('inv.low_stock_count'))}</span>` : ''}
+        ${lowCount > 0 ? `<span style="margin-inline-start:16px; color:var(--warning);">${_iIcoL('alert', '⚠')}${lowCount} ${escapeHtml(t('inv.low_stock_count'))}</span>` : ''}
       `;
       valEl.style.display = 'flex';
     } else {
@@ -1607,9 +1612,9 @@ function renderInventory() {
       if (refDate) {
         const ageMonths = Math.floor((todayMs - new Date(refDate + 'T00:00:00').getTime()) / (30.44 * 86400000));
         if (ageMonths >= 12) {
-          ageBadge = ` <span style="font-size:10px; color:var(--danger); font-weight:600;" title="${escapeHtml(t('inv.spool_old_tip'))}">⚠ ${ageMonths}mo</span>`;
+          ageBadge = ` <span style="font-size:10px; color:var(--danger); font-weight:600;" title="${escapeHtml(t('inv.spool_old_tip'))}">${_iIcoL('alert', '⚠', 12)}${ageMonths}mo</span>`;
         } else if (ageMonths >= 6) {
-          ageBadge = ` <span style="font-size:10px; color:var(--warning);" title="${escapeHtml(t('inv.spool_age_tip'))}">📅 ${ageMonths}mo</span>`;
+          ageBadge = ` <span style="font-size:10px; color:var(--warning);" title="${escapeHtml(t('inv.spool_age_tip'))}">${_iIcoL('clock', '📅', 12)}${ageMonths}mo</span>`;
         }
       }
       const reserved = Math.round(getSpoolReservedGrams(item.id));
@@ -1618,19 +1623,19 @@ function renderInventory() {
         ? ` <span class="spool-reserved-badge">${escapeHtml(t('inv.reserved'))}: ${reserved}${escapeHtml(t('common.grams'))}</span>`
         : '';
       const overcommitBadge = isOvercommit
-        ? ` <span style="background:var(--danger);color:#fff;font-size:10px;padding:1px 5px;border-radius:3px;font-weight:600;">⚠ ${escapeHtml(t('inv.overcommit_warn'))}</span>`
+        ? ` <span style="background:var(--danger);color:#fff;font-size:10px;padding:1px 5px;border-radius:3px;font-weight:600;">${_iIcoL('alert', '⚠', 12)}${escapeHtml(t('inv.overcommit_warn'))}</span>`
         : '';
       // Feature 7: Test prints badge
       const spoolTestCount = testPrints.filter(tp => tp.spoolId === item.id).length;
       const testBadge = spoolTestCount > 0
-        ? ` <span style="font-size:10px;color:var(--primary);">🧪 ${spoolTestCount}</span>`
+        ? ` <span style="font-size:10px;color:var(--primary);">${_iIcoL('flask', '🧪', 12)}${spoolTestCount}</span>`
         : '';
       // Run-out forecast badge
       const fc = forecastMap[item.material];
       const runoutBadge = fc
         ? fc.available < 0
-          ? ` <span style="font-size:10px;background:var(--danger);color:#fff;padding:1px 5px;border-radius:3px;font-weight:600;">⚠ ${escapeHtml(t('inv.overcommit_warn'))}</span>`
-          : ` <span style="font-size:10px;color:${fc.urgent ? 'var(--danger)' : 'var(--warning)'};font-weight:600;" title="${escapeHtml(t('inv.runout_in') || 'Run-out in')} ${fc.daysRemaining} ${escapeHtml(t('common.days') || 'days')}">📉 ${fc.daysRemaining}d</span>`
+          ? ` <span style="font-size:10px;background:var(--danger);color:#fff;padding:1px 5px;border-radius:3px;font-weight:600;">${_iIcoL('alert', '⚠', 12)}${escapeHtml(t('inv.overcommit_warn'))}</span>`
+          : ` <span style="font-size:10px;color:${fc.urgent ? 'var(--danger)' : 'var(--warning)'};font-weight:600;" title="${escapeHtml(t('inv.runout_in') || 'Run-out in')} ${fc.daysRemaining} ${escapeHtml(t('common.days') || 'days')}">${_iIcoL('trend', '📉', 12)}${fc.daysRemaining}d</span>`
         : '';
       const isResin = item.materialType === 'resin';
       const weightUnit = isResin ? 'mL' : escapeHtml(t('common.grams'));
@@ -1646,14 +1651,14 @@ function renderInventory() {
           <td style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:${safeCssColor(item.color, '#888888')}; flex-shrink:0; border:1px solid rgba(255,255,255,0.15);"></span>
             <strong>${escapeHtml(item.material)}</strong>${low ? ' <span style="color:var(--warning); font-size:11px;">· low</span>' : ''}${resinBadge}${colourChip}${lotChip}${locChip}${ageBadge}${reservedBadge}${overcommitBadge}${testBadge}${runoutBadge}
-            ${item.printTemp || item.bedTemp ? `<span style="font-size:10px; color:var(--primary);">🌡 ${item.printTemp ? item.printTemp + '°C print' : ''}${item.printTemp && item.bedTemp ? ' / ' : ''}${item.bedTemp ? item.bedTemp + '°C bed' : ''}</span>` : ''}
+            ${item.printTemp || item.bedTemp ? `<span style="font-size:10px; color:var(--primary);">${_iIcoL('thermo', '🌡', 12)}${item.printTemp ? item.printTemp + '°C print' : ''}${item.printTemp && item.bedTemp ? ' / ' : ''}${item.bedTemp ? item.bedTemp + '°C bed' : ''}</span>` : ''}
           </td>
           <td style="font-variant-numeric: tabular-nums;">${fmtPrice(item.cost)}</td>
           <td style="font-variant-numeric: tabular-nums;">
             ${window.KhaytStudio?.useHandoffScreens?.() ? window.KhaytStudio.invStockMeterHtml(item) : `${Math.round(item.weight)} ${weightUnit}`}
           </td>
           <td style="font-variant-numeric: tabular-nums; color:${queued > 0 ? (warn ? 'var(--danger)' : 'var(--text-dim)') : 'var(--text-muted)'};">
-            ${queued > 0 ? Math.round(queued) + ' ' + weightUnit : '—'}${warn ? ' <span style="color:var(--danger); font-size:11px;">⚠</span>' : ''}
+            ${queued > 0 ? Math.round(queued) + ' ' + weightUnit : '—'}${warn ? ` <span style="color:var(--danger); font-size:11px;">${_iIco('alert', '⚠', 12)}</span>` : ''}
           </td>
           <td style="white-space:nowrap;">
             ${(() => {
@@ -1662,23 +1667,23 @@ function renderInventory() {
               if (!isHygroscopic) return '';
               const dryLog = item.dryingLog || [];
               if (dryLog.length === 0) {
-                return `<span class="drying-warn-badge" style="margin-inline-end:6px;" title="${escapeHtml(t('inv.dry_log'))}">⚠ ${escapeHtml(t('inv.dry_warn'))}</span>`;
+                return `<span class="drying-warn-badge" style="margin-inline-end:6px;" title="${escapeHtml(t('inv.dry_log'))}">${_iIcoL('alert', '⚠', 12)}${escapeHtml(t('inv.dry_warn'))}</span>`;
               }
               const lastDry = [...dryLog].sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
               const daysSince = lastDry.date ? Math.floor((Date.now() - new Date(lastDry.date + 'T00:00:00').getTime()) / 86400000) : 999;
               if (daysSince > 7) {
-                return `<span class="drying-warn-badge" style="margin-inline-end:6px;">⚠ ${escapeHtml(t('inv.dry_warn'))}</span>`;
+                return `<span class="drying-warn-badge" style="margin-inline-end:6px;">${_iIcoL('alert', '⚠', 12)}${escapeHtml(t('inv.dry_warn'))}</span>`;
               }
-              return `<span class="drying-ok-badge" style="margin-inline-end:6px;">✅ ${escapeHtml(t('inv.dry_ok', { n: daysSince }))}</span>`;
+              return `<span class="drying-ok-badge" style="margin-inline-end:6px;">${_iIcoL('check', '✅', 12)}${escapeHtml(t('inv.dry_ok', { n: daysSince }))}</span>`;
             })()}
             ${low ? `<button class="btn small" data-act="reorder-inv" data-id="${item.id}" style="margin-inline-end:4px; color:var(--warning); border-color:var(--warning);">${escapeHtml(t('inv.reorder'))}</button>` : ''}
-            <button class="btn small ghost" data-act="inv-test-print" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.test_prints'))}">🧪</button>
-            <button class="btn small ghost" data-act="inv-dry-log" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.dry_log'))}">🌡</button>
-            <button class="btn small ghost" data-act="inv-spool-history" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.spool_history'))}">📋</button>
-            <button class="btn small ghost" data-act="inv-print-label" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.print_label') || 'Print label')}">🏷</button>
+            <button class="btn small ghost" data-act="inv-test-print" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.test_prints'))}">${_iIco('flask', '🧪')}</button>
+            <button class="btn small ghost" data-act="inv-dry-log" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.dry_log'))}">${_iIco('thermo', '🌡')}</button>
+            <button class="btn small ghost" data-act="inv-spool-history" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.spool_history'))}">${_iIco('clipboard', '📋')}</button>
+            <button class="btn small ghost" data-act="inv-print-label" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.print_label') || 'Print label')}">${_iIco('tag', '🏷')}</button>
             ${(typeof locations !== 'undefined' && locations.length > 0) ? `<button class="btn small ghost" data-act="inv-transfer" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.transfer') || 'Transfer')}">↔</button>` : ''}
             <button class="btn small ghost" data-act="adj-inv" data-id="${item.id}" style="margin-inline-end:4px;">${escapeHtml(t('inv.adjust'))}</button>
-            ${(item.priceHistory && item.priceHistory.length > 0) ? `<button class="btn small ghost" data-act="inv-price-history" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.price_history'))}">📈</button>` : ''}
+            ${(item.priceHistory && item.priceHistory.length > 0) ? `<button class="btn small ghost" data-act="inv-price-history" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.price_history'))}">${_iIco('trend', '📈')}</button>` : ''}
             <button class="btn small" data-act="edit-inv" data-id="${item.id}" style="margin-inline-end:4px;">${escapeHtml(t('common.edit'))}</button>
             <button class="btn danger small" data-act="del-inv" data-id="${item.id}">${escapeHtml(t('common.delete'))}</button>
           </td>
@@ -2319,7 +2324,7 @@ function renderSupplierReorderList() {
 
   if (lowItems.length === 0) {
     el.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(34,197,94,0.08);border-radius:var(--radius);border:1px solid rgba(34,197,94,0.2);margin-bottom:12px;font-size:13px;color:var(--success);">
-      ✅ ${escapeHtml(t('inv.stock_ok') || 'All materials are above reorder levels')}
+      ${_iIcoL('check', '✅')}${escapeHtml(t('inv.stock_ok') || 'All materials are above reorder levels')}
     </div>`;
     return;
   }
@@ -2353,7 +2358,7 @@ function renderSupplierReorderList() {
 
     return `<div style="margin-bottom:10px;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-        <span style="font-size:12px;font-weight:700;color:var(--text);">🏭 ${supName}</span>
+        <span style="font-size:12px;font-weight:700;color:var(--text);display:inline-flex;align-items:center;">${_iIcoL('factory', '🏭')}${supName}</span>
         ${sup?.leadDays ? `<span style="font-size:11px;color:var(--text-muted);">${sup.leadDays}d lead time</span>` : ''}
         ${phoneBtn}${webBtn}
       </div>
@@ -2365,7 +2370,7 @@ function renderSupplierReorderList() {
     <div class="card" style="border-left:3px solid var(--warning);">
       <h3 class="card-head" style="margin-bottom:10px;color:var(--warning);">
         <span class="swatch" style="background:var(--warning);"></span>
-        ⚠ ${escapeHtml(t('inv.reorder_list') || 'Reorder List')} <span style="background:var(--warning);color:#000;font-size:11px;padding:1px 6px;border-radius:10px;margin-inline-start:6px;">${lowItems.length}</span>
+        ${_iIcoL('alert', '⚠')}${escapeHtml(t('inv.reorder_list') || 'Reorder List')} <span style="background:var(--warning);color:#000;font-size:11px;padding:1px 6px;border-radius:10px;margin-inline-start:6px;">${lowItems.length}</span>
       </h3>
       ${groupHtml}
     </div>`;
@@ -3840,7 +3845,7 @@ async function printSpoolLabel(itemId) {
   } else if (window.hubAPI?.saveHtml) {
     const saved = await window.hubAPI.saveHtml(html, `spool-label-${item.id}.html`);
     if (saved?.path) window.hubAPI?.openPath?.(saved.path);
-    toast('🏷 ' + (t('inv.label_generated') || 'Label generated'), 'success');
+    toast((_invBdr ? '' : '🏷 ') + (t('inv.label_generated') || 'Label generated'), 'success');
   }
 }
 
