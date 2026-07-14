@@ -596,13 +596,30 @@
         // if the mesh can't be read, quietly drop the panel rather than block the convert.
         const pvCanvas = modal.querySelector('#convPreviewCanvas');
         let previewCtl = null, previewBbox = null;
+        // Bed Ready signature: a drafting "redline" overlay on the preview when the model overruns the
+        // target bed — a red dashed frame + an OUT OF BED tag with the overage per axis. No-op in Khayt
+        // (which keeps the reddened bed grid + the "May not fit" badge from changesHtml).
+        const paintRedline = (host, on, overX, overY) => {
+          if (!host) return;
+          let el = host.querySelector('.conv-redline');
+          if (!on || !_bdr) { if (el) el.remove(); return; }
+          if (!el) { el = document.createElement('div'); el.className = 'conv-redline'; host.appendChild(el); }
+          const parts = [];
+          if (overX > 1) parts.push('X +' + Math.ceil(overX));
+          if (overY > 1) parts.push('Y +' + Math.ceil(overY));
+          el.innerHTML = `<span class="conv-redline-tag">${_emoI('alert', '⚠', 12)}OUT OF BED</span>`
+            + (parts.length ? `<span class="conv-redline-dim">${escapeHtml(parts.join(' · ') + ' mm')}</span>` : '');
+        };
         // Lay the TARGET printer's bed under the model so you see scale, orientation and fit.
         const applyBed = () => {
           if (!previewCtl || !previewBbox) return;
+          const host = modal.querySelector('#convPreview');
           const p = getProfileById(targetId);
-          if (!p || !p.bed || !p.bed.x) { previewCtl.setBed(null); return; }
-          const fits = !(previewBbox.x > p.bed.x + 1 || previewBbox.y > p.bed.y + 1);
+          if (!p || !p.bed || !p.bed.x) { previewCtl.setBed(null); paintRedline(host, false); return; }
+          const overX = previewBbox.x - p.bed.x, overY = previewBbox.y - p.bed.y;
+          const fits = !(overX > 1 || overY > 1);
           previewCtl.setBed({ x: p.bed.x, y: p.bed.y, fits });
+          paintRedline(host, !fits, overX, overY);
         };
         if (pvCanvas && h.convertMesh) {
           h.convertMesh({ path: src.path })

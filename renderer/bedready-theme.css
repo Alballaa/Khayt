@@ -275,6 +275,19 @@ html[data-app="bedready"] #topbarPageSubtitle { display: inline-flex; margin-top
   text-transform: uppercase; color: var(--text-muted); }
 .br-tb-v { font-family: var(--font-mono), monospace; font-size: 11px; color: var(--text);
   font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
+
+/* Redline overlay: a drafting correction mark on the 3D preview when geometry overruns the
+   target bed. Red dashed frame + an OUT OF BED tag with the overage — signature "engineering
+   change" device. Injected by converter.js only for Bed Ready. */
+html[data-app="bedready"] #convPreview { position: relative; }
+.conv-redline { position: absolute; inset: 0; pointer-events: none; z-index: 3;
+  border: 1.5px dashed var(--l1); border-radius: var(--r-sm, 3px); }
+.conv-redline-tag { position: absolute; top: 8px; left: 8px; display: inline-flex; align-items: center;
+  gap: 3px; background: var(--l1); color: #fff; font-family: var(--font-mono), monospace; font-size: 9px;
+  font-weight: 600; letter-spacing: 0.12em; padding: 2px 7px; border-radius: var(--r-xs, 2px); }
+.conv-redline-dim { position: absolute; bottom: 8px; right: 8px; background: var(--surface); color: var(--l1);
+  font-family: var(--font-mono), monospace; font-size: 10px; letter-spacing: 0.03em; padding: 2px 6px;
+  border: 1px solid var(--l1); border-radius: var(--r-xs, 2px); font-variant-numeric: tabular-nums; }
 /* Hide the busy centre search mirror + secondary-action clutter that reads
    "Khayt". Keep: theme toggle, notifications, language — and the beta Feedback
    button (kept visible + emphasised below). */
