@@ -161,6 +161,58 @@
     </section>`;
   }
 
+  // ── ΔE colorimeter plot (Cyanotype Draft signature, Bed Ready only) ──────────
+  // Plots the target colour and your candidate filaments on the CIE a*b* chroma
+  // plane, dramatising the app's real ΔE math. Uses theme CSS vars so it tracks
+  // light/dark. Lightness (L*) is not shown here — the CIEDE2000 ΔE in the list
+  // is the true distance; this is the hue/chroma view.
+  function abPlot(kc, targetHex, pts) {
+    const tl = kc.hexToLab && kc.hexToLab(targetHex);
+    if (!tl) return '';
+    const D = 72, S = 220, M = 30, half = (S - 2 * M) / 2, c = S / 2;
+    const clamp = (v) => Math.max(-1, Math.min(1, v / D));
+    const px = (lab) => c + clamp(lab.a) * half;
+    const py = (lab) => c - clamp(lab.b) * half; // +b* (yellow) points up
+    const tx = px(tl).toFixed(1), ty = py(tl).toFixed(1);
+    const ringR = ((8 / D) * half).toFixed(1); // ~ close-match zone (indicative)
+    const dots = pts.map((p) => {
+      const l = kc.hexToLab(p.hex); if (!l) return '';
+      const x = px(l).toFixed(1), y = py(l).toFixed(1);
+      const best = p === pts[0];
+      return `<circle cx="${x}" cy="${y}" r="${best ? 5 : 4}" fill="${safeCssColor(p.hex)}" stroke="var(--surface)" stroke-width="1.2"/>` +
+        (best ? `<circle cx="${x}" cy="${y}" r="7.5" fill="none" stroke="var(--accent)" stroke-width="1.2"/>` : '');
+    }).join('');
+    const g = (a, b) => `${px({ a, b }).toFixed(1)} ${py({ a, b }).toFixed(1)}`;
+    return `<svg viewBox="0 0 ${S} ${S}" class="cs-abplot-svg" role="img" aria-label="CIE a* b* chroma plot: target colour and nearest filaments">
+      <rect x="${M}" y="${M}" width="${2 * half}" height="${2 * half}" fill="none" stroke="var(--border-2)"/>
+      <g stroke="var(--grid)" stroke-width="1">
+        <line x1="${M}" y1="${c - half / 2}" x2="${S - M}" y2="${c - half / 2}"/>
+        <line x1="${M}" y1="${c + half / 2}" x2="${S - M}" y2="${c + half / 2}"/>
+        <line x1="${c - half / 2}" y1="${M}" x2="${c - half / 2}" y2="${S - M}"/>
+        <line x1="${c + half / 2}" y1="${M}" x2="${c + half / 2}" y2="${S - M}"/>
+      </g>
+      <line x1="${M}" y1="${c}" x2="${S - M}" y2="${c}" stroke="var(--l1)" stroke-width="1.4" opacity="0.5"/>
+      <line x1="${c}" y1="${M}" x2="${c}" y2="${S - M}" stroke="var(--l5)" stroke-width="1.4" opacity="0.5"/>
+      <text x="${S - M + 3}" y="${c + 3}" class="cs-abplot-ax">+a*</text>
+      <text x="${c}" y="${M - 6}" text-anchor="middle" class="cs-abplot-ax">+b*</text>
+      <circle cx="${tx}" cy="${ty}" r="${ringR}" fill="none" stroke="var(--accent)" stroke-width="1.1" stroke-dasharray="3 3"/>
+      ${dots}
+      <circle cx="${tx}" cy="${ty}" r="4" fill="var(--accent)"/>
+      <path d="M${tx} ${ty - 9}v-4M${tx} ${(+ty) + 9}v4M${tx - 9} ${ty}h-4M${(+tx) + 9} ${ty}h4" stroke="var(--accent)" stroke-width="1.2"/>
+    </svg>`;
+  }
+
+  function abPlotHtml(kc, pts) {
+    if (!_isBedReady || !pts.length) return '';
+    const best = pts[0];
+    const near = best ? `<span class="cs-abplot-best"><b style="color:var(--accent)">✦</b> ${escapeHtml(best.label)} · <span class="cs-de cs-de-${qualityClass(best.deltaE)}">ΔE ${best.deltaE.toFixed(1)}</span></span>` : '';
+    return `<div class="cs-abplot">
+      <div class="cs-abplot-head">${escapeHtml(t('cmix.plot_title') || 'ΔE map · a*b* chroma plane')}${near}</div>
+      ${abPlot(kc, _target, pts)}
+      <p class="cs-abplot-cap">${escapeHtml(t('cmix.plot_cap') || 'Crosshair = target; dots = your filaments; ringed dot = closest. Dashed ring ≈ close-match zone. L* not shown — the CIEDE2000 ΔE below is the true distance.')}</p>
+    </div>`;
+  }
+
   function updateMatcher() {
     const box = document.getElementById('csMatchResults');
     const kc = KC();
@@ -172,18 +224,22 @@
       return;
     }
     let html = '';
+    const plotPts = [];
     if (inv.length) {
       const ranked = kc.nearest(_target, inv, { limit: cat.length ? 8 : 12 });
+      ranked.forEach((r) => plotPts.push({ hex: r.color, deltaE: r.deltaE, label: filamentLabel(r) }));
       if (cat.length) html += groupLbl(t('cmix.from_stock') || 'In your inventory');
       html += ranked.map(invRow).join('');
     }
     if (cat.length) {
       const ranked = kc.nearest(_target, cat, { key: 'hex', limit: inv.length ? 6 : 12 });
+      ranked.forEach((r) => plotPts.push({ hex: r.hex, deltaE: r.deltaE, label: catalogLabel(r) }));
       html += groupLbl(t('cmix.from_catalog') || 'Closest known filaments');
       html += ranked.map(catRow).join('');
       if (!inv.length) html += `<p class="cs-hint-sm" style="font-size:12px;color:var(--text-muted,#869390);margin:8px 0 0;">${escapeHtml(t('cmix.catalog_hint') || 'Add a colour to a filament in Inventory to match against your own stock and get exact grams.')}</p>`;
     }
-    box.innerHTML = html;
+    plotPts.sort((a, b) => a.deltaE - b.deltaE);
+    box.innerHTML = abPlotHtml(kc, plotPts.slice(0, 8)) + html;
   }
 
   function updateBlend() {

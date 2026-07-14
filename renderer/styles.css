@@ -3627,6 +3627,13 @@ body.mode-enthusiast .biz-only { display: none !important; }
 .cs-color { width: 46px; height: 38px; padding: 3px 4px; border-radius: var(--radius-sm); border: 1px solid var(--border); cursor: pointer; background: var(--bg-elev); flex-shrink: 0; }
 .cs-hex-input { width: 92px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; text-transform: uppercase; padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: 13px; }
 .cs-from { flex: 1; min-width: 140px; padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: 13px; }
+/* ΔE colorimeter plot (Bed Ready Colour Studio) */
+.cs-abplot { margin: 0 0 14px; padding: 12px; border: 1px solid var(--border); border-radius: var(--r-md, 8px); background: var(--surface-2); }
+.cs-abplot-head { font-family: var(--font-mono, ui-monospace), monospace; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.cs-abplot-best { text-transform: none; letter-spacing: 0; font-size: 12px; color: var(--text-dim); display: inline-flex; align-items: center; gap: 6px; }
+.cs-abplot-svg { display: block; width: 100%; max-width: 240px; height: auto; margin: 0 auto; }
+.cs-abplot-ax { fill: var(--text-muted); font-family: var(--font-mono, ui-monospace), monospace; font-size: 9px; }
+.cs-abplot-cap { font-size: 11px; color: var(--text-muted); margin: 8px 0 0; line-height: 1.4; }
 .cs-results { display: flex; flex-direction: column; gap: 6px; }
 .cs-row { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 9px; border: 1px solid var(--border); cursor: pointer; }
 .cs-row:hover { background: var(--surface-2); }
