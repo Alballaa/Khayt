@@ -235,15 +235,19 @@
   }
 
   function exportHtml() {
+    const auto = S.plan && S.plan.automatic;
+    const can3mf = auto && S.solve;
     return [
       '<div class="hf-card">',
       '<div class="hf-card-h">EXPORT</div>',
       '<div class="hf-export">',
-      '<button type="button" class="btn primary sm" id="hfStl">' + wrapIco('cube') + 'Export relief STL</button>',
-      '<button type="button" class="btn ghost sm" id="hfCopy">' + wrapIco('clipboard') + 'Copy print plan</button>',
-      '<button type="button" class="btn ghost sm" id="hf3mf" disabled title="Zero-slicer U1 3MF — in validation">' + wrapIco('swap') + 'U1 3MF · soon</button>',
+      '<button type="button" class="btn primary sm" id="hf3mf"' + (can3mf ? '' : ' disabled title="Needs ≤4 colours (fits the U1 heads)"') + '>' + wrapIco('cube') + 'Export U1 3MF</button>',
+      '<button type="button" class="btn ghost sm" id="hfStl">' + wrapIco('doc') + 'Relief STL</button>',
+      '<button type="button" class="btn ghost sm" id="hfCopy">' + wrapIco('clipboard') + 'Copy plan</button>',
       '</div>',
-      '<div class="hf-note">The STL is the relief, sized to the bed — slice it in Snapmaker Orca and load the print plan’s filaments into the four heads. A one-click U1 3MF (filaments pre-mapped, swaps baked in) is in validation next.</div>',
+      '<div class="hf-note">' + (can3mf
+        ? 'The U1 3MF opens in Snapmaker Orca ready to slice — the four filaments are pre-mapped to the heads and the colour swaps are baked in by height. Just load the shown colours and print.'
+        : 'Reduce to ≤4 colours for the one-click U1 3MF. The relief STL always works — slice it and load the plan’s filaments yourself.') + '</div>',
       '</div>',
     ].join('');
   }
@@ -353,6 +357,7 @@
     on('#hfBase', 'input', (e) => { S.baseLayers = Math.round(clampNum(e.target.value, 1, 20, 4)); scheduleRepaint(); });
     on('#hfCopy', 'click', copyPlan);
     on('#hfStl', 'click', exportStl);
+    on('#hf3mf', 'click', export3mf);
 
     const stack = host.querySelector('#hfStack');
     if (stack) {
@@ -437,6 +442,32 @@
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(() => toast('Print plan copied')).catch(() => toast('Copy failed'));
     } else { toast('Clipboard unavailable'); }
+  }
+
+  function export3mf() {
+    if (!S.solve || !S.stack || !S.plan || !S.plan.automatic) { toast('Reduce to ≤4 colours first'); return; }
+    const api = (typeof window !== 'undefined' && window.hubAPI);
+    if (!api || !api.hfExport3mf) { toast('Export unavailable'); return; }
+    const lh = S.stack.layerH;
+    const bands = S.stack.bands.map((b, i) => ({
+      z0: +((b.startLayer - 1) * lh).toFixed(4),
+      z1: +(b.endLayer * lh).toFixed(4),
+      head: S.plan.slots[i] ? S.plan.slots[i].slot : (i % S.plan.heads),
+      hex: b.hex,
+    }));
+    const btn = document.getElementById('hf3mf');
+    if (btn) { btn.disabled = true; btn.textContent = 'Building…'; }
+    api.hfExport3mf({
+      heights: Array.from(S.solve.heights),
+      width: S.solve.width, height: S.solve.height,
+      layerH: lh, widthMm: S.widthMm, bands,
+      name: (S.imgName || 'hueforge').replace(/\.[^.]+$/, ''),
+    }).then((r) => {
+      render();
+      if (r && r.ok) toast('U1 3MF saved · open in Snapmaker Orca');
+      else if (r && r.canceled) { /* silent */ }
+      else toast('Export failed' + (r && r.error ? ': ' + r.error : ''));
+    }).catch((e) => { render(); toast('Export failed'); });
   }
 
   function exportStl() {

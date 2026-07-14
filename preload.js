@@ -126,6 +126,7 @@ contextBridge.exposeInMainWorld('hubAPI', {
   stlPick:    ()      => ipcRenderer.invoke('hub:stl-pick'),
   stlTo3mf:   (opts)  => ipcRenderer.invoke('hub:stl-to-3mf', opts),
   mfToStl:    (opts)  => ipcRenderer.invoke('hub:mf-to-stl', opts),
+  hfExport3mf:(opts)  => ipcRenderer.invoke('hub:hf-export-3mf', opts),
 
   // Feature 8 (new): Status page auto-export
   writeStatusPage: (html, orderId) => ipcRenderer.invoke('hub:write-status-page', { html, orderId }),
