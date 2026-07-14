@@ -426,6 +426,8 @@ function syncTopbarTitle(tabId) {
   } else {
     sub.textContent = '';
   }
+  // Bed Ready reframes the subtitle as an ISO title-block field row (no-op elsewhere).
+  if (typeof window.brSyncTitleBlock === 'function') window.brSyncTitleBlock(tabId);
 }
 
 

@@ -263,6 +263,18 @@ html[data-app="bedready"] .khayt-top::after {
 html[data-app="bedready"] .khayt-toptitle .topbar-title {
   font-family: var(--font-display); font-weight: 600; letter-spacing: -0.025em;
 }
+/* ISO title-block: the page subtitle becomes a mono, bordered field strip (REV · UNITS · DATE)
+   so every view reads like a drafting sheet — a signature Cyanotype Draft device. */
+html[data-app="bedready"] #topbarPageSubtitle { display: inline-flex; margin-top: 3px; }
+.br-tb { display: inline-flex; align-items: stretch; border: 1px solid var(--accent-line);
+  border-radius: var(--r-sm, 3px); overflow: hidden; background: var(--surface); }
+.br-tb-cell { display: flex; flex-direction: column; justify-content: center; gap: 1px;
+  padding: 2px 10px; border-inline-start: 1px solid var(--hairline); line-height: 1.05; }
+.br-tb-cell:first-child { border-inline-start: 0; }
+.br-tb-l { font-family: var(--font-mono), monospace; font-size: 7.5px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--text-muted); }
+.br-tb-v { font-family: var(--font-mono), monospace; font-size: 11px; color: var(--text);
+  font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
 /* Hide the busy centre search mirror + secondary-action clutter that reads
    "Khayt". Keep: theme toggle, notifications, language — and the beta Feedback
    button (kept visible + emphasised below). */
