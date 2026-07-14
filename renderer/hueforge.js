@@ -25,8 +25,9 @@
   let _rafPending = false;
 
   function defaults() {
-    return { img: null, imgUrl: '', imgName: '', filaments: [], layerH: 0.08, baseLayers: 4, maxColors: 4, stack: null, solve: null, plan: null };
+    return { img: null, imgUrl: '', imgName: '', filaments: [], layerH: 0.12, baseLayers: 4, maxColors: 4, widthMm: 120, stack: null, solve: null, plan: null };
   }
+  const LAYER_PRESETS = [[0.08, 'finest'], [0.12, 'recommended'], [0.16, ''], [0.20, 'fast']];
 
   function u1Profile() { const P = global.KhaytPrinterProfiles; return P ? P.getProfile(U1_ID) : null; }
   function esc(s) { return (typeof escapeHtml === 'function') ? escapeHtml(String(s == null ? '' : s)) : String(s == null ? '' : s); }
@@ -69,6 +70,8 @@
     const hf = HF();
     if (!hf || !S.img) return;
     S.filaments = hf.suggestFilaments(S.img, ownedColored(), S.maxColors);
+    // opaque foundation so the bed never bleeds through the bottom colour (~TD×1.3, per Kromacut)
+    if (S.filaments[0]) S.baseLayers = clampNum(Math.round(S.filaments[0].td * 1.3 / S.layerH), 2, 20, 4);
     recompute();
   }
 
@@ -198,11 +201,16 @@
   }
 
   function settingsHtml() {
+    const opts = LAYER_PRESETS.slice();
+    if (!opts.some((p) => Math.abs(p[0] - S.layerH) < 1e-6)) opts.push([S.layerH, 'custom']);
+    const lopt = opts.map((p) => '<option value="' + p[0] + '"' + (Math.abs(p[0] - S.layerH) < 1e-6 ? ' selected' : '') + '>'
+      + p[0].toFixed(2) + ' mm' + (p[1] ? ' · ' + p[1] : '') + '</option>').join('');
     return [
       '<div class="hf-card">',
       '<div class="hf-card-h">PRINT SETTINGS</div>',
       '<div class="hf-set">',
-      '<label class="hf-num wide" title="Layer height (mm)">layer height (mm)<input type="number" id="hfLayerH" min="0.04" max="0.28" step="0.01" value="' + esc(S.layerH) + '" /></label>',
+      '<label class="hf-num wide" title="Printed width on the bed (mm)">width (mm)<input type="number" id="hfWidth" min="40" max="270" step="1" value="' + esc(S.widthMm) + '" /></label>',
+      '<label class="hf-num wide" title="Layer height">layer height<select class="input" id="hfLayerH">' + lopt + '</select></label>',
       '<label class="hf-num wide" title="Solid base layers before the first colour">base layers<input type="number" id="hfBase" min="1" max="20" step="1" value="' + esc(S.baseLayers) + '" /></label>',
       '</div></div>',
     ].join('');
@@ -231,10 +239,11 @@
       '<div class="hf-card">',
       '<div class="hf-card-h">EXPORT</div>',
       '<div class="hf-export">',
-      '<button type="button" class="btn primary sm" id="hf3mf" disabled title="Zero-slicer U1 3MF — shipping in the next update">' + wrapIco('cube') + 'Export U1 3MF</button>',
+      '<button type="button" class="btn primary sm" id="hfStl">' + wrapIco('cube') + 'Export relief STL</button>',
       '<button type="button" class="btn ghost sm" id="hfCopy">' + wrapIco('clipboard') + 'Copy print plan</button>',
+      '<button type="button" class="btn ghost sm" id="hf3mf" disabled title="Zero-slicer U1 3MF — in validation">' + wrapIco('swap') + 'U1 3MF · soon</button>',
       '</div>',
-      '<div class="hf-note">The colour plan below is confirmed first; the 3MF that loads &amp; prints on the U1 with zero slicer setup is the next step.</div>',
+      '<div class="hf-note">The STL is the relief, sized to the bed — slice it in Snapmaker Orca and load the print plan’s filaments into the four heads. A one-click U1 3MF (filaments pre-mapped, swaps baked in) is in validation next.</div>',
       '</div>',
     ].join('');
   }
@@ -294,7 +303,10 @@
     if (!S.plan) { host.innerHTML = ''; return; }
     const p = S.plan, prof = u1Profile();
     const heightMm = S.stack ? (S.stack.totalLayers * S.stack.layerH).toFixed(2) : '0';
-    const bed = prof && prof.bed ? prof.bed.x + '×' + prof.bed.y + ' mm bed' : '270×270 mm bed';
+    const depthMm = S.img ? (S.widthMm * S.img.height / S.img.width) : 0;
+    const size = S.img ? (Math.round(S.widthMm) + '×' + Math.round(depthMm) + '×' + heightMm + ' mm') : '';
+    const bedX = prof && prof.bed ? prof.bed.x : 270;
+    const overBed = S.img && (S.widthMm > bedX || depthMm > (prof && prof.bed ? prof.bed.y : 270));
     const ok = p.automatic;
     const badge = ok
       ? '<span class="hf-vd-badge ok">' + wrapIco('check') + 'FULLY AUTOMATIC</span>'
@@ -310,7 +322,8 @@
       '<div class="hf-vd-top">' + badge + '<span class="hf-vd-count">' + p.colorCount + ' colours · ' + p.heads + ' heads</span></div>',
       '<div class="hf-vd-line">' + line2 + '</div>',
       reloadList,
-      '<div class="hf-vd-facts"><span>' + bed + '</span><span>' + (S.stack ? S.stack.totalLayers : 0) + ' layers</span><span>' + heightMm + ' mm tall</span></div>',
+      '<div class="hf-vd-facts"><span>' + size + '</span><span>' + (S.stack ? S.stack.totalLayers : 0) + ' layers</span>'
+        + (overBed ? '<span class="hf-over">exceeds ' + bedX + ' mm bed — reduce width</span>' : '') + '</div>',
     ].join('');
   }
 
@@ -335,9 +348,11 @@
     on('#hfTune', 'click', runTune);
     on('#hfAdd', 'click', () => { addFilament(); render(); });
     on('#hfMaxColors', 'change', (e) => { S.maxColors = +e.target.value || 4; });
-    on('#hfLayerH', 'input', (e) => { S.layerH = clampNum(e.target.value, 0.04, 0.28, 0.08); scheduleRepaint(); });
+    on('#hfLayerH', 'change', (e) => { S.layerH = clampNum(e.target.value, 0.04, 0.28, 0.12); scheduleRepaint(); });
+    on('#hfWidth', 'input', (e) => { S.widthMm = clampNum(e.target.value, 40, 270, 120); scheduleRepaint(); });
     on('#hfBase', 'input', (e) => { S.baseLayers = Math.round(clampNum(e.target.value, 1, 20, 4)); scheduleRepaint(); });
     on('#hfCopy', 'click', copyPlan);
+    on('#hfStl', 'click', exportStl);
 
     const stack = host.querySelector('#hfStack');
     if (stack) {
@@ -400,21 +415,44 @@
 
   function copyPlan() {
     if (!S.stack || !S.plan) return;
+    const lh = S.stack.layerH, mm = (k) => (k * lh).toFixed(2);
+    const depthMm = S.img ? Math.round(S.widthMm * S.img.height / S.img.width) : 0;
     const lines = [];
     lines.push('HueForge → Snapmaker U1  ·  ' + (S.imgName || 'painting'));
-    lines.push('Layer height ' + S.layerH + ' mm · ' + S.stack.totalLayers + ' layers · ' + (S.stack.totalLayers * S.layerH).toFixed(2) + ' mm tall');
+    lines.push('Size ' + Math.round(S.widthMm) + '×' + depthMm + '×' + mm(S.stack.totalLayers) + ' mm · '
+      + 'layer ' + lh + ' mm · ' + S.stack.totalLayers + ' layers · 100% infill');
     lines.push('');
     S.stack.bands.forEach((b, i) => {
       const slot = S.plan.slots[i] ? S.plan.slots[i].slot : i % S.plan.heads;
       const reload = S.plan.reloads.some((r) => r.band === b);
-      lines.push('Head T' + slot + '  ' + String(b.hex).toUpperCase() + '  TD ' + b.td + '  layers ' + b.startLayer + '–' + b.endLayer + (reload ? '  (reload at layer ' + b.startLayer + ')' : ''));
+      lines.push('Head T' + slot + '  ' + String(b.hex).toUpperCase() + '  TD ' + b.td
+        + '  ·  layers ' + b.startLayer + '–' + b.endLayer + ' (' + mm(b.startLayer - 1) + '–' + mm(b.endLayer) + ' mm)'
+        + (reload ? '  ← RELOAD this head at ' + mm(b.startLayer - 1) + ' mm' : ''));
     });
     lines.push('');
-    lines.push(S.plan.automatic ? 'Fully automatic on the U1 (4 SnapSwap heads).' : (S.plan.reloads.length + ' mid-print reload(s) needed.'));
+    lines.push(S.plan.automatic
+      ? 'Fully automatic on the U1 — load these 4 colours into heads T0–T' + (S.plan.colorCount - 1) + '; swaps happen mid-print, no manual steps.'
+      : (S.plan.reloads.length + ' mid-print reload(s) needed — swap the marked head when the U1 pauses at the listed height.'));
     const text = lines.join('\n');
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(() => toast('Print plan copied')).catch(() => toast('Copy failed'));
     } else { toast('Clipboard unavailable'); }
+  }
+
+  function exportStl() {
+    const hf = HF();
+    if (!hf || !S.solve || !S.stack) { toast('Nothing to export yet'); return; }
+    const mesh = hf.heightfieldToMesh(S.solve, { layerH: S.stack.layerH, widthMm: S.widthMm });
+    if (!mesh.triangleCount) { toast('Empty model'); return; }
+    const bytes = hf.meshToStlBinary(mesh.triangles);
+    const blob = new Blob([bytes], { type: 'model/stl' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (S.imgName || 'painting').replace(/\.[^.]+$/, '') + '-U1.stl';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    toast('STL exported · ' + Math.round(mesh.sizeMm.x) + '×' + Math.round(mesh.sizeMm.y) + '×' + mesh.sizeMm.z.toFixed(1) + ' mm');
   }
 
   // ---- utils --------------------------------------------------------------
