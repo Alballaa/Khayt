@@ -72,6 +72,10 @@
     sun: '<circle cx="12" cy="12" r="4.5"/><path d="M12 2V5"/><path d="M12 19V22"/><path d="M2 12H5"/><path d="M19 12H22"/><path d="M4.5 4.5L6.5 6.5"/><path d="M17.5 17.5L19.5 19.5"/><path d="M4.5 19.5L6.5 17.5"/><path d="M17.5 6.5L19.5 4.5"/>',
     // ETA / finish — flag
     flag: '<path d="M6 21V4"/><path d="M6 4H18L15 8L18 12H6"/>',
+    // maintenance — wrench
+    wrench: '<path d="M16.5 3.5A4 4 0 0 0 12.2 8.8L4 17L7 20L15.2 11.8A4 4 0 0 0 20.5 7.5L17.5 10.5L13.5 6.5Z"/>',
+    // detect / search — magnifier
+    search: '<circle cx="10.5" cy="10.5" r="6"/><path d="M15 15L20 20"/>',
     // fallback
     dot: '<circle cx="12" cy="12" r="3"/>',
   };

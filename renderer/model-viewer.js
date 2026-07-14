@@ -213,7 +213,7 @@
       </div>`;
 
     openFormModal({
-      title: '🧊 ' + (t('plib.view3d') || 'View in 3D'),
+      title: ((typeof document !== 'undefined' && document.documentElement.dataset.app === 'bedready') ? '' : '🧊 ') + (t('plib.view3d') || 'View in 3D'),
       bodyHtml: body,
       noSave: true,
       onMount(modal) {
