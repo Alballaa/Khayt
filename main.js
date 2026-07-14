@@ -1619,6 +1619,30 @@ ipcMain.handle('hub:mf-to-stl', async (_e, { path: srcPath } = {}) => {
   } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
 });
 
+// HueForge → U1: build a zero-slicer Snapmaker-Orca 3MF from a solved heightfield + a
+// per-band head plan (colour swaps encoded as layer_config_ranges). The relief is rebuilt
+// in-process from the compact heightfield (lighter over IPC than the full triangle soup).
+ipcMain.handle('hub:hf-export-3mf', async (_e, { heights, width, height, layerH, widthMm, bands, name } = {}) => {
+  try {
+    if (!Array.isArray(heights) || !width || !height || !Array.isArray(bands) || !bands.length) return { ok: false, error: 'Nothing to export yet.' };
+    const HF = require('./lib/hueforge');
+    const HF3 = require('./lib/hueforge-3mf');
+    const solve = { heights: Uint16Array.from(heights), width, height };
+    const mesh = HF.heightfieldToMesh(solve, { layerH, widthMm });
+    if (!mesh.triangleCount) return { ok: false, error: 'Empty model.' };
+    const buf = HF3.buildU1_3mf({ triangles: mesh.triangles, bands, layerH, name, sizeMm: mesh.sizeMm, bed: { x: 270, y: 270 } });
+    if (!buf) return { ok: false, error: 'Failed to build the 3MF.' };
+    const win = BrowserWindow.fromWebContents(_e.sender);
+    const base = String(name || 'hueforge').replace(/[^\w.-]+/g, '_') + '-U1.3mf';
+    const result = await dialog.showSaveDialog(win, { defaultPath: base, filters: [{ name: '3MF model', extensions: ['3mf'] }] });
+    if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+    const finalPath = path.resolve(result.filePath);
+    if (!mfReadAllowed(finalPath)) return { ok: false, error: 'Output path is outside an allowed folder.' };
+    await fs.promises.writeFile(finalPath, buf);
+    return { ok: true, outPath: finalPath, triangleCount: mesh.triangleCount, sizeMm: mesh.sizeMm };
+  } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
+});
+
 // Extract an embedded preview + (3MF) colour/swap info from a print file. Local only.
 ipcMain.handle('hub:extract-thumbnail', async (_e, filePath) => {
   const empty = { pngBase64: null, colors: [], swapCount: 0, source: null };
