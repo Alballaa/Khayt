@@ -1173,6 +1173,22 @@ ipcMain.handle('hub:printlib-pick-and-copy', async (event, id) => {
   return { filename, originalName, size: stat.size, ext, fullPath: destPath };
 });
 
+// Pick MANY print files at once — returns the chosen source paths (no copy). The renderer then copies
+// each into its own record's vault via printlib-copy-path, reusing the drag-and-drop ingest path.
+ipcMain.handle('hub:printlib-pick-multi', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const result = await dialog.showOpenDialog(win, {
+    title: 'Add print files',
+    filters: [
+      { name: '3D Print Files', extensions: ['stl', '3mf', 'obj', 'gcode', 'gco'] },
+      { name: 'All Files', extensions: ['*'] },
+    ],
+    properties: ['openFile', 'multiSelections'],
+  });
+  if (result.canceled || !result.filePaths.length) return { ok: false };
+  return { ok: true, paths: result.filePaths };
+});
+
 // Copy a KNOWN file path (e.g. from a drag-and-drop) into a record's vault — the no-dialog twin of
 // pick-and-copy. Extension-gated to real print files so a stray drop can't smuggle in something else.
 ipcMain.handle('hub:printlib-copy-path', async (_e, { id, srcPath } = {}) => {

@@ -100,6 +100,7 @@ contextBridge.exposeInMainWorld('hubAPI', {
 
   // 3.1: Print-file library (standalone, order-independent)
   printLibPick:       (id)                => ipcRenderer.invoke('hub:printlib-pick-and-copy', id),
+  printLibPickMulti:  ()                  => ipcRenderer.invoke('hub:printlib-pick-multi'),
   printLibCopyPath:   (id, srcPath)       => ipcRenderer.invoke('hub:printlib-copy-path', { id, srcPath }),
   printLibList:       (id)                => ipcRenderer.invoke('hub:printlib-list', id),
   printLibDelete:     (fullPath)          => ipcRenderer.invoke('hub:printlib-delete', fullPath),

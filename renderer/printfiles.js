@@ -203,7 +203,7 @@
             </div>
             ${isGallery ? '' : `<input type="search" id="pfSearch" class="pf-search" placeholder="${escapeHtml(t('common.search') || 'Search')}" value="${escapeHtml(_query)}" aria-label="${escapeHtml(t('common.search') || 'Search')}">`}
             ${typeof openCalibration === 'function' ? `<button class="btn ghost" data-act="pf-calibrate">🎯 ${escapeHtml(t('plib.calibrate') || 'Calibrate')}</button>` : ''}
-            <button class="btn primary" data-act="pf-add" ${hasHub ? '' : 'disabled'}>＋ ${escapeHtml(t('plib.add') || 'Add file')}</button>
+            <button class="btn primary" data-act="pf-add" ${hasHub ? '' : 'disabled'} title="${escapeHtml(t('plib.add_multi_hint') || 'Add one or more files — select several at once')}">＋ ${escapeHtml(t('plib.add') || 'Add file')}</button>
           </div>
         </div>
         <div id="pfList">${listInnerHtml()}</div>
@@ -284,7 +284,17 @@
   }
 
   async function addPrintFile() {
-    const hub = api(); if (!hub || !hub.printLibPick) return;
+    const hub = api(); if (!hub) return;
+    // Prefer the multi-select picker (bulk import); each file is copied into its own record's vault via
+    // the same path-ingest as drag-and-drop. Fall back to the single picker on an older main process.
+    if (hub.printLibPickMulti) {
+      let res;
+      try { res = await hub.printLibPickMulti(); } catch (err) { toast(String(err.message || err), 'error'); return; }
+      if (!res || !res.ok || !Array.isArray(res.paths) || !res.paths.length) return;
+      await addDroppedFiles(res.paths);
+      return;
+    }
+    if (!hub.printLibPick) return;
     const id = uid('PF');
     let picked;
     try { picked = await hub.printLibPick(id); } catch (err) { toast(String(err.message || err), 'error'); return; }
