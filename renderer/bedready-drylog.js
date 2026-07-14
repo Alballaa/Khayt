@@ -201,7 +201,10 @@
       '</div>';
   }
 
-  function render() {
+  // afterAction=true means this render followed a user action (dried/delete/save/cancel), so the button
+  // they clicked is gone — move focus to a stable control (the Add button) instead of dropping it to
+  // <body>, which would break keyboard navigation and leave the focus trap with nothing focused.
+  function render(afterAction) {
     if (!body) return;
     if (mode === 'form') {
       var rec = editId ? records().find(function (r) { return r.id === editId; }) : null;
@@ -210,6 +213,7 @@
       var lbl = body.querySelector('#dryLabel'); if (lbl) lbl.focus();
     } else {
       body.innerHTML = listView();
+      if (afterAction) { var add = body.querySelector('[data-act="add"]'); if (add) add.focus(); }
     }
   }
 
@@ -271,17 +275,17 @@
     var id = btn.getAttribute('data-id');
     if (act === 'add') { mode = 'form'; editId = null; render(); return; }
     if (act === 'edit') { mode = 'form'; editId = id; render(); return; }
-    if (act === 'cancel') { mode = 'list'; editId = null; render(); return; }
+    if (act === 'cancel') { mode = 'list'; editId = null; render(true); return; }
     if (act === 'dried') {
       var r = records().find(function (x) { return x.id === id; });
-      if (r) { markDried(r, r.tempC, r.hours); persist(); render(); if (typeof toast === 'function') toast(tt('dry.logged', 'Logged a drying — clock reset.'), 'success'); }
+      if (r) { markDried(r, r.tempC, r.hours); persist(); render(true); if (typeof toast === 'function') toast(tt('dry.logged', 'Logged a drying — clock reset.'), 'success'); }
       return;
     }
     if (act === 'del') {
       if (typeof confirm === 'function' && !confirm(tt('dry.del_confirm', 'Stop tracking this spool?'))) return;
       var arr = records();
       var i = arr.findIndex(function (x) { return x.id === id; });
-      if (i >= 0) { arr.splice(i, 1); persist(); render(); }
+      if (i >= 0) { arr.splice(i, 1); persist(); render(true); }
       return;
     }
     if (act === 'save') {
@@ -306,7 +310,7 @@
         records().push(rec);
       }
       persist();
-      mode = 'list'; editId = null; render();
+      mode = 'list'; editId = null; render(true);
       return;
     }
   }
