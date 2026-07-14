@@ -210,8 +210,55 @@
     ].join('');
   }
 
+  // Needle-settle (Cyanotype Draft motion signature): the hero stat figures
+  // count up and ease to rest like an analog gauge needle settling, rather than
+  // snapping in. Animates only the numeric text node so unit spans (kWh, kg) are
+  // preserved, restores the exact original string at the end, and no-ops under
+  // "reduce motion". Contained to the home stats panel — not every number counts.
+  function settleStatEl(el, delay) {
+    var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
+    var node, tn = null;
+    while ((node = walker.nextNode())) { if (/\d/.test(node.nodeValue)) { tn = node; break; } }
+    if (!tn) return;
+    var raw = tn.nodeValue;
+    var m = raw.match(/\d[\d,]*\.?\d*/);
+    if (!m) return;
+    var numStr = m[0];
+    var pre = raw.slice(0, m.index), post = raw.slice(m.index + numStr.length);
+    var target = parseFloat(numStr.replace(/,/g, ''));
+    if (!isFinite(target) || target <= 0) return;
+    var dot = numStr.indexOf('.');
+    var decimals = dot >= 0 ? numStr.length - dot - 1 : 0;
+    var useComma = numStr.indexOf(',') >= 0 || target >= 1000;
+    var fmt = function (v) {
+      var s = v.toFixed(decimals);
+      if (useComma) { var p = s.split('.'); p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ','); s = p.join('.'); }
+      return s;
+    };
+    var dur = 640, startTs = null;
+    tn.nodeValue = pre + fmt(0) + post;
+    var frame = function (ts) {
+      if (startTs === null) startTs = ts;
+      var t = Math.min(1, (ts - startTs) / dur);
+      var eased = 1 - Math.pow(1 - t, 3); // ease-out cubic — needle settling to rest
+      tn.nodeValue = pre + fmt(target * eased) + post;
+      if (t < 1) requestAnimationFrame(frame);
+      else tn.nodeValue = raw; // restore exact original formatting
+    };
+    setTimeout(function () { requestAnimationFrame(frame); }, delay || 0);
+  }
+
+  function settleStats(el) {
+    try {
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    } catch (e) { /* matchMedia absent — fall through and animate */ }
+    var vals = el.querySelectorAll('.br-stat-val');
+    for (var i = 0; i < vals.length; i++) settleStatEl(vals[i], i * 70);
+  }
+
   function fill(el) {
     el.innerHTML = homeHtml();
+    settleStats(el);
     el.querySelectorAll('.br-action').forEach(function (b) {
       b.addEventListener('click', function () {
         // BedReady library card opens the sync modal; the rest switch tabs.
