@@ -46,6 +46,8 @@
     camera: '<path d="M4 8h3l1.5-2.2h7L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.2"/>',
     close: '<path d="m6 6 12 12M18 6 6 18"/>',
     catalog: '<path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5z"/><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9"/>',
+    swap: '<path d="M4 8.5h13M14 5l3.5 3.5L14 12"/><path d="M20 15.5H7M10 12l-3.5 3.5L10 19"/>',
+    palette: '<circle cx="9" cy="9.5" r="4.3"/><circle cx="15" cy="9.5" r="4.3"/><circle cx="12" cy="14.7" r="4.3"/>',
   };
 
   const TAB_ICON = {

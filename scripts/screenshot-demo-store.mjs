@@ -197,9 +197,9 @@ export function buildScreenshotDemoStore() {
     ],
     waTemplates: [],
     wasteLog: [
-      { id: 'W1', date: daysAgo(1), material: 'PLA+ Black', weight: 62, cost: 4.65, failureType: 'adhesion', reason: 'Bed level drift' },
-      { id: 'W2', date: daysAgo(3), material: 'PETG White', weight: 28, cost: 2.30, failureType: 'layer_shift', reason: 'Belt tension' },
-      { id: 'W3', date: daysAgo(6), material: 'Resin Grey 8K', weight: 45, cost: 6.53, failureType: 'support_fail', reason: 'Heavy islands' },
+      { id: 'W1', date: daysAgo(1), material: 'PLA+ Black', weight: 62, cost: 4.65, failureType: 'bed_adhesion', reason: 'Bed level drift' },
+      { id: 'W2', date: daysAgo(3), material: 'PETG White', weight: 28, cost: 2.30, failureType: 'nozzle_jam', reason: 'Partial clog' },
+      { id: 'W3', date: daysAgo(6), material: 'Resin Grey 8K', weight: 45, cost: 6.53, failureType: 'design_issue', reason: 'Heavy unsupported islands' },
       { id: 'W4', date: daysAgo(9), material: 'TPU 95A', weight: 18, cost: 2.34, failureType: 'stringing', reason: 'Dry box needed' },
       { id: 'W5', date: daysAgo(14), material: 'ASA Black', weight: 35, cost: 3.85, failureType: 'warping', reason: 'Chamber temp low' },
     ],

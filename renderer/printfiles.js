@@ -13,6 +13,12 @@
 (function (global) {
   const api = () => (typeof window !== 'undefined' && window.hubAPI) || null;
   const EXT_ICON = { stl: '🧊', obj: '🧊', '3mf': '🎨', gcode: '📄', gco: '📄' };
+  const EXT_ICON_NAME = { stl: 'cube', obj: 'cube', '3mf': 'colour', gcode: 'doc', gco: 'doc' };
+  // Bed Ready swaps emoji markers for its bespoke drafting glyphs; Khayt keeps the emoji.
+  const _BDR = (typeof document !== 'undefined' && document.documentElement && document.documentElement.dataset.app === 'bedready');
+  const _bi = (name, glyph, size) => (_BDR && window.BedReadyIcons)
+    ? `<span class="pf-ico" aria-hidden="true">${window.BedReadyIcons.get(name, size || 15)}</span>`
+    : (glyph ? glyph + ' ' : '');
 
   function fmtTime(mins) {
     if (mins == null || !isFinite(mins) || mins <= 0) return '';
@@ -110,7 +116,10 @@
   function thumbHtml(rec) {
     const src = rec.thumb || rec.userPhoto || null;
     if (src) return `<img class="pf-thumb" src="${safeImageSrc(src)}" alt="" loading="lazy">`;
-    const ico = EXT_ICON[rec.sourceFile?.ext] || '📦';
+    const ext = rec.sourceFile?.ext;
+    const ico = (_BDR && window.BedReadyIcons)
+      ? window.BedReadyIcons.get(EXT_ICON_NAME[ext] || 'cube', 44)
+      : (EXT_ICON[ext] || '📦');
     return `<div class="pf-thumb pf-thumb-icon">${ico}</div>`;
   }
 
@@ -126,8 +135,8 @@
     const p = rec.parsed || {};
     const chips = [];
     const ext = rec.sourceFile?.ext; if (ext) chips.push(ext.toUpperCase());
-    const tm = fmtTime(p.printTimeMins); if (tm) chips.push('⏱ ' + tm);
-    if (p.filamentGrams) chips.push('⛁ ' + Math.round(p.filamentGrams) + ' g');
+    const tm = fmtTime(p.printTimeMins); if (tm) chips.push((_BDR ? '' : '⏱ ') + tm);
+    if (p.filamentGrams) chips.push((_BDR ? '' : '⛁ ') + Math.round(p.filamentGrams) + ' g');
     if (p.slicer) chips.push(escapeHtml(p.slicer));
     if (p.bbox && p.bbox.x) chips.push(`${Math.round(p.bbox.x)}×${Math.round(p.bbox.y)}×${Math.round(p.bbox.z)} mm`);
     const sz = fmtSize(rec.sourceFile?.size); if (sz) chips.push(sz);
@@ -144,26 +153,26 @@
           <div class="pf-name" title="${escapeHtml(rec.originalName || rec.name)}">${escapeHtml(rec.name || rec.originalName || 'Untitled')}</div>
           <div class="pf-chips">${metaChips(rec)}</div>
           ${colorDotsHtml(rec)}
-          ${prof ? `<div class="pf-prof">🛠 ${escapeHtml(prof.name)}</div>` : ''}
+          ${prof ? `<div class="pf-prof">${_bi('nozzle', '🛠')}${escapeHtml(prof.name)}</div>` : ''}
           ${rec.testedNotes ? `<div class="pf-notes">${escapeHtml(rec.testedNotes)}</div>` : ''}
-          ${(rec.folder || (Array.isArray(rec.tags) && rec.tags.length)) ? `<div class="pf-tags">${rec.folder ? `<button type="button" class="pf-folder ${_folderFilter && _folderFilter.toLowerCase() === String(rec.folder).toLowerCase() ? 'on' : ''}" data-act="pf-folder" data-folder="${escapeHtml(rec.folder)}" title="${escapeHtml(t('plib.folder') || 'Folder')}">🗂 ${escapeHtml(rec.folder)}</button>` : ''}${(rec.tags || []).map((tg) => `<button type="button" class="pf-tag ${_tagFilter && _tagFilter.toLowerCase() === String(tg).toLowerCase() ? 'on' : ''}" data-act="pf-tag" data-tag="${escapeHtml(tg)}">${escapeHtml(tg)}</button>`).join('')}</div>` : ''}
-          ${(rec.timesPrinted || rec.timesFailed) ? `<div class="pf-history" title="${escapeHtml(t('plib.history_title') || 'Print history')}">🖨 ${(rec.timesPrinted || 0)}× ${escapeHtml(t('plib.printed') || 'printed')}${rec.timesFailed ? ` · ${rec.timesFailed} ${escapeHtml(t('plib.failed') || 'failed')}` : ''}${rec.lastPrinted ? ` · ${escapeHtml(t('plib.last') || 'last')} ${escapeHtml(fmtPfDate(rec.lastPrinted))}` : ''}</div>` : ''}
+          ${(rec.folder || (Array.isArray(rec.tags) && rec.tags.length)) ? `<div class="pf-tags">${rec.folder ? `<button type="button" class="pf-folder ${_folderFilter && _folderFilter.toLowerCase() === String(rec.folder).toLowerCase() ? 'on' : ''}" data-act="pf-folder" data-folder="${escapeHtml(rec.folder)}" title="${escapeHtml(t('plib.folder') || 'Folder')}">${_bi('folder', '🗂')}${escapeHtml(rec.folder)}</button>` : ''}${(rec.tags || []).map((tg) => `<button type="button" class="pf-tag ${_tagFilter && _tagFilter.toLowerCase() === String(tg).toLowerCase() ? 'on' : ''}" data-act="pf-tag" data-tag="${escapeHtml(tg)}">${escapeHtml(tg)}</button>`).join('')}</div>` : ''}
+          ${(rec.timesPrinted || rec.timesFailed) ? `<div class="pf-history" title="${escapeHtml(t('plib.history_title') || 'Print history')}">${_bi('printer', '🖨')}${(rec.timesPrinted || 0)}× ${escapeHtml(t('plib.printed') || 'printed')}${rec.timesFailed ? ` · ${rec.timesFailed} ${escapeHtml(t('plib.failed') || 'failed')}` : ''}${rec.lastPrinted ? ` · ${escapeHtml(t('plib.last') || 'last')} ${escapeHtml(fmtPfDate(rec.lastPrinted))}` : ''}</div>` : ''}
           ${Array.isArray(rec.converted) && rec.converted.length ? `<div class="pf-converted">${rec.converted.map((c) => `
             <div class="pf-conv-row">
-              <span class="pf-conv-name" title="${escapeHtml(c.filename)}">🔄 ${escapeHtml(c.targetName || c.targetId || (t('conv.convert_short') || 'Converted'))}</span>
-              <button class="btn small ghost" data-act="pf-conv-open" data-id="${escapeHtml(rec.id)}" data-fn="${escapeHtml(c.filename)}" title="${escapeHtml(t('plib.open_slicer') || 'Open in slicer')}">🖨</button>
-              <button class="btn small ghost danger" data-act="pf-conv-del" data-id="${escapeHtml(rec.id)}" data-fn="${escapeHtml(c.filename)}" aria-label="${escapeHtml(t('common.delete') || 'Delete')}">🗑</button>
+              <span class="pf-conv-name" title="${escapeHtml(c.filename)}">${_bi('convert', '🔄')}${escapeHtml(c.targetName || c.targetId || (t('conv.convert_short') || 'Converted'))}</span>
+              <button class="btn small ghost" data-act="pf-conv-open" data-id="${escapeHtml(rec.id)}" data-fn="${escapeHtml(c.filename)}" title="${escapeHtml(t('plib.open_slicer') || 'Open in slicer')}">${_bi('printer', '🖨')}</button>
+              <button class="btn small ghost danger" data-act="pf-conv-del" data-id="${escapeHtml(rec.id)}" data-fn="${escapeHtml(c.filename)}" aria-label="${escapeHtml(t('common.delete') || 'Delete')}">${_bi('trash', '🗑')}</button>
             </div>`).join('')}</div>` : ''}
         </div>
         <div class="pf-actions">
-          <button class="btn small primary" data-act="pf-slice" data-id="${escapeHtml(rec.id)}">🖨 ${escapeHtml(t('plib.open_slicer') || 'Open in slicer')}</button>
-          ${typeof openModelViewer === 'function' && /^(stl|3mf)$/i.test(rec.sourceFile?.ext || '') ? `<button class="btn small ghost" data-act="pf-view3d" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('plib.view3d') || 'View in 3D')}">🧊 ${escapeHtml(t('plib.view3d_short') || '3D')}</button>` : ''}
+          <button class="btn small primary" data-act="pf-slice" data-id="${escapeHtml(rec.id)}">${_bi('printer', '🖨')}${escapeHtml(t('plib.open_slicer') || 'Open in slicer')}</button>
+          ${typeof openModelViewer === 'function' && /^(stl|3mf)$/i.test(rec.sourceFile?.ext || '') ? `<button class="btn small ghost" data-act="pf-view3d" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('plib.view3d') || 'View in 3D')}">${_bi('cube', '🧊')}${escapeHtml(t('plib.view3d_short') || '3D')}</button>` : ''}
           <button class="btn small ghost" data-act="pf-log-print" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('plib.log_print') || 'Log a successful print')}">✓ ${escapeHtml(t('plib.log_print_short') || 'Printed')}</button>
           <button class="btn small ghost" data-act="pf-log-fail" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('plib.log_fail') || 'Log a failed print')}" aria-label="${escapeHtml(t('plib.log_fail') || 'Log a failed print')}">✗</button>
-          ${Array.isArray(rec.colors) && rec.colors.filter((c) => c && c.hex).length > 1 ? `<button class="btn small ghost" data-act="pf-plan" data-id="${escapeHtml(rec.id)}">🎨 ${escapeHtml(t('plan.title') || 'Plan colours')}</button>` : ''}
-          ${rec.sourceFile?.ext === '3mf' ? `<button class="btn small ghost" data-act="pf-convert" data-id="${escapeHtml(rec.id)}">🔄 ${escapeHtml(t('conv.convert_short') || 'Convert')}</button>` : ''}
+          ${Array.isArray(rec.colors) && rec.colors.filter((c) => c && c.hex).length > 1 ? `<button class="btn small ghost" data-act="pf-plan" data-id="${escapeHtml(rec.id)}">${_bi('colour', '🎨')}${escapeHtml(t('plan.title') || 'Plan colours')}</button>` : ''}
+          ${rec.sourceFile?.ext === '3mf' ? `<button class="btn small ghost" data-act="pf-convert" data-id="${escapeHtml(rec.id)}">${_bi('convert', '🔄')}${escapeHtml(t('conv.convert_short') || 'Convert')}</button>` : ''}
           <button class="btn small ghost" data-act="pf-edit" data-id="${escapeHtml(rec.id)}">${escapeHtml(t('common.edit') || 'Edit')}</button>
-          <button class="btn small ghost danger" data-act="pf-del" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('common.delete') || 'Delete')}">🗑</button>
+          <button class="btn small ghost danger" data-act="pf-del" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('common.delete') || 'Delete')}">${_bi('trash', '🗑')}</button>
         </div>
       </div>`;
   }
@@ -189,7 +198,7 @@
           <div class="pf-shot-name">${escapeHtml(r.name || r.originalName || 'Untitled')}</div>
           <div class="pf-shot-meta">
             ${r.material ? `<span>${escapeHtml(r.material)}</span>` : ''}
-            ${(r.timesPrinted || r.timesFailed) ? `<span>🖨 ${(r.timesPrinted || 0)}×${r.timesFailed ? ` · ${r.timesFailed} ${escapeHtml(t('plib.failed') || 'failed')}` : ''}</span>` : ''}
+            ${(r.timesPrinted || r.timesFailed) ? `<span>${_bi('printer', '🖨')}${(r.timesPrinted || 0)}×${r.timesFailed ? ` · ${r.timesFailed} ${escapeHtml(t('plib.failed') || 'failed')}` : ''}</span>` : ''}
           </div>
           ${r.testedNotes ? `<div class="pf-shot-notes">${escapeHtml(r.testedNotes)}</div>` : ''}
         </figcaption>
@@ -246,7 +255,7 @@
               <button class="pf-view-btn ${isGallery ? 'on' : ''}" data-act="pf-view-gallery" aria-pressed="${isGallery}">${escapeHtml(t('plib.view_gallery') || 'Gallery')}</button>
             </div>
             ${isGallery ? '' : `<input type="search" id="pfSearch" class="pf-search" placeholder="${escapeHtml(t('common.search') || 'Search')}" value="${escapeHtml(_query)}" aria-label="${escapeHtml(t('common.search') || 'Search')}">`}
-            ${typeof openCalibration === 'function' ? `<button class="btn ghost" data-act="pf-calibrate">🎯 ${escapeHtml(t('plib.calibrate') || 'Calibrate')}</button>` : ''}
+            ${typeof openCalibration === 'function' ? `<button class="btn ghost" data-act="pf-calibrate">${_bi('target', '🎯')}${escapeHtml(t('plib.calibrate') || 'Calibrate')}</button>` : ''}
             <button class="btn primary" data-act="pf-add" ${hasHub ? '' : 'disabled'} title="${escapeHtml(t('plib.add_multi_hint') || 'Add one or more files — select several at once')}">＋ ${escapeHtml(t('plib.add') || 'Add file')}</button>
           </div>
         </div>
