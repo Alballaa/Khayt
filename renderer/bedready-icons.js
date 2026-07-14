@@ -76,6 +76,10 @@
     wrench: '<path d="M16.5 3.5A4 4 0 0 0 12.2 8.8L4 17L7 20L15.2 11.8A4 4 0 0 0 20.5 7.5L17.5 10.5L13.5 6.5Z"/>',
     // detect / search — magnifier
     search: '<circle cx="10.5" cy="10.5" r="6"/><path d="M15 15L20 20"/>',
+    // add — plus
+    plus: '<path d="M12 5V19"/><path d="M5 12H19"/>',
+    // filament painting — framed image with a horizon
+    image: '<rect x="3" y="5" width="18" height="14"/><path d="M3 15L9 10L13 13L17 10L21 13"/><circle cx="8" cy="9" r="1.4"/>',
     // fallback
     dot: '<circle cx="12" cy="12" r="3"/>',
   };

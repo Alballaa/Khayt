@@ -48,6 +48,7 @@
     catalog: '<path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5z"/><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9"/>',
     swap: '<path d="M4 8.5h13M14 5l3.5 3.5L14 12"/><path d="M20 15.5H7M10 12l-3.5 3.5L10 19"/>',
     palette: '<circle cx="9" cy="9.5" r="4.3"/><circle cx="15" cy="9.5" r="4.3"/><circle cx="12" cy="14.7" r="4.3"/>',
+    image: '<rect x="3" y="4.5" width="18" height="15" rx="2"/><circle cx="8.5" cy="9.5" r="1.7"/><path d="m4 17 5-5 3.2 3.2L16 11l4 4.5"/>',
   };
 
   const TAB_ICON = {
