@@ -3589,6 +3589,17 @@ body.mode-enthusiast .biz-only { display: none !important; }
 .pf-tagchip.on .pf-tagchip-n { opacity: 0.85; }
 .pf-tagchip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .pf-tagclear { color: var(--text-muted); }
+/* Per-card folder label + folder filter bar */
+.pf-folder { font-size: 11px; color: var(--text-muted); background: var(--bg); border: 1px solid var(--border-soft, var(--border)); border-radius: 999px; padding: 1px 9px; cursor: pointer; transition: border-color .12s ease, color .12s ease; }
+.pf-folder:hover { border-color: var(--accent); color: var(--accent); }
+.pf-folder.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+.pf-folder:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.pf-folderbar { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border-soft, var(--border)); }
+.pf-folderchip { font-size: 12px; color: var(--text); background: transparent; border: 1px solid transparent; border-radius: 8px; padding: 3px 10px; cursor: pointer; transition: background .12s ease, color .12s ease; }
+.pf-folderchip:hover { background: var(--bg-elev, var(--bg)); }
+.pf-folderchip.on { background: var(--accent); color: #fff; }
+.pf-folderchip.on .pf-tagchip-n { opacity: 0.85; }
+.pf-folderchip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 /* Shopping list modal */
 .shop-list { display: flex; flex-direction: column; gap: 14px; }
