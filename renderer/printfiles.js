@@ -125,8 +125,12 @@
 
   function colorDotsHtml(rec) {
     if (!Array.isArray(rec.colors) || !rec.colors.length) return '';
-    const dots = rec.colors.slice(0, 8).map((c) =>
-      `<span class="pf-dot" title="${escapeHtml(c.label || c.hex)}${c.grams ? ' · ' + c.grams + ' g' : ''}" style="background:${escapeHtml(c.hex)}"></span>`).join('');
+    const cols = rec.colors.slice(0, 8);
+    // Bed Ready shows colours as CAD layer-index chips (real filament colour + index-coded hairline
+    // + a mono L-number) instead of a rainbow of dots — the Cyanotype Draft "layer index" device.
+    const dots = _BDR
+      ? cols.map((c, i) => `<span class="pf-lchip" title="${escapeHtml(c.label || c.hex)}${c.grams ? ' · ' + c.grams + ' g' : ''}"><span class="pf-lchip-sw" style="background:${escapeHtml(c.hex)};border-color:var(--l${(i % 6) + 1})"></span><span class="pf-lchip-n">L${i + 1}</span></span>`).join('')
+      : cols.map((c) => `<span class="pf-dot" title="${escapeHtml(c.label || c.hex)}${c.grams ? ' · ' + c.grams + ' g' : ''}" style="background:${escapeHtml(c.hex)}"></span>`).join('');
     const swap = rec.swapCount > 0 ? `<span class="pf-chip">↔ ${rec.swapCount} ${escapeHtml(t('plib.swaps') || 'swaps')}</span>` : '';
     return `<div class="pf-colors">${dots}${swap}</div>`;
   }
