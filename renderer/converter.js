@@ -18,7 +18,10 @@
   const hub = () => (typeof window !== 'undefined' && window.hubAPI) || null;
   const profiles = () => global.KhaytPrinterProfiles;
   // Bed Ready keeps headings plain (no leading emoji) to match its monoline chrome.
-  const _titleIco = (typeof document !== 'undefined' && document.documentElement.dataset.app === 'bedready') ? '' : '🔄 ';
+  const _bdr = (typeof document !== 'undefined' && document.documentElement.dataset.app === 'bedready');
+  const _titleIco = _bdr ? '' : '🔄 ';
+  // Toolbar/label emoji clash with Bed Ready's drafting chrome — strip them there, keep for Khayt.
+  const _emo = (e) => _bdr ? '' : e + ' ';
 
   function customPrinters() {
     return (typeof settings !== 'undefined' && Array.isArray(settings.customPrinters)) ? settings.customPrinters : [];
@@ -947,7 +950,7 @@
       : `<p class="conv-note">${escapeHtml(t('conv.cp_empty') || "No custom printers yet. Add one to convert for a printer that isn't in the list.")}</p>`;
     return `
       <div class="conv-cp">
-        <h3 class="conv-cp-h">🖨 ${escapeHtml(t('conv.my_printers') || 'My printers')}</h3>
+        <h3 class="conv-cp-h">${_emo('🖨')}${escapeHtml(t('conv.my_printers') || 'My printers')}</h3>
         <div class="conv-cp-list">${listHtml}</div>
         <details class="conv-cp-add">
           <summary>＋ ${escapeHtml(t('conv.add_printer') || 'Add a printer')}</summary>
@@ -997,10 +1000,10 @@
         </div>
         <div class="conv-actions">
           <button class="btn primary" id="convPick">＋ ${escapeHtml(t('conv.pick') || 'Choose a 3MF file…')}</button>
-          <button class="btn ghost" id="convBatchPick">🗂 ${escapeHtml(t('conv.batch_pick') || 'Batch convert…')}</button>
-          ${hub() && hub().stlPick ? `<button class="btn ghost" id="convStlBtn">📐 ${escapeHtml(t('conv.stl_pick') || 'STL → 3MF…')}</button>` : ''}
-          ${hub() && hub().mfToStl ? `<button class="btn ghost" id="convToStlBtn">📤 ${escapeHtml(t('conv.tostl_pick') || '3MF → STL…')}</button>` : ''}
-          ${hub() && hub().mfBands ? `<button class="btn ghost" id="convSwapBtn">🎨 ${escapeHtml(t('conv.swap_pick') || 'Colour-swap plan…')}</button>` : ''}
+          <button class="btn ghost" id="convBatchPick">${_emo('🗂')}${escapeHtml(t('conv.batch_pick') || 'Batch convert…')}</button>
+          ${hub() && hub().stlPick ? `<button class="btn ghost" id="convStlBtn">${_emo('📐')}${escapeHtml(t('conv.stl_pick') || 'STL → 3MF…')}</button>` : ''}
+          ${hub() && hub().mfToStl ? `<button class="btn ghost" id="convToStlBtn">${_emo('📤')}${escapeHtml(t('conv.tostl_pick') || '3MF → STL…')}</button>` : ''}
+          ${hub() && hub().mfBands ? `<button class="btn ghost" id="convSwapBtn">${_emo('🎨')}${escapeHtml(t('conv.swap_pick') || 'Colour-swap plan…')}</button>` : ''}
         </div>
         <div class="conv-dropzone" id="convDrop" style="margin-top:14px;padding:20px;border:2px dashed var(--border,#cbd5d1);border-radius:14px;text-align:center;color:var(--text-muted,#869390);font-size:13.5px;transition:border-color .15s ease, background .15s ease;">⤓ ${escapeHtml(t('conv.drop') || 'or drag a 3MF / STL file here')}</div>
         <p class="conv-tip">${escapeHtml(t('conv.tip') || 'Tip: you can also hit Convert on any 3MF in your Print-File library.')}</p>

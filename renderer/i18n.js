@@ -53,7 +53,14 @@ const i18n = {
       }
     }
     const b = productBrand();
-    if (b !== 'Khayt' && s.indexOf('Khayt') !== -1) s = s.replace(/\bKhayt\b/g, b);
+    if (b !== 'Khayt') {
+      // Bed Ready's drafting chrome uses a bespoke line-icon vocabulary, so decorative leading
+      // emoji baked into shared labels ("📐 Estimate…", "🤖 AI quote") read as off-identity.
+      // Strip a leading emoji run at the single render chokepoint; geometric/arrow glyphs
+      // (◉ ▤ → ↔ ＋) aren't Extended_Pictographic and are preserved.
+      s = s.replace(/^(?:\p{Extended_Pictographic}️?(?:‍\p{Extended_Pictographic}️?)*[\s ]*)+/u, '');
+      if (s.indexOf('Khayt') !== -1) s = s.replace(/\bKhayt\b/g, b);
+    }
     return s;
   },
 

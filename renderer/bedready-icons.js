@@ -32,6 +32,16 @@
     plate: '<path d="M3 9L12 4L21 9L12 14Z"/><path d="M6 10.7V15L12 18.5L18 15V10.7"/>',
     // calibrate — target crosshair
     target: '<circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="3"/><path d="M12 1V5"/><path d="M12 19V23"/><path d="M1 12H5"/><path d="M19 12H23"/>',
+    // open in slicer — printer
+    printer: '<path d="M7 4H17V9H7Z"/><path d="M4 9H20V16H16"/><path d="M4 16H8"/><path d="M8 14H16V20H8Z"/>',
+    // delete — waste bin
+    trash: '<path d="M5 7H19"/><path d="M9 7V4H15V7"/><path d="M7 7L8 20H16L17 7"/><path d="M10 11V16"/><path d="M14 11V16"/>',
+    // folder tag — drafting folder
+    folder: '<path d="M4 6H10L12 8H20V18H4Z"/>',
+    // gcode / document — sheet with folded corner
+    doc: '<path d="M7 3H14L18 7V21H7Z"/><path d="M14 3V7H18"/><path d="M10 12H15"/><path d="M10 16H15"/>',
+    // print time — clock
+    clock: '<circle cx="12" cy="12" r="8"/><path d="M12 7V12L15 15"/>',
     // fallback
     dot: '<circle cx="12" cy="12" r="3"/>',
   };
