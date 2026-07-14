@@ -421,11 +421,13 @@ html[data-app="bedready"] .br-action {
 }
 html[data-app="bedready"] .br-action:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-color: var(--accent-line); }
 html[data-app="bedready"] .br-action .ico {
-  width: 40px; height: 40px; flex-shrink: 0; border-radius: 11px;
+  width: 40px; height: 40px; flex-shrink: 0; border-radius: var(--r-md);
   display: grid; place-items: center; font-size: 20px;
   background: var(--accent-soft); color: var(--accent);
+  border: 1px solid var(--accent-line);
 }
-html[data-app="bedready"] .br-action.orange .ico { background: var(--br-orange-soft); color: var(--br-orange); }
+html[data-app="bedready"] .br-action .ico svg { display: block; }
+html[data-app="bedready"] .br-action.orange .ico { background: var(--br-orange-soft); color: var(--br-orange); border-color: hsl(38 80% 42% / 0.4); }
 html[data-app="bedready"] .br-action .t { display: flex; flex-direction: column; line-height: 1.2; }
 html[data-app="bedready"] .br-action .t b { font-family: var(--font-display); font-weight: 600; font-size: 14.5px; color: var(--text); }
 html[data-app="bedready"] .br-action .t span { font-size: 12px; color: var(--text-muted); }
