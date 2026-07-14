@@ -780,8 +780,12 @@
     }
     const runBtn = el.querySelector('#convBatchRun');
     if (runBtn) runBtn.disabled = true;
+    // Lock the panel's inputs while converting. In particular a per-row ✕ remove re-renders the panel
+    // and splices batchFiles mid-loop, which would desync `i` from the DOM stat cells and the file list.
+    setBatchControlsDisabled(el, true);
 
     let ok = 0;
+    try {
     for (let i = 0; i < batchFiles.length; i++) {
       const f = batchFiles[i];
       const stat = el.querySelector(`.conv-batch-stat[data-i="${i}"]`);
@@ -829,8 +833,19 @@
         stat.title = (r && r.error) || '';
       }
     }
-    if (runBtn) runBtn.disabled = false;
+    } finally {
+      if (runBtn) runBtn.disabled = false;
+      setBatchControlsDisabled(el, false);
+    }
     toast((t('conv.batch_done') || 'Converted {ok} of {total} files.').replace('{ok}', ok).replace('{total}', batchFiles.length), ok ? 'success' : 'error', 3600);
+  }
+
+  // Enable/disable the batch panel's interactive controls (remove ✕, target, colour + destination radios)
+  // so nothing can re-render or mutate batchFiles while a run is in flight.
+  function setBatchControlsDisabled(el, on) {
+    if (!el) return;
+    el.querySelectorAll('[data-batch-x], #convBatchTarget, input[name="convBatchColour"], input[name="convBatchDest"]')
+      .forEach((c) => { c.disabled = !!on; });
   }
 
   function batchPanelHtml() {
