@@ -53,7 +53,39 @@
       ? list.filter((r) => (r.name + ' ' + (r.originalName || '') + ' ' + (r.tags || []).join(' ') + ' ' + (r.material || '')).toLowerCase().includes(q))
       : list.slice();
     if (_tagFilter) rows = rows.filter((r) => (r.tags || []).some((tg) => tg.toLowerCase() === _tagFilter.toLowerCase()));
+    if (_folderFilter === UNFILED) rows = rows.filter((r) => !r.folder);
+    else if (_folderFilter) rows = rows.filter((r) => (r.folder || '').toLowerCase() === _folderFilter.toLowerCase());
     return rows.sort((a, b) => (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0) || (b.updatedAt || 0) - (a.updatedAt || 0));
+  }
+
+  // Distinct folders (single-assignment collections), alphabetical, with counts. Files with no folder
+  // fall under an "Unfiled" bucket shown only when some files ARE filed.
+  function allFolders() {
+    const counts = new Map();
+    let unfiled = 0;
+    for (const r of (printFiles || [])) {
+      const f = (r.folder || '').trim();
+      if (f) counts.set(f, (counts.get(f) || 0) + 1);
+      else unfiled++;
+    }
+    return { folders: [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0])), unfiled };
+  }
+
+  function folderOptions() {
+    const names = [...new Set((printFiles || []).map((r) => (r.folder || '').trim()).filter(Boolean))].sort();
+    return names.map((f) => `<option value="${escapeHtml(f)}"></option>`).join('');
+  }
+
+  function folderBarHtml() {
+    const { folders, unfiled } = allFolders();
+    if (!folders.length) return ''; // nothing filed yet → no bar
+    const total = (printFiles || []).length;
+    const chip = (val, label, n, on) =>
+      `<button type="button" class="pf-folderchip ${on ? 'on' : ''}" data-act="pf-folder" data-folder="${escapeHtml(val)}">${escapeHtml(label)}${n != null ? ` <span class="pf-tagchip-n">${n}</span>` : ''}</button>`;
+    let html = chip('', t('plib.all_files') || 'All files', total, !_folderFilter);
+    html += folders.map(([f, n]) => chip(f, f, n, _folderFilter && _folderFilter.toLowerCase() === f.toLowerCase())).join('');
+    if (unfiled) html += chip(UNFILED, t('plib.unfiled') || 'Unfiled', unfiled, _folderFilter === UNFILED);
+    return `<div class="pf-folderbar" role="group" aria-label="${escapeHtml(t('plib.filter_folders') || 'Filter by folder')}">${html}</div>`;
   }
 
   // Distinct tags across all files, most-used first, for the filter bar.
@@ -114,7 +146,7 @@
           ${colorDotsHtml(rec)}
           ${prof ? `<div class="pf-prof">🛠 ${escapeHtml(prof.name)}</div>` : ''}
           ${rec.testedNotes ? `<div class="pf-notes">${escapeHtml(rec.testedNotes)}</div>` : ''}
-          ${Array.isArray(rec.tags) && rec.tags.length ? `<div class="pf-tags">${rec.tags.map((tg) => `<button type="button" class="pf-tag ${_tagFilter && _tagFilter.toLowerCase() === String(tg).toLowerCase() ? 'on' : ''}" data-act="pf-tag" data-tag="${escapeHtml(tg)}">${escapeHtml(tg)}</button>`).join('')}</div>` : ''}
+          ${(rec.folder || (Array.isArray(rec.tags) && rec.tags.length)) ? `<div class="pf-tags">${rec.folder ? `<button type="button" class="pf-folder ${_folderFilter && _folderFilter.toLowerCase() === String(rec.folder).toLowerCase() ? 'on' : ''}" data-act="pf-folder" data-folder="${escapeHtml(rec.folder)}" title="${escapeHtml(t('plib.folder') || 'Folder')}">🗂 ${escapeHtml(rec.folder)}</button>` : ''}${(rec.tags || []).map((tg) => `<button type="button" class="pf-tag ${_tagFilter && _tagFilter.toLowerCase() === String(tg).toLowerCase() ? 'on' : ''}" data-act="pf-tag" data-tag="${escapeHtml(tg)}">${escapeHtml(tg)}</button>`).join('')}</div>` : ''}
           ${(rec.timesPrinted || rec.timesFailed) ? `<div class="pf-history" title="${escapeHtml(t('plib.history_title') || 'Print history')}">🖨 ${(rec.timesPrinted || 0)}× ${escapeHtml(t('plib.printed') || 'printed')}${rec.timesFailed ? ` · ${rec.timesFailed} ${escapeHtml(t('plib.failed') || 'failed')}` : ''}${rec.lastPrinted ? ` · ${escapeHtml(t('plib.last') || 'last')} ${escapeHtml(fmtPfDate(rec.lastPrinted))}` : ''}</div>` : ''}
           ${Array.isArray(rec.converted) && rec.converted.length ? `<div class="pf-converted">${rec.converted.map((c) => `
             <div class="pf-conv-row">
@@ -138,6 +170,8 @@
 
   let _query = '';
   let _tagFilter = ''; // active tag filter (empty = all)
+  const UNFILED = ' unfiled'; // sentinel: files with no folder
+  let _folderFilter = ''; // '' = all, UNFILED = no folder, else folder name
   let _view = 'library'; // 'library' | 'gallery'
 
   // Finished-prints gallery: a photo-forward showcase of every print file you've
@@ -165,7 +199,17 @@
   // Inner HTML of the results area only (grid / gallery / empty state). Kept separate from the
   // header + search box so a keystroke re-renders just the list, leaving the <input> — and its
   // caret — untouched.
+  // Drop a folder/tag filter that no longer matches any file (e.g. its last file was re-foldered or
+  // deleted) so the grid can't get stuck on an empty, unclearable filter.
+  function normalizeFilters() {
+    const list = printFiles || [];
+    if (_folderFilter === UNFILED) { if (!list.some((r) => !r.folder)) _folderFilter = ''; }
+    else if (_folderFilter && !list.some((r) => (r.folder || '').toLowerCase() === _folderFilter.toLowerCase())) _folderFilter = '';
+    if (_tagFilter && !list.some((r) => (r.tags || []).some((tg) => tg.toLowerCase() === _tagFilter.toLowerCase()))) _tagFilter = '';
+  }
+
   function listInnerHtml() {
+    normalizeFilters();
     const hasHub = !!(api() && api().printLibPick);
     const isGallery = _view === 'gallery';
     const rows = filtered(_query);
@@ -174,8 +218,8 @@
     if (isGallery) return galleryHtml();
     const grid = rows.length
       ? `<div class="pf-grid">${rows.map(cardHtml).join('')}</div>`
-      : `<div class="pf-empty">${escapeHtml(total ? (_tagFilter ? (t('plib.no_tag_match') || 'No files with this tag.') : (t('plib.no_match') || 'No files match your search.')) : (t('plib.empty') || 'No print files yet. Add your first STL, 3MF or G-code file.'))}</div>`;
-    return tagBarHtml() + grid;
+      : `<div class="pf-empty">${escapeHtml(total ? ((_tagFilter || _folderFilter) ? (t('plib.no_filter_match') || 'No files match this filter.') : (t('plib.no_match') || 'No files match your search.')) : (t('plib.empty') || 'No print files yet. Add your first STL, 3MF or G-code file.'))}</div>`;
+    return folderBarHtml() + tagBarHtml() + grid;
   }
 
   function renderList() {
@@ -236,6 +280,7 @@
       case 'pf-view-gallery': if (_view !== 'gallery') { _view = 'gallery'; renderPrintFiles(); } break;
       case 'pf-tag': { const tg = btn.dataset.tag || ''; _tagFilter = (_tagFilter.toLowerCase() === tg.toLowerCase()) ? '' : tg; renderList(); break; }
       case 'pf-tag-clear': _tagFilter = ''; renderList(); break;
+      case 'pf-folder': { const fv = btn.dataset.folder || ''; _folderFilter = (_folderFilter === fv) ? '' : fv; renderList(); break; }
     }
   }
 
@@ -273,7 +318,7 @@
       sourceFile: { filename: picked.filename, originalName: picked.originalName, size: picked.size, ext, kind: /^(stl|3mf|obj)$/.test(ext) ? 'model' : 'gcode' },
       parsed: {}, colors: [], swapCount: 0,
       thumb: null, thumbSource: null, userPhoto: null,
-      slicerProfileId: null, testedNotes: '', tags: [], material: '', favorite: false,
+      slicerProfileId: null, testedNotes: '', tags: [], folder: '', material: '', favorite: false,
     };
     if (!Array.isArray(printFiles)) printFiles = [];
     printFiles.unshift(rec);
@@ -373,7 +418,7 @@
       sourceFile: { filename: meta.filename, originalName: meta.filename, size: meta.size || 0, ext, kind: 'model' },
       parsed: {}, colors: [], swapCount: 0,
       thumb: null, thumbSource: null, userPhoto: null,
-      slicerProfileId: null, testedNotes: '', tags: [], material: '', favorite: false, converted: [],
+      slicerProfileId: null, testedNotes: '', tags: [], folder: '', material: '', favorite: false, converted: [],
     };
     if (!Array.isArray(printFiles)) printFiles = [];
     printFiles.unshift(rec);
@@ -562,8 +607,17 @@
             <select id="pfProfile"><option value="">— ${escapeHtml(t('common.none') || 'None')} —</option>${profOptions}</select>
           </div>
         </div>
-        <label style="margin-top:10px;">${escapeHtml(t('plib.tags') || 'Tags (comma separated)')}</label>
-        <input type="text" id="pfTags" value="${escapeHtml((rec.tags || []).join(', '))}">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
+          <div>
+            <label>${escapeHtml(t('plib.folder') || 'Folder')}</label>
+            <input type="text" id="pfFolder" list="pfFolderList" value="${escapeHtml(rec.folder || '')}" placeholder="${escapeHtml(t('plib.folder_ph') || 'e.g. Client work')}">
+            <datalist id="pfFolderList">${folderOptions(rec.folder)}</datalist>
+          </div>
+          <div>
+            <label>${escapeHtml(t('plib.tags') || 'Tags (comma separated)')}</label>
+            <input type="text" id="pfTags" value="${escapeHtml((rec.tags || []).join(', '))}">
+          </div>
+        </div>
         <label style="margin-top:10px;">${escapeHtml(t('plib.tested_notes') || 'Tested settings / notes')}</label>
         <textarea id="pfNotes" rows="3">${escapeHtml(rec.testedNotes || '')}</textarea>
         <label style="margin-top:10px;">${escapeHtml(t('plib.photo') || 'Photo (optional)')}</label>
@@ -592,6 +646,7 @@
         rec.material = modal.querySelector('#pfMaterial').value.trim();
         rec.slicerProfileId = modal.querySelector('#pfProfile').value || null;
         rec.tags = modal.querySelector('#pfTags').value.split(',').map((s) => s.trim()).filter(Boolean);
+        rec.folder = (modal.querySelector('#pfFolder').value || '').trim();
         rec.testedNotes = modal.querySelector('#pfNotes').value.trim();
         const ph = modal._getPhoto ? modal._getPhoto() : null;
         if (ph) { if (ph.cleared) rec.userPhoto = null; else if (ph.stagedPhoto) rec.userPhoto = ph.stagedPhoto; }
