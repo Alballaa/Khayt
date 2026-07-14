@@ -42,6 +42,24 @@
     doc: '<path d="M7 3H14L18 7V21H7Z"/><path d="M14 3V7H18"/><path d="M10 12H15"/><path d="M10 16H15"/>',
     // print time — clock
     clock: '<circle cx="12" cy="12" r="8"/><path d="M12 7V12L15 15"/>',
+    // warning — triangle with bang
+    alert: '<path d="M12 3L22 20H2Z"/><path d="M12 9V14"/><path d="M12 17H12.01"/>',
+    // ok / in-spec — check
+    check: '<path d="M4 12L10 18L20 6"/>',
+    // dry / temperature — thermometer
+    thermo: '<path d="M10 4A2 2 0 0 1 14 4V13A4 4 0 1 1 10 13Z"/><path d="M12 9V15"/>',
+    // test prints — flask
+    flask: '<path d="M9 3H15"/><path d="M10.5 3V9L5 19H19L13.5 9V3"/><path d="M8 15H16"/>',
+    // spool history — clipboard
+    clipboard: '<rect x="6" y="4" width="12" height="17"/><rect x="9" y="2.5" width="6" height="3"/><path d="M9 10H15"/><path d="M9 14H15"/>',
+    // label / QR — tag
+    tag: '<path d="M4 4H11L20 13L13 20L4 11Z"/><circle cx="8" cy="8" r="1.2"/>',
+    // price history — trend line
+    trend: '<path d="M4 16L10 10L13 13L20 6"/><path d="M15 6H20V11"/>',
+    // supplier — works / factory
+    factory: '<path d="M3 21V9L9 13V9L15 13V9L21 13V21Z"/><path d="M7 21V17"/><path d="M12 21V17"/><path d="M17 21V17"/>',
+    // scan label — camera
+    camera: '<path d="M3 8H7L9 5H15L17 8H21V19H3Z"/><circle cx="12" cy="13" r="3.5"/>',
     // fallback
     dot: '<circle cx="12" cy="12" r="3"/>',
   };

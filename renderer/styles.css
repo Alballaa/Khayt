@@ -3613,9 +3613,9 @@ body.mode-enthusiast .biz-only { display: none !important; }
 .pf-actions { display: flex; gap: 6px; padding: 8px 12px 12px; flex-wrap: wrap; }
 .pf-actions .btn { flex: 0 0 auto; }
 /* Bed Ready bespoke inline icons (replace emoji markers) — align with adjacent text */
-.pf-ico { display: inline-flex; align-items: center; margin-right: 5px; vertical-align: -2px; }
-.pf-ico:last-child { margin-right: 0; }
-.pf-ico svg { display: block; }
+.pf-ico, .br-ico { display: inline-flex; align-items: center; margin-right: 5px; vertical-align: -2px; }
+.pf-ico:last-child, .br-ico:last-child, .br-ico:only-child { margin-right: 0; }
+.pf-ico svg, .br-ico svg { display: block; }
 .pf-thumb-icon .pf-ico { margin: 0; }
 [data-app="bedready"] .pf-thumb-icon { color: var(--text-muted); }
 .pf-empty { padding: 48px 16px; text-align: center; color: var(--text-muted); border: 1px dashed var(--border); border-radius: 12px; }
