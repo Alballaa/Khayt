@@ -2,13 +2,18 @@
  * Production queue: Kanban board, machine queues, drag-reorder, live printer status.
  */
 (function (global) {
+// Bed Ready swaps decorative emoji for its bespoke drafting glyphs (evaluated at render time);
+// Khayt keeps the emoji. `_kIco` = icon only, `_kIcoL` adds a trailing space before a label.
+const _kBdr = (typeof document !== 'undefined' && document.documentElement && document.documentElement.dataset.app === 'bedready');
+function _kIco(name, emoji, size) { return (_kBdr && window.BedReadyIcons) ? `<span class="br-ico">${window.BedReadyIcons.get(name, size || 15)}</span>` : emoji; }
+function _kIcoL(name, emoji, size) { return (_kBdr && window.BedReadyIcons) ? `<span class="br-ico">${window.BedReadyIcons.get(name, size || 15)}</span>` : emoji + ' '; }
 function updateKanbanLiveStatus() {
   const cards = document.querySelectorAll('.printer-live-status[data-machine-id]');
   cards.forEach(el => {
     const mid = el.dataset.machineId;
     const s = machineStatusCache[mid];
     if (!s || s.error) {
-      el.innerHTML = s?.error ? `<span style="color:var(--danger);font-size:10px;">⚠ ${escapeHtml(s.error)}</span>` : '';
+      el.innerHTML = s?.error ? `<span style="color:var(--danger);font-size:10px;">${_kIcoL('alert', '⚠', 12)}${escapeHtml(s.error)}</span>` : '';
       return;
     }
     const pct = Math.min(100, Math.max(0, Math.round(+s.progress || 0)));
@@ -148,7 +153,7 @@ function studioKanbanDuePill(log, status) {
   } else {
     label = due.toLocaleDateString(i18n.current === 'ar' ? 'ar-SA' : 'en-US', { month: 'short', day: 'numeric' });
   }
-  return `<span class="khayt-due" style="color:${urgent ? 'var(--danger)' : 'var(--text-dim)'};background:${urgent ? 'var(--danger-soft)' : 'var(--surface-2)'}">🕐 ${escapeHtml(label)}</span>`;
+  return `<span class="khayt-due" style="color:${urgent ? 'var(--danger)' : 'var(--text-dim)'};background:${urgent ? 'var(--danger-soft)' : 'var(--surface-2)'}">${_kIcoL('clock', '🕐', 12)}${escapeHtml(label)}</span>`;
 }
 
 function renderStudioKanbanCard(b) {
@@ -238,8 +243,8 @@ function renderStudioKanbanCard(b) {
       ${useStudio && partColourHtml ? `<div style="margin-top:4px">${partColourHtml}</div>` : ''}
       ${progressBlock}
       ${metaBlock}
-      ${(() => { const refs = (log.parts || []).map(p => p.fileRef).filter(Boolean); return refs.length > 0 ? `<div class="part-file-ref" style="margin-top:4px;font-size:11px">📎 ${escapeHtml(refs.join(', '))}</div>` : ''; })()}
-      ${status === 'on_hold' && log.holdReason ? `<div style="font-size:11px;color:var(--warning);margin-top:6px">⏸ ${escapeHtml(log.holdReason)}</div>` : ''}
+      ${(() => { const refs = (log.parts || []).map(p => p.fileRef).filter(Boolean); return refs.length > 0 ? `<div class="part-file-ref" style="margin-top:4px;font-size:11px">${_kIcoL('clip', '📎', 12)}${escapeHtml(refs.join(', '))}</div>` : ''; })()}
+      ${status === 'on_hold' && log.holdReason ? `<div style="font-size:11px;color:var(--warning);margin-top:6px">${_kIcoL('pause', '⏸', 12)}${escapeHtml(log.holdReason)}</div>` : ''}
       ${(log.tags && log.tags.length > 0) ? `<div class="kanban-tags">${renderTagChips(log.tags)}</div>` : ''}
       ${postCheckHtml}
       ${resinCheckHtml}
@@ -260,7 +265,7 @@ function renderStudioKanbanCard(b) {
         if (delivered === 0) return '';
         return `<div class="partial-delivery-badge">${escapeHtml(t('ord.parts_delivered', { done: delivered, total: log.parts.length }))}</div>`;
       })()}
-      <div class="actions khayt-kcard-actions"><button class="btn small ghost" data-act="order-timeline" data-id="${log.id}" title="${escapeHtml(t('ord.timeline'))}" aria-label="${escapeHtml(t('ord.timeline'))}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg></button><button class="btn small ghost" data-act="order-label" data-id="${log.id}" title="${escapeHtml(t('lbl.print_order') || 'Print label')}" aria-label="${escapeHtml(t('lbl.print_order') || 'Print label')}">🏷</button>${actions}</div>
+      <div class="actions khayt-kcard-actions"><button class="btn small ghost" data-act="order-timeline" data-id="${log.id}" title="${escapeHtml(t('ord.timeline'))}" aria-label="${escapeHtml(t('ord.timeline'))}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg></button><button class="btn small ghost" data-act="order-label" data-id="${log.id}" title="${escapeHtml(t('lbl.print_order') || 'Print label')}" aria-label="${escapeHtml(t('lbl.print_order') || 'Print label')}">${_kIco('tag', '🏷')}</button>${actions}</div>
       ${(() => {
         if (status !== 'printing') return '';
         const mid = log.machineId;
@@ -512,12 +517,12 @@ function renderKanban() {
       const trackBtn = (biz && log.clientId)
         ? `<button class="btn small ghost" data-act="share-tracking-link" data-id="${log.id}" title="${escapeHtml(t('ord.status_page') || 'Share tracking link')}">🔗</button>`
         : '';
-      const labelBtn = `<button class="btn small ghost" data-act="print-label" data-id="${log.id}" title="${escapeHtml(t('ord.label_btn') || 'Print Label')}" style="padding:2px 6px;font-size:12px;">🏷</button>`;
+      const labelBtn = `<button class="btn small ghost" data-act="print-label" data-id="${log.id}" title="${escapeHtml(t('ord.label_btn') || 'Print Label')}" style="padding:2px 6px;font-size:12px;">${_kIco('tag', '🏷')}</button>`;
       // Slice & print: order on a machine with a printer API + an attached model/G-code.
       const printMachine = log.machineId ? machines.find(m => m.id === log.machineId) : null;
       const hasPrintFile = (log.attachedFiles || []).some(f => /\.(stl|3mf|obj|step|stp|gcode|gco|g|nc)$/i.test(f.filename || f.originalName || ''));
       const sliceBtn = (printMachine && printMachine.printerApi && printMachine.printerApi.type && printMachine.printerApi.type !== 'none' && hasPrintFile)
-        ? `<button class="btn small ghost" data-act="kanban-slice-print" data-id="${log.id}" title="${escapeHtml(t('slicer.send_title') || 'Slice & print')}">🖨</button>`
+        ? `<button class="btn small ghost" data-act="kanban-slice-print" data-id="${log.id}" title="${escapeHtml(t('slicer.send_title') || 'Slice & print')}">${_kIco('printer', '🖨')}</button>`
         : '';
       if (status === 'pending') {
         const qIdx = sorted.indexOf(log);
@@ -547,34 +552,34 @@ function renderKanban() {
             .reduce((s, o) => s + (+o.printTime || 0), 0);
         }
         const estStart = hrsBefore > 0 ? `<span class="est-start-badge">${escapeHtml(t('queue.est_start'))}: +${hrsBefore.toFixed(1)}h</span>` : '';
-        const holdBtn = `<button class="btn small ghost" data-act="hold-order" data-id="${log.id}" title="${escapeHtml(t('ord.hold_btn'))}" style="color:var(--warning);">⏸</button>`;
+        const holdBtn = `<button class="btn small ghost" data-act="hold-order" data-id="${log.id}" title="${escapeHtml(t('ord.hold_btn'))}" style="color:var(--warning);">${_kIco('pause', '⏸')}</button>`;
         actions = `${queueControls}<button class="btn small primary" data-act="status" data-id="${log.id}" data-to="printing">${escapeHtml(t('queue.start'))}</button>${holdBtn}${estStart}${sliceBtn}${woBtn}${notifyBtn}${trackBtn}${labelBtn}`;
       }
       if (status === 'on_hold') {
-        const holdReason = log.holdReason ? `<div style="font-size:11px; color:var(--warning); margin-top:2px;">⏸ ${escapeHtml(log.holdReason)}</div>` : '';
-        const failPhotoBtn = `<button class="btn small ghost" data-act="capture-failure-photo" data-id="${log.id}" title="Capture failure photo">📷</button>`;
+        const holdReason = log.holdReason ? `<div style="font-size:11px; color:var(--warning); margin-top:2px;">${_kIcoL('pause', '⏸', 12)}${escapeHtml(log.holdReason)}</div>` : '';
+        const failPhotoBtn = `<button class="btn small ghost" data-act="capture-failure-photo" data-id="${log.id}" title="Capture failure photo">${_kIco('camera', '📷')}</button>`;
         actions = `<button class="btn small primary" data-act="status" data-id="${log.id}" data-to="pending">${escapeHtml(t('ord.unhold_btn'))}</button>${woBtn}${notifyBtn}${labelBtn}${failPhotoBtn}`;
       }
       if (status === 'printing') {
-        const wasteBtn = `<button class="btn ghost small" data-act="log-waste-card" data-id="${log.id}" title="${escapeHtml(t('waste.log_from_card'))}">🗑</button>`;
+        const wasteBtn = `<button class="btn ghost small" data-act="log-waste-card" data-id="${log.id}" title="${escapeHtml(t('waste.log_from_card'))}">${_kIco('trash', '🗑')}</button>`;
         actions = `<button class="btn small" data-act="status" data-id="${log.id}" data-to="post">${escapeHtml(t('queue.to_post'))}</button>${woBtn}${notifyBtn}${trackBtn}${wasteBtn}${labelBtn}`;
       }
       // Feature 2 (this batch): Post column → QC column instead of directly completing
       if (status === 'post') {
-        const wasteBtn = `<button class="btn ghost small" data-act="log-waste-card" data-id="${log.id}" title="${escapeHtml(t('waste.log_from_card'))}">🗑</button>`;
-        actions = `<button class="btn small primary" data-act="status" data-id="${log.id}" data-to="qc">📋 ${escapeHtml(t('ord.qc'))}</button>${woBtn}${notifyBtn}${trackBtn}${wasteBtn}${labelBtn}`;
+        const wasteBtn = `<button class="btn ghost small" data-act="log-waste-card" data-id="${log.id}" title="${escapeHtml(t('waste.log_from_card'))}">${_kIco('trash', '🗑')}</button>`;
+        actions = `<button class="btn small primary" data-act="status" data-id="${log.id}" data-to="qc">${_kIcoL('clipboard', '📋')}${escapeHtml(t('ord.qc'))}</button>${woBtn}${notifyBtn}${trackBtn}${wasteBtn}${labelBtn}`;
       }
       // Feature 2 (this batch): QC column — pass or fail buttons
       if (status === 'qc') {
-        actions = `<button class="btn small success" data-act="qc-pass" data-id="${log.id}">✅ ${escapeHtml(t('ord.qc_pass'))}</button>
-          <button class="btn small danger" data-act="qc-fail" data-id="${log.id}" style="margin-inline-start:4px;">❌ ${escapeHtml(t('ord.qc_fail'))}</button>${woBtn}${notifyBtn}${trackBtn}${labelBtn}`;
+        actions = `<button class="btn small success" data-act="qc-pass" data-id="${log.id}">${_kIcoL('check', '✅')}${escapeHtml(t('ord.qc_pass'))}</button>
+          <button class="btn small danger" data-act="qc-fail" data-id="${log.id}" style="margin-inline-start:4px;">${_kIcoL('cross', '❌')}${escapeHtml(t('ord.qc_fail'))}</button>${woBtn}${notifyBtn}${trackBtn}${labelBtn}`;
       }
       const bnplBtn = (biz && (settings.bnpl?.tabby?.enabled || settings.bnpl?.tamara?.enabled || settings.bnpl?.stripe?.enabled))
         ? `<button class="btn small ghost" data-act="bnpl-pay" data-id="${log.id}" title="${escapeHtml(t('bnpl.payment_modal'))}">💳</button>`
         : '';
       if (status === 'completed') {
         const deliverBtn = `<button class="btn small success" data-act="mark-delivered" data-id="${log.id}">${escapeHtml(t('queue.mark_delivered'))}</button>`;
-        const wasteBtn = `<button class="btn ghost small" data-act="log-waste-card" data-id="${log.id}" title="${escapeHtml(t('waste.log_from_card'))}">🗑</button>`;
+        const wasteBtn = `<button class="btn ghost small" data-act="log-waste-card" data-id="${log.id}" title="${escapeHtml(t('waste.log_from_card'))}">${_kIco('trash', '🗑')}</button>`;
         const isPaidCard = payStatus(log) === 'paid';
         const payBtn = (biz && !isPaidCard) ? `<button class="btn small primary" data-act="pay" data-id="${log.id}" title="${escapeHtml(t('pay.mark_paid'))}">💳 ${escapeHtml(t('pay.mark_paid'))}</button>` : '';
         const invoiceBtn = biz ? `<button class="btn small" data-act="invoice" data-id="${log.id}">${escapeHtml(t('queue.invoice'))}</button>` : '';
@@ -583,7 +588,7 @@ function renderKanban() {
       if (status === 'delivered') {
         const isPaidCard = payStatus(log) === 'paid';
         const payBtn = (biz && !isPaidCard) ? `<button class="btn small primary" data-act="pay" data-id="${log.id}" title="${escapeHtml(t('pay.mark_paid'))}">💳 ${escapeHtml(t('pay.mark_paid'))}</button>` : '';
-        const wasteBtn = `<button class="btn ghost small" data-act="log-waste-card" data-id="${log.id}" title="${escapeHtml(t('waste.log_from_card'))}">🗑</button>`;
+        const wasteBtn = `<button class="btn ghost small" data-act="log-waste-card" data-id="${log.id}" title="${escapeHtml(t('waste.log_from_card'))}">${_kIco('trash', '🗑')}</button>`;
         const invoiceBtn = biz ? `<button class="btn small" data-act="invoice" data-id="${log.id}">${escapeHtml(t('queue.invoice'))}</button>` : '';
         actions = `${invoiceBtn}${payBtn}${bnplBtn}${wasteBtn}${notifyBtn}${labelBtn}`;
       }
@@ -596,12 +601,12 @@ function renderKanban() {
       if (isMultiMachine) {
         machineBadge = partMachineIds.map(mid => {
           const m = machines.find(x => x.id === mid);
-          return m ? `<span class="machine-badge${m.isOffline ? ' mach-offline' : ''}" style="background:${safeCssColor(m.color)};">🖨 ${escapeHtml(m.name)}</span>` : '';
+          return m ? `<span class="machine-badge${m.isOffline ? ' mach-offline' : ''}" style="background:${safeCssColor(m.color)};">${_kIcoL('printer', '🖨', 12)}${escapeHtml(m.name)}</span>` : '';
         }).join('') + `<span class="multi-machine-badge" data-multi-machine="true" style="font-size:10px; background:rgba(91,156,240,0.15); color:var(--primary); padding:1px 6px; border-radius:3px; margin-inline-start:2px;">${escapeHtml(t('kan.multi_machine', { n: partMachineIds.length }))}</span>`;
       } else {
         const machine = log.machineId ? machines.find(m => m.id === log.machineId) : null;
         machineBadge = machine
-          ? `<span class="machine-badge${machine.isOffline ? ' mach-offline' : ''}" style="background:${safeCssColor(machine.color)};">${machine.isOffline ? '⚠ ' : ''}${escapeHtml(machine.name)}</span>`
+          ? `<span class="machine-badge${machine.isOffline ? ' mach-offline' : ''}" style="background:${safeCssColor(machine.color)};">${machine.isOffline ? _kIcoL('alert', '⚠', 12) : ''}${escapeHtml(machine.name)}</span>`
           : '';
       }
       let timerBadge = '';
@@ -616,8 +621,8 @@ function renderKanban() {
         const expected = +log.printTime * 60;
         const isOver = !isPaused && elapsed > expected;
         const pauseBtnAct = isPaused ? 'resume-timer' : 'pause-timer';
-        const pauseBtnIcon = isPaused ? '▶' : '⏸';
-        timerBadge = `<span class="elapsed-timer timer-badge${isOver ? ' timer-over' : ''}${isPaused ? ' timer-paused' : ''}" data-started="${escapeHtml(startIso)}" data-paused-ms="${pausedMs}" data-is-paused="${isPaused}">${isPaused ? '⏸ ' : '⏱ '}${escapeHtml(elapsedStr)}${isOver ? ' ⚠' : ''}</span><button class="btn small ghost timer-pause-btn" data-act="${pauseBtnAct}" data-id="${log.id}" style="font-size:11px;padding:1px 6px;margin-inline-start:2px;" title="${isPaused ? escapeHtml(t('kan.resume_timer') || 'Resume timer') : escapeHtml(t('kan.pause_timer') || 'Pause timer')}">${pauseBtnIcon}</button>`;
+        const pauseBtnIcon = isPaused ? _kIco('play', '▶') : _kIco('pause', '⏸');
+        timerBadge = `<span class="elapsed-timer timer-badge${isOver ? ' timer-over' : ''}${isPaused ? ' timer-paused' : ''}" data-started="${escapeHtml(startIso)}" data-paused-ms="${pausedMs}" data-is-paused="${isPaused}">${isPaused ? _kIcoL('pause', '⏸', 12) : _kIcoL('clock', '⏱', 12)}${escapeHtml(elapsedStr)}${isOver ? ' ' + _kIco('alert', '⚠', 12) : ''}</span><button class="btn small ghost timer-pause-btn" data-act="${pauseBtnAct}" data-id="${log.id}" style="font-size:11px;padding:1px 6px;margin-inline-start:2px;" title="${isPaused ? escapeHtml(t('kan.resume_timer') || 'Resume timer') : escapeHtml(t('kan.pause_timer') || 'Pause timer')}">${pauseBtnIcon}</button>`;
       }
       // Post-processing checklist (shown only in 'post' column)
       let postCheckHtml = '';
@@ -644,13 +649,13 @@ function renderKanban() {
         resinCheckHtml = `
           <div class="resin-checklist">
             <div class="resin-step ${rp.washDurationMins ? 'done' : ''}" data-act="resin-log-wash" data-id="${log.id}">
-              🧴 ${escapeHtml(t('resin.wash'))} ${rp.washDurationMins ? `✓ ${rp.washDurationMins}min` : '— tap to log'}
+              ${_kIcoL('droplet', '🧴', 13)}${escapeHtml(t('resin.wash'))} ${rp.washDurationMins ? `✓ ${rp.washDurationMins}min` : '— tap to log'}
             </div>
             <div class="resin-step ${rp.cureDurationMins ? 'done' : ''}" data-act="resin-log-cure" data-id="${log.id}">
-              ☀️ ${escapeHtml(t('resin.cure'))} ${rp.cureDurationMins ? `✓ ${rp.cureDurationMins}min` : '— tap to log'}
+              ${_kIcoL('sun', '☀️', 13)}${escapeHtml(t('resin.cure'))} ${rp.cureDurationMins ? `✓ ${rp.cureDurationMins}min` : '— tap to log'}
             </div>
             <div class="resin-step" data-act="resin-complete" data-id="${log.id}">
-              ✅ ${escapeHtml(t('resin.complete_post'))}
+              ${_kIcoL('check', '✅', 13)}${escapeHtml(t('resin.complete_post'))}
             </div>
           </div>`;
       }
@@ -668,7 +673,7 @@ function renderKanban() {
         const timeStr = etaDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         let etaLabel;
         if (diffH < -0.5) {
-          etaLabel = `<span style="color:var(--danger);">⚠ ${escapeHtml(t('queue.overdue') || 'Overdue')}</span>`;
+          etaLabel = `<span style="color:var(--danger);">${_kIcoL('alert', '⚠', 12)}${escapeHtml(t('queue.overdue') || 'Overdue')}</span>`;
         } else {
           const today0 = new Date(); today0.setHours(0,0,0,0);
           const etaDay0 = new Date(etaDate); etaDay0.setHours(0,0,0,0);
@@ -676,16 +681,16 @@ function renderKanban() {
           const dayLabel = dayDiff === 0 ? 'Today' : dayDiff === 1 ? 'Tomorrow' : etaDate.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
           etaLabel = `${escapeHtml(dayLabel)} ${escapeHtml(timeStr)}`;
         }
-        etaBadge = `<span class="eta-badge">🏁 ${etaLabel}</span>`;
+        etaBadge = `<span class="eta-badge">${_kIcoL('flag', '🏁', 12)}${etaLabel}</span>`;
       }
       const _pl = getPriorityLevel(log);
       const kanbanOperator = log.operatorId ? operators.find(o => o.id === log.operatorId) : null;
-      const operatorBadge = kanbanOperator ? `<span class="operator-badge">👤 ${escapeHtml(kanbanOperator.name)}</span>` : '';
+      const operatorBadge = kanbanOperator ? `<span class="operator-badge">${_kBdr ? '' : '👤 '}${escapeHtml(kanbanOperator.name)}</span>` : '';
       // Split/sub-order badges
-      const kanbanSplitBadge = log.splitInto && log.splitInto.length > 0 ? `<span class="split-badge">🔀 ${escapeHtml(t('ord.split_badge', { n: log.splitInto.length }))}</span>` : '';
+      const kanbanSplitBadge = log.splitInto && log.splitInto.length > 0 ? `<span class="split-badge">${_kBdr ? '' : '🔀 '}${escapeHtml(t('ord.split_badge', { n: log.splitInto.length }))}</span>` : '';
       const kanbanSubBadge = log.parentOrderId ? `<span class="sub-order-badge">↳ #${escapeHtml(log.parentOrderId)}</span>` : '';
       // Feature 2 (this batch): QC passed badge
-      const qcBadge = log.qcPassedAt ? `<span class="qc-badge">✅ ${escapeHtml(t('ord.qc_passed'))}</span>` : '';
+      const qcBadge = log.qcPassedAt ? `<span class="qc-badge">${_kIcoL('check', '✅', 12)}${escapeHtml(t('ord.qc_passed'))}</span>` : '';
       // Feature 8 (this batch): paused overlay on pending cards
       const pausedClass = (settings.productionPaused && status === 'pending') ? ' kanban-paused-overlay' : '';
       // Feature 1 (this batch): colour chips on parts
@@ -743,7 +748,7 @@ function renderKanban() {
           const mins = Math.floor(totalMs / 60000);
           const h = Math.floor(mins / 60), m = mins % 60;
           const timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
-          el.textContent = `⏱ ${timeStr}`;
+          el.textContent = `${_kBdr ? '' : '⏱ '}${timeStr}`;
         });
       }, 60000);
     }
