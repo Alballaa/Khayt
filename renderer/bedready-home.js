@@ -247,6 +247,24 @@
     if (el) fill(el);
   }
 
+  // ISO title-block strip in the topbar (Cyanotype Draft signature): reframes the page
+  // subtitle as a mono, bordered field row (REV · UNITS · DATE) so every view reads like a
+  // drawing sheet. Invoked from shell.js' syncTopbarTitle after it sets title/subtitle.
+  function brTitleBlock() {
+    var sub = document.getElementById('topbarPageSubtitle');
+    if (!sub) return;
+    var vEl = document.getElementById('appVersion');
+    var ver = (vEl && vEl.textContent || '').trim();
+    var rev = ver ? ver.replace(/\s*\(dev\)\s*/i, '').replace(/-beta\./i, '·β').replace(/-/g, '·') : 'β';
+    var mon = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+    var d = new Date();
+    var date = ('0' + d.getDate()).slice(-2) + ' ' + mon[d.getMonth()] + ' ' + d.getFullYear();
+    var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+    var cell = function (l, v) { return '<span class="br-tb-cell"><span class="br-tb-l">' + l + '</span><span class="br-tb-v">' + v + '</span></span>'; };
+    sub.innerHTML = '<span class="br-tb">' + cell('REV', esc(rev)) + cell('UNITS', 'mm · g') + cell('DATE', date) + '</span>';
+  }
+  window.brSyncTitleBlock = brTitleBlock;
+
   // Swap the shared dashboard renderer for the Bed Ready home (covers
   // initialRender + every tab switch).
   window.renderDashboard = brRenderHome;
@@ -270,6 +288,7 @@
   function startHealing() {
     ensureHome();
     reapplyI18n();
+    try { brTitleBlock(); } catch (e) {}
     var sec = document.getElementById('dashboard-tab');
     if (sec && typeof MutationObserver === 'function') {
       // Observe for the WHOLE session and never time out. Boot is async (store load), so the
