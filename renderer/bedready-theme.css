@@ -826,5 +826,6 @@ html[data-app="bedready"] .hf-match.close { color: var(--accent); }
 html[data-app="bedready"] .hf-match.ok { color: var(--caution, #B47910); }
 html[data-app="bedready"] .hf-match.far { color: var(--l1, #C6362A); }
 
+html[data-app="bedready"] .hf-vd-facts .hf-over { color: var(--l1, #C6362A); }
 html[data-app="bedready"] .hf-export { display: flex; gap: 9px; flex-wrap: wrap; }
 
