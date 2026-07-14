@@ -60,6 +60,18 @@
     factory: '<path d="M3 21V9L9 13V9L15 13V9L21 13V21Z"/><path d="M7 21V17"/><path d="M12 21V17"/><path d="M17 21V17"/>',
     // scan label — camera
     camera: '<path d="M3 8H7L9 5H15L17 8H21V19H3Z"/><circle cx="12" cy="13" r="3.5"/>',
+    // hold — pause
+    pause: '<path d="M8 5V19"/><path d="M16 5V19"/>',
+    // resume — play
+    play: '<path d="M7 4L19 12L7 20Z"/>',
+    // fail / reject — cross
+    cross: '<path d="M6 6L18 18"/><path d="M18 6L6 18"/>',
+    // attachment — clip
+    clip: '<path d="M20 11L11.5 19.5A5 5 0 0 1 4.5 12.5L13 4A3.3 3.3 0 0 1 17.7 8.7L9.5 17A1.7 1.7 0 0 1 7 14.5L15 6.5"/>',
+    // cure — sun
+    sun: '<circle cx="12" cy="12" r="4.5"/><path d="M12 2V5"/><path d="M12 19V22"/><path d="M2 12H5"/><path d="M19 12H22"/><path d="M4.5 4.5L6.5 6.5"/><path d="M17.5 17.5L19.5 19.5"/><path d="M4.5 19.5L6.5 17.5"/><path d="M17.5 6.5L19.5 4.5"/>',
+    // ETA / finish — flag
+    flag: '<path d="M6 21V4"/><path d="M6 4H18L15 8L18 12H6"/>',
     // fallback
     dot: '<circle cx="12" cy="12" r="3"/>',
   };
