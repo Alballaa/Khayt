@@ -790,19 +790,39 @@
       const base = String(f.name || 'model').replace(/\.3mf$/i, '');
       const intoVaultId = dest === 'library' ? (typeof uid === 'function' ? uid('PF') : ('PF' + i + Date.now().toString(36))) : null;
       const outPath = dest === 'folder' ? `${outdir}/${base}-${tag}.3mf` : null;
+
+      // Source-ecosystem guard (matches the single-file path): a file from a DIFFERENT slicer ecosystem
+      // than the target can't keep its settings, so it must be normalized to a Generic 3MF rather than
+      // retargeted — otherwise the retarget silently produces a file with the wrong printer's config.
+      let perGeneric = isGeneric;
+      if (!isGeneric && hub().mfAnalyze) {
+        try { const a = await hub().mfAnalyze(f.path); if (a && a.ok && isCrossEcosystem(a.flavour, targetId)) perGeneric = true; }
+        catch (_) { /* analyze failed → fall back to retarget (no worse than before) */ }
+      }
+      const crossed = perGeneric && !isGeneric; // normalized because of an ecosystem mismatch
+      // Colour mixing/swap can't happen on a normalized Generic file.
+      const fsThis = fullSpectrum && !perGeneric;
+      const bandThis = bandSwap && !perGeneric;
       let r;
       try {
-        r = await hub().mfConvert({ path: f.path, targetId, mode: isGeneric ? 'normalize' : 'retarget', intoVaultId, outPath, targetProfile, fullSpectrum, bandSwap });
+        r = await hub().mfConvert({ path: f.path, targetId, mode: perGeneric ? 'normalize' : 'retarget', intoVaultId, outPath, targetProfile: perGeneric ? null : targetProfile, fullSpectrum: fsThis, bandSwap: bandThis });
       } catch (e) { r = { ok: false, error: String((e && e.message) || e) }; }
       if (r && r.ok) {
         ok++;
         const rep = r.report || {};
         const nWarn = (rep.warnings || []).length;
-        // Surface whether the colour flag actually kicked in for this file (engine reports it per file).
-        const cbadge = rep.fullSpectrum ? ' ✦' : rep.bandSwap ? ` ⇄${rep.bandSwaps || ''}` : '';
-        if (stat) { stat.textContent = (nWarn ? `✓ ⚠${nWarn}` : '✓') + cbadge; stat.className = 'conv-batch-stat ok'; stat.dataset.i = i; if (cbadge) stat.title = rep.fullSpectrum ? (t('conv.fs_applied') || 'Full Spectrum mix applied') : (t('conv.band_applied') || 'Band-swap pauses added'); }
+        // Surface whether the colour flag actually kicked in for this file (engine reports it per file),
+        // or that it fell back to Generic because it came from another ecosystem.
+        const cbadge = crossed ? ' →Generic' : rep.fullSpectrum ? ' ✦' : rep.bandSwap ? ` ⇄${rep.bandSwaps || ''}` : '';
+        if (stat) { stat.textContent = (nWarn ? `✓ ⚠${nWarn}` : '✓') + cbadge; stat.className = 'conv-batch-stat ok'; stat.dataset.i = i; stat.title = crossed ? (t('conv.batch_crossed') || 'From another ecosystem — saved as a Generic 3MF (open in that printer’s slicer).') : cbadge ? (rep.fullSpectrum ? (t('conv.fs_applied') || 'Full Spectrum mix applied') : (t('conv.band_applied') || 'Band-swap pauses added')) : ''; }
         if (dest === 'library' && typeof importConvertedAsNew === 'function') {
-          await importConvertedAsNew({ vaultId: intoVaultId, filename: r.filename, ext: r.ext, size: r.size, targetId, targetName, sourceName: f.name, noSwitch: true });
+          const gid = (P && P.GENERIC && P.GENERIC.id) || 'generic';
+          await importConvertedAsNew({
+            vaultId: intoVaultId, filename: r.filename, ext: r.ext, size: r.size,
+            targetId: crossed ? gid : targetId,
+            targetName: rep.targetName || (crossed ? (t('conv.normalize_opt') || 'Generic 3MF') : targetName),
+            sourceName: f.name, noSwitch: true,
+          });
         }
       } else if (stat) {
         stat.textContent = `✕ ${(t('conv.batch_fail') || 'failed')}`; stat.className = 'conv-batch-stat fail'; stat.dataset.i = i;
@@ -832,6 +852,9 @@
           <label class="conv-dest-opt"><input type="radio" name="convBatchColour" value="fs"${batchColorMode === 'fs' ? ' checked' : ''}> ${escapeHtml((t('conv.batch_colour_fs') || 'Full Spectrum — mix extra colours across {n} heads').replace('{n}', heads))}</label>
           <label class="conv-dest-opt"><input type="radio" name="convBatchColour" value="band"${batchColorMode === 'band' ? ' checked' : ''}> ${escapeHtml(t('conv.batch_colour_band') || 'Band-swap (M600) for cleanly banded files')}</label>
         </div>`;
+    // Cross-ecosystem note: with a specific printer target, files from a DIFFERENT slicer ecosystem are
+    // saved as Generic 3MF per file (they can't inherit this printer's settings). Mirrors the single-file note.
+    const crossNote = isGeneric ? '' : `<p class="conv-tip">${escapeHtml(t('conv.batch_cross_note') || 'Files from another printer’s ecosystem are saved as a Generic 3MF (open them in that printer’s slicer); same-ecosystem files keep their settings.')}</p>`;
     return `
       <div class="conv-batch">
         <label class="conv-label">${escapeHtml(t('conv.batch_target') || 'Convert all to')}</label>
@@ -839,7 +862,7 @@
         <div class="conv-dest">
           <label class="conv-dest-opt"><input type="radio" name="convBatchDest" value="library" checked> ${escapeHtml(t('conv.batch_dest_lib') || 'Add all to my Print-File library')}</label>
           <label class="conv-dest-opt"><input type="radio" name="convBatchDest" value="folder"> ${escapeHtml(t('conv.batch_dest_folder') || 'Save all to a folder…')}</label>
-        </div>${colourRow}
+        </div>${colourRow}${crossNote}
         <div class="conv-batch-list">${rows}</div>
         <button class="btn primary" id="convBatchRun">🔄 ${escapeHtml((t('conv.batch_run') || 'Convert {n} files').replace('{n}', batchFiles.length))}</button>
       </div>`;
