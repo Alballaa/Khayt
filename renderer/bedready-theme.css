@@ -485,6 +485,40 @@ html[data-app="bedready"] .br-mat-bar > span { display: block; height: 100%; bac
 html[data-app="bedready"] .br-mat-g { min-width: 54px; text-align: right; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 
 /* ============================================================
+   Drafting numerals — every figure aligns on the grid.
+   On a drawing sheet all dimensions are monospaced-tabular so
+   columns of numbers read as a ruler, not ragged text. Blanket
+   tabular-nums is a no-op on non-digit text, so casting a wide
+   net over table cells + known metric/value holders is safe.
+   Scoped to Bed Ready; Khayt tables keep proportional figures.
+   ============================================================ */
+html[data-app="bedready"] table td,
+html[data-app="bedready"] table th,
+html[data-app="bedready"] .metric,
+html[data-app="bedready"] .value,
+html[data-app="bedready"] .amount,
+html[data-app="bedready"] .count,
+html[data-app="bedready"] .totals,
+html[data-app="bedready"] .total-row,
+html[data-app="bedready"] .info-value,
+html[data-app="bedready"] .stat-val,
+html[data-app="bedready"] .stat-value,
+html[data-app="bedready"] .stats,
+html[data-app="bedready"] .kpi-value,
+html[data-app="bedready"] .dash-stat-val,
+html[data-app="bedready"] .dash-price,
+html[data-app="bedready"] .dash-mach-stat,
+html[data-app="bedready"] .cl-hist-stat,
+html[data-app="bedready"] .retention-stat,
+html[data-app="bedready"] .accuracy-stat,
+html[data-app="bedready"] .tier-discount,
+html[data-app="bedready"] .th-amount,
+html[data-app="bedready"] .leaderboard .value {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+/* ============================================================
    Onboarding wizard — branded spectrum mark, on-brand card
    ============================================================ */
 html[data-app="bedready"] .wizard-card { border-radius: var(--r-xl); }
