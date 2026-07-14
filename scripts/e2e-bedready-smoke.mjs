@@ -154,9 +154,9 @@ async function main() {
   assert(`design pinned to studio (was ${design.designTheme})`, design.designTheme === 'studio');
   assert('design/theme picker hidden', design.designPickerHidden === true);
   assert(`no alternate-theme CSS loaded (${design.altThemeCss})`, design.altThemeCss === 0);
-  // Bespoke bedready.io palette (teal accent) + geometric display face.
-  assert(`teal accent applied (--accent-h=${design.accent})`, design.accent === '176');
-  assert(`Space Grotesk display font on headings (${design.brandFont.slice(0, 24)}…)`, /Space Grotesk/.test(design.brandFont));
+  // Cyanotype Draft identity — blueprint-blue accent (hue 209) + Archivo display face.
+  assert(`blueprint accent applied (--accent-h=${design.accent})`, design.accent === '209');
+  assert(`Archivo display font on headings (${design.brandFont.slice(0, 24)}…)`, /Archivo/.test(design.brandFont));
 
   console.log('\n[branded Bed Ready home]');
   const home = await window.evaluate(() => {
