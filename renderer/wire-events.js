@@ -1371,6 +1371,7 @@ function wireEvents() {
     }
     if (btn.dataset.act === 'cl-edit')        openClientEditor(btn.dataset.id);
     if (btn.dataset.act === 'cl-del')         deleteClient(btn.dataset.id);
+    if (btn.dataset.act === 'cl-export-data') exportClientData(btn.dataset.id);
   });
 
   // Post-processing checklist settings

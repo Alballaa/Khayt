@@ -226,6 +226,7 @@ function renderClients() {
           <button class="btn small" data-act="cl-intake-form" data-id="${c.id}" title="${escapeHtml(t('cl.intake_form'))}">📋</button>
           <button class="btn small" data-act="cl-note" data-id="${c.id}" title="${escapeHtml(t('cl.add_note'))}">💬</button>
           <button class="btn small" data-act="cl-edit" data-id="${c.id}">${escapeHtml(t('common.edit'))}</button>
+          <button class="btn small" data-act="cl-export-data" data-id="${c.id}" title="${escapeHtml(t('priv.export_data') || "Export this customer's data")}">🗂</button>
           <button class="btn danger small" data-act="cl-del" data-id="${c.id}">${escapeHtml(t('common.delete'))}</button>
         </td>
       </tr>`;
@@ -434,23 +435,122 @@ function openClientHistory(clientId) {
 }
 
 
+/* ============================================================
+   PDPL / data-subject rights — export (access & portability) and
+   erasure with an explicit order-handling choice.
+   See docs/KHAYT-3.0-PRIVACY-COMPLIANCE-SPEC.md.
+   ============================================================ */
+
+/** Right of access / portability: everything Khayt holds about one customer, as JSON. */
+async function exportClientData(clientId) {
+  const P = (typeof KhaytPrivacy !== 'undefined') ? KhaytPrivacy : null;
+  if (!P) { toast(t('priv.unavailable') || 'Privacy tools unavailable', 'error'); return; }
+  const client = clients.find(c => c.id === clientId);
+  if (!client) return;
+  const payload = P.buildClientDataExport(clientId, { clients, printLog, waitingList, waitingListHistory });
+  const name = (localName(client) || client.id).replace(/[^\w؀-ۿ -]/g, '').trim() || client.id;
+  const fname = `khayt-customer-data-${name}-${new Date().toISOString().split('T')[0]}.json`;
+  const json = JSON.stringify(payload, null, 2);
+  try {
+    if (window.hubAPI?.saveTextFile) {
+      const r = await window.hubAPI.saveTextFile({
+        content: json,
+        defaultName: fname,
+        filters: [{ name: 'JSON', extensions: ['json'] }],
+      });
+      if (r && r.canceled) return;
+      if (r && r.ok === false) throw new Error(r.error || 'save failed');
+    } else {
+      const blob = new Blob([json], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = fname; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }
+    toast(t('priv.exported', { n: payload.counts.orders }) || `Exported customer data (${payload.counts.orders} orders)`, 'success');
+  } catch (e) {
+    toast(String(e.message || e), 'error');
+  }
+}
+
 async function deleteClient(clientId) {
-  const ok = await confirmModal(t('ce.delete_q'), { danger: true });
-  if (!ok) return;
+  const P = (typeof KhaytPrivacy !== 'undefined') ? KhaytPrivacy : null;
+  const client = clients.find(c => c.id === clientId);
+  // Show what erasure will touch, and let the owner choose whether order records survive.
+  const plan = P ? P.planClientErasure(clientId, { clients, printLog, waitingList, waitingListHistory }, 'full') : null;
+  let fullErase = false;
+  if (P && plan && (plan.counts.orders || plan.counts.intake || plan.counts.communications)) {
+    const choice = await new Promise((resolve) => {
+      openFormModal({
+        title: t('priv.erase_title') || 'Delete customer',
+        sizeLg: false,
+        saveLabel: t('common.delete'),
+        bodyHtml: `
+          <p style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">${escapeHtml(
+            t('priv.erase_summary', { orders: plan.counts.orders, intake: plan.counts.intake, comms: plan.counts.communications })
+            || `This customer has ${plan.counts.orders} order(s), ${plan.counts.intake} intake submission(s) and ${plan.counts.communications} logged communication(s).`)}</p>
+          <label style="display:flex;align-items:flex-start;gap:8px;font-weight:400;cursor:pointer;margin-bottom:8px;">
+            <input type="radio" name="eraseMode" value="unlink" checked style="width:auto;margin-top:3px;">
+            <span><b>${escapeHtml(t('priv.mode_unlink') || 'Unlink (recommended)')}</b><br>
+            <span style="font-size:12px;color:var(--text-muted);">${escapeHtml(t('priv.mode_unlink_hint') || 'Delete the customer record but keep the orders for your financial / ZATCA records.')}</span></span>
+          </label>
+          <label style="display:flex;align-items:flex-start;gap:8px;font-weight:400;cursor:pointer;">
+            <input type="radio" name="eraseMode" value="full" style="width:auto;margin-top:3px;">
+            <span><b>${escapeHtml(t('priv.mode_full') || 'Full erase')}</b><br>
+            <span style="font-size:12px;color:var(--text-muted);">${escapeHtml(t('priv.mode_full_hint') || 'Also blank the customer name on those orders and purge their intake submissions and communication log. Invoices may legally need to retain some data.')}</span></span>
+          </label>`,
+        onSave(modal) {
+          resolve(modal.querySelector('input[name="eraseMode"]:checked')?.value === 'full');
+          return true;
+        },
+      });
+      // Cancel/close resolves as "no erase" via the modal teardown.
+      setTimeout(() => {
+        const mount = document.getElementById('modalMount');
+        const obs = new MutationObserver(() => { if (!mount.querySelector('.modal')) { obs.disconnect(); resolve(null); } });
+        obs.observe(mount, { childList: true, subtree: true });
+      }, 0);
+    });
+    if (choice === null) return;   // cancelled
+    fullErase = choice === true;
+  } else {
+    const ok = await confirmModal(t('ce.delete_q'), { danger: true });
+    if (!ok) return;
+  }
+
   const idx = clients.findIndex(c => c.id === clientId);
   const removed = idx >= 0 ? clients[idx] : null;
   clients = clients.filter(c => c.id !== clientId);
   // Null-out orders that reference the deleted client (tracked so undo can relink)
   const unlinked = [];
+  const priorNames = new Map();
   for (const o of printLog) {
-    if (o.clientId === clientId) { unlinked.push(o); o.clientId = null; }
+    if (o.clientId === clientId) {
+      unlinked.push(o);
+      o.clientId = null;
+      if (fullErase) { priorNames.set(o.id, o.client); o.client = ''; }
+    }
   }
-  saveAll();
+  // Full erase additionally purges the subject's self-submitted intake rows.
+  let removedIntake = [], removedHistory = [];
+  if (fullErase && P) {
+    const plan2 = P.planClientErasure(clientId, { clients: removed ? [removed] : [], printLog, waitingList, waitingListHistory }, 'full');
+    const ids = new Set(plan2.purgeIntakeIds), hids = new Set(plan2.purgeIntakeHistoryIds);
+    removedIntake = waitingList.filter(r => ids.has(r.id));
+    removedHistory = waitingListHistory.filter(r => hids.has(r.id));
+    waitingList = waitingList.filter(r => !ids.has(r.id));
+    waitingListHistory = waitingListHistory.filter(r => !hids.has(r.id));
+  }
+  saveAll();   // cloud-on: this re-push propagates the erasure to the server copy
   renderClients();
-  toast(t('ce.deleted'), 'success', 5000, removed ? {
+  toast(fullErase ? (t('priv.erased_full') || 'Customer fully erased') : t('ce.deleted'), 'success', 5000, removed ? {
     undo: () => {
       clients.splice(Math.min(Math.max(idx, 0), clients.length), 0, removed);
-      for (const o of unlinked) o.clientId = clientId;
+      for (const o of unlinked) {
+        o.clientId = clientId;
+        if (priorNames.has(o.id)) o.client = priorNames.get(o.id);
+      }
+      if (removedIntake.length) waitingList = waitingList.concat(removedIntake);
+      if (removedHistory.length) waitingListHistory = waitingListHistory.concat(removedHistory);
       saveAll();
       renderClients();
     },
@@ -1527,6 +1627,7 @@ function openCampaignModal() {
     openClientHistory,
     openClientEditor,
     deleteClient,
+    exportClientData,
     checkRecurringOrders,
     checkSubscriptionBilling,
     openSubscriptionsModal,
