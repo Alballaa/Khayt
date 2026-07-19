@@ -54,3 +54,6 @@ jobs:
 
       - name: E2E smoke (QC / reprint / RMA)
         run: xvfb-run -a npm run test:e2e:qc
+
+      - name: E2E smoke (printer catalog + auto-fill + pricing)
+        run: xvfb-run -a npm run test:e2e:printers

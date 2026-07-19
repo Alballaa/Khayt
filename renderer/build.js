@@ -831,6 +831,20 @@ function applyPreset(presetId) {
   updateGrandTotal();
 }
 
+// Auto-fill the calculator's printer fields from an assigned machine. A machine
+// carries the printer identity (name/model) and the one printer-specific cost input
+// it knows — power draw (from the printer catalog). Shop-wide rates (labour, failure,
+// electricity) stay as they are; a preset can still override everything.
+function applyMachineToCalculator(machineId) {
+  const m = (typeof machines !== 'undefined' ? machines : []).find(x => x && x.id === machineId);
+  if (!m) return;
+  const nameEl = $('#printerModel');
+  if (nameEl) nameEl.value = m.printerModelName || m.name || '';
+  if (m.powerDraw != null && m.powerDraw !== '') { const el = $('#powerDraw'); if (el) el.value = m.powerDraw; }
+  if (m.wearRate != null && m.wearRate !== '')   { const el = $('#wearRate');  if (el) el.value = m.wearRate; }
+  if (typeof updateGrandTotal === 'function') updateGrandTotal();
+}
+
 function saveCurrentAsPreset() {
   const defaultName = $('#printerModel').value.trim();
   openFormModal({
@@ -1381,6 +1395,7 @@ function updateResinFieldsVisibility() {
     renderPrinterPresets,
     updateDeletePresetBtn,
     applyPreset,
+    applyMachineToCalculator,
     saveCurrentAsPreset,
     deleteCurrentPreset,
     renderJobTemplateSelect,

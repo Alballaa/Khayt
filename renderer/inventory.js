@@ -2839,6 +2839,15 @@ async function deleteProduct(productId) {
 }
 
 /* ----- Product editor modal ----- */
+// Default pricing for a catalog product: sum the calculator's per-part cost, apply the
+// product's margin. Shared by the editor's live summary and its save (stored as basePrice).
+function productDefaultPricing(d) {
+  const cost = (d.parts || []).reduce((s, p) =>
+    s + (typeof computePartBaseCost === 'function' ? computePartBaseCost(p) : (+p.baseCost || 0)), 0);
+  const margin = Math.max(0, num(d.defaultMargin, 30));
+  return { cost: +cost.toFixed(2), basePrice: +(cost * (1 + margin / 100)).toFixed(2) };
+}
+
 function openProductEditor(productId = null) {
   const existing = productId ? products.find(p => p.id === productId) : null;
   const editing = !!existing;
@@ -2936,6 +2945,11 @@ function openProductEditor(productId = null) {
     <label>${escapeHtml(t('pe.default_margin'))} (${escapeHtml(t('common.percent'))})</label>
     <input type="number" min="0" data-f="defaultMargin" value="${draft.defaultMargin ?? 30}">
 
+    <div id="prodPriceSummary" style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:12px; padding:10px 12px; background:var(--surface-2); border:1px solid var(--border-soft); border-radius:var(--radius);">
+      <span style="font-size:12px; color:var(--text-muted);">${escapeHtml(t('pe.cost') || 'Cost')}: <b id="prodCostVal">—</b></span>
+      <span style="font-size:13px;">${escapeHtml(t('pe.default_price') || 'Default price')}: <b id="prodPriceVal" style="color:var(--primary);">—</b></span>
+    </div>
+
     <div style="display:flex; align-items:center; margin-top:14px; gap:10px;">
       <label style="margin:0; flex:1;">${escapeHtml(t('cat.tiers_section'))}</label>
       <button class="btn small" data-act="add-tier">${escapeHtml(t('cat.add_tier'))}</button>
@@ -2990,9 +3004,21 @@ function openProductEditor(productId = null) {
 
       const partsContainer = modal.querySelector('#partsEditor');
 
+      // Live default-pricing summary — same cost math as the calculator, so adding a
+      // product yields a ready default price (cost × margin) with no separate quoting step.
+      function refreshPricing() {
+        const { cost, basePrice } = productDefaultPricing(draft);
+        const cEl = modal.querySelector('#prodCostVal');
+        const pEl = modal.querySelector('#prodPriceVal');
+        if (cEl) cEl.textContent = fmtPrice(cost);
+        if (pEl) pEl.textContent = fmtPrice(basePrice);
+      }
+
       function refreshParts() {
         partsContainer.innerHTML = partsHtml();
+        refreshPricing();
       }
+      refreshPricing();
 
       // Sync top-level inputs into draft
       modal.querySelectorAll('[data-f]').forEach(input => {
@@ -3001,6 +3027,7 @@ function openProductEditor(productId = null) {
           if (f && Object.prototype.hasOwnProperty.call(draft, f)) {
             draft[f] = input.type === 'number' ? num(input.value, 0) : input.value;
           }
+          if (f === 'defaultMargin') refreshPricing();
         });
       });
 
@@ -3013,6 +3040,7 @@ function openProductEditor(productId = null) {
         const f = input.dataset.f;
         if (!draft.parts[pi]) return;
         draft.parts[pi][f] = input.type === 'number' ? num(input.value, 0) : input.value;
+        refreshPricing();
       });
 
       // Part row actions
@@ -3126,6 +3154,12 @@ function openProductEditor(productId = null) {
         }
       }
       if (stagedThumbnail !== undefined) draft.thumbnail = stagedThumbnail;
+
+      // Compute default pricing from parts + margin (same math as the calculator) so
+      // the product carries a ready price without a separate quoting step.
+      const pricing = productDefaultPricing(draft);
+      draft.baseCost = pricing.cost;
+      draft.basePrice = pricing.basePrice;
 
       // Persist
       const idx = products.findIndex(p => p.id === draft.id);
