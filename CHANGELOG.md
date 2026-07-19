@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.11] - 2026-07-19
+
 **Pre-release (beta) — maker-tools depth.** Following beta.10's "maker tools for everyone," the print-file library, converter and colour tools gained organization, single-extruder colour work, and wider slicer support.
 
 ### Added
