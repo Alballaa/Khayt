@@ -4,6 +4,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.13] - 2026-07-19
+
+**Pre-release (beta) — less typing, smarter defaults.** Pick your printer from a built-in catalog, stop re-entering it in the calculator, and get automatic pricing on catalog products.
+
 ### Added
 
 - **Pick your printer from a built-in catalog.** Adding a machine now offers a searchable **Printer model** field covering popular printers (Bambu, Prusa, Creality, Anycubic, Elegoo, Sovol, Snapmaker, QIDI, Voron and more) — choosing one auto-fills the nozzle size, build volume, colour slots, extruder type and typical power draw so you no longer hand-enter specs. If you have a slicer installed, its full printer list (2000+) is folded in too. Runs locally.
