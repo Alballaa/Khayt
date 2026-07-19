@@ -211,6 +211,13 @@ function logPrint(asQuote = false) {
     priority: false,
     printPhotos: [],
     parts: currentBuild.map(p => ({ ...p, partStatus: p.partStatus || 'pending' })),
+    // BOM / assembly: non-printed components (magnets, screws, packaging) + how many
+    // finished assemblies. Empty components[] = a plain single-part product (unchanged).
+    // See docs/KHAYT-3.0-BOM-SPEC.md.
+    components: (typeof currentComponents !== 'undefined' && Array.isArray(currentComponents))
+      ? currentComponents.filter(c => c && c.consumableId).map(c => ({ ...c }))
+      : [],
+    assemblyQty: (typeof currentAssemblyQty !== 'undefined' && currentAssemblyQty > 0) ? currentAssemblyQty : 1,
     // Actuals — filled in when order is marked completed
     actualPrintTime: null,
     actualWeight:    null,
@@ -249,6 +256,8 @@ function logPrint(asQuote = false) {
   currentBuildFromProductId = null;
   currentClientId = null;
   currentExtraLines = [];
+  if (typeof currentComponents !== 'undefined') currentComponents = [];
+  if (typeof currentAssemblyQty !== 'undefined') currentAssemblyQty = 1;
   localStorage.removeItem(K.CURRENT_BUILD);
   renderBuild();
   renderExtraLines();

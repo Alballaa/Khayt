@@ -102,7 +102,25 @@
     return { material, machine, labor, buffer };
   }
 
-  const api = { computePartBaseCost, getActivePriceTier, computePartBreakdown };
+  // BOM: cost of the non-printed components of an assembly — Σ (consumable.cost × qtyPerUnit).
+  // Pass the consumables collection explicitly so this is pure/testable; falls back to the
+  // global `consumables` at call time when omitted (renderer usage). A deleted consumable
+  // contributes 0. Does NOT multiply by assemblyQty — the per-unit component cost folds into
+  // the assembly's unit price, exactly like printed-part cost.
+  function computeComponentsCost(components, cons) {
+    const list = Array.isArray(components) ? components : [];
+    const rows = cons || (typeof consumables !== 'undefined' ? consumables : []);
+    let total = 0;
+    for (const comp of list) {
+      if (!comp || !comp.consumableId) continue;
+      const row = (rows || []).find(c => c && c.id === comp.consumableId);
+      const unit = row ? Math.max(0, +row.cost || 0) : 0;
+      total += unit * Math.max(0, +comp.qtyPerUnit || 0);
+    }
+    return +total.toFixed(4);
+  }
+
+  const api = { computePartBaseCost, getActivePriceTier, computePartBreakdown, computeComponentsCost };
 
   Object.assign(global, api);
   global.KhaytCalculatorCost = api;

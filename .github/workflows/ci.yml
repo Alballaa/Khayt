@@ -60,3 +60,6 @@ jobs:
 
       - name: E2E smoke (shipping & fulfillment)
         run: xvfb-run -a npm run test:e2e:shipping
+
+      - name: E2E smoke (BOM / assembly)
+        run: xvfb-run -a npm run test:e2e:bom

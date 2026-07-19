@@ -10,6 +10,9 @@ let currentClientId = null;
 let currentExtraLines = [];
 // Extra material rows for the current part being configured
 let currentExtraMaterials = [];
+// BOM: non-printed components + assembly count carried from a product into the order.
+let currentComponents = [];
+let currentAssemblyQty = 1;
 
 // Feature 5: Price tiers for the current part being configured
 let currentPriceTiers = [];

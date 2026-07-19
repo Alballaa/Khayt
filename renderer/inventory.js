@@ -2159,6 +2159,28 @@ function deductFilamentForOrder(order, { skipRender = false } = {}) {
     renderConsumables();
   }
 
+  // BOM: deduct non-printed components (qtyPerUnit × assemblyQty) from their consumable
+  // rows. Clamps at 0, warns on low stock (never blocks completion), guarded by the same
+  // materialDeducted flag so re-runs never double-deduct. See docs/KHAYT-3.0-BOM-SPEC.md.
+  const comps = Array.isArray(order.components) ? order.components : [];
+  if (comps.length) {
+    const aq = Math.max(1, +order.assemblyQty || 1);
+    let touched = false;
+    comps.forEach(comp => {
+      if (!comp || !comp.consumableId) return;
+      const c = consumables.find(x => x.id === comp.consumableId);
+      if (!c) return;
+      const draw = Math.max(0, (+comp.qtyPerUnit || 0) * aq);
+      if (draw <= 0) return;
+      c.stock = Math.max(0, (c.stock || 0) - draw);
+      touched = true;
+      if (c.stock <= (c.minStock || 0)) {
+        toast(`${escapeHtml(t('cons.low'))}: ${c.name}`, 'warning', 3000);
+      }
+    });
+    if (touched) { saveAll(); renderConsumables(); }
+  }
+
   // Always mark materialDeducted so re-runs never double-deduct
   order.materialDeducted = true;
 }
@@ -2734,6 +2756,9 @@ function quoteFromProduct(productId) {
   if (!p) return;
   appendProductParts(p);
   currentBuildFromProductId = p.id;
+  // Carry the product's BOM components (magnets/screws/packaging) into the order.
+  currentComponents = Array.isArray(p.components) ? p.components.map(c => ({ ...c })) : [];
+  currentAssemblyQty = p.assemblyQty > 0 ? p.assemblyQty : 1;
   if (p.defaultMargin !== undefined && p.defaultMargin !== '') {
     $('#margin').value = p.defaultMargin;
   }
@@ -2842,8 +2867,12 @@ async function deleteProduct(productId) {
 // Default pricing for a catalog product: sum the calculator's per-part cost, apply the
 // product's margin. Shared by the editor's live summary and its save (stored as basePrice).
 function productDefaultPricing(d) {
-  const cost = (d.parts || []).reduce((s, p) =>
+  const partsCost = (d.parts || []).reduce((s, p) =>
     s + (typeof computePartBaseCost === 'function' ? computePartBaseCost(p) : (+p.baseCost || 0)), 0);
+  // BOM: fold non-printed components into the assembly's unit cost.
+  const compCost = (typeof computeComponentsCost === 'function')
+    ? computeComponentsCost(d.components, typeof consumables !== 'undefined' ? consumables : []) : 0;
+  const cost = partsCost + compCost;
   const margin = Math.max(0, num(d.defaultMargin, 30));
   return { cost: +cost.toFixed(2), basePrice: +(cost * (1 + margin / 100)).toFixed(2) };
 }
@@ -2866,10 +2895,25 @@ function openProductEditor(productId = null) {
         createdAt: new Date().toISOString().split('T')[0]
       };
   if (!draft.priceTiers) draft.priceTiers = [];
+  if (!Array.isArray(draft.components)) draft.components = [];
 
   // Local mutable photo state for the modal
   let stagedThumbnail = draft.thumbnail || null;
   let stagedFullDataUrl = null; // only set if a new photo was picked
+
+  // BOM: non-printed component rows (magnets, screws, inserts, packaging) referencing
+  // consumables. One <select> of consumables + a per-assembly quantity.
+  const componentsHtml = () => {
+    if (!draft.components.length) return `<div class="empty-state" style="padding:12px;font-size:12px;">${escapeHtml(t('bom.no_components') || 'No components — this is a single printed item.')}</div>`;
+    const opts = (cid) => (typeof consumables !== 'undefined' ? consumables : []).map(c =>
+      `<option value="${escapeHtml(c.id)}"${c.id === cid ? ' selected' : ''}>${escapeHtml(c.name)}${c.unit ? ' (' + escapeHtml(c.unit) + ')' : ''}</option>`).join('');
+    return draft.components.map((comp, i) => `
+      <div class="bom-comp-row" data-ci="${i}" style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+        <select class="bom-comp-consumable" style="flex:1;margin:0;"><option value="">—</option>${opts(comp.consumableId)}</select>
+        <input type="number" class="bom-comp-qty" value="${comp.qtyPerUnit != null ? comp.qtyPerUnit : 1}" min="0" step="1" style="width:90px;margin:0;" title="${escapeHtml(t('bom.qty_per_unit') || 'Qty per assembly')}">
+        <button class="btn danger small" data-act="rm-component" data-ci="${i}" style="margin:0;" aria-label="${escapeHtml(t('common.delete'))}">×</button>
+      </div>`).join('');
+  };
 
   const partsHtml = () => (draft.parts.length === 0
     ? `<div class="empty-state" style="padding:18px;">${escapeHtml(t('pe.no_parts'))}</div>`
@@ -2963,6 +3007,13 @@ function openProductEditor(productId = null) {
     </div>
 
     <div class="parts-editor" id="partsEditor">${partsHtml()}</div>
+
+    <div style="display:flex; align-items:center; margin: 18px 0 8px; gap:10px;">
+      <h3 class="card-head" style="margin:0; flex:1;"><span class="swatch"></span>${escapeHtml(t('bom.components') || 'Components (non-printed)')}</h3>
+      <button class="btn small" data-act="add-component" ${(typeof consumables === 'undefined' || !consumables.length) ? 'disabled title="Add consumables first"' : ''}>${escapeHtml(t('bom.add_component') || 'Add component')}</button>
+    </div>
+    <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 8px;">${escapeHtml(t('bom.components_hint') || 'Magnets, screws, inserts, packaging — drawn from your consumables when the order completes.')}</p>
+    <div id="componentsEditor">${componentsHtml()}</div>
   `;
 
   openFormModal({
@@ -3070,6 +3121,31 @@ function openProductEditor(productId = null) {
           failureRate: num($('#failureRate').value, 10),
         });
         refreshParts();
+      });
+
+      // BOM components — add / edit / remove rows, refreshing the price summary.
+      const componentsContainer = modal.querySelector('#componentsEditor');
+      function refreshComponents() {
+        componentsContainer.innerHTML = componentsHtml();
+        refreshPricing();
+      }
+      modal.querySelector('[data-act="add-component"]')?.addEventListener('click', () => {
+        const first = (typeof consumables !== 'undefined' && consumables[0]) ? consumables[0].id : '';
+        draft.components.push({ id: uid('CMP'), consumableId: first, qtyPerUnit: 1 });
+        refreshComponents();
+      });
+      componentsContainer.addEventListener('input', (e) => {
+        const row = e.target.closest('[data-ci]');
+        if (!row) return;
+        const ci = +row.dataset.ci;
+        if (!draft.components[ci]) return;
+        if (e.target.classList.contains('bom-comp-consumable')) draft.components[ci].consumableId = e.target.value;
+        if (e.target.classList.contains('bom-comp-qty')) draft.components[ci].qtyPerUnit = num(e.target.value, 0);
+        refreshPricing();
+      });
+      componentsContainer.addEventListener('click', (e) => {
+        const rm = e.target.closest('[data-act="rm-component"]');
+        if (rm) { draft.components.splice(+rm.dataset.ci, 1); refreshComponents(); }
       });
 
       // Photo upload
