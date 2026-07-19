@@ -4,6 +4,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.15] - 2026-07-19
+
+**Pre-release (beta) — assemblies.** Products can now be built from printed parts *plus* real components, with the cost and stock handled for you.
+
 ### Added
 
 - **Assemblies: products made of printed parts *plus* real components.** A catalog product can now list **non-printed components** — magnets, screws, threaded inserts, packaging — alongside its printed parts. Pick them from your consumables with a quantity per assembly, and Khayt folds their cost into the product's price automatically and **draws the right stock when the order completes** (quantity × the number of assemblies), warning when a consumable runs low. Quoting an assembly carries its component list onto the order. Products with no components behave exactly as before. Runs locally. See docs/KHAYT-3.0-BOM-SPEC.md.
