@@ -2563,6 +2563,12 @@ function loadSettingsIntoForm() {
   });
   const wipHardEl = $('#set_wipEnforceHardLimit');
   if (wipHardEl) wipHardEl.checked = !!settings.wipEnforceHardLimit;
+  // QC / reprint / RMA
+  const _qc = settings.qc || {};
+  if ($('#set_qcEnabled')) $('#set_qcEnabled').checked = !!_qc.enabled;
+  if ($('#set_qcRequireInspector')) $('#set_qcRequireInspector').checked = !!_qc.requireInspector;
+  if ($('#set_qcRequirePhotoOnFail')) $('#set_qcRequirePhotoOnFail').checked = !!_qc.requirePhotoOnFail;
+  if ($('#set_qcWarrantyDays')) $('#set_qcWarrantyDays').value = (_qc.warrantyDays != null ? _qc.warrantyDays : 30);
   // Post-process presets list
   renderPostProcessPresetsList();
   // Expense budgets
@@ -2814,6 +2820,13 @@ function saveSettingsFromForm() {
       return wip;
     })(),
     wipEnforceHardLimit: !!$('#set_wipEnforceHardLimit')?.checked,
+    // QC / reprint / RMA
+    qc: {
+      enabled:            !!$('#set_qcEnabled')?.checked,
+      requireInspector:   !!$('#set_qcRequireInspector')?.checked,
+      requirePhotoOnFail: !!$('#set_qcRequirePhotoOnFail')?.checked,
+      warrantyDays:       Math.max(0, num($('#set_qcWarrantyDays')?.value, 30)),
+    },
     // Preserve fields managed outside this form — never silently drop them
     zatcaPhase2:        settings.zatcaPhase2        || {},
     emailDigest:        settings.emailDigest        || {},

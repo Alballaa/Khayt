@@ -688,9 +688,23 @@ function renderKanban() {
       const operatorBadge = kanbanOperator ? `<span class="operator-badge">${_kBdr ? '' : '👤 '}${escapeHtml(kanbanOperator.name)}</span>` : '';
       // Split/sub-order badges
       const kanbanSplitBadge = log.splitInto && log.splitInto.length > 0 ? `<span class="split-badge">${_kBdr ? '' : '🔀 '}${escapeHtml(t('ord.split_badge', { n: log.splitInto.length }))}</span>` : '';
-      const kanbanSubBadge = log.parentOrderId ? `<span class="sub-order-badge">↳ #${escapeHtml(log.parentOrderId)}</span>` : '';
-      // Feature 2 (this batch): QC passed badge
-      const qcBadge = log.qcPassedAt ? `<span class="qc-badge">${_kIcoL('check', '✅', 12)}${escapeHtml(t('ord.qc_passed'))}</span>` : '';
+      const kanbanSubBadge = log.parentOrderId
+        ? `<span class="sub-order-badge">↳ #${escapeHtml(log.parentOrderId)}</span>`
+        : log.reprintOf
+          ? `<span class="sub-order-badge">↳ ${escapeHtml(t('qc.reprint_of') || 'reprint of')} #${escapeHtml(log.reprintOf)}</span>`
+          : '';
+      // QC badge — reflects qcStatus (pass / fail / awaiting), with inspector
+      // initials when an inspector is required. Derives from legacy fields too.
+      const _qcSt = (typeof qcStatusOf === 'function') ? qcStatusOf(log) : (log.qcPassedAt ? 'pass' : null);
+      const _qcInsp = ((settings.qc && settings.qc.requireInspector) && log.inspector && typeof inspectorInitials === 'function')
+        ? ' ' + inspectorInitials(log.inspector) : '';
+      const qcBadge = _qcSt === 'pass'
+        ? `<span class="qc-badge qc-pass">${_kIcoL('check', '✅', 12)}${escapeHtml(t('ord.qc_passed'))}${escapeHtml(_qcInsp)}</span>`
+        : _qcSt === 'fail'
+          ? `<span class="qc-badge qc-fail">${_kIcoL('alert', '❌', 12)}${escapeHtml(t('qc.failed') || 'QC failed')}${escapeHtml(_qcInsp)}</span>`
+          : _qcSt === 'pending'
+            ? `<span class="qc-badge qc-await">${_kIcoL('clock', '⏳', 12)}${escapeHtml(t('qc.awaiting') || 'Awaiting QC')}</span>`
+            : '';
       // Feature 8 (this batch): paused overlay on pending cards
       const pausedClass = (settings.productionPaused && status === 'pending') ? ' kanban-paused-overlay' : '';
       // Feature 1 (this batch): colour chips on parts

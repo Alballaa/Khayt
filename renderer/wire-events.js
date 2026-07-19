@@ -694,6 +694,7 @@ function wireEvents() {
     const edit    = e.target.closest('[data-act="edit-log"]');
     const dup     = e.target.closest('[data-act="dup-log"]');
     const reprint = e.target.closest('[data-act="reprint-log"]');
+    const rma     = e.target.closest('[data-act="rma-log"]');
     const del     = e.target.closest('[data-act="del-log"]');
     const tagBtn = e.target.closest('[data-act="filter-tag"]');
     if (inv)     generateInvoice(inv.dataset.id);
@@ -712,6 +713,7 @@ function wireEvents() {
     if (edit)    openOrderEditor(edit.dataset.id);
     if (dup)     duplicateOrder(dup.dataset.id);
     if (reprint) reprintOrder(reprint.dataset.id);
+    if (rma)     openRmaModal(rma.dataset.id);
     const labelBtn2 = e.target.closest('[data-act="print-label"]');
     if (labelBtn2) { generateOrderLabel(labelBtn2.dataset.id); return; }
     const packSlipBtn = e.target.closest('[data-act="packing-slip"]');

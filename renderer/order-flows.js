@@ -2,6 +2,116 @@
  * Order lifecycle: create from build, edit, status, QC, payment, labels, split.
  */
 (function (global) {
+
+/* ============================================================
+   QC / reprint / RMA — pure helpers (DOM-free, unit-tested)
+   See docs/KHAYT-3.0-QC-SPEC.md. These are the correctness core;
+   the modals below are thin wrappers around them.
+   ============================================================ */
+
+// Pending linkage stamped onto the NEXT order created via logPrint (set by
+// createLinkedReprint, consumed + cleared in logPrint via applyReprintMeta).
+let pendingReprintMeta = null;
+
+// Explicit qcStatus, derived on read when the field is absent (back-compat with
+// pre-QC orders that only carry qcPassedAt/qcFailedAt).
+function qcStatusOf(order) {
+  if (!order) return null;
+  if (order.qcStatus) return order.qcStatus;
+  if (order.qcPassedAt) return 'pass';
+  if (order.qcFailedAt) return 'fail';
+  if (order.status === 'qc') return 'pending';
+  return null;
+}
+
+// Up-to-two-letter initials for an inspector, for the compact QC badge.
+function inspectorInitials(operatorId, ops) {
+  const list = ops || (typeof operators !== 'undefined' ? operators : []);
+  const op = (list || []).find(o => o && o.id === operatorId);
+  if (!op || !op.name) return '';
+  return op.name.trim().split(/\s+/).map(w => w[0] || '').slice(0, 2).join('').toUpperCase();
+}
+
+// The first order in a reprint→reprint chain (for SLA / first-pass-yield roll-up).
+function reprintChainRoot(order) {
+  if (!order) return null;
+  return order.reprintChain || (order.reprintOf ? null : order.id) || order.id;
+}
+
+// Stamp reprint linkage onto a freshly-created order and back-reference the
+// original. NEVER touches the original's materialDeducted — the failed job's
+// filament is already gone (deducted at completion, booked in wasteLog); the
+// reprint deducts its OWN filament when it later passes QC. shop-cost reprints
+// carry no charge; billable reprints keep their calculator price.
+function applyReprintMeta(newOrder, meta, log) {
+  if (!newOrder || !meta) return newOrder;
+  newOrder.reprintOf = meta.of || null;
+  newOrder.reprintReason = meta.reason || 'manual';
+  newOrder.reprintCost = meta.cost || 'billable';
+  newOrder.reprintChain = meta.chain || meta.of || newOrder.id;
+  if (meta.cost === 'shop') {
+    newOrder.price = 0;
+    newOrder.priceBeforeDiscount = null;
+    newOrder.reprintNoCharge = true;
+    newOrder.paymentStatus = 'paid';
+    newOrder.paidAmount = 0;
+  }
+  const orig = (log || []).find(o => o && o.id === meta.of);
+  if (orig) {
+    if (!Array.isArray(orig.reprintedInto)) orig.reprintedInto = [];
+    if (!orig.reprintedInto.includes(newOrder.id)) orig.reprintedInto.push(newOrder.id);
+    // RMA reprint: link the warranty record to the replacement order.
+    if (meta.reason === 'rma' && orig.rma && !orig.rma.reprintId) orig.rma.reprintId = newOrder.id;
+  }
+  return newOrder;
+}
+
+// QC / warranty analytics over a set of orders. Pure — pass the (already
+// range-filtered) order list. Reprint chains collapse to their root so a
+// multi-reprint job counts once for first-pass yield.
+function computeQcMetrics(orders) {
+  const list = (orders || []).filter(Boolean);
+  const qcd = list.filter(o => { const s = qcStatusOf(o); return s === 'pass' || s === 'fail'; });
+  const passed = qcd.filter(o => qcStatusOf(o) === 'pass').length;
+  const failed = qcd.length - passed;
+  // Unique QC'd chains (root = reprintChain, or the order id if it's an original).
+  const roots = new Set(qcd.map(o => o.reprintChain || o.id));
+  // First-pass yield: originals (reprintOf == null) that passed ÷ QC'd chains.
+  const firstPass = list.filter(o => !o.reprintOf && qcStatusOf(o) === 'pass').length;
+  const defectsByType = {};
+  for (const o of list) for (const d of (o.defects || [])) {
+    const k = d.type || 'other';
+    defectsByType[k] = (defectsByType[k] || 0) + 1;
+  }
+  const rmaCount = list.filter(o => o.rma).length;
+  // Warranty (shop) cost = material/COGS of the RMA replacement reprints.
+  const rmaCost = list
+    .filter(o => o.reprintReason === 'rma')
+    .reduce((s, o) => s + (+o.costBasis || 0), 0);
+  return {
+    qcd: qcd.length,
+    passed,
+    failed,
+    passRate: qcd.length ? passed / qcd.length : 0,
+    roots: roots.size,
+    firstPass,
+    firstPassYield: roots.size ? firstPass / roots.size : 0,
+    defectsByType,
+    rmaCount,
+    rmaCost: +rmaCost.toFixed(2),
+  };
+}
+
+// Auto-suggest whether a delivered order's RMA is inside its warranty window.
+function computeWithinWarranty(deliveredAt, warrantyDays, nowMs) {
+  if (!deliveredAt) return false;
+  const days = (typeof warrantyDays === 'number' && warrantyDays >= 0) ? warrantyDays : 30;
+  const delivered = new Date(deliveredAt).getTime();
+  if (!Number.isFinite(delivered)) return false;
+  const now = typeof nowMs === 'number' ? nowMs : Date.now();
+  return (now - delivered) <= days * 86400000;
+}
+
 function logPrint(asQuote = false) {
   if (currentBuild.length === 0) {
     const before = currentBuild.length;
@@ -115,6 +225,13 @@ function logPrint(asQuote = false) {
       return Array.from(b, (b) => b.toString(16).padStart(2, '0')).join('');
     })(),
   });
+
+  // Linked reprint: stamp reprintOf/reason/cost/chain onto this new order and
+  // back-reference the original (never re-deducts the original's material).
+  if (pendingReprintMeta && !asQuote) {
+    applyReprintMeta(printLog[0], pendingReprintMeta, printLog);
+  }
+  pendingReprintMeta = null;
 
   if (typeof logActivity === 'function') logActivity(asQuote ? 'quote_created' : 'order_created', `${id}${project ? ' · ' + project : ''}`, id);
   saveAll();
@@ -380,22 +497,48 @@ function holdOrder(id) {
 /* ============================================================
    Feature 2 (this batch): QC pass / fail handlers
    ============================================================ */
+// Inspector <select> markup (reuses operators[]), shown only when there are
+// operators. Required-marker + validation are driven by settings.qc.requireInspector.
+function qcInspectorFieldHtml(selectedId) {
+  const qc = (settings && settings.qc) || {};
+  const list = (typeof operators !== 'undefined' ? operators : []).filter(o => o && o.active !== false);
+  if (!list.length) return '';
+  const req = qc.requireInspector ? ' <span style="color:var(--danger,#c23b42);">*</span>' : '';
+  return `
+    <label style="margin-top:4px;">${escapeHtml(t('qc.inspector') || 'Inspector')}${req}</label>
+    <select id="qcInspector" style="margin-bottom:10px;">
+      <option value="">${escapeHtml(t('qc.inspector_none') || '—')}</option>
+      ${list.map(o => `<option value="${escapeHtml(o.id)}"${selectedId === o.id ? ' selected' : ''}>${escapeHtml(o.name)}${o.role ? ' · ' + escapeHtml(o.role) : ''}</option>`).join('')}
+    </select>`;
+}
+
 function qcPassOrder(orderId) {
   const order = printLog.find(o => o.id === orderId);
   if (!order) return;
+  const qcCfg = (settings && settings.qc) || {};
   openFormModal({
     title: t('ord.qc_pass'),
     sizeLg: false,
     saveLabel: t('ord.qc_pass'),
     bodyHtml: `
+      ${qcInspectorFieldHtml(order.inspector)}
       <label>${escapeHtml(t('ord.qc_notes'))}</label>
       <textarea id="qcNotesInput" rows="3" style="resize:vertical;" placeholder="${escapeHtml(t('common.optional'))}"></textarea>`,
-    onMount(modal) { setTimeout(() => modal.querySelector('#qcNotesInput')?.focus(), 40); },
+    onMount(modal) { setTimeout(() => modal.querySelector('#qcInspector, #qcNotesInput')?.focus(), 40); },
     onSave(modal) {
       const notes = modal.querySelector('#qcNotesInput').value.trim();
+      const inspector = modal.querySelector('#qcInspector')?.value || null;
+      if (qcCfg.enabled && qcCfg.requireInspector && !inspector) {
+        toast(t('qc.inspector_required') || 'Select an inspector', 'warning');
+        return false;
+      }
+      const nowIso = new Date().toISOString();
       order.status = 'completed';
+      order.qcStatus = 'pass';
+      order.inspector = inspector;
+      order.qcAt = nowIso;
       order.qcNotes = notes || null;
-      order.qcPassedAt = new Date().toISOString();
+      order.qcPassedAt = nowIso;
       if (!order.completedAt) order.completedAt = new Date().toISOString();
       if (!order.statusHistory) order.statusHistory = [];
       order.statusHistory.push({ status: 'completed', at: new Date().toISOString() });
@@ -430,14 +573,43 @@ function qcPassOrder(orderId) {
   });
 }
 
+// Record a QC failure on the order: waste row (unchanged accounting), qcStatus,
+// a defect entry, inspector + timestamp. Pure of any post-decision routing.
+function recordQcFailure(order, { failureType, severity, reason, weight, inspector, photoRef }) {
+  const nowIso = new Date().toISOString();
+  const w = Math.max(0, num(weight, 0));
+  wasteLog.unshift({
+    id: uid('WASTE'),
+    date: nowIso.split('T')[0],
+    material: order.material || '',
+    machineId: order.machineId || null,
+    weight: w || 0,
+    cost: w > 0 ? (() => {
+      const inv = inventory.find(i => i.material === order.material);
+      return (inv && inv.weight > 0) ? (inv.cost / inv.weight) * w : 0;
+    })() : 0,
+    reason: reason || t('ord.qc_fail'),
+    orderId: order.id,
+    failureType,
+  });
+  order.qcStatus = 'fail';
+  order.qcFailedAt = nowIso;
+  order.qcAt = nowIso;
+  order.inspector = inspector || order.inspector || null;
+  if (!Array.isArray(order.defects)) order.defects = [];
+  order.defects.push({ type: failureType, severity: severity || 'major', note: reason || '', photoRef: photoRef || null, at: nowIso });
+}
+
 function qcFailOrder(orderId) {
   const order = printLog.find(o => o.id === orderId);
   if (!order) return;
+  const qcCfg = (settings && settings.qc) || {};
   openFormModal({
     title: t('ord.qc_fail'),
     sizeLg: false,
     saveLabel: t('ord.qc_fail'),
     bodyHtml: `
+      ${qcInspectorFieldHtml(order.inspector)}
       <label>${escapeHtml(t('waste.failure_type') || 'Failure type')}</label>
       <select id="qcFailType" style="margin-bottom:10px;">
         <option value="bed_adhesion">${escapeHtml(t('waste.ft.bed_adhesion'))}</option>
@@ -450,6 +622,11 @@ function qcFailOrder(orderId) {
         <option value="material_quality">${escapeHtml(t('waste.ft.material_quality'))}</option>
         <option value="other" selected>${escapeHtml(t('waste.ft.other'))}</option>
       </select>
+      <label>${escapeHtml(t('qc.severity') || 'Severity')}</label>
+      <select id="qcFailSeverity" style="margin-bottom:10px;">
+        <option value="major" selected>${escapeHtml(t('qc.sev.major') || 'Major')}</option>
+        <option value="minor">${escapeHtml(t('qc.sev.minor') || 'Minor')}</option>
+      </select>
       <label>${escapeHtml(t('waste.reason'))}</label>
       <input type="text" id="qcFailReason" placeholder="${escapeHtml(t('waste.reason_ph'))}" style="width:100%;">
       <label style="margin-top:12px;">${escapeHtml(t('waste.weight'))} (g)</label>
@@ -457,32 +634,62 @@ function qcFailOrder(orderId) {
     onMount(modal) { setTimeout(() => modal.querySelector('#qcFailType')?.focus(), 40); },
     onSave(modal) {
       const failureType = modal.querySelector('#qcFailType').value;
+      const severity = modal.querySelector('#qcFailSeverity')?.value || 'major';
       const reason = modal.querySelector('#qcFailReason').value.trim();
       const weight = Math.max(0, num(modal.querySelector('#qcFailWeight').value, 0));
-      // Auto-create waste entry
-      wasteLog.unshift({
-        id: uid('WASTE'),
-        date: new Date().toISOString().split('T')[0],
-        material: order.material || '',
-        machineId: order.machineId || null,
-        weight: weight || 0,
-        cost: weight > 0 ? (() => {
-          const inv = inventory.find(i => i.material === order.material);
-          return (inv && inv.weight > 0) ? (inv.cost / inv.weight) * weight : 0;
-        })() : 0,
-        reason: reason || t('ord.qc_fail'),
-        orderId: order.id,
-        failureType,
-      });
-      // Requeue order for reprint
-      order.status = 'pending';
-      order.qcFailedAt = new Date().toISOString();
+      const inspector = modal.querySelector('#qcInspector')?.value || null;
+      if (qcCfg.enabled && qcCfg.requireInspector && !inspector) {
+        toast(t('qc.inspector_required') || 'Select an inspector', 'warning');
+        return false;
+      }
+      recordQcFailure(order, { failureType, severity, reason, weight, inspector });
+      if (typeof fireQcWebhook === 'function') fireQcWebhook('qc_failed', order);
+
+      if (!qcCfg.enabled) {
+        // QC opt-out: preserve today's behaviour — requeue for reprint.
+        order.status = 'pending';
+        if (!order.statusHistory) order.statusHistory = [];
+        order.statusHistory.push({ status: 'pending', at: new Date().toISOString(), note: 'QC failed' });
+        if (order.statusHistory.length > 200) order.statusHistory = order.statusHistory.slice(-200);
+        saveAll();
+        renderKanban(); renderLogs();
+        toast(t('ord.qc_failed_requeue'), 'warning');
+        return true;
+      }
+
+      // QC enabled: the failed job is terminal (its filament is already booked as
+      // waste). Offer Scrap (stop here) or Reprint (spin off a linked new order).
+      order.scrapped = true;
       if (!order.statusHistory) order.statusHistory = [];
-      order.statusHistory.push({ status: 'pending', at: new Date().toISOString(), note: 'QC failed' });
+      order.statusHistory.push({ status: 'qc', at: new Date().toISOString(), note: 'QC failed' });
       if (order.statusHistory.length > 200) order.statusHistory = order.statusHistory.slice(-200);
       saveAll();
-      renderKanban(); renderLogs();
-      toast(t('ord.qc_failed_requeue'), 'warning');
+      renderKanban(); renderLogs(); renderAnalytics();
+      toast(t('qc.failed_recorded') || 'QC failure recorded', 'warning');
+      setTimeout(() => promptScrapOrReprint(order), 0);
+      return true;
+    }
+  });
+}
+
+// After an (opt-in) QC fail: keep the order as a scrapped record, or spin off a
+// linked reprint. QC-fail defaults to shop-cost (internal defect); the owner can
+// flip it to billable when the customer caused it.
+function promptScrapOrReprint(order) {
+  openFormModal({
+    title: t('qc.after_fail_title') || 'Failed job',
+    sizeLg: false,
+    saveLabel: t('qc.reprint') || 'Reprint',
+    bodyHtml: `
+      <p style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">${escapeHtml(t('qc.after_fail_hint') || 'Spin off a linked reprint, or scrap this job. The wasted filament is already booked — a reprint is a fresh order.')}</p>
+      <label>${escapeHtml(t('qc.reprint_cost') || 'Who pays for the reprint?')}</label>
+      <select id="qcReprintCost">
+        <option value="shop" selected>${escapeHtml(t('qc.cost_shop') || 'Shop (no charge — our defect)')}</option>
+        <option value="billable">${escapeHtml(t('qc.cost_billable') || 'Customer (billable — spec/file change)')}</option>
+      </select>`,
+    onSave(modal) {
+      const costMode = modal.querySelector('#qcReprintCost')?.value === 'billable' ? 'billable' : 'shop';
+      createLinkedReprint(order, 'qc_fail', costMode);
       return true;
     }
   });
@@ -1722,28 +1929,97 @@ function duplicateOrder(orderId) {
   toast(t('oe.duplicated'), 'success');
 }
 
-function reprintOrder(orderId) {
-  const order = printLog.find(o => o.id === orderId);
-  if (!order) return;
-  // Load parts into calculator cart
-  currentBuild = (order.parts || []).map(p => {
+// Load an order's parts into the calculator as a NEW order, remembering the
+// linkage (reprintOf/reason/cost/chain) so logPrint stamps it on save. The
+// reprint is a fresh order — it deducts its own filament when it passes QC; the
+// original's material accounting is never touched.
+function createLinkedReprint(original, reason, costMode) {
+  if (!original) return;
+  currentBuild = (original.parts || []).map(p => {
     const copy = { ...p, id: uid('PRT') };
     copy.baseCost = computePartBaseCost(copy);
     return copy;
   });
-  currentBuildFromProductId = order.productId || null;
-  currentClientId = order.clientId || null;
-  currentExtraLines = (order.extraLines || []).map(l => ({ ...l }));
-  $('#clientInput').value = order.project || '';
-  // Restore discount/shipping/extra lines from original order
-  if ($('#discountPct')) $('#discountPct').value = String(order.discountPct || 0);
-  if ($('#shippingCost')) $('#shippingCost').value = String(order.shippingCost || 0);
+  currentBuildFromProductId = original.productId || null;
+  currentClientId = original.clientId || null;
+  currentExtraLines = (original.extraLines || []).map(l => ({ ...l }));
+  pendingReprintMeta = {
+    of: original.id,
+    reason: reason || 'manual',
+    cost: costMode || 'billable',
+    chain: original.reprintChain || original.id,
+  };
   switchTab('calculator-tab');
+  if ($('#clientInput')) $('#clientInput').value = original.project || '';
+  if ($('#discountPct')) $('#discountPct').value = String(original.discountPct || 0);
+  if ($('#shippingCost')) $('#shippingCost').value = String(original.shippingCost || 0);
   renderBuild();
   renderExtraLines();
   updateGrandTotal(); // populates #calcCurrency options
-  if ($('#calcCurrency')) $('#calcCurrency').value = order.currency || '';
-  toast(t('oe.reprint_toast'), 'success');
+  if ($('#calcCurrency')) $('#calcCurrency').value = original.currency || '';
+  const msg = reason === 'rma' ? (t('qc.rma_reprint_toast') || 'RMA reprint loaded — review and save')
+    : (t('oe.reprint_toast') || 'Reprint loaded — review and save');
+  toast(msg, 'success');
+}
+
+function reprintOrder(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+  // Manual reprint: billable by default (owner adjusts the price in the calculator).
+  createLinkedReprint(order, 'manual', 'billable');
+}
+
+/* ============================================================
+   RMA / warranty — customer-reported defect on a delivered order
+   ============================================================ */
+function openRmaModal(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+  const qcCfg = (settings && settings.qc) || {};
+  const within = computeWithinWarranty(order.deliveredAt, qcCfg.warrantyDays, Date.now());
+  const warnStyle = within ? 'color:var(--success,#159a6b);' : 'color:var(--danger,#c23b42);';
+  const warnTxt = within ? (t('qc.within_warranty') || 'Within warranty') : (t('qc.out_of_warranty') || 'Outside warranty');
+  openFormModal({
+    title: t('qc.rma_title') || 'Open RMA',
+    sizeLg: false,
+    saveLabel: t('common.save'),
+    bodyHtml: `
+      <p style="font-size:12.5px;margin-bottom:10px;${warnStyle}"><strong>${escapeHtml(warnTxt)}</strong>${order.deliveredAt ? ' · ' + escapeHtml(t('ord.delivered') || 'Delivered') + ' ' + escapeHtml(new Date(order.deliveredAt).toLocaleDateString()) : ''}</p>
+      <label>${escapeHtml(t('qc.rma_reason') || 'Reported problem')}</label>
+      <input type="text" id="rmaReason" style="width:100%;margin-bottom:10px;" placeholder="${escapeHtml(t('qc.rma_reason_ph') || 'e.g. layer split after a week')}">
+      <label>${escapeHtml(t('qc.rma_resolution') || 'Resolution')}</label>
+      <select id="rmaResolution" style="margin-bottom:10px;">
+        <option value="reprint" selected>${escapeHtml(t('qc.res_reprint') || 'Reprint (replacement)')}</option>
+        <option value="refund">${escapeHtml(t('qc.res_refund') || 'Refund')}</option>
+        <option value="declined">${escapeHtml(t('qc.res_declined') || 'Declined')}</option>
+      </select>
+      <label style="display:flex;align-items:center;gap:8px;font-weight:normal;">
+        <input type="checkbox" id="rmaWithin" ${within ? 'checked' : ''} style="width:auto;"> ${escapeHtml(t('qc.within_warranty') || 'Within warranty')}
+      </label>`,
+    onMount(modal) { setTimeout(() => modal.querySelector('#rmaReason')?.focus(), 40); },
+    onSave(modal) {
+      const reason = modal.querySelector('#rmaReason').value.trim();
+      const resolution = modal.querySelector('#rmaResolution').value;
+      const withinWarranty = !!modal.querySelector('#rmaWithin')?.checked;
+      order.rma = {
+        reportedAt: new Date().toISOString(),
+        reportedBy: (settings && settings.activeOperatorId) || null,
+        reason: reason || null,
+        withinWarranty,
+        resolution,
+        reprintId: null,
+      };
+      saveAll();
+      renderKanban(); renderLogs();
+      if (typeof fireQcWebhook === 'function') fireQcWebhook('rma_opened', order);
+      toast(t('qc.rma_opened') || 'RMA opened', 'info');
+      if (resolution === 'reprint') {
+        // Within warranty → shop eats it (no charge); outside → billable by default.
+        setTimeout(() => createLinkedReprint(order, 'rma', withinWarranty ? 'shop' : 'billable'), 0);
+      }
+      return true;
+    }
+  });
 }
 
 /* ============================================================
@@ -2369,6 +2645,17 @@ async function captureFailurePhoto(orderId) {
     holdOrder,
     qcPassOrder,
     qcFailOrder,
+    recordQcFailure,
+    promptScrapOrReprint,
+    createLinkedReprint,
+    openRmaModal,
+    // QC pure helpers (unit-tested; also used by kanban/analytics at runtime)
+    qcStatusOf,
+    inspectorInitials,
+    reprintChainRoot,
+    applyReprintMeta,
+    computeWithinWarranty,
+    computeQcMetrics,
     resinLogWash,
     resinLogCure,
     resinCompletePost,

@@ -466,6 +466,7 @@ function renderAnalytics() {
   renderPnLSection();
   renderProductProfitability();
   renderSLASection();
+  renderQcSection();
   renderMachinePL();
   renderLocationPL();
   renderSupplierPriceHistory();
@@ -1831,6 +1832,73 @@ function renderSLASection() {
     <div style="background:rgba(255,255,255,0.08);border-radius:6px;height:12px;overflow:hidden;">
       <div style="background:${rateColor};width:${rate}%;height:100%;border-radius:6px;transition:width 0.5s;"></div>
     </div>`;
+}
+
+/* ============================================================
+   QC / reprint / RMA — quality metrics
+   ============================================================ */
+function renderQcSection() {
+  const el = $('#qcSection');
+  if (!el) return;
+  if (typeof computeQcMetrics !== 'function') { el.innerHTML = ''; return; }
+
+  const orders = printLog.filter(o =>
+    o.status !== 'quote' && inRange(o.date, analyticsRange, 'analytics'));
+  const m = computeQcMetrics(orders);
+
+  if (m.qcd === 0 && m.rmaCount === 0) {
+    el.innerHTML = `<p style="color:var(--text-muted);font-size:13px;">${escapeHtml(t('qc.analytics_none') || t('an.no_data'))}</p>`;
+    return;
+  }
+
+  const passRate = Math.round(m.passRate * 100);
+  const fpy = Math.round(m.firstPassYield * 100);
+  const passColor = passRate >= 90 ? 'var(--success)' : passRate >= 70 ? 'var(--warning)' : 'var(--danger)';
+  const fpyColor = fpy >= 90 ? 'var(--success)' : fpy >= 70 ? 'var(--warning)' : 'var(--danger)';
+
+  const defectRows = Object.entries(m.defectsByType).sort((a, b) => b[1] - a[1]);
+  const maxDefect = defectRows.length ? defectRows[0][1] : 0;
+  const defectsHtml = defectRows.length ? `
+    <div style="margin-top:14px;">
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">${escapeHtml(t('qc.defect_categories') || 'Defect categories')}</div>
+      ${defectRows.map(([type, n]) => `
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
+          <span style="flex:0 0 130px;font-size:12px;">${escapeHtml(t('waste.ft.' + type) || type)}</span>
+          <div style="flex:1;background:rgba(255,255,255,0.08);border-radius:4px;height:9px;overflow:hidden;">
+            <div style="background:var(--danger);width:${maxDefect ? Math.round(n / maxDefect * 100) : 0}%;height:100%;"></div>
+          </div>
+          <span style="flex:0 0 28px;text-align:end;font-size:12px;">${n}</span>
+        </div>`).join('')}
+    </div>` : '';
+
+  el.innerHTML = `
+    <div style="display:flex; gap:24px; flex-wrap:wrap; margin-bottom:8px;">
+      <div class="cl-hist-stat">
+        <div class="v" style="color:${passColor};">${passRate}%</div>
+        <div class="l">${escapeHtml(t('qc.pass_rate') || 'QC pass rate')}</div>
+      </div>
+      <div class="cl-hist-stat">
+        <div class="v" style="color:${fpyColor};">${fpy}%</div>
+        <div class="l">${escapeHtml(t('qc.first_pass_yield') || 'First-pass yield')}</div>
+      </div>
+      <div class="cl-hist-stat">
+        <div class="v">${m.qcd}</div>
+        <div class="l">${escapeHtml(t('qc.inspected') || 'Inspected')}</div>
+      </div>
+      <div class="cl-hist-stat">
+        <div class="v" style="color:var(--danger);">${m.failed}</div>
+        <div class="l">${escapeHtml(t('qc.failed') || 'QC failed')}</div>
+      </div>
+      <div class="cl-hist-stat">
+        <div class="v">${m.rmaCount}</div>
+        <div class="l">${escapeHtml(t('qc.rma_count') || 'RMAs')}</div>
+      </div>
+      ${m.rmaCost > 0 ? `<div class="cl-hist-stat">
+        <div class="v">${fmtPrice(m.rmaCost)}</div>
+        <div class="l">${escapeHtml(t('qc.rma_cost') || 'Warranty cost')}</div>
+      </div>` : ''}
+    </div>
+    ${defectsHtml}`;
 }
 
 /* ============================================================

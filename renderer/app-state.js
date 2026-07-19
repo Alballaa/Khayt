@@ -155,6 +155,10 @@ function defaultSettings() {
     firstRun:        true,
     // Stale order alert thresholds (hours per status)
     staleHours: { printing: 48, post: 24, qc: 12, pending: 72 },
+    // QC / reprint / RMA — opt-in inspection gate on the existing `qc` stage.
+    // enabled:false keeps today's behaviour (pass/fail still work; new fields optional).
+    // See docs/KHAYT-3.0-QC-SPEC.md.
+    qc: { enabled: false, requireInspector: false, warrantyDays: 30, requirePhotoOnFail: false },
     // Feature 8 (this batch): Production pause
     productionPaused: false,
     pauseReason:      '',
