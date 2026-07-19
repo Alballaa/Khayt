@@ -232,6 +232,23 @@ function fireOrderWebhook(type, order) {
   } catch (e) { /* webhooks must never break the action */ }
 }
 
+// QC / RMA lifecycle events (qc_failed, rma_opened) — dispatch through the
+// generic named-event webhook. A no-op unless the user has configured a URL for
+// that event; never throws, so it can't break the QC/RMA action.
+function fireQcWebhook(eventName, order) {
+  try {
+    if (!order || typeof fireWebhook !== 'function') return;
+    fireWebhook(eventName, {
+      orderId: order.id,
+      project: order.project,
+      status: order.status,
+      qcStatus: order.qcStatus || null,
+      reprintOf: order.reprintOf || null,
+      client: order.client || null,
+    });
+  } catch (e) { /* events must never break the action */ }
+}
+
 /** Flag overdue unpaid invoices for a payment reminder (opt-in). Marks them
  *  (dedup/cooldown/cap via the pure lib) and surfaces a single prompt; the owner
  *  sends with the existing one-tap 💰 reminder. Does not auto-message customers. */

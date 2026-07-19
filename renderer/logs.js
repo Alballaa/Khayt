@@ -233,6 +233,7 @@ function renderLogs() {
             <!-- Print & labels -->
             <div class="menu-label">${escapeHtml(t('menu.print_label') || 'Print & labels')}</div>
             <button class="menu-item" data-act="reprint-log"   data-id="${log.id}">🖨 ${escapeHtml(t('oe.reprint'))}</button>
+            ${log.status === 'delivered' ? `<button class="menu-item" data-act="rma-log" data-id="${log.id}">🛡 ${escapeHtml(t('qc.rma_title') || 'Open RMA')}${log.rma ? ' ✓' : ''}</button>` : ''}
             <button class="menu-item" data-act="print-label"   data-id="${log.id}">🏷 ${escapeHtml(t('ord.label_btn') || 'Print Label')}</button>
             <button class="menu-item" data-act="packing-slip"  data-id="${log.id}">🗒 ${escapeHtml(t('ps.title') || 'Packing Slip')}</button>
             ${expenses.some(e => e.orderId === log.id) ? `<button class="menu-item" data-act="linked-expenses" data-id="${log.id}">💰 ${escapeHtml(t('exp.linked_expenses'))}</button>` : ''}

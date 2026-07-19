@@ -934,6 +934,12 @@
         <div id="slaSection"></div>
       </div>
 
+      <!-- QC / reprint / RMA quality metrics -->
+      <div class="card pro-only" style="margin-top: 16px;">
+        <h3 class="card-head"><span class="swatch"></span><span data-i18n="qc.analytics_title">Quality Control</span></h3>
+        <div id="qcSection"></div>
+      </div>
+
       <!-- Feature 7: Per-machine P&L -->
       <div class="card pro-only" style="margin-top: 16px;">
         <h3 class="card-head"><span class="swatch"></span><span data-i18n="an.machine_pl">Per-Machine P&L</span></h3>
@@ -1904,6 +1910,27 @@
           <input type="checkbox" id="set_wipEnforceHardLimit">
           <span data-i18n="set.wip_enforce_hard">Block moves when WIP limit is reached (instead of warning only)</span>
         </label>
+        </div>
+
+        <div class="card settings-card">
+        <div class="settings-section-head" data-i18n="set.qc_head">Quality control</div>
+        <p class="settings-hint" data-i18n="set.qc_hint">Turn the QC stage into a real inspection gate — record pass/fail with defects, spin off linked reprints, and handle warranty claims. Off keeps today's behaviour.</p>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:6px;font-weight:400;">
+          <input type="checkbox" id="set_qcEnabled">
+          <span data-i18n="set.qc_enabled">Enable QC inspection (pass/fail, defects, linked reprints, RMA)</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-weight:400;">
+          <input type="checkbox" id="set_qcRequireInspector">
+          <span data-i18n="set.qc_require_inspector">Require an inspector to record a pass or fail</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-weight:400;">
+          <input type="checkbox" id="set_qcRequirePhotoOnFail">
+          <span data-i18n="set.qc_require_photo">Prompt for a photo on a QC fail</span>
+        </label>
+        <div style="margin-top:10px;max-width:220px;">
+          <label data-i18n="set.qc_warranty_days">Warranty window (days)</label>
+          <input type="number" id="set_qcWarrantyDays" min="0" step="1" placeholder="30">
+        </div>
         </div>
 
         <div class="card settings-card">

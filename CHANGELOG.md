@@ -4,6 +4,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **Quality control, reprints & warranty (RMA).** The existing QC stage becomes a real inspection gate. Record a **pass** (optionally with the inspector who signed off) or a defect-tagged **fail** (failure type, severity, notes, wasted weight) right on the order. A failed job can be **scrapped** or turned into a **linked reprint** — a fresh order that points back at the one it replaces, so material accounting never double-counts: the wasted filament stays booked as waste, and the reprint deducts its own filament only when *it* passes. Reprints are **shop-cost** (no charge — our defect) or **billable** (customer-caused) at a click. For a delivered order, **Open RMA** records a warranty claim (auto-suggesting whether it's within your warranty window) and can spin off a no-charge replacement reprint. New Analytics tiles show QC pass rate, first-pass yield (reprint chains collapse to one job), defect categories, and warranty cost. All opt-in via **Settings → QC**, fully offline, and off by default — with QC off the stage behaves exactly as before. See docs/KHAYT-3.0-QC-SPEC.md.
+
 ## [3.2.0-beta.11] - 2026-07-19
 
 **Pre-release (beta) — maker-tools depth.** Following beta.10's "maker tools for everyone," the print-file library, converter and colour tools gained organization, single-extruder colour work, and wider slicer support.
