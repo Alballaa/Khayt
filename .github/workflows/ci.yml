@@ -51,3 +51,6 @@ jobs:
 
       - name: E2E smoke (Bed Ready flavor + branding guard)
         run: xvfb-run -a npm run test:e2e:bedready
+
+      - name: E2E smoke (QC / reprint / RMA)
+        run: xvfb-run -a npm run test:e2e:qc
