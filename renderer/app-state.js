@@ -177,6 +177,10 @@ function defaultSettings() {
     paymentProviders: {},
     // Accounting sync: one-way webhook push of invoices/expenses (QuickBooks/Zoho/Xero bridge)
     accountingSync:   { enabled: false, format: 'generic', webhookUrl: '', secret: '', pushOnPaid: true },
+    // Shipping & fulfillment — opt-in Saudi carrier credentials (encrypted). Manual-first:
+    // shipping works with zero config; API carriers layer on when enabled. See
+    // docs/KHAYT-3.0-SHIPPING-SPEC.md. Per-carrier: { enabled, apiKey, accountNumber, webhookSecret }.
+    shipping:         { smsa: {}, aramex: {}, spl: {} },
     // Feature 7 (new batch): Operator lock
     activeOperatorId: null,
     operatorLockEnabled: false,

@@ -4,6 +4,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.14] - 2026-07-19
+
+**Pre-release (beta) — shipping & fulfillment.** Close the order lifecycle with carrier tracking and live customer shipping status, manual-first and fully offline.
+
+### Added
+
+- **Shipping & fulfillment (Saudi carriers).** Close the order lifecycle: a **Ship** action on completed orders records the carrier, tracking number and shipping status right on the order, and the customer sees live shipping status on the same tracking link they already use. **Manual-first and fully offline** — type a carrier + tracking number by hand with zero setup — with an **opt-in** path for **SMSA, Aramex and Saudi Post (SPL)** to auto-create labels (when configured) and receive live status updates via signed carrier webhooks. Shipping status advances through label-created → in transit → out for delivery → delivered (a delivered update also marks the order delivered), never regressing on an out-of-order update. Carrier credentials are encrypted and masked on export; the customer tracking page shows only status, carrier, tracking number and a carrier deep link — never internal cost or notes. Adding a fourth carrier is a one-entry drop-in. Runs locally; carrier APIs are opt-in. See docs/KHAYT-3.0-SHIPPING-SPEC.md.
+
 ## [3.2.0-beta.13] - 2026-07-19
 
 **Pre-release (beta) — less typing, smarter defaults.** Pick your printer from a built-in catalog, stop re-entering it in the calculator, and get automatic pricing on catalog products.

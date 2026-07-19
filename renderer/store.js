@@ -28,6 +28,8 @@
       ['pin', 'intakePin', 'intakeToken', 'calendarToken', 'webhookToken', 'sallaWebhookSecret', 'zidWebhookSecret']
         .forEach(k => mask(s.lanApi, k));
     }
+    // Shipping carrier credentials — mask API keys + webhook secrets per carrier.
+    ['smsa', 'aramex', 'spl'].forEach(c => { mask(s.shipping?.[c], 'apiKey'); mask(s.shipping?.[c], 'webhookSecret'); });
     return s;
   }
 

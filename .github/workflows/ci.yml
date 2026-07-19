@@ -57,3 +57,6 @@ jobs:
 
       - name: E2E smoke (printer catalog + auto-fill + pricing)
         run: xvfb-run -a npm run test:e2e:printers
+
+      - name: E2E smoke (shipping & fulfillment)
+        run: xvfb-run -a npm run test:e2e:shipping
