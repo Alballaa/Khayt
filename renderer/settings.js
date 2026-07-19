@@ -2362,6 +2362,71 @@ function renderBnplSettings() {
   });
 }
 
+// Shipping & fulfillment — per-carrier opt-in credentials (encrypted) + webhook secret
+// and its displayed inbound URL. Manual shipping needs none of this; this only enables
+// the API/webhook path for SMSA / Aramex / SPL. See docs/KHAYT-3.0-SHIPPING-SPEC.md.
+function renderShippingSettings() {
+  const el = $('#shippingSection');
+  if (!el) return;
+  const sh = settings.shipping || {};
+  const carriers = [
+    { id: 'smsa',   label: 'SMSA Express' },
+    { id: 'aramex', label: 'Aramex' },
+    { id: 'spl',    label: 'Saudi Post (SPL)' },
+  ];
+  const fields = [
+    { key: 'apiKey',        label: t('ship.api_key') || 'API key',         type: 'password', ph: 'API key / token' },
+    { key: 'accountNumber', label: t('ship.account') || 'Account number',  type: 'text',     ph: 'Account / customer #' },
+    { key: 'webhookSecret', label: t('ship.webhook_secret') || 'Webhook secret', type: 'password', ph: 'Shared HMAC secret' },
+  ];
+  // Reuse the LAN base URL already resolved into the printer-webhook display (if the
+  // server is running); otherwise show the relative path. Never throws on an undefined var.
+  const baseUrl = (() => {
+    const disp = document.getElementById('webhookUrlDisplay');
+    const txt = disp && disp.textContent && disp.textContent !== '—' ? disp.textContent : '';
+    const m = txt.match(/^(https?:\/\/[^/]+)/);
+    return m ? m[1] : '';
+  })();
+  const rows = carriers.map(c => {
+    const cfg = sh[c.id] || {};
+    const flds = fields.map(f => `
+      <div style="flex:1;min-width:150px;">
+        <label style="font-size:11px;">${escapeHtml(f.label)}</label>
+        <input type="${f.type}" id="ship_${c.id}_${f.key}" value="${escapeHtml(f.type === 'password' ? secretInputValue(cfg[f.key]) : (cfg[f.key] || ''))}" placeholder="${escapeHtml(f.type === 'password' ? (secretFieldPlaceholder(cfg[f.key]) || f.ph) : f.ph)}" autocomplete="off">
+      </div>`).join('');
+    const hookUrl = `${baseUrl}/api/webhook/${c.id}`;
+    return `
+    <div style="padding:12px;background:var(--bg-elev);border-radius:var(--radius);margin-bottom:10px;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:8px;font-weight:600;">
+        <input type="checkbox" id="ship_${c.id}_en" style="width:auto;margin:0;" ${cfg.enabled ? 'checked' : ''}>
+        <span>${escapeHtml(c.label)}</span>
+      </label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">${flds}</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:8px;">${escapeHtml(t('ship.webhook_url') || 'Inbound status webhook')}: <code style="user-select:all;">${escapeHtml(hookUrl)}</code></div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <p style="font-size:11.5px;color:var(--text-muted);margin-bottom:10px;">${escapeHtml(t('ship.settings_hint') || 'Optional — shipping works fully by hand. Add a carrier key to auto-create labels, and a webhook secret to receive live status updates.')}</p>
+    ${rows}
+    <button class="btn primary small" id="btnSaveShipping" data-i18n="common.save">${escapeHtml(t('common.save'))}</button>`;
+
+  el.querySelector('#btnSaveShipping')?.addEventListener('click', () => {
+    const saved = { ...(settings.shipping || {}) };
+    for (const c of carriers) {
+      const cur = (settings.shipping || {})[c.id] || {};
+      saved[c.id] = { enabled: el.querySelector(`#ship_${c.id}_en`)?.checked || false };
+      for (const f of fields) {
+        const raw = el.querySelector(`#ship_${c.id}_${f.key}`)?.value;
+        saved[c.id][f.key] = (f.type === 'password') ? secretInputSave(cur[f.key], raw) : (raw?.trim() || '');
+      }
+    }
+    settings.shipping = saved;
+    saveAll();
+    toast(t('ship.saved') || 'Shipping settings saved', 'success');
+  });
+}
+
 function renderSavedFilterPresets() {
   const el = $('#savedFiltersBar');
   if (!el) return;
@@ -2621,6 +2686,7 @@ function loadSettingsIntoForm() {
   // ZATCA Phase 2
   renderZatcaPhase2Settings();
   renderBnplSettings();
+  renderShippingSettings();
   // Feature H: Exchange rates
   renderExchangeRatesSettings();
   // Round 12: Saved filter presets

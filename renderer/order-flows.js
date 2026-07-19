@@ -161,6 +161,15 @@ function logPrint(asQuote = false) {
     priceBeforeDiscount: discountPct > 0 ? +priceBeforeDiscount.toFixed(2) : null,
     shippingCost: shippingCost > 0 ? +shippingCost.toFixed(2) : 0,
     deliveredAt: null,
+    // Shipping & fulfillment (manual-first; populated at ship time). See KHAYT-3.0-SHIPPING-SPEC.md.
+    carrier: null,
+    trackingNumber: null,
+    labelUrl: null,
+    shippedAt: null,
+    shippingStatus: null,
+    shippingHistory: [],
+    shippingService: null,
+    shipmentMeta: null,
     attachedFiles: [],
     extraLines: currentExtraLines.length > 0 ? currentExtraLines.map(l => ({ ...l })) : undefined,
     status: asQuote ? 'quote' : 'pending',
@@ -798,6 +807,146 @@ function markDelivered(orderId) {
   saveAll();
   renderKanban(); renderLogs(); renderDashboard();
   toast(t('queue.delivered_toast', { id: order.id }), 'success');
+}
+
+/* ============================================================
+   Shipping & fulfillment — ship a completed order (manual-first).
+   See docs/KHAYT-3.0-SHIPPING-SPEC.md.
+   ============================================================ */
+function pushShippingHistory(order, status, source, note) {
+  if (!Array.isArray(order.shippingHistory)) order.shippingHistory = [];
+  order.shippingHistory.push({ status, at: new Date().toISOString(), source: source || 'manual', note: note || '' });
+  if (order.shippingHistory.length > 100) order.shippingHistory = order.shippingHistory.slice(-100);
+}
+
+// Apply a shipping-status change to an order without regressing, mark delivered when
+// it reaches 'delivered', and record history. Shared by the manual picker and webhooks.
+function applyShippingStatus(order, next, source) {
+  const C = (typeof KhaytCarriers !== 'undefined') ? KhaytCarriers : null;
+  const advanced = C ? C.advanceShippingStatus(order.shippingStatus, next) : next;
+  if (advanced === order.shippingStatus) return false;
+  order.shippingStatus = advanced;
+  pushShippingHistory(order, advanced, source);
+  if (advanced === 'delivered' && order.status === 'completed' && !order.deliveredAt) {
+    order.deliveredAt = new Date().toISOString();
+  }
+  return true;
+}
+
+function openShipModal(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+  const C = (typeof KhaytCarriers !== 'undefined') ? KhaytCarriers : null;
+  if (!C) { toast(t('ship.unavailable') || 'Shipping unavailable', 'error'); return; }
+  const carriers = C.configuredCarriers(settings);
+  const alreadyShipped = !!order.shippingStatus;
+  const lang = (typeof i18n !== 'undefined' && i18n.current === 'ar') ? 'ar' : 'en';
+  const carrierLabel = (c) => (c.label && c.label[lang]) || (c.label && c.label.en) || c.id;
+
+  // Address book (reuse client saved addresses if present).
+  const client = order.clientId ? clients.find(c => c.id === order.clientId) : null;
+  const addresses = (client && Array.isArray(client.addresses)) ? client.addresses : [];
+
+  const statusOpts = ['label_created', 'in_transit', 'out_for_delivery', 'delivered', 'exception'];
+
+  openFormModal({
+    title: alreadyShipped ? (t('ship.manage_title') || 'Shipment') : (t('ship.title') || 'Ship order'),
+    sizeLg: false,
+    saveLabel: alreadyShipped ? (t('common.save')) : (t('ship.create') || 'Create shipment'),
+    bodyHtml: `
+      <label>${escapeHtml(t('ship.carrier') || 'Carrier')}</label>
+      <select id="shipCarrier" style="margin-bottom:10px;" ${alreadyShipped ? 'disabled' : ''}>
+        ${carriers.map(c => `<option value="${escapeHtml(c.id)}"${order.carrier === c.id ? ' selected' : ''}>${escapeHtml(carrierLabel(c))}</option>`).join('')}
+      </select>
+      <div id="shipServiceRow"></div>
+      ${addresses.length ? `
+        <label>${escapeHtml(t('ship.address') || 'Delivery address')}</label>
+        <select id="shipAddress" style="margin-bottom:8px;">
+          <option value="">${escapeHtml(order.deliveryAddress || t('ship.address_none') || '—')}</option>
+          ${addresses.map(a => `<option value="${escapeHtml(a.address)}">${escapeHtml(a.label || a.address)}</option>`).join('')}
+        </select>` : ''}
+      <label>${escapeHtml(t('ship.tracking') || 'Tracking number')}</label>
+      <input type="text" id="shipTracking" value="${escapeHtml(order.trackingNumber || '')}" placeholder="${escapeHtml(t('ship.tracking_ph') || 'AWB / waybill')}" autocomplete="off">
+      ${alreadyShipped ? `
+        <label style="margin-top:12px;">${escapeHtml(t('ship.status') || 'Shipping status')}</label>
+        <select id="shipStatus">
+          ${statusOpts.map(s => `<option value="${s}"${order.shippingStatus === s ? ' selected' : ''}>${escapeHtml(t('ship.st.' + s) || s)}</option>`).join('')}
+        </select>` : ''}
+      <p id="shipHint" style="font-size:11.5px;color:var(--text-muted);margin-top:8px;">${escapeHtml(t('ship.hint') || 'Works offline — type a carrier + tracking number by hand, or use a configured carrier API.')}</p>`,
+    onMount(modal) {
+      const carrierSel = modal.querySelector('#shipCarrier');
+      const serviceRow = modal.querySelector('#shipServiceRow');
+      const renderServices = () => {
+        const c = C.getCarrier(carrierSel.value);
+        if (!c || !c.services || !c.services.length) { serviceRow.innerHTML = ''; return; }
+        serviceRow.innerHTML = `<label>${escapeHtml(t('ship.service') || 'Service')}</label>
+          <select id="shipService" style="margin-bottom:10px;">
+            ${c.services.map(s => `<option value="${escapeHtml(s.id)}"${order.shippingService === s.id ? ' selected' : ''}>${escapeHtml(s.label)}</option>`).join('')}
+          </select>`;
+      };
+      renderServices();
+      if (carrierSel) carrierSel.addEventListener('change', renderServices);
+      const addrSel = modal.querySelector('#shipAddress');
+      if (addrSel) addrSel.addEventListener('change', () => { if (addrSel.value) order.deliveryAddress = addrSel.value; });
+      setTimeout(() => modal.querySelector('#shipTracking')?.focus(), 40);
+    },
+    async onSave(modal) {
+      // Existing shipment → just apply a manual status update.
+      if (alreadyShipped) {
+        const next = modal.querySelector('#shipStatus')?.value;
+        const typedTn = modal.querySelector('#shipTracking')?.value.trim();
+        if (typedTn) order.trackingNumber = typedTn;
+        if (next) applyShippingStatus(order, next, 'manual');
+        saveAll();
+        renderKanban(); renderLogs();
+        if (typeof republishPortalIfPublished === 'function') republishPortalIfPublished(order.id);
+        toast(t('ship.updated') || 'Shipment updated', 'success');
+        return true;
+      }
+
+      const carrierId = modal.querySelector('#shipCarrier')?.value || 'manual';
+      const carrier = C.getCarrier(carrierId);
+      const service = modal.querySelector('#shipService')?.value || null;
+      let trackingNumber = modal.querySelector('#shipTracking')?.value.trim() || '';
+      let labelUrl = null, meta = null, source = 'manual';
+
+      // API path — attempt createShipment; degrade to manual on any failure.
+      if (carrierId !== 'manual') {
+        const cfg = ((settings.shipping || {})[carrierId]) || {};
+        try {
+          const r = await carrier.createShipment(order, cfg);
+          trackingNumber = r.trackingNumber || trackingNumber;
+          labelUrl = r.labelUrl || null;
+          meta = r.meta || null;
+          source = 'api';
+          if (labelUrl) toast(t('ship.label_saved') || 'Label created', 'success');
+        } catch (err) {
+          // Manual fallback — the modal already has a tracking-number field.
+          toast(t('ship.api_fallback') || 'Carrier API unavailable — enter the tracking number manually.', 'warning', 5000);
+          if (!trackingNumber) return false; // keep modal open for the user to type one
+          source = 'manual';
+        }
+      }
+
+      order.carrier = carrierId;
+      order.trackingNumber = trackingNumber || null;
+      order.shippingService = service;
+      order.labelUrl = labelUrl;
+      order.shipmentMeta = meta;
+      order.shippedAt = new Date().toISOString();
+      order.shippingStatus = 'label_created';
+      // Back-compat: the order editor's free-text courier + Track button read courierName.
+      order.courierName = carrier ? ((carrier.label && carrier.label.en) || carrierId) : carrierId;
+      pushShippingHistory(order, 'label_created', source);
+
+      if (typeof fireWebhook === 'function') fireWebhook('order_shipped', { orderId: order.id, project: order.project, carrier: carrierId, trackingNumber: order.trackingNumber });
+      saveAll();
+      renderKanban(); renderLogs();
+      if (typeof republishPortalIfPublished === 'function') republishPortalIfPublished(order.id);
+      toast(t('ship.created') || 'Shipment created', 'success');
+      return true;
+    }
+  });
 }
 
 /* ============================================================
@@ -2661,6 +2810,8 @@ async function captureFailurePhoto(orderId) {
     resinCompletePost,
     deleteLog,
     markDelivered,
+    openShipModal,
+    applyShippingStatus,
     openPaymentModal,
     clearPayment,
     renderOeExtraLinesHtml,

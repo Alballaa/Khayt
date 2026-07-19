@@ -577,20 +577,23 @@ function renderKanban() {
       const bnplBtn = (biz && (settings.bnpl?.tabby?.enabled || settings.bnpl?.tamara?.enabled || settings.bnpl?.stripe?.enabled))
         ? `<button class="btn small ghost" data-act="bnpl-pay" data-id="${log.id}" title="${escapeHtml(t('bnpl.payment_modal'))}">💳</button>`
         : '';
+      // Shipping is orthogonal to print status — a "Ship" action off the completed/delivered
+      // state (label reflects current shipping status once shipped).
+      const shipBtn = biz ? `<button class="btn ghost small" data-act="ship-order" data-id="${log.id}" title="${escapeHtml(t('ship.title') || 'Ship order')}">${_kIco('box', '📦')} ${escapeHtml(log.shippingStatus ? (t('ship.st.' + log.shippingStatus) || log.shippingStatus) : (t('ship.ship') || 'Ship'))}</button>` : '';
       if (status === 'completed') {
         const deliverBtn = `<button class="btn small success" data-act="mark-delivered" data-id="${log.id}">${escapeHtml(t('queue.mark_delivered'))}</button>`;
         const wasteBtn = `<button class="btn ghost small" data-act="log-waste-card" data-id="${log.id}" title="${escapeHtml(t('waste.log_from_card'))}">${_kIco('trash', '🗑')}</button>`;
         const isPaidCard = payStatus(log) === 'paid';
         const payBtn = (biz && !isPaidCard) ? `<button class="btn small primary" data-act="pay" data-id="${log.id}" title="${escapeHtml(t('pay.mark_paid'))}">💳 ${escapeHtml(t('pay.mark_paid'))}</button>` : '';
         const invoiceBtn = biz ? `<button class="btn small" data-act="invoice" data-id="${log.id}">${escapeHtml(t('queue.invoice'))}</button>` : '';
-        actions = `${invoiceBtn}${payBtn}${bnplBtn}${deliverBtn}${wasteBtn}${notifyBtn}${labelBtn}`;
+        actions = `${invoiceBtn}${payBtn}${bnplBtn}${deliverBtn}${shipBtn}${wasteBtn}${notifyBtn}${labelBtn}`;
       }
       if (status === 'delivered') {
         const isPaidCard = payStatus(log) === 'paid';
         const payBtn = (biz && !isPaidCard) ? `<button class="btn small primary" data-act="pay" data-id="${log.id}" title="${escapeHtml(t('pay.mark_paid'))}">💳 ${escapeHtml(t('pay.mark_paid'))}</button>` : '';
         const wasteBtn = `<button class="btn ghost small" data-act="log-waste-card" data-id="${log.id}" title="${escapeHtml(t('waste.log_from_card'))}">${_kIco('trash', '🗑')}</button>`;
         const invoiceBtn = biz ? `<button class="btn small" data-act="invoice" data-id="${log.id}">${escapeHtml(t('queue.invoice'))}</button>` : '';
-        actions = `${invoiceBtn}${payBtn}${bnplBtn}${wasteBtn}${notifyBtn}${labelBtn}`;
+        actions = `${invoiceBtn}${payBtn}${bnplBtn}${shipBtn}${wasteBtn}${notifyBtn}${labelBtn}`;
       }
       const partCount = log.parts ? log.parts.length : 1;
       const partsLabel = partCount === 1 ? t('queue.parts_count_1') : t('queue.parts_count', { n: partCount });
