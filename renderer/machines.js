@@ -109,6 +109,10 @@ function openMachineEditor(machineId = null) {
     bodyHtml: `
       <label>${escapeHtml(t('mach.name'))}</label>
       <input type="text" id="machName" value="${escapeHtml(draft.name)}" placeholder="${escapeHtml(t('mach.name_ph'))}">
+      <label style="margin-top:12px;">${escapeHtml(t('mach.printer_model') || 'Printer model')}</label>
+      <input type="text" id="machPrinterModel" list="machPrinterModelList" value="${escapeHtml(draft.printerModelName || '')}" placeholder="${escapeHtml(t('mach.printer_model_ph') || "Search — e.g. 'Bambu X1', 'Ender 3'")}" autocomplete="off">
+      <datalist id="machPrinterModelList"></datalist>
+      <div id="machPrinterModelHint" style="font-size:11px;color:var(--text-muted);margin-top:3px;">${escapeHtml(t('mach.printer_model_hint') || 'Pick a model to auto-fill nozzle, build volume, colours and power.')}</div>
       <label style="margin-top:12px;">${escapeHtml(t('mach.color'))}</label>
       <div id="machColorPicker" style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;">
         ${MACHINE_COLORS.map(c => `
@@ -241,6 +245,77 @@ function openMachineEditor(machineId = null) {
       if (!draft.nozzle) draft.nozzle = { material: 'brass', installedAt: '', gramsThreshold: 2000, gramsAtInstall: 0 };
       if (!draft.printerApi) draft.printerApi = { type: 'none', host: '', port: '', apiKey: '', accessCode: '', serial: '', printerSlug: '' };
       modal.querySelector('#machName').addEventListener('input', e => { draft.name = e.target.value; });
+
+      // Printer-model picker — auto-fill specs from the bundled catalog (works offline)
+      // + the installed slicer's profiles (breadth). Selecting a model fills nozzle,
+      // build volume, colour slots, extruder and typical power draw so nothing is typed by hand.
+      (function wirePrinterModel() {
+        const pmInput = modal.querySelector('#machPrinterModel');
+        const pmList  = modal.querySelector('#machPrinterModelList');
+        const pmHint  = modal.querySelector('#machPrinterModelHint');
+        if (!pmInput) return;
+        const PC = (typeof window !== 'undefined') ? window.KhaytPrinterCatalog : null;
+        const catalog = PC ? PC.list() : [];
+        let orcaNames = [];
+        const rebuildList = () => {
+          if (!pmList) return;
+          const seen = new Set(); const uniq = [];
+          for (const p of catalog) { const k = p.name.toLowerCase(); if (!seen.has(k)) { seen.add(k); uniq.push(p.name); } }
+          for (const n of orcaNames) { const k = String(n).toLowerCase(); if (!seen.has(k)) { seen.add(k); uniq.push(n); } if (uniq.length > 1500) break; }
+          pmList.innerHTML = uniq.map(n => `<option value="${escapeHtml(n)}"></option>`).join('');
+        };
+        rebuildList();
+        if (window.hubAPI?.orcaPrinters) {
+          window.hubAPI.orcaPrinters().then(r => {
+            if (r && r.available && Array.isArray(r.printers) && r.printers.length) {
+              orcaNames = r.printers.map(p => p.name).filter(Boolean);
+              rebuildList();
+            }
+          }).catch(() => {});
+        }
+        const fillSpecs = (s, name) => {
+          draft.printerModel = s.printerModel || name;
+          draft.printerModelName = name;
+          if (s.vendor) draft.vendor = s.vendor;
+          if (s.bed) draft.bed = s.bed;
+          if (s.maxColors) draft.maxColors = s.maxColors;
+          if (s.powerDraw != null) draft.powerDraw = s.powerDraw;
+          const nameEl = modal.querySelector('#machName');
+          if (nameEl && !nameEl.value.trim()) { nameEl.value = name; draft.name = name; }
+          if (s.nozzleDiameter) { const el = modal.querySelector('#machNozzleDiameter'); if (el) el.value = s.nozzleDiameter; draft.nozzleDiameter = s.nozzleDiameter; }
+          if (s.extruderType)  { const el = modal.querySelector('#machExtruderType');  if (el) el.value = s.extruderType;  draft.extruderType  = s.extruderType; }
+          if (pmHint) {
+            const bits = [];
+            if (s.bed) bits.push(`${s.bed.x}×${s.bed.y}×${s.bed.z} mm`);
+            if (s.nozzleDiameter) bits.push(`${s.nozzleDiameter} mm`);
+            if (s.maxColors > 1) bits.push(`${s.maxColors}×`);
+            if (s.powerDraw != null) bits.push(`~${s.powerDraw} W`);
+            pmHint.textContent = bits.join(' · ') || (t('mach.printer_model_hint') || '');
+          }
+        };
+        const applyModel = async (raw) => {
+          const nm = (raw || '').trim();
+          if (!nm) return;
+          const hit = catalog.find(p => p.name.toLowerCase() === nm.toLowerCase());
+          if (hit && PC) { fillSpecs(PC.toMachineSpecs(hit.id), hit.name); return; }
+          if (window.hubAPI?.orcaMachineInfo) {
+            try {
+              const r = await window.hubAPI.orcaMachineInfo(nm);
+              if (r && r.ok && r.info) {
+                fillSpecs({
+                  printerModel: nm, nozzleDiameter: r.info.nozzle, maxColors: r.info.colors,
+                  bed: r.info.bed, flavour: r.info.gcodeFlavor,
+                  extruderType: '', powerDraw: null,
+                }, nm);
+                return;
+              }
+            } catch (_) { /* fall through to free-text */ }
+          }
+          // Unknown model — keep it as a free-text label; specs stay whatever the user entered.
+          draft.printerModel = nm; draft.printerModelName = nm;
+        };
+        pmInput.addEventListener('change', () => applyModel(pmInput.value));
+      })();
 
       // Feature 2 (new batch): Printer API section wiring
       const apiTypeSel = modal.querySelector('#machApiType');

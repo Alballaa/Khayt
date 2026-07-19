@@ -253,6 +253,12 @@ function wireEvents() {
     if (e.target.value) applyPreset(e.target.value);
     updateDeletePresetBtn();
   });
+
+  // Assigning a machine auto-fills the printer name + its known cost params, so a
+  // printer you already defined in Machines is never re-typed in the calculator.
+  $('#machineAssign')?.addEventListener('change', (e) => {
+    if (typeof applyMachineToCalculator === 'function') applyMachineToCalculator(e.target.value);
+  });
   $('#btnSavePreset')?.addEventListener('click', saveCurrentAsPreset);
   $('#btnDeletePreset')?.addEventListener('click', deleteCurrentPreset);
 

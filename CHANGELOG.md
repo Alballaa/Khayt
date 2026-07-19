@@ -4,6 +4,19 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.13] - 2026-07-19
+
+**Pre-release (beta) — less typing, smarter defaults.** Pick your printer from a built-in catalog, stop re-entering it in the calculator, and get automatic pricing on catalog products.
+
+### Added
+
+- **Pick your printer from a built-in catalog.** Adding a machine now offers a searchable **Printer model** field covering popular printers (Bambu, Prusa, Creality, Anycubic, Elegoo, Sovol, Snapmaker, QIDI, Voron and more) — choosing one auto-fills the nozzle size, build volume, colour slots, extruder type and typical power draw so you no longer hand-enter specs. If you have a slicer installed, its full printer list (2000+) is folded in too. Runs locally.
+
+### Changed
+
+- **Assign a machine, skip re-typing the printer.** Selecting a machine in the calculator now auto-fills the printer name and its power draw from that machine, so a printer you already defined isn't entered a second time. Saved presets still override.
+- **Catalog products get a price automatically.** The product editor now computes a **default price** live from the parts' cost and your margin (the same math as the calculator) and stores it with the product — adding a product no longer needs a separate quoting step. Runs locally.
+
 ## [3.2.0-beta.12] - 2026-07-19
 
 **Pre-release (beta) — quality control, reprints & warranty.** The QC stage becomes a real inspection gate, with defect logging, correctly-accounted linked reprints, and customer warranty (RMA) claims.
