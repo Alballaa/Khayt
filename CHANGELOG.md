@@ -4,6 +4,26 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.11] - 2026-07-19
+
+**Pre-release (beta) — maker-tools depth.** Following beta.10's "maker tools for everyone," the print-file library, converter and colour tools gained organization, single-extruder colour work, and wider slicer support.
+
+### Added
+
+- **Print-file library: folders and tags.** Print files can now be organized two ways — a single **folder** per file (one-per-file collections) and multiple **tags** (labels a file can share). A filter bar above the grid browses by folder — with per-folder counts and an "Unfiled" bucket — and tags filter alongside it. Folder chips on each card are clickable to filter, and a filter that loses its last matching file clears itself so the grid can't stick on an empty view. Runs locally.
+- **Bulk import to the print-file library.** The library's **Add** action now takes a multi-file selection, so you can pull in a whole batch of print files in one step (each gets an auto-generated preview) instead of adding them one at a time. Runs locally.
+- **Single-extruder colour-swap plan (M600).** A vertically colour-banded 3MF could previously only get a swap plan for the Snapmaker U1's four heads. A new **Colour-swap plan…** action in the Converter now produces an exact-colour plan for any single-extruder (or pause-capable) printer: the starting colour, a list of swap heights with colour swatches, and a ready-to-use OrcaSlicer `custom_gcode_per_layer.xml` to save or copy. It explains clearly when a model can't be reproduced this way (colours that share layers need a multi-material printer). Runs locally.
+- **Colour Studio matches against a bundled filament catalog.** Colour matching no longer dead-ends on an empty inventory — it falls back to a built-in filament catalog so you always get a suggested match to start from. Runs locally.
+
+### Changed
+
+- **Calibration Assistant writes a tuned OrcaSlicer filament profile.** After a calibration pass, the assistant can now save the dialled-in values (temperature, flow, retraction, first layer) straight to an OrcaSlicer filament profile, so the tuning lands in your slicer instead of staying on screen. Runs locally.
+- **Filament-profile install supports any Orca-family slicer.** Installing Khayt's filament profiles is no longer limited to Snapmaker Orca — it now targets any Orca-family slicer and printer, and the copy no longer implies Snapmaker-only. Runs locally.
+
+### Fixed
+
+- **Converter batch hardening.** A batch conversion now guards against mixing source ecosystems (files from another printer's slicer are saved as a Generic 3MF with a clear note rather than silently mis-targeted), and the batch panel's controls are locked while a run is in progress so a mid-run change can't corrupt the queue. Runs locally.
+
 ## [3.2.0-beta.10] - 2026-07-09
 
 **Pre-release (beta) — maker tools for everyone, plus a tougher converter.** The 3D-printing toolset that used to live behind "Enthusiast" mode is now simply part of Khayt, and the converter gained a 3D preview, a calibration helper, and real hardening against malformed files.
