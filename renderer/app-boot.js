@@ -465,6 +465,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // iOS companion: react to spools/orders changed via LAN API from phone
+  // Quit handshake: persist the debounced save before the app exits. Without this, any
+  // edit made within saveAll()'s ~300ms debounce of Cmd+Q or a window close was lost.
+  if (window.hubAPI?.onFlushSaveRequest) {
+    window.hubAPI.onFlushSaveRequest(() => {
+      Promise.resolve()
+        .then(() => flushSave())
+        .catch((e) => console.error('flushSave on quit failed:', e))
+        .finally(() => { try { window.hubAPI.flushSaveDone(); } catch (_) { /* quitting anyway */ } });
+    });
+  }
+  // Backstop for paths that bypass before-quit (e.g. a reload or an OS-level close).
+  window.addEventListener('pagehide', () => { try { flushSave(); } catch (_) { /* best effort */ } });
+
   if (window.hubAPI?.onLanSpoolAdded) {
     window.hubAPI.onLanSpoolAdded(spool => {
       // Phone added a spool — patch in-memory state and persist so next saveAll() doesn't clobber it

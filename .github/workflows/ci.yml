@@ -78,6 +78,9 @@ jobs:
       - name: E2E smoke (printer discovery)
         run: xvfb-run -a npm run test:e2e:discovery
 
+      - name: E2E smoke (quit flushes pending save)
+        run: xvfb-run -a npm run test:e2e:quitflush
+
       - name: E2E smoke (webhook event bus)
         run: xvfb-run -a npm run test:e2e:webhooks
 

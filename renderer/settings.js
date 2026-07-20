@@ -1372,7 +1372,9 @@ function renderCloudSettings() {
     if (!ok) return;
     const keepCloud = Object.assign({}, settings.cloud);
     try {
-      replaceStoreFromSnapshot(r.store);
+      // Refuse a snapshot that failed validation — replaceStoreFromSnapshot leaves the
+      // existing data untouched when it returns false, so do NOT save or report success.
+      if (!replaceStoreFromSnapshot(r.store)) { toast(t('set.restore_error') || 'Restore failed — the file could not be read', 'error'); return; }
       settings.cloud = Object.assign({}, settings.cloud, keepCloud, { lastServerRev: r.rev }); // keep this device's token/login
       saveAll();
       initialRender();
@@ -3159,7 +3161,9 @@ async function openRestoreBackupModal() {
         const json = await window.hubAPI.restoreBackup(chosen.value);
         if (!json) { toast(t('set.restore_error'), 'error'); return false; }
         const data = safeJsonParse(json);
-        replaceStoreFromSnapshot(data);
+      // Refuse a snapshot that failed validation — replaceStoreFromSnapshot leaves the
+      // existing data untouched when it returns false, so do NOT save or report success.
+        if (!replaceStoreFromSnapshot(data)) { toast(t('set.restore_error') || 'Restore failed — the backup could not be read', 'error'); return false; }
         saveAll();
         initialRender();
         loadSettingsIntoForm();
@@ -3209,7 +3213,9 @@ async function openRestorePointsModal() {
       const json = await window.hubAPI.readRestorePoint(b.dataset.f);
       if (!json) { toast(t('set.restore_error') || 'Restore failed', 'error'); return; }
       try {
-        replaceStoreFromSnapshot(safeJsonParse(json));
+      // Refuse a snapshot that failed validation — replaceStoreFromSnapshot leaves the
+      // existing data untouched when it returns false, so do NOT save or report success.
+        if (!replaceStoreFromSnapshot(safeJsonParse(json))) { toast(t('set.restore_error') || 'Restore failed', 'error'); return; }
         saveAll(); initialRender(); loadSettingsIntoForm(); applyTheme(settings.theme); i18n.set(settings.lang); refreshCurrencyLabels();
         toast(t('set.restore_success') || 'Restored', 'success');
         modal.querySelector('.modal-close')?.click();
@@ -3233,7 +3239,9 @@ async function openRestorePointsModal() {
  *  replaces local data, then pushes it up as a new head revision. */
 async function applyCloudSnapshotRestore(store) {
   const keepCloud = Object.assign({}, settings.cloud); // preserve this device's token/login/rev
-  replaceStoreFromSnapshot(store);
+      // Refuse a snapshot that failed validation — replaceStoreFromSnapshot leaves the
+      // existing data untouched when it returns false, so do NOT save or report success.
+  if (!replaceStoreFromSnapshot(store)) { toast(t('set.restore_error') || 'Restore failed', 'error'); return; }
   settings.cloud = Object.assign({}, settings.cloud, keepCloud);
   saveAll();
   initialRender();
@@ -3484,7 +3492,9 @@ async function importData(file) {
   reader.onload = (ev) => {
     try {
       const data = safeJsonParse(ev.target.result);
-      replaceStoreFromSnapshot(data);
+      // Refuse a snapshot that failed validation — replaceStoreFromSnapshot leaves the
+      // existing data untouched when it returns false, so do NOT save or report success.
+      if (!replaceStoreFromSnapshot(data)) { toast(t('set.import_error') || t('set.restore_error') || 'Import failed — that file is not a Khayt backup', 'error'); return; }
       saveAll();
       initialRender();
       loadSettingsIntoForm();

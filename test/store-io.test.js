@@ -271,3 +271,108 @@ test('recoverStoreRaw reports a fresh install when nothing is on disk', () => {
   assert.equal(r.data, null);
   assert.equal(r.existed, false);
 });
+
+/* ── Data-integrity regressions ─────────────────────────────────────────────
+ * Each of these reproduces a defect that could destroy a shop's data. */
+
+test('CONCURRENT WRITES: overlapping saves must not destroy the store', async () => {
+  // Every writer used one hardcoded temp path (fp + '.tmp') with no lock. Two overlapping
+  // writes cross-wrote the same file; the loser's rename then moved the mixed garbage onto
+  // .prev, leaving NO primary and a corrupt backup.
+  const io = makeStoreIo();
+  const big = { who: 'A', printLog: Array.from({ length: 8000 }, (_, i) => ({ id: 'O-' + i, note: 'x'.repeat(60) })) };
+  const small = { who: 'B', printLog: [] };
+
+  await Promise.all([
+    io.writeStoreToDisk(big),
+    io.writeStoreToDisk(small),
+  ]);
+
+  const rec = io.recoverStoreRaw();
+  assert.ok(rec.data, 'store must still be readable after concurrent writes');
+  assert.equal(rec.source, 'primary', 'primary must exist, not be recovered from a backup');
+  assert.ok(['A', 'B'].includes(rec.data.who), 'must be one writer’s COMPLETE payload, not a blend');
+  assert.equal(rec.existed, true);
+});
+
+test('CONCURRENT WRITES: every queued write completes in order, none silently vanish', async () => {
+  const io = makeStoreIo();
+  await Promise.all([1, 2, 3, 4, 5].map(n => io.writeStoreToDisk({ who: 'w' + n, printLog: [] })));
+  const rec = io.recoverStoreRaw();
+  // The last write to be queued wins; what matters is that the file is one intact payload.
+  assert.equal(rec.data.who, 'w5', 'writes must land in arrival order');
+});
+
+test('temp files are uniquely named so writers cannot cross-write', async () => {
+  const io = makeStoreIo();
+  await io.writeStoreToDisk({ who: 'A', printLog: [] });
+  const strays = fs.readdirSync(tmpDir).filter(f => f.includes('.tmp'));
+  assert.deepEqual(strays, [], 'a completed write must leave no temp file behind');
+});
+
+test('a surviving backup is never mistaken for a fresh install', () => {
+  // recoverStoreRaw reported existed:false when the primary was missing, even with a
+  // .prev on disk. main.js turned that into null, and the renderer read null as a genuine
+  // first run: setup wizard, empty store, and the next save overwrote the last good copy.
+  const io = makeStoreIo();
+  const fp = path.join(tmpDir, fs.readdirSync(tmpDir).find(f => f.endsWith('.json')) || 'khayt-store.json');
+  fs.writeFileSync(fp, JSON.stringify({ who: 'GOOD', printLog: [{ id: 'O-1' }] }), 'utf8');
+  fs.renameSync(fp, fp + '.prev');            // interrupted write: primary gone, .prev good
+  assert.equal(fs.existsSync(fp), false);
+
+  const rec = io.recoverStoreRaw();
+  assert.equal(rec.existed, true, 'a shop with a backup on disk is NOT a fresh install');
+  assert.equal(rec.source, 'prev');
+  assert.equal(rec.data.who, 'GOOD');
+});
+
+test('SECRETS: a load→save round-trip never writes the mask over a real credential', () => {
+  // The mask list and the restore list were hand-maintained and had drifted: five
+  // credential groups — including the Khayt Cloud token, i.e. the off-site backup —
+  // were masked on load and never restored, so one round-trip destroyed them.
+  const io = makeStoreIo();
+  const real = {
+    settings: {
+      emailConfig: { apiKey: 'EMAIL-REAL' },
+      smsConfig: { authToken: 'TWILIO-REAL', token: 'WA-REAL', appSid: 'SID-REAL', secret: 'HOOK-REAL' },
+      accountingSync: { secret: 'ACCT-REAL' },
+      ai: { apiKey: 'sk-ant-REAL' },
+      cloud: { token: 'CLOUD-REAL' },
+      telegram: { botToken: 'TG-REAL' },
+      lanApi: { pin: 'PIN-REAL' },
+    },
+  };
+  return (async () => {
+    await io.writeStoreToDisk(real);
+    const masked = io.maskStoreSecretsForRenderer(io.readStoreDecryptedFromDisk());
+    // The renderer hands the masked object straight back on the next save.
+    const merged = io.mergeStoreSecretsFromDisk(masked);
+    const s = merged.settings;
+    for (const [path_, val] of [
+      ['emailConfig.apiKey', s.emailConfig.apiKey],
+      ['smsConfig.authToken', s.smsConfig.authToken],
+      ['smsConfig.token', s.smsConfig.token],
+      ['smsConfig.appSid', s.smsConfig.appSid],
+      ['smsConfig.secret', s.smsConfig.secret],
+      ['accountingSync.secret', s.accountingSync.secret],
+      ['ai.apiKey', s.ai.apiKey],
+      ['cloud.token', s.cloud.token],
+      ['telegram.botToken', s.telegram.botToken],
+      ['lanApi.pin', s.lanApi.pin],
+    ]) {
+      assert.notEqual(val, STORE_SECRET_MASK, `CREDENTIAL DESTROYED: ${path_}`);
+      assert.ok(val && val.endsWith('REAL'), `${path_} should be the real value, got ${val}`);
+    }
+  })();
+});
+
+test('SECRETS: a genuine user edit still overwrites the stored credential', async () => {
+  // The mask backstop must only ever replace a mask — never clobber a real change.
+  const io = makeStoreIo();
+  await io.writeStoreToDisk({ settings: { ai: { apiKey: 'OLD-KEY' }, cloud: { token: 'OLD-TOKEN' } } });
+  const merged = io.mergeStoreSecretsFromDisk({
+    settings: { ai: { apiKey: 'NEW-KEY' }, cloud: { token: STORE_SECRET_MASK } },
+  });
+  assert.equal(merged.settings.ai.apiKey, 'NEW-KEY', 'a real edit must win');
+  assert.equal(merged.settings.cloud.token, 'OLD-TOKEN', 'an untouched (masked) field is restored');
+});

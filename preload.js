@@ -144,6 +144,9 @@ contextBridge.exposeInMainWorld('hubAPI', {
   mintApiToken: (opts)    => ipcRenderer.invoke('hub:mint-api-token', opts),
   webcamSnapshot: (o)     => ipcRenderer.invoke('hub:webcam-snapshot', o),
   discoverPrinters: (o)   => ipcRenderer.invoke('hub:discover-printers', o),
+  // Quit handshake: main asks the renderer to flush its debounced save before exiting.
+  onFlushSaveRequest:   (cb) => { ipcRenderer.on('hub:flush-save-request', () => { try { cb(); } catch { /* noop */ } }); },
+  flushSaveDone:        ()   => ipcRenderer.send('hub:flush-save-done'),
   telemetryPurge: ()      => ipcRenderer.invoke('hub:telemetry-purge'),
   telemetryRecord: (o)    => ipcRenderer.invoke('hub:telemetry-record', o),
   requestFullWipe: ()     => ipcRenderer.invoke('hub:request-full-wipe'),

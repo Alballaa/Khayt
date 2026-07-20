@@ -4,6 +4,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.31] - 2026-07-20
+
+### Fixed
+
+- **Your whole database could be destroyed by two saves happening at once.** If a phone or tablet used the LAN features while the app was saving, both writes went through the same temporary file and could shred each other — leaving no usable data file and a corrupted backup. Khayt then read that as a brand-new installation and showed the setup wizard, and the next save overwrote the last surviving copy. Saves are now queued and each uses its own temporary file, and a surviving backup is never mistaken for a fresh install.
+- **Five saved credentials were wiped the first time settings were saved.** SMS/WhatsApp, accounting sync, the AI key and the **Khayt Cloud token** were blanked out on a normal save — so off-site backup silently stopped working. Credentials are now protected by construction rather than by a hand-kept list.
+- **Restoring a backup or importing a file wiped everything *before* checking the file.** Choosing the wrong file emptied the app and reported "restored successfully". Khayt now validates first and leaves your data untouched if the file cannot be read.
+- **Work done in the last moment before quitting is no longer lost.** Khayt now finishes saving before it exits.
+
 ## [3.2.0-beta.30] - 2026-07-20
 
 ### Fixed
