@@ -4,6 +4,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.21] - 2026-07-20
+
+**Pre-release (beta) — webhook retries now survive a restart.**
+
+### Changed
+
+- **Webhook retries are no longer lost when you close Khayt.** Previously a delivery waiting to be retried lived only in memory, so quitting the app dropped it. Pending retries are now saved with your data and **resumed the next time Khayt starts** — including any whose turn came around while the app was closed. A retry whose destination you've since deleted is discarded rather than retried forever.
+
 ## [3.2.0-beta.20] - 2026-07-20
 
 **Pre-release (beta) — optional crash reports.** Off by default, separately consented, and scrubbed of anything personal.
