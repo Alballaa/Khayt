@@ -4,6 +4,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.20] - 2026-07-20
+
+**Pre-release (beta) — optional crash reports.** Off by default, separately consented, and scrubbed of anything personal.
+
+### Added
+
+- **Optional crash reports and anonymous usage counts.** Khayt still sends **nothing by default**. If you want to help fix bugs, **Settings → Crash Reports & Usage** offers two independent switches: share scrubbed crash reports, and/or share anonymous usage counts. Before anything is even written to disk it passes a scrubber that strips emails, phone numbers, IBANs, long digit runs and file paths, masks anything key-shaped like an API key or PIN, and then rebuilds the report field-by-field from a fixed allowlist — so your orders, customers, prices, files and secrets can't be included even by mistake. There's no account or user id, just a random install identifier created when you opt in and **erased the moment you opt out** (which also deletes anything queued, straight away). **"View what's collected"** shows you the exact payload. See docs/KHAYT-3.0-TELEMETRY-SPEC.md.
+
 ## [3.2.0-beta.19] - 2026-07-20
 
 **Pre-release (beta) — webhook subscriptions.** Send the same shop event to as many places as you like, with automatic retries.

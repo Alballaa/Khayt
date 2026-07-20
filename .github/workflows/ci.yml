@@ -75,3 +75,6 @@ jobs:
 
       - name: E2E smoke (webhook event bus)
         run: xvfb-run -a npm run test:e2e:webhooks
+
+      - name: E2E smoke (telemetry consent gate)
+        run: xvfb-run -a npm run test:e2e:telemetry

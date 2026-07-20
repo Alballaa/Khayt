@@ -177,6 +177,10 @@ function defaultSettings() {
     paymentProviders: {},
     // Accounting sync: one-way webhook push of invoices/expenses (QuickBooks/Zoho/Xero bridge)
     accountingSync:   { enabled: false, format: 'generic', webhookUrl: '', secret: '', pushOnPaid: true },
+    // Telemetry — OFF by default, and separately consented for crashes vs usage.
+    // Nothing is collected or queued unless a stream is explicitly enabled.
+    // See docs/KHAYT-3.0-TELEMETRY-SPEC.md.
+    telemetry:        { crashOptIn: false, usageOptIn: false, installId: '', consentAt: '' },
     // Privacy / PDPL — optional retention window for customer-submitted intake data.
     // 0 = keep indefinitely (default; the owner decides their own retention basis).
     // See docs/KHAYT-3.0-PRIVACY-COMPLIANCE-SPEC.md.

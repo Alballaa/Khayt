@@ -1057,6 +1057,73 @@ ipcMain.handle('hub:load-store', async (event) => {
   }
 });
 
+// ── Telemetry (TELEMETRY-SPEC) ──────────────────────────────────────────────
+// OFF by default and gated on explicit per-stream consent. Scrubbing happens HERE — the
+// single trusted choke point — and the transport only ever accepts scrubber output, so an
+// unscrubbed send is impossible by construction. There is no endpoint yet: events are
+// queued locally only. Nothing is transmitted anywhere.
+const TELEMETRY_QUEUE_FILE = () => path.join(app.getPath('userData'), 'telemetry-queue.json');
+
+function telemetryConsent() {
+  const tm = (lanServerStore && lanServerStore.settings && lanServerStore.settings.telemetry) || {};
+  return { crash: !!tm.crashOptIn, usage: !!tm.usageOptIn, installId: tm.installId || '' };
+}
+
+function readTelemetryQueue() {
+  try { return JSON.parse(fs.readFileSync(TELEMETRY_QUEUE_FILE(), 'utf8')) || []; } catch { return []; }
+}
+
+function enqueueTelemetry(kind, rawPayload) {
+  try {
+    const consent = telemetryConsent();
+    if (kind === 'crash' && !consent.crash) return;
+    if (kind === 'usage' && !consent.usage) return;
+    const Scrub = require('./lib/telemetry-scrub.js');
+    // Fail closed: a scrubber throw drops the event rather than risking raw data.
+    const payload = kind === 'crash'
+      ? Scrub.buildCrashReport({ ...rawPayload, installId: consent.installId })
+      : Scrub.buildUsageEvent({ ...rawPayload, installId: consent.installId });
+    if (!payload) return;
+    let q = readTelemetryQueue();
+    q.push({ kind, payload, at: new Date().toISOString() });
+    q = Scrub.dedupeCrashes(Scrub.boundQueue(q, 200));
+    fs.writeFileSync(TELEMETRY_QUEUE_FILE(), JSON.stringify(q), 'utf8');
+  } catch (_) { /* telemetry must never break or crash the app */ }
+}
+
+// Opt-out purges everything queued locally, immediately.
+ipcMain.handle('hub:telemetry-purge', async () => {
+  try { fs.unlinkSync(TELEMETRY_QUEUE_FILE()); } catch (_) {}
+  return { ok: true };
+});
+
+ipcMain.handle('hub:telemetry-record', async (_e, { kind, payload } = {}) => {
+  enqueueTelemetry(kind === 'usage' ? 'usage' : 'crash', payload || {});
+  return { ok: true };
+});
+
+// Never crash the app in order to report a crash.
+process.on('uncaughtException', (err) => {
+  console.error('uncaughtException:', err);
+  enqueueTelemetry('crash', {
+    type: 'uncaughtException', name: err && err.name, message: err && err.message,
+    stack: err && err.stack, process: 'main', appVersion: app.getVersion(),
+    electronVersion: process.versions.electron,
+    osFamily: process.platform === 'darwin' ? 'macOS' : process.platform === 'win32' ? 'Windows' : 'Linux',
+    osMajor: String(require('os').release() || '').split('.')[0],
+  });
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('unhandledRejection:', reason);
+  const err = reason instanceof Error ? reason : new Error(String(reason));
+  enqueueTelemetry('crash', {
+    type: 'unhandledRejection', name: err.name, message: err.message, stack: err.stack,
+    process: 'main', appVersion: app.getVersion(), electronVersion: process.versions.electron,
+    osFamily: process.platform === 'darwin' ? 'macOS' : process.platform === 'win32' ? 'Windows' : 'Linux',
+    osMajor: String(require('os').release() || '').split('.')[0],
+  });
+});
+
 // Mint a scoped API token. Crypto + hashing live in the main process; the renderer
 // receives the plaintext ONCE (to show the owner) plus the hash-only record to persist.
 ipcMain.handle('hub:mint-api-token', async (_e, { label, scopes } = {}) => {
