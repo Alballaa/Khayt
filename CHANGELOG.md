@@ -4,6 +4,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.23] - 2026-07-20
+
+**Pre-release (beta) — security hardening.**
+
+### Fixed
+
+- **An API token could reach pages outside its permissions.** Tokens correctly enforced their scopes on data (an orders token could never touch clients), but a valid token also satisfied the owner-PIN check on pages that sit outside the permission model — so a token granted only "machines: read", for example, could open the LAN kiosk page. No shop data was exposed (every data endpoint was, and remains, scope-checked), but it was wider access than intended. A token now stands in for your PIN **only** on the endpoints its scopes actually cover; anything else still asks for the PIN.
+
 ## [3.2.0-beta.22] - 2026-07-20
 
 **Pre-release (beta) — printer cameras.** See what your printers are doing, without your video leaving your network.
