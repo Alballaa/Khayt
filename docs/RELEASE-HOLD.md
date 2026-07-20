@@ -6,8 +6,8 @@
 
 | Channel | Last published | Notes |
 |---------|----------------|-------|
-| **Stable** | **v2.3.3** | [Latest release](https://github.com/khaytapp/Khayt/releases/latest) |
-| **Beta** | **v2.4.0-beta.2** | [Pre-releases](https://github.com/khaytapp/Khayt/releases) — Khayt-4 + security pass; see [BETA-RELEASE.md](./BETA-RELEASE.md) |
+| **Stable** | **v3.1.0** | [Latest release](https://github.com/khaytapp/Khayt/releases/latest) |
+| **Beta** | **v3.2.0-beta.22** | [Pre-releases](https://github.com/khaytapp/Khayt/releases) — the 3.x feature line (QC/RMA, shipping, BOM, privacy, public API, telemetry, cameras); see [BETA-RELEASE.md](./BETA-RELEASE.md) |
 
 Beta tags (`v*-beta.*`) are allowed while stable hold is active. They publish as GitHub **pre-releases** and do not replace the stable latest pointer.
 

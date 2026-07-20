@@ -2,20 +2,54 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (2.3.x — on `main`, **no public release** until [RELEASE-HOLD.md](./RELEASE-HOLD.md) lifted)
+## Now (3.2.x — on `main`, **no public release** until [RELEASE-HOLD.md](./RELEASE-HOLD.md) lifted)
 
-- [ ] Triage post-2.2.0 feedback; plan 2.2.x patches or 2.3.0
-- [x] iOS Companion v1 in `ios/` — LAN PIN pairing, queue, inventory, machines, NFC; see [docs/LAN_API.md](./docs/LAN_API.md)
-- [x] **Check for updates** UX (dev / error / version; merged to `main`, unreleased)
-- [x] **Online option** — LAN intake toggle, wizard, Job Intake link (merged to `main`, unreleased)
-- [x] **Solo maker polish** — Online hub, intake→calculator prefill, simple-mode dashboard (`main`, unreleased)
-- [x] **Print farm (local)** — Location filter wired to queue/dashboard/logs; sites overview; farm wizard preset (`main`, unreleased)
-- [ ] Desktop stabilization smoke on `main` (no tag)
-- [ ] **Multi-shop shared data (Khayt Cloud)** — **deferred** after initial batch; design: [docs/MULTI-SHOP-CLOUD.md](./docs/MULTI-SHOP-CLOUD.md)
-- [x] **Platform strategy** — stay on Electron; rewrite (Swift/C++/native) deferred — [docs/PLATFORM-MIGRATION.md](./docs/PLATFORM-MIGRATION.md)
-- [x] Stabilization patch **v2.3.1** (portal tracking URL, operator PIN, UTC recurring dates, npm audit overrides)
-- [x] Run `node scripts/list-stale-branches.mjs --merged-into main` and delete merged `cursor/*` branches (maintainer cleanup, 2026-06-04)
-- [x] iOS Companion v1 in `ios/` — LAN PIN pairing, queue, inventory, machines, NFC read/write; see [docs/LAN_API.md](./docs/LAN_API.md)
+Stable is held at **v3.1.0**; the 3.2 line ships as betas (currently **v3.2.0-beta.22**).
+
+- [ ] Real-world verification pass on the 3.2 features before a stable cut — see
+      [docs/PRELAUNCH-QA.md](./docs/PRELAUNCH-QA.md). Two items specifically need hardware:
+      the **printer camera** live image path, and carrier **API** shipping (manual shipping
+      is fully working and tested).
+- [ ] Decide whether to cut **stable 3.2.0** or continue the beta line.
+- [ ] **Multi-shop shared data (Khayt Cloud)** — still deferred; design:
+      [docs/MULTI-SHOP-CLOUD.md](./docs/MULTI-SHOP-CLOUD.md)
+
+### Known gaps, deliberately not built
+
+These are recorded so nobody assumes they exist:
+
+| Gap | Why |
+|-----|-----|
+| **Telemetry transport** | No endpoint exists. Events are scrubbed and queued locally; nothing is transmitted. Build the endpoint before wiring a sender. |
+| **Timelapse capture/encoding** | Needs ffmpeg + a real printer. `machine.webcam` carries the fields; no capture runs. |
+| **Zapier / Make connectors** | External publishing artefacts, not code in this repo. |
+| **Cloud-relayed public API**, remote-mobile PWA, cloud infra | Live in the separate `khayt-cloud` repo. |
+| **Phase 3 — multi-shop HQ** | Depends on the Cloud decision above. |
+
+## Shipped (3.2.0 beta line — 2026-07)
+
+Every item below is on `main` with unit tests **and** a live Electron smoke wired into CI.
+
+| Beta | Feature | Spec |
+|------|---------|------|
+| beta.11 | Maker-tools depth (print-file folders/tags/bulk import, M600 colour-swap, Orca-family install) | — |
+| beta.12 | **QC / reprint / RMA** — inspection gate, defects, linked reprints, warranty | [QC](./docs/KHAYT-3.0-QC-SPEC.md) |
+| beta.13 | **Printer catalog** + machine→calculator auto-fill + auto-priced catalog products | — |
+| beta.14 | **Shipping & fulfillment** — Saudi carriers, manual-first, portal tracking | [SHIPPING](./docs/KHAYT-3.0-SHIPPING-SPEC.md) |
+| beta.15 | **BOM / assembly** — components, cost rollup, stock deduction | [BOM](./docs/KHAYT-3.0-BOM-SPEC.md) |
+| beta.16 | **Privacy / PDPL** — intake consent, DSAR export, erasure modes, retention | [PRIVACY](./docs/KHAYT-3.0-PRIVACY-COMPLIANCE-SPEC.md) |
+| beta.17 | **Assembly tracking** — per-part QC, completion gate, per-part reprint | [BOM §5](./docs/KHAYT-3.0-BOM-SPEC.md) |
+| beta.18 | **Public API** — scoped bearer tokens + versioned `/v1` | [PUBLIC-API §1](./docs/KHAYT-3.0-PUBLIC-API-SPEC.md) · [openapi.yaml](./docs/openapi.yaml) |
+| beta.19 | **Webhook event bus** — subscriptions, fan-out, retry, delivery log | [PUBLIC-API §2](./docs/KHAYT-3.0-PUBLIC-API-SPEC.md) |
+| beta.20 | **Telemetry** — opt-in, PII-free by construction (no transport yet) | [TELEMETRY](./docs/KHAYT-3.0-TELEMETRY-SPEC.md) |
+| beta.21 | **Durable webhook retries** — survive an app restart | [PUBLIC-API §2](./docs/KHAYT-3.0-PUBLIC-API-SPEC.md) |
+| beta.22 | **Printer cameras** — LAN-only, host-pinned snapshot proxy | [WEBCAM](./docs/KHAYT-3.0-WEBCAM-SPEC.md) |
+
+**Already complete (verify before re-planning):** the Phase-0 sync foundation
+(`renderer/sync.js` — change stamper, tombstones, delta extract) is implemented, wired
+into the save choke point, and covered by tests. It was previously mis-recorded as a gap.
+
+## Earlier
 
 ## Shipped (2.2.0 — 2026-05-30)
 
