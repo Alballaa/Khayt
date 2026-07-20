@@ -678,8 +678,8 @@ function renderBuild() {
           ${(part.qty && part.qty > 1) ? `<span style="color:var(--primary); margin-inline-start:4px;">×${part.qty}</span>` : ''}
         </td>
         <td style="text-align: end; white-space: nowrap;">
-          <button class="btn small" data-act="edit-part" data-idx="${i}" title="${escapeHtml(t('calc.cart.edit'))}" style="margin-inline-end:4px;">✎</button>
-          <button class="btn danger small" data-act="remove-part" data-idx="${i}" title="${escapeHtml(t('common.delete'))}">×</button>
+          <button class="btn small" data-act="edit-part" data-idx="${i}" title="${escapeHtml(t('calc.cart.edit'))}" style="margin-inline-end:4px;" aria-label="${escapeHtml(t('calc.cart.edit'))}"><span aria-hidden="true">✎</span></button>
+          <button class="btn danger small" data-act="remove-part" data-idx="${i}" title="${escapeHtml(t('common.delete'))}" aria-label="${escapeHtml(t('common.delete'))}"><span aria-hidden="true">×</span></button>
         </td>
       </tr>`;
     }).join('');

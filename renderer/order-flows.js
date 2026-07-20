@@ -852,7 +852,7 @@ function openAssemblyModal(orderId) {
         <select class="asm-status" style="width:150px;margin:0;">
           ${A.PART_STATUSES.map(s => `<option value="${s}"${st === s ? ' selected' : ''}>${escapeHtml(statusLabel(s))}</option>`).join('')}
         </select>
-        ${st === 'qc_fail' ? `<button class="btn ghost small asm-reprint" data-pi="${i}" style="margin:0;" title="${escapeHtml(t('asm.reprint_part') || 'Reprint this part')}">🖨</button>` : '<span style="width:34px;"></span>'}
+        ${st === 'qc_fail' ? `<button class="btn ghost small asm-reprint" data-pi="${i}" style="margin:0;" title="${escapeHtml(t('asm.reprint_part') || 'Reprint this part')}" aria-label="${escapeHtml(t('asm.reprint_part') || 'Reprint this part')}"><span aria-hidden="true">🖨</span></button>` : '<span style="width:34px;"></span>'}
       </div>`;
   }).join('');
 

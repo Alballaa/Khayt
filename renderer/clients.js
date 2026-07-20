@@ -223,10 +223,10 @@ function renderClients() {
         <td>
           <button class="btn small" data-act="cl-history" data-id="${c.id}">${escapeHtml(t('cl.history'))}</button>
           <button class="btn small success" data-act="cl-quote" data-id="${c.id}">${escapeHtml(t('cl.quote'))}</button>
-          <button class="btn small" data-act="cl-intake-form" data-id="${c.id}" title="${escapeHtml(t('cl.intake_form'))}">📋</button>
-          <button class="btn small" data-act="cl-note" data-id="${c.id}" title="${escapeHtml(t('cl.add_note'))}">💬</button>
+          <button class="btn small" data-act="cl-intake-form" data-id="${c.id}" title="${escapeHtml(t('cl.intake_form'))}" aria-label="${escapeHtml(t('cl.intake_form'))}"><span aria-hidden="true">📋</span></button>
+          <button class="btn small" data-act="cl-note" data-id="${c.id}" title="${escapeHtml(t('cl.add_note'))}" aria-label="${escapeHtml(t('cl.add_note'))}"><span aria-hidden="true">💬</span></button>
           <button class="btn small" data-act="cl-edit" data-id="${c.id}">${escapeHtml(t('common.edit'))}</button>
-          <button class="btn small" data-act="cl-export-data" data-id="${c.id}" title="${escapeHtml(t('priv.export_data') || "Export this customer's data")}">🗂</button>
+          <button class="btn small" data-act="cl-export-data" data-id="${c.id}" title="${escapeHtml(t('priv.export_data') || "Export this customer's data")}" aria-label="${escapeHtml(t('priv.export_data') || "Export this customer's data")}"><span aria-hidden="true">🗂</span></button>
           <button class="btn danger small" data-act="cl-del" data-id="${c.id}">${escapeHtml(t('common.delete'))}</button>
         </td>
       </tr>`;

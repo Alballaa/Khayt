@@ -346,7 +346,7 @@ function initAppShell() {
     localStorage.setItem('hub_sidebar_collapsed', collapsed ? '1' : '0');
     collapseBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
     const chevron = collapseBtn.querySelector('[aria-hidden="true"]');
-    if (chevron) chevron.textContent = collapsed ? '›' : '‹';
+    if (chevron) { chevron.textContent = collapsed ? '›' : '‹'; chevron.classList.add('dir-glyph-inline'); }
   });
 
   const mirror = $('#topbarSearchMirror');

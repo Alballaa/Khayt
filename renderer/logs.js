@@ -188,7 +188,7 @@ function renderLogs() {
           <button class="btn small" data-act="invoice" data-id="${log.id}" title="${escapeHtml(t('inv.print'))}">${escapeHtml(t('inv.print'))}</button>
           <button class="btn small ghost" data-act="inv-pdf" data-id="${log.id}" title="${escapeHtml(t('inv.save_pdf'))}">PDF</button>
           <!-- ⋯ dropdown trigger -->
-          <button class="btn small ghost row-more-btn" data-id="${log.id}" title="${escapeHtml(t('common.more') || 'More actions')}" aria-haspopup="true" aria-expanded="false">⋯</button>
+          <button class="btn small ghost row-more-btn" data-id="${log.id}" title="${escapeHtml(t('common.more') || 'More actions')}" aria-haspopup="true" aria-expanded="false" aria-label="${escapeHtml(t('common.more') || 'More actions')}"><span aria-hidden="true">⋯</span></button>
           <!-- ── Dropdown menu ── -->
           <div class="row-actions-menu" data-for="${log.id}">
             <!-- Documents -->
