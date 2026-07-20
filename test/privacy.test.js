@@ -99,3 +99,59 @@ test('anonymizeIntakeRow strips PII but keeps the row', () => {
   assert.equal(r.description, 'a vase', 'non-PII operational detail retained');
   assert.ok(r.anonymizedAt);
 });
+
+/* ── Cross-subject isolation (PDPL: never disclose or erase another subject) ── */
+
+const COLLIDING = () => ({
+  clients: [
+    { id: 'A', nameEn: 'Mohammed', email: 'shared@family.com', phone: '+966500000001' },
+    { id: 'B', nameEn: 'Mohammed', email: 'shared@family.com', phone: '+966500000002' },
+  ],
+  printLog: [
+    { id: 'OA', clientId: 'A', date: '2026-01-01', project: 'A order', status: 'completed', price: 1 },
+    { id: 'OB', clientId: 'B', date: '2026-01-02', project: 'B order', status: 'completed', price: 2 },
+  ],
+  waitingList: [
+    { id: 'W-A', name: 'Mohammed', email: 'shared@family.com', at: '2026-01-01' },       // unlinked, shared email
+    { id: 'W-B', clientId: 'B', name: 'Mohammed', email: 'shared@family.com', at: '2026-01-02' },
+  ],
+  waitingListHistory: [],
+});
+
+test('export never includes a row explicitly linked to a DIFFERENT client', () => {
+  const a = P.buildClientDataExport('A', COLLIDING());
+  const ids = a.intakeSubmissions.map(r => r.id);
+  assert.equal(ids.includes('W-B'), false, 'unlawful disclosure: another subject’s row');
+  assert.deepEqual(a.orders.map(o => o.id), ['OA'], 'and never another subject’s orders');
+});
+
+test('full erase never purges a row belonging to a different client', () => {
+  const plan = P.planClientErasure('A', COLLIDING(), 'full');
+  assert.equal(plan.purgeIntakeIds.includes('W-B'), false, 'unlawful erasure of another subject');
+  assert.deepEqual(plan.purgeIntakeIds, ['W-A']);
+});
+
+test('a shared name alone never matches — only strong identifiers do', () => {
+  const c = {
+    clients: [{ id: 'A', nameEn: 'Mohammed', email: 'a@example.com', phone: '+9665001' }],
+    printLog: [], waitingListHistory: [],
+    waitingList: [
+      { id: 'name-only', name: 'Mohammed', at: '2026-01-01' },            // same name, different person
+      { id: 'by-email', email: 'a@example.com', at: '2026-01-02' },
+      { id: 'by-phone', phone: '+9665001', at: '2026-01-03' },
+    ],
+  };
+  const ids = P.buildClientDataExport('A', c).intakeSubmissions.map(r => r.id);
+  assert.equal(ids.includes('name-only'), false, 'name collisions must not match');
+  assert.deepEqual(ids.sort(), ['by-email', 'by-phone']);
+});
+
+test('a row linked to THIS client matches even if its contact details differ', () => {
+  const c = {
+    clients: [{ id: 'A', nameEn: 'Sara', email: 'new@example.com' }],
+    printLog: [], waitingListHistory: [],
+    waitingList: [{ id: 'linked', clientId: 'A', email: 'old@example.com', at: '2026-01-01' }],
+  };
+  const ids = P.buildClientDataExport('A', c).intakeSubmissions.map(r => r.id);
+  assert.deepEqual(ids, ['linked'], 'explicit link wins over stale contact details');
+});

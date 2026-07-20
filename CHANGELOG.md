@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.25] - 2026-07-20
+
+### Fixed
+
+- **Customer data export and deletion could reach the wrong customer.** When two customers shared a contact detail — a family email, a company phone, or just a common name — exporting one customer's data could include the *other* customer's intake submissions, and a full erase could delete them. Khayt now treats a submission's own customer link as final, and only falls back to matching an unlinked submission by email or phone — never by name alone. If you have used **Export this customer's data** or **Full erase** on customers with shared contact details, the results may have been wider than intended.
+
 ## [3.2.0-beta.24] - 2026-07-20
 
 ### Fixed
