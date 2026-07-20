@@ -4,6 +4,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.16] - 2026-07-19
+
+**Pre-release (beta) — customer privacy.** Consent at intake, one-click customer data export, and a clear choice when erasing a customer.
+
 ### Added
 
 - **Customer privacy tools (PDPL / GDPR-ready).** Khayt now gives you the tools to meet your obligations as the data controller for your customers' details. Your public intake form asks customers to **agree to a plain-language privacy notice** before submitting, and records that consent with a timestamp and the exact wording shown. In Clients you can **export one customer's complete data** as a portable JSON file (their record, orders, communications and intake submissions), and **deleting a customer now offers a clear choice**: *unlink* — remove the customer but keep the orders you may be legally required to retain — or *full erase*, which also blanks their name on those orders and purges their intake submissions and communication log. An optional **retention setting** anonymizes the contact details on old intake submissions while keeping the request record. All local, on your machine. See docs/KHAYT-3.0-PRIVACY-COMPLIANCE-SPEC.md.
