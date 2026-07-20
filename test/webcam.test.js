@@ -134,3 +134,18 @@ test('checkSnapshotHeaders allows a missing content-length (body cap is the back
   assert.equal(W.checkSnapshotHeaders(200, 'image/jpeg', null).ok, true);
   assert.equal(W.checkSnapshotHeaders(200, 'image/jpeg', 'not-a-number').ok, true);
 });
+
+test('a snapshot fetch carries the machine’s own printer credential', () => {
+  // PrusaLink's camera endpoint 401s without a key, so an unauthenticated proxy derives
+  // a correct URL that can never load — verified against a real CORE One.
+  assert.deepEqual(W.authHeadersFor({ type: 'prusalink', apiKey: 'K1' }), { 'X-Api-Key': 'K1' });
+  assert.deepEqual(W.authHeadersFor({ type: 'octoprint', apiKey: 'K2' }), { 'X-Api-Key': 'K2' });
+  assert.deepEqual(W.authHeadersFor({ type: 'bambu', accessCode: 'AC' }), { Authorization: 'Bearer AC' });
+  // Moonraker is unauthenticated on the LAN — sending nothing is correct, not an omission.
+  assert.deepEqual(W.authHeadersFor({ type: 'moonraker' }), {});
+  // Never leak a credential to a type that did not configure one, and never return
+  // undefined (callers spread the result).
+  assert.deepEqual(W.authHeadersFor({ type: 'prusalink' }), {}, 'no key configured → no header');
+  assert.deepEqual(W.authHeadersFor(null), {});
+  assert.deepEqual(W.authHeadersFor({ type: 'bambu', apiKey: 'WRONG' }), {}, 'bambu uses accessCode, not apiKey');
+});

@@ -64,8 +64,13 @@ test('REAL PACKETS: both printers on the LAN are discovered', () => {
   assert.equal(snap.serial, '8110026060810400D73X');
   assert.equal(snap.firmware, '1.5.1');
   assert.equal(snap.catalogId, 'snapmaker-u1');
-  assert.equal(snap.connection, null, 'Khayt has no Snapmaker adapter — must not pretend');
-  assert.equal(snap.linkMode, 'wan', 'cloud-bound: its local broker publishes nothing');
+  // The U1 runs Klipper and serves a standard Moonraker API, so Khayt's existing
+  // adapter drives it — verified live against firmware 1.5.1.
+  assert.equal(snap.connection, 'moonraker');
+  assert.equal(snap.port, 7125, 'Moonraker port, NOT the advertised MQTT port');
+  assert.equal(snap.advertisedPort, 1884, 'what the service actually announced');
+  // link_mode=wan does NOT prevent local control: Moonraker answered while in wan mode.
+  assert.equal(snap.linkMode, 'wan');
 });
 
 test('PrusaLink advertises no model, so the hostname is matched instead', () => {
@@ -119,4 +124,14 @@ test('a device with no reachable address is dropped', () => {
     { name: 'ghost._octoprint._tcp.local', type: 16, txt: { model: 'Ghost' } },
   ]);
   assert.deepEqual(found, [], 'nothing to connect to → not offered');
+});
+
+test('the advertised port is not assumed to be the API port', () => {
+  // Snapmaker announces its MQTT port (1884); Moonraker listens on 7125. Using the
+  // advertised port would produce a machine that can never connect.
+  const snap = replay().find(p => p.vendor === 'Snapmaker');
+  assert.notEqual(snap.port, snap.advertisedPort);
+  // Services with no override still use whatever they advertised.
+  const prusa = replay().find(p => p.vendor === 'Prusa');
+  assert.equal(prusa.port, prusa.advertisedPort);
 });

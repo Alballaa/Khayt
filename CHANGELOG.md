@@ -4,6 +4,18 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.29] - 2026-07-20
+
+### Added
+
+- **The Snapmaker U1 works now.** It runs Klipper and serves a standard Moonraker API, so Khayt's existing Moonraker support drives it — live status, job name, progress and temperatures. Discovery sets it up automatically. The previous release said Khayt could not connect to it; that was wrong.
+
+### Fixed
+
+- **Printer cameras behind a login could never load.** The snapshot fetch sent no credentials, so a PrusaLink camera returned "unauthorized" every time. It now uses the same key already saved for that printer.
+- **Removed an incorrect warning** telling owners to switch a cloud-linked printer to LAN mode for local status. Local status works either way.
+- Discovery no longer assumes the port a printer advertises is the port its API listens on — the U1 announces one port and serves its API on another.
+
 ## [3.2.0-beta.28] - 2026-07-20
 
 ### Added

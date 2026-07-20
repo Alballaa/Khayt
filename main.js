@@ -1128,7 +1128,15 @@ ipcMain.handle('hub:webcam-snapshot', async (_e, { machineId } = {}) => {
     if (!url) return { ok: false, error: 'no_snapshot_url' };
     const guard = Webcam.assertSameHostAsPrinter(url, m.printerApi);
     if (!guard.ok) return { ok: false, error: guard.reason };
-    const res = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(6000) });
+    // Cameras behind an authenticated API need the machine's own credential — PrusaLink
+    // returns 401 for /api/v1/cameras/snap without one, so an unauthenticated proxy
+    // derives a perfectly correct URL that can never load. Only ever sent to the pinned
+    // printer host checked immediately above, never to an arbitrary URL.
+    const res = await fetch(url, {
+      redirect: 'manual',
+      headers: Webcam.authHeadersFor(m.printerApi),
+      signal: AbortSignal.timeout(6000),
+    });
     // Decide from headers BEFORE reading the body, so an oversized or non-image response
     // is refused without being buffered into memory first.
     const pre = Webcam.checkSnapshotHeaders(res.status, res.headers.get('content-type'), res.headers.get('content-length'));
