@@ -167,14 +167,27 @@ async function exportClientInvoices(clientId) {
 
   // If hubAPI.exportPDF exists, export each invoice as a separate file
   if (window.hubAPI?.exportPDF) {
+    // Track failures instead of swallowing them: "30 invoices exported" when 29 landed
+    // sends the owner to their accountant a document short, with no way to tell which.
+    const failedIds = [];
     for (let i = 0; i < orders.length; i++) {
       await renderInvoiceForOrder(orders[i]);
       await new Promise(r => setTimeout(r, 60));
       try {
-        await window.hubAPI.exportPDF({ filename: `${orders[i].id}.pdf`, askWhere: i === 0, openAfter: false });
-      } catch (_) {}
+        const r = await window.hubAPI.exportPDF({ filename: `${orders[i].id}.pdf`, askWhere: i === 0, openAfter: false });
+        if (r && r.ok === false && !r.canceled) failedIds.push(orders[i].id);
+      } catch (e) {
+        console.error('exportPDF failed for', orders[i].id, e);
+        failedIds.push(orders[i].id);
+      }
     }
-    toast(t('cl.invoices_exported', { n: orders.length }), 'success', 4000);
+    if (failedIds.length) {
+      toast('⚠ ' + (t('cl.invoices_exported_partial', {
+        n: String(orders.length - failedIds.length), total: String(orders.length), ids: failedIds.join(', '),
+      }) || `Exported ${orders.length - failedIds.length} of ${orders.length} — failed: ${failedIds.join(', ')}`), 'error', 9000);
+    } else {
+      toast(t('cl.invoices_exported', { n: orders.length }), 'success', 4000);
+    }
     return;
   }
 
