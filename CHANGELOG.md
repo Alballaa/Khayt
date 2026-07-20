@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.26] - 2026-07-20
+
+### Fixed
+
+- **Crash reports could carry a credential or a customer's name.** Crash telemetry is opt-in and scrubs paths and personal data, but it only masked secrets stored under a recognised *field name* — a credential quoted inside an error *message* (a printer API key in a request URL, an auth header, a ZATCA certificate password, the LAN PIN) was passed through as written. Filenames were also kept in full, and an exported document is often named after a customer. Both are now masked, while module names and line numbers in stack traces are preserved so crash reports stay useful.
+
 ## [3.2.0-beta.25] - 2026-07-20
 
 ### Fixed
