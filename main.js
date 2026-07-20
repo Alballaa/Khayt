@@ -3065,6 +3065,31 @@ app.whenReady().then(() => {
   });
 });
 
+// ── Flush the renderer's debounced save before quitting ─────────────────────
+// saveAll() debounces ~300ms. With no quit handshake, any edit made within that window
+// of Cmd+Q or a window close was simply lost, and an in-flight write was killed
+// mid-flight. flushSave() already existed in the renderer; nothing ever called it on
+// quit. Bounded so a wedged renderer can never make the app unquittable.
+let _flushedForQuit = false;
+app.on('before-quit', (e) => {
+  if (_flushedForQuit) return;
+  const win = BrowserWindow.getAllWindows()[0];
+  if (!win || win.webContents.isDestroyed()) { _flushedForQuit = true; return; }
+  e.preventDefault();
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    _flushedForQuit = true;
+    ipcMain.removeListener('hub:flush-save-done', finish);
+    app.quit();
+  };
+  ipcMain.once('hub:flush-save-done', finish);
+  try { win.webContents.send('hub:flush-save-request'); } catch (_) { return finish(); }
+  // Quit anyway if the renderer doesn't answer — never trap the user in the app.
+  setTimeout(finish, 3000);
+});
+
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });

@@ -437,7 +437,28 @@ const redactSettingsForExport = (src) => KhaytStore.redactSettingsForExport(src)
 const redactMachinesForExport = (arr) => KhaytStore.redactMachinesForExport(arr);
 
 /** Reset in-memory store then load snapshot (import / full replace). */
+/**
+ * Replace every collection from a snapshot (restore, import, cloud restore).
+ *
+ * VALIDATES BEFORE IT DESTROYS. This used to zero all 31 collections unconditionally and
+ * only then call applyStoreFromSnapshot(), which early-returns on a falsy, corrupt or
+ * unnormalizable snapshot — so picking the wrong .json (or a truncated or empty one)
+ * wiped the shop's entire database, applied nothing, and the caller's saveAll() persisted
+ * the emptiness under a "restored successfully" toast.
+ *
+ * Returns true when the snapshot was applied, false when it was refused and NOTHING was
+ * touched. Callers must not save or report success on false.
+ */
 function replaceStoreFromSnapshot(store) {
+  if (!store || store.__corrupt) {
+    console.error('replaceStoreFromSnapshot: refusing an empty or corrupt snapshot');
+    return false;
+  }
+  const { normalized } = KhaytStoreValidate.normalizeStoreSnapshot(store);
+  if (!normalized) {
+    console.error('replaceStoreFromSnapshot: snapshot could not be normalized — nothing replaced');
+    return false;
+  }
   printLog = [];
   inventory = [];
   templates = [];
@@ -471,6 +492,7 @@ function replaceStoreFromSnapshot(store) {
   filamentDryLog = [];
   settings = defaultSettings();
   applyStoreFromSnapshot(store);
+  return true;
 }
 
 function ensureOrderTrackingTokens() {
