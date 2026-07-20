@@ -4,6 +4,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.18] - 2026-07-20
+
+**Pre-release (beta) — automation API.** Give a script or automation tool scoped access to your shop, without handing over your PIN.
+
+### Added
+
+- **Scoped API tokens + a versioned `/v1` API.** You can now connect automation tools (Zapier, Make, your own scripts) to Khayt over the local API without sharing your owner PIN. Mint a token in **Settings → API Tokens**, tick exactly the permissions it should have — orders, clients, inventory or machines, read or write — and it gets nothing else. A read-only token that tries to write is refused with a clear message naming the permission it would need. Tokens are shown **once** and stored only as a hash, so a leaked backup can't be replayed; revoking one takes effect immediately. All existing routes are now also served under a documented, stable `/v1` path, while the old `/api` paths keep working unchanged for the iOS companion and the LAN web app. Works fully offline on your own network. See docs/LAN_API.md.
+
 ## [3.2.0-beta.17] - 2026-07-20
 
 **Pre-release (beta) — assembly tracking.** Track each printed part of an assembly through QC, and only complete the order once it's genuinely assembled.

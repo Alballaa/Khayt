@@ -14,7 +14,37 @@ Reference for the embedded HTTP server in `lib/lan-server.js`. Used by the **LAN
 
 Base URL: `http://<desktop-lan-ip>:<port>`
 
+## Versioned surface: `/v1`
+
+Every data route below is also served under **`/v1`** — the documented, stable surface for
+automation (`GET /v1/orders`, `PATCH /v1/orders/:id`, `GET /v1/inventory`, …). The original
+`/api/*` paths remain a **permanent alias** for the iOS Companion, PWA and kiosk; nothing
+about them changes. Within `/v1`, changes are additive only — new fields and endpoints never
+break existing clients.
+
 ## Authentication
+
+### Scoped API tokens (automation)
+
+For scripts and automation platforms, mint a **scoped bearer token** in
+**Settings → API Tokens**:
+
+```
+Authorization: Bearer khayt_<random>
+```
+
+* A token is shown **once** at creation — only a SHA-256 hash is stored, so it cannot be
+  recovered later. Lost it? Revoke and mint a new one.
+* A token carries an explicit **scope set** and gets nothing else:
+  `orders:read`, `orders:write`, `clients:read`, `clients:write`,
+  `inventory:read`, `inventory:write`, `machines:read`.
+* Using a token outside its scopes returns **403** `{"error":"insufficient_scope","required":"orders:write"}` —
+  never a silent no-op. A read token can never write.
+* An unknown or revoked token returns **401** `{"error":"invalid_token"}`. Revocation takes
+  effect immediately (the hash is deleted; nothing is cached).
+* Repeated bad tokens hit the same per-IP lockout as bad PINs (10/min → **429**).
+* Tokens are an **addition** to the owner PIN, not a replacement — `x-khayt-pin` keeps
+  working exactly as before for humans and the iOS app.
 
 | Mechanism | Details |
 |-----------|---------|
