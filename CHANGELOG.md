@@ -4,6 +4,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.17] - 2026-07-20
+
+**Pre-release (beta) — assembly tracking.** Track each printed part of an assembly through QC, and only complete the order once it's genuinely assembled.
+
+### Added
+
+- **Assembly production tracking.** Products built from several printed parts plus components now track **each part's progress** — pending, printing, printed, QC passed or failed — from a new **Assembly** panel on the job card. The order shows a rolled-up state (in progress → printed → assembled), and an assembly **can't be marked complete until every part has passed QC and you've ticked "Assembled"** — with a message naming exactly which parts are still outstanding. If one part fails QC you can **reprint just that part**; the rest of the assembly is untouched. Ordinary single-part and multi-part orders are completely unaffected. Completes docs/KHAYT-3.0-BOM-SPEC.md §5.
+
 ## [3.2.0-beta.16] - 2026-07-19
 
 **Pre-release (beta) — customer privacy.** Consent at intake, one-click customer data export, and a clear choice when erasing a customer.
