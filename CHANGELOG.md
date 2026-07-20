@@ -4,6 +4,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.22] - 2026-07-20
+
+**Pre-release (beta) — printer cameras.** See what your printers are doing, without your video leaving your network.
+
+### Added
+
+- **Per-printer camera view.** Each machine can now show a **live snapshot on its card**. Turn the camera on per printer in the machine editor, hit **Detect from printer** to fill in the addresses automatically for OctoPrint and Moonraker/Klipper setups, and rotate or flip the image if your camera is mounted sideways. The video **stays on your own network** — Khayt reads it directly from the printer's own address and never routes it through any cloud. Cameras are **off by default**, per machine.
+
 ## [3.2.0-beta.21] - 2026-07-20
 
 **Pre-release (beta) — webhook retries now survive a restart.**
