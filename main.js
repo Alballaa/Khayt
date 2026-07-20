@@ -1057,6 +1057,34 @@ ipcMain.handle('hub:load-store', async (event) => {
   }
 });
 
+// ── Webcam snapshot proxy ───────────────────────────────────────────────────
+// A webcam lives on the LAN, so unlike outbound webhooks we CANNOT blanket-block private
+// addresses here. The safety property instead is that the URL is pinned: a snapshot may
+// only be fetched from the same host already configured as that machine's printer API, so
+// this cannot be used as an SSRF pivot to arbitrary internal services.
+ipcMain.handle('hub:webcam-snapshot', async (_e, { machineId } = {}) => {
+  try {
+    const Webcam = require('./lib/webcam.js');
+    const machines = (lanServerStore && lanServerStore.machines) || [];
+    const m = machines.find(x => x && x.id === machineId);
+    if (!m) return { ok: false, error: 'unknown_machine' };
+    if (!Webcam.hasCamera(m)) return { ok: false, error: 'camera_off' };
+    const url = m.webcam.snapshotUrl || m.webcam.streamUrl;
+    const guard = Webcam.assertSameHostAsPrinter(url, m.printerApi);
+    if (!guard.ok) return { ok: false, error: guard.reason };
+    const res = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(6000) });
+    if (res.status >= 300 && res.status < 400) return { ok: false, error: 'redirect_refused' };
+    if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
+    const type = String(res.headers.get('content-type') || '');
+    if (!/^image\//i.test(type)) return { ok: false, error: 'not_an_image' };
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length > 8 * 1024 * 1024) return { ok: false, error: 'too_large' };
+    return { ok: true, dataUrl: `data:${type.split(';')[0]};base64,${buf.toString('base64')}` };
+  } catch (e) {
+    return { ok: false, error: String((e && e.message) || e) };
+  }
+});
+
 // ── Telemetry (TELEMETRY-SPEC) ──────────────────────────────────────────────
 // OFF by default and gated on explicit per-stream consent. Scrubbing happens HERE — the
 // single trusted choke point — and the transport only ever accepts scrubber output, so an

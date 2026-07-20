@@ -74,9 +74,35 @@ function renderMachines() {
         <button class="btn small" data-act="edit-mach" data-id="${m.id}">${escapeHtml(t('common.edit'))}</button>
         <button class="btn danger small" data-act="del-mach" data-id="${m.id}">${escapeHtml(t('common.delete'))}</button>
         ${nozzleHtml}
+        ${(typeof KhaytWebcam !== 'undefined' && KhaytWebcam.hasCamera(m)) ? `
+        <div class="mach-cam" data-cam="${escapeHtml(m.id)}" style="margin-top:8px;position:relative;width:160px;height:120px;background:var(--bg-elev);border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center;">
+          <span style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('cam.loading') || 'Camera…')}</span>
+        </div>` : ''}
       </div>`;
   }).join('');
   updateNotifBadge();
+}
+
+/**
+ * Fill any camera tiles on the machine cards with a fresh snapshot. Best-effort and
+ * silent: a printer that is off or has no camera simply shows a placeholder.
+ */
+async function refreshMachineCameras() {
+  const W = (typeof KhaytWebcam !== 'undefined') ? KhaytWebcam : null;
+  if (!W || !window.hubAPI?.webcamSnapshot) return;
+  for (const el of document.querySelectorAll('[data-cam]')) {
+    const m = machines.find(x => x.id === el.dataset.cam);
+    if (!m) continue;
+    try {
+      const r = await window.hubAPI.webcamSnapshot({ machineId: m.id });
+      if (r && r.ok && r.dataUrl) {
+        const tf = W.renderTransform(m.webcam);
+        el.innerHTML = `<img src="${r.dataUrl}" alt="" style="width:100%;height:100%;object-fit:cover;${tf ? `transform:${tf};` : ''}">`;
+      } else {
+        el.innerHTML = `<span style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('cam.offline') || 'Camera offline')}</span>`;
+      }
+    } catch (_) { /* never let a camera break the machines view */ }
+  }
 }
 
 function renderMachineDropdown() {
@@ -190,6 +216,37 @@ function openMachineEditor(machineId = null) {
             <input type="number" id="machNozzleGramsAtInstall" value="${draft.nozzle?.gramsAtInstall || 0}" min="0" step="1" style="font-size:12.5px;">
           </div>
         </div>
+      </div>
+
+      <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--border-soft);">
+        <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;cursor:pointer;">
+          <input type="checkbox" id="machWebcamEnabled" style="width:auto;margin:0;" ${draft.webcam?.enabled ? 'checked' : ''}>
+          ${escapeHtml(t('cam.section') || 'Camera')}
+        </label>
+        <p style="font-size:11px;color:var(--text-muted);margin:6px 0 8px;">${escapeHtml(t('cam.hint') || 'Show a live view of this printer. The camera stays on your network — Khayt only reads it from the printer’s own address.')}</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div>
+            <label style="margin:0;">${escapeHtml(t('cam.snapshot_url') || 'Snapshot URL')}</label>
+            <input type="text" id="machWebcamSnapshot" value="${escapeHtml(draft.webcam?.snapshotUrl || '')}" placeholder="/webcam/?action=snapshot" style="font-size:12px;">
+          </div>
+          <div>
+            <label style="margin:0;">${escapeHtml(t('cam.stream_url') || 'Stream URL')}</label>
+            <input type="text" id="machWebcamStream" value="${escapeHtml(draft.webcam?.streamUrl || '')}" placeholder="/webcam/?action=stream" style="font-size:12px;">
+          </div>
+          <div>
+            <label style="margin:0;">${escapeHtml(t('cam.rotate') || 'Rotate')}</label>
+            <select id="machWebcamRotate" style="font-size:12px;">
+              ${[0, 90, 180, 270].map(r => `<option value="${r}"${(+(draft.webcam?.rotate || 0)) === r ? ' selected' : ''}>${r}°</option>`).join('')}
+            </select>
+          </div>
+          <div style="display:flex;align-items:end;gap:12px;padding-bottom:4px;">
+            <label style="display:flex;align-items:center;gap:6px;font-weight:400;font-size:12px;cursor:pointer;margin:0;">
+              <input type="checkbox" id="machWebcamFlipH" style="width:auto;margin:0;" ${draft.webcam?.flipH ? 'checked' : ''}> ${escapeHtml(t('cam.flip_h') || 'Flip H')}</label>
+            <label style="display:flex;align-items:center;gap:6px;font-weight:400;font-size:12px;cursor:pointer;margin:0;">
+              <input type="checkbox" id="machWebcamFlipV" style="width:auto;margin:0;" ${draft.webcam?.flipV ? 'checked' : ''}> ${escapeHtml(t('cam.flip_v') || 'Flip V')}</label>
+          </div>
+        </div>
+        <button type="button" class="btn small ghost" id="btnDetectWebcam" style="margin-top:10px;">${escapeHtml(t('cam.detect') || 'Detect from printer')}</button>
       </div>
 
       <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--border-soft);" class="pro-only">
@@ -316,6 +373,19 @@ function openMachineEditor(machineId = null) {
         };
         pmInput.addEventListener('change', () => applyModel(pmInput.value));
       })();
+
+      // Camera auto-detect: fill the URLs from this printer family's convention.
+      modal.querySelector('#btnDetectWebcam')?.addEventListener('click', () => {
+        const W = (typeof KhaytWebcam !== 'undefined') ? KhaytWebcam : null;
+        if (!W) return;
+        const api = { type: modal.querySelector('#machApiType')?.value, host: modal.querySelector('#machApiHost')?.value };
+        const guess = W.deriveWebcamUrls(api);
+        if (!guess.snapshotUrl && !guess.streamUrl) { toast(t('cam.detect_none') || 'Set the printer type and address first', 'warning'); return; }
+        modal.querySelector('#machWebcamSnapshot').value = guess.snapshotUrl;
+        modal.querySelector('#machWebcamStream').value = guess.streamUrl;
+        const en = modal.querySelector('#machWebcamEnabled'); if (en) en.checked = true;
+        toast(t('cam.detect_ok') || 'Camera URLs filled — check the preview', 'success');
+      });
 
       // Feature 2 (new batch): Printer API section wiring
       const apiTypeSel = modal.querySelector('#machApiType');
@@ -446,6 +516,20 @@ function openMachineEditor(machineId = null) {
           printerSlug:  document.getElementById('machApiSlug')?.value.trim() || '',
         };
       }
+      // Webcam block — normalized + clamped through the shared sanitizer.
+      const W = (typeof KhaytWebcam !== 'undefined') ? KhaytWebcam : null;
+      if (W) {
+        draft.webcam = W.sanitizeWebcam({
+          enabled: document.getElementById('machWebcamEnabled')?.checked,
+          snapshotUrl: document.getElementById('machWebcamSnapshot')?.value,
+          streamUrl: document.getElementById('machWebcamStream')?.value,
+          rotate: document.getElementById('machWebcamRotate')?.value,
+          flipH: document.getElementById('machWebcamFlipH')?.checked,
+          flipV: document.getElementById('machWebcamFlipV')?.checked,
+          timelapse: draft.webcam?.timelapse,
+          cloudRelay: draft.webcam?.cloudRelay,
+        }, draft.printerApi);
+      }
       // Persist nozzle/compat fields from form (Feature 3 & 4)
       const nozzleDiamEl = document.getElementById('machNozzleDiameter');
       if (nozzleDiamEl) draft.nozzleDiameter = parseFloat(nozzleDiamEl.value) || null;
@@ -531,6 +615,7 @@ async function deleteMachine(machineId) {
   saveAll();
   renderMachines();
   renderMachineDropdown();
+  if (typeof refreshMachineCameras === 'function') refreshMachineCameras();
 }
 
 /* ============================================================
@@ -925,6 +1010,7 @@ async function sliceAndPrintForMachine(machineId) {
     renderMachines,
     sliceAndPrintForMachine,
     renderMachineDropdown,
+    refreshMachineCameras,
     openMachineEditor,
     logNozzleChange,
     deleteMachine,
