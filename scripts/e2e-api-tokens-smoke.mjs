@@ -81,6 +81,14 @@ try {
   const cross = await call('/v1/clients', { token: toks.read });
   ok(cross.status === 403, `orders token cannot read clients (${cross.status})`);
 
+  // A token must NOT widen access beyond the scope model: an unscoped PIN-gated page
+  // (the LAN kiosk shell) still requires the owner PIN, even with a valid token.
+  const page = await call('/', { token: toks.read });
+  ok(page.status === 401, `token cannot open an unscoped PIN-gated page (${page.status})`);
+  // …while its own scoped data remains reachable.
+  const stillOk = await call('/v1/orders', { token: toks.read });
+  ok(stillOk.status === 200, 'scoped data still reachable with the same token');
+
   console.log('\n✅ API token smoke: all assertions passed');
 } catch (e) {
   failed = true;
