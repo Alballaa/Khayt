@@ -4,6 +4,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.30] - 2026-07-20
+
+### Fixed
+
+- **Duplicating or reprinting an order quoted it far too cheaply.** The rebuilt cart priced the job as a *single unit* while still printing — and deducting filament for — the full quantity. A repeat of a 100-unit order was quoted at about 1% of its true cost. Re-quote any order you duplicated or reprinted.
+- **Profit, margin and the P&L export were wildly overstated on multi-unit orders.** Cost of goods counted one unit per line against the whole order's revenue, so a job with a real 28% margin reported 99%. This affected the analytics dashboards, per-machine and per-product profitability, the KPI rows and the exported P&L CSV. Figures correct themselves once this update is installed; previously exported P&L files should be re-exported.
+- **Save failures were completely silent.** If a save could not be written — disk full, permissions, or a store too large — Khayt showed no warning and the work was lost at next launch. Failures now surface with the reason.
+- **Dragging a card to reorder it only worked in the "Pending" column.** In the other five columns the new order was written to disk and then visually reverted on the next refresh.
+
 ## [3.2.0-beta.29] - 2026-07-20
 
 ### Added

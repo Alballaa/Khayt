@@ -558,9 +558,17 @@ function _doSave(snapshot) {
   try { if (window.KhaytSync) KhaytSync.stampChanges(snapshot); } catch (e) { console.error('stampChanges failed:', e); }
   _saveChain = _saveChain
     .then(() => window.hubAPI.saveStore(snapshot))
+    .then((res) => {
+      // hub:save-store RETURNS { ok:false, error } for a disk-full write, a permissions
+      // error, an oversized store or an unrecoverable shape — it does not reject. Only
+      // inspecting rejection meant every one of those failed silently: the UI showed the
+      // order saved and the shop lost the work at next launch.
+      if (res && res.ok === false) throw new Error(res.error || 'save failed');
+    })
     .catch((e) => {
       console.error('Save failed:', e);
-      toast('⚠ ' + (t('common.save_failed') || 'Save failed — check disk space'), 'error', 6000);
+      const detail = e && e.message ? ` — ${e.message}` : '';
+      toast('⚠ ' + (t('common.save_failed') || 'Save failed — check disk space') + detail, 'error', 10000);
     });
   // Stage C: when Khayt Cloud is connected + unlocked, push changes in the
   // background (debounced + conflict-merging). No-op when cloud is off.

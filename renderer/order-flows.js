@@ -2169,7 +2169,10 @@ function duplicateOrder(orderId) {
   if (!order) return;
   currentBuild = (order.parts || []).map(p => {
     const copy = { ...p, id: uid('PRT') };
-    copy.baseCost = computePartBaseCost(copy);
+    // baseCost is a LINE total (unit cost x qty), matching what the calculator stores
+    // when the part is first added. Using the per-unit cost here re-quoted a duplicated
+    // or reprinted order at 1/qty of its real cost while still printing every unit.
+    copy.baseCost = partTotalCost(copy);
     return copy;
   });
   currentBuildFromProductId = order.productId || null;
@@ -2196,7 +2199,10 @@ function createLinkedReprint(original, reason, costMode) {
   if (!original) return;
   currentBuild = (original.parts || []).map(p => {
     const copy = { ...p, id: uid('PRT') };
-    copy.baseCost = computePartBaseCost(copy);
+    // baseCost is a LINE total (unit cost x qty), matching what the calculator stores
+    // when the part is first added. Using the per-unit cost here re-quoted a duplicated
+    // or reprinted order at 1/qty of its real cost while still printing every unit.
+    copy.baseCost = partTotalCost(copy);
     return copy;
   });
   currentBuildFromProductId = original.productId || null;
