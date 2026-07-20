@@ -98,3 +98,36 @@ test('hasCamera requires opt-in AND a URL', () => {
   assert.equal(W.hasCamera({ webcam: { enabled: true } }), false, 'enabled but no URL → nothing to show');
   assert.equal(W.hasCamera({}), false);
 });
+
+/* ── Snapshot proxy hardening ───────────────────────────────────── */
+
+test('snapshotUrlFor never falls back to the stream (an MJPEG stream has no end)', () => {
+  const streamOnly = { webcam: { enabled: true, snapshotUrl: '', streamUrl: 'http://192.168.1.50/webcam/?action=stream' } };
+  assert.equal(W.hasCamera(streamOnly), true, 'the card can still show a stream');
+  assert.equal(W.snapshotUrlFor(streamOnly), '', 'but the proxy refuses to buffer it as a snapshot');
+  const both = { webcam: { enabled: true, snapshotUrl: 'http://h/s', streamUrl: 'http://h/st' } };
+  assert.equal(W.snapshotUrlFor(both), 'http://h/s');
+  assert.equal(W.snapshotUrlFor({ webcam: { enabled: false, snapshotUrl: 'http://h/s' } }), '', 'off means off');
+  assert.equal(W.snapshotUrlFor({}), '');
+});
+
+test('checkSnapshotHeaders rejects oversized responses BEFORE the body is read', () => {
+  const big = String(W.MAX_SNAPSHOT_BYTES + 1);
+  assert.deepEqual(W.checkSnapshotHeaders(200, 'image/jpeg', big), { ok: false, reason: 'too_large' });
+  assert.equal(W.checkSnapshotHeaders(200, 'image/jpeg', String(W.MAX_SNAPSHOT_BYTES)).ok, true, 'at the cap is fine');
+});
+
+test('checkSnapshotHeaders enforces image content-type, success status and no redirects', () => {
+  assert.equal(W.checkSnapshotHeaders(200, 'image/jpeg', '1024').ok, true);
+  assert.equal(W.checkSnapshotHeaders(200, 'image/png; charset=binary', null).ok, true, 'params tolerated');
+  assert.deepEqual(W.checkSnapshotHeaders(302, 'image/jpeg', '10'), { ok: false, reason: 'redirect_refused' });
+  assert.deepEqual(W.checkSnapshotHeaders(200, 'text/html', '10'), { ok: false, reason: 'not_an_image' });
+  assert.deepEqual(W.checkSnapshotHeaders(200, null, '10'), { ok: false, reason: 'not_an_image' }, 'missing type is not an image');
+  assert.equal(W.checkSnapshotHeaders(404, 'image/jpeg', '10').ok, false);
+  assert.equal(W.checkSnapshotHeaders(500, 'image/jpeg', '10').reason, 'HTTP 500');
+});
+
+test('checkSnapshotHeaders allows a missing content-length (body cap is the backstop)', () => {
+  assert.equal(W.checkSnapshotHeaders(200, 'image/jpeg', null).ok, true);
+  assert.equal(W.checkSnapshotHeaders(200, 'image/jpeg', 'not-a-number').ok, true);
+});
