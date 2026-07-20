@@ -585,6 +585,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       estValue: entry.estValue || 0,
       reminderDate: entry.reminderDate || entry.deadline || entry.dueDate || null,
       createdAt: entry.submittedAt || entry.createdAt || new Date().toISOString(),
+      // PDPL: carry the customer's recorded consent through verbatim — it is the
+      // auditable proof of lawful basis for this submission and must not be rebuilt.
+      consent: entry.consent || null,
     };
     Object.keys(draft).forEach(k => draft[k] === undefined && delete draft[k]);
     waitingList.unshift(draft);

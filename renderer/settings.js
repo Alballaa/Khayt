@@ -2427,6 +2427,54 @@ function renderShippingSettings() {
   });
 }
 
+// Privacy / PDPL — retention window for customer-submitted intake data plus a manual
+// sweep that anonymizes (not deletes) stale rows, keeping the operational record while
+// dropping the PII. See docs/KHAYT-3.0-PRIVACY-COMPLIANCE-SPEC.md.
+function renderPrivacySettings() {
+  const el = $('#privacySection');
+  if (!el) return;
+  const months = Math.max(0, num((settings.privacy || {}).retentionMonths, 0));
+  const P = (typeof KhaytPrivacy !== 'undefined') ? KhaytPrivacy : null;
+  const stale = P ? P.selectStaleIntakeRows(
+    [...(waitingList || []), ...(waitingListHistory || [])].map(r => ({ ...r, at: r.at || r.submittedAt || r.date })),
+    months, Date.now()).length : 0;
+
+  el.innerHTML = `
+    <p style="font-size:11.5px;color:var(--text-muted);margin-bottom:10px;">${escapeHtml(t('priv.settings_hint') || 'Customer data stays on this machine. Optionally anonymize old intake submissions after a set period — their contact details are removed, the request record is kept.')}</p>
+    <div style="max-width:240px;">
+      <label>${escapeHtml(t('priv.retention_months') || 'Anonymize intake data after (months)')}</label>
+      <input type="number" id="set_privacyRetention" min="0" step="1" value="${months}" placeholder="0 = keep indefinitely">
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap;">
+      <button class="btn small primary" id="btnSavePrivacy">${escapeHtml(t('common.save'))}</button>
+      <button class="btn small" id="btnRunRetention" ${stale ? '' : 'disabled'}>${escapeHtml(t('priv.run_sweep') || 'Anonymize stale intake now')}</button>
+      <span style="font-size:11.5px;color:var(--text-muted);">${escapeHtml(
+        months > 0 ? (t('priv.stale_count', { n: stale }) || `${stale} submission(s) older than ${months} month(s)`) : (t('priv.retention_off') || 'Retention off'))}</span>
+    </div>`;
+
+  el.querySelector('#btnSavePrivacy')?.addEventListener('click', () => {
+    settings.privacy = { ...(settings.privacy || {}), retentionMonths: Math.max(0, num($('#set_privacyRetention')?.value, 0)) };
+    saveAll();
+    renderPrivacySettings();
+    toast(t('priv.saved') || 'Privacy settings saved', 'success');
+  });
+
+  el.querySelector('#btnRunRetention')?.addEventListener('click', async () => {
+    if (!P) return;
+    const ok = await confirmModal(t('priv.sweep_q') || 'Anonymize the contact details on stale intake submissions? This cannot be undone.', { danger: true });
+    if (!ok) return;
+    const cutoffOf = (r) => ({ ...r, at: r.at || r.submittedAt || r.date });
+    const staleIds = new Set(P.selectStaleIntakeRows([...(waitingList || []), ...(waitingListHistory || [])].map(cutoffOf), months, Date.now()).map(r => r.id));
+    let n = 0;
+    waitingList = (waitingList || []).map(r => { if (staleIds.has(r.id)) { n++; return P.anonymizeIntakeRow(r); } return r; });
+    waitingListHistory = (waitingListHistory || []).map(r => { if (staleIds.has(r.id)) { n++; return P.anonymizeIntakeRow(r); } return r; });
+    saveAll();
+    if (typeof renderWaitingList === 'function') renderWaitingList();
+    renderPrivacySettings();
+    toast(t('priv.swept', { n }) || `Anonymized ${n} submission(s)`, 'success');
+  });
+}
+
 function renderSavedFilterPresets() {
   const el = $('#savedFiltersBar');
   if (!el) return;
@@ -2687,6 +2735,7 @@ function loadSettingsIntoForm() {
   renderZatcaPhase2Settings();
   renderBnplSettings();
   renderShippingSettings();
+  renderPrivacySettings();
   // Feature H: Exchange rates
   renderExchangeRatesSettings();
   // Round 12: Saved filter presets
