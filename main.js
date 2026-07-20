@@ -1069,16 +1069,21 @@ ipcMain.handle('hub:webcam-snapshot', async (_e, { machineId } = {}) => {
     const m = machines.find(x => x && x.id === machineId);
     if (!m) return { ok: false, error: 'unknown_machine' };
     if (!Webcam.hasCamera(m)) return { ok: false, error: 'camera_off' };
-    const url = m.webcam.snapshotUrl || m.webcam.streamUrl;
+    // Snapshot ONLY — never fall back to streamUrl. An MJPEG stream has no end, so
+    // buffering one here would just accumulate memory until the timeout fires.
+    const url = Webcam.snapshotUrlFor(m);
+    if (!url) return { ok: false, error: 'no_snapshot_url' };
     const guard = Webcam.assertSameHostAsPrinter(url, m.printerApi);
     if (!guard.ok) return { ok: false, error: guard.reason };
     const res = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(6000) });
-    if (res.status >= 300 && res.status < 400) return { ok: false, error: 'redirect_refused' };
-    if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
-    const type = String(res.headers.get('content-type') || '');
-    if (!/^image\//i.test(type)) return { ok: false, error: 'not_an_image' };
+    // Decide from headers BEFORE reading the body, so an oversized or non-image response
+    // is refused without being buffered into memory first.
+    const pre = Webcam.checkSnapshotHeaders(res.status, res.headers.get('content-type'), res.headers.get('content-length'));
+    if (!pre.ok) return { ok: false, error: pre.reason };
     const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.length > 8 * 1024 * 1024) return { ok: false, error: 'too_large' };
+    // Backstop for a response that declared no content-length.
+    if (buf.length > Webcam.MAX_SNAPSHOT_BYTES) return { ok: false, error: 'too_large' };
+    const type = String(res.headers.get('content-type') || '');
     return { ok: true, dataUrl: `data:${type.split(';')[0]};base64,${buf.toString('base64')}` };
   } catch (e) {
     return { ok: false, error: String((e && e.message) || e) };

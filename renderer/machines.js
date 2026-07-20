@@ -94,10 +94,18 @@ async function refreshMachineCameras() {
     const m = machines.find(x => x.id === el.dataset.cam);
     if (!m) continue;
     try {
+      const tf = W.renderTransform(m.webcam);
+      const style = `width:100%;height:100%;object-fit:cover;${tf ? `transform:${tf};` : ''}`;
+      // A stream-only camera has no still to proxy — point the <img> straight at the
+      // MJPEG stream, which browsers render natively. (The proxy deliberately refuses
+      // to buffer a stream; see snapshotUrlFor.)
+      if (!W.snapshotUrlFor(m) && m.webcam.streamUrl) {
+        el.innerHTML = `<img src="${escapeHtml(m.webcam.streamUrl)}" alt="" style="${style}">`;
+        continue;
+      }
       const r = await window.hubAPI.webcamSnapshot({ machineId: m.id });
       if (r && r.ok && r.dataUrl) {
-        const tf = W.renderTransform(m.webcam);
-        el.innerHTML = `<img src="${r.dataUrl}" alt="" style="width:100%;height:100%;object-fit:cover;${tf ? `transform:${tf};` : ''}">`;
+        el.innerHTML = `<img src="${r.dataUrl}" alt="" style="${style}">`;
       } else {
         el.innerHTML = `<span style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('cam.offline') || 'Camera offline')}</span>`;
       }

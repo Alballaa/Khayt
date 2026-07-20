@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.24] - 2026-07-20
+
+### Fixed
+
+- **Camera: a stream-only printer no longer strains the app.** If you configured a camera with only a stream address (no still-image address), Khayt tried to read the never-ending video stream as if it were a single photo, holding it in memory until the request timed out. Those cameras now display the live stream directly, which is what they were always meant to do. Khayt also checks a camera's response size *before* loading it, rather than after.
+
 ## [3.2.0-beta.23] - 2026-07-20
 
 **Pre-release (beta) — security hardening.**
