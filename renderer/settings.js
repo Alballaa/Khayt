@@ -2434,6 +2434,84 @@ function renderShippingSettings() {
 // at mint time — only its hash is ever stored, so it cannot be recovered afterwards.
 const API_TOKEN_SCOPES = ['orders:read', 'orders:write', 'clients:read', 'clients:write', 'inventory:read', 'inventory:write', 'machines:read'];
 
+// Telemetry consent (TELEMETRY-SPEC §3). Off by default, crash and usage consented
+// SEPARATELY, revocable without restart — opting out purges the local queue and clears
+// the install id so nothing identifying survives.
+function renderTelemetrySettings() {
+  const el = $('#telemetrySection');
+  if (!el) return;
+  const tm = settings.telemetry || {};
+  el.innerHTML = `
+    <p style="font-size:11.5px;color:var(--text-muted);margin-bottom:10px;">${escapeHtml(t('tel.hint') || 'Khayt sends nothing by default. You can optionally share crash reports and anonymous usage counts to help fix bugs. Never your orders, customers, prices or files.')}</p>
+    <label style="display:flex;align-items:flex-start;gap:8px;font-weight:400;cursor:pointer;margin-bottom:8px;">
+      <input type="checkbox" id="tel_crash" style="width:auto;margin-top:3px;" ${tm.crashOptIn ? 'checked' : ''}>
+      <span><b>${escapeHtml(t('tel.crash') || 'Share crash reports')}</b><br>
+      <span style="font-size:12px;color:var(--text-muted);">${escapeHtml(t('tel.crash_hint') || 'A scrubbed error message and stack trace when something breaks.')}</span></span>
+    </label>
+    <label style="display:flex;align-items:flex-start;gap:8px;font-weight:400;cursor:pointer;">
+      <input type="checkbox" id="tel_usage" style="width:auto;margin-top:3px;" ${tm.usageOptIn ? 'checked' : ''}>
+      <span><b>${escapeHtml(t('tel.usage') || 'Share anonymous usage counts')}</b><br>
+      <span style="font-size:12px;color:var(--text-muted);">${escapeHtml(t('tel.usage_hint') || 'Which features are used, as counts only — never what is in them.')}</span></span>
+    </label>
+    <div style="display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap;">
+      <button class="btn small" id="btnViewTelemetry">${escapeHtml(t('tel.view') || 'View what’s collected')}</button>
+      ${tm.consentAt ? `<span style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('tel.consented') || 'Consented')}: ${escapeHtml(String(tm.consentAt).split('T')[0])}</span>` : ''}
+    </div>`;
+
+  const persist = async () => {
+    const crash = !!el.querySelector('#tel_crash')?.checked;
+    const usage = !!el.querySelector('#tel_usage')?.checked;
+    const prev = settings.telemetry || {};
+    const anyOn = crash || usage;
+    let installId = prev.installId || '';
+    if (anyOn && !installId) {
+      // Rotating, non-identifying install id — created only on opt-in.
+      const b = new Uint8Array(8); crypto.getRandomValues(b);
+      installId = Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
+    }
+    settings.telemetry = {
+      crashOptIn: crash, usageOptIn: usage,
+      installId: anyOn ? installId : '',
+      consentAt: anyOn ? (prev.consentAt || new Date().toISOString()) : '',
+    };
+    saveAll();
+    // Opting fully out purges anything queued locally, immediately.
+    if (!anyOn) { try { await window.hubAPI?.telemetryPurge?.(); } catch (_) {} }
+    renderTelemetrySettings();
+    toast(t('tel.saved') || 'Telemetry preferences saved', 'success');
+  };
+  el.querySelector('#tel_crash')?.addEventListener('change', persist);
+  el.querySelector('#tel_usage')?.addEventListener('change', persist);
+
+  el.querySelector('#btnViewTelemetry')?.addEventListener('click', async () => {
+    const Scrub = (typeof KhaytTelemetryScrub !== 'undefined') ? KhaytTelemetryScrub : null;
+    const tmNow = settings.telemetry || {};
+    const sample = { crash: null, usage: null };
+    if (Scrub) {
+      if (tmNow.crashOptIn) sample.crash = Scrub.buildCrashReport({
+        type: 'uncaughtException', name: 'TypeError', message: 'example failure',
+        stack: 'TypeError: example\n    at someFunction (renderer/app.js:1:1)',
+        process: 'renderer', appVersion: (window.KHAYT_VERSION || ''), osFamily: 'macOS', osMajor: '14',
+        locale: (typeof i18n !== 'undefined' ? i18n.current : 'en'), channel: settings.betaUpdates ? 'beta' : 'stable',
+        installId: tmNow.installId,
+      });
+      if (tmNow.usageOptIn) sample.usage = Scrub.buildUsageEvent({
+        feature: 'quote_created', count: 1, mode: settings.mode, businessType: settings.businessType,
+        vatEnabled: !!settings.enableVat, zatcaEnabled: !!settings.zatcaEnabled,
+        onlineEnabled: !!settings.onlineEnabled, lanEnabled: !!(settings.lanApi || {}).enabled,
+        sessions: 1, appVersion: (window.KHAYT_VERSION || ''),
+        locale: (typeof i18n !== 'undefined' ? i18n.current : 'en'), channel: settings.betaUpdates ? 'beta' : 'stable',
+        installId: tmNow.installId,
+      });
+    }
+    const body = (!sample.crash && !sample.usage)
+      ? `<p style="font-size:13px;">${escapeHtml(t('tel.nothing') || 'Nothing is collected — both options are off.')}</p>`
+      : `<p style="font-size:12.5px;color:var(--text-dim);margin-bottom:8px;">${escapeHtml(t('tel.view_hint') || 'This is exactly what would be sent — nothing else.')}</p>
+         <pre style="max-height:52vh;overflow:auto;background:var(--bg-elev);padding:12px;border-radius:var(--radius);font-size:11.5px;white-space:pre-wrap;">${escapeHtml(JSON.stringify(sample, null, 2))}</pre>`;
+    openFormModal({ title: t('tel.view') || 'What’s collected', sizeLg: false, noSave: true, bodyHtml: body });
+  });
+}
+
 function renderApiTokensSettings() {
   const el = $('#apiTokensSection');
   if (!el) return;
@@ -2470,6 +2548,7 @@ function renderApiTokensSettings() {
     settings.lanApi = { ...(settings.lanApi || {}), apiTokens: [...(((settings.lanApi || {}).apiTokens) || []), r.record] };
     saveAll();
     renderApiTokensSettings();
+  renderTelemetrySettings();
     // Shown once — the plaintext is never stored and cannot be retrieved again.
     openFormModal({
       title: t('api.created') || 'API token created',

@@ -56,14 +56,19 @@
     </p>
 
     <h2>2. Data We Do NOT Collect</h2>
-    <p>Khayt is a local-first desktop application. We do not collect:</p>
+    <p>Khayt is a local-first desktop application. We <strong>never</strong> collect:</p>
     <ul>
       <li>Your customer data, order information, or business records</li>
       <li>Your inventory, pricing, or financial data</li>
-      <li>Usage analytics or telemetry</li>
-      <li>Crash reports or error logs</li>
       <li>Personal information of any kind</li>
+      <li>Your files (models, photos, PDFs) or anything you typed</li>
+      <li>Your API keys, PINs, tokens or other secrets</li>
     </ul>
+    <p>
+      Crash reports and anonymous usage counts are <strong>off by default</strong> and are only
+      ever sent if you explicitly turn them on — see <a href="#telemetry">section 8</a> for exactly
+      what those contain.
+    </p>
 
     <h2>3. Where Your Data Lives</h2>
     <p>
@@ -139,20 +144,40 @@
       basis, is your decision as controller — please take qualified advice.
     </p>
 
-    <h2>8. Children's Privacy</h2>
+    <h2 id="telemetry">8. Crash Reports and Usage Data</h2>
+    <p>
+      Khayt sends <strong>nothing by default</strong>. You may optionally turn on two
+      separate, independently revocable options in <strong>Settings → Crash Reports &amp; Usage</strong>:
+    </p>
+    <ul>
+      <li><strong>Crash reports</strong> — the error type, a scrubbed message and stack trace,
+        your app version and OS family. File paths are reduced to a filename, and emails,
+        phone numbers, IBANs and long digit sequences are removed before anything is stored.</li>
+      <li><strong>Anonymous usage counts</strong> — which features were used, as counts and
+        fixed categories only. Never what was in them.</li>
+    </ul>
+    <p>
+      We <strong>never</strong> collect your orders, customers, prices, margins, inventory,
+      files, or any secret (API keys, PINs, tokens). There is no account or user id — only a
+      random install identifier created when you opt in, and erased the moment you opt out.
+      Turning an option off deletes anything queued locally straight away, without a restart.
+      You can inspect exactly what would be sent at any time via <em>"View what's collected"</em>.
+    </p>
+
+    <h2>9. Children's Privacy</h2>
     <p>
       Khayt is a business productivity tool intended for adults. It is not directed at children
       under the age of 13 and we do not knowingly collect information from children.
     </p>
 
-    <h2>9. Changes to This Policy</h2>
+    <h2>10. Changes to This Policy</h2>
     <p>
       We may update this Privacy Policy from time to time. Updates will be published at this URL.
       We encourage you to review it periodically. Continued use of Khayt after changes constitutes
       acceptance of the updated policy.
     </p>
 
-    <h2>10. Contact</h2>
+    <h2>11. Contact</h2>
     <p>
       If you have any questions about this Privacy Policy, please contact us at
       <a href="mailto:support@khaytapp.com">support@khaytapp.com</a>.
