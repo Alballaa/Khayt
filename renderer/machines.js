@@ -146,6 +146,11 @@ function openMachineEditor(machineId = null) {
       <label style="margin-top:12px;">${escapeHtml(t('mach.printer_model') || 'Printer model')}</label>
       <input type="text" id="machPrinterModel" list="machPrinterModelList" value="${escapeHtml(draft.printerModelName || '')}" placeholder="${escapeHtml(t('mach.printer_model_ph') || "Search — e.g. 'Bambu X1', 'Ender 3'")}" autocomplete="off">
       <datalist id="machPrinterModelList"></datalist>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:5px;">
+        <button class="btn ghost small" id="btnScanNetwork" type="button">${escapeHtml(t('mach.scan_network'))}</button>
+        <span id="machScanStatus" style="font-size:11px;color:var(--text-muted);"></span>
+      </div>
+      <div id="machScanResults" style="display:none;margin-top:6px;"></div>
       <div id="machPrinterModelHint" style="font-size:11px;color:var(--text-muted);margin-top:3px;">${escapeHtml(t('mach.printer_model_hint') || 'Pick a model to auto-fill nozzle, build volume, colours and power.')}</div>
       <label style="margin-top:12px;">${escapeHtml(t('mach.color'))}</label>
       <div id="machColorPicker" style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;">
@@ -274,7 +279,7 @@ function openMachineEditor(machineId = null) {
             <option value="octoprint">OctoPrint</option>
             <option value="moonraker">Moonraker / Klipper</option>
             <option value="bambu">Bambu Lab (local network)</option>
-            <option value="prusalink">PrusaLink (Prusa MK4 / XL / Mini+)</option>
+            <option value="prusalink">PrusaLink (Prusa CORE One / MK4 / XL / Mini+)</option>
             <option value="duet">Duet / RepRapFirmware</option>
             <option value="repetier">Repetier-Server</option>
           </select>
@@ -358,6 +363,79 @@ function openMachineEditor(machineId = null) {
             pmHint.textContent = bits.join(' · ') || (t('mach.printer_model_hint') || '');
           }
         };
+        // Network scan — find printers that announce themselves over mDNS, so the owner
+        // never types an IP address. Purely a suggestion: picking one fills the form, and
+        // nothing is saved until they press Save like any other machine.
+        (function wireNetworkScan() {
+          const btn = modal.querySelector('#btnScanNetwork');
+          const statusEl = modal.querySelector('#machScanStatus');
+          const resultsEl = modal.querySelector('#machScanResults');
+          if (!btn || !window.hubAPI?.discoverPrinters) { if (btn) btn.style.display = 'none'; return; }
+
+          const applyFound = (p) => {
+            // Specs first (via the catalog, when the advertised model matched one)…
+            if (p.catalogId && PC) fillSpecs(PC.toMachineSpecs(p.catalogId), p.name);
+            const pmEl = modal.querySelector('#machPrinterModel');
+            if (pmEl && p.name) pmEl.value = p.name;
+            const nameEl = modal.querySelector('#machName');
+            if (nameEl && !nameEl.value.trim()) { nameEl.value = p.name; draft.name = p.name; }
+            // …then the connection, but ONLY when Khayt actually has an adapter for it.
+            // A printer we can identify but not drive must not get a half-configured
+            // connection that silently never reports status.
+            if (p.connection) {
+              const typeEl = modal.querySelector('#machApiType');
+              const hostEl = modal.querySelector('#machApiHost');
+              const portEl = modal.querySelector('#machApiPort');
+              if (typeEl) { typeEl.value = p.connection; typeEl.dispatchEvent(new Event('change')); }
+              if (hostEl) hostEl.value = p.host;
+              if (portEl && p.port) portEl.value = p.port;
+              draft.printerApi = Object.assign({}, draft.printerApi, {
+                type: p.connection, host: p.host, port: p.port || undefined,
+              });
+            }
+            if (statusEl) statusEl.textContent = t('mach.scan_applied') || '';
+            if (resultsEl) resultsEl.style.display = 'none';
+          };
+
+          btn.addEventListener('click', async () => {
+            btn.disabled = true;
+            if (statusEl) statusEl.textContent = t('mach.scan_running');
+            if (resultsEl) { resultsEl.style.display = 'none'; resultsEl.innerHTML = ''; }
+            let res;
+            try { res = await window.hubAPI.discoverPrinters({ timeoutMs: 6000 }); }
+            catch (_) { res = { ok: false }; }
+            btn.disabled = false;
+            const printers = (res && res.ok && Array.isArray(res.printers)) ? res.printers : [];
+            if (!printers.length) {
+              if (statusEl) statusEl.textContent = t('mach.scan_none');
+              return;
+            }
+            if (statusEl) statusEl.textContent = '';
+            if (!resultsEl) return;
+            resultsEl.style.display = '';
+            resultsEl.innerHTML = printers.map((p, i) => {
+              // Say plainly what Khayt can do with each result rather than implying
+              // every discovered printer is connectable.
+              const note = p.connection
+                ? `${escapeHtml(p.host)}${p.port ? ':' + p.port : ''}`
+                : escapeHtml(t('mach.scan_no_adapter'));
+              const warn = (p.linkMode === 'wan')
+                ? `<div style="font-size:10.5px;color:var(--warn,#b8860b);margin-top:2px;">${escapeHtml(t('mach.scan_cloud_mode'))}</div>`
+                : '';
+              return `<div class="card" style="padding:7px 9px;margin-bottom:5px;display:flex;align-items:center;gap:9px;">
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:12.5px;font-weight:600;">${escapeHtml(p.name)}</div>
+                  <div style="font-size:11px;color:var(--text-muted);">${note}</div>${warn}
+                </div>
+                <button class="btn ghost small" type="button" data-scan-pick="${i}">${escapeHtml(t('mach.scan_use'))}</button>
+              </div>`;
+            }).join('');
+            resultsEl.querySelectorAll('[data-scan-pick]').forEach(el => {
+              el.addEventListener('click', () => applyFound(printers[+el.dataset.scanPick]));
+            });
+          });
+        })();
+
         const applyModel = async (raw) => {
           const nm = (raw || '').trim();
           if (!nm) return;

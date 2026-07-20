@@ -4,6 +4,21 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.28] - 2026-07-20
+
+### Added
+
+- **Find printers on your network instead of typing IP addresses.** The machine dialog has a **Scan network** button: printers that announce themselves are listed with their model, and picking one fills in the build volume, nozzle, colour slots and power draw from the built-in catalog, plus the connection type and address. Verified against a Prusa CORE One and a Snapmaker U1.
+- **PrusaLink webcam support.** Camera URLs are now derived for PrusaLink printers, not just OctoPrint and Moonraker.
+
+### Changed
+
+- The PrusaLink connection option now names the **CORE One** alongside MK4 / XL / Mini+, so Core One owners can tell it applies to them.
+
+### Notes
+
+- Discovery reports honestly when Khayt cannot yet drive a printer it found: the Snapmaker U1 is identified and its specs filled in, but it is listed as not connectable rather than offered a connection that would never report status. A printer in vendor-cloud mode is flagged, since its local interface stays silent until switched to LAN mode.
+
 ## [3.2.0-beta.27] - 2026-07-20
 
 ### Changed

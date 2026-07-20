@@ -1057,6 +1057,59 @@ ipcMain.handle('hub:load-store', async (event) => {
   }
 });
 
+// ── Printer discovery (mDNS) ────────────────────────────────────────────────
+// Owner-initiated LAN scan: multicast a DNS-SD query for the printer service types and
+// collect answers for a few seconds. Nothing leaves the local network, nothing runs on a
+// timer, and nothing is written to the store — the renderer shows candidates and the
+// owner picks. See lib/mdns.js for why this is hand-rolled rather than a dependency.
+ipcMain.handle('hub:discover-printers', async (_e, { timeoutMs } = {}) => {
+  const dgram = require('dgram');
+  const Mdns = require('./lib/mdns.js');
+  const Discovery = require('./lib/printer-discovery.js');
+  // Bounded so a wedged socket can't hold the dialog open indefinitely.
+  const window_ = Math.max(2000, Math.min(15000, Number(timeoutMs) || 6000));
+
+  return await new Promise((resolve) => {
+    let socket;
+    let settled = false;
+    const records = [];
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      try { socket && socket.close(); } catch { /* already closed */ }
+      resolve(result);
+    };
+    try {
+      socket = dgram.createSocket({ type: 'udp4', reuseAddr: true });
+    } catch (e) {
+      return finish({ ok: false, error: 'socket_failed', detail: String(e.message || e) });
+    }
+    socket.on('error', (e) => finish({ ok: false, error: 'socket_error', detail: String(e.message || e) }));
+    socket.on('message', (msg) => {
+      try { records.push(...Mdns.decodeMessage(msg)); } catch { /* ignore junk */ }
+    });
+    socket.bind(Mdns.MDNS_PORT, () => {
+      // Joining the group is what makes this reliable: some responders (the Prusa CORE
+      // One among them) only ever answer by multicast and ignore the unicast-response
+      // bit, so a query-and-listen-on-our-own-port scan silently misses them.
+      try { socket.addMembership(Mdns.MDNS_ADDR); } catch { /* not fatal */ }
+      const query = Mdns.encodeQuery(Discovery.SERVICE_NAMES);
+      const send = () => {
+        try { socket.send(query, 0, query.length, Mdns.MDNS_PORT, Mdns.MDNS_ADDR); } catch { /* closed */ }
+      };
+      // Retransmit: responders suppress answers they have already given recently, so a
+      // single query can miss a printer that replied moments ago. Observed on real
+      // hardware — one query found the Snapmaker but not the Prusa.
+      [0, 900, 2200, 4000].filter(d => d < window_).forEach(d => setTimeout(send, d));
+      setTimeout(() => {
+        let printers = [];
+        try { printers = Discovery.discoverFromRecords(records); } catch { printers = []; }
+        finish({ ok: true, printers });
+      }, window_);
+    });
+  });
+});
+
 // ── Webcam snapshot proxy ───────────────────────────────────────────────────
 // A webcam lives on the LAN, so unlike outbound webhooks we CANNOT blanket-block private
 // addresses here. The safety property instead is that the URL is pinned: a snapshot may

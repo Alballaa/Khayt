@@ -1,6 +1,6 @@
 {
   "name": "khayt",
-  "version": "3.2.0-beta.27",
+  "version": "3.2.0-beta.28",
   "description": "Khayt - 3D printing production management, invoicing and analytics. Free and open to all makers worldwide.",
   "main": "main.js",
   "author": {
@@ -54,7 +54,8 @@
     "capture:theme-previews": "node scripts/capture-theme-previews.mjs",
     "capture:website": "node scripts/capture-website-screenshots.mjs",
     "capture:bedready": "node scripts/capture-bedready-screenshots.mjs",
-    "capture:modes": "node scripts/capture-mode-showcase.mjs"
+    "capture:modes": "node scripts/capture-mode-showcase.mjs",
+    "test:e2e:discovery": "node scripts/e2e-discovery-smoke.mjs"
   },
   "dependencies": {
     "@sentry/electron": "^7.13.0",

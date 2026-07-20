@@ -18,6 +18,9 @@ test('deriveWebcamUrls follows each project’s documented convention', () => {
   assert.equal(o.streamUrl, 'http://192.168.1.50/webcam/?action=stream');
   const m = W.deriveWebcamUrls(MOON);
   assert.equal(m.snapshotUrl, 'http://192.168.1.60:8080/?action=snapshot', 'moonraker cam sits on :8080');
+  const p = W.deriveWebcamUrls({ type: 'prusalink', host: '192.168.68.70' });
+  assert.equal(p.snapshotUrl, 'http://192.168.68.70/api/v1/cameras/snap', 'PrusaLink serves stills on its own port');
+  assert.equal(p.streamUrl, '', 'no documented continuous stream endpoint — do not invent one');
   assert.deepEqual(W.deriveWebcamUrls({ type: 'bambu', host: '1.2.3.4' }), { snapshotUrl: '', streamUrl: '' });
   assert.deepEqual(W.deriveWebcamUrls({ type: 'octoprint' }), { snapshotUrl: '', streamUrl: '' }, 'no host → nothing');
 });
