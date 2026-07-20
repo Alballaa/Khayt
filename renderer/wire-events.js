@@ -852,6 +852,7 @@ function wireEvents() {
     const wa = e.target.closest('[data-act="wa-quick"]');
     const md = e.target.closest('[data-act="mark-delivered"]');
     const shipBtn = e.target.closest('[data-act="ship-order"]');
+    const asmBtn2 = e.target.closest('[data-act="assembly"]');
     const wo = e.target.closest('[data-act="wo-kanban"]');
     const qUp = e.target.closest('[data-act="q-up"]');
     const qDn = e.target.closest('[data-act="q-down"]');
@@ -899,6 +900,7 @@ function wireEvents() {
     if (wa) openWaSendModal(wa.dataset.id);
     if (md) markDelivered(md.dataset.id);
     if (shipBtn) openShipModal(shipBtn.dataset.id);
+    if (asmBtn2) openAssemblyModal(asmBtn2.dataset.id);
     if (wo) generateWorkOrder(wo.dataset.id);
     if (shareTrackBtn) {
       const ordId = shareTrackBtn.dataset.id;

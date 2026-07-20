@@ -518,6 +518,10 @@ function renderKanban() {
         ? `<button class="btn small ghost" data-act="share-tracking-link" data-id="${log.id}" title="${escapeHtml(t('ord.status_page') || 'Share tracking link')}">🔗</button>`
         : '';
       const labelBtn = `<button class="btn small ghost" data-act="print-label" data-id="${log.id}" title="${escapeHtml(t('ord.label_btn') || 'Print Label')}" style="padding:2px 6px;font-size:12px;">${_kIco('tag', '🏷')}</button>`;
+      // BOM assemblies get an Assembly action (per-part QC + the assembled gate) — it is
+      // how such an order becomes completable, so surface it during QC and at completion.
+      const isAsm = Array.isArray(log.components) && log.components.length > 0;
+      const asmBtn = isAsm ? `<button class="btn small ghost" data-act="assembly" data-id="${log.id}" title="${escapeHtml(t('asm.title') || 'Assembly')}">🧩</button>` : '';
       // Slice & print: order on a machine with a printer API + an attached model/G-code.
       const printMachine = log.machineId ? machines.find(m => m.id === log.machineId) : null;
       const hasPrintFile = (log.attachedFiles || []).some(f => /\.(stl|3mf|obj|step|stp|gcode|gco|g|nc)$/i.test(f.filename || f.originalName || ''));
@@ -571,7 +575,7 @@ function renderKanban() {
       }
       // Feature 2 (this batch): QC column — pass or fail buttons
       if (status === 'qc') {
-        actions = `<button class="btn small success" data-act="qc-pass" data-id="${log.id}">${_kIcoL('check', '✅')}${escapeHtml(t('ord.qc_pass'))}</button>
+        actions = `${asmBtn}<button class="btn small success" data-act="qc-pass" data-id="${log.id}">${_kIcoL('check', '✅')}${escapeHtml(t('ord.qc_pass'))}</button>
           <button class="btn small danger" data-act="qc-fail" data-id="${log.id}" style="margin-inline-start:4px;">${_kIcoL('cross', '❌')}${escapeHtml(t('ord.qc_fail'))}</button>${woBtn}${notifyBtn}${trackBtn}${labelBtn}`;
       }
       const bnplBtn = (biz && (settings.bnpl?.tabby?.enabled || settings.bnpl?.tamara?.enabled || settings.bnpl?.stripe?.enabled))
@@ -586,7 +590,7 @@ function renderKanban() {
         const isPaidCard = payStatus(log) === 'paid';
         const payBtn = (biz && !isPaidCard) ? `<button class="btn small primary" data-act="pay" data-id="${log.id}" title="${escapeHtml(t('pay.mark_paid'))}">💳 ${escapeHtml(t('pay.mark_paid'))}</button>` : '';
         const invoiceBtn = biz ? `<button class="btn small" data-act="invoice" data-id="${log.id}">${escapeHtml(t('queue.invoice'))}</button>` : '';
-        actions = `${invoiceBtn}${payBtn}${bnplBtn}${deliverBtn}${shipBtn}${wasteBtn}${notifyBtn}${labelBtn}`;
+        actions = `${invoiceBtn}${payBtn}${bnplBtn}${deliverBtn}${shipBtn}${asmBtn}${wasteBtn}${notifyBtn}${labelBtn}`;
       }
       if (status === 'delivered') {
         const isPaidCard = payStatus(log) === 'paid';

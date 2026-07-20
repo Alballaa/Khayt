@@ -384,6 +384,20 @@ function updateStatus(id, newStatus) {
     }
     toast(t('wip.limit_reached', { col: newStatus, n: (settings.wipLimits || {})[newStatus] }) || `⚠ WIP limit (${(settings.wipLimits || {})[newStatus]}) reached for "${newStatus}" column`, 'warning', 4000);
   }
+  // BOM assemblies: every printed part must pass QC and the owner must tick "Assembled"
+  // before the order can complete (spec §5). Applies ONLY to orders with components[] —
+  // plain single- and multi-part orders are unaffected.
+  if (newStatus === 'completed' && typeof KhaytAssembly !== 'undefined' && KhaytAssembly.isAssembly(order)) {
+    const gate = KhaytAssembly.canCompleteAssembly(order);
+    if (!gate.ok) {
+      const msg = gate.reason === 'not_assembled'
+        ? (t('asm.gate_not_assembled') || 'All parts passed QC — mark the assembly as assembled to complete this order.')
+        : (t('asm.gate_parts', { parts: gate.remaining.map(r => r.name || '?').join(', ') })
+           || `Waiting on ${gate.remaining.length} part(s): ${gate.remaining.map(r => r.name || '?').join(', ')}`);
+      toast(msg, 'warning', 5000);
+      return;
+    }
+  }
   if (newStatus === 'completed') {
     promptActuals(order, () => {
       // Feature 8 (new 8-pack): Check loyalty tier upgrade BEFORE marking complete
@@ -816,6 +830,93 @@ function markDelivered(orderId) {
   saveAll();
   renderKanban(); renderLogs(); renderDashboard();
   toast(t('queue.delivered_toast', { id: order.id }), 'success');
+}
+
+/* ============================================================
+   Assembly production tracking — per-part status, the "Assembled"
+   gate, and a per-part reprint. See docs/KHAYT-3.0-BOM-SPEC.md §5.
+   ============================================================ */
+function openAssemblyModal(orderId) {
+  const order = printLog.find(o => o.id === orderId);
+  if (!order) return;
+  const A = (typeof KhaytAssembly !== 'undefined') ? KhaytAssembly : null;
+  if (!A) { toast(t('asm.unavailable') || 'Assembly tools unavailable', 'error'); return; }
+  const parts = Array.isArray(order.parts) ? order.parts : [];
+  const statusLabel = (s) => t('asm.st.' + s) || s;
+
+  const rowsHtml = () => parts.map((p, i) => {
+    const st = A.partStatusOf(p);
+    return `
+      <div class="asm-row" data-pi="${i}" style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+        <span style="flex:1;font-size:13px;">${escapeHtml(p.name || (t('pe.part') || 'Part') + ' ' + (i + 1))}</span>
+        <select class="asm-status" style="width:150px;margin:0;">
+          ${A.PART_STATUSES.map(s => `<option value="${s}"${st === s ? ' selected' : ''}>${escapeHtml(statusLabel(s))}</option>`).join('')}
+        </select>
+        ${st === 'qc_fail' ? `<button class="btn ghost small asm-reprint" data-pi="${i}" style="margin:0;" title="${escapeHtml(t('asm.reprint_part') || 'Reprint this part')}">🖨</button>` : '<span style="width:34px;"></span>'}
+      </div>`;
+  }).join('');
+
+  const summaryHtml = () => {
+    const st = A.deriveAssemblyStatus(order);
+    const gate = A.canCompleteAssembly(order);
+    const colour = st === 'assembled' ? 'var(--success,#159a6b)' : (st === 'printed' ? 'var(--warning,#d97706)' : 'var(--text-muted)');
+    return `<div style="font-size:12.5px;color:${colour};margin-bottom:10px;"><b>${escapeHtml(t('asm.status') || 'Assembly')}: ${escapeHtml(t('asm.rollup.' + st) || st || '—')}</b>${
+      gate.ok ? '' : ` — ${escapeHtml(gate.reason === 'not_assembled' ? (t('asm.gate_tick') || 'tick “Assembled” to finish') : (t('asm.gate_waiting') || 'parts still outstanding'))}`}</div>`;
+  };
+
+  openFormModal({
+    title: t('asm.title') || 'Assembly',
+    sizeLg: false,
+    saveLabel: t('common.save'),
+    bodyHtml: `
+      <div id="asmSummary">${summaryHtml()}</div>
+      <div id="asmRows">${rowsHtml()}</div>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-weight:400;cursor:pointer;">
+        <input type="checkbox" id="asmAssembled" style="width:auto;margin:0;" ${order.assembledAt ? 'checked' : ''}>
+        <span>${escapeHtml(t('asm.assembled') || 'Assembled — all parts fitted together')}</span>
+      </label>
+      <p style="font-size:11.5px;color:var(--text-muted);margin-top:8px;">${escapeHtml(t('asm.hint') || 'An assembly can only be completed once every part passes QC and it is marked assembled.')}</p>`,
+    onMount(modal) {
+      const rows = modal.querySelector('#asmRows');
+      const refresh = () => {
+        rows.innerHTML = rowsHtml();
+        modal.querySelector('#asmSummary').innerHTML = summaryHtml();
+      };
+      rows.addEventListener('change', (e) => {
+        const row = e.target.closest('[data-pi]');
+        if (!row || !e.target.classList.contains('asm-status')) return;
+        const pi = +row.dataset.pi;
+        if (parts[pi]) parts[pi].partStatus = e.target.value;
+        refresh();
+      });
+      rows.addEventListener('click', (e) => {
+        const btn = e.target.closest('.asm-reprint');
+        if (!btn) return;
+        const pi = +btn.dataset.pi;
+        reprintSinglePart(order, pi);
+      });
+      modal.querySelector('#asmAssembled')?.addEventListener('change', (e) => {
+        order.assembledAt = e.target.checked ? new Date().toISOString() : null;
+        modal.querySelector('#asmSummary').innerHTML = summaryHtml();
+      });
+    },
+    onSave() {
+      saveAll();
+      renderKanban(); renderLogs();
+      toast(t('asm.saved') || 'Assembly updated', 'success');
+      return true;
+    },
+  });
+}
+
+// Reprint exactly one failed part of an assembly — the siblings are untouched and the
+// order does NOT revert wholesale (spec §7). Reuses the linked-reprint machinery.
+function reprintSinglePart(order, partIndex) {
+  const part = (order.parts || [])[partIndex];
+  if (!part) return;
+  const single = { ...order, parts: [{ ...part }] };
+  createLinkedReprint(single, 'qc_fail', 'shop');
+  toast(t('asm.reprint_queued', { name: part.name || '' }) || 'Part queued for reprint', 'success');
 }
 
 /* ============================================================
@@ -2821,6 +2922,8 @@ async function captureFailurePhoto(orderId) {
     markDelivered,
     openShipModal,
     applyShippingStatus,
+    openAssemblyModal,
+    reprintSinglePart,
     openPaymentModal,
     clearPayment,
     renderOeExtraLinesHtml,
