@@ -202,15 +202,56 @@ async function deliverWebhook(sub, body, attempt = 1) {
     status: okDelivered ? 'ok' : (Bus.shouldRetry(status, attempt) ? 'retrying' : 'failed'),
     httpStatus: status || null, attempts: attempt, error: error || null,
   });
-  if (okDelivered) return;
+  if (okDelivered) { clearPendingWebhook(body.id); return; }
   // A consumer answering 410 Gone is telling us to stop for good.
-  if (Bus.isGone(status)) { disableWebhookSubscription(sub.id, 'gone'); return; }
+  if (Bus.isGone(status)) { clearPendingWebhook(body.id); disableWebhookSubscription(sub.id, 'gone'); return; }
   if (Bus.shouldRetry(status, attempt)) {
     const delay = Bus.backoffDelayMs(attempt + 1);
+    // Persist the retry BEFORE arming the timer, so a quit mid-backoff resumes on launch.
+    persistPendingWebhook({ id: body.id, subscriptionId: sub.id, event: body.event, payload: body.payload, attempt: attempt + 1 }, delay);
     setTimeout(() => { deliverWebhook(sub, body, attempt + 1); }, delay);
   } else {
+    clearPendingWebhook(body.id);
     toast((t('webhook.failed') || 'Webhook failed') + `: ${body.event}`, 'warning', 4000);
   }
+}
+
+function persistPendingWebhook(entry, delayMs) {
+  const Bus = (typeof KhaytWebhookBus !== 'undefined') ? KhaytWebhookBus : null;
+  if (!Bus) return;
+  const wh = settings.webhooks || {};
+  settings.webhooks = { ...wh, pending: Bus.schedulePending(wh.pending, entry, delayMs) };
+  saveAll();
+}
+
+function clearPendingWebhook(deliveryId) {
+  const Bus = (typeof KhaytWebhookBus !== 'undefined') ? KhaytWebhookBus : null;
+  if (!Bus) return;
+  const wh = settings.webhooks || {};
+  if (!Array.isArray(wh.pending) || !wh.pending.length) return;
+  settings.webhooks = { ...wh, pending: Bus.removePending(wh.pending, deliveryId) };
+  saveAll();
+}
+
+/**
+ * Resume webhook retries left over from a previous run. Anything that came due while the
+ * app was closed fires now; anything still in the future gets its timer re-armed. Called
+ * once at boot — this is what makes the retry queue durable rather than best-effort.
+ */
+function resumePendingWebhooks() {
+  const Bus = (typeof KhaytWebhookBus !== 'undefined') ? KhaytWebhookBus : null;
+  if (!Bus) return;
+  const wh = settings.webhooks || {};
+  const pending = Array.isArray(wh.pending) ? wh.pending : [];
+  if (!pending.length) return;
+  const subById = new Map((wh.subscriptions || []).map(s => [s.id, s]));
+  const fire = (p) => {
+    const sub = subById.get(p.subscriptionId);
+    if (!sub || sub.enabled === false) { clearPendingWebhook(p.id); return; }
+    deliverWebhook(sub, { id: p.id, event: p.event, version: 1, timestamp: new Date().toISOString(), payload: p.payload || {} }, p.attempt || 1);
+  };
+  for (const p of Bus.duePending(pending)) fire(p);
+  for (const p of Bus.futurePending(pending)) setTimeout(() => fire(p), Math.min(p.inMs, 2_147_000_000));
 }
 
 async function fireWebhook(eventName, payload) {
@@ -1829,6 +1870,7 @@ function trackShipment(trackingNumber, carrier) {
     startLanServer,
     updateWebhookUrlDisplay,
     webhookSubscriptions,
+    resumePendingWebhooks,
     resendWebhookDelivery,
     disableWebhookSubscription,
     loadLanQr,

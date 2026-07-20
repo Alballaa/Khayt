@@ -561,6 +561,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // LAN intake form submission → add to waiting list and refresh
+  // Resume any webhook retries left pending by a previous run (durable retry queue).
+  try { if (typeof resumePendingWebhooks === 'function') resumePendingWebhooks(); } catch (e) { console.error('resumePendingWebhooks:', e); }
+
   window.hubAPI?.onLanIntakeSubmitted?.((entry) => {
     if (!entry?.id) return;
     if (waitingList.some(w => w.id === entry.id)) {

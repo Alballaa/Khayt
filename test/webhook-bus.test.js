@@ -94,3 +94,60 @@ test('deliveriesFor filters by subscription, newest first', () => {
   assert.deepEqual(B.deliveriesFor(log, 's1').map(d => d.id), [3, 1]);
   assert.deepEqual(B.deliveriesFor(log, 'nope'), []);
 });
+
+/* ── Durable retry queue ─────────────────────────────────────────── */
+
+test('schedulePending queues a retry with an absolute due time', () => {
+  const now = Date.parse('2026-07-20T00:00:00Z');
+  const q = B.schedulePending([], { id: 'd1', subscriptionId: 's1', event: 'order_shipped', payload: { a: 1 }, attempt: 2 }, 30_000, now);
+  assert.equal(q.length, 1);
+  assert.equal(q[0].attempt, 2);
+  assert.equal(q[0].nextAttemptAt, '2026-07-20T00:00:30.000Z');
+  assert.deepEqual(q[0].payload, { a: 1 });
+});
+
+test('schedulePending replaces an existing entry for the same delivery (no duplicates)', () => {
+  const now = Date.parse('2026-07-20T00:00:00Z');
+  let q = B.schedulePending([], { id: 'd1', subscriptionId: 's1', event: 'e', attempt: 1 }, 0, now);
+  q = B.schedulePending(q, { id: 'd1', subscriptionId: 's1', event: 'e', attempt: 2 }, 30_000, now);
+  assert.equal(q.length, 1, 'still one entry');
+  assert.equal(q[0].attempt, 2, 'updated to the newer attempt');
+});
+
+test('duePending returns retries that came due — including while the app was closed', () => {
+  const now = Date.parse('2026-07-20T12:00:00Z');
+  const pending = [
+    { id: 'past', subscriptionId: 's1', nextAttemptAt: '2026-07-20T11:00:00Z' },   // due while closed
+    { id: 'now', subscriptionId: 's1', nextAttemptAt: '2026-07-20T12:00:00Z' },
+    { id: 'future', subscriptionId: 's1', nextAttemptAt: '2026-07-20T13:00:00Z' },
+    { id: 'bad', subscriptionId: 's1', nextAttemptAt: 'not-a-date' },              // malformed → retry now
+    { id: 'orphan', nextAttemptAt: '2026-07-20T11:00:00Z' },                        // no subscription → skip
+  ];
+  assert.deepEqual(B.duePending(pending, now).map(p => p.id).sort(), ['bad', 'now', 'past']);
+});
+
+test('futurePending reports the remaining delay so timers can be re-armed', () => {
+  const now = Date.parse('2026-07-20T12:00:00Z');
+  const out = B.futurePending([
+    { id: 'a', subscriptionId: 's', nextAttemptAt: '2026-07-20T12:00:30Z' },
+    { id: 'b', subscriptionId: 's', nextAttemptAt: '2026-07-20T11:00:00Z' },
+  ], now);
+  assert.equal(out.length, 1);
+  assert.equal(out[0].id, 'a');
+  assert.equal(out[0].inMs, 30_000);
+});
+
+test('removePending drops a delivery once it succeeds or gives up', () => {
+  const q = [{ id: 'a' }, { id: 'b' }];
+  assert.deepEqual(B.removePending(q, 'a').map(p => p.id), ['b']);
+  assert.deepEqual(B.removePending(null, 'a'), []);
+});
+
+test('pending queue is bounded so a broken endpoint cannot grow it forever', () => {
+  let q = [];
+  for (let i = 0; i < B.PENDING_CAP + 50; i++) {
+    q = B.schedulePending(q, { id: 'd' + i, subscriptionId: 's', event: 'e', attempt: 1 }, 0, 0);
+  }
+  assert.equal(q.length, B.PENDING_CAP);
+  assert.equal(q[q.length - 1].id, 'd' + (B.PENDING_CAP + 49), 'newest kept');
+});

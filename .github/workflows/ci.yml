@@ -78,3 +78,6 @@ jobs:
 
       - name: E2E smoke (telemetry consent gate)
         run: xvfb-run -a npm run test:e2e:telemetry
+
+      - name: E2E smoke (durable webhook retry)
+        run: xvfb-run -a npm run test:e2e:webhookretry
