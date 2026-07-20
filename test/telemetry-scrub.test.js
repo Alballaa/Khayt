@@ -132,3 +132,48 @@ test('dedupeCrashes collapses a crash storm of identical stacks', () => {
   assert.equal(out.filter(e => e.kind === 'crash').length, 2, 'identical stacks collapsed');
   assert.equal(out.filter(e => e.kind === 'usage').length, 2, 'usage counters untouched');
 });
+
+/* ── Secrets in free text (crash messages are strings, not keyed objects) ────── */
+
+test('SECRET LEAK: a credential quoted inside a crash message is never transmitted', () => {
+  // Each of these is a message an actual Khayt code path could throw. The key-based
+  // masking in scrubValue() never sees them — a message is a string, not an object.
+  const cases = [
+    ['OctoPrint URL',   'GET http://192.168.1.50/api/job?apikey=A1B2C3D4E5F6G7H8I9J0KLMN', /A1B2C3D4/],
+    ['Khayt API token', 'Unauthorized for Bearer khayt_9xKq2mPvR7tLwZ3nB8cF4hJ6dY1sA5gE', /khayt_9xKq/],
+    ['webhook HMAC',    'hmac verify failed (secret=whsec_7f3a9c2e8b1d4056a2c9e7f1)',     /whsec_7f3a/],
+    ['ZATCA cert pass', 'openssl error: -passin pass:Sh0p!Secret2026 rejected',            /Sh0p!Secret/],
+    ['X-Api-Key header','fetch failed, headers: X-Api-Key: QWERTYUIOPASDFGH1234',          /QWERTYUIOP/],
+    ['ZATCA csid',      'csid=ZATCA-CSID-abcdef123456 invalid',                            /CSID-abcdef/],
+    ['LAN PIN',         'startLanServer rejected pin=884213',                              /884213/],
+  ];
+  for (const [label, message, forbidden] of cases) {
+    const out = S.buildCrashReport({ type: 'uncaughtException', message });
+    assert.ok(!forbidden.test(out.message), `CREDENTIAL LEAKED (${label}): ${out.message}`);
+    assert.ok(out.message.includes(S.SECRET_MASK) || out.message.includes('<path>'),
+      `${label} should be masked, got: ${out.message}`);
+  }
+});
+
+test('a secret in a stack frame is masked too', () => {
+  const stack = 'Error: auth\n    at post (/app/net.js:1:1) token=abcdef1234567890';
+  assert.ok(!/abcdef1234567890/.test(S.scrubStack(stack)));
+});
+
+test('scrubSecrets keeps the key so the frame stays debuggable', () => {
+  // Knowing WHICH credential failed is useful; knowing its value is not.
+  const out = S.scrubSecrets('auth failed: api_key=SUPERSECRETVALUE123');
+  assert.ok(out.includes('api_key'), 'key retained');
+  assert.ok(!out.includes('SUPERSECRETVALUE123'), 'value masked');
+});
+
+test('a document filename cannot leak a customer name, but module names survive', () => {
+  // A filename routinely carries a person's name — "mohammed-alqahtani-invoice.pdf".
+  const doc = S.scrubText('ENOENT: open /Users/t/Khayt/exports/mohammed-alqahtani-invoice.pdf');
+  assert.ok(!/mohammed|alqahtani/i.test(doc), `customer name leaked via filename: ${doc}`);
+  assert.ok(doc.includes('.pdf'), 'extension kept — still says what kind of file it was');
+  // Stack frames must stay readable, or crash reports are worthless.
+  const frame = S.scrubText('at saveAll (/Users/t/Khayt/renderer/store.js:412:9)');
+  assert.ok(frame.includes('store.js:412'), `module/line lost from stack frame: ${frame}`);
+  assert.ok(!frame.includes('/Users/t'), 'home dir still stripped');
+});
