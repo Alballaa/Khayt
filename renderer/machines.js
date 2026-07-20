@@ -419,13 +419,13 @@ function openMachineEditor(machineId = null) {
               const note = p.connection
                 ? `${escapeHtml(p.host)}${p.port ? ':' + p.port : ''}`
                 : escapeHtml(t('mach.scan_no_adapter'));
-              const warn = (p.linkMode === 'wan')
-                ? `<div style="font-size:10.5px;color:var(--warn,#b8860b);margin-top:2px;">${escapeHtml(t('mach.scan_cloud_mode'))}</div>`
-                : '';
+              // NOTE: no cloud-mode warning. link_mode=wan means the printer is bound to
+              // its vendor cloud, but that does NOT stop local control — the Snapmaker U1
+              // serves a full Moonraker API on the LAN while in wan mode (verified).
               return `<div class="card" style="padding:7px 9px;margin-bottom:5px;display:flex;align-items:center;gap:9px;">
                 <div style="flex:1;min-width:0;">
                   <div style="font-size:12.5px;font-weight:600;">${escapeHtml(p.name)}</div>
-                  <div style="font-size:11px;color:var(--text-muted);">${note}</div>${warn}
+                  <div style="font-size:11px;color:var(--text-muted);">${note}</div>
                 </div>
                 <button class="btn ghost small" type="button" data-scan-pick="${i}">${escapeHtml(t('mach.scan_use'))}</button>
               </div>`;

@@ -1020,7 +1020,6 @@
   "mach.scan_use": "Usar",
   "mach.scan_applied": "Rellenado desde la impresora detectada.",
   "mach.scan_no_adapter": "Detectada, pero Khayt aún no puede conectarse a este modelo",
-  "mach.scan_cloud_mode": "En modo nube — cambia la impresora a modo LAN para ver el estado.",
   "mach.name_ph": "p.ej. Prusa MK4, Bambu X1C",
   "mach.color": "Color",
   "mach.unassigned": "— Sin impresora asignada —",
