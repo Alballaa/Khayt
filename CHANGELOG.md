@@ -4,6 +4,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.19] - 2026-07-20
+
+**Pre-release (beta) — webhook subscriptions.** Send the same shop event to as many places as you like, with automatic retries.
+
+### Added
+
+- **Webhook subscriptions with retries and a delivery log.** Outbound webhooks are no longer one URL per event — you can now point a single event (an order shipped, a payment received) at **several destinations at once**: Slack, a Google Sheet via Zapier, and your own endpoint, all together. Each subscription gets its own signing secret, listens to whichever events you choose, and can be switched off without deleting it. **Failed deliveries retry automatically** with a widening gap (immediately, then 30 seconds, 2 minutes, 10 minutes, an hour), and a destination that replies "gone" is disabled rather than retried forever. Every attempt is written to a **delivery log** so you can see what was sent, what came back, and resend by hand. Your existing webhook setup migrates across automatically — nothing to reconfigure. See docs/KHAYT-3.0-PUBLIC-API-SPEC.md.
+
 ## [3.2.0-beta.18] - 2026-07-20
 
 **Pre-release (beta) — automation API.** Give a script or automation tool scoped access to your shop, without handing over your PIN.

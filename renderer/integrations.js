@@ -142,21 +142,98 @@ async function checkAndSendDigest() {
 /* ============================================================
    Round 12 — Feature 1: Outbound Webhooks
    ============================================================ */
+/**
+ * Fan an event out to every enabled subscription listening for it (PUBLIC-API-SPEC §2).
+ * The POST itself still goes through the hardened main-process handler, so the https-only
+ * / blocked-host / DNS-rebinding / no-redirect / HMAC guarantees are unchanged.
+ *
+ * Retries use the bus's backoff ladder and are scheduled in-process: a retry survives as
+ * long as the app is running. A delivery still pending when the app quits is recorded as
+ * such in the log rather than resumed (the spec's durable main-process queue is a
+ * follow-up); the consumer-side idempotency key makes a manual Resend safe.
+ */
+function webhookSubscriptions() {
+  const wh = settings.webhooks || {};
+  const Bus = (typeof KhaytWebhookBus !== 'undefined') ? KhaytWebhookBus : null;
+  if (!Bus) return [];
+  if (!Array.isArray(wh.subscriptions)) {
+    // Lazily migrate the legacy one-URL-per-event config on first use.
+    const migrated = Bus.migrateLegacyWebhooks(wh);
+    settings.webhooks = { ...wh, subscriptions: migrated };
+    if (migrated.length) saveAll();
+    return migrated;
+  }
+  return wh.subscriptions;
+}
+
+function recordWebhookDelivery(entry) {
+  const Bus = (typeof KhaytWebhookBus !== 'undefined') ? KhaytWebhookBus : null;
+  if (!Bus) return;
+  const wh = settings.webhooks || {};
+  settings.webhooks = { ...wh, deliveries: Bus.appendDelivery(wh.deliveries, entry) };
+  saveAll();
+}
+
+function disableWebhookSubscription(subId, reason) {
+  const wh = settings.webhooks || {};
+  settings.webhooks = {
+    ...wh,
+    subscriptions: (wh.subscriptions || []).map(s => s.id === subId ? { ...s, enabled: false, disabledReason: reason } : s),
+  };
+  saveAll();
+  toast(t('webhook.disabled', { reason }) || `Webhook disabled: ${reason}`, 'warning', 5000);
+}
+
+/** Deliver one body to one subscription, retrying per the bus policy. */
+async function deliverWebhook(sub, body, attempt = 1) {
+  const Bus = (typeof KhaytWebhookBus !== 'undefined') ? KhaytWebhookBus : null;
+  if (!Bus) return;
+  let status, error;
+  try {
+    const r = await window.hubAPI?.fireWebhook?.(sub.url, body.event, body, sub.secret || '');
+    status = r && r.status;
+    if (r && r.ok === false) error = r.error || `HTTP ${status || '?'}`;
+  } catch (e) {
+    error = String(e && e.message || e);
+  }
+  const okDelivered = !error;
+  recordWebhookDelivery({
+    id: body.id, subscriptionId: sub.id, event: body.event, at: new Date().toISOString(),
+    status: okDelivered ? 'ok' : (Bus.shouldRetry(status, attempt) ? 'retrying' : 'failed'),
+    httpStatus: status || null, attempts: attempt, error: error || null,
+  });
+  if (okDelivered) return;
+  // A consumer answering 410 Gone is telling us to stop for good.
+  if (Bus.isGone(status)) { disableWebhookSubscription(sub.id, 'gone'); return; }
+  if (Bus.shouldRetry(status, attempt)) {
+    const delay = Bus.backoffDelayMs(attempt + 1);
+    setTimeout(() => { deliverWebhook(sub, body, attempt + 1); }, delay);
+  } else {
+    toast((t('webhook.failed') || 'Webhook failed') + `: ${body.event}`, 'warning', 4000);
+  }
+}
+
 async function fireWebhook(eventName, payload) {
   const wh = settings.webhooks;
   if (!wh?.enabled) return;
-  const url = (wh.events || {})[eventName];
-  if (!url) return;
-  try {
-    const result = await window.hubAPI?.fireWebhook?.(url, eventName, payload, wh.secret || '');
-    if (result && result.ok === false) {
-      console.warn(`fireWebhook(${eventName}):`, result.error || 'failed');
-      toast((t('webhook.failed') || 'Webhook failed') + `: ${eventName}`, 'warning', 4000);
-    }
-  } catch (e) {
-    console.warn(`fireWebhook(${eventName}):`, e);
-    toast((t('webhook.failed') || 'Webhook failed') + `: ${eventName}`, 'warning', 4000);
-  }
+  const Bus = (typeof KhaytWebhookBus !== 'undefined') ? KhaytWebhookBus : null;
+  if (!Bus) return;
+  const subs = Bus.matchSubscriptions(webhookSubscriptions(), eventName);
+  if (!subs.length) return;   // no listener → no-op, exactly as before
+  const body = Bus.buildDeliveryBody(eventName, payload);
+  for (const sub of subs) deliverWebhook(sub, { ...body, id: body.id + '_' + sub.id });
+}
+
+/** Manual resend from the delivery log. */
+function resendWebhookDelivery(deliveryId) {
+  const wh = settings.webhooks || {};
+  const rec = (wh.deliveries || []).find(d => d.id === deliveryId);
+  const sub = (wh.subscriptions || []).find(s => s.id === (rec && rec.subscriptionId));
+  if (!rec || !sub) return;
+  const Bus = (typeof KhaytWebhookBus !== 'undefined') ? KhaytWebhookBus : null;
+  if (!Bus) return;
+  deliverWebhook(sub, Bus.buildDeliveryBody(rec.event, rec.payload || {}, rec.id + '_resend'));
+  toast(t('webhook.resent') || 'Resent', 'info');
 }
 
 
@@ -1751,6 +1828,9 @@ function trackShipment(trackingNumber, carrier) {
     openBnplModal,
     startLanServer,
     updateWebhookUrlDisplay,
+    webhookSubscriptions,
+    resendWebhookDelivery,
+    disableWebhookSubscription,
     loadLanQr,
     refreshLanIntakePinLive,
     reconcileLanServerStatus,
