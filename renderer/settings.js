@@ -1851,7 +1851,7 @@ function renderLanApiSettings() {
         <label data-i18n="lan.webhook_token">Printer Webhook Token</label>
         <div style="display:flex;gap:6px;">
           <input type="password" id="lan_wh_token" value="${escapeHtml(secretInputValue(lan.webhookToken))}" placeholder="${escapeHtml(secretFieldPlaceholder(lan.webhookToken) || 'e.g. secret123')}" style="flex:1;" autocomplete="off">
-          <button class="btn ghost small" id="btnGenWebhookToken" title="Generate random token">🎲</button>
+          <button class="btn ghost small" id="btnGenWebhookToken" title="Generate random token" aria-label="Generate random token"><span aria-hidden="true">🎲</span></button>
         </div>
         <div style="font-size:11px;color:var(--text-muted);margin-top:4px;" data-i18n="lan.webhook_token_hint">Used to authenticate printer webhook calls</div>
       </div>

@@ -69,8 +69,8 @@ function renderMachines() {
         ${downtimeBadge ? `<span class="pro-only">${downtimeBadge}</span>` : ''}
         ${hrsLine}
         ${(m.printerApi && m.printerApi.type && m.printerApi.type !== 'none') ? `<button class="btn small ghost" data-act="slice-print" data-id="${m.id}" title="${escapeHtml(t('slicer.send_title') || 'Slice & print')}" style="font-size:11px;">${_mIco('printer', '🖨')}</button>` : ''}
-        <button class="btn small pro-only" data-act="maint-log" data-id="${m.id}" title="${escapeHtml(t('maint.btn'))}">🔧</button>
-        <button class="btn small ghost pro-only" data-act="log-nozzle-change" data-id="${m.id}" title="${escapeHtml(t('mach.log_nozzle'))}" style="font-size:11px;">🔩</button>
+        <button class="btn small pro-only" data-act="maint-log" data-id="${m.id}" title="${escapeHtml(t('maint.btn'))}" aria-label="${escapeHtml(t('maint.btn'))}"><span aria-hidden="true">🔧</span></button>
+        <button class="btn small ghost pro-only" data-act="log-nozzle-change" data-id="${m.id}" title="${escapeHtml(t('mach.log_nozzle'))}" style="font-size:11px;" aria-label="${escapeHtml(t('mach.log_nozzle'))}"><span aria-hidden="true">🔩</span></button>
         <button class="btn small" data-act="edit-mach" data-id="${m.id}">${escapeHtml(t('common.edit'))}</button>
         <button class="btn danger small" data-act="del-mach" data-id="${m.id}">${escapeHtml(t('common.delete'))}</button>
         ${nozzleHtml}
@@ -156,7 +156,7 @@ function openMachineEditor(machineId = null) {
       <div id="machColorPicker" style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;">
         ${MACHINE_COLORS.map(c => `
           <label style="cursor:pointer;">
-            <input type="radio" name="machColor" value="${c}" ${draft.color === c ? 'checked' : ''} style="display:none;">
+            <input type="radio" name="machColor" value="${c}" ${draft.color === c ? 'checked' : ''} class="visually-hidden-input" aria-label="${escapeHtml(t('mach.color') || 'Colour')} ${escapeHtml(c)}">
             <span class="mach-color-swatch" style="background:${c};outline:${draft.color === c ? '3px solid #fff' : '3px solid transparent'};"></span>
           </label>`).join('')}
       </div>

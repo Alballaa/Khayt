@@ -165,9 +165,9 @@ function renderCalendarView() {
 
   el.innerHTML = `<div class="card" style="padding:12px;">
     <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
-      <button class="btn small ghost" id="calPrev">‹</button>
+      <button class="btn small ghost dir-glyph" id="calPrev" aria-label="${escapeHtml(t('cal.prev_month'))}"><span aria-hidden="true">‹</span></button>
       <h3 style="margin:0; flex:1; text-align:center; font-size:14px;">${escapeHtml(monthStr)}</h3>
-      <button class="btn small ghost" id="calNext">›</button>
+      <button class="btn small ghost dir-glyph" id="calNext" aria-label="${escapeHtml(t('cal.next_month'))}"><span aria-hidden="true">›</span></button>
     </div>
     <div class="cal-grid">
       ${headerHtml}

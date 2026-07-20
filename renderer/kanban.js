@@ -442,7 +442,11 @@ function renderKanban() {
     if (!collapseBtn) {
       collapseBtn = document.createElement('button');
       collapseBtn.className = 'kan-col-collapse-btn btn ghost small';
-      collapseBtn.title = 'Collapse / expand column';
+      // Hardcoded English previously, and the glyph was the accessible name. Both fixed:
+      // a translated label, with aria-expanded carrying the state.
+      const collapseLabel = t('queue.collapse_column') || 'Collapse / expand column';
+      collapseBtn.title = collapseLabel;
+      collapseBtn.setAttribute('aria-label', collapseLabel);
       collapseBtn.style.cssText = 'padding:1px 5px;font-size:11px;margin-inline-start:4px;';
       col.querySelector('h3')?.appendChild(collapseBtn);
       collapseBtn.addEventListener('click', (e) => {
@@ -454,7 +458,9 @@ function renderKanban() {
         renderKanban();
       });
     }
-    collapseBtn.textContent = isCollapsed ? '▶' : '▼';
+    // ▶ is horizontal so it must mirror in RTL; ▼ is vertical and must not.
+    collapseBtn.innerHTML = `<span aria-hidden="true"${isCollapsed ? ' class="dir-glyph-inline"' : ''}>${isCollapsed ? '▶' : '▼'}</span>`;
+    collapseBtn.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
   });
 
   Object.entries(cols).forEach(([status, items]) => {
@@ -521,29 +527,32 @@ function renderKanban() {
       let actions = '';
       // Enthusiast (hobbyist) mode = no commerce: hide customer-notify, invoice, payment and BNPL actions.
       const biz = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.showsBusiness(settings.mode) : settings.mode !== 'enthusiast';
-      const notifyBtn = biz ? `<button class="btn small ghost" data-act="wa-quick" data-id="${log.id}" title="${escapeHtml(t('queue.notify'))}">📲</button>` : '';
+      const notifyBtn = biz ? `<button class="btn small ghost" data-act="wa-quick" data-id="${log.id}" title="${escapeHtml(t('queue.notify'))}" aria-label="${escapeHtml(t('queue.notify'))}"><span aria-hidden="true">📲</span></button>` : '';
       const woBtn = `<button class="btn small ghost" data-act="wo-kanban" data-id="${log.id}" title="${escapeHtml(t('wo.title'))}">WO</button>`;
       // Tracking link button — shown on all active cards that have a client
       const trackBtn = (biz && log.clientId)
-        ? `<button class="btn small ghost" data-act="share-tracking-link" data-id="${log.id}" title="${escapeHtml(t('ord.status_page') || 'Share tracking link')}">🔗</button>`
+        ? `<button class="btn small ghost" data-act="share-tracking-link" data-id="${log.id}" title="${escapeHtml(t('ord.status_page') || 'Share tracking link')}" aria-label="${escapeHtml(t('ord.status_page') || 'Share tracking link')}"><span aria-hidden="true">🔗</span></button>`
         : '';
       const labelBtn = `<button class="btn small ghost" data-act="print-label" data-id="${log.id}" title="${escapeHtml(t('ord.label_btn') || 'Print Label')}" style="padding:2px 6px;font-size:12px;">${_kIco('tag', '🏷')}</button>`;
       // BOM assemblies get an Assembly action (per-part QC + the assembled gate) — it is
       // how such an order becomes completable, so surface it during QC and at completion.
       const isAsm = Array.isArray(log.components) && log.components.length > 0;
-      const asmBtn = isAsm ? `<button class="btn small ghost" data-act="assembly" data-id="${log.id}" title="${escapeHtml(t('asm.title') || 'Assembly')}">🧩</button>` : '';
+      const asmBtn = isAsm ? `<button class="btn small ghost" data-act="assembly" data-id="${log.id}" title="${escapeHtml(t('asm.title') || 'Assembly')}" aria-label="${escapeHtml(t('asm.title') || 'Assembly')}"><span aria-hidden="true">🧩</span></button>` : '';
       // Slice & print: order on a machine with a printer API + an attached model/G-code.
       const printMachine = log.machineId ? machines.find(m => m.id === log.machineId) : null;
       const hasPrintFile = (log.attachedFiles || []).some(f => /\.(stl|3mf|obj|step|stp|gcode|gco|g|nc)$/i.test(f.filename || f.originalName || ''));
       const sliceBtn = (printMachine && printMachine.printerApi && printMachine.printerApi.type && printMachine.printerApi.type !== 'none' && hasPrintFile)
         ? `<button class="btn small ghost" data-act="kanban-slice-print" data-id="${log.id}" title="${escapeHtml(t('slicer.send_title') || 'Slice & print')}">${_kIco('printer', '🖨')}</button>`
         : '';
+      // Manual ordering is available in EVERY column, not just pending: dragging works
+      // everywhere, so the keyboard-accessible equivalent must too. Without this, the
+      // other five columns could only be reordered with a mouse.
+      const qIdx = sorted.indexOf(log);
+      const queueControls = `<span class="queue-pos-ctrl">
+        ${qIdx > 0 ? `<button data-act="q-up" data-id="${log.id}" title="${escapeHtml(t('queue.move_up'))}" aria-label="${escapeHtml(t('queue.move_up'))}"><span aria-hidden="true">▲</span></button>` : ''}
+        ${qIdx < sorted.length - 1 ? `<button data-act="q-down" data-id="${log.id}" title="${escapeHtml(t('queue.move_down'))}" aria-label="${escapeHtml(t('queue.move_down'))}"><span aria-hidden="true">▼</span></button>` : ''}
+      </span>`;
       if (status === 'pending') {
-        const qIdx = sorted.indexOf(log);
-        const queueControls = `<span class="queue-pos-ctrl">
-          ${qIdx > 0 ? `<button data-act="q-up" data-id="${log.id}" title="${escapeHtml(t('queue.move_up'))}">▲</button>` : ''}
-          ${qIdx < sorted.length - 1 ? `<button data-act="q-down" data-id="${log.id}" title="${escapeHtml(t('queue.move_down'))}">▼</button>` : ''}
-        </span>`;
         // Feature 1: Per-machine ETA — for multi-machine orders use MAX across all machines
         let hrsBefore = 0;
         const logPartMids = [...new Set((log.parts || []).map(p => p.machineId).filter(Boolean))];
@@ -572,24 +581,24 @@ function renderKanban() {
       if (status === 'on_hold') {
         const holdReason = log.holdReason ? `<div style="font-size:11px; color:var(--warning); margin-top:2px;">${_kIcoL('pause', '⏸', 12)}${escapeHtml(log.holdReason)}</div>` : '';
         const failPhotoBtn = `<button class="btn small ghost" data-act="capture-failure-photo" data-id="${log.id}" title="Capture failure photo">${_kIco('camera', '📷')}</button>`;
-        actions = `<button class="btn small primary" data-act="status" data-id="${log.id}" data-to="pending">${escapeHtml(t('ord.unhold_btn'))}</button>${woBtn}${notifyBtn}${labelBtn}${failPhotoBtn}`;
+        actions = `${queueControls}<button class="btn small primary" data-act="status" data-id="${log.id}" data-to="pending">${escapeHtml(t('ord.unhold_btn'))}</button>${woBtn}${notifyBtn}${labelBtn}${failPhotoBtn}`;
       }
       if (status === 'printing') {
         const wasteBtn = `<button class="btn ghost small" data-act="log-waste-card" data-id="${log.id}" title="${escapeHtml(t('waste.log_from_card'))}">${_kIco('trash', '🗑')}</button>`;
-        actions = `<button class="btn small" data-act="status" data-id="${log.id}" data-to="post">${escapeHtml(t('queue.to_post'))}</button>${woBtn}${notifyBtn}${trackBtn}${wasteBtn}${labelBtn}`;
+        actions = `${queueControls}<button class="btn small" data-act="status" data-id="${log.id}" data-to="post">${escapeHtml(t('queue.to_post'))}</button>${woBtn}${notifyBtn}${trackBtn}${wasteBtn}${labelBtn}`;
       }
       // Feature 2 (this batch): Post column → QC column instead of directly completing
       if (status === 'post') {
         const wasteBtn = `<button class="btn ghost small" data-act="log-waste-card" data-id="${log.id}" title="${escapeHtml(t('waste.log_from_card'))}">${_kIco('trash', '🗑')}</button>`;
-        actions = `<button class="btn small primary" data-act="status" data-id="${log.id}" data-to="qc">${_kIcoL('clipboard', '📋')}${escapeHtml(t('ord.qc'))}</button>${woBtn}${notifyBtn}${trackBtn}${wasteBtn}${labelBtn}`;
+        actions = `${queueControls}<button class="btn small primary" data-act="status" data-id="${log.id}" data-to="qc">${_kIcoL('clipboard', '📋')}${escapeHtml(t('ord.qc'))}</button>${woBtn}${notifyBtn}${trackBtn}${wasteBtn}${labelBtn}`;
       }
       // Feature 2 (this batch): QC column — pass or fail buttons
       if (status === 'qc') {
-        actions = `${asmBtn}<button class="btn small success" data-act="qc-pass" data-id="${log.id}">${_kIcoL('check', '✅')}${escapeHtml(t('ord.qc_pass'))}</button>
+        actions = `${queueControls}${asmBtn}<button class="btn small success" data-act="qc-pass" data-id="${log.id}">${_kIcoL('check', '✅')}${escapeHtml(t('ord.qc_pass'))}</button>
           <button class="btn small danger" data-act="qc-fail" data-id="${log.id}" style="margin-inline-start:4px;">${_kIcoL('cross', '❌')}${escapeHtml(t('ord.qc_fail'))}</button>${woBtn}${notifyBtn}${trackBtn}${labelBtn}`;
       }
       const bnplBtn = (biz && (settings.bnpl?.tabby?.enabled || settings.bnpl?.tamara?.enabled || settings.bnpl?.stripe?.enabled))
-        ? `<button class="btn small ghost" data-act="bnpl-pay" data-id="${log.id}" title="${escapeHtml(t('bnpl.payment_modal'))}">💳</button>`
+        ? `<button class="btn small ghost" data-act="bnpl-pay" data-id="${log.id}" title="${escapeHtml(t('bnpl.payment_modal'))}" aria-label="${escapeHtml(t('bnpl.payment_modal'))}"><span aria-hidden="true">💳</span></button>`
         : '';
       // Shipping is orthogonal to print status — a "Ship" action off the completed/delivered
       // state (label reflects current shipping status once shipped).

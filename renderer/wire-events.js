@@ -926,25 +926,29 @@ function wireEvents() {
         renderKanban();
       }
     }
-    if (qUp) {
-      // Swap queuePos with the previous pending order
-      const pending = printLog.filter(o => o.status === 'pending')
-        .sort((a, b) => (a.queuePos || 9999) - (b.queuePos || 9999));
-      const idx = pending.findIndex(o => o.id === qUp.dataset.id);
-      if (idx > 0) {
-        const t1 = pending[idx].queuePos; pending[idx].queuePos = pending[idx - 1].queuePos; pending[idx - 1].queuePos = t1;
-        saveAll(); renderKanban();
-      }
-    }
-    if (qDn) {
-      const pending = printLog.filter(o => o.status === 'pending')
-        .sort((a, b) => (a.queuePos || 9999) - (b.queuePos || 9999));
-      const idx = pending.findIndex(o => o.id === qDn.dataset.id);
-      if (idx >= 0 && idx < pending.length - 1) {
-        const t2 = pending[idx].queuePos; pending[idx].queuePos = pending[idx + 1].queuePos; pending[idx + 1].queuePos = t2;
-        saveAll(); renderKanban();
-      }
-    }
+    // Move a card within ITS OWN column. This used to hardcode status === 'pending', so
+    // the up/down buttons were dead everywhere else — and dragging (which works in every
+    // column) had no keyboard equivalent there at all.
+    const moveInColumn = (btn, delta) => {
+      const order = printLog.find(o => o.id === btn.dataset.id);
+      if (!order) return;
+      const col = order.status;
+      const inCol = printLog.filter(o => o.status === col)
+        .sort((a, b) => kanbanQueuePos(a, col) - kanbanQueuePos(b, col));
+      const idx = inCol.findIndex(o => o.id === order.id);
+      const target = idx + delta;
+      if (idx < 0 || target < 0 || target >= inCol.length) return;
+      // Assign concrete positions for this column first. Cards that have never been
+      // dragged all share the 9999 sentinel, so swapping two of them would otherwise be
+      // a no-op and the card would appear stuck.
+      inCol.forEach((o, i) => { o.queuePos = i; o.queueCol = col; });
+      const swap = inCol[idx].queuePos;
+      inCol[idx].queuePos = inCol[target].queuePos;
+      inCol[target].queuePos = swap;
+      saveAll(); renderKanban();
+    };
+    if (qUp) { moveInColumn(qUp, -1); }
+    if (qDn) { moveInColumn(qDn, 1); }
     // Batch-2 Feature 13: Change Order
     const changeOrderBtn = e.target.closest('[data-act="change-order"]');
     if (changeOrderBtn) { openChangeOrderModal(changeOrderBtn.dataset.id); return; }

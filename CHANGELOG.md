@@ -4,6 +4,18 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.32] - 2026-07-20
+
+### Fixed
+
+- **Arabic text no longer has its letters prised apart.** Arabic is a connected script, but ~55 letter-spacing rules applied to it and none were ever cancelled — headings, figures and menu labels all rendered with broken letterforms.
+- **Latin names and codes now read correctly in the Arabic interface.** A printer saved as "Prusa CORE One+" displayed as "+Prusa CORE One". Text fields now take their direction from their own content, so models, emails, IBANs and IDs read properly either way.
+- **Arrows point the right way in Arabic.** The calendar's previous/next arrows and the sidebar and column collapse arrows kept pointing left after the layout mirrored, contradicting where they had moved to.
+- **The filament catalogue can be used without a mouse.** Its cards were plain blocks, so a keyboard user could search the catalogue but not choose anything.
+- **Machine colours can be picked with the keyboard**, and the selected one is now announced.
+- **Cards can be reordered in every column, by keyboard.** The up/down buttons existed only in "Pending" — and their handler ignored every other column even when they were shown.
+- Around 30 icon-only buttons across the app announced as their symbol's name ("multiplication sign", "clipboard") instead of what they do. They now carry proper labels, translated.
+
 ## [3.2.0-beta.31] - 2026-07-20
 
 ### Fixed

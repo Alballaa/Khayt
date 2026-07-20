@@ -317,7 +317,7 @@ function openFilamentCatalog() {
         }
 
         grid.innerHTML = filtered.map((f, i) => `
-          <div class="fil-card" data-idx="${i}">
+          <button type="button" class="fil-card" data-idx="${i}" aria-label="${escapeHtml(`${f.brand} ${f.line} ${f.color} ${f.type}`)}">
             <div class="fil-card-swatch" style="background:${safeCssColor(f.hex)};"></div>
             <div class="fil-card-info">
               <span class="fil-card-color">${escapeHtml(f.color)}</span>
@@ -325,7 +325,7 @@ function openFilamentCatalog() {
               <span class="fil-card-line">${escapeHtml(f.line)}</span>
               <span class="fil-card-type">${escapeHtml(f.type)}</span>
             </div>
-          </div>`).join('');
+          </button>`).join('');
 
         grid.querySelectorAll('.fil-card').forEach(card => {
           const f = filtered[+card.dataset.idx];
@@ -1681,7 +1681,7 @@ function renderInventory() {
             <button class="btn small ghost" data-act="inv-dry-log" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.dry_log'))}">${_iIco('thermo', '🌡')}</button>
             <button class="btn small ghost" data-act="inv-spool-history" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.spool_history'))}">${_iIco('clipboard', '📋')}</button>
             <button class="btn small ghost" data-act="inv-print-label" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.print_label') || 'Print label')}">${_iIco('tag', '🏷')}</button>
-            ${(typeof locations !== 'undefined' && locations.length > 0) ? `<button class="btn small ghost" data-act="inv-transfer" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.transfer') || 'Transfer')}">↔</button>` : ''}
+            ${(typeof locations !== 'undefined' && locations.length > 0) ? `<button class="btn small ghost" data-act="inv-transfer" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.transfer') || 'Transfer')}" aria-label="${escapeHtml(t('inv.transfer') || 'Transfer')}"><span aria-hidden="true">↔</span></button>` : ''}
             <button class="btn small ghost" data-act="adj-inv" data-id="${item.id}" style="margin-inline-end:4px;">${escapeHtml(t('inv.adjust'))}</button>
             ${(item.priceHistory && item.priceHistory.length > 0) ? `<button class="btn small ghost" data-act="inv-price-history" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.price_history'))}">${_iIco('trend', '📈')}</button>` : ''}
             <button class="btn small" data-act="edit-inv" data-id="${item.id}" style="margin-inline-end:4px;">${escapeHtml(t('common.edit'))}</button>

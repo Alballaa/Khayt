@@ -340,11 +340,11 @@
     return `
       ${invDryingBadgeHtml(item)}
       ${low ? `<button type="button" class="btn sm" data-act="reorder-inv" data-id="${item.id}" style="color:var(--warn);border-color:var(--warn)">${escapeHtml(t('inv.reorder'))}</button>` : ''}
-      <button type="button" class="btn sm ghost" data-act="inv-test-print" data-id="${item.id}" title="${escapeHtml(t('inv.test_prints'))}">🧪</button>
-      <button type="button" class="btn sm ghost" data-act="inv-dry-log" data-id="${item.id}" title="${escapeHtml(t('inv.dry_log'))}">🌡</button>
-      <button type="button" class="btn sm ghost" data-act="inv-spool-history" data-id="${item.id}" title="${escapeHtml(t('inv.spool_history'))}">📋</button>
+      <button type="button" class="btn sm ghost" data-act="inv-test-print" data-id="${item.id}" title="${escapeHtml(t('inv.test_prints'))}" aria-label="${escapeHtml(t('inv.test_prints'))}"><span aria-hidden="true">🧪</span></button>
+      <button type="button" class="btn sm ghost" data-act="inv-dry-log" data-id="${item.id}" title="${escapeHtml(t('inv.dry_log'))}" aria-label="${escapeHtml(t('inv.dry_log'))}"><span aria-hidden="true">🌡</span></button>
+      <button type="button" class="btn sm ghost" data-act="inv-spool-history" data-id="${item.id}" title="${escapeHtml(t('inv.spool_history'))}" aria-label="${escapeHtml(t('inv.spool_history'))}"><span aria-hidden="true">📋</span></button>
       <button type="button" class="btn sm ghost" data-act="adj-inv" data-id="${item.id}">${escapeHtml(t('inv.adjust'))}</button>
-      ${(item.priceHistory && item.priceHistory.length > 0) ? `<button type="button" class="btn sm ghost" data-act="inv-price-history" data-id="${item.id}" title="${escapeHtml(t('inv.price_history'))}">📈</button>` : ''}
+      ${(item.priceHistory && item.priceHistory.length > 0) ? `<button type="button" class="btn sm ghost" data-act="inv-price-history" data-id="${item.id}" title="${escapeHtml(t('inv.price_history'))}" aria-label="${escapeHtml(t('inv.price_history'))}"><span aria-hidden="true">📈</span></button>` : ''}
       <button type="button" class="btn sm" data-act="edit-inv" data-id="${item.id}">${escapeHtml(t('common.edit'))}</button>
       <button type="button" class="btn sm danger" data-act="del-inv" data-id="${item.id}">${escapeHtml(t('common.delete'))}</button>`;
   }

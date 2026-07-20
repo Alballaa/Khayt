@@ -513,7 +513,7 @@ function renderDashboard() {
     const client = o.clientId ? clientById(o.clientId) : null;
     const hasPhone = !!(client?.phone || '').trim();
     const reminderBtn = (isUnpaid && hasPhone)
-      ? `<button class="btn small ghost" data-act="pay-remind" data-id="${o.id}" title="${escapeHtml(t('pay.remind_btn'))}">💰</button>`
+      ? `<button class="btn small ghost" data-act="pay-remind" data-id="${o.id}" title="${escapeHtml(t('pay.remind_btn'))}" aria-label="${escapeHtml(t('pay.remind_btn'))}"><span aria-hidden="true">💰</span></button>`
       : '';
     return `
     <div class="dash-order-row">
@@ -937,7 +937,7 @@ function renderDashboard() {
             </div>
             <div class="dash-order-meta">
               ${badge}
-              ${client?.phone ? `<button class="btn small ghost" data-act="remind-instalment" data-order-id="${o.id}" data-inst-index="${instIndex}" title="${escapeHtml(t('dash.inst_remind'))}">💬</button>` : ''}
+              ${client?.phone ? `<button class="btn small ghost" data-act="remind-instalment" data-order-id="${o.id}" data-inst-index="${instIndex}" title="${escapeHtml(t('dash.inst_remind'))}" aria-label="${escapeHtml(t('dash.inst_remind'))}"><span aria-hidden="true">💬</span></button>` : ''}
             </div>
           </div>`;
         }).join('')}

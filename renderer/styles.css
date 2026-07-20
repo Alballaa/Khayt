@@ -69,6 +69,32 @@ html, body {
   overflow: hidden;
 }
 
+/* Arabic is a CONNECTED script: letters join into a single ligated word shape. Any
+   letter-spacing prises those joins apart and makes the text look broken — the app has
+   ~55 non-zero letter-spacing declarations (headings, KPI values, uppercase nav labels)
+   and none of them were ever neutralised for Arabic. `normal` is inherited by every
+   descendant, so this one rule covers them all; `!important` because many of those
+   declarations sit on more specific selectors. */
+[lang="ar"], [lang="ar"] * {
+  letter-spacing: normal !important;
+}
+/* Text fields carry data that is often Latin even in an Arabic UI — printer models, IDs,
+   emails, IBANs. `plaintext` is the CSS equivalent of dir="auto": each field takes its
+   direction from its own first strong character, so "Prusa CORE One+" stops rendering as
+   "+Prusa CORE One" (a trailing neutral character was being pulled to the RTL side).
+   There is not a single <bdi> or dir="ltr" anywhere in the renderer; this covers every
+   input at once. */
+[dir="rtl"] input[type="text"],
+[dir="rtl"] input[type="search"],
+[dir="rtl"] input[type="email"],
+[dir="rtl"] input[type="url"],
+[dir="rtl"] input[type="tel"],
+[dir="rtl"] input:not([type]),
+[dir="rtl"] textarea {
+  unicode-bidi: plaintext;
+  text-align: start;
+}
+
 [lang="ar"] {
   font-family: "SF Arabic", "Geeza Pro", "Tajawal", "Cairo", var(--font-sans);
 }
@@ -4785,3 +4811,44 @@ th[data-sort]:hover {
 .conv-pv-col, .mv-col { width: 24px; height: 24px; padding: 0; border: 1px solid var(--border, #333); border-radius: 6px; background: none; cursor: pointer; }
 .conv-pv-col::-webkit-color-swatch, .mv-col::-webkit-color-swatch { border: none; border-radius: 5px; }
 .conv-pv-col::-webkit-color-swatch-wrapper, .mv-col::-webkit-color-swatch-wrapper { padding: 2px; }
+
+/* Directional glyphs (‹ › ▶) are drawn pointing one way in the markup, but flexbox
+   mirrors their CONTAINER in RTL — so "previous" ends up on the right while still
+   showing a left-pointing arrow, contradicting its own position. Mirror the glyph so
+   it agrees with where the button now sits. Vertical glyphs (▼) are never flipped. */
+[dir="rtl"] .dir-glyph > [aria-hidden="true"],
+[dir="rtl"] .dir-glyph-inline {
+  display: inline-block;
+  transform: scaleX(-1);
+}
+
+/* Focusable but invisible. `display:none` (the previous approach for the machine colour
+   radios) removes a control from the tab order AND the accessibility tree, so the whole
+   colour group was unreachable by keyboard and silent to screen readers. */
+.visually-hidden-input {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+/* The swatch is the visible control, so it must show the focus ring on its behalf. */
+.visually-hidden-input:focus-visible + .mach-color-swatch {
+  outline: 3px solid var(--accent, #5bc8d6) !important;
+  outline-offset: 2px;
+}
+/* The filament card is now a <button>: strip the default chrome, keep the focus ring. */
+button.fil-card {
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  background: none;
+  cursor: pointer;
+}
+button.fil-card:focus-visible {
+  outline: 2px solid var(--accent, #5bc8d6);
+  outline-offset: 2px;
+}

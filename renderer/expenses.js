@@ -248,7 +248,7 @@ function renderExpenses() {
           ${e.recurring ? `<span class="rec-badge" style="font-size:10px;">🔁 ${escapeHtml(t('exp.recurring_' + e.recurring))}${e.nextDue ? ' · ' + escapeHtml(e.nextDue) : ''}</span>` : ''}
         </td>
         <td style="white-space:nowrap;">
-          ${e.receiptPath ? `<button class="btn small ghost" data-act="open-receipt" data-path="${escapeHtml(e.receiptPath)}" title="${escapeHtml(t('exp.open_receipt'))}">📎</button>` : ''}
+          ${e.receiptPath ? `<button class="btn small ghost" data-act="open-receipt" data-path="${escapeHtml(e.receiptPath)}" title="${escapeHtml(t('exp.open_receipt'))}" aria-label="${escapeHtml(t('exp.open_receipt'))}"><span aria-hidden="true">📎</span></button>` : ''}
           <button class="btn danger small" data-act="del-exp" data-id="${e.id}">${escapeHtml(t('common.delete'))}</button>
         </td>
       </tr>`).join('');
@@ -372,7 +372,7 @@ function renderAttachedFiles(files) {
       <span class="attached-file-name">${escapeHtml(f.originalName || f.filename)}</span>
       <span class="attached-file-size">${fmtSize}</span>
       <button class="btn small ghost" data-act="open-file" data-fi="${i}" title="${escapeHtml(t('oe.open_file'))}">${escapeHtml(t('oe.open_file'))}</button>
-      <button class="btn danger small" data-act="rm-file" data-fi="${i}" title="${escapeHtml(t('common.delete'))}">×</button>
+      <button class="btn danger small" data-act="rm-file" data-fi="${i}" title="${escapeHtml(t('common.delete'))}" aria-label="${escapeHtml(t('common.delete'))}"><span aria-hidden="true">×</span></button>
     </div>`;
   }).join('');
 }
