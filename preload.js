@@ -141,6 +141,7 @@ contextBridge.exposeInMainWorld('hubAPI', {
   revealStoreFile: ()     => ipcRenderer.invoke('hub:reveal-store-file'),
   clipboardWrite: (text)  => ipcRenderer.invoke('hub:clipboard-write', text),
   saveTextFile: (opts)    => ipcRenderer.invoke('hub:save-text-file', opts),
+  mintApiToken: (opts)    => ipcRenderer.invoke('hub:mint-api-token', opts),
   requestFullWipe: ()     => ipcRenderer.invoke('hub:request-full-wipe'),
   verifyOperatorPin: (opts) => ipcRenderer.invoke('hub:verify-operator-pin', opts),
 

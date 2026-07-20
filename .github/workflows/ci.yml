@@ -69,3 +69,6 @@ jobs:
 
       - name: E2E smoke (assembly tracking)
         run: xvfb-run -a npm run test:e2e:assembly
+
+      - name: E2E smoke (scoped API tokens)
+        run: xvfb-run -a npm run test:e2e:apitokens

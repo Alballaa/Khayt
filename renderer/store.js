@@ -28,6 +28,14 @@
       ['pin', 'intakePin', 'intakeToken', 'calendarToken', 'webhookToken', 'sallaWebhookSecret', 'zidWebhookSecret']
         .forEach(k => mask(s.lanApi, k));
     }
+    // Scoped API tokens: drop the hashes entirely on export (a hash is still a
+    // credential-equivalent for offline cracking; the owner re-mints instead).
+    if (Array.isArray(s.lanApi?.apiTokens)) {
+      s.lanApi.apiTokens = s.lanApi.apiTokens.map(tk => ({
+        id: tk.id, label: tk.label, scopes: tk.scopes, createdAt: tk.createdAt, lastUsedAt: tk.lastUsedAt,
+        hash: STORE_SECRET_MASK,
+      }));
+    }
     // Shipping carrier credentials — mask API keys + webhook secrets per carrier.
     ['smsa', 'aramex', 'spl'].forEach(c => { mask(s.shipping?.[c], 'apiKey'); mask(s.shipping?.[c], 'webhookSecret'); });
     return s;

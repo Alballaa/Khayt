@@ -1057,6 +1057,18 @@ ipcMain.handle('hub:load-store', async (event) => {
   }
 });
 
+// Mint a scoped API token. Crypto + hashing live in the main process; the renderer
+// receives the plaintext ONCE (to show the owner) plus the hash-only record to persist.
+ipcMain.handle('hub:mint-api-token', async (_e, { label, scopes } = {}) => {
+  try {
+    const ApiTokens = require('./lib/api-tokens.js');
+    const { token, record } = ApiTokens.generateToken({ label, scopes });
+    return { ok: true, token, record };
+  } catch (e) {
+    return { ok: false, error: String(e.message || e) };
+  }
+});
+
 ipcMain.handle('hub:save-store', async (event, data) => {
   try {
     const { normalized, errors } = normalizeStoreSnapshot(data);
