@@ -36,6 +36,12 @@
         hash: STORE_SECRET_MASK,
       }));
     }
+    // Per-subscription webhook signing secrets.
+    if (Array.isArray(s.webhooks?.subscriptions)) {
+      s.webhooks.subscriptions = s.webhooks.subscriptions.map(sub => (
+        sub && sub.secret ? { ...sub, secret: STORE_SECRET_MASK } : sub
+      ));
+    }
     // Shipping carrier credentials — mask API keys + webhook secrets per carrier.
     ['smsa', 'aramex', 'spl'].forEach(c => { mask(s.shipping?.[c], 'apiKey'); mask(s.shipping?.[c], 'webhookSecret'); });
     return s;
