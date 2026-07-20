@@ -4,14 +4,14 @@ Khayt publishes **two release channels** on GitHub:
 
 | Channel | Tag example | GitHub | Auto-update |
 |---------|-------------|--------|-------------|
-| **Stable** | `v2.3.3` | [Latest release](https://github.com/khaytapp/Khayt/releases/latest) | Default (beta off) |
-| **Beta** | `v2.4.0-beta.2` | [Pre-releases](https://github.com/khaytapp/Khayt/releases) (filter *Pre-release*) | Opt-in via Settings |
+| **Stable** | `v3.1.0` | [Latest release](https://github.com/khaytapp/Khayt/releases/latest) | Default (beta off) |
+| **Beta** | `v3.2.0-beta.22` | [Pre-releases](https://github.com/khaytapp/Khayt/releases) (filter *Pre-release*) | Opt-in via Settings |
 
 ## What beta includes
 
-**v2.4.0-beta.2** ships Khayt-4 (seven theme shells, previews, Spectrum, Atlas floor map, theme QA) plus the **v2.3.3** opt-in beta updater and a security hardening pass on LAN routes.
+**v3.2.0-beta.22** is the current pre-release of the 3.x feature line: QC / reprint / RMA, shipping & fulfillment, BOM assemblies, privacy (PDPL) tooling, the scoped-token public API with a webhook event bus, opt-in telemetry, and per-printer cameras.
 
-Shop data format is unchanged from stable **v2.3.3** — backup/restore works between channels.
+Shop data format is backward compatible with stable **v3.1.0** — backup/restore works between channels. New 3.2 fields are additive and absent-safe.
 
 ## Download beta
 
@@ -34,10 +34,12 @@ Stored as `settings.betaUpdates`; synced on boot and save.
 
 ```bash
 npm run check
-npm run test:e2e:themes   # Khayt-4 theme shells
+npm run test:e2e:themes   # theme shells
+# plus the feature smokes: test:e2e:qc, :shipping, :bom, :privacy, :assembly,
+#                          :apitokens, :webhooks, :webhookretry, :telemetry, :printers
 # Move CHANGELOG → ## [X.Y.Z-beta.N]
 npm run version:beta
-git tag v2.4.0-beta.N && git push origin <branch> --follow-tags
+git tag v3.2.0-beta.N && git push upstream v3.2.0-beta.N   # release CI runs on KhaytApp/Khayt
 ```
 
 CI treats `-(beta|rc|alpha)` tags as GitHub **pre-releases**.
