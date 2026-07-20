@@ -4,6 +4,18 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.33] - 2026-07-20
+
+### Fixed
+
+- **Attaching a customer's model file could report success without attaching anything.** Files on a NAS, an external drive or a USB stick were rejected for security reasons, but the confirmation appeared anyway. The real reason is now shown.
+- **Deleting a file said "deleted" even when it wasn't.** A file locked by another program stayed on disk while disappearing from the list — which matters, because customers are told their files can be deleted on request.
+- **Invoice emails reported success when sending had failed.** An expired mail-provider key silently fell back to opening your mail app — with no invoice attached — and still said "sent". The real error is now shown, and the fallback no longer claims the email went out.
+- **Invoices could quietly never reach your accounting system.** If the connection failed at the moment an order was marked paid, nothing was reported and it was never retried. Failures are now shown and retried the next time Khayt starts.
+- **Printer tiles could show stale information as if it were live** — a finished printer could keep reading "Printing 47%" indefinitely if updates stopped. Tiles now say how long it has been since the last update.
+- **Batch invoice export claimed every invoice succeeded.** If one failed you were told all of them exported. It now reports how many succeeded and which failed.
+- A failed photo save no longer leaves an order pointing at a photo that does not exist.
+
 ## [3.2.0-beta.32] - 2026-07-20
 
 ### Fixed

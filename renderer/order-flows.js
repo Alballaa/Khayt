@@ -1579,7 +1579,12 @@ function openOrderEditor(orderId) {
             btn.addEventListener('click', async () => {
               if (!window.hubAPI?.deleteVaultFile) return;
               try {
-                await window.hubAPI.deleteVaultFile(btn.dataset.path);
+                // Returns false when the unlink actually failed (locked file, permissions).
+                const gone = await window.hubAPI.deleteVaultFile(btn.dataset.path);
+                if (gone === false) {
+                  toast('⚠ ' + (t('ord.vault_delete_failed') || 'Could not delete that file — it may be open in another program'), 'error', 6000);
+                  return;
+                }
                 refreshVaultFiles();
               } catch (e) {
                 toast(t('common.error') + ': ' + (e?.message || 'delete failed'), 'error');
@@ -1595,10 +1600,21 @@ function openOrderEditor(orderId) {
           try {
             const srcPath = await window.hubAPI.pickFile({ filters: [{ name: '3D Files', extensions: ['stl','3mf','obj','step','stp','gcode','zip'] }] });
             if (!srcPath) return;
-            await window.hubAPI.copyFileToVault(srcPath, order.id);
+            // copyFileToVault RETURNS { ok:false, error } when the source is outside the
+            // allowed directories — it does not throw. Ignoring that reported success for
+            // a file that was never attached, which is routine for this audience: models
+            // on a NAS, an external drive, or a customer's USB stick.
+            const res = await window.hubAPI.copyFileToVault(srcPath, order.id);
+            if (!res || res.ok === false) {
+              toast('⚠ ' + (res && res.error ? res.error : (t('ord.vault_add_failed') || 'Could not attach that file')), 'error', 6000);
+              return;
+            }
             refreshVaultFiles();
             toast(`📁 ${escapeHtml(t('ord.vault_files'))}`, 'success');
-          } catch (e) { console.error('vault add error', e); }
+          } catch (e) {
+            console.error('vault add error', e);
+            toast('⚠ ' + (t('ord.vault_add_failed') || 'Could not attach that file'), 'error', 6000);
+          }
         });
       }
 
@@ -2889,8 +2905,12 @@ async function captureFailurePhoto(orderId) {
         try {
           await window.hubAPI.saveOrderPhoto(orderId, 0, dataUrl);
           order.failurePhotoPath = filename;
-        } catch(e) {
-          order.failurePhotoPath = filename;
+        } catch (e) {
+          // The catch used to set the SAME field as success, so a failed save left the
+          // order permanently pointing at a photo that does not exist.
+          console.error('saveOrderPhoto failed:', e);
+          toast('⚠ ' + (t('ord.photo_save_failed') || 'Could not save that photo'), 'error', 6000);
+          return;
         }
       } else {
         order.failurePhotoPath = filename;

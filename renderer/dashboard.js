@@ -1232,9 +1232,21 @@ function renderMaterialUsageChart() {
       const dot = safeCssColor(m.color);
       const s = cache[m.id];
       let body;
+      // Freshness. main.js stamps lastUpdated on every poll, but nothing read it — so if
+      // polling stopped (machine sleep/resume, stop-printer-polling, a wedged interval)
+      // the last sample persisted and a tile kept reading "Printing · 47%" in green
+      // forever. An owner glancing at the dashboard to see whether a bed is free got a
+      // confident, wrong answer. Three missed polls ≈ 90s.
+      const STALE_MS = 90_000;
+      const age = (s && s.lastUpdated) ? Date.now() - s.lastUpdated : null;
+      const isStale = age !== null && age > STALE_MS;
       if (!s || s.error) {
         const msg = s && s.error ? escapeHtml(s.error) : escapeHtml(t('dash.printer_offline'));
         body = `<div class="dash-printer-state" style="color:var(--text-muted);">⚠ ${msg}</div>`;
+      } else if (isStale) {
+        const mins = Math.round(age / 60000);
+        body = `<div class="dash-printer-state dash-printer-stale" style="color:var(--text-muted);">⚠ ${escapeHtml(
+          t('dash.printer_stale', { mins: String(mins) }) || `No update for ${mins} min`)}</div>`;
       } else {
         const st = String(s.state || '');
         const lc = st.toLowerCase();

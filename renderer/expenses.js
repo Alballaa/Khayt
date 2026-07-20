@@ -190,7 +190,17 @@ async function emailOrderToClient(orderId, isQuote = false) {
         toast('📧 ' + t('ord.email_sent'), 'success');
         return;
       }
-    } catch(e) { /* fall through to mailto */ }
+      // Say WHY the configured sender failed before quietly falling back. An expired
+      // SendGrid key or failed SMTP auth used to be dropped on the floor and reported as
+      // a success, and the mailto fallback carries no PDF — so the customer received a
+      // bare text email instead of the invoice, and the shop never knew.
+      if (result?.error) {
+        toast('⚠ ' + (t('ord.email_send_failed') || 'Could not send from your mail account') + ': ' + result.error, 'error', 7000);
+      }
+    } catch(e) {
+      console.error('sendEmail failed:', e);
+      toast('⚠ ' + (t('ord.email_send_failed') || 'Could not send from your mail account'), 'error', 7000);
+    }
   }
 
   // Fallback: open OS mail client
@@ -205,7 +215,8 @@ async function emailOrderToClient(orderId, isQuote = false) {
   bodyLines.push('', 'Thank you for your business!', shopName);
   const mailtoUrl = `mailto:${encodeURIComponent(client.email)}?subject=${encodeURIComponent(subjectText)}&body=${encodeURIComponent(bodyLines.join('\n'))}`;
   window.open(mailtoUrl);
-  toast(t('ord.email_opened'), 'success');
+  // 'opened', not 'sent' — nothing has been delivered yet and there is no attachment.
+  toast(t('ord.email_opened'), 'info');
 }
 
 function populateExpOrderDatalist() {
@@ -484,8 +495,38 @@ function maybePushAccounting(order) {
   if (typeof KhaytAccountingExport === 'undefined' || !window.hubAPI?.accountingPush || !/^https?:\/\//i.test(cfg.webhookUrl || '')) return;
   const payload = KhaytAccountingExport.buildInvoicePayload(orderToInvoiceRow(order), { format: cfg.format, salesAccount: cfg.salesAccount, taxCode: cfg.taxCode });
   window.hubAPI.accountingPush({ url: cfg.webhookUrl, secret: cfg.secret, payload })
-    .then((r) => { if (r && r.ok) { order.accountingPushedAt = new Date().toISOString(); saveAll(); } })
-    .catch((e) => console.error('accounting push:', e));
+    .then((r) => {
+      if (r && r.ok) { order.accountingPushedAt = new Date().toISOString(); saveAll(); return; }
+      // This fires on exactly one event — the unpaid→paid transition — so a failure here
+      // is never retried: the order is already paid and the transition cannot recur. The
+      // invoice silently never reaches the books. Record the failure so the boot-time
+      // sweep below can retry it, and tell the owner.
+      order.accountingPushFailedAt = new Date().toISOString();
+      order.accountingPushError = String((r && r.error) || 'unknown error');
+      saveAll();
+      toast('⚠ ' + (t('acct.push_failed') || 'Could not send this invoice to your accounting system') +
+        ' — ' + order.accountingPushError, 'error', 7000);
+    })
+    .catch((e) => {
+      console.error('accounting push:', e);
+      order.accountingPushFailedAt = new Date().toISOString();
+      order.accountingPushError = String(e && e.message || e);
+      saveAll();
+      toast('⚠ ' + (t('acct.push_failed') || 'Could not send this invoice to your accounting system'), 'error', 7000);
+    });
+}
+
+/**
+ * Retry invoices whose accounting push failed. Called at boot: without this a transient
+ * outage at the moment an order was marked paid meant the invoice never reached the
+ * books, with nothing to trigger another attempt.
+ */
+function retryFailedAccountingPushes() {
+  const cfg = settings.accountingSync;
+  if (!cfg || !cfg.enabled) return;
+  const stuck = (printLog || []).filter(o =>
+    o && o.paymentStatus === 'paid' && !o.accountingPushedAt && o.accountingPushFailedAt);
+  for (const order of stuck) maybePushAccounting(order);
 }
 
 /** Export invoices/expenses as accountant-ready CSV (QuickBooks/Xero/Zoho/generic). */

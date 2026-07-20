@@ -1309,7 +1309,16 @@ ipcMain.handle('hub:delete-vault-file', async (_e, fullPath) => {
   const vaultRoot = path.resolve(fileVaultDir());
   // Path-confinement: only allow deletions inside the vault directory
   if (!safe.startsWith(vaultRoot + path.sep)) return false;
-  try { await fs.promises.unlink(safe); } catch (_) {}
+  // Report the truth. Swallowing the error and returning true removed the entry from the
+  // UI and told the owner the file was deleted while it remained on disk — a locked file
+  // on Windows, or a permissions error, both common. Khayt promises customers in the
+  // intake notice that their data can be deleted on request, so a delete that only
+  // pretends to succeed undermines that.
+  try { await fs.promises.unlink(safe); } catch (e) {
+    if (e && e.code === 'ENOENT') return true; // already gone — the desired end state
+    console.error('hub:delete-vault-file:', e);
+    return false;
+  }
   return true;
 });
 
