@@ -379,7 +379,7 @@ function renderAttachedFiles(files) {
 
 function buildProfitabilityHtml(order) {
   if (!order.parts || order.parts.length === 0) return '';
-  const estCost = order.parts.reduce((s, p) => s + computePartBaseCost(p), 0);
+  const estCost = order.parts.reduce((s, p) => s + partTotalCost(p), 0);
   if (estCost <= 0) return '';
   const revenue = +order.price || 0;
 

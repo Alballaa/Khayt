@@ -93,7 +93,7 @@ function computeHandoffMachineRows() {
     const key = o.machineId && machMap[o.machineId] ? o.machineId : null;
     if (!key) continue;
     const rev = orderRevenueBase(o);
-    const cost = (o.parts || []).reduce((s, p) => s + computePartBaseCost(p), 0);
+    const cost = (o.parts || []).reduce((s, p) => s + partTotalCost(p), 0);
     machMap[key].profit += rev - cost;
     machMap[key].hours += +o.printTime || 0;
   }
@@ -143,7 +143,7 @@ function renderHandoffAnalyticsOverview(ctx) {
   const cur = currencySymbol();
   const netProfit = completed.reduce((s, o) => {
     const rev = orderRevenueBase(o);
-    const cost = (o.parts || []).reduce((cs, p) => cs + computePartBaseCost(p), 0);
+    const cost = (o.parts || []).reduce((cs, p) => cs + partTotalCost(p), 0);
     return s + (rev - cost);
   }, 0);
   const avgOrder = completed.length ? revenue / completed.length : 0;
@@ -1538,7 +1538,7 @@ function renderPrinterUtilizationChart() {
     machMap[key].revenue += orderRevenueBase(o);
     machMap[key].count++;
     // Estimate material + machine cost from order parts
-    const orderCost = (o.parts || []).reduce((s, p) => s + computePartBaseCost(p), 0);
+    const orderCost = (o.parts || []).reduce((s, p) => s + partTotalCost(p), 0);
     machMap[key].cost += orderCost;
   }
   // Determine date range for utilization calculation
@@ -1722,7 +1722,7 @@ function renderProductProfitability() {
     map[key].revenue += orderRevenueBase(o);
     map[key].count++;
     // Estimate cost from parts if available
-    const partCost = (o.parts || []).reduce((s, p) => s + computePartBaseCost(p), 0);
+    const partCost = (o.parts || []).reduce((s, p) => s + partTotalCost(p), 0);
     // Add linked expenses to cost (Feature 4)
     const linkedExpCost = expenses.filter(e => e.orderId === o.id).reduce((s, e) => s + (+e.amount || 0), 0);
     map[key].cost += partCost + linkedExpCost;
@@ -1933,7 +1933,7 @@ function renderMachinePL() {
     const key = o.machineId && machMap[o.machineId] ? o.machineId : '__none__';
     machMap[key].jobs++;
     machMap[key].revenue += orderRevenueBase(o);
-    machMap[key].materialCost += (o.parts || []).reduce((s, p) => s + computePartBaseCost(p), 0);
+    machMap[key].materialCost += (o.parts || []).reduce((s, p) => s + partTotalCost(p), 0);
     // Linked expenses
     machMap[key].linkedExp += expenses
       .filter(e => e.orderId === o.id)
@@ -2014,7 +2014,7 @@ function renderLocationPL() {
     const d = getD(lid);
     d.revenue += convertToBase(+o.price || 0, orderCurrency(o));
     d.orders++;
-    (o.parts || []).forEach(p => { d.matCost += computePartBaseCost ? (computePartBaseCost(p) || 0) : 0; });
+    (o.parts || []).forEach(p => { d.matCost += (typeof partTotalCost === 'function' ? (partTotalCost(p) || 0) : 0); });
   });
 
   // Expenses
@@ -2657,7 +2657,7 @@ function openExecutiveSummary() {
       const client = o.clientId ? clients.find((c) => c.id === o.clientId) : null;
       return {
         revenue: orderRevenueBase(o),
-        cost: (o.parts || []).reduce((s, p) => s + computePartBaseCost(p), 0) + convertToBase(+o.shippingCost || 0, orderCurrency(o)),
+        cost: (o.parts || []).reduce((s, p) => s + partTotalCost(p), 0) + convertToBase(+o.shippingCost || 0, orderCurrency(o)),
         completed: done,
         onTime: (done && o.dueDate) ? (!!completedAt && completedAt <= o.dueDate) : null,
         outstanding: (typeof orderOwedBase === 'function') ? orderOwedBase(o) : 0,
@@ -2812,7 +2812,7 @@ function exportPnlCsv() {
     .filter(o => o.status === 'completed' && inRange(o.date, analyticsRange, 'analytics'))
     .map(o => {
       const revenue = orderRevenueBase(o);
-      const cogs = (o.parts || []).reduce((s, p) => s + computePartBaseCost(p), 0)
+      const cogs = (o.parts || []).reduce((s, p) => s + partTotalCost(p), 0)
         + convertToBase(+o.shippingCost || 0, orderCurrency(o));
       return { revenue, cogs, vat: rate > 0 ? revenue * rate / (100 + rate) : 0 };
     });

@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { computePartBaseCost, getActivePriceTier, computePartBreakdown } = require('../renderer/calculator-cost.js');
+const { computePartBaseCost, partTotalCost, getActivePriceTier, computePartBreakdown } = require('../renderer/calculator-cost.js');
 
 test('computePartBaseCost for simple FDM part', () => {
   global.inventory = [];
@@ -76,4 +76,45 @@ test('blended multicolour part never uses the resin per-kg branch', () => {
   };
   assert.equal(computePartBaseCost(part), 8);           // true blended total, not ~0.8
   assert.equal(computePartBreakdown(part).material, 8); // preview agrees with committed
+});
+
+/* ── qty is part of the cost basis ──────────────────────────────────────────
+ * computePartBaseCost() is PER UNIT (packaging is divided by qty). Summing it
+ * across an order and comparing to the order's revenue understates cost by a
+ * factor of qty — which underpriced every duplicated/reprinted order and
+ * inflated every margin in analytics and the P&L export. */
+
+const QTY_PART = {
+  spoolCost: 100, spoolWeight: 1000, printWeight: 15, printTime: 0.5,
+  wearRate: 1, powerDraw: 0, elecRate: 0, prepTime: 0, postTime: 0,
+  laborRate: 0, failureRate: 0,
+};
+const withQtyGlobals = () => { global.inventory = []; global.settings = { defaultPackagingCost: 0 }; };
+
+test('partTotalCost multiplies the per-unit cost by the line quantity', () => {
+  withQtyGlobals();
+  const part = { ...QTY_PART, qty: 100 };
+  const unit = computePartBaseCost(part);
+  assert.ok(unit > 0, 'fixture should have a real cost');
+  assert.equal(partTotalCost(part), unit * 100);
+});
+
+test('partTotalCost treats a missing/invalid qty as one unit, never zero', () => {
+  withQtyGlobals();
+  const base = { ...QTY_PART };
+  const unit = computePartBaseCost(base);
+  for (const qty of [undefined, null, 0, -5, NaN, 'abc']) {
+    assert.equal(partTotalCost({ ...base, qty }), unit, `qty=${String(qty)} must cost one unit, not zero`);
+  }
+});
+
+test('a 100-unit line is not priced as one unit (the duplicate-order defect)', () => {
+  // Reproduces the shipped bug: duplicateOrder stored the per-unit cost as the line's
+  // baseCost while keeping qty:100 — so it printed 100 units and quoted for 1.
+  withQtyGlobals();
+  const part = { ...QTY_PART, qty: 100 };
+  const wrong = computePartBaseCost(part);       // what the old rebuild path stored
+  const right = partTotalCost(part);             // what the calculator stores
+  assert.ok(right > wrong * 50, 'line total must scale with quantity');
+  assert.equal(right / wrong, 100);
 });

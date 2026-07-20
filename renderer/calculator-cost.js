@@ -120,7 +120,22 @@
     return +total.toFixed(4);
   }
 
-  const api = { computePartBaseCost, getActivePriceTier, computePartBreakdown, computeComponentsCost };
+  /**
+   * What one LINE of the cart actually costs — the per-unit cost times how many units.
+   *
+   * computePartBaseCost() is per-UNIT by construction: packaging is divided by qty, and
+   * printWeight is a single unit's weight (partGramsConsumed multiplies by qty when
+   * deducting stock). Summing it across an order and comparing that to the order's
+   * revenue therefore understates cost by a factor of qty on every multi-unit line.
+   *
+   * Mirrors partGramsConsumed() in inventory.js — same shape, same reason.
+   */
+  function partTotalCost(part) {
+    const qty = Math.max(1, +(part && part.qty) || 1);
+    return computePartBaseCost(part) * qty;
+  }
+
+  const api = { computePartBaseCost, partTotalCost, getActivePriceTier, computePartBreakdown, computeComponentsCost };
 
   Object.assign(global, api);
   global.KhaytCalculatorCost = api;

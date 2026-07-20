@@ -42,6 +42,23 @@ function kanbanQueuePos(o, col) {
   return o.queueCol === col && typeof o.queuePos === 'number' ? o.queuePos : 9999;
 }
 
+/**
+ * Order the cards within one kanban column: priority level first (urgent > high >
+ * normal), then the owner's manual drag order.
+ *
+ * The queuePos tiebreaker applies to EVERY column. It used to apply only to `pending`,
+ * while the drop handler wrote queuePos/queueCol for whichever column the card was
+ * dropped in — so a drag in the other five columns was persisted to disk and then
+ * silently reverted on the next render.
+ */
+function sortColumnOrders(items, status) {
+  return [...(items || [])].sort((a, b) => {
+    const pd = prioritySortValue(a) - prioritySortValue(b);
+    if (pd !== 0) return pd;
+    return kanbanQueuePos(a, status) - kanbanQueuePos(b, status);
+  });
+}
+
 function setupKanbanDrag() {
   _kanbanDraggingId = null;
   const cols = ['pending', 'on_hold', 'printing', 'post', 'qc', 'completed'];
@@ -441,14 +458,7 @@ function renderKanban() {
   });
 
   Object.entries(cols).forEach(([status, items]) => {
-    // For pending: sort by priority level (urgent>high>normal) then queuePos; other columns by priority level
-    let sorted = status === 'pending'
-      ? [...items].sort((a, b) => {
-          const pd = prioritySortValue(a) - prioritySortValue(b);
-          if (pd !== 0) return pd;
-          return kanbanQueuePos(a, 'pending') - kanbanQueuePos(b, 'pending');
-        })
-      : [...items].sort((a, b) => prioritySortValue(a) - prioritySortValue(b));
+    let sorted = sortColumnOrders(items, status);
     if (kanbanSortByPriority) sorted = sorted.slice().sort((a, b) => kanbanUrgencyScore(a) - kanbanUrgencyScore(b));
     const countEl = $('#count-' + status);
     if (countEl) countEl.textContent = sorted.length;
@@ -922,6 +932,7 @@ function renderMachineQueues() {
     setupKanbanDrag,
     kanbanUrgencyScore,
     kanbanQueuePos,
+    sortColumnOrders,
     studioKanbanProgress,
     studioKanbanDuePill,
     renderStudioKanbanCard,
