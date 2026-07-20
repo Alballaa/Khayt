@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.27] - 2026-07-20
+
+### Changed
+
+- **Backup exports now mask credentials for any shipping carrier or BNPL provider, including ones added in future versions.** Redaction previously named the three carriers and three providers explicitly, so a carrier added later would have had its API key and webhook secret written into an unredacted export. No shipped version was affected — the lists happened to match — but the guarantee no longer depends on the two being kept in sync by hand.
+
 ## [3.2.0-beta.26] - 2026-07-20
 
 ### Fixed

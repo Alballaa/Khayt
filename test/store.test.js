@@ -54,6 +54,65 @@ test('redactSettingsForExport masks sensitive settings fields', () => {
   assert.equal(out.lang, 'en');
 });
 
+/* ── Structural guards on export redaction ──────────────────────────────────
+ * The redactor works by naming fields to mask. That is a denylist: anything it
+ * forgets is exported in cleartext. These two tests are the tripwires. */
+
+test('a carrier or BNPL provider added later still has its credentials masked', () => {
+  // Both groups are data-driven — a new provider is added to a catalog, never to the
+  // redactor. This models exactly that: an id the redactor has never heard of.
+  const out = redactSettingsForExport({
+    shipping: {
+      defaultCarrier: 'smsa',                                  // not an object — must survive
+      smsa: { apiKey: 'k1', webhookSecret: 's1', accountNo: 'AC-9' },
+      naqel: { apiKey: 'FUTURE-KEY', webhookSecret: 'FUTURE-SECRET' },  // hypothetical 4th carrier
+    },
+    bnpl: {
+      tabby: { apiKey: 'k2' },
+      mispay: { apiKey: 'FUTURE-BNPL', merchantToken: 'FUTURE-TOKEN' }, // hypothetical provider
+    },
+  });
+  assert.equal(out.shipping.defaultCarrier, 'smsa', 'non-object settings must pass through');
+  assert.equal(out.shipping.smsa.accountNo, 'AC-9', 'non-secret fields are not masked');
+  for (const [path, val] of [
+    ['shipping.smsa.apiKey', out.shipping.smsa.apiKey],
+    ['shipping.smsa.webhookSecret', out.shipping.smsa.webhookSecret],
+    ['shipping.naqel.apiKey', out.shipping.naqel.apiKey],
+    ['shipping.naqel.webhookSecret', out.shipping.naqel.webhookSecret],
+    ['bnpl.tabby.apiKey', out.bnpl.tabby.apiKey],
+    ['bnpl.mispay.apiKey', out.bnpl.mispay.apiKey],
+    ['bnpl.mispay.merchantToken', out.bnpl.mispay.merchantToken],
+  ]) assert.equal(val, SECRET_MASK, `EXPORTED IN CLEARTEXT: ${path}`);
+});
+
+test('every field the UI treats as a secret is known to the redactor', () => {
+  // secretInputSave() is how the settings UI marks a field as a credential, so its call
+  // sites are the authoritative registry. If a new secret field is added to the UI and
+  // not to redactSettingsForExport, this fails — which is the whole point.
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const root = path.join(__dirname, '..');
+  const names = new Set();
+  for (const f of ['renderer/settings.js', 'renderer/build.js', 'renderer/machines.js']) {
+    const src = fs.readFileSync(path.join(root, f), 'utf8');
+    for (const m of src.matchAll(/(\w+)\s*:\s*secretInputSave/g)) names.add(m[1]);
+  }
+  assert.ok(names.size >= 10, `expected to find the secret-field registry, got ${names.size}`);
+  const store = fs.readFileSync(path.join(root, 'renderer/store.js'), 'utf8');
+  const body = store.slice(
+    store.indexOf('function redactSettingsForExport'),
+    store.indexOf('function redactMachinesForExport'),
+  );
+  const missing = [...names].filter(n => !body.includes(`'${n}'`) && !STORE_SECRET_KEY_RE_TEST(n));
+  assert.deepEqual(missing, [], `secret field(s) the export redactor never masks: ${missing.join(', ')}`);
+});
+
+// Same shape as the regex inside store.js — kept local so the test fails loudly if the
+// two ever drift apart rather than silently passing everything.
+function STORE_SECRET_KEY_RE_TEST(k) {
+  return /(api[-_]?key|secret|password|passwd|token|pin|csid|pcsid|authorization|bearer|access[-_]?code|private[-_]?key)/i.test(k);
+}
+
 test('redactMachinesForExport masks printer API secrets only when present', () => {
   const out = redactMachinesForExport([
     { id: 'm1', printerApi: { apiKey: 'pk', accessCode: 'ac' } },

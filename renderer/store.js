@@ -5,6 +5,9 @@
 (function (global) {
   const STORE_VERSION = 10;
   const STORE_SECRET_MASK = '__KHAYT_MASKED__';
+  // Credential-shaped key names, for the data-driven provider groups below where the
+  // exact field names are not known ahead of time. Mirrors lib/telemetry-scrub.js.
+  const STORE_SECRET_KEY_RE = /(api[-_]?key|secret|password|passwd|token|pin|csid|pcsid|authorization|bearer|access[-_]?code|private[-_]?key)/i;
 
   function redactSettingsForExport(src) {
     const s = JSON.parse(JSON.stringify(src || {}));
@@ -42,8 +45,18 @@
         sub && sub.secret ? { ...sub, secret: STORE_SECRET_MASK } : sub
       ));
     }
-    // Shipping carrier credentials — mask API keys + webhook secrets per carrier.
-    ['smsa', 'aramex', 'spl'].forEach(c => { mask(s.shipping?.[c], 'apiKey'); mask(s.shipping?.[c], 'webhookSecret'); });
+    // Shipping carriers and BNPL providers are DATA-DRIVEN: a new one is added to a
+    // catalog (renderer/carriers.js, BNPL_CATALOG), not here. A hardcoded list of ids
+    // would silently export the next carrier's credentials in cleartext, so iterate
+    // whatever is actually present and mask every credential-shaped key on it.
+    for (const group of [s.shipping, s.bnpl]) {
+      for (const provider of Object.values(group || {})) {
+        if (!provider || typeof provider !== 'object') continue; // e.g. shipping.defaultCarrier
+        for (const key of Object.keys(provider)) {
+          if (STORE_SECRET_KEY_RE.test(key)) mask(provider, key);
+        }
+      }
+    }
     return s;
   }
 
