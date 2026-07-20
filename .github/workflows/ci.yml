@@ -73,6 +73,11 @@ jobs:
       - name: E2E smoke (scoped API tokens)
         run: xvfb-run -a npm run test:e2e:apitokens
 
+      # CI has no printers on its network, so this proves the IPC contract and the
+      # timeout bound; on a developer LAN it additionally validates real results.
+      - name: E2E smoke (printer discovery)
+        run: xvfb-run -a npm run test:e2e:discovery
+
       - name: E2E smoke (webhook event bus)
         run: xvfb-run -a npm run test:e2e:webhooks
 

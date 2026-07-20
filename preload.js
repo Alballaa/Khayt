@@ -143,6 +143,7 @@ contextBridge.exposeInMainWorld('hubAPI', {
   saveTextFile: (opts)    => ipcRenderer.invoke('hub:save-text-file', opts),
   mintApiToken: (opts)    => ipcRenderer.invoke('hub:mint-api-token', opts),
   webcamSnapshot: (o)     => ipcRenderer.invoke('hub:webcam-snapshot', o),
+  discoverPrinters: (o)   => ipcRenderer.invoke('hub:discover-printers', o),
   telemetryPurge: ()      => ipcRenderer.invoke('hub:telemetry-purge'),
   telemetryRecord: (o)    => ipcRenderer.invoke('hub:telemetry-record', o),
   requestFullWipe: ()     => ipcRenderer.invoke('hub:request-full-wipe'),
