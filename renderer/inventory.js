@@ -1508,7 +1508,8 @@ function renderReorderAlerts() {
   el.style.display = '';
   el.innerHTML = `
     <div style="border:1px solid rgba(245,166,35,0.4);border-radius:var(--radius);background:rgba(245,166,35,0.06);margin-bottom:14px;overflow:hidden;">
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;background:rgba(245,166,35,0.1);" id="reorderAlertToggle">
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;background:rgba(245,166,35,0.1);" id="reorderAlertToggle"
+        role="button" tabindex="0" aria-expanded="${collapsed ? 'false' : 'true'}" aria-label="${escapeHtml(t('inv.low_stock_alerts') || 'Low stock alerts')}">
         <span style="font-size:16px;color:var(--warning);">${_iIco('alert', '⚠', 17)}</span>
         <span style="font-weight:700;color:var(--warning);flex:1;">${escapeHtml(t('inv.low_stock_alert') || 'Low Stock Alert')} <span style="background:var(--warning);color:#000;font-size:11px;padding:1px 6px;border-radius:10px;margin-inline-start:4px;">${lowItems.length}</span></span>
         <span style="font-size:12px;color:var(--text-muted);">${collapsed ? '▶' : '▼'}</span>
