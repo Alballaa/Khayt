@@ -4,6 +4,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.38] - 2026-07-21
+
+### Fixed
+
+- **The ⌘K / Ctrl+K search shortcut never opened search.** It raised an internal error instead — as did every other keypress in the app. Both are fixed; the shortcut now works.
+- **The low-stock alerts panel can be expanded with the keyboard**, so the "Draft PO" buttons inside it are reachable.
+- Price-list and address tables in the customer window now scroll on a narrow window instead of being cut off.
+
 ## [3.2.0-beta.37] - 2026-07-21
 
 ### Fixed

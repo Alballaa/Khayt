@@ -639,15 +639,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Global search keyboard shortcut ⌘K / Ctrl+K, plus tab-nav shortcuts
   document.addEventListener('keydown', (e) => {
+    // isGlobalSearchOpen() rather than the bare identifier: globalSearchOpen lives inside
+    // shell.js's IIFE and is not visible here, so this handler threw on every keystroke.
+    const searchOpen = (typeof KhaytShell !== 'undefined' && KhaytShell.isGlobalSearchOpen)
+      ? KhaytShell.isGlobalSearchOpen() : false;
     if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
       e.preventDefault();
-      globalSearchOpen ? closeGlobalSearch() : openGlobalSearch();
+      searchOpen ? closeGlobalSearch() : openGlobalSearch();
       return;
     }
-    if (globalSearchOpen && typeof handleGlobalSearchKeydown === 'function' && handleGlobalSearchKeydown(e)) {
+    if (searchOpen && typeof handleGlobalSearchKeydown === 'function' && handleGlobalSearchKeydown(e)) {
       return;
     }
-    if (e.key === 'Escape' && globalSearchOpen) {
+    if (e.key === 'Escape' && searchOpen) {
       closeGlobalSearch();
       return;
     }

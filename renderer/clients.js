@@ -755,7 +755,7 @@ function openClientEditor(clientId = null) {
           plWrap.innerHTML = `<div style="color:var(--text-muted);font-size:12.5px;padding:4px 0;">${escapeHtml(t('ce.price_list_empty'))}</div>`;
           return;
         }
-        plWrap.innerHTML = `<table class="price-list-table">
+        plWrap.innerHTML = `<div class="table-wrap"><table class="price-list-table">
           <thead><tr>
             <th>${escapeHtml(t('ce.pl_product'))}</th>
             <th>${escapeHtml(t('ce.pl_price'))}</th>
@@ -769,7 +769,7 @@ function openClientEditor(clientId = null) {
             <td><input type="text" class="pl-note" data-pli="${i}" value="${escapeHtml(pl.note || '')}" placeholder="${escapeHtml(t('ce.pl_note'))}" style="width:100%;font-size:12px;"></td>
             <td><button class="btn danger small pl-rm" data-pli="${i}" aria-label="${escapeHtml(t('common.delete'))}">×</button></td>
           </tr>`).join('')}
-          </tbody></table>`;
+          </tbody></table></div>`;
         plWrap.querySelectorAll('.pl-prod').forEach(inp => { inp.addEventListener('input', () => { draft.priceList[+inp.dataset.pli].product = inp.value; }); });
         plWrap.querySelectorAll('.pl-price').forEach(inp => { inp.addEventListener('input', () => { draft.priceList[+inp.dataset.pli].price = Math.max(0, +inp.value || 0); }); });
         plWrap.querySelectorAll('.pl-note').forEach(inp => { inp.addEventListener('input', () => { draft.priceList[+inp.dataset.pli].note = inp.value; }); });
@@ -788,7 +788,7 @@ function openClientEditor(clientId = null) {
           addrWrap.innerHTML = `<div style="color:var(--text-muted);font-size:12.5px;padding:4px 0;">${escapeHtml(t('ce.price_list_empty'))}</div>`;
           return;
         }
-        addrWrap.innerHTML = `<table style="width:100%; border-collapse:collapse;">
+        addrWrap.innerHTML = `<div class="table-wrap"><table style="width:100%; border-collapse:collapse;">
           <thead><tr>
             <th style="font-size:11px; text-align:start; padding:2px 4px;">${escapeHtml(t('ce.addr_label'))}</th>
             <th style="font-size:11px; text-align:start; padding:2px 4px;">${escapeHtml(t('ce.addr_address'))}</th>
@@ -799,7 +799,7 @@ function openClientEditor(clientId = null) {
             <td style="padding:2px 4px;"><input type="text" class="addr-addr" data-ai="${i}" value="${escapeHtml(a.address || '')}" placeholder="${escapeHtml(t('ce.addr_address'))}" style="width:100%;font-size:12px;"></td>
             <td><button class="btn danger small addr-rm" data-ai="${i}" aria-label="${escapeHtml(t('common.delete'))}">×</button></td>
           </tr>`).join('')}</tbody>
-        </table>`;
+        </table></div>`;
         addrWrap.querySelectorAll('.addr-label').forEach(inp => { inp.addEventListener('input', () => { draft.addresses[+inp.dataset.ai].label = inp.value; }); });
         addrWrap.querySelectorAll('.addr-addr').forEach(inp => { inp.addEventListener('input', () => { draft.addresses[+inp.dataset.ai].address = inp.value; }); });
         addrWrap.querySelectorAll('.addr-rm').forEach(btn => { btn.addEventListener('click', () => { draft.addresses.splice(+btn.dataset.ai, 1); renderAddressBook(); }); });

@@ -1027,6 +1027,11 @@ function openFeedbackModal() {
     switchTab,
     openSettingsSection,
     openGlobalSearch,
+    // Read accessor. `globalSearchOpen` is a `let` INSIDE this file's IIFE, so it is not a
+    // global — app-boot.js's keydown handler referenced it directly and threw a
+    // ReferenceError on every keystroke, which also meant Cmd/Ctrl+K never opened search.
+    // A live accessor rather than exporting the value, which would snapshot it.
+    isGlobalSearchOpen: () => globalSearchOpen,
     closeGlobalSearch,
     renderGlobalResults,
     handleGlobalSearchKeydown,
