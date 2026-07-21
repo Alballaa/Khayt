@@ -263,6 +263,8 @@
   "cl.tier": "ランク",
   "cl.vat": "VAT番号",
   "common.by": "作成者",
+  "cl.stmt_gift": "ギフトカード",
+  "cl.stmt_credit": "クレジットノート",
   "lan.click_to_copy": "クリックしてコピー",
   "oe.order_photo": "注文の写真",
   "set.backups_unreadable": "バックアップフォルダーを読み取れませんでした。バックアップは残っている可能性があります。フォルダーを直接開いてください。",

@@ -262,6 +262,8 @@
   "cl.tier": "Tier",
   "cl.vat": "VAT Number",
   "common.by": "by",
+  "cl.stmt_gift": "Gift cards",
+  "cl.stmt_credit": "Credit notes",
   "lan.click_to_copy": "Click to copy",
   "oe.order_photo": "Order photo",
   "set.backups_unreadable": "Could not read the backups folder — your backups may still be there. Try opening the folder directly.",

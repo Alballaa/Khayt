@@ -4,6 +4,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.41] - 2026-07-21
+
+### Fixed
+
+- **Printer alert notifications never worked** — the feature was never loaded into the app at all.
+- **The accounting journal export labelled foreign-currency invoices with your home currency**, left credit notes out entirely (so a credited invoice stayed booked as revenue), and repeated the VAT figure on two rows so the column double-counted.
+- **Customer statements didn't add up** when a gift card or credit note was involved — charges minus payments didn't match the balance shown, with no line explaining the difference. Both now appear as their own settlement figures.
+- **The acquisition-sources chart understated every channel.** Orders from the online intake form counted toward the total but never appeared as a bar, so the percentages didn't sum to 100%.
+
 ## [3.2.0-beta.40] - 2026-07-21
 
 ### Fixed
