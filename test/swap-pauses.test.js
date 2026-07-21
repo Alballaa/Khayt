@@ -106,3 +106,33 @@ test('single-extruder with a returning colour (A,B,A) → 2 swaps', () => {
     [band(1, 0, 4), band(2, 4, 8), band(1, 8, 12)], PALETTE, 'M600', 0.2, 1, 1);
   assert.equal(instructions.length, 2); // 1→2, then 2→1
 });
+
+test('no filament swap is emitted at the very first layer', () => {
+  // Heads start loaded with whatever they print FIRST. Seeding each head from its
+  // lowest-numbered source slot instead meant that when the smallest slot was not the first
+  // one used, the walker saw a mismatch on band one and emitted an M600 at layer 1 —
+  // halting the print to ask the operator to load filament already on the head.
+  const palette = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff'];
+  const band = (state, z0, z1) => ({ state, z0, z1 });
+  const cases = [
+    { label: 'single extruder, bands descend 3→2→1', bands: [band(3, 0, 5), band(2, 5, 10), band(1, 10, 15)], heads: 1 },
+    { label: 'two heads, first band is state 2', bands: [band(2, 0, 4), band(3, 4, 8), band(4, 8, 12), band(5, 12, 16), band(1, 16, 20)], heads: 2 },
+  ];
+  for (const c of cases) {
+    for (const baseState of [1, c.bands[0].state]) {
+      const plan = buildBandSwapPlan(c.bands, palette, 'M600', 0.2, baseState, c.heads);
+      const firstLayer = (plan.instructions || []).filter((i) => i.z <= 0.4);
+      assert.deepEqual(firstLayer.map((i) => i.label), [],
+        `${c.label} (baseState ${baseState}): wasted swap at layer 1`);
+    }
+  }
+});
+
+test('a head that never prints keeps a sensible initial slot', () => {
+  // The fallback for heads with no layers must still populate, or the walker would treat
+  // their first use as a change.
+  const palette = ['#ff0000', '#00ff00'];
+  const plan = buildBandSwapPlan([{ state: 1, z0: 0, z1: 10 }], palette, 'M600', 0.2, 1, 4);
+  assert.deepEqual((plan.instructions || []).map((i) => i.label), [],
+    'a single-colour model needs no swaps at all');
+});
