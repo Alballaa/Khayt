@@ -4,6 +4,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.42] - 2026-07-21
+
+### Fixed
+
+- **The live price shown while filling in a part didn't match what landed in the cart.** Packaging wasn't spread across the quantity in the preview, so a 20-unit part could preview at 17.00 and be added at 7.50. Resin parts could also change price on being added.
+- **Editing a part in the cart silently discarded eight of its details** — including support weight, which changed the price. Colour, note, layer height, infill, profile, attached file and spool were all lost too.
+- **An attached model file carried over to the next part you added**, so the second item in an order referenced the first item's file.
+
 ## [3.2.0-beta.41] - 2026-07-21
 
 ### Fixed

@@ -247,7 +247,13 @@ function updateFailureRateHint() {
 
 function calculateLivePartCost() {
   // Snapshot the DOM into a part-shaped object and reuse the pure helper.
+  // qty and filamentId MUST be included or the live preview disagrees with the cart:
+  // packaging is divided by qty (so a 20-unit part previewed at 17.00 and landed in the
+  // cart at 7.50), and filamentId selects the resin per-kg cost branch, so a resin part
+  // silently changed price on being added.
   return computePartBaseCost({
+    qty:           $('#partQty')?.value || 1,
+    filamentId:    $('#filamentSelect')?.value || '',
     spoolCost:     $('#spoolCost').value,
     spoolWeight:   $('#spoolWeight').value,
     printWeight:   $('#printWeight').value,
@@ -569,6 +575,9 @@ function addPart() {
   if ($('#layerHeight'))  $('#layerHeight').value  = '';
   if ($('#infill'))       $('#infill').value        = '';
   if ($('#printProfile')) $('#printProfile').value  = '';
+  // The attached file was NOT cleared, so it silently carried over onto the next part —
+  // the second item in a multi-part order ended up referencing the first item's model.
+  if ($('#partFileRef')) $('#partFileRef').value = '';
   currentExtraMaterials = [];
   currentPriceTiers = [];
   renderExtraMaterials();
@@ -614,6 +623,21 @@ function editPart(index) {
   }
   const partMachSel = $('#partMachineId');
   if (partMachSel) partMachSel.value = part.machineId || '';
+
+  // These were stored by the cart but never restored, so editing a line silently
+  // discarded them. supportWeight is a COST DRIVER — re-adding the part re-priced it
+  // lower — and the rest (colour, note, layer height, infill, profile, file, spool) were
+  // simply lost. `material` and `baseCost` are deliberately absent: both are derived on
+  // save from the filament selection.
+  const setVal = (sel, v) => { const el = $(sel); if (el) el.value = (v ?? ''); };
+  setVal('#supportWeight', part.supportWeight || '');
+  setVal('#partColour',    part.colour || '');
+  setVal('#partNote',      part.partNote || '');
+  setVal('#layerHeight',   part.layerHeight || '');
+  setVal('#infill',        part.infill || '');
+  setVal('#printProfile',  part.profile || '');
+  setVal('#partFileRef',   part.fileRef || '');
+  setVal('#spoolIdPicker', part.spoolId || '');
 
   // Restore extra materials
   currentExtraMaterials = (part.extraMaterials || []).map(m => ({ ...m }));
