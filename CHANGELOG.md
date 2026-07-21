@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.50] - 2026-07-21
+
+### Fixed
+
+- **Converting a four-colour model could corrupt the printer's bed outline.** When reordering filaments for band swapping or Full Spectrum, Khayt also reshuffled any other setting that happened to have four values — including the bed's four corners, which turned the print area into a crossed shape. Only filament settings are reordered now.
+
 ## [3.2.0-beta.49] - 2026-07-21
 
 ### Fixed
