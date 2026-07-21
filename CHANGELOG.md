@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.45] - 2026-07-21
+
+### Changed
+
+- Added internal checks that catch a whole class of wiring fault before release — the kind that made printer alerts and the scheduled digest email silently never run. No change to how the app behaves.
+
 ## [3.2.0-beta.44] - 2026-07-21
 
 ### Fixed
