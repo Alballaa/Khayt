@@ -263,6 +263,8 @@
   "cl.tier": "Niveau",
   "cl.vat": "Numéro de TVA",
   "common.by": "par",
+  "lan.click_to_copy": "Cliquer pour copier",
+  "oe.order_photo": "Photo de la commande",
   "set.backups_unreadable": "Impossible de lire le dossier des sauvegardes — elles y sont peut-être toujours. Ouvrez le dossier directement.",
   "ord.photo_save_failed": "Impossible d’enregistrer la photo",
   "cl.invoices_exported_partial": "{n} sur {total} exportées — échec : {ids}",

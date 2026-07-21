@@ -157,8 +157,11 @@ function renderCalendarView() {
 
     const overflow = orders.length > 3 ? `<div class="cal-chip-more">+${orders.length - 3}</div>` : '';
 
-    cells += `<div class="cal-cell${isToday ? ' cal-today' : ''}" data-date="${dateStr}">
-      <div class="cal-day-num">${d}</div>
+    // A <div> with a click handler is invisible to the keyboard; the day-detail popup
+    // was mouse-only. role+tabindex+key handling makes each day a real control.
+    cells += `<div class="cal-cell${isToday ? ' cal-today' : ''}" data-date="${dateStr}"
+      role="button" tabindex="0" aria-label="${escapeHtml(dateStr)}">
+      <div class="cal-day-num" aria-hidden="true">${d}</div>
       ${chips}${overflow}
     </div>`;
   }

@@ -387,6 +387,8 @@
   "cl.tier": "الفئة",
   "cl.vat": "الرقم الضريبي",
   "common.by": "بواسطة",
+  "lan.click_to_copy": "انقر للنسخ",
+  "oe.order_photo": "صورة الطلب",
   "set.backups_unreadable": "تعذّر قراءة مجلد النسخ الاحتياطية — قد تكون نسخك موجودة. جرّب فتح المجلد مباشرة.",
   "ord.photo_save_failed": "تعذّر حفظ الصورة",
   "cl.invoices_exported_partial": "تم تصدير {n} من {total} — فشل: {ids}",

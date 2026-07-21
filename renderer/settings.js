@@ -1870,7 +1870,7 @@ function renderLanApiSettings() {
     <div id="lanQrWrap" style="margin-bottom:12px;display:${lan.enabled ? 'block' : 'none'};"></div>
     <div id="lanWebhookSection" style="display:${lan.enabled && lan.webhookToken ? 'block' : 'none'};margin:10px 0;">
       <label data-i18n="lan.printer_webhook">Printer Webhook URL</label>
-      <div style="font-size:11px;color:var(--text-muted);padding:8px 10px;background:var(--bg-elev);border-radius:var(--radius);word-break:break-all;cursor:pointer;" id="webhookUrlDisplay" title="Click to copy">—</div>
+      <button type="button" style="font-size:11px;color:var(--text-muted);padding:8px 10px;background:var(--bg-elev);border:none;border-radius:var(--radius);word-break:break-all;cursor:pointer;text-align:start;width:100%;" id="webhookUrlDisplay" data-i18n-title="lan.click_to_copy" data-i18n-aria="lan.click_to_copy" title="Click to copy" aria-label="Click to copy">—</button>
       <div style="font-size:11px;color:var(--text-muted);margin-top:4px;" data-i18n="lan.webhook_url_hint">Configure this URL in OctoPrint/Moonraker webhook plugin for each machine.</div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
