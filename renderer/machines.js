@@ -649,10 +649,43 @@ function openMachineEditor(machineId = null) {
       saveAll();
       renderMachines();
       renderMachineDropdown();
+      // Live polling was started ONCE, at boot, from whatever machines existed then — so a
+      // printer added or reconnected afterwards never went live until the app was
+      // restarted. Restart it here so a machine works the moment it is saved.
+      refreshPrinterPolling();
       toast(t('mach.saved'), 'success');
       return true;
     }
   });
+}
+
+/**
+ * (Re)start live polling for every machine that has a connection configured.
+ *
+ * app-boot calls startPrinterPolling once at startup with the machines present at that
+ * moment. Adding a printer, changing its address, or switching its connection type had no
+ * effect until the next launch — the machine simply never appeared as live, which is
+ * exactly what a new user hits after running "Scan network" for the first time.
+ */
+function refreshPrinterPolling() {
+  try {
+    if (!window.hubAPI?.startPrinterPolling) return;
+    const apiMachines = (typeof machines !== 'undefined' ? machines : [])
+      .filter((m) => m.printerApi && m.printerApi.type && m.printerApi.type !== 'none');
+    if (!apiMachines.length) return;
+    window.hubAPI.startPrinterPolling(apiMachines).then((cache) => {
+      if (typeof machineStatusCache !== 'undefined') machineStatusCache = cache || {};
+      if (typeof updateKanbanLiveStatus === 'function') updateKanbanLiveStatus();
+      // Re-RENDER the dashboard, not just refresh the tile grid. renderDashLivePrinters()
+      // returns '' when no machine has a connection, so the panel does not exist at all
+      // until one does — and updateDashLivePrinters() only fills a grid that is already on
+      // screen. After adding the first printer there was nothing to fill, so the fleet
+      // stayed invisible even once polling returned live data.
+      if (typeof renderDashboard === 'function') renderDashboard();
+      else if (typeof updateDashLivePrinters === 'function') updateDashLivePrinters();
+      if (typeof renderMachines === 'function') renderMachines();
+    }).catch((e) => console.error('startPrinterPolling:', e));
+  } catch (e) { console.error('refreshPrinterPolling:', e); }
 }
 
 function logNozzleChange(machineId) {
