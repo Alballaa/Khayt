@@ -109,7 +109,14 @@ async function refreshMachineCameras() {
       } else {
         el.innerHTML = `<span style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('cam.offline') || 'Camera offline')}</span>`;
       }
-    } catch (_) { /* never let a camera break the machines view */ }
+    } catch (e) {
+      // Still must not break the machines view — but the tile was left reading "Camera…"
+      // forever on a throw, while the !ok path correctly shows "Camera offline".
+      console.error('webcamSnapshot failed:', e);
+      try {
+        el.innerHTML = `<span style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('cam.offline') || 'Camera offline')}</span>`;
+      } catch (_) { /* element gone — nothing to show */ }
+    }
   }
 }
 

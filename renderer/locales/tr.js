@@ -263,6 +263,7 @@
   "cl.tier": "Kademe",
   "cl.vat": "KDV Numarası",
   "common.by": "tarafından",
+  "set.backups_unreadable": "Yedek klasörü okunamadı — yedekleriniz hâlâ orada olabilir. Klasörü doğrudan açmayı deneyin.",
   "ord.photo_save_failed": "Fotoğraf kaydedilemedi",
   "cl.invoices_exported_partial": "{total} öğeden {n} tanesi dışa aktarıldı — başarısız: {ids}",
   "dash.printer_stale": "{mins} dakikadır güncelleme yok",

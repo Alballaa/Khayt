@@ -263,6 +263,7 @@
   "cl.tier": "Nivel",
   "cl.vat": "Número de IVA",
   "common.by": "por",
+  "set.backups_unreadable": "No se pudo leer la carpeta de copias — puede que sigan ahí. Prueba a abrir la carpeta directamente.",
   "ord.photo_save_failed": "No se pudo guardar la foto",
   "cl.invoices_exported_partial": "Exportadas {n} de {total} — fallaron: {ids}",
   "dash.printer_stale": "Sin actualizar desde hace {mins} min",

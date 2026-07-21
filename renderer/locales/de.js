@@ -263,6 +263,7 @@
   "cl.tier": "Stufe",
   "cl.vat": "USt-IdNr.",
   "common.by": "von",
+  "set.backups_unreadable": "Backup-Ordner konnte nicht gelesen werden – Ihre Backups sind möglicherweise vorhanden. Öffnen Sie den Ordner direkt.",
   "ord.photo_save_failed": "Foto konnte nicht gespeichert werden",
   "cl.invoices_exported_partial": "{n} von {total} exportiert – fehlgeschlagen: {ids}",
   "dash.printer_stale": "Seit {mins} Min. kein Update",

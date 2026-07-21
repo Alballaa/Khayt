@@ -4,6 +4,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.36] - 2026-07-21
+
+### Fixed
+
+- **"No backups found" no longer appears when the backups folder simply couldn't be read.** That message showed up exactly when someone was trying to recover, and could convince them their data was gone when it wasn't.
+- **A camera that errors now shows "Camera offline"** instead of leaving the tile stuck on "Camera…" indefinitely.
+- **Customers submitting a request are no longer told their form was invalid when the shop's computer failed to save it.** They were being asked to correct a form that was already correct.
+- Starting the LAN server from the Online panel now reports failure instead of leaving the panel unchanged.
+
 ## [3.2.0-beta.35] - 2026-07-21
 
 ### Fixed
