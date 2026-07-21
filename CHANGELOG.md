@@ -4,6 +4,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.47] - 2026-07-21
+
+### Fixed
+
+- **Printer alerts never fired for anyone who set up Telegram before this feature existed.** The settings screen showed the alert boxes ticked while the alerts were actually switched off. Turning them off explicitly still works as expected.
+- **Revenue forecasting put some sales in the wrong month.** Orders completed between midnight and 3am were credited to the previous month, and opening Khayt in those hours shifted the whole forecast window back a month.
+
 ## [3.2.0-beta.46] - 2026-07-21
 
 ### Security

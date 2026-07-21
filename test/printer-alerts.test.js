@@ -259,3 +259,23 @@ test('carries forward state for machines absent this poll', () => {
   assert.ok(res.state.gone, 'state preserved for vanished machine');
   assert.equal(res.state.gone.failCount, 2);
 });
+
+test('an install that configured Telegram before these keys existed still gets alerts', () => {
+  // The old ternary was a no-op — both branches reduced to !!tg.notifyPrinterX — so the
+  // toggles defaulted OFF while the settings UI rendered them CHECKED (`?? true`).
+  // settings.js only seeds the keys when settings.telegram is entirely absent, so anyone
+  // who set up Telegram earlier kept an object without them and never saw a single alert.
+  const upgraded = { telegram: { botToken: 'b', chatId: 'c' } };
+  const res = computePrinterAlerts({}, { m1: { error: 'x' } }, upgraded, T0, {
+    alertState: { m1: { failCount: 9, cooldowns: {} } },
+  });
+  assert.ok(types(res).length > 0, 'an upgraded install must still receive printer alerts');
+});
+
+test('an explicit false still turns the toggle off', () => {
+  const off = { telegram: { botToken: 'b', chatId: 'c', notifyPrinterOffline: false, notifyPrinterError: false } };
+  const res = computePrinterAlerts({}, { m1: { error: 'x' } }, off, T0, {
+    alertState: { m1: { failCount: 9, cooldowns: {} } },
+  });
+  assert.deepEqual(types(res), [], 'defaulting ON must not override an explicit opt-out');
+});

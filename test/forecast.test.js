@@ -61,3 +61,21 @@ test('forecast: no data → method none, zero projection', () => {
   assert.equal(f.method, 'none');
   assert.equal(f.nextMonth, 0);
 });
+
+test('months are bucketed by the LOCAL calendar, not UTC', () => {
+  // Riyadh is UTC+3, so a UTC-based month key put orders completed between 00:00 and 03:00
+  // on the 1st into the PREVIOUS month. The other tests build both "now" and the fixtures
+  // with Date.UTC, so they were self-consistently wrong and never caught it.
+  const early = new Date('2026-08-01T01:30:00+03:00');
+  if (early.getMonth() === early.getUTCMonth()) return;  // degenerate in a UTC-ish TZ
+
+  // Window ends at the current (partial) month, so ask from September to include August.
+  const series = monthlyRevenueSeries(
+    [{ date: '2026-08-01T01:30:00+03:00', price: 1000, status: 'completed' },
+     { date: '2026-08-15T12:00:00+03:00', price: 1000, status: 'completed' }],
+    { now: new Date('2026-09-10T12:00:00+03:00').getTime(), months: 3 },
+  );
+  const aug = series.find((p) => p.label === '2026-08');
+  assert.ok(aug, `August bucket missing: ${series.map((p) => p.label).join(', ')}`);
+  assert.equal(aug.revenue, 2000, 'both August orders must land in August, not July');
+});
