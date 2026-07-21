@@ -152,7 +152,12 @@ function renderCalendarView() {
         o.status === 'qc'       ? '#f59e0b' :
                                   '#6b7793'
       );
-      return `<div class="cal-chip" style="background:${escapeHtml(bg)};" title="${escapeHtml(o.project || o.id)}">${escapeHtml((o.project || o.id).slice(0, 18))}</div>`;
+      // The chip text is the project name; machine identity and status were carried by the
+      // BACKGROUND COLOUR ALONE — invisible to anyone who cannot distinguish those colours
+      // and to a screen reader. Put both into the tooltip and the accessible name.
+      const who = mc ? (mc.name || mc.id) : '';
+      const detail = [o.project || o.id, who, o.status].filter(Boolean).join(' · ');
+      return `<div class="cal-chip" style="background:${escapeHtml(bg)};" title="${escapeHtml(detail)}" aria-label="${escapeHtml(detail)}">${escapeHtml((o.project || o.id).slice(0, 18))}</div>`;
     }).join('');
 
     const overflow = orders.length > 3 ? `<div class="cal-chip-more">+${orders.length - 3}</div>` : '';
