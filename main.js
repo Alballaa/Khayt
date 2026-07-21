@@ -3114,8 +3114,10 @@ app.on('before-quit', (e) => {
   };
   ipcMain.once('hub:flush-save-done', finish);
   try { win.webContents.send('hub:flush-save-request'); } catch (_) { return finish(); }
-  // Quit anyway if the renderer doesn't answer — never trap the user in the app.
-  setTimeout(finish, 3000);
+  // Quit anyway if the renderer doesn't answer — never trap the user in the app. 3s proved
+  // too tight under load (a CI run quit before the write completed); 10s still bounds a
+  // wedged renderer while leaving room for a large store to be serialised and fsynced.
+  setTimeout(finish, 10_000);
 });
 
 app.on('window-all-closed', () => {

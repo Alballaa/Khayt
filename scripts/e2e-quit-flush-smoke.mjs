@@ -36,7 +36,15 @@ try {
     if (wiz) wiz.style.display = 'none';
     if (typeof settings !== 'undefined' && settings) settings.firstRun = false;
   });
-  await page.waitForTimeout(2500);
+  // Wait for boot to FINISH, not a fixed sleep. The renderer registers the quit-flush
+  // listener inside wireEvents(), which runs after `await loadAll()` — a fixed wait races
+  // it on a loaded CI machine, and then main's request goes nowhere and the handshake
+  // times out with nothing saved.
+  await page.waitForFunction(
+    () => typeof window.hubAPI?.onFlushSaveRequest === 'function'
+      && (document.querySelector('#dashboardContent')?.innerHTML?.length || 0) > 100,
+    { timeout: 60_000 },
+  );
 
   ok(await page.evaluate(() => typeof window.hubAPI?.onFlushSaveRequest === 'function'),
     'the quit handshake is exposed on the preload bridge');
