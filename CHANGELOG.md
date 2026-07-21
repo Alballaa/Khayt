@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.54] - 2026-07-21
+
+### Fixed
+
+- **A printer added after Khayt was already running never went live until you restarted the app.** Live status was only ever started once, at launch, using the printers that existed at that moment — so a machine you just added with "Scan network" stayed blank no matter how long you waited. It now connects the moment you save it.
+
 ## [3.2.0-beta.53] - 2026-07-21
 
 ### Fixed
