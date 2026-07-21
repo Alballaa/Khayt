@@ -2324,7 +2324,7 @@ function renderBnplSettings() {
 
   // Directory cards for info-only services
   const dirCards = BNPL_CATALOG.filter(s => !s.hasApi).map(s =>
-    `<a href="#" class="bnpl-dir-card" data-url="${escapeHtml(s.dashUrl)}" style="display:flex;flex-direction:column;gap:4px;padding:10px 12px;background:var(--bg-elev);border-radius:var(--radius);border-left:3px solid ${escapeHtml(s.color)};text-decoration:none;color:inherit;cursor:pointer;">
+    `<a href="#" class="bnpl-dir-card" data-url="${escapeHtml(s.dashUrl)}" style="display:flex;flex-direction:column;gap:4px;padding:10px 12px;background:var(--bg-elev);border-radius:var(--radius);border-inline-start:3px solid ${escapeHtml(s.color)};text-decoration:none;color:inherit;cursor:pointer;">
       <div style="font-weight:600;font-size:13px;">${escapeHtml(s.name)}</div>
       <div style="font-size:11px;color:var(--text-muted);">${s.regions.slice(0,5).join(' · ')}</div>
       <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${escapeHtml(s.desc)}</div>

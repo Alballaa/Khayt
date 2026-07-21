@@ -1193,7 +1193,10 @@ function getQueuedWeight(itemId) {
     .reduce((s, o) =>
       s + (o.parts || [])
         .filter(p => p.filamentId === itemId)
-        .reduce((ps, p) => ps + (+p.printWeight || 0) * (+p.qty || 1), 0)
+        // Supports are real filament off the same spool. Omitting them here — while
+        // partGramsConsumed(), which does the actual deduction, includes them — meant the
+        // "queued grams" badge under-reserved stock on support-heavy jobs.
+        .reduce((ps, p) => ps + ((+p.printWeight || 0) + (+p.supportWeight || 0)) * (+p.qty || 1), 0)
     , 0);
 }
 
@@ -1461,7 +1464,7 @@ function renderPipelineDemand() {
   }).join('');
 
   el.innerHTML = `
-    <div class="card" style="margin-bottom:16px;border-left:3px solid var(--primary);">
+    <div class="card" style="margin-bottom:16px;border-inline-start:3px solid var(--primary);">
       <h3 class="card-head" style="margin-bottom:8px;"><span class="swatch" style="background:var(--primary);"></span>
         ${escapeHtml(t('inv.pipeline_title'))}
         <span class="count" style="margin-inline-start:6px;">${activeOrders.length}</span>
@@ -2389,7 +2392,7 @@ function renderSupplierReorderList() {
   }).join('');
 
   el.innerHTML = `
-    <div class="card" style="border-left:3px solid var(--warning);">
+    <div class="card" style="border-inline-start:3px solid var(--warning);">
       <h3 class="card-head" style="margin-bottom:10px;color:var(--warning);">
         <span class="swatch" style="background:var(--warning);"></span>
         ${_iIcoL('alert', '⚠')}${escapeHtml(t('inv.reorder_list') || 'Reorder List')} <span style="background:var(--warning);color:#000;font-size:11px;padding:1px 6px;border-radius:10px;margin-inline-start:6px;">${lowItems.length}</span>

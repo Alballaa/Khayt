@@ -144,3 +144,35 @@ test('store-validate STORE_VERSION matches KhaytStore.VERSION', () => {
   const { STORE_VERSION } = require('../lib/store-validate');
   assert.equal(STORE_VERSION, VERSION);
 });
+
+/* ── Schema versioning ──────────────────────────────────────────────────── */
+
+test('buildSnapshot stamps the schema version into the file', () => {
+  // The store on disk used to carry no version at all, so a future build had no way to
+  // know which Khayt wrote it — and normalizeStoreSnapshot, being an allowlist, would
+  // silently drop any collection that version had added.
+  const snap = buildSnapshot({ printLog: [], settings: {} });
+  assert.equal(snap.version, VERSION, 'every saved store must be versioned');
+});
+
+test('the stamped version does not clobber a version already in the collections', () => {
+  const snap = buildSnapshot({ printLog: [], settings: {}, version: 7 });
+  assert.equal(snap.version, 7, 'an explicit value in the snapshot still wins');
+});
+
+test('a store from a NEWER Khayt is detected rather than silently truncated', () => {
+  // normalizeStoreSnapshot keeps only collections it knows about. This is what the
+  // downgrade guard in main.js keys off: warn + refuse rather than drop the data.
+  const { normalizeStoreSnapshot, STORE_VERSION } = require('../lib/store-validate.js');
+  const future = {
+    version: STORE_VERSION + 5,
+    printLog: [], settings: {},
+    someFutureCollection: [{ id: 'X-1' }],
+  };
+  const { normalized, warnings } = normalizeStoreSnapshot(future);
+  assert.ok(warnings.some(w => /newer than supported/i.test(w)),
+    `a newer store must be flagged, got: ${warnings.join('; ')}`);
+  assert.equal(normalized.version, STORE_VERSION + 5, 'the version survives so callers can act on it');
+  // Documents the truncation the guard exists to prevent.
+  assert.equal(normalized.someFutureCollection, undefined);
+});

@@ -3161,7 +3161,7 @@ function renderAgedReceivables() {
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
       ${Object.entries(buckets).map(([label, items]) => {
         const total = items.reduce((s, i) => s + i.owed, 0);
-        return `<div style="flex:1;min-width:120px;padding:12px 16px;background:var(--bg-elev);border-radius:var(--radius);border-left:3px solid ${bucketColors[label]};">
+        return `<div style="flex:1;min-width:120px;padding:12px 16px;background:var(--bg-elev);border-radius:var(--radius);border-inline-start:3px solid ${bucketColors[label]};">
           <div style="font-size:12px;color:var(--text-muted);">${label} days</div>
           <div style="font-size:16px;font-weight:700;margin-top:4px;">${fmtPrice(total)}</div>
           <div style="font-size:11px;color:var(--text-dim);">${items.length} order${items.length !== 1 ? 's' : ''}</div>
@@ -3312,7 +3312,7 @@ function renderBreakEvenCard() {
         <div style="font-size:11px;color:var(--text-muted);">Break-Even Revenue</div>
         <div style="font-size:18px;font-weight:700;color:var(--warning);">${fmtPrice(be.breakEvenRevenue)}</div>
       </div>
-      <div style="flex:1;min-width:140px;padding:12px 16px;background:var(--bg-elev);border-radius:var(--radius);border-left:3px solid ${surplus >= 0 ? 'var(--success)' : 'var(--danger)'};">
+      <div style="flex:1;min-width:140px;padding:12px 16px;background:var(--bg-elev);border-radius:var(--radius);border-inline-start:3px solid ${surplus >= 0 ? 'var(--success)' : 'var(--danger)'};">
         <div style="font-size:11px;color:var(--text-muted);">${surplus >= 0 ? 'Above Break-Even' : 'Below Break-Even'}</div>
         <div style="font-size:18px;font-weight:700;color:${surplus >= 0 ? 'var(--success)' : 'var(--danger)'};">${surplus >= 0 ? '+' : ''}${fmtPrice(surplus || 0)}</div>
       </div>` : ''}

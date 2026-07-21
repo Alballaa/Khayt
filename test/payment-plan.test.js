@@ -261,3 +261,23 @@ test('integration: deposit + 3 installments, collect over time', () => {
   assert.equal(planBalance(cur).remaining, 0);
   assert.equal(collectedTotal(cur), 1000);
 });
+
+test('a plan is dated by the LOCAL calendar day, not UTC', () => {
+  // Riyadh is UTC+3, so toISOString() shifted the day backwards for any plan built
+  // between 00:00 and 03:00 local — the deposit and first installment were dated
+  // yesterday and were overdue the instant the plan was created.
+  const RealDate = Date;
+  const fixed = new RealDate('2026-07-19T22:30:00Z'); // 01:30 on the 20th in Riyadh
+  global.Date = class extends RealDate {
+    constructor(...a) { return a.length ? new RealDate(...a) : new RealDate(fixed); }
+    static now() { return fixed.getTime(); }
+  };
+  try {
+    const schedule = buildSchedule({ total: 1000, depositAmount: 300, installments: 2, intervalDays: 30 });
+    const localDay = new RealDate(fixed).toLocaleDateString('en-CA'); // YYYY-MM-DD, local
+    assert.equal(schedule[0].dueDate, localDay,
+      'the deposit must be dated today in the shop’s own timezone');
+  } finally {
+    global.Date = RealDate;
+  }
+});

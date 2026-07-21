@@ -4,6 +4,16 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.34] - 2026-07-21
+
+### Fixed
+
+- **Opening your data with an older Khayt could delete part of it.** Data files now record which version wrote them, and an older build refuses to save over a newer file instead of quietly dropping whatever it doesn't recognise.
+- **Payment plans created late at night were immediately overdue.** Between midnight and 3am local time the deposit and first instalment were dated the previous day. Dates now follow your own timezone.
+- **Reserved filament ignored support material**, so the queued-grams figure under-reserved stock on support-heavy jobs.
+- **Labels and packing slips printed left-to-right even in Arabic.** They now follow the app's language.
+- Coloured accent stripes on cards now sit on the correct side in Arabic.
+
 ## [3.2.0-beta.33] - 2026-07-20
 
 ### Fixed
