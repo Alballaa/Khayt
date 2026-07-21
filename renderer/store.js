@@ -72,7 +72,11 @@
 
   /** Plain snapshot of all persisted collections (shallow object of live arrays). */
   function buildSnapshot(collections) {
-    return { ...collections };
+    // Stamp the schema version INTO the file. STORE_VERSION existed but only ever reached
+    // export payloads, so the store on disk was unversioned — a build could not tell
+    // which Khayt wrote it, and opening a newer store silently truncated the
+    // collections it did not recognise. See the downgrade guard in main.js.
+    return { version: STORE_VERSION, ...collections };
   }
 
   function buildExportPayload(collections, { redactSecrets = false } = {}) {

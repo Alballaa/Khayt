@@ -51,7 +51,7 @@ const QRCode = require('qrcode');
 const { safeJsonParse } = require('./lib/safe-json');
 const { isBlockedHost, isAllowedPrinterHost, sanitizeMailgunDomain, resolvesToBlockedHost } = require('./lib/host-guard');
 const { sendCustomSmtp } = require('./lib/custom-smtp');
-const { normalizeStoreSnapshot } = require('./lib/store-validate');
+const { normalizeStoreSnapshot, STORE_VERSION } = require('./lib/store-validate');
 const { createStoreIo } = require('./lib/store-io');
 const { parseGcodeText } = require('./lib/gcode-parse');
 const { extract: extractPrintThumb } = require('./lib/thumbnail-extract');
@@ -1039,6 +1039,8 @@ ipcMain.handle('hub:load-store', async (event) => {
       return { __corrupt: true, error: 'Store unreadable', quarantined: rec.quarantined };
     }
     if (rec.source !== 'primary') console.warn('hub:load-store: recovered store from', rec.source, rec.quarantined ? `(quarantined ${rec.quarantined})` : '');
+    // Remember which schema wrote this file, so a save cannot truncate a newer store.
+    _diskStoreVersion = (rec.data && typeof rec.data.version === 'number') ? rec.data.version : null;
     syncLanServerStoreFromDisk();
     const { normalized, warnings, errors } = normalizeStoreSnapshot(rec.data);
     if (!normalized) {
@@ -1230,8 +1232,19 @@ ipcMain.handle('hub:mint-api-token', async (_e, { label, scopes } = {}) => {
   }
 });
 
+// Set at load time from the store actually on disk. A store written by a NEWER Khayt
+// contains collections this build does not know about, and normalizeStoreSnapshot is an
+// allowlist — it drops them. Loading such a store and saving once would therefore delete
+// that version's data permanently, with only a console warning. Refuse instead.
+let _diskStoreVersion = null;
+
 ipcMain.handle('hub:save-store', async (event, data) => {
   try {
+    if (typeof _diskStoreVersion === 'number' && _diskStoreVersion > STORE_VERSION) {
+      const msg = `This data file was written by a newer version of Khayt (v${_diskStoreVersion}); this build supports v${STORE_VERSION}. Not saving, so nothing is lost — please update Khayt.`;
+      console.error('hub:save-store:', msg);
+      return { ok: false, error: msg };
+    }
     const { normalized, errors } = normalizeStoreSnapshot(data);
     if (!normalized) {
       console.error('hub:save-store: unrecoverable store shape:', errors.join('; '));

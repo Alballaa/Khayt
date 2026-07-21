@@ -449,7 +449,7 @@ async function openBnplModal(orderId) {
 
   const svcRows = apiSvcs.length
     ? apiSvcs.map(svc => `
-        <div class="bnpl-modal-svc" data-svc="${escapeHtml(svc.id)}" style="padding:12px;background:var(--bg-elev);border-radius:var(--radius);margin-bottom:10px;border-left:3px solid ${escapeHtml(svc.color)};">
+        <div class="bnpl-modal-svc" data-svc="${escapeHtml(svc.id)}" style="padding:12px;background:var(--bg-elev);border-radius:var(--radius);margin-bottom:10px;border-inline-start:3px solid ${escapeHtml(svc.color)};">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
             <span style="font-weight:600;">${escapeHtml(svc.name)}</span>
             <button class="btn ghost small" id="bnplGen_${escapeHtml(svc.id)}">${t('bnpl.generate')}</button>
@@ -460,7 +460,7 @@ async function openBnplModal(orderId) {
     : `<p style="color:var(--text-muted);font-size:13px;">${t('bnpl.configure_first')}</p>`;
 
   const infoCards = BNPL_CATALOG.filter(s => !s.hasApi).map(s =>
-    `<a href="#" class="bnpl-info-card" data-url="${escapeHtml(s.dashUrl)}" style="padding:8px 10px;background:var(--bg-elev);border-radius:var(--radius);border-left:2px solid ${escapeHtml(s.color)};text-decoration:none;color:inherit;cursor:pointer;display:block;">
+    `<a href="#" class="bnpl-info-card" data-url="${escapeHtml(s.dashUrl)}" style="padding:8px 10px;background:var(--bg-elev);border-radius:var(--radius);border-inline-start:2px solid ${escapeHtml(s.color)};text-decoration:none;color:inherit;cursor:pointer;display:block;">
       <span style="font-weight:600;font-size:12px;">${escapeHtml(s.name)}</span>
       <span style="font-size:10px;color:var(--text-muted);margin-left:6px;">${s.regions.slice(0,4).join('·')}</span>
     </a>`
@@ -790,7 +790,7 @@ function renderOrderComments(orderId) {
     <div id="commentFeed" style="max-height:260px;overflow-y:auto;margin-bottom:12px;display:flex;flex-direction:column;gap:8px;">
       ${comments.length === 0 ? `<p style="color:var(--text-muted);font-size:12.5px;margin:0;">${escapeHtml(t('comments.none'))}</p>` :
         comments.map(c => `
-          <div style="background:var(--bg-elev);border-radius:var(--radius);padding:8px 12px;border-left:3px solid var(--primary);">
+          <div style="background:var(--bg-elev);border-radius:var(--radius);padding:8px 12px;border-inline-start:3px solid var(--primary);">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
               <span style="font-size:12px;font-weight:600;color:var(--primary);">${escapeHtml(c.authorName||'—')}</span>
               <span style="font-size:11px;color:var(--text-muted);">${new Date(c.createdAt).toLocaleString()}</span>

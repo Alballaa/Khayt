@@ -2328,8 +2328,11 @@ async function generateOrderLabel(orderId) {
   const weightStr = totalWeight > 0 ? `${Math.round(totalWeight)}g` : '';
   const materialStr = order.material || (order.parts?.[0]?.material) || '';
 
+  // Printed output must follow the shop's own language, not default to LTR English.
+  const docLang = (typeof i18n !== 'undefined' && i18n.current === 'ar') ? 'ar' : 'en';
+  const docDir = docLang === 'ar' ? 'rtl' : 'ltr';
   const html = `<!DOCTYPE html>
-<html>
+<html lang="${docLang}" dir="${docDir}">
 <head>
 <meta charset="UTF-8">
 <title>Label — ${escapeHtml(order.id)}</title>
@@ -2443,8 +2446,11 @@ async function generatePackingSlip(orderId) {
   const totalWeight = parts.reduce((s, p) => s + (+p.printWeight || 0) * (p.qty || 1), 0);
   const totalQty = parts.reduce((s, p) => s + (p.qty || 1), 0);
 
+  // Printed output must follow the shop's own language, not default to LTR English.
+  const docLang = (typeof i18n !== 'undefined' && i18n.current === 'ar') ? 'ar' : 'en';
+  const docDir = docLang === 'ar' ? 'rtl' : 'ltr';
   const html = `<!DOCTYPE html>
-<html>
+<html lang="${docLang}" dir="${docDir}">
 <head>
 <meta charset="UTF-8">
 <title>Packing Slip — ${escapeHtml(order.id)}</title>
@@ -2467,7 +2473,7 @@ async function generatePackingSlip(orderId) {
   td { padding:2.5mm 4mm; font-size:10pt; border-bottom:0.3mm solid #e5e7eb; }
   td:last-child, td:nth-child(4) { text-align:right; }
   tfoot td { padding:3mm 4mm; font-size:10.5pt; font-weight:700; border-top:1.5px solid #111; }
-  .notes { background:#fffbeb; border-left:3mm solid #fbbf24; padding:3mm 4mm; font-size:10pt; border-radius:1mm; margin-bottom:8mm; }
+  .notes { background:#fffbeb; border-inline-start:3mm solid #fbbf24; padding:3mm 4mm; font-size:10pt; border-radius:1mm; margin-bottom:8mm; }
   .footer { text-align:center; font-size:9pt; color:#888; border-top:0.5mm solid #e5e7eb; padding-top:4mm; margin-top:4mm; }
   @media print { body { padding:15mm; } }
 </style>
