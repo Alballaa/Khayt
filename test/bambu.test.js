@@ -130,3 +130,41 @@ test('parsePasv extracts host + computes the port from the high/low bytes', () =
 test('parsePasv throws on a malformed reply', () => {
   assert.throws(() => ftp.parsePasv('227 nope'));
 });
+
+test('a malformed PUBLISH is ignored, not thrown out of the socket handler', () => {
+  // tls.connect uses rejectUnauthorized:false, so any host at the printer's IP can send
+  // these. readUInt16BE(0) on a 0- or 1-byte body threw a RangeError from the 'data'
+  // listener: a spurious crash report, and — because finish() never ran — an 8s hang ending
+  // in a misleading "check IP, access code & LAN mode" timeout instead of a protocol error.
+  for (const [label, buf] of [
+    ['remaining length 0', Buffer.from([0x30, 0x00])],
+    ['remaining length 1', Buffer.from([0x30, 0x01, 0x00])],
+  ]) {
+    const { packets } = b.parsePackets(buf);
+    assert.equal(packets.length, 1, `${label}: expected one packet`);
+    assert.doesNotThrow(() => b.decodePublish(packets[0].body), `${label} threw`);
+    assert.equal(b.decodePublish(packets[0].body), null, `${label} should decode to null`);
+  }
+});
+
+test('a topic length longer than the body does not read past the end', () => {
+  const { packets } = b.parsePackets(Buffer.from([0x30, 0x03, 0xff, 0xff, 0x41]));
+  const d = b.decodePublish(packets[0].body);
+  assert.ok(d, 'should still decode');
+  assert.ok(d.topic.length <= 1, `topic must be clamped to the body, got ${JSON.stringify(d.topic)}`);
+});
+
+test('a well-formed PUBLISH still decodes correctly', () => {
+  const topic = 'device/x/report';
+  const payload = '{"ok":true}';
+  const body = Buffer.concat([
+    Buffer.from([topic.length >> 8, topic.length & 0xff]),
+    Buffer.from(topic, 'utf8'),
+    Buffer.from(payload, 'utf8'),
+  ]);
+  const frame = Buffer.concat([Buffer.from([0x30, body.length]), body]);
+  const { packets } = b.parsePackets(frame);
+  const d = b.decodePublish(packets[0].body);
+  assert.equal(d.topic, topic);
+  assert.equal(d.payload, payload);
+});

@@ -4,6 +4,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.51] - 2026-07-21
+
+### Fixed
+
+- **Band-swap prints could pause at the very first layer for no reason**, asking you to load filament that was already on the head. This happened whenever the first colour printed wasn't the lowest-numbered one.
+- **A Bambu printer check could hang for eight seconds and then report the wrong reason.** A malformed reply from the network crashed the reader internally and surfaced as "check IP, access code & LAN mode" instead of a protocol error.
+
 ## [3.2.0-beta.50] - 2026-07-21
 
 ### Fixed
