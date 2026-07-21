@@ -1568,7 +1568,7 @@ function renderPrinterUtilizationChart() {
   }
   // Determine date range for utilization calculation
   const now2 = new Date();
-  const rangeDays = analyticsRangeDays(analyticsRange, 'analytics', completed.map(o => o.date));
+  const rangeDays = analyticsRangeDays(analyticsRange, 'analytics', orders.map(o => o.date));
 
   // Attach targetHoursPerDay from machines array to machMap
   for (const m of machines) {
