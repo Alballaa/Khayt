@@ -732,7 +732,12 @@ async function loadLanQr(urlOverride) {
    ============================================================ */
 function exportAccountingCSV() {
   const rows = [['Date','DocNumber','Type','Description','Account','Debit','Credit','VAT','Currency']];
-  const cur = currencySymbol();
+  // Per-order currency, not the shop's base symbol. Stamping the base symbol on every row
+  // while emitting the order's own price exported a 1,200 USD invoice as "1200.00, SAR" —
+  // every other money path uses orderCurrency(), and lib/accounting-export.js carries the
+  // invoice's own currency per row. This renderer copy was the odd one out.
+  const rowCur = (o) => (typeof orderCurrency === 'function' ? orderCurrency(o) : currencySymbol());
+  const cur = currencySymbol(); // base currency — used by the expense rows below
 
   // Revenue entries (completed invoices)
   printLog.filter(o => o.status === 'completed').forEach(o => {
@@ -740,22 +745,33 @@ function exportAccountingCSV() {
     const subtotal = (+o.price || 0) / (1 + vatRate);
     const vat = (+o.price || 0) - subtotal;
     // Debit Accounts Receivable
-    rows.push([o.date||o.timestamp?.split('T')[0]||'', o.id, 'Invoice', escapeHtml(o.project||o.client||'Order'), 'Accounts Receivable', (+o.price||0).toFixed(2), '', vat.toFixed(2), cur]);
+    const oc = rowCur(o);
+    rows.push([o.date||o.timestamp?.split('T')[0]||'', o.id, 'Invoice', escapeHtml(o.project||o.client||'Order'), 'Accounts Receivable', (+o.price||0).toFixed(2), '', vat.toFixed(2), oc]);
     // Credit Revenue
-    rows.push([o.date||o.timestamp?.split('T')[0]||'', o.id, 'Invoice', escapeHtml(o.project||o.client||'Order'), 'Revenue', '', subtotal.toFixed(2), '', cur]);
-    // Credit VAT Payable
-    if (vat > 0) rows.push([o.date||o.timestamp?.split('T')[0]||'', o.id, 'Invoice', 'VAT Payable', 'VAT Payable', '', vat.toFixed(2), vat.toFixed(2), cur]);
+    rows.push([o.date||o.timestamp?.split('T')[0]||'', o.id, 'Invoice', escapeHtml(o.project||o.client||'Order'), 'Revenue', '', subtotal.toFixed(2), '', oc]);
+    // Credit VAT Payable. The VAT column is left BLANK here: it is already carried on the
+    // A/R row above, and repeating it made a sum of that column double-count the VAT.
+    if (vat > 0) rows.push([o.date||o.timestamp?.split('T')[0]||'', o.id, 'Invoice', 'VAT Payable', 'VAT Payable', '', vat.toFixed(2), '', oc]);
+    // Credit notes: a credited or voided invoice used to stay fully booked as revenue,
+    // with its A/R never clearing.
+    for (const cn of (o.creditNotes || [])) {
+      const amt = +cn.amount || 0;
+      if (!(amt > 0)) continue;
+      const cnDate = (cn.date || cn.at || o.date || '').slice(0, 10);
+      rows.push([cnDate, cn.id || o.id, 'Credit Note', escapeHtml(cn.reason || 'Credit note'), 'Revenue', amt.toFixed(2), '', '', oc]);
+      rows.push([cnDate, cn.id || o.id, 'Credit Note', escapeHtml(cn.reason || 'Credit note'), 'Accounts Receivable', '', amt.toFixed(2), '', oc]);
+    }
     // Payment entries
     if (o.paidAmount > 0) {
-      rows.push([o.paidAt?.split('T')[0]||o.date||'', o.id, 'Payment', `Payment for ${escapeHtml(o.id)}`, 'Cash / Bank', (+o.paidAmount||0).toFixed(2), '', '', cur]);
-      rows.push([o.paidAt?.split('T')[0]||o.date||'', o.id, 'Payment', `Payment for ${escapeHtml(o.id)}`, 'Accounts Receivable', '', (+o.paidAmount||0).toFixed(2), '', cur]);
+      rows.push([o.paidAt?.split('T')[0]||o.date||'', o.id, 'Payment', `Payment for ${escapeHtml(o.id)}`, 'Cash / Bank', (+o.paidAmount||0).toFixed(2), '', '', oc]);
+      rows.push([o.paidAt?.split('T')[0]||o.date||'', o.id, 'Payment', `Payment for ${escapeHtml(o.id)}`, 'Accounts Receivable', '', (+o.paidAmount||0).toFixed(2), '', oc]);
     }
     if ((+o.giftCardDiscount || 0) > 0) {
       // Clear the gift-card-settled portion from A/R against the gift-card liability,
       // otherwise the exported ledger leaves that portion open forever.
       const gd = (+o.giftCardDiscount).toFixed(2);
-      rows.push([o.paidAt?.split('T')[0]||o.date||'', o.id, 'Payment', `Gift card redeemed for ${escapeHtml(o.id)}`, 'Gift Card Liability', gd, '', '', cur]);
-      rows.push([o.paidAt?.split('T')[0]||o.date||'', o.id, 'Payment', `Gift card redeemed for ${escapeHtml(o.id)}`, 'Accounts Receivable', '', gd, '', cur]);
+      rows.push([o.paidAt?.split('T')[0]||o.date||'', o.id, 'Payment', `Gift card redeemed for ${escapeHtml(o.id)}`, 'Gift Card Liability', gd, '', '', oc]);
+      rows.push([o.paidAt?.split('T')[0]||o.date||'', o.id, 'Payment', `Gift card redeemed for ${escapeHtml(o.id)}`, 'Accounts Receivable', '', gd, '', oc]);
     }
   });
 
@@ -1634,19 +1650,28 @@ function renderReferralAnalytics() {
   const el = document.getElementById('acquisitionSourcesContainer');
   if (!el) return;
 
-  const sources = ['instagram','referral','walk_in','website','exhibition','salla','zid','intake_form','other'];
+  // The known list seeds the chart, but the DENOMINATOR counts every source present —
+  // so a value missing from the list (orders created through the online intake/quote path
+  // are written with source:'online') inflated the total, never appeared as a bar, and
+  // silently understated every other channel. Build the display list from what is
+  // actually there, so percentages sum to 100%.
+  const sources = ['instagram','referral','walk_in','website','exhibition','salla','zid','intake_form','online','other'];
   const counts = {};
   sources.forEach(s => { counts[s] = 0; });
   for (const o of printLog) {
     const s = o.source || 'other';
     counts[s] = (counts[s] || 0) + 1;
   }
+  // Anything still unknown gets its own bar rather than vanishing from the chart.
+  for (const key of Object.keys(counts)) {
+    if (!sources.includes(key)) sources.push(key);
+  }
 
   const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
   const colors = {
     instagram:'#e1306c', referral:'#22c55e', walk_in:'#3b82f6',
     website:'#f59e0b',   exhibition:'#a855f7', salla:'#10b981',
-    zid:'#6366f1',       intake_form:'#f97316', other:'#6b7280',
+    zid:'#6366f1',       intake_form:'#f97316', online:'#0ea5e9', other:'#6b7280',
   };
 
   const bars = sources.filter(s => counts[s] > 0)

@@ -2453,6 +2453,10 @@
 <script src="../lib/plate-nesting.js"></script>
 <script src="../lib/webhooks.js"></script>
 <script src="../lib/maintenance.js"></script>
+<!-- Printer alerts: was never loaded, so computePrinterAlerts was undefined and the
+     caller in integrations.js silently returned — the whole feature was dead in the
+     shipped app despite having 22 passing unit tests. -->
+<script src="../lib/printer-alerts.js"></script>
 <script src="../lib/rbac.js"></script>
 <script src="../lib/accounting-export.js"></script>
 <script src="../lib/scheduling.js"></script>

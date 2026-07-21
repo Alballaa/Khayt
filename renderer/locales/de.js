@@ -263,6 +263,8 @@
   "cl.tier": "Stufe",
   "cl.vat": "USt-IdNr.",
   "common.by": "von",
+  "cl.stmt_gift": "Geschenkkarten",
+  "cl.stmt_credit": "Gutschriften",
   "lan.click_to_copy": "Zum Kopieren klicken",
   "oe.order_photo": "Auftragsfoto",
   "set.backups_unreadable": "Backup-Ordner konnte nicht gelesen werden – Ihre Backups sind möglicherweise vorhanden. Öffnen Sie den Ordner direkt.",

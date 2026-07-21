@@ -263,6 +263,8 @@
   "cl.tier": "Nivel",
   "cl.vat": "Número de IVA",
   "common.by": "por",
+  "cl.stmt_gift": "Tarjetas regalo",
+  "cl.stmt_credit": "Notas de crédito",
   "lan.click_to_copy": "Haz clic para copiar",
   "oe.order_photo": "Foto del pedido",
   "set.backups_unreadable": "No se pudo leer la carpeta de copias — puede que sigan ahí. Prueba a abrir la carpeta directamente.",

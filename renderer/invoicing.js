@@ -65,6 +65,8 @@ function generateClientStatement(clientId) {
   const totalPaid    = orders.reduce((s, o) => s + cashPaidBase(o), 0);
   // Gift-card redemptions settle part of the balance just like a payment.
   const totalGift    = orders.reduce((s, o) => s + convertToBase(+o.giftCardDiscount || 0, curOf(o)), 0);
+  const totalCredit  = orders.reduce((s, o) =>
+    s + convertToBase((o.creditNotes || []).reduce((a, cn) => a + (+cn.amount || 0), 0), curOf(o)), 0);
   const outstanding  = orders.reduce((s, o) => s + orderOwedBase(o), 0);
 
   const rowsHtml = orders.map(o => {
@@ -135,6 +137,14 @@ function generateClientStatement(clientId) {
           <div style="font-size:11px; color:#666;">${escapeHtml(t('cl.stmt_paid'))}</div>
           <div style="font-size:18px; font-weight:700; color:#2a9d8f;">${fmtPrice(totalPaid)}</div>
         </div>
+        ${totalGift > 0 ? `<div style="background:#f8f9fa; padding:12px 16px; border-radius:6px; min-width:150px;">
+          <div style="font-size:11px; color:#666;">${escapeHtml(t('cl.stmt_gift') || 'Gift cards')}</div>
+          <div style="font-size:18px; font-weight:700; color:#2a9d8f;">${fmtPrice(totalGift)}</div>
+        </div>` : ''}
+        ${totalCredit > 0 ? `<div style="background:#f8f9fa; padding:12px 16px; border-radius:6px; min-width:150px;">
+          <div style="font-size:11px; color:#666;">${escapeHtml(t('cl.stmt_credit') || 'Credit notes')}</div>
+          <div style="font-size:18px; font-weight:700; color:#2a9d8f;">${fmtPrice(totalCredit)}</div>
+        </div>` : ''}
         <div style="background:${outstanding > 0 ? '#fff5f5' : '#f0fdf4'}; padding:12px 16px; border-radius:6px; min-width:150px;">
           <div style="font-size:11px; color:#666;">${escapeHtml(t('cl.stmt_outstanding'))}</div>
           <div style="font-size:18px; font-weight:700; color:${outstanding > 0 ? '#e63946' : '#2a9d8f'};">${fmtPrice(outstanding)}</div>

@@ -263,6 +263,8 @@
   "cl.tier": "等级",
   "cl.vat": "增值税号",
   "common.by": "由",
+  "cl.stmt_gift": "礼品卡",
+  "cl.stmt_credit": "贷记单",
   "lan.click_to_copy": "点击复制",
   "oe.order_photo": "订单照片",
   "set.backups_unreadable": "无法读取备份文件夹 — 您的备份可能仍在。请尝试直接打开该文件夹。",

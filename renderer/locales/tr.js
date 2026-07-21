@@ -263,6 +263,8 @@
   "cl.tier": "Kademe",
   "cl.vat": "KDV Numarası",
   "common.by": "tarafından",
+  "cl.stmt_gift": "Hediye kartları",
+  "cl.stmt_credit": "İade faturaları",
   "lan.click_to_copy": "Kopyalamak için tıklayın",
   "oe.order_photo": "Sipariş fotoğrafı",
   "set.backups_unreadable": "Yedek klasörü okunamadı — yedekleriniz hâlâ orada olabilir. Klasörü doğrudan açmayı deneyin.",
