@@ -104,3 +104,38 @@ test('empty mesh → not banded, graceful', () => {
   assert.equal(r.banded, false);
   assert.equal(r.bands.length, 0);
 });
+
+/* ── the swap count must equal what the planner actually emits ───────────── */
+
+test('manualSwaps agrees with buildBandSwapPlan for every head count', () => {
+  // These are two halves of one answer shown on the same screen: the converter prints
+  // "print all N colours exactly with X filament swap(s)" from manualSwaps, directly above
+  // the plan's own instruction list. They disagreed.
+  //
+  // `bands.length - HEADS` was wrong in both directions — a colour recurring up Z makes
+  // several bands but occupies one head (1,2,1,2,1,2 = 6 bands, 2 colours, 0 swaps on a
+  // 4-head machine), while that same sequence on a single extruder needs FIVE swaps.
+  const { buildBandSwapPlan } = require('../lib/swap-pauses.js');
+  const palette = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff'];
+  const sequences = [
+    [1, 2, 1, 2, 1, 2],   // recurring colours
+    [1, 2, 3],            // fits 4 heads
+    [1, 2, 3, 4, 5],      // one more colour than heads
+    [1, 1, 1],            // single colour
+  ];
+  for (const seq of sequences) {
+    const faces = [];
+    seq.forEach((state, i) => {
+      for (let k = 0; k < 8; k++) faces.push({ z: [i * 10, i * 10 + 10], state, x: 0 });
+    });
+    const m = mesh(faces);
+    for (const heads of [4, 1]) {
+      const r = detectColorBands(m.positions, m.faceState, 1, { binHeight: 1, heads });
+      if (!r.banded) continue;
+      const plan = buildBandSwapPlan(r.bands, palette, 'M600', 0.2, 1, heads);
+      assert.equal(r.manualSwaps, (plan.instructions || []).length,
+        `reported ${r.manualSwaps} swaps but the planner emits ${(plan.instructions || []).length} ` +
+        `for states [${seq}] on ${heads} head(s)`);
+    }
+  }
+});

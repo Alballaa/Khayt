@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.49] - 2026-07-21
+
+### Fixed
+
+- **The converter contradicted itself about filament swaps.** It could announce "2 filament swaps" directly above a line saying no manual swap was needed. The count was based on how many colour bands the model had rather than how many distinct colours — a model alternating between two colours up its height needs no swaps at all on a four-head printer, and needs one at every change on a single-extruder machine. The figure now matches the swap plan exactly.
+
 ## [3.2.0-beta.48] - 2026-07-21
 
 ### Fixed
