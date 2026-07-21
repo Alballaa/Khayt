@@ -49,9 +49,17 @@ test('planFullSpectrum: caps the palette so a pathological colour count cannot b
   const huge = [];
   for (let i = 0; i < 300; i++) huge.push('#' + (i * 977 % 0x1000000).toString(16).padStart(6, '0'));
   assert.strictEqual(fs.planFullSpectrum(huge, []), null, 'over-cap palette rejected');
-  // A palette right at the cap (32 = 2x a full 4-unit AMS) is still planned normally.
-  const atCap = huge.slice(0, 32);
-  assert.ok(fs.planFullSpectrum(atCap, []), 'palette at the cap still plans');
+  // A palette that the paint encoding can actually represent still plans normally.
+  //
+  // This used to assert 32 colours ("2x a full 4-unit AMS") still plans — but measuring the
+  // planner showed 32 colours produces slot numbers up to 32, and the 3MF paint field tops
+  // out at 18 (it stores state-3 in four bits). Those plans encoded SILENTLY WRONG COLOURS:
+  // slot 19 decoded as 3, slot 24 as 8. The real ceiling is the encoding, not MAX_FS_COLORS,
+  // so the planner now declines above it and this asserts an encodable palette instead.
+  const encodable = huge.slice(0, 12);
+  assert.ok(fs.planFullSpectrum(encodable, []), 'an encodable palette still plans');
+  assert.strictEqual(fs.planFullSpectrum(huge.slice(0, 32), []), null,
+    'a palette whose slots exceed the paint encoding must decline, not emit wrong colours');
 });
 
 test('serializeMixedDefs: matches the Orca token format', () => {
@@ -64,4 +72,34 @@ test('remapPaintCode: a solid state remaps through stateMap and decodes to the n
   const code = mm.encodeSolidPaint(3);
   const out = fs.remapPaintCode(code, map);
   assert.strictEqual(mm.dominantState(out), 5);
+});
+
+test('a slot beyond the paint encoding is refused, never silently wrapped', () => {
+  // The 3MF paint field stores (state - 3) in FOUR BITS, so 18 is the highest slot it can
+  // represent. MAX_FS_COLORS is 32 and mix slots run past the physical heads, so a large
+  // palette could emit slot 19+ — which wrapped to a DIFFERENT VALID filament with no
+  // error at all: 19 decoded as 3, 24 as 8. The wrong colour simply printed.
+  const mesh = require('../lib/mf-mesh.js');
+  const solid = mesh.encodeSolidPaint(1);
+  for (const slot of [3, 10, 18]) {
+    const back = mesh.dominantState(fs.remapPaintCode(solid, () => slot));
+    assert.equal(back, slot, `slot ${slot} must round-trip`);
+  }
+  for (const slot of [19, 24, 31]) {
+    assert.throws(() => fs.remapPaintCode(solid, () => slot), /exceeds the 3MF paint encoding/,
+      `slot ${slot} must be refused rather than wrapped`);
+  }
+});
+
+test('a palette needing more slots than the encoding allows declines the plan', () => {
+  // planFullSpectrum returning null is the caller's fallback signal — mf-convert guards
+  // every use with `if (paintPlan …)`, so declining degrades to a plain retarget.
+  const many = Array.from({ length: 24 }, (_, i) => '#' + String(i % 10).repeat(6));
+  const plan = fs.planFullSpectrum(many, many.map(() => 1), { maxPhysical: 4 });
+  assert.equal(plan, null, 'an unencodable palette must decline, not emit wrong colours');
+
+  // A palette that does fit still plans normally.
+  const few = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
+  const ok = fs.planFullSpectrum(few, few.map(() => 1), { maxPhysical: 4 });
+  assert.ok(ok && ok.physical.length + ok.mixDefs.length <= 18, 'a normal palette must still plan');
 });

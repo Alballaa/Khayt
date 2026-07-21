@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.52] - 2026-07-21
+
+### Fixed
+
+- **Full Spectrum could print the wrong colours on large palettes.** Above about eighteen colours the file format cannot record the extra slots, and Khayt silently substituted a different filament instead. It now declines those palettes and falls back to a plain conversion rather than producing a wrong print.
+
 ## [3.2.0-beta.51] - 2026-07-21
 
 ### Fixed
