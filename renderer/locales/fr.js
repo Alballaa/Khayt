@@ -263,6 +263,7 @@
   "cl.tier": "Niveau",
   "cl.vat": "Numéro de TVA",
   "common.by": "par",
+  "plib.delete_partial": "Retiré de la bibliothèque, mais certains fichiers n’ont pas pu être supprimés du disque",
   "cl.stmt_gift": "Cartes cadeaux",
   "cl.stmt_credit": "Avoirs",
   "lan.click_to_copy": "Cliquer pour copier",

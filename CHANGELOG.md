@@ -4,6 +4,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.43] - 2026-07-21
+
+### Fixed
+
+- **Adding a fee to a quote made the margin go down.** Extra charges were counted as both income and cost, so a 100 fee on a 30%-margin job showed 17.6% instead of 58.8%.
+- **Deleting from the print library said "File deleted" even when the file could not be removed** — it disappeared from the library while staying on disk.
+
 ## [3.2.0-beta.42] - 2026-07-21
 
 ### Fixed

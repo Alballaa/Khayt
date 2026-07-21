@@ -263,6 +263,7 @@
   "cl.tier": "ランク",
   "cl.vat": "VAT番号",
   "common.by": "作成者",
+  "plib.delete_partial": "ライブラリからは削除しましたが、一部のファイルをディスクから削除できませんでした",
   "cl.stmt_gift": "ギフトカード",
   "cl.stmt_credit": "クレジットノート",
   "lan.click_to_copy": "クリックしてコピー",

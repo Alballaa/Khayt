@@ -263,6 +263,7 @@
   "cl.tier": "Stufe",
   "cl.vat": "USt-IdNr.",
   "common.by": "von",
+  "plib.delete_partial": "Aus der Bibliothek entfernt, aber einige Dateien konnten nicht gelöscht werden",
   "cl.stmt_gift": "Geschenkkarten",
   "cl.stmt_credit": "Gutschriften",
   "lan.click_to_copy": "Zum Kopieren klicken",
