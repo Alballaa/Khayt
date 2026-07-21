@@ -1,4 +1,5 @@
 const { test } = require('node:test');
+const LAN = require('../lib/lan-server.js');
 const assert = require('node:assert/strict');
 const {
   lanEscapeHtml,
@@ -159,4 +160,52 @@ test('scriptSafeJson neutralizes </script> and HTML metacharacters', () => {
   // Output must still parse back to the original value.
   assert.equal(JSON.parse(scriptSafeJson('a</script>b')), 'a</script>b');
   assert.ok(!scriptSafeJson('</script>').includes('</script>'));
+});
+
+/* ── Auth throttling under a spoofable client id ────────────────────────── */
+
+test('the per-IP bucket is bypassable, which is why the global gate exists', () => {
+  // tunnelClientIp trusts the FIRST X-Forwarded-For entry, and that value is supplied by
+  // the remote caller — so rotating it hands the attacker a fresh bucket every request.
+  const seen = new Set();
+  for (let i = 0; i < 1000; i++) {
+    seen.add(LAN.tunnelClientIp('127.0.0.1', `10.0.0.${i % 256}, 1.2.3.4`, true));
+  }
+  assert.ok(seen.size > 100, 'a caller can mint many distinct per-IP buckets');
+
+  // The global gate does not depend on the client id at all, so it still trips.
+  const state = { count: 0, windowStart: 0, blockedUntil: 0 };
+  const now = Date.now();
+  let blocked = 0;
+  for (let i = 0; i < 1000; i++) {
+    if (LAN.globalAuthThrottle(state, now + i, false)) blocked++;
+    else LAN.globalAuthThrottle(state, now + i, true);
+  }
+  assert.ok(blocked > 900, `global gate must block the flood, blocked only ${blocked}`);
+});
+
+test('sweepFailedAttempts evicts expired buckets so the map cannot grow without bound', () => {
+  // Entries used to be removed only by a SUCCESSFUL auth on that exact key, so a flood of
+  // spoofed client ids left one permanent entry each — remote memory exhaustion.
+  const map = new Map();
+  const now = Date.now();
+  for (let i = 0; i < 10_000; i++) {
+    map.set('ip-' + i, { count: 1, resetAt: now - 1 });   // already expired
+  }
+  assert.equal(map.size, 10_000);
+  LAN.sweepFailedAttempts(map, now);
+  assert.equal(map.size, 0, 'expired buckets must be evicted');
+});
+
+test('sweepFailedAttempts hard-caps even when every bucket is still live', () => {
+  const map = new Map();
+  const now = Date.now();
+  for (let i = 0; i < 9000; i++) {
+    map.set('ip-' + i, { count: 1, resetAt: now + 60_000 });  // all unexpired
+  }
+  LAN.sweepFailedAttempts(map, now, 5000);
+  assert.ok(map.size <= 5000, `hard cap not applied, size ${map.size}`);
+  // Oldest-inserted dropped first, so the most recent attackers stay tracked.
+  assert.ok(map.has('ip-8999'), 'most recent bucket must survive');
+  assert.ok(!map.has('ip-0'), 'oldest bucket should have been dropped');
 });

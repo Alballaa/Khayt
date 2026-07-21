@@ -4,6 +4,7 @@ const {
   isBlockedHost,
   isAllowedPrinterHost,
   isBlockedLoopbackOrMetadata,
+  resolvesToBlockedHost,
   sanitizeMailgunDomain,
 } = require('../lib/host-guard');
 
@@ -60,4 +61,42 @@ test('isAllowedPrinterHost blocks loopback and metadata', () => {
   assert.equal(isAllowedPrinterHost('127.0.0.1'), false);
   assert.equal(isAllowedPrinterHost('169.254.169.254'), false);
   assert.equal(isAllowedPrinterHost('0.0.0.0'), false);
+});
+
+/* ── SSRF: the shape callers actually pass ──────────────────────────────── */
+
+test('IPv6 loopback and private ranges are blocked in BRACKETED form', async () => {
+  // This is the shape every production caller supplies: new URL(u).hostname returns an
+  // IPv6 literal wrapped in brackets. The guard tested bare literals ("^::1$", "^fc",
+  // "^fd", "^::ffff:"), so NONE of them ever matched a real caller — http://[::1]:PORT/
+  // reached any loopback service while 127.0.0.1 was correctly refused. The pre-existing
+  // tests passed the bare form, the only shape that worked.
+  const cases = [
+    'http://[::1]:8080/x',
+    'http://[0:0:0:0:0:0:0:1]/x',      // long form — URL normalises it to [::1]
+    'http://[::ffff:127.0.0.1]/x',     // IPv4-mapped
+    'http://[fd00::1]/x',              // unique-local
+    'http://[FD00::1]/x',              // uppercase must not evade
+    'http://[fe80::1]/x',              // link-local
+    'http://[::]/x',
+  ];
+  for (const u of cases) {
+    const host = new URL(u).hostname;
+    assert.equal(isBlockedHost(host), true, `SSRF NOT BLOCKED: ${u} (hostname ${host})`);
+    assert.equal(await resolvesToBlockedHost(host), true, `DNS layer let it through: ${u}`);
+  }
+});
+
+test('the bracketed form does not over-block legitimate destinations', async () => {
+  for (const u of ['https://api.example.com/hook', 'http://192.0.2.5/x', 'https://[2606:4700::1111]/x']) {
+    const host = new URL(u).hostname;
+    if (host === '192.0.2.5' || host.startsWith('[2606')) {
+      assert.equal(isBlockedHost(host), false, `wrongly blocked a public address: ${u}`);
+    }
+  }
+});
+
+test('outbound SMTP guard also handles the bracketed form', () => {
+  assert.equal(isBlockedLoopbackOrMetadata(new URL('http://[::1]/x').hostname), true);
+  assert.equal(isBlockedLoopbackOrMetadata(new URL('http://[::ffff:169.254.169.254]/x').hostname), true);
 });
