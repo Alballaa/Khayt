@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.44] - 2026-07-21
+
+### Fixed
+
+- **Quitting while Khayt was still starting up could skip the final save.** The shutdown now allows more time for the save to finish, and still never prevents the app from closing.
+
 ## [3.2.0-beta.43] - 2026-07-21
 
 ### Fixed
