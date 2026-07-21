@@ -4,6 +4,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.39] - 2026-07-21
+
+### Fixed
+
+- **Tax invoices could be a penny out of balance at VAT rates other than 15%.** The tax-exclusive and tax amounts were each rounded separately, so they did not always add up to the total — which makes the invoice XML invalid. Saudi invoices at 15% were never affected; shops using other rates were, on about one total in eight at 20%.
+- **Calendar chips now say which machine and status they represent** instead of relying on colour alone.
+
 ## [3.2.0-beta.38] - 2026-07-21
 
 ### Fixed

@@ -867,6 +867,15 @@ function buildZatcaTLV({ sellerName, vatNumber, timestamp, total, vatAmount }) {
 function buildZatcaInvoiceXml({ invoiceNumber, uuid, issueDate, issueTime, sellerName, sellerStreet, sellerCity, vatNumber, buyerName, total, subtotal, vatAmount, vatRate, itemName, invoiceCounter, pih }) {
   const x = (s) => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   const amt = (n) => (Math.round((+n || 0) * 100) / 100).toFixed(2);
+  // Reconcile the rounding penny onto the subtotal so the document balances, exactly as
+  // lib/accounting-export.js does. Rounding subtotal and VAT INDEPENDENTLY from the
+  // unrounded split can leave TaxExclusiveAmount + TaxAmount a cent away from
+  // TaxInclusiveAmount, which is invalid UBL. Harmless at Saudi's 15% (0 mismatches over
+  // 2M amounts, verified) — but the VAT rate is configurable and enableZatca defaults to
+  // true, so a shop at 20% hit it on ~12.6% of totals (1.05 emitted as 0.88 + 0.18).
+  const totalR = Math.round((+total || 0) * 100) / 100;
+  const vatR = Math.round((+vatAmount || 0) * 100) / 100;
+  total = totalR; vatAmount = vatR; subtotal = Math.round((totalR - vatR) * 100) / 100;
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
          xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
