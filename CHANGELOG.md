@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.53] - 2026-07-21
+
+### Fixed
+
+- **A malformed 3MF whose parts reference each other in a loop no longer produces a broken preview.** Khayt now stops following the loop instead of reporting far more geometry than it actually loaded.
+
 ## [3.2.0-beta.52] - 2026-07-21
 
 ### Fixed
