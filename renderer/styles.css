@@ -4852,3 +4852,25 @@ button.fil-card:focus-visible {
   outline: 2px solid var(--accent, #5bc8d6);
   outline-offset: 2px;
 }
+
+/* Resin steps and the per-part status dot became <button>s so they are focusable and
+   activate with Enter/Space — they were <div>/<span> with click handlers, and the resin
+   label literally said "tap to log". Strip the default button chrome so they look
+   exactly as before. */
+button.resin-step,
+button.part-status-dot {
+  font: inherit;
+  color: inherit;
+  background: none;
+  cursor: pointer;
+}
+/* Only reset what the element's own class does NOT already set — a blanket
+   `border:none; padding:0` here outranks .part-status-dot (which sets its border) and
+   .resin-step (which sets its padding) and would silently restyle both. */
+button.resin-step { border: none; width: 100%; text-align: start; }
+button.part-status-dot { padding: 0; }
+button.resin-step:focus-visible,
+button.part-status-dot:focus-visible {
+  outline: 2px solid var(--accent, #5bc8d6);
+  outline-offset: 2px;
+}

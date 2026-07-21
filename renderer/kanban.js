@@ -270,7 +270,7 @@ function renderStudioKanbanCard(b) {
         ${log.parts.map((p, i) => {
           const ps = p.partStatus || 'pending';
           return `<div class="part-status-row">
-            <span class="part-status-dot ${escapeHtml(ps)}" data-act="toggle-part-status" data-order-id="${log.id}" data-part-index="${i}" title="${escapeHtml(t('kan.parts_status'))}"></span>
+            <button type="button" class="part-status-dot ${escapeHtml(ps)}" data-act="toggle-part-status" data-order-id="${log.id}" data-part-index="${i}" title="${escapeHtml(t('kan.parts_status'))}" aria-label="${escapeHtml(t('kan.parts_status'))}: ${escapeHtml(ps)}"></button>
             <span class="part-status-name">${escapeHtml(p.name || 'Part ' + (i + 1))}</span>
             <span class="part-status-badge ${escapeHtml(ps)}">${escapeHtml(t('kan.part_' + ps) || ps)}</span>
           </div>`;
@@ -674,15 +674,15 @@ function renderKanban() {
         const rp = log.resinPost || {};
         resinCheckHtml = `
           <div class="resin-checklist">
-            <div class="resin-step ${rp.washDurationMins ? 'done' : ''}" data-act="resin-log-wash" data-id="${log.id}">
+            <button type="button" class="resin-step ${rp.washDurationMins ? 'done' : ''}" data-act="resin-log-wash" data-id="${log.id}">
               ${_kIcoL('droplet', '🧴', 13)}${escapeHtml(t('resin.wash'))} ${rp.washDurationMins ? `✓ ${rp.washDurationMins}min` : '— tap to log'}
-            </div>
-            <div class="resin-step ${rp.cureDurationMins ? 'done' : ''}" data-act="resin-log-cure" data-id="${log.id}">
+            </button>
+            <button type="button" class="resin-step ${rp.cureDurationMins ? 'done' : ''}" data-act="resin-log-cure" data-id="${log.id}">
               ${_kIcoL('sun', '☀️', 13)}${escapeHtml(t('resin.cure'))} ${rp.cureDurationMins ? `✓ ${rp.cureDurationMins}min` : '— tap to log'}
-            </div>
-            <div class="resin-step" data-act="resin-complete" data-id="${log.id}">
+            </button>
+            <button type="button" class="resin-step" data-act="resin-complete" data-id="${log.id}">
               ${_kIcoL('check', '✅', 13)}${escapeHtml(t('resin.complete_post'))}
-            </div>
+            </button>
           </div>`;
       }
       // QW3: Est. completion badge for printing cards
