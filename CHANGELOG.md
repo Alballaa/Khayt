@@ -4,6 +4,17 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.46] - 2026-07-21
+
+### Security
+
+- **Outbound address blocking did not work for IPv6.** Khayt refuses to send webhooks and other outbound requests to your own machine or private network, but the check only ever worked for ordinary IPv4 addresses — the IPv6 equivalents passed straight through. Anyone able to set a webhook or accounting URL in your settings (including via a restored or synced backup) could have used it to reach services running on your computer. Now blocked in every form.
+
+### Fixed
+
+- **The remote-access PIN could be guessed without limit.** The lockout on read requests could be sidestepped by a caller changing one header, and repeated attempts also grew memory without bound — a way to slow or crash the app from outside. Read requests now use the same global lockout the write side already had, and stale lockout records are cleaned up.
+- Deleting a restore point reported success even when the file could not be removed.
+
 ## [3.2.0-beta.45] - 2026-07-21
 
 ### Changed

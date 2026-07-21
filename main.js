@@ -609,7 +609,17 @@ ipcMain.handle('hub:read-restore-point', async (_e, filename) => {
 
 ipcMain.handle('hub:delete-restore-point', async (_e, filename) => {
   const safe = path.join(restorePointsDir(), path.basename(String(filename || '')));
-  await fs.promises.unlink(safe).catch(() => {});
+  // The third of these delete handlers. hub:delete-vault-file and hub:printlib-delete were
+  // fixed to report the truth; this one still swallowed the error and always claimed
+  // success, so a locked file on Windows silently stayed while the list re-rendered.
+  try {
+    await fs.promises.unlink(safe);
+  } catch (e) {
+    if (!e || e.code !== 'ENOENT') {   // already gone is the desired end state
+      console.error('hub:delete-restore-point:', e);
+      return { ok: false, error: String((e && e.message) || e) };
+    }
+  }
   return { ok: true };
 });
 
