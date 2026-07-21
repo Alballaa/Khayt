@@ -4,6 +4,17 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.48] - 2026-07-21
+
+### Fixed
+
+- **Some 3MF files previewed as empty or converted with the wrong colours.** The preview read only one of the several ways a 3MF may legally be written, so a file from another slicer could show nothing — or convert incorrectly with no warning — while the converter read it fine. Both now read files identically.
+- **A model could disappear entirely** depending on the order of attributes in the file.
+
+### Changed
+
+- Two source files contained a raw control character that made search tools treat them as binary and skip them silently. Written differently now, with no change in behaviour.
+
 ## [3.2.0-beta.47] - 2026-07-21
 
 ### Fixed

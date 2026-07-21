@@ -183,7 +183,7 @@
 
   let _query = '';
   let _tagFilter = ''; // active tag filter (empty = all)
-  const UNFILED = ' unfiled'; // sentinel: files with no folder
+  const UNFILED = '\u0000unfiled'; // sentinel: files with no folder
   let _folderFilter = ''; // '' = all, UNFILED = no folder, else folder name
   let _view = 'library'; // 'library' | 'gallery'
 
