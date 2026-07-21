@@ -1099,6 +1099,8 @@ async function sliceAndPrintForMachine(machineId) {
 }
 
   const api = {
+
+    MACHINE_COLORS,
     machineGramsSinceNozzle,
     renderMachines,
     sliceAndPrintForMachine,

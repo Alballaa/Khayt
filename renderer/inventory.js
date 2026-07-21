@@ -2750,7 +2750,11 @@ function appendProductParts(p) {
       const inv = inventory.find(i => i.id === partCopy.filamentId);
       if (inv) partCopy.material = inv.material;
     }
-    partCopy.baseCost = computePartBaseCost(partCopy);
+    // baseCost is a LINE total (unit cost x qty) — build.js sums these against whole-order
+    // revenue. The duplicate/reprint paths were fixed for this in beta.30; adding a
+    // catalog product was the third site and was missed, so a 50-unit catalog line quoted
+    // at 1/50 of its cost while every unit still printed.
+    partCopy.baseCost = partTotalCost(partCopy);
     currentBuild.push(partCopy);
   }
 }
@@ -3964,6 +3968,8 @@ async function printSpoolLabel(itemId) {
 }
 
   const api = {
+
+    partGramsConsumed,
     isLowStock,
     spoolMatchesLocation,
     filterInventoryByLocation,

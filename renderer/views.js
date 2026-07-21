@@ -107,6 +107,14 @@ function renderScheduleView() {
    ============================================================ */
 let calendarViewMonth = null; // null = current month
 
+/**
+ * Reset the calendar to the current month. Exported because wire-events.js used to do
+ * `calendarViewMonth = null` directly — but that binding is private to this file's IIFE,
+ * so in sloppy mode the assignment created a NEW global and this variable never changed:
+ * reopening the calendar kept whatever month the user had paged to.
+ */
+function resetCalendarMonth() { calendarViewMonth = null; }
+
 function renderCalendarView() {
   const el = $('#calendarView');
   if (!el) return;
@@ -401,6 +409,9 @@ function renderPortfolio() {
 
 
   const api = {
+
+
+    resetCalendarMonth,
     renderScheduleView,
     renderCalendarView,
     renderKioskView,

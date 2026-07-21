@@ -269,6 +269,8 @@
   }
 
   const api = {
+
+    copyOnlineIntakeUrl,
     applyOnlineLanPrefs,
     intakeUrlFromBase,
     renderOnlineSettings,

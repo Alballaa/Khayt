@@ -3785,6 +3785,7 @@ function renderTelegramSettings() {
   });
 }
   const api = {
+    buildDigestEmailHtml,
     renderLocationsSettings,
     renderEmailNotificationSettings,
     renderSmsNotificationSettings,

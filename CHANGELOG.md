@@ -4,6 +4,18 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.40] - 2026-07-21
+
+### Fixed
+
+- **Adding a product from the catalogue to a quote undercharged by the quantity.** A 50-unit line was priced as one unit while all 50 still printed. This is the same fault fixed for duplicated and reprinted orders in beta.30 — the catalogue path was a third place it occurred.
+- **The scheduled digest email never sent.** It failed silently every five minutes and looked like a mail-server problem.
+- **Failed accounting pushes were still never retried on restart** — the retry added in beta.33 could not actually run.
+- **Machine profit charged a whole year of maintenance against any period.** Picking "This month" subtracted January's servicing from July's revenue, which could make a profitable printer look like a loss.
+- **Machine utilisation was wrong on "All time" and custom ranges** — it always divided by 30 days, so three years of printing showed as 100% busy.
+- **Quarterly profit only charged rent and overheads to the current quarter**, so every past quarter looked more profitable than it was.
+- The new printer's colour palette, the calendar's "back to this month" reset, the dashboard's copy-intake-link button, and form labelling at startup were all silently inert.
+
 ## [3.2.0-beta.39] - 2026-07-21
 
 ### Fixed
