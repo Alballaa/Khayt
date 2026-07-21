@@ -263,6 +263,7 @@
   "cl.tier": "Niveau",
   "cl.vat": "Numéro de TVA",
   "common.by": "par",
+  "set.backups_unreadable": "Impossible de lire le dossier des sauvegardes — elles y sont peut-être toujours. Ouvrez le dossier directement.",
   "ord.photo_save_failed": "Impossible d’enregistrer la photo",
   "cl.invoices_exported_partial": "{n} sur {total} exportées — échec : {ids}",
   "dash.printer_stale": "Aucune mise à jour depuis {mins} min",

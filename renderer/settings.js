@@ -3133,8 +3133,23 @@ function saveSettingsFromForm() {
    ============================================================ */
 async function openRestoreBackupModal() {
   if (!window.hubAPI?.listBackups) { toast(t('set.restore_error'), 'error'); return; }
+  // Distinguish "the listing failed" from "there genuinely are none". This modal is
+  // opened precisely when someone is trying to recover, and telling them no backups
+  // exist when the read merely failed can convince them their data is unrecoverable.
   let backups = [];
-  try { backups = await window.hubAPI.listBackups(); } catch (_) {}
+  let listFailed = false;
+  try {
+    backups = await window.hubAPI.listBackups();
+    if (!Array.isArray(backups)) { backups = []; listFailed = true; }
+  } catch (e) {
+    console.error('listBackups failed:', e);
+    listFailed = true;
+  }
+  if (listFailed) {
+    toast('⚠ ' + (t('set.backups_unreadable') ||
+      'Could not read the backups folder — your backups may still be there. Try opening the folder directly.'), 'error', 9000);
+    return;
+  }
   if (backups.length === 0) {
     toast(t('set.restore_error') + ': no backups found', 'error');
     return;

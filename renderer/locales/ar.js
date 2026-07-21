@@ -387,6 +387,7 @@
   "cl.tier": "الفئة",
   "cl.vat": "الرقم الضريبي",
   "common.by": "بواسطة",
+  "set.backups_unreadable": "تعذّر قراءة مجلد النسخ الاحتياطية — قد تكون نسخك موجودة. جرّب فتح المجلد مباشرة.",
   "ord.photo_save_failed": "تعذّر حفظ الصورة",
   "cl.invoices_exported_partial": "تم تصدير {n} من {total} — فشل: {ids}",
   "dash.printer_stale": "لا يوجد تحديث منذ {mins} دقيقة",

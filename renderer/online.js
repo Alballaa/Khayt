@@ -202,10 +202,16 @@
     });
 
     el.querySelector('#btnOnlineStartServer')?.addEventListener('click', () => {
-      startLanServer?.().then(() => {
-        renderOnlineSettings();
-        renderOnlineCustomerLinks();
-      });
+      // Without a .catch this is an unhandled rejection and the panel never updates.
+      Promise.resolve(startLanServer?.())
+        .then(() => {
+          renderOnlineSettings();
+          renderOnlineCustomerLinks();
+        })
+        .catch((err) => {
+          console.error('startLanServer failed:', err);
+          renderOnlineSettings();  // reflect the real (stopped) state
+        });
     });
 
     el.querySelector('#btnOnlineOpenLanSettings')?.addEventListener('click', () => {

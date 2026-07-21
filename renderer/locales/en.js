@@ -262,6 +262,7 @@
   "cl.tier": "Tier",
   "cl.vat": "VAT Number",
   "common.by": "by",
+  "set.backups_unreadable": "Could not read the backups folder — your backups may still be there. Try opening the folder directly.",
   "ord.photo_save_failed": "Could not save that photo",
   "cl.invoices_exported_partial": "Exported {n} of {total} — failed: {ids}",
   "dash.printer_stale": "No update for {mins} min",
