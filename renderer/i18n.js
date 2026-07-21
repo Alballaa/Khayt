@@ -74,6 +74,11 @@ const i18n = {
     root.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
       el.setAttribute('placeholder', this.t(el.getAttribute('data-i18n-placeholder')));
     });
+    // Translated accessible names. An icon-only control whose visible content is an
+    // emoji announces as that emoji's Unicode name without one.
+    root.querySelectorAll('[data-i18n-aria]').forEach(el => {
+      el.setAttribute('aria-label', this.t(el.getAttribute('data-i18n-aria')));
+    });
     root.querySelectorAll('[data-i18n-title]').forEach(el => {
       el.setAttribute('title', this.t(el.getAttribute('data-i18n-title')));
     });

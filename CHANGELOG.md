@@ -4,6 +4,16 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.35] - 2026-07-21
+
+### Fixed
+
+- **Resin wash, cure and "complete post-processing" can now be used with the keyboard** — they were plain blocks that only responded to a mouse, despite the label saying "tap to log".
+- **Per-part status can be changed with the keyboard**, and now announces which part and what state.
+- **Every button in the app has a proper name.** Icon-only controls such as the feedback button previously announced as the emoji itself.
+- **Currency rates, operator PINs and storefront product rows are now identified individually.** Previously every row in those lists was announced identically, with no way to tell which currency, operator or product it belonged to.
+- **Printer status changes are announced** — a print entering an error state was previously silent.
+
 ## [3.2.0-beta.34] - 2026-07-21
 
 ### Fixed

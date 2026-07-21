@@ -1242,10 +1242,10 @@ function renderMaterialUsageChart() {
       const isStale = age !== null && age > STALE_MS;
       if (!s || s.error) {
         const msg = s && s.error ? escapeHtml(s.error) : escapeHtml(t('dash.printer_offline'));
-        body = `<div class="dash-printer-state" style="color:var(--text-muted);">⚠ ${msg}</div>`;
+        body = `<div role="status" aria-live="polite" class="dash-printer-state" style="color:var(--text-muted);">⚠ ${msg}</div>`;
       } else if (isStale) {
         const mins = Math.round(age / 60000);
-        body = `<div class="dash-printer-state dash-printer-stale" style="color:var(--text-muted);">⚠ ${escapeHtml(
+        body = `<div role="status" aria-live="polite" class="dash-printer-state dash-printer-stale" style="color:var(--text-muted);">⚠ ${escapeHtml(
           t('dash.printer_stale', { mins: String(mins) }) || `No update for ${mins} min`)}</div>`;
       } else {
         const st = String(s.state || '');
@@ -1267,7 +1267,7 @@ function renderMaterialUsageChart() {
           eta ? `⏱ ${escapeHtml(t('mach.api_eta'))} ${escapeHtml(eta)}` : '',
         ].filter(Boolean).join(' · ');
         body = `
-          <div class="dash-printer-state" style="color:${col};font-weight:600;">${escapeHtml(label)}${printing ? ` · ${pct}%` : ''}</div>
+          <div role="status" aria-live="polite" class="dash-printer-state" style="color:${col};font-weight:600;">${escapeHtml(label)}${printing ? ` · ${pct}%` : ''}</div>
           ${printing ? `<div class="dash-printer-bar"><div style="width:${pct}%;background:${col};"></div></div>` : ''}
           ${s.filename ? `<div class="dash-printer-job" title="${escapeHtml(s.filename)}">${escapeHtml(s.filename)}</div>` : ''}
           ${meta ? `<div class="dash-printer-meta">${meta}</div>` : ''}`;

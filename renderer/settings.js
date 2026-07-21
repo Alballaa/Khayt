@@ -813,10 +813,10 @@ async function openStorefrontModal() {
     const nm = (p.nameEn || (typeof localName === 'function' ? localName(p) : '') || '').trim();
     return `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap;">
       <span style="flex:1;min-width:90px;font-size:12.5px;">${escapeHtml(nm)}</span>
-      <input class="sfPrice" data-pid="${escapeHtml(p.id)}" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0" value="${escapeHtml(sf.prices[p.id] != null ? String(sf.prices[p.id]) : '')}" style="width:72px;font-size:12.5px;text-align:right;" title="${escapeHtml(cur)}">
-      <input class="sfCat" data-pid="${escapeHtml(p.id)}" type="text" maxlength="60" placeholder="${escapeHtml(t('store.category_ph') || 'category')}" value="${escapeHtml(sf.categories[p.id] || '')}" list="sfCatList" style="width:96px;font-size:12px;">
+      <input class="sfPrice" data-pid="${escapeHtml(p.id)}" aria-label="${escapeHtml(nm || p.id)} — ${escapeHtml(cur)}" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0" value="${escapeHtml(sf.prices[p.id] != null ? String(sf.prices[p.id]) : '')}" style="width:72px;font-size:12.5px;text-align:right;" title="${escapeHtml(cur)}">
+      <input class="sfCat" data-pid="${escapeHtml(p.id)}" aria-label="${escapeHtml(nm || p.id)} — ${escapeHtml(t('store.category_ph') || 'category')}" type="text" maxlength="60" placeholder="${escapeHtml(t('store.category_ph') || 'category')}" value="${escapeHtml(sf.categories[p.id] || '')}" list="sfCatList" style="width:96px;font-size:12px;">
       <label style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:3px;cursor:pointer;" title="${escapeHtml(t('store.sold_out') || 'Sold out')}">
-        <input class="sfSold" data-pid="${escapeHtml(p.id)}" type="checkbox" style="width:auto;margin:0;" ${sf.soldOut[p.id] ? 'checked' : ''}>${escapeHtml(t('store.sold_out') || 'Sold out')}
+        <input class="sfSold" data-pid="${escapeHtml(p.id)}" aria-label="${escapeHtml(nm || p.id)} — ${escapeHtml(t('store.sold_out') || 'Sold out')}" type="checkbox" style="width:auto;margin:0;" ${sf.soldOut[p.id] ? 'checked' : ''}>${escapeHtml(t('store.sold_out') || 'Sold out')}
       </label>
       <input class="sfOpts" data-pid="${escapeHtml(p.id)}" type="text" maxlength="240" placeholder="${escapeHtml(t('store.options_ph') || 'Options — Color: Black, White; Size: S, M')}" value="${escapeHtml(sf.options[p.id] || '')}" title="${escapeHtml(t('store.options_hint') || 'Optional product choices. Format: Group: value, value; Group: value')}" style="flex-basis:100%;font-size:12px;">
     </div>`;
@@ -1548,7 +1548,7 @@ function renderOperatorLockSettings() {
              <div style="display:flex;align-items:center;gap:10px;">
                <span style="flex:1;font-size:13px;">${escapeHtml(op.name)}</span>
                <span style="font-size:11px;color:var(--text-muted);">${escapeHtml(op.role || '')}</span>
-               <input type="password" class="op-pin-input" data-op-id="${op.id}"
+               <input type="password" class="op-pin-input" data-op-id="${op.id}" aria-label="${escapeHtml(t('ops.pin_for') || 'PIN for')} ${escapeHtml(op.name || op.id)}"
                  value="${op.pinHash ? '****' : ''}"
                  placeholder="${op.pinHash ? '(set)' : 'Set PIN'}"
                  maxlength="8" style="width:80px;font-size:12px;">
@@ -2204,7 +2204,7 @@ function renderExchangeRatesSettings() {
       <td style="padding:6px 8px;">
         <div style="display:flex;align-items:center;gap:6px;">
           <span style="font-size:11px;color:var(--text-muted);">1 ${escapeHtml(code)} =</span>
-          <input type="number" class="xr-input" data-code="${escapeHtml(code)}" value="${escapeHtml(String(rate))}" min="0" step="0.0001" placeholder="0.00" style="width:90px;padding:3px 6px;font-size:12px;">
+          <input type="number" class="xr-input" data-code="${escapeHtml(code)}" aria-label="1 ${escapeHtml(code)} = ? ${escapeHtml(base)}" value="${escapeHtml(String(rate))}" min="0" step="0.0001" placeholder="0.00" style="width:90px;padding:3px 6px;font-size:12px;">
           <span style="font-size:11px;color:var(--text-muted);">${escapeHtml(base)}</span>
         </div>
       </td>
