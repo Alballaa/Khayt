@@ -76,6 +76,35 @@ function handoffSparkSvg(data, w, h) {
   return `<svg width="${w}" height="${h}" class="khayt-spark" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/></svg>`;
 }
 
+/**
+ * How many days the selected analytics range actually spans — the divisor for
+ * utilisation (print hours per day vs target).
+ *
+ * The old ladder hardcoded 30 for anything it did not recognise, but the range selector
+ * also offers "All time" (the DEFAULT) and "Custom", both of which fell through. 1000
+ * print-hours over three years against a 10 h/day target rendered as 100% utilisation
+ * (true value ~9%) — and Math.min(100, …) hid the overflow, so it looked plausible
+ * instead of obviously broken. A 7-day custom range understated by ~4x.
+ */
+function analyticsRangeDays(range, ctx, dates) {
+  const now = new Date();
+  if (range === 'month') return new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  if (range === 'last_month') return new Date(now.getFullYear(), now.getMonth(), 0).getDate();
+  if (range === 'quarter') return 91;
+  if (range === 'year') return 365;
+  const spanDays = (from, to) => Math.max(1, Math.round((new Date(to) - new Date(from)) / 86400000) + 1);
+  if (range === 'custom') {
+    const from = (typeof customRangeFrom !== 'undefined' && ctx) ? customRangeFrom[ctx] : '';
+    const to   = (typeof customRangeTo   !== 'undefined' && ctx) ? customRangeTo[ctx]   : '';
+    if (from && to) return spanDays(from, to);
+    if (from) return spanDays(from, new Date().toISOString().slice(0, 10));
+  }
+  // 'all' (and a custom range with no bounds): span the data itself.
+  const days = (dates || []).map(d => String(d || '').slice(0, 10)).filter(Boolean).sort();
+  if (days.length) return spanDays(days[0], days[days.length - 1]);
+  return 30;
+}
+
 function computeHandoffMachineRows() {
   const orders = printLog.filter(o => inRange(o.date, analyticsRange, 'analytics') && o.status === 'completed');
   const machMap = {};
@@ -83,11 +112,7 @@ function computeHandoffMachineRows() {
     machMap[m.id] = { name: m.name, profit: 0, hours: 0, util: null };
   }
   const now = new Date();
-  let rangeDays = 30;
-  if (analyticsRange === 'month') rangeDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  else if (analyticsRange === 'last_month') rangeDays = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
-  else if (analyticsRange === 'quarter') rangeDays = 91;
-  else if (analyticsRange === 'year') rangeDays = 365;
+  const rangeDays = analyticsRangeDays(analyticsRange, 'analytics', orders.map(o => o.date));
 
   for (const o of orders) {
     const key = o.machineId && machMap[o.machineId] ? o.machineId : null;
@@ -1543,11 +1568,7 @@ function renderPrinterUtilizationChart() {
   }
   // Determine date range for utilization calculation
   const now2 = new Date();
-  let rangeDays = 30; // default for 'all'
-  if (analyticsRange === 'month') rangeDays = new Date(now2.getFullYear(), now2.getMonth() + 1, 0).getDate();
-  else if (analyticsRange === 'last_month') rangeDays = new Date(now2.getFullYear(), now2.getMonth(), 0).getDate();
-  else if (analyticsRange === 'quarter') rangeDays = 91;
-  else if (analyticsRange === 'year') rangeDays = 365;
+  const rangeDays = analyticsRangeDays(analyticsRange, 'analytics', completed.map(o => o.date));
 
   // Attach targetHoursPerDay from machines array to machMap
   for (const m of machines) {
@@ -1661,6 +1682,16 @@ function renderPnLSection() {
   const cur = currencySymbol();
   const hasFixed = fixedCostPerQ > 0;
   const nowQ = (() => { const d = new Date(); const q = Math.ceil((d.getMonth() + 1) / 3); return `${d.getFullYear()}-Q${q}`; })();
+  // Fraction of the current quarter elapsed, so the in-progress period is comparable.
+  const nowQuarterFraction = (() => {
+    const d = new Date();
+    const qStartMonth = Math.floor(d.getMonth() / 3) * 3;
+    const start = new Date(d.getFullYear(), qStartMonth, 1);
+    const end = new Date(d.getFullYear(), qStartMonth + 3, 0);
+    const total = Math.round((end - start) / 86400000) + 1;
+    const done = Math.round((d - start) / 86400000) + 1;
+    return Math.max(0, Math.min(1, done / total));
+  })();
   el.innerHTML = `
     ${hasFixed ? `<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">Fixed overhead: ${fmtMoney(fixedCostPerQ)}/quarter included in net</div>` : ''}
     <div style="overflow-x:auto;">
@@ -1680,7 +1711,13 @@ function renderPnLSection() {
             const r = qMap[k]?.revenue || 0;
             const exp = expQ[k] || 0;
             const vat = qMap[k]?.vatCollected || 0;
-            const fixedForPeriod = k === nowQ ? fixedCostPerQ : 0;
+            // Fixed overhead applies to EVERY quarter with activity, not just the
+            // current one. Charging it only to `nowQ` overstated profit in every
+            // historical quarter, so the current quarter always looked worse than the
+            // past — which invalidates quarter-over-quarter comparison, the table's whole
+            // purpose. The in-progress quarter is pro-rated by days elapsed so it isn't
+            // charged a full quarter's rent on day three.
+            const fixedForPeriod = (k === nowQ) ? fixedCostPerQ * nowQuarterFraction : fixedCostPerQ;
             const net = r - exp - fixedForPeriod;
             const netCol = net >= 0 ? 'var(--success)' : 'var(--danger)';
             return `<tr style="border-top:1px solid rgba(255,255,255,0.06);">
@@ -1916,14 +1953,16 @@ function renderMachinePL() {
   }
 
   // Determine year for maintenance cost filtering
-  const analyticsYear = String(new Date().getFullYear());
-
   // Build per-machine aggregation
   const machMap = {};
   for (const m of machines) {
-    // Sum maintenance costs for this machine within the analytics year
+    // Maintenance must respect the SELECTED RANGE, like revenue and material cost two
+    // lines above. It used to be filtered by calendar year, so choosing "This month"
+    // charged January's nozzle-and-belt overhaul against July's revenue and a profitable
+    // printer read as loss-making — the exact number an owner uses to decide whether to
+    // retire a machine.
     const maintCost = machMaintLog
-      .filter(e => e.machineId === m.id && (e.date || '').startsWith(analyticsYear))
+      .filter(e => e.machineId === m.id && inRange(e.date, analyticsRange, 'analytics'))
       .reduce((s, e) => s + (+e.cost || 0), 0);
     machMap[m.id] = { name: m.name, color: m.color || '#888', jobs: 0, revenue: 0, materialCost: 0, linkedExp: 0, maintCost };
   }

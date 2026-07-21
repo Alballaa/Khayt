@@ -752,6 +752,7 @@ function _doExportTaxSummary(periodLabel, fromDate, toDate) {
   toast(t('an.tax_exported'), 'success');
 }
   const api = {
+    retryFailedAccountingPushes,
     calcNextDueDate,
     checkRecurringExpenses,
     expCatLabel,

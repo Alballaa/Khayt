@@ -1015,6 +1015,8 @@ function openFeedbackModal() {
   window._t = t;
 
   const api = {
+
+    wireFormLabels,
     toast,
     appendStackedModal,
     confirmModal,

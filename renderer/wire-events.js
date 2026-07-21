@@ -1146,7 +1146,7 @@ function wireEvents() {
     const isVisible = el.style.display !== 'none';
     el.style.display = isVisible ? 'none' : 'block';
     if (!isVisible) {
-      calendarViewMonth = null;
+      resetCalendarMonth();
       renderCalendarView();
     }
     // If schedule view is open, close it
