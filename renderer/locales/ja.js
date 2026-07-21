@@ -263,6 +263,8 @@
   "cl.tier": "ランク",
   "cl.vat": "VAT番号",
   "common.by": "作成者",
+  "lan.click_to_copy": "クリックしてコピー",
+  "oe.order_photo": "注文の写真",
   "set.backups_unreadable": "バックアップフォルダーを読み取れませんでした。バックアップは残っている可能性があります。フォルダーを直接開いてください。",
   "ord.photo_save_failed": "写真を保存できませんでした",
   "cl.invoices_exported_partial": "{total} 件中 {n} 件を書き出しました — 失敗: {ids}",

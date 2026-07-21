@@ -55,6 +55,21 @@ function initialRender() {
    Event wiring
    ============================================================ */
 function wireEvents() {
+  // Keyboard activation for elements that are semantically buttons but cannot be real
+  // <button>s (a calendar day owns a grid cell and nests its own chips). Native buttons
+  // get Enter/Space for free; role="button" does not — without this, tabindex only makes
+  // them focusable, not usable.
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+    const el = e.target instanceof Element ? e.target.closest('[role="button"][tabindex]') : null;
+    if (!el || el.getAttribute('aria-disabled') === 'true') return;
+    // Don't hijack keys inside a field that legitimately consumes them.
+    if (e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+    e.preventDefault();
+    el.click();
+  });
+
+
   // Global search
   const btnGs = $('#btnGlobalSearch');
   if (btnGs) btnGs.addEventListener('click', openGlobalSearch);

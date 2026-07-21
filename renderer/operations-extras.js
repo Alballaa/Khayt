@@ -228,7 +228,17 @@ function fireOrderWebhook(type, order) {
       clientName: client ? (typeof localName === 'function' ? localName(client) : client.name) : '',
       currency: (typeof currencySymbol === 'function') ? currencySymbol() : '',
     });
-    Promise.resolve(window.hubAPI.webhookPost({ url: w.url, secret: w.secret, payload })).catch(() => {});
+    // Route through the durable delivery path when it is available: exponential backoff,
+    // persist-before-arm, boot resume, delivery log, and a toast when retries are
+    // exhausted. This used to be one shot with the failure fully swallowed, so an
+    // order_paid / order_shipped event feeding a shop's fulfilment automation vanished on
+    // any transient blip — while the OTHER webhook system got the durable treatment.
+    if (typeof deliverWebhook === 'function' && typeof KhaytWebhookBus !== 'undefined') {
+      deliverWebhook({ url: w.url, secret: w.secret, id: w.id || `event:${type}` }, payload);
+    } else {
+      Promise.resolve(window.hubAPI.webhookPost({ url: w.url, secret: w.secret, payload }))
+        .catch((e) => console.error('order webhook failed:', e));
+    }
   } catch (e) { /* webhooks must never break the action */ }
 }
 

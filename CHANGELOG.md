@@ -4,6 +4,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.37] - 2026-07-21
+
+### Fixed
+
+- **Order webhooks are no longer lost on a temporary network blip.** Order events (paid, shipped) feeding your automations were sent once with no retry, while other webhooks already had durable retry. They now use the same queue: retries with backoff, resumed after a restart, and a warning if delivery finally fails.
+- **The event-webhook signing secret is now stored encrypted** and hidden from the app window, matching every other credential. It was already hidden from backups, but not at rest.
+- **Calendar days, the add-photo tile and the copy-webhook-URL control can be used with the keyboard.**
+- Order photos are now described to screen readers instead of being skipped.
+
 ## [3.2.0-beta.36] - 2026-07-21
 
 ### Fixed

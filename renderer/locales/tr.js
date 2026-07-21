@@ -263,6 +263,8 @@
   "cl.tier": "Kademe",
   "cl.vat": "KDV Numarası",
   "common.by": "tarafından",
+  "lan.click_to_copy": "Kopyalamak için tıklayın",
+  "oe.order_photo": "Sipariş fotoğrafı",
   "set.backups_unreadable": "Yedek klasörü okunamadı — yedekleriniz hâlâ orada olabilir. Klasörü doğrudan açmayı deneyin.",
   "ord.photo_save_failed": "Fotoğraf kaydedilemedi",
   "cl.invoices_exported_partial": "{total} öğeden {n} tanesi dışa aktarıldı — başarısız: {ids}",

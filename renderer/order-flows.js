@@ -1246,7 +1246,7 @@ function openOrderEditor(orderId) {
         <img src="${safeImageSrc(ph.thumb)}" alt="">
         <button class="rm" data-act="rm-photo" data-pi="${i}" aria-label="Remove">×</button>
       </div>`).join('');
-    const adder = `<div class="order-photo-cell add" data-act="add-photo">${escapeHtml(t('oe.add_photo'))}</div>`;
+    const adder = `<button type="button" class="order-photo-cell add" data-act="add-photo">${escapeHtml(t('oe.add_photo'))}</button>`;
     return cells + adder;
   };
 
