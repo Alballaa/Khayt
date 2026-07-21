@@ -81,6 +81,11 @@ jobs:
       - name: E2E smoke (quit flushes pending save)
         run: xvfb-run -a npm run test:e2e:quitflush
 
+      # Empty stores hide crashes: the analytics utilisation chart returns early with no
+      # machines, so a ReferenceError there survived every empty-state check.
+      - name: E2E smoke (populated screens render clean)
+        run: xvfb-run -a npm run test:e2e:screens
+
       - name: E2E smoke (webhook event bus)
         run: xvfb-run -a npm run test:e2e:webhooks
 

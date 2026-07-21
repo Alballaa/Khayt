@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.55] - 2026-07-21
+
+### Fixed
+
+- **The Analytics screen failed to load once you had printers and completed orders.** A fault introduced in beta.40 broke the printer-utilisation chart, and because it only triggered on real data it was invisible on a new or empty account.
+
 ## [3.2.0-beta.54] - 2026-07-21
 
 ### Fixed
