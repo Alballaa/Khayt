@@ -263,6 +263,7 @@
   "cl.tier": "Kademe",
   "cl.vat": "KDV Numarası",
   "common.by": "tarafından",
+  "plib.delete_partial": "Kitaplıktan kaldırıldı, ancak bazı dosyalar diskten silinemedi",
   "cl.stmt_gift": "Hediye kartları",
   "cl.stmt_credit": "İade faturaları",
   "lan.click_to_copy": "Kopyalamak için tıklayın",

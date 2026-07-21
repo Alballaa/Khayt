@@ -473,7 +473,12 @@ function updateGrandTotal() {
 
   // Min-margin warning + live margin display
   const marginWarn = $('#marginWarning');
-  const actualMarginPct = finalPrice > 0 ? ((finalPrice - (totalBase + shippingCost + extraLinesTotal)) / finalPrice) * 100 : margin;
+  // Extra charges are FEES billed to the customer ("Extra charges" / "+ Add fee") — pure
+  // revenue with no matching cost. They were added to finalPrice AND subtracted here as
+  // cost, so adding a 100 fee to a 30%-margin job dropped the displayed margin to 17.6%
+  // when it should rise to 58.8%. Shipping is deliberately still counted on both sides:
+  // the shop bills it and pays the carrier, so it should not inflate margin.
+  const actualMarginPct = finalPrice > 0 ? ((finalPrice - (totalBase + shippingCost)) / finalPrice) * 100 : margin;
   if (marginWarn) {
     const minPct = num(settings.minMarginPct, 0);
     const marginColor = actualMarginPct >= 40 ? 'var(--success)' : actualMarginPct >= 20 ? 'var(--warning)' : 'var(--danger)';

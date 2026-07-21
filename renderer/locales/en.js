@@ -262,6 +262,7 @@
   "cl.tier": "Tier",
   "cl.vat": "VAT Number",
   "common.by": "by",
+  "plib.delete_partial": "Removed from the library, but some files could not be deleted from disk",
   "cl.stmt_gift": "Gift cards",
   "cl.stmt_credit": "Credit notes",
   "lan.click_to_copy": "Click to copy",

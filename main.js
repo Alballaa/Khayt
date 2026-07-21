@@ -1418,11 +1418,17 @@ ipcMain.handle('hub:printlib-delete', async (_e, fullPath) => {
   const safe = path.resolve(String(fullPath || ''));
   const root = path.resolve(printLibDir());
   if (!safe.startsWith(root + path.sep)) return false; // confine to the library vault
+  // Report the truth, like hub:delete-vault-file. Swallowing the error and returning true
+  // removed the entry from the library while the file stayed on disk.
   try {
     const stat = await fs.promises.stat(safe);
     if (stat.isDirectory()) await fs.promises.rm(safe, { recursive: true, force: true });
     else await fs.promises.unlink(safe);
-  } catch (_) {}
+  } catch (e) {
+    if (e && e.code === 'ENOENT') return true; // already gone — the desired end state
+    console.error('hub:printlib-delete:', e);
+    return false;
+  }
   return true;
 });
 

@@ -587,12 +587,22 @@
       bodyHtml: `<p>${escapeHtml((t('plib.delete_confirm') || 'Remove "{name}" and its files? This cannot be undone.').replace('{name}', rec.name || rec.originalName || ''))}</p>`,
       async onSave() {
         const hub = api();
+        // Track whether the files actually went. The record was removed and "File deleted"
+        // toasted unconditionally, so a locked or permission-denied file vanished from the
+        // library while remaining on disk.
+        let allGone = true;
         if (hub && hub.printLibList && hub.printLibDelete) {
-          try { const files = await hub.printLibList(id); for (const f of (files || [])) await hub.printLibDelete(f.fullPath); } catch (_) {}
+          try {
+            const files = await hub.printLibList(id);
+            for (const f of (files || [])) {
+              if ((await hub.printLibDelete(f.fullPath)) === false) allGone = false;
+            }
+          } catch (e) { console.error('printLibDelete:', e); allGone = false; }
         }
         printFiles = (printFiles || []).filter((r) => r.id !== id);
         saveAll(); renderPrintFiles();
-        toast(t('plib.deleted') || 'File deleted', 'success');
+        if (allGone) toast(t('plib.deleted') || 'File deleted', 'success');
+        else toast('⚠ ' + (t('plib.delete_partial') || 'Removed from the library, but some files could not be deleted from disk'), 'error', 7000);
       },
     });
   }

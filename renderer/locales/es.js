@@ -263,6 +263,7 @@
   "cl.tier": "Nivel",
   "cl.vat": "Número de IVA",
   "common.by": "por",
+  "plib.delete_partial": "Eliminado de la biblioteca, pero algunos archivos no se pudieron borrar del disco",
   "cl.stmt_gift": "Tarjetas regalo",
   "cl.stmt_credit": "Notas de crédito",
   "lan.click_to_copy": "Haz clic para copiar",

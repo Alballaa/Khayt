@@ -263,6 +263,7 @@
   "cl.tier": "等级",
   "cl.vat": "增值税号",
   "common.by": "由",
+  "plib.delete_partial": "已从库中移除，但部分文件无法从磁盘删除",
   "cl.stmt_gift": "礼品卡",
   "cl.stmt_credit": "贷记单",
   "lan.click_to_copy": "点击复制",
