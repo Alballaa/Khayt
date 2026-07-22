@@ -17,8 +17,18 @@
   gap: 12px; overflow-x: auto; padding-bottom: 4px; align-items: start;
 }
 .khayt-kcol { background: var(--bg-2); border: 1px solid var(--hairline); border-radius: var(--r-lg); display: flex; flex-direction: column; max-height: 100%; }
-.khayt-kcol-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 13px 9px; }
+/* The title and the column totals share one flex row. The "waiting to start"
+ * column also carries an assign button in its title, which crowded the totals
+ * into a 62px box inside a 235px column — they wrapped to two lines and spilled
+ * past the column edge. Arabic surfaces it first because the labels are longer,
+ * but the cause is the extra button, not the language. Let the row wrap instead
+ * of crushing the totals, and keep the totals themselves on one line. */
+.khayt-kcol-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 13px 9px; flex-wrap: wrap; row-gap: 4px;
+}
 .khayt-kcol-head strong { white-space: nowrap; }
+.khayt-kcol-head .kanban-col-meta { flex: 0 0 auto; white-space: nowrap; }
 .khayt-cname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .khayt-kcount { flex-shrink: 0; font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; color: var(--text-muted); background: var(--surface-2); border-radius: 100px; padding: 1px 7px; }
 .khayt-kbar { height: 2px; margin: 0 13px; border-radius: 2px; opacity: 0.55; }

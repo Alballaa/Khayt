@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.60] - 2026-07-22
+
+### Fixed
+
+- **The totals under the "waiting to start" column were squashed and ran past the column edge.** The assign button in that column's heading left no room for the hours and value beneath it, so they wrapped onto two cramped lines. Most visible in Arabic, where the labels are longer.
+
 ## [3.2.0-beta.59] - 2026-07-22
 
 ### Fixed
