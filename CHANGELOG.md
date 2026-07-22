@@ -4,6 +4,54 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-07-22
+
+The 3.2.0 beta line, released as stable. Individual beta entries are kept below;
+this is what changed for you since 3.1.0.
+
+### Fixed — pricing and your data
+
+- **Quoted prices ignored how many of each part you were making.** Multi-part orders
+  were costed as though you were printing one of everything, so quotes could come out
+  far below what the job actually cost you.
+- **Reported profit margins were higher than the real ones**, for the same reason.
+- **Saving in two places at once could damage your saved data.** Writes now can't
+  overwrite each other.
+- **Saving settings could wipe stored passwords and keys** for email, cloud sync and
+  accounting.
+
+### Fixed — things that quietly never ran
+
+- **Printer alerts never fired.** The module that watches for a stopped or failed print
+  wasn't being loaded at all.
+- **The scheduled daily summary email was never sent.**
+- **Ctrl/⌘+K never opened search.**
+- **A printer added after startup stayed dark until you restarted Khayt.**
+
+### Fixed — Arabic and other languages
+
+- **Names were shortened from the wrong end**, hiding the part you actually read.
+- **Dates and numbers used Eastern Arabic numerals** where Saudi apps use Western ones.
+- Short English names sat on the wrong side of their column.
+
+### Fixed — printing and colour
+
+- **A brief network drop made a working printer look offline**, and blanked out the job
+  it was running.
+- Full Spectrum produced wrong colours beyond 18 filament slots.
+- A filament change was inserted at the first layer, wasting a change for nothing.
+- The bed outline was corrupted on four-filament models.
+- **The Analytics screen failed to load once a shop had real data.**
+
+### Added
+
+- Assembly tracking for multi-part orders, with per-part status and reprints.
+- Scoped API tokens for the local API.
+- Per-printer camera feed (LAN only).
+- Printer discovery on the local network, including PrusaLink and Moonraker.
+- Keyboard shortcuts shown on the sidebar items they belong to.
+
+
 ## [3.2.0-beta.61] - 2026-07-22
 
 ### Added
