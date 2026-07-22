@@ -6,6 +6,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **The cloud server address is now checked before your password is sent to it.** A plain `http://` address on the internet would have sent your email and password unencrypted; Khayt now requires `https://` there, while still allowing `http://` for a server you run yourself on your own machine or network.
+
+### Fixed
+
 - **Groundwork for multi-device sync: two devices editing the same record no longer end up disagreeing.** Previously each kept its own copy and neither was told. One edit is still replaced, but every device now reaches the same result instead of quietly drifting apart.
 
 ### Fixed
