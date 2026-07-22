@@ -374,6 +374,7 @@
   "build.material": "素材",
   "mach.status": "ステータス",
   "mach.offline": "オフライン",
+  "mach.reconnecting": "再接続中",
   "notif.empty": "すべて対応済み",
   "dash.completed_orders": "完了した注文",
   "whk.enabled": "送信 Webhook を有効化",

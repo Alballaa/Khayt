@@ -373,6 +373,7 @@
   "build.material": "Material",
   "mach.status": "Status",
   "mach.offline": "Offline",
+  "mach.reconnecting": "Reconnecting",
   "notif.empty": "All clear",
   "dash.completed_orders": "Completed orders",
   "whk.enabled": "Enable outbound webhooks",

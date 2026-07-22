@@ -51,6 +51,7 @@ const QRCode = require('qrcode');
 const { safeJsonParse } = require('./lib/safe-json');
 const { isBlockedHost, isAllowedPrinterHost, sanitizeMailgunDomain, resolvesToBlockedHost } = require('./lib/host-guard');
 const { sendCustomSmtp } = require('./lib/custom-smtp');
+const { mergePollSuccess, mergePollFailure } = require('./lib/printer-poll-cache');
 const { normalizeStoreSnapshot, STORE_VERSION } = require('./lib/store-validate');
 const { createStoreIo } = require('./lib/store-io');
 const { parseGcodeText } = require('./lib/gcode-parse');
@@ -2087,9 +2088,13 @@ ipcMain.handle('hub:start-printer-polling', async (_e, machines) => {
       if (!machine.printerApi?.type || machine.printerApi.type === 'none') continue;
       try {
         const status = await fetchPrinterStatus(machine);
-        printerStatusCache[machine.id] = { ...status, lastUpdated: Date.now() };
+        printerStatusCache[machine.id] = mergePollSuccess(
+          printerStatusCache[machine.id], status, Date.now(),
+        );
       } catch(e) {
-        printerStatusCache[machine.id] = { error: e.message, lastUpdated: Date.now() };
+        printerStatusCache[machine.id] = mergePollFailure(
+          printerStatusCache[machine.id], e.message, Date.now(),
+        );
       }
     }
     const wins = BrowserWindow.getAllWindows();

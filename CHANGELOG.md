@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.57] - 2026-07-22
+
+### Fixed
+
+- **A printer briefly dropping off the network was shown as offline.** One missed check was enough to turn a working printer red and blank out the job it was running — common on Wi-Fi, and normal for a Prusa CORE One, which takes 20–30 seconds to answer after a power cycle. The dashboard now keeps showing the last known job and reports "Reconnecting", and only marks a printer offline once it has genuinely stopped answering.
+
 ## [3.2.0-beta.56] - 2026-07-22
 
 ### Fixed

@@ -374,6 +374,7 @@
   "build.material": "Material",
   "mach.status": "Estado",
   "mach.offline": "Desconectada",
+  "mach.reconnecting": "Reconectando",
   "notif.empty": "Todo en orden",
   "dash.completed_orders": "Pedidos completados",
   "whk.enabled": "Activar webhooks salientes",

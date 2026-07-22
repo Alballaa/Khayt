@@ -498,6 +498,7 @@
   "build.material": "الخامة",
   "mach.status": "الحالة",
   "mach.offline": "غير متصل",
+  "mach.reconnecting": "جارٍ إعادة الاتصال",
   "notif.empty": "لا توجد تنبيهات",
   "dash.completed_orders": "الطلبات المكتملة",
   "whk.enabled": "تفعيل الويب هوك الصادر",
