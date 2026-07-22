@@ -36,6 +36,17 @@ if (!isBedReady && SENTRY_DSN && (app.isPackaged || process.env.SENTRY_DSN)) {
       environment: app.isPackaged ? 'production' : 'development',
       sendDefaultPii: false,
       tracesSampleRate: 0,
+      // Crash reporting is OPT-IN. Settings offers it as a checkbox that
+      // defaults to off, and the app tells the user "Khayt sends nothing by
+      // default" — but Sentry was initialised purely on app.isPackaged and
+      // captured regardless of that choice, so stack traces left the device
+      // without consent.
+      //
+      // The gate has to be at send time: init runs at module load, long before
+      // the store is read. beforeSend fires when the event does, by which point
+      // lanServerStore is populated. Fails CLOSED — if consent is unknown, such
+      // as a crash during startup, the event is dropped rather than sent.
+      beforeSend: (event) => (telemetryConsent().crash ? event : null),
     });
   } catch (e) { console.error('Sentry init:', e && e.message); sentry = null; }
 }
@@ -101,6 +112,9 @@ wrapHubIpc(ipcMain, isTrustedRenderer);
 // strict CSP, so it can't run the SDK directly). No-op unless Sentry is active.
 ipcMain.handle('hub:report-error', (_e, info = {}) => {
   if (!sentry) return false;
+  // Same opt-in gate as beforeSend. Checked here too so a renderer error is
+  // dropped before an Error object is even constructed from it.
+  if (!telemetryConsent().crash) return false;
   try {
     const err = new Error(String((info && info.message) || 'renderer error').slice(0, 500));
     if (info && info.stack) err.stack = String(info.stack).slice(0, 8000);

@@ -4,6 +4,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **Crash reports were sent even when you had not turned them on.** Settings offers crash reporting as an opt-in and says Khayt sends nothing by default, but the reporter ignored that setting in installed builds and sent error details anyway. It now honours the setting, and stays off unless you switch it on.
+
 ### Added
 
 - **Pause, resume and cancel a running print from Khayt.** Previously you could send a job to a printer and watch it, but had to walk over to the machine to stop it. Works with Klipper/Moonraker, OctoPrint, PrusaLink and Duet; Bambu still needs their own app, and Khayt now says so instead of failing silently.
