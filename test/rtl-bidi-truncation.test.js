@@ -64,6 +64,27 @@ test('the isolation is unicode-bidi, not a <bdi> wrapper', () => {
   }
 });
 
+test('every isolated selector also gets an explicit RTL alignment', () => {
+  // `plaintext` resolves alignment per line as well as direction, so a short
+  // Latin name jumped LEFT while its Arabic neighbours stayed right — a ragged
+  // column edge. Measured: `text-align: start` does not fix it; the alignment
+  // must be physical. Shipping the isolation without this is a half-fix.
+  const rtlAligned = new Set();
+  const re = /([^{}]+)\{([^}]*)\}/g;
+  let m;
+  while ((m = re.exec(css))) {
+    if (/text-align\s*:\s*right/.test(m[2])) {
+      for (const sel of m[1].split(',')) {
+        const s = sel.trim().replace(/\s+/g, ' ');
+        if (s.startsWith('[dir="rtl"] ')) rtlAligned.add(s.slice('[dir="rtl"] '.length));
+      }
+    }
+  }
+  const missing = USER_TEXT_SELECTORS.filter((s) => !rtlAligned.has(s));
+  assert.deepEqual(missing, [],
+    `isolated but not re-aligned, so these go ragged in Arabic: ${missing.join(', ')}`);
+});
+
 test('a new truncating name class is caught by this list, not by a user in Riyadh', () => {
   // If someone adds `.foo-name { text-overflow: ellipsis }` for user text and forgets
   // the isolation, nothing here fails — so this test documents the intake rule and
