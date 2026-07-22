@@ -168,7 +168,7 @@ function studioKanbanDuePill(log, status) {
   } else if (diff === 1) {
     label = t('kan.due_tomorrow') || 'Tomorrow';
   } else {
-    label = due.toLocaleDateString(i18n.current === 'ar' ? 'ar-SA' : 'en-US', { month: 'short', day: 'numeric' });
+    label = due.toLocaleDateString(i18n.current === 'ar' ? 'ar-SA-u-nu-latn' : 'en-US', { month: 'short', day: 'numeric' });
   }
   return `<span class="khayt-due" style="color:${urgent ? 'var(--danger)' : 'var(--text-dim)'};background:${urgent ? 'var(--danger-soft)' : 'var(--surface-2)'}">${_kIcoL('clock', '🕐', 12)}${escapeHtml(label)}</span>`;
 }

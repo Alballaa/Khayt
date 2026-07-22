@@ -35,7 +35,7 @@ function renderScheduleView() {
       for (const j of m.jobs) etaById[j.id] = j;
     }
   }
-  const fmtDay = (iso) => { try { return new Date(iso + 'T00:00:00').toLocaleDateString(i18n.current === 'ar' ? 'ar-SA' : 'en-US', { month: 'short', day: 'numeric' }); } catch (e) { return iso; } };
+  const fmtDay = (iso) => { try { return new Date(iso + 'T00:00:00').toLocaleDateString(i18n.current === 'ar' ? 'ar-SA-u-nu-latn' : 'en-US', { month: 'short', day: 'numeric' }); } catch (e) { return iso; } };
 
   // Determine time horizon (max 48h or sum of queued)
   const totalHours = Math.max(48, activeOrders.reduce((s, o) => s + (+o.printTime || 0), 0));
@@ -125,7 +125,7 @@ function renderCalendarView() {
 
   const firstDay = new Date(y, m, 1);
   const lastDay  = new Date(y, m + 1, 0);
-  const monthStr = firstDay.toLocaleDateString(i18n.current === 'ar' ? 'ar-SA' : 'en-US', { year: 'numeric', month: 'long' });
+  const monthStr = firstDay.toLocaleDateString(i18n.current === 'ar' ? 'ar-SA-u-nu-latn' : 'en-US', { year: 'numeric', month: 'long' });
 
   // Build a map: "YYYY-MM-DD" -> orders[]
   const dayMap = {};

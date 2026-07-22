@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.59] - 2026-07-22
+
+### Fixed
+
+- **Arabic showed Eastern Arabic numerals where Saudi apps use Western ones.** Dates and times in the Arabic interface rendered as ٢٢ يوليو ٢٠٢٦ rather than 22 يوليو 2026. Large numbers — revenue, profit, stock weight — also followed the computer's regional settings rather than Khayt's, so an English interface on a machine set to Saudi Arabia showed Arabic digits.
+
 ## [3.2.0-beta.58] - 2026-07-22
 
 ### Fixed

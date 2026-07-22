@@ -181,9 +181,9 @@ function renderHandoffAnalyticsOverview(ctx) {
   })();
 
   const kpis = [
-    { l: t('an.revenue') || 'Revenue', v: Math.round(revenue).toLocaleString(), u: cur, spark: revSpark },
-    { l: t('an.net_profit') || 'Net profit', v: Math.round(netProfit).toLocaleString(), u: cur },
-    { l: t('an.avg_order') || 'Avg. order value', v: Math.round(avgOrder).toLocaleString(), u: cur },
+    { l: t('an.revenue') || 'Revenue', v: fmtCount(Math.round(revenue)), u: cur, spark: revSpark },
+    { l: t('an.net_profit') || 'Net profit', v: fmtCount(Math.round(netProfit)), u: cur },
+    { l: t('an.avg_order') || 'Avg. order value', v: fmtCount(Math.round(avgOrder)), u: cur },
     { l: t('an.repeat_rate') || 'Repeat rate', v: repeatClients != null ? String(repeatClients) : '—', u: repeatClients != null ? '%' : '' },
   ];
 
@@ -2255,7 +2255,7 @@ function renderRevenueChart() {
       const d = new Date(now.getFullYear(), qStart + i, 1);
       months.push({
         key:   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
-        label: d.toLocaleDateString(i18n.current === 'ar' ? 'ar-SA' : 'en-US', { month: 'short' }),
+        label: d.toLocaleDateString(i18n.current === 'ar' ? 'ar-SA-u-nu-latn' : 'en-US', { month: 'short' }),
         revenue: 0, orders: 0
       });
     }
@@ -2265,7 +2265,7 @@ function renderRevenueChart() {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       months.push({
         key:   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
-        label: d.toLocaleDateString(i18n.current === 'ar' ? 'ar-SA' : 'en-US', { month: 'short' }),
+        label: d.toLocaleDateString(i18n.current === 'ar' ? 'ar-SA-u-nu-latn' : 'en-US', { month: 'short' }),
         revenue: 0, orders: 0
       });
     }

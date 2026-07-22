@@ -27,7 +27,7 @@
     return tris;
   }
 
-  function fmtMm(n) { return (Math.round(n * 10) / 10).toLocaleString(); }
+  function fmtMm(n) { return fmtCount(Math.round(n * 10) / 10); }
 
   /**
    * Attach a drag-to-rotate / auto-spin software renderer to an existing <canvas>.
@@ -203,7 +203,7 @@
         </div>
         <div id="mvColors" class="mv-colors"></div>
         <div class="mv-bar">
-          <span class="mv-meta">${escapeHtml(name || '')}${dims ? ` · <b>${escapeHtml(dims)}</b>` : ''}${escapeHtml(volStr)} · ${count.toLocaleString()} △</span>
+          <span class="mv-meta">${escapeHtml(name || '')}${dims ? ` · <b>${escapeHtml(dims)}</b>` : ''}${escapeHtml(volStr)} · ${fmtCount(count)} △</span>
           <span class="mv-btns">
             <button type="button" class="btn ghost small" id="mvWire">${escapeHtml(t('view3d.wireframe') || 'Wireframe')}</button>
             <button type="button" class="btn ghost small" id="mvSpin">${escapeHtml(t('plib.view3d_spin') || 'Auto-spin')}</button>
