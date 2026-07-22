@@ -212,11 +212,32 @@ async function seedDemoStore(window) {
   demoStore.settings.firstRun = false;
   demoStore.settings.firstRunDone = true;
   demoStore.settings.designTheme = 'studio';
-  const saveResult = await window.evaluate(async (store) => window.hubAPI.saveStore(store), demoStore);
+  // Seeding via saveStore alone loses the data: boot schedules a debounced
+  // saveAll() (300ms) built from the still-empty globals, and that write lands
+  // AFTER this one and overwrites it. The suite then ran every theme against an
+  // empty app — dashboards rendered, so nothing failed, but nothing was really
+  // being tested either. Empty states flatter a design.
+  //
+  // Apply the snapshot to the in-memory globals first, so any save the renderer
+  // performs writes the demo data rather than emptiness, then flush it.
+  const saveResult = await window.evaluate(async (store) => {
+    if (typeof applyStoreFromSnapshot === 'function') applyStoreFromSnapshot(store);
+    if (typeof flushSave === 'function') await flushSave();
+    return window.hubAPI.saveStore(store);
+  }, demoStore);
   if (!saveResult?.ok) throw new Error(`saveStore failed: ${JSON.stringify(saveResult)}`);
   await window.reload({ waitUntil: 'domcontentloaded' });
   await window.waitForSelector('.khayt-app', { timeout: 90_000 });
   await dismissWizard(window);
+
+  // Prove the seed survived — the whole point of this function.
+  const seeded = await window.evaluate(() => ({
+    machines: typeof machines !== 'undefined' ? machines.length : -1,
+    orders: typeof printLog !== 'undefined' ? printLog.length : -1,
+  }));
+  if (seeded.machines < 2 || seeded.orders < 1) {
+    throw new Error(`demo store did not survive the reload: ${JSON.stringify(seeded)}`);
+  }
 }
 
 try {
