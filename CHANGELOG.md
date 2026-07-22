@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.61] - 2026-07-22
+
+### Added
+
+- **Keyboard shortcuts now show on the sidebar items they belong to.** The letter that jumps to each screen sits quietly on that screen's nav item, so you pick it up while working normally instead of having to find the shortcuts list.
+
 ## [3.2.0-beta.60] - 2026-07-22
 
 ### Fixed

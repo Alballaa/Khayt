@@ -638,6 +638,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   initWizard();
 
   // Global search keyboard shortcut ⌘K / Ctrl+K, plus tab-nav shortcuts
+  //
+  // This map IS the handler — it used to be a switch statement, which meant the
+  // shortcuts existed in two places (the switch, and the help modal that listed
+  // them) and could drift apart silently. paintShortcutHints() reads the same
+  // object, so a key can never be advertised on a screen that does not honour it.
   document.addEventListener('keydown', (e) => {
     // isGlobalSearchOpen() rather than the bare identifier: globalSearchOpen lives inside
     // shell.js's IIFE and is not visible here, so this handler threw on every keystroke.
@@ -661,16 +666,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const tag = (document.activeElement?.tagName || '').toLowerCase();
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
     if (document.querySelector('.modal-backdrop')) return; // modal open
-    switch (e.key) {
-      case 'n': case 'N': switchTab('calculator-tab'); break;
-      case 'o': case 'O': switchTab('logs-tab'); break;
-      case 'q': case 'Q': switchTab('queue-tab'); break;
-      case 'i': case 'I': switchTab('inventory-tab'); break;
-      case 'a': case 'A': switchTab('analytics-tab'); break;
-      case 'c': case 'C': switchTab('clients-tab'); break;
-      case '?': openHelpModal(); break;
-    }
+    if (e.key === '?') { openHelpModal(); return; }
+    const shortcutTab = TAB_SHORTCUTS[e.key.toLowerCase()];
+    if (shortcutTab) switchTab(shortcutTab);
   });
+
+  paintShortcutHints();
 
   const gsOverlay = $('#globalSearchOverlay');
   if (gsOverlay) {
@@ -687,6 +688,57 @@ document.addEventListener('languagechange', () => {
   refreshCurrencyLabels();
 });
 }
+
+/**
+ * Single-key tab shortcuts. Key → tab id.
+ *
+ * Also the source the sidebar hints are painted from, so the two cannot drift.
+ */
+const TAB_SHORTCUTS = {
+  n: 'calculator-tab',
+  o: 'logs-tab',
+  q: 'queue-tab',
+  i: 'inventory-tab',
+  a: 'analytics-tab',
+  c: 'clients-tab',
+};
+
+/**
+ * Show each shortcut on the sidebar item it belongs to.
+ *
+ * Shortcut adoption is a display problem, not a user problem: with the key only
+ * documented elsewhere, roughly a third of users ever reach for it, and putting
+ * it on the command itself takes that to nearly all of them (Malacria et al.,
+ * CHI 2013). Khayt listed these in the help modal only — which is precisely the
+ * condition that measured worst. Showing the letter where the user already
+ * clicks lets them rehearse the expert action while still working the slow way.
+ *
+ * Hidden from assistive tech: a screen reader gets the shortcut from the
+ * button's aria-keyshortcuts, and a loose letter read after every nav label is
+ * noise.
+ */
+function paintShortcutHints() {
+  const byTab = {};
+  for (const [key, tab] of Object.entries(TAB_SHORTCUTS)) byTab[tab] = key;
+  document.querySelectorAll('.tab-btn[data-tab]').forEach((btn) => {
+    const key = byTab[btn.dataset.tab];
+    if (!key || btn.querySelector('.kbd-hint')) return;
+    btn.setAttribute('aria-keyshortcuts', key.toUpperCase());
+    const kbd = document.createElement('span');
+    kbd.className = 'kbd-hint';
+    kbd.setAttribute('aria-hidden', 'true');
+    kbd.textContent = key.toUpperCase();
+    btn.appendChild(kbd);
+  });
+}
+
+(function (global) {
+  global.TAB_SHORTCUTS = TAB_SHORTCUTS;
+  global.paintShortcutHints = paintShortcutHints;
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { ...(module.exports || {}), TAB_SHORTCUTS };
+  }
+})(typeof globalThis !== 'undefined' ? globalThis : window);
 
 (function (global) {
   global.initWizard = initWizard;
