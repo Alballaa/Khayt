@@ -3571,6 +3571,7 @@
   "queue.view_list": "列表视图",
   "queue.view_kanban_hint": "切换到看板",
   "queue.view_list_hint": "切换到分组列表",
-  "common.hours_short": "小时"
+  "common.hours_short": "小时",
+  "queue.machines_toggle": "\u6253\u5370\u673a"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

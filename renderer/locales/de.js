@@ -3571,6 +3571,7 @@
   "queue.view_list": "Listenansicht",
   "queue.view_kanban_hint": "Zum Kanban-Board wechseln",
   "queue.view_list_hint": "Zur gruppierten Liste wechseln",
-  "common.hours_short": "Std"
+  "common.hours_short": "Std",
+  "queue.machines_toggle": "Drucker"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

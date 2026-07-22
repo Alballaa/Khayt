@@ -572,23 +572,31 @@
     <section id="queue-tab" class="tab-content khayt-queue" role="tabpanel" aria-labelledby="tabbtn-queue-tab" aria-hidden="true" tabindex="-1">
       <div id="locationScopeBannerQueue" class="location-scope-banner" style="display:none;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px;padding:8px 12px;background:var(--bg-elev);border:1px solid var(--border);border-radius:var(--radius);"></div>
       <!-- Machine Queues -->
-      <div id="machineQueuesContainer" class="mb-6"></div>
+      <details id="machineQueuesWrap" class="queue-machines">
+        <summary class="queue-machines-summary"><span data-i18n="queue.machines_toggle">Machines</span></summary>
+        <div id="machineQueuesContainer" class="mb-6"></div>
+      </details>
 
       <div class="khayt-queue-toolbar row between wrap gap12" style="margin-bottom:16px;">
         <h3 class="card-head sec-title" style="margin:0; flex:1; min-width:120px;"><span class="swatch"></span><span data-i18n="queue.title">Active Production Queue</span></h3>
         <div class="khayt-queue-toolbar-actions">
-          <button type="button" id="btnQueueView" class="btn btn-sm btn-secondary" aria-pressed="false">Board view</button>
-          <button id="btnStartShift" class="btn btn-sm btn-secondary" data-i18n="startShift">▶ Start Shift</button>
-          <button id="btnEndOfDay" class="btn btn-sm btn-secondary" data-i18n="endOfDayReport">📋 End of Day</button>
           <input type="search" id="kanSearch" class="toolbar-search" data-i18n-placeholder="kan.search_ph" placeholder="Filter by client, project…" style="max-width:200px;">
-          <button id="btnScheduleView" class="btn-sm btn ghost small">📅 <span data-i18n="kan.schedule_view">Schedule</span></button>
-          <button id="btnCalendarView" class="btn-sm btn ghost small">📆 <span data-i18n="kan.calendar_view">Calendar</span></button>
-          <button id="btnBatchPlanner" class="btn small ghost" data-i18n="kan.batch_planner">📋 Batch Planner</button>
-          <button id="btnSuggestSchedule" class="btn small ghost" data-i18n="sched.suggest_btn">🤖 Suggest assignments</button>
-          <label class="btn small ghost" style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;" data-i18n-title="sched.auto_hint" title="Automatically assign queued jobs to free, compatible machines"><input type="checkbox" id="chkAutoSchedule" style="width:auto;margin:0;"> <span data-i18n="sched.auto_toggle">Auto-assign</span></label>
-          <button id="btnKioskView" class="btn-sm btn ghost small">🖥 <span data-i18n="kan.kiosk_view">Kiosk</span></button>
           <button id="btnKanbanSort" class="btn-sm btn ghost small" data-i18n-title="queue.sort_btn" title="Sort cards by urgency">⬆ <span data-i18n="queue.sort_btn">Sort</span></button>
+          <button type="button" id="btnQueueView" class="btn-sm btn ghost small" aria-pressed="false">Board view</button>
           <button id="btnPauseProduction" class="btn small" style="background:rgba(220,38,38,0.15);color:#f87171;border-color:rgba(220,38,38,0.3);" data-i18n="prod.pause">⏸ Pause production</button>
+          <details class="queue-overflow">
+            <summary class="btn-sm btn ghost small" aria-label="More queue actions" data-i18n-title="common.more" title="More actions">⋯</summary>
+            <div class="queue-overflow-menu">
+              <button id="btnStartShift" class="btn btn-sm btn-secondary" data-i18n="startShift">▶ Start Shift</button>
+              <button id="btnEndOfDay" class="btn btn-sm btn-secondary" data-i18n="endOfDayReport">📋 End of Day</button>
+              <button id="btnScheduleView" class="btn-sm btn ghost small">📅 <span data-i18n="kan.schedule_view">Schedule</span></button>
+              <button id="btnCalendarView" class="btn-sm btn ghost small">📆 <span data-i18n="kan.calendar_view">Calendar</span></button>
+              <button id="btnBatchPlanner" class="btn small ghost" data-i18n="kan.batch_planner">📋 Batch Planner</button>
+              <button id="btnSuggestSchedule" class="btn small ghost" data-i18n="sched.suggest_btn">🤖 Suggest assignments</button>
+              <label class="btn small ghost" style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;" data-i18n-title="sched.auto_hint" title="Automatically assign queued jobs to free, compatible machines"><input type="checkbox" id="chkAutoSchedule" style="width:auto;margin:0;"> <span data-i18n="sched.auto_toggle">Auto-assign</span></label>
+              <button id="btnKioskView" class="btn-sm btn ghost small">🖥 <span data-i18n="kan.kiosk_view">Kiosk</span></button>
+            </div>
+          </details>
         </div>
       </div>
 

@@ -3571,6 +3571,7 @@
   "queue.view_list": "Vista de lista",
   "queue.view_kanban_hint": "Cambiar al tablero kanban",
   "queue.view_list_hint": "Cambiar a la lista agrupada",
-  "common.hours_short": "h"
+  "common.hours_short": "h",
+  "queue.machines_toggle": "Impresoras"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
