@@ -3571,6 +3571,7 @@
   "queue.view_list": "Liste görünümü",
   "queue.view_kanban_hint": "Kanban panosuna geç",
   "queue.view_list_hint": "Gruplanmış listeye geç",
-  "common.hours_short": "sa"
+  "common.hours_short": "sa",
+  "queue.machines_toggle": "Yaz\u0131c\u0131lar"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

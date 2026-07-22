@@ -3571,6 +3571,7 @@
   "queue.view_list": "リスト表示",
   "queue.view_kanban_hint": "かんばんボードに切り替える",
   "queue.view_list_hint": "グループ表示のリストに切り替える",
-  "common.hours_short": "時間"
+  "common.hours_short": "時間",
+  "queue.machines_toggle": "\u30d7\u30ea\u30f3\u30bf\u30fc"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

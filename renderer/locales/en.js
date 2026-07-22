@@ -3574,6 +3574,7 @@
   "queue.view_list": "List view",
   "queue.view_kanban_hint": "Switch to the kanban board",
   "queue.view_list_hint": "Switch to the grouped list",
-  "common.hours_short": "h"
+  "common.hours_short": "h",
+  "queue.machines_toggle": "Machines"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
