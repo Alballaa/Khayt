@@ -74,3 +74,36 @@ test('the unreachable Bambu HTTP header is gone', () => {
   assert.ok(!/type === 'bambu'\)\s+headers\['Authorization'\]/.test(main),
     'dead Bambu HTTP auth header is back');
 });
+
+/* ── Moonraker authentication ────────────────────────────────────────────── */
+
+const mainSrc = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+
+test('Moonraker sends its API key like every other authenticated adapter', () => {
+  // Moonraker accepts X-Api-Key from untrusted clients. Without it Khayt only
+  // worked when the printer listed this machine in `trusted_clients`; a shop
+  // running `force_logins: True` got a blanket 401 and no explanation.
+  const statusBlock = mainSrc.slice(
+    mainSrc.indexOf('async function fetchPrinterStatus'),
+    mainSrc.indexOf('const get = async'),
+  );
+  assert.match(statusBlock, /'moonraker'\) headers\['X-Api-Key'\]|moonraker'\)\s*headers/,
+    'moonraker is absent from the status auth headers');
+});
+
+test('the upload path authenticates Moonraker too', () => {
+  const upload = mainSrc.slice(
+    mainSrc.indexOf("fd.set('root', 'gcodes')") - 200,
+    mainSrc.indexOf("fd.set('root', 'gcodes')") + 260,
+  );
+  assert.match(upload, /X-Api-Key/, 'moonraker upload sends no key');
+});
+
+test('an unset key is not sent as the string "undefined"', () => {
+  // The old lines assigned apiKey unconditionally, so a machine saved without a
+  // key sent `X-Api-Key: undefined` — worse than sending nothing, because
+  // Moonraker in trusted-client mode needs no key at all.
+  assert.ok(!/headers\['X-Api-Key'\] = apiKey;\n\s*if \(type === 'prusalink'\)/.test(mainSrc),
+    'unguarded header assignment is back');
+  assert.match(mainSrc, /if \(apiKey\) \{/, 'the non-empty-key guard is gone');
+});
