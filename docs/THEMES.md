@@ -21,10 +21,17 @@ setting from before the 2.6 consolidation could reach them.
 `migrateLegacyDesignTheme()` maps those settings to their intended successor,
 and `normalizeDesignId()` falls anything else back to **Workbench**.
 
-`studio` is the one survivor, and it is not a Khayt theme any more: Bed Ready
-pins to it (`applyDesignSettings()` in `themes.js`) and its whole look is
-`renderer/studio/` skinned by `bedready-theme.css`. It stays until Bed Ready is
-rebased onto a design of its own.
+`studio` went too, in the same release. It was Bed Ready's foundation rather
+than a Khayt design, so it moved with Bed Ready: `renderer/studio/` is now
+`renderer/bedready/`, `KhaytStudio` is `KhaytBedReadyUI`, and the two body
+classes it needed (`khayt-studio` + `khayt-handoff`, which could never disagree
+once it was the last handoff shell) collapsed into one `bedready-ui` class set
+from the `html[data-app="bedready"]` marker.
+
+Khayt therefore ships **three** designs and none of Bed Ready's UI layer — the
+stylesheets and scripts are gone from `index.html`. Khayt's shared renderers
+still call `KhaytBedReadyUI?.x?.()`; that global is simply undefined in Khayt,
+so those hooks no-op.
 
 ## Architecture
 
@@ -46,7 +53,6 @@ renderer/themes/
 - `workbench` — grouped sidebar, light-default (`body.khayt-workbench`) — the default
 - `command` — command bar + rail (`body.khayt-command`)
 - `vivid` — colorful sidebar (`body.khayt-vivid`)
-- `studio` — sidebar navigation (`body.khayt-studio`) — Bed Ready only, not selectable in Khayt
 - `default` — legacy horizontal layout without Studio chrome
 
 **Token contract**
@@ -86,7 +92,7 @@ after updating `@fontsource/*` devDependencies.
 
 ## Handoff screen layer
 
-The `studio` shell sets `body.khayt-handoff` and pulls screen polish from `renderer/themes/handoff-screens.css` + `KhaytStudio.useHandoffScreens()`. It is the last handoff shell; the other four went with the 3.3 legacy-theme deletion.
+There is no handoff-shell layer any more. `handoff-screens.css` moved to `renderer/bedready/screens-shared.css`, and `usesHandoffScreens()` / `HANDOFF_SCREEN_SHELLS` are gone from the registry — Bed Ready sets its one body class by product marker, so no theme arbitrates it.
 
 ## Roadmap
 

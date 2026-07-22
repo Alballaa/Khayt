@@ -443,7 +443,7 @@ function updateGrandTotal() {
     }, { material: 0, machine: 0, labor: 0, buffer: 0 });
     breakdownScope = 'cart';
   }
-  window.KhaytStudio?.updateCalcBreakdown?.(bdForChart, {
+  window.KhaytBedReadyUI?.updateCalcBreakdown?.(bdForChart, {
     currency: settings.currency,
     margin,
     finalPrice,

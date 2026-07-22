@@ -1,114 +1,114 @@
 /* Shared handoff screen polish — Studio + Ledger (+ future A–E themes) */
 
-/* ---- Shared primitives (scoped out of studio/ds.css) ---- */
-body.khayt-handoff .mono { font-family: var(--font-mono, var(--font-num)); font-feature-settings: "tnum" 1; letter-spacing: -0.01em; }
-body.khayt-handoff .eyebrow {
+/* ---- Shared primitives (scoped out of bedready/ds.css) ---- */
+body.bedready-ui .mono { font-family: var(--font-mono, var(--font-num)); font-feature-settings: "tnum" 1; letter-spacing: -0.01em; }
+body.bedready-ui .eyebrow {
   font-size: 10.5px; font-weight: 700; letter-spacing: 0.13em;
   text-transform: uppercase; color: var(--text-muted); white-space: nowrap;
 }
-body.khayt-handoff .metric {
+body.bedready-ui .metric {
   font-family: var(--font-mono, var(--font-num)); font-weight: 500;
   letter-spacing: -0.02em; font-feature-settings: "tnum" 1; white-space: nowrap;
 }
-body.khayt-handoff .card {
+body.bedready-ui .card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-lg, var(--radius));
   padding: var(--pad-card, 16px);
 }
-body.khayt-handoff .card.flush { padding: 0; overflow: hidden; }
-body.khayt-handoff .pill {
+body.bedready-ui .card.flush { padding: 0; overflow: hidden; }
+body.bedready-ui .pill {
   display: inline-flex; align-items: center; gap: 5px;
   font-size: 11.5px; font-weight: 600; line-height: 1;
   padding: 5px 9px; border-radius: 100px;
   border: 1px solid var(--border-2, var(--border));
   color: var(--text-dim, var(--text-muted));
 }
-body.khayt-handoff .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-body.khayt-handoff .thread {
+body.bedready-ui .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+body.bedready-ui .thread {
   height: 1px; border: none; margin: 0;
   background: repeating-linear-gradient(90deg, var(--border-2, var(--border)) 0 8px, transparent 8px 14px);
 }
-body.khayt-handoff .meter { height: 6px; border-radius: 100px; background: var(--surface-3, var(--surface-2)); overflow: hidden; }
-body.khayt-handoff .meter > i { display: block; height: 100%; border-radius: 100px; background: var(--accent); }
-body.khayt-handoff .row { display: flex; align-items: center; }
-body.khayt-handoff .col { display: flex; flex-direction: column; }
-body.khayt-handoff .between { justify-content: space-between; }
-body.khayt-handoff .grow { flex: 1; }
-body.khayt-handoff .sec-title {
+body.bedready-ui .meter { height: 6px; border-radius: 100px; background: var(--surface-3, var(--surface-2)); overflow: hidden; }
+body.bedready-ui .meter > i { display: block; height: 100%; border-radius: 100px; background: var(--accent); }
+body.bedready-ui .row { display: flex; align-items: center; }
+body.bedready-ui .col { display: flex; flex-direction: column; }
+body.bedready-ui .between { justify-content: space-between; }
+body.bedready-ui .grow { flex: 1; }
+body.bedready-ui .sec-title {
   font-size: 13px; font-weight: 650; letter-spacing: -0.01em; color: var(--text);
 }
-body.khayt-handoff .tbl { width: 100%; border-collapse: collapse; }
-body.khayt-handoff .tbl th {
+body.bedready-ui .tbl { width: 100%; border-collapse: collapse; }
+body.bedready-ui .tbl th {
   text-align: start; font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em;
   text-transform: uppercase; color: var(--text-muted);
   padding: 10px 14px; border-bottom: 1px solid var(--border);
 }
-body.khayt-handoff .tbl td { padding: 12px 14px; border-bottom: 1px solid var(--hairline, var(--border)); font-size: 13px; }
-body.khayt-handoff .tbl tbody tr:hover { background: var(--surface-2); }
-body.khayt-handoff .seg {
+body.bedready-ui .tbl td { padding: 12px 14px; border-bottom: 1px solid var(--hairline, var(--border)); font-size: 13px; }
+body.bedready-ui .tbl tbody tr:hover { background: var(--surface-2); }
+body.bedready-ui .seg {
   display: inline-flex; background: var(--bg-2); border: 1px solid var(--border);
   border-radius: var(--r-sm, var(--radius-sm)); padding: 3px; gap: 2px;
 }
-body.khayt-handoff .seg button {
+body.bedready-ui .seg button {
   font-size: 12.5px; font-weight: 600; color: var(--text-dim, var(--text-muted));
   background: transparent; border: none; padding: 6px 12px; border-radius: 5px;
   cursor: pointer; transition: .14s; white-space: nowrap;
 }
-body.khayt-handoff .seg button.on { background: var(--surface-3, var(--surface-2)); color: var(--text); box-shadow: var(--shadow-1); }
+body.bedready-ui .seg button.on { background: var(--surface-3, var(--surface-2)); color: var(--text); box-shadow: var(--shadow-1); }
 
 /* ---- App-only tabs ---- */
-body.khayt-handoff .khayt-tab-page > .toolbar,
-body.khayt-handoff .khayt-tab-page > .khayt-page-toolbar {
+body.bedready-ui .khayt-tab-page > .toolbar,
+body.bedready-ui .khayt-tab-page > .khayt-page-toolbar {
   display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px;
   margin-bottom: var(--gap, 16px); padding-bottom: 12px;
   border-bottom: 1px solid var(--hairline, var(--border));
 }
-body.khayt-handoff .khayt-tab-page .card-head,
-body.khayt-handoff .khayt-tab-page h3.card-head {
+body.bedready-ui .khayt-tab-page .card-head,
+body.bedready-ui .khayt-tab-page h3.card-head {
   margin: 0; flex: 1 1 auto; min-width: 140px;
   font-size: 13px; font-weight: 650; letter-spacing: -0.01em;
 }
-body.khayt-handoff .khayt-tab-page .card-head .swatch {
+body.bedready-ui .khayt-tab-page .card-head .swatch {
   background: var(--accent); width: 8px; height: 8px; border-radius: 2px;
 }
-body.khayt-handoff .khayt-tab-page .toolbar-search,
-body.khayt-handoff .khayt-tab-page .input.toolbar-search {
+body.bedready-ui .khayt-tab-page .toolbar-search,
+body.bedready-ui .khayt-tab-page .input.toolbar-search {
   min-width: 180px; max-width: 280px;
 }
-body.khayt-handoff .khayt-tab-page .product-grid {
+body.bedready-ui .khayt-tab-page .product-grid {
   gap: var(--gap, 16px);
 }
-body.khayt-handoff .khayt-tab-page .product-grid .card,
-body.khayt-handoff .khayt-tab-page .product-card {
+body.bedready-ui .khayt-tab-page .product-grid .card,
+body.bedready-ui .khayt-tab-page .product-card {
   border-radius: var(--r-lg, var(--radius));
   transition: border-color .14s, box-shadow .14s, transform .08s;
 }
-body.khayt-handoff .khayt-tab-page .product-grid .card:hover,
-body.khayt-handoff .khayt-tab-page .product-card:hover {
+body.bedready-ui .khayt-tab-page .product-grid .card:hover,
+body.bedready-ui .khayt-tab-page .product-card:hover {
   border-color: var(--accent-line, var(--accent));
   box-shadow: var(--shadow-2);
   transform: translateY(-1px);
 }
-body.khayt-handoff .khayt-tab-page table {
+body.bedready-ui .khayt-tab-page table {
   border-collapse: collapse;
 }
-body.khayt-handoff .khayt-tab-page table thead th {
+body.bedready-ui .khayt-tab-page table thead th {
   font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--text-muted);
 }
-body.khayt-handoff .khayt-tab-page .batch-bar {
+body.bedready-ui .khayt-tab-page .batch-bar {
   border-radius: var(--r-md, var(--radius-sm));
   background: var(--surface-2);
   border: 1px solid var(--border);
 }
 
 /* ---- Settings (horizontal tab strip) ---- */
-body.khayt-handoff #settings-tab .settings-layout {
+body.bedready-ui #settings-tab .settings-layout {
   gap: 0;
   padding: 0;
 }
-body.khayt-handoff #settings-tab .settings-sidebar {
+body.bedready-ui #settings-tab .settings-sidebar {
   border: none;
   border-bottom: 1px solid var(--border);
   border-radius: 0;
@@ -116,31 +116,31 @@ body.khayt-handoff #settings-tab .settings-sidebar {
   box-shadow: none;
   padding: 8px 18px 0;
 }
-body.khayt-handoff #settings-tab .settings-nav-item {
+body.bedready-ui #settings-tab .settings-nav-item {
   border-radius: 8px 8px 0 0;
   font-weight: 600;
 }
-body.khayt-handoff #settings-tab .settings-nav-item.active {
+body.bedready-ui #settings-tab .settings-nav-item.active {
   background: transparent;
   color: var(--accent);
   border-bottom-color: var(--accent);
 }
-body.khayt-handoff #settings-tab .settings-panel-title {
+body.bedready-ui #settings-tab .settings-panel-title {
   font-size: 20px; letter-spacing: -0.02em; margin-bottom: 18px;
 }
-body.khayt-handoff #settings-tab .settings-section-head {
+body.bedready-ui #settings-tab .settings-section-head {
   font-family: var(--font-mono, var(--font-num));
   letter-spacing: 0.08em;
 }
-body.khayt-handoff #settings-tab .settings-panels .card {
+body.bedready-ui #settings-tab .settings-panels .card {
   margin-bottom: var(--gap, 16px);
 }
 
-body.khayt-handoff .dash-stats-secondary { display: none; }
+body.bedready-ui .dash-stats-secondary { display: none; }
 
-body.khayt-handoff .dash-section,
-body.khayt-handoff .dash-goal,
-body.khayt-handoff .dash-low-stock {
+body.bedready-ui .dash-section,
+body.bedready-ui .dash-goal,
+body.bedready-ui .dash-low-stock {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-lg, var(--radius));
@@ -148,8 +148,8 @@ body.khayt-handoff .dash-low-stock {
   margin-bottom: var(--gap, 16px);
 }
 
-body.khayt-handoff .kanban.khayt-kanban,
-body.khayt-handoff .khayt-kanban {
+body.bedready-ui .kanban.khayt-kanban,
+body.bedready-ui .khayt-kanban {
   flex: 1;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(216px, 1fr));
@@ -159,7 +159,7 @@ body.khayt-handoff .khayt-kanban {
   align-items: start;
 }
 
-body.khayt-handoff .kanban-col.khayt-kcol {
+body.bedready-ui .kanban-col.khayt-kcol {
   background: var(--bg-2);
   border: 1px solid var(--hairline, var(--border));
   border-radius: var(--r-lg, var(--radius));
@@ -169,7 +169,7 @@ body.khayt-handoff .kanban-col.khayt-kcol {
   border-top-width: 1px !important;
 }
 
-body.khayt-handoff .kanban-card.khayt-kcard {
+body.bedready-ui .kanban-card.khayt-kcard {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-md, var(--radius-sm));
@@ -178,15 +178,15 @@ body.khayt-handoff .kanban-card.khayt-kcard {
   transition: border-color .14s, transform .08s, box-shadow .14s;
 }
 
-body.khayt-handoff .kanban-card.khayt-kcard:hover {
+body.bedready-ui .kanban-card.khayt-kcard:hover {
   border-color: var(--border-2, var(--border));
   box-shadow: var(--shadow-2);
   transform: translateY(-1px);
 }
 
-body.khayt-handoff #invValuationSummary { display: none !important; }
+body.bedready-ui #invValuationSummary { display: none !important; }
 
-body.khayt-handoff #inventoryTable thead th {
+body.bedready-ui #inventoryTable thead th {
   font-size: 10.5px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -194,11 +194,11 @@ body.khayt-handoff #inventoryTable thead th {
   font-weight: 700;
 }
 
-body.khayt-handoff .card.summary #costBreakdown.khayt-bd-legacy-hidden {
+body.bedready-ui .card.summary #costBreakdown.khayt-bd-legacy-hidden {
   display: none !important;
 }
 
-body.khayt-handoff .khayt-queue-toolbar {
+body.bedready-ui .khayt-queue-toolbar {
   flex-direction: row;
   flex-wrap: wrap;
   align-items: center;
@@ -206,7 +206,7 @@ body.khayt-handoff .khayt-queue-toolbar {
   gap: 12px;
 }
 
-body.khayt-handoff .kanban-col > h3 .count {
+body.bedready-ui .kanban-col > h3 .count {
   font-family: var(--font-mono, var(--font-num));
   font-size: 10.5px;
   padding: 1px 7px;
@@ -215,19 +215,19 @@ body.khayt-handoff .kanban-col > h3 .count {
   margin-inline-start: 6px;
 }
 
-body.khayt-handoff .analytics-legacy-hero { display: none !important; }
+body.bedready-ui .analytics-legacy-hero { display: none !important; }
 
-body.khayt-handoff .analytics-handoff-only { display: block !important; }
+body.bedready-ui .analytics-handoff-only { display: block !important; }
 
 .analytics-handoff-only { display: none; }
 
-body.khayt-handoff #analyticsHandoffWrap .khayt-an-kpi {
+body.bedready-ui #analyticsHandoffWrap .khayt-an-kpi {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-body.khayt-handoff #analyticsHandoffWrap .eyebrow {
+body.bedready-ui #analyticsHandoffWrap .eyebrow {
   font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -235,12 +235,12 @@ body.khayt-handoff #analyticsHandoffWrap .eyebrow {
   color: var(--text-muted);
 }
 
-body.khayt-handoff #analyticsHandoffWrap .metric {
+body.bedready-ui #analyticsHandoffWrap .metric {
   font-family: var(--font-mono, var(--font-num));
   font-feature-settings: "tnum" 1;
 }
 
-body.khayt-handoff #analyticsHandoffWrap .meter {
+body.bedready-ui #analyticsHandoffWrap .meter {
   height: 8px;
   background: var(--surface-2, var(--bg-2));
   border: 1px solid var(--border);
@@ -248,24 +248,24 @@ body.khayt-handoff #analyticsHandoffWrap .meter {
   overflow: hidden;
 }
 
-body.khayt-handoff #analyticsHandoffWrap .meter > i {
+body.bedready-ui #analyticsHandoffWrap .meter > i {
   display: block;
   height: 100%;
   background: var(--accent);
 }
 
-body.khayt-handoff #analyticsHandoffWrap .heatmap-mini {
+body.bedready-ui #analyticsHandoffWrap .heatmap-mini {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
   gap: 4px;
 }
 
-body.khayt-handoff #analyticsHandoffWrap .heatmap-mini span {
+body.bedready-ui #analyticsHandoffWrap .heatmap-mini span {
   aspect-ratio: 1;
   border-radius: 3px;
 }
 
 @media (max-width: 1100px) {
-  body.khayt-handoff .khayt-an-grid-2 { grid-template-columns: 1fr !important; }
-  body.khayt-handoff .khayt-an-kpis { grid-template-columns: repeat(2, 1fr) !important; }
+  body.bedready-ui .khayt-an-grid-2 { grid-template-columns: 1fr !important; }
+  body.bedready-ui .khayt-an-kpis { grid-template-columns: repeat(2, 1fr) !important; }
 }

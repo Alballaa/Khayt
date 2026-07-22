@@ -84,7 +84,7 @@ html[data-design="studio"][data-theme="light"] {
   --on-accent:   #05272e;
 }
 
-/* Studio-only base + primitives (shared handoff primitives live in themes/handoff-screens.css) */
+/* Studio-only base + primitives (shared handoff primitives live in bedready/screens-shared.css) */
 
 html[data-design="studio"],
 html[data-design="studio"] body {

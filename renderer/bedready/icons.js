@@ -95,7 +95,7 @@
   };
 
   function hydrateSettingsNav() {
-    if (!document.body.classList.contains('khayt-handoff')) return;
+    if (!document.body.classList.contains('bedready-ui')) return;
     document.querySelectorAll('.settings-nav-item[data-settings-section]').forEach((btn) => {
       const iconEl = btn.querySelector('.nav-icon');
       const name = SETTINGS_ICON[btn.dataset.settingsSection];
@@ -105,8 +105,8 @@
 
 
   function hydrateHandoff() {
-    if (!document.body.classList.contains('khayt-handoff')) return;
-    if (document.body.classList.contains('khayt-studio')) {
+    if (!document.body.classList.contains('bedready-ui')) return;
+    if (document.body.classList.contains('bedready-ui')) {
       hydrateNav();
       hydrateTopbar();
     }
@@ -114,7 +114,7 @@
   }
 
   function hydrateNav() {
-    if (!document.body.classList.contains('khayt-studio')) return;
+    if (!document.body.classList.contains('bedready-ui')) return;
     document.querySelectorAll('.khayt-navitem[data-tab]').forEach(btn => {
       const iconEl = btn.querySelector('.nav-icon');
       if (!iconEl) return;
@@ -124,7 +124,7 @@
   }
 
   function hydrateTopbar() {
-    if (!document.body.classList.contains('khayt-studio')) return;
+    if (!document.body.classList.contains('bedready-ui')) return;
     const themeBtn = $('#themeToggle');
     if (themeBtn) {
       themeBtn.classList.add('khayt-icon-btn');

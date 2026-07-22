@@ -13,7 +13,6 @@ import {
 import { buildScreenshotDemoStore } from './screenshot-demo-store.mjs';
 
 const THEME_CASES = [
-  { id: 'studio', bodyClass: 'khayt-studio', appearance: 'dark', dashSel: '#dashboardContent', dashMin: 80 },
   { id: 'workbench', bodyClass: 'khayt-workbench', appearance: 'light', dashSel: '.wb-dash', dashMin: 80 },
   { id: 'vivid', bodyClass: 'khayt-vivid', appearance: 'light', dashSel: '.vv-dash', dashMin: 80 },
   { id: 'command', bodyClass: 'khayt-command', appearance: 'light', dashSel: '.cmd-dash', dashMin: 80 },
@@ -211,7 +210,7 @@ async function seedDemoStore(window) {
   demoStore.settings = demoStore.settings || {};
   demoStore.settings.firstRun = false;
   demoStore.settings.firstRunDone = true;
-  demoStore.settings.designTheme = 'studio';
+  demoStore.settings.designTheme = 'workbench';
   // Seeding via saveStore alone loses the data: boot schedules a debounced
   // saveAll() (300ms) built from the still-empty globals, and that write lands
   // AFTER this one and overwrites it. The suite then ran every theme against an

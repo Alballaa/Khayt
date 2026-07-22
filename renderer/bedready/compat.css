@@ -23,7 +23,7 @@ html[data-design="studio"] body {
   background: #06070a;
 }
 
-body.khayt-studio::before {
+body.bedready-ui::before {
   content: "";
   position: fixed;
   inset: 0;
@@ -34,7 +34,7 @@ body.khayt-studio::before {
     radial-gradient(1000px 700px at 110% 120%, rgba(56,134,240,0.07), transparent 55%);
 }
 
-body.khayt-studio .khayt-app {
+body.bedready-ui .khayt-app {
   position: relative;
   z-index: 1;
   display: flex;
@@ -45,15 +45,15 @@ body.khayt-studio .khayt-app {
   color: var(--text);
 }
 
-body.khayt-studio .khayt-body {
+body.bedready-ui .khayt-body {
   flex: 1;
   display: flex;
   min-height: 0;
 }
 
 /* Legacy layout hidden (Studio shell) */
-body.khayt-studio nav.tabs,
-body.khayt-studio .header {
+body.bedready-ui nav.tabs,
+body.bedready-ui .header {
   display: none !important;
 }
 
@@ -75,31 +75,31 @@ body.khayt-studio .header {
   /* tab-btn + khayt-navitem */
 }
 
-body.khayt-studio .app-sidebar.khayt-sidebar .tab-btn::after {
+body.bedready-ui .app-sidebar.khayt-sidebar .tab-btn::after {
   display: none;
 }
 
 /* Dashboard stat tiles → studio KPI cards */
-body.khayt-studio .dash-stats {
+body.bedready-ui .dash-stats {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: var(--gap);
   margin-bottom: var(--gap);
 }
-body.khayt-studio .dash-stat {
+body.bedready-ui .dash-stat {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   padding: var(--pad-card);
 }
-body.khayt-studio .dash-stat-val {
+body.bedready-ui .dash-stat-val {
   font-family: var(--font-mono);
   font-size: 28px;
   font-weight: 500;
   letter-spacing: -0.02em;
   color: var(--text);
 }
-body.khayt-studio .dash-stat-lbl {
+body.bedready-ui .dash-stat-lbl {
   font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -108,30 +108,30 @@ body.khayt-studio .dash-stat-lbl {
   margin-top: 6px;
 }
 
-body.khayt-studio .dash-hero {
+body.bedready-ui .dash-hero {
   border-radius: var(--r-lg);
   border: 1px solid var(--border);
   background: var(--surface);
 }
 
-body.khayt-studio .card {
+body.bedready-ui .card {
   border-radius: var(--r-lg);
 }
 
-body.khayt-studio .khayt-navitem.active,
-body.khayt-studio .khayt-navitem.on {
+body.bedready-ui .khayt-navitem.active,
+body.bedready-ui .khayt-navitem.on {
   background: var(--accent-soft);
   color: var(--text);
   font-weight: 650;
 }
-body.khayt-studio .app-sidebar.collapsed { width: 64px !important; }
-body.khayt-studio .app-sidebar.collapsed .sidebar-brand-text,
-body.khayt-studio .app-sidebar.collapsed .nav-group-label,
-body.khayt-studio .app-sidebar.collapsed .nav-label,
-body.khayt-studio .app-sidebar.collapsed .khayt-pro,
-body.khayt-studio .app-sidebar.collapsed .khayt-live,
-body.khayt-studio .app-sidebar.collapsed .collapse-label { display: none !important; }
-body.khayt-studio .app-sidebar.collapsed .khayt-brand { justify-content: center; padding-inline: 12px; }
+body.bedready-ui .app-sidebar.collapsed { width: 64px !important; }
+body.bedready-ui .app-sidebar.collapsed .sidebar-brand-text,
+body.bedready-ui .app-sidebar.collapsed .nav-group-label,
+body.bedready-ui .app-sidebar.collapsed .nav-label,
+body.bedready-ui .app-sidebar.collapsed .khayt-pro,
+body.bedready-ui .app-sidebar.collapsed .khayt-live,
+body.bedready-ui .app-sidebar.collapsed .collapse-label { display: none !important; }
+body.bedready-ui .app-sidebar.collapsed .khayt-brand { justify-content: center; padding-inline: 12px; }
 
 /* Phase 2: dashboard + queue content */
 .khayt-dash .dash-hero-right { display: none; }
@@ -144,33 +144,33 @@ body.khayt-studio .app-sidebar.collapsed .khayt-brand { justify-content: center;
   .khayt-dash-panels { grid-template-columns: 1fr !important; }
 }
 
-.khayt-studio .dash-section,
-.khayt-studio .dash-goal,
-.khayt-studio .dash-low-stock {
+.bedready-ui .dash-section,
+.bedready-ui .dash-goal,
+.bedready-ui .dash-low-stock {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   padding: var(--pad-card);
   margin-bottom: var(--gap);
 }
-.khayt-studio .dash-section-head,
-.khayt-studio .sec-title {
+.bedready-ui .dash-section-head,
+.bedready-ui .sec-title {
   font-size: 13px;
   font-weight: 650;
   letter-spacing: -0.01em;
   color: var(--text);
 }
-.khayt-studio .dash-order-row {
+.bedready-ui .dash-order-row {
   padding: 10px 0;
   border-bottom: 1px solid var(--hairline);
 }
-.khayt-studio .dash-quick .btn {
+.bedready-ui .dash-quick .btn {
   border-radius: var(--r-sm);
 }
 
 /* Queue: legacy kanban → studio columns/cards */
-.khayt-studio .kanban.khayt-kanban,
-.khayt-studio .khayt-kanban {
+.bedready-ui .kanban.khayt-kanban,
+.bedready-ui .khayt-kanban {
   flex: 1;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(216px, 1fr));
@@ -179,7 +179,7 @@ body.khayt-studio .app-sidebar.collapsed .khayt-brand { justify-content: center;
   padding-bottom: 4px;
   align-items: start;
 }
-.khayt-studio .kanban-col.khayt-kcol {
+.bedready-ui .kanban-col.khayt-kcol {
   background: var(--bg-2);
   border: 1px solid var(--hairline);
   border-radius: var(--r-lg);
@@ -188,8 +188,8 @@ body.khayt-studio .app-sidebar.collapsed .khayt-brand { justify-content: center;
   max-height: 100%;
   border-top-width: 1px !important;
 }
-.khayt-studio .kanban-col .khayt-kcol-head,
-.khayt-studio .kanban-col > h3 {
+.bedready-ui .kanban-col .khayt-kcol-head,
+.bedready-ui .kanban-col > h3 {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -197,13 +197,13 @@ body.khayt-studio .app-sidebar.collapsed .khayt-brand { justify-content: center;
   margin: 0;
   font-size: 13px;
 }
-.khayt-studio .kanban-col-meta {
+.bedready-ui .kanban-col-meta {
   font-size: 10.5px;
   color: var(--text-muted);
   padding: 0 13px 8px;
 }
-.khayt-studio .kanban-col .list.khayt-kcol-body,
-.khayt-studio .kanban-col .list {
+.bedready-ui .kanban-col .list.khayt-kcol-body,
+.bedready-ui .kanban-col .list {
   padding: 11px;
   display: flex;
   flex-direction: column;
@@ -211,7 +211,7 @@ body.khayt-studio .app-sidebar.collapsed .khayt-brand { justify-content: center;
   overflow-y: auto;
   flex: 1;
 }
-.khayt-studio .kanban-card.khayt-kcard {
+.bedready-ui .kanban-card.khayt-kcard {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
@@ -219,22 +219,22 @@ body.khayt-studio .app-sidebar.collapsed .khayt-brand { justify-content: center;
   cursor: grab;
   transition: border-color .14s, transform .08s, box-shadow .14s;
 }
-.khayt-studio .kanban-card.khayt-kcard:hover {
+.bedready-ui .kanban-card.khayt-kcard:hover {
   border-color: var(--border-2);
   box-shadow: var(--shadow-2);
   transform: translateY(-1px);
 }
-.khayt-studio .kanban-card h4 {
+.bedready-ui .kanban-card h4 {
   font-size: 13.5px;
   margin: 0 0 6px;
 }
-.khayt-studio .content {
+.bedready-ui .content {
   padding: var(--gap);
   overflow-y: auto;
 }
 
 /* Phase 3 */
-.khayt-studio .dash-stats-secondary { display: none; }
+.bedready-ui .dash-stats-secondary { display: none; }
 .khayt-dash-kpis .khayt-kpi-alert { border-color: var(--danger); }
 .khayt-kcard-title { display: block; font-size: 13.5px; margin-top: 2px; }
 .khayt-kcard-client { font-size: 11.5px; color: var(--text-dim); }
@@ -243,7 +243,7 @@ body.khayt-studio .app-sidebar.collapsed .khayt-brand { justify-content: center;
 .khayt-kcard-actions .btn { font-size: 11px; }
 .khayt-kcard-badges .machine-badge { font-size: 10px; }
 .khayt-queue-toolbar .toolbar-search { max-width: 220px; }
-.khayt-studio .kanban-col > h3 .count { font-family: var(--font-mono); font-size: 10.5px; padding: 1px 7px; border-radius: 100px; background: var(--surface-2); margin-inline-start: 6px; }
+.bedready-ui .kanban-col > h3 .count { font-family: var(--font-mono); font-size: 10.5px; padding: 1px 7px; border-radius: 100px; background: var(--surface-2); margin-inline-start: 6px; }
 .khayt-calc .grid { gap: var(--gap); }
 .khayt-calc .total-display {
   background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-lg);

@@ -360,7 +360,7 @@ function initAppShell() {
 
   syncTopbarTitle($('.tab-content.active')?.id || 'dashboard-tab');
 
-  window.KhaytStudio?.init?.();
+  window.KhaytBedReadyUI?.init?.();
 
   const nav = $('.khayt-nav[role="tablist"]');
   nav?.addEventListener('keydown', (e) => {
@@ -495,7 +495,7 @@ function switchTab(tabId) {
   if (tabId === 'converter-tab')  renderConverter();
   if (tabId === 'hueforge-tab' && typeof renderHueForge === 'function') renderHueForge();
   if (tabId === 'clients-tab')    renderClients();
-  if (tabId === 'calculator-tab')  window.KhaytStudio?.initStudioCalculatorLayout?.();
+  if (tabId === 'calculator-tab')  window.KhaytBedReadyUI?.initStudioCalculatorLayout?.();
   if (tabId === 'queue-tab')      { renderMachineQueues(); renderKanban(); }
   if (tabId === 'analytics-tab')  applyAnalyticsModeView();
   if (tabId === 'gift-cards-tab') renderGiftCards();

@@ -1,14 +1,21 @@
-/* Khayt Studio — UI layer (filters, layout, CRM grid, inventory stats) */
+/* Bed Ready UI layer — filters, calculator layout, inventory screens.
+ *
+ * Was renderer/studio/, and was a Khayt design theme until 3.3. Nothing in Khayt
+ * reaches it any more: it is loaded only by bedready.html and gated on a single
+ * body class. Khayt's shared renderers still call through `KhaytBedReadyUI?.x?.()`,
+ * which is simply undefined there, so those hooks no-op.
+ *
+ * `isStudio()` and `useHandoffScreens()` used to test two different classes
+ * (khayt-studio, khayt-handoff). Once studio became the last handoff shell the
+ * two could never disagree, so they are one class and one predicate now.
+ */
 (function () {
-  const PREF = 'khayt_studio_';
+  const PREF = 'khayt_studio_';   // storage key kept — renaming it would orphan user prefs
 
-  function isStudio() {
-    return document.body.classList.contains('khayt-studio');
+  function isBedReadyUI() {
+    return document.body.classList.contains('bedready-ui');
   }
-
-  function useHandoffScreens() {
-    return document.body.classList.contains('khayt-handoff');
-  }
+  const useHandoffScreens = isBedReadyUI;
 
   function prefGet(key, fallback) {
     try {
@@ -639,8 +646,8 @@
     if (typeof i18n !== 'undefined' && i18n.apply) i18n.apply(document.body);
   }
 
-  window.KhaytStudio = {
-    isStudio,
+  window.KhaytBedReadyUI = {
+    isBedReadyUI,
     useHandoffScreens,
     init,
     initPhase5,
