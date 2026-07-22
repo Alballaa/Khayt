@@ -20,7 +20,7 @@
 
   function applyAccent(accentId, accentSet) {
     const root = document.documentElement;
-    const design = reg()?.normalizeDesignId(root.dataset.design || 'studio') || 'studio';
+    const design = reg()?.normalizeDesignId(root.dataset.design || 'workbench') || 'workbench';
     const set = accentSet || reg()?.accentsForTheme(design) || {};
     const preset = set[accentId] || set[reg()?.defaultAccentForTheme(design)];
     if (!preset) return;
@@ -40,7 +40,7 @@
     else if (theme?.shell === 'command') sub.textContent = 'خيط · COMMAND';
     else if (theme?.shell === 'vivid') sub.textContent = 'خيط · VIVID';
     else if (theme?.custom) sub.textContent = `خيط · ${(theme.label || designId).toUpperCase()}`;
-    else sub.textContent = 'خيط · STUDIO';
+    else sub.textContent = 'خيط · WORKBENCH';
   }
 
   function unloadCustomThemeStyles() {
@@ -61,34 +61,45 @@
     });
   }
 
+  /**
+   * Bed Ready is a separate product, not a Khayt design. It used to be pinned to
+   * the `studio` theme and reached the registry like any other; since 3.3 it owns
+   * its own UI layer (renderer/bedready/) and is identified by the html marker
+   * alone, so nothing about it depends on Khayt's theme list.
+   */
+  function isBedReady() {
+    return typeof document !== 'undefined' && document.documentElement.dataset.app === 'bedready';
+  }
+
   function applyBodyClasses(designId) {
     const theme = reg()?.getTheme(designId);
-    const shell = theme?.shell || 'studio';
-    document.body.classList.toggle('khayt-studio', shell === 'studio');
-    document.body.classList.toggle('khayt-workbench', shell === 'workbench');
-    document.body.classList.toggle('khayt-command', shell === 'command');
-    document.body.classList.toggle('khayt-vivid', shell === 'vivid');
-    document.body.classList.toggle('khayt-shell-default', shell === 'default');
-    document.body.classList.toggle('khayt-handoff', reg()?.usesHandoffScreens?.(shell) === true);
+    const shell = theme?.shell || 'workbench';
+    // One class, set by product rather than by theme. It was two (khayt-studio +
+    // khayt-handoff) that could never disagree once studio was the last handoff shell.
+    document.body.classList.toggle('bedready-ui', isBedReady());
+    document.body.classList.toggle('khayt-workbench', !isBedReady() && shell === 'workbench');
+    document.body.classList.toggle('khayt-command', !isBedReady() && shell === 'command');
+    document.body.classList.toggle('khayt-vivid', !isBedReady() && shell === 'vivid');
+    document.body.classList.toggle('khayt-shell-default', !isBedReady() && shell === 'default');
 
     document.querySelectorAll('[data-khayt-body-class]').forEach((el) => {
       el.classList.remove(el.dataset.khaytBodyClass);
       delete el.dataset.khaytBodyClass;
     });
-    if (theme?.bodyClass && !['khayt-studio', 'khayt-workbench', 'khayt-command', 'khayt-vivid'].includes(theme.bodyClass)) {
+    if (theme?.bodyClass && !['bedready-ui', 'khayt-workbench', 'khayt-command', 'khayt-vivid'].includes(theme.bodyClass)) {
       document.body.classList.add(theme.bodyClass);
       document.body.dataset.khaytBodyClass = theme.bodyClass;
     }
   }
 
   function applyDesignTheme(designId) {
-    const id = reg()?.normalizeDesignId(designId) || 'studio';
+    const id = reg()?.normalizeDesignId(designId) || 'workbench';
     const theme = reg()?.getTheme(id);
     const root = document.documentElement;
     const wasWorkbench = document.body.classList.contains('khayt-workbench');
     const wasCommand = document.body.classList.contains('khayt-command');
     const wasVivid = document.body.classList.contains('khayt-vivid');
-    const nextShell = theme?.shell || 'studio';
+    const nextShell = theme?.shell || 'workbench';
 
     if (['workbench', 'command', 'vivid'].includes(nextShell)) {
       document.getElementById('appSidebar')?.classList.remove('collapsed');
@@ -109,8 +120,8 @@
     if (nextShell === 'workbench') global.KhaytWorkbenchShell?.applyWorkbenchShell?.();
     if (nextShell === 'command') global.KhaytCommandShell?.applyCommandShell?.();
     if (nextShell === 'vivid') global.KhaytVividShell?.applyVividShell?.();
-    if (reg()?.usesHandoffScreens?.(theme?.shell)) {
-      global.KhaytStudio?.init?.();
+    if (isBedReady()) {
+      global.KhaytBedReadyUI?.init?.();
       if (typeof renderDashboard === 'function') renderDashboard();
       if (typeof renderKanban === 'function') renderKanban();
       if (typeof renderClients === 'function') renderClients();
@@ -121,14 +132,10 @@
   }
 
   function applyDesignSettings() {
-    // Bed Ready ships ONE bespoke look built on the studio design (skinned by
-    // bedready-theme.css) — pin it so the design picker / wizard default can't
-    // switch to a design whose CSS Bed Ready doesn't ship. Guarded by the html
-    // data-app marker, so Khayt is unaffected.
-    if (typeof settings !== 'undefined' && document.documentElement.dataset.app === 'bedready') {
-      settings.designTheme = 'studio';
-    }
-    const design = reg()?.normalizeDesignId(settings?.designTheme || 'studio') || 'studio';
+    // Bed Ready ships ONE bespoke look (renderer/bedready/ + bedready-theme.css)
+    // and no design picker. It no longer borrows a Khayt theme id to get there —
+    // applyBodyClasses keys off the html marker — so there is nothing to pin.
+    const design = reg()?.normalizeDesignId(settings?.designTheme || 'workbench') || 'workbench';
     const accent = reg()?.normalizeAccent(design, settings?.accent) || 'cyan';
     if (settings && settings.accent !== accent) settings.accent = accent;
     applyDesignTheme(design);
@@ -141,7 +148,7 @@
     const accentEl = document.getElementById('set_accent');
     const accentWrap = document.getElementById('set_accent_wrap');
     const comingSoonEl = document.getElementById('set_designTheme_coming_soon');
-    const design = reg()?.normalizeDesignId(settings?.designTheme || 'studio') || 'studio';
+    const design = reg()?.normalizeDesignId(settings?.designTheme || 'workbench') || 'workbench';
     if (designEl) designEl.value = design;
     if (document.getElementById('set_designThemePicker')) {
       global.KhaytThemePicker?.mountSettingsPicker?.();
@@ -161,7 +168,7 @@
   function populateDesignSelects() {
     if (!reg()) return;
     global.KhaytThemePicker?.mountSettingsPicker?.();
-    populateAccentSelect(reg().normalizeDesignId(settings?.designTheme || 'studio'));
+    populateAccentSelect(reg().normalizeDesignId(settings?.designTheme || 'workbench'));
   }
 
   function populateAccentSelect(designId) {
@@ -181,7 +188,7 @@
     syncDesignSettingsUi,
     populateDesignSelects,
     populateAccentSelect,
-    normalizeDesign: (id) => reg()?.normalizeDesignId(id) || 'studio',
+    normalizeDesign: (id) => reg()?.normalizeDesignId(id) || 'workbench',
     accentsForDesign: (id) => reg()?.accentsForTheme(id) || {},
     DESIGNS: reg()?.BUILTIN_THEMES,
     ACCENTS: reg()?.STUDIO_ACCENTS,

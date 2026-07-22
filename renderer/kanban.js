@@ -180,7 +180,7 @@ function renderStudioKanbanCard(b) {
     postCheckHtml, resinCheckHtml, timerBadge, etaBadge, actions,
   } = b;
 
-  const useStudio = document.body.classList.contains('khayt-handoff');
+  const useStudio = document.body.classList.contains('bedready-ui');
   // Enthusiast (hobbyist) mode has no commerce — hide client identity, sale price and payment state on cards.
   const biz = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.showsBusiness(settings.mode) : settings.mode !== 'enthusiast';
   const prioColor = { urgent: 'var(--danger)', high: 'var(--warn)', normal: 'var(--text-muted)' }[_pl] || 'var(--text-muted)';
@@ -355,7 +355,7 @@ function renderKanban() {
     _autoSchedRunning = true;
     try { applyAutoSchedule(); } finally { _autoSchedRunning = false; }
   }
-  window.KhaytStudio?.syncQueueMachinePicker?.();
+  window.KhaytBedReadyUI?.syncQueueMachinePicker?.();
   renderWaitingList();
   updateWaitingBadge();
   renderLocationScopeBanner?.();
@@ -369,7 +369,7 @@ function renderKanban() {
     quotesSec.style.display = 'none';
     const ql0 = $('#list-quote'); if (ql0) ql0.innerHTML = '';
   } else if (quotesSec) {
-    if (window.KhaytStudio?.useHandoffScreens?.()) {
+    if (window.KhaytBedReadyUI?.useHandoffScreens?.()) {
       quotesSec.style.display = '';
     } else {
       quotesSec.style.display = quotes.length > 0 ? '' : 'none';
@@ -405,7 +405,7 @@ function renderKanban() {
     }
   }
 
-  window.KhaytStudio?.syncQueueFolds?.();
+  window.KhaytBedReadyUI?.syncQueueFolds?.();
 
   // --- Production columns (exclude quotes) ---
   const kanTerm = (kanSearchTerm || '').toLowerCase().trim();
@@ -418,7 +418,7 @@ function renderKanban() {
       const hay = [o.project, o.id, o.client, client?.nameEn, client?.nameAr, client?.phone].join(' ').toLowerCase();
       if (!hay.includes(kanTerm)) return false;
     }
-    if (window.KhaytStudio?.orderMatchesStudioQueueFilter?.(o) === false) return false;
+    if (window.KhaytBedReadyUI?.orderMatchesStudioQueueFilter?.(o) === false) return false;
     return true;
   }).forEach(o => {
     // Delivered column: completed orders that have a deliveredAt timestamp
@@ -487,7 +487,7 @@ function renderKanban() {
       } else if (!overWip && existingWipBadge) {
         existingWipBadge.remove();
       }
-      if (document.body.classList.contains('khayt-handoff')) {
+      if (document.body.classList.contains('bedready-ui')) {
         let foot = colEl.querySelector('.khayt-kcol-foot');
         if (!foot) {
           foot = document.createElement('div');

@@ -1240,8 +1240,6 @@
   "set.theme.light": "浅色",
   "set.theme.system": "跟随系统",
   "theme.design.label": "设计",
-  "theme.design.studio": "工作室",
-  "theme.design.studio_desc": "线材青仪表 UI — 暖纸浅色模式。",
   "theme.design.workbench": "Workbench",
   "theme.design.workbench_desc": "原生效率应用——分组侧栏、工具栏、状态栏。",
   "theme.accent.indigo": "靛蓝",

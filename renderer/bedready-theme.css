@@ -161,11 +161,11 @@ html[data-app="bedready"] .vivid-pagehead,
 html[data-app="bedready"] .command-pagehead,
 html[data-app="bedready"] .console-status { display: none !important; }  /* Console theme's top-right status bar (the stray "— —") */
 
-html[data-app="bedready"] body.khayt-studio .khayt-sidebar {
+html[data-app="bedready"] body.bedready-ui .khayt-sidebar {
   width: var(--nav-w); min-width: var(--nav-w); max-width: var(--nav-w);
   flex-shrink: 0;
 }
-html[data-app="bedready"] body.khayt-studio .app-sidebar.collapsed {
+html[data-app="bedready"] body.bedready-ui .app-sidebar.collapsed {
   width: 66px !important; min-width: 66px !important; max-width: 66px !important;
 }
 
@@ -186,12 +186,12 @@ html[data-app="bedready"] .khayt-tdot { background: none; background-image: var(
 /* ============================================================
    Sidebar — lean brand rail + spectrum mark + quiet nav
    ============================================================ */
-html[data-app="bedready"] body.khayt-studio .khayt-sidebar {
+html[data-app="bedready"] body.bedready-ui .khayt-sidebar {
   background: var(--bg-2);
   border-inline-end: 1px solid var(--hairline);
 }
 
-html[data-app="bedready"] body.khayt-studio .khayt-brand {
+html[data-app="bedready"] body.bedready-ui .khayt-brand {
   height: 62px; gap: 11px;
   border-bottom: 1px solid var(--hairline);
 }
@@ -224,28 +224,28 @@ html[data-app="bedready"] .sidebar-subtitle {
 }
 
 /* Nav group labels + items — quiet, technical */
-html[data-app="bedready"] body.khayt-studio .khayt-navhead {
+html[data-app="bedready"] body.bedready-ui .khayt-navhead {
   font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.16em;
   text-transform: uppercase; color: var(--text-faint);
 }
-html[data-app="bedready"] body.khayt-studio .khayt-navitem {
+html[data-app="bedready"] body.bedready-ui .khayt-navitem {
   font-size: 13.5px; font-weight: 550; padding: 9px 12px;
   border-radius: 10px; gap: 11px; color: var(--text-dim);
 }
-html[data-app="bedready"] body.khayt-studio .khayt-navitem:hover { background: var(--surface-2); color: var(--text); }
-html[data-app="bedready"] body.khayt-studio .khayt-navitem.on {
+html[data-app="bedready"] body.bedready-ui .khayt-navitem:hover { background: var(--surface-2); color: var(--text); }
+html[data-app="bedready"] body.bedready-ui .khayt-navitem.on {
   background: var(--surface); color: var(--text); font-weight: 650;
   box-shadow: var(--shadow-1), inset 0 0 0 1px var(--border);
 }
 /* spectrum accent bar on the active item (inline-start) */
-html[data-app="bedready"] body.khayt-studio .khayt-navitem.on::before {
+html[data-app="bedready"] body.bedready-ui .khayt-navitem.on::before {
   content: ""; position: absolute; inset-inline-start: 0; inset-inline-end: auto;
   top: 50%; transform: translateY(-50%);
   width: 3px; height: 20px; border-radius: 0 3px 3px 0;
   background: var(--spectrum);
 }
-html[data-app="bedready"] body.khayt-studio .khayt-navitem.on .nav-icon,
-html[data-app="bedready"] body.khayt-studio .khayt-navitem.on svg { color: var(--accent); }
+html[data-app="bedready"] body.bedready-ui .khayt-navitem.on .nav-icon,
+html[data-app="bedready"] body.bedready-ui .khayt-navitem.on svg { color: var(--accent); }
 
 /* ============================================================
    Topbar — strip Khayt clutter down to a minimal maker bar

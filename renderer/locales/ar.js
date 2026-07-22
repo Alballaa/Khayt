@@ -1323,8 +1323,6 @@
   "set.theme.light": "فاتح",
   "set.theme.system": "النظام",
   "theme.design.label": "التصميم",
-  "theme.design.studio": "الاستوديو",
-  "theme.design.studio_desc": "واجهة سماوية للفيلامنت — وضع فاتح كورق دافئ.",
   "theme.design.workbench": "طاولة العمل",
   "theme.design.workbench_desc": "تطبيق إنتاجية أصلي — شريط جانبي مجمّع وشريط أدوات وشريط حالة.",
   "theme.accent.indigo": "نيلي",

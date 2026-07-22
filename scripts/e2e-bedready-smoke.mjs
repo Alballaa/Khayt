@@ -144,6 +144,12 @@ async function main() {
   const design = await window.evaluate(() => ({
     dataApp: document.documentElement.dataset.app || null,
     designTheme: (typeof settings !== 'undefined') ? settings.designTheme : null,
+    bedreadyUiClass: document.body.classList.contains('bedready-ui'),
+    uiLayerLoaded: typeof window.KhaytBedReadyUI !== 'undefined',
+    // Bed Ready must not depend on Khayt's theme registry any more.
+    studioStillAThemeInKhayt: !!(window.KhaytThemeRegistry
+      && window.KhaytThemeRegistry.BUILTIN_THEMES
+      && window.KhaytThemeRegistry.BUILTIN_THEMES.studio),
     designPickerHidden: (() => { const el = document.querySelector('#brDesignFields'); return el ? el.offsetParent === null : true; })(),
     altThemeCss: [...document.styleSheets].map((s) => s.href || '')
       .filter((h) => /themes\/(ledger|console|atelier|vitrine|cockpit|atlas|workbench|vivid|command)\//.test(h)).length,
@@ -151,7 +157,13 @@ async function main() {
     brandFont: getComputedStyle(document.querySelector('h1, h2, .sec-title') || document.body).fontFamily,
   }));
   assert('html[data-app="bedready"] set', design.dataApp === 'bedready');
-  assert(`design pinned to studio (was ${design.designTheme})`, design.designTheme === 'studio');
+  // Was: `designTheme === 'studio'`. Bed Ready used to borrow a Khayt design id
+  // to reach its own look. Since 3.3 it owns renderer/bedready/ and is keyed off
+  // the html marker, so the identity to assert is the body class and the layer —
+  // not a theme id in a registry it no longer participates in.
+  assert('bedready-ui body class set', design.bedreadyUiClass === true);
+  assert('Bed Ready UI layer loaded', design.uiLayerLoaded === true);
+  assert('studio is not a Khayt theme any more', design.studioStillAThemeInKhayt === false);
   assert('design/theme picker hidden', design.designPickerHidden === true);
   assert(`no alternate-theme CSS loaded (${design.altThemeCss})`, design.altThemeCss === 0);
   // Cyanotype Draft identity — blueprint-blue accent (hue 209) + Archivo display face.

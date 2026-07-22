@@ -11,7 +11,7 @@
    Bed Ready home for every call. Guarded on the flavor marker so it can
    never affect Khayt.
 
-   Self-heal: during boot the studio shell (initAppShell → KhaytStudio)
+   Self-heal: during boot the studio shell (initAppShell → KhaytBedReadyUI)
    re-mounts and empties #dashboardContent AFTER initialRender's first
    render, leaving the landing dashboard blank. A short-lived observer +
    poll re-renders the home into the live node whenever the dashboard tab

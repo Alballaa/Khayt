@@ -62,7 +62,7 @@ function renderSimpleReports() {
 }
 
 function useHandoffAnalytics() {
-  return document.body.classList.contains('khayt-handoff') && settings.mode === 'professional';
+  return document.body.classList.contains('bedready-ui') && settings.mode === 'professional';
 }
 
 function handoffSparkSvg(data, w, h) {

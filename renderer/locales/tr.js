@@ -1240,8 +1240,6 @@
   "set.theme.light": "Açık",
   "set.theme.system": "Sistem",
   "theme.design.label": "Tasarım",
-  "theme.design.studio": "Studio",
-  "theme.design.studio_desc": "Filament camgöbeği enstrüman arayüzü — sıcak kâğıt açık mod.",
   "theme.design.workbench": "Tezgâh",
   "theme.design.workbench_desc": "Yerel verimlilik uygulaması — gruplu kenar çubuğu, araç çubuğu, durum çubuğu.",
   "theme.accent.indigo": "Çivit",

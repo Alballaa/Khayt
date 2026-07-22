@@ -1240,8 +1240,6 @@
   "set.theme.light": "Claro",
   "set.theme.system": "Sistema",
   "theme.design.label": "Diseño",
-  "theme.design.studio": "Studio",
-  "theme.design.studio_desc": "Interfaz instrumental cian filamento — modo claro de papel cálido.",
   "theme.design.workbench": "Workbench",
   "theme.design.workbench_desc": "App de productividad nativa: barra lateral agrupada, barra de herramientas y barra de estado.",
   "theme.accent.indigo": "Índigo",

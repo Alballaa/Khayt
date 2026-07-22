@@ -60,7 +60,8 @@ function migrateLanApiSettings() {
  * normalizeDesignId() would fall a stale setting back to 'workbench' anyway —
  * but that would land a former cockpit/atlas user on the wrong shell. This map
  * keeps the intended destination, so it stays until the flag is universal.
- * `studio` is still mapped: Bed Ready pins to it directly and never reaches here.
+ * `studio` is still mapped: it was a real saved value before 3.3, when Bed Ready
+ * took that design with it and it stopped being a Khayt theme at all.
  */
 function migrateLegacyDesignTheme() {
   if (!settings || settings.__designV26Migrated) return;

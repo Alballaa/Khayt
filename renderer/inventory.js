@@ -1552,7 +1552,7 @@ function renderInventoryLocationScopeBanner(activeLoc, shownCount, totalCount) {
 }
 
 function renderInventory() {
-  window.KhaytStudio?.renderInventoryStudioStats?.();
+  window.KhaytBedReadyUI?.renderInventoryStudioStats?.();
   renderReorderAlerts();
   renderSupplierReorderList();
   renderPipelineDemand();
@@ -1563,7 +1563,7 @@ function renderInventory() {
   renderInventoryLocationScopeBanner(activeLoc, scopedInventory.length, inventory.length);
   // Inventory valuation summary
   const valEl = $('#invValuationSummary');
-  if (valEl && !window.KhaytStudio?.useHandoffScreens?.()) {
+  if (valEl && !window.KhaytBedReadyUI?.useHandoffScreens?.()) {
     if (scopedInventory.length > 0) {
       const totalValue = scopedInventory.reduce((s, item) => {
         // Value = cost × (remaining / original). Fall back to the standard spool
@@ -1585,8 +1585,8 @@ function renderInventory() {
     }
   }
 
-  window.KhaytStudio?.patchInventoryTableHead?.();
-  const _studioInv = window.KhaytStudio?.useHandoffScreens?.();
+  window.KhaytBedReadyUI?.patchInventoryTableHead?.();
+  const _studioInv = window.KhaytBedReadyUI?.useHandoffScreens?.();
   const tbody = $('#inventoryTable tbody');
   if (inventory.length === 0) {
     tbody.innerHTML = `<tr><td colspan="${_studioInv ? 6 : 5}" class="empty-state">${escapeHtml(t('inv.empty'))} <button type="button" class="btn small primary" data-act="focus-inv-material" style="margin-inline-start:12px;">${escapeHtml(t('inv.add_title') || 'Add Filament')}</button></td></tr>`;
@@ -1605,7 +1605,7 @@ function renderInventory() {
       computeMaterialForecast().forEach(f => { forecastMap[f.material] = f; });
     } catch(e) { /* silent */ }
     tbody.innerHTML = visibleInv.map(item => {
-      const studioRow = window.KhaytStudio?.renderInventoryRow?.(item, { forecastMap, todayMs });
+      const studioRow = window.KhaytBedReadyUI?.renderInventoryRow?.(item, { forecastMap, todayMs });
       if (studioRow) return studioRow;
       const low = isLowStock(item);
       const queued = Math.round(getQueuedWeight(item.id));
@@ -1659,7 +1659,7 @@ function renderInventory() {
           </td>
           <td style="font-variant-numeric: tabular-nums;">${fmtPrice(item.cost)}</td>
           <td style="font-variant-numeric: tabular-nums;">
-            ${window.KhaytStudio?.useHandoffScreens?.() ? window.KhaytStudio.invStockMeterHtml(item) : `${Math.round(item.weight)} ${weightUnit}`}
+            ${window.KhaytBedReadyUI?.useHandoffScreens?.() ? window.KhaytBedReadyUI.invStockMeterHtml(item) : `${Math.round(item.weight)} ${weightUnit}`}
           </td>
           <td style="font-variant-numeric: tabular-nums; color:${queued > 0 ? (warn ? 'var(--danger)' : 'var(--text-dim)') : 'var(--text-muted)'};">
             ${queued > 0 ? Math.round(queued) + ' ' + weightUnit : '—'}${warn ? ` <span style="color:var(--danger); font-size:11px;">${_iIco('alert', '⚠', 12)}</span>` : ''}

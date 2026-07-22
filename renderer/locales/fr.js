@@ -1240,8 +1240,6 @@
   "set.theme.light": "Clair",
   "set.theme.system": "Système",
   "theme.design.label": "Design",
-  "theme.design.studio": "Studio",
-  "theme.design.studio_desc": "Interface instrumentale cyan filament — mode clair papier chaud.",
   "theme.design.workbench": "Workbench",
   "theme.design.workbench_desc": "App de productivité native — barre latérale groupée, barre d'outils, barre d'état.",
   "theme.accent.indigo": "Indigo",

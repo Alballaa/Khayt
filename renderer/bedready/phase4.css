@@ -9,18 +9,18 @@
   gap: 12px;
   margin-bottom: 14px;
 }
-.khayt-studio .khayt-queue-toolbar {
+.bedready-ui .khayt-queue-toolbar {
   flex-direction: row;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
-.khayt-studio .khayt-queue-toolbar .sec-title {
+.bedready-ui .khayt-queue-toolbar .sec-title {
   flex: 1 1 auto;
   min-width: 160px;
 }
-.khayt-studio .khayt-queue-toolbar-actions {
+.bedready-ui .khayt-queue-toolbar-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -91,26 +91,26 @@
 .khayt-inv-stat .metric {
   font-size: 24px;
 }
-.khayt-studio #inventoryTable thead th {
+.bedready-ui #inventoryTable thead th {
   font-size: 10.5px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
   font-weight: 700;
 }
-.khayt-studio #inventoryTable tbody td {
+.bedready-ui #inventoryTable tbody td {
   vertical-align: middle;
   padding: 12px 14px;
 }
-.khayt-studio #inventoryTable .inv-stock-meter {
+.bedready-ui #inventoryTable .inv-stock-meter {
   margin-top: 5px;
 }
 
 /* Phase 4.1 */
 .khayt-queue-machine-wrap { margin-bottom: 12px; }
 .khayt-queue-machine-wrap select { max-width: 280px; }
-.khayt-studio #invValuationSummary { display: none !important; }
-.khayt-studio .khayt-icon-btn { padding: 6px 8px; }
+.bedready-ui #invValuationSummary { display: none !important; }
+.bedready-ui .khayt-icon-btn { padding: 6px 8px; }
 .khayt-search > span[aria-hidden] { display: inline-flex; align-items: center; }
 .khayt-queue-toolbar-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 @media (max-width: 900px) {
@@ -120,8 +120,8 @@
 .material .card-head { margin-bottom: 0; }
 .khayt-attn-ic svg { display: block; }
 .inv-stock-meter { min-width: 140px; }
-html[data-theme="light"].khayt-studio,
-html[data-theme="light"] body.khayt-studio {
+html[data-theme="light"].bedready-ui,
+html[data-theme="light"] body.bedready-ui {
   --bg: #f4f5f7;
   --bg-2: #ebedf0;
   --surface: #ffffff;

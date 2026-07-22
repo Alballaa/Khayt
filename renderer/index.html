@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr" data-theme="dark" data-design="studio" data-accent="cyan">
+<html lang="en" dir="ltr" data-theme="light" data-design="workbench" data-accent="indigo">
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy"
@@ -17,15 +17,8 @@
   <link rel="stylesheet" href="themes/command/shell.css" />
   <link rel="stylesheet" href="themes/command/screens.css" />
   <link rel="stylesheet" href="themes/theme-picker.css" />
-  <link rel="stylesheet" href="themes/handoff-screens.css" />
-  <link rel="stylesheet" href="studio/ds.css" />
-  <link rel="stylesheet" href="studio/shell.css" />
-  <link rel="stylesheet" href="studio/screens.css" />
-  <link rel="stylesheet" href="studio/compat.css" />
-  <link rel="stylesheet" href="studio/phase4.css" />
-  <link rel="stylesheet" href="studio/phase5.css" />
 </head>
-<body class="khayt-studio">
+<body class="bedready-ui">
 <a class="skip-link" href="#mainContent" data-i18n="a11y.skip">Skip to main content</a>
 
 <div id="pauseBanner" class="pause-banner" style="display:none;"></div>
@@ -581,18 +574,6 @@
       <!-- Machine Queues -->
       <div id="machineQueuesContainer" class="mb-6"></div>
 
-      <div class="khayt-queue-seg-row">
-        <div class="seg khayt-queue-seg" id="studioQueueSeg" role="group" aria-label="Queue filters">
-          <button type="button" class="on" data-queue-filter="all" data-i18n="queue.filter_all">All</button>
-          <button type="button" data-queue-filter="fdm" data-i18n="queue.filter_fdm">FDM</button>
-          <button type="button" data-queue-filter="resin" data-i18n="queue.filter_resin">Resin</button>
-          <button type="button" data-queue-filter="machine" data-i18n="queue.filter_machine">By machine</button>
-        </div>
-        <div id="studioQueueMachineWrap" class="khayt-queue-machine-wrap" style="display:none" aria-hidden="true">
-          <select id="studioQueueMachine" class="input" style="min-width:200px;height:34px"></select>
-        </div>
-      </div>
-
       <div class="khayt-queue-toolbar row between wrap gap12" style="margin-bottom:16px;">
         <h3 class="card-head sec-title" style="margin:0; flex:1; min-width:120px;"><span class="swatch"></span><span data-i18n="queue.title">Active Production Queue</span></h3>
         <div class="khayt-queue-toolbar-actions">
@@ -1144,12 +1125,6 @@
     <!-- ===================== CLIENTS ===================== -->
     <section id="clients-tab" class="tab-content khayt-clients">
       <div class="khayt-clients-toolbar">
-        <div class="seg" id="studioClientSeg" role="group" aria-label="Client filters">
-          <button type="button" class="on" data-client-filter="all" data-i18n="cl.filter_all">All</button>
-          <button type="button" data-client-filter="vat" data-i18n="cl.filter_vat">VAT</button>
-          <button type="button" data-client-filter="b2c" data-i18n="cl.filter_b2c">B2C</button>
-          <button type="button" data-client-filter="balance" data-i18n="cl.filter_balance">Has balance</button>
-        </div>
         <div class="row gap8 wrap khayt-clients-actions">
           <input type="search" id="clientSearch" class="toolbar-search" data-i18n-placeholder="cl.search_ph">
           <button class="btn sm subtle" id="btnBlankIntakeForm" title="Blank intake form"><span data-i18n="cl.intake_form">Intake form</span></button>
@@ -1504,9 +1479,9 @@
         <p class="settings-panel-hint" data-i18n="set.lang_theme_auto">Language, appearance, and design apply immediately when changed.</p>
         <div style="margin-bottom:12px;">
           <label data-i18n="theme.design.label">Design</label>
-          <input type="hidden" id="set_designTheme" value="studio" />
+          <input type="hidden" id="set_designTheme" value="workbench" />
           <div id="set_designThemePicker" class="theme-picker" aria-describedby="set_designTheme_hint"></div>
-          <p id="set_designTheme_hint" class="settings-field-hint" data-i18n="theme.design.studio_desc">Filament cyan instrument UI — warm-paper light mode.</p>
+          <p id="set_designTheme_hint" class="settings-field-hint" data-i18n="theme.design.workbench_desc">Grouped left sidebar — light-default productivity UI.</p>
           <p id="set_designTheme_coming_soon" class="settings-field-hint muted" style="margin-top:6px"></p>
           <p class="settings-field-hint" style="margin-top:8px">
             <a href="#" id="set_customThemeHelp" data-i18n="theme.design.custom_help">Create your own theme →</a>
@@ -2401,9 +2376,6 @@
 <script src="locales/ja.js"></script>
 <script src="locales/tr.js"></script>
 <script src="i18n.js"></script>
-<script src="studio/icons.js"></script>
-<script src="studio/charts.js"></script>
-<script src="studio/studio.js"></script>
 <script src="store.js"></script>
 <script src="store-validate.js"></script>
 <script src="format.js"></script>

@@ -1240,8 +1240,6 @@
   "set.theme.light": "Hell",
   "set.theme.system": "System",
   "theme.design.label": "Design",
-  "theme.design.studio": "Studio",
-  "theme.design.studio_desc": "Filament-Cyan-Instrument-UI — Warmpapier-Hellmodus.",
   "theme.design.workbench": "Workbench",
   "theme.design.workbench_desc": "Native Produktivitäts-App – gruppierte Seitenleiste, Symbolleiste, Statusleiste.",
   "theme.accent.indigo": "Indigo",

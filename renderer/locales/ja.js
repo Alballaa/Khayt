@@ -1240,8 +1240,6 @@
   "set.theme.light": "ライト",
   "set.theme.system": "システム",
   "theme.design.label": "デザイン",
-  "theme.design.studio": "スタジオ",
-  "theme.design.studio_desc": "フィラメント シアンの計器UI — 温かみのある紙のライトモード。",
   "theme.design.workbench": "ワークベンチ",
   "theme.design.workbench_desc": "ネイティブな生産性アプリ — グループ化サイドバー、ツールバー、ステータスバー。",
   "theme.accent.indigo": "インディゴ",

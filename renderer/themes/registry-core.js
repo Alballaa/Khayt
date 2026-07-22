@@ -2,14 +2,6 @@
  * Theme registry — pure definitions and helpers (browser + Node testable).
  */
 (function (global) {
-  const STUDIO_ACCENTS = {
-    cyan:  { h: 187, s: '76%', l: '53%', labelKey: 'theme.accent.cyan' },
-    teal:  { h: 171, s: '58%', l: '45%', labelKey: 'theme.accent.teal' },
-    aqua:  { h: 184, s: '66%', l: '64%', labelKey: 'theme.accent.aqua' },
-    sky:   { h: 200, s: '82%', l: '57%', labelKey: 'theme.accent.sky' },
-    azure: { h: 213, s: '72%', l: '61%', labelKey: 'theme.accent.azure' },
-  };
-
 
 
 
@@ -37,23 +29,8 @@
     orange:  { h: 24,  s: '76%',  l: '53%', labelKey: 'theme.accent.command_orange' },
   };
 
-  /**
-   * Shell types that share the Khayt handoff six-screen layer.
-   *
-   * Was ['studio', 'ledger', 'console', 'atelier', 'vitrine']; the other four
-   * went with the legacy-theme deletion. Only `studio` remains, and only
-   * because Bed Ready is pinned to it (see applyDesignSettings in themes.js) —
-   * no Khayt user can select it. If Bed Ready is ever rebased onto its own
-   * design, this list and renderer/studio/ go with it.
-   */
-  const HANDOFF_SCREEN_SHELLS = ['studio'];
-
   /** Shells a community theme may declare in its manifest. */
   const CUSTOM_THEME_SHELLS = ['workbench', 'command', 'vivid', 'default'];
-
-  function usesHandoffScreens(shell) {
-    return HANDOFF_SCREEN_SHELLS.includes(shell);
-  }
 
   /** Reserved Frontier concepts — Pulse and Stream (vNext). */
   const RESERVED_THEMES = {
@@ -84,26 +61,6 @@
   };
 
   const BUILTIN_THEMES = {
-    studio: {
-      labelKey: 'theme.design.studio',
-      descKey: 'theme.design.studio_desc',
-      preview: 'themes/previews/studio.png',
-      shell: 'studio',
-      legacy: true,
-      enabled: true,
-      defaultAccent: 'cyan',
-      accents: STUDIO_ACCENTS,
-      defaultAppearance: 'dark',
-      bodyClass: 'khayt-studio',
-      stylesheets: [
-        'studio/ds.css',
-        'studio/shell.css',
-        'studio/screens.css',
-        'studio/compat.css',
-        'studio/phase4.css',
-        'studio/phase5.css',
-      ],
-    },
     workbench: {
       labelKey: 'theme.design.workbench',
       descKey: 'theme.design.workbench_desc',
@@ -180,7 +137,8 @@
   function getTheme(designId) {
     const id = normalizeDesignId(designId);
     if (isCustomThemeId(id)) return customThemes[customIdFromTheme(id)];
-    return registry[id] || registry.studio;
+    // Bed Ready left with the studio theme in 3.3; the default is the fallback now.
+    return registry[id] || registry.workbench;
   }
 
   function listSelectableThemes() {
@@ -198,7 +156,7 @@
   }
 
   function accentsForTheme(designId) {
-    return getTheme(designId).accents || STUDIO_ACCENTS;
+    return getTheme(designId).accents || WORKBENCH_ACCENTS;
   }
 
   function defaultAccentForTheme(designId) {
@@ -299,7 +257,6 @@
   }
 
   const api = {
-    STUDIO_ACCENTS,
     WORKBENCH_ACCENTS,
     VIVID_ACCENTS,
     COMMAND_ACCENTS,
@@ -319,9 +276,7 @@
     validateCustomManifest,
     registerCustomTheme,
     registerBuiltinTheme,
-    HANDOFF_SCREEN_SHELLS,
     CUSTOM_THEME_SHELLS,
-    usesHandoffScreens,
   };
 
   Object.assign(global, api);

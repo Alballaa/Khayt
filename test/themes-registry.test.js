@@ -10,8 +10,8 @@ test('normalizeDesignId falls stale ids back to the default', () => {
   for (const gone of ['ledger', 'console', 'atelier', 'vitrine', 'cockpit', 'atlas']) {
     assert.equal(reg.normalizeDesignId(gone), 'workbench', `${gone} was deleted`);
   }
-  // studio survives in the registry for Bed Ready, which pins to it directly.
-  assert.equal(reg.normalizeDesignId('studio'), 'studio');
+  // studio left with Bed Ready in 3.3 — it is not a Khayt design any more.
+  assert.equal(reg.normalizeDesignId('studio'), 'workbench');
 });
 
 test('selectable themes are exactly the three 2.6 designs', () => {
@@ -27,10 +27,15 @@ test('the six deleted legacy designs are gone from the registry', () => {
   }
 });
 
-test('studio is retained but unselectable — Bed Ready pins to it', () => {
-  assert.ok(reg.BUILTIN_THEMES.studio, 'studio must survive for Bed Ready');
-  assert.equal(reg.BUILTIN_THEMES.studio.legacy, true);
-  assert.ok(!reg.listSelectableThemes().includes('studio'));
+test('studio is gone from Khayt entirely — Bed Ready owns its UI layer now', () => {
+  // It used to survive here because Bed Ready was pinned to it. Bed Ready now
+  // owns renderer/bedready/ and is identified by its html marker, so Khayt's
+  // registry has no reason to carry it.
+  assert.equal(reg.BUILTIN_THEMES.studio, undefined);
+  assert.equal(reg.registry.studio, undefined);
+  assert.equal(reg.STUDIO_ACCENTS, undefined);
+  // Its accent table went with it; the fallback is the default theme's.
+  assert.deepEqual(Object.keys(reg.accentsForTheme('nonsense')), Object.keys(reg.accentsForTheme('workbench')));
 });
 
 test('coming soon lists Frontier Pulse and Stream only', () => {
@@ -42,13 +47,12 @@ test('coming soon lists Frontier Pulse and Stream only', () => {
   assert.ok(soon.includes('stream'));
 });
 
-test('usesHandoffScreens is now studio-only', () => {
-  // The other four handoff shells went with the legacy deletion; studio is the
-  // last one, and only Bed Ready reaches it.
-  assert.equal(reg.usesHandoffScreens('studio'), true);
-  for (const shell of ['ledger', 'console', 'atelier', 'vitrine', 'cockpit', 'atlas', 'workbench']) {
-    assert.equal(reg.usesHandoffScreens(shell), false, `${shell} is not a handoff shell`);
-  }
+test('the handoff-shell API is gone', () => {
+  // khayt-handoff and khayt-studio were two body classes that could never
+  // disagree once studio was the last handoff shell. Bed Ready sets one class
+  // by product marker, so the registry no longer arbitrates it.
+  assert.equal(reg.usesHandoffScreens, undefined);
+  assert.equal(reg.HANDOFF_SCREEN_SHELLS, undefined);
 });
 
 

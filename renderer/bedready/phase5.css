@@ -85,17 +85,17 @@
   color: var(--text);
   font-variant-numeric: tabular-nums;
 }
-.khayt-studio .card.summary #costBreakdown.khayt-bd-legacy-hidden {
+.bedready-ui .card.summary #costBreakdown.khayt-bd-legacy-hidden {
   display: none !important;
 }
 
 /* Inventory design table */
-.khayt-studio #inventoryTable.tbl,
-.khayt-studio #inventoryTable {
+.bedready-ui #inventoryTable.tbl,
+.bedready-ui #inventoryTable {
   width: 100%;
   border-collapse: collapse;
 }
-.khayt-studio #inventoryTable tbody tr[data-inv-id] td:first-child {
+.bedready-ui #inventoryTable tbody tr[data-inv-id] td:first-child {
   display: table-cell;
 }
 .khayt-inv-mat-cell {
@@ -217,21 +217,21 @@
   margin-inline-start: auto;
   flex-shrink: 0;
 }
-.khayt-studio .table-wrap {
+.bedready-ui .table-wrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
-.khayt-studio .kanban-col.kanban-col-collapsed {
+.bedready-ui .kanban-col.kanban-col-collapsed {
   flex: 0 0 44px;
   min-width: 44px;
   max-width: 44px;
 }
-.khayt-studio .kanban-col.kanban-col-collapsed .khayt-kcol-body,
-.khayt-studio .kanban-col.kanban-col-collapsed .kanban-col-meta,
-.khayt-studio .kanban-col.kanban-col-collapsed .count {
+.bedready-ui .kanban-col.kanban-col-collapsed .khayt-kcol-body,
+.bedready-ui .kanban-col.kanban-col-collapsed .kanban-col-meta,
+.bedready-ui .kanban-col.kanban-col-collapsed .count {
   display: none !important;
 }
-.khayt-studio .kanban-col.kanban-col-collapsed h3 {
+.bedready-ui .kanban-col.kanban-col-collapsed h3 {
   writing-mode: vertical-rl;
   text-orientation: mixed;
   justify-content: center;

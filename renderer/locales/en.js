@@ -1240,8 +1240,6 @@
   "set.theme.light": "Light",
   "set.theme.system": "System",
   "theme.design.label": "Design",
-  "theme.design.studio": "Studio",
-  "theme.design.studio_desc": "Filament cyan instrument UI — warm-paper light mode.",
   "theme.design.workbench": "Workbench",
   "theme.design.workbench_desc": "Native productivity app — grouped sidebar, toolbar, status bar.",
   "theme.accent.indigo": "Indigo",

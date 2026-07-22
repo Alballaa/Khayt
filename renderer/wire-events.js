@@ -1095,7 +1095,7 @@ function wireEvents() {
   // Waiting list
   $('#btnAddWaiting')?.addEventListener('click', () => openWaitingItemEditor(null));
   $('#waitingListToggle')?.addEventListener('click', () => {
-    if (window.KhaytStudio?.useHandoffScreens?.()) return;
+    if (window.KhaytBedReadyUI?.useHandoffScreens?.()) return;
     const section = $('#waitingListSection');
     const chevron = $('#waitingChevron');
     const toggle = $('#waitingListToggle');
