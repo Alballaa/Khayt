@@ -57,16 +57,24 @@
     let pct = 0;
     let state = 'idle';
     const cache = (typeof machineStatusCache !== 'undefined') ? machineStatusCache[machine.id] : null;
-    if (machine.isOffline) {
+    // Shared resolver, so this row cannot contradict the attention bar above it.
+    // It previously called a printer offline on the first missed poll, which is
+    // what put "Offline" on a machine the bar was deliberately staying quiet
+    // about — the exact disagreement the bar exists to prevent.
+    const shared = (typeof KhaytAttention !== 'undefined')
+      ? KhaytAttention.machineState(machine, cache)
+      : null;
+    if (shared === 'offline' || shared === 'error') {
       state = 'offline';
+    } else if (shared === 'reconnecting') {
+      // Hold the last good reading rather than blanking the row.
+      state = 'reconnecting';
+      pct = Math.min(100, Math.max(0, Math.round(+((cache || {}).progress) || 0)));
     } else if (cache && !cache.error) {
       pct = Math.min(100, Math.max(0, Math.round(+cache.progress || 0)));
       const st = (cache.state || '').toLowerCase();
       if (st.includes('print')) state = 'printing';
-      else if (st.includes('error')) state = 'offline';
       else if (pct > 0) state = 'printing';
-    } else if (cache && cache.error) {
-      state = 'offline';
     } else if (order) {
       const est = jobProgress(order);
       pct = est != null ? est : 0;
@@ -219,11 +227,15 @@
       const job = nowPrinting.find((o) => o.machineId === m.id
         || (o.parts || []).some((p) => p.machineId === m.id));
       const { pct, state } = machineProgress(m, job);
-      const stc = state === 'printing' ? 'var(--cmd-ok)' : state === 'idle' ? 'var(--ink-3)' : 'var(--cmd-danger)';
+      const stc = state === 'printing' ? 'var(--cmd-ok)'
+        : (state === 'idle' || state === 'reconnecting') ? 'var(--ink-3)'
+        : 'var(--cmd-danger)';
       const jobName = job ? (job.project || job.id) : tr('mach.status_idle', 'idle');
       const tail = state === 'printing'
         ? `<span class="cmd-gauge" style="width:70px;--gc:var(--cmd-fleet)"><i style="width:${pct}%"></i></span><span class="cmd-pct">${pct}%</span>`
-        : `<span class="cmd-badge cmd-b-gray">${esc(state === 'offline' ? tr('mach.offline', 'offline') : tr('mach.status_idle', 'idle'))}</span>`;
+        : `<span class="cmd-badge cmd-b-gray">${esc(state === 'offline' ? tr('mach.offline', 'offline')
+          : state === 'reconnecting' ? tr('mach.reconnecting', 'reconnecting')
+          : tr('mach.status_idle', 'idle'))}</span>`;
       return `<button type="button" class="cmd-lrow" data-cmd-machine="${esc(m.id)}">
         <span class="cmd-dotc" style="background:${stc}"></span>
         <span class="cmd-grow"><span class="cmd-lrow-t">${esc(m.name)} <span class="cmd-sub">${esc(jobName)}</span></span></span>
@@ -232,15 +244,33 @@
     }).join('') || `<div class="cmd-empty">${esc(tr('dash.no_machines', 'No printers yet'))}</div>`;
     const printingCount = nowPrinting.length;
 
+    /* ---- What needs me now ---- */
+    // One selector drives both the bar and the Alerts panel, so the two cannot
+    // disagree. It also replaces `m.isOffline || cache.error`, which called a
+    // printer broken on a single missed poll — the fleet row above already knew
+    // better, and the two contradicting each other is what the bar exists to stop.
+    const attn = (typeof KhaytAttention !== 'undefined')
+      ? KhaytAttention.selectAttention({
+        machines: mach,
+        orders: log,
+        statusCache: (typeof machineStatusCache !== 'undefined' ? machineStatusCache : {}),
+        now: Date.now(),
+      })
+      : { count: 0, items: [] };
+
     /* ---- Alerts (real signals) ---- */
-    const alerts = [];
-    mach.forEach((m) => {
-      const cache = (typeof machineStatusCache !== 'undefined') ? machineStatusCache[m.id] : null;
-      if (m.isOffline || (cache && cache.error)) {
-        alerts.push({ cls: 'cmd-b-red', ico: '⚠',
-          text: `${esc(m.name)} — ${cache && cache.error ? esc(String(cache.error)) : esc(tr('mach.offline', 'offline'))}`,
-          act: tr('command.alert.open', 'Open'), tab: 'queue-tab' });
+    // The panel is the bar's drill-down: its urgent items first, in the same
+    // order, then the softer signals the bar deliberately stays quiet about.
+    const alerts = attn.items.map((a) => {
+      if (a.kind === 'machine') {
+        const cache = (typeof machineStatusCache !== 'undefined') ? machineStatusCache[a.id] : null;
+        return { cls: 'cmd-b-red', ico: '⚠',
+          text: `${esc(a.name)} — ${cache && cache.error ? esc(String(cache.error)) : esc(tr('mach.offline', 'offline'))}`,
+          act: tr('command.alert.open', 'Open'), tab: 'queue-tab' };
       }
+      return { cls: 'cmd-b-amber', ico: '◷',
+        text: `${esc(a.name || a.id)} — ${esc(tr('oe.due_overdue', 'Overdue by {n}d').replace('{n}', a.daysLate))}`,
+        act: tr('command.alert.open', 'Open'), tab: 'queue-tab' };
     });
     lowStock.slice(0, 3).forEach((item) => {
       const unit = item.materialType === 'resin' ? 'mL' : 'g';
@@ -270,11 +300,15 @@
           act: tr('command.alert.chase', 'Chase'), tab: 'logs-tab' });
       });
     }
-    const alertsBody = alerts.slice(0, 6).map((a) => `<div class="cmd-lrow">
+    const alertsShown = alerts.slice(0, 6);
+    const alertsHidden = alerts.length - alertsShown.length;
+    const alertsBody = (alertsShown.map((a) => `<div class="cmd-lrow">
       <span class="cmd-badge ${a.cls}">${a.ico}</span>
       <span class="cmd-grow">${a.text}</span>
       <button type="button" class="cmd-btn-xs" data-act="goto-tab" data-tab="${esc(a.tab)}">${esc(a.act)}</button>
-    </div>`).join('') || `<div class="cmd-empty">${esc(tr('dash.all_clear', 'All clear'))}</div>`;
+    </div>`).join('') + (alertsHidden > 0
+      ? `<div class="cmd-empty">${esc(tr('cl.show_more', 'Show {n} more').replace('{n}', alertsHidden))}</div>`
+      : '')) || `<div class="cmd-empty">${esc(tr('dash.all_clear', 'All clear'))}</div>`;
 
     /* ---- Today's activity (recent completed / picked-up) ---- */
     const recent = log
@@ -290,18 +324,22 @@
     }).join('') || `<div class="cmd-empty">${esc(tr('command.activity.none', 'No activity yet today'))}</div>`;
 
     /* ---- Compose ---- */
+    const attnBar = (typeof KhaytDashboard !== 'undefined')
+      ? KhaytDashboard.buildAttentionBar(attn, mach.length)
+      : '';
+
     host.innerHTML = `<div class="cmd-dash">
+      ${attnBar}
       <div class="cmd-kstrip">${kpis}</div>
       <div class="cmd-dgrid">
         <div class="cmd-stack">
-          ${panel('var(--cmd-queue)', tr('command.panel.board', 'Production board'),
-            tr('command.panel.view_queue', 'View queue →'), boardRows)}
           ${panel('var(--cmd-fleet)', tr('dash.wb_fleet', 'Fleet'),
             printingCount ? tr('command.panel.printing', `${printingCount} printing`).replace('{n}', printingCount) : '', fleetRows)}
+          ${panel('var(--cmd-queue)', tr('command.panel.board', 'Production board'),
+            tr('command.panel.view_queue', 'View queue →'), boardRows)}
         </div>
         <div class="cmd-stack">
-          ${panel('var(--cmd-danger)', tr('dash.needs_attention', 'Alerts'),
-            alerts.length ? String(Math.min(alerts.length, 6)) : '', alertsBody)}
+          ${panel('var(--cmd-danger)', tr('dash.needs_attention', 'Alerts'), '', alertsBody)}
           ${panel('var(--cmd-invoice)', tr('command.panel.activity', "Today's activity"), '', activityBody)}
         </div>
       </div>
@@ -369,7 +407,10 @@
     const kv = (k, v, mono) => `<div class="cmd-kv"><span class="k">${esc(k)}</span><span class="v${mono ? ' mono' : ''}">${esc(v)}</span></div>`;
     const body = `
       <div class="cmd-insp-sec">${esc(tr('command.insp.status', 'Status'))}</div>
-      ${kv(tr('command.insp.state', 'State'), state === 'printing' ? tr('mach.printing', 'printing') : state === 'offline' ? tr('mach.offline', 'offline') : tr('mach.status_idle', 'idle'))}
+      ${kv(tr('command.insp.state', 'State'), state === 'printing' ? tr('mach.printing', 'printing')
+        : state === 'offline' ? tr('mach.offline', 'offline')
+        : state === 'reconnecting' ? tr('mach.reconnecting', 'reconnecting')
+        : tr('mach.status_idle', 'idle'))}
       <div class="cmd-insp-prog"><span class="cmd-gauge" style="--gc:var(--cmd-fleet)"><i style="width:${pct}%"></i></span><span class="cmd-pct">${pct}%</span></div>
       <div class="cmd-insp-sec">${esc(tr('command.insp.current_job', 'Current job'))}</div>
       ${kv(tr('command.insp.job', 'Job'), job ? (job.project || job.id) : '—')}

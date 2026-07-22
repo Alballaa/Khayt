@@ -4,6 +4,12 @@
    Light-default; colors come from tokens.css (--vv-*, --ink-*, --line, --hue).
    Uses logical properties (inset-inline / margin-inline) so RTL mirrors. */
 
+/* ---------- "What needs me now" ----------
+   Shared bar (.dash-attn in styles.css); only the spacing is theme-local. */
+body.khayt-vivid .vv-dash > .dash-attn {
+  margin-block-end: 14px;
+}
+
 body.khayt-vivid .vv-dash {
   color: var(--ink);
   font-size: 14px;

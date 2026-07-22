@@ -142,16 +142,21 @@
     let pct = 0;
     let state = 'idle';
     const cache = (typeof machineStatusCache !== 'undefined') ? machineStatusCache[machine.id] : null;
-    if (machine.isOffline) {
+    // Shared resolver — see the note in command/screens.js. A single missed poll
+    // used to paint this row red while the attention bar stayed silent.
+    const shared = (typeof KhaytAttention !== 'undefined')
+      ? KhaytAttention.machineState(machine, cache)
+      : null;
+    if (shared === 'offline' || shared === 'error') {
       state = 'error';
+    } else if (shared === 'reconnecting') {
+      state = 'reconnecting';
+      pct = Math.min(100, Math.max(0, Math.round(+((cache || {}).progress) || 0)));
     } else if (cache && !cache.error) {
       pct = Math.min(100, Math.max(0, Math.round(+cache.progress || 0)));
       const st = (cache.state || '').toLowerCase();
       if (st.includes('print')) state = 'printing';
-      else if (st.includes('error')) state = 'error';
       else if (pct > 0) state = 'printing';
-    } else if (cache && cache.error) {
-      state = 'error';
     } else if (order) {
       const est = jobProgress(order);
       pct = est != null ? est : 0;
@@ -160,13 +165,16 @@
     const jobName = order ? (order.project || order.id) : machine.materialType || tr('mach.status_idle', 'idle');
     let color = 'var(--vv-blue)';
     if (state === 'error') color = 'var(--vv-red)';
-    else if (state === 'idle') color = 'var(--ink-3)';
+    else if (state === 'idle' || state === 'reconnecting') color = 'var(--ink-3)';
     const tail = state === 'idle'
       ? tr('mach.status_idle', 'idle')
       : state === 'error'
         ? tr('mach.offline', 'offline')
-        : tr('queue.printing', 'printing');
+        : state === 'reconnecting'
+          ? tr('mach.reconnecting', 'reconnecting')
+          : tr('queue.printing', 'printing');
     const pctLbl = state === 'idle' ? '–' : `${pct}%`;
+    /* reconnecting keeps its last known percentage rather than blanking */
     return `<div class="vv-fleetrow">
       <div class="vv-ring">${ring(state === 'idle' ? 3 : pct, color)}<div class="vv-ring-pct">${escapeHtml(pctLbl)}</div></div>
       <div class="vv-grow"><div class="vv-nm">${escapeHtml(machine.name)}</div><div class="vv-meta">${escapeHtml(jobName)}</div></div>
@@ -333,19 +341,39 @@
       return fleetRow(m, job);
     }).join('');
 
+    /* ---- What needs me now ---- */
+    // One selector drives both the bar and the panel below, so the two cannot
+    // show different counts. It also replaces `m.isOffline || cache.error`,
+    // which called a printer broken on a single missed poll while fleetRow()
+    // in this same file correctly showed it reconnecting.
+    const attn = (typeof KhaytAttention !== 'undefined')
+      ? KhaytAttention.selectAttention({
+        machines: mach,
+        orders: log,
+        statusCache: (typeof machineStatusCache !== 'undefined' ? machineStatusCache : {}),
+        now: Date.now(),
+      })
+      : { count: 0, items: [] };
+
     /* ---- Needs attention (real signals) ---- */
-    const attention = [];
-    mach.forEach((m) => {
-      const cache = (typeof machineStatusCache !== 'undefined') ? machineStatusCache[m.id] : null;
-      const hasErr = m.isOffline || (cache && cache.error);
-      if (hasErr) {
-        attention.push({
+    // The panel is the bar's drill-down: urgent items first and in the same
+    // order, then the softer signals the bar stays quiet about.
+    const attention = attn.items.map((a) => {
+      if (a.kind === 'machine') {
+        const cache = (typeof machineStatusCache !== 'undefined') ? machineStatusCache[a.id] : null;
+        return {
           icon: ICON.warn, fg: 'var(--vv-red)', bg: 'var(--vv-red-bg)',
-          title: tr('dash.vv_printer_issue', `${m.name} — needs attention`).replace('{name}', m.name),
+          title: tr('dash.vv_printer_issue', `${a.name} — needs attention`).replace('{name}', a.name),
           sub: cache && cache.error ? String(cache.error) : tr('mach.offline', 'Offline'),
           chip: 'red', chipLabel: tr('dash.vv_error', 'Error'),
-        });
+        };
       }
+      return {
+        icon: ICON.warn, fg: 'var(--vv-amber)', bg: 'var(--vv-amber-bg)',
+        title: a.name || a.id,
+        sub: tr('oe.due_overdue', 'Overdue by {n}d').replace('{n}', a.daysLate),
+        chip: 'amber', chipLabel: tr('dash.vv_due', 'Due'),
+      };
     });
     if (typeof isLowStock === 'function') {
       inv.filter(isLowStock).slice(0, 3).forEach((item) => {
@@ -373,13 +401,28 @@
       });
     });
     const attnTrimmed = attention.slice(0, 5);
+    // Say what the cap hid — urgent items lead this list now, so a silent
+    // truncation would let the bar's count outrun what the panel shows.
+    const attnHidden = attention.length - attnTrimmed.length;
     const attnBody = attnTrimmed.length
-      ? attnTrimmed.map(attnRow).join('')
+      ? attnTrimmed.map(attnRow).join('') + (attnHidden > 0
+        ? `<div class="vv-empty">${escapeHtml(tr('cl.show_more', 'Show {n} more').replace('{n}', attnHidden))}</div>`
+        : '')
       : `<div class="vv-empty">${escapeHtml(tr('dash.all_clear', 'All clear'))}</div>`;
 
     /* ---- Compose ---- */
+    const attnBar = (typeof KhaytDashboard !== 'undefined')
+      ? KhaytDashboard.buildAttentionBar(attn, mach.length)
+      : '';
+
     host.innerHTML = `<div class="vv-dash">
+      ${attnBar}
       <div class="vv-tiles">${tiles}</div>
+
+      <div class="vv-card">
+        <h3>${escapeHtml(tr('dash.vv_fleet_now', 'Fleet right now'))}</h3>
+        <div class="vv-fleetmini">${fleetRows || `<div class="vv-empty">${escapeHtml(tr('dash.no_machines', 'No printers yet'))}</div>`}</div>
+      </div>
 
       <div class="vv-grid2">
         <div class="vv-card">
@@ -395,15 +438,9 @@
         </div>
       </div>
 
-      <div class="vv-grid2">
-        <div class="vv-card">
-          <h3>${escapeHtml(tr('dash.wb_todays_work', "Today's work"))}</h3>
-          <div class="vv-worklist">${workBody}</div>
-        </div>
-        <div class="vv-card">
-          <h3>${escapeHtml(tr('dash.vv_fleet_now', 'Fleet right now'))}</h3>
-          <div class="vv-fleetmini">${fleetRows || `<div class="vv-empty">${escapeHtml(tr('dash.no_machines', 'No printers yet'))}</div>`}</div>
-        </div>
+      <div class="vv-card">
+        <h3>${escapeHtml(tr('dash.wb_todays_work', "Today's work"))}</h3>
+        <div class="vv-worklist">${workBody}</div>
       </div>
 
       <div class="vv-card vv-attn">
