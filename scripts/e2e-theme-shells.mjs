@@ -151,6 +151,61 @@ async function testRtlWorkbench(window) {
   }
 }
 
+// A missed poll is not a fault. Every themed dashboard has independently gotten
+// this wrong — workbench, command and vivid each shipped `m.isOffline ||
+// cache.error`, which paints a printer red on the first missed poll while the
+// attention bar (correctly) stays silent. Three separate regressions of the same
+// shape, so guard it rather than fix it a fourth time.
+//
+// Seeds two machines: one genuinely gone (past the miss threshold) and one that
+// blipped once. The dead one must read offline; the blip must not.
+async function assertReconnectingNotOffline(window) {
+  // Render a fleet of exactly one machine per case, so the dashboard's wording
+  // is unambiguous without needing per-theme selectors to pair a name with its
+  // state label (workbench puts them on separate lines, command/vivid don't).
+  const CASES = [
+    { misses: 1, mustNotMatch: /offline/i, mustMatch: /reconnect/i, label: 'one missed poll' },
+    { misses: 5, mustMatch: /offline/i, label: 'past the miss threshold' },
+  ];
+  for (const id of ['workbench', 'command', 'vivid']) {
+    for (const c of CASES) {
+      const r = await window.evaluate(({ theme, misses }) => {
+        // Seed our own fleet rather than leaning on the demo store: that store
+        // emits `machines` while the persisted schema uses `printers`, so it
+        // does not survive the save/reload and the rest of this suite runs
+        // against an empty fleet.
+        const saved = machines;
+        machines = [{ id: 'E2E-M', name: 'E2E Probe Printer', color: '#c00' }];
+        machineStatusCache['E2E-M'] = {
+          error: 'ETIMEDOUT', consecutiveFailures: misses, state: 'Printing', progress: 61,
+        };
+        settings.designTheme = theme;
+        if (typeof applyDesignSettings === 'function') applyDesignSettings();
+        window.KhaytShell?.switchTab?.('dashboard-tab');
+        if (typeof renderDashboard === 'function') renderDashboard();
+        const root = document.querySelector('.wb-dash, .cmd-dash, .vv-dash');
+        const out = {
+          rendered: !!root,
+          barPresent: !!document.querySelector('.dash-attn'),
+          text: ((root && root.innerText) || '').replace(/\s+/g, ' '),
+        };
+        machines = saved;
+        delete machineStatusCache['E2E-M'];
+        return out;
+      }, { theme: id, misses: c.misses });
+
+      if (!r.rendered) throw new Error(`${id}: dashboard did not render (${c.label})`);
+      if (!r.barPresent) throw new Error(`${id}: attention bar missing from the dashboard`);
+      if (c.mustMatch && !c.mustMatch.test(r.text)) {
+        throw new Error(`${id}: ${c.label} should match ${c.mustMatch} — got "${r.text.slice(0, 160)}"`);
+      }
+      if (c.mustNotMatch && c.mustNotMatch.test(r.text)) {
+        throw new Error(`${id}: ${c.label} must not read offline — got "${r.text.slice(0, 160)}"`);
+      }
+    }
+  }
+}
+
 async function seedDemoStore(window) {
   const demoStore = buildScreenshotDemoStore();
   demoStore.settings = demoStore.settings || {};
@@ -179,6 +234,9 @@ try {
 
   await assertEnthusiastThemesNoMoney(window);
   console.log('  enthusiast themed dashboards: no revenue/margin ok');
+
+  await assertReconnectingNotOffline(window);
+  console.log('  a missed poll reads reconnecting, not offline: ok');
 
   await testRtlWorkbench(window);
   console.log('  workbench + ar RTL: ok');

@@ -4,6 +4,13 @@
    Light-default; colors come from tokens.css (--cmd-*, --ink-*, --line, --accent).
    Uses logical properties so RTL mirrors cleanly. */
 
+/* ---------- "What needs me now" ----------
+   The bar itself is shared (.dash-attn in styles.css) so the interruption line
+   reads identically across themes; only its spacing in this stack is local. */
+body.khayt-command .cmd-dash > .dash-attn {
+  margin-block-end: 14px;
+}
+
 body.khayt-command .cmd-dash {
   color: var(--ink);
   font-size: 12.5px;
