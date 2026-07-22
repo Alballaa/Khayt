@@ -3551,6 +3551,12 @@
   "integ.import_help": "içe aktarma bağlantısını mağazanıza sipariş webhook'u olarak yapıştırın — yeni siparişler Sipariş taleplerine gelir.",
   "integ.feed_help": "akış bağlantısını mağazanıza ürün içe aktarma URL'si olarak ekleyin — yayınlanan vitrin kataloğunuzu yansıtır.",
   "integ.cloud_hint": "Bu vitrinler için içe aktarma ve akış bağlantıları almak için bulut eşitlemesini (Ayarlar → Bulut) bağlayın.",
-  "integ.pay_link_ph": "ödeme bağlantınız (isteğe bağlı) — {amount} kullanın"
+  "integ.pay_link_ph": "ödeme bağlantınız (isteğe bağlı) — {amount} kullanın",
+  "dash.attn_need_you": "ilgilenmenizi bekliyor",
+  "dash.attn_all_clear": "Her şey yolunda",
+  "dash.attn_clear_why": "{n} yazıcı çalışıyor · geciken iş yok",
+  "dash.attn_offline": "{name} yanıt vermiyor",
+  "dash.attn_error": "{name} bir hata bildirdi",
+  "dash.attn_overdue": "{name} gecikti"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

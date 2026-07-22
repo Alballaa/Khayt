@@ -10,6 +10,13 @@ body.khayt-workbench .wb-dash {
   line-height: 1.45;
 }
 
+/* ---------- "What needs me now" ----------
+   The bar itself is shared (.dash-attn in styles.css) so the interruption line
+   reads identically across themes; only its spacing in this stack is local. */
+body.khayt-workbench .wb-dash > .dash-attn {
+  margin-bottom: 14px;
+}
+
 /* ---------- KPI stat row ---------- */
 body.khayt-workbench .wb-stats {
   display: grid;

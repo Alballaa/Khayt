@@ -29,14 +29,6 @@
   let studioQueueMachineId = prefGet('queue_machine', '');
   let studioClientFilter = prefGet('client_filter', 'all');
 
-  function clientAccentColor(clientId, color) {
-    if (color) return safeCssColor(color, 'var(--accent)');
-    let h = 0;
-    const id = String(clientId || '');
-    for (let i = 0; i < id.length; i++) h = ((h << 5) - h + id.charCodeAt(i)) | 0;
-    const hue = Math.abs(h) % 360;
-    return `hsl(${hue} 52% 58%)`;
-  }
 
   function machineIsResin(m) {
     if (!m) return false;
@@ -112,21 +104,6 @@
     syncQueueMachinePicker();
   }
 
-  function wireStudioClientFilters() {
-    const seg = $('#studioClientSeg');
-    if (!seg || seg.dataset.wired === '1') return;
-    seg.dataset.wired = '1';
-    seg.querySelectorAll('[data-client-filter]').forEach(btn => {
-      const f = btn.dataset.clientFilter || 'all';
-      btn.classList.toggle('on', f === studioClientFilter);
-      btn.addEventListener('click', () => {
-        studioClientFilter = btn.dataset.clientFilter || 'all';
-        prefSet('client_filter', studioClientFilter);
-        seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === btn));
-        renderClients();
-      });
-    });
-  }
 
   function wireCalcTechSeg() {
     const seg = $('#calcTechSeg');
@@ -641,98 +618,7 @@
       </div>`;
   }
 
-  function renderClientsStudioCards(filtered, maps) {
-    const grid = $('#clientsCardsGrid');
-    const tableWrap = $('#clientsTableWrap');
-    if (!grid || !useHandoffScreens()) return false;
 
-    const { clientStatsMap, clientBalanceMap, clientTierMap, clientSurveyMap } = maps;
-    const tierColor = { Gold: 'var(--warn)', Silver: '#aeb6c4', Bronze: '#c08457' };
-
-    let list = filtered;
-    if (studioClientFilter === 'vat') {
-      list = list.filter(c => !!(c.vat || '').trim());
-    } else if (studioClientFilter === 'b2c') {
-      list = list.filter(c => !(c.vat || '').trim() && !(c.cr || '').trim());
-    } else if (studioClientFilter === 'balance') {
-      list = list.filter(c => (clientBalanceMap.get(c.id) || 0) > 0);
-    }
-
-    grid.removeAttribute('aria-hidden');
-    if (tableWrap) tableWrap.classList.toggle('khayt-clients-legacy-hidden', list.length > 0);
-
-    if (!list.length) {
-      grid.style.display = 'grid';
-      grid.innerHTML = `<p class="dash-empty" style="padding:18px;grid-column:1/-1">${escapeHtml(t('cl.empty_search') || 'No clients match.')}</p>`;
-      return true;
-    }
-
-    grid.style.display = 'grid';
-    grid.innerHTML = list.map(c => {
-      const stats = clientStatsMap.get(c.id) || { count: 0, completedCount: 0, revenue: 0 };
-      const displayName = localName(c);
-      const balance = clientBalanceMap.get(c.id) || 0;
-      const tier = clientTierMap.get(c.id);
-      const color = clientAccentColor(c.id, c.color);
-      const initials = (displayName || '?').split(/\s+/).map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
-      const credit = Math.max(0, +c.creditLimit || 0);
-      const creditPct = credit > 0 ? Math.min(100, (balance / credit) * 100) : 0;
-      const tag = c.source && c.source !== 'other' ? (t('cl.source_' + c.source) || c.source) : (c.phone || '');
-      const sv = clientSurveyMap?.get(c.id);
-      const avgRating = sv ? sv.sum / sv.count : null;
-      const ratingHtml = avgRating != null
-        ? `<span style="font-size:10px;color:#f59e0b">★ ${avgRating.toFixed(1)}</span>` : '';
-      const ordersLabel = t('cl.orders') || 'Orders';
-      const lifetimeLabel = t('cl.revenue') || 'Lifetime';
-      const balanceLabel = t('cl.outstanding') || 'Balance';
-      return `
-      <div class="card khayt-client-card" data-client-id="${escapeHtml(c.id)}">
-        <div class="row between">
-          <div class="row gap10 grow" style="align-items:center;min-width:0">
-            <span class="khayt-cavatar" style="background:color-mix(in srgb, ${color} 22%, var(--surface-2));color:${color}">${escapeHtml(initials)}</span>
-            <div class="col grow" style="line-height:1.25;min-width:0">
-              <strong style="font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(displayName || '—')}</strong>
-              <span class="row gap6" style="font-size:11px;color:var(--text-muted);flex-wrap:wrap">${escapeHtml(tag)}${ratingHtml}${tier ? `<span style="color:${tierColor[tier.name] || 'var(--text-muted)'}">${escapeHtml(tier.name)}</span>` : ''}</span>
-            </div>
-          </div>
-        </div>
-        <hr class="thread" style="margin:13px 0" />
-        <div class="row between">
-          ${[[ordersLabel, stats.count, ''], [lifetimeLabel, Math.round(stats.revenue).toLocaleString(), settings.currency || 'SAR'], [balanceLabel, balance > 0 ? Math.round(balance).toLocaleString() : '0', balance > 0 ? (settings.currency || 'SAR') : '']].map(([l, v, u]) => `
-            <div class="col" style="gap:3px">
-              <span class="mono" style="font-size:9.5px;color:var(--text-muted);letter-spacing:0.06em">${escapeHtml(String(l).toUpperCase())}</span>
-              <span class="row" style="align-items:baseline;gap:3px">
-                <span class="metric" style="font-size:15px;color:${l === balanceLabel && balance > 0 ? 'var(--warn)' : 'var(--text)'}">${escapeHtml(String(v))}</span>
-                ${u ? `<span class="mono" style="font-size:9px;color:var(--text-faint)">${escapeHtml(u)}</span>` : ''}
-              </span>
-            </div>`).join('')}
-        </div>
-        ${credit > 0 ? `
-        <div style="margin-top:13px">
-          <div class="row between" style="margin-bottom:5px">
-            <span style="font-size:10.5px;color:var(--text-muted)">${escapeHtml(t('cl.credit_used') || 'Credit used')}</span>
-            <span class="mono" style="font-size:10.5px;color:var(--text-dim)">${Math.round(balance)} / ${Math.round(credit)}</span>
-          </div>
-          <div class="meter"><i style="width:${creditPct}%;background:${creditPct > 70 ? 'var(--danger)' : 'var(--accent)'}"></i></div>
-        </div>` : ''}
-        <div class="row gap6 khayt-client-card-actions" style="margin-top:12px;flex-wrap:wrap">
-          <button type="button" class="btn sm subtle" data-act="cl-quote" data-id="${c.id}">${escapeHtml(t('cl.quote'))}</button>
-          <button type="button" class="btn sm subtle" data-act="cl-history" data-id="${c.id}">${escapeHtml(t('cl.history'))}</button>
-          <button type="button" class="btn sm subtle" data-act="cl-intake-form" data-id="${c.id}">${escapeHtml(t('cl.intake_form'))}</button>
-          <button type="button" class="btn sm subtle" data-act="cl-note" data-id="${c.id}">${escapeHtml(t('cl.add_note'))}</button>
-          <button type="button" class="btn sm subtle" data-act="cl-edit" data-id="${c.id}">${escapeHtml(t('common.edit'))}</button>
-          <button type="button" class="btn sm danger" data-act="cl-del" data-id="${c.id}">${escapeHtml(t('common.delete'))}</button>
-        </div>
-      </div>`;
-    }).join('');
-    return true;
-  }
-
-  function attentionIconSvg(kind) {
-    const map = { warn: 'alert', danger: 'alert', ok: 'check', info: 'doc', stock: 'spool', queue: 'queue', calendar: 'clock' };
-    const name = map[kind] || 'alert';
-    return window.KhaytIcon?.svg?.(name, 16) || '';
-  }
 
   function patchInitAppShellKanbanCols() {
     if (!useHandoffScreens()) return;
@@ -747,7 +633,6 @@
     if (!useHandoffScreens()) return;
     window.KhaytIcon?.hydrateHandoff?.();
     wireStudioQueueFilters();
-    wireStudioClientFilters();
     initStudioCalculatorLayout();
     patchInitAppShellKanbanCols();
     initPhase5();
@@ -766,11 +651,8 @@
     patchInventoryTableHead,
     renderInventoryRow,
     invStockMeterHtml,
-    renderClientsStudioCards,
     initStudioCalculatorLayout,
     ensureCalcStudioPanel,
     updateCalcBreakdown,
-    attentionIconSvg,
-    clientAccentColor,
   };
 })();

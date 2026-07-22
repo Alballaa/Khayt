@@ -3553,6 +3553,12 @@
   "integ.import_help": "الصق رابط الاستيراد كـ webhook للطلبات في متجرك — تصل الطلبات الجديدة إلى طلبات العملاء.",
   "integ.feed_help": "أضِف رابط الخلاصة كرابط استيراد للمنتجات في متجرك — يعكس كتالوج متجرك المنشور.",
   "integ.cloud_hint": "اربط مزامنة السحابة (الإعدادات ← السحابة) للحصول على روابط الاستيراد والخلاصة لهذه المتاجر.",
-  "integ.pay_link_ph": "رابط الدفع الخاص بك (اختياري) — استخدم {amount}"
+  "integ.pay_link_ph": "رابط الدفع الخاص بك (اختياري) — استخدم {amount}",
+  "dash.attn_need_you": "يحتاج تدخلك الآن",
+  "dash.attn_all_clear": "كل شيء يسير كما ينبغي",
+  "dash.attn_clear_why": "{n} طابعات تعمل · لا شيء متأخر",
+  "dash.attn_offline": "توقفت {name} عن الاستجابة",
+  "dash.attn_error": "أبلغت {name} عن خطأ",
+  "dash.attn_overdue": "تأخر تسليم {name}"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

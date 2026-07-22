@@ -184,7 +184,6 @@ body.khayt-handoff .kanban-card.khayt-kcard:hover {
   transform: translateY(-1px);
 }
 
-body.khayt-handoff #clientsTableWrap.khayt-clients-legacy-hidden,
 body.khayt-handoff #invValuationSummary { display: none !important; }
 
 body.khayt-handoff #inventoryTable thead th {
@@ -205,19 +204,6 @@ body.khayt-handoff .khayt-queue-toolbar {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-}
-
-body.khayt-handoff .khayt-client-card { padding: var(--pad-card, 16px); }
-
-body.khayt-handoff .khayt-cavatar {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--r-md, var(--radius-sm));
-  display: grid;
-  place-items: center;
-  font-size: 13px;
-  font-weight: 700;
-  flex-shrink: 0;
 }
 
 body.khayt-handoff .kanban-col > h3 .count {

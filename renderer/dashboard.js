@@ -137,205 +137,48 @@ function buildMakerToolsRow() {
     </div>`;
 }
 
-function buildStudioDashboardPanels(ctx) {
-  const {
-    machines, printLog, nowPrinting, overdue, staleOrders, expiringQuotes,
-    dueSoon, today, inventory, settings,
-  } = ctx;
-  if (!document.body.classList.contains('khayt-handoff')) return '';
 
-  if (settings.mode !== 'professional') {
-    const intakeCount = waitingList.filter((w) => w.status === 'active' || w.status === 'reminded').length;
-    const attention = [];
-    if (intakeCount > 0) {
-      attention.push({
-        iconKind: 'info', color: 'var(--primary)',
-        title: t('waiting.title') || 'Job Intake',
-        sub: `${intakeCount} ${t('dash.solo_active') || 'waiting'}`,
-        tab: 'queue-tab', label: t('common.view') || 'View',
-      });
-    }
-    if (expiringQuotes.length) {
-      attention.push({
-        iconKind: 'warn', color: 'var(--warning)',
-        title: t('dash.expiring_quotes') || 'Expiring quotes',
-        sub: String(expiringQuotes.length),
-        tab: 'queue-tab', label: t('common.view') || 'View',
-      });
-    }
-    if (nowPrinting.length) {
-      attention.push({
-        iconKind: 'queue', color: 'var(--ok)',
-        title: t('dash.now_printing') || 'Printing now',
-        sub: nowPrinting[0].project || nowPrinting[0].id,
-        tab: 'queue-tab', label: t('tab.queue') || 'Queue',
-      });
-    }
-    if (overdue.length) {
-      attention.push({
-        iconKind: 'danger', color: 'var(--danger)',
-        title: t('dash.overdue_section') || 'Overdue',
-        sub: String(overdue.length),
-        tab: 'queue-tab', label: t('common.view') || 'View',
-      });
-    }
-    const attnHtml = attention.length === 0
-      ? `<p class="dash-empty" style="padding:18px;">${escapeHtml(t('dash.all_clear') || 'All clear')}</p>`
-      : attention.map((a) => `
-      <div class="khayt-attn">
-        <div class="khayt-attn-ic" style="color:${a.color};background:color-mix(in srgb, ${a.color} 14%, transparent)">${window.KhaytStudio?.attentionIconSvg?.(a.iconKind) || '•'}</div>
-        <div class="col grow" style="gap:2px;min-width:0">
-          <span style="font-size:13px;font-weight:600">${escapeHtml(a.title)}</span>
-          <span style="font-size:11.5px;color:var(--text-muted);">${escapeHtml(a.sub)}</span>
-        </div>
-        <button type="button" class="btn sm subtle" data-act="goto-tab" data-tab="${a.tab}">${escapeHtml(a.label)}</button>
-      </div>`).join('');
-    return `
-      <div class="khayt-dash-grid" style="margin-bottom:16px;">
-        <div class="card khayt-panel">
-          <h3 class="card-head"><span class="swatch"></span><span data-i18n="dash.solo_needs_you">Needs attention</span></h3>
-          <div class="col gap8">${attnHtml}</div>
-        </div>
-      </div>`;
-  }
+/* ── "What needs me now" ───────────────────────────────────────────
+ * The interruption line. Everything else on the dashboard is context you go
+ * looking for; this is the one thing that has to reach the operator whether
+ * they were looking or not, so it leads and it is the only element above the
+ * fleet.
+ *
+ * It says nothing when nothing is wrong — deliberately. Colour is spent here
+ * or it is not spent at all, which is what makes a red bar mean something.
+ * The selection rules (and why a reconnecting printer is not in here) live in
+ * lib/attention.js.
+ */
+function buildAttentionBar(attn, machineCount) {
+  if (!attn) return '';
 
-  const printingOrders = printLog.filter(o => o.status === 'printing');
-  const lowSpools = inventory.filter(i => i.weight <= (i.reorderPoint ?? settings.lowStockThreshold));
-  const attention = [];
-
-  if (staleOrders.length) {
-    attention.push({
-      icon: '⚠', iconKind: 'warn', color: 'var(--warn)',
-      title: t('dash.stale_title') || 'Orders stalled',
-      sub: String(staleOrders.length) + ' ' + (t('dash.orders') || 'orders'),
-      tab: 'queue-tab', label: t('tab.queue') || 'Queue',
-    });
-  }
-  if (overdue.length) {
-    attention.push({
-      icon: '⏱', iconKind: 'danger', color: 'var(--danger)',
-      title: t('dash.overdue_section') || 'Overdue',
-      sub: overdue.slice(0, 3).map(o => o.project || o.id).join(' · '),
-      tab: 'queue-tab', label: t('common.view') || 'View',
-    });
-  }
-  if (lowSpools.length) {
-    attention.push({
-      icon: '⬡', iconKind: 'stock', color: 'var(--warn)',
-      title: t('dash.low_stock_alert') || 'Low stock',
-      sub: lowSpools.slice(0, 2).map(i => `${i.material} (${Math.round(i.weight)}g)`).join(' · '),
-      tab: 'inventory-tab', label: t('tab.inventory') || 'Inventory',
-    });
-  }
-  if (expiringQuotes.length) {
-    attention.push({
-      icon: '📋', iconKind: 'info', color: 'var(--info)',
-      title: t('dash.expiring_quotes') || 'Expiring quotes',
-      sub: String(expiringQuotes.length) + ' ' + (t('dash.quotes') || 'quotes'),
-      tab: 'queue-tab', label: t('tab.queue') || 'Queue',
-    });
-  }
-  if (dueSoon.length) {
-    attention.push({
-      icon: '📅', iconKind: 'calendar', color: 'var(--info)',
-      title: t('dash.due_soon_section') || 'Due soon',
-      sub: String(dueSoon.length) + ' ' + (t('dash.orders') || 'orders'),
-      tab: 'queue-tab', label: t('common.view') || 'View',
-    });
-  }
-  if (nowPrinting.length && !attention.some(a => a.icon === '▤')) {
-    attention.push({
-      icon: '▤', iconKind: 'queue', color: 'var(--ok)',
-      title: t('dash.now_printing') || 'Printing now',
-      sub: String(nowPrinting.length) + ' ' + (t('dash.active_jobs') || 'active jobs'),
-      tab: 'queue-tab', label: t('tab.queue') || 'Queue',
-    });
-  }
-
-  const attnHtml = attention.length === 0
-    ? `<p class="dash-empty" style="padding:18px;">${escapeHtml(t('dash.all_clear') || 'All clear — nothing needs attention right now.')}</p>`
-    : attention.slice(0, 6).map(a => `
-      <div class="khayt-attn">
-        <div class="khayt-attn-ic" style="color:${a.color};background:color-mix(in srgb, ${a.color} 14%, transparent)">${window.KhaytStudio?.attentionIconSvg?.(a.iconKind) || a.icon}</div>
-        <div class="col grow" style="gap:2px;min-width:0">
-          <span style="font-size:13px;font-weight:600">${escapeHtml(a.title)}</span>
-          <span style="font-size:11.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(a.sub)}</span>
-        </div>
-        <button type="button" class="btn sm subtle" data-act="goto-tab" data-tab="${a.tab}">${escapeHtml(a.label)}</button>
-      </div>`).join('');
-
-  let floorHtml = '';
-  if (machines.length > 0) {
-    const tiles = machines.map(m => {
-      const job = printingOrders.find(o =>
-        o.machineId === m.id || (o.parts || []).some(p => p.machineId === m.id)
-      );
-      const svc = machineServiceStatus(m);
-      let status = 'idle';
-      let color = 'var(--text-muted)';
-      if (m.isOffline) { status = 'error'; color = 'var(--danger)'; }
-      else if (job) { status = 'printing'; color = 'var(--ok)'; }
-      else if (svc.due || svc.warning) { status = 'maint'; color = 'var(--warn)'; }
-      const label = { printing: t('mach.status_printing') || 'Printing', idle: t('mach.status_idle') || 'Idle',
-        error: t('mach.offline') || 'Offline', maint: t('dash.maint_title') || 'Maintenance' }[status];
-      let progress = 0;
-      if (job && job.printTime > 0) {
-        const start = new Date(job.printingStartedAt || job.timerStart || Date.now()).getTime();
-        progress = Math.min(99, Math.round((Date.now() - start) / (job.printTime * 3600000) * 100));
-      }
-      const jobName = job ? (job.project || job.id) : (t('dash.no_active_job') || 'No active job');
-      const sub = job
-        ? `${(+job.printTime || 0).toFixed(1)}h · ${progress}%`
-        : (m.tech || m.notes || '').slice(0, 40);
-      return `
-        <div class="card khayt-ptile" style="padding:calc(var(--u)*3.5)">
-          <div class="row between">
-            <div class="row gap8 grow" style="min-width:0">
-              <span class="dot" style="background:${safeCssColor(m.color)};width:8px;height:8px"></span>
-              <strong style="font-size:13;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(m.name)}</strong>
-            </div>
-            <span class="pill" style="border-color:transparent;background:var(--surface-2);padding:3px 8px">
-              <span class="dot" style="background:${color}"></span> ${escapeHtml(label)}
-            </span>
-          </div>
-          <div class="row between" style="margin-top:12px;align-items:center">
-            <div class="col" style="gap:3px;min-width:0">
-              <span style="font-size:12;color:${job ? 'var(--text-dim)' : 'var(--text-faint)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px">${escapeHtml(jobName)}</span>
-              <span class="mono" style="font-size:11px;color:var(--text-muted)">${escapeHtml(sub)}</span>
-            </div>
-            ${status === 'printing' ? `<span class="metric" style="font-size:13px;color:var(--ok)">${progress}%</span>` : ''}
-          </div>
-        </div>`;
-    }).join('');
-    const liveCount = printingOrders.length;
-    floorHtml = `
-      <div class="card flush khayt-floor">
-        <div class="row between" style="padding:16px 18px 12px">
-          <div class="row gap8">
-            <span class="sec-title">${escapeHtml(t('dash.studio_floor') || 'Production floor')}</span>
-            ${liveCount ? `<span class="pill" style="background:var(--ok-soft);border-color:transparent;color:var(--ok)"><span class="khayt-live"></span> ${liveCount} ${escapeHtml(t('dash.live') || 'live')}</span>` : ''}
-          </div>
-          <button type="button" class="btn ghost sm" data-act="goto-tab" data-tab="queue-tab">${escapeHtml(t('dash.open_queue') || 'Open queue')} ›</button>
-        </div>
-        <hr class="thread" style="margin:0 18px" />
-        <div style="padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">${tiles}</div>
-      </div>`;
-  }
-
-  if (!floorHtml && !attention.length) return '';
-
-  return `
-    <div class="khayt-grid khayt-dash-panels" style="grid-template-columns:${floorHtml ? '1.55fr 1fr' : '1fr'};margin-bottom:var(--gap)">
-      ${floorHtml || ''}
-      <div class="card flush">
-        <div class="row between" style="padding:16px 18px 12px">
-          <span class="sec-title">${escapeHtml(t('dash.needs_attention') || 'Needs attention')}</span>
-          ${attention.length ? `<span class="pill">${attention.length}</span>` : ''}
-        </div>
-        <hr class="thread" style="margin:0 18px" />
-        <div class="col">${attnHtml}</div>
-      </div>
+  if (!attn.count) {
+    return `<div class="dash-attn is-clear" role="status" aria-live="polite">
+      <span class="dash-attn-n" aria-hidden="true">✓</span>
+      <span class="dash-attn-lbl">${escapeHtml(t('dash.attn_all_clear'))}</span>
+      <span class="dash-attn-why">${escapeHtml(t('dash.attn_clear_why', { n: String(machineCount || 0) }))}</span>
     </div>`;
+  }
+
+  const reason = (a) => {
+    if (a.kind === 'machine') {
+      return t(a.state === 'error' ? 'dash.attn_error' : 'dash.attn_offline', { name: a.name });
+    }
+    return t('dash.attn_overdue', { name: a.name });
+  };
+
+  // Three reasons is what fits on one line at the narrowest supported width;
+  // past that the count carries it and the queue has the detail.
+  const shown = attn.items.slice(0, 3).map(reason);
+  const rest = attn.items.length - shown.length;
+  const why = shown.map(escapeHtml).join(' · ') + (rest > 0 ? ` · +${rest}` : '');
+  const worst = attn.items.some(a => a.severity === 'crit') ? 'is-crit' : 'is-warn';
+
+  return `<div class="dash-attn ${worst}" role="status" aria-live="polite">
+    <span class="dash-attn-n">${attn.count}</span>
+    <span class="dash-attn-lbl">${escapeHtml(t('dash.attn_need_you'))}</span>
+    <span class="dash-attn-why">${why}</span>
+  </div>`;
 }
 
 function renderDashboard() {
@@ -371,6 +214,17 @@ function renderDashboard() {
     : machines;
 
   renderLocationScopeBanner?.();
+
+  // Location-scoped, so the bar never interrupts you about a printer in a shop
+  // you aren't currently looking at.
+  const attn = (typeof KhaytAttention !== 'undefined')
+    ? KhaytAttention.selectAttention({
+      machines: dashMachines,
+      orders: dashOrders,
+      statusCache: (typeof machineStatusCache !== 'undefined' ? machineStatusCache : {}),
+      now: Date.now(),
+    })
+    : null;
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const todayStr = localDateStr(today);
@@ -443,21 +297,6 @@ function renderDashboard() {
     .filter(o => (payStatus(o)) !== 'paid')
     .reduce((s, o) => s + orderOwedBase(o), 0);
 
-  // Pipeline value — sum of all non-completed, non-quote order prices
-  const pipelineValue = printLog
-    .filter(o => o.status !== 'completed' && o.status !== 'quote')
-    .reduce((s, o) => s + orderRevenueBase(o), 0);
-
-  // Queue clearance forecast (exclude on_hold orders — they are frozen)
-  const pendingHours = printLog
-    .filter(o => o.status !== 'completed' && o.status !== 'quote' && o.status !== 'on_hold')
-    .reduce((s, o) => s + (+o.printTime || 0), 0);
-  // New Feature 7: use working-hours-aware daily rate
-  const whDailyRate = avgDailyWorkingHours();
-  const clearDays = (whDailyRate > 0 && pendingHours > 0)
-    ? Math.ceil(pendingHours / whDailyRate)
-    : null;
-
   // Quotes expiring soon (≤ 2 days) or already expired
   const today0 = new Date(); today0.setHours(0,0,0,0);
   const expiringQuotes = printLog
@@ -470,9 +309,6 @@ function renderDashboard() {
   const followUpQuotes = (typeof KhaytQuoteFollowUp !== 'undefined'
     ? KhaytQuoteFollowUp.selectQuotesDueForFollowUp(dashOrders, settings, Date.now())
     : []);
-
-  // Orders awaiting delivery (completed but not yet delivered)
-  const awaitingDelivery = printLog.filter(o => o.status === 'completed' && !o.deliveredAt);
 
   // Due-date buckets (non-completed only)
   const withDue = printLog.filter(o => o.dueDate && o.status !== 'completed');
@@ -557,10 +393,6 @@ function renderDashboard() {
       ${staleOrders.length > 5 ? `<div style="font-size:11.5px;color:var(--text-muted);padding:6px 0;">+${staleOrders.length - 5} more</div>` : ''}
     </div>`;
 
-  const studioPanels = buildStudioDashboardPanels({
-    machines: dashMachines, printLog: dashOrders, nowPrinting, overdue, staleOrders, expiringQuotes,
-    dueSoon, today, inventory, settings,
-  });
 
   const soloQuickRow = settings.mode === 'simple'
     ? buildSoloDashboardQuickRow({
@@ -598,43 +430,11 @@ function renderDashboard() {
     </div>
 
     <div id="locationScopeBannerDash" class="location-scope-banner" style="display:none;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:4px;padding:8px 12px;background:var(--bg-elev);border:1px solid var(--border);border-radius:var(--radius);"></div>
+    ${buildAttentionBar(attn, dashMachines.length)}
+    ${renderDashLivePrinters()}
     ${buildFarmLocationOverview()}
     ${soloQuickRow}
     ${makerToolsRow}
-    ${KhaytTiers.isProMode(settings.mode) ? renderDashKpiRow({ active: active.length, overdue: overdue.length, todayRev, receivables, revDeltaPct, sparkData }) : ''}
-    <div class="dash-stats dash-stats-secondary pro-only">
-      <div class="dash-stat">
-        <div class="dash-stat-val">${active.length}</div>
-        <div class="dash-stat-lbl">${escapeHtml(t('dash.active_orders'))}</div>
-      </div>
-      <div class="dash-stat">
-        <div class="dash-stat-val">${overdue.length}</div>
-        <div class="dash-stat-lbl dash-stat-overdue">${escapeHtml(t('dash.overdue'))}</div>
-      </div>
-      <div class="dash-stat">
-        <div class="dash-stat-val">${fmtMoney(todayRev)}</div>
-        <div class="dash-stat-lbl">${escapeHtml(t('dash.today_rev'))}</div>
-      </div>
-      <div class="dash-stat">
-        <div class="dash-stat-val">${fmtMoney(receivables)}</div>
-        <div class="dash-stat-lbl">${escapeHtml(t('dash.receivables'))}</div>
-      </div>
-      ${pipelineValue > 0 ? `
-      <div class="dash-stat">
-        <div class="dash-stat-val">${fmtMoney(pipelineValue)}</div>
-        <div class="dash-stat-lbl">${escapeHtml(t('dash.pipeline_value'))} <small>${escapeHtml(currencySymbol())}</small></div>
-      </div>` : ''}
-      ${awaitingDelivery.length > 0 ? `
-      <div class="dash-stat">
-        <div class="dash-stat-val">${awaitingDelivery.length}</div>
-        <div class="dash-stat-lbl">${escapeHtml(t('dash.awaiting_delivery'))}</div>
-      </div>` : ''}
-      ${clearDays !== null ? `
-      <div class="dash-stat">
-        <div class="dash-stat-val">${clearDays}</div>
-        <div class="dash-stat-lbl">${escapeHtml(t('dash.clear_days'))}</div>
-      </div>` : ''}
-    </div>
 
     ${(todayDone.length > 0 || todayNew.length > 0 || nowPrinting.length > 0) ? `
     <div class="dash-section" style="margin-bottom:14px;padding:12px 16px;background:var(--bg-card);border-radius:var(--radius);border:1px solid var(--border-soft);">
@@ -684,7 +484,6 @@ function renderDashboard() {
         </div>`;
     })() : ''}
 
-    ${renderDashLivePrinters()}
     ${renderDashFilament()}
 
     ${machines.length > 0 ? (() => {
@@ -956,7 +755,6 @@ function renderDashboard() {
       </div>`;
     })()}
 
-    ${studioPanels}
     <div class="dash-quick pro-only">
       <button class="btn primary" data-act="goto-tab" data-tab="calculator-tab" data-i18n="tab.calculator">Calculator</button>
       <button class="btn" data-act="goto-tab" data-tab="queue-tab" data-i18n="tab.queue">Production Queue</button>
@@ -994,38 +792,6 @@ function studioSparkSvg(data, w, h, color) {
   return `<svg width="${w}" height="${h}" class="khayt-spark" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/></svg>`;
 }
 
-function renderDashKpiRow(ctx) {
-  const { active, overdue, todayRev, receivables, revDeltaPct, sparkData } = ctx;
-  if (!document.body.classList.contains('khayt-handoff')) return '';
-
-  const deltaChip = (pct) => {
-    if (pct === null || pct === undefined) return '';
-    const up = pct >= 0;
-    return `<span class="kbadge ${up ? 'delta-up' : 'delta-down'}" style="background:${up ? 'var(--ok-soft)' : 'var(--danger-soft)'}">${up ? '▲' : '▼'} ${Math.abs(pct).toFixed(0)}%</span>`;
-  };
-
-  const cards = [
-    { label: t('dash.active_orders'), value: active, unit: '' },
-    { label: t('dash.overdue'), value: overdue, unit: '', alert: overdue > 0 },
-    { label: t('dash.today_rev'), value: fmtMoney(todayRev), unit: currencySymbol(), spark: sparkData },
-    { label: t('dash.receivables'), value: fmtMoney(receivables), unit: currencySymbol(), delta: revDeltaPct },
-  ];
-
-  return `<div class="khayt-grid khayt-dash-kpis" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:var(--gap)">
-    ${cards.map(k => `
-    <div class="card khayt-kpi${k.alert ? ' khayt-kpi-alert' : ''}">
-      <div class="row between" style="align-items:flex-start">
-        <span class="eyebrow">${escapeHtml(k.label)}</span>
-        ${k.delta !== undefined ? deltaChip(k.delta) : ''}
-      </div>
-      <div class="row" style="align-items:baseline;gap:5px;margin-top:10px">
-        <span class="metric" style="font-size:28px;color:var(--text)">${escapeHtml(String(k.value))}</span>
-        ${k.unit ? `<span class="mono" style="font-size:13px;color:var(--text-muted)">${escapeHtml(k.unit)}</span>` : ''}
-      </div>
-      ${k.spark ? `<div style="margin-top:10px">${studioSparkSvg(k.spark, 220, 36, 'var(--accent)')}</div>` : ''}
-    </div>`).join('')}
-  </div>`;
-}
 
 
 
@@ -1320,13 +1086,33 @@ function renderMaterialUsageChart() {
   function updateDashLivePrinters() {
     const grid = document.querySelector('#dashLivePrinters .dash-printer-grid');
     if (grid) grid.innerHTML = dashLivePrinterTiles();
+
+    // The attention bar is derived from the same telemetry, so it has to move
+    // with it. Without this a printer could go offline and the tile would say so
+    // while the bar above it still read "All clear" until the next full render —
+    // the two disagreeing is the exact failure this bar exists to prevent.
+    const bar = document.querySelector('#dashboardContent .dash-attn');
+    if (bar && typeof KhaytAttention !== 'undefined') {
+      const scopedMachines = typeof machineMatchesActiveLocation === 'function'
+        ? machines.filter(machineMatchesActiveLocation)
+        : machines;
+      const scopedOrders = typeof orderMatchesActiveLocation === 'function'
+        ? printLog.filter(orderMatchesActiveLocation)
+        : printLog;
+      const next = KhaytAttention.selectAttention({
+        machines: scopedMachines,
+        orders: scopedOrders,
+        statusCache: (typeof machineStatusCache !== 'undefined' ? machineStatusCache : {}),
+        now: Date.now(),
+      });
+      bar.outerHTML = buildAttentionBar(next, scopedMachines.length);
+    }
   }
 
   const api = {
-    buildStudioDashboardPanels,
+    buildAttentionBar,
     renderDashboard,
     studioSparkSvg,
-    renderDashKpiRow,
     renderFilamentAnalytics,
     renderMaterialUsageChart,
     renderDashLivePrinters,

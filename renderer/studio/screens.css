@@ -66,7 +66,6 @@
 /* Clients */
 .khayt-client { transition: border-color .14s, transform .1s; }
 .khayt-client:hover { border-color: var(--border-2); transform: translateY(-1px); }
-.khayt-cavatar { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; font-family: var(--font-mono); font-size: 13px; font-weight: 700; flex-shrink: 0; }
 
 /* responsive squeeze */
 @media (max-width: 1180px) {

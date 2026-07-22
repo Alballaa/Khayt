@@ -3551,6 +3551,12 @@
   "integ.import_help": "将导入链接作为订单 Webhook 粘贴到你的店铺中——新订单将出现在订单请求中。",
   "integ.feed_help": "将订阅源链接作为产品导入 URL 添加到你的店铺中——它会镜像你已发布的店面目录。",
   "integ.cloud_hint": "连接云同步（设置 → 云）以获取这些店面的导入和订阅源链接。",
-  "integ.pay_link_ph": "您的支付链接（可选）— 使用 {amount}"
+  "integ.pay_link_ph": "您的支付链接（可选）— 使用 {amount}",
+  "dash.attn_need_you": "项需要立即处理",
+  "dash.attn_all_clear": "一切正常",
+  "dash.attn_clear_why": "{n} 台打印机运行正常 · 无逾期",
+  "dash.attn_offline": "{name} 已停止响应",
+  "dash.attn_error": "{name} 报告了错误",
+  "dash.attn_overdue": "{name} 已逾期"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

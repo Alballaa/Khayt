@@ -3551,6 +3551,12 @@
   "integ.import_help": "Fügen Sie den Import-Link als Auftrags-Webhook in Ihrem Shop ein — neue Aufträge erscheinen in Auftragsanfragen.",
   "integ.feed_help": "Fügen Sie den Feed-Link als Produktimport-URL in Ihrem Shop hinzu — er spiegelt Ihren veröffentlichten Storefront-Katalog wider.",
   "integ.cloud_hint": "Verbinden Sie die Cloud-Synchronisierung (Einstellungen → Cloud), um Import- & Feed-Links für diese Storefronts zu erhalten.",
-  "integ.pay_link_ph": "Ihr Zahlungslink (optional) — {amount} verwenden"
+  "integ.pay_link_ph": "Ihr Zahlungslink (optional) — {amount} verwenden",
+  "dash.attn_need_you": "erfordern jetzt Ihre Aufmerksamkeit",
+  "dash.attn_all_clear": "Alles in Ordnung",
+  "dash.attn_clear_why": "{n} Drucker in Ordnung · nichts überfällig",
+  "dash.attn_offline": "{name} antwortet nicht mehr",
+  "dash.attn_error": "{name} meldet einen Fehler",
+  "dash.attn_overdue": "{name} ist überfällig"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

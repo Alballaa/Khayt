@@ -64,24 +64,10 @@ function renderClients() {
     );
   }
   if (clients.length === 0) {
-    const grid0 = $('#clientsCardsGrid');
-    const wrap0 = $('#clientsTableWrap');
-    if (grid0 && document.body.classList.contains('khayt-handoff')) {
-      grid0.innerHTML = `<p class="dash-empty" style="padding:18px">${escapeHtml(t('cl.empty'))}</p>`;
-      grid0.style.display = 'grid';
-      grid0.removeAttribute('aria-hidden');
-      if (wrap0) wrap0.classList.add('khayt-clients-legacy-hidden');
-    }
     tbody.innerHTML = `<tr><td colspan="7" class="empty-state">${escapeHtml(t('cl.empty'))}</td></tr>`;
     return;
   }
   if (filtered.length === 0) {
-    const gridE = $('#clientsCardsGrid');
-    if (gridE && document.body.classList.contains('khayt-handoff')) {
-      gridE.innerHTML = `<p class="dash-empty" style="padding:18px">${escapeHtml(t('cl.empty_search'))}</p>`;
-      gridE.style.display = 'grid';
-      if ($('#clientsTableWrap')) $('#clientsTableWrap').classList.add('khayt-clients-legacy-hidden');
-    }
     tbody.innerHTML = `<tr><td colspan="7" class="empty-state">${escapeHtml(t('cl.empty_search'))}</td></tr>`;
     return;
   }
@@ -136,8 +122,6 @@ function renderClients() {
     }
   }
 
-  const clientMaps = { clientStatsMap, clientBalanceMap, clientTierMap, clientSurveyMap };
-  if (window.KhaytStudio?.renderClientsStudioCards?.(filtered, clientMaps)) return;
 
   // Sortable columns — mirror the orders-log pattern. rowOf maps a client to the
   // comparable display fields using the precomputed O(n) aggregates above.
