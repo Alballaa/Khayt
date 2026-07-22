@@ -911,7 +911,7 @@ async function uploadGcodeToPrinter(machine, gcodePath, startPrint) {
       fd.set('file', new Blob([bytes], { type: 'text/plain' }), name);
       let url, headers = {};
       if (type === 'octoprint') { fd.set('select', 'true'); fd.set('print', startPrint ? 'true' : 'false'); url = `${base}/api/files/local`; headers['X-Api-Key'] = apiKey || ''; }
-      else { fd.set('root', 'gcodes'); fd.set('print', startPrint ? 'true' : 'false'); url = `${base}/server/files/upload`; }
+      else { fd.set('root', 'gcodes'); fd.set('print', startPrint ? 'true' : 'false'); url = `${base}/server/files/upload`; if (apiKey) headers['X-Api-Key'] = apiKey; }
       return ok(await fetch(url, { method: 'POST', headers, body: fd, signal: AbortSignal.timeout(60000) }));
     }
     if (type === 'prusalink') {
@@ -2132,9 +2132,18 @@ async function fetchPrinterStatus(machine) {
   }
   const baseUrl = `http://${printerHost}:${portNum}`;
   const headers = {};
-  if (type === 'octoprint') headers['X-Api-Key'] = apiKey;
-  if (type === 'prusalink') headers['X-Api-Key'] = apiKey;
-  if (type === 'repetier')  headers['x-api-key']  = apiKey;
+  // Moonraker was missing here. It accepts X-Api-Key from untrusted clients, and
+  // without it Khayt only works when the printer happens to list this machine in
+  // `trusted_clients` — any shop running `force_logins: True`, or an app on a
+  // subnet the printer doesn't trust, got a blanket 401 with nothing to explain it.
+  //
+  // Guarded on a non-empty key: an unset one previously sent the literal string
+  // "undefined" as the header value, and Moonraker in trusted-client mode needs
+  // no key at all, so sending a junk one is worse than sending none.
+  if (apiKey) {
+    if (type === 'octoprint' || type === 'prusalink' || type === 'moonraker') headers['X-Api-Key'] = apiKey;
+    if (type === 'repetier') headers['x-api-key'] = apiKey;
+  }
 
   const get = async (p) => {
     // redirect:'manual' so a compromised/misconfigured printer host can't 302 the poller off the

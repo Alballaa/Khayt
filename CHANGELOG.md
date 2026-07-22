@@ -6,6 +6,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Klipper printers rejected Khayt when they required a key.** Khayt never sent its API key to Klipper/Moonraker printers, so any printer set to require a login refused every request with no explanation. Machines saved without a key also sent an invalid one instead of none.
+
+### Fixed
+
 - **A Duet printer could report a wildly wrong progress percentage.** Before the job file was fully read, progress was calculated against a missing file size and could show a number in the millions. Progress from every printer type is now kept within 0-100%.
 
 ## [3.2.0] - 2026-07-22
