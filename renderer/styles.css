@@ -4950,3 +4950,26 @@ button.part-status-dot:focus-visible {
 [dir="rtl"] .attached-file-row .attached-file-name {
   text-align: right;
 }
+
+/* ── Keyboard hint on nav items ───────────────────────────────────────────
+ *
+ * The shortcut sits on the command it triggers, not only in the help modal.
+ * Deliberately quiet: it is a reminder for someone already looking at the
+ * item, never a thing that competes with the label. `aria-hidden` because the
+ * button carries `aria-keyshortcuts` — a screen reader should not also hear a
+ * stray letter after every nav label.
+ */
+.tab-btn .kbd-hint {
+  margin-inline-start: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 3px;
+  color: var(--text-muted);
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  opacity: .55;
+  flex: 0 0 auto;
+}
+.tab-btn:hover .kbd-hint,
+.tab-btn.active .kbd-hint { opacity: .85; }
