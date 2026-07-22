@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.58] - 2026-07-22
+
+### Fixed
+
+- **In Arabic, short English names sat on the wrong side of the column.** A follow-on from the truncation fix in beta.56: names that were short enough to fit jumped to the left while Arabic names stayed right, leaving the column edge ragged.
+
 ## [3.2.0-beta.57] - 2026-07-22
 
 ### Fixed

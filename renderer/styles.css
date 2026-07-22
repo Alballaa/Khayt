@@ -4919,3 +4919,34 @@ button.part-status-dot:focus-visible {
 .attached-file-row .attached-file-name {
   unicode-bidi: plaintext;
 }
+
+/*
+ * `plaintext` fixes WHICH END truncates, but it also resolves each line's
+ * alignment from that line's own direction — so a short Latin name inside an
+ * Arabic card jumped to the LEFT while its Arabic neighbours stayed right, and
+ * the column edge went ragged. Measured: `text-align: start` does NOT correct
+ * this (it re-resolves against the line's resolved direction and lands back on
+ * the left), so the alignment has to be stated physically, per document
+ * direction. Verified that this keeps the truncation fix intact.
+ */
+[dir="rtl"] .dash-hero-name,
+[dir="rtl"] .dash-printer-name,
+[dir="rtl"] .dash-printer-job,
+[dir="rtl"] .ch-name,
+[dir="rtl"] .wa-tpl-preview,
+[dir="rtl"] .part-status-name,
+[dir="rtl"] .schedule-machine-label,
+[dir="rtl"] .schedule-block,
+[dir="rtl"] .quote-title,
+[dir="rtl"] .pf-name,
+[dir="rtl"] .cs-row-name,
+[dir="rtl"] .cs-plan-name,
+[dir="rtl"] .slicer-path,
+[dir="rtl"] .conv-batch-name,
+[dir="rtl"] .conv-cp-sub,
+[dir="rtl"] .pf-conv-name,
+[dir="rtl"] .cal-chip,
+[dir="rtl"] .vault-file-row .vf-name,
+[dir="rtl"] .attached-file-row .attached-file-name {
+  text-align: right;
+}
