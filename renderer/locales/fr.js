@@ -3555,6 +3555,22 @@
   "dash.attn_clear_why": "{n} imprimantes opérationnelles · rien en retard",
   "dash.attn_offline": "{name} ne répond plus",
   "dash.attn_error": "{name} a signalé une erreur",
-  "dash.attn_overdue": "{name} est en retard"
+  "dash.attn_overdue": "{name} est en retard",
+  "queue.grp_attention": "Nécessite une action",
+  "queue.grp_running": "En cours",
+  "queue.grp_finishing": "Post-traitement et contrôle",
+  "queue.grp_queued": "En attente",
+  "queue.grp_done": "Terminé aujourd’hui",
+  "queue.blocked_machine": "{name} arrêtée",
+  "queue.unassigned": "non attribuée",
+  "queue.due": "échéance {d}",
+  "queue.total": "Total de la file",
+  "queue.next_free": "Prochaine imprimante libre {t}",
+  "queue.machine_free_now": "Une imprimante est libre maintenant",
+  "queue.view_kanban": "Vue tableau",
+  "queue.view_list": "Vue liste",
+  "queue.view_kanban_hint": "Passer au tableau kanban",
+  "queue.view_list_hint": "Passer à la liste groupée",
+  "common.hours_short": "h"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

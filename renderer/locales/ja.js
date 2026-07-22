@@ -3555,6 +3555,22 @@
   "dash.attn_clear_why": "プリンター {n} 台が正常 · 遅延なし",
   "dash.attn_offline": "{name} が応答しなくなりました",
   "dash.attn_error": "{name} でエラーが発生しました",
-  "dash.attn_overdue": "{name} が納期を過ぎています"
+  "dash.attn_overdue": "{name} が納期を過ぎています",
+  "queue.grp_attention": "対応が必要",
+  "queue.grp_running": "進行中",
+  "queue.grp_finishing": "後処理・品質確認",
+  "queue.grp_queued": "待機中",
+  "queue.grp_done": "本日完了",
+  "queue.blocked_machine": "{name} が停止しました",
+  "queue.unassigned": "未割り当て",
+  "queue.due": "納期 {d}",
+  "queue.total": "キュー合計",
+  "queue.next_free": "次に空くプリンター {t}",
+  "queue.machine_free_now": "現在空いているプリンターがあります",
+  "queue.view_kanban": "ボード表示",
+  "queue.view_list": "リスト表示",
+  "queue.view_kanban_hint": "かんばんボードに切り替える",
+  "queue.view_list_hint": "グループ表示のリストに切り替える",
+  "common.hours_short": "時間"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

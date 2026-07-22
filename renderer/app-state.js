@@ -98,6 +98,7 @@ function defaultSettings() {
     lang:      'en',
     theme:         'light',
     designTheme:   'workbench',
+    queueView:     'list',      // grouped list by default; 'kanban' opts back in
     accent:        'cyan',
     invPrefix: 'INV',
     footerEn:  'Thank you for your business!',

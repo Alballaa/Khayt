@@ -1972,6 +1972,119 @@ html.printing-labels #label-print-area {
 tr.row-overdue td { background: rgba(239,77,94,0.05); }
 
 /* -----------------------------------------------------------
+   Production queue — grouped list view
+   -----------------------------------------------------------
+   Renders inside .kanban so the existing delegated actions reach it. The
+   columns stay in the DOM and are hidden here rather than removed, because
+   other code (and the e2e suites) address #list-* and count .kanban-col.
+   Dense by Carbon's "short row" spec: 32px rows, 14px body, hierarchy from
+   weight rather than size, and colour only where a condition earned it. */
+.kanban.queue-list-mode { display: block; }
+.kanban.queue-list-mode > .kanban-col { display: none; }
+
+#queueListView { max-width: 100%; }
+
+.ql-group { margin-bottom: 18px; }
+.ql-group.is-collapsed .ql-rows { display: none; }
+
+.ql-group-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 4px;
+  padding: 0 2px 6px;
+  border-bottom: 1px solid var(--border-soft, var(--border));
+  font-family: var(--font-num, monospace);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.ql-group-agg {
+  margin-inline-start: auto;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+}
+
+.ql-row {
+  display: grid;
+  grid-template-columns: 3px minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 0 10px;
+  min-height: 32px;
+  padding-inline-end: 4px;
+  border-bottom: 1px solid var(--border-soft, var(--border));
+  font-size: 14px;
+}
+.ql-row:hover { background: var(--surface-2); }
+
+.ql-stripe { align-self: stretch; background: transparent; border-radius: 1px; }
+.ql-row.is-crit .ql-stripe { background: var(--danger); }
+.ql-row.is-warn .ql-stripe { background: var(--warning); }
+
+.ql-name {
+  padding-inline-start: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  /* Job and machine names are user data and may be Latin inside an Arabic UI. */
+  unicode-bidi: plaintext;
+}
+.ql-name em { font-style: normal; color: var(--text-muted); font-size: 12.5px; }
+
+.ql-meta {
+  font-family: var(--font-num, monospace);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  white-space: nowrap;
+  unicode-bidi: plaintext;
+}
+
+.ql-state {
+  font-family: var(--font-num, monospace);
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+  min-width: 88px;
+  text-align: end;
+}
+.ql-row.is-crit .ql-state { color: var(--danger); font-weight: 700; }
+.ql-row.is-warn .ql-state { color: var(--warning); font-weight: 700; }
+
+/* A 32px row can still carry a 48px hit target via padding — shrinking rows
+   must not shrink what you have to hit reaching over from a printer. */
+.ql-actions { display: flex; justify-content: flex-end; min-width: 64px; }
+.ql-act { min-height: 26px; padding-block: 11px; }
+
+.ql-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 10px 12px;
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  font-family: var(--font-num, monospace);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+.ql-foot b { color: var(--text); font-weight: 600; }
+
+.ql-empty { color: var(--text-muted); font-size: 13px; padding: 18px 2px; }
+
+@media (max-width: 720px) {
+  .ql-row { grid-template-columns: 3px minmax(0, 1fr) auto auto; }
+  .ql-meta { display: none; }
+}
+
+/* -----------------------------------------------------------
    Dashboard tab
    ----------------------------------------------------------- */
 

@@ -3557,6 +3557,22 @@
   "dash.attn_clear_why": "{n} طابعات تعمل · لا شيء متأخر",
   "dash.attn_offline": "توقفت {name} عن الاستجابة",
   "dash.attn_error": "أبلغت {name} عن خطأ",
-  "dash.attn_overdue": "تأخر تسليم {name}"
+  "dash.attn_overdue": "تأخر تسليم {name}",
+  "queue.grp_attention": "يحتاج تدخلاً",
+  "queue.grp_running": "قيد التشغيل",
+  "queue.grp_finishing": "التشطيب ومراقبة الجودة",
+  "queue.grp_queued": "في الانتظار",
+  "queue.grp_done": "اكتمل اليوم",
+  "queue.blocked_machine": "توقفت {name}",
+  "queue.unassigned": "غير مُسندة",
+  "queue.due": "يستحق {d}",
+  "queue.total": "إجمالي القائمة",
+  "queue.next_free": "أول طابعة تتفرغ {t}",
+  "queue.machine_free_now": "توجد طابعة متاحة الآن",
+  "queue.view_kanban": "عرض اللوحة",
+  "queue.view_list": "عرض القائمة",
+  "queue.view_kanban_hint": "التبديل إلى لوحة كانبان",
+  "queue.view_list_hint": "التبديل إلى القائمة المجمّعة",
+  "common.hours_short": "س"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

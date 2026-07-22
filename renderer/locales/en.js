@@ -3558,6 +3558,22 @@
   "dash.attn_clear_why": "{n} printers healthy · nothing overdue",
   "dash.attn_offline": "{name} stopped answering",
   "dash.attn_error": "{name} reported an error",
-  "dash.attn_overdue": "{name} is overdue"
+  "dash.attn_overdue": "{name} is overdue",
+  "queue.grp_attention": "Needs attention",
+  "queue.grp_running": "Running",
+  "queue.grp_finishing": "Post & QC",
+  "queue.grp_queued": "Queued",
+  "queue.grp_done": "Finished today",
+  "queue.blocked_machine": "{name} stopped",
+  "queue.unassigned": "unassigned",
+  "queue.due": "due {d}",
+  "queue.total": "Queue total",
+  "queue.next_free": "Next machine free {t}",
+  "queue.machine_free_now": "A machine is free now",
+  "queue.view_kanban": "Board view",
+  "queue.view_list": "List view",
+  "queue.view_kanban_hint": "Switch to the kanban board",
+  "queue.view_list_hint": "Switch to the grouped list",
+  "common.hours_short": "h"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
