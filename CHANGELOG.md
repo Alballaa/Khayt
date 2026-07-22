@@ -4,6 +4,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **Pause, resume and cancel a running print from Khayt.** Previously you could send a job to a printer and watch it, but had to walk over to the machine to stop it. Works with Klipper/Moonraker, OctoPrint, PrusaLink and Duet; Bambu still needs their own app, and Khayt now says so instead of failing silently.
+
 ### Fixed
 
 - **Klipper printers rejected Khayt when they required a key.** Khayt never sent its API key to Klipper/Moonraker printers, so any printer set to require a login refused every request with no explanation. Machines saved without a key also sent an invalid one instead of none.

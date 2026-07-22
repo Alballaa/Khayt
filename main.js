@@ -53,6 +53,7 @@ const { isBlockedHost, isAllowedPrinterHost, sanitizeMailgunDomain, resolvesToBl
 const { sendCustomSmtp } = require('./lib/custom-smtp');
 const { mergePollSuccess, mergePollFailure } = require('./lib/printer-poll-cache');
 const { normalizeProgress, fileProgressPct } = require('./lib/printer-status');
+const printerCommands = require('./lib/printer-commands');
 const { normalizeStoreSnapshot, STORE_VERSION } = require('./lib/store-validate');
 const { createStoreIo } = require('./lib/store-io');
 const { parseGcodeText } = require('./lib/gcode-parse');
@@ -2111,6 +2112,65 @@ ipcMain.handle('hub:stop-printer-polling', () => {
 });
 
 ipcMain.handle('hub:get-printer-status', () => printerStatusCache);
+
+/**
+ * Pause / resume / cancel the job on a printer.
+ *
+ * Same host allowlist and no-redirect rule as the status poller: this reaches a
+ * LAN device on the user's behalf, so it must not be steerable off the validated
+ * address.
+ */
+async function sendPrinterCommand(machine, command) {
+  const { type, host, port, apiKey } = (machine && machine.printerApi) || {};
+  const printerHost = String(host || '').replace(/[^a-zA-Z0-9.\-]/g, '');
+  if (!isAllowedPrinterHost(printerHost)) return { ok: false, error: 'Invalid printer host' };
+  const portNum = parseInt(port || defaultPrinterPort(type), 10);
+  if (!Number.isInteger(portNum) || portNum < 1 || portNum > 65535) {
+    return { ok: false, error: 'Invalid port number' };
+  }
+  const base = `http://${printerHost}:${portNum}`;
+  const headers = {};
+  if (apiKey) {
+    if (type === 'octoprint' || type === 'prusalink' || type === 'moonraker') headers['X-Api-Key'] = apiKey;
+    if (type === 'repetier') headers['x-api-key'] = apiKey;
+  }
+
+  // PrusaLink keys its endpoints by the running job's id, and returns 404 if the
+  // id is stale — so read it now rather than trusting anything cached.
+  let jobId = null;
+  if (printerCommands.requiresJobId(type)) {
+    try {
+      const res = await fetch(`${base}/api/v1/job`, { headers, redirect: 'manual', signal: AbortSignal.timeout(5000) });
+      if (!res.ok) return { ok: false, error: 'No job is running on this printer' };
+      jobId = (await res.json())?.id ?? null;
+    } catch (e) {
+      return { ok: false, error: String((e && e.message) || e) };
+    }
+  }
+
+  const req = printerCommands.buildCommand(type, command, jobId);
+  if (req.unsupported) return { ok: false, error: req.unsupported };
+
+  try {
+    const init = { method: req.method, headers: { ...headers }, redirect: 'manual', signal: AbortSignal.timeout(10000) };
+    if (req.body) {
+      init.headers['Content-Type'] = req.contentType || 'application/json';
+      init.body = JSON.stringify(req.body);
+    }
+    const res = await fetch(`${base}${req.path}`, init);
+    if (res.status >= 300 && res.status < 400) return { ok: false, error: 'Unexpected redirect from printer' };
+    // OctoPrint answers 409 when there is no active job — say so rather than
+    // reporting a bare status code the user cannot act on.
+    if (res.status === 409) return { ok: false, error: 'No job is running on this printer' };
+    if (!res.ok) return { ok: false, error: `Printer responded ${res.status}` };
+    return { ok: true, command };
+  } catch (e) {
+    return { ok: false, error: String((e && e.message) || e) };
+  }
+}
+
+ipcMain.handle('hub:printer-command', async (_e, { machine, command } = {}) =>
+  sendPrinterCommand(machine, command));
 
 async function fetchPrinterStatus(machine) {
   const { type, host, port, apiKey, accessCode, printerSlug, serial } = machine.printerApi || {};
