@@ -225,3 +225,42 @@ jobs:
             --repo "$GITHUB_REPOSITORY"
           echo "✅ Release $TAG published"
           echo "https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
+
+      # Tell the website straight away rather than waiting on its hourly cron.
+      #
+      # This used to live in notify-website.yml, listening for `release:
+      # published`. It never fired once — not for v3.2.0 nor any of the 61 betas
+      # — for two independent reasons: the release above is created as a draft
+      # (drafts emit no release event at all), and the publish is done with
+      # GITHUB_TOKEN, whose events deliberately do not cascade into other
+      # workflows. Dispatching from here removes both, because it runs in the
+      # same job that just published.
+      #
+      # Never fails the release: the artifacts are already live at this point,
+      # and the website's own hourly schedule is the backstop.
+      - name: Notify website
+        continue-on-error: true
+        env:
+          SYNC_TOKEN: ${{ secrets.WEBSITE_SYNC_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [ -z "$SYNC_TOKEN" ]; then
+            echo "::warning::WEBSITE_SYNC_TOKEN is not set — skipping the instant site sync."
+            echo "The site will still pick this release up via its hourly schedule."
+            echo "To make it instant, add a repo secret WEBSITE_SYNC_TOKEN with a PAT"
+            echo "that has contents:write on the khayt-website repositories."
+            exit 0
+          fi
+          for REPO in KhaytApp/khayt-website Alballaa/khayt-website; do
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer $SYNC_TOKEN" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/$REPO/dispatches" \
+              -d "{\"event_type\":\"khayt-release\",\"client_payload\":{\"tag\":\"$TAG\"}}")
+            if [ "$CODE" = "204" ]; then
+              echo "✅ $REPO notified for $TAG"
+            else
+              echo "::warning::$REPO dispatch returned HTTP $CODE (hourly sync will cover it)"
+            fi
+          done
