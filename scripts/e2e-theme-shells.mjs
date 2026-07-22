@@ -14,12 +14,6 @@ import { buildScreenshotDemoStore } from './screenshot-demo-store.mjs';
 
 const THEME_CASES = [
   { id: 'studio', bodyClass: 'khayt-studio', appearance: 'dark', dashSel: '#dashboardContent', dashMin: 80 },
-  { id: 'ledger', bodyClass: 'khayt-ledger', appearance: 'light', dashSel: '#dashboardContent', dashMin: 80, ledger: true },
-  { id: 'console', bodyClass: 'khayt-console', appearance: 'dark', dashSel: '#dashboardContent', dashMin: 80 },
-  { id: 'atelier', bodyClass: 'khayt-atelier', appearance: 'light', dashSel: '#dashboardContent', dashMin: 80 },
-  { id: 'vitrine', bodyClass: 'khayt-vitrine', appearance: 'dark', dashSel: '#dashboardContent', dashMin: 80 },
-  { id: 'cockpit', bodyClass: 'khayt-cockpit', appearance: 'light', dashSel: '.ck-dash', dashMin: 40 },
-  { id: 'atlas', bodyClass: 'khayt-atlas', appearance: 'dark', dashSel: '.atlas-floor-root', dashMin: 40, atlasNav: true },
   { id: 'workbench', bodyClass: 'khayt-workbench', appearance: 'light', dashSel: '.wb-dash', dashMin: 80 },
   { id: 'vivid', bodyClass: 'khayt-vivid', appearance: 'light', dashSel: '.vv-dash', dashMin: 80 },
   { id: 'command', bodyClass: 'khayt-command', appearance: 'light', dashSel: '.cmd-dash', dashMin: 80 },
@@ -43,13 +37,6 @@ async function applyThemeCase(window, themeCase) {
     themeCase,
     { timeout: 15_000 },
   );
-
-  if (themeCase.ledger) {
-    await window.waitForFunction(
-      () => document.querySelector('.khayt-body')?.dataset.ledgerLayout === 'mounted',
-      { timeout: 10_000 },
-    );
-  }
 }
 
 async function assertDashboard(window, themeCase) {
@@ -63,11 +50,7 @@ async function assertDashboard(window, themeCase) {
 }
 
 async function navigateSecondaryTab(window, themeCase) {
-  if (themeCase.atlasNav) {
-    await window.click('#atlasNav [data-atlas-tab="queue-tab"]');
-  } else {
-    await window.click('#tabbtn-queue-tab');
-  }
+  await window.click('#tabbtn-queue-tab');
   await window.waitForFunction(
     () => document.getElementById('queue-tab')?.classList.contains('active') === true,
     { timeout: 10_000 },
@@ -77,11 +60,7 @@ async function navigateSecondaryTab(window, themeCase) {
   );
   if (!queueReady) throw new Error(`${themeCase.id}: queue tab did not render kanban`);
 
-  if (themeCase.atlasNav) {
-    await window.click('#atlasNav [data-atlas-tab="settings-tab"]');
-  } else {
-    await switchTab(window, 'settings-tab');
-  }
+  await switchTab(window, 'settings-tab');
   const settingsReady = await window.evaluate(
     () => document.getElementById('settings-tab')?.classList.contains('active') === true
       && !!document.querySelector('#settings-panel-prefs'),
@@ -92,20 +71,11 @@ async function navigateSecondaryTab(window, themeCase) {
 // Guard the theme tab-reachability regression: the 3.1 tabs (printfiles/colorstudio/
 // converter) and others must have a nav entry point in every shell.
 async function assertNewTabsReachable(window, themeCase) {
-  if (themeCase.atlasNav) {
-    // Atlas hides the main sidebar → the overflow "More" menu must expose the rest.
-    await window.click('.atlas-chrome .atlas-more-btn');
-    const items = await window.evaluate(
-      () => document.querySelectorAll('.atlas-more-menu .atlas-more-item').length,
-    );
-    if (items < 3) throw new Error(`${themeCase.id}: overflow "More" menu missing tabs (${items})`);
-  } else {
-    const ok = await window.evaluate(() => {
-      const b = document.getElementById('tabbtn-converter-tab');
-      return !!(b && b.offsetParent !== null);
-    });
-    if (!ok) throw new Error(`${themeCase.id}: converter tab has no visible nav entry`);
-  }
+  const ok = await window.evaluate(() => {
+    const b = document.getElementById('tabbtn-converter-tab');
+    return !!(b && b.offsetParent !== null);
+  });
+  if (!ok) throw new Error(`${themeCase.id}: converter tab has no visible nav entry`);
 }
 
 // Enthusiast (hobbyist) mode must not leak revenue/margin into the bespoke
@@ -115,7 +85,6 @@ async function assertNewTabsReachable(window, themeCase) {
 async function assertEnthusiastThemesNoMoney(window) {
   const THEMES = [
     { id: 'command', sel: '.cmd-dash', extra: '#commandStatusBar' },
-    { id: 'cockpit', sel: '.ck-dash', extra: '#cockpitStatsBar' },
     { id: 'workbench', sel: '.wb-dash', extra: null },
     { id: 'vivid', sel: '.vv-dash', extra: null },
   ];
@@ -150,10 +119,12 @@ async function assertEnthusiastThemesNoMoney(window) {
   }
 }
 
-async function testRtlAtlas(window) {
+// RTL smoke. This used to run against atlas; that theme was deleted, so it now
+// covers workbench — the default, and the one carrying the rebuilt dashboard.
+async function testRtlWorkbench(window) {
   await window.evaluate(() => {
     settings.lang = 'ar';
-    settings.designTheme = 'atlas';
+    settings.designTheme = 'workbench';
     settings.theme = 'dark';
     i18n.set('ar');
     if (typeof applyTheme === 'function') applyTheme('dark');
@@ -162,8 +133,8 @@ async function testRtlAtlas(window) {
   });
   await window.waitForFunction(
     () => document.documentElement.dir === 'rtl'
-      && document.body.classList.contains('khayt-atlas')
-      && !!document.querySelector('.atlas-floor-root'),
+      && document.body.classList.contains('khayt-workbench')
+      && !!document.querySelector('.wb-dash'),
     { timeout: 15_000 },
   );
 }
@@ -197,10 +168,10 @@ try {
   await assertEnthusiastThemesNoMoney(window);
   console.log('  enthusiast themed dashboards: no revenue/margin ok');
 
-  await testRtlAtlas(window);
-  console.log('  atlas + ar RTL: ok');
+  await testRtlWorkbench(window);
+  console.log('  workbench + ar RTL: ok');
 
-  console.log('e2e-theme-shells: ok (9 themes + RTL atlas)');
+  console.log(`e2e-theme-shells: ok (${THEME_CASES.length} themes + RTL workbench)`);
 } finally {
   if (electronApp) await electronApp.close().catch(() => {});
   fs.rmSync(userData, { recursive: true, force: true });

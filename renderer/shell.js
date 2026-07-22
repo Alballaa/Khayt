@@ -358,10 +358,6 @@ function initAppShell() {
   if (typeof applyDesignSettings === 'function') applyDesignSettings();
   else if (typeof populateDesignSelects === 'function') populateDesignSelects();
 
-  if (document.body.classList.contains('khayt-ledger')) {
-    global.KhaytLedgerShell?.bindTabNav?.();
-  }
-
   syncTopbarTitle($('.tab-content.active')?.id || 'dashboard-tab');
 
   window.KhaytStudio?.init?.();
@@ -421,8 +417,6 @@ function syncTopbarTitle(tabId) {
     sub.textContent = d.toLocaleDateString(i18n.current === 'ar' ? 'ar-SA-u-nu-latn' : 'en-US', {
       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
     });
-  } else if (document.body.classList.contains('khayt-handoff') && typeof KhaytLedgerShell?.ledgerTabSubtitle === 'function') {
-    sub.textContent = KhaytLedgerShell.ledgerTabSubtitle(tabId);
   } else {
     sub.textContent = '';
   }
@@ -483,18 +477,6 @@ function switchTab(tabId) {
   });
 
   syncTopbarTitle(tabId);
-  if (typeof KhaytLedgerShell?.syncLedgerPageHead === 'function') {
-    KhaytLedgerShell.syncLedgerPageHead(tabId);
-  }
-  if (typeof KhaytConsoleShell?.syncConsolePageHead === 'function') {
-    KhaytConsoleShell.syncConsolePageHead(tabId);
-  }
-  if (typeof KhaytCockpitShell?.syncCockpitPageHead === 'function') {
-    KhaytCockpitShell.syncCockpitPageHead(tabId);
-  }
-  if (typeof KhaytAtlasShell?.syncAtlasPageHead === 'function') {
-    KhaytAtlasShell.syncAtlasPageHead(tabId);
-  }
   if (typeof KhaytWorkbenchShell?.syncWorkbenchPageHead === 'function') {
     KhaytWorkbenchShell.syncWorkbenchPageHead(tabId);
   }

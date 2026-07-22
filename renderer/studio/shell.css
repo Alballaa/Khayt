@@ -40,7 +40,7 @@
 
 .khayt-body { flex: 1; display: flex; min-height: 0; }
 
-/* Sidebar (Studio shell only — Ledger restyles this block in themes/ledger/shell.css) */
+/* Sidebar (Studio shell only) */
 body.khayt-studio .khayt-sidebar {
   flex-shrink: 0; display: flex; flex-direction: column;
   background: var(--bg-2);

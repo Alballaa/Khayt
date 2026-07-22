@@ -28,6 +28,6 @@ test('arabic locale exposes RTL dir via i18n contract keys', () => {
     filename: 'ar.js',
   });
   const ar = ctx.globalThis.KhaytLocales?.ar || {};
-  assert.ok(ar['theme.design.atlas']);
-  assert.ok(ar['theme.design.cockpit']);
+  assert.ok(ar['theme.design.workbench']);
+  assert.ok(ar['theme.design.command']);
 });

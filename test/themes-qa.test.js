@@ -56,24 +56,13 @@ test('en locale defines reserved coming-soon theme keys', () => {
   }
 });
 
-test('cockpit skin and atlas accent keys exist in en locale', () => {
-  const en = loadEnLocale();
-  assert.ok(en['theme.cockpit.skin.label']);
-  assert.ok(en['theme.cockpit.skin.poster']);
-  assert.ok(en['theme.accent.phosphor']);
-  assert.ok(en['theme.accent.ember']);
-});
-
 test('arabic locale includes theme design keys for RTL QA', () => {
   const ar = loadLocale('ar');
   const required = [
     'theme.design.label',
-    'theme.design.studio',
-    'theme.design.ledger',
-    'theme.design.console',
-    'theme.design.cockpit',
-    'theme.design.atlas',
-    'theme.cockpit.skin.label',
+    'theme.design.workbench',
+    'theme.design.command',
+    'theme.design.vivid',
   ];
   for (const key of required) {
     assert.ok(ar[key], `ar.js missing ${key}`);
@@ -81,14 +70,22 @@ test('arabic locale includes theme design keys for RTL QA', () => {
 });
 
 test('each built-in theme maps to a distinct shell body class', () => {
-  const shells = new Map();
+  const seenShell = new Map();
+  const seenClass = new Map();
   for (const [id, theme] of Object.entries(reg.BUILTIN_THEMES)) {
     if (theme.enabled === false) continue;
     assert.ok(theme.bodyClass, `${id} missing bodyClass`);
     assert.ok(theme.shell, `${id} missing shell`);
-    shells.set(theme.shell, theme.bodyClass);
+    // The name of this test promised distinctness but never checked it — two
+    // themes sharing a shell or body class would have sailed through, and
+    // applyBodyClasses() toggles on exactly these values.
+    assert.equal(seenShell.get(theme.shell), undefined,
+      `${id} reuses shell '${theme.shell}' already claimed by ${seenShell.get(theme.shell)}`);
+    assert.equal(seenClass.get(theme.bodyClass), undefined,
+      `${id} reuses bodyClass '${theme.bodyClass}' already claimed by ${seenClass.get(theme.bodyClass)}`);
+    seenShell.set(theme.shell, id);
+    seenClass.set(theme.bodyClass, id);
+    // Convention: the body class is the shell name, khayt-prefixed.
+    assert.equal(theme.bodyClass, `khayt-${theme.shell}`, `${id} body class must match its shell`);
   }
-  assert.equal(shells.get('studio'), 'khayt-studio');
-  assert.equal(shells.get('atlas'), 'khayt-atlas');
-  assert.equal(shells.get('cockpit'), 'khayt-cockpit');
 });

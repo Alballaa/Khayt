@@ -12,13 +12,19 @@ Khayt 2.6 ships three redesigned, light-default themes with a native-app feel:
 | `command` | Command | Command bar + rail | Light |
 | `vivid` | Vivid | Colorful sidebar | Light |
 
-### Legacy themes
+### Legacy themes — removed in 3.3
 
-The earlier themes remain selectable under **Settings → Preferences → Design**:
-`studio` (Studio), `ledger` (Workshop Ledger), `console` (Control Room),
-`atelier`, `vitrine`, `cockpit`, and `atlas`. Saved selections of the older
-default themes (`studio` / `ledger` / `console`) migrate to **Workbench** on
-upgrade.
+`ledger`, `console`, `atelier`, `vitrine`, `cockpit` and `atlas` have been
+deleted. They were never selectable (all seven legacy designs carry
+`legacy: true`, which `listSelectableThemes()` filters out) — only a saved
+setting from before the 2.6 consolidation could reach them.
+`migrateLegacyDesignTheme()` maps those settings to their intended successor,
+and `normalizeDesignId()` falls anything else back to **Workbench**.
+
+`studio` is the one survivor, and it is not a Khayt theme any more: Bed Ready
+pins to it (`applyDesignSettings()` in `themes.js`) and its whole look is
+`renderer/studio/` skinned by `bedready-theme.css`. It stays until Bed Ready is
+rebased onto a design of its own.
 
 ## Architecture
 
@@ -29,7 +35,10 @@ renderer/themes/
   custom-loader.js      # Loads themes/custom/*/manifest.json at boot
   _template/            # Copy-paste starter for new themes
   custom/               # Community themes (index.json registry)
-  ledger/               # Ledger tokens, shell CSS, screen polish
+  workbench/            # Workbench tokens, shell CSS, dashboard screens
+  command/              # Command tokens + shell CSS
+  vivid/                # Vivid tokens, shell CSS, screens
+  previews/             # Picker preview PNGs, one per selectable theme
 ```
 
 **Shell types**
@@ -37,8 +46,7 @@ renderer/themes/
 - `workbench` — grouped sidebar, light-default (`body.khayt-workbench`) — the default
 - `command` — command bar + rail (`body.khayt-command`)
 - `vivid` — colorful sidebar (`body.khayt-vivid`)
-- `studio` — sidebar navigation (`body.khayt-studio`, legacy)
-- `ledger` — masthead + horizontal tab strip (`body.khayt-ledger`, legacy)
+- `studio` — sidebar navigation (`body.khayt-studio`) — Bed Ready only, not selectable in Khayt
 - `default` — legacy horizontal layout without Studio chrome
 
 **Token contract**
@@ -78,7 +86,7 @@ after updating `@fontsource/*` devDependencies.
 
 ## Handoff screen layer
 
-Themes with shell `studio`, `ledger`, `console`, `atelier`, or `vitrine` set `body.khayt-handoff` and share screen polish via `renderer/themes/handoff-screens.css` + `KhaytStudio.useHandoffScreens()`.
+The `studio` shell sets `body.khayt-handoff` and pulls screen polish from `renderer/themes/handoff-screens.css` + `KhaytStudio.useHandoffScreens()`. It is the last handoff shell; the other four went with the 3.3 legacy-theme deletion.
 
 ## Roadmap
 

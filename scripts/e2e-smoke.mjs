@@ -158,18 +158,25 @@ async function testOrderLifecycle(window) {
   return orderId;
 }
 
-async function testLedgerTabNavigation(window) {
-  await window.evaluate(() => {
-    settings.designTheme = 'ledger';
-    settings.theme = 'light';
-    if (typeof applyDesignSettings === 'function') applyDesignSettings();
-    if (typeof applyTheme === 'function') applyTheme('light');
-  });
-  await window.waitForFunction(
-    () => document.body.classList.contains('khayt-ledger')
-      && document.querySelector('.khayt-body')?.dataset.ledgerLayout === 'mounted',
-    { timeout: 10_000 }
-  );
+// Tab navigation must survive a live theme switch — a shell that re-chromes the
+// page can leave the tab buttons unbound. This ran against ledger until that
+// theme was deleted; workbench (the default) and command exercise the same path.
+async function testThemeSwitchTabNavigation(window) {
+  const applyTheme_ = async (design, bodyClass) => {
+    await window.evaluate((d) => {
+      settings.designTheme = d;
+      settings.theme = 'light';
+      if (typeof applyDesignSettings === 'function') applyDesignSettings();
+      if (typeof applyTheme === 'function') applyTheme('light');
+    }, design);
+    await window.waitForFunction(
+      (c) => document.body.classList.contains(c),
+      bodyClass,
+      { timeout: 10_000 }
+    );
+  };
+
+  await applyTheme_('workbench', 'khayt-workbench');
 
   await window.click('#tabbtn-queue-tab');
   await window.waitForFunction(
@@ -179,7 +186,7 @@ async function testLedgerTabNavigation(window) {
   const queueReady = await window.evaluate(
     () => !!document.querySelector('#list-pending') && document.querySelectorAll('.kanban-col').length >= 5
   );
-  if (!queueReady) throw new Error('ledger theme: queue tab did not activate after click');
+  if (!queueReady) throw new Error('workbench theme: queue tab did not activate after click');
 
   await window.click('#tabbtn-settings-tab');
   await window.waitForFunction(
@@ -187,13 +194,10 @@ async function testLedgerTabNavigation(window) {
     { timeout: 10_000 }
   );
 
-  await window.evaluate(() => {
-    settings.designTheme = 'studio';
-    if (typeof applyDesignSettings === 'function') applyDesignSettings();
-  });
+  // Switching away must tear the old shell down cleanly.
+  await applyTheme_('command', 'khayt-command');
   await window.waitForFunction(
-    () => document.body.classList.contains('khayt-studio')
-      && !document.body.classList.contains('khayt-ledger'),
+    () => !document.body.classList.contains('khayt-workbench'),
     { timeout: 10_000 }
   );
 }
@@ -522,7 +526,7 @@ try {
   await testSettingsNav(window);
   const version = await testStoreRoundTrip(window);
   await testTabNavigation(window);
-  await testLedgerTabNavigation(window);
+  await testThemeSwitchTabNavigation(window);
   const orderId = await testOrderLifecycle(window);
   await testLanPinGate(window);
   await testModesAndPrintFiles(window);

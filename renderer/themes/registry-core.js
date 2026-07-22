@@ -10,47 +10,11 @@
     azure: { h: 213, s: '72%', l: '61%', labelKey: 'theme.accent.azure' },
   };
 
-  const LEDGER_ACCENTS = {
-    safety:      { h: 24,  s: '88%', l: '48%', labelKey: 'theme.accent.safety' },
-    ultramarine: { h: 224, s: '72%', l: '46%', labelKey: 'theme.accent.ultramarine' },
-    press:       { h: 152, s: '50%', l: '34%', labelKey: 'theme.accent.press' },
-    cyan:        { h: 189, s: '80%', l: '38%', labelKey: 'theme.accent.filament_cyan' },
-  };
 
-  const CONSOLE_ACCENTS = {
-    signal: { h: 135, s: '62%', l: '52%', labelKey: 'theme.accent.signal' },
-    amber:  { h: 42,  s: '92%', l: '54%', labelKey: 'theme.accent.amber' },
-    cyan:   { h: 187, s: '76%', l: '53%', labelKey: 'theme.accent.cyan' },
-    white:  { h: 90,  s: '6%',  l: '88%', labelKey: 'theme.accent.white' },
-  };
 
-  const ATELIER_ACCENTS = {
-    clay:   { h: 18,  s: '55%', l: '47%', labelKey: 'theme.accent.clay' },
-    sage:   { h: 150, s: '28%', l: '40%', labelKey: 'theme.accent.sage' },
-    sea:    { h: 196, s: '42%', l: '42%', labelKey: 'theme.accent.sea' },
-    violet: { h: 262, s: '32%', l: '50%', labelKey: 'theme.accent.violet' },
-  };
 
-  const VITRINE_ACCENTS = {
-    aurora: { h: 187, s: '80%', l: '60%', labelKey: 'theme.accent.aurora' },
-    iris:   { h: 262, s: '72%', l: '68%', labelKey: 'theme.accent.iris' },
-    orchid: { h: 320, s: '65%', l: '64%', labelKey: 'theme.accent.orchid' },
-    sunset: { h: 28,  s: '88%', l: '60%', labelKey: 'theme.accent.sunset' },
-  };
 
-  const COCKPIT_ACCENTS = {
-    electric: { h: 224, s: '88%', l: '54%', labelKey: 'theme.accent.electric' },
-    violet:   { h: 262, s: '72%', l: '58%', labelKey: 'theme.accent.violet' },
-    emerald:  { h: 158, s: '85%', l: '32%', labelKey: 'theme.accent.emerald' },
-    flare:    { h: 356, s: '78%', l: '54%', labelKey: 'theme.accent.flare' },
-  };
 
-  const ATLAS_ACCENTS = {
-    phosphor: { h: 84,  s: '100%', l: '62%', labelKey: 'theme.accent.phosphor' },
-    ember:    { h: 12,  s: '100%', l: '60%', labelKey: 'theme.accent.ember' },
-    iris:     { h: 252, s: '100%', l: '74%', labelKey: 'theme.accent.iris' },
-    signal:   { h: 135, s: '62%',  l: '52%', labelKey: 'theme.accent.signal' },
-  };
 
   const WORKBENCH_ACCENTS = {
     indigo:  { h: 236, s: '86%', l: '63%', labelKey: 'theme.accent.indigo' },
@@ -73,8 +37,19 @@
     orange:  { h: 24,  s: '76%',  l: '53%', labelKey: 'theme.accent.command_orange' },
   };
 
-  /** Shell types that share the Khayt handoff six-screen layer (A–E family). */
-  const HANDOFF_SCREEN_SHELLS = ['studio', 'ledger', 'console', 'atelier', 'vitrine'];
+  /**
+   * Shell types that share the Khayt handoff six-screen layer.
+   *
+   * Was ['studio', 'ledger', 'console', 'atelier', 'vitrine']; the other four
+   * went with the legacy-theme deletion. Only `studio` remains, and only
+   * because Bed Ready is pinned to it (see applyDesignSettings in themes.js) —
+   * no Khayt user can select it. If Bed Ready is ever rebased onto its own
+   * design, this list and renderer/studio/ go with it.
+   */
+  const HANDOFF_SCREEN_SHELLS = ['studio'];
+
+  /** Shells a community theme may declare in its manifest. */
+  const CUSTOM_THEME_SHELLS = ['workbench', 'command', 'vivid', 'default'];
 
   function usesHandoffScreens(shell) {
     return HANDOFF_SCREEN_SHELLS.includes(shell);
@@ -127,114 +102,6 @@
         'studio/compat.css',
         'studio/phase4.css',
         'studio/phase5.css',
-      ],
-    },
-    ledger: {
-      labelKey: 'theme.design.ledger',
-      descKey: 'theme.design.ledger_desc',
-      preview: 'themes/previews/ledger.png',
-      shell: 'ledger',
-      legacy: true,
-      enabled: true,
-      defaultAccent: 'safety',
-      accents: LEDGER_ACCENTS,
-      defaultAppearance: 'light',
-      bodyClass: 'khayt-ledger',
-      stylesheets: [
-        'themes/ledger/tokens.css',
-        'themes/ledger/compat.css',
-        'themes/ledger/shell.css',
-        'themes/ledger/screens.css',
-      ],
-    },
-    console: {
-      labelKey: 'theme.design.console',
-      descKey: 'theme.design.console_desc',
-      preview: 'themes/previews/console.png',
-      shell: 'console',
-      legacy: true,
-      enabled: true,
-      defaultAccent: 'signal',
-      accents: CONSOLE_ACCENTS,
-      defaultAppearance: 'dark',
-      bodyClass: 'khayt-console',
-      stylesheets: [
-        'themes/console/tokens.css',
-        'themes/console/compat.css',
-        'themes/console/shell.css',
-        'themes/console/screens.css',
-      ],
-    },
-    atelier: {
-      labelKey: 'theme.design.atelier',
-      descKey: 'theme.design.atelier_desc',
-      preview: 'themes/previews/atelier.png',
-      shell: 'atelier',
-      legacy: true,
-      enabled: true,
-      defaultAccent: 'clay',
-      accents: ATELIER_ACCENTS,
-      defaultAppearance: 'light',
-      bodyClass: 'khayt-atelier',
-      stylesheets: [
-        'themes/atelier/tokens.css',
-        'themes/atelier/compat.css',
-        'themes/atelier/shell.css',
-        'themes/atelier/screens.css',
-      ],
-    },
-    vitrine: {
-      labelKey: 'theme.design.vitrine',
-      descKey: 'theme.design.vitrine_desc',
-      preview: 'themes/previews/vitrine.png',
-      shell: 'vitrine',
-      legacy: true,
-      enabled: true,
-      defaultAccent: 'aurora',
-      accents: VITRINE_ACCENTS,
-      defaultAppearance: 'dark',
-      bodyClass: 'khayt-vitrine',
-      stylesheets: [
-        'themes/vitrine/tokens.css',
-        'themes/vitrine/compat.css',
-        'themes/vitrine/shell.css',
-        'themes/vitrine/screens.css',
-      ],
-    },
-    cockpit: {
-      labelKey: 'theme.design.cockpit',
-      descKey: 'theme.design.cockpit_desc',
-      preview: 'themes/previews/cockpit.png',
-      shell: 'cockpit',
-      legacy: true,
-      enabled: true,
-      defaultAccent: 'electric',
-      accents: COCKPIT_ACCENTS,
-      defaultAppearance: 'light',
-      bodyClass: 'khayt-cockpit',
-      stylesheets: [
-        'themes/cockpit/tokens.css',
-        'themes/cockpit/spectrum.css',
-        'themes/cockpit/shell.css',
-        'themes/cockpit/sections.css',
-        'themes/cockpit/compat.css',
-      ],
-    },
-    atlas: {
-      labelKey: 'theme.design.atlas',
-      descKey: 'theme.design.atlas_desc',
-      preview: 'themes/previews/atlas.png',
-      shell: 'atlas',
-      legacy: true,
-      enabled: true,
-      defaultAccent: 'phosphor',
-      accents: ATLAS_ACCENTS,
-      defaultAppearance: 'dark',
-      bodyClass: 'khayt-atlas',
-      stylesheets: [
-        'themes/atlas/tokens.css',
-        'themes/atlas/shell.css',
-        'themes/atlas/compat.css',
       ],
     },
     workbench: {
@@ -298,7 +165,9 @@
 
   function normalizeDesignId(designId) {
     if (!designId) return 'workbench';
-    if (designId === 'classic') return 'ledger';
+    // 'classic' was the pre-2.6 name for ledger, which the legacy-theme
+    // deletion removed; its users land on the default like any other stale id.
+    if (designId === 'classic') return 'workbench';
     if (isCustomThemeId(designId)) {
       const id = customIdFromTheme(designId);
       return customThemes[id] ? designId : 'workbench';
@@ -369,7 +238,12 @@
         }
       }
     }
-    if (manifest.shell && !['studio', 'ledger', 'default'].includes(manifest.shell)) errors.push('shell must be studio, ledger, or default');
+    // Shells a custom theme may adopt. 'ledger' was accepted here until the 3.3
+    // legacy deletion removed it — a manifest naming it would have validated and
+    // then rendered nothing. 'studio' stays out: it is Bed Ready's, not Khayt's.
+    if (manifest.shell && !CUSTOM_THEME_SHELLS.includes(manifest.shell)) {
+      errors.push(`shell must be one of: ${CUSTOM_THEME_SHELLS.join(', ')}`);
+    }
     return errors;
   }
 
@@ -426,12 +300,6 @@
 
   const api = {
     STUDIO_ACCENTS,
-    LEDGER_ACCENTS,
-    CONSOLE_ACCENTS,
-    ATELIER_ACCENTS,
-    VITRINE_ACCENTS,
-    COCKPIT_ACCENTS,
-    ATLAS_ACCENTS,
     WORKBENCH_ACCENTS,
     VIVID_ACCENTS,
     COMMAND_ACCENTS,
@@ -452,6 +320,7 @@
     registerCustomTheme,
     registerBuiltinTheme,
     HANDOFF_SCREEN_SHELLS,
+    CUSTOM_THEME_SHELLS,
     usesHandoffScreens,
   };
 
