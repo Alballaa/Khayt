@@ -6,6 +6,10 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Groundwork for multi-device sync: two devices editing the same record no longer end up disagreeing.** Previously each kept its own copy and neither was told. One edit is still replaced, but every device now reaches the same result instead of quietly drifting apart.
+
+### Fixed
+
 - **Crash reports were sent even when you had not turned them on.** Settings offers crash reporting as an opt-in and says Khayt sends nothing by default, but the reporter ignored that setting in installed builds and sent error details anyway. It now honours the setting, and stays off unless you switch it on.
 
 ### Added

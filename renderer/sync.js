@@ -55,6 +55,11 @@
     return out;
   }
 
+  /** A record's revision, treating anything missing or malformed as 0. */
+  function revOf(rec) {
+    return (rec && typeof rec.rev === 'number' && rec.rev > 0) ? rec.rev : 0;
+  }
+
   function ensureId(rec, coll) {
     if (typeof rec.id === 'string' && rec.id) return rec.id;
     const prefix = String(coll).slice(0, 3).toUpperCase() || 'REC';
@@ -74,7 +79,9 @@
       for (const rec of snapshot[coll]) {
         if (!rec || typeof rec !== 'object') continue;
         ensureId(rec, coll);
-        idx.set(coll + ':' + rec.id, fingerprint(rec));
+        // {fp, rev}: the rev is needed later to stamp a tombstone with the
+        // version being deleted, so a stale delete can't outrank a newer edit.
+        idx.set(coll + ':' + rec.id, { fp: fingerprint(rec), rev: revOf(rec) });
       }
     }
     lastIndex = idx;
@@ -122,12 +129,12 @@
           rec.rev = (typeof rec.rev === 'number' ? rec.rev : 0) + 1;
           rec.updatedAt = now;
           summary.created.push({ collection: coll, id: rec.id });
-        } else if (prev !== fp) {
+        } else if (prev.fp !== fp) {
           rec.rev = (typeof rec.rev === 'number' ? rec.rev : 0) + 1;
           rec.updatedAt = now;
           summary.changed.push({ collection: coll, id: rec.id });
         }
-        next.set(key, fp); // fp excludes reserved fields, so it's stable post-stamp
+        next.set(key, { fp, rev: revOf(rec) }); // fp excludes reserved fields — stable post-stamp
       }
     }
 
@@ -139,7 +146,11 @@
       const id = key.slice(sep + 1);
       summary.deleted.push({ collection: coll, id });
       if (tomb && !tomb.some((t) => t && t.id === id && t.collection === coll)) {
-        tomb.push({ id, collection: coll, deletedAt: now });
+        // Carry the rev that was deleted. Without it a delete outranks every
+        // later edit: a tombstone from rev 2 would remove a record another
+        // device had since edited to rev 9, and the edit was gone silently.
+        const gone = lastIndex.get(key);
+        tomb.push({ id, collection: coll, rev: gone ? gone.rev : 0, deletedAt: now });
       }
     }
 
@@ -195,7 +206,7 @@
   function applyDeltas(snapshot, payload, opts) {
     opts = opts || {};
     const appendOnly = new Set(opts.appendOnly || []);
-    const result = { applied: 0, skipped: 0, removed: 0 };
+    const result = { applied: 0, skipped: 0, removed: 0, conflicts: [] };
 
     for (const d of (payload && payload.deltas) || []) {
       const coll = d && d.collection;
@@ -206,17 +217,52 @@
       const i = arr.findIndex((r) => r && r.id === incoming.id);
       if (i === -1) { arr.push(incoming); result.applied++; continue; }
       if (appendOnly.has(coll)) { result.skipped++; continue; }
-      const curRev = typeof arr[i].rev === 'number' ? arr[i].rev : 0;
-      const inRev = typeof incoming.rev === 'number' ? incoming.rev : 0;
+      const curRev = revOf(arr[i]);
+      const inRev = revOf(incoming);
       if (inRev > curRev) { arr[i] = incoming; result.applied++; }
-      else { result.skipped++; }
+      else if (inRev < curRev) { result.skipped++; }
+      else {
+        // Same rev, different content: two devices edited independently from the
+        // same base. Skipping used to mean each device kept its own copy and
+        // they diverged permanently, with nothing to tell anyone.
+        //
+        // One of the two edits is lost either way — `rev` is a per-record counter,
+        // not a causal clock, so there is no information here to merge on. What
+        // this does buy is CONVERGENCE: every device applies the same rule and
+        // ends up with the same record, instead of each believing it is right.
+        // Tie-break on updatedAt, then on a stable fingerprint compare so the
+        // outcome never depends on who pulled first.
+        if (fingerprint(incoming) !== fingerprint(arr[i])) {
+          const curT = String(arr[i].updatedAt || '');
+          const inT = String(incoming.updatedAt || '');
+          const takeIncoming = inT !== curT
+            ? inT > curT
+            : fingerprint(incoming) > fingerprint(arr[i]);
+          if (takeIncoming) { arr[i] = incoming; result.applied++; }
+          else { result.skipped++; }
+          result.conflicts.push({ collection: coll, id: incoming.id, rev: inRev, tookIncoming: takeIncoming });
+        } else {
+          result.skipped++;   // identical content — not a conflict, just a re-send
+        }
+      }
     }
 
     for (const t of (payload && payload.tombstones) || []) {
       if (!t || !t.collection || !t.id || !Array.isArray(snapshot[t.collection])) continue;
       const arr = snapshot[t.collection];
       const i = arr.findIndex((r) => r && r.id === t.id);
-      if (i !== -1) { arr.splice(i, 1); result.removed++; }
+      if (i === -1) continue;
+      // Tombstones win unconditionally, on purpose: a delete must not be undone
+      // by a stale delta re-adding the record (see sync-foundation.test.js).
+      //
+      // The cost is that a delete also outranks a genuinely newer edit made on
+      // another device — delete at rev 2 removes a record edited to rev 9. Both
+      // cannot be fixed with `rev` alone, because a counter cannot tell "stale
+      // delete" from "stale re-add"; that needs a causal clock. The tombstone
+      // now carries the rev it deleted (see stampChanges) so whichever policy
+      // wins that argument has the data it needs. Not changed here — reversing
+      // it silently would trade lost edits for resurrected records.
+      arr.splice(i, 1); result.removed++;
     }
     return result;
   }
