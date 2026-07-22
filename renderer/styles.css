@@ -4874,3 +4874,48 @@ button.part-status-dot:focus-visible {
   outline: 2px solid var(--accent, #5bc8d6);
   outline-offset: 2px;
 }
+
+/* ── Bidi isolation for truncated user text ───────────────────────────────
+ *
+ * `text-overflow: ellipsis` clips at the END edge of the container's own
+ * direction. In an RTL locale that edge is on the LEFT, so an English job
+ * name inside an Arabic card truncated backwards:
+ *
+ *     "…ousing batch"      instead of      "Gearbox hous…"
+ *
+ * Every string below is user-supplied — job names, machine names, client
+ * names, file paths — so its script is not knowable from the UI language.
+ *
+ * `unicode-bidi: plaintext` resolves each line's direction from its own
+ * first strong character, exactly like `dir="auto"`, but WITHOUT changing
+ * the computed `direction`. That matters: `dir="auto"` would flip these
+ * elements to `ltr` and take box alignment and logical padding with it.
+ * Measured, not assumed — `<bdi>` was the intuitive fix and does NOT work
+ * here, because the ellipsis is applied by the block container, not by the
+ * isolated inline run.
+ *
+ * Safe to apply broadly: for text in the UI language the first strong
+ * character already matches the container, so this resolves to the same
+ * direction and is a no-op.
+ */
+.dash-hero-name,
+.dash-printer-name,
+.dash-printer-job,
+.ch-name,
+.wa-tpl-preview,
+.part-status-name,
+.schedule-machine-label,
+.schedule-block,
+.quote-title,
+.pf-name,
+.cs-row-name,
+.cs-plan-name,
+.slicer-path,
+.conv-batch-name,
+.conv-cp-sub,
+.pf-conv-name,
+.cal-chip,
+.vault-file-row .vf-name,
+.attached-file-row .attached-file-name {
+  unicode-bidi: plaintext;
+}

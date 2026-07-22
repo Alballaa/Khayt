@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.2.0-beta.56] - 2026-07-22
+
+### Fixed
+
+- **In Arabic, names were shortened from the wrong end.** A job called "Gearbox housing batch" appeared as "…ousing batch" instead of "Gearbox hous…", hiding the part of the name you actually read. The same fault affected machine names, client names and file paths anywhere they were too long to fit.
+
 ## [3.2.0-beta.55] - 2026-07-21
 
 ### Fixed
