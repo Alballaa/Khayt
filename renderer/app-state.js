@@ -99,7 +99,6 @@ function defaultSettings() {
     theme:         'light',
     designTheme:   'workbench',
     accent:        'cyan',
-    cockpitSkin:   'poster',
     invPrefix: 'INV',
     footerEn:  'Thank you for your business!',
     footerAr:  'شكراً لتعاملكم معنا!',

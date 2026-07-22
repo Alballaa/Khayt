@@ -191,8 +191,6 @@
     normalizeDesign: (id) => reg()?.normalizeDesignId(id) || 'workbench',
     accentsForDesign: (id) => reg()?.accentsForTheme(id) || {},
     DESIGNS: reg()?.BUILTIN_THEMES,
-    ACCENTS: reg()?.STUDIO_ACCENTS,
-    STUDIO_ACCENTS: reg()?.STUDIO_ACCENTS,
   };
 
   Object.assign(global, api);

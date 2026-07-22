@@ -84,7 +84,7 @@ async function seedCalculator(page) {
     }
     renderBuild();
     calculateLivePartCost?.();
-    window.KhaytStudio?.initStudioCalculatorLayout?.();
+    window.KhaytBedReadyUI?.initStudioCalculatorLayout?.();
   });
 }
 
@@ -95,7 +95,7 @@ async function prepareShot(page, shot, calcSeeded) {
       await page.evaluate(() => {
         window.KhaytShell?.switchTab?.('calculator-tab');
         if (typeof renderBuild === 'function') renderBuild();
-        window.KhaytStudio?.initStudioCalculatorLayout?.();
+        window.KhaytBedReadyUI?.initStudioCalculatorLayout?.();
       });
     }
     return;

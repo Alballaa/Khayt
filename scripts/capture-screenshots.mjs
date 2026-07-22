@@ -59,7 +59,7 @@ async function seedCalculator(page) {
     }
     renderBuild();
     calculateLivePartCost?.();
-    window.KhaytStudio?.initStudioCalculatorLayout?.();
+    window.KhaytBedReadyUI?.initStudioCalculatorLayout?.();
   });
 }
 
