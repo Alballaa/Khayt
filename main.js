@@ -52,6 +52,7 @@ const { safeJsonParse } = require('./lib/safe-json');
 const { isBlockedHost, isAllowedPrinterHost, sanitizeMailgunDomain, resolvesToBlockedHost } = require('./lib/host-guard');
 const { sendCustomSmtp } = require('./lib/custom-smtp');
 const { mergePollSuccess, mergePollFailure } = require('./lib/printer-poll-cache');
+const { normalizeProgress, fileProgressPct } = require('./lib/printer-status');
 const { normalizeStoreSnapshot, STORE_VERSION } = require('./lib/store-validate');
 const { createStoreIo } = require('./lib/store-io');
 const { parseGcodeText } = require('./lib/gcode-parse');
@@ -2134,7 +2135,6 @@ async function fetchPrinterStatus(machine) {
   if (type === 'octoprint') headers['X-Api-Key'] = apiKey;
   if (type === 'prusalink') headers['X-Api-Key'] = apiKey;
   if (type === 'repetier')  headers['x-api-key']  = apiKey;
-  if (type === 'bambu')     headers['Authorization'] = `Bearer ${accessCode}`;
 
   const get = async (p) => {
     // redirect:'manual' so a compromised/misconfigured printer host can't 302 the poller off the
@@ -2149,7 +2149,7 @@ async function fetchPrinterStatus(machine) {
     const [printer, job] = await Promise.all([get('/api/printer'), get('/api/job')]);
     return {
       state: printer.state?.text || 'Unknown',
-      progress: job.progress?.completion || 0,
+      progress: normalizeProgress(job.progress?.completion),
       filename: job.job?.file?.name || '',
       timeRemaining: job.progress?.printTimeLeft || null,
       tempNozzle: printer.temperature?.tool0?.actual || null,
@@ -2163,7 +2163,7 @@ async function fetchPrinterStatus(machine) {
     const vs = data.result?.status?.virtual_sdcard || {};
     return {
       state: ps.state || 'Unknown',
-      progress: Math.round((vs.progress || 0) * 100),
+      progress: normalizeProgress((vs.progress || 0) * 100),
       filename: ps.filename || '',
       timeRemaining: ps.total_duration ? Math.round((ps.total_duration / (vs.progress||1)) * (1-(vs.progress||0))) : null,
       tempNozzle: data.result?.status?.extruder?.temperature || null,
@@ -2176,7 +2176,7 @@ async function fetchPrinterStatus(machine) {
     const job = data.job || {};
     return {
       state: data.printer?.state || 'Unknown',
-      progress: job.progress || 0,
+      progress: normalizeProgress(job.progress),
       filename: job.file?.name || '',
       timeRemaining: job.time_remaining || null,
       tempNozzle: data.printer?.temp_nozzle || null,
@@ -2191,7 +2191,7 @@ async function fetchPrinterStatus(machine) {
       const job = data.result?.job || {};
       return {
         state: data.result?.state?.status || 'Unknown',
-        progress: Math.round((job.filePosition || 0) / (job.file?.size || 1) * 100),
+        progress: fileProgressPct(job.filePosition, job.file?.size),
         filename: job.file?.fileName || '',
         timeRemaining: job.timesLeft?.file || null,
         tempNozzle: data.result?.heat?.heaters?.[1]?.current || null,
@@ -2202,7 +2202,7 @@ async function fetchPrinterStatus(machine) {
       const data = await get('/rr_status?type=3');
       return {
         state: data.status || 'Unknown',
-        progress: Math.round((data.fractionPrinted || 0) * 100),
+        progress: normalizeProgress((data.fractionPrinted || 0) * 100),
         filename: '',
         timeRemaining: null,
         tempNozzle: data.temps?.heads?.current?.[0] || null,
@@ -2217,7 +2217,7 @@ async function fetchPrinterStatus(machine) {
     const state = data.data?.[0] || {};
     return {
       state: state.job ? 'Printing' : 'Idle',
-      progress: state.done || 0,
+      progress: normalizeProgress(state.done),
       filename: state.job || '',
       timeRemaining: null,
       tempNozzle: state.extruder?.[0]?.tempRead || null,
