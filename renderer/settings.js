@@ -2978,7 +2978,6 @@ function saveSettingsFromForm() {
     theme:       $('#set_theme').value,
     designTheme: $('#set_designTheme')?.value || settings.designTheme || 'studio',
     accent:      $('#set_accent')?.value || settings.accent || 'cyan',
-    cockpitSkin: $('#set_cockpitSkin')?.value || settings.cockpitSkin || 'poster',
     invPrefix: $('#set_invPrefix').value.trim() || 'INV',
     footerEn:  $('#set_footerEn').value.trim(),
     footerAr:  $('#set_footerAr').value.trim(),

@@ -75,7 +75,7 @@ async function seedCalculator(page) {
     }
     renderBuild();
     calculateLivePartCost?.();
-    window.KhaytStudio?.initStudioCalculatorLayout?.();
+    window.KhaytBedReadyUI?.initStudioCalculatorLayout?.();
   });
 }
 
@@ -98,7 +98,7 @@ async function applyTheme(page, theme, lang) {
 async function prepareShot(page, shot, calcSeeded) {
   if (shot.setup === 'calculator') {
     if (!calcSeeded.done) { await seedCalculator(page); calcSeeded.done = true; }
-    else await page.evaluate(() => { window.KhaytShell?.switchTab?.('calculator-tab'); if (typeof renderBuild === 'function') renderBuild(); window.KhaytStudio?.initStudioCalculatorLayout?.(); });
+    else await page.evaluate(() => { window.KhaytShell?.switchTab?.('calculator-tab'); if (typeof renderBuild === 'function') renderBuild(); window.KhaytBedReadyUI?.initStudioCalculatorLayout?.(); });
     return;
   }
   await page.evaluate((tabId) => window.KhaytShell.switchTab(tabId), shot.tab);
