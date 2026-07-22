@@ -374,6 +374,7 @@
   "build.material": "材料",
   "mach.status": "状态",
   "mach.offline": "离线",
+  "mach.reconnecting": "重新连接中",
   "notif.empty": "一切就绪",
   "dash.completed_orders": "已完成订单",
   "whk.enabled": "启用出站 Webhook",

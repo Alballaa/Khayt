@@ -374,6 +374,7 @@
   "build.material": "Matériau",
   "mach.status": "Statut",
   "mach.offline": "Hors ligne",
+  "mach.reconnecting": "Reconnexion",
   "notif.empty": "Tout est en ordre",
   "dash.completed_orders": "Commandes terminées",
   "whk.enabled": "Activer les webhooks sortants",

@@ -374,6 +374,7 @@
   "build.material": "Malzeme",
   "mach.status": "Durum",
   "mach.offline": "Çevrimdışı",
+  "mach.reconnecting": "Yeniden bağlanıyor",
   "notif.empty": "Her şey yolunda",
   "dash.completed_orders": "Tamamlanan siparişler",
   "whk.enabled": "Giden webhook'ları etkinleştir",

@@ -13,6 +13,14 @@
  * light-default + dark + accent swaps all work without changes here.
  */
 (function (global) {
+  /**
+   * How many polls in a row a printer must miss before the fleet panel calls it
+   * offline. The poller runs every 30s, so 2 gives a machine up to a minute to
+   * come back — comfortably longer than a CORE One's 20-30s reconnect — before
+   * it turns red. Below this it shows the last known reading as "reconnecting".
+   */
+  const OFFLINE_AFTER_MISSED_POLLS = 2;
+
   function isOn() {
     return typeof document !== 'undefined'
       && document.body.classList.contains('khayt-workbench');
@@ -152,7 +160,17 @@
       else if (st.includes('error')) state = 'error';
       else if (pct > 0) state = 'printing';
     } else if (cache && cache.error) {
-      state = 'error';
+      // Don't call a printer offline on the strength of one missed poll — the
+      // poller now preserves the last telemetry and counts consecutive misses,
+      // so hold the previous reading and say "reconnecting" until it has really
+      // stopped answering. Calling a live machine dead trains the operator to
+      // distrust the panel, which is worse than being 30 seconds stale.
+      if ((cache.consecutiveFailures || 0) < OFFLINE_AFTER_MISSED_POLLS) {
+        state = 'stale';
+        pct = Math.min(100, Math.max(0, Math.round(+cache.progress || 0)));
+      } else {
+        state = 'error';
+      }
     } else if (order) {
       const est = jobProgress(order);
       pct = est != null ? est : 0;
@@ -161,7 +179,7 @@
     const jobName = order ? (order.project || order.id) : tr('dash.idle_dash', '— idle —');
     let cls = 'blue';
     if (state === 'error') cls = 'red';
-    else if (state === 'idle') cls = 'gray';
+    else if (state === 'idle' || state === 'stale') cls = 'gray';
     const c = CHIP[cls];
     const fill = cls === 'gray'
       ? 'background:var(--line)'
@@ -170,9 +188,11 @@
         : '';
     const tail = state === 'idle'
       ? tr('mach.status_idle', 'idle')
-      : state === 'error'
-        ? tr('mach.offline', 'offline')
-        : `${pct}%`;
+      : state === 'stale'
+        ? tr('mach.reconnecting', 'reconnecting')
+        : state === 'error'
+          ? tr('mach.offline', 'offline')
+          : `${pct}%`;
     return `<div class="wb-fm-row">
       <span class="wb-fm-nm">${escapeHtml(machine.name)}</span>
       <span class="wb-fm-job">${escapeHtml(jobName)}</span>
