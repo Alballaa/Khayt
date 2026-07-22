@@ -137,6 +137,18 @@ async function testRtlWorkbench(window) {
       && !!document.querySelector('.wb-dash'),
     { timeout: 15_000 },
   );
+  // The attention bar must mirror with the layout, not stay pinned left.
+  const bar = await window.evaluate(() => {
+    const el = document.querySelector('.wb-dash .dash-attn');
+    if (!el) return { present: false };
+    const cs = getComputedStyle(el);
+    return { present: true, left: cs.borderLeftWidth, right: cs.borderRightWidth };
+  });
+  // Assert presence separately — an absent bar must fail, not pass quietly.
+  if (!bar.present) throw new Error('RTL: attention bar missing from the workbench dashboard');
+  if (bar.right === '0px') {
+    throw new Error(`RTL: attention bar accent edge did not mirror (${JSON.stringify(bar)})`);
+  }
 }
 
 async function seedDemoStore(window) {

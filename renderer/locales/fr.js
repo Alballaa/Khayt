@@ -3551,6 +3551,12 @@
   "integ.import_help": "collez le lien d'importation comme webhook de commande dans votre boutique — les nouvelles commandes arrivent dans Demandes de commande.",
   "integ.feed_help": "ajoutez le lien de flux comme URL d'importation de produits dans votre boutique — il reflète le catalogue de votre vitrine publiée.",
   "integ.cloud_hint": "Connectez la synchronisation cloud (Paramètres → Cloud) pour obtenir les liens d'importation et de flux de ces vitrines.",
-  "integ.pay_link_ph": "votre lien de paiement (facultatif) — utilisez {amount}"
+  "integ.pay_link_ph": "votre lien de paiement (facultatif) — utilisez {amount}",
+  "dash.attn_need_you": "requièrent votre attention",
+  "dash.attn_all_clear": "Tout va bien",
+  "dash.attn_clear_why": "{n} imprimantes opérationnelles · rien en retard",
+  "dash.attn_offline": "{name} ne répond plus",
+  "dash.attn_error": "{name} a signalé une erreur",
+  "dash.attn_overdue": "{name} est en retard"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

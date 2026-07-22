@@ -1974,6 +1974,55 @@ tr.row-overdue td { background: rgba(239,77,94,0.05); }
 /* -----------------------------------------------------------
    Dashboard tab
    ----------------------------------------------------------- */
+
+/* "What needs me now" — the attention bar.
+   Colour is a condition here, never decoration: the bar is tinted only when
+   something is actually wrong, and the quiet state is deliberately grey so a
+   red one carries weight. Logical properties throughout (border-inline-start,
+   not border-left) so the accent edge lands on the correct side in Arabic. */
+.dash-attn {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  border-inline-start: 3px solid var(--text-muted);
+  background: var(--surface-2);
+}
+.dash-attn-n {
+  font-family: var(--font-num, monospace);
+  font-size: 17px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  line-height: 1;
+}
+.dash-attn-lbl { font-size: 14px; font-weight: 620; color: var(--text); }
+.dash-attn-why {
+  font-size: 13px;
+  color: var(--text-muted);
+  min-width: 0;
+  /* Machine and job names are user data and may be Latin inside an Arabic UI —
+     isolate them so a trailing "·" doesn't jump to the wrong end of the line. */
+  unicode-bidi: plaintext;
+}
+
+.dash-attn.is-crit {
+  border-inline-start-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 9%, transparent);
+}
+.dash-attn.is-crit .dash-attn-n { color: var(--danger); }
+
+.dash-attn.is-warn {
+  border-inline-start-color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+}
+.dash-attn.is-warn .dash-attn-n { color: var(--warning); }
+
+.dash-attn.is-clear { border-inline-start-color: var(--success); }
+.dash-attn.is-clear .dash-attn-n { color: var(--success); }
+
 /* Dashboard hero — branding banner at the top */
 .dash-hero {
   display: flex;

@@ -3551,6 +3551,12 @@
   "integ.import_help": "インポートリンクをストアの注文Webhookとして貼り付けてください — 新しい注文が注文リクエストに届きます。",
   "integ.feed_help": "フィードリンクをストアの製品インポートURLとして追加してください — 公開済みのストアフロントカタログをミラーリングします。",
   "integ.cloud_hint": "クラウド同期（設定 → クラウド）を接続すると、これらのストアフロント向けのインポート・フィードリンクを取得できます。",
-  "integ.pay_link_ph": "支払いリンク（任意）— {amount} を使用"
+  "integ.pay_link_ph": "支払いリンク（任意）— {amount} を使用",
+  "dash.attn_need_you": "件の対応が必要です",
+  "dash.attn_all_clear": "問題ありません",
+  "dash.attn_clear_why": "プリンター {n} 台が正常 · 遅延なし",
+  "dash.attn_offline": "{name} が応答しなくなりました",
+  "dash.attn_error": "{name} でエラーが発生しました",
+  "dash.attn_overdue": "{name} が納期を過ぎています"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

@@ -3551,6 +3551,12 @@
   "integ.import_help": "pega el enlace de importación como un webhook de pedidos en tu tienda: los nuevos pedidos llegan a Solicitudes de pedido.",
   "integ.feed_help": "añade el enlace del feed como URL de importación de productos en tu tienda: refleja el catálogo publicado de tu tienda.",
   "integ.cloud_hint": "Conecta la sincronización en la nube (Ajustes → Nube) para obtener enlaces de importación y feed para estas tiendas.",
-  "integ.pay_link_ph": "tu enlace de pago (opcional) — usa {amount}"
+  "integ.pay_link_ph": "tu enlace de pago (opcional) — usa {amount}",
+  "dash.attn_need_you": "requieren tu atención ahora",
+  "dash.attn_all_clear": "Todo en orden",
+  "dash.attn_clear_why": "{n} impresoras funcionando · nada atrasado",
+  "dash.attn_offline": "{name} dejó de responder",
+  "dash.attn_error": "{name} informó un error",
+  "dash.attn_overdue": "{name} está atrasado"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

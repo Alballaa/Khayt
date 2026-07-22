@@ -69,35 +69,6 @@
   gap: 12px;
   margin-bottom: var(--gap);
 }
-.khayt-clients-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--gap);
-  margin-bottom: var(--gap);
-}
-@media (max-width: 1200px) {
-  .khayt-clients-grid { grid-template-columns: repeat(2, 1fr); }
-}
-@media (max-width: 720px) {
-  .khayt-clients-grid { grid-template-columns: 1fr; }
-}
-.khayt-studio .khayt-client-card {
-  padding: var(--pad-card);
-}
-.khayt-studio .khayt-cavatar {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--r-md);
-  display: grid;
-  place-items: center;
-  font-size: 13px;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-.khayt-studio #clientsTableWrap.khayt-clients-legacy-hidden {
-  display: none !important;
-}
-
 /* Inventory stats row */
 .khayt-inv-stats {
   display: grid;
@@ -141,7 +112,6 @@
 .khayt-studio #invValuationSummary { display: none !important; }
 .khayt-studio .khayt-icon-btn { padding: 6px 8px; }
 .khayt-search > span[aria-hidden] { display: inline-flex; align-items: center; }
-.khayt-client-card-actions .btn { font-size: 11px; }
 .khayt-queue-toolbar-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 @media (max-width: 900px) {
   .khayt-queue .khayt-queue-toolbar { flex-direction: column; align-items: stretch; }

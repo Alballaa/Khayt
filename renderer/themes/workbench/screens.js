@@ -1,7 +1,7 @@
 /**
  * Workbench theme — custom screen renderers wired to REAL app data.
  *
- * Mirrors the studio-cards hook pattern (window.KhaytStudio.renderClientsStudioCards):
+ * Mirrors the theme screen-hook pattern (window.KhaytWorkbench.renderDashboard):
  * the shared `render*` functions delegate here when the Workbench theme is active,
  * and this module emits the `design/proto-a-workbench.html` markup populated from
  * the same globals the legacy dashboard reads (printLog, machines,
@@ -93,18 +93,6 @@
   }
 
   /* ---------- KPI stat tile ---------- */
-  function statTile(label, value, delta, deltaCls, iconPath, tokenColor) {
-    const deltaHtml = delta
-      ? `<div class="wb-stat-d ${deltaCls}">${escapeHtml(delta)}</div>`
-      : '<div class="wb-stat-d mut"></div>';
-    return `<div class="wb-stat">
-      <div class="wb-stat-badge" style="background:color-mix(in srgb, ${tokenColor} 12%, transparent);color:${tokenColor}">${svg(iconPath, 16)}</div>
-      <div class="wb-stat-k">${escapeHtml(label)}</div>
-      <div class="wb-stat-v">${escapeHtml(value)}</div>
-      ${deltaHtml}
-    </div>`;
-  }
-
   /* ---------- "Today's work" list row ---------- */
   function jobRow(order) {
     const title = order.project || tr('inv.walk_in', 'Walk-in');
@@ -226,77 +214,25 @@
     const mach = (typeof machines !== 'undefined' && Array.isArray(machines)) ? machines : [];
     const inv = (typeof inventory !== 'undefined' && Array.isArray(inventory)) ? inventory : [];
     const cfg = (typeof settings !== 'undefined') ? settings : {};
-    // Mode separation: enthusiast = no commerce (revenue/receivables/quotes/clients);
-    // the revenue delta is Pro depth. Personal stats fill vacated slots.
+    // Mode separation: enthusiast = no commerce (revenue/receivables/quotes/clients).
     const biz = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.showsBusiness(cfg.mode) : cfg.mode !== 'enthusiast';
-    const pro = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.isProMode(cfg.mode) : (cfg.mode || 'professional') === 'professional';
 
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const todayStr = (typeof localDateStr === 'function') ? localDateStr(today) : today.toISOString().slice(0, 10);
-
-    /* ---- KPI figures (real) ---- */
-    const todayDone = log.filter((o) => o.status === 'completed' && o.date === todayStr);
-    const todayRev = todayDone.reduce((s, o) => s + orderRevenueBase(o), 0);
-    const printHoursToday = todayDone.reduce((s, o) => s + (+o.printTime || 0), 0);
-    // Yesterday revenue for the delta chip.
-    const yest = new Date(today); yest.setDate(yest.getDate() - 1);
-    const yestStr = (typeof localDateStr === 'function') ? localDateStr(yest) : yest.toISOString().slice(0, 10);
-    const yestRev = log
-      .filter((o) => o.status === 'completed' && o.date === yestStr)
-      .reduce((s, o) => s + orderRevenueBase(o), 0);
-    const revDeltaPct = yestRev > 0 ? Math.round((todayRev - yestRev) / yestRev * 100) : null;
-    const revDelta = revDeltaPct != null
-      ? `${revDeltaPct >= 0 ? '▲' : '▼'} ${Math.abs(revDeltaPct)}% ${tr('dash.vs_yest', 'vs yest')}`
-      : '';
-    const revDeltaCls = revDeltaPct == null ? 'mut' : revDeltaPct >= 0 ? 'up' : 'dn';
-
+    /* ---- Working figures ---- */
+    // The KPI wall that stood here is gone. Four tiles reading "Revenue today",
+    // "Active prints", "Filament today" and "Open orders" shouted at the same
+    // volume as everything else and answered questions nobody had walked up to
+    // the screen to ask — while "Fleet · live" sat below the fold.
+    //
+    // Where each number went, so this is a move and not a deletion:
+    //   Revenue today   → Analytics (revenue + aged receivables live there)
+    //   Filament today  → Analytics (filament performance / material usage)
+    //   Active prints   → the Fleet panel's live count, next to the machines
+    //   Open orders     → the status bar footer
+    //   Overdue         → promoted into the attention bar, which is the point:
+    //                     it is the only one of these you must act on, and it
+    //                     was the only one Analytics had no home for.
     const nowPrinting = log.filter((o) => o.status === 'printing');
-    // "finishing < 1h" — printing orders whose time-based estimate exceeds 90%.
-    const finishingSoon = nowPrinting.filter((o) => {
-      const p = jobProgress(o);
-      return p != null && p >= 90;
-    }).length;
-    const activeSub = finishingSoon > 0
-      ? tr('dash.wb_finishing', `${finishingSoon} finishing < 1h`).replace('{n}', finishingSoon)
-      : '';
-
-    // Filament used today (g) — usageHistory aggregation, same as legacy dashboard.
-    const gToday = inv.reduce((s, item) => s
-      + (item.usageHistory || [])
-        .filter((h) => h.date === todayStr)
-        .reduce((a, h) => a + (+h.weightUsed || 0), 0), 0);
-    const kgToday = (gToday / 1000);
-    const filamentVal = kgToday >= 1 ? `${kgToday.toFixed(1)} kg` : `${Math.round(gToday)} g`;
-    // Remaining stock across low/active spools (informational sub).
-    const totalRemainingG = inv.reduce((s, item) => s + (+item.weight || 0), 0);
-    const filamentSub = totalRemainingG > 0
-      ? tr('dash.wb_remaining', `${(totalRemainingG / 1000).toFixed(1)} kg in stock`).replace('{n}', (totalRemainingG / 1000).toFixed(1))
-      : '';
-
     const openOrders = log.filter((o) => o.status !== 'completed' && o.status !== 'quote');
-    const dueToday = openOrders.filter((o) => o.dueDate === todayStr).length;
-    const dueSub = dueToday > 0
-      ? tr('dash.wb_due_today', `${dueToday} due today`).replace('{n}', dueToday)
-      : '';
-
-    // Outstanding receivables — base owed across all non-fully-paid, non-void orders (business only).
-    const outstanding = biz ? log
-      .filter((o) => payStatus(o) !== 'paid' && payStatus(o) !== 'voided')
-      .reduce((s, o) => s + orderOwedBase(o), 0) : 0;
-    const outstandingCount = biz ? log.filter((o) => payStatus(o) !== 'paid' && payStatus(o) !== 'voided' && orderOwedBase(o) > 0).length : 0;
-    const outstandingSub = outstandingCount > 0
-      ? tr('dash.wb_invoices', `${outstandingCount} invoices`).replace('{n}', outstandingCount)
-      : '';
-
-    const revenueTile = biz
-      ? statTile(tr('dash.wb_revenue_today', 'Revenue today'), `${fmtMoneyVal(todayRev)} ${ccy()}`, pro ? revDelta : '', pro ? revDeltaCls : 'mut', ICON.money, 'var(--wb-green)')
-      : statTile(tr('dash.pstat_print_hours', 'Print hours today'), `${printHoursToday.toFixed(1)}h`, '', 'mut', ICON.printer, 'var(--wb-green)');
-    const stats = [
-      revenueTile,
-      statTile(tr('dash.wb_active_prints', 'Active prints'), String(nowPrinting.length), activeSub, 'mut', ICON.printer, 'var(--wb-blue)'),
-      statTile(tr('dash.wb_filament_today', 'Filament today'), filamentVal, filamentSub, 'mut', ICON.inv, 'var(--wb-amber)'),
-      statTile(biz ? tr('dash.wb_open_orders', 'Open orders') : tr('dash.pstat_open_jobs', 'Open jobs'), String(openOrders.length), dueSub, dueToday > 0 ? 'dn' : 'mut', ICON.queue, 'var(--wb-purple)'),
-    ].join('');
 
     /* ---- Today's work (real active orders) ---- */
     const ACTIVE_ORDER = ['printing', 'pending', 'post', 'qc', 'on_hold'];
@@ -326,20 +262,39 @@
     }).join('');
     const liveCount = nowPrinting.length;
 
+    /* ---- What needs me now ---- */
+    // One selector feeds both the bar and the panel below it. They used to be
+    // derived separately and showed two different counts a few inches apart —
+    // the bar saying 3 while the panel said 2, under near-identical wording.
+    const attn = (typeof KhaytAttention !== 'undefined')
+      ? KhaytAttention.selectAttention({
+        machines: mach,
+        orders: log,
+        statusCache: (typeof machineStatusCache !== 'undefined' ? machineStatusCache : {}),
+        now: Date.now(),
+      })
+      : { count: 0, items: [] };
+
     /* ---- Needs attention (real signals) ---- */
-    const attention = [];
-    // Printer errors / offline.
-    mach.forEach((m) => {
-      const cache = (typeof machineStatusCache !== 'undefined') ? machineStatusCache[m.id] : null;
-      const hasErr = m.isOffline || (cache && cache.error);
-      if (hasErr) {
-        attention.push({
+    // The panel is the bar's drill-down: the same urgent items in the same
+    // order, then the softer signals the bar deliberately stays quiet about.
+    // Only the bar carries a number, so there is nothing left to disagree.
+    const attention = attn.items.map((a) => {
+      if (a.kind === 'machine') {
+        const cache = (typeof machineStatusCache !== 'undefined') ? machineStatusCache[a.id] : null;
+        return {
           icon: ICON.warn, fg: 'var(--wb-red)', bg: 'var(--wb-red-bg)',
-          title: tr('dash.wb_printer_issue', `${m.name} — needs attention`).replace('{name}', m.name),
+          title: tr('dash.wb_printer_issue', `${a.name} — needs attention`).replace('{name}', a.name),
           sub: cache && cache.error ? String(cache.error) : tr('mach.offline', 'Offline'),
           chip: 'red', chipLabel: tr('dash.wb_error', 'Error'),
-        });
+        };
       }
+      return {
+        icon: ICON.queue, fg: 'var(--wb-amber)', bg: 'var(--wb-amber-bg)',
+        title: a.name || tr('inv.walk_in', 'Walk-in'),
+        sub: tr('oe.due_overdue', 'Overdue by {n}d').replace('{n}', a.daysLate),
+        chip: 'amber', chipLabel: tr('dash.wb_due', 'Due'),
+      };
     });
     // Low stock (via isLowStock).
     if (typeof isLowStock === 'function') {
@@ -387,31 +342,44 @@
         });
     }
     const attnTrimmed = attention.slice(0, 6);
+    // Say what the cap hid. Urgent items lead this list now, so a shop with
+    // seven offline printers would otherwise see a bar counting 7 above a panel
+    // showing 6 — the same two-numbers-disagreeing problem in a new place.
+    const attnHidden = attention.length - attnTrimmed.length;
+    const attnMore = attnHidden > 0
+      ? `<li class="wb-empty">${escapeHtml(tr('cl.show_more', 'Show {n} more').replace('{n}', attnHidden))}</li>`
+      : '';
     const attnBody = attnTrimmed.length
-      ? attnTrimmed.map(attnRow).join('')
+      ? attnTrimmed.map(attnRow).join('') + attnMore
       : `<li class="wb-empty">${escapeHtml(tr('dash.all_clear', 'All clear'))}</li>`;
+
+    // The bar itself is shared with the legacy dashboard, so the interruption
+    // line reads identically across themes even where the layout around it isn't.
+    const attnBar = (typeof KhaytDashboard !== 'undefined')
+      ? KhaytDashboard.buildAttentionBar(attn, mach.length)
+      : '';
 
     /* ---- Compose ---- */
     host.innerHTML = `<div class="wb-dash">
-      <div class="wb-stats">${stats}</div>
+      ${attnBar}
 
       <div class="wb-grid2">
         <div class="wb-col">
-          <div class="wb-panel">
-            <div class="wb-panel-h"><h3>${escapeHtml(tr('dash.wb_todays_work', "Today's work"))}</h3><span class="wb-meta">${escapeHtml(workMeta)}</span></div>
-            <ul class="wb-glist">${workBody}</ul>
-          </div>
-
           <div class="wb-section-title">${escapeHtml(tr('dash.wb_fleet_glance', 'Fleet · live'))}</div>
           <div class="wb-panel">
             <div class="wb-panel-h"><h3>${escapeHtml(tr('dash.wb_fleet', 'Fleet'))}</h3>${liveCount ? `<span class="wb-meta wb-live">${liveCount} ${escapeHtml(tr('dash.live', 'live'))}</span>` : ''}</div>
             <div class="wb-fleet-mini">${fleetRows || `<div class="wb-empty">${escapeHtml(tr('dash.no_machines', 'No printers yet'))}</div>`}</div>
           </div>
+
+          <div class="wb-panel">
+            <div class="wb-panel-h"><h3>${escapeHtml(tr('dash.wb_todays_work', "Today's work"))}</h3><span class="wb-meta">${escapeHtml(workMeta)}</span></div>
+            <ul class="wb-glist">${workBody}</ul>
+          </div>
         </div>
 
         <div class="wb-col">
           <div class="wb-panel">
-            <div class="wb-panel-h"><h3>${escapeHtml(tr('dash.needs_attention', 'Needs attention'))}</h3><span class="wb-meta">${attnTrimmed.length || ''}</span></div>
+            <div class="wb-panel-h"><h3>${escapeHtml(tr('dash.needs_attention', 'Needs attention'))}</h3></div>
             <ul class="wb-glist">${attnBody}</ul>
           </div>
 

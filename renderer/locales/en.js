@@ -3554,6 +3554,12 @@
   "integ.import_help": "paste the import link as an order webhook in your store — new orders arrive in Order requests.",
   "integ.feed_help": "add the feed link as a product import URL in your store — it mirrors your published storefront catalog.",
   "integ.cloud_hint": "Connect cloud sync (Settings → Cloud) to get import & feed links for these storefronts.",
-  "integ.pay_link_ph": "your payment link (optional) — use {amount}"
+  "integ.pay_link_ph": "your payment link (optional) — use {amount}",
+  "dash.attn_need_you": "need you now",
+  "dash.attn_all_clear": "All clear",
+  "dash.attn_clear_why": "{n} printers healthy · nothing overdue",
+  "dash.attn_offline": "{name} stopped answering",
+  "dash.attn_error": "{name} reported an error",
+  "dash.attn_overdue": "{name} is overdue"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
