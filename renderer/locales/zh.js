@@ -3555,6 +3555,22 @@
   "dash.attn_clear_why": "{n} 台打印机运行正常 · 无逾期",
   "dash.attn_offline": "{name} 已停止响应",
   "dash.attn_error": "{name} 报告了错误",
-  "dash.attn_overdue": "{name} 已逾期"
+  "dash.attn_overdue": "{name} 已逾期",
+  "queue.grp_attention": "需要处理",
+  "queue.grp_running": "进行中",
+  "queue.grp_finishing": "后处理与质检",
+  "queue.grp_queued": "排队中",
+  "queue.grp_done": "今日完成",
+  "queue.blocked_machine": "{name} 已停止",
+  "queue.unassigned": "未分配",
+  "queue.due": "截止 {d}",
+  "queue.total": "队列合计",
+  "queue.next_free": "下一台空闲打印机 {t}",
+  "queue.machine_free_now": "当前有打印机空闲",
+  "queue.view_kanban": "看板视图",
+  "queue.view_list": "列表视图",
+  "queue.view_kanban_hint": "切换到看板",
+  "queue.view_list_hint": "切换到分组列表",
+  "common.hours_short": "小时"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

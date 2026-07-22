@@ -3555,6 +3555,22 @@
   "dash.attn_clear_why": "{n} impresoras funcionando · nada atrasado",
   "dash.attn_offline": "{name} dejó de responder",
   "dash.attn_error": "{name} informó un error",
-  "dash.attn_overdue": "{name} está atrasado"
+  "dash.attn_overdue": "{name} está atrasado",
+  "queue.grp_attention": "Requiere atención",
+  "queue.grp_running": "En marcha",
+  "queue.grp_finishing": "Postproceso y control",
+  "queue.grp_queued": "En cola",
+  "queue.grp_done": "Terminado hoy",
+  "queue.blocked_machine": "{name} se detuvo",
+  "queue.unassigned": "sin asignar",
+  "queue.due": "vence {d}",
+  "queue.total": "Total de la cola",
+  "queue.next_free": "Próxima impresora libre {t}",
+  "queue.machine_free_now": "Hay una impresora libre ahora",
+  "queue.view_kanban": "Vista de tablero",
+  "queue.view_list": "Vista de lista",
+  "queue.view_kanban_hint": "Cambiar al tablero kanban",
+  "queue.view_list_hint": "Cambiar a la lista agrupada",
+  "common.hours_short": "h"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

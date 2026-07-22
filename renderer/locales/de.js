@@ -3555,6 +3555,22 @@
   "dash.attn_clear_why": "{n} Drucker in Ordnung · nichts überfällig",
   "dash.attn_offline": "{name} antwortet nicht mehr",
   "dash.attn_error": "{name} meldet einen Fehler",
-  "dash.attn_overdue": "{name} ist überfällig"
+  "dash.attn_overdue": "{name} ist überfällig",
+  "queue.grp_attention": "Erfordert Aufmerksamkeit",
+  "queue.grp_running": "Läuft",
+  "queue.grp_finishing": "Nachbearbeitung & QS",
+  "queue.grp_queued": "In Warteschlange",
+  "queue.grp_done": "Heute fertig",
+  "queue.blocked_machine": "{name} gestoppt",
+  "queue.unassigned": "nicht zugewiesen",
+  "queue.due": "fällig {d}",
+  "queue.total": "Warteschlange gesamt",
+  "queue.next_free": "Nächster Drucker frei {t}",
+  "queue.machine_free_now": "Ein Drucker ist jetzt frei",
+  "queue.view_kanban": "Board-Ansicht",
+  "queue.view_list": "Listenansicht",
+  "queue.view_kanban_hint": "Zum Kanban-Board wechseln",
+  "queue.view_list_hint": "Zur gruppierten Liste wechseln",
+  "common.hours_short": "Std"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

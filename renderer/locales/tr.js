@@ -3555,6 +3555,22 @@
   "dash.attn_clear_why": "{n} yazıcı çalışıyor · geciken iş yok",
   "dash.attn_offline": "{name} yanıt vermiyor",
   "dash.attn_error": "{name} bir hata bildirdi",
-  "dash.attn_overdue": "{name} gecikti"
+  "dash.attn_overdue": "{name} gecikti",
+  "queue.grp_attention": "İlgi bekliyor",
+  "queue.grp_running": "Çalışıyor",
+  "queue.grp_finishing": "Son işlem ve kontrol",
+  "queue.grp_queued": "Sırada",
+  "queue.grp_done": "Bugün tamamlandı",
+  "queue.blocked_machine": "{name} durdu",
+  "queue.unassigned": "atanmamış",
+  "queue.due": "teslim {d}",
+  "queue.total": "Sıra toplamı",
+  "queue.next_free": "Boşalacak ilk yazıcı {t}",
+  "queue.machine_free_now": "Şu anda boş bir yazıcı var",
+  "queue.view_kanban": "Pano görünümü",
+  "queue.view_list": "Liste görünümü",
+  "queue.view_kanban_hint": "Kanban panosuna geç",
+  "queue.view_list_hint": "Gruplanmış listeye geç",
+  "common.hours_short": "sa"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

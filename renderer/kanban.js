@@ -356,6 +356,10 @@ function renderKanban() {
     try { applyAutoSchedule(); } finally { _autoSchedRunning = false; }
   }
   window.KhaytBedReadyUI?.syncQueueMachinePicker?.();
+  // The grouped list is the default board; it renders inside .kanban so the
+  // existing delegated actions reach it. Columns stay in the DOM, hidden by CSS.
+  window.KhaytQueueList?.renderQueueList?.();
+  window.KhaytQueueList?.syncQueueViewToggle?.();
   renderWaitingList();
   updateWaitingBadge();
   renderLocationScopeBanner?.();

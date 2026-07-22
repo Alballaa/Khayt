@@ -577,6 +577,7 @@
       <div class="khayt-queue-toolbar row between wrap gap12" style="margin-bottom:16px;">
         <h3 class="card-head sec-title" style="margin:0; flex:1; min-width:120px;"><span class="swatch"></span><span data-i18n="queue.title">Active Production Queue</span></h3>
         <div class="khayt-queue-toolbar-actions">
+          <button type="button" id="btnQueueView" class="btn btn-sm btn-secondary" aria-pressed="false">Board view</button>
           <button id="btnStartShift" class="btn btn-sm btn-secondary" data-i18n="startShift">▶ Start Shift</button>
           <button id="btnEndOfDay" class="btn btn-sm btn-secondary" data-i18n="endOfDayReport">📋 End of Day</button>
           <input type="search" id="kanSearch" class="toolbar-search" data-i18n-placeholder="kan.search_ph" placeholder="Filter by client, project…" style="max-width:200px;">
@@ -2386,6 +2387,7 @@
 <script src="app-state.js"></script>
 <script src="app-security.js"></script>
 <script src="search-utils.js"></script>
+<script src="../lib/queue-groups.js"></script>
 <script src="../lib/attention.js"></script>
 <script src="../lib/quote-followup.js"></script>
 <script src="../lib/payment-reminder.js"></script>
@@ -2464,6 +2466,7 @@
 <script src="notifications.js"></script>
 <script src="waiting-list.js"></script>
 <script src="kanban.js"></script>
+<script src="queue-list.js"></script>
 <script src="invoicing.js"></script>
 <script src="app-exports.js"></script>
 <script src="logs.js"></script>

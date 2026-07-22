@@ -853,6 +853,9 @@ function wireEvents() {
   });
 
   // Kanban — production columns
+  $('#btnQueueView')?.addEventListener('click', () => {
+    window.KhaytQueueList?.setQueueView?.(window.KhaytQueueList.isListView() ? 'kanban' : 'list');
+  });
   document.querySelector('.kanban')?.addEventListener('click', (e) => {
     const kanbanTimeline = e.target.closest('[data-act="order-timeline"]');
     if (kanbanTimeline) { openOrderTimeline(kanbanTimeline.dataset.id); return; }
