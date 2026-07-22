@@ -341,14 +341,6 @@ function buildStudioDashboardPanels(ctx) {
 function renderDashboard() {
   const el = $('#dashboardContent');
   if (!el) return;
-  if (document.body.classList.contains('khayt-cockpit') && typeof KhaytCockpitOverview?.render === 'function') {
-    KhaytCockpitOverview.render();
-    return;
-  }
-  if (document.body.classList.contains('khayt-atlas') && typeof KhaytAtlasFloor?.render === 'function') {
-    KhaytAtlasFloor.render();
-    return;
-  }
   if (document.body.classList.contains('khayt-workbench')
     && typeof KhaytWorkbench?.renderDashboard === 'function'
     && KhaytWorkbench.renderDashboard(el)) {

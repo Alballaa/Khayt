@@ -45,8 +45,7 @@ body.khayt-studio .khayt-app {
   color: var(--text);
 }
 
-body.khayt-studio .khayt-body,
-body.khayt-ledger .khayt-body {
+body.khayt-studio .khayt-body {
   flex: 1;
   display: flex;
   min-height: 0;

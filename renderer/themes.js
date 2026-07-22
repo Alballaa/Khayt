@@ -36,13 +36,7 @@
     // Bed Ready is its own product — never stamp the Khayt (خيط) wordmark here.
     if (document.documentElement.dataset.app === 'bedready') { sub.textContent = 'MAKER STUDIO'; return; }
     const theme = reg()?.getTheme(designId);
-    if (theme?.shell === 'ledger') sub.textContent = 'خيط · LEDGER';
-    else if (theme?.shell === 'console') sub.textContent = 'خيط · CONTROL ROOM';
-    else if (theme?.shell === 'atelier') sub.textContent = 'خيط · ATELIER';
-    else if (theme?.shell === 'vitrine') sub.textContent = 'خيط · VITRINE';
-    else if (theme?.shell === 'cockpit') sub.textContent = 'خيط · COCKPIT';
-    else if (theme?.shell === 'atlas') sub.textContent = 'خيط · ATLAS';
-    else if (theme?.shell === 'workbench') sub.textContent = 'خيط · WORKBENCH';
+    if (theme?.shell === 'workbench') sub.textContent = 'خيط · WORKBENCH';
     else if (theme?.shell === 'command') sub.textContent = 'خيط · COMMAND';
     else if (theme?.shell === 'vivid') sub.textContent = 'خيط · VIVID';
     else if (theme?.custom) sub.textContent = `خيط · ${(theme.label || designId).toUpperCase()}`;
@@ -71,12 +65,6 @@
     const theme = reg()?.getTheme(designId);
     const shell = theme?.shell || 'studio';
     document.body.classList.toggle('khayt-studio', shell === 'studio');
-    document.body.classList.toggle('khayt-ledger', shell === 'ledger');
-    document.body.classList.toggle('khayt-console', shell === 'console');
-    document.body.classList.toggle('khayt-atelier', shell === 'atelier');
-    document.body.classList.toggle('khayt-vitrine', shell === 'vitrine');
-    document.body.classList.toggle('khayt-cockpit', shell === 'cockpit');
-    document.body.classList.toggle('khayt-atlas', shell === 'atlas');
     document.body.classList.toggle('khayt-workbench', shell === 'workbench');
     document.body.classList.toggle('khayt-command', shell === 'command');
     document.body.classList.toggle('khayt-vivid', shell === 'vivid');
@@ -87,7 +75,7 @@
       el.classList.remove(el.dataset.khaytBodyClass);
       delete el.dataset.khaytBodyClass;
     });
-    if (theme?.bodyClass && !['khayt-studio', 'khayt-ledger', 'khayt-console', 'khayt-atelier', 'khayt-vitrine', 'khayt-cockpit', 'khayt-atlas', 'khayt-workbench', 'khayt-command', 'khayt-vivid'].includes(theme.bodyClass)) {
+    if (theme?.bodyClass && !['khayt-studio', 'khayt-workbench', 'khayt-command', 'khayt-vivid'].includes(theme.bodyClass)) {
       document.body.classList.add(theme.bodyClass);
       document.body.dataset.khaytBodyClass = theme.bodyClass;
     }
@@ -97,18 +85,12 @@
     const id = reg()?.normalizeDesignId(designId) || 'studio';
     const theme = reg()?.getTheme(id);
     const root = document.documentElement;
-    const wasLedger = document.body.classList.contains('khayt-ledger');
-    const wasConsole = document.body.classList.contains('khayt-console');
-    const wasAtelier = document.body.classList.contains('khayt-atelier');
-    const wasVitrine = document.body.classList.contains('khayt-vitrine');
-    const wasCockpit = document.body.classList.contains('khayt-cockpit');
-    const wasAtlas = document.body.classList.contains('khayt-atlas');
     const wasWorkbench = document.body.classList.contains('khayt-workbench');
     const wasCommand = document.body.classList.contains('khayt-command');
     const wasVivid = document.body.classList.contains('khayt-vivid');
     const nextShell = theme?.shell || 'studio';
 
-    if (['ledger', 'console', 'atelier', 'vitrine', 'cockpit', 'atlas', 'workbench', 'command', 'vivid'].includes(nextShell)) {
+    if (['workbench', 'command', 'vivid'].includes(nextShell)) {
       document.getElementById('appSidebar')?.classList.remove('collapsed');
     }
 
@@ -121,21 +103,9 @@
       if (settings.accent !== accent) settings.accent = accent;
       applyAccent(accent, reg()?.accentsForTheme(id));
     }
-    if (wasLedger) global.KhaytLedgerShell?.teardownLedgerShell?.();
-    if (wasConsole) global.KhaytConsoleShell?.teardownConsoleShell?.();
-    if (wasAtelier) global.KhaytAtelierShell?.teardownAtelierShell?.();
-    if (wasVitrine) global.KhaytVitrineShell?.teardownVitrineShell?.();
-    if (wasCockpit) global.KhaytCockpitShell?.teardownCockpitShell?.();
-    if (wasAtlas) global.KhaytAtlasShell?.teardownAtlasShell?.();
     if (wasWorkbench) global.KhaytWorkbenchShell?.teardownWorkbenchShell?.();
     if (wasCommand) global.KhaytCommandShell?.teardownCommandShell?.();
     if (wasVivid) global.KhaytVividShell?.teardownVividShell?.();
-    if (nextShell === 'ledger') global.KhaytLedgerShell?.applyLedgerShell?.();
-    if (nextShell === 'console') global.KhaytConsoleShell?.applyConsoleShell?.();
-    if (nextShell === 'atelier') global.KhaytAtelierShell?.applyAtelierShell?.();
-    if (nextShell === 'vitrine') global.KhaytVitrineShell?.applyVitrineShell?.();
-    if (nextShell === 'cockpit') global.KhaytCockpitShell?.applyCockpitShell?.();
-    if (nextShell === 'atlas') global.KhaytAtlasShell?.applyAtlasShell?.();
     if (nextShell === 'workbench') global.KhaytWorkbenchShell?.applyWorkbenchShell?.();
     if (nextShell === 'command') global.KhaytCommandShell?.applyCommandShell?.();
     if (nextShell === 'vivid') global.KhaytVividShell?.applyVividShell?.();
@@ -145,7 +115,7 @@
       if (typeof renderKanban === 'function') renderKanban();
       if (typeof renderClients === 'function') renderClients();
       if (typeof renderInventory === 'function') renderInventory();
-    } else if (nextShell === 'cockpit' || nextShell === 'atlas' || nextShell === 'workbench' || nextShell === 'command' || nextShell === 'vivid') {
+    } else if (nextShell === 'workbench' || nextShell === 'command' || nextShell === 'vivid') {
       if (typeof renderDashboard === 'function') renderDashboard();
     }
   }
@@ -157,9 +127,6 @@
     // data-app marker, so Khayt is unaffected.
     if (typeof settings !== 'undefined' && document.documentElement.dataset.app === 'bedready') {
       settings.designTheme = 'studio';
-    }
-    if (typeof settings !== 'undefined' && settings.designTheme === 'classic') {
-      settings.designTheme = 'ledger';
     }
     const design = reg()?.normalizeDesignId(settings?.designTheme || 'studio') || 'studio';
     const accent = reg()?.normalizeAccent(design, settings?.accent) || 'cyan';
@@ -173,8 +140,6 @@
     const designEl = document.getElementById('set_designTheme');
     const accentEl = document.getElementById('set_accent');
     const accentWrap = document.getElementById('set_accent_wrap');
-    const cockpitSkinWrap = document.getElementById('set_cockpit_skin_wrap');
-    const cockpitSkinEl = document.getElementById('set_cockpitSkin');
     const comingSoonEl = document.getElementById('set_designTheme_coming_soon');
     const design = reg()?.normalizeDesignId(settings?.designTheme || 'studio') || 'studio';
     if (designEl) designEl.value = design;
@@ -185,11 +150,6 @@
     const accent = reg()?.normalizeAccent(design, settings?.accent);
     if (accentEl) accentEl.value = accent;
     if (accentWrap) accentWrap.style.display = '';
-    if (cockpitSkinWrap) cockpitSkinWrap.style.display = design === 'cockpit' ? '' : 'none';
-    if (cockpitSkinEl) {
-      const skin = settings?.cockpitSkin || 'poster';
-      cockpitSkinEl.value = global.KhaytCockpitShell?.COCKPIT_SKINS?.includes(skin) ? skin : 'poster';
-    }
     if (comingSoonEl && reg()?.listComingSoonThemes) {
       const soon = reg().listComingSoonThemes();
       comingSoonEl.textContent = soon.length
@@ -226,12 +186,6 @@
     DESIGNS: reg()?.BUILTIN_THEMES,
     ACCENTS: reg()?.STUDIO_ACCENTS,
     STUDIO_ACCENTS: reg()?.STUDIO_ACCENTS,
-    LEDGER_ACCENTS: reg()?.LEDGER_ACCENTS,
-    CONSOLE_ACCENTS: reg()?.CONSOLE_ACCENTS,
-    ATELIER_ACCENTS: reg()?.ATELIER_ACCENTS,
-    VITRINE_ACCENTS: reg()?.VITRINE_ACCENTS,
-    COCKPIT_ACCENTS: reg()?.COCKPIT_ACCENTS,
-    ATLAS_ACCENTS: reg()?.ATLAS_ACCENTS,
   };
 
   Object.assign(global, api);

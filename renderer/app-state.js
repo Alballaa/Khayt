@@ -55,6 +55,12 @@ function migrateLanApiSettings() {
 /**
  * One-time migration to the 2.6 theme consolidation (7 legacy designs → 3).
  * Maps a saved legacy designTheme to the nearest new theme, once.
+ *
+ * The six deletable legacy designs are gone from the registry as of 3.3, so
+ * normalizeDesignId() would fall a stale setting back to 'workbench' anyway —
+ * but that would land a former cockpit/atlas user on the wrong shell. This map
+ * keeps the intended destination, so it stays until the flag is universal.
+ * `studio` is still mapped: Bed Ready pins to it directly and never reaches here.
  */
 function migrateLegacyDesignTheme() {
   if (!settings || settings.__designV26Migrated) return;

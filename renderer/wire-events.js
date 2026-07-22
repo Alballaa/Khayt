@@ -1486,13 +1486,6 @@ function wireEvents() {
     saveAll();
     toast(t('set.saved'), 'success', 2000);
   });
-  $('#set_cockpitSkin')?.addEventListener('change', (e) => {
-    settings.cockpitSkin = e.target.value || 'poster';
-    global.KhaytCockpitShell?.syncCockpitSkin?.();
-    if (typeof syncDesignSettingsUi === 'function') syncDesignSettingsUi();
-    saveAll();
-    toast(t('set.saved'), 'success', 2000);
-  });
   $('#set_lang')?.addEventListener('change', (e) => {
     settings.lang = e.target.value;
     i18n.set(settings.lang);

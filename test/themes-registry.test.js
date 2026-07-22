@@ -3,20 +3,34 @@ const assert = require('node:assert/strict');
 
 const reg = require('../renderer/themes/registry-core.js');
 
-test('normalizeDesignId maps classic to ledger', () => {
-  assert.equal(reg.normalizeDesignId('classic'), 'ledger');
-  assert.equal(reg.normalizeDesignId('studio'), 'studio');
+test('normalizeDesignId falls stale ids back to the default', () => {
+  // 'classic' and the six deleted legacy designs all resolve to workbench now.
+  assert.equal(reg.normalizeDesignId('classic'), 'workbench');
   assert.equal(reg.normalizeDesignId('unknown'), 'workbench');
+  for (const gone of ['ledger', 'console', 'atelier', 'vitrine', 'cockpit', 'atlas']) {
+    assert.equal(reg.normalizeDesignId(gone), 'workbench', `${gone} was deleted`);
+  }
+  // studio survives in the registry for Bed Ready, which pins to it directly.
+  assert.equal(reg.normalizeDesignId('studio'), 'studio');
 });
 
-test('selectable themes are the three 2.6 designs; the seven legacy designs are hidden', () => {
+test('selectable themes are exactly the three 2.6 designs', () => {
   const selectable = reg.listSelectableThemes();
-  assert.ok(selectable.includes('workbench'));
-  assert.ok(selectable.includes('command'));
-  assert.ok(selectable.includes('vivid'));
-  for (const legacy of ['studio', 'ledger', 'console', 'atelier', 'vitrine', 'cockpit', 'atlas']) {
-    assert.ok(!selectable.includes(legacy), `${legacy} should be hidden (legacy)`);
+  assert.deepEqual(selectable.filter((id) => !id.startsWith('custom:')).sort(),
+    ['command', 'vivid', 'workbench']);
+});
+
+test('the six deleted legacy designs are gone from the registry', () => {
+  for (const gone of ['ledger', 'console', 'atelier', 'vitrine', 'cockpit', 'atlas']) {
+    assert.equal(reg.BUILTIN_THEMES[gone], undefined, `${gone} should be deleted`);
+    assert.equal(reg.registry[gone], undefined, `${gone} should be deleted`);
   }
+});
+
+test('studio is retained but unselectable — Bed Ready pins to it', () => {
+  assert.ok(reg.BUILTIN_THEMES.studio, 'studio must survive for Bed Ready');
+  assert.equal(reg.BUILTIN_THEMES.studio.legacy, true);
+  assert.ok(!reg.listSelectableThemes().includes('studio'));
 });
 
 test('coming soon lists Frontier Pulse and Stream only', () => {
@@ -28,52 +42,25 @@ test('coming soon lists Frontier Pulse and Stream only', () => {
   assert.ok(soon.includes('stream'));
 });
 
-test('usesHandoffScreens covers studio through vitrine shells', () => {
+test('usesHandoffScreens is now studio-only', () => {
+  // The other four handoff shells went with the legacy deletion; studio is the
+  // last one, and only Bed Ready reaches it.
   assert.equal(reg.usesHandoffScreens('studio'), true);
-  assert.equal(reg.usesHandoffScreens('ledger'), true);
-  assert.equal(reg.usesHandoffScreens('console'), true);
-  assert.equal(reg.usesHandoffScreens('atelier'), true);
-  assert.equal(reg.usesHandoffScreens('vitrine'), true);
-  assert.equal(reg.usesHandoffScreens('cockpit'), false);
+  for (const shell of ['ledger', 'console', 'atelier', 'vitrine', 'cockpit', 'atlas', 'workbench']) {
+    assert.equal(reg.usesHandoffScreens(shell), false, `${shell} is not a handoff shell`);
+  }
 });
 
-test('atelier and vitrine accent presets', () => {
-  assert.equal(reg.defaultAccentForTheme('atelier'), 'clay');
-  assert.equal(reg.defaultAccentForTheme('vitrine'), 'aurora');
-  assert.ok(reg.accentsForTheme('atelier').sage);
-  assert.ok(reg.accentsForTheme('vitrine').iris);
-});
 
-test('cockpit default accent is electric with four presets', () => {
-  assert.equal(reg.defaultAccentForTheme('cockpit'), 'electric');
-  const accents = reg.accentsForTheme('cockpit');
-  assert.ok(accents.electric);
-  assert.ok(accents.violet);
-  assert.ok(accents.emerald);
-  assert.ok(accents.flare);
-});
 
-test('atlas default accent is phosphor with four presets', () => {
-  assert.equal(reg.defaultAccentForTheme('atlas'), 'phosphor');
-  const accents = reg.accentsForTheme('atlas');
-  assert.ok(accents.phosphor);
-  assert.ok(accents.ember);
-  assert.ok(accents.iris);
-  assert.ok(accents.signal);
-});
 
-test('usesHandoffScreens excludes atlas frontier shell', () => {
-  assert.equal(reg.usesHandoffScreens('atlas'), false);
-  assert.equal(reg.usesHandoffScreens('cockpit'), false);
-});
 
-test('console default accent is signal with four presets', () => {
-  assert.equal(reg.defaultAccentForTheme('console'), 'signal');
-  const accents = reg.accentsForTheme('console');
-  assert.ok(accents.signal);
-  assert.ok(accents.amber);
-  assert.ok(accents.cyan);
-  assert.ok(accents.white);
+
+test('each surviving theme has a default accent inside its own preset set', () => {
+  for (const id of ['workbench', 'command', 'vivid', 'studio']) {
+    const def = reg.defaultAccentForTheme(id);
+    assert.ok(reg.accentsForTheme(id)[def], `${id} default accent ${def} missing from its set`);
+  }
 });
 
 test('validateCustomManifest catches invalid ids', () => {
@@ -87,7 +74,10 @@ test('registerCustomTheme adds custom theme', () => {
     name: 'Test Shop',
     tokens: 'tokens.css',
     accents: { brand: { h: 200, s: '70%', l: '50%', label: 'Brand' } },
-    shell: 'studio',
+    // Was 'studio'. A custom theme adopting that shell would switch on
+    // body.khayt-handoff for a Khayt user, re-activating Bed Ready's screen
+    // layer through the back door — so custom themes now pick a Khayt shell.
+    shell: 'workbench',
   });
   assert.equal(result.ok, true);
   assert.equal(reg.normalizeDesignId('custom:test-shop'), 'custom:test-shop');
@@ -110,4 +100,16 @@ test('validateCustomManifest rejects malformed accents and bodyClass', () => {
   assert.ok(reg.validateCustomManifest({ ...base, bodyClass: 'a b" onload=x' }).some((e) => /bodyClass/.test(e)));
   // Valid accent (number or % forms) passes.
   assert.equal(reg.validateCustomManifest({ ...base, accents: { x: { h: 200, s: 70, l: '50%' } } }).length, 0);
+});
+
+test('custom manifests may only claim shells that still exist', () => {
+  const base = { id: 'shop', name: 'Shop', tokens: 'tokens.css' };
+  // Regression: 'ledger' was an accepted shell until the 3.3 legacy deletion
+  // removed it — a manifest naming it validated clean and then rendered nothing.
+  assert.ok(reg.validateCustomManifest({ ...base, shell: 'ledger' }).some((e) => /shell/.test(e)));
+  // 'studio' is Bed Ready's shell, not a Khayt one.
+  assert.ok(reg.validateCustomManifest({ ...base, shell: 'studio' }).some((e) => /shell/.test(e)));
+  for (const shell of reg.CUSTOM_THEME_SHELLS) {
+    assert.deepEqual(reg.validateCustomManifest({ ...base, shell }), [], `${shell} should be allowed`);
+  }
 });
