@@ -1377,7 +1377,7 @@ function openOrderEditor(orderId) {
       if (hist.length === 0) return '';
       const rows = hist.map(h => {
         const d = new Date(h.at);
-        const dateStr = d.toLocaleDateString(i18n.current === 'ar' ? 'ar-SA' : 'en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        const dateStr = d.toLocaleDateString(i18n.current === 'ar' ? 'ar-SA-u-nu-latn' : 'en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
         const timeStr = d.toTimeString().slice(0, 5);
         return `<div class="status-timeline-row">
           <span class="badge ${escapeHtml(h.status)}" style="font-size:10px;">${escapeHtml(t('queue.' + h.status))}</span>

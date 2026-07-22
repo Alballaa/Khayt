@@ -387,7 +387,7 @@ function hijriDate(isoDate, format = 'short') {
   try {
     const d = new Date(isoDate);
     if (format === 'long') {
-      return d.toLocaleDateString('ar-SA-u-ca-islamic-umalqura', {
+      return d.toLocaleDateString('ar-SA-u-ca-islamic-umalqura-nu-latn', {
         day: 'numeric', month: 'long', year: 'numeric'
       });
     }
@@ -434,7 +434,7 @@ function logActivity(action, detail, ref) {
 function openActivityLog() {
   if (typeof openFormModal !== 'function') return;
   let opFilter = '';
-  const fmtWhen = (iso) => { try { return new Date(iso).toLocaleString(i18n.current === 'ar' ? 'ar-SA' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) { return iso; } };
+  const fmtWhen = (iso) => { try { return new Date(iso).toLocaleString(i18n.current === 'ar' ? 'ar-SA-u-nu-latn' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) { return iso; } };
   const actionLabel = (a) => t('audit.act_' + a) || a;
   const render = (modal) => {
     const entries = (typeof auditLog !== 'undefined' ? auditLog : [])

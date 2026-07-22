@@ -600,7 +600,7 @@ function renderDashboard() {
       </div>
       <div class="dash-hero-right">
         <span class="dash-greeting">${escapeHtml(t('dash.greeting'))}</span>
-        <span class="dash-date">${today.toLocaleDateString(dashIsAr ? 'ar-SA' : 'en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}</span>
+        <span class="dash-date">${today.toLocaleDateString(dashIsAr ? 'ar-SA-u-nu-latn' : 'en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}</span>
         <button class="btn small" data-act="ask-ai" style="margin-top:8px;">✨ ${escapeHtml(t('ai.assistant_btn') || 'Ask AI')}</button>
       </div>
     </div>
@@ -679,7 +679,7 @@ function renderDashboard() {
 
     ${biz && settings.monthlyGoal > 0 ? (() => {
       const pct = Math.min(100, (monthlyRev / settings.monthlyGoal) * 100);
-      const monthName = today.toLocaleDateString(dashIsAr ? 'ar-SA' : 'en-US', { month: 'long' });
+      const monthName = today.toLocaleDateString(dashIsAr ? 'ar-SA-u-nu-latn' : 'en-US', { month: 'long' });
       const col = pct >= 100 ? 'var(--success)' : pct >= 60 ? 'var(--primary)' : 'var(--warning)';
       return `
         <div class="dash-goal">
@@ -1128,7 +1128,7 @@ function renderMaterialUsageChart() {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     months.push({
       key:   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
-      label: d.toLocaleDateString(i18n.current === 'ar' ? 'ar-SA' : 'en-US', { month: 'short', year: '2-digit' }),
+      label: d.toLocaleDateString(i18n.current === 'ar' ? 'ar-SA-u-nu-latn' : 'en-US', { month: 'short', year: '2-digit' }),
     });
   }
 
