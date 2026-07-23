@@ -158,3 +158,33 @@ test('accounts: signup → device 2 logs in, fetches keyset, and decrypts the sa
   const pulled = await cc.backendFor(base, lr.shopId, lr.token, dek2).pull();
   assert.deepEqual(pulled.store, STORE, 'device 2 sees the same decrypted data');
 });
+
+/* ── URL path-segment injection guard ──────────────────────────────────────
+   Every id/token/shopId is interpolated into a REST path. A value carrying a
+   "/" or ".." — from a synced record or a crafted call — must not create extra
+   path segments and reach a different endpoint. seg()/encodeURIComponent pins
+   each into its own segment. */
+
+test('injected separators are percent-encoded on the wire, not real slashes', async () => {
+  const rawSeen = [];
+  const echo = http.createServer((req, res) => {
+    rawSeen.push(req.url);   // raw, still-encoded request target
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end('{"ok":true,"items":[],"messages":[]}');
+  });
+  await new Promise((r) => echo.listen(0, '127.0.0.1', r));
+  const url = `http://127.0.0.1:${echo.address().port}`;
+  const EVIL = 'a/b/../../c';   // three separators + traversal
+
+  try {
+    await cc.deleteIntake(url, 'SHOP', 'tok', EVIL).catch(() => {});
+    const p = rawSeen.find((x) => x.includes('/intake/'));
+    assert.ok(p, 'intake request reached the server');
+    const tail = p.split('/intake/')[1];              // whatever landed in the id segment
+    assert.ok(!tail.includes('/'), `id must be one segment, got: ${tail}`);
+    assert.ok(tail.includes('%2F') || tail.includes('%2f'), 'slashes were percent-encoded');
+  } finally {
+    await new Promise((r) => echo.close(r));
+  }
+});
+
