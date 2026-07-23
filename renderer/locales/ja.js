@@ -1751,7 +1751,7 @@
   "batch.revenue": "収益",
   "batch.no_orders": "プランするための保留中の注文はありません",
   "kan.batch_planner": "バッチプランナー",
-  "sched.suggest_btn": "🤖 割り当てを提案",
+  "sched.suggest_btn": "割り当てを提案",
   "sched.suggest_title": "提案された割り当て",
   "sched.apply": "すべて適用",
   "sched.applied": "割り当て済み",

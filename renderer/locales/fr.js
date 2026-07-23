@@ -1751,7 +1751,7 @@
   "batch.revenue": "Chiffre d'affaires",
   "batch.no_orders": "Aucune commande en attente",
   "kan.batch_planner": "Planificateur de lots",
-  "sched.suggest_btn": "🤖 Suggérer des affectations",
+  "sched.suggest_btn": "Suggérer des affectations",
   "sched.suggest_title": "Affectations suggérées",
   "sched.apply": "Tout appliquer",
   "sched.applied": "Affecté",
