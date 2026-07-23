@@ -3574,6 +3574,8 @@
   "queue.view_kanban_hint": "التبديل إلى لوحة كانبان",
   "queue.view_list_hint": "التبديل إلى القائمة المجمّعة",
   "common.hours_short": "س",
-  "queue.machines_toggle": "\u0627\u0644\u0637\u0627\u0628\u0639\u0627\u062a"
+  "queue.machines_toggle": "\u0627\u0644\u0637\u0627\u0628\u0639\u0627\u062a",
+  "sync.discarded_one": "أُلغي تعديل — حُذف «{name}» من جهاز آخر.",
+  "sync.discarded_many": "أُلغيت {n} تعديلات — حُذفت تلك السجلات من جهاز آخر."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

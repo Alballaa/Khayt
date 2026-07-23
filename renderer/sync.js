@@ -259,10 +259,26 @@
       // another device — delete at rev 2 removes a record edited to rev 9. Both
       // cannot be fixed with `rev` alone, because a counter cannot tell "stale
       // delete" from "stale re-add"; that needs a causal clock. The tombstone
-      // now carries the rev it deleted (see stampChanges) so whichever policy
-      // wins that argument has the data it needs. Not changed here — reversing
-      // it silently would trade lost edits for resurrected records.
+      // carries the rev it deleted (see stampChanges), which lets us at least
+      // KNOW when a delete is discarding a newer edit.
+      const removed = arr[i];
+      const localRev = revOf(removed);
+      const tombRev = revOf(t);
       arr.splice(i, 1); result.removed++;
+      // Delete still wins — reversing that silently would resurrect deleted
+      // records — but it is no longer silent. When the record here was edited
+      // (localRev) after the delete saw it (tombRev), report the discarded edit
+      // so a shop learns an order it just changed was removed on another device,
+      // instead of the change vanishing without a trace. A one-click cross-device
+      // "restore" is deliberately not offered: the tombstone wins on every other
+      // device too, so a restored record would just be deleted again on the next
+      // sync — an honest "this was lost" beats a button that quietly fails.
+      if (localRev > tombRev) {
+        result.conflicts.push({
+          collection: t.collection, id: t.id, kind: 'delete_over_edit',
+          tombRev, localRev, discarded: removed,
+        });
+      }
     }
     return result;
   }
@@ -279,6 +295,20 @@
   function getBackend() { return backend; }
   function status() { return backend ? statusVal : 'off'; }
 
+  /**
+   * Reduce a merge's conflicts to what the UI needs to announce a delete that
+   * discarded a local edit. Pure — no DOM, no i18n — so the message logic is
+   * testable away from the renderer glue that calls toast()/t().
+   * @returns {{count:number, firstName:string}} count 0 means nothing to show.
+   */
+  function summarizeDiscardedEdits(conflicts) {
+    const discarded = (conflicts || []).filter((c) => c && c.kind === 'delete_over_edit');
+    if (!discarded.length) return { count: 0, firstName: '' };
+    const r = discarded[0].discarded || {};
+    const firstName = String(r.project || r.name || r.title || discarded[0].id || '').slice(0, 40);
+    return { count: discarded.length, firstName };
+  }
+
   const api = {
     SCHEMA,
     fingerprint,
@@ -287,6 +317,7 @@
     stampChanges,
     extractDeltas,
     applyDeltas,
+    summarizeDiscardedEdits,
     maxCursor,
     setBackend,
     getBackend,

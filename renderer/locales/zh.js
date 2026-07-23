@@ -3572,6 +3572,8 @@
   "queue.view_kanban_hint": "切换到看板",
   "queue.view_list_hint": "切换到分组列表",
   "common.hours_short": "小时",
-  "queue.machines_toggle": "\u6253\u5370\u673a"
+  "queue.machines_toggle": "\u6253\u5370\u673a",
+  "sync.discarded_one": "一处编辑被丢弃 — “{name}”已在另一台设备上删除。",
+  "sync.discarded_many": "{n} 处编辑被丢弃 — 这些记录已在另一台设备上删除。"
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

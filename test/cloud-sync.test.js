@@ -190,3 +190,36 @@ test('a fresh edit supersedes the pending retry (no double-push)', async () => {
   assert.equal(attempts, 2, 'exactly one more push, not two');
   assert.equal(sync.status(), 'synced');
 });
+
+test('onConflicts fires when a synced delete discards a local edit', async () => {
+  // Local has c1 edited to rev 5. The server's snapshot deleted c1 (tombstone at
+  // rev 2). Delete wins — but the host must be told the local edit was dropped.
+  let pushCalls = 0;
+  const seen = [];
+  const serverStore = { clients: [], tombstones: [{ collection: 'clients', id: 'c1', rev: 2 }] };
+  const { deps } = makeDeps({
+    initialState: { clients: [{ id: 'c1', name: 'Edited Locally', rev: 5, updatedAt: 'z' }], tombstones: [] },
+    pull: async () => ({ ok: true, store: clone(serverStore), rev: 9 }),
+    push: async () => { pushCalls++; return pushCalls === 1 ? { conflict: true, rev: 9 } : { ok: true, rev: 10 }; },
+  });
+  deps.onConflicts = (c) => seen.push(...c);
+  sync.configure(deps);
+  await sync.syncNow();
+
+  const discarded = seen.filter((c) => c.kind === 'delete_over_edit');
+  assert.equal(discarded.length, 1, 'the discarded edit was surfaced to the host');
+  assert.equal(discarded[0].id, 'c1');
+  assert.equal(discarded[0].discarded.name, 'Edited Locally', 'the lost record is handed over');
+});
+
+test('onConflicts is not called when a merge discards nothing', async () => {
+  let called = false;
+  const { deps } = makeDeps({
+    pull: async () => ({ ok: true, store: { clients: [{ id: 'c2', name: 'Server', rev: 1 }], tombstones: [] }, rev: 9 }),
+    push: async () => ({ ok: true, rev: 1 }),
+  });
+  deps.onConflicts = () => { called = true; };
+  sync.configure(deps);
+  await sync.syncNow();
+  assert.equal(called, false);
+});

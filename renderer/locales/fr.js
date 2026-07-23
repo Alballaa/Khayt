@@ -3572,6 +3572,8 @@
   "queue.view_kanban_hint": "Passer au tableau kanban",
   "queue.view_list_hint": "Passer à la liste groupée",
   "common.hours_short": "h",
-  "queue.machines_toggle": "Imprimantes"
+  "queue.machines_toggle": "Imprimantes",
+  "sync.discarded_one": "Une modification a été ignorée — « {name} » a été supprimé sur un autre appareil.",
+  "sync.discarded_many": "{n} modifications ont été ignorées — ces enregistrements ont été supprimés sur un autre appareil."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

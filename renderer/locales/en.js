@@ -3575,6 +3575,8 @@
   "queue.view_kanban_hint": "Switch to the kanban board",
   "queue.view_list_hint": "Switch to the grouped list",
   "common.hours_short": "h",
-  "queue.machines_toggle": "Machines"
+  "queue.machines_toggle": "Machines",
+  "sync.discarded_one": "An edit was discarded — “{name}” was deleted on another device.",
+  "sync.discarded_many": "{n} edits were discarded — those records were deleted on another device."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
