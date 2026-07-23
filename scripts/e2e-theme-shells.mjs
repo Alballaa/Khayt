@@ -38,6 +38,31 @@ async function applyThemeCase(window, themeCase) {
   );
 }
 
+// The top-bar global search (⌕ + input + ⌘K) is a flexbox row. Its base layout
+// lived in studio/shell.css and reached Khayt only because index.html linked that
+// CSS globally; the Bed Ready rebase moved the layer out and the flexbox went with
+// it, so the three children stacked and overlapped. Every theme relies on the base,
+// so assert it here — this is exactly the regression that shipped unnoticed.
+async function assertSearchBarLaidOut(window, themeCase) {
+  const r = await window.evaluate(() => {
+    const el = document.querySelector('.khayt-search');
+    if (!el || el.offsetParent === null) return { skip: true };   // some shells hide it
+    const cs = getComputedStyle(el);
+    const box = el.getBoundingClientRect();
+    const mid = (box.top + box.bottom) / 2;
+    const childrenOnOneRow = [...el.children].every((c) => {
+      const cr = c.getBoundingClientRect();
+      return Math.abs((cr.top + cr.bottom) / 2 - mid) < 8;
+    });
+    const input = el.querySelector('input');
+    return { display: cs.display, childrenOnOneRow, inputWidth: input ? Math.round(input.getBoundingClientRect().width) : 0 };
+  });
+  if (r.skip) return;
+  if (r.display !== 'flex') throw new Error(`${themeCase.id}: search bar is not a flex row (display:${r.display}) — base layout lost`);
+  if (!r.childrenOnOneRow) throw new Error(`${themeCase.id}: search bar children stacked instead of one row`);
+  if (r.inputWidth < 40) throw new Error(`${themeCase.id}: search input collapsed (${r.inputWidth}px) — flex:1 missing`);
+}
+
 async function assertDashboard(window, themeCase) {
   const dash = await window.evaluate(({ dashSel, dashMin }) => {
     const el = document.querySelector(dashSel);
@@ -247,6 +272,7 @@ try {
   for (const themeCase of THEME_CASES) {
     await applyThemeCase(window, themeCase);
     await assertDashboard(window, themeCase);
+    await assertSearchBarLaidOut(window, themeCase);
     await navigateSecondaryTab(window, themeCase);
     await assertNewTabsReachable(window, themeCase);
     console.log(`  ${themeCase.id}: dashboard + queue + settings + reach ok`);

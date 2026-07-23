@@ -294,6 +294,40 @@ input[readonly] {
 }
 input[type="number"] { font-variant-numeric: tabular-nums; }
 
+/* Top-bar global search (⌕ + mirror input + ⌘K).
+   Structural layout only — border, background, height and width stay per-theme
+   (workbench/command/vivid each set their own). This base used to live in
+   studio/shell.css and reached Khayt because index.html linked studio's CSS
+   globally; the Bed Ready rebase moved that layer to renderer/bedready/ and
+   stopped Khayt loading it, so the flexbox went with it and the ⌕, input and
+   ⌘K stacked on top of each other. Restored here, unscoped, for all themes. */
+.khayt-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+}
+.khayt-search > span[aria-hidden] { display: inline-flex; align-items: center; flex: 0 0 auto; }
+.khayt-search input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  font: inherit;
+  font-size: 13px;
+  color: inherit;
+}
+.khayt-search kbd {
+  flex: 0 0 auto;
+  font-family: var(--font-num, monospace);
+  font-size: 10px;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
 /* Top-bar selects (location filter, language) set a fixed height:34px inline.
    The base select padding (9px) + border leaves too little room for the 14px
    text under border-box, vertically clipping the label. Trim block padding so
