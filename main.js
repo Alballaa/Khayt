@@ -126,6 +126,7 @@ const {
   encryptStoreField,
   decryptStoreField,
   encryptForDisk,
+  hasPlaintextSecrets,
   maskStoreSecretsForRenderer,
   mergeStoreSecretsFromDisk,
   writeStoreToDisk,
@@ -573,6 +574,8 @@ ipcMain.handle('hub:restore-backup', async (event, backupPath) => {
   try {
     const content = await fs.promises.readFile(safe, 'utf8');
     const parsed = safeJsonParse(content);
+    // Restoring a backup decrypts its secrets → a real keychain read. Explain once first.
+    await maybeShowKeychainExplanation(BrowserWindow.fromWebContents(event.sender));
     const decrypted = decryptStoreSecrets(JSON.parse(JSON.stringify(parsed)));
     return JSON.stringify(decrypted);
   } catch (e) {
@@ -615,11 +618,13 @@ ipcMain.handle('hub:list-restore-points', async () => {
   }));
 });
 
-ipcMain.handle('hub:read-restore-point', async (_e, filename) => {
+ipcMain.handle('hub:read-restore-point', async (event, filename) => {
   const safe = path.join(restorePointsDir(), path.basename(String(filename || '')));
   if (!fs.existsSync(safe)) return null;
   try {
     const parsed = safeJsonParse(await fs.promises.readFile(safe, 'utf8'));
+    // Reading a restore point decrypts its secrets → a keychain read. Explain once first.
+    await maybeShowKeychainExplanation(BrowserWindow.fromWebContents(event.sender));
     return JSON.stringify(decryptStoreSecrets(JSON.parse(JSON.stringify(parsed))));
   } catch (e) { console.error('hub:read-restore-point error:', e); return null; }
 });
@@ -1051,9 +1056,12 @@ async function maybeShowKeychainExplanation(win) {
 }
 
 ipcMain.handle('hub:load-store', async (event) => {
-  const win = BrowserWindow.fromWebContents(event.sender);
-  await maybeShowKeychainExplanation(win);
-
+  // No keychain explanation here. This handler reads raw JSON, validates it and
+  // MASKS secrets for the renderer — it never decrypts, so it never touches the
+  // keychain. The explanation used to await a modal on this path, which meant a
+  // fresh install hung at boot forever if the dialog was missed or dismissed by
+  // the OS. It now gates the operations that actually reach the keychain: save
+  // (encrypt) and restore (decrypt), below.
   try {
     // Read the best available copy, transparently recovering from a crash (completed .tmp
     // or previous-generation .prev) and quarantining an unreadable primary so it's never
@@ -1279,6 +1287,13 @@ ipcMain.handle('hub:save-store', async (event, data) => {
     }
     if (errors.length) console.warn('hub:save-store: salvaged with issues:', errors.join('; '));
     const merged = mergeStoreSecretsFromDisk(normalized);
+    // First real keychain write. Explain once, before encryptForDisk triggers
+    // the OS permission prompt — but only when there is actually a plaintext
+    // secret to encrypt, so a shop that never configures a credential is never
+    // asked. Never awaited on the load path, so it cannot stall boot.
+    if (hasPlaintextSecrets(merged)) {
+      await maybeShowKeychainExplanation(BrowserWindow.fromWebContents(event.sender));
+    }
     const serialized = JSON.stringify(encryptForDisk(merged));
     // Write-side guard: mirror the 50 MB read-side limit from hub:load-store.
     // Prevents runaway data-URL or blob embedding from silently bloating the store.

@@ -15,16 +15,12 @@ export const E2E_LAN_PIN = 'e2e-smoke-pin';
 export function makeUserDataDir() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'khayt-e2e-'));
 
-  // Suppress the first-run keychain explanation, the same way the suites dismiss
-  // the setup wizard. This is not cosmetic: `hub:load-store` awaits
-  // maybeShowKeychainExplanation() before reading anything, and that dialog is a
-  // native modal with no one to click it under automation. The handler then never
-  // returns, so `await loadAll()` never settles and boot stops dead — no error, no
-  // rejection, just an empty #dashboardContent and a launchApp timeout 30s later.
-  // Every e2e run gets a fresh userData, so without this the flag never exists and
-  // the dialog fires every time. Measured: 2/4 launches hung without the flag,
-  // 4/4 booted with it, and every hung run was missing the flag file that
-  // showMessageBox() writes on dismissal.
+  // Pre-dismiss the first-run keychain explanation. It no longer gates boot —
+  // the dialog was moved off hub:load-store onto the save (encrypt) and restore
+  // (decrypt) paths — but the smoke suite saves a store containing a LAN PIN,
+  // which is a secret, so hub:save-store would show the modal and hang with no
+  // one to click it. Seeding the flag keeps automated saves non-interactive, the
+  // same way the suites dismiss the setup wizard.
   fs.writeFileSync(path.join(dir, 'khayt-keychain-ok.flag'), '1');
 
   return dir;

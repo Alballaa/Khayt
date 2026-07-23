@@ -376,3 +376,75 @@ test('SECRETS: a genuine user edit still overwrites the stored credential', asyn
   assert.equal(merged.settings.ai.apiKey, 'NEW-KEY', 'a real edit must win');
   assert.equal(merged.settings.cloud.token, 'OLD-TOKEN', 'an untouched (masked) field is restored');
 });
+
+/* ── hasPlaintextSecrets — gates the keychain explanation ──────────
+   The store LOAD masks and never decrypts, so the one-time keychain dialog was
+   blocking boot for an access that only happens on save (encrypt) / restore
+   (decrypt). This predicate decides when the encrypt path will really reach the
+   keychain. */
+
+test('hasPlaintextSecrets is false when encryption is unavailable', () => {
+  const io = makeStoreIo({ encryption: false });
+  assert.equal(io.hasPlaintextSecrets({ settings: { emailConfig: { apiKey: 'sk-live' } } }), false);
+});
+
+test('hasPlaintextSecrets is false for an empty store or no secrets', () => {
+  const io = makeStoreIo({ encryption: true });
+  assert.equal(io.hasPlaintextSecrets(null), false);
+  assert.equal(io.hasPlaintextSecrets({}), false);
+  assert.equal(io.hasPlaintextSecrets({ settings: { shopName: 'X' }, machines: [{ id: 'M1' }] }), false);
+});
+
+test('hasPlaintextSecrets ignores already-encrypted and masked values', () => {
+  const io = makeStoreIo({ encryption: true });
+  assert.equal(io.hasPlaintextSecrets({ settings: { emailConfig: { apiKey: '__enc__abc' } } }), false);
+  assert.equal(io.hasPlaintextSecrets({ settings: { emailConfig: { apiKey: STORE_SECRET_MASK } } }), false);
+});
+
+test('hasPlaintextSecrets detects a plaintext secret in each family', () => {
+  const io = makeStoreIo({ encryption: true });
+  const cases = [
+    { settings: { emailConfig: { apiKey: 'x' } } },
+    { settings: { emailConfig: { smtpPassword: 'x' } } },
+    { settings: { smsConfig: { authToken: 'x' } } },
+    { settings: { accountingSync: { secret: 'x' } } },
+    { machines: [{ id: 'M', printerApi: { apiKey: 'x' } }] },
+    { machines: [{ id: 'M', printerApi: { accessCode: 'x' } }] },
+    { settings: { zatcaPhase2: { csid: 'x' } } },
+    { settings: { bnpl: { tamara: { notificationToken: 'x' } } } },
+    { settings: { telegram: { botToken: 'x' } } },
+    { settings: { lanApi: { pin: 'x' } } },
+    { settings: { webhooks: { secret: 'x' } } },
+    { settings: { eventWebhooks: { secret: 'x' } } },
+    { settings: { ai: { apiKey: 'x' } } },
+    { settings: { cloud: { token: 'x' } } },
+  ];
+  for (const c of cases) {
+    assert.equal(io.hasPlaintextSecrets(c), true, `should detect: ${JSON.stringify(c)}`);
+  }
+});
+
+test('hasPlaintextSecrets stays in lockstep with encryptForDisk', () => {
+  // The safety net for drift: whenever encryptForDisk would change the store
+  // (i.e. actually reach the keychain), the predicate must have said so, and
+  // vice-versa. If a secret field is added to one and not the other, this fails.
+  const io = makeStoreIo({ encryption: true });
+  const full = {
+    settings: {
+      emailConfig: { apiKey: 'a', smtpPassword: 'b' },
+      smsConfig: { authToken: 'c', token: 'd', appSid: 'e', secret: 'f' },
+      accountingSync: { secret: 'g' },
+      zatcaPhase2: { csid: 'h', pcsid: 'i' },
+      bnpl: { tabby: { apiKey: 'j' }, tamara: { apiKey: 'k', notificationToken: 'l' }, stripe: { apiKey: 'm' } },
+      telegram: { botToken: 'n' },
+      lanApi: { webhookToken: 'o', sallaWebhookSecret: 'p', zidWebhookSecret: 'q', pin: 'r', intakeToken: 's', intakePin: 't', calendarToken: 'u' },
+      webhooks: { secret: 'v' }, eventWebhooks: { secret: 'w' },
+      ai: { apiKey: 'x' }, cloud: { token: 'y' },
+    },
+    machines: [{ id: 'M', printerApi: { apiKey: 'z', accessCode: 'z2' } }],
+  };
+  const changed = (d) => JSON.stringify(io.encryptForDisk(d)) !== JSON.stringify(d);
+  assert.equal(io.hasPlaintextSecrets(full), changed(full), 'full store: predicate must match encryptForDisk');
+  const empty = { settings: { shopName: 'X' }, machines: [{ id: 'M1' }] };
+  assert.equal(io.hasPlaintextSecrets(empty), changed(empty), 'empty store: predicate must match encryptForDisk');
+});
