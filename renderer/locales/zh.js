@@ -1751,7 +1751,7 @@
   "batch.revenue": "收入",
   "batch.no_orders": "没有待处理订单",
   "kan.batch_planner": "批量规划",
-  "sched.suggest_btn": "🤖 建议分配",
+  "sched.suggest_btn": "建议分配",
   "sched.suggest_title": "建议的分配",
   "sched.apply": "全部应用",
   "sched.applied": "已分配",

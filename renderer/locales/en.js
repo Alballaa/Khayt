@@ -1752,7 +1752,7 @@
   "batch.revenue": "Revenue",
   "batch.no_orders": "No pending orders to plan",
   "kan.batch_planner": "Batch Planner",
-  "sched.suggest_btn": "🤖 Suggest assignments",
+  "sched.suggest_btn": "Suggest assignments",
   "sched.suggest_title": "Suggested assignments",
   "sched.apply": "Apply all",
   "sched.applied": "Assigned",

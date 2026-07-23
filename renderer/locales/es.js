@@ -1751,7 +1751,7 @@
   "batch.revenue": "Ingresos",
   "batch.no_orders": "No hay pedidos pendientes",
   "kan.batch_planner": "Planificador de lotes",
-  "sched.suggest_btn": "🤖 Sugerir asignaciones",
+  "sched.suggest_btn": "Sugerir asignaciones",
   "sched.suggest_title": "Asignaciones sugeridas",
   "sched.apply": "Aplicar todo",
   "sched.applied": "Asignado",

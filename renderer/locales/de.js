@@ -1751,7 +1751,7 @@
   "batch.revenue": "Umsatz",
   "batch.no_orders": "Keine ausstehenden Aufträge",
   "kan.batch_planner": "Batch-Planer",
-  "sched.suggest_btn": "🤖 Zuweisungen vorschlagen",
+  "sched.suggest_btn": "Zuweisungen vorschlagen",
   "sched.suggest_title": "Vorgeschlagene Zuweisungen",
   "sched.apply": "Alle übernehmen",
   "sched.applied": "Zugewiesen",

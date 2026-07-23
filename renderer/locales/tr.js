@@ -1751,7 +1751,7 @@
   "batch.revenue": "Gelir",
   "batch.no_orders": "Planlanacak bekleyen sipariş yok",
   "kan.batch_planner": "Toplu Planlayıcı",
-  "sched.suggest_btn": "🤖 Atama öner",
+  "sched.suggest_btn": "Atama öner",
   "sched.suggest_title": "Önerilen atamalar",
   "sched.apply": "Tümünü uygula",
   "sched.applied": "Atandı",

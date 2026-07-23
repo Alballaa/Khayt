@@ -1971,6 +1971,9 @@ html.printing-labels #label-print-area {
 /* Overdue log row tint */
 tr.row-overdue td { background: rgba(239,77,94,0.05); }
 
+.khayt-ico { vertical-align: -2px; flex: 0 0 auto; }
+button .khayt-ico, summary .khayt-ico { opacity: .85; }
+
 /* -----------------------------------------------------------
    Production queue — chrome
    -----------------------------------------------------------

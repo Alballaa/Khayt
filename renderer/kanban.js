@@ -358,6 +358,7 @@ function renderKanban() {
   window.KhaytBedReadyUI?.syncQueueMachinePicker?.();
   // The grouped list is the default board; it renders inside .kanban so the
   // existing delegated actions reach it. Columns stay in the DOM, hidden by CSS.
+  window.KhaytIcons?.hydrateIcons?.(document.getElementById('queue-tab'));
   window.KhaytQueueList?.renderQueueList?.();
   window.KhaytQueueList?.syncQueueViewToggle?.();
   renderWaitingList();

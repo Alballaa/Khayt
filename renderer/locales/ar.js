@@ -1800,7 +1800,7 @@
   "batch.revenue": "الإيرادات",
   "batch.no_orders": "لا توجد طلبات معلقة",
   "kan.batch_planner": "مخطط الدفعات",
-  "sched.suggest_btn": "🤖 اقتراح التوزيع",
+  "sched.suggest_btn": "اقتراح التوزيع",
   "sched.suggest_title": "التوزيع المقترح",
   "sched.apply": "تطبيق الكل",
   "sched.applied": "تم التعيين",
