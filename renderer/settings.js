@@ -1098,6 +1098,27 @@ function showVerifyEmailModal(url, email) {
 const CLOUD_APPEND_ONLY = ['loyaltyLedger', 'wasteLog', 'machMaintLog', 'envLogs', 'shiftLogs', 'timeEntries', 'auditLog', '_auditLog'];
 
 /** I/O the auto-sync controller needs, bound to the live app + cloud IPC. */
+/**
+ * Tell the user when a sync merge discarded a local edit because the record was
+ * deleted on another device. Delete-wins is the policy (a resurrected order is
+ * worse than a lost edit for a shop); this just stops the loss being silent.
+ * No restore button — the tombstone wins on every device, so a restored record
+ * would be deleted again on the next sync. Naming what was lost lets the shop
+ * re-enter it as a new order if it mattered.
+ */
+function reportSyncConflicts(conflicts) {
+  const { count, firstName } = (typeof KhaytSync !== 'undefined' && KhaytSync.summarizeDiscardedEdits)
+    ? KhaytSync.summarizeDiscardedEdits(conflicts)
+    : { count: 0, firstName: '' };
+  if (!count) return;
+  const msg = count === 1
+    ? (t('sync.discarded_one') || 'An edit was discarded — “{name}” was deleted on another device.').replace('{name}', firstName)
+    : (t('sync.discarded_many') || '{n} edits were discarded — those records were deleted on another device.').replace('{n}', count);
+  if (typeof toast === 'function') toast(msg, 'warning', 8000);
+  // Durable trace for support/debugging — the transient toast can be missed.
+  try { console.warn('[sync] discarded local edits (deleted elsewhere):', (conflicts || []).filter((c) => c && c.kind === 'delete_over_edit').map((c) => `${c.collection}/${c.id}`).join(', ')); } catch (e) { /* noop */ }
+}
+
 function cloudSyncDeps() {
   return {
     appendOnly: CLOUD_APPEND_ONLY,
@@ -1106,6 +1127,7 @@ function cloudSyncDeps() {
     save: () => saveAll(),
     push: (snap) => window.hubAPI.cloudPush(snap),
     pull: () => window.hubAPI.cloudPull(),
+    onConflicts: (conflicts) => reportSyncConflicts(conflicts),
   };
 }
 

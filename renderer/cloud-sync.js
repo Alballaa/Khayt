@@ -146,6 +146,12 @@
     const local = deps.buildSnapshot();
     const payload = global.KhaytSync.extractDeltas(r.store, { rev: 0, ts: '' });
     const merged = global.KhaytSync.applyDeltas(local, payload, { appendOnly: deps.appendOnly || [] });
+    // A merge can discard a local edit whose record was deleted on another
+    // device (delete wins, but no longer silently). Hand those to the host so it
+    // can tell the user; kept as an injected hook so this module stays UI-free.
+    if (merged.conflicts && merged.conflicts.length && typeof deps.onConflicts === 'function') {
+      try { deps.onConflicts(merged.conflicts); } catch (e) { /* surfacing must never break the sync */ }
+    }
     deps.applySnapshot(local);
     // Reseed the change-index to the merged baseline so the subsequent save
     // doesn't re-stamp the just-merged records as fresh changes (avoids churn).

@@ -3572,6 +3572,8 @@
   "queue.view_kanban_hint": "Zum Kanban-Board wechseln",
   "queue.view_list_hint": "Zur gruppierten Liste wechseln",
   "common.hours_short": "Std",
-  "queue.machines_toggle": "Drucker"
+  "queue.machines_toggle": "Drucker",
+  "sync.discarded_one": "Eine Änderung wurde verworfen — „{name}“ wurde auf einem anderen Gerät gelöscht.",
+  "sync.discarded_many": "{n} Änderungen wurden verworfen — diese Datensätze wurden auf einem anderen Gerät gelöscht."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

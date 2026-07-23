@@ -3572,6 +3572,8 @@
   "queue.view_kanban_hint": "Kanban panosuna geç",
   "queue.view_list_hint": "Gruplanmış listeye geç",
   "common.hours_short": "sa",
-  "queue.machines_toggle": "Yaz\u0131c\u0131lar"
+  "queue.machines_toggle": "Yaz\u0131c\u0131lar",
+  "sync.discarded_one": "Bir düzenleme yok sayıldı — “{name}” başka bir cihazda silindi.",
+  "sync.discarded_many": "{n} düzenleme yok sayıldı — bu kayıtlar başka bir cihazda silindi."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

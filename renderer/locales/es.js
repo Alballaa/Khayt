@@ -3572,6 +3572,8 @@
   "queue.view_kanban_hint": "Cambiar al tablero kanban",
   "queue.view_list_hint": "Cambiar a la lista agrupada",
   "common.hours_short": "h",
-  "queue.machines_toggle": "Impresoras"
+  "queue.machines_toggle": "Impresoras",
+  "sync.discarded_one": "Se descartó una edición — «{name}» se eliminó en otro dispositivo.",
+  "sync.discarded_many": "Se descartaron {n} ediciones — esos registros se eliminaron en otro dispositivo."
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
