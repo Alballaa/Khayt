@@ -4,29 +4,61 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
-### Fixed
-
-- **The cloud server address is now checked before your password is sent to it.** A plain `http://` address on the internet would have sent your email and password unencrypted; Khayt now requires `https://` there, while still allowing `http://` for a server you run yourself on your own machine or network.
-
-### Fixed
-
-- **Groundwork for multi-device sync: two devices editing the same record no longer end up disagreeing.** Previously each kept its own copy and neither was told. One edit is still replaced, but every device now reaches the same result instead of quietly drifting apart.
-
-### Fixed
-
-- **Crash reports were sent even when you had not turned them on.** Settings offers crash reporting as an opt-in and says Khayt sends nothing by default, but the reporter ignored that setting in installed builds and sent error details anyway. It now honours the setting, and stays off unless you switch it on.
-
 ### Added
 
 - **Pause, resume and cancel a running print from Khayt.** Previously you could send a job to a printer and watch it, but had to walk over to the machine to stop it. Works with Klipper/Moonraker, OctoPrint, PrusaLink and Duet; Bambu still needs their own app, and Khayt now says so instead of failing silently.
 
+- **You can now see what the AI features cost you, broken down by feature.** The assistant runs on your own Anthropic key, so the bill is yours — but the console shows a single total and only Khayt knows which feature spent it. There is now a per-month, per-feature ledger, so "is the assistant worth leaving on?" is a decision you can actually make. The figure counts this device only and says so on screen.
+
+- **Purchase orders left over from the reorder pricing bug are now found for you.** A banner above the purchase-order list names each affected order with both the wrong and the correct figure, and offers a one-click, undoable correction. It never corrects on its own: an order may already have gone to a supplier, and only draft and ordered ones are offered a fix — received and cancelled orders are history and are left alone.
+
+### Changed
+
+- **Seven themes became three.** Four of them could not be picked at all, yet every one of them still had to be maintained — six separate dashboards among them. What is left is Workbench, Command and Vivid, each properly finished.
+
+- **The dashboard leads with what actually needs you.** Everything on it previously shouted at the same volume, so nothing stood out. Interruptions and the state of your fleet now sit above the fold, and the rest is quieter.
+
+- **The queue tells you what is wrong without a hunt.** Finding a problem meant sweeping seven columns; the queue now surfaces it directly. Rows also open the order behind them by mouse or keyboard.
+
+- **Less chrome before the work.** Four rows of toolbars and headers sat above anything useful; that is now trimmed so the screen opens on your jobs.
+
+- **Bed Ready looks like itself.** It had been borrowing a Khayt theme to stand in for its own identity.
+
 ### Fixed
+
+- **A refund never left the revenue it repaid.** An order priced 3,000 with a 1,200 credit note against it still reported the full 3,000 as revenue, and charged VAT on all of it — overstating profit by the refunded amount. Refunds are now netted out of every revenue, profit, margin and VAT figure in the app, including the quarterly P&L, the tax summary and the standard-rated sales box of the VAT return. Nothing needs re-entering; the figures recalculate on their own.
+
+- **Six figures the app reported wrongly.** An auto-drafted reorder could be priced about a thousand times too high; cancelled invoices were still counted as revenue in twelve places; saving an order with an instalment plan could wipe a recorded deposit; an order could report itself fully paid on a partial plan; archived orders held on to their stock reservations; and a month's margin averaged percentages instead of blending the money, so one tiny job could dominate it.
+
+- **The cloud server address is now checked before your password is sent to it.** A plain `http://` address on the internet would have sent your email and password unencrypted; Khayt now requires `https://` there, while still allowing `http://` for a server you run yourself on your own machine or network.
+
+- **The privacy screen promised customer data never left the machine.** It said more than the app could stand behind. The wording now matches what actually happens.
+
+- **Crash reports were sent even when you had not turned them on.** Settings offers crash reporting as an opt-in and says Khayt sends nothing by default, but the reporter ignored that setting in installed builds and sent error details anyway. It now honours the setting, and stays off unless you switch it on.
+
+- **The status bar claimed "synced" no matter what.** The tick and the green dot were fixed in place and read nothing, so it reported healthy while sync was failing, offline, locked, or switched off — the one thing you would check before closing the laptop. It now reflects the real state.
+
+- **A synced delete could erase an edit with no trace.** Nothing recorded that it had happened.
+
+- **Groundwork for multi-device sync: two devices editing the same record no longer end up disagreeing.** Previously each kept its own copy and neither was told. One edit is still replaced, but every device now reaches the same result instead of quietly drifting apart.
+
+- **"Today" was yesterday in Riyadh and tomorrow in New York.** Dates were bucketed against UTC rather than your own day, so figures landed in the wrong day either side of midnight.
+
+- **Khayt could hang at startup.** A dialog on the path that loads your store could stop the app before it finished opening. A second issue could also let a redundant save race the app shutting down.
+
+- **Three of four AI features told the model they were quoting.** Each now describes the job it is actually doing, so the replies suit the task.
+
+- **Rows that looked clickable now are.** The queue list and the dashboard job rows painted a hover highlight but had nothing wired to them. Both now open the order behind them, by mouse or keyboard, with a visible focus ring.
+
+- **Urgent pills and some labels rendered with no colour, and a few showed raw names.** Colours and text used by shared screens were defined only in the Bed Ready stylesheets, so in Khayt's own themes they fell back to nothing.
+
+- **The three themes disagreed about what "offline" meant.** Each decided it privately, and a single missed poll was enough to call a healthy printer offline. They now share one definition, with tolerance for a missed reading.
 
 - **Klipper printers rejected Khayt when they required a key.** Khayt never sent its API key to Klipper/Moonraker printers, so any printer set to require a login refused every request with no explanation. Machines saved without a key also sent an invalid one instead of none.
 
-### Fixed
-
 - **A Duet printer could report a wildly wrong progress percentage.** Before the job file was fully read, progress was calculated against a missing file size and could show a number in the millions. Progress from every printer type is now kept within 0-100%.
+
+- **Smaller fixes.** The queue toolbar drew its icons in the operating system's emoji font instead of Khayt's own, and the top-bar search box lost its layout in Bed Ready.
 
 ## [3.2.0] - 2026-07-22
 
