@@ -237,7 +237,9 @@ body.khayt-workbench .wb-fleet-mini {
 }
 body.khayt-workbench .wb-fm-row {
   display: grid;
-  grid-template-columns: 84px 1fr 96px 52px;
+  /* Was a hard 84px, which clipped user-entered machine names to ~11 chars
+     ("Prusa CORE One #2" -> "Prusa CORE..."). Grows to fit, still bounded. */
+  grid-template-columns: minmax(84px, max-content) 1fr 96px 52px;
   align-items: center;
   gap: 10px;
   font-size: 12px;

@@ -296,6 +296,33 @@ async function assertQuietChromeAndOperableGroups(window) {
   // navigation reads a mid-transition colour on the tab we just left — it has
   // already lost .active but is still fading down from the accent.
   await window.waitForTimeout(300);
+  // A row that paints a hover highlight must actually open the order — and a
+  // click on the row's own action button must NOT also open it, or advancing a
+  // job would pop the editor every time.
+  const rowClick = await window.evaluate(() => {
+    const out = { opened: null, openedFromButton: null };
+    const realOpen = window.openOrderEditor;
+    let lastId = null;
+    window.openOrderEditor = (id) => { lastId = id; };
+    try {
+      const row = document.querySelector('.ql-row.is-openable');
+      if (!row) return { skipped: true };
+      const wantId = row.dataset.orderId;
+
+      lastId = null;
+      row.click();
+      out.opened = (lastId === wantId);
+
+      const btn = row.querySelector('button[data-act="status"]');
+      if (btn) { lastId = null; btn.click(); out.openedFromButton = (lastId !== null); }
+      return out;
+    } finally { window.openOrderEditor = realOpen; }
+  });
+  if (!rowClick.skipped) {
+    if (!rowClick.opened) throw new Error('clicking a queue row did not open its order');
+    if (rowClick.openedFromButton) throw new Error('clicking the row action button also opened the order editor');
+  }
+
   const nav = await window.evaluate(() => {
     const sat = (css) => {
       const m = /rgba?\(([^)]+)\)/.exec(css || '');

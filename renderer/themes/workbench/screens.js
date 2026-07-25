@@ -118,7 +118,9 @@
     const pct = jobProgress(order);
     const pctHtml = pct != null
       ? `<span class="wb-tail-pct">${pct}%</span>` : '';
-    return `<li>
+    // The row paints a hover highlight, so it must actually do something —
+    // it used to be an inert <li> with a pointer affordance and no handler.
+    return `<li class="is-openable" data-order-id="${escapeHtml(order.id)}" tabindex="0" role="button">
       <span class="wb-attn-ico" style="background:color-mix(in srgb, ${CHIP[cls].fg} 12%, transparent);color:${CHIP[cls].fg}">${svg(ICON.printer)}</span>
       <div class="wb-li-text"><div class="wb-ttl">${escapeHtml(title)}</div><div class="wb-sub">${escapeHtml(sub)}</div></div>
       <span class="wb-tail">${pctHtml}${chip(cls, label)}</span>
@@ -182,7 +184,7 @@
           ? tr('mach.offline', 'offline')
           : `${pct}%`;
     return `<div class="wb-fm-row">
-      <span class="wb-fm-nm">${escapeHtml(machine.name)}</span>
+      <span class="wb-fm-nm" title="${escapeHtml(machine.name)}">${escapeHtml(machine.name)}</span>
       <span class="wb-fm-job">${escapeHtml(jobName)}</span>
       <div class="wb-bar"><i style="width:${Math.max(pct, state === 'idle' ? 0 : 3)}%;${fill}"></i></div>
       <span class="wb-fm-pct" style="color:${state === 'idle' ? 'var(--ink-3)' : c.fg}">${escapeHtml(tail)}</span>
@@ -401,6 +403,24 @@
       btn.addEventListener('click', () => {
         if (typeof switchTab === 'function') switchTab(btn.dataset.tab);
       });
+    });
+
+    // Open the order behind a job row. Delegated on the host (which this render
+    // just replaced), so listeners cannot accumulate across re-renders.
+    const openRow = (el) => {
+      const id = el && el.dataset.orderId;
+      if (id && typeof openOrderEditor === 'function') openOrderEditor(id);
+    };
+    host.addEventListener('click', (e) => {
+      const li = e.target.closest('li.is-openable');
+      if (li) openRow(li);
+    });
+    host.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const li = e.target.closest('li.is-openable');
+      if (!li) return;
+      e.preventDefault();
+      openRow(li);
     });
 
     if (typeof i18n !== 'undefined' && i18n.apply) i18n.apply(host);

@@ -101,12 +101,15 @@
     const act = PRIMARY_ACTION[o.status];
     // Same data-act/data-to contract the kanban card uses, so the existing
     // delegated handler on .kanban drives it.
+    // Same emphasis as the kanban card's equivalent button (btn small primary).
+    // As a ghost it was the faintest control on the row it is built around.
     const action = act
-      ? `<button type="button" class="btn small ghost ql-act" data-act="status" data-id="${esc(o.id)}" data-to="${esc(act.to)}">${esc(tr(act.key, act.fallback))}</button>`
+      ? `<button type="button" class="btn small primary ql-act" data-act="status" data-id="${esc(o.id)}" data-to="${esc(act.to)}">${esc(tr(act.key, act.fallback))}</button>`
       : '';
 
     const sev = row.reason ? (row.reason.kind === 'overdue' ? 'is-warn' : 'is-crit') : '';
-    return `<div class="ql-row ${sev}" data-order-id="${esc(o.id)}">
+    // The row paints a hover highlight; it now honours it by opening the order.
+    return `<div class="ql-row ${sev} is-openable" data-order-id="${esc(o.id)}" tabindex="0" role="button">
       <span class="ql-stripe" aria-hidden="true"></span>
       <span class="ql-name">${esc(o.project || o.id)} <em>— ${esc(sub)}</em></span>
       <span class="ql-meta">${esc(meta.join(' · '))}</span>
@@ -185,7 +188,16 @@
       board.insertBefore(host, board.firstChild);
       // Delegated once on the host, which survives every innerHTML rewrite, so
       // re-rendering the list cannot stack duplicate listeners.
+      // Open the order behind a row — but never when the click landed on a
+      // control inside it, or advancing a job would also open the editor.
       host.addEventListener('click', (e) => {
+        if (!e.target.closest('button, a, input, select, textarea')) {
+          const row = e.target.closest('.ql-row.is-openable');
+          if (row && host.contains(row) && typeof openOrderEditor === 'function') {
+            openOrderEditor(row.dataset.orderId);
+            return;
+          }
+        }
         const btn = e.target.closest('[data-act="ql-toggle-group"]');
         if (!btn || !host.contains(btn)) return;
         // The queue action dispatcher lives on .kanban and would also see this
@@ -198,6 +210,13 @@
         btn.setAttribute('aria-expanded', nowCollapsed ? 'false' : 'true');
         const key = [...section.classList].find((c) => c.startsWith('ql-group-') && c !== 'ql-group-head');
         if (key) rememberCollapse(key.replace('ql-group-', ''), nowCollapsed);
+      });
+      host.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        const row = e.target.closest('.ql-row.is-openable');
+        if (!row || !host.contains(row)) return;
+        e.preventDefault();
+        if (typeof openOrderEditor === 'function') openOrderEditor(row.dataset.orderId);
       });
     }
 
