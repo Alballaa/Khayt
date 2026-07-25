@@ -2088,20 +2088,26 @@ button .khayt-ico, summary .khayt-ico { opacity: .85; }
 .ql-group { margin-bottom: 18px; }
 .ql-group.is-collapsed .ql-rows { display: none; }
 
+.ql-group-h { margin: 0; }
+/* The head is a button now (it toggles the group), so it must reset button
+   chrome and take a visible focus ring — it used to be a plain <h3>. */
 .ql-group-head {
   display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin: 0 0 4px;
-  padding: 0 2px 6px;
-  border-bottom: 1px solid var(--border-soft, var(--border));
-  font-family: var(--font-num, monospace);
-  font-size: 10.5px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  font-weight: 600;
-  color: var(--text-muted);
+  align-items: center;
+  gap: 8px;
+  inline-size: 100%;
+  min-block-size: 32px;
+  padding: 4px 2px;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  cursor: pointer;
 }
+.ql-group-chev { font-size: 10px; color: var(--text-muted); transition: transform .15s ease; }
+.ql-group.is-collapsed .ql-group-chev { transform: rotate(-90deg); }
+.ql-group-head:hover .ql-group-agg { color: var(--text); }
 .ql-group-agg {
   margin-inline-start: auto;
   font-variant-numeric: tabular-nums;
@@ -5279,4 +5285,23 @@ button.part-status-dot:focus-visible {
   border-inline-start: 3px solid var(--warning, #c98a00);
   background: color-mix(in srgb, var(--warning, #c98a00) 10%, transparent);
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+
+/* Client colour as a corner dot, not a border. It used to be written as an
+   inline `border-inline-start`, which beat .kanban-priority-urgent's red stripe
+   in the cascade — so an urgent card silently lost its urgency marker whenever
+   the client happened to have a colour set. Decoration and condition now use
+   separate channels and cannot overwrite each other. */
+.kanban-card.has-client-accent { position: relative; }
+.kanban-card.has-client-accent::after {
+  content: '';
+  position: absolute;
+  inset-block-start: 8px;
+  inset-inline-end: 8px;
+  inline-size: 7px;
+  block-size: 7px;
+  border-radius: 50%;
+  background: var(--kcard-client, transparent);
+  box-shadow: 0 0 0 1.5px var(--bg-card, var(--surface));
+  pointer-events: none;
 }

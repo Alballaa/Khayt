@@ -264,6 +264,65 @@ async function seedDemoStore(window) {
   }
 }
 
+/**
+ * Two redesign promises that are easy to regress silently:
+ *  - the queue group head must be an operable control. It rendered
+ *    `is-collapsed` from lib/queue-groups.js but nothing ever toggled it, so
+ *    "Finished today" showed totals that could never be opened.
+ *  - nav chrome must stay quiet. All 13 items used to carry a saturated tile
+ *    from the STATUS palette, making permanent navigation louder than the
+ *    attention bar it sits beside.
+ */
+async function assertQuietChromeAndOperableGroups(window) {
+  await applyThemeCase(window, THEME_CASES.find((c) => c.id === 'workbench'));
+
+  const g = await window.evaluate(() => {
+    const head = document.querySelector('.ql-group .ql-group-head');
+    if (!head) return { missing: true };
+    const before = head.getAttribute('aria-expanded');
+    head.click();
+    return { tag: head.tagName, before, after: head.getAttribute('aria-expanded') };
+  });
+  if (g.missing) throw new Error('no queue group head rendered — cannot verify it is operable');
+  if (g.tag !== 'BUTTON') throw new Error(`queue group head is <${g.tag}>, expected BUTTON`);
+  if (!g.before || !g.after || g.before === g.after) {
+    throw new Error(`clicking the group head did not flip aria-expanded (${g.before} -> ${g.after})`);
+  }
+
+  // The invariant is "chrome is quiet", not "exactly one colour" — a second
+  // neutral is fine. What must not happen is a nav icon carrying a saturated
+  // hue from the STATUS palette, which is reserved for conditions.
+  // .nav-icon animates background over 120ms. Measuring immediately after a
+  // navigation reads a mid-transition colour on the tab we just left — it has
+  // already lost .active but is still fading down from the accent.
+  await window.waitForTimeout(300);
+  const nav = await window.evaluate(() => {
+    const sat = (css) => {
+      const m = /rgba?\(([^)]+)\)/.exec(css || '');
+      if (!m) return 0;
+      const [r, g, b] = m[1].split(',').slice(0, 3).map((n) => parseFloat(n));
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+      return mx === 0 ? 0 : (mx - mn) / mx;   // HSV saturation, 0..1
+    };
+    const items = [...document.querySelectorAll('.khayt-navitem')];
+    const loud = [];
+    for (const b of items) {
+      // The active item legitimately takes the accent. Check both signals:
+      // the class and aria-selected, since nav state is mirrored in both.
+      if (b.classList.contains('active') || b.getAttribute('aria-selected') === 'true') continue;
+      const icon = b.querySelector('.nav-icon');
+      if (!icon) continue;
+      const bg = getComputedStyle(icon).backgroundColor;
+      if (sat(bg) > 0.25) loud.push(`${b.dataset.tab}=${bg}`);
+    }
+    return { count: items.length, loud, inlineTiles: items.filter((b) => b.style.getPropertyValue('--wb-tile')).length };
+  });
+  if (nav.count > 3) {
+    if (nav.loud.length) throw new Error(`nav chrome is not quiet — saturated icons: ${nav.loud.join(', ')}`);
+    if (nav.inlineTiles) throw new Error(`${nav.inlineTiles} nav items still carry an inline --wb-tile colour`);
+  }
+}
+
 try {
   ({ electronApp } = await launchApp(userData));
   const window = await electronApp.firstWindow();
@@ -283,6 +342,9 @@ try {
 
   await assertReconnectingNotOffline(window);
   console.log('  a missed poll reads reconnecting, not offline: ok');
+
+  await assertQuietChromeAndOperableGroups(window);
+  console.log('  quiet nav chrome + operable queue groups: ok');
 
   await testRtlWorkbench(window);
   console.log('  workbench + ar RTL: ok');

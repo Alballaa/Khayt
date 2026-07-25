@@ -1610,7 +1610,7 @@ function openOrderEditor(orderId) {
               return;
             }
             refreshVaultFiles();
-            toast(`📁 ${escapeHtml(t('ord.vault_files'))}`, 'success');
+            toast(`📁 ${t('ord.vault_files')}`, 'success');
           } catch (e) {
             console.error('vault add error', e);
             toast('⚠ ' + (t('ord.vault_add_failed') || 'Could not attach that file'), 'error', 6000);

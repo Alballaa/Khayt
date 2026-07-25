@@ -560,7 +560,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderKanban();
       renderLogs();
     }
-    toast(`🖨️ ${escapeHtml(project || id)}: ${from} → ${to}`, 'success');
+    toast(`🖨️ ${project || id}: ${from} → ${to}`, 'success');
   });
   window.hubAPI?.onTunnelStatusChanged?.(({ active, url, error }) => {
     const tRow = document.getElementById('tunnelStatusRow');

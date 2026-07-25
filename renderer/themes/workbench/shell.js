@@ -26,33 +26,17 @@
       tabs: ['logs-tab', 'analytics-tab', 'expenses-tab'] },
   ];
 
-  // Per-tab tile color (CSS var name from tokens.css).
-  const TILE = {
-    'dashboard-tab': 'var(--accent)',
-    'calculator-tab': 'var(--wb-purple)',
-    'queue-tab': 'var(--wb-blue)',
-    'inventory-tab': 'var(--wb-amber)',
-    'waste-tab': 'var(--wb-teal)',
-    'catalog-tab': 'var(--wb-blue)',
-    'clients-tab': 'var(--wb-pink)',
-    'gift-cards-tab': 'var(--wb-green)',
-    'portfolio-tab': 'var(--wb-purple)',
-    'logs-tab': 'var(--wb-green)',
-    'analytics-tab': 'var(--accent)',
-    'expenses-tab': 'var(--wb-amber)',
-    'settings-tab': 'var(--ink-3)',
-  };
+
 
   function isOn() { return document.body.classList.contains('khayt-workbench'); }
 
   /* ---------- Sidebar regrouping ---------- */
 
-  function applyTiles() {
-    document.querySelectorAll('.khayt-nav .tab-btn[data-tab], .khayt-navfoot .tab-btn[data-tab]').forEach((btn) => {
-      const tile = TILE[btn.dataset.tab];
-      if (tile) btn.style.setProperty('--wb-tile', tile);
-    });
-  }
+  // Deliberately a no-op: nav tiles are now styled entirely in shell.css, in one
+  // quiet monochrome treatment with the accent reserved for the active item.
+  // Kept (with clearTiles) so any --wb-tile left on a button by an older build
+  // is still cleared on teardown.
+  function applyTiles() {}
 
   function clearTiles() {
     document.querySelectorAll('.tab-btn[data-tab]').forEach((btn) => {
@@ -161,7 +145,10 @@
     if (!bar) {
       bar = document.createElement('div');
       bar.id = 'workbenchStatusBar';
-      bar.setAttribute('aria-hidden', 'true');
+      // NOT aria-hidden: the open-orders count moved here from the dashboard,
+      // so hiding the bar hides that number from assistive tech entirely.
+      bar.setAttribute('role', 'status');
+      bar.setAttribute('aria-label', tr('workbench.status.aria', 'Shop status'));
       appRoot.appendChild(bar); // sits below .khayt-body in the column
     }
     return bar;
@@ -195,15 +182,44 @@
     const now = new Date();
     const clock = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 
+    /**
+     * Map the real cloud-sync state to a status-bar segment. Only a genuinely
+     * healthy state gets the green tick; anything the shop should act on is
+     * named plainly. Returns html:'' when sync is off — the leading dot then
+     * reflects the app being up rather than a sync claim.
+     */
+    function syncSegment() {
+      const api = window.KhaytCloudSync;
+      let state = 'off';
+      try { if (api && api.isOn && api.isOn()) state = String(api.status() || 'idle'); } catch (_) { state = 'error'; }
+      const seg = (cls, key, dflt, tick) =>
+        ({ html: `<span class="${cls}">${escapeHtml(tr(key, dflt))}${tick ? ' ✓' : ''}</span>`, state });
+      switch (state) {
+        case 'off':      return { html: '', dot: 'var(--wb-green)', state };
+        case 'synced':
+        case 'idle':     return { ...seg('wb-ok', 'workbench.status.synced', 'synced', true), dot: 'var(--wb-green)' };
+        case 'syncing':  return { ...seg('wb-dim', 'workbench.status.syncing', 'syncing…', false), dot: 'var(--wb-blue)' };
+        case 'offline':  return { ...seg('wb-warn', 'workbench.status.offline', 'offline', false), dot: 'var(--wb-amber)' };
+        case 'locked':   return { ...seg('wb-warn', 'workbench.status.locked', 'sync locked', false), dot: 'var(--wb-amber)' };
+        case 'conflict': return { ...seg('wb-warn', 'workbench.status.conflict', 'sync conflict', false), dot: 'var(--wb-amber)' };
+        default:         return { ...seg('wb-bad', 'workbench.status.sync_error', 'sync error', false), dot: 'var(--wb-red)' };
+      }
+    }
+
+    // Sync state is READ, not asserted. This used to be a hardcoded green
+    // "synced ✓" that nothing computed — so it claimed healthy while sync was
+    // failing, offline, or switched off entirely. When cloud sync is off there
+    // is nothing to claim, so the segment is omitted rather than reassuring.
+    const sync = syncSegment();
+
     bar.innerHTML = `
-      <span class="wb-dot" style="background:var(--wb-green)"></span>
+      <span class="wb-dot" style="background:${sync.dot}"></span>
       <span><b>${escapeHtml(String(openOrders))}</b> ${escapeHtml(tr('workbench.status.orders', 'orders'))}</span>
       <span class="sepr">·</span>
       <span><b style="color:var(--wb-blue)">${escapeHtml(String(printing))}</b> ${escapeHtml(tr('workbench.status.printing', 'printing'))}</span>
       <span class="sepr">·</span>
       <span><b>${escapeHtml(kgToday)} kg</b> ${escapeHtml(tr('workbench.status.today', 'today'))}</span>
-      <span class="sepr">·</span>
-      <span class="wb-ok">${escapeHtml(tr('workbench.status.synced', 'synced'))} ✓</span>
+      ${sync.html ? `<span class="sepr">·</span>${sync.html}` : ''}
       <span class="wb-sb-right">
         <span>${escapeHtml(tr('workbench.status.updated', 'Updated'))} ${escapeHtml(clock)}</span>
       </span>`;

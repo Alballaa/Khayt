@@ -254,7 +254,7 @@ function renderStudioKanbanCard(b) {
       <div class="order-meta-row">${biz ? paymentBadge(log) : ''}${log.dueDate && status !== 'completed' ? ' ' + formatDueDateBadge(log.dueDate) : ''}${timerBadge}${etaBadge}</div>`;
 
   return `
-    <div class="kanban-card khayt-kcard${_pl === 'urgent' ? ' kanban-priority-urgent' : _pl === 'high' ? ' kanban-priority-high' : ''}${pausedClass}" draggable="true" data-order-id="${log.id}" style="${cardClientAccent}">
+    <div class="kanban-card khayt-kcard${_pl === 'urgent' ? ' kanban-priority-urgent' : _pl === 'high' ? ' kanban-priority-high' : ''}${pausedClass}${cardClientAccent ? ' has-client-accent' : ''}" draggable="true" data-order-id="${log.id}" style="${cardClientAccent}">
       ${headBlock}
       ${!useStudio && partColourHtml ? `<div style="margin-top:2px;">${partColourHtml}</div>` : ''}
       ${useStudio && partColourHtml ? `<div style="margin-top:4px">${partColourHtml}</div>` : ''}
@@ -744,7 +744,15 @@ function renderKanban() {
       ).join('');
       // Client accent colour on card left border
       const cardClient = log.clientId ? clientById(log.clientId) : null;
-      const cardClientAccent = cardClient?.color ? `border-inline-start:3px solid ${safeCssColor(cardClient.color)};padding-inline-start:7px;` : '';
+      // The client's colour is DECORATION; the inline-start border is reserved
+      // for CONDITION (.kanban-priority-urgent paints a 4px red stripe there).
+      // Inline styles beat the stylesheet, so setting the border here silently
+      // erased the urgent stripe on any card whose client had a colour set —
+      // decoration overwriting a condition, exactly backwards. The colour now
+      // rides a custom property and is drawn as a dot on the opposite corner.
+      const cardClientAccent = cardClient?.color
+        ? `--kcard-client:${safeCssColor(cardClient.color)};`
+        : '';
       return renderStudioKanbanCard({
         log, status, _pl, pausedClass, cardClientAccent, partColourHtml, partsLabel,
         machineBadge, operatorBadge, kanbanSplitBadge, kanbanSubBadge, qcBadge,
@@ -768,7 +776,7 @@ function renderKanban() {
       const lastAlerted = renderKanban._fepAlerted.get(m.id) || 0;
       if (threshold > 0 && threshold > lastAlerted) {
         renderKanban._fepAlerted.set(m.id, threshold);
-        toast(`${escapeHtml(m.name)}: ${t('resin.fep_alert')}`, 'warning', 6000);
+        toast(`${m.name}: ${t('resin.fep_alert')}`, 'warning', 6000);
       }
     });
   })();
