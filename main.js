@@ -73,6 +73,7 @@ const bambu = require('./lib/bambu');
 const { bambuFtpUpload } = require('./lib/bambu-ftp');
 const { sendSms } = require('./lib/sms');
 const cloudClient = require('./lib/cloud-client');
+const aiTools = require('./lib/ai-tools');
 const bedreadyLibrary = require('./lib/bedready-library');
 const calibProfile = require('./lib/calibration-profile');
 const orcaFila = require('./lib/orca-filament-install');
@@ -2468,33 +2469,63 @@ ipcMain.handle('hub:webhook-post', async (_e, { url, secret, payload } = {}) => 
 // AI quote extraction (BYO Anthropic key) — opt-in; fails safe (renderer falls
 // back to the manual quote form on any error). Key resolved from the encrypted
 // store so it never round-trips the renderer in plaintext after first save.
-ipcMain.handle('hub:ai-extract', async (_e, { apiKey, model, system, request, image, schema } = {}) => {
+ipcMain.handle('hub:ai-extract', async (_e, { apiKey, model, system, request, image, schema, task } = {}) => {
   apiKey = resolveStoreSecret(apiKey, d => d?.settings?.ai?.apiKey);
   if (!apiKey) return { ok: false, error: 'No AI key configured' };
   if (!request || !String(request).trim()) return { ok: false, error: 'Empty request' };
-  try {
-    const content = [{ type: 'text', text: String(request) }];
-    if (image) content.push({ type: 'image', source: { type: 'base64', media_type: 'image/png', data: String(image) } });
-    const tool = { name: 'quote_extract', description: 'Physical facts for a 3D-print quote', input_schema: schema };
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({
-        model: model || 'claude-opus-4-8',
-        max_tokens: 1024,
-        system: String(system || ''),
-        tools: [tool],
-        tool_choice: { type: 'tool', name: 'quote_extract' },
-        messages: [{ role: 'user', content }],
-      }),
-      signal: AbortSignal.timeout(30000),
-    });
-    if (!res.ok) return { ok: false, error: 'AI API error: HTTP ' + res.status };
+
+  // The tool name/description must describe the CALLING feature — the model
+  // leans on them heavily, and one shared 'quote_extract' definition was
+  // mis-framing price, reply and assistant calls. See lib/ai-tools.js.
+  const { tool, maxTokens } = aiTools.resolveTool(task, schema);
+  const content = [{ type: 'text', text: String(request) }];
+  if (image) content.push({ type: 'image', source: { type: 'base64', media_type: 'image/png', data: String(image) } });
+  const body = JSON.stringify({
+    model: model || 'claude-opus-4-8',
+    max_tokens: maxTokens,
+    system: String(system || ''),
+    tools: [tool],
+    tool_choice: { type: 'tool', name: tool.name },
+    messages: [{ role: 'user', content }],
+  });
+
+  // Retry transient faults (429/529/5xx) with backoff. Raw fetch gives us none
+  // of this for free, so a single rate-limit reply used to kill the feature.
+  const MAX_ATTEMPTS = 3;
+  let lastError = 'AI request failed';
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    let res;
+    try {
+      res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+        body,
+        signal: AbortSignal.timeout(30000),
+      });
+    } catch (e) {
+      // Network fault or timeout — transient by nature, so it retries too.
+      lastError = String(e && e.message || e);
+      if (attempt + 1 >= MAX_ATTEMPTS) return { ok: false, error: lastError };
+      await new Promise(r => setTimeout(r, aiTools.retryDelayMs(attempt)));
+      continue;
+    }
+
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => null);
+      lastError = aiTools.describeHttpError(res.status, errBody);
+      if (!aiTools.shouldRetry(res.status) || attempt + 1 >= MAX_ATTEMPTS) return { ok: false, error: lastError };
+      await new Promise(r => setTimeout(r, aiTools.retryDelayMs(attempt, res.headers.get('retry-after'))));
+      continue;
+    }
+
     const data = await res.json();
     const toolUse = (data.content || []).find(c => c && c.type === 'tool_use');
-    if (!toolUse || !toolUse.input) return { ok: false, error: 'No structured output returned' };
-    return { ok: true, draft: toolUse.input };
-  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+    if (toolUse && toolUse.input) return { ok: true, draft: toolUse.input };
+    // A 200 with no tool call: stop_reason says whether the model refused, ran
+    // out of room, or paused — three different fixes, previously one message.
+    return { ok: false, error: aiTools.describeStop(data.stop_reason) || 'No structured output returned' };
+  }
+  return { ok: false, error: lastError };
 });
 
 // ── Khayt Cloud sync (opt-in, E2E) ────────────────────────────────────────────
