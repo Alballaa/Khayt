@@ -2675,7 +2675,7 @@ function getProductStats(productId) {
   return {
     count: orders.length,
     completedCount: completed.length,
-    revenue: completed.reduce((s, o) => s + orderRevenueBase(o), 0),
+    revenue: completed.reduce((s, o) => s + orderNetRevenueBase(o), 0),
     lastDate: orders[0]?.date || null
   };
 }
@@ -2709,7 +2709,7 @@ function renderCatalog() {
     let s = productStatsMap.get(o.productId);
     if (!s) { s = { count: 0, completedCount: 0, revenue: 0, lastDate: null }; productStatsMap.set(o.productId, s); }
     s.count++;
-    if (o.status === 'completed') { s.completedCount++; s.revenue += orderRevenueBase(o); }
+    if (o.status === 'completed') { s.completedCount++; s.revenue += orderNetRevenueBase(o); }
     if (!s.lastDate || o.date > s.lastDate) s.lastDate = o.date;
   }
 

@@ -499,7 +499,7 @@ function renderKanban() {
           foot.className = 'khayt-kcol-foot';
           colEl.appendChild(foot);
         }
-        const totalValFoot = sorted.reduce((s, o) => s + orderRevenueBase(o), 0);
+        const totalValFoot = sorted.reduce((s, o) => s + orderNetRevenueBase(o), 0);
         // Enthusiast/maker mode has no commerce — omit the per-column money total.
         const showColMoney = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.showsBusiness(settings.mode) : settings.mode !== 'enthusiast';
         foot.innerHTML = `<span style="font-size:11px;color:var(--text-muted)">${sorted.length} ${escapeHtml(t('kan.orders') || 'orders')}</span>${showColMoney ? `<span class="metric" style="font-size:11.5px;color:var(--text-dim)">${fmtPrice(totalValFoot)}</span>` : ''}`;
@@ -508,7 +508,7 @@ function renderKanban() {
 
     // Column totals meta line
     const totalHrs = sorted.reduce((s, o) => s + (+o.printTime || 0), 0);
-    const totalVal = sorted.reduce((s, o) => s + orderRevenueBase(o), 0);
+    const totalVal = sorted.reduce((s, o) => s + orderNetRevenueBase(o), 0);
     const metaEl = $('#meta-' + status);
     if (metaEl) {
       const showMetaMoney = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.showsBusiness(settings.mode) : settings.mode !== 'enthusiast';

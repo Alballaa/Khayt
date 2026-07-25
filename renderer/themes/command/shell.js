@@ -382,8 +382,8 @@
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const todayStr = (typeof localDateStr === 'function') ? localDateStr(today) : localDateStr(today);
     const dueToday = log.filter((o) => o.status !== 'completed' && o.status !== 'quote' && o.dueDate === todayStr).length;
-    const todayRev = (typeof orderRevenueBase === 'function')
-      ? log.filter((o) => o.status === 'completed' && o.date === todayStr).reduce((s, o) => s + orderRevenueBase(o), 0)
+    const todayRev = (typeof orderNetRevenueBase === 'function')
+      ? log.filter((o) => o.status === 'completed' && o.date === todayStr).reduce((s, o) => s + orderNetRevenueBase(o), 0)
       : 0;
     const ccy = (typeof currencySymbol === 'function') ? currencySymbol() : 'SAR';
     const revStr = (typeof fmtMoney === 'function') ? fmtMoney(todayRev) : String(Math.round(todayRev));

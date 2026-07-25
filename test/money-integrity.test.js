@@ -115,7 +115,11 @@ test('monthly margin is blended, not a mean of percentages', () => {
   const src = read('renderer/analytics.js');
   assert.equal(/marginByMonth\[m\]\.total \+= margin;/.test(src), false,
     'summing per-order percentages lets one tiny job dominate the month');
-  assert.match(src, /marginByMonth\[m\]\.revenue \+= \+o\.price;/, 'accumulate money, divide once');
+  // Pin the SHAPE (money accumulates into .revenue/.cost, the ratio is taken
+  // once at the end) rather than the exact price expression — that expression
+  // now nets credit notes, see the credit-note tests below.
+  assert.match(src, /marginByMonth\[m\]\.revenue \+=/, 'accumulate money, divide once');
+  assert.match(src, /marginByMonth\[m\]\.cost \+= \+o\.costBasis;/, 'cost accumulates alongside revenue');
 
   // The arithmetic, with the case that exposed it.
   const rows = [{ price: 100, cost: 20 }, { price: 10000, cost: 9000 }];
@@ -127,4 +131,165 @@ test('monthly margin is blended, not a mean of percentages', () => {
   assert.equal(Math.round(blended * 10) / 10, 10.7, 'the true figure');
   // 45 crossed the green threshold (>= 40); 10.7 does not. The colour was lying too.
   assert.ok(unweighted >= 40 && blended < 40);
+});
+
+/* ============================================================
+   Credit notes (refunds) must leave reported revenue
+   ============================================================ */
+
+require('../renderer/format.js');
+const CUR = require('../renderer/currency.js');
+
+/** Extract VAT out of a VAT-inclusive figure, the formula used app-wide. */
+const vatOf = (revenue, rate) => (rate > 0 ? revenue * rate / (100 + rate) : 0);
+
+test('a partial refund leaves no marker on the order at all', () => {
+  // This is WHY the defect survived: generateCreditNote records the credit only
+  // in creditNotes[] and sets creditedAt only on a FULL credit, so a partially
+  // refunded order is indistinguishable from an unrefunded one to any filter
+  // that looks at status / voidedAt / creditedAt.
+  const o = { status: 'completed', price: 3000, paidAmount: 3000, creditNotes: [{ amount: 1200 }] };
+  assert.equal(o.voidedAt, undefined);
+  assert.equal(o.creditedAt, undefined);
+  assert.equal(o.status, 'completed');
+  const src = read('renderer/invoicing.js');
+  assert.match(src, /if \(totalCredited >= \(\+order\.price \|\| 0\)\) \{/,
+    'creditedAt is set only at FULL credit — a partial refund must be caught via creditNotes[]');
+});
+
+test('credit notes come out of revenue, and VAT follows revenue', () => {
+  global.settings = { currency: 'SAR', vatRate: 15, exchangeRates: {} };
+  global.clients = [];
+  const o = { status: 'completed', price: 3000, paidAmount: 3000, creditNotes: [{ amount: 1200 }] };
+
+  // The figures the app used to report.
+  assert.equal(CUR.orderRevenueBase(o), 3000);
+  assert.equal(vatOf(CUR.orderRevenueBase(o), 15).toFixed(2), '391.30');
+
+  // The true figures.
+  assert.equal(CUR.orderNetRevenueBase(o), 1800);
+  assert.equal(vatOf(CUR.orderNetRevenueBase(o), 15).toFixed(2), '234.78');
+});
+
+test('netting converts the credit at the order rate, not the shop rate', () => {
+  global.settings = { currency: 'SAR', vatRate: 15, exchangeRates: { USD: 3.75 } };
+  global.clients = [{ id: 'c-us', currency: 'USD' }];
+  const o = { status: 'completed', clientId: 'c-us', price: 1000, creditNotes: [{ amount: 400 }] };
+  assert.equal(CUR.orderRevenueBase(o), 3750);
+  assert.equal(CUR.orderNetRevenueBase(o), 2250, '600 USD earned, at 3.75');
+  // Subtracting the raw 400 from the converted 3750 would give 3350 — the bug
+  // this reuse of convertToBase exists to prevent.
+  assert.notEqual(CUR.orderNetRevenueBase(o), 3350);
+});
+
+test('net revenue clamps at zero and ignores junk credit amounts', () => {
+  global.settings = { currency: 'SAR', exchangeRates: {} };
+  global.clients = [];
+  assert.equal(CUR.orderNetRevenueBase({ price: 500 }), 500, 'no creditNotes → unchanged');
+  assert.equal(CUR.orderNetRevenueBase({ price: 500, creditNotes: [] }), 500);
+  assert.equal(CUR.orderNetRevenueBase({ price: 500, creditNotes: [{ amount: 900 }] }), 0,
+    'an over-credit must not report negative revenue');
+  assert.equal(CUR.orderNetRevenueBase({ price: 500, creditNotes: [{ amount: 'x' }, { amount: null }, { amount: 100 }] }), 400);
+});
+
+test('gift-card redemption is a tender, NOT a reduction of revenue', () => {
+  // Deliberate asymmetry with orderOwedBase, which nets BOTH. Issuing a gift
+  // card creates no order (giftCards[] is its own collection), so redemption is
+  // the only point at which that money can be recognised as revenue — netting
+  // it here would recognise it nowhere. Every other path agrees it is a tender.
+  global.settings = { currency: 'SAR', exchangeRates: {} };
+  global.clients = [];
+  const o = { status: 'completed', price: 1000, giftCardDiscount: 400 };
+  assert.equal(CUR.orderNetRevenueBase(o), 1000, 'a gift-card-settled sale is still a sale');
+
+  const helpers = read('renderer/app-helpers.js');
+  assert.match(helpers, /const paidTotal = \(\+order\.paidAmount \|\| 0\) \+ \(\+order\.giftCardDiscount \|\| 0\);/,
+    'payStatus treats the gift card as cash paid, not as a discount');
+  const integrations = read('renderer/integrations.js');
+  assert.match(integrations, /Gift Card Liability/,
+    'the journal clears gift-card settlement against a liability, i.e. it is a tender');
+});
+
+test('orderOwedBase still nets credit notes after the refactor', () => {
+  global.settings = { currency: 'SAR', exchangeRates: {} };
+  global.clients = [];
+  assert.equal(CUR.orderOwedBase({ price: 3000, paidAmount: 1000, creditNotes: [{ amount: 1200 }] }), 800);
+  assert.equal(CUR.orderOwedBase({ price: 1000, paidAmount: 0, giftCardDiscount: 400, creditNotes: [{ amount: 200 }] }), 400);
+});
+
+test('no revenue aggregation still totals the GROSS price', () => {
+  // The broad guard. Deliberately over-flags every orderRevenueBase call in the
+  // renderer, then subtracts only the sites that are documented exclusions.
+  // Anything new that answers "how much did the shop earn" trips this.
+  const files = [
+    'renderer/analytics.js', 'renderer/clients.js', 'renderer/expenses.js', 'renderer/kanban.js',
+    'renderer/dashboard.js', 'renderer/inventory.js', 'renderer/operations-extras.js',
+    'renderer/queue-list.js', 'renderer/waste.js', 'renderer/settings.js', 'renderer/logs.js',
+    'renderer/themes/vivid/screens.js', 'renderer/themes/command/shell.js', 'renderer/themes/command/screens.js',
+  ];
+  const bad = [];
+  for (const rel of files) {
+    read(rel).split('\n').forEach((l, i) => {
+      if (!/\borderRevenueBase\b/.test(l)) return;
+      // EXCLUSION: the report builder emits per-order document columns ("price"
+      // beside paidAmount/balance), reproducing the invoice rather than
+      // reporting earnings.
+      if (/price: Math\.round\(orderRevenueBase\(o\)\)/.test(l)) return;
+      bad.push(`${rel}:${i + 1}  ${l.trim()}`);
+    });
+  }
+  assert.deepEqual(bad, [], `revenue aggregations still using the gross price:\n  ${bad.join('\n  ')}`);
+});
+
+test('the client statement and the journal keep the GROSS figure on purpose', () => {
+  // Both already account for credit notes as their own line. Netting here would
+  // subtract the same credit twice — the mirror image of the defect above.
+  const inv = read('renderer/invoicing.js');
+  assert.match(inv, /const totalCharges = orders\.reduce\(\(s, o\) => s \+ orderRevenueBase\(o\), 0\);/,
+    'the statement charges line is gross; totalCredit is shown beside it');
+  assert.match(inv, /const totalCredit\s+= orders\.reduce/, 'and the credit line must still exist');
+
+  const integrations = read('renderer/integrations.js');
+  assert.match(integrations, /'Credit Note'.*'Revenue'/,
+    'the journal reverses credit notes as their own double-entry rows');
+});
+
+test('every VAT figure is derived from the netted revenue', () => {
+  const checks = [
+    ['renderer/analytics.js', /vatCollected \+= rate > 0 \? orderNetRevenueBase\(o\) \* rate \/ \(100 \+ rate\) : 0/],
+    ['renderer/expenses.js',  /vatCollected \+= rate > 0 \? orderNetRevenueBase\(o\) \* rate \/ \(100 \+ rate\) : 0/],
+  ];
+  for (const [rel, re] of checks) {
+    assert.match(read(rel), re, `${rel}: VAT collected must follow revenue, not the gross price`);
+  }
+  // The ZATCA/GAZT return's standard-rated sales box must net credits too.
+  assert.match(read('renderer/operations-extras.js'),
+    /const box1 = periodOrders\.reduce\(\(s, o\) => s \+ orderNetRevenueBase\(o\), 0\);/,
+    'box1 (standard-rated sales) must be net of credit notes');
+});
+
+test('margin figures net credit notes in the order\'s own currency', () => {
+  // These three pair the price with costBasis / shippingCost, which are NOT
+  // converted to base. Netting the credit in base here would divide a converted
+  // numerator by an unconverted denominator, so they use orderCreditedRaw.
+  // (The pre-existing currency mismatch between price and costBasis is a
+  // separate defect and is deliberately left alone here.)
+  assert.match(read('renderer/analytics.js'),
+    /marginByMonth\[m\]\.revenue \+= Math\.max\(0, \(\+o\.price \|\| 0\) - orderCreditedRaw\(o\)\);/,
+    'the monthly margin chart must net credit notes');
+  assert.match(read('renderer/analytics.js'),
+    /const rev = Math\.max\(0, \(\+o\.price \|\| 0\) - orderCreditedRaw\(o\)\);/,
+    'the exported average margin must net credit notes');
+  assert.match(read('renderer/logs.js'),
+    /const gross = \(\+o\.price \|\| 0\) - \(\+o\.shippingCost \|\| 0\) - credited;/,
+    'the orders-log margin column must net credit notes');
+});
+
+test('a refund moves the margin it should', () => {
+  // 1,000 sale costing 600 is a 40% margin. Refund 400 and the shop earned 600
+  // on a 600 cost — margin 0. Reading the gross price leaves it at 40%.
+  const netRev = (o) => Math.max(0, (+o.price || 0) - (o.creditNotes || []).reduce((s, cn) => s + (+cn.amount || 0), 0));
+  const o = { price: 1000, costBasis: 600, creditNotes: [{ amount: 400 }] };
+  assert.equal((o.price - o.costBasis) / o.price * 100, 40, 'the figure the chart used to show');
+  assert.equal((netRev(o) - o.costBasis) / netRev(o) * 100, 0, 'the true margin');
 });

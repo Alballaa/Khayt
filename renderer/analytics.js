@@ -11,7 +11,7 @@ function renderSimpleReports() {
 
   const thisMonthStr = localMonthStr();
   const monthOrders = printLog.filter(o => o.status === 'completed' && !o.voidedAt && (o.date || '').startsWith(thisMonthStr));
-  const monthRevenue = monthOrders.reduce((s, o) => s + orderRevenueBase(o), 0);
+  const monthRevenue = monthOrders.reduce((s, o) => s + orderNetRevenueBase(o), 0);
   const monthCount   = monthOrders.length;
 
   const outstanding = printLog
@@ -21,7 +21,7 @@ function renderSimpleReports() {
   const tagRev = {};
   for (const o of monthOrders) {
     for (const tag of (o.tags || [])) {
-      tagRev[tag] = (tagRev[tag] || 0) + orderRevenueBase(o);
+      tagRev[tag] = (tagRev[tag] || 0) + orderNetRevenueBase(o);
     }
   }
   const topTags = Object.entries(tagRev).sort((a, b) => b[1] - a[1]).slice(0, 3);
@@ -117,7 +117,7 @@ function computeHandoffMachineRows() {
   for (const o of orders) {
     const key = o.machineId && machMap[o.machineId] ? o.machineId : null;
     if (!key) continue;
-    const rev = orderRevenueBase(o);
+    const rev = orderNetRevenueBase(o);
     const cost = (o.parts || []).reduce((s, p) => s + partTotalCost(p), 0);
     machMap[key].profit += rev - cost;
     machMap[key].hours += +o.printTime || 0;
@@ -167,7 +167,7 @@ function renderHandoffAnalyticsOverview(ctx) {
   const { revenue, completed, receivables, convRate, revSpark } = ctx;
   const cur = currencySymbol();
   const netProfit = completed.reduce((s, o) => {
-    const rev = orderRevenueBase(o);
+    const rev = orderNetRevenueBase(o);
     const cost = (o.parts || []).reduce((cs, p) => cs + partTotalCost(p), 0);
     return s + (rev - cost);
   }, 0);
@@ -197,7 +197,7 @@ function renderHandoffAnalyticsOverview(ctx) {
     if (!o.clientId) return;
     clientAgg[o.clientId] = clientAgg[o.clientId] || { count: 0, revenue: 0 };
     clientAgg[o.clientId].count++;
-    clientAgg[o.clientId].revenue += orderRevenueBase(o);
+    clientAgg[o.clientId].revenue += orderNetRevenueBase(o);
   });
   const topClients = Object.entries(clientAgg)
     .map(([id, agg]) => {
@@ -283,7 +283,7 @@ function renderHandoffAnalyticsOverview(ctx) {
 function renderAnalytics() {
   const orders = printLog.filter(o => inRange(o.date, analyticsRange, 'analytics'));
   const completed = orders.filter(o => o.status === 'completed' && !o.voidedAt);
-  const revenue = completed.reduce((s, o) => s + convertToBase(+o.price || 0, orderCurrency(o)), 0);
+  const revenue = completed.reduce((s, o) => s + orderNetRevenueBase(o), 0);
   const hours   = orders.reduce((s, o) => s + (+o.printTime || 0), 0);
   const inProgress = orders.filter(o => o.status !== 'completed' && o.status !== 'pending').length;
   // Receivables — outstanding amount across all unpaid/partial orders, regardless of status
@@ -298,7 +298,7 @@ function renderAnalytics() {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       const mRev = printLog.filter(o => o.status === 'completed' && !o.voidedAt && (o.date || '').startsWith(key))
-        .reduce((s, o) => s + orderRevenueBase(o), 0);
+        .reduce((s, o) => s + orderNetRevenueBase(o), 0);
       months.push(mRev);
     }
     return months;
@@ -331,7 +331,7 @@ function renderAnalytics() {
     if (!o.productId) return;
     productAgg[o.productId] = productAgg[o.productId] || { count: 0, revenue: 0 };
     productAgg[o.productId].count++;
-    if (o.status === 'completed' && !o.voidedAt) productAgg[o.productId].revenue += orderRevenueBase(o);
+    if (o.status === 'completed' && !o.voidedAt) productAgg[o.productId].revenue += orderNetRevenueBase(o);
   });
   const topProducts = Object.entries(productAgg)
     .map(([id, agg]) => {
@@ -360,7 +360,7 @@ function renderAnalytics() {
     if (!o.clientId) return;
     clientAgg[o.clientId] = clientAgg[o.clientId] || { count: 0, revenue: 0 };
     clientAgg[o.clientId].count++;
-    clientAgg[o.clientId].revenue += orderRevenueBase(o);
+    clientAgg[o.clientId].revenue += orderNetRevenueBase(o);
   });
   const topClients = Object.entries(clientAgg)
     .map(([id, agg]) => {
@@ -551,7 +551,7 @@ function renderClientSourceChart() {
     const c = clientById(o.clientId);
     if (!c) continue;
     const src = c.source || 'other';
-    revBySrc[src] = (revBySrc[src] || 0) + orderRevenueBase(o);
+    revBySrc[src] = (revBySrc[src] || 0) + orderNetRevenueBase(o);
   }
 
   const rows = sources
@@ -673,7 +673,7 @@ function renderMonthlyTrendChart() {
   for (const o of printLog) {
     if (o.status !== 'completed' || o.voidedAt) continue;
     const m = (o.date || '').slice(0, 7);
-    if (revByMonth[m] !== undefined) revByMonth[m] += orderRevenueBase(o);
+    if (revByMonth[m] !== undefined) revByMonth[m] += orderNetRevenueBase(o);
   }
   for (const e of expenses) {
     const m = (e.date || '').slice(0, 7);
@@ -740,7 +740,7 @@ function renderRevenueForecast() {
   const el = $('#revenueForecastChart');
   if (!el) return;
   if (typeof KhaytForecast === 'undefined') { el.innerHTML = ''; return; }
-  const f = KhaytForecast.forecast(printLog, { now: Date.now(), months: 6, periods: 3, revenueOf: orderRevenueBase });
+  const f = KhaytForecast.forecast(printLog, { now: Date.now(), months: 6, periods: 3, revenueOf: orderNetRevenueBase });
   if (f.method === 'none') { el.innerHTML = ''; return; } // nothing to forecast yet
 
   const monShort = (label) => { try { return new Date(label + '-01').toLocaleDateString(undefined, { month: 'short' }); } catch { return label; } };
@@ -807,7 +807,7 @@ function renderMachineRevenueChart() {
     if (!machMap[o.machineId]) {
       machMap[o.machineId] = { name: o.machine || o.machineId, color: '#6b7280', revenue: 0, count: 0 };
     }
-    machMap[o.machineId].revenue += orderRevenueBase(o);
+    machMap[o.machineId].revenue += orderNetRevenueBase(o);
     machMap[o.machineId].count++;
   }
 
@@ -865,7 +865,10 @@ function renderProfitMarginChart() {
     if (o.status !== 'completed' || o.voidedAt || !o.costBasis || !+o.price) continue;
     const m = (o.date || '').slice(0, 7);
     if (!marginByMonth[m]) continue;
-    marginByMonth[m].revenue += +o.price;
+    // Net of credit notes, in the ORDER's currency to stay paired with costBasis
+    // (which is summed from part baseCost). Converting only one side would skew
+    // the ratio for multi-currency orders.
+    marginByMonth[m].revenue += Math.max(0, (+o.price || 0) - orderCreditedRaw(o));
     marginByMonth[m].cost += +o.costBasis;
     marginByMonth[m].count++;
   }
@@ -1064,7 +1067,7 @@ function renderCashFlowChart() {
   for (const o of (printLog || [])) {
     if (!o.paidAt) continue;
     const mk = localMonthStr(new Date(o.paidAt));
-    if (revByMonth[mk] !== undefined) revByMonth[mk] += orderRevenueBase(o);
+    if (revByMonth[mk] !== undefined) revByMonth[mk] += orderNetRevenueBase(o);
   }
   for (const e of (expenses || [])) {
     if (!e.date) continue;
@@ -1285,7 +1288,7 @@ function renderClientLtvTable() {
 
   const ltvData = (clients || []).map(c => {
     const cOrders = (printLog || []).filter(o => o.clientId === c.id);
-    const ltv = cOrders.reduce((s, o) => s + orderRevenueBase(o), 0);
+    const ltv = cOrders.reduce((s, o) => s + orderNetRevenueBase(o), 0);
     const lastOrder = cOrders.reduce((latest, o) => {
       const d = o.completedAt || o.date;
       if (!d) return latest;
@@ -1521,8 +1524,8 @@ function renderNewVsReturning() {
   let newRev = 0, retRev = 0, newCount = 0, retCount = 0;
   for (const o of inRangeOrders) {
     const isNew = firstOrderDate[o.clientId] === o.date; // first order = new client
-    if (isNew) { newRev += orderRevenueBase(o); newCount++; }
-    else        { retRev += orderRevenueBase(o); retCount++; }
+    if (isNew) { newRev += orderNetRevenueBase(o); newCount++; }
+    else        { retRev += orderNetRevenueBase(o); retCount++; }
   }
   const total = newRev + retRev;
   const newPct  = total > 0 ? Math.round(newRev / total * 100) : 0;
@@ -1564,7 +1567,7 @@ function renderPrinterUtilizationChart() {
     const key = o.machineId || '__none__';
     if (!machMap[key]) continue;
     machMap[key].hours += +o.printTime || 0;
-    machMap[key].revenue += orderRevenueBase(o);
+    machMap[key].revenue += orderNetRevenueBase(o);
     machMap[key].count++;
     // Estimate material + machine cost from order parts
     const orderCost = (o.parts || []).reduce((s, p) => s + partTotalCost(p), 0);
@@ -1664,11 +1667,11 @@ function renderPnLSection() {
     const q = Math.ceil((d.getMonth() + 1) / 3);
     const key = `${d.getFullYear()}-Q${q}`;
     if (!qMap[key]) qMap[key] = { revenue: 0, shipping: 0, vatCollected: 0, orders: 0 };
-    qMap[key].revenue += orderRevenueBase(o);
+    qMap[key].revenue += orderNetRevenueBase(o);
     qMap[key].shipping += convertToBase(+o.shippingCost || 0, orderCurrency(o));
     qMap[key].orders++;
     const rate = settings.enableVat ? (+settings.vatRate || 15) : 0;
-    qMap[key].vatCollected += rate > 0 ? orderRevenueBase(o) * rate / (100 + rate) : 0;
+    qMap[key].vatCollected += rate > 0 ? orderNetRevenueBase(o) * rate / (100 + rate) : 0;
   }
   const expQ = {};
   for (const e of expenses) {
@@ -1763,7 +1766,7 @@ function renderProductProfitability() {
       const prod = products.find(p => p.id === key);
       map[key] = { name: prod ? localName(prod) : t('an.untagged'), revenue: 0, cost: 0, count: 0 };
     }
-    map[key].revenue += orderRevenueBase(o);
+    map[key].revenue += orderNetRevenueBase(o);
     map[key].count++;
     // Estimate cost from parts if available
     const partCost = (o.parts || []).reduce((s, p) => s + partTotalCost(p), 0);
@@ -1978,7 +1981,7 @@ function renderMachinePL() {
   for (const o of completed) {
     const key = o.machineId && machMap[o.machineId] ? o.machineId : '__none__';
     machMap[key].jobs++;
-    machMap[key].revenue += orderRevenueBase(o);
+    machMap[key].revenue += orderNetRevenueBase(o);
     machMap[key].materialCost += (o.parts || []).reduce((s, p) => s + partTotalCost(p), 0);
     // Linked expenses
     machMap[key].linkedExp += expenses
@@ -2058,7 +2061,7 @@ function renderLocationPL() {
   printLog.filter(o => o.status === 'completed' && !o.voidedAt && inRange(o.date || (o.timestamp || '').slice(0,10), analyticsRange, 'analytics')).forEach(o => {
     const lid = (o.machineId && machLocById[o.machineId]) || (o.machine && machLocByName[o.machine]) || '__none__';
     const d = getD(lid);
-    d.revenue += convertToBase(+o.price || 0, orderCurrency(o));
+    d.revenue += orderNetRevenueBase(o);
     d.orders++;
     (o.parts || []).forEach(p => { d.matCost += (typeof partTotalCost === 'function' ? (partTotalCost(p) || 0) : 0); });
   });
@@ -2284,7 +2287,7 @@ function renderRevenueChart() {
     if (!inRange(o.date, analyticsRange, 'analytics')) continue;
     const key = isDay ? (o.date || '').slice(0, 10) : (o.date || '').slice(0, 7);
     const m = months.find(x => x.key === key);
-    if (m) { m.revenue += orderRevenueBase(o); m.orders++; }
+    if (m) { m.revenue += orderNetRevenueBase(o); m.orders++; }
   }
 
   const maxRev = Math.max(...months.map(m => m.revenue), 1);
@@ -2457,7 +2460,7 @@ function renderCostTrends() {
     const orders = printLog.filter(o =>
       o.status === 'completed' && !o.voidedAt && (o.date || '').startsWith(m.key)
     );
-    const totalRev = orders.reduce((s, o) => s + orderRevenueBase(o), 0);
+    const totalRev = orders.reduce((s, o) => s + orderNetRevenueBase(o), 0);
     const totalHrs = orders.reduce((s, o) => s + (+o.printTime || 0), 0);
     return totalHrs > 0 ? totalRev / totalHrs : 0;
   });
@@ -2702,7 +2705,7 @@ function openExecutiveSummary() {
       const completedAt = (o.completedAt || o.deliveredAt || o.date || '').slice(0, 10);
       const client = o.clientId ? clients.find((c) => c.id === o.clientId) : null;
       return {
-        revenue: orderRevenueBase(o),
+        revenue: orderNetRevenueBase(o),
         cost: (o.parts || []).reduce((s, p) => s + partTotalCost(p), 0) + convertToBase(+o.shippingCost || 0, orderCurrency(o)),
         completed: done,
         onTime: (done && o.dueDate) ? (!!completedAt && completedAt <= o.dueDate) : null,
@@ -2857,7 +2860,7 @@ function exportPnlCsv() {
   const orders = (printLog || [])
     .filter(o => o.status === 'completed' && !o.voidedAt && inRange(o.date, analyticsRange, 'analytics'))
     .map(o => {
-      const revenue = orderRevenueBase(o);
+      const revenue = orderNetRevenueBase(o);
       const cogs = (o.parts || []).reduce((s, p) => s + partTotalCost(p), 0)
         + convertToBase(+o.shippingCost || 0, orderCurrency(o));
       return { revenue, cogs, vat: rate > 0 ? revenue * rate / (100 + rate) : 0 };
@@ -2934,12 +2937,15 @@ async function exportAnalyticsReport() {
   const pl = printLog || [];
   const completedOrders = pl.filter(o => o.status === 'completed' && !o.voidedAt);
   const totalRev = pl.filter(o => (o.status === 'completed' || o.status === 'delivered') && !o.voidedAt)
-    .reduce((s, o) => s + orderRevenueBase(o), 0);
+    .reduce((s, o) => s + orderNetRevenueBase(o), 0);
   const totalOrders = pl.length;
   const avgMargin = (() => {
     const withMargin = completedOrders.filter(o => o.costBasis > 0 && +o.price > 0);
     if (!withMargin.length) return null;
-    return withMargin.reduce((s, o) => s + ((+o.price - o.costBasis) / +o.price * 100), 0) / withMargin.length;
+    return withMargin.reduce((s, o) => {
+      const rev = Math.max(0, (+o.price || 0) - orderCreditedRaw(o));
+      return s + (rev > 0 ? (rev - o.costBasis) / rev * 100 : 0);
+    }, 0) / withMargin.length;
   })();
   const matCount = {};
   pl.forEach(o => { if (o.material) matCount[o.material] = (matCount[o.material] || 0) + 1; });
@@ -3308,7 +3314,7 @@ function computeBreakEven() {
   // Avg contribution margin per order (last 90 days)
   const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 90);
   const recent = printLog.filter(o => o.status === 'completed' && !o.voidedAt && o.date && new Date(o.date + 'T00:00:00') >= cutoff);
-  const avgRevPerOrder = recent.length > 0 ? recent.reduce((s, o) => s + orderRevenueBase(o), 0) / recent.length : 0;
+  const avgRevPerOrder = recent.length > 0 ? recent.reduce((s, o) => s + orderNetRevenueBase(o), 0) / recent.length : 0;
   const avgMaterialCost = recent.length > 0 ? recent.reduce((s, o) => {
     const mc = (o.parts || []).reduce((ps, p) => {
       if (!p.filamentId) return ps;
@@ -3333,7 +3339,7 @@ function renderBreakEvenCard() {
   const thisMonthStr = localMonthStr(today);
   const monthRev = printLog
     .filter(o => o.status === 'completed' && !o.voidedAt && (o.date || '').startsWith(thisMonthStr))
-    .reduce((s, o) => s + orderRevenueBase(o), 0);
+    .reduce((s, o) => s + orderNetRevenueBase(o), 0);
 
   if (fixedCosts.length === 0) {
     el.innerHTML = `<p style="color:var(--text-muted);font-size:13px;">No fixed costs configured. <a href="#" id="goToBreakEvenSettings" style="color:var(--primary);">Add fixed costs in Settings →</a></p>`;
