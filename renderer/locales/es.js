@@ -3596,5 +3596,11 @@
   "set.ai_spend_note": "Estimado a partir del recuento de tokens a precios de lista. Tu consola de Anthropic es la referencia.",
   "set.ai_spend_unknown_model": "Se desconocen los precios de este modelo; se asumen tarifas de Opus.",
   "set.ai_spend_device": "Contado solo en este dispositivo: los ajustes no se sincronizan entre equipos.",
+  "po.suspect_head": "Algunas órdenes de compra se calcularon por bobina en vez de por gramo, así que los importes son unas 1000 veces mayores.",
+  "po.suspect_sub": "No se ha cambiado nada: revisa cada una antes de corregir.",
+  "po.fix_btn": "Corregir",
+  "po.fix_manual": "fija el precio a mano",
+  "po.fix_confirm": "¿Cambiar este pedido de {was} a {now}?",
+  "po.fix_done": "Orden de compra corregida",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

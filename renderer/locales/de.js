@@ -3596,5 +3596,11 @@
   "set.ai_spend_note": "Geschätzt aus Token-Zahlen zu Listenpreisen. Maßgeblich ist Ihre Anthropic-Konsole.",
   "set.ai_spend_unknown_model": "Preise für dieses Modell sind unbekannt — Opus-Sätze angenommen.",
   "set.ai_spend_device": "Nur auf diesem Gerät gezählt — Einstellungen werden nicht zwischen Geräten synchronisiert.",
+  "po.suspect_head": "Einige Bestellungen wurden pro Spule statt pro Gramm bepreist — die Beträge sind rund 1000x zu hoch.",
+  "po.suspect_sub": "Es wurde nichts geändert — prüfen Sie jede Bestellung vor der Korrektur.",
+  "po.fix_btn": "Korrigieren",
+  "po.fix_manual": "Preis manuell setzen",
+  "po.fix_confirm": "Diese Bestellung von {was} auf {now} ändern?",
+  "po.fix_done": "Bestellung korrigiert",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
