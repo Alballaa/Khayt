@@ -52,7 +52,7 @@ function openShiftChecklistModal() {
 function openEndOfDayReport() {
   const today = localDateStr();
   const completedToday = printLog.filter(o => o.status === 'completed' && (o.completedAt || o.date || '').startsWith(today));
-  const revenueToday   = completedToday.reduce((s, o) => s + orderRevenueBase(o), 0);
+  const revenueToday   = completedToday.reduce((s, o) => s + orderNetRevenueBase(o), 0);
   const inProgress     = printLog.filter(o => ['pending','printing','post','qc'].includes(o.status));
   const wasteToday     = wasteLog.filter(w => (w.date || '').startsWith(today));
   const wasteTotalG    = wasteToday.reduce((s, w) => s + (+w.weight || 0), 0);
@@ -421,8 +421,8 @@ function exportGaztVatReturn(period) {
   const periodOrders = printLog.filter(o =>
     o.status === 'completed' && o.date >= fromDate && o.date <= toDate
   );
-  const box1 = periodOrders.reduce((s, o) => s + orderRevenueBase(o), 0);
-  const box2 = periodOrders.filter(o => +o.vatRate === 0).reduce((s, o) => s + orderRevenueBase(o), 0);
+  const box1 = periodOrders.reduce((s, o) => s + orderNetRevenueBase(o), 0);
+  const box2 = periodOrders.filter(o => +o.vatRate === 0).reduce((s, o) => s + orderNetRevenueBase(o), 0);
   const box3 = periodOrders.reduce((s, o) => s + (convertToBase(+o.vatAmount || 0, orderCurrency(o))), 0);
   const periodExp = (expenses || []).filter(e => e.date >= fromDate && e.date <= toDate);
   const box6 = periodExp.reduce((s, e) => s + (+e.amount || 0), 0);

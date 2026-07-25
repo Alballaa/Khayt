@@ -7,7 +7,10 @@
 // parts cost (baseCost). VAT is extracted with the same rate/(100+rate) formula
 // used in invoicing/expenses/analytics.
 function orderNetRevenue(o) {
-  const gross = (+o.price || 0) - (+o.shippingCost || 0);
+  // Credit notes (refunds) reduce the sale before shipping and VAT come out,
+  // otherwise a refunded order still shows its full original margin.
+  const credited = (typeof orderCreditedRaw === 'function') ? orderCreditedRaw(o) : 0;
+  const gross = (+o.price || 0) - (+o.shippingCost || 0) - credited;
   if (gross <= 0) return 0;
   const rate = settings.enableVat ? (+settings.vatRate || 15) : 0;
   return rate > 0 ? gross * 100 / (100 + rate) : gross;

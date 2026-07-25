@@ -240,14 +240,14 @@
     /* ---- KPI figures (real) — Revenue (month), Active orders, Fleet util, Filament ---- */
     const thisMonthStr = (typeof localMonthStr === 'function') ? localMonthStr(today) : todayStr.slice(0, 7);
     const monthDone = log.filter((o) => o.status === 'completed' && (o.date || '').startsWith(thisMonthStr));
-    const monthRev = monthDone.reduce((s, o) => s + orderRevenueBase(o), 0);
+    const monthRev = monthDone.reduce((s, o) => s + orderNetRevenueBase(o), 0);
     const printsMonth = monthDone.length;
     // Previous month delta.
     const prevMonth = new Date(today); prevMonth.setMonth(prevMonth.getMonth() - 1);
     const prevMonthStr = (typeof localMonthStr === 'function') ? localMonthStr(prevMonth) : '';
     const prevRev = prevMonthStr
       ? log.filter((o) => o.status === 'completed' && (o.date || '').startsWith(prevMonthStr))
-        .reduce((s, o) => s + orderRevenueBase(o), 0)
+        .reduce((s, o) => s + orderNetRevenueBase(o), 0)
       : 0;
     const revDeltaPct = prevRev > 0 ? Math.round((monthRev - prevRev) / prevRev * 100) : null;
     const revDelta = revDeltaPct != null
@@ -300,7 +300,7 @@
       const d = new Date(today); d.setDate(d.getDate() - i);
       const ds = (typeof localDateStr === 'function') ? localDateStr(d) : localDateStr(d);
       const doneThatDay = log.filter((o) => o.status === 'completed' && o.date === ds);
-      const v = biz ? doneThatDay.reduce((s, o) => s + orderRevenueBase(o), 0) : doneThatDay.length;
+      const v = biz ? doneThatDay.reduce((s, o) => s + orderNetRevenueBase(o), 0) : doneThatDay.length;
       const cap = d.toLocaleDateString([], { weekday: 'short' });
       barData.push({ cap, v });
     }

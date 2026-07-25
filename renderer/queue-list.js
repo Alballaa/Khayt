@@ -236,7 +236,7 @@
         statusCache: (typeof machineStatusCache !== 'undefined' ? machineStatusCache : {}),
         now: Date.now(),
         money: opts.money,
-        revenueOf: (typeof orderRevenueBase === 'function') ? orderRevenueBase : undefined,
+        revenueOf: (typeof orderNetRevenueBase === 'function') ? orderNetRevenueBase : undefined,
       })
       : null;
     if (!res) { host.innerHTML = ''; return false; }

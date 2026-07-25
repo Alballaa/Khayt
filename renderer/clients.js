@@ -45,7 +45,7 @@ function getClientStats(clientId) {
   return {
     count: orders.length,
     completedCount: completed.length,
-    revenue: completed.reduce((s, o) => s + orderRevenueBase(o), 0),
+    revenue: completed.reduce((s, o) => s + orderNetRevenueBase(o), 0),
     lastDate: sorted[0]?.date || null
   };
 }
@@ -81,7 +81,7 @@ function renderClients() {
     let s = clientStatsMap.get(o.clientId);
     if (!s) { s = { count: 0, completedCount: 0, revenue: 0, lastDate: null }; clientStatsMap.set(o.clientId, s); }
     s.count++;
-    if (o.status === 'completed') { s.completedCount++; s.revenue += orderRevenueBase(o); }
+    if (o.status === 'completed') { s.completedCount++; s.revenue += orderNetRevenueBase(o); }
     if (!s.lastDate || o.date > s.lastDate) s.lastDate = o.date;
     // Survey ratings
     if (o.survey?.rating) {
@@ -105,7 +105,7 @@ function renderClients() {
         if (!o.clientId || o.status !== 'completed') continue;
         let ts = tierSpend.get(o.clientId);
         if (!ts) { ts = { completedCount: 0, totalSpend: 0 }; tierSpend.set(o.clientId, ts); }
-        ts.completedCount++; ts.totalSpend += orderRevenueBase(o);
+        ts.completedCount++; ts.totalSpend += orderNetRevenueBase(o);
       }
       for (const [cid, { completedCount, totalSpend }] of tierSpend) {
         const eligible = tiers.filter(tier =>
@@ -1226,7 +1226,7 @@ function getClientTier(clientId) {
   for (const o of printLog) {
     if (o.clientId !== clientId || o.status !== 'completed') continue;
     completedCount++;
-    totalSpend += orderRevenueBase(o);
+    totalSpend += orderNetRevenueBase(o);
   }
 
   // Find the highest tier the client qualifies for
@@ -1328,7 +1328,7 @@ function exportClientsCsv() {
     let s = clientStatsMap.get(o.clientId);
     if (!s) { s = { count: 0, revenue: 0, lastDate: null }; clientStatsMap.set(o.clientId, s); }
     s.count++;
-    if (o.status === 'completed') s.revenue += orderRevenueBase(o);
+    if (o.status === 'completed') s.revenue += orderNetRevenueBase(o);
     if (!s.lastDate || o.date > s.lastDate) s.lastDate = o.date;
   }
 

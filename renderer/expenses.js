@@ -269,7 +269,7 @@ function renderExpenses() {
   const totalExpenses = filtered.reduce((s, e) => s + e.amount, 0);
   const revenue = printLog
     .filter(o => o.status === 'completed' && inRange(o.date, expRangeFilter, 'expenses'))
-    .reduce((s, o) => s + orderRevenueBase(o), 0);
+    .reduce((s, o) => s + orderNetRevenueBase(o), 0);
   const profit = revenue - totalExpenses;
 
   const byCategory = {};
@@ -689,10 +689,10 @@ function _doExportTaxSummary(periodLabel, fromDate, toDate) {
     if (!month) continue;
     if (!monthMap[month]) monthMap[month] = { orders: 0, revenue: 0, vatCollected: 0, shipping: 0 };
     monthMap[month].orders++;
-    monthMap[month].revenue += orderRevenueBase(o);
+    monthMap[month].revenue += orderNetRevenueBase(o);
     monthMap[month].shipping += convertToBase(+o.shippingCost || 0, orderCurrency(o));
     const rate = settings.enableVat ? (+settings.vatRate || 15) : 0;
-    monthMap[month].vatCollected += rate > 0 ? orderRevenueBase(o) * rate / (100 + rate) : 0;
+    monthMap[month].vatCollected += rate > 0 ? orderNetRevenueBase(o) * rate / (100 + rate) : 0;
   }
   // Group expenses by YYYY-MM
   const expMap = {};

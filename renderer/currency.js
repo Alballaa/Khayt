@@ -79,16 +79,50 @@
     return convertToBase(+o.price || 0, orderCurrency(o));
   }
 
+  /** Total credit notes issued against an order, in the ORDER's own currency. */
+  function orderCreditedRaw(o) {
+    return ((o && o.creditNotes) || []).reduce((s, cn) => s + (+cn.amount || 0), 0);
+  }
+
+  /** Total credit notes issued against an order, in the shop's base currency. */
+  function orderCreditedBase(o) {
+    return convertToBase(orderCreditedRaw(o), orderCurrency(o));
+  }
+
+  /**
+   * Revenue actually EARNED on an order: the price less any credit notes.
+   *
+   * orderRevenueBase is the gross invoiced figure and is right for reproducing a
+   * document (the invoice, a statement's charges line, a journal's invoice
+   * entry). It is wrong for any question of the form "how much did the shop
+   * earn", because a refund never touches price or paidAmount —
+   * generateCreditNote records the credit only in creditNotes[], and sets
+   * creditedAt only on a FULL credit. A PARTIAL refund therefore leaves a plain
+   * completed order with no voidedAt and no other marker, so a status filter
+   * books the full price as revenue and the full VAT with it.
+   *
+   * giftCardDiscount is deliberately NOT subtracted. Issuing a gift card does
+   * not create an order (giftCards[] is its own collection), so redemption is
+   * the only moment that money can be recognised as revenue — netting it here
+   * would make it revenue nowhere at all. Every other path already treats it as
+   * a tender, not a discount: payStatus adds it to cash paid, the client
+   * statement totals it as its own settlement line, and the journal clears it
+   * against the gift-card liability. Credit notes are the opposite: a genuine
+   * reduction of the sale.
+   */
+  function orderNetRevenueBase(o) {
+    return Math.max(0, orderRevenueBase(o) - orderCreditedBase(o));
+  }
+
   function orderOwedBase(o) {
     const cur = orderCurrency(o);
     // Credit notes reduce what's owed (refund / cancelled charge).
-    const credited = (o.creditNotes || []).reduce((s, cn) => s + (+cn.amount || 0), 0);
     return Math.max(
       0,
       convertToBase(+o.price || 0, cur) -
         convertToBase(+o.paidAmount || 0, cur) -
         convertToBase(+o.giftCardDiscount || 0, cur) -
-        convertToBase(credited, cur),
+        orderCreditedBase(o),
     );
   }
 
@@ -108,6 +142,9 @@
     orderCurrency,
     convertToBase,
     orderRevenueBase,
+    orderCreditedRaw,
+    orderCreditedBase,
+    orderNetRevenueBase,
     orderOwedBase,
     refreshCurrencyLabels,
   };

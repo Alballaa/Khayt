@@ -137,7 +137,7 @@
     const yestStr = (typeof localDateStr === 'function') ? localDateStr(yest) : localDateStr(yest);
 
     /* ---- KPI figures (real) ---- */
-    const revBase = (o) => (typeof orderRevenueBase === 'function') ? orderRevenueBase(o) : (+o.price || 0);
+    const revBase = (o) => (typeof orderNetRevenueBase === 'function') ? orderNetRevenueBase(o) : (+o.price || 0);
     const owedBase = (o) => (typeof orderOwedBase === 'function') ? orderOwedBase(o) : 0;
     const pay = (o) => (typeof payStatus === 'function') ? payStatus(o) : (o.paid ? 'paid' : 'unpaid');
 
@@ -379,7 +379,7 @@
     const biz = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.showsBusiness(cfg.mode) : cfg.mode !== 'enthusiast';
     const client = biz ? findClient(o.clientId) : null;
     const pct = jobProgress(o) ?? 0;
-    const revBase = (typeof orderRevenueBase === 'function') ? orderRevenueBase(o) : (+o.price || 0);
+    const revBase = (typeof orderNetRevenueBase === 'function') ? orderNetRevenueBase(o) : (+o.price || 0);
     const kv = (k, v, mono) => `<div class="cmd-kv"><span class="k">${esc(k)}</span><span class="v${mono ? ' mono' : ''}">${esc(v)}</span></div>`;
     const body = `
       <div class="cmd-insp-sec">${esc(tr('command.insp.progress', 'Progress'))}</div>
