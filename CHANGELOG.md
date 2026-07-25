@@ -4,6 +4,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.3.0-beta.1] - 2026-07-25
+
+Opens the 3.3 beta line, after v3.2.0 shipped stable on 2026-07-22. The
+headline is a sweep over the numbers the app reports: refunds, cancelled
+invoices and a reorder pricing bug were all quietly inflating what the app told
+you about your own shop.
+
 ### Added
 
 - **Pause, resume and cancel a running print from Khayt.** Previously you could send a job to a printer and watch it, but had to walk over to the machine to stop it. Works with Klipper/Moonraker, OctoPrint, PrusaLink and Duet; Bambu still needs their own app, and Khayt now says so instead of failing silently.
