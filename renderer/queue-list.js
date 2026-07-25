@@ -123,10 +123,19 @@
     const bits = [String(agg.count)];
     if (agg.hours > 0) bits.push(hours(agg.hours));
     if (opts.money && agg.money > 0) bits.push(money(agg.money));
-    return `<section class="ql-group ql-group-${esc(group.key)}${group.collapsed ? ' is-collapsed' : ''}">
-      <h3 class="ql-group-head">
-        <span>${esc(tr(key, fallback))}</span>
-        <span class="ql-group-agg">${esc(bits.join(' · '))}</span>
+    // The head is a real button. `is-collapsed` used to be rendered from
+    // lib/queue-groups.js (where `done` is collapsed: true) but nothing in the
+    // app ever toggled it — so "Finished today" showed a count and totals that
+    // could never be opened, with no affordance and nothing for a screen reader.
+    const collapsed = !!group.collapsed;
+    return `<section class="ql-group ql-group-${esc(group.key)}${collapsed ? ' is-collapsed' : ''}">
+      <h3 class="ql-group-h">
+        <button type="button" class="ql-group-head" data-act="ql-toggle-group"
+                aria-expanded="${collapsed ? 'false' : 'true'}">
+          <span class="ql-group-chev" aria-hidden="true">▾</span>
+          <span>${esc(tr(key, fallback))}</span>
+          <span class="ql-group-agg">${esc(bits.join(' · '))}</span>
+        </button>
       </h3>
       <div class="ql-rows">${group.items.map((r) => rowHtml(r, opts)).join('')}</div>
     </section>`;
@@ -144,6 +153,22 @@
     return `<div class="ql-foot">${bits.join('')}</div>`;
   }
 
+  /** Per-group collapse state, remembered in settings so it survives a reload. */
+  function collapsePrefs() {
+    if (typeof settings === 'undefined' || !settings) return {};
+    const p = settings.queueGroupCollapsed;
+    return (p && typeof p === 'object') ? p : {};
+  }
+
+  function rememberCollapse(key, collapsed) {
+    if (typeof settings === 'undefined' || !settings || !key) return;
+    if (!settings.queueGroupCollapsed || typeof settings.queueGroupCollapsed !== 'object') {
+      settings.queueGroupCollapsed = {};
+    }
+    settings.queueGroupCollapsed[key] = !!collapsed;
+    if (typeof saveAll === 'function') saveAll();
+  }
+
   /** True when the grouped list is the active board. Kanban is opt-in per shop. */
   function isListView() {
     return (typeof settings === 'undefined' ? 'list' : (settings.queueView || 'list')) !== 'kanban';
@@ -158,6 +183,22 @@
       host = document.createElement('div');
       host.id = 'queueListView';
       board.insertBefore(host, board.firstChild);
+      // Delegated once on the host, which survives every innerHTML rewrite, so
+      // re-rendering the list cannot stack duplicate listeners.
+      host.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-act="ql-toggle-group"]');
+        if (!btn || !host.contains(btn)) return;
+        // The queue action dispatcher lives on .kanban and would also see this
+        // click; it has no 'ql-toggle-group' case, but stopping here keeps the
+        // two dispatchers from ever fighting over the same event.
+        e.stopPropagation();
+        const section = btn.closest('.ql-group');
+        if (!section) return;
+        const nowCollapsed = section.classList.toggle('is-collapsed');
+        btn.setAttribute('aria-expanded', nowCollapsed ? 'false' : 'true');
+        const key = [...section.classList].find((c) => c.startsWith('ql-group-') && c !== 'ql-group-head');
+        if (key) rememberCollapse(key.replace('ql-group-', ''), nowCollapsed);
+      });
     }
 
     board.classList.toggle('queue-list-mode', isListView());
@@ -181,6 +222,12 @@
       : null;
     if (!res) { host.innerHTML = ''; return false; }
 
+    // Honour the shop's own collapse choices over the defaults from
+    // lib/queue-groups.js, so a group you opened stays open across re-renders.
+    const prefs = collapsePrefs();
+    for (const g of res.groups) {
+      if (Object.prototype.hasOwnProperty.call(prefs, g.key)) g.collapsed = !!prefs[g.key];
+    }
     const body = res.groups.map((g) => groupHtml(g, opts)).join('');
     host.innerHTML = body
       ? body + footerHtml(res.footer, opts)

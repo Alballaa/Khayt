@@ -140,7 +140,12 @@ body.khayt-workbench .khayt-navitem.active::before {
 /* Suppress the shared .tab-btn.active underline bleeding under vertical nav items. */
 body.khayt-workbench .khayt-navitem.active::after { display: none; }
 
-/* Color tile per nav item (set inline by shell.js via --wb-tile). */
+/* Nav icons are chrome, so they stay quiet. Each of the 13 items used to carry
+   a saturated tile drawn from the STATUS palette (purple, blue, amber, teal,
+   pink, green), which made permanent navigation the most colourful thing on
+   screen while the attention bar sat grey by design — the exact inversion the
+   redesign set out to fix. Monochrome by default; the active item is the only
+   one that takes the accent, and it already has a rail to reinforce it. */
 body.khayt-workbench .khayt-navitem .nav-icon {
   inline-size: 24px;
   block-size: 24px;
@@ -148,10 +153,16 @@ body.khayt-workbench .khayt-navitem .nav-icon {
   flex: none;
   display: grid;
   place-items: center;
-  color: #fff;
+  color: var(--ink-2);
   font-size: 12px;
-  background: var(--wb-tile, var(--ink-3));
-  box-shadow: 0 1px 2px rgba(0,0,0,.15);
+  background: var(--surface-2);
+  box-shadow: none;
+  transition: color .12s ease, background .12s ease;
+}
+body.khayt-workbench .khayt-navitem:hover .nav-icon { color: var(--ink); background: var(--surface-3); }
+body.khayt-workbench .khayt-navitem.active .nav-icon {
+  color: var(--on-accent, #fff);
+  background: var(--accent);
 }
 body.khayt-workbench .khayt-navitem .nav-label {
   flex: 1;
@@ -377,3 +388,9 @@ body.khayt-workbench #btnGlobalSearch { display: none; }
 /* Keep the top bar one row — the base .topbar-actions carries a `wrap` class. */
 body.khayt-workbench .topbar-actions { flex-wrap: nowrap; }
 body.khayt-workbench .khayt-search { min-width: 0; }
+
+/* Status-bar sync states. Only a healthy sync earns the green tick; the rest
+   are named plainly so the bar cannot claim "synced" while sync is failing. */
+body.khayt-workbench #workbenchStatusBar .wb-dim  { color: var(--ink-3); }
+body.khayt-workbench #workbenchStatusBar .wb-warn { color: var(--wb-amber); font-weight: 600; }
+body.khayt-workbench #workbenchStatusBar .wb-bad  { color: var(--wb-red); font-weight: 600; }

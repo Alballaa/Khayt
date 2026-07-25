@@ -925,7 +925,7 @@ function wireEvents() {
       exportOrderStatusPage(ordId)
         .then(() => {
           const path = `userData/status-pages/order-status-${ordId}.html`;
-          toast(`📄 ${escapeHtml(t('ord.status_page_saved') || 'Tracking page saved')} · ${path}`, 'success', 5000);
+          toast(`📄 ${t('ord.status_page_saved') || 'Tracking page saved'} · ${path}`, 'success', 5000);
         })
         .catch((e) => {
           console.error('exportOrderStatusPage:', e);

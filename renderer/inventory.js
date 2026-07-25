@@ -2155,7 +2155,7 @@ function deductFilamentForOrder(order, { skipRender = false } = {}) {
         const used = c.usagePerHour * printHrs;
         c.stock = Math.max(0, (c.stock || 0) - used);
         if (c.stock <= (c.minStock || 0)) {
-          toast(`${escapeHtml(t('cons.low'))}: ${c.name}`, 'warning', 3000);
+          toast(`${t('cons.low')}: ${c.name}`, 'warning', 3000);
         }
       }
     });
@@ -2179,7 +2179,7 @@ function deductFilamentForOrder(order, { skipRender = false } = {}) {
       c.stock = Math.max(0, (c.stock || 0) - draw);
       touched = true;
       if (c.stock <= (c.minStock || 0)) {
-        toast(`${escapeHtml(t('cons.low'))}: ${c.name}`, 'warning', 3000);
+        toast(`${t('cons.low')}: ${c.name}`, 'warning', 3000);
       }
     });
     if (touched) { saveAll(); renderConsumables(); }
@@ -2197,7 +2197,7 @@ function deductPackagingConsumables(order) {
   packagingItems.forEach(c => {
     c.stock = Math.max(0, (c.stock || 0) - 1);
     if (c.stock <= (c.minStock || 0)) {
-      toast(`📦 ${escapeHtml(t('cons.low'))}: ${c.name}`, 'warning', 3000);
+      toast(`📦 ${t('cons.low')}: ${c.name}`, 'warning', 3000);
     }
   });
   saveAll();

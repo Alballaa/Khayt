@@ -1729,7 +1729,7 @@ function trackShipment(trackingNumber, carrier) {
   } else if (c === 'fedex') {
     url = `https://www.fedex.com/fedextrack/?trknbr=${tn}`;
   } else {
-    toast('Copy tracking number and check carrier website: ' + escapeHtml(trackingNumber), 'info', 6000);
+    toast('Copy tracking number and check carrier website: ' + trackingNumber, 'info', 6000);
     return;
   }
   window.hubAPI?.openExternal?.(url) || window.open(url, '_blank');
