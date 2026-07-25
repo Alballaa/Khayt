@@ -1,14 +1,35 @@
 # Release hold (maintainer)
 
-**Stable channel:** do not tag or publish a new **stable** GitHub Release until this hold is lifted.
+## Status: no hold active
 
-`main` may receive merges for Khayt-4 and follow-on work (including the pre–Khayt Cloud batch: update check, online intake, polish, print-farm local features). **Stable** installers and auto-update feeds stay on the last published stable tag until a deliberate stable release.
+The hold that stood over the 3.1 line **ended when v3.2.0 shipped stable on
+2026-07-22**, closing the `3.2.0-beta.x` line at beta.61. `CHANGELOG.md` records
+that release as "the 3.2.0 beta line, released as stable", and v3.2.0 is the
+current `releases/latest` pointer — so this was the deliberate stable release
+the hold was waiting for, not a breach of it.
+
+Nothing currently blocks a stable tag. To impose a new hold, replace this
+section with the channel it covers, the reason, and the condition for lifting.
 
 | Channel | Last published | Notes |
 |---------|----------------|-------|
-| **Stable** | **v3.1.0** | [Latest release](https://github.com/khaytapp/Khayt/releases/latest) |
-| **Beta** | **v3.2.0-beta.22** | [Pre-releases](https://github.com/khaytapp/Khayt/releases) — the 3.x feature line (QC/RMA, shipping, BOM, privacy, public API, telemetry, cameras); see [BETA-RELEASE.md](./BETA-RELEASE.md) |
+| **Stable** | **v3.2.0** (2026-07-22) | [Latest release](https://github.com/khaytapp/Khayt/releases/latest) |
+| **Beta** | **v3.2.0-beta.61** (2026-07-22) | Final pre-release of the 3.2 line — QC/RMA, shipping, BOM, privacy, public API, telemetry, cameras. The next beta opens `3.3.0-beta.x`; see [BETA-RELEASE.md](./BETA-RELEASE.md) |
 
-Beta tags (`v*-beta.*`) are allowed while stable hold is active. They publish as GitHub **pre-releases** and do not replace the stable latest pointer.
+Last verified 2026-07-25 against published tags. These rot fast — confirm with
+`gh release list --repo KhaytApp/Khayt` rather than trusting the table.
 
-When ready to ship **stable** again: run `npm run check`, move `[Unreleased]` in `CHANGELOG.md`, bump with `npm run version:minor` (or patch), tag `vX.Y.Z` (no prerelease suffix), push tag only then.
+## While a hold is active
+
+Beta tags (`v*-beta.*`) remain allowed. They publish as GitHub **pre-releases**
+and do not move the stable latest pointer. `main` may still receive merges;
+**stable** installers and auto-update feeds stay on the last published stable
+tag until a deliberate stable release.
+
+## Shipping a stable release
+
+1. `npm run check`
+2. Move `[Unreleased]` in `CHANGELOG.md` into `## [X.Y.Z]`
+3. `npm run version:minor` (or `version:patch`)
+4. Commit, and tag `vX.Y.Z` on `main` — no prerelease suffix
+5. Push the tag only then; that is what triggers the release build
