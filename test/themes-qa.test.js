@@ -89,3 +89,29 @@ test('each built-in theme maps to a distinct shell body class', () => {
     assert.equal(theme.bodyClass, `khayt-${theme.shell}`, `${id} body class must match its shell`);
   }
 });
+
+test('every enabled built-in theme has an implementation directory', () => {
+  // The registry is a hand-maintained map and the directories are the code it
+  // points at. An id with no directory means a theme the user can select that
+  // renders nothing; a directory with no id is dead code kept alive by nobody.
+  const dir = path.join(root, 'renderer/themes');
+  const dirs = fs.readdirSync(dir)
+    .filter((d) => fs.statSync(path.join(dir, d)).isDirectory())
+    .filter((d) => !d.startsWith('_') && d !== 'previews' && d !== 'custom');
+  const ids = Object.entries(reg.BUILTIN_THEMES).filter(([, t]) => t.enabled !== false).map(([id]) => id);
+
+  assert.deepEqual(ids.filter((i) => !dirs.includes(i)), [], 'selectable theme with no implementation');
+  assert.deepEqual(dirs.filter((d) => !ids.includes(d)), [], 'theme directory no registry entry points at');
+});
+
+test('the theme e2e covers every theme a user can pick', () => {
+  // e2e-theme-shells.mjs pins theme ids by hand. A new theme that is selectable
+  // but unpinned ships with nothing rendering its dashboard or queue — which is
+  // exactly how a broken top-bar search reached users before that suite was
+  // added to CI.
+  const e2e = fs.readFileSync(path.join(root, 'scripts/e2e-theme-shells.mjs'), 'utf8');
+  const pinned = new Set([...e2e.matchAll(/id:\s*'([a-z]+)'/g)].map((m) => m[1]));
+  const selectable = reg.listSelectableThemes().filter((t) => !t.startsWith('custom:'));
+  const uncovered = selectable.filter((id) => !pinned.has(id));
+  assert.deepEqual(uncovered, [], `selectable themes with no e2e coverage: ${uncovered.join(', ')}`);
+});
