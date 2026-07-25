@@ -1283,6 +1283,16 @@ ipcMain.handle('hub:save-store', async (event, data) => {
       console.error('hub:save-store:', msg);
       return { ok: false, error: msg };
     }
+    // Once the quit flush has completed the renderer's state is already on disk.
+    // Anything arriving after it is redundant — in practice the `pagehide`
+    // backstop in app-boot.js firing as the window tears down — and it is not
+    // harmless: atomicWriteStore renames the primary to .prev BEFORE moving the
+    // new temp into place, so a write killed by app.quit() between those two
+    // renames leaves no khayt-store.json at all. recoverStoreRaw() heals that on
+    // next launch from .tmp/.prev, but the window should not exist. Refusing
+    // costs nothing (the snapshot is identical) and closes it.
+    if (_flushedForQuit) return { ok: true, skipped: 'quit-flush-already-completed' };
+
     const { normalized, errors } = normalizeStoreSnapshot(data);
     if (!normalized) {
       console.error('hub:save-store: unrecoverable store shape:', errors.join('; '));

@@ -63,6 +63,15 @@ try {
   const text = fs.readFileSync(storePath, 'utf8');
   ok(text.includes(marker), 'an edit made inside the debounce window survived the quit');
 
+  // No interrupted write may be left behind. atomicWriteStore renames the
+  // primary to .prev BEFORE swapping the new temp in, so a write killed by
+  // app.quit() in that window leaves no khayt-store.json and an orphaned
+  // .tmp.<pid>.<n>. That is what the redundant post-flush save (the pagehide
+  // backstop firing as the window tears down) used to do; hub:save-store now
+  // refuses writes once the quit flush has completed.
+  const leftovers = fs.readdirSync(userData).filter((f) => f.includes('khayt-store.json.tmp'));
+  ok(leftovers.length === 0, `no interrupted write left behind (${leftovers.join(', ') || 'none'})`);
+
   console.log('\n✅ Quit-flush smoke: all assertions passed');
 } catch (e) {
   failed = true;
