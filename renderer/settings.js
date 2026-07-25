@@ -560,6 +560,7 @@ function renderAiSettings() {
       const r = await window.hubAPI.aiExtract({
         apiKey: key,
         model: el.querySelector('#aiModelSetting').value.trim() || 'claude-opus-4-8',
+        task: 'quote',
         system: (typeof KhaytAiQuote !== 'undefined') ? KhaytAiQuote.buildSystemContext(inventory) : '',
         request: 'Estimate: one small 20mm PLA calibration cube.',
         schema: (typeof KhaytAiQuote !== 'undefined') ? KhaytAiQuote.EXTRACTION_SCHEMA : {},
