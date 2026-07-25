@@ -78,8 +78,9 @@ test('months are kept separate and keyed on the LOCAL calendar', () => {
 });
 
 test('the ledger stays bounded to 12 months', () => {
-  // It lives in the store, which syncs and is backed up; unbounded growth for a
-  // number nobody reads at per-call granularity is not worth the bytes.
+  // It lives in the store, which is written on every save and included in
+  // backups; unbounded growth for a number nobody reads at per-call
+  // granularity is not worth the bytes. (It does NOT sync — see below.)
   let led = {};
   for (let i = 0; i < 20; i++) {
     led = U.record(led, { task: 'quote', model: 'claude-opus-4-8', usage: { input_tokens: 1 }, now: new Date(2025, i, 15).getTime() });
@@ -123,4 +124,32 @@ test('sub-cent spend reads as "<$0.01", not "$0.00"', () => {
   assert.equal(U.fmtUsd(0.0004), '<$0.01');
   assert.equal(U.fmtUsd(0), '$0.00');
   assert.equal(U.fmtUsd(1.239), '$1.24');
+});
+
+test('the ledger is device-local — sync cannot clobber or merge it', () => {
+  // I reasoned from the code that settings synced across devices and would
+  // overwrite this ledger. That was WRONG, and the mistake is easy to repeat:
+  // renderer/sync.js walks arrayCollections() only, so `settings` — an object —
+  // is never stamped, never sent, and never replaced by a pull.
+  //
+  // The consequence is not data loss, it is scope: the panel shows THIS
+  // device's spend, which under-reports for a shop running two machines on one
+  // key. That is why the panel says so rather than silently totalling.
+  const S = require('../renderer/sync.js');
+  const local = { settings: { aiUsage: { '2026-07': { quote: { calls: 5, cost: 1 } } } }, printLog: [] };
+  const remote = { settings: { aiUsage: { '2026-07': { quote: { calls: 99, cost: 99 } } } }, printLog: [] };
+  S.applyDeltas(local, S.extractDeltas(remote, { rev: 0, ts: '' }), { appendOnly: [] });
+  assert.deepEqual(local.settings.aiUsage['2026-07'].quote, { calls: 5, cost: 1 },
+    'a pull must not touch the local ledger');
+});
+
+test('the panel discloses that the figure is device-local', () => {
+  // If the ledger ever DOES start syncing, this caveat becomes wrong and should
+  // be removed — the test names the coupling so it is not missed.
+  const fs = require('fs');
+  const path = require('path');
+  const settings = fs.readFileSync(path.join(__dirname, '../renderer/settings.js'), 'utf8');
+  assert.match(settings, /set\.ai_spend_device/, 'the spend panel must state the figure covers this device only');
+  const en = fs.readFileSync(path.join(__dirname, '../renderer/locales/en.js'), 'utf8');
+  assert.match(en, /"set\.ai_spend_device"/, 'the caveat needs an English string');
 });

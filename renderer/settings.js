@@ -557,6 +557,7 @@ function aiSpendHtml() {
       ${body}
       <p class="ai-spend-note">${escapeHtml(
         (t('set.ai_spend_note') || 'Estimated from token counts at list prices. Your Anthropic console is authoritative.')
+        + ' ' + (t('set.ai_spend_device') || 'Counted on this device only — settings do not sync between machines.')
         + (est ? ' ' + (t('set.ai_spend_unknown_model') || 'Prices for this model are unknown — Opus rates assumed.') : ''))}</p>
     </details>`;
 }

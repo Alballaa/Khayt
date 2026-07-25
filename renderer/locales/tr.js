@@ -3595,5 +3595,6 @@
   "set.ai_spend_cost": "Tahmini maliyet",
   "set.ai_spend_note": "Jeton sayılarından liste fiyatlarıyla tahmin edilmiştir. Anthropic konsolunuz esastır.",
   "set.ai_spend_unknown_model": "Bu modelin fiyatları bilinmiyor — Opus ücretleri varsayıldı.",
+  "set.ai_spend_device": "Yalnızca bu cihazda sayılır — ayarlar cihazlar arasında eşitlenmez.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

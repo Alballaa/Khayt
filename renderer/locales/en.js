@@ -3598,5 +3598,6 @@
   "set.ai_spend_cost": "Est. cost",
   "set.ai_spend_note": "Estimated from token counts at list prices. Your Anthropic console is authoritative.",
   "set.ai_spend_unknown_model": "Prices for this model are unknown — Opus rates assumed.",
+  "set.ai_spend_device": "Counted on this device only — settings do not sync between machines.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

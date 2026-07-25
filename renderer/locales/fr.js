@@ -3595,5 +3595,6 @@
   "set.ai_spend_cost": "Coût est.",
   "set.ai_spend_note": "Estimé à partir du nombre de tokens aux prix catalogue. Votre console Anthropic fait foi.",
   "set.ai_spend_unknown_model": "Les prix de ce modèle sont inconnus — tarifs Opus supposés.",
+  "set.ai_spend_device": "Compté sur cet appareil uniquement — les réglages ne se synchronisent pas entre machines.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
