@@ -3589,5 +3589,11 @@
   "set.ai_data_assistant": "recuentos de pedidos y clientes (sin nombres), ingresos, totales pendientes y vencidos, nombres de proyectos vencidos, materiales principales y stock bajo.",
   "priv.ai_active": "Excepto: una función de IA que activaste envía datos del cliente a Anthropic —",
   "priv.ai_review": "Revisar ajustes de IA",
+  "set.ai_spend": "Uso de IA este mes",
+  "set.ai_spend_feature": "Función",
+  "set.ai_spend_calls": "Llamadas",
+  "set.ai_spend_cost": "Coste est.",
+  "set.ai_spend_note": "Estimado a partir del recuento de tokens a precios de lista. Tu consola de Anthropic es la referencia.",
+  "set.ai_spend_unknown_model": "Se desconocen los precios de este modelo; se asumen tarifas de Opus.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

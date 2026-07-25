@@ -114,6 +114,43 @@ try {
   ok(claim.withPii === true, 'enabling reply drafting qualifies the on-device claim');
   ok(claim.masterOff === false, 'turning AI off restores the unqualified claim');
 
+  // AI spend is recorded once at the bridge, so a new call site is covered for
+  // free. Prove the wrapper is installed and the panel renders from the ledger.
+  const spend = await window.evaluate(() => {
+    settings.ai = { enabled: true, apiKey: 'k', model: 'claude-opus-4-8',
+                    features: { quote: true, price: true, reply: true, assistant: true } };
+    settings.aiUsage = KhaytAiUsage.record({}, {
+      task: 'assistant', model: 'claude-opus-4-8',
+      usage: { input_tokens: 120000, output_tokens: 40000 }, now: Date.now(),
+    });
+    settings.aiUsage = KhaytAiUsage.record(settings.aiUsage, {
+      task: 'quote', model: 'claude-opus-4-8',
+      usage: { input_tokens: 300, output_tokens: 120 }, now: Date.now(),
+    });
+    renderAiSettings();
+    const rows = [...document.querySelectorAll('.ai-spend-row .ai-spend-name')].map((n) => n.textContent.trim());
+    return {
+      wrapped: typeof window.khaytAiExtract === 'function',
+      rendered: !!document.querySelector('.ai-spend'),
+      rowCount: rows.length,
+      firstRow: rows[0] || null,
+      total: document.querySelector('.ai-spend > summary b')?.textContent || '',
+      labelled: rows.every((r) => r && !/^(quote|price|reply|assistant)$/.test(r)),
+    };
+  });
+  ok(spend.wrapped, 'every AI call routes through the spend-recording wrapper');
+  ok(spend.rendered, 'the spend panel renders when there is usage to show');
+  ok(spend.rowCount === 2, `one row per feature used (got ${spend.rowCount})`);
+  ok(spend.labelled, 'rows show translated feature names, not raw task ids');
+  ok(/^\$\d/.test(spend.total), `the summary carries a total (${spend.total})`);
+
+  const hidden = await window.evaluate(() => {
+    settings.aiUsage = {};
+    renderAiSettings();
+    return !document.querySelector('.ai-spend');
+  });
+  ok(hidden, 'no spend panel before the AI has ever been used');
+
   console.log('\n✅ Privacy smoke: all assertions passed');
 } catch (e) {
   failed = true;

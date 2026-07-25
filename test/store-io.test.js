@@ -265,6 +265,79 @@ test('recoverStoreRaw recovers from a completed .tmp when the primary is missing
   assert.ok(fs.existsSync(fp), 'tmp promoted to primary');
 });
 
+/* ── Crash recovery from a UNIQUELY-NAMED temp ─────────────────────────────
+ * The test above covers the legacy bare `fp.tmp`. Every write this build makes
+ * uses `fp.tmp.<pid>.<n>` (unique so concurrent writers cannot cross-write), so
+ * the uniquely-named form is what a real interrupted write leaves behind today.
+ *
+ * That is not hypothetical: #495 was a redundant post-flush save killed by
+ * app.quit() between atomicWriteStore's two renames — primary already moved to
+ * .prev, new temp not yet swapped in. On disk that is exactly: no primary, a
+ * good .prev, and an orphaned .tmp.<pid>.<n>. Recovery from that shape is the
+ * difference between a shop losing a session and not noticing anything. */
+
+test('recoverStoreRaw recovers from a uniquely-named temp (what a real crash leaves)', () => {
+  const io = makeStoreIo();
+  const fp = io.dataFilePath();
+  fs.writeFileSync(`${fp}.tmp.12345.1`, JSON.stringify({ fromUniqueTmp: 1 }));
+  const r = io.recoverStoreRaw();
+  assert.equal(r.source, 'tmp');
+  assert.equal(r.data.fromUniqueTmp, 1);
+  assert.ok(fs.existsSync(fp), 'the recovered temp is promoted to primary');
+});
+
+test('the exact #495 shape recovers: no primary, good .prev, orphaned unique temp', () => {
+  const io = makeStoreIo();
+  const fp = io.dataFilePath();
+  // atomicWriteStore got as far as renaming the primary away, then died.
+  fs.writeFileSync(fp + '.prev', JSON.stringify({ gen: 'previous', printLog: [] }));
+  fs.writeFileSync(`${fp}.tmp.999.7`, JSON.stringify({ gen: 'interrupted', printLog: [] }));
+  const r = io.recoverStoreRaw();
+  assert.ok(r.data, 'a shop in this state must not be treated as a fresh install');
+  assert.equal(r.existed, true, 'existed:false here would trigger the setup wizard and overwrite the backup');
+  // The interrupted write is NEWER and complete, so it is the closest to the owner's work.
+  assert.equal(r.data.gen, 'interrupted');
+  assert.ok(fs.existsSync(fp), 'primary restored');
+});
+
+test('the newest orphaned temp wins when several survive', () => {
+  const io = makeStoreIo();
+  const fp = io.dataFilePath();
+  fs.writeFileSync(`${fp}.tmp.1.1`, JSON.stringify({ which: 'older' }));
+  fs.utimesSync(`${fp}.tmp.1.1`, new Date(1000), new Date(1000));
+  fs.writeFileSync(`${fp}.tmp.1.2`, JSON.stringify({ which: 'newer' }));
+  fs.utimesSync(`${fp}.tmp.1.2`, new Date(90000), new Date(90000));
+  const r = io.recoverStoreRaw();
+  assert.equal(r.data.which, 'newer', 'the most recent interrupted write is closest to the owner\'s work');
+});
+
+test('a truncated temp is skipped in favour of a good .prev', () => {
+  // A write killed mid-fwrite leaves unparseable JSON. Preferring it over an
+  // intact backup would turn a recoverable crash into real data loss.
+  const io = makeStoreIo();
+  const fp = io.dataFilePath();
+  fs.writeFileSync(fp + '.prev', JSON.stringify({ gen: 'previous', printLog: [] }));
+  fs.writeFileSync(`${fp}.tmp.5.1`, '{"printLog":[{"id":"O-1","note":"xxx');  // truncated
+  const r = io.recoverStoreRaw();
+  assert.equal(r.data.gen, 'previous', 'must fall through the unparseable temp to the backup');
+  assert.equal(r.existed, true);
+});
+
+test('an empty temp does not mask a good .prev', () => {
+  // fs.open(w) creates a zero-byte file before any bytes are written; a crash
+  // in that instant leaves a 0-byte temp that must not be mistaken for data.
+  // Note: two mechanisms enforce this (the st.size < 2 guard and the JSON parse
+  // failing). Mutation-testing showed removing the size guard alone does not
+  // fail this test — the parse path still catches it. Kept because the OUTCOME
+  // is what matters and would regress if either path changed.
+  const io = makeStoreIo();
+  const fp = io.dataFilePath();
+  fs.writeFileSync(fp + '.prev', JSON.stringify({ gen: 'previous', printLog: [] }));
+  fs.writeFileSync(`${fp}.tmp.5.1`, '');
+  const r = io.recoverStoreRaw();
+  assert.equal(r.data.gen, 'previous');
+});
+
 test('recoverStoreRaw reports a fresh install when nothing is on disk', () => {
   const io = makeStoreIo();
   const r = io.recoverStoreRaw();

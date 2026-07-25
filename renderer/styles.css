@@ -5338,3 +5338,22 @@ body.khayt-workbench .wb-glist li.is-openable:focus-visible {
   border-radius: 6px;
 }
 body.khayt-workbench .wb-glist li.is-openable { cursor: pointer; }
+
+/* This month's AI spend, per feature. Collapsed by default — it is a number the
+   owner should be able to find, not one that demands attention every visit. */
+.ai-spend { margin-top: 12px; border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; }
+.ai-spend > summary {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  cursor: pointer; font-size: 12.5px; font-weight: 600; list-style: none;
+}
+.ai-spend > summary::-webkit-details-marker { display: none; }
+.ai-spend > summary::before { content: '▸'; font-size: 10px; color: var(--text-muted); }
+.ai-spend[open] > summary::before { content: '▾'; }
+.ai-spend > summary span { flex: 1; }
+.ai-spend-head, .ai-spend-row {
+  display: grid; grid-template-columns: 1fr 56px 72px; gap: 8px;
+  font-size: 11.5px; padding: 3px 0;
+}
+.ai-spend-head { color: var(--text-muted); font-weight: 600; margin-top: 8px; border-block-end: 1px solid var(--border-soft); }
+.ai-spend-calls, .ai-spend-cost { text-align: end; font-variant-numeric: tabular-nums; font-family: var(--font-num, inherit); }
+.ai-spend-note { font-size: 10.5px; color: var(--text-muted); margin: 8px 0 0; line-height: 1.5; }

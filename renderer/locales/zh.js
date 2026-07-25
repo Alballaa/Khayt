@@ -3589,5 +3589,11 @@
   "set.ai_data_assistant": "订单和客户数量（不含姓名）、营收、未付与逾期总额、逾期项目名称、主要材料和低库存。",
   "priv.ai_active": "例外：你启用的某项 AI 功能会将客户数据发送至 Anthropic —",
   "priv.ai_review": "查看 AI 设置",
+  "set.ai_spend": "本月 AI 用量",
+  "set.ai_spend_feature": "功能",
+  "set.ai_spend_calls": "调用次数",
+  "set.ai_spend_cost": "预估费用",
+  "set.ai_spend_note": "根据 token 数量按标价估算。以你的 Anthropic 控制台为准。",
+  "set.ai_spend_unknown_model": "该模型价格未知——按 Opus 费率估算。",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

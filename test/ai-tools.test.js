@@ -139,7 +139,8 @@ test('stop reasons explain a 200 that carried no tool call', () => {
 });
 
 test('every aiExtract call site declares its task', () => {
-  // The task id is what restores correct framing. A new call site that forgets
+  // Every call goes through khaytAiExtract (renderer/ai-call.js), which also
+  // records spend. The task id is what restores correct framing; a new call site that forgets
   // it silently reverts that feature to being framed as a quote extraction.
   const files = ['renderer/build.js', 'renderer/integrations.js', 'renderer/settings.js'];
   const valid = new Set(Object.keys(ai.AI_TASKS));
@@ -147,7 +148,7 @@ test('every aiExtract call site declares its task', () => {
   for (const rel of files) {
     const src = fs.readFileSync(path.join(ROOT, rel), 'utf8');
     // Each call spans a few lines; take a window after the call opens.
-    const re = /aiExtract\(\{/g;
+    const re = /khaytAiExtract\(\{/g;
     let m;
     while ((m = re.exec(src))) {
       seen++;
@@ -158,5 +159,5 @@ test('every aiExtract call site declares its task', () => {
       assert.ok(valid.has(task[1]), `${rel}: unknown task '${task[1]}'`);
     }
   }
-  assert.equal(seen, 6, `expected 6 aiExtract call sites, found ${seen}`);
+  assert.equal(seen, 6, `expected 6 khaytAiExtract call sites, found ${seen}`);
 });

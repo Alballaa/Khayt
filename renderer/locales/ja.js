@@ -3589,5 +3589,11 @@
   "set.ai_data_assistant": "注文数と顧客数（氏名は含まない）、売上、未払い・延滞の合計、延滞案件名、主要な材料、在庫僅少品。",
   "priv.ai_active": "例外: 有効にした AI 機能が顧客データを Anthropic に送信します —",
   "priv.ai_review": "AI 設定を確認",
+  "set.ai_spend": "今月の AI 利用",
+  "set.ai_spend_feature": "機能",
+  "set.ai_spend_calls": "呼び出し",
+  "set.ai_spend_cost": "推定コスト",
+  "set.ai_spend_note": "トークン数と定価からの概算です。正式な金額は Anthropic コンソールをご確認ください。",
+  "set.ai_spend_unknown_model": "このモデルの価格は不明です。Opus の料金で概算しています。",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
