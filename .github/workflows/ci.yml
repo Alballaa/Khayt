@@ -52,6 +52,14 @@ jobs:
       - name: E2E smoke (Bed Ready flavor + branding guard)
         run: xvfb-run -a npm run test:e2e:bedready
 
+      # The only suite that renders every theme's dashboard/queue, so it is the
+      # only place the shared-shell regressions get caught: search-bar layout,
+      # reconnecting-vs-offline, and that the demo store actually seeds. It was
+      # the one e2e suite missing from CI, which is why a broken top-bar search
+      # shipped unnoticed.
+      - name: E2E smoke (theme shells + RTL)
+        run: xvfb-run -a npm run test:e2e:themes
+
       - name: E2E smoke (QC / reprint / RMA)
         run: xvfb-run -a npm run test:e2e:qc
 
