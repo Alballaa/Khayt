@@ -228,7 +228,7 @@ function resumeProduction() {
 function openTimeEntryModal(orderId) {
   const order = printLog.find(o => o.id === orderId);
   const activeOps = operators.filter(o => o.active !== false);
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr();
 
   if (activeOps.length === 0) {
     toast(t('op.no_operators') || 'No active operators — add operators in Settings first', 'warning', 3000);

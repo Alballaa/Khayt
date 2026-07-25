@@ -135,7 +135,7 @@ function processRecurringOrders() {
     // Check no child created in last 24h
     const recentChild = printLog.find(o =>
       o.parentRecurringId === order.id &&
-      o.date >= new Date(Date.now() - 86400000).toISOString().slice(0, 10)
+      o.date >= localDateStr(new Date(Date.now() - 86400000))
     );
     if (recentChild) continue;
 
@@ -171,7 +171,7 @@ function processRecurringOrders() {
     if (order.recurringInterval === 'weekly')   d.setDate(d.getDate() + 7);
     else if (order.recurringInterval === 'biweekly') d.setDate(d.getDate() + 14);
     else /* monthly */                          d.setMonth(d.getMonth() + 1);
-    order.nextDueDate = d.toISOString().slice(0, 10);
+    order.nextDueDate = localDateStr(d);
     toUpdate.push(order.id);
   }
 

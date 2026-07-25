@@ -380,7 +380,7 @@
     const lowStock = (typeof isLowStock === 'function') ? inv.filter(isLowStock).length : 0;
 
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const todayStr = (typeof localDateStr === 'function') ? localDateStr(today) : today.toISOString().slice(0, 10);
+    const todayStr = (typeof localDateStr === 'function') ? localDateStr(today) : localDateStr(today);
     const dueToday = log.filter((o) => o.status !== 'completed' && o.status !== 'quote' && o.dueDate === todayStr).length;
     const todayRev = (typeof orderRevenueBase === 'function')
       ? log.filter((o) => o.status === 'completed' && o.date === todayStr).reduce((s, o) => s + orderRevenueBase(o), 0)

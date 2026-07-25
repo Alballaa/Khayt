@@ -112,7 +112,7 @@ async function checkAndSendDigest() {
     if (now.getDate() !== fireDom) return;
     periodKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   } else {
-    periodKey = now.toISOString().split('T')[0];
+    periodKey = localDateStr(now);
   }
   if (d.lastSentDate === periodKey) return; // already sent
   const body = buildDigestEmailHtml();
@@ -1845,7 +1845,7 @@ function trackShipment(trackingNumber, carrier) {
     ].filter(Boolean).join('\n');
     const order = {
       id: `${prefix}-${now.getFullYear()}-${seq}`,
-      date: now.toISOString().split('T')[0],
+      date: localDateStr(now),
       timestamp: now.toISOString(),
       project: p.title || p.description?.slice(0, 60) || t('intake.requests'),
       clientId: clientId || null,

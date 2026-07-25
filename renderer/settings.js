@@ -416,7 +416,7 @@ function renderSmsNotificationSettings() {
 
 function buildDigestEmailHtml() {
   const now = new Date();
-  const todayStr = now.toISOString().split('T')[0];
+  const todayStr = localDateStr(now);
   const freq = settings.emailDigest?.frequency || 'daily';
   const freqLabel = freq === 'weekly' ? 'Weekly' : (freq === 'monthly' ? 'Monthly' : 'Daily');
 
@@ -3495,7 +3495,7 @@ async function loadSampleData() {
   if (typeof KhaytSampleData === 'undefined') { toast('Sample data unavailable', 'error'); return; }
   const ok = await confirmModal(t('set.sample_load_q') || 'Add demo clients, products, spools and orders to explore? You can remove them anytime.');
   if (!ok) return;
-  const data = KhaytSampleData.buildSampleData({ today: new Date().toISOString().slice(0, 10) });
+  const data = KhaytSampleData.buildSampleData({ today: localDateStr() });
   const targets = { machines, clients, products, inventory, printLog };
   let added = 0;
   for (const key of KhaytSampleData.SAMPLE_COLLECTIONS) {
@@ -3527,7 +3527,7 @@ function exportData() {
   if (!confirm(t('set.export_secrets_warning') || 'Export will redact API keys and secrets. Continue?')) return;
   downloadBlob(
     new Blob([JSON.stringify(buildExportPayload({ redactSecrets: true }), null, 2)], { type: 'application/json' }),
-    `khayt-${new Date().toISOString().split('T')[0]}.json`
+    `khayt-${localDateStr()}.json`
   );
   toast(t('set.exported'), 'success');
 }
@@ -3773,7 +3773,7 @@ async function openRegenRecoveryModal() {
   if (!verified) return;
   const code = generateRecoveryCode();
   settings.recoveryCodeHash = await hashSecret(normalizeRecoveryCode(code));
-  settings.recoveryCodeCreatedAt = new Date().toISOString().slice(0, 10);
+  settings.recoveryCodeCreatedAt = localDateStr();
   saveAll();
   showRecoveryCodeModal(code, t('sec.regen_recovery'));
 }

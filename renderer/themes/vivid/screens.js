@@ -235,7 +235,7 @@
     const biz = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.showsBusiness(cfg.mode) : cfg.mode !== 'enthusiast';
 
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const todayStr = (typeof localDateStr === 'function') ? localDateStr(today) : today.toISOString().slice(0, 10);
+    const todayStr = (typeof localDateStr === 'function') ? localDateStr(today) : localDateStr(today);
 
     /* ---- KPI figures (real) — Revenue (month), Active orders, Fleet util, Filament ---- */
     const thisMonthStr = (typeof localMonthStr === 'function') ? localMonthStr(today) : todayStr.slice(0, 7);
@@ -298,7 +298,7 @@
     const barData = [];
     for (let i = 6; i >= 0; i -= 1) {
       const d = new Date(today); d.setDate(d.getDate() - i);
-      const ds = (typeof localDateStr === 'function') ? localDateStr(d) : d.toISOString().slice(0, 10);
+      const ds = (typeof localDateStr === 'function') ? localDateStr(d) : localDateStr(d);
       const doneThatDay = log.filter((o) => o.status === 'completed' && o.date === ds);
       const v = biz ? doneThatDay.reduce((s, o) => s + orderRevenueBase(o), 0) : doneThatDay.length;
       const cap = d.toLocaleDateString([], { weekday: 'short' });

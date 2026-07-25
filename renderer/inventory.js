@@ -945,7 +945,7 @@ function addInventoryItem() {
   const weight = Math.max(1, num($('#invWeight').value, 1000));
   const color = $('#invColor').value || '#888888';
   if (!material) { toast(t('inv.material_ph'), 'error'); return; }
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr();
   const invMaterialType = $('#invMaterialType')?.value || 'fdm';
   const lot = ($('#invLot')?.value || '').trim() || undefined;
   // Per-location: tag the spool with the chosen branch (default to active filter).
@@ -1110,7 +1110,7 @@ function openInventoryEditor(id) {
       // Track price history when cost changes
       if (newCost !== item.cost) {
         if (!item.priceHistory) item.priceHistory = [];
-        item.priceHistory.push({ cost: item.cost, date: new Date().toISOString().split('T')[0] });
+        item.priceHistory.push({ cost: item.cost, date: localDateStr() });
       }
       item.cost        = newCost;
       item.weight      = Math.max(0, num(document.getElementById('ieWeightInput').value, 0));
@@ -1362,7 +1362,7 @@ function getSpoolReservedGrams(spoolId) {
 // Helper: return YYYY-MM-DD string n days from now
 function todayPlusDays(n) {
   const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() + n);
-  return d.toISOString().split('T')[0];
+  return localDateStr(d);
 }
 
 // Feature 3: Check if saving parts would over-commit any spool
@@ -1717,7 +1717,7 @@ function populateInvLocationField() {
 function openStockAdjustModal(itemId) {
   const item = inventory.find(i => i.id === itemId);
   if (!item) return;
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr();
   if (!item.adjustments) item.adjustments = [];
   const recentAdjs = item.adjustments.slice(0, 5);
 
@@ -1836,7 +1836,7 @@ function openDryingLog(itemId) {
   const item = inventory.find(i => i.id === itemId);
   if (!item) return;
   if (!item.dryingLog) item.dryingLog = [];
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = localDateStr();
 
   function listHtml() {
     const log = [...item.dryingLog].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
@@ -1919,7 +1919,7 @@ function openDryingLog(itemId) {
 function openTestPrintLog(itemId) {
   const item = inventory.find(i => i.id === itemId);
   if (!item) return;
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = localDateStr();
   const TEST_TYPES = ['temp_tower','retraction','first_layer','stringing','overhang','dimensional','other'];
   const TEST_RESULTS = ['excellent','good','fair','poor'];
 
@@ -2065,7 +2065,7 @@ function deductFilamentForOrder(order, { skipRender = false } = {}) {
   let totalDeducted = 0;
   const spoolsTouched = new Set();
   const nowLow = [];
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr();
   // Per-location: prefer drawing from spools at the order's branch.
   const orderLoc = typeof orderLocationId === 'function' ? orderLocationId(order) : (order.locationId || null);
   for (const part of (order.parts || [])) {
@@ -2530,7 +2530,7 @@ function openSupplierEditor(id) {
 function openLogPurchaseModal(supplierId) {
   const sup = suppliers.find(s => s.id === supplierId);
   if (!sup) return;
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr();
 
   const bodyHtml = `
     <p style="font-size:13px; font-weight:600; margin:0 0 12px;">${escapeHtml(sup.name)}</p>
@@ -2900,7 +2900,7 @@ function openProductEditor(productId = null) {
         defaultMargin: 30,
         priceTiers: [],
         parts: [],
-        createdAt: new Date().toISOString().split('T')[0]
+        createdAt: localDateStr()
       };
   if (!draft.priceTiers) draft.priceTiers = [];
   if (!Array.isArray(draft.components)) draft.components = [];
@@ -3291,7 +3291,7 @@ function computeMaterialForecast() {
   const results = [];
   const now = new Date();
   const thirtyDaysAgo = new Date(now); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const thirtyAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+  const thirtyAgoStr = localDateStr(thirtyDaysAgo);
 
   for (const item of inventory) {
     // Sum weight queued (non-completed, non-quote orders using this material)
@@ -3429,7 +3429,7 @@ function createPurchaseOrder(item, opts) {
     unitPrice: (opts && opts.unitPrice) ? +opts.unitPrice : undefined,
     estimatedDelivery: (opts && opts.estimatedDelivery) || null,
     status: (opts && opts.status) || 'ordered',
-    orderedAt: new Date().toISOString().split('T')[0],
+    orderedAt: localDateStr(),
     receivedAt: null,
     notes: (opts && opts.notes) || '',
   };
@@ -3764,7 +3764,7 @@ function exportInventoryCsv() {
 
   downloadBlob(
     new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' }),
-    `inventory-${new Date().toISOString().slice(0, 10)}.csv`
+    `inventory-${localDateStr()}.csv`
   );
 }
 
@@ -3781,7 +3781,7 @@ function recordSupplierInvoice(poId) {
       <label style="margin-top:12px;">${escapeHtml(t('po.sup_inv_amount'))} (${currencySymbol()})</label>
       <input type="number" id="poSupInvAmount" min="0" step="0.01" value="${po.supplierInvoice?.amount || ''}">
       <label style="margin-top:12px;">${escapeHtml(t('po.sup_inv_date'))}</label>
-      <input type="date" id="poSupInvDate" value="${escapeHtml(po.supplierInvoice?.date || new Date().toISOString().split('T')[0])}">`,
+      <input type="date" id="poSupInvDate" value="${escapeHtml(po.supplierInvoice?.date || localDateStr())}">`,
     onSave(modal) {
       const number = modal.querySelector('#poSupInvNum').value.trim();
       const amount = parseFloat(modal.querySelector('#poSupInvAmount').value) || 0;
@@ -3890,7 +3890,7 @@ async function printSpoolLabel(itemId) {
     if (last && last.date) {
       const due = new Date(last.date + 'T00:00:00');
       due.setDate(due.getDate() + 30);
-      dryByStr = due.toISOString().split('T')[0];
+      dryByStr = localDateStr(due);
     }
   }
   const locName = item.locationId && typeof locations !== 'undefined'

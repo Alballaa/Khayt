@@ -185,7 +185,7 @@
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const dayStr = (typeof localDateStr === 'function')
         ? localDateStr(today)
-        : today.toISOString().slice(0, 10);
+        : localDateStr(today);
       gramsToday = log
         .filter((o) => dayStr && (o.date || '').startsWith(dayStr))
         .reduce((s, o) => s + (Number(o.grams) || Number(o.weight) || 0), 0);

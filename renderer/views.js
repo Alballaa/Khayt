@@ -26,7 +26,7 @@ function renderScheduleView() {
   if (typeof KhaytSchedule !== 'undefined') {
     const dailyHrs = (typeof avgDailyWorkingHours === 'function' && avgDailyWorkingHours() > 0) ? avgDailyWorkingHours() : 8;
     const sched = KhaytSchedule.computeSchedule({
-      startDate: new Date().toISOString().slice(0, 10),
+      startDate: localDateStr(),
       dailyHours: dailyHrs,
       jobs: activeOrders.map(o => ({ id: o.id, machineId: o.machineId || '', hours: +o.printTime || 0, dueDate: o.dueDate || '', project: o.project || '', status: o.status })),
     });

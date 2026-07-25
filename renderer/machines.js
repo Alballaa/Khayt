@@ -706,7 +706,7 @@ function logNozzleChange(machineId) {
         <option value="other">Other</option>
       </select>
       <label>${escapeHtml(t('mach.nozzle_installed'))}</label>
-      <input type="date" id="nlInstalledAt" value="${new Date().toISOString().split('T')[0]}">
+      <input type="date" id="nlInstalledAt" value="${localDateStr()}">
       <label style="margin-top:10px;">${escapeHtml(t('mach.nozzle_threshold'))}</label>
       <input type="number" id="nlThreshold" value="${machine.nozzle?.gramsThreshold || 2000}" min="0" step="100">
       <p style="font-size:12px;color:var(--text-muted);margin-top:8px;">
@@ -805,7 +805,7 @@ function openMaintLog(machineId) {
         <div style="display:grid;grid-template-columns:1fr 2fr 1fr;gap:8px;align-items:end;">
           <div>
             <label style="margin:0;">${escapeHtml(t('maint.date'))}</label>
-            <input type="date" id="maintDate" value="${new Date().toISOString().split('T')[0]}" max="${new Date().toISOString().split('T')[0]}">
+            <input type="date" id="maintDate" value="${localDateStr()}" max="${localDateStr()}">
           </div>
           <div>
             <label style="margin:0;">${escapeHtml(t('maint.note'))}</label>
@@ -870,7 +870,7 @@ function openMaintLog(machineId) {
           if (!tk) return;
           const patch = KhaytMaintenance.markDone(tk, machineHoursMeter(machineId), new Date().toISOString());
           Object.assign(tk, patch);
-          const today = new Date().toISOString().split('T')[0];
+          const today = localDateStr();
           machMaintLog.unshift({ id: uid('MAINT'), machineId, date: today, note: tk.name, cost: 0 });
           saveAll();
           refreshTasks(); refresh();
@@ -885,7 +885,7 @@ function openMaintLog(machineId) {
         }
       });
       modal.querySelector('#btnAddMaintEntry').addEventListener('click', () => {
-        const date  = modal.querySelector('#maintDate').value || new Date().toISOString().split('T')[0];
+        const date  = modal.querySelector('#maintDate').value || localDateStr();
         const note  = modal.querySelector('#maintNote').value.trim();
         const cost  = Math.max(0, +(modal.querySelector('#maintCost').value) || 0);
         const addExp = modal.querySelector('#maintAddExpense').checked;
@@ -957,7 +957,7 @@ function logMachineService(machineId) {
       const note = modal.querySelector('#svcNoteInput').value.trim();
       const totalHrs = machineHoursMeter(machineId);
       machine.lastServiceHours = totalHrs;
-      const today = new Date().toISOString().split('T')[0];
+      const today = localDateStr();
       machMaintLog.unshift({ id: uid('MAINT'), machineId, date: today, note: note || t('mach.log_service'), cost: 0 });
       saveAll();
       renderMachines();
@@ -1094,7 +1094,7 @@ function estimateMachineQueueClearDate(machineId, excludeOrderId) {
   let safety = 0;
   while (remaining > 0 && safety < 730) { // max 2 years
     safety++;
-    const dateStr = cursor.toISOString().split('T')[0];
+    const dateStr = localDateStr(cursor);
     if (!holidays.includes(dateStr)) {
       const dayKey = dayKeys[cursor.getDay()];
       const hoursAvail = +(wh[dayKey] || 0);

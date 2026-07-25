@@ -132,9 +132,9 @@
     const pro = (typeof KhaytTiers !== 'undefined') ? KhaytTiers.isProMode(cfg.mode) : (cfg.mode || 'professional') === 'professional';
 
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const todayStr = (typeof localDateStr === 'function') ? localDateStr(today) : today.toISOString().slice(0, 10);
+    const todayStr = (typeof localDateStr === 'function') ? localDateStr(today) : localDateStr(today);
     const yest = new Date(today); yest.setDate(yest.getDate() - 1);
-    const yestStr = (typeof localDateStr === 'function') ? localDateStr(yest) : yest.toISOString().slice(0, 10);
+    const yestStr = (typeof localDateStr === 'function') ? localDateStr(yest) : localDateStr(yest);
 
     /* ---- KPI figures (real) ---- */
     const revBase = (o) => (typeof orderRevenueBase === 'function') ? orderRevenueBase(o) : (+o.price || 0);

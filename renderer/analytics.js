@@ -97,7 +97,7 @@ function analyticsRangeDays(range, ctx, dates) {
     const from = (typeof customRangeFrom !== 'undefined' && ctx) ? customRangeFrom[ctx] : '';
     const to   = (typeof customRangeTo   !== 'undefined' && ctx) ? customRangeTo[ctx]   : '';
     if (from && to) return spanDays(from, to);
-    if (from) return spanDays(from, new Date().toISOString().slice(0, 10));
+    if (from) return spanDays(from, localDateStr());
   }
   // 'all' (and a custom range with no bounds): span the data itself.
   const days = (dates || []).map(d => String(d || '').slice(0, 10)).filter(Boolean).sort();
@@ -2679,7 +2679,7 @@ function openExecutiveSummary() {
 
   const bounds = (r) => {
     const now = new Date(); const y = now.getFullYear(); const m = now.getMonth();
-    const ymd = (d) => d.toISOString().slice(0, 10);
+    const ymd = (d) => localDateStr(d);
     if (r === 'month') return [ymd(new Date(y, m, 1)), ymd(new Date(y, m + 1, 0))];
     if (r === 'last_month') return [ymd(new Date(y, m - 1, 1)), ymd(new Date(y, m, 0))];
     if (r === 'quarter') { const q = Math.floor(m / 3); return [ymd(new Date(y, q * 3, 1)), ymd(new Date(y, q * 3 + 3, 0))]; }
@@ -2813,7 +2813,7 @@ function openReportBuilder() {
     modal.querySelector('#rbExport').addEventListener('click', () => {
       sync();
       const out = KhaytReportBuilder.buildReport(flatten(), { ...sel, labels });
-      downloadBlob(new Blob([KhaytReportBuilder.reportToCsv(out)], { type: 'text/csv;charset=utf-8;' }), `report-${new Date().toISOString().slice(0, 10)}.csv`);
+      downloadBlob(new Blob([KhaytReportBuilder.reportToCsv(out)], { type: 'text/csv;charset=utf-8;' }), `report-${localDateStr()}.csv`);
       toast(t('rb.exported') || 'Report exported', 'success');
     });
     modal.querySelector('#rbSave').addEventListener('click', () => {
@@ -2869,7 +2869,7 @@ function exportPnlCsv() {
   };
   const csv = KhaytPnl.pnlToCsv(summary, { currency: currencySymbol(), labels });
   downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8;' }),
-    `pnl-${new Date().toISOString().slice(0, 10)}.csv`);
+    `pnl-${localDateStr()}.csv`);
   toast(t('pnl.exported') || 'P&L exported', 'success');
 }
 

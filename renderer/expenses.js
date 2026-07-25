@@ -15,11 +15,11 @@ function calcNextDueDate(fromDate, recurring) {
   else if (recurring === 'quarterly') d.setUTCMonth(d.getUTCMonth() + 3);
   else if (recurring === 'annually') d.setUTCFullYear(d.getUTCFullYear() + 1);
   else return null;
-  return d.toISOString().slice(0, 10);
+  return localDateStr(d);
 }
 
 function checkRecurringExpenses() {
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = localDateStr();
   const due = expenses.filter(e => e.recurring && e.nextDue && e.nextDue <= todayStr);
   if (due.length === 0) return;
   for (const exp of due) {
@@ -81,7 +81,7 @@ let _expReceiptPath = null;
 function addExpense() {
   const amount = clampPositive($('#expAmount').value);
   if (amount <= 0) { toast(t('exp.amount_required'), 'error'); return; }
-  const dateVal = $('#expDate').value || new Date().toISOString().split('T')[0];
+  const dateVal = $('#expDate').value || localDateStr();
   const orderRef = ($('#expOrderRef')?.value || '').trim() || null;
   const recurringVal = $('#expRecurring')?.value || null;
   const nextDue = recurringVal ? calcNextDueDate(dateVal, recurringVal) : null;
@@ -365,7 +365,7 @@ function exportExpensesCsv() {
     ...filtered.map(e => [e.date, expCatLabel(e.category), e.amount, e.note, e.orderId || ''].map(csvEsc).join(','))
   ];
   downloadBlob(new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' }),
-    `expenses-${new Date().toISOString().slice(0,10)}.csv`);
+    `expenses-${localDateStr()}.csv`);
 }
 
 /* ============================================================
@@ -570,7 +570,7 @@ function exportAccounting() {
       // Remember the mapping for next time + the webhook push.
       settings.accountingSync = Object.assign({}, settings.accountingSync, { salesAccount, taxCode });
       saveAll();
-      const stamp = new Date().toISOString().slice(0, 10);
+      const stamp = localDateStr();
       let csv, name;
       if (dataset === 'expenses') {
         csv = KhaytAccountingExport.buildExpenseCsv(expenses, { format });
@@ -747,7 +747,7 @@ function _doExportTaxSummary(periodLabel, fromDate, toDate) {
 
   downloadBlob(
     new Blob(['﻿' + [periodRow, headerRow, ...rows].join('\r\n')], { type: 'text/csv;charset=utf-8;' }),
-    `tax-summary-${fileLabel}-${new Date().toISOString().slice(0, 10)}.csv`
+    `tax-summary-${fileLabel}-${localDateStr()}.csv`
   );
   toast(t('an.tax_exported'), 'success');
 }

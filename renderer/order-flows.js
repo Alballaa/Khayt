@@ -148,7 +148,7 @@ function logPrint(asQuote = false) {
     id,
     invoiceNum,
     invoiceNumber: invoiceNum,
-    date: now.toISOString().split('T')[0],
+    date: localDateStr(now),
     timestamp: now.toISOString(),
     project,
     clientId: currentClientId || null,
@@ -203,7 +203,7 @@ function logPrint(asQuote = false) {
           const daysNeeded = Math.ceil(totalHrs / dailyHrs);
           const d = new Date(now);
           d.setDate(d.getDate() + daysNeeded);
-          return d.toISOString().split('T')[0];
+          return localDateStr(d);
         }
       }
       return null;
@@ -222,10 +222,10 @@ function logPrint(asQuote = false) {
     actualPrintTime: null,
     actualWeight:    null,
     // Quote lifecycle
-    quoteSentAt:     asQuote ? now.toISOString().split('T')[0] : null,
+    quoteSentAt:     asQuote ? localDateStr(now) : null,
     rushFee:         logRushFeeAmt > 0 ? +logRushFeeAmt.toFixed(2) : undefined,
     rushFeeAmount:   logRushFeeAmt > 0 ? +logRushFeeAmt.toFixed(2) : 0,
-    quoteExpiresAt:  asQuote ? new Date(now.getTime() + (settings.quoteValidityDays || 7) * 86400000).toISOString().split('T')[0] : null,
+    quoteExpiresAt:  asQuote ? localDateStr(new Date(now.getTime() + (settings.quoteValidityDays || 7) * 86400000)) : null,
     quoteApprovalToken: asQuote ? (() => {
       const b = new Uint8Array(16);
       crypto.getRandomValues(b);
@@ -355,7 +355,7 @@ function resumeFromHold(order, prevStatus, newStatus) {
       if (holdDays > 0) {
         const d = new Date(order.dueDate + 'T00:00:00');
         d.setDate(d.getDate() + holdDays);
-        order.dueDate = d.toISOString().split('T')[0];
+        order.dueDate = localDateStr(d);
         toast(t('ord.due_extended', { days: holdDays, date: order.dueDate }), 'info', 4000);
       }
     }
@@ -1075,7 +1075,7 @@ function openPaymentModal(orderId) {
     paymentStatus: order.paymentStatus || 'paid',
     paidAmount:    order.paidAmount || fullAmount,
     paymentMethod: order.paymentMethod || 'cash',
-    paidAt:        order.paidAt || new Date().toISOString().split('T')[0]
+    paidAt:        order.paidAt || localDateStr()
   };
 
   const methodOptions = ['cash','mada','transfer','stcpay','applepay','visa','other']
@@ -1112,7 +1112,7 @@ function openPaymentModal(orderId) {
       </div>
     </div>
     <label>${escapeHtml(t('pay.paid_on'))}</label>
-    <input type="date" data-f="paidAt" value="${draft.paidAt}" max="${new Date().toISOString().split('T')[0]}">
+    <input type="date" data-f="paidAt" value="${draft.paidAt}" max="${localDateStr()}">
     <div style="display:flex;gap:8px;align-items:flex-end;margin-top:14px;">
       <div style="flex:1;">
         <label>${escapeHtml(t('giftCardCode'))}</label>
@@ -1488,7 +1488,7 @@ function openOrderEditor(orderId) {
           const totalMinsQueued = queueDepth * avgPrintMins;
           const daysNeeded = Math.max(1, Math.ceil(totalMinsQueued / (workingHoursPerDay * 60)));
           const suggested = new Date(); suggested.setDate(suggested.getDate() + daysNeeded);
-          const suggestedStr = suggested.toISOString().split('T')[0];
+          const suggestedStr = localDateStr(suggested);
           dueDateInput.value = suggestedStr;
           dueDateInput.title = 'Auto-suggested based on current queue';
           draft.dueDate = suggestedStr;
@@ -1675,7 +1675,7 @@ function openOrderEditor(orderId) {
           btn.addEventListener('click', () => {
             const ins = draft.instalments[+btn.dataset.ii];
             ins.paid = !ins.paid;
-            ins.paidAt = ins.paid ? new Date().toISOString().split('T')[0] : null;
+            ins.paidAt = ins.paid ? localDateStr() : null;
             renderInstalments();
           });
         });
@@ -1696,7 +1696,12 @@ function openOrderEditor(orderId) {
         if (total <= 0) { toast(t('inst.need_price') || 'Set an order price first', 'error'); return; }
         if (draft.instalments.length && !(await confirmModal(t('inst.replace_q') || 'Replace the current installments?', { danger: true }))) return;
         const today = new Date();
-        const firstDue = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate()).toISOString().split('T')[0];
+        // Clamp to the target month's length: new Date(2026, 1, 31) silently
+        // rolls over into March, so an instalment plan generated on the 31st
+        // skipped February entirely.
+        const _fdY = today.getFullYear(), _fdM = today.getMonth() + 1;
+        const _lastDay = new Date(_fdY, _fdM + 1, 0).getDate();
+        const firstDue = localDateStr(new Date(_fdY, _fdM, Math.min(today.getDate(), _lastDay)));
         const schedule = KhaytPaymentPlan.buildSchedule({ total, depositAmount: 0, installments: 3, firstDueDate: firstDue, intervalDays: 30 });
         draft.instalments = schedule.map((s, i) => ({ id: uid('INS'), amount: s.amount, dueDate: s.dueDate, note: '', paid: false, paidAt: null }));
         renderInstalments();
@@ -2654,7 +2659,7 @@ function openSpoolSwitchModal(orderId) {
           if (invItem) {
             invItem.weight = Math.max(0, invItem.weight - weight);
             if (!invItem.usageHistory) invItem.usageHistory = [];
-            invItem.usageHistory.unshift({ orderId: order.id, project: order.project || '', weightUsed: weight, date: new Date().toISOString().split('T')[0] });
+            invItem.usageHistory.unshift({ orderId: order.id, project: order.project || '', weightUsed: weight, date: localDateStr() });
             if (invItem.usageHistory.length > 200) invItem.usageHistory.length = 200;
           }
           saveAll();
@@ -2788,7 +2793,7 @@ async function splitOrderAcrossMachines(orderId) {
       parts,
       printTime: parts.reduce((s, p) => s + (+p.printTime || 0), 0),
       material: order.material || '',
-      date: order.date || new Date().toISOString().split('T')[0],
+      date: order.date || localDateStr(),
       status: 'pending',
       price: +proportional.toFixed(2),
       paymentStatus: 'unpaid',

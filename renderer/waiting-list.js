@@ -22,7 +22,7 @@ function renderWaitingList() {
   );
   const priorityColors = { urgent: 'var(--danger)', high: '#f59e0b', normal: 'var(--text-muted)', low: 'var(--text-muted)' };
   const priorityLabels = { urgent: '🔴', high: '🟠', normal: '🔵', low: '⚪' };
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr();
 
   el.innerHTML = sorted.map(item => {
     const client = (biz && item.clientId) ? clients.find(c => c.id === item.clientId) : null;
@@ -186,7 +186,7 @@ function updateWaitingBadge() {
   badge.textContent = activeCount;
   badge.style.display = activeCount > 0 ? 'inline-flex' : 'none';
   // Pulse badge if any item has a reminder date today or overdue
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr();
   const hasDueReminder = waitingList.some(w => w.reminderDate && w.reminderDate <= today && w.status !== 'declined');
   badge.style.animation = hasDueReminder ? 'pulse 1s infinite' : '';
 }

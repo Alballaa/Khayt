@@ -142,7 +142,7 @@ function renderWasteLog() {
 }
 
 function openWasteForm() {
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr();
   const invOptions = inventory.map(f =>
     `<option value="${escapeHtml(f.material)}">${escapeHtml(f.material)}</option>`
   ).join('');
