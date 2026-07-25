@@ -3595,5 +3595,6 @@
   "set.ai_spend_cost": "推定コスト",
   "set.ai_spend_note": "トークン数と定価からの概算です。正式な金額は Anthropic コンソールをご確認ください。",
   "set.ai_spend_unknown_model": "このモデルの価格は不明です。Opus の料金で概算しています。",
+  "set.ai_spend_device": "この端末でのみ集計されます（設定は端末間で同期されません）。",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

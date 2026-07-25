@@ -3595,5 +3595,6 @@
   "set.ai_spend_cost": "Gesch. Kosten",
   "set.ai_spend_note": "Geschätzt aus Token-Zahlen zu Listenpreisen. Maßgeblich ist Ihre Anthropic-Konsole.",
   "set.ai_spend_unknown_model": "Preise für dieses Modell sind unbekannt — Opus-Sätze angenommen.",
+  "set.ai_spend_device": "Nur auf diesem Gerät gezählt — Einstellungen werden nicht zwischen Geräten synchronisiert.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

@@ -3597,5 +3597,6 @@
   "set.ai_spend_cost": "التكلفة التقديرية",
   "set.ai_spend_note": "تقدير مبني على عدد الرموز بأسعار القائمة. لوحة Anthropic هي المرجع.",
   "set.ai_spend_unknown_model": "أسعار هذا النموذج غير معروفة — يُفترض سعر Opus.",
+  "set.ai_spend_device": "يُحتسب على هذا الجهاز فقط — الإعدادات لا تُزامَن بين الأجهزة.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

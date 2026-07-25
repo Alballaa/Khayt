@@ -3595,5 +3595,6 @@
   "set.ai_spend_cost": "预估费用",
   "set.ai_spend_note": "根据 token 数量按标价估算。以你的 Anthropic 控制台为准。",
   "set.ai_spend_unknown_model": "该模型价格未知——按 Opus 费率估算。",
+  "set.ai_spend_device": "仅统计本机——设置不会在设备间同步。",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
