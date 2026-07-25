@@ -1189,7 +1189,7 @@ function openPriceHistory(itemId) {
 
 function getQueuedWeight(itemId) {
   return printLog
-    .filter(o => o.status !== 'completed' && o.status !== 'quote')
+    .filter(o => o.status !== 'completed' && o.status !== 'quote' && !o.archived)
     .reduce((s, o) =>
       s + (o.parts || [])
         .filter(p => p.filamentId === itemId)
@@ -1230,7 +1230,16 @@ function resolveReorderPrice(item) {
       return { perG: Math.round((sp.pricePerKg / 1000) * 1000) / 1000, supplierId: sp.supplierId, supplierName: sp.supplierName };
     }
   }
-  const perG = (+item.cost) || (item.costPerKg ? +item.costPerKg / 1000 : 0);
+  // item.cost is the cost of the WHOLE SPOOL, not a per-gram rate — the stock
+  // valuation at ~line 1572 divides it by spoolWeight, the CSV import maps
+  // costPerKg onto it, and calculator-cost.js divides it by spoolWeight too.
+  // Returning it undivided made every auto-drafted PO ~1000x too expensive,
+  // because createPurchaseOrder multiplies unitPrice by a qty measured in GRAMS.
+  // The supplier branch above already divides; only this fallback forgot.
+  const perSpool = +item.cost || 0;
+  const perG = perSpool > 0
+    ? perSpool / Math.max(1, +item.spoolWeight || 1000)
+    : (item.costPerKg ? +item.costPerKg / 1000 : 0);
   return { perG: perG > 0 ? Math.round(perG * 1000) / 1000 : 0, supplierId: item.supplierId || null, supplierName: '' };
 }
 
@@ -1352,7 +1361,7 @@ function getSpoolReservedGrams(spoolId) {
   // Key on the same id the deduction uses: the explicitly chosen spool when set,
   // otherwise the part's filament (most parts only carry filamentId).
   return printLog
-    .filter(o => o.status !== 'completed' && o.status !== 'quote')
+    .filter(o => o.status !== 'completed' && o.status !== 'quote' && !o.archived)
     .reduce((s, o) =>
       s + (o.parts || [])
         .reduce((ps, p) => ps + partGramsForSpool(p, spoolId), 0)
@@ -1389,7 +1398,9 @@ function checkSpoolOvercommit(parts, excludeOrderId) {
     if (!item) continue;
     // Compute already-reserved excluding the order being edited
     const alreadyReserved = printLog
-      .filter(o => o.status !== 'completed' && o.status !== 'quote' && o.id !== excludeOrderId)
+      // !archived: renderPipelineDemand already excludes archived orders, so a
+      // reservation that survives archiving contradicts the demand view beside it.
+      .filter(o => o.status !== 'completed' && o.status !== 'quote' && !o.archived && o.id !== excludeOrderId)
       .reduce((s, o) =>
         s + (o.parts || []).reduce((ps, p) => ps + partGramsForSpool(p, key), 0)
       , 0);

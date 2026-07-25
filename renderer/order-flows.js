@@ -1897,9 +1897,21 @@ function openOrderEditor(orderId) {
       // Update paidAmount from instalments if present
       if (draft.instalments.length > 0) {
         const instPaid = draft.instalments.filter(ins => ins.paid).reduce((s, ins) => s + (+ins.amount || 0), 0);
-        const totalInst = draft.instalments.reduce((s, ins) => s + (+ins.amount || 0), 0);
-        order.paidAmount = instPaid;
-        order.paymentStatus = instPaid <= 0 ? 'unpaid' : (instPaid >= totalInst ? 'paid' : 'partial');
+        // paidAmount is the authoritative CASH figure — the deposit is written
+        // straight into it at order creation, and payStatus()/orderOwedBase()
+        // both read it. Assigning instPaid over it destroyed that deposit: the
+        // plan generator builds a schedule with depositAmount:0 spanning the
+        // full price, so a freshly generated plan has instPaid = 0 and a 500
+        // deposit vanished with no ledger entry the moment the order was saved.
+        // Instalment payments are additional cash, so take the larger.
+        order.paidAmount = Math.max(+order.paidAmount || 0, instPaid);
+        // Settled against the ORDER PRICE, not the instalment total. Instalment
+        // amounts are freely editable, so a partial plan (two 100 rows on a
+        // 2,000 order) marked paid reported the whole order as settled — and
+        // paymentStatus is what the payment_received/paid webhooks carry.
+        const owed = +order.price || 0;
+        const paid = order.paidAmount;
+        order.paymentStatus = paid <= 0 ? 'unpaid' : (owed > 0 && paid + 0.005 >= owed ? 'paid' : 'partial');
       }
       // Delete removed files from disk
       if (pendingFileDeletes.length > 0 && window.hubAPI?.deleteOrderFile) {

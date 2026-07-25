@@ -10,7 +10,7 @@ function renderSimpleReports() {
   if (!wrap) return;
 
   const thisMonthStr = localMonthStr();
-  const monthOrders = printLog.filter(o => o.status === 'completed' && (o.date || '').startsWith(thisMonthStr));
+  const monthOrders = printLog.filter(o => o.status === 'completed' && !o.voidedAt && (o.date || '').startsWith(thisMonthStr));
   const monthRevenue = monthOrders.reduce((s, o) => s + orderRevenueBase(o), 0);
   const monthCount   = monthOrders.length;
 
@@ -106,7 +106,7 @@ function analyticsRangeDays(range, ctx, dates) {
 }
 
 function computeHandoffMachineRows() {
-  const orders = printLog.filter(o => inRange(o.date, analyticsRange, 'analytics') && o.status === 'completed');
+  const orders = printLog.filter(o => inRange(o.date, analyticsRange, 'analytics') && o.status === 'completed' && !o.voidedAt);
   const machMap = {};
   for (const m of machines) {
     machMap[m.id] = { name: m.name, profit: 0, hours: 0, util: null };
@@ -282,7 +282,7 @@ function renderHandoffAnalyticsOverview(ctx) {
 
 function renderAnalytics() {
   const orders = printLog.filter(o => inRange(o.date, analyticsRange, 'analytics'));
-  const completed = orders.filter(o => o.status === 'completed');
+  const completed = orders.filter(o => o.status === 'completed' && !o.voidedAt);
   const revenue = completed.reduce((s, o) => s + convertToBase(+o.price || 0, orderCurrency(o)), 0);
   const hours   = orders.reduce((s, o) => s + (+o.printTime || 0), 0);
   const inProgress = orders.filter(o => o.status !== 'completed' && o.status !== 'pending').length;
@@ -297,7 +297,7 @@ function renderAnalytics() {
     for (let i = 11; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const mRev = printLog.filter(o => o.status === 'completed' && (o.date || '').startsWith(key))
+      const mRev = printLog.filter(o => o.status === 'completed' && !o.voidedAt && (o.date || '').startsWith(key))
         .reduce((s, o) => s + orderRevenueBase(o), 0);
       months.push(mRev);
     }
@@ -331,7 +331,7 @@ function renderAnalytics() {
     if (!o.productId) return;
     productAgg[o.productId] = productAgg[o.productId] || { count: 0, revenue: 0 };
     productAgg[o.productId].count++;
-    if (o.status === 'completed') productAgg[o.productId].revenue += orderRevenueBase(o);
+    if (o.status === 'completed' && !o.voidedAt) productAgg[o.productId].revenue += orderRevenueBase(o);
   });
   const topProducts = Object.entries(productAgg)
     .map(([id, agg]) => {
@@ -671,7 +671,7 @@ function renderMonthlyTrendChart() {
   months.forEach(m => { revByMonth[m] = 0; expByMonth[m] = 0; });
 
   for (const o of printLog) {
-    if (o.status !== 'completed') continue;
+    if (o.status !== 'completed' || o.voidedAt) continue;
     const m = (o.date || '').slice(0, 7);
     if (revByMonth[m] !== undefined) revByMonth[m] += orderRevenueBase(o);
   }
@@ -855,20 +855,24 @@ function renderProfitMarginChart() {
     months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
   }
 
+  // Blended, not the mean of per-order percentages. Averaging the percentages
+  // let one tiny job dominate: a 100 order at 80% margin beside a 10,000 order
+  // at 10% read as 45% (and coloured green) when the month's real margin was
+  // 10.7%. Accumulate money, divide once.
   const marginByMonth = {};
-  months.forEach(m => { marginByMonth[m] = { total: 0, count: 0 }; });
+  months.forEach(m => { marginByMonth[m] = { revenue: 0, cost: 0, count: 0 }; });
   for (const o of printLog) {
-    if (o.status !== 'completed' || !o.costBasis || !+o.price) continue;
+    if (o.status !== 'completed' || o.voidedAt || !o.costBasis || !+o.price) continue;
     const m = (o.date || '').slice(0, 7);
     if (!marginByMonth[m]) continue;
-    const margin = (+o.price - +o.costBasis) / +o.price * 100;
-    marginByMonth[m].total += margin;
+    marginByMonth[m].revenue += +o.price;
+    marginByMonth[m].cost += +o.costBasis;
     marginByMonth[m].count++;
   }
 
   const vals = months.map(m => {
     const b = marginByMonth[m];
-    return b.count > 0 ? b.total / b.count : null;
+    return (b.count > 0 && b.revenue > 0) ? (b.revenue - b.cost) / b.revenue * 100 : null;
   });
 
   const hasData = vals.some(v => v !== null);
@@ -1553,7 +1557,7 @@ function renderPrinterUtilizationChart() {
   const el = $('#printerUtilSection');
   if (!el || machines.length === 0) { if (el) el.innerHTML = ''; return; }
 
-  const orders = printLog.filter(o => inRange(o.date, analyticsRange, 'analytics') && o.status === 'completed');
+  const orders = printLog.filter(o => inRange(o.date, analyticsRange, 'analytics') && o.status === 'completed' && !o.voidedAt);
   const machMap = {};
   for (const m of machines) machMap[m.id] = { name: m.name, color: m.color, hours: 0, revenue: 0, cost: 0, count: 0 };
   for (const o of orders) {
@@ -1651,7 +1655,10 @@ function renderPnLSection() {
   // Group completed orders by YYYY-Q (quarter)
   const qMap = {};
   for (const o of printLog) {
-    if (o.status !== 'completed') continue;
+      // Voiding keeps status 'completed' by design (invoicing.js) and only sets
+      // voidedAt, so a status-only filter books a cancelled invoice as full
+      // revenue AND full VAT collected.
+    if (o.status !== 'completed' || o.voidedAt) continue;
     const d = new Date((o.date || '') + 'T00:00:00');
     if (isNaN(d)) continue;
     const q = Math.ceil((d.getMonth() + 1) / 3);
@@ -1742,7 +1749,7 @@ function renderProductProfitability() {
   const el = $('#productProfitSection');
   if (!el) return;
 
-  const completed = printLog.filter(o => o.status === 'completed' && inRange(o.date, analyticsRange, 'analytics'));
+  const completed = printLog.filter(o => o.status === 'completed' && !o.voidedAt && inRange(o.date, analyticsRange, 'analytics'));
   if (completed.length === 0) {
     el.innerHTML = `<p style="color:var(--text-muted);font-size:13px;">${escapeHtml(t('an.no_data'))}</p>`;
     return;
@@ -2048,7 +2055,7 @@ function renderLocationPL() {
   const getD = id => { if (!locTotals[id]) locTotals[id] = { revenue: 0, matCost: 0, expenses: 0, orders: 0 }; return locTotals[id]; };
 
   // Orders
-  printLog.filter(o => o.status === 'completed' && inRange(o.date || (o.timestamp || '').slice(0,10), analyticsRange, 'analytics')).forEach(o => {
+  printLog.filter(o => o.status === 'completed' && !o.voidedAt && inRange(o.date || (o.timestamp || '').slice(0,10), analyticsRange, 'analytics')).forEach(o => {
     const lid = (o.machineId && machLocById[o.machineId]) || (o.machine && machLocByName[o.machine]) || '__none__';
     const d = getD(lid);
     d.revenue += convertToBase(+o.price || 0, orderCurrency(o));
@@ -2448,7 +2455,7 @@ function renderCostTrends() {
   // Revenue per print-hour for completed orders
   const revPerHour = months.map(m => {
     const orders = printLog.filter(o =>
-      o.status === 'completed' && (o.date || '').startsWith(m.key)
+      o.status === 'completed' && !o.voidedAt && (o.date || '').startsWith(m.key)
     );
     const totalRev = orders.reduce((s, o) => s + orderRevenueBase(o), 0);
     const totalHrs = orders.reduce((s, o) => s + (+o.printTime || 0), 0);
@@ -2848,7 +2855,7 @@ function exportPnlCsv() {
   }
   const rate = settings.enableVat ? (+settings.vatRate || 15) : 0;
   const orders = (printLog || [])
-    .filter(o => o.status === 'completed' && inRange(o.date, analyticsRange, 'analytics'))
+    .filter(o => o.status === 'completed' && !o.voidedAt && inRange(o.date, analyticsRange, 'analytics'))
     .map(o => {
       const revenue = orderRevenueBase(o);
       const cogs = (o.parts || []).reduce((s, p) => s + partTotalCost(p), 0)
@@ -2925,8 +2932,8 @@ async function exportAnalyticsReport() {
 
   // 3. KPI summary
   const pl = printLog || [];
-  const completedOrders = pl.filter(o => o.status === 'completed');
-  const totalRev = pl.filter(o => o.status === 'completed' || o.status === 'delivered')
+  const completedOrders = pl.filter(o => o.status === 'completed' && !o.voidedAt);
+  const totalRev = pl.filter(o => (o.status === 'completed' || o.status === 'delivered') && !o.voidedAt)
     .reduce((s, o) => s + orderRevenueBase(o), 0);
   const totalOrders = pl.length;
   const avgMargin = (() => {
@@ -3300,7 +3307,7 @@ function computeBreakEven() {
 
   // Avg contribution margin per order (last 90 days)
   const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 90);
-  const recent = printLog.filter(o => o.status === 'completed' && o.date && new Date(o.date + 'T00:00:00') >= cutoff);
+  const recent = printLog.filter(o => o.status === 'completed' && !o.voidedAt && o.date && new Date(o.date + 'T00:00:00') >= cutoff);
   const avgRevPerOrder = recent.length > 0 ? recent.reduce((s, o) => s + orderRevenueBase(o), 0) / recent.length : 0;
   const avgMaterialCost = recent.length > 0 ? recent.reduce((s, o) => {
     const mc = (o.parts || []).reduce((ps, p) => {
@@ -3325,7 +3332,7 @@ function renderBreakEvenCard() {
   const today = new Date();
   const thisMonthStr = localMonthStr(today);
   const monthRev = printLog
-    .filter(o => o.status === 'completed' && (o.date || '').startsWith(thisMonthStr))
+    .filter(o => o.status === 'completed' && !o.voidedAt && (o.date || '').startsWith(thisMonthStr))
     .reduce((s, o) => s + orderRevenueBase(o), 0);
 
   if (fixedCosts.length === 0) {
