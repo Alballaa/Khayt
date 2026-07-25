@@ -224,7 +224,7 @@
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const dayStr = (typeof localDateStr === 'function')
       ? localDateStr(today)
-      : today.toISOString().slice(0, 10);
+      : localDateStr(today);
     const inv = (typeof inventory !== 'undefined' && Array.isArray(inventory)) ? inventory : [];
     const gramsToday = inv.reduce((s, item) => s
       + (item.usageHistory || [])

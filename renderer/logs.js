@@ -445,7 +445,7 @@ function exportOrdersCsv() {
   ];
 
   downloadBlob(new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' }),
-    `orders-${new Date().toISOString().slice(0, 10)}.csv`);
+    `orders-${localDateStr()}.csv`);
 }
   const api = {
     getFilteredLogs,

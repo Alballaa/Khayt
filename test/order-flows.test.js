@@ -1,5 +1,9 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+// renderer/util.js registers localDateStr() and friends as globals. These
+// modules format dates with it — in the browser util.js is loaded first by
+// index.html; under node the test has to establish the same contract.
+require('../renderer/util.js');
 const flows = require('../renderer/order-flows.js');
 
 test('KhaytOrderFlows exports order lifecycle functions', () => {

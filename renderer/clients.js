@@ -433,7 +433,7 @@ async function exportClientData(clientId) {
   if (!client) return;
   const payload = P.buildClientDataExport(clientId, { clients, printLog, waitingList, waitingListHistory });
   const name = (localName(client) || client.id).replace(/[^\w؀-ۿ -]/g, '').trim() || client.id;
-  const fname = `khayt-customer-data-${name}-${new Date().toISOString().split('T')[0]}.json`;
+  const fname = `khayt-customer-data-${name}-${localDateStr()}.json`;
   const json = JSON.stringify(payload, null, 2);
   try {
     if (window.hubAPI?.saveTextFile) {
@@ -545,7 +545,7 @@ function openClientEditor(clientId = null) {
   const existing = clientId ? clients.find(c => c.id === clientId) : null;
   const draft = existing
     ? { ...existing }
-    : { id: uid('CLI'), nameEn: '', nameAr: '', phone: '', email: '', cr: '', vat: '', notes: '', defaultDiscount: 0, createdAt: new Date().toISOString().split('T')[0] };
+    : { id: uid('CLI'), nameEn: '', nameAr: '', phone: '', email: '', cr: '', vat: '', notes: '', defaultDiscount: 0, createdAt: localDateStr() };
   if (!draft.priceList) draft.priceList = [];
   const rec = draft.recurring || { enabled: false, interval: 'monthly', nextDue: '' };
 
@@ -721,7 +721,7 @@ function openClientEditor(clientId = null) {
       modal.querySelector('#recNextDue').addEventListener('change', e => { rec.nextDue = e.target.value; });
       modal.querySelector('#recSkip')?.addEventListener('click', () => {
         const ndEl = modal.querySelector('#recNextDue');
-        const from = ndEl.value || new Date().toISOString().slice(0, 10);
+        const from = ndEl.value || localDateStr();
         const iv = modal.querySelector('#recInterval').value;
         const next = (typeof KhaytSubscriptions !== 'undefined') ? KhaytSubscriptions.nextRunDate(from, iv) : from;
         ndEl.value = next; rec.nextDue = next;
@@ -914,11 +914,11 @@ function advanceRecurringDate(nextDue, interval, intervalDays) {
   }
   const next = new Date(nextDue + 'T00:00:00');
   next.setDate(next.getDate() + ((intervalDays && intervalDays[interval]) || 30));
-  return next.toISOString().split('T')[0];
+  return localDateStr(next);
 }
 
 function checkRecurringOrders() {
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr();
   const INTERVAL_DAYS = { weekly: 7, biweekly: 14, monthly: 30, quarterly: 91 };
   let created = 0;
 
@@ -1084,7 +1084,7 @@ function openSubscriptionsModal() {
           <select id="subClient">${clientOpts}</select>
           <input id="subAmount" type="number" min="0" step="0.01" placeholder="${escapeHtml(t('subs.amount') || 'Amount')} (${escapeHtml(cur)})">
           <select id="subInterval">${intervalOpts}</select>
-          <input id="subStart" type="date" value="${new Date().toISOString().slice(0, 10)}" title="${escapeHtml(t('subs.next') || 'Next bill')}">
+          <input id="subStart" type="date" value="${localDateStr()}" title="${escapeHtml(t('subs.next') || 'Next bill')}">
           <button class="btn primary small" id="subAdd">+ ${escapeHtml(t('subs.add') || 'Add')}</button>
         </div>
       </div>`;
@@ -1103,7 +1103,7 @@ function openSubscriptionsModal() {
       const clientId = modal.querySelector('#subClient').value;
       const amount = Math.max(0, num(modal.querySelector('#subAmount').value, 0));
       const interval = modal.querySelector('#subInterval').value;
-      const start = modal.querySelector('#subStart').value || new Date().toISOString().slice(0, 10);
+      const start = modal.querySelector('#subStart').value || localDateStr();
       if (!plan || !amount) { toast(t('subs.need_fields') || 'Add a plan name and amount', 'error'); return; }
       subscriptions.unshift({ id: uid('SUB'), planName: plan, clientId: clientId || null, amount, interval, nextRunAt: start, status: 'active', createdAt: new Date().toISOString() });
       saveAll(); render(modal);
@@ -1246,7 +1246,7 @@ function getClientTier(clientId) {
 function patchRecurringOrdersWithLeadDays() {
   // Wrap the existing checkRecurringOrders to also respect leadDays
   // This runs at startup after loadAll() to check for orders due within leadDays
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr();
   const INTERVAL_DAYS = { weekly: 7, biweekly: 14, monthly: 30, quarterly: 91 };
   let created = 0;
 
@@ -1261,7 +1261,7 @@ function patchRecurringOrdersWithLeadDays() {
     const leadDays = rec.leadDays || 0;
     const triggerDate = new Date(rec.nextDue + 'T00:00:00');
     triggerDate.setDate(triggerDate.getDate() - leadDays);
-    const triggerStr = triggerDate.toISOString().split('T')[0];
+    const triggerStr = localDateStr(triggerDate);
     if (triggerStr > today) return;
 
     // Check if an order was already created for this cycle (any status — prevents duplicate on re-completion)
@@ -1360,7 +1360,7 @@ function exportClientsCsv() {
 
   downloadBlob(
     new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' }),
-    `clients-${new Date().toISOString().slice(0, 10)}.csv`
+    `clients-${localDateStr()}.csv`
   );
 }
 
@@ -1469,7 +1469,7 @@ function exportClientPortal(clientId) {
     <tbody>${rowsHtml}</tbody>
   </table>
   ${paymentBlock}
-  <p style="text-align:center;color:#374151;font-size:11px;margin-top:24px;">${escapeHtml(PL.generatedBy)} · ${new Date().toISOString().split('T')[0]}</p>
+  <p style="text-align:center;color:#374151;font-size:11px;margin-top:24px;">${escapeHtml(PL.generatedBy)} · ${localDateStr()}</p>
 </body>
 </html>`;
 

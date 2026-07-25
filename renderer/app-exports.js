@@ -8,7 +8,7 @@ async function maybeAutoBackup() {
   if (!settings.autoBackup || !window.hubAPI?.lastBackupDate) return;
   try {
     const last  = await window.hubAPI.lastBackupDate();
-    const today = new Date().toISOString().split('T')[0];
+    const today = localDateStr();
     const localJson  = JSON.stringify(buildExportPayload({ redactSecrets: false }));
     const icloudJson = JSON.stringify(buildExportPayload({ redactSecrets: true }));
     if (last !== today) {
@@ -307,7 +307,7 @@ function generateWorkOrder(id) {
   const isAr = i18n.current === 'ar';
   const dir  = isAr ? 'rtl' : 'ltr';
   const bizPrimary = isAr ? (settings.bizAr || settings.bizEn) : (settings.bizEn || settings.bizAr);
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr();
   const linkedClient = order.clientId ? clients.find(c => c.id === order.clientId) : null;
   const clientName = (order.project || '').trim() || (linkedClient ? localName(linkedClient) : t('inv.walk_in'));
   const lines = (order.parts && order.parts.length > 0) ? order.parts

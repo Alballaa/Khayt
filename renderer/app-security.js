@@ -95,7 +95,7 @@
 
   function buildRecoveryCodeFile(code) {
     const formatted = formatRecoveryCode(code);
-    const date = new Date().toISOString().slice(0, 10);
+    const date = localDateStr();
     const brand = (typeof document !== 'undefined' && document.documentElement.dataset.app === 'bedready') ? 'Bed Ready' : 'Khayt';
     const biz = settings?.businessName || settings?.bizEn || brand;
     return [
@@ -125,7 +125,7 @@
   async function downloadRecoveryCode(code) {
     const content = buildRecoveryCodeFile(code);
     const brandSlug = (typeof document !== 'undefined' && document.documentElement.dataset.app === 'bedready') ? 'bedready' : 'khayt';
-    const defaultName = `${brandSlug}-recovery-${new Date().toISOString().slice(0, 10)}.txt`;
+    const defaultName = `${brandSlug}-recovery-${localDateStr()}.txt`;
     if (window.hubAPI?.saveTextFile) {
       return window.hubAPI.saveTextFile({ content, defaultName });
     }
@@ -240,7 +240,7 @@
     settings.operatorLockEnabled = true;
     settings.securityEnabled = true;
     settings.recoveryCodeHash = recoveryHash;
-    settings.recoveryCodeCreatedAt = new Date().toISOString().slice(0, 10);
+    settings.recoveryCodeCreatedAt = localDateStr();
   }
 
   const api = {

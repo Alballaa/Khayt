@@ -95,7 +95,7 @@ function generateClientStatement(clientId) {
         <div class="doc">
           <div class="title">${escapeHtml(t('cl.statement_title'))}</div>
           <div class="meta">
-            <div class="meta-row"><span class="k">${escapeHtml(t('common.date'))}</span><span class="v">${escapeHtml(new Date().toISOString().split('T')[0])}</span></div>
+            <div class="meta-row"><span class="k">${escapeHtml(t('common.date'))}</span><span class="v">${escapeHtml(localDateStr())}</span></div>
           </div>
         </div>
       </div>
@@ -219,7 +219,7 @@ function approveQuote(orderId) {
   const order = printLog.find(o => o.id === orderId);
   if (!order) return;
   order.status = 'pending';
-  order.quoteAcceptedAt = new Date().toISOString().split('T')[0];
+  order.quoteAcceptedAt = localDateStr();
   if (!order.invoiceNum) {
     order.invoiceNum = nextInvoiceNumber();
     order.invoiceNumber = order.invoiceNum;
@@ -1141,7 +1141,7 @@ function generateCreditNote(order, creditAmount, reason) {
   const dir  = isAr ? 'rtl' : 'ltr';
   const bizPrimary = isAr ? (settings.bizAr || settings.bizEn) : (settings.bizEn || settings.bizAr);
   const cnId = 'CN-' + order.id;
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr();
   const linkedClient = order.clientId ? clients.find(c => c.id === order.clientId) : null;
   const clientName = (order.project || '').trim() || t('inv.walk_in');
   const clientSub  = linkedClient ? [linkedClient.phone, linkedClient.email].filter(Boolean).join(' · ') : '';
@@ -1318,7 +1318,7 @@ async function generateMilestoneInvoice(orderId, milestone) {
     _milestoneTotal: order.price,
     _milestonePct: milestone.percentage,
   });
-  milestone.issuedAt = new Date().toISOString().split('T')[0];
+  milestone.issuedAt = localDateStr();
   saveAll();
   await renderInvoiceForOrder(tempOrder);
 }

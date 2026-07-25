@@ -286,8 +286,8 @@ function inRange(dateStr, range, ctx) {
   if (range === 'last_quarter') {
     const lastQEnd   = new Date(nowY, nowM - (nowM % 3), 0); // last day of prev quarter
     const lastQStart = new Date(lastQEnd.getFullYear(), Math.floor(lastQEnd.getMonth() / 3) * 3, 1);
-    const fromStr = lastQStart.toISOString().slice(0, 10);
-    const toStr   = lastQEnd.toISOString().slice(0, 10);
+    const fromStr = localDateStr(lastQStart);
+    const toStr   = localDateStr(lastQEnd);
     return ds >= fromStr && ds <= toStr;
   }
   if (range === 'year') {
@@ -312,7 +312,7 @@ function availableHoursUntil(targetDate) {
   end.setHours(0, 0, 0, 0);
   let total = 0;
   while (cursor < end) {
-    const iso = cursor.toISOString().split('T')[0];
+    const iso = localDateStr(cursor);
     if (!holidays.has(iso)) {
       const key = DAY_KEYS[cursor.getDay()];
       total += Math.max(0, +(wh[key] || 0));

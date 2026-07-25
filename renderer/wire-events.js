@@ -589,7 +589,7 @@ function wireEvents() {
   })();
   // Set default date to today (and enforce max = today). #expDate lives in the
   // expenses section, which the Bed Ready flavor drops — guard the direct writes.
-  const _expTodayStr = new Date().toISOString().split('T')[0];
+  const _expTodayStr = localDateStr();
   const _expDateEl = $('#expDate');
   if (_expDateEl) { _expDateEl.value = _expTodayStr; _expDateEl.max = _expTodayStr; }
 
@@ -1592,14 +1592,14 @@ function wireEvents() {
           if (invItem) {
             invItem.weight = Math.min((invItem.weight || 0) + w, 99000);
             if (!invItem.usageHistory) invItem.usageHistory = [];
-            invItem.usageHistory.unshift({ type: 'received', orderId: po.id, weightUsed: -w, date: new Date().toISOString().split('T')[0], notes });
+            invItem.usageHistory.unshift({ type: 'received', orderId: po.id, weightUsed: -w, date: localDateStr(), notes });
             if (invItem.usageHistory.length > 200) invItem.usageHistory.length = 200;
             renderInventory();
           }
           po.receivedSoFar = alreadyReceived + w;
           if (po.weightOrdered > 0 && po.receivedSoFar >= po.weightOrdered) {
             po.status = 'received';
-            po.receivedAt = new Date().toISOString().split('T')[0];
+            po.receivedAt = localDateStr();
             toast(t('po.received_toast') + ' · +' + w + 'g', 'success');
           } else {
             po.status = 'partial';
@@ -1611,7 +1611,7 @@ function wireEvents() {
             if (expAmount > 0) {
               expenses.push({
                 id:       uid('EXP'),
-                date:     new Date().toISOString().split('T')[0],
+                date:     localDateStr(),
                 amount:   expAmount,
                 category: 'filament',
                 note:     `${t('po.receive') || 'PO receive'}: ${po.id}${notes ? ' — ' + notes : ''}`,
@@ -1631,7 +1631,7 @@ function wireEvents() {
       const po = purchaseOrders.find(p => p.id === closePo.dataset.id);
       if (po) {
         po.status = 'received';
-        po.receivedAt = new Date().toISOString().split('T')[0];
+        po.receivedAt = localDateStr();
         saveAll();
         renderPurchaseOrders();
         toast(t('po.received_toast'), 'success');
