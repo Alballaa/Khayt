@@ -34,6 +34,23 @@
      and rendered with no fill, leaving the urgent state quieter than the calm
      one. Defined here so every theme inherits them; themes that want their own
      values still override, as workbench does for --ok. */
+  /* Tokens shared renderer code references but that lived only in the Bed Ready
+     stylesheets — or nowhere at all — so they resolved to nothing in every Khayt
+     theme. Same class as --warn/--danger-soft below: a var() with no fallback
+     silently yields an empty value, which is invisible rather than loud.
+       --grid    colour-studio chart gridlines (colorstudio.js)
+       --l1/--l5 the two axis rules on the colour wheel
+       --gap     analytics KPI grid spacing
+       --bg-alt  zebra striping on table rows (app-helpers.js)
+       --bg-soft inset panel fill (settings.js)
+     test/css-tokens.test.js fails if a new one appears. */
+  --grid:         rgba(255, 255, 255, 0.06);
+  --l1:           var(--danger);
+  --l5:           var(--info);
+  --gap:          12px;
+  --bg-alt:       var(--surface-1);
+  --bg-soft:      var(--surface-2);
+
   --warn:         var(--warning);
   --warn-soft:    rgba(245, 166, 35, 0.16);
   --danger-soft:  rgba(239, 77, 94, 0.16);
