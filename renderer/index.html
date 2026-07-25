@@ -620,14 +620,19 @@
 
       <!-- Waiting list (job intake queue) -->
       <div style="margin-bottom:12px;">
-        <button type="button" style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 0;background:none;border:none;width:100%;text-align:inherit;color:inherit;" id="waitingListToggle" aria-expanded="false">
-          <h4 style="margin:0;font-size:13px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">
-            <span data-i18n="waiting.title">Job Intake</span>
-            <span id="waitingBadge" style="display:none;background:var(--accent);color:#fff;border-radius:10px;font-size:10px;padding:1px 6px;margin-inline-start:6px;font-weight:700;"></span>
-          </h4>
-          <span id="waitingChevron" style="font-size:10px;color:var(--text-muted);">▼</span>
-          <button type="button" id="btnAddWaiting" class="btn small ghost" style="margin-inline-start:auto;">+ <span data-i18n="waiting.add">Add</span></button>
-        </button>
+        <!-- Toggle and Add are SIBLINGS. "Add" used to be nested inside the
+             toggle button, which is invalid HTML: clicking Add also collapsed
+             the section, and the nested control was unreachable by keyboard. -->
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button type="button" style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 0;background:none;border:none;flex:1;min-width:0;text-align:inherit;color:inherit;" id="waitingListToggle" aria-expanded="false">
+            <h4 style="margin:0;font-size:13px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">
+              <span data-i18n="waiting.title">Job Intake</span>
+              <span id="waitingBadge" style="display:none;background:var(--accent);color:#fff;border-radius:10px;font-size:10px;padding:1px 6px;margin-inline-start:6px;font-weight:700;"></span>
+            </h4>
+            <span id="waitingChevron" style="font-size:10px;color:var(--text-muted);">▼</span>
+          </button>
+          <button type="button" id="btnAddWaiting" class="btn small ghost" style="flex:0 0 auto;">+ <span data-i18n="waiting.add">Add</span></button>
+        </div>
         <div id="waitingOnlinePanel" style="display:none;"></div>
         <div id="waitingFunnelSection" style="margin-bottom:10px;"></div>
         <div id="waitingListSection" style="display:none;"></div>

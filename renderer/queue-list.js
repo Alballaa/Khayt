@@ -27,7 +27,10 @@
   const GROUP_LABEL = {
     attention: ['queue.grp_attention', 'Needs attention'],
     running: ['queue.grp_running', 'Running'],
-    finishing: ['queue.grp_finishing', 'Post &amp; QC'],
+    // Plain text: this fallback is passed through esc() below, so a pre-escaped
+    // '&amp;' rendered as the literal characters "&amp;" whenever the locale key
+    // was missing.
+    finishing: ['queue.grp_finishing', 'Post & QC'],
     queued: ['queue.grp_queued', 'Queued'],
     done: ['queue.grp_done', 'Finished today'],
   };
