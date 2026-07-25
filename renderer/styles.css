@@ -5357,3 +5357,23 @@ body.khayt-workbench .wb-glist li.is-openable { cursor: pointer; }
 .ai-spend-head { color: var(--text-muted); font-weight: 600; margin-top: 8px; border-block-end: 1px solid var(--border-soft); }
 .ai-spend-calls, .ai-spend-cost { text-align: end; font-variant-numeric: tabular-nums; font-family: var(--font-num, inherit); }
 .ai-spend-note { font-size: 10.5px; color: var(--text-muted); margin: 8px 0 0; line-height: 1.5; }
+
+/* Purchase orders priced per spool instead of per gram (~1000x too high).
+   A warning, not an action: the order may already be with a supplier, so both
+   figures are shown and nothing changes until the owner clicks. */
+.po-suspect {
+  border: 1px solid var(--warning);
+  border-inline-start-width: 3px;
+  background: var(--warn-soft);
+  border-radius: 6px; padding: 10px 12px; margin-bottom: 12px;
+}
+.po-suspect-head { font-size: 12px; margin: 0 0 8px; line-height: 1.5; }
+.po-suspect-row {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  font-size: 12px; padding: 4px 0; border-block-start: 1px solid var(--border-soft);
+}
+.po-suspect-name { flex: 1; min-width: 120px; font-weight: 600; }
+.po-suspect-was { text-decoration: line-through; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.po-suspect-now { font-weight: 600; font-variant-numeric: tabular-nums; }
+.po-suspect-arrow { color: var(--text-muted); }
+.po-suspect-manual { font-size: 11px; color: var(--text-muted); }

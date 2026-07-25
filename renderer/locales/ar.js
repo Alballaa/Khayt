@@ -3598,5 +3598,11 @@
   "set.ai_spend_note": "تقدير مبني على عدد الرموز بأسعار القائمة. لوحة Anthropic هي المرجع.",
   "set.ai_spend_unknown_model": "أسعار هذا النموذج غير معروفة — يُفترض سعر Opus.",
   "set.ai_spend_device": "يُحتسب على هذا الجهاز فقط — الإعدادات لا تُزامَن بين الأجهزة.",
+  "po.suspect_head": "بعض أوامر الشراء سُعِّرت لكل بكرة بدل كل جرام، فالمبالغ أعلى بنحو 1000 مرة.",
+  "po.suspect_sub": "لم يُعدَّل شيء — راجع كل أمر قبل التصحيح.",
+  "po.fix_btn": "تصحيح",
+  "po.fix_manual": "عيّن السعر يدويًا",
+  "po.fix_confirm": "تغيير هذا الأمر من {was} إلى {now}؟",
+  "po.fix_done": "تم تصحيح أمر الشراء",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

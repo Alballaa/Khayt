@@ -1570,6 +1570,35 @@ function wireEvents() {
     const recv    = e.target.closest('[data-act="po-receive"]');
     const del     = e.target.closest('[data-act="po-del"]');
     const closePo = e.target.closest('[data-act="po-close"]');
+
+    // Correct one PO priced per spool instead of per gram. Owner-initiated and
+    // confirmed: the order may already be with a supplier, so the amount is
+    // never rewritten without someone looking at both figures. Undoable.
+    const fixPrice = e.target.closest('[data-act="po-fix-price"]');
+    if (fixPrice) {
+      const suspects = KhaytPoAudit.findSuspectPurchaseOrders(purchaseOrders, inventory);
+      const entry = suspects.find((x) => x.po.id === fixPrice.dataset.id);
+      if (!entry) { renderPurchaseOrders(); return; }
+      const cur = (typeof currencySymbol === 'function') ? currencySymbol() : '';
+      const money = (v) => `${fmtMoney(v)}${cur ? ' ' + cur : ''}`;
+      const okToFix = await confirmModal(
+        (t('po.fix_confirm') || 'Change this order from {was} to {now}?')
+          .replace('{was}', money(entry.currentTotal))
+          .replace('{now}', money(entry.suggestedTotal)),
+        { danger: false },
+      );
+      if (!okToFix) return;
+      const before = entry.po.unitPrice;
+      const res = KhaytPoAudit.applyCorrection(entry);
+      if (!res.ok) { toast(res.error, 'error'); return; }
+      saveAll();
+      renderPurchaseOrders();
+      toast(t('po.fix_done') || 'Purchase order corrected', 'success', 6000, {
+        undo: () => { entry.po.unitPrice = before; saveAll(); renderPurchaseOrders(); },
+      });
+      return;
+    }
+
     if (recv) {
       const po = purchaseOrders.find(p => p.id === recv.dataset.id);
       if (!po) return;

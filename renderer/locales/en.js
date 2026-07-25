@@ -3599,5 +3599,11 @@
   "set.ai_spend_note": "Estimated from token counts at list prices. Your Anthropic console is authoritative.",
   "set.ai_spend_unknown_model": "Prices for this model are unknown — Opus rates assumed.",
   "set.ai_spend_device": "Counted on this device only — settings do not sync between machines.",
+  "po.suspect_head": "Some purchase orders were priced per spool instead of per gram, so the amounts are about 1000x too high.",
+  "po.suspect_sub": "Nothing has been changed — review each one before correcting.",
+  "po.fix_btn": "Correct",
+  "po.fix_manual": "set the price by hand",
+  "po.fix_confirm": "Change this order from {was} to {now}?",
+  "po.fix_done": "Purchase order corrected",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

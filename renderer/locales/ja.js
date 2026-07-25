@@ -3596,5 +3596,11 @@
   "set.ai_spend_note": "トークン数と定価からの概算です。正式な金額は Anthropic コンソールをご確認ください。",
   "set.ai_spend_unknown_model": "このモデルの価格は不明です。Opus の料金で概算しています。",
   "set.ai_spend_device": "この端末でのみ集計されます（設定は端末間で同期されません）。",
+  "po.suspect_head": "一部の発注がグラム単位ではなくスプール単位で価格計算されており、金額が約1000倍になっています。",
+  "po.suspect_sub": "まだ何も変更していません。修正する前に各件をご確認ください。",
+  "po.fix_btn": "修正",
+  "po.fix_manual": "価格を手動で設定",
+  "po.fix_confirm": "この発注を {was} から {now} に変更しますか？",
+  "po.fix_done": "発注を修正しました",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

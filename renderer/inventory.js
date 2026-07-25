@@ -3452,6 +3452,43 @@ function createPurchaseOrder(item, opts) {
   return po;
 }
 
+/**
+ * Warn about purchase orders drafted before the per-gram unit-price fix.
+ *
+ * resolveReorderPrice() used to return a whole-spool cost where a per-gram rate
+ * was expected, and PO qty is in grams — so affected orders ask for roughly
+ * 1000x the real amount. The code is fixed; stores written earlier are not.
+ *
+ * This only FLAGS. A purchase order may already have been sent to a supplier,
+ * so rewriting an amount without the owner looking would be worse than the bug
+ * it corrects. Each row shows both figures and corrects only on click.
+ */
+function poSuspectBannerHtml() {
+  const A = window.KhaytPoAudit;
+  if (!A) return '';
+  const suspects = A.findSuspectPurchaseOrders(purchaseOrders, inventory);
+  if (!suspects.length) return '';
+  const cur = (typeof currencySymbol === 'function') ? currencySymbol() : '';
+  const money = (n) => `${(typeof fmtMoney === 'function' ? fmtMoney(n) : Math.round(n))}${cur ? ' ' + cur : ''}`;
+  const rows = suspects.map((e) => `
+    <div class="po-suspect-row">
+      <span class="po-suspect-name">${escapeHtml(e.po.itemName || e.po.id)}</span>
+      <span class="po-suspect-was">${escapeHtml(money(e.currentTotal))}</span>
+      <span class="po-suspect-arrow" aria-hidden="true">→</span>
+      <span class="po-suspect-now">${escapeHtml(e.suggestedTotal == null ? '—' : money(e.suggestedTotal))}</span>
+      ${e.suggested == null
+        ? `<span class="po-suspect-manual">${escapeHtml(t('po.fix_manual') || 'set the price by hand')}</span>`
+        : `<button type="button" class="btn small" data-act="po-fix-price" data-id="${escapeHtml(e.po.id)}">${escapeHtml(t('po.fix_btn') || 'Correct')}</button>`}
+    </div>`).join('');
+  return `
+    <div class="po-suspect">
+      <p class="po-suspect-head">${escapeHtml(
+        (t('po.suspect_head') || 'Some purchase orders were priced per spool instead of per gram, so the amounts are about 1000x too high.')
+        + ' ' + (t('po.suspect_sub') || 'Nothing has been changed — review each one before correcting.'))}</p>
+      ${rows}
+    </div>`;
+}
+
 function renderPurchaseOrders() {
   const sec = $('#poSection');
   if (!sec) return;
@@ -3494,6 +3531,7 @@ function renderPurchaseOrders() {
     </div>` : '';
 
   sec.innerHTML = `
+    ${poSuspectBannerHtml()}
     <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap;">
       <h3 class="card-head" style="margin:0; flex:1;"><span class="swatch"></span><span>${escapeHtml(t('po.title'))}</span></h3>
       <input type="search" id="poSearch" class="search-input" placeholder="${escapeHtml(t('po.search_ph'))}" value="${escapeHtml(poSearchTerm)}" style="max-width:200px;">

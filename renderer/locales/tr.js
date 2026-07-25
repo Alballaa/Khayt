@@ -3596,5 +3596,11 @@
   "set.ai_spend_note": "Jeton sayılarından liste fiyatlarıyla tahmin edilmiştir. Anthropic konsolunuz esastır.",
   "set.ai_spend_unknown_model": "Bu modelin fiyatları bilinmiyor — Opus ücretleri varsayıldı.",
   "set.ai_spend_device": "Yalnızca bu cihazda sayılır — ayarlar cihazlar arasında eşitlenmez.",
+  "po.suspect_head": "Bazı satın alma siparişleri gram yerine makara başına fiyatlandırıldı; tutarlar yaklaşık 1000 kat yüksek.",
+  "po.suspect_sub": "Hiçbir şey değiştirilmedi — düzeltmeden önce her birini gözden geçirin.",
+  "po.fix_btn": "Düzelt",
+  "po.fix_manual": "fiyatı elle girin",
+  "po.fix_confirm": "Bu sipariş {was} yerine {now} olsun mu?",
+  "po.fix_done": "Satın alma siparişi düzeltildi",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
