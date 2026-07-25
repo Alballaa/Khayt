@@ -72,6 +72,48 @@ try {
   ok(plans.unlink.orderIds.length === 1 && plans.unlink.blankOrderNames === false, 'unlink keeps the order record');
   ok(plans.full.blankOrderNames === true && plans.full.purgeIntakeIds.length === 1, 'full erase purges intake + blanks names');
 
+  // 4) AI consent renders, and the privacy screen's on-device claim stays honest.
+  //    The unit tests cover the logic; this is the only place the panel is
+  //    actually built, so a template error would otherwise ship unnoticed.
+  const consent = await window.evaluate(() => {
+    settings.ai = { enabled: true, apiKey: 'sk-ant-test', model: 'claude-opus-4-8' };
+    renderAiSettings();
+    const rows = [...document.querySelectorAll('#aiFeatureList .ai-feat')];
+    return {
+      rowCount: rows.length,
+      // Every row must state what it sends — that is the disclosure.
+      allDisclose: rows.every((r) => (r.querySelector('.ai-feat-sends')?.textContent || '').trim().length > 20),
+      // Migrating an owner who only ever saw the old "AI quote" toggle.
+      replyChecked: !!document.querySelector('.ai-feat-toggle[data-feature="reply"]')?.checked,
+      quoteChecked: !!document.querySelector('.ai-feat-toggle[data-feature="quote"]')?.checked,
+      piiBadges: document.querySelectorAll('.ai-feat-pii').length,
+      reconsentShown: document.querySelectorAll('.ai-feat-reconsent').length,
+    };
+  });
+  ok(consent.rowCount === 4, `all four AI features are listed (got ${consent.rowCount})`);
+  ok(consent.allDisclose, 'every feature row states what it sends');
+  ok(consent.quoteChecked === true, 'quote inherits the old global toggle');
+  ok(consent.replyChecked === false, 'reply does NOT inherit consent to send a customer name');
+  ok(consent.piiBadges === 1, 'exactly the customer-data feature is badged');
+  ok(consent.reconsentShown === 1, 'the owner is told why reply turned off');
+
+  const claim = await window.evaluate(() => {
+    const read = () => {
+      renderPrivacySettings();
+      return !!document.querySelector('.priv-ai-caveat');
+    };
+    settings.ai = { enabled: true, apiKey: 'k', features: { quote: true, price: true, reply: false, assistant: true } };
+    const withoutPii = read();
+    settings.ai.features.reply = true;
+    const withPii = read();
+    settings.ai.enabled = false;
+    const masterOff = read();
+    return { withoutPii, withPii, masterOff };
+  });
+  ok(claim.withoutPii === false, '"stays on this machine" is unqualified while no customer data leaves');
+  ok(claim.withPii === true, 'enabling reply drafting qualifies the on-device claim');
+  ok(claim.masterOff === false, 'turning AI off restores the unqualified claim');
+
   console.log('\n✅ Privacy smoke: all assertions passed');
 } catch (e) {
   failed = true;

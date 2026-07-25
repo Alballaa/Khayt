@@ -297,7 +297,8 @@ async function aiSuggestPrice() {
   let reco = { suggestedMargin: comps.suggestedMargin, suggestedPrice: cost > 0 ? Math.round((cost / (1 - comps.suggestedMargin / 100)) * 100) / 100 : null, rationale: '' };
 
   const ai = settings.ai || {};
-  const useAi = !!(ai.enabled && ai.apiKey);
+  // Per-feature consent, not just the master switch — see lib/ai-privacy.js.
+  const useAi = !!(ai.apiKey && window.KhaytAiPrivacy.isFeatureEnabled(ai, 'price'));
   if (useAi) {
     const status = toast(t('ai.price_thinking') || 'Analyzing your pricing history…', 'info', 8000);
     try {
@@ -1267,7 +1268,7 @@ function updateResinFieldsVisibility() {
    */
   async function aiQuoteAssist() {
     const ai = settings.ai || {};
-    if (!ai.apiKey || !ai.enabled) {
+    if (!ai.apiKey || !window.KhaytAiPrivacy.isFeatureEnabled(ai, 'quote')) {
       openFormModal({
         title: t('calc.ai_setup_title') || 'Set up AI assist',
         saveLabel: t('common.save') || 'Save',
@@ -1346,7 +1347,7 @@ function updateResinFieldsVisibility() {
   /** AI shop assistant — ask questions grounded in the shop's own data. */
   async function openAiAssistant() {
     const ai = settings.ai || {};
-    if (!ai.enabled || !ai.apiKey) { toast(t('ai.assistant_need_key') || 'Enable AI assist (with your API key) in Settings first', 'error'); return; }
+    if (!ai.apiKey || !window.KhaytAiPrivacy.isFeatureEnabled(ai, 'assistant')) { toast(t('ai.assistant_need_key') || 'Enable AI assist (with your API key) in Settings first', 'error'); return; }
     if (typeof KhaytAiAssistant === 'undefined') { toast('AI assistant not loaded', 'error'); return; }
     const ctx = KhaytAiAssistant.buildShopContext(collectStoreCollections(), { now: Date.now(), currency: (typeof currencySymbol === 'function' ? currencySymbol() : '') });
     const sugg = [

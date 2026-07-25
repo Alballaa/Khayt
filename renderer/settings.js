@@ -525,11 +525,34 @@ function renderAiSettings() {
   const el = $('#aiSettingsSection');
   if (!el) return;
   const ai = settings.ai || {};
+  const P = window.KhaytAiPrivacy;
+  // One global toggle used to gate four features that send very different
+  // things. Consent is now per feature, and each row states what it transmits.
+  const { features, reconsentRequired } = P.migrateConsent(ai);
+
+  const featureRows = Object.values(P.AI_FEATURES).map((f) => {
+    const pii = f.dataClass === P.DATA_CLASS.CUSTOMER;
+    const needsConsent = reconsentRequired.includes(f.id);
+    return `
+      <div class="ai-feat${pii ? ' ai-feat-pii' : ''}">
+        <label class="ai-feat-head">
+          <input type="checkbox" class="ai-feat-toggle" data-feature="${escapeHtml(f.id)}"
+                 ${features[f.id] ? 'checked' : ''} ${ai.enabled ? '' : 'disabled'}>
+          <span class="ai-feat-name">${escapeHtml(t(f.labelKey) || f.id)}</span>
+          ${pii ? `<span class="ai-feat-badge">${escapeHtml(t('set.ai_pii_badge') || 'Customer data')}</span>` : ''}
+        </label>
+        <p class="ai-feat-sends"><span class="ai-feat-sends-label">${escapeHtml(t('set.ai_sends') || 'Sends to Anthropic:')}</span> ${escapeHtml(t(f.sendsKey) || f.sends.join('; '))}</p>
+        ${needsConsent ? `<p class="ai-feat-reconsent">${escapeHtml(t('set.ai_reconsent') || 'Turned off in this update because it sends a customer’s personal data. Tick it to re-enable.')}</p>` : ''}
+      </div>`;
+  }).join('');
+
   el.innerHTML = `
     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:0;">
       <input type="checkbox" id="aiEnabled" style="width:auto;margin:0;" ${ai.enabled ? 'checked' : ''}>
-      <span style="font-weight:600;font-size:13px;">${escapeHtml(t('calc.ai_quote') || 'AI quote')}</span>
+      <span style="font-weight:600;font-size:13px;">${escapeHtml(t('set.ai_master') || 'AI assist')}</span>
     </label>
+    <p class="ai-master-hint">${escapeHtml(t('set.ai_hint') || '')}</p>
+    <div class="ai-feats" id="aiFeatureList">${featureRows}</div>
     <label style="margin-top:10px;">${escapeHtml(t('calc.ai_key') || 'Anthropic API key')}</label>
     <input type="password" id="aiKeySetting" value="${escapeHtml(secretInputValue(ai.apiKey))}" placeholder="sk-ant-...">
     <label style="margin-top:10px;">${escapeHtml(t('set.ai_model') || 'Model')}</label>
@@ -540,14 +563,28 @@ function renderAiSettings() {
       <span id="aiSettingsTestResult" style="font-size:12px;"></span>
     </div>`;
 
+  // The master switch only greys the per-feature rows out — it never rewrites
+  // them, so turning AI off and on again restores the owner's exact choices
+  // rather than silently re-enabling something they had declined.
+  el.querySelector('#aiEnabled')?.addEventListener('change', (e) => {
+    el.querySelectorAll('.ai-feat-toggle').forEach((c) => { c.disabled = !e.target.checked; });
+  });
+
   el.querySelector('#btnSaveAiSettings')?.addEventListener('click', () => {
+    const chosen = {};
+    el.querySelectorAll('.ai-feat-toggle').forEach((c) => { chosen[c.dataset.feature] = c.checked; });
     settings.ai = {
       enabled: el.querySelector('#aiEnabled').checked,
       model: el.querySelector('#aiModelSetting').value.trim() || 'claude-opus-4-8',
       apiKey: secretInputSave(ai.apiKey, el.querySelector('#aiKeySetting').value.trim()),
+      // Persisting `features` is also what marks the consent migration as done,
+      // so a saved choice is never re-migrated (migrateConsent is idempotent).
+      features: chosen,
     };
     saveAll();
     toast(t('common.save') || 'Saved', 'success');
+    renderAiSettings();
+    if (typeof renderPrivacySettings === 'function') renderPrivacySettings();
   });
 
   el.querySelector('#btnTestAiSettings')?.addEventListener('click', async () => {
@@ -2606,8 +2643,21 @@ function renderPrivacySettings() {
     [...(waitingList || []), ...(waitingListHistory || [])].map(r => ({ ...r, at: r.at || r.submittedAt || r.date })),
     months, Date.now()).length : 0;
 
+  // "Customer data stays on this machine" is only true while no AI feature that
+  // transmits customer data is on. Rather than weaken the claim for everyone,
+  // qualify it exactly when it stops holding.
+  const aiP = window.KhaytAiPrivacy;
+  const aiSending = aiP ? aiP.activeCustomerDataFeatures(settings.ai) : [];
+  const aiCaveat = aiSending.length ? `
+    <p class="priv-ai-caveat">
+      ${escapeHtml(t('priv.ai_active') || 'Except: an AI feature you enabled sends customer data to Anthropic.')}
+      <strong>${escapeHtml(aiSending.map((id) => t(aiP.AI_FEATURES[id].labelKey) || id).join(', '))}</strong>
+      <button type="button" class="btn small ghost" id="btnPrivReviewAi">${escapeHtml(t('priv.ai_review') || 'Review AI settings')}</button>
+    </p>` : '';
+
   el.innerHTML = `
     <p style="font-size:11.5px;color:var(--text-muted);margin-bottom:10px;">${escapeHtml(t('priv.settings_hint') || 'Customer data stays on this machine. Optionally anonymize old intake submissions after a set period — their contact details are removed, the request record is kept.')}</p>
+    ${aiCaveat}
     <div style="max-width:240px;">
       <label>${escapeHtml(t('priv.retention_months') || 'Anonymize intake data after (months)')}</label>
       <input type="number" id="set_privacyRetention" min="0" step="1" value="${months}" placeholder="0 = keep indefinitely">
@@ -2618,6 +2668,10 @@ function renderPrivacySettings() {
       <span style="font-size:11.5px;color:var(--text-muted);">${escapeHtml(
         months > 0 ? (t('priv.stale_count', { n: stale }) || `${stale} submission(s) older than ${months} month(s)`) : (t('priv.retention_off') || 'Retention off'))}</span>
     </div>`;
+
+  el.querySelector('#btnPrivReviewAi')?.addEventListener('click', () => {
+    document.querySelector('#aiSettingsSection')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
 
   el.querySelector('#btnSavePrivacy')?.addEventListener('click', () => {
     settings.privacy = { ...(settings.privacy || {}), retentionMonths: Math.max(0, num($('#set_privacyRetention')?.value, 0)) };
@@ -3854,6 +3908,14 @@ function renderTelegramSettings() {
     fullWipeData,
     renderSecuritySettings,
     renderTelegramSettings,
+    // These four panels were declared like every other one but never added to
+    // this hand-maintained list, so nothing outside this IIFE could re-render
+    // them — renderPrivacySettings in particular, which now has to refresh when
+    // AI consent changes. test/settings-exports.test.js keeps the list honest.
+    renderPrivacySettings,
+    renderApiTokensSettings,
+    renderShippingSettings,
+    renderTelemetrySettings,
   };
 
   Object.assign(global, api);

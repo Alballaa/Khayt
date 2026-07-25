@@ -74,6 +74,7 @@ const { bambuFtpUpload } = require('./lib/bambu-ftp');
 const { sendSms } = require('./lib/sms');
 const cloudClient = require('./lib/cloud-client');
 const aiTools = require('./lib/ai-tools');
+const aiPrivacy = require('./lib/ai-privacy');
 const bedreadyLibrary = require('./lib/bedready-library');
 const calibProfile = require('./lib/calibration-profile');
 const orcaFila = require('./lib/orca-filament-install');
@@ -142,6 +143,7 @@ const {
   persistLanStoreUpdate,
   resolveStoreSecret,
   isStoreSecretMasked,
+  readStoreDecryptedFromDisk,
   dataFilePath,
 } = createStoreIo({
   app,
@@ -2477,7 +2479,16 @@ ipcMain.handle('hub:ai-extract', async (_e, { apiKey, model, system, request, im
   // The tool name/description must describe the CALLING feature — the model
   // leans on them heavily, and one shared 'quote_extract' definition was
   // mis-framing price, reply and assistant calls. See lib/ai-tools.js.
-  const { tool, maxTokens } = aiTools.resolveTool(task, schema);
+  const { tool, maxTokens, task: resolvedTask } = aiTools.resolveTool(task, schema);
+
+  // Consent is enforced HERE, not only in the renderer. This is the single
+  // point where shop data leaves the device, so a call site that forgets to
+  // check (or a future one that never knew to) still cannot transmit a feature
+  // the owner has not agreed to. See lib/ai-privacy.js.
+  const storeAi = readStoreDecryptedFromDisk()?.settings?.ai;
+  if (!aiPrivacy.isFeatureEnabled(storeAi, resolvedTask)) {
+    return { ok: false, error: 'AI_FEATURE_NOT_CONSENTED', feature: resolvedTask };
+  }
   const content = [{ type: 'text', text: String(request) }];
   if (image) content.push({ type: 'image', source: { type: 'base64', media_type: 'image/png', data: String(image) } });
   const body = JSON.stringify({

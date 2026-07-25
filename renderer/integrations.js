@@ -1094,7 +1094,7 @@ async function aiDraftReply(orderId) {
   const order = printLog.find(o => o.id === orderId);
   if (!order) return;
   const ai = settings.ai || {};
-  if (!ai.enabled || !ai.apiKey) {
+  if (!ai.apiKey || !window.KhaytAiPrivacy.isFeatureEnabled(ai, 'reply')) {
     toast(t('ai.reply_need_key') || 'Enable AI assist (with your API key) in Settings first', 'error');
     return;
   }
