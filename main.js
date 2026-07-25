@@ -1294,7 +1294,13 @@ ipcMain.handle('hub:save-store', async (event, data) => {
     // the OS permission prompt — but only when there is actually a plaintext
     // secret to encrypt, so a shop that never configures a credential is never
     // asked. Never awaited on the load path, so it cannot stall boot.
-    if (hasPlaintextSecrets(merged)) {
+    // ...but NOT while quitting. This handler is also what the quit flush runs
+    // through, and a modal here has no one to dismiss it: the renderer waits on
+    // a reply that cannot come, before-quit's 10s bound fires, and app.quit()
+    // runs with the write never started — the pending edit is lost, which is
+    // precisely what the quit handshake exists to prevent. The explanation is
+    // informational; losing the save is not. Explain next launch instead.
+    if (!_quittingNow && hasPlaintextSecrets(merged)) {
       await maybeShowKeychainExplanation(BrowserWindow.fromWebContents(event.sender));
     }
     const serialized = JSON.stringify(encryptForDisk(merged));
@@ -3254,7 +3260,12 @@ app.whenReady().then(() => {
 // mid-flight. flushSave() already existed in the renderer; nothing ever called it on
 // quit. Bounded so a wedged renderer can never make the app unquittable.
 let _flushedForQuit = false;
+// Set as soon as a quit begins, and read by hub:save-store so the quit flush is
+// never blocked behind a modal nobody can dismiss. Module-level, so it is
+// initialised long before any IPC callback can run.
+let _quittingNow = false;
 app.on('before-quit', (e) => {
+  _quittingNow = true;
   if (_flushedForQuit) return;
   const win = BrowserWindow.getAllWindows()[0];
   if (!win || win.webContents.isDestroyed()) { _flushedForQuit = true; return; }
