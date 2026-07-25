@@ -3589,5 +3589,11 @@
   "set.ai_data_assistant": "sipariş ve müşteri sayıları (isimler değil), gelir, açık ve gecikmiş toplamlar, geciken proje adları, en çok kullanılan malzemeler ve düşük stok.",
   "priv.ai_active": "İstisna: Etkinleştirdiğiniz bir yapay zekâ özelliği müşteri verilerini Anthropic'e gönderiyor —",
   "priv.ai_review": "Yapay zekâ ayarlarını gözden geçir",
+  "set.ai_spend": "Bu ayki yapay zekâ kullanımı",
+  "set.ai_spend_feature": "Özellik",
+  "set.ai_spend_calls": "Çağrı",
+  "set.ai_spend_cost": "Tahmini maliyet",
+  "set.ai_spend_note": "Jeton sayılarından liste fiyatlarıyla tahmin edilmiştir. Anthropic konsolunuz esastır.",
+  "set.ai_spend_unknown_model": "Bu modelin fiyatları bilinmiyor — Opus ücretleri varsayıldı.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

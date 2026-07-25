@@ -112,3 +112,50 @@ test('an urgent state is never styled with a token the calm state does not need'
   }
   assert.deepEqual([...new Set(bad)], [], `kanban.js references tokens missing from the base sheet: ${bad.join(', ')}`);
 });
+
+test('Bed Ready resolves its tokens too', () => {
+  // The shared-code test above excludes bedready* files, because Bed Ready may
+  // legitimately use tokens only its own sheets define. That exclusion was
+  // unexamined ground, so check it on its own terms: every no-fallback var() in
+  // a Bed Ready file must resolve against base + Bed Ready's own stylesheets.
+  const defs = new Set();
+  const addFrom = (rel) => {
+    for (const m of fs.readFileSync(path.join(ROOT, rel), 'utf8').matchAll(/^\s*(--[a-z0-9-]+)\s*:/gm)) defs.add(m[1]);
+  };
+  addFrom('renderer/styles.css');
+  const bdFiles = [];
+  for (const e of fs.readdirSync(path.join(ROOT, 'renderer'))) {
+    if (/^bedready.*\.(css|js)$/.test(e)) bdFiles.push(path.join('renderer', e));
+  }
+  const bdDir = path.join(ROOT, 'renderer/bedready');
+  if (fs.existsSync(bdDir)) {
+    for (const e of fs.readdirSync(bdDir)) if (/\.(css|js)$/.test(e)) bdFiles.push(path.join('renderer/bedready', e));
+  }
+  for (const rel of bdFiles) if (rel.endsWith('.css')) addFrom(rel);
+
+  const inline = inlineTokens();
+  for (const rel of bdFiles) {
+    for (const m of fs.readFileSync(path.join(ROOT, rel), 'utf8').matchAll(/setProperty\(\s*['"](--[a-z0-9-]+)/g)) inline.add(m[1]);
+  }
+
+  const unresolved = [];
+  for (const rel of bdFiles) {
+    fs.readFileSync(path.join(ROOT, rel), 'utf8').split('\n').forEach((line, i) => {
+      for (const m of line.matchAll(/var\(\s*(--[a-z0-9-]+)\s*\)/g)) {
+        if (!defs.has(m[1]) && !inline.has(m[1])) unresolved.push(`${rel}:${i + 1} ${m[1]}`);
+      }
+    });
+  }
+  assert.deepEqual(unresolved, [], `Bed Ready tokens that resolve to nothing:\n  ${unresolved.join('\n  ')}`);
+});
+
+test('Bed Ready loads the base stylesheet before its own', () => {
+  // This is WHY the base :root additions reach Bed Ready at all. If styles.css
+  // stopped being loaded first, every shared-code token would silently go
+  // unresolved there while Khayt stayed fine.
+  const html = fs.readFileSync(path.join(ROOT, 'renderer/bedready.html'), 'utf8');
+  const base = html.indexOf('href="styles.css"');
+  const own = html.indexOf('href="bedready/ds.css"');
+  assert.ok(base > -1, 'bedready.html must load renderer/styles.css');
+  assert.ok(own > base, 'Bed Ready sheets must load AFTER the base so their overrides win');
+});

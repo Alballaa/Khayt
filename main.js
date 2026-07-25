@@ -2547,7 +2547,12 @@ ipcMain.handle('hub:ai-extract', async (_e, { apiKey, model, system, request, im
 
     const data = await res.json();
     const toolUse = (data.content || []).find(c => c && c.type === 'tool_use');
-    if (toolUse && toolUse.input) return { ok: true, draft: toolUse.input };
+    // Hand back the usage block. It arrives on every response and used to be
+    // discarded, so a shop on its own key had no way to know what the AI
+    // features were costing them — see lib/ai-usage.js.
+    if (toolUse && toolUse.input) {
+      return { ok: true, draft: toolUse.input, usage: data.usage || null, model: data.model || null };
+    }
     // A 200 with no tool call: stop_reason says whether the model refused, ran
     // out of room, or paused — three different fixes, previously one message.
     return { ok: false, error: aiTools.describeStop(data.stop_reason) || 'No structured output returned' };

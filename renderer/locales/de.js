@@ -3589,5 +3589,11 @@
   "set.ai_data_assistant": "Auftrags- und Kundenanzahl (keine Namen), Umsatz, offene und überfällige Summen, überfällige Projektnamen, Top-Materialien und niedrige Bestände.",
   "priv.ai_active": "Ausnahme: Eine von Ihnen aktivierte KI-Funktion sendet Kundendaten an Anthropic —",
   "priv.ai_review": "KI-Einstellungen prüfen",
+  "set.ai_spend": "KI-Nutzung diesen Monat",
+  "set.ai_spend_feature": "Funktion",
+  "set.ai_spend_calls": "Aufrufe",
+  "set.ai_spend_cost": "Gesch. Kosten",
+  "set.ai_spend_note": "Geschätzt aus Token-Zahlen zu Listenpreisen. Maßgeblich ist Ihre Anthropic-Konsole.",
+  "set.ai_spend_unknown_model": "Preise für dieses Modell sind unbekannt — Opus-Sätze angenommen.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

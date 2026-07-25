@@ -3589,5 +3589,11 @@
   "set.ai_data_assistant": "le nombre de commandes et de clients (sans les noms), le chiffre d’affaires, les totaux dus et en retard, les noms des projets en retard, les principaux matériaux et les stocks faibles.",
   "priv.ai_active": "Sauf : une fonction IA que vous avez activée envoie des données client à Anthropic —",
   "priv.ai_review": "Vérifier les réglages IA",
+  "set.ai_spend": "Utilisation de l’IA ce mois-ci",
+  "set.ai_spend_feature": "Fonction",
+  "set.ai_spend_calls": "Appels",
+  "set.ai_spend_cost": "Coût est.",
+  "set.ai_spend_note": "Estimé à partir du nombre de tokens aux prix catalogue. Votre console Anthropic fait foi.",
+  "set.ai_spend_unknown_model": "Les prix de ce modèle sont inconnus — tarifs Opus supposés.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

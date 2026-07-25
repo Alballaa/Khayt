@@ -521,6 +521,46 @@ function buildDigestEmailHtml() {
 </html>`;
 }
 
+/**
+ * This month's AI spend, per feature. The key is the owner's, so the bill is
+ * theirs — and until now nothing in the app told them what it was. Anthropic's
+ * console shows one total; only Khayt knows which feature spent it.
+ */
+function aiSpendHtml() {
+  const U = window.KhaytAiUsage;
+  if (!U || typeof settings === 'undefined') return '';
+  const { rows, total } = U.summarize(settings.aiUsage, Date.now());
+  if (!rows.length) return '';
+  const P = window.KhaytAiPrivacy;
+  const label = (task) => {
+    const spec = P && P.AI_FEATURES[task];
+    return spec ? (t(spec.labelKey) || task) : task;
+  };
+  const body = rows.map((r) => `
+    <div class="ai-spend-row">
+      <span class="ai-spend-name">${escapeHtml(label(r.task))}</span>
+      <span class="ai-spend-calls">${escapeHtml(String(r.calls))}</span>
+      <span class="ai-spend-cost">${escapeHtml(U.fmtUsd(r.costExact))}</span>
+    </div>`).join('');
+  const est = U.isEstimatedModel((settings.ai || {}).model);
+  return `
+    <details class="ai-spend">
+      <summary>
+        <span>${escapeHtml(t('set.ai_spend') || 'This month’s AI usage')}</span>
+        <b>${escapeHtml(U.fmtUsd(total.cost))}</b>
+      </summary>
+      <div class="ai-spend-head">
+        <span>${escapeHtml(t('set.ai_spend_feature') || 'Feature')}</span>
+        <span>${escapeHtml(t('set.ai_spend_calls') || 'Calls')}</span>
+        <span>${escapeHtml(t('set.ai_spend_cost') || 'Est. cost')}</span>
+      </div>
+      ${body}
+      <p class="ai-spend-note">${escapeHtml(
+        (t('set.ai_spend_note') || 'Estimated from token counts at list prices. Your Anthropic console is authoritative.')
+        + (est ? ' ' + (t('set.ai_spend_unknown_model') || 'Prices for this model are unknown — Opus rates assumed.') : ''))}</p>
+    </details>`;
+}
+
 function renderAiSettings() {
   const el = $('#aiSettingsSection');
   if (!el) return;
@@ -553,6 +593,7 @@ function renderAiSettings() {
     </label>
     <p class="ai-master-hint">${escapeHtml(t('set.ai_hint') || '')}</p>
     <div class="ai-feats" id="aiFeatureList">${featureRows}</div>
+    ${aiSpendHtml()}
     <label style="margin-top:10px;">${escapeHtml(t('calc.ai_key') || 'Anthropic API key')}</label>
     <input type="password" id="aiKeySetting" value="${escapeHtml(secretInputValue(ai.apiKey))}" placeholder="sk-ant-...">
     <label style="margin-top:10px;">${escapeHtml(t('set.ai_model') || 'Model')}</label>
@@ -594,7 +635,7 @@ function renderAiSettings() {
     if (!key) { res.textContent = '✗ ' + (t('calc.ai_need_key') || 'Enter an API key'); res.style.color = 'var(--danger)'; return; }
     res.textContent = t('calc.ai_testing') || 'Testing…'; res.style.color = 'var(--text-muted)';
     try {
-      const r = await window.hubAPI.aiExtract({
+      const r = await khaytAiExtract({
         apiKey: key,
         model: el.querySelector('#aiModelSetting').value.trim() || 'claude-opus-4-8',
         task: 'quote',

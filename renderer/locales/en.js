@@ -3592,5 +3592,11 @@
   "set.ai_data_assistant": "order and client counts (not names), revenue, outstanding and overdue totals, overdue project names, top materials and low stock.",
   "priv.ai_active": "Except: an AI feature you enabled sends customer data to Anthropic —",
   "priv.ai_review": "Review AI settings",
+  "set.ai_spend": "This month’s AI usage",
+  "set.ai_spend_feature": "Feature",
+  "set.ai_spend_calls": "Calls",
+  "set.ai_spend_cost": "Est. cost",
+  "set.ai_spend_note": "Estimated from token counts at list prices. Your Anthropic console is authoritative.",
+  "set.ai_spend_unknown_model": "Prices for this model are unknown — Opus rates assumed.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
