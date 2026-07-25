@@ -2,9 +2,12 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (3.2.x — on `main`, **no public release** until [RELEASE-HOLD.md](./RELEASE-HOLD.md) lifted)
+## Now (post-3.2.0 — on `main`)
 
-Stable is held at **v3.1.0**; the 3.2 line ships as betas (currently **v3.2.0-beta.22**).
+**v3.2.0 shipped stable on 2026-07-22**, closing the `3.2.0-beta.x` line at
+beta.61 and ending the hold that had held stable at v3.1.0. No hold is
+currently active — see [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md). The next
+pre-release opens the `3.3.0-beta.x` line.
 
 - [ ] Real-world verification pass on the 3.2 features before a stable cut — see
       [docs/PRELAUNCH-QA.md](./docs/PRELAUNCH-QA.md). Two items specifically need hardware:

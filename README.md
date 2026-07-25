@@ -156,7 +156,7 @@ Khayt replaces spreadsheets, WhatsApp notes, and separate invoicing tools with o
 
 ### Download (recommended)
 
-**Stable (recommended):** **[Releases → Latest](https://github.com/khaytapp/Khayt/releases/latest)** — currently **v3.1.0**, which adds **Enthusiast mode**, the **Print-File Library**, the **Colour Mixer** suite, multi-slicer support and the **3MF Converter**.
+**Stable (recommended):** **[Releases → Latest](https://github.com/khaytapp/Khayt/releases/latest)** — currently **v3.2.0**, which adds **QC / reprint / RMA**, **shipping & fulfillment**, **BOM assemblies**, **privacy (PDPL) tooling**, a scoped-token **public API** with a webhook event bus, opt-in **telemetry**, and **per-printer cameras**.
 
 **Beta:** **[Pre-releases](https://github.com/khaytapp/Khayt/releases)** — early builds of upcoming features. Pre-release builds; stable installs do not auto-update to beta. See [docs/BETA-RELEASE.md](docs/BETA-RELEASE.md).
 
@@ -295,13 +295,13 @@ Khayt/
 
 ## Versioning
 
-Khayt is on the **2.1.x** release line (latest: **2.1.0** in `package.json`):
+Khayt is on the **3.2.x** release line (latest: **3.2.0** in `package.json`):
 
 | Release type | Example | Use for |
 |--------------|---------|---------|
-| Patch (minor day-to-day updates) | `2.1.0` → `2.1.1` | Fixes and small improvements |
-| Minor (significant updates) | `2.1.x` → `2.2.0` | New features, compatible with existing data |
-| Major | `2.x.x` → `3.0.0` | Breaking changes or required migration |
+| Patch (minor day-to-day updates) | `3.2.0` → `3.2.1` | Fixes and small improvements |
+| Minor (significant updates) | `3.2.x` → `3.3.0` | New features, compatible with existing data |
+| Major | `3.x.x` → `4.0.0` | Breaking changes or required migration |
 
 Full policy, tagging, and release steps: **[VERSIONING.md](./VERSIONING.md)**. Change history: **[CHANGELOG.md](./CHANGELOG.md)**.
 
