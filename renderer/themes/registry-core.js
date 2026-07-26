@@ -29,6 +29,28 @@
     orange:  { h: 24,  s: '76%',  l: '53%', labelKey: 'theme.accent.command_orange' },
   };
 
+  /* Blueprint reads as drawn linework, so its accents are the pigments a
+     drafting set actually carries. Lightnesses are chosen for the warm paper
+     ground; the dark variant lifts --accent-l to 66% in tokens.css so the same
+     hue still reads on the blue. */
+  const BLUEPRINT_ACCENTS = {
+    blueprint: { h: 209, s: '69%', l: '35%', labelKey: 'theme.accent.blueprint' },
+    graphite:  { h: 205, s: '14%', l: '32%', labelKey: 'theme.accent.graphite' },
+    sienna:    { h: 18,  s: '58%', l: '42%', labelKey: 'theme.accent.sienna' },
+    verdigris: { h: 174, s: '48%', l: '31%', labelKey: 'theme.accent.verdigris' },
+  };
+
+  /* Nocturne's accents are all long-wavelength but one. Amber and ember
+     preserve dark adaptation the way an instrument panel does; ice is there
+     for people who simply dislike warm UI, and is the only cool option on
+     purpose rather than by omission. */
+  const NOCTURNE_ACCENTS = {
+    amber: { h: 38,  s: '92%', l: '58%', labelKey: 'theme.accent.amber' },
+    ember: { h: 16,  s: '88%', l: '58%', labelKey: 'theme.accent.ember' },
+    lime:  { h: 74,  s: '68%', l: '52%', labelKey: 'theme.accent.lime' },
+    ice:   { h: 196, s: '82%', l: '60%', labelKey: 'theme.accent.ice' },
+  };
+
   /** Shells a community theme may declare in its manifest. */
   const CUSTOM_THEME_SHELLS = ['workbench', 'command', 'vivid', 'default'];
 
@@ -105,6 +127,48 @@
       stylesheets: [
         'themes/command/tokens.css',
         'themes/command/shell.css',
+      ],
+    },
+    /* Khayt's reading of the Bed Ready design language: warm paper, ink type,
+       and a blueprint-blue accent used as a drawn line. Hosted on the Workbench
+       shell because Bed Ready is a sidebar app; bodyClass adds khayt-blueprint
+       ALONGSIDE khayt-workbench (see applyBodyClasses), so the layout is
+       inherited and only the identity layer is new. Bed Ready itself is
+       untouched — it styles from html[data-app="bedready"] and never reads
+       these files. */
+    blueprint: {
+      labelKey: 'theme.design.blueprint',
+      descKey: 'theme.design.blueprint_desc',
+      preview: 'themes/previews/blueprint.png',
+      shell: 'workbench',
+      enabled: true,
+      defaultAccent: 'blueprint',
+      accents: BLUEPRINT_ACCENTS,
+      defaultAppearance: 'light',
+      bodyClass: 'khayt-blueprint',
+      stylesheets: [
+        'themes/blueprint/tokens.css',
+        'themes/blueprint/shell.css',
+      ],
+    },
+    /* The night shift. Every other Khayt design is light by default, but a farm
+       runs unattended overnight and gets checked in a dim workshop — so this is
+       the one theme whose defaultAppearance is 'dark', and it is designed for
+       that hour rather than derived from a light theme. Hosted on Command
+       because the dense monitoring layout is what that job wants. */
+    nocturne: {
+      labelKey: 'theme.design.nocturne',
+      descKey: 'theme.design.nocturne_desc',
+      preview: 'themes/previews/nocturne.png',
+      shell: 'command',
+      enabled: true,
+      defaultAccent: 'amber',
+      accents: NOCTURNE_ACCENTS,
+      defaultAppearance: 'dark',
+      bodyClass: 'khayt-nocturne',
+      stylesheets: [
+        'themes/nocturne/tokens.css',
+        'themes/nocturne/shell.css',
       ],
     },
   };

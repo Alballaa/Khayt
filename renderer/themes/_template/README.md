@@ -12,7 +12,7 @@ Copy this folder to `renderer/themes/custom/<your-id>/`, edit the files, then re
 2. **Edit `manifest.json`**
    - Set a unique `id` (lowercase slug, 2–32 chars).
    - Set `name`, `description`, `shell`, and `accents`.
-   - `shell`: `studio` (sidebar), `ledger` (masthead + tabs), or `default` (legacy layout).
+   - `shell`: `workbench` (grouped sidebar), `command` (rail + inspector), `vivid` (colorful sidebar), or `default` (legacy layout).
 
 3. **Edit `tokens.css`**
    - Replace every `custom:my-shop` with `custom:<your-id>`.
@@ -37,7 +37,7 @@ Copy this folder to `renderer/themes/custom/<your-id>/`, edit the files, then re
 | `id` | yes | Unique slug; becomes `custom:<id>` in settings |
 | `name` | yes | Display name |
 | `tokens` | yes | CSS filename (usually `tokens.css`) |
-| `shell` | no | `studio`, `ledger`, or `default` (default: `default`) |
+| `shell` | no | `workbench`, `command`, `vivid`, or `default` (default: `default`) |
 | `defaultAppearance` | no | `dark`, `light`, or `system` |
 | `defaultAccent` | no | Key from `accents` object |
 | `accents` | no | Map of accent id → `{ h, s, l, label }` |
@@ -54,9 +54,14 @@ Copy this folder to `renderer/themes/custom/<your-id>/`, edit the files, then re
 
 | ID | Shell | Notes |
 |----|-------|-------|
-| `studio` | Sidebar | Filament cyan instrument UI |
-| `ledger` | Masthead + tabs | Warm paper + ink |
-| `blueprint` | (reserved) | Coming soon |
-| `atlas` | (reserved) | Coming soon |
+| `workbench` | `workbench` | Grouped sidebar — the default |
+| `command` | `command` | Rail + inspector + status bar |
+| `vivid` | `vivid` | Colorful sidebar, per-module hue |
+| `blueprint` | `workbench` | Warm paper + blueprint blue |
+| `nocturne` | `command` | Dark-first, amber instrument accents |
+
+A theme may reuse a built-in shell (Blueprint and Nocturne both do). Pick the
+shell whose layout you want, then differentiate with tokens — you only need
+your own shell if the LAYOUT differs, not the look.
 
 See [docs/THEMES.md](../../../docs/THEMES.md) for architecture and contribution notes.

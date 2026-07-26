@@ -36,10 +36,12 @@
     // Bed Ready is its own product — never stamp the Khayt (خيط) wordmark here.
     if (document.documentElement.dataset.app === 'bedready') { sub.textContent = 'MAKER STUDIO'; return; }
     const theme = reg()?.getTheme(designId);
-    if (theme?.shell === 'workbench') sub.textContent = 'خيط · WORKBENCH';
-    else if (theme?.shell === 'command') sub.textContent = 'خيط · COMMAND';
-    else if (theme?.shell === 'vivid') sub.textContent = 'خيط · VIVID';
-    else if (theme?.custom) sub.textContent = `خيط · ${(theme.label || designId).toUpperCase()}`;
+    // Name the DESIGN, not the shell it borrows. Blueprint runs on the
+    // Workbench shell and Nocturne on Command, so keying this off theme.shell
+    // would have both of them announcing someone else's name in the sidebar.
+    const id = reg()?.normalizeDesignId(designId);
+    if (theme?.custom) sub.textContent = `خيط · ${(theme.label || designId).toUpperCase()}`;
+    else if (id) sub.textContent = `خيط · ${String(id).toUpperCase()}`;
     else sub.textContent = 'خيط · WORKBENCH';
   }
 

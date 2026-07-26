@@ -69,7 +69,11 @@ test('arabic locale includes theme design keys for RTL QA', () => {
   }
 });
 
-test('each built-in theme maps to a distinct shell body class', () => {
+test('each built-in theme declares a known shell and its own body class', () => {
+  // Kept in step with applyBodyClasses() in renderer/themes.js — these are the
+  // exact values it toggles on.
+  const SHELLS = ['workbench', 'command', 'vivid', 'default'];
+  const SHELL_CLASSES = ['bedready-ui', 'khayt-workbench', 'khayt-command', 'khayt-vivid'];
   const seenShell = new Map();
   const seenClass = new Map();
   for (const [id, theme] of Object.entries(reg.BUILTIN_THEMES)) {
@@ -79,14 +83,36 @@ test('each built-in theme maps to a distinct shell body class', () => {
     // The name of this test promised distinctness but never checked it — two
     // themes sharing a shell or body class would have sailed through, and
     // applyBodyClasses() toggles on exactly these values.
-    assert.equal(seenShell.get(theme.shell), undefined,
-      `${id} reuses shell '${theme.shell}' already claimed by ${seenShell.get(theme.shell)}`);
+    // A shell MAY be shared. It used to be one-per-theme simply because there
+    // were three themes and three shells, and this asserted that coincidence as
+    // a rule. Reuse is the supported mechanism — CUSTOM_THEME_SHELLS exists so a
+    // theme can pick an existing layout — and applyBodyClasses() handles it: it
+    // toggles the shell class from theme.shell and adds theme.bodyClass
+    // separately. Blueprint rides the Workbench shell, Nocturne rides Command.
+    assert.ok(SHELLS.includes(theme.shell), `${id} declares unknown shell '${theme.shell}'`);
+
+    // The body class, however, must still be unique: it is the per-theme hook
+    // every identity stylesheet is scoped to, so a collision silently gives one
+    // theme another's styling.
     assert.equal(seenClass.get(theme.bodyClass), undefined,
       `${id} reuses bodyClass '${theme.bodyClass}' already claimed by ${seenClass.get(theme.bodyClass)}`);
     seenShell.set(theme.shell, id);
     seenClass.set(theme.bodyClass, id);
-    // Convention: the body class is the shell name, khayt-prefixed.
-    assert.equal(theme.bodyClass, `khayt-${theme.shell}`, `${id} body class must match its shell`);
+
+    // The body class must actually end up on <body>, and there are exactly two
+    // ways that happens in applyBodyClasses(): it is this theme's OWN shell
+    // class (set by the shell toggle), or it is not a shell class at all (added
+    // as the extra per-theme hook). Naming a DIFFERENT shell's class is the
+    // trap — the toggle for it stays false because the shell does not match,
+    // and the extra-hook branch explicitly skips shell classes, so the theme
+    // gets no hook and its stylesheet never matches. Silently, with the
+    // inherited layout still looking correct.
+    const ownShellClass = `khayt-${theme.shell}`;
+    assert.equal(
+      theme.bodyClass === ownShellClass || !SHELL_CLASSES.includes(theme.bodyClass),
+      true,
+      `${id} bodyClass '${theme.bodyClass}' is another shell's class and would never be applied`,
+    );
   }
 });
 
