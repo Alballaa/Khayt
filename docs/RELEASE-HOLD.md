@@ -13,10 +13,10 @@ section with the channel it covers, the reason, and the condition for lifting.
 
 | Channel | Last published | Notes |
 |---------|----------------|-------|
-| **Stable** | **v3.2.0** (2026-07-22) | [Latest release](https://github.com/khaytapp/Khayt/releases/latest) |
-| **Beta** | **v3.2.0-beta.61** (2026-07-22) | Final pre-release of the 3.2 line — QC/RMA, shipping, BOM, privacy, public API, telemetry, cameras. The next beta opens `3.3.0-beta.x`; see [BETA-RELEASE.md](./BETA-RELEASE.md) |
+| **Stable** | **v3.3.0** (2026-07-26) | [Latest release](https://github.com/khaytapp/Khayt/releases/latest) |
+| **Beta** | **v3.3.0-beta.1** (2026-07-25) | The 3.3 line, promoted to stable as v3.3.0 on 2026-07-26. Earlier: 3.2 line — QC/RMA, shipping, BOM, privacy, public API, telemetry, cameras. With 3.3.0 stable, the next beta opens `3.4.0-beta.1`; see [BETA-RELEASE.md](./BETA-RELEASE.md) |
 
-Last verified 2026-07-25 against published tags. These rot fast — confirm with
+Last verified 2026-07-26 against published tags. These rot fast — confirm with
 `gh release list --repo KhaytApp/Khayt` rather than trusting the table.
 
 ## While a hold is active
