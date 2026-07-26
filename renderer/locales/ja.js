@@ -1296,6 +1296,7 @@
   "dash.wb_partial": "残額あり",
   "theme.design.vivid": "ビビッド",
   "theme.design.vivid_desc": "鮮やかでカラフル — モジュールごとのカラーバー、グラデーションタイル、ステータスバー。",
+  "theme.design.studio_desc": "フィラメントシアンの計器UI — 温かみのある紙色のライトモード。",
   "theme.accent.vivid_indigo": "インディゴ",
   "theme.accent.vivid_violet": "バイオレット",
   "theme.accent.vivid_pink": "ピンク",

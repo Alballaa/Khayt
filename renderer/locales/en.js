@@ -1296,6 +1296,7 @@
   "dash.wb_partial": "balance due",
   "theme.design.vivid": "Vivid",
   "theme.design.vivid_desc": "Bold & colorful — per-module color band, gradient tiles, status bar.",
+  "theme.design.studio_desc": "Filament cyan instrument UI — warm-paper light mode.",
   "theme.accent.vivid_indigo": "Indigo",
   "theme.accent.vivid_violet": "Violet",
   "theme.accent.vivid_pink": "Pink",

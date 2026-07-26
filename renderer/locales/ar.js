@@ -1379,6 +1379,7 @@
   "dash.wb_partial": "رصيد مستحق",
   "theme.design.vivid": "نابض",
   "theme.design.vivid_desc": "جريء وملوّن — شريط لون لكل وحدة، بطاقات متدرّجة، شريط حالة.",
+  "theme.design.studio_desc": "واجهة أدوات بلون سماوي — وضع فاتح بلون الورق الدافئ.",
   "theme.accent.vivid_indigo": "نيلي",
   "theme.accent.vivid_violet": "بنفسجي",
   "theme.accent.vivid_pink": "وردي",

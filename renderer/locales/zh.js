@@ -1296,6 +1296,7 @@
   "dash.wb_partial": "尚有余额",
   "theme.design.vivid": "Vivid",
   "theme.design.vivid_desc": "鲜明多彩——各模块色带、渐变磁贴、状态栏。",
+  "theme.design.studio_desc": "灯丝青色仪表界面 — 暖纸色浅色模式。",
   "theme.accent.vivid_indigo": "靛蓝",
   "theme.accent.vivid_violet": "紫罗兰",
   "theme.accent.vivid_pink": "粉色",
