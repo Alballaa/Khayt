@@ -15,6 +15,23 @@ because none of them crashed anything, none of them were obvious. Where a bug
 had already damaged saved data, this release finds the damage and offers to
 undo it rather than leaving you to reconcile by hand.
 
+### Fixed — first run, and security
+
+- **The setup wizard could not get past "Choose your look".** On a new install the
+  theme step showed no themes and the Continue button did nothing, and pressing
+  Escape to skip did not work either — so a new shop could not finish setting up
+  at all. All of it works now, and the theme you pick is remembered.
+
+- **Security: the updater could leak its credentials when a download redirected.**
+  Khayt's update component had a flaw where an authorization header could be
+  passed on to a different server if the download was redirected. Updated to the
+  fixed version, along with every other known vulnerability in the parts Khayt
+  ships — there are now none outstanding.
+
+- **A setting in Bed Ready showed a piece of internal code instead of its
+  description.** The theme hint read "theme.design.studio_desc" rather than
+  describing the theme. Now translated in all eight languages.
+
 ### Fixed — what the app told you about your money
 
 - **Cancelled invoices were still counted as revenue.** Voiding an invoice
