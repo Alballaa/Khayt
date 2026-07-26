@@ -4,6 +4,108 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.3.0] - 2026-07-26
+
+The 3.3.0 beta line, released as stable. Individual beta entries are kept below;
+this is what changed for you since 3.2.0.
+
+The headline is the numbers. A sweep over everything the app reports found six
+places where it was telling you something untrue about your own shop — and
+because none of them crashed anything, none of them were obvious. Where a bug
+had already damaged saved data, this release finds the damage and offers to
+undo it rather than leaving you to reconcile by hand.
+
+### Fixed — what the app told you about your money
+
+- **Cancelled invoices were still counted as revenue.** Voiding an invoice
+  deliberately keeps the order marked completed, so twelve different figures —
+  the quarterly P&L, the headline revenue tile, product profitability, the
+  location P&L and the P&L export among them — went on counting money you had
+  cancelled, and the VAT collected alongside it.
+
+- **Refunds never reduced revenue.** A credit note against a completed order
+  left the reported figure untouched: a 3,000 job refunded 1,200 still showed
+  3,000, with VAT to match.
+
+- **An automatic reorder could be priced about a thousand times too high.** A
+  purchase order for 750 g of an 85/kg spool asked for 63,750 instead of 63.75.
+
+- **Saving an order with a payment plan could wipe its deposit.** The recorded
+  deposit was replaced by the instalment total, so an order with 500 already
+  paid dropped to zero and its outstanding balance rose by the same amount,
+  with nothing on screen to say so.
+
+- **An order could report itself fully paid on a partial plan.** "Paid" was
+  decided against the instalment rows rather than the agreed price, so two 100
+  instalments on a 2,000 order settled the whole thing.
+
+- **A month's profit margin averaged percentages instead of blending money.**
+  One small high-margin job could outweigh a large low-margin one — a month
+  that really ran at 10.7% could show 45%, coloured green.
+
+- **Archived orders held on to their stock.** Filament stayed reserved against
+  jobs nobody was going to print, so spools looked more committed than they
+  were and over-commitment warnings fired against work that no longer existed.
+
+### Fixed — dates
+
+- **"Today" was the wrong day for part of every day.** Dates were computed in
+  UTC rather than your own timezone, so before 03:00 in Riyadh the app used
+  yesterday, and after 20:00 in New York it used tomorrow. In practice: the
+  payments-due card ran a six-day window instead of seven, and "last quarter"
+  both dropped the final day of the quarter and pulled in a day from the one
+  before. Fixed across the whole app.
+
+### Added — putting damaged data right
+
+- **Deposits erased by the payment-plan bug can be restored.** They turned out
+  to be recoverable: the original figure was still on file. A notice above your
+  orders names each affected order, shows what it will become, and totals the
+  cash currently unaccounted for. Nothing changes until you say so, and every
+  restore can be undone.
+
+- **Purchase orders left wrong by the reorder pricing bug are found for you.**
+  A banner names each one with both figures and offers a one-click, undoable
+  correction. It never corrects on its own — an order may already have gone to
+  a supplier — and only draft and ordered ones are offered a fix.
+
+### Added — printers
+
+- **Pause, resume and cancel a running print from Khayt.** Works with
+  Klipper/Moonraker, OctoPrint, PrusaLink and Duet. Bambu still requires their
+  own app, and Khayt now says so instead of failing quietly.
+
+### Changed — the AI features
+
+- **Each AI feature is now switched on separately, and says what it sends.**
+  One checkbox used to govern four features that transmit very different
+  things. Every feature now lists exactly what leaves your device, and the one
+  that sends a customer's name is marked and starts switched off until you turn
+  it on having read that.
+
+- **The privacy screen no longer overstates itself.** It said customer data
+  stays on your machine; with reply drafting enabled that was not true. It now
+  says so, in place, only when it applies.
+
+- **You can see what the AI costs you, per feature.** It runs on your own key,
+  so the bill is yours — but the provider's console shows one total and only
+  Khayt knows which feature spent it. Counts this device only, and says so.
+
+### Fixed — interface
+
+- **Urgent states were quieter than calm ones.** Overdue and unassigned markers
+  were being drawn with colours that did not exist in most themes, so they
+  rendered with no fill at all while ordinary rows kept theirs.
+
+- **A customer's colour could erase an order's urgency.** The red stripe on an
+  urgent card was overwritten whenever that customer had a colour set.
+
+- **Things that looked clickable now are.** Rows in the queue and on the
+  dashboard highlighted on hover but did nothing; they open the order now.
+  "Finished today" could not be expanded. The status bar claimed "synced" from
+  a fixed label that never checked whether syncing had worked — it reads the
+  real state, and says nothing when sync is off rather than reassuring you.
+
 ## [3.3.0-beta.1] - 2026-07-25
 
 Opens the 3.3 beta line, after v3.2.0 shipped stable on 2026-07-22. The
