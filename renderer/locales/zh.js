@@ -3602,5 +3602,11 @@
   "po.fix_manual": "请手动设置价格",
   "po.fix_confirm": "将此订单从 {was} 改为 {now}？",
   "po.fix_done": "采购单已更正",
+  "dep.head": "早期的一个缺陷导致部分订金丢失。",
+  "dep.body": "保存带付款计划的订单曾会清除已记录的订金，因此这些订单显示的已付金额偏低、未付余额偏高。原始金额已从你的数据中恢复——目前尚未做任何更改。",
+  "dep.total": "目前未计入：{n}。",
+  "dep.restore_btn": "恢复",
+  "dep.confirm": "将 {n} 记为此订单的已付金额？该金额为订金 {d} 加上已标记为已付的分期款。",
+  "dep.restored": "订金已恢复",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

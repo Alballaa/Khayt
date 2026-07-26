@@ -3602,5 +3602,11 @@
   "po.fix_manual": "définir le prix à la main",
   "po.fix_confirm": "Faire passer cette commande de {was} à {now} ?",
   "po.fix_done": "Commande corrigée",
+  "dep.head": "Un bug antérieur a effacé certains acomptes.",
+  "dep.body": "Enregistrer une commande avec un échéancier effaçait l’acompte enregistré : ces commandes affichent un montant payé trop faible et un solde dû trop élevé. Les chiffres d’origine ont été récupérés dans vos données — rien n’a encore été modifié.",
+  "dep.total": "Non comptabilisé à ce jour : {n}.",
+  "dep.restore_btn": "Restaurer",
+  "dep.confirm": "Enregistrer {n} comme payé sur cette commande ? Il s’agit de l’acompte {d} plus les échéances déjà marquées payées.",
+  "dep.restored": "Acompte restauré",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

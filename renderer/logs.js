@@ -71,7 +71,54 @@ function clearLogFilters() {
   renderLogs();
 }
 
+/**
+ * Warn about deposits erased by the instalment-save defect (#500), and offer to
+ * put them back.
+ *
+ * Before that fix, saving an order that had instalments assigned instPaid over
+ * paidAmount — and the plan generator builds schedules with depositAmount:0
+ * spanning the full price, so a freshly generated plan had instPaid = 0. A 500
+ * deposit became 0, the order moved to 'unpaid', and receivables rose by 500
+ * with nothing on screen to say so.
+ *
+ * The money is recoverable: createOrder writes a separate `depositAmount` the
+ * defect never touched. This banner names each affected order with the figure
+ * that will be restored. It does not repair silently — paidAmount drives
+ * receivables, payment status and the payment webhooks, so the shop sees the
+ * change before it happens.
+ */
+function renderDepositAuditBanner() {
+  const el = $('#depositAuditBanner');
+  if (!el) return;
+  const A = window.KhaytDepositAudit;
+  if (!A) { el.innerHTML = ''; return; }
+  const hits = A.findErasedDeposits(printLog);
+  if (!hits.length) { el.innerHTML = ''; return; }
+
+  const cur = (typeof currencySymbol === 'function') ? currencySymbol() : '';
+  const money = (n) => `${(typeof fmtMoney === 'function' ? fmtMoney(n) : Math.round(n))}${cur ? ' ' + cur : ''}`;
+  const rows = hits.map((e) => `
+    <div class="dep-audit-row">
+      <span class="dep-audit-name">${escapeHtml(e.order.project || e.order.id)}</span>
+      <span class="dep-audit-gap">${escapeHtml(money(e.currentPaid))}</span>
+      <span class="dep-audit-arrow" aria-hidden="true">→</span>
+      <span class="dep-audit-fixed">${escapeHtml(money(e.recovered))}</span>
+      <button type="button" class="btn small" data-act="dep-restore" data-id="${escapeHtml(e.order.id)}">${escapeHtml(t('dep.restore_btn') || 'Restore')}</button>
+    </div>`).join('');
+
+  el.innerHTML = `
+    <div class="dep-audit">
+      <p class="dep-audit-head">
+        <strong>${escapeHtml(t('dep.head') || 'Some deposits were lost by an earlier bug.')}</strong>
+        ${escapeHtml((t('dep.body') || 'Saving an order with a payment plan used to erase the deposit recorded against it, so these orders show less paid than they should and their outstanding balance is too high. The original figures were recovered from your data — nothing has been changed yet.')
+          + ' ' + (t('dep.total') || 'Unaccounted so far: {n}.').replace('{n}', money(A.totalLost(hits))))}
+      </p>
+      ${rows}
+    </div>`;
+}
+
 function renderLogs() {
+  renderDepositAuditBanner();
   const tbody = $('#logTable tbody');
   // Repopulate tag filter dropdown with all existing tags
   const tagSel = $('#logTagFilter');

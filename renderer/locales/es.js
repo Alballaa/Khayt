@@ -3602,5 +3602,11 @@
   "po.fix_manual": "fija el precio a mano",
   "po.fix_confirm": "¿Cambiar este pedido de {was} a {now}?",
   "po.fix_done": "Orden de compra corregida",
+  "dep.head": "Un error anterior borró algunos anticipos.",
+  "dep.body": "Guardar un pedido con plan de pago borraba el anticipo registrado, así que estos pedidos muestran menos pagado de lo real y un saldo pendiente demasiado alto. Las cifras originales se recuperaron de tus datos: aún no se ha cambiado nada.",
+  "dep.total": "Sin contabilizar hasta ahora: {n}.",
+  "dep.restore_btn": "Restaurar",
+  "dep.confirm": "¿Registrar {n} como pagado en este pedido? Es el anticipo {d} más los plazos ya marcados como pagados.",
+  "dep.restored": "Anticipo restaurado",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

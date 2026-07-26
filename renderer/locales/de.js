@@ -3602,5 +3602,11 @@
   "po.fix_manual": "Preis manuell setzen",
   "po.fix_confirm": "Diese Bestellung von {was} auf {now} ändern?",
   "po.fix_done": "Bestellung korrigiert",
+  "dep.head": "Einige Anzahlungen gingen durch einen früheren Fehler verloren.",
+  "dep.body": "Das Speichern eines Auftrags mit Zahlungsplan löschte bisher die erfasste Anzahlung. Diese Aufträge zeigen daher zu wenig bezahlt und einen zu hohen offenen Betrag. Die ursprünglichen Werte wurden aus Ihren Daten wiederhergestellt — geändert wurde noch nichts.",
+  "dep.total": "Bisher nicht erfasst: {n}.",
+  "dep.restore_btn": "Wiederherstellen",
+  "dep.confirm": "{n} als bezahlt für diesen Auftrag erfassen? Das ist die Anzahlung {d} plus bereits als bezahlt markierte Raten.",
+  "dep.restored": "Anzahlung wiederhergestellt",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
