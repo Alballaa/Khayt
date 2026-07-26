@@ -3605,5 +3605,11 @@
   "po.fix_manual": "set the price by hand",
   "po.fix_confirm": "Change this order from {was} to {now}?",
   "po.fix_done": "Purchase order corrected",
+  "dep.head": "Some deposits were lost by an earlier bug.",
+  "dep.body": "Saving an order with a payment plan used to erase the deposit recorded against it, so these orders show less paid than they should and their outstanding balance is too high. The original figures were recovered from your data — nothing has been changed yet.",
+  "dep.total": "Unaccounted so far: {n}.",
+  "dep.restore_btn": "Restore",
+  "dep.confirm": "Record {n} as paid on this order? That is the deposit {d} plus any instalments already marked paid.",
+  "dep.restored": "Deposit restored",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

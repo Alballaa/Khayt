@@ -3602,5 +3602,11 @@
   "po.fix_manual": "fiyatı elle girin",
   "po.fix_confirm": "Bu sipariş {was} yerine {now} olsun mu?",
   "po.fix_done": "Satın alma siparişi düzeltildi",
+  "dep.head": "Önceki bir hata bazı kapora kayıtlarını sildi.",
+  "dep.body": "Ödeme planı olan bir siparişi kaydetmek, kayıtlı kaporayı siliyordu; bu siparişlerde ödenen tutar olduğundan az, kalan bakiye ise fazla görünüyor. Orijinal rakamlar verilerinizden geri alındı — henüz hiçbir şey değiştirilmedi.",
+  "dep.total": "Şu ana kadar hesaba katılmayan: {n}.",
+  "dep.restore_btn": "Geri yükle",
+  "dep.confirm": "Bu siparişte {n} ödendi olarak kaydedilsin mi? Bu, {d} kapora ile ödendi işaretli taksitlerin toplamıdır.",
+  "dep.restored": "Kapora geri yüklendi",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

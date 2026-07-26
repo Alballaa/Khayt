@@ -5377,3 +5377,23 @@ body.khayt-workbench .wb-glist li.is-openable { cursor: pointer; }
 .po-suspect-now { font-weight: 600; font-variant-numeric: tabular-nums; }
 .po-suspect-arrow { color: var(--text-muted); }
 .po-suspect-manual { font-size: 11px; color: var(--text-muted); }
+
+/* Deposits erased by the pre-#500 instalment save. A warning that also repairs:
+   the money is recoverable from the untouched depositAmount field, but
+   paidAmount drives receivables and the payment webhooks, so nothing changes
+   until the shop says so. */
+.dep-audit {
+  border: 1px solid var(--danger);
+  border-inline-start-width: 3px;
+  background: var(--danger-soft);
+  border-radius: 6px; padding: 12px 14px; margin-bottom: 12px;
+}
+.dep-audit-head { font-size: 12px; margin: 0 0 10px; line-height: 1.55; }
+.dep-audit-row {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  font-size: 12px; padding: 5px 0; border-block-start: 1px solid var(--border-soft);
+}
+.dep-audit-name { flex: 1; min-width: 130px; font-weight: 600; }
+.dep-audit-gap { text-decoration: line-through; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.dep-audit-fixed { font-weight: 600; font-variant-numeric: tabular-nums; }
+.dep-audit-arrow { color: var(--text-muted); }

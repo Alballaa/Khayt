@@ -692,6 +692,37 @@ function wireEvents() {
   });
   // QW6: Operator filter
   $('#logOperatorFilter')?.addEventListener('change', (e) => { logOperatorFilter = e.target.value; renderLogs(); });
+  // Restore a deposit erased by the pre-#500 instalment save. Owner-initiated
+  // and confirmed: paidAmount drives receivables, payment status and the
+  // payment webhooks, so nothing is repaired without the shop seeing it.
+  $('#depositAuditBanner')?.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-act="dep-restore"]');
+    if (!btn) return;
+    const A = window.KhaytDepositAudit;
+    const entry = A.findErasedDeposits(printLog).find((x) => x.order.id === btn.dataset.id);
+    if (!entry) { renderDepositAuditBanner(); return; }
+    const cur = (typeof currencySymbol === 'function') ? currencySymbol() : '';
+    const money = (v) => `${fmtMoney(v)}${cur ? ' ' + cur : ''}`;
+    const okToRestore = await confirmModal(
+      (t('dep.confirm') || 'Record {n} as paid on this order? That is the deposit {d} plus any instalments already marked paid.')
+        .replace('{n}', money(entry.recovered))
+        .replace('{d}', money(entry.deposit)),
+      { danger: false },
+    );
+    if (!okToRestore) return;
+    const res = A.restoreDeposit(entry);
+    if (!res.ok) { toast(res.error, 'error'); return; }
+    saveAll();
+    renderLogs(); renderKanban(); renderDashboard();
+    toast(t('dep.restored') || 'Deposit restored', 'success', 8000, {
+      undo: () => {
+        entry.order.paidAmount = res.before.paidAmount;
+        entry.order.paymentStatus = res.before.paymentStatus;
+        saveAll(); renderLogs(); renderKanban(); renderDashboard();
+      },
+    });
+  });
+
   $('#logTable')?.addEventListener('click', (e) => {
     const clearFiltersBtn = e.target.closest('[data-act="clear-log-filters"]');
     if (clearFiltersBtn) { clearLogFilters(); return; }
