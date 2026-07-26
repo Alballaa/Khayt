@@ -1296,6 +1296,7 @@
   "dash.wb_partial": "Restbetrag fällig",
   "theme.design.vivid": "Vivid",
   "theme.design.vivid_desc": "Kräftig & farbenfroh – Farbband pro Modul, Verlaufskacheln, Statusleiste.",
+  "theme.design.studio_desc": "Instrumenten-UI in Filament-Cyan — heller Modus in warmem Papierton.",
   "theme.accent.vivid_indigo": "Indigo",
   "theme.accent.vivid_violet": "Violett",
   "theme.accent.vivid_pink": "Pink",

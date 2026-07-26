@@ -1296,6 +1296,7 @@
   "dash.wb_partial": "solde dû",
   "theme.design.vivid": "Vivid",
   "theme.design.vivid_desc": "Vif et coloré — bande de couleur par module, tuiles en dégradé, barre d'état.",
+  "theme.design.studio_desc": "Interface instrumentale cyan filament — mode clair papier chaud.",
   "theme.accent.vivid_indigo": "Indigo",
   "theme.accent.vivid_violet": "Violet",
   "theme.accent.vivid_pink": "Rose",

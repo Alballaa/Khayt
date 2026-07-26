@@ -1296,6 +1296,7 @@
   "dash.wb_partial": "saldo pendiente",
   "theme.design.vivid": "Vivid",
   "theme.design.vivid_desc": "Intenso y colorido: banda de color por módulo, mosaicos con degradado y barra de estado.",
+  "theme.design.studio_desc": "Interfaz de instrumentos en cian filamento — modo claro en papel cálido.",
   "theme.accent.vivid_indigo": "Índigo",
   "theme.accent.vivid_violet": "Violeta",
   "theme.accent.vivid_pink": "Rosa",

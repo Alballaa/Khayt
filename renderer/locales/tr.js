@@ -1296,6 +1296,7 @@
   "dash.wb_partial": "kalan bakiye",
   "theme.design.vivid": "Vivid",
   "theme.design.vivid_desc": "Cesur ve renkli — modül başına renk bandı, gradyan kutucuklar, durum çubuğu.",
+  "theme.design.studio_desc": "Filament camgöbeği gösterge arayüzü — sıcak kâğıt açık mod.",
   "theme.accent.vivid_indigo": "Çivit",
   "theme.accent.vivid_violet": "Mor",
   "theme.accent.vivid_pink": "Pembe",

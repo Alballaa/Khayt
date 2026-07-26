@@ -60,8 +60,8 @@
     "test:e2e:screens": "node scripts/e2e-populated-screens-smoke.mjs"
   },
   "dependencies": {
-    "@sentry/electron": "^7.13.0",
-    "electron-updater": "^6.8.3",
+    "@sentry/electron": "^7.16.0",
+    "electron-updater": "^6.8.9",
     "localtunnel": "^2.0.2",
     "qrcode": "^1.5.3"
   },
@@ -89,14 +89,15 @@
   },
   "overrides": {
     "localtunnel": {
-      "axios": "1.17.0",
+      "axios": "1.18.1",
       "debug": "4.4.3"
     },
     "axios": {
       "follow-redirects": "1.16.0"
     },
     "tmp": "0.2.7",
-    "form-data": "^4.0.6"
+    "form-data": "^4.0.6",
+    "js-yaml": "4.3.0"
   },
   "build": {
     "appId": "app.khayt.hub",
