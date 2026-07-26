@@ -107,7 +107,7 @@ function initWizard() {
       d.classList.toggle('active', parseInt(d.dataset.step, 10) <= n);
     });
     if (n === 2) {
-      global.KhaytThemePicker?.mountWizardPicker?.(
+      globalThis.KhaytThemePicker?.mountWizardPicker?.(
         $('#wizDesignThemePicker'),
         selectedDesign,
       );
@@ -156,9 +156,9 @@ function initWizard() {
       }
       if (nextBtn.closest('#wiz-step-2')) {
         const picker = $('#wizDesignThemePicker');
-        selectedDesign = global.KhaytThemePicker?.getWizardSelection?.(picker) || selectedDesign;
+        selectedDesign = globalThis.KhaytThemePicker?.getWizardSelection?.(picker) || selectedDesign;
         settings.designTheme = selectedDesign;
-        const theme = global.KhaytThemeRegistry?.getTheme(selectedDesign);
+        const theme = globalThis.KhaytThemeRegistry?.getTheme(selectedDesign);
         if (theme?.defaultAppearance) {
           settings.theme = theme.defaultAppearance;
           if (typeof applyTheme === 'function') applyTheme(theme.defaultAppearance);
@@ -250,7 +250,7 @@ function initWizard() {
       machines.push({ id: uid('MACH'), name: machName, color: palette[0] });
     }
     settings.designTheme = selectedDesign || settings.designTheme || 'studio';
-    const finishTheme = global.KhaytThemeRegistry?.getTheme(settings.designTheme);
+    const finishTheme = globalThis.KhaytThemeRegistry?.getTheme(settings.designTheme);
     if (finishTheme?.defaultAppearance) settings.theme = finishTheme.defaultAppearance;
     else if (!settings.theme) settings.theme = 'light';
     if (selectedBizType === 'farm') {
