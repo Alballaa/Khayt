@@ -16,6 +16,13 @@ const THEME_CASES = [
   { id: 'workbench', bodyClass: 'khayt-workbench', appearance: 'light', dashSel: '.wb-dash', dashMin: 80 },
   { id: 'vivid', bodyClass: 'khayt-vivid', appearance: 'light', dashSel: '.vv-dash', dashMin: 80 },
   { id: 'command', bodyClass: 'khayt-command', appearance: 'light', dashSel: '.cmd-dash', dashMin: 80 },
+  // Blueprint and Nocturne borrow a shell rather than shipping their own, so
+  // the dashboard selector is the HOST shell's (.wb-dash / .cmd-dash) while the
+  // body class asserted is the theme's own hook — that pairing is the thing
+  // worth pinning, because it is what proves the identity layer actually
+  // attached on top of an inherited layout.
+  { id: 'blueprint', bodyClass: 'khayt-blueprint', appearance: 'light', dashSel: '.wb-dash', dashMin: 80 },
+  { id: 'nocturne', bodyClass: 'khayt-nocturne', appearance: 'dark', dashSel: '.cmd-dash', dashMin: 80 },
 ];
 
 const userData = makeUserDataDir();
@@ -111,6 +118,8 @@ async function assertEnthusiastThemesNoMoney(window) {
     { id: 'command', sel: '.cmd-dash', extra: '#commandStatusBar' },
     { id: 'workbench', sel: '.wb-dash', extra: null },
     { id: 'vivid', sel: '.vv-dash', extra: null },
+    { id: 'blueprint', sel: '.wb-dash', extra: null },
+    { id: 'nocturne', sel: '.cmd-dash', extra: '#commandStatusBar' },
   ];
   for (const th of THEMES) {
     const r = await window.evaluate(({ id, sel, extra }) => {

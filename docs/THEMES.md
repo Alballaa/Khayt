@@ -4,13 +4,38 @@ Khayt separates **appearance** (dark / light / system) from **design theme** (vi
 
 ## Built-in themes
 
-Khayt 2.6 ships three redesigned, light-default themes with a native-app feel:
-
 | ID | Name | Shell | Default appearance |
 |----|------|-------|-------------------|
 | `workbench` | **Workbench** _(default)_ | Grouped left sidebar | Light |
 | `command` | Command | Command bar + rail | Light |
 | `vivid` | Vivid | Colorful sidebar | Light |
+| `blueprint` | Blueprint | Workbench _(shared)_ | Light |
+| `nocturne` | Nocturne | Command _(shared)_ | **Dark** |
+
+The first three are the 2.6 redesign. **Blueprint** and **Nocturne** were added
+in 3.4 and are the first themes to *share* a shell rather than ship one:
+
+- **Blueprint** is Khayt's reading of the Bed Ready design language — warm
+  paper, ink type, and a blueprint-blue accent used as a drawn line, with a
+  deep blueprint-blue dark mode. It rides the Workbench shell because Bed Ready
+  is a sidebar app. Bed Ready itself is untouched: it styles from
+  `html[data-app="bedready"]` and never reads these files.
+- **Nocturne** is the night shift. Every other design is light by default, but a
+  farm runs unattended overnight and gets checked in a dim workshop — so this is
+  the only theme whose `defaultAppearance` is `dark`, with an amber
+  instrument-panel accent (long-wavelength light preserves dark adaptation) and
+  saturation spent only on status. It rides the Command shell because the dense
+  monitoring layout suits that job.
+
+### Sharing a shell
+
+`shell` selects the layout; `bodyClass` is the theme's own styling hook.
+`applyBodyClasses()` sets the shell class from `theme.shell` **and** adds
+`theme.bodyClass` separately, so Blueprint gets `khayt-workbench` +
+`khayt-blueprint`. A theme's `bodyClass` must therefore be either its own shell
+class or a name that is not a shell class at all — naming a *different* shell's
+class means no hook is ever applied, silently, while the layout still looks
+right. `test/themes-qa.test.js` pins this.
 
 ### Legacy themes — removed in 3.3
 

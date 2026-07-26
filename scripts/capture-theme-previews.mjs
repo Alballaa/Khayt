@@ -22,6 +22,11 @@ const DEFAULT_THEMES = [
   { id: 'workbench', appearance: 'light', file: 'workbench.png' },
   { id: 'command', appearance: 'light', file: 'command.png' },
   { id: 'vivid', appearance: 'light', file: 'vivid.png' },
+  { id: 'blueprint', appearance: 'light', file: 'blueprint.png' },
+  // Captured DARK on purpose: Nocturne's defaultAppearance is dark, and a light
+  // thumbnail would sell the one theme built for a dim workshop as another
+  // pale one.
+  { id: 'nocturne', appearance: 'dark', file: 'nocturne.png' },
 ];
 const THEMES = process.env.KHAYT_THEME_SET
   ? JSON.parse(process.env.KHAYT_THEME_SET)
