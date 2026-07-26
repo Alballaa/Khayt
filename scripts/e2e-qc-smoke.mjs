@@ -49,6 +49,17 @@ try {
   await waitModal(window, '[data-act="save"]');
   await setAndSave(window, { '#qcNotesInput': 'looks clean' });
   await window.waitForFunction(() => printLog.find(o => o.id === 'QC-PASS-1')?.qcStatus === 'pass', { timeout: 10000 });
+  // Passing QC queues the actuals prompt on a setTimeout(…, 0) — deliberately, so
+  // it opens after the QC modal closes. qcStatus flips to 'pass' synchronously
+  // inside onSave, i.e. BEFORE that timer fires, so the wait above can return with
+  // the prompt still pending. Whatever modal is open when it lands gets replaced,
+  // because openFormModal assigns over #modalMount. Racing on ahead is what made
+  // this suite fail about half its runs: qcFailOrder would open the failure modal,
+  // the pending actuals prompt would overwrite it, and waitModal('#qcFailType')
+  // timed out. Wait for the prompt the app actually shows, then dismiss it.
+  await waitModal(window, '#actTime');
+  await window.click('#modalMount [data-act="cancel"]');
+  await window.waitForFunction(() => !document.querySelector('#modalMount .modal'), { timeout: 10000 });
   const pass = await window.evaluate(() => printLog.find(o => o.id === 'QC-PASS-1'));
   ok(pass.qcStatus === 'pass', 'pass: qcStatus=pass');
   ok(pass.status === 'completed', 'pass: advanced to completed');
