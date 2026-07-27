@@ -12,6 +12,7 @@
   "scripts": {
     "lint": "node scripts/lint-syntax.js && node scripts/check-locale-files.js",
     "i18n:extract": "node scripts/extract-i18n-locales.js",
+    "branches:stale": "node scripts/list-stale-branches.mjs",
     "check": "npm run lint && npm test",
     "test": "node --test test/*.test.js",
     "pretest:e2e": "node scripts/ensure-electron.js",
