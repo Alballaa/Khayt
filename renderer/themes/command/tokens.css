@@ -21,7 +21,7 @@ html[data-design="command"] {
   /* ---- Ink ---- */
   --ink:       #16202b;
   --ink-2:     #56657a;
-  --ink-3:     #8693a6;
+  --ink-3:     #626f82;
   --ink-4:     #aab4c4;
 
   /* ---- Lines ---- */
@@ -119,7 +119,7 @@ html[data-design="command"][data-theme="dark"] {
 
   --ink:       #e7edf3;
   --ink-2:     #9fb0c0;
-  --ink-3:     #6b7c8c;
+  --ink-3:     #758696;
   --ink-4:     #536272;
 
   --line:      #2a3644;

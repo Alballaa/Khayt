@@ -19,7 +19,7 @@ html[data-design="vivid"] {
   /* ---- Ink ---- */
   --ink:       #181a2b;
   --ink-2:     #5b607a;
-  --ink-3:     #8b90a8;
+  --ink-3:     #696e86;
   --ink-4:     #a9aec4;
 
   /* ---- Lines ---- */
@@ -123,7 +123,7 @@ html[data-design="vivid"][data-theme="dark"] {
 
   --ink:       #eef0fb;
   --ink-2:     #a4a9c8;
-  --ink-3:     #71769a;
+  --ink-3:     #7b80a4;
   --ink-4:     #565b7d;
 
   --line:      #262a44;

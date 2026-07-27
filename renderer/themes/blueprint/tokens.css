@@ -1,4 +1,10 @@
-/* Blueprint — Khayt's take on the Bed Ready design language.
+/* NOTE: --ink-3 (aliased to --text-muted) is darkened/lightened to clear
+   WCAG AA 4.5:1 against BOTH --bg and --surface. It is used as a text colour in
+   192 CSS rules and 540 renderer call sites — hints, subtitles, metadata — so it
+   is body text, not decoration, and 2.75:1 was a real readability failure.
+   Measured, not eyeballed: see the contrast sweep in the scan.
+
+   Blueprint — Khayt's take on the Bed Ready design language.
 
    Bed Ready dresses the app as a drafting instrument: a warm paper ground with
    ink-dark type, and a blueprint-blue accent used as a drawn line rather than a
@@ -26,7 +32,7 @@ html[data-design="blueprint"] {
   /* ---- Ink ---- */
   --ink:       #21282c;
   --ink-2:     #4c524f;
-  --ink-3:     #7c807a;
+  --ink-3:     #646862;
   --ink-4:     #a6a79b;
 
   /* ---- Lines (drawn, not filled — warm grey rather than pure black) ---- */
@@ -114,7 +120,7 @@ html[data-design="blueprint"][data-theme="dark"] {
 
   --ink:       #dce9f2;
   --ink-2:     #9db8ce;
-  --ink-3:     #6b8aa3;
+  --ink-3:     #7f9eb7;
   --ink-4:     #4a6683;
 
   --line:      rgba(220,233,242,0.15);

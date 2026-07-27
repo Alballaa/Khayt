@@ -326,7 +326,30 @@ async function assertQuietChromeAndOperableGroups(window) {
   // .nav-icon animates background over 120ms. Measuring immediately after a
   // navigation reads a mid-transition colour on the tab we just left — it has
   // already lost .active but is still fading down from the accent.
-  await window.waitForTimeout(300);
+  //
+  // A fixed sleep was doing this, and it flaked roughly one run in six: under
+  // load the fade had not finished and the assertion caught Vivid's indigo
+  // still on the settings icon. (Verified it is only a stale FRAME, not a
+  // teardown leak — switching away from Vivid clears --vv-tile and --hue every
+  // time.) Wait for the condition itself to hold instead of for a clock, and
+  // fall through on timeout so a genuine violation still reports the colour
+  // rather than a bare timeout.
+  await window
+    .waitForFunction(() => {
+      const sat = (c) => {
+        const m = String(c).match(/rgba?\(([^)]+)\)/);
+        if (!m) return 0;
+        const [r, g, b] = m[1].split(',').slice(0, 3).map((n) => parseFloat(n));
+        const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+        return mx === 0 ? 0 : (mx - mn) / mx;
+      };
+      return [...document.querySelectorAll('.khayt-navitem')].every((b) => {
+        if (b.classList.contains('active') || b.getAttribute('aria-selected') === 'true') return true;
+        const icon = b.querySelector('.nav-icon');
+        return !icon || sat(getComputedStyle(icon).backgroundColor) <= 0.25;
+      });
+    }, { timeout: 4000 })
+    .catch(() => {});
   // A row that paints a hover highlight must actually open the order — and a
   // click on the row's own action button must NOT also open it, or advancing a
   // job would pop the editor every time.

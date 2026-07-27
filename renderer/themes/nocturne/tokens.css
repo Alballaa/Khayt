@@ -1,4 +1,10 @@
-/* Nocturne — the night-shift theme.
+/* NOTE: --ink-3 (aliased to --text-muted) is darkened/lightened to clear
+   WCAG AA 4.5:1 against BOTH --bg and --surface. It is used as a text colour in
+   192 CSS rules and 540 renderer call sites — hints, subtitles, metadata — so it
+   is body text, not decoration, and 2.75:1 was a real readability failure.
+   Measured, not eyeballed: see the contrast sweep in the scan.
+
+   Nocturne — the night-shift theme.
 
    WHY THIS EXISTS. Workbench, Command, Vivid and Blueprint are all light by
    default. But a print farm runs unattended overnight, and the person who
@@ -47,7 +53,7 @@ html[data-design="nocturne"] {
          easier at night than #fff, which glares on a dark field. ---- */
   --ink:       #e8eaf0;
   --ink-2:     #a8aebd;
-  --ink-3:     #767d8d;
+  --ink-3:     #787f8f;
   --ink-4:     #545a68;
 
   /* ---- Lines carry the structure here, so they are a touch stronger than a
@@ -134,7 +140,11 @@ html[data-design="nocturne"][data-theme="light"] {
 
   --ink:       #17191f;
   --ink-2:     #4b4f5a;
-  --ink-3:     #767b87;
+  /* Darker than the dark-mode value above, not lighter: this is the LIGHT
+     variant and Nocturne is the one theme whose BASE block is dark. A contrast
+     pass that assumes base == light adjusts the wrong block and leaves this one
+     at 3.79:1 — which is exactly what happened first time round. */
+  --ink-3:     #6a6f7b;
   --ink-4:     #a1a5ae;
 
   --line:      #e2ded7;
