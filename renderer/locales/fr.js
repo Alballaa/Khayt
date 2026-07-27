@@ -1320,6 +1320,7 @@
   "dash.mrd_staging_sub": "aucune imprimante choisie",
   "dash.mrd_nothing_staged": "Rien en attente d'imprimante",
   "dash.mrd_projected": "projeté",
+  "dash.mrd_drag_hint": "faites glisser vers une autre imprimante pour réaffecter",
   "dash.mrd_proj_note": "Les blocs hachurés sont projetés depuis la file — Khayt n'attribue pas d'heures de début.",
   "theme.accent.blueprint": "Bleu de plan",
   "theme.accent.graphite": "Graphite",

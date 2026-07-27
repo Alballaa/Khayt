@@ -1320,6 +1320,7 @@
   "dash.mrd_staging_sub": "プリンター未選択",
   "dash.mrd_nothing_staged": "プリンター待ちはありません",
   "dash.mrd_projected": "予測",
+  "dash.mrd_drag_hint": "別のプリンターにドラッグして割り当て直す",
   "dash.mrd_proj_note": "ハッチングされたブロックはキューからの予測です — Khayt は開始時刻を割り当てません。",
   "theme.accent.blueprint": "ブループリントブルー",
   "theme.accent.graphite": "グラファイト",

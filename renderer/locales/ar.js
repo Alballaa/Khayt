@@ -1403,6 +1403,7 @@
   "dash.mrd_staging_sub": "لم تُختر طابعة بعد",
   "dash.mrd_nothing_staged": "لا شيء ينتظر طابعة",
   "dash.mrd_projected": "متوقع",
+  "dash.mrd_drag_hint": "اسحب إلى طابعة أخرى لإعادة الإسناد",
   "dash.mrd_proj_note": "الكتل المخططة متوقعة من قائمة الانتظار — خيط لا يحدد أوقات البدء.",
   "theme.accent.blueprint": "أزرق المخططات",
   "theme.accent.graphite": "جرافيت",

@@ -1320,6 +1320,7 @@
   "dash.mrd_staging_sub": "尚未选择打印机",
   "dash.mrd_nothing_staged": "没有等待打印机的作业",
   "dash.mrd_projected": "预计",
+  "dash.mrd_drag_hint": "拖到其他打印机以重新指派",
   "dash.mrd_proj_note": "带斜纹的方块由队列推算 — Khayt 不分配开始时间。",
   "theme.accent.blueprint": "蓝图蓝",
   "theme.accent.graphite": "石墨",

@@ -1320,6 +1320,7 @@
   "dash.mrd_staging_sub": "henüz yazıcı seçilmedi",
   "dash.mrd_nothing_staged": "Yazıcı bekleyen iş yok",
   "dash.mrd_projected": "öngörülen",
+  "dash.mrd_drag_hint": "yeniden atamak için başka bir yazıcıya sürükleyin",
   "dash.mrd_proj_note": "Taralı bloklar sıradan öngörülmüştür — Khayt başlangıç saati atamaz.",
   "theme.accent.blueprint": "Ozalit Mavisi",
   "theme.accent.graphite": "Grafit",
