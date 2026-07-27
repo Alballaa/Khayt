@@ -4,6 +4,25 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **An expired quote could still be approved.** For the first three hours of
+  every day in Saudi Arabia — and the last four in the Americas — Khayt worked
+  out "today" from UTC rather than from your own calendar, so a quote that
+  expired yesterday stayed approvable on the page your customer uses to accept
+  it.
+- **An order taken through the LAN page after midnight was dated yesterday.**
+  Same cause, worse effect: that date is what the revenue-by-day reports group
+  on, so the money landed on the wrong day. Orders arriving from Salla and Zid
+  were dated the same way, and the kiosk count of work completed today covered
+  the wrong hours.
+- **A monthly recurring expense walked backwards a day every cycle** for any
+  shop west of London. An expense anchored on the 15th became the 14th, then the
+  13th, then the 12th. The date was being built on one calendar and read on
+  another; now both are yours.
+- The date printed inside a saved recovery-code file, and the date in a
+  pre-update backup filename, were also UTC's rather than yours.
+
 ## [3.4.0-beta.4] - 2026-07-27
 
 An eighth design, and the end of a class of bug where a control was on screen

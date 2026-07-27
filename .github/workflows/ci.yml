@@ -28,6 +28,21 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      # CI runs in UTC, which is the one timezone where a UTC-derived calendar
+      # day happens to be correct — so a whole class of bug was invisible here.
+      # A quote stayed approvable after expiry, an order taken at 01:00 local was
+      # dated yesterday into revenue-by-day, and a monthly expense walked
+      # backwards a day every cycle. Run the suite where the two calendars
+      # disagree, in both directions.
+      - name: Unit tests (Asia/Riyadh, UTC+3 — the primary market)
+        run: TZ=Asia/Riyadh npm test
+
+      - name: Unit tests (America/Los_Angeles, UTC-7)
+        run: TZ=America/Los_Angeles npm test
+
+      - name: Unit tests (Pacific/Kiritimati, UTC+14 — the far edge)
+        run: TZ=Pacific/Kiritimati npm test
+
   e2e-smoke:
     name: E2E smoke (Electron)
     runs-on: ubuntu-latest

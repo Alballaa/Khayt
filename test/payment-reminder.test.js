@@ -32,7 +32,11 @@ test('cooldown + max count gate repeats', () => {
 test('markReminderPatch increments count + stamps time', () => {
   const p = R.markReminderPatch({ payReminderCount: 1 }, NOW);
   assert.equal(p.payReminderCount, 2);
-  assert.ok(p.payRemindedAt.startsWith('2026-06-20'));
+  // payRemindedAt is an INSTANT, stored as UTC ISO and read back with new Date()
+  // for the recency check — so assert the instant, not a calendar-day prefix.
+  // NOW is parsed without a zone, i.e. local noon; in Kiritimati (UTC+14) that
+  // is the previous day in UTC, and the prefix assertion failed on correct code.
+  assert.equal(new Date(p.payRemindedAt).getTime(), NOW);
   assert.equal(R.markReminderPatch({}, NOW).payReminderCount, 1);
 });
 

@@ -12,7 +12,19 @@ const {
   dueInstallments,
 } = require('../lib/payment-plan');
 
-const today = () => new Date().toISOString().slice(0, 10);
+/**
+ * The shop's local day, NOT the UTC one.
+ *
+ * buildSchedule dates a deposit with localIsoDay(), so a helper using
+ * toISOString() only agreed with it while UTC and local happened to fall on the
+ * same date. In Riyadh (UTC+3) that is every hour except local midnight to
+ * 03:00 — so this suite passed about 21 hours a day and failed the other three,
+ * which is exactly what it did the first time a run crossed local midnight.
+ *
+ * 'en-CA' formats as YYYY-MM-DD, which is why the timezone test at the bottom
+ * of this file already uses it. Same rule here.
+ */
+const today = () => new Date().toLocaleDateString('en-CA');
 
 test('buildSchedule: amounts sum EXACTLY to total (clean division)', () => {
   const s = buildSchedule({ total: 1200, installments: 4, firstDueDate: '2026-01-01', intervalDays: 30 });
