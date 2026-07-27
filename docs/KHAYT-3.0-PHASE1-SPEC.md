@@ -101,6 +101,10 @@ GET /shops/:id/store → decrypt → applyDeltas/replace per conflict policy →
 
 ## 7. Server data model (Postgres, every row carries `org_id`)
 
+> **As built (2026-07-27):** MySQL, not Postgres, and rows key on `shop_id` —
+> `org_id` arrives with Phase 3 tenancy, which is not started. See
+> [CLOUD-STATUS](./KHAYT-3.0-CLOUD-STATUS.md).
+
 ```
 users(id, email, created_at)
 orgs(id, owner_user_id, name, region, created_at)

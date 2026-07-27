@@ -43,10 +43,19 @@ const ALL_SCREENS = [
   { key: 'colorstudio', tab: 'colorstudio-tab', wait: '#colorstudio-tab' },
 ];
 
+// Every design a visitor can pick in the app. Workbench is the default and
+// writes the flat set the site falls back to; the rest live under themes/<id>/.
+// Nocturne is captured DARK on purpose — it is the one design built for a dim
+// workshop, and a light capture would sell it as another pale one.
 const ALL_THEMES = [
   { id: 'workbench', appearance: 'light', dir: '' },              // flat set
   { id: 'command',   appearance: 'light', dir: 'themes/command' },
   { id: 'vivid',     appearance: 'light', dir: 'themes/vivid' },
+  { id: 'blueprint', appearance: 'light', dir: 'themes/blueprint' },
+  { id: 'nocturne',  appearance: 'dark',  dir: 'themes/nocturne' },
+  { id: 'meridian',  appearance: 'light', dir: 'themes/meridian' },
+  { id: 'foreman',   appearance: 'light', dir: 'themes/foreman' },
+  { id: 'flow',      appearance: 'light', dir: 'themes/flow' },
 ];
 const ALL_LANGS = ['en', 'ar'];
 
