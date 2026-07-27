@@ -82,13 +82,14 @@
     document.body.classList.toggle('khayt-workbench', !isBedReady() && shell === 'workbench');
     document.body.classList.toggle('khayt-command', !isBedReady() && shell === 'command');
     document.body.classList.toggle('khayt-vivid', !isBedReady() && shell === 'vivid');
+    document.body.classList.toggle('khayt-meridian', !isBedReady() && shell === 'meridian');
     document.body.classList.toggle('khayt-shell-default', !isBedReady() && shell === 'default');
 
     document.querySelectorAll('[data-khayt-body-class]').forEach((el) => {
       el.classList.remove(el.dataset.khaytBodyClass);
       delete el.dataset.khaytBodyClass;
     });
-    if (theme?.bodyClass && !['bedready-ui', 'khayt-workbench', 'khayt-command', 'khayt-vivid'].includes(theme.bodyClass)) {
+    if (theme?.bodyClass && !['bedready-ui', 'khayt-workbench', 'khayt-command', 'khayt-vivid', 'khayt-meridian'].includes(theme.bodyClass)) {
       document.body.classList.add(theme.bodyClass);
       document.body.dataset.khaytBodyClass = theme.bodyClass;
     }
@@ -101,6 +102,7 @@
     const wasWorkbench = document.body.classList.contains('khayt-workbench');
     const wasCommand = document.body.classList.contains('khayt-command');
     const wasVivid = document.body.classList.contains('khayt-vivid');
+    const wasMeridian = document.body.classList.contains('khayt-meridian');
     const nextShell = theme?.shell || 'workbench';
 
     if (['workbench', 'command', 'vivid'].includes(nextShell)) {
@@ -119,16 +121,18 @@
     if (wasWorkbench) global.KhaytWorkbenchShell?.teardownWorkbenchShell?.();
     if (wasCommand) global.KhaytCommandShell?.teardownCommandShell?.();
     if (wasVivid) global.KhaytVividShell?.teardownVividShell?.();
+    if (wasMeridian) global.KhaytMeridianShell?.teardownMeridianShell?.();
     if (nextShell === 'workbench') global.KhaytWorkbenchShell?.applyWorkbenchShell?.();
     if (nextShell === 'command') global.KhaytCommandShell?.applyCommandShell?.();
     if (nextShell === 'vivid') global.KhaytVividShell?.applyVividShell?.();
+    if (nextShell === 'meridian') global.KhaytMeridianShell?.applyMeridianShell?.();
     if (isBedReady()) {
       global.KhaytBedReadyUI?.init?.();
       if (typeof renderDashboard === 'function') renderDashboard();
       if (typeof renderKanban === 'function') renderKanban();
       if (typeof renderClients === 'function') renderClients();
       if (typeof renderInventory === 'function') renderInventory();
-    } else if (nextShell === 'workbench' || nextShell === 'command' || nextShell === 'vivid') {
+    } else if (['workbench', 'command', 'vivid', 'meridian'].includes(nextShell)) {
       if (typeof renderDashboard === 'function') renderDashboard();
     }
   }

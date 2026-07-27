@@ -23,6 +23,13 @@ const THEME_CASES = [
   // attached on top of an inherited layout.
   { id: 'blueprint', bodyClass: 'khayt-blueprint', appearance: 'light', dashSel: '.wb-dash', dashMin: 80 },
   { id: 'nocturne', bodyClass: 'khayt-nocturne', appearance: 'dark', dashSel: '.cmd-dash', dashMin: 80 },
+  // Meridian is the one theme with a shell of its OWN — no borrowed layout, and
+  // its dashboard is the schedule rather than a card grid.
+  { id: 'meridian', bodyClass: 'khayt-meridian', appearance: 'light', dashSel: '.mrd-dash', dashMin: 80,
+    // Meridian has no visible sidebar: its nav entry point is the top bar, so
+    // that is what a user clicks and what this suite must click.
+    navSelTpl: '#meridianTopbar [data-mrd-tab="{tab}"]',
+    reachSel: '#meridianTopbar [data-mrd-tab="converter-tab"]' },
 ];
 
 const userData = makeUserDataDir();
@@ -81,7 +88,12 @@ async function assertDashboard(window, themeCase) {
 }
 
 async function navigateSecondaryTab(window, themeCase) {
-  await window.click('#tabbtn-queue-tab');
+  // Click the entry point this shell actually presents. Every sidebar shell
+  // exposes the real .tab-btn; Meridian clips the sidebar and proxies it in the
+  // top bar, so clicking the hidden original would test nothing a user can do.
+  await window.click(themeCase.navSelTpl
+    ? themeCase.navSelTpl.replace('{tab}', 'queue-tab')
+    : '#tabbtn-queue-tab');
   await window.waitForFunction(
     () => document.getElementById('queue-tab')?.classList.contains('active') === true,
     { timeout: 10_000 },
@@ -102,10 +114,15 @@ async function navigateSecondaryTab(window, themeCase) {
 // Guard the theme tab-reachability regression: the 3.1 tabs (printfiles/colorstudio/
 // converter) and others must have a nav entry point in every shell.
 async function assertNewTabsReachable(window, themeCase) {
-  const ok = await window.evaluate(() => {
+  // "Reachable" means reachable in THIS shell's chrome. The sidebar check below
+  // would pass for Meridian on a technicality — its sidebar is clipped, not
+  // display:none, so offsetParent stays non-null — which is exactly the kind of
+  // true-but-meaningless assertion worth avoiding.
+  const ok = await window.evaluate((sel) => {
+    if (sel) return !!document.querySelector(sel);
     const b = document.getElementById('tabbtn-converter-tab');
     return !!(b && b.offsetParent !== null);
-  });
+  }, themeCase.reachSel || null);
   if (!ok) throw new Error(`${themeCase.id}: converter tab has no visible nav entry`);
 }
 
@@ -120,6 +137,7 @@ async function assertEnthusiastThemesNoMoney(window) {
     { id: 'vivid', sel: '.vv-dash', extra: null },
     { id: 'blueprint', sel: '.wb-dash', extra: null },
     { id: 'nocturne', sel: '.cmd-dash', extra: '#commandStatusBar' },
+    { id: 'meridian', sel: '.mrd-dash', extra: '#meridianTopbar' },
   ];
   for (const th of THEMES) {
     const r = await window.evaluate(({ id, sel, extra }) => {

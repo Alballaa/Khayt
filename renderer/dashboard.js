@@ -205,6 +205,13 @@ function renderDashboard() {
     renderLocationScopeBanner?.();
     return;
   }
+  if (document.body.classList.contains('khayt-meridian')
+    && typeof KhaytMeridian?.renderDashboard === 'function'
+    && KhaytMeridian.renderDashboard(el)) {
+    updateTabBadges?.();
+    renderLocationScopeBanner?.();
+    return;
+  }
 
   const dashOrders = typeof orderMatchesActiveLocation === 'function'
     ? printLog.filter(orderMatchesActiveLocation)
