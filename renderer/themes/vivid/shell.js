@@ -237,7 +237,7 @@
       && (settings.onlineEnabled || (settings.lanApi && settings.lanApi.bindLan)));
 
     const now = new Date();
-    const clock = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    const clock = now.toLocaleTimeString(localeTag(), { hour: '2-digit', minute: '2-digit', hour12: false });
 
     bar.innerHTML = `
       <span class="vv-live" aria-hidden="true"></span>

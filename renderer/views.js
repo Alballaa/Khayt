@@ -35,7 +35,7 @@ function renderScheduleView() {
       for (const j of m.jobs) etaById[j.id] = j;
     }
   }
-  const fmtDay = (iso) => { try { return new Date(iso + 'T00:00:00').toLocaleDateString(i18n.current === 'ar' ? 'ar-SA-u-nu-latn' : 'en-US', { month: 'short', day: 'numeric' }); } catch (e) { return iso; } };
+  const fmtDay = (iso) => { try { return new Date(iso + 'T00:00:00').toLocaleDateString(localeTag(), { month: 'short', day: 'numeric' }); } catch (e) { return iso; } };
 
   // Determine time horizon (max 48h or sum of queued)
   const totalHours = Math.max(48, activeOrders.reduce((s, o) => s + (+o.printTime || 0), 0));
@@ -85,7 +85,7 @@ function renderScheduleView() {
   el.innerHTML = `<div class="card">
     <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
       <h3 class="card-head" style="margin:0; flex:1;"><span class="swatch"></span>${escapeHtml(t('kan.schedule_view'))}</h3>
-      <span style="font-size:11.5px; color:var(--text-muted);">${escapeHtml(t('kan.schedule_now'))}: ${new Date().toLocaleTimeString()}</span>
+      <span style="font-size:11.5px; color:var(--text-muted);">${escapeHtml(t('kan.schedule_now'))}: ${new Date().toLocaleTimeString(localeTag())}</span>
     </div>
     <div class="schedule-view" style="position:relative; padding-top:22px;">
       <div style="position:relative; height:22px; margin-inline-start:130px; margin-bottom:4px;">
@@ -125,7 +125,7 @@ function renderCalendarView() {
 
   const firstDay = new Date(y, m, 1);
   const lastDay  = new Date(y, m + 1, 0);
-  const monthStr = firstDay.toLocaleDateString(i18n.current === 'ar' ? 'ar-SA-u-nu-latn' : 'en-US', { year: 'numeric', month: 'long' });
+  const monthStr = firstDay.toLocaleDateString(localeTag(), { year: 'numeric', month: 'long' });
 
   // Build a map: "YYYY-MM-DD" -> orders[]
   const dayMap = {};
@@ -136,8 +136,10 @@ function renderCalendarView() {
     dayMap[d].push(o);
   });
 
-  // Day-of-week headers (Sun–Sat for LTR; adapt for RTL)
-  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  // Day-of-week headers, Sun-first to match getDay(). 2023-01-01 was a Sunday,
+  // so index 0 is Sunday in whatever language is active.
+  const dayFmt = new Intl.DateTimeFormat(localeTag(), { weekday: 'short' });
+  const dayNames = Array.from({ length: 7 }, (_, i) => dayFmt.format(new Date(Date.UTC(2023, 0, i + 1))));
   const headerHtml = dayNames.map(d => `<div class="cal-day-header">${d}</div>`).join('');
 
   // Calendar cells: pad before first day

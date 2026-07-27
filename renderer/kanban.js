@@ -168,7 +168,7 @@ function studioKanbanDuePill(log, status) {
   } else if (diff === 1) {
     label = t('kan.due_tomorrow') || 'Tomorrow';
   } else {
-    label = due.toLocaleDateString(i18n.current === 'ar' ? 'ar-SA-u-nu-latn' : 'en-US', { month: 'short', day: 'numeric' });
+    label = due.toLocaleDateString(localeTag(), { month: 'short', day: 'numeric' });
   }
   return `<span class="khayt-due" style="color:${urgent ? 'var(--danger)' : 'var(--text-dim)'};background:${urgent ? 'var(--danger-soft)' : 'var(--surface-2)'}">${_kIcoL('clock', '🕐', 12)}${escapeHtml(label)}</span>`;
 }
@@ -701,7 +701,7 @@ function renderKanban() {
         const nowMs = Date.now();
         const diffH = (etaMs - nowMs) / 3600000;
         const etaDate = new Date(etaMs);
-        const timeStr = etaDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const timeStr = etaDate.toLocaleTimeString(localeTag(), { hour: '2-digit', minute: '2-digit' });
         let etaLabel;
         if (diffH < -0.5) {
           etaLabel = `<span style="color:var(--danger);">${_kIcoL('alert', '⚠', 12)}${escapeHtml(t('queue.overdue') || 'Overdue')}</span>`;
@@ -709,7 +709,7 @@ function renderKanban() {
           const today0 = new Date(); today0.setHours(0,0,0,0);
           const etaDay0 = new Date(etaDate); etaDay0.setHours(0,0,0,0);
           const dayDiff = Math.round((etaDay0 - today0) / 86400000);
-          const dayLabel = dayDiff === 0 ? 'Today' : dayDiff === 1 ? 'Tomorrow' : etaDate.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+          const dayLabel = dayDiff === 0 ? 'Today' : dayDiff === 1 ? 'Tomorrow' : etaDate.toLocaleDateString(localeTag(), { weekday: 'short', month: 'short', day: 'numeric' });
           etaLabel = `${escapeHtml(dayLabel)} ${escapeHtml(timeStr)}`;
         }
         etaBadge = `<span class="eta-badge">${_kIcoL('flag', '🏁', 12)}${etaLabel}</span>`;

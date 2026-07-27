@@ -180,7 +180,7 @@
     const kgToday = (gramsToday / 1000).toFixed(1);
 
     const now = new Date();
-    const clock = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    const clock = now.toLocaleTimeString(localeTag(), { hour: '2-digit', minute: '2-digit', hour12: false });
 
     /**
      * Map the real cloud-sync state to a status-bar segment. Only a genuinely

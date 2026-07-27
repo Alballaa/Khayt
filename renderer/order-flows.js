@@ -1377,7 +1377,7 @@ function openOrderEditor(orderId) {
       if (hist.length === 0) return '';
       const rows = hist.map(h => {
         const d = new Date(h.at);
-        const dateStr = d.toLocaleDateString(i18n.current === 'ar' ? 'ar-SA-u-nu-latn' : 'en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        const dateStr = d.toLocaleDateString(localeTag(), { day: '2-digit', month: 'short', year: 'numeric' });
         const timeStr = d.toTimeString().slice(0, 5);
         return `<div class="status-timeline-row">
           <span class="badge ${escapeHtml(h.status)}" style="font-size:10px;">${escapeHtml(t('queue.' + h.status))}</span>
@@ -1810,7 +1810,7 @@ function openOrderEditor(orderId) {
         const clearDate = estimateMachineQueueClearDate(order.machineId, order.id);
         const due = new Date(newDueDate);
         if (clearDate > due) {
-          const clearStr = clearDate.toLocaleDateString();
+          const clearStr = clearDate.toLocaleDateString(localeTag());
           const ok = await confirmModal(
             t('oe.capacity_warn', { date: clearStr }) ||
               `Machine queue clears on ${clearStr}, which is after the due date. Save anyway?`,
@@ -2282,7 +2282,7 @@ function openRmaModal(orderId) {
     sizeLg: false,
     saveLabel: t('common.save'),
     bodyHtml: `
-      <p style="font-size:12.5px;margin-bottom:10px;${warnStyle}"><strong>${escapeHtml(warnTxt)}</strong>${order.deliveredAt ? ' · ' + escapeHtml(t('ord.delivered') || 'Delivered') + ' ' + escapeHtml(new Date(order.deliveredAt).toLocaleDateString()) : ''}</p>
+      <p style="font-size:12.5px;margin-bottom:10px;${warnStyle}"><strong>${escapeHtml(warnTxt)}</strong>${order.deliveredAt ? ' · ' + escapeHtml(t('ord.delivered') || 'Delivered') + ' ' + escapeHtml(new Date(order.deliveredAt).toLocaleDateString(localeTag())) : ''}</p>
       <label>${escapeHtml(t('qc.rma_reason') || 'Reported problem')}</label>
       <input type="text" id="rmaReason" style="width:100%;margin-bottom:10px;" placeholder="${escapeHtml(t('qc.rma_reason_ph') || 'e.g. layer split after a week')}">
       <label>${escapeHtml(t('qc.rma_resolution') || 'Resolution')}</label>
@@ -2407,7 +2407,7 @@ async function generateOrderLabel(orderId) {
     </div>
   </div>
   ${order.internalNotes ? `<div style="font-size:7pt;color:#444;border-top:0.3mm solid #eee;padding-top:1.5mm;">📝 ${escapeHtml(order.internalNotes.slice(0, 120))}</div>` : ''}
-  <div class="footer">${escapeHtml(new Date().toLocaleDateString())} · Khayt</div>
+  <div class="footer">${escapeHtml(new Date().toLocaleDateString(localeTag()))} · Khayt</div>
 </div>
 <script>window.onload = () => { setTimeout(() => window.print(), 250); };<\/script>
 </body></html>`;
@@ -2444,7 +2444,7 @@ async function generatePackingSlip(orderId) {
   const shopEmail = settings.email || '';
   const accentColor = safeCssColor(settings.invAccentColor, '#5E2E14');
   const dateStr = order.completedAt
-    ? new Date(order.completedAt).toLocaleDateString()
+    ? new Date(order.completedAt).toLocaleDateString(localeTag())
     : order.date || localDateStr();
 
   const parts = order.parts || [];
@@ -2712,7 +2712,7 @@ function openEditHistoryModal(orderId) {
         </tr></thead>
         <tbody>${[...history].reverse().map(h => {
           const d = new Date(h.at);
-          const dateStr = d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) + ' ' + d.toTimeString().slice(0,5);
+          const dateStr = d.toLocaleDateString(localeTag(), { day:'2-digit', month:'short', year:'numeric' }) + ' ' + d.toTimeString().slice(0,5);
           const fieldRows = Object.entries(h.fields).map(([k, v]) =>
             `<div style="margin-bottom:2px;"><strong>${escapeHtml(k)}:</strong> <span style="color:var(--danger);">${escapeHtml(String(v.from ?? ''))}</span> → <span style="color:var(--success);">${escapeHtml(String(v.to ?? ''))}</span></div>`
           ).join('');

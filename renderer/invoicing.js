@@ -351,7 +351,7 @@ function openQuoteRevisionsModal(orderId) {
         <tbody>
           ${[...revisions].reverse().map(rev => `<tr>
             <td><strong>v${rev.version}</strong></td>
-            <td style="font-size:11.5px;">${new Date(rev.snapshotAt).toLocaleDateString()}</td>
+            <td style="font-size:11.5px;">${new Date(rev.snapshotAt).toLocaleDateString(localeTag())}</td>
             <td>${fmtPrice(rev.price)}</td>
             <td style="font-size:11.5px;">${(rev.parts || []).length} parts</td>
             <td style="font-size:11.5px; max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(rev.notes || '—')}</td>
@@ -1692,7 +1692,7 @@ function formatPrintDate(isoDate) {
   if (!isoDate) return '';
   try {
     const d = new Date(isoDate);
-    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    return d.toLocaleDateString(localeTag(), { day: '2-digit', month: 'short', year: 'numeric' });
   } catch { return isoDate; }
 }
 

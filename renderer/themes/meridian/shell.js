@@ -210,12 +210,17 @@
     if (date) {
       try {
         date.textContent = now.toLocaleDateString(
-          (typeof i18n !== 'undefined' && i18n.current === 'ar') ? 'ar' : undefined,
+          localeTag(),
           { weekday: 'short', day: 'numeric', month: 'short' },
         );
       } catch (_) { date.textContent = ''; }
     }
   }
+
+  // The date reads "Mon, Jul 27" — weekday and month names, so it is
+  // language-dependent in a way a bare HH:MM clock is not. Without this it
+  // keeps the previous language until the next 30s tick.
+  document.addEventListener('languagechange', () => { if (isOn()) syncClock(); });
 
   function startClock() {
     stopClock();

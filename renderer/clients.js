@@ -233,7 +233,7 @@ async function generateIntakeForm(clientId) {
   const shopPhone = settings.phone || '';
   const shopEmail = settings.email || '';
   const clientName = client ? localName(client) : '';
-  const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const dateStr = new Date().toLocaleDateString(localeTag(), { year: 'numeric', month: 'long', day: 'numeric' });
   const accentColor = safeCssColor(settings.invAccentColor, '#5E2E14');
 
   const html = `<!DOCTYPE html>

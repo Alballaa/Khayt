@@ -414,7 +414,7 @@ function syncTopbarTitle(tabId) {
   if (!sub) return;
   if (tabId === 'dashboard-tab') {
     const d = new Date();
-    sub.textContent = d.toLocaleDateString(i18n.current === 'ar' ? 'ar-SA-u-nu-latn' : 'en-US', {
+    sub.textContent = d.toLocaleDateString(localeTag(), {
       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
     });
   } else {
