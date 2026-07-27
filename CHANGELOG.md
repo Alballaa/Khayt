@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.4.0-beta.2] - 2026-07-27
+
+A translation beta. The email digest and four settings sections were showing
+English to everyone regardless of language; both are fixed, and a new guard
+means a rewrite can no longer silently orphan its translations.
+
 ### Fixed
 
 - **The email digest settings were part English in every language.** "Daily" and
