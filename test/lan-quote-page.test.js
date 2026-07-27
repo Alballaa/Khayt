@@ -54,8 +54,13 @@ test('applyQuoteApprovalToStore returns null for missing order', () => {
 });
 
 test('isQuoteExpired compares quoteExpiresAt to today', () => {
-  const today = new Date().toISOString().slice(0, 10);
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  // The SHOP's day, matching isQuoteExpired. A UTC helper here quietly asserted
+  // the bug: it agreed with the old implementation for most of the day and
+  // disagreed for the hours when the two calendars differ, which is precisely
+  // the window where an expired quote used to stay approvable.
+  const localDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const today = localDay(new Date());
+  const yesterday = localDay(new Date(Date.now() - 86400000));
   assert.equal(isQuoteExpired({ quoteExpiresAt: yesterday }), true);
   assert.equal(isQuoteExpired({ quoteExpiresAt: today }), false);
   assert.equal(isQuoteExpired({}), false);

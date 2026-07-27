@@ -52,6 +52,69 @@ test('no renderer file derives a calendar date from toISOString()', () => {
   assert.deepEqual(bad, [], `use localDateStr() instead of toISOString() for calendar dates:\n  ${bad.join('\n  ')}`);
 });
 
+/**
+ * The ban above covers renderer/ only, where 85 call sites were fixed. lib/ was
+ * never in scope — and isQuoteExpired() in lib/lan-quote-page.js was deciding
+ * whether a CUSTOMER's quote had expired from the UTC day. In Riyadh that left
+ * an expired quote approvable from local midnight to 03:00; in New York it
+ * marked a live quote expired after 20:00.
+ *
+ * lib is not renderer, though: some files there do UTC arithmetic on purpose,
+ * anchoring to T00:00:00Z and reading back in UTC, which never drifts because
+ * both ends agree. Those are listed with the reason rather than reformatted —
+ * changing correct code to satisfy a pattern match would be the worse trade.
+ */
+const LIB_UTC_IS_DELIBERATE = {
+  'lib/schedule.js': 'setUTCDate then read UTC — day arithmetic, both ends UTC, cannot drift',
+  'lib/sample-data.js': 'anchors to T00:00:00Z and does UTC arithmetic; demo data besides',
+  'lib/payment-plan.js': 'addDays anchors to T00:00:00.000Z; the no-argument branch is unreachable',
+  'lib/telemetry-scrub.js': 'telemetry is aggregated in UTC by design, not shown as a local day',
+};
+
+test('no lib file derives a LOCAL calendar date from toISOString()', () => {
+  const offenders = [];
+  const walk = (rel) => {
+    for (const entry of fs.readdirSync(path.join(ROOT, rel))) {
+      const r = path.join(rel, entry);
+      if (fs.statSync(path.join(ROOT, r)).isDirectory()) { walk(r); continue; }
+      if (!entry.endsWith('.js')) continue;
+      if (LIB_UTC_IS_DELIBERATE[r]) continue;
+      const src = fs.readFileSync(path.join(ROOT, r), 'utf8');
+      src.split('\n').forEach((line, i) => {
+        // A comment explaining the banned pattern is not an instance of it.
+        const code = line.trim();
+        if (code.startsWith('*') || code.startsWith('//')) return;
+        if (/toISOString\(\)\s*\.\s*(slice\(0,\s*10\)|split\('T'\)\[0\]|substring\(0,\s*10\))/.test(line)) {
+          offenders.push(`${r}:${i + 1}`);
+        }
+      });
+    }
+  };
+  walk('lib');
+  assert.deepEqual(offenders, [],
+    'these read a calendar day from UTC — use the local calendar, or add the file to '
+    + `LIB_UTC_IS_DELIBERATE with the reason:\n  ${offenders.join('\n  ')}`);
+});
+
+test('an expired quote is expired in the shop timezone, not UTC', () => {
+  const { isQuoteExpired } = require('../lib/lan-quote-page.js');
+  const RealDate = Date;
+  // 22:30Z on the 27th = 01:30 local on the 28th in Riyadh (UTC+3).
+  const fixed = new RealDate('2026-07-27T22:30:00Z');
+  global.Date = class extends RealDate {
+    constructor(...a) { return a.length ? new RealDate(...a) : new RealDate(fixed); }
+    static now() { return fixed.getTime(); }
+  };
+  try {
+    const localDay = new RealDate(fixed).toLocaleDateString('en-CA');
+    if (localDay !== '2026-07-28') return;   // only meaningful east of UTC
+    assert.equal(isQuoteExpired({ quoteExpiresAt: '2026-07-27' }), true,
+      'a quote that expired yesterday must not stay approvable after local midnight');
+    assert.equal(isQuoteExpired({ quoteExpiresAt: '2026-07-28' }), false,
+      'a quote expiring today is still valid today');
+  } finally { global.Date = RealDate; }
+});
+
 test('localDateStr returns the LOCAL calendar date, not the UTC one', () => {
   // A moment that is a different calendar day in UTC than in a UTC+ zone.
   const d = new Date(2026, 6, 25, 1, 30); // 01:30 local on Jul 25

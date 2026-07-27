@@ -10,10 +10,15 @@ function calcNextDueDate(fromDate, recurring) {
   if (!fromDate || !recurring) return null;
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(fromDate).trim());
   if (!m) return null;
-  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
-  if (recurring === 'monthly') d.setUTCMonth(d.getUTCMonth() + 1);
-  else if (recurring === 'quarterly') d.setUTCMonth(d.getUTCMonth() + 3);
-  else if (recurring === 'annually') d.setUTCFullYear(d.getUTCFullYear() + 1);
+  // Build, advance and read on the SAME calendar. This used to construct the
+  // date in UTC, advance it in UTC, then format it with localDateStr — and west
+  // of UTC those disagree by a day, so every cycle lost one: an expense anchored
+  // on the 15th went 14th, 13th, 12th, 11th. It compounded, and it was invisible
+  // in CI because CI runs in UTC.
+  const d = new Date(+m[1], +m[2] - 1, +m[3]);
+  if (recurring === 'monthly') d.setMonth(d.getMonth() + 1);
+  else if (recurring === 'quarterly') d.setMonth(d.getMonth() + 3);
+  else if (recurring === 'annually') d.setFullYear(d.getFullYear() + 1);
   else return null;
   return localDateStr(d);
 }

@@ -96,8 +96,12 @@ test('Arabic keeps Western digits while its words localise', () => {
   const tag = src.match(/ar:\s*'([^']+)'/)?.[1];
   assert.ok(tag?.includes('nu-latn'), 'the Arabic tag must pin Latin numerals');
 
+  // timeZone: 'UTC' pins WHICH day is rendered. Without it the formatter uses
+  // the machine's zone, so this asserted "27" on a date that reads as the 26th
+  // anywhere west of UTC — making a test about DIGITS fail over a calendar day
+  // it never meant to check.
   const shown = new Date(Date.UTC(2026, 6, 27)).toLocaleDateString(tag, {
-    year: 'numeric', month: 'long', day: 'numeric',
+    year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
   });
   assert.match(shown, /27/, 'day should render in Western digits');
   assert.match(shown, /2026/, 'year should render in Western digits');
