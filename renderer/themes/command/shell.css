@@ -297,7 +297,18 @@ body.khayt-command .khayt-search {
   background: var(--panel-2);
   font-size: 11.5px;
 }
-body.khayt-command .topbar-actions { flex-shrink: 0; }
+/* NOT flex-shrink: 0. Combined with the nowrap below, that pinned this block at
+   its full width and pushed the last control — the language picker — off the
+   right edge on any window under about 1100px. html/body are overflow:hidden,
+   so off the edge means gone: no scrollbar, no way to reach it. It shrinks and
+   scrolls sideways instead, which keeps the single-row look without losing a
+   control. Workbench never set flex-shrink here, which is why it was fine. */
+body.khayt-command .topbar-actions {
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+body.khayt-command .topbar-actions::-webkit-scrollbar { display: none; }
 body.khayt-command .topbar-actions .btn {
   border: 1px solid var(--border);
   background: var(--panel);
