@@ -206,3 +206,34 @@ body.khayt-foreman .fm-detail-empty {
   body.khayt-foreman .fm-docket { border-inline-end: 0; border-bottom: 1px solid var(--line); }
   body.khayt-foreman .fm-rows { max-height: 46vh; }
 }
+
+/* ---- 4. Grouped runs.
+
+   A severity with more than a few rows collapses to one summary row. Without
+   it the worst-first ranking loses to volume: thirty unpaid invoices bury the
+   stopped printer they are ranked below. The group row is visibly a control,
+   not an item — full-width chevron, lighter fill — so it does not read as one
+   more thing needing a decision. ---- */
+body.khayt-foreman .fm-row.fm-group {
+  background: var(--surface-2);
+  border-style: dashed;
+  border-color: var(--line);
+}
+body.khayt-foreman .fm-row.fm-group:hover { background: var(--surface-3); }
+body.khayt-foreman .fm-row.fm-group .fm-row-title { font-weight: 600; }
+body.khayt-foreman .fm-row.fm-group .fm-row-detail { color: var(--ink-4); }
+body.khayt-foreman .fm-chev {
+  margin-inline-start: auto;
+  font-family: var(--font-num); font-size: 13px; color: var(--ink-3);
+  flex: 0 0 auto; align-self: center;
+}
+/* Items under an open group are stepped in, so the run reads as belonging to
+   the header above it rather than as a flat list that happens to repeat. */
+body.khayt-foreman .fm-row.fm-group[aria-expanded="true"] + .fm-row,
+body.khayt-foreman .fm-row.fm-group[aria-expanded="true"] ~ .fm-row {
+  margin-inline-start: 14px;
+}
+body.khayt-foreman .fm-note {
+  font-size: 12px; color: var(--ink-3);
+  border-top: 1px solid var(--line-2); padding-top: 10px; margin-top: -4px;
+}
