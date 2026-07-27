@@ -3427,5 +3427,8 @@
   "set.salla_zid_title": "Salla / Zid Webhooks",
   "set.fixed_costs_hint": "Add monthly fixed costs (rent, salaries, subscriptions) to compute your break-even revenue on the dashboard.",
   "set.webhooks_hint": "Fire HTTP POST requests to Zapier, Make.com, n8n, or any URL when order events happen.",
+  "upd.eta_sec": "about {n} sec",
+  "upd.eta_min": "about {n} min",
+  "upd.stalled": "The download has not progressed for a while. It may still recover — or you can download it manually.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

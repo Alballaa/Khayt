@@ -3425,5 +3425,8 @@
   "set.salla_zid_title": "Webhooks Salla / Zid",
   "set.fixed_costs_hint": "Adicione custos fixos mensais (aluguel, salários, assinaturas) para calcular sua receita de equilíbrio no painel.",
   "set.webhooks_hint": "Dispara requisições HTTP POST para Zapier, Make.com, n8n ou qualquer URL quando eventos de pedido acontecerem.",
+  "upd.eta_sec": "cerca de {n} s",
+  "upd.eta_min": "cerca de {n} min",
+  "upd.stalled": "O download não avança há algum tempo. Ele pode se recuperar sozinho — ou você pode baixá-lo manualmente.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

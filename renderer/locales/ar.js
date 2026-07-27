@@ -3426,5 +3426,8 @@
   "set.salla_zid_title": "ويب هوك سلة / زد",
   "set.fixed_costs_hint": "أضف التكاليف الثابتة الشهرية (الإيجار، الرواتب، الاشتراكات) لحساب إيراد نقطة التعادل في لوحة المعلومات.",
   "set.webhooks_hint": "أرسل طلبات HTTP POST إلى Zapier أو Make.com أو n8n أو أي رابط عند وقوع أحداث الطلبات.",
+  "upd.eta_sec": "حوالي {n} ثانية",
+  "upd.eta_min": "حوالي {n} دقيقة",
+  "upd.stalled": "لم يتقدّم التنزيل منذ فترة. قد يستأنف تلقائيًا — أو يمكنك تنزيله يدويًا.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

@@ -3424,5 +3424,8 @@
   "set.salla_zid_title": "Salla / Zid Webhook'ları",
   "set.fixed_costs_hint": "Panoda başabaş gelirini hesaplamak için aylık sabit maliyetleri (kira, maaş, abonelik) ekleyin.",
   "set.webhooks_hint": "Sipariş olayları gerçekleştiğinde Zapier, Make.com, n8n veya herhangi bir URL’ye HTTP POST istekleri gönderir.",
+  "upd.eta_sec": "yaklaşık {n} sn",
+  "upd.eta_min": "yaklaşık {n} dk",
+  "upd.stalled": "İndirme bir süredir ilerlemiyor. Kendiliğinden devam edebilir — ya da elle indirebilirsiniz.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

@@ -3424,5 +3424,8 @@
   "set.salla_zid_title": "Salla / Zid Webhook",
   "set.fixed_costs_hint": "毎月の固定費（家賃・給与・サブスク）を追加すると、ダッシュボードで損益分岐点の売上を計算します。",
   "set.webhooks_hint": "注文イベントの発生時に Zapier、Make.com、n8n など任意の URL へ HTTP POST を送信します。",
+  "upd.eta_sec": "残り約 {n} 秒",
+  "upd.eta_min": "残り約 {n} 分",
+  "upd.stalled": "ダウンロードがしばらく進んでいません。自動的に再開する場合もありますが、手動でダウンロードすることもできます。",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

@@ -4,6 +4,27 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **A working update download looked like a frozen one.** The update is over
+  150 MB. The progress panel showed a bar and a bare percentage — which on a
+  file that size creeps a single point every few seconds — and nothing else, so
+  a download running perfectly well was indistinguishable from one that had
+  died. Reported from the field as "it found the beta and started the download
+  but nothing is downloading"; the download was fine and finished on its own.
+  The panel now shows how much has arrived, the current speed and a rough time
+  remaining, all of which the app was already receiving and throwing away.
+- **A download that really has stalled now says so.** After 45 seconds with no
+  progress the panel says the download has stopped moving and points to the
+  manual download, instead of showing a bar that will never fill. It does not
+  cancel anything — if the download recovers, the message clears itself.
+- **Screen readers announced 0% for the entire download.** The progress bar
+  never updated its accessible value, and the whole live region was rebuilt on
+  every progress tick, which made it re-announce several times a second.
+- **Update failures left no trace.** electron-updater was running without a
+  logger, so a stalled or failed update produced no record of the feed it used,
+  the file it chose, or how far it got. It now logs to the app's standard error.
+
 ## [3.4.0-beta.2] - 2026-07-27
 
 A translation beta. The email digest and four settings sections were showing

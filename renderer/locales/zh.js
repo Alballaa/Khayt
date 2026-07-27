@@ -3424,5 +3424,8 @@
   "set.salla_zid_title": "Salla / Zid Webhook",
   "set.fixed_costs_hint": "添加每月固定成本（租金、薪资、订阅），即可在仪表板上计算盈亏平衡营收。",
   "set.webhooks_hint": "当订单事件发生时，向 Zapier、Make.com、n8n 或任意 URL 发送 HTTP POST 请求。",
+  "upd.eta_sec": "约剩 {n} 秒",
+  "upd.eta_min": "约剩 {n} 分钟",
+  "upd.stalled": "下载已有一段时间没有进展。它可能会自行恢复，你也可以手动下载。",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

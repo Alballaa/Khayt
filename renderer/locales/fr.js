@@ -3424,5 +3424,8 @@
   "set.salla_zid_title": "Webhooks Salla / Zid",
   "set.fixed_costs_hint": "Ajoutez les coûts fixes mensuels (loyer, salaires, abonnements) pour calculer votre chiffre d’affaires d’équilibre sur le tableau de bord.",
   "set.webhooks_hint": "Envoie des requêtes HTTP POST vers Zapier, Make.com, n8n ou toute URL lors des événements de commande.",
+  "upd.eta_sec": "environ {n} s",
+  "upd.eta_min": "environ {n} min",
+  "upd.stalled": "Le téléchargement n’a pas progressé depuis un moment. Il peut repartir tout seul — ou vous pouvez le télécharger manuellement.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
