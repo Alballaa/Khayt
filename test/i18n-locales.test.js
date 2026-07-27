@@ -153,3 +153,74 @@ test('deleted themes leave no strings behind', () => {
     assert.equal(html.includes('consoleStatusBar'), false, `${shell} still has the dead status bar`);
   }
 });
+
+/**
+ * Every key in en.js must be reachable from code. 199 were not.
+ *
+ * Dead keys are not free: each one is nine translations that get re-reviewed on
+ * every locale pass, and they hide real defects. The digest rewrite moved its
+ * strings to a `digest.*` namespace and left `set.digest_*` behind — which
+ * looked like ordinary dead copy, but "Daily"/"Weekly" were still on screen in
+ * English because the rewrite had dropped the t() calls, not the feature.
+ *
+ * "Reachable" is deliberately generous — a key passes if its exact text appears
+ * anywhere in any source file, or if it starts with a prefix that some code
+ * concatenates onto ('cl.source_' + src), or ends with a tail some code appends
+ * (x + '.title'). Only a key that satisfies none of those is reported. A key
+ * used in a way this cannot see is a key no reader can find either.
+ */
+test('no locale key is unreachable from code', () => {
+  const ctx = vm.createContext({ globalThis: {} });
+  ctx.globalThis = ctx;
+  vm.runInContext(fs.readFileSync(path.join(root, 'renderer/locales/en.js'), 'utf8'), ctx);
+  const keys = Object.keys(ctx.globalThis.KhaytLocales.en);
+
+  const files = [];
+  (function walk(d) {
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      if (['node_modules', '.git', 'build', 'dist'].includes(e.name)) continue;
+      const p = path.join(d, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (/\.(js|mjs|cjs|html|css|json|md)$/.test(e.name) && !p.includes(path.join('renderer', 'locales'))) files.push(p);
+    }
+  })(root);
+  const blob = files.map((f) => fs.readFileSync(f, 'utf8')).join('\n');
+
+  // Prefixes some code concatenates onto, and tails some code appends.
+  const pre = new Set(); const suf = new Set();
+  for (const re of [/['"]([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*[._])['"]\s*\+/g,
+                    /`([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*[._])\$\{/g])
+    for (const m of blob.matchAll(re)) pre.add(m[1].replace(/[._]$/, ''));
+  for (const re of [/\+\s*['"][._]([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*)['"]/g,
+                    /\$\{[^}]+\}[._]([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*)/g])
+    for (const m of blob.matchAll(re)) suf.add(m[1]);
+
+  const isKeyChar = (ch) => /[A-Za-z0-9_.]/.test(ch);
+  const literal = (k) => {
+    for (let i = blob.indexOf(k); i !== -1; i = blob.indexOf(k, i + k.length)) {
+      if (!isKeyChar(blob[i - 1] || '') && !isKeyChar(blob[i + k.length] || '')) return true;
+    }
+    return false;
+  };
+  const dead = keys.filter((k) => !literal(k)
+    && ![...pre].some((p) => k === p || k.startsWith(`${p}.`) || k.startsWith(`${p}_`))
+    && ![...suf].some((s) => k === s || k.endsWith(`.${s}`) || k.endsWith(`_${s}`)));
+
+  assert.deepEqual(dead, [],
+    `${dead.length} locale key(s) no code can reach — delete them from all nine locales:\n  ${dead.join('\n  ')}`);
+});
+
+test('every settings section head and hint is translatable', () => {
+  // Four heads ("LAN API & iCal", "Outbound Webhooks", …) and two hints shipped
+  // as bare English: no data-i18n, so applyToDom never touched them and they
+  // stayed English in all nine languages. The scan found them because their
+  // would-be keys were sitting unused in the locale files.
+  for (const shell of ['renderer/index.html', 'renderer/bedready.html']) {
+    const html = fs.readFileSync(path.join(root, shell), 'utf8');
+    const bare = [...html.matchAll(/<div class="settings-section-head"([^>]*)>([^<]+)</g)]
+      .filter((m) => !/data-i18n/.test(m[1]))
+      .map((m) => m[2].trim());
+    assert.deepEqual(bare, [],
+      `${shell}: section head(s) render English in every language:\n  ${bare.join('\n  ')}`);
+  }
+});

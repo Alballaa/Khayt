@@ -1523,7 +1523,13 @@ function renderDigestSettings() {
   const hourOpts = Array.from({ length: 24 }, (_, i) =>
     `<option value="${i}" ${(d.hour ?? 8) === i ? 'selected' : ''}>${String(i).padStart(2,'0')}:00</option>`
   ).join('');
-  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  // Weekday names come from Intl, not from locale keys: the digest picker needs
+  // all seven in whatever language is active, and Intl already knows them for
+  // every language we ship (and every one we don't). 2023-01-01 was a Sunday,
+  // so day-of-month i+1 lines up with weekday index i.
+  const lang = (typeof i18n !== 'undefined' && i18n.current) || 'en';
+  const dayFmt = new Intl.DateTimeFormat(lang, { weekday: 'long' });
+  const dayNames = Array.from({ length: 7 }, (_, i) => dayFmt.format(new Date(Date.UTC(2023, 0, i + 1))));
   const dayOpts = dayNames.map((n, i) =>
     `<option value="${i}" ${(d.weekday ?? 1) === i ? 'selected' : ''}>${escapeHtml(n)}</option>`
   ).join('');
@@ -1541,11 +1547,11 @@ function renderDigestSettings() {
         <div style="display:flex;gap:16px;margin-top:4px;">
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:normal;">
             <input type="radio" name="digestFreq" value="daily" ${d.frequency !== 'weekly' ? 'checked' : ''} style="width:auto;margin:0;">
-            Daily
+            ${escapeHtml(t('digest.daily') || 'Daily')}
           </label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:normal;">
             <input type="radio" name="digestFreq" value="weekly" ${d.frequency === 'weekly' ? 'checked' : ''} style="width:auto;margin:0;">
-            Weekly
+            ${escapeHtml(t('digest.weekly') || 'Weekly')}
           </label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:normal;">
             <input type="radio" name="digestFreq" value="monthly" ${d.frequency === 'monthly' ? 'checked' : ''} style="width:auto;margin:0;">

@@ -4,6 +4,35 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **The email digest settings were part English in every language.** "Daily" and
+  "Weekly" — and all seven day-of-week names — were written into the markup as
+  plain English, so choosing Arabic gave you `يومي` nowhere and "Sunday, Monday"
+  in an otherwise right-to-left panel. Japanese showed "Daily, Weekly, 毎月":
+  two English words next to a translated one. The frequency labels now use the
+  translations that already existed in all nine languages, and the weekday names
+  come from the system's own calendar data, so they are correct in every
+  language — including ones Khayt does not ship a translation for. Stored
+  settings are unaffected: only the labels changed, not the values behind them.
+- **Four settings sections and two of their descriptions never translated.**
+  "LAN API & iCal", "Fixed Costs & Break-Even", "Outbound Webhooks" and
+  "Salla / Zid Webhooks" shipped without translation markers, so they stayed in
+  English no matter the language. Now translated into all nine.
+
+### Removed
+
+- **205 locale strings that no code could reach**, across all nine languages —
+  roughly 1,850 translated lines. These accumulated when features were rewritten
+  and their old strings left behind; every one of them was re-read and
+  re-reviewed on each translation pass for UI that could never display it. A new
+  test now fails if an unreachable string is added, which is how the email
+  digest bug above surfaced: its real translations had been orphaned by a
+  rewrite while the screen quietly fell back to English.
+- Three one-shot migration scripts (`apply-studio-4-1.py`, `patch-phase3.py`,
+  `patch-phase4.py`) that patched markup which no longer exists — they were
+  no-ops, and their snapshots of old code made dead strings look alive.
+
 ## [3.4.0-beta.1] - 2026-07-27
 
 Opens the 3.4 beta line. Khayt goes from three designs to seven — two of them
