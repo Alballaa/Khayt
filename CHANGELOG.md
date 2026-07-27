@@ -4,6 +4,52 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.4.0-beta.1] - 2026-07-27
+
+Opens the 3.4 beta line. Khayt goes from three designs to seven — two of them
+new ways of working rather than new colours — and gains a ninth language.
+
+### Added
+
+- **Four new looks, and two of them are new ways to work — not just new colours.**
+  Khayt had three designs; it now has seven.
+  - **Blueprint** — warm paper and blueprint blue, the drafting-room calm of Bed
+    Ready's look, with a deep blue dark mode.
+  - **Nocturne** — dark by default with amber instrument accents. Built for
+    checking a farm at 2am: amber keeps your eyes adjusted to the dark the way
+    an instrument panel does, and colour is saved for warnings so a real problem
+    is the loudest thing on the screen.
+  - **Meridian** — a schedule instead of a dashboard. Your printers are lanes on
+    a clock, jobs are blocks sized by how long they take, and a line marks now,
+    so you can see what is running, where the gaps are, and what will be late.
+    **Drag a job onto another printer to reassign it.** There is no sidebar —
+    the time axis needs the room.
+  - **Foreman** — a list you empty rather than a dashboard you read. Everything
+    needing a decision, worst first, with a count that follows you onto every
+    screen and reaches zero when you are done. J and K move, Enter opens.
+
+- **Português (Brasil).** A complete translation — all 3,675 phrases, not a
+  partial one — bringing Khayt to nine languages.
+
+### Fixed
+
+- **Faint text was too faint to read in every light theme.** Hints, subtitles
+  and the small print under figures failed the accessibility contrast standard
+  in ten of fourteen theme and light/dark combinations — worst in Command, at
+  little over half the required contrast. Every one now passes, with the
+  colours otherwise unchanged.
+
+- **"Coming soon" themes both introduced themselves as Workbench.** The two
+  preview cards in Settings showed Workbench's name and description instead of
+  their own. They have always done this; it only became obvious once there were
+  more themes beside them.
+
+- **A stray "— —" under the content on every screen.** Left over from a design
+  removed several releases ago, in all seven themes.
+
+- **Meridian's top bar now shows it can scroll**, with arrows when there are
+  more tabs than fit, and always keeps the screen you are on in view.
+
 ## [3.3.0] - 2026-07-26
 
 The 3.3.0 beta line, released as stable. Individual beta entries are kept below;
