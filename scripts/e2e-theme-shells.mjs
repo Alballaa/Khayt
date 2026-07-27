@@ -30,6 +30,9 @@ const THEME_CASES = [
     // that is what a user clicks and what this suite must click.
     navSelTpl: '#meridianTopbar [data-mrd-tab="{tab}"]',
     reachSel: '#meridianTopbar [data-mrd-tab="converter-tab"]' },
+  // Flow also keeps the sidebar; what is bespoke is the HOME — a live board you
+  // drag work across rather than a set of tiles you read.
+  { id: 'flow', bodyClass: 'khayt-flow', appearance: 'light', dashSel: '.flow-board', dashMin: 80 },
   // Foreman keeps the sidebar; what is bespoke is the HOME — a docket, not a
   // dashboard — so it pins .fm-shell and uses the normal nav.
   { id: 'foreman', bodyClass: 'khayt-foreman', appearance: 'light', dashSel: '.fm-shell', dashMin: 80 },
@@ -233,6 +236,37 @@ async function assertNoControlsOffscreen(window, themeCases) {
     }
   } finally {
     await window.setViewportSize(original);
+  }
+}
+
+/**
+ * Flow's whole premise is that dragging a card moves the work. If that breaks,
+ * the design is a picture of a board.
+ *
+ * Dispatches real DragEvents rather than driving the mouse: Playwright's
+ * dragAndDrop is mouse-based and does not start HTML5 native drag inside
+ * Electron, so a mouse-driven version of this test fails against code that
+ * works — which it did, before this was written this way.
+ */
+async function assertFlowDragMovesWork(window) {
+  await applyThemeCase(window, THEME_CASES.find((c) => c.id === 'flow'));
+  await window.waitForTimeout(400);
+
+  const r = await window.evaluate(() => {
+    const card = document.querySelector('.flow-col[data-status="pending"] .flow-card');
+    const col = document.querySelector('.flow-col[data-status="printing"]');
+    if (!card || !col) return { skip: 'no pending card or printing column to drag between' };
+    const id = card.dataset.orderId;
+    const dt = new DataTransfer();
+    card.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: dt }));
+    col.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }));
+    col.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }));
+    const after = printLog.find((o) => o.id === id);
+    return { id, status: after?.status };
+  });
+  if (r.skip) throw new Error(`flow: ${r.skip}`);
+  if (r.status !== 'printing') {
+    throw new Error(`flow: dragging ${r.id} from pending to printing left it as "${r.status}"`);
   }
 }
 
@@ -526,6 +560,9 @@ try {
 
   await assertNoControlsOffscreen(window, THEME_CASES);
   console.log('  no control is stranded off a narrow window: ok');
+
+  await assertFlowDragMovesWork(window);
+  console.log('  Flow: dragging a card actually moves the work: ok');
 
   await assertEnthusiastThemesNoMoney(window);
   console.log('  enthusiast themed dashboards: no revenue/margin ok');

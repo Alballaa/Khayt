@@ -84,13 +84,14 @@
     document.body.classList.toggle('khayt-vivid', !isBedReady() && shell === 'vivid');
     document.body.classList.toggle('khayt-meridian', !isBedReady() && shell === 'meridian');
     document.body.classList.toggle('khayt-foreman', !isBedReady() && shell === 'foreman');
+    document.body.classList.toggle('khayt-flow', !isBedReady() && shell === 'flow');
     document.body.classList.toggle('khayt-shell-default', !isBedReady() && shell === 'default');
 
     document.querySelectorAll('[data-khayt-body-class]').forEach((el) => {
       el.classList.remove(el.dataset.khaytBodyClass);
       delete el.dataset.khaytBodyClass;
     });
-    if (theme?.bodyClass && !['bedready-ui', 'khayt-workbench', 'khayt-command', 'khayt-vivid', 'khayt-meridian', 'khayt-foreman'].includes(theme.bodyClass)) {
+    if (theme?.bodyClass && !['bedready-ui', 'khayt-workbench', 'khayt-command', 'khayt-vivid', 'khayt-meridian', 'khayt-foreman', 'khayt-flow'].includes(theme.bodyClass)) {
       document.body.classList.add(theme.bodyClass);
       document.body.dataset.khaytBodyClass = theme.bodyClass;
     }
@@ -105,6 +106,7 @@
     const wasVivid = document.body.classList.contains('khayt-vivid');
     const wasMeridian = document.body.classList.contains('khayt-meridian');
     const wasForeman = document.body.classList.contains('khayt-foreman');
+    const wasFlow = document.body.classList.contains('khayt-flow');
     const nextShell = theme?.shell || 'workbench';
 
     if (['workbench', 'command', 'vivid', 'foreman'].includes(nextShell)) {
@@ -125,18 +127,20 @@
     if (wasVivid) global.KhaytVividShell?.teardownVividShell?.();
     if (wasMeridian) global.KhaytMeridianShell?.teardownMeridianShell?.();
     if (wasForeman) global.KhaytForemanShell?.teardownForemanShell?.();
+    if (wasFlow) global.KhaytFlowShell?.teardownFlowShell?.();
     if (nextShell === 'workbench') global.KhaytWorkbenchShell?.applyWorkbenchShell?.();
     if (nextShell === 'command') global.KhaytCommandShell?.applyCommandShell?.();
     if (nextShell === 'vivid') global.KhaytVividShell?.applyVividShell?.();
     if (nextShell === 'meridian') global.KhaytMeridianShell?.applyMeridianShell?.();
     if (nextShell === 'foreman') global.KhaytForemanShell?.applyForemanShell?.();
+    if (nextShell === 'flow') global.KhaytFlowShell?.applyFlowShell?.();
     if (isBedReady()) {
       global.KhaytBedReadyUI?.init?.();
       if (typeof renderDashboard === 'function') renderDashboard();
       if (typeof renderKanban === 'function') renderKanban();
       if (typeof renderClients === 'function') renderClients();
       if (typeof renderInventory === 'function') renderInventory();
-    } else if (['workbench', 'command', 'vivid', 'meridian', 'foreman'].includes(nextShell)) {
+    } else if (['workbench', 'command', 'vivid', 'meridian', 'foreman', 'flow'].includes(nextShell)) {
       if (typeof renderDashboard === 'function') renderDashboard();
     }
   }

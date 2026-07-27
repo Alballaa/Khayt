@@ -4,6 +4,18 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **Flow — an eighth design, and the first where the board is the home screen.**
+  Khayt has always had a kanban board, but it lived on a tab you visited, which
+  made it a report: you went and looked at it. In Flow the board IS the home
+  screen, and moving a card is how you run the shop — open the app and your
+  hands are already on the work. Columns show what is where, a column past its
+  WIP limit turns red before you drop anything into it, and the strip above
+  gives you the count in flight, what is late and what is owed. Dragging a job
+  goes through exactly the same checks as moving it anywhere else in Khayt, so
+  an assembly with parts still in QC refuses to complete here too.
+
 ### Fixed
 
 - **Command and Nocturne lost the language picker on a narrow window.** Below

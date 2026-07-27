@@ -70,8 +70,15 @@
     indigo2:{ h: 244, s: '34%', l: '46%', labelKey: 'theme.accent.muted_indigo' },
   };
 
+  const FLOW_ACCENTS = {
+    tide:   { h: 199, s: '60%', l: '48%', labelKey: 'theme.accent.tide' },
+    iris:   { h: 258, s: '46%', l: '56%', labelKey: 'theme.accent.iris' },
+    moss:   { h: 158, s: '44%', l: '40%', labelKey: 'theme.accent.moss' },
+    amber2: { h: 38,  s: '72%', l: '50%', labelKey: 'theme.accent.warm_amber' },
+  };
+
   /** Shells a community theme may declare in its manifest. */
-  const CUSTOM_THEME_SHELLS = ['workbench', 'command', 'vivid', 'meridian', 'foreman', 'default'];
+  const CUSTOM_THEME_SHELLS = ['workbench', 'command', 'vivid', 'meridian', 'foreman', 'flow', 'default'];
 
   /** Reserved Frontier concepts — Pulse and Stream (vNext). */
   const RESERVED_THEMES = {
@@ -215,6 +222,21 @@
        every screen and keyboard triage — a different model from a dashboard,
        and a different one again from Meridian's schedule. Keeps the sidebar:
        two shells removing it would be one idea used twice. */
+    flow: {
+      labelKey: 'theme.design.flow',
+      descKey: 'theme.design.flow_desc',
+      preview: 'themes/previews/flow.png',
+      shell: 'flow',
+      enabled: true,
+      defaultAccent: 'tide',
+      accents: FLOW_ACCENTS,
+      defaultAppearance: 'light',
+      bodyClass: 'khayt-flow',
+      stylesheets: [
+        'themes/flow/tokens.css',
+        'themes/flow/shell.css',
+      ],
+    },
     foreman: {
       labelKey: 'theme.design.foreman',
       descKey: 'theme.design.foreman_desc',
