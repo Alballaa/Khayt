@@ -61,7 +61,10 @@
       html += cardHtml(id, theme, { selected: id === selected, disabled: false, soon: false });
     }
     for (const id of soon) {
-      const theme = reg().getTheme(id);
+      // Coming-soon themes are enabled:false, and getTheme() normalises that to
+      // workbench — so every one of these cards drew Workbench's name and
+      // description under a COMING SOON badge. Label from the raw definition.
+      const theme = reg().getThemeDefinition(id) || reg().getTheme(id);
       html += cardHtml(id, theme, { selected: false, disabled: true, soon: true });
     }
 

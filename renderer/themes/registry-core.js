@@ -205,6 +205,22 @@
     return registry[id] || registry.workbench;
   }
 
+  /**
+   * The theme entry EXACTLY as registered, without normalising the id.
+   *
+   * getTheme() normalises first, and normalizeDesignId() maps anything
+   * `enabled: false` onto workbench — correct when resolving what to RENDER
+   * (you must never apply a disabled theme), wrong when describing a theme.
+   * The picker's coming-soon cards went through getTheme(), so Pulse and Stream
+   * both drew Workbench's name and description under a COMING SOON badge.
+   *
+   * Use this for LABELLING a theme; keep getTheme() for applying one.
+   */
+  function getThemeDefinition(designId) {
+    if (isCustomThemeId(designId)) return customThemes[customIdFromTheme(designId)] || null;
+    return registry[designId] || null;
+  }
+
   function listSelectableThemes() {
     const builtins = Object.entries(registry)
       .filter(([, t]) => t.enabled !== false && !t.comingSoon && !t.legacy)
@@ -332,6 +348,7 @@
     customIdFromTheme,
     normalizeDesignId,
     getTheme,
+    getThemeDefinition,
     listSelectableThemes,
     listComingSoonThemes,
     accentsForTheme,
