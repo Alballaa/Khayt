@@ -133,6 +133,57 @@ async function assertNewTabsReachable(window, themeCase) {
 // per-theme dashboards. Seed a completed order with revenue + cost, render each
 // themed dashboard in enthusiast mode, and assert the currency symbol and the
 // word "margin" are absent from the dashboard (and, for cockpit, its stats bar).
+/**
+ * Every shell must be able to reach the bottom of a long screen.
+ *
+ * html and body are `overflow: hidden` app-wide, so the page itself never
+ * scrolls — each shell has to bound its own height and nominate an inner
+ * scroll container. Meridian nominated none and used `min-height: 100vh`, so
+ * .khayt-app grew past the window instead of filling it: 1548px of inventory
+ * in a 700px window, with 848px of it simply unreachable. No scrollbar, no
+ * overflow, no way down.
+ *
+ * Static CSS review cannot catch this — the rules each look reasonable — so
+ * this asserts the behaviour: shrink the window until content must overflow,
+ * then check something actually scrolls, and that scrolling it MOVES.
+ */
+async function assertEveryShellScrolls(window, themeCases) {
+  // viewportSize() is null for an Electron window, so ask the page itself.
+  const original = await window.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }));
+  await window.setViewportSize({ width: 1100, height: 420 });
+  try {
+    for (const th of themeCases) {
+      await applyThemeCase(window, th);
+      for (const tab of ['inventory-tab', 'settings-tab']) {
+        await window.evaluate((t) => window.KhaytShell?.switchTab?.(t), tab);
+        await window.waitForTimeout(450);
+        const r = await window.evaluate(() => {
+          const scrollers = [...document.querySelectorAll('*')].filter((el) => {
+            const cs = getComputedStyle(el);
+            return /(auto|scroll)/.test(cs.overflowY)
+              && el.scrollHeight > el.clientHeight + 8
+              && el.getClientRects().length;
+          });
+          if (!scrollers.length) {
+            const doc = document.documentElement;
+            return { ok: false, why: `nothing scrolls (document ${doc.scrollHeight}px in ${window.innerHeight}px)` };
+          }
+          const s = scrollers.sort((a, b) =>
+            (b.scrollHeight - b.clientHeight) - (a.scrollHeight - a.clientHeight))[0];
+          const before = s.scrollTop;
+          s.scrollTop = 99_999;
+          const moved = s.scrollTop - before;
+          s.scrollTop = before;
+          return moved > 0 ? { ok: true } : { ok: false, why: 'a scroll container exists but will not move' };
+        });
+        if (!r.ok) throw new Error(`${th.id} on ${tab}: ${r.why}`);
+      }
+    }
+  } finally {
+    await window.setViewportSize(original);
+  }
+}
+
 async function assertEnthusiastThemesNoMoney(window) {
   const THEMES = [
     { id: 'command', sel: '.cmd-dash', extra: '#commandStatusBar' },
@@ -417,6 +468,9 @@ try {
     await assertNewTabsReachable(window, themeCase);
     console.log(`  ${themeCase.id}: dashboard + queue + settings + reach ok`);
   }
+
+  await assertEveryShellScrolls(window, THEME_CASES);
+  console.log('  every shell reaches the bottom of a long screen: ok');
 
   await assertEnthusiastThemesNoMoney(window);
   console.log('  enthusiast themed dashboards: no revenue/margin ok');
