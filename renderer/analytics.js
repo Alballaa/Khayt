@@ -1618,7 +1618,7 @@ function renderPrinterUtilizationChart() {
   const dlUtilBtn = document.createElement('button');
   dlUtilBtn.className = 'btn small ghost chart-dl-btn';
   dlUtilBtn.style.cssText = 'position:absolute;top:6px;inset-inline-end:6px;font-size:11px;padding:3px 8px;opacity:0.7;';
-  dlUtilBtn.textContent = '⬇ PNG';
+  dlUtilBtn.textContent = '⬇ ' + t('an.download_png');
   dlUtilBtn.title = 'Download chart as PNG';
   if (el.parentElement) el.parentElement.style.position = 'relative';
   el.parentElement?.appendChild(dlUtilBtn);
@@ -2343,7 +2343,7 @@ function renderRevenueChart() {
   const dlBtn = document.createElement('button');
   dlBtn.className = 'btn small ghost chart-dl-btn';
   dlBtn.style.cssText = 'position:absolute;top:6px;inset-inline-end:6px;font-size:11px;padding:3px 8px;opacity:0.7;';
-  dlBtn.textContent = '⬇ PNG';
+  dlBtn.textContent = '⬇ ' + t('an.download_png');
   dlBtn.title = 'Download chart as PNG';
   if (wrap.parentElement) wrap.parentElement.style.position = 'relative';
   wrap.parentElement?.appendChild(dlBtn);
@@ -2429,7 +2429,7 @@ function renderClientRetention() {
       </div>
     </div>
     ${topReturning.length > 0 ? `
-    <div style="font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:8px;">${escapeHtml('Top returning clients')}</div>
+    <div style="font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:8px;">${escapeHtml(t('an.top_returning'))}</div>
     <ul class="leaderboard">
       ${topReturning.map((c, i) => {
         const cl = clients.find(x => x.id === c.id);
@@ -3216,15 +3216,15 @@ function renderAgedReceivables() {
       ${Object.entries(buckets).map(([label, items]) => {
         const total = items.reduce((s, i) => s + i.owed, 0);
         return `<div style="flex:1;min-width:120px;padding:12px 16px;background:var(--bg-elev);border-radius:var(--radius);border-inline-start:3px solid ${bucketColors[label]};">
-          <div style="font-size:12px;color:var(--text-muted);">${label} days</div>
+          <div style="font-size:12px;color:var(--text-muted);">${escapeHtml(t('an.aged_bucket_days', { label }))}</div>
           <div style="font-size:16px;font-weight:700;margin-top:4px;">${fmtPrice(total)}</div>
-          <div style="font-size:11px;color:var(--text-dim);">${items.length} order${items.length !== 1 ? 's' : ''}</div>
+          <div style="font-size:11px;color:var(--text-dim);">${escapeHtml(t('an.aged_orders_n', { n: items.length }))}</div>
         </div>`;
       }).join('')}
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-      <strong style="font-size:14px;">Total outstanding: <span style="color:var(--danger);">${fmtPrice(totalOwed)}</span></strong>
-      <button class="btn small ghost" id="btnExportAgedCsv">⬇ Export CSV</button>
+      <strong style="font-size:14px;">${escapeHtml(t('an.aged_total_outstanding'))} <span style="color:var(--danger);">${fmtPrice(totalOwed)}</span></strong>
+      <button class="btn small ghost" id="btnExportAgedCsv">⬇ ${escapeHtml(t('exp.export_csv'))}</button>
     </div>`;
 
   Object.entries(buckets).forEach(([label, items]) => {
@@ -3233,11 +3233,11 @@ function renderAgedReceivables() {
       <div style="font-size:12px;font-weight:600;color:${bucketColors[label]};margin-bottom:6px;padding:4px 8px;background:rgba(0,0,0,0.1);border-radius:4px;">${label} DAYS — ${items.length} order(s)</div>
       <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
         <thead><tr style="color:var(--text-dim);">
-          <th style="text-align:left;padding:4px 6px;">Order ID</th>
-          <th style="text-align:left;padding:4px 6px;">Project</th>
-          <th style="text-align:left;padding:4px 6px;">Client</th>
-          <th style="text-align:right;padding:4px 6px;">Owed</th>
-          <th style="text-align:right;padding:4px 6px;">Days</th>
+          <th style="text-align:left;padding:4px 6px;">${escapeHtml(t('an.aged_col_order'))}</th>
+          <th style="text-align:left;padding:4px 6px;">${escapeHtml(t('an.aged_col_project'))}</th>
+          <th style="text-align:left;padding:4px 6px;">${escapeHtml(t('an.aged_col_client'))}</th>
+          <th style="text-align:right;padding:4px 6px;">${escapeHtml(t('an.aged_col_owed'))}</th>
+          <th style="text-align:right;padding:4px 6px;">${escapeHtml(t('an.aged_col_days'))}</th>
         </tr></thead>
         <tbody>${items.map(i => `<tr style="border-top:1px solid var(--border);">
           <td style="padding:5px 6px;color:var(--text-muted);font-family:var(--font-num);">${escapeHtml(i.id)}</td>
@@ -3264,7 +3264,7 @@ function renderSurveyAnalytics() {
   if (!el) return;
   const surveyed = printLog.filter(o => o.survey?.rating);
   if (surveyed.length === 0) {
-    el.innerHTML = '<p style="color:var(--text-muted);">No survey responses yet.</p>';
+    el.innerHTML = `<p style="color:var(--text-muted);">${escapeHtml(t('an.no_survey_yet'))}</p>`;
     return;
   }
   const avg = surveyed.reduce((s, o) => s + o.survey.rating, 0) / surveyed.length;

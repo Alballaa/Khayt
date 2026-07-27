@@ -127,16 +127,16 @@
         </div>
         <span class="grow topbar-spacer"></span>
         <div class="row gap8 topbar-actions wrap">
-          <button type="button" class="btn ghost icon sm" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">◐</button>
+          <button type="button" class="btn ghost icon sm" id="themeToggle" title="Toggle theme" aria-label="Toggle theme" data-i18n-title="ui.toggle_theme" data-i18n-aria="ui.toggle_theme">◐</button>
           <button type="button" class="btn ghost sm" id="btnHelp" data-i18n="help.btn" data-i18n-title="help.btn_label" title="Help" aria-label="Help">?</button>
-          <button type="button" class="btn ghost sm" id="btnGlobalSearch" aria-label="Global search" title="Global search">🔍 <span class="muted" style="font-size:10px">⌘K</span></button>
+          <button type="button" class="btn ghost sm" id="btnGlobalSearch" aria-label="Global search" data-i18n-aria="ui.global_search" title="Global search">🔍 <span class="muted" style="font-size:10px">⌘K</span></button>
           <div class="khayt-bell tb-notif-wrap" style="position:relative">
-            <button type="button" class="btn ghost icon sm" id="btnNotifBell" title="Notifications" aria-label="Notifications" aria-expanded="false" aria-controls="notifPanel">🔔</button>
+            <button type="button" class="btn ghost icon sm" id="btnNotifBell" title="Notifications" data-i18n-title="notif.title" aria-label="Notifications" aria-expanded="false" aria-controls="notifPanel">🔔</button>
             <span class="khayt-bdot" id="notifBadge" style="display:none"></span>
             <div id="notifPanel" style="display:none;position:absolute;inset-inline-end:0;top:calc(100% + 8px);width:340px;max-height:480px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:var(--shadow-pop);z-index:8000"></div>
           </div>
           <button type="button" class="btn primary sm" id="btnFeedback" title="Share beta feedback"><span aria-hidden="true">💬</span> <span data-i18n="feedback.btn">Feedback</span></button>
-          <select class="input" id="locationFilter" aria-label="Location filter" style="width:auto;height:34px;min-width:100px" title="Filter by location">
+          <select class="input" id="locationFilter" aria-label="Location filter" data-i18n-aria="ui.filter_location" data-i18n-title="ui.filter_location" style="width:auto;height:34px;min-width:100px" title="Filter by location">
             <option value="">All locations</option>
           </select>
           <button type="button" class="btn ghost sm" id="btnNavSwitchOp" title="Switch operator" style="display:none">👤 <span id="operatorNavBadge"></span></button>
@@ -271,7 +271,7 @@
             <label style="margin-top:10px;" data-i18n="calc.file_ref">File / STL reference</label>
             <div style="display:flex;gap:6px;align-items:center;">
               <input type="text" id="partFileRef" data-i18n-placeholder="calc.file_ref_ph" placeholder="e.g. bracket_v3.stl" style="flex:1;">
-              <button type="button" id="btnParseFile" class="btn small ghost" data-i18n="calc.parse_file" title="Parse print time and filament weight from G-code / 3MF">Parse from file</button>
+              <button type="button" id="btnParseFile" class="btn small ghost" data-i18n="calc.parse_file" data-i18n-title="calc.parse_file_title" title="Parse print time and filament weight from G-code / 3MF">Parse from file</button>
               <button type="button" id="btnAiQuote" class="btn small ghost" data-i18n="calc.ai_quote" title="Estimate from a plain-language description (AI fills the form; you review)">🤖 AI quote</button>
             </div>
           </details>
@@ -796,7 +796,7 @@
         <button class="btn primary" id="btnLogWaste" data-i18n="waste.add">Log Failed Print</button>
       </div>
       <div class="toolbar" style="margin-bottom:16px; flex-wrap:wrap; gap:8px;">
-        <input type="search" id="wasteSearch" class="toolbar-search" style="max-width:180px;" placeholder="Search waste…">
+        <input type="search" id="wasteSearch" class="toolbar-search" style="max-width:180px;" placeholder="Search waste…" data-i18n-placeholder="waste.search_ph">
         <select id="wasteMaterialFilter" class="toolbar-select" style="max-width:150px;">
           <option value="">All materials</option>
         </select>
