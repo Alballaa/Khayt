@@ -4,7 +4,22 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.4.0-beta.3] - 2026-07-27
+
+The beta that stops the app speaking English at people who did not choose it.
+Dates followed your computer's language rather than Khayt's, a whole Bed Ready
+feature had never been translated, and an update that was downloading perfectly
+well looked like it had frozen. Meridian also could not be scrolled.
+
 ### Fixed
+
+- **Meridian could not be scrolled.** On any screen with more content than fits
+  the window — the inventory list, most obviously — everything below the fold
+  was unreachable. No scrollbar, no overflow, no way down. The page itself never
+  scrolls in Khayt by design, so each design has to nominate an inner area that
+  does; Meridian nominated none, and let its layout grow past the window instead
+  of filling it. Every design is now checked, by shrinking the window until the
+  content must overflow and confirming it actually scrolls.
 
 - **A whole Bed Ready feature had never been translated.** The filament-care log
   asked for 30 locale keys that no language file defined. Because the code
