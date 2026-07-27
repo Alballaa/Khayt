@@ -132,3 +132,24 @@ test('every locale the language picker offers is actually registered', () => {
     }
   }
 });
+
+test('deleted themes leave no strings behind', () => {
+  // cockpit, atlas and the console status bar were removed in 3.3, but their
+  // locale keys stayed — 54 of them, times nine languages, translated and
+  // maintained for UI that no longer exists. Anything reintroducing them is
+  // almost certainly a revert, not a feature.
+  const gone = ['cockpit.', 'atlas.', 'console.status.'];
+  for (const lang of ['en', 'ar', 'de', 'es', 'fr', 'ja', 'tr', 'zh', 'pt-BR']) {
+    const src = fs.readFileSync(path.join(root, `renderer/locales/${lang}.js`), 'utf8');
+    for (const prefix of gone) {
+      assert.equal(src.includes(`"${prefix}`), false,
+        `${lang}.js still carries ${prefix}* keys for a deleted theme`);
+    }
+  }
+  // And the markup those keys described must stay gone from BOTH shells — #514
+  // removed it from index.html only, leaving bedready.html carrying it hidden.
+  for (const shell of ['renderer/index.html', 'renderer/bedready.html']) {
+    const html = fs.readFileSync(path.join(root, shell), 'utf8');
+    assert.equal(html.includes('consoleStatusBar'), false, `${shell} still has the dead status bar`);
+  }
+});

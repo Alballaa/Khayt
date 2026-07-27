@@ -154,12 +154,9 @@ html[data-app="bedready"] .ledger-path,
 html[data-app="bedready"] .console-masthead-brand,
 html[data-app="bedready"] .console-pagehead,
 html[data-app="bedready"] .console-path,
-html[data-app="bedready"] .cockpit-pagehead,
-html[data-app="bedready"] .atlas-pagehead,
 html[data-app="bedready"] .workbench-pagehead,
 html[data-app="bedready"] .vivid-pagehead,
 html[data-app="bedready"] .command-pagehead,
-html[data-app="bedready"] .console-status { display: none !important; }  /* Console theme's top-right status bar (the stray "— —") */
 
 html[data-app="bedready"] body.bedready-ui .khayt-sidebar {
   width: var(--nav-w); min-width: var(--nav-w); max-width: var(--nav-w);
