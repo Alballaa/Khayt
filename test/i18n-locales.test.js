@@ -80,3 +80,55 @@ test('every data-i18n key in the HTML shells resolves in en.js', () => {
   assert.deepEqual([...new Set(missing)], [],
     `these render as their raw key instead of text:\n  ${[...new Set(missing)].join('\n  ')}`);
 });
+
+test('pt-BR is a COMPLETE locale, not a partial one', () => {
+  // t() falls back to STRINGS.en before it falls back to the key, so a partial
+  // locale does not break — it silently serves English to someone who chose
+  // Português. That is worse than not offering the language, which is why this
+  // asserts parity rather than mere existence: pt-BR is in the picker, so it
+  // has to actually be finished.
+  const load = (lang) => {
+    const ctx = vm.createContext({ globalThis: {} });
+    ctx.globalThis = ctx;
+    vm.runInContext(fs.readFileSync(path.join(root, `renderer/locales/${lang}.js`), 'utf8'), ctx, {
+      filename: `${lang}.js`,
+    });
+    return ctx.globalThis.KhaytLocales?.[lang] || {};
+  };
+  const en = load('en');
+  const pt = load('pt-BR');
+  const missing = Object.keys(en).filter((k) => pt[k] === undefined);
+  assert.deepEqual(missing.slice(0, 20), [], `pt-BR is missing ${missing.length} key(s)`);
+  assert.equal(Object.keys(pt).length, Object.keys(en).length);
+
+  // Placeholders must survive translation or the string breaks at runtime:
+  // "{n} pedidos" is fine, "{numero} pedidos" silently renders the literal.
+  const bad = [];
+  for (const [k, v] of Object.entries(pt)) {
+    const want = (String(en[k]).match(/\{[a-zA-Z0-9_]+\}/g) || []).sort().join(',');
+    const got = (String(v).match(/\{[a-zA-Z0-9_]+\}/g) || []).sort().join(',');
+    if (want !== got) bad.push(`${k}: expected ${want || '(none)'} got ${got || '(none)'}`);
+  }
+  assert.deepEqual(bad, [], 'placeholders altered in translation');
+});
+
+test('every locale the language picker offers is actually registered', () => {
+  // A picker entry with no locale file (or one missing from i18n's valid list)
+  // silently falls back to English while the dropdown claims otherwise.
+  const i18n = fs.readFileSync(path.join(root, 'renderer/i18n.js'), 'utf8');
+  const valid = (i18n.match(/const valid = \[([^\]]+)\]/) || [, ''])[1]
+    .split(',').map((s) => s.trim().replace(/^'|'$/g, '')).filter(Boolean);
+
+  for (const shell of ['renderer/index.html', 'renderer/bedready.html']) {
+    const html = fs.readFileSync(path.join(root, shell), 'utf8');
+    const offered = new Set([...html.matchAll(/<option value="([a-zA-Z-]{2,5})">/g)]
+      .map((m) => m[1]).filter((v) => valid.includes(v) || /^[a-z]{2}(-[A-Z]{2})?$/.test(v)));
+    for (const lang of offered) {
+      if (!valid.includes(lang)) continue;   // not a language option
+      assert.ok(fs.existsSync(path.join(root, `renderer/locales/${lang}.js`)),
+        `${shell} offers ${lang} but renderer/locales/${lang}.js does not exist`);
+      assert.match(html, new RegExp(`locales/${lang}\\.js`),
+        `${shell} offers ${lang} but never loads its locale script`);
+    }
+  }
+});
