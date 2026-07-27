@@ -72,8 +72,8 @@ test('arabic locale includes theme design keys for RTL QA', () => {
 test('each built-in theme declares a known shell and its own body class', () => {
   // Kept in step with applyBodyClasses() in renderer/themes.js — these are the
   // exact values it toggles on.
-  const SHELLS = ['workbench', 'command', 'vivid', 'meridian', 'foreman', 'default'];
-  const SHELL_CLASSES = ['bedready-ui', 'khayt-workbench', 'khayt-command', 'khayt-vivid', 'khayt-meridian', 'khayt-foreman'];
+  const SHELLS = ['workbench', 'command', 'vivid', 'meridian', 'foreman', 'flow', 'default'];
+  const SHELL_CLASSES = ['bedready-ui', 'khayt-workbench', 'khayt-command', 'khayt-vivid', 'khayt-meridian', 'khayt-foreman', 'khayt-flow'];
   const seenShell = new Map();
   const seenClass = new Map();
   for (const [id, theme] of Object.entries(reg.BUILTIN_THEMES)) {
@@ -221,6 +221,33 @@ test('Foreman borrows every rule in its docket instead of inventing one', () => 
   const shell = fs.readFileSync(path.join(root, 'renderer/themes/foreman/shell.js'), 'utf8');
   assert.match(shell, /function syncDocketCount\(n\)/,
     'the bar is told the count by the list so the two cannot disagree');
+});
+
+test('Flow moves work through updateStatus, never by assigning status itself', () => {
+  // The board is the one place in the app where moving an order is a single
+  // gesture, so it is the worst place to bypass the rules. updateStatus() is
+  // where they live: the WIP limit warning and its hard-block mode, the BOM
+  // assembly gate that refuses to complete an order whose parts have not passed
+  // QC, the save, and the re-render. Assigning order.status directly would skip
+  // all four silently.
+  const shell = fs.readFileSync(path.join(root, 'renderer/themes/flow/shell.js'), 'utf8');
+  assert.match(shell, /updateStatus\(id, status\)/, 'the drop must go through updateStatus()');
+  // Assignment only: `.status ===` is the legitimate comparison this must not
+  // trip over, so the lookahead excludes == and ===.
+  assert.equal(/\.status\s*=(?!=)/.test(shell), false,
+    'the board must never assign order.status itself — that bypasses every gate');
+
+  // And the columns must be the app's statuses, not a second opinion about them.
+  const screens = fs.readFileSync(path.join(root, 'renderer/themes/flow/screens.js'), 'utf8');
+  for (const status of ['pending', 'printing', 'post', 'qc', 'completed']) {
+    assert.ok(screens.includes(`status: '${status}'`), `board is missing the ${status} column`);
+  }
+  assert.match(screens, /queue\.(pending|printing|post|qc|completed)/,
+    'column labels reuse the queue keys rather than minting a second set');
+  assert.match(screens, /KhaytTiers.*showsBusiness/s,
+    'money on cards must be gated on the tier, like every other themed home');
+  assert.match(screens, /orderMatchesActiveLocation/,
+    'the board must respect the location filter like every other screen');
 });
 
 test('Foreman keyboard triage never steals a key from a field or a modal', () => {

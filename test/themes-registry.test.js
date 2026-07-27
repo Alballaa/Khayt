@@ -14,13 +14,13 @@ test('normalizeDesignId falls stale ids back to the default', () => {
   assert.equal(reg.normalizeDesignId('studio'), 'workbench');
 });
 
-test('selectable themes are the three 2.6 designs plus the two 3.4 additions', () => {
+test('selectable themes are the three 2.6 designs plus the 3.4 additions', () => {
   // Blueprint and Nocturne join the 2.6 trio. They ship no shell of their own —
   // Blueprint rides Workbench, Nocturne rides Command — so this list growing is
   // the only registry-level signal that they exist and are pickable.
   const selectable = reg.listSelectableThemes();
   assert.deepEqual(selectable.filter((id) => !id.startsWith('custom:')).sort(),
-    ['blueprint', 'command', 'foreman', 'meridian', 'nocturne', 'vivid', 'workbench']);
+    ['blueprint', 'command', 'flow', 'foreman', 'meridian', 'nocturne', 'vivid', 'workbench']);
 });
 
 test('the six deleted legacy designs are gone from the registry', () => {
