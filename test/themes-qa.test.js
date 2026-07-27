@@ -247,3 +247,30 @@ test('every shell declares the base layout it needs', () => {
       `${shell} must lay out .khayt-body`);
   }
 });
+
+test('Foreman ranking survives volume, and the count stays truthful', () => {
+  // Worst-first loses to volume otherwise: thirty unpaid invoices bury the
+  // stopped printer they are ranked below, and the list quietly turns into an
+  // accounts-receivable report. Runs longer than GROUP_AT collapse to one row.
+  const src = fs.readFileSync(path.join(root, 'renderer/themes/foreman/screens.js'), 'utf8');
+  assert.match(src, /const GROUP_AT = 3;/, 'a run longer than this collapses');
+  assert.match(src, /function visibleRows/, 'the drawn list is derived, not the raw one');
+  // The count must report ITEMS. A group is a display affordance, and a bar
+  // that counted collapsed rows would under-report what is outstanding.
+  assert.match(src, /fm-count\$\{rows\.length \? '' : ' zero'\}">\$\{rows\.length\}/,
+    'the header count comes from the item list, not the drawn rows');
+  // Focus must walk what is on screen or it lands inside a collapsed group.
+  assert.match(src, /const rows = visibleRows\(buildDocket\(\)\);/,
+    'keyboard movement walks the visible rows');
+});
+
+test('Foreman treats free capacity as one decision, not one per printer', () => {
+  // Which printer is free is not the decision — "there is free capacity and
+  // waiting work" is, and the answer is the same for all of them. Four idle
+  // machines emitting four near-identical rows padded a list whose promise is
+  // that every row needs an action.
+  const src = fs.readFileSync(path.join(root, 'renderer/themes/foreman/screens.js'), 'utf8');
+  assert.match(src, /key: 'd:idle', sev: 'idle',/, 'idle is a single aggregate row');
+  assert.equal(/key: `d:\$\{m\.id\}`/.test(src), false, 'never one row per idle machine');
+  assert.match(src, /note: idle\.join\(' · '\)/, 'the machine names belong in the detail pane');
+});

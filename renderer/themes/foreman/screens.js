@@ -124,7 +124,7 @@
         const owed = (typeof orderOwedBase === 'function') ? orderOwedBase(o) : 0;
         if (!(owed > 0)) continue;
         rows.push({
-          key: `p:${o.id}`, sev: 'cash', orderId: o.id,
+          key: `p:${o.id}`, sev: 'cash', orderId: o.id, amount: owed,
           title: o.project || o.id,
           detail: tr('fm.owes', '{amt} outstanding').replace('{amt}', money(owed)),
           action: { label: tr('fm.go_orders', 'Orders'), tab: 'logs-tab' },
@@ -147,10 +147,17 @@
       }
     }
 
-    // 5 — capacity going unused, but only when there is work it could take.
+    // 5 — capacity going unused, as ONE row rather than one per printer.
+    //
+    // Which printer is free is not the decision; "there is free capacity and
+    // waiting work" is, and the answer is the same for all of them — go assign
+    // something. Four idle machines emitting four near-identical rows padded a
+    // list whose whole promise is that every row needs an action from you, and
+    // pushed the genuinely urgent rows off the screen.
     const waiting = orders.filter((o) => o && o.status !== 'completed' && o.status !== 'quote'
       && o.status !== 'printing' && !o.archived).length;
     if (waiting > 0 && global.KhaytAttention?.machineState) {
+      const idle = [];
       for (const m of mach) {
         let st = 'idle';
         try {
@@ -158,11 +165,16 @@
             m, (typeof machineStatusCache !== 'undefined' ? machineStatusCache : {})[m.id], {},
           );
         } catch (_) { st = 'idle'; }
-        if (st !== 'idle') continue;
+        if (st === 'idle') idle.push(m.name || m.id);
+      }
+      if (idle.length) {
         rows.push({
-          key: `d:${m.id}`, sev: 'idle', machineId: m.id,
-          title: m.name || m.id,
-          detail: tr('fm.idle_with_work', 'Free, and {n} jobs are waiting').replace('{n}', waiting),
+          key: 'd:idle', sev: 'idle',
+          title: idle.length === 1
+            ? tr('fm.idle_one', '{m} is free').replace('{m}', idle[0])
+            : tr('fm.idle_many', '{n} printers are free').replace('{n}', idle.length),
+          detail: tr('fm.idle_waiting', '{n} jobs are waiting to be assigned').replace('{n}', waiting),
+          note: idle.join(' · '),
           action: { label: tr('fm.go_queue', 'Queue'), tab: 'queue-tab' },
         });
       }
@@ -182,6 +194,52 @@
 
   let focusKey = null;
 
+  /* A severity with more than this many rows collapses to a single summary row.
+     Worst-first ranking is defeated by volume otherwise: a shop with thirty
+     unpaid invoices pushes its stopped printer off the screen, and the list
+     stops being a ranking and becomes an accounts-receivable report. Three is
+     the point where a run reads as "a few things" rather than "a category". */
+  const GROUP_AT = 3;
+  const expanded = new Set();   // severities the user has opened
+
+  /**
+   * Turn the ranked items into what actually gets drawn: runs of the same
+   * severity longer than GROUP_AT become one group row unless opened.
+   * Both the renderer and the keyboard walk this, so focus can never land on a
+   * row that is not on screen.
+   */
+  function visibleRows(rows) {
+    const out = [];
+    let i = 0;
+    while (i < rows.length) {
+      const sev = rows[i].sev;
+      let j = i;
+      while (j < rows.length && rows[j].sev === sev) j++;
+      const run = rows.slice(i, j);
+      if (run.length > GROUP_AT && !expanded.has(sev)) {
+        out.push({ group: true, sev, items: run, key: `g:${sev}` });
+      } else {
+        if (run.length > GROUP_AT) out.push({ group: true, sev, items: run, key: `g:${sev}`, open: true });
+        out.push(...run);
+      }
+      i = j;
+    }
+    return out;
+  }
+
+  /** Money in a run, when the run is about money — otherwise just a count. */
+  function groupSummary(sev, items) {
+    if (sev === 'cash') {
+      let total = 0;
+      for (const it of items) total += (+it.amount || 0);
+      return total > 0
+        ? tr('fm.group_cash', '{n} unpaid · {amt} outstanding')
+          .replace('{n}', items.length).replace('{amt}', money(total))
+        : tr('fm.group_n', '{n} items').replace('{n}', items.length);
+    }
+    return tr('fm.group_n', '{n} items').replace('{n}', items.length);
+  }
+
   function rowHtml(r, i) {
     const [k, f] = SEV_LABEL[r.sev] || SEV_LABEL.idle;
     return `<button type="button" class="fm-row fm-${r.sev}${r.key === focusKey ? ' focused' : ''}"
@@ -194,6 +252,22 @@
     </button>`;
   }
 
+  function groupRowHtml(g) {
+    const [k, f] = SEV_LABEL[g.sev] || SEV_LABEL.idle;
+    const open = !!g.open;
+    return `<button type="button" class="fm-row fm-group fm-${g.sev}${g.key === focusKey ? ' focused' : ''}"
+      data-fm-group="${escHtml(g.sev)}" aria-expanded="${open}" tabindex="-1">
+      <span class="fm-sev">${escHtml(tr(k, f))}</span>
+      <span class="fm-row-main">
+        <span class="fm-row-title">${escHtml(groupSummary(g.sev, g.items))}</span>
+        <span class="fm-row-detail">${escHtml(open
+          ? tr('fm.group_hide', 'Hide them')
+          : tr('fm.group_show', 'Show each one'))}</span>
+      </span>
+      <span class="fm-chev">${open ? '\u2303' : '\u2304'}</span>
+    </button>`;
+  }
+
   function detailHtml(r) {
     if (!r) {
       return `<div class="fm-detail-empty">${escHtml(tr('fm.pick_one', 'Select something on the left.'))}</div>`;
@@ -203,6 +277,7 @@
       <span class="fm-sev fm-${r.sev}">${escHtml(tr(k, f))}</span>
       <h2>${escHtml(r.title)}</h2>
       <p>${escHtml(r.detail)}</p>
+      ${r.note ? `<p class="fm-note">${escHtml(r.note)}</p>` : ''}
       <div class="fm-actions">
         <button type="button" class="btn primary" data-fm-act="${escHtml(r.action.tab)}"
           ${r.orderId ? `data-fm-order="${escHtml(r.orderId)}"` : ''}>${escHtml(r.action.label)} →</button>
@@ -215,11 +290,12 @@
     if (!host) return false;
 
     const rows = buildDocket();
-    if (!rows.some((r) => r.key === focusKey)) focusKey = rows[0]?.key || null;
-    const focused = rows.find((r) => r.key === focusKey) || null;
+    const vis = visibleRows(rows);
+    if (!vis.some((r) => r.key === focusKey)) focusKey = vis[0]?.key || null;
+    const focused = vis.find((r) => r.key === focusKey && !r.group) || null;
 
-    const list = rows.length
-      ? rows.map(rowHtml).join('')
+    const list = vis.length
+      ? vis.map((r, i) => (r.group ? groupRowHtml(r) : rowHtml(r, i))).join('')
       : `<div class="fm-clear">
            <strong>${escHtml(tr('fm.clear_title', 'Nothing needs you'))}</strong>
            <span>${escHtml(tr('fm.clear_sub', 'No stopped printers, nothing late, nothing unpaid.'))}</span>
@@ -243,6 +319,14 @@
         renderDashboard(host);
       });
     });
+    host.querySelectorAll('[data-fm-group]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const sev = el.getAttribute('data-fm-group');
+        if (expanded.has(sev)) expanded.delete(sev); else expanded.add(sev);
+        focusKey = `g:${sev}`;
+        renderDashboard(host);
+      });
+    });
     host.querySelectorAll('[data-fm-act]').forEach((el) => {
       el.addEventListener('click', () => {
         const orderId = el.getAttribute('data-fm-order');
@@ -258,7 +342,9 @@
 
   /** Keyboard triage: move the focus, open the focused row. */
   function moveFocus(delta) {
-    const rows = buildDocket();
+    // Walk what is on screen, not the raw list — otherwise focus lands inside a
+    // collapsed group and the selection appears to vanish.
+    const rows = visibleRows(buildDocket());
     if (!rows.length) return;
     let i = rows.findIndex((r) => r.key === focusKey);
     if (i < 0) i = 0; else i = Math.max(0, Math.min(rows.length - 1, i + delta));
@@ -269,8 +355,14 @@
   }
 
   function openFocused() {
-    const r = buildDocket().find((x) => x.key === focusKey);
+    const r = visibleRows(buildDocket()).find((x) => x.key === focusKey);
     if (!r) return;
+    if (r.group) {                       // Enter opens or closes a group
+      if (expanded.has(r.sev)) expanded.delete(r.sev); else expanded.add(r.sev);
+      const host = document.getElementById('dashboardContent');
+      if (host) renderDashboard(host);
+      return;
+    }
     if (r.orderId && typeof openOrderDetail === 'function') { openOrderDetail(r.orderId); return; }
     if (typeof switchTab === 'function') switchTab(r.action.tab);
   }
