@@ -141,3 +141,25 @@ test('the theme e2e covers every theme a user can pick', () => {
   const uncovered = selectable.filter((id) => !pinned.has(id));
   assert.deepEqual(uncovered, [], `selectable themes with no e2e coverage: ${uncovered.join(', ')}`);
 });
+
+test('coming-soon cards are labelled with their own theme, not the fallback', () => {
+  // getTheme() normalises first, and normalizeDesignId() maps anything
+  // `enabled: false` onto workbench — correct for deciding what to RENDER (a
+  // disabled theme must never be applied), wrong for describing one. The
+  // picker's coming-soon loop went through getTheme(), so Pulse and Stream both
+  // drew "Workbench / Native productivity app…" under a COMING SOON badge.
+  // Found by opening the real Settings screen and reading the cards.
+  for (const id of reg.listComingSoonThemes()) {
+    const def = reg.getThemeDefinition(id);
+    assert.ok(def, `${id} has no raw definition`);
+    assert.equal(def.labelKey, `theme.design.${id}`, `${id} must be labelled as itself`);
+    assert.equal(def.descKey, `theme.design.${id}_desc`, `${id} must describe itself`);
+    // And the trap that caused it: the normalising lookup still resolves away.
+    assert.equal(reg.getTheme(id).labelKey, 'theme.design.workbench',
+      'getTheme() is expected to normalise a disabled theme — that is why the raw lookup exists');
+  }
+  // The picker must use the raw lookup for these cards.
+  const src = fs.readFileSync(path.join(root, 'renderer/themes/theme-picker.js'), 'utf8');
+  assert.match(src, /getThemeDefinition\(id\)/,
+    'the coming-soon loop must label from getThemeDefinition, not getTheme');
+});
