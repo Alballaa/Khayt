@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.4.0-beta.4] - 2026-07-27
+
+An eighth design, and the end of a class of bug where a control was on screen
+but out of reach. Khayt goes from seven designs to eight — Flow, the first one
+where you run the shop by dragging work rather than reading about it.
+
 ### Added
 
 - **Flow — an eighth design, and the first where the board is the home screen.**
