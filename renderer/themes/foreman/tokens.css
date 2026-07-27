@@ -1,4 +1,10 @@
-/* Foreman — tokens for the triage shell.
+/* NOTE: --ink-3 (aliased to --text-muted) is darkened/lightened to clear
+   WCAG AA 4.5:1 against BOTH --bg and --surface. It is used as a text colour in
+   192 CSS rules and 540 renderer call sites — hints, subtitles, metadata — so it
+   is body text, not decoration, and 2.75:1 was a real readability failure.
+   Measured, not eyeballed: see the contrast sweep in the scan.
+
+   Foreman — tokens for the triage shell.
 
    Foreman's home is not a dashboard and not a schedule: it is a DOCKET, a
    ranked list of decisions with a detail pane beside it, worked down to zero.
@@ -30,7 +36,7 @@ html[data-design="foreman"] {
   /* ---- Ink ---- */
   --ink:       #1a1917;
   --ink-2:     #55534e;
-  --ink-3:     #837f78;
+  --ink-3:     #6f6b64;
   --ink-4:     #adaaa2;
 
   /* ---- Lines ---- */
@@ -114,7 +120,7 @@ html[data-design="foreman"][data-theme="dark"] {
 
   --ink:       #eceae2;
   --ink-2:     #b0aca0;
-  --ink-3:     #837f74;
+  --ink-3:     #89857a;
   --ink-4:     #605d55;
 
   --line:      #302e26;

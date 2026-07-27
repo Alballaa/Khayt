@@ -17,7 +17,7 @@ html[data-design="workbench"] {
   /* ---- Ink ---- */
   --ink:       #1c1f26;
   --ink-2:     #5b6473;
-  --ink-3:     #8a92a3;
+  --ink-3:     #6a7283;
   --ink-4:     #aab1bf;
 
   /* ---- Lines ---- */
@@ -98,7 +98,7 @@ html[data-design="workbench"][data-theme="dark"] {
 
   --ink:       #eef0f5;
   --ink-2:     #a4adbd;
-  --ink-3:     #7a8398;
+  --ink-3:     #848da2;
   --ink-4:     #5a6273;
 
   --line:      #2d323d;

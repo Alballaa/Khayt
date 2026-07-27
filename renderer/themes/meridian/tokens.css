@@ -1,4 +1,10 @@
-/* Meridian — tokens for the time-first shell.
+/* NOTE: --ink-3 (aliased to --text-muted) is darkened/lightened to clear
+   WCAG AA 4.5:1 against BOTH --bg and --surface. It is used as a text colour in
+   192 CSS rules and 540 renderer call sites — hints, subtitles, metadata — so it
+   is body text, not decoration, and 2.75:1 was a real readability failure.
+   Measured, not eyeballed: see the contrast sweep in the scan.
+
+   Meridian — tokens for the time-first shell.
 
    Meridian is not a reskin of an existing layout: it removes the left sidebar
    entirely, moves navigation to a horizontal bar, and makes a SCHEDULE the
@@ -30,7 +36,7 @@ html[data-design="meridian"] {
   /* ---- Ink ---- */
   --ink:       #10151c;
   --ink-2:     #4a5462;
-  --ink-3:     #77818f;
+  --ink-3:     #656f7d;
   --ink-4:     #a3abb6;
 
   /* ---- Lines. Two weights: structure, and the hour grid behind the data. ---- */
@@ -121,7 +127,7 @@ html[data-design="meridian"][data-theme="dark"] {
 
   --ink:       #e6eaf0;
   --ink-2:     #a2acbb;
-  --ink-3:     #737e8d;
+  --ink-3:     #798493;
   --ink-4:     #545e6c;
 
   --line:      #262e39;
