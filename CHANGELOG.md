@@ -4,6 +4,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **Command and Nocturne lost the language picker on a narrow window.** Below
+  about 1100px the top-bar controls kept their full width instead of giving way,
+  pushing the last one clean off the right edge — and since the app has no
+  sideways scrolling, off the edge meant gone. The row now gives way and scrolls
+  if it has to, so nothing is stranded.
+
 ## [3.4.0-beta.3] - 2026-07-27
 
 The beta that stops the app speaking English at people who did not choose it.

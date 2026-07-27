@@ -184,6 +184,58 @@ async function assertEveryShellScrolls(window, themeCases) {
   }
 }
 
+/**
+ * No control may sit off the edge of a narrow window with no way back to it.
+ *
+ * Command pinned its top-bar actions with `flex-shrink: 0` next to a `nowrap`,
+ * so the block kept its full 535px and pushed the last control — the language
+ * picker — past the right edge on any window under ~1100px. html and body are
+ * overflow:hidden, so past the edge means gone: no scrollbar, no way to reach
+ * it. The same shape as Meridian's scroll bug, in the other axis.
+ *
+ * The skip-to-content link is exempt: sitting off-screen until focused is what
+ * it is for.
+ */
+async function assertNoControlsOffscreen(window, themeCases) {
+  const original = await window.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }));
+  await window.setViewportSize({ width: 1024, height: 640 });   // small laptop
+  try {
+    for (const th of themeCases) {
+      await applyThemeCase(window, th);
+      for (const tab of ['dashboard-tab', 'settings-tab']) {
+        await window.evaluate((t) => window.KhaytShell?.switchTab?.(t), tab);
+        await window.waitForTimeout(400);
+        const lost = await window.evaluate(() => {
+          const out = [];
+          const vw = window.innerWidth, vh = window.innerHeight;
+          for (const el of document.querySelectorAll('button, a[href], input, select, textarea, [role="button"]')) {
+            const cs = getComputedStyle(el);
+            if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0) continue;
+            if (/skip/i.test(el.className) || /skip/i.test(el.id)) continue;
+            const r = el.getBoundingClientRect();
+            if (r.width < 1 || r.height < 1) continue;
+            if (!(r.right <= 0 || r.bottom <= 0 || r.left >= vw || r.top >= vh)) continue;
+            // an ancestor that scrolls can still bring it into view
+            let p = el.parentElement, rescuable = false;
+            while (p && p !== document.body) {
+              const pcs = getComputedStyle(p);
+              if (/(auto|scroll)/.test(pcs.overflowX + pcs.overflowY)) { rescuable = true; break; }
+              p = p.parentElement;
+            }
+            if (!rescuable) out.push(el.id || String(el.className).slice(0, 30) || el.tagName);
+          }
+          return [...new Set(out)];
+        });
+        if (lost.length) {
+          throw new Error(`${th.id} on ${tab} at 1024x640: ${lost.length} control(s) off-screen and unreachable — ${lost.slice(0, 4).join(', ')}`);
+        }
+      }
+    }
+  } finally {
+    await window.setViewportSize(original);
+  }
+}
+
 async function assertEnthusiastThemesNoMoney(window) {
   const THEMES = [
     { id: 'command', sel: '.cmd-dash', extra: '#commandStatusBar' },
@@ -471,6 +523,9 @@ try {
 
   await assertEveryShellScrolls(window, THEME_CASES);
   console.log('  every shell reaches the bottom of a long screen: ok');
+
+  await assertNoControlsOffscreen(window, THEME_CASES);
+  console.log('  no control is stranded off a narrow window: ok');
 
   await assertEnthusiastThemesNoMoney(window);
   console.log('  enthusiast themed dashboards: no revenue/margin ok');
