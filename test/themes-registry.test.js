@@ -20,7 +20,7 @@ test('selectable themes are the three 2.6 designs plus the two 3.4 additions', (
   // the only registry-level signal that they exist and are pickable.
   const selectable = reg.listSelectableThemes();
   assert.deepEqual(selectable.filter((id) => !id.startsWith('custom:')).sort(),
-    ['blueprint', 'command', 'meridian', 'nocturne', 'vivid', 'workbench']);
+    ['blueprint', 'command', 'foreman', 'meridian', 'nocturne', 'vivid', 'workbench']);
 });
 
 test('the six deleted legacy designs are gone from the registry', () => {

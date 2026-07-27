@@ -28,6 +28,7 @@ const DEFAULT_THEMES = [
   // pale one.
   { id: 'nocturne', appearance: 'dark', file: 'nocturne.png' },
   { id: 'meridian', appearance: 'light', file: 'meridian.png' },
+  { id: 'foreman', appearance: 'light', file: 'foreman.png' },
 ];
 const THEMES = process.env.KHAYT_THEME_SET
   ? JSON.parse(process.env.KHAYT_THEME_SET)

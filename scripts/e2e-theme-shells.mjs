@@ -30,6 +30,9 @@ const THEME_CASES = [
     // that is what a user clicks and what this suite must click.
     navSelTpl: '#meridianTopbar [data-mrd-tab="{tab}"]',
     reachSel: '#meridianTopbar [data-mrd-tab="converter-tab"]' },
+  // Foreman keeps the sidebar; what is bespoke is the HOME — a docket, not a
+  // dashboard — so it pins .fm-shell and uses the normal nav.
+  { id: 'foreman', bodyClass: 'khayt-foreman', appearance: 'light', dashSel: '.fm-shell', dashMin: 80 },
 ];
 
 const userData = makeUserDataDir();
@@ -138,6 +141,7 @@ async function assertEnthusiastThemesNoMoney(window) {
     { id: 'blueprint', sel: '.wb-dash', extra: null },
     { id: 'nocturne', sel: '.cmd-dash', extra: '#commandStatusBar' },
     { id: 'meridian', sel: '.mrd-dash', extra: '#meridianTopbar' },
+    { id: 'foreman', sel: '.fm-shell', extra: '#foremanDocketBar' },
   ];
   for (const th of THEMES) {
     const r = await window.evaluate(({ id, sel, extra }) => {
