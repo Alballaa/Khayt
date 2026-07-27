@@ -16,6 +16,13 @@ How Khayt Cloud is **built, deployed, and run**. The feature specs ([Phase 1](./
 
 ## 2. Tech stack (recommended, decisive)
 
+> **As built (2026-07-27):** production runs **PHP 8.3 + MySQL on shared
+> hosting** (Hostinger/LiteSpeed), not the Node/Fastify + Postgres + Redis below.
+> PHP executes per request, so there is no process to keep alive — the reason the
+> recommendation was not followed. The Node implementation in `src/` is kept as
+> the VPS option and both are held to one contract. See
+> [CLOUD-STATUS](./KHAYT-3.0-CLOUD-STATUS.md).
+
 Chosen for consistency with the existing codebase (Node everywhere — desktop, `lib/lan-server.js`) and operational simplicity:
 
 | Layer | Choice | Why |
