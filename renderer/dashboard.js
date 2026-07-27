@@ -212,6 +212,13 @@ function renderDashboard() {
     renderLocationScopeBanner?.();
     return;
   }
+  if (document.body.classList.contains('khayt-foreman')
+    && typeof KhaytForeman?.renderDashboard === 'function'
+    && KhaytForeman.renderDashboard(el)) {
+    updateTabBadges?.();
+    renderLocationScopeBanner?.();
+    return;
+  }
 
   const dashOrders = typeof orderMatchesActiveLocation === 'function'
     ? printLog.filter(orderMatchesActiveLocation)

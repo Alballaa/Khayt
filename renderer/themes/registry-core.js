@@ -61,8 +61,17 @@
     olive:   { h: 84,  s: '42%', l: '34%', labelKey: 'theme.accent.olive' },
   };
 
+  /* Foreman spends colour on SEVERITY, so its accent only ever marks which row
+     has focus. The alternatives stay low-chroma for the same reason. */
+  const FOREMAN_ACCENTS = {
+    pine:   { h: 158, s: '46%', l: '34%', labelKey: 'theme.accent.pine' },
+    slate:  { h: 212, s: '24%', l: '38%', labelKey: 'theme.accent.slate' },
+    clay:   { h: 14,  s: '44%', l: '42%', labelKey: 'theme.accent.clay' },
+    indigo2:{ h: 244, s: '34%', l: '46%', labelKey: 'theme.accent.muted_indigo' },
+  };
+
   /** Shells a community theme may declare in its manifest. */
-  const CUSTOM_THEME_SHELLS = ['workbench', 'command', 'vivid', 'meridian', 'default'];
+  const CUSTOM_THEME_SHELLS = ['workbench', 'command', 'vivid', 'meridian', 'foreman', 'default'];
 
   /** Reserved Frontier concepts — Pulse and Stream (vNext). */
   const RESERVED_THEMES = {
@@ -199,6 +208,26 @@
       stylesheets: [
         'themes/meridian/tokens.css',
         'themes/meridian/shell.css',
+      ],
+    },
+    /* A home you EMPTY rather than read. Foreman's dashboard is a ranked docket
+       of decisions beside a detail pane, with a count that follows you onto
+       every screen and keyboard triage — a different model from a dashboard,
+       and a different one again from Meridian's schedule. Keeps the sidebar:
+       two shells removing it would be one idea used twice. */
+    foreman: {
+      labelKey: 'theme.design.foreman',
+      descKey: 'theme.design.foreman_desc',
+      preview: 'themes/previews/foreman.png',
+      shell: 'foreman',
+      enabled: true,
+      defaultAccent: 'pine',
+      accents: FOREMAN_ACCENTS,
+      defaultAppearance: 'light',
+      bodyClass: 'khayt-foreman',
+      stylesheets: [
+        'themes/foreman/tokens.css',
+        'themes/foreman/shell.css',
       ],
     },
   };

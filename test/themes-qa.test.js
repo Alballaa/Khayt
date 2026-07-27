@@ -72,8 +72,8 @@ test('arabic locale includes theme design keys for RTL QA', () => {
 test('each built-in theme declares a known shell and its own body class', () => {
   // Kept in step with applyBodyClasses() in renderer/themes.js — these are the
   // exact values it toggles on.
-  const SHELLS = ['workbench', 'command', 'vivid', 'meridian', 'default'];
-  const SHELL_CLASSES = ['bedready-ui', 'khayt-workbench', 'khayt-command', 'khayt-vivid', 'khayt-meridian'];
+  const SHELLS = ['workbench', 'command', 'vivid', 'meridian', 'foreman', 'default'];
+  const SHELL_CLASSES = ['bedready-ui', 'khayt-workbench', 'khayt-command', 'khayt-vivid', 'khayt-meridian', 'khayt-foreman'];
   const seenShell = new Map();
   const seenClass = new Map();
   for (const [id, theme] of Object.entries(reg.BUILTIN_THEMES)) {
@@ -205,4 +205,45 @@ test('Meridian keeps its nav proxy in step however the tab changed', () => {
   // Overflow affordance: 15 tabs do not fit, and silent clipping is the bug.
   assert.match(src, /function syncNavOverflow/, 'the scroll arrows must be driven by real overflow');
   assert.match(src, /function scrollActiveIntoView/, 'the active tab must be pulled into view');
+});
+
+test('Foreman borrows every rule in its docket instead of inventing one', () => {
+  // A triage list with its own thresholds would quietly disagree with the rest
+  // of the app — the queue calling an order fine while the docket calls it
+  // late. Every row type must come from the shared selector or helper.
+  const src = fs.readFileSync(path.join(root, 'renderer/themes/foreman/screens.js'), 'utf8');
+  assert.match(src, /KhaytAttention\.selectAttention/, 'stopped machines + overdue come from the shared selector');
+  assert.match(src, /payStatus\(o\) === 'paid'/, 'unpaid uses payStatus, like the dashboard');
+  assert.match(src, /orderOwedBase\(o\)/, 'the amount owed uses the shared currency helper');
+  assert.match(src, /isLowStock\(item\)/, 'low stock uses the shared helper, not a local threshold');
+  assert.match(src, /KhaytAttention\.machineState/, 'idle uses the shared machine-state rule');
+  // And the count on the bar must come from the list, never be recomputed.
+  const shell = fs.readFileSync(path.join(root, 'renderer/themes/foreman/shell.js'), 'utf8');
+  assert.match(shell, /function syncDocketCount\(n\)/,
+    'the bar is told the count by the list so the two cannot disagree');
+});
+
+test('Foreman keyboard triage never steals a key from a field or a modal', () => {
+  // J/K/Enter drive the docket. Single-letter shortcuts are exactly the kind
+  // that break typing if they are not gated, and this app already has
+  // single-key tab shortcuts, so the bar for getting this right is known.
+  const src = fs.readFileSync(path.join(root, 'renderer/themes/foreman/shell.js'), 'utf8');
+  assert.match(src, /if \(e\.metaKey \|\| e\.ctrlKey \|\| e\.altKey\) return;/, 'chords are not ours');
+  assert.match(src, /INPUT\|TEXTAREA\|SELECT/, 'never fire while a field has focus');
+  assert.match(src, /isContentEditable/, 'including contenteditable');
+  assert.match(src, /#modalMount \.modal/, 'never fire behind an open modal');
+  assert.match(src, /dashboard-tab.*classList\.contains\('active'\)/, 'only while the docket is the visible screen');
+  assert.match(src, /function removeKeys/, 'and the listener must come off on teardown');
+});
+
+test('every shell declares the base layout it needs', () => {
+  // .khayt-app / .khayt-body / .khayt-sidebar carry no layout of their own, so
+  // a shell that keeps the sidebar but omits these renders the whole nav as a
+  // full-width block stacked above the content. Foreman shipped that way for
+  // one render. Each sidebar shell must claim the row + the column.
+  for (const shell of ['workbench', 'command', 'vivid', 'foreman']) {
+    const css = fs.readFileSync(path.join(root, `renderer/themes/${shell}/shell.css`), 'utf8');
+    assert.match(css, new RegExp(`body\\.khayt-${shell} \\.khayt-body`),
+      `${shell} must lay out .khayt-body`);
+  }
 });
