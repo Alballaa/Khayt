@@ -27,6 +27,7 @@ const DEFAULT_THEMES = [
   // thumbnail would sell the one theme built for a dim workshop as another
   // pale one.
   { id: 'nocturne', appearance: 'dark', file: 'nocturne.png' },
+  { id: 'meridian', appearance: 'light', file: 'meridian.png' },
 ];
 const THEMES = process.env.KHAYT_THEME_SET
   ? JSON.parse(process.env.KHAYT_THEME_SET)

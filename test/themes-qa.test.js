@@ -72,8 +72,8 @@ test('arabic locale includes theme design keys for RTL QA', () => {
 test('each built-in theme declares a known shell and its own body class', () => {
   // Kept in step with applyBodyClasses() in renderer/themes.js — these are the
   // exact values it toggles on.
-  const SHELLS = ['workbench', 'command', 'vivid', 'default'];
-  const SHELL_CLASSES = ['bedready-ui', 'khayt-workbench', 'khayt-command', 'khayt-vivid'];
+  const SHELLS = ['workbench', 'command', 'vivid', 'meridian', 'default'];
+  const SHELL_CLASSES = ['bedready-ui', 'khayt-workbench', 'khayt-command', 'khayt-vivid', 'khayt-meridian'];
   const seenShell = new Map();
   const seenClass = new Map();
   for (const [id, theme] of Object.entries(reg.BUILTIN_THEMES)) {

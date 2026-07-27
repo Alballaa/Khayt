@@ -51,8 +51,18 @@
     ice:   { h: 196, s: '82%', l: '60%', labelKey: 'theme.accent.ice' },
   };
 
+  /* Meridian's accents are restrained on purpose: the schedule spends its
+     colour on JOB STATE, so the accent is really only the now-line and the
+     clock. A loud accent here would compete with the blocks that carry data. */
+  const MERIDIAN_ACCENTS = {
+    signal:  { h: 184, s: '72%', l: '36%', labelKey: 'theme.accent.signal' },
+    cobalt:  { h: 218, s: '68%', l: '44%', labelKey: 'theme.accent.cobalt' },
+    magenta: { h: 322, s: '60%', l: '46%', labelKey: 'theme.accent.magenta' },
+    olive:   { h: 84,  s: '42%', l: '34%', labelKey: 'theme.accent.olive' },
+  };
+
   /** Shells a community theme may declare in its manifest. */
-  const CUSTOM_THEME_SHELLS = ['workbench', 'command', 'vivid', 'default'];
+  const CUSTOM_THEME_SHELLS = ['workbench', 'command', 'vivid', 'meridian', 'default'];
 
   /** Reserved Frontier concepts — Pulse and Stream (vNext). */
   const RESERVED_THEMES = {
@@ -169,6 +179,26 @@
       stylesheets: [
         'themes/nocturne/tokens.css',
         'themes/nocturne/shell.css',
+      ],
+    },
+    /* The first Khayt design that is not a sidebar app. Meridian drops the left
+       nav entirely, moves navigation to a horizontal bar, and replaces the card
+       dashboard with a SCHEDULE — machine lanes on an hour axis with a live
+       now-line. It therefore owns a shell of its own rather than borrowing one:
+       shell.js builds the chrome, screens.js draws the timeline. */
+    meridian: {
+      labelKey: 'theme.design.meridian',
+      descKey: 'theme.design.meridian_desc',
+      preview: 'themes/previews/meridian.png',
+      shell: 'meridian',
+      enabled: true,
+      defaultAccent: 'signal',
+      accents: MERIDIAN_ACCENTS,
+      defaultAppearance: 'light',
+      bodyClass: 'khayt-meridian',
+      stylesheets: [
+        'themes/meridian/tokens.css',
+        'themes/meridian/shell.css',
       ],
     },
   };
