@@ -163,3 +163,46 @@ test('coming-soon cards are labelled with their own theme, not the fallback', ()
   assert.match(src, /getThemeDefinition\(id\)/,
     'the coming-soon loop must label from getThemeDefinition, not getTheme');
 });
+
+test('the dead console status bar is gone from the shell markup', () => {
+  // A leftover from a deleted legacy theme: .console-status rendered two em
+  // dashes ("— —") under the content in EVERY Khayt theme, because nothing in
+  // Khayt's CSS hid it and no JS ever populated it. Bed Ready had already
+  // hidden it for itself — bedready-theme.css even names it "the stray '— —'"
+  // — which is how it survived: fixed for one product, left for the other.
+  const html = fs.readFileSync(path.join(root, 'renderer/index.html'), 'utf8');
+  for (const id of ['consoleStatusBar', 'consoleStatusPrinters', 'consoleStatusQueue',
+    'consoleStatusLocation', 'consoleStatusClock']) {
+    assert.equal(html.includes(id), false, `${id} is dead markup and must stay removed`);
+  }
+  assert.equal(/class="console-status"/.test(html), false);
+});
+
+test('Meridian will not let a running job be dragged to another printer', () => {
+  // The schedule can reassign work by dropping a block on a lane. A job that is
+  // PRINTING is physically on that machine, so moving it would assert something
+  // untrue about the shop floor — it is not draggable, and the drop handler
+  // refuses it a second time in case the attribute is bypassed.
+  const src = fs.readFileSync(path.join(root, 'renderer/themes/meridian/screens.js'), 'utf8');
+  assert.match(src, /const movable = b\.state !== 'run' && b\.state !== 'done';/,
+    'running and finished blocks must not be draggable');
+  assert.match(src, /if \(order\.status === 'printing' \|\| order\.status === 'completed'\) return false;/,
+    'assignToMachine must refuse a running job even if the drag attribute is bypassed');
+  // Both fields, not just the id: analytics resolves a machine by NAME too.
+  assert.match(src, /order\.machineId = machineId;\s*\n\s*order\.machine = machine\.name \|\| machineId;/,
+    'assignment must write machineId AND machine, like the batch-assign path');
+});
+
+test('Meridian keeps its nav proxy in step however the tab changed', () => {
+  // Forwarding clicks only covers clicks. A tab also changes from the ⌘K
+  // palette, a single-key shortcut, an in-page link or any switchTab() call —
+  // and the proxy highlighted Dashboard while Settings was open until it
+  // watched the real buttons instead.
+  const src = fs.readFileSync(path.join(root, 'renderer/themes/meridian/shell.js'), 'utf8');
+  assert.match(src, /new MutationObserver/, 'the proxy must observe the real nav, not just its own clicks');
+  assert.match(src, /attributeFilter: \['class', 'style'\]/, 'active/hidden state lives in class and style');
+  assert.match(src, /stopWatching\(\)/, 'and must disconnect on teardown');
+  // Overflow affordance: 15 tabs do not fit, and silent clipping is the bug.
+  assert.match(src, /function syncNavOverflow/, 'the scroll arrows must be driven by real overflow');
+  assert.match(src, /function scrollActiveIntoView/, 'the active tab must be pulled into view');
+});

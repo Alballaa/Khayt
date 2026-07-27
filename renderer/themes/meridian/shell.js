@@ -30,6 +30,8 @@
   const NAV_ID = 'meridianTopbar';
   const CLOCK_ID = 'meridianClock';
   let clockTimer = null;
+  let navObserver = null;
+  let syncing = false;
 
   function isOn() { return document.body.classList.contains('khayt-meridian'); }
 
@@ -74,9 +76,14 @@
    * Reads: label, active state, badge, and whether the real button is visible.
    */
   function syncTopbar() {
-    if (!isOn()) return;
+    if (!isOn() || syncing) return;
     const bar = ensureTopbar();
     if (!bar) return;
+    syncing = true;
+    try { buildTopbar(bar); } finally { syncing = false; }
+  }
+
+  function buildTopbar(bar) {
 
     const real = [...document.querySelectorAll('#appSidebar .tab-btn')];
     const items = real
@@ -108,13 +115,51 @@
         <span class="mrd-wordmark">${escHtml(tr('app.title', 'Khayt'))}</span>
         <span class="mrd-shellname">MERIDIAN</span>
       </div>
-      <div class="mrd-nav">${links}</div>
+      <div class="mrd-navwrap">
+        <button type="button" class="mrd-navscroll start" data-mrd-scroll="-1" tabindex="-1" aria-hidden="true">‹</button>
+        <div class="mrd-nav" id="meridianNav">${links}</div>
+        <button type="button" class="mrd-navscroll end" data-mrd-scroll="1" tabindex="-1" aria-hidden="true">›</button>
+      </div>
       <div class="mrd-when">
         <span class="mrd-date" id="meridianDate"></span>
         <span class="mrd-clock" id="${CLOCK_ID}"></span>
       </div>`;
 
     syncClock();
+    syncNavOverflow();
+    scrollActiveIntoView();
+  }
+
+  /**
+   * Show the scroll arrows only when the strip actually overflows, and only on
+   * the side there is more to see.
+   *
+   * Dropping the sidebar buys the width the schedule needs and costs this: 15
+   * tabs do not fit on a narrow window. Leaving them silently clipped is the
+   * worst option — the strip opened scrolled to the active tab with Dashboard
+   * off-screen and nothing indicating it could move.
+   */
+  function syncNavOverflow() {
+    const nav = document.getElementById('meridianNav');
+    const bar = document.getElementById(NAV_ID);
+    if (!nav || !bar) return;
+    const max = nav.scrollWidth - nav.clientWidth;
+    const atStart = nav.scrollLeft <= 1;
+    const atEnd = nav.scrollLeft >= max - 1;
+    bar.querySelector('.mrd-navscroll.start')?.toggleAttribute('hidden', max <= 1 || atStart);
+    bar.querySelector('.mrd-navscroll.end')?.toggleAttribute('hidden', max <= 1 || atEnd);
+  }
+
+  /** Keep the current screen's tab visible — it is the one you look for. */
+  function scrollActiveIntoView() {
+    const nav = document.getElementById('meridianNav');
+    const active = nav?.querySelector('.mrd-navbtn.active');
+    if (!nav || !active) return;
+    const l = active.offsetLeft;
+    const r = l + active.offsetWidth;
+    if (l < nav.scrollLeft) nav.scrollLeft = Math.max(0, l - 8);
+    else if (r > nav.scrollLeft + nav.clientWidth) nav.scrollLeft = r - nav.clientWidth + 8;
+    syncNavOverflow();
   }
 
   // One delegated listener for the life of the module — forwarding a click to
@@ -122,6 +167,18 @@
   // location scope) in one place instead of reimplemented here.
   document.addEventListener('click', (e) => {
     if (!isOn()) return;
+
+    const arrow = e.target.closest?.('[data-mrd-scroll]');
+    if (arrow) {
+      e.preventDefault();
+      const nav = document.getElementById('meridianNav');
+      if (nav) {
+        nav.scrollBy({ left: Number(arrow.dataset.mrdScroll) * Math.max(160, nav.clientWidth * 0.7), behavior: 'smooth' });
+        setTimeout(syncNavOverflow, 350);
+      }
+      return;
+    }
+
     const btn = e.target.closest?.('[data-mrd-tab]');
     if (!btn) return;
     e.preventDefault();
@@ -131,6 +188,15 @@
     else if (typeof switchTab === 'function') switchTab(id);
     syncTopbar();
   });
+
+  // The strip can also be scrolled directly (trackpad, shift-wheel); keep the
+  // arrows honest when that happens rather than only on rebuild.
+  document.addEventListener('scroll', (e) => {
+    if (!isOn()) return;
+    if (e.target?.id === 'meridianNav') syncNavOverflow();
+  }, true);
+
+  window.addEventListener('resize', () => { if (isOn()) syncNavOverflow(); });
 
   /* ----------------------------------------------------------------- clock */
 
@@ -168,6 +234,35 @@
 
   /* ------------------------------------------------------------ apply/undo */
 
+  /**
+   * Keep the proxy in step with the real nav however the tab changed.
+   *
+   * Forwarding clicks is only half of it: a tab can also change from the ⌘K
+   * palette, a single-key shortcut, a "View queue →" link, or any switchTab()
+   * call in the app. Re-syncing only inside our own click handler left the top
+   * bar highlighting Dashboard while the Settings screen was open. Watching the
+   * real buttons' class attribute catches every route, including ones added
+   * later, because `active` is what all of them end up toggling.
+   */
+  function watchTabChanges() {
+    stopWatching();
+    const sidebar = document.getElementById('appSidebar');
+    if (!sidebar || typeof MutationObserver === 'undefined') return;
+    navObserver = new MutationObserver(() => {
+      if (!isOn()) return;
+      syncTopbar();
+    });
+    navObserver.observe(sidebar, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class', 'style'],
+    });
+  }
+
+  function stopWatching() {
+    if (navObserver) { navObserver.disconnect(); navObserver = null; }
+  }
+
   function applyMeridianShell() {
     const sidebar = document.getElementById('appSidebar');
     if (sidebar) {
@@ -178,11 +273,13 @@
     }
     ensureTopbar();
     syncTopbar();
+    watchTabChanges();
     startClock();
   }
 
   function teardownMeridianShell() {
     stopClock();
+    stopWatching();
     removeTopbar();
     document.getElementById('appSidebar')?.removeAttribute('data-mrd-hidden');
   }

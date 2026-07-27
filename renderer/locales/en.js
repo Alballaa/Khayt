@@ -1320,6 +1320,7 @@
   "dash.mrd_staging_sub": "no printer chosen yet",
   "dash.mrd_nothing_staged": "Nothing waiting on a printer",
   "dash.mrd_projected": "projected",
+  "dash.mrd_drag_hint": "drag to another printer to reassign",
   "dash.mrd_proj_note": "Hatched blocks are projected from the queue — Khayt does not assign start times.",
   "theme.accent.blueprint": "Blueprint Blue",
   "theme.accent.graphite": "Graphite",

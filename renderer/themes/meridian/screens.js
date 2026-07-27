@@ -126,13 +126,78 @@
   function blockHtml(b) {
     const [k, f] = STATE_LABEL[b.state] || STATE_LABEL.queue;
     const label = escHtml(b.order.project || b.order.id || '');
-    const title = `${label} · ${escHtml(tr(k, f))}${b.projected ? ` · ${escHtml(tr('dash.mrd_projected', 'projected'))}` : ''}`;
-    return `<button type="button" class="mrd-block mrd-${b.state}${b.projected ? ' mrd-proj' : ''}"
+    // A running job is physically on that machine — dragging it to another lane
+    // would claim something untrue about the shop floor, so only work that has
+    // not started can be moved.
+    const movable = b.state !== 'run' && b.state !== 'done';
+    const title = `${label} · ${escHtml(tr(k, f))}${b.projected ? ` · ${escHtml(tr('dash.mrd_projected', 'projected'))}` : ''}${
+      movable ? ` · ${escHtml(tr('dash.mrd_drag_hint', 'drag to another printer to reassign'))}` : ''}`;
+    return `<button type="button" class="mrd-block mrd-${b.state}${b.projected ? ' mrd-proj' : ''}${movable ? ' mrd-movable' : ''}"
       style="--from:${b.from.toFixed(3)};--span:${b.span.toFixed(3)}"
+      ${movable ? 'draggable="true"' : ''}
       data-order-id="${escHtml(b.order.id || '')}" title="${title}">
       <span class="mrd-block-label">${label}</span>
       <span class="mrd-block-meta">${b.span.toFixed(1)}h</span>
     </button>`;
+  }
+
+  /**
+   * Assign an order to a machine by dropping it on that lane.
+   *
+   * Writes the same two fields the existing batch-assign path writes —
+   * machineId AND machine (the name) — because parts of the app still resolve a
+   * machine by name (analytics maps location that way). Setting only the id
+   * would leave those readers looking at a stale name.
+   */
+  function assignToMachine(orderId, machineId) {
+    const log = (typeof printLog !== 'undefined' && Array.isArray(printLog)) ? printLog : [];
+    const order = log.find((o) => o && o.id === orderId);
+    const machine = (typeof machines !== 'undefined' ? machines : []).find((m) => m && m.id === machineId);
+    if (!order || !machine) return false;
+    if (order.status === 'printing' || order.status === 'completed') return false;
+    if (order.machineId === machineId) return false;
+
+    order.machineId = machineId;
+    order.machine = machine.name || machineId;
+    if (typeof saveAll === 'function') saveAll();
+    if (typeof renderKanban === 'function') renderKanban();
+    if (typeof renderLogs === 'function') renderLogs();
+    if (typeof renderDashboard === 'function') renderDashboard();
+    if (typeof toast === 'function') {
+      toast(`${order.project || order.id} → ${machine.name || machineId}`, 'success');
+    }
+    return true;
+  }
+
+  /** Wire HTML5 drag-and-drop: blocks and staged chips onto machine lanes. */
+  function wireDragAndDrop(root) {
+    root.querySelectorAll('[draggable="true"]').forEach((el) => {
+      el.addEventListener('dragstart', (e) => {
+        const id = el.getAttribute('data-order-id') || '';
+        e.dataTransfer?.setData('text/plain', id);
+        if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+        el.classList.add('mrd-dragging');
+      });
+      el.addEventListener('dragend', () => {
+        el.classList.remove('mrd-dragging');
+        root.querySelectorAll('.mrd-drop').forEach((l) => l.classList.remove('mrd-drop'));
+      });
+    });
+
+    root.querySelectorAll('[data-machine-id]').forEach((lane) => {
+      lane.addEventListener('dragover', (e) => {
+        e.preventDefault();                       // required to allow a drop
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+        lane.classList.add('mrd-drop');
+      });
+      lane.addEventListener('dragleave', () => lane.classList.remove('mrd-drop'));
+      lane.addEventListener('drop', (e) => {
+        e.preventDefault();
+        lane.classList.remove('mrd-drop');
+        const orderId = e.dataTransfer?.getData('text/plain');
+        if (orderId) assignToMachine(orderId, lane.getAttribute('data-machine-id'));
+      });
+    });
   }
 
   function axisHtml(start, now) {
@@ -161,7 +226,7 @@
       .filter((b) => b.from < HOURS_SPAN && (b.from + b.span) > 0)
       .map(blockHtml).join('');
     const running = lane.blocks.some((b) => b.state === 'run');
-    return `<div class="mrd-lane">
+    return `<div class="mrd-lane" data-machine-id="${escHtml(m.id || '')}">
       <div class="mrd-lane-gutter">
         <span class="mrd-dot${running ? ' on' : ''}" aria-hidden="true"></span>
         <span class="mrd-lane-name">${escHtml(m.name || m.id || '')}</span>
@@ -203,7 +268,8 @@
 
     const stagedHtml = staged.length
       ? staged.slice(0, 12).map((s) => `
-        <button type="button" class="mrd-chip mrd-${s.state}" data-order-id="${escHtml(s.order.id || '')}">
+        <button type="button" class="mrd-chip mrd-${s.state} mrd-movable" draggable="true" data-order-id="${escHtml(s.order.id || '')}"
+          title="${escHtml(tr('dash.mrd_drag_hint', 'drag to another printer to reassign'))}">
           <span>${escHtml(s.order.project || s.order.id || '')}</span>
           <span class="mrd-chip-h">${Math.max(0.25, num(s.order.printTime)).toFixed(1)}h</span>
         </button>`).join('')
@@ -226,6 +292,8 @@
 
     // Clicking a block or chip opens the order the same way every other screen
     // does, rather than this shell growing its own detail view.
+    wireDragAndDrop(host);
+
     host.querySelectorAll('[data-order-id]').forEach((el) => {
       el.addEventListener('click', () => {
         const id = el.getAttribute('data-order-id');

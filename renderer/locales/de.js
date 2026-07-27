@@ -1320,6 +1320,7 @@
   "dash.mrd_staging_sub": "noch kein Drucker gewählt",
   "dash.mrd_nothing_staged": "Nichts wartet auf einen Drucker",
   "dash.mrd_projected": "projiziert",
+  "dash.mrd_drag_hint": "zum Neuzuweisen auf einen anderen Drucker ziehen",
   "dash.mrd_proj_note": "Schraffierte Blöcke sind aus der Warteschlange projiziert — Khayt vergibt keine Startzeiten.",
   "theme.accent.blueprint": "Blaupausen-Blau",
   "theme.accent.graphite": "Graphit",

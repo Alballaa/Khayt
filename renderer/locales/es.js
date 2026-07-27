@@ -1320,6 +1320,7 @@
   "dash.mrd_staging_sub": "aún sin impresora",
   "dash.mrd_nothing_staged": "Nada esperando impresora",
   "dash.mrd_projected": "proyectado",
+  "dash.mrd_drag_hint": "arrastra a otra impresora para reasignar",
   "dash.mrd_proj_note": "Los bloques rayados se proyectan desde la cola — Khayt no asigna horas de inicio.",
   "theme.accent.blueprint": "Azul plano",
   "theme.accent.graphite": "Grafito",
