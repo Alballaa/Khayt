@@ -191,8 +191,11 @@ test('no locale key is unreachable from code', () => {
   for (const re of [/['"]([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*[._])['"]\s*\+/g,
                     /`([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*[._])\$\{/g])
     for (const m of blob.matchAll(re)) pre.add(m[1].replace(/[._]$/, ''));
-  for (const re of [/\+\s*['"][._]([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*)['"]/g,
-                    /\$\{[^}]+\}[._]([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*)/g])
+  // Keep the separator. Matching a bare tail against BOTH ".tail" and "_tail"
+  // is far too loose: one `${x}.title` anywhere made every *_title key in the
+  // app look reachable, so a genuinely dead one could never be reported.
+  for (const re of [/\+\s*['"]([._][A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*)['"]/g,
+                    /\$\{[^}]+\}([._][A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*)/g])
     for (const m of blob.matchAll(re)) suf.add(m[1]);
 
   const isKeyChar = (ch) => /[A-Za-z0-9_.]/.test(ch);
@@ -204,10 +207,61 @@ test('no locale key is unreachable from code', () => {
   };
   const dead = keys.filter((k) => !literal(k)
     && ![...pre].some((p) => k === p || k.startsWith(`${p}.`) || k.startsWith(`${p}_`))
-    && ![...suf].some((s) => k === s || k.endsWith(`.${s}`) || k.endsWith(`_${s}`)));
+    && ![...suf].some((s) => k.endsWith(s)));
 
   assert.deepEqual(dead, [],
     `${dead.length} locale key(s) no code can reach — delete them from all nine locales:\n  ${dead.join('\n  ')}`);
+});
+
+/**
+ * The mirror of the unreachable-key guard: keys the code ASKS for that no
+ * locale file defines.
+ *
+ * `tr(key, fallback)` returns the English fallback when the key is missing, so
+ * the screen looks perfectly fine — in English — in all nine languages, and
+ * nothing anywhere reports a problem. 33 keys were in this state, 29 of them
+ * the whole Bed Ready filament-care log, which had never been translated at
+ * all despite reading as finished code.
+ *
+ * The two guards together close the loop: one fails on a key nothing uses, this
+ * one fails on a use with no key.
+ */
+test('every key the code asks for exists in en.js', () => {
+  const ctx = vm.createContext({ globalThis: {} });
+  ctx.globalThis = ctx;
+  vm.runInContext(fs.readFileSync(path.join(root, 'renderer/locales/en.js'), 'utf8'), ctx);
+  const en = ctx.globalThis.KhaytLocales.en;
+
+  // Bed Ready rebrands some keys at runtime over every loaded locale.
+  const bdr = fs.readFileSync(path.join(root, 'renderer/bedready-home.js'), 'utf8');
+  const extra = new Set([...bdr.matchAll(/^\s*'([a-z0-9_]+(?:\.[a-z0-9_]+)+)'\s*:/gim)].map((m) => m[1]));
+
+  const files = [];
+  (function walk(d) {
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      if (e.name === 'locales') continue;
+      const p = path.join(d, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (e.name.endsWith('.js')) files.push(p);
+    }
+  })(path.join(root, 'renderer'));
+
+  const missing = new Map();
+  for (const f of files) {
+    const src = fs.readFileSync(f, 'utf8');
+    const rel = path.relative(root, f);
+    src.split('\n').forEach((line, i) => {
+      // Only the two-argument forms: t('k') with no fallback already renders
+      // the raw key, which the data-i18n guard and review catch on sight.
+      for (const m of line.matchAll(/\b(?:tr|tt)\(\s*'([a-z0-9_]+(?:\.[a-z0-9_]+)+)'\s*,\s*'/gi)) {
+        const key = m[1];
+        if (en[key] === undefined && !extra.has(key)) missing.set(key, `${rel}:${i + 1}`);
+      }
+    });
+  }
+  const report = [...missing].map(([k, at]) => `${k}  (${at})`);
+  assert.deepEqual(report, [],
+    `these silently serve English in all nine languages:\n  ${report.join('\n  ')}`);
 });
 
 test('every settings section head and hint is translatable', () => {

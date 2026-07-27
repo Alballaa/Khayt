@@ -6,6 +6,22 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **A whole Bed Ready feature had never been translated.** The filament-care log
+  asked for 30 locale keys that no language file defined. Because the code
+  supplies an English fallback for each, every screen looked finished — in
+  English — in all nine languages, and nothing reported a problem. Those keys
+  now exist, translated.
+- **Tooltips, placeholders and several labels were English everywhere.** The
+  theme toggle, notification bell, location filter, global search, the G-code
+  parser and quote buttons, the waste search box, the aged-receivables report
+  and the NPS panel all carried text no translation could reach. The theme
+  toggle and bell alone appear on every screen in the app.
+- **A guard now fails the build on a key the code asks for but no language
+  defines** — the mirror of the existing one that fails on a key nothing uses.
+  Together they close the loop in both directions. Fixing a hole in the latter
+  also mattered: one dynamic `.title` lookup had been making every key whose
+  name ends in _title look used, so a dead one could never have been reported.
+
 - **Dates and times ignored the language you chose.** Of 51 places Khayt formats
   a date or a time, 49 were wrong. Thirteen asked "is this Arabic?" and fell
   back to American English for everything else — so German, Spanish, French,

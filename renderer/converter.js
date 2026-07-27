@@ -975,7 +975,7 @@
           <summary>＋ ${escapeHtml(t('conv.add_printer') || 'Add a printer')}</summary>
           <div class="conv-cp-form" id="convCpForm">
             <div class="conv-cp-grid">
-              <label>${escapeHtml(t('conv.cp_name') || 'Name')}<input id="cpName" type="text" maxlength="48" placeholder="My printer"></label>
+              <label>${escapeHtml(t('conv.cp_name') || 'Name')}<input id="cpName" type="text" maxlength="48" placeholder="${escapeHtml(t('conv.cp_name_ph'))}"></label>
               <label>${escapeHtml(t('conv.cp_vendor') || 'Brand')}<input id="cpVendor" type="text" maxlength="32"></label>
               <label>${escapeHtml(t('conv.cp_flavour') || 'Slicer format')}<select id="cpFlavour">${flavours.map((f) => `<option value="${f}">${f}</option>`).join('')}</select></label>
               <label>${escapeHtml(t('conv.cp_slots') || 'Colour slots')}<input id="cpSlots" type="number" min="1" max="16" value="1"></label>
