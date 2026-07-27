@@ -434,7 +434,7 @@ function buildDigestEmailHtml() {
     periodFrom.setHours(0, 0, 0, 0);
     periodTo = new Date(now);
   } else if (freq === 'monthly') {
-    periodLabel = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    periodLabel = now.toLocaleDateString(localeTag(), { month: 'long', year: 'numeric' });
     periodFrom = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
     periodTo = new Date(now);
   } else {
@@ -3282,7 +3282,7 @@ async function openRestoreBackupModal() {
     <label style="display:flex; align-items:center; gap:10px; padding:6px 8px; border-radius:6px; cursor:pointer; border:1px solid var(--border); margin-bottom:6px; ${i === 0 ? 'background:rgba(91,156,240,0.07);' : ''}">
       <input type="radio" name="backupChoice" value="${escapeHtml(b.filename)}" ${i === 0 ? 'checked' : ''} style="width:auto; margin:0;">
       <span style="flex:1; font-size:13px; font-weight:${i === 0 ? '600' : '400'};">${escapeHtml(b.name)}</span>
-      <span style="font-size:11px; color:var(--text-muted);">${new Date(b.mtime).toLocaleDateString()}</span>
+      <span style="font-size:11px; color:var(--text-muted);">${new Date(b.mtime).toLocaleDateString(localeTag())}</span>
     </label>`).join('');
   openFormModal({
     title: t('set.restore_title'),

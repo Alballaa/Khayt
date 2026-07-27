@@ -6,6 +6,23 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Dates and times ignored the language you chose.** Of 51 places Khayt formats
+  a date or a time, 49 were wrong. Thirteen asked "is this Arabic?" and fell
+  back to American English for everything else — so German, Spanish, French,
+  Japanese, Turkish, Chinese and Brazilian Portuguese all got US dates. Six were
+  hardcoded to English outright. Thirty passed no language at all, which means
+  they followed the computer's setting rather than Khayt's: choosing 日本語 still
+  produced "Monday, July 27, 2026" on an English Mac. Every one of them now
+  follows the language you picked. Arabic keeps Western digits — the same
+  deliberate choice the rest of the app makes — while its month and day names
+  are Arabic, and the Hijri calendar is untouched.
+- **Two calendars were permanently English.** The analytics activity heatmap and
+  the calendar view both carried a hardcoded `Sun, Mon, Tue…` list, invisible in
+  English and unchangeable in every other language. The same bug the email
+  digest had. Both now come from the system's own calendar data.
+- **The Meridian header kept the old language for half a minute** after
+  switching, because its date only repainted on a 30-second timer.
+
 - **A working update download looked like a frozen one.** The update is over
   150 MB. The progress panel showed a bar and a bare percentage — which on a
   file that size creeps a single point every few seconds — and nothing else, so

@@ -301,7 +301,7 @@
       const ds = (typeof localDateStr === 'function') ? localDateStr(d) : localDateStr(d);
       const doneThatDay = log.filter((o) => o.status === 'completed' && o.date === ds);
       const v = biz ? doneThatDay.reduce((s, o) => s + orderNetRevenueBase(o), 0) : doneThatDay.length;
-      const cap = d.toLocaleDateString([], { weekday: 'short' });
+      const cap = d.toLocaleDateString(localeTag(), { weekday: 'short' });
       barData.push({ cap, v });
     }
 

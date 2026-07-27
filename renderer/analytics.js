@@ -707,7 +707,7 @@ function renderMonthlyTrendChart() {
     const expH = exp > 0 ? Math.max(2, (exp / maxVal) * chartH) : 0;
     const revY = padT + chartH - revH;
     const expY = padT + chartH - expH;
-    const label = new Date(m + '-01').toLocaleDateString(undefined, { month: 'short' });
+    const label = new Date(m + '-01').toLocaleDateString(localeTag(), { month: 'short' });
     const profit = rev - exp;
     const profitColor = profit >= 0 ? '#22c55e' : '#ef4444';
 
@@ -743,7 +743,7 @@ function renderRevenueForecast() {
   const f = KhaytForecast.forecast(printLog, { now: Date.now(), months: 6, periods: 3, revenueOf: orderNetRevenueBase });
   if (f.method === 'none') { el.innerHTML = ''; return; } // nothing to forecast yet
 
-  const monShort = (label) => { try { return new Date(label + '-01').toLocaleDateString(undefined, { month: 'short' }); } catch { return label; } };
+  const monShort = (label) => { try { return new Date(label + '-01').toLocaleDateString(localeTag(), { month: 'short' }); } catch { return label; } };
   const series = [
     ...f.history.map((h) => ({ label: monShort(h.label), val: h.revenue, projected: false })),
     ...f.projection.map((p) => ({ label: monShort(p.label), val: p.projected, projected: true })),
@@ -2265,7 +2265,7 @@ function renderRevenueChart() {
       const d = new Date(now.getFullYear(), qStart + i, 1);
       months.push({
         key:   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
-        label: d.toLocaleDateString(i18n.current === 'ar' ? 'ar-SA-u-nu-latn' : 'en-US', { month: 'short' }),
+        label: d.toLocaleDateString(localeTag(), { month: 'short' }),
         revenue: 0, orders: 0
       });
     }
@@ -2275,7 +2275,7 @@ function renderRevenueChart() {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       months.push({
         key:   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
-        label: d.toLocaleDateString(i18n.current === 'ar' ? 'ar-SA-u-nu-latn' : 'en-US', { month: 'short' }),
+        label: d.toLocaleDateString(localeTag(), { month: 'short' }),
         revenue: 0, orders: 0
       });
     }
@@ -2955,7 +2955,7 @@ async function exportAnalyticsReport() {
   const shopName = escapeHtml(s.bizName || s.bizEn || s.shopName || 'Khayt');
   const accentColor = safeCssColor(s.invoiceAccentColor || s.invAccentColor, '#5b9cf0');
   const rangeLabel = escapeHtml(t('an.range.' + analyticsRange) || analyticsRange);
-  const reportDate = new Date().toLocaleDateString();
+  const reportDate = new Date().toLocaleDateString(localeTag());
 
   const safeLogo = typeof safeBizLogo === 'function' ? safeBizLogo() : '';
 
@@ -3073,7 +3073,9 @@ function renderThroughputHeatmap() {
   });
 
   const maxVal = Math.max(1, ...matrix.flat());
-  const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  // 2023-01-01 was a Sunday, so index 0 lines up with getDay() === 0.
+  const dayFmt = new Intl.DateTimeFormat(localeTag(), { weekday: 'short' });
+  const DAY_NAMES = Array.from({ length: 7 }, (_, i) => dayFmt.format(new Date(Date.UTC(2023, 0, i + 1))));
   const SHOWN_HOURS = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22];
 
   const headerRow = `<tr>

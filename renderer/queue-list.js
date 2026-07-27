@@ -71,8 +71,7 @@
 
   function clockTime(ms) {
     const d = new Date(ms);
-    const lang = (typeof i18n !== 'undefined' && i18n.current === 'ar') ? 'ar-SA-u-nu-latn' : 'en-GB';
-    return d.toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleTimeString(localeTag(), { hour: '2-digit', minute: '2-digit' });
   }
 
   /** Why this row is in the attention group, in words. */

@@ -43,7 +43,43 @@
     return /^[=+\-@\t\r]/.test(s) ? "'" + s : s;
   }
 
-  const api = { num, clampPositive, fmtMoney, fmtCount, computeUnitPrice, csvFormulaNeutralize };
+  /**
+   * BCP-47 tag for the language the user actually chose, for date and time
+   * formatting.
+   *
+   * Every date in the app used to be formatted one of three wrong ways: a
+   * hardcoded en-US/en-GB; a ternary picking the Arabic tag for Arabic and
+   * en-US for everything else, which quietly meant English for the seven
+   * languages that are not Arabic; or no argument at all, which follows the
+   * OPERATING SYSTEM rather than the app — so picking 日本語 in Khayt still
+   * produced "Monday, July 27, 2026" on an English Mac.
+   *
+   * Arabic keeps `-u-nu-latn`. That is the same deliberate choice `fmtCount`
+   * documents: live Saudi products overwhelmingly use Western digits, so the
+   * digits stay Latin while the words localise. Do NOT route `fmtCount`
+   * through here — its 'en-US' is about digits, not language.
+   *
+   * The Hijri formatter in app-helpers.js is also deliberately left alone: it
+   * pins the Umm al-Qura calendar, which is the point of it.
+   */
+  const LOCALE_TAGS = {
+    en: 'en-US',
+    ar: 'ar-SA-u-nu-latn',
+    de: 'de-DE',
+    es: 'es-ES',
+    fr: 'fr-FR',
+    ja: 'ja-JP',
+    tr: 'tr-TR',
+    zh: 'zh-CN',
+    'pt-BR': 'pt-BR',
+  };
+
+  function localeTag() {
+    const lang = (typeof i18n !== 'undefined' && i18n && i18n.current) || 'en';
+    return LOCALE_TAGS[lang] || 'en-US';
+  }
+
+  const api = { num, clampPositive, fmtMoney, fmtCount, computeUnitPrice, csvFormulaNeutralize, localeTag, LOCALE_TAGS };
 
   global.KhaytFormat = api;
   global.num = num;
@@ -52,6 +88,7 @@
   global.fmtCount = fmtCount;
   global.computeUnitPrice = computeUnitPrice;
   global.csvFormulaNeutralize = csvFormulaNeutralize;
+  global.localeTag = localeTag;
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : window);

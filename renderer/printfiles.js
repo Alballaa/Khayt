@@ -299,7 +299,7 @@
 
   // Short, locale-aware date for the print-history line.
   function fmtPfDate(iso) {
-    try { return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); }
+    try { return new Date(iso).toLocaleDateString(localeTag(), { month: 'short', day: 'numeric' }); }
     catch (e) { return String(iso || '').slice(0, 10); }
   }
 
