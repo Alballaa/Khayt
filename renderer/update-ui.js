@@ -121,18 +121,102 @@
     wireFooterActions();
   }
 
-  function renderDownloadingState(percent) {
+  /** Bytes → "12.4 MB". Update payloads are always MB-to-GB, never smaller. */
+  function formatBytes(n) {
+    const mb = (+n || 0) / 1048576;
+    return mb >= 1024 ? `${(mb / 1024).toFixed(2)} GB` : `${mb.toFixed(1)} MB`;
+  }
+
+  /** Seconds → "about 3 min" / "about 45 sec". Deliberately coarse: a precise
+   *  ETA that jitters every tick reads as less trustworthy, not more. */
+  function formatEta(seconds) {
+    const s = Math.max(0, Math.round(+seconds || 0));
+    if (!s || !isFinite(s)) return '';
+    if (s < 60) return tr('upd.eta_sec', 'about {n} sec', { n: String(s) });
+    return tr('upd.eta_min', 'about {n} min', { n: String(Math.max(1, Math.round(s / 60))) });
+  }
+
+  /**
+   * The download is 150 MB+. A bar and a bare percentage that creeps a point
+   * every few seconds is indistinguishable from a frozen one — reported from
+   * the field as "started the download but nothing is downloading" when the
+   * download was in fact running fine and finished on its own.
+   *
+   * So show the numbers that prove liveness: bytes transferred, current speed,
+   * and a coarse ETA. main already sends all three; this used to discard them
+   * and keep only `percent`.
+   *
+   * Updates in place after the first render. Re-running setModalBody on every
+   * tick replaced the aria-live region wholesale, which makes a screen reader
+   * re-announce the whole block several times a second.
+   */
+  function renderDownloadingState(progress) {
+    const p = (typeof progress === 'number') ? { percent: progress } : (progress || {});
+    const percent = Math.max(0, Math.min(100, Math.round(+p.percent || 0)));
+    const detail = (p.total > 0)
+      ? `${formatBytes(p.transferred)} / ${formatBytes(p.total)}`
+      : '';
+    const speed = (p.bytesPerSecond > 0) ? `${formatBytes(p.bytesPerSecond)}/s` : '';
+    const eta = (p.bytesPerSecond > 0 && p.total > 0)
+      ? formatEta((p.total - p.transferred) / p.bytesPerSecond)
+      : '';
+    const meta = [detail, speed, eta].filter(Boolean).join(' · ');
+
+    const fill = updateOverlay?.querySelector('.update-progress-fill');
+    if (fill) {
+      fill.style.width = `${percent}%`;
+      // The bar carries the accessible value; updating only the visual fill
+      // leaves a screen reader announcing 0% for the whole download.
+      updateOverlay.querySelector('.update-progress-bar')?.setAttribute('aria-valuenow', String(percent));
+      const label = updateOverlay.querySelector('.update-progress-label');
+      if (label) label.textContent = `${percent}%`;
+      const metaEl = updateOverlay.querySelector('.update-progress-meta');
+      if (metaEl) metaEl.textContent = meta;
+      return;
+    }
+
     setModalBody(`
       <p class="update-notes-intro">${escapeHtml(tr('upd.downloading', 'Downloading update…'))}</p>
-      <div class="update-progress-wrap" aria-live="polite">
-        <div class="update-progress-bar"><div class="update-progress-fill" style="width:${percent}%"></div></div>
+      <div class="update-progress-wrap">
+        <div class="update-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}">
+          <div class="update-progress-fill" style="width:${percent}%"></div>
+        </div>
         <div class="update-progress-label">${percent}%</div>
+        <div class="update-progress-meta">${escapeHtml(meta)}</div>
       </div>
     `);
     setModalFooter(`
       <button class="btn ghost" data-upd="later">${escapeHtml(tr('upd.continue_bg', 'Continue in background'))}</button>
     `);
     wireFooterActions();
+  }
+
+  /**
+   * A download that emits no progress for this long is not merely slow. Say so
+   * and offer the direct link, rather than leaving a bar that will never move.
+   * The download is NOT cancelled — it may still recover, and if it does the
+   * next progress event clears this notice.
+   */
+  const STALL_AFTER_MS = 45_000;
+  let stallTimer = null;
+
+  function noteDownloadProgress() {
+    if (stallTimer) clearTimeout(stallTimer);
+    const stalled = updateOverlay?.querySelector('.update-progress-stalled');
+    if (stalled) stalled.remove();
+    stallTimer = setTimeout(() => {
+      const wrap = updateOverlay?.querySelector('.update-progress-wrap');
+      if (!wrap || wrap.querySelector('.update-progress-stalled')) return;
+      const note = document.createElement('p');
+      note.className = 'update-notes-meta update-progress-stalled';
+      note.textContent = tr('upd.stalled', 'The download has not progressed for a while. It may still recover — or you can download it manually.');
+      wrap.appendChild(note);
+    }, STALL_AFTER_MS);
+  }
+
+  function stopStallWatch() {
+    if (stallTimer) clearTimeout(stallTimer);
+    stallTimer = null;
   }
 
   function renderReadyState() {
@@ -164,6 +248,9 @@
   function startUpdateDownload() {
     if (!activeUpdateInfo) return;
     renderDownloadingState(0);
+    // Arm the watch here, not on first progress: a download that never emits a
+    // single event is exactly the case this needs to catch.
+    noteDownloadProgress();
     window.hubAPI?.startUpdateDownload?.();
   }
 
@@ -217,10 +304,12 @@
 
     window.hubAPI?.onUpdateDownloadProgress?.((progress) => {
       if (!updateOverlay || !activeUpdateInfo) return;
-      renderDownloadingState(Math.round(progress.percent || 0));
+      renderDownloadingState(progress || {});
+      noteDownloadProgress();
     });
 
     window.hubAPI?.onUpdateDownloaded?.((info) => {
+      stopStallWatch();
       if (info?.version) {
         activeUpdateInfo = { ...(activeUpdateInfo || {}), version: info.version };
       }
@@ -232,6 +321,7 @@
     });
 
     window.hubAPI?.onUpdateError?.((err) => {
+      stopStallWatch();
       if (!updateOverlay) return;
       renderErrorState(err?.message || '');
     });

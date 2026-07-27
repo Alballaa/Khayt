@@ -1576,6 +1576,20 @@ html.printing-labels #label-print-area {
   color: var(--text-dim);
   text-align: center;
 }
+/* Byte counter, speed and ETA. This is the part that proves a 150 MB download
+   is alive — the percentage alone creeps too slowly to read as movement. */
+.update-modal .update-progress-meta {
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  min-height: 14px;
+}
+.update-modal .update-progress-stalled {
+  margin-top: 10px;
+  text-align: center;
+}
 
 /* ----- Photo uploader ----- */
 .photo-uploader {

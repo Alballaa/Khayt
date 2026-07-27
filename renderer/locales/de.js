@@ -3424,5 +3424,8 @@
   "set.salla_zid_title": "Salla-/Zid-Webhooks",
   "set.fixed_costs_hint": "Monatliche Fixkosten (Miete, Gehälter, Abos) hinzufügen, um den Break-even-Umsatz im Dashboard zu berechnen.",
   "set.webhooks_hint": "Sendet HTTP-POST-Anfragen an Zapier, Make.com, n8n oder eine beliebige URL, wenn Auftragsereignisse eintreten.",
+  "upd.eta_sec": "noch etwa {n} Sek.",
+  "upd.eta_min": "noch etwa {n} Min.",
+  "upd.stalled": "Der Download kommt seit einer Weile nicht voran. Er kann sich noch erholen — oder Sie laden ihn manuell herunter.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
