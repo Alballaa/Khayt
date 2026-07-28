@@ -66,6 +66,11 @@ Built, and past what the spec asked for:
 
 ## Phase 3 — multi-shop tenancy: **not started**
 
+A design that reconciles the spec with the code, and states the choices it needs,
+is in [PHASE3-DESIGN](./KHAYT-3.0-PHASE3-DESIGN.md). Its headline: the entity-level
+delta engine Phase 3 needs already exists and is tested — `lib/cloud-backend.js`
+just ignores it and pushes the whole store as one blob.
+
 The spec's four pillars, and what searching for them finds:
 
 | Pillar | Status |
@@ -98,13 +103,17 @@ part". Starting it means changing the sync protocol, not adding endpoints.
 - **Phase 1 §7 says "Postgres, every row carries `org_id`".** Neither is true:
   MySQL, and no `org_id` until Phase 3.
 
-## Open decisions
+## Decisions that were open, and how they closed (2026-07-28)
 
-- **Registration is open.** `/v1/register` mints a shop and token with no
-  credentials. The `register_secret` gate exists but is unset in production, so
-  the endpoint is open by omission rather than by choice. Rate-limited to
-  10/hour/IP and every blob is E2E-encrypted, so this is an abuse-and-storage
-  question, not a data-exposure one.
+- **Registration is open — deliberately now.** It used to be open by *omission*:
+  the gate read "allowed unless `register_secret` happens to be set", so a config
+  that never mentioned registration handed a shop and a token to anyone who
+  asked. It now refuses unless the operator has chosen — a secret to require, or
+  `open_registration => true` to invite anyone. Production is set to open, which
+  is the same behaviour as before but for the opposite reason.
 
-- **No admin delete-shop endpoint.** Removing a shop row needs direct database
-  access. Worth having before open registration attracts junk.
+- **A shop can be deleted.** `DELETE /v1/admin/shops/{shopId}`, admin-gated,
+  removes the 13 shop-keyed tables plus the owner's reset and verify tokens. It
+  deliberately leaves customer portal sessions (keyed on the customer's email
+  with no shop link — deleting would sign them out of a shop that still exists)
+  and IP rate events (clearing them would hand a spammer a fresh allowance).
