@@ -896,6 +896,7 @@
   "inv.updated": "Spule aktualisiert",
   "inv.deducted_summary": "{weight} g von {spools} Spule(n) abgezogen",
   "inv.deducted_summary_low": "{weight} g von {spools} Spule(n) abgezogen; {low} jetzt niedrig",
+  "exp.added_phone": "Ausgabe von Ihrem Telefon hinzugefügt: {amount}",
   "exp.title": "Ausgabenverfolgung",
   "exp.add_title": "Ausgabe hinzufügen",
   "exp.date": "Datum",

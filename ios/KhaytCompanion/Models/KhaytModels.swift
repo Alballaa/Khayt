@@ -398,6 +398,21 @@ struct WasteEntry: Codable, Sendable {
     var deduct: Bool
 }
 
+/**
+ * An expense captured on the phone, receipt and all.
+ *
+ * No `date`: the desktop stamps the shop's calendar day, for the same reason
+ * WasteEntry carries none. The receipt travels as base64 — the desktop decides
+ * what it is from its own first bytes and names the file itself, so nothing
+ * here can choose what lands on that disk.
+ */
+struct ExpenseDraft: Codable, Sendable {
+    var amount: Double
+    var category: String
+    var note: String
+    var receiptBase64: String?
+}
+
 enum KhaytAPIError: LocalizedError, Sendable {
     case notConfigured
     case invalidURL

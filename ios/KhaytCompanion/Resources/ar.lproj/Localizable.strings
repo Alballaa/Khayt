@@ -180,3 +180,24 @@
 "waste.ft.layer_shift" = "إزاحة طبقات";
 "waste.ft.power" = "انقطاع كهرباء";
 "waste.ft.other" = "أخرى";
+
+/* Expenses */
+"home.action.expense" = "مصروف";
+"exp.title" = "مصروف جديد";
+"exp.what" = "ما الذي دفعته";
+"exp.amount" = "المبلغ";
+"exp.category" = "التصنيف";
+"exp.note" = "ملاحظة";
+"exp.receipt" = "الإيصال";
+"exp.photograph" = "صوّر الإيصال";
+"exp.retake" = "إزالة الصورة";
+"exp.save" = "حفظ";
+"exp.no_camera" = "لا توجد كاميرا في هذا الجهاز — سيُحفظ المصروف بدون إيصال.";
+"exp.cat.filament" = "فيلامنت";
+"exp.cat.resin" = "راتنج";
+"exp.cat.parts" = "قطع";
+"exp.cat.tools" = "أدوات";
+"exp.cat.rent" = "إيجار";
+"exp.cat.power" = "كهرباء";
+"exp.cat.shipping" = "شحن";
+"exp.cat.other" = "أخرى";

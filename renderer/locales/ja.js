@@ -896,6 +896,7 @@
   "inv.updated": "スプールを更新しました",
   "inv.deducted_summary": "{spools} 本のスプールから {weight}g を差し引きました",
   "inv.deducted_summary_low": "{spools} 本のスプールから {weight}g を差し引きました。{low} 本が在庫僅少になりました",
+  "exp.added_phone": "スマートフォンから経費を追加しました: {amount}",
   "exp.title": "経費トラッカー",
   "exp.add_title": "経費を追加",
   "exp.date": "日付",

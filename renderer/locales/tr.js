@@ -896,6 +896,7 @@
   "inv.updated": "Makara güncellendi",
   "inv.deducted_summary": "{spools} makaradan toplam {weight}g düşüldü",
   "inv.deducted_summary_low": "{spools} makaradan toplam {weight}g düşüldü; {low} tanesi artık düşük",
+  "exp.added_phone": "Telefonunuzdan gider eklendi: {amount}",
   "exp.title": "Gider Takibi",
   "exp.add_title": "Gider Ekle",
   "exp.date": "Tarih",

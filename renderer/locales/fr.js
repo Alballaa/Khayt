@@ -896,6 +896,7 @@
   "inv.updated": "Bobine mise à jour",
   "inv.deducted_summary": "{weight} g déduits de {spools} bobine(s)",
   "inv.deducted_summary_low": "{weight} g déduits de {spools} bobine(s) ; {low} maintenant bas",
+  "exp.added_phone": "Dépense ajoutée depuis votre téléphone : {amount}",
   "exp.title": "Suivi des dépenses",
   "exp.add_title": "Ajouter une dépense",
   "exp.date": "Date",

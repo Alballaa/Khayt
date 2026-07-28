@@ -489,6 +489,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
   }
+  if (window.hubAPI?.onLanExpenseAdded) {
+    window.hubAPI.onLanExpenseAdded((payload) => {
+      // Phone photographed a receipt. The server has written both the image and
+      // the store; patch in-memory state and re-save so an open desktop cannot
+      // clobber it, exactly as onLanSpoolAdded does.
+      const entry = payload && payload.entry;
+      if (!entry || !entry.id) return;
+      if (typeof expenses === 'undefined' || expenses.find((x) => x && x.id === entry.id)) return;
+      expenses.unshift(entry);
+      saveAll();
+      if (typeof renderExpenses === 'function') renderExpenses();
+      if (typeof toast === 'function') {
+        toast('📱 ' + (t('exp.added_phone', { amount: fmtMoney(entry.amount) })
+          || `Expense added from your phone: ${fmtMoney(entry.amount)}`), 'success');
+      }
+    });
+  }
   if (window.hubAPI?.onLanWasteLogged) {
     window.hubAPI.onLanWasteLogged((payload) => {
       // Phone logged a failed print. The server has already written it to disk;

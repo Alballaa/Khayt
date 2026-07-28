@@ -987,6 +987,7 @@
   "inv.updated": "تم تحديث البكرة",
   "inv.deducted_summary": "تم خصم {weight}جم من {spools} بكرة",
   "inv.deducted_summary_low": "تم خصم {weight}جم من {spools} بكرة؛ {low} على وشك النفاد",
+  "exp.added_phone": "أُضيف مصروف من جهازك: {amount}",
   "exp.title": "تتبع المصروفات",
   "exp.add_title": "إضافة مصروف",
   "exp.date": "التاريخ",

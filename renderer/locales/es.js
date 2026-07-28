@@ -896,6 +896,7 @@
   "inv.updated": "Carrete actualizado",
   "inv.deducted_summary": "Descontados {weight} g de {spools} bobina(s)",
   "inv.deducted_summary_low": "Descontados {weight} g de {spools} bobina(s); {low} ahora bajas",
+  "exp.added_phone": "Gasto añadido desde tu teléfono: {amount}",
   "exp.title": "Seguimiento de gastos",
   "exp.add_title": "Agregar gasto",
   "exp.date": "Fecha",

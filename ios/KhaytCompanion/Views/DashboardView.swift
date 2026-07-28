@@ -17,6 +17,7 @@ struct DashboardView: View {
     @State private var showAddSpool = false
     @State private var showQuote = false
     @State private var showWaste = false
+    @State private var showExpense = false
 
     private var navTitle: String {
         settings.shopLabel.isEmpty ? "Khayt" : settings.shopLabel
@@ -56,6 +57,7 @@ struct DashboardView: View {
             }
             .sheet(isPresented: $showQuote) { QuoteSheet() }
             .sheet(isPresented: $showWaste) { LogWasteSheet() }
+            .sheet(isPresented: $showExpense) { ExpenseSheet() }
         }
     }
 
@@ -153,7 +155,7 @@ struct DashboardView: View {
                 // Next to quoting because it is the other thing done standing at
                 // a machine rather than sitting at the desk.
                 quickTile(L10n.tr("home.action.waste"), "trash.fill") { showWaste = true }
-                quickTile(L10n.tr("home.action.add_spool"), "plus.circle.fill") { showAddSpool = true }
+                quickTile(L10n.tr("home.action.expense"), "doc.text.viewfinder") { showExpense = true }
                 NavigationLink { OrdersView() } label: {
                     quickTileLabel(L10n.tr("home.action.orders"), "rectangle.stack.fill")
                 }

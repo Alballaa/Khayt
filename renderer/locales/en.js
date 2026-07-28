@@ -896,6 +896,7 @@
   "inv.updated": "Spool updated",
   "inv.deducted_summary": "Deducted {weight}g across {spools} spool(s)",
   "inv.deducted_summary_low": "Deducted {weight}g across {spools} spool(s); {low} now low",
+  "exp.added_phone": "Expense added from your phone: {amount}",
   "exp.title": "Expense Tracker",
   "exp.add_title": "Add Expense",
   "exp.date": "Date",

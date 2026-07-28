@@ -6,6 +6,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Photograph a receipt and file the expense on the spot.** A receipt is a
+  photograph and your phone is the camera. The companion app now records an
+  expense with the receipt attached — amount, category, a note, and a photo — and
+  it lands in your expense list immediately, receipt and all. The picture is
+  shrunk before sending, so it does not fill your disk or crawl over the shop
+  Wi-Fi.
+
 - **Log a failed print at the machine.** A print fails, and the moment to record
   it is while you are standing there holding it — not later, at the desk, if you
   remember. The companion app now logs waste in a few taps: pick the material

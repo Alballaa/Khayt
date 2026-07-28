@@ -200,6 +200,10 @@ const orderPhotosDir = () => ensureDir('order-photos');
 const orderFilesDir  = () => ensureDir('order-files');
 const invoicesDir    = () => ensureDir('invoices');
 const backupsDir     = () => ensureDir('backups');
+// Receipts photographed on the phone. Under userData like every other attachment
+// directory, which also means hub:open-path will open them — its allow-list
+// covers userData, and a receipt written anywhere else would be unopenable.
+const receiptsDir    = () => ensureDir('receipts');
 
 const { registerUpdater } = require('./lib/updater');
 const { setupAutoUpdater } = registerUpdater({
@@ -2017,6 +2021,9 @@ registerLanServer({
   statusPagesDir,
   appRoot: __dirname,
   getPrinterStatusCache: () => printerStatusCache,
+  // Injected rather than derived inside lan-server, which has no access to
+  // Electron's app paths — and so tests can point it at a temp directory.
+  receiptsDir,
 });
 
 function isAllowedExternalUrl(s) {

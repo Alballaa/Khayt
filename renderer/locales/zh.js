@@ -896,6 +896,7 @@
   "inv.updated": "线盘已更新",
   "inv.deducted_summary": "已从 {spools} 卷扣除 {weight}g",
   "inv.deducted_summary_low": "已从 {spools} 卷扣除 {weight}g；{low} 卷库存不足",
+  "exp.added_phone": "已从手机添加支出：{amount}",
   "exp.title": "支出追踪",
   "exp.add_title": "添加支出",
   "exp.date": "日期",
