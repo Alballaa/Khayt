@@ -209,3 +209,68 @@ test('sweepFailedAttempts hard-caps even when every bucket is still live', () =>
   assert.ok(map.has('ip-8999'), 'most recent bucket must survive');
   assert.ok(!map.has('ip-0'), 'oldest bucket should have been dropped');
 });
+
+/**
+ * Spool reads are projected, not dumped.
+ *
+ * Writes have always gone through an allowlist (pickLanSpoolFields); GET
+ * /api/inventory returned store.inventory verbatim. So every field the desktop
+ * ever adds to a spool was published the moment it existed — nobody had to
+ * decide, or notice. The endpoint is PIN-gated, but over the tunnel that PIN is
+ * the only thing between it and the internet.
+ *
+ * The rule is symmetry: return what the API accepts, plus the handful of extras
+ * the companion actually reads.
+ */
+const { pickLanSpoolRead, LAN_SPOOL_READ_FIELDS } = require('../lib/lan-server.js');
+
+test('a spool read keeps every field the companion decodes', () => {
+  // Straight from ios/KhaytCompanion/Models/KhaytModels.swift — if the phone
+  // reads it, the server must still send it.
+  const needed = ['id', 'material', 'brand', 'color', 'weight', 'remaining', 'cost',
+    'purchasedAt', 'addedAt', 'materialType', 'lot', 'sku', 'printTemp', 'bedTemp',
+    'weightRemaining', 'weightTotal'];
+  for (const f of needed) {
+    assert.ok(LAN_SPOOL_READ_FIELDS.has(f), `${f} is decoded by the companion and must survive projection`);
+  }
+});
+
+test('a spool read still round-trips everything the write path accepts', () => {
+  // Anything an inventory:write token could set, an inventory:read token can
+  // still read back. Breaking that would be a silent API regression.
+  const { pickLanSpoolFields } = require('../lib/lan-server.js');
+  const written = pickLanSpoolFields({
+    material: 'PLA', brand: 'Prusament', color: 'Galaxy Black', colour: 'Galaxy Black',
+    cost: 29.9, weight: 1000, weightTotal: 1000, weightRemaining: 640, vendor: 'V',
+    notes: 'n', materialType: 'PLA', lot: 'L1', filament: 'f', purchasedAt: '2026-06-01',
+    reorderPoint: 2, colourVariant: 'cv',
+  });
+  const read = pickLanSpoolRead({ id: 's1', ...written });
+  for (const k of Object.keys(written)) {
+    assert.deepEqual(read[k], written[k], `${k} was accepted on write but dropped on read`);
+  }
+});
+
+test('a spool read drops fields the API never accepted', () => {
+  const read = pickLanSpoolRead({
+    id: 's1', material: 'PLA',
+    supplier: 'Acme Filament Co', invoice: 'INV-2026-0042', costPerGram: 0.0299,
+  });
+  assert.equal(read.material, 'PLA');
+  assert.equal(read.supplier, undefined, 'supplier is not part of the API surface');
+  assert.equal(read.invoice, undefined, 'nor is an invoice number');
+  assert.equal(read.costPerGram, undefined);
+});
+
+test('a field added to spools later is NOT published by default', () => {
+  // The whole point. A raw dump publishes tomorrow's field automatically; this
+  // makes shipping it a decision someone has to make on purpose.
+  const read = pickLanSpoolRead({ id: 's1', internalMarginNote: 'we mark this up 3x' });
+  assert.deepEqual(Object.keys(read), ['id'], 'only the known fields come out');
+});
+
+test('a spool read tolerates junk records without throwing', () => {
+  assert.equal(pickLanSpoolRead(null), null);
+  assert.equal(pickLanSpoolRead('nonsense'), null);
+  assert.deepEqual(pickLanSpoolRead({}), {});
+});

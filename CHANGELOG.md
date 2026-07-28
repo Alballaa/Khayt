@@ -4,6 +4,17 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Changed
+
+- **The LAN API no longer publishes every field on a spool.** `GET
+  /api/inventory` returned the stored record as-is, so anything Khayt kept on a
+  spool went out over the network — including your supplier and invoice
+  reference — and any field added in a later version would have joined it
+  automatically. It now returns the same fields the API accepts, plus the few the
+  iOS companion needs. `supplier`, `invoice` and `costPerGram` are no longer
+  included; if you read this endpoint from your own script and relied on one of
+  them, that is the change to know about.
+
 ### Fixed
 
 - **A record you deleted could come back.** If you deleted a client, order or
