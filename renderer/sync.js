@@ -208,6 +208,18 @@
     const appendOnly = new Set(opts.appendOnly || []);
     const result = { applied: 0, skipped: 0, removed: 0, conflicts: [] };
 
+    // Deletes this side already knows about. The tombstone rule below ("a delete
+    // must not be undone by a stale delta re-adding the record") only ever
+    // covered tombstones arriving IN the payload — never the ones the target
+    // already holds. So a record deleted here and not yet seen by the peer came
+    // straight back through the unseen-record branch: pullMerge() on unlock or
+    // after a 409 re-added every client, order or spool the shop had just
+    // deleted, and the next save persisted the resurrection.
+    const localTombs = new Map();
+    for (const t of (Array.isArray(snapshot.tombstones) ? snapshot.tombstones : [])) {
+      if (t && t.collection && t.id) localTombs.set(t.collection + ':' + t.id, t);
+    }
+
     for (const d of (payload && payload.deltas) || []) {
       const coll = d && d.collection;
       const incoming = d && d.record;
@@ -215,7 +227,25 @@
       if (!Array.isArray(snapshot[coll])) snapshot[coll] = [];
       const arr = snapshot[coll];
       const i = arr.findIndex((r) => r && r.id === incoming.id);
-      if (i === -1) { arr.push(incoming); result.applied++; continue; }
+      if (i === -1) {
+        const tomb = localTombs.get(coll + ':' + incoming.id);
+        if (tomb) {
+          // Deleted here. Stay deleted — symmetrical with the incoming-tombstone
+          // rule, so both devices converge on "gone" instead of one resurrecting
+          // it forever. Announce it only when a real edit is being discarded: an
+          // incoming rev at or below the one the delete saw is just the peer
+          // echoing back a record it has not yet learned is gone.
+          if (revOf(incoming) > revOf(tomb)) {
+            result.conflicts.push({
+              collection: coll, id: incoming.id, kind: 'delete_over_edit',
+              tombRev: revOf(tomb), localRev: revOf(incoming), discarded: incoming,
+            });
+          }
+          result.skipped++;
+          continue;
+        }
+        arr.push(incoming); result.applied++; continue;
+      }
       if (appendOnly.has(coll)) { result.skipped++; continue; }
       const curRev = revOf(arr[i]);
       const inRev = revOf(incoming);

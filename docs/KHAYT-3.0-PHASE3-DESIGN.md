@@ -155,3 +155,49 @@ server work.
 
 If it holds, option (b) becomes a small amount of desktop plumbing plus the ODK,
 and Phase 3 stops being the scary one.
+
+---
+
+## That proof has now been run (2026-07-28)
+
+`test/phase3-delta-roundtrip.test.js` — two local stores, no server, no crypto.
+It found one shipping bug and one Phase 3 blocker, which is what it was for.
+
+**It mostly holds.** Independent creates converge, tied concurrent edits converge
+(both branches discard the *same* edit, which is the property that matters —
+`rev` is a counter, not a causal clock, so an edit is always lost; what cannot
+happen is the two branches losing different ones), and a second exchange is a
+no-op, so the merge reaches a fixed point instead of ping-ponging.
+
+**Finding 1 — deletes were resurrected. Shipping bug, now fixed.**
+`applyDeltas` enforced "a delete must not be undone by a stale delta" only for
+tombstones arriving *in the payload*, never for the ones the target already held.
+So a record deleted here, whose delete the peer had not yet seen, came back
+through the unseen-record branch. This was not theoretical and not Phase 3 only:
+`pullMerge()` runs on unlock, on launch, and inside 409 resolution, so two
+devices reached it easily — A deletes, B pushes first, A's push 409s, A pulls,
+and A's own delete is undone, then persisted by the next save.
+
+Fixed in `renderer/sync.js` by consulting the target's own tombstones, with the
+existing `delete_over_edit` reporting reused so a genuinely newer discarded edit
+is still announced and a stale echo stays silent. Guarded by three tests in
+`test/cloud-sync.test.js` — the shipping path, not just the research file — and
+mutation-verified: restoring the old behaviour kills exactly those three.
+
+**Finding 2 — one device cannot hold two shops yet. The real Phase 3 blocker.**
+`stampChanges` decides a record was deleted when it is in `lastIndex` but absent
+from the snapshot in front of it, and `lastIndex` is one module-level map per
+engine instance. Stamping shop B right after shop A therefore marks every one of
+A's records as deleted and writes tombstones for them into B's store — and
+tombstones win unconditionally, so once those sync they delete live records.
+
+This sits directly on the recommended option (b), whose whole shape is *"a device
+that belongs to several shops pulls all of them and merges locally"* — one
+process, several stores.
+
+The good news is what the last test in the file shows: give each shop its own
+engine instance and the phantom deletes disappear entirely. **So Phase 3 does not
+need the merge logic changed — it needs per-shop index isolation.** That is a far
+smaller thing to build than a rewrite of the conflict policy, and it moves the
+first real task from "design multi-shop merge" to "make the change-index
+per-shop instead of per-process".

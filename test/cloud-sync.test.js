@@ -223,3 +223,87 @@ test('onConflicts is not called when a merge discards nothing', async () => {
   await sync.syncNow();
   assert.equal(called, false);
 });
+
+/**
+ * A delete made here must survive a pull that predates it.
+ *
+ * pullMerge() runs on unlock, on launch, and inside 409 conflict resolution. If
+ * the shop deleted a record and the server has not learned about it yet, the
+ * server's copy arrives as an ordinary unseen-record delta — and the merge used
+ * to push it straight back into local state, where the following save persisted
+ * it. From the shop's side: "I deleted that client and it came back."
+ *
+ * The engine already refused to let a stale delta undo a delete, but only for
+ * tombstones travelling IN the payload, never the ones the target already held.
+ * Two devices make it easy to hit: A deletes, B pushes first, A's push 409s, A
+ * pulls, and A's own delete is undone.
+ */
+test('a locally deleted record is not resurrected by a pull that has not seen the delete', async () => {
+  const serverStore = {
+    clients: [
+      { id: 'c1', name: 'Deleted Client', rev: 2, updatedAt: 'a' }, // server has not seen the delete
+      { id: 'c2', name: 'Kept', rev: 1, updatedAt: 'a' },
+    ],
+    tombstones: [],
+  };
+  const { deps, getState } = makeDeps({
+    initialState: {
+      clients: [{ id: 'c2', name: 'Kept', rev: 1, updatedAt: 'a' }],
+      tombstones: [{ id: 'c1', collection: 'clients', rev: 2, deletedAt: '2026-07-28T08:00:00.000Z' }],
+    },
+    pull: async () => ({ ok: true, store: clone(serverStore), rev: 9 }),
+    push: async () => ({ ok: true, rev: 10 }),
+  });
+  sync.configure(deps);
+  await sync.pullMerge();
+
+  const st = getState();
+  assert.equal(st.clients.some((c) => c.id === 'c1'), false, 'the deleted client must stay deleted');
+  assert.equal(st.clients.length, 1, 'and nothing else is disturbed');
+});
+
+test('a delete does not swallow a genuinely newer edit in silence', async () => {
+  // Same shape, but the peer edited the record AFTER the delete saw it. The
+  // delete still wins — reversing that would resurrect deleted records — but the
+  // shop is told an edit was thrown away rather than it vanishing.
+  const seen = [];
+  const serverStore = {
+    clients: [{ id: 'c1', name: 'Edited On The Other Device', rev: 7, updatedAt: 'z' }],
+    tombstones: [],
+  };
+  const { deps, getState } = makeDeps({
+    initialState: {
+      clients: [],
+      tombstones: [{ id: 'c1', collection: 'clients', rev: 2, deletedAt: '2026-07-28T08:00:00.000Z' }],
+    },
+    pull: async () => ({ ok: true, store: clone(serverStore), rev: 9 }),
+    push: async () => ({ ok: true, rev: 10 }),
+  });
+  deps.onConflicts = (c) => seen.push(...c);
+  sync.configure(deps);
+  await sync.pullMerge();
+
+  assert.equal(getState().clients.length, 0, 'delete still wins');
+  const discarded = seen.filter((c) => c.kind === 'delete_over_edit');
+  assert.equal(discarded.length, 1, 'and the discarded edit is surfaced, not dropped silently');
+  assert.equal(discarded[0].discarded.name, 'Edited On The Other Device');
+});
+
+test('a stale re-add of an already-deleted record is silent — it discards nothing', async () => {
+  // The peer is echoing back a record at or below the rev the delete saw. Nothing
+  // was lost, so announcing it would train the shop to ignore the warning.
+  const seen = [];
+  const { deps } = makeDeps({
+    initialState: {
+      clients: [],
+      tombstones: [{ id: 'c1', collection: 'clients', rev: 5, deletedAt: '2026-07-28T08:00:00.000Z' }],
+    },
+    pull: async () => ({ ok: true, store: { clients: [{ id: 'c1', name: 'Stale', rev: 5, updatedAt: 'a' }], tombstones: [] }, rev: 9 }),
+    push: async () => ({ ok: true, rev: 10 }),
+  });
+  deps.onConflicts = (c) => seen.push(...c);
+  sync.configure(deps);
+  await sync.pullMerge();
+
+  assert.equal(seen.length, 0, 'no conflict announced for a stale echo');
+});
