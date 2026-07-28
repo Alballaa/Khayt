@@ -112,6 +112,10 @@ Sub-decisions that cannot be deferred:
 - **Recovery.** If every device is lost, the ODK is gone and so is the data. The
   existing recovery-code file is per-shop; it would have to cover the ODK too.
 
+The design, threat model and build order are in [ORG-DATA-KEY](./KHAYT-3.0-ORG-DATA-KEY.md).
+Its headline: the existing envelope in `lib/sync-crypto.js` already does almost
+all of this, so the ODK is a third wrapping slot rather than a new key system.
+
 **Recommendation:** build the ODK against option (b) first, where it only has to
 wrap and unwrap. Defer rotation-on-revoke to a follow-up, and say so in the UI
 rather than implying revocation is instant when it is not.
