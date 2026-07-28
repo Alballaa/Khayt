@@ -1,0 +1,144 @@
+/**
+ * Capture what the LAN server ACTUALLY sends to the iOS companion.
+ *
+ * The phone decodes these responses with Swift `Codable`, which throws on a
+ * missing required field — so a desktop change that drops or renames a key is
+ * not a degraded screen on the phone, it is an empty one. Nothing here reads
+ * the server's source: it boots the real `registerLanServer` and records the
+ * bytes that go over the wire, which is the only thing the phone sees.
+ *
+ * The fixture is deliberately hostile. Every collection carries a "sparse"
+ * record holding nothing but the fields the desktop truly guarantees, because
+ * a fully-populated fixture proves only that the happy path decodes.
+ *
+ * Pair with `ios-contract-decode.swift`, which feeds the captures to the real
+ * structs from `KhaytModels.swift`.
+ */
+import { createRequire } from 'node:module';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const require = createRequire(import.meta.url);
+const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+const OUT = process.argv[2] || path.join(ROOT, '.ios-contract');
+
+/** Today, in the shop's own calendar day — the server stamps completions this way. */
+function localDay(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// ── The store the server will serve ──────────────────────────────────────────
+// Statuses cover the DESKTOP's full vocabulary (renderer/analytics.js), not the
+// subset the phone happens to know about, so the capture shows the phone
+// everything it can really be sent.
+const store = {
+  printLog: [
+    { id: 'o-full', project: 'Bracket v2', client: 'Acme', status: 'printing',
+      material: 'PLA', price: 120, dueDate: '2026-08-01', date: '2026-07-20',
+      paymentStatus: 'paid', machine: 'Prusa CORE One', machineId: 'm-1',
+      priority: 'high', completedAt: null },
+    // Only what the desktop guarantees: an id and a status. Everything else absent.
+    { id: 'o-sparse', status: 'pending' },
+    { id: 'o-quote', status: 'quote' },
+    { id: 'o-delivered', status: 'delivered' },
+    { id: 'o-hold', status: 'on_hold' },
+    { id: 'o-post', status: 'post' },
+    { id: 'o-qc', status: 'qc' },
+    { id: 'o-done', status: 'completed', completedAt: `${localDay()}T09:00:00.000Z` },
+  ],
+  machines: [
+    { id: 'm-1', name: 'Prusa CORE One', type: 'fdm', status: 'idle',
+      printerApi: { type: 'prusalink', host: '10.0.0.5' } },
+    { id: 'm-sparse' },
+  ],
+  inventory: [
+    { id: 's-full', material: 'PLA', brand: 'Prusament', color: 'Galaxy Black',
+      weight: 1000, remaining: 640, cost: 29.9, purchasedAt: '2026-06-01',
+      materialType: 'PLA', lot: 'L-99', sku: 'SKU-1', printTemp: 215, bedTemp: 60 },
+    { id: 's-sparse' },
+  ],
+  clients: [
+    { id: 'c-full', nameEn: 'Acme Co', nameAr: 'شركة أكمي', phone: '+966500000000', email: 'a@b.com' },
+    { id: 'c-sparse' },
+  ],
+  waitingList: [
+    { id: 'w-full', project: 'Vase', clientName: 'Sara', notes: 'rush', email: 'x@y.com',
+      phone: '+966511111111', material: 'PETG', priority: 'high', status: 'active',
+      estValue: 300, reminderDate: '2026-08-05', source: 'walk-in', submittedAt: '2026-07-25' },
+    { id: 'w-sparse' },
+    { id: 'w-declined', status: 'declined' }, // must be filtered out by the server
+  ],
+  settings: {},
+};
+
+// ── Minimal Electron-shaped fakes ────────────────────────────────────────────
+const handlers = new Map();
+const noop = () => {};
+let current = store;
+
+const { registerLanServer } = require(path.join(ROOT, 'lib/lan-server.js'));
+
+registerLanServer({
+  fs,
+  ipcMain: { handle: (name, fn) => handlers.set(name, fn) },
+  BrowserWindow: class { static getAllWindows() { return []; } },
+  safeJsonParse: (s, fallback) => { try { return JSON.parse(s); } catch { return fallback; } },
+  syncLanServerStoreFromDisk: noop,
+  resolveStoreSecret: (v) => v,
+  isStoreSecretMasked: () => false,
+  migrateLanApiSecrets: noop,
+  ensureLanIntakeToken: () => ({ token: 'tok', generated: false }),
+  ensureLanIntakePin: () => ({ pin: '1234', generated: false }),
+  ensureLanCalendarToken: () => ({ token: 'cal', generated: false }),
+  writeStoreToDisk: async () => {},
+  persistLanStoreUpdate: async () => {},
+  getLanServerStore: () => current,
+  setLanServerStore: (s) => { current = s; },
+  getMainWindow: () => null,
+  statusPagesDir: path.join(ROOT, 'status-pages'),
+  appRoot: ROOT,
+  getPrinterStatusCache: () => ({
+    'm-1': { state: 'printing', progress: 42.7, filename: 'bracket.gcode',
+             timeRemaining: 900.4, tempNozzle: 214.6, tempBed: 59.8 },
+  }),
+});
+
+const start = handlers.get('hub:start-lan-server');
+if (!start) throw new Error('hub:start-lan-server was never registered');
+
+const PORT = 3987;
+// The owner PIN gates every route carrying shop data — which is all of them bar
+// /api/status. The phone sends it as `x-khayt-pin`; so does this capture.
+const PIN = '4321';
+const res = await start(null, { port: PORT, pin: PIN, bindLan: 'loopback' });
+if (!res?.ok) throw new Error(`server did not start: ${JSON.stringify(res)}`);
+
+// The endpoints the iOS app calls, grepped from ios/ and pinned here.
+const ENDPOINTS = {
+  status: '/api/status?format=json',
+  orders: '/api/orders',
+  queue: '/api/queue',
+  machines: '/api/machines',
+  machinesLive: '/api/machines/live',
+  inventory: '/api/inventory',
+  clients: '/api/clients',
+  waitingList: '/api/waiting-list',
+};
+
+fs.mkdirSync(OUT, { recursive: true });
+const summary = {};
+for (const [name, ep] of Object.entries(ENDPOINTS)) {
+  const r = await fetch(`http://127.0.0.1:${PORT}${ep}`, {
+    headers: { Accept: 'application/json', 'x-khayt-pin': PIN },
+  });
+  const body = await r.text();
+  if (r.status !== 200) throw new Error(`${ep} → HTTP ${r.status}: ${body.slice(0, 200)}`);
+  fs.writeFileSync(path.join(OUT, `${name}.json`), body);
+  summary[name] = body.length;
+}
+
+console.log(JSON.stringify(summary, null, 2));
+const stop = handlers.get('hub:stop-lan-server');
+if (stop) await stop(null, {});
+process.exit(0);
