@@ -151,9 +151,22 @@ Pass `"machineId": null` to unassign a printer.
 
 ### `GET /api/inventory`
 
-Full inventory array from store. **Requires owner PIN.**
+Inventory as spool objects. **Requires owner PIN** (or an `inventory:read` token).
 
-**Response 200:** JSON array of spool objects (same shape as `store.inventory[]`).
+**Response 200:** JSON array of spool objects, **projected** — not the raw store
+record. A spool comes back with the fields `POST` accepts (see below) plus `id`,
+`remaining`, `addedAt`, `sku`, `printTemp` and `bedTemp`, which the iOS companion
+reads.
+
+The rule is symmetry: **the API returns what the API accepts.** Reads used to
+return `store.inventory[]` verbatim, which meant any field the desktop added to a
+spool was published the moment it existed, without anyone deciding to. Over the
+tunnel this endpoint is internet-reachable behind one PIN, so that was the wrong
+default even though the caller is the owner.
+
+Fields on the store record but **not** returned: `supplier`, `invoice`,
+`costPerGram` — and anything added in future, until it is added to the allowlist
+on purpose (`LAN_SPOOL_READ_FIELDS` in `lib/lan-server.js`).
 
 ### `POST /api/inventory`
 
