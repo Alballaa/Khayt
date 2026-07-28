@@ -744,6 +744,11 @@ async function loadAll() {
     }
   } catch (e) { console.error('sync foundation init failed:', e); }
 
+  // Records the old merge bug brought back after they were deleted. The fix
+  // stops new ones; it cannot undo what is already on disk, so say so rather
+  // than leaving the shop to find out. Report-only — see findResurrected().
+  if (typeof reportResurrectedRecords === 'function') reportResurrectedRecords();
+
   // Feature 4 (batch-2): Process any due recurring orders on load.
   // Guarded: the Bed Ready flavor ships no operations-extras module.
   if (typeof processRecurringOrders === 'function') processRecurringOrders();
@@ -791,6 +796,13 @@ function pruneExpiredNotifs() {
     isValidClient,
     isValidInventoryItem,
     isValidRecord,
+    // Both are called from other files behind `typeof X === 'function'`, which
+    // this IIFE made permanently false. inventory.js printed labels with the
+    // raw, unsanitised HTML as its fallback; online.js showed a masked PIN as
+    // though it were the real one. test/cross-file-wiring.test.js now checks the
+    // whole class rather than these two.
+    sanitizePrintHtml,
+    isSecretMasked,
   };
   Object.assign(global, api);
   global.KhaytAppState = api;

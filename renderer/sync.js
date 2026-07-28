@@ -366,11 +366,64 @@
     return { count: discarded.length, firstName };
   }
 
+  /**
+   * Find records that are present despite having been deleted.
+   *
+   * Until the tombstone fix, `applyDeltas` honoured "a delete must not be undone
+   * by a stale delta" only for tombstones arriving in the payload, never those
+   * the store already held — so a record deleted here, whose delete the server
+   * had not yet seen, was pushed back in by the next pull and persisted by the
+   * next save. That shipped in v3.3.0 and every 3.4 beta. Fixing it stops new
+   * cases; it cannot un-resurrect the ones already written to disk.
+   *
+   * The state is self-evident once you look for it: the store holds BOTH a
+   * tombstone for an id AND a live record with that id. That cannot happen any
+   * other way — ids are never derived from external data (`ensureId` and
+   * `uniqueLanId` are both timestamp+random), so a deleted id is never reused,
+   * and there is no undo-delete or merging restore anywhere in the app.
+   *
+   * Deliberately REPORT-ONLY. Re-deleting automatically would be a second silent
+   * data change on top of the first, and the shop may well have worked on the
+   * record in the weeks since it came back. Naming it lets the owner decide.
+   *
+   * Best-effort by construction: tombstones are capped at 5000 and pruned
+   * oldest-first, so a resurrection whose tombstone has since aged out is
+   * invisible here. It under-reports; it does not invent.
+   */
+  function findResurrected(snapshot) {
+    const out = [];
+    if (!snapshot || typeof snapshot !== 'object') return out;
+    const tombs = Array.isArray(snapshot.tombstones) ? snapshot.tombstones : [];
+    for (const t of tombs) {
+      if (!t || !t.collection || !t.id) continue;
+      const arr = snapshot[t.collection];
+      if (!Array.isArray(arr)) continue;
+      const rec = arr.find((r) => r && r.id === t.id);
+      if (rec) out.push({ collection: t.collection, id: t.id, deletedAt: t.deletedAt || '', record: rec });
+    }
+    return out;
+  }
+
+  /**
+   * Reduce findResurrected() to what the UI needs to announce it. Pure — no DOM,
+   * no i18n — mirroring summarizeDiscardedEdits.
+   * @returns {{count:number, firstName:string}} count 0 means nothing to show.
+   */
+  function summarizeResurrected(found) {
+    const list = found || [];
+    if (!list.length) return { count: 0, firstName: '' };
+    const r = list[0].record || {};
+    const firstName = String(r.project || r.name || r.nameEn || r.title || list[0].id || '').slice(0, 40);
+    return { count: list.length, firstName };
+  }
+
   const api = {
     SCHEMA,
     fingerprint,
     seedIndex,
     backfill,
+    findResurrected,
+    summarizeResurrected,
     stampChanges,
     extractDeltas,
     applyDeltas,

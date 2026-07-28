@@ -691,6 +691,10 @@ function openLogEnvModal() {
     deleteSlicerProfile,
     renderEnvLogs,
     openLogEnvModal,
+    // order-flows.js fires this on qc_failed and rma_opened behind a typeof
+    // guard that was always false from outside this IIFE — so neither webhook
+    // ever left the building.
+    fireQcWebhook,
   };
   Object.assign(global, api);
   global.KhaytOperationsExtras = api;

@@ -3383,6 +3383,8 @@
   "queue.view_list_hint": "Cambiar a la lista agrupada",
   "common.hours_short": "h",
   "queue.machines_toggle": "Impresoras",
+  "sync.resurrected_one": "Un registro que eliminaste ha vuelto: «{name}». Un error de sincronización antiguo podía volver a añadir registros eliminados; bórralo de nuevo si debe desaparecer.",
+  "sync.resurrected_many": "{n} registros que eliminaste han vuelto. Un error de sincronización antiguo podía volver a añadir registros eliminados; bórralos de nuevo si deben desaparecer.",
   "sync.discarded_one": "Se descartó una edición — «{name}» se eliminó en otro dispositivo.",
   "sync.discarded_many": "Se descartaron {n} ediciones — esos registros se eliminaron en otro dispositivo.",
   "set.ai_master": "Asistencia de IA",

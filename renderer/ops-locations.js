@@ -546,6 +546,11 @@ function applyOperatorPermissions() {
     applyOperatorPermissions,
     currentOperatorRoleKey,
     operatorCan,
+    // app-security.js verifies legacy 64-hex PIN hashes with this, behind a
+    // typeof guard. From outside this IIFE the guard was false, the branch was
+    // skipped, and the function fell through to `return false` — so a legacy
+    // hash could never verify and the operator was simply locked out.
+    sha256Hex,
   };
   Object.assign(global, api);
   global.KhaytOpsLocations = api;

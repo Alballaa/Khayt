@@ -1199,6 +1199,45 @@ function reportSyncConflicts(conflicts) {
   try { console.warn('[sync] discarded local edits (deleted elsewhere):', (conflicts || []).filter((c) => c && c.kind === 'delete_over_edit').map((c) => `${c.collection}/${c.id}`).join(', ')); } catch (e) { /* noop */ }
 }
 
+/**
+ * Tell the shop about records that came back after they deleted them.
+ *
+ * Until the tombstone fix, a pull that predated a local delete re-added the
+ * record and the next save persisted it. That shipped in v3.3.0 and every 3.4
+ * beta, so some stores carry resurrected records today. Fixing the merge does
+ * not undo them, and re-deleting automatically would be a second silent data
+ * change on top of the first — on a record the shop may well have worked on in
+ * the weeks since it returned. So: name them, and let the owner decide.
+ *
+ * Announced when the set CHANGES, not on every launch. Nagging each start trains
+ * the owner to dismiss it; announcing once ever is missed by anyone who was not
+ * looking that day.
+ */
+function reportResurrectedRecords() {
+  if (typeof KhaytSync === 'undefined' || !KhaytSync.findResurrected) return;
+  let found = [];
+  try { found = KhaytSync.findResurrected(buildStoreSnapshot()); } catch (e) { return; }
+
+  const KEY = 'hub_resurrected_seen_v1';
+  const signature = found.map((f) => `${f.collection}/${f.id}`).sort().join(',');
+  let lastSeen = '';
+  try { lastSeen = localStorage.getItem(KEY) || ''; } catch (e) { /* private mode */ }
+  try { localStorage.setItem(KEY, signature); } catch (e) { /* non-fatal */ }
+
+  // A durable trace whenever any exist: the toast is transient, and support
+  // should not have to ask the owner to reproduce it.
+  if (found.length) {
+    try { console.warn('[sync] records present despite a tombstone:', signature); } catch (e) { /* noop */ }
+  }
+  if (!found.length || signature === lastSeen) return;
+
+  const { count, firstName } = KhaytSync.summarizeResurrected(found);
+  const msg = count === 1
+    ? (t('sync.resurrected_one') || 'A record you deleted came back — “{name}”. An older sync bug could re-add deleted records; delete it again if it should be gone.').replace('{name}', firstName)
+    : (t('sync.resurrected_many') || '{n} records you deleted came back. An older sync bug could re-add deleted records; delete them again if they should be gone.').replace('{n}', count);
+  if (typeof toast === 'function') toast(msg, 'warning', 12000);
+}
+
 function cloudSyncDeps() {
   return {
     appendOnly: CLOUD_APPEND_ONLY,
@@ -3964,6 +4003,10 @@ function renderTelegramSettings() {
     renderApiTokensSettings,
     renderShippingSettings,
     renderTelemetrySettings,
+    // Called from app-state.js at load. This file is IIFE-wrapped, so without
+    // this line the typeof check there just sees undefined and the whole thing
+    // silently never runs — which is the failure the four names above document.
+    reportResurrectedRecords,
   };
 
   Object.assign(global, api);

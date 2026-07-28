@@ -3383,6 +3383,8 @@
   "queue.view_list_hint": "グループ表示のリストに切り替える",
   "common.hours_short": "時間",
   "queue.machines_toggle": "\u30d7\u30ea\u30f3\u30bf\u30fc",
+  "sync.resurrected_one": "削除したレコードが復活しました（「{name}」）。以前の同期の不具合により削除済みレコードが再追加されることがありました。不要な場合は削除し直してください。",
+  "sync.resurrected_many": "削除した {n} 件のレコードが復活しました。以前の同期の不具合により削除済みレコードが再追加されることがありました。不要な場合は削除し直してください。",
   "sync.discarded_one": "編集が破棄されました —「{name}」は別のデバイスで削除されました。",
   "sync.discarded_many": "{n} 件の編集が破棄されました — これらのレコードは別のデバイスで削除されました。",
   "set.ai_master": "AI アシスト",

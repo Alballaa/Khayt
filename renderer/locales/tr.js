@@ -3383,6 +3383,8 @@
   "queue.view_list_hint": "Gruplanmış listeye geç",
   "common.hours_short": "sa",
   "queue.machines_toggle": "Yaz\u0131c\u0131lar",
+  "sync.resurrected_one": "Sildiğiniz bir kayıt geri geldi — “{name}”. Eski bir eşitleme hatası silinen kayıtları yeniden ekleyebiliyordu; gitmesi gerekiyorsa tekrar silin.",
+  "sync.resurrected_many": "Sildiğiniz {n} kayıt geri geldi. Eski bir eşitleme hatası silinen kayıtları yeniden ekleyebiliyordu; gitmeleri gerekiyorsa tekrar silin.",
   "sync.discarded_one": "Bir düzenleme yok sayıldı — “{name}” başka bir cihazda silindi.",
   "sync.discarded_many": "{n} düzenleme yok sayıldı — bu kayıtlar başka bir cihazda silindi.",
   "set.ai_master": "Yapay zekâ desteği",
