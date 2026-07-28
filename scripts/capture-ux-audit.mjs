@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Capture Khayt POPULATED, across all three shipped themes, for a UI/UX audit.
+ * Capture Khayt POPULATED, across every shipped design, for a UI/UX audit.
  *
  * The earlier pass captured empty states, which flatter a design — every screen looks calm
  * when there is nothing on it. Real density is the thing to judge.
@@ -19,7 +19,9 @@ const outDir = '/tmp/khayt-audit';
 fs.mkdirSync(outDir, { recursive: true });
 const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'khayt-audit-'));
 
-const THEMES = ['workbench', 'command', 'vivid'];
+// Every design a user can pick. This said three for the whole 3.4 line, so an
+// audit meant to cover 'all shipped themes' silently skipped five of them.
+const THEMES = ['workbench', 'command', 'vivid', 'blueprint', 'nocturne', 'meridian', 'foreman', 'flow'];
 const TABS = [
   ['dashboard-tab', 'dashboard'],
   ['queue-tab', 'queue'],

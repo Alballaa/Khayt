@@ -169,8 +169,11 @@ function timingSafeEqualHex(a, b) {
 }
 
 function appIconPath() {
-  // Prefer a flavor-specific icon when present (Bed Ready branding TODO), else
-  // fall back to the shared Khayt preview so the window/dock always has an icon.
+  // Prefer a flavor-specific icon, else fall back to the shared Khayt preview so
+  // the window and dock always have one. This was marked as outstanding Bed
+  // Ready branding work long after assets/bedready-preview.png shipped — the
+  // fallback has not fired for Bed Ready in a while, and the note only made
+  // finished work look unfinished.
   const candidates = [];
   if (isBedReady) candidates.push(path.join(__dirname, 'assets', 'bedready-preview.png'));
   candidates.push(path.join(__dirname, 'assets', 'icon_preview.png'));
