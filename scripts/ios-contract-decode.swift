@@ -68,6 +68,22 @@ enum ContractDecoder {
             }
         }
 
+        check("quote", QuoteResult.self) { q in
+            // The breakdown is what the quote screen shows under "what it costs
+            // you". If it stops summing to the unit cost the screen still
+            // renders — it just quietly stops adding up in front of a customer.
+            let sum = q.breakdown.material + q.breakdown.machine + q.breakdown.labor + q.breakdown.buffer
+            if abs(sum - q.unitCost) > 0.01 {
+                failures.append("quote: breakdown sums to \(sum) but unitCost is \(q.unitCost)")
+            }
+            // The fixture asks for a tier the quantity reaches, so a nil here
+            // means the field was renamed or the tier logic stopped applying.
+            if q.priceTier == nil {
+                failures.append("quote: the fixture reaches a price tier but priceTier came back nil")
+            }
+            notes.append("quote: total=\(q.price.total) cost=\(q.totalCost) currency=\(q.currency ?? "—")")
+        }
+
         check("machines", [MachineInfo].self)
         check("machinesLive", [MachineLiveStatus].self)
         check("inventory", [InventorySpool].self)

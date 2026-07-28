@@ -135,3 +135,29 @@
 "nfc.error.not_ndef" = "البطاقة لا تدعم NDEF.";
 "nfc.error.read_only" = "البطاقة للقراءة فقط أو مقفلة. استخدم بطاقة فارغة قابلة للكتابة.";
 "nfc.error.read_failed" = "تعذرت قراءة البطاقة.";
+
+/* Quick quote */
+"home.action.quote" = "تسعير";
+"quote.title" = "تسعير سريع";
+"quote.part" = "القطعة";
+"quote.rates" = "الأسعار";
+"quote.result" = "السعر";
+"quote.cost" = "التكلفة عليك";
+"quote.weight" = "الوزن";
+"quote.time" = "مدة الطباعة";
+"quote.qty" = "الكمية";
+"quote.spool_cost" = "سعر البكرة (١ كجم)";
+"quote.labor_rate" = "أجر العمل بالساعة";
+"quote.margin" = "هامش الربح";
+"quote.rush" = "طلب مستعجل";
+"quote.calculate" = "احسب";
+"quote.total" = "الإجمالي";
+"quote.discount" = "الخصم";
+"quote.rush_fee" = "رسوم الاستعجال";
+"quote.tier" = "سعر الشريحة ({n}+)";
+"quote.unit_cost" = "التكلفة للوحدة";
+"quote.bd.material" = "المواد";
+"quote.bd.machine" = "الماكينة";
+"quote.bd.labor" = "العمل";
+"quote.bd.buffer" = "احتياطي الفشل";
+"common.close" = "إغلاق";

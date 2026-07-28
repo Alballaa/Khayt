@@ -4,6 +4,20 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **Quote a customer from your phone.** Someone walks in holding a part and asks
+  what it would cost — the companion app now answers without you going back to
+  the desktop. Enter the weight, print time and quantity, and it shows the price
+  along with what the job actually costs you, broken down by material, machine,
+  labour and failure buffer.
+
+  The numbers come from your desktop, not the phone: it runs the same costing and
+  the same margin, tier, discount and rush-fee rules the calculator tab uses, so
+  a price you give standing next to a customer is the price on your desk. It
+  needs a live connection for that reason — a quote you might have to honour
+  should not be computed from yesterday's material prices.
+
 ### Changed
 
 - **The LAN API no longer publishes every field on a spool.** `GET

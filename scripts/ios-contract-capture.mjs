@@ -143,6 +143,28 @@ const ENDPOINTS = {
 
 fs.mkdirSync(OUT, { recursive: true });
 const summary = {};
+
+// POST /api/quote is the one read-shaped endpoint that is not a GET, and the
+// companion decodes its reply into QuoteResult. Captured here so the same
+// decode check covers it: a renamed key in the price block would otherwise
+// empty the quote screen with nothing to catch it.
+{
+  const r = await fetch(`http://127.0.0.1:${PORT}/api/quote`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-khayt-pin': PIN },
+    body: JSON.stringify({
+      printWeight: 50, printTime: 2, qty: 2, margin: 40,
+      spoolCost: 100, spoolWeight: 1000, laborRate: 20,
+      prepTime: 0.25, postTime: 0.5, rush: true,
+      priceTiers: [{ minQty: 2, pricePerUnit: 55 }],
+    }),
+  });
+  const body = await r.text();
+  if (r.status !== 200) throw new Error(`/api/quote → HTTP ${r.status}: ${body.slice(0, 200)}`);
+  fs.writeFileSync(path.join(OUT, 'quote.json'), body);
+  summary.quote = body.length;
+}
+
 for (const [name, ep] of Object.entries(ENDPOINTS)) {
   const r = await fetch(`http://127.0.0.1:${PORT}${ep}`, {
     headers: { Accept: 'application/json', 'x-khayt-pin': PIN },
