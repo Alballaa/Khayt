@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ConnectionBanner: View {
     @EnvironmentObject private var health: ConnectionHealth
+    @EnvironmentObject private var api: KhaytAPIClient
 
     var body: some View {
         if health.state != .connected {
@@ -48,11 +49,26 @@ struct ConnectionBanner: View {
     private var message: String {
         switch health.state {
         case .unknown: return L10n.tr("connection.banner.checking")
-        case .unreachable: return L10n.tr("connection.banner.unreachable")
+        case .unreachable:
+            // When the desktop is out of reach the screens are not empty any
+            // more — they show the last good answer. Say when that was, because
+            // an old number presented as current is worse than no number: a shop
+            // could pick up a spool it finished this morning.
+            if let since = api.servingCachedSince {
+                return L10n.tr("connection.banner.cached").replacingOccurrences(
+                    of: "{when}", with: Self.relative.localizedString(for: since, relativeTo: Date()))
+            }
+            return L10n.tr("connection.banner.unreachable")
         case .unauthorized: return L10n.tr("connection.banner.pin")
         case .connected: return ""
         }
     }
+
+    private static let relative: RelativeDateTimeFormatter = {
+        let f = RelativeDateTimeFormatter()
+        f.unitsStyle = .full
+        return f
+    }()
 
     private var iconColor: Color {
         switch health.state {

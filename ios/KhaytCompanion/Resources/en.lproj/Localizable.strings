@@ -12,6 +12,7 @@
 "connection.unreachable" = "Desktop unreachable";
 "connection.unauthorized" = "Wrong LAN PIN";
 "connection.banner.unreachable" = "Cannot reach Khayt on your network. Check Wi‑Fi and desktop LAN API.";
+"connection.banner.cached" = "Showing what your desktop last told us, from {when}. Reconnect for live numbers.";
 "connection.banner.pin" = "LAN PIN rejected. Update PIN in Settings to match desktop.";
 "connection.banner.checking" = "Connecting to desktop…";
 "connection.retry" = "Retry";
