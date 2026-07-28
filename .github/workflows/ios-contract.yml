@@ -1,0 +1,44 @@
+# The desktop and the phone are one contract split across two languages, and
+# nothing else in CI ever compares them: the Ubuntu job cannot compile Swift,
+# and `xcodebuild` never sees a real server response. A renamed JSON key passes
+# both and empties a screen on the phone.
+#
+# macOS minutes are expensive, so this runs only when one side of the contract
+# actually moves. The paths list is repeated rather than shared via a YAML
+# anchor because the Actions parser does not expand aliases.
+name: iOS contract
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ios/**'
+      - 'lib/lan-server.js'
+      - 'scripts/ios-contract-*'
+      - '.github/workflows/ios-contract.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'ios/**'
+      - 'lib/lan-server.js'
+      - 'scripts/ios-contract-*'
+      - '.github/workflows/ios-contract.yml'
+
+jobs:
+  contract:
+    name: LAN server and companion models
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Decode live server responses with the shipping Swift models
+        run: npm run test:ios-contract
