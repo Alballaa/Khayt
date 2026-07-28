@@ -79,11 +79,13 @@
 "settings.docs" = "LAN API reference";
 
 /* Status */
+"status.quote" = "Quote";
 "status.pending" = "Pending";
 "status.printing" = "Printing";
 "status.post" = "Post-processing";
 "status.qc" = "QC";
 "status.completed" = "Completed";
+"status.delivered" = "Delivered";
 "status.on_hold" = "On hold";
 
 /* Lang */

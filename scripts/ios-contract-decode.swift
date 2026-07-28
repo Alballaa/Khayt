@@ -48,12 +48,17 @@ enum ContractDecoder {
         }
 
         check("orders", [OrderLogEntry].self) { orders in
-            // OrderStatus is a CLOSED enum on the phone. Any status the desktop
-            // can write that it cannot represent is a silently unhandled order.
-            let unknown = orders.map(\.status).filter { OrderStatus(rawValue: $0) == nil }
+            // OrderStatus is a CLOSED enum on the phone, and the capture carries
+            // one order per status the desktop can actually write. A gap does not
+            // crash anything — every use site falls back — it just stops being
+            // translated, so an Arabic shop reads the raw English word. That is
+            // exactly the kind of failure nobody reports, hence a hard failure
+            // here rather than a note someone skims past.
+            let unknown = Set(orders.map(\.status).filter { OrderStatus(rawValue: $0) == nil })
             if !unknown.isEmpty {
-                notes.append("orders: statuses with no OrderStatus case → \(Set(unknown).sorted().joined(separator: ", "))")
+                failures.append("orders: the desktop can write \(unknown.sorted().joined(separator: ", ")) but OrderStatus has no case for it — the badge will fall back to raw English")
             }
+            notes.append("orders: \(orders.count) orders, \(Set(orders.map(\.status)).count) distinct statuses, all mapped")
         }
 
         check("queue", [QueueOrder].self) { q in

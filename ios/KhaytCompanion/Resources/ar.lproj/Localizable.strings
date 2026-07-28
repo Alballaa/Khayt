@@ -79,11 +79,13 @@
 "settings.docs" = "مرجع LAN API";
 
 /* Status */
+"status.quote" = "عرض سعر";
 "status.pending" = "قيد الانتظار";
 "status.printing" = "طباعة";
 "status.post" = "ما بعد الطباعة";
 "status.qc" = "فحص الجودة";
 "status.completed" = "مكتمل";
+"status.delivered" = "تم التسليم";
 "status.on_hold" = "معلق";
 
 /* Lang */

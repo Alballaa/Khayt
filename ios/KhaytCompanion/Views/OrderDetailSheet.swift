@@ -84,7 +84,7 @@ struct OrderDetailSheet: View {
                 }
 
                 Section(L10n.tr("orders.detail.set_status")) {
-                    ForEach(OrderStatus.allCases.filter { $0 != .completed }, id: \.self) { st in
+                    ForEach(OrderStatus.assignable, id: \.self) { st in
                         Button {
                             onSetStatus(st.rawValue)
                         } label: {

@@ -94,8 +94,8 @@ private struct QueueRow: View {
                     .foregroundStyle(.secondary)
             }
             Menu {
-                ForEach(OrderStatus.allCases.filter { $0 != .completed }, id: \.self) { st in
-                    Button(st.label) { onSetStatus(st.rawValue) }
+                ForEach(OrderStatus.assignable, id: \.self) { st in
+                    Button(st.localizedLabel) { onSetStatus(st.rawValue) }
                 }
             } label: {
                 Label("Set status", systemImage: "arrow.triangle.branch")
