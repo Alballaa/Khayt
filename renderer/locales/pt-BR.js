@@ -3384,6 +3384,8 @@
   "queue.view_list_hint": "Mudar para a lista agrupada",
   "common.hours_short": "h",
   "queue.machines_toggle": "Máquinas",
+  "sync.resurrected_one": "Um registro que você excluiu voltou — “{name}”. Um erro de sincronização antigo podia readicionar registros excluídos; exclua-o novamente se ele deve sumir.",
+  "sync.resurrected_many": "{n} registros que você excluiu voltaram. Um erro de sincronização antigo podia readicionar registros excluídos; exclua-os novamente se eles devem sumir.",
   "sync.discarded_one": "Uma edição foi descartada — “{name}” foi excluído em outro dispositivo.",
   "sync.discarded_many": "{n} edições foram descartadas — esses registros foram excluídos em outro dispositivo.",
   "set.ai_master": "Assistência de IA",

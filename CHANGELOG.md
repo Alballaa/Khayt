@@ -4,6 +4,27 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **A record you deleted could come back.** If you deleted a client, order or
+  spool while cloud sync had not yet caught up — you were offline, or another
+  device pushed first — the next sync could re-add it and the next save kept it.
+  This has been present since 3.3.0 and affects cloud sync only; shops with
+  cloud off were never exposed. Khayt now refuses to re-add anything it knows
+  you deleted.
+
+  If it already happened to you, **Khayt will tell you**: on the next start it
+  names the records that came back so you can delete them again. It does not
+  delete them for you — you may have worked on one since it reappeared, and a
+  second silent change is not a fix for the first.
+
+- **A saved operator PIN using the older hashed format could never be
+  accepted**, locking that operator out. **Spool labels were printed without
+  sanitising the label HTML.** **QC-failure and RMA webhooks never fired**, and
+  one webhook delivery path never delivered. All four were the same wiring
+  mistake — a function that other files called was never made visible to them,
+  so the call quietly did nothing. A new check covers the whole class.
+
 ## [3.4.0-beta.5] - 2026-07-28
 
 A calendar beta. Khayt was working out what day it is from UTC rather than from

@@ -3383,6 +3383,8 @@
   "queue.view_list_hint": "切换到分组列表",
   "common.hours_short": "小时",
   "queue.machines_toggle": "\u6253\u5370\u673a",
+  "sync.resurrected_one": "您删除的一条记录又出现了 —「{name}」。旧版同步缺陷可能会重新添加已删除的记录；如果它应该消失，请再次删除。",
+  "sync.resurrected_many": "您删除的 {n} 条记录又出现了。旧版同步缺陷可能会重新添加已删除的记录；如果它们应该消失，请再次删除。",
   "sync.discarded_one": "一处编辑被丢弃 — “{name}”已在另一台设备上删除。",
   "sync.discarded_many": "{n} 处编辑被丢弃 — 这些记录已在另一台设备上删除。",
   "set.ai_master": "AI 辅助",

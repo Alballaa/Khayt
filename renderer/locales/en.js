@@ -3386,6 +3386,8 @@
   "queue.view_list_hint": "Switch to the grouped list",
   "common.hours_short": "h",
   "queue.machines_toggle": "Machines",
+  "sync.resurrected_one": "A record you deleted came back — “{name}”. An older sync bug could re-add deleted records; delete it again if it should be gone.",
+  "sync.resurrected_many": "{n} records you deleted came back. An older sync bug could re-add deleted records; delete them again if they should be gone.",
   "sync.discarded_one": "An edit was discarded — “{name}” was deleted on another device.",
   "sync.discarded_many": "{n} edits were discarded — those records were deleted on another device.",
   "set.ai_master": "AI assist",

@@ -3383,6 +3383,8 @@
   "queue.view_list_hint": "Zur gruppierten Liste wechseln",
   "common.hours_short": "Std",
   "queue.machines_toggle": "Drucker",
+  "sync.resurrected_one": "Ein von Ihnen gelöschter Datensatz ist zurück — „{name}“. Ein älterer Sync-Fehler konnte gelöschte Datensätze erneut hinzufügen; löschen Sie ihn erneut, wenn er weg sein soll.",
+  "sync.resurrected_many": "{n} von Ihnen gelöschte Datensätze sind zurück. Ein älterer Sync-Fehler konnte gelöschte Datensätze erneut hinzufügen; löschen Sie sie erneut, wenn sie weg sein sollen.",
   "sync.discarded_one": "Eine Änderung wurde verworfen — „{name}“ wurde auf einem anderen Gerät gelöscht.",
   "sync.discarded_many": "{n} Änderungen wurden verworfen — diese Datensätze wurden auf einem anderen Gerät gelöscht.",
   "set.ai_master": "KI-Assistenz",

@@ -1921,6 +1921,10 @@ function trackShipment(trackingNumber, carrier) {
     exportIcalFeed,
     renderReferralAnalytics,
     trackShipment,
+    // operations-extras.js guards on `typeof deliverWebhook === 'function'`,
+    // which was always false from outside this IIFE, so that path never
+    // delivered a webhook.
+    deliverWebhook,
   };
   Object.assign(global, api);
   // NOTE: do NOT set global.KhaytIntegrations here — that name is owned by the
