@@ -42,3 +42,14 @@ jobs:
 
       - name: Decode live server responses with the shipping Swift models
         run: npm run test:ios-contract
+
+      # The companion's own unit tests. They need a booted simulator, which the
+      # contract check above does not, so a failure here is about the app rather
+      # than the desktop contract.
+      - name: Companion unit tests
+        run: |
+          xcodebuild test \
+            -scheme KhaytCompanion \
+            -project ios/KhaytCompanion.xcodeproj \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+            CODE_SIGNING_ALLOWED=NO | tail -40
