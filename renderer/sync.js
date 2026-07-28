@@ -21,7 +21,33 @@
   // them never counts as a content change (the critical idempotency property).
   const RESERVED = new Set(['rev', 'updatedAt']);
 
-  let lastIndex = new Map();   // "collection:id" -> content fingerprint
+  /**
+   * One change-index per shop — "collection:id" -> {fp, rev}.
+   *
+   * This used to be a single Map for the whole process, which is correct only
+   * while a process holds exactly one store. `stampChanges` calls a record
+   * deleted when it is in the index but absent from the snapshot in front of it,
+   * so stamping shop B right after shop A marked every one of A's records as
+   * deleted and wrote tombstones for them into B — and tombstones win
+   * unconditionally, so those go on to remove live records. Proven in
+   * test/phase3-delta-roundtrip.test.js before this existed.
+   *
+   * That is precisely the shape Phase 3 needs (one device, several branches,
+   * merged locally), so the index is keyed by scope. Callers that pass no scope
+   * share DEFAULT_SCOPE and behave exactly as before — single-shop users are
+   * unaffected, which is asserted rather than assumed.
+   */
+  const DEFAULT_SCOPE = 'default';
+  const indexes = new Map();   // scope -> Map("collection:id" -> {fp, rev})
+
+  function indexFor(scope) {
+    const key = scope || DEFAULT_SCOPE;
+    let m = indexes.get(key);
+    if (!m) { m = new Map(); indexes.set(key, m); }
+    return m;
+  }
+  function setIndexFor(scope, m) { indexes.set(scope || DEFAULT_SCOPE, m); }
+
   let backend = null;          // null => LocalBackend (cloud off)
   let statusVal = 'off';
 
@@ -73,7 +99,7 @@
    * Seed the in-memory index from current state WITHOUT bumping anything.
    * Call after load so the next save doesn't see every record as "new".
    */
-  function seedIndex(snapshot) {
+  function seedIndex(snapshot, scope) {
     const idx = new Map();
     for (const coll of arrayCollections(snapshot)) {
       for (const rec of snapshot[coll]) {
@@ -84,7 +110,7 @@
         idx.set(coll + ':' + rec.id, { fp: fingerprint(rec), rev: revOf(rec) });
       }
     }
-    lastIndex = idx;
+    setIndexFor(scope, idx);
     return idx.size;
   }
 
@@ -113,8 +139,9 @@
    * tombstones (pushed into snapshot.tombstones when present). Returns a summary
    * of {created, changed, deleted} for downstream consumers (e.g. audit log).
    */
-  function stampChanges(snapshot) {
+  function stampChanges(snapshot, scope) {
     const now = nowIso();
+    const lastIndex = indexFor(scope);
     const next = new Map();
     const summary = { created: [], changed: [], deleted: [] };
 
@@ -160,7 +187,7 @@
     const TOMB_CAP = 5000;
     if (tomb && tomb.length > TOMB_CAP) tomb.splice(0, tomb.length - TOMB_CAP);
 
-    lastIndex = next;
+    setIndexFor(scope, next);
     return summary;
   }
 
@@ -353,9 +380,21 @@
     getBackend,
     status,
     LocalBackend,
-    // test-only helpers
-    _resetIndex() { lastIndex = new Map(); },
-    _indexSize() { return lastIndex.size; },
+    // test-only helpers. With no scope they span every shop, which is what a
+    // test asking for a clean slate means; pass one to touch a single shop.
+    _resetIndex(scope) {
+      if (scope === undefined) indexes.clear();
+      else indexes.delete(scope || DEFAULT_SCOPE);
+    },
+    _indexSize(scope) {
+      if (scope === undefined) {
+        let n = 0;
+        for (const m of indexes.values()) n += m.size;
+        return n;
+      }
+      return indexFor(scope).size;
+    },
+    _scopes() { return [...indexes.keys()]; },
   };
 
   Object.assign(global, { KhaytSync: api });

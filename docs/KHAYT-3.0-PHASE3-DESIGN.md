@@ -184,20 +184,28 @@ is still announced and a stale echo stays silent. Guarded by three tests in
 `test/cloud-sync.test.js` — the shipping path, not just the research file — and
 mutation-verified: restoring the old behaviour kills exactly those three.
 
-**Finding 2 — one device cannot hold two shops yet. The real Phase 3 blocker.**
-`stampChanges` decides a record was deleted when it is in `lastIndex` but absent
-from the snapshot in front of it, and `lastIndex` is one module-level map per
-engine instance. Stamping shop B right after shop A therefore marks every one of
-A's records as deleted and writes tombstones for them into B's store — and
-tombstones win unconditionally, so once those sync they delete live records.
+**Finding 2 — one device could not hold two shops. Now fixed.**
+`stampChanges` decides a record was deleted when it is in the change-index but
+absent from the snapshot in front of it, and that index was one module-level map
+per process. Stamping shop B right after shop A therefore marked every one of A's
+records as deleted and wrote tombstones for them into B's store — and tombstones
+win unconditionally, so once those synced they deleted live records.
 
-This sits directly on the recommended option (b), whose whole shape is *"a device
+This sat directly on the recommended option (b), whose whole shape is *"a device
 that belongs to several shops pulls all of them and merges locally"* — one
 process, several stores.
 
-The good news is what the last test in the file shows: give each shop its own
-engine instance and the phantom deletes disappear entirely. **So Phase 3 does not
-need the merge logic changed — it needs per-shop index isolation.** That is a far
-smaller thing to build than a rewrite of the conflict policy, and it moves the
-first real task from "design multi-shop merge" to "make the change-index
-per-shop instead of per-process".
+It turned out to be an isolation problem rather than a logic one, so the fix is
+small: `seedIndex` and `stampChanges` take an optional **scope**, and the engine
+keeps one index per scope. Two shops on one device pass their shop ids and stop
+colliding. Nothing about the conflict policy changed.
+
+Every shipping caller (`app-state.js`, `cloud-sync.js`) passes no scope and lands
+on a shared default, so single-shop users are unaffected — asserted by a test,
+not assumed, including that an implicit scope and an explicit `'default'` are the
+same index rather than two. Mutation-verified: collapsing every scope back to one
+index kills exactly the two isolation tests.
+
+**So the first Phase 3 task is now done ahead of the phase**, and what remains for
+multi-shop on the desktop is passing a real shop id at those three call sites.
+The weight moves to the ODK key model, which was always the risky half.
