@@ -321,6 +321,62 @@ struct APIErrorResponse: Codable, Sendable {
     let error: String?
 }
 
+/**
+ * What the desktop says a part costs, and what to charge for it.
+ *
+ * Every number here is computed on the desktop — `renderer/calculator-cost.js`
+ * for the cost, `lib/pricing.js` for the price — and none of it is recomputed on
+ * the phone. That is the whole point: a quote given standing next to a customer
+ * has to be the same number as the one on the desk, and the only way to
+ * guarantee that is to have one implementation rather than two that agree today.
+ */
+struct QuoteResult: Codable, Sendable {
+    struct Breakdown: Codable, Sendable {
+        let material: Double
+        let machine: Double
+        let labor: Double
+        let buffer: Double
+    }
+    struct Price: Codable, Sendable {
+        let beforeDiscount: Double
+        let discount: Double
+        let subtotal: Double
+        let rushFee: Double
+        let shipping: Double
+        let extras: Double
+        let total: Double
+    }
+    struct Tier: Codable, Sendable {
+        let minQty: Int
+        let pricePerUnit: Double
+    }
+
+    let qty: Int
+    let unitCost: Double
+    let totalCost: Double
+    let breakdown: Breakdown
+    let price: Price
+    /// Present only when the quantity has reached a configured tier.
+    let priceTier: Tier?
+    /// The shop's currency, so the phone never has to guess one.
+    let currency: String?
+}
+
+/// What the phone sends to be costed. Mirrors the fields the calculator screen
+/// collects; anything omitted is treated as zero by the desktop.
+struct QuoteRequest: Codable, Sendable {
+    var printWeight: Double
+    var printTime: Double
+    var qty: Int
+    var margin: Double
+    var spoolCost: Double
+    var spoolWeight: Double
+    var laborRate: Double
+    var prepTime: Double
+    var postTime: Double
+    var rush: Bool
+}
+
 enum KhaytAPIError: LocalizedError, Sendable {
     case notConfigured
     case invalidURL

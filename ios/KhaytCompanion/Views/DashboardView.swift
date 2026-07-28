@@ -15,6 +15,7 @@ struct DashboardView: View {
     @State private var errorMessage: String?
     @State private var isLoading = false
     @State private var showAddSpool = false
+    @State private var showQuote = false
 
     private var navTitle: String {
         settings.shopLabel.isEmpty ? "Khayt" : settings.shopLabel
@@ -52,6 +53,7 @@ struct DashboardView: View {
             .sheet(isPresented: $showAddSpool) {
                 AddSpoolSheet { Task { await load() } }
             }
+            .sheet(isPresented: $showQuote) { QuoteSheet() }
         }
     }
 
@@ -143,6 +145,9 @@ struct DashboardView: View {
         VStack(alignment: .leading, spacing: 10) {
             KhaytSectionHeader(text: L10n.tr("home.quick_actions"))
             HStack(spacing: 10) {
+                // First, and on the left: quoting a walk-in is the thing most
+                // likely to be needed with a customer already standing there.
+                quickTile(L10n.tr("home.action.quote"), "tag.fill") { showQuote = true }
                 quickTile(L10n.tr("home.action.add_spool"), "plus.circle.fill") { showAddSpool = true }
                 NavigationLink { OrdersView() } label: {
                     quickTileLabel(L10n.tr("home.action.orders"), "rectangle.stack.fill")

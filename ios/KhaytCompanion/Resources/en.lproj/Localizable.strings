@@ -135,3 +135,29 @@
 "nfc.error.not_ndef" = "Tag does not support NDEF.";
 "nfc.error.read_only" = "Tag is read-only or locked. Use a blank writable tag.";
 "nfc.error.read_failed" = "Could not read tag.";
+
+/* Quick quote */
+"home.action.quote" = "Quote";
+"quote.title" = "Quick quote";
+"quote.part" = "Part";
+"quote.rates" = "Rates";
+"quote.result" = "Price";
+"quote.cost" = "What it costs you";
+"quote.weight" = "Weight";
+"quote.time" = "Print time";
+"quote.qty" = "Quantity";
+"quote.spool_cost" = "Spool cost (1 kg)";
+"quote.labor_rate" = "Labour rate per hour";
+"quote.margin" = "Margin";
+"quote.rush" = "Rush job";
+"quote.calculate" = "Calculate";
+"quote.total" = "Total";
+"quote.discount" = "Discount";
+"quote.rush_fee" = "Rush fee";
+"quote.tier" = "Tier price ({n}+)";
+"quote.unit_cost" = "Cost per unit";
+"quote.bd.material" = "Material";
+"quote.bd.machine" = "Machine";
+"quote.bd.labor" = "Labour";
+"quote.bd.buffer" = "Failure buffer";
+"common.close" = "Close";

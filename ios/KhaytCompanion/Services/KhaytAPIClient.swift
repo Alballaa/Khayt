@@ -58,6 +58,29 @@ final class KhaytAPIClient: ObservableObject {
         try await get("/api/waiting-list", requiresPin: true, as: [WaitingListItem].self)
     }
 
+    /**
+     * Ask the desktop what a part costs and what to charge for it.
+     *
+     * Deliberately NOT cached, unlike every other read. A quote is a live
+     * question about the shop's current material prices and settings, and a
+     * stale answer given to a customer standing in front of you is a number the
+     * shop then has to honour. Offline, this fails — which is the correct
+     * outcome, and why the write-shaped `request` path is used rather than
+     * `get`.
+     */
+    func requestQuote(_ input: QuoteRequest) async throws -> QuoteResult {
+        let body = try JSONEncoder().encode(input)
+        let (data, response) = try await request(path: "/api/quote", method: "POST",
+                                                 body: body, requiresPin: true)
+        guard let http = response as? HTTPURLResponse else {
+            throw KhaytAPIError.transport(URLError(.badServerResponse))
+        }
+        guard (200...299).contains(http.statusCode) else {
+            throw try decodeAPIError(data, status: http.statusCode)
+        }
+        return try JSONDecoder().decode(QuoteResult.self, from: data)
+    }
+
     func updateSpoolRemaining(id: String, grams: Int) async throws {
         let encodedId = try encodeOrderIdForPath(id)
         let body = try JSONEncoder().encode(["remaining": max(0, grams)])
