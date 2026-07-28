@@ -79,7 +79,9 @@ jobs:
       # modal is reachable without a mouse. A static read of this very code
       # concluded (wrongly) that nothing focused the modal; running it took ten
       # seconds to disprove that.
-      - name: E2E smoke (keyboard: modal focus, trap, Escape)
+      # Quoted: an unquoted "keyboard: " in a YAML scalar starts a mapping, and
+      # the whole workflow then fails to parse — a 0-second red build.
+      - name: "E2E smoke (keyboard: modal focus, trap, Escape)"
         run: xvfb-run -a npm run test:e2e:a11y
 
       - name: E2E smoke (QC / reprint / RMA)
