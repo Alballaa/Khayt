@@ -28,23 +28,38 @@ function localDay(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+/**
+ * The desktop's canonical order statuses, read from the source of truth rather
+ * than copied here.
+ *
+ * A hand-copied list is a guard that silently stops guarding: the day someone
+ * adds a status to the desktop, a frozen fixture keeps testing the old set and
+ * reports green while the phone has no case for the new one. Reading the literal
+ * means the fixture widens by itself, and the Swift side fails until OrderStatus
+ * catches up.
+ */
+function desktopStatuses() {
+  const src = fs.readFileSync(path.join(ROOT, 'renderer/analytics.js'), 'utf8');
+  const m = src.match(/const\s+STATUSES\s*=\s*\[([^\]]+)\]/);
+  if (!m) throw new Error('could not find STATUSES in renderer/analytics.js — the fixture would silently narrow');
+  const list = m[1].split(',').map((s) => s.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
+  if (list.length < 2) throw new Error(`STATUSES parsed implausibly small: ${JSON.stringify(list)}`);
+  return list;
+}
+
 // ── The store the server will serve ──────────────────────────────────────────
-// Statuses cover the DESKTOP's full vocabulary (renderer/analytics.js), not the
-// subset the phone happens to know about, so the capture shows the phone
-// everything it can really be sent.
+// Statuses cover the DESKTOP's full vocabulary, not the subset the phone happens
+// to know about, so the capture shows the phone everything it can really be sent.
 const store = {
   printLog: [
     { id: 'o-full', project: 'Bracket v2', client: 'Acme', status: 'printing',
       material: 'PLA', price: 120, dueDate: '2026-08-01', date: '2026-07-20',
       paymentStatus: 'paid', machine: 'Prusa CORE One', machineId: 'm-1',
       priority: 'high', completedAt: null },
-    // Only what the desktop guarantees: an id and a status. Everything else absent.
-    { id: 'o-sparse', status: 'pending' },
-    { id: 'o-quote', status: 'quote' },
-    { id: 'o-delivered', status: 'delivered' },
-    { id: 'o-hold', status: 'on_hold' },
-    { id: 'o-post', status: 'post' },
-    { id: 'o-qc', status: 'qc' },
+    // One order per status the desktop can write, carrying only what the desktop
+    // guarantees — an id and a status. A fully-populated record would prove only
+    // that the happy path decodes.
+    ...desktopStatuses().map((status) => ({ id: `o-${status}`, status })),
     { id: 'o-done', status: 'completed', completedAt: `${localDay()}T09:00:00.000Z` },
   ],
   machines: [

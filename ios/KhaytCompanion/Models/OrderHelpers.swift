@@ -55,11 +55,13 @@ enum DueDateParser {
 extension OrderStatus {
     var localizedLabel: String {
         switch self {
+        case .quote: return L10n.tr("status.quote")
         case .pending: return L10n.tr("status.pending")
         case .printing: return L10n.tr("status.printing")
         case .post: return L10n.tr("status.post")
         case .qc: return L10n.tr("status.qc")
         case .completed: return L10n.tr("status.completed")
+        case .delivered: return L10n.tr("status.delivered")
         case .on_hold: return L10n.tr("status.on_hold")
         }
     }

@@ -280,18 +280,31 @@ struct NFCFilamentTag: Sendable {
 }
 
 enum OrderStatus: String, CaseIterable, Hashable, Sendable {
-    case pending, printing, post, qc, completed, on_hold
+    // `quote` and `delivered` are written by the desktop (renderer/analytics.js)
+    // and arrive here through /api/orders. They were missing, so every use site
+    // fell back to `status.capitalized` — which meant an Arabic shop read
+    // "Quote" and "Delivered" in English. Nothing crashed; it just quietly
+    // stopped being translated.
+    case quote, pending, printing, post, qc, completed, delivered, on_hold
 
     var label: String {
         switch self {
+        case .quote: return "Quote"
         case .pending: return "Pending"
         case .printing: return "Printing"
         case .post: return "Post-processing"
         case .qc: return "QC"
         case .completed: return "Completed"
+        case .delivered: return "Delivered"
         case .on_hold: return "On hold"
         }
     }
+
+    /// Statuses the phone may assign. Deliberately not `allCases`: the companion
+    /// is a shop-floor tool, and knowing how to *display* a quote is not the same
+    /// as being allowed to move a live order back into one. Adding `quote` and
+    /// `delivered` above must not silently widen what the phone can write.
+    static let assignable: [OrderStatus] = [.pending, .printing, .post, .qc, .on_hold]
 
     var nextInQueue: OrderStatus? {
         switch self {
