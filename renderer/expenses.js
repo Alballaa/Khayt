@@ -107,7 +107,12 @@ function addExpense() {
   // Budget overspend check
   const budget = (settings.expBudgets || {})[expCat] || 0;
   if (budget > 0) {
-    const curMonth = new Date().toISOString().slice(0, 7);
+    // The shop's calendar month, not UTC's. Expense dates are written in local
+    // time, so comparing them against a UTC month mismatches for the first hours
+    // of the 1st east of London, and the last hours of the 31st west of it: a
+    // shop in Riyadh logging a 200 expense at 01:00 on the 1st was told it had
+    // blown a 5,000 budget, because the sum was still counting last month.
+    const curMonth = localMonthStr();
     const monthSpent = expenses
       .filter(e => e.category === expCat && (e.date || '').startsWith(curMonth))
       .reduce((s, e) => s + (+e.amount || 0), 0);

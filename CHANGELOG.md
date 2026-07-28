@@ -42,6 +42,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **A budget warning could count the wrong month.** Khayt worked out the current
+  month from UTC rather than from your own calendar, so for the first hours of
+  the 1st (east of London) the overspend check was still totalling *last* month:
+  log a 200 expense and be told you had blown a 5,000 budget. West of London it
+  failed the other way on the last evening of a month, and stayed quiet when it
+  should have warned. Same cause as the date fixes in 3.4.0-beta.5 — this one
+  counted months rather than days, which is why it survived that sweep.
+
 - **A record you deleted could come back.** If you deleted a client, order or
   spool while cloud sync had not yet caught up — you were offline, or another
   device pushed first — the next sync could re-add it and the next save kept it.
