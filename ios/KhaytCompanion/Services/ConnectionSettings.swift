@@ -167,6 +167,10 @@ final class ConnectionSettings: ObservableObject {
         isPaired = false
         pin = ""
         KeychainHelper.delete(Keys.pinKeychain)
+        // The offline cache holds the shop's client list, orders and inventory.
+        // Dropping the PIN while leaving that on disk would mean "unpaired" only
+        // stops new reads, and everything already fetched stays readable.
+        Task { await CompanionCache.shared.clear() }
     }
 }
 

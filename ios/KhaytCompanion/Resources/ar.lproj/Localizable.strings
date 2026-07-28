@@ -12,6 +12,7 @@
 "connection.unreachable" = "تعذر الوصول للكمبيوتر";
 "connection.unauthorized" = "رمز PIN خاطئ";
 "connection.banner.unreachable" = "لا يمكن الوصول إلى Khayt على الشبكة. تحقق من الواي فاي وتفعيل LAN API.";
+"connection.banner.cached" = "نعرض آخر ما أرسله جهازك، من {when}. أعد الاتصال للأرقام الحية.";
 "connection.banner.pin" = "رمز LAN مرفوض. حدّث PIN في الإعدادات ليطابق سطح المكتب.";
 "connection.banner.checking" = "جاري الاتصال بسطح المكتب…";
 "connection.retry" = "إعادة المحاولة";

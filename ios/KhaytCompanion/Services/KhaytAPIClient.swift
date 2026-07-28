@@ -5,6 +5,12 @@ final class KhaytAPIClient: ObservableObject {
     private let settings: ConnectionSettings
     private let session: URLSession
 
+    /// When the data currently on screen was last true, if it came from the
+    /// cache rather than the desktop. `nil` means what you are looking at is
+    /// live. Published so the UI can say so instead of quietly showing old
+    /// numbers as though they were current.
+    @Published private(set) var servingCachedSince: Date?
+
     var isConfigured: Bool { settings.isConfigured }
 
     init(settings: ConnectionSettings) {
@@ -223,13 +229,47 @@ final class KhaytAPIClient: ObservableObject {
 
     // MARK: - HTTP
 
-    private func get<T: Decodable>(_ path: String, requiresPin: Bool, as type: T.Type) async throws -> T {
-        let (data, response) = try await request(path: path, method: "GET", body: nil, requiresPin: requiresPin)
-        guard let http = response as? HTTPURLResponse else { throw KhaytAPIError.transport(URLError(.badServerResponse)) }
-        guard (200...299).contains(http.statusCode) else {
-            throw try decodeAPIError(data, status: http.statusCode)
+    /**
+     * Every read goes through here, so this is where the app stops being blank
+     * when the desktop is out of reach: a successful answer is remembered, and a
+     * request that cannot reach the desktop falls back to the last one.
+     *
+     * The fallback is restricted to TRANSPORT failures on purpose. A 401 or a
+     * 500 is the desktop answering, and serving cached data over it would hide a
+     * real problem behind stale numbers — the shop would read a wrong PIN, or a
+     * broken server, as "everything is fine, just a bit old". Only genuine
+     * unreachability is papered over, and even then the staleness is published
+     * rather than pretended away.
+     */
+    private func get<T: Codable>(_ path: String, requiresPin: Bool, as type: T.Type) async throws -> T {
+        do {
+            let (data, response) = try await request(path: path, method: "GET", body: nil, requiresPin: requiresPin)
+            guard let http = response as? HTTPURLResponse else { throw KhaytAPIError.transport(URLError(.badServerResponse)) }
+            guard (200...299).contains(http.statusCode) else {
+                throw try decodeAPIError(data, status: http.statusCode)
+            }
+            let value = try JSONDecoder().decode(T.self, from: data)
+            await CompanionCache.shared.store(value, for: path)
+            servingCachedSince = nil
+            return value
+        } catch {
+            guard Self.isUnreachable(error),
+                  let cached = await CompanionCache.shared.load(T.self, for: path) else { throw error }
+            servingCachedSince = cached.storedAt
+            return cached.value
         }
-        return try JSONDecoder().decode(T.self, from: data)
+    }
+
+    /// Could not reach the desktop at all — as opposed to reaching it and being
+    /// told something. Decoding failures are excluded too: a payload we cannot
+    /// read is a contract problem, and hiding it behind cached data is how it
+    /// stays unnoticed (see scripts/ios-contract.sh).
+    /// `nonisolated` because it inspects nothing but the error — the class is
+    /// @MainActor, and inheriting that would make the rule untestable off the
+    /// main actor for no reason.
+    nonisolated static func isUnreachable(_ error: Error) -> Bool {
+        if case KhaytAPIError.transport = error { return true }
+        return error is URLError
     }
 
     private func encodeOrderIdForPath(_ orderId: String) throws -> String {
