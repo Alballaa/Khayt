@@ -334,7 +334,7 @@ function renderPostProcessPresetsList() {
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
         <span style="flex:1;font-size:13px;">${escapeHtml(p.name)}</span>
         <span style="font-size:13px;color:var(--success);min-width:60px;text-align:right;">${fmtMoney(p.amount)}</span>
-        <button class="btn danger small" data-pp-del="${i}">×</button>
+        <button class="btn danger small" data-pp-del="${i}" aria-label="${escapeHtml(`${t('common.remove') || 'Remove'} ${p.name}`)}">×</button>
       </div>`).join('');
     el.querySelectorAll('[data-pp-del]').forEach(btn => {
       btn.addEventListener('click', () => {

@@ -2435,6 +2435,7 @@
   "ship.webhook_url": "Gelen durum webhook’u",
   "ship.settings_hint": "İsteğe bağlı — kargo tamamen elle çalışır. Otomatik etiket için bir kargo anahtarı, canlı durum için bir webhook sırrı ekleyin.",
   "ship.saved": "Kargo ayarları kaydedildi",
+  "pin.backspace": "Geri sil",
   "priv.section": "Gizlilik ve Müşteri Verileri",
   "tel.section": "Çökme Raporları ve Kullanım",
   "cam.section": "Kamera",

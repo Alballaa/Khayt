@@ -2435,6 +2435,7 @@
   "ship.webhook_url": "Webhook de statut entrant",
   "ship.settings_hint": "Facultatif — l'expédition fonctionne entièrement à la main. Ajoutez une clé transporteur pour créer les étiquettes et un secret de webhook pour le statut en direct.",
   "ship.saved": "Paramètres d’expédition enregistrés",
+  "pin.backspace": "Retour arrière",
   "priv.section": "Confidentialité et données clients",
   "tel.section": "Rapports d'erreur et utilisation",
   "cam.section": "Caméra",

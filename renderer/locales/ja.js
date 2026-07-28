@@ -2435,6 +2435,7 @@
   "ship.webhook_url": "受信ステータスWebhook",
   "ship.settings_hint": "任意 — 配送は完全に手動で動作します。自動ラベル作成には配送業者キー、ライブ状況にはWebhookシークレットを追加します。",
   "ship.saved": "配送設定を保存しました",
+  "pin.backspace": "バックスペース",
   "priv.section": "プライバシーと顧客データ",
   "tel.section": "クラッシュレポートと利用状況",
   "cam.section": "カメラ",

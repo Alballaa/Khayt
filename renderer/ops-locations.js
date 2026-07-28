@@ -394,7 +394,7 @@ function openPinPadModal(afterUnlock) {
             ${[1,2,3,4,5,6,7,8,9].map(n => `<button class="btn pin-key" data-k="${n}" style="font-size:18px;padding:12px;">${n}</button>`).join('')}
             <button class="btn pin-key" data-k="C" style="font-size:14px;padding:12px;">C</button>
             <button class="btn pin-key" data-k="0" style="font-size:18px;padding:12px;">0</button>
-            <button class="btn pin-key" data-k="⌫" style="font-size:18px;padding:12px;">⌫</button>
+            <button class="btn pin-key" data-k="⌫" style="font-size:18px;padding:12px;" aria-label="${escapeHtml(t('pin.backspace') || 'Backspace')}">⌫</button>
           </div>
           <div id="pinError" style="color:var(--danger);font-size:12.5px;min-height:20px;text-align:center;"></div>
           </div>

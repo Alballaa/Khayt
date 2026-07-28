@@ -2435,6 +2435,7 @@
   "ship.webhook_url": "Webhook de estado entrante",
   "ship.settings_hint": "Opcional — el envío funciona totalmente a mano. Añade una clave de transportista para crear etiquetas y un secreto de webhook para estados en vivo.",
   "ship.saved": "Ajustes de envío guardados",
+  "pin.backspace": "Retroceso",
   "priv.section": "Privacidad y datos de clientes",
   "tel.section": "Informes de fallos y uso",
   "cam.section": "Cámara",
