@@ -180,3 +180,24 @@
 "waste.ft.layer_shift" = "Layer shift";
 "waste.ft.power" = "Power loss";
 "waste.ft.other" = "Other";
+
+/* Expenses */
+"home.action.expense" = "Expense";
+"exp.title" = "New expense";
+"exp.what" = "What you paid for";
+"exp.amount" = "Amount";
+"exp.category" = "Category";
+"exp.note" = "Note";
+"exp.receipt" = "Receipt";
+"exp.photograph" = "Photograph the receipt";
+"exp.retake" = "Remove photo";
+"exp.save" = "Save";
+"exp.no_camera" = "No camera on this device — the expense will be saved without a receipt.";
+"exp.cat.filament" = "Filament";
+"exp.cat.resin" = "Resin";
+"exp.cat.parts" = "Parts";
+"exp.cat.tools" = "Tools";
+"exp.cat.rent" = "Rent";
+"exp.cat.power" = "Power";
+"exp.cat.shipping" = "Shipping";
+"exp.cat.other" = "Other";

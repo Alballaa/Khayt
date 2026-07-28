@@ -90,6 +90,16 @@ final class KhaytAPIClient: ObservableObject {
         try ensureOK(data, response)
     }
 
+    /// File an expense, with an optional photographed receipt. A write, so it
+    /// needs a live connection — refused rather than queued, like every other.
+    func addExpense(_ draft: ExpenseDraft) async throws {
+        let body = try JSONEncoder().encode(draft)
+        let (data, response) = try await request(
+            path: "/api/expense", method: "POST", body: body, requiresPin: true
+        )
+        try ensureOK(data, response)
+    }
+
     /**
      * Record a failed print where it happened.
      *

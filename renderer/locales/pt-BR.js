@@ -897,6 +897,7 @@
   "inv.updated": "Carretel atualizado",
   "inv.deducted_summary": "{weight}g baixados de {spools} carretel(éis)",
   "inv.deducted_summary_low": "{weight}g baixados de {spools} carretel(éis); {low} agora com estoque baixo",
+  "exp.added_phone": "Despesa adicionada pelo seu telefone: {amount}",
   "exp.title": "Controle de despesas",
   "exp.add_title": "Adicionar despesa",
   "exp.date": "Data",
