@@ -2,9 +2,20 @@
  * Pure part costing helpers (reads global inventory + settings at call time).
  */
 (function (global) {
-  function computePartBaseCost(part) {
-    const inventory = global.inventory || [];
-    const settings = global.settings || {};
+  /**
+   * Per-unit cost of a part.
+   *
+   * `ctx` lets a caller supply the inventory and settings explicitly instead of
+   * reading them off the global — the same pattern computeComponentsCost()
+   * already uses below, and for the same reason. The renderer calls this with no
+   * ctx and is unaffected; the LAN server needs it, because there is no renderer
+   * global in the main process and quoting from the phone must run THIS code
+   * rather than a second implementation. Two implementations means two prices
+   * for one part, which is worse than not quoting on the phone at all.
+   */
+  function computePartBaseCost(part, ctx) {
+    const inventory = (ctx && ctx.inventory) || global.inventory || [];
+    const settings = (ctx && ctx.settings) || global.settings || {};
 
     const spoolCost = Math.max(0, +part.spoolCost || 0);
     const spoolWeight = Math.max(1, +part.spoolWeight || 1);
@@ -59,9 +70,9 @@
     return [...sorted].reverse().find((ti) => +part.qty >= +ti.minQty) || null;
   }
 
-  function computePartBreakdown(part) {
-    const inventory = global.inventory || [];
-    const settings = global.settings || {};
+  function computePartBreakdown(part, ctx) {
+    const inventory = (ctx && ctx.inventory) || global.inventory || [];
+    const settings = (ctx && ctx.settings) || global.settings || {};
     const spoolCost = Math.max(0, +part.spoolCost || 0);
     const spoolWeight = Math.max(1, +part.spoolWeight || 1);
     const printWeight = Math.max(0, +part.printWeight || 0);
@@ -130,9 +141,9 @@
    *
    * Mirrors partGramsConsumed() in inventory.js — same shape, same reason.
    */
-  function partTotalCost(part) {
+  function partTotalCost(part, ctx) {
     const qty = Math.max(1, +(part && part.qty) || 1);
-    return computePartBaseCost(part) * qty;
+    return computePartBaseCost(part, ctx) * qty;
   }
 
   const api = { computePartBaseCost, partTotalCost, getActivePriceTier, computePartBreakdown, computeComponentsCost };

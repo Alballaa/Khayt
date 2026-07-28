@@ -168,6 +168,48 @@ Fields on the store record but **not** returned: `supplier`, `invoice`,
 `costPerGram` — and anything added in future, until it is added to the allowlist
 on purpose (`LAN_SPOOL_READ_FIELDS` in `lib/lan-server.js`).
 
+### `POST /api/quote`
+
+Cost a part using the desktop's own maths. **Requires owner PIN.**
+
+For quoting a walk-in customer without going back to the desk. The endpoint runs
+`renderer/calculator-cost.js` against the live store, so a phone can never
+produce a different number from the desktop it is paired to — reimplementing the
+costing anywhere else would mean two costs for one part, and the wrong one would
+be whichever the shop happened to be looking at.
+
+**Body:** a part object, in the same shape the calculator tab builds —
+`spoolCost`, `spoolWeight`, `printWeight`, `supportWeight`, `printTime`,
+`wearRate`, `powerDraw`, `elecRate`, `prepTime`, `postTime`, `laborRate`,
+`failureRate`, `qty`, optional `filamentId`, `extraMaterials`, `priceTiers`.
+Missing fields are treated as zero. `qty` is clamped to 1…100000.
+
+**Response 200:**
+
+```json
+{
+  "ok": true,
+  "qty": 2,
+  "unitCost": 24.36,
+  "totalCost": 48.72,
+  "breakdown": { "material": 6, "machine": 2.2, "labor": 15, "buffer": 1.16 },
+  "priceTier": { "minQty": 10, "pricePerUnit": 25 },
+  "currency": "SAR"
+}
+```
+
+`breakdown` sums to `unitCost`. `priceTier` is `null` when the part carries no
+tiers or `qty` has not reached the lowest one.
+
+**Scope, stated plainly:** this returns **cost**, plus the applicable price tier —
+not a final customer price. Margin and VAT live inside `build.js`'s DOM rendering
+and are not reusable without extracting them first; reimplementing them here is
+exactly the divergence this endpoint exists to prevent. Extracting that pricing
+logic is the prerequisite for a phone screen that quotes a customer end to end.
+
+**Response 400:** empty, non-JSON, or non-object body.
+**Response 401:** no owner PIN — what a job costs the shop is not customer-facing.
+
 ### `POST /api/inventory`
 
 Append a spool. **Requires owner PIN.**
