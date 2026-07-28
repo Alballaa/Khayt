@@ -437,6 +437,7 @@
   "waiting.remind_title": "إرسال تذكير",
   "waiting.reminded_ok": "تم إرسال التذكير عبر واتساب",
   "waiting.status": "الحالة",
+  "waste.logged_phone": "سُجّل هدر من جهازك: {material}",
   "waste.printer": "الطابعة / الآلة",
   "xr.currency": "العملة",
   "xr.rate": "السعر",

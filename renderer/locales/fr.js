@@ -335,6 +335,7 @@
   "waiting.remind_title": "Envoyer un rappel",
   "waiting.reminded_ok": "Rappel envoyé via WhatsApp",
   "waiting.status": "Statut",
+  "waste.logged_phone": "Rebut enregistré depuis votre téléphone : {material}",
   "waste.printer": "Printer / Machine",
   "xr.currency": "Devise",
   "xr.rate": "Taux",

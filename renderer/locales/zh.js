@@ -335,6 +335,7 @@
   "waiting.remind_title": "发送提醒",
   "waiting.reminded_ok": "已通过 WhatsApp 发送提醒",
   "waiting.status": "状态",
+  "waste.logged_phone": "已从手机记录废料：{material}",
   "waste.printer": "Printer / Machine",
   "xr.currency": "货币",
   "xr.rate": "汇率",

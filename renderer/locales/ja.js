@@ -335,6 +335,7 @@
   "waiting.remind_title": "リマインダーを送信",
   "waiting.reminded_ok": "WhatsAppでリマインダーを送信しました",
   "waiting.status": "ステータス",
+  "waste.logged_phone": "スマートフォンから廃棄を記録しました: {material}",
   "waste.printer": "プリンター / マシン",
   "xr.currency": "通貨",
   "xr.rate": "レート",

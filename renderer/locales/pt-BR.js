@@ -336,6 +336,7 @@
   "waiting.remind_title": "Enviar lembrete",
   "waiting.reminded_ok": "Lembrete enviado pelo WhatsApp",
   "waiting.status": "Situação",
+  "waste.logged_phone": "Desperdício registrado pelo seu telefone: {material}",
   "waste.printer": "Impressora / máquina",
   "xr.currency": "Moeda",
   "xr.rate": "Taxa",

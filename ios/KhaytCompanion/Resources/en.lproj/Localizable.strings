@@ -161,3 +161,22 @@
 "quote.bd.labor" = "Labour";
 "quote.bd.buffer" = "Failure buffer";
 "common.close" = "Close";
+
+/* Waste */
+"home.action.waste" = "Log waste";
+"waste.title" = "Log a failed print";
+"waste.what" = "What failed";
+"waste.why" = "Why";
+"waste.material" = "Material";
+"waste.failure_type" = "Failure";
+"waste.weight" = "Wasted";
+"waste.reason" = "What happened?";
+"waste.save" = "Log it";
+"waste.deduct" = "Take it off the spool";
+"waste.deduct.footer" = "Subtracts the wasted grams from your matching spool. Turn off if you have already adjusted it.";
+"waste.ft.warping" = "Warping";
+"waste.ft.adhesion" = "Bed adhesion";
+"waste.ft.clog" = "Clog";
+"waste.ft.layer_shift" = "Layer shift";
+"waste.ft.power" = "Power loss";
+"waste.ft.other" = "Other";

@@ -377,6 +377,27 @@ struct QuoteRequest: Codable, Sendable {
     var rush: Bool
 }
 
+/**
+ * A failed print, logged at the machine.
+ *
+ * No `date` field on purpose: the desktop stamps it with the shop's own calendar
+ * day. A phone that has travelled, or is simply set to another timezone, would
+ * otherwise file a failure under the wrong day's waste — and waste-by-day is the
+ * report this record exists to feed.
+ */
+struct WasteEntry: Codable, Sendable {
+    var material: String
+    var failureType: String
+    var weight: Double
+    var cost: Double
+    var reason: String
+    var notes: String
+    var machineId: String?
+    /// Opt-in, mirroring the desktop form: the shop may have already deducted
+    /// these grams, or be logging stock that is not theirs.
+    var deduct: Bool
+}
+
 enum KhaytAPIError: LocalizedError, Sendable {
     case notConfigured
     case invalidURL

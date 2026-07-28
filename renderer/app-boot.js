@@ -489,6 +489,30 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
   }
+  if (window.hubAPI?.onLanWasteLogged) {
+    window.hubAPI.onLanWasteLogged((payload) => {
+      // Phone logged a failed print. The server has already written it to disk;
+      // patch in-memory state and re-save so the next saveAll() from an open
+      // desktop cannot clobber it — the same reason onLanSpoolAdded does.
+      const entry = payload && payload.entry;
+      if (!entry || !entry.id) return;
+      if (typeof wasteLog === 'undefined' || wasteLog.find((w) => w && w.id === entry.id)) return;
+      wasteLog.unshift(entry);
+      // The server may also have deducted the grams from a spool; mirror that
+      // here or the two views disagree until the next reload.
+      const d = payload.deducted;
+      if (d && d.id && typeof inventory !== 'undefined') {
+        const spool = inventory.find((s) => s && s.id === d.id);
+        if (spool) spool.weight = d.weight;
+      }
+      saveAll();
+      if (typeof renderWasteLog === 'function') renderWasteLog();
+      if (typeof renderInventory === 'function' && document.querySelector('#inventory-tab.active')) renderInventory();
+      if (typeof toast === 'function') {
+        toast('📱 ' + (t('waste.logged_phone', { material: entry.material }) || `Waste logged from your phone: ${entry.material}`), 'success');
+      }
+    });
+  }
   if (window.hubAPI?.onLanOrderUpdated) {
     window.hubAPI.onLanOrderUpdated((payload) => {
       const { id, status } = payload;

@@ -335,6 +335,7 @@
   "waiting.remind_title": "Hatırlatma Gönder",
   "waiting.reminded_ok": "Hatırlatma WhatsApp ile gönderildi",
   "waiting.status": "Durum",
+  "waste.logged_phone": "Telefonunuzdan fire kaydedildi: {material}",
   "waste.printer": "Yazıcı / Makine",
   "xr.currency": "Para birimi",
   "xr.rate": "Kur",

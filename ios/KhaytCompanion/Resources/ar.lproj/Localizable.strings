@@ -161,3 +161,22 @@
 "quote.bd.labor" = "العمل";
 "quote.bd.buffer" = "احتياطي الفشل";
 "common.close" = "إغلاق";
+
+/* Waste */
+"home.action.waste" = "تسجيل هدر";
+"waste.title" = "تسجيل طباعة فاشلة";
+"waste.what" = "ما الذي فشل";
+"waste.why" = "السبب";
+"waste.material" = "المادة";
+"waste.failure_type" = "نوع الفشل";
+"waste.weight" = "الكمية المهدرة";
+"waste.reason" = "ماذا حدث؟";
+"waste.save" = "سجّل";
+"waste.deduct" = "اخصمها من البكرة";
+"waste.deduct.footer" = "يخصم الغرامات المهدرة من البكرة المطابقة. أوقفه إن كنت قد عدّلتها.";
+"waste.ft.warping" = "التواء";
+"waste.ft.adhesion" = "التصاق المنصة";
+"waste.ft.clog" = "انسداد";
+"waste.ft.layer_shift" = "إزاحة طبقات";
+"waste.ft.power" = "انقطاع كهرباء";
+"waste.ft.other" = "أخرى";
