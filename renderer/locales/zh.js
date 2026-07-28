@@ -2435,6 +2435,7 @@
   "ship.webhook_url": "入站状态 Webhook",
   "ship.settings_hint": "可选——配送完全可手动完成。添加承运商密钥可自动创建面单，添加 Webhook 密钥可接收实时状态。",
   "ship.saved": "已保存配送设置",
+  "pin.backspace": "退格",
   "priv.section": "隐私与客户数据",
   "tel.section": "崩溃报告与使用情况",
   "cam.section": "摄像头",

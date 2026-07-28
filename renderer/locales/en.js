@@ -2436,6 +2436,7 @@
   "ship.webhook_url": "Inbound status webhook",
   "ship.settings_hint": "Optional — shipping works fully by hand. Add a carrier key to auto-create labels, and a webhook secret to receive live status updates.",
   "ship.saved": "Shipping settings saved",
+  "pin.backspace": "Backspace",
   "priv.section": "Privacy & Customer Data",
   "tel.section": "Crash Reports & Usage",
   "cam.section": "Camera",

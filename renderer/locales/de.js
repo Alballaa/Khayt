@@ -2435,6 +2435,7 @@
   "ship.webhook_url": "Eingehender Status-Webhook",
   "ship.settings_hint": "Optional — Versand funktioniert komplett von Hand. Carrier-Schlüssel für automatische Labels und ein Webhook-Secret für Live-Status hinzufügen.",
   "ship.saved": "Versandeinstellungen gespeichert",
+  "pin.backspace": "Rücktaste",
   "priv.section": "Datenschutz & Kundendaten",
   "tel.section": "Absturzberichte & Nutzung",
   "cam.section": "Kamera",

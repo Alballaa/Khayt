@@ -2436,6 +2436,7 @@
   "ship.webhook_url": "Webhook de status de entrada",
   "ship.settings_hint": "Opcional — o envio funciona totalmente à mão. Adicione uma chave de transportadora para criar etiquetas automaticamente e um segredo de webhook para receber atualizações de status ao vivo.",
   "ship.saved": "Configurações de envio salvas",
+  "pin.backspace": "Backspace",
   "priv.section": "Privacidade e dados de clientes",
   "tel.section": "Relatórios de erro e uso",
   "cam.section": "Câmera",
