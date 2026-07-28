@@ -38,18 +38,49 @@ function rendererSources() {
   return out;
 }
 
+/**
+ * A calendar unit derived from UTC, in any width.
+ *
+ * This started as a DAY check — slice(0, 10) and friends. That left a hole:
+ * `toISOString().slice(0, 7)` is a UTC MONTH, and it walked straight past. The
+ * expense budget check used it, so a shop in Riyadh logging a 200 expense at
+ * 01:00 on the 1st was warned it had blown a 5,000 budget — the sum was still
+ * counting the previous month. West of London the same line fails the other way
+ * and never warns at all, on the last evening of a month.
+ *
+ * Years (slice(0, 4)) are included for the same reason: nothing about the bug
+ * is specific to how many characters get taken off the front.
+ */
+const UTC_CALENDAR_UNIT = /toISOString\(\)\s*\.\s*(slice\(0,\s*(4|7|10)\)|split\('T'\)\[0\]|substring\(0,\s*(4|7|10)\))/;
+
 test('no renderer file derives a calendar date from toISOString()', () => {
   // The whole point of the sweep: this must stay at zero, in every file.
   const bad = [];
   for (const rel of rendererSources()) {
     const src = fs.readFileSync(path.join(ROOT, rel), 'utf8');
     src.split('\n').forEach((line, i) => {
-      if (/toISOString\(\)\s*\.\s*(slice\(0,\s*10\)|split\('T'\)\[0\]|substring\(0,\s*10\))/.test(line)) {
+      if (UTC_CALENDAR_UNIT.test(line)) {
         bad.push(`${rel}:${i + 1}`);
       }
     });
   }
-  assert.deepEqual(bad, [], `use localDateStr() instead of toISOString() for calendar dates:\n  ${bad.join('\n  ')}`);
+  assert.deepEqual(bad, [],
+    `use localDateStr() / localMonthStr() instead of toISOString() for calendar units:\n  ${bad.join('\n  ')}`);
+});
+
+test('the ban recognises months and years, not only days', () => {
+  // Pins the widening itself. Written because the day-only version reported a
+  // clean sweep while a UTC month sat in the expense budget check.
+  assert.ok(UTC_CALENDAR_UNIT.test("const d = new Date().toISOString().slice(0, 10);"), 'day');
+  assert.ok(UTC_CALENDAR_UNIT.test("const m = new Date().toISOString().slice(0, 7);"), 'month');
+  assert.ok(UTC_CALENDAR_UNIT.test("const y = new Date().toISOString().slice(0, 4);"), 'year');
+  assert.ok(UTC_CALENDAR_UNIT.test("x.toISOString().split('T')[0]"), 'split form');
+  assert.ok(UTC_CALENDAR_UNIT.test("x.toISOString().substring(0, 7)"), 'substring form');
+
+  // A full timestamp is not a calendar unit — banning it would flag every
+  // legitimate `updatedAt`, and a noisy guard gets deleted.
+  assert.ok(!UTC_CALENDAR_UNIT.test('rec.updatedAt = new Date().toISOString();'), 'full ISO timestamp');
+  assert.ok(!UTC_CALENDAR_UNIT.test('const s = other.toISOString();'), 'bare toISOString');
 });
 
 /**
@@ -84,7 +115,9 @@ test('no lib file derives a LOCAL calendar date from toISOString()', () => {
         // A comment explaining the banned pattern is not an instance of it.
         const code = line.trim();
         if (code.startsWith('*') || code.startsWith('//')) return;
-        if (/toISOString\(\)\s*\.\s*(slice\(0,\s*10\)|split\('T'\)\[0\]|substring\(0,\s*10\))/.test(line)) {
+        // Same widened pattern as the renderer ban above: a UTC month or year is
+        // the same bug as a UTC day, and lib/ has no reason to be checked less.
+        if (UTC_CALENDAR_UNIT.test(line)) {
           offenders.push(`${r}:${i + 1}`);
         }
       });
@@ -125,6 +158,24 @@ test('localDateStr returns the LOCAL calendar date, not the UTC one', () => {
     assert.notEqual(d.toISOString().slice(0, 10), '2026-07-25',
       'this test only proves something in a UTC+ zone; it is a no-op elsewhere');
   }
+});
+
+test('localMonthStr returns the LOCAL calendar month, not the UTC one', () => {
+  // The expense budget check now depends on this. The failing moment is the
+  // first hours of the 1st in a UTC+ zone: local says the new month, UTC still
+  // says the old one, and the budget sum counts the wrong month's spending.
+  const d = new Date(2026, 7, 1, 1, 30); // 01:30 local on Aug 1
+  assert.equal(localMonthStr(d), '2026-08');
+  const offsetMin = -d.getTimezoneOffset();
+  if (offsetMin > 90) {
+    assert.notEqual(d.toISOString().slice(0, 7), '2026-08',
+      'this test only proves something in a UTC+ zone; it is a no-op elsewhere');
+  }
+});
+
+test('localMonthStr pads the month', () => {
+  assert.equal(localMonthStr(new Date(2026, 0, 5)), '2026-01');
+  assert.equal(localMonthStr(new Date(2026, 11, 31)), '2026-12');
 });
 
 test('localDateStr pads month and day', () => {
