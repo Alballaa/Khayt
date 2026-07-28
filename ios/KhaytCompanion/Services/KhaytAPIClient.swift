@@ -90,6 +90,25 @@ final class KhaytAPIClient: ObservableObject {
         try ensureOK(data, response)
     }
 
+    /**
+     * Record a failed print where it happened.
+     *
+     * A write, so it needs a live connection — refused rather than queued, for
+     * the same reason every other write is: a queued write is a promise about
+     * ordering the phone cannot keep, and the desktop owns the data.
+     *
+     * The desktop stamps the date with the SHOP'S calendar day, so the phone
+     * deliberately sends none. A phone travelling through a timezone would
+     * otherwise file a failure under the wrong day's waste.
+     */
+    func logWaste(_ entry: WasteEntry) async throws {
+        let body = try JSONEncoder().encode(entry)
+        let (data, response) = try await request(
+            path: "/api/waste", method: "POST", body: body, requiresPin: true
+        )
+        try ensureOK(data, response)
+    }
+
     func deleteSpool(id: String) async throws {
         let encodedId = try encodeOrderIdForPath(id)
         let (data, response) = try await request(

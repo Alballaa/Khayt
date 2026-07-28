@@ -6,6 +6,17 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Log a failed print at the machine.** A print fails, and the moment to record
+  it is while you are standing there holding it — not later, at the desk, if you
+  remember. The companion app now logs waste in a few taps: pick the material
+  from your own spools, say what went wrong, enter the grams, and optionally take
+  those grams off the spool. It appears in your waste report immediately, and the
+  desktop updates on the spot if it is open.
+
+  The date is stamped by your desktop using your calendar day, so a failure
+  logged just after midnight lands on the right day even if your phone is set to
+  another timezone.
+
 - **Quote a customer from your phone.** Someone walks in holding a part and asks
   what it would cost — the companion app now answers without you going back to
   the desktop. Enter the weight, print time and quantity, and it shows the price

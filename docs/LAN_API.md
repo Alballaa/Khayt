@@ -168,6 +168,33 @@ Fields on the store record but **not** returned: `supplier`, `invoice`,
 `costPerGram` — and anything added in future, until it is added to the allowlist
 on purpose (`LAN_SPOOL_READ_FIELDS` in `lib/lan-server.js`).
 
+### `POST /api/waste`
+
+Log a failed print. **Requires owner PIN.**
+
+For recording waste at the machine rather than walking back to the desk. Writes
+the same record shape the desktop's waste form produces, so both feed one report.
+
+**Body:** `material` (**required** — an entry with no material cannot be costed
+or reconciled against a spool, so the desktop refuses it too), plus optional
+`failureType`, `weight` (grams), `cost`, `reason`, `notes`, `orderId`,
+`machineId`, and `deduct`.
+
+**`deduct: true`** subtracts `weight` from the first spool of that material,
+clamped at zero. Opt-in, because the shop may have adjusted stock already. If no
+spool matches, the waste is still logged and `deducted` comes back `null` —
+losing the record because the spool is gone would be the wrong trade.
+
+**The `date` is set by the desktop**, using the shop's calendar day. Callers do
+not send one: a phone in another timezone would otherwise file a failure under
+the wrong day, and waste-by-day is the report this record exists to feed.
+
+**Response 201:** `{ "ok": true, "entry": { ... }, "deducted": { "id", "weight" } | null }`
+**Response 400:** missing material, or a non-object body.
+
+An open desktop is notified over `lan-waste-logged` and patches its own state, so
+the two do not diverge until a reload.
+
 ### `POST /api/quote`
 
 Cost a part using the desktop's own maths. **Requires owner PIN.**

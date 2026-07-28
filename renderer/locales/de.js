@@ -335,6 +335,7 @@
   "waiting.remind_title": "Erinnerung senden",
   "waiting.reminded_ok": "Erinnerung per WhatsApp gesendet",
   "waiting.status": "Status",
+  "waste.logged_phone": "Ausschuss von Ihrem Telefon erfasst: {material}",
   "waste.printer": "Printer / Machine",
   "xr.currency": "Währung",
   "xr.rate": "Kurs",

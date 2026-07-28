@@ -16,6 +16,7 @@ struct DashboardView: View {
     @State private var isLoading = false
     @State private var showAddSpool = false
     @State private var showQuote = false
+    @State private var showWaste = false
 
     private var navTitle: String {
         settings.shopLabel.isEmpty ? "Khayt" : settings.shopLabel
@@ -54,6 +55,7 @@ struct DashboardView: View {
                 AddSpoolSheet { Task { await load() } }
             }
             .sheet(isPresented: $showQuote) { QuoteSheet() }
+            .sheet(isPresented: $showWaste) { LogWasteSheet() }
         }
     }
 
@@ -148,12 +150,12 @@ struct DashboardView: View {
                 // First, and on the left: quoting a walk-in is the thing most
                 // likely to be needed with a customer already standing there.
                 quickTile(L10n.tr("home.action.quote"), "tag.fill") { showQuote = true }
+                // Next to quoting because it is the other thing done standing at
+                // a machine rather than sitting at the desk.
+                quickTile(L10n.tr("home.action.waste"), "trash.fill") { showWaste = true }
                 quickTile(L10n.tr("home.action.add_spool"), "plus.circle.fill") { showAddSpool = true }
                 NavigationLink { OrdersView() } label: {
                     quickTileLabel(L10n.tr("home.action.orders"), "rectangle.stack.fill")
-                }
-                NavigationLink { InventoryView() } label: {
-                    quickTileLabel(L10n.tr("home.action.inventory"), "cylinder.split.1x2.fill")
                 }
             }
             .padding(.horizontal, KhaytDesign.pad)

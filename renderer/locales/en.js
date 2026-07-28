@@ -335,6 +335,7 @@
   "waiting.remind_title": "Send Reminder",
   "waiting.reminded_ok": "Reminder sent via WhatsApp",
   "waiting.status": "Status",
+  "waste.logged_phone": "Waste logged from your phone: {material}",
   "waste.printer": "Printer / Machine",
   "xr.currency": "Currency",
   "xr.rate": "Rate",
