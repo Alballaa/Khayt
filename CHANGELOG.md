@@ -4,6 +4,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.4.0-beta.5] - 2026-07-28
+
+A calendar beta. Khayt was working out what day it is from UTC rather than from
+your own calendar — which is correct in London and wrong everywhere else for
+part of every day. In Saudi Arabia that meant the first three hours after
+midnight belonged to yesterday.
+
 ### Fixed
 
 - **An expired quote could still be approved.** For the first three hours of

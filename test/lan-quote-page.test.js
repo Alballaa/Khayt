@@ -31,7 +31,12 @@ test('applyQuoteApprovalToStore accepts on_hold with hasQuote', () => {
 });
 
 test('applyQuoteApprovalToStore rejects expired quotes', () => {
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  // Yesterday on the SHOP's calendar, matching isQuoteExpired. Deriving it from
+  // UTC produced a date that is still TODAY locally whenever UTC has rolled over
+  // and the local zone has not — 22:38 in Los Angeles, say — so the quote was
+  // not expired and the test failed against correct code.
+  const localDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const yesterday = localDay(new Date(Date.now() - 86400000));
   const store = {
     printLog: [{ id: 'Q-4', status: 'quote', price: 50, quoteExpiresAt: yesterday }],
   };
