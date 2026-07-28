@@ -4,6 +4,9 @@ struct DashboardView: View {
     @EnvironmentObject private var settings: ConnectionSettings
     @EnvironmentObject private var api: KhaytAPIClient
     @EnvironmentObject private var ordersNav: OrdersNavigationState
+    // The banner already knows whether this is a network problem or a rejected
+    // PIN; the dashboard card used to guess. See emptyState.
+    @EnvironmentObject private var health: ConnectionHealth
 
     @State private var status: ShopStatus?
     @State private var queuePreview: [QueueOrder] = []
@@ -233,15 +236,28 @@ struct DashboardView: View {
     }
 
     private var emptyState: some View {
-        KhaytCard {
+        // This card hardcoded "Desktop unreachable" and a Wi-Fi icon for every
+        // failure, so a rejected LAN PIN sent the shop off to check their router
+        // — while the banner two inches above it correctly said "Wrong LAN PIN".
+        // ConnectionHealth already separates the two and carries the right
+        // wording and icon for each; the card just wasn't asking.
+        //
+        // Anything that is not a diagnosed auth failure still reads as
+        // unreachable: `.connected` here means the fetch failed for some other
+        // reason, and "Connected" over an empty dashboard would be a worse lie
+        // than the one being fixed.
+        let failure: ConnectionHealthState = health.state == .unauthorized ? .unauthorized : .unreachable
+        return KhaytCard {
             VStack(spacing: 12) {
-                Image(systemName: "wifi.exclamationmark")
+                Image(systemName: failure.systemImage)
                     .font(.largeTitle)
                     .foregroundStyle(KhaytDesign.textMuted)
-                Text(L10n.tr("connection.unreachable"))
+                Text(failure.label)
                     .font(.headline)
                     .foregroundStyle(KhaytDesign.text)
-                Text(errorMessage ?? L10n.tr("connection.banner.unreachable"))
+                Text(errorMessage ?? L10n.tr(failure == .unauthorized
+                                             ? "connection.banner.pin"
+                                             : "connection.banner.unreachable"))
                     .font(.caption)
                     .foregroundStyle(KhaytDesign.textMuted)
                     .multilineTextAlignment(.center)
