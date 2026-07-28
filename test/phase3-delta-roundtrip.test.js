@@ -126,51 +126,104 @@ test('syncing twice changes nothing — the merge reaches a fixed point', () => 
   assert.equal(canonical(a.store), canonical(b.store));
 });
 
-test('MULTI-SHOP HAZARD: one device holding two shops cross-deletes between them', () => {
-  // This is the Phase 3 shape, not a contrived one. Option (b) in the design doc
-  // is "a device that belongs to several shops pulls all of them and merges
-  // locally" — one process, several stores.
+test('two shops on one device, each with its own scope, do not cross-delete', () => {
+  // The Phase 3 shape, not a contrived one: option (b) is "a device that belongs
+  // to several shops pulls all of them and merges locally" — one process,
+  // several stores.
   //
-  // `stampChanges` decides a record was DELETED when it is in `lastIndex` but
-  // absent from the snapshot in front of it. `lastIndex` is one map for the whole
-  // engine instance. So stamping shop B right after shop A makes every one of
-  // shop A's records look deleted, and writes tombstones for them into B.
+  // `stampChanges` decides a record was DELETED when it is in the change-index
+  // but absent from the snapshot in front of it. When that index was one map per
+  // process, stamping shop B right after shop A marked every one of A's records
+  // deleted and wrote tombstones for them into B. Giving each shop its own scope
+  // is the whole fix.
   const engine = loadEngine();
 
   const shopA = snap({ clients: [{ id: 'c-riyadh', name: 'Riyadh client' }] });
   const shopB = snap({ clients: [{ id: 'c-jeddah', name: 'Jeddah client' }] });
 
-  engine.stampChanges(shopA);
-  const summary = engine.stampChanges(shopB); // same device, second shop
+  engine.stampChanges(shopA, 'shop-riyadh');
+  const summary = engine.stampChanges(shopB, 'shop-jeddah');
 
-  const bogus = shopB.tombstones.filter((t) => t.id === 'c-riyadh');
-  assert.equal(bogus.length, 1,
-    'documents the hazard: shop A\'s record is tombstoned into shop B\'s store');
-  assert.deepEqual(summary.deleted, [{ collection: 'clients', id: 'c-riyadh' }],
-    'and stampChanges reports it as a deletion that never happened');
-
-  // Why it matters: that tombstone is now a real delete-instruction. Tombstones
-  // win unconditionally by design, so once it syncs it removes a live record
-  // from the shop it came from.
-  const shopACopy = snap({ clients: [{ id: 'c-riyadh', name: 'Riyadh client', rev: 1 }] });
-  engine.applyDeltas(shopACopy, { deltas: [], tombstones: bogus });
-  assert.equal(shopACopy.clients.length, 0,
-    'the phantom tombstone deletes a record that was never deleted');
+  assert.deepEqual(shopB.tombstones, [], 'no phantom tombstones in the other shop');
+  assert.deepEqual(summary.deleted, [], 'and nothing reported as deleted');
+  assert.equal(shopA.clients[0].rev, 1, 'shop A is untouched by shop B being stamped');
 });
 
-test('the hazard is an isolation problem, not a logic one: per-shop engines are clean', () => {
-  // The same two shops, each with its own engine instance, produce no phantom
-  // deletes. So Phase 3 does not need the merge logic changed — it needs
-  // per-shop index isolation, which is a much smaller thing to build.
-  const engineA = loadEngine();
-  const engineB = loadEngine();
+test('sharing one scope across two shops still cross-deletes — which is why scope exists', () => {
+  // The unfixed behaviour, kept deliberately: it is the reason the scope
+  // argument is not optional decoration. If this ever stops holding, the
+  // isolation above is being provided by something else and the test above is no
+  // longer proving what it claims.
+  const engine = loadEngine();
 
   const shopA = snap({ clients: [{ id: 'c-riyadh', name: 'Riyadh client' }] });
   const shopB = snap({ clients: [{ id: 'c-jeddah', name: 'Jeddah client' }] });
 
-  engineA.stampChanges(shopA);
-  const summary = engineB.stampChanges(shopB);
+  engine.stampChanges(shopA, 'shared');
+  const summary = engine.stampChanges(shopB, 'shared');
 
-  assert.deepEqual(shopB.tombstones, [], 'no phantom tombstones');
-  assert.deepEqual(summary.deleted, [], 'and nothing reported as deleted');
+  const bogus = shopB.tombstones.filter((t) => t.id === 'c-riyadh');
+  assert.equal(bogus.length, 1, 'shop A\'s record is tombstoned into shop B\'s store');
+  assert.deepEqual(summary.deleted, [{ collection: 'clients', id: 'c-riyadh' }]);
+
+  // And it is not cosmetic: tombstones win unconditionally, so that phantom goes
+  // on to remove a live record from the shop it came from.
+  const shopACopy = snap({ clients: [{ id: 'c-riyadh', name: 'Riyadh client', rev: 1 }] });
+  engine.applyDeltas(shopACopy, { deltas: [], tombstones: bogus });
+  assert.equal(shopACopy.clients.length, 0, 'the phantom tombstone deletes a live record');
+});
+
+test('callers that pass no scope keep the old single-shop behaviour exactly', () => {
+  // Every shipping caller (app-state.js, cloud-sync.js) passes no scope. They
+  // must land on one shared index and behave as they always have — the whole
+  // point of a default scope is that today's users notice nothing.
+  const engine = loadEngine();
+
+  const s = snap({ clients: [{ id: 'c1', name: 'Acme' }] });
+  engine.stampChanges(s);
+  assert.equal(s.clients[0].rev, 1);
+
+  // Second save, unchanged content: no churn, exactly as before.
+  const summary = engine.stampChanges(s);
+  assert.equal(s.clients[0].rev, 1, 'an unchanged record is not re-stamped');
+  assert.deepEqual(summary.changed, []);
+
+  // And a delete is still detected against that same default index.
+  s.clients = [];
+  const afterDelete = engine.stampChanges(s);
+  assert.deepEqual(afterDelete.deleted, [{ collection: 'clients', id: 'c1' }]);
+  assert.equal(s.tombstones.length, 1);
+});
+
+test('an undefined scope and an explicit default are the same index, not two', () => {
+  // Otherwise a caller adopting the explicit form would silently get a second,
+  // empty index — and every existing record would look brand new.
+  const engine = loadEngine();
+
+  const s = snap({ clients: [{ id: 'c1', name: 'Acme' }] });
+  engine.stampChanges(s);              // implicit
+  const summary = engine.stampChanges(s, 'default'); // explicit
+
+  assert.deepEqual(summary.created, [], 'the record is not seen as new all over again');
+  assert.equal(s.clients[0].rev, 1);
+});
+
+test('seeding one shop does not disturb another', () => {
+  const engine = loadEngine();
+
+  const shopA = snap({ clients: [{ id: 'c-a', name: 'A', rev: 3 }] });
+  const shopB = snap({ clients: [{ id: 'c-b', name: 'B', rev: 7 }] });
+
+  engine.seedIndex(shopA, 'shop-a');
+  engine.seedIndex(shopB, 'shop-b');
+
+  assert.equal(engine._indexSize('shop-a'), 1);
+  assert.equal(engine._indexSize('shop-b'), 1);
+
+  // Seeded-but-unchanged records are never stamped, in either shop.
+  assert.deepEqual(engine.stampChanges(shopA, 'shop-a').changed, []);
+  assert.deepEqual(engine.stampChanges(shopB, 'shop-b').deleted, [],
+    'and shop A\'s records are not mistaken for deletions in shop B');
+  assert.equal(shopA.clients[0].rev, 3, 'revs are left alone');
+  assert.equal(shopB.clients[0].rev, 7);
 });
