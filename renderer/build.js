@@ -370,12 +370,9 @@ function updateGrandTotal() {
     ? KhaytTiers.showsBusiness(settings.mode)
     : (settings.mode !== 'enthusiast');
   const margin = biz ? clampPositive($('#margin').value) : 0;
-  // Apply price tier if one matches current qty
-  const activeTier = (() => {
-    const tiers = currentPriceTiers.filter(ti => ti.minQty > 0 && ti.pricePerUnit > 0);
-    if (tiers.length === 0) return null;
-    return [...tiers].sort((a, b) => b.minQty - a.minQty).find(ti => qty >= ti.minQty) || null;
-  })();
+  // Apply price tier if one matches current qty. Selection lives in lib/pricing.js
+  // so the LAN quote endpoint resolves tiers the same way this screen does.
+  const activeTier = KhaytPricing.activePriceTier(currentPriceTiers, qty);
   const liveUnitPrice = activeTier
     ? activeTier.pricePerUnit
     : liveBase * (1 + margin / 100);
@@ -409,16 +406,33 @@ function updateGrandTotal() {
   const discountPct = biz ? Math.min(100, Math.max(0, num($('#discountPct').value, 0))) : 0;
   const shippingCost = biz ? Math.max(0, num($('#shippingCost')?.value, 0)) : 0;
   const extraLinesTotal = biz ? currentExtraLines.reduce((s, l) => s + Math.max(0, +l.amount || 0), 0) : 0;
-  const priceBeforeDiscount = (currentBuild.length === 0 && activeTier)
-    ? activeTier.pricePerUnit * qty
-    : totalBase * (1 + margin / 100);
-  const discountAmt = priceBeforeDiscount * discountPct / 100;
-  const subAfterDiscount = priceBeforeDiscount - discountAmt;
-  // Rush fee
   const rushEnabled = biz && !!$('#calcRushFee')?.checked;
   const rushPct = rushEnabled ? num(settings.rushFeePct, 25) : 0;
-  const rushFeeAmt = subAfterDiscount * rushPct / 100;
-  const finalPrice = subAfterDiscount + rushFeeAmt + shippingCost + extraLinesTotal;
+  // The maths now lives in lib/pricing.js, so a quote from the phone can reach
+  // the same number this screen shows. Extracted verbatim — the order of
+  // operations (rush AFTER the discount; shipping and extras after both) is
+  // baked into quotes already sent, and test/pricing.test.js pins the extracted
+  // form against the original expressions over 4,000 randomised cases.
+  //
+  // A price tier applies only to a single live part, never to a multi-line cart:
+  // that rule stays here, with the code that knows what a cart is.
+  const _q = KhaytPricing.quoteTotal({
+    baseCost: totalBase,
+    qty,
+    margin,
+    priceTier: currentBuild.length === 0 ? activeTier : null,
+    discountPct,
+    rushEnabled,
+    rushPct,
+    shippingCost,
+    extraLines: biz ? currentExtraLines : [],
+    business: biz,
+  });
+  const priceBeforeDiscount = _q.priceBeforeDiscount;
+  const discountAmt = _q.discountAmount;
+  const subAfterDiscount = _q.subtotal;
+  const rushFeeAmt = _q.rushFee;
+  const finalPrice = _q.total;
   const finalEl = $('#finalPrice');
   if (finalEl) {
     if (!finalEl.getAttribute('aria-live')) finalEl.setAttribute('aria-live', 'polite');

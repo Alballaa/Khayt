@@ -188,3 +188,61 @@ test('an absurd quantity is clamped instead of overflowing the total', async () 
   assert.ok(body.qty <= 100000, `qty should be clamped, got ${body.qty}`);
   assert.ok(Number.isFinite(body.totalCost));
 });
+
+/**
+ * Pricing, now that lib/pricing.js is extracted out of build.js.
+ *
+ * The endpoint runs the SAME function the calculator screen runs, so a quote
+ * given standing next to a customer matches the one on the desk. Before the
+ * extraction this was impossible without a second implementation, which is why
+ * the endpoint originally shipped costs only.
+ */
+test('a margin turns cost into a price', async () => {
+  const body = await (await quote({ ...FULL_PART, margin: 50 })).json();
+  const expected = body.totalCost * 1.5;
+  assert.ok(Math.abs(body.price.total - expected) < 0.001,
+    `margin not applied: total ${body.price.total}, cost ${body.totalCost}`);
+});
+
+test('with no margin the price equals the cost — honest, not a guess', async () => {
+  const body = await (await quote(FULL_PART)).json();
+  assert.ok(Math.abs(body.price.total - body.totalCost) < 0.001,
+    'quoting a shop\'s own markup it never supplied would be inventing a number');
+});
+
+test('the price matches lib/pricing.js exactly — one implementation, not two', async () => {
+  // The authority check. Comparing against a hardcoded figure would still pass
+  // if the endpoint and the calculator drifted together.
+  const pricing = require('../lib/pricing.js');
+  const part = { ...FULL_PART, margin: 35, discountPct: 10, rush: true, shippingCost: 25,
+    extraLines: [{ amount: 12.5 }] };
+  const body = await (await quote(part)).json();
+
+  const expected = pricing.quoteTotal({
+    baseCost: body.totalCost, qty: body.qty, margin: 35,
+    priceTier: null, discountPct: 10, rushEnabled: true,
+    rushPct: store.settings.rushFeePct ?? 25,
+    shippingCost: 25, extraLines: [{ amount: 12.5 }],
+  });
+  assert.ok(Math.abs(body.price.total - expected.total) < 0.001,
+    `endpoint ${body.price.total} vs pricing module ${expected.total}`);
+  assert.ok(Math.abs(body.price.rushFee - expected.rushFee) < 0.001, 'rush fee must agree too');
+});
+
+test('rush uses the shop\'s configured percentage, not a hardcoded one', async () => {
+  const previous = store.settings;
+  store.settings = { ...previous, rushFeePct: 50 };
+  const high = await (await quote({ ...FULL_PART, margin: 100, rush: true })).json();
+  store.settings = { ...previous, rushFeePct: 10 };
+  const low = await (await quote({ ...FULL_PART, margin: 100, rush: true })).json();
+  store.settings = previous;
+
+  assert.ok(high.price.rushFee > low.price.rushFee,
+    'a shop that charges 50% for rush must not be quoted at 10%');
+});
+
+test('a price tier overrides the margin here exactly as it does on the desktop', async () => {
+  const part = { ...FULL_PART, qty: 10, margin: 500, priceTiers: [{ minQty: 10, pricePerUnit: 25 }] };
+  const body = await (await quote(part)).json();
+  assert.equal(body.price.beforeDiscount, 250, 'tier price x qty, margin ignored');
+});

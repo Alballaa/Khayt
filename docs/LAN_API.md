@@ -201,11 +201,20 @@ Missing fields are treated as zero. `qty` is clamped to 1…100000.
 `breakdown` sums to `unitCost`. `priceTier` is `null` when the part carries no
 tiers or `qty` has not reached the lowest one.
 
-**Scope, stated plainly:** this returns **cost**, plus the applicable price tier —
-not a final customer price. Margin and VAT live inside `build.js`'s DOM rendering
-and are not reusable without extracting them first; reimplementing them here is
-exactly the divergence this endpoint exists to prevent. Extracting that pricing
-logic is the prerequisite for a phone screen that quotes a customer end to end.
+**Pricing.** Supply any of `margin` (percent), `discountPct`, `rush` (boolean),
+`shippingCost` or `extraLines` and the response gains a `price` block computed by
+`lib/pricing.js` — the same function the calculator screen runs, so a quote given
+standing next to a customer matches the one on the desk. Rush uses the shop's
+configured `rushFeePct`. With no `margin` supplied the price equals the cost,
+which is honest rather than a guess at what this shop charges.
+
+```json
+"price": { "beforeDiscount": 73.08, "discount": 7.31, "subtotal": 65.77,
+           "rushFee": 16.44, "shipping": 25, "extras": 12.5, "total": 119.71 }
+```
+
+**VAT is not included** — it is applied at invoicing, not in the calculator, so a
+quote total is pre-VAT exactly as the desktop's is.
 
 **Response 400:** empty, non-JSON, or non-object body.
 **Response 401:** no owner PIN — what a job costs the shop is not customer-facing.
