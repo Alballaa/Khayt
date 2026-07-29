@@ -3196,6 +3196,7 @@
   "team.sending": "Enviando…",
   "team.removed": "Miembro eliminado",
   "team.remove_q": "¿Eliminar a {email} del equipo?",
+  "team.remove_q_access": "¿Eliminar a {email} del equipo?\n\nNo podrá volver a conectarse ni recibir nada nuevo. Los datos que ya se sincronizaron en su dispositivo siguen ahí: eliminarla no los borra a distancia.",
   "team.unverified": "sin verificar",
   "team.owner": "propietario",
   "common.remove": "Eliminar",

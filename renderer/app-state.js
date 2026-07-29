@@ -435,6 +435,24 @@ function buildStoreSnapshot() {
   return KhaytStore.buildSnapshot(collectStoreCollections());
 }
 
+/**
+ * Point the sync change-index at whichever shop this store now belongs to.
+ *
+ * Call this after `settings.cloud.shopId` changes — connecting, disconnecting, or
+ * switching branch. Connecting and disconnecting are handled as renames inside
+ * setScope (same records, new label), so they cost nothing; a move between two
+ * real shops genuinely has no fingerprints yet, and seeding here is what keeps
+ * the next save from re-stamping the whole store and winning every subsequent
+ * conflict against the shop's other devices.
+ */
+function syncScopeToShop() {
+  if (!window.KhaytSync || !KhaytSync.setScope) return;
+  try {
+    const { seeded } = KhaytSync.setScope(settings?.cloud?.shopId || null);
+    if (!seeded) KhaytSync.seedIndex(collectStoreCollections());
+  } catch (e) { console.error('syncScopeToShop failed:', e); }
+}
+
 /** Build a versioned export/backup payload; optionally redact secrets. */
 function buildExportPayload({ redactSecrets = false } = {}) {
   return KhaytStore.buildExportPayload(collectStoreCollections(), { redactSecrets });
@@ -740,6 +758,9 @@ async function loadAll() {
   try {
     if (window.KhaytSync) {
       KhaytSync.backfill(collectStoreCollections());
+      // Name the scope BEFORE seeding, so the fingerprints land under this shop's
+      // id rather than under the unnamed default and have to be moved later.
+      if (KhaytSync.setScope) KhaytSync.setScope(settings?.cloud?.shopId || null);
       KhaytSync.seedIndex(collectStoreCollections());
     }
   } catch (e) { console.error('sync foundation init failed:', e); }

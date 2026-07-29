@@ -3196,6 +3196,7 @@
   "team.sending": "Envoi…",
   "team.removed": "Membre supprimé",
   "team.remove_q": "Retirer {email} de l’équipe ?",
+  "team.remove_q_access": "Retirer {email} de l’équipe ?\n\nCette personne ne pourra plus se connecter ni recevoir de nouveautés. Les données déjà synchronisées sur son appareil y restent : le retrait ne les efface pas à distance.",
   "team.unverified": "non vérifié",
   "team.owner": "propriétaire",
   "common.remove": "Supprimer",

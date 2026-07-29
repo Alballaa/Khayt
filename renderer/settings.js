@@ -847,7 +847,16 @@ async function openTeamModal() {
     onMount(modal) {
       modal.querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', async () => {
         const email = b.dataset.rm;
-        if (!(await confirmModal((t('team.remove_q') || 'Remove {email} from the team?').replace('{email}', email), { danger: true }))) return;
+        // Say what removal does and does not do. It revokes the token, so the
+        // device cannot connect or receive anything further; it does NOT reach
+        // back and erase what already synced there, because that data is
+        // decrypted with a key that device already holds. The user's intuition
+        // ("I removed them, so they're cut off") is wrong in exactly one way,
+        // and implying otherwise would be worse than admitting the limit.
+        // docs/KHAYT-3.0-ORG-DATA-KEY.md, threat-model table, revoked-device row.
+        const removeQ = t('team.remove_q_access') || t('team.remove_q')
+          || 'Remove {email} from the team?\n\nThey will not be able to connect or receive anything new. Data already synced to their device stays on it — removing them does not reach back and erase it.';
+        if (!(await confirmModal(removeQ.replace('{email}', email), { danger: true }))) return;
         const r = await window.hubAPI.cloudMemberRemove({ url: c.url, shopId: c.shopId, token: c.token, email });
         if (r.ok) { modal.querySelector(`[data-mem="${CSS.escape(email)}"]`)?.remove(); toast(t('team.removed') || 'Member removed', 'success'); }
         else toast('✗ ' + (r.error || 'failed'), 'error');
@@ -1382,6 +1391,7 @@ function renderCloudSettings() {
     const ks = await window.hubAPI.cloudCreateKeyset(f.pass);
     if (!ks.ok) { result('✗ ' + (ks.error || 'keyset failed'), 'var(--danger)'); return; }
     settings.cloud = { enabled: true, url: f.url, email: f.email, accountId: su.accountId, shopId: su.shopId, token: su.token, keyset: ks.keyset, lastServerRev: 0, verified: false, role: 'owner' };
+    syncScopeToShop(); // this store now has a shop id — see app-state.js
     saveAll();
     await window.hubAPI.cloudUnlock({ url: f.url, shopId: su.shopId, token: su.token, keyset: ks.keyset, passphrase: f.pass });
     const up = await window.hubAPI.cloudPutKeyset({ url: f.url, shopId: su.shopId, token: su.token, keyset: ks.keyset });
@@ -1406,6 +1416,7 @@ function renderCloudSettings() {
       keyset = ks.keyset; recoveryKey = ks.recoveryKey;
     }
     settings.cloud = { enabled: true, url: f.url, email: f.email, shopId: lr.shopId, token: lr.token, keyset, lastServerRev: 0, verified: !!lr.verified, role: lr.role || 'owner' };
+    syncScopeToShop(); // this store now has a shop id — see app-state.js
     saveAll();
     const un = await window.hubAPI.cloudUnlock({ url: f.url, shopId: lr.shopId, token: lr.token, keyset, passphrase: f.pass });
     if (!un.ok) { result('✗ ' + (t('cloud.wrong_pass') || 'Wrong sync passphrase for this account'), 'var(--danger)'); renderCloudSettings(); return; }
@@ -1435,6 +1446,7 @@ function renderCloudSettings() {
         if (!r.ok) { toast('✗ ' + (r.error || 'join failed'), 'error'); return false; }
         if (!r.keyset) { toast(t('team.no_keyset') || 'The owner hasn’t set up sync yet — ask them to enable Khayt Cloud first.', 'error'); return false; }
         settings.cloud = { enabled: true, url: f.url, email: f.email, shopId: r.shopId, token: r.token, keyset: r.keyset, lastServerRev: 0, verified: false, role: r.role || 'operator' };
+        syncScopeToShop(); // this store now has a shop id — see app-state.js
         saveAll();
         const un = await window.hubAPI.cloudUnlock({ url: f.url, shopId: r.shopId, token: r.token, keyset: r.keyset, passphrase: f.pass });
         renderCloudSettings();

@@ -3196,6 +3196,7 @@
   "team.sending": "送信中…",
   "team.removed": "メンバーを削除しました",
   "team.remove_q": "{email} をチームから削除しますか？",
+  "team.remove_q_access": "{email} をチームから削除しますか？\n\n以降は接続できず、新しいデータも受け取れません。ただし、すでに端末に同期済みのデータはそのまま残ります。削除しても遡って消すことはできません。",
   "team.unverified": "未確認",
   "team.owner": "オーナー",
   "common.remove": "削除",

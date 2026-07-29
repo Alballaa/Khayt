@@ -40,13 +40,58 @@
   const DEFAULT_SCOPE = 'default';
   const indexes = new Map();   // scope -> Map("collection:id" -> {fp, rev})
 
+  /**
+   * The scope used when a caller names none — which is every caller in the app.
+   *
+   * The alternative was to thread a shop id through the three call sites
+   * (`_doSave`, load, and the post-merge reseed). Two of them seed the index and
+   * one reads it, so any disagreement between them silently empties the index,
+   * and an empty index makes `stampChanges` treat every record as new: it bumps
+   * every rev, and this device then wins every conflict on the next merge,
+   * discarding whatever another device legitimately changed. Holding the scope in
+   * one place makes the three agree by construction instead of by review.
+   */
+  let currentScope = DEFAULT_SCOPE;
+
   function indexFor(scope) {
-    const key = scope || DEFAULT_SCOPE;
+    const key = scope || currentScope;
     let m = indexes.get(key);
     if (!m) { m = new Map(); indexes.set(key, m); }
     return m;
   }
-  function setIndexFor(scope, m) { indexes.set(scope || DEFAULT_SCOPE, m); }
+  function setIndexFor(scope, m) { indexes.set(scope || currentScope, m); }
+
+  function getScope() { return currentScope; }
+
+  /**
+   * Point the index at a shop. Pass a falsy id for "no shop" (cloud off).
+   *
+   * @returns {{ scope: string, seeded: boolean }} — `seeded:false` means the new
+   *   scope has no fingerprints yet and the caller MUST seed it before the next
+   *   save, for the reason given above. Reported rather than done here because
+   *   this module is deliberately given no way to read the store.
+   */
+  function setScope(scope) {
+    const next = scope || DEFAULT_SCOPE;
+    if (next !== currentScope) {
+      // Learning (or forgetting) what the current store is called is a RENAME,
+      // not a switch to another store: connecting a standalone shop to the cloud
+      // gives it an id, disconnecting takes it away, and the records on disk are
+      // the same records either way. Carrying the fingerprints across keeps the
+      // next save from re-stamping the entire store for a change of label.
+      //
+      // Moving between two real shop ids is a genuine store switch — that is the
+      // cross-shop contamination this scoping exists to stop — so nothing is
+      // carried, and `seeded:false` tells the caller to seed from the new store.
+      const isRename = currentScope === DEFAULT_SCOPE || next === DEFAULT_SCOPE;
+      if (isRename && indexes.has(currentScope) && !indexes.has(next)) {
+        indexes.set(next, indexes.get(currentScope));
+        indexes.delete(currentScope);
+      }
+      currentScope = next;
+    }
+    return { scope: currentScope, seeded: indexes.has(currentScope) };
+  }
 
   let backend = null;          // null => LocalBackend (cloud off)
   let statusVal = 'off';
@@ -433,11 +478,14 @@
     getBackend,
     status,
     LocalBackend,
+    setScope,
+    getScope,
+    DEFAULT_SCOPE,
     // test-only helpers. With no scope they span every shop, which is what a
     // test asking for a clean slate means; pass one to touch a single shop.
     _resetIndex(scope) {
-      if (scope === undefined) indexes.clear();
-      else indexes.delete(scope || DEFAULT_SCOPE);
+      if (scope === undefined) { indexes.clear(); currentScope = DEFAULT_SCOPE; }
+      else indexes.delete(scope || currentScope);
     },
     _indexSize(scope) {
       if (scope === undefined) {

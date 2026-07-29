@@ -100,7 +100,10 @@ function confirmModal(message, { okText, cancelText, danger = false } = {}) {
     overlay.innerHTML = `
         <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirmModalTitle">
           <h3 id="confirmModalTitle">${escapeHtml(t('common.confirm'))}</h3>
-          <p>${escapeHtml(message)}</p>
+          <!-- pre-line so a message can use a blank line to separate the question
+               from what the user needs to know before answering it. Runs of
+               spaces still collapse, so single-line messages render unchanged. -->
+          <p style="white-space:pre-line;">${escapeHtml(message)}</p>
           <div class="btn-row">
             <button class="btn ghost" data-act="cancel">${escapeHtml(cancelText || t('common.cancel'))}</button>
             <button class="btn ${danger ? 'danger' : 'primary'}" data-act="ok">${escapeHtml(okText || t('common.confirm'))}</button>
