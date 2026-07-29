@@ -13,7 +13,7 @@ section with the channel it covers, the reason, and the condition for lifting.
 
 | Channel | Last published | Notes |
 |---------|----------------|-------|
-| **Stable** | **v3.4.0** (2026-07-29) | [Latest release](https://github.com/khaytapp/Khayt/releases/latest) |
+| **Stable** | **v3.4.1** (2026-07-29) | [Latest release](https://github.com/khaytapp/Khayt/releases/latest) — first release to publish `latest-linux.yml`, so Linux auto-update begins working from the NEXT one |
 | **Beta** | **v3.4.0-beta.5** (2026-07-28) | The 3.4 line, promoted to stable as v3.4.0 on 2026-07-29 — nine languages, five new designs, and the UTC-calendar sweep. Earlier: 3.3 line — the reporting-accuracy sweep. With 3.4.0 stable, the next beta opens `3.5.0-beta.1`; see [BETA-RELEASE.md](./BETA-RELEASE.md) |
 
 Last verified 2026-07-29 against published tags. These rot fast — confirm with

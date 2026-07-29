@@ -4,6 +4,21 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.4.1] - 2026-07-29
+
+A repair release for one platform. If you are on macOS or Windows, 3.4.0 already
+reached you and there is nothing new here.
+
+**Linux installs could never update themselves.** Khayt's Linux builds went out
+without the small file the updater reads to learn what the latest version is, so
+the check that runs at every launch had nothing to find. It has been that way
+since 3.2.0 — anyone running the AppImage has been sitting on whatever version
+they first downloaded, with no sign anything was wrong.
+
+This release is the first to publish that file, which means **3.4.1 still has to
+be installed by hand**; from here on the AppImage will offer updates by itself.
+
+
 ### Fixed
 
 - **Linux never received automatic updates.** Khayt's Linux builds were published
