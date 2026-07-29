@@ -137,16 +137,50 @@ The ordering is chosen so the silent-failure risk is retired first.
    would fail loudly if the envelope were ever inverted. Do not rewrite these;
    extend them.
 
-2. **The v1 → v2 keyset migration**, with the invariant that a single-shop user's
-   keyset opens identically before and after — asserted, not assumed. This is
-   where step 1's suite gets extended: the same battery of wrong-secret and
-   tampering cases, run against a v2 keyset, plus a v1 keyset that must still
-   open unchanged.
+2. ~~The v1 → v2 keyset migration~~ — **done**, and folded into step 3 rather
+   than shipped alone. A version stamp on a keyset that gained no slot would be
+   a relabelling, not a migration, so `joinOrg` performs the upgrade: the only
+   moment at which v2 means anything is the moment a third slot appears.
 
-3. **`wrappedByOrg` plus the org keyset**, with a test that a second shop's DEK
-   unwraps from the ODK and that a shop *outside* the org does not — the negative
-   case being the one that matters, since a too-permissive unwrap is exactly the
-   silent failure this whole document is written around.
+   One thing had to be split first. `KEYSET_VERSION` and the store blob's `v`
+   were the same constant, so bumping the keyset for org support would silently
+   have stamped every store blob as a format that does not exist. They are now
+   `KEYSET_VERSION` (2) and `STORE_BLOB_VERSION` (1), and a test asserts they
+   differ — if they are ever re-merged, that test fails rather than the data.
+   `lib/sync-crypto-web.js` had the same constant under the same wrong name; it
+   is now `STORE_BLOB_VERSION` there too, and a cross-file test keeps the phone
+   and the desktop stamping the same number.
+
+   What made this safe in both directions: **nothing in the app reads either
+   field.** They are written and never compared, so older clients ignore a slot
+   they do not know. That tolerance is load-bearing, so it is asserted rather
+   than assumed.
+
+3. ~~`wrappedByOrg` plus the org keyset~~ — **done.** `createOrgKeyset`,
+   `unlockOrgWithPassphrase` / `WithRecovery`, `changeOrgPassphrase`, `joinOrg`,
+   `leaveOrg`, `unlockWithOrg`, over new `wrapWithKey` / `unwrapWithKey`
+   primitives — the ODK is already 256 uniform random bits, so wrapping under it
+   uses no KDF; scrypt would cost 32 MB and ~100 ms per unwrap to add nothing.
+   Entries record `kek: 'direct'`, and each wrapping path now refuses the
+   other's entries by shape rather than failing later with a GCM error that
+   names nothing.
+
+   `test/sync-crypto-org.test.js` (20 tests) is weighted towards the negative
+   cases, since a too-permissive unwrap is the silent failure this document is
+   written around: a shop outside the org, another org's ODK, that same ODK with
+   the org label forged to match (still refused — the label is a diagnostic, the
+   auth tag is the boundary), a tampered slot, and a missing org id. All 13
+   guards were mutation-tested — broken one at a time, each confirmed to fail a
+   test, then restored.
+
+   The promise to an existing owner is asserted directly: after joining,
+   `wrappedByPassphrase` and `wrappedByRecovery` are byte-identical, a recovery
+   key printed years earlier still opens the shop, and the DEK never moves, so
+   no blob is re-encrypted.
+
+   An `orgId` was added beyond this document's sketch. It is not a secret and
+   not a boundary — it exists so that pointing a shop at the wrong org reports
+   itself in those words instead of as an unintelligible auth failure.
 
 4. Only then the desktop plumbing that passes a real shop id to the per-shop
    change-index (already built — see `stampChanges(snapshot, scope)` and
