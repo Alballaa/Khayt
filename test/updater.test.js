@@ -27,6 +27,7 @@ const {
   isVersionNewer,
   isPrereleaseVersion,
   interpretUpdateCheckResult,
+  canSelfUpdate,
 } = require('../lib/updater');
 
 test('isVersionNewer compares dotted versions', () => {
@@ -167,4 +168,65 @@ test('write-update-backup copies store file when json is __COPY_STORE__', async 
   assert.equal(files.length, 1);
   assert.match(files[0], /^pre-update-v2\.2\.3-/);
   assert.equal(fs.readFileSync(path.join(backupsPath, files[0]), 'utf8'), '{"encrypted":true}');
+});
+
+/**
+ * Linux installs that cannot replace themselves.
+ *
+ * electron-updater only updates AppImage on Linux — it detects that via the
+ * APPIMAGE environment variable and declines otherwise. A .deb install therefore
+ * gets a check that succeeds with NO updateInfo, which fell through to
+ * "not-available": the app told the user they were on the latest version while a
+ * newer one existed.
+ *
+ * That was unreachable while no latest-linux.yml was ever published — the check
+ * failed earlier, for a different reason. Publishing the manifest (so AppImage
+ * users can finally update at all) is exactly what made it reachable, which is
+ * why the two changes belong together.
+ */
+test('a .deb install is told to download, not that it is up to date', () => {
+  const r = interpretUpdateCheckResult({
+    isPackaged: true,
+    currentVersion: '3.4.0',
+    updateInfo: undefined,      // what an inactive updater returns
+    selfUpdatable: false,
+  });
+  assert.equal(r.status, 'manual', 'must not claim "not-available"');
+  assert.match(r.message, /cannot update itself/i);
+  assert.ok(r.releasesUrl, 'and must say where to get it');
+});
+
+test('an install that CAN self-update is unaffected', () => {
+  const r = interpretUpdateCheckResult({
+    isPackaged: true,
+    currentVersion: '3.3.0',
+    updateInfo: { version: '3.4.0' },
+    selfUpdatable: true,
+  });
+  assert.equal(r.status, 'available');
+  assert.equal(r.version, '3.4.0');
+});
+
+test('selfUpdatable defaults to true, so existing callers are unchanged', () => {
+  const r = interpretUpdateCheckResult({
+    isPackaged: true, currentVersion: '3.3.0', updateInfo: { version: '3.4.0' },
+  });
+  assert.equal(r.status, 'available');
+});
+
+test('the unpackaged dev message still wins over the manual one', () => {
+  // Running from source is not a .deb problem, and saying "download the latest
+  // version" to someone with the repo open would be nonsense.
+  const r = interpretUpdateCheckResult({
+    isPackaged: false, currentVersion: '3.4.0', selfUpdatable: false,
+  });
+  assert.equal(r.status, 'dev');
+});
+
+test('canSelfUpdate: only Linux without AppImage or Snap is excluded', () => {
+  assert.equal(canSelfUpdate('darwin', {}), true, 'macOS always can');
+  assert.equal(canSelfUpdate('win32', {}), true, 'Windows always can');
+  assert.equal(canSelfUpdate('linux', { APPIMAGE: '/opt/Khayt.AppImage' }), true, 'AppImage can');
+  assert.equal(canSelfUpdate('linux', { SNAP: '/snap/khayt' }), true, 'Snap updates itself via the store');
+  assert.equal(canSelfUpdate('linux', {}), false, 'a .deb cannot');
 });
