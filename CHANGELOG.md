@@ -4,6 +4,40 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.4.0] - 2026-07-29
+
+The 3.4.0 beta line, released as stable. Individual beta entries are kept below;
+this is what changed for you since 3.3.0.
+
+Three things, and they are unrelated except that each one was invisible until
+somebody looked.
+
+**Khayt now speaks your language properly.** Brazilian Portuguese joins as a
+complete translation — all 3,675 phrases — making nine. More to the point, a
+sweep found large parts of the app that had never been translated at all: a whole
+Bed Ready feature, four settings sections, tooltips and placeholders everywhere,
+and dates and times that ignored your choice of language in 49 of the 51 places
+Khayt prints one. 205 dead phrases were removed across all nine languages, and a
+check now fails the build when the app asks for a phrase no language has.
+
+**Five new looks**, two of which are new ways to work rather than new colours —
+including Flow, the first design where the job board *is* the home screen. The
+existing designs got the attention they needed too: Meridian could not be
+scrolled at all on a long screen, faint text was unreadable in every light theme,
+and two designs lost their language picker on a narrow window.
+
+**And the app was quietly wrong about dates.** Khayt worked out "today" from UTC
+rather than from your own calendar, which is correct in London and wrong
+everywhere else for part of every day. In Saudi Arabia that meant the first three
+hours after midnight belonged to yesterday: an expired quote stayed approvable, an
+order taken at 01:00 was dated into the wrong day's revenue, and a monthly expense
+walked backwards a day every cycle. The same mistake counted months, so a budget
+warning could total the wrong one.
+
+Since the last beta, this release also fixes a bug that could bring back records
+you had deleted, adds three things you can now do from your phone, and repairs
+four features that had silently never run at all.
+
 ### Added
 
 - **Photograph a receipt and file the expense on the spot.** A receipt is a
