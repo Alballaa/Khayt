@@ -178,9 +178,22 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build Linux AppImage + deb
-        run: npx electron-builder --linux --x64 --publish never
+      # `--publish always`, like macOS and Windows above — NOT `never`.
+      #
+      # The publish policy controls more than uploading: electron-builder writes
+      # the `latest-*.yml` update manifest as part of publishing. With `never`,
+      # no `latest-linux.yml` was produced, and the separate upload step below
+      # only ever globbed the installers — so every Linux release from v3.2.0 to
+      # v3.4.0 shipped without an update feed.
+      #
+      # The app checks for updates on every platform with no gating, so on Linux
+      # that check asked for a manifest that was not there and could never
+      # succeed. Linux users were quietly stranded on whatever they first
+      # installed.
+      - name: Build & publish Linux AppImage + deb
+        run: npx electron-builder --linux --x64 --publish always
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPIMAGE_EXTRACT_AND_RUN: 1
 
       - uses: actions/upload-artifact@v7
@@ -202,12 +215,27 @@ jobs:
           name: linux-x64
           path: linux-files
 
-      - name: Upload Linux artifacts to release
+      # electron-builder now uploads the Linux artifacts itself (see
+      # `--publish always` above), so this is a belt-and-braces re-upload rather
+      # than the only path. `--clobber` makes it idempotent, and it keeps the
+      # release complete if a direct upload is ever dropped.
+      #
+      # It deliberately does NOT re-upload the update manifest: electron-builder
+      # is the only thing that computes latest-linux.yml's hashes and sizes, and
+      # a stale copy from a previous run overwriting a fresh one would point
+      # every Linux client at the wrong bytes.
+      - name: Upload Linux artifacts to release (backstop)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
         run: |
-          gh release upload "$TAG" linux-files/* \
+          shopt -s nullglob
+          files=(linux-files/*.AppImage linux-files/*.deb)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error::no Linux installers were built"
+            exit 1
+          fi
+          gh release upload "$TAG" "${files[@]}" \
             --clobber \
             --repo "$GITHUB_REPOSITORY"
 

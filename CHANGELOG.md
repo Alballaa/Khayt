@@ -4,6 +4,21 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **Linux never received automatic updates.** Khayt's Linux builds were published
+  without the small file the updater reads to find out what the latest version
+  is, so the check on every launch could not succeed and no update was ever
+  offered. It has been this way since 3.2.0 — if you installed the AppImage, you
+  have been on whatever version you first downloaded. Fixed from the next release
+  onwards; this one still has to be downloaded by hand.
+
+- **A `.deb` install said "you're up to date" when it wasn't.** Only the AppImage
+  can replace itself, but the check did not know that and reported the same
+  answer as a genuine no-update-found. It now says plainly that this install
+  cannot update itself, and points at the download page.
+
+
 ## [3.4.0] - 2026-07-29
 
 The 3.4.0 beta line, released as stable. Individual beta entries are kept below;

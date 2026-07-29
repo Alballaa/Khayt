@@ -79,3 +79,49 @@ test('every workflow declares a name and at least one job', () => {
     assert.match(src, /^jobs:\s*$/m, `${f} declares no jobs`);
   }
 });
+
+/**
+ * Every platform must publish an update manifest.
+ *
+ * `--publish` controls more than uploading: electron-builder writes the
+ * `latest-*.yml` update feed as part of publishing. A build with `never`
+ * produces installers and no feed — and electron-updater cannot check for
+ * updates without one.
+ *
+ * That is not hypothetical. The Linux job used `never` and the release workflow
+ * uploaded only the installers, so v3.2.0, v3.3.0 and v3.4.0 all shipped with no
+ * `latest-linux.yml`. The app checks for updates on every platform with no
+ * gating, so on Linux that check asked for a file that was not there. Nothing
+ * failed loudly; Linux users were simply never offered an update, for three
+ * releases.
+ *
+ * `never` is legitimate for a store package, which the store updates. So this
+ * follows the same shape as the other allowlists in this suite: permitted, but
+ * only with a reason written down next to it.
+ */
+const PUBLISH_NEVER_IS_DELIBERATE = {
+  appx: 'Microsoft Store package — Partner Center signs and the Store updates it, so there is no self-update feed to write',
+};
+
+test('no platform build silently skips its update feed', () => {
+  const src = fs.readFileSync(path.join(DIR, 'release.yml'), 'utf8');
+  const builds = [...src.matchAll(/npx electron-builder ([^\n]*)/g)].map((m) => m[1].trim());
+  assert.ok(builds.length >= 3, `expected several electron-builder invocations, found ${builds.length}`);
+
+  const offenders = builds
+    .filter((cmd) => /--publish\s+never/.test(cmd))
+    .filter((cmd) => !Object.keys(PUBLISH_NEVER_IS_DELIBERATE).some((k) => cmd.includes(k)));
+
+  assert.deepEqual(offenders, [],
+    'these build without an update feed — use `--publish always`, or add the target to '
+    + `PUBLISH_NEVER_IS_DELIBERATE with the reason:\n  ${offenders.join('\n  ')}`);
+});
+
+test('every allowlisted exception still exists in the workflow', () => {
+  // A reason left behind for a target that is gone is how an allowlist quietly
+  // grows into a place where real problems hide.
+  const src = fs.readFileSync(path.join(DIR, 'release.yml'), 'utf8');
+  for (const target of Object.keys(PUBLISH_NEVER_IS_DELIBERATE)) {
+    assert.ok(src.includes(target), `${target} is allowlisted but no longer built`);
+  }
+});
