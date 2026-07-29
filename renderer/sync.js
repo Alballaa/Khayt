@@ -226,14 +226,26 @@
       }
     }
 
-    // Bound growth: tombstones are transient delete-markers for sync; once every device has
-    // seen a delete they're dead weight. Keep the most recent set (appended oldest-first) so
-    // the array can't grow without limit and bloat every save/sync blob.
-    const TOMB_CAP = 5000;
-    if (tomb && tomb.length > TOMB_CAP) tomb.splice(0, tomb.length - TOMB_CAP);
+    capTombstones(tomb);
 
     setIndexFor(scope, next);
     return summary;
+  }
+
+  /**
+   * Bound tombstone growth. They are transient delete-markers for sync; once
+   * every device has seen a delete they are dead weight. Keeps the most recent
+   * set (they are appended oldest-first) so the array cannot grow without limit
+   * and bloat every save and every sync blob.
+   *
+   * Applied on both paths that add tombstones — the local delete in stampChanges
+   * and the propagated one in applyDeltas. Leaving applyDeltas to rely on the
+   * next save for trimming would have made the bound a property of the caller
+   * rather than of this module.
+   */
+  const TOMB_CAP = 5000;
+  function capTombstones(tomb) {
+    if (Array.isArray(tomb) && tomb.length > TOMB_CAP) tomb.splice(0, tomb.length - TOMB_CAP);
   }
 
   /** High-water cursor across the snapshot (rev authoritative; updatedAt advisory). */
@@ -350,7 +362,41 @@
     }
 
     for (const t of (payload && payload.tombstones) || []) {
-      if (!t || !t.collection || !t.id || !Array.isArray(snapshot[t.collection])) continue;
+      if (!t || !t.collection || !t.id) continue;
+
+      // Keep the tombstone, not just its effect.
+      //
+      // This loop used to delete the record and move on, so the receiving device
+      // carried out the delete without ever learning that a delete had happened.
+      // A third device still holding the record then pushed it straight back —
+      // accepted, because with no local tombstone the unseen-record branch above
+      // has nothing to refuse it with — while the device that pressed delete does
+      // hold the tombstone and stays deleted. Two devices disagree, permanently,
+      // and neither has any way to notice. Reproduced with three devices before
+      // this existed; see test/tombstone-propagation.test.js.
+      //
+      // The earlier fix made the DELETING device immune. Recording the tombstone
+      // here is what extends that to every device the delete reaches, which is
+      // what makes the local-tombstone defence above worth anything.
+      //
+      // Recorded even when this side has no such record: a device that is simply
+      // behind is the one that most needs to know, and dropping the tombstone was
+      // how it stayed behind.
+      const key = t.collection + ':' + t.id;
+      if (!Array.isArray(snapshot.tombstones)) snapshot.tombstones = [];
+      const known = localTombs.get(key);
+      if (!known) {
+        const copy = { id: t.id, collection: t.collection, rev: revOf(t), deletedAt: t.deletedAt };
+        snapshot.tombstones.push(copy);
+        localTombs.set(key, copy);
+      } else if (revOf(t) > revOf(known)) {
+        // Same id deleted at a higher rev elsewhere. Keep the higher one, so the
+        // delete_over_edit report stays accurate rather than under-reporting.
+        known.rev = revOf(t);
+      }
+      capTombstones(snapshot.tombstones);
+
+      if (!Array.isArray(snapshot[t.collection])) continue;
       const arr = snapshot[t.collection];
       const i = arr.findIndex((r) => r && r.id === t.id);
       if (i === -1) continue;
