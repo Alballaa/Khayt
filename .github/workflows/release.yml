@@ -180,16 +180,21 @@ jobs:
 
       # `--publish always`, like macOS and Windows above — NOT `never`.
       #
-      # The publish policy controls more than uploading: electron-builder writes
-      # the `latest-*.yml` update manifest as part of publishing. With `never`,
-      # no `latest-linux.yml` was produced, and the separate upload step below
-      # only ever globbed the installers — so every Linux release from v3.2.0 to
-      # v3.4.0 shipped without an update feed.
+      # Every Linux release from v3.2.0 to v3.4.0 shipped without the
+      # `latest-linux.yml` update feed, so the update check the app runs on every
+      # platform asked for a manifest that was not there. Nothing failed loudly;
+      # Linux users were quietly stranded on whatever they first installed.
       #
-      # The app checks for updates on every platform with no gating, so on Linux
-      # that check asked for a manifest that was not there and could never
-      # succeed. Linux users were quietly stranded on whatever they first
-      # installed.
+      # The cause was the UPLOAD, not the build. `--publish never` still WRITES
+      # the manifest — it only skips uploading — and the step below globbed
+      # `*.AppImage` and `*.deb`, so the file was generated on every run and left
+      # behind on the runner. Proof: Bed Ready builds with `--publish never`
+      # (scripts/build-bedready.mjs) and its releases carry latest-linux.yml.
+      #
+      # `always` is used anyway rather than widening the glob, because it makes
+      # all three platforms work the same way and puts the manifest and the
+      # binaries it describes on the release in one step, from the one process
+      # that computed their hashes.
       - name: Build & publish Linux AppImage + deb
         run: npx electron-builder --linux --x64 --publish always
         env:

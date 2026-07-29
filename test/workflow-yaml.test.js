@@ -83,21 +83,23 @@ test('every workflow declares a name and at least one job', () => {
 /**
  * Every platform must publish an update manifest.
  *
- * `--publish` controls more than uploading: electron-builder writes the
- * `latest-*.yml` update feed as part of publishing. A build with `never`
- * produces installers and no feed — and electron-updater cannot check for
- * updates without one.
+ * electron-updater cannot offer an update without a `latest-*.yml` feed on the
+ * release, and v3.2.0, v3.3.0 and v3.4.0 all shipped without `latest-linux.yml`.
+ * The app checks on every platform with no gating, so on Linux that check asked
+ * for a file that was not there. Nothing failed loudly; Linux users were simply
+ * never offered an update, for three releases.
  *
- * That is not hypothetical. The Linux job used `never` and the release workflow
- * uploaded only the installers, so v3.2.0, v3.3.0 and v3.4.0 all shipped with no
- * `latest-linux.yml`. The app checks for updates on every platform with no
- * gating, so on Linux that check asked for a file that was not there. Nothing
- * failed loudly; Linux users were simply never offered an update, for three
- * releases.
+ * A correction to how that was first explained here: `--publish never` does NOT
+ * suppress the manifest. It only skips uploading — the file was written on every
+ * run and left on the runner, because the upload step globbed `*.AppImage` and
+ * `*.deb` and nothing else. Bed Ready proves it: it builds with `never`
+ * (scripts/build-bedready.mjs) and its releases carry latest-linux.yml.
  *
- * `never` is legitimate for a store package, which the store updates. So this
- * follows the same shape as the other allowlists in this suite: permitted, but
- * only with a reason written down next to it.
+ * So this check is about the manifest REACHING the release, and `--publish
+ * always` is the simplest way to guarantee that — it is what the other two
+ * platforms already do. `never` remains legitimate for a store package the store
+ * updates itself, so it follows the same shape as the other allowlists here:
+ * permitted, with the reason written down next to it.
  */
 const PUBLISH_NEVER_IS_DELIBERATE = {
   appx: 'Microsoft Store package — Partner Center signs and the Store updates it, so there is no self-update feed to write',
