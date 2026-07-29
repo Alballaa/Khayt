@@ -143,10 +143,30 @@ test('recording an expense needs the owner PIN', async () => {
 
 test('an oversized receipt is refused rather than filling the disk', async () => {
   store = freshStore();
+  const before = receiptsOnDisk().length;
   const huge = Buffer.concat([Buffer.from([0xFF, 0xD8, 0xFF]), Buffer.alloc(7 * 1024 * 1024, 1)]);
-  const r = await post({ amount: 10, receiptBase64: huge.toString('base64') });
-  assert.ok(r.status === 413 || r.status === 400, `expected a refusal, got ${r.status}`);
-  assert.equal(store.expenses.length, 0);
+
+  // Two correct outcomes, and which one happens is a race the client does not
+  // control. The server answers 413 and destroys the socket — so depending on
+  // timing, either the response arrives, or the remaining megabytes hit a closed
+  // pipe and fetch rejects with EPIPE. An earlier version of this test asserted
+  // only the first and failed roughly one run in five.
+  //
+  // The guarantee being tested is not "the client always sees a 413". It is that
+  // the upload is refused and NOTHING persists — which holds either way, and is
+  // what a shop would care about.
+  let status = null;
+  try {
+    status = (await post({ amount: 10, receiptBase64: huge.toString('base64') })).status;
+  } catch (err) {
+    assert.match(String(err?.cause?.code || err?.message || err), /EPIPE|ECONNRESET|fetch failed/,
+      `expected a torn-down connection, got ${err}`);
+  }
+  if (status !== null) {
+    assert.ok(status === 413 || status === 400, `expected a refusal, got ${status}`);
+  }
+  assert.equal(store.expenses.length, 0, 'no expense was recorded');
+  assert.equal(receiptsOnDisk().length, before, 'and nothing reached the disk');
 });
 
 test('a failed receipt write leaves no expense behind', async () => {
