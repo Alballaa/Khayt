@@ -13,10 +13,10 @@ section with the channel it covers, the reason, and the condition for lifting.
 
 | Channel | Last published | Notes |
 |---------|----------------|-------|
-| **Stable** | **v3.4.2** (2026-07-30) | [Latest release](https://github.com/khaytapp/Khayt/releases/latest) — sync no longer loses a delete on relay; also the first release Linux AppImages can update themselves INTO, since v3.4.1 was the first to publish `latest-linux.yml` |
-| **Beta** | **v3.4.0-beta.5** (2026-07-28) | The 3.4 line, promoted to stable as v3.4.0 on 2026-07-29 — nine languages, five new designs, and the UTC-calendar sweep. Earlier: 3.3 line — the reporting-accuracy sweep. With 3.4.0 stable, the next beta opens `3.5.0-beta.1`; see [BETA-RELEASE.md](./BETA-RELEASE.md) |
+| **Stable** | **v3.5.0** (2026-07-30) | [Latest release](https://github.com/khaytapp/Khayt/releases/latest) — opens the 3.5 line: organisations (one passphrase per chain, not per branch) and the operator-lock recovery code that was being wiped before anyone could read it |
+| **Beta** | **v3.4.0-beta.5** (2026-07-28) | The 3.4 line, promoted to stable as v3.4.0 on 2026-07-29 — nine languages, five new designs, and the UTC-calendar sweep. Earlier: 3.3 line — the reporting-accuracy sweep. With **3.5.0** now stable, the next beta opens `3.6.0-beta.1` — NOT `3.5.0-beta.1`, which is the stable release itself; see [BETA-RELEASE.md](./BETA-RELEASE.md) |
 
-Last verified 2026-07-29 against published tags. These rot fast — confirm with
+Last verified 2026-07-30 against published tags. These rot fast — confirm with
 `gh release list --repo KhaytApp/Khayt` rather than trusting the table.
 
 ## While a hold is active

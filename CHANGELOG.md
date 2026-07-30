@@ -4,6 +4,46 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.5.0] - 2026-07-30
+
+**If you enabled the operator lock, please read the fix below** — the recovery
+code Khayt showed you was being wiped off the screen before you could read it.
+
+### Added
+
+- **Organisations: one passphrase for every branch.** If you run more than one
+  branch, each has had its own sync passphrase, so opening four branches meant
+  remembering four. An organisation gives you one passphrase that opens them all.
+
+  Settings → Khayt Cloud → Organisation. Create one, then add each branch with a
+  code you paste into that branch's copy of Khayt.
+
+  **Your branches keep everything they already have.** The organisation
+  passphrase is a second way in, not a replacement: each branch's own passphrase
+  and its recovery key keep working exactly as before, including a recovery key
+  you printed and filed years ago. Removing a branch from an organisation only
+  closes the organisation's way in — that branch is untouched otherwise.
+
+  The organisation has its own recovery key, shown once, for the whole
+  organisation. Khayt cannot recover it for you.
+
+  What this does not change: removing a device still stops it connecting and
+  receiving anything new, but does not erase what already reached it. With an
+  organisation that reaches every branch rather than one, which is why the
+  removal dialog says so plainly.
+
+### Fixed
+
+- **The operator-lock recovery code was wiped before you could read it.** Turning
+  on the operator lock shows a recovery code — the only way back in if the PIN is
+  forgotten — and the window it appeared in was being cleared the instant it
+  opened. Nothing looked wrong; the code simply never appeared. If you turned the
+  operator lock on and never saw a code, that is why.
+
+  To get one: Settings → Security → **New recovery code**. It asks for your PIN
+  and then shows a fresh code; that button was never affected. Don't switch the
+  lock off to fix this — switching it off also clears your operator list.
+
 ## [3.4.2] - 2026-07-30
 
 A correctness release for shops that sync across **three or more devices**. If
