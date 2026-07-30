@@ -184,6 +184,24 @@ contextBridge.exposeInMainWorld('hubAPI', {
   cloudPutKeyset: (opts) => ipcRenderer.invoke('hub:cloud-put-keyset', opts),
   cloudGetKeyset: (opts) => ipcRenderer.invoke('hub:cloud-get-keyset', opts),
   cloudUnlock: (opts) => ipcRenderer.invoke('hub:cloud-unlock', opts),
+
+  // ── Organisations (multi-shop). docs/KHAYT-3.0-ORG-DATA-KEY.md ──────────────
+  // The org key never crosses this bridge: it is created and held in the main
+  // process, and only wrapped keysets and branch results come back.
+  orgCreateKeyset: (passphrase) => ipcRenderer.invoke('hub:org-create-keyset', passphrase),
+  orgUnlock: (opts) => ipcRenderer.invoke('hub:org-unlock', opts),
+  orgStatus: () => ipcRenderer.invoke('hub:org-status'),
+  orgLock: () => ipcRenderer.invoke('hub:org-lock'),
+  orgEnrolShop: (opts) => ipcRenderer.invoke('hub:org-enrol-shop', opts),
+  orgRemoveShop: (opts) => ipcRenderer.invoke('hub:org-remove-shop', opts),
+  orgChangePassphrase: (opts) => ipcRenderer.invoke('hub:org-change-passphrase', opts),
+  orgBranchPull: (opts) => ipcRenderer.invoke('hub:org-branch-pull', opts),
+  orgGet: (opts) => ipcRenderer.invoke('hub:org-get', opts),
+  orgPut: (opts) => ipcRenderer.invoke('hub:org-put', opts),
+  orgLeave: (opts) => ipcRenderer.invoke('hub:org-leave', opts),
+  orgInvite: (opts) => ipcRenderer.invoke('hub:org-invite', opts),
+  orgJoin: (opts) => ipcRenderer.invoke('hub:org-join', opts),
+  orgMembers: (opts) => ipcRenderer.invoke('hub:org-members', opts),
   cloudLock: () => ipcRenderer.invoke('hub:cloud-lock'),
   cloudStatus: () => ipcRenderer.invoke('hub:cloud-status'),
   cloudPush: (snapshot) => ipcRenderer.invoke('hub:cloud-push', snapshot),
