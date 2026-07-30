@@ -4,6 +4,38 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.5.1] - 2026-07-30
+
+The half of organisations that 3.5.0 described but did not include.
+
+### Added
+
+- **Across the branches.** Settings → Khayt Cloud → Organisation → *Across the
+  branches*. Enter your organisation passphrase and Khayt shows each branch: how
+  much work is in flight, how much is printing or on hold, quotes waiting, and
+  when that branch last changed anything.
+
+  The passphrase is asked for each time and never stored, so the key that opens
+  every branch is not sitting in memory all day for a screen you open now and
+  then.
+
+  Branches are read one at a time. If one has not synced yet, is still being set
+  up, or cannot be opened, it says so on its own line and the others still appear
+  — and the totals tell you how many were left out rather than quietly counting
+  them as zero.
+
+  **What it does not show, on purpose.** No money: revenue is not simply the sum
+  of order prices — voided invoices, refunds and credit notes all subtract — and a
+  second way of adding it up would give you a chain total that disagrees with what
+  each branch reports, with no way to tell which is right. And no "due today": a
+  branch may be hours ahead of or behind you, so a day boundary means different
+  things in different places. What you get instead are counts that mean the same
+  thing everywhere, and the branch's own last-change time in your language and
+  time zone.
+
+  These figures come from each branch's last sync, not from its screen at this
+  moment — the view says so too.
+
 ## [3.5.0] - 2026-07-30
 
 **If you enabled the operator lock, please read the fix below** — the recovery
