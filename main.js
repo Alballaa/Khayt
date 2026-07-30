@@ -73,6 +73,7 @@ const bambu = require('./lib/bambu');
 const { bambuFtpUpload } = require('./lib/bambu-ftp');
 const { sendSms } = require('./lib/sms');
 const cloudClient = require('./lib/cloud-client');
+const { summarizeBranch, totalBranches } = require('./lib/branch-summary');
 const aiTools = require('./lib/ai-tools');
 const aiPrivacy = require('./lib/ai-privacy');
 const bedreadyLibrary = require('./lib/bedready-library');
@@ -2873,26 +2874,11 @@ ipcMain.handle('hub:cloud-unlock', (_e, { url, shopId, token, keyset, passphrase
  */
 let orgKey = null;                  // Buffer | null — the session's ODK
 let orgId = null;                   // which org it belongs to
-const branchBackends = new Map();   // shopId -> backend (built on first use)
 
 /** Drop every org-derived secret. Called on lock and on leaving an org. */
 function clearOrgSession() {
   orgKey = null;
   orgId = null;
-  branchBackends.clear();
-}
-
-/**
- * A backend for one branch, unlocking it through the ODK on first use.
- * Throws with the branch named, so a failure says which one.
- */
-function branchBackend(url, shopId, token, keyset) {
-  if (branchBackends.has(shopId)) return branchBackends.get(shopId);
-  if (!orgKey) throw new Error('locked');
-  const dek = cloudClient.unlockWithOrg(orgKey, orgId, keyset);
-  const backend = cloudClient.backendFor(url, shopId, token, dek);
-  branchBackends.set(shopId, backend);
-  return backend;
 }
 
 ipcMain.handle('hub:org-create-keyset', (_e, passphrase) => {
@@ -2903,7 +2889,6 @@ ipcMain.handle('hub:org-create-keyset', (_e, passphrase) => {
     // never stored.
     orgKey = key;
     orgId = orgKeyset.orgId;
-    branchBackends.clear();
     return { ok: true, orgKeyset, recoveryKey };
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
@@ -2914,7 +2899,6 @@ ipcMain.handle('hub:org-unlock', (_e, { orgKeyset, passphrase, recoveryKey } = {
       ? cloudClient.unlockOrgWithRecovery(String(recoveryKey), orgKeyset)
       : cloudClient.unlockOrgWithPassphrase(String(passphrase || ''), orgKeyset);
     orgId = orgKeyset && orgKeyset.orgId;
-    branchBackends.clear();
     return { ok: true, orgId };
   } catch (e) {
     clearOrgSession();
@@ -2922,7 +2906,7 @@ ipcMain.handle('hub:org-unlock', (_e, { orgKeyset, passphrase, recoveryKey } = {
   }
 });
 
-ipcMain.handle('hub:org-status', () => ({ unlocked: !!orgKey, orgId, branchesOpen: branchBackends.size }));
+ipcMain.handle('hub:org-status', () => ({ unlocked: !!orgKey, orgId }));
 ipcMain.handle('hub:org-lock', () => { clearOrgSession(); return { ok: true }; });
 
 /** Add this shop's DEK to the org, so the org key opens it too. */
@@ -2949,14 +2933,42 @@ ipcMain.handle('hub:org-change-passphrase', (_e, { orgKeyset, currentPassphrase,
   } catch (e) { return { ok: false, error: 'Wrong organisation passphrase' }; }
 });
 
-/** Read one branch's store through the org key. Lazy: this is where a branch is
- *  first unlocked, and where a failure is reported against that branch alone. */
-ipcMain.handle('hub:org-branch-pull', async (_e, { url, shopId, token, keyset } = {}) => {
+/**
+ * The organisation overview: what is happening at every branch.
+ *
+ * One call, because the interesting failures are per branch and the caller wants
+ * them side by side. Each branch is fetched and opened on its own — a branch that
+ * has never pushed, or whose keyset is missing, or which this org key cannot open,
+ * reports against ITSELF and the rest still come back. That is what the lazy
+ * design was for; doing it all-or-nothing would let one bad branch blank the
+ * screen.
+ *
+ * Only the SUMMARY crosses back. A branch store can be megabytes and the overview
+ * needs a handful of counts; see lib/branch-summary.js for what is deliberately
+ * not counted (money, and anything needing a calendar day).
+ */
+ipcMain.handle('hub:org-overview', async (_e, { url, shopId, token } = {}) => {
+  if (!orgKey) return { ok: false, error: 'locked' };
   try {
     token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
-    const backend = branchBackend(url, shopId, token, keyset);
-    return { ok: true, shopId, ...(await backend.pull()) };
-  } catch (e) { return { ok: false, shopId, error: String(e && e.message || e) }; }
+    const members = await cloudClient.getOrgKeysets(url, shopId, token);
+    const branches = [];
+    for (const m of members) {
+      const row = { shopId: m.shopId, isSelf: m.shopId === shopId };
+      try {
+        if (!m.keyset) throw new Error('this branch has not finished setting up sync');
+        const dek = cloudClient.unlockWithOrg(orgKey, orgId, m.keyset);
+        const blob = await cloudClient.getBranchStore(url, shopId, token, m.shopId);
+        if (!blob) { row.empty = true; branches.push(row); continue; }
+        row.rev = blob.rev;
+        row.summary = summarizeBranch(cloudClient.decryptStore(blob.ciphertext, dek));
+      } catch (e) {
+        row.error = String(e && e.message || e);
+      }
+      branches.push(row);
+    }
+    return { ok: true, branches, total: totalBranches(branches.map((b) => b.summary)) };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
 /* Org membership on the server — the wrapped org keyset and which branches are in. */

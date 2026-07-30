@@ -912,11 +912,12 @@ async function openOrgModal() {
     noSave: true,
     bodyHtml: inOrg ? `
       <p style="font-size:13px;margin:0 0 8px;">${escapeHtml(t('org.in_org') || 'This branch is part of an organisation. One organisation passphrase opens every branch in it.')}</p>
-      <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 10px;">${escapeHtml(t('org.no_view_yet') || 'Khayt can unlock your other branches, but does not show their orders or figures yet — that view is still being built.')}</p>
+
       <label>${escapeHtml(t('org.branches') || 'Branches')}</label>
       <div style="max-height:150px;overflow:auto;border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;">${memberRows}</div>
       <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
-        <button id="orgInviteBtn" class="btn primary small" type="button">${escapeHtml(t('org.add_branch') || 'Add a branch')}</button>
+        <button id="orgOverviewBtn" class="btn primary small" type="button">${escapeHtml(t('org.overview') || 'Across the branches')}</button>
+        <button id="orgInviteBtn" class="btn small" type="button">${escapeHtml(t('org.add_branch') || 'Add a branch')}</button>
         <button id="orgLeaveBtn" class="btn danger small" type="button">${escapeHtml(t('org.leave') || 'Remove this branch')}</button>
       </div>
       <p style="font-size:11.5px;color:var(--text-muted);margin-top:8px;">${escapeHtml(t('org.leave_note') || 'Removing this branch only closes the organisation’s way in. This branch’s own passphrase and recovery key keep working exactly as before.')}</p>
@@ -933,6 +934,7 @@ async function openOrgModal() {
       const res = modal.querySelector('#orgResult');
       const say = (msg, colour) => { res.textContent = msg; res.style.color = colour; };
 
+      modal.querySelector('#orgOverviewBtn')?.addEventListener('click', () => openOrgOverview(c));
       modal.querySelector('#orgCreateBtn')?.addEventListener('click', () => createOrganisation(c));
       modal.querySelector('#orgJoinBtn')?.addEventListener('click', () => joinOrganisation(c));
 
@@ -964,6 +966,126 @@ async function openOrgModal() {
         // Close is the only way to get all of that from outside.
         modal.querySelector('[data-act="cancel"]')?.click();
       });
+    },
+  });
+}
+
+/**
+ * What is happening at every branch.
+ *
+ * Needs the organisation passphrase, because that is the only thing that opens
+ * the other branches — it is asked for here rather than held from setup, so the
+ * key is not sitting in memory all day for a screen the owner opens occasionally.
+ *
+ * Branches are reported one by one. One that has never pushed, or is still
+ * setting up, or that this key cannot open, says so on its own row and the others
+ * still appear.
+ */
+async function openOrgOverview(c) {
+  const st = await window.hubAPI.orgStatus();
+  if (!st.unlocked) {
+    const opened = await promptOrgUnlock(c);
+    if (!opened) return;
+    // The unlock modal closes itself right after its onSave resolves, and
+    // openFormModal's close() empties the shared #modalMount. Opening the
+    // overview on this tick would put it into that mount just in time to be
+    // wiped — the same trap as the recovery-key modal, one level of indirection
+    // deeper, which is why the static guard did not see it. Measured: without
+    // the deferral, no modal at all.
+    setTimeout(() => renderOrgOverview(c), 0);
+    return;
+  }
+  renderOrgOverview(c);
+}
+
+/** Ask for the organisation passphrase and unlock for this session. */
+function promptOrgUnlock(c) {
+  return new Promise((resolve) => {
+    openFormModal({
+      title: t('org.unlock_title') || 'Open your branches',
+      saveLabel: t('org.unlock_do') || 'Open',
+      bodyHtml: `
+        <p style="font-size:13px;">${escapeHtml(t('org.unlock_hint') || 'Enter the organisation passphrase to read your other branches. It is not stored — Khayt asks again next time.')}</p>
+        <label>${escapeHtml(t('org.org_pass') || 'Organisation passphrase')}</label>
+        <input type="password" id="orgUnlockPass" autocomplete="off">
+        <p id="orgUnlockErr" style="color:var(--danger);font-size:12px;min-height:14px;margin:6px 0 0;"></p>`,
+      onSave: async (modal) => {
+        const err = modal.querySelector('#orgUnlockErr');
+        const got = await window.hubAPI.orgGet({ url: c.url, shopId: c.shopId, token: c.token });
+        if (!got.ok || !got.org) { err.textContent = got.error || (t('org.not_in_org') || 'This branch is not in an organisation'); return false; }
+        const un = await window.hubAPI.orgUnlock({ orgKeyset: got.org.keyset, passphrase: modal.querySelector('#orgUnlockPass').value });
+        if (!un.ok) { err.textContent = un.error || 'failed'; return false; }
+        resolve(true);
+        return true;
+      },
+    });
+    // Closing without unlocking resolves false, so the caller stops rather than
+    // opening an overview that would show nothing but errors.
+    const mount = $('#modalMount');
+    mount.querySelectorAll('[data-act="cancel"]').forEach((b) =>
+      b.addEventListener('click', () => resolve(false)));
+  });
+}
+
+async function renderOrgOverview(c) {
+  openFormModal({
+    title: `🏢 ${t('org.overview') || 'Across the branches'}`,
+    noSave: true,
+    bodyHtml: `<p id="orgOvLoading" style="font-size:13px;color:var(--text-muted);">${escapeHtml(t('org.loading') || 'Reading your branches…')}</p>
+      <div id="orgOvBody"></div>`,
+    onMount: async (modal) => {
+      const r = await window.hubAPI.orgOverview({ url: c.url, shopId: c.shopId, token: c.token });
+      const loading = modal.querySelector('#orgOvLoading');
+      const body = modal.querySelector('#orgOvBody');
+      if (loading) loading.remove();
+      if (!r.ok) {
+        body.innerHTML = `<p style="color:var(--danger);font-size:13px;">✗ ${escapeHtml(r.error || 'failed')}</p>`;
+        return;
+      }
+      const n = (v) => escapeHtml(String(v ?? 0));
+      const rows = (r.branches || []).map((b) => {
+        const name = escapeHtml(b.shopId) + (b.isSelf ? ` <span style="color:var(--text-muted);">· ${escapeHtml(t('org.this_branch') || 'this branch')}</span>` : '');
+        if (b.error) {
+          return `<div style="padding:8px 0;border-bottom:1px solid var(--border-soft);">
+            <div style="font-family:monospace;font-size:12.5px;">${name}</div>
+            <div style="font-size:12px;color:var(--danger);">✗ ${escapeHtml(b.error)}</div></div>`;
+        }
+        if (b.empty) {
+          return `<div style="padding:8px 0;border-bottom:1px solid var(--border-soft);">
+            <div style="font-family:monospace;font-size:12.5px;">${name}</div>
+            <div style="font-size:12px;color:var(--text-muted);">${escapeHtml(t('org.never_synced') || 'has not synced anything yet')}</div></div>`;
+        }
+        const su = b.summary || {};
+        // localeTag() is what every other date in the app formats through, so a
+        // branch timestamp reads the same way as a local one — and Arabic keeps
+        // Western digits, which test/date-locale.test.js pins.
+        const when = su.lastActivity
+          ? new Date(su.lastActivity).toLocaleString(localeTag(), { dateStyle: 'medium', timeStyle: 'short' })
+          : '—';
+        return `<div style="padding:8px 0;border-bottom:1px solid var(--border-soft);">
+          <div style="font-family:monospace;font-size:12.5px;">${name}</div>
+          <div style="font-size:12.5px;margin-top:2px;">
+            <strong>${n(su.inFlight)}</strong> ${escapeHtml(t('org.in_flight') || 'in flight')}
+            · <strong>${n(su.printing)}</strong> ${escapeHtml(t('org.printing') || 'printing')}
+            ${su.onHold ? ` · <strong>${n(su.onHold)}</strong> ${escapeHtml(t('org.on_hold') || 'on hold')}` : ''}
+            ${su.quotes ? ` · <strong>${n(su.quotes)}</strong> ${escapeHtml(t('org.quotes') || 'quotes')}` : ''}
+          </div>
+          <div style="font-size:11.5px;color:var(--text-muted);">${escapeHtml(t('org.last_activity') || 'last change')}: ${escapeHtml(when)}</div>
+        </div>`;
+      }).join('');
+
+      const tot = r.total || {};
+      const unreachable = (tot.branches || 0) - (tot.reachable || 0);
+      body.innerHTML = `
+        <div style="padding:8px 10px;background:var(--bg-soft,rgba(127,127,127,.08));border-radius:6px;margin-bottom:8px;font-size:13px;">
+          <strong>${n(tot.inFlight)}</strong> ${escapeHtml(t('org.in_flight') || 'in flight')}
+          · <strong>${n(tot.printing)}</strong> ${escapeHtml(t('org.printing') || 'printing')}
+          ${escapeHtml(((tot.reachable === 1 ? t('org.across_one') : t('org.across_many'))
+              || (tot.reachable === 1 ? 'across one branch' : 'across {n} branches')).replace('{n}', String(tot.reachable || 0)))}
+        </div>
+        ${rows}
+        ${unreachable > 0 ? `<p style="font-size:11.5px;color:var(--warning,#d97706);margin-top:8px;">${escapeHtml((t('org.n_unreadable') || '{n} branch(es) could not be read — the totals above leave them out.').replace('{n}', String(unreachable)))}</p>` : ''}
+        <p style="font-size:11.5px;color:var(--text-muted);margin-top:8px;">${escapeHtml(t('org.from_last_sync') || 'These figures come from each branch’s last sync, not from its screen right now.')}</p>`;
     },
   });
 }
