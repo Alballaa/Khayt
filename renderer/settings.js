@@ -912,6 +912,7 @@ async function openOrgModal() {
     noSave: true,
     bodyHtml: inOrg ? `
       <p style="font-size:13px;margin:0 0 8px;">${escapeHtml(t('org.in_org') || 'This branch is part of an organisation. One organisation passphrase opens every branch in it.')}</p>
+      <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 10px;">${escapeHtml(t('org.no_view_yet') || 'Khayt can unlock your other branches, but does not show their orders or figures yet — that view is still being built.')}</p>
       <label>${escapeHtml(t('org.branches') || 'Branches')}</label>
       <div style="max-height:150px;overflow:auto;border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;">${memberRows}</div>
       <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">

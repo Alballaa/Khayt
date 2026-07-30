@@ -3543,5 +3543,6 @@
   "org.left": "Esta sucursal ya no pertenece a la organización",
   "org.recovery_title": "Guarda la clave de recuperación de la organización",
   "org.recovery_hint": "Abre la organización si se olvida su frase. Hay una sola para toda la organización y se muestra UNA VEZ. Cada sucursal conserva además la suya, que sigue siendo válida.",
+  "org.no_view_yet": "Khayt puede desbloquear tus otras sucursales, pero todavía no muestra sus pedidos ni sus cifras: esa vista aún se está construyendo.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

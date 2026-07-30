@@ -3543,5 +3543,6 @@
   "org.left": "Cet atelier ne fait plus partie de l’organisation",
   "org.recovery_title": "Conservez la clé de récupération de l’organisation",
   "org.recovery_hint": "Elle ouvre l’organisation si sa phrase est oubliée. Il y en a une seule pour toute l’organisation, affichée UNE FOIS. Chaque atelier garde aussi la sienne, toujours valable.",
+  "org.no_view_yet": "Khayt peut déverrouiller vos autres ateliers, mais n’affiche pas encore leurs commandes ni leurs chiffres — cette vue est en cours de construction.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

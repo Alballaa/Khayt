@@ -3546,5 +3546,6 @@
   "org.left": "This branch is no longer in the organisation",
   "org.recovery_title": "Save the organisation recovery key",
   "org.recovery_hint": "This opens the organisation if the organisation passphrase is forgotten. There is one for the whole organisation, and it is shown ONCE. Each branch also keeps its own recovery key, which still works.",
+  "org.no_view_yet": "Khayt can unlock your other branches, but does not show their orders or figures yet — that view is still being built.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
