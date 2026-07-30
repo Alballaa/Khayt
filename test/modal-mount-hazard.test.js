@@ -17,6 +17,19 @@
  *
  * The fix is to defer past the close (`setTimeout(..., 0)`) or to open the modal
  * from a plain click handler instead, which is what the shop signup already does.
+ *
+ * WHAT THIS GUARD CANNOT SEE
+ *
+ * It reads one onSave body at a time, so it only catches a modal opened INSIDE
+ * that body. The same trap fires one level of indirection deeper: an onSave that
+ * resolves a promise, whose CONSUMER opens a modal, still races the close — which
+ * is exactly how the organisation overview came to open and vanish. Following
+ * that statically would mean tracking a promise across functions, which is a type
+ * checker's job, not a regex's.
+ *
+ * So: this catches the common shape, and the uncommon one is still found by
+ * running the app. Written down because a guard that is quietly incomplete is
+ * worse than one that says where it stops.
  */
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
