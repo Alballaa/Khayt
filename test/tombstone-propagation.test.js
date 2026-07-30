@@ -194,3 +194,45 @@ test('a delete still loses to nothing — live records are untouched', () => {
   assert.equal(d.printLog[0].project, 'bracket', 'and was not rewritten');
   assert.deepEqual(d.clients, [], 'other collections untouched');
 });
+
+test('append-only means no EDITS, not no deletes', () => {
+  // A non-obvious interaction, measured rather than assumed. `appendOnly` stops a
+  // peer's stale copy of a log entry overwriting this one's, so the delta loop
+  // refuses updates to those collections. A tombstone is not an update: the app
+  // lets a shop delete a waste-log line or a time entry, and that delete has to
+  // reach the other devices or they disagree forever.
+  //
+  // So deletes DO apply to append-only collections, and new entries still arrive.
+  // Both halves are asserted, because a future reading of "append-only" as
+  // "immutable" would break convergence in one direction and silently.
+  const AO = ['auditLog', 'wasteLog'];
+  const D = device();
+  const d = {
+    auditLog: [{ id: 'a1', what: 'price changed', rev: 1 }],
+    wasteLog: [{ id: 'w1', grams: 40, rev: 1 }],
+    tombstones: [],
+  };
+  D.setScope('s');
+  D.seedIndex(d);
+
+  // An edit is refused...
+  let r = D.applyDeltas(d, all({
+    deltas: [{ collection: 'auditLog', record: { id: 'a1', what: 'TAMPERED', rev: 9 } }],
+  }), { appendOnly: AO });
+  assert.equal(d.auditLog[0].what, 'price changed', 'an append-only entry is not rewritten');
+  assert.equal(r.skipped, 1);
+
+  // ...a new entry is accepted...
+  D.applyDeltas(d, all({
+    deltas: [{ collection: 'auditLog', record: { id: 'a2', what: 'stock adjusted', rev: 1 } }],
+  }), { appendOnly: AO });
+  assert.deepEqual(ids(d, 'auditLog'), ['a1', 'a2'], 'new log entries still propagate');
+
+  // ...and a delete applies, and is remembered like any other.
+  r = D.applyDeltas(d, all({
+    tombstones: [{ id: 'w1', collection: 'wasteLog', rev: 1, deletedAt: '2026-07-02T00:00:00.000Z' }],
+  }), { appendOnly: AO });
+  assert.deepEqual(ids(d, 'wasteLog'), [], 'a deleted waste-log line goes');
+  assert.equal(r.removed, 1);
+  assert.equal(d.tombstones.length, 1, 'and the delete is remembered, so it cannot come back');
+});
