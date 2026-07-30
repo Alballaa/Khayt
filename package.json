@@ -60,7 +60,8 @@
     "test:e2e:quitflush": "node scripts/e2e-quit-flush-smoke.mjs",
     "test:e2e:screens": "node scripts/e2e-populated-screens-smoke.mjs",
     "test:ios-contract": "bash scripts/ios-contract.sh",
-    "test:e2e:a11y": "node scripts/e2e-a11y-keyboard.mjs"
+    "test:e2e:a11y": "node scripts/e2e-a11y-keyboard.mjs",
+    "verify:release": "node scripts/verify-release.mjs"
   },
   "dependencies": {
     "@sentry/electron": "^7.16.0",
