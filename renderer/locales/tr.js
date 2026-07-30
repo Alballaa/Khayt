@@ -3543,5 +3543,6 @@
   "org.left": "Bu şube artık kuruluşa bağlı değil",
   "org.recovery_title": "Kuruluş kurtarma anahtarını saklayın",
   "org.recovery_hint": "Kuruluş parolası unutulursa kuruluşu açar. Tüm kuruluş için tek bir tane vardır ve YALNIZCA BİR KEZ gösterilir. Her şube ayrıca kendi kurtarma anahtarını korur; o da geçerliliğini sürdürür.",
+  "org.no_view_yet": "Khayt diğer şubelerinizin kilidini açabiliyor, ancak siparişlerini ve rakamlarını henüz göstermiyor — o ekran hâlâ yapım aşamasında.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

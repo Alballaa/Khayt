@@ -3543,5 +3543,6 @@
   "org.left": "Diese Filiale gehört nicht mehr zur Organisation",
   "org.recovery_title": "Wiederherstellungsschlüssel der Organisation sichern",
   "org.recovery_hint": "Er öffnet die Organisation, wenn die Organisations-Passphrase vergessen wird. Es gibt genau einen für die gesamte Organisation, und er wird NUR EINMAL angezeigt. Jede Filiale behält zusätzlich ihren eigenen, der weiterhin gilt.",
+  "org.no_view_yet": "Khayt kann Ihre anderen Filialen entsperren, zeigt deren Aufträge und Zahlen aber noch nicht — diese Ansicht entsteht gerade.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

@@ -3543,5 +3543,6 @@
   "org.left": "本门店已不在该组织中",
   "org.recovery_title": "请保存组织恢复密钥",
   "org.recovery_hint": "当忘记组织口令时，用它打开组织。整个组织只有一个，且仅显示一次。每家门店自己的恢复密钥同样继续有效。",
+  "org.no_view_yet": "Khayt 可以解锁你的其他门店，但尚不能显示它们的订单和数据——该界面仍在开发中。",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

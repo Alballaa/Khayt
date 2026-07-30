@@ -11,12 +11,19 @@ code Khayt showed you was being wiped off the screen before you could read it.
 
 ### Added
 
-- **Organisations: one passphrase for every branch.** If you run more than one
-  branch, each has had its own sync passphrase, so opening four branches meant
-  remembering four. An organisation gives you one passphrase that opens them all.
+- **Organisations: set up one passphrase for every branch.** If you run more than
+  one branch, each has had its own sync passphrase, so opening four branches meant
+  remembering four. An organisation gives you one passphrase for all of them.
 
   Settings → Khayt Cloud → Organisation. Create one, then add each branch with a
   code you paste into that branch's copy of Khayt.
+
+  **This release is the setup, not yet the payoff.** You can create an
+  organisation, add branches to it and unlock them all with one passphrase — but
+  there is not yet a screen that shows you another branch's orders or figures. So
+  today this saves you passphrases, and nothing more. A view across your branches
+  is the next piece of work; the entry above originally implied it was already
+  here, which it is not.
 
   **Your branches keep everything they already have.** The organisation
   passphrase is a second way in, not a replacement: each branch's own passphrase

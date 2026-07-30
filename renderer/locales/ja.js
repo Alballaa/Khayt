@@ -3543,5 +3543,6 @@
   "org.left": "この拠点は組織から外れました",
   "org.recovery_title": "組織の復旧キーを保存してください",
   "org.recovery_hint": "組織の合言葉を忘れたときに組織を開くためのものです。組織全体で 1 つだけあり、表示は 1 回限りです。各拠点の復旧キーも引き続き有効です。",
+  "org.no_view_yet": "Khayt は他の拠点を解錠できますが、その受注や数字の表示はまだです。その画面は現在制作中です。",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

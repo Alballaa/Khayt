@@ -3544,5 +3544,6 @@
   "org.left": "Esta unidade não faz mais parte da organização",
   "org.recovery_title": "Guarde a chave de recuperação da organização",
   "org.recovery_hint": "Ela abre a organização se a senha da organização for esquecida. Existe uma só para toda a organização e ela aparece UMA VEZ. Cada unidade também mantém a sua, que continua valendo.",
+  "org.no_view_yet": "O Khayt consegue desbloquear suas outras unidades, mas ainda não mostra os pedidos nem os números delas — essa tela ainda está sendo feita.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
