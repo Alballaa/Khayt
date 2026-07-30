@@ -3196,6 +3196,7 @@
   "team.sending": "Gönderiliyor…",
   "team.removed": "Üye kaldırıldı",
   "team.remove_q": "{email} ekipten kaldırılsın mı?",
+  "team.remove_q_access": "{email} ekipten kaldırılsın mı?\n\nBundan sonra bağlanamaz ve yeni hiçbir şey alamaz. Cihazına daha önce eşitlenmiş veriler cihazında kalır — kaldırmak onları geri dönüp silmez.",
   "team.unverified": "doğrulanmamış",
   "team.owner": "sahip",
   "common.remove": "Kaldır",

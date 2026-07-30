@@ -3196,6 +3196,7 @@
   "team.sending": "Wird gesendet…",
   "team.removed": "Mitglied entfernt",
   "team.remove_q": "{email} aus dem Team entfernen?",
+  "team.remove_q_access": "{email} aus dem Team entfernen?\n\nDiese Person kann sich dann nicht mehr verbinden und nichts Neues mehr empfangen. Daten, die schon auf ihr Gerät synchronisiert wurden, bleiben dort — das Entfernen löscht sie nicht nachträglich.",
   "team.unverified": "unbestätigt",
   "team.owner": "Inhaber",
   "common.remove": "Entfernen",

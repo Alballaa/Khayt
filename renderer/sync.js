@@ -40,13 +40,58 @@
   const DEFAULT_SCOPE = 'default';
   const indexes = new Map();   // scope -> Map("collection:id" -> {fp, rev})
 
+  /**
+   * The scope used when a caller names none — which is every caller in the app.
+   *
+   * The alternative was to thread a shop id through the three call sites
+   * (`_doSave`, load, and the post-merge reseed). Two of them seed the index and
+   * one reads it, so any disagreement between them silently empties the index,
+   * and an empty index makes `stampChanges` treat every record as new: it bumps
+   * every rev, and this device then wins every conflict on the next merge,
+   * discarding whatever another device legitimately changed. Holding the scope in
+   * one place makes the three agree by construction instead of by review.
+   */
+  let currentScope = DEFAULT_SCOPE;
+
   function indexFor(scope) {
-    const key = scope || DEFAULT_SCOPE;
+    const key = scope || currentScope;
     let m = indexes.get(key);
     if (!m) { m = new Map(); indexes.set(key, m); }
     return m;
   }
-  function setIndexFor(scope, m) { indexes.set(scope || DEFAULT_SCOPE, m); }
+  function setIndexFor(scope, m) { indexes.set(scope || currentScope, m); }
+
+  function getScope() { return currentScope; }
+
+  /**
+   * Point the index at a shop. Pass a falsy id for "no shop" (cloud off).
+   *
+   * @returns {{ scope: string, seeded: boolean }} — `seeded:false` means the new
+   *   scope has no fingerprints yet and the caller MUST seed it before the next
+   *   save, for the reason given above. Reported rather than done here because
+   *   this module is deliberately given no way to read the store.
+   */
+  function setScope(scope) {
+    const next = scope || DEFAULT_SCOPE;
+    if (next !== currentScope) {
+      // Learning (or forgetting) what the current store is called is a RENAME,
+      // not a switch to another store: connecting a standalone shop to the cloud
+      // gives it an id, disconnecting takes it away, and the records on disk are
+      // the same records either way. Carrying the fingerprints across keeps the
+      // next save from re-stamping the entire store for a change of label.
+      //
+      // Moving between two real shop ids is a genuine store switch — that is the
+      // cross-shop contamination this scoping exists to stop — so nothing is
+      // carried, and `seeded:false` tells the caller to seed from the new store.
+      const isRename = currentScope === DEFAULT_SCOPE || next === DEFAULT_SCOPE;
+      if (isRename && indexes.has(currentScope) && !indexes.has(next)) {
+        indexes.set(next, indexes.get(currentScope));
+        indexes.delete(currentScope);
+      }
+      currentScope = next;
+    }
+    return { scope: currentScope, seeded: indexes.has(currentScope) };
+  }
 
   let backend = null;          // null => LocalBackend (cloud off)
   let statusVal = 'off';
@@ -181,14 +226,26 @@
       }
     }
 
-    // Bound growth: tombstones are transient delete-markers for sync; once every device has
-    // seen a delete they're dead weight. Keep the most recent set (appended oldest-first) so
-    // the array can't grow without limit and bloat every save/sync blob.
-    const TOMB_CAP = 5000;
-    if (tomb && tomb.length > TOMB_CAP) tomb.splice(0, tomb.length - TOMB_CAP);
+    capTombstones(tomb);
 
     setIndexFor(scope, next);
     return summary;
+  }
+
+  /**
+   * Bound tombstone growth. They are transient delete-markers for sync; once
+   * every device has seen a delete they are dead weight. Keeps the most recent
+   * set (they are appended oldest-first) so the array cannot grow without limit
+   * and bloat every save and every sync blob.
+   *
+   * Applied on both paths that add tombstones — the local delete in stampChanges
+   * and the propagated one in applyDeltas. Leaving applyDeltas to rely on the
+   * next save for trimming would have made the bound a property of the caller
+   * rather than of this module.
+   */
+  const TOMB_CAP = 5000;
+  function capTombstones(tomb) {
+    if (Array.isArray(tomb) && tomb.length > TOMB_CAP) tomb.splice(0, tomb.length - TOMB_CAP);
   }
 
   /** High-water cursor across the snapshot (rev authoritative; updatedAt advisory). */
@@ -305,7 +362,41 @@
     }
 
     for (const t of (payload && payload.tombstones) || []) {
-      if (!t || !t.collection || !t.id || !Array.isArray(snapshot[t.collection])) continue;
+      if (!t || !t.collection || !t.id) continue;
+
+      // Keep the tombstone, not just its effect.
+      //
+      // This loop used to delete the record and move on, so the receiving device
+      // carried out the delete without ever learning that a delete had happened.
+      // A third device still holding the record then pushed it straight back —
+      // accepted, because with no local tombstone the unseen-record branch above
+      // has nothing to refuse it with — while the device that pressed delete does
+      // hold the tombstone and stays deleted. Two devices disagree, permanently,
+      // and neither has any way to notice. Reproduced with three devices before
+      // this existed; see test/tombstone-propagation.test.js.
+      //
+      // The earlier fix made the DELETING device immune. Recording the tombstone
+      // here is what extends that to every device the delete reaches, which is
+      // what makes the local-tombstone defence above worth anything.
+      //
+      // Recorded even when this side has no such record: a device that is simply
+      // behind is the one that most needs to know, and dropping the tombstone was
+      // how it stayed behind.
+      const key = t.collection + ':' + t.id;
+      if (!Array.isArray(snapshot.tombstones)) snapshot.tombstones = [];
+      const known = localTombs.get(key);
+      if (!known) {
+        const copy = { id: t.id, collection: t.collection, rev: revOf(t), deletedAt: t.deletedAt };
+        snapshot.tombstones.push(copy);
+        localTombs.set(key, copy);
+      } else if (revOf(t) > revOf(known)) {
+        // Same id deleted at a higher rev elsewhere. Keep the higher one, so the
+        // delete_over_edit report stays accurate rather than under-reporting.
+        known.rev = revOf(t);
+      }
+      capTombstones(snapshot.tombstones);
+
+      if (!Array.isArray(snapshot[t.collection])) continue;
       const arr = snapshot[t.collection];
       const i = arr.findIndex((r) => r && r.id === t.id);
       if (i === -1) continue;
@@ -433,11 +524,14 @@
     getBackend,
     status,
     LocalBackend,
+    setScope,
+    getScope,
+    DEFAULT_SCOPE,
     // test-only helpers. With no scope they span every shop, which is what a
     // test asking for a clean slate means; pass one to touch a single shop.
     _resetIndex(scope) {
-      if (scope === undefined) indexes.clear();
-      else indexes.delete(scope || DEFAULT_SCOPE);
+      if (scope === undefined) { indexes.clear(); currentScope = DEFAULT_SCOPE; }
+      else indexes.delete(scope || currentScope);
     },
     _indexSize(scope) {
       if (scope === undefined) {

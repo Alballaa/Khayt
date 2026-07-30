@@ -3196,6 +3196,7 @@
   "team.sending": "发送中…",
   "team.removed": "已移除成员",
   "team.remove_q": "将 {email} 从团队中移除？",
+  "team.remove_q_access": "将 {email} 从团队中移除？\n\n此后对方无法连接，也收不到任何新数据。但已经同步到其设备上的数据仍会留在那里——移除不会追溯删除。",
   "team.unverified": "未验证",
   "team.owner": "店主",
   "common.remove": "移除",
