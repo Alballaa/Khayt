@@ -875,6 +875,214 @@ async function openTeamModal() {
   });
 }
 
+/* ── Organisations (multi-shop) ───────────────────────────────────────────────
+ *
+ * A shop chain has one owner and several branches, each with its own encrypted
+ * store. Without this, opening four branches means remembering four passphrases.
+ *
+ * The organisation gets its OWN passphrase and its own recovery key. A branch's
+ * passphrase and recovery key are untouched by joining or leaving — a recovery
+ * key printed and filed years ago still opens that branch afterwards, which is
+ * what makes joining safe to try. See docs/KHAYT-3.0-ORG-DATA-KEY.md.
+ */
+async function openOrgModal() {
+  const c = settings.cloud || {};
+  if (!c.shopId || !c.token) { toast(t('intake.connect_first'), 'error'); return; }
+
+  let org = null;
+  try {
+    const r = await window.hubAPI.orgGet({ url: c.url, shopId: c.shopId, token: c.token });
+    if (!r.ok) throw new Error(r.error);
+    org = r.org;
+  } catch (e) { toast('✗ ' + e.message, 'error'); return; }
+
+  let members = [];
+  if (org) {
+    const m = await window.hubAPI.orgMembers({ url: c.url, shopId: c.shopId, token: c.token });
+    if (m.ok) members = m.members || [];
+  }
+
+  const memberRows = members.map((id) => `<div style="font-size:12.5px;padding:3px 0;font-family:monospace;">
+      ${escapeHtml(id)}${id === c.shopId ? ` <span style="color:var(--text-muted);font-family:inherit;">· ${escapeHtml(t('org.this_branch') || 'this branch')}</span>` : ''}
+    </div>`).join('');
+
+  const inOrg = !!org;
+  openFormModal({
+    title: `🏢 ${t('org.title') || 'Organisation'}`,
+    noSave: true,
+    bodyHtml: inOrg ? `
+      <p style="font-size:13px;margin:0 0 8px;">${escapeHtml(t('org.in_org') || 'This branch is part of an organisation. One organisation passphrase opens every branch in it.')}</p>
+      <label>${escapeHtml(t('org.branches') || 'Branches')}</label>
+      <div style="max-height:150px;overflow:auto;border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;">${memberRows}</div>
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+        <button id="orgInviteBtn" class="btn primary small" type="button">${escapeHtml(t('org.add_branch') || 'Add a branch')}</button>
+        <button id="orgLeaveBtn" class="btn danger small" type="button">${escapeHtml(t('org.leave') || 'Remove this branch')}</button>
+      </div>
+      <p style="font-size:11.5px;color:var(--text-muted);margin-top:8px;">${escapeHtml(t('org.leave_note') || 'Removing this branch only closes the organisation’s way in. This branch’s own passphrase and recovery key keep working exactly as before.')}</p>
+      <span id="orgResult" style="font-size:12px;"></span>`
+    : `
+      <p style="font-size:13px;margin:0 0 8px;">${escapeHtml(t('org.intro') || 'Run several branches? An organisation lets one passphrase open all of them, so you don’t keep a separate one per branch.')}</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+        <button id="orgCreateBtn" class="btn primary small" type="button">${escapeHtml(t('org.create') || 'Create an organisation')}</button>
+        <button id="orgJoinBtn" class="btn small" type="button">${escapeHtml(t('org.join') || 'Join with a code')}</button>
+      </div>
+      <p style="font-size:11.5px;color:var(--text-muted);">${escapeHtml(t('org.own_pass_note') || 'The organisation gets its own passphrase and its own recovery key. This branch keeps the passphrase and recovery key it already has.')}</p>
+      <span id="orgResult" style="font-size:12px;"></span>`,
+    onMount(modal) {
+      const res = modal.querySelector('#orgResult');
+      const say = (msg, colour) => { res.textContent = msg; res.style.color = colour; };
+
+      modal.querySelector('#orgCreateBtn')?.addEventListener('click', () => createOrganisation(c));
+      modal.querySelector('#orgJoinBtn')?.addEventListener('click', () => joinOrganisation(c));
+
+      modal.querySelector('#orgInviteBtn')?.addEventListener('click', async () => {
+        say(t('org.minting') || 'Creating a code…', 'var(--text-muted)');
+        const r = await window.hubAPI.orgInvite({ url: c.url, shopId: c.shopId, token: c.token });
+        if (!r.ok) { say('✗ ' + (r.error || 'failed'), 'var(--danger)'); return; }
+        say('', 'var(--text-muted)');
+        showOrgJoinCodeModal(r.code, r.expiresInSeconds);
+      });
+
+      modal.querySelector('#orgLeaveBtn')?.addEventListener('click', async () => {
+        if (!(await confirmModal(t('org.leave_q')
+          || 'Remove this branch from the organisation?\n\nThe organisation passphrase will no longer open it. This branch’s own passphrase and recovery key are unaffected and keep working.',
+          { danger: true }))) return;
+        const r = await window.hubAPI.orgLeave({ url: c.url, shopId: c.shopId, token: c.token });
+        if (!r.ok) { say('✗ ' + (r.error || 'failed'), 'var(--danger)'); return; }
+        // Drop the org slot from this shop's keyset too, then save it back, so the
+        // local copy matches what the server now believes.
+        const stripped = await window.hubAPI.orgRemoveShop({ keyset: settings.cloud.keyset });
+        if (stripped.ok) {
+          settings.cloud.keyset = stripped.keyset;
+          await window.hubAPI.cloudPutKeyset({ url: c.url, shopId: c.shopId, token: c.token, keyset: stripped.keyset });
+          saveAll();
+        }
+        toast(t('org.left') || 'This branch is no longer in the organisation', 'success');
+        // openFormModal keeps its close() private, and it does more than empty the
+        // mount — it releases the focus trap and pops the Escape stack. Clicking
+        // Close is the only way to get all of that from outside.
+        modal.querySelector('[data-act="cancel"]')?.click();
+      });
+    },
+  });
+}
+
+/** Show a join code once, for pasting into the other branch's Khayt. */
+function showOrgJoinCodeModal(code, expiresInSeconds) {
+  const hours = Math.max(1, Math.round((expiresInSeconds || 86400) / 3600));
+  openFormModal({
+    title: t('org.code_title') || 'Add a branch',
+    saveLabel: t('common.done') || 'Done',
+    bodyHtml: `
+      <p style="font-size:13px;">${escapeHtml((t('org.code_hint') || 'On the other branch’s computer, open Khayt Cloud → Organisation → “Join with a code” and enter this. It works once, and expires in {h} hours.').replace('{h}', String(hours)))}</p>
+      <input type="text" readonly value="${escapeHtml(code)}" style="font-family:monospace;font-size:15px;letter-spacing:1px;" onclick="this.select()">`,
+    onSave: () => {},
+  });
+}
+
+/** Create the organisation: its own passphrase, its own recovery key, and this
+ *  branch enrolled with the passphrase it already has. */
+function createOrganisation(c) {
+  openFormModal({
+    title: t('org.create') || 'Create an organisation',
+    saveLabel: t('org.create_do') || 'Create',
+    bodyHtml: `
+      <label>${escapeHtml(t('org.new_pass') || 'Organisation passphrase')}</label>
+      <input type="password" id="orgPass" placeholder="${escapeHtml(t('org.new_pass_ph') || 'opens every branch — never uploaded')}">
+      <label style="margin-top:8px;">${escapeHtml(t('org.new_pass_confirm') || 'Confirm')}</label>
+      <input type="password" id="orgPass2">
+      <label style="margin-top:8px;">${escapeHtml(t('org.this_pass') || 'This branch’s sync passphrase')}</label>
+      <input type="password" id="orgShopPass" placeholder="${escapeHtml(t('org.this_pass_ph') || 'so this branch can be added to the organisation')}">
+      <p style="font-size:11.5px;color:var(--text-muted);margin:8px 0 0;">${escapeHtml(t('org.create_note') || 'This branch keeps its own passphrase and recovery key. The organisation passphrase is a second way in, not a replacement.')}</p>
+      <p id="orgErr" style="color:var(--danger);font-size:12px;min-height:14px;margin:6px 0 0;"></p>`,
+    onSave: async (modal) => {
+      const pass = modal.querySelector('#orgPass').value;
+      const pass2 = modal.querySelector('#orgPass2').value;
+      const shopPass = modal.querySelector('#orgShopPass').value;
+      const err = modal.querySelector('#orgErr');
+      if (!pass || pass.length < 8) { err.textContent = t('org.pass_short') || 'Use at least 8 characters'; return false; }
+      if (pass !== pass2) { err.textContent = t('org.pass_mismatch') || 'The two passphrases do not match'; return false; }
+      if (!shopPass) { err.textContent = t('org.need_shop_pass') || 'Enter this branch’s sync passphrase'; return false; }
+
+      const ks = await window.hubAPI.orgCreateKeyset(pass);
+      if (!ks.ok) { err.textContent = ks.error || 'failed'; return false; }
+
+      // Enrol this branch BEFORE telling the server the org exists: if the
+      // passphrase is wrong we stop here, with nothing created.
+      const enrol = await window.hubAPI.orgEnrolShop({ keyset: settings.cloud.keyset, passphrase: shopPass });
+      if (!enrol.ok) { err.textContent = t('cloud.wrong_pass') || 'Wrong sync passphrase for this branch'; return false; }
+
+      const put = await window.hubAPI.orgPut({ url: c.url, shopId: c.shopId, token: c.token, orgId: ks.orgKeyset.orgId, keyset: ks.orgKeyset });
+      if (!put.ok) { err.textContent = put.error || 'failed'; return false; }
+
+      settings.cloud.keyset = enrol.keyset;
+      await window.hubAPI.cloudPutKeyset({ url: c.url, shopId: c.shopId, token: c.token, keyset: enrol.keyset });
+      saveAll();
+      renderCloudSettings();
+      // openFormModal shares one #modalMount and its close() empties it, so a
+      // modal opened from inside onSave is destroyed the instant this one closes.
+      // Returning true closes this one — hence the deferral. The organisation
+      // recovery key is shown exactly ONCE and cannot be re-issued, so losing it
+      // to a wiped mount would cost the owner the only spare way into every
+      // branch. Verified by running: without the defer, no modal appeared at all.
+      setTimeout(() => showOrgRecoveryKeyModal(ks.recoveryKey), 0);
+      return true;
+    },
+  });
+}
+
+/** Join an existing organisation with a code from another branch. */
+function joinOrganisation(c) {
+  openFormModal({
+    title: t('org.join') || 'Join with a code',
+    saveLabel: t('org.join_do') || 'Join',
+    bodyHtml: `
+      <label>${escapeHtml(t('org.code') || 'Join code')}</label>
+      <input type="text" id="orgJoinCode" autocomplete="off" style="font-family:monospace;text-transform:uppercase;letter-spacing:1px;">
+      <label style="margin-top:8px;">${escapeHtml(t('org.org_pass') || 'Organisation passphrase')}</label>
+      <input type="password" id="orgJoinPass">
+      <label style="margin-top:8px;">${escapeHtml(t('org.this_pass') || 'This branch’s sync passphrase')}</label>
+      <input type="password" id="orgJoinShopPass" placeholder="${escapeHtml(t('org.this_pass_ph') || 'so this branch can be added to the organisation')}">
+      <p id="orgJoinErr" style="color:var(--danger);font-size:12px;min-height:14px;margin:6px 0 0;"></p>`,
+    onSave: async (modal) => {
+      const code = modal.querySelector('#orgJoinCode').value.trim().toUpperCase();
+      const orgPass = modal.querySelector('#orgJoinPass').value;
+      const shopPass = modal.querySelector('#orgJoinShopPass').value;
+      const err = modal.querySelector('#orgJoinErr');
+      if (!code) { err.textContent = t('org.need_code') || 'Enter the join code'; return false; }
+
+      const joined = await window.hubAPI.orgJoin({ url: c.url, shopId: c.shopId, token: c.token, code });
+      if (!joined.ok) { err.textContent = joined.error || 'failed'; return false; }
+
+      // The code got us the wrapped org keyset; the passphrase is what opens it.
+      const un = await window.hubAPI.orgUnlock({ orgKeyset: joined.keyset, passphrase: orgPass });
+      if (!un.ok) { err.textContent = un.error || 'failed'; return false; }
+
+      const enrol = await window.hubAPI.orgEnrolShop({ keyset: settings.cloud.keyset, passphrase: shopPass });
+      if (!enrol.ok) { err.textContent = t('cloud.wrong_pass') || 'Wrong sync passphrase for this branch'; return false; }
+
+      settings.cloud.keyset = enrol.keyset;
+      await window.hubAPI.cloudPutKeyset({ url: c.url, shopId: c.shopId, token: c.token, keyset: enrol.keyset });
+      saveAll();
+      toast(t('org.joined') || 'This branch joined the organisation', 'success');
+      renderCloudSettings();
+      return true;
+    },
+  });
+}
+
+/** The org recovery key — one for the whole organisation, shown once. */
+function showOrgRecoveryKeyModal(recoveryKey) {
+  openFormModal({
+    title: t('org.recovery_title') || 'Save the organisation recovery key',
+    saveLabel: t('cloud.recovery_saved') || 'I saved it',
+    bodyHtml: `
+      <p style="font-size:13px;">${escapeHtml(t('org.recovery_hint') || 'This opens the organisation if the organisation passphrase is forgotten. There is one for the whole organisation, and it is shown ONCE. Each branch also keeps its own recovery key, which still works.')}</p>
+      <input type="text" readonly value="${escapeHtml(recoveryKey)}" style="font-family:monospace;font-size:13px;" onclick="this.select()">`,
+    onSave: () => {},
+  });
+}
+
 // Storefront modal (owner): publish the product catalog as a public shop page,
 // copy the link, or unpublish. Customer orders arrive in "Order requests".
 async function openStorefrontModal() {
@@ -1360,6 +1568,7 @@ function renderCloudSettings() {
         <button id="btnCloudRequests" class="btn small">🛎 ${escapeHtml(t('intake.requests') || 'Order requests')}</button>
         <button id="btnCloudIntakeLink" class="btn ghost small">${escapeHtml(t('intake.copy_link') || 'Copy request link')}</button>
         ${(settings.cloud?.role || 'owner') === 'owner' ? `<button id="btnCloudTeam" class="btn small">👥 ${escapeHtml(t('team.title') || 'Team')}</button>` : ''}
+        ${(settings.cloud?.role || 'owner') === 'owner' ? `<button id="btnCloudOrg" class="btn small">🏢 ${escapeHtml(t('org.title') || 'Organisation')}</button>` : ''}
         ${(settings.cloud?.role || 'owner') === 'owner' ? `<button id="btnCloudStorefront" class="btn small">🏬 ${escapeHtml(t('store.title') || 'Storefront')}</button>` : ''}
         <button id="btnCloudDisconnect" class="btn danger small">${escapeHtml(t('cloud.disconnect') || 'Sign out')}</button>
         <span id="cloudResult" style="font-size:12px;"></span>
@@ -1552,6 +1761,7 @@ function renderCloudSettings() {
     if (typeof copyIntakeLink === 'function') copyIntakeLink();
   });
   el.querySelector('#btnCloudTeam')?.addEventListener('click', openTeamModal);
+  el.querySelector('#btnCloudOrg')?.addEventListener('click', openOrgModal);
   el.querySelector('#btnCloudStorefront')?.addEventListener('click', openStorefrontModal);
 
   el.querySelector('#btnCloudDisconnect')?.addEventListener('click', async () => {
@@ -3800,7 +4010,13 @@ function openEnableSecurityModal() {
       renderOperatorLockSettings();
       applyOperatorPermissions();
       toast(t('sec.enabled_toast'), 'success');
-      showRecoveryCodeModal(code, t('sec.recovery_title'));
+      // Deferred past the close for the same reason as the organisation recovery
+      // key: openFormModal's close() empties the shared #modalMount, and
+      // appendStackedModal appends INTO that mount — so opening it here and then
+      // returning true wiped it before anyone could read it. Shipped that way;
+      // the operator-lock recovery code is the only way back in if the PIN is
+      // forgotten. Proven by running: present inside onSave, gone 300 ms later.
+      setTimeout(() => showRecoveryCodeModal(code, t('sec.recovery_title')), 0);
       return true;
     },
   });

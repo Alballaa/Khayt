@@ -2859,7 +2859,152 @@ ipcMain.handle('hub:cloud-unlock', (_e, { url, shopId, token, keyset, passphrase
   } catch (e) { cloudBackend = null; return { ok: false, error: 'Wrong passphrase or invalid keyset' }; }
 });
 
-ipcMain.handle('hub:cloud-lock', () => { cloudBackend = null; return { ok: true }; });
+/* ── Organisations (multi-shop) ───────────────────────────────────────────────
+ *
+ * One org key opens every branch, so the owner unlocks once. See
+ * docs/KHAYT-3.0-ORG-DATA-KEY.md.
+ *
+ * The Org Data Key is held for the session, exactly like a shop DEK: never
+ * written to disk, gone when the app closes. Branch backends are built LAZILY —
+ * on the first call that names a branch, not all at once on unlock. A branch
+ * that is unreachable, or whose keyset is missing, then fails only the work that
+ * touched it, instead of failing the unlock and taking every other branch with
+ * it. It also matches how the sync loop already works: one shop at a time.
+ */
+let orgKey = null;                  // Buffer | null — the session's ODK
+let orgId = null;                   // which org it belongs to
+const branchBackends = new Map();   // shopId -> backend (built on first use)
+
+/** Drop every org-derived secret. Called on lock and on leaving an org. */
+function clearOrgSession() {
+  orgKey = null;
+  orgId = null;
+  branchBackends.clear();
+}
+
+/**
+ * A backend for one branch, unlocking it through the ODK on first use.
+ * Throws with the branch named, so a failure says which one.
+ */
+function branchBackend(url, shopId, token, keyset) {
+  if (branchBackends.has(shopId)) return branchBackends.get(shopId);
+  if (!orgKey) throw new Error('locked');
+  const dek = cloudClient.unlockWithOrg(orgKey, orgId, keyset);
+  const backend = cloudClient.backendFor(url, shopId, token, dek);
+  branchBackends.set(shopId, backend);
+  return backend;
+}
+
+ipcMain.handle('hub:org-create-keyset', (_e, passphrase) => {
+  try {
+    const { orgKeyset, orgKey: key, recoveryKey } = cloudClient.createOrgKeyset(String(passphrase || ''));
+    // Hold the key for this session so the caller can enrol branches straight
+    // away without a second scrypt pass; the recovery key is shown once and
+    // never stored.
+    orgKey = key;
+    orgId = orgKeyset.orgId;
+    branchBackends.clear();
+    return { ok: true, orgKeyset, recoveryKey };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:org-unlock', (_e, { orgKeyset, passphrase, recoveryKey } = {}) => {
+  try {
+    orgKey = recoveryKey
+      ? cloudClient.unlockOrgWithRecovery(String(recoveryKey), orgKeyset)
+      : cloudClient.unlockOrgWithPassphrase(String(passphrase || ''), orgKeyset);
+    orgId = orgKeyset && orgKeyset.orgId;
+    branchBackends.clear();
+    return { ok: true, orgId };
+  } catch (e) {
+    clearOrgSession();
+    return { ok: false, error: recoveryKey ? 'Wrong recovery key for this organisation' : 'Wrong organisation passphrase' };
+  }
+});
+
+ipcMain.handle('hub:org-status', () => ({ unlocked: !!orgKey, orgId, branchesOpen: branchBackends.size }));
+ipcMain.handle('hub:org-lock', () => { clearOrgSession(); return { ok: true }; });
+
+/** Add this shop's DEK to the org, so the org key opens it too. */
+ipcMain.handle('hub:org-enrol-shop', (_e, { keyset, passphrase } = {}) => {
+  try {
+    if (!orgKey) return { ok: false, error: 'locked' };
+    const dek = cloudClient.unlockWithPassphrase(String(passphrase || ''), keyset);
+    return { ok: true, keyset: cloudClient.joinOrg(keyset, dek, orgKey, orgId) };
+  } catch (e) { return { ok: false, error: 'Wrong passphrase or invalid keyset' }; }
+});
+
+/** Remove the org's way into this shop. Its own passphrase still opens it. */
+ipcMain.handle('hub:org-remove-shop', (_e, { keyset } = {}) => {
+  try { return { ok: true, keyset: cloudClient.leaveOrg(keyset) }; }
+  catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:org-change-passphrase', (_e, { orgKeyset, currentPassphrase, newPassphrase } = {}) => {
+  try {
+    const rotated = cloudClient.changeOrgPassphrase(orgKeyset, String(currentPassphrase || ''), String(newPassphrase || ''));
+    // The ODK itself does not change, so every branch's wrappedByOrg stays valid
+    // and nothing is re-encrypted — the session key is still the right one.
+    return { ok: true, orgKeyset: rotated };
+  } catch (e) { return { ok: false, error: 'Wrong organisation passphrase' }; }
+});
+
+/** Read one branch's store through the org key. Lazy: this is where a branch is
+ *  first unlocked, and where a failure is reported against that branch alone. */
+ipcMain.handle('hub:org-branch-pull', async (_e, { url, shopId, token, keyset } = {}) => {
+  try {
+    token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
+    const backend = branchBackend(url, shopId, token, keyset);
+    return { ok: true, shopId, ...(await backend.pull()) };
+  } catch (e) { return { ok: false, shopId, error: String(e && e.message || e) }; }
+});
+
+/* Org membership on the server — the wrapped org keyset and which branches are in. */
+ipcMain.handle('hub:org-get', async (_e, { url, shopId, token } = {}) => {
+  try {
+    token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
+    return { ok: true, org: await cloudClient.getOrg(url, shopId, token) };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:org-put', async (_e, { url, shopId, token, orgId: id, keyset } = {}) => {
+  try {
+    token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
+    return { ok: true, ...(await cloudClient.putOrg(url, shopId, token, id, keyset)) };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:org-leave', async (_e, { url, shopId, token } = {}) => {
+  try {
+    token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
+    const r = await cloudClient.leaveOrgRemote(url, shopId, token);
+    clearOrgSession();
+    return { ok: true, ...r };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:org-invite', async (_e, { url, shopId, token } = {}) => {
+  try {
+    token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
+    return { ok: true, ...(await cloudClient.createOrgInvite(url, shopId, token)) };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:org-join', async (_e, { url, shopId, token, code } = {}) => {
+  try {
+    token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
+    return { ok: true, ...(await cloudClient.joinOrgRemote(url, shopId, token, String(code || '').trim())) };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:org-members', async (_e, { url, shopId, token } = {}) => {
+  try {
+    token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
+    return { ok: true, members: await cloudClient.listOrgMembers(url, shopId, token) };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+ipcMain.handle('hub:cloud-lock', () => { cloudBackend = null; clearOrgSession(); return { ok: true }; });
 ipcMain.handle('hub:cloud-status', () => ({ unlocked: !!cloudBackend, status: cloudBackend ? cloudBackend.status() : 'off' }));
 
 ipcMain.handle('hub:cloud-push', async (_e, snapshot) => {
