@@ -4,6 +4,61 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.4.2] - 2026-07-30
+
+A correctness release for shops that sync across **three or more devices**. If
+Khayt Cloud is off, or you run it on one or two machines, nothing here changes
+for you and there is no urgency in updating.
+
+**A deleted order, client or spool could come back.** When one machine deleted a
+record and a second machine received that delete, the second machine removed the
+record but kept no note that it had been deleted. Any third machine that had not
+yet caught up still had the record, and offered it back — and with nothing to
+refuse it with, the second machine took it. The machine that pressed delete kept
+its own note and stayed correct. So two machines ended up disagreeing about what
+existed, quietly, with no way for either to notice.
+
+Deletes are now remembered by every machine they reach, not only by the one that
+made them, so the machines agree again.
+
+**If this already happened to you, this release does not undo it.** A record that
+came back is an ordinary record now, and Khayt cannot tell it apart from one you
+meant to keep — deleting it for you weeks later would be a second silent change on
+top of the first. Khayt already tells you when a record reappeared on the machine
+you deleted it from. It cannot see the other case, where a machine simply held on
+to something it should have dropped, so it is worth a look through anything you
+deleted and did not expect to see again.
+
+### Fixed
+
+- **A delete could be undone by a machine that had not seen it yet.** Applying an
+  incoming delete removed the record without recording that a delete had
+  happened, so the receiving machine had nothing to stop a third machine putting
+  it straight back. Affects Khayt Cloud sync across three or more devices on
+  3.3.0 and every 3.4 release. Two-device shops were never affected — the only
+  machine that could offer the record back was the one that deleted it.
+
+- **A machine that was behind never learned about deletes at all.** A delete for
+  a record that machine had not yet received was discarded outright rather than
+  remembered, which is exactly how it stayed out of step: it would go on offering
+  the record to everyone else.
+
+### Added
+
+- **Organisations (groundwork).** A shop group can hold one key that opens every
+  branch, so an owner unlocks once instead of remembering a passphrase per
+  branch. Each branch keeps its own key, so holding one branch's key still reads
+  only that branch, and a branch's existing recovery key keeps working exactly as
+  before. Not yet reachable from the interface — this release only lays the
+  groundwork.
+
+### Changed
+
+- **Removing a team member now says what that does, and what it does not.** It
+  stops that device connecting or receiving anything further. It does not erase
+  what already reached it, and the dialog no longer leaves you to assume
+  otherwise.
+
 ## [3.4.1] - 2026-07-29
 
 A repair release for one platform. If you are on macOS or Windows, 3.4.0 already
