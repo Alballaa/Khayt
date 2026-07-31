@@ -170,12 +170,18 @@ test('the dead console status bar is gone from the shell markup', () => {
   // Khayt's CSS hid it and no JS ever populated it. Bed Ready had already
   // hidden it for itself — bedready-theme.css even names it "the stray '— —'"
   // — which is how it survived: fixed for one product, left for the other.
-  const html = fs.readFileSync(path.join(root, 'renderer/index.html'), 'utf8');
-  for (const id of ['consoleStatusBar', 'consoleStatusPrinters', 'consoleStatusQueue',
-    'consoleStatusLocation', 'consoleStatusClock']) {
-    assert.equal(html.includes(id), false, `${id} is dead markup and must stay removed`);
+  //
+  // So check BOTH shells. Asserting it only for index.html would leave the exact
+  // asymmetry the comment above describes free to happen again in the other
+  // direction — removed from Khayt, quietly re-added to Bed Ready.
+  for (const shell of ['renderer/index.html', 'renderer/bedready.html']) {
+    const html = fs.readFileSync(path.join(root, shell), 'utf8');
+    for (const id of ['consoleStatusBar', 'consoleStatusPrinters', 'consoleStatusQueue',
+      'consoleStatusLocation', 'consoleStatusClock']) {
+      assert.equal(html.includes(id), false, `${id} is dead markup in ${shell} and must stay removed`);
+    }
+    assert.equal(/class="console-status"/.test(html), false, `.console-status is back in ${shell}`);
   }
-  assert.equal(/class="console-status"/.test(html), false);
 });
 
 test('Meridian will not let a running job be dragged to another printer', () => {

@@ -91,23 +91,60 @@ test('every local require in the main process is inside the packaged build', () 
     'these are required at runtime but excluded from build.files — the packaged app would die on launch');
 });
 
-test('every script the renderer loads is inside the packaged build', () => {
-  // The renderer shell lists its modules by hand. One added outside renderer/ —
-  // or a path that walks up out of it — packages away just as silently.
-  const shell = path.join('renderer', 'index.html');
-  const html = fs.readFileSync(path.join(ROOT, shell), 'utf8');
-  const srcs = [...html.matchAll(/<script[^>]+src="([^"]+)"/g)].map((m) => m[1])
-    .filter((s) => !/^https?:/.test(s));
-  assert.ok(srcs.length >= 20, `only found ${srcs.length} script tags — the extraction broke`);
+/**
+ * BOTH shells, not just Khayt's.
+ *
+ * Bed Ready is a separate flavour of this same codebase, launched with
+ * KHAYT_FLAVOR=bedready, and renderer/bedready.html lists its own ~116 scripts by
+ * hand — 45 of them reaching up into lib/. Checking only index.html left every
+ * one of those unguarded: a module added to the Bed Ready shell alone could ship
+ * missing, break the app on launch for every Bed Ready user, and leave this file
+ * green. That is precisely the failure this test exists to prevent, on half the
+ * product.
+ */
+const RENDERER_SHELLS = ['index.html', 'bedready.html'];
 
+function scriptsIn(shellFile) {
+  const html = fs.readFileSync(path.join(ROOT, 'renderer', shellFile), 'utf8');
+  return [...html.matchAll(/<script[^>]+src="([^"]+)"/g)].map((m) => m[1])
+    .filter((s) => !/^https?:/.test(s));
+}
+
+test('every script the renderer loads is inside the packaged build', () => {
+  // The renderer shells list their modules by hand. One added outside renderer/ —
+  // or a path that walks up out of it — packages away just as silently.
   const bad = [];
-  for (const s of srcs) {
-    const abs = path.join(ROOT, 'renderer', s);
-    const rel = path.relative(ROOT, abs).split(path.sep).join('/');
-    if (!fs.existsSync(abs)) bad.push(`${s} — no such file`);
-    else if (!isPackaged(rel)) bad.push(`${s} — resolves to ${rel}, which build.files excludes`);
+  for (const shell of RENDERER_SHELLS) {
+    const srcs = scriptsIn(shell);
+    // Floor-checked per shell: a regex that silently stops matching would
+    // otherwise turn this whole guard into a no-op that still passes.
+    assert.ok(srcs.length >= 20,
+      `only found ${srcs.length} script tags in ${shell} — the extraction broke`);
+
+    for (const s of srcs) {
+      const abs = path.join(ROOT, 'renderer', s);
+      const rel = path.relative(ROOT, abs).split(path.sep).join('/');
+      if (!fs.existsSync(abs)) bad.push(`${shell}: ${s} — no such file`);
+      else if (!isPackaged(rel)) bad.push(`${shell}: ${s} — resolves to ${rel}, which build.files excludes`);
+    }
   }
   assert.deepEqual(bad, []);
+});
+
+test('the Bed Ready shell is genuinely being read, not silently skipped', () => {
+  // The bug this fixes was an omission, so the test for it has to prove the
+  // shell is actually in scope — a loop over a list is easy to write and easy to
+  // narrow again later without anyone noticing.
+  const bd = scriptsIn('bedready.html');
+  assert.ok(bd.length >= 50, `only ${bd.length} scripts found in bedready.html`);
+  const outside = bd.filter((s) => s.startsWith('../'));
+  assert.ok(outside.length >= 20,
+    `bedready.html should reach outside renderer/ — found ${outside.length}`);
+  // And those reaches must land somewhere the allowlist covers.
+  for (const s of outside) {
+    const rel = path.relative(ROOT, path.join(ROOT, 'renderer', s)).split(path.sep).join('/');
+    assert.ok(isPackaged(rel), `${s} resolves to ${rel}, which build.files excludes`);
+  }
 });
 
 test('the entry point named in package.json is itself packaged', () => {
