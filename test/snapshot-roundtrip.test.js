@@ -213,3 +213,76 @@ test('an order built from a hostile outside body still survives normalization', 
     if (stop) await stop(null, {});
   }
 });
+
+/* ============================================================
+   The same failure one level further down: per-RECORD fields
+   ============================================================ */
+
+test('every field v3.6.0 added survives normalization', () => {
+  // The checks above prove the three COLLECTION lists agree. Nothing proves that
+  // the fields on a record survive — and that is the same bug one level down.
+  // `subscriptions` and `auditLog` were once stripped here and reset on every
+  // restart; a field can go the same way, and more quietly, because the
+  // collection still arrives and only part of each record is missing.
+  //
+  // Everything the estimate→actual chain writes is a NEW field on an EXISTING
+  // collection, so all of it is exposed to exactly that. If any of these is
+  // dropped, the shop keeps its orders and print files but silently loses which
+  // settings worked, what a job really cost, and what a customer was quoted.
+  const store = {
+    version: 3,
+    printLog: [{
+      id: 'O1', date: '2026-07-31', status: 'completed', project: 'Bracket run',
+      actualPrintTime: 3.21, actualWeight: 41.8,
+      actualsSource: { time: 'moonraker', weight: 'moonraker', at: '2026-07-31T00:00:00Z' },
+      parts: [{ id: 'p1', printFileId: 'F1', setupId: 'S1', printTime: 3, printWeight: 40, qty: 1 }],
+    }],
+    printFiles: [{
+      id: 'F1', name: 'Bracket', createdAt: 1,
+      contentHash: 'abc123', geometryKey: '12:8000:20x20x20',
+      setups: [{ id: 'S1', name: 'Draft', ok: 3, failed: 0, layerHeightMm: 0.28 }],
+    }],
+    waitingList: [{
+      id: 'W1', clientName: 'A', project: 'x', status: 'active', estValue: 113.77,
+      modelQuote: { price: 113.77, currency: 'SAR', grams: 43.1, hours: 3.22, exact: true, binding: false },
+    }],
+    settings: {
+      currency: 'SAR',
+      estimator: { densityGPerCm3: 1.27, infillPct: 0.6, shellFactor: 0.35, wastePct: 0.03, throughputMm3PerS: 2.7 },
+      lanApi: { enabled: true, intakeQuote: { enabled: true, presetId: 'P1', spoolCost: 90, marginPct: 40 } },
+    },
+  };
+
+  const { normalized } = V.normalizeStoreSnapshot(store);
+  const order = normalized.printLog?.[0];
+  const file = normalized.printFiles?.[0];
+  const wait = normalized.waitingList?.[0];
+  const set = normalized.settings;
+
+  assert.ok(order, 'the order itself was dropped');
+  // R3 — what the job really cost, and whether a printer or a person said so.
+  assert.equal(order.actualPrintTime, 3.21);
+  assert.equal(order.actualWeight, 41.8);
+  assert.equal(order.actualsSource?.time, 'moonraker',
+    'without provenance a measured figure and a typed one become indistinguishable');
+  // The order→file link, which is what makes any of it answerable per setup.
+  assert.equal(order.parts?.[0]?.printFileId, 'F1');
+  assert.equal(order.parts?.[0]?.setupId, 'S1');
+
+  assert.ok(file, 'the print file itself was dropped');
+  assert.equal(file.contentHash, 'abc123', 'without this a returning customer\'s file is a stranger again');
+  assert.equal(file.geometryKey, '12:8000:20x20x20');
+  assert.equal(file.setups?.[0]?.ok, 3, 'the record of which settings worked');
+
+  assert.ok(wait, 'the request itself was dropped');
+  assert.equal(wait.modelQuote?.price, 113.77, 'what the customer was actually shown');
+  assert.equal(wait.modelQuote?.exact, true, 'and whether that came off a slicer');
+
+  // Settings go through sanitisePlainObject, which walks keys rather than an
+  // allowlist — so these survive today. Pinned because that is a choice, not a
+  // law, and switching it to an allowlist would silently reset a shop's pricing.
+  assert.equal(set?.estimator?.densityGPerCm3, 1.27);
+  assert.equal(set?.estimator?.infillPct, 0.6);
+  assert.equal(set?.lanApi?.intakeQuote?.enabled, true);
+  assert.equal(set?.lanApi?.intakeQuote?.marginPct, 40);
+});
