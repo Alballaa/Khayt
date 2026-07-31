@@ -3657,5 +3657,12 @@
   "setup.notes": "Notes",
   "setup.log_ok": "Noter une impression réussie",
   "setup.log_fail": "Noter un échec",
+  "dup.title": "Tu as déjà ce fichier",
+  "dup.body": "C’est octet pour octet le même que « {name} », ajouté le {when}.",
+  "dup.why": "Celui que tu as déjà porte son historique d’impression et les réglages qui ont marché pour lui. La nouvelle copie n’en porte rien.",
+  "dup.remove": "Supprimer la copie que je viens d’ajouter",
+  "dup.open": "Ouvrir celui que j’ai",
+  "dup.badge": "Même fichier que « {name} »",
+  "dup.similar": "Ressemble à « {name} »",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

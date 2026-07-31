@@ -96,6 +96,9 @@ jobs:
       - name: E2E smoke (settings that worked)
         run: xvfb-run -a npm run test:e2e:setups
 
+      - name: E2E smoke (already have this model)
+        run: xvfb-run -a npm run test:e2e:dedupe
+
       - name: E2E smoke (QC / reprint / RMA)
         run: xvfb-run -a npm run test:e2e:qc
 

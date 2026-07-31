@@ -65,7 +65,8 @@
     "test:e2e:intake": "node scripts/e2e-model-intake-smoke.mjs",
     "test:e2e:intakequote": "node scripts/e2e-intake-quote-smoke.mjs",
     "test:e2e:actuals": "node scripts/e2e-measured-actuals-smoke.mjs",
-    "test:e2e:setups": "node scripts/e2e-print-setups-smoke.mjs"
+    "test:e2e:setups": "node scripts/e2e-print-setups-smoke.mjs",
+    "test:e2e:dedupe": "node scripts/e2e-model-dedupe-smoke.mjs"
   },
   "dependencies": {
     "@sentry/electron": "^7.16.0",

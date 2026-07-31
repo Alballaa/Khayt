@@ -160,6 +160,7 @@
           ${prof ? `<div class="pf-prof">${_bi('nozzle', '🛠')}${escapeHtml(prof.name)}</div>` : ''}
           ${rec.testedNotes ? `<div class="pf-notes">${escapeHtml(rec.testedNotes)}</div>` : ''}
           ${(rec.folder || (Array.isArray(rec.tags) && rec.tags.length)) ? `<div class="pf-tags">${rec.folder ? `<button type="button" class="pf-folder ${_folderFilter && _folderFilter.toLowerCase() === String(rec.folder).toLowerCase() ? 'on' : ''}" data-act="pf-folder" data-folder="${escapeHtml(rec.folder)}" title="${escapeHtml(t('plib.folder') || 'Folder')}">${_bi('folder', '🗂')}${escapeHtml(rec.folder)}</button>` : ''}${(rec.tags || []).map((tg) => `<button type="button" class="pf-tag ${_tagFilter && _tagFilter.toLowerCase() === String(tg).toLowerCase() ? 'on' : ''}" data-act="pf-tag" data-tag="${escapeHtml(tg)}">${escapeHtml(tg)}</button>`).join('')}</div>` : ''}
+          ${duplicateLine(rec)}
           ${recommendedLine(rec)}
           ${(rec.timesPrinted || rec.timesFailed) ? `<div class="pf-history" title="${escapeHtml(t('plib.history_title') || 'Print history')}">${_bi('printer', '🖨')}${(rec.timesPrinted || 0)}× ${escapeHtml(t('plib.printed') || 'printed')}${rec.timesFailed ? ` · ${rec.timesFailed} ${escapeHtml(t('plib.failed') || 'failed')}` : ''}${rec.lastPrinted ? ` · ${escapeHtml(t('plib.last') || 'last')} ${escapeHtml(fmtPfDate(rec.lastPrinted))}` : ''}</div>` : ''}
           ${Array.isArray(rec.converted) && rec.converted.length ? `<div class="pf-converted">${rec.converted.map((c) => `
@@ -304,6 +305,72 @@
   function fmtPfDate(iso) {
     try { return new Date(iso).toLocaleDateString(localeTag(), { month: 'short', day: 'numeric' }); }
     catch (e) { return String(iso || '').slice(0, 10); }
+  }
+
+  /* ---- Do we already have this? (R6) ------------------------------------
+   * A repeat customer sends the same bracket they sent in March. Without this
+   * it becomes a second library entry with none of the first one's history —
+   * and the shop re-slices a part it already has a known-good setup and a
+   * measured cost for.
+   *
+   * Identical bytes is a certainty. Identical geometry is a hint, and is worded
+   * as one: presenting the second as the first would eventually merge two
+   * different customers' parts.
+   * ---------------------------------------------------------------------- */
+  const MI = () => (typeof globalThis !== 'undefined' && globalThis.KhaytModelIdentity) || null;
+
+  function matchesFor(rec) {
+    const mi = MI();
+    if (!mi || !rec) return { exact: [], similar: [] };
+    return mi.findMatches(printFiles || [], rec);
+  }
+
+  function warnIfAlreadyHave(rec) {
+    const { exact } = matchesFor(rec);
+    if (!exact.length) return;
+    const twin = exact[0];
+    openFormModal({
+      title: t('dup.title') || 'You already have this file',
+      saveLabel: t('dup.open') || 'Open the one I have',
+      sizeLg: false,
+      bodyHtml: `
+        <p style="margin:0 0 10px;">${escapeHtml(
+          (t('dup.body') || 'This is byte-for-byte the same file as “{name}”, added {when}.')
+            .replace('{name}', twin.name || twin.originalName || '')
+            .replace('{when}', twin.createdAt ? fmtPfDate(new Date(twin.createdAt).toISOString()) : ''))}</p>
+        <p style="margin:0 0 12px;font-size:13px;color:var(--text-muted);">${escapeHtml(
+          t('dup.why') || 'The one you already have carries its print history and the settings that worked for it. The new copy carries none of that.')}</p>
+        <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;">
+          <input type="checkbox" id="dupRemove" checked style="width:auto;margin:3px 0 0;">
+          <span style="font-weight:400;">${escapeHtml(t('dup.remove') || 'Remove the copy I just added')}</span>
+        </label>`,
+      onSave(modal) {
+        // Removing is the default but never automatic — a shop may genuinely
+        // want two entries for the same bytes (two customers, two jobs).
+        if (modal.querySelector('#dupRemove')?.checked) {
+          const at = (printFiles || []).findIndex((x) => x.id === rec.id);
+          if (at !== -1) printFiles.splice(at, 1);
+          saveAll();
+        }
+        renderPrintFiles();
+        return true;
+      },
+    });
+  }
+
+  /** A line on the card when this file has a twin, or something close to one. */
+  function duplicateLine(rec) {
+    const { exact, similar } = matchesFor(rec);
+    if (exact.length) {
+      return `<div class="pf-dup" style="font-size:11px;color:var(--warn,#b45309);">${escapeHtml(
+        (t('dup.badge') || 'Same file as “{name}”').replace('{name}', exact[0].name || exact[0].originalName || ''))}</div>`;
+    }
+    if (similar.length) {
+      // Deliberately hedged. This is a hint, not a fact.
+      return `<div class="pf-dup" style="font-size:11px;color:var(--text-muted);">${escapeHtml(
+        (t('dup.similar') || 'Looks like “{name}”').replace('{name}', similar[0].name || similar[0].originalName || ''))}</div>`;
+    }
+    return '';
   }
 
   /* ---- Settings that worked (R4) ---------------------------------------
@@ -530,11 +597,16 @@
       parsed: {}, colors: [], swapCount: 0,
       thumb: null, thumbSource: null, userPhoto: null,
       slicerProfileId: null, testedNotes: '', tags: [], folder: '', material: '', favorite: false,
+      // Identity, so a file the shop already has is recognised rather than
+      // becoming a second entry with none of the first one's history.
+      contentHash: picked.contentHash || null, geometryKey: null,
     };
     if (!Array.isArray(printFiles)) printFiles = [];
     printFiles.unshift(rec);
     saveAll();
     renderPrintFiles();
+    // The hash is known now; the geometry key only after parsing.
+    warnIfAlreadyHave(rec);
     enrichPrintFile(rec, picked.fullPath);
     return rec;
   }
@@ -693,6 +765,9 @@
           try {
             const g = KhaytStl.parseStl(base64ToArrayBuffer(b64), { keepTriangles: true });
             rec.parsed = Object.assign({}, rec.parsed, { triangleCount: g.triangleCount, volumeMm3: g.volumeMm3, bbox: g.bbox });
+            // A weaker signal than the hash: the same mesh in a different
+            // container. Never presented as certainty — see lib/model-identity.
+            try { rec.geometryKey = KhaytModelIdentity.geometryKey(rec.parsed); } catch (_) { /* non-fatal */ }
             if (g.triangles && g.triangles.length) {
               const r = KhaytStlThumb.renderStlThumbnail(g.triangles, { size: 300 });
               if (r.ok && r.dataUrl) { rec.thumb = r.dataUrl; rec.thumbSource = 'render'; }
@@ -878,7 +953,11 @@
     });
   }
 
-  const pub = { renderPrintFiles, addPrintFile, openInSlicer, editPrintFile, deletePrintFile, attachConverted, importConvertedAsNew };
+  // warnIfAlreadyHave is public because it is a real library operation — "is
+  // this one we already have?" — that any future ingest path needs, not just
+  // the picker. It is also the one branch here that DELETES a record, so it
+  // is worth being able to drive end to end.
+  const pub = { renderPrintFiles, addPrintFile, openInSlicer, editPrintFile, deletePrintFile, attachConverted, importConvertedAsNew, warnIfAlreadyHave };
   Object.assign(global, pub);
   global.KhaytPrintFiles = pub;
   if (typeof module !== 'undefined' && module.exports) module.exports = pub;

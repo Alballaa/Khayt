@@ -70,6 +70,7 @@ const { createStoreIo } = require('./lib/store-io');
 const { parseGcodeText } = require('./lib/gcode-parse');
 const { intake: intakeModel } = require('./lib/model-intake');
 const { extractActuals } = require('./lib/printer-actuals');
+const { contentHash: modelContentHash } = require('./lib/model-identity');
 const { extract: extractPrintThumb } = require('./lib/thumbnail-extract');
 const bambu = require('./lib/bambu');
 const { bambuFtpUpload } = require('./lib/bambu-ftp');
@@ -1430,13 +1431,15 @@ ipcMain.handle('hub:printlib-pick-and-copy', async (event, id) => {
   const src = result.filePaths[0];
   const originalName = path.basename(src);
   const ext = path.extname(originalName).slice(1).toLowerCase() || 'bin';
+  let contentHash = null;
+  try { contentHash = modelContentHash(await fs.promises.readFile(src)); } catch (_) { contentHash = null; }
   const dir = printLibItemDir(id);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   const filename = `model-${Date.now().toString(36)}.${ext}`;
   const destPath = path.join(dir, filename);
   await fs.promises.copyFile(src, destPath);
   const stat = await fs.promises.stat(destPath);
-  return { filename, originalName, size: stat.size, ext, fullPath: destPath };
+  return { filename, originalName, size: stat.size, ext, fullPath: destPath, contentHash };
 });
 
 // Pick MANY print files at once — returns the chosen source paths (no copy). The renderer then copies
@@ -1464,13 +1467,18 @@ ipcMain.handle('hub:printlib-copy-path', async (_e, { id, srcPath } = {}) => {
     const originalName = path.basename(src);
     const ext = path.extname(originalName).slice(1).toLowerCase();
     if (!/^(stl|3mf|obj|gcode|gco)$/.test(ext)) return { ok: false, error: 'Not a print file (need STL, 3MF, OBJ or G-code).' };
+    // Hash the SOURCE, before the copy. A file the shop already has should be
+    // recognised without first writing a second copy of it into the library.
+    let contentHash = null;
+    try { contentHash = modelContentHash(await fs.promises.readFile(src)); } catch (_) { contentHash = null; }
+
     const dir = printLibItemDir(id);
     fs.mkdirSync(dir, { recursive: true });
     const filename = `model-${Date.now().toString(36)}.${ext}`;
     const destPath = path.join(dir, filename);
     await fs.promises.copyFile(src, destPath);
     const stat = await fs.promises.stat(destPath);
-    return { ok: true, filename, originalName, size: stat.size, ext, fullPath: destPath };
+    return { ok: true, filename, originalName, size: stat.size, ext, fullPath: destPath, contentHash };
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 

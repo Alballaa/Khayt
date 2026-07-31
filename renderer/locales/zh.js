@@ -3657,5 +3657,12 @@
   "setup.notes": "备注",
   "setup.log_ok": "记录一次成功打印",
   "setup.log_fail": "记录一次失败",
+  "dup.title": "这个文件你已经有了",
+  "dup.body": "它与 {when} 添加的“{name}”逐字节相同。",
+  "dup.why": "你已有的那份带着它的打印历史和成功过的设置，新副本什么都没有。",
+  "dup.remove": "删除我刚添加的副本",
+  "dup.open": "打开我已有的那份",
+  "dup.badge": "与“{name}”是同一文件",
+  "dup.similar": "看起来像“{name}”",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

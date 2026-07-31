@@ -3657,5 +3657,12 @@
   "setup.notes": "Notizen",
   "setup.log_ok": "Guten Druck eintragen",
   "setup.log_fail": "Fehlschlag eintragen",
+  "dup.title": "Diese Datei hast du schon",
+  "dup.body": "Sie ist Byte für Byte dieselbe wie „{name}“, hinzugefügt am {when}.",
+  "dup.why": "Die vorhandene trägt ihren Druckverlauf und die Einstellungen, die für sie funktioniert haben. Die neue Kopie trägt nichts davon.",
+  "dup.remove": "Die gerade hinzugefügte Kopie entfernen",
+  "dup.open": "Die vorhandene öffnen",
+  "dup.badge": "Dieselbe Datei wie „{name}“",
+  "dup.similar": "Sieht aus wie „{name}“",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

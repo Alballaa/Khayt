@@ -3657,5 +3657,12 @@
   "setup.notes": "Notas",
   "setup.log_ok": "Registrar impresión correcta",
   "setup.log_fail": "Registrar fallo",
+  "dup.title": "Ya tienes este archivo",
+  "dup.body": "Es byte a byte el mismo que «{name}», añadido el {when}.",
+  "dup.why": "El que ya tienes conserva su historial de impresión y los ajustes que le funcionaron. La copia nueva no conserva nada de eso.",
+  "dup.remove": "Eliminar la copia que acabo de añadir",
+  "dup.open": "Abrir el que ya tengo",
+  "dup.badge": "Mismo archivo que «{name}»",
+  "dup.similar": "Se parece a «{name}»",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
