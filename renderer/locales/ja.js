@@ -3657,5 +3657,12 @@
   "setup.notes": "メモ",
   "setup.log_ok": "成功した印刷を記録",
   "setup.log_fail": "失敗を記録",
+  "dup.title": "このファイルはすでにあります",
+  "dup.body": "{when} に追加された「{name}」とバイト単位で同一です。",
+  "dup.why": "すでにある方には印刷履歴と、うまくいった設定が残っています。新しいコピーには何も残っていません。",
+  "dup.remove": "いま追加したコピーを削除する",
+  "dup.open": "すでにある方を開く",
+  "dup.badge": "「{name}」と同一ファイル",
+  "dup.similar": "「{name}」に似ています",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

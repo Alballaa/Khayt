@@ -3657,5 +3657,12 @@
   "setup.notes": "Notlar",
   "setup.log_ok": "Başarılı baskı kaydet",
   "setup.log_fail": "Başarısızlık kaydet",
+  "dup.title": "Bu dosya zaten sende var",
+  "dup.body": "{when} tarihinde eklenen “{name}” ile bayt bayt aynı.",
+  "dup.why": "Elindeki kopya baskı geçmişini ve onda işe yarayan ayarları taşıyor. Yeni kopya bunların hiçbirini taşımıyor.",
+  "dup.remove": "Az önce eklediğim kopyayı sil",
+  "dup.open": "Elimdekini aç",
+  "dup.badge": "“{name}” ile aynı dosya",
+  "dup.similar": "“{name}” gibi görünüyor",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

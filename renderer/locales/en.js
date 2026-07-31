@@ -3660,5 +3660,12 @@
   "setup.notes": "Notes",
   "setup.log_ok": "Log a good print",
   "setup.log_fail": "Log a failure",
+  "dup.title": "You already have this file",
+  "dup.body": "This is byte-for-byte the same file as “{name}”, added {when}.",
+  "dup.why": "The one you already have carries its print history and the settings that worked for it. The new copy carries none of that.",
+  "dup.remove": "Remove the copy I just added",
+  "dup.open": "Open the one I have",
+  "dup.badge": "Same file as “{name}”",
+  "dup.similar": "Looks like “{name}”",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

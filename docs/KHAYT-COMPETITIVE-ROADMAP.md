@@ -142,10 +142,25 @@ attach a model and see a number.
 
 ### Later — worth doing, not worth rushing
 
-**R6. Model library as a first-class surface.** Extend R2 beyond Bed Ready:
-thumbnails, tags, collections, dedup by content hash, 3D preview. Meshory charges
-$34.99 for exactly this. It is a real product on its own — which is the warning:
-it is also a *different* product, and Khayt's buyer is a shop, not a hoarder.
+**R6. Model library as a first-class surface.** ~~Extend R2 beyond Bed Ready:
+thumbnails, tags, collections, dedup by content hash, 3D preview.~~ Meshory
+charges $34.99 for exactly this. It is a real product on its own — which is the
+warning: it is also a *different* product, and Khayt's buyer is a shop, not a
+hoarder.
+
+*Done, narrowly, and here is what the list turned out to be worth:* four of the
+five already shipped. `renderer/printfiles.js` had thumbnails (embedded and
+rendered), tags with filtering, folders as collections, and a 3D preview. Only
+**dedup by content hash** was missing — and it is the one item on that list that
+serves a shop rather than a hoarder, because it is what connects a repeat
+customer's file to the known-good setup (R4) and the measured cost (R3) already
+recorded against it.
+
+Built: `lib/model-identity.js`, hashing on import in the main process, an
+import-time warning, and a card badge. Two kinds of match, kept apart on
+purpose — identical bytes is a certainty, identical geometry is a hint and is
+worded as one. Not built: the rest of the Meshory surface. That warning above
+was right.
 
 **R7. SDCP resin printers.** Protocol layer built and tested (PR #529); needs
 sockets and hardware. Reaches Elegoo Mars/Saturn. Deliberately small scope.
