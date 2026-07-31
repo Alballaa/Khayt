@@ -26,7 +26,7 @@
     root.className = 'brl-overlay';
     root.style.cssText = 'position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);padding:24px;';
     root.innerHTML =
-      '<div class="brl-modal" role="dialog" aria-modal="true" aria-label="BedReady library" style="width:100%;max-width:560px;max-height:82vh;overflow:auto;border-radius:18px;background:var(--surface,#ffffff);color:var(--text,#14201e);border:1px solid var(--border,rgba(17,40,37,0.10));box-shadow:0 20px 60px rgba(0,0,0,.5);">' +
+      '<div class="brl-modal" role="dialog" aria-modal="true" aria-label="' + esc(t('brl.title')) + '" style="width:100%;max-width:900px;max-height:86vh;overflow:auto;border-radius:18px;background:var(--surface,#ffffff);color:var(--text,#14201e);border:1px solid var(--border,rgba(17,40,37,0.10));box-shadow:0 20px 60px rgba(0,0,0,.5);">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--border,rgba(17,40,37,0.10));">' +
           '<b style="font-size:16px;">☁️ My BedReady library</b>' +
           '<button type="button" class="brl-close" aria-label="Close" style="border:0;background:transparent;color:inherit;font-size:20px;cursor:pointer;line-height:1;">✕</button>' +
@@ -119,45 +119,243 @@
 
   function renderConnecting() {
     setBody(
-      '<p style="margin:0 0 6px;">A browser window is opening at <b>bedready.io/app-link</b>.</p>' +
-      '<p style="margin:0 0 16px;color:var(--text-muted,#869390);font-size:13px;">Sign in there and click <b>Connect</b> — this panel updates automatically once it links.</p>' +
-      btn('Recheck', 'recheck'));
+      '<p style="margin:0 0 6px;">' + t('brl.opening') + '</p>' +
+      '<p style="margin:0 0 16px;color:var(--text-muted,#869390);font-size:13px;">' + t('brl.opening_hint') + '</p>' +
+      btn(t('brl.recheck'), 'recheck'));
   }
 
   function renderNotLinked() {
     setBody(
-      '<p style="margin:0 0 6px;">Connect your BedReady account to pull your <b>saved designs</b> onto this computer.</p>' +
-      '<p style="margin:0 0 18px;color:var(--text-muted,#869390);font-size:13px;">Opens bedready.io in your browser to sign in. Nothing is uploaded — this only downloads your own saves.</p>' +
-      btn('Connect BedReady account', 'connect'));
+      '<p style="margin:0 0 6px;">' + t('brl.connect_lead') + '</p>' +
+      '<p style="margin:0 0 18px;color:var(--text-muted,#869390);font-size:13px;">' + t('brl.connect_hint') + '</p>' +
+      btn(t('brl.connect'), 'connect'));
+  }
+
+  /* ---- browsing ---------------------------------------------------------
+   * The shell (search box, chips, sort) is rendered once; paint() then updates
+   * only the chips and the grid. A full re-render per keystroke would destroy
+   * the <input> the user is typing into and drop the caret.
+   * ---------------------------------------------------------------------- */
+
+  var view = { query: '', types: [], downloadableOnly: false, sort: 'name' };
+
+  /** lib/library-browse.js — loaded as a plain script ahead of this one. */
+  function B() { return (typeof globalThis !== 'undefined' && globalThis.KhaytLibraryBrowse) || null; }
+
+  function visible() { var b = B(); return b ? b.browse(items, view) : items.slice(); }
+
+  function filtering() { return !!(view.query || view.types.length || view.downloadableOnly); }
+
+  function chipStyle(on) {
+    return 'border:1px solid ' + (on ? 'var(--accent,#159d68)' : 'var(--border,rgba(17,40,37,0.10))') + ';' +
+      'background:' + (on ? 'color-mix(in srgb, var(--accent,#159d68) 14%, transparent)' : 'transparent') + ';' +
+      'color:inherit;border-radius:999px;padding:4px 10px;font-size:12px;cursor:pointer;';
+  }
+
+  function chip(label, on, act, arg) {
+    return '<button type="button" class="brl-chip" data-act="' + act + '"' +
+      (arg != null ? ' data-arg="' + esc(arg) + '"' : '') +
+      ' aria-pressed="' + (on ? 'true' : 'false') + '" style="' + chipStyle(on) + '">' + esc(label) + '</button>';
+  }
+
+  /** One design card. `idx` indexes `items`, so an action never depends on titles being unique. */
+  function card(it, idx) {
+    var b = B();
+    var type = (b ? b.typeOf(it) : (it.fileType || '3mf')).toUpperCase();
+    var can = b ? b.isDownloadable(it) : !!it.downloadUrl;
+    var name = b ? b.labelOf(it) : (it.title || it.slug || '');
+    var cover = it.cover
+      ? '<img class="brl-cover" data-cover="' + esc(it.cover) + '" src="' + BLANK + '" alt="" ' +
+        'style="width:100%;aspect-ratio:4/3;object-fit:cover;background:var(--surface-3,#e8efed);display:block;">'
+      : '<div style="width:100%;aspect-ratio:4/3;background:var(--surface-3,#e8efed);"></div>';
+    var act = function (a, label) {
+      return '<button type="button" class="brl-one" data-act="' + a + '" data-idx="' + idx + '" ' +
+        'style="flex:1;border:1px solid var(--border,rgba(17,40,37,0.10));background:transparent;color:inherit;' +
+        'border-radius:8px;padding:5px;font-size:12px;cursor:pointer;">' + esc(label) + '</button>';
+    };
+    return '<div class="brl-card" style="border:1px solid var(--border,rgba(17,40,37,0.10));border-radius:12px;' +
+      'overflow:hidden;display:flex;flex-direction:column;">' + cover +
+      '<div style="padding:8px 10px;display:flex;flex-direction:column;gap:6px;flex:1;">' +
+        '<div title="' + esc(name) + '" style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(name) + '</div>' +
+        '<div style="font-size:11px;color:var(--text-muted,#869390);">' + esc(type) +
+          (can ? '' : ' · ' + esc(t('brl.link_only'))) + '</div>' +
+        (can ? '<div style="display:flex;gap:6px;margin-top:auto;">' +
+                 (canImport() ? act('one-import', t('brl.add')) : '') +
+                 act('one-download', t('brl.download_one')) +
+               '</div>' : '') +
+      '</div></div>';
+  }
+
+  function canImport() {
+    return typeof api.bedreadyImportToLib === 'function' && typeof window.importConvertedAsNew === 'function';
+  }
+
+  /** Update chips and grid in place. Safe to call while the search box has focus. */
+  function paint() {
+    if (!body) return;
+    body.querySelectorAll('.brl-chip').forEach(function (c) {
+      var a = c.getAttribute('data-act');
+      var on = a === 'type' ? view.types.indexOf(c.getAttribute('data-arg')) !== -1
+        : a === 'dl-only' ? view.downloadableOnly : false;
+      c.setAttribute('aria-pressed', on ? 'true' : 'false');
+      c.setAttribute('style', chipStyle(on));
+      if (a === 'clear') c.hidden = !filtering();
+    });
+
+    var grid = body.querySelector('.brl-grid');
+    if (!grid) return;
+    var shown = visible();
+    grid.innerHTML = shown.length
+      ? '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;">' +
+          shown.map(function (it) { return card(it, items.indexOf(it)); }).join('') + '</div>'
+      : '<p style="margin:22px 0;text-align:center;color:var(--text-muted,#869390);font-size:13px;">' +
+          esc(t('brl.no_match')) + '</p>';
+
+    var count = body.querySelector('.brl-count');
+    if (count) {
+      count.textContent = filtering()
+        ? t('brl.showing', { n: shown.length, total: items.length })
+        : t(items.length === 1 ? 'brl.saved_one' : 'brl.saved_other', { n: items.length });
+    }
+    bindCards();
+    loadCovers();
+  }
+
+  function bindCards() {
+    if (!body) return;
+    body.querySelectorAll('.brl-one').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var it = items[Number(b.getAttribute('data-idx'))];
+        if (it) onOne(b.getAttribute('data-act'), it);
+      });
+    });
+  }
+
+  /** Wire the controls once, after the shell is in the DOM. */
+  function bindControls() {
+    if (!body) return;
+    var q = body.querySelector('.brl-q');
+    if (q) {
+      q.addEventListener('input', function () { view.query = q.value; paint(); });
+      // Escape clears the search rather than closing the whole panel — losing the
+      // library because you wanted to undo a search is a bad trade.
+      q.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && q.value) { e.stopPropagation(); q.value = ''; view.query = ''; paint(); }
+      });
+    }
+    var sort = body.querySelector('.brl-sort');
+    if (sort) sort.addEventListener('change', function () { view.sort = sort.value; paint(); });
+
+    body.querySelectorAll('.brl-chip').forEach(function (c) {
+      c.addEventListener('click', function () {
+        var a = c.getAttribute('data-act');
+        if (a === 'type') {
+          var ty = c.getAttribute('data-arg');
+          var at = view.types.indexOf(ty);
+          if (at === -1) view.types.push(ty); else view.types.splice(at, 1);
+        } else if (a === 'dl-only') {
+          view.downloadableOnly = !view.downloadableOnly;
+        } else if (a === 'clear') {
+          view.query = ''; view.types = []; view.downloadableOnly = false;
+          if (q) q.value = '';
+        }
+        paint();
+      });
+    });
   }
 
   function renderLinked() {
-    var list = '';
+    var b = B();
+    var f = b ? b.facets(items) : { total: items.length, types: {}, presentTypes: [], linkOnly: 0, downloadable: 0 };
+    var controls = '';
+
     if (items.length) {
-      list = '<div style="margin:14px 0;display:grid;gap:8px;">' + items.map(function (it) {
-        var cover = it.cover
-          ? '<img class="brl-cover" data-cover="' + esc(it.cover) + '" src="' + BLANK + '" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:8px;flex:0 0 auto;background:var(--surface-3,#e8efed);">'
-          : '<div style="width:44px;height:44px;border-radius:8px;background:var(--surface-3,#e8efed);flex:0 0 auto;"></div>';
-        var meta = it.downloadUrl ? '' : '<span style="font-size:11px;color:var(--text-muted,#869390);"> · link only</span>';
-        return '<div style="display:flex;align-items:center;gap:10px;padding:8px;border:1px solid var(--border,rgba(17,40,37,0.10));border-radius:10px;">' +
-          cover + '<div style="min-width:0;"><div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(it.title || it.slug) + '</div>' +
-          '<div style="font-size:11px;color:var(--text-muted,#869390);">' + esc((it.fileType || '3mf')).toUpperCase() + meta + '</div></div></div>';
-      }).join('') + '</div>';
+      // Chip counts come from the WHOLE library, so a chip does not renumber as
+      // you type into the search box — a control that moves cannot be aimed at.
+      var typeChips = f.presentTypes.map(function (ty) {
+        return chip(ty.toUpperCase() + ' (' + f.types[ty] + ')', false, 'type', ty);
+      }).join(' ');
+
+      controls =
+        '<div style="margin:12px 0 10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
+          // `view` outlives a re-render (Sync rebuilds the shell), so the box has to
+          // be refilled from it — otherwise it comes back empty while the grid stays
+          // filtered, and the missing designs have no visible explanation.
+          '<input type="search" class="brl-q" value="' + esc(view.query) + '" placeholder="' + esc(t('brl.search_ph')) + '" ' +
+            'aria-label="' + esc(t('brl.search_ph')) + '" ' +
+            'style="flex:1;min-width:180px;padding:6px 10px;border:1px solid var(--border,rgba(17,40,37,0.10));' +
+            'border-radius:8px;background:var(--surface-2,transparent);color:inherit;font-size:13px;">' +
+          '<select class="brl-sort" aria-label="' + esc(t('brl.sort')) + '" ' +
+            'style="padding:6px 8px;border:1px solid var(--border,rgba(17,40,37,0.10));border-radius:8px;' +
+            'background:var(--surface-2,transparent);color:inherit;font-size:12px;">' +
+            '<option value="name">' + esc(t('brl.sort_az')) + '</option>' +
+            '<option value="name-desc">' + esc(t('brl.sort_za')) + '</option>' +
+            '<option value="type">' + esc(t('brl.sort_type')) + '</option>' +
+          '</select>' +
+        '</div>' +
+        (f.presentTypes.length > 1 || f.linkOnly
+          ? '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">' + typeChips +
+              (f.linkOnly ? ' ' + chip(t('brl.downloadable'), false, 'dl-only') : '') +
+              ' ' + chip(t('brl.clear'), false, 'clear') +
+            '</div>'
+          : '') +
+        '<div class="brl-grid" style="margin-bottom:12px;"></div>';
     }
-    var downloadable = items.filter(function (i) { return i.downloadUrl; }).length;
-    var canImport = downloadable && typeof api.bedreadyImportToLib === 'function' && typeof window.importConvertedAsNew === 'function';
+
+    var downloadable = f.downloadable;
+    var showImportAll = downloadable && canImport();
     setBody(
       '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">' +
-        '<span style="color:var(--text-muted,#869390);font-size:13px;">' + (items.length ? (items.length + ' saved design' + (items.length === 1 ? '' : 's')) : 'Connected — sync to pull your saves.') + '</span>' +
-        btn('Sync', 'sync') +
-      '</div>' + list +
+        '<span class="brl-count" style="color:var(--text-muted,#869390);font-size:13px;">' +
+          (items.length ? esc(t(items.length === 1 ? 'brl.saved_one' : 'brl.saved_other', { n: items.length })) : esc(t('brl.empty_hint'))) + '</span>' +
+        btn(t('brl.sync'), 'sync') +
+      '</div>' + controls +
       '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">' +
-        (canImport ? btn('＋ Add all to Print Files (' + downloadable + ')', 'import') : '') +
-        (downloadable ? btn('Download to folder', 'download') : '') +
-        btn('Disconnect', 'unlink') +
+        (showImportAll ? btn(t('brl.add_all', { n: downloadable }), 'import') : '') +
+        (downloadable ? btn(t('brl.download_folder'), 'download') : '') +
+        btn(t('brl.disconnect'), 'unlink') +
       '</div>' +
       '<div class="brl-result" role="status" aria-live="polite" style="margin-top:12px;font-size:13px;"></div>');
-    loadCovers();
+
+    bindControls();
+    paint();
+  }
+
+  /**
+   * Download or import a single design.
+   *
+   * Reuses the bulk channels with a one-item array rather than adding new IPC —
+   * hub:bedready-download-all already takes a list, and it is the same SSRF-guarded
+   * path, so a per-item button cannot reach anywhere the bulk button could not.
+   */
+  async function onOne(act, it) {
+    var b = B();
+    var name = b ? b.labelOf(it) : (it.title || it.slug || '');
+    if (act === 'one-download') {
+      result(esc(t('brl.downloading_one', { name: name })));
+      try {
+        var r = await api.bedreadyDownloadAll([it]);
+        if (!r || !r.ok) { result(esc((r && r.error) || t('brl.download_failed')), 'var(--danger,#e0492f)'); return; }
+        if (r.saved && r.saved.length) result(esc(t('brl.downloaded_one', { name: name })), 'var(--ok,#159d68)');
+        else if (r.skipped && r.skipped.length) result(esc(t('brl.skipped_one', { name: name })), '#fbbf24');
+        else result(esc(t('brl.download_failed')), 'var(--danger,#e0492f)');
+      } catch (e) { result(esc(e && e.message ? e.message : t('brl.download_failed')), 'var(--danger,#e0492f)'); }
+      return;
+    }
+    if (act === 'one-import') {
+      if (!canImport()) { result(esc(t('brl.no_import')), 'var(--danger,#e0492f)'); return; }
+      result(esc(t('brl.adding_one', { name: name })));
+      try {
+        var vaultId = (typeof uid === 'function') ? uid('PF') : ('PF' + Date.now().toString(36));
+        var d = await api.bedreadyImportToLib(it, vaultId);
+        if (!d || !d.ok) { result(esc((d && d.error) || t('brl.add_one_failed')), 'var(--danger,#e0492f)'); return; }
+        await window.importConvertedAsNew({
+          vaultId: vaultId, filename: d.filename, ext: d.ext, size: d.size,
+          displayName: name, sourceName: d.filename, noSwitch: true,
+        });
+        result(esc(t('brl.added_one', { name: name })), 'var(--ok,#159d68)');
+      } catch (e) { result(esc(e && e.message ? e.message : t('brl.add_one_failed')), 'var(--danger,#e0492f)'); }
+    }
   }
 
   function result(html, color) {
@@ -166,26 +364,26 @@
   }
 
   async function sync() {
-    result('Syncing…');
+    result(esc(t('brl.syncing')));
     try {
       var r = await api.bedreadyLibrary();
-      if (!r || !r.ok) { result(esc((r && r.error) || 'Sync failed.'), '#f87171'); return; }
+      if (!r || !r.ok) { result(esc((r && r.error) || t('brl.sync_failed')), 'var(--danger,#e0492f)'); return; }
       items = r.items || [];
       renderLinked();
-      result(items.length ? ('Found ' + items.length + ' saved design' + (items.length === 1 ? '' : 's') + '.') : 'No saved designs yet — save some on bedready.io.', 'var(--ok,#159d68)');
-    } catch (e) { result(esc(e && e.message ? e.message : 'Sync failed.'), 'var(--danger,#e0492f)'); }
+      result(esc(items.length ? t(items.length === 1 ? 'brl.found_one' : 'brl.found_other', { n: items.length }) : t('brl.none_yet')), 'var(--ok,#159d68)');
+    } catch (e) { result(esc(e && e.message ? e.message : t('brl.sync_failed')), 'var(--danger,#e0492f)'); }
   }
 
   // Import saved designs straight into the Print-File Library (via a per-design vault download +
   // importConvertedAsNew), so a synced design lands IN the app with a thumbnail instead of orphaned
   // in a Downloads folder. Falls back to "Download to folder" if the bridge isn't available.
   async function importAll() {
-    var list = items.filter(function (i) { return i.downloadUrl; });
-    if (!list.length) { result('Nothing to import.', 'var(--text-muted,#869390)'); return; }
+    var list = visible().filter(function (i) { return i.downloadUrl; });
+    if (!list.length) { result(esc(t('brl.nothing_import')), 'var(--text-muted,#869390)'); return; }
     if (typeof api.bedreadyImportToLib !== 'function' || typeof window.importConvertedAsNew !== 'function') {
-      result('This build can’t import into Print Files — use “Download to folder”.', 'var(--danger,#e0492f)'); return;
+      result(esc(t('brl.no_import')), 'var(--danger,#e0492f)'); return;
     }
-    result('Adding ' + list.length + ' design' + (list.length === 1 ? '' : 's') + ' to your Print Files…');
+    result(esc(t(list.length === 1 ? 'brl.adding_n_one' : 'brl.adding_n_other', { n: list.length })));
     var added = 0, failed = 0;
     for (var i = 0; i < list.length; i++) {
       var it = list[i];
@@ -200,26 +398,28 @@
         added++;
       } catch (e) { failed++; }
     }
-    var msg = 'Added ' + added + ' design' + (added === 1 ? '' : 's') + ' to your Print Files.';
-    if (failed) msg += ' ' + failed + ' couldn’t be added.';
+    var msg = t(added === 1 ? 'brl.added_n_one' : 'brl.added_n_other', { n: added });
+    if (failed) msg += ' ' + t('brl.n_not_added', { n: failed });
     result(esc(msg), added ? 'var(--ok,#159d68)' : 'var(--danger,#e0492f)');
     if (added && typeof switchTab === 'function') { close(); switchTab('printfiles-tab'); }
   }
 
   async function downloadAll() {
-    result('Downloading…');
+    result(esc(t('brl.downloading')));
     try {
-      var r = await api.bedreadyDownloadAll(items);
-      if (!r || !r.ok) { result(esc((r && r.error) || 'Download failed.'), '#f87171'); return; }
-      var msg = 'Saved ' + r.saved.length + ' file' + (r.saved.length === 1 ? '' : 's') + ' to your Downloads/BedReady-Library folder.';
-      if (r.failed && r.failed.length) msg += ' ' + r.failed.length + ' failed.';
-      if (r.skipped && r.skipped.length) msg += ' ' + r.skipped.length + ' skipped.';
+      // The visible set, not the whole library — with a filter on, the button
+      // says "Download to folder" next to a grid of three designs.
+      var r = await api.bedreadyDownloadAll(visible());
+      if (!r || !r.ok) { result(esc((r && r.error) || t('brl.download_failed')), 'var(--danger,#e0492f)'); return; }
+      var msg = t(r.saved.length === 1 ? 'brl.saved_file_one' : 'brl.saved_file_other', { n: r.saved.length });
+      if (r.failed && r.failed.length) msg += ' ' + t('brl.n_failed', { n: r.failed.length });
+      if (r.skipped && r.skipped.length) msg += ' ' + t('brl.n_skipped', { n: r.skipped.length });
       result(esc(msg), r.failed && r.failed.length ? '#fbbf24' : 'var(--ok,#159d68)');
-    } catch (e) { result(esc(e && e.message ? e.message : 'Download failed.'), 'var(--danger,#e0492f)'); }
+    } catch (e) { result(esc(e && e.message ? e.message : t('brl.download_failed')), 'var(--danger,#e0492f)'); }
   }
 
   async function refresh() {
-    setBody('<p style="color:var(--text-muted,#869390);">Checking…</p>');
+    setBody('<p style="color:var(--text-muted,#869390);">' + esc(t('brl.checking')) + '</p>');
     try {
       var r = await api.bedreadyLinked();
       if (r && r.ok && r.linked) renderLinked(); else renderNotLinked();
