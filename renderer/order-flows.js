@@ -295,8 +295,30 @@ function promptActuals(order, onConfirm) {
   const estWeight = order.parts
     ? order.parts.reduce((s, p) => s + (+p.printWeight || 0) * (p.qty || 1), 0)
     : 0;
-  const initTime   = order.actualPrintTime ?? order.printTime;
-  const initWeight = order.actualWeight    ?? Math.round(estWeight);
+  // Ask the printer first. This dialog used to pre-fill BOTH fields from the
+  // estimate, so a shop glancing at it and hitting confirm wrote the estimate
+  // back under a second name — and the variance report then said "spot on" for a
+  // job that ran two hours over. A measurement is offered when there is one, and
+  // each field says which it is.
+  const completion = (typeof machineStatusCache === 'object' && order.machineId)
+    ? machineStatusCache?.[order.machineId]?.lastCompleted
+    : null;
+  const pre = KhaytPrinterActuals.prefillActuals({
+    estimate: { printTime: order.printTime, weightG: estWeight },
+    completion,
+    now: Date.now(),
+  });
+
+  const initTime   = order.actualPrintTime ?? pre.timeH ?? order.printTime;
+  const initWeight = order.actualWeight    ?? (pre.weightG != null ? Math.round(pre.weightG * 10) / 10 : Math.round(estWeight));
+  // Once the shop has entered these by hand, that is their answer — do not
+  // relabel their typing as something the printer measured.
+  const timeIsMeasured   = order.actualPrintTime == null && pre.timeMeasured;
+  const weightIsMeasured = order.actualWeight    == null && pre.weightMeasured;
+
+  const tag = (measured) => measured
+    ? `<span style="color:var(--ok,#159d68);font-weight:600;">${escapeHtml(t('act.measured'))}</span>`
+    : escapeHtml(t('act.est'));
 
   openFormModal({
     title:     t('act.title'),
@@ -304,16 +326,20 @@ function promptActuals(order, onConfirm) {
     sizeLg:    false,
     bodyHtml: `
       <p style="font-size:13px;color:var(--text-dim);margin-bottom:14px;">${escapeHtml(t('act.hint'))}</p>
+      ${(timeIsMeasured || weightIsMeasured)
+        ? `<p style="font-size:12px;margin:-6px 0 14px;padding:8px 10px;border-radius:var(--radius);background:var(--bg-elev);">${escapeHtml(
+            t('act.from_printer', { source: pre.source || t('act.your_printer') }))}</p>`
+        : ''}
       <div class="inline-pair">
         <div>
           <label>${escapeHtml(t('act.print_time'))} (${escapeHtml(t('common.hours'))})</label>
           <input type="number" id="actTime" value="${initTime}" min="0" step="0.1">
-          <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${escapeHtml(t('act.est'))}: ${order.printTime} ${escapeHtml(t('common.hours'))}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${tag(timeIsMeasured)} · ${escapeHtml(t('act.est'))}: ${order.printTime} ${escapeHtml(t('common.hours'))}</div>
         </div>
         <div>
           <label>${escapeHtml(t('act.weight'))} (${escapeHtml(t('common.grams'))})</label>
           <input type="number" id="actWeight" value="${initWeight}" min="0" step="1">
-          <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${escapeHtml(t('act.est'))}: ${estWeight.toFixed(0)} ${escapeHtml(t('common.grams'))}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${tag(weightIsMeasured)} · ${escapeHtml(t('act.est'))}: ${estWeight.toFixed(0)} ${escapeHtml(t('common.grams'))}</div>
         </div>
       </div>`,
     onSave(modal) {
@@ -321,6 +347,15 @@ function promptActuals(order, onConfirm) {
       const wv = num(modal.querySelector('#actWeight').value, 0);
       order.actualPrintTime = +tv.toFixed(2);
       order.actualWeight    = +wv.toFixed(1);
+      // Remember whether these came off a printer or off a keyboard. Without it
+      // a margin report cannot tell a measurement from a shop's best guess, and
+      // that difference is the entire point of collecting them.
+      const unchanged = (a, b) => Math.abs(a - b) < 0.005;
+      order.actualsSource = {
+        time:   timeIsMeasured   && unchanged(order.actualPrintTime, initTime)   ? (pre.source || 'printer') : 'manual',
+        weight: weightIsMeasured && unchanged(order.actualWeight, initWeight)    ? (pre.source || 'printer') : 'manual',
+        at: new Date().toISOString(),
+      };
       onConfirm();
       return true;
     }
