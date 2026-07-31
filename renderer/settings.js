@@ -2299,6 +2299,87 @@ function renderFixedCostSettings() {
 
 /* Carrier tracking URLs — renderer/integrations.js (getCarrierTrackingUrl) */
 
+/**
+ * The five numbers lib/stl-estimate.js needs. They used to be constants; a shop
+ * printing PETG at 40% infill had its quotes built on PLA at 20%.
+ *
+ * Throughput is shown but rarely typed: Khayt derives it from the shop's own
+ * measured jobs when it has enough of them, and says so.
+ */
+function renderEstimatorSettings() {
+  const el = $('#estimatorSettings');
+  if (!el || typeof KhaytStl === 'undefined' || !KhaytStl.fromSettings) return;
+  const cur = KhaytStl.fromSettings(settings);
+  const CAL = (typeof KhaytEstimateCalibration !== 'undefined') ? KhaytEstimateCalibration : null;
+  const OL = (typeof KhaytOrderFileLink !== 'undefined') ? KhaytOrderFileLink : null;
+  const cal = (CAL && OL)
+    ? CAL.calibrate(typeof printLog !== 'undefined' ? printLog : [], { allocate: OL.allocateActuals }, {})
+    : null;
+
+  el.innerHTML = `
+    <div class="inline-pair">
+      <div>
+        <label data-i18n="est.density">Filament density (g/cm³)</label>
+        <input type="number" id="est_density" step="0.01" min="0.1" max="25" value="${cur.densityGPerCm3}">
+      </div>
+      <div>
+        <label data-i18n="est.infill">Default infill %</label>
+        <input type="number" id="est_infill" step="1" min="0" max="100" value="${Math.round(cur.infillPct * 100)}">
+      </div>
+    </div>
+    <div class="inline-pair" style="margin-top:8px;">
+      <div>
+        <label data-i18n="est.shell">Walls and surfaces %</label>
+        <input type="number" id="est_shell" step="1" min="0" max="100" value="${Math.round(cur.shellFactor * 100)}">
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;" data-i18n="est.shell_hint">Roughly how much of a solid part is walls, top and bottom rather than infill.</div>
+      </div>
+      <div>
+        <label data-i18n="est.waste">Waste %</label>
+        <input type="number" id="est_waste" step="1" min="0" max="50" value="${Math.round(cur.wastePct * 100)}">
+      </div>
+    </div>
+    <div style="margin-top:10px;">
+      <label data-i18n="est.rate">How fast your printers actually run (g/hour)</label>
+      <input type="number" id="est_rate" step="0.1" min="0.1" value="${Math.round(cur.densityGPerCm3 * cur.throughputMm3PerS * 3.6 * 10) / 10}"${cal ? ' disabled' : ''}>
+      <div style="font-size:11px;margin-top:4px;color:${cal ? 'var(--ok,#159d68)' : 'var(--text-muted)'};">${escapeHtml(cal
+        ? t('est.rate_measured', { rate: cal.gramsPerHour, n: cal.jobs })
+        : t('est.rate_guess'))}</div>
+    </div>`;
+
+  // Saved as they are edited — this panel has no save button, and a shop that
+  // types a density and navigates away should not lose it.
+  el.querySelectorAll('input').forEach((f) => f.addEventListener('change', () => {
+    saveEstimatorSettingsFromForm();
+    saveAll();
+    renderEstimatorSettings();
+  }));
+}
+
+function saveEstimatorSettingsFromForm() {
+  const el = $('#estimatorSettings');
+  if (!el) return;
+  const pct = (sel, fallback) => {
+    const v = parseFloat(el.querySelector(sel)?.value);
+    return Number.isFinite(v) ? Math.max(0, Math.min(100, v)) / 100 : fallback;
+  };
+  const prev = settings.estimator || {};
+  const density = parseFloat(el.querySelector('#est_density')?.value);
+  const rate = parseFloat(el.querySelector('#est_rate')?.value);
+  settings.estimator = {
+    ...prev,
+    densityGPerCm3: Number.isFinite(density) && density > 0 ? density : undefined,
+    infillPct: pct('#est_infill', prev.infillPct),
+    shellFactor: pct('#est_shell', prev.shellFactor),
+    wastePct: Math.min(0.5, pct('#est_waste', prev.wastePct ?? 0.03)),
+    // Stored as a throughput because that is what the estimator takes; shown as
+    // grams per hour because that is the only form a shop can sanity-check.
+    throughputMm3PerS: (Number.isFinite(rate) && rate > 0 && Number.isFinite(density) && density > 0)
+      ? rate / density / 3.6
+      : prev.throughputMm3PerS,
+  };
+  Object.keys(settings.estimator).forEach((k) => settings.estimator[k] === undefined && delete settings.estimator[k]);
+}
+
 function renderLanApiSettings() {
   const el = $('#lanApiSection');
   if (!el) return;
@@ -3459,6 +3540,7 @@ function loadSettingsIntoForm() {
   renderOnlineSettings?.();
   // Round 12: LAN API
   renderLanApiSettings();
+  renderEstimatorSettings();
   // ZATCA Phase 2
   renderZatcaPhase2Settings();
   renderBnplSettings();
@@ -4404,6 +4486,8 @@ function renderTelegramSettings() {
     renderEventWebhookSettings,
     renderFixedCostSettings,
     renderLanApiSettings,
+    renderEstimatorSettings,
+    saveEstimatorSettingsFromForm,
     renderZatcaPhase2Settings,
     renderExchangeRatesSettings,
     renderBnplSettings,

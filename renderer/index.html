@@ -1503,6 +1503,12 @@
         <h2 class="settings-panel-title" data-i18n="set.prefs_section">Preferences</h2>
 
         <div class="card settings-card">
+          <div class="settings-section-head" data-i18n="est.head">Estimating from a model</div>
+          <p style="font-size:13px;color:var(--text-muted);margin:0 0 10px;" data-i18n="est.sub">Used when a file has never been sliced, so the weight and time have to be worked out from its shape.</p>
+          <div id="estimatorSettings"></div>
+        </div>
+
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.experience">Experience</div>
         <p style="font-size:13px; color:var(--text-muted); margin:0 0 8px;" data-i18n="set.mode_subtitle">Choose the level of features that matches your workflow.</p>
         <div class="mode-toggle-pills">
@@ -2453,6 +2459,7 @@
 <script src="../lib/print-setups.js"></script>
 <script src="../lib/model-identity.js"></script>
 <script src="../lib/order-file-link.js"></script>
+<script src="../lib/estimate-calibration.js"></script>
 <script src="../lib/stl-thumbnail.js"></script>
 <script src="../lib/reorder.js"></script>
 <script src="../lib/payment-plan.js"></script>

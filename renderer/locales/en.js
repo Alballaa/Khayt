@@ -3672,5 +3672,15 @@
   "link.no_setup": "— Which settings? —",
   "link.past": "Across {n} single-part jobs with these settings, your estimate ran {hours}% on time and {grams}% on filament.",
   "link.past_thin": "Printed {n} time(s) before, but every job shared an order with other parts — so there is no clean comparison yet.",
+  "est.head": "Estimating from a model",
+  "est.sub": "Used when a file has never been sliced, so the weight and time have to be worked out from its shape.",
+  "est.density": "Filament density (g/cm³)",
+  "est.infill": "Default infill %",
+  "est.shell": "Walls and surfaces %",
+  "est.shell_hint": "Roughly how much of a solid part is walls, top and bottom rather than infill.",
+  "est.waste": "Waste %",
+  "est.rate": "How fast your printers actually run (g/hour)",
+  "est.rate_measured": "Measured: {rate} g/hour, from {n} of your own completed jobs.",
+  "est.rate_guess": "No measured jobs yet, so this is an assumption. It will be worked out from your own prints once a few have finished.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

@@ -3670,5 +3670,15 @@
   "link.no_setup": "— Com quais ajustes? —",
   "link.past": "Em {n} trabalhos de peça única com esses ajustes, sua estimativa ficou {hours}% no tempo e {grams}% no filamento.",
   "link.past_thin": "Impresso {n} vez(es) antes, mas todo trabalho dividiu o pedido com outras peças — ainda não há comparação limpa.",
+  "est.head": "Estimar a partir de um modelo",
+  "est.sub": "Usado quando um arquivo nunca foi fatiado e o peso e o tempo precisam sair da forma dele.",
+  "est.density": "Densidade do filamento (g/cm³)",
+  "est.infill": "Preenchimento padrão %",
+  "est.shell": "Paredes e superfícies %",
+  "est.shell_hint": "Aproximadamente quanto de uma peça maciça é parede, topo e base em vez de preenchimento.",
+  "est.waste": "Desperdício %",
+  "est.rate": "A velocidade real das suas impressoras (g/hora)",
+  "est.rate_measured": "Medido: {rate} g/hora, a partir de {n} dos seus trabalhos concluídos.",
+  "est.rate_guess": "Ainda não há trabalhos medidos, então isto é uma suposição. Será deduzido das suas próprias impressões assim que algumas terminarem.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
