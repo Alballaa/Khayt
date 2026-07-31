@@ -4,9 +4,10 @@
 
 The hold that stood over the 3.1 line **ended when v3.2.0 shipped stable on
 2026-07-22**, closing the `3.2.0-beta.x` line at beta.61. `CHANGELOG.md` records
-that release as "the 3.2.0 beta line, released as stable", and v3.2.0 is the
-current `releases/latest` pointer — so this was the deliberate stable release
-the hold was waiting for, not a breach of it.
+that release as "the 3.2.0 beta line, released as stable" — the deliberate
+stable release the hold was waiting for, not a breach of it. Several stable
+lines have shipped since; the current `releases/latest` pointer is in the table
+below, not v3.2.0.
 
 Nothing currently blocks a stable tag. To impose a new hold, replace this
 section with the channel it covers, the reason, and the condition for lifting.
@@ -14,9 +15,9 @@ section with the channel it covers, the reason, and the condition for lifting.
 | Channel | Last published | Notes |
 |---------|----------------|-------|
 | **Stable** | **v3.5.2** (2026-07-30) | [Latest release](https://github.com/khaytapp/Khayt/releases/latest) — two customer-facing currency labels that could name SAR for a shop pricing in something else. The 3.5.1 note still applies: the cross-branch view needs the org branch-read routes in khayt-cloud (b3556a5), which ARE deployed — confirm with `curl -s -o /dev/null -w '%{http_code}' https://cloud.khaytapp.com/v1/shops/probe/org/keysets` (401 = present, 404 = not) |
-| **Beta** | **v3.4.0-beta.5** (2026-07-28) | The 3.4 line, promoted to stable as v3.4.0 on 2026-07-29 — nine languages, five new designs, and the UTC-calendar sweep. Earlier: 3.3 line — the reporting-accuracy sweep. With the **3.5** line stable, the next beta opens `3.6.0-beta.1` — never `3.5.x-beta.1`, which would sort BELOW a shipped 3.5.x; see [BETA-RELEASE.md](./BETA-RELEASE.md) |
+| **Beta** | **v3.6.0-beta.1** (2026-07-31) | The `3.6.0-beta.x` line, open and soaking. Khayt learns what prints actually cost: a model becomes a quote, the printer reports the real filament and duration on completion, the settings that worked are remembered against the file, and the estimator calibrates itself from finished jobs. Beta rather than stable because it changes **what customers are quoted** and how every geometry-based time estimate is computed. Also fixes two things that never worked — 3MF files never gave up their slicer figures, and Bambu/Orca print times were silently dropped. Opened at `3.6.0-beta.1`, never `3.5.x-beta.1`, which would sort BELOW the shipped v3.5.2; see [BETA-RELEASE.md](./BETA-RELEASE.md). Earlier: v3.4.0-beta.5, promoted to stable as v3.4.0 |
 
-Last verified 2026-07-30 against published tags. These rot fast — confirm with
+Last verified 2026-07-31 against published tags. These rot fast — confirm with
 `gh release list --repo KhaytApp/Khayt` rather than trusting the table.
 
 ## While a hold is active
@@ -32,4 +33,7 @@ tag until a deliberate stable release.
 2. Move `[Unreleased]` in `CHANGELOG.md` into `## [X.Y.Z]`
 3. `npm run version:minor` (or `version:patch`)
 4. Commit, and tag `vX.Y.Z` on `main` — no prerelease suffix
-5. Push the tag only then; that is what triggers the release build
+5. Push the tag only then; that is what triggers the release build. Push it to
+   the remote pointing at **KhaytApp/Khayt** (`git remote -v` — `origin` in a
+   direct clone, usually `upstream` from a fork). A tag pushed to a fork builds
+   nothing and fails silently, because there is no workflow there to fail.
