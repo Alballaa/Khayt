@@ -3631,5 +3631,8 @@
   "lan.iq_waste": "ロス率 %",
   "lan.iq_limit": "訪問者あたりの 1 時間の見積もり回数",
   "lan.iq_note": "スライスされていないモデルは形状だけから見積もるため、中空の多い部品やサポートの多い部品では大きくずれることがあります。どちらの数値を見ているかは、お客様に必ず表示されます。",
+  "act.measured": "実測",
+  "act.from_printer": "これらの数値は {source} から取得したもので、見積もりではなく実際に消費した量です。",
+  "act.your_printer": "お使いのプリンター",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

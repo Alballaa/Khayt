@@ -3631,5 +3631,8 @@
   "lan.iq_waste": "Desperdicio %",
   "lan.iq_limit": "Estimaciones por visitante y hora",
   "lan.iq_note": "Un modelo que nadie ha laminado se tasa solo por su forma, y puede desviarse mucho en una pieza poco rellena o con muchos soportes. Al cliente siempre se le muestra cuál de las dos está viendo.",
+  "act.measured": "Medido",
+  "act.from_printer": "Estas cifras vienen de {source}: lo que el trabajo consumió realmente, no la estimación.",
+  "act.your_printer": "tu impresora",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

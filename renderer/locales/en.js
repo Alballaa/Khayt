@@ -3634,5 +3634,8 @@
   "lan.iq_waste": "Waste %",
   "lan.iq_limit": "Estimates per visitor, per hour",
   "lan.iq_note": "A model nobody has sliced is priced from its shape alone, which can be well out on a sparse or heavily supported part. The customer is always shown which of the two they are looking at.",
+  "act.measured": "Measured",
+  "act.from_printer": "These figures came from {source} — what the job actually used, not the estimate.",
+  "act.your_printer": "your printer",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

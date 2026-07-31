@@ -69,6 +69,7 @@ const { normalizeStoreSnapshot, STORE_VERSION } = require('./lib/store-validate'
 const { createStoreIo } = require('./lib/store-io');
 const { parseGcodeText } = require('./lib/gcode-parse');
 const { intake: intakeModel } = require('./lib/model-intake');
+const { extractActuals } = require('./lib/printer-actuals');
 const { extract: extractPrintThumb } = require('./lib/thumbnail-extract');
 const bambu = require('./lib/bambu');
 const { bambuFtpUpload } = require('./lib/bambu-ftp');
@@ -2281,6 +2282,19 @@ async function sendPrinterCommand(machine, command) {
 ipcMain.handle('hub:printer-command', async (_e, { machine, command } = {}) =>
   sendPrinterCommand(machine, command));
 
+/**
+ * The filament stock a machine runs, for turning extruded millimetres into
+ * grams. Falls back to lib/printer-actuals' documented defaults when the machine
+ * has not been told.
+ */
+function stockOptsFor(machine) {
+  const api = (machine && machine.printerApi) || {};
+  return {
+    diameterMm: api.filamentDiameterMm,
+    densityGPerCm3: api.filamentDensityGPerCm3,
+  };
+}
+
 async function fetchPrinterStatus(machine) {
   const { type, host, port, apiKey, accessCode, printerSlug, serial } = machine.printerApi || {};
   // Strip any characters that aren't valid in a hostname/IP (prevents URL injection via @, /, etc.)
@@ -2332,6 +2346,9 @@ async function fetchPrinterStatus(machine) {
       timeRemaining: job.progress?.printTimeLeft || null,
       tempNozzle: printer.temperature?.tool0?.actual || null,
       tempBed: printer.temperature?.bed?.actual || null,
+      // What the job has ACTUALLY used so far. Already in this payload; Khayt
+      // fetched it and threw it away until now.
+      actuals: extractActuals('octoprint', job, stockOptsFor(machine)),
       type: 'octoprint'
     };
   }
@@ -2346,6 +2363,7 @@ async function fetchPrinterStatus(machine) {
       timeRemaining: ps.total_duration ? Math.round((ps.total_duration / (vs.progress||1)) * (1-(vs.progress||0))) : null,
       tempNozzle: data.result?.status?.extruder?.temperature || null,
       tempBed: data.result?.status?.heater_bed?.temperature || null,
+      actuals: extractActuals('moonraker', data, stockOptsFor(machine)),
       type: 'moonraker'
     };
   }
@@ -2359,6 +2377,7 @@ async function fetchPrinterStatus(machine) {
       timeRemaining: job.time_remaining || null,
       tempNozzle: data.printer?.temp_nozzle || null,
       tempBed: data.printer?.temp_bed || null,
+      actuals: extractActuals('prusalink', data, stockOptsFor(machine)),
       type: 'prusalink'
     };
   }
@@ -2374,6 +2393,7 @@ async function fetchPrinterStatus(machine) {
         timeRemaining: job.timesLeft?.file || null,
         tempNozzle: data.result?.heat?.heaters?.[1]?.current || null,
         tempBed: data.result?.heat?.heaters?.[0]?.current || null,
+        actuals: extractActuals('duet', data, stockOptsFor(machine)),
         type: 'duet'
       };
     } catch(e) {

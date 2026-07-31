@@ -3631,5 +3631,8 @@
   "lan.iq_waste": "Verschnitt %",
   "lan.iq_limit": "Schätzungen pro Besucher und Stunde",
   "lan.iq_note": "Ein Modell, das niemand gesliced hat, wird allein aus seiner Form bepreist — bei einem dünn gefüllten oder stark gestützten Teil kann das deutlich danebenliegen. Dem Kunden wird immer angezeigt, welches von beiden er sieht.",
+  "act.measured": "Gemessen",
+  "act.from_printer": "Diese Werte stammen von {source} — was der Auftrag tatsächlich verbraucht hat, nicht die Schätzung.",
+  "act.your_printer": "deinem Drucker",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

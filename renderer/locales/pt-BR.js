@@ -3632,5 +3632,8 @@
   "lan.iq_waste": "Desperdício %",
   "lan.iq_limit": "Estimativas por visitante, por hora",
   "lan.iq_note": "Um modelo que ninguém fatiou é precificado apenas pela forma, o que pode ficar bem longe em uma peça pouco preenchida ou com muitos suportes. O cliente sempre vê qual dos dois está olhando.",
+  "act.measured": "Medido",
+  "act.from_printer": "Estes números vêm de {source} — o que o trabalho realmente consumiu, não a estimativa.",
+  "act.your_printer": "sua impressora",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

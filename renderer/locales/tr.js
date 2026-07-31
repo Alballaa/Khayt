@@ -3631,5 +3631,8 @@
   "lan.iq_waste": "Fire %",
   "lan.iq_limit": "Ziyaretçi başına saatlik tahmin sayısı",
   "lan.iq_note": "Hiç dilimlenmemiş bir model yalnızca biçiminden fiyatlandırılır; seyrek dolgulu ya da bol destekli bir parçada bu epey şaşabilir. Müşteriye hangisine baktığı her zaman gösterilir.",
+  "act.measured": "Ölçüldü",
+  "act.from_printer": "Bu rakamlar {source} kaynaklıdır — işin gerçekte harcadığı miktar, tahmin değil.",
+  "act.your_printer": "yazıcın",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
