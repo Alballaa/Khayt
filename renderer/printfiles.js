@@ -160,6 +160,7 @@
           ${prof ? `<div class="pf-prof">${_bi('nozzle', '🛠')}${escapeHtml(prof.name)}</div>` : ''}
           ${rec.testedNotes ? `<div class="pf-notes">${escapeHtml(rec.testedNotes)}</div>` : ''}
           ${(rec.folder || (Array.isArray(rec.tags) && rec.tags.length)) ? `<div class="pf-tags">${rec.folder ? `<button type="button" class="pf-folder ${_folderFilter && _folderFilter.toLowerCase() === String(rec.folder).toLowerCase() ? 'on' : ''}" data-act="pf-folder" data-folder="${escapeHtml(rec.folder)}" title="${escapeHtml(t('plib.folder') || 'Folder')}">${_bi('folder', '🗂')}${escapeHtml(rec.folder)}</button>` : ''}${(rec.tags || []).map((tg) => `<button type="button" class="pf-tag ${_tagFilter && _tagFilter.toLowerCase() === String(tg).toLowerCase() ? 'on' : ''}" data-act="pf-tag" data-tag="${escapeHtml(tg)}">${escapeHtml(tg)}</button>`).join('')}</div>` : ''}
+          ${recommendedLine(rec)}
           ${(rec.timesPrinted || rec.timesFailed) ? `<div class="pf-history" title="${escapeHtml(t('plib.history_title') || 'Print history')}">${_bi('printer', '🖨')}${(rec.timesPrinted || 0)}× ${escapeHtml(t('plib.printed') || 'printed')}${rec.timesFailed ? ` · ${rec.timesFailed} ${escapeHtml(t('plib.failed') || 'failed')}` : ''}${rec.lastPrinted ? ` · ${escapeHtml(t('plib.last') || 'last')} ${escapeHtml(fmtPfDate(rec.lastPrinted))}` : ''}</div>` : ''}
           ${Array.isArray(rec.converted) && rec.converted.length ? `<div class="pf-converted">${rec.converted.map((c) => `
             <div class="pf-conv-row">
@@ -170,6 +171,7 @@
         </div>
         <div class="pf-actions">
           <button class="btn small primary" data-act="pf-slice" data-id="${escapeHtml(rec.id)}">${_bi('printer', '🖨')}${escapeHtml(t('plib.open_slicer') || 'Open in slicer')}</button>
+          <button class="btn small ghost" data-act="pf-setups" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('setup.title') || 'Settings that worked')}">${_bi('nozzle', '🛠')}${escapeHtml(t('setup.short') || 'Setups')}</button>
           ${typeof openModelViewer === 'function' && /^(stl|3mf)$/i.test(rec.sourceFile?.ext || '') ? `<button class="btn small ghost" data-act="pf-view3d" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('plib.view3d') || 'View in 3D')}">${_bi('cube', '🧊')}${escapeHtml(t('plib.view3d_short') || '3D')}</button>` : ''}
           <button class="btn small ghost" data-act="pf-log-print" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('plib.log_print') || 'Log a successful print')}">✓ ${escapeHtml(t('plib.log_print_short') || 'Printed')}</button>
           <button class="btn small ghost" data-act="pf-log-fail" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('plib.log_fail') || 'Log a failed print')}" aria-label="${escapeHtml(t('plib.log_fail') || 'Log a failed print')}">✗</button>
@@ -287,6 +289,7 @@
       case 'pf-convert': convertPrintFile(id); break;
       case 'pf-conv-open': openConvertedInSlicer(id, btn.dataset.fn); break;
       case 'pf-conv-del':  deleteConverted(id, btn.dataset.fn); break;
+      case 'pf-setups': openSetups(id); break;
       case 'pf-log-print': logPrint(id, true); break;
       case 'pf-log-fail':  logPrint(id, false); break;
       case 'pf-view-library': if (_view !== 'library') { _view = 'library'; renderPrintFiles(); } break;
@@ -301,6 +304,201 @@
   function fmtPfDate(iso) {
     try { return new Date(iso).toLocaleDateString(localeTag(), { month: 'short', day: 'numeric' }); }
     catch (e) { return String(iso || '').slice(0, 10); }
+  }
+
+  /* ---- Settings that worked (R4) ---------------------------------------
+   * A file's print tally said it had worked, never with WHAT. A setup is one
+   * combination of machine, material and the two numbers that decide most
+   * outcomes, plus its own record. The rules — what counts as trustworthy, and
+   * which one to reach for — live in lib/print-setups.js so they can be tested.
+   * -------------------------------------------------------------------- */
+  const PS = () => (typeof globalThis !== 'undefined' && globalThis.KhaytPrintSetups) || null;
+
+  function setupsOf(rec) {
+    return Array.isArray(rec && rec.setups) ? rec.setups : [];
+  }
+
+  function machineNameFor(setup) {
+    const m = (typeof machines !== 'undefined' ? machines : []).find((x) => x && x.id === (setup && setup.machineId));
+    return (m && m.name) || (setup && setup.machineName) || '';
+  }
+
+  const STATUS_LABEL = {
+    'known-good': () => t('setup.known_good') || 'Known good',
+    'needs-test': () => t('setup.needs_test') || 'Needs testing',
+    failed:       () => t('setup.failed') || 'Failed',
+  };
+  const STATUS_COLOR = {
+    'known-good': 'var(--ok,#159d68)',
+    'needs-test': 'var(--warn,#b45309)',
+    failed:       'var(--danger,#e0492f)',
+  };
+
+  function statusBadge(setup) {
+    const ps = PS(); if (!ps) return '';
+    const st = ps.statusOf(setup);
+    const label = (STATUS_LABEL[st] || (() => st))();
+    return `<span style="font-size:11px;font-weight:600;color:${STATUS_COLOR[st] || 'inherit'};">${escapeHtml(label)}</span>`;
+  }
+
+  /** The one-line "use this" hint on a file's card. */
+  function recommendedLine(rec) {
+    const ps = PS(); if (!ps) return '';
+    const setups = setupsOf(rec);
+    if (!setups.length) return '';
+    const best = ps.recommendSetup(setups);
+    if (!best) {
+      // Every recorded setup has failed. Saying nothing here would leave a shop
+      // to rediscover that by wasting another spool.
+      return `<div class="pf-setup" style="font-size:11px;color:var(--danger,#e0492f);">${escapeHtml(
+        t('setup.none_good') || 'No setup has worked yet')}</div>`;
+    }
+    const desc = ps.describeSetup(best, machineNameFor(best)) || (best.name || '');
+    const okN = best.ok || 0;
+    const tail = okN
+      ? ` · ${okN}× ${escapeHtml(t('plib.printed') || 'printed')}${best.failed ? ` · ${best.failed} ${escapeHtml(t('plib.failed') || 'failed')}` : ''}`
+      : ` · ${escapeHtml(t('setup.untried') || 'not tried yet')}`;
+    return `<div class="pf-setup" style="font-size:11px;color:var(--text-muted);">${statusBadge(best)} ${escapeHtml(desc)}${tail}</div>`;
+  }
+
+  function setupRowHtml(rec, setup) {
+    const ps = PS();
+    const desc = ps.describeSetup(setup, machineNameFor(setup)) || (setup.name || '—');
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px;border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(setup.name || desc || '—')}</div>
+        <div style="font-size:11px;color:var(--text-muted);">${statusBadge(setup)} · ${escapeHtml(desc)} · ${setup.ok || 0}✓ ${setup.failed || 0}✗</div>
+        ${setup.notes ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${escapeHtml(setup.notes)}</div>` : ''}
+      </div>
+      <button class="btn small ghost" data-sact="ok" data-sid="${escapeHtml(setup.id)}" title="${escapeHtml(t('setup.log_ok') || 'Log a good print')}">✓</button>
+      <button class="btn small ghost" data-sact="fail" data-sid="${escapeHtml(setup.id)}" title="${escapeHtml(t('setup.log_fail') || 'Log a failure')}">✗</button>
+      <button class="btn small ghost" data-sact="edit" data-sid="${escapeHtml(setup.id)}" title="${escapeHtml(t('common.edit') || 'Edit')}">✎</button>
+      <button class="btn small ghost danger" data-sact="del" data-sid="${escapeHtml(setup.id)}" title="${escapeHtml(t('common.delete') || 'Delete')}">🗑</button>
+    </div>`;
+  }
+
+  function openSetups(id) {
+    const rec = (printFiles || []).find((r) => r.id === id); if (!rec) return;
+    const ps = PS(); if (!ps) return;
+    if (!Array.isArray(rec.setups)) rec.setups = [];
+
+    const body = () => {
+      const list = rec.setups.length
+        ? rec.setups.map((su) => setupRowHtml(rec, su)).join('')
+        : `<p style="color:var(--text-muted);font-size:13px;margin:12px 0;">${escapeHtml(
+            t('setup.empty') || 'No setups recorded yet. Add the settings you printed this with, then log how it went.')}</p>`;
+      return `<div id="pfSetupList">${list}</div>
+        <button class="btn small" data-sact="add" style="margin-top:6px;">${escapeHtml(t('setup.add') || '＋ Add a setup')}</button>`;
+    };
+
+    openFormModal({
+      title: t('setup.title') || 'Settings that worked',
+      sizeLg: true,
+      noSave: true,
+      bodyHtml: body(),
+      onMount(modal) {
+        const redraw = () => {
+          const host = modal.querySelector('#pfSetupList');
+          if (host) host.innerHTML = rec.setups.length
+            ? rec.setups.map((su) => setupRowHtml(rec, su)).join('')
+            : `<p style="color:var(--text-muted);font-size:13px;margin:12px 0;">${escapeHtml(
+                t('setup.empty') || 'No setups recorded yet. Add the settings you printed this with, then log how it went.')}</p>`;
+          saveAll();
+          renderPrintFiles();
+        };
+        modal.addEventListener('click', (e) => {
+          const b = e.target.closest('[data-sact]'); if (!b) return;
+          const sid = b.dataset.sid;
+          const at = rec.setups.findIndex((x) => x.id === sid);
+          if (b.dataset.sact === 'add') { editSetup(rec, null, redraw); return; }
+          if (at === -1) return;
+          if (b.dataset.sact === 'ok')   { rec.setups[at] = ps.recordOutcome(rec.setups[at], true,  new Date().toISOString()); redraw(); return; }
+          if (b.dataset.sact === 'fail') { rec.setups[at] = ps.recordOutcome(rec.setups[at], false, new Date().toISOString()); redraw(); return; }
+          if (b.dataset.sact === 'edit') { editSetup(rec, rec.setups[at], redraw); return; }
+          if (b.dataset.sact === 'del')  { rec.setups.splice(at, 1); redraw(); }
+        });
+      },
+    });
+  }
+
+  function editSetup(rec, existing, done) {
+    const ps = PS(); if (!ps) return;
+    const su = existing || {};
+    const machineOpts = (typeof machines !== 'undefined' ? machines : []).map((m) =>
+      `<option value="${escapeHtml(m.id)}"${su.machineId === m.id ? ' selected' : ''}>${escapeHtml(m.name || m.id)}</option>`).join('');
+    const statusOpts = ['', 'known-good', 'needs-test', 'failed'].map((v) =>
+      `<option value="${v}"${(su.status || '') === v ? ' selected' : ''}>${escapeHtml(
+        v ? (STATUS_LABEL[v] || (() => v))() : (t('setup.status_auto') || 'From the record'))}</option>`).join('');
+
+    openFormModal({
+      title: existing ? (t('setup.edit') || 'Edit setup') : (t('setup.add_title') || 'Add a setup'),
+      saveLabel: t('common.save') || 'Save',
+      bodyHtml: `
+        <label>${escapeHtml(t('setup.name') || 'Name')}</label>
+        <input type="text" id="suName" value="${escapeHtml(su.name || '')}" placeholder="${escapeHtml(t('setup.name_ph') || 'e.g. Draft on the MK4')}">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
+          <div>
+            <label>${escapeHtml(t('setup.machine') || 'Printer')}</label>
+            <select id="suMachine"><option value="">— ${escapeHtml(t('common.none') || 'None')} —</option>${machineOpts}</select>
+          </div>
+          <div>
+            <label>${escapeHtml(t('plib.material') || 'Material')}</label>
+            <input type="text" id="suMaterial" value="${escapeHtml(su.material || '')}">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:10px;">
+          <div>
+            <label>${escapeHtml(t('setup.colour') || 'Colour')}</label>
+            <input type="text" id="suColour" value="${escapeHtml(su.colour || '')}">
+          </div>
+          <div>
+            <label>${escapeHtml(t('setup.layer') || 'Layer height (mm)')}</label>
+            <input type="number" id="suLayer" step="0.01" min="0" value="${su.layerHeightMm || ''}">
+          </div>
+          <div>
+            <label>${escapeHtml(t('setup.nozzle') || 'Nozzle (mm)')}</label>
+            <input type="number" id="suNozzle" step="0.1" min="0" value="${su.nozzleMm || ''}">
+          </div>
+        </div>
+        <label style="margin-top:10px;">${escapeHtml(t('setup.status') || 'Verdict')}</label>
+        <select id="suStatus">${statusOpts}</select>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">${escapeHtml(
+          t('setup.status_hint') || 'Leave on "From the record" and Khayt works it out from how the prints went.')}</div>
+        <label style="margin-top:10px;">${escapeHtml(t('setup.notes') || 'Notes')}</label>
+        <textarea id="suNotes" rows="2">${escapeHtml(su.notes || '')}</textarea>`,
+      onSave(modal) {
+        const numOf = (sel) => {
+          const v = parseFloat(modal.querySelector(sel)?.value);
+          return Number.isFinite(v) && v > 0 ? v : 0;
+        };
+        const next = Object.assign({}, su, {
+          id: su.id || (typeof uid === 'function' ? uid('SETUP') : `SETUP-${Date.now().toString(36)}`),
+          createdAt: su.createdAt || new Date().toISOString(),
+          name: modal.querySelector('#suName')?.value.trim() || '',
+          machineId: modal.querySelector('#suMachine')?.value || '',
+          material: modal.querySelector('#suMaterial')?.value.trim() || '',
+          colour: modal.querySelector('#suColour')?.value.trim() || '',
+          layerHeightMm: numOf('#suLayer'),
+          nozzleMm: numOf('#suNozzle'),
+          status: modal.querySelector('#suStatus')?.value || null,
+          notes: modal.querySelector('#suNotes')?.value.trim() || '',
+          ok: su.ok || 0,
+          failed: su.failed || 0,
+        });
+        if (!Array.isArray(rec.setups)) rec.setups = [];
+        const at = rec.setups.findIndex((x) => x.id === next.id);
+        if (at === -1) rec.setups.push(next); else rec.setups[at] = next;
+        saveAll();
+        if (typeof done === 'function') done();
+        // Reopen the list the shop came from, rather than dropping them back to
+        // the grid having lost their place. Deferred because we are INSIDE
+        // onSave: openFormModal empties the shared #modalMount as it closes, so
+        // a modal opened synchronously here is destroyed a moment later. This
+        // codebase has shipped that bug before.
+        setTimeout(() => openSetups(rec.id), 0);
+        return true;
+      },
+    });
   }
 
   // Print journal: a self-contained tally of successful/failed prints per file
