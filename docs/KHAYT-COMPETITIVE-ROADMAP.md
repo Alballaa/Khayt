@@ -182,6 +182,13 @@ FoxTrack is the only directly comparable product with public numbers:
 **free / $9 / $29 per month.** The library tools are one-time: $19.99 and $34.99.
 The calculators are free.
 
+Two products found on 2026-07-31, after the above was written, move that anchor:
+**Layers is free** for what it calls full access to core features — and what it
+covers is the file→quote→order pipeline, i.e. R1 and R5. **3DPBOSS is one-time
+$49/$99/$139.** So the file-to-quote pipeline is something a shop can already get
+for nothing, while nobody found so far charges for — or offers — estimate versus
+measured actual.
+
 That is a data point about the *field's* anchor, not a recommendation. Khayt does
 ZATCA invoicing and nine languages; comparing it to a $9 order tracker on price
 alone would undersell it. Positioning is Turki's call — this document only
@@ -199,4 +206,32 @@ Stated so it can be checked rather than assumed:
   existing users. Worth asking a real shop before building R5.
 - **If Bed Ready's library is small in practice**, R2's payoff shrinks to a nicer
   modal. Worth checking real library sizes first — one query.
-- **Layova and RIGHTPrint are unread.** Either could invalidate a section here.
+- ~~**Layova and RIGHTPrint are unread.** Either could invalidate a section here.~~
+  **Checked 2026-07-31 — and the list itself was the problem.** Neither can be
+  read: `layova.ca` returns 403 to any fetch and has no search presence, and
+  nothing surfaces under "RIGHTPrint" at all. Two of the thirteen entries are
+  therefore unverifiable, which is worth knowing about a list that was used to
+  justify a quarter of work.
+
+  Searching for them turned up two directly comparable products that were **not
+  in the review**, which is the more useful finding:
+
+  - **[Layers](https://layers.app/)** — customer uploads a model and gets an
+    automatic price, plus invoicing, inventory, CRM and multi-currency. That is
+    R1 and R5 as a whole product, and it has a **free tier billed as full access
+    to core features**. The closest thing to Khayt found so far.
+  - **[3DPBOSS](https://3dpboss.com/)** — CRM, production scheduling, inventory
+    and margin analytics, one-time $49/$99/$139, built on Notion. No customer
+    upload. States plainly that it "does not connect to printers directly".
+
+  **The central claim survives contact with both.** Neither reads actual
+  filament or duration from a printer, and neither reports estimate versus
+  actual — 3DPBOSS requires that data to be typed in by hand. So R3, and the
+  order→file link that makes it answerable per setup, remain the differentiator
+  the document said they were. What changes is the pricing read: Layers gives
+  away the file-to-quote pipeline, so R1 and R5 are table stakes to *have*, not
+  something to charge for.
+
+  *Caveat on all of the above:* these are vendor marketing pages read once, not
+  hands-on evaluations. They are enough to place a product, not to trust a
+  feature matrix.
