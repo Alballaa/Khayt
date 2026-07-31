@@ -167,9 +167,27 @@ try {
 
   // One round trip per process boundary — preload bridge and main handler. If a
   // lib/ module failed to package, main would have died before answering.
-  const store = await page.evaluate(() => window.hubAPI.loadStore());
-  if (!store || typeof store !== 'object') fail('hub:load-store returned nothing — the main process is not healthy');
-  ok('the main process answers IPC');
+  //
+  // What counts as healthy is "it ANSWERED", not "it answered with data". This
+  // launches against a fresh --user-data-dir, so there is no store yet and
+  // loadStore correctly resolves to null. The old check was `!store`, which
+  // treats that null as a dead main process — so this assertion could never
+  // pass, on any release, however good the build. Verified 2026-07-31 against
+  // v3.5.2 and v3.6.0-beta.1: both return null on a clean profile and a 33-key
+  // object on a populated one.
+  const store = await page.evaluate(async () => {
+    try {
+      const v = await window.hubAPI.loadStore();
+      return { answered: true, type: v === null ? 'null' : typeof v };
+    } catch (e) {
+      return { answered: false, error: String((e && e.message) || e) };
+    }
+  });
+  if (!store.answered) fail(`hub:load-store threw — ${store.error}`);
+  else if (store.type !== 'object' && store.type !== 'null') {
+    fail(`hub:load-store returned ${store.type} — the main process is not healthy`);
+  }
+  ok(`the main process answers IPC (fresh profile → ${store.type})`);
 } catch (e) {
   const why = launchDiagnosis();
   console.error(`\n✗ the packaged app did not come up: ${e && e.message ? e.message : e}`);
