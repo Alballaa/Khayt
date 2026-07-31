@@ -3664,5 +3664,10 @@
   "dup.open": "すでにある方を開く",
   "dup.badge": "「{name}」と同一ファイル",
   "dup.similar": "「{name}」に似ています",
+  "link.from_library": "印刷ライブラリから",
+  "link.none": "— ライブラリから選ばない —",
+  "link.no_setup": "— どの設定ですか？ —",
+  "link.past": "この設定の単一部品ジョブ {n} 件では、見積もりは時間で {hours}%、フィラメントで {grams}% ずれていました。",
+  "link.past_thin": "過去に {n} 回印刷していますが、いずれも他の部品と同じ注文だったため、まだ正確な比較はできません。",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

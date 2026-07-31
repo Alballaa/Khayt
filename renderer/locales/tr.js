@@ -3664,5 +3664,10 @@
   "dup.open": "Elimdekini aç",
   "dup.badge": "“{name}” ile aynı dosya",
   "dup.similar": "“{name}” gibi görünüyor",
+  "link.from_library": "Baskı kitaplığından",
+  "link.none": "— Kitaplıktan değil —",
+  "link.no_setup": "— Hangi ayarlarla? —",
+  "link.past": "Bu ayarlarla yapılan {n} tek parçalık işte tahminin sürede %{hours}, filamentte %{grams} saptı.",
+  "link.past_thin": "Daha önce {n} kez basıldı, ama her iş başka parçalarla aynı siparişteydi — henüz temiz bir karşılaştırma yok.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

@@ -3667,5 +3667,10 @@
   "dup.open": "Open the one I have",
   "dup.badge": "Same file as “{name}”",
   "dup.similar": "Looks like “{name}”",
+  "link.from_library": "From your print library",
+  "link.none": "— Not from the library —",
+  "link.no_setup": "— Which settings? —",
+  "link.past": "Across {n} single-part jobs with these settings, your estimate ran {hours}% on time and {grams}% on filament.",
+  "link.past_thin": "Printed {n} time(s) before, but every job shared an order with other parts — so there is no clean comparison yet.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

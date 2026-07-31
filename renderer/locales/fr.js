@@ -3664,5 +3664,10 @@
   "dup.open": "Ouvrir celui que j’ai",
   "dup.badge": "Même fichier que « {name} »",
   "dup.similar": "Ressemble à « {name} »",
+  "link.from_library": "Depuis ta bibliothèque d’impression",
+  "link.none": "— Pas depuis la bibliothèque —",
+  "link.no_setup": "— Quels réglages ? —",
+  "link.past": "Sur {n} travaux à une seule pièce avec ces réglages, ton estimation était à {hours}% sur le temps et {grams}% sur le filament.",
+  "link.past_thin": "Imprimé {n} fois, mais chaque travail partageait une commande avec d’autres pièces — pas encore de comparaison propre.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

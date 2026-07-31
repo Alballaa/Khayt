@@ -3664,5 +3664,10 @@
   "dup.open": "Die vorhandene öffnen",
   "dup.badge": "Dieselbe Datei wie „{name}“",
   "dup.similar": "Sieht aus wie „{name}“",
+  "link.from_library": "Aus deiner Druckbibliothek",
+  "link.none": "— Nicht aus der Bibliothek —",
+  "link.no_setup": "— Welche Einstellungen? —",
+  "link.past": "Über {n} Aufträge mit nur diesem Teil und diesen Einstellungen lag deine Schätzung bei {hours}% Zeit und {grams}% Filament.",
+  "link.past_thin": "Schon {n}× gedruckt, aber jeder Auftrag enthielt auch andere Teile — ein sauberer Vergleich ist damit noch nicht möglich.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
