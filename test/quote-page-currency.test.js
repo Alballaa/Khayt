@@ -81,3 +81,69 @@ test('a currency label is escaped, not interpolated raw', () => {
   const html = page({ currencyLabel: '<script>x</script>' });
   assert.ok(!html.includes('<script>x</script>'), 'the label must be escaped');
 });
+
+/**
+ * The same class, one page over: the customer intake form's budget ranges.
+ *
+ * Those said "Less than 100 SAR" as a LITERAL — not a fallback, so no store
+ * setting could change it. Khayt ships a USD flavour, where every customer who
+ * opened the form was asked to pick a budget on the wrong scale, every time.
+ * Found by widening the sweep from `|| 'SAR'` to money rendered any other way.
+ *
+ * Checked against a running server: SAR shop → "Less than 100 SAR", USD shop →
+ * "Less than 100 USD", no currency → "Less than 100".
+ */
+const fs = require('node:fs');
+const path = require('node:path');
+
+test('the intake budget ranges are not hardcoded to one currency', () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'lib', 'lan-server.js'), 'utf8');
+  const form = src.match(/const renderIntakeFormPage = [\s\S]*?\n\s*(?:const|let|\/\/|\})/);
+  assert.ok(form, 'could not find renderIntakeFormPage — this test is blind, fix the extraction');
+  const body = form[0];
+
+  assert.match(body, /Budget Range/, 'found the wrong block');
+  assert.ok(!/Less than 100 SAR|100 – 500 SAR|1,000\+ SAR/.test(body),
+    'the budget labels name SAR outright again — they must follow the shop currency');
+  assert.match(body, /\$\{currency \? ' ' \+ currency : ''\}/,
+    'the labels no longer interpolate the shop currency');
+
+  // The option VALUES are stored on intake records; rewriting them would orphan
+  // every request already taken. They must stay exactly as they were.
+  for (const v of ['value="&lt;100"', 'value="100-500"', 'value="500-1000"', 'value="1000+"']) {
+    assert.ok(body.includes(v), `the stored option value ${v} changed — that orphans existing intake records`);
+  }
+
+  // And the caller has to actually supply it. Mutation testing found this gap:
+  // dropping the argument leaves `currency` undefined, so every shop silently
+  // gets bare numbers — not wrong, but the shop's own unit is gone and nothing
+  // says so. The template check above passes either way.
+  const call = src.match(/renderIntakeFormPage\(shopName[^)]*\)/);
+  assert.ok(call, 'renderIntakeFormPage is never called — check this still applies');
+  assert.match(call[0], /currency/,
+    `the intake form is rendered without the shop currency: ${call[0]}`);
+});
+
+test('no customer-facing page in lib/ names a currency it was not given', () => {
+  // The guard for the class rather than the two instances. Any literal currency
+  // in a page template is wrong for some shop; the shop's own setting is the only
+  // right answer, and no unit beats a wrong one.
+  const files = fs.readdirSync(path.join(__dirname, '..', 'lib'))
+    .filter((f) => f.startsWith('lan-') && f.endsWith('.js'));
+  assert.ok(files.length >= 2, `only found ${files.length} lan-* modules — the walk broke`);
+
+  const offenders = [];
+  for (const f of files) {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'lib', f), 'utf8');
+    src.split('\n').forEach((line, i) => {
+      if (line.trim().startsWith('//') || line.trim().startsWith('*')) return;
+      // A currency code sitting next to a number, inside markup.
+      if (/<[^>]*>[^<]*\b\d[\d,.]*\s*(SAR|USD|EUR|GBP|AED)\b/.test(line)
+          || /\b\d[\d,.]*\s+(SAR|USD|EUR|GBP|AED)\b(?![^<]*\$\{)/.test(line)) {
+        offenders.push(`${f}:${i + 1}`);
+      }
+    });
+  }
+  assert.deepEqual(offenders, [],
+    'a currency is written into a page template — pass the shop currency in instead');
+});
