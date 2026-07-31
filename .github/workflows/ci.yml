@@ -102,6 +102,9 @@ jobs:
       - name: E2E smoke (order to print file link)
         run: xvfb-run -a npm run test:e2e:filelink
 
+      - name: E2E smoke (estimator settings and calibration)
+        run: xvfb-run -a npm run test:e2e:estimator
+
       - name: E2E smoke (QC / reprint / RMA)
         run: xvfb-run -a npm run test:e2e:qc
 

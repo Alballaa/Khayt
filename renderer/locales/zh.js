@@ -3669,5 +3669,15 @@
   "link.no_setup": "— 用哪套设置？ —",
   "link.past": "在使用这套设置的 {n} 个单件作业中，你的估算在时间上偏差 {hours}%，在耗材上偏差 {grams}%。",
   "link.past_thin": "此前打印过 {n} 次，但每次都与其他零件同在一个订单里，因此还无法做出干净的比较。",
+  "est.head": "根据模型估算",
+  "est.sub": "当文件从未切片、只能从形状推算重量和时间时使用。",
+  "est.density": "耗材密度（克/立方厘米）",
+  "est.infill": "默认填充率 %",
+  "est.shell": "外壁与表面 %",
+  "est.shell_hint": "实心零件中大致有多少是外壁、顶面和底面，而不是填充。",
+  "est.waste": "损耗 %",
+  "est.rate": "你的打印机实际速度（克/小时）",
+  "est.rate_measured": "实测：{rate} 克/小时，来自你已完成的 {n} 个作业。",
+  "est.rate_guess": "还没有实测作业，所以这是一个假设值。等几次打印完成后，会根据你自己的记录算出。",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

@@ -227,6 +227,25 @@ function wireEvents() {
   // Feature 1 (new batch): Parse G-code / 3MF for print time and weight
   $('#btnAiQuote')?.addEventListener('click', () => { if (typeof aiQuoteAssist === 'function') aiQuoteAssist(); });
   $('#btnAiPrice')?.addEventListener('click', () => { if (typeof aiSuggestPrice === 'function') aiSuggestPrice(); });
+  /**
+   * Estimator options: the shop's settings, plus a throughput learned from its
+   * own measured jobs when there are enough of them to mean anything.
+   */
+  function estimatorOpts(over = {}) {
+    const base = (typeof KhaytStl !== 'undefined' && KhaytStl.fromSettings)
+      ? KhaytStl.fromSettings(typeof settings !== 'undefined' ? settings : {})
+      : {};
+    const opts = Object.assign({}, base, over, {
+      estimate: (typeof KhaytStl !== 'undefined' && KhaytStl.estimateFromStl) || null,
+    });
+    const CAL = (typeof KhaytEstimateCalibration !== 'undefined') ? KhaytEstimateCalibration : null;
+    const OL = (typeof KhaytOrderFileLink !== 'undefined') ? KhaytOrderFileLink : null;
+    if (!CAL || !OL) return opts;
+    const cal = CAL.calibrate(typeof printLog !== 'undefined' ? printLog : [],
+      { allocate: OL.allocateActuals }, { machineId: over.machineId || undefined });
+    return CAL.applyCalibration(opts, cal);
+  }
+
   /* ---- File → estimate → quote -----------------------------------------
    * One path for every model file, however it arrives (picked or dropped).
    *
@@ -270,10 +289,12 @@ function wireEvents() {
   function applyIntake(res, filename) {
     const view = KhaytIntakeView.presentIntake(
       Object.assign({}, res, { filename: (res && res.filename) || filename || '' }),
-      {
+      // The shop's own estimator settings, then its own measured history on top:
+      // a rate derived from real jobs beats any constant, typed or shipped.
+      estimatorOpts({
         infillPct: Math.max(0, num($('#infill')?.value, 20)) / 100,
-        estimate: (typeof KhaytStl !== 'undefined' && KhaytStl.estimateFromStl) || null,
-      });
+        machineId: $('#partMachineId')?.value || $('#machineAssign')?.value || null,
+      }));
 
     if (view.mode === 'none') { toast(t(view.toast.key), view.toast.kind, 5000); return false; }
 

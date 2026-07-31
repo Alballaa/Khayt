@@ -3669,5 +3669,15 @@
   "link.no_setup": "— Welche Einstellungen? —",
   "link.past": "Über {n} Aufträge mit nur diesem Teil und diesen Einstellungen lag deine Schätzung bei {hours}% Zeit und {grams}% Filament.",
   "link.past_thin": "Schon {n}× gedruckt, aber jeder Auftrag enthielt auch andere Teile — ein sauberer Vergleich ist damit noch nicht möglich.",
+  "est.head": "Schätzung aus einem Modell",
+  "est.sub": "Wird verwendet, wenn eine Datei nie gesliced wurde und Gewicht und Zeit aus ihrer Form abgeleitet werden müssen.",
+  "est.density": "Filamentdichte (g/cm³)",
+  "est.infill": "Standard-Infill %",
+  "est.shell": "Wände und Oberflächen %",
+  "est.shell_hint": "Ungefähr wie viel eines massiven Teils Wände, Ober- und Unterseite sind statt Infill.",
+  "est.waste": "Verschnitt %",
+  "est.rate": "Wie schnell deine Drucker wirklich laufen (g/Stunde)",
+  "est.rate_measured": "Gemessen: {rate} g/Stunde, aus {n} deiner abgeschlossenen Aufträge.",
+  "est.rate_guess": "Noch keine gemessenen Aufträge — das hier ist eine Annahme. Sobald ein paar Drucke fertig sind, wird sie aus deinen eigenen abgeleitet.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

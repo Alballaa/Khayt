@@ -252,3 +252,40 @@ test('the public price matches what the shop\'s own calculator would say', () =>
   });
   assert.equal(r.price, Math.round(expected.total * 100) / 100);
 });
+
+test('a customer\'s estimate uses the SHOP\'s assumptions, not the module defaults', () => {
+  // The two must not disagree about the same part. A shop that has told Khayt it
+  // runs 60% infill should not have customers quoted at the built-in 20%.
+  const store = storeWith();
+  const dense = publicQuote({
+    intake: GEOM, store,
+    deps: { ...deps, estimatorOpts: { infillPct: 0.9, densityGPerCm3: 1.24, shellFactor: 0.35, throughputMm3PerS: 8, wastePct: 0 } },
+  });
+  const sparse = publicQuote({
+    intake: GEOM, store,
+    deps: { ...deps, estimatorOpts: { infillPct: 0.05, densityGPerCm3: 1.24, shellFactor: 0.35, throughputMm3PerS: 8, wastePct: 0 } },
+  });
+  assert.ok(dense.grams > sparse.grams, `${dense.grams} should exceed ${sparse.grams}`);
+  assert.ok(dense.price > sparse.price, 'and the customer pays more for the denser part');
+});
+
+test('a calibrated throughput reaches the customer\'s quote', () => {
+  // The point of lib/estimate-calibration.js: a rate learned from the shop's own
+  // measured jobs must change what a customer is told, not just what the shop
+  // sees on its own screen.
+  const store = storeWith();
+  const base = { infillPct: 0.2, densityGPerCm3: 1.24, shellFactor: 0.35, wastePct: 0 };
+  const guessed = publicQuote({ intake: GEOM, store,
+    deps: { ...deps, estimatorOpts: { ...base, throughputMm3PerS: 8 } } });
+  const measuredRate = publicQuote({ intake: GEOM, store,
+    deps: { ...deps, estimatorOpts: { ...base, throughputMm3PerS: 2.7 } } });
+  assert.ok(measuredRate.hours > guessed.hours, 'a slower real machine means a longer job');
+  assert.ok(measuredRate.price > guessed.price, 'and machine time is charged for');
+  assert.equal(measuredRate.grams, guessed.grams, 'the weight is unaffected — only the time was guessed');
+});
+
+test('with no estimator options it still works, on the documented defaults', () => {
+  const r = publicQuote({ intake: GEOM, store: storeWith(), deps });
+  assert.equal(r.ok, true);
+  assert.ok(r.price > 0);
+});

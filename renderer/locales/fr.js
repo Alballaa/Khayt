@@ -3669,5 +3669,15 @@
   "link.no_setup": "— Quels réglages ? —",
   "link.past": "Sur {n} travaux à une seule pièce avec ces réglages, ton estimation était à {hours}% sur le temps et {grams}% sur le filament.",
   "link.past_thin": "Imprimé {n} fois, mais chaque travail partageait une commande avec d’autres pièces — pas encore de comparaison propre.",
+  "est.head": "Estimer à partir d’un modèle",
+  "est.sub": "Utilisé quand un fichier n’a jamais été tranché : le poids et le temps doivent être déduits de sa forme.",
+  "est.density": "Densité du filament (g/cm³)",
+  "est.infill": "Remplissage par défaut %",
+  "est.shell": "Parois et surfaces %",
+  "est.shell_hint": "À peu près quelle part d’une pièce pleine est parois, dessus et dessous plutôt que remplissage.",
+  "est.waste": "Perte %",
+  "est.rate": "La vitesse réelle de tes imprimantes (g/heure)",
+  "est.rate_measured": "Mesuré : {rate} g/heure, d’après {n} de tes travaux terminés.",
+  "est.rate_guess": "Pas encore de travaux mesurés, c’est donc une hypothèse. Elle sera déduite de tes propres impressions une fois quelques-unes terminées.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

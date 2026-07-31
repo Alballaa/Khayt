@@ -3669,5 +3669,15 @@
   "link.no_setup": "— Hangi ayarlarla? —",
   "link.past": "Bu ayarlarla yapılan {n} tek parçalık işte tahminin sürede %{hours}, filamentte %{grams} saptı.",
   "link.past_thin": "Daha önce {n} kez basıldı, ama her iş başka parçalarla aynı siparişteydi — henüz temiz bir karşılaştırma yok.",
+  "est.head": "Modelden tahmin",
+  "est.sub": "Hiç dilimlenmemiş bir dosyada, ağırlık ve süre biçiminden çıkarılmak zorunda olduğunda kullanılır.",
+  "est.density": "Filament yoğunluğu (g/cm³)",
+  "est.infill": "Varsayılan dolgu %",
+  "est.shell": "Duvarlar ve yüzeyler %",
+  "est.shell_hint": "Dolu bir parçanın kabaca ne kadarının dolgu yerine duvar, üst ve alt yüzey olduğu.",
+  "est.waste": "Fire %",
+  "est.rate": "Yazıcılarının gerçek hızı (g/saat)",
+  "est.rate_measured": "Ölçüldü: {rate} g/saat, tamamlanmış {n} işinden.",
+  "est.rate_guess": "Henüz ölçülmüş iş yok, bu yüzden bu bir varsayım. Birkaç baskı bitince kendi işlerinden hesaplanacak.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
