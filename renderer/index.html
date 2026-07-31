@@ -279,11 +279,17 @@
 
           <label for="printWeight"><span data-i18n="calc.part.print_wt">Print weight</span> (<span id="printWeightUnit" data-i18n="common.grams">g</span>)</label>
           <input type="number" id="printWeight" value="150" min="0">
+          <div id="modelDrop" role="button" tabindex="0" data-i18n-aria="intake.drop_aria"
+               aria-label="Drop a model file, or click to choose one"
+               style="margin-top:6px;padding:12px;border:1.5px dashed var(--border);border-radius:var(--radius);
+                      text-align:center;font-size:12px;color:var(--text-muted);cursor:pointer;">
+            <span data-i18n="intake.drop_hint">Drop an STL, OBJ, 3MF or G-code here — or click to choose</span>
+          </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
             <button type="button" class="btn ghost small" id="btnEstimateStl" data-i18n="stl.estimate_btn">📐 Estimate from 3D model</button>
             <button type="button" class="btn ghost small" id="btnSliceQuote" data-i18n="slicer.slice_btn">🧩 Slice for exact quote</button>
           </div>
-          <input type="file" id="stlFileInput" accept=".stl,model/stl,application/sla" style="display:none;">
+          <input type="file" id="stlFileInput" accept=".stl,.obj,.3mf,.gcode,.gco,model/stl,application/sla" style="display:none;">
           <div id="stlEstimateNote" style="display:none;font-size:12px;color:var(--text-muted);margin-top:6px;padding:8px 10px;background:var(--bg-elev);border-radius:var(--radius);"></div>
 
           <label style="margin-top:8px;"><span data-i18n="calc.support_wt">Support weight (g)</span></label>
@@ -2435,6 +2441,7 @@
 <script src="../lib/ai-assistant.js"></script>
 <script src="../lib/stl-parse.js"></script>
 <script src="../lib/stl-estimate.js"></script>
+<script src="../lib/intake-view.js"></script>
 <script src="../lib/stl-thumbnail.js"></script>
 <script src="../lib/reorder.js"></script>
 <script src="../lib/payment-plan.js"></script>

@@ -227,37 +227,135 @@ function wireEvents() {
   // Feature 1 (new batch): Parse G-code / 3MF for print time and weight
   $('#btnAiQuote')?.addEventListener('click', () => { if (typeof aiQuoteAssist === 'function') aiQuoteAssist(); });
   $('#btnAiPrice')?.addEventListener('click', () => { if (typeof aiSuggestPrice === 'function') aiSuggestPrice(); });
+  /* ---- File → estimate → quote -----------------------------------------
+   * One path for every model file, however it arrives (picked or dropped).
+   *
+   * The distinction the shop needs is not the file format, it is whether a
+   * slicer produced the numbers. `exact` says so, and the note ALWAYS says which
+   * it was — a geometric estimate can be far out on a sparse or heavily
+   * supported part, and a quote that hides which kind of number it holds is
+   * worse than no quote.
+   * ---------------------------------------------------------------------- */
+  const MODEL_EXTS = ['gcode', 'gco', '3mf', 'stl', 'obj'];
+  // The slicer summary sits at the very start or the very end of a G-code file,
+  // so a spooled 300 MB job never needs to cross the bridge whole.
+  const GCODE_HEAD = 64 * 1024, GCODE_TAIL = 128 * 1024;
+
+  function setModelNote(html) {
+    const note = $('#stlEstimateNote');
+    if (!note) return;
+    note.innerHTML = html;
+    note.style.display = 'block';
+  }
+
+  /** Push a weight/time pair into the form the way a user typing would. */
+  function fillWeightTime(grams, hours) {
+    if (grams != null) {
+      const w = $('#printWeight');
+      if (w) { w.value = Math.round(grams * 10) / 10; w.dispatchEvent(new Event('input', { bubbles: true })); }
+    }
+    if (hours != null) {
+      const tEl = $('#printTime');
+      if (tEl) { tEl.value = Math.round(hours * 100) / 100; tEl.dispatchEvent(new Event('input', { bubbles: true })); }
+    }
+    if (typeof updateGrandTotal === 'function') updateGrandTotal();
+  }
+
+  /**
+   * Apply an intake result to the calculator.
+   *
+   * The exact-vs-estimate decision and its wording live in lib/intake-view.js so
+   * they can be tested; this only renders what that returns.
+   */
+  function applyIntake(res, filename) {
+    const view = KhaytIntakeView.presentIntake(
+      Object.assign({}, res, { filename: (res && res.filename) || filename || '' }),
+      {
+        infillPct: Math.max(0, num($('#infill')?.value, 20)) / 100,
+        estimate: (typeof KhaytStl !== 'undefined' && KhaytStl.estimateFromStl) || null,
+      });
+
+    if (view.mode === 'none') { toast(t(view.toast.key), view.toast.kind, 5000); return false; }
+
+    fillWeightTime(view.weightG, view.timeH);
+    setModelNote(view.note.map((line) => {
+      const vars = Object.assign({}, line.vars);
+      // A missing slicer name reads better as "your slicer" than as a blank.
+      if ('slicer' in vars && !vars.slicer) vars.slicer = t('intake.your_slicer');
+      const html = escapeHtml(t(line.key, vars));
+      return line.strong ? '<b>' + html + '</b>' : html;
+    }).join('<br>'));
+
+    if (view.material) toast(t('calc.detected_material', { mat: view.material }), 'info', 4000);
+    toast(t(view.toast.key), view.toast.kind, view.mode === 'estimate' ? 5000 : undefined);
+    return true;
+  }
+
+  /** Read a dropped/picked File and hand its bytes to the main process. */
+  async function intakeFile(file) {
+    if (!file) return;
+    const name = file.name || '';
+    const ext = (name.split('.').pop() || '').toLowerCase();
+    if (!MODEL_EXTS.includes(ext)) { toast(t('intake.unsupported'), 'warning'); return; }
+    if (typeof window.hubAPI?.intakeModelBytes !== 'function') { toast(t('calc.parse_failed'), 'warning'); return; }
+    try {
+      let bytes;
+      if ((ext === 'gcode' || ext === 'gco') && file.size > GCODE_HEAD + GCODE_TAIL) {
+        // Head + tail only: Prusa/Orca write the summary in the footer, Cura near
+        // the head, and neither needs the toolpath in between.
+        const head = new Uint8Array(await file.slice(0, GCODE_HEAD).arrayBuffer());
+        const tail = new Uint8Array(await file.slice(file.size - GCODE_TAIL).arrayBuffer());
+        const joined = new Uint8Array(head.length + 1 + tail.length);
+        joined.set(head, 0); joined[head.length] = 10; joined.set(tail, head.length + 1);
+        bytes = joined;
+      } else {
+        bytes = new Uint8Array(await file.arrayBuffer());
+      }
+      const res = await window.hubAPI.intakeModelBytes(name, bytes);
+      if (!res || !res.ok) { toast((res && res.error) || t('calc.parse_failed'), 'warning'); return; }
+      applyIntake(res, name);
+    } catch (err) {
+      console.error('model intake:', err);
+      toast(t('calc.parse_failed'), 'warning');
+    }
+  }
+
+  // Drop target. dragover must be cancelled or the browser navigates to the file.
+  const dropZone = $('#modelDrop');
+  if (dropZone) {
+    const stop = (e) => { e.preventDefault(); e.stopPropagation(); };
+    ['dragenter', 'dragover'].forEach((ev) => dropZone.addEventListener(ev, (e) => {
+      stop(e); e.dataTransfer.dropEffect = 'copy'; dropZone.classList.add('drop-hot');
+    }));
+    ['dragleave', 'dragend'].forEach((ev) => dropZone.addEventListener(ev, (e) => {
+      stop(e); dropZone.classList.remove('drop-hot');
+    }));
+    dropZone.addEventListener('drop', (e) => {
+      stop(e); dropZone.classList.remove('drop-hot');
+      const f = e.dataTransfer?.files && e.dataTransfer.files[0];
+      if (f) intakeFile(f);
+    });
+    // Keyboard and click reach the same thing — a drop-only control is
+    // unreachable for anyone not using a mouse.
+    dropZone.addEventListener('click', () => $('#stlFileInput')?.click());
+    dropZone.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('#stlFileInput')?.click(); }
+    });
+  }
+
   $('#btnParseFile')?.addEventListener('click', async () => {
     if (!window.hubAPI?.pickFile || !window.hubAPI?.parsePrintFile) return;
-    const filePath = await window.hubAPI.pickFile({ filters: [{ name: '3D Files', extensions: ['gcode', 'gco', '3mf'] }] });
+    const filePath = await window.hubAPI.pickFile({ filters: [{ name: '3D Files', extensions: ['gcode', 'gco', '3mf', 'stl', 'obj'] }] });
     if (!filePath) return;
     try {
       const result = await window.hubAPI.parsePrintFile(filePath);
-      let filled = false;
-      if (result.printTimeMins && result.printTimeMins > 0) {
-        const hrs = (result.printTimeMins / 60).toFixed(2);
-        const ptEl = $('#printTime');
-        if (ptEl) { ptEl.value = hrs; filled = true; }
-      }
-      if (result.filamentGrams && result.filamentGrams > 0) {
-        const pwEl = $('#printWeight');
-        if (pwEl) { pwEl.value = result.filamentGrams.toFixed(1); filled = true; }
-      }
-      if (result.filename) {
+      if (result && result.filename) {
         const frEl = $('#partFileRef');
         if (frEl && !frEl.value) frEl.value = result.filename;
       }
-      if (result.filamentType) {
-        toast(t('calc.detected_material', { mat: result.filamentType }), 'info', 4000);
-      }
-      updateGrandTotal();
-      if (result.printTimeMins && result.filamentGrams) {
-        toast(t('calc.parsed_toast', { time: (result.printTimeMins/60).toFixed(2), grams: result.filamentGrams.toFixed(1) }), 'success');
-      } else if (filled) {
-        toast(t('calc.parse_partial'), 'info');
-      } else {
-        toast(t('calc.parse_failed'), 'warning');
-      }
+      // Same applier as a dropped file, so a picked STL and a dropped STL cannot
+      // disagree about what the part weighs.
+      applyIntake(result, result && result.filename);
     } catch(e) {
       toast(t('calc.parse_failed'), 'warning');
     }
@@ -282,27 +380,10 @@ function wireEvents() {
   $('#stlFileInput')?.addEventListener('change', async (e) => {
     const file = e.target.files && e.target.files[0];
     e.target.value = ''; // allow re-picking the same file
-    if (!file || typeof KhaytStl === 'undefined') return;
-    try {
-      const buf = await file.arrayBuffer();
-      const geom = KhaytStl.parseStl(buf);
-      const infillPct = Math.max(0, num($('#infill')?.value, 20)) / 100;
-      const est = KhaytStl.estimateFromStl(geom, { infillPct });
-      const wEl = $('#printWeight'); if (wEl) { wEl.value = est.estWeightG; wEl.dispatchEvent(new Event('input', { bubbles: true })); }
-      const tEl = $('#printTime'); if (tEl) { tEl.value = est.estPrintTimeH; tEl.dispatchEvent(new Event('input', { bubbles: true })); }
-      const note = $('#stlEstimateNote');
-      if (note) {
-        const line1 = t('stl.note_tpl', { x: est.dimsMm.x, y: est.dimsMm.y, z: est.dimsMm.z, solid: est.solidWeightG, weight: est.estWeightG, time: est.estPrintTimeH });
-        const line2 = t('stl.note_assume', { infill: Math.round(infillPct * 100), density: est.assumptions.densityGPerCm3 });
-        note.textContent = `${line1}  —  ${line2}`;
-        note.style.display = 'block';
-      }
-      toast(t('stl.applied'), 'success');
-      if (typeof updateGrandTotal === 'function') updateGrandTotal();
-    } catch (err) {
-      console.error('STL estimate:', err);
-      toast(t('stl.parse_fail'), 'error');
-    }
+    // Every model file — picked here, or dropped on the zone — goes through the
+    // one intake path, so a 3MF that WAS sliced gives its exact numbers instead
+    // of being estimated from geometry the way this button used to do.
+    if (file) await intakeFile(file);
   });
 
   // Slice an uploaded model with the user's installed slicer for an exact quote.
