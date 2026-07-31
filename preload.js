@@ -154,6 +154,12 @@ contextBridge.exposeInMainWorld('hubAPI', {
 
   // Feature 1 (new batch): G-code / 3MF metadata extraction
   parsePrintFile: (filePath) => ipcRenderer.invoke('hub:parse-print-file', filePath),
+  // A DROPPED file has no path we are willing to trust — the allowlist on
+  // hub:parse-print-file exists precisely so a renderer cannot name arbitrary
+  // paths to read. So a drop sends the bytes the OS already handed us instead,
+  // which grants no new filesystem reach. Callers slice G-code to head+tail
+  // first; the parser only reads those and a spooled job can be hundreds of MB.
+  intakeModelBytes: (filename, bytes) => ipcRenderer.invoke('hub:intake-model-bytes', { filename, bytes }),
   aiExtract: (opts) => ipcRenderer.invoke('hub:ai-extract', opts),
   cloudHealth: (url) => ipcRenderer.invoke('hub:cloud-health', url),
   cloudCreateKeyset: (passphrase) => ipcRenderer.invoke('hub:cloud-create-keyset', passphrase),

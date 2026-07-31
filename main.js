@@ -68,6 +68,7 @@ const printerCommands = require('./lib/printer-commands');
 const { normalizeStoreSnapshot, STORE_VERSION } = require('./lib/store-validate');
 const { createStoreIo } = require('./lib/store-io');
 const { parseGcodeText } = require('./lib/gcode-parse');
+const { intake: intakeModel } = require('./lib/model-intake');
 const { extract: extractPrintThumb } = require('./lib/thumbnail-extract');
 const bambu = require('./lib/bambu');
 const { bambuFtpUpload } = require('./lib/bambu-ftp');
@@ -2075,6 +2076,40 @@ ipcMain.handle('hub:open-external', async (_e, url) => {
   return { ok: true };
 });
 
+// Parse a model the user DROPPED on the calculator. Takes bytes, not a path:
+// hub:parse-print-file restricts which directories it will read so a renderer
+// cannot name an arbitrary file, and a dropped path arrives from that same
+// untrusted renderer. Bytes the OS already gave the page grant nothing new.
+const INTAKE_MAX_BYTES = 150 * 1024 * 1024;
+ipcMain.handle('hub:intake-model-bytes', async (_e, payload) => {
+  const filename = String((payload && payload.filename) || '');
+  const raw = payload && payload.bytes;
+  if (!raw) return { ok: false, error: 'No file data' };
+  const buf = Buffer.isBuffer(raw) ? raw : Buffer.from(raw);
+  if (!buf.length) return { ok: false, error: 'Empty file' };
+  if (buf.length > INTAKE_MAX_BYTES) return { ok: false, error: 'File too large (max 150 MB)' };
+  try {
+    const r = intakeModel({ filename, bytes: buf });
+    return {
+      ok: true,
+      filename: path.basename(filename),
+      exact: r.exact,
+      source: r.source,
+      printTimeMins: r.printTimeMins,
+      filamentGrams: r.filamentGrams,
+      filamentType: r.filamentType,
+      filamentCost: r.filamentCost,
+      slicer: r.slicer,
+      geometry: r.geometry
+        ? { volumeMm3: r.geometry.volumeMm3, bbox: r.geometry.bbox, triangleCount: r.geometry.triangleCount }
+        : null,
+      warnings: r.warnings,
+    };
+  } catch (e) {
+    return { ok: false, error: 'Could not read that file' };
+  }
+});
+
 // --- Feature 1 (new batch): G-code / 3MF metadata extraction ---
 ipcMain.handle('hub:parse-print-file', async (_e, filePath) => {
   const resolvedParse = path.resolve(String(filePath || ''));
@@ -2116,16 +2151,31 @@ ipcMain.handle('hub:parse-print-file', async (_e, filePath) => {
       result.printTimeMins = parsed.printTimeMins;
       result.filamentGrams = parsed.filamentGrams;
       result.filamentType = parsed.filamentType;
+      result.filamentCost = parsed.filamentCost;
       result.slicer = parsed.slicer;
-    } else if (ext === '.3mf') {
+      // Same provenance contract as the 3MF/STL/OBJ branch, so the renderer has
+      // one shape to reason about rather than two.
+      result.exact = !!(parsed.printTimeMins > 0 && parsed.filamentGrams > 0);
+      result.source = result.exact ? 'slicer' : null;
+    } else if (ext === '.3mf' || ext === '.stl' || ext === '.obj') {
+      // A 3MF is a ZIP — its slicer summary lives in a DEFLATE'd member and is
+      // not present in the raw bytes, so it has to be unzipped. STL and OBJ
+      // carry no slicer data at all and yield a geometric ESTIMATE, which the
+      // caller must label as one; `exact` says which kind of answer this is.
       const mfStat = fs.statSync(resolvedParse);
-      if (mfStat.size > 50_000_000) return { ok: false, error: '3MF file too large (max 50 MB)' };
-      const content = fs.readFileSync(filePath).toString('latin1');
-      const parsed = parseGcodeText(content);
-      result.printTimeMins = parsed.printTimeMins;
-      result.filamentGrams = parsed.filamentGrams;
-      result.filamentType = parsed.filamentType;
-      result.slicer = parsed.slicer;
+      if (mfStat.size > 50_000_000) return { ok: false, error: 'File too large (max 50 MB)' };
+      const r = intakeModel({ filename: path.basename(filePath), bytes: fs.readFileSync(resolvedParse) });
+      result.printTimeMins = r.printTimeMins;
+      result.filamentGrams = r.filamentGrams;
+      result.filamentType = r.filamentType;
+      result.filamentCost = r.filamentCost;
+      result.slicer = r.slicer;
+      result.exact = r.exact;
+      result.source = r.source;
+      result.geometry = r.geometry
+        ? { volumeMm3: r.geometry.volumeMm3, bbox: r.geometry.bbox, triangleCount: r.geometry.triangleCount }
+        : null;
+      result.warnings = r.warnings;
     }
   } catch(e) { /* silent fail */ }
   return result;

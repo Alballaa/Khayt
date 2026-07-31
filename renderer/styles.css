@@ -5411,3 +5411,10 @@ body.khayt-workbench .wb-glist li.is-openable { cursor: pointer; }
 .dep-audit-gap { text-decoration: line-through; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .dep-audit-fixed { font-weight: 600; font-variant-numeric: tabular-nums; }
 .dep-audit-arrow { color: var(--text-muted); }
+
+/* The calculator's model drop target, while a file is over it. */
+#modelDrop.drop-hot {
+  border-color: var(--primary);
+  background: var(--bg-elev);
+  color: var(--text);
+}
