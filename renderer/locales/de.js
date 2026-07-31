@@ -3618,5 +3618,18 @@
   "intake.no_summary": "Dieser G-Code enthält keine Zeit- oder Filamentzusammenfassung — exportiere ihn erneut aus deinem Slicer.",
   "intake.unsupported": "Khayt kann STL-, OBJ-, 3MF- und G-Code-Dateien lesen.",
   "intake.your_slicer": "deinem Slicer",
+  "lan.iq_enable": "Kunden ihr eigenes Modell bepreisen lassen",
+  "lan.iq_enable_hint": "Fügt dem Anfrageformular einen Datei-Upload hinzu. Die Datei wird im Arbeitsspeicher bepreist und nie gespeichert, und der Kunde erfährt, dass die Zahl kein verbindliches Angebot ist.",
+  "lan.iq_printer": "Mit diesem Druckerprofil berechnen",
+  "lan.iq_pick": "— Auswählen —",
+  "lan.iq_filament": "Material",
+  "lan.iq_flat": "Die Werte unten verwenden",
+  "lan.iq_spool_cost": "Spulenkosten",
+  "lan.iq_spool_weight": "Spulengewicht (g)",
+  "lan.iq_margin": "Marge %",
+  "lan.iq_min": "Mindestpreis",
+  "lan.iq_waste": "Verschnitt %",
+  "lan.iq_limit": "Schätzungen pro Besucher und Stunde",
+  "lan.iq_note": "Ein Modell, das niemand gesliced hat, wird allein aus seiner Form bepreist — bei einem dünn gefüllten oder stark gestützten Teil kann das deutlich danebenliegen. Dem Kunden wird immer angezeigt, welches von beiden er sieht.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

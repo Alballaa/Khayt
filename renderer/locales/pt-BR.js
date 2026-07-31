@@ -3619,5 +3619,18 @@
   "intake.no_summary": "Esse G-code não tem resumo de tempo nem de filamento — exporte-o de novo do seu fatiador.",
   "intake.unsupported": "O Khayt lê arquivos STL, OBJ, 3MF e G-code.",
   "intake.your_slicer": "seu fatiador",
+  "lan.iq_enable": "Deixe os clientes calcularem o preço do próprio modelo",
+  "lan.iq_enable_hint": "Adiciona um envio de arquivo ao formulário. O arquivo é precificado em memória e nunca é armazenado, e o cliente é avisado de que o valor não é um orçamento confirmado.",
+  "lan.iq_printer": "Calcular com esta predefinição de impressora",
+  "lan.iq_pick": "— Selecionar —",
+  "lan.iq_filament": "Material",
+  "lan.iq_flat": "Usar os valores abaixo",
+  "lan.iq_spool_cost": "Custo do rolo",
+  "lan.iq_spool_weight": "Peso do rolo (g)",
+  "lan.iq_margin": "Margem %",
+  "lan.iq_min": "Preço mínimo",
+  "lan.iq_waste": "Desperdício %",
+  "lan.iq_limit": "Estimativas por visitante, por hora",
+  "lan.iq_note": "Um modelo que ninguém fatiou é precificado apenas pela forma, o que pode ficar bem longe em uma peça pouco preenchida ou com muitos suportes. O cliente sempre vê qual dos dois está olhando.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

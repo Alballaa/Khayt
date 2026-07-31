@@ -87,6 +87,9 @@ jobs:
       - name: E2E smoke (file to estimate to quote)
         run: xvfb-run -a npm run test:e2e:intake
 
+      - name: E2E smoke (customer prices their own model)
+        run: xvfb-run -a npm run test:e2e:intakequote
+
       - name: E2E smoke (QC / reprint / RMA)
         run: xvfb-run -a npm run test:e2e:qc
 

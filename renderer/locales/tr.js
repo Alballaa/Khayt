@@ -3618,5 +3618,18 @@
   "intake.no_summary": "Bu G-code’da süre veya filament özeti yok — dilimleyicinden yeniden dışa aktar.",
   "intake.unsupported": "Khayt STL, OBJ, 3MF ve G-code dosyalarını okuyabilir.",
   "intake.your_slicer": "dilimleyicin",
+  "lan.iq_enable": "Müşteriler kendi modellerini fiyatlandırsın",
+  "lan.iq_enable_hint": "Talep formuna dosya yükleme ekler. Dosya bellekte fiyatlandırılır, hiçbir zaman saklanmaz ve müşteriye rakamın kesin bir teklif olmadığı bildirilir.",
+  "lan.iq_printer": "Bu yazıcı ön ayarıyla fiyatlandır",
+  "lan.iq_pick": "— Seç —",
+  "lan.iq_filament": "Malzeme",
+  "lan.iq_flat": "Aşağıdaki değerleri kullan",
+  "lan.iq_spool_cost": "Makara maliyeti",
+  "lan.iq_spool_weight": "Makara ağırlığı (g)",
+  "lan.iq_margin": "Kâr marjı %",
+  "lan.iq_min": "En düşük fiyat",
+  "lan.iq_waste": "Fire %",
+  "lan.iq_limit": "Ziyaretçi başına saatlik tahmin sayısı",
+  "lan.iq_note": "Hiç dilimlenmemiş bir model yalnızca biçiminden fiyatlandırılır; seyrek dolgulu ya da bol destekli bir parçada bu epey şaşabilir. Müşteriye hangisine baktığı her zaman gösterilir.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

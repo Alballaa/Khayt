@@ -3618,5 +3618,18 @@
   "intake.no_summary": "この G-code には時間やフィラメントの要約がありません。スライサーから書き出し直してください。",
   "intake.unsupported": "Khayt が読めるのは STL・OBJ・3MF・G-code です。",
   "intake.your_slicer": "お使いのスライサー",
+  "lan.iq_enable": "お客様がご自分のモデルを見積もれるようにする",
+  "lan.iq_enable_hint": "依頼フォームにファイルのアップロードを追加します。ファイルはメモリー上で見積もられ、保存されることはありません。金額が確定見積もりでないことはお客様に明示されます。",
+  "lan.iq_printer": "この機種プリセットで計算",
+  "lan.iq_pick": "— 選択 —",
+  "lan.iq_filament": "材料",
+  "lan.iq_flat": "下の数値を使う",
+  "lan.iq_spool_cost": "スプール価格",
+  "lan.iq_spool_weight": "スプール重量 (g)",
+  "lan.iq_margin": "利益率 %",
+  "lan.iq_min": "最低価格",
+  "lan.iq_waste": "ロス率 %",
+  "lan.iq_limit": "訪問者あたりの 1 時間の見積もり回数",
+  "lan.iq_note": "スライスされていないモデルは形状だけから見積もるため、中空の多い部品やサポートの多い部品では大きくずれることがあります。どちらの数値を見ているかは、お客様に必ず表示されます。",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
