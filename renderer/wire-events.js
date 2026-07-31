@@ -361,6 +361,84 @@ function wireEvents() {
     }
   });
 
+  /* ---- Link a part to a model in the library --------------------------
+   * A finished job can only teach the file it printed if it knows which file
+   * that was. See lib/order-file-link.js.
+   * ------------------------------------------------------------------- */
+  function fillPrintFilePicker() {
+    const sel = $('#partPrintFile');
+    if (!sel) return;
+    const keep = sel.value;
+    const files = (typeof printFiles !== 'undefined' ? printFiles : []) || [];
+    sel.innerHTML = `<option value="">${escapeHtml(t('link.none'))}</option>`
+      + files.map((f) => `<option value="${escapeHtml(f.id)}">${escapeHtml(f.name || f.originalName || f.id)}</option>`).join('');
+    sel.value = keep;
+  }
+
+  function fillSetupPicker() {
+    const fileSel = $('#partPrintFile');
+    const setupSel = $('#partSetup');
+    const hint = $('#partLinkHint');
+    if (!fileSel || !setupSel) return;
+    const rec = ((typeof printFiles !== 'undefined' ? printFiles : []) || [])
+      .find((f) => f.id === fileSel.value);
+    const setups = (rec && Array.isArray(rec.setups)) ? rec.setups : [];
+    const PSlib = (typeof KhaytPrintSetups !== 'undefined') ? KhaytPrintSetups : null;
+
+    setupSel.disabled = !rec || !setups.length;
+    setupSel.innerHTML = `<option value="">${escapeHtml(t('link.no_setup'))}</option>`
+      + setups.map((su) => {
+        const label = (PSlib && PSlib.describeSetup(su)) || su.name || su.id;
+        const st = PSlib ? PSlib.statusOf(su) : '';
+        return `<option value="${escapeHtml(su.id)}">${escapeHtml(su.name || label)}${st ? ` — ${escapeHtml(st)}` : ''}</option>`;
+      }).join('');
+
+    // Point the shop at the setup that has actually worked, rather than making
+    // them remember. They can still choose another.
+    if (PSlib && setups.length && !setupSel.value) {
+      const best = PSlib.recommendSetup(setups);
+      if (best) setupSel.value = best.id;
+    }
+
+    if (!hint) return;
+    if (!rec) { hint.style.display = 'none'; return; }
+    // What this file's estimate has done in the past, if anything.
+    const OL = (typeof KhaytOrderFileLink !== 'undefined') ? KhaytOrderFileLink : null;
+    const perf = OL ? OL.setupPerformance(printLog || [], { printFileId: rec.id, setupId: setupSel.value || undefined }) : null;
+    if (!perf || !perf.jobs) { hint.style.display = 'none'; return; }
+    // Only ever quote the exact figures as a variance. An apportioned job used
+    // the estimate to split the actual, so quoting it back as a check on that
+    // same estimate would be circular.
+    const exact = OL.setupPerformance(printLog || [], {
+      printFileId: rec.id, setupId: setupSel.value || undefined, exactOnly: true });
+    if (exact.jobs && exact.hoursDeltaPct !== null) {
+      hint.textContent = t('link.past', {
+        n: exact.jobs,
+        hours: (exact.hoursDeltaPct > 0 ? '+' : '') + exact.hoursDeltaPct,
+        grams: exact.gramsDeltaPct === null ? '—' : ((exact.gramsDeltaPct > 0 ? '+' : '') + exact.gramsDeltaPct),
+      });
+    } else {
+      hint.textContent = t('link.past_thin', { n: perf.jobs });
+    }
+    hint.style.display = 'block';
+  }
+
+  $('#partPrintFile')?.addEventListener('change', () => {
+    const setupSel = $('#partSetup');
+    if (setupSel) setupSel.value = '';
+    fillSetupPicker();
+    // Naming the model is the useful half of the old free-text field, so fill it
+    // in rather than making the shop type what they just picked.
+    const rec = ((typeof printFiles !== 'undefined' ? printFiles : []) || [])
+      .find((f) => f.id === $('#partPrintFile').value);
+    const ref = $('#partFileRef');
+    if (rec && ref && !ref.value) ref.value = rec.originalName || rec.name || '';
+  });
+  $('#partSetup')?.addEventListener('change', fillSetupPicker);
+  document.addEventListener('khayt:printfiles-changed', fillPrintFilePicker);
+  fillPrintFilePicker();
+  fillSetupPicker();
+
   // Printer presets
   $('#printerPreset')?.addEventListener('change', (e) => {
     if (e.target.value) applyPreset(e.target.value);

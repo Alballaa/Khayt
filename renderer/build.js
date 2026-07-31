@@ -568,6 +568,10 @@ function snapshotPartFromForm() {
     profile:     ($('#printProfile')?.value || '').trim() || null,
     machineId:   $('#partMachineId')?.value || null,
     fileRef:     ($('#partFileRef')?.value || '').trim() || '',
+    // The link that lets a finished job teach the file it printed: which model,
+    // and which of its setups. See lib/order-file-link.js.
+    printFileId: $('#partPrintFile')?.value || null,
+    setupId:     $('#partSetup')?.value || null,
     extraMaterials: currentExtraMaterials.filter(m => m.material && m.weight > 0).map(m => ({ ...m })),
     priceTiers:  currentPriceTiers.filter(ti => ti.minQty > 0 && ti.pricePerUnit > 0).map(ti => ({ ...ti })),
     spoolId:     $('#spoolIdPicker')?.value || null,
@@ -598,6 +602,9 @@ function addPart() {
   // The attached file was NOT cleared, so it silently carried over onto the next part —
   // the second item in a multi-part order ended up referencing the first item's model.
   if ($('#partFileRef')) $('#partFileRef').value = '';
+  // Same reason the file reference is cleared: a second part in one order must
+  // not silently inherit the first part's model and settings.
+  if ($('#partPrintFile')) { $('#partPrintFile').value = ''; $('#partPrintFile').dispatchEvent(new Event('change', { bubbles: true })); }
   currentExtraMaterials = [];
   currentPriceTiers = [];
   renderExtraMaterials();
@@ -657,6 +664,11 @@ function editPart(index) {
   setVal('#infill',        part.infill || '');
   setVal('#printProfile',  part.profile || '');
   setVal('#partFileRef',   part.fileRef || '');
+  if ($('#partPrintFile')) {
+    $('#partPrintFile').value = part.printFileId || '';
+    $('#partPrintFile').dispatchEvent(new Event('change', { bubbles: true }));
+    if ($('#partSetup')) $('#partSetup').value = part.setupId || '';
+  }
   setVal('#spoolIdPicker', part.spoolId || '');
 
   // Restore extra materials

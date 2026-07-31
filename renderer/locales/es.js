@@ -3664,5 +3664,10 @@
   "dup.open": "Abrir el que ya tengo",
   "dup.badge": "Mismo archivo que «{name}»",
   "dup.similar": "Se parece a «{name}»",
+  "link.from_library": "De tu biblioteca de impresión",
+  "link.none": "— No es de la biblioteca —",
+  "link.no_setup": "— ¿Con qué ajustes? —",
+  "link.past": "En {n} trabajos de una sola pieza con estos ajustes, tu estimación quedó a {hours}% en tiempo y {grams}% en filamento.",
+  "link.past_thin": "Impreso {n} vez(ces) antes, pero cada trabajo compartía pedido con otras piezas, así que aún no hay una comparación limpia.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

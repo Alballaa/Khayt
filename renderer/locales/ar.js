@@ -3666,5 +3666,10 @@
   "dup.open": "افتح النسخة الموجودة",
   "dup.badge": "نفس ملف ”{name}“",
   "dup.similar": "يشبه ”{name}“",
+  "link.from_library": "من مكتبة الطباعة لديك",
+  "link.none": "— ليس من المكتبة —",
+  "link.no_setup": "— أي إعدادات؟ —",
+  "link.past": "عبر {n} من الأعمال ذات القطعة الواحدة بهذه الإعدادات، جاء تقديرك بفارق {hours}% في الوقت و{grams}% في الخيط.",
+  "link.past_thin": "طُبع {n} مرة سابقًا، لكن كل عمل شارك طلبًا مع قطع أخرى — لذا لا توجد مقارنة نظيفة بعد.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

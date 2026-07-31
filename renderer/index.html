@@ -295,6 +295,13 @@
           <label style="margin-top:8px;"><span data-i18n="calc.support_wt">Support weight (g)</span></label>
           <input type="number" id="supportWeight" value="0" min="0" placeholder="0">
 
+          <label style="margin-top:8px;" data-i18n="link.from_library">From your print library</label>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <select id="partPrintFile" style="flex:1;"><option value="" data-i18n="link.none">— Not from the library —</option></select>
+            <select id="partSetup" style="flex:1;" disabled><option value="" data-i18n="link.no_setup">— Which settings? —</option></select>
+          </div>
+          <div id="partLinkHint" style="display:none;font-size:11px;color:var(--text-muted);margin-top:4px;"></div>
+
           <label style="margin-top:8px;"><span data-i18n="calc.part_note">Part note</span></label>
           <input type="text" id="partNote" data-i18n-placeholder="calc.part_note_ph" placeholder="e.g. special requirements…">
 
@@ -2445,6 +2452,7 @@
 <script src="../lib/printer-actuals.js"></script>
 <script src="../lib/print-setups.js"></script>
 <script src="../lib/model-identity.js"></script>
+<script src="../lib/order-file-link.js"></script>
 <script src="../lib/stl-thumbnail.js"></script>
 <script src="../lib/reorder.js"></script>
 <script src="../lib/payment-plan.js"></script>

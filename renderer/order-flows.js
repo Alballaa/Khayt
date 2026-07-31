@@ -288,6 +288,32 @@ function logPrint(asQuote = false) {
    Quote workflow — approve, reject, share
    ============================================================ */
 
+/**
+ * Tell each setup an order used how the job went.
+ *
+ * This is the payoff of linking a part to a model: lib/print-setups.js learns
+ * which settings work without the shop logging anything by hand, because
+ * finishing the order already said so.
+ */
+function recordSetupOutcomes(order, ok) {
+  const OL = (typeof KhaytOrderFileLink !== 'undefined') ? KhaytOrderFileLink : null;
+  const PS = (typeof KhaytPrintSetups !== 'undefined') ? KhaytPrintSetups : null;
+  if (!OL || !PS || typeof printFiles === 'undefined') return 0;
+  let touched = 0;
+  for (const out of OL.outcomesForOrder(order, ok)) {
+    const rec = (printFiles || []).find((f) => f && f.id === out.printFileId);
+    if (!rec || !Array.isArray(rec.setups)) continue;
+    const at = rec.setups.findIndex((su) => su && su.id === out.setupId);
+    if (at === -1) continue;
+    rec.setups[at] = PS.recordOutcome(rec.setups[at], out.ok, new Date().toISOString());
+    touched += 1;
+  }
+  if (touched) {
+    try { document.dispatchEvent(new CustomEvent('khayt:printfiles-changed')); } catch (e) { /* non-fatal */ }
+  }
+  return touched;
+}
+
 /* ============================================================
    Actual-vs-estimated — prompt on job completion
    ============================================================ */
@@ -356,6 +382,10 @@ function promptActuals(order, onConfirm) {
         weight: weightIsMeasured && unchanged(order.actualWeight, initWeight)    ? (pre.source || 'printer') : 'manual',
         at: new Date().toISOString(),
       };
+      // Close the loop: a finished job teaches the settings that ran it. One
+      // outcome per distinct setup, so a four-part order using one setup does
+      // not make it look four times as proven.
+      recordSetupOutcomes(order, true);
       onConfirm();
       return true;
     }
@@ -2983,6 +3013,11 @@ async function captureFailurePhoto(orderId) {
   const api = {
     logPrint,
     promptActuals,
+    // Public because it is a real operation on an order — "tell the settings
+    // this used how it went" — that any completion path should be able to call,
+    // and because it writes to another module's records, which is worth being
+    // able to drive end to end.
+    recordSetupOutcomes,
     updateStatus,
     resumeFromHold,
     holdOrder,
