@@ -62,7 +62,8 @@
     "test:ios-contract": "bash scripts/ios-contract.sh",
     "test:e2e:a11y": "node scripts/e2e-a11y-keyboard.mjs",
     "verify:release": "node scripts/verify-release.mjs",
-    "test:e2e:intake": "node scripts/e2e-model-intake-smoke.mjs"
+    "test:e2e:intake": "node scripts/e2e-model-intake-smoke.mjs",
+    "test:e2e:intakequote": "node scripts/e2e-intake-quote-smoke.mjs"
   },
   "dependencies": {
     "@sentry/electron": "^7.16.0",

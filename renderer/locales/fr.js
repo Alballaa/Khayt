@@ -3618,5 +3618,18 @@
   "intake.no_summary": "Ce G-code n’a aucun résumé de temps ni de filament — réexporte-le depuis ton trancheur.",
   "intake.unsupported": "Khayt peut lire les fichiers STL, OBJ, 3MF et G-code.",
   "intake.your_slicer": "ton trancheur",
+  "lan.iq_enable": "Laisser les clients chiffrer leur propre modèle",
+  "lan.iq_enable_hint": "Ajoute un envoi de fichier au formulaire. Le fichier est chiffré en mémoire et jamais conservé, et le client est prévenu que le montant n’est pas un devis ferme.",
+  "lan.iq_printer": "Chiffrer avec ce profil d’imprimante",
+  "lan.iq_pick": "— Sélectionner —",
+  "lan.iq_filament": "Matière",
+  "lan.iq_flat": "Utiliser les valeurs ci-dessous",
+  "lan.iq_spool_cost": "Coût de la bobine",
+  "lan.iq_spool_weight": "Poids de la bobine (g)",
+  "lan.iq_margin": "Marge %",
+  "lan.iq_min": "Prix minimum",
+  "lan.iq_waste": "Perte %",
+  "lan.iq_limit": "Estimations par visiteur et par heure",
+  "lan.iq_note": "Un modèle que personne n’a tranché est chiffré d’après sa seule forme, ce qui peut être très loin du compte sur une pièce peu remplie ou très soutenue. Le client voit toujours laquelle des deux il a sous les yeux.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

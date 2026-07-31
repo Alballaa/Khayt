@@ -3621,5 +3621,18 @@
   "intake.no_summary": "That G-code has no time or filament summary — re-export it from your slicer.",
   "intake.unsupported": "Khayt can read STL, OBJ, 3MF and G-code files.",
   "intake.your_slicer": "your slicer",
+  "lan.iq_enable": "Let customers price their own model",
+  "lan.iq_enable_hint": "Adds a file upload to the intake form. The file is priced in memory and never stored, and the customer is told the figure is not a confirmed quote.",
+  "lan.iq_printer": "Price using this printer preset",
+  "lan.iq_pick": "— Select —",
+  "lan.iq_filament": "Material",
+  "lan.iq_flat": "Use the figures below",
+  "lan.iq_spool_cost": "Spool cost",
+  "lan.iq_spool_weight": "Spool weight (g)",
+  "lan.iq_margin": "Margin %",
+  "lan.iq_min": "Minimum price",
+  "lan.iq_waste": "Waste %",
+  "lan.iq_limit": "Estimates per visitor, per hour",
+  "lan.iq_note": "A model nobody has sliced is priced from its shape alone, which can be well out on a sparse or heavily supported part. The customer is always shown which of the two they are looking at.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

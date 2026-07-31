@@ -3618,5 +3618,18 @@
   "intake.no_summary": "Ese G-code no trae resumen de tiempo ni de filamento: vuelve a exportarlo desde tu laminador.",
   "intake.unsupported": "Khayt puede leer archivos STL, OBJ, 3MF y G-code.",
   "intake.your_slicer": "tu laminador",
+  "lan.iq_enable": "Deja que los clientes calculen el precio de su modelo",
+  "lan.iq_enable_hint": "Añade una subida de archivo al formulario. El archivo se tasa en memoria y nunca se guarda, y al cliente se le indica que la cifra no es un presupuesto en firme.",
+  "lan.iq_printer": "Calcular con este perfil de impresora",
+  "lan.iq_pick": "— Seleccionar —",
+  "lan.iq_filament": "Material",
+  "lan.iq_flat": "Usar las cifras de abajo",
+  "lan.iq_spool_cost": "Coste de la bobina",
+  "lan.iq_spool_weight": "Peso de la bobina (g)",
+  "lan.iq_margin": "Margen %",
+  "lan.iq_min": "Precio mínimo",
+  "lan.iq_waste": "Desperdicio %",
+  "lan.iq_limit": "Estimaciones por visitante y hora",
+  "lan.iq_note": "Un modelo que nadie ha laminado se tasa solo por su forma, y puede desviarse mucho en una pieza poco rellena o con muchos soportes. Al cliente siempre se le muestra cuál de las dos está viendo.",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

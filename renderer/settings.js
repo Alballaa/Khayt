@@ -2338,6 +2338,64 @@ function renderLanApiSettings() {
     <div style="font-size:11px;color:var(--text-muted);margin:4px 0 10px;padding:8px 10px;background:var(--bg-elev);border-radius:var(--radius);word-break:break-all;">
       Customer intake form: <code style="font-size:11px;">/intake</code> — scan the QR or open this path on your shop Wi‑Fi (no PIN required).
     </div>
+    <div style="margin:10px 0;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);">
+      <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="lan_iq_enabled" style="width:auto;margin:3px 0 0;" ${lan.intakeQuote?.enabled ? 'checked' : ''}>
+        <span>
+          <span data-i18n="lan.iq_enable">Let customers price their own model</span>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;font-weight:400;" data-i18n="lan.iq_enable_hint">Adds a file upload to the intake form. The file is priced in memory and never stored, and the customer is told the figure is not a confirmed quote.</div>
+        </span>
+      </label>
+      <div id="lanIqFields" style="margin-top:10px;${lan.intakeQuote?.enabled ? '' : 'display:none;'}">
+        <div class="inline-pair">
+          <div>
+            <label data-i18n="lan.iq_printer">Price using this printer preset</label>
+            <select id="lan_iq_preset">
+              <option value="" data-i18n="lan.iq_pick">— Select —</option>
+              ${(printers || []).map((p) => `<option value="${escapeHtml(p.id)}" ${lan.intakeQuote?.presetId === p.id ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label data-i18n="lan.iq_filament">Material</label>
+            <select id="lan_iq_filament">
+              <option value="" data-i18n="lan.iq_flat">Use the figures below</option>
+              ${(inventory || []).filter((i) => i && i.id).map((i) => `<option value="${escapeHtml(i.id)}" ${lan.intakeQuote?.filamentId === i.id ? 'selected' : ''}>${escapeHtml(i.material || i.name || i.id)}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="inline-pair" style="margin-top:8px;">
+          <div>
+            <label data-i18n="lan.iq_spool_cost">Spool cost</label>
+            <input type="number" id="lan_iq_spool_cost" min="0" step="0.01" value="${+(lan.intakeQuote?.spoolCost) || ''}">
+          </div>
+          <div>
+            <label data-i18n="lan.iq_spool_weight">Spool weight (g)</label>
+            <input type="number" id="lan_iq_spool_weight" min="1" value="${+(lan.intakeQuote?.spoolWeight) || 1000}">
+          </div>
+        </div>
+        <div class="inline-pair" style="margin-top:8px;">
+          <div>
+            <label data-i18n="lan.iq_margin">Margin %</label>
+            <input type="number" id="lan_iq_margin" min="0" step="1" value="${+(lan.intakeQuote?.marginPct) || 0}">
+          </div>
+          <div>
+            <label data-i18n="lan.iq_min">Minimum price</label>
+            <input type="number" id="lan_iq_min" min="0" step="0.01" value="${+(lan.intakeQuote?.minPrice) || 0}">
+          </div>
+        </div>
+        <div class="inline-pair" style="margin-top:8px;">
+          <div>
+            <label data-i18n="lan.iq_waste">Waste %</label>
+            <input type="number" id="lan_iq_waste" min="0" max="50" step="1" value="${Math.round((+(lan.intakeQuote?.wastePct) || 0) * 100)}">
+          </div>
+          <div>
+            <label data-i18n="lan.iq_limit">Estimates per visitor, per hour</label>
+            <input type="number" id="lan_iq_limit" min="1" max="10000" value="${+(lan.intakeQuote?.hourlyLimit) || 12}">
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:8px;" data-i18n="lan.iq_note">A model nobody has sliced is priced from its shape alone, which can be well out on a sparse or heavily supported part. The customer is always shown which of the two they are looking at.</div>
+      </div>
+    </div>
     <div class="inline-pair" style="margin-top:10px;">
       <div style="flex:1;">
         <label data-i18n="lan.webhook_token">Printer Webhook Token</label>
@@ -2396,6 +2454,22 @@ function renderLanApiSettings() {
     toast('LAN API settings saved', 'success');
   });
 
+  // Reveal the pricing fields only when the shop opts in, so the panel does not
+  // ask nine questions nobody has to answer.
+  el.querySelector('#lan_iq_enabled')?.addEventListener('change', (e) => {
+    const fields = el.querySelector('#lanIqFields');
+    if (fields) fields.style.display = e.target.checked ? '' : 'none';
+  });
+  // A chosen inventory item IS the material price, so the flat figures beside it
+  // would be two answers to one question.
+  el.querySelector('#lan_iq_filament')?.addEventListener('change', (e) => {
+    const usingInventory = !!e.target.value;
+    for (const id of ['#lan_iq_spool_cost', '#lan_iq_spool_weight']) {
+      const f = el.querySelector(id);
+      if (f) { f.disabled = usingInventory; f.style.opacity = usingInventory ? '.5' : ''; }
+    }
+  });
+  el.querySelector('#lan_iq_filament')?.dispatchEvent(new Event('change'));
   el.querySelector('#btnStartLan')?.addEventListener('click', startLanServer);
   el.querySelector('#btnStopLan')?.addEventListener('click', async () => {
     await window.hubAPI?.stopLanServer?.();
@@ -3452,6 +3526,21 @@ function saveLanApiSettingsFromForm({ restartServer = false } = {}) {
     zidWebhookSecret: secretInputSave(prev.zidWebhookSecret, section.querySelector('#lan_zid_secret')?.value),
     tunnelEnabled: !!section.querySelector('#lan_tunnel_enabled')?.checked,
     bindLan: !!section.querySelector('#lan_bind_lan')?.checked,
+    // Public model pricing. Kept whole rather than spread so an older store
+    // without the key simply arrives as "off".
+    intakeQuote: {
+      ...(prev.intakeQuote || {}),
+      enabled: !!section.querySelector('#lan_iq_enabled')?.checked,
+      presetId: section.querySelector('#lan_iq_preset')?.value || '',
+      filamentId: section.querySelector('#lan_iq_filament')?.value || '',
+      spoolCost: Math.max(0, parseFloat(section.querySelector('#lan_iq_spool_cost')?.value) || 0),
+      spoolWeight: Math.max(1, parseFloat(section.querySelector('#lan_iq_spool_weight')?.value) || 1000),
+      marginPct: Math.max(0, parseFloat(section.querySelector('#lan_iq_margin')?.value) || 0),
+      minPrice: Math.max(0, parseFloat(section.querySelector('#lan_iq_min')?.value) || 0),
+      // Stored as a fraction; shown as a percentage.
+      wastePct: Math.min(0.5, Math.max(0, (parseFloat(section.querySelector('#lan_iq_waste')?.value) || 0) / 100)),
+      hourlyLimit: Math.max(1, Math.min(10000, parseInt(section.querySelector('#lan_iq_limit')?.value, 10) || 12)),
+    },
   };
   if (!restartServer) return;
   saveAll();

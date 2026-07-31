@@ -646,6 +646,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       // PDPL: carry the customer's recorded consent through verbatim — it is the
       // auditable proof of lawful basis for this submission and must not be rebuilt.
       consent: entry.consent || null,
+      // The price we showed this customer, and — the part that matters — whether
+      // it came off their slicer or off a guess about the shape of their model.
+      // This draft is rebuilt field by field, so anything not named here is
+      // dropped: without this line the shop inherits estValue with no way to
+      // tell a measurement from an estimate.
+      modelQuote: entry.modelQuote || undefined,
     };
     Object.keys(draft).forEach(k => draft[k] === undefined && delete draft[k]);
     waitingList.unshift(draft);

@@ -3618,5 +3618,18 @@
   "intake.no_summary": "该 G-code 没有时间或耗材摘要 — 请从切片软件重新导出。",
   "intake.unsupported": "Khayt 可以读取 STL、OBJ、3MF 和 G-code 文件。",
   "intake.your_slicer": "你的切片软件",
+  "lan.iq_enable": "让客户自行估算模型价格",
+  "lan.iq_enable_hint": "在需求表单中增加文件上传。文件只在内存中计价、从不保存，并会告知客户该数字不是确定报价。",
+  "lan.iq_printer": "使用此打印机预设计价",
+  "lan.iq_pick": "— 请选择 —",
+  "lan.iq_filament": "材料",
+  "lan.iq_flat": "使用下方数值",
+  "lan.iq_spool_cost": "每卷成本",
+  "lan.iq_spool_weight": "每卷重量（克）",
+  "lan.iq_margin": "利润率 %",
+  "lan.iq_min": "最低价格",
+  "lan.iq_waste": "损耗 %",
+  "lan.iq_limit": "每位访客每小时的估价次数",
+  "lan.iq_note": "未经切片的模型仅按外形计价，遇到填充稀疏或支撑很多的零件可能偏差很大。客户始终会看到自己面对的是哪一种数字。",
 };
 })(typeof globalThis !== 'undefined' ? globalThis : window);
