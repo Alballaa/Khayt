@@ -4,6 +4,30 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.5.2] - 2026-07-30
+
+Two places where Khayt showed a customer a currency that might not be the one
+your shop prices in. Both are on pages a customer sees; neither affects your own
+figures, and no stored data changed.
+
+### Fixed
+
+- **The order request form asked for a budget in SAR, whatever currency you use.**
+  The budget ranges on the intake form your customers fill in read "Less than
+  100 SAR", "100 – 500 SAR" and so on — fixed text, not something your settings
+  could change. If your shop prices in anything else, every customer who opened
+  that form was choosing a budget on the wrong scale, and the range you received
+  meant something different from what they picked.
+
+  The ranges now use your shop's currency. The choices themselves are unchanged,
+  so requests you have already received still read exactly as before.
+
+- **A quote could show a customer the wrong currency.** The quote approval page —
+  the one a customer opens to accept a price — fell back to SAR when it could not
+  read your shop's currency setting. It now shows the amount without a currency
+  in that case rather than naming the wrong one. This needed an unusual store to
+  happen at all; if your quotes have looked right, they were.
+
 ## [3.5.1] - 2026-07-30
 
 The half of organisations that 3.5.0 described but did not include.
