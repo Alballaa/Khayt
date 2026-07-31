@@ -68,7 +68,8 @@
     "test:e2e:setups": "node scripts/e2e-print-setups-smoke.mjs",
     "test:e2e:dedupe": "node scripts/e2e-model-dedupe-smoke.mjs",
     "test:e2e:filelink": "node scripts/e2e-order-file-link-smoke.mjs",
-    "test:e2e:estimator": "node scripts/e2e-estimator-settings-smoke.mjs"
+    "test:e2e:estimator": "node scripts/e2e-estimator-settings-smoke.mjs",
+    "verify:printer": "node scripts/verify-printer-actuals.mjs"
   },
   "dependencies": {
     "@sentry/electron": "^7.16.0",
