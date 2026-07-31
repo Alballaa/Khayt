@@ -11,6 +11,7 @@ const {
   tunnelClientIp,
   scriptSafeJson,
   globalAuthThrottle,
+  globalWindowGate,
   weakTunnelPinWarning,
 } = require('../lib/lan-server.js');
 
@@ -273,4 +274,64 @@ test('a spool read tolerates junk records without throwing', () => {
   assert.equal(pickLanSpoolRead(null), null);
   assert.equal(pickLanSpoolRead('nonsense'), null);
   assert.deepEqual(pickLanSpoolRead({}), {});
+});
+
+/**
+ * globalWindowGate — the bound that a spoofed key cannot move.
+ *
+ * globalAuthThrottle only counts FAILED auth. An estimate request is not an auth
+ * attempt and it succeeds, so it never touches that gate, yet it is the most
+ * expensive thing an anonymous caller can ask the server to do. Behind the
+ * tunnel the per-IP allowance is keyed on the caller's own X-Forwarded-For, so
+ * rotating that header hands them a fresh allowance every request. This gate is
+ * keyed on nothing, which is the entire point of it.
+ */
+test('globalWindowGate counts every call, not just failures', () => {
+  const state = { count: 0, windowStart: 0 };
+  const opts = { limit: 3, windowMs: 10_000 };
+  // Three succeed. If this counted only "failed" calls the way the auth
+  // throttle does, none of these would ever register and the gate would be
+  // decorative.
+  assert.equal(globalWindowGate(state, 1_000, opts), false);
+  assert.equal(globalWindowGate(state, 1_001, opts), false);
+  assert.equal(globalWindowGate(state, 1_002, opts), false);
+  assert.equal(globalWindowGate(state, 1_003, opts), true, 'the 4th is over a limit of 3');
+});
+
+test('globalWindowGate reopens as soon as the window rolls — it is not a punishment', () => {
+  // windowStart is anchored rather than left at 0: a zero start means the first
+  // window is measured from the epoch, which with real clocks makes the very
+  // first call roll it. That self-initialisation is correct in the server and
+  // uninteresting here, so this test starts the clock where the window does.
+  const state = { count: 0, windowStart: 1_000 };
+  const opts = { limit: 2, windowMs: 10_000 };
+  assert.equal(globalWindowGate(state, 1_000, opts), false);
+  assert.equal(globalWindowGate(state, 1_100, opts), false);
+  assert.equal(globalWindowGate(state, 1_200, opts), true);
+  // Still inside the window → still shut.
+  assert.equal(globalWindowGate(state, 10_999, opts), true);
+  // Window elapsed → open again immediately, with no cooldown to sit through.
+  assert.equal(globalWindowGate(state, 11_002, opts), false);
+});
+
+test('globalWindowGate stays shut under sustained hammering, then opens fully', () => {
+  const state = { count: 0, windowStart: 0 };
+  const opts = { limit: 2, windowMs: 10_000 };
+  globalWindowGate(state, 1_000, opts);
+  globalWindowGate(state, 1_001, opts);
+  // 500 refusals in one window, which is the shape of the attack this exists
+  // for. Note it does NOT pin down whether a refusal increments the counter:
+  // the window reset zeroes it either way, so the two are indistinguishable
+  // from outside and only the fresh allowance below is a real assertion.
+  for (let i = 0; i < 500; i++) assert.equal(globalWindowGate(state, 1_002 + i, opts), true);
+  assert.equal(globalWindowGate(state, 12_000, opts), false, 'full allowance back');
+  assert.equal(globalWindowGate(state, 12_001, opts), false);
+  assert.equal(globalWindowGate(state, 12_002, opts), true);
+});
+
+test('globalWindowGate cannot be disabled by a zero or negative limit', () => {
+  const state = { count: 0, windowStart: 0 };
+  // A shop setting hourlyLimit to 0 must not mean "unlimited".
+  assert.equal(globalWindowGate(state, 1_000, { limit: 0, windowMs: 10_000 }), false);
+  assert.equal(globalWindowGate(state, 1_001, { limit: 0, windowMs: 10_000 }), true);
 });
