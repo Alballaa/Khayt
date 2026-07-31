@@ -4,6 +4,105 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.6.0-beta.1] - 2026-07-31
+
+Khayt learns what your prints actually cost, and uses it.
+
+Until now every part of that was a guess in isolation: the calculator estimated,
+the job finished, and nothing connected the two. This release joins them. A model
+becomes a quote, the printer reports what the job really used, the settings that
+produced it are remembered against the file, and the estimator quietly corrects
+itself from your own finished work.
+
+This is a beta. It changes what customers are quoted and how every
+geometry-based time estimate is worked out, so it goes out for soaking before it
+becomes the default download.
+
+### Added
+
+- **Drop a model on the calculator and get a quote.** One drop zone takes STL,
+  OBJ, 3MF or G-code. If you already sliced the file, Khayt reads your slicer's
+  own time and filament figures — those are exact, and it says so. If nobody has
+  sliced it, it works the weight and time out from the model's shape and labels
+  that plainly as an estimate, because on a sparse or heavily supported part it
+  can be well out. The two are never presented the same way.
+
+- **Your customers can price their own model.** Optional, and off until you turn
+  it on: Settings → Online → *Let customers price their own model*. It adds a
+  file upload to your intake form and shows an indicative figure, worked out with
+  your own printer preset, material and margin. The file is priced in memory and
+  never stored. The customer is told the figure is not a confirmed quote, and you
+  see what they were shown on the request when it arrives.
+
+- **Khayt learns what a print actually cost.** When a job finishes on a Moonraker,
+  OctoPrint or Duet machine, Khayt reads the real filament used and the real print
+  duration from the printer and offers those figures when you mark the order
+  complete — instead of offering your estimate back to you, which is what it used
+  to do. PrusaLink reports the duration but not the filament, so you get the time
+  measured and the weight left to you. Bambu reports neither. Each field says
+  which it is, so a measured figure and an assumed one never look alike.
+
+- **Settings that worked, remembered.** A print file can now keep the setups you
+  have printed it with — printer, material, colour, layer height, nozzle — each
+  with its own record of how the prints went. The file shows which one to reach
+  for. A setup that has never failed beats one that merely gets used a lot, and
+  if every setup has failed Khayt says so rather than recommending the least bad
+  one.
+
+- **Khayt recognises a file you already have.** Add the same model twice and it
+  tells you, names the copy you already own, and offers to drop the duplicate —
+  because the one you have carries its print history and its known-good settings,
+  and a fresh copy carries none of that. A file that merely looks like one you
+  have is described as looking like it, never as being it.
+
+- **Estimates that correct themselves.** Once a few jobs have finished with
+  measured figures, Khayt works out how fast your printers really run and uses
+  that instead of a built-in assumption. That assumption was optimistic — it
+  implied a sustained rate well above what typical printing achieves once travel
+  and acceleration are counted — so time estimates for unsliced models tended to
+  come out short. Settings → Preferences shows the rate and says whether it was
+  measured or assumed.
+
+- **A part can point at the model it prints.** Pick a file and a setup on the
+  calculator, and finishing that order records how it went against those settings
+  automatically. Over time this answers the question estimating never could: for
+  this part, with these settings, how far out am I?
+
+- **Browsing the Bed Ready library.** Search, filter by file type, sort, and
+  download or add a single design instead of all of them.
+
+- **Elegoo resin printers.** The protocol layer for Mars and Saturn machines
+  (SDCP v3.0.0). Groundwork — nothing to connect to yet.
+
+### Fixed
+
+- **3MF files never gave up their slicer figures.** "Parse from file" appeared to
+  work on a 3MF and filled in nothing, every time. A 3MF is a compressed archive
+  and Khayt was reading it without unpacking it, so the time and filament
+  summary your slicer wrote was never found. If you gave up on that button, it
+  works now.
+
+- **Bambu and Orca print times were being dropped.** Khayt read the filament
+  weight from a Bambu or Orca 3MF but silently never read the print time, because
+  it was looking for it in the wrong shape.
+
+- **Estimator settings were fixed values.** Filament density, default infill,
+  wall fraction and waste were the same for everybody — a shop printing PETG at
+  40% infill had its estimates built on PLA at 20%. They are now yours to set,
+  under Settings → Preferences, and they default to what Khayt always used.
+
+- **"Actual" figures were pre-filled with your estimate.** Marking a job complete
+  offered your own estimate back as the actual, so confirming it recorded the
+  estimate twice under two names — and the estimate-vs-actual report then said
+  your estimate was spot on for a job that ran two hours long.
+
+### Changed
+
+- **A part's file reference can be a real link.** The free-text file field is
+  still there; alongside it you can now pick from your print library, which is
+  what lets a finished job teach the file it printed.
+
+
 ## [3.5.2] - 2026-07-30
 
 Two places where Khayt showed a customer a currency that might not be the one
