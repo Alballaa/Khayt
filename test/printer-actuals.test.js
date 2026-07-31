@@ -119,6 +119,24 @@ test('PrusaLink gives time but no filament, and does not pretend otherwise', () 
   assert.equal(hasActuals(a), true, 'a time on its own is still worth recording');
 });
 
+test('PrusaLink file metadata is NOT treated as a measurement', () => {
+  // Prusa's /api/v1/job exposes file.meta with "filament used [g]" — but that is
+  // the gcode's own header, i.e. what the SLICER predicted, not what the printer
+  // used. Reading it here would report the estimate back as the actual and make
+  // every variance read as zero. Verified against Prusa's OpenAPI spec
+  // 2026-07-31: /api/v1/status carries no filament figure at all.
+  const withMeta = {
+    job: {
+      time_printing: 900,
+      file: { meta: { 'filament used [g]': 41.83, 'filament used [mm]': 14025.6 } },
+    },
+  };
+  const a = extractActuals('prusalink', withMeta);
+  assert.equal(a.durationS, 900, 'the time is still read');
+  assert.equal(a.filamentMm, null, 'and the slicer figure is ignored');
+  assert.equal(a.filamentGrams, null);
+});
+
 test('Bambu reports neither, and claims neither', () => {
   // Its MQTT payload has no cumulative extrusion, and elapsed-from-percent is
   // badly behaved at both ends of a job.
