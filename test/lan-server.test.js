@@ -11,6 +11,8 @@ const {
   tunnelClientIp,
   scriptSafeJson,
   globalAuthThrottle,
+  bumpFailure,
+  isLockedOut,
   weakTunnelPinWarning,
 } = require('../lib/lan-server.js');
 
@@ -273,4 +275,55 @@ test('a spool read tolerates junk records without throwing', () => {
   assert.equal(pickLanSpoolRead(null), null);
   assert.equal(pickLanSpoolRead('nonsense'), null);
   assert.deepEqual(pickLanSpoolRead({}), {});
+});
+
+/**
+ * bumpFailure — the counter that used to never count.
+ *
+ * The original reset the count whenever `now >= resetAt`, but only ever SET
+ * resetAt once the count reached the limit. resetAt started at 0, so every
+ * attempt took the reset branch, the count sat at 1, and no lockout in the LAN
+ * server could ever engage. The arithmetic was self-consistent, which is why
+ * only asking the running server for a 429 exposed it.
+ */
+test('bumpFailure actually accumulates — the window opens on the FIRST failure', () => {
+  const now = 1_700_000_000_000;
+  let rec;
+  for (let i = 1; i <= 10; i++) {
+    rec = bumpFailure(rec, now + i * 50, { limit: 10, lockoutMs: 60_000 });
+    assert.equal(rec.count, i, `attempt ${i} should be counted as ${i}, got ${rec.count}`);
+  }
+  assert.ok(isLockedOut(rec, now + 600, 10), 'ten failures inside the window must lock');
+});
+
+test('bumpFailure locks for the FULL cooldown, measured from the offending attempt', () => {
+  const now = 1_700_000_000_000;
+  let rec;
+  // Nine failures early in the window, the tenth just before it would lapse.
+  for (let i = 0; i < 9; i++) rec = bumpFailure(rec, now + i, { limit: 10, lockoutMs: 60_000 });
+  const late = now + 59_000;
+  rec = bumpFailure(rec, late, { limit: 10, lockoutMs: 60_000 });
+  // A lockout inheriting the old window end would expire 1s later, handing the
+  // attacker a fresh ten guesses almost immediately.
+  assert.ok(isLockedOut(rec, late + 30_000, 10), 'still locked 30s after tripping it');
+  assert.equal(rec.resetAt, late + 60_000);
+});
+
+test('bumpFailure forgets a stale bucket, so honest users are not punished forever', () => {
+  const now = 1_700_000_000_000;
+  let rec;
+  for (let i = 0; i < 10; i++) rec = bumpFailure(rec, now + i, { limit: 10, lockoutMs: 60_000 });
+  assert.ok(isLockedOut(rec, now + 100, 10));
+  // Past the cooldown the next failure starts a clean window.
+  rec = bumpFailure(rec, now + 61_000, { limit: 10, lockoutMs: 60_000 });
+  assert.equal(rec.count, 1);
+  assert.equal(isLockedOut(rec, now + 61_001, 10), false);
+});
+
+test('isLockedOut needs BOTH a live window and a count at the limit', () => {
+  const now = 1_000_000;
+  assert.equal(isLockedOut(undefined, now, 10), false, 'no record at all');
+  assert.equal(isLockedOut({ count: 10, resetAt: now - 1 }, now, 10), false, 'window elapsed');
+  assert.equal(isLockedOut({ count: 9, resetAt: now + 5_000 }, now, 10), false, 'under the limit');
+  assert.equal(isLockedOut({ count: 10, resetAt: now + 5_000 }, now, 10), true);
 });
