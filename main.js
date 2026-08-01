@@ -3368,6 +3368,31 @@ app.on('web-contents-created', (_event, wc) => {
   wc.setWindowOpenHandler(() => ({ action: 'deny' }));
 });
 
+// Help-menu destinations. Kept as named constants so the menu below reads as a
+// list of places rather than a wall of URLs, and so a typo is in one place.
+const KHAYT_SITE = 'https://khaytapp.com';
+const BEDREADY_SITE = 'https://bedready.io';
+const KHAYT_SUBREDDIT = 'https://www.reddit.com/r/khayt';
+const KHAYT_REPO = 'https://github.com/KhaytApp/Khayt';
+
+/**
+ * Open a Help-menu destination in the user's browser.
+ *
+ * Every caller passes a literal from the constants above, so this cannot
+ * currently be handed anything hostile. The https check is here for the edit
+ * that comes later: shell.openExternal will happily hand `file://` to the OS,
+ * and a Help menu is an easy place for someone to wire up a local path without
+ * thinking about it.
+ */
+function openHelpLink(url) {
+  const target = String(url || '');
+  if (!/^https:\/\//i.test(target)) {
+    console.error('refusing to open a non-https help link:', target);
+    return;
+  }
+  shell.openExternal(target).catch((e) => console.error('help link failed:', e));
+}
+
 function buildMenu() {
   const isMac = process.platform === 'darwin';
   const template = [
@@ -3404,6 +3429,24 @@ function buildMenu() {
       label: 'Window', submenu: [
         { role: 'minimize' }, { role: 'zoom' },
         ...(isMac ? [ { type: 'separator' }, { role: 'front' } ] : [ { role: 'close' } ])
+      ]
+    },
+    {
+      // There was no Help menu at all, so a shop that wanted the docs, the
+      // release notes, or somewhere to report a bug had nowhere in the app to
+      // find any of them.
+      role: 'help',
+      submenu: [
+        { label: `${FLAVOR_NAME} Website`, click: () => openHelpLink(isBedReady ? BEDREADY_SITE : KHAYT_SITE) },
+        // The subreddit belongs to Khayt. Bed Ready is a separate brand to the
+        // people running it, and putting "r/khayt" in their Help menu would be
+        // the first they had heard of the other product.
+        ...(isBedReady ? [] : [
+          { label: 'Community — r/khayt', click: () => openHelpLink(KHAYT_SUBREDDIT) },
+        ]),
+        { type: 'separator' },
+        { label: 'Release Notes', click: () => openHelpLink(`${KHAYT_REPO}/releases`) },
+        { label: 'Report an Issue', click: () => openHelpLink(`${KHAYT_REPO}/issues/new`) },
       ]
     }
   ];
