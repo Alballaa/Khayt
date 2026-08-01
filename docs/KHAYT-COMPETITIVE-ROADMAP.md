@@ -1,7 +1,13 @@
 # Khayt — competitive landscape and roadmap (July 2026)
 
-**Status:** proposal. Nothing here is committed work. Written after reading 13
-products Turki collected, plus PrintStash from the earlier review.
+**Status: mostly delivered.** Written 2026-07 as a proposal after reading 13
+products Turki collected, plus PrintStash from the earlier review. Section 3 is
+no longer a plan — **R1 through R6 shipped in `v3.6.0-beta.1`** on 2026-07-31.
+R7 is the only item still open, and it is blocked on hardware, not on code.
+
+Kept as written rather than rewritten into a changelog: the reasoning that
+picked these six is worth more than the list, and §5 records what would have
+made it wrong. Each item below now says what it became.
 
 Companion to [KHAYT-3.0-ROADMAP.md](./KHAYT-3.0-ROADMAP.md), which remains the
 platform north-star. That document answers *"where does Khayt run"*. This one
@@ -99,9 +105,11 @@ Worth naming, because a roadmap that only lists gaps distorts the picture.
 Ordered by *value per unit of risk*, not by size. Each item says what already
 exists, so none of them starts from zero.
 
-### Now — closes the clearest gap
+### Now — closes the clearest gap  ·  **both shipped**
 
-**R1. File → estimate → quote.** Drop an STL/3MF/OBJ on the calculator; Khayt
+**R1. File → estimate → quote.** — **shipped [#531], v3.6.0-beta.1**
+
+Drop an STL/3MF/OBJ on the calculator; Khayt
 derives volume and bounding box, applies the shop's own filament density, waste
 and margin, and produces the quote it already produces.
 *Exists:* `mf-mesh.js`, `pricing.js`, the whole settings model.
@@ -112,7 +120,9 @@ currency work: no number that looks more certain than it is.
 *actual* time and filament, which is exact. Do that first — it is strictly better
 and less work than estimating.
 
-**R2. Browse the Bed Ready library properly.** The panel today is a 560px modal
+**R2. Browse the Bed Ready library properly.** — **shipped [#530], v3.6.0-beta.1**
+
+The panel today is a 560px modal
 with a list and "download all" — no search, no filter, no preview, no thumbnails.
 Meshory and MeshVault show what this should be.
 *Exists:* the whole data path — `lib/bedready-library.js`, seven IPC channels
@@ -120,21 +130,27 @@ including `bedreadyImportToLib(item, vaultId)`, cover fetching, SSRF-guarded
 downloads. Only the browsing surface is missing.
 *This is the highest ratio of value to new code in the entire document.*
 
-### Next — differentiates rather than catches up
+### Next — differentiates rather than catches up  ·  **all three shipped**
 
-**R3. Measured cost, not estimated cost.** PrintStash pulls *actual* grams and
+**R3. Measured cost, not estimated cost.** — **shipped [#533], v3.6.0-beta.1**
+
+PrintStash pulls *actual* grams and
 duration from Moonraker on completion. Khayt logs waste and estimates cost, but
 never learns what a job really cost. For a shop, estimate-versus-actual is the
 margin question — and Khayt is the only product here that could put both numbers
 on the same invoice.
 *Exists:* printer polling, `wasteLog`, the full cost engine.
 
-**R4. Settings that worked, remembered.** PrintStash keeps G-code revisions per
+**R4. Settings that worked, remembered.** — **shipped [#534], v3.6.0-beta.1**
+
+PrintStash keeps G-code revisions per
 model with `known_good` / `needs_test` / `failed`, one recommended at a time.
 Khayt has `printFiles` and reprints but no memory of *which settings succeeded*.
 A shop reprinting a part six months later is guessing today.
 
-**R5. Customer uploads a file and gets a price.** Quote3D's whole business.
+**R5. Customer uploads a file and gets a price.** — **shipped [#532], v3.6.0-beta.1**
+
+Quote3D's whole business.
 Khayt already has `/api/intake` (a customer request form), `/api/quote`, a
 storefront catalog and a portal — the pipeline exists, but a customer cannot
 attach a model and see a number.
@@ -142,7 +158,9 @@ attach a model and see a number.
 
 ### Later — worth doing, not worth rushing
 
-**R6. Model library as a first-class surface.** ~~Extend R2 beyond Bed Ready:
+**R6. Model library as a first-class surface.** — **shipped narrowly [#535], v3.6.0-beta.1**
+
+~~Extend R2 beyond Bed Ready:
 thumbnails, tags, collections, dedup by content hash, 3D preview.~~ Meshory
 charges $34.99 for exactly this. It is a real product on its own — which is the
 warning: it is also a *different* product, and Khayt's buyer is a shop, not a
@@ -162,8 +180,41 @@ purpose — identical bytes is a certainty, identical geometry is a hint and is
 worded as one. Not built: the rest of the Meshory surface. That warning above
 was right.
 
-**R7. SDCP resin printers.** Protocol layer built and tested (PR #529); needs
-sockets and hardware. Reaches Elegoo Mars/Saturn. Deliberately small scope.
+**R7. SDCP resin printers.** — **OPEN: protocol layer only**
+Protocol layer built and tested ([#529]); still needs the socket layer, and then
+an actual Elegoo Mars/Saturn to verify against. Deliberately small scope.
+
+*This is the only item on this roadmap that is not done, and it is blocked on
+hardware rather than on anyone writing code.*
+
+[#529]: https://github.com/KhaytApp/Khayt/pull/529
+
+### What shipped beyond the list
+
+Two things came out of building R1–R6 that were not in this document:
+
+- **The order → print-file link** ([#536]). Joins a finished job to the file and
+  setup that produced it, so a measured cost (R3) and a known-good setup (R4)
+  attach to the model (R6) rather than floating free. Without it the three are
+  separate records that happen to be true at the same time.
+- **The estimator's constants stopped being guesses** ([#537]). `density ×
+  throughput` is grams per hour, which is directly measurable, so
+  `estimate-calibration.js` learns it from finished jobs. The old default was
+  optimistic by roughly 3× against real ones.
+
+R1's stated wedge — read the slicer's *actual* figures from a 3MF before falling
+back to geometry — turned out to expose two bugs that had never worked at all: a
+3MF is a ZIP, so reading it as text found nothing, and Bambu/Orca print times
+were parsed by a regex that never matched. Both are fixed.
+
+[#530]: https://github.com/KhaytApp/Khayt/pull/530
+[#531]: https://github.com/KhaytApp/Khayt/pull/531
+[#532]: https://github.com/KhaytApp/Khayt/pull/532
+[#533]: https://github.com/KhaytApp/Khayt/pull/533
+[#534]: https://github.com/KhaytApp/Khayt/pull/534
+[#535]: https://github.com/KhaytApp/Khayt/pull/535
+[#536]: https://github.com/KhaytApp/Khayt/pull/536
+[#537]: https://github.com/KhaytApp/Khayt/pull/537
 
 ### Deliberately not doing
 
