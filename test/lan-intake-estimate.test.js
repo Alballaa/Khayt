@@ -302,3 +302,60 @@ test('a visitor who hammers the endpoint is rate limited', async () => {
     store.settings.lanApi.intakeQuote.hourlyLimit = saved;
   }
 });
+
+/**
+ * Concurrency, which the hourly limit does not bound.
+ *
+ * The per-IP hourly limit answers "how often", never "how many at once", and
+ * the two are not the same bound: twenty simultaneous uploads is 640 MB held in
+ * the main process while every one of them is still inside its allowance. It is
+ * also the only one of the three limits on this route that a caller cannot move,
+ * because it is keyed on nothing — behind the tunnel the per-IP key is the
+ * caller's own X-Forwarded-For header.
+ */
+test('only so many uploads may be in flight at once, and a slot comes back', async () => {
+  const http = require('node:http');
+  // Announce a body far larger than we send, so the server sits waiting for the
+  // rest and the slot stays taken while we probe.
+  const holdOpen = () => new Promise((resolve) => {
+    const req = http.request({
+      host: '127.0.0.1', port: PORT, method: 'POST',
+      path: '/api/intake/estimate?name=held.stl',
+      headers: {
+        'content-type': 'application/octet-stream',
+        'x-khayt-intake-token': 'tok',
+        'content-length': '4096',
+      },
+    });
+    req.on('error', () => {});
+    req.write(Buffer.alloc(16, 0x41), () => resolve(req));
+  });
+
+  const held = [];
+  for (let i = 0; i < 3; i++) held.push(await holdOpen());
+  try {
+    // Poll rather than assume the three are parked: the writes have flushed but
+    // the server reaching the slot check is a separate turn of the loop.
+    let res = null;
+    for (let i = 0; i < 40 && !(res && res.status === 503); i++) {
+      res = await estimate('probe.stl', Buffer.alloc(64, 0x41));
+      if (res.status !== 503) await new Promise((r) => setTimeout(r, 25));
+    }
+    assert.equal(res.status, 503, 'a fourth concurrent upload should be turned away');
+    const b = await res.json();
+    assert.equal(b.reason, 'busy');
+    assert.equal(b.price, undefined, 'and a refusal still leaks no number');
+  } finally {
+    for (const r of held) r.destroy();
+  }
+
+  // Slots are released on response close, including the sockets we just killed
+  // mid-upload — otherwise one abandoned upload would retire a slot for good.
+  let after = null;
+  for (let i = 0; i < 40; i++) {
+    after = await estimate('part.3mf', slicedZip());
+    if (after.status === 200) break;
+    await new Promise((r) => setTimeout(r, 25));
+  }
+  assert.equal(after.status, 200, 'an abandoned upload must not retire its slot permanently');
+});
