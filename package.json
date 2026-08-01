@@ -24,6 +24,7 @@
     "test:e2e:shipping": "node scripts/e2e-shipping-smoke.mjs",
     "test:e2e:bom": "node scripts/e2e-bom-smoke.mjs",
     "test:e2e:help": "node scripts/e2e-help-menu.mjs",
+    "verify:estimator": "node scripts/verify-estimator.mjs",
     "test:e2e:privacy": "node scripts/e2e-privacy-smoke.mjs",
     "test:e2e:assembly": "node scripts/e2e-assembly-smoke.mjs",
     "test:e2e:apitokens": "node scripts/e2e-api-tokens-smoke.mjs",
