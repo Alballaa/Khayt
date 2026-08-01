@@ -2449,6 +2449,8 @@
   "cam.flip_v": "上下反転",
   "cam.detect": "プリンターから検出",
   "cam.detect_ok": "カメラ URL を入力しました — プレビューを確認してください",
+  "cam.detect_live": "プリンターからカメラ情報を取得しました — プレビューを確認してください",
+  "cam.detect_none_registered": "プリンターはカメラなしと応答しました — 一般的な URL を入れて試します",
   "cam.detect_none": "先にプリンターの種類とアドレスを設定してください",
   "cam.loading": "カメラ…",
   "cam.offline": "カメラはオフラインです",

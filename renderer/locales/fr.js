@@ -2449,6 +2449,8 @@
   "cam.flip_v": "Miroir V",
   "cam.detect": "Détecter depuis l’imprimante",
   "cam.detect_ok": "URLs de caméra remplies — vérifiez l’aperçu",
+  "cam.detect_live": "Caméra lue depuis l'imprimante — vérifiez l'aperçu",
+  "cam.detect_none_registered": "L'imprimante ne signale aucune caméra — les URL habituelles sont remplies pour essayer",
   "cam.detect_none": "Définissez d’abord le type et l’adresse de l’imprimante",
   "cam.loading": "Caméra…",
   "cam.offline": "Caméra hors ligne",

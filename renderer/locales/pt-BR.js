@@ -2450,6 +2450,8 @@
   "cam.flip_v": "Inverter V",
   "cam.detect": "Detectar pela impressora",
   "cam.detect_ok": "URLs da câmera preenchidas — confira a prévia",
+  "cam.detect_live": "Câmera lida da impressora — confira a pré-visualização",
+  "cam.detect_none_registered": "A impressora não informa nenhuma câmera — preenchendo as URLs usuais para testar",
   "cam.detect_none": "Defina primeiro o tipo e o endereço da impressora",
   "cam.loading": "Câmera…",
   "cam.offline": "Câmera offline",

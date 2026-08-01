@@ -2449,6 +2449,8 @@
   "cam.flip_v": "V spiegeln",
   "cam.detect": "Vom Drucker erkennen",
   "cam.detect_ok": "Kamera-URLs eingetragen — Vorschau prüfen",
+  "cam.detect_live": "Kamera vom Drucker gelesen — Vorschau prüfen",
+  "cam.detect_none_registered": "Der Drucker meldet keine Kamera — die üblichen URLs werden zum Testen eingetragen",
   "cam.detect_none": "Zuerst Druckertyp und Adresse festlegen",
   "cam.loading": "Kamera…",
   "cam.offline": "Kamera offline",

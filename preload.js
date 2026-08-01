@@ -143,6 +143,7 @@ contextBridge.exposeInMainWorld('hubAPI', {
   saveTextFile: (opts)    => ipcRenderer.invoke('hub:save-text-file', opts),
   mintApiToken: (opts)    => ipcRenderer.invoke('hub:mint-api-token', opts),
   webcamSnapshot: (o)     => ipcRenderer.invoke('hub:webcam-snapshot', o),
+  webcamDetect:   (o)     => ipcRenderer.invoke('hub:webcam-detect', o),
   discoverPrinters: (o)   => ipcRenderer.invoke('hub:discover-printers', o),
   // Quit handshake: main asks the renderer to flush its debounced save before exiting.
   onFlushSaveRequest:   (cb) => { ipcRenderer.on('hub:flush-save-request', () => { try { cb(); } catch { /* noop */ } }); },

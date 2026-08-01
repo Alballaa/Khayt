@@ -467,16 +467,49 @@ function openMachineEditor(machineId = null) {
         pmInput.addEventListener('change', () => applyModel(pmInput.value));
       })();
 
-      // Camera auto-detect: fill the URLs from this printer family's convention.
-      modal.querySelector('#btnDetectWebcam')?.addEventListener('click', () => {
+      // Camera detect: ASK the printer, and only guess if it cannot answer.
+      //
+      // This button used to derive URLs from each family's convention and call
+      // that "auto-detect". Moonraker and OctoPrint both publish what camera
+      // they actually have, and lib/webcam.js could already read both replies —
+      // nothing had ever called it. A convention is a guess; the printer's own
+      // answer is not.
+      //
+      // It is the difference between the two Snapmaker U1 firmwares: stock
+      // answers with an empty list, and the community extended firmware runs a
+      // full Moonraker stack and names a real camera.
+      modal.querySelector('#btnDetectWebcam')?.addEventListener('click', async () => {
         const W = (typeof KhaytWebcam !== 'undefined') ? KhaytWebcam : null;
         if (!W) return;
         const api = { type: modal.querySelector('#machApiType')?.value, host: modal.querySelector('#machApiHost')?.value };
+        const fill = (snap, stream) => {
+          modal.querySelector('#machWebcamSnapshot').value = snap || '';
+          modal.querySelector('#machWebcamStream').value = stream || '';
+          const en = modal.querySelector('#machWebcamEnabled'); if (en) en.checked = true;
+        };
+
+        // Only a saved machine can be queried: the main process resolves the
+        // host from the STORED machine, never from anything this modal sends,
+        // which is what stops the detect call being pointed anywhere.
+        const saved = (typeof machines !== 'undefined') && machines.some((m) => m && m.id === draft.id);
+        if (saved && W.detectPathFor(api) && window.hubAPI?.webcamDetect) {
+          const r = await window.hubAPI.webcamDetect({ machineId: draft.id }).catch(() => null);
+          if (r && r.ok && r.webcam) {
+            fill(r.webcam.snapshotUrl, r.webcam.streamUrl);
+            toast(t('cam.detect_live') || 'Camera read from the printer — check the preview', 'success');
+            return;
+          }
+          // An empty list is a real answer, not a failure: this printer has no
+          // camera registered. Say that, then fall through to the guess rather
+          // than leaving the owner with nothing.
+          if (r && r.error === 'no_camera_registered') {
+            toast(t('cam.detect_none_registered') || 'The printer reports no camera — filling the usual URLs to try', 'warning');
+          }
+        }
+
         const guess = W.deriveWebcamUrls(api);
         if (!guess.snapshotUrl && !guess.streamUrl) { toast(t('cam.detect_none') || 'Set the printer type and address first', 'warning'); return; }
-        modal.querySelector('#machWebcamSnapshot').value = guess.snapshotUrl;
-        modal.querySelector('#machWebcamStream').value = guess.streamUrl;
-        const en = modal.querySelector('#machWebcamEnabled'); if (en) en.checked = true;
+        fill(guess.snapshotUrl, guess.streamUrl);
         toast(t('cam.detect_ok') || 'Camera URLs filled — check the preview', 'success');
       });
 
