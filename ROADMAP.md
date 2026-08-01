@@ -2,19 +2,23 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0-beta.1 — on `main`)
+## Now (post-3.6.0-beta.2 — on `main`)
 
 **Stable is v3.5.3** (2026-08-01, a security patch cut from the
-`release/3.5.x` maintenance branch). **`main` is `3.6.0-beta.1`**, open and
+`release/3.5.x` maintenance branch). **`main` is `3.6.0-beta.2`**, open and
 soaking. No hold is active — see [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md).
 
 Everything below needs a switched-on printer or real shop use. **There is no
 queue of code waiting to be written** — that is the honest state of this file.
 
-- [ ] **Soak `v3.6.0-beta.1`, then promote to stable.** It changes what
+- [ ] **Soak `v3.6.0-beta.2`, then promote to stable.** It changes what
       customers are quoted and how every geometry-based time estimate is
       computed, so it needs real use against a real shop's settings before a
       stable cut — not just a green suite.
+      **Soak beta.2, not beta.1.** Fourteen commits landed after beta.1 was
+      tagged, including the fix to how a part's walls are estimated — beta.1
+      still quotes a 100 mm part at roughly double. Soaking it would form a
+      judgement about pricing from the bug rather than the fix.
 - [ ] **Verify the actuals reader against real hardware.**
       `npm run verify:printer -- moonraker <ip>`, **run mid-print**.
       `lib/printer-actuals.js` has only ever met hand-written fixtures, and a
@@ -50,11 +54,12 @@ These are recorded so nobody assumes they exist:
 
 ## Shipped (3.3 → 3.6 — 2026-07 to 2026-08)
 
-Four stable lines and one open beta since 3.2.0. Full detail per release is in
+Four stable lines and two beta releases since 3.2.0. Full detail per release is in
 [CHANGELOG.md](./CHANGELOG.md); this is the index.
 
 | Version | Date | What it was |
 |---------|------|-------------|
+| **3.6.0-beta.2** | 2026-08-01 | **Quoting corrected, and honest about its limits.** A part's walls are derived from its surface rather than a flat share of its volume ([#551]) — a 100 mm part was being quoted at roughly double. Khayt now says outright when a shape is one it cannot price ([#553]), scored against a real slicer ([#552]). Carries the v3.5.3 lockout fix ([#548]), a Help menu ([#549]), and camera auto-detect that asks the printer ([#554]). |
 | **3.6.0-beta.1** | 2026-07-31 | **Khayt learns what prints actually cost.** A model becomes a quote ([#531]), a customer can upload one and get a price ([#532]), the printer reports real filament and duration on completion ([#533]), the settings that worked are remembered against the file ([#534]), duplicate models are recognised ([#535]), a finished job is joined to the file that produced it ([#536]), and the estimator calibrates itself from finished jobs ([#537]). Also fixed two things that had never worked: 3MF files never gave up their slicer figures, and Bambu/Orca print times were silently dropped. Closes **R1–R6** of the competitive roadmap. |
 | **3.5.3** | 2026-08-01 | **Security.** Every per-IP brute-force lockout in the LAN server was inert and had been since v2.2.5 — the counter reset on every attempt, so it never reached the limit. Cut from `release/3.5.x`, not `main`. ([#548]) |
 | **3.5.2** | 2026-07-30 | Two customer-facing places that could name the wrong currency. |
@@ -72,6 +77,11 @@ Four stable lines and one open beta since 3.2.0. Full detail per release is in
 [#536]: https://github.com/KhaytApp/Khayt/pull/536
 [#537]: https://github.com/KhaytApp/Khayt/pull/537
 [#548]: https://github.com/KhaytApp/Khayt/pull/548
+[#549]: https://github.com/KhaytApp/Khayt/pull/549
+[#551]: https://github.com/KhaytApp/Khayt/pull/551
+[#552]: https://github.com/KhaytApp/Khayt/pull/552
+[#553]: https://github.com/KhaytApp/Khayt/pull/553
+[#554]: https://github.com/KhaytApp/Khayt/pull/554
 
 ## Shipped (3.2.0 beta line — 2026-07)
 
