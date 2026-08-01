@@ -3613,6 +3613,7 @@
   "intake.exact": "{file} — {slicer} çıktısı: {grams} g, {time} sa. Bunlar dilimleyicinin kendi rakamları, tahmin değil.",
   "intake.exact_toast": "Dilimleyicinin kesin rakamları uygulandı.",
   "intake.estimate_head": "Tahmin — bu dosya hiç dilimlenmemiş.",
+  "intake.estimate_unreliable": "Bu biçimi tahmin etmek zor — ince ya da çok detaylı modeller epeyce sapabilir. Fiyatlamadan önce dilimleyin.",
   "intake.estimate_advice": "Başlangıç noktası olarak al. Kesin fiyat için dosyayı dilimle ve sonucu buraya bırak.",
   "intake.estimate_toast": "Modelin geometrisinden tahmin edildi — dilimleme rakamı değil.",
   "intake.no_summary": "Bu G-code’da süre veya filament özeti yok — dilimleyicinden yeniden dışa aktar.",

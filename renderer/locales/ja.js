@@ -3613,6 +3613,7 @@
   "intake.exact": "{file} — {slicer} より：{grams} g、{time} 時間。スライサー自身の数値で、推定ではありません。",
   "intake.exact_toast": "スライサーの正確な数値を適用しました。",
   "intake.estimate_head": "推定 — このファイルはスライスされていません。",
+  "intake.estimate_unreliable": "この形状は見積もりが難しく、薄いものや細部の多いモデルは大きくずれることがあります。見積もり前にスライスしてください。",
   "intake.estimate_advice": "目安としてお使いください。確定見積もりには、ファイルをスライスしてその結果をここにドロップしてください。",
   "intake.estimate_toast": "モデル形状からの推定です。スライス結果ではありません。",
   "intake.no_summary": "この G-code には時間やフィラメントの要約がありません。スライサーから書き出し直してください。",

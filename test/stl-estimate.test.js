@@ -121,3 +121,42 @@ test('time still follows weight, so a lighter estimate is a shorter print', () =
   assert.ok(Math.abs((b.estPrintTimeH / a.estPrintTimeH) - (b.estWeightG / a.estWeightG)) < 0.02,
     'time and weight must scale together');
 });
+
+/**
+ * Reliability. Scored against PrusaSlicer in scripts/verify-estimator.mjs: a
+ * blocky part lands within ~13%, but a 3mm plate came out +58% and a HueForge
+ * relief -66%, because a slicer lays a minimum extrusion width no matter how
+ * thin the geometry is. No volume-based model can see that, so the only honest
+ * option is to stop claiming the number.
+ */
+test('a blocky part is reported as reliable, a relief is not', () => {
+  const blocky = estimateFromStl(cube(40));
+  assert.equal(blocky.reliable, true, 'a 40mm cube is squarely in range');
+
+  // A HueForge relief: area/volume ~5.7, which is not a shape this model can
+  // describe — its raw shell comes out far above 1 and gets clamped.
+  const relief = estimateFromStl({ volumeMm3: 2419, areaMm2: 2419 * 5.656, bbox: { x: 100, y: 100, z: 2 } });
+  assert.equal(relief.reliable, false);
+  assert.ok(relief.rawShell > 1,
+    'the clamp is the signal: a shell above 1 means "more than entirely wall"');
+  assert.equal(relief.shellFraction, 1, 'and the reported fraction is still clamped to something sane');
+});
+
+test('reliability is about the geometry, not about the wall setting alone', () => {
+  // The same part, quoted by a shop that prints thick walls, becomes harder to
+  // estimate — because more of it is wall. The flag has to follow that.
+  const thin = estimateFromStl(cube(40), { wallThicknessMm: 0.8 });
+  const thick = estimateFromStl(cube(40), { wallThicknessMm: 8 });
+  assert.equal(thin.reliable, true);
+  assert.equal(thick.reliable, false);
+});
+
+test('geometry with no surface area is not branded unreliable', () => {
+  // It falls back to the constant, which is a different weakness and already
+  // reported through shellSource. Flagging it here too would make the warning
+  // mean two things at once.
+  const r = estimateFromStl({ volumeMm3: 1000, bbox: { x: 10, y: 10, z: 10 } });
+  assert.equal(r.shellSource, 'assumed');
+  assert.equal(r.reliable, true);
+  assert.equal(r.rawShell, null);
+});

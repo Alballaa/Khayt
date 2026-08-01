@@ -3613,6 +3613,7 @@
   "intake.exact": "{file} — aus {slicer}: {grams} g, {time} h. Das sind die Zahlen deines Slicers, keine Schätzung.",
   "intake.exact_toast": "Die exakten Zahlen deines Slicers wurden übernommen.",
   "intake.estimate_head": "Schätzung — diese Datei wurde nie gesliced.",
+  "intake.estimate_unreliable": "Diese Form lässt sich schlecht schätzen — dünne oder sehr detaillierte Modelle können weit danebenliegen. Vor dem Angebot slicen.",
   "intake.estimate_advice": "Nimm sie als Ausgangspunkt. Für ein verbindliches Angebot slice die Datei und lege das Ergebnis hier ab.",
   "intake.estimate_toast": "Aus der Geometrie geschätzt — keine Slicer-Zahl.",
   "intake.no_summary": "Dieser G-Code enthält keine Zeit- oder Filamentzusammenfassung — exportiere ihn erneut aus deinem Slicer.",

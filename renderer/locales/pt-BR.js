@@ -3614,6 +3614,7 @@
   "intake.exact": "{file} — do {slicer}: {grams} g, {time} h. São os números do seu próprio fatiador, não uma estimativa.",
   "intake.exact_toast": "Os números exatos do seu fatiador foram aplicados.",
   "intake.estimate_head": "Estimativa — este arquivo nunca foi fatiado.",
+  "intake.estimate_unreliable": "Esta forma é difícil de estimar — peças finas ou muito detalhadas podem ficar bem longe. Fatie antes de orçar.",
   "intake.estimate_advice": "Use como ponto de partida. Para um orçamento firme, fatie o arquivo e solte o resultado aqui.",
   "intake.estimate_toast": "Estimado pela geometria do modelo — não é um número de fatiamento.",
   "intake.no_summary": "Esse G-code não tem resumo de tempo nem de filamento — exporte-o de novo do seu fatiador.",

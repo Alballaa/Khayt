@@ -3613,6 +3613,7 @@
   "intake.exact": "{file} — 来自 {slicer}：{grams} 克，{time} 小时。这是切片软件本身的数据，不是估算。",
   "intake.exact_toast": "已应用切片软件的准确数据。",
   "intake.estimate_head": "估算 — 该文件从未切片。",
+  "intake.estimate_unreliable": "这种形状很难估算——薄件或细节丰富的模型可能相差很多。报价前请先切片。",
   "intake.estimate_advice": "请作为起点参考。要给出确定报价，请先切片，再把切片结果拖到这里。",
   "intake.estimate_toast": "根据模型几何估算，并非切片数据。",
   "intake.no_summary": "该 G-code 没有时间或耗材摘要 — 请从切片软件重新导出。",

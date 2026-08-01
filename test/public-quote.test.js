@@ -289,3 +289,34 @@ test('with no estimator options it still works, on the documented defaults', () 
   assert.equal(r.ok, true);
   assert.ok(r.price > 0);
 });
+
+/**
+ * Whether the customer is told the number is shaky.
+ *
+ * lib/stl-estimate.js decides this; publicQuote's job is to carry it out to the
+ * customer unchanged. Scored against a real slicer, geometry outside the
+ * model's range lands between +58% and -66% — a figure this shop would not
+ * stand behind must not arrive looking like one it would.
+ */
+test('a quote says whether its estimate can be trusted', () => {
+  // A blocky part is squarely in range.
+  const blocky = q({ exact: false, source: 'geometry',
+    geometry: { volumeMm3: 64000, areaMm2: 9600, bbox: { x: 40, y: 40, z: 40 } } });
+  assert.equal(blocky.ok, true, JSON.stringify(blocky));
+  assert.equal(blocky.reliable, true);
+
+  // A HueForge-style relief: enormous surface for its volume.
+  const relief = q({ exact: false, source: 'geometry',
+    geometry: { volumeMm3: 2419, areaMm2: 2419 * 5.656, bbox: { x: 100, y: 100, z: 2 } } });
+  assert.equal(relief.ok, true, 'still quoted — the shop may want a rough figure');
+  assert.equal(relief.reliable, false, 'but it must not be presented as dependable');
+  assert.ok(relief.price > 0);
+});
+
+test('a sliced file is always reliable — the estimator never touched it', () => {
+  const r = q(SLICED);
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.equal(r.exact, true);
+  assert.equal(r.reliable, true,
+    'exact figures come off a slicer; only the geometric estimate can fall out of range');
+});
