@@ -2,20 +2,39 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.2.0 — on `main`)
+## Now (post-3.6.0-beta.1 — on `main`)
 
-**v3.2.0 shipped stable on 2026-07-22**, closing the `3.2.0-beta.x` line at
-beta.61 and ending the hold that had held stable at v3.1.0. No hold is
-currently active — see [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md). The next
-pre-release opens the `3.3.0-beta.x` line.
+**Stable is v3.5.3** (2026-08-01, a security patch cut from the
+`release/3.5.x` maintenance branch). **`main` is `3.6.0-beta.1`**, open and
+soaking. No hold is active — see [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md).
 
-- [ ] Real-world verification pass on the 3.2 features before a stable cut — see
-      [docs/PRELAUNCH-QA.md](./docs/PRELAUNCH-QA.md). Two items specifically need hardware:
-      the **printer camera** live image path, and carrier **API** shipping (manual shipping
-      is fully working and tested).
-- [ ] Decide whether to cut **stable 3.2.0** or continue the beta line.
-- [ ] **Multi-shop shared data (Khayt Cloud)** — still deferred; design:
-      [docs/MULTI-SHOP-CLOUD.md](./docs/MULTI-SHOP-CLOUD.md)
+Everything below needs a switched-on printer or real shop use. **There is no
+queue of code waiting to be written** — that is the honest state of this file.
+
+- [ ] **Soak `v3.6.0-beta.1`, then promote to stable.** It changes what
+      customers are quoted and how every geometry-based time estimate is
+      computed, so it needs real use against a real shop's settings before a
+      stable cut — not just a green suite.
+- [ ] **Verify the actuals reader against real hardware.**
+      `npm run verify:printer -- moonraker <ip>`, **run mid-print**.
+      `lib/printer-actuals.js` has only ever met hand-written fixtures, and a
+      fixture built from the same misreading as the code agrees with it forever.
+      An idle printer proves nothing; the script says so rather than passing.
+- [ ] **The 3.2-era hardware pass is still outstanding** — see
+      [docs/PRELAUNCH-QA.md](./docs/PRELAUNCH-QA.md). Two items need hardware:
+      the **printer camera** live image path, and carrier **API** shipping
+      (manual shipping is fully working and tested).
+- [ ] **R7 — SDCP resin printers.** Protocol layer built and tested
+      ([#529](https://github.com/KhaytApp/Khayt/pull/529)); needs the socket
+      layer, then an Elegoo Mars/Saturn to verify against.
+      See [docs/KHAYT-COMPETITIVE-ROADMAP.md](./docs/KHAYT-COMPETITIVE-ROADMAP.md).
+
+**Multi-shop is no longer deferred.** Organisations shipped in **3.5.0** (create
+one, add branches, one passphrase for all) and **3.5.1** (*Across the branches* —
+the cross-branch view). This file previously listed it as pending "the Cloud
+decision"; that decision was made and shipped. What remains beyond it is the
+wider Phase-3 HQ surface, still unscheduled —
+[docs/MULTI-SHOP-CLOUD.md](./docs/MULTI-SHOP-CLOUD.md).
 
 ### Known gaps, deliberately not built
 
@@ -27,7 +46,32 @@ These are recorded so nobody assumes they exist:
 | **Timelapse capture/encoding** | Needs ffmpeg + a real printer. `machine.webcam` carries the fields; no capture runs. |
 | **Zapier / Make connectors** | External publishing artefacts, not code in this repo. |
 | **Cloud-relayed public API**, remote-mobile PWA, cloud infra | Live in the separate `khayt-cloud` repo. |
-| **Phase 3 — multi-shop HQ** | Depends on the Cloud decision above. |
+| **Phase 3 — multi-shop HQ** | The organisation layer it was waiting on shipped in 3.5.0/3.5.1. The HQ surface on top of it is unscheduled, not blocked. |
+
+## Shipped (3.3 → 3.6 — 2026-07 to 2026-08)
+
+Four stable lines and one open beta since 3.2.0. Full detail per release is in
+[CHANGELOG.md](./CHANGELOG.md); this is the index.
+
+| Version | Date | What it was |
+|---------|------|-------------|
+| **3.6.0-beta.1** | 2026-07-31 | **Khayt learns what prints actually cost.** A model becomes a quote ([#531]), a customer can upload one and get a price ([#532]), the printer reports real filament and duration on completion ([#533]), the settings that worked are remembered against the file ([#534]), duplicate models are recognised ([#535]), a finished job is joined to the file that produced it ([#536]), and the estimator calibrates itself from finished jobs ([#537]). Also fixed two things that had never worked: 3MF files never gave up their slicer figures, and Bambu/Orca print times were silently dropped. Closes **R1–R6** of the competitive roadmap. |
+| **3.5.3** | 2026-08-01 | **Security.** Every per-IP brute-force lockout in the LAN server was inert and had been since v2.2.5 — the counter reset on every attempt, so it never reached the limit. Cut from `release/3.5.x`, not `main`. ([#548]) |
+| **3.5.2** | 2026-07-30 | Two customer-facing places that could name the wrong currency. |
+| **3.5.1** | 2026-07-30 | *Across the branches* — the cross-branch view 3.5.0 described but did not include. |
+| **3.5.0** | 2026-07-30 | **Organisations** — one passphrase for every branch. Plus an operator-lock recovery code that was being wiped off screen before it could be read. |
+| **3.4.x** | 2026-07-29/30 | The 3.4.0 beta line released as stable, then two patches. |
+| **3.3.0** | 2026-07-26 | The 3.3.0 beta line released as stable. |
+
+[#529]: https://github.com/KhaytApp/Khayt/pull/529
+[#531]: https://github.com/KhaytApp/Khayt/pull/531
+[#532]: https://github.com/KhaytApp/Khayt/pull/532
+[#533]: https://github.com/KhaytApp/Khayt/pull/533
+[#534]: https://github.com/KhaytApp/Khayt/pull/534
+[#535]: https://github.com/KhaytApp/Khayt/pull/535
+[#536]: https://github.com/KhaytApp/Khayt/pull/536
+[#537]: https://github.com/KhaytApp/Khayt/pull/537
+[#548]: https://github.com/KhaytApp/Khayt/pull/548
 
 ## Shipped (3.2.0 beta line — 2026-07)
 
