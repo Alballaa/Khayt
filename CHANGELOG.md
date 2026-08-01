@@ -4,6 +4,64 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.6.0-beta.2] - 2026-08-01
+
+Fourteen commits landed after beta.1 was cut, and two of them change numbers you
+or your customers see. If you are running beta.1, update — the quoting fix below
+is the reason this exists.
+
+### Fixed
+
+- **Large parts were quoted for far more filament than they use.** The estimator
+  treated a part's walls as a fixed 35% of its volume. Walls follow a part's
+  *surface*, so their share has to fall as the part gets bigger — a constant
+  cannot be right at two sizes at once. It was about right at roughly
+  calibration-cube size and wrong either side of it: a 100 mm part was quoted at
+  613 g against a physical ~327 g, and a 200 mm one at more than double.
+
+  Measured against PrusaSlicer, the customer's price on a 100 mm part falls 24%,
+  and on a 200 mm part 47%. That is a correction rather than a discount — the
+  old figure billed for filament that would never be extruded.
+
+  Nothing would have caught this on its own: estimate calibration only ever
+  learns print *time* from finished jobs, never weight.
+
+- **Khayt now says when a model is one it cannot price.** Scored against a real
+  slicer, the geometric estimate lands within about 13% on ordinary parts and
+  falls apart on very thin or very detailed ones — a flat plate came out 58%
+  high, a HueForge-style relief 66% low, because a printer lays a minimum bead
+  of plastic however fine the detail is. Those now carry a clear warning to the
+  shop, and the customer's page says the shape is hard to price automatically
+  instead of showing a confident number that is badly wrong.
+
+  It deliberately warns a little too often. Being told to slice a part you could
+  have quoted costs a minute; quoting a job at a third of its cost does not.
+
+### Security
+
+- **The brute-force lockout never actually locked.** Ten wrong LAN PINs were
+  supposed to block an address for a minute; the counter reset on every attempt,
+  so it never got there. Also shipped as v3.5.3 for the stable channel — see
+  that entry for the full account.
+
+### Added
+
+- **Khayt can ask a printer what camera it has**, instead of guessing addresses
+  from convention. Moonraker and OctoPrint both publish this; Khayt could read
+  both replies and had never asked. On a Snapmaker U1 this is the difference
+  between stock firmware (no camera registered) and the community extended
+  firmware (a real one).
+
+- **A Help menu**, which the app did not have — website, community, release
+  notes and a link to report a problem.
+
+### For maintainers
+
+- `npm run verify:estimator` slices a spread of shapes with a real PrusaSlicer
+  and prints Khayt's estimate beside the truth. That is where the percentages
+  above come from.
+
+
 ## [3.6.0-beta.1] - 2026-07-31
 
 Khayt learns what your prints actually cost, and uses it.
