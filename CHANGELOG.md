@@ -4,6 +4,41 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.5.3] - 2026-08-01
+
+A security fix. Khayt's LAN server locks out an address after ten failed
+sign-in attempts — except it never did. The lockout has been inert since
+v2.2.5, so anything protected by your LAN PIN could be guessed at as fast as a
+machine could ask.
+
+Nothing about your data changed, and there is no sign this was used against
+anyone. Update anyway if you have ever switched the LAN server on.
+
+### Security
+
+- **The brute-force lockout never engaged.** Khayt counts failed attempts per
+  address and blocks that address for a minute after ten. The counter reset
+  itself on every attempt, so it sat at one forever and the block was never
+  reached — it could not lock out because it never counted, and it never
+  counted because it was not locked out.
+
+  In practice that left a four-digit LAN PIN — ten thousand possibilities — in
+  front of your clients, orders, inventory and machines with nothing slowing
+  down the guessing. On a shop network, someone already on your Wi-Fi could
+  work through every PIN in seconds.
+
+  Five separate protections had the same fault and all five were affected: the
+  LAN PIN on both reading and writing, the customer intake PIN, API tokens, and
+  the check that rejects forged shipping and store webhooks.
+
+  The lockout now works: the eleventh wrong attempt is refused, and stays
+  refused for a minute. If you share a network and someone mistypes the PIN ten
+  times, expect a one-minute wait — that is the feature working.
+
+  **If your LAN PIN is short, change it.** Settings → LAN API. The lockout
+  helps, but a longer PIN is what actually protects you, and it costs nothing.
+
+
 ## [3.5.2] - 2026-07-30
 
 Two places where Khayt showed a customer a currency that might not be the one
