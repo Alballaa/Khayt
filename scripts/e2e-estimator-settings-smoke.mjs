@@ -43,12 +43,19 @@ async function testPanelWritesWhatTheEstimatorReads(window) {
     };
     set('#est_density', 1.27);   // PETG
     set('#est_infill', 60);      // a shop that prints strong parts
+    set('#est_wall', 2.4);       // 6 perimeters — a shop printing functional parts
   });
 
   const stored = await window.evaluate(() => JSON.parse(JSON.stringify(settings.estimator || {})));
   if (Math.abs(stored.densityGPerCm3 - 1.27) > 1e-9) throw new Error(`density stored as ${stored.densityGPerCm3}`);
   if (Math.abs(stored.infillPct - 0.6) > 1e-9) {
     throw new Error(`infill stored as ${stored.infillPct} — should be a fraction, not 60`);
+  }
+  // Wall thickness is what the shell is derived from now, so a shop that cannot
+  // set it cannot correct its own estimates. It is stored in mm, not as a
+  // percent, which is the mistake the infill check above exists to catch.
+  if (Math.abs(stored.wallThicknessMm - 2.4) > 1e-9) {
+    throw new Error(`wall thickness stored as ${stored.wallThicknessMm}, expected 2.4 mm`);
   }
 
   const after = await estimateNow(window, CUBE);
@@ -66,9 +73,11 @@ async function testPercentsRoundTrip(window) {
   const shown = await window.evaluate(() => ({
     infill: document.querySelector('#est_infill').value,
     density: document.querySelector('#est_density').value,
+    wall: document.querySelector('#est_wall').value,
   }));
   if (Number(shown.infill) !== 60) throw new Error(`the panel redisplays infill as ${shown.infill}`);
   if (Number(shown.density) !== 1.27) throw new Error(`density redisplayed as ${shown.density}`);
+  if (Number(shown.wall) !== 2.4) throw new Error(`wall thickness redisplayed as ${shown.wall}`);
 }
 
 /** With no history the rate is admitted to be an assumption. */

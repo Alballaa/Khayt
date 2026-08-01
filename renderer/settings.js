@@ -2329,9 +2329,9 @@ function renderEstimatorSettings() {
     </div>
     <div class="inline-pair" style="margin-top:8px;">
       <div>
-        <label data-i18n="est.shell">Walls and surfaces %</label>
-        <input type="number" id="est_shell" step="1" min="0" max="100" value="${Math.round(cur.shellFactor * 100)}">
-        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;" data-i18n="est.shell_hint">Roughly how much of a solid part is walls, top and bottom rather than infill.</div>
+        <label data-i18n="est.wall">Wall thickness (mm)</label>
+        <input type="number" id="est_wall" step="0.1" min="0.1" max="20" value="${cur.wallThicknessMm}">
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;" data-i18n="est.wall_hint">Total wall thickness — perimeters plus top and bottom skin. Khayt works out how much of a part is shell from its surface area and this.</div>
       </div>
       <div>
         <label data-i18n="est.waste">Waste %</label>
@@ -2369,7 +2369,15 @@ function saveEstimatorSettingsFromForm() {
     ...prev,
     densityGPerCm3: Number.isFinite(density) && density > 0 ? density : undefined,
     infillPct: pct('#est_infill', prev.infillPct),
-    shellFactor: pct('#est_shell', prev.shellFactor),
+    // shellFactor is deliberately NOT edited here any more. It only applies to
+    // geometry that arrives with no surface area, which nothing in the app now
+    // produces — leaving it on screen meant a dial a shop could turn with no
+    // effect on any real file. It is preserved through ...prev so an existing
+    // shop's stored value is not discarded.
+    wallThicknessMm: (() => {
+      const v = parseFloat(el.querySelector('#est_wall')?.value);
+      return Number.isFinite(v) && v >= 0.1 && v <= 20 ? v : prev.wallThicknessMm;
+    })(),
     wastePct: Math.min(0.5, pct('#est_waste', prev.wastePct ?? 0.03)),
     // Stored as a throughput because that is what the estimator takes; shown as
     // grams per hour because that is the only form a shop can sanity-check.
