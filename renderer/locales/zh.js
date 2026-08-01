@@ -2449,6 +2449,8 @@
   "cam.flip_v": "垂直翻转",
   "cam.detect": "从打印机检测",
   "cam.detect_ok": "已填入摄像头地址——请查看预览",
+  "cam.detect_live": "已从打印机读取摄像头 — 请检查预览",
+  "cam.detect_none_registered": "打印机报告没有摄像头 — 先填入常用地址试试",
   "cam.detect_none": "请先设置打印机类型和地址",
   "cam.loading": "摄像头…",
   "cam.offline": "摄像头离线",

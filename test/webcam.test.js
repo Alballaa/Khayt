@@ -149,3 +149,60 @@ test('a snapshot fetch carries the machine’s own printer credential', () => {
   assert.deepEqual(W.authHeadersFor(null), {});
   assert.deepEqual(W.authHeadersFor({ type: 'bambu', apiKey: 'WRONG' }), {}, 'bambu uses accessCode, not apiKey');
 });
+
+/**
+ * The half that was missing.
+ *
+ * parseMoonrakerWebcams and parseOctoprintSettings were exported and tested
+ * from the day the webcam feature landed, and NOTHING in the product ever
+ * called either of them. The tests above proved the parsing was correct; not
+ * one of them could notice there was no caller. These cover the route from a
+ * printer to a parser, which is the part that did not exist.
+ */
+test('a printer is asked at the endpoint its own project documents', () => {
+  assert.equal(W.detectUrlFor({ type: 'moonraker', host: '192.168.1.9:7125' }),
+    'http://192.168.1.9:7125/server/webcams/list');
+  assert.equal(W.detectUrlFor({ type: 'octoprint', host: '192.168.1.8' }),
+    'http://192.168.1.8/api/settings');
+  // https must survive; a shop using TLS on the LAN must not be downgraded.
+  assert.equal(W.detectUrlFor({ type: 'moonraker', host: 'https://printer.local' }),
+    'https://printer.local/server/webcams/list');
+});
+
+test('printers with nothing to ask return no URL rather than a guessed path', () => {
+  // Duet, PrusaLink and Bambu publish no equivalent list. Inventing a path
+  // would turn "we cannot ask" into a 404 reported as "no camera".
+  for (const type of ['duet', 'prusalink', 'bambu', 'none', '']) {
+    assert.equal(W.detectPathFor({ type, host: '1.2.3.4' }), '', `${type} should have no detect path`);
+    assert.equal(W.detectUrlFor({ type, host: '1.2.3.4' }), '');
+  }
+});
+
+test('the reply is routed to the parser that matches the printer', () => {
+  const moon = { type: 'moonraker', host: '10.0.0.5' };
+  const octo = { type: 'octoprint', host: '10.0.0.6' };
+  const moonBody = { result: { webcams: [{ snapshot_url: '/webcam/?action=snapshot', rotation: 180 }] } };
+  const octoBody = { webcam: { snapshotUrl: '/webcam/?action=snapshot', streamUrl: '/webcam/?action=stream' } };
+
+  assert.equal(W.parseDetected(moonBody, moon).rotate, 180);
+  assert.ok(W.parseDetected(octoBody, octo).streamUrl);
+  // Cross-wiring must yield nothing, not a half-parsed object: an OctoPrint
+  // body through the Moonraker parser has no `webcams` key at all.
+  assert.equal(W.parseDetected(octoBody, moon), null);
+  assert.equal(W.parseDetected(moonBody, octo), null);
+});
+
+test('a Snapmaker U1 on stock firmware answers, and the answer is "none"', () => {
+  // The endpoint exists on stock and returns an empty list. That is a real
+  // reply meaning the printer has no camera registered — distinct from a
+  // printer that cannot be asked at all, which returns no URL above. The
+  // community extended firmware runs a full Moonraker stack and fills this in.
+  const u1 = { type: 'moonraker', host: '192.168.68.42:7125' };
+  assert.ok(W.detectUrlFor(u1), 'a U1 can always be asked');
+  assert.equal(W.parseDetected({ result: { webcams: [] } }, u1), null, 'stock: nothing registered');
+
+  const extended = { result: { webcams: [{ snapshot_url: '/webcam/?action=snapshot', stream_url: '/webcam/?action=stream' }] } };
+  const found = W.parseDetected(extended, u1);
+  assert.ok(found && found.snapshotUrl.startsWith('http://192.168.68.42:7125/'),
+    'extended: a real camera, resolved against the printer host');
+});

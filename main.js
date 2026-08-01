@@ -1166,6 +1166,48 @@ ipcMain.handle('hub:discover-printers', async (_e, { timeoutMs } = {}) => {
 // addresses here. The safety property instead is that the URL is pinned: a snapshot may
 // only be fetched from the same host already configured as that machine's printer API, so
 // this cannot be used as an SSRF pivot to arbitrary internal services.
+/**
+ * Ask a printer what camera it has, instead of making the owner type two URLs.
+ *
+ * lib/webcam.js has been able to read both Moonraker's and OctoPrint's answers
+ * since the webcam feature landed, and nothing ever asked them — the parsers
+ * were exported and unit-tested with no caller anywhere in the product.
+ *
+ * Reads only. Same host pinning as the snapshot proxy below: the URL is derived
+ * from the machine's OWN printerApi and never taken from the renderer, so this
+ * cannot be pointed at an arbitrary address.
+ */
+ipcMain.handle('hub:webcam-detect', async (_e, { machineId } = {}) => {
+  try {
+    const Webcam = require('./lib/webcam.js');
+    const machines = (lanServerStore && lanServerStore.machines) || [];
+    const m = machines.find(x => x && x.id === machineId);
+    if (!m) return { ok: false, error: 'unknown_machine' };
+    const url = Webcam.detectUrlFor(m.printerApi);
+    // Duet, PrusaLink and Bambu publish no equivalent list; say so rather than
+    // guessing a path and reporting the 404 as "no camera".
+    if (!url) return { ok: false, error: 'unsupported_printer' };
+    const res = await fetch(url, {
+      redirect: 'manual',
+      headers: Webcam.authHeadersFor(m.printerApi),
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!res.ok) return { ok: false, error: `http_${res.status}` };
+    const body = await res.json().catch(() => null);
+    if (!body) return { ok: false, error: 'bad_response' };
+    const found = Webcam.parseDetected(body, m.printerApi);
+    // A Snapmaker U1 on STOCK firmware lands here: the endpoint exists and
+    // answers with an empty list. That is a real answer — "this printer has no
+    // camera registered" — not a failure, and the caller says so.
+    if (!found) return { ok: false, error: 'no_camera_registered' };
+    const guard = Webcam.assertSameHostAsPrinter(found.snapshotUrl || found.streamUrl, m.printerApi);
+    if (!guard.ok) return { ok: false, error: guard.reason };
+    return { ok: true, webcam: found };
+  } catch (e) {
+    return { ok: false, error: String((e && e.message) || e) };
+  }
+});
+
 ipcMain.handle('hub:webcam-snapshot', async (_e, { machineId } = {}) => {
   try {
     const Webcam = require('./lib/webcam.js');

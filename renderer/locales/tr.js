@@ -2449,6 +2449,8 @@
   "cam.flip_v": "Dikey çevir",
   "cam.detect": "Yazıcıdan algıla",
   "cam.detect_ok": "Kamera adresleri dolduruldu — önizlemeyi kontrol edin",
+  "cam.detect_live": "Kamera yazıcıdan okundu — önizlemeyi kontrol edin",
+  "cam.detect_none_registered": "Yazıcı kamera bildirmiyor — denemek için alışılmış adresler dolduruluyor",
   "cam.detect_none": "Önce yazıcı türünü ve adresini belirleyin",
   "cam.loading": "Kamera…",
   "cam.offline": "Kamera çevrimdışı",

@@ -2449,6 +2449,8 @@
   "cam.flip_v": "Voltear V",
   "cam.detect": "Detectar desde la impresora",
   "cam.detect_ok": "URLs de cámara rellenadas — revisa la vista previa",
+  "cam.detect_live": "Cámara leída desde la impresora — revisa la vista previa",
+  "cam.detect_none_registered": "La impresora no informa de ninguna cámara — se rellenan las URLs habituales para probar",
   "cam.detect_none": "Define primero el tipo y la dirección de la impresora",
   "cam.loading": "Cámara…",
   "cam.offline": "Cámara desconectada",
