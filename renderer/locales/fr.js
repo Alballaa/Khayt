@@ -3615,6 +3615,7 @@
   "intake.exact": "{file} — depuis {slicer} : {grams} g, {time} h. Ce sont les chiffres de ton trancheur, pas une estimation.",
   "intake.exact_toast": "Les chiffres exacts de ton trancheur ont été appliqués.",
   "intake.estimate_head": "Estimation — ce fichier n’a jamais été tranché.",
+  "intake.estimate_unreliable": "Cette forme est difficile à estimer — les pièces fines ou très détaillées peuvent s'écarter fortement. Trancher le fichier avant de chiffrer.",
   "intake.estimate_advice": "À prendre comme point de départ. Pour un devis ferme, tranche le fichier et dépose le résultat ici.",
   "intake.estimate_toast": "Estimé d’après la géométrie du modèle, pas d’après un tranchage.",
   "intake.no_summary": "Ce G-code n’a aucun résumé de temps ni de filament — réexporte-le depuis ton trancheur.",

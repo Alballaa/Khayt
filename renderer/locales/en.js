@@ -3618,6 +3618,7 @@
   "intake.exact": "{file} — from {slicer}: {grams} g, {time} h. These are your slicer's own figures, not an estimate.",
   "intake.exact_toast": "Applied your slicer's exact figures.",
   "intake.estimate_head": "Estimate — this file was never sliced.",
+  "intake.estimate_unreliable": "This shape is hard to estimate — thin or highly detailed models can be well off. Slice it before quoting.",
   "intake.estimate_advice": "Treat it as a starting point. For a firm quote, slice the file and drop the result here.",
   "intake.estimate_toast": "Estimated from the model's geometry — not a sliced figure.",
   "intake.no_summary": "That G-code has no time or filament summary — re-export it from your slicer.",

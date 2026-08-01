@@ -3615,6 +3615,7 @@
   "intake.exact": "{file} — de {slicer}: {grams} g, {time} h. Son las cifras de tu propio laminador, no una estimación.",
   "intake.exact_toast": "Se aplicaron las cifras exactas de tu laminador.",
   "intake.estimate_head": "Estimación: este archivo nunca se laminó.",
+  "intake.estimate_unreliable": "Esta forma es difícil de estimar — las piezas finas o muy detalladas pueden desviarse mucho. Lamínala antes de cotizar.",
   "intake.estimate_advice": "Tómalo como punto de partida. Para un presupuesto en firme, lamina el archivo y suelta el resultado aquí.",
   "intake.estimate_toast": "Estimado a partir de la geometría del modelo, no de un laminado.",
   "intake.no_summary": "Ese G-code no trae resumen de tiempo ni de filamento: vuelve a exportarlo desde tu laminador.",
