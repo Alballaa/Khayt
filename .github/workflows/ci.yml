@@ -67,6 +67,12 @@ jobs:
       - name: E2E smoke (Bed Ready flavor + branding guard)
         run: xvfb-run -a npm run test:e2e:bedready
 
+      # Reads the live application menu out of BOTH flavours' main processes.
+      # A menu template cannot be reached from a unit test, and the Bed Ready
+      # half is what stops the Khayt subreddit appearing in the other brand.
+      - name: E2E Help menu (both flavors)
+        run: xvfb-run -a npm run test:e2e:help
+
       # The only suite that renders every theme's dashboard/queue, so it is the
       # only place the shared-shell regressions get caught: search-bar layout,
       # reconnecting-vs-offline, and that the demo store actually seeds. It was

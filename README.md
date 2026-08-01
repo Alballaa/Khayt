@@ -305,6 +305,16 @@ Khayt is on the **3.2.x** release line (latest: **3.2.0** in `package.json`):
 
 Full policy, tagging, and release steps: **[VERSIONING.md](./VERSIONING.md)**. Change history: **[CHANGELOG.md](./CHANGELOG.md)**.
 
+## Community & Support
+
+- **[r/khayt](https://www.reddit.com/r/khayt)** — questions, setups, and showing off what you printed. Best place to ask if you would rather not open a GitHub account.
+- **[GitHub Issues](https://github.com/KhaytApp/Khayt/issues)** — bugs and feature requests. Faster for anything that needs a fix.
+- **[khaytapp.com](https://khaytapp.com)** — downloads and release notes.
+
+All three are reachable from inside the app under **Help**.
+
+---
+
 ## Contributing
 
 Issues and pull requests are welcome. Maintainer workflow: **[CONTRIBUTING.md](./CONTRIBUTING.md)**. Planned engineering work: **[ROADMAP.md](./ROADMAP.md)**.
