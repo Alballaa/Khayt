@@ -96,3 +96,54 @@ test('the emitted XML is well formed', () => {
     assert.equal(opens, closes, `${n}: ${opens} opening tags vs ${closes} closings`);
   }
 });
+
+/**
+ * Base layer height.
+ *
+ * The reference export runs its opaque base at 0.24 mm and every colour band at
+ * 0.12. The base only stops the bed showing through, so its layer height is
+ * invisible in the finished piece; the bands above it are where the blending
+ * happens. Khayt wrote the per-range key from the start and always gave every
+ * range the same number — for the piece that reference was printing, 57 layers
+ * instead of 28.
+ */
+const heightsOf = (xml) => [...xml.matchAll(/layer_height">([\d.]+)</g)].map((m) => m[1]);
+
+test('the base band prints coarser than the colour bands', () => {
+  const { text } = build(FOUR);
+  const hs = heightsOf(text('Metadata/layer_config_ranges.xml'));
+  assert.equal(hs.length, 4);
+  assert.equal(Number(hs[0]), Number(hs[1]) * 2, 'base should be twice the colour layer height');
+  assert.deepEqual(hs.slice(1), [hs[1], hs[1], hs[1]], 'only the base is coarse — blending needs fine layers');
+});
+
+test('at the reference layer height the output matches the real file exactly', () => {
+  // 0.24 base / 0.12 colour is what KING-Abdulaziz-ART-200mm-U1.3mf contains.
+  // Reproducing it is the strongest check available without Snapmaker Orca.
+  const heights = [];
+  for (let j = 0; j < 16; j++) for (let i = 0; i < 16; i++) heights.push(4 + Math.round((i / 15) * 36));
+  const mesh = HF.heightfieldToMesh({ width: 16, height: 16, heights }, { layerH: 0.12, widthMm: 80 });
+  const buf = M3.buildU1_3mf({ triangles: mesh.triangles, bands: FOUR, layerH: 0.12, name: 'p', sizeMm: mesh.sizeMm });
+  const zip = openZip(buf);
+  assert.deepEqual(heightsOf(Buffer.from(zip.file('Metadata/layer_config_ranges.xml')).toString('utf8')),
+    ['0.24', '0.12', '0.12', '0.12']);
+});
+
+test('doubling never produces a layer no nozzle can lay down', () => {
+  // A shop already printing coarse would otherwise get a base at 0.4mm — the
+  // full width of a standard nozzle, which will not extrude cleanly.
+  const heights = [];
+  for (let j = 0; j < 16; j++) for (let i = 0; i < 16; i++) heights.push(4 + Math.round((i / 15) * 36));
+  for (const layerH of [0.06, 0.2, 0.28, 0.5]) {
+    const mesh = HF.heightfieldToMesh({ width: 16, height: 16, heights }, { layerH, widthMm: 80 });
+    const buf = M3.buildU1_3mf({ triangles: mesh.triangles, bands: FOUR, layerH, name: 'p', sizeMm: mesh.sizeMm });
+    const hs = heightsOf(Buffer.from(openZip(buf).file('Metadata/layer_config_ranges.xml')).toString('utf8'));
+    const base = Number(hs[0]), colour = Number(hs[1]);
+    // Two invariants, and the second is the one that caught a flaw in the fix:
+    // capping alone inverted the relationship for a shop already printing
+    // coarser than the cap, leaving the base FINER than the bands.
+    assert.ok(base <= Math.max(0.3, layerH),
+      `base ${base} at layerH ${layerH} was coarsened past what a 0.4 nozzle can print`);
+    assert.ok(base >= colour, `base ${base} is finer than the colour bands ${colour}`);
+  }
+});
