@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, shell, ipcMain, dialog, safeStorage, clipboard } = require('electron');
+const { app, BrowserWindow, Menu, shell, ipcMain, dialog, safeStorage, clipboard, utilityProcess } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { FLAVOR, isBedReady, productName: FLAVOR_NAME } = require('./lib/flavor');
@@ -1614,93 +1614,91 @@ ipcMain.handle('hub:printlib-read-bytes', async (_e, fullPath) => {
   } catch (_) { return null; }
 });
 
-// Parse an STL/3MF buffer into a decimated triangle mesh for the in-app 3D viewer.
-// Returns a flat Float32Array (9 floats/triangle) so it clones cheaply over IPC.
-function bboxOfPositions(pos) {
-  let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;
-  for (let i = 0; i < pos.length; i += 3) {
-    const x = pos[i], y = pos[i + 1], z = pos[i + 2];
-    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; if (z < z0) z0 = z; if (z > z1) z1 = z;
+// The expensive 3MF/STL work now lives in lib/mf-jobs.js and normally runs in a
+// utilityProcess (lib/mf-worker.js) so it can't stop the thread drawing the app.
+// mfRun() below is the client every 3MF handler goes through.
+const mfJobs = require('./lib/mf-jobs');
+
+// ── the converter's worker process ──────────────────────────────────────────
+// One long-lived utilityProcess, forked on first use and reused. Jobs are correlated by
+// id, so several can be in flight; the child answers them in order and none of them are
+// on this thread.
+//
+// If the fork fails, jobs run HERE instead — the app converts exactly as it did before,
+// freeze and all, rather than losing the feature to a process that wouldn't start. Same
+// code either way (lib/mf-jobs.js), so the fallback can't drift from the real path.
+let mfChild = null;
+let mfSeq = 0;
+const mfPending = new Map();
+
+function mfWorker() {
+  if (mfChild) return mfChild;
+  let child;
+  try {
+    child = utilityProcess.fork(path.join(__dirname, 'lib', 'mf-worker.js'), [], {
+      serviceName: 'khayt-3mf',
+      stdio: 'ignore',
+    });
+  } catch (e) {
+    try { console.warn('[3mf] worker unavailable, running inline:', (e && e.message) || e); } catch (_) {}
+    return null;
   }
-  return Number.isFinite(x0) ? { x: x1 - x0, y: y1 - y0, z: z1 - z0 } : { x: 0, y: 0, z: 0 };
+  child.on('message', (msg) => {
+    const p = msg && mfPending.get(msg.id);
+    if (!p) return;
+    mfPending.delete(msg.id);
+    p.resolve(msg.res);
+  });
+  // A job big enough to kill the child must fail loudly. Falling back to running the same
+  // job on this thread would freeze the app on its way to the same death.
+  child.on('exit', (code) => {
+    mfChild = null;
+    const dead = [...mfPending.values()];
+    mfPending.clear();
+    for (const p of dead) {
+      p.resolve({ ok: false, available: false, error: 'The converter stopped while working on this file — it may be too large for this machine.' + (code ? ` (exit ${code})` : '') });
+    }
+  });
+  mfChild = child;
+  return child;
 }
-const _hx = (h) => { const m = /^#?([0-9a-f]{6})/i.exec(String(h || '')); return m ? [parseInt(m[1].slice(0, 2), 16), parseInt(m[1].slice(2, 4), 16), parseInt(m[1].slice(4, 6), 16)] : [180, 180, 185]; };
 
-function meshFromBuffer(buf, ext) {
-  if (ext === '3mf') {
-    // Painted-mesh extraction ported from the bedready.io reference (lib/mf-mesh.js): flat world-
-    // space positions + a correctly-decoded filament state per face + the real filament palette.
-    const mfMesh = require('./lib/mf-mesh');
-    let mesh = null;
-    try { mesh = mfMesh.extractMeshFromBuffer(buf); } catch (e) { try { console.warn('[mesh] extract failed', e && e.message); } catch (_) {} }
-    if (!mesh || !mesh.positions || !mesh.positions.length) {
-      // No renderable geometry — fall back to the slicer's own embedded thumbnail, with a
-      // diagnostic (counts + part sizes) so any genuine failure is debuggable rather than opaque.
-      let diag = '';
-      try {
-        const mf = require('./lib/mf-convert');
-        const models = mf.readMembers(buf).filter((m) => /\.model$/i.test(m.name));
-        const cnt = (b, s) => { const nd = Buffer.from(s); let c = 0, i = 0; while ((i = b.indexOf(nd, i)) !== -1) { c++; i += nd.length; } return c; };
-        let nO = 0, nV = 0, nT = 0;
-        const sizes = models.map((m) => { nO += cnt(m.data, '<object'); nV += cnt(m.data, '<vertex'); nT += cnt(m.data, '<triangle'); return Math.round(m.data.length / 1048576) + 'MB'; });
-        diag = ` (models:${models.length}[${sizes.join(',')}] objects:${nO} vertices:${nV} triangles:${nT}${mesh && mesh.skipped ? ' skipped:too-big' : ''})`;
-      } catch (_) { /* best-effort */ }
-      try { const th = extractPrintThumb({ ext, buf }); if (th && th.pngBase64) return { ok: false, error: 'no-geometry' + diag, thumb: 'data:image/png;base64,' + th.pngBase64 }; } catch (_) {}
-      return { ok: false, error: 'no-geometry' + diag };
+/** Run a lib/mf-jobs op off this thread, or on it if there's no child to run it on. */
+function mfRun(op, args) {
+  const child = mfWorker();
+  if (!child) return mfJobs.run(op, args);
+  const id = ++mfSeq;
+  return new Promise((resolve) => {
+    mfPending.set(id, { resolve });
+    try {
+      child.postMessage({ id, op, args });
+    } catch (e) {
+      mfPending.delete(id);
+      resolve(mfJobs.run(op, args));
     }
-    const verts = mesh.positions;
-    const count = verts.length / 9 | 0;
-    const palette = (mesh.palette && mesh.palette.length) ? mesh.palette.slice() : null;
-    const fs = mesh.faceState;
-    // Per-face palette index (state − 1; state 0 → base filament 0) + baked colours for the first view.
-    let triColors = null, triCode = null;
-    if (palette && palette.length && fs) {
-      const n = palette.length, pal = palette.map(_hx);
-      triColors = new Uint8Array(count * 3);
-      triCode = new Uint16Array(count);
-      for (let i = 0; i < count; i++) {
-        const s = fs[i];
-        const idx = s >= 1 ? Math.min(s - 1, n - 1) : 0;
-        triCode[i] = idx;
-        const c = pal[idx] || pal[0];
-        triColors[i * 3] = c[0]; triColors[i * 3 + 1] = c[1]; triColors[i * 3 + 2] = c[2];
-      }
-    }
-    // Per-face part index + plate grouping so the preview can show one plate/part at a time.
-    let triObj = null, plates = null;
-    const parts = mesh.parts || [];
-    if (parts.length > 1) {
-      triObj = new Uint32Array(count);
-      parts.forEach((p, pi) => { for (let f = p.start; f < p.end && f < count; f++) triObj[f] = pi; });
-      const grp = (mesh.plates || []).map((pl) => ({ name: pl.name || '', objs: pl.partIndices.slice() })).filter((pl) => pl.objs.length);
-      if (grp.length > 1) plates = grp;
-    }
-    // Solid volume only when the full mesh was rendered (a sampled surface isn't watertight).
-    let volumeMm3 = null;
-    if (!mesh.sampled) {
-      let vol6 = 0;
-      for (let i = 0; i < verts.length; i += 9) {
-        const ax = verts[i], ay = verts[i + 1], az = verts[i + 2], bx = verts[i + 3], by = verts[i + 4], bz = verts[i + 5], cx = verts[i + 6], cy = verts[i + 7], cz = verts[i + 8];
-        vol6 += ax * (by * cz - bz * cy) - ay * (bx * cz - bz * cx) + az * (bx * cy - by * cx);
-      }
-      volumeMm3 = Math.abs(vol6) / 6;
-    }
-    return { ok: true, verts, count, bbox: bboxOfPositions(verts), colors: palette || [], volumeMm3, triColors, triObj, plates, triCode, palette };
+  });
+}
+
+app.on('will-quit', () => { try { if (mfChild) mfChild.kill(); } catch (_) {} });
+
+/**
+ * Jobs that produce a file write it to a temp path; this puts it where it belongs once the
+ * destination is known (which, for a save dialog, is only after the work is done). Rename
+ * when it can, copy when the temp and the destination are on different volumes.
+ */
+async function mfFinalize(tmpPath, finalPath) {
+  try {
+    await fs.promises.rename(tmpPath, finalPath);
+  } catch (_) {
+    await fs.promises.copyFile(tmpPath, finalPath);
+    try { await fs.promises.unlink(tmpPath); } catch (_) {}
   }
-
-  // STL: full mesh (usually already low enough poly for a preview), decimated only if huge.
-  const g = require('./lib/stl-parse').parseStl(buf, { keepTriangles: true });
-  let tris = g && g.triangles;
-  if (!Array.isArray(tris) || !tris.length) return { ok: false, error: 'no-geometry' };
-  let vol6 = 0;
-  for (const t of tris) { const a = t[0], b = t[1], c = t[2]; if (!a || !b || !c) continue; vol6 += a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0]) + a[2] * (b[0] * c[1] - b[1] * c[0]); }
-  const volumeMm3 = Math.abs(vol6) / 6;
-  const MAX = 1500000;
-  if (tris.length > MAX) { const s = Math.ceil(tris.length / MAX); const out = []; for (let i = 0; i < tris.length; i += s) out.push(tris[i]); tris = out; }
-  const verts = new Float32Array(tris.length * 9);
-  let k = 0;
-  for (const t of tris) for (let j = 0; j < 3; j++) { const p = t[j]; verts[k++] = p[0]; verts[k++] = p[1]; verts[k++] = p[2]; }
-  return { ok: true, verts, count: tris.length, bbox: bboxOfPositions(verts), colors: [], volumeMm3, triColors: null, triObj: null, plates: null, triCode: null, palette: null };
+}
+function mfTempPath(ext) {
+  return path.join(app.getPath('temp'), `khayt-3mf-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}.${ext}`);
+}
+async function mfDiscard(tmpPath) {
+  if (tmpPath) { try { await fs.promises.unlink(tmpPath); } catch (_) {} }
 }
 
 // Mesh for a print file in the vault (STL or 3MF). Confined to the vault, like read-bytes.
@@ -1711,8 +1709,7 @@ ipcMain.handle('hub:printlib-mesh', async (_e, fullPath) => {
   try {
     const stat = await fs.promises.stat(safe);
     if (stat.size > 200_000_000) return { ok: false, error: 'too-large' };
-    const buf = await fs.promises.readFile(safe);
-    return meshFromBuffer(buf, path.extname(safe).slice(1).toLowerCase());
+    return await mfRun('mesh', { src: safe, maxBytes: 200_000_000 });
   } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
 });
 
@@ -1721,7 +1718,13 @@ ipcMain.handle('hub:printlib-mesh', async (_e, fullPath) => {
 // picked through our own open dialog (approved for this session). Writing goes
 // through a save dialog or is confined the same way — the renderer can never make
 // the main process read/write an arbitrary path.
-const MF_MAX_BYTES = 200_000_000;
+// A ceiling on the file we're willing to pull into memory at all. 200 MB turned out to be
+// under what people actually download: a 229 MB multi-plate poster was refused at every
+// converter entry point with "File is too large", which reads as a broken app rather than
+// a deliberate limit. 600 MB clears that class of file. What the limit is really guarding —
+// unbounded INFLATION — is bounded separately and much more tightly by mf-convert's member
+// budget, and normalizing no longer inflates geometry at all.
+const MF_MAX_BYTES = 600_000_000;
 const approvedConvertSources = new Set();
 const approvedConvertDirs = new Set(); // user-picked output folders (batch) — writes allowed under these
 function mfAllowedDirs() {
@@ -1773,9 +1776,7 @@ ipcMain.handle('hub:mf-pick-outdir', async (_e) => {
 ipcMain.handle('hub:mf-analyze', async (_e, { path: srcPath } = {}) => {
   try {
     if (!srcPath || !mfReadAllowed(srcPath)) return { ok: false, error: 'File is outside an allowed folder.' };
-    const buf = await fs.promises.readFile(path.resolve(String(srcPath)));
-    if (buf.length > MF_MAX_BYTES) return { ok: false, error: 'File is too large.' };
-    return require('./lib/mf-convert').analyze(buf);
+    return await mfRun('analyze', { src: srcPath, maxBytes: MF_MAX_BYTES });
   } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
 });
 
@@ -1784,22 +1785,24 @@ ipcMain.handle('hub:mf-analyze', async (_e, { path: srcPath } = {}) => {
 ipcMain.handle('hub:convert-mesh', async (_e, { path: srcPath } = {}) => {
   try {
     if (!srcPath || !mfReadAllowed(srcPath)) return { ok: false, error: 'outside-allowed' };
-    const safe = path.resolve(String(srcPath));
-    const buf = await fs.promises.readFile(safe);
-    if (buf.length > MF_MAX_BYTES) return { ok: false, error: 'too-large' };
-    return meshFromBuffer(buf, path.extname(safe).slice(1).toLowerCase());
+    return await mfRun('mesh', { src: srcPath, maxBytes: MF_MAX_BYTES });
   } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
 });
 
 ipcMain.handle('hub:mf-convert', async (_e, { path: srcPath, targetId, mode, slotMap, outPath, intoVaultId, targetProfile, fullSpectrum, fsPhysical, fsPhysicalHex, filaments, process, bandSwap } = {}) => {
   try {
     if (!srcPath || !mfReadAllowed(srcPath)) return { ok: false, error: 'Source file is outside an allowed folder.' };
-    const buf = await fs.promises.readFile(path.resolve(String(srcPath)));
-    if (buf.length > MF_MAX_BYTES) return { ok: false, error: 'File is too large.' };
-    const r = require('./lib/mf-convert').convert(buf, { targetId, mode, slotMap, targetProfile, fullSpectrum, fsPhysical, fsPhysicalHex, filaments, process, bandSwap });
-    if (!r.ok) return r;
+    // The converted file lands in temp first. The save dialog can only be answered after
+    // the work is done, and a 228 MB result has no business travelling back down a pipe
+    // just to be written out again from here.
+    const tmp = mfTempPath('3mf');
+    const r = await mfRun('convert', {
+      src: srcPath, maxBytes: MF_MAX_BYTES, tmpOut: tmp,
+      opts: { targetId, mode, slotMap, targetProfile, fullSpectrum, fsPhysical, fsPhysicalHex, filaments, process, bandSwap },
+    });
+    if (!r.ok) { await mfDiscard(tmp); return r; }
 
-    // In-app destination: write the converted 3MF straight into a print-file
+    // In-app destination: move the converted 3MF straight into a print-file
     // record's vault (userData/print-files-vault/<id>/), no save dialog.
     if (intoVaultId) {
       const dir = printLibItemDir(intoVaultId);
@@ -1807,7 +1810,7 @@ ipcMain.handle('hub:mf-convert', async (_e, { path: srcPath, targetId, mode, slo
       const tag = String(targetId || 'out').replace(/[^a-zA-Z0-9]/g, '').slice(0, 14) || 'out';
       const filename = `converted-${Date.now().toString(36)}-${tag}.3mf`;
       const dest = path.join(dir, filename);
-      await fs.promises.writeFile(dest, r.buffer);
+      await mfFinalize(r.tmpPath, dest);
       const stat = await fs.promises.stat(dest);
       return { ok: true, vault: true, filename, ext: '3mf', size: stat.size, outPath: dest, report: r.report };
     }
@@ -1819,12 +1822,13 @@ ipcMain.handle('hub:mf-convert', async (_e, { path: srcPath, targetId, mode, slo
       const result = await dialog.showSaveDialog(win, {
         defaultPath: base, filters: [{ name: '3MF model', extensions: ['3mf'] }],
       });
-      if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+      if (result.canceled || !result.filePath) { await mfDiscard(r.tmpPath); return { ok: false, canceled: true }; }
       finalPath = path.resolve(result.filePath);
     } else if (!mfReadAllowed(finalPath)) {
+      await mfDiscard(r.tmpPath);
       return { ok: false, error: 'Output path is outside an allowed folder.' };
     }
-    await fs.promises.writeFile(finalPath, r.buffer);
+    await mfFinalize(r.tmpPath, finalPath);
     return { ok: true, outPath: finalPath, report: r.report };
   } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
 });
@@ -1859,9 +1863,7 @@ ipcMain.handle('hub:orca-machine-info', async (_e, { name } = {}) => {
 ipcMain.handle('hub:fs-plan', async (_e, { path: srcPath, targetId, targetProfile, fsPhysical, fsPhysicalHex } = {}) => {
   try {
     if (!srcPath || !mfReadAllowed(srcPath)) return { available: false, error: 'Source file is outside an allowed folder.' };
-    const buf = await fs.promises.readFile(path.resolve(String(srcPath)));
-    if (buf.length > MF_MAX_BYTES) return { available: false, error: 'File is too large.' };
-    return require('./lib/mf-convert').fsPreview(buf, { targetId, targetProfile, fsPhysical, fsPhysicalHex });
+    return await mfRun('fsPlan', { src: srcPath, maxBytes: MF_MAX_BYTES, opts: { targetId, targetProfile, fsPhysical, fsPhysicalHex } });
   } catch (e) { return { available: false, error: String((e && e.message) || e) }; }
 });
 
@@ -1870,10 +1872,11 @@ ipcMain.handle('hub:fs-plan', async (_e, { path: srcPath, targetId, targetProfil
 ipcMain.handle('hub:mf-bands', async (_e, { path: srcPath, heads, pauseGcode } = {}) => {
   try {
     if (!srcPath || !mfReadAllowed(srcPath)) return { available: false, error: 'Source file is outside an allowed folder.' };
-    const buf = await fs.promises.readFile(path.resolve(String(srcPath)));
-    if (buf.length > MF_MAX_BYTES) return { available: false, error: 'File is too large.' };
     // heads omitted → U1 4-head default (existing converter flow). heads:1 → single-extruder M600 plan.
-    return require('./lib/mf-convert').analyzeColorBands(buf, { heads: heads || undefined, pauseGcode: pauseGcode || undefined });
+    return await mfRun('bands', {
+      src: srcPath, maxBytes: MF_MAX_BYTES,
+      opts: { heads: heads || undefined, pauseGcode: pauseGcode || undefined },
+    });
   } catch (e) { return { available: false, error: String((e && e.message) || e) }; }
 });
 
@@ -1892,29 +1895,26 @@ ipcMain.handle('hub:stl-pick', async (_e) => {
 ipcMain.handle('hub:stl-to-3mf', async (_e, { path: srcPath, intoVaultId } = {}) => {
   try {
     if (!srcPath || !mfReadAllowed(srcPath)) return { ok: false, error: 'Source file is outside an allowed folder.' };
-    const buf = await fs.promises.readFile(path.resolve(String(srcPath)));
-    if (buf.length > MF_MAX_BYTES) return { ok: false, error: 'File is too large.' };
-    const parsed = require('./lib/stl-parse').parseStl(buf, { keepTriangles: true });
-    if (!parsed || !parsed.triangleCount) return { ok: false, error: 'No mesh found in that STL.' };
-    const out = require('./lib/mf-write').meshTo3mf(parsed.triangles);
-    if (!out) return { ok: false, error: 'Failed to build the 3MF.' };
-    const report = { triangleCount: parsed.triangleCount, bbox: parsed.bbox };
+    const tmp = mfTempPath('3mf');
+    const r = await mfRun('stlTo3mf', { src: srcPath, maxBytes: MF_MAX_BYTES, tmpOut: tmp });
+    if (!r.ok) { await mfDiscard(tmp); return r; }
+    const report = r.report;
     if (intoVaultId) {
       const dir = printLibItemDir(intoVaultId);
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
       const filename = `stl2mf-${Date.now().toString(36)}.3mf`;
       const dest = path.join(dir, filename);
-      await fs.promises.writeFile(dest, out);
+      await mfFinalize(r.tmpPath, dest);
       const stat = await fs.promises.stat(dest);
       return { ok: true, vault: true, filename, ext: '3mf', size: stat.size, outPath: dest, report };
     }
     const win = BrowserWindow.fromWebContents(_e.sender);
     const base = path.basename(String(srcPath)).replace(/\.stl$/i, '') + '.3mf';
     const result = await dialog.showSaveDialog(win, { defaultPath: base, filters: [{ name: '3MF model', extensions: ['3mf'] }] });
-    if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+    if (result.canceled || !result.filePath) { await mfDiscard(r.tmpPath); return { ok: false, canceled: true }; }
     const finalPath = path.resolve(result.filePath);
-    if (!mfReadAllowed(finalPath)) return { ok: false, error: 'Output path is outside an allowed folder.' };
-    await fs.promises.writeFile(finalPath, out);
+    if (!mfReadAllowed(finalPath)) { await mfDiscard(r.tmpPath); return { ok: false, error: 'Output path is outside an allowed folder.' }; }
+    await mfFinalize(r.tmpPath, finalPath);
     return { ok: true, outPath: finalPath, report };
   } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
 });
@@ -1923,21 +1923,17 @@ ipcMain.handle('hub:stl-to-3mf', async (_e, { path: srcPath, intoVaultId } = {})
 ipcMain.handle('hub:mf-to-stl', async (_e, { path: srcPath } = {}) => {
   try {
     if (!srcPath || !mfReadAllowed(srcPath)) return { ok: false, error: 'Source file is outside an allowed folder.' };
-    const buf = await fs.promises.readFile(path.resolve(String(srcPath)));
-    if (buf.length > MF_MAX_BYTES) return { ok: false, error: 'File is too large.' };
-    const mf = require('./lib/mf-convert');
-    const tris = mf.extractTriangles(mf.readMembers(buf));
-    if (!tris || !tris.length) return { ok: false, error: 'No mesh geometry found in that 3MF.' };
-    const stl = require('./lib/mf-write').trianglesToStl(tris);
-    if (!stl) return { ok: false, error: 'Failed to build the STL.' };
+    const tmp = mfTempPath('stl');
+    const r = await mfRun('mfToStl', { src: srcPath, maxBytes: MF_MAX_BYTES, tmpOut: tmp });
+    if (!r.ok) { await mfDiscard(tmp); return r; }
     const win = BrowserWindow.fromWebContents(_e.sender);
     const base = path.basename(String(srcPath)).replace(/\.3mf$/i, '') + '.stl';
     const result = await dialog.showSaveDialog(win, { defaultPath: base, filters: [{ name: 'STL model', extensions: ['stl'] }] });
-    if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+    if (result.canceled || !result.filePath) { await mfDiscard(r.tmpPath); return { ok: false, canceled: true }; }
     const finalPath = path.resolve(result.filePath);
-    if (!mfReadAllowed(finalPath)) return { ok: false, error: 'Output path is outside an allowed folder.' };
-    await fs.promises.writeFile(finalPath, stl);
-    return { ok: true, outPath: finalPath, triangleCount: tris.length };
+    if (!mfReadAllowed(finalPath)) { await mfDiscard(r.tmpPath); return { ok: false, error: 'Output path is outside an allowed folder.' }; }
+    await mfFinalize(r.tmpPath, finalPath);
+    return { ok: true, outPath: finalPath, triangleCount: r.triangleCount };
   } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
 });
 
