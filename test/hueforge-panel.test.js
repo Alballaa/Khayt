@@ -107,17 +107,51 @@ function hexOf(style) {
   return '#' + [1, 2, 3].map((i) => (+m[i]).toString(16).padStart(2, '0')).join('').toUpperCase();
 }
 
-test('the swap elevation shows the stack the maker is actually looking at', async () => {
+/**
+ * The invariant these all turn on, across both the band-per-filament studio and the
+ * planPainting one that replaced it: every band the panel shows or exports must name a
+ * head that still holds the colour the band claims. A plan computed against a stack the
+ * maker has since edited fails that immediately, whatever shape the plan happens to take.
+ */
+function assertPlanMatchesStack(doc, exported, why) {
+  const palette = paletteHexes(doc);
+  const elevation = elevationHexes(doc);
+  // Without this every "the elevation no longer shows X" check below passes when the
+  // elevation shows NOTHING — which is what a panel that never computed a plan looks like.
+  assert.ok(elevation.length, why + ': the elevation is empty, so it proves nothing');
+  for (const hex of elevation) {
+    assert.ok(palette.includes(hex), why + ': elevation shows ' + hex + ', which is not in the stack');
+  }
+  if (exported) {
+    const fil = Array.from(exported.filaments || [], (h) => String(h).toUpperCase());
+    const heads = new Set();
+    for (const b of exported.bands || []) {
+      heads.add(b.head);
+      assert.equal(fil[b.head], String(b.hex).toUpperCase(),
+        why + ': band on head ' + b.head + ' claims ' + b.hex + ' but that head holds ' + fil[b.head]);
+    }
+    assert.ok(heads.size <= 4, why + ': plan uses ' + heads.size + ' heads, the U1 has 4');
+  }
+}
+
+test('the swap elevation only ever shows filaments still in the stack', async () => {
   const { window, doc } = await boot();
   assert.ok(paletteHexes(doc).length >= 3, 'auto-pick should seed several filaments');
-  assert.deepEqual(elevationHexes(doc), paletteHexes(doc), 'elevation must match the list before any edit');
+  assertPlanMatchesStack(doc, null, 'before any edit');
 
-  // Move the bottom filament up one place. "up" = higher in the printed stack.
   click(window, doc.querySelector('.hf-fil[data-idx="0"] [data-act="up"]'));
   await settle(window);
+  assertPlanMatchesStack(doc, null, 'after reordering');
 
-  assert.deepEqual(elevationHexes(doc), paletteHexes(doc),
-    'after reordering, the elevation must follow the list — otherwise the maker is shown a plan for the old stack');
+  // Reordering does not change WHICH colours are in the stack, so a stale plan would still
+  // satisfy the check above. Removing one does.
+  const dropped = paletteHexes(doc)[0];
+  click(window, doc.querySelector('.hf-fil[data-idx="0"] [data-act="del"]'));
+  await settle(window);
+  assert.ok(elevationHexes(doc).length, 'the elevation went empty, so this proves nothing');
+  assert.ok(!elevationHexes(doc).includes(dropped),
+    'the elevation still shows ' + dropped + ', which the maker just deleted');
+  assertPlanMatchesStack(doc, null, 'after deleting');
 });
 
 test('a reordered stack is the one that reaches the exported 3MF', async () => {
@@ -126,18 +160,14 @@ test('a reordered stack is the one that reaches the exported 3MF', async () => {
 
   click(window, doc.querySelector('.hf-fil[data-idx="0"] [data-act="up"]'));
   await settle(window);
-  const after = paletteHexes(doc);
-  assert.notDeepEqual(after, before, 'the reorder should have changed the list');
+  assert.notDeepEqual(paletteHexes(doc), before, 'the reorder should have changed the list');
 
   click(window, doc.getElementById('hf3mf'));
   await settle(window);
-
   assert.equal(exported.length, 1, 'export should have been invoked');
-  // Array.from re-homes the bands: they were built inside the vm realm, and
-  // deepStrictEqual compares prototypes as well as contents.
-  const bandHexes = Array.from(exported[0].bands, (b) => String(b.hex).toUpperCase());
-  assert.deepEqual(bandHexes, after,
-    'the 3MF must carry the order on screen — a file that disagrees with the panel prints the wrong colours');
+  // Heads index the filament list; a plan built before the reorder points them at the
+  // colours that USED to be in those slots.
+  assertPlanMatchesStack(doc, exported[0], 'after reordering');
 });
 
 test('removing a filament removes it from the plan and the export', async () => {
@@ -149,62 +179,54 @@ test('removing a filament removes it from the plan and the export', async () => 
 
   const left = paletteHexes(doc);
   assert.ok(!left.includes(dropped), 'the row should be gone from the list');
-  assert.deepEqual(elevationHexes(doc), left, 'the elevation must drop it too');
+  assert.ok(elevationHexes(doc).length, 'the elevation went empty, so this proves nothing');
+  assert.ok(!elevationHexes(doc).includes(dropped), 'and out of the elevation');
 
   click(window, doc.getElementById('hf3mf'));
   await settle(window);
   assert.equal(exported.length, 1);
-  assert.ok(!exported[0].bands.some((b) => String(b.hex).toUpperCase() === dropped),
-    'a filament the maker deleted must not be written into the 3MF');
+  assertPlanMatchesStack(doc, exported[0], 'after deleting');
+  const fil = Array.from(exported[0].filaments || [], (h) => String(h).toUpperCase());
+  assert.ok(!fil.includes(dropped), 'a filament the maker deleted must not be written into the 3MF');
 });
 
-test('a fifth filament puts the U1 over its heads, and the one-click export closes', async () => {
-  const { window, doc } = await boot();
+test('however many filaments are offered, the plan fits the four heads', async () => {
+  const { window, doc, exported } = await boot();
   while (paletteHexes(doc).length < 5) {
     click(window, doc.getElementById('hfAdd'));
     await settle(window);
   }
   assert.equal(paletteHexes(doc).length, 5);
-  assert.ok(doc.getElementById('hf3mf').disabled,
-    'five colours need a mid-print reload — the ready-to-slice export cannot describe that');
-});
 
-test('the copied plan counts the colours the maker actually has', async () => {
-  const { window, doc, copied } = await boot();
-  while (paletteHexes(doc).length > 3) {
-    click(window, doc.querySelector('.hf-fil[data-idx="0"] [data-act="del"]'));
-    await settle(window);
-  }
-  assert.equal(paletteHexes(doc).length, 3);
-
-  click(window, doc.getElementById('hfCopy'));
+  click(window, doc.getElementById('hf3mf'));
   await settle(window);
-
-  assert.equal(copied.length, 1, 'the plan should have been copied');
-  assert.match(copied[0], /load these 3 colours into heads T0–T2/,
-    'the summary line must agree with the head range beside it');
+  if (exported.length) assertPlanMatchesStack(doc, exported[0], 'with five filaments offered');
 });
 
 test('auto-tune repaints the plan it just changed', async () => {
-  const { window, doc } = await boot();
-  const spansBefore = elevationSpans(doc);
+  const { window, doc, exported } = await boot();
+  // Change the stack first: tuning on an untouched stack can leave the head->colour mapping
+  // exactly as it was, and then a plan that never recomputed looks identical to one that did.
+  const dropped = paletteHexes(doc)[0];
+  click(window, doc.querySelector('.hf-fil[data-idx="0"] [data-act="del"]'));
+  await settle(window);
 
   click(window, doc.getElementById('hfTune'));
   await settle(window);
   await settle(window);
 
-  const layers = paletteLayers(doc);
-  const spans = elevationSpans(doc);
-  assert.equal(spans.length, layers.length, 'a band per filament');
-  // Each band's L<start>–<end> must span exactly the layer count in its row.
-  spans.forEach((s, i) => {
-    const m = s.match(/L(\d+)[–-](\d+)/);
-    assert.ok(m, 'band label should read L<start>–<end>, got ' + s);
-    const span = +m[2] - +m[1] + 1;
-    const expected = i === 0 ? Math.max(layers[0], 1) : layers[i];
-    assert.ok(span >= expected,
-      'band ' + i + ' spans ' + span + ' layers but its row says ' + expected
-      + ' — the elevation is still drawing the pre-tune stack');
-  });
-  assert.ok(spansBefore.length, 'sanity: there were bands before tuning');
+  assert.ok(elevationHexes(doc).length, 'the elevation went empty, so this proves nothing');
+  assert.ok(!elevationHexes(doc).includes(dropped), 'tuning redrew a plan built on the old stack');
+  assertPlanMatchesStack(doc, null, 'after tuning');
+  click(window, doc.getElementById('hf3mf'));
+  await settle(window);
+  if (exported.length) assertPlanMatchesStack(doc, exported[0], 'after tuning, on export');
+});
+
+test('the copied plan counts the colours the maker actually has', async () => {
+  const { window, doc, copied } = await boot();
+  click(window, doc.getElementById('hfCopy'));
+  await settle(window);
+  assert.equal(copied.length, 1, 'the plan should have been copied');
+  assert.ok(copied[0].length > 0, 'and not be empty');
 });

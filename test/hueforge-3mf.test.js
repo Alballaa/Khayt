@@ -17,6 +17,8 @@ const assert = require('node:assert/strict');
 const HF = require('../lib/hueforge.js');
 const M3 = require('../lib/hueforge-3mf.js');
 const { openZip } = require('../lib/zip-read.js');
+// The flat-line suite appended below refers to this module as HF3.
+const HF3 = M3;
 
 const LAYER_H = 0.08;
 
@@ -146,4 +148,111 @@ test('doubling never produces a layer no nozzle can lay down', () => {
       `base ${base} at layerH ${layerH} was coarsened past what a 0.4 nozzle can print`);
     assert.ok(base >= colour, `base ${base} is finer than the colour bands ${colour}`);
   }
+});
+
+
+// ---------------------------------------------------------------------------
+// The flat-multicolor line's own assertions for this module, brought across when
+// wip/hueforge-flat was rebased. They cover properties the tests above do not:
+// vertex welding, the embedded plate thumbnail, and the null-not-throw contract.
+// Its fixtures are prefixed OPT_ because both suites had a `build`.
+// ---------------------------------------------------------------------------
+// A minimal, valid 1x1 PNG — stands in for the achievable-colour preview.
+const PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC',
+  'base64'
+);
+
+const OPT_TRIS = [
+  [[0, 0, 0.48], [10, 0, 0.48], [10, 10, 4.68]],
+  [[0, 0, 0.48], [10, 10, 4.68], [0, 10, 1.2]],
+];
+const OPT_BANDS = [
+  { z0: 0, z1: 1.2, head: 0, hex: '#302225' },
+  { z0: 1.2, z1: 2.16, head: 1, hex: '#754845' },
+  { z0: 2.16, z1: 3.12, head: 2, hex: '#B47A7D' },
+  { z0: 3.12, z1: 4.68, head: 3, hex: '#E3D2C9' },
+];
+const buildOpts = (extra) => HF3.buildU1_3mf(Object.assign(
+  { triangles: OPT_TRIS, bands: OPT_BANDS, layerH: 0.12, name: 'T', sizeMm: { x: 10, y: 10, z: 4.68 } },
+  extra || {}
+));
+
+test('builds a valid, openable U1 3MF with the core members', () => {
+  const z = openZip(buildOpts());
+  const names = z.entries.map((e) => e.name);
+  for (const n of [
+    '[Content_Types].xml', '_rels/.rels', '3D/3dmodel.model',
+    '3D/Objects/object_1.model', 'Metadata/project_settings.config',
+    'Metadata/model_settings.config', 'Metadata/layer_config_ranges.xml',
+  ]) assert.ok(names.includes(n), 'missing ' + n);
+});
+
+test('mesh is vertex-indexed (welded) + watertight by index, not a triangle soup', () => {
+  // A soup (3 private vertices per triangle) reads as disconnected triangles in Orca →
+  // "floating regions" / "empty initial layer" / unprintable. Coincident corners must weld
+  // so the mesh is watertight BY INDEX (how the slicer builds connectivity).
+  
+  const W = 8, H = 8, heights = new Uint16Array(W * H);
+  for (let i = 0; i < heights.length; i++) heights[i] = 10 + (i % 5); // varied relief
+  const mesh = HF.heightfieldToMesh({ heights, width: W, height: H }, { layerH: 0.12, widthMm: 40 });
+  const buf = HF3.buildU1_3mf({ triangles: mesh.triangles, bands: OPT_BANDS, layerH: 0.12, name: 'M', sizeMm: mesh.sizeMm });
+  const xml = openZip(buf).file('3D/Objects/object_1.model').toString();
+  const nv = (xml.match(/<vertex /g) || []).length;
+  const nt = (xml.match(/<triangle /g) || []).length;
+  assert.ok(nt > 0);
+  assert.ok(nv < nt * 3, `expected welded vertices, got soup: ${nv} verts / ${nt} tris`);
+  // every edge shared by exactly two triangles, by INDEX → watertight solid
+  const edge = new Map();
+  const add = (a, b) => { const k = a < b ? a + '_' + b : b + '_' + a; edge.set(k, (edge.get(k) || 0) + 1); };
+  let m; const re = /<triangle v1="(\d+)" v2="(\d+)" v3="(\d+)"\/>/g;
+  while ((m = re.exec(xml))) { add(+m[1], +m[2]); add(+m[2], +m[3]); add(+m[3], +m[1]); }
+  let boundary = 0, nonmanifold = 0;
+  for (const c of edge.values()) { if (c === 1) boundary++; else if (c > 2) nonmanifold++; }
+  assert.strictEqual(boundary, 0, 'open (boundary) edges → not watertight');
+  assert.strictEqual(nonmanifold, 0, 'non-manifold edges');
+});
+
+test('layer_config_ranges keys the geometry object (id=1) with 1-based extruders', () => {
+  const xml = openZip(buildOpts()).file('Metadata/layer_config_ranges.xml').toString();
+  assert.match(xml, /<object id="1">/);
+  // heads 0..3 → extruders 1..4
+  for (const ext of [1, 2, 3, 4]) assert.match(xml, new RegExp('<option opt_key="extruder">' + ext + '</option>'));
+  assert.doesNotMatch(xml, /<option opt_key="extruder">0</, 'extruders must be 1-based');
+});
+
+test('prime tower stays off and is pinned in different_settings_to_system', () => {
+  const cfg = JSON.parse(openZip(buildOpts()).file('Metadata/project_settings.config').toString());
+  assert.strictEqual(cfg.enable_prime_tower, '0');
+  assert.match(cfg.different_settings_to_system[0], /enable_prime_tower/);
+  assert.deepStrictEqual(cfg.filament_colour, ['#302225', '#754845', '#B47A7D', '#E3D2C9']);
+});
+
+test('a thumbnail is embedded as the plate preview so the model shows a picture', () => {
+  const z = openZip(buildOpts({ thumbnailPng: PNG, thumbnailSmallPng: PNG }));
+  const names = z.entries.map((e) => e.name);
+  assert.ok(names.includes('Metadata/plate_1.png'));
+  assert.ok(names.includes('Metadata/plate_1_small.png'));
+  // byte-identical (PNGs are STORE'd, not re-compressed)
+  assert.strictEqual(Buffer.compare(z.file('Metadata/plate_1.png'), PNG), 0);
+  const rels = z.file('_rels/.rels').toString();
+  assert.match(rels, /metadata\/thumbnail"[^>]*\/>/);
+  assert.match(rels, /cover-thumbnail-middle/);
+  assert.match(rels, /Metadata\/plate_1_small\.png/);
+  assert.match(openZip(buildOpts({ thumbnailPng: PNG })).file('Metadata/model_settings.config').toString(),
+    /thumbnail_file/);
+});
+
+test('without a thumbnail the file is still valid and omits the plate PNGs', () => {
+  const z = openZip(buildOpts());
+  const names = z.entries.map((e) => e.name);
+  assert.ok(!names.includes('Metadata/plate_1.png'));
+  assert.doesNotMatch(z.file('_rels/.rels').toString(), /plate_1\.png/);
+  assert.doesNotMatch(z.file('Metadata/model_settings.config').toString(), /thumbnail_file/);
+});
+
+test('bad input returns null, never throws', () => {
+  assert.strictEqual(HF3.buildU1_3mf(null), null);
+  assert.strictEqual(HF3.buildU1_3mf({ triangles: [], bands: OPT_BANDS }), null);
+  assert.strictEqual(HF3.buildU1_3mf({ triangles: OPT_TRIS, bands: [] }), null);
 });

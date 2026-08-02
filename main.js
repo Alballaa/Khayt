@@ -1940,7 +1940,7 @@ ipcMain.handle('hub:mf-to-stl', async (_e, { path: srcPath } = {}) => {
 // HueForge → U1: build a zero-slicer Snapmaker-Orca 3MF from a solved heightfield + a
 // per-band head plan (colour swaps encoded as layer_config_ranges). The relief is rebuilt
 // in-process from the compact heightfield (lighter over IPC than the full triangle soup).
-ipcMain.handle('hub:hf-export-3mf', async (_e, { heights, width, height, layerH, widthMm, bands, name } = {}) => {
+ipcMain.handle('hub:hf-export-3mf', async (_e, { heights, width, height, layerH, widthMm, bands, filaments, name, thumbPng, thumbSmallPng } = {}) => {
   try {
     if (!Array.isArray(heights) || !width || !height || !Array.isArray(bands) || !bands.length) return { ok: false, error: 'Nothing to export yet.' };
     const HF = require('./lib/hueforge');
@@ -1948,7 +1948,11 @@ ipcMain.handle('hub:hf-export-3mf', async (_e, { heights, width, height, layerH,
     const solve = { heights: Uint16Array.from(heights), width, height };
     const mesh = HF.heightfieldToMesh(solve, { layerH, widthMm });
     if (!mesh.triangleCount) return { ok: false, error: 'Empty model.' };
-    const buf = HF3.buildU1_3mf({ triangles: mesh.triangles, bands, layerH, name, sizeMm: mesh.sizeMm, bed: { x: 270, y: 270 } });
+    const b64ToBuf = (b64) => { try { return b64 ? Buffer.from(String(b64), 'base64') : null; } catch (_) { return null; } };
+    const buf = HF3.buildU1_3mf({
+      triangles: mesh.triangles, bands, filaments, layerH, name, sizeMm: mesh.sizeMm, bed: { x: 270, y: 270 },
+      thumbnailPng: b64ToBuf(thumbPng), thumbnailSmallPng: b64ToBuf(thumbSmallPng),
+    });
     if (!buf) return { ok: false, error: 'Failed to build the 3MF.' };
     const win = BrowserWindow.fromWebContents(_e.sender);
     const base = String(name || 'hueforge').replace(/[^\w.-]+/g, '_') + '-U1.3mf';
@@ -1958,6 +1962,45 @@ ipcMain.handle('hub:hf-export-3mf', async (_e, { heights, width, height, layerH,
     if (!mfReadAllowed(finalPath)) return { ok: false, error: 'Output path is outside an allowed folder.' };
     await fs.promises.writeFile(finalPath, buf);
     return { ok: true, outPath: finalPath, triangleCount: mesh.triangleCount, sizeMm: mesh.sizeMm };
+  } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
+});
+
+// HueForge FLAT → U1: the toolchanger mode. Where the relief encodes colour as height and
+// ships one mesh plus a Z-band table, this ships one mesh PART per colour, each tagged with
+// its head, and no layer ranges at all.
+//
+// Only the label field crosses IPC, not the geometry. The renderer already computed it for
+// the preview, and rebuilding the parts here from labels + palette is far cheaper than
+// sending a triangle soup — the same reason the relief path sends a heightfield.
+ipcMain.handle('hub:hf-export-flat-3mf', async (_e, { labels, palette, width, height, widthMm, heightMm, capMm, layerH, filaments, baseHead, name, thumbPng, thumbSmallPng } = {}) => {
+  try {
+    if (!Array.isArray(labels) || !labels.length || !Array.isArray(palette) || !palette.length || !width || !height) {
+      return { ok: false, error: 'Nothing to export yet.' };
+    }
+    const FLAT = require('./lib/hueforge-flat');
+    const HF3 = require('./lib/hueforge-3mf');
+    const built = FLAT.buildFlatParts({ labels, palette, width, height }, { widthMm, heightMm, capMm });
+    if (!built || !built.parts.length) return { ok: false, error: 'Empty model.' };
+    const b64ToBuf = (b64) => { try { return b64 ? Buffer.from(String(b64), 'base64') : null; } catch (_) { return null; } };
+    const buf = HF3.buildFlatU1_3mf({
+      parts: built.parts,
+      // The renderer's slot colours win when it sent them: they are what the maker pinned in
+      // the stack. buildFlatParts' own palette is the quantiser's, which may differ.
+      filaments: (Array.isArray(filaments) && filaments.length) ? filaments : built.filaments,
+      sizeMm: built.sizeMm,
+      baseHead: Number.isInteger(baseHead) ? baseHead : built.baseHead,
+      layerH, name, bed: { x: 270, y: 270 },
+      thumbnailPng: b64ToBuf(thumbPng), thumbnailSmallPng: b64ToBuf(thumbSmallPng),
+    });
+    if (!buf) return { ok: false, error: 'Failed to build the 3MF.' };
+    const win = BrowserWindow.fromWebContents(_e.sender);
+    const base = String(name || 'hueforge-flat').replace(/[^\w.-]+/g, '_') + '-flat-U1.3mf';
+    const result = await dialog.showSaveDialog(win, { defaultPath: base, filters: [{ name: '3MF model', extensions: ['3mf'] }] });
+    if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+    const finalPath = path.resolve(result.filePath);
+    if (!mfReadAllowed(finalPath)) return { ok: false, error: 'Output path is outside an allowed folder.' };
+    await fs.promises.writeFile(finalPath, buf);
+    return { ok: true, outPath: finalPath, partCount: built.parts.length, sizeMm: built.sizeMm };
   } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
 });
 
