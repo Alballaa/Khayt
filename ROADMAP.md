@@ -2,16 +2,16 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0-beta.6 — on `main`)
+## Now (post-3.6.0-beta.7 — on `main`)
 
 **Stable is v3.5.3** (2026-08-01, a security patch cut from the
-`release/3.5.x` maintenance branch). **`main` is `3.6.0-beta.6`**, open and
+`release/3.5.x` maintenance branch). **`main` is `3.6.0-beta.7`**, open and
 soaking. No hold is active — see [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md).
 
 Everything below needs a switched-on printer or real shop use. **There is no
 queue of code waiting to be written** — that is the honest state of this file.
 
-- [ ] **Soak `v3.6.0-beta.6`, then promote to stable.** It changes what
+- [ ] **Soak `v3.6.0-beta.7`, then promote to stable.** It changes what
       customers are quoted and how every geometry-based time estimate is
       computed, so it needs real use against a real shop's settings before a
       stable cut — not just a green suite.
@@ -68,11 +68,12 @@ These are recorded so nobody assumes they exist:
 
 ## Shipped (3.3 → 3.6 — 2026-07 to 2026-08)
 
-Four stable lines and six beta releases since 3.2.0. Full detail per release is in
+Four stable lines and seven beta releases since 3.2.0. Full detail per release is in
 [CHANGELOG.md](./CHANGELOG.md); this is the index.
 
 | Version | Date | What it was |
 |---------|------|-------------|
+| **3.6.0-beta.7** | 2026-08-02 | **Two real files that did not work, and a feature nobody could find.** A 229 MB six-colour 3MF read as colourless because the member budget was spent on meshes before reaching the configs that identify it ([#571]). An update check on a local build showed a raw ENOENT instead of saying the build cannot self-update ([#572]). And the kanban the website advertises now opens by default in every theme rather than hiding behind a toggle ([#569], [#570]). Plus tests for solveHeightfield, the last large untested surface in the HueForge path ([#568]). |
 | **3.6.0-beta.6** | 2026-08-02 | **A measured figure now names the job it was measured on.** Khayt keeps a completion offerable for a day; a shop starting its next print inside that window could be shown the previous job's figures wearing a green *Measured* label, with nothing to reveal it — and those figures train the estimator ([#566]). Also the first real-hardware fixtures for the completion capture ([#565]) and the U1 catalogue entry pinned to the machine ([#564]). |
 | **3.6.0-beta.5** | 2026-08-02 | **Two Bed Ready print-quality fixes**, both found by diffing Khayt's colour plan against a 3MF the U1 was actually printing. The top colour band ended at the model's exact height, so the topmost layers belonged to no band and printed in the base colour ([#561]). And the opaque base printed at the same fine layer height as the colour bands — 57 layers where a real export used 28 ([#562]). |
 | **3.6.0-beta.4** | 2026-08-01 | **Bed Ready input guards.** A layer height of `Infinity` was accepted and produced a stack of infinitely-tall colours; a thickness that was not a number would have poisoned every blend. Also the first tests for `lib/hueforge.js` — 434 lines, fifteen exports, previously none. The mesh itself proved correct ([#559]). |
@@ -108,6 +109,11 @@ Four stable lines and six beta releases since 3.2.0. Full detail per release is 
 [#564]: https://github.com/KhaytApp/Khayt/pull/564
 [#565]: https://github.com/KhaytApp/Khayt/pull/565
 [#566]: https://github.com/KhaytApp/Khayt/pull/566
+[#568]: https://github.com/KhaytApp/Khayt/pull/568
+[#569]: https://github.com/KhaytApp/Khayt/pull/569
+[#570]: https://github.com/KhaytApp/Khayt/pull/570
+[#571]: https://github.com/KhaytApp/Khayt/pull/571
+[#572]: https://github.com/KhaytApp/Khayt/pull/572
 
 ## Shipped (3.2.0 beta line — 2026-07)
 
