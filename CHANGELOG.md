@@ -4,6 +4,49 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.6.0-beta.6] - 2026-08-02
+
+One change you will see, and it exists because two prints ran back to back —
+which is an ordinary day in a shop and something no test had ever imagined.
+
+### Fixed
+
+- **A measured figure now says which print it was measured on.** When you log a
+  finished job, Khayt offers the filament and time its printer actually
+  recorded, marked *Measured*. It named the printer those numbers came from —
+  but not the job.
+
+  Khayt keeps a finished job's figures available for a day. If you start
+  another print in that time, and most shops do, the numbers waiting on screen
+  can belong to the previous one. Marked *Measured*, in green, with nothing to
+  tell you they were someone else's.
+
+  It now names the file: "measured on bracket.gcode". If that is not the job in
+  front of you, you can see it at a glance.
+
+  This matters past a single order. Khayt learns how fast your printers really
+  run from the figures you confirm, so a number attached to the wrong job does
+  not just mis-cost that job — it teaches Khayt something untrue.
+
+  The day-long window is unchanged. Refusing an older measurement would cost a
+  shop a good number when they log yesterday's print, and that is a separate
+  decision from simply showing you what you are looking at.
+
+### For maintainers
+
+- The completion capture — the code deciding whether a measured cost ever
+  reaches an order — is now tested against a print that really finished, rather
+  than against figures somebody typed. Recorded by polling a Snapmaker U1 every
+  20 seconds across a five-hour job and keeping the samples either side of the
+  moment it stopped.
+
+  One thing only the real data showed: the last reading *while still printing*
+  already said 100%. Anything trusting progress instead of state would capture a
+  cost mid-job and never capture the true one.
+
+- The Snapmaker U1 catalogue entry is pinned to what the machine itself reports.
+
+
 ## [3.6.0-beta.5] - 2026-08-02
 
 Two fixes to the files Bed Ready sends a Snapmaker U1, both found by opening a
