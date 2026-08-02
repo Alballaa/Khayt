@@ -4,6 +4,43 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.6.0-beta.3] - 2026-08-01
+
+Found by pointing Khayt at a Snapmaker U1 that was actually printing. Everything
+here is a fix to what Khayt showed about a live job — none of it was reachable
+without real hardware in front of it.
+
+### Fixed
+
+- **A five-hour print was shown as 1% done, with 178 hours remaining.** Khayt
+  read a Klipper printer's progress from how far through the *file* it was.
+  Bytes are not work: on a detailed model most of the instructions sit in the
+  upper layers, so the file barely moves for the first third of the print. On a
+  real job 65 minutes in — genuinely about a fifth done — Khayt said 1%.
+
+  It now counts layers, which the printer was already reporting in the same
+  reply Khayt was reading. The same job then showed 18% with about 5 hours left,
+  against roughly 4 hours 15 remaining in reality.
+
+  The remaining time is also worked out from time spent *printing* rather than
+  time since the job was sent, so heating and idling no longer inflate it.
+
+- **A Klipper printer could be set up as the wrong kind of printer.** Klipper's
+  Moonraker pretends to be OctoPrint so that OctoPrint-only slicers can send it
+  files, and Khayt's printer search reported one machine as three different
+  makes. Choosing the wrong one looked fine and quietly recorded nothing: that
+  compatibility layer reports no filament and no print time, so every finished
+  job would have come back empty. The search now names the real one.
+
+### Verified against hardware
+
+- **What a finished job cost is now confirmed against a real printer.** The
+  figures Khayt reads back — filament used, time spent — had only ever been
+  checked against hand-written examples, which can agree with a mistake
+  forever. Read live, mid-print, from a Snapmaker U1 on stock firmware: every
+  field correct. Stock firmware is enough; no custom firmware needed.
+
+
 ## [3.6.0-beta.2] - 2026-08-01
 
 Fourteen commits landed after beta.1 was cut, and two of them change numbers you
