@@ -4,6 +4,42 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.6.0-beta.7] - 2026-08-02
+
+Three things a shop will notice, and two of them came from real files and real
+installs that did not work.
+
+### Fixed
+
+- **A big multi-colour 3MF could open as if it had no colours at all.** Khayt
+  reads a 3MF's members up to a size limit, so a malicious file cannot exhaust
+  memory. It read them in the order the file happened to store them — and in a
+  229 MB six-colour project the two small files that say *which slicer made this
+  and which filaments it uses* were stored last, behind every mesh. The limit
+  ran out before reaching them.
+
+  The file then looked like a plain, colourless model: nothing to convert, and
+  no error, because every step had done its job on what it was handed. Khayt now
+  reads those few kilobytes first and the meshes afterwards. The size limit is
+  unchanged.
+
+- **An update check could show a file path instead of an explanation.** A build
+  made for local testing carries no update information, and asking it to check
+  produced a raw `ENOENT ... app-update.yml`. It now says the install cannot
+  update itself and where to download a build that can — which Khayt already
+  knew how to say, and only ever said on Linux.
+
+### Changed
+
+- **The production queue opens on the board.** Khayt has always had the kanban
+  the website shows — drag a job from Pending to Printing and it moves — but
+  every theme opened on the grouped list, with the board behind a toggle nobody
+  is told about.
+
+  The board is now what you get, in every theme. If you prefer the list, switch
+  once and it stays switched — including for shops that already chose it.
+
+
 ## [3.6.0-beta.6] - 2026-08-02
 
 One change you will see, and it exists because two prints ran back to back —
