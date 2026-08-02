@@ -4,7 +4,7 @@
  *
  *   node scripts/probe-big-3mf.mjs <file.3mf> [targetId]
  *
- * Written against a 229 MB Bambu poster (20 meshes, 1168 MB inflated) that the converter
+ * Written against a 229 MB Bambu poster (19 meshes, 1168 MB inflated) that the converter
  * refused outright, and kept for the next one. The numbers it printed are the argument for
  * member passthrough: readMembers 1479 ms -> 130 ms, convert 106 s -> 7.7 s.
  *

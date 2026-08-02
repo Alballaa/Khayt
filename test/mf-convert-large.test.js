@@ -1,9 +1,9 @@
 /**
  * Converting a 3MF that is mostly geometry.
  *
- * Measured against a real 229 MB Bambu poster (20 meshes, 1168 MB inflated) that the
+ * Measured against a real 229 MB Bambu poster (19 meshes, 1168 MB inflated) that the
  * converter could not open at all: the front door refused it at 200 MB, and with that
- * raised the member budget dropped two objects — 240 MB of geometry — without a word,
+ * raised the member budget dropped one of them — 240 MB of geometry — without a word,
  * then reported a successful convert.
  *
  * The file itself can't live in the repo, so these pin the two behaviours it exposed on
