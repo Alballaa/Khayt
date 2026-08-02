@@ -4,6 +4,36 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.6.0-beta.4] - 2026-08-01
+
+A small one, and only for Bed Ready. Two settings that Khayt would accept
+without complaint and then quietly build an unprintable plan from.
+
+### Fixed
+
+- **A layer height of "infinity" was accepted.** Typing something like `1e999`
+  into the layer-height box gave a number JavaScript treats as infinite, and the
+  check guarding that box only asked whether it was above zero. Every colour in
+  the resulting stack came back at an infinite height: nothing failed, nothing
+  warned, and the plan described a print that cannot exist. It now has to be a
+  real number.
+
+- **A filament's opacity could be worked out from a non-number.** The same shape
+  of gap one step deeper: the guard on layer thickness caught negatives but let
+  a non-number through, which would have turned every blended colour into
+  nonsense. Nothing in the app could reach it — the layer-height check above
+  stops it first — but the function is available to other code, so it now
+  defends itself.
+
+### For maintainers
+
+- `lib/hueforge.js` has tests for the first time: 434 lines and fifteen exported
+  functions that nothing had ever exercised. The mesh it generates turned out to
+  be correct — every test heightfield produces exactly the volume its shape
+  implies, checked against Khayt's own STL reader, and the output slices cleanly
+  in PrusaSlicer.
+
+
 ## [3.6.0-beta.3] - 2026-08-01
 
 Found by pointing Khayt at a Snapmaker U1 that was actually printing. Everything
