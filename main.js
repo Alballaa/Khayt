@@ -1721,7 +1721,13 @@ ipcMain.handle('hub:printlib-mesh', async (_e, fullPath) => {
 // picked through our own open dialog (approved for this session). Writing goes
 // through a save dialog or is confined the same way — the renderer can never make
 // the main process read/write an arbitrary path.
-const MF_MAX_BYTES = 200_000_000;
+// A ceiling on the file we're willing to pull into memory at all. 200 MB turned out to be
+// under what people actually download: a 229 MB multi-plate poster was refused at every
+// converter entry point with "File is too large", which reads as a broken app rather than
+// a deliberate limit. 600 MB clears that class of file. What the limit is really guarding —
+// unbounded INFLATION — is bounded separately and much more tightly by mf-convert's member
+// budget, and normalizing no longer inflates geometry at all.
+const MF_MAX_BYTES = 600_000_000;
 const approvedConvertSources = new Set();
 const approvedConvertDirs = new Set(); // user-picked output folders (batch) — writes allowed under these
 function mfAllowedDirs() {
