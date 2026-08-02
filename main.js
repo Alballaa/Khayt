@@ -63,7 +63,7 @@ const { safeJsonParse } = require('./lib/safe-json');
 const { isBlockedHost, isAllowedPrinterHost, sanitizeMailgunDomain, resolvesToBlockedHost } = require('./lib/host-guard');
 const { sendCustomSmtp } = require('./lib/custom-smtp');
 const { mergePollSuccess, mergePollFailure } = require('./lib/printer-poll-cache');
-const { normalizeProgress, fileProgressPct } = require('./lib/printer-status');
+const { normalizeProgress, fileProgressPct, etaSeconds, moonrakerProgress } = require('./lib/printer-status');
 const printerCommands = require('./lib/printer-commands');
 const { normalizeStoreSnapshot, STORE_VERSION } = require('./lib/store-validate');
 const { createStoreIo } = require('./lib/store-io');
@@ -2406,11 +2406,22 @@ async function fetchPrinterStatus(machine) {
     const data = await get('/printer/objects/query?print_stats&virtual_sdcard&extruder&heater_bed');
     const ps = data.result?.status?.print_stats || {};
     const vs = data.result?.status?.virtual_sdcard || {};
+    // Layers where Klipper reports them, bytes otherwise — see moonrakerProgress
+    // for the measurement that settled it. And the ETA goes through etaSeconds,
+    // which has existed (with a test saying "under 1% is noise, not a signal")
+    // since the shared helpers were written and had never once been called: this
+    // adapter is the only one that extrapolates an ETA itself, and it was doing
+    // the arithmetic inline without the guard.
+    const prog = moonrakerProgress(ps, vs);
     return {
       state: ps.state || 'Unknown',
-      progress: normalizeProgress((vs.progress || 0) * 100),
+      progress: prog.percent,
+      progressSource: prog.source,
       filename: ps.filename || '',
-      timeRemaining: ps.total_duration ? Math.round((ps.total_duration / (vs.progress||1)) * (1-(vs.progress||0))) : null,
+      // print_duration, not total_duration: the latter includes heating and
+      // idling either side of the job, which is the same reason the actuals
+      // reader prefers it.
+      timeRemaining: etaSeconds(ps.print_duration, prog.percent / 100),
       tempNozzle: data.result?.status?.extruder?.temperature || null,
       tempBed: data.result?.status?.heater_bed?.temperature || null,
       actuals: extractActuals('moonraker', data, stockOptsFor(machine)),

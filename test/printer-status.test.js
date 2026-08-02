@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
-const { normalizeProgress, fileProgressPct, etaSeconds } = require('../lib/printer-status.js');
+const { normalizeProgress, fileProgressPct, etaSeconds, layerProgressPct, moonrakerProgress } = require('../lib/printer-status.js');
 
 /**
  * Six adapters, six different notions of "progress", none of them bounded.
@@ -61,8 +61,14 @@ test('every adapter routes its progress through the normaliser', () => {
   const main = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
   const fn = main.slice(main.indexOf('async function fetchPrinterStatus'),
                         main.indexOf('function defaultPrinterPort'));
+  // The allowlist is "helpers that clamp internally", not "lines I want to pass".
+  // moonrakerProgress calls normalizeProgress on both of its branches, and
+  // `prog` is its return value — so `progress: prog.percent` IS clamped, just
+  // one call away. A raw `vs.progress * 100` still fails, which is the point.
   const rawProgress = fn.split('\n').filter(l =>
-    /^\s*progress:/.test(l) && !/normalizeProgress\(|fileProgressPct\(/.test(l));
+    /^\s*progress:/.test(l)
+    && !/normalizeProgress\(|fileProgressPct\(/.test(l)
+    && !/^\s*progress:\s*prog\.percent,?\s*$/.test(l));
   assert.deepEqual(rawProgress, [],
     `these bypass the clamp: ${rawProgress.map(s => s.trim()).join(' | ')}`);
 });
@@ -106,4 +112,61 @@ test('an unset key is not sent as the string "undefined"', () => {
   assert.ok(!/headers\['X-Api-Key'\] = apiKey;\n\s*if \(type === 'prusalink'\)/.test(mainSrc),
     'unguarded header assignment is back');
   assert.match(mainSrc, /if \(apiKey\) \{/, 'the non-empty-key guard is gone');
+});
+
+/**
+ * Moonraker progress. The fixture below is a REAL payload, captured from a
+ * Snapmaker U1 on 2026-08-01 while it printed a 31 MB relief — not a shape I
+ * invented, which matters because the whole defect was that the invented shape
+ * never showed the problem.
+ *
+ * At that moment the job was 19.4% done by the clock (65 min of the slicer's
+ * 5h17m). Bytes said 0.7%; layers said 17.9%.
+ */
+const LIVE_U1 = {
+  print_stats: {
+    filename: 'KING-Abdulaziz-ART-200mm-U1_PLA_5h17m.gcode',
+    total_duration: 4259.78, print_duration: 3688.72, filament_used: 16950.31,
+    state: 'printing', info: { total_layer: 28, current_layer: 5 },
+  },
+  virtual_sdcard: { progress: 0.00668172566645534, is_active: true, file_position: 208363, file_size: 31184010 },
+};
+
+test('a real printing U1 does not report a five-hour job as 1% done', () => {
+  const p = moonrakerProgress(LIVE_U1.print_stats, LIVE_U1.virtual_sdcard);
+  assert.equal(p.source, 'layers');
+  assert.equal(p.percent, 18, 'layer 5 of 28');
+  // The byte figure this replaces. Guard the specific number so nobody
+  // "simplifies" back to virtual_sdcard.progress.
+  assert.notEqual(p.percent, normalizeProgress(LIVE_U1.virtual_sdcard.progress * 100));
+});
+
+test('and its ETA is hours, not weeks', () => {
+  const p = moonrakerProgress(LIVE_U1.print_stats, LIVE_U1.virtual_sdcard);
+  const eta = etaSeconds(LIVE_U1.print_stats.print_duration, p.percent / 100);
+  const hours = eta / 3600;
+  // ~4.2 h genuinely remained. Anything in the right ballpark is fine; what
+  // must never come back is the 178 hours the inline arithmetic produced.
+  assert.ok(hours > 2 && hours < 8, `ETA was ${hours.toFixed(1)} h`);
+
+  // What the old inline expression did with this very payload.
+  const vs = LIVE_U1.virtual_sdcard, ps = LIVE_U1.print_stats;
+  const old = Math.round((ps.total_duration / (vs.progress || 1)) * (1 - (vs.progress || 0)));
+  assert.ok(old / 3600 > 100, 'the old path really did produce a triple-digit-hour ETA');
+});
+
+test('layers are used only when Klipper actually reports them', () => {
+  assert.equal(layerProgressPct({ current_layer: 5, total_layer: 28 }), 18);
+  assert.equal(layerProgressPct({ current_layer: 0, total_layer: 28 }), 0, 'first layer is not "no data"');
+  // Anything unusable falls through to bytes rather than inventing a number.
+  for (const info of [null, undefined, {}, { total_layer: 0, current_layer: 3 }, { current_layer: 'x', total_layer: 10 }]) {
+    assert.equal(layerProgressPct(info), null, JSON.stringify(info));
+  }
+  const noLayers = moonrakerProgress({ info: {} }, { progress: 0.5 });
+  assert.deepEqual(noLayers, { percent: 50, source: 'bytes' });
+});
+
+test('a printer that reports neither reads as 0, not as NaN', () => {
+  assert.deepEqual(moonrakerProgress({}, {}), { percent: 0, source: 'bytes' });
+  assert.deepEqual(moonrakerProgress(null, null), { percent: 0, source: 'bytes' });
 });
