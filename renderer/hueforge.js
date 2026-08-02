@@ -72,7 +72,6 @@
     S.filaments = hf.suggestFilaments(S.img, ownedColored(), S.maxColors);
     // opaque foundation so the bed never bleeds through the bottom colour (~TD×1.3, per Kromacut)
     if (S.filaments[0]) S.baseLayers = clampNum(Math.round(S.filaments[0].td * 1.3 / S.layerH), 2, 20, 4);
-    recompute();
   }
 
   // ---- compute ------------------------------------------------------------
@@ -93,10 +92,28 @@
 
   // ---- render -------------------------------------------------------------
 
+  /**
+   * Repaint the panel from the current filament list.
+   *
+   * The derived values — stack, solve, plan — are recomputed HERE rather than by
+   * each handler that edits the stack. They were not, and every pane that reads
+   * them drew the previous stack: reorder the list and the elevation kept the old
+   * order, delete a filament and it stayed in the plan, add a fifth and the
+   * one-click U1 export stayed enabled for a stack that no longer fits four heads.
+   *
+   * None of that stopped at the screen. `export3mf` reads the same three values,
+   * so the 3MF written to disk carried the pre-edit stack — the wrong colours, in
+   * the wrong order, with no sign anything was off until the print came out.
+   *
+   * Recomputing on the way to paint costs a solve per edit, which `scheduleRepaint`
+   * already pays on every keystroke in a TD or layer field. Paying it here too is
+   * what makes a stale plan unreachable instead of merely fixed in three places.
+   */
   function render() {
     const host = document.getElementById('hueforge-tab');
     if (!host) return;
     if (!S) S = defaults();
+    recompute();
     host.innerHTML = shellHtml();
     wire(host);
     paint();
@@ -435,8 +452,12 @@
         + (reload ? '  ← RELOAD this head at ' + mm(b.startLayer - 1) + ' mm' : ''));
     });
     lines.push('');
+    // "these 4 colours" was hard-coded next to a head range counted from the real
+    // stack, so a three-colour plan read "load these 4 colours into heads T0–T2".
+    const n = S.plan.colorCount;
     lines.push(S.plan.automatic
-      ? 'Fully automatic on the U1 — load these 4 colours into heads T0–T' + (S.plan.colorCount - 1) + '; swaps happen mid-print, no manual steps.'
+      ? 'Fully automatic on the U1 — load these ' + n + ' colour' + (n === 1 ? '' : 's')
+        + ' into head' + (n === 1 ? ' T0' : 's T0–T' + (n - 1)) + '; swaps happen mid-print, no manual steps.'
       : (S.plan.reloads.length + ' mid-print reload(s) needed — swap the marked head when the U1 pauses at the listed height.'));
     const text = lines.join('\n');
     if (navigator.clipboard && navigator.clipboard.writeText) {
