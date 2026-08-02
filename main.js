@@ -1940,7 +1940,7 @@ ipcMain.handle('hub:mf-to-stl', async (_e, { path: srcPath } = {}) => {
 // HueForge → U1: build a zero-slicer Snapmaker-Orca 3MF from a solved heightfield + a
 // per-band head plan (colour swaps encoded as layer_config_ranges). The relief is rebuilt
 // in-process from the compact heightfield (lighter over IPC than the full triangle soup).
-ipcMain.handle('hub:hf-export-3mf', async (_e, { heights, width, height, layerH, widthMm, bands, name } = {}) => {
+ipcMain.handle('hub:hf-export-3mf', async (_e, { heights, width, height, layerH, widthMm, bands, filaments, name, thumbPng, thumbSmallPng } = {}) => {
   try {
     if (!Array.isArray(heights) || !width || !height || !Array.isArray(bands) || !bands.length) return { ok: false, error: 'Nothing to export yet.' };
     const HF = require('./lib/hueforge');
@@ -1948,7 +1948,11 @@ ipcMain.handle('hub:hf-export-3mf', async (_e, { heights, width, height, layerH,
     const solve = { heights: Uint16Array.from(heights), width, height };
     const mesh = HF.heightfieldToMesh(solve, { layerH, widthMm });
     if (!mesh.triangleCount) return { ok: false, error: 'Empty model.' };
-    const buf = HF3.buildU1_3mf({ triangles: mesh.triangles, bands, layerH, name, sizeMm: mesh.sizeMm, bed: { x: 270, y: 270 } });
+    const b64ToBuf = (b64) => { try { return b64 ? Buffer.from(String(b64), 'base64') : null; } catch (_) { return null; } };
+    const buf = HF3.buildU1_3mf({
+      triangles: mesh.triangles, bands, filaments, layerH, name, sizeMm: mesh.sizeMm, bed: { x: 270, y: 270 },
+      thumbnailPng: b64ToBuf(thumbPng), thumbnailSmallPng: b64ToBuf(thumbSmallPng),
+    });
     if (!buf) return { ok: false, error: 'Failed to build the 3MF.' };
     const win = BrowserWindow.fromWebContents(_e.sender);
     const base = String(name || 'hueforge').replace(/[^\w.-]+/g, '_') + '-U1.3mf';

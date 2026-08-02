@@ -19,15 +19,17 @@
   const KC = () => global.KhaytColor;
   const HF = () => global.KhaytHueForge;
   const U1_ID = 'snapmaker-u1';
-  const WORK_MAX = 180; // longest side (px) of the working image the solver runs on
+  const WORK_MAX = 640; // longest side (px) of the working image; the solver then samples to
+  //                       ~nozzle resolution (see planPainting cellMm). 180 was below nozzle
+  //                       width → soft + fine detail broke into speckle; feed full detail.
 
   let S = null; // session state
   let _rafPending = false;
 
   function defaults() {
-    return { img: null, imgUrl: '', imgName: '', filaments: [], layerH: 0.12, baseLayers: 4, maxColors: 4, widthMm: 120, stack: null, solve: null, plan: null };
+    return { img: null, imgUrl: '', imgName: '', filaments: [], layerH: 0.08, baseLayers: 5, maxColors: 4, widthMm: 120, heightMm: 2.4, dither: false, vivid: 9, smooth: 0, stack: null, solve: null, plan: null, paint: null };
   }
-  const LAYER_PRESETS = [[0.08, 'finest'], [0.12, 'recommended'], [0.16, ''], [0.20, 'fast']];
+  const LAYER_PRESETS = [[0.04, 'ultra'], [0.08, 'recommended'], [0.12, 'faster'], [0.16, 'fast']];
 
   function u1Profile() { const P = global.KhaytPrinterProfiles; return P ? P.getProfile(U1_ID) : null; }
   function esc(s) { return (typeof escapeHtml === 'function') ? escapeHtml(String(s == null ? '' : s)) : String(s == null ? '' : s); }
@@ -70,18 +72,53 @@
     const hf = HF();
     if (!hf || !S.img) return;
     S.filaments = hf.suggestFilaments(S.img, ownedColored(), S.maxColors);
-    // opaque foundation so the bed never bleeds through the bottom colour (~TD×1.3, per Kromacut)
-    if (S.filaments[0]) S.baseLayers = clampNum(Math.round(S.filaments[0].td * 1.3 / S.layerH), 2, 20, 4);
+    // opaque foundation (~0.4 mm) so the bed never bleeds through the bottom colour.
+    // A fixed depth rather than the relief path's TD×1.3: planPainting composites the whole
+    // stack itself, so the foundation only has to stop the bed showing — it is not the first
+    // term of a transmission model any more.
+    S.baseLayers = clampNum(Math.round(0.4 / S.layerH), 2, 20, 5);
+    // No recompute() here — render() does it now, for every path that changes the stack
+    // rather than only the ones that remembered to.
   }
 
   // ---- compute ------------------------------------------------------------
 
   function recompute() {
     const hf = HF();
-    if (!hf || !S.filaments.length) { S.stack = S.solve = S.plan = null; return; }
-    S.stack = hf.buildStack(S.filaments, { layerH: S.layerH, baseLayers: S.baseLayers });
-    S.plan = hf.u1Plan(S.stack, hf.U1_HEADS);
-    S.solve = S.img ? hf.solveHeightfield(S.img, S.stack) : null;
+    if (!hf || !S.filaments.length || !S.img) { S.stack = S.solve = S.plan = S.paint = null; return; }
+    // Optimised per-layer painting: learn a filament sequence (reuse allowed) that
+    // reproduces the image via the transmission model — the U1's free tool-changes make
+    // the many swaps automatic. Falls back to nothing if no valid filaments.
+    const paint = hf.planPainting(S.img, S.filaments, {
+      layerH: S.layerH, heightMm: S.heightMm, widthMm: S.widthMm,
+      baseLayers: S.baseLayers, dither: S.dither === true,
+      // vividness → front-lit TD scale (higher vivid = more opaque = more saturated pop)
+      tdScale: Math.max(0.1, 1.1 - (S.vivid || 9) * 0.1),
+      smooth: S.smooth || 0,
+    });
+    S.paint = paint;
+    S.solve = paint ? paint.solve : null;
+    if (!paint) { S.stack = S.plan = null; return; }
+    // Compat shim: present the optimised plan through the shapes the elevation/verdict/plan
+    // UI already reads (S.stack.bands + S.plan). Each contiguous run is a "band"; a reused
+    // filament yields several bands on the same head. On the U1 (≤4 loaded) it's always
+    // fully automatic — every swap is a free tool-change, no manual reloads.
+    const lh = paint.layerH;
+    const bands = paint.bands.map((b) => {
+      const startLayer = Math.round(b.z0 / lh) + 1;
+      const endLayer = Math.round(b.z1 / lh);
+      const fil = S.filaments[b.head];
+      const td = fil ? (fil.td || hf.defaultTd(b.hex)) : hf.defaultTd(b.hex);
+      return { hex: b.hex, td, head: b.head, startLayer, endLayer, layers: Math.max(1, endLayer - startLayer + 1) };
+    });
+    const distinct = new Set(paint.seq).size;
+    S.stack = { bands, totalLayers: paint.totalLayers, layerH: lh, palette: paint.palette };
+    S.plan = {
+      automatic: distinct <= hf.U1_HEADS,
+      colorCount: distinct, heads: hf.U1_HEADS, swaps: paint.swaps,
+      slots: bands.map((b) => ({ slot: b.head, band: b })),
+      reloads: [],
+    };
   }
 
   function scheduleRepaint() {
@@ -123,7 +160,7 @@
     return [
       '<div class="hf">',
       '<div class="hf-head">',
-      '<div><h2 class="hf-title">HueForge <span class="hf-title-sep">·</span> U1</h2>',
+      '<div><h2 class="hf-title">HueForge <span class="hf-title-sep">·</span> U1 <span class="hf-title-sep">·</span> <span style="font-size:11px;opacity:.6;font-weight:600;letter-spacing:.02em">build 2026-07-15j · selective-sharp</span></h2>',
       '<p class="hf-sub">Turn a picture into a filament painting, built for the Snapmaker U1’s four SnapSwap heads.</p></div>',
       S.img ? '<button type="button" class="btn ghost sm" id="hfReset">Start over</button>' : '',
       '</div>',
@@ -229,6 +266,9 @@
       '<label class="hf-num wide" title="Printed width on the bed (mm)">width (mm)<input type="number" id="hfWidth" min="40" max="270" step="1" value="' + esc(S.widthMm) + '" /></label>',
       '<label class="hf-num wide" title="Layer height">layer height<select class="input" id="hfLayerH">' + lopt + '</select></label>',
       '<label class="hf-num wide" title="Solid base layers before the first colour">base layers<input type="number" id="hfBase" min="1" max="20" step="1" value="' + esc(S.baseLayers) + '" /></label>',
+      '<label class="hf-num wide" title="Total relief height. More height = more colour layers = richer tones (and longer print).">height (mm)<input type="number" id="hfHeight" min="0.8" max="6" step="0.1" value="' + esc(S.heightMm) + '" /></label>',
+      '<label class="hf-num wide" title="Colour vividness (front-lit correction). Higher = more saturated, punchier colour; lower = softer, more blended. 9 is a good default for reflective prints.">vividness<input type="number" id="hfVivid" min="1" max="10" step="1" value="' + esc(S.vivid) + '" /></label>',
+      '<label class="hf-num wide" title="The relief is already smoothed to keep flat areas clean. 0 = default; raise it (1–3) only if a busy photo still looks noisy — higher trades fine detail for a smoother surface.">smoothing<input type="number" id="hfSmooth" min="0" max="3" step="1" value="' + esc(S.smooth) + '" /></label>',
       '</div></div>',
     ].join('');
   }
@@ -333,7 +373,7 @@
       ? '<span class="hf-vd-badge ok">' + wrapIco('check') + 'FULLY AUTOMATIC</span>'
       : '<span class="hf-vd-badge warn">' + wrapIco('alert') + p.reloads.length + ' RELOAD' + (p.reloads.length === 1 ? '' : 'S') + ' NEEDED</span>';
     const line2 = ok
-      ? 'All ' + p.colorCount + ' colours ride the four SnapSwap heads — swaps happen mid-print with ~4 g purge total. Nothing to set up in the slicer.'
+      ? p.colorCount + ' filaments on the four SnapSwap heads, re-used across ' + ((p.swaps || 0) + 1) + ' colour bands — every swap is an automatic, near-zero-purge tool-change. Nothing to set up in the slicer.'
       : p.colorCount + ' colours over ' + p.heads + ' heads: after a head finishes, swap its spool for the next colour when the U1 pauses at the marked layer (↻ in the elevation).';
     const reloadList = (!ok && p.reloads.length)
       ? '<ul class="hf-vd-reloads">' + p.reloads.map((r) =>
@@ -371,7 +411,10 @@
     on('#hfMaxColors', 'change', (e) => { S.maxColors = +e.target.value || 4; });
     on('#hfLayerH', 'change', (e) => { S.layerH = clampNum(e.target.value, 0.04, 0.28, 0.12); scheduleRepaint(); });
     on('#hfWidth', 'input', (e) => { S.widthMm = clampNum(e.target.value, 40, 270, 120); scheduleRepaint(); });
-    on('#hfBase', 'input', (e) => { S.baseLayers = Math.round(clampNum(e.target.value, 1, 20, 4)); scheduleRepaint(); });
+    on('#hfBase', 'input', (e) => { S.baseLayers = Math.round(clampNum(e.target.value, 1, 20, 5)); scheduleRepaint(); });
+    on('#hfHeight', 'input', (e) => { S.heightMm = clampNum(e.target.value, 0.8, 6, 2.4); scheduleRepaint(); });
+    on('#hfVivid', 'input', (e) => { S.vivid = Math.round(clampNum(e.target.value, 1, 10, 9)); scheduleRepaint(); });
+    on('#hfSmooth', 'input', (e) => { S.smooth = Math.round(clampNum(e.target.value, 0, 3, 0)); scheduleRepaint(); });
     on('#hfCopy', 'click', copyPlan);
     on('#hfStl', 'click', exportStl);
     on('#hf3mf', 'click', export3mf);
@@ -466,23 +509,23 @@
   }
 
   function export3mf() {
-    if (!S.solve || !S.stack || !S.plan || !S.plan.automatic) { toast('Reduce to ≤4 colours first'); return; }
+    if (!S.paint || !S.solve) { toast('Add a picture and filaments first'); return; }
     const api = (typeof window !== 'undefined' && window.hubAPI);
     if (!api || !api.hfExport3mf) { toast('Export unavailable'); return; }
-    const lh = S.stack.layerH;
-    const bands = S.stack.bands.map((b, i) => ({
-      z0: +((b.startLayer - 1) * lh).toFixed(4),
-      z1: +(b.endLayer * lh).toFixed(4),
-      head: S.plan.slots[i] ? S.plan.slots[i].slot : (i % S.plan.heads),
-      hex: b.hex,
-    }));
+    const p = S.paint;
     const btn = document.getElementById('hf3mf');
     if (btn) { btn.disabled = true; btn.textContent = 'Building…'; }
     api.hfExport3mf({
-      heights: Array.from(S.solve.heights),
-      width: S.solve.width, height: S.solve.height,
-      layerH: lh, widthMm: S.widthMm, bands,
+      heights: Array.from(p.solve.heights),
+      width: p.solve.width, height: p.solve.height,
+      layerH: p.layerH, widthMm: S.widthMm,
+      bands: p.bands,                              // many bands, filaments reused across heads
+      filaments: p.filaments.map((f) => f.hex),    // 4 slot colours, indexed by head
       name: (S.imgName || 'hueforge').replace(/\.[^.]+$/, ''),
+      // Embed the achievable-colour preview as the plate thumbnail so the model shows a
+      // picture in Snapmaker Orca and the OS file preview (not a blank tile).
+      thumbPng: solvePreviewPng(512),
+      thumbSmallPng: solvePreviewPng(128),
     }).then((r) => {
       render();
       if (r && r.ok) toast('U1 3MF saved · open in Snapmaker Orca');
@@ -508,6 +551,35 @@
   }
 
   // ---- utils --------------------------------------------------------------
+
+  /** The solved achievable-colour preview as base64 PNG (no data: prefix), scaled to fit
+   *  `maxSide`. Used as the exported 3MF's plate thumbnail. Returns null if nothing solved. */
+  function solvePreviewPng(maxSide) {
+    if (!S.solve || !S.solve.preview) return null;
+    const w = S.solve.width, h = S.solve.height;
+    if (!w || !h) return null;
+    try {
+      const src = document.createElement('canvas');
+      src.width = w; src.height = h;
+      const sctx = src.getContext('2d');
+      const id = sctx.createImageData(w, h);
+      id.data.set(S.solve.preview);
+      sctx.putImageData(id, 0, 0);
+      const scale = Math.min(1, (maxSide || 512) / Math.max(w, h));
+      const dw = Math.max(1, Math.round(w * scale)), dh = Math.max(1, Math.round(h * scale));
+      let out = src;
+      if (scale < 1) {
+        out = document.createElement('canvas');
+        out.width = dw; out.height = dh;
+        const octx = out.getContext('2d');
+        octx.imageSmoothingEnabled = true; octx.imageSmoothingQuality = 'high';
+        octx.drawImage(src, 0, 0, dw, dh);
+      }
+      const url = out.toDataURL('image/png');
+      const comma = url.indexOf(',');
+      return comma >= 0 ? url.slice(comma + 1) : null;
+    } catch (_) { return null; }
+  }
 
   function normHex(hex) {
     const kc = KC(); const rgb = kc && kc.hexToRgb(hex);
