@@ -231,6 +231,11 @@
       defaultAccent: 'tide',
       accents: FLOW_ACCENTS,
       defaultAppearance: 'light',
+      // Flow's home is a board you drag work across. A production queue that
+      // opened as a grouped list underneath it was the theme contradicting
+      // itself — and the kanban is what the website advertises, reachable
+      // until now only by finding a toggle nobody is told about.
+      defaultQueueView: 'kanban',
       bodyClass: 'khayt-flow',
       stylesheets: [
         'themes/flow/tokens.css',
