@@ -2,16 +2,16 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0-beta.4 — on `main`)
+## Now (post-3.6.0-beta.5 — on `main`)
 
 **Stable is v3.5.3** (2026-08-01, a security patch cut from the
-`release/3.5.x` maintenance branch). **`main` is `3.6.0-beta.4`**, open and
+`release/3.5.x` maintenance branch). **`main` is `3.6.0-beta.5`**, open and
 soaking. No hold is active — see [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md).
 
 Everything below needs a switched-on printer or real shop use. **There is no
 queue of code waiting to be written** — that is the honest state of this file.
 
-- [ ] **Soak `v3.6.0-beta.4`, then promote to stable.** It changes what
+- [ ] **Soak `v3.6.0-beta.5`, then promote to stable.** It changes what
       customers are quoted and how every geometry-based time estimate is
       computed, so it needs real use against a real shop's settings before a
       stable cut — not just a green suite.
@@ -65,11 +65,12 @@ These are recorded so nobody assumes they exist:
 
 ## Shipped (3.3 → 3.6 — 2026-07 to 2026-08)
 
-Four stable lines and four beta releases since 3.2.0. Full detail per release is in
+Four stable lines and five beta releases since 3.2.0. Full detail per release is in
 [CHANGELOG.md](./CHANGELOG.md); this is the index.
 
 | Version | Date | What it was |
 |---------|------|-------------|
+| **3.6.0-beta.5** | 2026-08-02 | **Two Bed Ready print-quality fixes**, both found by diffing Khayt's colour plan against a 3MF the U1 was actually printing. The top colour band ended at the model's exact height, so the topmost layers belonged to no band and printed in the base colour ([#561]). And the opaque base printed at the same fine layer height as the colour bands — 57 layers where a real export used 28 ([#562]). |
 | **3.6.0-beta.4** | 2026-08-01 | **Bed Ready input guards.** A layer height of `Infinity` was accepted and produced a stack of infinitely-tall colours; a thickness that was not a number would have poisoned every blend. Also the first tests for `lib/hueforge.js` — 434 lines, fifteen exports, previously none. The mesh itself proved correct ([#559]). |
 | **3.6.0-beta.3** | 2026-08-01 | **What a live printer showed.** A five-hour job was displayed as 1% done with a 178-hour ETA — progress came from file position, not layers ([#557]). A Klipper machine could be configured as the wrong make and silently record nothing ([#556]). And the actuals reader met real hardware for the first time: every field correct. |
 | **3.6.0-beta.2** | 2026-08-01 | **Quoting corrected, and honest about its limits.** A part's walls are derived from its surface rather than a flat share of its volume ([#551]) — a 100 mm part was being quoted at roughly double. Khayt now says outright when a shape is one it cannot price ([#553]), scored against a real slicer ([#552]). Carries the v3.5.3 lockout fix ([#548]), a Help menu ([#549]), and camera auto-detect that asks the printer ([#554]). |
@@ -98,6 +99,8 @@ Four stable lines and four beta releases since 3.2.0. Full detail per release is
 [#556]: https://github.com/KhaytApp/Khayt/pull/556
 [#557]: https://github.com/KhaytApp/Khayt/pull/557
 [#559]: https://github.com/KhaytApp/Khayt/pull/559
+[#561]: https://github.com/KhaytApp/Khayt/pull/561
+[#562]: https://github.com/KhaytApp/Khayt/pull/562
 
 ## Shipped (3.2.0 beta line — 2026-07)
 
