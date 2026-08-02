@@ -98,7 +98,12 @@ function defaultSettings() {
     lang:      'en',
     theme:         'light',
     designTheme:   'workbench',
-    queueView:     'list',      // grouped list by default; 'kanban' opts back in
+    // The board is what the product is sold on, so it is what a shop gets.
+    // `queueViewChosen` is only ever written when someone works the toggle, which
+    // is what separates "never expressed a view" from "asked for the list" — the
+    // stored value alone cannot tell those apart, and every existing shop has
+    // 'list' on disk purely because it used to be the default.
+    queueView:     'kanban',
     accent:        'cyan',
     invPrefix: 'INV',
     footerEn:  'Thank you for your business!',

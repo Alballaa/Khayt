@@ -173,7 +173,13 @@
 
   /** True when the grouped list is the active board. Kanban is opt-in per shop. */
   function isListView() {
-    return (typeof settings === 'undefined' ? 'list' : (settings.queueView || 'list')) !== 'kanban';
+    if (typeof settings === 'undefined') return false;
+    // Until a shop works the toggle, the board wins whatever is on disk. Every
+    // install predating this carries queueView: 'list' because that was the
+    // default, not because anyone asked for it — honouring that would keep the
+    // advertised feature hidden from exactly the people already using Khayt.
+    if (!settings.queueViewChosen) return false;
+    return (settings.queueView || 'kanban') !== 'kanban';
   }
 
   function renderQueueList() {
@@ -257,6 +263,9 @@
   function setQueueView(view) {
     if (typeof settings === 'undefined') return;
     settings.queueView = (view === 'kanban') ? 'kanban' : 'list';
+    // Working the toggle IS the choice. From here the shop's answer outranks
+    // the product default, in both directions and permanently.
+    settings.queueViewChosen = true;
     if (typeof saveAll === 'function') saveAll();
     if (typeof renderKanban === 'function') renderKanban();
     syncQueueViewToggle();

@@ -249,66 +249,45 @@ async function assertNoControlsOffscreen(window, themeCases) {
  * works — which it did, before this was written this way.
  */
 /**
- * Flow's production queue opens as a board, not a grouped list.
+ * Every theme opens the production queue on the board.
  *
- * The website sells a "Kanban production queue". Every theme shipped a grouped
- * list by default and the board sat behind a toggle button, so the advertised
- * feature was real but unfindable. Flow is the theme whose whole identity is a
- * board you drag work across — its queue opening as a list was the design
- * contradicting itself.
+ * The website sells a "Kanban production queue". It shipped behind a toggle
+ * button nobody is told about, with a grouped list in front of it, so the
+ * advertised feature was real and unfindable.
  *
- * Driven through the PICKER, not by assigning settings, because the guard being
- * tested lives there: a theme brings its queue view only when the theme
- * actually changes. applyDesignTheme runs on every boot, and doing it there
- * would undo the user's toggle at each restart.
+ * The board is now the default until a shop works the toggle. That distinction
+ * is the whole design: every install predating it carries queueView: 'list' on
+ * disk because that WAS the default, not because anyone asked — honouring the
+ * stored value would keep the feature hidden from exactly the people already
+ * using Khayt.
  */
-async function assertFlowOpensOnTheBoard(window) {
-  // Start somewhere else, explicitly on the list.
-  await applyThemeCase(window, THEME_CASES.find((c) => c.id === 'workbench'));
+async function assertEveryThemeOpensOnTheBoard(window) {
+  for (const themeCase of THEME_CASES) {
+    await applyThemeCase(window, themeCase);
+    const r = await window.evaluate(() => ({
+      list: window.KhaytQueueList.isListView(),
+      chosen: !!settings.queueViewChosen,
+    }));
+    if (r.chosen) throw new Error('nothing has worked the toggle, yet the choice reads as made');
+    if (r.list) throw new Error(`${themeCase.id}: the queue opened as a list, not the board`);
+  }
+
+  // A shop that asks for the list keeps it — in every theme, and permanently.
   await window.evaluate(() => { window.KhaytQueueList.setQueueView('list'); });
+  for (const themeCase of THEME_CASES) {
+    await applyThemeCase(window, themeCase);
+    const stillList = await window.evaluate(() => window.KhaytQueueList.isListView());
+    if (!stillList) throw new Error(`${themeCase.id}: overrode the shop's own choice of list`);
+  }
 
-  const picked = await window.evaluate(() => {
-    const prev = settings.designTheme;
-    settings.designTheme = 'flow';
-    const theme = globalThis.KhaytThemeRegistry?.getTheme('flow');
-    if (theme?.defaultQueueView && prev !== 'flow') {
-      globalThis.KhaytQueueList?.setQueueView?.(theme.defaultQueueView);
-    }
-    return { declared: theme?.defaultQueueView || null, queueView: settings.queueView };
+  // And a stored 'list' from before this change must NOT be read as a choice.
+  const legacy = await window.evaluate(() => {
+    delete settings.queueViewChosen;
+    settings.queueView = 'list';
+    return window.KhaytQueueList.isListView();
   });
-  if (picked.declared !== 'kanban') {
-    throw new Error(`flow does not declare a board queue: ${picked.declared}`);
-  }
-  if (picked.queueView !== 'kanban') {
-    throw new Error(`choosing flow left the queue as "${picked.queueView}"`);
-  }
-
-  // And the guard: re-selecting the SAME theme must not overwrite a toggle.
-  const kept = await window.evaluate(() => {
-    window.KhaytQueueList.setQueueView('list');
-    const prev = settings.designTheme;            // already 'flow'
-    const theme = globalThis.KhaytThemeRegistry?.getTheme('flow');
-    if (theme?.defaultQueueView && prev !== 'flow') {
-      globalThis.KhaytQueueList?.setQueueView?.(theme.defaultQueueView);
-    }
-    return settings.queueView;
-  });
-  if (kept !== 'list') {
-    throw new Error(`re-applying flow overwrote the shop's own choice: ${kept}`);
-  }
-
-  // Structural, and it is here because the checks above are not enough: they
-  // reproduce the picker's logic inside evaluate() rather than invoking it, so
-  // deleting the wiring from the picker leaves them all passing. This is the
-  // part that would actually stop shipping.
-  const pickerPath = new URL('../renderer/themes/theme-picker.js', import.meta.url);
-  const picker = fs.readFileSync(pickerPath, 'utf8');
-  if (!/defaultQueueView\s*&&\s*prev\s*!==\s*id/.test(picker)) {
-    throw new Error('the theme picker no longer adopts a theme\'s queue view on change');
-  }
-  if (!/setQueueView\?\.\(theme\.defaultQueueView\)/.test(picker)) {
-    throw new Error('the picker reads defaultQueueView but never applies it');
-  }
+  if (legacy) throw new Error('an old install\'s default was mistaken for a decision');
+  await window.evaluate(() => { window.KhaytQueueList.setQueueView('kanban'); });
 }
 
 async function assertFlowDragMovesWork(window) {
@@ -506,6 +485,11 @@ async function seedDemoStore(window) {
  */
 async function assertQuietChromeAndOperableGroups(window) {
   await applyThemeCase(window, THEME_CASES.find((c) => c.id === 'workbench'));
+  // This asserts the GROUPED LIST's headers are operable, and it used to get
+  // the list for free because the list was the default. The board is the
+  // default now, so the view it is testing has to be asked for — a test that
+  // depends on a default is a test that stops testing when the default moves.
+  await window.evaluate(() => { window.KhaytQueueList.setQueueView('list'); });
 
   const g = await window.evaluate(() => {
     const head = document.querySelector('.ql-group .ql-group-head');
@@ -624,7 +608,7 @@ try {
   await assertNoControlsOffscreen(window, THEME_CASES);
   console.log('  no control is stranded off a narrow window: ok');
 
-  await assertFlowOpensOnTheBoard(window);
+  await assertEveryThemeOpensOnTheBoard(window);
   await assertFlowDragMovesWork(window);
   console.log('  Flow: dragging a card actually moves the work: ok');
 

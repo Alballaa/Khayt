@@ -113,13 +113,6 @@
           const themeSel = document.getElementById('set_theme');
           if (themeSel) themeSel.value = theme.defaultAppearance;
         }
-        // A theme brings its queue presentation the same way it brings its
-        // appearance, and under the same guard: only when the theme actually
-        // CHANGES. applyDesignTheme runs on every boot, so doing this there
-        // would silently undo the toggle each restart.
-        if (theme?.defaultQueueView && prev !== id) {
-          global.KhaytQueueList?.setQueueView?.(theme.defaultQueueView);
-        }
         if (typeof applyDesignSettings === 'function') applyDesignSettings();
       }
 
