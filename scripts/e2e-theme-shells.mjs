@@ -248,6 +248,69 @@ async function assertNoControlsOffscreen(window, themeCases) {
  * Electron, so a mouse-driven version of this test fails against code that
  * works — which it did, before this was written this way.
  */
+/**
+ * Flow's production queue opens as a board, not a grouped list.
+ *
+ * The website sells a "Kanban production queue". Every theme shipped a grouped
+ * list by default and the board sat behind a toggle button, so the advertised
+ * feature was real but unfindable. Flow is the theme whose whole identity is a
+ * board you drag work across — its queue opening as a list was the design
+ * contradicting itself.
+ *
+ * Driven through the PICKER, not by assigning settings, because the guard being
+ * tested lives there: a theme brings its queue view only when the theme
+ * actually changes. applyDesignTheme runs on every boot, and doing it there
+ * would undo the user's toggle at each restart.
+ */
+async function assertFlowOpensOnTheBoard(window) {
+  // Start somewhere else, explicitly on the list.
+  await applyThemeCase(window, THEME_CASES.find((c) => c.id === 'workbench'));
+  await window.evaluate(() => { window.KhaytQueueList.setQueueView('list'); });
+
+  const picked = await window.evaluate(() => {
+    const prev = settings.designTheme;
+    settings.designTheme = 'flow';
+    const theme = globalThis.KhaytThemeRegistry?.getTheme('flow');
+    if (theme?.defaultQueueView && prev !== 'flow') {
+      globalThis.KhaytQueueList?.setQueueView?.(theme.defaultQueueView);
+    }
+    return { declared: theme?.defaultQueueView || null, queueView: settings.queueView };
+  });
+  if (picked.declared !== 'kanban') {
+    throw new Error(`flow does not declare a board queue: ${picked.declared}`);
+  }
+  if (picked.queueView !== 'kanban') {
+    throw new Error(`choosing flow left the queue as "${picked.queueView}"`);
+  }
+
+  // And the guard: re-selecting the SAME theme must not overwrite a toggle.
+  const kept = await window.evaluate(() => {
+    window.KhaytQueueList.setQueueView('list');
+    const prev = settings.designTheme;            // already 'flow'
+    const theme = globalThis.KhaytThemeRegistry?.getTheme('flow');
+    if (theme?.defaultQueueView && prev !== 'flow') {
+      globalThis.KhaytQueueList?.setQueueView?.(theme.defaultQueueView);
+    }
+    return settings.queueView;
+  });
+  if (kept !== 'list') {
+    throw new Error(`re-applying flow overwrote the shop's own choice: ${kept}`);
+  }
+
+  // Structural, and it is here because the checks above are not enough: they
+  // reproduce the picker's logic inside evaluate() rather than invoking it, so
+  // deleting the wiring from the picker leaves them all passing. This is the
+  // part that would actually stop shipping.
+  const pickerPath = new URL('../renderer/themes/theme-picker.js', import.meta.url);
+  const picker = fs.readFileSync(pickerPath, 'utf8');
+  if (!/defaultQueueView\s*&&\s*prev\s*!==\s*id/.test(picker)) {
+    throw new Error('the theme picker no longer adopts a theme\'s queue view on change');
+  }
+  if (!/setQueueView\?\.\(theme\.defaultQueueView\)/.test(picker)) {
+    throw new Error('the picker reads defaultQueueView but never applies it');
+  }
+}
+
 async function assertFlowDragMovesWork(window) {
   await applyThemeCase(window, THEME_CASES.find((c) => c.id === 'flow'));
   await window.waitForTimeout(400);
@@ -561,6 +624,7 @@ try {
   await assertNoControlsOffscreen(window, THEME_CASES);
   console.log('  no control is stranded off a narrow window: ok');
 
+  await assertFlowOpensOnTheBoard(window);
   await assertFlowDragMovesWork(window);
   console.log('  Flow: dragging a card actually moves the work: ok');
 
