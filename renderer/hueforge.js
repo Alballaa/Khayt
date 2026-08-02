@@ -18,6 +18,8 @@
 (function (global) {
   const KC = () => global.KhaytColor;
   const HF = () => global.KhaytHueForge;
+  const FLAT = () => global.KhaytHueForgeFlat;
+  const isFlat = () => S && S.mode === 'flat';
   const U1_ID = 'snapmaker-u1';
   const WORK_MAX = 640; // longest side (px) of the working image; the solver then samples to
   //                       ~nozzle resolution (see planPainting cellMm). 180 was below nozzle
@@ -27,7 +29,7 @@
   let _rafPending = false;
 
   function defaults() {
-    return { img: null, imgUrl: '', imgName: '', filaments: [], layerH: 0.08, baseLayers: 5, maxColors: 4, widthMm: 120, heightMm: 2.4, dither: false, vivid: 9, smooth: 0, stack: null, solve: null, plan: null, paint: null };
+    return { mode: 'relief', img: null, imgUrl: '', imgName: '', filaments: [], layerH: 0.08, baseLayers: 5, maxColors: 4, widthMm: 120, heightMm: 2.4, dither: false, vivid: 9, smooth: 0, stack: null, solve: null, plan: null, paint: null, flat: null };
   }
   const LAYER_PRESETS = [[0.04, 'ultra'], [0.08, 'recommended'], [0.12, 'faster'], [0.16, 'fast']];
 
@@ -85,7 +87,9 @@
 
   function recompute() {
     const hf = HF();
-    if (!hf || !S.filaments.length || !S.img) { S.stack = S.solve = S.plan = S.paint = null; return; }
+    if (!hf || !S.filaments.length || !S.img) { S.stack = S.solve = S.plan = S.paint = S.flat = null; return; }
+    if (isFlat()) { recomputeFlat(); return; }
+    S.flat = null;
     // Optimised per-layer painting: learn a filament sequence (reuse allowed) that
     // reproduces the image via the transmission model — the U1's free tool-changes make
     // the many swaps automatic. Falls back to nothing if no valid filaments.
@@ -119,6 +123,27 @@
       slots: bands.map((b) => ({ slot: b.head, band: b })),
       reloads: [],
     };
+  }
+
+  /**
+   * Flat mode: quantise to <=4 solid colours and cut the plate into a base slab plus one cap
+   * PART per colour. No transmission model, no relief — the U1's tool changes cost nothing,
+   * so each region is simply printed in its own filament.
+   *
+   * The relief's derived values (stack/plan/paint) stay null here on purpose: they describe a
+   * Z-band stack that a flat plate does not have, and leaving stale ones behind is how the
+   * elevation ends up drawing a plan for a mode the maker has left.
+   */
+  function recomputeFlat() {
+    const fl = FLAT();
+    S.stack = S.plan = S.paint = S.solve = null;
+    if (!fl) { S.flat = null; return; }
+    S.flat = fl.planFlat(S.img, {
+      colors: S.maxColors,
+      widthMm: S.widthMm,
+      heightMm: S.heightMm,
+      filaments: S.filaments.map((f) => f.hex),
+    });
   }
 
   function scheduleRepaint() {
@@ -259,16 +284,23 @@
     if (!opts.some((p) => Math.abs(p[0] - S.layerH) < 1e-6)) opts.push([S.layerH, 'custom']);
     const lopt = opts.map((p) => '<option value="' + p[0] + '"' + (Math.abs(p[0] - S.layerH) < 1e-6 ? ' selected' : '') + '>'
       + p[0].toFixed(2) + ' mm' + (p[1] ? ' · ' + p[1] : '') + '</option>').join('');
+    const flat = isFlat();
+    const modeSel = '<label class="hf-num wide" title="Relief paints by HEIGHT through translucent filament. Flat paints by REGION — solid colour areas, each on its own head. Flat needs no TD calibration and prints faster; relief blends colours the palette does not contain.">mode'
+      + '<select class="input" id="hfMode">'
+      + '<option value="relief"' + (flat ? '' : ' selected') + '>Relief · light through filament</option>'
+      + '<option value="flat"' + (flat ? ' selected' : '') + '>Flat · solid colour regions</option>'
+      + '</select></label>';
     return [
       '<div class="hf-card">',
       '<div class="hf-card-h">PRINT SETTINGS</div>',
       '<div class="hf-set">',
+      modeSel,
       '<label class="hf-num wide" title="Printed width on the bed (mm)">width (mm)<input type="number" id="hfWidth" min="40" max="270" step="1" value="' + esc(S.widthMm) + '" /></label>',
       '<label class="hf-num wide" title="Layer height">layer height<select class="input" id="hfLayerH">' + lopt + '</select></label>',
-      '<label class="hf-num wide" title="Solid base layers before the first colour">base layers<input type="number" id="hfBase" min="1" max="20" step="1" value="' + esc(S.baseLayers) + '" /></label>',
+      flat ? '' : '<label class="hf-num wide" title="Solid base layers before the first colour">base layers<input type="number" id="hfBase" min="1" max="20" step="1" value="' + esc(S.baseLayers) + '" /></label>',
       '<label class="hf-num wide" title="Total relief height. More height = more colour layers = richer tones (and longer print).">height (mm)<input type="number" id="hfHeight" min="0.8" max="6" step="0.1" value="' + esc(S.heightMm) + '" /></label>',
-      '<label class="hf-num wide" title="Colour vividness (front-lit correction). Higher = more saturated, punchier colour; lower = softer, more blended. 9 is a good default for reflective prints.">vividness<input type="number" id="hfVivid" min="1" max="10" step="1" value="' + esc(S.vivid) + '" /></label>',
-      '<label class="hf-num wide" title="The relief is already smoothed to keep flat areas clean. 0 = default; raise it (1–3) only if a busy photo still looks noisy — higher trades fine detail for a smoother surface.">smoothing<input type="number" id="hfSmooth" min="0" max="3" step="1" value="' + esc(S.smooth) + '" /></label>',
+      flat ? '' : '<label class="hf-num wide" title="Colour vividness (front-lit correction). Higher = more saturated, punchier colour; lower = softer, more blended. 9 is a good default for reflective prints.">vividness<input type="number" id="hfVivid" min="1" max="10" step="1" value="' + esc(S.vivid) + '" /></label>',
+      flat ? '' : '<label class="hf-num wide" title="The relief is already smoothed to keep flat areas clean. 0 = default; raise it (1–3) only if a busy photo still looks noisy — higher trades fine detail for a smoother surface.">smoothing<input type="number" id="hfSmooth" min="0" max="3" step="1" value="' + esc(S.smooth) + '" /></label>',
       '</div></div>',
     ].join('');
   }
@@ -291,7 +323,45 @@
     return '<div class="hf-card hf-verdict-card"><div id="hfVerdict"></div></div>';
   }
 
+  /**
+   * Flat mode is automatic by construction: <=4 colours, each on its own always-loaded head,
+   * every change of colour a free tool change. There is nothing to reload and no swap height
+   * to report — which is the entire argument for the mode.
+   */
+  function paintFlatVerdict(host) {
+    if (!S.flat) { host.innerHTML = ''; return; }
+    const f = S.flat, prof = u1Profile();
+    const bedX = prof && prof.bed ? prof.bed.x : 270;
+    const bedY = prof && prof.bed ? prof.bed.y : 270;
+    const over = f.sizeMm.x > bedX || f.sizeMm.y > bedY;
+    const n = f.palette.length;
+    host.innerHTML = [
+      '<div class="hf-vd-top"><span class="hf-vd-badge ok">' + wrapIco('check') + 'FULLY AUTOMATIC</span>',
+      '<span class="hf-vd-count">' + n + ' colours · ' + (HF() ? HF().U1_HEADS : 4) + ' heads</span></div>',
+      '<div class="hf-vd-line">A flat plate: each colour is its own region on its own head, so every colour change '
+        + 'is a free tool change. No relief, no light mixing, nothing to calibrate — what the preview shows is what prints.</div>',
+      '<div class="hf-vd-facts"><span>' + Math.round(f.sizeMm.x) + '×' + Math.round(f.sizeMm.y) + '×' + f.sizeMm.z.toFixed(2) + ' mm</span>',
+      '<span>' + f.parts.length + ' parts</span>',
+      (over ? '<span class="hf-over">exceeds the ' + bedX + '×' + bedY + ' mm bed — reduce width</span>' : ''),
+      '</div>',
+    ].join('');
+  }
+
   function exportHtml() {
+    if (isFlat()) {
+      const can = !!(S.flat && S.flat.parts.length);
+      return [
+        '<div class="hf-card">',
+        '<div class="hf-card-h">EXPORT</div>',
+        '<div class="hf-export">',
+        '<button type="button" class="btn primary sm" id="hf3mf"' + (can ? '' : ' disabled title="Add an image and filaments first"') + '>' + wrapIco('cube') + 'Export U1 3MF</button>',
+        '<button type="button" class="btn ghost sm" id="hfStl">' + wrapIco('doc') + 'Plate STL</button>',
+        '</div>',
+        '<div class="hf-note">The flat 3MF opens in Snapmaker Orca ready to slice — every colour region is its own part, '
+          + 'pre-assigned to a head. A plain STL loses the colour split, so it is only useful as a shape.</div>',
+        '</div>',
+      ].join('');
+    }
     const auto = S.plan && S.plan.automatic;
     const can3mf = auto && S.solve;
     return [
@@ -324,13 +394,24 @@
     const empty = document.getElementById('hfPreviewEmpty');
     const match = document.getElementById('hfMatch');
     if (!cv) return;
-    if (!S.solve || !S.img) { cv.hidden = true; if (empty) empty.hidden = false; if (match) match.textContent = ''; return; }
+    // Flat mode's preview IS the print: solid regions, no transmission, so what the
+    // quantiser produced is exactly what comes off the bed.
+    const src = isFlat() ? S.flat : S.solve;
+    if (!src || !S.img) { cv.hidden = true; if (empty) empty.hidden = false; if (match) match.textContent = ''; return; }
     cv.hidden = false; if (empty) empty.hidden = true;
-    cv.width = S.solve.width; cv.height = S.solve.height;
+    cv.width = src.width; cv.height = src.height;
     const ctx = cv.getContext('2d');
-    const id = ctx.createImageData(S.solve.width, S.solve.height);
-    id.data.set(S.solve.preview);
+    const id = ctx.createImageData(src.width, src.height);
+    id.data.set(src.preview);
     ctx.putImageData(id, 0, 0);
+    if (isFlat()) {
+      if (match) {
+        const n = S.flat.palette.length;
+        match.textContent = n + ' solid colour' + (n === 1 ? '' : 's') + ' — exactly as shown';
+        match.className = 'hf-card-hx hf-match exact';
+      }
+      return;
+    }
     if (match) {
       const de = S.solve.meanDeltaE || 0;
       const q = de < 2 ? 'exact' : de < 4 ? 'close' : de < 8 ? 'ok' : 'far';
@@ -342,6 +423,7 @@
   function paintElevation() {
     const host = document.getElementById('hfElev');
     if (!host) return;
+    if (isFlat()) { paintFlatParts(host); return; }
     if (!S.stack || !S.stack.bands.length) { host.innerHTML = '<div class="hf-empty">—</div>'; return; }
     const bands = S.stack.bands, total = S.stack.totalLayers, plan = S.plan;
     // column-reverse: bottom band drawn at the bottom
@@ -358,9 +440,24 @@
     }).join('');
   }
 
+  /** Flat mode has parts, not bands — one row per colour region and the head that prints it. */
+  function paintFlatParts(host) {
+    if (!S.flat || !S.flat.parts.length) { host.innerHTML = '<div class="hf-empty">—</div>'; return; }
+    const hf = HF();
+    host.innerHTML = S.flat.parts.map((p, i) => {
+      const dark = hf ? hf.luminance(p.hex) < 0.55 : false;
+      return '<div class="hf-band" style="flex:1 1 0;background:' + css(p.hex) + ';color:' + (dark ? '#fff' : '#111') + '">'
+        + '<span class="hf-band-slot" title="U1 head">T' + (p.head | 0) + '</span>'
+        + '<span class="hf-band-l">' + (i === 0 ? 'base slab' : 'colour region') + '</span>'
+        + '<span class="hf-band-td">' + esc(String(p.hex).toUpperCase()) + '</span>'
+        + '</div>';
+    }).join('');
+  }
+
   function paintVerdict() {
     const host = document.getElementById('hfVerdict');
     if (!host) return;
+    if (isFlat()) { paintFlatVerdict(host); return; }
     if (!S.plan) { host.innerHTML = ''; return; }
     const p = S.plan, prof = u1Profile();
     const heightMm = S.stack ? (S.stack.totalLayers * S.stack.layerH).toFixed(2) : '0';
@@ -409,6 +506,9 @@
     on('#hfTune', 'click', runTune);
     on('#hfAdd', 'click', () => { addFilament(); render(); });
     on('#hfMaxColors', 'change', (e) => { S.maxColors = +e.target.value || 4; });
+    // Switching mode changes which plan exists at all, so re-render rather than repaint:
+    // the settings, the parts pane and the export card are all different shapes.
+    on('#hfMode', 'change', (e) => { S.mode = e.target.value === 'flat' ? 'flat' : 'relief'; render(); });
     on('#hfLayerH', 'change', (e) => { S.layerH = clampNum(e.target.value, 0.04, 0.28, 0.12); scheduleRepaint(); });
     on('#hfWidth', 'input', (e) => { S.widthMm = clampNum(e.target.value, 40, 270, 120); scheduleRepaint(); });
     on('#hfBase', 'input', (e) => { S.baseLayers = Math.round(clampNum(e.target.value, 1, 20, 5)); scheduleRepaint(); });
@@ -509,6 +609,7 @@
   }
 
   function export3mf() {
+    if (isFlat()) { exportFlat3mf(); return; }
     if (!S.paint || !S.solve) { toast('Add a picture and filaments first'); return; }
     const api = (typeof window !== 'undefined' && window.hubAPI);
     if (!api || !api.hfExport3mf) { toast('Export unavailable'); return; }
@@ -534,10 +635,53 @@
     }).catch((e) => { render(); toast('Export failed'); });
   }
 
+  /**
+   * Send the label field, not the geometry. The parts are rebuilt in the main process from
+   * labels + palette, which is a fraction of the bytes a triangle soup would be — the same
+   * trade the relief export makes by sending a heightfield.
+   */
+  function exportFlat3mf() {
+    const f = S.flat;
+    if (!f || !f.parts.length) { toast('Add a picture and filaments first'); return; }
+    const api = (typeof window !== 'undefined' && window.hubAPI);
+    if (!api || !api.hfExportFlat3mf) { toast('Export unavailable'); return; }
+    const btn = document.getElementById('hf3mf');
+    if (btn) { btn.disabled = true; btn.textContent = 'Building…'; }
+    api.hfExportFlat3mf({
+      labels: Array.from(f.labels),
+      palette: f.palette.map((p) => ({ hex: p.hex, r: p.r, g: p.g, b: p.b })),
+      width: f.width, height: f.height,
+      widthMm: S.widthMm, heightMm: S.heightMm,
+      layerH: S.layerH,
+      filaments: f.filaments,
+      baseHead: f.baseHead,
+      name: (S.imgName || 'hueforge-flat').replace(/\.[^.]+$/, ''),
+      thumbPng: solvePreviewPng(512),
+      thumbSmallPng: solvePreviewPng(128),
+    }).then((r) => {
+      render();
+      if (r && r.ok) toast('Flat U1 3MF saved · open in Snapmaker Orca');
+      else if (r && r.canceled) { /* silent */ }
+      else toast('Export failed' + (r && r.error ? ': ' + r.error : ''));
+    }).catch(() => { render(); toast('Export failed'); });
+  }
+
   function exportStl() {
     const hf = HF();
-    if (!hf || !S.solve || !S.stack) { toast('Nothing to export yet'); return; }
-    const mesh = hf.heightfieldToMesh(S.solve, { layerH: S.stack.layerH, widthMm: S.widthMm });
+    if (!hf) { toast('Nothing to export yet'); return; }
+    // Flat mode has no heightfield to turn into a surface — it already IS meshes. Merging
+    // the parts loses the colour split, which is why the export card calls it a plate: it
+    // carries the shape and nothing about which head prints what.
+    let mesh;
+    if (isFlat()) {
+      if (!S.flat || !S.flat.parts.length) { toast('Nothing to export yet'); return; }
+      const tris = [];
+      for (const part of S.flat.parts) for (const t of part.triangles) tris.push(t);
+      mesh = { triangles: tris, triangleCount: tris.length, sizeMm: S.flat.sizeMm };
+    } else {
+      if (!S.solve || !S.stack) { toast('Nothing to export yet'); return; }
+      mesh = hf.heightfieldToMesh(S.solve, { layerH: S.stack.layerH, widthMm: S.widthMm });
+    }
     if (!mesh.triangleCount) { toast('Empty model'); return; }
     const bytes = hf.meshToStlBinary(mesh.triangles);
     const blob = new Blob([bytes], { type: 'model/stl' });
@@ -555,15 +699,16 @@
   /** The solved achievable-colour preview as base64 PNG (no data: prefix), scaled to fit
    *  `maxSide`. Used as the exported 3MF's plate thumbnail. Returns null if nothing solved. */
   function solvePreviewPng(maxSide) {
-    if (!S.solve || !S.solve.preview) return null;
-    const w = S.solve.width, h = S.solve.height;
+    const pv = isFlat() ? S.flat : S.solve;   // whichever preview this mode produced
+    if (!pv || !pv.preview) return null;
+    const w = pv.width, h = pv.height;
     if (!w || !h) return null;
     try {
       const src = document.createElement('canvas');
       src.width = w; src.height = h;
       const sctx = src.getContext('2d');
       const id = sctx.createImageData(w, h);
-      id.data.set(S.solve.preview);
+      id.data.set(pv.preview);
       sctx.putImageData(id, 0, 0);
       const scale = Math.min(1, (maxSide || 512) / Math.max(w, h));
       const dw = Math.max(1, Math.round(w * scale)), dh = Math.max(1, Math.round(h * scale));

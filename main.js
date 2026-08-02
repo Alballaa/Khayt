@@ -1965,6 +1965,45 @@ ipcMain.handle('hub:hf-export-3mf', async (_e, { heights, width, height, layerH,
   } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
 });
 
+// HueForge FLAT → U1: the toolchanger mode. Where the relief encodes colour as height and
+// ships one mesh plus a Z-band table, this ships one mesh PART per colour, each tagged with
+// its head, and no layer ranges at all.
+//
+// Only the label field crosses IPC, not the geometry. The renderer already computed it for
+// the preview, and rebuilding the parts here from labels + palette is far cheaper than
+// sending a triangle soup — the same reason the relief path sends a heightfield.
+ipcMain.handle('hub:hf-export-flat-3mf', async (_e, { labels, palette, width, height, widthMm, heightMm, capMm, layerH, filaments, baseHead, name, thumbPng, thumbSmallPng } = {}) => {
+  try {
+    if (!Array.isArray(labels) || !labels.length || !Array.isArray(palette) || !palette.length || !width || !height) {
+      return { ok: false, error: 'Nothing to export yet.' };
+    }
+    const FLAT = require('./lib/hueforge-flat');
+    const HF3 = require('./lib/hueforge-3mf');
+    const built = FLAT.buildFlatParts({ labels, palette, width, height }, { widthMm, heightMm, capMm });
+    if (!built || !built.parts.length) return { ok: false, error: 'Empty model.' };
+    const b64ToBuf = (b64) => { try { return b64 ? Buffer.from(String(b64), 'base64') : null; } catch (_) { return null; } };
+    const buf = HF3.buildFlatU1_3mf({
+      parts: built.parts,
+      // The renderer's slot colours win when it sent them: they are what the maker pinned in
+      // the stack. buildFlatParts' own palette is the quantiser's, which may differ.
+      filaments: (Array.isArray(filaments) && filaments.length) ? filaments : built.filaments,
+      sizeMm: built.sizeMm,
+      baseHead: Number.isInteger(baseHead) ? baseHead : built.baseHead,
+      layerH, name, bed: { x: 270, y: 270 },
+      thumbnailPng: b64ToBuf(thumbPng), thumbnailSmallPng: b64ToBuf(thumbSmallPng),
+    });
+    if (!buf) return { ok: false, error: 'Failed to build the 3MF.' };
+    const win = BrowserWindow.fromWebContents(_e.sender);
+    const base = String(name || 'hueforge-flat').replace(/[^\w.-]+/g, '_') + '-flat-U1.3mf';
+    const result = await dialog.showSaveDialog(win, { defaultPath: base, filters: [{ name: '3MF model', extensions: ['3mf'] }] });
+    if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+    const finalPath = path.resolve(result.filePath);
+    if (!mfReadAllowed(finalPath)) return { ok: false, error: 'Output path is outside an allowed folder.' };
+    await fs.promises.writeFile(finalPath, buf);
+    return { ok: true, outPath: finalPath, partCount: built.parts.length, sizeMm: built.sizeMm };
+  } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
+});
+
 // Extract an embedded preview + (3MF) colour/swap info from a print file. Local only.
 ipcMain.handle('hub:extract-thumbnail', async (_e, filePath) => {
   const empty = { pngBase64: null, colors: [], swapCount: 0, source: null };
