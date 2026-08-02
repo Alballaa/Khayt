@@ -3636,6 +3636,7 @@
   "lan.iq_note": "未经切片的模型仅按外形计价，遇到填充稀疏或支撑很多的零件可能偏差很大。客户始终会看到自己面对的是哪一种数字。",
   "act.measured": "实测",
   "act.from_printer": "这些数字来自 {source}——是这次作业的实际用量，不是估算。",
+  "act.from_printer_file": "这些数值来自 {source}，是打印 {file} 时实测的——那一次作业的实际用量，不是估算。",
   "act.your_printer": "你的打印机",
   "setup.title": "成功过的设置",
   "setup.short": "设置",

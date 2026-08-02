@@ -3637,6 +3637,7 @@
   "lan.iq_note": "Um modelo que ninguém fatiou é precificado apenas pela forma, o que pode ficar bem longe em uma peça pouco preenchida ou com muitos suportes. O cliente sempre vê qual dos dois está olhando.",
   "act.measured": "Medido",
   "act.from_printer": "Estes números vêm de {source} — o que o trabalho realmente consumiu, não a estimativa.",
+  "act.from_printer_file": "Estes números vieram de {source}, medidos em {file} — o que aquele trabalho realmente consumiu, não a estimativa.",
   "act.your_printer": "sua impressora",
   "setup.title": "Ajustes que deram certo",
   "setup.short": "Ajustes",

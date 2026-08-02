@@ -3636,6 +3636,7 @@
   "lan.iq_note": "Un modèle que personne n’a tranché est chiffré d’après sa seule forme, ce qui peut être très loin du compte sur une pièce peu remplie ou très soutenue. Le client voit toujours laquelle des deux il a sous les yeux.",
   "act.measured": "Mesuré",
   "act.from_printer": "Ces chiffres viennent de {source} — ce que le travail a réellement consommé, pas l’estimation.",
+  "act.from_printer_file": "Ces chiffres viennent de {source}, mesurés sur {file} — ce que ce travail a réellement consommé, pas l'estimation.",
   "act.your_printer": "ton imprimante",
   "setup.title": "Réglages qui ont marché",
   "setup.short": "Réglages",
