@@ -3636,6 +3636,7 @@
   "lan.iq_note": "Hiç dilimlenmemiş bir model yalnızca biçiminden fiyatlandırılır; seyrek dolgulu ya da bol destekli bir parçada bu epey şaşabilir. Müşteriye hangisine baktığı her zaman gösterilir.",
   "act.measured": "Ölçüldü",
   "act.from_printer": "Bu rakamlar {source} kaynaklıdır — işin gerçekte harcadığı miktar, tahmin değil.",
+  "act.from_printer_file": "Bu değerler {source} kaynağından, {file} yazdırılırken ölçüldü — o işin gerçekte harcadığı, tahmin değil.",
   "act.your_printer": "yazıcın",
   "setup.title": "İşe yarayan ayarlar",
   "setup.short": "Ayarlar",

@@ -354,7 +354,18 @@ function promptActuals(order, onConfirm) {
       <p style="font-size:13px;color:var(--text-dim);margin-bottom:14px;">${escapeHtml(t('act.hint'))}</p>
       ${(timeIsMeasured || weightIsMeasured)
         ? `<p style="font-size:12px;margin:-6px 0 14px;padding:8px 10px;border-radius:var(--radius);background:var(--bg-elev);">${escapeHtml(
-            t('act.from_printer', { source: pre.source || t('act.your_printer') }))}</p>`
+            // Name the JOB, not just the adapter. "moonraker" tells the shop
+            // which instrument read the figures; it does not tell them which
+            // print. A completion stays offerable for 24h, and a shop running
+            // five-hour jobs back to back will have started another one long
+            // before that — so the numbers on screen can belong to the previous
+            // print while carrying a green "Measured" label. Wrong actuals do
+            // not just mis-cost one order: estimate-calibration learns from
+            // them. prefillActuals has always returned this filename and
+            // nothing displayed it.
+            pre.filename
+              ? t('act.from_printer_file', { source: pre.source || t('act.your_printer'), file: pre.filename })
+              : t('act.from_printer', { source: pre.source || t('act.your_printer') }))}</p>`
         : ''}
       <div class="inline-pair">
         <div>

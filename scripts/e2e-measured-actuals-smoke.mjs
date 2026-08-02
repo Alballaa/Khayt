@@ -77,6 +77,14 @@ async function testMeasuredIsOffered(window) {
   if (Number(d.time) === 3) throw new Error('the dialog re-offered the estimate');
   if (!/Measured/i.test(d.text)) throw new Error(`the dialog does not say the figures are measured: ${d.text.slice(0, 300)}`);
   if (!/moonraker/i.test(d.text)) throw new Error('the dialog does not name where they came from');
+  // Naming the adapter is not naming the JOB. A completion stays offerable for
+  // 24 hours, and a shop running five-hour prints back to back starts the next
+  // one long before that — so the figures on screen can belong to the previous
+  // print while wearing a green "Measured" label. The only thing that lets the
+  // shop notice is seeing which file they were measured on.
+  if (!/bracket\.gcode/i.test(d.text)) {
+    throw new Error(`the dialog does not say WHICH job these figures came from: ${d.text.slice(0, 300)}`);
+  }
   await closeDialog(window);
 }
 
