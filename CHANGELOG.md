@@ -4,6 +4,40 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.6.0-beta.5] - 2026-08-02
+
+Two fixes to the files Bed Ready sends a Snapmaker U1, both found by opening a
+3MF the printer was actually printing and comparing it with one Khayt had made.
+
+### Fixed
+
+- **The top colour was dropping out of the print.** Khayt ended the last colour
+  band at the model's exact height. Any layer landing on that boundary belonged
+  to no band at all, so the printer fell back to its default — the base colour —
+  and the top of the piece came out in the wrong filament.
+
+  Nothing warned about it. The file opened, sliced and printed; it just printed
+  wrong, and on a relief the top layers are the picture. A working export leaves
+  its last band open-ended, and Khayt now does the same.
+
+- **Prints took about twice as long as they needed to.** The base of a relief is
+  solid and opaque — it exists to stop the bed showing through, and nothing about
+  it is visible in the finished piece. A real export prints it in thick layers
+  and switches to fine ones only where the colours blend. Khayt used the same
+  fine layer everywhere.
+
+  For the piece this was measured against: 28 layers as the printer's own
+  software sliced it, 57 the way Khayt would have. The base now prints at twice
+  the layer height, capped so it stays within what a standard nozzle can lay
+  down, and never coarser than the colour bands above it.
+
+### For maintainers
+
+- First tests for `lib/hueforge-3mf.js`, all measured against that real export
+  rather than an invented shape. `lib/hueforge.js` gained tests in beta.4; its
+  mesh geometry proved correct.
+
+
 ## [3.6.0-beta.4] - 2026-08-01
 
 A small one, and only for Bed Ready. Two settings that Khayt would accept
