@@ -182,3 +182,76 @@ test('captureCompletion tolerates junk', () => {
   assert.equal(captureCompletion(null, null, 1), null);
   assert.equal(captureCompletion({}, {}, 1), null);
 });
+
+/* ── a real completion ───────────────────────────────────────────────────── */
+
+/**
+ * Captured from a Snapmaker U1 on 2026-08-02, at the moment it finished a
+ * five-hour print. Not written here — recorded by polling the machine every 20
+ * seconds for 641 samples and keeping the two either side of the transition.
+ *
+ * captureCompletion had only ever been tested against payloads someone typed,
+ * and it decides whether a measured cost reaches an order at all. Reading a
+ * printer correctly is worth nothing if the reading is then dropped: both look
+ * identical to a shop, as an order with no measured cost.
+ */
+const REAL_PRINTING = {
+  state: 'printing',
+  filename: 'KING-Abdulaziz-ART-200mm-U1_PLA_5h17m.gcode',
+  progress: 100,
+  actuals: { filamentMm: 47261.51896999817, filamentGrams: 140.9598209784628, durationS: 18502.834656031002, source: 'moonraker' },
+  lastCompleted: null,
+};
+const REAL_COMPLETE = {
+  state: 'complete',
+  filename: 'KING-Abdulaziz-ART-200mm-U1_PLA_5h17m.gcode',
+  progress: 100,
+  actuals: { filamentMm: 47261.51896999817, filamentGrams: 140.9598209784628, durationS: 18517.255333580004, source: 'moonraker' },
+};
+
+test('a real finished print yields a measured cost', () => {
+  const got = captureCompletion(REAL_PRINTING, REAL_COMPLETE, 1785667086668);
+  assert.ok(got, 'the transition produced nothing — the job would land with no measured cost');
+  assert.equal(got.filename, REAL_PRINTING.filename, 'the figures must be tied to the job they came from');
+  assert.equal(got.actuals.filamentGrams, 140.9598209784628);
+  assert.equal(got.actuals.durationS, 18517.255333580004, 'the completed reading, not the last in-flight one');
+});
+
+test('"complete" is a finished state, as this firmware spells it', () => {
+  // The exact string a stock U1 reports. A state vocabulary that missed it
+  // would leave every job looking like it was still running.
+  assert.equal(isPrintingState('printing'), true);
+  assert.equal(isPrintingState('complete'), false);
+});
+
+test('100% progress is not the same as finished', () => {
+  // Observed for real: the last sample WHILE PRINTING already read 100%. The
+  // printer was still laying its final layer. Anything keyed on progress rather
+  // than state would have captured a cost while the job was still running, and
+  // then never captured the real one.
+  assert.equal(REAL_PRINTING.progress, 100);
+  assert.equal(captureCompletion(REAL_PRINTING, REAL_PRINTING, 1), null,
+    'still printing at 100% must not count as finished');
+});
+
+test('a completion is captured once, not on every poll after it', () => {
+  // Moonraker keeps a finished job's stats until the next print starts, so the
+  // same "complete" payload arrives again and again. Capturing repeatedly would
+  // re-stamp the order on every poll.
+  const first = captureCompletion(REAL_PRINTING, REAL_COMPLETE, 1785667086668);
+  const after = { ...REAL_COMPLETE, lastCompleted: first };
+  const second = captureCompletion(after, REAL_COMPLETE, 1785667106668);
+  assert.equal(second, first, 'a second poll must return the same capture, not a fresh one');
+});
+
+test('a printer that clears its stats on finish still yields the cost', () => {
+  // This U1 retained them, so the fallback did NOT run in the real capture —
+  // stated plainly because "verified against hardware" must not imply more than
+  // it covers. Other firmware zeroes on completion, and then the last reading
+  // taken while printing is the only record that survives.
+  const cleared = { ...REAL_COMPLETE, actuals: { filamentMm: 0, filamentGrams: 0, durationS: 0, source: 'moonraker' } };
+  const got = captureCompletion(REAL_PRINTING, cleared, 1785667086668);
+  assert.ok(got, 'a cleared completion must fall back, not lose the job');
+  assert.equal(got.actuals.durationS, REAL_PRINTING.actuals.durationS, 'the last in-flight reading');
+  assert.equal(got.actuals.filamentGrams, 140.9598209784628);
+});
