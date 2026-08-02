@@ -62,8 +62,26 @@ const PROBE = {
  */
 const HELLO = {
   moonraker: { path: '/server/info', looksRight: (j) => !!(j && typeof j === 'object' && j.result) },
-  octoprint: { path: '/api/version', looksRight: (j) => !!(j && typeof j.api === 'string' && typeof j.server === 'string') },
-  prusalink: { path: '/api/version', looksRight: (j) => !!(j && (typeof j.api === 'string' || j.printer || j.storage)) },
+  octoprint: {
+    path: '/api/version',
+    // Moonraker ANSWERS THIS TOO. It ships an OctoPrint-compatibility shim so
+    // that OctoPrint-only slicers can upload, and a real Snapmaker U1 replies
+    // `{"server":"1.5.0","api":"0.1","text":"OctoPrint (Moonraker 1.5.2)"}`.
+    // Reporting that as an OctoPrint is worse than reporting nothing: the shim
+    // returns filament.length = null and printTime = null, so a machine set up
+    // that way extracts no actuals at all, silently and forever. The `text`
+    // field names the real server, so use it.
+    looksRight: (j) => !!(j && typeof j.api === 'string' && typeof j.server === 'string'
+      && !/moonraker/i.test(String(j.text || ''))),
+  },
+  prusalink: {
+    // NOT /api/version. PrusaLink answers it, but so does Moonraker's OctoPrint
+    // shim, and the old check accepted any body carrying an `api` string — so a
+    // U1 was reported as a PrusaLink as well. This path is PrusaLink's own and
+    // 404s on Moonraker.
+    path: '/api/v1/status',
+    looksRight: (j) => !!(j && (j.printer || j.storage || j.job)),
+  },
   duet:      { path: '/rr_model?key=state', looksRight: (j) => !!(j && (j.result !== undefined || j.key)) },
 };
 
@@ -105,6 +123,9 @@ async function scan() {
         // PrusaLink answers 401 to everything under /api, including paths that
         // do not exist — so a 401 means "something Prusa-shaped is here", not
         // "this endpoint exists". Worth surfacing as a candidate, not a match.
+        // PrusaLink answers 401 to everything under /api, including paths that do
+        // not exist, so a 401 here means "something Prusa-shaped" — a candidate,
+        // not a match. Moonraker does not require auth, so it never lands here.
         if (type === 'prusalink' && /HTTP 401/.test(e.message)) found.push({ type, ip, port, needsKey: true });
       }
     }
