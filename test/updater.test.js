@@ -28,6 +28,7 @@ const {
   isPrereleaseVersion,
   interpretUpdateCheckResult,
   canSelfUpdate,
+  updateFeedPresent,
 } = require('../lib/updater');
 
 test('isVersionNewer compares dotted versions', () => {
@@ -229,4 +230,51 @@ test('canSelfUpdate: only Linux without AppImage or Snap is excluded', () => {
   assert.equal(canSelfUpdate('linux', { APPIMAGE: '/opt/Khayt.AppImage' }), true, 'AppImage can');
   assert.equal(canSelfUpdate('linux', { SNAP: '/snap/khayt' }), true, 'Snap updates itself via the store');
   assert.equal(canSelfUpdate('linux', {}), false, 'a .deb cannot');
+});
+
+/**
+ * A build with no update feed.
+ *
+ * electron-builder bakes app-update.yml from the `publish` config. A `--dir`
+ * build never gets one — and the bundle it produces is still
+ * app.isPackaged === true, so it took the packaged path, asked electron-updater
+ * to read a file that was not there, and showed the owner:
+ *
+ *   ENOENT: no such file or directory, open
+ *   '/Applications/Bed Ready.app/Contents/Resources/app-update.yml'
+ *
+ * A path they cannot act on, and no statement of what is actually wrong. The
+ * state — this install cannot update itself — was already understood here and
+ * already worded for a human; it was only ever reached on Linux .deb builds.
+ */
+test('a build without an update feed cannot self-update, on any platform', () => {
+  assert.equal(canSelfUpdate('darwin', {}, true), true, 'a normal mac build is fine');
+  assert.equal(canSelfUpdate('darwin', {}, false), false, 'no feed, no check');
+  assert.equal(canSelfUpdate('win32', {}, false), false);
+  // Even the Linux formats that CAN self-update need the feed to be there.
+  assert.equal(canSelfUpdate('linux', { APPIMAGE: '/x' }, false), false);
+  assert.equal(canSelfUpdate('linux', { APPIMAGE: '/x' }, true), true);
+  // The pre-existing Linux rule is untouched.
+  assert.equal(canSelfUpdate('linux', {}, true), false, 'a .deb still cannot');
+});
+
+test('a missing feed is reported as "download it yourself", not as an ENOENT', () => {
+  const r = interpretUpdateCheckResult({
+    isPackaged: true, currentVersion: '1.0.0-beta.1', selfUpdatable: false,
+  });
+  assert.equal(r.status, 'manual');
+  assert.match(r.message, /cannot update itself/i);
+  assert.ok(r.releasesUrl, 'and it says where to get one');
+  assert.ok(!/ENOENT|app-update\.yml|Resources/i.test(r.message),
+    'no file paths in something a shop owner reads');
+});
+
+test('the feed probe answers false rather than throwing', () => {
+  // resourcesPath is undefined outside a packaged app, and a probe that throws
+  // there would take the whole update check down with it.
+  assert.equal(updateFeedPresent(null), false);
+  assert.equal(updateFeedPresent(undefined), false);
+  assert.equal(updateFeedPresent('/nope/does/not/exist'), false);
+  assert.equal(updateFeedPresent('/tmp', () => { throw new Error('EACCES'); }), false);
+  assert.equal(updateFeedPresent('/tmp', () => true), true);
 });
