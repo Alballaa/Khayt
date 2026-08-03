@@ -23,6 +23,22 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **A beta build could not find its own updates.** Bed Ready ships on a beta line,
+  and every release on it is marked pre-release on GitHub. An app that refuses
+  pre-releases is answered with the newest release that *isn't* one — which, on a
+  line made entirely of betas, is older than what is already installed, or nothing
+  at all. So the app either sat on "you're up to date" while newer builds existed,
+  or reported that there were no published versions with the release sitting right
+  there, assets and all.
+
+  The intent was already in the code — a beta build was meant to accept beta
+  updates — but the preference the app sends a moment after startup, which is off
+  by default, landed on top of it and switched it back off every time.
+
+  A build that is itself a pre-release now always accepts them, whatever the
+  preference says, because nothing else can ever be an update for it. The
+  preference keeps its meaning for a stable build deciding whether to follow the
+  beta lane — and a stable build is no longer offered the beta it succeeded.
 - **Saving a converted model outside your home folders was refused.** The same
   conflation ran the other way: the STL and 3MF exporters checked the path you had
   just typed into the app's own save dialog against that read list, so saving to an
