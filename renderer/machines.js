@@ -960,7 +960,19 @@ function machineHoursMeter(machineId) {
 
 function machineServiceStatus(machine) {
   const totalHours = machineHoursMeter(machine.id);
-  const hoursSinceService = totalHours - (machine.lastServiceHours || 0);
+  // "Hours at last service" is a reading off the printer's own clock, so it can be far
+  // larger than anything this app has logged — see KhaytMaintenance.hoursSinceService for
+  // why subtracting one from the other showed "-200.0h since service" and left the
+  // reminder unable to fire.
+  const M = (typeof KhaytMaintenance !== 'undefined') ? KhaytMaintenance : null;
+  const hoursSinceService = M
+    ? M.hoursSinceService({
+      totalHours,
+      lastServiceHours: machine.lastServiceHours,
+      lastServiceAt: machine.lastServiceAt,
+      jobs: printLog.filter((o) => o && o.machineId === machine.id && o.status === 'completed'),
+    })
+    : Math.max(0, totalHours - (machine.lastServiceHours || 0));
   if (machine.serviceInterval > 0) {
     if (hoursSinceService >= machine.serviceInterval) {
       return { due: true, hours: hoursSinceService, interval: machine.serviceInterval, total: totalHours };
@@ -990,6 +1002,10 @@ function logMachineService(machineId) {
       const note = modal.querySelector('#svcNoteInput').value.trim();
       const totalHrs = machineHoursMeter(machineId);
       machine.lastServiceHours = totalHrs;
+      // The moment, not just the meter. Hours-since-service is counted from here, which
+      // is the only figure that stays right when the owner's "hours at last service" is
+      // a reading off the printer rather than this app's own tally.
+      machine.lastServiceAt = new Date().toISOString();
       const today = localDateStr();
       machMaintLog.unshift({ id: uid('MAINT'), machineId, date: today, note: note || t('mach.log_service'), cost: 0 });
       saveAll();
