@@ -149,13 +149,25 @@ try {
 
   // ── the real path a maker takes ──────────────────────────────────────────
   // hub:mf-convert routes through the worker client, has the child write to a temp file,
-  // and moves that into place. An explicit outPath under temp keeps the save dialog out
-  // of it (temp is already an allowed destination) and still exercises the finalize.
+  // and moves that into place. An explicit outPath keeps the save dialog out of it and
+  // still exercises the finalize.
+  //
+  // The destination has to be APPROVED first, through the output-folder picker, exactly
+  // as batch conversion does it. This used to work without that because the handler
+  // authorised writes with the READ allow-list, which includes temp — the hole that let a
+  // renderer write anywhere under Documents/Downloads/Desktop/userData with no dialog.
   //
   // Ticks are counted in the MAIN process across the whole IPC call. This is the assertion
   // that cannot be satisfied by accident: if mfRun ever stops reaching the worker and runs
   // the job here instead, every other check in this file still passes and only this fails.
   const handlerOut = path.join(workDir, 'handler-out.3mf');
+  const win0 = await electronApp.firstWindow();
+  await electronApp.evaluate(async ({ dialog }, dir) => {
+    dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [dir] });
+  }, workDir);
+  const approved = await win0.evaluate(() => window.hubAPI.mfPickOutdir());
+  if (!approved || !approved.ok) fail('could not approve the output folder for the batch write');
+
   await electronApp.evaluate(() => {
     globalThis.__ticks = 0;
     globalThis.__t0 = Date.now();
