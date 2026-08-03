@@ -1932,6 +1932,11 @@
 <script src="calibration.js"></script>
 <script src="webgl-viewer.js"></script>
 <script src="model-viewer.js"></script>
+<!-- The print-file library reaches for both of these: model identity for "is this the same
+     mesh in a different container", and print setups for "the settings that worked". Loaded
+     before it so the accessors it guards them behind find something. -->
+<script src="../lib/model-identity.js"></script>
+<script src="../lib/print-setups.js"></script>
 <script src="printfiles.js"></script>
 <script src="filament-swatches.js"></script>
 <script src="colorstudio.js"></script>

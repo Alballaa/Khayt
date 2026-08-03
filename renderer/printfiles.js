@@ -767,7 +767,14 @@
             rec.parsed = Object.assign({}, rec.parsed, { triangleCount: g.triangleCount, volumeMm3: g.volumeMm3, bbox: g.bbox });
             // A weaker signal than the hash: the same mesh in a different
             // container. Never presented as certainty — see lib/model-identity.
-            try { rec.geometryKey = KhaytModelIdentity.geometryKey(rec.parsed); } catch (_) { /* non-fatal */ }
+            //
+            // Through MI(), not the bare global. This file already guards every other use
+            // that way, and this one did not: in an app that does not load model-identity
+            // the bare name threw a ReferenceError straight into the catch below, so
+            // geometryKey was never set and geometry matching silently did nothing. The
+            // catch is for a malformed mesh, not for a missing module.
+            const mi = MI();
+            if (mi) { try { rec.geometryKey = mi.geometryKey(rec.parsed); } catch (_) { /* non-fatal */ } }
             if (g.triangles && g.triangles.length) {
               const r = KhaytStlThumb.renderStlThumbnail(g.triangles, { size: 300 });
               if (r.ok && r.dataUrl) { rec.thumb = r.dataUrl; rec.thumbSource = 'render'; }
