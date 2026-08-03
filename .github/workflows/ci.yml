@@ -99,6 +99,9 @@ jobs:
       - name: E2E smoke (measured actuals from the printer)
         run: xvfb-run -a npm run test:e2e:actuals
 
+      - name: E2E — completion history reaches the renderer
+        run: xvfb-run -a npm run test:e2e:pollcache
+
       - name: E2E smoke (settings that worked)
         run: xvfb-run -a npm run test:e2e:setups
 
