@@ -48,6 +48,27 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   preference says, because nothing else can ever be an update for it. The
   preference keeps its meaning for a stable build deciding whether to follow the
   beta lane — and a stable build is no longer offered the beta it succeeded.
+
+- **Your default infill was used to quote your customers, but not you.** The
+  calculator's own infill box starts empty, and an empty box fell back to a fixed
+  20% instead of the *Default infill %* you set under Settings → Preferences. A
+  shop set up for 60% had every dropped model quoted at 20% — around a third less
+  material than the part really takes — while the customer intake form, which
+  reads the setting directly, quoted the same file at 60%. The two now agree, and
+  a figure you type for one part still takes precedence for that part.
+
+- **Changing the infill or the printer after dropping a model changed nothing.**
+  The estimate was worked out once, when the file landed, and never again. Set the
+  infill to 90% afterwards and the form showed 90 beside a note still insisting on
+  20%, with the price built on the figure you could not see. Choosing the printer
+  after dropping the file was the same: a machine with its own measured rate was
+  ignored until you dropped the file a second time. Both now recompute, quietly,
+  and the note always describes the numbers actually in the form.
+
+  Figures that came from a slicer are left alone, so a weight you corrected by
+  hand survives; and adding the part to the quote now clears the estimate with it,
+  rather than leaving a note describing a part that has already moved on.
+
 - **Saving a converted model outside your home folders was refused.** The same
   conflation ran the other way: the STL and 3MF exporters checked the path you had
   just typed into the app's own save dialog against that read list, so saving to an

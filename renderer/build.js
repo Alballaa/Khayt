@@ -605,6 +605,9 @@ function addPart() {
   // Same reason the file reference is cleared: a second part in one order must
   // not silently inherit the first part's model and settings.
   if ($('#partPrintFile')) { $('#partPrintFile').value = ''; $('#partPrintFile').dispatchEvent(new Event('change', { bubbles: true })); }
+  // The estimate note belongs to the part that just left the form. wireEvents()
+  // owns it, and forgets the model it was derived from when it hears this.
+  try { document.dispatchEvent(new CustomEvent('khayt:calc-part-added')); } catch (e) { /* non-fatal */ }
   currentExtraMaterials = [];
   currentPriceTiers = [];
   renderExtraMaterials();
