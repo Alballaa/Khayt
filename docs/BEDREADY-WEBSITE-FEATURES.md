@@ -2,7 +2,7 @@
 
 > **Purpose.** This file is the single source of truth for the Bed Ready website copy. Each section
 > gives a short marketing-ready blurb plus the factual details behind it, so the website can be updated
-> without digging through the app. Written for the **public beta**. Keep claims honest — everything
+> without digging through the app. Written for **1.0**. Keep claims honest — everything
 > below reflects what actually ships.
 
 **One-line pitch:** *Bed Ready is a free desktop workbench for solo 3D-printing makers — organise your
@@ -11,8 +11,12 @@ works with your existing slicer; it doesn’t replace it.*
 
 **Platforms:** macOS, Windows, Linux (Electron desktop app).
 **Price:** Free during the public beta.
+<!-- NEEDS A DECISION: this line still says "during the public beta", and there is no longer a
+     public beta — 1.0.0 shipped. It is the one claim in this file that is now stale, and it is
+     deliberately left as-is because what replaces it is a pricing decision, not a copy edit.
+     Until it is settled the site should not quote a price from here. -->
 **Privacy:** Local-first. Works fully offline. No telemetry. Optional end-to-end-encrypted cloud sync.
-**Status:** Public beta — actively gathering feedback.
+**Status:** 1.0 — released. Feedback still welcome via the in-app Feedback button.
 
 ---
 
@@ -87,7 +91,7 @@ Details:
 - Attach the slicer profile you use and keep converted variants alongside the original.
 - Fast search and previews.
 
-## 6. Inventory & costing (Pro tools)
+## 6. Inventory & costing
 
 **Blurb:** *Know what a print costs and what’s on your shelf.*
 
@@ -97,13 +101,16 @@ Details:
 - Colour-matching: the converter can hint the nearest filament you have in stock for each slot.
 - A lightweight print queue to see what’s next.
 
-## 7. Simple / Pro modes
+## 7. One toolset, no modes
 
-**Blurb:** *Start simple; grow into the full toolset when you want it.*
+**Blurb:** *Everything is there from the first launch — nothing to unlock or switch on.*
 
 Details:
-- **Simple** shows just the essentials; **Pro** adds inventory, costing, and the queue.
-- Switching modes only changes what’s on screen — no data is lost.
+- Bed Ready has **no Simple/Pro switch**. Every maker tool — converter, 3D preview, print-file
+  library, colour studio, inventory, costing, queue — is present from the start.
+- Modes are a **Khayt** concept, not Bed Ready's. The app pins itself to its single
+  commerce-free experience and hides the switcher entirely, so a site that offers "start
+  simple, upgrade later" is describing a control the visitor will never find.
 
 ## 8. Your data, backups & privacy
 
@@ -120,7 +127,9 @@ Details:
 
 ## Website checklist / notes
 
-- Badge the product as **Public Beta**. Set expectations: rough edges, keep backups, feedback welcome.
+- Do **not** badge the product as beta. 1.0.0 is released, and the app carries no beta labelling —
+  a "public beta" badge on the site now contradicts what a visitor downloads. Keeping backups is
+  still worth saying; "expect rough edges" is not.
 - Include the safety line: *Always review a converted file in your own slicer before printing.*
 - Trademarks: Snapmaker, Bambu Lab, Prusa, Creality, UltiMaker, etc. are trademarks of their owners;
   Bed Ready is **not affiliated with or endorsed by** them. Product names are used for compatibility
