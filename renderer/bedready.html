@@ -1926,6 +1926,10 @@
 <script src="calculator-cost.js"></script>
 <script src="build.js"></script>
 <script src="inventory.js"></script>
+<!-- machines.js renders the camera panel guarded on `typeof KhaytWebcam`, and the
+     webcam IPC in main is not flavour-gated. Only this tag was missing, so Bed Ready
+     could monitor a printer it could not look at. -->
+<script src="../lib/webcam.js"></script>
 <script src="machines.js"></script>
 <script src="labels.js"></script>
 <script src="waste.js"></script>
