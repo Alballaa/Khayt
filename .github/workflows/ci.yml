@@ -44,6 +44,13 @@ jobs:
       - name: Syntax check
         run: npm run lint
 
+      # A renderer global whose file is never loaded fails SILENTLY — the feature
+      # is simply absent. Three instances in a week (#578, #581, #587), none of
+      # which errored. Khayt's entry point only for now; bedready.html has known
+      # violations that belong to the session that owns that flavour.
+      - name: Renderer globals are actually loaded
+        run: npm run check:globals
+
       - name: Unit tests
         run: npm test
 
