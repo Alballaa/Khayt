@@ -1627,59 +1627,25 @@ const mfJobs = require('./lib/mf-jobs');
 // If the fork fails, jobs run HERE instead — the app converts exactly as it did before,
 // freeze and all, rather than losing the feature to a process that wouldn't start. Same
 // code either way (lib/mf-jobs.js), so the fallback can't drift from the real path.
-let mfChild = null;
-let mfSeq = 0;
-const mfPending = new Map();
-
-function mfWorker() {
-  if (mfChild) return mfChild;
-  let child;
-  try {
-    child = utilityProcess.fork(path.join(__dirname, 'lib', 'mf-worker.js'), [], {
-      serviceName: 'khayt-3mf',
-      stdio: 'ignore',
-    });
-  } catch (e) {
-    try { console.warn('[3mf] worker unavailable, running inline:', (e && e.message) || e); } catch (_) {}
-    return null;
-  }
-  child.on('message', (msg) => {
-    const p = msg && mfPending.get(msg.id);
-    if (!p) return;
-    mfPending.delete(msg.id);
-    p.resolve(msg.res);
-  });
-  // A job big enough to kill the child must fail loudly. Falling back to running the same
-  // job on this thread would freeze the app on its way to the same death.
-  child.on('exit', (code) => {
-    mfChild = null;
-    const dead = [...mfPending.values()];
-    mfPending.clear();
-    for (const p of dead) {
-      p.resolve({ ok: false, available: false, error: 'The converter stopped while working on this file — it may be too large for this machine.' + (code ? ` (exit ${code})` : '') });
-    }
-  });
-  mfChild = child;
-  return child;
-}
+//
+// The bookkeeping moved to lib/mf-client.js so it could be tested: living here, it
+// shipped without a guard for a child that HANGS rather than exits, which left the
+// renderer waiting on a promise that would never settle. See test/mf-client.test.js.
+const mfClient = require('./lib/mf-client').createMfClient({
+  fork: () => utilityProcess.fork(path.join(__dirname, 'lib', 'mf-worker.js'), [], {
+    serviceName: 'khayt-3mf',
+    stdio: 'ignore',
+  }),
+  inline: (op, args) => mfJobs.run(op, args),
+  onWarn: (m) => { try { console.warn('[3mf]', m); } catch (_) {} },
+});
 
 /** Run a lib/mf-jobs op off this thread, or on it if there's no child to run it on. */
 function mfRun(op, args) {
-  const child = mfWorker();
-  if (!child) return mfJobs.run(op, args);
-  const id = ++mfSeq;
-  return new Promise((resolve) => {
-    mfPending.set(id, { resolve });
-    try {
-      child.postMessage({ id, op, args });
-    } catch (e) {
-      mfPending.delete(id);
-      resolve(mfJobs.run(op, args));
-    }
-  });
+  return mfClient.run(op, args);
 }
 
-app.on('will-quit', () => { try { if (mfChild) mfChild.kill(); } catch (_) {} });
+app.on('will-quit', () => { try { mfClient.dispose(); } catch (_) {} });
 
 /**
  * Jobs that produce a file write it to a temp path; this puts it where it belongs once the
