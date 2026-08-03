@@ -30,8 +30,6 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   the desktop failed with "Output path is outside an allowed folder" — your own
   choice, denied. Where you choose to save is now yours.
 
-### Fixed
-
 - **A printer's measurements could be lost before anyone looked at them.** Khayt
   reads what a job actually used at the moment it finishes, because the printer
   resets those counters when the next one starts. It kept only the most recent
@@ -52,6 +50,28 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   waited on an answer that was never coming, with no error and no end. It now
   gives up after thirty minutes, says the converter stopped responding and that
   nothing on disk was changed, and starts a fresh one for the next file.
+- **Bed Ready could not put a job on its own production queue.** The calculator's
+  primary button says "Add to print queue". It was wired to `logPrint()`, which
+  lives in the business-only module Bed Ready does not ship, so the shim had
+  declared it a no-op: the button rendered, the click landed, and nothing
+  happened. That function holds the only code path in the app that ever creates
+  an order, which made the queue, the machine strip and the dashboard's "prints
+  done" all features of a screen that could never have anything on it.
+
+  The same was true of every other button on a queue card — hold, QC pass, QC
+  fail, mark delivered, timeline, print label and capture failure photo. None of
+  them is a commercial action, all of them render for makers, and all seven
+  handlers lived in that same business module. Eight live controls, all silent.
+
+  Bed Ready now has its own, built from what it actually collects: a job carries
+  its parts, its machine and a due date estimated from queue depth, and each card
+  action routes through the existing queue transition so WIP limits, the live
+  timer, the filament deduction and the undo all still apply. A failed QC books
+  the wasted filament into the waste log and sends the job round again.
+
+  A stub is still a function, which is why `typeof fn === 'function'` never
+  caught any of this. A new test now checks the wiring itself, and makes a newly
+  added queue-card button fail until someone decides whether Bed Ready shows it.
 
 ## [3.6.0-beta.8] - 2026-08-03
 
