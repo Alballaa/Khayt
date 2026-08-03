@@ -209,16 +209,59 @@
     const cols = (a.filaments || []).length
       ? `<div class="conv-src-cols">${a.filaments.map((f) => swatch(f.color, 18)).join('')}<span class="conv-src-coln">${a.filaments.length} ${escapeHtml(t('conv.colours') || 'colours')}</span></div>`
       : '';
+    // filament_colour is file-wide, so the strip above is every colour in the PROJECT. On a
+    // multi-plate file the plates are often different designs using different subsets — one
+    // may need two spools where the file declares six. Show that rather than let the maker
+    // load four colours a plate never touches.
+    const platesCols = platePaletteSummaryHtml(a);
     return `
       <div class="conv-src">
         <div class="conv-src-name">${_emoI('cube', '📦')}${escapeHtml(src.name || 'model.3mf')}</div>
         <div class="conv-src-meta">${escapeHtml((t('conv.detected') || 'Detected') + ': ' + a.flavour)}</div>
+        ${platesCols}
         ${stats ? `<div class="conv-stats">${stats}</div>` : ''}
         ${cols}
       </div>`;
   }
 
   // Live "what changes" diff for the currently-selected target.
+    /**
+   * A string with its fallback, for keys no locale has yet.
+   *
+   * `t()` returns the KEY when a string is missing, and a key is truthy — so the
+   * `t('x') || 'fallback'` idiom used throughout this file silently renders
+   * "CONV.PLATE_COLOURS" at the maker instead of the English. Only safe for keys that
+   * exist everywhere; new ones need this.
+   */
+  function tf(key, fallback, params) {
+    try {
+      const s = (typeof t === 'function') ? t(key, params) : '';
+      return (s && s !== key && !/\{[a-z_]+\}/i.test(s)) ? s : fallback;
+    } catch (_) { return fallback; }
+  }
+
+  /**
+   * Per-plate colour usage, when the plates genuinely differ.
+   *
+   * Silent for a single-plate file, and silent when every plate uses the same colours —
+   * there is nothing to tell a maker who is looking at the strip already.
+   */
+  function platePaletteSummaryHtml(a) {
+    const pp = (a && Array.isArray(a.platePalettes)) ? a.platePalettes.filter((p) => p.colors.length) : [];
+    if (pp.length < 2) return '';
+    const key = (p) => p.colors.join(',');
+    if (new Set(pp.map(key)).size < 2) return '';   // all the same; the file-wide strip says it
+    const rows = pp.map((p) => `<div class="conv-plate-row"><span class="conv-plate-n">${escapeHtml(p.name || (tf('conv.plate', 'Plate') + ' ' + (p.index + 1)))}</span>`
+      + p.colors.map((c) => swatch(c, 13)).join('')
+      + `<span class="conv-plate-c">${p.colors.length}</span></div>`).join('');
+    const sampled = pp.some((p) => p.sampled)
+      ? `<div class="conv-plate-note">${escapeHtml(tf('conv.plate_sampled',
+          'Read from a thinned mesh — a colour covering very few faces may be missed.'))}</div>`
+      : '';
+    return `<details class="conv-plates"><summary>${escapeHtml(
+      tf('conv.plate_colours', '{n} plates, each using its own colours').replace('{n}', pp.length))}</summary>${rows}${sampled}</details>`;
+  }
+
   function changesHtml(a, targetId) {
     const P = profiles();
     const target = getProfileById(targetId) || (P && P.GENERIC);
@@ -242,7 +285,23 @@
     }
     const used = (a.filaments || []).length;
     let colBadge = '';
-    if (target.maxColors && used > target.maxColors) colBadge = `<span class="conv-fit no">${_emoI('alert', '⚠', 12)}${escapeHtml((t('conv.over_slots') || '{n} over').replace('{n}', used - target.maxColors))}</span>`;
+    if (target.maxColors && used > target.maxColors) {
+      // The count that matters is per PLATE. A six-colour project whose plates each use
+      // three prints outright, one plate at a time; calling it "2 over" sends the maker to
+      // Full Spectrum to mix colours the machine could simply have loaded.
+      const pp = Array.isArray(a.platePalettes) ? a.platePalettes.filter((p) => p.colors.length) : [];
+      const overPlates = pp.filter((p) => p.colors.length > target.maxColors);
+      if (pp.length > 1 && !overPlates.length) {
+        colBadge = `<span class="conv-fit ok">✓ ${escapeHtml(tf('conv.per_plate_fits', 'every plate fits {n}').replace('{n}', target.maxColors))}</span>`;
+      } else if (pp.length > 1) {
+        // Some fit, some do not. "2 over" is true of the FILE and unhelpful when 17 of 18
+        // plates print as they are — it is the plate count that tells the maker what to do.
+        colBadge = `<span class="conv-fit no">${_emoI('alert', '⚠', 12)}${escapeHtml(
+          tf('conv.plates_over', '{k} of {n} plates over').replace('{k}', overPlates.length).replace('{n}', pp.length))}</span>`;
+      } else {
+        colBadge = `<span class="conv-fit no">${_emoI('alert', '⚠', 12)}${escapeHtml(tf('conv.over_slots', '{n} over').replace('{n}', used - target.maxColors))}</span>`;
+      }
+    }
     const rows = [
       row(t('conv.chg_printer') || 'Printer', m.printerModel, target.name),
       row(t('conv.chg_bed') || 'Bed', fmtBed(m.bed), fmtBed(target.bed), bedBadge),
