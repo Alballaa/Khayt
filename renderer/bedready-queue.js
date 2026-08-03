@@ -112,6 +112,13 @@
     if (typeof saveAll === 'function') saveAll();
     repaint();
 
+    // The job is completed either way. Offering the printer's own figures happens AFTER,
+    // never as a gate: a dismissed dialog must not leave the card in the previous column.
+    // Silent when nothing was measured — see bedready-actuals.js.
+    if (newStatus === 'completed' && typeof brOfferActuals === 'function') {
+      try { brOfferActuals(order); } catch (_) { /* never block a completion on this */ }
+    }
+
     say(T('toast.status_updated', 'Status updated'), 'success', 5000,
       (undoIdx >= 0 && undoSnap) ? {
         undo: () => {

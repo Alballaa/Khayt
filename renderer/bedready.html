@@ -1947,6 +1947,10 @@
 <script src="kanban.js"></script>
 <!-- Bed Ready's real queue transitions. Must come after bedready-shim.js (which
      no-ops updateStatus) and after the views that render the controls. -->
+<!-- Measured filament + duration, offered when a job completes. printer-actuals must
+     load before the queue module that calls into it. -->
+<script src="../lib/printer-actuals.js"></script>
+<script src="bedready-actuals.js"></script>
 <script src="bedready-queue.js"></script>
 <script src="queue-list.js"></script>
 <script src="app-exports.js"></script>
