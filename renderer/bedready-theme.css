@@ -148,6 +148,11 @@ html[data-app="bedready"] .settings-panel-title {
    default display:none lived in the theme CSS we no longer ship),
    and pin the sidebar width so it never depends on a theme file.
    ============================================================ */
+/* The comma after .command-pagehead used to be a trailing one: the whole list ran
+   straight into the sidebar rule below, so these selectors were handed a WIDTH and
+   never a display. Nothing hid them. Bed Ready drew its own masthead and then
+   ledger's and console's underneath it — three brands and three "Dashboard"
+   headings on every screen — because a block that hides things had no body. */
 html[data-app="bedready"] .ledger-masthead-brand,
 html[data-app="bedready"] .ledger-pagehead,
 html[data-app="bedready"] .ledger-path,
@@ -156,7 +161,9 @@ html[data-app="bedready"] .console-pagehead,
 html[data-app="bedready"] .console-path,
 html[data-app="bedready"] .workbench-pagehead,
 html[data-app="bedready"] .vivid-pagehead,
-html[data-app="bedready"] .command-pagehead,
+html[data-app="bedready"] .command-pagehead {
+  display: none !important;
+}
 
 html[data-app="bedready"] body.bedready-ui .khayt-sidebar {
   width: var(--nav-w); min-width: var(--nav-w); max-width: var(--nav-w);
