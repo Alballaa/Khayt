@@ -5,7 +5,7 @@ Khayt publishes **two release channels** on GitHub:
 | Channel | Latest | GitHub | Auto-update |
 |---------|--------|--------|-------------|
 | **Stable** | `v3.5.3` | [Latest release](https://github.com/khaytapp/Khayt/releases/latest) | Default (beta off) |
-| **Beta** | `v3.6.0-beta.8` | [Pre-releases](https://github.com/khaytapp/Khayt/releases) (filter *Pre-release*) | Opt-in via Settings |
+| **Beta** | `v3.6.0-beta.9` | [Pre-releases](https://github.com/khaytapp/Khayt/releases) (filter *Pre-release*) | Opt-in via Settings |
 
 > Verified 2026-08-03 against published tags. These rot fast — check with
 > `gh release list --repo KhaytApp/Khayt` rather than trusting the table.
@@ -36,7 +36,7 @@ line carried QC / reprint / RMA, shipping & fulfillment, BOM assemblies, privacy
 telemetry and per-printer cameras, all stable since **v3.2.0**. You do not need
 a beta for any of them.
 
-## Your quotes will change in the next `3.6.0-beta`
+## Your quotes change in `v3.6.0-beta.9`
 
 If you price unsliced models, two fixes change the numbers Khayt gives you.
 Neither is a new pricing policy — both make the estimate use figures it was
