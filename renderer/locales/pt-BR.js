@@ -3160,6 +3160,8 @@
   "stl.note_assume": "{infill}% de preenchimento · {density} g/cm³",
   "stl.note_rate_measured_machine": "{rate} g/h — medido a partir de {n} trabalhos concluídos nesta impressora.",
   "stl.note_rate_measured_shop": "{rate} g/h — medido a partir de {n} trabalhos concluídos em todas as suas impressoras.",
+  "stl.note_rate_spread_machine": "{rate} g/h — a mediana de {n} trabalhos concluídos medidos nesta impressora, ±{pct}%.",
+  "stl.note_rate_spread_shop": "{rate} g/h — a mediana de {n} trabalhos concluídos medidos nas suas impressoras, ±{pct}%.",
   "stl.note_rate_assumed": "{rate} g/h — presumido; ainda não há trabalhos medidos.",
   "slicer.settings_title": "Integração com o fatiador",
   "slicer.settings_help": "Fatie um modelo enviado com o seu próprio fatiador instalado para preencher o orçamento com o peso e o tempo exatos. O Khayt nunca embute um fatiador.",

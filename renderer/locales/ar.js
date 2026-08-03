@@ -3160,6 +3160,8 @@
   "stl.note_assume": "تعبئة {infill}٪ · {density} غ/سم³",
   "stl.note_rate_measured_machine": "{rate} غ/ساعة — مقاسة من {n} أعمال منتهية على هذه الطابعة.",
   "stl.note_rate_measured_shop": "{rate} غ/ساعة — مقاسة من {n} أعمال منتهية عبر طابعاتك.",
+  "stl.note_rate_spread_machine": "{rate} غ/ساعة — وسط {n} أعمال منتهية مقاسة على هذه الطابعة، بفارق {pct}٪ تقريبًا.",
+  "stl.note_rate_spread_shop": "{rate} غ/ساعة — وسط {n} أعمال منتهية مقاسة عبر طابعاتك، بفارق {pct}٪ تقريبًا.",
   "stl.note_rate_assumed": "{rate} غ/ساعة — مفترضة؛ لا توجد أعمال مقاسة بعد.",
   "slicer.settings_title": "تكامل المُقطّع (Slicer)",
   "slicer.settings_help": "قطّع نموذجاً مرفوعاً باستخدام المُقطّع المثبّت لديك لتعبئة عرض السعر بالوزن والوقت الفعليين. لا يضمّن خَيط أي مُقطّع.",

@@ -3159,6 +3159,8 @@
   "stl.note_assume": "{infill}% Infill · {density} g/cm³",
   "stl.note_rate_measured_machine": "{rate} g/h — gemessen an {n} abgeschlossenen Aufträgen auf diesem Drucker.",
   "stl.note_rate_measured_shop": "{rate} g/h — gemessen an {n} abgeschlossenen Aufträgen über alle Ihre Drucker.",
+  "stl.note_rate_spread_machine": "{rate} g/h — der Mittelwert aus {n} auf diesem Drucker gemessenen Aufträgen, ±{pct}%.",
+  "stl.note_rate_spread_shop": "{rate} g/h — der Mittelwert aus {n} über Ihre Drucker gemessenen Aufträgen, ±{pct}%.",
   "stl.note_rate_assumed": "{rate} g/h — angenommen; noch keine gemessenen Aufträge.",
   "slicer.settings_title": "Slicer-Integration",
   "slicer.settings_help": "Schneide ein hochgeladenes Modell mit deinem installierten Slicer, um das Angebot mit dessen genauem Gewicht & Zeit zu füllen. Khayt bündelt keinen Slicer.",

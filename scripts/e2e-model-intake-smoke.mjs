@@ -261,6 +261,13 @@ async function testMeasuredRateReachesTheDroppedFile(window) {
   if (!/across your printers/i.test(after.note)) {
     throw new Error(`a shop-wide rate should say so: ${after.note}`);
   }
+  // And it must not read as a machine specification. Grams-per-hour follows the
+  // part, not the printer: on the shop's own U1 it measured anywhere from 1.9 to
+  // 48.6 g/h across 67 jobs. The median is the right number; stated bare it
+  // invites a shop to plan as though the next job will hit it.
+  if (!/give or take \d+%/.test(after.note)) {
+    throw new Error(`the note states a rate without its spread: ${after.note}`);
+  }
 }
 
 /**

@@ -3161,6 +3161,8 @@
   "stl.note_assume": "{infill}% infill · {density} g/cm³",
   "stl.note_rate_measured_machine": "{rate} g/h — measured from {n} finished jobs on this printer.",
   "stl.note_rate_measured_shop": "{rate} g/h — measured from {n} finished jobs across your printers.",
+  "stl.note_rate_spread_machine": "{rate} g/h — the middle of {n} finished jobs measured on this printer, give or take {pct}%.",
+  "stl.note_rate_spread_shop": "{rate} g/h — the middle of {n} finished jobs measured across your printers, give or take {pct}%.",
   "stl.note_rate_assumed": "{rate} g/h — assumed; no measured jobs yet.",
   "slicer.settings_title": "Slicer integration",
   "slicer.settings_help": "Slice an uploaded model with your own installed slicer to fill the quote with its exact weight & time. Khayt never bundles a slicer.",

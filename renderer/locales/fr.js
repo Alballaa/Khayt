@@ -3159,6 +3159,8 @@
   "stl.note_assume": "{infill}% remplissage · {density} g/cm³",
   "stl.note_rate_measured_machine": "{rate} g/h — mesuré sur {n} travaux terminés sur cette imprimante.",
   "stl.note_rate_measured_shop": "{rate} g/h — mesuré sur {n} travaux terminés, toutes vos imprimantes confondues.",
+  "stl.note_rate_spread_machine": "{rate} g/h — la médiane de {n} travaux terminés mesurés sur cette imprimante, à ±{pct}% près.",
+  "stl.note_rate_spread_shop": "{rate} g/h — la médiane de {n} travaux terminés mesurés sur vos imprimantes, à ±{pct}% près.",
   "stl.note_rate_assumed": "{rate} g/h — supposé ; aucun travail mesuré pour l’instant.",
   "slicer.settings_title": "Intégration du trancheur",
   "slicer.settings_help": "Tranchez un modèle importé avec votre trancheur installé pour remplir le devis avec son poids et son temps exacts. Khayt n'intègre aucun trancheur.",

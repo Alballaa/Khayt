@@ -3159,6 +3159,8 @@
   "stl.note_assume": "インフィル {infill}% · {density} g/cm³",
   "stl.note_rate_measured_machine": "{rate} g/時 — このプリンターの完了ジョブ{n}件から実測。",
   "stl.note_rate_measured_shop": "{rate} g/時 — お使いのプリンター全体の完了ジョブ{n}件から実測。",
+  "stl.note_rate_spread_machine": "{rate} g/時 — このプリンターで実測した完了ジョブ{n}件の中央値（±{pct}%）。",
+  "stl.note_rate_spread_shop": "{rate} g/時 — お使いのプリンターで実測した完了ジョブ{n}件の中央値（±{pct}%）。",
   "stl.note_rate_assumed": "{rate} g/時 — 推定値。実測されたジョブはまだありません。",
   "slicer.settings_title": "スライサー連携",
   "slicer.settings_help": "アップロードしたモデルをお使いのスライサーでスライスし、実際の重量と時間で見積を埋めます。Khayt はスライサーを同梱しません。",
