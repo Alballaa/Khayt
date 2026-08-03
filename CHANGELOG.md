@@ -4,6 +4,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **Bed Ready's sidebar showed two headings with nothing under them.** "Catalog"
+  and "Money" sat below the nav on every screen, labelling empty space. The themed
+  sidebar builds those groups and moves the app's nav buttons into them; Bed Ready
+  has no catalogue, clients, order log or expenses to move, so the groups were
+  built, given nothing, and drawn anyway. They are now hidden when there is nothing
+  to show, and reappear if there ever is.
+
 ## [3.6.0-beta.9] - 2026-08-03
 
 Mostly one bug wearing three faces. The calculator was pricing every unsliced
@@ -38,13 +47,6 @@ folders it was allowed to *read*.
   approved folder are resolved and refused.
 
 ### Fixed
-
-- **Bed Ready's sidebar showed two headings with nothing under them.** "Catalog"
-  and "Money" sat below the nav on every screen, labelling empty space. The themed
-  sidebar builds those groups and moves the app's nav buttons into them; Bed Ready
-  has no catalogue, clients, order log or expenses to move, so the groups were
-  built, given nothing, and drawn anyway. They are now hidden when there is nothing
-  to show, and reappear if there ever is.
 
 - **Packaging Bed Ready could leave the source checkout broken.** The Bed Ready
   build swaps the project's version file for the duration of the build and puts it
