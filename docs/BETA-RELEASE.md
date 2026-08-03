@@ -16,10 +16,33 @@ scoped-token public API with a webhook event bus, opt-in telemetry, and
 per-printer cameras — is now in stable, so there is no reason to run a 3.2 beta
 for those features.
 
-The next pre-release opens the **`3.3.0-beta.x`** line.
+The current line is **`3.6.0-beta.x`**, published through `v3.6.0-beta.8`.
 
 Shop data stays backward compatible across a beta line — backup/restore works
 between channels, and new fields are additive and absent-safe.
+
+## Your quotes will change in the next `3.6.0-beta`
+
+If you price unsliced models, two fixes change the numbers Khayt gives you.
+Neither is a new pricing policy — both make the estimate use figures it was
+already meant to use and had been ignoring — but the numbers *will* move, so
+re-check any quote you have not yet sent.
+
+- **Print time** changes for any shop with three or more finished jobs a printer
+  measured. Khayt now works your rate out from those jobs instead of the constant
+  it shipped with, which implied about 35.7 g/hour — a rate no real FDM machine
+  sustains. A slower measured rate means a longer job and a higher price.
+- **Material weight** changes for any shop whose **Default infill %** is not 20.
+  The calculator had been using a fixed 20% whatever that setting said, while the
+  customer intake form used your real one — so the same file could come back from
+  the two with different answers. They now agree.
+
+The note under the drop zone tells you which rate the estimate used, and whether
+it was measured from your jobs or assumed — so you can see which of the two moved
+your number.
+
+Figures that came from a slicer are unaffected. Those were never estimates, and
+nothing recalculates them.
 
 ## Download beta
 
