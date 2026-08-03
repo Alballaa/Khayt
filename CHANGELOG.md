@@ -4,6 +4,22 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.6.0-beta.9] - 2026-08-03
+
+Mostly one bug wearing three faces. The calculator was pricing every unsliced
+model on numbers that were not the shop's — not its filament density, not its
+infill, and not the rate its own printers had been measured at — while the
+customer-facing intake form had been using the real ones all along. So the same
+file could come back from a customer and from the shop's own screen with two
+different answers, and the shop's was the wrong one.
+
+The estimate note now says which rate it used, whether anyone measured it, and
+which printers earned it. **Quotes for unsliced models will move on this build**
+— see [docs/BETA-RELEASE.md](./docs/BETA-RELEASE.md) before sending one.
+
+Also closes a converter write gate that checked destinations against the list of
+folders it was allowed to *read*.
+
 ### Security
 
 - **The converter could be made to write a file anywhere the app could read.** The

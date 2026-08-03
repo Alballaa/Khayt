@@ -5,7 +5,7 @@ Khayt uses [Semantic Versioning 2.0.0](https://semver.org/) as `MAJOR.MINOR.PATC
 **Current release lines** (last verified 2026-08-03 against published tags):
 
 - **Stable:** `3.5.x` — latest tag **v3.5.3**, published 2026-08-01 ([releases/latest](https://github.com/khaytapp/Khayt/releases/latest))
-- **Beta:** the `3.6.0-beta.x` line is **open** — latest **v3.6.0-beta.8**, published 2026-08-03 as a GitHub pre-release. See [docs/BETA-RELEASE.md](./docs/BETA-RELEASE.md)
+- **Beta:** the `3.6.0-beta.x` line is **open** — latest **v3.6.0-beta.9**, published 2026-08-03 as a GitHub pre-release. See [docs/BETA-RELEASE.md](./docs/BETA-RELEASE.md)
 - **Bed Ready:** a different app from the same repo, on its **own** `1.0.0-*`
   line with its own downloads repo — latest **bedready-v1.0.0-beta.9**. It does
   not follow Khayt's numbers at all; see [Bed Ready](#bed-ready) below.
