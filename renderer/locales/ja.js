@@ -3157,6 +3157,8 @@
   "stl.estimate_btn": "📐 3Dモデルから見積",
   "stl.note_tpl": "サイズ {x}×{y}×{z} mm · ソリッド {solid} g → 推定 {weight} g · 約{time} h",
   "stl.note_assume": "インフィル {infill}% · {density} g/cm³",
+  "stl.note_rate_measured": "{rate} g/時 — 完了した{n}件のジョブから実測。",
+  "stl.note_rate_assumed": "{rate} g/時 — 推定値。実測されたジョブはまだありません。",
   "slicer.settings_title": "スライサー連携",
   "slicer.settings_help": "アップロードしたモデルをお使いのスライサーでスライスし、実際の重量と時間で見積を埋めます。Khayt はスライサーを同梱しません。",
   "slicer.path_label": "スライサーのプログラム",

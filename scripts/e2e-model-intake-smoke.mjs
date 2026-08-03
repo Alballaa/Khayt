@@ -139,6 +139,98 @@ async function testGcodeHeadTailSlicing(window) {
   }
 }
 
+const rawTetra = () => zipWrite.writeZip([{ name: '3D/3dmodel.model', data: Buffer.from(TETRA, 'utf8') }]);
+
+/** Configure the estimator the way a shop does — through the panel. */
+async function setShopEstimator(window, { density, wall }) {
+  await switchTab(window, 'settings-tab');
+  await window.click('.settings-nav-item[data-settings-section="prefs"]');
+  await window.waitForSelector('#est_density');
+  await window.evaluate(({ d, w }) => {
+    const el = document.querySelector('#estimatorSettings');
+    const set = (sel, v) => {
+      const f = el.querySelector(sel);
+      f.value = String(v); f.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+    set('#est_density', d);
+    set('#est_wall', w);
+  }, { d: density, w: wall });
+  await switchTab(window, 'calculator-tab');
+  await window.waitForSelector('#modelDrop');
+}
+
+async function dropRaw(window) {
+  await clearForm(window);
+  await dropFile(window, 'raw.3mf', b64(rawTetra()));
+  await window.waitForFunction(() => document.querySelector('#printWeight')?.value !== '');
+  return readForm(window);
+}
+
+/**
+ * The shop's own settings must reach the file it just dropped.
+ *
+ * They did not. presentIntake forwarded the infill and dropped everything else,
+ * so the note quoted PLA at 1.24 g/cm³ to a shop that had configured something
+ * different two tabs away — and the price came from the same wrong number.
+ */
+async function testShopSettingsReachTheDroppedFile(window) {
+  await setShopEstimator(window, { density: 4.0, wall: 1.2 });
+  const f = await dropRaw(window);
+  if (/1\.24/.test(f.note)) {
+    throw new Error(`the note still quotes the default PLA density: ${f.note}`);
+  }
+  if (!/·\s*4\s*g\/cm³/.test(f.note)) {
+    throw new Error(`the shop's density never reached the note: ${f.note}`);
+  }
+}
+
+/**
+ * And so must a rate learned from the shop's own finished jobs — visibly.
+ *
+ * A measured number and an assumed one must never present identically, so this
+ * asserts the wording changes as well as the figure.
+ */
+async function testMeasuredRateReachesTheDroppedFile(window) {
+  await setShopEstimator(window, { density: 1.27, wall: 1.2 });   // PETG
+  const before = await dropRaw(window);
+  if (!/assum/i.test(before.note)) {
+    throw new Error(`with no history the note must admit it is guessing: ${before.note}`);
+  }
+
+  // Four finished jobs a printer reported itself — about 12 g/h, not the ~35
+  // the shipped throughput implies.
+  await window.evaluate(() => {
+    const measured = { time: 'moonraker', weight: 'moonraker' };
+    const job = (h, g) => ({
+      id: 'CAL-' + h, machineId: 'M1',
+      actualPrintTime: h, actualWeight: g, actualsSource: measured,
+      parts: [{ id: 'p', printFileId: 'F1', setupId: 'S1', printTime: h, printWeight: g, qty: 1 }],
+    });
+    printLog.unshift(job(3, 36), job(4, 49), job(2, 23), job(5, 62));
+    saveAll();
+  });
+
+  const after = await dropRaw(window);
+  if (after.time === before.time) {
+    throw new Error(`the measured rate never reached the calculator — time stayed ${after.time} h`);
+  }
+  if (!(Number(after.time) > Number(before.time))) {
+    throw new Error(`a slower measured rate must mean a longer job: ${after.time} vs ${before.time}`);
+  }
+  if (Number(after.weight) !== Number(before.weight)) {
+    throw new Error(`only the time was ever guessed, but the weight moved: ${after.weight} vs ${before.weight}`);
+  }
+  if (!/measured/i.test(after.note)) {
+    throw new Error(`the note does not say the rate was measured: ${after.note}`);
+  }
+  if (!/12(\.\d)?\s*g\/h/.test(after.note)) {
+    throw new Error(`the measured rate itself is not shown: ${after.note}`);
+  }
+  if (!/4 of your own/i.test(after.note)) {
+    throw new Error(`the note does not say how many jobs earned it: ${after.note}`);
+  }
+}
+
 try {
   ({ electronApp } = await launchApp(userData));
   const window = await electronApp.firstWindow();
@@ -151,8 +243,12 @@ try {
   await testUnslicedIsLabelledAnEstimate(window);
   await testObjIsAccepted(window);
   await testGcodeHeadTailSlicing(window);
+  // Last: these change the shop's settings and its print history.
+  await testShopSettingsReachTheDroppedFile(window);
+  await testMeasuredRateReachesTheDroppedFile(window);
 
-  console.log('e2e-model-intake: ok (sliced 3MF exact, unsliced labelled, OBJ, big G-code)');
+  console.log('e2e-model-intake: ok (sliced 3MF exact, unsliced labelled, OBJ, big G-code,'
+    + ' shop settings reach the drop, measured rate reaches it and says so)');
 } finally {
   if (electronApp) await electronApp.close().catch(() => {});
   fs.rmSync(userData, { recursive: true, force: true });

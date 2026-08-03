@@ -3157,6 +3157,8 @@
   "stl.estimate_btn": "📐 Estimar desde modelo 3D",
   "stl.note_tpl": "Tamaño {x}×{y}×{z} mm · sólido {solid} g → est. {weight} g · ~{time} h",
   "stl.note_assume": "{infill}% relleno · {density} g/cm³",
+  "stl.note_rate_measured": "{rate} g/h — medido a partir de {n} de tus trabajos completados.",
+  "stl.note_rate_assumed": "{rate} g/h — supuesto; aún no hay trabajos medidos.",
   "slicer.settings_title": "Integración del laminador",
   "slicer.settings_help": "Lamina un modelo subido con tu laminador instalado para rellenar el presupuesto con su peso y tiempo exactos. Khayt no incluye ningún laminador.",
   "slicer.path_label": "Programa del laminador",

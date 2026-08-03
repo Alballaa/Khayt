@@ -3159,6 +3159,8 @@
   "stl.estimate_btn": "📐 Estimate from 3D model",
   "stl.note_tpl": "Size {x}×{y}×{z} mm · solid {solid} g → est. {weight} g · ~{time} h",
   "stl.note_assume": "{infill}% infill · {density} g/cm³",
+  "stl.note_rate_measured": "{rate} g/h — measured from {n} of your own completed jobs.",
+  "stl.note_rate_assumed": "{rate} g/h — assumed; no measured jobs yet.",
   "slicer.settings_title": "Slicer integration",
   "slicer.settings_help": "Slice an uploaded model with your own installed slicer to fill the quote with its exact weight & time. Khayt never bundles a slicer.",
   "slicer.path_label": "Slicer program",

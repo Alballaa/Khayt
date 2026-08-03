@@ -3157,6 +3157,8 @@
   "stl.estimate_btn": "📐 3D modelden tahmin et",
   "stl.note_tpl": "Boyut {x}×{y}×{z} mm · dolu {solid} g → tah. {weight} g · ~{time} sa",
   "stl.note_assume": "%{infill} dolgu · {density} g/cm³",
+  "stl.note_rate_measured": "{rate} g/sa — tamamlanan {n} işinizden ölçüldü.",
+  "stl.note_rate_assumed": "{rate} g/sa — varsayım; henüz ölçülen iş yok.",
   "slicer.settings_title": "Dilimleyici entegrasyonu",
   "slicer.settings_help": "Yüklenen bir modeli kendi kurulu dilimleyicinizle dilimleyerek teklifi tam ağırlık ve süreyle doldurun. Khayt asla dilimleyici içermez.",
   "slicer.path_label": "Dilimleyici programı",

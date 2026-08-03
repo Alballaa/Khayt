@@ -3158,6 +3158,8 @@
   "stl.estimate_btn": "📐 تقدير من نموذج ثلاثي الأبعاد",
   "stl.note_tpl": "الحجم {x}×{y}×{z} مم · صلب {solid} غ → تقديري {weight} غ · ~{time} ساعة",
   "stl.note_assume": "تعبئة {infill}٪ · {density} غ/سم³",
+  "stl.note_rate_measured": "{rate} غ/ساعة — مقاسة من {n} من أعمالك المكتملة.",
+  "stl.note_rate_assumed": "{rate} غ/ساعة — مفترضة؛ لا توجد أعمال مقاسة بعد.",
   "slicer.settings_title": "تكامل المُقطّع (Slicer)",
   "slicer.settings_help": "قطّع نموذجاً مرفوعاً باستخدام المُقطّع المثبّت لديك لتعبئة عرض السعر بالوزن والوقت الفعليين. لا يضمّن خَيط أي مُقطّع.",
   "slicer.path_label": "برنامج المُقطّع",
