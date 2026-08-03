@@ -22,6 +22,15 @@
  *   - uncaught exception           -> handler
  * Every restore path verifies the bytes are identical again before exiting.
  *
+ * And then it looks AGAIN. Verifying the restore only proves the write landed, not that
+ * nothing will overwrite it next — and the prune in (2) is done by npm processes
+ * electron-builder spawns, which `spawnSync` does not wait for, so one can outlive the
+ * build and land after the restore. That is not theoretical: a pack left package.json
+ * pruned and carrying Bed Ready's version having logged a byte-identical restore and
+ * exited 0, and the checkout stayed broken until the next `npm run` failed. The guard
+ * therefore settles, repairs anything that moved, and fails the build rather than exit
+ * quietly on a file it cannot keep restored. See lib/source-guard.js.
+ *
  * The swap is ephemeral: only the electron-builder subprocess ever sees the
  * modified package.json; the on-disk source is identical before and after.
  *
@@ -31,8 +40,12 @@
  */
 import { readFileSync, writeFileSync } from 'fs';
 import { spawnSync } from 'child_process';
+import { createRequire } from 'module';
 import path from 'path';
 import { fileURLToPath } from 'url';
+
+const require = createRequire(import.meta.url);
+const { createSourceGuard } = require('../lib/source-guard.js');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
@@ -40,34 +53,16 @@ const root = path.join(__dirname, '..');
 // Bed Ready's independent version line. Override per-release via BEDREADY_VERSION.
 const BEDREADY_VERSION = process.env.BEDREADY_VERSION || '1.0.0-beta.1';
 
-// Files electron-builder may rewrite in place while packaging a root-layout app.
-// Snapshot their EXACT bytes so any exit path can restore them verbatim.
-const GUARDED = ['package.json', 'package-lock.json'].map((rel) => {
-  const file = path.join(root, rel);
-  return { rel, file, bytes: readFileSync(file) };
+// Files electron-builder may rewrite in place while packaging a root-layout app. The
+// guard snapshots their exact bytes, restores them on every exit path, and then keeps
+// watching — because electron-builder's own npm children can outlive the build and
+// overwrite the restore. See lib/source-guard.js for the failure that led to that.
+const GUARDED = ['package.json', 'package-lock.json'].map((rel) => path.join(root, rel));
+const guard = createSourceGuard(GUARDED, {
+  log: (m) => console.log('[build-bedready] ' + m),
+  error: (m) => console.error('[build-bedready] ' + m),
 });
-
-let restored = false;
-function restoreSources(reason) {
-  if (restored) return;
-  restored = true;
-  let allOk = true;
-  for (const g of GUARDED) {
-    try {
-      writeFileSync(g.file, g.bytes);
-      if (!readFileSync(g.file).equals(g.bytes)) allOk = false;
-    } catch (e) {
-      allOk = false;
-      console.error(`[build-bedready] restore of ${g.rel} failed:`, e && e.message);
-    }
-  }
-  console.log(
-    allOk
-      ? `[build-bedready] source restored byte-identical (${reason}).`
-      : `[build-bedready] WARNING: source restore had problems (${reason}).`,
-  );
-  return allOk;
-}
+const restoreSources = (reason, opts) => guard.restore(reason, opts);
 
 // finally does NOT run when the process is killed by a signal — restore there too.
 for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
@@ -97,11 +92,11 @@ if (!builderArgs.includes('--dir') && !builderArgs.some((a) => a === '--publish'
 
 let exitCode = 0;
 try {
-  const pkg = JSON.parse(GUARDED[0].bytes.toString('utf8'));
+  const pkg = JSON.parse(guard.guarded[0].bytes.toString('utf8'));
   pkg.version = BEDREADY_VERSION;
   // Formatting of this temporary write is irrelevant — the source is restored
   // to its original bytes on every exit path; electron-builder only needs valid JSON.
-  writeFileSync(GUARDED[0].file, JSON.stringify(pkg, null, 2) + '\n');
+  writeFileSync(guard.guarded[0].file, JSON.stringify(pkg, null, 2) + '\n');
 
   console.log(`[build-bedready] packaging Bed Ready ${BEDREADY_VERSION} (${builderArgs.join(' ')})`);
   // Windows: the launcher is npx.cmd, and recent Node refuses to spawn a .cmd
@@ -116,7 +111,10 @@ try {
   exitCode = res.status == null ? 1 : res.status;
 } finally {
   const ok = restoreSources('finally');
-  if (!ok) process.exit(1);
+  // The restore verified its own write, which only proves nothing had overwritten it YET.
+  const stayed = guard.settleAndVerify();
+  if (!ok || !stayed) process.exit(1);
+  console.log('[build-bedready] guarded sources verified stable after the build.');
 }
 
 process.exit(exitCode);
