@@ -1775,7 +1775,9 @@ ipcMain.handle('hub:mf-analyze', async (_e, { path: srcPath } = {}) => {
     if (!srcPath || !mfReadAllowed(srcPath)) return { ok: false, error: 'File is outside an allowed folder.' };
     const buf = await fs.promises.readFile(path.resolve(String(srcPath)));
     if (buf.length > MF_MAX_BYTES) return { ok: false, error: 'File is too large.' };
-    return require('./lib/mf-convert').analyze(buf);
+    // Off the main process — see lib/mf-worker.js. Every file drop runs this,
+    // and the window must stay alive while it does.
+    return await require('./lib/mf-offload').runMf('analyze', buf);
   } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
 });
 
@@ -1796,7 +1798,13 @@ ipcMain.handle('hub:mf-convert', async (_e, { path: srcPath, targetId, mode, slo
     if (!srcPath || !mfReadAllowed(srcPath)) return { ok: false, error: 'Source file is outside an allowed folder.' };
     const buf = await fs.promises.readFile(path.resolve(String(srcPath)));
     if (buf.length > MF_MAX_BYTES) return { ok: false, error: 'File is too large.' };
-    const r = require('./lib/mf-convert').convert(buf, { targetId, mode, slotMap, targetProfile, fullSpectrum, fsPhysical, fsPhysicalHex, filaments, process, bandSwap });
+    // Off the main process. Measured at 377.9 s on a real 229 MB project, all of
+    // it previously spent with the main thread blocked: no menus, no window
+    // controls, macOS reporting the app as not responding. A shop watching that
+    // for six minutes force-quits, which is indistinguishable from the
+    // conversion being broken.
+    const r = await require('./lib/mf-offload').runMf('convert', buf,
+      { targetId, mode, slotMap, targetProfile, fullSpectrum, fsPhysical, fsPhysicalHex, filaments, process, bandSwap });
     if (!r.ok) return r;
 
     // In-app destination: write the converted 3MF straight into a print-file
