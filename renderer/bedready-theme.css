@@ -293,7 +293,7 @@ html[data-app="bedready"] #convPreview { position: relative; }
   font-family: var(--font-mono), monospace; font-size: 10px; letter-spacing: 0.03em; padding: 2px 6px;
   border: 1px solid var(--l1); border-radius: var(--r-xs, 2px); font-variant-numeric: tabular-nums; }
 /* Hide the busy centre search mirror + secondary-action clutter that reads
-   "Khayt". Keep: theme toggle, notifications, language — and the beta Feedback
+   "Khayt". Keep: theme toggle, notifications, language — and the Feedback
    button (kept visible + emphasised below). */
 html[data-app="bedready"] .khayt-search,          /* redundant readonly mirror */
 html[data-app="bedready"] #btnGlobalSearch,
@@ -305,7 +305,7 @@ html[data-app="bedready"] .topbar-actions .btn.ghost {
 }
 html[data-app="bedready"] #langSelect { border-radius: 9px; }
 
-/* Beta: keep the Feedback button front-and-centre in the top bar. Solid coral
+/* Keep the Feedback button front-and-centre in the top bar. Solid coral
    accent so it's the one obviously-clickable call to action up there. */
 html[data-app="bedready"] #btnFeedback {
   display: inline-flex !important; align-items: center; gap: 6px;

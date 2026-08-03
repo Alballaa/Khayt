@@ -277,7 +277,7 @@ try {
   // Manifest so the website team knows what each file is.
   const md = ['# Bed Ready screenshot library', '',
     `${MANIFEST.length} screenshots, viewport ${VIEWPORT.width}×${VIEWPORT.height}, PNG, dark theme.`,
-    'Public-beta build (the BETA badge is intentional). Demo data — no real customer content.', '',
+    'Demo data — no real customer content.', '',
     '## Contents', '',
     ...MANIFEST.map((m) => `- \`${m.file}\` — ${m.label}`), '',
     '## Regenerate', '',

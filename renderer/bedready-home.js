@@ -302,7 +302,9 @@
     if (!sub) return;
     var vEl = document.getElementById('appVersion');
     var ver = (vEl && vEl.textContent || '').trim();
-    var rev = ver ? ver.replace(/\s*\(dev\)\s*/i, '').replace(/-beta\./i, '·β').replace(/-/g, '·') : 'β';
+    // '—' rather than 'β' when the version has not resolved yet: on a 1.0 build a stray
+    // beta mark in the title block would be the one wrong thing on an otherwise stable screen.
+    var rev = ver ? ver.replace(/\s*\(dev\)\s*/i, '').replace(/-beta\./i, '·β').replace(/-/g, '·') : '—';
     var mon = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
     var d = new Date();
     var date = ('0' + d.getDate()).slice(-2) + ' ' + mon[d.getMonth()] + ' ' + d.getFullYear();
