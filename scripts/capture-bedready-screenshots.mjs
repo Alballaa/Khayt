@@ -27,6 +27,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
 const outDir = path.join(root, 'assets', 'bedready');
 const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'bedready-shots-'));
+// Pre-dismiss the first-run keychain explanation, as scripts/e2e/helpers.mjs does.
+// Running from source this changes nothing — unsigned dev Electron has no encryption
+// available, so the store is written in the clear. A SIGNED packaged build does have it,
+// so hub:save-store puts up the keychain modal, nobody clicks it, and the seeded store
+// never comes back on reload: the capture then times out waiting for a queue that is
+// empty. Only reachable via BEDREADY_APP, which is why it went unnoticed.
+fs.writeFileSync(path.join(userData, 'khayt-keychain-ok.flag'), '1');
 const VIEWPORT = { width: 1480, height: 940 };
 const THEME = process.env.BEDREADY_THEME || 'light'; // 'light' | 'dark' | 'system'
 
@@ -135,11 +142,43 @@ async function scrollModalTo(page, selector) {
   await page.waitForTimeout(400);
 }
 
+/**
+ * Which Bed Ready to photograph.
+ *
+ * By default this runs the app straight from source, which is fine for everything on
+ * screen EXCEPT the version: `app.getVersion()` then reads package.json, and that holds
+ * KHAYT's number. Every shot in assets/bedready/ has therefore carried a "3.6.0-beta.x"
+ * in its title block while claiming to show Bed Ready — on a release whose whole point
+ * is that it is 1.0.0.
+ *
+ * Point BEDREADY_APP at a packaged build and the shots come from the real thing:
+ *
+ *   BEDREADY_VERSION=1.0.0 npm run pack:bedready
+ *   BEDREADY_APP="build-bedready/mac-arm64/Bed Ready.app" npm run capture:bedready
+ *
+ * Accepts either the .app bundle or the binary inside it.
+ */
+function packagedBinary(appPath) {
+  const p = path.resolve(appPath);
+  if (!fs.existsSync(p)) throw new Error(`BEDREADY_APP does not exist: ${p}`);
+  if (!p.endsWith('.app')) return p;
+  const macos = path.join(p, 'Contents', 'MacOS');
+  const [bin] = fs.readdirSync(macos);
+  if (!bin) throw new Error(`no executable inside ${macos}`);
+  return path.join(macos, bin);
+}
+
+const packagedApp = process.env.BEDREADY_APP ? packagedBinary(process.env.BEDREADY_APP) : null;
+if (packagedApp) console.log(`Capturing the PACKAGED app: ${packagedApp}`);
+
 let electronApp;
 try {
   electronApp = await electron.launch({
-    args: ['.', `--user-data-dir=${userData}`],
-    cwd: root,
+    // A packaged build already knows which flavor and which version it is; running from
+    // source needs `.` as the app path and the flavor forced.
+    ...(packagedApp
+      ? { executablePath: packagedApp, args: [`--user-data-dir=${userData}`] }
+      : { args: ['.', `--user-data-dir=${userData}`], cwd: root }),
     env: { ...process.env, ELECTRON_DISABLE_SANDBOX: '1', KHAYT_FLAVOR: 'bedready' },
     timeout: 120_000,
   });
@@ -153,7 +192,17 @@ try {
   );
 
   // Seed demo data, flush to disk, reload so loadAll() applies it.
-  const saved = await page.evaluate(async (store) => window.hubAPI.saveStore(store), buildBedReadyStore());
+  //
+  // The snapshot is adopted IN MEMORY before it is written. Saving alone puts the data on
+  // disk while the renderer still holds an empty store, and the flush on the way out of
+  // that page then writes the emptiness straight back over it — the reload below comes up
+  // to a queue of nothing and the capture times out waiting for it. Harmless from source,
+  // where the flush does not land in time; against a packaged build (BEDREADY_APP) it is
+  // reliable enough to fail every run.
+  const saved = await page.evaluate(async (store) => {
+    if (typeof applyStoreFromSnapshot === 'function') applyStoreFromSnapshot(store);
+    return window.hubAPI.saveStore(store);
+  }, buildBedReadyStore());
   if (!saved?.ok) throw new Error(`saveStore failed: ${JSON.stringify(saved)}`);
   await page.evaluate(async () => { await window.hubAPI.loadStore(); });
   await page.reload({ waitUntil: 'domcontentloaded' });
