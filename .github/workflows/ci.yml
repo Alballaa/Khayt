@@ -7,6 +7,25 @@ on:
     branches: [main]
 
 jobs:
+  # A change a shop can notice should say so in CHANGELOG.md. Nine PRs landed
+  # between v3.6.0-beta.8 and this job with [Unreleased] empty for all of them,
+  # so those release notes were written at cut time by someone who had not made
+  # the changes. PRs only — a push to main is a squash of something already checked.
+  changelog:
+    name: Changelog entry
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The default shallow clone has no base ref to diff against.
+          fetch-depth: 0
+
+      - name: Changelog entry for shipped changes
+        env:
+          BASE_REF: origin/${{ github.base_ref }}
+        run: node scripts/check-changelog.js
+
   check:
     name: Syntax check
     runs-on: ubuntu-latest
