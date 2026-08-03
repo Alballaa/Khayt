@@ -23,6 +23,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Packaging Bed Ready could leave the source checkout broken.** The Bed Ready
+  build swaps the project's version file for the duration of the build and puts it
+  back afterwards. electron-builder rewrites that same file while packaging, using
+  helper processes the build does not wait for — so one could land after the file
+  had already been put back, and the build would report success and finish with the
+  file still rewritten. Nothing looked wrong until the next command in that checkout
+  failed for no apparent reason. The build now keeps watching after it restores,
+  puts back anything that moves, and stops with a clear message naming the file if
+  it cannot. Affects contributors building from source, not anyone using the app.
 - **A beta build could not find its own updates.** Bed Ready ships on a beta line,
   and every release on it is marked pre-release on GitHub. An app that refuses
   pre-releases is answered with the newest release that *isn't* one — which, on a
