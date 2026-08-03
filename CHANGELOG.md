@@ -4,6 +4,29 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **A printer's measurements could be lost before anyone looked at them.** Khayt
+  reads what a job actually used at the moment it finishes, because the printer
+  resets those counters when the next one starts. It kept only the most recent
+  one per machine — so a second job finishing overnight, or on another printer,
+  erased the first, and the dialog still offered a confident *Measured* figure
+  belonging to a different print.
+
+  It now remembers the last eight, and an order that recorded which file it
+  printed is offered that job's figures rather than simply the latest.
+
+- **Pausing a print was recorded as finishing it.** Khayt froze the filament and
+  duration on the way out of *printing*, and a pause leaves that state too — so a
+  paused job's part-way numbers were kept as though the job had ended. They were
+  overwritten when it really finished, which is why nothing ever looked wrong.
+
+- **A stuck conversion left the app waiting forever.** A converter process that
+  crashed was reported; one that simply stopped responding was not, so the window
+  waited on an answer that was never coming, with no error and no end. It now
+  gives up after thirty minutes, says the converter stopped responding and that
+  nothing on disk was changed, and starts a fresh one for the next file.
+
 ## [3.6.0-beta.8] - 2026-08-03
 
 Mostly one file's worth of consequences. A 229 MB Spider-Man poster that would
