@@ -312,6 +312,51 @@ async function assertFlowDragMovesWork(window) {
   }
 }
 
+/**
+ * No nav group heading standing over nothing — the invariant, across Khayt's themes.
+ *
+ * The grouping shells build a Work / Catalog / Money section each and move the shared nav
+ * buttons into them. They hid any ORIGINAL section the regrouping emptied but never asked
+ * the same of the sections they had just built.
+ *
+ * That defect is not reachable from HERE, and this test does not pretend to catch it: it
+ * needs a group with nothing visible in it, which in Khayt would take enthusiast mode —
+ * and applyMode() migrates Khayt out of enthusiast into simple. The case that actually
+ * broke is Bed Ready, which ships no catalog-tab/clients-tab/logs-tab at all, and it is
+ * asserted in e2e-bedready-smoke.mjs where it can genuinely fail.
+ *
+ * What this holds is the forward invariant for the modes Khayt CAN be in: whatever the
+ * theme, no heading is left over an empty section.
+ */
+async function assertNoEmptyNavGroups(window) {
+  const THEMES = ['workbench', 'vivid', 'command'];
+  const MODES = ['professional', 'simple', 'enthusiast'];
+  for (const id of THEMES) {
+    for (const mode of MODES) {
+      const bad = await window.evaluate(({ id, mode }) => {
+        settings.designTheme = id;
+        settings.mode = mode;
+        if (typeof applyDesignSettings === 'function') applyDesignSettings();
+        if (typeof applyMode === 'function') applyMode();
+        return [...document.querySelectorAll('.khayt-nav .khayt-navsec')]
+          .filter((sec) => getComputedStyle(sec).display !== 'none')
+          .filter((sec) => ![...sec.querySelectorAll('.tab-btn[data-tab]')]
+            .some((btn) => getComputedStyle(btn).display !== 'none'))
+          .map((sec) => (sec.querySelector('.khayt-navhead')?.textContent || '(unlabelled)').trim());
+      }, { id, mode });
+      if (bad.length) {
+        throw new Error(`${id}/${mode}: nav heading(s) with nothing visible under them: ${bad.join(', ')}`);
+      }
+    }
+  }
+  await window.evaluate(() => {
+    settings.mode = 'professional';
+    settings.designTheme = 'workbench';
+    if (typeof applyDesignSettings === 'function') applyDesignSettings();
+    if (typeof applyMode === 'function') applyMode();
+  });
+}
+
 async function assertEnthusiastThemesNoMoney(window) {
   const THEMES = [
     { id: 'command', sel: '.cmd-dash', extra: '#commandStatusBar' },
@@ -614,6 +659,9 @@ try {
 
   await assertEnthusiastThemesNoMoney(window);
   console.log('  enthusiast themed dashboards: no revenue/margin ok');
+
+  await assertNoEmptyNavGroups(window);
+  console.log('  nav groups: no heading left standing over nothing ok');
 
   await assertReconnectingNotOffline(window);
   console.log('  a missed poll reads reconnecting, not offline: ok');

@@ -23,6 +23,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Bed Ready's sidebar showed two headings with nothing under them.** "Catalog"
+  and "Money" sat below the nav on every screen, labelling empty space. The themed
+  sidebar builds those groups and moves the app's nav buttons into them; Bed Ready
+  has no catalogue, clients, order log or expenses to move, so the groups were
+  built, given nothing, and drawn anyway. They are now hidden when there is nothing
+  to show, and reappear if there ever is.
+
 - **Packaging Bed Ready could leave the source checkout broken.** The Bed Ready
   build swaps the project's version file for the duration of the build and puts it
   back afterwards. electron-builder rewrites that same file while packaging, using
