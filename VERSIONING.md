@@ -96,29 +96,47 @@ that matters:
 | | Khayt | Bed Ready |
 |---|---|---|
 | version line | `3.x` | `1.0.0-*` |
-| where the number lives | `package.json` | the **tag**, via `BEDREADY_VERSION` |
-| tag | `vX.Y.Z` | `bedready-vX.Y.Z` |
+| where the number lives | `package.json` | the **workflow input**, via `BEDREADY_VERSION` |
+| how it is released | push a `vX.Y.Z` tag | **run the workflow**, no tag here |
+| tag | `vX.Y.Z` in `KhaytApp/Khayt` | `bedready-vX.Y.Z`, created in `KhaytApp/bedready` |
 | downloads | `KhaytApp/Khayt` releases | **`KhaytApp/bedready`** releases |
 
 **There is no `npm run version:*` step.** `scripts/build-bedready.mjs` swaps the
 version into `package.json` only for the duration of the build and restores the
-source byte-identically; nothing is committed. So a release is just a tag:
+source byte-identically; nothing is committed. So a release is just a run:
 
-```bash
-git tag -a bedready-v1.0.0-beta.9 <commit> -m "Bed Ready 1.0.0-beta.9"
-git push <remote> bedready-v1.0.0-beta.9    # the remote pointing at KhaytApp/Khayt
+```
+Actions -> "Build & Release" -> Run workflow
+  Use workflow from: main (or the commit's branch)
+  Bed Ready version:  1.0.0-beta.10        # no "v", no "bedready-" prefix
 ```
 
-The tag name **is** the version — `bedready-v1.0.0-beta.9` builds `1.0.0-beta.9`.
-Push it to `KhaytApp/Khayt` (where the source and CI live); the artifacts land in
-`KhaytApp/bedready`.
+or from the terminal:
+
+```bash
+gh workflow run "Build & Release" --repo KhaytApp/Khayt \
+  -f bedready_version=1.0.0-beta.10
+```
+
+The version you type **is** the version, and the release tag
+`bedready-v1.0.0-beta.10` is created in `KhaytApp/bedready` by the workflow.
+
+**Do not tag `bedready-v*` in `KhaytApp/Khayt`.** It no longer triggers anything,
+and it actively breaks Khayt's updater: electron-updater picks a release by walking
+that repo's `releases.atom`, and the feed lists **tags**, whether or not a release
+exists for them. A `bedready-v*` tag sitting there shows up in Khayt's own update
+feed; whenever it is the newest entry, a Khayt user with beta updates on resolves
+it and then asks for
+`/KhaytApp/Khayt/releases/download/bedready-v1.0.0/latest-mac.yml`, which is a 404
+because that release is in the other repo. Their update check just fails. That is
+why the trigger moved.
 
 Two things that are easy to get wrong:
 
-- **`v*` does not match `bedready-v*`.** Globs anchor at the start, and the two
-  lanes in `release.yml` carry opposite `startsWith` guards, so a Bed Ready tag
-  runs five jobs and skips Khayt's five entirely. Neither lane can be triggered
-  by the other's tag.
+- **The two lanes are told apart by the EVENT, not the tag name.** A tag push runs
+  Khayt's five jobs; a workflow dispatch runs Bed Ready's five. Neither can be
+  triggered by the other, and a dispatch no longer needs `startsWith` guards on a
+  ref name that would be a branch.
 - **Publishing needs the `BEDREADY_RELEASE_TOKEN` secret** — a PAT with
   `contents:write` on `KhaytApp/bedready`. The automatic `GITHUB_TOKEN` is scoped
   to one repo and cannot create a release in another. Without it the lane stops
