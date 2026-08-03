@@ -241,8 +241,16 @@ function wireEvents() {
     const CAL = (typeof KhaytEstimateCalibration !== 'undefined') ? KhaytEstimateCalibration : null;
     const OL = (typeof KhaytOrderFileLink !== 'undefined') ? KhaytOrderFileLink : null;
     if (!CAL || !OL) return opts;
+    // Narrowest history first: this model with these settings beats this model,
+    // which beats this printer, which beats the shop. calibrate() falls through
+    // whenever a level has not earned one. Linking the part to a file in the
+    // library is what makes the narrow scopes reachable at all.
     const cal = CAL.calibrate(typeof printLog !== 'undefined' ? printLog : [],
-      { allocate: OL.allocateActuals }, { machineId: over.machineId || undefined });
+      { allocate: OL.allocateActuals }, {
+        machineId: over.machineId || undefined,
+        printFileId: over.printFileId || undefined,
+        setupId: over.setupId || undefined,
+      });
     return CAL.applyCalibration(opts, cal);
   }
 
@@ -317,7 +325,13 @@ function wireEvents() {
    * infill should update the number, not announce the file again.
    */
   function applyIntake(res, filename, { quiet = false } = {}) {
-    const over = { machineId: $('#partMachineId')?.value || $('#machineAssign')?.value || null };
+    const over = {
+      machineId: $('#partMachineId')?.value || $('#machineAssign')?.value || null,
+      // "From your print library" — when the shop says which model this is, its
+      // own finished prints describe it better than any average can.
+      printFileId: $('#partPrintFile')?.value || null,
+      setupId: $('#partSetup')?.value || null,
+    };
     const pct = typedInfillPct();
     if (pct !== null) over.infillPct = pct;
 
@@ -364,7 +378,7 @@ function wireEvents() {
     applyIntake(lastEstimate.res, lastEstimate.filename, { quiet: true });
   }
 
-  ['#infill', '#partMachineId', '#machineAssign'].forEach((sel) => {
+  ['#infill', '#partMachineId', '#machineAssign', '#partPrintFile', '#partSetup'].forEach((sel) => {
     $(sel)?.addEventListener('change', recomputeEstimate);
   });
 

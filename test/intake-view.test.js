@@ -242,6 +242,37 @@ test('a calibration with no spread falls back rather than inventing certainty', 
   }
 });
 
+test('each history the rate came from reads as a different claim', () => {
+  // "Three prints of this exact model with these settings" is worth more than
+  // "your printers, on average". Presenting them alike would waste the only
+  // distinction that makes a narrow rate worth computing.
+  const keyFor = (scope) => presentIntake({ exact: false, source: 'geometry', geometry: CUBE },
+    { ...opts, calibratedFrom: { scope, jobs: 4, spread: 0.1 } })
+    .note.find((l) => l.key.startsWith('stl.note_rate_')).key;
+
+  assert.equal(keyFor('setup'), 'stl.note_rate_spread_setup');
+  assert.equal(keyFor('file'), 'stl.note_rate_spread_file');
+  assert.equal(keyFor('machine'), 'stl.note_rate_spread_machine');
+  assert.equal(keyFor('shop'), 'stl.note_rate_spread_shop');
+  assert.equal(new Set(['setup', 'file', 'machine', 'shop'].map(keyFor)).size, 4,
+    'four scopes, four distinct strings');
+});
+
+test('the narrow scopes also survive having no spread', () => {
+  const keyFor = (scope) => presentIntake({ exact: false, source: 'geometry', geometry: CUBE },
+    { ...opts, calibratedFrom: { scope, jobs: 4 } })
+    .note.find((l) => l.key.startsWith('stl.note_rate_')).key;
+  assert.equal(keyFor('setup'), 'stl.note_rate_measured_setup');
+  assert.equal(keyFor('file'), 'stl.note_rate_measured_file');
+});
+
+test('the structured result carries the narrow scope too', () => {
+  const v = presentIntake({ exact: false, source: 'geometry', geometry: CUBE },
+    { ...opts, calibratedFrom: { scope: 'file', jobs: 3, spread: 0.05 } });
+  assert.equal(v.calibrated.scope, 'file');
+  assert.equal(v.calibrated.jobs, 3);
+});
+
 test('an unrecognised scope claims the weaker of the two', () => {
   // calibrate() only ever returns 'machine' or 'shop', but a claim to describe
   // one printer must be earned explicitly — anything else falls back to the
