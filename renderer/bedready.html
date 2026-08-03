@@ -1956,6 +1956,10 @@
 <script src="../lib/printer-actuals.js"></script>
 <script src="bedready-actuals.js"></script>
 <script src="bedready-queue.js"></script>
+<!-- Job creation. "Add to print queue" is wired to logPrint(), which lives in the
+     business-only order-flows.js; the shim no-oped it, so the one button the whole
+     calculator funnels into could never put a job on the queue. -->
+<script src="bedready-jobs.js"></script>
 <!-- Printer alerts. app-boot already calls dispatchPrinterAlerts every poll; the shim
      made it a no-op, so Bed Ready watched printers fail in silence. -->
 <script src="../lib/printer-alerts.js"></script>
