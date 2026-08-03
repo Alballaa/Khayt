@@ -209,10 +209,43 @@
       nav.appendChild(wrap);
     });
 
-    // Hide original sections that are now empty of nav buttons.
-    nav.querySelectorAll('.khayt-navsec:not([data-cmd-group])').forEach((sec) => {
-      const hasBtn = !!sec.querySelector('.tab-btn[data-tab]');
-      sec.classList.toggle('cmd-nav-empty', !hasBtn);
+    syncGroupVisibility();
+  }
+
+  /**
+   * Hide any nav section with nothing showing under it — heading included.
+   *
+   * The old check asked whether the section still CONTAINED a nav button. That is right
+   * for the original sections this regrouping empties out, and wrong for everything else:
+   * Bed Ready has no catalog-tab/clients-tab/logs-tab at all, so "Catalog" and "Money"
+   * were built, received nothing, and rendered as headings over blank space; Khayt in
+   * simple mode DOES have those buttons, hidden by `.biz-only { display: none }`, which
+   * a DOM-presence test can never see. The test is what is VISIBLE.
+   *
+   * Computed style rather than offsetParent on purpose: this runs while the shell is
+   * being applied, before the sidebar is necessarily laid out, and offsetParent would
+   * then read every button as hidden and take the whole nav with it.
+   */
+  function syncGroupVisibility() {
+    const nav = document.querySelector('.khayt-nav');
+    if (!nav) return;
+    nav.querySelectorAll('.khayt-navsec').forEach((sec) => {
+      const built = !!sec.dataset.cmdGroup;
+      const buttons = [...sec.querySelectorAll('.tab-btn[data-tab]')];
+      // A group this shell built is empty when nothing in it SHOWS. An original section
+      // is empty when the regrouping took its buttons away — left on the DOM-presence
+      // test it has always used, because those sections outlive this shell and a stale
+      // inline style on one is a section that never comes back.
+      const shows = built
+        ? buttons.some((btn) => getComputedStyle(btn).display !== 'none')
+        : buttons.length > 0;
+      sec.classList.toggle('cmd-nav-empty', !shows);
+      // The class alone is not enough for the groups. Its rule lives in this theme's
+      // shell.css, and Bed Ready loads the shell JS WITHOUT the theme stylesheet — which
+      // is exactly where the empty groups show up, so there the class styled nothing. The
+      // inline display does not care which stylesheets shipped, and it rides on a wrapper
+      // this shell removes wholesale on teardown.
+      if (built) sec.style.display = shows ? '' : 'none';
     });
   }
 
@@ -241,7 +274,10 @@
       delete btn.dataset.cmdHomeIdx;
     });
     document.querySelectorAll('[data-cmd-group]').forEach((el) => el.remove());
-    document.querySelectorAll('.khayt-navsec.cmd-nav-empty').forEach((sec) => sec.classList.remove('cmd-nav-empty'));
+    document.querySelectorAll('.khayt-navsec').forEach((sec) => {
+      sec.classList.remove('cmd-nav-empty');
+      sec.style.removeProperty('display');
+    });
   }
 
   /* ---------- Toolbar: open-tab strip in the shared top bar ---------- */
@@ -419,6 +455,7 @@
 
   function syncCommandPageHead(tabId) {
     if (!isOn()) return;
+    syncGroupVisibility();
     relabelGroups();
     applyModuleColors();
     syncRail();
@@ -458,6 +495,7 @@
     applyCommandShell,
     teardownCommandShell,
     syncCommandPageHead,
+    syncGroupVisibility,
     syncStatusBar,
     syncRail,
     openInspector,

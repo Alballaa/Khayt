@@ -118,6 +118,23 @@ async function main() {
   });
   assert('mode switcher card hidden', modeSwitchVisible === false);
 
+  // The grouping theme shells build Work / Catalog / Money sections and move the shared
+  // nav buttons into them. They hid any ORIGINAL section the regrouping emptied, but
+  // never asked the same of the sections they had just built — and Bed Ready ships no
+  // catalog-tab, clients-tab, logs-tab or expenses-tab at all, so "Catalog" and "Money"
+  // rendered as two headings over blank space on every screen.
+  //
+  // Khayt cannot reach this: its buttons exist, and enthusiast mode (where they would be
+  // CSS-hidden) migrates to simple in applyMode(). So this is asserted HERE, in the only
+  // app where it can happen.
+  const emptyNavHeadings = await window.evaluate(() => [...document.querySelectorAll('.khayt-nav .khayt-navsec')]
+    .filter((sec) => getComputedStyle(sec).display !== 'none')
+    .filter((sec) => ![...sec.querySelectorAll('.tab-btn[data-tab]')]
+      .some((btn) => getComputedStyle(btn).display !== 'none'))
+    .map((sec) => (sec.querySelector('.khayt-navhead')?.textContent || '(unlabelled)').trim()));
+  assert(`no nav heading standing over nothing (${emptyNavHeadings.join(', ') || 'none'})`,
+    emptyNavHeadings.length === 0);
+
   // Commerce-free affordances (the enthusiast/maker gating, now Bed-Ready-only after the
   // Khayt "enthusiast mode" retirement): the calculator shows no selling-price knobs and
   // the production queue exposes no invoice/pay actions.

@@ -82,10 +82,49 @@
       nav.appendChild(wrap);
     });
 
-    // Hide original sections that are now empty of nav buttons.
-    nav.querySelectorAll('.khayt-navsec:not([data-wb-group])').forEach((sec) => {
-      const hasBtn = !!sec.querySelector('.tab-btn[data-tab]');
-      sec.classList.toggle('wb-nav-empty', !hasBtn);
+    syncGroupVisibility();
+  }
+
+  /**
+   * Hide any nav section with nothing showing under it — heading included.
+   *
+   * Two ways a section ends up empty, and the old check only caught one of them.
+   * It asked whether the section still CONTAINED a nav button, which is right for the
+   * original sections this regrouping empties out, and wrong for everything else:
+   *
+   *   - Bed Ready has no catalog-tab, clients-tab, logs-tab and so on at all, so the
+   *     "Catalog" and "Money" groups were built, received nothing, and rendered as two
+   *     headings with blank space under them.
+   *   - Khayt in simple mode DOES have those buttons in the DOM, hidden by
+   *     `.biz-only { display: none !important }`. Same two headings, same blank space,
+   *     and a DOM-presence test can never see it.
+   *
+   * So the test is what is VISIBLE. Deliberately computed style rather than
+   * offsetParent: this runs while the shell is being applied, before the sidebar is
+   * necessarily laid out, and offsetParent would then read every button as hidden and
+   * hide the whole nav. The mode gating is `display: none`, which computed style
+   * reports whether or not anything has been laid out yet.
+   */
+  function syncGroupVisibility() {
+    const nav = document.querySelector('.khayt-nav');
+    if (!nav) return;
+    nav.querySelectorAll('.khayt-navsec').forEach((sec) => {
+      const built = !!sec.dataset.wbGroup;
+      const buttons = [...sec.querySelectorAll('.tab-btn[data-tab]')];
+      // A group this shell built is empty when nothing in it SHOWS. An original section
+      // is empty when the regrouping took its buttons away — left on the DOM-presence
+      // test it has always used, because those sections outlive this shell and a stale
+      // inline style on one is a section that never comes back.
+      const shows = built
+        ? buttons.some((btn) => getComputedStyle(btn).display !== 'none')
+        : buttons.length > 0;
+      sec.classList.toggle('wb-nav-empty', !shows);
+      // The class alone is not enough for the groups. Its rule lives in this theme's
+      // shell.css, and Bed Ready loads the shell JS WITHOUT the theme stylesheet — which
+      // is exactly where the empty groups show up, so there the class styled nothing. The
+      // inline display does not care which stylesheets shipped, and it rides on a wrapper
+      // this shell removes wholesale on teardown.
+      if (built) sec.style.display = shows ? '' : 'none';
     });
   }
 
@@ -118,7 +157,10 @@
       delete btn.dataset.wbHomeIdx;
     });
     document.querySelectorAll('[data-wb-group]').forEach((el) => el.remove());
-    document.querySelectorAll('.khayt-navsec.wb-nav-empty').forEach((sec) => sec.classList.remove('wb-nav-empty'));
+    document.querySelectorAll('.khayt-navsec').forEach((sec) => {
+      sec.classList.remove('wb-nav-empty');
+      sec.style.removeProperty('display');
+    });
   }
 
   /* ---------- Toolbar (per-screen segment in the shared top bar) ---------- */
@@ -230,6 +272,7 @@
   function syncWorkbenchPageHead(tabId) {
     if (!isOn()) return;
     relabelGroups();
+    syncGroupVisibility();
     applyTiles();
     syncToolbar(tabId);
     syncStatusBar();
@@ -255,6 +298,7 @@
     applyWorkbenchShell,
     teardownWorkbenchShell,
     syncWorkbenchPageHead,
+    syncGroupVisibility,
     syncStatusBar,
     GROUPS,
   };

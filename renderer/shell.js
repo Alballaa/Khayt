@@ -291,6 +291,13 @@ function applyMode() {
   document.body.classList.toggle('mode-simple', settings.mode === 'simple');
   document.body.classList.toggle('mode-professional', settings.mode === 'professional');
   document.body.classList.toggle('mode-enthusiast', settings.mode === 'enthusiast');
+  // The mode classes above are what hide the business nav buttons, so the grouped
+  // themes have to re-decide which of their group HEADINGS still has anything under
+  // it. Without this, switching mode leaves "Catalog" and "Money" standing over blank
+  // space until the next tab switch happens to refresh them.
+  KhaytWorkbenchShell?.syncGroupVisibility?.();
+  KhaytCommandShell?.syncGroupVisibility?.();
+  KhaytVividShell?.syncGroupVisibility?.();
   const btnSimple = $('#btnModeSimple');
   const btnPro    = $('#btnModePro');
   const btnEnth   = $('#btnModeEnthusiast');
