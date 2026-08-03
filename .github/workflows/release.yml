@@ -3,14 +3,32 @@ name: Build & Release
 on:
   push:
     tags:
-      # Khayt's own line. `v*` does NOT match `bedready-v*` — glob anchors at the
-      # start — so the two lanes below never see each other's tags by accident.
+      # Khayt's own line, and the only tag lane. `v*` does NOT match `bedready-v*`
+      # — the glob anchors at the start — which is what kept the two apart while
+      # Bed Ready still had a tag trigger.
       - 'v*'
-      # Bed Ready is a separate flavor of this repo on an independent version
-      # line (1.0.0-*, see scripts/build-bedready.mjs) whose downloads live in
-      # KhaytApp/bedready. Its releases were built and uploaded by hand until
-      # this workflow learned to do it.
-      - 'bedready-v*'
+  # Bed Ready is a separate flavor of this repo on an independent version line
+  # (1.0.0-*, see scripts/build-bedready.mjs) whose downloads live in
+  # KhaytApp/bedready. It used to be triggered by pushing a `bedready-v*` tag HERE,
+  # and that tag was the problem: electron-updater picks a release by walking this
+  # repo's releases.atom, and that feed lists TAGS, whether or not a release exists
+  # for them. A `bedready-v*` tag therefore appeared in Khayt's own update feed, and
+  # whenever it was the newest entry a Khayt user with beta updates on resolved it,
+  # then asked for
+  #   /KhaytApp/Khayt/releases/download/bedready-v1.0.0/latest-mac.yml
+  # which is a 404, because that release lives in the other repo. Their update check
+  # simply failed. Cutting Bed Ready 1.0 would have opened exactly that window and
+  # held it until Khayt's next tag.
+  #
+  # So Bed Ready is dispatched instead of tagged. Nothing is pushed to this repo's
+  # tag namespace; the release tag is still created, but by `gh release create` in
+  # KhaytApp/bedready, where it belongs.
+  workflow_dispatch:
+    inputs:
+      bedready_version:
+        description: 'Bed Ready version to release, e.g. 1.0.0 or 1.0.0-beta.10 (no "v")'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -22,7 +40,9 @@ jobs:
   # ── Create the GitHub Release first so parallel build jobs can publish to it ─
   create-release:
     name: Create GitHub Release
-    if: ${{ !startsWith(github.ref_name, 'bedready-') }}
+    # Tag pushes only: a workflow_dispatch is Bed Ready's, and its ref_name is a
+    # branch, which the old `!startsWith(ref_name,'bedready-')` test would have let through.
+    if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-latest
     outputs:
       prerelease: ${{ steps.flags.outputs.prerelease }}
@@ -56,7 +76,7 @@ jobs:
   #
   # The three build jobs and `publish` all need `create-release`, and a job whose
   # dependency was skipped is skipped too. That one `if:` above is therefore what
-  # keeps this entire Khayt lane off a `bedready-v*` tag — do not add
+  # keeps this entire Khayt lane off a Bed Ready run — do not add
   # `if: always()` to anything below without restoring the guard explicitly.
   build-mac:
     name: macOS (Apple Silicon)
@@ -327,7 +347,7 @@ jobs:
   # 1. `--publish never`, then upload with `gh`. electron-builder's GitHub
   #    publisher derives its tag from the package version (`v${version}`), which
   #    here would be `v1.0.0-beta.8` — NOT the `bedready-v*` tag this workflow
-  #    ran on, and not what the seven hand-made releases already in that repo
+  #    creates in KhaytApp/bedready, and not what the releases already in that repo
   #    use. Letting it publish would quietly start a second tag convention in the
   #    same repo. `never` still WRITES the update manifests; it only skips upload.
   #
@@ -338,11 +358,15 @@ jobs:
   #    latest-linux.yml — so the three jobs never overwrite each other's.
   bedready-release:
     name: Bed Ready — create release
-    if: ${{ startsWith(github.ref_name, 'bedready-') }}
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.v.outputs.version }}
       prerelease: ${{ steps.v.outputs.prerelease }}
+      # The release tag, created in KhaytApp/bedready by `gh release create` and
+      # nowhere in this repo. Downstream jobs take it from here rather than from
+      # github.ref_name, which is now a branch.
+      tag: ${{ steps.v.outputs.tag }}
     steps:
       - name: Require a cross-repo token
         env:
@@ -357,21 +381,24 @@ jobs:
             exit 1
           fi
 
-      - name: Derive version from tag
+      - name: Derive version
         id: v
         env:
-          TAG: ${{ github.ref_name }}
+          VERSION_IN: ${{ inputs.bedready_version }}
         run: |
-          # bedready-v1.0.0-beta.8 -> 1.0.0-beta.8
-          VERSION="${TAG#bedready-v}"
-          # Checked against a real version shape, not just "something followed the
-          # prefix": `bedready-vX` would otherwise sail through as version "X" and
-          # fail much later, inside electron-builder, with a far worse message.
+          # Tolerate a leading v or the old bedready-v prefix, so muscle memory
+          # from the tag days does not fail a release for a cosmetic reason.
+          VERSION="${VERSION_IN#bedready-}"
+          VERSION="${VERSION#v}"
+          # Checked against a real version shape rather than "something non-empty":
+          # a typo would otherwise sail through and fail much later, inside
+          # electron-builder, with a far worse message.
           if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
-            echo "::error::tag '$TAG' is not of the form bedready-vX.Y.Z[-beta.N]"
+            echo "::error::'$VERSION_IN' is not a version of the form X.Y.Z[-beta.N]"
             exit 1
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=bedready-v$VERSION" >> "$GITHUB_OUTPUT"
           if echo "$VERSION" | grep -qE '\-(beta|rc|alpha)'; then
             echo "prerelease=true" >> "$GITHUB_OUTPUT"
           else
@@ -382,7 +409,7 @@ jobs:
       - name: Create release (idempotent)
         env:
           GH_TOKEN: ${{ secrets.BEDREADY_RELEASE_TOKEN }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ steps.v.outputs.tag }}
           VERSION: ${{ steps.v.outputs.version }}
           PRERELEASE: ${{ steps.v.outputs.prerelease }}
         run: |
@@ -422,7 +449,7 @@ jobs:
       - name: Upload macOS artifacts + update feed
         env:
           GH_TOKEN: ${{ secrets.BEDREADY_RELEASE_TOKEN }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ needs.bedready-release.outputs.tag }}
         run: |
           shopt -s nullglob
           files=(build-bedready/*.dmg build-bedready/*-mac-*.zip \
@@ -457,7 +484,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.BEDREADY_RELEASE_TOKEN }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ needs.bedready-release.outputs.tag }}
         run: |
           shopt -s nullglob
           files=(build-bedready/*.exe build-bedready/*.blockmap build-bedready/latest.yml)
@@ -501,7 +528,7 @@ jobs:
       - name: Upload Linux artifacts + update feed
         env:
           GH_TOKEN: ${{ secrets.BEDREADY_RELEASE_TOKEN }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ needs.bedready-release.outputs.tag }}
         run: |
           shopt -s nullglob
           files=(build-bedready/*.AppImage build-bedready/*.deb build-bedready/latest-linux.yml)
@@ -521,7 +548,7 @@ jobs:
       - name: Publish release (remove draft)
         env:
           GH_TOKEN: ${{ secrets.BEDREADY_RELEASE_TOKEN }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ needs.bedready-release.outputs.tag }}
           PRERELEASE: ${{ needs.bedready-release.outputs.prerelease }}
         run: |
           FLAGS=""
