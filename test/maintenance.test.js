@@ -211,3 +211,65 @@ test('taskStatus falls back to current time when now is omitted', () => {
   const task = { id: 'd', machineId: 'm1', name: 'Belt', intervalDays: 1, lastDoneAt: '2000-01-01T00:00:00.000Z' };
   assert.equal(taskStatus(task, 0).status, 'overdue');
 });
+
+/* ============================================================
+   hoursSinceService — the machine card's "Nh since service"
+   ============================================================ */
+
+const { hoursSinceService } = require('../lib/maintenance');
+
+test('a printer that arrived with hours on its clock never reads negative', () => {
+  // The editor's field is labelled "Hours at last service", so an owner adding a used
+  // printer types what the printer says: 200. This app has logged nothing yet. The old
+  // subtraction produced -200, which is what the machine card showed.
+  const h = hoursSinceService({ totalHours: 0, lastServiceHours: 200 });
+  assert.equal(h, 0);
+});
+
+test('the plain difference still applies once this app has logged more than the reading', () => {
+  assert.equal(hoursSinceService({ totalHours: 260, lastServiceHours: 200 }), 60);
+});
+
+test('a service recorded in-app counts hours from the moment it happened', () => {
+  // This is the case the subtraction could never get right: the reading is on the
+  // printer's scale, the tally is on ours, and only the timestamp relates them.
+  const at = '2026-06-10T09:00:00.000Z';
+  const jobs = [
+    { printTime: 4, completedAt: '2026-06-09T12:00:00.000Z' },  // before the service
+    { printTime: 5, completedAt: '2026-06-11T12:00:00.000Z' },  // after
+    { printTime: 2.5, completedAt: '2026-06-14T08:00:00.000Z' },// after
+  ];
+  assert.equal(hoursSinceService({ totalHours: 999, lastServiceHours: 900, lastServiceAt: at, jobs }), 7.5);
+});
+
+test('a job finished exactly at the service timestamp counts as after it', () => {
+  const at = '2026-06-10T09:00:00.000Z';
+  const jobs = [{ printTime: 3, completedAt: at }];
+  assert.equal(hoursSinceService({ totalHours: 0, lastServiceHours: 0, lastServiceAt: at, jobs }), 3);
+});
+
+test('an older job with only a date still counts', () => {
+  // completedAt was not always written; `date` is all such a record carries.
+  const jobs = [{ printTime: 6, date: '2026-06-12' }, { printTime: 9, date: '2026-06-01' }];
+  const h = hoursSinceService({ lastServiceAt: '2026-06-10T00:00:00.000Z', jobs });
+  assert.equal(h, 6);
+});
+
+test('a service just logged reads zero, not the whole history', () => {
+  const at = '2026-06-18T00:00:00.000Z';
+  const jobs = [{ printTime: 40, completedAt: '2026-06-01T00:00:00.000Z' }];
+  assert.equal(hoursSinceService({ totalHours: 40, lastServiceHours: 40, lastServiceAt: at, jobs }), 0);
+});
+
+test('an unparseable timestamp falls back to the floored difference', () => {
+  assert.equal(hoursSinceService({ totalHours: 10, lastServiceHours: 4, lastServiceAt: 'not a date' }), 6);
+  assert.equal(hoursSinceService({ totalHours: 1, lastServiceHours: 9, lastServiceAt: '' }), 0);
+});
+
+test('missing and junk input is zero, not NaN', () => {
+  assert.equal(hoursSinceService(), 0);
+  assert.equal(hoursSinceService({}), 0);
+  assert.equal(hoursSinceService({ totalHours: 'x', lastServiceHours: 'y' }), 0);
+  const jobs = [{ printTime: 'nope', completedAt: '2026-06-11T00:00:00.000Z' }, null];
+  assert.equal(hoursSinceService({ lastServiceAt: '2026-06-10T00:00:00.000Z', jobs }), 0);
+});

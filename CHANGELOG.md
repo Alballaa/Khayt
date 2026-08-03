@@ -6,6 +6,17 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **A printer could report negative hours since its last service.** Adding a
+  printer that already had hours on it — typing what its own screen said into
+  "Hours at last service" — produced readings like "-200.0h since service" on the
+  machine card. The app was subtracting a number off the printer's clock from a
+  tally it had started counting at zero on the day the printer was added.
+
+  The reading is now the hours actually run since the service, counted from when
+  the service was recorded, so it is right whichever clock the number came from.
+  It also fixes the quieter half: because the old figure never climbed to the
+  service interval, the service-due reminder for such a printer could never fire.
+
 - **Bed Ready's sidebar showed two headings with nothing under them.** "Catalog"
   and "Money" sat below the nav on every screen, labelling empty space. The themed
   sidebar builds those groups and moves the app's nav buttons into them; Bed Ready
