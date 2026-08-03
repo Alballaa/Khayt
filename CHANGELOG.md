@@ -88,11 +88,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
-- **The estimate note now says whether the rate was measured or assumed.** It
-  reports the grams-per-hour the time was built on, and either names the number
-  of your own completed jobs behind it or says plainly that nothing has been
-  measured yet — so a figure Khayt learned from your printers can no longer be
-  mistaken for one it guessed.
+- **The estimate note now says whether the rate was measured or assumed, and by
+  which printers.** It reports the grams-per-hour the time was built on, and
+  either says plainly that nothing has been measured yet, or names the jobs
+  behind it — *on this printer* when the part is assigned to one that has its own
+  history, and *across your printers* when the figure is pooled from the rest of
+  the shop. The second is the same number making a weaker claim, and it no longer
+  reads like the first.
 
 ## [3.6.0-beta.8] - 2026-08-03
 

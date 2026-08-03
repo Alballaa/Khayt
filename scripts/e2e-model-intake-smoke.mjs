@@ -226,8 +226,53 @@ async function testMeasuredRateReachesTheDroppedFile(window) {
   if (!/12(\.\d)?\s*g\/h/.test(after.note)) {
     throw new Error(`the measured rate itself is not shown: ${after.note}`);
   }
-  if (!/4 of your own/i.test(after.note)) {
+  if (!/4 finished jobs/i.test(after.note)) {
     throw new Error(`the note does not say how many jobs earned it: ${after.note}`);
+  }
+  // No printer is selected on the part, so this rate is pooled across the shop
+  // — it must not claim to describe one machine.
+  if (!/across your printers/i.test(after.note)) {
+    throw new Error(`a shop-wide rate should say so: ${after.note}`);
+  }
+}
+
+/**
+ * Selecting the printer changes WHOSE history the rate came from, and says so.
+ *
+ * calibrate() prefers a machine's own jobs and falls back to the shop pool, so
+ * the same four jobs describe "this printer" once the part is assigned to it and
+ * "your printers" when it is not. The claim is genuinely different and the note
+ * must not present the weaker one as the stronger.
+ */
+async function testScopeFollowsTheSelectedPrinter(window) {
+  const pooled = await dropRaw(window);            // still nothing selected
+
+  await window.evaluate(() => {
+    // The four seeded jobs all ran on M1.
+    if (!Array.isArray(window.machines)) window.machines = [];
+    if (!machines.some((m) => m.id === 'M1')) machines.push({ id: 'M1', name: 'E2E Printer' });
+    renderMachineDropdown();
+    const sel = document.querySelector('#partMachineId');
+    if (!sel) throw new Error('#partMachineId is not in the DOM');
+    sel.value = 'M1';
+    if (sel.value !== 'M1') throw new Error('the printer never reached the dropdown');
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+
+  const own = await dropRaw(window);
+  if (!/on this printer/i.test(own.note)) {
+    throw new Error(`with a printer selected the note should name it: ${own.note}`);
+  }
+  if (/across your printers/i.test(own.note)) {
+    throw new Error(`a machine-scoped rate still claims the shop pool: ${own.note}`);
+  }
+  if (own.note === pooled.note) {
+    throw new Error('selecting the printer changed nothing the shop can see');
+  }
+  // Same four jobs either way — only the provenance moved, so the figure itself
+  // must not have.
+  if (Number(own.time) !== Number(pooled.time)) {
+    throw new Error(`the rate itself changed with the scope: ${own.time} vs ${pooled.time}`);
   }
 }
 
@@ -246,9 +291,10 @@ try {
   // Last: these change the shop's settings and its print history.
   await testShopSettingsReachTheDroppedFile(window);
   await testMeasuredRateReachesTheDroppedFile(window);
+  await testScopeFollowsTheSelectedPrinter(window);
 
   console.log('e2e-model-intake: ok (sliced 3MF exact, unsliced labelled, OBJ, big G-code,'
-    + ' shop settings reach the drop, measured rate reaches it and says so)');
+    + ' shop settings reach the drop, measured rate reaches it, scope follows the printer)');
 } finally {
   if (electronApp) await electronApp.close().catch(() => {});
   fs.rmSync(userData, { recursive: true, force: true });
