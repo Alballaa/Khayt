@@ -1945,6 +1945,9 @@
 <script src="notifications.js"></script>
 <script src="../lib/queue-groups.js"></script>
 <script src="kanban.js"></script>
+<!-- Bed Ready's real queue transitions. Must come after bedready-shim.js (which
+     no-ops updateStatus) and after the views that render the controls. -->
+<script src="bedready-queue.js"></script>
 <script src="queue-list.js"></script>
 <script src="app-exports.js"></script>
 <script src="settings.js"></script>
