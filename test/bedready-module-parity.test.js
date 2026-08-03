@@ -133,6 +133,14 @@ test('the two that were missing are loaded, and by name', () => {
     'without model-identity, "already have this model" silently never matches by geometry');
   assert.ok(BR.includes('lib/print-setups.js'),
     'without print-setups, the Setups button on every file card opens nothing');
+  assert.ok(BR.includes('lib/webcam.js'),
+    'without webcam, machines.js draws no camera panel — Bed Ready monitors a printer it cannot see');
+});
+
+test('the camera module loads before the screen that draws it', () => {
+  const html = fs.readFileSync(path.join(ROOT, 'renderer/bedready.html'), 'utf8');
+  assert.ok(html.indexOf('lib/webcam.js') < html.indexOf('src="machines.js"'),
+    'machines.js reads KhaytWebcam while rendering, so the module has to exist by then');
 });
 
 test('print-file screens guard these behind an accessor, never a bare global', () => {
