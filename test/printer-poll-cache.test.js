@@ -255,3 +255,105 @@ test('a printer that clears its stats on finish still yields the cost', () => {
   assert.equal(got.actuals.durationS, REAL_PRINTING.actuals.durationS, 'the last in-flight reading');
   assert.equal(got.actuals.filamentGrams, 140.9598209784628);
 });
+
+/* ============================================================
+   Remembering more than one finished job
+   ============================================================ */
+
+const { findCompletion, isInJob, COMPLETIONS_KEPT } = require('../lib/printer-poll-cache.js');
+
+const aJob = (name, g, s) => ({ state: 'printing', filename: name, actuals: { filamentGrams: g, durationS: s } });
+const ended = (name, g, s) => ({ state: 'complete', filename: name, actuals: { filamentGrams: g, durationS: s } });
+
+test('pausing a print is not a completion', () => {
+  // The edge out of `printing` used to be enough. Pause is such an edge, so a
+  // paused job had its mid-print figures recorded as if it had finished.
+  const printing = mergePollSuccess(null, aJob('a.gcode', 40, 3600), 1000);
+  const paused = mergePollSuccess(printing, { state: 'paused', filename: 'a.gcode', actuals: { filamentGrams: 41, durationS: 3700 } }, 2000);
+  assert.equal(paused.lastCompleted, undefined, 'a paused job has not finished');
+  assert.equal(isInJob('paused'), true);
+  assert.equal(isInJob('pausing'), true);
+  assert.equal(isInJob('complete'), false);
+});
+
+test('a paused job still completes exactly once, with the finished figures', () => {
+  let e = mergePollSuccess(null, aJob('a.gcode', 40, 3600), 1000);
+  e = mergePollSuccess(e, { state: 'paused', filename: 'a.gcode', actuals: { filamentGrams: 41, durationS: 3700 } }, 2000);
+  e = mergePollSuccess(e, aJob('a.gcode', 55, 4800), 3000);          // resumed
+  e = mergePollSuccess(e, ended('a.gcode', 60, 5400), 4000);         // finished
+  assert.equal(e.completions.length, 1, 'pause must not add a second entry');
+  assert.equal(e.lastCompleted.actuals.filamentGrams, 60, 'the finished reading, not the paused one');
+});
+
+test('a second finished job no longer destroys the first', () => {
+  // The whole point: one slot meant an overnight pair lost the earlier job.
+  let e = mergePollSuccess(null, aJob('a.gcode', 10, 100), 1000);
+  e = mergePollSuccess(e, ended('a.gcode', 100, 3600), 2000);
+  e = mergePollSuccess(e, aJob('b.gcode', 10, 100), 3000);
+  e = mergePollSuccess(e, ended('b.gcode', 200, 7200), 4000);
+
+  assert.equal(e.completions.length, 2);
+  assert.equal(e.completions[0].filename, 'b.gcode', 'newest first');
+  assert.equal(e.completions[1].filename, 'a.gcode', 'and the older one survives');
+  assert.equal(e.lastCompleted, e.completions[0], 'lastCompleted stays the head, so old readers are unaffected');
+});
+
+test('the history is bounded', () => {
+  let e = null;
+  for (let i = 0; i < COMPLETIONS_KEPT + 5; i++) {
+    e = mergePollSuccess(e, aJob(`j${i}.gcode`, 10, 100), i * 100 + 1);
+    e = mergePollSuccess(e, ended(`j${i}.gcode`, 20 + i, 200), i * 100 + 50);
+  }
+  assert.equal(e.completions.length, COMPLETIONS_KEPT, 'a long-running shop must not grow this without limit');
+  assert.equal(e.completions[0].filename, `j${COMPLETIONS_KEPT + 4}.gcode`, 'and it keeps the newest');
+});
+
+test('the same job finishing at the same instant is one event, not two', () => {
+  // Re-merging a poll that ALREADY read `complete` is handled a step earlier —
+  // the state never leaves "not in job", so nothing is captured to duplicate.
+  // The case the dedupe is actually for is a clock that does not advance: a
+  // machine that starts and finishes again on the same timestamp produces a
+  // byte-identical entry, and appending it would show the shop the same print
+  // twice with no way to tell which was which.
+  let e = mergePollSuccess(null, aJob('a.gcode', 10, 100), 1000);
+  e = mergePollSuccess(e, ended('a.gcode', 100, 3600), 2000);
+  assert.equal(e.completions.length, 1);
+
+  e = mergePollSuccess(e, aJob('a.gcode', 10, 100), 2000);
+  e = mergePollSuccess(e, ended('a.gcode', 100, 3600), 2000);
+  assert.equal(e.completions.length, 1, 'same filename at the same instant is the same event');
+});
+
+test('findCompletion returns THIS job, not merely the latest', () => {
+  let e = mergePollSuccess(null, aJob('wanted.gcode', 10, 100), 1000);
+  e = mergePollSuccess(e, ended('wanted.gcode', 111, 3600), 2000);
+  e = mergePollSuccess(e, aJob('other.gcode', 10, 100), 3000);
+  e = mergePollSuccess(e, ended('other.gcode', 222, 7200), 4000);
+
+  const hit = findCompletion(e, { filename: 'wanted.gcode' });
+  assert.equal(hit.actuals.filamentGrams, 111, 'the order that names its file gets its own numbers');
+  assert.equal(findCompletion(e, { filename: 'WANTED.GCODE  ' }).actuals.filamentGrams, 111, 'case and padding are not the shop\'s problem');
+});
+
+test('findCompletion falls back to the newest, which is what it always did', () => {
+  let e = mergePollSuccess(null, aJob('a.gcode', 10, 100), 1000);
+  e = mergePollSuccess(e, ended('a.gcode', 100, 3600), 2000);
+  assert.equal(findCompletion(e, {}).actuals.filamentGrams, 100, 'no filename known');
+  assert.equal(findCompletion(e, { filename: 'never-seen.gcode' }).actuals.filamentGrams, 100, 'no match');
+  assert.equal(findCompletion(null, {}), null);
+  assert.equal(findCompletion({}, {}), null);
+});
+
+test('findCompletion reads a cache saved before this change', () => {
+  // Entries persisted by an older build have lastCompleted and no history.
+  const old = { lastCompleted: { at: 5, filename: 'old.gcode', actuals: { filamentGrams: 7, durationS: 70 } } };
+  assert.equal(findCompletion(old, {}).actuals.filamentGrams, 7);
+  assert.equal(findCompletion(old, { filename: 'old.gcode' }).actuals.filamentGrams, 7);
+});
+
+test('a failed poll keeps the history', () => {
+  let e = mergePollSuccess(null, aJob('a.gcode', 10, 100), 1000);
+  e = mergePollSuccess(e, ended('a.gcode', 100, 3600), 2000);
+  const blip = mergePollFailure(e, 'ETIMEDOUT', 3000);
+  assert.equal(blip.completions.length, 1, 'a Wi-Fi hiccup must not cost a measurement');
+});
