@@ -4,6 +4,32 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Security
+
+- **The converter could be made to write a file anywhere the app could read.** The
+  3MF converter takes a destination from the screen when it converts a batch, and
+  checked that destination against the list of folders it is allowed to *read* —
+  which includes Documents, Downloads, the desktop and the app's own data folder.
+  So a destination it should have refused was accepted: any folder on that list,
+  any filename, any extension, with no save dialog shown, including next to the
+  file the app keeps your shop data in.
+
+  Reaching it would take a compromise of the app's window first, which is sandboxed
+  and cannot reach the filesystem on its own — but keeping file writes on the other
+  side of that boundary is the whole reason they live there. Writing now requires
+  consent for that specific destination: either you chose it in the save dialog, or
+  it is inside the output folder you picked for a batch. Symbolic links out of an
+  approved folder are resolved and refused.
+
+### Fixed
+
+- **Saving a converted model outside your home folders was refused.** The same
+  conflation ran the other way: the STL and 3MF exporters checked the path you had
+  just typed into the app's own save dialog against that read list, so saving to an
+  external drive, a network share, or any folder outside Documents, Downloads and
+  the desktop failed with "Output path is outside an allowed folder" — your own
+  choice, denied. Where you choose to save is now yours.
+
 ### Fixed
 
 - **A printer's measurements could be lost before anyone looked at them.** Khayt

@@ -1681,9 +1681,13 @@ ipcMain.handle('hub:printlib-mesh', async (_e, fullPath) => {
 
 // ── 3MF converter (multi-printer) ───────────────────────────────────────────
 // Reading is confined to the app's own folders + any source the user explicitly
-// picked through our own open dialog (approved for this session). Writing goes
-// through a save dialog or is confined the same way — the renderer can never make
-// the main process read/write an arbitrary path.
+// picked through our own open dialog (approved for this session).
+//
+// Writing is a SEPARATE question, and conflating the two was a hole. Writing needs
+// consent for that destination: either the path came back from our own save dialog
+// in this same call, or it sits under a folder the user chose in the output-folder
+// picker. "The file happens to live somewhere we are allowed to read" is not consent
+// to write there — see mfWriteAllowed below.
 // A ceiling on the file we're willing to pull into memory at all. 200 MB turned out to be
 // under what people actually download: a 229 MB multi-plate poster was refused at every
 // converter entry point with "File is too large", which reads as a broken app rather than
@@ -1699,11 +1703,53 @@ function mfAllowedDirs() {
     app.getPath('desktop'), app.getPath('temp'),
   ].map((d) => path.resolve(d));
 }
+const convertPaths = require('./lib/convert-paths');
+
 function mfReadAllowed(p) {
+  return convertPaths.readAllowed(p, {
+    approvedSources: approvedConvertSources,
+    approvedDirs: approvedConvertDirs,
+    appDirs: mfAllowedDirs(),
+  });
+}
+
+/**
+ * May the renderer have us WRITE here, without asking the user first?
+ *
+ * Only under a folder the user picked in the output-folder dialog — see
+ * lib/convert-paths.js for why that is a different question from reading.
+ *
+ * Symlinks are resolved on the PARENT directory before the check, and a parent we
+ * cannot resolve is refused rather than allowed: the destination file itself usually
+ * does not exist yet (that is the point), so it is the directory that has to be real.
+ * Without this, a link planted inside an approved output folder would carry the write
+ * back out of it.
+ */
+function mfWriteAllowed(p) {
   const safe = path.resolve(String(p || ''));
-  if (approvedConvertSources.has(safe)) return true;
-  if ([...approvedConvertDirs].some((d) => safe === d || safe.startsWith(d + path.sep))) return true;
-  return mfAllowedDirs().some((d) => safe === d || safe.startsWith(d + path.sep));
+  let realParent;
+  try {
+    realParent = fs.realpathSync(path.dirname(safe));
+  } catch (_) {
+    return false; // fail closed — an unresolvable destination is not an approved one
+  }
+  const target = path.join(realParent, path.basename(safe));
+  const dirs = [];
+  for (const d of approvedConvertDirs) {
+    try { dirs.push(fs.realpathSync(d)); } catch (_) { /* dropped folder — no longer approved */ }
+  }
+  return convertPaths.writeAllowed(target, { approvedDirs: dirs });
+}
+
+/**
+ * Ask the user where to put a finished file. The answer is theirs, so it needs no
+ * further gate; returns null when they cancel.
+ */
+async function mfAskWhereToSave(sender, { defaultPath, filters }) {
+  const win = BrowserWindow.fromWebContents(sender);
+  const result = await dialog.showSaveDialog(win, { defaultPath, filters });
+  if (result.canceled || !result.filePath) return null;
+  return path.resolve(result.filePath);
 }
 
 ipcMain.handle('hub:mf-pick', async (_e) => {
@@ -1781,18 +1827,19 @@ ipcMain.handle('hub:mf-convert', async (_e, { path: srcPath, targetId, mode, slo
       return { ok: true, vault: true, filename, ext: '3mf', size: stat.size, outPath: dest, report: r.report };
     }
 
+    // A renderer-chosen destination is only honoured under a folder the user picked in
+    // the output-folder dialog (batch conversion). Anything else asks.
     let finalPath = outPath ? path.resolve(String(outPath)) : null;
+    if (finalPath && !mfWriteAllowed(finalPath)) {
+      await mfDiscard(r.tmpPath);
+      return { ok: false, error: 'Output path is outside the folder you chose for converted files.' };
+    }
     if (!finalPath) {
-      const win = BrowserWindow.fromWebContents(_e.sender);
       const base = path.basename(String(srcPath)).replace(/\.3mf$/i, '') + `-${targetId || 'converted'}.3mf`;
-      const result = await dialog.showSaveDialog(win, {
+      finalPath = await mfAskWhereToSave(_e.sender, {
         defaultPath: base, filters: [{ name: '3MF model', extensions: ['3mf'] }],
       });
-      if (result.canceled || !result.filePath) { await mfDiscard(r.tmpPath); return { ok: false, canceled: true }; }
-      finalPath = path.resolve(result.filePath);
-    } else if (!mfReadAllowed(finalPath)) {
-      await mfDiscard(r.tmpPath);
-      return { ok: false, error: 'Output path is outside an allowed folder.' };
+      if (!finalPath) { await mfDiscard(r.tmpPath); return { ok: false, canceled: true }; }
     }
     await mfFinalize(r.tmpPath, finalPath);
     return { ok: true, outPath: finalPath, report: r.report };
@@ -1874,12 +1921,9 @@ ipcMain.handle('hub:stl-to-3mf', async (_e, { path: srcPath, intoVaultId } = {})
       const stat = await fs.promises.stat(dest);
       return { ok: true, vault: true, filename, ext: '3mf', size: stat.size, outPath: dest, report };
     }
-    const win = BrowserWindow.fromWebContents(_e.sender);
     const base = path.basename(String(srcPath)).replace(/\.stl$/i, '') + '.3mf';
-    const result = await dialog.showSaveDialog(win, { defaultPath: base, filters: [{ name: '3MF model', extensions: ['3mf'] }] });
-    if (result.canceled || !result.filePath) { await mfDiscard(r.tmpPath); return { ok: false, canceled: true }; }
-    const finalPath = path.resolve(result.filePath);
-    if (!mfReadAllowed(finalPath)) { await mfDiscard(r.tmpPath); return { ok: false, error: 'Output path is outside an allowed folder.' }; }
+    const finalPath = await mfAskWhereToSave(_e.sender, { defaultPath: base, filters: [{ name: '3MF model', extensions: ['3mf'] }] });
+    if (!finalPath) { await mfDiscard(r.tmpPath); return { ok: false, canceled: true }; }
     await mfFinalize(r.tmpPath, finalPath);
     return { ok: true, outPath: finalPath, report };
   } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
@@ -1892,12 +1936,9 @@ ipcMain.handle('hub:mf-to-stl', async (_e, { path: srcPath } = {}) => {
     const tmp = mfTempPath('stl');
     const r = await mfRun('mfToStl', { src: srcPath, maxBytes: MF_MAX_BYTES, tmpOut: tmp });
     if (!r.ok) { await mfDiscard(tmp); return r; }
-    const win = BrowserWindow.fromWebContents(_e.sender);
     const base = path.basename(String(srcPath)).replace(/\.3mf$/i, '') + '.stl';
-    const result = await dialog.showSaveDialog(win, { defaultPath: base, filters: [{ name: 'STL model', extensions: ['stl'] }] });
-    if (result.canceled || !result.filePath) { await mfDiscard(r.tmpPath); return { ok: false, canceled: true }; }
-    const finalPath = path.resolve(result.filePath);
-    if (!mfReadAllowed(finalPath)) { await mfDiscard(r.tmpPath); return { ok: false, error: 'Output path is outside an allowed folder.' }; }
+    const finalPath = await mfAskWhereToSave(_e.sender, { defaultPath: base, filters: [{ name: 'STL model', extensions: ['stl'] }] });
+    if (!finalPath) { await mfDiscard(r.tmpPath); return { ok: false, canceled: true }; }
     await mfFinalize(r.tmpPath, finalPath);
     return { ok: true, outPath: finalPath, triangleCount: r.triangleCount };
   } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
@@ -1920,12 +1961,9 @@ ipcMain.handle('hub:hf-export-3mf', async (_e, { heights, width, height, layerH,
       thumbnailPng: b64ToBuf(thumbPng), thumbnailSmallPng: b64ToBuf(thumbSmallPng),
     });
     if (!buf) return { ok: false, error: 'Failed to build the 3MF.' };
-    const win = BrowserWindow.fromWebContents(_e.sender);
     const base = String(name || 'hueforge').replace(/[^\w.-]+/g, '_') + '-U1.3mf';
-    const result = await dialog.showSaveDialog(win, { defaultPath: base, filters: [{ name: '3MF model', extensions: ['3mf'] }] });
-    if (result.canceled || !result.filePath) return { ok: false, canceled: true };
-    const finalPath = path.resolve(result.filePath);
-    if (!mfReadAllowed(finalPath)) return { ok: false, error: 'Output path is outside an allowed folder.' };
+    const finalPath = await mfAskWhereToSave(_e.sender, { defaultPath: base, filters: [{ name: '3MF model', extensions: ['3mf'] }] });
+    if (!finalPath) return { ok: false, canceled: true };
     await fs.promises.writeFile(finalPath, buf);
     return { ok: true, outPath: finalPath, triangleCount: mesh.triangleCount, sizeMm: mesh.sizeMm };
   } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
@@ -1959,12 +1997,9 @@ ipcMain.handle('hub:hf-export-flat-3mf', async (_e, { labels, palette, width, he
       thumbnailPng: b64ToBuf(thumbPng), thumbnailSmallPng: b64ToBuf(thumbSmallPng),
     });
     if (!buf) return { ok: false, error: 'Failed to build the 3MF.' };
-    const win = BrowserWindow.fromWebContents(_e.sender);
     const base = String(name || 'hueforge-flat').replace(/[^\w.-]+/g, '_') + '-flat-U1.3mf';
-    const result = await dialog.showSaveDialog(win, { defaultPath: base, filters: [{ name: '3MF model', extensions: ['3mf'] }] });
-    if (result.canceled || !result.filePath) return { ok: false, canceled: true };
-    const finalPath = path.resolve(result.filePath);
-    if (!mfReadAllowed(finalPath)) return { ok: false, error: 'Output path is outside an allowed folder.' };
+    const finalPath = await mfAskWhereToSave(_e.sender, { defaultPath: base, filters: [{ name: '3MF model', extensions: ['3mf'] }] });
+    if (!finalPath) return { ok: false, canceled: true };
     await fs.promises.writeFile(finalPath, buf);
     return { ok: true, outPath: finalPath, partCount: built.parts.length, sizeMm: built.sizeMm };
   } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
