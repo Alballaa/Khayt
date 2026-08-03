@@ -134,6 +134,16 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **Bed Ready no longer calls itself a beta.** The BETA badge beside the wordmark
+  is gone, along with the "This is a public beta" section in Help and the beta
+  wording on the Feedback button. The safety and no-warranty text stays exactly
+  where it was — that was never beta copy — and the Help tab it lives in is now
+  "Disclaimers & credits".
+
+  The badge next to the version number is untouched: it reads the running version
+  and labels a build "Beta" only when the version itself says so, which stays
+  honest on either line.
+
 - **The estimate note now says whether the rate was measured or assumed, and by
   which printers.** It reports the grams-per-hour the time was built on, and
   either says plainly that nothing has been measured yet, or names the jobs

@@ -848,10 +848,8 @@ function openBedReadyHelp(initial) {
         <h4>Optional cloud</h4>
         <p>Cloud sync is opt-in and end-to-end encrypted — only you hold the key. You never need an account to use Bed Ready.</p>
       </div>` },
-    { id: 'legal', label: 'Beta, disclaimers &amp; credits', html: `
+    { id: 'legal', label: 'Disclaimers &amp; credits', html: `
       <div class="help-section">
-        <h4>This is a public beta</h4>
-        <p>Bed Ready is early software shared to gather feedback. Expect rough edges and occasional bugs. Please <b>keep backups</b>, and tell us what breaks via the <b>Feedback</b> button.</p>
         <h4>Safety &amp; no warranty</h4>
         <p>Bed Ready is provided <b>“as is”, without warranty of any kind</b>. 3D printing involves high temperatures and moving parts. <b>Always review any file — especially a converted one — in your own slicer before printing</b>, and supervise your printer. You are solely responsible for what you print and for any damage to your printer, materials, or surroundings. Bed Ready is not affiliated with, or endorsed by, Snapmaker, Bambu Lab, Prusa Research, Creality, UltiMaker, or any other maker mentioned; product names are trademarks of their respective owners.</p>
         <h4>Credits &amp; open source</h4>
@@ -969,7 +967,7 @@ function openFeedbackModal() {
       const message = (modal.querySelector('#fbMessage').value || '').trim();
       const email   = (modal.querySelector('#fbEmail').value  || '').trim();
       if (!message) { toast(t('feedback.err_empty'), 'error'); return false; }
-      const appTag = isBedReadyFlavor() ? 'Bed Ready beta' : 'Khayt';
+      const appTag = isBedReadyFlavor() ? 'Bed Ready' : 'Khayt';
       const subject = encodeURIComponent(`[${appTag}] ${t('feedback.type_' + type)}`);
       const body = encodeURIComponent(
         `Type: ${t('feedback.type_' + type)}\n\n${message}${email ? `\n\nFrom: ${email}` : ''}`
