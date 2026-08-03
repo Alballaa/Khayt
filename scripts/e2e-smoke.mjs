@@ -437,13 +437,26 @@ async function testConverter(window) {
   const model = '<?xml version="1.0"?><model unit="millimeter"><resources><object id="1"/></resources></model>';
   const proj = JSON.stringify({ printer_model: 'Orig', nozzle_diameter: ['0.4'], filament_colour: ['#FF0000', '#00FF00'], filament_type: ['PLA', 'PLA'] });
   const srcPath = `${userData}/conv-src.3mf`;
-  const outPath = `${userData}/conv-out.3mf`;
+  // The batch destination has to be a folder the user APPROVED in the output-folder
+  // picker — being a folder the converter may read from is not permission to write
+  // there. Approved below, through the picker's own handler, the way batch conversion
+  // does it. (This check used to pass without that, on a gate that authorised writes
+  // with the read allow-list.)
+  const outDir = `${userData}/conv-out`;
+  fs.mkdirSync(outDir, { recursive: true });
+  const outPath = `${outDir}/conv-out.3mf`;
   const stlPath = `${userData}/conv-src.stl`;
   fs.writeFileSync(stlPath, 'solid s\nfacet normal 0 0 0\n outer loop\n  vertex 0 0 0\n  vertex 30 0 0\n  vertex 0 15 8\n endloop\nendfacet\nendsolid s');
   fs.writeFileSync(srcPath, zipWrite.writeZip([
     { name: '3D/3dmodel.model', data: model },
     { name: 'Metadata/project_settings.config', data: proj },
   ]));
+
+  await electronApp.evaluate(async ({ dialog }, dir) => {
+    dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [dir] });
+  }, outDir);
+  const approvedOut = await window.evaluate(() => window.hubAPI.mfPickOutdir());
+  if (!approvedOut || !approvedOut.ok) throw new Error('could not approve the converter output folder');
 
   const r = await window.evaluate(async ({ src, out, stl }) => {
     const res = {};
