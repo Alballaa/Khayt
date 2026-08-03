@@ -326,9 +326,20 @@ function promptActuals(order, onConfirm) {
   // back under a second name — and the variance report then said "spot on" for a
   // job that ran two hours over. A measurement is offered when there is one, and
   // each field says which it is.
-  const completion = (typeof machineStatusCache === 'object' && order.machineId)
-    ? machineStatusCache?.[order.machineId]?.lastCompleted
+  // Ask for THIS job's figures, not simply the last thing that finished. The
+  // cache now remembers several completions per machine, so a job that ended
+  // while three more ran is still recoverable — but only if we can name it. The
+  // printer knows a job by its filename, so an order that recorded one gets an
+  // exact match; an order that did not falls back to the most recent, which is
+  // what this always did.
+  const entry = (typeof machineStatusCache === 'object' && order.machineId)
+    ? machineStatusCache?.[order.machineId]
     : null;
+  const wantFile = (order.parts || []).map((p) => p && p.fileRef).find(Boolean) || '';
+  const PC = typeof KhaytPollCache !== 'undefined' ? KhaytPollCache : null;
+  const completion = PC && PC.findCompletion
+    ? PC.findCompletion(entry, { filename: wantFile })
+    : (entry ? entry.lastCompleted : null);
   const pre = KhaytPrinterActuals.prefillActuals({
     estimate: { printTime: order.printTime, weightG: estWeight },
     completion,
