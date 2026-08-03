@@ -3,7 +3,14 @@ name: Build & Release
 on:
   push:
     tags:
+      # Khayt's own line. `v*` does NOT match `bedready-v*` — glob anchors at the
+      # start — so the two lanes below never see each other's tags by accident.
       - 'v*'
+      # Bed Ready is a separate flavor of this repo on an independent version
+      # line (1.0.0-*, see scripts/build-bedready.mjs) whose downloads live in
+      # KhaytApp/bedready. Its releases were built and uploaded by hand until
+      # this workflow learned to do it.
+      - 'bedready-v*'
 
 permissions:
   contents: write
@@ -15,6 +22,7 @@ jobs:
   # ── Create the GitHub Release first so parallel build jobs can publish to it ─
   create-release:
     name: Create GitHub Release
+    if: ${{ !startsWith(github.ref_name, 'bedready-') }}
     runs-on: ubuntu-latest
     outputs:
       prerelease: ${{ steps.flags.outputs.prerelease }}
@@ -45,6 +53,11 @@ jobs:
             2>/dev/null || echo "Release already exists — continuing"
 
   # ── macOS Apple Silicon DMG ───────────────────────────────────────────────
+  #
+  # The three build jobs and `publish` all need `create-release`, and a job whose
+  # dependency was skipped is skipped too. That one `if:` above is therefore what
+  # keeps this entire Khayt lane off a `bedready-v*` tag — do not add
+  # `if: always()` to anything below without restoring the guard explicitly.
   build-mac:
     name: macOS (Apple Silicon)
     needs: create-release
@@ -302,3 +315,217 @@ jobs:
           else
             echo "::warning::$REPO dispatch returned HTTP $CODE (hourly sync will cover it)"
           fi
+
+  # ══ Bed Ready ═══════════════════════════════════════════════════════════════
+  #
+  # Same repo, same commit, different flavor: its own appId, icon, output dir and
+  # an independent 1.0.0-* version line (scripts/build-bedready.mjs), with
+  # downloads in the public KhaytApp/bedready repo.
+  #
+  # Two things about this lane are deliberate and easy to "fix" wrongly:
+  #
+  # 1. `--publish never`, then upload with `gh`. electron-builder's GitHub
+  #    publisher derives its tag from the package version (`v${version}`), which
+  #    here would be `v1.0.0-beta.8` — NOT the `bedready-v*` tag this workflow
+  #    ran on, and not what the seven hand-made releases already in that repo
+  #    use. Letting it publish would quietly start a second tag convention in the
+  #    same repo. `never` still WRITES the update manifests; it only skips upload.
+  #
+  # 2. The uploads therefore MUST include latest*.yml and the .blockmaps, not
+  #    just the installers. Globbing only installers is exactly what stranded
+  #    Linux users on v3.2.0–v3.4.0 (see the Khayt Linux job above). Each
+  #    platform emits its own manifest — latest-mac.yml / latest.yml /
+  #    latest-linux.yml — so the three jobs never overwrite each other's.
+  bedready-release:
+    name: Bed Ready — create release
+    if: ${{ startsWith(github.ref_name, 'bedready-') }}
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      prerelease: ${{ steps.v.outputs.prerelease }}
+    steps:
+      - name: Require a cross-repo token
+        env:
+          TOKEN: ${{ secrets.BEDREADY_RELEASE_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error::BEDREADY_RELEASE_TOKEN is not set."
+            echo "Bed Ready publishes to KhaytApp/bedready, a DIFFERENT repository."
+            echo "The automatic GITHUB_TOKEN is scoped to this repo only and cannot"
+            echo "create a release there. Add a repo secret BEDREADY_RELEASE_TOKEN"
+            echo "holding a PAT with contents:write on KhaytApp/bedready."
+            exit 1
+          fi
+
+      - name: Derive version from tag
+        id: v
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          # bedready-v1.0.0-beta.8 -> 1.0.0-beta.8
+          VERSION="${TAG#bedready-v}"
+          # Checked against a real version shape, not just "something followed the
+          # prefix": `bedready-vX` would otherwise sail through as version "X" and
+          # fail much later, inside electron-builder, with a far worse message.
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
+            echo "::error::tag '$TAG' is not of the form bedready-vX.Y.Z[-beta.N]"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if echo "$VERSION" | grep -qE '\-(beta|rc|alpha)'; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Bed Ready $VERSION"
+
+      - name: Create release (idempotent)
+        env:
+          GH_TOKEN: ${{ secrets.BEDREADY_RELEASE_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ steps.v.outputs.version }}
+          PRERELEASE: ${{ steps.v.outputs.prerelease }}
+        run: |
+          FLAGS=""
+          [ "$PRERELEASE" = "true" ] && FLAGS="--prerelease"
+          gh release create "$TAG" \
+            --repo KhaytApp/bedready \
+            --title "Bed Ready $VERSION" \
+            --notes "Built from KhaytApp/Khayt@${GITHUB_SHA}. See the Khayt CHANGELOG for what changed." \
+            --draft \
+            $FLAGS \
+            2>/dev/null || echo "Release already exists — continuing"
+
+  bedready-mac:
+    name: Bed Ready — macOS (Apple Silicon)
+    needs: bedready-release
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Bed Ready (mac arm64)
+        run: node scripts/build-bedready.mjs --mac --arm64 --publish never
+        env:
+          BEDREADY_VERSION: ${{ needs.bedready-release.outputs.version }}
+          CSC_LINK:                    ${{ secrets.APPLE_CSC_LINK }}
+          CSC_KEY_PASSWORD:            ${{ secrets.APPLE_CSC_KEY_PASSWORD }}
+          APPLE_ID:                    ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID:               ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Upload macOS artifacts + update feed
+        env:
+          GH_TOKEN: ${{ secrets.BEDREADY_RELEASE_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          shopt -s nullglob
+          files=(build-bedready/*.dmg build-bedready/*-mac-*.zip \
+                 build-bedready/*.blockmap build-bedready/latest-mac.yml)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error::no macOS artifacts were produced"; exit 1
+          fi
+          if [ ! -f build-bedready/latest-mac.yml ]; then
+            echo "::error::latest-mac.yml is missing — the app could not auto-update"; exit 1
+          fi
+          gh release upload "$TAG" "${files[@]}" --clobber --repo KhaytApp/bedready
+
+  bedready-windows:
+    name: Bed Ready — Windows (x64)
+    needs: bedready-release
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Bed Ready (win x64)
+        run: node scripts/build-bedready.mjs --win --x64 --publish never
+        env:
+          BEDREADY_VERSION: ${{ needs.bedready-release.outputs.version }}
+
+      - name: Upload Windows artifacts + update feed
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.BEDREADY_RELEASE_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          shopt -s nullglob
+          files=(build-bedready/*.exe build-bedready/*.blockmap build-bedready/latest.yml)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error::no Windows artifacts were produced"; exit 1
+          fi
+          if [ ! -f build-bedready/latest.yml ]; then
+            echo "::error::latest.yml is missing — the app could not auto-update"; exit 1
+          fi
+          gh release upload "$TAG" "${files[@]}" --clobber --repo KhaytApp/bedready
+
+  bedready-linux:
+    name: Bed Ready — Linux (x64)
+    needs: bedready-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libnss3-dev libatk-bridge2.0-dev \
+            libgtk-3-dev libdrm-dev libgbm-dev rpm
+          sudo apt-get install -y libfuse2t64 2>/dev/null || \
+          sudo apt-get install -y libfuse2 2>/dev/null || \
+          echo "FUSE2 not available — AppImage will use extraction fallback"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Bed Ready (linux x64)
+        run: node scripts/build-bedready.mjs --linux --x64 --publish never
+        env:
+          BEDREADY_VERSION: ${{ needs.bedready-release.outputs.version }}
+          APPIMAGE_EXTRACT_AND_RUN: 1
+
+      - name: Upload Linux artifacts + update feed
+        env:
+          GH_TOKEN: ${{ secrets.BEDREADY_RELEASE_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          shopt -s nullglob
+          files=(build-bedready/*.AppImage build-bedready/*.deb build-bedready/latest-linux.yml)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error::no Linux artifacts were produced"; exit 1
+          fi
+          if [ ! -f build-bedready/latest-linux.yml ]; then
+            echo "::error::latest-linux.yml is missing — the app could not auto-update"; exit 1
+          fi
+          gh release upload "$TAG" "${files[@]}" --clobber --repo KhaytApp/bedready
+
+  bedready-publish:
+    name: Bed Ready — publish
+    needs: [bedready-release, bedready-mac, bedready-windows, bedready-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish release (remove draft)
+        env:
+          GH_TOKEN: ${{ secrets.BEDREADY_RELEASE_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          PRERELEASE: ${{ needs.bedready-release.outputs.prerelease }}
+        run: |
+          FLAGS=""
+          [ "$PRERELEASE" = "true" ] && FLAGS="--prerelease"
+          gh release edit "$TAG" --draft=false $FLAGS --repo KhaytApp/bedready
+          echo "✅ Bed Ready $TAG published"
+          echo "https://github.com/KhaytApp/bedready/releases/tag/$TAG"
