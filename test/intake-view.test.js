@@ -119,6 +119,131 @@ test('a zero-volume mesh is not priced as a free part', () => {
   assert.equal(v.mode, 'none');
 });
 
+/* ---- The options must actually arrive ---------------------------------
+ * These exist because every test above passes an `opts` holding nothing but
+ * `infillPct` and `estimate`, so none of them could notice that presentIntake
+ * forwarded only the infill and dropped the rest. It did, and the calculator
+ * quoted every unsliced file on the module defaults — PLA at 1.24 g/cm³ and a
+ * shipped throughput — no matter what the shop had configured or measured.
+ * ---------------------------------------------------------------------- */
+
+test('the shop\'s density reaches the estimate, not just its infill', () => {
+  const light = presentIntake({ exact: false, source: 'geometry', geometry: CUBE },
+    { ...opts, densityGPerCm3: 1.04 });          // ABS
+  const heavy = presentIntake({ exact: false, source: 'geometry', geometry: CUBE },
+    { ...opts, densityGPerCm3: 4.0 });           // a filled filament
+  assert.ok(heavy.weightG > light.weightG * 3,
+    `density is being ignored: ${heavy.weightG} vs ${light.weightG}`);
+  // And the note must quote the shop's figure, not the default it fell back to.
+  const shown = (v) => v.note.find((l) => l.key === 'stl.note_assume').vars.density;
+  assert.equal(shown(light), 1.04);
+  assert.equal(shown(heavy), 4.0);
+});
+
+test('the shop\'s wall thickness reaches the estimate', () => {
+  const thin = presentIntake({ exact: false, source: 'geometry', geometry: CUBE },
+    { ...opts, wallThicknessMm: 0.4 });
+  const thick = presentIntake({ exact: false, source: 'geometry', geometry: CUBE },
+    { ...opts, wallThicknessMm: 3.6 });
+  assert.ok(thick.weightG > thin.weightG,
+    `wall thickness is being ignored: ${thick.weightG} vs ${thin.weightG}`);
+});
+
+test('a calibrated throughput changes the TIME and leaves the weight alone', () => {
+  // The whole point of lib/estimate-calibration.js: only the time was ever
+  // guessed. A calibration that moved the weight would be changing an answer
+  // nobody asked it to.
+  const base = presentIntake({ exact: false, source: 'geometry', geometry: CUBE }, opts);
+  const slow = presentIntake({ exact: false, source: 'geometry', geometry: CUBE },
+    { ...opts, throughputMm3PerS: 2.7, calibratedFrom: { scope: 'shop', jobs: 4 } });
+  assert.ok(slow.timeH > base.timeH,
+    `a slower measured rate must mean a longer job: ${slow.timeH} vs ${base.timeH}`);
+  assert.equal(slow.weightG, base.weightG, 'calibration must not touch the weight');
+});
+
+test('a measured rate and a guessed one never read the same', () => {
+  const guessed = presentIntake({ exact: false, source: 'geometry', geometry: CUBE }, opts);
+  const measured = presentIntake({ exact: false, source: 'geometry', geometry: CUBE },
+    { ...opts, throughputMm3PerS: 2.7, calibratedFrom: { scope: 'shop', jobs: 4 } });
+
+  const keyOf = (v) => v.note.map((l) => l.key).find((k) => k.startsWith('stl.note_rate_'));
+  assert.equal(keyOf(guessed), 'stl.note_rate_assumed');
+  assert.equal(keyOf(measured), 'stl.note_rate_measured_shop');
+  assert.notEqual(keyOf(guessed), keyOf(measured));
+
+  // The count is what makes "measured" checkable rather than a claim.
+  const line = measured.note.find((l) => l.key.startsWith('stl.note_rate_measured'));
+  assert.equal(line.vars.n, 4);
+});
+
+test('the note says WHICH printers earned the rate', () => {
+  // A rate this machine earned describes it. A shop-wide one is other printers'
+  // history standing in for it — the same number, honestly weaker. Presenting
+  // them identically overstates what the second one knows.
+  const keyOf = (v) => v.note.map((l) => l.key).find((k) => k.startsWith('stl.note_rate_'));
+
+  const own = presentIntake({ exact: false, source: 'geometry', geometry: CUBE },
+    { ...opts, calibratedFrom: { scope: 'machine', jobs: 5 } });
+  assert.equal(keyOf(own), 'stl.note_rate_measured_machine');
+
+  const pooled = presentIntake({ exact: false, source: 'geometry', geometry: CUBE },
+    { ...opts, calibratedFrom: { scope: 'shop', jobs: 5 } });
+  assert.equal(keyOf(pooled), 'stl.note_rate_measured_shop');
+
+  assert.notEqual(keyOf(own), keyOf(pooled), 'the two claims must not read the same');
+  // Same rate, same job count — only the provenance differs, so nothing but the
+  // scope may account for the different wording.
+  assert.equal(own.calibrated.gramsPerHour, pooled.calibrated.gramsPerHour);
+  assert.equal(own.calibrated.scope, 'machine');
+  assert.equal(pooled.calibrated.scope, 'shop');
+});
+
+test('an unrecognised scope claims the weaker of the two', () => {
+  // calibrate() only ever returns 'machine' or 'shop', but a claim to describe
+  // one printer must be earned explicitly — anything else falls back to the
+  // shop-wide wording rather than overstating.
+  for (const scope of [undefined, null, '', 'workshop', 'MACHINE']) {
+    const v = presentIntake({ exact: false, source: 'geometry', geometry: CUBE },
+      { ...opts, calibratedFrom: { scope, jobs: 3 } });
+    const key = v.note.map((l) => l.key).find((k) => k.startsWith('stl.note_rate_'));
+    assert.equal(key, 'stl.note_rate_measured_shop', `scope=${JSON.stringify(scope)}`);
+  }
+});
+
+test('the rate in the note is the rate the time was built on', () => {
+  // Shown in grams per hour because that is the only form a shop can measure;
+  // the estimator works in mm3/s. If these drift apart the note is describing a
+  // different estimate from the one in the form.
+  const v = presentIntake({ exact: false, source: 'geometry', geometry: CUBE },
+    { ...opts, densityGPerCm3: 1.24, throughputMm3PerS: 2.7, calibratedFrom: { scope: 'shop', jobs: 5 } });
+  const line = v.note.find((l) => l.key.startsWith('stl.note_rate_measured'));
+  assert.equal(line.vars.rate, Math.round(1.24 * 2.7 * 3.6 * 10) / 10);
+  assert.equal(v.calibrated.gramsPerHour, line.vars.rate, 'the structured figure and the prose agree');
+});
+
+test('provenance is structured, not only prose', () => {
+  // A caller styling the block, and a test asserting on it, must not have to
+  // parse a translated sentence.
+  const guessed = presentIntake({ exact: false, source: 'geometry', geometry: CUBE }, opts);
+  assert.equal(guessed.calibrated, null);
+
+  const measured = presentIntake({ exact: false, source: 'geometry', geometry: CUBE },
+    { ...opts, calibratedFrom: { scope: 'machine', jobs: 6 } });
+  assert.equal(measured.calibrated.scope, 'machine');
+  assert.equal(measured.calibrated.jobs, 6);
+});
+
+test('a calibration nobody earned is not presented as measured', () => {
+  // calibrate() returns null rather than a zero-job result, but the renderer
+  // spreads whatever it is given — a malformed marker must not upgrade a guess.
+  for (const bad of [{ scope: 'shop', jobs: 0 }, { scope: 'shop' }, {}]) {
+    const v = presentIntake({ exact: false, source: 'geometry', geometry: CUBE },
+      { ...opts, calibratedFrom: bad });
+    assert.equal(v.calibrated, null, JSON.stringify(bad));
+    assert.ok(v.note.some((l) => l.key === 'stl.note_rate_assumed'), JSON.stringify(bad));
+  }
+});
+
 test('mode never claims more certainty than the source supports', () => {
   // The invariant the UI depends on.
   const cases = [

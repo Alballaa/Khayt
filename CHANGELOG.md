@@ -30,6 +30,19 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   the desktop failed with "Output path is outside an allowed folder" — your own
   choice, denied. Where you choose to save is now yours.
 
+- **The calculator ignored your estimator settings, and everything it had
+  measured.** Drop an unsliced model on the calculator and Khayt priced it on the
+  numbers it ships with — PLA at 1.24 g/cm³ and a throughput of about 35.7 g/hour
+  — no matter what you had set. The settings panel saved your density, your wall
+  thickness and the rate worked out from your own finished jobs, and read them
+  back correctly; only one field, the infill, ever reached the file you dropped.
+
+  A shop that had measured its printers at 12 g/hour was still quoting every
+  unsliced part at roughly half the print time it would really take. The public
+  intake form your customers use was never affected — it always priced on your
+  settings — so the same file could come back from the customer form and your own
+  calculator with two different answers.
+
 - **A printer's measurements could be lost before anyone looked at them.** Khayt
   reads what a job actually used at the moment it finishes, because the printer
   resets those counters when the next one starts. It kept only the most recent
@@ -72,6 +85,16 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   A stub is still a function, which is why `typeof fn === 'function'` never
   caught any of this. A new test now checks the wiring itself, and makes a newly
   added queue-card button fail until someone decides whether Bed Ready shows it.
+
+### Changed
+
+- **The estimate note now says whether the rate was measured or assumed, and by
+  which printers.** It reports the grams-per-hour the time was built on, and
+  either says plainly that nothing has been measured yet, or names the jobs
+  behind it — *on this printer* when the part is assigned to one that has its own
+  history, and *across your printers* when the figure is pooled from the rest of
+  the shop. The second is the same number making a weaker claim, and it no longer
+  reads like the first.
 
 ## [3.6.0-beta.8] - 2026-08-03
 
