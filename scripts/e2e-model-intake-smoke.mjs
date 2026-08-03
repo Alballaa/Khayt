@@ -142,11 +142,11 @@ async function testGcodeHeadTailSlicing(window) {
 const rawTetra = () => zipWrite.writeZip([{ name: '3D/3dmodel.model', data: Buffer.from(TETRA, 'utf8') }]);
 
 /** Configure the estimator the way a shop does — through the panel. */
-async function setShopEstimator(window, { density, wall }) {
+async function setShopEstimator(window, { density, wall, infill }) {
   await switchTab(window, 'settings-tab');
   await window.click('.settings-nav-item[data-settings-section="prefs"]');
   await window.waitForSelector('#est_density');
-  await window.evaluate(({ d, w }) => {
+  await window.evaluate(({ d, w, i }) => {
     const el = document.querySelector('#estimatorSettings');
     const set = (sel, v) => {
       const f = el.querySelector(sel);
@@ -154,9 +154,36 @@ async function setShopEstimator(window, { density, wall }) {
     };
     set('#est_density', d);
     set('#est_wall', w);
-  }, { d: density, w: wall });
+    if (i != null) set('#est_infill', i);
+  }, { d: density, w: wall, i: infill });
   await switchTab(window, 'calculator-tab');
   await window.waitForSelector('#modelDrop');
+}
+
+/** Clear the per-part infill box, so the shop's configured default applies. */
+const clearPartInfill = (window) => window.evaluate(() => {
+  const i = document.querySelector('#infill');
+  if (i) i.value = '';
+});
+
+/** Type an infill the way a shop does, and let the change reach the wiring. */
+async function typeInfill(window, pct) {
+  await window.evaluate((v) => {
+    const i = document.querySelector('#infill');
+    i.value = String(v);
+    i.dispatchEvent(new Event('input', { bubbles: true }));
+    i.dispatchEvent(new Event('change', { bubbles: true }));
+  }, pct);
+  await window.waitForTimeout(400);
+}
+
+async function selectPrinter(window, id) {
+  await window.evaluate((v) => {
+    const s = document.querySelector('#partMachineId');
+    s.value = v;
+    s.dispatchEvent(new Event('change', { bubbles: true }));
+  }, id);
+  await window.waitForTimeout(400);
 }
 
 async function dropRaw(window) {
@@ -276,6 +303,164 @@ async function testScopeFollowsTheSelectedPrinter(window) {
   }
 }
 
+/**
+ * The estimator panel's "Default infill %" must reach the shop's own calculator.
+ *
+ * It did not. The per-part infill box starts blank, and the calculator fell back
+ * to a hardcoded 20 rather than the shop's setting — so a shop configured for 60%
+ * quoted every dropped file at 20% while the customer's intake form, which reads
+ * the setting directly, quoted the same file at 60%.
+ */
+async function testShopDefaultInfillReachesTheDrop(window) {
+  await clearPartInfill(window);
+
+  await setShopEstimator(window, { density: 1.24, wall: 1.2, infill: 60 });
+  const dense = await dropRaw(window);
+  if (!/60% infill/.test(dense.note)) {
+    throw new Error(`the shop's default infill never reached the drop: ${dense.note}`);
+  }
+
+  await clearPartInfill(window);
+  await setShopEstimator(window, { density: 1.24, wall: 1.2, infill: 20 });
+  const sparse = await dropRaw(window);
+  if (!/20% infill/.test(sparse.note)) {
+    throw new Error(`changing the shop default changed nothing: ${sparse.note}`);
+  }
+  if (!(Number(dense.weight) > Number(sparse.weight))) {
+    throw new Error(`60% must weigh more than 20%: ${dense.weight} vs ${sparse.weight}`);
+  }
+
+  // A figure typed for THIS part still beats the shop-wide default.
+  await typeInfill(window, 90);
+  const typed = await readForm(window);
+  if (!/90% infill/.test(typed.note)) {
+    throw new Error(`a typed infill must win over the default: ${typed.note}`);
+  }
+}
+
+/**
+ * Changing what the estimate was built on must change the estimate.
+ *
+ * The numbers were computed once, at drop time, and never again — so setting 90%
+ * infill afterwards left the form showing 90 beside a note insisting on 20%,
+ * with the price built on the one the shop could not see.
+ */
+async function testChangingInfillRecomputes(window) {
+  await clearPartInfill(window);
+  await setShopEstimator(window, { density: 1.27, wall: 1.2, infill: 20 });
+  const before = await dropRaw(window);
+
+  await typeInfill(window, 90);
+  const after = await readForm(window);
+  if (!(Number(after.weight) > Number(before.weight))) {
+    throw new Error(`the estimate never recomputed: ${after.weight} vs ${before.weight}`);
+  }
+  if (!/90% infill/.test(after.note)) {
+    throw new Error(`the note still contradicts the infill field: ${after.note}`);
+  }
+  if (/20% infill/.test(after.note)) {
+    throw new Error(`the note kept the infill it was dropped with: ${after.note}`);
+  }
+}
+
+/**
+ * And so must selecting the printer — dropping the file first is the natural
+ * order, and a machine with its own measured rate was ignored until re-drop.
+ */
+async function testSelectingPrinterRecomputes(window) {
+  await selectPrinter(window, '');
+  const pooled = await dropRaw(window);
+  if (!/across your printers/i.test(pooled.note)) {
+    throw new Error(`with no printer chosen the rate is shop-wide: ${pooled.note}`);
+  }
+
+  await selectPrinter(window, 'M1');           // never re-dropped
+  const own = await readForm(window);
+  if (!/on this printer/i.test(own.note)) {
+    throw new Error(`choosing the printer did not recompute the scope: ${own.note}`);
+  }
+
+  // A printer with no history of its own must fall back, not inherit the claim.
+  await selectPrinter(window, 'M2');
+  const other = await readForm(window);
+  if (!/across your printers/i.test(other.note)) {
+    throw new Error(`a printer with no history still claims its own rate: ${other.note}`);
+  }
+}
+
+/**
+ * A slicer's figures do not depend on the infill or the machine, so nothing may
+ * recompute them — a shop that corrects a weight by hand and then adjusts the
+ * infill must not have its correction thrown away.
+ */
+async function testASlicedResultIsNeverRecomputed(window) {
+  await clearForm(window);
+  await dropFile(window, 'sliced.3mf', b64(zipWrite.writeZip([
+    { name: '3D/3dmodel.model', data: Buffer.from(TETRA, 'utf8') },
+    { name: 'Metadata/Slic3r_PE.config', data: Buffer.from(PRUSA_CFG, 'utf8') },
+  ])));
+  await window.waitForFunction(() => document.querySelector('#printWeight')?.value !== '');
+
+  // The shop knows this part purges badly and corrects the figure.
+  await window.evaluate(() => {
+    const w = document.querySelector('#printWeight');
+    w.value = '55'; w.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+
+  await typeInfill(window, 85);
+  await selectPrinter(window, 'M1');
+
+  const f = await readForm(window);
+  if (Number(f.weight) !== 55) {
+    throw new Error(`a hand-corrected slicer figure was recomputed away: ${f.weight}`);
+  }
+  if (/never sliced/i.test(f.note)) {
+    throw new Error(`an exact result was turned into an estimate: ${f.note}`);
+  }
+}
+
+/** A recompute the shop did not ask for by name must not announce itself. */
+async function testRecomputeIsQuiet(window) {
+  await clearPartInfill(window);
+  await dropRaw(window);
+  await window.evaluate(() => {
+    document.querySelectorAll('#toastContainer .toast').forEach((el) => el.remove());
+  });
+  await typeInfill(window, 45);
+  await selectPrinter(window, 'M1');
+  const toasts = await window.evaluate(() =>
+    [...document.querySelectorAll('#toastContainer .toast')].map((el) => el.textContent));
+  if (toasts.length) {
+    throw new Error(`recomputing announced itself ${toasts.length}×: ${JSON.stringify(toasts)}`);
+  }
+}
+
+/**
+ * Once the part is added the model is no longer in the form, so the estimate
+ * must be forgotten — otherwise the next infill the shop typed pulled the
+ * previous part's model back into a blank form.
+ */
+async function testAddingThePartForgetsTheModel(window) {
+  await clearPartInfill(window);
+  const est = await dropRaw(window);
+  if (!(Number(est.weight) > 0)) throw new Error('nothing to add');
+
+  await window.click('#btnAddPart');
+  await window.waitForTimeout(500);
+
+  const cleared = await readForm(window);
+  if (cleared.noteShown) {
+    throw new Error(`the estimate note outlived the part it described: ${cleared.note}`);
+  }
+
+  // The form is empty now; typing an infill must not resurrect the old model.
+  await typeInfill(window, 70);
+  const after = await readForm(window);
+  if (Number(after.weight) > 0) {
+    throw new Error(`a cleared form was refilled from the previous part's model: ${after.weight} g`);
+  }
+}
+
 try {
   ({ electronApp } = await launchApp(userData));
   const window = await electronApp.firstWindow();
@@ -292,9 +477,16 @@ try {
   await testShopSettingsReachTheDroppedFile(window);
   await testMeasuredRateReachesTheDroppedFile(window);
   await testScopeFollowsTheSelectedPrinter(window);
+  await testShopDefaultInfillReachesTheDrop(window);
+  await testChangingInfillRecomputes(window);
+  await testSelectingPrinterRecomputes(window);
+  await testASlicedResultIsNeverRecomputed(window);
+  await testRecomputeIsQuiet(window);
+  await testAddingThePartForgetsTheModel(window);
 
   console.log('e2e-model-intake: ok (sliced 3MF exact, unsliced labelled, OBJ, big G-code,'
-    + ' shop settings reach the drop, measured rate reaches it, scope follows the printer)');
+    + ' shop settings reach the drop, measured rate reaches it, scope follows the printer,'
+    + ' default infill applies, infill and printer recompute, add-part forgets the model)');
 } finally {
   if (electronApp) await electronApp.close().catch(() => {});
   fs.rmSync(userData, { recursive: true, force: true });

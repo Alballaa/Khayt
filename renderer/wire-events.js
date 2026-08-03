@@ -281,22 +281,59 @@ function wireEvents() {
   }
 
   /**
+   * The infill the estimate should use.
+   *
+   * Blank means the shop never said anything about THIS part, so its configured
+   * default applies — returning a hardcoded 20 instead quoted every dropped file
+   * at 20% however the estimator panel was set, while the customer's own intake
+   * form (lib/lan-server.js publicEstimatorOpts) went on using the real setting.
+   * Omitted rather than returned as undefined: Object.assign copies undefined
+   * over a good value.
+   */
+  function typedInfillPct() {
+    const raw = ($('#infill')?.value ?? '').trim();
+    if (raw === '') return null;
+    const v = num(raw, NaN);
+    if (!Number.isFinite(v)) return null;
+    return Math.max(0, Math.min(100, v)) / 100;
+  }
+
+  /**
+   * The last GEOMETRIC estimate, kept so it can be recomputed.
+   *
+   * Only geometry is remembered. A slicer's figures do not depend on the infill
+   * or the machine, so re-applying them could only overwrite an edit the shop
+   * made by hand.
+   */
+  let lastEstimate = null;
+
+  /**
    * Apply an intake result to the calculator.
    *
    * The exact-vs-estimate decision and its wording live in lib/intake-view.js so
    * they can be tested; this only renders what that returns.
+   *
+   * `quiet` is for a recompute the shop did not ask for by name — changing the
+   * infill should update the number, not announce the file again.
    */
-  function applyIntake(res, filename) {
+  function applyIntake(res, filename, { quiet = false } = {}) {
+    const over = { machineId: $('#partMachineId')?.value || $('#machineAssign')?.value || null };
+    const pct = typedInfillPct();
+    if (pct !== null) over.infillPct = pct;
+
     const view = KhaytIntakeView.presentIntake(
       Object.assign({}, res, { filename: (res && res.filename) || filename || '' }),
       // The shop's own estimator settings, then its own measured history on top:
       // a rate derived from real jobs beats any constant, typed or shipped.
-      estimatorOpts({
-        infillPct: Math.max(0, num($('#infill')?.value, 20)) / 100,
-        machineId: $('#partMachineId')?.value || $('#machineAssign')?.value || null,
-      }));
+      estimatorOpts(over));
 
-    if (view.mode === 'none') { toast(t(view.toast.key), view.toast.kind, 5000); return false; }
+    if (view.mode === 'none') {
+      if (!quiet) toast(t(view.toast.key), view.toast.kind, 5000);
+      return false;
+    }
+
+    // Remembered only while the numbers on screen are still derived ones.
+    lastEstimate = view.mode === 'estimate' ? { res, filename } : null;
 
     fillWeightTime(view.weightG, view.timeH);
     setModelNote(view.note.map((line) => {
@@ -307,10 +344,38 @@ function wireEvents() {
       return line.strong ? '<b>' + html + '</b>' : html;
     }).join('<br>'));
 
+    if (quiet) return true;
     if (view.material) toast(t('calc.detected_material', { mat: view.material }), 'info', 4000);
     toast(t(view.toast.key), view.toast.kind, view.mode === 'estimate' ? 5000 : undefined);
     return true;
   }
+
+  /**
+   * Recompute the shown estimate after something it was built on changed.
+   *
+   * Without this the note kept asserting the infill and the printer it was
+   * dropped with: set 90% infill after dropping and the form still read 20%
+   * beside a field showing 90, with the price built on the one nobody could see.
+   * Selecting a printer afterwards was worse than cosmetic — a machine with its
+   * own measured rate was ignored until the file was dropped a second time.
+   */
+  function recomputeEstimate() {
+    if (!lastEstimate) return;
+    applyIntake(lastEstimate.res, lastEstimate.filename, { quiet: true });
+  }
+
+  ['#infill', '#partMachineId', '#machineAssign'].forEach((sel) => {
+    $(sel)?.addEventListener('change', recomputeEstimate);
+  });
+
+  // Adding the part clears the weight, the time and the infill, so an estimate
+  // left behind would describe a part that is no longer in the form — and worse,
+  // the next infill the shop typed would pull the previous part's model back in.
+  document.addEventListener('khayt:calc-part-added', () => {
+    lastEstimate = null;
+    const note = $('#stlEstimateNote');
+    if (note) { note.innerHTML = ''; note.style.display = 'none'; }
+  });
 
   /** Read a dropped/picked File and hand its bytes to the main process. */
   async function intakeFile(file) {
