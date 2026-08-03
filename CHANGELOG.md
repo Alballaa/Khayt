@@ -4,6 +4,61 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.6.0-beta.8] - 2026-08-03
+
+Mostly one file's worth of consequences. A 229 MB Spider-Man poster that would
+not convert turned out to be sitting on top of a converter that could lose part
+of a model without saying so.
+
+### Fixed
+
+- **A large 3MF could convert into a model missing most of itself.** Khayt caps
+  how much it will unpack from a 3MF so a crafted file cannot exhaust memory.
+  When a real project crossed that cap, the converter dropped whole objects —
+  240 MB of geometry in one case — and reported success.
+
+  A model short an object still opens, still slices and still prints. It simply
+  is not what the maker chose, and nothing anywhere said so. A read that cannot
+  keep everything it was given now refuses and explains, rather than quietly
+  writing out a smaller model. The file that prompted this also stopped being
+  rejected for its size, which was the complaint that led here.
+
+- **The converter stopped the app while it worked.** That work ran on the only
+  thread Electron has for windows, menus and IPC, so a large retarget left the
+  window unresponsive and macOS marking the app as not responding — for minutes.
+  A shop watching that force-quits, which looks exactly like the conversion being
+  broken.
+
+  Conversions now run in a separate process. They also got much faster: meshes
+  were being unpacked and repacked at maximum compression to reproduce bytes the
+  file already contained, and normalizing never reads them. A convert that took
+  106 seconds takes about 8.
+
+- **The HueForge panel could describe the filament stack you just changed.**
+  Adding, deleting, reordering or auto-tuning a filament repainted the rows
+  without recomputing what depends on them, so the achievable-colour preview,
+  the swap elevation and the U1 verdict kept describing the previous stack.
+  Editing a TD or a layer count always refreshed correctly, which is why this
+  survived.
+
+- **Bed Ready: two features were present, wired up, and did nothing.** Matching a
+  model you already have never matched, and the saved-settings button on every
+  file card was dead. Both libraries ship in Bed Ready; one screen reached for
+  them in a way that only worked in Khayt, and nothing errored.
+
+### Added
+
+- **HueForge FLAT mode — colour by region instead of by height.** On a
+  toolchanger that does not purge between tools, flat multi-colour is nearly
+  free, and it avoids relief printing's whole problem class: no surface texture,
+  no transmission physics, no TD calibration. Quantize to four colours, give each
+  region a head.
+
+  **Not yet proven on a printer.** The generated 3MF is verified by reading the
+  written archive back out rather than by trusting the code that produced it, and
+  `scripts/flat-test-plate.mjs` will build a real plate to try. Treat it as
+  ready to test, not ready to rely on.
+
 ## [3.6.0-beta.7] - 2026-08-02
 
 Three things a shop will notice, and two of them came from real files and real
