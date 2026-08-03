@@ -198,6 +198,50 @@ test('the note says WHICH printers earned the rate', () => {
   assert.equal(pooled.calibrated.scope, 'shop');
 });
 
+test('the rate is reported with how far the jobs behind it disagreed', () => {
+  // The overclaim this exists to stop: "27 g/h — measured from 12 jobs on this
+  // printer" reads as a machine specification, and grams-per-hour is not one.
+  // Measured on one real printer it ran 1.9 → 48.6 g/h across 67 jobs, tracking
+  // the part rather than the machine. The median stays; the certainty goes.
+  const v = presentIntake({ exact: false, source: 'geometry', geometry: CUBE },
+    { ...opts, calibratedFrom: { scope: 'machine', jobs: 12, spread: 0.12 } });
+  const line = v.note.find((l) => l.key.startsWith('stl.note_rate_'));
+  assert.equal(line.key, 'stl.note_rate_spread_machine');
+  assert.equal(line.vars.pct, 12, 'the spread is shown as a percentage');
+  assert.equal(line.vars.n, 12);
+  assert.equal(v.calibrated.spreadPct, 12, 'and is on the structured result too');
+
+  const shop = presentIntake({ exact: false, source: 'geometry', geometry: CUBE },
+    { ...opts, calibratedFrom: { scope: 'shop', jobs: 12, spread: 0.34 } });
+  assert.equal(shop.note.find((l) => l.key.startsWith('stl.note_rate_')).key,
+    'stl.note_rate_spread_shop');
+});
+
+test('a wider spread is reported as wider, not rounded away', () => {
+  // The whole point is that the shop can tell 12% from 34%.
+  const pct = (s) => presentIntake({ exact: false, source: 'geometry', geometry: CUBE },
+    { ...opts, calibratedFrom: { scope: 'machine', jobs: 20, spread: s } })
+    .note.find((l) => l.key.startsWith('stl.note_rate_')).vars.pct;
+  assert.equal(pct(0.12), 12);
+  assert.equal(pct(0.34), 34);
+  assert.ok(pct(0.34) > pct(0.12), 'a wider spread must read as wider');
+  // A spread too small to round to a whole percent must not read as "exactly",
+  // which is the one thing measured data never is.
+  assert.equal(pct(0.001), 1, 'floors at 1%, never 0');
+});
+
+test('a calibration with no spread falls back rather than inventing certainty', () => {
+  // Older stored calibrations, or any caller that supplies none, must not be
+  // rendered as "give or take 0%".
+  for (const bad of [undefined, null, NaN]) {
+    const v = presentIntake({ exact: false, source: 'geometry', geometry: CUBE },
+      { ...opts, calibratedFrom: { scope: 'machine', jobs: 6, spread: bad } });
+    const line = v.note.find((l) => l.key.startsWith('stl.note_rate_'));
+    assert.equal(line.key, 'stl.note_rate_measured_machine', String(bad));
+    assert.equal(v.calibrated.spreadPct, null, String(bad));
+  }
+});
+
 test('an unrecognised scope claims the weaker of the two', () => {
   // calibrate() only ever returns 'machine' or 'shop', but a claim to describe
   // one printer must be earned explicitly — anything else falls back to the

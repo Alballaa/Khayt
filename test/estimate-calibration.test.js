@@ -137,9 +137,28 @@ test('nothing learned means the configured value is kept', () => {
 
 test('a calibrated estimate says where the number came from', () => {
   // A measured rate and a guessed one must not present identically.
-  const applied = applyCalibration({ infillPct: 0.2 }, calibrate(REAL_SHOP, deps, { machineId: 'M1' }));
-  assert.deepEqual(applied.calibratedFrom, { scope: 'machine', jobs: 4 });
+  const cal = calibrate(REAL_SHOP, deps, { machineId: 'M1' });
+  const applied = applyCalibration({ infillPct: 0.2 }, cal);
+  assert.deepEqual(applied.calibratedFrom, { scope: 'machine', jobs: 4, spread: cal.spread });
   assert.equal(applyCalibration({ infillPct: 0.2 }, null).calibratedFrom, undefined);
+});
+
+test('how far the jobs disagreed travels with the rate', () => {
+  // Grams-per-hour is not a machine constant: on one real printer it ran from
+  // 1.9 to 48.6 g/h across 67 jobs, following the part rather than the machine,
+  // while the slicer's own time estimate for those jobs held to about ±5%. The
+  // median is still the best single number, but a caller handed it WITHOUT the
+  // spread cannot tell the shop how much of a number it is holding — so the
+  // spread has to survive the hop, not be recomputed or guessed downstream.
+  const cal = calibrate(REAL_SHOP, deps, { machineId: 'M1' });
+  assert.ok(Number.isFinite(cal.spread), 'calibrate reports a spread');
+  const applied = applyCalibration({ infillPct: 0.2 }, cal);
+  assert.equal(applied.calibratedFrom.spread, cal.spread, 'and applyCalibration forwards it');
+
+  // A calibration that somehow carries no spread must say so rather than
+  // inventing a zero, which would read as "every job agreed exactly".
+  const noSpread = applyCalibration({ infillPct: 0.2 }, { gramsPerHour: 20, jobs: 5, scope: 'shop' });
+  assert.equal(noSpread.calibratedFrom.spread, null);
 });
 
 test('the calibration respects the density it is applied against', () => {

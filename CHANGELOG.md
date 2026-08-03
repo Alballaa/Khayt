@@ -4,6 +4,22 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Changed
+
+- **The estimate note no longer states your printer's rate as though it were a
+  specification.** It said "27.4 g/h — measured from 12 finished jobs on this
+  printer", which reads as something the machine does. It is not: measured across
+  67 finished jobs on one real printer, grams-per-hour ran from 1.9 to 48.6
+  depending on what was being printed — it follows the part's shape, layer height
+  and colour changes, not the machine. Over the same jobs the slicer's own time
+  estimate held to about 5%.
+
+  The rate is now given as what it actually is — the middle of your finished
+  jobs, with how far they disagreed: *"26.3 g/h — the middle of 12 finished jobs
+  measured on this printer, give or take 12%."* The number has not changed. What
+  changed is that you can now see how much of a number it is before you quote
+  against it.
+
 ### Fixed
 
 - **A printer could report negative hours since its last service.** Adding a

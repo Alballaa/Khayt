@@ -3159,6 +3159,8 @@
   "stl.note_assume": "{infill}% relleno · {density} g/cm³",
   "stl.note_rate_measured_machine": "{rate} g/h — medido a partir de {n} trabajos terminados en esta impresora.",
   "stl.note_rate_measured_shop": "{rate} g/h — medido a partir de {n} trabajos terminados en todas tus impresoras.",
+  "stl.note_rate_spread_machine": "{rate} g/h — la mediana de {n} trabajos terminados medidos en esta impresora, ±{pct}%.",
+  "stl.note_rate_spread_shop": "{rate} g/h — la mediana de {n} trabajos terminados medidos en tus impresoras, ±{pct}%.",
   "stl.note_rate_assumed": "{rate} g/h — supuesto; aún no hay trabajos medidos.",
   "slicer.settings_title": "Integración del laminador",
   "slicer.settings_help": "Lamina un modelo subido con tu laminador instalado para rellenar el presupuesto con su peso y tiempo exactos. Khayt no incluye ningún laminador.",
