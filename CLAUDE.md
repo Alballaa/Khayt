@@ -47,11 +47,27 @@ if a principal is explicitly listed, and none is.
 - **Direct pushes to `main` are effectively blocked** — required checks cannot have run on a
   commit that has not been pushed. Everything lands by PR. Release *tags* are unaffected, so
   the `vX.Y.Z` tagging flow in [VERSIONING.md](./VERSIONING.md) still works.
-- **`gh pr merge --auto` is the right tool** — it waits for green and re-queues after the
-  branch is updated. Before the strict rule existed it merged immediately, which is not what
-  the flag looks like it does.
-- **When `main` moves under an open PR**, update the branch (`git merge origin/main`) and let
-  CI rerun; the merge is refused until it is current.
+- **`gh pr merge --auto` does not work here.** Auto-merge is switched off at the repository
+  level, so the flag fails outright:
+
+  ```
+  GraphQL: Auto merge is not allowed for this repository (enablePullRequestAutoMerge)
+  ```
+
+  Confirmed with `gh api repos/KhaytApp/Khayt --jq .allow_auto_merge` → `false`, after the
+  flag was tried and refused. Wait for green and merge yourself:
+
+  ```bash
+  gh pr checks <n> --watch && gh pr merge <n> --squash --delete-branch
+  ```
+
+  `--delete-branch` is worth passing every time: `delete_branch_on_merge` is also `false`, so
+  nothing tidies up on its own.
+- **When `main` moves under an open PR**, bring the branch up to date yourself and let CI
+  rerun — the merge is refused until it is current. GitHub's **Update branch** button is not
+  available either (`allow_update_branch` is `false`), so it is `git rebase origin/main` (or
+  `git merge origin/main`) and a push. Expect this: with checks taking ~5 minutes and `main`
+  moving several times an hour, a PR can go `BEHIND` *while its own checks are running*.
 
 ### Deliberately *not* required: `iOS contract`
 
