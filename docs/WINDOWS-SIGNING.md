@@ -53,21 +53,33 @@ instead — see [Path B](#path-b--pfx-file-legacy--essigner).
    - `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`
    - `AZURE_TS_ENDPOINT`, `AZURE_TS_ACCOUNT`, `AZURE_TS_PROFILE`
 
-3. **Enable the signing step.** The Windows job in the Bed Ready release workflow has a
-   commented Azure Trusted Signing step (see the release workflow in the `KhaytApp/bedready`
-   repo). Uncomment it. It uses the official `azure/trusted-signing-action` to sign the
-   built `.exe`s after `electron-builder` produces them, then re-generates `latest.yml`
-   (the auto-update feed) so the `sha512` matches the **signed** binaries.
+3. **Nothing to uncomment — the workflow is live.** The Bed Ready release workflow signs the
+   Windows `.exe`s with `azure/trusted-signing-action` and then re-hashes the update feed,
+   and both steps are **gated on `AZURE_CLIENT_ID` being set**. With no secrets they skip and
+   the build is byte-identical to today's unsigned one; the moment the six secrets exist,
+   signing turns on with no code change.
 
-   > ⚠️ Order matters: sign **before** the update feed's `sha512` is computed, or before you
-   > re-hash. Signing changes the file bytes; a `latest.yml` hash taken pre-signing will make
-   > `electron-updater` reject the download with a "sha512 mismatch". electron-builder does
-   > this correctly when it signs during the build; if you sign as a *post* step, you must
-   > re-run the `latest.yml` hashing afterward.
+   > ⚠️ Order matters, and this is the part that bites. Signing changes the file bytes, so a
+   > `latest.yml` hash computed *before* signing makes `electron-updater` reject the download
+   > with a "sha512 mismatch" — and that failure reaches users mid-update, not CI. Because the
+   > Azure action signs *after* electron-builder has already written the feed, the feed must be
+   > re-hashed afterward. That is what `scripts/repatch-update-feed.mjs` does, and the workflow
+   > runs it immediately after the signing step:
+   >
+   > ```bash
+   > node scripts/repatch-update-feed.mjs build-bedready/latest.yml
+   > ```
+   >
+   > It rewrites the `sha512` and `size` of every artifact it finds on disk, including the
+   > **top-level `sha512`** that mirrors `path:` — the field a hand-edit forgets. If it matches
+   > nothing it exits non-zero rather than reporting success over a stale feed.
 
-The cleanest integration is to let **electron-builder** invoke Azure Trusted Signing itself
-via a custom `sign` hook, so the feed hashes are always taken post-signing. A ready-to-use
-`build/win-sign.js` hook + the `win.sign` wiring can be dropped in when you pick this path.
+   The same script replaces the manual macOS step: after `xcrun stapler staple` changes the
+   `.dmg` bytes, run it against `latest-mac.yml` instead of editing the hash by hand.
+
+A tighter alternative is an electron-builder `win.sign` hook so hashing is always post-signing
+by construction. It needs the Trusted Signing dlib present at build time, which the GitHub
+action handles for us — not worth the extra moving part unless signing moves off CI.
 
 ## Path B — `.pfx` file (legacy / eSigner)
 
