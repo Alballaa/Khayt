@@ -4,6 +4,19 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.6.0-beta.10] - 2026-08-04
+
+The estimator stops pretending it knows one number. Grams-per-hour was learned
+once for the whole shop and used for everything — but measured across 67 finished
+jobs on a single printer it ran from 1.9 to 48.6, because it follows the part far
+more than the machine. So a model you have printed before is now priced from its
+own prints, and the rate is reported as the middle of your jobs with how far they
+disagreed, rather than as something your printer does.
+
+**Quotes for unsliced models move again on this build**, for a different reason
+than they moved in beta.9 — see [docs/BETA-RELEASE.md](./docs/BETA-RELEASE.md).
+
+
 ### Added
 
 - **A model you have printed before is priced from its own prints.** Khayt learned
