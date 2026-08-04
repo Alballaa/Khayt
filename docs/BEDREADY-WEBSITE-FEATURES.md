@@ -10,11 +10,16 @@ print files, preview them in 3D, retarget any model to the printer you own, and 
 works with your existing slicer; it doesn’t replace it.*
 
 **Platforms:** macOS, Windows, Linux (Electron desktop app).
-**Price:** Free during the public beta.
-<!-- NEEDS A DECISION: this line still says "during the public beta", and there is no longer a
-     public beta — 1.0.0 shipped. It is the one claim in this file that is now stale, and it is
-     deliberately left as-is because what replaces it is a pricing decision, not a copy edit.
-     Until it is settled the site should not quote a price from here. -->
+**Price:** Free — not a trial, not a beta discount. Every feature in this catalogue runs on your
+own machine and stays free, with no licence key and no time limit. Features that need Bed Ready's
+servers to work will be paid when they arrive; the line is **local vs. server**, not basic vs. pro,
+so nothing that already runs on your machine moves behind a paywall later.
+<!-- The paid/free line is local-vs-server. Two things follow for the site copy:
+     · Don't write "free tier", "free plan" or "upgrade" — there are no tiers, and #608 already
+       removed the Simple/Pro framing for the same reason. Free is the product, not an entry level.
+     · Cloud sync (§8) ships today and is free. It predates this rule, which is about *future*
+       server features, so it is not the first paid thing by default — but it IS server-backed, so
+       if it is ever meant to become paid, say so here first; the site should not have to guess. -->
 **Privacy:** Local-first. Works fully offline. No telemetry. Optional end-to-end-encrypted cloud sync.
 **Status:** 1.0 — released. Feedback still welcome via the in-app Feedback button.
 
@@ -120,7 +125,8 @@ Details:
 - **Local-first**: works fully offline; nothing is uploaded by default; **no analytics/telemetry**.
 - **Backups & restore points**: export a full backup, set restore points before big changes.
 - **Optional cloud sync**: opt-in, **end-to-end encrypted** — only you hold the key; no account needed
-  to use the app.
+  to use the app. Free today; it is the one server-backed feature that predates the paid-server rule
+  in the header.
 - 8 UI languages (English, Arabic, German, Spanish, French, Japanese, Turkish, Chinese).
 
 ---
