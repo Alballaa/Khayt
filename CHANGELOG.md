@@ -4,6 +4,25 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **Signing in to the cloud could sit on "Connecting…" for half a minute and then
+  say nothing useful.** The check that asks whether the server is there used the
+  same thirty-second budget as a full sync, so a network that quietly swallows the
+  request — a firewall, a VPN, a proxy — left the app looking frozen before it
+  gave up. It now gives that check eight seconds, and says which of the three
+  things went wrong: nothing answered in time, something answered that is not a
+  Khayt server, or the address is not a valid one. Those need different fixes, and
+  "Server not reachable" pointed at none of them.
+
+- **Waiting for an email verification code told you nothing while you waited.**
+  The code is sent and the dialog then goes quiet, so anyone whose message lands
+  in spam — or never arrives — has no way to tell waiting from broken. It now says
+  the code can take a minute and to check the spam folder, names the address it
+  comes from when the server reports one, and offers **Send it again** without
+  making you close the dialog and start over.
+
+
 ## [3.6.0-beta.10] - 2026-08-04
 
 The estimator stops pretending it knows one number. Grams-per-hour was learned

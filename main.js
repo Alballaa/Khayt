@@ -2748,6 +2748,9 @@ ipcMain.handle('hub:ai-extract', async (_e, { apiKey, model, system, request, im
 let cloudBackend = null;
 
 ipcMain.handle('hub:cloud-health', (_e, url) => cloudClient.health(url));
+// Same probe, but says WHY it failed — timeout, unreachable, wrong server, bad
+// address — so the user is told which of those to go and fix.
+ipcMain.handle('hub:cloud-health-detail', (_e, url) => cloudClient.healthDetail(url));
 
 ipcMain.handle('hub:cloud-create-keyset', (_e, passphrase) => {
   try { return { ok: true, ...cloudClient.createKeyset(String(passphrase || '')) }; }
