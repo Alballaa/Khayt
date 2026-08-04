@@ -4,6 +4,12 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.6.0-beta.11] - 2026-08-04
+
+Signing in to the cloud, when it goes wrong, now says what went wrong. Nothing
+about quoting changes on this build.
+
+
 ### Fixed
 
 - **Signing in to the cloud could sit on "Connecting…" for half a minute and then
