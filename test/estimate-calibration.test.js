@@ -127,6 +127,108 @@ test('a machine with no history borrows the shop\'s', () => {
   assert.equal(c.scope, 'shop');
 });
 
+/* ---- Narrower histories --------------------------------------------------
+ * Grams-per-hour is not the machine constant its name suggests: on one real
+ * printer it ran 1.9 → 48.6 g/h across 67 finished jobs, following the part far
+ * more than the machine. So the same model printed the same way is the only
+ * comparison that holds still, and it is preferred whenever it has been earned.
+ * ------------------------------------------------------------------------- */
+
+/** A measured job for a named file/setup, on a named machine. */
+const fileJob = (hours, grams, printFileId, setupId, machineId = 'M1') => ({
+  machineId,
+  actualPrintTime: hours, actualWeight: grams, actualsSource: measured,
+  parts: [{ id: 'p', printFileId, setupId, printTime: hours, printWeight: grams, qty: 1 }],
+});
+
+test('a model with its own finished prints is described by them, not by the shop', () => {
+  // Four shop jobs at ~12 g/h, and three prints of ONE file at ~30 g/h.
+  const log = [
+    ...REAL_SHOP,
+    fileJob(2, 60, 'F-FAST', 'S-A'), fileJob(3, 90, 'F-FAST', 'S-A'), fileJob(4, 120, 'F-FAST', 'S-A'),
+  ];
+  const shopWide = calibrate(log, deps, { machineId: 'M1' });
+  const forFile = calibrate(log, deps, { machineId: 'M1', printFileId: 'F-FAST' });
+
+  assert.equal(forFile.scope, 'file');
+  assert.equal(forFile.jobs, 3);
+  assert.equal(forFile.gramsPerHour, 30, 'the file\'s own rate, not the shop\'s');
+  assert.ok(forFile.gramsPerHour > shopWide.gramsPerHour * 2,
+    `the file should not be dragged to the shop average: ${forFile.gramsPerHour} vs ${shopWide.gramsPerHour}`);
+});
+
+test('the same model with the same settings beats the same model', () => {
+  // One file, two setups that genuinely differ: draft runs twice as fast.
+  const log = [
+    fileJob(2, 60, 'F1', 'S-DRAFT'), fileJob(3, 90, 'F1', 'S-DRAFT'), fileJob(4, 120, 'F1', 'S-DRAFT'),
+    fileJob(4, 60, 'F1', 'S-FINE'), fileJob(6, 90, 'F1', 'S-FINE'), fileJob(8, 120, 'F1', 'S-FINE'),
+  ];
+  const draft = calibrate(log, deps, { printFileId: 'F1', setupId: 'S-DRAFT' });
+  const fine = calibrate(log, deps, { printFileId: 'F1', setupId: 'S-FINE' });
+  const anySetup = calibrate(log, deps, { printFileId: 'F1' });
+
+  assert.equal(draft.scope, 'setup');
+  assert.equal(fine.scope, 'setup');
+  assert.equal(draft.gramsPerHour, 30);
+  assert.equal(fine.gramsPerHour, 15);
+  assert.equal(anySetup.scope, 'file', 'without a setup it is the file as a whole');
+  assert.equal(anySetup.jobs, 6, 'and that pools both setups');
+});
+
+test('a scope that has not earned a rate falls through, it does not thin one out', () => {
+  // Two prints of a file is not a calibration. MIN_JOBS applies at every level.
+  const log = [...REAL_SHOP, fileJob(2, 60, 'F-NEW', 'S-A'), fileJob(3, 90, 'F-NEW', 'S-A')];
+  const c = calibrate(log, deps, { machineId: 'M1', printFileId: 'F-NEW', setupId: 'S-A' });
+  assert.equal(c.scope, 'machine', `fell through to ${c.scope}`);
+  assert.ok(c.jobs >= MIN_JOBS);
+  // And the two thin readings must not have joined the machine's set.
+  assert.equal(c.jobs, calibrate(REAL_SHOP, deps, { machineId: 'M1' }).jobs + 2,
+    'the file\'s own jobs still count toward the machine that ran them');
+});
+
+test('a setup id alone never narrows — setups are only unique within a file', () => {
+  // Two different models that happen to share a setup id must not pool.
+  const log = [
+    fileJob(2, 60, 'F-A', 'S1'), fileJob(3, 90, 'F-A', 'S1'), fileJob(4, 120, 'F-A', 'S1'),
+    fileJob(4, 60, 'F-B', 'S1'), fileJob(6, 90, 'F-B', 'S1'), fileJob(8, 120, 'F-B', 'S1'),
+  ];
+  const c = calibrate(log, deps, { setupId: 'S1' });
+  assert.notEqual(c.scope, 'setup', 'a bare setupId must not claim setup scope');
+  assert.equal(c.scope, 'shop');
+  assert.equal(c.jobs, 6, 'it pooled everything, which is what shop scope means');
+});
+
+test('one model\'s history never leaks into another\'s', () => {
+  const log = [
+    fileJob(2, 60, 'F-A', 'S-A'), fileJob(3, 90, 'F-A', 'S-A'), fileJob(4, 120, 'F-A', 'S-A'),
+    fileJob(4, 60, 'F-B', 'S-B'), fileJob(6, 90, 'F-B', 'S-B'), fileJob(8, 120, 'F-B', 'S-B'),
+  ];
+  assert.equal(calibrate(log, deps, { printFileId: 'F-A' }).gramsPerHour, 30);
+  assert.equal(calibrate(log, deps, { printFileId: 'F-B' }).gramsPerHour, 15);
+  assert.equal(readings(log, deps, { printFileId: 'F-A' }).length, 3);
+});
+
+test('an apportioned or typed job cannot teach a file either', () => {
+  // The guards that protect the shop rate must protect the narrow ones too,
+  // or the narrow scope becomes the easy way round them.
+  const twoParts = {
+    machineId: 'M1', actualPrintTime: 6, actualWeight: 180, actualsSource: measured,
+    parts: [
+      { id: 'a', printFileId: 'F-X', setupId: 'S-X', printTime: 3, printWeight: 90, qty: 1 },
+      { id: 'b', printFileId: 'F-X', setupId: 'S-X', printTime: 3, printWeight: 90, qty: 1 },
+    ],
+  };
+  const typed = {
+    machineId: 'M1', actualPrintTime: 3, actualWeight: 90,
+    actualsSource: { time: 'manual', weight: 'manual' },
+    parts: [{ id: 'p', printFileId: 'F-X', setupId: 'S-X', printTime: 3, printWeight: 90, qty: 1 }],
+  };
+  const log = [twoParts, twoParts, typed, typed, fileJob(2, 60, 'F-X', 'S-X')];
+  assert.equal(readings(log, deps, { printFileId: 'F-X' }).length, 1,
+    'only the single-part measured job may teach');
+  assert.equal(calibrate(log, deps, { printFileId: 'F-X' }), null);
+});
+
 test('nothing learned means the configured value is kept', () => {
   // The honest outcome. A shop with no history keeps whatever it set.
   const opts = { infillPct: 0.2, throughputMm3PerS: 8, densityGPerCm3: 1.24 };

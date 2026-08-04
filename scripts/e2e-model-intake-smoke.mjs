@@ -468,6 +468,79 @@ async function testAddingThePartForgetsTheModel(window) {
   }
 }
 
+/**
+ * A model the shop has printed before is described by its OWN prints.
+ *
+ * This is the point of the narrow scopes: grams-per-hour follows the part, not
+ * the printer — on one real machine it ranged 1.9 to 48.6 g/h across 67 jobs —
+ * so a shop-wide median misprices anything unlike the recent mix. Three finished
+ * prints of THIS model are worth more than a hundred of everything else.
+ */
+async function testAModelsOwnPrintsBeatTheShopAverage(window) {
+  const FILE = 'E2E-RATE-FILE', SETUP = 'E2E-RATE-SETUP';
+  await window.evaluate(([fileId, setupId]) => {
+    if (!Array.isArray(window.printFiles)) printFiles = [];
+    printFiles.length = 0;
+    printFiles.push({
+      id: fileId, name: 'Rate Bracket', originalName: 'rate.3mf',
+      createdAt: Date.now(), parsed: {}, tags: [], folder: '',
+      setups: [{ id: setupId, name: 'Draft PLA', material: 'PLA',
+        layerHeightMm: 0.28, nozzleMm: 0.4, ok: 0, failed: 0,
+        createdAt: new Date().toISOString() }],
+    });
+    renderPrintFiles();
+    document.dispatchEvent(new CustomEvent('khayt:printfiles-changed'));
+
+    // Three finished prints of this model at ~40 g/h, against the ~12 g/h the
+    // shop-wide set already in printLog describes.
+    const src = { time: 'moonraker', weight: 'moonraker' };
+    const j = (h, g) => ({
+      id: 'FILE-' + h, machineId: 'M1',
+      actualPrintTime: h, actualWeight: g, actualsSource: src,
+      parts: [{ id: 'p', printFileId: fileId, setupId, printTime: h, printWeight: g, qty: 1 }],
+    });
+    printLog.unshift(j(2, 80), j(3, 120), j(4, 160));
+    saveAll();
+  }, [FILE, SETUP]);
+
+  await clearPartInfill(window);
+  await selectPrinter(window, '');
+  const generic = await dropRaw(window);
+  if (!/across your printers/i.test(generic.note)) {
+    throw new Error(`expected the shop-wide rate first: ${generic.note}`);
+  }
+
+  // Say which model this is. The estimate must recompute off its own history.
+  await window.selectOption('#partPrintFile', FILE);
+  await window.waitForTimeout(500);
+  const linked = await readForm(window);
+
+  if (!/this model/i.test(linked.note)) {
+    throw new Error(`naming the model did not narrow the rate: ${linked.note}`);
+  }
+  if (/across your printers/i.test(linked.note)) {
+    throw new Error(`still quoting the shop average: ${linked.note}`);
+  }
+  if (!/40(\.\d)?\s*g\/h/.test(linked.note)) {
+    throw new Error(`the model's own ~40 g/h is not shown: ${linked.note}`);
+  }
+  // A faster rate is a shorter job — the number moved, not just the wording.
+  if (!(Number(linked.time) < Number(generic.time))) {
+    throw new Error(`the time did not follow the model's rate: ${linked.time} vs ${generic.time}`);
+  }
+  if (Number(linked.weight) !== Number(generic.weight)) {
+    throw new Error(`calibration must not touch the weight: ${linked.weight} vs ${generic.weight}`);
+  }
+
+  // And naming the settings as well is a narrower claim again.
+  await window.selectOption('#partSetup', SETUP);
+  await window.waitForTimeout(500);
+  const withSetup = await readForm(window);
+  if (!/these settings/i.test(withSetup.note)) {
+    throw new Error(`the setup scope never reached the note: ${withSetup.note}`);
+  }
+}
+
 try {
   ({ electronApp } = await launchApp(userData));
   const window = await electronApp.firstWindow();
@@ -490,10 +563,12 @@ try {
   await testASlicedResultIsNeverRecomputed(window);
   await testRecomputeIsQuiet(window);
   await testAddingThePartForgetsTheModel(window);
+  await testAModelsOwnPrintsBeatTheShopAverage(window);
 
   console.log('e2e-model-intake: ok (sliced 3MF exact, unsliced labelled, OBJ, big G-code,'
     + ' shop settings reach the drop, measured rate reaches it, scope follows the printer,'
-    + ' default infill applies, infill and printer recompute, add-part forgets the model)');
+    + ' default infill applies, infill and printer recompute, add-part forgets the model,'
+    + ' a model\'s own prints beat the shop average)');
 } finally {
   if (electronApp) await electronApp.close().catch(() => {});
   fs.rmSync(userData, { recursive: true, force: true });

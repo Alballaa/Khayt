@@ -4,6 +4,23 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **A model you have printed before is priced from its own prints.** Khayt learned
+  one rate for the whole shop, and used it for everything. That is the wrong shape
+  for the number: across 67 finished jobs on a single printer it ran from 1.9 to
+  48.6 g/hour, because it follows the part's geometry, layer height and colour
+  changes far more than it follows the machine. A shop-wide average therefore
+  describes your recent *mix* of work, and misprices anything unlike it.
+
+  When you tell the calculator which model this is — the **From your print
+  library** picker — Khayt now uses that model's own finished prints instead, and
+  the settings you printed it with if you name those too. It falls back on its own:
+  this model with these settings, then this model, then this printer, then the
+  shop, taking the first that has three measured prints behind it and agrees with
+  itself. The note says which you got, so a rate from three prints of this exact
+  model never reads like an average of everything.
+
 ### Changed
 
 - **The estimate note no longer states your printer's rate as though it were a

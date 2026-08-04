@@ -604,10 +604,16 @@ function addPart() {
   if ($('#partFileRef')) $('#partFileRef').value = '';
   // Same reason the file reference is cleared: a second part in one order must
   // not silently inherit the first part's model and settings.
-  if ($('#partPrintFile')) { $('#partPrintFile').value = ''; $('#partPrintFile').dispatchEvent(new Event('change', { bubbles: true })); }
   // The estimate note belongs to the part that just left the form. wireEvents()
   // owns it, and forgets the model it was derived from when it hears this.
+  //
+  // Announced BEFORE the pickers are cleared, not after. Clearing #partPrintFile
+  // fires a `change`, and wireEvents recomputes the estimate on that — so with
+  // the order reversed the estimate was recomputed into a form that was in the
+  // middle of being emptied, refilling the weight of the part that had just
+  // left. Forget the model first, and the change that follows finds nothing.
   try { document.dispatchEvent(new CustomEvent('khayt:calc-part-added')); } catch (e) { /* non-fatal */ }
+  if ($('#partPrintFile')) { $('#partPrintFile').value = ''; $('#partPrintFile').dispatchEvent(new Event('change', { bubbles: true })); }
   currentExtraMaterials = [];
   currentPriceTiers = [];
   renderExtraMaterials();
