@@ -2696,6 +2696,8 @@
   "cloud.reset_need_code": "E-postanızdaki kodu girin",
   "cloud.reset_done": "Parola sıfırlandı — yeni parolanızla giriş yapın",
   "cloud.reset_no_email": "Bu sunucuda e-posta ayarlanmamış — yöneticiyle iletişime geçin",
+  "cloud.email_refused": "Sunucu e-postayı gönderemedi — yöneticiyle iletişime geçin",
+  "cloud.email_refused_signup": "Hesap oluşturuldu ancak doğrulama e-postası gönderilemedi — yöneticiyle iletişime geçin",
   "cloud.plan": "Plan",
   "cloud.plan_inactive": "etkin değil",
   "cloud.plan_storage": "en fazla",

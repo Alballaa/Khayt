@@ -2696,6 +2696,8 @@
   "cloud.reset_need_code": "请输入邮件中的重置码",
   "cloud.reset_done": "密码已重置 — 请使用新密码登录",
   "cloud.reset_no_email": "此服务器未配置邮件 — 请联系管理员",
+  "cloud.email_refused": "服务器无法发送邮件 — 请联系管理员",
+  "cloud.email_refused_signup": "账户已创建，但无法发送验证邮件 — 请联系管理员",
   "cloud.plan": "套餐",
   "cloud.plan_inactive": "未激活",
   "cloud.plan_storage": "最多",

@@ -2696,6 +2696,8 @@
   "cloud.reset_need_code": "メールに記載のコードを入力してください",
   "cloud.reset_done": "パスワードをリセットしました — 新しいパスワードでログインしてください",
   "cloud.reset_no_email": "このサーバーにはメールが設定されていません — 管理者に連絡してください",
+  "cloud.email_refused": "サーバーがメールを送信できませんでした — 管理者にご連絡ください",
+  "cloud.email_refused_signup": "アカウントを作成しましたが、確認メールを送信できませんでした — 管理者にご連絡ください",
   "cloud.plan": "プラン",
   "cloud.plan_inactive": "無効",
   "cloud.plan_storage": "最大",

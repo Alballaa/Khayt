@@ -2696,6 +2696,8 @@
   "cloud.reset_need_code": "Saisissez le code reçu par e-mail",
   "cloud.reset_done": "Mot de passe réinitialisé — connectez-vous avec votre nouveau mot de passe",
   "cloud.reset_no_email": "Ce serveur n'a pas de messagerie configurée — contactez l'administrateur",
+  "cloud.email_refused": "Le serveur n'a pas pu envoyer l'e-mail — contactez l'administrateur",
+  "cloud.email_refused_signup": "Compte créé, mais l'e-mail de vérification n'a pas pu être envoyé — contactez l'administrateur",
   "cloud.plan": "Forfait",
   "cloud.plan_inactive": "inactif",
   "cloud.plan_storage": "jusqu'à",

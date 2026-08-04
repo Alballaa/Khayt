@@ -4,6 +4,18 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **Khayt asked you to wait for a verification code the server had already failed
+  to send.** The cloud server knows when the email provider refuses a message, and
+  now says so; Khayt was not asking. It opened the "enter your code" dialog either
+  way, so a shop whose provider had turned the message away sat waiting for
+  something that was never accepted, with nothing to tell them apart from a slow
+  inbox. Verifying an address, resetting a password and creating an account now
+  each say plainly when the email could not be sent, instead of sending you to
+  wait for it.
+
+
 ## [3.6.0-beta.11] - 2026-08-04
 
 Signing in to the cloud, when it goes wrong, now says what went wrong. Nothing
