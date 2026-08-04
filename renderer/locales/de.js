@@ -2696,6 +2696,8 @@
   "cloud.reset_need_code": "Code aus Ihrer E-Mail eingeben",
   "cloud.reset_done": "Passwort zurückgesetzt — mit Ihrem neuen Passwort anmelden",
   "cloud.reset_no_email": "Auf diesem Server ist kein E-Mail-Versand eingerichtet — wenden Sie sich an den Administrator",
+  "cloud.email_refused": "Der Server konnte die E-Mail nicht senden — wenden Sie sich an den Administrator",
+  "cloud.email_refused_signup": "Konto erstellt, aber die Bestätigungs-E-Mail konnte nicht gesendet werden — wenden Sie sich an den Administrator",
   "cloud.plan": "Tarif",
   "cloud.plan_inactive": "inaktiv",
   "cloud.plan_storage": "bis zu",

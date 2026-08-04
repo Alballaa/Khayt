@@ -2281,6 +2281,8 @@
   "cloud.reset_need_code": "أدخل الرمز من بريدك الإلكتروني",
   "cloud.reset_done": "تمت إعادة التعيين — سجّل الدخول بكلمة مرورك الجديدة",
   "cloud.reset_no_email": "هذا الخادم لا يملك إعداد بريد — تواصل مع المسؤول",
+  "cloud.email_refused": "تعذّر على الخادم إرسال البريد — تواصل مع المسؤول",
+  "cloud.email_refused_signup": "أُنشئ الحساب، لكن تعذّر إرسال بريد التحقق — تواصل مع المسؤول",
   "cloud.plan": "الخطة",
   "cloud.plan_inactive": "غير نشطة",
   "cloud.plan_storage": "حتى",

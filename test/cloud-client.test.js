@@ -109,6 +109,64 @@ test('health + register reach the live server', async () => {
  * nothing useful — is what these are for.
  * ---------------------------------------------------------------------- */
 
+/* ---- emailFailed reaches the caller --------------------------------------
+ * The server learned to say "I tried and the provider refused" (khayt-cloud #7)
+ * so the app would stop opening a code dialog for a message that was never
+ * accepted. A field the client drops on the floor is the same as not having it —
+ * which is the shape of every bug this file has grown a test for today.
+ * ---------------------------------------------------------------------- */
+
+/** A server that answers the three send routes with whatever body we hand it. */
+function mailServer(body) {
+  const http = require('node:http');
+  const srv = http.createServer((req, res) => {
+    let raw = '';
+    req.on('data', (c) => { raw += c; });
+    req.on('end', () => {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(body));
+    });
+  });
+  return srv;
+}
+
+test('a refusal reported by the server reaches the caller', async () => {
+  const http = require('node:http');
+  const srv = mailServer({ ok: true, alreadyVerified: false, emailConfigured: true, emailFailed: true,
+                           accountId: 'A', shopId: 'S', token: 'T' });
+  await new Promise((r) => srv.listen(0, r));
+  const base = `http://localhost:${srv.address().port}`;
+  try {
+    assert.equal((await cc.requestVerify(base, { email: 'a@b.co' })).emailFailed, true);
+    assert.equal((await cc.requestReset(base, { email: 'a@b.co' })).emailFailed, true);
+    assert.equal((await cc.signup(base, { email: 'a@b.co', password: 'x'.repeat(9) })).emailFailed, true);
+  } finally { srv.close(); }
+});
+
+test('a server that says nothing about it is not treated as a failure', async () => {
+  // Older deployments do not report the field. Absent must read as false, or
+  // every shop on one would be told their email is broken.
+  const srv = mailServer({ ok: true, alreadyVerified: false, emailConfigured: true,
+                           accountId: 'A', shopId: 'S', token: 'T' });
+  await new Promise((r) => srv.listen(0, r));
+  const base = `http://localhost:${srv.address().port}`;
+  try {
+    assert.equal((await cc.requestVerify(base, { email: 'a@b.co' })).emailFailed, false);
+    assert.equal((await cc.requestReset(base, { email: 'a@b.co' })).emailFailed, false);
+    assert.equal((await cc.signup(base, { email: 'a@b.co', password: 'x'.repeat(9) })).emailFailed, false);
+  } finally { srv.close(); }
+});
+
+test('a clean send is not reported as refused', async () => {
+  const srv = mailServer({ ok: true, alreadyVerified: false, emailConfigured: true, emailFailed: false,
+                           accountId: 'A', shopId: 'S', token: 'T' });
+  await new Promise((r) => srv.listen(0, r));
+  const base = `http://localhost:${srv.address().port}`;
+  try {
+    assert.equal((await cc.requestVerify(base, { email: 'a@b.co' })).emailFailed, false);
+  } finally { srv.close(); }
+});
+
 test('a healthy server reports ok, and health() stays a boolean', async () => {
   assert.deepEqual(await cc.healthDetail(base), { ok: true, reason: 'ok' });
   assert.equal(await cc.health(base), true, 'the boolean contract is unchanged');

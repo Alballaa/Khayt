@@ -2697,6 +2697,8 @@
   "cloud.reset_need_code": "Enter the code from your email",
   "cloud.reset_done": "Password reset — log in with your new password",
   "cloud.reset_no_email": "This server has no email set up — contact the admin",
+  "cloud.email_refused": "The server could not send the email — contact the admin",
+  "cloud.email_refused_signup": "Account created, but the verification email could not be sent — contact the admin",
   "cloud.plan": "Plan",
   "cloud.plan_inactive": "inactive",
   "cloud.plan_storage": "up to",

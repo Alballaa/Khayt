@@ -2696,6 +2696,8 @@
   "cloud.reset_need_code": "Introduce el código de tu correo electrónico",
   "cloud.reset_done": "Contraseña restablecida — inicia sesión con tu nueva contraseña",
   "cloud.reset_no_email": "Este servidor no tiene correo configurado — contacta al administrador",
+  "cloud.email_refused": "El servidor no pudo enviar el correo — contacta con el administrador",
+  "cloud.email_refused_signup": "Cuenta creada, pero no se pudo enviar el correo de verificación — contacta con el administrador",
   "cloud.plan": "Plan",
   "cloud.plan_inactive": "inactivo",
   "cloud.plan_storage": "hasta",

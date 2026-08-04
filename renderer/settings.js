@@ -1546,6 +1546,11 @@ function showVerifyEmailModal(url, email, sender) {
           errEl.textContent = t('cloud.reset_no_email') || 'This server has no email set up — contact the admin';
           return;
         }
+        if (rr.emailFailed) {
+          errEl.style.color = 'var(--danger)';
+          errEl.textContent = t('cloud.email_refused') || 'The server could not send the email — contact the admin';
+          return;
+        }
         errEl.style.color = 'var(--success)';
         errEl.textContent = t('cloud.verify_resent') || 'Sent again — check your inbox and spam folder.';
       });
@@ -1783,6 +1788,13 @@ function renderCloudSettings() {
     await enableCloudAutoSync({ initialPull: false }); // new shop: just push local
     renderCloudSettings();
     toast(t('cloud.account_created') || 'Account created — Khayt Cloud connected', 'success');
+    // Sign-up succeeds either way, but the welcome/verification email may not
+    // have gone. Saying so now beats the shop discovering it when the code they
+    // are waiting for never arrives.
+    if (su.emailFailed) {
+      toast(t('cloud.email_refused_signup')
+        || 'Account created, but the verification email could not be sent — contact the admin', 'warning', 8000);
+    }
   });
 
   // Log in (existing account, e.g. a second device): login → get encrypted keyset → unlock with passphrase.
@@ -1853,6 +1865,9 @@ function renderCloudSettings() {
     const r = await window.hubAPI.cloudRequestReset({ url, email });
     if (!r.ok) { result('✗ ' + (r.error || 'request failed'), 'var(--danger)'); return; }
     if (!r.emailConfigured) { result(t('cloud.reset_no_email') || 'This server has no email set up — contact the admin', 'var(--danger)'); return; }
+    // The server tried and the provider turned it away. Opening the code dialog
+    // here would ask the shop to wait for a message that was never accepted.
+    if (r.emailFailed) { result(t('cloud.email_refused') || 'The server could not send the email — contact the admin', 'var(--danger)'); return; }
     result('');
     showResetPasswordModal(url, email);
   });
@@ -1863,6 +1878,7 @@ function renderCloudSettings() {
     if (rv.ok && rv.alreadyVerified) { if (settings.cloud) { settings.cloud.verified = true; saveAll(); } renderCloudSettings(); toast(t('cloud.verify_done') || 'Email verified ✓', 'success'); return; }
     if (!rv.ok) { toast('✗ ' + (rv.error || 'could not send code'), 'error'); return; }
     if (!rv.emailConfigured) { toast(t('cloud.reset_no_email') || 'This server has no email set up — contact the admin', 'error'); return; }
+    if (rv.emailFailed) { toast(t('cloud.email_refused') || 'The server could not send the email — contact the admin', 'error', 6000); return; }
     showVerifyEmailModal(c.url, c.email, rv.sender);
   });
 
