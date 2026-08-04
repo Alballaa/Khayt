@@ -1,7 +1,9 @@
 # Bed Ready screenshot library
 
-12 screenshots, viewport 1480×940, PNG, dark theme.
-Public-beta build (the BETA badge is intentional). Demo data — no real customer content.
+12 screenshots, PNG, light theme.
+Captured at 1480×940; dialog shots are cropped to the dialog, so
+they are smaller. Set `BEDREADY_THEME=dark` to recapture in dark.
+Demo data — no real customer content.
 
 ## Contents
 

@@ -325,7 +325,9 @@ try {
 
   // Manifest so the website team knows what each file is.
   const md = ['# Bed Ready screenshot library', '',
-    `${MANIFEST.length} screenshots, viewport ${VIEWPORT.width}×${VIEWPORT.height}, PNG, dark theme.`,
+    `${MANIFEST.length} screenshots, PNG, ${THEME} theme.`,
+    `Captured at ${VIEWPORT.width}×${VIEWPORT.height}; dialog shots are cropped to the dialog, so`,
+    'they are smaller. Set `BEDREADY_THEME=dark` to recapture in dark.',
     'Demo data — no real customer content.', '',
     '## Contents', '',
     ...MANIFEST.map((m) => `- \`${m.file}\` — ${m.label}`), '',
