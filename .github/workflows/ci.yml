@@ -26,6 +26,25 @@ jobs:
           BASE_REF: origin/${{ github.base_ref }}
         run: node scripts/check-changelog.js
 
+  # CONTRIBUTING.md says a PR without a DCO sign-off can't be merged. Until this
+  # job that was not true of anything except the sentence. PRs only, for the same
+  # reason as the changelog job: a push to main is a squash of something already
+  # checked, and the squash commit is written by GitHub, not by the author.
+  dco:
+    name: DCO sign-off
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Needs the base ref present to enumerate the PR's own commits.
+          fetch-depth: 0
+
+      - name: Every commit carries a Signed-off-by
+        env:
+          BASE_REF: origin/${{ github.base_ref }}
+        run: node scripts/check-dco.js
+
   check:
     name: Syntax check
     runs-on: ubuntu-latest
