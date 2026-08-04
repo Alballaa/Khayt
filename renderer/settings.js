@@ -1491,15 +1491,65 @@ function showResetPasswordModal(url, email) {
 }
 
 /** Modal to enter the emailed verification code. On success marks the account verified. */
-function showVerifyEmailModal(url, email) {
+/**
+ * Say WHY the server could not be reached, not just that it could not.
+ *
+ * The three failures need three different fixes — a network that swallows the
+ * request, an address that answers but is not a Khayt server, and an address
+ * that is not a URL — and "Server not reachable" pointed at none of them.
+ */
+function cloudReachErrorText(res, url) {
+  const r = (res && res.reason) || 'unreachable';
+  if (r === 'timeout') {
+    const secs = Math.round(((res && res.timeoutMs) || 8000) / 1000);
+    return t('cloud.unreachable_timeout', { url, secs })
+      || `No answer from ${url} after ${secs}s — a firewall, VPN or proxy may be blocking it.`;
+  }
+  if (r === 'http') {
+    return t('cloud.unreachable_http', { url, status: (res && res.status) || '?' })
+      || `${url} answered, but not as a Khayt server (HTTP ${(res && res.status) || '?'}).`;
+  }
+  if (r === 'bad-url') {
+    return (res && res.detail) || t('cloud.unreachable_badurl') || 'That is not a valid server address.';
+  }
+  return (t('cloud.unreachable') || 'Server not reachable') + ' ' + url;
+}
+
+function showVerifyEmailModal(url, email, sender) {
+  // The code is sent, then the app goes quiet. A user who never receives it has
+  // no idea whether to wait, look in spam, or give up — so say how long it may
+  // take, name the address it comes from when the server tells us, and offer a
+  // resend without making them close the dialog and start again.
+  const fromLine = sender
+    ? `<p style="font-size:12px;color:var(--text-muted);margin:4px 0 0;">${escapeHtml(t('cloud.verify_from', { sender }) || `It is sent from ${sender}.`)}</p>`
+    : '';
   openFormModal({
     title: t('cloud.verify_title') || 'Verify your email',
     saveLabel: t('cloud.verify_do') || 'Verify',
     bodyHtml: `
       <p style="font-size:13px;">${escapeHtml(t('cloud.verify_sent') || 'We emailed a verification code to')} <strong>${escapeHtml(email)}</strong>.</p>
-      <label>${escapeHtml(t('cloud.verify_code') || 'Verification code')}</label>
+      <p style="font-size:12px;color:var(--text-muted);margin:4px 0 0;">${escapeHtml(t('cloud.verify_spam') || 'It can take a minute. If it does not arrive, check your spam or junk folder.')}</p>
+      ${fromLine}
+      <label style="margin-top:8px;">${escapeHtml(t('cloud.verify_code') || 'Verification code')}</label>
       <input type="text" id="veCode" autocomplete="one-time-code" style="font-family:monospace;text-transform:uppercase;">
+      <button type="button" id="veResend" class="btn ghost small" style="margin-top:6px;">${escapeHtml(t('cloud.verify_resend') || 'Send it again')}</button>
       <p id="veErr" style="color:var(--danger);font-size:12px;min-height:14px;margin:6px 0 0;"></p>`,
+    onMount: (modal) => {
+      modal.querySelector('#veResend')?.addEventListener('click', async (ev) => {
+        const btn = ev.currentTarget;
+        const errEl = modal.querySelector('#veErr');
+        btn.disabled = true;
+        const rr = await window.hubAPI.cloudRequestVerify({ url, email });
+        btn.disabled = false;
+        if (!rr || !rr.ok) { errEl.textContent = '✗ ' + ((rr && rr.error) || 'could not send code'); return; }
+        if (!rr.emailConfigured) {
+          errEl.textContent = t('cloud.reset_no_email') || 'This server has no email set up — contact the admin';
+          return;
+        }
+        errEl.style.color = 'var(--success)';
+        errEl.textContent = t('cloud.verify_resent') || 'Sent again — check your inbox and spam folder.';
+      });
+    },
     onSave: async (modal) => {
       const code = modal.querySelector('#veCode').value.trim().toUpperCase();
       const errEl = modal.querySelector('#veErr');
@@ -1711,7 +1761,8 @@ function renderCloudSettings() {
     if (!password || password.length < 8) { result(t('cloud.need_password') || 'Account password must be 8+ chars', 'var(--danger)'); return null; }
     if (!pass || pass.length < 6) { result(t('cloud.need_pass') || 'Choose a sync passphrase (6+ chars)', 'var(--danger)'); return null; }
     result(t('cloud.connecting') || 'Connecting…');
-    if (!(await window.hubAPI.cloudHealth(url))) { result((t('cloud.unreachable') || 'Server not reachable') + ' ' + url, 'var(--danger)'); return null; }
+    const hz = await window.hubAPI.cloudHealthDetail(url);
+    if (!hz || !hz.ok) { result(cloudReachErrorText(hz, url), 'var(--danger)'); return null; }
     return { url, email, password, pass, secret };
   };
 
@@ -1797,7 +1848,8 @@ function renderCloudSettings() {
     if (!url) { result(t('cloud.need_url') || 'Enter the server URL', 'var(--danger)'); return; }
     if (!email) { result(t('cloud.need_email') || 'Enter your email first', 'var(--danger)'); return; }
     result(t('cloud.connecting') || 'Connecting…');
-    if (!(await window.hubAPI.cloudHealth(url))) { result((t('cloud.unreachable') || 'Server not reachable') + ' ' + url, 'var(--danger)'); return; }
+    const hz = await window.hubAPI.cloudHealthDetail(url);
+    if (!hz || !hz.ok) { result(cloudReachErrorText(hz, url), 'var(--danger)'); return; }
     const r = await window.hubAPI.cloudRequestReset({ url, email });
     if (!r.ok) { result('✗ ' + (r.error || 'request failed'), 'var(--danger)'); return; }
     if (!r.emailConfigured) { result(t('cloud.reset_no_email') || 'This server has no email set up — contact the admin', 'var(--danger)'); return; }
@@ -1811,7 +1863,7 @@ function renderCloudSettings() {
     if (rv.ok && rv.alreadyVerified) { if (settings.cloud) { settings.cloud.verified = true; saveAll(); } renderCloudSettings(); toast(t('cloud.verify_done') || 'Email verified ✓', 'success'); return; }
     if (!rv.ok) { toast('✗ ' + (rv.error || 'could not send code'), 'error'); return; }
     if (!rv.emailConfigured) { toast(t('cloud.reset_no_email') || 'This server has no email set up — contact the admin', 'error'); return; }
-    showVerifyEmailModal(c.url, c.email);
+    showVerifyEmailModal(c.url, c.email, rv.sender);
   });
 
   el.querySelector('#btnCloudUnlock')?.addEventListener('click', async () => {

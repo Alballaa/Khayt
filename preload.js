@@ -164,6 +164,7 @@ contextBridge.exposeInMainWorld('hubAPI', {
   intakeModelBytes: (filename, bytes) => ipcRenderer.invoke('hub:intake-model-bytes', { filename, bytes }),
   aiExtract: (opts) => ipcRenderer.invoke('hub:ai-extract', opts),
   cloudHealth: (url) => ipcRenderer.invoke('hub:cloud-health', url),
+  cloudHealthDetail: (url) => ipcRenderer.invoke('hub:cloud-health-detail', url),
   cloudCreateKeyset: (passphrase) => ipcRenderer.invoke('hub:cloud-create-keyset', passphrase),
   cloudRegister: (opts) => ipcRenderer.invoke('hub:cloud-register', opts),
   cloudSignup: (opts) => ipcRenderer.invoke('hub:cloud-signup', opts),

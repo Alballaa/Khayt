@@ -101,6 +101,74 @@ test('health + register reach the live server', async () => {
   assert.ok(reg.shopId && reg.token);
 });
 
+/* ---- Why the server could not be reached -------------------------------
+ * "Server not reachable" covered a network that swallows the request, an
+ * address that answers but is not a Khayt server, and a string that is not a
+ * URL. Those need three different fixes, and a user told only the first one
+ * cannot act. A real support thread — login sat on "Connecting…" and then said
+ * nothing useful — is what these are for.
+ * ---------------------------------------------------------------------- */
+
+test('a healthy server reports ok, and health() stays a boolean', async () => {
+  assert.deepEqual(await cc.healthDetail(base), { ok: true, reason: 'ok' });
+  assert.equal(await cc.health(base), true, 'the boolean contract is unchanged');
+});
+
+test('a server that answers but is not Khayt is named as such, not "unreachable"', async () => {
+  const http = require('node:http');
+  const wrong = http.createServer((_q, res) => { res.writeHead(500); res.end('nope'); });
+  await new Promise((r) => wrong.listen(0, r));
+  try {
+    const d = await cc.healthDetail(`http://localhost:${wrong.address().port}`);
+    assert.equal(d.ok, false);
+    assert.equal(d.reason, 'http', 'it answered — that is not the same as unreachable');
+    assert.equal(d.status, 500, 'and the status is carried so the user can act on it');
+    assert.equal(await cc.health(`http://localhost:${wrong.address().port}`), false);
+  } finally { wrong.close(); }
+});
+
+test('a network that swallows the request reports a timeout, with its budget', async () => {
+  // Accepts the connection and never answers — the shape a firewall or proxy
+  // produces, and the one that used to hang the UI for thirty seconds.
+  const http = require('node:http');
+  const blackhole = http.createServer(() => { /* deliberately no response */ });
+  await new Promise((r) => blackhole.listen(0, r));
+  try {
+    const started = Date.now();
+    const d = await cc.healthDetail(`http://localhost:${blackhole.address().port}`, { timeoutMs: 300 });
+    const elapsed = Date.now() - started;
+    assert.equal(d.ok, false);
+    assert.equal(d.reason, 'timeout', 'a silent server is a timeout, not "unreachable"');
+    assert.equal(d.timeoutMs, 300, 'and reports the budget it waited, so the UI can say how long');
+    // Reporting the budget is not the same as honouring it. Without this the
+    // option could be ignored entirely and the test would still pass — thirty
+    // seconds later, which is the bug this whole change is about.
+    assert.ok(elapsed < 3000, `waited ${elapsed}ms for a 300ms budget — the timeout is not being applied`);
+  } finally { blackhole.close(); }
+});
+
+test('the default health budget is far below the general one', async () => {
+  // The bug was a 30s general timeout applied to a one-line GET.
+  assert.ok(cc.HEALTH_TIMEOUT_MS <= 10000,
+    `a health probe waiting ${cc.HEALTH_TIMEOUT_MS}ms reads as a frozen app`);
+});
+
+test('a string that is not a URL is a bad address, not a dead server', async () => {
+  for (const bad of ['not a url', '', 'ftp://example.com']) {
+    const d = await cc.healthDetail(bad);
+    assert.equal(d.ok, false, JSON.stringify(bad));
+    assert.equal(d.reason, 'bad-url', JSON.stringify(bad));
+    assert.ok(d.detail, 'and carries something worth showing the user');
+  }
+});
+
+test('http:// to a public host is refused before any password is sent', async () => {
+  // The existing guard, now reachable through healthDetail's bad-url branch.
+  const d = await cc.healthDetail('http://cloud.example.com');
+  assert.equal(d.reason, 'bad-url');
+  assert.match(d.detail, /https/i);
+});
+
 test('full E2E round-trip: encrypt → push → pull → decrypt equals the store', async () => {
   const { shopId, token } = await cc.register(base);
   const { keyset } = cc.createKeyset('sync-pass', { kdf: FAST_KDF });
