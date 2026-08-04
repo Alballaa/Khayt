@@ -21,13 +21,14 @@ Rules in force:
 |---|---|
 | `deletion` | `main` cannot be deleted |
 | `non_fast_forward` | no force-push to `main` |
-| `required_status_checks` (**strict**) | three checks must pass **and** the branch must be up to date |
+| `required_status_checks` (**strict**) | the required checks must pass **and** the branch must be up to date |
 
-Required checks — all three come from [`.github/workflows/ci.yml`](.github/workflows/ci.yml):
+Required checks — all come from [`.github/workflows/ci.yml`](.github/workflows/ci.yml):
 
 - `Changelog entry`
 - `Syntax check`
 - `E2E smoke (Electron)`
+- `DCO sign-off`
 
 `bypass_actors` is **empty**, so nobody is exempt. `gh pr merge --admin` is refused with
 `Repository rule violations found` even for a repo admin — verified by attempting it, not
@@ -57,11 +58,19 @@ if a principal is explicitly listed, and none is.
 `.github/workflows/ios-contract.yml` is path-filtered to `ios/**`, `lib/lan-server.js` and
 `scripts/ios-contract-*`. On a PR touching none of those the workflow never runs, so the check
 never reports — and a required check that never reports blocks the PR forever. Leave it out
-unless the filters are removed. The three required checks live in `ci.yml`, which has no path
+unless the filters are removed. The required checks all live in `ci.yml`, which has no path
 filters and therefore always reports.
 
-## Sign-off is documented but not machine-enforced
+## Sign-off is enforced — commit with `-s`
 
-CONTRIBUTING.md says PRs without a DCO `Signed-off-by` line can't be merged. That is the
-project's policy, not a gate: no DCO check exists in the ruleset, so an unsigned PR will merge.
-Follow the policy — just don't expect CI to catch a missed `git commit -s`.
+Every non-merge commit in a PR must carry a `Signed-off-by` trailer whose email matches its own
+author, or `DCO sign-off` fails. Use `git commit -s`; to fix a branch after the fact,
+`git rebase --signoff origin/main`.
+
+The email has to be the **author's**, because the DCO is the author certifying their own work.
+The usual real-world failure is a commit made in the GitHub web UI, which authors as
+`…@users.noreply.github.com` while local `git config` says something else — the guard prints
+both addresses when they disagree, rather than just refusing.
+
+Merge commits are exempt on purpose: `main` is strict, so a stale PR gets an "Update branch"
+merge commit written by GitHub that nobody can sign. See [`scripts/check-dco.js`](scripts/check-dco.js).
