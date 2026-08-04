@@ -573,7 +573,12 @@ function wireEvents() {
     const btn = $('#btnSliceQuote');
     const orig = btn.textContent; btn.disabled = true; btn.textContent = t('slicer.slicing');
     try {
-      const r = await window.hubAPI.slice({ modelPath, slicerPath: sl.path, args: sl.args });
+      // The shop's own density, so a slice with no filament profile can still be
+      // weighed from the volume the slicer measured.
+      const density = (typeof KhaytStl !== 'undefined' && KhaytStl.fromSettings)
+        ? KhaytStl.fromSettings(typeof settings !== 'undefined' ? settings : {}).densityGPerCm3
+        : null;
+      const r = await window.hubAPI.slice({ modelPath, slicerPath: sl.path, args: sl.args, densityGPerCm3: density });
       if (!r || !r.ok) throw new Error((r && r.error) || 'failed');
       const g = r.filamentGrams != null ? Math.round(r.filamentGrams * 10) / 10 : null;
       const h = r.printTimeMins != null ? Math.round((r.printTimeMins / 60) * 100) / 100 : null;
@@ -581,7 +586,11 @@ function wireEvents() {
       if (h != null) { const tt = $('#printTime'); if (tt) { tt.value = h; tt.dispatchEvent(new Event('input', { bubbles: true })); } }
       const note = $('#stlEstimateNote');
       if (note) {
-        note.textContent = t('slicer.note', { slicer: r.slicer || 'slicer', weight: g != null ? g : '?', time: h != null ? h : '?' });
+        // A weight the slicer stood behind and one worked out from its volume are
+        // different claims; the note says which, rather than letting a derived
+        // figure read as the slicer's own.
+        note.textContent = t(r.filamentGramsDerived ? 'slicer.note_derived' : 'slicer.note',
+          { slicer: r.slicer || 'slicer', weight: g != null ? g : '?', time: h != null ? h : '?' });
         note.style.display = 'block';
       }
       toast(t('slicer.applied'), 'success');

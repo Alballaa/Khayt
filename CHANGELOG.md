@@ -15,6 +15,19 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   Focus now stays inside, and returns to the button if the install fails so you
   can retry.
 
+- **"Slice for exact quote" gave you a print time but no weight.** Slicing a plain
+  model — one that carries no printer or filament profile — leaves the slicer with
+  no filament density, so it measures the volume exactly and then reports the
+  weight as zero. Khayt was right to refuse a zero as a measurement, but that left
+  the weight box empty on the one path meant to replace an estimate with a real
+  number, and weight is what your material cost is priced from.
+
+  The volume is the slicer's own measurement of the actual toolpaths, so the
+  weight is now worked out from it using the filament density in your estimator
+  settings. The note says when it was worked out that way rather than reported by
+  the slicer, because those are different claims. A slicer that does report a
+  weight is still believed over anything derived.
+
 - **Khayt asked you to wait for a verification code the server had already failed
   to send.** The cloud server knows when the email provider refuses a message, and
   now says so; Khayt was not asking. It opened the "enter your code" dialog either

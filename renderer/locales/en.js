@@ -3189,6 +3189,7 @@
   "slicer.no_config": "Set your slicer path in Settings → Slicer first.",
   "slicer.fail": "Slicing failed:",
   "slicer.note": "Sliced with {slicer}: {weight} g · {time} h",
+  "slicer.note_derived": "{slicer}: {time} h · {weight} g — weight worked out from the slicer's volume at your filament density.",
   "slicer.applied": "Estimate applied from slice — review before saving.",
   "slicer.send_title": "Slice & print",
   "slicer.start_confirm": "Slice and start printing on {name}?",
