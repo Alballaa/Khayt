@@ -5,7 +5,7 @@ Khayt publishes **two release channels** on GitHub:
 | Channel | Latest | GitHub | Auto-update |
 |---------|--------|--------|-------------|
 | **Stable** | `v3.5.3` | [Latest release](https://github.com/khaytapp/Khayt/releases/latest) | Default (beta off) |
-| **Beta** | `v3.6.0-beta.10` | [Pre-releases](https://github.com/khaytapp/Khayt/releases) (filter *Pre-release*) | Opt-in via Settings |
+| **Beta** | `v3.6.0-beta.11` | [Pre-releases](https://github.com/khaytapp/Khayt/releases) (filter *Pre-release*) | Opt-in via Settings |
 
 > Verified 2026-08-04 against published tags. These rot fast — check with
 > `gh release list --repo KhaytApp/Khayt` rather than trusting the table.
@@ -36,29 +36,28 @@ line carried QC / reprint / RMA, shipping & fulfillment, BOM assemblies, privacy
 telemetry and per-printer cameras, all stable since **v3.2.0**. You do not need
 a beta for any of them.
 
-## Your quotes change in `v3.6.0-beta.10`
+## Your quotes changed in `beta.9` and `beta.10`
 
-If you price unsliced models, the numbers move again on this build — and for a
-different reason than they moved in `beta.9`. Re-check any quote you have not yet
-sent.
+If you price unsliced models and you are coming from `beta.8` or earlier, the
+numbers have moved — twice, for two different reasons. Re-check any quote you
+have not yet sent. **`beta.11` changes nothing about quoting.**
 
-**A model you have printed before is now priced from its own prints.** Khayt used
-to learn one rate for the whole shop and apply it to everything. That is the wrong
-shape for the number: measured across 67 finished jobs on one printer it ran from
-1.9 to 48.6 g/hour, because it follows the part's geometry, layer height and
-colour changes far more than the machine. Tell the calculator which model this is,
-using **From your print library**, and it uses that model's own finished prints
-instead — and the settings you printed it with, if you name those too.
+**`beta.9` — the estimate started using your own numbers.** Print time now comes
+from jobs your printer measured rather than a shipped constant of about 35.7
+g/hour, and material weight follows your **Default infill %** rather than a fixed
+20%. Until then the customer intake form used your real settings while the
+calculator did not, so the same file could come back from the two with different
+answers.
 
-**The note now says how much of a number you are holding.** It reports the middle
-of the jobs behind the rate and how far they disagreed — *"26.3 g/h — the middle
-of 12 finished jobs measured on this printer, give or take 12%"* — rather than
-stating a rate as though your printer runs at it.
-
-What changed in `beta.9` still applies to any shop upgrading from `beta.8` or
-earlier: print time now comes from your measured jobs rather than a shipped
-constant of about 35.7 g/hour, and material weight follows your **Default infill
-%** rather than a fixed 20%.
+**`beta.10` — a model you have printed before is priced from its own prints.**
+One rate for the whole shop is the wrong shape for the number: measured across 67
+finished jobs on one printer it ran from 1.9 to 48.6 g/hour, because it follows
+the part's geometry, layer height and colour changes far more than the machine.
+Name the model under **From your print library** and Khayt uses that model's own
+finished prints instead — and the settings you printed it with, if you name those
+too. The note also says how much of a number you are holding: *"26.4 g/h — the
+middle of 3 finished prints of this model, give or take 1%"* rather than a bare
+rate.
 
 Figures that came from a slicer are unaffected. Those were never estimates, and
 nothing recalculates them.

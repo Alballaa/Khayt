@@ -5,7 +5,7 @@ Khayt uses [Semantic Versioning 2.0.0](https://semver.org/) as `MAJOR.MINOR.PATC
 **Current release lines** (last verified 2026-08-04 against published tags):
 
 - **Stable:** `3.5.x` — latest tag **v3.5.3**, published 2026-08-01 ([releases/latest](https://github.com/khaytapp/Khayt/releases/latest))
-- **Beta:** the `3.6.0-beta.x` line is **open** — latest **v3.6.0-beta.10**, published 2026-08-04 as a GitHub pre-release. See [docs/BETA-RELEASE.md](./docs/BETA-RELEASE.md)
+- **Beta:** the `3.6.0-beta.x` line is **open** — latest **v3.6.0-beta.11**, published 2026-08-04 as a GitHub pre-release. See [docs/BETA-RELEASE.md](./docs/BETA-RELEASE.md)
 - **Bed Ready:** a different app from the same repo, on its **own** `1.0.0-*`
   line with its own downloads repo — latest **bedready-v1.0.0-beta.9**. It does
   not follow Khayt's numbers at all; see [Bed Ready](#bed-ready) below.
@@ -44,14 +44,14 @@ npm run version:minor
 # Major — breaking / milestone (3.x.x → 4.0.0)
 npm run version:major
 
-# Beta — pre-release on the next minor (3.5.3 → 3.6.0-beta.1; 3.6.0-beta.9 → 3.6.0-beta.10)
+# Beta — pre-release on the next minor (3.5.3 → 3.6.0-beta.1; 3.6.0-beta.10 → 3.6.0-beta.11)
 npm run version:beta
 ```
 
 `version:beta` behaves differently depending on where you start, which is easy
 to get wrong: from a **stable** version it bumps the minor and starts at
 `beta.1` (`3.5.3` → `3.6.0-beta.1`); from an existing beta it only increments
-the counter (`3.6.0-beta.9` → `3.6.0-beta.10`). See `scripts/bump-version.js`.
+the counter (`3.6.0-beta.10` → `3.6.0-beta.11`). See `scripts/bump-version.js`.
 
 This is why a beta never sits on the *current* stable line: a `3.5.4-beta.1`
 would sort BELOW the shipped `v3.5.3` and would never be offered as an update.
