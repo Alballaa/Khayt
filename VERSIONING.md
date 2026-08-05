@@ -6,9 +6,10 @@ Khayt uses [Semantic Versioning 2.0.0](https://semver.org/) as `MAJOR.MINOR.PATC
 
 - **Stable:** `3.5.x` — latest tag **v3.5.3**, published 2026-08-01 ([releases/latest](https://github.com/khaytapp/Khayt/releases/latest))
 - **Beta:** the `3.6.0-beta.x` line is **open** — latest **v3.6.0-beta.11**, published 2026-08-04 as a GitHub pre-release. See [docs/BETA-RELEASE.md](./docs/BETA-RELEASE.md)
-- **Bed Ready:** a different app from the same repo, on its **own** `1.0.0-*`
-  line with its own downloads repo — latest **bedready-v1.0.0-beta.9**. It does
-  not follow Khayt's numbers at all; see [Bed Ready](#bed-ready) below.
+- **Bed Ready:** a different app from the same repo, on its **own** version line
+  with its own downloads repo — **1.0.0 shipped 2026-08-03** (`bedready-v1.0.0`,
+  marked Latest; the `1.0.0-beta.*` line is closed). It does not follow Khayt's
+  numbers at all; see [Bed Ready](#bed-ready) below.
 
 Beta pre-releases may ship alongside stable. For the stable channel's current
 policy see [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md).
@@ -108,18 +109,18 @@ source byte-identically; nothing is committed. So a release is just a run:
 ```
 Actions -> "Build & Release" -> Run workflow
   Use workflow from: main (or the commit's branch)
-  Bed Ready version:  1.0.0-beta.10        # no "v", no "bedready-" prefix
+  Bed Ready version:  1.0.1                # no "v", no "bedready-" prefix
 ```
 
 or from the terminal:
 
 ```bash
 gh workflow run "Build & Release" --repo KhaytApp/Khayt \
-  -f bedready_version=1.0.0-beta.10
+  -f bedready_version=1.0.1
 ```
 
 The version you type **is** the version, and the release tag
-`bedready-v1.0.0-beta.10` is created in `KhaytApp/bedready` by the workflow.
+`bedready-v1.0.1` is created in `KhaytApp/bedready` by the workflow.
 
 **Do not tag `bedready-v*` in `KhaytApp/Khayt`.** It no longer triggers anything,
 and it actively breaks Khayt's updater: electron-updater picks a release by walking

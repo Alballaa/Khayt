@@ -1,7 +1,15 @@
 # Bed Ready — app build (shared-core split)
 
-> **Read this first.** This file is the brief for building the **Bed Ready** desktop app
-> inside the Khayt repo. It's meant to bootstrap a fresh Claude Code chat.
+> **Read this first. THIS WAS BUILT — Bed Ready 1.0.0 shipped 2026-08-03.**
+> This file began as the brief for building the app and is kept as the record of *why*
+> it is put together the way it is. The architecture below is accurate and still governs
+> the code. The checklist at the end is **done**, with each item pointing at what landed.
+> Nothing here is outstanding work.
+>
+> If you are a fresh session picking this up: the app exists, ships from
+> `KhaytApp/bedready` (`bedready-v1.0.0`, marked Latest), auto-updates, and is signed and
+> notarized on macOS. Current release mechanics live in [VERSIONING.md](../VERSIONING.md);
+> what the repo enforces is in [CLAUDE.md](../CLAUDE.md).
 
 ## What Bed Ready is
 
@@ -61,13 +69,13 @@ Bed Ready boots straight into the maker experience — no mode switcher, no busi
 
 ## Phase 1 checklist (this is the new chat's job)
 
-- [ ] `lib/flavor.js` + wire `main.js` to read `FLAVOR` (default `khayt`, unchanged behavior).
-- [ ] `renderer/bedready.html` = shared + maker script tags only; maker nav; no business surfaces.
-- [ ] Bed Ready electron-builder target: name/appId/icon + trimmed `files:` glob → smaller build.
-- [ ] `main.js`: gate business-only IPC + requires behind the flavor check.
-- [ ] `npm run check` green; add a Bed Ready smoke path (boots, converter + colour + print-files work, **no** business nav/IPC present).
-- [ ] Build the Bed Ready target locally; confirm it launches and is meaningfully smaller than Khayt.
-- [ ] Branch `bedready/phase-1-app-shell`; ship as its own release/tag lane (decide Bed Ready versioning separately from Khayt's `3.2.0-beta.N`).
+- [x] `lib/flavor.js` + `main.js` reads the flavor (default `khayt`, unchanged behavior). **Shipped** — `main.js` gates on `isBedReady`/`KHAYT_FLAVOR` in a dozen places.
+- [x] `renderer/bedready.html` = shared + maker script tags only; maker nav; no business surfaces. **Shipped.**
+- [x] Bed Ready electron-builder target. **Shipped** — `electron-builder.bedready.js`, driven by `scripts/build-bedready.mjs`.
+- [x] Business-only IPC + requires gated behind the flavor check. **Shipped.**
+- [x] Bed Ready smoke path. **Shipped** — `scripts/e2e-bedready-smoke.mjs`, wired into `ci.yml` as `test:e2e:bedready`; it also carries the branding guard that keeps "Khayt" out of the other brand.
+- [x] Local build confirmed, and has been the release path ever since — macOS is built locally so it can be Developer ID signed + notarized + stapled (CI has no cert); Windows/Linux come from CI.
+- [x] Own release/tag lane. **Shipped** — tags `bedready-vX.Y.Z` in `KhaytApp/bedready`, versioning fully independent of Khayt's; see [VERSIONING.md](../VERSIONING.md#bed-ready). The `bedready/phase-1-app-shell` branch is long merged.
 
 **Phase 2 (Khayt chat, later):** retire `enthusiast` as a *mode* in `feature-tiers.js`
 (→ `simple | professional`), drop `.biz-only`/`mode-enthusiast` gating, keep every maker
