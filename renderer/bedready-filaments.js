@@ -72,6 +72,11 @@
     var f = focusables();
     if (!f.length) return;
     var first = f[0], last = f[f.length - 1];
+    // Focus can end up OUTSIDE the modal without ever passing through first/last: disabling
+    // the focused element (Install becoming "Installing…") or re-rendering the list under it
+    // drops focus to <body>. The wrap-around checks below both miss that, so Tab escaped into
+    // the page behind — the one thing the trap exists to prevent. Pull it back first.
+    if (!root.contains(document.activeElement)) { e.preventDefault(); first.focus(); return; }
     if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
     else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
   }
@@ -162,6 +167,25 @@
     '</div>';
   }
 
+  // The count is announced on a delay, and deliberately NOT from the visible element.
+  // renderList() runs on every keystroke, so a live region holding the count re-announced
+  // on each one: typing "PLA" read out three different totals over the top of itself, and
+  // the search field is where a screen-reader user spends the most time in this modal.
+  // The visible number still updates instantly — only the announcement waits for a pause.
+  var announceTimer = null;
+  var lastAnnounced = '';
+  function announceCount(text) {
+    if (announceTimer) clearTimeout(announceTimer);
+    announceTimer = setTimeout(function () {
+      var el = body && body.querySelector('.brf-count-live');
+      // Re-announcing an unchanged total is the same noise in a different costume:
+      // narrowing a vendor filter that does not change the result count says nothing new.
+      if (!el || text === lastAnnounced) return;
+      lastAnnounced = text;
+      el.textContent = text;
+    }, 600);
+  }
+
   function renderList() {
     var q = (body.querySelector('.brf-q').value || '').trim().toLowerCase();
     var vendor = body.querySelector('.brf-vendor').value;
@@ -172,6 +196,7 @@
     var listEl = body.querySelector('.brf-list');
     var countEl = body.querySelector('.brf-count');
     countEl.textContent = count;
+    announceCount(count);
     listEl.innerHTML = shown.map(rowHtml).join('');
   }
 
@@ -202,7 +227,9 @@
 
   function mainView() {
     body.innerHTML = '<div class="brf-header"></div>' + filtersHtml() +
-      '<div class="brf-count" role="status" aria-live="polite" style="font-size:12px;color:var(--text-muted,#869390);margin-bottom:8px;"></div>' +
+      // Visible count carries no live semantics; .brf-count-live is the (debounced) announcement.
+      '<div class="brf-count" style="font-size:12px;color:var(--text-muted,#869390);margin-bottom:8px;"></div>' +
+      '<div class="brf-count-live" role="status" aria-live="polite" style="position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;"></div>' +
       '<div class="brf-list" style="display:grid;gap:7px;"></div>' +
       '<div class="brf-result" role="status" aria-live="polite" style="margin-top:12px;font-size:13px;min-height:18px;"></div>';
     renderHeader();
@@ -225,6 +252,12 @@
     var p = manifest.profiles.find(function (x) { return x.id === id; });
     if (!p) return;
     if (!sel.printerLabel) { result('Add a printer to this slicer first, then reopen this.', 'var(--danger,#e0492f)'); return; }
+    // Keyboard path: this button IS the focused element when it was activated by Enter/Space.
+    // Disabling it next line would drop focus to <body>. On success renderList() replaces the
+    // row entirely, so there is nothing to hand focus back to — park it on the search field,
+    // which survives every re-render and is where you would carry on from anyway.
+    var hadFocus = !!(b && document.activeElement === b);
+    if (hadFocus) { var qEl = body.querySelector('.brf-q'); if (qEl) try { qEl.focus(); } catch (_e) { /* noop */ } }
     if (b) { b.disabled = true; b.textContent = 'Installing…'; b.style.opacity = '0.7'; }
     result('Installing “' + esc(p.name) + '”…');
     try {
@@ -235,6 +268,9 @@
       result('Installed “' + esc(p.name) + '” for ' + esc(r.printer || 'your printer') + '. Relaunch ' + esc(r.slicer || 'your slicer') + ' to see it.', 'var(--ok,#159d68)');
     } catch (e) {
       if (b) { b.disabled = false; b.textContent = 'Install'; b.style.opacity = '1'; }
+      // The row still exists on failure, so give the button back to the keyboard user who
+      // pressed it — retrying is the likely next move and it should not require Tabbing back.
+      if (hadFocus && b) try { b.focus(); } catch (_e2) { /* noop */ }
       result(esc(e && e.message ? e.message : 'Install failed.'), 'var(--danger,#e0492f)');
     }
   }

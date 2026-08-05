@@ -6,6 +6,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **The filament library talked over itself, and could strand a keyboard user
+  outside the dialog.** Searching announced a new total on every keystroke, so
+  typing three letters read out three counts on top of each other — the count is
+  now announced once you pause, and only when it has actually changed. Separately,
+  pressing Install by keyboard disabled the button under your own focus, which
+  dropped focus out of the dialog entirely: Tab then walked the page behind it.
+  Focus now stays inside, and returns to the button if the install fails so you
+  can retry.
+
 - **Khayt asked you to wait for a verification code the server had already failed
   to send.** The cloud server knows when the email provider refuses a message, and
   now says so; Khayt was not asking. It opened the "enter your code" dialog either
