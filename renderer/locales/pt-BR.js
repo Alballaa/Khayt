@@ -3188,6 +3188,7 @@
   "slicer.no_config": "Defina primeiro o caminho do seu fatiador em Configurações → Fatiador.",
   "slicer.fail": "O fatiamento falhou:",
   "slicer.note": "Fatiado com {slicer}: {weight} g · {time} h",
+  "slicer.note_derived": "{slicer}: {time} h · {weight} g — peso calculado do volume do fatiador com a densidade do seu filamento.",
   "slicer.applied": "Estimativa aplicada a partir do fatiamento — revise antes de salvar.",
   "slicer.send_title": "Fatiar e imprimir",
   "slicer.start_confirm": "Fatiar e iniciar a impressão na {name}?",

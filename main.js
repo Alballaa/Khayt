@@ -705,7 +705,7 @@ function isSafeSlicerBinary(p) {
   return base.length > 0 && !DISALLOWED_SLICER_BINARIES.has(base);
 }
 
-async function runSlice({ modelPath, slicerPath, args }) {
+async function runSlice({ modelPath, slicerPath, args, densityGPerCm3 }) {
   const { spawn } = require('node:child_process');
   const os = require('os');
   if (!slicerPath || !fs.existsSync(slicerPath)) return { ok: false, error: 'Slicer not found — set its path in Settings → Slicer.' };
@@ -736,7 +736,10 @@ async function runSlice({ modelPath, slicerPath, args }) {
   const buf = fs.readFileSync(gpath);
   const head = buf.subarray(0, 65536).toString('utf8');
   const tail = buf.subarray(Math.max(0, buf.length - 65536)).toString('utf8');
-  return { ok: true, gcodePath: gpath, outDir, meta: parseGcodeText(head + '\n' + tail) };
+  // The shop's density lets a profile-less slice still be weighed: PrusaSlicer
+  // reports the volume exactly but writes 0.00 g when no filament profile is
+  // loaded, which is most of the time from a bare STL.
+  return { ok: true, gcodePath: gpath, outDir, meta: parseGcodeText(head + '\n' + tail, { densityGPerCm3 }) };
 }
 const rmDir = (d) => { try { if (d) fs.rmSync(d, { recursive: true, force: true }); } catch { /* ignore */ } };
 
