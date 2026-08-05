@@ -48,6 +48,31 @@ Khayt replaces spreadsheets, WhatsApp notes, and separate invoicing tools with o
 
 ---
 
+## This repo builds two apps
+
+Khayt is one of them. The other is **Bed Ready**, a standalone app for solo makers — the
+same maker toolset with none of the business side.
+
+|  | **Khayt** | **Bed Ready** |
+|---|---|---|
+| For | 3D printing **businesses** | **Solo makers** |
+| Has | quoting, invoicing, clients, payments, analytics — plus the maker tools | converter, 3D preview, print files, colour studio, inventory, costing, queue |
+| Does **not** have | — | anything commercial: no invoicing, clients, payments |
+| Version line | `3.x` (`3.6.0-beta.x` open) | **1.0.0** — shipped 2026-08-03 |
+| Downloads | this repo's [releases](https://github.com/khaytapp/Khayt/releases) | [`KhaytApp/bedready`](https://github.com/KhaytApp/bedready/releases) |
+| Site | [khaytapp.com](https://khaytapp.com) | [bedready.io](https://bedready.io) |
+
+**One repo, one shared core, no duplicated work.** The converter, colour and print-file code
+lives once and both apps consume it, so a fix lands in both. The split is a build-time flavor
+(`KHAYT_FLAVOR=bedready`), not a runtime toggle — Bed Ready ships none of the business code,
+which is what makes its download smaller.
+
+Building it: `npm run dist:bedready:*`. Why it is arranged this way:
+[docs/BEDREADY-APP.md](docs/BEDREADY-APP.md). Its version line and release lane:
+[VERSIONING.md](./VERSIONING.md#bed-ready).
+
+---
+
 ## Features
 
 ### 💰 Calculator & Quoting
