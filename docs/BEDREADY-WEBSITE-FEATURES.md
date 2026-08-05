@@ -131,6 +131,42 @@ Details:
 
 ---
 
+## 9. Printer monitoring — watch the machines from the app
+
+**Blurb:** *Add the printers you own and Bed Ready keeps an eye on them — progress, temperatures, and
+a notification the moment one stops.*
+
+Details:
+- **Finds them for you.** mDNS discovery turns what a printer advertises on the LAN into "here is a
+  printer you can add", so nobody types an IP address. The service names and TXT keys were taken from
+  real hardware — a Prusa CORE One (`_prusalink._tcp`) and a Snapmaker U1 (`_snapmaker._tcp`) — not
+  from documentation.
+- **Speaks what printers already speak.** Adapters for Bambu, Moonraker (Snapmaker U1, Klipper),
+  OctoPrint, PrusaLink, Duet, Repetier, and SDCP — the protocol Elegoo's resin printers publish. Each
+  firmware reports progress differently; Bed Ready normalises them to one shape, clamped 0–100, so a
+  printer reporting something unexpected cannot render as 50,000,000%.
+- **Shows** state, progress, current filename, time remaining, nozzle and bed temperature, and the
+  error text when there is one.
+- **Tells you when a printer stops.** Alerts come from diffing one poll against the last, with a
+  per-printer cooldown so a machine flapping on a bad network does not shout every few seconds.
+- **How it tells you, in Bed Ready:** an in-app toast, and an OS desktop notification when the window
+  is behind something else. **Not** Telegram, email or webhooks — those exist in Khayt, the business
+  app, and a maker at the bench wants the app and the OS to say it, not a chat channel.
+
+⚠️ **NOT SHIPPED — do not put the camera on the website yet.** Per-printer webcam support is written
+and reviewed (`lib/webcam.js`: mjpeg/HLS, rotation, timelapse modes, capability read from the printer
+rather than guessed, and a snapshot proxy pinned to the printer's own host so it cannot be used as an
+SSRF pivot) — but `renderer/bedready.html` never loaded the module, so the panel's
+`typeof KhaytWebcam !== 'undefined'` guard has been false in every shipped build and the camera panel
+has never drawn. Bed Ready can poll a printer, chart its progress and record what it used, and not show
+you the bed. One script tag; the fix is commit `5342e27` on `bedready/printer-camera`, **unmerged as of
+2026-08-05**. Advertise the camera only once that has landed in a release.
+
+**Still to confirm before publishing this section:** whether the Printers view is reachable in Bed
+Ready's own navigation by default, and which of the adapters above are exposed in the maker flavour
+rather than being Khayt-only. Both are flavour-gating questions best answered by opening the app, not
+by reading the tree.
+
 ## Website checklist / notes
 
 - Do **not** badge the product as beta. 1.0.0 is released, and the app carries no beta labelling —
