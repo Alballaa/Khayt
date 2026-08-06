@@ -2079,6 +2079,7 @@
   "pm.reply_ph": "Rédiger une réponse…",
   "pm.send": "Envoyer",
   "pm.need_publish": "Publiez d'abord cette commande sur le portail",
+  "pm.load_failed": "Impossible de charger les messages",
   "ord.tracking_copied": "Lien de suivi copié",
   "ord.tracking_no_lan": "Serveur LAN non actif — activer dans Paramètres",
   "cons.usage_per_hour": "Utilisation par heure d'impression",

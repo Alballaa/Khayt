@@ -2337,6 +2337,7 @@
   "pm.reply_ph": "اكتب رداً…",
   "pm.send": "إرسال",
   "pm.need_publish": "انشر هذا الطلب على البوابة أولاً",
+  "pm.load_failed": "تعذّر تحميل الرسائل",
   "ord.tracking_copied": "تم نسخ رابط التتبع",
   "ord.tracking_no_lan": "خادم الشبكة المحلية غير نشط — فعّله من الإعدادات",
   "ord.partial_delivery": "تسليم جزئي",

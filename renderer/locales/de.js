@@ -2079,6 +2079,7 @@
   "pm.reply_ph": "Antwort schreiben…",
   "pm.send": "Senden",
   "pm.need_publish": "Veröffentlichen Sie diesen Auftrag zuerst im Portal",
+  "pm.load_failed": "Nachrichten konnten nicht geladen werden",
   "ord.tracking_copied": "Tracking-Link kopiert",
   "ord.tracking_no_lan": "LAN-Server nicht aktiv — in Einstellungen aktivieren",
   "cons.usage_per_hour": "Verbrauch pro Druckstunde",

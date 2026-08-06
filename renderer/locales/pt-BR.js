@@ -2080,6 +2080,7 @@
   "pm.reply_ph": "Escreva uma resposta…",
   "pm.send": "Enviar",
   "pm.need_publish": "Publique este pedido no portal primeiro",
+  "pm.load_failed": "Não foi possível carregar as mensagens",
   "ord.tracking_copied": "Link de acompanhamento copiado",
   "ord.tracking_no_lan": "Servidor LAN não está em execução — ative nas Configurações",
   "cons.usage_per_hour": "Consumo por hora de impressão",

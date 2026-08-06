@@ -2994,9 +2994,11 @@ ipcMain.handle('hub:cloud-storefront-stats', async (_e, { url, shopId, token } =
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
-ipcMain.handle('hub:cloud-portal-messages', async (_e, { url, token } = {}) => {
-  try { return { ok: true, messages: await cloudClient.portalMessages(url, token) }; }
-  catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+ipcMain.handle('hub:cloud-portal-messages', async (_e, { url, shopId, token, authToken } = {}) => {
+  try {
+    authToken = resolveStoreSecret(authToken, d => d?.settings?.cloud?.token);
+    return { ok: true, messages: await cloudClient.portalMessages(url, shopId, token, authToken) };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
 ipcMain.handle('hub:cloud-portal-reply', async (_e, { url, shopId, token, authToken, text } = {}) => {

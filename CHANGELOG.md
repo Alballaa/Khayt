@@ -4,6 +4,22 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Security
+
+- **Anyone with a portal link could read the whole message thread on it.** The
+  customer's portal page reads its own conversation from a route that asks for no
+  credentials, and it had to stay that way for one reason: Khayt's own "Portal
+  messages" button read the very same route, with no token at all. Closing it
+  would have blanked that button on every desktop in the field.
+
+  Khayt now reads the thread as your shop — the server checks your token and that
+  the order is yours, and refuses otherwise. Nothing changes on your screen; what
+  changes is that the open route no longer has a reason to stay open, so the cloud
+  can put the customer's sign-in in front of it, the same way sending a message
+  already requires one. A shop whose cloud has not been updated yet still sees its
+  messages: Khayt falls back to the old route when the new one is not there, and
+  that fallback comes out in a later release.
+
 ## [3.6.0-beta.12] - 2026-08-06
 
 Mostly about telling you the truth when something did not work. Signing in to the

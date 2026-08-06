@@ -2079,6 +2079,7 @@
   "pm.reply_ph": "返信を入力…",
   "pm.send": "送信",
   "pm.need_publish": "先にこの注文をポータルに公開してください",
+  "pm.load_failed": "メッセージを読み込めませんでした",
   "ord.tracking_copied": "追跡リンクをコピーしました",
   "ord.tracking_no_lan": "LANサーバーが起動していません — 設定で有効にしてください",
   "cons.usage_per_hour": "印刷1時間あたりの使用量",

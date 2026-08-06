@@ -2079,6 +2079,7 @@
   "pm.reply_ph": "写下回复…",
   "pm.send": "发送",
   "pm.need_publish": "请先将此订单发布到门户",
+  "pm.load_failed": "无法加载消息",
   "ord.tracking_copied": "追踪链接已复制",
   "ord.tracking_no_lan": "局域网服务器未运行 — 请在设置中启用",
   "cons.usage_per_hour": "每打印小时用量",
