@@ -5,9 +5,9 @@ Khayt publishes **two release channels** on GitHub:
 | Channel | Latest | GitHub | Auto-update |
 |---------|--------|--------|-------------|
 | **Stable** | `v3.5.3` | [Latest release](https://github.com/khaytapp/Khayt/releases/latest) | Default (beta off) |
-| **Beta** | `v3.6.0-beta.11` | [Pre-releases](https://github.com/khaytapp/Khayt/releases) (filter *Pre-release*) | Opt-in via Settings |
+| **Beta** | `v3.6.0-beta.12` | [Pre-releases](https://github.com/khaytapp/Khayt/releases) (filter *Pre-release*) | Opt-in via Settings |
 
-> Verified 2026-08-04 against published tags. These rot fast — check with
+> Verified 2026-08-06 against published tags. These rot fast — check with
 > `gh release list --repo KhaytApp/Khayt` rather than trusting the table.
 
 ## What beta includes
@@ -40,7 +40,10 @@ a beta for any of them.
 
 If you price unsliced models and you are coming from `beta.8` or earlier, the
 numbers have moved — twice, for two different reasons. Re-check any quote you
-have not yet sent. **`beta.11` changes nothing about quoting.**
+have not yet sent. **Neither `beta.11` nor `beta.12` changes an estimate you
+have already seen** — though from `beta.12`, **Slice for exact quote** fills in a
+weight where it used to leave the box empty, so a quote made that way is fuller
+than it was rather than different.
 
 **`beta.9` — the estimate started using your own numbers.** Print time now comes
 from jobs your printer measured rather than a shipped constant of about 35.7

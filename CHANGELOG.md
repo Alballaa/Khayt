@@ -4,6 +4,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.6.0-beta.12] - 2026-08-06
+
+Mostly about telling you the truth when something did not work. Signing in to the
+cloud stops asking you to wait for a code the server already failed to send, and
+"Slice for exact quote" stops handing back a time with the weight left blank.
+
+
 ### Fixed
 
 - **The filament library talked over itself, and could strand a keyboard user
