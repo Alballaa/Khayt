@@ -79,11 +79,17 @@ test('the mirror is written after the primary, and never read from', () => {
   assert.match(mainJs, /printLibMirrorFile\(id, filename, destPath\)/, 'copies are never mirrored');
 });
 
-test('a failing mirror cannot fail the save', () => {
+test('a failing mirror cannot fail the save, and says it failed', () => {
+  // The function now serves two backup targets — a folder and a bucket — and
+  // reports each separately ({folder, s3}). Both must be caught, and both must
+  // be REPORTED: a backup that fails silently is worse than none, because the
+  // shop believes it has one.
   const fnStart = mainJs.indexOf('async function printLibMirrorFile(');
-  const body = mainJs.slice(fnStart, fnStart + 700);
-  assert.match(body, /catch \(e\)/, 'a backup that throws would take the primary write down with it');
-  assert.match(body, /return false;/, 'the caller cannot tell the copy did not land');
+  const body = mainJs.slice(fnStart, mainJs.indexOf('\nasync function ', fnStart + 10));
+  const caught = (body.match(/catch \(e\) \{/g) || []).length;
+  assert.ok(caught >= 2, `each backup target must swallow its own failure, found ${caught}`);
+  assert.match(body, /out\.folder = false;/, 'a folder copy that failed is not reported');
+  assert.match(body, /out\.s3 = false;/, 'an upload that failed is not reported');
 });
 
 test('the status handler exists and reports the folder', () => {

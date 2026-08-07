@@ -1459,6 +1459,7 @@ ipcMain.handle('hub:delete-vault-file', async (_e, fullPath) => {
 // file plus its generated thumbnail/photo. All handlers are path-confined to that
 // root; nothing here touches the network (offline contract).
 const PLL = require('./lib/print-library-location');
+const S3C = require('./lib/s3-client');
 
 /** The built-in vault — where the library lived when it could only live here. */
 const printLibDefaultRoot = () => ensureDir('print-files-vault');
@@ -1521,24 +1522,58 @@ function printLibMirrorItemDir(id) {
   return mirror ? path.join(mirror, PLL.itemDirName(id)) : null;
 }
 
+/** The bucket the library is backed up to, or null. */
+function printLibS3() {
+  const cfg = (printLibSettings() || {}).s3;
+  if (!cfg || !cfg.enabled || !S3C.isConfigured(cfg)) return null;
+  return { client: S3C.createS3(cfg), prefix: cfg.prefix || '' };
+}
+
 /**
- * Copy a file that was just written into the mirror.
+ * Copy a file that was just written to wherever the shop keeps its backups.
  *
- * Best-effort and never on the read path: a backup that can fail a save is not
- * a backup, it is a second thing to go wrong. The shop is told it did not land
- * (the handler reports `mirrored`), but the primary write still stands.
+ * A folder and a bucket are the same job here — write-through, after the primary
+ * has succeeded — so they share one function and one report. Both are
+ * best-effort and NEITHER is ever read from: a backup you read from is a second
+ * primary, and the two drift.
+ *
+ * Best-effort, but not silent. A backup that can fail a save is a second thing
+ * to go wrong; a backup that fails without saying so is worse, because the shop
+ * believes it has one. The primary write stands and the handler reports what
+ * landed.
+ *
+ * @returns {null|{folder: boolean|null, s3: boolean|null}} null when no backup
+ *   is configured at all.
  */
 async function printLibMirrorFile(id, filename, srcPath) {
   const dir = printLibMirrorItemDir(id);
-  if (!dir) return null;
-  try {
-    await fs.promises.mkdir(dir, { recursive: true });
-    await fs.promises.copyFile(srcPath, path.join(dir, filename));
-    return true;
-  } catch (e) {
-    console.error('printlib mirror:', e.message);
-    return false;
+  const s3 = printLibS3();
+  if (!dir && !s3) return null;
+  const out = { folder: null, s3: null };
+  if (dir) {
+    try {
+      await fs.promises.mkdir(dir, { recursive: true });
+      await fs.promises.copyFile(srcPath, path.join(dir, filename));
+      out.folder = true;
+    } catch (e) {
+      console.error('printlib mirror (folder):', e.message);
+      out.folder = false;
+    }
   }
+  if (s3) {
+    try {
+      // Read once, here, rather than streaming: these are model files, the
+      // upload is already bounded by INTAKE_MAX_BYTES upstream, and a Buffer is
+      // what keeps the bytes intact — a string round trip corrupts binary.
+      const buf = await fs.promises.readFile(srcPath);
+      await s3.client.put(S3C.objectKey(s3.prefix, id, filename), buf);
+      out.s3 = true;
+    } catch (e) {
+      console.error('printlib mirror (s3):', e.message);
+      out.s3 = false;
+    }
+  }
+  return out;
 }
 
 /**
@@ -1555,10 +1590,39 @@ ipcMain.handle('hub:printlib-status', async () => {
   if (mirror) {
     try { mirrorOk = fs.statSync(mirror).isDirectory(); } catch (_) { mirrorOk = false; }
   }
-  return { ok: st.ok, reason: st.reason, error: st.error || '', root: primary, isCustom, mirror, mirrorOk, roots };
+  const s3cfg = (printLibSettings() || {}).s3 || {};
+  const s3 = !!(s3cfg.enabled && S3C.isConfigured(s3cfg));
+  return { ok: st.ok, reason: st.reason, error: st.error || '', root: primary, isCustom, mirror, mirrorOk, roots, s3, s3Bucket: s3 ? s3cfg.bucket : '' };
 });
 
 /** Choose a folder for the library, or for its mirror. */
+/**
+ * Prove the bucket works, with a real round trip.
+ *
+ * Credentials that look right and a bucket that refuses writes are
+ * indistinguishable until the first model fails to upload — by which time the
+ * shop believes it has a backup. Writes, reads back, compares, deletes.
+ */
+ipcMain.handle('hub:printlib-s3-test', async () => {
+  const cfg = (printLibSettings() || {}).s3;
+  if (!cfg || !S3C.isConfigured(cfg)) return { ok: false, error: 'Fill in the endpoint, bucket, key and secret first.' };
+  const key = S3C.objectKey(cfg.prefix || '', '_khayt-check', `probe-${Date.now().toString(36)}.bin`);
+  const payload = crypto.randomBytes(64);
+  const s3 = S3C.createS3(cfg);
+  try {
+    await s3.put(key, payload);
+    const back = await s3.get(key);
+    await s3.del(key);
+    if (!back || !Buffer.from(back).equals(payload)) {
+      return { ok: false, error: 'The bucket accepted the file but returned something different.' };
+    }
+    return { ok: true, bucket: cfg.bucket, endpoint: cfg.endpoint };
+  } catch (e) {
+    try { await s3.del(key); } catch (_) { /* nothing to clean up */ }
+    return { ok: false, error: String((e && e.message) || e) };
+  }
+});
+
 ipcMain.handle('hub:printlib-pick-folder', async (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   const r = await dialog.showOpenDialog(win, {
