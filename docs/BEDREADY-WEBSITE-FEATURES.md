@@ -153,14 +153,14 @@ Details:
   is behind something else. **Not** Telegram, email or webhooks — those exist in Khayt, the business
   app, and a maker at the bench wants the app and the OS to say it, not a chat channel.
 
-⚠️ **NOT SHIPPED — do not put the camera on the website yet.** Per-printer webcam support is written
-and reviewed (`lib/webcam.js`: mjpeg/HLS, rotation, timelapse modes, capability read from the printer
-rather than guessed, and a snapshot proxy pinned to the printer's own host so it cannot be used as an
-SSRF pivot) — but `renderer/bedready.html` never loaded the module, so the panel's
-`typeof KhaytWebcam !== 'undefined'` guard has been false in every shipped build and the camera panel
-has never drawn. Bed Ready can poll a printer, chart its progress and record what it used, and not show
-you the bed. One script tag; the fix is commit `5342e27` on `bedready/printer-camera`, **unmerged as of
-2026-08-05**. Advertise the camera only once that has landed in a release.
+**Per-printer camera — shipped, and safe to write about.** `lib/webcam.js` does mjpeg/HLS, rotation,
+timelapse modes, capability read from the printer rather than guessed, and a snapshot proxy pinned to
+the printer's own host so it cannot be used as an SSRF pivot. `renderer/bedready.html` loads it (#588,
+2026-08-03), which is what makes `machines.js`'s `typeof KhaytWebcam !== 'undefined'` guard true.
+
+Verified in the source **Bed Ready 1.0.0 was actually built from** — the release notes name it
+(`KhaytApp/Khayt@bef8f8d`), and the script tag is present there — so the camera is in the shipped
+1.0.0, not merely on `main`.
 
 **Still to confirm before publishing this section:** whether the Printers view is reachable in Bed
 Ready's own navigation by default, and which of the adapters above are exposed in the maker flavour
