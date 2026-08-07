@@ -141,10 +141,15 @@ Details:
   printer you can add", so nobody types an IP address. The service names and TXT keys were taken from
   real hardware — a Prusa CORE One (`_prusalink._tcp`) and a Snapmaker U1 (`_snapmaker._tcp`) — not
   from documentation.
-- **Speaks what printers already speak.** Adapters for Bambu, Moonraker (Snapmaker U1, Klipper),
-  OctoPrint, PrusaLink, Duet, Repetier, and SDCP — the protocol Elegoo's resin printers publish. Each
-  firmware reports progress differently; Bed Ready normalises them to one shape, clamped 0–100, so a
-  printer reporting something unexpected cannot render as 50,000,000%.
+- **Speaks what printers already speak.** Six adapters, and these are the six a shop can actually
+  select when adding a machine: Bambu, Moonraker (Snapmaker U1, Klipper), OctoPrint, PrusaLink, Duet
+  and Repetier. Each firmware reports progress differently; Bed Ready normalises them to one shape,
+  clamped 0–100, so a printer reporting something unexpected cannot render as 50,000,000%.
+
+  **Not SDCP / Elegoo resin.** An earlier draft of this listed it as a seventh. There is a protocol
+  note in the CHANGELOG — "groundwork, nothing to connect to yet" — and an open roadmap item (R7),
+  but no adapter: `sdcp` appears nowhere in the code, and it is not in the picker at
+  `renderer/machines.js`. Do not put resin printers on the website.
 - **Shows** state, progress, current filename, time remaining, nozzle and bed temperature, and the
   error text when there is one.
 - **Tells you when a printer stops.** Alerts come from diffing one poll against the last, with a
