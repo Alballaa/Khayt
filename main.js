@@ -1,6 +1,7 @@
 const { app, BrowserWindow, Menu, shell, ipcMain, dialog, safeStorage, clipboard, utilityProcess } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const readline = require('readline');
 const { FLAVOR, isBedReady, productName: FLAVOR_NAME } = require('./lib/flavor');
 
 // Bed Ready is a fully independent product that shares Khayt's codebase: give it its OWN Electron
@@ -68,6 +69,7 @@ const printerCommands = require('./lib/printer-commands');
 const { normalizeStoreSnapshot, STORE_VERSION } = require('./lib/store-validate');
 const { createStoreIo } = require('./lib/store-io');
 const { parseGcodeText } = require('./lib/gcode-parse');
+const { createSilhouette } = require('./lib/gcode-geometry');
 const { intake: intakeModel } = require('./lib/model-intake');
 const { extractActuals } = require('./lib/printer-actuals');
 const { contentHash: modelContentHash } = require('./lib/model-identity');
@@ -1456,11 +1458,343 @@ ipcMain.handle('hub:delete-vault-file', async (_e, fullPath) => {
 // A per-record subfolder under userData/print-files-vault/<id>/ holds the model
 // file plus its generated thumbnail/photo. All handlers are path-confined to that
 // root; nothing here touches the network (offline contract).
-const printLibDir = () => ensureDir('print-files-vault');
-const printLibItemDir = (id) => {
-  const safeId = path.basename(String(id || '')).replace(/[^a-zA-Z0-9_-]/g, '_') || 'unsorted';
-  return path.join(printLibDir(), safeId);
+const PLL = require('./lib/print-library-location');
+const PLM = require('./lib/print-library-migrate');
+const S3C = require('./lib/s3-client');
+
+/** The built-in vault — where the library lived when it could only live here. */
+const printLibDefaultRoot = () => ensureDir('print-files-vault');
+
+/** settings.printLibrary, from main's live copy of the store, or off disk on the
+ *  first call before the renderer has saved anything. */
+function printLibSettings() {
+  const cached = lanServerStore && lanServerStore.settings && lanServerStore.settings.printLibrary;
+  if (cached) return cached;
+  try { return readStoreDecryptedFromDisk()?.settings?.printLibrary || {}; } catch (_) { return {}; }
+}
+
+const printLibRoots = () => PLL.resolveRoots(printLibSettings(), printLibDefaultRoot());
+
+/**
+ * Can the library be written to right now?
+ *
+ * Probed rather than assumed: a share that was mounted at launch can be gone by
+ * the time someone adds a file. Returns the verdict AND the folder, because a
+ * message that does not name the folder sends the shop to the app's settings
+ * when the problem is in the Finder.
+ */
+function printLibStatus() {
+  const { primary, isCustom } = printLibRoots();
+  // The built-in folder is ours to create; a folder the shop chose is not, and
+  // silently creating it would hide a mistyped path or an unmounted share.
+  if (!isCustom) { printLibDefaultRoot(); return { ok: true, reason: 'ok', root: primary }; }
+  let probe = { exists: false, isDirectory: false, writable: false };
+  try {
+    const st = fs.statSync(primary);
+    probe = { exists: true, isDirectory: st.isDirectory(), writable: false };
+    fs.accessSync(primary, fs.constants.W_OK);
+    probe.writable = true;
+  } catch (_) { /* leave the probe as it stands */ }
+  const v = PLL.verdict(probe);
+  return { ok: v.ok, reason: v.reason, root: primary, error: PLL.explain(v.reason, primary) };
+}
+
+/** Throws a message worth showing when the library cannot be written to. */
+function requirePrintLib() {
+  const st = printLibStatus();
+  if (!st.ok) throw new Error(st.error || 'The print library folder is unavailable.');
+  return st.root;
+}
+
+// Reads do NOT go through requirePrintLib(). A read that throws when the share is
+// away turns "no files here" into an unhandled rejection in every caller that
+// merely wanted to know whether a record has a file. Writes refuse loudly;
+// reads simply find nothing, and hub:printlib-status is what tells the shop why
+// the library looks empty.
+const printLibDir = () => printLibRoots().primary;
+const printLibItemDir = (id) => path.join(printLibRoots().primary, PLL.itemDirName(id));
+
+/** Is this path part of the library, wherever the library has ever lived? */
+const printLibContains = (p) => PLL.insideLibrary(p, printLibRoots().roots);
+
+/** The same record folder under the mirror, or null when no mirror is set. */
+function printLibMirrorItemDir(id) {
+  const { mirror } = printLibRoots();
+  return mirror ? path.join(mirror, PLL.itemDirName(id)) : null;
+}
+
+/** The bucket the library is backed up to, or null. */
+function printLibS3() {
+  const cfg = (printLibSettings() || {}).s3;
+  if (!cfg || !cfg.enabled || !S3C.isConfigured(cfg)) return null;
+  return { client: S3C.createS3(cfg), prefix: cfg.prefix || '' };
+}
+
+/**
+ * Copy a file that was just written to wherever the shop keeps its backups.
+ *
+ * A folder and a bucket are the same job here — write-through, after the primary
+ * has succeeded — so they share one function and one report. Both are
+ * best-effort and NEITHER is ever read from: a backup you read from is a second
+ * primary, and the two drift.
+ *
+ * Best-effort, but not silent. A backup that can fail a save is a second thing
+ * to go wrong; a backup that fails without saying so is worse, because the shop
+ * believes it has one. The primary write stands and the handler reports what
+ * landed.
+ *
+ * @returns {null|{folder: boolean|null, s3: boolean|null}} null when no backup
+ *   is configured at all.
+ */
+async function printLibMirrorFile(id, filename, srcPath) {
+  const dir = printLibMirrorItemDir(id);
+  const s3 = printLibS3();
+  if (!dir && !s3) return null;
+  const out = { folder: null, s3: null };
+  if (dir) {
+    try {
+      await fs.promises.mkdir(dir, { recursive: true });
+      await fs.promises.copyFile(srcPath, path.join(dir, filename));
+      out.folder = true;
+    } catch (e) {
+      console.error('printlib mirror (folder):', e.message);
+      out.folder = false;
+    }
+  }
+  if (s3) {
+    try {
+      // Read once, here, rather than streaming: these are model files, the
+      // upload is already bounded by INTAKE_MAX_BYTES upstream, and a Buffer is
+      // what keeps the bytes intact — a string round trip corrupts binary.
+      const buf = await fs.promises.readFile(srcPath);
+      await s3.client.put(S3C.objectKey(s3.prefix, id, filename), buf);
+      out.s3 = true;
+    } catch (e) {
+      console.error('printlib mirror (s3):', e.message);
+      out.s3 = false;
+    }
+  }
+  return out;
+}
+
+/**
+ * Where the library is, and whether it can be reached right now.
+ *
+ * The renderer asks this to show the shop why the library looks empty, which is
+ * the counterpart to writes failing loudly: refusing a save without ever saying
+ * the NAS is unmounted just moves the confusion somewhere else.
+ */
+ipcMain.handle('hub:printlib-status', async () => {
+  const { primary, mirror, isCustom, roots } = printLibRoots();
+  const st = printLibStatus();
+  let mirrorOk = null;
+  if (mirror) {
+    try { mirrorOk = fs.statSync(mirror).isDirectory(); } catch (_) { mirrorOk = false; }
+  }
+  const s3cfg = (printLibSettings() || {}).s3 || {};
+  const s3 = !!(s3cfg.enabled && S3C.isConfigured(s3cfg));
+  return { ok: st.ok, reason: st.reason, error: st.error || '', root: primary, isCustom, mirror, mirrorOk, roots, s3, s3Bucket: s3 ? s3cfg.bucket : '' };
+});
+
+/** Choose a folder for the library, or for its mirror. */
+/**
+ * Prove the bucket works, with a real round trip.
+ *
+ * Credentials that look right and a bucket that refuses writes are
+ * indistinguishable until the first model fails to upload — by which time the
+ * shop believes it has a backup. Writes, reads back, compares, deletes.
+ */
+ipcMain.handle('hub:printlib-s3-test', async () => {
+  const cfg = (printLibSettings() || {}).s3;
+  if (!cfg || !S3C.isConfigured(cfg)) return { ok: false, error: 'Fill in the endpoint, bucket, key and secret first.' };
+  const key = S3C.objectKey(cfg.prefix || '', '_khayt-check', `probe-${Date.now().toString(36)}.bin`);
+  const payload = crypto.randomBytes(64);
+  const s3 = S3C.createS3(cfg);
+  try {
+    await s3.put(key, payload);
+    const back = await s3.get(key);
+    await s3.del(key);
+    if (!back || !Buffer.from(back).equals(payload)) {
+      return { ok: false, error: 'The bucket accepted the file but returned something different.' };
+    }
+    return { ok: true, bucket: cfg.bucket, endpoint: cfg.endpoint };
+  } catch (e) {
+    try { await s3.del(key); } catch (_) { /* nothing to clean up */ }
+    return { ok: false, error: String((e && e.message) || e) };
+  }
+});
+
+/**
+ * Every file under a root, as paths relative to it.
+ *
+ * Relative, because that is what makes the destination obvious: the same
+ * relative path under the new root. Item folders hold thumbnails and photos
+ * beside the models, and nothing here needs to know which is which.
+ */
+async function printLibWalk(root, rel = '', out = []) {
+  let entries;
+  try {
+    entries = await fs.promises.readdir(path.join(root, rel), { withFileTypes: true });
+  } catch (_) { return out; }              // an unmounted share scans as empty
+  for (const e of entries) {
+    if (e.name === '.DS_Store') continue;
+    const childRel = rel ? path.join(rel, e.name) : e.name;
+    if (e.isDirectory()) { await printLibWalk(root, childRel, out); continue; }
+    if (!e.isFile()) continue;             // symlinks are not ours to relocate
+    try {
+      const st = await fs.promises.stat(path.join(root, childRel));
+      out.push({ root, rel: childRel, size: st.size });
+    } catch (_) { /* vanished mid-scan */ }
+  }
+  return out;
+}
+
+/** Streamed, because a library holds files far larger than we want in memory. */
+function printLibHashFile(p) {
+  return new Promise((resolve, reject) => {
+    const h = crypto.createHash('sha256');
+    const s = fs.createReadStream(p);
+    s.on('error', reject);
+    s.on('data', (d) => h.update(d));
+    s.on('end', () => resolve(h.digest('hex')));
+  });
+}
+
+/** Free bytes on the volume holding a path, or null when we cannot tell. */
+async function printLibFreeSpace(dir) {
+  try {
+    const st = await fs.promises.statfs(dir);       // Node 18.15+
+    return Number(st.bavail) * Number(st.bsize);
+  } catch (_) { return null; }
+}
+
+/** The real filesystem, in the shape PLM.moveOne takes it. */
+const printLibMoveIO = {
+  hash: printLibHashFile,
+  exists: async (p) => fs.existsSync(p),
+  readdir: async (d) => { try { return await fs.promises.readdir(d); } catch (_) { return []; } },
+  mkdir: (d) => fs.promises.mkdir(d, { recursive: true }),
+  copy: (a, b) => fs.promises.copyFile(a, b),
+  unlink: (p) => fs.promises.unlink(p),
 };
+
+/** Everything sitting somewhere the library no longer reads from. */
+async function printLibStrandedFiles() {
+  const { primary, mirror, roots } = printLibRoots();
+  const from = PLM.sources(roots, primary, mirror);
+  const items = [];
+  for (const root of from) items.push(...await printLibWalk(root));
+  return items;
+}
+
+/**
+ * What is stranded, and whether it will fit.
+ *
+ * A preview, not a plan to execute later: the run re-scans. Acting on a list
+ * gathered minutes ago would move files the shop has since deleted and miss the
+ * ones they added.
+ */
+ipcMain.handle('hub:printlib-migrate-scan', async () => {
+  try {
+    const { primary } = printLibRoots();
+    const items = await printLibStrandedFiles();
+    const sum = PLM.summarize(items);
+    const free = await printLibFreeSpace(path.dirname(primary));
+    return { ok: true, ...sum, to: primary, space: PLM.enoughSpace(sum.bytes, free) };
+  } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
+});
+
+// One at a time. Two runs over the same files would each see the other's
+// half-finished copies, and "the destination already exists" is a branch that
+// ends in a deleted source.
+let printLibMigrating = false;
+
+/**
+ * Move the stranded files in.
+ *
+ * Copy, read back, compare hashes, and only then remove the source. Not rename:
+ * across volumes it fails outright (EXDEV), and where it does work it leaves no
+ * window in which to check that the bytes arrived. A copy that returns without
+ * throwing is not proof — a short write to a share that dropped mid-transfer
+ * does exactly that.
+ *
+ * Nothing is overwritten, and no source is removed unless its bytes are proven
+ * to exist at the destination. Anything that fails is left exactly as it was
+ * and reported by name.
+ */
+ipcMain.handle('hub:printlib-migrate-run', async (event) => {
+  if (printLibMigrating) return { ok: false, error: 'A move is already running.' };
+  printLibMigrating = true;
+  const report = { ok: true, moved: 0, duplicates: 0, collisions: 0, failed: 0, bytes: 0, errors: [] };
+  try {
+    requirePrintLib();                                   // refuse before touching anything
+    const { primary } = printLibRoots();
+    const items = await printLibStrandedFiles();
+    const space = PLM.enoughSpace(PLM.summarize(items).bytes, await printLibFreeSpace(path.dirname(primary)));
+    if (!space.ok) {
+      return { ok: false, error: `Not enough room in ${primary} — ${Math.ceil(space.shortBy / 1e6)} MB short.` };
+    }
+    const send = (p) => { try { event.sender.send('hub:printlib-migrate-progress', p); } catch (_) { /* window gone */ } };
+
+    for (let i = 0; i < items.length; i += 1) {
+      const it = items[i];
+      const src = path.join(it.root, it.rel);
+      send({ done: i, total: items.length, file: path.basename(it.rel) });
+      try {
+        const r = await PLM.moveOne(printLibMoveIO, src, path.join(primary, path.dirname(it.rel)), path.basename(it.rel));
+        if (r.action === PLM.SAME) { report.duplicates += 1; continue; }
+        if (r.action === PLM.COLLISION) report.collisions += 1;
+        report.moved += 1;
+        report.bytes += it.size;
+      } catch (e) {
+        report.failed += 1;
+        report.errors.push(`${it.rel}: ${String((e && e.message) || e)}`);
+      }
+    }
+    send({ done: items.length, total: items.length, file: '' });
+
+    // Tidy the folders we emptied. Only ever empty ones, and never a root.
+    for (const root of PLM.sources(printLibRoots().roots, primary, printLibRoots().mirror)) {
+      const dirs = new Set(items.filter((i) => i.root === root).map((i) => path.dirname(i.rel)).filter((d) => d && d !== '.'));
+      for (const d of dirs) {
+        try { await fs.promises.rmdir(path.join(root, d)); } catch (_) { /* not empty, and that is fine */ }
+      }
+    }
+    return report;
+  } catch (e) {
+    return { ok: false, error: String((e && e.message) || e) };
+  } finally {
+    printLibMigrating = false;
+  }
+});
+
+/**
+ * Fold the root we are leaving into the ones this install remembers.
+ *
+ * The renderer owns the store, so it does the saving — but the decision lives in
+ * a tested module rather than in four lines of renderer that nothing checks.
+ * Called before the new root is saved, so printLibSettings() still reports the
+ * old one. Pass '' to go back to the built-in folder.
+ */
+ipcMain.handle('hub:printlib-remember-root', async (_e, nextRoot) => (
+  { history: PLM.rememberRoot(printLibSettings(), String(nextRoot || ''), printLibDefaultRoot()).history }
+));
+
+ipcMain.handle('hub:printlib-pick-folder', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const r = await dialog.showOpenDialog(win, {
+    title: 'Choose a folder for the print library',
+    properties: ['openDirectory', 'createDirectory'],
+  });
+  if (r.canceled || !r.filePaths.length) return null;
+  const dir = r.filePaths[0];
+  try {
+    fs.accessSync(dir, fs.constants.W_OK);
+  } catch (_) {
+    return { ok: false, error: `No permission to write to ${dir}.` };
+  }
+  return { ok: true, path: dir };
+});
 
 ipcMain.handle('hub:printlib-pick-and-copy', async (event, id) => {
   const win = BrowserWindow.fromWebContents(event.sender);
@@ -1478,13 +1812,15 @@ ipcMain.handle('hub:printlib-pick-and-copy', async (event, id) => {
   const ext = path.extname(originalName).slice(1).toLowerCase() || 'bin';
   let contentHash = null;
   try { contentHash = modelContentHash(await fs.promises.readFile(src)); } catch (_) { contentHash = null; }
+  requirePrintLib();                       // refuses, by name, before anything is copied
   const dir = printLibItemDir(id);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   const filename = `model-${Date.now().toString(36)}.${ext}`;
   const destPath = path.join(dir, filename);
   await fs.promises.copyFile(src, destPath);
   const stat = await fs.promises.stat(destPath);
-  return { filename, originalName, size: stat.size, ext, fullPath: destPath, contentHash };
+  const mirrored = await printLibMirrorFile(id, filename, destPath);
+  return { filename, originalName, size: stat.size, ext, fullPath: destPath, contentHash, mirrored };
 });
 
 // Pick MANY print files at once — returns the chosen source paths (no copy). The renderer then copies
@@ -1517,13 +1853,15 @@ ipcMain.handle('hub:printlib-copy-path', async (_e, { id, srcPath } = {}) => {
     let contentHash = null;
     try { contentHash = modelContentHash(await fs.promises.readFile(src)); } catch (_) { contentHash = null; }
 
+    requirePrintLib();
     const dir = printLibItemDir(id);
     fs.mkdirSync(dir, { recursive: true });
     const filename = `model-${Date.now().toString(36)}.${ext}`;
     const destPath = path.join(dir, filename);
     await fs.promises.copyFile(src, destPath);
     const stat = await fs.promises.stat(destPath);
-    return { ok: true, filename, originalName, size: stat.size, ext, fullPath: destPath, contentHash };
+    const mirrored = await printLibMirrorFile(id, filename, destPath);
+    return { ok: true, filename, originalName, size: stat.size, ext, fullPath: destPath, contentHash, mirrored };
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
@@ -1540,8 +1878,7 @@ ipcMain.handle('hub:printlib-list', async (_e, id) => {
 
 ipcMain.handle('hub:printlib-delete', async (_e, fullPath) => {
   const safe = path.resolve(String(fullPath || ''));
-  const root = path.resolve(printLibDir());
-  if (!safe.startsWith(root + path.sep)) return false; // confine to the library vault
+  if (!printLibContains(safe)) return false; // confine to the library, wherever it lives
   // Report the truth, like hub:delete-vault-file. Swallowing the error and returning true
   // removed the entry from the library while the file stayed on disk.
   try {
@@ -1561,6 +1898,7 @@ ipcMain.handle('hub:printlib-save-image', async (_e, { id, name, dataUrl } = {})
   try {
     const m = /^data:image\/(png|jpe?g|webp);base64,([A-Za-z0-9+/=]+)$/.exec(String(dataUrl || ''));
     if (!m) return { ok: false, error: 'Unsupported image data' };
+    requirePrintLib();
     const dir = printLibItemDir(id);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     const safeName = path.basename(String(name || 'img')).replace(/[^a-zA-Z0-9_.-]/g, '_');
@@ -1573,8 +1911,7 @@ ipcMain.handle('hub:printlib-save-image', async (_e, { id, name, dataUrl } = {})
 // Load a saved image back as a data URL for display.
 ipcMain.handle('hub:printlib-load-image', async (_e, fullPath) => {
   const safe = path.resolve(String(fullPath || ''));
-  const root = path.resolve(printLibDir());
-  if (!safe.startsWith(root + path.sep)) return null;
+  if (!printLibContains(safe)) return null;
   try {
     const buf = await fs.promises.readFile(safe);
     const ext = path.extname(safe).slice(1).toLowerCase();
@@ -1586,8 +1923,7 @@ ipcMain.handle('hub:printlib-load-image', async (_e, fullPath) => {
 // Open a library model in the user's installed slicer GUI (detached — outlives us).
 ipcMain.handle('hub:printlib-open-in-slicer', async (_e, { filePath, slicerPath } = {}) => {
   const safe = path.resolve(String(filePath || ''));
-  const root = path.resolve(printLibDir());
-  if (!safe.startsWith(root + path.sep)) return { ok: false, error: 'File is outside the library.' };
+  if (!printLibContains(safe)) return { ok: false, error: 'File is outside the library.' };
   if (!fs.existsSync(safe)) return { ok: false, error: 'File not found.' };
   if (slicerPath && fs.existsSync(slicerPath) && isSafeSlicerBinary(slicerPath)) {
     try {
@@ -1607,8 +1943,7 @@ ipcMain.handle('hub:printlib-open-in-slicer', async (_e, { filePath, slicerPath 
 // STL preview. Confined to the library vault; capped so a giant file can't blow up IPC.
 ipcMain.handle('hub:printlib-read-bytes', async (_e, fullPath) => {
   const safe = path.resolve(String(fullPath || ''));
-  const root = path.resolve(printLibDir());
-  if (!safe.startsWith(root + path.sep)) return null;
+  if (!printLibContains(safe)) return null;
   try {
     const stat = await fs.promises.stat(safe);
     if (stat.size > 60_000_000) return null; // too big to render a thumbnail for
@@ -1673,8 +2008,7 @@ async function mfDiscard(tmpPath) {
 // Mesh for a print file in the vault (STL or 3MF). Confined to the vault, like read-bytes.
 ipcMain.handle('hub:printlib-mesh', async (_e, fullPath) => {
   const safe = path.resolve(String(fullPath || ''));
-  const root = path.resolve(printLibDir());
-  if (!safe.startsWith(root + path.sep)) return { ok: false };
+  if (!printLibContains(safe)) return { ok: false };
   try {
     const stat = await fs.promises.stat(safe);
     if (stat.size > 200_000_000) return { ok: false, error: 'too-large' };
@@ -2204,6 +2538,29 @@ ipcMain.handle('hub:intake-model-bytes', async (_e, payload) => {
   }
 });
 
+/**
+ * The printed envelope of a g-code file — see lib/gcode-geometry.js for what it
+ * is and why the usual identity keys cannot survive a re-slice.
+ *
+ * Best-effort: a file that cannot be read, or is larger than any real print,
+ * yields null and the record simply keeps no geometry key, exactly as before.
+ */
+const SILHOUETTE_MAX_BYTES = 256 * 1024 * 1024;
+async function gcodeSilhouette(fullPath, size) {
+  if (Number.isFinite(size) && size > SILHOUETTE_MAX_BYTES) return null;
+  try {
+    const sil = createSilhouette();
+    const rl = readline.createInterface({
+      input: fs.createReadStream(fullPath, { encoding: 'utf8' }),
+      crlfDelay: Infinity,
+    });
+    for await (const line of rl) sil.push(line);
+    return sil.result();
+  } catch (_) {
+    return null;
+  }
+}
+
 // --- Feature 1 (new batch): G-code / 3MF metadata extraction ---
 ipcMain.handle('hub:parse-print-file', async (_e, filePath) => {
   const resolvedParse = path.resolve(String(filePath || ''));
@@ -2241,6 +2598,12 @@ ipcMain.handle('hub:parse-print-file', async (_e, filePath) => {
           fs.closeSync(fd);
         }
       }
+      // The envelope needs the whole toolpath, which the head/tail read above
+      // deliberately does not have — that read is for the slicer's summary, and
+      // it stops well short of the moves. Streamed rather than slurped so a
+      // 60 MB file costs one line at a time, and capped so a pathological one
+      // costs a bounded amount of work instead of the app's responsiveness.
+      result.silhouette = await gcodeSilhouette(resolvedParse, stat.size);
       const parsed = parseGcodeText(text);
       result.printTimeMins = parsed.printTimeMins;
       result.filamentGrams = parsed.filamentGrams;

@@ -1704,6 +1704,200 @@ function wireCloudSyncStatusOnce() {
 /** Settings → Khayt Cloud: account sign-up / log-in / sync / restore (opt-in, E2E).
  *  Two independent secrets: the ACCOUNT PASSWORD authenticates (reaches the shop);
  *  the SYNC PASSPHRASE encrypts (decrypts data) and never leaves this device. */
+/**
+ * Where the model files are kept, and whether Khayt can reach it.
+ *
+ * Both paths come from a folder picker rather than a text field: a typed path is
+ * one that can silently not exist, and this setting decides where a shop's most
+ * expensive asset is written. The status line is the other half of writes
+ * failing loudly — refusing a save without saying the share is unmounted just
+ * moves the confusion.
+ */
+async function renderPrintLibLocation() {
+  const rootEl = $('#set_plibRoot');
+  const mirrorEl = $('#set_plibMirror');
+  const statusEl = $('#plibLocStatus');
+  if (!rootEl || !mirrorEl) return;
+  const cfg = (settings && settings.printLibrary) || {};
+  rootEl.value = cfg.root || '';
+  mirrorEl.value = cfg.mirror || '';
+  const s3 = cfg.s3 || {};
+  const setV = (id, v) => { const el = $(id); if (el) el.value = v || ''; };
+  if ($('#set_plibS3On')) $('#set_plibS3On').checked = !!s3.enabled;
+  setV('#set_plibS3Endpoint', s3.endpoint);
+  setV('#set_plibS3Bucket', s3.bucket);
+  setV('#set_plibS3Region', s3.region);
+  setV('#set_plibS3Prefix', s3.prefix);
+  setV('#set_plibS3Key', s3.accessKeyId);
+  // Never render the secret back. The renderer only ever holds a mask; typing
+  // nothing keeps what is on disk (see secretInputSave).
+  const sec = $('#set_plibS3Secret');
+  if (sec) { sec.value = ''; sec.placeholder = secretFieldPlaceholder(s3.secretAccessKey); }
+  if (!statusEl || !window.hubAPI?.printLibStatus) return;
+  let st = null;
+  try { st = await window.hubAPI.printLibStatus(); } catch (_) { st = null; }
+  if (!st) { statusEl.textContent = ''; return; }
+  if (!st.ok) {
+    statusEl.textContent = '⚠ ' + (st.error || '');
+    statusEl.style.color = 'var(--danger)';
+    return;
+  }
+  const where = st.isCustom ? st.root : (t('set.plib_this_mac') || 'this Mac');
+  const mirrorNote = st.mirror
+    ? ' · ' + (st.mirrorOk === false
+      ? (t('set.plib_mirror_missing') || 'backup folder not reachable')
+      : (t('set.plib_mirror_ok') || 'backup folder ready'))
+    : '';
+  statusEl.textContent = '✓ ' + (t('set.plib_ready') || 'Library folder ready') + ': ' + where + mirrorNote;
+  statusEl.style.color = st.mirror && st.mirrorOk === false ? 'var(--warning, #d97706)' : 'var(--text-muted)';
+  // Offered, not hidden behind a button nobody knows to press: a shop that has
+  // just moved the library sees an empty one, and has no reason to suspect the
+  // files are elsewhere rather than gone.
+  scanPrintLibMigrate();
+}
+
+/**
+ * Persist the bucket settings.
+ *
+ * The secret goes through secretInputSave: the renderer is handed a mask rather
+ * than the real key, so an empty field means "keep what is on disk" and NOT
+ * "clear it" — saving any other setting on this page would otherwise wipe the
+ * credential.
+ */
+function savePrintLibS3() {
+  const v = (id) => ($(id)?.value || '').trim();
+  const cur = ((settings.printLibrary || {}).s3) || {};
+  settings.printLibrary = Object.assign({}, settings.printLibrary, {
+    s3: {
+      enabled: !!$('#set_plibS3On')?.checked,
+      endpoint: v('#set_plibS3Endpoint'),
+      bucket: v('#set_plibS3Bucket'),
+      region: v('#set_plibS3Region') || 'auto',
+      prefix: v('#set_plibS3Prefix'),
+      accessKeyId: v('#set_plibS3Key'),
+      secretAccessKey: secretInputSave(cur.secretAccessKey, v('#set_plibS3Secret')),
+    },
+  });
+  saveAll();
+  renderPrintLibLocation();
+  toast(t('set.plib_s3_saved') || 'Object storage settings saved', 'success');
+}
+
+/** Prove the bucket works before anyone relies on it as a backup. */
+async function testPrintLibS3() {
+  const out = $('#plibS3Result');
+  if (!window.hubAPI?.printLibS3Test) return;
+  savePrintLibS3();                                  // test what is configured, not what was typed
+  if (out) { out.textContent = t('set.plib_s3_testing') || 'Testing…'; out.style.color = 'var(--text-muted)'; }
+  let r;
+  try { r = await window.hubAPI.printLibS3Test(); } catch (err) { r = { ok: false, error: String(err.message || err) }; }
+  if (!out) return;
+  out.textContent = r && r.ok
+    ? '✓ ' + (t('set.plib_s3_ok') || 'Wrote, read back and removed a test file')
+    : '✗ ' + ((r && r.error) || '');
+  out.style.color = r && r.ok ? 'var(--success, #16a34a)' : 'var(--danger)';
+}
+
+/**
+ * Record the folder the library is leaving, so it stays readable.
+ *
+ * Main decides what the history should be (rememberRoot); this only stores the
+ * answer. Without it a second move drops the first custom folder out of the
+ * known roots, and files that are merely in the wrong place become unreachable.
+ */
+async function printLibRootPatch(which, next) {
+  const patch = { [which]: next };
+  if (which !== 'root' || !window.hubAPI?.printLibRememberRoot) return patch;
+  try {
+    const r = await window.hubAPI.printLibRememberRoot(next);
+    if (r && Array.isArray(r.history)) patch.history = r.history;
+  } catch (_) { /* the move still works; only the old root is forgotten */ }
+  return patch;
+}
+
+/** Pick a folder for the library or its backup, and persist it. */
+async function pickPrintLibFolder(which) {
+  if (!window.hubAPI?.printLibPickFolder) return;
+  let r;
+  try { r = await window.hubAPI.printLibPickFolder(); } catch (err) { toast(String(err.message || err), 'error'); return; }
+  if (!r) return;                                  // cancelled
+  if (!r.ok) { toast(r.error || t('set.plib_choose_failed') || 'Could not use that folder', 'error'); return; }
+  settings.printLibrary = Object.assign({}, settings.printLibrary, await printLibRootPatch(which, r.path));
+  saveAll();
+  renderPrintLibLocation();
+  toast(t('set.plib_saved') || 'Print library location updated', 'success');
+}
+
+async function clearPrintLibFolder(which) {
+  settings.printLibrary = Object.assign({}, settings.printLibrary, await printLibRootPatch(which, ''));
+  saveAll();
+  renderPrintLibLocation();
+}
+
+/**
+ * Offer to bring in whatever is still sitting in a folder the library has left.
+ *
+ * Shown only when there is something to move. The count and size are the point:
+ * "some files" is not enough for anyone to tell whether this is the thing that
+ * emptied their library.
+ */
+async function scanPrintLibMigrate() {
+  const box = $('#plibMoveBox');
+  const what = $('#plibMoveWhat');
+  if (!box || !window.hubAPI?.printLibMigrateScan) return;
+  let r;
+  try { r = await window.hubAPI.printLibMigrateScan(); } catch (_) { r = null; }
+  if (!r || !r.ok || !r.files) { box.style.display = 'none'; return; }
+  box.style.display = '';
+  const mb = (n) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)} GB` : `${Math.max(1, Math.round(n / 1e6))} MB`);
+  const where = r.roots.map((x) => x.root).join(', ');
+  if (what) {
+    what.textContent = (t('set.plib_move_what') || '{n} files ({size}) are still in {from}. The library now reads from {to}, so they do not show up.')
+      .replace('{n}', r.files).replace('{size}', mb(r.bytes)).replace('{from}', where).replace('{to}', r.to);
+  }
+  const btn = $('#btnPlibMove');
+  // A move that cannot fit is refused here rather than half-done on disk.
+  if (btn) btn.disabled = !(r.space && r.space.ok);
+  const out = $('#plibMoveResult');
+  if (out && r.space && !r.space.ok) {
+    out.textContent = '⚠ ' + (t('set.plib_move_space') || 'Not enough room in the new folder.');
+    out.style.color = 'var(--danger)';
+  }
+}
+
+async function runPrintLibMigrate() {
+  const btn = $('#btnPlibMove');
+  const out = $('#plibMoveResult');
+  if (!window.hubAPI?.printLibMigrateRun) return;
+  if (btn) btn.disabled = true;
+  if (out) { out.textContent = t('set.plib_move_working') || 'Moving…'; out.style.color = 'var(--text-muted)'; }
+  if (window.hubAPI.onPrintLibMigrateProgress) {
+    window.hubAPI.onPrintLibMigrateProgress((p) => {
+      if (out && p && p.total) out.textContent = `${p.done} / ${p.total} — ${p.file || ''}`;
+    });
+  }
+  let r;
+  try { r = await window.hubAPI.printLibMigrateRun(); } catch (err) { r = { ok: false, error: String(err.message || err) }; }
+  if (btn) btn.disabled = false;
+  if (!out) return;
+  if (!r || !r.ok) {
+    out.textContent = '✗ ' + ((r && r.error) || '');
+    out.style.color = 'var(--danger)';
+    return;
+  }
+  // Report the awkward outcomes too. A count of files moved, with three
+  // failures folded into it, is the kind of success message that gets believed.
+  const bits = [(t('set.plib_move_done') || '{n} moved').replace('{n}', r.moved)];
+  if (r.duplicates) bits.push((t('set.plib_move_dupes') || '{n} already here').replace('{n}', r.duplicates));
+  if (r.collisions) bits.push((t('set.plib_move_renamed') || '{n} renamed to avoid overwriting').replace('{n}', r.collisions));
+  if (r.failed) bits.push((t('set.plib_move_failed') || '{n} left in place — see the log').replace('{n}', r.failed));
+  out.textContent = (r.failed ? '⚠ ' : '✓ ') + bits.join(' · ');
+  out.style.color = r.failed ? 'var(--warning, #d97706)' : 'var(--success, #16a34a)';
+  if (r.errors && r.errors.length) console.warn('print library move:', r.errors);
+  scanPrintLibMigrate();
+  renderPrintLibLocation();
+}
+
 function renderCloudSettings() {
   const el = $('#cloudSettingsSection');
   if (!el) return;
@@ -3480,6 +3674,7 @@ function loadSettingsIntoForm() {
   $('#set_useHijri').checked    = settings.useHijri !== false;
   $('#set_useArabicNumerals').checked = !!settings.useArabicNumerals;
   $('#set_autoBackup').checked  = settings.autoBackup !== false;
+  renderPrintLibLocation();
   if ($('#set_coachTips')) $('#set_coachTips').checked = settings.coachTips !== false;
   $('#set_enableVat').checked   = !!settings.enableVat;
   $('#set_vatRate').value       = settings.vatRate ?? 15;
@@ -3747,6 +3942,9 @@ function saveSettingsFromForm() {
     useHijri:      $('#set_useHijri').checked,
     useArabicNumerals: $('#set_useArabicNumerals').checked,
     autoBackup:    $('#set_autoBackup').checked,
+    // Written by the folder pickers, not by a field the shop can mistype — a
+    // path typed by hand is a path that silently does not exist.
+    printLibrary:  settings.printLibrary || {},
     coachTips:     $('#set_coachTips') ? $('#set_coachTips').checked : (settings.coachTips !== false),
     enableVat:     $('#set_enableVat').checked,
     vatRate:       Math.max(0, num($('#set_vatRate').value, 15)),
@@ -4546,6 +4744,15 @@ function renderTelegramSettings() {
   });
 }
   const api = {
+    // wire-events.js is a separate IIFE and can only reach what is exported
+    // here. Left out, the location buttons render and do nothing.
+    renderPrintLibLocation,
+    pickPrintLibFolder,
+    clearPrintLibFolder,
+    savePrintLibS3,
+    testPrintLibS3,
+    scanPrintLibMigrate,
+    runPrintLibMigrate,
     buildDigestEmailHtml,
     renderLocationsSettings,
     renderEmailNotificationSettings,

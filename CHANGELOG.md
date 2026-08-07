@@ -20,6 +20,101 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   messages: Khayt falls back to the old route when the new one is not there, and
   that fallback comes out in a later release.
 
+### Fixed
+
+- **Moving the print library no longer hides the files you already had.**
+  Choosing a new library folder only ever changed where the *next* file went —
+  and because Khayt lists files from the current folder and nowhere else, every
+  record went from having models to looking empty. Nothing was ever deleted, but
+  there was no way to tell that from the screen. Settings now spots files sitting
+  in a folder the library has left, tells you how many and how large, and offers
+  to bring them in. Each file is copied, read back and compared before the
+  original is removed; nothing is overwritten, and anything that cannot be
+  verified is left exactly where it is and reported. Khayt also remembers every
+  folder the library has lived in, so moving it a second time no longer puts the
+  first location out of reach.
+
+
+### Added
+
+- **Back the print library up to object storage.** Alongside a backup folder, you
+  can now point Khayt at an S3-compatible bucket — Cloudflare R2, AWS S3,
+  Backblaze B2, or anything else that speaks the same protocol — and every file
+  added to the library is uploaded there too. Like the backup folder, Khayt never
+  reads from it: it is an off-site copy, not a second library, so the two can't
+  quietly disagree about which is real. **Test connection** actually writes a
+  file, reads it back, checks the bytes match and removes it, so credentials that
+  look right but can't write are caught now rather than at the first model you
+  lose. Your secret key is encrypted on disk with the rest of Khayt's secrets and
+  is never shown on screen again after you enter it.
+
+
+### Added
+
+- **Keep your print library on a network drive, an external disk, or a synced
+  folder.** Your models were pinned inside Khayt's own data folder on one Mac —
+  out of reach of the second workstation, and in the one place a backup routine
+  never looks. Settings → Data & Locale → **Print library location** now lets you
+  point it anywhere Khayt can reach: a mounted share, an external SSD, or an
+  iCloud Drive / Dropbox / Google Drive / OneDrive folder. You can also set a
+  second folder as a **backup**: every file added to the library is copied there
+  too, and Khayt never reads from it, so the two can't quietly disagree about
+  which is real. If the folder isn't reachable — share not mounted, laptop away
+  from the shop — Khayt refuses to add files and tells you which folder is
+  missing, rather than quietly starting a second library on the laptop. Files
+  saved before you moved the library stay readable where they are.
+
+
+- **An "Identify" button on print files Khayt cannot recognise.** Khayt only ever
+  worked out what a file was at the moment you added it, so an entry that started
+  without that could never gain it — and an unrecognised file is one Khayt can
+  never match a part to, which is what keeps a model's own print history from
+  pricing its next quote. The button reads the file and works it out now: if the
+  entry already has a file it just re-reads it, and if it has none it asks you for
+  one. It appears only on entries that need it, and tells you whether it managed
+  to measure a shape or not.
+
+- **3MF files are now recognisable too.** Khayt has always read a 3MF's size and
+  shape to show you its figures, then thrown that measurement away — only STL
+  files ever got something Khayt could match on later. A 3MF now gets the same
+  one, from the same numbers, so the same model added once as a 3MF and once as
+  an STL is recognised as one model instead of two.
+
+
+- **Drop a model you have printed before and Khayt recognises it.** Linking a
+  part to a file in your print library is what lets that file's own finished
+  prints price the next quote, instead of the printer's overall average — which
+  misjudges anything unlike your recent mix. The link was a dropdown nobody was
+  prompted to touch, so in practice it stayed empty and the history never got
+  used. Now, when you drop or pick a model, Khayt compares its shape against your
+  library and selects the matching file for you, then re-prices using that file's
+  measured history. It matches on the printed shape rather than the exact file,
+  so a model you re-sliced at a different layer height or infill is still
+  recognised. It only acts when exactly one file matches, never overrides a file
+  you chose yourself, and tells you which one it picked so you can clear it — two
+  plaques the same size on the outside can carry different faces, and only you
+  can say whether they are the same job.
+
+### Fixed
+
+- **A g-code file the shop re-sliced came back as a stranger, so quotes for it
+  never learned.** Khayt recognises a print file two ways: by the file's exact
+  bytes, and by its geometry. Re-slicing changes the bytes — so does simply
+  exporting to a different name, because slicers stamp the filename and a
+  timestamp into the header — and the geometry key was only ever worked out from
+  a mesh, which a g-code file does not carry. So every re-slice of the same model
+  arrived unrecognised, its finished prints were never pooled with the earlier
+  ones, and per-file calibration never reached the three jobs it needs. Quotes
+  fell back to the printer's overall average, which misprices anything unlike the
+  shop's recent mix: measured against 16 real jobs, 21% under on a tall part and
+  27% over on a flat one. Khayt now measures the shape the g-code actually prints
+  — how wide and deep the material reaches through the object's height — which
+  survives a change of layer height, infill or slicer version. Re-slice a model
+  and Khayt offers the print file you already have, so its own measured history
+  keeps building. It is offered as a likely match, never applied silently: two
+  plaques of the same outer size can print different faces, and only you can say
+  whether they are the same job.
+
 ## [3.6.0-beta.12] - 2026-08-06
 
 Mostly about telling you the truth when something did not work. Signing in to the

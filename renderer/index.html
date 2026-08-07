@@ -2125,6 +2125,56 @@
         </div>
 
         <div class="card settings-card">
+        <div class="settings-section-head" data-i18n="set.plib_loc_section">Print library location</div>
+        <p style="font-size:12px;color:var(--text-muted);margin:0 0 12px;" data-i18n="set.plib_loc_hint">Where your model files are kept. A folder on a network drive, an external disk, or a synced folder (iCloud Drive, Dropbox, Google Drive, OneDrive) all work — Khayt just needs to be able to reach it.</p>
+        <label data-i18n="set.plib_loc_primary">Library folder</label>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <input type="text" id="set_plibRoot" readonly placeholder="This Mac (default)" style="flex:1; min-width:220px;">
+          <button class="btn" id="btnPlibRoot" data-i18n="set.plib_choose">Choose…</button>
+          <button class="btn ghost" id="btnPlibRootClear" data-i18n="set.plib_use_default">Use this Mac</button>
+        </div>
+        <label style="margin-top:12px;" data-i18n="set.plib_loc_mirror">Also keep a copy in (backup)</label>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <input type="text" id="set_plibMirror" readonly placeholder="—" style="flex:1; min-width:220px;">
+          <button class="btn" id="btnPlibMirror" data-i18n="set.plib_choose">Choose…</button>
+          <button class="btn ghost" id="btnPlibMirrorClear" data-i18n="common.clear">Clear</button>
+        </div>
+        <p style="font-size:11.5px;color:var(--text-muted);margin:8px 0 0;" data-i18n="set.plib_mirror_hint">Every file added to the library is copied here too. Khayt never reads from it — it is a backup, not a second library.</p>
+        <p id="plibLocStatus" style="font-size:12px;margin:10px 0 0;"></p>
+
+        <div id="plibMoveBox" style="display:none; border:1px solid var(--border,#2a2e38); border-radius:8px; padding:12px; margin-top:12px;">
+          <div style="font-weight:600; font-size:13px;" data-i18n="set.plib_move_title">Files left in the old location</div>
+          <p id="plibMoveWhat" style="font-size:12px;color:var(--text-muted);margin:6px 0 0;"></p>
+          <p style="font-size:11.5px;color:var(--text-muted);margin:6px 0 0;" data-i18n="set.plib_move_hint">Each file is copied, read back and checked before the original is removed. Nothing is overwritten, and anything that cannot be verified is left where it is.</p>
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px;">
+            <button class="btn primary" id="btnPlibMove" data-i18n="set.plib_move_do">Move them here</button>
+            <span id="plibMoveResult" style="font-size:12px;"></span>
+          </div>
+        </div>
+
+        <div style="border-top:1px solid var(--border,#2a2e38); margin-top:16px; padding-top:14px;">
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="checkbox" id="set_plibS3On" style="width:auto; margin:0;">
+            <span data-i18n="set.plib_s3_on">Also back up to object storage (S3, Cloudflare R2, Backblaze B2)</span>
+          </label>
+          <p style="font-size:11.5px;color:var(--text-muted);margin:6px 0 10px;" data-i18n="set.plib_s3_hint">A second copy of every file, off-site. Khayt never reads from it — like the backup folder, it is a copy, not a second library.</p>
+          <div id="plibS3Fields" style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+            <div><label data-i18n="set.plib_s3_endpoint">Endpoint</label><input type="text" id="set_plibS3Endpoint" placeholder="https://<account>.r2.cloudflarestorage.com"></div>
+            <div><label data-i18n="set.plib_s3_bucket">Bucket</label><input type="text" id="set_plibS3Bucket" placeholder="khayt-models"></div>
+            <div><label data-i18n="set.plib_s3_region">Region</label><input type="text" id="set_plibS3Region" placeholder="auto"></div>
+            <div><label data-i18n="set.plib_s3_prefix">Folder inside the bucket (optional)</label><input type="text" id="set_plibS3Prefix" placeholder="shop-1"></div>
+            <div><label data-i18n="set.plib_s3_key">Access key ID</label><input type="text" id="set_plibS3Key" autocomplete="off"></div>
+            <div><label data-i18n="set.plib_s3_secret">Secret access key</label><input type="password" id="set_plibS3Secret" autocomplete="new-password"></div>
+          </div>
+          <div style="display:flex; gap:8px; margin-top:10px; align-items:center; flex-wrap:wrap;">
+            <button class="btn" id="btnPlibS3Save" data-i18n="common.save">Save</button>
+            <button class="btn ghost" id="btnPlibS3Test" data-i18n="set.plib_s3_test">Test connection</button>
+            <span id="plibS3Result" style="font-size:12px;"></span>
+          </div>
+        </div>
+        </div>
+
+        <div class="card settings-card">
         <div class="settings-section-head" data-i18n="set.backup_section">Backups</div>
         <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
           <input type="checkbox" id="set_autoBackup" style="width:auto; margin:0;">
@@ -2459,6 +2509,7 @@
 <script src="../lib/printer-poll-cache.js"></script>
 <script src="../lib/print-setups.js"></script>
 <script src="../lib/model-identity.js"></script>
+<script src="../lib/gcode-geometry.js"></script>
 <script src="../lib/order-file-link.js"></script>
 <script src="../lib/estimate-calibration.js"></script>
 <script src="../lib/stl-thumbnail.js"></script>
