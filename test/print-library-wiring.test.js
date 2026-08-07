@@ -85,7 +85,11 @@ test('a failing mirror cannot fail the save, and says it failed', () => {
   // be REPORTED: a backup that fails silently is worse than none, because the
   // shop believes it has one.
   const fnStart = mainJs.indexOf('async function printLibMirrorFile(');
-  const body = mainJs.slice(fnStart, mainJs.indexOf('\nasync function ', fnStart + 10));
+  // Bounded by whatever comes next, so unrelated catch blocks in a later
+  // handler cannot stand in for the ones this function is supposed to have.
+  const ends = [mainJs.indexOf('\nasync function ', fnStart + 10), mainJs.indexOf('\nipcMain.handle(', fnStart + 10)]
+    .filter((i) => i > -1);
+  const body = mainJs.slice(fnStart, Math.min(...ends));
   const caught = (body.match(/catch \(e\) \{/g) || []).length;
   assert.ok(caught >= 2, `each backup target must swallow its own failure, found ${caught}`);
   assert.match(body, /out\.folder = false;/, 'a folder copy that failed is not reported');

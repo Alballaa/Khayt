@@ -1459,6 +1459,7 @@ ipcMain.handle('hub:delete-vault-file', async (_e, fullPath) => {
 // file plus its generated thumbnail/photo. All handlers are path-confined to that
 // root; nothing here touches the network (offline contract).
 const PLL = require('./lib/print-library-location');
+const PLM = require('./lib/print-library-migrate');
 const S3C = require('./lib/s3-client');
 
 /** The built-in vault — where the library lived when it could only live here. */
@@ -1622,6 +1623,162 @@ ipcMain.handle('hub:printlib-s3-test', async () => {
     return { ok: false, error: String((e && e.message) || e) };
   }
 });
+
+/**
+ * Every file under a root, as paths relative to it.
+ *
+ * Relative, because that is what makes the destination obvious: the same
+ * relative path under the new root. Item folders hold thumbnails and photos
+ * beside the models, and nothing here needs to know which is which.
+ */
+async function printLibWalk(root, rel = '', out = []) {
+  let entries;
+  try {
+    entries = await fs.promises.readdir(path.join(root, rel), { withFileTypes: true });
+  } catch (_) { return out; }              // an unmounted share scans as empty
+  for (const e of entries) {
+    if (e.name === '.DS_Store') continue;
+    const childRel = rel ? path.join(rel, e.name) : e.name;
+    if (e.isDirectory()) { await printLibWalk(root, childRel, out); continue; }
+    if (!e.isFile()) continue;             // symlinks are not ours to relocate
+    try {
+      const st = await fs.promises.stat(path.join(root, childRel));
+      out.push({ root, rel: childRel, size: st.size });
+    } catch (_) { /* vanished mid-scan */ }
+  }
+  return out;
+}
+
+/** Streamed, because a library holds files far larger than we want in memory. */
+function printLibHashFile(p) {
+  return new Promise((resolve, reject) => {
+    const h = crypto.createHash('sha256');
+    const s = fs.createReadStream(p);
+    s.on('error', reject);
+    s.on('data', (d) => h.update(d));
+    s.on('end', () => resolve(h.digest('hex')));
+  });
+}
+
+/** Free bytes on the volume holding a path, or null when we cannot tell. */
+async function printLibFreeSpace(dir) {
+  try {
+    const st = await fs.promises.statfs(dir);       // Node 18.15+
+    return Number(st.bavail) * Number(st.bsize);
+  } catch (_) { return null; }
+}
+
+/** The real filesystem, in the shape PLM.moveOne takes it. */
+const printLibMoveIO = {
+  hash: printLibHashFile,
+  exists: async (p) => fs.existsSync(p),
+  readdir: async (d) => { try { return await fs.promises.readdir(d); } catch (_) { return []; } },
+  mkdir: (d) => fs.promises.mkdir(d, { recursive: true }),
+  copy: (a, b) => fs.promises.copyFile(a, b),
+  unlink: (p) => fs.promises.unlink(p),
+};
+
+/** Everything sitting somewhere the library no longer reads from. */
+async function printLibStrandedFiles() {
+  const { primary, mirror, roots } = printLibRoots();
+  const from = PLM.sources(roots, primary, mirror);
+  const items = [];
+  for (const root of from) items.push(...await printLibWalk(root));
+  return items;
+}
+
+/**
+ * What is stranded, and whether it will fit.
+ *
+ * A preview, not a plan to execute later: the run re-scans. Acting on a list
+ * gathered minutes ago would move files the shop has since deleted and miss the
+ * ones they added.
+ */
+ipcMain.handle('hub:printlib-migrate-scan', async () => {
+  try {
+    const { primary } = printLibRoots();
+    const items = await printLibStrandedFiles();
+    const sum = PLM.summarize(items);
+    const free = await printLibFreeSpace(path.dirname(primary));
+    return { ok: true, ...sum, to: primary, space: PLM.enoughSpace(sum.bytes, free) };
+  } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
+});
+
+// One at a time. Two runs over the same files would each see the other's
+// half-finished copies, and "the destination already exists" is a branch that
+// ends in a deleted source.
+let printLibMigrating = false;
+
+/**
+ * Move the stranded files in.
+ *
+ * Copy, read back, compare hashes, and only then remove the source. Not rename:
+ * across volumes it fails outright (EXDEV), and where it does work it leaves no
+ * window in which to check that the bytes arrived. A copy that returns without
+ * throwing is not proof — a short write to a share that dropped mid-transfer
+ * does exactly that.
+ *
+ * Nothing is overwritten, and no source is removed unless its bytes are proven
+ * to exist at the destination. Anything that fails is left exactly as it was
+ * and reported by name.
+ */
+ipcMain.handle('hub:printlib-migrate-run', async (event) => {
+  if (printLibMigrating) return { ok: false, error: 'A move is already running.' };
+  printLibMigrating = true;
+  const report = { ok: true, moved: 0, duplicates: 0, collisions: 0, failed: 0, bytes: 0, errors: [] };
+  try {
+    requirePrintLib();                                   // refuse before touching anything
+    const { primary } = printLibRoots();
+    const items = await printLibStrandedFiles();
+    const space = PLM.enoughSpace(PLM.summarize(items).bytes, await printLibFreeSpace(path.dirname(primary)));
+    if (!space.ok) {
+      return { ok: false, error: `Not enough room in ${primary} — ${Math.ceil(space.shortBy / 1e6)} MB short.` };
+    }
+    const send = (p) => { try { event.sender.send('hub:printlib-migrate-progress', p); } catch (_) { /* window gone */ } };
+
+    for (let i = 0; i < items.length; i += 1) {
+      const it = items[i];
+      const src = path.join(it.root, it.rel);
+      send({ done: i, total: items.length, file: path.basename(it.rel) });
+      try {
+        const r = await PLM.moveOne(printLibMoveIO, src, path.join(primary, path.dirname(it.rel)), path.basename(it.rel));
+        if (r.action === PLM.SAME) { report.duplicates += 1; continue; }
+        if (r.action === PLM.COLLISION) report.collisions += 1;
+        report.moved += 1;
+        report.bytes += it.size;
+      } catch (e) {
+        report.failed += 1;
+        report.errors.push(`${it.rel}: ${String((e && e.message) || e)}`);
+      }
+    }
+    send({ done: items.length, total: items.length, file: '' });
+
+    // Tidy the folders we emptied. Only ever empty ones, and never a root.
+    for (const root of PLM.sources(printLibRoots().roots, primary, printLibRoots().mirror)) {
+      const dirs = new Set(items.filter((i) => i.root === root).map((i) => path.dirname(i.rel)).filter((d) => d && d !== '.'));
+      for (const d of dirs) {
+        try { await fs.promises.rmdir(path.join(root, d)); } catch (_) { /* not empty, and that is fine */ }
+      }
+    }
+    return report;
+  } catch (e) {
+    return { ok: false, error: String((e && e.message) || e) };
+  } finally {
+    printLibMigrating = false;
+  }
+});
+
+/**
+ * Fold the root we are leaving into the ones this install remembers.
+ *
+ * The renderer owns the store, so it does the saving — but the decision lives in
+ * a tested module rather than in four lines of renderer that nothing checks.
+ * Called before the new root is saved, so printLibSettings() still reports the
+ * old one. Pass '' to go back to the built-in folder.
+ */
+ipcMain.handle('hub:printlib-remember-root', async (_e, nextRoot) => (
+  { history: PLM.rememberRoot(printLibSettings(), String(nextRoot || ''), printLibDefaultRoot()).history }
+));
 
 ipcMain.handle('hub:printlib-pick-folder', async (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
