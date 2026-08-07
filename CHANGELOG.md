@@ -4,6 +4,18 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Security
+
+- **Khayt no longer has any way to read a message thread without proving the
+  order is yours.** The previous release moved that read onto an authenticated
+  route but kept a fallback to the old open one, for shops whose Khayt Cloud had
+  not been updated yet. That fallback also caught the case where the order simply
+  is not yours — and handed the conversation over anyway. It is gone, so the open
+  route can now be closed on the server with nothing left depending on it. If your
+  Khayt Cloud server is older than this build, the Messages panel now says so and
+  tells you to update it, rather than quietly reading the thread another way.
+
+
 ## [3.6.0-beta.13] - 2026-08-07
 
 ### Security
