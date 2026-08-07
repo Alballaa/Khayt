@@ -749,6 +749,16 @@
         if (hub.parsePrintFile) {
           const p = await hub.parsePrintFile(fullPath);
           if (p) rec.parsed = Object.assign({}, rec.parsed, { printTimeMins: p.printTimeMins, filamentGrams: p.filamentGrams, filamentType: p.filamentType, slicer: p.slicer });
+          // A g-code file has no mesh, so it used to get no geometryKey at all —
+          // and its contentHash changes on every re-slice, so the same model came
+          // back a stranger and per-file calibration never reached MIN_JOBS. The
+          // printed envelope survives re-slicing; see lib/gcode-geometry.js.
+          if (p && p.silhouette) {
+            const mi = MI();
+            if (mi && mi.gcodeGeometryKey) {
+              try { rec.geometryKey = mi.gcodeGeometryKey(p.silhouette); } catch (_) { /* non-fatal */ }
+            }
+          }
         }
         if (hub.extractThumbnail) {
           const th = await hub.extractThumbnail(fullPath);

@@ -4,6 +4,26 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **A g-code file the shop re-sliced came back as a stranger, so quotes for it
+  never learned.** Khayt recognises a print file two ways: by the file's exact
+  bytes, and by its geometry. Re-slicing changes the bytes — so does simply
+  exporting to a different name, because slicers stamp the filename and a
+  timestamp into the header — and the geometry key was only ever worked out from
+  a mesh, which a g-code file does not carry. So every re-slice of the same model
+  arrived unrecognised, its finished prints were never pooled with the earlier
+  ones, and per-file calibration never reached the three jobs it needs. Quotes
+  fell back to the printer's overall average, which misprices anything unlike the
+  shop's recent mix: measured against 16 real jobs, 21% under on a tall part and
+  27% over on a flat one. Khayt now measures the shape the g-code actually prints
+  — how wide and deep the material reaches through the object's height — which
+  survives a change of layer height, infill or slicer version. Re-slice a model
+  and Khayt offers the print file you already have, so its own measured history
+  keeps building. It is offered as a likely match, never applied silently: two
+  plaques of the same outer size can print different faces, and only you can say
+  whether they are the same job.
+
 ## [3.6.0-beta.12] - 2026-08-06
 
 Mostly about telling you the truth when something did not work. Signing in to the
