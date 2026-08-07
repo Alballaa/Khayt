@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.6.0-beta.13] - 2026-08-07
+
 ### Security
 
 - **Anyone with a portal link could read the whole message thread on it.** The
