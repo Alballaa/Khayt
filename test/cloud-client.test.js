@@ -357,9 +357,10 @@ test('the owner reads the thread on the authenticated route, carrying the shop t
 });
 
 test('a bad shop token is reported, not quietly retried on the public route', async () => {
-  // The fallback below exists for a server that lacks the route, not for a
-  // caller that lacks credentials. If 401 fell back too, the migration would
-  // land and nothing would ever actually use the authenticated path.
+  // A 401 is a caller without credentials, not a server without the route, and
+  // the two must not collapse into one another. This guarded the migration
+  // fallback; it outlives it, because 401 must stay distinct from the 404 that
+  // now reports an out-of-date server.
   const { shopId, pubToken } = await seedThread('On the printer now');
 
   seen.length = 0;
@@ -368,33 +369,34 @@ test('a bad shop token is reported, not quietly retried on the public route', as
   assert.ok(!seen.some((r) => r.path.startsWith('/v1/p/')), 'no public read on a 401');
 });
 
-test('a cloud that has not deployed the owner route yet still shows the thread', async () => {
-  // A desktop update and a cloud deploy are separate events. On a pre-#10
-  // server the new path is just an unmatched route, so it answers 404 — and an
-  // owner whose shop is on that server must not be shown an empty thread.
-  // (Remove with the fallback itself, once the cloud is deployed everywhere.)
-  const PUBLIC = '/v1/p/trk1/messages';
+test('a server without the owner route is reported, never worked around', async () => {
+  // This replaces the migration fallback, and asserts its opposite. The fallback
+  // retried /v1/p/{token}/messages on a 404 — which also caught the 404 that
+  // means "not this shop's token", and returned the thread anyway. That is the
+  // exposure being closed, so the desktop must now have NO path to the public
+  // route, even when the authenticated one is missing.
+  const seenOld = [];
   const old = http.createServer((req, res) => {
-    const hit = req.url === PUBLIC;
-    res.writeHead(hit ? 200 : 404, { 'content-type': 'application/json' });
-    res.end(JSON.stringify(hit ? { messages: [{ from: 'customer', text: 'Any update?', at: 1 }] }
-                                : { error: 'Not found' }));
+    seenOld.push(req.url);
+    res.writeHead(404, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Not found' }));
   });
   await new Promise((r) => old.listen(0, '127.0.0.1', r));
   const url = `http://127.0.0.1:${old.address().port}`;
   try {
-    const msgs = await cc.portalMessages(url, 'SHOP', 'trk1', 'tok');
-    assert.deepEqual(msgs.map((m) => m.text), ['Any update?']);
+    // Pinned on the REMEDY, not on any part of the sentence. An earlier version
+    // of this matched "not on this" as an alternative, and a mutation that
+    // gutted the actionable half of the message sailed through it.
+    await assert.rejects(() => cc.portalMessages(url, 'SHOP', 'trk1', 'tok'),
+      /older than this version of Khayt — update it/,
+      'a 404 here must tell the shop what to DO, not just say "HTTP 404"');
+    assert.ok(!seenOld.some((u) => u.startsWith('/v1/p/')),
+      'the public route was still tried — the fallback is not actually gone');
   } finally {
     await new Promise((r) => old.close(r));
   }
 });
 
-/* ── URL path-segment injection guard ──────────────────────────────────────
-   Every id/token/shopId is interpolated into a REST path. A value carrying a
-   "/" or ".." — from a synced record or a crafted call — must not create extra
-   path segments and reach a different endpoint. seg()/encodeURIComponent pins
-   each into its own segment. */
 
 test('injected separators are percent-encoded on the wire, not real slashes', async () => {
   const rawSeen = [];
