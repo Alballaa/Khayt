@@ -1750,6 +1750,10 @@ async function renderPrintLibLocation() {
     : '';
   statusEl.textContent = '✓ ' + (t('set.plib_ready') || 'Library folder ready') + ': ' + where + mirrorNote;
   statusEl.style.color = st.mirror && st.mirrorOk === false ? 'var(--warning, #d97706)' : 'var(--text-muted)';
+  // Offered, not hidden behind a button nobody knows to press: a shop that has
+  // just moved the library sees an empty one, and has no reason to suspect the
+  // files are elsewhere rather than gone.
+  scanPrintLibMigrate();
 }
 
 /**
@@ -1794,6 +1798,23 @@ async function testPrintLibS3() {
   out.style.color = r && r.ok ? 'var(--success, #16a34a)' : 'var(--danger)';
 }
 
+/**
+ * Record the folder the library is leaving, so it stays readable.
+ *
+ * Main decides what the history should be (rememberRoot); this only stores the
+ * answer. Without it a second move drops the first custom folder out of the
+ * known roots, and files that are merely in the wrong place become unreachable.
+ */
+async function printLibRootPatch(which, next) {
+  const patch = { [which]: next };
+  if (which !== 'root' || !window.hubAPI?.printLibRememberRoot) return patch;
+  try {
+    const r = await window.hubAPI.printLibRememberRoot(next);
+    if (r && Array.isArray(r.history)) patch.history = r.history;
+  } catch (_) { /* the move still works; only the old root is forgotten */ }
+  return patch;
+}
+
 /** Pick a folder for the library or its backup, and persist it. */
 async function pickPrintLibFolder(which) {
   if (!window.hubAPI?.printLibPickFolder) return;
@@ -1801,15 +1822,79 @@ async function pickPrintLibFolder(which) {
   try { r = await window.hubAPI.printLibPickFolder(); } catch (err) { toast(String(err.message || err), 'error'); return; }
   if (!r) return;                                  // cancelled
   if (!r.ok) { toast(r.error || t('set.plib_choose_failed') || 'Could not use that folder', 'error'); return; }
-  settings.printLibrary = Object.assign({}, settings.printLibrary, { [which]: r.path });
+  settings.printLibrary = Object.assign({}, settings.printLibrary, await printLibRootPatch(which, r.path));
   saveAll();
   renderPrintLibLocation();
   toast(t('set.plib_saved') || 'Print library location updated', 'success');
 }
 
-function clearPrintLibFolder(which) {
-  settings.printLibrary = Object.assign({}, settings.printLibrary, { [which]: '' });
+async function clearPrintLibFolder(which) {
+  settings.printLibrary = Object.assign({}, settings.printLibrary, await printLibRootPatch(which, ''));
   saveAll();
+  renderPrintLibLocation();
+}
+
+/**
+ * Offer to bring in whatever is still sitting in a folder the library has left.
+ *
+ * Shown only when there is something to move. The count and size are the point:
+ * "some files" is not enough for anyone to tell whether this is the thing that
+ * emptied their library.
+ */
+async function scanPrintLibMigrate() {
+  const box = $('#plibMoveBox');
+  const what = $('#plibMoveWhat');
+  if (!box || !window.hubAPI?.printLibMigrateScan) return;
+  let r;
+  try { r = await window.hubAPI.printLibMigrateScan(); } catch (_) { r = null; }
+  if (!r || !r.ok || !r.files) { box.style.display = 'none'; return; }
+  box.style.display = '';
+  const mb = (n) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)} GB` : `${Math.max(1, Math.round(n / 1e6))} MB`);
+  const where = r.roots.map((x) => x.root).join(', ');
+  if (what) {
+    what.textContent = (t('set.plib_move_what') || '{n} files ({size}) are still in {from}. The library now reads from {to}, so they do not show up.')
+      .replace('{n}', r.files).replace('{size}', mb(r.bytes)).replace('{from}', where).replace('{to}', r.to);
+  }
+  const btn = $('#btnPlibMove');
+  // A move that cannot fit is refused here rather than half-done on disk.
+  if (btn) btn.disabled = !(r.space && r.space.ok);
+  const out = $('#plibMoveResult');
+  if (out && r.space && !r.space.ok) {
+    out.textContent = '⚠ ' + (t('set.plib_move_space') || 'Not enough room in the new folder.');
+    out.style.color = 'var(--danger)';
+  }
+}
+
+async function runPrintLibMigrate() {
+  const btn = $('#btnPlibMove');
+  const out = $('#plibMoveResult');
+  if (!window.hubAPI?.printLibMigrateRun) return;
+  if (btn) btn.disabled = true;
+  if (out) { out.textContent = t('set.plib_move_working') || 'Moving…'; out.style.color = 'var(--text-muted)'; }
+  if (window.hubAPI.onPrintLibMigrateProgress) {
+    window.hubAPI.onPrintLibMigrateProgress((p) => {
+      if (out && p && p.total) out.textContent = `${p.done} / ${p.total} — ${p.file || ''}`;
+    });
+  }
+  let r;
+  try { r = await window.hubAPI.printLibMigrateRun(); } catch (err) { r = { ok: false, error: String(err.message || err) }; }
+  if (btn) btn.disabled = false;
+  if (!out) return;
+  if (!r || !r.ok) {
+    out.textContent = '✗ ' + ((r && r.error) || '');
+    out.style.color = 'var(--danger)';
+    return;
+  }
+  // Report the awkward outcomes too. A count of files moved, with three
+  // failures folded into it, is the kind of success message that gets believed.
+  const bits = [(t('set.plib_move_done') || '{n} moved').replace('{n}', r.moved)];
+  if (r.duplicates) bits.push((t('set.plib_move_dupes') || '{n} already here').replace('{n}', r.duplicates));
+  if (r.collisions) bits.push((t('set.plib_move_renamed') || '{n} renamed to avoid overwriting').replace('{n}', r.collisions));
+  if (r.failed) bits.push((t('set.plib_move_failed') || '{n} left in place — see the log').replace('{n}', r.failed));
+  out.textContent = (r.failed ? '⚠ ' : '✓ ') + bits.join(' · ');
+  out.style.color = r.failed ? 'var(--warning, #d97706)' : 'var(--success, #16a34a)';
+  if (r.errors && r.errors.length) console.warn('print library move:', r.errors);
+  scanPrintLibMigrate();
   renderPrintLibLocation();
 }
 
@@ -4666,6 +4751,8 @@ function renderTelegramSettings() {
     clearPrintLibFolder,
     savePrintLibS3,
     testPrintLibS3,
+    scanPrintLibMigrate,
+    runPrintLibMigrate,
     buildDigestEmailHtml,
     renderLocationsSettings,
     renderEmailNotificationSettings,

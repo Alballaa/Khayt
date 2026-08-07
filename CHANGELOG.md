@@ -4,6 +4,21 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **Moving the print library no longer hides the files you already had.**
+  Choosing a new library folder only ever changed where the *next* file went —
+  and because Khayt lists files from the current folder and nowhere else, every
+  record went from having models to looking empty. Nothing was ever deleted, but
+  there was no way to tell that from the screen. Settings now spots files sitting
+  in a folder the library has left, tells you how many and how large, and offers
+  to bring them in. Each file is copied, read back and compared before the
+  original is removed; nothing is overwritten, and anything that cannot be
+  verified is left exactly where it is and reported. Khayt also remembers every
+  folder the library has lived in, so moving it a second time no longer puts the
+  first location out of reach.
+
+
 ### Added
 
 - **Back the print library up to object storage.** Alongside a backup folder, you

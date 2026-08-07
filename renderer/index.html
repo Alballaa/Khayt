@@ -2142,6 +2142,16 @@
         <p style="font-size:11.5px;color:var(--text-muted);margin:8px 0 0;" data-i18n="set.plib_mirror_hint">Every file added to the library is copied here too. Khayt never reads from it — it is a backup, not a second library.</p>
         <p id="plibLocStatus" style="font-size:12px;margin:10px 0 0;"></p>
 
+        <div id="plibMoveBox" style="display:none; border:1px solid var(--border,#2a2e38); border-radius:8px; padding:12px; margin-top:12px;">
+          <div style="font-weight:600; font-size:13px;" data-i18n="set.plib_move_title">Files left in the old location</div>
+          <p id="plibMoveWhat" style="font-size:12px;color:var(--text-muted);margin:6px 0 0;"></p>
+          <p style="font-size:11.5px;color:var(--text-muted);margin:6px 0 0;" data-i18n="set.plib_move_hint">Each file is copied, read back and checked before the original is removed. Nothing is overwritten, and anything that cannot be verified is left where it is.</p>
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px;">
+            <button class="btn primary" id="btnPlibMove" data-i18n="set.plib_move_do">Move them here</button>
+            <span id="plibMoveResult" style="font-size:12px;"></span>
+          </div>
+        </div>
+
         <div style="border-top:1px solid var(--border,#2a2e38); margin-top:16px; padding-top:14px;">
           <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
             <input type="checkbox" id="set_plibS3On" style="width:auto; margin:0;">
