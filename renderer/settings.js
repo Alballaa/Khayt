@@ -1704,6 +1704,61 @@ function wireCloudSyncStatusOnce() {
 /** Settings → Khayt Cloud: account sign-up / log-in / sync / restore (opt-in, E2E).
  *  Two independent secrets: the ACCOUNT PASSWORD authenticates (reaches the shop);
  *  the SYNC PASSPHRASE encrypts (decrypts data) and never leaves this device. */
+/**
+ * Where the model files are kept, and whether Khayt can reach it.
+ *
+ * Both paths come from a folder picker rather than a text field: a typed path is
+ * one that can silently not exist, and this setting decides where a shop's most
+ * expensive asset is written. The status line is the other half of writes
+ * failing loudly — refusing a save without saying the share is unmounted just
+ * moves the confusion.
+ */
+async function renderPrintLibLocation() {
+  const rootEl = $('#set_plibRoot');
+  const mirrorEl = $('#set_plibMirror');
+  const statusEl = $('#plibLocStatus');
+  if (!rootEl || !mirrorEl) return;
+  const cfg = (settings && settings.printLibrary) || {};
+  rootEl.value = cfg.root || '';
+  mirrorEl.value = cfg.mirror || '';
+  if (!statusEl || !window.hubAPI?.printLibStatus) return;
+  let st = null;
+  try { st = await window.hubAPI.printLibStatus(); } catch (_) { st = null; }
+  if (!st) { statusEl.textContent = ''; return; }
+  if (!st.ok) {
+    statusEl.textContent = '⚠ ' + (st.error || '');
+    statusEl.style.color = 'var(--danger)';
+    return;
+  }
+  const where = st.isCustom ? st.root : (t('set.plib_this_mac') || 'this Mac');
+  const mirrorNote = st.mirror
+    ? ' · ' + (st.mirrorOk === false
+      ? (t('set.plib_mirror_missing') || 'backup folder not reachable')
+      : (t('set.plib_mirror_ok') || 'backup folder ready'))
+    : '';
+  statusEl.textContent = '✓ ' + (t('set.plib_ready') || 'Library folder ready') + ': ' + where + mirrorNote;
+  statusEl.style.color = st.mirror && st.mirrorOk === false ? 'var(--warning, #d97706)' : 'var(--text-muted)';
+}
+
+/** Pick a folder for the library or its backup, and persist it. */
+async function pickPrintLibFolder(which) {
+  if (!window.hubAPI?.printLibPickFolder) return;
+  let r;
+  try { r = await window.hubAPI.printLibPickFolder(); } catch (err) { toast(String(err.message || err), 'error'); return; }
+  if (!r) return;                                  // cancelled
+  if (!r.ok) { toast(r.error || t('set.plib_choose_failed') || 'Could not use that folder', 'error'); return; }
+  settings.printLibrary = Object.assign({}, settings.printLibrary, { [which]: r.path });
+  saveAll();
+  renderPrintLibLocation();
+  toast(t('set.plib_saved') || 'Print library location updated', 'success');
+}
+
+function clearPrintLibFolder(which) {
+  settings.printLibrary = Object.assign({}, settings.printLibrary, { [which]: '' });
+  saveAll();
+  renderPrintLibLocation();
+}
+
 function renderCloudSettings() {
   const el = $('#cloudSettingsSection');
   if (!el) return;
@@ -3480,6 +3535,7 @@ function loadSettingsIntoForm() {
   $('#set_useHijri').checked    = settings.useHijri !== false;
   $('#set_useArabicNumerals').checked = !!settings.useArabicNumerals;
   $('#set_autoBackup').checked  = settings.autoBackup !== false;
+  renderPrintLibLocation();
   if ($('#set_coachTips')) $('#set_coachTips').checked = settings.coachTips !== false;
   $('#set_enableVat').checked   = !!settings.enableVat;
   $('#set_vatRate').value       = settings.vatRate ?? 15;
@@ -3747,6 +3803,9 @@ function saveSettingsFromForm() {
     useHijri:      $('#set_useHijri').checked,
     useArabicNumerals: $('#set_useArabicNumerals').checked,
     autoBackup:    $('#set_autoBackup').checked,
+    // Written by the folder pickers, not by a field the shop can mistype — a
+    // path typed by hand is a path that silently does not exist.
+    printLibrary:  settings.printLibrary || {},
     coachTips:     $('#set_coachTips') ? $('#set_coachTips').checked : (settings.coachTips !== false),
     enableVat:     $('#set_enableVat').checked,
     vatRate:       Math.max(0, num($('#set_vatRate').value, 15)),
@@ -4546,6 +4605,11 @@ function renderTelegramSettings() {
   });
 }
   const api = {
+    // wire-events.js is a separate IIFE and can only reach what is exported
+    // here. Left out, the location buttons render and do nothing.
+    renderPrintLibLocation,
+    pickPrintLibFolder,
+    clearPrintLibFolder,
     buildDigestEmailHtml,
     renderLocationsSettings,
     renderEmailNotificationSettings,
