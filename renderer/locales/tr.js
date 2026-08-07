@@ -3688,6 +3688,7 @@
   "dup.badge": "“{name}” ile aynı dosya",
   "dup.similar": "“{name}” gibi görünüyor",
   "link.from_library": "Baskı kitaplığından",
+  "link.matched_shape": "Baskı kitaplığınızdaki \"{name}\" ile eşleştirildi — farklı bir modelse bağlantıyı kaldırın.",
   "link.none": "— Kitaplıktan değil —",
   "link.no_setup": "— Hangi ayarlarla? —",
   "link.past": "Bu ayarlarla yapılan {n} tek parçalık işte tahminin sürede %{hours}, filamentte %{grams} saptı.",
