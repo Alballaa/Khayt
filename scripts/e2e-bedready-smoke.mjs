@@ -104,6 +104,72 @@ async function main() {
     assert(`${tab} activates and renders content`, ok === true);
   }
 
+  // The website brief (docs/BEDREADY-WEBSITE-FEATURES.md) has to state whether a maker
+  // can reach printer setup at all, and which adapters they are offered. Both were
+  // "best answered by opening the app" — so they are answered here, in the app, and
+  // stay answered: if a flavour gate ever hides printers from Bed Ready, or the adapter
+  // list changes, the sentence on the website becomes false and this fails.
+  //
+  // Settings must be OPENED first. #settings-tab is aria-hidden until switched to, so
+  // every element inside it has offsetParent === null and a naive visibility check
+  // reports "hidden" for the whole pane regardless of any flavour gate.
+  console.log('\n[printer setup is reachable, and its adapter list is the documented one]');
+  const printers = await window.evaluate(async () => {
+    window.KhaytShell.switchTab('settings-tab');
+    await new Promise((r) => setTimeout(r, 200));
+    const btn = document.querySelector('[data-settings-section="printers"]');
+    const out = {
+      exists: !!btn,
+      visible: !!btn && btn.offsetParent !== null,
+      gated: !!btn && (btn.classList.contains('biz-only') || btn.classList.contains('pro-only')),
+      topLevelTab: !!document.querySelector('.tab-btn[data-tab="printers-tab"]'),
+      adapters: [],
+    };
+    if (btn) { btn.click(); await new Promise((r) => setTimeout(r, 250)); }
+    // The adapter picker lives in the machine editor, not on the settings page.
+    if (typeof openMachineEditor === 'function') {
+      openMachineEditor();
+      await new Promise((r) => setTimeout(r, 300));
+    }
+    const sel = document.getElementById('machApiType');
+    out.selectExists = !!sel;
+    if (sel) {
+      out.adapters = [...sel.options].map((o) => o.value).filter((v) => v && v !== 'none').sort();
+      // The decisive one: present in the DOM is not the same as reachable by a maker.
+      out.selectVisible = sel.offsetParent !== null;
+      out.proGated = !!sel.closest('.pro-only');
+      out.bodyMode = document.body.className.match(/mode-\w+/)?.[0] || '(none)';
+    }
+    const scan = document.getElementById('btnScanNetwork');
+    out.scanReachable = !!scan && !scan.closest('.pro-only') && !scan.closest('.biz-only');
+    return out;
+  });
+  assert('Settings has a Printers section', printers.exists === true);
+  assert('it is reachable in Bed Ready — no biz-only/pro-only gate',
+    printers.visible === true && printers.gated === false);
+  // So the brief cannot describe a top-level "Printers view": setup lives in Settings,
+  // in both flavours.
+  assert('there is no top-level Printers tab', printers.topLevelTab === false);
+  // The exact six the website may name. SDCP is deliberately absent — it is roadmap
+  // (R7), not an adapter, and the brief said otherwise until it was corrected.
+  const EXPECTED = ['bambu', 'duet', 'moonraker', 'octoprint', 'prusalink', 'repetier'];
+  console.log(`    [machApiType] exists=${printers.selectExists} visible=${printers.selectVisible} `
+    + `insidePfroOnly=${printers.proGated} bodyMode=${printers.bodyMode}`);
+  console.log(`    [adapters] ${printers.adapters.join(', ') || '(none)'}`);
+  assert(`the adapter list is the documented six (${printers.adapters.join(', ') || 'none found'})`,
+    JSON.stringify(printers.adapters) === JSON.stringify(EXPECTED));
+  // The picker itself is inside a .pro-only block, which enthusiast mode hides — so in
+  // Bed Ready it is NOT the path to connecting a printer. Scan-and-pick is: it lives
+  // outside the gate and applyFound() writes the adapter type, host and port straight
+  // into the hidden fields, which the save path then reads back.
+  //
+  // That makes discovery load-bearing rather than a convenience here, and it is why the
+  // website line "nobody types an IP address" is literally true for this app: in Bed
+  // Ready nobody CAN. If the scan button ever moves inside the gate, a maker loses the
+  // only route to printer monitoring at all — so that is what is pinned.
+  assert('the adapter picker is Pro-only, as the docs now say', printers.proGated === true && printers.selectVisible === false);
+  assert('network scan — the maker route to a printer — is reachable', printers.scanReachable === true);
+
   console.log('\n[no visible business navigation]');
   const bizNavVisible = await window.evaluate(() => {
     const bizButtons = [...document.querySelectorAll('.tab-btn.biz-only, .nav-group.biz-only')];

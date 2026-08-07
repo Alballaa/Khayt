@@ -167,10 +167,23 @@ Verified in the source **Bed Ready 1.0.0 was actually built from** — the relea
 (`KhaytApp/Khayt@bef8f8d`), and the script tag is present there — so the camera is in the shipped
 1.0.0, not merely on `main`.
 
-**Still to confirm before publishing this section:** whether the Printers view is reachable in Bed
-Ready's own navigation by default, and which of the adapters above are exposed in the maker flavour
-rather than being Khayt-only. Both are flavour-gating questions best answered by opening the app, not
-by reading the tree.
+**Both flavour-gating questions are now answered, in the running app rather than off the tree** — the
+assertions live in `scripts/e2e-bedready-smoke.mjs`, so the answers stay true or CI says so.
+
+- **Reaching printers.** There is no top-level "Printers" view in either flavour; printer setup is a
+  section of Settings, and in Bed Ready it is reachable with no Pro or business gate on it. Do not
+  write copy that sends someone to a Printers tab.
+- **The adapters.** The same six in both flavours. Nothing here is Khayt-only.
+
+**But say "scan", not "set up".** The manual connection fields — the adapter dropdown, host and port —
+sit in a Pro-only block, and Bed Ready runs permanently in the commerce-free mode that hides it. The
+maker's route to a connected printer is **Scan network → Use**, which lives outside that gate and
+fills those fields in for them.
+
+So the line above about mDNS meaning "nobody types an IP address" is not a convenience claim in this
+app — it is the mechanism. Nobody *can*. Copy that says "add your printer's IP" describes something a
+Bed Ready user cannot do, and a printer that does not answer discovery cannot be added at all. Worth
+knowing before the website promises otherwise.
 
 ## Website checklist / notes
 
