@@ -2080,6 +2080,7 @@
   "pm.reply_ph": "Write a reply…",
   "pm.send": "Send",
   "pm.need_publish": "Publish this order to the portal first",
+  "pm.load_failed": "Could not load messages",
   "ord.tracking_copied": "Tracking link copied",
   "ord.tracking_no_lan": "LAN server not running — enable in Settings",
   "cons.usage_per_hour": "Usage per print-hour",

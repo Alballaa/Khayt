@@ -58,7 +58,7 @@ Built, and past what the spec asked for:
 | Customer portal (track / approve / pay) | `/v1/portal/*`, `/v1/p/{token}` |
 | Per-order public projection (consented) | `/v1/p/{token}` — only the projection is public; the bulk store stays E2E |
 | Web push notifications | `/v1/push/*` + VAPID |
-| Portal messaging (shop ↔ customer) | `/v1/p/{token}/messages` |
+| Portal messaging (shop ↔ customer) | customer: `/v1/p/{token}/messages` · shop: `/v1/shops/{id}/published/{token}/messages` (read) and `/message` (reply) — the owner side is authenticated, so the customer route can be gated on their portal session |
 | Storefront + catalog feed + order import | `/v1/shops/{id}/catalog`, `/feed/{platform}`, `/import/{platform}` |
 | Reviews | `/v1/shops/{id}/reviews` |
 | Snapshot history + restore | `/v1/shops/{id}/snapshots` |

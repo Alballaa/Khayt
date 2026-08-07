@@ -13,12 +13,15 @@ const FAST_KDF = { algo: 'scrypt', N: 1024, r: 8, p: 1, keyLen: 32 };
 const STORE = { printLog: [{ id: 'o1', price: 100 }], clients: [{ id: 'c1', name: 'Acme' }] };
 
 let server, base, lastStored;
+/** Every request the reference server saw: { method, path, auth }. Reset per test. */
+const seen = [];
 
 function refServer() {
   const tokens = new Map();   // shopId -> Set(token)  (supports multi-device)
   const blobs = new Map();    // shopId -> { rev, ciphertext }
   const accounts = new Map(); // email -> { shopId, password }
   const keysets = new Map();  // shopId -> keyset
+  const published = new Map(); // pubToken -> { shopId, messages }
   const rand = () => Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
   const addToken = (shopId, token) => { (tokens.get(shopId) || tokens.set(shopId, new Set()).get(shopId)).add(token); };
   const readBody = (req) => new Promise((res) => {
@@ -31,6 +34,7 @@ function refServer() {
   };
   return http.createServer(async (req, res) => {
     const path = req.url.replace(/\/+$/, '') || '/';
+    seen.push({ method: req.method, path, auth: req.headers.authorization || '' });
     if (req.method === 'GET' && path === '/v1/health') return send(res, 200, { ok: true });
     if (req.method === 'POST' && path === '/v1/register') {
       const id = 'shop_' + rand(); const token = rand();
@@ -83,6 +87,39 @@ function refServer() {
         blobs.set(shopId, { rev, ciphertext: body.ciphertext });
         return send(res, 200, { rev });
       }
+    }
+    // ---- Portal: publish, owner reply, owner read, customer's public read ----
+    const pub = /^\/v1\/shops\/([^/]+)\/published\/([^/]+)$/.exec(path);
+    if (req.method === 'PUT' && pub) {
+      if (!auth(req, pub[1])) return send(res, 401, { error: 'bad token' });
+      await readBody(req);
+      published.set(pub[2], { shopId: pub[1], messages: [] });
+      return send(res, 200, { ok: true });
+    }
+    const oReply = /^\/v1\/shops\/([^/]+)\/published\/([^/]+)\/message$/.exec(path);
+    if (req.method === 'POST' && oReply) {
+      if (!auth(req, oReply[1])) return send(res, 401, { error: 'Invalid token or unknown shop' });
+      const item = published.get(oReply[2]);
+      if (!item || item.shopId !== oReply[1]) return send(res, 404, { error: 'Not found' });
+      const body = await readBody(req);
+      const msg = { from: 'shop', text: String(body.text || ''), at: 1 };
+      item.messages.push(msg);
+      return send(res, 200, { ok: true, message: msg });
+    }
+    // khayt-cloud #10: same thread as the public route below, but the caller
+    // must hold the shop's token AND the item must belong to that shop.
+    const oRead = /^\/v1\/shops\/([^/]+)\/published\/([^/]+)\/messages$/.exec(path);
+    if (req.method === 'GET' && oRead) {
+      if (!auth(req, oRead[1])) return send(res, 401, { error: 'Invalid token or unknown shop' });
+      const item = published.get(oRead[2]);
+      if (!item || item.shopId !== oRead[1]) return send(res, 404, { error: 'Not found' });
+      return send(res, 200, { messages: item.messages });
+    }
+    const pRead = /^\/v1\/p\/([^/]+)\/messages$/.exec(path);
+    if (req.method === 'GET' && pRead) {
+      const item = published.get(pRead[1]);
+      if (!item) return send(res, 404, { error: 'Not found' });
+      return send(res, 200, { messages: item.messages });
     }
     return send(res, 404, { error: 'not found' });
   });
@@ -283,6 +320,74 @@ test('accounts: signup → device 2 logs in, fetches keyset, and decrypts the sa
   const dek2 = cc.unlockWithPassphrase(passphrase, lr.keyset);
   const pulled = await cc.backendFor(base, lr.shopId, lr.token, dek2).pull();
   assert.deepEqual(pulled.store, STORE, 'device 2 sees the same decrypted data');
+});
+
+/* ── The owner reads their own thread, as themselves ───────────────────────
+ * portalMessages() used to GET the customer's public /v1/p/{token}/messages
+ * with no credentials at all. That single caller is why the route had to stay
+ * open to anyone holding the portal link: closing it would have blanked the
+ * owner's Messages button in every desktop in the field. khayt-cloud #10 added
+ * the authenticated equivalent, so what these tests pin is not "the thread
+ * still loads" — it is WHICH route it loads from and what it presents.
+ * ---------------------------------------------------------------------- */
+
+/** Publish an item under a fresh tracking token and put one shop reply on it. */
+async function seedThread(text) {
+  const { shopId, token } = await cc.register(base);
+  const pubToken = 'trk_' + Math.random().toString(36).slice(2);
+  await cc.publishPortal(base, shopId, token, pubToken, 'order', { id: 'o1' });
+  await cc.portalReply(base, shopId, pubToken, token, text);
+  return { shopId, token, pubToken };
+}
+
+test('the owner reads the thread on the authenticated route, carrying the shop token', async () => {
+  const { shopId, token, pubToken } = await seedThread('On the printer now');
+
+  seen.length = 0;
+  const msgs = await cc.portalMessages(base, shopId, pubToken, token);
+  assert.deepEqual(msgs.map((m) => m.text), ['On the printer now']);
+
+  const read = seen.filter((r) => r.path.endsWith('/messages'));
+  assert.equal(read.length, 1, 'one read, not a new one plus a fallback');
+  assert.equal(read[0].path, `/v1/shops/${shopId}/published/${pubToken}/messages`);
+  assert.equal(read[0].auth, `Bearer ${token}`,
+    'without the Bearer header this is the public read wearing a longer path');
+  assert.ok(!seen.some((r) => r.path.startsWith('/v1/p/')),
+    'the customer-facing route must not be touched when the owner route answers');
+});
+
+test('a bad shop token is reported, not quietly retried on the public route', async () => {
+  // The fallback below exists for a server that lacks the route, not for a
+  // caller that lacks credentials. If 401 fell back too, the migration would
+  // land and nothing would ever actually use the authenticated path.
+  const { shopId, pubToken } = await seedThread('On the printer now');
+
+  seen.length = 0;
+  await assert.rejects(() => cc.portalMessages(base, shopId, pubToken, 'expired-token'),
+    /Invalid token|HTTP 401/);
+  assert.ok(!seen.some((r) => r.path.startsWith('/v1/p/')), 'no public read on a 401');
+});
+
+test('a cloud that has not deployed the owner route yet still shows the thread', async () => {
+  // A desktop update and a cloud deploy are separate events. On a pre-#10
+  // server the new path is just an unmatched route, so it answers 404 — and an
+  // owner whose shop is on that server must not be shown an empty thread.
+  // (Remove with the fallback itself, once the cloud is deployed everywhere.)
+  const PUBLIC = '/v1/p/trk1/messages';
+  const old = http.createServer((req, res) => {
+    const hit = req.url === PUBLIC;
+    res.writeHead(hit ? 200 : 404, { 'content-type': 'application/json' });
+    res.end(JSON.stringify(hit ? { messages: [{ from: 'customer', text: 'Any update?', at: 1 }] }
+                                : { error: 'Not found' }));
+  });
+  await new Promise((r) => old.listen(0, '127.0.0.1', r));
+  const url = `http://127.0.0.1:${old.address().port}`;
+  try {
+    const msgs = await cc.portalMessages(url, 'SHOP', 'trk1', 'tok');
+    assert.deepEqual(msgs.map((m) => m.text), ['Any update?']);
+  } finally {
+    await new Promise((r) => old.close(r));
+  }
 });
 
 /* ── URL path-segment injection guard ──────────────────────────────────────

@@ -1247,15 +1247,22 @@ async function openPortalMessages(orderId) {
 
   const render = async (modal) => {
     const body = modal.querySelector('#pmBody');
-    let msgs = [];
+    let msgs = [], err = '';
     try {
-      const r = await window.hubAPI.cloudPortalMessages({ url: c.url, token: order.trackingToken });
+      const r = await window.hubAPI.cloudPortalMessages({ url: c.url, shopId: c.shopId, token: order.trackingToken, authToken: c.token });
       if (r && r.ok) msgs = r.messages || [];
-    } catch (e) { /* ignore */ }
+      // This read is authenticated now, so it can fail for a reason worth
+      // acting on — a token that no longer works. Swallowing that showed the
+      // same "No messages yet." as a thread nobody has written in.
+      else err = (r && r.error) || (t('pm.load_failed') || 'Could not load messages');
+    } catch (e) { err = String((e && e.message) || e); }
+    const emptyLine = err
+      ? `<div style="color:var(--danger);font-size:13px;">${escapeHtml(err)}</div>`
+      : `<div style="color:var(--text-muted);font-size:13px;">${escapeHtml(t('pm.empty') || 'No messages yet.')}</div>`;
     const thread = msgs.length ? msgs.map(m => {
       const mine = m.from === 'shop';
       return `<div style="align-self:${mine ? 'flex-end' : 'flex-start'};max-width:80%;background:${mine ? 'var(--primary)' : 'var(--bg-elev)'};color:${mine ? '#fff' : 'var(--text)'};border:1px solid var(--border-soft);border-radius:12px;padding:7px 11px;font-size:13px;">${escapeHtml(m.text)}</div>`;
-    }).join('') : `<div style="color:var(--text-muted);font-size:13px;">${escapeHtml(t('pm.empty') || 'No messages yet.')}</div>`;
+    }).join('') : emptyLine;
     body.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto;margin-bottom:12px;">${thread}</div>
       <div style="display:flex;gap:8px;">

@@ -2079,6 +2079,7 @@
   "pm.reply_ph": "Bir yanıt yazın…",
   "pm.send": "Gönder",
   "pm.need_publish": "Önce bu siparişi portala yayınlayın",
+  "pm.load_failed": "Mesajlar yüklenemedi",
   "ord.tracking_copied": "Takip bağlantısı kopyalandı",
   "ord.tracking_no_lan": "LAN sunucusu çalışmıyor — Ayarlar'dan etkinleştirin",
   "cons.usage_per_hour": "Baskı saati başına kullanım",
