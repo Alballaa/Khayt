@@ -759,7 +759,24 @@
           }
         }
       }
-      if (!rec.thumb && ext === 'stl' && hub.printLibReadBytes && KhaytStl && KhaytStlThumb) {
+      // Identity is not a thumbnail concern, and must not be gated like one.
+      //
+      // This block used to require `!rec.thumb && … && KhaytStlThumb`, so a file
+      // that already had a picture, or an app that shipped without the thumbnail
+      // RENDERER, silently got no geometryKey — and geometry matching is the only
+      // thing that still recognises a model after it has been re-sliced, since
+      // both other keys change: contentHash hashes the bytes, and a slicer that
+      // writes its time estimate into the filename (SnapmakerOrca:
+      // `MBS_PLA_5h36m.gcode`) changes fileRef too.
+      //
+      // Neither guard was failing yet — both callers pass a record with
+      // thumb:null and both HTML entry points load stl-thumbnail.js — so this is
+      // the same latent shape as the bug the comment below records, caught before
+      // it cost anything rather than after.
+      //
+      // What identity actually needs is the PARSER. What the picture needs is the
+      // renderer, and a slot to put it in.
+      if (ext === 'stl' && hub.printLibReadBytes && KhaytStl) {
         const b64 = await hub.printLibReadBytes(fullPath);
         if (b64) {
           try {
@@ -775,7 +792,7 @@
             // catch is for a malformed mesh, not for a missing module.
             const mi = MI();
             if (mi) { try { rec.geometryKey = mi.geometryKey(rec.parsed); } catch (_) { /* non-fatal */ } }
-            if (g.triangles && g.triangles.length) {
+            if (!rec.thumb && KhaytStlThumb && g.triangles && g.triangles.length) {
               const r = KhaytStlThumb.renderStlThumbnail(g.triangles, { size: 300 });
               if (r.ok && r.dataUrl) { rec.thumb = r.dataUrl; rec.thumbSource = 'render'; }
             }
