@@ -6,6 +6,20 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Keep your print library on a network drive, an external disk, or a synced
+  folder.** Your models were pinned inside Khayt's own data folder on one Mac —
+  out of reach of the second workstation, and in the one place a backup routine
+  never looks. Settings → Data & Locale → **Print library location** now lets you
+  point it anywhere Khayt can reach: a mounted share, an external SSD, or an
+  iCloud Drive / Dropbox / Google Drive / OneDrive folder. You can also set a
+  second folder as a **backup**: every file added to the library is copied there
+  too, and Khayt never reads from it, so the two can't quietly disagree about
+  which is real. If the folder isn't reachable — share not mounted, laptop away
+  from the shop — Khayt refuses to add files and tells you which folder is
+  missing, rather than quietly starting a second library on the laptop. Files
+  saved before you moved the library stay readable where they are.
+
+
 - **An "Identify" button on print files Khayt cannot recognise.** Khayt only ever
   worked out what a file was at the moment you added it, so an entry that started
   without that could never gain it — and an unrecognised file is one Khayt can

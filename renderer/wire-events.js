@@ -1948,6 +1948,12 @@ function wireEvents() {
   $('#btnRevealPhotos')?.addEventListener('click', () => {
     if (window.hubAPI?.revealProductsFolder) window.hubAPI.revealProductsFolder();
   });
+  // Print library location. Folder pickers only — see pickPrintLibFolder().
+  $('#btnPlibRoot')?.addEventListener('click', () => { if (typeof pickPrintLibFolder === 'function') pickPrintLibFolder('root'); });
+  $('#btnPlibMirror')?.addEventListener('click', () => { if (typeof pickPrintLibFolder === 'function') pickPrintLibFolder('mirror'); });
+  $('#btnPlibRootClear')?.addEventListener('click', () => { if (typeof clearPrintLibFolder === 'function') clearPrintLibFolder('root'); });
+  $('#btnPlibMirrorClear')?.addEventListener('click', () => { if (typeof clearPrintLibFolder === 'function') clearPrintLibFolder('mirror'); });
+
   $('#btnRevealBackups')?.addEventListener('click', () => {
     if (window.hubAPI?.revealBackupsFolder) window.hubAPI.revealBackupsFolder();
   });
