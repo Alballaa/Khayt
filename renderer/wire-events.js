@@ -391,6 +391,94 @@ function wireEvents() {
     if (note) { note.innerHTML = ''; note.style.display = 'none'; }
   });
 
+  /* ---- Recognising a file the shop already has -------------------------
+   * Linking a part to a print file is what makes per-file calibration
+   * reachable: without it every quote falls back to the machine-wide median,
+   * which misprices anything unlike the shop's recent mix. The link existed
+   * only as a dropdown nobody was prompted to touch, so in practice it stayed
+   * empty and the narrow scopes were never used.
+   *
+   * The app can already tell whether it has seen a model before —
+   * lib/model-identity.js does it for the print library on import. This applies
+   * the same question at the moment the link is actually made.
+   *
+   * Matched by SHAPE, not by bytes, so it survives a re-slice — which is the
+   * case that matters, since a shop reprints a model far more often than it
+   * reprints a byte-identical file. That also means it can only ever be a
+   * likely match, so it is announced and left in a control the shop can clear.
+   * ------------------------------------------------------------------- */
+  const GG = () => (typeof globalThis !== 'undefined' && globalThis.KhaytGcodeGeometry) || null;
+  const MID = () => (typeof globalThis !== 'undefined' && globalThis.KhaytModelIdentity) || null;
+
+  /** The printed envelope of a g-code File, read in the renderer.
+   *  Streamed: the whole toolpath is needed, and a 60 MB job must not arrive as
+   *  one string or cross the bridge. */
+  async function gcodeEnvelope(file) {
+    const G = GG();
+    if (!G || typeof file.stream !== 'function') return null;
+    try {
+      const sil = G.createSilhouette();
+      const reader = file.stream().getReader();
+      const dec = new TextDecoder();
+      let carry = '';
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        carry += dec.decode(value, { stream: true });
+        const lines = carry.split('\n');
+        carry = lines.pop();
+        for (const line of lines) sil.push(line);
+      }
+      if (carry) sil.push(carry);
+      return sil.result();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /** The shape key for whatever kind of file this is, or null. */
+  async function shapeKeyFor(file, res, ext) {
+    const mi = MID();
+    if (!mi) return null;
+    if (ext === 'gcode' || ext === 'gco') {
+      const env = await gcodeEnvelope(file);
+      return env && mi.gcodeGeometryKey ? mi.gcodeGeometryKey(env) : null;
+    }
+    return res && res.geometry ? mi.geometryKey(res.geometry) : null;
+  }
+
+  /**
+   * Offer the library entry this file looks like, if there is exactly one.
+   *
+   * Deliberately silent when the shop has already chosen — an automatic guess
+   * must never overwrite a person's answer — and when more than one entry
+   * matches, because picking one of several arbitrarily is how two models'
+   * measured histories get pooled, which is the mispricing this is meant to
+   * prevent.
+   */
+  async function suggestLibraryLink(file, res, ext) {
+    const sel = $('#partPrintFile');
+    if (!sel || sel.value) return;
+    const mi = MID();
+    const lib = (typeof printFiles !== 'undefined' ? printFiles : []) || [];
+    if (!mi || !lib.length) return;
+    const key = await shapeKeyFor(file, res, ext);
+    if (!key) return;
+    // Still nothing chosen? The read above is async and the shop may have picked
+    // one meanwhile.
+    if (sel.value) return;
+    const hits = lib.filter((f) => f && f.geometryKey && f.geometryKey === key);
+    if (hits.length !== 1) return;
+    const rec = hits[0];
+    if (!Array.from(sel.options).some((o) => o.value === rec.id)) return;
+    sel.value = rec.id;
+    // The existing listener on this select recomputes the estimate, so the quote
+    // picks up that file's own measured history rather than the machine median.
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+    const name = rec.name || rec.originalName || rec.id;
+    toast((t('link.matched_shape', { name }) || ('Linked to "' + name + '" from your library — clear it if that is not the same model')), 'info', 5000);
+  }
+
   /** Read a dropped/picked File and hand its bytes to the main process. */
   async function intakeFile(file) {
     if (!file) return;
@@ -414,6 +502,10 @@ function wireEvents() {
       const res = await window.hubAPI.intakeModelBytes(name, bytes);
       if (!res || !res.ok) { toast((res && res.error) || t('calc.parse_failed'), 'warning'); return; }
       applyIntake(res, name);
+      // After the quote is on screen, not before: identifying a large g-code
+      // file means reading its whole toolpath, and the shop should not wait for
+      // that to see the number they dropped the file for.
+      suggestLibraryLink(file, res, ext);
     } catch (err) {
       console.error('model intake:', err);
       toast(t('calc.parse_failed'), 'warning');

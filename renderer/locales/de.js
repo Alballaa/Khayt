@@ -3688,6 +3688,7 @@
   "dup.badge": "Dieselbe Datei wie „{name}“",
   "dup.similar": "Sieht aus wie „{name}“",
   "link.from_library": "Aus deiner Druckbibliothek",
+  "link.matched_shape": "Mit „{name}“ aus deiner Druckbibliothek verknüpft — entferne die Verknüpfung, wenn es ein anderes Modell ist.",
   "link.none": "— Nicht aus der Bibliothek —",
   "link.no_setup": "— Welche Einstellungen? —",
   "link.past": "Über {n} Aufträge mit nur diesem Teil und diesen Einstellungen lag deine Schätzung bei {hours}% Zeit und {grams}% Filament.",

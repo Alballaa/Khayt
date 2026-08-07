@@ -3691,6 +3691,7 @@
   "dup.badge": "Same file as “{name}”",
   "dup.similar": "Looks like “{name}”",
   "link.from_library": "From your print library",
+  "link.matched_shape": "Linked to \"{name}\" from your print library — clear it if this is a different model.",
   "link.none": "— Not from the library —",
   "link.no_setup": "— Which settings? —",
   "link.past": "Across {n} single-part jobs with these settings, your estimate ran {hours}% on time and {grams}% on filament.",

@@ -3688,6 +3688,7 @@
   "dup.badge": "与“{name}”是同一文件",
   "dup.similar": "看起来像“{name}”",
   "link.from_library": "来自你的打印库",
+  "link.matched_shape": "已关联到打印库中的“{name}”——如果不是同一个模型，请清除关联。",
   "link.none": "— 不从库中选择 —",
   "link.no_setup": "— 用哪套设置？ —",
   "link.past": "在使用这套设置的 {n} 个单件作业中，你的估算在时间上偏差 {hours}%，在耗材上偏差 {grams}%。",

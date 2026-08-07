@@ -4,6 +4,22 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **Drop a model you have printed before and Khayt recognises it.** Linking a
+  part to a file in your print library is what lets that file's own finished
+  prints price the next quote, instead of the printer's overall average — which
+  misjudges anything unlike your recent mix. The link was a dropdown nobody was
+  prompted to touch, so in practice it stayed empty and the history never got
+  used. Now, when you drop or pick a model, Khayt compares its shape against your
+  library and selects the matching file for you, then re-prices using that file's
+  measured history. It matches on the printed shape rather than the exact file,
+  so a model you re-sliced at a different layer height or infill is still
+  recognised. It only acts when exactly one file matches, never overrides a file
+  you chose yourself, and tells you which one it picked so you can clear it — two
+  plaques the same size on the outside can carry different faces, and only you
+  can say whether they are the same job.
+
 ### Fixed
 
 - **A g-code file the shop re-sliced came back as a stranger, so quotes for it

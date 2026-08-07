@@ -3688,6 +3688,7 @@
   "dup.badge": "「{name}」と同一ファイル",
   "dup.similar": "「{name}」に似ています",
   "link.from_library": "印刷ライブラリから",
+  "link.matched_shape": "プリントライブラリの「{name}」にリンクしました — 別のモデルの場合は解除してください。",
   "link.none": "— ライブラリから選ばない —",
   "link.no_setup": "— どの設定ですか？ —",
   "link.past": "この設定の単一部品ジョブ {n} 件では、見積もりは時間で {hours}%、フィラメントで {grams}% ずれていました。",
