@@ -1953,6 +1953,8 @@ function wireEvents() {
   $('#btnPlibMirror')?.addEventListener('click', () => { if (typeof pickPrintLibFolder === 'function') pickPrintLibFolder('mirror'); });
   $('#btnPlibRootClear')?.addEventListener('click', () => { if (typeof clearPrintLibFolder === 'function') clearPrintLibFolder('root'); });
   $('#btnPlibMirrorClear')?.addEventListener('click', () => { if (typeof clearPrintLibFolder === 'function') clearPrintLibFolder('mirror'); });
+  $('#btnPlibS3Save')?.addEventListener('click', () => { if (typeof savePrintLibS3 === 'function') savePrintLibS3(); });
+  $('#btnPlibS3Test')?.addEventListener('click', () => { if (typeof testPrintLibS3 === 'function') testPrintLibS3(); });
 
   $('#btnRevealBackups')?.addEventListener('click', () => {
     if (window.hubAPI?.revealBackupsFolder) window.hubAPI.revealBackupsFolder();

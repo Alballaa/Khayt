@@ -1721,6 +1721,18 @@ async function renderPrintLibLocation() {
   const cfg = (settings && settings.printLibrary) || {};
   rootEl.value = cfg.root || '';
   mirrorEl.value = cfg.mirror || '';
+  const s3 = cfg.s3 || {};
+  const setV = (id, v) => { const el = $(id); if (el) el.value = v || ''; };
+  if ($('#set_plibS3On')) $('#set_plibS3On').checked = !!s3.enabled;
+  setV('#set_plibS3Endpoint', s3.endpoint);
+  setV('#set_plibS3Bucket', s3.bucket);
+  setV('#set_plibS3Region', s3.region);
+  setV('#set_plibS3Prefix', s3.prefix);
+  setV('#set_plibS3Key', s3.accessKeyId);
+  // Never render the secret back. The renderer only ever holds a mask; typing
+  // nothing keeps what is on disk (see secretInputSave).
+  const sec = $('#set_plibS3Secret');
+  if (sec) { sec.value = ''; sec.placeholder = secretFieldPlaceholder(s3.secretAccessKey); }
   if (!statusEl || !window.hubAPI?.printLibStatus) return;
   let st = null;
   try { st = await window.hubAPI.printLibStatus(); } catch (_) { st = null; }
@@ -1738,6 +1750,48 @@ async function renderPrintLibLocation() {
     : '';
   statusEl.textContent = '✓ ' + (t('set.plib_ready') || 'Library folder ready') + ': ' + where + mirrorNote;
   statusEl.style.color = st.mirror && st.mirrorOk === false ? 'var(--warning, #d97706)' : 'var(--text-muted)';
+}
+
+/**
+ * Persist the bucket settings.
+ *
+ * The secret goes through secretInputSave: the renderer is handed a mask rather
+ * than the real key, so an empty field means "keep what is on disk" and NOT
+ * "clear it" — saving any other setting on this page would otherwise wipe the
+ * credential.
+ */
+function savePrintLibS3() {
+  const v = (id) => ($(id)?.value || '').trim();
+  const cur = ((settings.printLibrary || {}).s3) || {};
+  settings.printLibrary = Object.assign({}, settings.printLibrary, {
+    s3: {
+      enabled: !!$('#set_plibS3On')?.checked,
+      endpoint: v('#set_plibS3Endpoint'),
+      bucket: v('#set_plibS3Bucket'),
+      region: v('#set_plibS3Region') || 'auto',
+      prefix: v('#set_plibS3Prefix'),
+      accessKeyId: v('#set_plibS3Key'),
+      secretAccessKey: secretInputSave(cur.secretAccessKey, v('#set_plibS3Secret')),
+    },
+  });
+  saveAll();
+  renderPrintLibLocation();
+  toast(t('set.plib_s3_saved') || 'Object storage settings saved', 'success');
+}
+
+/** Prove the bucket works before anyone relies on it as a backup. */
+async function testPrintLibS3() {
+  const out = $('#plibS3Result');
+  if (!window.hubAPI?.printLibS3Test) return;
+  savePrintLibS3();                                  // test what is configured, not what was typed
+  if (out) { out.textContent = t('set.plib_s3_testing') || 'Testing…'; out.style.color = 'var(--text-muted)'; }
+  let r;
+  try { r = await window.hubAPI.printLibS3Test(); } catch (err) { r = { ok: false, error: String(err.message || err) }; }
+  if (!out) return;
+  out.textContent = r && r.ok
+    ? '✓ ' + (t('set.plib_s3_ok') || 'Wrote, read back and removed a test file')
+    : '✗ ' + ((r && r.error) || '');
+  out.style.color = r && r.ok ? 'var(--success, #16a34a)' : 'var(--danger)';
 }
 
 /** Pick a folder for the library or its backup, and persist it. */
@@ -4610,6 +4664,8 @@ function renderTelegramSettings() {
     renderPrintLibLocation,
     pickPrintLibFolder,
     clearPrintLibFolder,
+    savePrintLibS3,
+    testPrintLibS3,
     buildDigestEmailHtml,
     renderLocationsSettings,
     renderEmailNotificationSettings,

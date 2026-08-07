@@ -6,6 +6,20 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Back the print library up to object storage.** Alongside a backup folder, you
+  can now point Khayt at an S3-compatible bucket — Cloudflare R2, AWS S3,
+  Backblaze B2, or anything else that speaks the same protocol — and every file
+  added to the library is uploaded there too. Like the backup folder, Khayt never
+  reads from it: it is an off-site copy, not a second library, so the two can't
+  quietly disagree about which is real. **Test connection** actually writes a
+  file, reads it back, checks the bytes match and removes it, so credentials that
+  look right but can't write are caught now rather than at the first model you
+  lose. Your secret key is encrypted on disk with the rest of Khayt's secrets and
+  is never shown on screen again after you enter it.
+
+
+### Added
+
 - **Keep your print library on a network drive, an external disk, or a synced
   folder.** Your models were pinned inside Khayt's own data folder on one Mac —
   out of reach of the second workstation, and in the one place a backup routine

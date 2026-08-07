@@ -102,6 +102,7 @@ contextBridge.exposeInMainWorld('hubAPI', {
   printLibPick:       (id)                => ipcRenderer.invoke('hub:printlib-pick-and-copy', id),
   printLibStatus:     ()                  => ipcRenderer.invoke('hub:printlib-status'),
   printLibPickFolder: ()                  => ipcRenderer.invoke('hub:printlib-pick-folder'),
+  printLibS3Test:     ()                  => ipcRenderer.invoke('hub:printlib-s3-test'),
   printLibPickMulti:  ()                  => ipcRenderer.invoke('hub:printlib-pick-multi'),
   printLibCopyPath:   (id, srcPath)       => ipcRenderer.invoke('hub:printlib-copy-path', { id, srcPath }),
   printLibList:       (id)                => ipcRenderer.invoke('hub:printlib-list', id),
