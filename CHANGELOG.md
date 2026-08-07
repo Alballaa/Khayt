@@ -6,6 +6,22 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **An "Identify" button on print files Khayt cannot recognise.** Khayt only ever
+  worked out what a file was at the moment you added it, so an entry that started
+  without that could never gain it — and an unrecognised file is one Khayt can
+  never match a part to, which is what keeps a model's own print history from
+  pricing its next quote. The button reads the file and works it out now: if the
+  entry already has a file it just re-reads it, and if it has none it asks you for
+  one. It appears only on entries that need it, and tells you whether it managed
+  to measure a shape or not.
+
+- **3MF files are now recognisable too.** Khayt has always read a 3MF's size and
+  shape to show you its figures, then thrown that measurement away — only STL
+  files ever got something Khayt could match on later. A 3MF now gets the same
+  one, from the same numbers, so the same model added once as a 3MF and once as
+  an STL is recognised as one model instead of two.
+
+
 - **Drop a model you have printed before and Khayt recognises it.** Linking a
   part to a file in your print library is what lets that file's own finished
   prints price the next quote, instead of the printer's overall average — which

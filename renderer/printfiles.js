@@ -173,6 +173,7 @@
         <div class="pf-actions">
           <button class="btn small primary" data-act="pf-slice" data-id="${escapeHtml(rec.id)}">${_bi('printer', '🖨')}${escapeHtml(t('plib.open_slicer') || 'Open in slicer')}</button>
           <button class="btn small ghost" data-act="pf-setups" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('setup.title') || 'Settings that worked')}">${_bi('nozzle', '🛠')}${escapeHtml(t('setup.short') || 'Setups')}</button>
+          ${!rec.geometryKey ? `<button class="btn small ghost" data-act="pf-identify" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('plib.identify_hint') || 'Let Khayt recognise this model when you print it again')}">${_bi('search', '🔎')}${escapeHtml(t('plib.identify') || 'Identify')}</button>` : ''}
           ${typeof openModelViewer === 'function' && /^(stl|3mf)$/i.test(rec.sourceFile?.ext || '') ? `<button class="btn small ghost" data-act="pf-view3d" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('plib.view3d') || 'View in 3D')}">${_bi('cube', '🧊')}${escapeHtml(t('plib.view3d_short') || '3D')}</button>` : ''}
           <button class="btn small ghost" data-act="pf-log-print" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('plib.log_print') || 'Log a successful print')}">✓ ${escapeHtml(t('plib.log_print_short') || 'Printed')}</button>
           <button class="btn small ghost" data-act="pf-log-fail" data-id="${escapeHtml(rec.id)}" title="${escapeHtml(t('plib.log_fail') || 'Log a failed print')}" aria-label="${escapeHtml(t('plib.log_fail') || 'Log a failed print')}">✗</button>
@@ -291,6 +292,7 @@
       case 'pf-conv-open': openConvertedInSlicer(id, btn.dataset.fn); break;
       case 'pf-conv-del':  deleteConverted(id, btn.dataset.fn); break;
       case 'pf-setups': openSetups(id); break;
+      case 'pf-identify': identifyPrintFile(id); break;
       case 'pf-log-print': logPrint(id, true); break;
       case 'pf-log-fail':  logPrint(id, false); break;
       case 'pf-view-library': if (_view !== 'library') { _view = 'library'; renderPrintFiles(); } break;
@@ -611,6 +613,55 @@
     return rec;
   }
 
+  /**
+   * Work out what an existing entry is, after the fact.
+   *
+   * Identity was only ever computed while CREATING a record, so an entry that
+   * arrived without one could never gain one: dropping the model into the
+   * calculator does not touch the library, and editing an entry does not look at
+   * its file. Entries reconstructed from print history, and every 3MF imported
+   * before the line above existed, were therefore permanently unrecognisable —
+   * and an unrecognisable entry is one the calculator can never link a part to,
+   * which is what keeps per-file calibration out of reach.
+   *
+   * Two cases, one action:
+   *   the entry already has a file  -> re-read it; nothing to ask the shop
+   *   the entry has no file at all  -> ask for one, copy it into the entry's own
+   *                                    vault, then read it
+   */
+  async function identifyPrintFile(id) {
+    const hub = api(); if (!hub) return;
+    const rec = (printFiles || []).find((r) => r && r.id === id);
+    if (!rec) return;
+
+    let fullPath = await resolveModelPath(rec);
+    if (!fullPath) {
+      if (!hub.printLibPick) return;
+      let picked;
+      try { picked = await hub.printLibPick(id); } catch (err) { toast(String(err.message || err), 'error'); return; }
+      if (!picked) return;                       // cancelled
+      const ext = (picked.ext || '').toLowerCase();
+      rec.sourceFile = {
+        filename: picked.filename, originalName: picked.originalName,
+        size: picked.size, ext, kind: /^(stl|3mf|obj)$/.test(ext) ? 'model' : 'gcode',
+      };
+      if (!rec.originalName) rec.originalName = picked.originalName;
+      rec.contentHash = picked.contentHash || null;
+      fullPath = picked.fullPath;
+    }
+    // Cleared rather than kept: whatever is on the record describes some earlier
+    // file, and a stale key is worse than none — it would match the wrong model.
+    rec.geometryKey = null;
+    rec.updatedAt = Date.now();
+    saveAll();
+    renderPrintFiles();
+    await enrichPrintFile(rec, fullPath);
+    toast(rec.geometryKey
+      ? (t('plib.identified') || 'Khayt can recognise this model now')
+      : (t('plib.identify_failed') || 'Read the file, but could not measure a shape from it'),
+      rec.geometryKey ? 'success' : 'warning');
+  }
+
   async function addPrintFile() {
     const hub = api(); if (!hub) return;
     // Prefer the multi-select picker (bulk import); each file is copied into its own record's vault via
@@ -753,11 +804,20 @@
           // and its contentHash changes on every re-slice, so the same model came
           // back a stranger and per-file calibration never reached MIN_JOBS. The
           // printed envelope survives re-slicing; see lib/gcode-geometry.js.
-          if (p && p.silhouette) {
-            const mi = MI();
-            if (mi && mi.gcodeGeometryKey) {
-              try { rec.geometryKey = mi.gcodeGeometryKey(p.silhouette); } catch (_) { /* non-fatal */ }
-            }
+          const mi = MI();
+          if (mi && p) {
+            try {
+              if (p.silhouette && mi.gcodeGeometryKey) {
+                rec.geometryKey = mi.gcodeGeometryKey(p.silhouette);
+              } else if (p.geometry) {
+                // A 3MF carries a mesh, and the parse above already measured it —
+                // the volume and triangle count were being shown to the shop and
+                // then thrown away. Same key an STL gets, from the same numbers,
+                // so a model imported as a 3MF and the same model imported as an
+                // STL recognise each other.
+                rec.geometryKey = mi.geometryKey(p.geometry);
+              }
+            } catch (_) { /* non-fatal */ }
           }
         }
         if (hub.extractThumbnail) {
@@ -991,7 +1051,7 @@
   // this one we already have?" — that any future ingest path needs, not just
   // the picker. It is also the one branch here that DELETES a record, so it
   // is worth being able to drive end to end.
-  const pub = { renderPrintFiles, addPrintFile, openInSlicer, editPrintFile, deletePrintFile, attachConverted, importConvertedAsNew, warnIfAlreadyHave };
+  const pub = { renderPrintFiles, addPrintFile, openInSlicer, editPrintFile, deletePrintFile, attachConverted, importConvertedAsNew, warnIfAlreadyHave, identifyPrintFile };
   Object.assign(global, pub);
   global.KhaytPrintFiles = pub;
   if (typeof module !== 'undefined' && module.exports) module.exports = pub;
