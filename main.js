@@ -1,6 +1,7 @@
 const { app, BrowserWindow, Menu, shell, ipcMain, dialog, safeStorage, clipboard, utilityProcess } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const readline = require('readline');
 const { FLAVOR, isBedReady, productName: FLAVOR_NAME } = require('./lib/flavor');
 
 // Bed Ready is a fully independent product that shares Khayt's codebase: give it its OWN Electron
@@ -68,6 +69,7 @@ const printerCommands = require('./lib/printer-commands');
 const { normalizeStoreSnapshot, STORE_VERSION } = require('./lib/store-validate');
 const { createStoreIo } = require('./lib/store-io');
 const { parseGcodeText } = require('./lib/gcode-parse');
+const { createSilhouette } = require('./lib/gcode-geometry');
 const { intake: intakeModel } = require('./lib/model-intake');
 const { extractActuals } = require('./lib/printer-actuals');
 const { contentHash: modelContentHash } = require('./lib/model-identity');
@@ -2204,6 +2206,29 @@ ipcMain.handle('hub:intake-model-bytes', async (_e, payload) => {
   }
 });
 
+/**
+ * The printed envelope of a g-code file — see lib/gcode-geometry.js for what it
+ * is and why the usual identity keys cannot survive a re-slice.
+ *
+ * Best-effort: a file that cannot be read, or is larger than any real print,
+ * yields null and the record simply keeps no geometry key, exactly as before.
+ */
+const SILHOUETTE_MAX_BYTES = 256 * 1024 * 1024;
+async function gcodeSilhouette(fullPath, size) {
+  if (Number.isFinite(size) && size > SILHOUETTE_MAX_BYTES) return null;
+  try {
+    const sil = createSilhouette();
+    const rl = readline.createInterface({
+      input: fs.createReadStream(fullPath, { encoding: 'utf8' }),
+      crlfDelay: Infinity,
+    });
+    for await (const line of rl) sil.push(line);
+    return sil.result();
+  } catch (_) {
+    return null;
+  }
+}
+
 // --- Feature 1 (new batch): G-code / 3MF metadata extraction ---
 ipcMain.handle('hub:parse-print-file', async (_e, filePath) => {
   const resolvedParse = path.resolve(String(filePath || ''));
@@ -2241,6 +2266,12 @@ ipcMain.handle('hub:parse-print-file', async (_e, filePath) => {
           fs.closeSync(fd);
         }
       }
+      // The envelope needs the whole toolpath, which the head/tail read above
+      // deliberately does not have — that read is for the slicer's summary, and
+      // it stops well short of the moves. Streamed rather than slurped so a
+      // 60 MB file costs one line at a time, and capped so a pathological one
+      // costs a bounded amount of work instead of the app's responsiveness.
+      result.silhouette = await gcodeSilhouette(resolvedParse, stat.size);
       const parsed = parseGcodeText(text);
       result.printTimeMins = parsed.printTimeMins;
       result.filamentGrams = parsed.filamentGrams;
