@@ -109,6 +109,8 @@ contextBridge.exposeInMainWorld('hubAPI', {
   onPrintLibMigrateProgress: (() => { let _cb=null; ipcRenderer.on('hub:printlib-migrate-progress', (_e,d)=>{ if(_cb) _cb(d); }); return cb=>{ _cb=cb; }; })(),
   printLibPickMulti:  ()                  => ipcRenderer.invoke('hub:printlib-pick-multi'),
   printLibCopyPath:   (id, srcPath)       => ipcRenderer.invoke('hub:printlib-copy-path', { id, srcPath }),
+  printLibUnpackZip:  (srcPath)           => ipcRenderer.invoke('hub:printlib-unpack-zip', { srcPath }),
+  printLibUnpackCleanup: (dir)            => ipcRenderer.invoke('hub:printlib-unpack-cleanup', dir),
   printLibList:       (id)                => ipcRenderer.invoke('hub:printlib-list', id),
   printLibDelete:     (fullPath)          => ipcRenderer.invoke('hub:printlib-delete', fullPath),
   printLibSaveImage:  (id, name, dataUrl) => ipcRenderer.invoke('hub:printlib-save-image', { id, name, dataUrl }),
