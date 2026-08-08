@@ -6,6 +6,16 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Kits reach Bed Ready.** Grouping several prints into one object was added to
+  Khayt's orders list, which Bed Ready does not have — so the maker app now
+  carries it on the home screen instead. Finished prints that are not yet in a kit
+  are offered with a tick box; name them and they become one, with the whole
+  thing's hours, grams and cost shown together and how far that ran from the
+  slicer's estimate. A part you finish *after* making the kit can be added to it,
+  which is the ordinary way a multi-part model actually gets printed. If some
+  prints in a kit were never measured the total says so, and disbanding a kit
+  puts the prints back on their own without deleting any of them.
+
 - **Kits — several prints that are one object.** A figure printed as a head, a
   body and two legs is four separate jobs in your log, and until now nothing said
   they belonged together, so "what did that actually cost me" meant adding four

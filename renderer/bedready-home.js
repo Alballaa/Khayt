@@ -198,6 +198,7 @@
         '</section>',
         makerStatsHtml(),
         energyStatsHtml(),
+        kitsHtml(),
         '<div class="br-home-grid">',
           '<button type="button" class="br-action" data-go="inventory-tab"><span class="ico" aria-hidden="true">' + ico('spool', '⬡') + '</span><span class="t"><b>Inventory</b><span>filament & stock</span></span></button>',
           '<button type="button" class="br-action" data-go="printfiles-tab"><span class="ico" aria-hidden="true">' + ico('cube', '🧊') + '</span><span class="t"><b>Print files</b><span>your model library</span></span></button>',
@@ -256,9 +257,128 @@
     for (var i = 0; i < vals.length; i++) settleStatEl(vals[i], i * 70);
   }
 
+  /**
+   * Kits — several prints that are one object.
+   *
+   * The maker case this exists for: a figure printed as a head, a body and two
+   * legs is four separate jobs, and nothing said they belonged together.
+   *
+   * Khayt creates kits from the orders list's batch bar. Bed Ready ships no
+   * orders list at all (logs-tab is not in bedready.html), so the same job is
+   * done here: finished prints that are not in a kit are offered with a
+   * checkbox, and naming them makes one. No modal — a tray on the home is fewer
+   * moving parts than a dialog, and this is a screen the maker already reads.
+   *
+   * Every total is shown with the count of jobs behind it, because a total that
+   * quietly omits an unmeasured job is the bug lib/print-kits.js exists to stop.
+   */
+  var KIT_TRAY_MAX = 12;   // recent unfiled prints offered at once
+
+  function kitsHtml() {
+    if (typeof KhaytPrintKits === 'undefined') return '';
+    // Declared locally, the way this file already does at makerStatsHtml() —
+    // `esc` is not file-scoped here and `tr` does not exist in this module at
+    // all. Both fall back rather than throw: a missing helper must not take the
+    // whole home down.
+    var esc = (typeof escapeHtml === 'function') ? escapeHtml
+      : function (v) { return String(v).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+    var tr = function (key, fallback) {
+      try { return (typeof t === 'function' && t(key)) || fallback; } catch (_) { return fallback; }
+    };
+    var log = (typeof printLog !== 'undefined' && Array.isArray(printLog)) ? printLog : [];
+    var defs = (typeof settings !== 'undefined' && settings && Array.isArray(settings.kits)) ? settings.kits : [];
+    var g = KhaytPrintKits.groupByKit(log, defs);
+    var done = g.ungrouped.filter(function (o) { return o && o.status === 'completed'; });
+    // The tray has to appear for a SINGLE unfiled print once a kit exists, or a
+    // part finished after the kit was made can never be added to it — which is
+    // the ordinary case: you group what you have, then the last part finishes.
+    // Two are required only on a fresh shop, so a lone first print is not noise.
+    var canGroup = done.length >= (g.kits.length ? 1 : 2);
+    if (!g.kits.length && !canGroup) return '';
+
+    var rows = g.kits.map(function (k) {
+      var r = k.rollup;
+      var partial = r.measuredTime < r.jobs
+        ? ' <span style="color:var(--warning);">(' + r.measuredTime + '/' + r.jobs + ' ' + esc(tr('kit.measured', 'measured')) + ')</span>' : '';
+      var money = r.mixedCurrency ? esc(tr('kit.mixed_currency', 'mixed currencies')) : (r.cost + ' ' + esc(r.currency || ''));
+      var delta = (k.accuracy && k.accuracy.time !== null)
+        ? ' <span style="color:var(--text-muted);">· ' + (k.accuracy.time > 0 ? '+' : '') + k.accuracy.time + '% ' + esc(tr('kit.vs_estimate', 'vs estimate')) + '</span>' : '';
+      return '<div class="br-kit-row" style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:6px 0;border-top:1px solid var(--border-soft);">'
+        + '<strong>🧩 ' + esc(k.name) + '</strong>'
+        + '<span style="font-size:12px;color:var(--text-dim);">' + r.jobs + ' ' + esc(tr('kit.jobs', 'jobs')) + partial + '</span>'
+        + '<span style="font-size:12px;font-family:var(--font-num);">' + r.actualHours + ' h · ' + r.actualGrams + ' g · ' + money + '</span>'
+        + delta
+        + '<span style="flex:1;"></span>'
+        + '<button type="button" class="btn ghost small" data-kit-disband="' + esc(k.id) + '">' + esc(tr('kit.disband', 'Disband')) + '</button>'
+        + '</div>';
+    }).join('');
+
+    var tray = '';
+    if (canGroup) {
+      var shown = done.slice(0, KIT_TRAY_MAX);
+      tray = '<div style="margin-top:10px;padding-top:9px;border-top:1px solid var(--border-soft);">'
+        + '<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">' + esc(tr('kit.tray_hint', 'Tick the prints that are one object')) + '</div>'
+        + shown.map(function (o) {
+            return '<label style="display:inline-flex;align-items:center;gap:5px;margin:0 10px 6px 0;font-size:12.5px;">'
+              + '<input type="checkbox" class="br-kit-pick" value="' + esc(o.id) + '" style="width:auto;margin:0;">'
+              + esc(o.project || o.id) + '</label>';
+          }).join('')
+        // Said out loud rather than silently truncating: a tray that shows 12 of
+        // 30 and says nothing reads as "these are all your unfiled prints".
+        + (done.length > shown.length
+            ? '<div style="font-size:11.5px;color:var(--text-muted);margin-bottom:6px;">'
+              + esc(tr('kit.tray_more', 'Showing the {n} most recent.').replace('{n}', String(shown.length))) + '</div>'
+            : '')
+        + '<div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;">'
+        + '<input type="text" id="brKitName" placeholder="' + esc(tr('kit.name_ph', 'Kit name')) + '" style="max-width:190px;">'
+        + '<button type="button" class="btn small primary" data-kit-add="1">' + esc(tr('kit.add_to', 'Add to kit')) + '</button>'
+        + '</div></div>';
+    }
+
+    return '<section class="br-card" style="padding:12px 14px;margin-bottom:12px;">'
+      + '<div style="font-weight:600;font-size:13px;">' + esc(tr('kit.card_title', 'Kits')) + '</div>'
+      + rows + tray + '</section>';
+  }
+
+  /** Create a kit from the ticked prints, or disband one. */
+  function wireKits(el) {
+    var add = el.querySelector('[data-kit-add]');
+    if (add) {
+      add.addEventListener('click', function () {
+        var picked = [].slice.call(el.querySelectorAll('.br-kit-pick:checked')).map(function (c) { return c.value; });
+        var nameEl = el.querySelector('#brKitName');
+        var name = String((nameEl && nameEl.value) || '').trim();
+        if (!picked.length || !name) return;          // nothing ticked, or unnamed
+        if (!Array.isArray(settings.kits)) settings.kits = [];
+        // Reuse a kit of the same name rather than splitting the rollup in two.
+        var kit = settings.kits.filter(function (k) {
+          return String(k.name).trim().toLowerCase() === name.toLowerCase();
+        })[0];
+        if (!kit) { kit = { id: 'KIT-' + Math.random().toString(36).slice(2, 11), name: name }; settings.kits.push(kit); }
+        picked.forEach(function (id) {
+          var o = printLog.filter(function (x) { return x.id === id; })[0];
+          if (o) o.kitId = kit.id;
+        });
+        saveAll();
+        if (typeof renderDashboard === 'function') renderDashboard();
+      });
+    }
+    el.querySelectorAll('[data-kit-disband]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var id = b.getAttribute('data-kit-disband');
+        // Unfiles the jobs. It never removes a print.
+        printLog.forEach(function (o) { if (o.kitId === id) delete o.kitId; });
+        settings.kits = (settings.kits || []).filter(function (k) { return k.id !== id; });
+        saveAll();
+        if (typeof renderDashboard === 'function') renderDashboard();
+      });
+    });
+  }
+
   function fill(el) {
     el.innerHTML = homeHtml();
     settleStats(el);
+    wireKits(el);
     el.querySelectorAll('.br-action').forEach(function (b) {
       b.addEventListener('click', function () {
         // BedReady library card opens the sync modal; the rest switch tabs.

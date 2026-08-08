@@ -26,6 +26,8 @@ const logs = read('renderer/logs.js');
 const settingsJs = read('renderer/settings.js');
 const wire = read('renderer/wire-events.js');
 const html = read('renderer/index.html');
+const brHome = read('renderer/bedready-home.js');
+const brHtml = read('renderer/bedready.html');
 
 test('a kit survives a Settings save', () => {
   // saveSettingsFromForm() rebuilds `settings` from the DOM. A kit is created by
@@ -123,4 +125,31 @@ test('the section is translated everywhere, placeholders intact', () => {
     const line = loc.split('\n').find((l) => l.includes('"kit.disband_confirm"'));
     assert.ok(line.includes('{name}'), `${code}'s kit.disband_confirm dropped {name}`);
   }
+});
+
+test('the Bed Ready card is guarded and loaded, and declares its own helpers', () => {
+  // Only reachable by source: the running Bed Ready app always loads the module,
+  // so its e2e cannot exercise the undefined branch. Everything else about this
+  // card is driven for real in scripts/e2e-bedready-smoke.mjs.
+  const at = brHome.indexOf('function kitsHtml(');
+  assert.ok(at > -1, 'kitsHtml went missing');
+  const body = brHome.slice(at, brHome.indexOf('\n  function ', at + 10));
+  assert.match(body, /typeof KhaytPrintKits === 'undefined'/,
+    'no guard — a shell without the module would throw while drawing the home');
+  // `esc` is not file-scoped in bedready-home.js and `tr` does not exist in it.
+  // Assuming either takes the whole home down with a ReferenceError.
+  assert.match(body, /var esc = \(typeof escapeHtml === 'function'\)/, 'esc is assumed rather than declared');
+  assert.match(body, /var tr = function \(key, fallback\)/, 'tr is assumed rather than declared');
+  assert.match(brHtml, /<script src="\.\.\/lib\/print-kits\.js"><\/script>/,
+    'the Bed Ready shell never loads the module');
+});
+
+test('a part finished after the kit was made can still be added to it', () => {
+  // Found by driving the tray rather than reading it: the threshold was ">= 2
+  // unfiled prints", so the ordinary case — group what you have, then the last
+  // part finishes — left that part with nowhere to go.
+  const at = brHome.indexOf('function kitsHtml(');
+  const body = brHome.slice(at, brHome.indexOf('\n  function ', at + 10));
+  assert.match(body, /done\.length >= \(g\.kits\.length \? 1 : 2\)/,
+    'a single unfiled print cannot be added to an existing kit');
 });
