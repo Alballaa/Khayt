@@ -309,6 +309,7 @@
         + '<span style="font-size:12px;font-family:var(--font-num);">' + r.actualHours + ' h · ' + r.actualGrams + ' g · ' + money + '</span>'
         + delta
         + '<span style="flex:1;"></span>'
+        + '<button type="button" class="btn ghost small" data-kit-rename="' + esc(k.id) + '">' + esc(tr('kit.rename', 'Rename')) + '</button>'
         + '<button type="button" class="btn ghost small" data-kit-disband="' + esc(k.id) + '">' + esc(tr('kit.disband', 'Disband')) + '</button>'
         + '</div>';
     }).join('');
@@ -363,6 +364,27 @@
         if (typeof renderDashboard === 'function') renderDashboard();
       });
     }
+    el.querySelectorAll('[data-kit-rename]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var id = b.getAttribute('data-kit-rename');
+        var kits = Array.isArray(settings.kits) ? settings.kits : [];
+        var cur = kits.filter(function (k) { return k.id === id; })[0];
+        var name = String(prompt('Kit name', cur ? cur.name : '') || '').trim();
+        if (!name || (cur && name === cur.name)) return;
+        // Refuse a name another kit holds rather than merging into it — that
+        // would move somebody else's jobs on the strength of a typo.
+        var clash = kits.filter(function (k) {
+          return k.id !== id && String(k.name).trim().toLowerCase() === name.toLowerCase();
+        })[0];
+        if (clash) return;
+        // An orphan has no definition; naming it writes one back, so jobs are
+        // never stuck in something unnameable.
+        if (cur) cur.name = name;
+        else settings.kits = kits.concat([{ id: id, name: name }]);
+        saveAll();
+        if (typeof renderDashboard === 'function') renderDashboard();
+      });
+    });
     el.querySelectorAll('[data-kit-disband]').forEach(function (b) {
       b.addEventListener('click', function () {
         var id = b.getAttribute('data-kit-disband');

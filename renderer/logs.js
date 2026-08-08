@@ -559,9 +559,42 @@ function renderKitStrip() {
       <span style="font-size:12px;font-family:var(--font-num);">${r.actualHours} ${escapeHtml(t('common.hours'))} · ${r.actualGrams} g · ${money}</span>
       ${delta}
       <span style="flex:1;"></span>
+      <button class="btn ghost small" data-kit-rename="${escapeHtml(k.id)}">${escapeHtml(t('kit.rename') || 'Rename')}</button>
       <button class="btn ghost small" data-kit-clear="${escapeHtml(k.id)}">${escapeHtml(t('kit.disband') || 'Disband')}</button>
     </div>`;
   }).join('');
+}
+
+/**
+ * Rename a kit.
+ *
+ * Also ADOPTS an orphan. A kit whose definition was deleted still groups its
+ * jobs (groupByKit keeps orphans on purpose), but there was previously no way
+ * back — the jobs were stuck in something unnameable. Naming one writes the
+ * definition again.
+ *
+ * Refuses a name another kit already holds rather than merging into it. Merging
+ * would move somebody else's jobs on the strength of a typo, and "reuse the kit
+ * with this name" is a rule that belongs to ADDING, where the shop has just
+ * chosen which jobs are involved.
+ */
+async function renameKit(kitId) {
+  const kits = Array.isArray(settings.kits) ? settings.kits : [];
+  const cur = kits.find((k) => k.id === kitId);
+  const name = prompt(t('kit.rename_prompt') || 'Kit name', cur ? cur.name : '');
+  const clean = String(name || '').trim();
+  if (!clean || (cur && clean === cur.name)) return;
+  const clash = kits.find((k) => k.id !== kitId
+    && String(k.name).trim().toLowerCase() === clean.toLowerCase());
+  if (clash) {
+    toast((t('kit.name_taken') || 'Another kit is already called {name}').replace('{name}', clash.name), 'error');
+    return;
+  }
+  if (cur) cur.name = clean;
+  else settings.kits = kits.concat([{ id: kitId, name: clean }]);   // adopt the orphan
+  saveAll();
+  renderLogs();
+  toast(t('kit.renamed') || 'Kit renamed', 'success');
 }
 
 /** Take every job out of a kit and forget the kit. The jobs are untouched. */
@@ -636,6 +669,7 @@ function exportOrdersCsv() {
     batchAddToKit,
     renderKitStrip,
     disbandKit,
+    renameKit,
     exportOrdersCsv,
   };
 

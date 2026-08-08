@@ -135,6 +135,8 @@ function wireEvents() {
   // Delegated: the strip is re-rendered on every renderLogs(), so a listener
   // bound to today's buttons would be lost on the next draw.
   $('#kitStrip')?.addEventListener('click', (e) => {
+    const ren = e.target?.closest?.('[data-kit-rename]')?.dataset?.kitRename;
+    if (ren && typeof renameKit === 'function') { renameKit(ren); return; }
     const id = e.target?.closest?.('[data-kit-clear]')?.dataset?.kitClear;
     if (id && typeof disbandKit === 'function') disbandKit(id);
   });

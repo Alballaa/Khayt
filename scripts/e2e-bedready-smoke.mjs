@@ -251,6 +251,28 @@ async function main() {
     await new Promise((r) => setTimeout(r, 250));
     out.partialText = (document.querySelector('.br-kit-row')?.textContent || '').replace(/\s+/g, ' ').trim();
 
+    // Rename, driven rather than read. window.prompt is stubbed because Electron
+    // blocks on the real one; the point is the handler's behaviour around it.
+    const realPrompt = window.prompt;
+    window.prompt = () => 'Dragon';
+    document.querySelector('[data-kit-rename]').click();
+    await new Promise((r) => setTimeout(r, 300));
+    out.renamedTo = (settings.kits[0] || {}).name;
+    out.kitsAfterRename = (settings.kits || []).length;
+
+    // Renaming onto a second kit's name must refuse, not merge.
+    settings.kits.push({ id: 'KIT-other', name: 'Taken' });
+    window.prompt = () => 'taken';
+    renderDashboard();
+    await new Promise((r) => setTimeout(r, 250));
+    document.querySelector('[data-kit-rename]').click();
+    await new Promise((r) => setTimeout(r, 300));
+    out.afterClash = (settings.kits.filter((k) => k.id !== 'KIT-other')[0] || {}).name;
+    settings.kits = settings.kits.filter((k) => k.id !== 'KIT-other');
+    window.prompt = realPrompt;
+    renderDashboard();
+    await new Promise((r) => setTimeout(r, 250));
+
     // Disband unfiles the jobs and must not remove a single print.
     const before = printLog.length;
     document.querySelector('[data-kit-disband]').click();
@@ -266,6 +288,8 @@ async function main() {
   assert(`the kit's rollup row renders (${acted.rowText.slice(0, 60)})`, acted.rowShown === true);
   assert(`the same name twice reuses one kit (${acted.kitsAfterDup} defined)`, acted.kitsAfterDup === 1);
   assert(`a partly-measured kit says so (${acted.partialText.slice(0, 70)})`, /\/\s*\d/.test(acted.partialText));
+  assert(`rename takes effect (${acted.renamedTo})`, acted.renamedTo === 'Dragon' && acted.kitsAfterRename === 1);
+  assert(`renaming onto another kit's name refuses (${acted.afterClash})`, acted.afterClash === 'Dragon');
   assert(`disband removes no prints (${acted.printsBefore} -> ${acted.printsAfterDisband})`,
     acted.printsAfterDisband === acted.printsBefore);
   assert('disband unfiles every job', acted.stillFiled === 0 && acted.kitsAfterDisband === 0);
