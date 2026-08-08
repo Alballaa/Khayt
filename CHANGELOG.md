@@ -6,6 +6,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Rename a kit.** Kits could be created and disbanded but never renamed, so a
+  name you regretted meant taking the whole thing apart and rebuilding it.
+  **Rename** sits beside **Disband** in both apps. A name another kit already has
+  is refused rather than quietly merging the two — that would move a different
+  kit's prints on the strength of a typo. And renaming a kit whose definition was
+  lost adopts it back, so prints can never be stranded in something with no name.
+
 - **Kits reach Bed Ready.** Grouping several prints into one object was added to
   Khayt's orders list, which Bed Ready does not have — so the maker app now
   carries it on the home screen instead. Finished prints that are not yet in a kit

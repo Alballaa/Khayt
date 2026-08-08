@@ -153,3 +153,43 @@ test('a part finished after the kit was made can still be added to it', () => {
   assert.match(body, /done\.length >= \(g\.kits\.length \? 1 : 2\)/,
     'a single unfiled print cannot be added to an existing kit');
 });
+
+test('rename refuses a name another kit already holds', () => {
+  // "Reuse the kit with this name" is an ADD rule — the shop has just chosen
+  // which jobs are involved. Applying it to rename would move somebody else's
+  // jobs on the strength of a typo.
+  const at = logs.indexOf('async function renameKit(');
+  assert.ok(at > -1, 'renameKit went missing');
+  const body = logs.slice(at, logs.indexOf('\n}', at));
+  assert.match(body, /k\.id !== kitId\s*\n?\s*&& String\(k\.name\)\.trim\(\)\.toLowerCase\(\) === clean\.toLowerCase\(\)/,
+    'renaming onto an existing name is allowed, so two kits share it');
+  assert.match(body, /if \(clash\) \{[\s\S]{0,200}return;/, 'the clash is detected and then ignored');
+});
+
+test('renaming an orphan adopts it rather than leaving it unnameable', () => {
+  // groupByKit keeps orphans on purpose. Without this branch a kit whose
+  // definition was deleted can never be named again — the jobs are stuck.
+  const at = logs.indexOf('async function renameKit(');
+  const body = logs.slice(at, logs.indexOf('\n}', at));
+  assert.match(body, /else settings\.kits = kits\.concat\(\[\{ id: kitId, name: clean \}\]\)/,
+    'an orphan rename writes nothing, so the name is silently discarded');
+});
+
+test('rename is wired on both surfaces, and delegated in the log', () => {
+  assert.match(logs, /data-kit-rename=/, 'no rename control on the log strip');
+  assert.match(wire, /data-kit-rename\]'\)\?\.dataset\?\.kitRename/, 'the log rename is not handled');
+  const api = logs.slice(logs.indexOf('const api = {'), logs.indexOf('const api = {') + 1700);
+  assert.match(api, /\brenameKit,/, 'renameKit is not exported — a dead button');
+  assert.match(brHome, /data-kit-rename/, 'no rename control on the Bed Ready card');
+});
+
+test('the rename strings are translated everywhere', () => {
+  for (const code of ['en', 'ar', 'de', 'es', 'fr', 'ja', 'pt-BR', 'tr', 'zh']) {
+    const loc = read(`renderer/locales/${code}.js`);
+    for (const k of ['kit.rename', 'kit.rename_prompt', 'kit.renamed', 'kit.name_taken']) {
+      assert.ok(loc.includes(`"${k}":`), `${code} is missing ${k}`);
+    }
+    const line = loc.split('\n').find((l) => l.includes('"kit.name_taken"'));
+    assert.ok(line.includes('{name}'), `${code}'s kit.name_taken dropped {name}`);
+  }
+});
