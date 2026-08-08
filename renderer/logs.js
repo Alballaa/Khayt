@@ -176,6 +176,7 @@ function renderLogs() {
       th.appendChild(span);
     }
   });
+  renderKitStrip();
   const filtered = getFilteredLogs();
 
   // Reset display limit when any filter or sort criterion changes
@@ -205,6 +206,12 @@ function renderLogs() {
     const logOperator = log.operatorId ? operators.find(o => o.id === log.operatorId) : null;
     const logSplitBadge = log.splitInto && log.splitInto.length > 0 ? `<span class="split-badge">🔀 ${escapeHtml(t('ord.split_badge', { n: log.splitInto.length }))}</span>` : '';
     const logSubBadge = log.parentOrderId ? `<span class="sub-order-badge">↳ ${escapeHtml(t('ord.sub_order'))} #${escapeHtml(log.parentOrderId)}</span>` : '';
+    const kitOf = log.kitId ? (settings.kits || []).find((k) => k.id === log.kitId) : null;
+    // Shown even when the definition is gone, so a job never looks unfiled when
+    // it is not — matching groupByKit()'s own orphan handling.
+    const logKitBadge = log.kitId
+      ? `<span class="split-badge" title="${escapeHtml(t('kit.badge_title') || 'Part of a kit')}">🧩 ${escapeHtml(kitOf ? kitOf.name : (t('kit.orphaned') || 'kit deleted'))}</span>`
+      : '';
     // Profit margin estimation
     const partsCost = (log.parts || []).reduce((s, p) => s + (+p.baseCost || 0), 0);
     const netRevenue = orderNetRevenue(log);
@@ -218,7 +225,7 @@ function renderLogs() {
       <td style="width:32px;padding:8px 6px;"><input type="checkbox" class="log-sel" data-id="${log.id}" style="width:auto;" ${isSel ? 'checked' : ''}></td>
       <td style="font-family: var(--font-num); font-size: 12px; color: var(--text-dim); white-space:nowrap;">${escapeHtml(log.date)}</td>
       <td>
-        ${getPriorityLevel(log) !== 'normal' ? priorityBadgeHtml(log) + ' ' : ''}<strong>${escapeHtml(log.project)}</strong>${log.dueDate && log.status !== 'completed' ? ' ' + formatDueDateBadge(log.dueDate) : ''}${logSplitBadge}${logSubBadge}
+        ${getPriorityLevel(log) !== 'normal' ? priorityBadgeHtml(log) + ' ' : ''}<strong>${escapeHtml(log.project)}</strong>${log.dueDate && log.status !== 'completed' ? ' ' + formatDueDateBadge(log.dueDate) : ''}${logSplitBadge}${logSubBadge}${logKitBadge}
         ${logOperator ? `<span class="operator-badge">👤 ${escapeHtml(logOperator.name)}</span>` : ''}
         ${(log.tags && log.tags.length > 0) ? `<div style="margin-top:3px;">${renderTagChips(log.tags, true)}</div>` : ''}
         <div style="font-family: var(--font-num); font-size: 11.5px; color: var(--text-muted);">${escapeHtml(log.id)}${photoCount ? ` · ${photoCount}📷` : ''}${fileCount ? ` · ${fileCount}📎` : ''}${log.notes ? ' · 📝' : ''}</div>
@@ -477,6 +484,102 @@ async function batchAssignMachine() {
   toast(`🖨 ${ids.length} ${t('batch.orders') || 'order(s)'} ${t('batch.assigned_to') || 'assigned to'} ${machine?.name || machineId}`, 'success');
 }
 
+/**
+ * Put the selected orders into a kit — several printed jobs that are one object.
+ *
+ * The batch bar is the right home for this: a kit is defined by selecting the
+ * jobs that make it up, which is exactly what the checkboxes already do.
+ *
+ * Kits group ACROSS orders rather than merging them, because actuals live on the
+ * order and merging would replace four measured numbers with one. See
+ * lib/print-kits.js.
+ */
+async function batchAddToKit() {
+  const ids = [...selectedOrders];
+  if (ids.length === 0) return;
+  if (!Array.isArray(settings.kits)) settings.kits = [];
+  const existing = settings.kits.map((k) => k.name).filter(Boolean);
+  // Existing kit names offered in the message, so a second "Dragon" is a choice
+  // rather than a typo. prompt() is what renderer/analytics.js already uses to
+  // name a thing; this does not invent a modal for one field.
+  const known = existing.length ? `\n\n${t('kit.existing') || 'Existing kits'}: ${existing.join(', ')}` : '';
+  const name = prompt((t('kit.name_prompt') || 'Kit name — these jobs are one object') + known,
+    printLog.find((o) => o.id === ids[0])?.project || '');
+  const clean = String(name || '').trim();
+  if (!clean) return;                       // cancelled, or nothing typed
+
+  // Reuse a kit of the same name rather than minting a second one with the same
+  // label — two kits called "Dragon" is a rollup split in half for no reason.
+  let kit = settings.kits.find((k) => String(k.name).trim().toLowerCase() === clean.toLowerCase());
+  if (!kit) {
+    kit = { id: 'KIT-' + Math.random().toString(36).slice(2, 11), name: clean };
+    settings.kits.push(kit);
+  }
+  for (const id of ids) {
+    const o = printLog.find((x) => x.id === id);
+    if (o) o.kitId = kit.id;
+  }
+  selectedOrders.clear();
+  saveAll();
+  renderBatchBar();
+  renderLogs();
+  toast(`🧩 ${ids.length} ${t('batch.orders') || 'order(s)'} → ${clean}`, 'success');
+}
+
+/**
+ * The kit rollup strip above the log table.
+ *
+ * Every total is shown with the count of jobs behind it. A build total that
+ * silently omits an unmeasured job is the one bug lib/print-kits.js exists to
+ * prevent, and hiding the count here would reintroduce it at the last step.
+ */
+function renderKitStrip() {
+  const el = $('#kitStrip');
+  if (!el || typeof KhaytPrintKits === 'undefined') return;
+  const { kits } = KhaytPrintKits.groupByKit(printLog, settings.kits || []);
+  if (!kits.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  el.style.display = '';
+  el.innerHTML = kits.map((k) => {
+    const r = k.rollup;
+    const acc = k.accuracy;
+    // "3 of 4 measured" only when it is not all of them — noise otherwise.
+    const partial = r.measuredTime < r.jobs
+      ? ` <span style="color:var(--warning);">(${r.measuredTime}/${r.jobs} ${escapeHtml(t('kit.measured') || 'measured')})</span>`
+      : '';
+    const money = r.mixedCurrency
+      ? `<span style="color:var(--warning);">${escapeHtml(t('kit.mixed_currency') || 'mixed currencies')}</span>`
+      : `${fmtMoney(r.cost)}`;
+    const delta = acc && acc.time !== null
+      ? `<span style="color:var(--text-muted);">· ${acc.time > 0 ? '+' : ''}${acc.time}% ${escapeHtml(t('kit.vs_estimate') || 'vs estimate')}</span>`
+      : '';
+    return `<div class="card" style="padding:8px 11px;margin-bottom:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <strong>🧩 ${escapeHtml(k.name)}</strong>
+      ${k.orphaned ? `<span style="font-size:11px;color:var(--warning);">${escapeHtml(t('kit.orphaned') || 'kit deleted')}</span>` : ''}
+      <span style="font-size:12px;color:var(--text-dim);">${r.jobs} ${escapeHtml(t('kit.jobs') || 'jobs')}${partial}</span>
+      <span style="font-size:12px;font-family:var(--font-num);">${r.actualHours} ${escapeHtml(t('common.hours'))} · ${r.actualGrams} g · ${money}</span>
+      ${delta}
+      <span style="flex:1;"></span>
+      <button class="btn ghost small" data-kit-clear="${escapeHtml(k.id)}">${escapeHtml(t('kit.disband') || 'Disband')}</button>
+    </div>`;
+  }).join('');
+}
+
+/** Take every job out of a kit and forget the kit. The jobs are untouched. */
+async function disbandKit(kitId) {
+  const kit = (settings.kits || []).find((k) => k.id === kitId);
+  const ok = await confirmModal(
+    (t('kit.disband_confirm') || 'Take these jobs out of {name}? The prints themselves are not touched.')
+      .replace('{name}', kit?.name || kitId),
+    { danger: false },
+  );
+  if (!ok) return;
+  for (const o of printLog) if (o.kitId === kitId) delete o.kitId;
+  settings.kits = (settings.kits || []).filter((k) => k.id !== kitId);
+  saveAll();
+  renderLogs();
+  toast(t('kit.disbanded') || 'Kit disbanded', 'success');
+}
+
 async function batchArchiveOrders() {
   const ids = [...selectedOrders];
   if (ids.length === 0) return;
@@ -530,6 +633,9 @@ function exportOrdersCsv() {
     batchMoveStatus,
     batchAssignMachine,
     batchArchiveOrders,
+    batchAddToKit,
+    renderKitStrip,
+    disbandKit,
     exportOrdersCsv,
   };
 

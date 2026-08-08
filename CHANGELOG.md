@@ -4,6 +4,21 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **Kits — several prints that are one object.** A figure printed as a head, a
+  body and two legs is four separate jobs in your log, and until now nothing said
+  they belonged together, so "what did that actually cost me" meant adding four
+  rows up by hand. Tick those jobs in the orders list and choose **Add to kit**;
+  a strip above the table then shows the whole thing — jobs, measured hours,
+  grams and cost, and how far the total ran from the slicer's estimate. The jobs
+  stay separate underneath, because each one's own measurement is what your
+  estimates learn from; a kit only adds them up. If some jobs in a kit were never
+  measured, the total says so rather than quietly leaving them out, and a kit
+  spanning two currencies refuses to add them. **Disband** takes the jobs back
+  out and leaves the prints untouched.
+
+
 ### Security
 
 - **Khayt no longer has any way to read a message thread without proving the

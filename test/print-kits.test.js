@@ -14,7 +14,7 @@
  */
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { groupByBuild, rollup, accuracy, isComplete } = require('../lib/print-builds.js');
+const { groupByKit, rollup, accuracy, isComplete } = require('../lib/print-kits.js');
 
 /** A print-log entry, in the store's real shape, with only what matters here. */
 const job = (o = {}) => ({
@@ -27,14 +27,14 @@ const job = (o = {}) => ({
   actualWeight: 'actualWeight' in o ? o.actualWeight : 100,
   costBasis: 'costBasis' in o ? o.costBasis : 7.5,
   parts: 'parts' in o ? o.parts : [{ printWeight: 101 }],
-  buildId: o.buildId,
+  kitId: o.kitId,
 });
 
 // ------------------------------------------------------------------ totalling
 
 test('a job that was never measured does not silently count as zero', () => {
   // The bug this exists for: summing actualPrintTime over [9, null] gives 9,
-  // which reads as the build's total and is missing a whole job.
+  // which reads as the kit's total and is missing a whole job.
   const r = rollup([job({ actualPrintTime: 9 }), job({ actualPrintTime: null, actualWeight: null })]);
   assert.equal(r.jobs, 2);
   assert.equal(r.actualHours, 9);
@@ -51,7 +51,7 @@ test('the estimate still covers the unmeasured job', () => {
   assert.equal(r.measuredTime, 1);
 });
 
-test('a cancelled or in-flight job is not part of the build total', () => {
+test('a cancelled or in-flight job is not part of the kit total', () => {
   // An in-flight rate is not the job's rate, and a cancelled job's filament is
   // waste rather than part of the object.
   const r = rollup([
@@ -83,7 +83,7 @@ test('one currency totals normally and is named', () => {
   assert.equal(r.costed, 2);
 });
 
-test('an empty build totals to nothing, not to NaN', () => {
+test('an empty kit totals to nothing, not to NaN', () => {
   const r = rollup([]);
   assert.equal(r.jobs, 0);
   assert.equal(r.actualHours, 0);
@@ -102,13 +102,13 @@ test('rounding happens at the edge, not per job', () => {
 
 // ------------------------------------------------------------------ accuracy
 
-test('no build-level delta unless every job was measured', () => {
-  // Three of four measured is a real per-job story and NO build-level number:
+test('no kit-level delta unless every job was measured', () => {
+  // Three of four measured is a real per-job story and NO kit-level number:
   // the estimate covers four jobs, the actual covers three.
   const partly = rollup([job(), job(), job(), job({ actualPrintTime: null })]);
   assert.equal(accuracy(partly), null, 'a delta was computed across mismatched sets');
   const all = rollup([job(), job()]);
-  assert.ok(accuracy(all), 'a fully measured build should produce a delta');
+  assert.ok(accuracy(all), 'a fully measured kit should produce a delta');
 });
 
 test('the delta matches the four real jobs this was built from', () => {
@@ -127,54 +127,54 @@ test('the delta matches the four real jobs this was built from', () => {
   assert.equal(r.cost, 95.5);
   assert.equal(r.currency, 'SAR');
   const a = accuracy(r);
-  // Every one of these four ran under its estimate, so the build must too.
-  assert.ok(a.time < 0, `expected the build to run under estimate, got ${a.time}%`);
+  // Every one of these four ran under its estimate, so the kit must too.
+  assert.ok(a.time < 0, `expected the kit to run under estimate, got ${a.time}%`);
   assert.ok(Math.abs(a.time) > 3 && Math.abs(a.time) < 6, `time delta out of the observed band: ${a.time}%`);
   assert.ok(Math.abs(a.weight) < 0.1, `weight should land within 0.1%, got ${a.weight}%`);
 });
 
 // ------------------------------------------------------------------ grouping
 
-test('jobs group by buildId and keep their order', () => {
-  const { builds, ungrouped } = groupByBuild(
-    [job({ id: 'A', buildId: 'B1' }), job({ id: 'B' }), job({ id: 'C', buildId: 'B1' })],
+test('jobs group by kitId and keep their order', () => {
+  const { kits, ungrouped } = groupByKit(
+    [job({ id: 'A', kitId: 'B1' }), job({ id: 'B' }), job({ id: 'C', kitId: 'B1' })],
     [{ id: 'B1', name: 'Figure' }],
   );
-  assert.equal(builds.length, 1);
-  assert.equal(builds[0].name, 'Figure');
-  assert.deepEqual(builds[0].entries.map((e) => e.id), ['A', 'C']);
+  assert.equal(kits.length, 1);
+  assert.equal(kits[0].name, 'Figure');
+  assert.deepEqual(kits[0].entries.map((e) => e.id), ['A', 'C']);
   assert.deepEqual(ungrouped.map((e) => e.id), ['B']);
 });
 
-test('a build whose definition is gone keeps its history on screen', () => {
+test('a kit whose definition is gone keeps its history on screen', () => {
   // Deleting a definition must not take the work with it, and must not show a
   // raw id — that reads as corruption to whoever is looking at it.
-  const { builds } = groupByBuild([job({ buildId: 'B9', project: 'Dragon head' })], []);
-  assert.equal(builds.length, 1);
-  assert.equal(builds[0].orphaned, true);
-  assert.equal(builds[0].name, 'Dragon head', 'an orphan showed its id instead of a name');
-  assert.equal(builds[0].rollup.jobs, 1);
+  const { kits } = groupByKit([job({ kitId: 'B9', project: 'Dragon head' })], []);
+  assert.equal(kits.length, 1);
+  assert.equal(kits[0].orphaned, true);
+  assert.equal(kits[0].name, 'Dragon head', 'an orphan showed its id instead of a name');
+  assert.equal(kits[0].rollup.jobs, 1);
 });
 
-test('blank and missing buildIds are not a build called ""', () => {
-  const { builds, ungrouped } = groupByBuild(
-    [job({ buildId: '' }), job({ buildId: '   ' }), job({ buildId: null }), job({})], [],
+test('blank and missing kitIds are not a kit called ""', () => {
+  const { kits, ungrouped } = groupByKit(
+    [job({ kitId: '' }), job({ kitId: '   ' }), job({ kitId: null }), job({})], [],
   );
-  assert.equal(builds.length, 0);
+  assert.equal(kits.length, 0);
   assert.equal(ungrouped.length, 4);
 });
 
 test('nothing in, nothing out — and no throw on junk', () => {
-  assert.deepEqual(groupByBuild(null, null), { builds: [], ungrouped: [] });
-  assert.deepEqual(groupByBuild([null, undefined], []).ungrouped, []);
+  assert.deepEqual(groupByKit(null, null), { kits: [], ungrouped: [] });
+  assert.deepEqual(groupByKit([null, undefined], []).ungrouped, []);
 });
 
-test('a build is complete only when every job in it is measured', () => {
-  const { builds } = groupByBuild(
-    [job({ buildId: 'B' }), job({ buildId: 'B', actualWeight: null })],
+test('a kit is complete only when every job in it is measured', () => {
+  const { kits } = groupByKit(
+    [job({ kitId: 'B' }), job({ kitId: 'B', actualWeight: null })],
     [{ id: 'B', name: 'X' }],
   );
-  assert.equal(isComplete(builds[0]), false, 'an unmeasured weight still read as complete');
-  const { builds: b2 } = groupByBuild([job({ buildId: 'B' })], [{ id: 'B', name: 'X' }]);
-  assert.equal(isComplete(b2[0]), true);
+  assert.equal(isComplete(kits[0]), false, 'an unmeasured weight still read as complete');
+  const { kits: k2 } = groupByKit([job({ kitId: 'B' })], [{ id: 'B', name: 'X' }]);
+  assert.equal(isComplete(k2[0]), true);
 });

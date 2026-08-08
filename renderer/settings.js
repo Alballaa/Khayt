@@ -3945,6 +3945,10 @@ function saveSettingsFromForm() {
     // Written by the folder pickers, not by a field the shop can mistype — a
     // path typed by hand is a path that silently does not exist.
     printLibrary:  settings.printLibrary || {},
+    // Same reason as printLibrary above: kits are written by the log's batch bar,
+    // not by any field on this page, so rebuilding settings from the form would
+    // drop them — silently, on the next unrelated Settings save.
+    kits:          settings.kits || [],
     coachTips:     $('#set_coachTips') ? $('#set_coachTips').checked : (settings.coachTips !== false),
     enableVat:     $('#set_enableVat').checked,
     vatRate:       Math.max(0, num($('#set_vatRate').value, 15)),
