@@ -170,6 +170,106 @@ async function main() {
   assert('the adapter picker is Pro-only, as the docs now say', printers.proGated === true && printers.selectVisible === false);
   assert('network scan — the maker route to a printer — is reachable', printers.scanReachable === true);
 
+  // Kits in Bed Ready. Khayt builds them from the orders list's batch bar, which
+  // this app does not ship (no logs-tab at all), so the home carries the tray.
+  //
+  // Asserted in the running app because the failure mode here is a ReferenceError
+  // inside a string-building function: `esc` is not file-scoped in
+  // bedready-home.js and `tr` does not exist in it, so a helper assumed rather
+  // than declared takes the whole home down. A source grep cannot see that; the
+  // pageerror assertion further down and this render check can.
+  console.log('\n[kits reach the maker app]');
+  const kits = await window.evaluate(async () => {
+    window.KhaytShell.switchTab('dashboard-tab');
+    await new Promise((r) => setTimeout(r, 200));
+    const out = { libLoaded: typeof KhaytPrintKits !== 'undefined', card: false, tray: false, rendered: false };
+    if (!out.libLoaded) return out;
+    // Two completed prints with no kit is what the tray needs to appear.
+    if (typeof printLog !== 'undefined' && Array.isArray(printLog)) {
+      printLog.length = 0;
+      printLog.push(
+        { id: 'ORD-A', project: 'Head', status: 'completed', currency: 'SAR', printTime: 2, actualPrintTime: 1.9, actualWeight: 20, costBasis: 1, parts: [{ printWeight: 20 }] },
+        { id: 'ORD-B', project: 'Body', status: 'completed', currency: 'SAR', printTime: 3, actualPrintTime: 2.9, actualWeight: 30, costBasis: 2, parts: [{ printWeight: 30 }] },
+      );
+    }
+    if (typeof renderDashboard === 'function') renderDashboard();
+    await new Promise((r) => setTimeout(r, 250));
+    out.rendered = true;
+    out.tray = !!document.querySelector('.br-kit-pick');
+    out.card = !!document.querySelector('[data-kit-add]');
+    return out;
+  });
+  assert('lib/print-kits.js is loaded in the Bed Ready shell', kits.libLoaded === true);
+  assert('the home offers unfiled prints to group', kits.tray === true);
+  assert('the home has a way to create the kit', kits.card === true);
+
+  // Rendering is not working. The first version of this asserted only that the
+  // tray appeared, and five mutations survived it — an unwired button, a disband
+  // that deleted prints, duplicate kits, and a hidden measured count all passed.
+  // So the tray is actually driven here.
+  const acted = await window.evaluate(async () => {
+    // Re-render first: the home self-heals on a timer, and the previous block's
+    // DOM may already have been replaced.
+    if (typeof renderDashboard === 'function') renderDashboard();
+    await new Promise((r) => setTimeout(r, 300));
+    const pick = () => [...document.querySelectorAll('.br-kit-pick')];
+    if (!document.querySelector('#brKitName')) {
+      return { diag: true,
+        picks: pick().length,
+        addBtn: !!document.querySelector('[data-kit-add]'),
+        logLen: (typeof printLog !== 'undefined' ? printLog.length : -1),
+        completedUnfiled: (typeof printLog !== 'undefined'
+          ? printLog.filter((o) => o.status === 'completed' && !o.kitId).length : -1),
+        cardHtml: (document.querySelector('.br-card')?.outerHTML || '(no .br-card)').slice(0, 200) };
+    }
+    pick().forEach((c) => { c.checked = true; });
+    document.querySelector('#brKitName').value = 'Figure';
+    document.querySelector('[data-kit-add]').click();
+    await new Promise((r) => setTimeout(r, 300));
+    const out = {};
+    out.kitsDefined = (settings.kits || []).length;
+    out.jobsFiled = printLog.filter((o) => o.kitId).length;
+    out.rowShown = !!document.querySelector('[data-kit-disband]');
+    out.rowText = (document.querySelector('.br-kit-row')?.textContent || '').replace(/\s+/g, ' ').trim();
+
+    // Same name again must reuse the kit, not split the rollup across two.
+    printLog.push({ id: 'ORD-C', project: 'Legs', status: 'completed', currency: 'SAR',
+      printTime: 1, actualPrintTime: 0.9, actualWeight: 10, costBasis: 1, parts: [{ printWeight: 10 }] });
+    renderDashboard();
+    await new Promise((r) => setTimeout(r, 250));
+    pick().forEach((c) => { c.checked = true; });
+    document.querySelector('#brKitName').value = 'figure';        // different case, same kit
+    document.querySelector('[data-kit-add]').click();
+    await new Promise((r) => setTimeout(r, 300));
+    out.kitsAfterDup = (settings.kits || []).length;
+
+    // A partly-measured kit must say so rather than showing a confident total.
+    printLog.push({ id: 'ORD-D', project: 'Base', status: 'completed', currency: 'SAR',
+      printTime: 1, actualPrintTime: null, actualWeight: null, costBasis: 1, parts: [{ printWeight: 10 }],
+      kitId: (settings.kits[0] || {}).id });
+    renderDashboard();
+    await new Promise((r) => setTimeout(r, 250));
+    out.partialText = (document.querySelector('.br-kit-row')?.textContent || '').replace(/\s+/g, ' ').trim();
+
+    // Disband unfiles the jobs and must not remove a single print.
+    const before = printLog.length;
+    document.querySelector('[data-kit-disband]').click();
+    await new Promise((r) => setTimeout(r, 300));
+    out.printsAfterDisband = printLog.length;
+    out.printsBefore = before;
+    out.stillFiled = printLog.filter((o) => o.kitId).length;
+    out.kitsAfterDisband = (settings.kits || []).length;
+    return out;
+  });
+  assert(`creating a kit files the ticked jobs (${acted.jobsFiled} filed)`,
+    acted.kitsDefined === 1 && acted.jobsFiled === 2);
+  assert(`the kit's rollup row renders (${acted.rowText.slice(0, 60)})`, acted.rowShown === true);
+  assert(`the same name twice reuses one kit (${acted.kitsAfterDup} defined)`, acted.kitsAfterDup === 1);
+  assert(`a partly-measured kit says so (${acted.partialText.slice(0, 70)})`, /\/\s*\d/.test(acted.partialText));
+  assert(`disband removes no prints (${acted.printsBefore} -> ${acted.printsAfterDisband})`,
+    acted.printsAfterDisband === acted.printsBefore);
+  assert('disband unfiles every job', acted.stillFiled === 0 && acted.kitsAfterDisband === 0);
+
   console.log('\n[no visible business navigation]');
   const bizNavVisible = await window.evaluate(() => {
     const bizButtons = [...document.querySelectorAll('.tab-btn.biz-only, .nav-group.biz-only')];
