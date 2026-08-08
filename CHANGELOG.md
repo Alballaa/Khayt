@@ -6,6 +6,16 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Drop a .zip straight into your print files.** Model packs arrive as archives
+  — a Drive download, a Patreon bundle — and Khayt could not open one: you had to
+  unzip it yourself, into a folder, and drag the files in one at a time. Now the
+  archive goes in and every STL, 3MF, OBJ or G-code inside becomes its own entry,
+  exactly as if you had done that by hand. Anything else in the pack — the
+  README, the licence, the render — is left alone and counted, so you know what
+  was in there. Two files with the same name in different folders both arrive
+  rather than one quietly replacing the other. And if a pack is too large to take
+  in one go, Khayt says so instead of importing part of it and looking finished.
+
 - **Rename a kit.** Kits could be created and disbanded but never renamed, so a
   name you regretted meant taking the whole thing apart and rebuilding it.
   **Rename** sits beside **Disband** in both apps. A name another kit already has

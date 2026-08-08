@@ -686,8 +686,34 @@
   // main-process handler rejects (non-print extensions).
   async function addDroppedFiles(paths) {
     const hub = api(); if (!hub || !hub.printLibCopyPath) return;
-    let added = 0, bad = 0;
+    let added = 0, bad = 0, skipped = 0, truncated = false;
     for (const p of paths) {
+      // A .zip is a pack of models, not a model. It is unpacked to a temp
+      // folder and each file then goes through the ORDINARY intake below, so a
+      // six-part pack becomes six records exactly as if they had been unzipped
+      // and dropped — and there is still only one path that ingests a file.
+      if (/\.zip$/i.test(String(p)) && hub.printLibUnpackZip) {
+        let z;
+        try { z = await hub.printLibUnpackZip(p); } catch (_) { z = null; }
+        if (!z || !z.ok) {
+          bad++;
+          if (z && z.empty) toast(z.error || (t('plib.zip_empty') || 'No print files in that archive.'), 'error');
+          continue;
+        }
+        for (const f of z.files) {
+          const zid = uid('PF');
+          let zr;
+          try { zr = await hub.printLibCopyPath(zid, f.path); } catch (_) { zr = null; }
+          if (!zr || !zr.ok) { skipped++; continue; }
+          ingestPicked(zid, zr);
+          added++;
+        }
+        skipped += (z.skipped || []).length + (z.failed || []).length;
+        truncated = truncated || !!z.truncated;
+        // The temp folder is ours; leaving it behind grows without bound.
+        if (hub.printLibUnpackCleanup) { try { await hub.printLibUnpackCleanup(z.dir); } catch (_) { /* best effort */ } }
+        continue;
+      }
       const id = uid('PF');
       let r;
       try { r = await hub.printLibCopyPath(id, p); } catch (_) { bad++; continue; }
@@ -697,6 +723,10 @@
     }
     if (added) toast(added === 1 ? (t('plib.added') || 'File added') : `${added} ${t('plib.files_added') || 'files added'}`, 'success');
     else if (bad) toast(t('plib.drop_bad') || 'Drop STL, 3MF, OBJ or G-code files.', 'error');
+    // Said out loud rather than folded into the success count: an archive that
+    // was partly ignored must not read as "all of it came in".
+    if (truncated) toast(t('plib.zip_truncated') || 'The archive was too large — not every file was imported.', 'error');
+    else if (added && skipped) toast(`${skipped} ${t('plib.zip_skipped') || 'other files in the archive were skipped'}`, 'info');
   }
 
   // Bind drag-and-drop once to the (persistent) tab element; renderPrintFiles only swaps its innerHTML.

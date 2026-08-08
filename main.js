@@ -1460,6 +1460,8 @@ ipcMain.handle('hub:delete-vault-file', async (_e, fullPath) => {
 // root; nothing here touches the network (offline contract).
 const PLL = require('./lib/print-library-location');
 const PLM = require('./lib/print-library-migrate');
+const ZIPR = require('./lib/zip-read');
+const ZIPI = require('./lib/zip-intake');
 const S3C = require('./lib/s3-client');
 
 /** The built-in vault — where the library lived when it could only live here. */
@@ -1801,7 +1803,7 @@ ipcMain.handle('hub:printlib-pick-and-copy', async (event, id) => {
   const result = await dialog.showOpenDialog(win, {
     title: 'Add print file',
     filters: [
-      { name: '3D Print Files', extensions: ['stl', '3mf', 'obj', 'gcode', 'gco'] },
+      { name: '3D Print Files', extensions: ['stl', '3mf', 'obj', 'gcode', 'gco', 'zip'] },
       { name: 'All Files', extensions: ['*'] },
     ],
     properties: ['openFile'],
@@ -1830,7 +1832,7 @@ ipcMain.handle('hub:printlib-pick-multi', async (event) => {
   const result = await dialog.showOpenDialog(win, {
     title: 'Add print files',
     filters: [
-      { name: '3D Print Files', extensions: ['stl', '3mf', 'obj', 'gcode', 'gco'] },
+      { name: '3D Print Files', extensions: ['stl', '3mf', 'obj', 'gcode', 'gco', 'zip'] },
       { name: 'All Files', extensions: ['*'] },
     ],
     properties: ['openFile', 'multiSelections'],
@@ -1863,6 +1865,81 @@ ipcMain.handle('hub:printlib-copy-path', async (_e, { id, srcPath } = {}) => {
     const mirrored = await printLibMirrorFile(id, filename, destPath);
     return { ok: true, filename, originalName, size: stat.size, ext, fullPath: destPath, contentHash, mirrored };
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
+/**
+ * Unpack the print files from a .zip into a temp folder.
+ *
+ * Model packs arrive as archives — a Drive download, a Patreon bundle — and
+ * every file had to be unzipped by hand and dragged in one at a time.
+ *
+ * This does NOT create records. It extracts, and the renderer then feeds each
+ * file through hub:printlib-copy-path — the ordinary single-file intake, which
+ * already hashes, names, mirrors and makes a record. So a six-part pack becomes
+ * six records exactly as if they had been unzipped and dropped, which is the
+ * hand work this removes, and there is still only one path that ingests a file.
+ *
+ * The first version of this wrote every member into ONE record's folder while
+ * the renderer minted a record per file — leaving records 2..n pointing at files
+ * inside record 1's directory, where deleting record 1 would take them.
+ *
+ * Two things it must not get wrong:
+ *
+ *   The name on disk comes from the PLAN, never from the zip member. That is the
+ *   zip-slip defence — lib/zip-intake.js returns a basename with nothing left to
+ *   traverse with, so path.join below cannot escape the temp folder.
+ *
+ *   Everything not extracted is reported. A budget or filter that drops files
+ *   silently is the bug lib/mf-convert.js shipped once.
+ */
+ipcMain.handle('hub:printlib-unpack-zip', async (_e, { srcPath } = {}) => {
+  try {
+    const src = path.resolve(String(srcPath || ''));
+    if (!src || !fs.existsSync(src) || !fs.statSync(src).isFile()) return { ok: false, error: 'File not found.' };
+    if (!/\.zip$/i.test(src)) return { ok: false, error: 'Not a zip archive.' };
+
+    requirePrintLib();                                  // refuse before reading a large file
+    const buf = await fs.promises.readFile(src);
+    const entries = ZIPR.listEntries(buf);              // never throws; [] on junk
+    const plan = ZIPI.plan(entries);
+    if (ZIPI.summarize(plan).empty) {
+      return { ok: false, empty: true, skipped: plan.skipped,
+        error: 'No STL, 3MF, OBJ or G-code files in that archive.' };
+    }
+
+    const os = require('os');   // not module-scoped in this file; see the requires at the top
+    const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'khayt-zip-'));
+    const files = [];
+    const failed = [];
+    for (const t of plan.take) {
+      let bytes = null;
+      try { bytes = ZIPR.readEntry(buf, t.entry); } catch (_) { bytes = null; }
+      // null for an unsupported method (zip64, encrypted) or a member over its
+      // own cap. Named, not swallowed.
+      if (!bytes) { failed.push(t.from); continue; }
+      try {
+        // t.name, NOT t.from — the plan's basename is the zip-slip defence.
+        const dest = path.join(dir, t.name);
+        await fs.promises.writeFile(dest, bytes);
+        files.push({ path: dest, name: t.name, from: t.from });
+      } catch (_) { failed.push(t.from); }
+    }
+    return { ok: files.length > 0, dir, files, failed,
+      skipped: plan.skipped, truncated: plan.truncated };
+  } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
+});
+
+/** Remove a folder made by hub:printlib-unpack-zip, once its files are in. */
+ipcMain.handle('hub:printlib-unpack-cleanup', async (_e, dir) => {
+  try {
+    const os = require('os');
+    const safe = path.resolve(String(dir || ''));
+    // Confined to our own temp prefix: this deletes recursively, so it must be
+    // impossible to point at anything else.
+    if (!safe.startsWith(path.join(os.tmpdir(), 'khayt-zip-'))) return false;
+    await fs.promises.rm(safe, { recursive: true, force: true });
+    return true;
+  } catch (_) { return false; }
 });
 
 ipcMain.handle('hub:printlib-list', async (_e, id) => {
