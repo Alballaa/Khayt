@@ -721,9 +721,11 @@
             <option value="">— Assign machine —</option>
           </select>
           <button class="btn small" id="btnBatchAssignMachine" data-i18n="batch.assign_machine">Assign</button>
+          <button class="btn small" id="btnBatchKit" data-i18n="kit.add_to">🧩 Add to kit…</button>
           <button class="btn small ghost" id="btnBatchArchive" data-i18n="batch.archive">📦 Archive</button>
           <button class="btn ghost small" id="btnBatchClear" data-i18n="batch.clear_sel">Clear</button>
         </div>
+        <div id="kitStrip" style="display:none;margin-bottom:12px;"></div>
         <div class="toolbar" style="margin-bottom: 14px;">
           <h3 class="card-head" style="margin: 0;"><span class="swatch"></span><span data-i18n="log.title">Orders Database</span></h3>
           <span style="flex:1;"></span>
@@ -2479,6 +2481,7 @@
 <script src="app-security.js"></script>
 <script src="search-utils.js"></script>
 <script src="../lib/queue-groups.js"></script>
+<script src="../lib/print-kits.js"></script>
 <script src="../lib/attention.js"></script>
 <script src="../lib/quote-followup.js"></script>
 <script src="../lib/payment-reminder.js"></script>

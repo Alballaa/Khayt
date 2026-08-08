@@ -131,6 +131,13 @@ function wireEvents() {
   // Batch status move
   $('#btnBatchMove')?.addEventListener('click', batchMoveStatus);
   $('#btnBatchAssignMachine')?.addEventListener('click', batchAssignMachine);
+  $('#btnBatchKit')?.addEventListener('click', () => { if (typeof batchAddToKit === 'function') batchAddToKit(); });
+  // Delegated: the strip is re-rendered on every renderLogs(), so a listener
+  // bound to today's buttons would be lost on the next draw.
+  $('#kitStrip')?.addEventListener('click', (e) => {
+    const id = e.target?.closest?.('[data-kit-clear]')?.dataset?.kitClear;
+    if (id && typeof disbandKit === 'function') disbandKit(id);
+  });
   $('#btnBatchArchive')?.addEventListener('click', batchArchiveOrders);
   $('#showArchivedToggle')?.addEventListener('change', e => {
     showArchivedOrders = e.target.checked;
