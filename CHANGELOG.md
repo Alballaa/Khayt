@@ -4,6 +4,18 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **A planned BedReady maintenance window no longer looks like a broken sync.**
+  While BedReady applies a database migration it closes every endpoint and says
+  so, with how long to wait. Khayt reported that as "Library fetch failed (HTTP
+  503)" — telling you your library sync was broken during a window in which
+  nothing was broken and nothing was half-written. It now says BedReady is
+  briefly unavailable and roughly how long, and your BedReady sign-in survives it
+  rather than looking expired. A server that is genuinely misconfigured still
+  reports as a failure, because that one will not fix itself by waiting.
+
+
 ## [3.6.0-beta.14] - 2026-08-09
 
 ### Added
