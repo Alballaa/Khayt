@@ -68,6 +68,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   and is recorded as general spend rather than as filament, so it no longer
   distorts the material cost that pricing is built on.
 
+### Changed
+
+- **Khayt now runs on Electron 42.8.1**, up from 42.2.0 — six patch releases
+  inside the same major, so it carries upstream's Chromium and Node security and
+  stability fixes without a behaviour change of its own. Nothing in the app was
+  altered to accommodate it.
+
 ## [3.6.0-beta.15] - 2026-08-09
 
 ### Fixed

@@ -98,7 +98,7 @@
     "@fontsource/plus-jakarta-sans": "^5.2.8",
     "@fontsource/space-grotesk": "^5.2.10",
     "@fontsource/spline-sans-mono": "^5.2.8",
-    "electron": "^42.2.0",
+    "electron": "^42.8.1",
     "electron-builder": "^26.15.3",
     "jsdom": "^29.1.1",
     "playwright-core": "^1.60.0"
