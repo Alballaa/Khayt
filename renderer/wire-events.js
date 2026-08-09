@@ -131,6 +131,11 @@ function wireEvents() {
   // Batch status move
   $('#btnBatchMove')?.addEventListener('click', batchMoveStatus);
   $('#btnBatchAssignMachine')?.addEventListener('click', batchAssignMachine);
+  // Consumable category filter. The empty-state's "All" button is handled in
+  // the table's existing delegated click handler below.
+  $('#consCategoryFilter')?.addEventListener('change', (e) => {
+    if (typeof setConsCategoryFilter === 'function') setConsCategoryFilter(e.target.value);
+  });
   $('#btnBatchKit')?.addEventListener('click', () => { if (typeof batchAddToKit === 'function') batchAddToKit(); });
   // Delegated: the strip is re-rendered on every renderLogs(), so a listener
   // bound to today's buttons would be lost on the next draw.
@@ -853,6 +858,12 @@ function wireEvents() {
     if (!btn) return;
     if (btn.dataset.act === 'edit-cons') openConsumableEditor(btn.dataset.id);
     if (btn.dataset.act === 'del-cons')  deleteConsumable(btn.dataset.id);
+    // Here rather than on its own listener: the empty state is re-rendered on
+    // every draw, so this has to be delegated, and one delegated handler per
+    // table is enough.
+    if (btn.dataset.act === 'cons-cat-all' && typeof setConsCategoryFilter === 'function') {
+      setConsCategoryFilter('');
+    }
   });
 
   // Suppliers
