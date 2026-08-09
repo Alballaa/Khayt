@@ -3685,7 +3685,7 @@ function renderPurchaseOrders() {
       <input type="search" id="poSearch" class="search-input" placeholder="${escapeHtml(t('po.search_ph'))}" value="${escapeHtml(poSearchTerm)}" style="max-width:200px;">
       <select id="poStatusSel" style="background:var(--bg-elev);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;">
         <option value=""${poStatusFilter===''?' selected':''}>${escapeHtml(t('common.all'))}</option>
-        <option value="pending"${poStatusFilter==='pending'?' selected':''}>${escapeHtml(t('queue.pending'))}</option>
+        <option value="draft"${poStatusFilter==='draft'?' selected':''}>${escapeHtml(t('po.status.draft'))}</option>
         <option value="ordered"${poStatusFilter==='ordered'?' selected':''}>${escapeHtml(t('po.status.ordered'))}</option>
         <option value="partial"${poStatusFilter==='partial'?' selected':''}>${escapeHtml(t('po.partial'))}</option>
         <option value="received"${poStatusFilter==='received'?' selected':''}>${escapeHtml(t('po.status.received'))}</option>

@@ -27,6 +27,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   raw key instead, and rendered as an unfilled pill because it had no colour of
   its own either. It now reads "Draft" in a muted grey, in every language.
 
+- **The purchase order status filter now lists drafts, and no longer offers a
+  status that does not exist.** The dropdown above the purchase orders had an
+  entry for "Pending" — nothing has ever marked an order pending, so choosing it
+  could only ever empty the table — while **Draft**, far and away the most common
+  status once orders are drafted for you, was missing from it altogether. There
+  was no way to narrow the list down to the orders still waiting to be placed.
+  Pending is gone and Draft takes its place, at the front where the lifecycle
+  starts.
+
 - **The "receive purchase order" dialog no longer asks for a weight in two units.**
   Receiving a consumable order captioned the amount box `Weight received (g) (pcs)`
   — the translated label already ends in "(g)" in eight of the nine languages, so a
