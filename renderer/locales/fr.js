@@ -655,6 +655,7 @@
   "calc.tpl.deleted": "Modèle supprimé",
   "calc.tpl.empty": "Ajoutez des pièces au panier avant d'enregistrer un modèle.",
   "calc.extra_lines": "Frais supplémentaires",
+  "calc.extra_unit": "Type de frais",
   "calc.add_extra_line": "+ Ajouter un frais",
   "calc.add_pp_preset": "+ Post-traitement",
   "calc.extra_label_ph": "ex. Frais de design, Peinture…",

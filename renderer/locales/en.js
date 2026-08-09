@@ -655,6 +655,7 @@
   "calc.tpl.deleted": "Template deleted",
   "calc.tpl.empty": "Add parts to the cart before saving a template.",
   "calc.extra_lines": "Extra charges",
+  "calc.extra_unit": "Fee type",
   "calc.add_extra_line": "+ Add fee",
   "calc.add_pp_preset": "+ Post-process",
   "calc.extra_label_ph": "e.g. Design fee, Painting…",

@@ -8,6 +8,10 @@ let currentBuild = [];
 let currentBuildFromProductId = null;
 let currentClientId = null;
 let currentExtraLines = [];
+// The most recent quote, so renderExtraLines() can show what a % row actually
+// adds without recomputing the base — a second computation is how a breakdown
+// stops agreeing with the total above it. Set by updateGrandTotal().
+let lastQuote = null;
 // Extra material rows for the current part being configured
 let currentExtraMaterials = [];
 // BOM: non-printed components + assembly count carried from a product into the order.
@@ -405,7 +409,6 @@ function updateGrandTotal() {
   }
   const discountPct = biz ? Math.min(100, Math.max(0, num($('#discountPct').value, 0))) : 0;
   const shippingCost = biz ? Math.max(0, num($('#shippingCost')?.value, 0)) : 0;
-  const extraLinesTotal = biz ? currentExtraLines.reduce((s, l) => s + Math.max(0, +l.amount || 0), 0) : 0;
   const rushEnabled = biz && !!$('#calcRushFee')?.checked;
   const rushPct = rushEnabled ? num(settings.rushFeePct, 25) : 0;
   // The maths now lives in lib/pricing.js, so a quote from the phone can reach
@@ -433,6 +436,16 @@ function updateGrandTotal() {
   const subAfterDiscount = _q.subtotal;
   const rushFeeAmt = _q.rushFee;
   const finalPrice = _q.total;
+  lastQuote = _q;
+  // Update the resolved money on percentage rows without touching the inputs:
+  // renderExtraLines() rebuilds them, which would steal focus mid-keystroke.
+  if (typeof KhaytPricing !== 'undefined' && KhaytPricing.resolveExtraLines) {
+    const resolved = KhaytPricing.resolveExtraLines(currentExtraLines, _q.extrasBase || 0);
+    document.querySelectorAll('#extraLinesList .extra-line-row').forEach((row, i) => {
+      const span = row.querySelector('.el-resolved');
+      if (span && resolved[i]) span.textContent = fmtMoney(resolved[i].amount);
+    });
+  }
   const finalEl = $('#finalPrice');
   if (finalEl) {
     if (!finalEl.getAttribute('aria-live')) finalEl.setAttribute('aria-live', 'polite');
@@ -759,17 +772,60 @@ function renderExtraLines() {
   const el = $('#extraLinesList');
   if (!el) return;
   if (currentExtraLines.length === 0) { el.innerHTML = ''; updateGrandTotal(); return; }
-  el.innerHTML = currentExtraLines.map((line, i) => `
+  // A marketplace fee is a percentage; a packaging charge is a number. The unit
+  // picker is per row because a quote routinely needs both at once.
+  //
+  // The resolved money for a % row is read from lib/pricing.js rather than
+  // worked out here — a second computation in the view is how a breakdown ends
+  // up disagreeing with the total printed above it.
+  const q = lastQuote || {};
+  const rows = (typeof KhaytPricing !== 'undefined' && KhaytPricing.resolveExtraLines)
+    ? KhaytPricing.resolveExtraLines(currentExtraLines, q.extrasBase || 0)
+    : currentExtraLines.map((l) => ({ pct: null, amount: +l.amount || 0 }));
+  el.innerHTML = currentExtraLines.map((line, i) => {
+    const isPct = (typeof KhaytPricing !== 'undefined' && KhaytPricing.isPercentLine)
+      ? KhaytPricing.isPercentLine(line) : false;
+    const shown = isPct ? (line.pct || '') : (line.amount || '');
+    // The money a % row actually adds, beside the percentage — the same shape
+    // the rush chip already uses ("+25% (SAR 12.50)").
+    const resolved = isPct && rows[i] && rows[i].amount > 0
+      ? `<span class="el-resolved" style="font-size:11.5px;color:var(--text-muted);white-space:nowrap;">${escapeHtml(fmtMoney(rows[i].amount))}</span>` : '';
+    return `
     <div class="extra-line-row">
       <input type="text" class="el-label" value="${escapeHtml(line.label)}" placeholder="${escapeHtml(t('calc.extra_label_ph'))}" style="flex:1; min-width:0;">
-      <input type="number" class="el-amount" value="${line.amount || ''}" min="0" step="0.01" placeholder="0.00" style="width:90px;">
+      <input type="number" class="el-amount" value="${shown}" min="0" step="0.01" placeholder="${isPct ? '0.0' : '0.00'}" style="width:80px;">
+      <select class="el-unit" style="width:62px; font-size:12.5px;" aria-label="${escapeHtml(t('calc.extra_unit') || 'Fee type')}">
+        <option value="amt" ${isPct ? '' : 'selected'}>${escapeHtml(currencySymbol())}</option>
+        <option value="pct" ${isPct ? 'selected' : ''}>%</option>
+      </select>
+      ${resolved}
       <button class="btn danger small el-rm" data-eli="${i}" aria-label="Remove">×</button>
-    </div>`).join('');
+    </div>`; }).join('');
   el.querySelectorAll('.el-label').forEach((inp, i) => {
     inp.addEventListener('input', () => { currentExtraLines[i].label = inp.value; updateGrandTotal(); });
   });
   el.querySelectorAll('.el-amount').forEach((inp, i) => {
-    inp.addEventListener('input', () => { currentExtraLines[i].amount = Math.max(0, +inp.value || 0); updateGrandTotal(); });
+    inp.addEventListener('input', () => {
+      const v = Math.max(0, +inp.value || 0);
+      const line = currentExtraLines[i];
+      // Write to whichever field this row IS. Writing both would double-charge:
+      // pricing ignores a percentage row's amount, but a later edit could flip
+      // the row back to fixed and resurrect a number nobody typed.
+      if (KhaytPricing.isPercentLine(line)) { line.pct = v; delete line.amount; }
+      else { line.amount = v; delete line.pct; }
+      updateGrandTotal();
+    });
+  });
+  el.querySelectorAll('.el-unit').forEach((sel, i) => {
+    sel.addEventListener('change', () => {
+      const line = currentExtraLines[i];
+      // Carry the typed number across, and clear the other field so the row can
+      // never hold both.
+      const v = Math.max(0, +(KhaytPricing.isPercentLine(line) ? line.pct : line.amount) || 0);
+      if (sel.value === 'pct') { line.pct = v; delete line.amount; }
+      else { line.amount = v; delete line.pct; }
+      renderExtraLines();
+    });
   });
   el.querySelectorAll('.el-rm').forEach(btn => {
     btn.addEventListener('click', () => { currentExtraLines.splice(+btn.dataset.eli, 1); renderExtraLines(); });

@@ -1411,7 +1411,12 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
   // Extra charge lines
   const extraLinesHtml = orderExtraLines.map(l => `
       <tr>
-        <td><div class="desc-en">${escapeHtml(l.label || t('calc.extra_label_ph'))}</div></td>
+        <td><div class="desc-en">${escapeHtml(l.label || t('calc.extra_label_ph'))}${
+          // A percentage fee says so on the invoice. The money is the frozen
+          // `amount` written when the order was logged — an invoice reports what
+          // was charged, it does not recompute a percentage months later.
+          (+l.pct > 0) ? ` <span style="color:var(--ink-mute);">(${escapeHtml(String(l.pct))}%)</span>` : ''
+        }</div></td>
         <td class="center">1</td>
         <td class="amount">${fmtMoney(+l.amount || 0)} <span style="color:var(--ink-mute); font-weight:500;">${invCurrSym}</span></td>
       </tr>`).join('');

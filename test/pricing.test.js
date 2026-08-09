@@ -163,3 +163,118 @@ test('a half-filled tier row is ignored, not priced at zero', () => {
   assert.equal(activePriceTier([{}, null, undefined], 100), null);
   assert.equal(activePriceTier(null, 100), null);
 });
+
+// ─── percentage extra lines ────────────────────────────────────────────────
+// A marketplace fee is a percentage, not a number the shop can know before the
+// price exists. Etsy and Shopify charge on what the BUYER pays, shipping
+// included, which is why the base is not the subtotal.
+
+const { resolveExtraLines, isPercentLine } = require('../lib/pricing.js');
+
+test('a percentage line is charged on what the buyer pays, shipping included', () => {
+  // subtotal 100, no rush, shipping 20 -> base 120, so 10% is 12 and not 10.
+  const q = quoteTotal({ baseCost: 100, qty: 1, margin: 0, shippingCost: 20,
+    extraLines: [{ pct: 10 }] });
+  assert.equal(q.extrasBase, 120);
+  assert.equal(q.extrasPercent, 12);
+  assert.equal(q.total, 132);
+});
+
+test('the base includes the rush fee too', () => {
+  // subtotal 100 + 25% rush = 125; 10% of that is 12.5.
+  const q = quoteTotal({ baseCost: 100, qty: 1, margin: 0, rushEnabled: true, rushPct: 25,
+    extraLines: [{ pct: 10 }] });
+  assert.equal(q.extrasBase, 125);
+  assert.equal(q.extrasPercent, 12.5);
+});
+
+test('percentages do not compound, and the order of the lines cannot change the total', () => {
+  // The property that matters: a quote whose total depends on which row was
+  // typed first is indefensible when a customer asks why.
+  const lines = [{ pct: 5 }, { amount: 10 }, { pct: 5 }, { amount: 3 }];
+  const base = { baseCost: 200, qty: 1, margin: 0, shippingCost: 15 };
+  const first = quoteTotal({ ...base, extraLines: lines }).total;
+  // Every permutation of four lines.
+  const perms = (xs) => xs.length <= 1 ? [xs]
+    : xs.flatMap((x, i) => perms([...xs.slice(0, i), ...xs.slice(i + 1)]).map((r) => [x, ...r]));
+  for (const order of perms(lines)) {
+    assert.equal(quoteTotal({ ...base, extraLines: order }).total, first,
+      `reordering changed the total: ${JSON.stringify(order)}`);
+  }
+  // And two 5% lines are 10% of the base, not 10.25%.
+  assert.equal(quoteTotal({ ...base, extraLines: [{ pct: 5 }, { pct: 5 }] }).extrasPercent,
+    quoteTotal({ ...base, extraLines: [{ pct: 10 }] }).extrasPercent);
+});
+
+test('a fixed line is not part of the base a percentage is taken from', () => {
+  // Otherwise a percentage would depend on how many fixed lines sat above it,
+  // which is the compounding problem wearing a different hat.
+  const withFixed = quoteTotal({ baseCost: 100, qty: 1, margin: 0,
+    extraLines: [{ amount: 50 }, { pct: 10 }] });
+  const withoutFixed = quoteTotal({ baseCost: 100, qty: 1, margin: 0, extraLines: [{ pct: 10 }] });
+  assert.equal(withFixed.extrasPercent, withoutFixed.extrasPercent);
+  assert.equal(withFixed.extras, 60);            // 50 fixed + 10 percent
+});
+
+test('a line with no pct is fixed, exactly as every existing quote is', () => {
+  // Absence is what all shipped data has, so absence must keep meaning "fixed".
+  assert.equal(isPercentLine({ amount: 5 }), false);
+  assert.equal(isPercentLine({ amount: 5, pct: 0 }), false);
+  assert.equal(isPercentLine({ amount: 5, pct: -2 }), false);
+  assert.equal(isPercentLine({ pct: 6.5 }), true);
+  // pct: 0 must not swallow the amount that was meant to apply.
+  assert.equal(quoteTotal({ baseCost: 100, qty: 1, margin: 0,
+    extraLines: [{ amount: 7, pct: 0 }] }).extras, 7);
+});
+
+test('a line is charged once — a leftover amount on a percentage line is ignored', () => {
+  // The realistic shape: a row was a fixed 3, the shop switched it to 6.5%, and
+  // the old amount is still sitting in the object. Charging both is silent
+  // double-billing, and the total still looks plausible.
+  const q = quoteTotal({ baseCost: 100, qty: 1, margin: 0,
+    extraLines: [{ label: 'Etsy', pct: 10, amount: 3 }] });
+  assert.equal(q.extrasFixed, 0, 'the stale amount was charged as well as the percentage');
+  assert.equal(q.extrasPercent, 10);
+  assert.equal(q.extras, 10);
+  assert.equal(q.total, 110);
+  // And the rendered row shows the percentage, not the leftover.
+  const [row] = resolveExtraLines([{ pct: 10, amount: 3 }], q.extrasBase);
+  assert.equal(row.amount, 10);
+  assert.equal(row.pct, 10);
+});
+
+test('the breakdown adds up to the total', () => {
+  const q = quoteTotal({ baseCost: 100, qty: 2, margin: 50, discountPct: 10,
+    rushEnabled: true, rushPct: 20, shippingCost: 30,
+    extraLines: [{ amount: 5 }, { pct: 7.5 }] });
+  assert.equal(q.extras, q.extrasFixed + q.extrasPercent);
+  assert.equal(q.total, q.subtotal + q.rushFee + q.shipping + q.extras);
+  assert.equal(q.extrasBase, q.subtotal + q.rushFee + q.shipping);
+});
+
+test('resolveExtraLines returns the same numbers the total was built from', () => {
+  // A second computation in the view is how a breakdown ends up disagreeing
+  // with the total printed above it.
+  const lines = [{ label: 'Etsy', pct: 6.5 }, { label: 'Packaging', amount: 4 }];
+  const q = quoteTotal({ baseCost: 250, qty: 1, margin: 20, shippingCost: 10, extraLines: lines });
+  const rows = resolveExtraLines(lines, q.extrasBase);
+  assert.equal(rows.reduce((s, r) => s + r.amount, 0), q.extras);
+  assert.equal(rows[0].pct, 6.5);
+  assert.equal(rows[1].pct, null, 'a fixed line must not claim a percentage');
+  assert.equal(rows[0].label, 'Etsy');
+});
+
+test('the commerce-free experience still charges nothing, percentage or not', () => {
+  const q = quoteTotal({ baseCost: 100, qty: 1, margin: 50, shippingCost: 20,
+    extraLines: [{ pct: 50 }, { amount: 9 }], business: false });
+  assert.equal(q.extras, 0);
+  assert.equal(q.extrasPercent, 0);
+  assert.equal(q.total, 100);
+});
+
+test('junk lines are ignored rather than poisoning the total', () => {
+  for (const bad of [null, undefined, {}, { pct: 'x' }, { amount: 'y' }, { pct: NaN }]) {
+    const q = quoteTotal({ baseCost: 100, qty: 1, margin: 0, extraLines: [bad] });
+    assert.equal(q.total, 100, JSON.stringify(bad));
+  }
+});

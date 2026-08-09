@@ -6,6 +6,17 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **A fee can now be a percentage.** "Add fee" only ever took a fixed amount,
+  which is the wrong shape for the fee that matters most: Etsy, Shopify and eBay
+  charge a percentage, so quoting for them meant working it out on a calculator
+  and typing the answer — then doing it again every time the price moved. Each
+  fee row now has a **%** or currency switch. A percentage is charged on what the
+  buyer actually pays, shipping and rush included, which is what those
+  marketplaces charge against; it shows the money it works out to beside it, and
+  it never compounds on another fee, so the order you type the rows in cannot
+  change the total. Existing quotes are unaffected — a fee with no percentage on
+  it behaves exactly as it always has.
+
 - **Drop a .zip straight into your print files.** Model packs arrive as archives
   — a Drive download, a Patreon bundle — and Khayt could not open one: you had to
   unzip it yourself, into a folder, and drag the files in one at a time. Now the

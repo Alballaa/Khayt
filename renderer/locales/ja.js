@@ -655,6 +655,7 @@
   "calc.tpl.deleted": "テンプレートを削除しました",
   "calc.tpl.empty": "テンプレートを保存する前にカートにパーツを追加してください。",
   "calc.extra_lines": "追加料金",
+  "calc.extra_unit": "手数料の種類",
   "calc.add_extra_line": "+ 料金を追加",
   "calc.add_pp_preset": "+ 後処理",
   "calc.extra_label_ph": "例：デザイン料、塗装…",
