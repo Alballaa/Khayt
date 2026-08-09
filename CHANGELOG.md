@@ -6,6 +6,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Setting up a checkout no longer bumps the Electron version.** (Developer
+  tooling; no effect on the app.) The first `npm run test:e2e` in a fresh clone or
+  worktree installed Electron with an unpinned `npm install electron --save-dev`,
+  which resolved to the newest release and wrote it back — so `package.json` and
+  the lockfile came out modified by a command that was only meant to run the
+  tests, and the suite then ran against a different Electron than `npm ci` gives
+  CI. It now installs the version the lockfile already pins, and leaves both files
+  alone.
+
 - **Receiving a filament purchase order now records what it cost.** An order
   drafted for you — at the reorder point, or from **Draft purchase orders** in the
   reorder list — was restocked onto the shelf when it arrived and then booked no
