@@ -1925,6 +1925,7 @@
   "po.receive_more": "Daha fazla teslim al",
   "po.close_po": "SAS'ı Kapat",
   "po.weight_received": "Teslim alınan ağırlık (g)",
+  "po.qty_received": "Teslim alınan miktar",
   "po.notes": "Notlar",
   "po.search_ph": "Satın alma siparişi ara…",
   "ce.credit_limit": "Kredi limiti",

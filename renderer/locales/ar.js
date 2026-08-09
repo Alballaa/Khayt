@@ -2048,6 +2048,7 @@
   "po.receive_more": "استلام المزيد",
   "po.close_po": "إغلاق طلب الشراء",
   "po.weight_received": "الوزن المستلم",
+  "po.qty_received": "الكمية المستلمة",
   "po.notes": "ملاحظات",
   "po.batch_gen": "إنشاء طلبات شراء دفعة",
   "po.none_needed": "لا توجد حاجة لطلبات شراء",

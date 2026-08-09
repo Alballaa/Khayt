@@ -1925,6 +1925,7 @@
   "po.receive_more": "继续收货",
   "po.close_po": "关闭采购订单",
   "po.weight_received": "收货重量（克）",
+  "po.qty_received": "收货数量",
   "po.notes": "备注",
   "po.search_ph": "搜索采购订单…",
   "ce.credit_limit": "信用额度",

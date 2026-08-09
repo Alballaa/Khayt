@@ -1925,6 +1925,7 @@
   "po.receive_more": "Recevoir plus",
   "po.close_po": "Clôturer le BC",
   "po.weight_received": "Poids reçu (g)",
+  "po.qty_received": "Quantité reçue",
   "po.notes": "Notes",
   "po.search_ph": "Rechercher des bons de commande…",
   "ce.credit_limit": "Limite de crédit",

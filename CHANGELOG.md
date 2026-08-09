@@ -4,6 +4,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **The "receive purchase order" dialog no longer asks for a weight in two units.**
+  Receiving a consumable order captioned the amount box `Weight received (g) (pcs)`
+  — the translated label already ends in "(g)" in eight of the nine languages, so a
+  second unit was appended to it, and a count of boxes was called a weight. It now
+  reads "Quantity received (pcs)". Filament orders still ask in grams, and now do so
+  once rather than twice.
+
 ### Added
 
 - **Consumables now reach the reorder list and purchase orders.** Running out of
