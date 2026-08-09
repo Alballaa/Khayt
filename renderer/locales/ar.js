@@ -3104,6 +3104,7 @@
   "reorder.days_left": "الأيام المتبقية",
   "reorder.suggest": "إعادة الطلب",
   "reorder.restock": "إعادة التزويد",
+  "reorder.consumables": "المستهلكات",
   "reorder.copy_list": "نسخ القائمة",
   "reorder.none": "المخزون بحالة جيدة — لا حاجة لإعادة الطلب الآن.",
   "xr.section": "أسعار الصرف",

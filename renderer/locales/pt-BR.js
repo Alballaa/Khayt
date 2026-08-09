@@ -3098,6 +3098,7 @@
   "reorder.days_left": "Dias restantes",
   "reorder.suggest": "Repor",
   "reorder.restock": "repor",
+  "reorder.consumables": "Consumíveis",
   "reorder.copy_list": "Copiar lista",
   "reorder.none": "O estoque parece saudável — nada a repor no momento.",
   "xr.section": "Taxas de câmbio",

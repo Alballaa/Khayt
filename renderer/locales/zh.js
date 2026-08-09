@@ -3097,6 +3097,7 @@
   "reorder.days_left": "剩余天数",
   "reorder.suggest": "补订",
   "reorder.restock": "补货",
+  "reorder.consumables": "耗材",
   "reorder.copy_list": "复制列表",
   "reorder.none": "库存状况良好 — 目前无需补订。",
   "xr.section": "汇率",

@@ -1267,6 +1267,30 @@ function maybeAutoDraftPurchaseOrders() {
     });
     n++;
   }
+  // Consumables, asked for by a user: running out of glue or bags stops a job the
+  // way running out of filament does, and until now only filament reached this.
+  // Their own module and their own dedupe — a consumable id and a spool id are
+  // minted by the same uid(), so matching open POs across both would let one
+  // silence the other. See lib/consumable-reorder.js.
+  if (typeof KhaytConsumableReorder !== 'undefined' && Array.isArray(consumables)) {
+    const CR = KhaytConsumableReorder;
+    const csug = CR.consumableSuggestions(consumables, printLog, {
+      now: Date.now(), windowDays: 30, leadDays: 14, targetDays: 45,
+    });
+    for (const s of CR.consumablesNeedingDraftPo(csug, purchaseOrders)) {
+      createPurchaseOrder(s.item, {
+        kind: 'consumable',
+        qty: s.suggestQty,
+        unitPrice: (+s.item.cost > 0) ? +s.item.cost : undefined,
+        supplierId: s.item.supplierId || null,
+        status: 'draft', silent: true,
+        notes: (t('reorder.auto_note') || 'Auto-drafted at reorder point')
+          + ` · ~${CR.qtyLabel(s.suggestQty, s.unit)}`,
+      });
+      n++;
+    }
+  }
+
   if (n > 0) {
     saveAll();
     if (typeof renderPurchaseOrders === 'function') renderPurchaseOrders();
@@ -1283,7 +1307,29 @@ function openReorderSuggestions() {
   const sug = KhaytReorder.reorderSuggestions(items, printLog, {
     now: Date.now(), windowDays: 30, partGrams: partGramsConsumed, isLow: isLowStock, leadDays: 14, targetDays: 45,
   });
+  // Consumables run out too, and until now nothing but a vanishing toast said so.
+  // Kept as a separate list rather than merged into the table above: every column
+  // there is grams, and a count of boxes rendered under a "g" heading is the one
+  // mistake that reaches a supplier's order form.
+  const CR = (typeof KhaytConsumableReorder !== 'undefined') ? KhaytConsumableReorder : null;
+  const csug = (CR && Array.isArray(consumables))
+    ? CR.consumableSuggestions(consumables, printLog, { now: Date.now(), windowDays: 30, leadDays: 14, targetDays: 45 })
+    : [];
   const cur = (typeof currencySymbol === 'function') ? currencySymbol() : '';
+  const crows = csug.map((s) => {
+    const days = s.daysLeft == null ? '—' : (s.daysLeft + 'd');
+    const rate = s.perDay > 0 ? `${s.perDay}/${t('reorder.day') || 'day'}` : '—';
+    const sugg = s.suggestQty > 0 ? CR.qtyLabel(s.suggestQty, s.unit) : (s.low ? (t('reorder.restock') || 'restock') : '—');
+    const urgency = (s.daysLeft != null && s.daysLeft <= 7) ? 'var(--danger)' : (s.low ? 'var(--warning,#d97706)' : 'var(--text-muted)');
+    return `<tr>
+      <td style="padding:6px 8px;">${escapeHtml(s.label)}${s.low ? ` <span style="color:var(--warning,#d97706);">${_iIco('alert', '⚠', 12)}</span>` : ''}</td>
+      <td style="padding:6px 8px;text-align:end;">${escapeHtml(CR.qtyLabel(s.stock, s.unit))}</td>
+      <td style="padding:6px 8px;text-align:end;color:var(--text-muted);">${escapeHtml(rate)}</td>
+      <td style="padding:6px 8px;text-align:end;color:${urgency};font-weight:600;">${escapeHtml(days)}</td>
+      <td style="padding:6px 8px;text-align:end;">${escapeHtml(sugg)}</td>
+    </tr>`;
+  }).join('');
+  const cDraftable = csug.filter((s) => s.suggestQty > 0);
   const rows = sug.map((s) => {
     const days = s.daysLeft == null ? '—' : (s.daysLeft + 'd');
     const rate = s.gramsPerDay > 0 ? `${s.gramsPerDay} g/${t('reorder.day') || 'day'}` : '—';
@@ -1301,11 +1347,18 @@ function openReorderSuggestions() {
   }).join('');
   const draftable = sug.filter((s) => s.suggestG > 0);
 
-  const listText = KhaytReorder.reorderText(sug, { header: (t('reorder.title') || 'Reorder suggestions') + ':' });
+  const listText = [
+    KhaytReorder.reorderText(sug, { header: (t('reorder.title') || 'Reorder suggestions') + ':' }),
+    CR ? CR.consumableReorderText(csug, {
+      header: (t('reorder.consumables') || 'Consumables') + ':',
+      restockLabel: t('reorder.restock') || 'restock',
+    }) : '',
+  ].filter(Boolean).join('\n\n');
   openFormModal({
     title: t('reorder.title') || 'Reorder suggestions',
     noSave: true,
-    bodyHtml: sug.length ? `
+    bodyHtml: (sug.length || csug.length) ? `
+      ${sug.length ? `
       <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px;">${escapeHtml(t('reorder.hint2') || 'Based on the last 30 days of usage and grams already committed to open orders. “Days left” projects available stock at that rate.')}</p>
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
         <thead><tr style="text-align:start;color:var(--text-muted);border-bottom:1px solid var(--border,#eee);">
@@ -1317,11 +1370,23 @@ function openReorderSuggestions() {
           <th style="padding:6px 8px;text-align:end;">${escapeHtml(t('reorder.suggest') || 'Reorder')}</th>
         </tr></thead>
         <tbody>${rows}</tbody>
-      </table>
+      </table>` : ''}
+      ${csug.length ? `
+      <h4 style="margin:16px 0 6px;font-size:13px;">${escapeHtml(t('reorder.consumables') || 'Consumables')}</h4>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr style="text-align:start;color:var(--text-muted);border-bottom:1px solid var(--border,#eee);">
+          <th style="padding:6px 8px;text-align:start;">${escapeHtml(t('cons.name') || 'Item')}</th>
+          <th style="padding:6px 8px;text-align:end;">${escapeHtml(t('reorder.in_stock') || 'In stock')}</th>
+          <th style="padding:6px 8px;text-align:end;">${escapeHtml(t('reorder.rate') || 'Usage')}</th>
+          <th style="padding:6px 8px;text-align:end;">${escapeHtml(t('reorder.days_left') || 'Days left')}</th>
+          <th style="padding:6px 8px;text-align:end;">${escapeHtml(t('reorder.suggest') || 'Reorder')}</th>
+        </tr></thead>
+        <tbody>${crows}</tbody>
+      </table>` : ''}
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
         <button class="btn small" id="reorderCopy">${escapeHtml(t('reorder.copy_list') || 'Copy list')}</button>
         <button class="btn small" id="reorderWa">${escapeHtml(t('inv.share_whatsapp') || 'Share WhatsApp')}</button>
-        ${draftable.length ? `<button class="btn small primary" id="reorderDraftPo">${escapeHtml(t('reorder.draft_po') || 'Draft purchase orders')} (${draftable.length})</button>` : ''}
+        ${(draftable.length + cDraftable.length) ? `<button class="btn small primary" id="reorderDraftPo">${escapeHtml(t('reorder.draft_po') || 'Draft purchase orders')} (${draftable.length + cDraftable.length})</button>` : ''}
       </div>`
       : `<p style="text-align:center;color:var(--text-muted);padding:20px 0;">${escapeHtml(t('reorder.none') || 'Stock looks healthy — nothing to reorder right now.')}</p>`,
     onMount(modal) {
@@ -1334,8 +1399,23 @@ function openReorderSuggestions() {
         else window.open(`https://wa.me/?text=${encodeURIComponent(listText)}`, '_blank');
       });
       modal.querySelector('#reorderDraftPo')?.addEventListener('click', async (e) => {
-        if (!(await confirmModal((t('reorder.draft_po_q', { n: draftable.length }) || `Create ${draftable.length} draft purchase order(s)?`)))) return;
+        const total = draftable.length + cDraftable.length;
+        if (!(await confirmModal((t('reorder.draft_po_q', { n: total }) || `Create ${total} draft purchase order(s)?`)))) return;
         let n = 0;
+        // Consumables first so a failure part-way still leaves the cheap, unit-
+        // priced orders drafted rather than only the filament ones.
+        for (const s of cDraftable) {
+          createPurchaseOrder(s.item, {
+            kind: 'consumable',
+            qty: s.suggestQty,
+            unitPrice: (+s.item.cost > 0) ? +s.item.cost : undefined,
+            supplierId: s.item.supplierId || null,
+            status: 'draft', silent: true,
+            notes: (t('reorder.draft_note') || 'Auto-drafted from reorder forecast')
+              + ` · ~${CR.qtyLabel(s.suggestQty, s.unit)}`,
+          });
+          n++;
+        }
         for (const s of draftable) {
           const kg = Math.max(0.25, Math.round((s.suggestG / 1000) * 4) / 4); // round to 0.25kg
           // PO unitPrice is per-GRAM; prefer a supplier price-list match, else item cost.
@@ -3491,13 +3571,20 @@ function createPurchaseOrder(item, opts) {
   // opts: { supplierId, supplierName, qty, unitPrice, estimatedDelivery, notes }
   const resolvedSupplierId = (opts && opts.supplierId) || item.supplierId || null;
   const resolvedSupplierName = (opts && opts.supplierName) || (resolvedSupplierId ? (suppliers.find(s => s.id === resolvedSupplierId)?.name || '') : '');
+  // A consumable is counted in the shop's own unit, not in grams, and is named
+  // rather than described by material. `kind` is absent on every PO written
+  // before consumables could be ordered, so absent MUST read as filament — the
+  // receive path restocks a different field depending on this answer.
+  const isConsumable = !!(opts && opts.kind === 'consumable');
   const po = {
     id: uid('PO'),
+    ...(isConsumable ? { kind: 'consumable', unit: (item.unit || '').trim() } : {}),
     itemId: item.id,
-    itemName: item.material,
+    itemName: isConsumable ? (item.name || '') : item.material,
     supplierId: resolvedSupplierId,
     supplierName: resolvedSupplierName,
-    qty: (opts && opts.qty) ? +opts.qty : (item.reorderQty || 1000),
+    // 1000 is a spool; it is not a sane default for a box of screws.
+    qty: (opts && opts.qty) ? +opts.qty : (item.reorderQty || (isConsumable ? 1 : 1000)),
     unitPrice: (opts && opts.unitPrice) ? +opts.unitPrice : undefined,
     estimatedDelivery: (opts && opts.estimatedDelivery) || null,
     status: (opts && opts.status) || 'ordered',

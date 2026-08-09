@@ -3097,6 +3097,7 @@
   "reorder.days_left": "Días restantes",
   "reorder.suggest": "Reponer",
   "reorder.restock": "reabastecer",
+  "reorder.consumables": "Consumibles",
   "reorder.copy_list": "Copiar lista",
   "reorder.none": "El stock se ve saludable — nada que reponer ahora mismo.",
   "xr.section": "Tipos de cambio",
