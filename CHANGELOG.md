@@ -20,6 +20,13 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   progress bar beside a partly received order never appeared; and the purchase
   orders in **Export all data (CSV)** carried a blank date and a blank total.
 
+- **Drafted purchase orders no longer show `po.status.draft` where the status
+  should be.** Every order created by the "Draft purchase orders" button, or
+  automatically at the reorder point, is a draft — but "draft" was the one
+  status with no translation, in any of the nine languages. The badge printed the
+  raw key instead, and rendered as an unfilled pill because it had no colour of
+  its own either. It now reads "Draft" in a muted grey, in every language.
+
 - **The "receive purchase order" dialog no longer asks for a weight in two units.**
   Receiving a consumable order captioned the amount box `Weight received (g) (pcs)`
   — the translated label already ends in "(g)" in eight of the nine languages, so a

@@ -1915,6 +1915,7 @@
   "po.supplier": "Fournisseur",
   "po.ordered_at": "Commandé",
   "po.status": "Statut",
+  "po.status.draft": "Brouillon",
   "po.status.ordered": "Commandé",
   "po.status.received": "Reçu",
   "po.receive": "Marquer reçu",

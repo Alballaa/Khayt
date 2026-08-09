@@ -1915,6 +1915,7 @@
   "po.supplier": "供应商",
   "po.ordered_at": "订购日期",
   "po.status": "状态",
+  "po.status.draft": "草稿",
   "po.status.ordered": "已订购",
   "po.status.received": "已收货",
   "po.receive": "标记为已收货",

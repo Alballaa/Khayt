@@ -1916,6 +1916,7 @@
   "po.supplier": "Fornecedor",
   "po.ordered_at": "Pedido em",
   "po.status": "Situação",
+  "po.status.draft": "Rascunho",
   "po.status.ordered": "Pedido feito",
   "po.status.received": "Recebido",
   "po.receive": "Marcar como recebido",
