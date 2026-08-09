@@ -117,6 +117,29 @@ function postExtract(electronDir, distDir, platPath, version) {
   fs.writeFileSync(pathTxt, platPath);
 }
 
+/**
+ * The electron spec this repo already declares: the lockfile's exact version if
+ * there is one, otherwise the range from package.json. Never a bare `electron`,
+ * which resolves to whatever is newest on the registry rather than to what CI
+ * installs from the lockfile.
+ */
+function declaredElectronSpec(pkgPath) {
+  const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+  const range = (pkg.devDependencies && pkg.devDependencies.electron)
+    || (pkg.dependencies && pkg.dependencies.electron);
+  if (!range) return null;
+
+  try {
+    const lock = JSON.parse(fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8'));
+    const pinned = lock.packages && lock.packages['node_modules/electron'];
+    if (pinned && pinned.version) return 'electron@' + pinned.version;
+  } catch {
+    // No lockfile, or one old enough to predate `packages` — the declared range
+    // still holds this to the major the repo expects.
+  }
+  return 'electron@' + range;
+}
+
 function ensureElectronPackage() {
   if (fs.existsSync(electronDir)) return;
 
@@ -126,8 +149,19 @@ function ensureElectronPackage() {
     process.exit(1);
   }
 
-  console.log('node_modules/electron is missing — installing the electron npm package…\n');
-  const r = spawnSync('npm', ['install', 'electron', '--save-dev'], {
+  const spec = declaredElectronSpec(pkgPath);
+  if (!spec) {
+    console.error('package.json does not declare electron. Run: npm install');
+    process.exit(1);
+  }
+
+  // `--no-save`: this only repopulates node_modules, so it has no business
+  // rewriting the manifest. `install electron --save-dev` resolved to the newest
+  // release and wrote it back, so a fresh worktree silently bumped package.json
+  // and the lockfile, then ran its e2e against a different Electron than the one
+  // `npm ci` gives CI.
+  console.log(`node_modules/electron is missing — installing ${spec}…\n`);
+  const r = spawnSync('npm', ['install', spec, '--no-save'], {
     cwd: root,
     stdio: 'inherit',
     env: process.env,
