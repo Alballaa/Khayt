@@ -655,6 +655,7 @@
   "calc.tpl.deleted": "Plantilla eliminada",
   "calc.tpl.empty": "Agregue piezas al carrito antes de guardar una plantilla.",
   "calc.extra_lines": "Cargos adicionales",
+  "calc.extra_unit": "Tipo de tarifa",
   "calc.add_extra_line": "+ Agregar cargo",
   "calc.add_pp_preset": "+ Post-proceso",
   "calc.extra_label_ph": "p.ej. Honorario de diseño, Pintura…",

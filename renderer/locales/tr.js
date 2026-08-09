@@ -655,6 +655,7 @@
   "calc.tpl.deleted": "Şablon silindi",
   "calc.tpl.empty": "Şablon kaydetmeden önce sepete parça ekleyin.",
   "calc.extra_lines": "Ek ücretler",
+  "calc.extra_unit": "Ücret türü",
   "calc.add_extra_line": "+ Ücret ekle",
   "calc.add_pp_preset": "+ Son işlem",
   "calc.extra_label_ph": "örn. Tasarım ücreti, Boyama…",

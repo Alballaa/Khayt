@@ -655,6 +655,7 @@
   "calc.tpl.deleted": "模板已删除",
   "calc.tpl.empty": "请先将零件添加到购物车，再保存模板。",
   "calc.extra_lines": "额外费用",
+  "calc.extra_unit": "费用类型",
   "calc.add_extra_line": "+ 添加费用",
   "calc.add_pp_preset": "+ 后处理",
   "calc.extra_label_ph": "例如：设计费、喷涂费…",

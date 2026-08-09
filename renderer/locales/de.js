@@ -655,6 +655,7 @@
   "calc.tpl.deleted": "Vorlage gelöscht",
   "calc.tpl.empty": "Fügen Sie dem Warenkorb Teile hinzu, bevor Sie eine Vorlage speichern.",
   "calc.extra_lines": "Zusätzliche Gebühren",
+  "calc.extra_unit": "Gebührenart",
   "calc.add_extra_line": "+ Gebühr hinzufügen",
   "calc.add_pp_preset": "+ Nachbearbeitung",
   "calc.extra_label_ph": "z.B. Designgebühr, Lackierung…",

@@ -656,6 +656,7 @@
   "calc.tpl.deleted": "Modelo excluído",
   "calc.tpl.empty": "Adicione peças ao carrinho antes de salvar um modelo.",
   "calc.extra_lines": "Cobranças extras",
+  "calc.extra_unit": "Tipo de taxa",
   "calc.add_extra_line": "+ Adicionar taxa",
   "calc.add_pp_preset": "+ Pós-processamento",
   "calc.extra_label_ph": "ex.: Taxa de projeto, Pintura…",

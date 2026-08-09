@@ -124,13 +124,30 @@ function logPrint(asQuote = false) {
   const margin = clampPositive($('#margin').value);
   const discountPct = Math.min(100, Math.max(0, num($('#discountPct').value, 0)));
   const shippingCost = Math.max(0, num($('#shippingCost')?.value, 0));
-  const extraLinesTotal = currentExtraLines.reduce((s, l) => s + Math.max(0, +l.amount || 0), 0);
-  const priceBeforeDiscount = totalBaseCost * (1 + margin / 100);
-  const subAfterDiscount = priceBeforeDiscount * (1 - discountPct / 100);
   const logRushEnabled = !!$('#calcRushFee')?.checked;
   const logRushPct = logRushEnabled ? num(settings.rushFeePct, 25) : 0;
-  const logRushFeeAmt = subAfterDiscount * logRushPct / 100;
-  const finalPrice = subAfterDiscount + logRushFeeAmt + shippingCost + extraLinesTotal;
+  // Through lib/pricing.js, not a second copy of the formula. This block used to
+  // re-derive the price itself, which is precisely what that module was extracted
+  // to stop — "a second implementation means two prices for one job, with the
+  // wrong one being whichever the shop happens to be looking at". It also could
+  // not see a percentage fee at all, so a quote shown as 132 was logged as 120.
+  const _lq = KhaytPricing.quoteTotal({
+    baseCost: totalBaseCost,
+    qty: 1,                       // the cart's parts already carry their own qty
+    margin,
+    priceTier: null,              // a tier never applies to a multi-line cart
+    discountPct,
+    rushEnabled: logRushEnabled,
+    rushPct: logRushPct,
+    shippingCost,
+    extraLines: currentExtraLines,
+    business: true,               // logPrint is business-only (see bedready-shim)
+  });
+  const priceBeforeDiscount = _lq.priceBeforeDiscount;
+  const subAfterDiscount = _lq.subtotal;
+  const logRushFeeAmt = _lq.rushFee;
+  const extraLinesTotal = _lq.extras;
+  const finalPrice = _lq.total;
 
   const clientInputVal = $('#clientInput').value.trim();
   const project = clientInputVal;
@@ -171,7 +188,14 @@ function logPrint(asQuote = false) {
     shippingService: null,
     shipmentMeta: null,
     attachedFiles: [],
-    extraLines: currentExtraLines.length > 0 ? currentExtraLines.map(l => ({ ...l })) : undefined,
+    // `amount` is frozen at the resolved figure so an invoice never recomputes a
+    // percentage against a base that has since changed. `pct` is kept beside it
+    // so the row still reads as "6.5%" — pricing ignores `amount` on a % line,
+    // so carrying both cannot double-charge.
+    extraLines: currentExtraLines.length > 0
+      ? KhaytPricing.resolveExtraLines(currentExtraLines, _lq.extrasBase)
+        .map((r, i) => ({ ...currentExtraLines[i], label: r.label, amount: r.amount }))
+      : undefined,
     status: asQuote ? 'quote' : 'pending',
     statusHistory: [{ status: asQuote ? 'quote' : 'pending', at: now.toISOString() }],
     queuePos: printLog.filter(o => o.status === 'pending').length + 1,
@@ -1718,7 +1742,14 @@ function openOrderEditor(orderId) {
           inp.addEventListener('input', () => { draft.extraLines[i].label = inp.value; });
         });
         oeExtraListEl.querySelectorAll('.oe-el-amount').forEach((inp, i) => {
-          inp.addEventListener('input', () => { draft.extraLines[i].amount = Math.max(0, +inp.value || 0); });
+          inp.addEventListener('input', () => {
+            const line = draft.extraLines[i];
+            line.amount = Math.max(0, +inp.value || 0);
+            // Typing a figure here overrides a percentage this line was logged
+            // with. Keeping `pct` would leave the two disagreeing — the invoice
+            // showing one number and any re-quote computing another.
+            delete line.pct;
+          });
         });
         oeExtraListEl.querySelectorAll('.oe-el-rm').forEach(btn => {
           btn.addEventListener('click', () => { draft.extraLines.splice(+btn.dataset.oeli, 1); refreshOeLines(); });

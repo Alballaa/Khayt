@@ -760,6 +760,7 @@
   "calc.tpl.deleted": "تم حذف القالب",
   "calc.tpl.empty": "أضف أجزاء إلى السلة قبل حفظ القالب.",
   "calc.extra_lines": "رسوم إضافية",
+  "calc.extra_unit": "نوع الرسوم",
   "calc.add_extra_line": "+ إضافة رسم",
   "calc.add_pp_preset": "+ معالجة لاحقة",
   "calc.extra_label_ph": "مثل: رسوم التصميم، طلاء…",
