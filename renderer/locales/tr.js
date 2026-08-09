@@ -3097,6 +3097,7 @@
   "reorder.days_left": "Kalan gün",
   "reorder.suggest": "Yeniden sipariş",
   "reorder.restock": "stok yenile",
+  "reorder.consumables": "Sarf malzemeleri",
   "reorder.copy_list": "Listeyi kopyala",
   "reorder.none": "Stok sağlıklı görünüyor — şu an yeniden sipariş edilecek bir şey yok.",
   "xr.section": "Döviz Kurları",

@@ -3099,6 +3099,7 @@
   "reorder.days_left": "Days left",
   "reorder.suggest": "Reorder",
   "reorder.restock": "restock",
+  "reorder.consumables": "Consumables",
   "reorder.copy_list": "Copy list",
   "reorder.none": "Stock looks healthy — nothing to reorder right now.",
   "xr.section": "Exchange Rates",

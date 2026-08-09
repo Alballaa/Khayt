@@ -2022,47 +2022,77 @@ function wireEvents() {
     if (recv) {
       const po = purchaseOrders.find(p => p.id === recv.dataset.id);
       if (!po) return;
+      // A consumable order is counted in the shop's own unit. Everything below —
+      // the amount asked for, the field restocked, the expense category, the
+      // toast — differs by kind, and a PO written before consumables could be
+      // ordered has no `kind` at all, so absent reads as filament.
+      const isCons = po.kind === 'consumable';
+      const unitLbl = isCons ? ((po.unit || '').trim() || (t('cons.unit') || 'units')) : 'g';
       const alreadyReceived = po.receivedSoFar || 0;
-      const remaining = po.weightOrdered > 0 ? po.weightOrdered - alreadyReceived : 1000;
+      const ordered = isCons ? (+po.qty || 0) : (po.weightOrdered || 0);
+      const remaining = ordered > 0 ? ordered - alreadyReceived : (isCons ? 1 : 1000);
       openFormModal({
         title: t('po.receive'),
         sizeLg: false,
         saveLabel: t('po.receive'),
         bodyHtml: `
-          <label>${escapeHtml(t('po.weight_received'))} (g)</label>
-          <input type="number" id="poRecvWeight" value="${Math.max(0, remaining)}" min="0" step="1">
+          <label>${escapeHtml(t('po.weight_received'))} (${escapeHtml(unitLbl)})</label>
+          <input type="number" id="poRecvWeight" value="${Math.max(0, remaining)}" min="0" step="${isCons ? '0.01' : '1'}">
           <label style="margin-top:12px;">${escapeHtml(t('po.notes'))}</label>
           <input type="text" id="poRecvNotes" placeholder="${escapeHtml(t('po.notes'))}">`,
         async onSave(modal) {
           const w = Math.max(0, num(modal.querySelector('#poRecvWeight').value, 0));
           if (w <= 0) { toast(t('exp.amount_required') || 'Enter a weight', 'error'); return false; }
           const notes = modal.querySelector('#poRecvNotes').value.trim();
-          const invItem = inventory.find(i => i.id === po.itemId);
-          if (invItem) {
-            invItem.weight = Math.min((invItem.weight || 0) + w, 99000);
-            if (!invItem.usageHistory) invItem.usageHistory = [];
-            invItem.usageHistory.unshift({ type: 'received', orderId: po.id, weightUsed: -w, date: localDateStr(), notes });
-            if (invItem.usageHistory.length > 200) invItem.usageHistory.length = 200;
-            renderInventory();
+          if (isCons) {
+            // Restock the consumable, not a spool. Looking this up in `inventory`
+            // would find nothing, restock nothing, and still mark the order
+            // received — goods paid for and silently absent from stock.
+            const cons = consumables.find(x => x.id === po.itemId);
+            if (cons) {
+              cons.stock = Math.max(0, (+cons.stock || 0) + w);   // no 99000 cap; that is a spool's
+              renderConsumables();
+            }
+          } else {
+            const invItem = inventory.find(i => i.id === po.itemId);
+            if (invItem) {
+              invItem.weight = Math.min((invItem.weight || 0) + w, 99000);
+              if (!invItem.usageHistory) invItem.usageHistory = [];
+              invItem.usageHistory.unshift({ type: 'received', orderId: po.id, weightUsed: -w, date: localDateStr(), notes });
+              if (invItem.usageHistory.length > 200) invItem.usageHistory.length = 200;
+              renderInventory();
+            }
           }
           po.receivedSoFar = alreadyReceived + w;
-          if (po.weightOrdered > 0 && po.receivedSoFar >= po.weightOrdered) {
+          if (ordered > 0 && po.receivedSoFar >= ordered) {
             po.status = 'received';
             po.receivedAt = localDateStr();
-            toast(t('po.received_toast') + ' · +' + w + 'g', 'success');
+            toast(t('po.received_toast') + ' · +' + w + unitLbl, 'success');
           } else {
             po.status = 'partial';
-            toast(t('po.partial') + ' · +' + w + 'g', 'success');
+            toast(t('po.partial') + ' · +' + w + unitLbl, 'success');
           }
           // Automatically create an expense record for the received goods
-          if (po.totalCost > 0 || po.unitCost > 0) {
-            const expAmount = po.totalCost > 0 ? +((w / Math.max(1, po.weightOrdered)) * po.totalCost).toFixed(2) : +(w * (po.unitCost || 0) / 1000).toFixed(2);
+          if (po.totalCost > 0 || po.unitCost > 0 || (isCons && po.unitPrice > 0)) {
+            // Filament unit costs are per KILO against a quantity in grams, hence
+            // the /1000. A consumable's price is per unit against a count of
+            // units, so the same division would book a box of screws at a tenth
+            // of a halala and quietly understate every consumable ever bought.
+            const expAmount = isCons
+              ? +(w * (+po.unitPrice || +po.unitCost || 0)).toFixed(2)
+              : (po.totalCost > 0
+                ? +((w / Math.max(1, po.weightOrdered)) * po.totalCost).toFixed(2)
+                : +(w * (po.unitCost || 0) / 1000).toFixed(2));
             if (expAmount > 0) {
               expenses.push({
                 id:       uid('EXP'),
                 date:     localDateStr(),
                 amount:   expAmount,
-                category: 'filament',
+                // Glue and bags are not filament. Booking them there inflates the
+                // material spend that feeds pricing and the per-kilo figures in
+                // analytics. There is no consumables category, so `other` — which
+                // is merely unspecific, where `filament` would be wrong.
+                category: isCons ? 'other' : 'filament',
                 note:     `${t('po.receive') || 'PO receive'}: ${po.id}${notes ? ' — ' + notes : ''}`,
                 orderId:  null,
                 poId:     po.id,

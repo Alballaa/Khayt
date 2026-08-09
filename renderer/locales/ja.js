@@ -3097,6 +3097,7 @@
   "reorder.days_left": "残り日数",
   "reorder.suggest": "再発注",
   "reorder.restock": "補充",
+  "reorder.consumables": "消耗品",
   "reorder.copy_list": "リストをコピー",
   "reorder.none": "在庫は良好です — 今すぐ再発注する必要はありません。",
   "xr.section": "為替レート",

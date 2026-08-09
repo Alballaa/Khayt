@@ -3097,6 +3097,7 @@
   "reorder.days_left": "Verbleibende Tage",
   "reorder.suggest": "Nachbestellen",
   "reorder.restock": "auffüllen",
+  "reorder.consumables": "Verbrauchsmaterial",
   "reorder.copy_list": "Liste kopieren",
   "reorder.none": "Bestand sieht gut aus — derzeit nichts nachzubestellen.",
   "xr.section": "Wechselkurse",

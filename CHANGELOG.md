@@ -4,6 +4,22 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **Consumables now reach the reorder list and purchase orders.** Running out of
+  glue, isopropyl, bags or screws stops a job exactly the way running out of
+  filament does, but only filament was ever forecast or ordered — a consumable
+  that ran low said so in a toast that vanished, and nothing downstream heard
+  about it. Reorder suggestions now include a consumables section, with usage
+  worked out from the three ways stock is actually deducted (per print hour, one
+  per packed order, and bill-of-materials components), and those suggestions can
+  be drafted into purchase orders alongside the filament ones.
+
+  Quantities stay in your own unit throughout — boxes are ordered and received as
+  boxes, never as grams — and a received consumable order restocks the consumable
+  and is recorded as general spend rather than as filament, so it no longer
+  distorts the material cost that pricing is built on.
+
 ## [3.6.0-beta.15] - 2026-08-09
 
 ### Fixed
