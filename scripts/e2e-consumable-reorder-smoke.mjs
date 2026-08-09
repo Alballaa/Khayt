@@ -106,6 +106,32 @@ try {
   ok(!badges.some((b) => /^po\.status\./.test(b)),
     `no badge shows a raw locale key (${JSON.stringify(badges)})`);
 
+  // ---- the status filter offers the statuses that exist ----
+  // The filter compares po.status to the option value, so an option for a status
+  // nothing writes can only ever empty the table. Drive the real <select> rather
+  // than reading its markup: pick `draft` and the orders just drafted must survive
+  // the filter. `pending` is asserted absent — it was the offered-but-unreachable
+  // one, and its label borrowed a print-queue string besides.
+  const opts = await window.evaluate(() =>
+    [...document.querySelectorAll('#poStatusSel option')].map((o) => ({ v: o.value, t: o.textContent.trim() })));
+  ok(opts.some((o) => o.v === 'draft'), `the filter offers draft (${JSON.stringify(opts)})`);
+  ok(!opts.some((o) => o.v === 'pending'), `the filter does not offer pending (${JSON.stringify(opts)})`);
+  ok(!opts.some((o) => /^(po|queue)\./.test(o.t)),
+    `no option shows a raw locale key (${JSON.stringify(opts)})`);
+
+  const draftRows = await window.evaluate(() => {
+    const sel = document.querySelector('#poStatusSel');
+    sel.value = 'draft';
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+    return document.querySelectorAll('#poSection .po-table tbody tr').length;
+  });
+  ok(draftRows >= 2, `filtering by draft keeps the drafted orders (${draftRows} rows)`);
+  await window.evaluate(() => {
+    const sel = document.querySelector('#poStatusSel');
+    sel.value = '';
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+
   const stockBefore = await window.evaluate(() => consumables.find((c) => c.id === 'CNS-GLUE').stock);
   await window.evaluate(() => {
     const po = purchaseOrders.find((p) => p.itemId === 'CNS-GLUE');
