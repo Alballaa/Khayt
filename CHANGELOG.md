@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.6.0-beta.14] - 2026-08-09
+
 ### Added
 
 - **Consumables can have categories, and you can look at one at a time.** A
