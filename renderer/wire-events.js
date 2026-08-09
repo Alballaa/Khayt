@@ -2029,7 +2029,12 @@ function wireEvents() {
       const isCons = po.kind === 'consumable';
       const unitLbl = isCons ? ((po.unit || '').trim() || (t('cons.unit') || 'units')) : 'g';
       const alreadyReceived = po.receivedSoFar || 0;
-      const ordered = isCons ? (+po.qty || 0) : (po.weightOrdered || 0);
+      // `qty` is the only quantity a purchase order carries — grams for filament,
+      // the shop's own unit for a consumable. `weightOrdered` was read here from
+      // the day this dialog was written and has never been written by any version
+      // of createPurchaseOrder, so a filament order measured itself against 0:
+      // the box offered a flat 1000 g and the order could never reach `received`.
+      const ordered = +po.qty || 0;
       const remaining = ordered > 0 ? ordered - alreadyReceived : (isCons ? 1 : 1000);
       openFormModal({
         title: t('po.receive'),
@@ -2072,17 +2077,19 @@ function wireEvents() {
             po.status = 'partial';
             toast(t('po.partial') + ' · +' + w + unitLbl, 'success');
           }
-          // Automatically create an expense record for the received goods
-          if (po.totalCost > 0 || po.unitCost > 0 || (isCons && po.unitPrice > 0)) {
-            // Filament unit costs are per KILO against a quantity in grams, hence
-            // the /1000. A consumable's price is per unit against a count of
-            // units, so the same division would book a box of screws at a tenth
-            // of a halala and quietly understate every consumable ever bought.
-            const expAmount = isCons
-              ? +(w * (+po.unitPrice || +po.unitCost || 0)).toFixed(2)
-              : (po.totalCost > 0
-                ? +((w / Math.max(1, po.weightOrdered)) * po.totalCost).toFixed(2)
-                : +(w * (po.unitCost || 0) / 1000).toFixed(2));
+          // Automatically create an expense record for the received goods.
+          //
+          // A purchase order prices itself one way and one way only: `unitPrice`
+          // against `qty`, per gram for filament and per unit of the shop's own
+          // for a consumable. Both therefore multiply out identically and there
+          // is no /1000 — the per-KILO rate that division assumed lived in
+          // `unitCost`, which, like `totalCost`, no version of the app has ever
+          // written. Every filament receipt booked nothing at all: the spool was
+          // paid for and absent from the material spend that pricing and the
+          // per-kilo analytics are derived from.
+          const unitPrice = +po.unitPrice || 0;
+          if (unitPrice > 0) {
+            const expAmount = +(w * unitPrice).toFixed(2);
             if (expAmount > 0) {
               expenses.push({
                 id:       uid('EXP'),

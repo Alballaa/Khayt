@@ -3714,11 +3714,18 @@ function renderPurchaseOrders() {
           <tbody>
           ${page.map(po => {
             const receivedSoFar = po.receivedSoFar || 0;
-            const weightOrdered = po.weightOrdered || 0;
-            const progressPct = weightOrdered > 0 ? Math.min(100, (receivedSoFar / weightOrdered) * 100) : 0;
+            // `qty` is what createPurchaseOrder writes; `weightOrdered` is written
+            // by nothing, so this bar was 0/0 on every order and never appeared.
+            // The unit follows the order's kind for the same reason the receive
+            // dialog's does — a part-received box of screws is not "4g / 8g".
+            const ordered = +po.qty || 0;
+            const poUnit = po.kind === 'consumable'
+              ? ((po.unit || '').trim() || (t('cons.unit') || 'units'))
+              : 'g';
+            const progressPct = ordered > 0 ? Math.min(100, (receivedSoFar / ordered) * 100) : 0;
             const isPartial = po.status === 'partial';
-            const progressHtml = isPartial && weightOrdered > 0 ? `
-              <div style="margin-top:4px; font-size:11px; color:var(--text-muted);">${escapeHtml(t('po.received_so_far'))}: ${receivedSoFar}g / ${weightOrdered}g</div>
+            const progressHtml = isPartial && ordered > 0 ? `
+              <div style="margin-top:4px; font-size:11px; color:var(--text-muted);">${escapeHtml(t('po.received_so_far'))}: ${receivedSoFar}${escapeHtml(poUnit)} / ${ordered}${escapeHtml(poUnit)}</div>
               <div class="po-progress-bar"><div style="width:${progressPct.toFixed(1)}%;background:var(--primary);height:100%;border-radius:2px;"></div></div>` : '';
             return `
             <tr>
