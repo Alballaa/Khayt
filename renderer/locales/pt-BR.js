@@ -1926,6 +1926,7 @@
   "po.receive_more": "Receber mais",
   "po.close_po": "Encerrar pedido",
   "po.weight_received": "Peso recebido (g)",
+  "po.qty_received": "Quantidade recebida",
   "po.notes": "Observações",
   "po.search_ph": "Buscar pedidos de compra…",
   "ce.credit_limit": "Limite de crédito",

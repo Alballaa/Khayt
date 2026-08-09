@@ -1925,6 +1925,7 @@
   "po.receive_more": "追加受領",
   "po.close_po": "発注書を閉じる",
   "po.weight_received": "受領重量（g）",
+  "po.qty_received": "受領数量",
   "po.notes": "メモ",
   "po.search_ph": "発注書を検索…",
   "ce.credit_limit": "与信限度額",

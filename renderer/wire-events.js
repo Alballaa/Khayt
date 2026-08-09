@@ -2036,7 +2036,7 @@ function wireEvents() {
         sizeLg: false,
         saveLabel: t('po.receive'),
         bodyHtml: `
-          <label>${escapeHtml(t('po.weight_received'))} (${escapeHtml(unitLbl)})</label>
+          <label>${escapeHtml(isCons ? `${t('po.qty_received') || 'Quantity received'} (${unitLbl})` : t('po.weight_received'))}</label>
           <input type="number" id="poRecvWeight" value="${Math.max(0, remaining)}" min="0" step="${isCons ? '0.01' : '1'}">
           <label style="margin-top:12px;">${escapeHtml(t('po.notes'))}</label>
           <input type="text" id="poRecvNotes" placeholder="${escapeHtml(t('po.notes'))}">`,

@@ -1925,6 +1925,7 @@
   "po.receive_more": "Mehr empfangen",
   "po.close_po": "Bestellung abschließen",
   "po.weight_received": "Empfangenes Gewicht (g)",
+  "po.qty_received": "Empfangene Menge",
   "po.notes": "Notizen",
   "po.search_ph": "Bestellungen suchen…",
   "ce.credit_limit": "Kreditlimit",
