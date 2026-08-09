@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.6.0-beta.15] - 2026-08-09
+
 ### Fixed
 
 - **A planned BedReady maintenance window no longer looks like a broken sync.**
