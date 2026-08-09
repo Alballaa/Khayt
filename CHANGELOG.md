@@ -6,6 +6,17 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Consumables can have categories, and you can look at one at a time.** A
+  consumable had exactly one grouping — the packaging tick box — so screws,
+  magnets, inserts, boxes and labels all sat in one flat list. Each item now takes
+  a **Category** you type yourself, suggesting the ones you already use so the
+  same shelf does not end up spelled three ways. A picker above the list shows one
+  category at a time with a count beside each, and it only appears once you have
+  more than one. Items you have not categorised are a group of their own rather
+  than something that disappears the moment you filter — and if you empty a
+  category while looking at it, the list returns to showing everything instead of
+  going blank.
+
 - **A fee can now be a percentage.** "Add fee" only ever took a fixed amount,
   which is the wrong shape for the fee that matters most: Etsy, Shopify and eBay
   charge a percentage, so quoting for them meant working it out on a calculator

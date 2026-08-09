@@ -2220,24 +2220,71 @@ function deductPackagingConsumables(order) {
 /* ============================================================
    Non-filament consumables (glue, isopropyl, sandpaper, etc.)
    ============================================================ */
+// The category currently filtered to. '' is All. Held here rather than read off
+// the <select> so a re-render cannot lose it, and reconciled against what
+// actually exists on every draw — see resolveSelection().
+let consCategoryFilter = '';
+
+/** Change the filter and redraw. Exported — wire-events.js is a separate IIFE. */
+function setConsCategoryFilter(v) {
+  consCategoryFilter = String(v == null ? '' : v);
+  renderConsumables();
+}
+
+/** Fill the filter picker from the items themselves, and keep the selection honest. */
+function renderConsCategoryFilter() {
+  const sel = $('#consCategoryFilter');
+  if (!sel || typeof KhaytConsumableCategories === 'undefined') return;
+  const CC = KhaytConsumableCategories;
+  // A category the shop just emptied must not stay selected, or the list goes
+  // blank under a heading still naming it — which reads as data loss.
+  consCategoryFilter = CC.resolveSelection(consumables, consCategoryFilter);
+  const cats = CC.categories(consumables);
+  // Nothing to choose between until there are at least two groups.
+  if (cats.length < 2) { sel.style.display = 'none'; sel.innerHTML = ''; return; }
+  sel.style.display = '';
+  const all = `<option value="">${escapeHtml(t('cons.cat_all') || 'All categories')} (${consumables.length})</option>`;
+  sel.innerHTML = all + cats.map((c) => {
+    const label = c.key === CC.UNCATEGORISED ? (t('cons.cat_none') || 'Uncategorised') : c.label;
+    const value = c.key === CC.UNCATEGORISED ? CC.UNCATEGORISED : c.label;
+    const on = CC.resolveSelection(consumables, consCategoryFilter) === value ? ' selected' : '';
+    return `<option value="${escapeHtml(value)}"${on}>${escapeHtml(label)} (${c.count})</option>`;
+  }).join('');
+}
+
 function renderConsumables() {
   const el = $('#consumablesTable tbody');
   if (!el) return;
+  renderConsCategoryFilter();
   if (consumables.length === 0) {
     el.innerHTML = `<tr><td colspan="5" class="empty-state">${escapeHtml(t('cons.empty'))}</td></tr>`;
     return;
   }
-  el.innerHTML = consumables.map(c => {
+  const shown = (typeof KhaytConsumableCategories !== 'undefined')
+    ? KhaytConsumableCategories.filterByCategory(consumables, consCategoryFilter)
+    : consumables;
+  if (shown.length === 0) {
+    // Only reachable if a filter is on, since resolveSelection() drops a stale
+    // one — so say which filter, and offer the way out.
+    el.innerHTML = `<tr><td colspan="5" class="empty-state">${escapeHtml(t('cons.cat_empty') || 'Nothing in this category.')}
+      <button class="btn small ghost" data-act="cons-cat-all" style="margin-inline-start:10px;">${escapeHtml(t('cons.cat_all') || 'All categories')}</button></td></tr>`;
+    return;
+  }
+  el.innerHTML = shown.map(c => {
     const low = c.minStock > 0 && c.stock <= c.minStock;
     const usageHint = c.usagePerHour > 0
       ? `<div style="font-size:10.5px; color:var(--primary); margin-top:1px;">${escapeHtml(t('cons.usage_per_hour'))}: ${c.usagePerHour} / h</div>`
+      : '';
+    // Shown only when not already filtered to it — the heading says it otherwise.
+    const catChip = (c.category && !consCategoryFilter)
+      ? `<span style="font-size:10px; background:var(--bg-elev); color:var(--text-dim); padding:1px 6px; border-radius:6px; margin-inline-start:6px; vertical-align:middle;">${escapeHtml(c.category)}</span>`
       : '';
     const packagingBadge = c.isPackaging
       ? `<span style="font-size:10px; background:rgba(251,146,60,0.18); color:var(--warning); padding:1px 6px; border-radius:6px; margin-inline-start:6px; vertical-align:middle;">📦 ${escapeHtml(t('cons.packaging_badge'))}</span>`
       : '';
     return `
       <tr${low ? ' style="background:rgba(245,166,35,0.08);"' : ''}>
-        <td><strong>${escapeHtml(c.name)}</strong>${packagingBadge}${low ? ` <span style="color:var(--warning); font-size:11px;">· ${escapeHtml(t('cons.low'))}</span>` : ''}${usageHint}</td>
+        <td><strong>${escapeHtml(c.name)}</strong>${catChip}${packagingBadge}${low ? ` <span style="color:var(--warning); font-size:11px;">· ${escapeHtml(t('cons.low'))}</span>` : ''}${usageHint}</td>
         <td style="font-variant-numeric:tabular-nums;">${c.stock} ${escapeHtml(c.unit || '')}</td>
         <td style="font-variant-numeric:tabular-nums;">${c.minStock > 0 ? c.minStock + ' ' + escapeHtml(c.unit || '') : '—'}</td>
         <td style="font-variant-numeric:tabular-nums;">${c.cost > 0 ? fmtPrice(c.cost) : '—'}</td>
@@ -2266,6 +2313,19 @@ function openConsumableEditor(id) {
       <div>
         <label style="margin-top:0;">${escapeHtml(t('cons.unit'))}</label>
         <input type="text" data-f="unit" value="${escapeHtml(draft.unit)}" placeholder="pcs / ml / g">
+      </div>
+      <div>
+        <label>${escapeHtml(t('cons.category') || 'Category')}</label>
+        <!-- A free-text field with suggestions, not a fixed list: a shop's shelves
+             are its own, and a closed list would need managing before it could be
+             used. Matching is case- and space-insensitive (lib/consumable-categories.js),
+             so picking a suggestion and retyping it land in the same place. -->
+        <input type="text" data-f="category" list="consCategoryList" value="${escapeHtml(draft.category || '')}" placeholder="${escapeHtml(t('cons.category_ph') || 'e.g. Fasteners')}">
+        <datalist id="consCategoryList">${
+          (typeof KhaytConsumableCategories !== 'undefined'
+            ? KhaytConsumableCategories.suggestions(consumables) : [])
+            .map((c) => `<option value="${escapeHtml(c)}"></option>`).join('')
+        }</datalist>
       </div>
     </div>
     <div class="inline-pair" style="margin-top:12px;">
@@ -2304,6 +2364,7 @@ function openConsumableEditor(id) {
       draft.cost         = Math.max(0, num(draft.cost, 0));
       draft.minStock     = Math.max(0, num(draft.minStock, 0));
       draft.unit         = (draft.unit || '').trim();
+      draft.category     = (draft.category || '').trim();
       draft.usagePerHour = Math.max(0, num(draft.usagePerHour, 0));
       draft.isPackaging  = !!(modal.querySelector('#consIsPackaging')?.checked);
       if (existing) {
@@ -4049,6 +4110,7 @@ async function printSpoolLabel(itemId) {
     deductFilamentForOrder,
     deductPackagingConsumables,
     renderConsumables,
+    setConsCategoryFilter,
     openConsumableEditor,
     deleteConsumable,
     renderSupplierReorderList,
