@@ -92,6 +92,20 @@ try {
   await window.click('.modal [data-act="cancel"]');
   await window.waitForSelector('.modal', { state: 'detached', timeout: 5000 });
 
+  // ---- the badge on a drafted order ----
+  // Every order the draft button writes is `status: 'draft'`, and the badge
+  // renders t('po.status.' + po.status). i18n.t() falls back to the KEY, so a
+  // missing entry does not degrade to English — it prints "po.status.draft" in
+  // the table. Assert against the rendered badge rather than the locale file:
+  // the key existing proves nothing if the status the code writes is a third
+  // spelling. Any status reachable here must resolve.
+  await window.evaluate(() => renderPurchaseOrders());
+  const badges = await window.evaluate(() =>
+    [...document.querySelectorAll('#poSection .po-badge')].map((b) => b.textContent.trim()));
+  ok(badges.length >= 2, `the drafted orders have badges (${JSON.stringify(badges)})`);
+  ok(!badges.some((b) => /^po\.status\./.test(b)),
+    `no badge shows a raw locale key (${JSON.stringify(badges)})`);
+
   const stockBefore = await window.evaluate(() => consumables.find((c) => c.id === 'CNS-GLUE').stock);
   await window.evaluate(() => {
     const po = purchaseOrders.find((p) => p.itemId === 'CNS-GLUE');

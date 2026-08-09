@@ -1916,6 +1916,7 @@
   "po.supplier": "Supplier",
   "po.ordered_at": "Ordered",
   "po.status": "Status",
+  "po.status.draft": "Draft",
   "po.status.ordered": "Ordered",
   "po.status.received": "Received",
   "po.receive": "Mark received",

@@ -1915,6 +1915,7 @@
   "po.supplier": "サプライヤー",
   "po.ordered_at": "発注日",
   "po.status": "ステータス",
+  "po.status.draft": "下書き",
   "po.status.ordered": "発注済み",
   "po.status.received": "受領済み",
   "po.receive": "受領済みにする",

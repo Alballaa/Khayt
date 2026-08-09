@@ -3446,6 +3446,10 @@ button.tag-chip, .tag-chip[data-act] {
 .po-table th { color:var(--text-muted); font-weight:500; padding:6px 10px; border-bottom:1px solid var(--border); text-align:start; }
 .po-table td { padding:8px 10px; border-bottom:1px solid rgba(255,255,255,0.04); vertical-align:middle; }
 .po-badge { display:inline-block; padding:2px 8px; border-radius:8px; font-size:11px; font-weight:600; }
+/* A drafted order has not been sent to anyone yet, so it reads as neutral —
+   the same muted grey the other "nothing has happened yet" badges use. Without
+   a rule the class still applies and the pill renders with no fill at all. */
+.po-badge.draft    { background:rgba(107,119,147,0.18); color:var(--text-dim); }
 .po-badge.ordered  { background:rgba(245,166,35,0.15); color:var(--warning); }
 .po-badge.received { background:rgba(43,182,115,0.15); color:var(--success); }
 .po-badge.partial  { background:rgba(91,156,240,0.15); color:var(--primary); }

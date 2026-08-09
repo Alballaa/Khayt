@@ -1915,6 +1915,7 @@
   "po.supplier": "Tedarikçi",
   "po.ordered_at": "Sipariş edildi",
   "po.status": "Durum",
+  "po.status.draft": "Taslak",
   "po.status.ordered": "Sipariş edildi",
   "po.status.received": "Teslim alındı",
   "po.receive": "Teslim alındı olarak işaretle",

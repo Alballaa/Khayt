@@ -1915,6 +1915,7 @@
   "po.supplier": "Lieferant",
   "po.ordered_at": "Bestellt",
   "po.status": "Status",
+  "po.status.draft": "Entwurf",
   "po.status.ordered": "Bestellt",
   "po.status.received": "Erhalten",
   "po.receive": "Als erhalten markieren",

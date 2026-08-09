@@ -1965,6 +1965,7 @@
   "po.supplier": "المورد",
   "po.ordered_at": "تاريخ الطلب",
   "po.status": "الحالة",
+  "po.status.draft": "مسودة",
   "po.status.ordered": "مطلوب",
   "po.status.received": "مستلم",
   "po.receive": "تأكيد الاستلام",
