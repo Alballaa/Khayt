@@ -6,6 +6,20 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Receiving a filament purchase order now records what it cost.** An order
+  drafted for you — at the reorder point, or from **Draft purchase orders** in the
+  reorder list — was restocked onto the shelf when it arrived and then booked no
+  expense at all. Nothing failed and nothing warned: the spool was simply paid for
+  and missing from your material spend, which understates the filament cost that
+  analytics reports and that your pricing is worked out from. The same order now
+  books its own cost, split across part shipments if it arrives in more than one.
+
+  Three smaller things came from the same cause and are fixed with it: the receive
+  box offered a flat 1000 g instead of what was outstanding, and a filament order
+  could never finish — it stayed **Partial** however much of it arrived; the
+  progress bar beside a partly received order never appeared; and the purchase
+  orders in **Export all data (CSV)** carried a blank date and a blank total.
+
 - **The "receive purchase order" dialog no longer asks for a weight in two units.**
   Receiving a consumable order captioned the amount box `Weight received (g) (pcs)`
   — the translated label already ends in "(g)" in eight of the nine languages, so a

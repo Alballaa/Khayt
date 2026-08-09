@@ -94,19 +94,22 @@ test('a consumable is not booked as filament spend', () => {
   const body = wire.slice(at, at + 4500);
   assert.match(body, /category: isCons \? 'other' : 'filament'/,
     'a box of bags is recorded as filament spend');
-  assert.doesNotMatch(body, /isCons[\s\S]{0,200}\(w \* \(po\.unitCost \|\| 0\) \/ 1000\)/,
-    'the per-kilo division is applied to a per-unit price');
-  assert.match(body, /\+\(w \* \(\+po\.unitPrice \|\| \+po\.unitCost \|\| 0\)\)\.toFixed\(2\)/,
-    'the consumable expense is not priced per unit');
+  // The per-kilo division is gone from the whole handler: unitPrice is per gram
+  // for filament and per unit for a consumable, so both multiply out the same.
+  assert.doesNotMatch(body, /\/\s*1000/,
+    'a per-kilo division survives somewhere in the receive handler');
+  assert.match(body, /const expAmount = \+\(w \* unitPrice\)\.toFixed\(2\)/,
+    'the expense is not priced off the order\'s own unit price');
 });
 
 test('completion is measured against what was actually ordered', () => {
-  // po.weightOrdered is only ever set on filament orders. Left as the yardstick,
-  // a consumable order can never reach `received` and stays partial forever.
+  // po.weightOrdered was read here but never written by anything, so BOTH kinds
+  // measured themselves against 0 and no order could ever reach `received`.
   const at = wire.indexOf("const recv    = e.target.closest('[data-act=\"po-receive\"]')");
   const body = wire.slice(at, at + 4500);
-  assert.match(body, /const ordered = isCons \? \(\+po\.qty \|\| 0\) : \(po\.weightOrdered \|\| 0\)/,
-    'the ordered quantity is read from a filament-only field');
+  assert.match(body, /const ordered = \+po\.qty \|\| 0;/,
+    'the ordered quantity is read from a field createPurchaseOrder does not write');
+  assert.doesNotMatch(body, /weightOrdered/, 'weightOrdered is written by nothing and must not be read');
   assert.match(body, /if \(ordered > 0 && po\.receivedSoFar >= ordered\)/,
     'completion still compares against weightOrdered');
 });

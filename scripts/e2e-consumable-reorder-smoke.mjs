@@ -136,25 +136,54 @@ try {
   ok(after.exp.some((e) => e.cat === 'other' && Math.abs(e.amt - 24) < 0.01),
     `the expense is 8 × 3 = 24 as general spend (${JSON.stringify(after.exp)})`);
 
-  // ---- the filament path through the same dialog, unchanged ----
+  // ---- the filament path, drafted by the app rather than by this script ----
+  //
+  // A hand-built fixture proves nothing here: it can agree with the receive
+  // handler while the code that really writes purchase orders disagrees, which
+  // is exactly the state this repo shipped in. createPurchaseOrder wrote
+  // `unitPrice` and the receipt read `unitCost`/`totalCost`, so every
+  // auto-drafted spool was restocked and booked NO expense — invisible, because
+  // the goods did arrive and nothing threw.
+  //
+  // So the order below comes out of maybeAutoDraftPurchaseOrders(): the boot-time
+  // automation, running the real resolveReorderPrice → createPurchaseOrder chain
+  // against a spool the app itself decides is short.
+  const drafted = await window.evaluate(() => {
+    const spool = inventory[0];
+    // An 85/kg spool with 300 g left, against 800 g already committed by a job
+    // in the queue. reorderSuggestions covers the shortfall: ceil(800 − 300) =
+    // 500 g, rounded to the quarter-kilo the drafter buys in.
+    spool.cost = 85;
+    spool.spoolWeight = 1000;
+    spool.weight = 300;
+    spool.reorderPoint = 500;
+    printLog.push({
+      id: 'E2E-FIL-OPEN', client: 'reorder e2e', status: 'printing', parts: [
+        { spoolId: spool.id, printWeight: 800, qty: 1 },
+      ],
+    });
+    settings.autoDraftPo = true;
+    // resolveReorderPrice prefers a supplier price-list match over the spool's
+    // own cost, so a sample supplier quoting PLA would decide the rate instead.
+    suppliers.length = 0;
+    purchaseOrders.length = 0;   // the consumable orders have made their point
+    expenses.length = 0;
+    maybeAutoDraftPurchaseOrders();
+    const po = purchaseOrders.find((p) => p.itemId === spool.id);
+    if (po) { po.status = 'ordered'; saveAll(); renderPurchaseOrders(); }
+    return po ? { id: po.id, qty: po.qty, unitPrice: po.unitPrice, spoolId: spool.id } : null;
+  });
+  ok(!!drafted, 'the auto-drafter produced a filament purchase order');
+  ok(drafted.qty === 500, `it asks for the 500 g shortfall, rounded to a quarter kilo (${drafted.qty})`);
+  // The rate the app resolved for itself: 85 / 1000 g. If this is undefined the
+  // order carries no price at all and the receipt below cannot book anything.
+  ok(Math.abs(drafted.unitPrice - 0.085) < 1e-9,
+    `the drafted order carries a per-gram price (${drafted.unitPrice})`);
+
   // `po.weight_received` already ends in "(g)" in 8 of 9 locales, so the caption
   // must NOT have a unit appended to it here either.
-  await window.evaluate(() => {
-    const spool = inventory[0];
-    purchaseOrders.unshift({
-      id: 'PO-FIL-E2E', itemId: spool.id, itemName: spool.material, qty: 1000,
-      // `unitCost`, not `unitPrice`: the receipt's expense branch reads unitCost /
-      // totalCost, while createPurchaseOrder only ever writes unitPrice. That
-      // mismatch predates this change — an auto-drafted filament order books no
-      // expense when received — so it is exercised here as it actually behaves,
-      // not as it ought to.
-      weightOrdered: 1000, unitCost: 85, status: 'ordered', orderedAt: '2026-08-09',
-      receivedAt: null, notes: '',
-    });
-    saveAll(); renderPurchaseOrders();
-  });
-  const filBefore = await window.evaluate(() => +inventory[0].weight || 0);
-  await window.click('[data-act="po-receive"]');
+  const filBefore = await window.evaluate((id) => +inventory.find((i) => i.id === id).weight || 0, drafted.spoolId);
+  await window.click(`[data-act="po-receive"][data-id="${drafted.id}"]`);
   await window.waitForSelector('#poRecvWeight', { timeout: 5000 });
   const filCaption = await window.evaluate(() => {
     const lbl = [...document.querySelectorAll('.modal label')].find((l) => /\(/.test(l.textContent));
@@ -162,17 +191,49 @@ try {
   });
   ok(/\(g\)/.test(filCaption), `filament still asks in grams (got "${filCaption}")`);
   ok((filCaption.match(/\(/g) || []).length === 1, `the filament caption carries exactly one unit: "${filCaption}"`);
-  await window.evaluate(() => { document.querySelector('#poRecvWeight').value = '250'; });
+  const filAsked = await window.evaluate(() => +document.querySelector('#poRecvWeight').value);
+  ok(filAsked === 500, `it offers what was ordered, not a flat 1000 g (${filAsked})`);
+
+  // Take 200 of the 500 first: a part shipment must book its own share and leave
+  // the order open, with a progress bar that can finally measure itself.
+  await window.evaluate(() => { document.querySelector('#poRecvWeight').value = '200'; });
   await window.click('.modal [data-act="save"]');
   await window.waitForTimeout(500);
-  const filAfter = await window.evaluate(() => ({
-    w: +inventory[0].weight || 0,
-    exp: expenses.filter((e) => e.category === 'filament').length,
-  }));
-  ok(filAfter.w === filBefore + 250, `the spool was restocked ${filBefore} → ${filAfter.w}`);
-  ok(filAfter.exp === 1, `filament receipt still books filament spend (${filAfter.exp})`);
+  const partial = await window.evaluate((d) => ({
+    w: +inventory.find((i) => i.id === d.spoolId).weight || 0,
+    status: purchaseOrders.find((p) => p.id === d.id).status,
+    exp: expenses.filter((e) => e.category === 'filament').map((e) => e.amount),
+    progress: document.querySelector('.po-table')?.innerText || '',
+  }), drafted);
+  ok(partial.w === filBefore + 200, `the spool was restocked ${filBefore} → ${partial.w}`);
+  ok(partial.status === 'partial', `200 of 500 leaves the order open (${partial.status})`);
+  ok(partial.exp.length === 1 && Math.abs(partial.exp[0] - 17) < 0.01,
+    `the part shipment books 200 × 0.085 = 17 (${JSON.stringify(partial.exp)})`);
+  ok(/200g \/ 500g/.test(partial.progress),
+    `the progress row counts against what was ordered:\n${partial.progress}`);
 
-  console.log('e2e-consumable-reorder: ok (modal → draft → receive → restock, units and expense intact; filament path unchanged)');
+  // And the rest, which must complete the order and total to the spool's price.
+  await window.click(`[data-act="po-receive"][data-id="${drafted.id}"]`);
+  await window.waitForSelector('#poRecvWeight', { timeout: 5000 });
+  const restAsked = await window.evaluate(() => +document.querySelector('#poRecvWeight').value);
+  ok(restAsked === 300, `it offers the outstanding 300 g (${restAsked})`);
+  await window.click('.modal [data-act="save"]');
+  await window.waitForTimeout(500);
+  const filAfter = await window.evaluate((d) => ({
+    w: +inventory.find((i) => i.id === d.spoolId).weight || 0,
+    status: purchaseOrders.find((p) => p.id === d.id).status,
+    exp: expenses.filter((e) => e.category === 'filament'),
+  }), drafted);
+  ok(filAfter.w === filBefore + 500, `the whole order reached the shelf (${filAfter.w})`);
+  ok(filAfter.status === 'received', `the order completed rather than sticking at partial (${filAfter.status})`);
+  ok(filAfter.exp.length === 2, `each receipt booked its own expense (${filAfter.exp.length})`);
+  // The figure that used to be zero: 500 g of an 85/kg spool is 42.50, and it is
+  // material spend — the number pricing and the per-kilo analytics are built on.
+  const filTotal = filAfter.exp.reduce((s, e) => s + (+e.amount || 0), 0);
+  ok(Math.abs(filTotal - 42.5) < 0.01, `the received half-kilo cost 42.50 (${filTotal})`);
+  ok(filAfter.exp.every((e) => e.poId === drafted.id), 'each expense is traceable back to its order');
+
+  console.log('e2e-consumable-reorder: ok (modal → draft → receive → restock, units and expense intact; an auto-drafted filament order books its own cost)');
 } catch (err) {
   failed = true;
   console.error('e2e-consumable-reorder FAILED:', err && err.message);
