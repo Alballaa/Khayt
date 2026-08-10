@@ -3649,6 +3649,23 @@ async function syncUpdaterOptionsFromSettings() {
   } catch (_) {}
 }
 
+/**
+ * Show or hide the "ZATCA keeps documents bilingual" note beside the document
+ * language picker.
+ *
+ * The picker is not disabled, deliberately: the owner's choice is remembered and
+ * takes effect the moment ZATCA is switched off. Greying it out would lose that,
+ * and would suggest the setting is unavailable rather than currently outranked.
+ */
+function syncInvBilingualZatcaNote() {
+  const note = $('#invBilingualZatcaNote');
+  if (!note) return;
+  const zatcaOn = $('#set_enableZatca')
+    ? !!$('#set_enableZatca').checked
+    : settings.enableZatca !== false;
+  note.style.display = zatcaOn ? '' : 'none';
+}
+
 function loadSettingsIntoForm() {
   $('#set_bizEn').value     = settings.bizEn     || '';
   $('#set_bizAr').value     = settings.bizAr     || '';
@@ -3684,6 +3701,8 @@ function loadSettingsIntoForm() {
   $('#set_taglineAr').value     = settings.taglineAr   || '';
   $('#set_invAccent').value     = safeCssColor(settings.invAccentColor, '#5E2E14');
   if ($('#set_invTemplate')) $('#set_invTemplate').value = settings.invTemplate || 'classic';
+  if ($('#set_invoiceBilingual')) $('#set_invoiceBilingual').value = settings.invoiceBilingual || 'auto';
+  syncInvBilingualZatcaNote();
   $('#set_invTermsEn').value    = settings.invTermsEn  || '';
   $('#set_invTermsAr').value    = settings.invTermsAr  || '';
   $('#set_monthlyGoal').value     = settings.monthlyGoal ?? 0;
@@ -3723,6 +3742,14 @@ function loadSettingsIntoForm() {
   if (langSelHdr) langSelHdr.value = settings.lang || 'en';
   const zatcaEl = $('#set_enableZatca');
   if (zatcaEl) zatcaEl.checked = settings.enableZatca !== false;
+  // The document-language picker is overridden while ZATCA is on, so say so
+  // rather than leaving a control that silently does nothing. Bound here off the
+  // live checkbox, not the saved setting, so the note appears the moment ZATCA
+  // is ticked instead of after a save.
+  if (zatcaEl && !zatcaEl.dataset.bilingualNoteBound) {
+    zatcaEl.dataset.bilingualNoteBound = '1';
+    zatcaEl.addEventListener('change', syncInvBilingualZatcaNote);
+  }
   // Min-margin warning threshold
   const minMargEl = $('#set_minMarginPct');
   if (minMargEl) minMargEl.value = settings.minMarginPct ?? 0;
@@ -3957,6 +3984,7 @@ function saveSettingsFromForm() {
     taglineAr:     $('#set_taglineAr').value.trim(),
     invAccentColor:$('#set_invAccent').value || '#5E2E14',
     invTemplate:   $('#set_invTemplate')?.value || 'classic',
+    invoiceBilingual: $('#set_invoiceBilingual')?.value || 'auto',
     invTermsEn:    $('#set_invTermsEn').value.trim(),
     invTermsAr:    $('#set_invTermsAr').value.trim(),
     quotePrefix:   $('#set_quotePrefix').value.trim() || 'QUO',

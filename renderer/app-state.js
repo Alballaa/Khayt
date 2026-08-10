@@ -128,6 +128,11 @@ function defaultSettings() {
     invTemplate:     'classic', // classic | modern | minimal
     invTermsEn:      '',
     invTermsAr:      '',
+    // 'auto' | 'both' | 'single' — see lib/invoice-language.js. `auto` prints
+    // one language for everyone except Arabic shops (whose English pairing is
+    // doing real work) and shops under ZATCA (where Arabic is a legal
+    // requirement and the setting is overridden entirely).
+    invoiceBilingual: 'auto',
     quotePrefix:     'QUO',
     useIcloud:       false,
     monthlyGoal:     0,

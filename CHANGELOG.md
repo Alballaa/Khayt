@@ -24,6 +24,37 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   an install — and they are **never** deleted by the routine 30-day cleanup, which
   had been the other way this insurance could quietly disappear on the thirtieth
   day. They sit alongside your daily backups and restore the same way.
+### Fixed
+
+- **Quotes and invoices now print in the language you chose, not that language
+  and Arabic.** Every customer-facing document — quote, invoice, credit note,
+  delivery note — printed each label twice: your working language, then Arabic
+  underneath. Not "your other language": the second half was always Arabic, in all
+  nine translations, so a French shop sent customers French and Arabic and an
+  English shop sent a quote headed **عرض سعر**. The same went for the business
+  name and address block, and an English quote also carried a **Hijri date** row
+  beside the Gregorian one.
+
+  A new **Document language** setting under Invoice Defaults decides. It is set
+  to **Automatic**, which prints one language for everyone except shops working
+  in Arabic — there the English pairing is doing real work for overseas customers,
+  so it stays exactly as it was. **Bilingual** and **My language only** are there
+  to override it either way.
+
+  **ZATCA outranks all three.** Saudi Phase 1 requires Arabic on a tax invoice, so
+  while ZATCA e-invoicing is switched on documents stay bilingual whatever the
+  setting says, and the setting notes that it is doing so. Nothing you have
+  already sent changes, and no shop can drop into non-compliance by picking from
+  a dropdown.
+
+- **A new shop outside Saudi Arabia is no longer set up for Saudi e-invoicing.**
+  The "ZATCA e-invoicing fields on invoices" box in first-run setup was ticked for
+  everyone, whatever language was chosen — so shops with no connection to the
+  authority were quietly issuing invoices stamped "ZATCA Phase 1 compliant
+  invoice" with a TLV QR code, to customers who had never heard of it. It now
+  starts ticked only for an Arabic setup, and stays visible either way, because a
+  Gulf shop may well work in English. Existing shops are untouched; the setting is
+  where it always was, under Invoice Defaults.
 
 ## [3.6.0-beta.16] - 2026-08-10
 

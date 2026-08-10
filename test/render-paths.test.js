@@ -25,6 +25,11 @@ test('renderInvoice: populates print area without throwing (C1 subtotalShown)', 
   require('../renderer/format.js');
   require('../renderer/currency.js');
   require('../renderer/app-helpers.js');
+  // Sets globalThis.KhaytInvoiceLanguage (dual-export). renderInvoice asks it
+  // whether the document is bilingual, so without it every render throws — which
+  // is how this test caught the missing <script> tag rather than the app doing it
+  // in front of a user.
+  require('../lib/invoice-language.js');
   const inv = require('../renderer/invoicing.js');
 
   global.settings = { currency: 'SAR', vatEnabled: true, vatRate: 15, businessName: 'Khayt' };
