@@ -1,8 +1,14 @@
 #!/usr/bin/env node
 /**
- * Reliable Electron binary install (waits for download + extract).
- * Uses system unzip on macOS/Linux because extract-zip hangs on Node 24.16+ / 26+
- * (https://github.com/electron/electron/issues/51619).
+ * Downloads and extracts the Electron binary. This is not a convenience wrapper
+ * around Electron's own installer — as of Electron 42.0.0 the npm package ships
+ * no `postinstall` at all (41.x had `postinstall: node install.js`; 42.x has no
+ * `scripts` field), so `npm install electron` puts the JS on disk and never
+ * fetches the ~150MB binary. Nothing else downloads it. If this script goes, so
+ * does the binary.
+ *
+ * Extraction is system `unzip` on Unix and PowerShell `Expand-Archive` on
+ * Windows — no third-party extractor, on any supported platform.
  */
 const fs = require('fs');
 const path = require('path');
@@ -42,12 +48,7 @@ function hasUnzip() {
   return r.status === 0;
 }
 
-function isNodeExtractZipBroken() {
-  const [major, minor] = process.versions.node.split('.').map(Number);
-  return major >= 26 || major > 24 || (major === 24 && minor >= 16);
-}
-
-async function extractZipArchive(zipPath, distDir) {
+function extractZipArchive(zipPath, distDir) {
   fs.mkdirSync(distDir, { recursive: true });
   const platform = process.env.ELECTRON_INSTALL_PLATFORM || process.platform;
   const unix =
@@ -88,14 +89,10 @@ async function extractZipArchive(zipPath, distDir) {
     return;
   }
 
-  if (isNodeExtractZipBroken()) {
-    throw new Error(
-      'Node ' + process.versions.node + ' cannot use extract-zip (electron/electron#51619).'
-    );
-  }
-  console.log('Extracting with extract-zip…');
-  const extract = require('extract-zip');
-  await extract(zipPath, { dir: distDir });
+  // Unreachable: platformPath() runs first and throws for anything not handled
+  // above. Kept total rather than falling through, so a new platform fails here
+  // saying why instead of at the missing-binary check further on.
+  throw new Error('Unsupported platform for extraction: ' + platform);
 }
 
 function postExtract(electronDir, distDir, platPath, version) {
@@ -109,7 +106,7 @@ function postExtract(electronDir, distDir, platPath, version) {
   if (!fs.existsSync(distExe)) {
     throw new Error(
       'Electron binary not found after extract: ' + distExe + '\n' +
-      'If you use Node 24.16+, ensure `unzip` is available (macOS: Xcode CLI tools) or use Node 22.15 LTS.'
+      'Check that `unzip` is available (macOS: xcode-select --install).'
     );
   }
 
@@ -191,9 +188,6 @@ async function main() {
   }
 
   console.log(`Installing Electron ${version} for ${process.platform}-${resolveArch()}…`);
-  if (isNodeExtractZipBroken() && (process.platform === 'darwin' || process.platform === 'linux')) {
-    console.log('Node ' + process.versions.node + ' — using system unzip (extract-zip broken on 24.16+).\n');
-  }
   console.log('(About 150MB — can take several minutes on a slow connection.)\n');
 
   const { downloadArtifact } = require('@electron/get');
@@ -209,7 +203,7 @@ async function main() {
   if (fs.existsSync(distDir)) {
     fs.rmSync(distDir, { recursive: true, force: true });
   }
-  await extractZipArchive(zipPath, distDir);
+  extractZipArchive(zipPath, distDir);
   postExtract(electronDir, distDir, platPath, version);
 
   console.log('\nSuccess. Run: npm start\n');
@@ -219,6 +213,6 @@ main().catch((err) => {
   console.error('\nElectron install failed:\n', err.message || err);
   console.error('\nTry a mirror (then run this script again):');
   console.error('  export ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/');
-  console.error('\nOr use Node 22.15 LTS until extract-zip is fixed upstream.');
+  console.error('\nIf extraction failed, check that `unzip` is on PATH (macOS: xcode-select --install).');
   process.exit(1);
 });
