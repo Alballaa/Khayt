@@ -6,6 +6,21 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **A consumable purchase order is no longer accused of being priced 1000× too
+  high.** The banner that finds filament orders priced per spool where a per-gram
+  rate belongs judged every purchase order by the same rule — anything above a few
+  units of currency per unit must be a whole-spool figure in the wrong field. That
+  reasoning only holds for filament, which is ordered in grams. A consumable is
+  ordered in the shop's own unit, so five boxes of mailer bags at 12 each tripped
+  it, and so would any consumable costing more than about 5 per box, sheet or
+  piece. The warning sat permanently above the purchase orders, told the owner
+  their amounts were wrong when they were right, and offered no way to dismiss it —
+  and the correction it proposed would have divided the price by a spool weight,
+  writing the very 1000× error it claimed to have found. Consumable orders are now
+  left out of that check, which is filament-only by construction. Orders with no
+  kind recorded — every order predating consumables, and the ones actually holding
+  the defect — still count as filament and are still caught.
+
 - **Setting up a checkout no longer bumps the Electron version.** (Developer
   tooling; no effect on the app.) The first `npm run test:e2e` in a fresh clone or
   worktree installed Electron with an unpinned `npm install electron --save-dev`,

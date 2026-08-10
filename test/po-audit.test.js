@@ -112,3 +112,47 @@ test('empty and malformed input is safe', () => {
   }
   assert.equal(A.applyCorrection(null).ok, false);
 });
+
+/**
+ * Consumables reached purchase orders in 3.6.0-beta.16. They are counted in the
+ * shop's own unit — boxes, sheets, pcs — so their unit price is the price of one
+ * box, and it routinely exceeds the per-gram threshold this audit is built on.
+ * Every one of them was flagged as a 1000x pricing error.
+ */
+const BAGS = { id: 'CNS-BAG', name: 'Mailer bags', cost: 12, unit: 'boxes' };
+
+test('a consumable order priced per box is not a per-gram defect', () => {
+  // 5 boxes at 12/box = 60. Correct, ordinary, and above IMPLAUSIBLE_PER_GRAM.
+  const po = { id: 'PO1', kind: 'consumable', itemId: 'CNS-BAG', itemName: 'Mailer bags',
+    qty: 5, unit: 'boxes', unitPrice: 12, status: 'draft' };
+  assert.deepEqual(A.findSuspectPurchaseOrders([po], [SPOOL, BAGS]), [],
+    'a box price is not a whole-spool figure in a per-gram field');
+});
+
+test('an expensive consumable is not flagged however high its unit price', () => {
+  // The threshold is meaningless for consumables: a build plate at 400/pc is a
+  // real price, and dividing it by a spool weight would be the actual error.
+  for (const unitPrice of [6, 40, 400, 4000]) {
+    const po = { id: 'P', kind: 'consumable', itemId: 'CNS-BAG', qty: 1, unitPrice, status: 'draft' };
+    assert.deepEqual(A.findSuspectPurchaseOrders([po], [SPOOL, BAGS]), [], `${unitPrice}/unit must pass`);
+  }
+});
+
+test('a filament order is still caught when consumables sit beside it', () => {
+  // The guard must exclude consumables, not disable the audit.
+  const pos = [
+    { id: 'cons', kind: 'consumable', itemId: 'CNS-BAG', qty: 5, unitPrice: 12, status: 'draft' },
+    { id: 'fil', itemId: 'INV1', qty: 750, unitPrice: 85, status: 'draft' },
+  ];
+  assert.deepEqual(A.findSuspectPurchaseOrders(pos, [SPOOL, BAGS]).map((e) => e.po.id), ['fil']);
+});
+
+test('a PO with no kind is treated as filament', () => {
+  // Every order written before consumables could be ordered has no `kind`, and
+  // those are exactly the stores holding the defect. Absent must not mean exempt.
+  const po = { id: 'old', itemId: 'INV1', qty: 750, unitPrice: 85, status: 'draft' };
+  assert.equal(A.findSuspectPurchaseOrders([po], [SPOOL]).length, 1);
+  assert.equal(A.isFilamentOrder(po), true, 'absent kind reads as filament');
+  assert.equal(A.isFilamentOrder({ kind: 'filament' }), true);
+  assert.equal(A.isFilamentOrder({ kind: 'consumable' }), false);
+});
