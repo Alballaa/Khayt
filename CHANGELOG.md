@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.6.0-beta.16] - 2026-08-10
+
 ### Fixed
 
 - **A consumable purchase order is no longer accused of being priced 1000× too

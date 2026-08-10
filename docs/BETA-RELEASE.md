@@ -5,9 +5,9 @@ Khayt publishes **two release channels** on GitHub:
 | Channel | Latest | GitHub | Auto-update |
 |---------|--------|--------|-------------|
 | **Stable** | `v3.5.3` | [Latest release](https://github.com/khaytapp/Khayt/releases/latest) | Default (beta off) |
-| **Beta** | `v3.6.0-beta.15` | [Pre-releases](https://github.com/khaytapp/Khayt/releases) (filter *Pre-release*) | Opt-in via Settings |
+| **Beta** | `v3.6.0-beta.16` | [Pre-releases](https://github.com/khaytapp/Khayt/releases) (filter *Pre-release*) | Opt-in via Settings |
 
-> Verified 2026-08-09 against published tags. These rot fast — check with
+> Verified 2026-08-10 against published tags. These rot fast — check with
 > `gh release list --repo KhaytApp/Khayt` rather than trusting the table.
 
 ## What beta includes
