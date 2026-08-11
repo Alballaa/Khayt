@@ -117,8 +117,15 @@ than the revenue they protect.
 
 Concretely, in order:
 
-1. **gzip the store before encrypting.** One-line-ish, measured 7×, no protocol
-   change and no server change. Do this before quoting anyone a price.
+1. **gzip the store before encrypting.** Measured 7×, no protocol change and no
+   server change. Do this before quoting anyone a price.
+
+   **Half-shipped.** Every client now *reads* both shapes (`lib/sync-crypto.js`
+   and its browser twin), but `COMPRESS_ON_WRITE` is deliberately `false`: nothing
+   reads `blob.v`, so a client older than that change ignores the `z` marker too,
+   JSON.parses gzip bytes, and sits in a sync-error loop. Readers have to be in
+   the field a release before any writer emits the new shape. Flipping that one
+   constant is the second release, and it is the whole change.
 2. **Entity deltas on push.** Removes the size × frequency coupling, and is the
    same work Phase 3 needs anyway.
 3. **Then meter bandwidth, not bytes stored** — or having done 1 and 2, stop

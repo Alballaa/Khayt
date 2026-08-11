@@ -4,6 +4,17 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Changed
+
+- **Khayt can now read a compressed cloud backup, ahead of writing one.** Cloud
+  sync uploads your whole shop each time it saves, and it has always uploaded it
+  uncompressed — on a real shop that is about 59 KB going out where 9 KB would
+  do, every time anything changes. This release teaches Khayt to *read* the
+  smaller format; a later one starts *writing* it. Doing both at once would break
+  sync for anyone running two computers until they had updated both, so the
+  reading has to be everywhere first. Nothing about your data or its encryption
+  changes, and there is nothing to switch on.
+
 ### Added
 
 - **Tax now works outside the Gulf.** Khayt had one tax, at one rate, priced one
