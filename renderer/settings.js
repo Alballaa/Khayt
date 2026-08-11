@@ -3699,6 +3699,49 @@ function syncInvLanguageControls() {
   }
 }
 
+/** Country names for the tax-rules picker, in the shop's own language where we have one. */
+const TAX_COUNTRY_NAMES = {
+  SA: 'Saudi Arabia', AE: 'United Arab Emirates', KW: 'Kuwait', QA: 'Qatar', BH: 'Bahrain',
+  OM: 'Oman', EG: 'Egypt', JO: 'Jordan', GB: 'United Kingdom', DE: 'Germany', FR: 'France',
+  ES: 'Spain', IT: 'Italy', NL: 'Netherlands', PT: 'Portugal', IE: 'Ireland', CH: 'Switzerland',
+  NO: 'Norway', SE: 'Sweden', TR: 'Türkiye', ZA: 'South Africa', AU: 'Australia',
+  NZ: 'New Zealand', SG: 'Singapore', JP: 'Japan', IN: 'India', US: 'United States',
+  CA: 'Canada', MX: 'Mexico', BR: 'Brazil',
+};
+
+/**
+ * Fill the tax controls and explain, in money, what the pricing mode means.
+ *
+ * The inclusive/exclusive choice is the one a shop can get wrong without
+ * noticing — both look plausible in a settings panel and they differ by the tax
+ * on every order. So the hint shows the actual arithmetic on a round number
+ * rather than describing it.
+ */
+function syncTaxControls() {
+  const profile = KhaytTax.profileFromSettings(settings);
+  const sel = $('#set_taxCountry');
+  if (sel && !sel.options.length) {
+    const codes = Object.keys(KhaytTax.PRESETS).sort((a, b) =>
+      (TAX_COUNTRY_NAMES[a] || a).localeCompare(TAX_COUNTRY_NAMES[b] || b));
+    sel.innerHTML = '<option value="">' + escapeHtml(t('set.tax_country_custom') || 'Custom') + '</option>'
+      + codes.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(TAX_COUNTRY_NAMES[c] || c)}</option>`).join('');
+  }
+  if (sel) sel.value = settings.tax?.country || '';
+  const modeEl = $('#set_taxMode');
+  if (modeEl) modeEl.value = profile.mode;
+  const hint = $('#taxModeHint');
+  if (hint) {
+    const rate = profile.rates.reduce((sum, r) => sum + r.percent, 0);
+    if (!rate) { hint.textContent = ''; return; }
+    const shown = KhaytTax.computeTax(100, profile);
+    hint.textContent = (t('set.tax_mode_example')
+      || 'A price of 100 is invoiced as {total} — {subtotal} plus {tax} tax.')
+      .replace('{total}', fmtMoney(shown.total))
+      .replace('{subtotal}', fmtMoney(shown.subtotal))
+      .replace('{tax}', fmtMoney(shown.taxTotal));
+  }
+}
+
 function loadSettingsIntoForm() {
   $('#set_bizEn').value     = settings.bizEn     || '';
   $('#set_bizAr').value     = settings.bizAr     || '';
@@ -3793,6 +3836,35 @@ function loadSettingsIntoForm() {
   // checkbox still holds the previous load's value computes the wrong answer
   // and leaves the picker hidden on a shop that is not under ZATCA at all.
   syncInvLanguageControls();
+  syncTaxControls();
+  // A country choice rewrites name, rate, mode and registration label together —
+  // picking them apart is exactly the fiddly bit a preset exists to remove.
+  const tcEl = $('#set_taxCountry');
+  if (tcEl && !tcEl.dataset.taxBound) {
+    tcEl.dataset.taxBound = '1';
+    tcEl.addEventListener('change', () => {
+      const code = tcEl.value;
+      if (!code) return;
+      const preset = KhaytTax.presetFor(code);
+      settings.tax = { country: code, name: preset.name, mode: preset.mode, registration: preset.registration, rates: preset.rates };
+      const first = preset.rates[0];
+      // Keep the legacy fields in step so anything still reading them agrees.
+      settings.enableVat = !!first;
+      if (first) settings.vatRate = first.percent;
+      if ($('#set_enableVat')) $('#set_enableVat').checked = !!first;
+      if ($('#set_vatRate') && first) $('#set_vatRate').value = first.percent;
+      syncTaxControls();
+    });
+  }
+  const tmEl = $('#set_taxMode');
+  if (tmEl && !tmEl.dataset.taxBound) {
+    tmEl.dataset.taxBound = '1';
+    tmEl.addEventListener('change', () => {
+      const prof = KhaytTax.profileFromSettings(settings);
+      settings.tax = { ...(settings.tax || {}), name: prof.name, registration: prof.registration, rates: prof.rates, mode: tmEl.value };
+      syncTaxControls();
+    });
+  }
   // Min-margin warning threshold
   const minMargEl = $('#set_minMarginPct');
   if (minMargEl) minMargEl.value = settings.minMarginPct ?? 0;
@@ -4041,6 +4113,19 @@ function saveSettingsFromForm() {
     // 2.0 worldwide / regional
     currency:      $('#set_currency')?.value    || 'SAR',
     enableZatca:   !!$('#set_enableZatca')?.checked,
+    // Written from the live profile so the legacy VAT fields above and the tax
+    // profile can never drift apart into two different answers.
+    tax: (() => {
+      const prof = KhaytTax.profileFromSettings(settings);
+      const mode = $('#set_taxMode')?.value || prof.mode;
+      const rate = +$('#set_vatRate')?.value;
+      const enabled = !!$('#set_enableVat')?.checked;
+      const rates = (settings.tax?.rates?.length && settings.tax.rates.length > 1)
+        ? settings.tax.rates
+        : (enabled && rate > 0 ? [{ id: 'vat', label: prof.rates[0]?.label || 'VAT', percent: rate }] : []);
+      return { country: $('#set_taxCountry')?.value || settings.tax?.country || '',
+               name: prof.name, registration: prof.registration, mode, rates };
+    })(),
     firstRunDone:  true,
     // Operational settings
     minMarginPct:  Math.max(0, Math.min(100, num($('#set_minMarginPct')?.value, 0))),

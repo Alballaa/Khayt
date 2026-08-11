@@ -162,6 +162,13 @@ jobs:
       - name: E2E smoke (estimator settings and calibration)
         run: xvfb-run -a npm run test:e2e:estimator
 
+      # lib/tax.js is pure and heavily unit-tested; what those tests cannot say
+      # is whether the INVOICE uses it. The rendered total was fmtMoney(price),
+      # correct only while every price was assumed tax-inclusive — under
+      # exclusive pricing that invoices a US shop for less than it charges.
+      - name: E2E smoke (tax — inclusive, exclusive, multi-rate)
+        run: xvfb-run -a npm run test:e2e:tax
+
       # Plants a store from an older schema holding a collection this build does
       # not recognise, then proves the pre-upgrade backup still contains it AFTER
       # the live store has lost it. That loss is demonstrated by the test rather
