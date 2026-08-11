@@ -162,6 +162,14 @@ jobs:
       - name: E2E smoke (estimator settings and calibration)
         run: xvfb-run -a npm run test:e2e:estimator
 
+      # Plants a store from an older schema holding a collection this build does
+      # not recognise, then proves the pre-upgrade backup still contains it AFTER
+      # the live store has lost it. That loss is demonstrated by the test rather
+      # than hypothesised — it is what normalizeStoreSnapshot's allowlist does by
+      # design, and the backup is the thing standing between it and a shop's data.
+      - name: E2E smoke (data survives a bad upgrade)
+        run: xvfb-run -a npm run test:e2e:upgradebackup
+
       - name: E2E smoke (QC / reprint / RMA)
         run: xvfb-run -a npm run test:e2e:qc
 
