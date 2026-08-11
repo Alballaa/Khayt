@@ -118,6 +118,45 @@ try {
   ok(de.text.includes('Angebot') && de.text.includes('Datum'),
     'a German shop gets German headings, not English ones');
 
+  // ---- the other three documents, which were English-or-Arabic throughout ----
+  // The invoice was only the reported half. A credit note, a delivery note and a
+  // shop-floor work order printed every label as an English/Arabic ternary, so a
+  // German shop got an English document however it was configured — the app
+  // language was not consulted at all.
+  const others = await window.evaluate(async () => {
+    settings.lang = 'de';
+    settings.enableZatca = false;
+    settings.invoiceBilingual = 'single';
+    i18n.set('de', { silent: true });
+    clients.length = 0;
+    clients.push({ id: 'C1', name: 'Acme GmbH' });
+    const order = {
+      id: 'O1', status: 'completed', clientId: 'C1', project: 'Acme GmbH',
+      date: '2026-08-11', dueDate: '2026-08-20', price: 120, material: 'PLA', printTime: 6,
+      courierName: 'DHL', trackingNumber: 'X1', deliveryAddress: 'Berlin',
+      parts: [{ name: 'Halter', material: 'PLA', printTime: 6, printWeight: 210, baseCost: 120, qty: 2, supports: true }],
+      extraLines: [],
+    };
+    printLog.push(order);
+    saveAll();
+    const inv = () => document.querySelector('#invoice-print-area').innerText;
+    const out = {};
+    await generateDeliveryNote('O1'); out.delivery = inv();
+    await generateCreditNote(order, 50, 'test'); out.credit = inv();
+    await generateWorkOrder('O1'); out.work = document.querySelector('#work-order-print-area').innerText;
+    return out;
+  });
+  const german = [
+    ['delivery note', others.delivery, ['Lieferschein', 'Liefern an', 'Sendungsnummer']],
+    ['credit note', others.credit, ['Gutschrift', 'Ausgestellt an', 'Betrag']],
+    ['work order', others.work, ['Arbeitsauftrag', 'Kunde', 'Gewicht (g)']],
+  ];
+  for (const [name, text, words] of german) {
+    const missing = words.filter((w) => !text.includes(w));
+    ok(missing.length === 0, `the ${name} is in German (missing: ${missing.join(', ') || 'none'})`);
+    ok(!/[؀-ۿ]/.test(text), `and the ${name} carries no Arabic on a single-language setting`);
+  }
+
   // ---- the compliance guarantee ----
   // Arabic is mandatory on a Saudi tax invoice. Every mode must fail to remove it.
   for (const mode of ['auto', 'both', 'single']) {

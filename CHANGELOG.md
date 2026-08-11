@@ -57,6 +57,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   in English and French shows French headings without pairing them with an Arabic
   address.
 
+- **The credit note, delivery note and work order now follow your language too.**
+  All three were written as English-or-Arabic throughout — not bilingual, just
+  two hardcoded options — so a shop working in any of the other seven languages
+  got an English document and no setting changed it. A German shop's delivery
+  note said "Deliver to", "Courier" and "Tracking"; it now says **Liefern an**,
+  **Versanddienst** and **Sendungsnummer**, and the work order its shop floor
+  reads says **Arbeitsauftrag**, **Gewicht (g)** and **Zeit (Std.)**. All three
+  honour the bilingual setting and the second-language choice as well.
+
   **ZATCA outranks both settings.** Saudi Phase 1 requires Arabic specifically —
   not merely a second language — so while ZATCA e-invoicing is switched on,
   documents stay bilingual *and* the second language stays Arabic, whatever is
