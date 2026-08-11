@@ -68,3 +68,45 @@ test('tampered store blob is rejected', async () => {
   const tampered = { ...blob, ct: blob.ct.slice(0, -4) + (blob.ct.slice(-4) === 'AAAA' ? 'BBBB' : 'AAAA') };
   await assert.rejects(() => web.decryptStore(tampered, webDek));
 });
+
+/* ── compressed store blobs (two-release rollout) ──────────────────────────── */
+
+/**
+ * Sync is blob-first and was uncompressed: a measured 55,593-byte store went out
+ * as 74,124 bytes where gzip would have sent 7,556. Bandwidth is what running
+ * the cloud actually costs, so the desktop will start writing gzipped blobs.
+ *
+ * Nothing reads `blob.v`, so a client that predates this ignores `z` too and
+ * JSON.parses gzip bytes. Every reader therefore has to learn the new shape a
+ * release BEFORE any writer emits it — including this one, which is what the
+ * phone and the portal run.
+ */
+
+test('the browser reads a gzipped blob the desktop wrote', async () => {
+  const node = require('../lib/sync-crypto.js');
+  const dek = require('node:crypto').randomBytes(32);
+  const store = { printLog: [{ id: 'A', price: 10 }], settings: { bizEn: 'Shop' } };
+  const blob = node.encryptStore(store, dek, { compress: true });
+  assert.equal(blob.z, 'gzip', 'the marker travels on the envelope, in the clear');
+  assert.deepEqual(await web.decryptStore(blob, dek), store);
+});
+
+test('the browser still reads an uncompressed blob', async () => {
+  // Every shop's cloud copy is this shape today; it must keep working forever.
+  const node = require('../lib/sync-crypto.js');
+  const dek = require('node:crypto').randomBytes(32);
+  const store = { printLog: [], settings: {} };
+  const blob = node.encryptStore(store, dek);
+  assert.equal(blob.z, undefined, 'no marker means no compression');
+  assert.deepEqual(await web.decryptStore(blob, dek), store);
+});
+
+test('the two implementations agree on the marker string', async () => {
+  // They are separate constants in separate files; a typo in either would make
+  // the desktop write blobs the phone silently treats as uncompressed.
+  const src = require('node:fs').readFileSync(require.resolve('../lib/sync-crypto-web.js'), 'utf8');
+  const nodeSrc = require('node:fs').readFileSync(require.resolve('../lib/sync-crypto.js'), 'utf8');
+  const pick = (s) => (s.match(/STORE_COMPRESSION = '([^']+)'/) || [])[1];
+  assert.equal(pick(src), pick(nodeSrc));
+  assert.equal(pick(src), 'gzip');
+});

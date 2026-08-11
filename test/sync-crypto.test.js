@@ -8,6 +8,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const sc = require('../lib/sync-crypto.js');
+const crypto = require('node:crypto');
 
 const FAST_KDF = { algo: 'scrypt', N: 1024, r: 8, p: 1, keyLen: 32 };
 const mk = (pass) => sc.createKeyset(pass, { kdf: FAST_KDF });
@@ -99,4 +100,68 @@ test('two keysets for the same passphrase yield different DEKs (random DEK + sal
   const dekA = sc.unlockWithPassphrase('same', a.keyset);
   const dekB = sc.unlockWithPassphrase('same', b.keyset);
   assert.notDeepEqual(dekA, dekB, 'each connection gets an independent DEK');
+});
+
+/* ── compressed store blobs ────────────────────────────────────────────────── */
+
+/**
+ * push() sends the WHOLE store every time, base64'd in a JSON body and
+ * uncompressed: a real 55,593-byte store went out as 74,124 bytes where gzip
+ * would have sent 7,556. Bandwidth is the binding cost of running the cloud
+ * (docs/KHAYT-CLOUD-COST-PER-SHOP.md), so the payload gets compressed.
+ *
+ * The rollout constraint these tests exist to protect: nothing reads `blob.v`,
+ * so a client older than this change ignores `z` as well, JSON.parses gzip
+ * bytes and throws on every pull. Readers must ship a release before writers.
+ */
+
+test('a compressed blob round-trips', () => {
+  const dek = crypto.randomBytes(32);
+  const store = { printLog: [{ id: 'A', client: 'x'.repeat(500) }], settings: { a: 1 } };
+  const blob = sc.encryptStore(store, dek, { compress: true });
+  assert.deepEqual(sc.decryptStore(blob, dek), store);
+});
+
+test('compression is OFF by default — writers must not run ahead of readers', () => {
+  // The whole safety of the rollout is this default. If it flips by accident,
+  // shops with two devices break until both update.
+  const dek = crypto.randomBytes(32);
+  const blob = sc.encryptStore({ a: 1 }, dek);
+  assert.equal(blob.z, undefined, 'no z marker means an old client reads it fine');
+});
+
+test('an uncompressed blob still decrypts — every shop in the field has one', () => {
+  const dek = crypto.randomBytes(32);
+  const store = { printLog: [], settings: {} };
+  assert.deepEqual(sc.decryptStore(sc.encryptStore(store, dek), dek), store);
+});
+
+test('the marker is on the envelope, outside the encryption', () => {
+  // A reader has to know how to treat the payload BEFORE it can decrypt it, so
+  // `z` cannot live inside the ciphertext.
+  const dek = crypto.randomBytes(32);
+  const blob = sc.encryptStore({ a: 1 }, dek, { compress: true });
+  assert.equal(blob.z, 'gzip');
+  assert.ok(blob.iv && blob.ct && blob.tag, 'and the envelope is otherwise unchanged');
+});
+
+test('compression actually shrinks a realistic store', () => {
+  // A tiny object can gzip LARGER than its input, so assert the property on
+  // something store-shaped — repetitive records are what actually travels.
+  const dek = crypto.randomBytes(32);
+  const store = { printLog: Array.from({ length: 200 }, (_, i) => ({
+    id: 'ORD-' + i, status: 'completed', client: 'Acme Robotics', material: 'PLA',
+    date: '2026-08-11', price: 120, parts: [{ name: 'Bracket', material: 'PLA', printTime: 6 }],
+  })) };
+  const plain = JSON.stringify(sc.encryptStore(store, dek)).length;
+  const gz = JSON.stringify(sc.encryptStore(store, dek, { compress: true })).length;
+  assert.ok(gz < plain / 4, `expected a large saving, got ${gz} vs ${plain}`);
+});
+
+test('a wrong key still fails on a compressed blob, rather than yielding junk', () => {
+  // GCM authenticates before this decompresses, so the failure must stay a
+  // crypto failure and not become a gunzip error that reads like corruption.
+  const dek = crypto.randomBytes(32);
+  const blob = sc.encryptStore({ a: 1 }, dek, { compress: true });
+  assert.throws(() => sc.decryptStore(blob, crypto.randomBytes(32)));
 });
