@@ -1681,6 +1681,23 @@
           </select>
         </div>
 
+        <div style="margin-top:14px;">
+          <label data-i18n="set.inv_bilingual">Document language</label>
+          <select id="set_invoiceBilingual" style="max-width:240px;">
+            <option value="auto" data-i18n="set.inv_bilingual_auto">Automatic</option>
+            <option value="single" data-i18n="set.inv_bilingual_single">My language only</option>
+            <option value="both" data-i18n="set.inv_bilingual_both">Bilingual (with Arabic)</option>
+          </select>
+          <p style="font-size:11.5px; color:var(--text-muted); margin:4px 0 0;" data-i18n="set.inv_bilingual_hint">Applies to quotes, invoices, credit notes and delivery notes.</p>
+          <p id="invBilingualZatcaNote" style="font-size:11.5px; color:var(--warning); margin:4px 0 0; display:none;" data-i18n="set.inv_bilingual_zatca">ZATCA invoices must carry Arabic, so documents stay bilingual while it is on.</p>
+        </div>
+
+        <div id="invSecondLangRow" style="margin-top:14px;">
+          <label data-i18n="set.inv_second_lang">Second language</label>
+          <select id="set_invoiceSecondLang" style="max-width:240px;"></select>
+          <p style="font-size:11.5px; color:var(--text-muted); margin:4px 0 0;" data-i18n="set.inv_second_lang_hint">Printed under each label on bilingual documents.</p>
+        </div>
+
         <div class="inline-pair" style="margin-top:14px;">
           <div>
             <label data-i18n="set.invoice_prefix">Invoice number prefix</label>
@@ -2501,6 +2518,7 @@
 <script src="../lib/loyalty.js"></script>
 <script src="../lib/deposit-audit.js"></script>
 <script src="../lib/po-audit.js"></script>
+<script src="../lib/invoice-language.js"></script>
 <script src="../lib/ai-privacy.js"></script>
 <script src="../lib/ai-usage.js"></script>
 <script src="ai-call.js"></script>

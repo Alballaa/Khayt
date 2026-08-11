@@ -169,6 +169,13 @@ jobs:
       # design, and the backup is the thing standing between it and a shop's data.
       - name: E2E smoke (data survives a bad upgrade)
         run: xvfb-run -a npm run test:e2e:upgradebackup
+      # Roughly twenty places in renderInvoice can emit a second language, and
+      # missing one leaves Arabic on an English quote with every unit test still
+      # green. This reads the rendered document back. It also holds the ZATCA
+      # guarantee: Arabic is legally required on a Saudi tax invoice, so no
+      # setting may remove it.
+      - name: E2E smoke (document language, incl. ZATCA compliance)
+        run: xvfb-run -a npm run test:e2e:invlang
 
       - name: E2E smoke (QC / reprint / RMA)
         run: xvfb-run -a npm run test:e2e:qc

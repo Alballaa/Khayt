@@ -306,6 +306,14 @@ function generateWorkOrder(id) {
   const area = $('#work-order-print-area');
   const isAr = i18n.current === 'ar';
   const dir  = isAr ? 'rtl' : 'ltr';
+  // The work order is a customer-facing-adjacent document printed for the shop
+  // floor, and it was bilingual unconditionally like the rest. Same rule, same
+  // resolver — see renderInvoice() in renderer/invoicing.js.
+  const _dl = KhaytInvoiceLanguage.resolveDocumentLanguage({
+    mode: settings.invoiceBilingual, lang: i18n.current,
+    secondary: settings.invoiceSecondLang, enableZatca: settings.enableZatca,
+  });
+  const bi = _dl.bilingual;
   const bizPrimary = isAr ? (settings.bizAr || settings.bizEn) : (settings.bizEn || settings.bizAr);
   const today = localDateStr();
   const linkedClient = order.clientId ? clients.find(c => c.id === order.clientId) : null;
@@ -330,20 +338,20 @@ function generateWorkOrder(id) {
           <div class="biz-name"><h1>${escapeHtml(bizPrimary || 'Khayt')}</h1></div>
         </div>
         <div class="doc">
-          <div class="title">${escapeHtml(isAr ? 'أمر تشغيل داخلي' : 'Work Order')}</div>
-          <div class="title-ar ${isAr ? 'ltr' : 'ar'}">${escapeHtml(isAr ? 'Work Order' : 'أمر تشغيل داخلي')}</div>
+          <div class="title">${escapeHtml(t("doc.work_order"))}</div>
+          ${bi ? `<div class="title-ar ${isAr ? 'ltr' : 'ar'}">${escapeHtml(i18n.tIn(_dl.secondary, "doc.work_order"))}</div>` : ''}
           <div class="meta">
-            <div class="meta-row"><span class="k">${escapeHtml(isAr ? 'رقم الأمر' : 'WO No.')}</span><span class="v">WO-${escapeHtml(order.id)}</span></div>
-            <div class="meta-row"><span class="k">${escapeHtml(isAr ? 'التاريخ' : 'Date')}</span><span class="v">${escapeHtml(formatPrintDate(today))}</span></div>
-            <div class="meta-row"><span class="k">${escapeHtml(isAr ? 'تاريخ التسليم' : 'Due')}</span><span class="v">${order.dueDate ? escapeHtml(formatPrintDate(order.dueDate)) : '—'}</span></div>
-            ${machine ? `<div class="meta-row"><span class="k">${escapeHtml(isAr ? 'الآلة' : 'Machine')}</span><span class="v">${escapeHtml(machine.name)}</span></div>` : ''}
+            <div class="meta-row"><span class="k">${escapeHtml(t("doc.wo_no"))}</span><span class="v">WO-${escapeHtml(order.id)}</span></div>
+            <div class="meta-row"><span class="k">${escapeHtml(t("doc.date"))}</span><span class="v">${escapeHtml(formatPrintDate(today))}</span></div>
+            <div class="meta-row"><span class="k">${escapeHtml(t("doc.due"))}</span><span class="v">${order.dueDate ? escapeHtml(formatPrintDate(order.dueDate)) : '—'}</span></div>
+            ${machine ? `<div class="meta-row"><span class="k">${escapeHtml(t("doc.machine"))}</span><span class="v">${escapeHtml(machine.name)}</span></div>` : ''}
             ${customDataHtml}
           </div>
         </div>
       </div>
 
       <div class="bill-to">
-        <div class="label"><span>${escapeHtml(isAr ? 'العميل' : 'Client')}</span></div>
+        <div class="label"><span>${escapeHtml(t("doc.client"))}</span></div>
         <div>
           <div class="name">${escapeHtml(clientName)}</div>
           ${order.notes ? `<div class="name-sub">${escapeHtml(order.notes)}</div>` : ''}
@@ -353,14 +361,14 @@ function generateWorkOrder(id) {
       <table class="lines">
         <thead>
           <tr>
-            <th>${escapeHtml(isAr ? 'الجزء' : 'Part')}</th>
-            <th style="text-align:center; width:40px;">${escapeHtml(isAr ? 'الكمية' : 'Qty')}</th>
-            <th style="width:120px;">${escapeHtml(isAr ? 'المادة' : 'Material')}</th>
-            <th style="width:80px;">${escapeHtml(isAr ? 'اللون' : 'Colour')}</th>
-            <th style="width:80px; text-align:center;">${escapeHtml(isAr ? 'الوزن (غ)' : 'Weight (g)')}</th>
-            <th style="width:80px; text-align:center;">${escapeHtml(isAr ? 'الوقت (س)' : 'Time (h)')}</th>
-            <th style="width:100px;">${escapeHtml(isAr ? 'الإعدادات' : 'Settings')}</th>
-            <th style="width:100px;">${escapeHtml(isAr ? 'الملف' : 'File')}</th>
+            <th>${escapeHtml(t("doc.part"))}</th>
+            <th style="text-align:center; width:40px;">${escapeHtml(t("doc.qty"))}</th>
+            <th style="width:120px;">${escapeHtml(t("doc.material"))}</th>
+            <th style="width:80px;">${escapeHtml(t("doc.colour"))}</th>
+            <th style="width:80px; text-align:center;">${escapeHtml(t("doc.weight_g"))}</th>
+            <th style="width:80px; text-align:center;">${escapeHtml(t("doc.time_h"))}</th>
+            <th style="width:100px;">${escapeHtml(t("doc.settings"))}</th>
+            <th style="width:100px;">${escapeHtml(t("doc.file"))}</th>
           </tr>
         </thead>
         <tbody>
@@ -378,7 +386,7 @@ function generateWorkOrder(id) {
             const settings_str = [
               p.infill ? `${p.infill}%` : '',
               p.layerHeight ? `${p.layerHeight}mm` : '',
-              p.supports ? (isAr ? 'دعامات' : 'Supports') : '',
+              p.supports ? (t("doc.supports")) : '',
               printSettingsStr
             ].filter(Boolean).join(', ');
             return `<tr>
@@ -397,7 +405,7 @@ function generateWorkOrder(id) {
 
       <div class="wo-checks" style="margin-top:20px;">
         ${(settings.postChecklist || []).length > 0 ? `
-          <div style="font-size:12px; font-weight:600; margin-bottom:8px;">${escapeHtml(isAr ? 'قائمة التحقق بعد الطباعة' : 'Post-Processing Checklist')}</div>
+          <div style="font-size:12px; font-weight:600; margin-bottom:8px;">${escapeHtml(t("doc.post_checklist"))}</div>
           ${settings.postChecklist.map(ch => `
             <div style="display:flex; align-items:center; gap:8px; margin-bottom:5px;">
               <div style="width:14px;height:14px;border:1.5px solid #666;border-radius:3px;flex-shrink:0;"></div>
@@ -406,9 +414,9 @@ function generateWorkOrder(id) {
       </div>
 
       <div style="margin-top:28px; display:flex; justify-content:space-between; gap:32px;">
-        <div style="flex:1; border-top:1px solid #ccc; padding-top:8px; font-size:12px; color:#888;">${escapeHtml(isAr ? 'المشغّل' : 'Operator')}</div>
-        <div style="flex:1; border-top:1px solid #ccc; padding-top:8px; font-size:12px; color:#888;">${escapeHtml(isAr ? 'المراجع' : 'Reviewed by')}</div>
-        <div style="flex:1; border-top:1px solid #ccc; padding-top:8px; font-size:12px; color:#888;">${escapeHtml(isAr ? 'التاريخ والوقت' : 'Date / Time')}</div>
+        <div style="flex:1; border-top:1px solid #ccc; padding-top:8px; font-size:12px; color:#888;">${escapeHtml(t("doc.operator"))}</div>
+        <div style="flex:1; border-top:1px solid #ccc; padding-top:8px; font-size:12px; color:#888;">${escapeHtml(t("doc.reviewed_by"))}</div>
+        <div style="flex:1; border-top:1px solid #ccc; padding-top:8px; font-size:12px; color:#888;">${escapeHtml(t("doc.date_time"))}</div>
       </div>
     </div>
     </div>`;

@@ -153,6 +153,16 @@ function initWizard() {
         settings.lang = lang;
         i18n.set(lang);
         i18n.applyToDom(wiz);
+        // ZATCA is Saudi e-invoicing, and its box ships ticked in the markup —
+        // so a shop anywhere in the world sailed past it and started issuing
+        // invoices stamped "ZATCA Phase 1 compliant" with a TLV QR code, to
+        // customers who have never heard of the authority. Now that the same
+        // flag also forces documents bilingual, leaving it on by default would
+        // silently defeat the language fix as well. Tick it for an Arabic setup
+        // and leave it to the owner otherwise — it stays visible either way,
+        // because a Gulf shop may well work in English.
+        const zEl = $('#wizEnableZatca');
+        if (zEl) zEl.checked = KhaytInvoiceLanguage.zatcaDefaultFor(lang);
       }
       if (nextBtn.closest('#wiz-step-2')) {
         const picker = $('#wizDesignThemePicker');
