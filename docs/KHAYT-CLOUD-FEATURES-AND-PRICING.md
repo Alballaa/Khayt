@@ -171,11 +171,22 @@ Three deliberate choices in that table:
   the marketing: the bill does not grow because business was good.
 - **Storage is the meter**, because it is the one already built.
 
-**Numbers are deliberately absent.** They depend on hosting cost per shop, which
-[CLOUD-INFRA-SPEC](./KHAYT-3.0-CLOUD-INFRA-SPEC.md) prices for a Node/Postgres
-stack that production does not use — production is PHP + MySQL on shared hosting.
-Establishing real cost-per-shop on the actual stack is the prerequisite for a
-credible number, and is the recommended next step.
+**Numbers are deliberately absent**, and [COST-PER-SHOP](./KHAYT-CLOUD-COST-PER-SHOP.md)
+(measured 2026-08-11) says they should stay absent a while longer.
+
+Two of its findings change §4 above rather than fill it in:
+
+- **Storage is the wrong meter.** Bandwidth binds first by three to four orders
+  of magnitude — on a 100 GB/500 GB plan, storage holds ~9,890 busy shops and
+  bandwidth holds 8. So `limits.maxStoreBytes`, the meter already built, measures
+  the resource that never runs out.
+- **The spread between shops is ~12,000×**, and one heavy shop can exceed a whole
+  plan on its own. That is caused by blob-first, uncompressed sync — every save
+  ships the entire store — so a flat per-shop price is unpriceable until that is
+  fixed. gzip alone is a measured 7×.
+
+**So the order is: compress, then delta, then price.** The engineering fix costs
+far less than the revenue it protects.
 
 ---
 
