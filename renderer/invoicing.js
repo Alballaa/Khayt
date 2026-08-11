@@ -560,9 +560,17 @@ function zatcaInvoiceAmounts(order) {
       ? new Date(`${order.date}T12:00:00`).toISOString()
       : '');
   const price = +order.price || 0;
-  const rate = settings.enableVat ? (+settings.vatRate || 15) : 0;
-  const vatAmt = rate > 0 ? price * rate / (100 + rate) : 0;
-  const exVat = price - vatAmt;
+  // The arithmetic lives in lib/tax.js now. It was written out by hand in ten
+  // places, all of them assuming the price INCLUDES the tax — true in the Gulf
+  // and most of Europe, false in the US and Canada, where the tax is added on
+  // top. profileFromSettings() maps a shop that has never seen the new settings
+  // onto exactly the old inclusive single-rate behaviour, so this computes the
+  // identical number for every existing shop.
+  const _taxProfile = KhaytTax.profileFromSettings(settings);
+  const _tax = KhaytTax.computeTax(price, _taxProfile);
+  const rate = _taxProfile.rates.reduce((sum, r) => sum + r.percent, 0);
+  const vatAmt = _tax.taxTotal;
+  const exVat = _tax.subtotal;
   return { ts, price, rate, vatAmt, exVat, total: fmtMoney(price), vatAmount: fmtMoney(vatAmt), subtotal: fmtMoney(exVat) };
 }
 
@@ -718,11 +726,19 @@ async function renderInvoiceForOrder(order) {
       : '');
   const price    = +order.price || 0;
   const shipping = +order.shippingCost || 0;
-  const rate     = settings.enableVat ? (+settings.vatRate || 15) : 0;
-  // Prices are VAT-inclusive. Extract VAT portion from the total.
-  const vatAmt    = rate > 0 ? price * rate / (100 + rate) : 0;
-  const exVat     = price - vatAmt;
-  const total     = fmtMoney(price);
+  // Same engine as zatcaInvoiceAmounts — see lib/tax.js. Whether the price
+  // includes the tax or the tax is added to it is now the shop's setting rather
+  // than an assumption baked into this line.
+  const _taxProfile = KhaytTax.profileFromSettings(settings);
+  const _tax      = KhaytTax.computeTax(price, _taxProfile);
+  const rate      = _taxProfile.rates.reduce((sum, r) => sum + r.percent, 0);
+  const vatAmt    = _tax.taxTotal;
+  const exVat     = _tax.subtotal;
+  // _tax.total, not price. Under INCLUSIVE pricing they are the same number and
+  // this changes nothing. Under EXCLUSIVE pricing they are not: order.price is
+  // the pre-tax figure and the customer owes tax on top of it, so printing
+  // price here would invoice a US shop for less than it is charging.
+  const total     = fmtMoney(_tax.total);
   const vatAmount = fmtMoney(vatAmt);
   const subtotal  = fmtMoney(exVat);
   // Reconciling summary (VAT-inclusive, matching the line-items table which is

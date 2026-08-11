@@ -6,6 +6,34 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Tax now works outside the Gulf.** Khayt had one tax, at one rate, priced one
+  way: VAT, 15%, already inside the price you typed. That is right for Saudi
+  Arabia and most of Europe and wrong for the two largest English-speaking
+  markets — in the US and Canada a price is quoted **without** tax and the tax is
+  added at the end. That is not a display difference; it changes what the
+  customer is asked to pay, and a shop in Ohio quoting $100 was invoicing $100
+  when it should have been invoicing $108.25.
+
+  A new **Tax rules for** setting under Invoice Defaults carries presets for
+  thirty countries — the name the tax goes by (VAT, GST, Sales Tax, TVA, KDV,
+  消費税), the usual rate, whether local prices include it, and what the shop's
+  tax number is called, because printing "VAT No." above an Australian ABN is
+  wrong in a way an accountant notices immediately. Beside it, **Your prices**
+  chooses include-tax or add-tax-at-checkout, and shows you the arithmetic on a
+  price of 100 rather than describing it.
+
+  **More than one tax is now possible**, which matters where two are charged
+  together and remitted separately — Canada's GST and PST, India's CGST and SGST
+  — including rates charged on top of other rates.
+
+  **Nothing changes for an existing shop.** A shop with VAT switched on at 15%
+  computes the identical figure it always has, to the cent; the old settings are
+  still there and still work. Countries are a starting point you can edit, and an
+  unlisted one charges nothing until you say otherwise rather than guessing at a
+  rate you might not notice.
+
+### Added
+
 - **Your data is now copied aside before any update touches it.** Khayt already
   protected the store against crashes — writes are atomic, there is a
   one-generation rollback, a half-written file is repaired on the next launch,

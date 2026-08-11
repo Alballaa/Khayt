@@ -1663,6 +1663,19 @@
               <input type="number" id="set_vatRate" value="15" min="0" max="100" step="0.1" data-tip="tip.vat_rate">
               <p style="font-size:11.5px; color:var(--text-muted); margin:4px 0 0;" data-i18n="set.vat_rate_hint"></p>
             </div>
+            <div style="margin-top:12px;">
+              <label data-i18n="set.tax_country">Tax rules for</label>
+              <select id="set_taxCountry" style="max-width:240px;"></select>
+              <p style="font-size:11.5px; color:var(--text-muted); margin:4px 0 0;" data-i18n="set.tax_country_hint">Sets the name, rate and pricing convention. You can still change them.</p>
+            </div>
+            <div style="margin-top:12px;">
+              <label data-i18n="set.tax_mode">Your prices</label>
+              <select id="set_taxMode" style="max-width:240px;">
+                <option value="inclusive" data-i18n="set.tax_mode_inclusive">Include tax</option>
+                <option value="exclusive" data-i18n="set.tax_mode_exclusive">Exclude tax (added at checkout)</option>
+              </select>
+              <p id="taxModeHint" style="font-size:11.5px; color:var(--text-muted); margin:4px 0 0;"></p>
+            </div>
           </div>
           <div>
             <label data-i18n="set.inv_accent">Invoice accent colour</label>
@@ -2518,6 +2531,7 @@
 <script src="../lib/loyalty.js"></script>
 <script src="../lib/deposit-audit.js"></script>
 <script src="../lib/po-audit.js"></script>
+<script src="../lib/tax.js"></script>
 <script src="../lib/invoice-language.js"></script>
 <script src="../lib/ai-privacy.js"></script>
 <script src="../lib/ai-usage.js"></script>
