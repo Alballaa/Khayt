@@ -4,6 +4,27 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **Your data is now copied aside before any update touches it.** Khayt already
+  protected the store against crashes — writes are atomic, there is a
+  one-generation rollback, a half-written file is repaired on the next launch,
+  and a store written by a *newer* Khayt is refused rather than overwritten. None
+  of that covers the case where nothing goes wrong except the update itself: a
+  version whose own data migration is faulty reads your shop, converts it, and
+  saves the result, with nothing to notice. The rollback covers exactly one save,
+  and the daily backup is filed under today's date — so the first backup after
+  the update overwrites the last good one from the same day. You would find the
+  damage on Tuesday and the newest clean copy would be Monday's, missing
+  everything Monday added.
+
+  The first time a new version opens a shop saved by an older one, it now keeps a
+  complete copy first, exactly as it was on disk, before anything reads or
+  rewrites it. One file per update you pass through — a handful over the life of
+  an install — and they are **never** deleted by the routine 30-day cleanup, which
+  had been the other way this insurance could quietly disappear on the thirtieth
+  day. They sit alongside your daily backups and restore the same way.
+
 ## [3.6.0-beta.16] - 2026-08-10
 
 ### Fixed

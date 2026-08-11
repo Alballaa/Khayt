@@ -67,6 +67,7 @@ const { mergePollSuccess, mergePollFailure } = require('./lib/printer-poll-cache
 const { normalizeProgress, fileProgressPct, etaSeconds, moonrakerProgress } = require('./lib/printer-status');
 const printerCommands = require('./lib/printer-commands');
 const { normalizeStoreSnapshot, STORE_VERSION } = require('./lib/store-validate');
+const upgradeBackup = require('./lib/upgrade-backup');
 const { createStoreIo } = require('./lib/store-io');
 const { parseGcodeText } = require('./lib/gcode-parse');
 const { createSilhouette } = require('./lib/gcode-geometry');
@@ -546,6 +547,28 @@ ipcMain.handle('hub:write-icloud-backup', async (event, jsonString) => {
   return fullPath;
 });
 
+/**
+ * Copy the store aside, verbatim, the first time a newer build opens it.
+ *
+ * Runs once per schema version: the filename carries both versions, so if one
+ * already exists for this hop the shop has already been upgraded and the
+ * original pre-upgrade state is the one worth keeping — never overwrite it with
+ * a later, possibly already-damaged, copy.
+ */
+function writePreUpgradeBackup(raw, diskVersion) {
+  if (!upgradeBackup.needsPreUpgradeBackup(diskVersion, STORE_VERSION, true)) return null;
+  const dir = backupsDir();
+  const from = Number.isFinite(diskVersion) ? diskVersion : 0;
+  const already = fs.readdirSync(dir).some((f) =>
+    upgradeBackup.isProtectedBackup(f) && f.includes(`v${from}-to-v${STORE_VERSION}-`));
+  if (already) return null;
+  const name = upgradeBackup.preUpgradeBackupName(diskVersion, STORE_VERSION, new Date().toISOString());
+  const fullPath = path.join(dir, name);
+  fs.writeFileSync(fullPath, JSON.stringify(encryptForDisk(raw)), 'utf8');
+  console.warn(`store upgrade v${from} → v${STORE_VERSION}: kept a pre-upgrade backup at ${fullPath}`);
+  return fullPath;
+}
+
 // --- Daily auto-backup (new in 1.3) ---
 ipcMain.handle('hub:write-backup', async (event, jsonString) => {
   if (!jsonString || typeof jsonString !== 'string' || jsonString.length > 20_000_000) {
@@ -558,9 +581,15 @@ ipcMain.handle('hub:write-backup', async (event, jsonString) => {
   const encrypted = JSON.stringify(encryptForDisk(parsed));
   await fs.promises.writeFile(fullPath, encrypted, 'utf8');
   // Keep only the most recent 30 backups
-  const all = (await fs.promises.readdir(backupsDir())).filter(f => f.endsWith('.json')).sort();
-  if (all.length > 30) {
-    for (const f of all.slice(0, all.length - 30)) {
+  // Rotation keeps the 30 most recent DAILY backups. Pre-upgrade backups are
+  // excluded from both the count and the deletion: a shop that opens the app on
+  // 30 consecutive days would otherwise have its upgrade insurance deleted by
+  // routine housekeeping, so the backup would survive exactly as long as nobody
+  // needed it.
+  const listed = (await fs.promises.readdir(backupsDir())).filter(f => f.endsWith('.json')).sort();
+  const { rotatable } = upgradeBackup.partitionForRotation(listed);
+  if (rotatable.length > 30) {
+    for (const f of rotatable.slice(0, rotatable.length - 30)) {
       await fs.promises.unlink(path.join(backupsDir(), f)).catch(() => {});
     }
   }
@@ -1095,6 +1124,13 @@ ipcMain.handle('hub:load-store', async (event) => {
     if (rec.source !== 'primary') console.warn('hub:load-store: recovered store from', rec.source, rec.quarantined ? `(quarantined ${rec.quarantined})` : '');
     // Remember which schema wrote this file, so a save cannot truncate a newer store.
     _diskStoreVersion = (rec.data && typeof rec.data.version === 'number') ? rec.data.version : null;
+    // Insurance against THIS build's own migrations being wrong. Taken from
+    // rec.data — the raw bytes just read — because the normalize step below is an
+    // allowlist, and losing an unrecognised collection is one of the things being
+    // insured against. Best-effort: a shop must still be able to open its app if
+    // the backups directory is unwritable, so a failure here is logged, not fatal.
+    try { writePreUpgradeBackup(rec.data, _diskStoreVersion); }
+    catch (e) { console.error('hub:load-store: pre-upgrade backup failed:', e && e.message || e); }
     syncLanServerStoreFromDisk();
     const { normalized, warnings, errors } = normalizeStoreSnapshot(rec.data);
     if (!normalized) {
