@@ -215,6 +215,15 @@ Model default: latest Claude (e.g. Opus/Sonnet 4.x). Cost model: **BYO-key first
 
 *Infrastructure, hosting, CI/CD, ops & DR: [KHAYT-3.0-CLOUD-INFRA-SPEC.md](./KHAYT-3.0-CLOUD-INFRA-SPEC.md).*
 
+> **Taken further in [KHAYT-CLOUD-FEATURES-AND-PRICING.md](./KHAYT-CLOUD-FEATURES-AND-PRICING.md)** (2026-08-11):
+> an audit of what the cloud actually does today, what is worth adding, and a
+> tier table to react to. Two findings change this section rather than extend it —
+> billing is already scaffolded and metering **stored bytes**, and end-to-end
+> encryption rules out per-order or revenue-share pricing outright, because the
+> server cannot see either. The "pricing per shop" item left open below is
+> therefore **overdue, not upcoming**: it was due before Phase 1 launch, and
+> Phase 1 has launched.
+
 Cloud introduces ongoing hosting, auth, billing, support, and region-hosting cost. Honest framing:
 
 - **Free, forever:** the full local desktop app + LAN + BYO-key AI. The product stands alone.
