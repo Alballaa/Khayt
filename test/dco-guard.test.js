@@ -67,3 +67,59 @@ test('trailing whitespace and odd spacing in the trailer still count', () => {
   const r = verdict([commit({ body: 'x\n\nSigned-off-by:   Turki Alballaa   <alballaa@gmail.com>   ' })]);
   assert.equal(r.ok, true);
 });
+
+/* ── which branch it compares against ──────────────────────────────────── */
+
+const { resolveBaseRef, DEFAULT_BASE_CANDIDATES } = require('../scripts/check-dco.js');
+
+/**
+ * The guard defaulted to the local `main` branch. In a git worktree that ref is
+ * never checked out and so never moves: it holds whatever `main` was when the
+ * worktree was created. Everything merged since then counts as "on this branch",
+ * and the guard blames the author of a squash commit GitHub wrote — a failure
+ * that says nothing about the work being checked, on a branch that is perfectly
+ * signed. It reported exactly that three times in one day.
+ */
+
+/** Pretend only these refs exist. */
+const has = (...refs) => (ref) => refs.includes(ref);
+
+test('an explicit base wins, and is not second-guessed', () => {
+  // CI passes origin/<base>. Quietly checking against a different branch than
+  // the one asked for would validate the wrong range and still report green.
+  const r = resolveBaseRef('origin/release-1.x', has('main'));
+  assert.deepEqual(r, { ref: 'origin/release-1.x', explicit: true });
+});
+
+test('with no explicit base, what local main FOLLOWS is preferred over local main', () => {
+  // The whole bug in one assertion.
+  const r = resolveBaseRef('', has('main@{upstream}', 'main'));
+  assert.equal(r.ref, 'main@{upstream}');
+  assert.equal(r.explicit, false);
+});
+
+test('a detached local main still resolves, via the canonical remote', () => {
+  // A worktree whose `main` tracks nothing has no @{upstream}.
+  assert.equal(resolveBaseRef('', has('upstream/main', 'origin/main', 'main')).ref, 'upstream/main');
+});
+
+test('a contributor with only a fork remote gets origin/main', () => {
+  assert.equal(resolveBaseRef('', has('origin/main', 'main')).ref, 'origin/main');
+});
+
+test('a clone with no remotes at all still works', () => {
+  // A plain `git init`, or a source archive. Local main is the only thing there,
+  // and in that case it is also correct — nothing else could be more current.
+  assert.equal(resolveBaseRef('', has('main')).ref, 'main');
+});
+
+test('local main is the LAST resort, never the first', () => {
+  assert.equal(DEFAULT_BASE_CANDIDATES[DEFAULT_BASE_CANDIDATES.length - 1], 'main');
+  assert.ok(DEFAULT_BASE_CANDIDATES.indexOf('main@{upstream}') < DEFAULT_BASE_CANDIDATES.indexOf('main'));
+});
+
+test('when nothing resolves it says so rather than guessing', () => {
+  // The caller turns a null ref into "base ref not found", which exits 0: a
+  // missing base is a wiring fault, not a contributor error.
+  assert.deepEqual(resolveBaseRef('', () => false), { ref: null, explicit: false });
+});

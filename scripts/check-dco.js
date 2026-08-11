@@ -29,6 +29,49 @@
 
 const TRAILER = /^\s*Signed-off-by:\s*(.+?)\s*<([^>]+)>\s*$/i;
 
+/**
+ * Where to look for the base branch when nobody names one, in order.
+ *
+ * The local `main` branch is LAST on purpose. In a worktree it is a ref nothing
+ * updates: you never check it out, so it sits at whatever `main` was when the
+ * worktree was created. Every commit merged into the real main since then still
+ * counts as "on this branch", and this guard then blames the author of a squash
+ * commit GitHub wrote — reporting a failure that says nothing about the work
+ * being checked, on a branch that is perfectly signed.
+ *
+ * A remote-tracking ref is what the PR is actually diffed against, and `git
+ * fetch` keeps it current without anyone checking anything out.
+ */
+const DEFAULT_BASE_CANDIDATES = Object.freeze([
+  // What local `main` follows, whatever the remote happens to be called.
+  'main@{upstream}',
+  // This repo's canonical remote; `origin` is a fork for most contributors.
+  'upstream/main',
+  'origin/main',
+  // A plain clone with no remote at all — a fresh `git init`, or an archive.
+  'main',
+]);
+
+/**
+ * First candidate that resolves to a commit.
+ *
+ * @param {string} explicit    BASE_REF or argv — an answer, not a guess
+ * @param {(ref: string) => boolean} exists
+ * @param {string[]} candidates
+ * @returns {{ref: string|null, explicit: boolean}}
+ *
+ * An explicit base is returned unchecked: CI sets it, and if it is wrong the
+ * caller reports "base ref not found" rather than silently searching for a
+ * different branch and validating against something nobody asked for.
+ */
+function resolveBaseRef(explicit, exists, candidates = DEFAULT_BASE_CANDIDATES) {
+  if (explicit) return { ref: explicit, explicit: true };
+  for (const ref of candidates) {
+    if (exists(ref)) return { ref, explicit: false };
+  }
+  return { ref: null, explicit: false };
+}
+
 /** `Turki <a@b.c>` -> `a@b.c`, lowercased. Anything unparseable -> ''. */
 const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
 
@@ -75,11 +118,18 @@ function verdict(commits) {
   return { ok: true, reason: `${list.length} commit(s) signed off`, unsigned: [] };
 }
 
-module.exports = { verdict, normalizeEmail, TRAILER };
+module.exports = { verdict, normalizeEmail, TRAILER, resolveBaseRef, DEFAULT_BASE_CANDIDATES };
 
 if (require.main === module) {
   const { execFileSync } = require('child_process');
-  const base = process.env.BASE_REF || process.argv[2] || 'main';
+  const refExists = (ref) => {
+    try {
+      execFileSync('git', ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], { stdio: 'ignore' });
+      return true;
+    } catch { return false; }
+  };
+  const chosen = resolveBaseRef(process.env.BASE_REF || process.argv[2], refExists);
+  const base = chosen.ref || 'main';
   // Field/record separators. These are git's OWN escapes: git writes 0x1f/0x1e
   // into its output, while argv carries only the literal text "%x1f". Passing a
   // real NUL here instead throws ERR_INVALID_ARG_VALUE — which the catch below
@@ -91,9 +141,7 @@ if (require.main === module) {
   // and failing the PR for it would teach people to ignore this check. Anything
   // ELSE going wrong is this script's bug and must fail loudly: a DCO gate that
   // exits 0 when it is broken is worse than no gate, because it reports green.
-  try {
-    execFileSync('git', ['rev-parse', '--verify', '--quiet', `${base}^{commit}`], { stdio: 'ignore' });
-  } catch {
+  if (!refExists(base)) {
     process.stdout.write(`DCO check skipped — base ref "${base}" not found in this checkout\n`);
     process.exit(0);
   }
@@ -115,12 +163,12 @@ if (require.main === module) {
 
   const r = verdict(commits);
   if (r.ok) {
-    process.stdout.write(`DCO check ok — ${r.reason}\n`);
+    process.stdout.write(`DCO check ok — ${r.reason} (vs ${base})\n`);
     process.exit(0);
   }
 
   process.stderr.write(
-    `\nDCO check failed — ${r.reason}.\n\n` +
+    `\nDCO check failed — ${r.reason}, comparing against ${base}.\n\n` +
     r.unsigned.slice(0, 20).map((c) => `  ${c.sha.slice(0, 8)}  ${c.why}\n`).join('') +
     (r.unsigned.length > 20 ? `  …and ${r.unsigned.length - 20} more\n` : '') +
     `\nSign off by amending or rebasing so every commit ends with a line matching\n` +
