@@ -79,9 +79,57 @@ test('no arguments at all is safe', () => {
   assert.equal(r.primary, 'en');
 });
 
-test('the secondary language is the pair, not a free choice', () => {
-  assert.equal(L.secondaryFor('ar'), 'en');
-  for (const lang of ['en', 'fr', 'de', 'zh']) assert.equal(L.secondaryFor(lang), 'ar');
+test('the default pairing is Arabic, or English for an Arabic shop', () => {
+  assert.equal(L.defaultSecondaryFor('ar'), 'en');
+  for (const lang of ['en', 'fr', 'de', 'zh']) assert.equal(L.defaultSecondaryFor(lang), 'ar');
+});
+
+test('a shop can choose which language goes second', () => {
+  // The reported bug was not only that documents were bilingual — it was that
+  // the second language could only ever be Arabic, in all nine translations.
+  for (const sec of ['fr', 'de', 'ja', 'pt-BR', 'zh']) {
+    const r = R({ mode: 'both', lang: 'en', secondary: sec, enableZatca: false });
+    assert.equal(r.bilingual, true);
+    assert.equal(r.secondary, sec, `en + ${sec} must be honoured`);
+  }
+});
+
+test('an Arabic shop can pair with something other than English', () => {
+  const r = R({ mode: 'auto', lang: 'ar', secondary: 'fr', enableZatca: false });
+  assert.deepEqual({ bi: r.bilingual, sec: r.secondary }, { bi: true, sec: 'fr' });
+});
+
+test('a nonsense or self-referential choice falls back to the default pair', () => {
+  // Two copies of the same language is not a bilingual document, and an
+  // untranslatable code would print the raw keys as the second half.
+  for (const bad of ['en', 'klingon', '', null, undefined, 'EN', 42]) {
+    assert.equal(R({ mode: 'both', lang: 'en', secondary: bad }).secondary, 'ar', `secondary=${JSON.stringify(bad)}`);
+  }
+  assert.equal(L.resolveSecondary('ar', 'ar'), 'en', 'an Arabic shop picking Arabic gets the default back');
+});
+
+test('ZATCA pins the second language to Arabic, not merely to "some second language"', () => {
+  // A tax invoice in English and French carries no Arabic and is not compliant.
+  // Picking another language must not be a route around the mandate.
+  const r = R({ mode: 'both', lang: 'en', secondary: 'fr', enableZatca: true });
+  assert.equal(r.secondary, 'ar', 'the French choice is overridden');
+  assert.equal(r.forced, true);
+});
+
+test('an Arabic shop under ZATCA keeps its own second language', () => {
+  // The mandate is satisfied by the primary language, so nothing is overridden
+  // and the "locked by ZATCA" hint must not appear.
+  const r = R({ mode: 'both', lang: 'ar', secondary: 'fr', enableZatca: true });
+  assert.deepEqual({ sec: r.secondary, forced: r.forced }, { sec: 'fr', forced: false });
+});
+
+test('every shipped language can be chosen as the second', () => {
+  // A language the app is translated into but cannot print as a second language
+  // would be an arbitrary gap in the picker.
+  for (const lang of L.LANGS) {
+    if (lang === 'en') continue;
+    assert.equal(R({ mode: 'both', lang: 'en', secondary: lang }).secondary, lang);
+  }
 });
 
 test('ZATCA defaults on only for an Arabic setup', () => {

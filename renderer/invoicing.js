@@ -1141,9 +1141,12 @@ function generateCreditNote(order, creditAmount, reason) {
   const dir  = isAr ? 'rtl' : 'ltr';
   // Same rule as the invoice — see renderInvoice(). A credit note and a delivery
   // note are customer-facing documents too, and were bilingual unconditionally.
-  const bi = KhaytInvoiceLanguage.resolveDocumentLanguage({
-    mode: settings.invoiceBilingual, lang: i18n.current, enableZatca: settings.enableZatca,
-  }).bilingual;
+  const _dl = KhaytInvoiceLanguage.resolveDocumentLanguage({
+    mode: settings.invoiceBilingual, lang: i18n.current,
+    secondary: settings.invoiceSecondLang, enableZatca: settings.enableZatca,
+  });
+  const bi = _dl.bilingual;
+  const secondLang = _dl.secondary;
   const bizPrimary = isAr ? (settings.bizAr || settings.bizEn) : (settings.bizEn || settings.bizAr);
   const cnId = 'CN-' + order.id;
   const today = localDateStr();
@@ -1166,8 +1169,8 @@ function generateCreditNote(order, creditAmount, reason) {
           </div>
         </div>
         <div class="doc">
-          <div class="title" style="color:#dc2626;">${escapeHtml(isAr ? 'إشعار دائن' : 'Credit Note')}</div>
-          ${bi ? `<div class="title-ar ${isAr ? 'ltr' : 'ar'}">${escapeHtml(isAr ? 'Credit Note' : 'إشعار دائن')}</div>` : ''}
+          <div class="title" style="color:#dc2626;">${escapeHtml(t("doc.credit_note"))}</div>
+          ${bi ? `<div class="title-ar ${isAr ? 'ltr' : 'ar'}">${escapeHtml(i18n.tIn(secondLang, "doc.credit_note"))}</div>` : ''}
           <div class="meta">
             <div class="meta-row"><span class="k">${escapeHtml(isAr ? 'رقم' : 'No.')}</span><span class="v">${escapeHtml(cnId)}</span></div>
             <div class="meta-row"><span class="k">${escapeHtml(isAr ? 'التاريخ' : 'Date')}</span><span class="v">${escapeHtml(formatPrintDate(today))}</span></div>
@@ -1236,9 +1239,12 @@ function generateDeliveryNote(id) {
   const dir  = isAr ? 'rtl' : 'ltr';
   // Same rule as the invoice — see renderInvoice(). A credit note and a delivery
   // note are customer-facing documents too, and were bilingual unconditionally.
-  const bi = KhaytInvoiceLanguage.resolveDocumentLanguage({
-    mode: settings.invoiceBilingual, lang: i18n.current, enableZatca: settings.enableZatca,
-  }).bilingual;
+  const _dl = KhaytInvoiceLanguage.resolveDocumentLanguage({
+    mode: settings.invoiceBilingual, lang: i18n.current,
+    secondary: settings.invoiceSecondLang, enableZatca: settings.enableZatca,
+  });
+  const bi = _dl.bilingual;
+  const secondLang = _dl.secondary;
   const bizPrimary = isAr ? (settings.bizAr || settings.bizEn) : (settings.bizEn || settings.bizAr);
   const linkedClient = order.clientId ? clients.find(c => c.id === order.clientId) : null;
   const clientName = (order.project || '').trim() || t('inv.walk_in');
@@ -1258,8 +1264,8 @@ function generateDeliveryNote(id) {
           </div>
         </div>
         <div class="doc">
-          <div class="title">${escapeHtml(isAr ? 'إشعار تسليم' : 'Delivery Note')}</div>
-          ${bi ? `<div class="title-ar ${isAr ? 'ltr' : 'ar'}">${escapeHtml(isAr ? 'Delivery Note' : 'إشعار تسليم')}</div>` : ''}
+          <div class="title">${escapeHtml(t("doc.delivery_note"))}</div>
+          ${bi ? `<div class="title-ar ${isAr ? 'ltr' : 'ar'}">${escapeHtml(i18n.tIn(secondLang, "doc.delivery_note"))}</div>` : ''}
           <div class="meta">
             <div class="meta-row"><span class="k">${escapeHtml(isAr ? 'رقم' : 'Ref.')}</span><span class="v">${escapeHtml(order.id)}</span></div>
             <div class="meta-row"><span class="k">${escapeHtml(isAr ? 'التاريخ' : 'Date')}</span><span class="v">${escapeHtml(formatPrintDate(order.date))}</span></div>
@@ -1356,6 +1362,7 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
   const docLang = KhaytInvoiceLanguage.resolveDocumentLanguage({
     mode: settings.invoiceBilingual,
     lang: i18n.current,
+    secondary: settings.invoiceSecondLang,
     enableZatca: settings.enableZatca,
   });
   // `bi` gates every second-language element below: the hardcoded label halves
@@ -1363,6 +1370,15 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
   // question — "is this a two-language document?" — and gating only the labels
   // would leave an English quote carrying an Arabic address.
   const bi = docLang.bilingual;
+  // The shop's OWN second-language content — its name, address, tagline, terms
+  // and footer — exists only as an English/Arabic pair in settings. There is no
+  // bizFr. So a document whose second language is French can carry French
+  // LABELS, which come from the locale files, but has no French shop name to
+  // put beside them; printing the Arabic one there would pair French headings
+  // with an Arabic address, which is how this looked before the gate existed.
+  // Show that block only when the second language is the one those fields hold.
+  const biContent = bi
+    && docLang.secondary === KhaytInvoiceLanguage.defaultSecondaryFor(i18n.current);
   const dir = isAr ? 'rtl' : 'ltr';
   // Numeral formatting helper — only converts when in Arabic mode with the toggle on
   const num = (v) => (isAr && settings.useArabicNumerals) ? toArabicNumerals(v) : String(v);
@@ -1370,26 +1386,36 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
 
   // Label pairs — (primary, secondary). Primary = working language.
   const isQuoteDoc = order.status === 'quote';
+  // Every printed label, as [primary, secondary].
+  //
+  // These used to be hardcoded English/Arabic literal pairs, which is why the
+  // second language could only ever BE Arabic. They now come out of the locale
+  // files like the rest of the app: the primary through t(), the secondary
+  // through tIn() against whichever language the shop picked. That is the whole
+  // reason for the doc.* vocabulary — a label the second language cannot be
+  // looked up in is a label that language cannot print.
+  const L2 = (key, vars) => [t(key, vars), bi ? i18n.tIn(docLang.secondary, key, vars) : ""];
+  const rate = vatRate || 15;
   const L = {
-    invoice:    isAr ? (isQuoteDoc ? ['عرض سعر','Quotation'] : ['فاتورة','Invoice'])
-                     : (isQuoteDoc ? ['Quotation','عرض سعر'] : ['Invoice','فاتورة']),
-    no:         isAr ? ['رقم',                 'No.']             : ['No.',               'رقم'],
-    date:       isAr ? ['التاريخ',             'Date']            : ['Date',              'التاريخ'],
-    time:       isAr ? ['الوقت',               'Time']            : ['Time',              'الوقت'],
-    billTo:     isAr ? ['الفاتورة إلى',        'Bill to']         : ['Bill to',           'الفاتورة إلى'],
-    description:isAr ? ['الوصف',               'Description']     : ['Description',       'الوصف'],
-    qty:        isAr ? ['الكمية',              'Qty']             : ['Qty',               'الكمية'],
-    amount:     isAr ? ['الإجمالي',            'Amount']          : ['Amount',            'الإجمالي'],
-    subtotal:   isAr ? ['الإجمالي الفرعي',    'Subtotal']        : ['Subtotal',          'الإجمالي الفرعي'],
-    vat:        isAr ? [`ضريبة القيمة (${vatRate || 15}٪)`, `VAT (${vatRate || 15}%)`] : [`VAT (${vatRate || 15}%)`, `ضريبة القيمة (${vatRate || 15}%)`],
-    totalDue:   isAr ? ['الإجمالي المستحق',   'Total due']       : ['Total due',         'الإجمالي المستحق'],
-    qrLabel:    isAr ? ['رمز هيئة الزكاة — امسح للتحقق', 'ZATCA QR — scan to verify']
-                     : ['ZATCA QR — scan to verify',     'رمز هيئة الزكاة — امسح للتحقق'],
+    invoice:    L2(isQuoteDoc ? "doc.quotation" : "doc.invoice"),
+    no:         L2("doc.no"),
+    date:       L2("doc.date"),
+    time:       L2("doc.time"),
+    billTo:     L2("doc.bill_to"),
+    description:L2("doc.description"),
+    qty:        L2("doc.qty"),
+    amount:     L2("doc.amount"),
+    subtotal:   L2("doc.subtotal"),
+    vat:        L2("doc.vat", { rate }),
+    totalDue:   L2("doc.total_due"),
+    qrLabel:    L2("doc.qr_label"),
+    // A sentence, not a label — it is set once in the working language and has
+    // no second-language twin on the page.
     legal:      settings.enableZatca
-                  ? (isAr ? 'فاتورة متوافقة مع المرحلة الأولى من هيئة الزكاة والضريبة والجمارك'
-                           : 'ZATCA Phase 1 compliant invoice with TLV-encoded QR code.')
-                  : (isAr ? `صادرة بواسطة Khayt · ${t('inv.generated_by') || 'Professional Invoice'}`
-                           : `Generated by Khayt · ${t('inv.generated_by') || 'Professional Invoice'}`),
+                  ? (isAr ? "فاتورة متوافقة مع المرحلة الأولى من هيئة الزكاة والضريبة والجمارك"
+                           : "ZATCA Phase 1 compliant invoice with TLV-encoded QR code.")
+                  : (isAr ? `صادرة بواسطة Khayt · ${t("inv.generated_by") || "Professional Invoice"}`
+                           : `Generated by Khayt · ${t("inv.generated_by") || "Professional Invoice"}`),
   };
 
   // Pretty label: primary on top, smaller secondary underneath — or just the
@@ -1399,9 +1425,13 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
     if (!bi) return escapeHtml(p);
     return `${escapeHtml(p)} <span class="sub${isAr ? ' ltr' : ' rtl'}">${escapeHtml(s)}</span>`;
   };
-  /** The secondary half of a label strip — empty on a single-language document. */
-  const sub = (text) => (bi
-    ? `<span class="sub ${isAr ? 'ltr' : 'ar'}">${escapeHtml(text)}</span>`
+  /**
+   * The secondary half of a label strip — empty on a single-language document.
+   * Takes a locale KEY, not a literal: the second language is the shop's choice,
+   * so the text has to be looked up rather than written inline.
+   */
+  const sub = (key) => (bi
+    ? `<span class="sub ${isAr ? 'ltr' : 'ar'}">${escapeHtml(i18n.tIn(docLang.secondary, key))}</span>`
     : '');
 
   // Bill-to: real client name, OR generic walk-in label
@@ -1481,11 +1511,11 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
   const termsSectionHtml = termsPrimary.trim() ? `
     <div class="inv-terms">
       <div class="label-strip">
-        <span>${escapeHtml(isAr ? 'الشروط والأحكام' : 'Terms & Conditions')}</span>
-        ${sub(isAr ? 'Terms & Conditions' : 'الشروط والأحكام')}
+        <span>${escapeHtml(t("doc.terms"))}</span>
+        ${sub("doc.terms")}
       </div>
       <p class="inv-terms-body">${escapeHtml(termsPrimary)}</p>
-      ${bi && termsSecondary ? `<p class="inv-terms-body sec">${escapeHtml(termsSecondary)}</p>` : ''}
+      ${biContent && termsSecondary ? `<p class="inv-terms-body sec">${escapeHtml(termsSecondary)}</p>` : ''}
     </div>` : '';
 
   // Hijri date — a second rendering of the issue date for an Arabic-reading
@@ -1505,8 +1535,8 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
   const bankSectionHtml = hasBank ? `
     <div class="bank-section">
       <div class="label-strip">
-        <span>${escapeHtml(isAr ? 'بيانات الدفع' : 'Payment information')}</span>
-        ${sub(isAr ? 'Payment information' : 'بيانات الدفع')}
+        <span>${escapeHtml(t("doc.payment_info"))}</span>
+        ${sub("doc.payment_info")}
       </div>
       <div class="bank-grid">
         ${settings.bankName ? `<span class="k">${escapeHtml(t('inv.bank'))}</span><span class="v">${escapeHtml(settings.bankName)}</span>` : ''}
@@ -1524,8 +1554,8 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
         <div class="pay-qr-row">
           <div class="pay-qr-code">${payQrSvg}</div>
           <div class="pay-qr-label">
-            <span>${escapeHtml(isAr ? 'امسح للدفع' : 'Scan to pay')}</span>
-            ${sub(isAr ? 'Scan to pay' : 'امسح للدفع')}
+            <span>${escapeHtml(t("doc.scan_to_pay"))}</span>
+            ${sub("doc.scan_to_pay")}
           </div>
         </div>` : ''}
     </div>` : '';
@@ -1546,11 +1576,11 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
           <div class="biz-name">
             <h1>${escapeHtml(bizPrimary || 'Khayt')}</h1>
             ${taglinePrimary ? `<div class="biz-tagline">${escapeHtml(taglinePrimary)}</div>` : ''}
-            ${bi && taglineSecondary ? `<div class="biz-tagline sec ${isAr ? 'ltr' : 'ar'}">${escapeHtml(taglineSecondary)}</div>` : ''}
-            ${bi && bizSecondary ? `<div class="biz-ar ${isAr ? 'ltr' : 'ar'}">${escapeHtml(bizSecondary)}</div>` : ''}
+            ${biContent && taglineSecondary ? `<div class="biz-tagline sec ${isAr ? 'ltr' : 'ar'}">${escapeHtml(taglineSecondary)}</div>` : ''}
+            ${biContent && bizSecondary ? `<div class="biz-ar ${isAr ? 'ltr' : 'ar'}">${escapeHtml(bizSecondary)}</div>` : ''}
             <div class="biz-meta">
               ${addrPrimary ? `<p>${escapeHtml(addrPrimary)}</p>` : ''}
-              ${bi && addrSecondary ? `<p class="${isAr ? 'ltr' : 'ar-line ar'}">${escapeHtml(addrSecondary)}</p>` : ''}
+              ${biContent && addrSecondary ? `<p class="${isAr ? 'ltr' : 'ar-line ar'}">${escapeHtml(addrSecondary)}</p>` : ''}
               ${contactBits ? `<p>${escapeHtml(contactBits)}</p>` : ''}
             </div>
           </div>
@@ -1570,7 +1600,7 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
             </div>
             ${hijri ? `
             <div class="meta-row">
-              <span class="k">${escapeHtml(t('inv.hijri'))}</span>
+              <span class="k">${escapeHtml(t("doc.hijri"))}</span>
               <span class="v">${escapeHtml(num(hijri))}</span>
             </div>` : ''}
             ${issuedTime ? `
@@ -1580,7 +1610,7 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
             </div>` : ''}
             ${order.clientRef ? `
             <div class="meta-row">
-              <span class="k">${escapeHtml(isAr ? 'مرجع العميل' : 'Client Ref.')}</span>
+              <span class="k">${escapeHtml(t("doc.client_ref"))}</span>
               <span class="v">${escapeHtml(order.clientRef)}</span>
             </div>` : ''}
           </div>
@@ -1677,8 +1707,8 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
       ${(order.instalments && order.instalments.length > 0) ? `
       <div class="inv-notes-section" style="margin-top:12px;">
         <div class="label-strip">
-          <span>${escapeHtml(isAr ? 'جدول الأقساط' : 'Payment Schedule')}</span>
-          ${sub(isAr ? 'Payment Schedule' : 'جدول الأقساط')}
+          <span>${escapeHtml(t("doc.payment_schedule"))}</span>
+          ${sub("doc.payment_schedule")}
         </div>
         <table style="width:100%;border-collapse:collapse;font-size:11.5px;margin-top:4px;">
           <thead><tr style="color:var(--ink-mute);text-align:left;">
@@ -1702,8 +1732,8 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
       ${(order.invoiceNotes || '').trim() ? `
       <div class="inv-notes-section">
         <div class="label-strip">
-          <span>${escapeHtml(isAr ? 'ملاحظات' : 'Notes')}</span>
-          ${sub(isAr ? 'Notes' : 'ملاحظات')}
+          <span>${escapeHtml(t("doc.notes"))}</span>
+          ${sub("doc.notes")}
         </div>
         <p class="inv-notes-body">${escapeHtml(order.invoiceNotes)}</p>
       </div>` : ''}
@@ -1712,7 +1742,7 @@ function renderInvoice(order, { qrSvg, payQrSvg = '', total, vatAmount, subtotal
 
       <div class="footer">
         <div class="thanks">${escapeHtml(isAr ? (settings.footerAr || t('inv.thank_you')) : (settings.footerEn || t('inv.thank_you')))}</div>
-        ${bi && (isAr ? settings.footerEn : settings.footerAr) ? `<div class="thanks-ar ${isAr ? 'ltr' : 'ar'}">${escapeHtml(isAr ? settings.footerEn : settings.footerAr)}</div>` : ''}
+        ${biContent && (isAr ? settings.footerEn : settings.footerAr) ? `<div class="thanks-ar ${isAr ? 'ltr' : 'ar'}">${escapeHtml(isAr ? settings.footerEn : settings.footerAr)}</div>` : ''}
         <div class="legal">${escapeHtml(L.legal)}</div>
       </div>
 

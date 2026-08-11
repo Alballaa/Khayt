@@ -41,11 +41,29 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   so it stays exactly as it was. **Bilingual** and **My language only** are there
   to override it either way.
 
-  **ZATCA outranks all three.** Saudi Phase 1 requires Arabic on a tax invoice, so
-  while ZATCA e-invoicing is switched on documents stay bilingual whatever the
-  setting says, and the setting notes that it is doing so. Nothing you have
-  already sent changes, and no shop can drop into non-compliance by picking from
-  a dropdown.
+- **And when a document is bilingual, you now choose which language goes second.**
+  Arabic was not "the other language", it was the only one there had ever been —
+  the labels were hardcoded English/Arabic pairs, so no other combination could
+  be expressed. A **Second language** picker offers all nine, so a shop can
+  invoice in English and French, or German and Spanish. Every printed label moved
+  into the translation files to make that possible, which fixed something else on
+  the way: the labels themselves were English-or-Arabic, so a German shop's
+  invoice said "Description" and "Qty" no matter what language it was working in.
+  It now says **Beschreibung** and **Menge**.
+
+  The shop's own name, address, tagline, terms and footer are stored as an
+  English/Arabic pair rather than as nine, so those print alongside the labels
+  only when the second language is the one they are actually written in. A quote
+  in English and French shows French headings without pairing them with an Arabic
+  address.
+
+  **ZATCA outranks both settings.** Saudi Phase 1 requires Arabic specifically —
+  not merely a second language — so while ZATCA e-invoicing is switched on,
+  documents stay bilingual *and* the second language stays Arabic, whatever is
+  picked. The picker hides itself and says why rather than appearing to work.
+  Nothing you have already sent changes, and no shop can drop into
+  non-compliance through a dropdown. A shop working in Arabic already satisfies
+  the requirement with its main language, so its own choice is left alone.
 
 - **A new shop outside Saudi Arabia is no longer set up for Saudi e-invoicing.**
   The "ZATCA e-invoicing fields on invoices" box in first-run setup was ticked for

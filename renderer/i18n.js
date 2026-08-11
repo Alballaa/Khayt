@@ -45,6 +45,27 @@ const i18n = {
     }
   },
 
+  /**
+   * Translate into a NAMED language rather than the current one.
+   *
+   * Printed documents can carry a second language the shop picks, which is not
+   * the language the app is running in — an English shop invoicing in English
+   * and French. Switching `current` to fetch each label would repaint the whole
+   * UI mid-render, so the document asks for its second set directly.
+   *
+   * Falls back the same way t() does: requested language → English → the key.
+   */
+  tIn(lang, key, vars) {
+    const dict = STRINGS[lang];
+    let s = (dict && dict[key]) || STRINGS.en[key] || key;
+    if (vars) {
+      for (const k of Object.keys(vars)) s = s.replaceAll('{' + k + '}', String(vars[k]));
+    }
+    const b = productBrand();
+    if (b !== 'Khayt' && s.indexOf('Khayt') !== -1) s = s.replace(/\bKhayt\b/g, b);
+    return s;
+  },
+
   t(key, vars) {
     let s = (STRINGS[this.current] && STRINGS[this.current][key]) || STRINGS.en[key] || key;
     if (vars) {

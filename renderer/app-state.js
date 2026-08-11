@@ -133,6 +133,10 @@ function defaultSettings() {
     // doing real work) and shops under ZATCA (where Arabic is a legal
     // requirement and the setting is overridden entirely).
     invoiceBilingual: 'auto',
+    // Which language goes second when a document is bilingual. Arabic is only
+    // the DEFAULT — before this existed it was the only possibility, which is
+    // how a French shop ended up printing French and Arabic.
+    invoiceSecondLang: 'ar',
     quotePrefix:     'QUO',
     useIcloud:       false,
     monthlyGoal:     0,

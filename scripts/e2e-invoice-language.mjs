@@ -31,6 +31,7 @@ try {
     settings.lang = o.lang;
     settings.enableZatca = o.zatca;
     settings.invoiceBilingual = o.mode;
+    settings.invoiceSecondLang = o.sec || 'ar';
     // The shipped default, and the reason gating the toggle alone was not enough:
     // stores created before the fix already carry `true`.
     settings.useHijri = true;
@@ -51,9 +52,10 @@ try {
     await renderInvoiceForOrder(order);
     const txt = document.querySelector('#invoice-print-area').innerText;
     return {
+      text: txt,
       arabic: (txt.match(/[؀-ۿ]/g) || []).length,
       // The English label halves an Arabic document carries when bilingual.
-      english: ['Quotation', 'Bill to', 'Total due'].filter((s) => txt.includes(s)).length,
+      english: ['Quotation', 'Billed To', 'Total due'].filter((s) => txt.includes(s)).length,
       hijri: /Hijri|هجري/i.test(txt),
       // Proof the document rendered at all, so a blank page cannot pass as "no Arabic".
       rendered: txt.trim().length > 200,
@@ -87,12 +89,46 @@ try {
   ok(arSingle.rendered && arSingle.arabic > 0, 'an Arabic single-language document is still Arabic');
   ok(arSingle.english === 0, `and drops the English half (${arSingle.english} English labels left)`);
 
+  // ---- the second language is the shop's to choose ----
+  // The original fault was not only that documents were bilingual, but that the
+  // second half could only ever BE Arabic. These labels come out of the locale
+  // files, so an unreachable doc.* key shows up here as a missing word rather
+  // than as a raw key nobody notices.
+  const PAIRS = [
+    { sec: 'fr', words: ['Devis', 'Facturé à', 'Montant'] },
+    { sec: 'ja', words: ['見積書', '請求先', '金額'] },
+    { sec: 'es', words: ['Presupuesto', 'Facturado a', 'Importe'] },
+    { sec: 'de', words: ['Angebot', 'Rechnung an', 'Betrag'] },
+  ];
+  for (const { sec, words } of PAIRS) {
+    const r = await render({ lang: 'en', zatca: false, mode: 'both', sec });
+    const missing = words.filter((w) => !r.text.includes(w));
+    ok(missing.length === 0, `English + ${sec}: the ${sec} labels print (missing: ${missing.join(', ') || 'none'})`);
+    ok(r.arabic === 0, `English + ${sec}: and no Arabic leaks in (found ${r.arabic})`);
+  }
+
+  // The shop's own name and address exist only as an English/Arabic pair. A
+  // French document must not pair French headings with an Arabic address.
+  const enFr = await render({ lang: 'en', zatca: false, mode: 'both', sec: 'fr' });
+  ok(!enFr.text.includes('الرياض'), 'the seeded Arabic address stays off an English/French document');
+
+  // The primary language was hardcoded English-or-Arabic too, so a German shop
+  // printed English headings however it was configured.
+  const de = await render({ lang: 'de', zatca: false, mode: 'both', sec: 'es' });
+  ok(de.text.includes('Angebot') && de.text.includes('Datum'),
+    'a German shop gets German headings, not English ones');
+
   // ---- the compliance guarantee ----
   // Arabic is mandatory on a Saudi tax invoice. Every mode must fail to remove it.
   for (const mode of ['auto', 'both', 'single']) {
     const z = await render({ lang: 'en', zatca: true, mode });
     ok(z.arabic > 0, `ZATCA keeps Arabic on the document with mode="${mode}" (${z.arabic} characters)`);
   }
+  // Picking another second language is not a route around the mandate either: a
+  // tax invoice in English and French carries no Arabic and is not compliant.
+  const zFr = await render({ lang: 'en', zatca: true, mode: 'both', sec: 'fr' });
+  ok(zFr.arabic > 0, `ZATCA overrides a French second language (${zFr.arabic} Arabic characters)`);
+  ok(!zFr.text.includes('Devis'), 'and the French labels are replaced, not merely added to');
 
   console.log('\ninvoice language smoke: all assertions passed');
 } catch (err) {

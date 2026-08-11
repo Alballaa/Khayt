@@ -3649,21 +3649,54 @@ async function syncUpdaterOptionsFromSettings() {
   } catch (_) {}
 }
 
+/** How each language names itself — what a picker of languages should show. */
+const LANG_ENDONYMS = {
+  en: 'English', ar: 'العربية', de: 'Deutsch', es: 'Español', fr: 'Français',
+  zh: '中文 (简体)', ja: '日本語', tr: 'Türkçe', 'pt-BR': 'Português (Brasil)',
+};
+
 /**
- * Show or hide the "ZATCA keeps documents bilingual" note beside the document
- * language picker.
+ * Keep the two document-language controls honest about what they will actually do.
  *
- * The picker is not disabled, deliberately: the owner's choice is remembered and
- * takes effect the moment ZATCA is switched off. Greying it out would lose that,
- * and would suggest the setting is unavailable rather than currently outranked.
+ * Neither is disabled, deliberately: the owner's choices are remembered and take
+ * effect the moment ZATCA is switched off. Greying them out would lose that and
+ * would read as "unavailable" rather than "currently outranked".
+ *
+ * Reads the live checkbox rather than saved settings, so the note appears the
+ * moment ZATCA is ticked instead of after a save.
  */
-function syncInvBilingualZatcaNote() {
+function syncInvLanguageControls() {
+  const sel = $('#set_invoiceSecondLang');
   const note = $('#invBilingualZatcaNote');
-  if (!note) return;
+  const row = $('#invSecondLangRow');
   const zatcaOn = $('#set_enableZatca')
     ? !!$('#set_enableZatca').checked
     : settings.enableZatca !== false;
-  note.style.display = zatcaOn ? '' : 'none';
+  const mode = $('#set_invoiceBilingual')?.value || settings.invoiceBilingual || 'auto';
+  const primary = i18n.current;
+
+  if (note) note.style.display = zatcaOn ? '' : 'none';
+
+  if (sel) {
+    // The working language cannot also be the second one — that is the same
+    // labels printed twice, and the resolver refuses it anyway.
+    const langs = KhaytInvoiceLanguage.LANGS.filter((l) => l !== primary);
+    const want = KhaytInvoiceLanguage.resolveSecondary(primary, settings.invoiceSecondLang);
+    sel.innerHTML = langs.map((l) =>
+      `<option value="${escapeHtml(l)}"${l === want ? ' selected' : ''}>${escapeHtml(LANG_ENDONYMS[l] || l)}</option>`
+    ).join('');
+    sel.value = want;
+  }
+
+  // Hide the picker when nothing will be printed in a second language. Under
+  // ZATCA the answer is Arabic and not the shop's to choose, so the row goes
+  // too — the note above already explains why.
+  if (row) {
+    const willBeBilingual = KhaytInvoiceLanguage.resolveDocumentLanguage({
+      mode, lang: primary, secondary: settings.invoiceSecondLang, enableZatca: zatcaOn,
+    });
+    row.style.display = (willBeBilingual.bilingual && !willBeBilingual.forced) ? '' : 'none';
+  }
 }
 
 function loadSettingsIntoForm() {
@@ -3701,8 +3734,12 @@ function loadSettingsIntoForm() {
   $('#set_taglineAr').value     = settings.taglineAr   || '';
   $('#set_invAccent').value     = safeCssColor(settings.invAccentColor, '#5E2E14');
   if ($('#set_invTemplate')) $('#set_invTemplate').value = settings.invTemplate || 'classic';
-  if ($('#set_invoiceBilingual')) $('#set_invoiceBilingual').value = settings.invoiceBilingual || 'auto';
-  syncInvBilingualZatcaNote();
+  const biEl = $('#set_invoiceBilingual');
+  if (biEl) biEl.value = settings.invoiceBilingual || 'auto';
+  if (biEl && !biEl.dataset.langRowBound) {
+    biEl.dataset.langRowBound = '1';
+    biEl.addEventListener('change', syncInvLanguageControls);
+  }
   $('#set_invTermsEn').value    = settings.invTermsEn  || '';
   $('#set_invTermsAr').value    = settings.invTermsAr  || '';
   $('#set_monthlyGoal').value     = settings.monthlyGoal ?? 0;
@@ -3748,8 +3785,14 @@ function loadSettingsIntoForm() {
   // is ticked instead of after a save.
   if (zatcaEl && !zatcaEl.dataset.bilingualNoteBound) {
     zatcaEl.dataset.bilingualNoteBound = '1';
-    zatcaEl.addEventListener('change', syncInvBilingualZatcaNote);
+    zatcaEl.addEventListener('change', syncInvLanguageControls);
   }
+  // Deliberately AFTER the ZATCA checkbox is populated, not with the other
+  // invoice fields above it. This reads the live controls rather than saved
+  // settings so it reacts before a save — which means running it while the
+  // checkbox still holds the previous load's value computes the wrong answer
+  // and leaves the picker hidden on a shop that is not under ZATCA at all.
+  syncInvLanguageControls();
   // Min-margin warning threshold
   const minMargEl = $('#set_minMarginPct');
   if (minMargEl) minMargEl.value = settings.minMarginPct ?? 0;
@@ -3985,6 +4028,10 @@ function saveSettingsFromForm() {
     invAccentColor:$('#set_invAccent').value || '#5E2E14',
     invTemplate:   $('#set_invTemplate')?.value || 'classic',
     invoiceBilingual: $('#set_invoiceBilingual')?.value || 'auto',
+    // Falls back to the stored value, not to a literal: the picker is hidden
+    // while a document is single-language or ZATCA-pinned, and a hidden control
+    // must not quietly reset a choice the owner made earlier.
+    invoiceSecondLang: $('#set_invoiceSecondLang')?.value || settings.invoiceSecondLang || 'ar',
     invTermsEn:    $('#set_invTermsEn').value.trim(),
     invTermsAr:    $('#set_invTermsAr').value.trim(),
     quotePrefix:   $('#set_quotePrefix').value.trim() || 'QUO',
