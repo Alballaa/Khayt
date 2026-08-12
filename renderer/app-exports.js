@@ -407,6 +407,17 @@ function generateWorkOrder(id) {
         </tbody>
       </table>
 
+      ${(() => {
+        // Everything attached to the product — the person making it should see
+        // the setup sheet as well as the customer-facing instructions.
+        const docs = KhaytProductDocs.docsForOrder(order, typeof products !== "undefined" ? products : []);
+        if (!docs.length) return "";
+        return `<div class="wo-docs" style="margin-top:16px;">
+          <div style="font-size:12px; font-weight:600; margin-bottom:6px;">${escapeHtml(t("pdoc.title") || "Documents")}</div>
+          ${docs.map((d) => `<div style="font-size:12px; margin-bottom:3px;">• ${escapeHtml(d.name)}${d.packWithOrder ? "" : ` <span style="color:#888;">(${escapeHtml(t("pdoc.not_shipped") || "not shipped")})</span>`}</div>`).join("")}
+        </div>`;
+      })()}
+
       <div class="wo-checks" style="margin-top:20px;">
         ${(settings.postChecklist || []).length > 0 ? `
           <div style="font-size:12px; font-weight:600; margin-bottom:8px;">${escapeHtml(t("doc.post_checklist"))}</div>

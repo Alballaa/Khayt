@@ -3057,9 +3057,37 @@ function openProductEditor(productId = null) {
   if (!draft.priceTiers) draft.priceTiers = [];
   if (!Array.isArray(draft.components)) draft.components = [];
 
+  // Files to unlink only if the shop SAVES — cancelling must leave a removed
+  // document exactly where it was.
+  const pendingDocDeletes = [];
+
   // Local mutable photo state for the modal
   let stagedThumbnail = draft.thumbnail || null;
   let stagedFullDataUrl = null; // only set if a new photo was picked
+
+  // Documents that belong to the PRODUCT, not to an order.
+  //
+  // Assembly instructions and safety sheets are properties of the thing being
+  // made. Attached to an order's part they would have to be re-attached every
+  // time somebody ordered the same product; attached here they follow every
+  // order that names it, onto the work order the floor reads and the delivery
+  // note that goes in the box.
+  if (!Array.isArray(draft.docs)) draft.docs = [];
+  const docsHtml = () => {
+    if (!draft.docs.length) {
+      return `<div class="empty-state" style="padding:12px;font-size:12px;">${escapeHtml(t('pdoc.none') || 'No documents. Assembly instructions or a safety sheet added here travel with every order for this product.')}</div>`;
+    }
+    return draft.docs.map((d, i) => `
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+        <span style="flex:1;font-size:12.5px;">${escapeHtml(d.originalName || d.filename)}</span>
+        <label style="display:flex;align-items:center;gap:5px;margin:0;font-size:11.5px;color:var(--text-muted);white-space:nowrap;cursor:pointer;">
+          <input type="checkbox" class="pdocPack" data-di="${i}" style="width:auto;margin:0;" ${d.packWithOrder === false ? '' : 'checked'}>
+          ${escapeHtml(t('pdoc.pack') || 'include when shipped')}
+        </label>
+        <button class="btn small" data-act="open-pdoc" data-di="${i}" style="margin:0;">${escapeHtml(t('common.open') || 'Open')}</button>
+        <button class="btn danger small" data-act="rm-pdoc" data-di="${i}" style="margin:0;" aria-label="${escapeHtml(t('common.delete'))}">×</button>
+      </div>`).join('');
+  };
 
   // BOM: non-printed component rows (magnets, screws, inserts, packaging) referencing
   // consumables. One <select> of consumables + a per-assembly quantity.
@@ -3174,6 +3202,13 @@ function openProductEditor(productId = null) {
     </div>
     <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 8px;">${escapeHtml(t('bom.components_hint') || 'Magnets, screws, inserts, packaging — drawn from your consumables when the order completes.')}</p>
     <div id="componentsEditor">${componentsHtml()}</div>
+
+    <div style="display:flex; align-items:center; margin: 18px 0 8px; gap:10px;">
+      <h3 class="card-head" style="margin:0; flex:1;"><span class="swatch"></span>${escapeHtml(t("pdoc.title") || "Documents")}</h3>
+      <button class="btn small" data-act="add-pdoc">${escapeHtml(t("pdoc.add") || "Attach document")}</button>
+    </div>
+    <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 8px;">${escapeHtml(t("pdoc.hint") || "Assembly instructions, safety sheets, drawings. Listed on the work order, and on the delivery note when marked to ship.")}</p>
+    <div id="pdocEditor">${docsHtml()}</div>
   `;
 
   openFormModal({
@@ -3281,6 +3316,44 @@ function openProductEditor(productId = null) {
           failureRate: num($('#failureRate').value, 10),
         });
         refreshParts();
+      });
+
+      // Product documents — attach / open / remove, and whether each ships.
+      const pdocContainer = modal.querySelector('#pdocEditor');
+      const refreshDocs = () => { if (pdocContainer) pdocContainer.innerHTML = docsHtml(); };
+      modal.querySelector('[data-act="add-pdoc"]')?.addEventListener('click', async () => {
+        try {
+          const saved = await window.hubAPI?.pickAndSaveProductDoc?.(draft.id);
+          if (!saved) return;                       // cancelled
+          draft.docs.push({ ...saved, packWithOrder: true });
+          refreshDocs();
+        } catch (e) {
+          console.error('attach product doc:', e);
+          toast(t('pdoc.attach_failed') || 'Could not attach document', 'error');
+        }
+      });
+      pdocContainer?.addEventListener('click', (ev) => {
+        const open = ev.target.closest('[data-act="open-pdoc"]');
+        const rm   = ev.target.closest('[data-act="rm-pdoc"]');
+        if (open) {
+          const d = draft.docs[+open.dataset.di];
+          if (d) window.hubAPI?.openProductDoc?.(d.filename);
+        }
+        if (rm) {
+          const i = +rm.dataset.di;
+          const [gone] = draft.docs.splice(i, 1);
+          // The file is only unlinked once the product is SAVED — see below.
+          // Removing it here would delete a document the shop could still keep
+          // by cancelling the dialog.
+          if (gone?.filename) pendingDocDeletes.push(gone.filename);
+          refreshDocs();
+        }
+      });
+      pdocContainer?.addEventListener('change', (ev) => {
+        const cb = ev.target.closest('.pdocPack');
+        if (!cb) return;
+        const d = draft.docs[+cb.dataset.di];
+        if (d) d.packWithOrder = cb.checked;
       });
 
       // BOM components — add / edit / remove rows, refreshing the price summary.
@@ -3401,6 +3474,12 @@ function openProductEditor(productId = null) {
       const idx = products.findIndex(p => p.id === draft.id);
       if (idx >= 0) products[idx] = draft;
       else products.push(draft);
+
+      // Only now unlink documents the shop removed: cancelling the dialog must
+      // leave them untouched on disk.
+      for (const fn of pendingDocDeletes) {
+        try { window.hubAPI?.deleteProductDoc?.(fn); } catch (e) { console.error('delete product doc:', e); }
+      }
 
       saveAll();
       renderCatalog();

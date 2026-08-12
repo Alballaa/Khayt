@@ -1307,6 +1307,17 @@ function generateDeliveryNote(id) {
         ${order.trackingNumber ? `<div><strong>${escapeHtml(t("doc.tracking"))}:</strong> ${escapeHtml(order.trackingNumber)}</div>` : ''}
         ${order.deliveryAddress ? `<div><strong>${escapeHtml(t("doc.address"))}:</strong> ${escapeHtml(order.deliveryAddress)}</div>` : ''}
       </div>` : ''}
+      ${(() => {
+        // OUTSIDE the courier/tracking block on purpose. That block only renders
+        // when there is shipping information, and a shop handing an order over
+        // in person still puts the safety sheet in the box.
+        //
+        // Only the packable documents: this sheet goes to the customer, and a
+        // machine setup sheet is not something to put in the box.
+        const docs = KhaytProductDocs.packableDocsForOrder(order, typeof products !== "undefined" ? products : []);
+        if (!docs.length) return "";
+        return `<div class="delivery-docs" style="margin-top:8px;"><strong>${escapeHtml(t("pdoc.enclosed") || "Enclosed")}:</strong> ${docs.map((x) => escapeHtml(x.name)).join(", ")}</div>`;
+      })()}
       <table class="lines">
         <thead>
           <tr>
