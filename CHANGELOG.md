@@ -4,6 +4,22 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **Sales tax now reaches the rest of the app, not just the invoice.** Tax that
+  is added to your prices rather than included in them arrived on the invoice
+  first, and nine other places still worked the old way — analytics and profit,
+  the loyalty points a customer earns, the monthly tax-collected figure, the
+  accounting export and the journal rows, and the work order sheet. All of them
+  quietly assumed your prices already contained the tax, so a shop adding tax at
+  checkout saw revenue understated by the tax on every screen, and exported a
+  bookkeeping file whose invoice totals were short by the same amount — silently,
+  because the file itself was perfectly well-formed.
+
+  Everything now asks the same place how your shop prices, so the invoice you
+  send, the revenue you report and the file your accountant receives agree.
+  Shops with tax included in their prices are unaffected to the cent.
+
 ### Changed
 
 - **Khayt can now read a compressed cloud backup, ahead of writing one.** Cloud

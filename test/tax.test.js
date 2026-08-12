@@ -245,3 +245,41 @@ test('empty settings are safe', () => {
     assert.equal(T.computeTax(50, p).total, 50);
   }
 });
+
+/* ── the rest of the app, not just the invoice ─────────────────────────────── */
+
+/**
+ * Exclusive pricing shipped on the invoice first, while nine other money paths
+ * still divided tax out of the price unconditionally — right only when the price
+ * includes tax. For a US shop that meant analytics, loyalty points and the
+ * accounting export all disagreed with the invoice the customer was sent.
+ *
+ * These pin the two shapes the rest of the app relies on.
+ */
+
+test('subtotal is the net figure in BOTH modes, without the caller branching', () => {
+  // This is why every call site could become one expression: exclusive returns
+  // the amount untouched (it is already net), inclusive divides the tax out.
+  const inc = { mode: 'inclusive', rates: [{ percent: 15 }] };
+  const exc = { mode: 'exclusive', rates: [{ percent: 15 }] };
+  assert.equal(T.computeTax(115, inc).subtotal, 100, 'inclusive: tax comes out');
+  assert.equal(T.computeTax(100, exc).subtotal, 100, 'exclusive: the price IS the net');
+});
+
+test('tax collected is right in both modes, from the same call', () => {
+  // The reporting figure. Under exclusive it is price x rate; under inclusive it
+  // is the portion already inside the price. One call, no branch at the caller.
+  const inc = { mode: 'inclusive', rates: [{ percent: 15 }] };
+  const exc = { mode: 'exclusive', rates: [{ percent: 15 }] };
+  assert.equal(T.computeTax(115, inc).taxTotal, 15);
+  assert.equal(T.computeTax(100, exc).taxTotal, 15);
+});
+
+test('an exclusive shop owes MORE than the price it entered', () => {
+  // The bug in one line: anything reporting `price` as the total understates an
+  // exclusive shop's invoice by the whole tax.
+  const exc = { mode: 'exclusive', rates: [{ percent: 8.25 }] };
+  const r = T.computeTax(100, exc);
+  assert.ok(r.total > 100, `total must exceed the entered price (${r.total})`);
+  assert.equal(r.total, 108.25);
+});

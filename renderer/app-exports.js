@@ -60,11 +60,15 @@ async function exportQuoteApprovalPage(orderId) {
   const contactEmail = settings.email || '';
   const contactPhone = settings.phone || '';
   const cur = currencySymbol();
-  const vatEnabled = settings.enableVat && settings.vatRate > 0;
-  const vatRate = +settings.vatRate || 15;
-  const subtotal = +order.price || 0;
-  const vatAmt = vatEnabled ? Math.round(subtotal / (1 + vatRate / 100) * (vatRate / 100) * 100) / 100 : 0;
-  const grandTotal = subtotal;
+  const _tp = KhaytTax.profileFromSettings(settings);
+  const _t = KhaytTax.computeTax(+order.price || 0, _tp);
+  const vatRate = _tp.rates.reduce((sum, r) => sum + r.percent, 0);
+  const vatEnabled = vatRate > 0;
+  const subtotal = _t.subtotal;
+  const vatAmt = _t.taxTotal;
+  // Under exclusive pricing the sheet total is price PLUS tax, so it cannot be
+  // the price itself the way it could when every price included tax.
+  const grandTotal = _t.total;
 
   const _qaParts = order.parts || [];
   const _qaTotalBase = _qaParts.reduce((s, p) => s + (+p.baseCost || 0), 0);

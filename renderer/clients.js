@@ -1166,12 +1166,14 @@ function clientLoyaltyPoints(clientId) {
   const perUnit = +settings.loyaltyPointsPerUnit || 1;
   const tier = getClientTier(clientId);
   const mult = (tier && +tier.pointsMultiplier) || 1;
-  const rate = settings.enableVat ? (+settings.vatRate || 15) : 0;
+  const _tp = KhaytTax.profileFromSettings(settings);
   let pts = 0;
   for (const o of printLog) {
     if (o.clientId !== clientId || o.status !== 'completed') continue;
     const price = +o.price || 0;
-    const exVat = rate > 0 ? price / (1 + rate / 100) : price;
+    // Points are earned on the value the shop keeps, not on the tax it merely
+    // collects — true whichever way it prices.
+    const exVat = KhaytTax.computeTax(price, _tp).subtotal;
     pts += KhaytLoyalty.earnPoints(exVat, { pointsPerUnit: perUnit, tierMultiplier: mult });
   }
   return pts;

@@ -759,6 +759,8 @@ async function renderInvoiceForOrder(order) {
       if (z2?.enabled && (z2.csid || z2.pcsid)) {
         // Phase 2: generate UBL XML, sign it, build TLV with tags 1–8
         const issueDt  = (ts || new Date().toISOString()).split('T');
+        const _z2profile = KhaytTax.profileFromSettings(settings);
+        const _z2tax = KhaytTax.computeTax(+price || 0, _z2profile);
         const xml = buildZatcaInvoiceXml({
           invoiceNumber: order.invoiceNumber || order.id,
           uuid:          order.zatcaUuid || order.id,
@@ -769,10 +771,14 @@ async function renderInvoiceForOrder(order) {
           sellerCity:    z2.city || 'Riyadh',
           vatNumber:     settings.vat || '',
           buyerName:     order.client || '',
-          total:         +price,
-          subtotal:      +price - (settings.enableVat ? +price * (+settings.vatRate || 15) / (100 + (+settings.vatRate || 15)) : 0),
-          vatAmount:     settings.enableVat ? +price * (+settings.vatRate || 15) / (100 + (+settings.vatRate || 15)) : 0,
-          vatRate:       settings.enableVat ? (+settings.vatRate || 15) : 0,
+          // Through the engine like every other money path. Identical arithmetic
+          // for an inclusive shop — which is every shop that should have ZATCA
+          // on — but a Saudi shop that switched to exclusive pricing would
+          // otherwise submit a total that disagreed with its own invoice.
+          total:         _z2tax.total,
+          subtotal:      _z2tax.subtotal,
+          vatAmount:     _z2tax.taxTotal,
+          vatRate:       _z2profile.rates.reduce((sum, r) => sum + r.percent, 0),
           itemName:      order.project || order.id,
           invoiceCounter: (z2.invoiceCounter || 0) + 1,
           pih:           z2.lastInvoiceHash || 'NWZlY2ViNjZmZmM4NmYzOGQ5NTI3ODZjNmQ2OTZjNzljMmRiYzIzOWRkNGU5MWI4NjJhNGRhNjM3NWQ2OGM5',

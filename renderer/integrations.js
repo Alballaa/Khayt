@@ -741,9 +741,11 @@ function exportAccountingCSV() {
 
   // Revenue entries (completed invoices)
   printLog.filter(o => o.status === 'completed').forEach(o => {
-    const vatRate = settings.enableVat ? (settings.vatRate || 0) / 100 : 0;
-    const subtotal = (+o.price || 0) / (1 + vatRate);
-    const vat = (+o.price || 0) - subtotal;
+    // A journal must balance, so the split has to match how the shop prices:
+    // under exclusive pricing the debit to receivables is price + tax, not price.
+    const _t = KhaytTax.computeTax(+o.price || 0, KhaytTax.profileFromSettings(settings));
+    const subtotal = _t.subtotal;
+    const vat = _t.taxTotal;
     // Debit Accounts Receivable
     const oc = rowCur(o);
     rows.push([o.date||o.timestamp?.split('T')[0]||'', o.id, 'Invoice', escapeHtml(o.project||o.client||'Order'), 'Accounts Receivable', (+o.price||0).toFixed(2), '', vat.toFixed(2), oc]);

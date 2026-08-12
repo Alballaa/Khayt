@@ -12,8 +12,15 @@ function orderNetRevenue(o) {
   const credited = (typeof orderCreditedRaw === 'function') ? orderCreditedRaw(o) : 0;
   const gross = (+o.price || 0) - (+o.shippingCost || 0) - credited;
   if (gross <= 0) return 0;
-  const rate = settings.enableVat ? (+settings.vatRate || 15) : 0;
-  return rate > 0 ? gross * 100 / (100 + rate) : gross;
+  // Net of tax, whichever way the shop prices. The old line divided the tax back
+  // out unconditionally, which is only right when the price INCLUDES tax — the
+  // single assumption Khayt used to be built on. For a shop pricing tax-exclusive
+  // (the US and Canadian norm) `o.price` is already the net figure, and dividing
+  // it again understated revenue on every screen that reads this.
+  //
+  // computeTax().subtotal is correct in both modes without a branch: exclusive
+  // returns the amount untouched, inclusive divides the tax out.
+  return KhaytTax.computeTax(gross, KhaytTax.profileFromSettings(settings)).subtotal;
 }
 
 function getFilteredLogs() {

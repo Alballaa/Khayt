@@ -8,6 +8,7 @@ const assert = require('node:assert/strict');
 test('ordersToInvoiceRows maps non-quote orders; buildInvoiceCsv applies VAT split', () => {
   require('../renderer/format.js');
   require('../renderer/currency.js');
+  require('../lib/tax.js');          // sets globalThis.KhaytTax — money paths need it
   const acct = require('../lib/accounting-export.js');
   const exp = require('../renderer/expenses.js');
 
@@ -35,10 +36,36 @@ test('ordersToInvoiceRows maps non-quote orders; buildInvoiceCsv applies VAT spl
 
 test('VAT disabled → vatRate 0 on rows', () => {
   require('../renderer/currency.js');
+  require('../lib/tax.js');          // sets globalThis.KhaytTax — money paths need it
   const exp = require('../renderer/expenses.js');
   global.settings = { currency: 'SAR', enableVat: false };
   global.clients = [];
   global.printLog = [{ id: 'INV-2', status: 'delivered', date: '2026-06-01', price: 200, clientId: null }];
   const rows = exp.ordersToInvoiceRows();
   assert.equal(rows[0].vatRate, 0);
+});
+
+/**
+ * The accounting export splits an order into subtotal + tax. It assumed the
+ * price INCLUDED the tax, which is right for the Gulf and Europe and wrong for
+ * a US or Canadian shop, where the price is pre-tax and the tax is added. Such a
+ * shop's bookkeeping file understated every invoice total by the tax — silently,
+ * because the file is still perfectly well-formed.
+ */
+test('an exclusive shop exports a total LARGER than the price it entered', () => {
+  const acct = require('../lib/accounting-export.js');
+  const incl = acct.buildInvoicePayload({ id: 'A', price: 115, vatRate: 15 });
+  const excl = acct.buildInvoicePayload({ id: 'A', price: 100, vatRate: 15, taxMode: 'exclusive' });
+  assert.equal(incl.total, 115, 'inclusive is unchanged — every existing shop');
+  assert.equal(incl.subtotal, 100);
+  assert.equal(excl.total, 115, 'exclusive: 100 + 15% is invoiced as 115, not 100');
+  assert.equal(excl.subtotal, 100);
+  assert.equal(excl.vat, 15);
+});
+
+test('a row with no taxMode reads as inclusive — every row written before this', () => {
+  const acct = require('../lib/accounting-export.js');
+  const r = acct.buildInvoicePayload({ id: 'A', price: 115, vatRate: 15 });
+  assert.equal(r.total, 115);
+  assert.equal(r.subtotal, 100);
 });

@@ -1670,8 +1670,12 @@ function renderPnLSection() {
     qMap[key].revenue += orderNetRevenueBase(o);
     qMap[key].shipping += convertToBase(+o.shippingCost || 0, orderCurrency(o));
     qMap[key].orders++;
-    const rate = settings.enableVat ? (+settings.vatRate || 15) : 0;
-    qMap[key].vatCollected += rate > 0 ? orderNetRevenueBase(o) * rate / (100 + rate) : 0;
+    // NB: orderNetRevenueBase is net of CREDIT NOTES, not net of tax — it is
+    // still a gross figure. The old line extracted tax out of it, which is right
+    // only when prices include tax. computeTax().taxTotal is right either way:
+    // it extracts under inclusive pricing and adds under exclusive.
+    qMap[key].vatCollected += KhaytTax.computeTax(
+      orderNetRevenueBase(o), KhaytTax.profileFromSettings(settings)).taxTotal;
   }
   const expQ = {};
   for (const e of expenses) {
@@ -2856,14 +2860,15 @@ function exportPnlCsv() {
     const f = customRangeFrom.analytics || '', tt = customRangeTo.analytics || '';
     if (f || tt) label = `${f || '…'} → ${tt || '…'}`;
   }
-  const rate = settings.enableVat ? (+settings.vatRate || 15) : 0;
+  const _taxProfile = KhaytTax.profileFromSettings(settings);
   const orders = (printLog || [])
     .filter(o => o.status === 'completed' && !o.voidedAt && inRange(o.date, analyticsRange, 'analytics'))
     .map(o => {
       const revenue = orderNetRevenueBase(o);
       const cogs = (o.parts || []).reduce((s, p) => s + partTotalCost(p), 0)
         + convertToBase(+o.shippingCost || 0, orderCurrency(o));
-      return { revenue, cogs, vat: rate > 0 ? revenue * rate / (100 + rate) : 0 };
+      // Same rule as above — see lib/tax.js. `revenue` here is gross.
+      return { revenue, cogs, vat: KhaytTax.computeTax(revenue, _taxProfile).taxTotal };
     });
   const exps = (expenses || [])
     .filter(e => inRange(e.date, analyticsRange, 'analytics'))

@@ -255,10 +255,19 @@ test('the client statement and the journal keep the GROSS figure on purpose', ()
 });
 
 test('every VAT figure is derived from the netted revenue', () => {
+  // The property is WHICH REVENUE the tax is taken from — orderNetRevenueBase,
+  // which subtracts credit notes — not the arithmetic used to take it. That
+  // arithmetic moved into lib/tax.js when exclusive pricing arrived, and pinning
+  // the old formula text would have failed a change that preserved the property
+  // exactly. So assert the input, and assert the gross price is NOT the input.
   const checks = [
-    ['renderer/analytics.js', /vatCollected \+= rate > 0 \? orderNetRevenueBase\(o\) \* rate \/ \(100 \+ rate\) : 0/],
-    ['renderer/expenses.js',  /vatCollected \+= rate > 0 \? orderNetRevenueBase\(o\) \* rate \/ \(100 \+ rate\) : 0/],
+    ['renderer/analytics.js', /vatCollected \+= KhaytTax\.computeTax\(\s*orderNetRevenueBase\(o\)/],
+    ['renderer/expenses.js',  /vatCollected \+= KhaytTax\.computeTax\(\s*orderNetRevenueBase\(o\)/],
   ];
+  for (const [rel] of checks) {
+    assert.doesNotMatch(read(rel), /vatCollected \+= [^\n]*\bo\.price\b/,
+      `${rel}: VAT collected must never be taken from the gross price`);
+  }
   for (const [rel, re] of checks) {
     assert.match(read(rel), re, `${rel}: VAT collected must follow revenue, not the gross price`);
   }
