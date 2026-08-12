@@ -3778,18 +3778,24 @@ function loadSettingsIntoForm() {
   $('#set_invAccent').value     = safeCssColor(settings.invAccentColor, '#5E2E14');
   if ($('#set_invTemplate')) $('#set_invTemplate').value = settings.invTemplate || 'classic';
   const lscEl = $('#set_lowStockColor');
-  if (lscEl) lscEl.value = safeCssColor(settings.lowStockColor, '#f5a623');
+  // The unset swatch shows the THEME's low-stock colour, not a literal amber —
+  // every theme darkens it for light appearance, so a fixed hex here would
+  // advertise a colour the inventory tab is not using.
+  if (lscEl) lscEl.value = safeCssColor(settings.lowStockColor, themeLowStockColor());
   if (lscEl && !lscEl.dataset.lowStockBound) {
     lscEl.dataset.lowStockBound = '1';
     // Live: a colour is judged by looking at it, not by saving and navigating
     // to the inventory tab to find out.
     lscEl.addEventListener('input', () => {
-      document.documentElement.style.setProperty('--low-stock', safeCssColor(lscEl.value, '#f5a623'));
+      document.documentElement.style.setProperty('--low-stock', safeCssColor(lscEl.value, themeLowStockColor()));
     });
     $('#btnResetLowStockColor')?.addEventListener('click', () => {
       settings.lowStockColor = '';
-      lscEl.value = '#f5a623';
+      // Clear the override FIRST: themeLowStockColor() reads --warning, which
+      // this feature never overrides, but clearing first keeps the swatch and
+      // the rendered colour in step even if that ever stops being true.
       document.documentElement.style.removeProperty('--low-stock');
+      lscEl.value = themeLowStockColor();
     });
   }
   const biEl = $('#set_invoiceBilingual');
@@ -4121,7 +4127,13 @@ function saveSettingsFromForm() {
     invoiceSecondLang: $('#set_invoiceSecondLang')?.value || settings.invoiceSecondLang || 'ar',
     // Reset writes '' while the picker still shows the default colour, so an
     // untouched picker must not silently re-pin that default as an override.
-    lowStockColor: (settings.lowStockColor === '' && $('#set_lowStockColor')?.value === '#f5a623')
+    // This must compare against whatever the picker uses as its default, which
+    // is now the theme's colour. Leaving a literal here while the swatch shows
+    // the theme's would make an untouched picker read as a deliberate choice
+    // and persist it — pinning that theme's colour so low stock stopped
+    // following a later theme change.
+    lowStockColor: (settings.lowStockColor === ''
+      && $('#set_lowStockColor')?.value === themeLowStockColor())
       ? '' : ($('#set_lowStockColor')?.value || ''),
     invTermsEn:    $('#set_invTermsEn').value.trim(),
     invTermsAr:    $('#set_invTermsAr').value.trim(),

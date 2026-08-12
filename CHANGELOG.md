@@ -4,6 +4,24 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **Low stock is readable again on a light theme.** The previous release gave
+  "low stock" its own colour so that recolouring it would not also recolour
+  overdue jobs and ageing spools. That part was right, but the new colour was a
+  fixed amber that ignored your theme — and every theme deliberately darkens its
+  amber for the light appearance so it stays legible on a pale background. The
+  result was pale amber text on white: still there, much harder to read, on all
+  seven themes.
+
+  Low stock now follows your theme's own colour again, in both light and dark,
+  and the swatch under **Settings → Appearance** shows the colour actually in
+  use rather than a fixed one. Nothing changes if you had already chosen a
+  colour of your own — that still wins, still applies to low stock alone, and
+  now survives switching theme. Choosing a colour still leaves overdue jobs and
+  spool age on the theme's warning colour, which was the point of the original
+  change.
+
 ## [3.6.0-beta.18] - 2026-08-12
 
 ### Changed
