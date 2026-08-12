@@ -6,6 +6,19 @@ on:
   pull_request:
     branches: [main]
 
+# Cancel a PR's previous run when a new commit arrives. Without this, every
+# force-push (a rebase to clear BEHIND, which `main` being strict makes routine)
+# left the superseded run going to completion — paying full price for an answer
+# about code that no longer exists. Keyed per ref, so runs on different PRs never
+# cancel each other.
+#
+# `main` is deliberately excluded via the ref in the group name: a push to main is
+# the run that gates the next release, and two of those in quick succession must
+# both finish rather than the first being cancelled by the second.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   # A change a shop can notice should say so in CHANGELOG.md. Nine PRs landed
   # between v3.6.0-beta.8 and this job with [Unreleased] empty for all of them,
@@ -78,15 +91,26 @@ jobs:
       # A quote stayed approvable after expiry, an order taken at 01:00 local was
       # dated yesterday into revenue-by-day, and a monthly expense walked
       # backwards a day every cycle. Run the suite where the two calendars
-      # disagree, in both directions.
+      # disagree.
+      #
+      # The far edge runs on EVERY event, the two nearer offsets only on a push to
+      # main. Running the whole suite four times per pull request was the single
+      # largest line in the Actions bill, and +14 is where a UTC-derived date is
+      # most wrong: any calculation that takes "today" from UTC is off by a full
+      # day there, so it fails at Kiritimati before it fails at Riyadh or Los
+      # Angeles. Keeping it on PRs preserves the signal that found these bugs;
+      # the other two still gate every merge, because main is what a release is
+      # tagged from.
+      - name: Unit tests (Pacific/Kiritimati, UTC+14 — the far edge)
+        run: TZ=Pacific/Kiritimati npm test
+
       - name: Unit tests (Asia/Riyadh, UTC+3 — the primary market)
+        if: github.event_name == 'push'
         run: TZ=Asia/Riyadh npm test
 
       - name: Unit tests (America/Los_Angeles, UTC-7)
+        if: github.event_name == 'push'
         run: TZ=America/Los_Angeles npm test
-
-      - name: Unit tests (Pacific/Kiritimati, UTC+14 — the far edge)
-        run: TZ=Pacific/Kiritimati npm test
 
   e2e-smoke:
     name: E2E smoke (Electron)
