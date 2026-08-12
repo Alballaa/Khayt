@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.6.0-beta.17] - 2026-08-12
+
 ### Fixed
 
 - **Sales tax now reaches the rest of the app, not just the invoice.** Tax that
