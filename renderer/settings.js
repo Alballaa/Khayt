@@ -3777,6 +3777,21 @@ function loadSettingsIntoForm() {
   $('#set_taglineAr').value     = settings.taglineAr   || '';
   $('#set_invAccent').value     = safeCssColor(settings.invAccentColor, '#5E2E14');
   if ($('#set_invTemplate')) $('#set_invTemplate').value = settings.invTemplate || 'classic';
+  const lscEl = $('#set_lowStockColor');
+  if (lscEl) lscEl.value = safeCssColor(settings.lowStockColor, '#f5a623');
+  if (lscEl && !lscEl.dataset.lowStockBound) {
+    lscEl.dataset.lowStockBound = '1';
+    // Live: a colour is judged by looking at it, not by saving and navigating
+    // to the inventory tab to find out.
+    lscEl.addEventListener('input', () => {
+      document.documentElement.style.setProperty('--low-stock', safeCssColor(lscEl.value, '#f5a623'));
+    });
+    $('#btnResetLowStockColor')?.addEventListener('click', () => {
+      settings.lowStockColor = '';
+      lscEl.value = '#f5a623';
+      document.documentElement.style.removeProperty('--low-stock');
+    });
+  }
   const biEl = $('#set_invoiceBilingual');
   if (biEl) biEl.value = settings.invoiceBilingual || 'auto';
   if (biEl && !biEl.dataset.langRowBound) {
@@ -4104,6 +4119,10 @@ function saveSettingsFromForm() {
     // while a document is single-language or ZATCA-pinned, and a hidden control
     // must not quietly reset a choice the owner made earlier.
     invoiceSecondLang: $('#set_invoiceSecondLang')?.value || settings.invoiceSecondLang || 'ar',
+    // Reset writes '' while the picker still shows the default colour, so an
+    // untouched picker must not silently re-pin that default as an override.
+    lowStockColor: (settings.lowStockColor === '' && $('#set_lowStockColor')?.value === '#f5a623')
+      ? '' : ($('#set_lowStockColor')?.value || ''),
     invTermsEn:    $('#set_invTermsEn').value.trim(),
     invTermsAr:    $('#set_invTermsAr').value.trim(),
     quotePrefix:   $('#set_quotePrefix').value.trim() || 'QUO',

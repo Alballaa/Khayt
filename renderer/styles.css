@@ -22,6 +22,12 @@
   --primary-2:    #4a8ee8;
   --success:      #2bb673;
   --warning:      #f5a623;
+  /* Low stock gets its OWN token rather than reusing --warning: that variable
+     also colours overdue jobs, spool age and a dozen other warnings, so a shop
+     recolouring "low stock" would have recoloured all of them. Defaults to the
+     same amber, so an untouched shop sees no change. Overridden at runtime from
+     settings.lowStockColor — see applyDesignSettings(). */
+  --low-stock:    #f5a623;
   --danger:       #ef4d5e;
   --info:         #8a7df0;
   --cyan:         #06b6d4;

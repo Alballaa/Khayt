@@ -106,6 +106,47 @@ function wireEvents() {
     renderExtraLines();
   });
 
+// Marketplace fee presets (calculator). Issue #364 item 1, asked for twice.
+  //
+  // Picking a platform REPLACES any platform fees already on the quote rather
+  // than appending — clicking twice would otherwise stack a second copy of
+  // Etsy's three lines, which a shop only notices on the finished invoice. The
+  // shop's own manual lines are kept untouched.
+  const pfSel = $('#platformFeeSelect');
+  const pfEst = $('#platformFeeEstimate');
+  if (pfSel && typeof KhaytPlatformFees !== 'undefined') {
+    const PF = KhaytPlatformFees;
+    pfSel.innerHTML = `<option value="">${escapeHtml(t('calc.platform_none') || '— no marketplace —')}</option>`
+      + PF.platformIds().map((id) =>
+        `<option value="${escapeHtml(id)}">${escapeHtml(PF.platformFor(id, settings).name)}</option>`).join('');
+    // Reflect what the quote already carries, so the control is not lying after
+    // a draft is loaded.
+    const already = PF.platformIds().find((id) => PF.hasPlatform(currentExtraLines, id));
+    if (already) pfSel.value = already;
+
+    // Describe the SCHEDULE, not a resolved total. Each line's money already
+    // renders beside it in renderExtraLines(), and a second copy of that figure
+    // here would be a separate computation free to go stale against the quote.
+    const paintSchedule = () => {
+      if (!pfEst) return;
+      const p = pfSel.value ? PF.platformFor(pfSel.value, settings) : null;
+      pfEst.textContent = p
+        ? p.lines.map((l) => (l.pct != null ? `${l.pct}%` : fmtMoney(l.amount))).join(' + ')
+        : '';
+    };
+
+    pfSel.addEventListener('change', () => {
+      const id = pfSel.value;
+      const kept = PF.withoutPlatformFees(currentExtraLines);   // snapshot BEFORE clearing
+      const added = id ? PF.feeLinesFor(id, settings) : [];
+      currentExtraLines.length = 0;
+      currentExtraLines.push(...kept, ...added);
+      renderExtraLines();
+      paintSchedule();
+    });
+    paintSchedule();
+  }
+
   // Post-process preset picker in calculator
   const ppPresetRow = $('#ppPresetRow');
   const ppPresetSel = $('#ppPresetSelect');

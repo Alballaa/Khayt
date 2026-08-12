@@ -76,6 +76,7 @@
     "test:e2e:dedupe": "node scripts/e2e-model-dedupe-smoke.mjs",
     "test:e2e:filelink": "node scripts/e2e-order-file-link-smoke.mjs",
     "test:e2e:estimator": "node scripts/e2e-estimator-settings-smoke.mjs",
+    "test:e2e:david": "node scripts/e2e-david-items.mjs",
     "test:e2e:tax": "node scripts/e2e-tax.mjs",
     "test:e2e:upgradebackup": "node scripts/e2e-upgrade-backup.mjs",
     "test:e2e:invlang": "node scripts/e2e-invoice-language.mjs",

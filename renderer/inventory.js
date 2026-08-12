@@ -1602,7 +1602,7 @@ function renderReorderAlerts() {
       <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;background:rgba(245,166,35,0.1);" id="reorderAlertToggle"
         role="button" tabindex="0" aria-expanded="${collapsed ? 'false' : 'true'}" aria-label="${escapeHtml(t('inv.low_stock_alerts') || 'Low stock alerts')}">
         <span style="font-size:16px;color:var(--warning);">${_iIco('alert', '⚠', 17)}</span>
-        <span style="font-weight:700;color:var(--warning);flex:1;">${escapeHtml(t('inv.low_stock_alert') || 'Low Stock Alert')} <span style="background:var(--warning);color:#000;font-size:11px;padding:1px 6px;border-radius:10px;margin-inline-start:4px;">${lowItems.length}</span></span>
+        <span style="font-weight:700;color:var(--low-stock);flex:1;">${escapeHtml(t('inv.low_stock_alert') || 'Low Stock Alert')} <span style="background:var(--low-stock);color:#000;font-size:11px;padding:1px 6px;border-radius:10px;margin-inline-start:4px;">${lowItems.length}</span></span>
         <span style="font-size:12px;color:var(--text-muted);">${collapsed ? '▶' : '▼'}</span>
       </div>
       ${collapsed ? '' : `<div style="padding:10px 14px;">${itemRows}</div>`}
@@ -1668,7 +1668,7 @@ function renderInventory() {
       valEl.innerHTML = `
         <span>${escapeHtml(t('inv.total_value'))}: <strong style="color:var(--success);">${fmtMoney(totalValue)}</strong></span>
         <span style="margin-inline-start:16px;">${escapeHtml(t('inv.total_stock'))}: <strong>${fmtCount(Math.round(totalGrams))}g</strong></span>
-        ${lowCount > 0 ? `<span style="margin-inline-start:16px; color:var(--warning);">${_iIcoL('alert', '⚠')}${lowCount} ${escapeHtml(t('inv.low_stock_count'))}</span>` : ''}
+        ${lowCount > 0 ? `<span style="margin-inline-start:16px; color:var(--low-stock);">${_iIcoL('alert', '⚠')}${lowCount} ${escapeHtml(t('inv.low_stock_count'))}</span>` : ''}
       `;
       valEl.style.display = 'flex';
     } else {
@@ -1745,7 +1745,7 @@ function renderInventory() {
         <tr data-inv-id="${escapeHtml(item.id)}"${low ? ' style="background: rgba(245,166,35,0.08);"' : ''}>
           <td style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:${safeCssColor(item.color, '#888888')}; flex-shrink:0; border:1px solid rgba(255,255,255,0.15);"></span>
-            <strong>${escapeHtml(item.material)}</strong>${low ? ' <span style="color:var(--warning); font-size:11px;">· low</span>' : ''}${resinBadge}${colourChip}${lotChip}${locChip}${ageBadge}${reservedBadge}${overcommitBadge}${testBadge}${runoutBadge}
+            <strong>${escapeHtml(item.material)}</strong>${low ? ' <span style="color:var(--low-stock); font-size:11px;">· low</span>' : ''}${resinBadge}${colourChip}${lotChip}${locChip}${ageBadge}${reservedBadge}${overcommitBadge}${testBadge}${runoutBadge}
             ${item.printTemp || item.bedTemp ? `<span style="font-size:10px; color:var(--primary);">${_iIcoL('thermo', '🌡', 12)}${item.printTemp ? item.printTemp + '°C print' : ''}${item.printTemp && item.bedTemp ? ' / ' : ''}${item.bedTemp ? item.bedTemp + '°C bed' : ''}</span>` : ''}
           </td>
           <td style="font-variant-numeric: tabular-nums;">${fmtPrice(item.cost)}</td>
@@ -1771,7 +1771,7 @@ function renderInventory() {
               }
               return `<span class="drying-ok-badge" style="margin-inline-end:6px;">${_iIcoL('check', '✅', 12)}${escapeHtml(t('inv.dry_ok', { n: daysSince }))}</span>`;
             })()}
-            ${low ? `<button class="btn small" data-act="reorder-inv" data-id="${item.id}" style="margin-inline-end:4px; color:var(--warning); border-color:var(--warning);">${escapeHtml(t('inv.reorder'))}</button>` : ''}
+            ${low ? `<button class="btn small" data-act="reorder-inv" data-id="${item.id}" style="margin-inline-end:4px; color:var(--low-stock); border-color:var(--low-stock);">${escapeHtml(t('inv.reorder'))}</button>` : ''}
             <button class="btn small ghost" data-act="inv-test-print" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.test_prints'))}">${_iIco('flask', '🧪')}</button>
             <button class="btn small ghost" data-act="inv-dry-log" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.dry_log'))}">${_iIco('thermo', '🌡')}</button>
             <button class="btn small ghost" data-act="inv-spool-history" data-id="${item.id}" style="margin-inline-end:4px;" title="${escapeHtml(t('inv.spool_history'))}">${_iIco('clipboard', '📋')}</button>
@@ -2364,7 +2364,7 @@ function renderConsumables() {
       : '';
     return `
       <tr${low ? ' style="background:rgba(245,166,35,0.08);"' : ''}>
-        <td><strong>${escapeHtml(c.name)}</strong>${catChip}${packagingBadge}${low ? ` <span style="color:var(--warning); font-size:11px;">· ${escapeHtml(t('cons.low'))}</span>` : ''}${usageHint}</td>
+        <td><strong>${escapeHtml(c.name)}</strong>${catChip}${packagingBadge}${low ? ` <span style="color:var(--low-stock); font-size:11px;">· ${escapeHtml(t('cons.low'))}</span>` : ''}${usageHint}</td>
         <td style="font-variant-numeric:tabular-nums;">${c.stock} ${escapeHtml(c.unit || '')}</td>
         <td style="font-variant-numeric:tabular-nums;">${c.minStock > 0 ? c.minStock + ' ' + escapeHtml(c.unit || '') : '—'}</td>
         <td style="font-variant-numeric:tabular-nums;">${c.cost > 0 ? fmtPrice(c.cost) : '—'}</td>
@@ -2548,7 +2548,7 @@ function renderSupplierReorderList() {
     <div class="card" style="border-inline-start:3px solid var(--warning);">
       <h3 class="card-head" style="margin-bottom:10px;color:var(--warning);">
         <span class="swatch" style="background:var(--warning);"></span>
-        ${_iIcoL('alert', '⚠')}${escapeHtml(t('inv.reorder_list') || 'Reorder List')} <span style="background:var(--warning);color:#000;font-size:11px;padding:1px 6px;border-radius:10px;margin-inline-start:6px;">${lowItems.length}</span>
+        ${_iIcoL('alert', '⚠')}${escapeHtml(t('inv.reorder_list') || 'Reorder List')} <span style="background:var(--low-stock);color:#000;font-size:11px;padding:1px 6px;border-radius:10px;margin-inline-start:6px;">${lowItems.length}</span>
       </h3>
       ${groupHtml}
     </div>`;
