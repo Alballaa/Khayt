@@ -2,16 +2,21 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0-beta.7 — on `main`)
+## Now (post-3.6.0-beta.19 — on `main`)
 
 **Stable is v3.5.3** (2026-08-01, a security patch cut from the
-`release/3.5.x` maintenance branch). **`main` is `3.6.0-beta.7`**, open and
+`release/3.5.x` maintenance branch). **`main` is `3.6.0-beta.19`**, open and
 soaking. No hold is active — see [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md).
+
+**Bed Ready is on its own line and is current: `1.1.0`** (2026-08-12), built by
+CI from this repo and published to `KhaytApp/bedready`. It had sat on 1.0.0 for
+nine days with Kits and an accessibility fix unreleased, because the lane was
+believed to be blocked on a token that in fact already existed.
 
 Everything below needs a switched-on printer or real shop use. **There is no
 queue of code waiting to be written** — that is the honest state of this file.
 
-- [ ] **Soak `v3.6.0-beta.7`, then promote to stable.** It changes what
+- [ ] **Soak `v3.6.0-beta.19`, then promote to stable.** It changes what
       customers are quoted and how every geometry-based time estimate is
       computed, so it needs real use against a real shop's settings before a
       stable cut — not just a green suite.
@@ -19,6 +24,10 @@ queue of code waiting to be written** — that is the honest state of this file.
       roughly double, and beta.2 still shows a five-hour print as 1% done with
       a 178-hour ETA. Both were found after their own tag; soaking an older one
       means judging Khayt by a bug that is already fixed.
+      **And soak it in a theme you actually use.** beta.18's low-stock colour
+      was legible on every dark theme and failed WCAG AA on all seven light
+      ones ([#680]); the e2e that covered it asserted a literal on the default
+      theme, so a green suite said nothing. Fixed in beta.19.
 - [x] **Verify the actuals reader against real hardware.** ~~Never met a
       printer.~~ **Done 2026-08-01** — read live and mid-print from the
       Snapmaker U1 on stock firmware; every field name correct, and
@@ -68,11 +77,23 @@ These are recorded so nobody assumes they exist:
 
 ## Shipped (3.3 → 3.6 — 2026-07 to 2026-08)
 
-Four stable lines and seven beta releases since 3.2.0. Full detail per release is in
+Four stable lines and nineteen beta releases since 3.2.0. Full detail per release is in
 [CHANGELOG.md](./CHANGELOG.md); this is the index.
 
 | Version | Date | What it was |
 |---------|------|-------------|
+| **3.6.0-beta.19** | 2026-08-12 | **Low stock follows the theme again.** beta.18 gave "low stock" its own colour token so recolouring it would not also recolour overdue jobs and spool age — right idea, wrong default: the token was a literal amber while every theme darkens its warning colour for the light appearance. Low stock rendered at 1.77–2.03:1 where the theme's own colour measured 4.71–5.93:1, on all seven light themes ([#680]). Found by running the app, not by a failing test. |
+| **3.6.0-beta.18** | 2026-08-12 | **Cloud sync starts writing compressed** — 59 KB down to 9 KB on a real shop, the second half of the rollout beta.17 began; a second machine on beta.16 or earlier must be updated or it stops syncing ([#679]). Also documents that travel with a product, listed on the work order and — only if ticked to ship — the delivery note ([#678]); and marketplace fees in one click, including Etsy's two percentages *and* its 0.20 listing fee ([#677]). |
+| **3.6.0-beta.17** | 2026-08-12 | **The release that opens the app outside the Gulf.** Sales tax added to a price rather than included in it, thirty country presets, and documents that print in the language the shop chose instead of that language and Arabic ([#664], [#666]). Also a security fix — a printer address written as a decimal integer could point Khayt at its own network ([#673]) — cloud backups readable when compressed, ahead of writing them, and a copy of the shop's data taken before any update touches it. |
+| **3.6.0-beta.16** | 2026-08-10 | **Consumables reach the reorder list and purchase orders**, which until now only filament could. Plus a consumable PO no longer accused of being priced 1000× too high, receiving a filament PO records what it cost, and Electron 42.2.0 → 42.8.1. |
+| **3.6.0-beta.15** | 2026-08-09 | A planned Bed Ready maintenance window no longer looks like a broken sync. |
+| **3.6.0-beta.14** | 2026-08-09 | **Kits — several prints that are one object**, and they reach Bed Ready, the app whose users print things in parts ([#645], [#646], [#647]). A fee can now be a percentage rather than only a fixed amount — the groundwork marketplace fees later stood on. Also `.zip` straight into the print library ([#648]), consumable categories, and the last route that could read a message thread without proving the link. |
+| **3.6.0-beta.13** | 2026-08-07 | **Anyone with a portal link could read the whole message thread on it.** Also: a re-sliced g-code file came back a stranger so its quotes never learned ([#632]), an "Identify" button for files Khayt cannot recognise ([#634]), 3MF recognition, and a print library that can live on a network drive or back up to object storage. |
+| **3.6.0-beta.12** | 2026-08-06 | The filament library talked over itself and could strand a keyboard user ([#624]). "Slice for exact quote" gave a print time but no weight. |
+| **3.6.0-beta.11** | 2026-08-04 | Signing in to the cloud could sit on "Connecting…" for half a minute and then fail; waiting for a verification code said nothing while you waited. |
+| **3.6.0-beta.10** | 2026-08-04 | **A model you have printed before is priced from its own prints.** The estimate note stops stating the printer's rate as though it were measured. Also a printer reporting negative hours since its last service, and two empty Bed Ready sidebar headings. |
+| **3.6.0-beta.9** | 2026-08-03 | **Security: the converter could be made to write a file anywhere the app could read.** Also packaging Bed Ready could leave the source checkout broken, a beta build could not find its own updates, and the shop's default infill was used to quote customers but not itself. |
+| **3.6.0-beta.8** | 2026-08-03 | **A large 3MF could convert into a model missing most of itself**, and the converter stopped the app while it worked — that work now runs off the only thread the UI has. Plus HueForge FLAT mode, colour by region instead of by height. |
 | **3.6.0-beta.7** | 2026-08-02 | **Two real files that did not work, and a feature nobody could find.** A 229 MB six-colour 3MF read as colourless because the member budget was spent on meshes before reaching the configs that identify it ([#571]). An update check on a local build showed a raw ENOENT instead of saying the build cannot self-update ([#572]). And the kanban the website advertises now opens by default in every theme rather than hiding behind a toggle ([#569], [#570]). Plus tests for solveHeightfield, the last large untested surface in the HueForge path ([#568]). |
 | **3.6.0-beta.6** | 2026-08-02 | **A measured figure now names the job it was measured on.** Khayt keeps a completion offerable for a day; a shop starting its next print inside that window could be shown the previous job's figures wearing a green *Measured* label, with nothing to reveal it — and those figures train the estimator ([#566]). Also the first real-hardware fixtures for the completion capture ([#565]) and the U1 catalogue entry pinned to the machine ([#564]). |
 | **3.6.0-beta.5** | 2026-08-02 | **Two Bed Ready print-quality fixes**, both found by diffing Khayt's colour plan against a 3MF the U1 was actually printing. The top colour band ended at the model's exact height, so the topmost layers belonged to no band and printed in the base colour ([#561]). And the opaque base printed at the same fine layer height as the colour bands — 57 layers where a real export used 28 ([#562]). |
@@ -114,6 +135,20 @@ Four stable lines and seven beta releases since 3.2.0. Full detail per release i
 [#570]: https://github.com/KhaytApp/Khayt/pull/570
 [#571]: https://github.com/KhaytApp/Khayt/pull/571
 [#572]: https://github.com/KhaytApp/Khayt/pull/572
+[#624]: https://github.com/KhaytApp/Khayt/pull/624
+[#632]: https://github.com/KhaytApp/Khayt/pull/632
+[#634]: https://github.com/KhaytApp/Khayt/pull/634
+[#645]: https://github.com/KhaytApp/Khayt/pull/645
+[#646]: https://github.com/KhaytApp/Khayt/pull/646
+[#647]: https://github.com/KhaytApp/Khayt/pull/647
+[#648]: https://github.com/KhaytApp/Khayt/pull/648
+[#664]: https://github.com/KhaytApp/Khayt/pull/664
+[#666]: https://github.com/KhaytApp/Khayt/pull/666
+[#673]: https://github.com/KhaytApp/Khayt/pull/673
+[#677]: https://github.com/KhaytApp/Khayt/pull/677
+[#678]: https://github.com/KhaytApp/Khayt/pull/678
+[#679]: https://github.com/KhaytApp/Khayt/pull/679
+[#680]: https://github.com/KhaytApp/Khayt/pull/680
 
 ## Shipped (3.2.0 beta line — 2026-07)
 

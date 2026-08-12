@@ -7,9 +7,10 @@ Khayt uses [Semantic Versioning 2.0.0](https://semver.org/) as `MAJOR.MINOR.PATC
 - **Stable:** `3.5.x` — latest tag **v3.5.3**, published 2026-08-01 ([releases/latest](https://github.com/khaytapp/Khayt/releases/latest))
 - **Beta:** the `3.6.0-beta.x` line is **open** — latest **v3.6.0-beta.19**, published 2026-08-12 as a GitHub pre-release. See [docs/BETA-RELEASE.md](./docs/BETA-RELEASE.md)
 - **Bed Ready:** a different app from the same repo, on its **own** version line
-  with its own downloads repo — **1.0.0 shipped 2026-08-03** (`bedready-v1.0.0`,
-  marked Latest; the `1.0.0-beta.*` line is closed). It does not follow Khayt's
-  numbers at all; see [Bed Ready](#bed-ready) below.
+  with its own downloads repo — **1.1.0 shipped 2026-08-12** (`bedready-v1.1.0`,
+  marked Latest; 1.0.0 was 2026-08-03 and the `1.0.0-beta.*` line is closed).
+  1.1.0 rather than 1.0.1 because it carries Kits, a feature. It does not follow
+  Khayt's numbers at all; see [Bed Ready](#bed-ready) below.
 
 Beta pre-releases may ship alongside stable. For the stable channel's current
 policy see [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md).
@@ -96,7 +97,7 @@ that matters:
 
 | | Khayt | Bed Ready |
 |---|---|---|
-| version line | `3.x` | `1.0.0-*` |
+| version line | `3.x` | `1.x` |
 | where the number lives | `package.json` | the **workflow input**, via `BEDREADY_VERSION` |
 | how it is released | push a `vX.Y.Z` tag | **run the workflow**, no tag here |
 | tag | `vX.Y.Z` in `KhaytApp/Khayt` | `bedready-vX.Y.Z`, created in `KhaytApp/bedready` |
