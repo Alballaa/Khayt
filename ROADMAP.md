@@ -2,11 +2,12 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0-beta.19 — on `main`)
+## Now (post-3.6.0-rc.1 — on `main`)
 
 **Stable is v3.5.3** (2026-08-01, a security patch cut from the
-`release/3.5.x` maintenance branch). **`main` is `3.6.0-beta.19`**, open and
-soaking. No hold is active — see [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md).
+`release/3.5.x` maintenance branch). **`main` is `3.6.0-rc.1`** — the candidate
+for v3.6.0, on the pre-release channel, awaiting a soak. No hold is active — see
+[docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md).
 
 **Bed Ready is on its own line and is current: `1.1.0`** (2026-08-12), built by
 CI from this repo and published to `KhaytApp/bedready`. It had sat on 1.0.0 for
@@ -16,10 +17,23 @@ believed to be blocked on a token that in fact already existed.
 Everything below needs a switched-on printer or real shop use. **There is no
 queue of code waiting to be written** — that is the honest state of this file.
 
-- [ ] **Soak `v3.6.0-beta.19`, then promote to stable.** It changes what
-      customers are quoted and how every geometry-based time estimate is
+- [ ] **Soak `v3.6.0-rc.1`, then promote it to `v3.6.0` stable.** It changes
+      what customers are quoted and how every geometry-based time estimate is
       computed, so it needs real use against a real shop's settings before a
       stable cut — not just a green suite.
+      **The candidate exists so this is testable rather than assumed.**
+      `rc.1` is the exact code proposed as v3.6.0, same as `beta.19` with a name
+      that says what it is for, built for all three platforms and installable
+      from the pre-release channel. It reaches nobody on stable. The green-suite
+      half of this gate is already met on that tree — 2433 unit tests and 31 e2e
+      suites, including file-to-estimate-to-quote and estimator calibration — so
+      re-running the suite adds nothing. **What is missing is the half CI cannot
+      supply**, and naming the candidate does not supply it either.
+      *When it is satisfied*, the promotion is: `node scripts/bump-version.js
+      set 3.6.0` — **not** `npm run version:minor`, which increments the minor
+      unconditionally and from a prerelease yields `3.7.0` — then `BUILD_MAC` on
+      for the tag and off again after, since anything intended for stable should
+      carry a mac build and the variable is sticky.
       **Soak the newest beta, always.** beta.1 still quotes a 100 mm part at
       roughly double, and beta.2 still shows a five-hour print as 1% done with
       a 178-hour ETA. Both were found after their own tag; soaking an older one
@@ -77,11 +91,12 @@ These are recorded so nobody assumes they exist:
 
 ## Shipped (3.3 → 3.6 — 2026-07 to 2026-08)
 
-Four stable lines and nineteen beta releases since 3.2.0. Full detail per release is in
+Four stable lines, nineteen beta releases and one release candidate since 3.2.0. Full detail per release is in
 [CHANGELOG.md](./CHANGELOG.md); this is the index.
 
 | Version | Date | What it was |
 |---------|------|-------------|
+| **3.6.0-rc.1** | 2026-08-12 | **The candidate for v3.6.0 stable**, and no behaviour change over `beta.19`. Cut because the promotion gate is real shop use and `beta.19` was 87 minutes old when promotion came up — so rather than assume a soak, the exact proposed code got a name, a mac build and a place on the pre-release channel where it can be installed and used on purpose. Stable stays on v3.5.3 ([#684]). |
 | **3.6.0-beta.19** | 2026-08-12 | **Low stock follows the theme again.** beta.18 gave "low stock" its own colour token so recolouring it would not also recolour overdue jobs and spool age — right idea, wrong default: the token was a literal amber while every theme darkens its warning colour for the light appearance. Low stock rendered at 1.77–2.03:1 where the theme's own colour measured 4.71–5.93:1, on all seven light themes ([#680]). Found by running the app, not by a failing test. |
 | **3.6.0-beta.18** | 2026-08-12 | **Cloud sync starts writing compressed** — 59 KB down to 9 KB on a real shop, the second half of the rollout beta.17 began; a second machine on beta.16 or earlier must be updated or it stops syncing ([#679]). Also documents that travel with a product, listed on the work order and — only if ticked to ship — the delivery note ([#678]); and marketplace fees in one click, including Etsy's two percentages *and* its 0.20 listing fee ([#677]). |
 | **3.6.0-beta.17** | 2026-08-12 | **The release that opens the app outside the Gulf.** Sales tax added to a price rather than included in it, thirty country presets, and documents that print in the language the shop chose instead of that language and Arabic ([#664], [#666]). Also a security fix — a printer address written as a decimal integer could point Khayt at its own network ([#673]) — cloud backups readable when compressed, ahead of writing them, and a copy of the shop's data taken before any update touches it. |
@@ -149,6 +164,7 @@ Four stable lines and nineteen beta releases since 3.2.0. Full detail per releas
 [#678]: https://github.com/KhaytApp/Khayt/pull/678
 [#679]: https://github.com/KhaytApp/Khayt/pull/679
 [#680]: https://github.com/KhaytApp/Khayt/pull/680
+[#684]: https://github.com/KhaytApp/Khayt/pull/684
 
 ## Shipped (3.2.0 beta line — 2026-07)
 
