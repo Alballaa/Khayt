@@ -78,9 +78,27 @@ jobs:
   # dependency was skipped is skipped too. That one `if:` above is therefore what
   # keeps this entire Khayt lane off a Bed Ready run — do not add
   # `if: always()` to anything below without restoring the guard explicitly.
+  # (`publish` now does exactly that, and says so.)
+
+  # macOS is OPT-IN, because it is the expensive one: GitHub bills macOS minutes
+  # at 10x, so one mac build costs more than the Windows and Linux builds and the
+  # whole CI run for the release PR put together. Betas go out every few days;
+  # they do not all need a mac binary.
+  #
+  # To include macOS in the next tag:
+  #     gh variable set BUILD_MAC --repo KhaytApp/Khayt --body true
+  #     …push the tag…
+  #     gh variable delete BUILD_MAC --repo KhaytApp/Khayt
+  #
+  # The variable is deliberately sticky rather than per-tag: there is one
+  # workflow_dispatch on this file and it belongs to Bed Ready, and bending it to
+  # take a second, unrelated meaning is how that lane got tangled the last time.
+  # Leaving it set costs money silently, so `carry-mac-manifest` below prints the
+  # current state on every release either way.
   build-mac:
     name: macOS (Apple Silicon)
     needs: create-release
+    if: ${{ vars.BUILD_MAC == 'true' }}
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
@@ -185,6 +203,47 @@ jobs:
           path: build/*.appx
           retention-days: 30
 
+  # ── Keep macOS auto-update working on a release with no mac build ─────────
+  #
+  # electron-updater picks a release by walking this repo's releases.atom and
+  # then fetches the manifest for its own platform. A release with no
+  # latest-mac.yml therefore 404s for every macOS user with beta updates on, and
+  # lib/updater.js turns that into a visible "Update check failed" — the exact
+  # failure the bedready-v* tag caused, documented at the top of this file.
+  #
+  # So when macOS is skipped, copy the manifest forward from the last release
+  # that HAS one. macOS users then resolve to the newest version a mac binary
+  # actually exists for, and are told they are up to date rather than shown an
+  # error. That is true: there is no newer mac build.
+  carry-mac-manifest:
+    name: macOS manifest (carried forward)
+    needs: create-release
+    if: ${{ github.event_name == 'push' && vars.BUILD_MAC != 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Copy latest-mac.yml from the most recent release that has one
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          echo "BUILD_MAC is not 'true' — macOS was skipped for $TAG (macOS bills at 10x)."
+          prev=""
+          for r in $(gh release list --repo "$GITHUB_REPOSITORY" --limit 20 --json tagName --jq '.[].tagName' | grep -v "^${TAG}$"); do
+            if gh release view "$r" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -qx 'latest-mac.yml'; then
+              prev="$r"; break
+            fi
+          done
+          if [ -z "$prev" ]; then
+            echo "No earlier release carries latest-mac.yml — nothing to carry forward."
+            echo "macOS users have no build to update to either way, so this is not a regression."
+            exit 0
+          fi
+          echo "Carrying latest-mac.yml forward from $prev"
+          gh release download "$prev" --repo "$GITHUB_REPOSITORY" --pattern latest-mac.yml --dir .
+          gh release upload "$TAG" latest-mac.yml --repo "$GITHUB_REPOSITORY" --clobber
+          echo "macOS updaters resolve to $prev and report 'up to date'."
+
   # ── Linux x64 (AppImage + deb) ────────────────────────────────────────────
   build-linux:
     name: Linux (x64)
@@ -244,7 +303,29 @@ jobs:
   # ── Publish: upload Linux artifacts + mark release public ─────────────────
   publish:
     name: Publish Release
-    needs: [create-release, build-mac, build-windows, build-linux]
+    needs: [create-release, build-mac, build-windows, build-linux, carry-mac-manifest]
+    # `publish` is what removes the draft flag, so if it is skipped the release
+    # never becomes visible. A job whose dependency was SKIPPED is skipped too —
+    # the trap named at the top of this file — and build-mac is now skipped on
+    # every release that does not opt into macOS. Without this condition,
+    # switching macOS off would have silently left every release a permanent
+    # draft.
+    #
+    # `always()` is required to run at all once a dependency can be skipped, and
+    # the comment above build-mac says never to add it without restoring the Bed
+    # Ready guard explicitly. That guard is the create-release line below: it is
+    # skipped on a workflow_dispatch, so requiring it to have SUCCEEDED keeps this
+    # whole lane off a Bed Ready run exactly as `needs:` alone used to.
+    #
+    # mac may be 'success' or 'skipped'; it may not be 'failure'. A mac build that
+    # was asked for and broke must not publish a release missing its binary.
+    if: >-
+      ${{ always()
+      && needs.create-release.result == 'success'
+      && needs.build-windows.result == 'success'
+      && needs.build-linux.result == 'success'
+      && (needs.build-mac.result == 'success' || needs.build-mac.result == 'skipped')
+      && (needs.carry-mac-manifest.result == 'success' || needs.carry-mac-manifest.result == 'skipped') }}
     runs-on: ubuntu-latest
     steps:
       - name: Download Linux artifacts
