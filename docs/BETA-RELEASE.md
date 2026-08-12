@@ -82,6 +82,40 @@ Settings → About shows a **Beta** badge on `-beta` builds.
 
 Stored as `settings.betaUpdates`; synced on boot and save.
 
+## Maintainer: when to cut, and what gets built
+
+**Batch the line. Do not cut a beta per merge.** Each release is roughly 65
+billable GitHub Actions minutes, and the account has already run past its 3,000
+included minutes in a month where betas went out two days apart. A beta is worth
+cutting when it carries something a shop can act on — a fix they are waiting for,
+or a feature worth testing — not merely because `main` moved.
+
+Rough guide: **one beta a week**, or sooner when a release is unblocking a
+specific person (v3.6.0-beta.16 went out early because issue #364 was waiting on
+four features it contained — that is the shape of a good exception).
+
+**macOS is opt-in, and it is the reason a release costs what it does.** GitHub
+bills macOS at **10×**; Windows at 2×, Linux at 1×. So one mac build costs more
+than the other two platforms and the release PR's CI put together.
+
+A tag builds **Windows + Linux only** unless you ask for macOS:
+
+```bash
+gh variable set BUILD_MAC --repo KhaytApp/Khayt --body true
+# …push the tag, wait for the release…
+gh variable delete BUILD_MAC --repo KhaytApp/Khayt      # it is sticky — unset it
+```
+
+macOS users are not stranded by a Windows/Linux-only release: the
+`carry-mac-manifest` job copies `latest-mac.yml` forward from the last release
+that had one, so their update check resolves to the newest version a mac binary
+actually exists for and reports "up to date" instead of failing. Without that
+they would see **"Update check failed"** — a missing `latest-mac.yml` 404s, which
+is the same fault the `bedready-v*` tag used to cause.
+
+**So cut a mac build when the beta is one you want mac users on** — anything
+touching the mac build itself, or a release you intend to promote to stable.
+
 ## Maintainer: publish beta
 
 ```bash
