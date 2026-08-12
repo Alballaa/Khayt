@@ -4,6 +4,23 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.6.0-beta.18] - 2026-08-12
+
+### Changed
+
+- **Cloud sync now uploads about a sixth as much.** Every save sends your whole
+  shop to the cloud, and until now it went uncompressed — on a real shop, 59 KB
+  where 9 KB will do. The previous release taught Khayt to *read* the smaller
+  format; this one starts *writing* it. Nothing about your data or its encryption
+  changes, and there is nothing to switch on.
+
+  **If you run Khayt on more than one computer, update them all.** A machine
+  still on **v3.6.0-beta.16 or earlier** cannot read the new format and will
+  report "Update check failed"–style sync errors until it is updated. It cannot
+  lose anything — a copy that cannot read the cloud is also unable to overwrite
+  it — but it will stop syncing until you update it. One machine on its own is
+  unaffected either way.
+
 ### Added
 
 - **Documents that travel with a product.** Attach assembly instructions, a
