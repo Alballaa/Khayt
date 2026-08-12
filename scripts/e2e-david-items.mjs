@@ -52,25 +52,46 @@ try {
     'choosing no marketplace strips the fees and leaves the rest');
 
   // ── low-stock colour ────────────────────────────────────────────────────
+  // Asserted across every theme in BOTH appearances, because the first version
+  // of this shipped --low-stock as a literal #f5a623 while every theme darkens
+  // --warning for light appearance to clear WCAG AA. Low stock renders as text,
+  // so on the seven light themes it sat at 1.77–2.03:1 where --warning measured
+  // 4.71–5.93:1 — and a single-theme test could not see it.
   const colour = await window.evaluate(() => {
-    const root = document.documentElement;
-    const read = (v) => getComputedStyle(root).getPropertyValue(v).trim();
-    const warnBefore = read('--warning');
-    const before = read('--low-stock');
-    settings.lowStockColor = '#e11d48';
-    applyDesignSettings();
-    const after = read('--low-stock');
-    const warnAfter = read('--warning');
-    settings.lowStockColor = '';
-    applyDesignSettings();
-    return { before, after, reset: read('--low-stock'), warnBefore, warnAfter };
+    const read = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+    const rows = [];
+    for (const id of ['workbench', 'blueprint', 'command', 'foreman', 'meridian', 'nocturne', 'vivid']) {
+      for (const appearance of ['light', 'dark']) {
+        settings.designTheme = id;
+        settings.theme = appearance;
+        settings.lowStockColor = '';
+        if (typeof applyTheme === 'function') applyTheme(appearance);
+        applyDesignSettings();
+        if (typeof loadSettingsIntoForm === 'function') loadSettingsIntoForm();
+        const untouched = { warning: read('--warning'), lowStock: read('--low-stock'),
+                            swatch: document.querySelector('#set_lowStockColor')?.value };
+        settings.lowStockColor = '#e11d48';
+        applyDesignSettings();
+        rows.push({ id, appearance, ...untouched,
+                    overridden: read('--low-stock'), warningAfter: read('--warning') });
+        settings.lowStockColor = '';
+        applyDesignSettings();
+      }
+    }
+    return rows;
   });
 
-  ok(colour.before === '#f5a623', `low stock starts on the shipped amber (${colour.before})`);
-  ok(colour.after === '#e11d48', `and follows the shop's choice (${colour.after})`);
-  ok(colour.warnBefore === colour.warnAfter,
-    `--warning is NOT dragged along (${colour.warnBefore} → ${colour.warnAfter})`);
-  ok(colour.reset === '#f5a623', 'clearing the setting returns to the theme default');
+  ok(colour.length === 14, `checked every theme in both appearances (${colour.length})`);
+  ok(colour.every((r) => r.lowStock === r.warning),
+    'an untouched shop gets the THEME\'s low-stock colour, not a fixed amber');
+  ok(colour.every((r) => r.swatch === r.lowStock),
+    'and the settings swatch shows the colour actually in force');
+  ok(colour.every((r) => r.overridden === '#e11d48'),
+    "the shop's own choice wins in every theme");
+  ok(colour.every((r) => r.warningAfter === r.warning),
+    '--warning is NOT dragged along — it still paints overdue jobs and spool age');
+  ok(new Set(colour.map((r) => r.lowStock)).size > 1,
+    'and the colours genuinely differ between themes (so this is not passing vacuously)');
 
   // ── product documents ───────────────────────────────────────────────────
   // The split between the two sheets IS the feature, and it is only observable

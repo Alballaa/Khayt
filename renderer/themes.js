@@ -177,6 +177,25 @@
     else root.style.removeProperty("--low-stock");
   }
 
+  /**
+   * The colour low stock takes when the shop has NOT chosen one.
+   *
+   * Read from --warning, not from a literal: --low-stock aliases it (see
+   * styles.css) and every theme darkens it for light appearance, so a
+   * hardcoded #f5a623 would make the settings swatch show bright amber while
+   * the inventory tab renders the theme's dark one — a picker that lies about
+   * the colour in force.
+   *
+   * Deliberately NOT read from --low-stock itself: once the shop sets an
+   * override that token carries their choice, and the picker's notion of "the
+   * default" would become their own colour — after which Reset could never get
+   * back. --warning is never overridden by this feature, so it stays truthful.
+   */
+  function themeLowStockColor() {
+    const v = getComputedStyle(document.documentElement).getPropertyValue('--warning').trim();
+    return (typeof safeCssColor === 'function') ? safeCssColor(v, '#f5a623') : (v || '#f5a623');
+  }
+
   function syncDesignSettingsUi() {
     const designEl = document.getElementById('set_designTheme');
     const accentEl = document.getElementById('set_accent');
@@ -197,6 +216,12 @@
         ? tr('theme.design.coming_soon', 'More themes coming soon:') + ' ' + soon.map((id) => tr(reg().getTheme(id).labelKey, id)).join(', ')
         : '';
     }
+    // The low-stock swatch shows the theme's colour when the shop has not
+    // chosen one, so a theme change has to repaint it — otherwise switching
+    // theme with Settings open leaves it advertising the previous theme's
+    // amber. Only when unset: a shop's own colour must survive a theme change.
+    const lsc = document.getElementById('set_lowStockColor');
+    if (lsc && !settings?.lowStockColor) lsc.value = themeLowStockColor();
   }
 
   function populateDesignSelects() {
@@ -219,6 +244,7 @@
     applyAccent,
     applyDesignTheme,
     applyDesignSettings,
+    themeLowStockColor,
     syncDesignSettingsUi,
     populateDesignSelects,
     populateAccentSelect,

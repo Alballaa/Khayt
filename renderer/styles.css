@@ -24,10 +24,18 @@
   --warning:      #f5a623;
   /* Low stock gets its OWN token rather than reusing --warning: that variable
      also colours overdue jobs, spool age and a dozen other warnings, so a shop
-     recolouring "low stock" would have recoloured all of them. Defaults to the
-     same amber, so an untouched shop sees no change. Overridden at runtime from
-     settings.lowStockColor — see applyDesignSettings(). */
-  --low-stock:    #f5a623;
+     recolouring "low stock" would have recoloured all of them. Overridden at
+     runtime from settings.lowStockColor — see applyDesignSettings().
+
+     It ALIASES --warning rather than repeating its hex, because every design
+     theme darkens --warning for light appearance (#8a5a00 and friends) to clear
+     WCAG AA against a white surface. A literal #f5a623 here did not follow them:
+     low stock renders as text ("· low", the alert heading, the reorder button),
+     and at 1.77–2.03:1 on the seven light themes it was a contrast failure where
+     --warning had measured 4.71–5.93:1. Aliasing keeps the decoupling that
+     matters — the shop's override still lands on --low-stock alone and leaves
+     overdue jobs and spool age on the theme's --warning. */
+  --low-stock:    var(--warning);
   --danger:       #ef4d5e;
   --info:         #8a7df0;
   --cyan:         #06b6d4;
