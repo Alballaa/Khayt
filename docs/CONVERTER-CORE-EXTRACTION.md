@@ -3,6 +3,15 @@
 > **Status: proposal, nothing has moved.** Written 2026-08-05 after measuring the
 > duplication rather than assuming it. Read §1 before agreeing to §3 — the evidence is
 > what makes the staging defensible, and it also says which parts should *not* be merged.
+>
+> **Re-verified 2026-08-12**, 43 commits later, before merging a week-old analysis.
+> Every line count in §1 is unchanged — `color-mix.js` 136, `color-bands.js` 175,
+> `full-spectrum.js` 337, `mf-convert.js` 1249 — so the duplication and the staging
+> still stand. One figure moved: Bed Ready now loads **129** scripts, not 126, because
+> `lib/invoice-language.js` and `lib/tax.js` were added in the meantime. Both are
+> shared, so the shared proportion went slightly UP and the conclusion in §0 — that a
+> repo split would mean hand-reconciling something every commit touches — holds harder
+> than when it was written.
 
 ## 0. What this is not
 
