@@ -4,6 +4,18 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **Security: a printer address written as a number could point Khayt at your own
+  computer.** Khayt only polls printers on your local network, and refuses an
+  address like `127.0.0.1` that would make it talk to the machine it is running
+  on. But `127.0.0.1` can also be written `2130706433`, `0x7f000001` or `127.1` —
+  the same address in different notation, which connects to exactly the same
+  place — and those three were let through. Every spelling is now recognised for
+  the address it is. Outbound webhooks were never affected: they pass a second
+  check that looks the address up properly, and that one always caught it.
+  Ordinary printers and mail servers on your network are unaffected.
+
 ## [3.6.0-beta.17] - 2026-08-12
 
 ### Fixed
