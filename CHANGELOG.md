@@ -4,6 +4,24 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.6.0-rc.1] - 2026-08-12
+
+The candidate for **v3.6.0 stable**. There is no behaviour change over
+`beta.19` — it is the same code under a name that says what it is for.
+
+The 3.6 line changes **what your customers are quoted**, and how every
+geometry-based time estimate is worked out. That is why it has been a beta since
+2026-07-31 rather than going straight to stable, and it is why there is a
+release candidate at all: this installs from the same pre-release channel as the
+betas and reaches nobody on stable, so the exact code proposed as v3.6.0 can be
+put in front of real orders and real printer jobs before it becomes the default
+for everyone.
+
+**If you price unsliced models, re-check a quote you have not yet sent.** The
+numbers moved in `beta.9` and `beta.10`, for two different reasons — see
+[docs/BETA-RELEASE.md](./docs/BETA-RELEASE.md). Figures that came from a slicer
+are unaffected; those were never estimates.
+
 ## [3.6.0-beta.19] - 2026-08-12
 
 ### Fixed
