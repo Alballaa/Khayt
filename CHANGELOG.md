@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.6.0-beta.19] - 2026-08-12
+
 ### Fixed
 
 - **Low stock is readable again on a light theme.** The previous release gave
