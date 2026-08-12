@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.6.0-beta.17] - 2026-08-12
+
 ### Fixed
 
 - **Security: a printer address written as a number could point Khayt at your own
@@ -15,10 +17,6 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   the address it is. Outbound webhooks were never affected: they pass a second
   check that looks the address up properly, and that one always caught it.
   Ordinary printers and mail servers on your network are unaffected.
-
-## [3.6.0-beta.17] - 2026-08-12
-
-### Fixed
 
 - **Sales tax now reaches the rest of the app, not just the invoice.** Tax that
   is added to your prices rather than included in them arrived on the invoice
