@@ -56,21 +56,59 @@ jobs:
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Create release (idempotent)
+      # Decides from what EXISTS, never from an exit code — see the note below.
+      - name: Create release (or refuse to re-run a published one)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
           PRERELEASE: ${{ steps.flags.outputs.prerelease }}
         run: |
-          FLAGS=""
-          [ "$PRERELEASE" = "true" ] && FLAGS="--prerelease"
-          gh release create "$TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "Khayt $TAG" \
-            --notes "See [README](https://github.com/${GITHUB_REPOSITORY}#readme) for full release notes." \
-            --draft \
-            $FLAGS \
-            2>/dev/null || echo "Release already exists — continuing"
+          # `gh release create --draft` SUCCEEDS against a tag that already has a
+          # PUBLISHED release: a draft carries no real tag, so GitHub does not
+          # consider it a duplicate. The `|| echo "already exists"` guard this
+          # replaced therefore never fired on a re-run — it created a SECOND
+          # release and the run's outputs split between the two. electron-builder
+          # (`--publish always`, resolves by tag) put binaries AND its freshly
+          # computed manifests into the new draft, while `publish`'s backstop
+          # (`gh release upload "$TAG"`) put Linux installers into the LIVE one.
+          # The published release was left carrying re-run binaries beside
+          # first-run manifests whose sha512 no longer matched them: a broken
+          # auto-update, shipped silently, with every job green. That is exactly
+          # what happened to v3.6.0-beta.19 on 2026-08-12.
+          #
+          # `--paginate` with `--jq` runs the filter per PAGE, so this deliberately
+          # emits one line per matching release and classifies afterwards rather
+          # than reducing inside jq, which would emit one answer per page.
+          # A FAILED lookup must not read as "no release exists": that is the
+          # dangerous branch, and falling into it on a transient API error would
+          # recreate the very duplicate this step exists to prevent.
+          if ! MATCHES=$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
+            --jq ".[] | select(.tag_name == \"$TAG\") | if .draft then \"draft\" else \"published\" end"); then
+            echo "::error::could not list releases to check whether $TAG already exists — refusing to guess."
+            exit 1
+          fi
+
+          if [ -z "$MATCHES" ]; then
+            FLAGS=""
+            if [ "$PRERELEASE" = "true" ]; then FLAGS="--prerelease"; fi
+            gh release create "$TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Khayt $TAG" \
+              --notes "See [README](https://github.com/${GITHUB_REPOSITORY}#readme) for full release notes." \
+              --draft \
+              $FLAGS
+          elif echo "$MATCHES" | grep -qx published; then
+            echo "::error::$TAG is already PUBLISHED."
+            echo "Re-running this workflow would create a SECOND release with the same tag,"
+            echo "split this run's artifacts across the two, and leave the live release with"
+            echo "manifests that no longer match its binaries — a silently broken auto-update."
+            echo "To add a platform to a version that is already out, cut a NEW tag."
+            exit 1
+          else
+            # Draft only: a previous attempt got part-way and never published.
+            # Finishing it is safe precisely because nothing is live yet.
+            echo "Draft release for $TAG exists — continuing to finish it."
+          fi
 
   # ── macOS Apple Silicon DMG ───────────────────────────────────────────────
   #
@@ -487,22 +525,43 @@ jobs:
           fi
           echo "Bed Ready $VERSION"
 
-      - name: Create release (idempotent)
+      # Same reasoning as the Khayt lane's create step — see the long note there.
+      # Bed Ready is MORE exposed to it, not less: its version is a dispatch
+      # input, so re-running a finished dispatch re-uses the same version by
+      # definition, where a tag push at least requires a new tag to be made.
+      - name: Create release (or refuse to re-run a published one)
         env:
           GH_TOKEN: ${{ secrets.BEDREADY_RELEASE_TOKEN }}
           TAG: ${{ steps.v.outputs.tag }}
           VERSION: ${{ steps.v.outputs.version }}
           PRERELEASE: ${{ steps.v.outputs.prerelease }}
         run: |
-          FLAGS=""
-          [ "$PRERELEASE" = "true" ] && FLAGS="--prerelease"
-          gh release create "$TAG" \
-            --repo KhaytApp/bedready \
-            --title "Bed Ready $VERSION" \
-            --notes "Built from KhaytApp/Khayt@${GITHUB_SHA}. See the Khayt CHANGELOG for what changed." \
-            --draft \
-            $FLAGS \
-            2>/dev/null || echo "Release already exists — continuing"
+          # As in the Khayt lane: a failed lookup must not read as "none".
+          if ! MATCHES=$(gh api "repos/KhaytApp/bedready/releases" --paginate \
+            --jq ".[] | select(.tag_name == \"$TAG\") | if .draft then \"draft\" else \"published\" end"); then
+            echo "::error::could not list KhaytApp/bedready releases to check whether $TAG exists — refusing to guess."
+            exit 1
+          fi
+
+          if [ -z "$MATCHES" ]; then
+            FLAGS=""
+            if [ "$PRERELEASE" = "true" ]; then FLAGS="--prerelease"; fi
+            gh release create "$TAG" \
+              --repo KhaytApp/bedready \
+              --title "Bed Ready $VERSION" \
+              --notes "Built from KhaytApp/Khayt@${GITHUB_SHA}. See the Khayt CHANGELOG for what changed." \
+              --draft \
+              $FLAGS
+          elif echo "$MATCHES" | grep -qx published; then
+            echo "::error::$TAG is already PUBLISHED in KhaytApp/bedready."
+            echo "Re-running this dispatch would create a SECOND release with the same tag"
+            echo "and split this run's artifacts across the two, leaving the live release"
+            echo "with manifests that no longer match its binaries."
+            echo "Dispatch again with a NEW bedready_version instead."
+            exit 1
+          else
+            echo "Draft release for $TAG exists — continuing to finish it."
+          fi
 
   bedready-mac:
     name: Bed Ready — macOS (Apple Silicon)
