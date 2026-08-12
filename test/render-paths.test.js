@@ -24,6 +24,7 @@ test('renderInvoice: populates print area without throwing (C1 subtotalShown)', 
   dom.loadI18n();
   require('../renderer/format.js');
   require('../renderer/currency.js');
+  require('../lib/tax.js');          // sets globalThis.KhaytTax — money paths need it
   require('../renderer/app-helpers.js');
   // Sets globalThis.KhaytInvoiceLanguage (dual-export). renderInvoice asks it
   // whether the document is bilingual, so without it every render throws — which
@@ -57,6 +58,7 @@ function loadAnalyticsStack() {
   dom.loadI18n();
   require('../renderer/format.js');
   require('../renderer/currency.js');
+  require('../lib/tax.js');          // sets globalThis.KhaytTax — money paths need it
   require('../renderer/app-helpers.js');
   require('../renderer/dashboard.js'); // renderMaterialUsageChart / renderFilamentAnalytics
   require('../renderer/analytics.js');
@@ -121,6 +123,7 @@ function loadBuilders() {
   dom.loadI18n();
   require('../renderer/format.js');
   require('../renderer/currency.js');
+  require('../lib/tax.js');          // sets globalThis.KhaytTax — money paths need it
   require('../renderer/app-helpers.js'); // renderTagChips
   require('../renderer/expenses.js');    // renderAttachedFiles
   require('../renderer/invoicing.js');   // renderClientSub

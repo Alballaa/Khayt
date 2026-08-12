@@ -8,6 +8,7 @@ const assert = require('node:assert/strict');
 function setup(extra = {}) {
   require('../lib/loyalty.js');           // sets global.KhaytLoyalty
   require('../renderer/currency.js');     // orderRevenueBase etc. for getClientTier
+  require('../lib/tax.js');          // sets globalThis.KhaytTax — money paths need it
   const clients = require('../renderer/clients.js');
   global.printLog = [
     { id: 'o1', clientId: 'c1', status: 'completed', price: 115 },  // ex-VAT 100 @15%

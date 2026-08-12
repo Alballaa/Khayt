@@ -458,7 +458,11 @@ function buildProfitabilityHtml(order) {
    ============================================================ */
 /** Map orders → the accounting-export invoice row shape (VAT-inclusive price). */
 function ordersToInvoiceRows() {
-  const rate = settings.enableVat ? (+settings.vatRate || 15) : 0;
+  // The rate AND how the shop prices. vatSplit() needs both: under exclusive
+  // pricing the total is larger than o.price, and exporting it the old way
+  // understated every total in the bookkeeping file.
+  const _tp = KhaytTax.profileFromSettings(settings);
+  const rate = _tp.rates.reduce((sum, r) => sum + r.percent, 0);
   const baseCurrency = settings.currency || 'SAR';
   return printLog
     .filter(o => o && o.status !== 'quote' && (+o.price > 0))
@@ -472,6 +476,7 @@ function ordersToInvoiceRows() {
         price: +o.price || 0,
         currency: cur,
         vatRate: rate,
+        taxMode: _tp.mode,
         baseCurrency,
         baseAmount: (typeof convertToBase === 'function') ? convertToBase(+o.price || 0, cur) : (+o.price || 0),
         status: o.status,
@@ -481,7 +486,8 @@ function ordersToInvoiceRows() {
 
 /** Map ONE order to the invoice row shape (same rules as ordersToInvoiceRows). */
 function orderToInvoiceRow(o) {
-  const rate = settings.enableVat ? (+settings.vatRate || 15) : 0;
+  const _tp = KhaytTax.profileFromSettings(settings);
+  const rate = _tp.rates.reduce((sum, r) => sum + r.percent, 0);
   const baseCurrency = settings.currency || 'SAR';
   const cur = (typeof clientCurrency === 'function') ? orderCurrency(o) : baseCurrency;
   const client = clients.find(c => c.id === o.clientId);
@@ -492,6 +498,7 @@ function orderToInvoiceRow(o) {
     price: +o.price || 0,
     currency: cur,
     vatRate: rate,
+    taxMode: _tp.mode,
     baseCurrency,
     baseAmount: (typeof convertToBase === 'function') ? convertToBase(+o.price || 0, cur) : (+o.price || 0),
   };
@@ -701,8 +708,9 @@ function _doExportTaxSummary(periodLabel, fromDate, toDate) {
     monthMap[month].orders++;
     monthMap[month].revenue += orderNetRevenueBase(o);
     monthMap[month].shipping += convertToBase(+o.shippingCost || 0, orderCurrency(o));
-    const rate = settings.enableVat ? (+settings.vatRate || 15) : 0;
-    monthMap[month].vatCollected += rate > 0 ? orderNetRevenueBase(o) * rate / (100 + rate) : 0;
+    // orderNetRevenueBase is net of credit notes, not of tax — still gross.
+    monthMap[month].vatCollected += KhaytTax.computeTax(
+      orderNetRevenueBase(o), KhaytTax.profileFromSettings(settings)).taxTotal;
   }
   // Group expenses by YYYY-MM
   const expMap = {};
