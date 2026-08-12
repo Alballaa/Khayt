@@ -6,6 +6,19 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Documents that travel with a product.** Attach assembly instructions, a
+  safety sheet or a drawing to anything in your catalog, and it comes along with
+  every order for that product — no re-attaching it each time. They are listed on
+  the **work order** so whoever makes it can see them, and on the **delivery
+  note** so whoever packs it knows what goes in the box.
+
+  Each document has a tick for whether it ships. A machine setup sheet is for
+  your floor and stays off the customer's paperwork; an assembly guide is for the
+  customer and appears on both. Documents attached before this existed are
+  treated as shipping, since that is what attaching one used to mean. Removing a
+  document only deletes the file once you save — cancel the dialog and it is
+  exactly where it was.
+
 - **Marketplace fees go onto a quote in one click.** If you sell through Etsy,
   Shopify, eBay, Amazon and the rest, their cut is part of what a job really
   costs you — and until now you had to remember each platform's numbers and type

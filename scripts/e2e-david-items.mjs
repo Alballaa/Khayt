@@ -72,6 +72,43 @@ try {
     `--warning is NOT dragged along (${colour.warnBefore} → ${colour.warnAfter})`);
   ok(colour.reset === '#f5a623', 'clearing the setting returns to the theme default');
 
+  // ── product documents ───────────────────────────────────────────────────
+  // The split between the two sheets IS the feature, and it is only observable
+  // by rendering both. The first version of this shipped the documents inside
+  // the courier/tracking block, so an order handed over in person listed
+  // nothing — and every unit test still passed.
+  const docs = await window.evaluate(async () => {
+    settings.invoiceBilingual = 'single';
+    settings.enableZatca = false;
+    products.length = 0;
+    products.push({ id: 'PROD-1', nameEn: 'Bracket', docs: [
+      { filename: 'a.pdf', originalName: 'Assembly.pdf', packWithOrder: true },
+      { filename: 'c.pdf', originalName: 'Machine setup.pdf', packWithOrder: false },
+    ] });
+    clients.length = 0;
+    clients.push({ id: 'C1', name: 'Acme' });
+    printLog.length = 0;
+    // Deliberately NO courier, tracking or address.
+    const order = { id: 'O1', status: 'completed', clientId: 'C1', project: 'Acme',
+      productId: 'PROD-1', date: '2026-08-12', price: 100, material: 'PLA', printTime: 4,
+      parts: [{ name: 'Bracket', material: 'PLA', printTime: 4, printWeight: 100, baseCost: 100 }],
+      extraLines: [] };
+    printLog.push(order);
+    saveAll();
+    await generateWorkOrder('O1');
+    const wo = document.querySelector('#work-order-print-area').innerText;
+    await generateDeliveryNote('O1');
+    const dn = document.querySelector('#invoice-print-area').innerText;
+    return { wo, dn };
+  });
+
+  ok(docs.wo.includes('Assembly.pdf'), 'the work order lists the assembly instructions');
+  ok(docs.wo.includes('Machine setup.pdf'),
+    'and the setup sheet too — whoever makes it should see everything');
+  ok(docs.dn.includes('Assembly.pdf'), 'the delivery note lists what goes in the box');
+  ok(!docs.dn.includes('Machine setup.pdf'),
+    'but NOT the setup sheet — that one is for the floor, not the customer');
+
   console.log('\ndavid items smoke: all assertions passed');
 } catch (err) {
   failed = true;

@@ -203,6 +203,7 @@ function ensureDir(name) {
   return dir;
 }
 const productsDir    = () => ensureDir('products');
+const productDocsDir = () => ensureDir('product-docs');
 const orderPhotosDir = () => ensureDir('order-photos');
 const orderFilesDir  = () => ensureDir('order-files');
 const invoicesDir    = () => ensureDir('invoices');
@@ -433,6 +434,54 @@ ipcMain.handle('hub:delete-order-file', async (_e, filename) => {
 });
 
 ipcMain.handle('hub:reveal-order-files-folder', async () => shell.openPath(orderFilesDir()));
+
+// --- Product documents (assembly instructions, safety sheets, drawings) ------
+//
+// Attached to a PRODUCT rather than to a part or an order, and that is the whole
+// design decision. A safety sheet is a property of the thing being made, not of
+// one order for it — file it against the part and the shop re-attaches the same
+// PDF every time somebody orders that product. Filed here, it follows any order
+// that names the product, onto the work order the floor reads and the delivery
+// note that goes in the box.
+//
+// Their own directory rather than orderFilesDir(): these outlive any single
+// order, and deleting an order's files must never take a product's documents
+// with it.
+ipcMain.handle('hub:pick-and-save-product-doc', async (event, productId) => {
+  const wc = event.sender;
+  const win = BrowserWindow.fromWebContents(wc);
+  const result = await dialog.showOpenDialog(win, {
+    title: 'Attach Document',
+    filters: [
+      { name: 'Documents', extensions: ['pdf', 'png', 'jpg', 'jpeg', 'txt', 'md', 'doc', 'docx'] },
+      { name: 'All Files', extensions: ['*'] },
+    ],
+    properties: ['openFile'],
+  });
+  if (result.canceled || !result.filePaths.length) return null;
+  const src = result.filePaths[0];
+  const originalName = path.basename(src);
+  const ext = path.extname(originalName).slice(1).toLowerCase() || 'bin';
+  const safeId = path.basename(String(productId || '')).replace(/[^a-zA-Z0-9_-]/g, '_');
+  const filename = `${safeId}-${Date.now().toString(36)}.${ext}`;
+  await fs.promises.copyFile(src, path.join(productDocsDir(), filename));
+  const stat = await fs.promises.stat(src);
+  return { filename, originalName, size: stat.size };
+});
+
+ipcMain.handle('hub:open-product-doc', async (_e, filename) => {
+  const full = path.join(productDocsDir(), path.basename(filename || ''));
+  if (filename && fs.existsSync(full)) await shell.openPath(full);
+  return true;
+});
+
+ipcMain.handle('hub:delete-product-doc', async (_e, filename) => {
+  const full = path.join(productDocsDir(), path.basename(filename || ''));
+  if (filename && fs.existsSync(full)) await fs.promises.unlink(full);
+  return true;
+});
+
+
 
 // --- PDF export & sharing (new in 1.3) ---
 // Pulls the current renderer page as a PDF using Chromium's print pipeline.
