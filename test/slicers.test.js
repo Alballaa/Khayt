@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { listSlicers, defaultSlicer, getSlicer, slicerDisplayName } = require('../lib/slicers');
+const { listSlicers, defaultSlicer, getSlicer, slicerDisplayName, isAllowedSlicerBinary } = require('../lib/slicers');
 
 test('slicerDisplayName: friendly names from exe paths', () => {
   assert.equal(slicerDisplayName('/Applications/PrusaSlicer.app'), 'PrusaSlicer');
@@ -42,4 +42,30 @@ test('getSlicer: by id or null', () => {
   const s = { slicers: [{ id: 'a', path: '/a' }, { id: 'b', path: '/b' }] };
   assert.equal(getSlicer(s, 'b').path, '/b');
   assert.equal(getSlicer(s, 'zzz'), null);
+});
+
+test('isAllowedSlicerBinary: accepts real slicers across platforms', () => {
+  const ok = [
+    '/Applications/PrusaSlicer.app/Contents/MacOS/PrusaSlicer',
+    '/Applications/OrcaSlicer.app', 'C:/Program Files/OrcaSlicer/orca-slicer.exe',
+    '/opt/BambuStudio.AppImage', '/usr/bin/UltiMaker-Cura', '/Applications/SuperSlicer.app',
+    '/opt/Slic3r', '/Applications/QIDIStudio.app', '/opt/CrealityPrint',
+    '/Applications/CHITUBOX.app', '/opt/ElegooSlicer', '/Applications/Snapmaker Orca.app/Contents/MacOS/Snapmaker_Orca',
+    '/usr/local/bin/ideaMaker', '/opt/FlashPrint', '/opt/KISSlicer', '/opt/IceSL',
+  ];
+  for (const p of ok) assert.equal(isAllowedSlicerBinary(p), true, `should allow ${p}`);
+});
+
+test('isAllowedSlicerBinary: rejects living-off-the-land binaries (RCE guard)', () => {
+  // A poisoned settings.slicers[] snapshot must not turn any of these into command
+  // execution. None is a shell, so the old interpreter denylist let them through.
+  const bad = [
+    '/usr/bin/find', '/usr/bin/awk', '/usr/bin/gawk', '/usr/bin/xargs', '/usr/bin/gdb',
+    '/usr/bin/make', '/usr/bin/tclsh', '/usr/bin/lua', '/bin/busybox', '/usr/bin/git',
+    '/usr/bin/zip', '/usr/bin/tar', '/usr/bin/ssh', '/usr/bin/vim', '/usr/bin/expect',
+    '/bin/bash', '/usr/bin/python3', '/usr/bin/node', '/usr/bin/perl', '/usr/bin/env',
+    'C:/Windows/System32/cmd.exe', 'C:/Windows/System32/rundll32.exe',
+    '', '/', '   ', '/usr/bin/', '/usr/local/bin/totally-legit',
+  ];
+  for (const p of bad) assert.equal(isAllowedSlicerBinary(p), false, `should reject ${p}`);
 });
