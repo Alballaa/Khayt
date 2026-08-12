@@ -100,3 +100,62 @@ test('outbound SMTP guard also handles the bracketed form', () => {
   assert.equal(isBlockedLoopbackOrMetadata(new URL('http://[::1]/x').hostname), true);
   assert.equal(isBlockedLoopbackOrMetadata(new URL('http://[::ffff:169.254.169.254]/x').hostname), true);
 });
+
+/* ── numeric IPv4 spellings ────────────────────────────────────────────────── */
+
+/**
+ * `connect()` goes through inet_aton, which accepts far more than four decimal
+ * octets. All of these reach 127.0.0.1:
+ *
+ *     2130706433      0x7f000001      127.1      0177.0.0.1
+ *
+ * and none matches a `\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}` test. They fell past
+ * the dotted-quad branch and landed on the permissive "bare hostname" return, so
+ * isAllowedPrinterHost blocked `127.0.0.1` and allowed three other spellings of
+ * it. Confirmed by opening a listener on 127.0.0.1 and connecting to each.
+ *
+ * The webhook path was never exposed — resolvesToBlockedHost() resolves the name
+ * and caught all of them — but the printer path and the SMTP path have only the
+ * syntactic check, so the syntactic check has to be right on its own.
+ */
+
+const LOOPBACK_SPELLINGS = ['2130706433', '0x7f000001', '127.1', '0177.0.0.1', '127.0.1'];
+
+test('the printer guard refuses every spelling of loopback, not just the dotted one', () => {
+  assert.equal(isAllowedPrinterHost('127.0.0.1'), false, 'the spelling that always worked');
+  for (const h of LOOPBACK_SPELLINGS) {
+    assert.equal(isAllowedPrinterHost(h), false, `${h} is 127.0.0.1 and must be refused`);
+  }
+});
+
+test('outbound guards refuse them too, without a DNS lookup', () => {
+  // isBlockedLoopbackOrMetadata guards outbound SMTP and has no resolving layer
+  // behind it, so a syntactic miss there is the whole defence missing.
+  for (const h of LOOPBACK_SPELLINGS) {
+    assert.equal(isBlockedHost(h), true, `isBlockedHost(${h})`);
+    assert.equal(isBlockedLoopbackOrMetadata(h), true, `isBlockedLoopbackOrMetadata(${h})`);
+  }
+});
+
+test('a decimal spelling of a PRIVATE address is judged as that address', () => {
+  // 167772161 is 10.0.0.1 — blocked outbound as RFC1918, allowed as a printer.
+  assert.equal(isBlockedHost('167772161'), true);
+  assert.equal(isAllowedPrinterHost('167772161'), true, 'a LAN printer may legitimately be 10.0.0.1');
+});
+
+test('real printers and real hostnames are unaffected', () => {
+  for (const h of ['10.0.0.5', '192.168.1.50', '172.16.0.1', '169.254.1.5', 'octopi.local', 'printer-1']) {
+    assert.equal(isAllowedPrinterHost(h), true, h);
+  }
+  assert.equal(isAllowedPrinterHost('169.254.169.254'), false, 'the metadata endpoint stays blocked');
+  for (const h of ['example.com', '8.8.8.8', 'mail.corp.local']) {
+    assert.equal(isBlockedHost(h), false, h);
+  }
+});
+
+test('things that merely look numeric are still treated as hostnames', () => {
+  // A hostname made only of hex-ish characters must not be mangled into an IP.
+  assert.equal(isBlockedHost('deadbeef.example.com'), false);
+  assert.equal(isAllowedPrinterHost('abc'), true, 'a bare hostname is still a hostname');
+  assert.equal(isBlockedHost('1.2.3.4.5'), false, 'five parts is not an IPv4 address');
+});
