@@ -137,6 +137,12 @@ function defaultSettings() {
     // the DEFAULT — before this existed it was the only possibility, which is
     // how a French shop ended up printing French and Arabic.
     invoiceSecondLang: 'ar',
+    // Empty means "follow the theme" — see applyLowStockColor(). A colour here
+    // overrides ONLY the low-stock highlight, never the other warnings.
+    lowStockColor:   '',
+    // Empty means "follow the theme" — see applyLowStockColor(). A colour here
+    // overrides ONLY the low-stock highlight, never the other warnings.
+    lowStockColor:   '',
     quotePrefix:     'QUO',
     useIcloud:       false,
     monthlyGoal:     0,

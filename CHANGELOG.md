@@ -4,6 +4,28 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **Marketplace fees go onto a quote in one click.** If you sell through Etsy,
+  Shopify, eBay, Amazon and the rest, their cut is part of what a job really
+  costs you — and until now you had to remember each platform's numbers and type
+  them onto every quote. Pick the marketplace above the extra charges and its
+  fees are added for you: Etsy's two percentage fees **and** its 0.20 listing
+  fee, all as ordinary quote lines you can still edit or delete.
+
+  The rates shipped are a starting point, not gospel — platforms change them, and
+  they differ by country, category and plan. Edit them and your figures are kept;
+  they are never quietly replaced by ours on an update. Switching marketplace
+  swaps the fees rather than stacking a second set on top, and your own charges
+  are left alone throughout.
+
+- **Low stock can have its own colour.** Under Settings → Appearance, beside the
+  accent colour. It highlights filament and consumables that are running out, and
+  it is deliberately separate from the general warning colour — that one also
+  marks overdue jobs and ageing spools, so recolouring "low stock" no longer
+  recolours all of them too. The picker updates as you drag it, and **Reset**
+  puts it back to the theme's own colour.
+
 ## [3.6.0-beta.17] - 2026-08-12
 
 ### Fixed

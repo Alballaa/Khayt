@@ -154,7 +154,27 @@
     if (settings && settings.accent !== accent) settings.accent = accent;
     applyDesignTheme(design);
     applyAccent(accent, reg()?.accentsForTheme(design));
+    applyLowStockColor(settings?.lowStockColor);
     syncDesignSettingsUi();
+  }
+
+/**
+   * Recolour "low stock" without touching every other warning.
+   *
+   * Requested in issue #364 item 2. --low-stock exists precisely so this is
+   * possible: --warning also colours overdue jobs, spool age and a dozen other
+   * things, so setting that would have recoloured all of them.
+   *
+   * Applied AFTER applyDesignTheme, which rewrites the token block — setting it
+   * before would be silently overwritten by the theme. An empty or unusable
+   * value clears the override and lets the theme default stand, so a shop can
+   * always get back to stock behaviour.
+   */
+  function applyLowStockColor(color) {
+    const root = document.documentElement;
+    const safe = (typeof safeCssColor === "function") ? safeCssColor(color, "") : String(color || "");
+    if (safe) root.style.setProperty("--low-stock", safe);
+    else root.style.removeProperty("--low-stock");
   }
 
   function syncDesignSettingsUi() {

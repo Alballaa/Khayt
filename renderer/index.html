@@ -512,6 +512,11 @@
               <select id="ppPresetSelect" style="font-size:12px; width:auto; margin-inline-end:6px;"></select>
               <button class="btn ghost small" id="btnAddPpPreset" data-i18n="calc.add_pp_preset">+ Add post-process</button>
             </div>
+            <div id="platformFeeRow" style="margin-top:6px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+              <label for="platformFeeSelect" style="margin:0; font-size:12.5px;" data-i18n="calc.platform_fees">Marketplace fees</label>
+              <select id="platformFeeSelect" style="font-size:12px; width:auto;"></select>
+              <span id="platformFeeEstimate" style="font-size:11.5px; color:var(--text-muted);"></span>
+            </div>
           </div>
 
           <div id="priceTiersStrip" class="tier-chips biz-only" style="display:none;"></div>
@@ -1543,6 +1548,16 @@
         </div>
         <div class="inline-pair">
           <div>
+            <label for="set_lowStockColor" data-i18n="set.low_stock_color">Low stock colour</label>
+            <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
+              <input type="color" id="set_lowStockColor" value="#f5a623" style="width:44px; height:34px; padding:2px; border-radius:6px; border:1px solid var(--border); cursor:pointer; background:var(--bg-elev);">
+              <button type="button" class="btn ghost small" id="btnResetLowStockColor" data-i18n="set.low_stock_color_reset">Reset</button>
+              <span style="font-size:11.5px; color:var(--text-muted);" data-i18n="set.low_stock_color_hint">Highlights filament and consumables that are running out.</span>
+            </div>
+          </div>
+        </div>
+        <div class="inline-pair">
+          <div>
             <label for="set_lang" data-i18n="set.language">Default language</label>
             <select id="set_lang">
               <option value="en">English</option>
@@ -2532,6 +2547,7 @@
 <script src="../lib/deposit-audit.js"></script>
 <script src="../lib/po-audit.js"></script>
 <script src="../lib/tax.js"></script>
+<script src="../lib/platform-fees.js"></script>
 <script src="../lib/invoice-language.js"></script>
 <script src="../lib/ai-privacy.js"></script>
 <script src="../lib/ai-usage.js"></script>

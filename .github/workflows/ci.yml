@@ -186,6 +186,12 @@ jobs:
       - name: E2E smoke (estimator settings and calibration)
         run: xvfb-run -a npm run test:e2e:estimator
 
+      # Both are UI wiring, the class a unit test cannot vouch for: the fee
+      # module can be perfect while the dropdown appends nothing, and the CSS
+      # token can exist while no code ever sets it.
+      - name: E2E smoke (marketplace fees, low-stock colour)
+        run: xvfb-run -a npm run test:e2e:david
+
       # lib/tax.js is pure and heavily unit-tested; what those tests cannot say
       # is whether the INVOICE uses it. The rendered total was fmtMoney(price),
       # correct only while every price was assumed tax-inclusive — under
