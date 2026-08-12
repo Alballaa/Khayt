@@ -122,12 +122,20 @@ test('a compressed blob round-trips', () => {
   assert.deepEqual(sc.decryptStore(blob, dek), store);
 });
 
-test('compression is OFF by default — writers must not run ahead of readers', () => {
-  // The whole safety of the rollout is this default. If it flips by accident,
-  // shops with two devices break until both update.
+test('compression is ON — writers now emit gzip', () => {
+  // Phase two. beta.17 taught every client to READ both shapes; this is the
+  // release where writers start producing the smaller one. Measured on a real
+  // store: 59,148 bytes on the wire became 9,563.
   const dek = crypto.randomBytes(32);
   const blob = sc.encryptStore({ a: 1 }, dek);
-  assert.equal(blob.z, undefined, 'no z marker means an old client reads it fine');
+  assert.equal(blob.z, 'gzip', 'the marker rides on every blob a writer produces');
+});
+
+test('a client can still be told explicitly NOT to compress', () => {
+  // The option survives the flip, so reverting is a constant rather than a
+  // rewrite — and so a caller with a reason can opt out without one.
+  const dek = crypto.randomBytes(32);
+  assert.equal(sc.encryptStore({ a: 1 }, dek, { compress: false }).z, undefined);
 });
 
 test('an uncompressed blob still decrypts — every shop in the field has one', () => {
@@ -153,7 +161,11 @@ test('compression actually shrinks a realistic store', () => {
     id: 'ORD-' + i, status: 'completed', client: 'Acme Robotics', material: 'PLA',
     date: '2026-08-11', price: 120, parts: [{ name: 'Bracket', material: 'PLA', printTime: 6 }],
   })) };
-  const plain = JSON.stringify(sc.encryptStore(store, dek)).length;
+  // Both sides EXPLICIT. This used to take the default as its uncompressed
+  // baseline, which silently became a gzip-vs-gzip comparison the moment
+  // COMPRESS_ON_WRITE flipped — the assertion would have passed forever while
+  // measuring nothing.
+  const plain = JSON.stringify(sc.encryptStore(store, dek, { compress: false })).length;
   const gz = JSON.stringify(sc.encryptStore(store, dek, { compress: true })).length;
   assert.ok(gz < plain / 4, `expected a large saving, got ${gz} vs ${plain}`);
 });

@@ -59,7 +59,10 @@ test('a store blob written before the split still decrypts, and still reads v1',
   const { keyset } = v1Keyset('shop');
   const dek = sc.unlockWithPassphrase('shop', keyset);
 
-  const fresh = sc.encryptStore(STORE, dek);
+  // EXPLICITLY uncompressed: this test reconstructs what v1 wrote, and v1 had no
+  // compression. Taking the default here would strip the `z` marker off a gzip
+  // body and assert on a shape nothing ever produced.
+  const fresh = sc.encryptStore(STORE, dek, { compress: false });
   assert.equal(fresh.v, 1, 'v2 code still stamps store blobs v1');
   assert.deepEqual(sc.decryptStore(fresh, dek), STORE);
 

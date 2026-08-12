@@ -96,7 +96,10 @@ test('the browser still reads an uncompressed blob', async () => {
   const node = require('../lib/sync-crypto.js');
   const dek = require('node:crypto').randomBytes(32);
   const store = { printLog: [], settings: {} };
-  const blob = node.encryptStore(store, dek);
+  // Explicitly uncompressed — writers emit gzip by default now, and the point of
+  // this test is the OLD shape, which every shop that has not yet re-synced still
+  // has sitting in the cloud.
+  const blob = node.encryptStore(store, dek, { compress: false });
   assert.equal(blob.z, undefined, 'no marker means no compression');
   assert.deepEqual(await web.decryptStore(blob, dek), store);
 });

@@ -120,12 +120,16 @@ Concretely, in order:
 1. **gzip the store before encrypting.** Measured 7×, no protocol change and no
    server change. Do this before quoting anyone a price.
 
-   **Half-shipped.** Every client now *reads* both shapes (`lib/sync-crypto.js`
-   and its browser twin), but `COMPRESS_ON_WRITE` is deliberately `false`: nothing
-   reads `blob.v`, so a client older than that change ignores the `z` marker too,
-   JSON.parses gzip bytes, and sits in a sync-error loop. Readers have to be in
-   the field a release before any writer emits the new shape. Flipping that one
-   constant is the second release, and it is the whole change.
+   **Shipped.** Readers landed in **v3.6.0-beta.17**; writers were switched on in
+   **v3.6.0-beta.18** by flipping `COMPRESS_ON_WRITE`. Measured on a real store,
+   a push went from **59,148 bytes to 9,563** — a 6.2× cut in the resource that
+   actually binds.
+
+   The rollout gap was hours rather than weeks, so a shop running two machines
+   where one is still on beta.16 or earlier will see that machine stop syncing
+   until it updates. It cannot lose data — the optimistic `baseRev` guard means a
+   client that cannot pull cannot push over the top — and the beta.18 release
+   notes say so plainly rather than leaving it to be discovered.
 2. **Entity deltas on push.** Removes the size × frequency coupling, and is the
    same work Phase 3 needs anyway.
 3. **Then meter bandwidth, not bytes stored** — or having done 1 and 2, stop
