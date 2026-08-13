@@ -4,6 +4,44 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **Updating the Microsoft Store listing is now a repeatable ten-minute job
+  instead of an undocumented one nobody was doing.** The MSIX had been built on
+  every release and submitted on none of it — `electron-builder --win appx` ran,
+  the package went to a 30-day workflow artifact, and that was the end of the
+  pipeline. Store users sat on whatever build was last uploaded by hand, with no
+  way to update: MSIX updates come from the Store, and the Store had nothing
+  newer. This surfaced as a user saying their Store copy was very old and they
+  had never updated it. Nothing was wrong on their machine.
+
+  The listing copy now lives in `store/microsoft/listing.json` and ships through
+  pull requests like everything else, so a description change is reviewable and
+  the Store stops being a place where text is edited by hand and forgotten.
+  "What's new" is generated from this file's entry for the version being
+  released. Every Store limit — description, features, search terms, captions — is
+  checked on every PR, so a listing that would be rejected fails in review instead
+  of in a certification queue on release day.
+
+  Store screenshots are captured from the real app on demo data at 1920x1080 and
+  checked against Microsoft's requirements (`npm run capture:store-screenshots`).
+
+  A `submit-store` job is wired into the release workflow for stable tags, which
+  would submit the package and the listing as one submission — but it is inert,
+  and will stay that way for the foreseeable future.
+
+  **It cannot be switched on, and that is an account limit rather than an
+  unfinished piece.** Khayt's Store account is an individual
+  developer account; individual accounts cannot associate a Microsoft Entra
+  tenant, and without a tenant there is no way to obtain the credentials any Store
+  API needs. So the upload itself is still done by hand — and the tooling above is
+  aimed squarely at making that quick: `npm run store:manual` writes a paste sheet
+  with every listing field pre-validated and counted, the screenshots are already
+  at Store spec, and the MSIX artifact is now kept for 90 days instead of 30, so a
+  stable release stops losing its package after a month. The release job stays in
+  place and inert, ready for the day the account becomes a company account.
+  [docs/MICROSOFT-STORE.md](./docs/MICROSOFT-STORE.md) has the detail.
+
 ## [3.6.0-rc.2] - 2026-08-13
 
 ### Fixed

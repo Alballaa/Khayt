@@ -233,13 +233,128 @@ jobs:
         if: steps.build-appx.outcome == 'failure'
         run: exit 1
 
+      # 90 days, not the default 30. While the Store submission is done by hand,
+      # this artifact is the ONLY copy of the package — the .appx is deliberately
+      # not published to the GitHub release (unsigned MSIX cannot be sideloaded,
+      # so it would only mislead people who downloaded it). At 30 days a stable
+      # release older than a month lost its package permanently, and the only
+      # recovery is a new tag: re-running a completed Build & Release forks it
+      # into a duplicate draft and breaks the published manifests.
+      # 90 is the maximum GitHub allows on a public repository.
       - name: Upload MSIX as workflow artifact
         if: steps.build-appx.outcome == 'success'
         uses: actions/upload-artifact@v7
         with:
           name: windows-store-msix
           path: build/*.appx
-          retention-days: 30
+          retention-days: 90
+
+  # ── Microsoft Store submission ────────────────────────────────────────────
+  #
+  # Until this existed the MSIX was built every release and submitted never: it
+  # went to a 30-day workflow artifact and stopped there, so Store users sat on
+  # whatever was last uploaded by hand while GitHub users updated normally. A
+  # user reported their Store copy was "very old and I never updated it" — that
+  # was this gap, working exactly as built.
+  #
+  # STABLE ONLY. Betas and release candidates reach their audience through the
+  # GitHub pre-release channel that electron-updater reads; the Store has no
+  # equivalent and every submission costs a certification pass.
+  #
+  # Inert until configured, like the Windows signing wiring: with no credentials
+  # the job announces itself and succeeds, so it can be merged before anyone has
+  # touched Partner Center.
+  #
+  # IF THIS JOB FAILS, DO NOT RE-RUN THE WORKFLOW. By the time it runs the GitHub
+  # release is already published, and re-running a completed Build & Release forks
+  # it into a duplicate draft and breaks the published update manifests. Re-run
+  # THIS JOB alone from the Actions UI, or finish the submission in Partner Center.
+  submit-store:
+    name: Microsoft Store submission
+    needs: [create-release, build-windows]
+    if: ${{ github.event_name == 'push' && needs.create-release.outputs.prerelease == 'false' }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Is the Store configured
+        id: gate
+        shell: bash
+        env:
+          TENANT_ID:  ${{ secrets.AZURE_AD_TENANT_ID }}
+          PRODUCT_ID: ${{ vars.STORE_PRODUCT_ID }}
+        run: |
+          if [ -n "$TENANT_ID" ] && [ -n "$PRODUCT_ID" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Store submission skipped — no credentials. See docs/MICROSOFT-STORE.md to enable."
+          fi
+
+      - name: Install dependencies
+        if: steps.gate.outputs.configured == 'true'
+        run: npm ci
+
+      - name: Download the MSIX built by the Windows job
+        if: steps.gate.outputs.configured == 'true'
+        uses: actions/download-artifact@v7
+        with:
+          name: windows-store-msix
+          path: build
+
+      # Runs before anything is sent. A listing that breaks a Store limit fails
+      # here in seconds rather than in a certification queue hours later.
+      - name: Build and validate the listing metadata
+        if: steps.gate.outputs.configured == 'true'
+        shell: bash
+        run: node scripts/build-store-metadata.mjs --version "${GITHUB_REF_NAME#v}"
+
+      - name: Configure Microsoft Store CLI
+        if: steps.gate.outputs.configured == 'true'
+        uses: microsoft/microsoft-store-apppublisher@v1.1
+
+      - name: Sign in to Partner Center
+        if: steps.gate.outputs.configured == 'true'
+        run: >
+          msstore reconfigure
+          --tenantId ${{ secrets.AZURE_AD_TENANT_ID }}
+          --sellerId ${{ secrets.SELLER_ID }}
+          --clientId ${{ secrets.AZURE_AD_APPLICATION_CLIENT_ID }}
+          --clientSecret ${{ secrets.AZURE_AD_APPLICATION_SECRET }}
+
+      # --noCommit is what makes the package and the listing ONE submission.
+      # Without it `msstore publish` commits immediately, the metadata update
+      # opens a second submission, and the release costs two certification
+      # passes that can land out of order.
+      - name: Stage the package (no commit)
+        if: steps.gate.outputs.configured == 'true'
+        shell: pwsh
+        run: |
+          $msix = Get-ChildItem build -Filter *.appx -Recurse | Select-Object -First 1
+          if (-not $msix) { throw "No .appx found in build/" }
+          Write-Host "Publishing $($msix.FullName)"
+          msstore publish --inputFile $msix.FullName -id ${{ vars.STORE_PRODUCT_ID }} --noCommit
+
+      - name: Stage the listing metadata
+        if: steps.gate.outputs.configured == 'true'
+        shell: pwsh
+        run: |
+          $metadata = Get-Content -Raw "${{ github.workspace }}/store/microsoft/metadata.json"
+          msstore submission updateMetadata ${{ vars.STORE_PRODUCT_ID }} $metadata
+
+      - name: Commit the submission for certification
+        if: steps.gate.outputs.configured == 'true'
+        run: msstore submission publish ${{ vars.STORE_PRODUCT_ID }}
+
+      - name: Report the submission status
+        if: steps.gate.outputs.configured == 'true'
+        continue-on-error: true
+        run: msstore submission status ${{ vars.STORE_PRODUCT_ID }}
 
   # ── Keep macOS auto-update working on a release with no mac build ─────────
   #
