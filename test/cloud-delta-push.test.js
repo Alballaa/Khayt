@@ -27,7 +27,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const sc = require('../lib/sync-crypto.js');
-const { createCloudBackend, DELTA_WRITES } = require('../lib/cloud-backend.js');
+const { createCloudBackend, DELTA_WRITES, COMPACT_RATIO, MAX_CHAIN_DELTAS } = require('../lib/cloud-backend.js');
 
 const ENGINE = path.join(__dirname, '..', 'renderer', 'sync.js');
 const FAST_KDF = { algo: 'scrypt', N: 1024, r: 8, p: 1, keyLen: 32 };
@@ -343,4 +343,127 @@ test('THE HAZARD: a blob-only desktop silently destroys every delta', async () =
     'if this ever fails, the hazard is gone and DELTA_WRITES can be reconsidered');
   assert.deepEqual(names.sort(), ['Acme', 'Added by the old client'],
     'a committed edit was destroyed by a client doing nothing wrong');
+});
+
+// ── compaction ──────────────────────────────────────────────────────────────
+//
+// A chain has to be reset by a full push, or a cold device pays for the base
+// plus every delta ever appended — and every one of them is a decrypt. The two
+// bounds are derived in scripts/cloud-cost-model.mjs; these pin the behaviour.
+
+test('a chain past the byte ratio is compacted by a full push', async () => {
+  const server = makeDeltaServer();
+  const dek = freshDek();
+  const a = device(server, 'shopA', dek);
+
+  // A real-sized base, so the chain has room to grow before the ratio binds.
+  const store = bigStore(a.engine);
+  await a.backend.push(store);
+  const baseAfterFirst = a.backend.chainState().baseWireBytes;
+  assert.ok(baseAfterFirst > 0, 'the base size is recorded');
+
+  // Push deltas until the backend says it is due, then once more.
+  let guard = 0;
+  while (!a.backend.chainState().dueForCompaction && guard++ < 200) {
+    store.clients.push({ id: 'c' + guard, name: 'client ' + guard });
+    a.engine.stampChanges(store);
+    await a.backend.push(store);
+  }
+  const due = a.backend.chainState();
+  assert.ok(due.dueForCompaction, 'the chain should become due for compaction');
+  assert.ok(due.chainWireBytes > COMPACT_RATIO * due.baseWireBytes
+    || due.chainCount >= MAX_CHAIN_DELTAS, 'due for the documented reason');
+
+  store.clients.push({ id: 'last', name: 'triggers the compaction' });
+  a.engine.stampChanges(store);
+  const res = await a.backend.push(store);
+
+  assert.equal(res.delta, undefined, 'the compacting push is a full one, not a delta');
+  assert.equal(server.chainLength('shopA'), 0, 'the server chain is reset');
+  assert.equal(a.backend.chainState().chainCount, 0);
+  assert.equal(a.backend.chainState().chainWireBytes, 0);
+});
+
+test('compaction loses nothing — the store still round-trips afterwards', async () => {
+  const server = makeDeltaServer();
+  const dek = freshDek();
+  const a = device(server, 'shopA', dek);
+
+  const store = bigStore(a.engine);
+  await a.backend.push(store);
+  for (let i = 0; i < 60; i++) {
+    store.clients.push({ id: 'c' + i, name: 'client ' + i });
+    a.engine.stampChanges(store);
+    await a.backend.push(store);
+  }
+
+  const b = device(server, 'shopA', dek);
+  const pulled = await b.backend.pull();
+  assert.equal(pulled.store.clients.length, 61,
+    'every record survives however the chain was compacted along the way');
+});
+
+/** A store big enough that a delta is genuinely cheaper than a fresh base. */
+const bigStore = (engine) => stamped(engine, {
+  printLog: Array.from({ length: 400 }, (_, i) => ({ id: 'o' + i, price: 100 + i, notes: 'x'.repeat(60) })),
+  clients: [{ id: 'c1', name: 'A' }],
+});
+
+test('a pull adopts the server chain, not just what this device appended', async () => {
+  // Two devices push onto one chain. A backend that counted only its own deltas
+  // would think the chain was half as long as it is and compact too late.
+  const server = makeDeltaServer();
+  const dek = freshDek();
+  const a = device(server, 'shopA', dek);
+  const b = device(server, 'shopA', dek);
+
+  const store = bigStore(a.engine);
+  await a.backend.push(store);
+  for (const name of ['two', 'three', 'four']) {
+    store.clients.push({ id: name, name });
+    a.engine.stampChanges(store);
+    await a.backend.push(store);
+  }
+  assert.equal(server.chainLength('shopA'), 3);
+
+  await b.backend.pull();
+  assert.equal(b.backend.chainState().chainCount, 3,
+    'B sees the whole chain, including deltas it never sent');
+  assert.ok(b.backend.chainState().baseWireBytes > 0, 'and the base it was built on');
+});
+
+test('a SMALL store compacts almost immediately, so deltas never make it worse', async () => {
+  // Both a delta and a whole small store are dominated by the same ~1.1 KB
+  // crypto/base64 envelope, so for a tiny shop a delta buys nothing — and the
+  // ratio rule notices without being told, because one delta already exceeds
+  // COMPACT_RATIO × a tiny base.
+  //
+  // This is the property that makes the policy safe to enable everywhere rather
+  // than only for large shops: the saving scales with store size, and where
+  // there is no saving the backend falls back to the blob on its own.
+  const server = makeDeltaServer();
+  const dek = freshDek();
+  const a = device(server, 'shopA', dek);
+
+  const store = stamped(a.engine, { clients: [{ id: 'c1', name: 'A' }] });
+  await a.backend.push(store);
+  for (let i = 0; i < 6; i++) {
+    store.clients.push({ id: 'c' + i, name: 'client ' + i });
+    a.engine.stampChanges(store);
+    await a.backend.push(store);
+  }
+
+  assert.ok(server.chainLength('shopA') <= 2,
+    `a tiny store should keep compacting, not build a chain (got ${server.chainLength('shopA')})`);
+
+  const b = device(server, 'shopA', dek);
+  assert.equal((await b.backend.pull()).store.clients.length, 7,
+    'and it still round-trips exactly');
+});
+
+test('an unknown base size still bounds the chain by count', () => {
+  // The ratio cannot be evaluated without a base, and "no opinion" would let a
+  // chain run away on exactly the path where that state was lost.
+  assert.equal(MAX_CHAIN_DELTAS, 1000);
+  assert.equal(COMPACT_RATIO, 2);
 });

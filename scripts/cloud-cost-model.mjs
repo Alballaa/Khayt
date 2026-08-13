@@ -183,6 +183,42 @@ console.log(`\n  Worst case with the ceiling enforced: ${worstUnderCeiling} shop
 console.log(`  i.e. a floor price of ${(PLAN.price / worstUnderCeiling).toFixed(2)} ${PLAN.currency}/shop if EVERY shop pinned the ceiling.`);
 console.log('  Nobody does — the ceiling exists to cap the tail, not to describe the median.');
 
+// ── compaction: how long a delta chain may grow before a full push ─────────
+//
+// A chain has to be reset by a full push eventually, or a cold device pays for
+// the base PLUS every delta ever appended. Let R be the ratio at which we
+// compact: chain bytes ≤ R × base bytes.
+//
+// Per cycle a shop sends N = R × base / DELTA deltas, then one base. So:
+//
+//   push bytes/month = saves × DELTA + (saves × DELTA / R)
+//                    = saves × DELTA × (1 + 1/R)
+//
+// The store size CANCELS. That is the useful result: the push cost of a policy
+// is a fixed multiple of the ideal delta cost, the same multiple for a hobbyist
+// and a farm, and R alone picks it. What R trades against is the COLD pull,
+// which is bounded by base × (1 + R).
+console.log('\nCompaction — chain bytes ≤ R × base bytes, then one full push:\n');
+console.log('R'.padStart(4), 'push vs ideal'.padStart(14), 'cold pull vs blob'.padStart(18),
+  'deltas/cycle (busy)'.padStart(20), 'busy shop/mo'.padStart(13));
+const busyForCompaction = rows.find((r) => r.name === 'Busy shop');
+for (const R of [0.5, 1, 2, 4, 10]) {
+  const pushMult = 1 + 1 / R;
+  const perCycle = Math.round((R * busyForCompaction.perPush) / DELTA_WIRE_BYTES);
+  console.log(
+    String(R).padStart(4),
+    (pushMult.toFixed(2) + '×').padStart(14),
+    ((1 + R).toFixed(1) + '×').padStart(18),
+    String(perCycle).padStart(20),
+    fmtBytes(busyForCompaction.monthlyDelta * pushMult).padStart(13),
+  );
+}
+console.log('\n  Warm pulls only stay cheap if GET carries `?since=<rev>` — without it every');
+console.log('  launch re-downloads the base and the whole chain, and a chain makes pulls');
+console.log('  WORSE than blob-only. That is a contract requirement, not an optimisation.');
+console.log('  Fold cost is the other bound: every delta in a cold pull is one decrypt,');
+console.log('  so a count cap belongs alongside the ratio.');
+
 console.log('\nSensitivity — the model turns on saves/day, so vary only that (Busy shop):\n');
 const busy = PROFILES.find((p) => p.name === 'Busy shop');
 console.log('saves/day'.padStart(9), 'bw/month'.padStart(10), 'shops/plan'.padStart(11), 'cost/shop'.padStart(10));
