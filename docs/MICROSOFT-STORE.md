@@ -122,9 +122,48 @@ make that quick and safe rather than to pretend otherwise:
 3. Download the `windows-store-msix` artifact from that version's **Build & Release** run.
 4. In Partner Center, upload the package, then paste the listing fields from the sheet.
 
+Step 4 is the slow part: eight fields pasted one at a time and ten screenshots uploaded
+individually, about twenty minutes. There is a documented way to collapse it — see below.
+
 The `submit-store` job stays in `release.yml` and stays inert — it is gated on credentials
 that do not exist, so it posts a notice and passes. It costs nothing to leave in place, and it
 is the whole of the work needed on the day the account becomes a company account.
+
+### NEXT IMPROVEMENT: bulk-import the listing as a CSV + folder
+
+**Partner Center can import an entire Store listing — text fields *and* screenshots — from a
+single folder, with no Entra tenant and no API.** It is UI-driven, so the account-type block
+above does not apply. This is the biggest remaining win in the manual process, and it is not
+yet built.
+
+How it works ([docs](https://learn.microsoft.com/en-us/windows/apps/publish/publish-your-app/msix/import-and-export-store-listings)):
+
+- App overview → **Store listings** → **Export listing** gives a UTF-8 CSV with columns
+  `Field`, `ID`, `Type`, `default`, and one row per listing item — `Description`,
+  `Feature1`…`Feature20`, `ReleaseNotes`, `DesktopScreenshot1`…N, and the rest.
+- Image rows have Type `Relative path (or URL to file in Partner Center)`. Put the CSV and the
+  images in **one folder**, write `folder/images/shot.png` into the field, then
+  **Import listings → Import folder**.
+- Errors come back as a list to fix in the file. Nothing is saved until the import is clean.
+
+So `npm run store:csv` could emit `store/microsoft/import/` — one CSV filled from
+`listing.json` plus the ten screenshots already in place — turning step 4 into one file
+picker.
+
+**What is needed to build it:** a real `Export listing` CSV from this product. The `Field`,
+`ID` and `Type` columns must be passed through byte-for-byte (the `ID` values are Partner
+Center's own numbering), so the generator has to fill a genuine export rather than invent one.
+
+**Export is unavailable while a submission is in certification** — the Store listings section
+goes read-only, and the button is simply absent. Confirmed 2026-08-13. Wait for the
+in-flight submission to be approved, then export.
+
+Two traps the generator must respect:
+
+- Deleting a **trailer** row permanently deletes that file from Partner Center. Never emit a
+  row the generator does not own.
+- Clearing an **image** field does *not* remove the image — the previous one is kept. Removing
+  a screenshot has to be done in the Partner Center UI.
 
 ## One-time setup — only once the account is a company account
 
@@ -204,7 +243,27 @@ And one **variable** (not a secret — it is public in the Store URL):
 
 | Variable | Value |
 |---|---|
-| `STORE_PRODUCT_ID` | the Store product ID, e.g. `9NBLGGH4R315` |
+| `STORE_PRODUCT_ID` | `9P4GR79Z84ZG` |
+
+## Khayt's Store identity
+
+Recorded here so it is not hunted for in Partner Center each time. All of it is public — the
+Store ID is literally in the listing URL — so none of it is a secret. Partner Center shows it
+under the product's **View product identity** page.
+
+| | |
+|---|---|
+| Store ID | `9P4GR79Z84ZG` |
+| Web listing | https://apps.microsoft.com/detail/9P4GR79Z84ZG |
+| Deep link | `ms-windows-store://pdp/?productid=9P4GR79Z84ZG` |
+| Package Family Name | `Khayt.Khayt_7x6ymsf84xmn6` |
+| `Package/Identity/Name` | `Khayt.Khayt` |
+| `Package/Identity/Publisher` | `CN=F9AECB56-B63C-4BD8-BAF1-B8CDA4A8B0BC` |
+| `Package/Properties/PublisherDisplayName` | `Khayt` |
+
+The publisher must match `build.appx.publisher` in `package.json` exactly or the package is
+rejected at submission — it is the same GUID in both places, and it is also the evidence that
+this is an individual account (see the status section above).
 
 ### 3. The bootstrap run
 

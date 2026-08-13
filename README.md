@@ -192,7 +192,7 @@ Grab the file for your platform:
 | macOS (Apple Silicon) | `Khayt-*-arm64.dmg` | Requires Apple Silicon (M1 or later) |
 | Windows (installer) | `Khayt-*-Setup.exe` | NSIS installer, adds Start Menu shortcut |
 | Windows (portable) | `Khayt-*-portable.exe` | No installation needed |
-| Microsoft Store | [coming soon] | Will appear in the Store once approved |
+| Microsoft Store | **[Get it from the Store](https://apps.microsoft.com/detail/9P4GR79Z84ZG)** | Updates through the Store, which can lag the release above |
 | Linux (AppImage) | `Khayt-*.AppImage` | `chmod +x` then run |
 | Linux (deb) | `Khayt-*.deb` | `sudo dpkg -i Khayt-*.deb` |
 
