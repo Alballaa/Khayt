@@ -3665,7 +3665,10 @@ ipcMain.handle('hub:org-overview', async (_e, { url, shopId, token } = {}) => {
         const blob = await cloudClient.getBranchStore(url, shopId, token, m.shopId);
         if (!blob) { row.empty = true; branches.push(row); continue; }
         row.rev = blob.rev;
-        row.summary = summarizeBranch(cloudClient.decryptStore(blob.ciphertext, dek));
+        // decryptBranchStore, not decryptStore: a branch may hold a delta chain
+        // on top of its base, and summarising the base alone would report figures
+        // missing its newest orders with nothing saying so.
+        row.summary = summarizeBranch(cloudClient.decryptBranchStore(blob, dek));
       } catch (e) {
         row.error = String(e && e.message || e);
       }

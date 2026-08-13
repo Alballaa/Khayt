@@ -8,6 +8,7 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
 const cc = require('../lib/cloud-client.js');
+const sc = require('../lib/sync-crypto.js');
 
 const FAST_KDF = { algo: 'scrypt', N: 1024, r: 8, p: 1, keyLen: 32 };
 const STORE = { printLog: [{ id: 'o1', price: 100 }], clients: [{ id: 'c1', name: 'Acme' }] };
@@ -34,7 +35,12 @@ function refServer() {
   };
   return http.createServer(async (req, res) => {
     const path = req.url.replace(/\/+$/, '') || '/';
-    seen.push({ method: req.method, path, auth: req.headers.authorization || '' });
+    seen.push({
+      method: req.method, path, auth: req.headers.authorization || '',
+      // Recorded so a test can assert what this device TELLS the server it can
+      // read — the server refuses a shop a delta chain without it.
+      cap: req.headers['x-delta-capable'] || '',
+    });
     if (req.method === 'GET' && path === '/v1/health') return send(res, 200, { ok: true });
     if (req.method === 'POST' && path === '/v1/register') {
       const id = 'shop_' + rand(); const token = rand();
@@ -281,6 +287,65 @@ test('full E2E round-trip: encrypt → push → pull → decrypt equals the stor
   const pulled = await backend.pull();
   assert.equal(pulled.rev, 1);
   assert.deepEqual(pulled.store, STORE);
+});
+
+test('the sync backend tells the server it can read a delta chain', async () => {
+  // Without this header the server treats the device as blob-only and never gives
+  // the shop a chain — absence has to mean "cannot", because an old build sends
+  // nothing. So the whole delta rollout hinges on this one header going out, and
+  // nothing else in this repo would notice if it stopped.
+  const { shopId, token } = await cc.register(base);
+  const { keyset } = cc.createKeyset('sync-pass', { kdf: FAST_KDF });
+  const dek = cc.unlockWithPassphrase('sync-pass', keyset);
+
+  seen.length = 0;
+  const backend = cc.backendFor(base, shopId, token, dek);
+  await backend.push(STORE);
+  await backend.pull();
+
+  const storeCalls = seen.filter((r) => r.path === `/v1/shops/${shopId}/store`);
+  assert.ok(storeCalls.length >= 2, 'the push and the pull both went to /store');
+  for (const c of storeCalls) {
+    assert.equal(c.cap, '1', `${c.method} /store must announce delta capability`);
+  }
+});
+
+test('a transport that is not the sync backend stays silent about capability', async () => {
+  // The trap on the other side: the server records this on store reads, so a call
+  // that arrives without the header from a device that CAN fold would mark it
+  // blob-only. Only transports that genuinely read a store may speak here, and
+  // the plain one must not claim anything.
+  seen.length = 0;
+  await cc.health(base);
+  const probe = seen.find((r) => r.path === '/v1/health');
+  assert.equal(probe.cap, '', 'a plain transport announces nothing');
+});
+
+test('a branch store is folded, not just decrypted — the org roll-up sees the newest edits', async () => {
+  // Read-only, so a stale answer destroys nothing; it just reports a branch's
+  // figures as they were before its newest orders, with nothing saying so.
+  const { keyset } = cc.createKeyset('org-pass', { kdf: FAST_KDF });
+  const dek = cc.unlockWithPassphrase('org-pass', keyset);
+  const engine = require('../renderer/sync.js');
+
+  const base0 = { printLog: [{ id: 'o1', price: 100, rev: 1 }], clients: [], tombstones: [] };
+  const later = { deltas: [{ collection: 'printLog', record: { id: 'o2', price: 250, rev: 1 } }], tombstones: [] };
+
+  const folded = cc.decryptBranchStore({
+    rev: 2,
+    ciphertext: sc.encryptStore(base0, dek),
+    deltas: [{ rev: 2, ciphertext: sc.encryptStore(later, dek) }],
+  }, dek);
+
+  assert.deepEqual(folded.printLog.map((o) => o.id).sort(), ['o1', 'o2'],
+    'the delta that only exists in the chain is present');
+  assert.equal(folded.printLog.reduce((n, o) => n + o.price, 0), 350,
+    'and the roll-up total reflects it');
+  assert.ok(engine, 'the fold used the real engine, not a stand-in');
+
+  // A branch with no chain is the ordinary case and must be untouched.
+  const plain = cc.decryptBranchStore({ rev: 1, ciphertext: sc.encryptStore(base0, dek), deltas: [] }, dek);
+  assert.deepEqual(plain.printLog.map((o) => o.id), ['o1']);
 });
 
 test('wrong passphrase cannot decrypt a pulled blob', async () => {
