@@ -12,6 +12,9 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   stock system tool (`find`, `awk`, `xargs`, …) that runs an arbitrary command
   from its arguments, turning a click on **Slice** into code execution. Every
   real slicer keeps working; nothing else launches.
+- Bumped the bundled `js-yaml` (via `electron-updater`, which parses the update
+  feed) from 4.3.0 to 4.3.1, closing a quadratic-CPU denial-of-service parsing
+  advisory (GHSA-5p4m-2wfm-xmqj). Production dependency audit is clean again.
 
 ## [3.6.0-rc.1] - 2026-08-12
 
