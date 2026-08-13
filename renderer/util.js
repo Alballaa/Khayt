@@ -162,9 +162,53 @@
     return { headers, rows };
   }
 
+  /**
+   * Put `text` on the clipboard, and say whether it actually landed there.
+   *
+   * The main process is tried first: clipboard.writeText() over IPC needs no
+   * document focus, no transient user activation and no Chromium permission,
+   * so it works from a menu handler or an await-resumed callback where
+   * navigator.clipboard does not. navigator.clipboard is the fallback for
+   * non-Electron contexts (the LAN pages, tests).
+   *
+   * Returns false rather than throwing — but callers must check it. Every copy
+   * button in the app used to swallow the rejection and print "✓ copied"
+   * regardless, so an app-wide clipboard outage looked like success for months.
+   */
+  async function copyText(text) {
+    const s = String(text ?? '');
+    if (!s) return false;
+    try {
+      if (global.hubAPI?.clipboardWrite) {
+        const r = await global.hubAPI.clipboardWrite(s);
+        if (r?.ok !== false) return true;
+      }
+    } catch { /* fall through to the web API */ }
+    try {
+      if (global.navigator?.clipboard?.writeText) {
+        await global.navigator.clipboard.writeText(s);
+        return true;
+      }
+    } catch { /* reported below */ }
+    return false;
+  }
+
+  /** copyText + the toast almost every caller wants. Returns whether it copied. */
+  async function copyAndToast(text, copiedMsg) {
+    const tr = (k, fallback) => (typeof global.t === 'function' && global.t(k)) || fallback;
+    const ok = await copyText(text);
+    global.toast?.(
+      ok ? (copiedMsg || tr('common.copied', 'Copied!')) : tr('common.copy_failed', 'Copy failed'),
+      ok ? 'success' : 'warning',
+    );
+    return ok;
+  }
+
   const api = {
     $,
     $$,
+    copyText,
+    copyAndToast,
     loadJSON,
     saveJSON,
     localDateStr,

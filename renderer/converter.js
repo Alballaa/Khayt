@@ -1243,9 +1243,7 @@
           if (rr && rr.ok !== false) toast('Saved swap pauses ✓', 'success');
         };
         const copyBtn = modal.querySelector('#swapCopy');
-        if (copyBtn) copyBtn.onclick = () => {
-          if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(swapPlanText(a, name)).then(() => toast(t('common.copied') || 'Copied!', 'success')).catch(() => {});
-        };
+        if (copyBtn) copyBtn.onclick = () => { copyAndToast(swapPlanText(a, name)); };
       },
     });
   }

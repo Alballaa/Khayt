@@ -73,6 +73,10 @@ async function boot() {
   });
 
   const ctx = vm.createContext(window);
+  // util.js first, exactly as bedready.html loads it: the panel's copy button
+  // goes through KhaytUtil.copyText, so without this the handler throws on an
+  // undefined global and the copy silently does nothing.
+  vm.runInContext(read('renderer/util.js'), ctx);
   vm.runInContext(read('lib/color-mix.js'), ctx);
   vm.runInContext(read('lib/hueforge.js'), ctx);
   vm.runInContext(read('renderer/hueforge.js'), ctx);

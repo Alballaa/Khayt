@@ -1237,12 +1237,8 @@ function wireEvents() {
           toast(t('ord.tracking_no_lan') || 'LAN server is not running — enable it in Settings', 'warning', 4000);
           return;
         }
-        try {
-          await navigator.clipboard.writeText(url);
-          toast(t('ord.tracking_copied') || 'Tracking URL copied', 'success', 4000);
-        } catch {
-          toast(url, 'info', 8000);
-        }
+        if (await copyText(url)) toast(t('ord.tracking_copied') || 'Tracking URL copied', 'success', 4000);
+        else toast(url, 'info', 8000);
       })();
       return;
     }

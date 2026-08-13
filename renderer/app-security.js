@@ -110,16 +110,12 @@
   }
 
   async function copyRecoveryCode(code) {
-    const text = formatRecoveryCode(code);
-    if (window.hubAPI?.clipboardWrite) {
-      await window.hubAPI.clipboardWrite(text);
-      return { ok: true };
-    }
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text);
-      return { ok: true };
-    }
-    return { ok: false, error: 'clipboard_unavailable' };
+    // This is where the IPC-first order was first worked out, for exactly the
+    // reason KhaytUtil.copyText now encodes for the whole app. Deferring to the
+    // shared helper keeps one copy of that knowledge.
+    return await copyText(formatRecoveryCode(code))
+      ? { ok: true }
+      : { ok: false, error: 'clipboard_unavailable' };
   }
 
   async function downloadRecoveryCode(code) {

@@ -313,12 +313,10 @@
       if (!el) return;
       const hex = el.getAttribute('data-hex');
       if (!hex) return;
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(hex.toUpperCase()).then(
-          () => toast((t('cmix.copied') || 'Copied') + ' ' + hex.toUpperCase(), 'success', 1600),
-          () => {},
-        );
-      }
+      copyText(hex.toUpperCase()).then((ok) => {
+        if (ok) toast((t('cmix.copied') || 'Copied') + ' ' + hex.toUpperCase(), 'success', 1600);
+        else toast(t('common.copy_failed') || 'Copy failed', 'warning');
+      });
     };
 
     updateMatcher();

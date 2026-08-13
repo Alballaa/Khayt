@@ -514,7 +514,11 @@ async function openBnplModal(orderId) {
           a.addEventListener('click', e => { e.preventDefault(); window.hubAPI?.openExternal?.(a.dataset.url); });
         });
         res_el.querySelectorAll('.bnpl-copy-link').forEach(btn => {
-          btn.addEventListener('click', () => { navigator.clipboard.writeText(btn.dataset.url).then(() => window._toast?.(window._t?.('bnpl.link_copied') || 'Copied', 'success')).catch(() => {}); });
+          btn.addEventListener('click', async () => {
+            const ok = await copyText(btn.dataset.url);
+            window._toast?.(ok ? (window._t?.('bnpl.link_copied') || 'Copied')
+                               : (window._t?.('common.copy_failed') || 'Copy failed'), ok ? 'success' : 'warning');
+          });
         });
         res_el.querySelectorAll('.bnpl-share-wa').forEach(btn => {
           btn.addEventListener('click', () => { window.hubAPI?.shareWhatsApp?.({ phone: btn.dataset.waPhone, message: btn.dataset.waMsg, pdfPath: null }); });
@@ -721,8 +725,8 @@ async function loadLanQr(urlOverride) {
       e.preventDefault();
       window.hubAPI?.openExternal?.(e.currentTarget.dataset.url);
     });
-    document.getElementById('lanQrSvgWrap')?.addEventListener('click', () => {
-      navigator.clipboard.writeText(qrUrl).then(() => toast(t('common.copied') || 'URL copied to clipboard', 'success')).catch(() => {});
+    document.getElementById('lanQrSvgWrap')?.addEventListener('click', async () => {
+      await copyAndToast(qrUrl, t('common.copied') || 'URL copied to clipboard');
     });
   }
 }
@@ -1065,8 +1069,8 @@ async function openCustomerPortalModal(orderId) {
       </div>`,
     onMount(modal) {
       modal.querySelector('#portalQrCopy')?.addEventListener('click', async () => {
-        try { await navigator.clipboard.writeText(url); toast(t('common.copied') || 'Copied!', 'success'); }
-        catch { toast(url, 'info', 6000); }
+        if (await copyText(url)) toast(t('common.copied') || 'Copied!', 'success');
+        else toast(url, 'info', 6000);
       });
       modal.querySelector('#portalQrWa')?.addEventListener('click', async () => {
         const waMsg = `${t('ord.portal_track_msg') || 'Track your order'}: ${url}`;
@@ -1137,8 +1141,8 @@ async function aiDraftReply(orderId) {
     onMount(modal) {
       const draftEl = modal.querySelector('#arDraft');
       modal.querySelector('#arCopy')?.addEventListener('click', async () => {
-        try { await navigator.clipboard.writeText(draftEl.value); toast(t('common.copied') || 'Copied!', 'success'); }
-        catch { toast(draftEl.value, 'info', 6000); }
+        if (await copyText(draftEl.value)) toast(t('common.copied') || 'Copied!', 'success');
+        else toast(draftEl.value, 'info', 6000);
       });
       modal.querySelector('#arWa')?.addEventListener('click', async () => {
         const msg = draftEl.value;
@@ -1356,8 +1360,8 @@ async function publishOrderToCloudPortal(orderId) {
       </div>`,
     onMount(modal) {
       modal.querySelector('#cpCopy')?.addEventListener('click', async () => {
-        try { await navigator.clipboard.writeText(portalUrl); toast(t('common.copied') || 'Copied!', 'success'); }
-        catch { toast(portalUrl, 'info', 6000); }
+        if (await copyText(portalUrl)) toast(t('common.copied') || 'Copied!', 'success');
+        else toast(portalUrl, 'info', 6000);
       });
       modal.querySelector('#cpWa')?.addEventListener('click', async () => {
         const waMsg = `${(isQuote ? (t('cloud.portal_quote_msg') || 'Please review your quote') : (t('ord.portal_track_msg') || 'Track your order'))}: ${portalUrl}`;
@@ -1441,8 +1445,8 @@ async function openQuoteApprovalLinkModal(orderId) {
       </div>`,
     onMount(modal) {
       modal.querySelector('#quoteApprovalCopy')?.addEventListener('click', async () => {
-        try { await navigator.clipboard.writeText(url); toast(t('common.copied') || 'Copied!', 'success'); }
-        catch { toast(url, 'info', 6000); }
+        if (await copyText(url)) toast(t('common.copied') || 'Copied!', 'success');
+        else toast(url, 'info', 6000);
       });
       modal.querySelector('#quoteApprovalWa')?.addEventListener('click', async () => {
         const waMsg = `${t('ord.quote_approve_msg') || 'Please review and approve your quote'}: ${url}`;
@@ -1645,12 +1649,7 @@ async function exportIcalFeed() {
     return;
   }
   const icalUrl = `${lanUrl.url}/calendar.ics?token=${encodeURIComponent(lanUrl.calendarToken)}`;
-  try {
-    await navigator.clipboard.writeText(icalUrl);
-    toast(t('ical.copied') || 'Calendar subscription link copied', 'success');
-  } catch {
-    toast(t('common.copy_failed') || 'Copy failed', 'warning');
-  }
+  await copyAndToast(icalUrl, t('ical.copied') || 'Calendar subscription link copied');
   window.hubAPI?.openExternal?.(icalUrl);
 }
 
@@ -1756,8 +1755,8 @@ function trackShipment(trackingNumber, carrier) {
     const c = cloudCfgForIntake();
     if (!c) { toast(t('intake.connect_first'), 'error'); return; }
     const link = `${String(c.url).replace(/\/+$/, '')}/intake/${c.shopId}`;
-    try { await navigator.clipboard.writeText(link); toast(t('intake.link_copied'), 'success'); }
-    catch (e) { toast(link, 'info', 6000); }
+    if (await copyText(link)) toast(t('intake.link_copied'), 'success');
+    else toast(link, 'info', 6000);
   }
 
   function intakeRequestRow(it) {
