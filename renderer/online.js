@@ -33,16 +33,15 @@
       toast(t('online.need_server') || 'Start the LAN server in Settings first', 'warning');
       return;
     }
-    try {
-      await navigator.clipboard.writeText(text);
-      toast(okLabel || t('common.copied') || 'Copied', 'success');
-      if (btn) {
-        const prev = btn.textContent;
-        btn.textContent = '✓';
-        setTimeout(() => { btn.textContent = prev; }, 2000);
-      }
-    } catch {
+    if (!await copyText(text)) {
       toast(t('common.copy_failed') || 'Copy failed', 'error');
+      return;
+    }
+    toast(okLabel || t('common.copied') || 'Copied', 'success');
+    if (btn) {
+      const prev = btn.textContent;
+      btn.textContent = '✓';
+      setTimeout(() => { btn.textContent = prev; }, 2000);
     }
   }
 

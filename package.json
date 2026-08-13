@@ -80,7 +80,8 @@
     "test:e2e:tax": "node scripts/e2e-tax.mjs",
     "test:e2e:upgradebackup": "node scripts/e2e-upgrade-backup.mjs",
     "test:e2e:invlang": "node scripts/e2e-invoice-language.mjs",
-    "verify:printer": "node scripts/verify-printer-actuals.mjs"
+    "verify:printer": "node scripts/verify-printer-actuals.mjs",
+    "test:e2e:clipboard": "node scripts/e2e-clipboard-smoke.mjs"
   },
   "dependencies": {
     "@sentry/electron": "^7.16.0",

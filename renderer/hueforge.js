@@ -603,9 +603,7 @@
         + ' into head' + (n === 1 ? ' T0' : 's T0–T' + (n - 1)) + '; swaps happen mid-print, no manual steps.'
       : (S.plan.reloads.length + ' mid-print reload(s) needed — swap the marked head when the U1 pauses at the listed height.'));
     const text = lines.join('\n');
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(() => toast('Print plan copied')).catch(() => toast('Copy failed'));
-    } else { toast('Clipboard unavailable'); }
+    copyText(text).then((ok) => toast(ok ? 'Print plan copied' : 'Copy failed'));
   }
 
   function export3mf() {

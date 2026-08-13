@@ -223,9 +223,7 @@
             downloadBlob(stl, name, 'model/stl');
           }
         });
-        modal.querySelector('#calCopy').addEventListener('click', () => {
-          navigator.clipboard?.writeText(planText()).then(() => toast(t('common.copied') || 'Copied!', 'success')).catch(() => {});
-        });
+        modal.querySelector('#calCopy').addEventListener('click', () => { copyAndToast(planText()); });
         modal.querySelector('#calSave').addEventListener('click', () => {
           result = modal.querySelector('#calResult').value.trim();
           if (!result) return;

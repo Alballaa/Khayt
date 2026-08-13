@@ -226,13 +226,15 @@ function renderIntegrationsSettings() {
 
   el.querySelector('#integMarket')?.addEventListener('change', (e) => { el.dataset.market = e.target.value; renderIntegrationsSettings(); });
   el.querySelectorAll('.integCopy').forEach((btn) => btn.addEventListener('click', async () => {
-    try { await navigator.clipboard.writeText(btn.dataset.url || ''); } catch (_) { /* ignore */ }
+    const ok = await copyText(btn.dataset.url || '');
     const isFeed = /\/feed\//.test(btn.dataset.url || '');
     const msg = isFeed
       ? (t('integ.feed_copied') || 'Feed link copied — add it as a product import URL in your store')
       : (t('integ.import_copied') || 'Import link copied — paste it as a webhook in your store');
     const r = el.querySelector('#integResult');
-    if (r) { r.textContent = '✓ ' + msg; r.style.color = 'var(--success)'; }
+    if (!r) return;
+    r.textContent = ok ? '✓ ' + msg : (t('common.copy_failed') || 'Copy failed');
+    r.style.color = ok ? 'var(--success)' : 'var(--danger)';
   }));
   el.querySelectorAll('.payEnable').forEach((cb) => cb.addEventListener('change', () => {
     const link = el.querySelector(`.payLink[data-pid="${cb.dataset.pid}"]`); if (link) link.style.opacity = cb.checked ? '1' : '.5';
@@ -1404,12 +1406,11 @@ async function openStorefrontModal() {
         };
       };
       modal.querySelector('#storeCopy')?.addEventListener('click', async () => {
-        try { await navigator.clipboard.writeText(link); setRes('✓ ' + (t('store.copied') || 'Link copied'), true); }
-        catch { setRes(link, true); }
+        // On failure show the link itself, so it can still be selected by hand.
+        setRes(await copyText(link) ? '✓ ' + (t('store.copied') || 'Link copied') : link, true);
       });
       modal.querySelector('#storeReviewCopy')?.addEventListener('click', async () => {
-        try { await navigator.clipboard.writeText(reviewLink); setRes('✓ ' + (t('store.copied') || 'Link copied'), true); }
-        catch { setRes(reviewLink, true); }
+        setRes(await copyText(reviewLink) ? '✓ ' + (t('store.copied') || 'Link copied') : reviewLink, true);
       });
       // Show the live aggregate rating (best-effort).
       window.hubAPI.cloudReviewSummary({ url: c.url, shopId: c.shopId }).then((r) => {
@@ -2845,9 +2846,10 @@ function renderLanApiSettings() {
     if (tRow) tRow.textContent = '⚫ Tunnel inactive';
   });
 
-  el.querySelector('#webhookUrlDisplay')?.addEventListener('click', () => {
+  el.querySelector('#webhookUrlDisplay')?.addEventListener('click', async () => {
     const url = el.querySelector('#webhookUrlDisplay').textContent;
-    if (url && url !== '—') navigator.clipboard.writeText(url).then(() => toast(t('common.copied'), 'success')).catch(() => {});
+    if (!url || url === '—') return;
+    await copyAndToast(url);
   });
 }
 
@@ -3036,9 +3038,9 @@ function renderZatcaPhase2Settings() {
   });
 
   // Copy CSR
-  el.querySelector('#btnZ2CopyCsr')?.addEventListener('click', () => {
+  el.querySelector('#btnZ2CopyCsr')?.addEventListener('click', async () => {
     const txt = el.querySelector('#z2CsrText');
-    if (txt?.value) navigator.clipboard.writeText(txt.value).then(() => toast(t('common.copied'), 'success')).catch(() => {});
+    if (txt?.value) await copyAndToast(txt.value);
   });
 
   // Get CSID from ZATCA

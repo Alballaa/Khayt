@@ -257,3 +257,6 @@ jobs:
 
       - name: E2E smoke (durable webhook retry)
         run: xvfb-run -a npm run test:e2e:webhookretry
+
+      - name: E2E smoke (copy buttons reach the OS clipboard)
+        run: xvfb-run -a npm run test:e2e:clipboard

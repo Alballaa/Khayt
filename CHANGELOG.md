@@ -4,6 +4,33 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **Every "Copy link" button in the app was copying nothing.** Reported from the
+  field against the Shopify import link: with cloud sync connected the
+  storefront links in **Settings → Storefronts & Payments** render as live
+  buttons, clicking one answers "✓ Import link copied", and pasting anywhere
+  produces nothing at all. It was never a Shopify problem, and nothing was
+  missing at the user's end — the same failure hit all ~25 copy buttons in the
+  app: portal and quote-approval URLs, the LAN QR link, the calendar
+  subscription link, the intake link, the reorder list, colour hex codes, print
+  plans, the ZATCA CSR, the tracking URL.
+
+  The app grants the interface only the browser permissions it needs, and that
+  list named the camera (for the filament label scanner) but not
+  `clipboard-sanitized-write` — the permission the browser engine checks on
+  every clipboard write. So every write was refused. Each button then discarded
+  the refusal and printed its success message regardless, which is why an
+  app-wide outage looked like it was working and went unreported for so long.
+
+  Copying now goes through the main process, which needs no such permission and
+  works from places the browser API refuses outright (a menu handler, or after
+  an `await`). The permission is granted as well, so the direct path works too.
+  *Reading* the clipboard stays denied — Khayt never pastes on your behalf, and
+  that is the half that could see what else you have copied. Every copy button
+  now reports honestly: if a copy ever does fail, it says so, and where it is
+  useful it shows the link so it can still be selected by hand.
+
 ### Security
 
 - The slicer executable a shop configures is now checked against a positive

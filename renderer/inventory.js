@@ -1391,8 +1391,8 @@ function openReorderSuggestions() {
       : `<p style="text-align:center;color:var(--text-muted);padding:20px 0;">${escapeHtml(t('reorder.none') || 'Stock looks healthy — nothing to reorder right now.')}</p>`,
     onMount(modal) {
       modal.querySelector('#reorderCopy')?.addEventListener('click', async () => {
-        try { await navigator.clipboard.writeText(listText); toast(t('common.copied') || 'Copied!', 'success'); }
-        catch { toast(listText, 'info', 8000); }
+        if (await copyText(listText)) toast(t('common.copied') || 'Copied!', 'success');
+        else toast(listText, 'info', 8000);
       });
       modal.querySelector('#reorderWa')?.addEventListener('click', async () => {
         if (window.hubAPI?.shareWhatsApp) await window.hubAPI.shareWhatsApp({ phone: '', message: listText, pdfPath: null });
@@ -4010,11 +4010,7 @@ function openShoppingList() {
         <button type="button" class="btn ghost" id="shopPrintBtn">🖨 ${escapeHtml(t('common.print') || 'Print')}</button>
       </div>`,
     onMount(modal) {
-      modal.querySelector('#shopCopyBtn')?.addEventListener('click', () => {
-        navigator.clipboard?.writeText(text)
-          .then(() => toast(t('common.copied') || 'Copied!', 'success'))
-          .catch(() => {});
-      });
+      modal.querySelector('#shopCopyBtn')?.addEventListener('click', () => { copyAndToast(text); });
       modal.querySelector('#shopPrintBtn')?.addEventListener('click', () => {
         if (typeof window.print === 'function') window.print();
       });
