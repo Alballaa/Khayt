@@ -2748,6 +2748,8 @@
   "plans.soon": "Aún no desarrollado",
   "plans.per_month": "/mes",
   "plans.price_free": "Gratis para siempre",
+  "trial.portal_left": "Quedan {n} días de tu prueba del portal",
+  "trial.portal_over": "Tu prueba del portal de 30 días ha terminado — suscríbete para seguir publicando enlaces",
   "set.cloud_hint": "Copia de seguridad/sincronización opcional y cifrada de extremo a extremo de tu tienda en tu propio servidor de Khayt Cloud. El servidor solo almacena datos cifrados; tu frase de sincronización (que nunca se sube) es la clave.",
   "cloud.url": "URL del servidor",
   "cloud.secret": "Secreto de registro (opcional)",

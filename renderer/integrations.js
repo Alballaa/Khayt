@@ -1238,6 +1238,12 @@ function republishPortalIfPublished(orderId) {
   if (!order || !order.cloudPublished) return;
   const c = settings.cloud || {};
   if (!(c.enabled && c.shopId) || !order.trackingToken) return;
+  // An expired trial stops refreshing links too — otherwise the feature carries
+  // on working for every order already published, and the trial means nothing.
+  // Silently, unlike the explicit publish: this fires on every status change and
+  // a toast per kanban drag would be its own bug.
+  const trial = portalTrialNow();
+  if (trial && !trial.available) return;
   const { isQuote, payload } = buildPortalPayload(order);
   const custEmail = order.clientId ? (clients.find((x) => x.id === order.clientId)?.email || '') : '';
   Promise.resolve(window.hubAPI.cloudPublish({ url: c.url, shopId: c.shopId, token: c.token, pubToken: order.trackingToken, kind: isQuote ? 'quote' : 'order', payload, customerEmail: custEmail }))
@@ -1293,6 +1299,58 @@ async function openPortalMessages(orderId) {
   });
 }
 
+/**
+ * Where this shop stands on the free tier's portal trial.
+ *
+ * Guarded on the global because integrations.js is shared with the other
+ * flavor, which has no commerce and loads no plan modules — same pattern as
+ * KhaytTiers in build.js. A missing module means "no trial to enforce", which
+ * is the safe direction: it can only ever leave the portal working.
+ */
+function portalTrialNow() {
+  if (typeof KhaytPortalTrial === 'undefined') return null;
+  const Trial = KhaytPortalTrial;
+  const c = settings.cloud || {};
+  const betaFree = (typeof KhaytCloudPlans !== 'undefined') ? KhaytCloudPlans.isBetaFree() : true;
+  return Trial.portalTrialState({
+    betaFree,
+    subscribed: c.planActive === true,
+    startedAt: c.portalTrialStartedAt || null,
+    now: Date.now(),
+  });
+}
+
+/**
+ * Gate + clock start for publishing to the portal.
+ *
+ * Returns false and explains itself when the trial is over. It also STARTS the
+ * clock, because first publish is the moment the trial is actually about — a
+ * shop that connects the cloud and never publishes has not used the thing it
+ * would be paying for, and charging its window down would be dishonest.
+ *
+ * During beta this cannot refuse and cannot start a clock; see lib/portal-trial.js.
+ */
+function portalTrialAllows() {
+  const s = portalTrialNow();
+  if (!s) return true;
+  if (!s.available) {
+    toast((t('trial.portal_over') || 'Your 30-day portal trial has ended — subscribe to keep publishing links'), 'error');
+    return false;
+  }
+  const startAt = KhaytPortalTrial.trialStartOnPublish({
+    betaFree: (typeof KhaytCloudPlans !== 'undefined') ? KhaytCloudPlans.isBetaFree() : true,
+    subscribed: (settings.cloud || {}).planActive === true,
+    startedAt: (settings.cloud || {}).portalTrialStartedAt || null,
+    now: Date.now(),
+  });
+  if (startAt) {
+    settings.cloud = settings.cloud || {};
+    settings.cloud.portalTrialStartedAt = startAt;
+    saveAll();
+  }
+  return true;
+}
+
 async function publishOrderToCloudPortal(orderId) {
   const order = printLog.find(o => o.id === orderId);
   if (!order) return;
@@ -1300,6 +1358,7 @@ async function publishOrderToCloudPortal(orderId) {
   if (!(c.enabled && c.shopId)) { toast(t('cloud.portal_need_connect') || 'Connect Khayt Cloud first (Settings)', 'error'); return; }
   const pubToken = order.trackingToken;
   if (!pubToken) { toast(t('cloud.portal_no_token') || 'This order has no tracking token yet', 'error'); return; }
+  if (!portalTrialAllows()) return;
 
   // For a quote, first let the owner attach an optional deposit + their own pay link.
   if (order.status === 'quote' && !order._skipDepositPrompt) {

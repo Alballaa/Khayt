@@ -6,6 +6,23 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **The customer portal's free-tier trial now exists — and does nothing yet.**
+  The plan card promises free shops a 30-day portal trial; this is the machinery
+  behind that promise.
+
+  **Nothing changes for anyone today.** Khayt Cloud is in beta, every plan is
+  free, and the trial clock does not run: publishing portal links is unaffected
+  and no countdown appears. Time spent on the portal during beta is **not**
+  counted against the trial either, so a shop that has been publishing links all
+  through the beta still gets its full 30 days if and when billing starts.
+
+  Once billing does start, a free shop's clock begins at its **first published
+  portal link** — not at signup — because that is the moment the trial is
+  actually about. The remaining days show in the cloud settings card, and
+  subscribing restores publishing immediately.
+
+### Added
+
 - **Khayt Cloud can now read a store that arrives as a base plus a chain of
   changes**, which is the first half of sending only what changed instead of
   your whole shop on every save. Nothing sends changes that way yet and no
