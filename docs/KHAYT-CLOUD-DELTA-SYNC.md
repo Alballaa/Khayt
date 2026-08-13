@@ -30,10 +30,19 @@ POST /v1/shops/{shopId}/deltas
      409 { rev }                  baseRev is not the head — pull, merge, retry
      404 / 405                    server is blob-only
 
-GET  /v1/shops/{shopId}/store
-     200 { ciphertext, rev, deltas: [{ rev, ciphertext }] }
+GET  /v1/shops/{shopId}/store[?since={rev}]
+     200 { ciphertext?, rev, deltas: [{ rev, ciphertext }] }
      204                          nothing stored yet
+
+     Without `since`: the base plus the whole chain — what a cold device needs.
+     With `since`:    only entries newer than that rev; `ciphertext` is omitted
+                      unless the caller is behind the current base.
 ```
+
+**`?since=` is a requirement, not an optimisation.** Without it every launch
+re-downloads the base *and* the entire chain, which makes pulls **worse** than
+blob-only and can wipe out the push saving on its own. A warm client that already
+holds rev N must be able to ask for N+1 onward.
 
 - **The server never decrypts anything.** A delta is its own ciphertext; the
   server learns that something changed and how big it was, which is what it
@@ -119,11 +128,53 @@ sync from an un-upgraded laptop is the one that loses data.
 | Contract proven against a reference server | desktop tests | **done** |
 | `POST /deltas` + chain storage | khayt-cloud (PHP **and** Node) | not started |
 | Per-device capability + per-shop gate | khayt-cloud | not started |
-| Compaction policy (when to force a full push) | both | not started |
+| Compaction policy (when to force a full push) | desktop | **done** — §6 |
 | Flip `DELTA_WRITES` | desktop | blocked on all of the above |
 
-Compaction is the one genuinely open design question. A chain that grows without
-bound makes every fresh pull more expensive than the blob it replaced, so
-something has to force a full push — a delta count, a byte total, or a ratio
-against the base. None is obviously right, and the answer wants a real shop's
-numbers rather than a guess.
+What remains is entirely server-side. The compaction question that was open in
+the first revision is answered in §6.
+
+---
+
+## 6. Compaction, derived rather than picked
+
+A chain has to be reset by a full push, or a cold device pays for the base plus
+every delta ever appended — each of which is a decrypt. Let **R** be the ratio at
+which the client compacts: chain bytes ≤ R × base bytes. Per cycle a shop sends
+`R × base / delta` deltas and then one base, so
+
+```
+push bytes/month = saves × delta × (1 + 1/R)
+```
+
+**The store size cancels.** That is the useful result: R alone fixes the push cost
+as a multiple of the ideal delta cost — the same multiple for a hobbyist and a
+farm — and what it trades against is the cold pull, bounded by `base × (1 + R)`.
+
+| R | push vs ideal | cold pull vs blob |
+|---|---|---|
+| 0.5 | 3.00× | 1.5× |
+| 1 | 2.00× | 2.0× |
+| **2** | **1.50×** | **3.0×** |
+| 4 | 1.25× | 5.0× |
+| 10 | 1.10× | 11.0× |
+
+**R = 2** is the knee. R = 10 saves a further 0.4× on push and costs 11× on a cold
+pull, which is a bad trade for a rare-but-painful event.
+
+The ratio self-scales by store size, which is right for bytes and wrong for
+**time**: at R = 2 a busy shop reaches ~3,850 deltas, i.e. 3,850 decrypts on a
+cold pull. So an absolute **`MAX_CHAIN_DELTAS = 1000`** bounds that latency for
+every shop. For a small shop the ratio binds first and the cap never applies,
+which is the intended division of labour.
+
+Reproduce the table with `node scripts/cloud-cost-model.mjs`.
+
+**One property fell out of this that is worth stating, because it makes the
+policy safe to enable everywhere.** A delta and a whole *small* store are
+dominated by the same ~1.1 KB crypto/base64 envelope, so for a tiny shop a delta
+buys nothing — and the ratio notices without being told, because a single delta
+already exceeds `R ×` a tiny base. Such a shop simply keeps sending blobs. The
+saving scales with store size, and where there is no saving the client falls back
+on its own. Pinned by a test; it was found by a test failing for what looked like
+the wrong reason.
