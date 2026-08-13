@@ -6,6 +6,25 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Khayt Cloud now shows what it will cost — and that it costs nothing yet.**
+  The cloud settings card carries a three-tier price ladder: Free, Cloud and
+  Branches. While Khayt Cloud is in beta every plan is free, so each paid price
+  is shown **struck through** next to "Free during beta".
+
+  The prices are real and are what the tiers will cost. They are shown now
+  precisely because they are not being charged: a shop should be able to build
+  on Khayt Cloud knowing what it will cost later, rather than discover a price
+  after committing to it. Nothing can take payment today, and no existing
+  feature moved behind a paywall — the desktop app remains free forever and
+  works with no account at all.
+
+  Prices follow the shop's own currency (SAR and USD are listed; everywhere else
+  shows USD rather than a conversion that would silently go stale). The Branches
+  tier is labelled "Not built yet", because multi-branch support is not finished
+  and a price without that label would read as something you could buy.
+
+### Added
+
 - **Updating the Microsoft Store listing is now a repeatable ten-minute job
   instead of an undocumented one nobody was doing.** The MSIX had been built on
   every release and submitted on none of it — `electron-builder --win appx` ran,

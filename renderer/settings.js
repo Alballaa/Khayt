@@ -1899,6 +1899,78 @@ async function runPrintLibMigrate() {
   renderPrintLibLocation();
 }
 
+/**
+ * Format one plan's price for display: "$9" / "35 SAR" / the Free tier's word.
+ * Symbol-before for USD, code-after for SAR, which is how each is normally
+ * written — and the SAR code rather than ﷼ because the glyph does not render
+ * on every platform Khayt ships to.
+ */
+function cloudPlanPriceText(price) {
+  if (!price) return '';
+  if (price.free) return t('plans.price_free') || 'Free';
+  return price.currency === 'USD' ? `$${price.amount}` : `${price.amount} ${price.currency}`;
+}
+
+/**
+ * The Khayt Cloud price ladder.
+ *
+ * Every paid figure renders struck through beside "Free during beta" while
+ * KhaytCloudPlans.BETA_FREE is on. Showing the real price now — rather than a
+ * blank or a "pricing TBA" — is the point: a shop should not build on Khayt
+ * Cloud and discover a price afterwards. See lib/cloud-plans.js.
+ *
+ * Guarded on the global because settings.js is shared with the other flavor,
+ * which does not load this module and has its own separate pricing line — same
+ * pattern as KhaytTiers in build.js.
+ */
+function cloudPlansHtml() {
+  if (typeof KhaytCloudPlans === 'undefined') return '';
+  const Plans = KhaytCloudPlans;   // bind once: every later read is then guarded by construction
+  const lang = (typeof i18n !== 'undefined' && i18n.current) || 'en';
+  const rows = Plans.planComparison(lang, settings.currency);
+  const betaFree = Plans.isBetaFree();
+
+  const card = (p) => {
+    const priceText = escapeHtml(cloudPlanPriceText(p.price));
+    // Struck through, dimmed and marked aria-hidden-ish for meaning: the number
+    // is information about the future, not the amount due today.
+    const price = p.price.strike
+      ? `<s style="color:var(--text-muted);font-weight:600;">${priceText}</s>`
+      : `<span style="font-weight:700;">${priceText}</span>`;
+    const per = p.price.free ? '' :
+      `<span style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('plans.per_month') || '/mo')}</span>`;
+    // Colour carries meaning through the TINT, never through the text colour.
+    // --success and --warning are not defined by every theme (flow defines
+    // neither), so they fall back to the styles.css defaults — and #f5a623 as
+    // text on a light background is the 1.77:1 contrast failure that shipped in
+    // beta.18. A tinted panel with normal-coloured text cannot fail that way.
+    const now = p.price.strike
+      ? `<div style="display:inline-block;font-size:11.5px;font-weight:700;margin-top:3px;padding:1px 7px;border-radius:999px;background:color-mix(in srgb, var(--success,#16a34a) 18%, transparent);">${escapeHtml(t('plans.free_during_beta') || 'Free during beta')}</div>`
+      : '';
+    const soon = p.soon
+      ? `<span style="font-size:10.5px;font-weight:600;color:var(--text-muted);border:1px solid var(--border,#3a3a3a);border-radius:999px;padding:1px 6px;margin-inline-start:6px;">${escapeHtml(t('plans.soon') || 'Not built yet')}</span>`
+      : '';
+    return `
+      <div style="flex:1 1 180px;min-width:170px;border:1px solid var(--border,#3a3a3a);border-radius:8px;padding:10px 12px;">
+        <div style="font-weight:600;font-size:13px;margin-bottom:2px;">${escapeHtml(p.label)}${soon}</div>
+        <div style="display:flex;align-items:baseline;gap:3px;">${price}${per}</div>
+        ${now}
+        <div style="font-size:11.5px;color:var(--text-muted);margin:6px 0 8px;">${escapeHtml(p.tagline)}</div>
+        <ul style="margin:0;padding-inline-start:16px;font-size:11.5px;line-height:1.55;">
+          ${p.features.map((f) => `<li>${escapeHtml(f.label)}</li>`).join('')}
+        </ul>
+      </div>`;
+  };
+
+  return `
+    <div style="margin-top:14px;border-top:1px solid var(--border,#3a3a3a);padding-top:12px;">
+      <p style="font-size:12.5px;font-weight:600;margin:0 0 2px;">${escapeHtml(t('plans.title') || 'What Khayt Cloud costs')}</p>
+      <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 10px;">${escapeHtml(t('plans.intro') || 'The desktop app is free forever and works with no account. These prices are only for the hosted service.')}</p>
+      ${betaFree ? `<p style="font-size:11.5px;margin:0 0 10px;padding:6px 9px;border-radius:6px;background:color-mix(in srgb, var(--success,#16a34a) 12%, transparent);border:1px solid color-mix(in srgb, var(--success,#16a34a) 55%, transparent);">${escapeHtml(t('plans.beta_note') || 'Khayt Cloud is in beta, so every plan is free right now. The prices below are what they will cost, shown early so nothing comes as a surprise later.')}</p>` : ''}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">${rows.map(card).join('')}</div>
+    </div>`;
+}
+
 function renderCloudSettings() {
   const el = $('#cloudSettingsSection');
   if (!el) return;
@@ -1945,7 +2017,8 @@ function renderCloudSettings() {
         ${(settings.cloud?.role || 'owner') === 'owner' ? `<button id="btnCloudStorefront" class="btn small">🏬 ${escapeHtml(t('store.title') || 'Storefront')}</button>` : ''}
         <button id="btnCloudDisconnect" class="btn danger small">${escapeHtml(t('cloud.disconnect') || 'Sign out')}</button>
         <span id="cloudResult" style="font-size:12px;"></span>
-      </div>`}`;
+      </div>`}
+    ${cloudPlansHtml()}`;
 
   const result = (msg, color) => { const r = el.querySelector('#cloudResult'); if (r) { r.textContent = msg; r.style.color = color || 'var(--text-muted)'; } };
 

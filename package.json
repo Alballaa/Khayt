@@ -82,6 +82,7 @@
     "test:e2e:invlang": "node scripts/e2e-invoice-language.mjs",
     "verify:printer": "node scripts/verify-printer-actuals.mjs",
     "test:e2e:clipboard": "node scripts/e2e-clipboard-smoke.mjs",
+    "test:e2e:cloudplans": "node scripts/e2e-cloud-plans-smoke.mjs",
     "store:metadata": "node scripts/build-store-metadata.mjs",
     "store:check": "node scripts/build-store-metadata.mjs --check",
     "store:manual": "node scripts/build-store-metadata.mjs --manual",

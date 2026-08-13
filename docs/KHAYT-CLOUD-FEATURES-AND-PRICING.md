@@ -1,8 +1,10 @@
 # Khayt Cloud — what exists, what to add, and what can actually be charged for
 
-Research pass, 2026-08-11. Every "exists" claim below was checked against code or
-a live endpoint, and the evidence is named so it can be re-checked rather than
-trusted. It extends [§7 of the roadmap](./KHAYT-3.0-ROADMAP.md#7-business-model-because-cloud-is-a-service-not-just-code),
+Research pass, 2026-08-11. **Priced 2026-08-12** — §4 now carries figures, and
+§5 records which decisions closed. Every "exists" claim below was checked against
+code or a live endpoint, and the evidence is named so it can be re-checked rather
+than trusted. One of them did not survive re-checking a day later: see the
+correction at the head of §3. It extends [§7 of the roadmap](./KHAYT-3.0-ROADMAP.md#7-business-model-because-cloud-is-a-service-not-just-code),
 which sketched the business model and left one item explicitly open:
 
 > **Still genuinely open (need the user, later)** — Subscription pricing per shop
@@ -44,9 +46,15 @@ So the shape already committed to, in code, is:
 | `active` | subscription in good standing |
 | `limits.maxStoreBytes` | **the metered dimension that already exists** |
 
-That last row matters more than it looks: storage-in-bytes is already the unit
-the server tracks and the desktop displays. A storage-tiered plan needs no new
-concept, only a number.
+That last row matters more than it looks — but not in the direction it first
+suggests. Storage-in-bytes is already the unit the server tracks and the desktop
+displays, so a storage-tiered plan looks like it needs no new concept, only a
+number. **§2 and [COST-PER-SHOP §3](./KHAYT-CLOUD-COST-PER-SHOP.md) show it meters
+the wrong resource**: bandwidth binds three to four orders of magnitude sooner, so
+`up to N MB` is a limit no shop will ever reach. The pricing in §4 therefore does
+not use it, and the recommendation is to **stop displaying it** rather than tune
+it. The useful part of this row is the `plan` / `active` pair, which is the whole
+entitlement mechanism and does not need changing.
 
 ### Shipped and live
 
@@ -125,16 +133,26 @@ a good month, which is an easy promise to make and a rare one in this category.
 
 Ordered by leverage, not size. Each names what it builds on.
 
-1. **Off-site encrypted backup.** The desktop now keeps a pre-upgrade snapshot
-   locally (#665), which protects against a bad update but not against a lost
-   laptop or a failed disk. The store is already encrypted client-side and
-   already uploaded; retaining N historical versions server-side is close to
-   free and is the single most obvious reason a solo maker would pay. It also
-   prices naturally on the dimension that already exists — bytes.
-2. **Entity-level push.** Finish what the pull side already does. Cuts sync cost
-   and latency for every shop, and unblocks Phase 3.
-3. **Phase 3 multi-shop + HQ dashboard.** The clearest step up in willingness to
-   pay, and the one that justifies a per-branch price.
+> **Correction, 2026-08-12.** The original #1 on this list — off-site encrypted
+> backup — **is already built, end to end.** Server `/v1/shops/{id}/snapshots`
+> (listed in [CLOUD-STATUS](./KHAYT-3.0-CLOUD-STATUS.md) under Phase 2), backend
+> `listSnapshots` / `getSnapshot` ([lib/cloud-backend.js:75](../lib/cloud-backend.js)),
+> IPC `cloudSnapshotsList` / `cloudSnapshotGet` ([preload.js:230](../preload.js)),
+> and restore UI at [renderer/settings.js:4422](../renderer/settings.js). It was
+> listed as the highest-leverage thing to add while shipping. That is worth more
+> than the embarrassment: **the single most saleable cloud feature already
+> exists, so the free tier can offer it on day one at hobbyist bandwidth cost —
+> 6.9 MB/month.**
+
+1. **Entity-level push.** Finish what the pull side already does. Cuts sync cost
+   for every shop by a measured ~1,900×, retires the fair-use clause in §4, and
+   unblocks Phase 3. This is now the highest-leverage item on the list.
+2. **Phase 3 multi-shop + HQ dashboard.** The clearest step up in willingness to
+   pay, and the one that justifies a per-branch price. Nothing in §4 sells it
+   until it exists.
+3. **Portal trial expiry.** §4 gives the portal to free shops for a fixed window,
+   and no trial-expiry machinery exists today. It is the one genuinely new
+   mechanism the pricing below requires.
 4. **Khayt-billed AI.** Roadmap decision #3 defers this until "Cloud billing
    exists". It now half-exists, and BYO-key remains the free path.
 5. **Portal payments.** Rails (Stripe/Tabby/Tamara) are already integrated
@@ -145,63 +163,134 @@ Ordered by leverage, not size. Each names what it builds on.
 
 ---
 
-## 4. Pricing — a proposal to react to
+## 4. Pricing
 
 Consistent with §0 of the roadmap: **the desktop stays 100% functional with no
 account, no internet, forever.** Nothing below moves an existing local feature
 behind a paywall — that would break the principle and the trust that comes with
 it.
 
+The 2026-08-11 revision gave a tier *shape* and deliberately left every figure
+out, because [COST-PER-SHOP](./KHAYT-CLOUD-COST-PER-SHOP.md) said one heavy shop could exceed
+a whole hosting plan on its own. **Compression shipped in beta.18 and that is no
+longer true** — the heaviest modelled shop now costs $5.00 of a $25 plan, and the
+median costs cents. See [COST-PER-SHOP §5](./KHAYT-CLOUD-COST-PER-SHOP.md) for
+why that, and not the 12,000× spread, was the real blocker.
+
+**What the field charges**, from [COMPETITIVE-ROADMAP §4](./KHAYT-COMPETITIVE-ROADMAP.md)
+— vendor pages read July 2026, so an anchor rather than a benchmark:
+
+| product | model |
+|---|---|
+| **FoxTrack** — the only directly comparable shop manager with public numbers | **free / $9 / $29 per month** |
+| Layers — file→quote→order, closest whole-product match | free tier, "full access to core features" |
+| 3DPBOSS — CRM + scheduling, Notion-based | one-time $49 / $99 / $139 |
+| MeshVault / Meshory — library tools | one-time $19.99 / $34.99 |
+
+So the paid band for this category is **$9–$29/month**, and the file→quote
+pipeline is given away by at least two products. Khayt should not try to charge
+for that pipeline; it should charge for the hosting it does on a shop's behalf.
+
 | | **Free** | **Cloud** | **Branches** |
 |---|---|---|---|
+| **Price** | **$0** | **$9/mo · 35 SAR** | **$29/mo · 109 SAR** |
+| | forever | $90/yr (2 months free) | $290/yr |
 | Local app, LAN, BYO-key AI | ✅ everything | ✅ | ✅ |
-| Encrypted sync + off-site backup | — | ✅ | ✅ |
-| Devices per shop | 1 | several | several |
-| Team members | — | small cap | higher cap |
-| Customer portal + storefront | — | ✅ | ✅ |
-| Multi-branch + HQ dashboard | — | — | ✅ |
-| Storage | — | tier 1 | tier 2 |
+| Off-site encrypted backup + restore | ✅ **1 device** | ✅ | ✅ |
+| Multi-device sync | — | ✅ | ✅ |
+| Customer portal + storefront | **30-day trial** | ✅ | ✅ |
+| Team members | — | up to 3 | up to 10 |
+| Multi-branch + HQ dashboard | — | — | ✅ *(Phase 3 — unbuilt)* |
+| Snapshot history retained | 7 days | 90 days | 90 days |
 
-Three deliberate choices in that table:
+Rounding note: SAR is pegged at 3.75/USD, so $9 → 33.75 and $29 → 108.75. Both
+are rounded **up** to 35 and 109 rather than to 34 and 108, because a price that
+ends in 5 or 9 reads as a price and one that ends in 4 reads as a conversion.
+
+**What that leaves per shop**, against measured hosting cost:
+
+| profile | hosting cost/mo | at $9 | margin |
+|---|---|---|---|
+| Hobbyist | $0.00 | $9 | ~100% |
+| Side shop | $0.02 | $9 | 99.8% |
+| Busy shop | $0.50 | $9 | 94% |
+| Small farm | $5.00 | $9 | 44% |
+
+Even the pathological case is profitable, which is the test a flat price has to
+pass. And the farm is the profile that entity deltas take to **$0.01** — the
+engineering fix is worth roughly $5/month per heavy shop, forever.
+
+Four deliberate choices in that table:
 
 - **Free is the whole product, not a trial.** It is what the app is today and it
   keeps working forever with no account. The paid line begins where Khayt starts
   paying for hosting on the shop's behalf.
+- **Free includes off-site backup, on one device.** It costs 6.9 MB/month, it
+  already exists, and it converts a free user into a protected user — so the
+  upgrade moment is the shop's *second machine*, which is a real event in a
+  growing business rather than an artificial wall.
+- **The portal is a 30-day trial, not a permanent giveaway.** It is what a shop's
+  own customers see, so a shop should experience it working before deciding. This
+  is the one item in the table with no implementation behind it — see §3.3.
 - **Priced per shop, not per order.** Forced by §2, and worth saying out loud in
-  the marketing: the bill does not grow because business was good.
-- **Storage is the meter**, because it is the one already built.
+  the marketing: **the bill does not grow because business was good.** In a
+  category where the alternative is a percentage of revenue, that is the strongest
+  line available.
 
-**Numbers are deliberately absent**, and [COST-PER-SHOP](./KHAYT-CLOUD-COST-PER-SHOP.md)
-(measured 2026-08-11) says they should stay absent a while longer.
+**Fair use, not a meter.** One profile — the small farm, 84 GB/month — is the only
+one that could hurt a plan, and entity deltas remove it entirely. So the terms
+carry a fair-use clause and the server watches for outliers; **no enforcement
+machinery gets built.** Building a bandwidth meter now would be work thrown away
+by the very next change to the sync protocol. Note also that the meter that *does*
+exist, `limits.maxStoreBytes`, measures the wrong resource — it should stop being
+displayed rather than be tuned.
 
-Two of its findings change §4 above rather than fill it in:
+### Bed Ready — a separate, cheaper line
 
-- **Storage is the wrong meter.** Bandwidth binds first by three to four orders
-  of magnitude — on a 100 GB/500 GB plan, storage holds ~9,890 busy shops and
-  bandwidth holds 8. So `limits.maxStoreBytes`, the meter already built, measures
-  the resource that never runs out.
-- **The spread between shops is ~12,000×**, and one heavy shop can exceed a whole
-  plan on its own. That is caused by blob-first, uncompressed sync — every save
-  ships the entire store — so a flat per-shop price is unpriceable until that is
-  fixed. gzip alone is a measured 7×.
+Bed Ready is commerce-free by design ([BEDREADY-APP](./BEDREADY-APP.md)) and ships
+from its own repo on its own 1.0.0 line. An enthusiast has one machine and a
+library, not a business, so the Khayt tiers are the wrong shape and the wrong
+price.
 
-**So the order is: compress, then delta, then price.** The engineering fix costs
-far less than the revenue it protects.
+| | **Bed Ready Free** | **Bed Ready Cloud** |
+|---|---|---|
+| **Price** | $0 | **$3/mo · $30/yr** |
+| Local app, library, HueForge, Filament Care | ✅ | ✅ |
+| Off-site encrypted backup | ✅ 1 device | ✅ |
+| Multi-device sync | — | ✅ |
+
+No portal, no storefront, no team — none of it exists in that flavor. $3 is set
+against the one-time $19.99–$34.99 the library tools charge: an annual price of
+$30 is the same order of magnitude as those, which is the comparison an enthusiast
+will actually make.
 
 ---
 
-## 5. Open questions for the owner
+## 5. Decisions — closed 2026-08-12, and what is still open
 
-1. **A currency and a figure per tier**, once cost-per-shop on the real stack is
-   known.
-2. **Free-tier sync: none, or one device?** One device makes free users into
-   backup-protected users and is the strongest funnel into paying; none is
-   cheaper to host and a cleaner line.
-3. **Bed Ready** ships from its own repo on its own 1.0.0 line
-   ([BEDREADY-APP](./BEDREADY-APP.md)) and is commerce-free by design. Does it
-   get cloud at all, and is it billed separately?
-4. **Regional hosting for ZATCA shops** (roadmap decision #4) is a cost the KSA
-   tier carries. Is it a price difference or absorbed?
-5. **Does the free tier get the customer portal?** It is the most visible feature
-   to a shop's own customers, so it is both the best advertisement and the most
-   expensive thing to give away.
+Closed by the owner:
+
+1. ~~**A currency and a figure per tier.**~~ **$0 / $9 / $29 monthly, USD and SAR,
+   annual at ten months.** Bed Ready on its own $3 line.
+2. ~~**Free-tier sync: none, or one device?**~~ **One device — backup, not sync.**
+3. ~~**Does the free tier get the customer portal?**~~ **A 30-day trial**, rather
+   than free forever or paid-only.
+4. ~~**Bed Ready cloud?**~~ **Sync and backup only, priced separately.**
+
+Still genuinely open:
+
+5. **Regional hosting for ZATCA shops** (roadmap decision #4) is a cost the KSA
+   tier carries. Is it a price difference or absorbed? Unchanged from the previous
+   revision — it needs a hosting quote, not a decision.
+6. **The real Hostinger plan figures.** Every cost number above uses the script's
+   placeholder plan (25 USD / 500 GB / 100 GB). The *shape* of the conclusion is
+   robust — the heaviest shop is ~17% of plan bandwidth, whatever the plan costs —
+   but the margin table moves with the real figures:
+
+   ```bash
+   node scripts/cloud-cost-model.mjs --plan-price <real> --bandwidth-gb <real> --storage-gb <real>
+   ```
+
+7. **Nothing above is billable until payment collection exists.** `/v1/billing/me`
+   reports a plan; nothing charges for one. That is the gap between this document
+   and revenue.
