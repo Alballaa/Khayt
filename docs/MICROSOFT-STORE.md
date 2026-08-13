@@ -115,7 +115,9 @@ make that quick and safe rather than to pretend otherwise:
 ### Releasing to the Store by hand
 
 1. `npm run store:manual` — writes `store/microsoft/partner-center.md`, a paste sheet with
-   every field already validated and its character count shown.
+   every field already validated and its character count shown. It is generated and
+   git-ignored on purpose: it is stamped with the version it was built for, so a committed
+   copy would be stale the moment the version bumps. Regenerate it per release.
 2. `npm run capture:store-screenshots` — only if the UI changed since the last release.
 3. Download the `windows-store-msix` artifact from that version's **Build & Release** run.
 4. In Partner Center, upload the package, then paste the listing fields from the sheet.
