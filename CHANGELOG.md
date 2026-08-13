@@ -4,6 +4,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Security
+
+- The slicer executable a shop configures is now checked against a positive
+  allowlist of known slicer names rather than a denylist of shell names. A
+  restored or synced settings snapshot could otherwise point "your slicer" at a
+  stock system tool (`find`, `awk`, `xargs`, …) that runs an arbitrary command
+  from its arguments, turning a click on **Slice** into code execution. Every
+  real slicer keeps working; nothing else launches.
+
 ## [3.6.0-rc.1] - 2026-08-12
 
 The candidate for **v3.6.0 stable**. There is no behaviour change over

@@ -768,21 +768,18 @@ function tokenizeSliceArgs(template) {
 // Slice a model with the user's installed slicer. Returns { ok, gcodePath, outDir,
 // meta, error } WITHOUT cleaning up outDir — the caller decides (parse only, or
 // also upload to a printer, then remove outDir).
-// Reject shells/interpreters posing as a "slicer" executable. The slicer path
+// Reject anything that is not recognisably a slicer executable. The slicer path
 // comes from settings.slicers[] which can arrive via a restored/synced snapshot,
-// so a poisoned path (e.g. /bin/bash with an -c arg template) must not become
-// arbitrary code execution when the user clicks Slice / Open-in-slicer. spawn is
-// already shell:false (no metachar injection); this blocks the interpreter path.
-const DISALLOWED_SLICER_BINARIES = new Set([
-  'bash', 'sh', 'zsh', 'dash', 'ksh', 'csh', 'tcsh', 'fish', 'cmd', 'command',
-  'powershell', 'pwsh', 'python', 'python2', 'python3', 'node', 'nodejs', 'deno',
-  'bun', 'ruby', 'perl', 'php', 'osascript', 'wscript', 'cscript', 'env', 'sudo',
-  'doas', 'xterm', 'open', 'start', 'rundll32', 'regsvr32', 'mshta',
-]);
+// so a poisoned path must not become arbitrary code execution when the user clicks
+// Slice / Open-in-slicer. spawn is already shell:false (no metachar injection), but
+// that says nothing about the binary itself: find/awk/xargs/gdb/tclsh/busybox and
+// dozens of stock binaries run an arbitrary command straight from their own args,
+// and none is a shell. A denylist of interpreter names can never enumerate them, so
+// this is a POSITIVE allowlist (lib/slicers.js#isAllowedSlicerBinary) — the name must
+// look like a slicer, or it does not run.
+const { isAllowedSlicerBinary } = require('./lib/slicers');
 function isSafeSlicerBinary(p) {
-  const base = path.basename(String(p || '')).toLowerCase()
-    .replace(/\.(exe|app|appimage|bat|cmd|com|scr|ps1)$/i, '');
-  return base.length > 0 && !DISALLOWED_SLICER_BINARIES.has(base);
+  return isAllowedSlicerBinary(p);
 }
 
 async function runSlice({ modelPath, slicerPath, args, densityGPerCm3 }) {
