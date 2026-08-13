@@ -2748,6 +2748,8 @@
   "plans.soon": "Pas encore développé",
   "plans.per_month": "/mois",
   "plans.price_free": "Gratuit pour toujours",
+  "trial.portal_left": "Il reste {n} jours à votre essai du portail",
+  "trial.portal_over": "Votre essai du portail de 30 jours est terminé — abonnez-vous pour continuer à publier des liens",
   "set.cloud_hint": "Sauvegarde/synchronisation optionnelle et chiffrée de bout en bout de votre atelier vers votre propre serveur Khayt Cloud. Le serveur ne stocke que des données chiffrées ; votre phrase secrète de synchronisation (jamais transmise) est la clé.",
   "cloud.url": "URL du serveur",
   "cloud.secret": "Code d'inscription (facultatif)",

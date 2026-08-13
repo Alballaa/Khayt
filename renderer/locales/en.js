@@ -2749,6 +2749,8 @@
   "plans.soon": "Not built yet",
   "plans.per_month": "/mo",
   "plans.price_free": "Free forever",
+  "trial.portal_left": "{n} days left in your portal trial",
+  "trial.portal_over": "Your 30-day portal trial has ended — subscribe to keep publishing links",
   "set.cloud_hint": "Opt-in, end-to-end-encrypted backup/sync of your shop to your own Khayt Cloud server. The server only stores encrypted data; your sync passphrase (never uploaded) is the key.",
   "cloud.url": "Server URL",
   "cloud.secret": "Register secret (optional)",

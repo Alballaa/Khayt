@@ -2749,6 +2749,8 @@
   "plans.soon": "Ainda não desenvolvido",
   "plans.per_month": "/mês",
   "plans.price_free": "Grátis para sempre",
+  "trial.portal_left": "Faltam {n} dias no seu teste do portal",
+  "trial.portal_over": "Seu teste do portal de 30 dias terminou — assine para continuar publicando links",
   "set.cloud_hint": "Backup/sincronização opcional e com criptografia de ponta a ponta da sua oficina no seu próprio servidor Khayt Cloud. O servidor guarda apenas dados criptografados; sua senha de sincronização (nunca enviada) é a chave.",
   "cloud.url": "URL do servidor",
   "cloud.secret": "Segredo de registro (opcional)",

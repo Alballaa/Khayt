@@ -1665,6 +1665,11 @@ async function showCloudPlan(c) {
   try {
     const r = await window.hubAPI.cloudBillingMe({ url: c.url, shopId: c.shopId, token: c.token });
     if (!r || !r.ok || !r.billingEnabled) { elx.textContent = ''; return; }
+    // Cache whether this shop is actually subscribed, so the portal trial can
+    // tell a payer from a free shop. Deliberately NOT saved: it is the server's
+    // answer, refreshed on every render, and persisting it would let a stale
+    // copy outlive the subscription it describes.
+    if (settings.cloud) settings.cloud.planActive = !!(r.active && r.plan && r.plan !== 'free');
     const mb = (r.limits && +r.limits.maxStoreBytes) ? Math.round(+r.limits.maxStoreBytes / (1024 * 1024)) : null;
     const parts = [(t('cloud.plan') || 'Plan') + ': ' + (r.label || r.plan)];
     if (!r.active) parts.push(t('cloud.plan_inactive') || 'inactive');
@@ -1923,6 +1928,38 @@ function cloudPlanPriceText(price) {
  * which does not load this module and has its own separate pricing line — same
  * pattern as KhaytTiers in build.js.
  */
+/**
+ * The free tier's portal trial, shown only when it means something.
+ *
+ * During beta it renders NOTHING: the plans block directly below already says
+ * every plan is free, and a second banner counting down a clock that is not
+ * running would contradict it. `isTrialVisible` is the single place that decides.
+ */
+function cloudPortalTrialHtml() {
+  if (typeof KhaytPortalTrial === 'undefined') return '';
+  const Trial = KhaytPortalTrial;
+  const c = settings.cloud || {};
+  const s = Trial.portalTrialState({
+    betaFree: (typeof KhaytCloudPlans !== 'undefined') ? KhaytCloudPlans.isBetaFree() : true,
+    subscribed: c.planActive === true,
+    startedAt: c.portalTrialStartedAt || null,
+    now: Date.now(),
+  });
+  if (!Trial.isTrialVisible(s.state)) return '';
+
+  const over = s.state === 'expired';
+  const msg = over
+    ? (t('trial.portal_over') || 'Your 30-day portal trial has ended — subscribe to keep publishing links')
+    : (t('trial.portal_left') || '{n} days left in your portal trial').replace('{n}', s.daysLeft);
+  // Tint carries the state; the text stays on the theme's normal foreground, so
+  // it cannot fail contrast in a light theme the way a coloured text token can.
+  const tint = over ? 'var(--danger,#dc2626)' : 'var(--warning,#d97706)';
+  return `
+    <p style="font-size:11.5px;margin:0 0 10px;padding:6px 9px;border-radius:6px;background:color-mix(in srgb, ${tint} 12%, transparent);border:1px solid color-mix(in srgb, ${tint} 55%, transparent);">
+      ${escapeHtml(msg)}
+    </p>`;
+}
+
 function cloudPlansHtml() {
   if (typeof KhaytCloudPlans === 'undefined') return '';
   const Plans = KhaytCloudPlans;   // bind once: every later read is then guarded by construction
@@ -1964,6 +2001,7 @@ function cloudPlansHtml() {
 
   return `
     <div style="margin-top:14px;border-top:1px solid var(--border,#3a3a3a);padding-top:12px;">
+      ${cloudPortalTrialHtml()}
       <p style="font-size:12.5px;font-weight:600;margin:0 0 2px;">${escapeHtml(t('plans.title') || 'What Khayt Cloud costs')}</p>
       <p style="font-size:11.5px;color:var(--text-muted);margin:0 0 10px;">${escapeHtml(t('plans.intro') || 'The desktop app is free forever and works with no account. These prices are only for the hosted service.')}</p>
       ${betaFree ? `<p style="font-size:11.5px;margin:0 0 10px;padding:6px 9px;border-radius:6px;background:color-mix(in srgb, var(--success,#16a34a) 12%, transparent);border:1px solid color-mix(in srgb, var(--success,#16a34a) 55%, transparent);">${escapeHtml(t('plans.beta_note') || 'Khayt Cloud is in beta, so every plan is free right now. The prices below are what they will cost, shown early so nothing comes as a surprise later.')}</p>` : ''}

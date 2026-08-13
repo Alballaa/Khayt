@@ -150,9 +150,23 @@ Ordered by leverage, not size. Each names what it builds on.
 2. **Phase 3 multi-shop + HQ dashboard.** The clearest step up in willingness to
    pay, and the one that justifies a per-branch price. Nothing in §4 sells it
    until it exists.
-3. **Portal trial expiry.** §4 gives the portal to free shops for a fixed window,
-   and no trial-expiry machinery exists today. It is the one genuinely new
-   mechanism the pricing below requires.
+3. ~~**Portal trial expiry.**~~ **Built** — [`lib/portal-trial.js`](../lib/portal-trial.js),
+   dormant until billing goes live. Two rules shaped it, and both are the kind
+   that are obvious in hindsight and expensive to retrofit:
+
+   - **The clock does not run during beta.** Every plan is free, so counting
+     down would take away something shops already have — which §4 forbids in
+     the same breath as it sets the prices.
+   - **Beta use does not burn the trial.** A shop that published portals through
+     a year of beta must not find its trial already spent on the day billing
+     starts. That is precisely the "discovered a price after committing" this
+     pricing exists to avoid, and it would have been the default behaviour of
+     any implementation that started the clock at first publish without asking
+     whether billing was live.
+
+   The clock starts at the first published link by a live free shop, not at
+   signup: a shop that connects the cloud and never publishes has not used the
+   thing it would be paying for.
 4. **Khayt-billed AI.** Roadmap decision #3 defers this until "Cloud billing
    exists". It now half-exists, and BYO-key remains the free path.
 5. **Portal payments.** Rails (Stripe/Tabby/Tamara) are already integrated
@@ -293,4 +307,12 @@ Still genuinely open:
 
 7. **Nothing above is billable until payment collection exists.** `/v1/billing/me`
    reports a plan; nothing charges for one. That is the gap between this document
-   and revenue.
+   and revenue — **deliberately deferred** (owner, 2026-08-13): nobody is being
+   charged for now, so collection can come later. Every tier is free in the
+   meantime and the app says so, which is what makes deferring it honest rather
+   than merely convenient.
+
+   Note what that decision implies: `BETA_FREE` and the portal trial's dormancy
+   are the *same* decision expressed twice. Flipping either without the other
+   would either charge shops with no way to pay or expire trials while everything
+   is still free.

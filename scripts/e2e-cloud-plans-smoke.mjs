@@ -141,6 +141,132 @@ async function testLightThemeDoesNotColourTheText(window) {
   }
 }
 
+/**
+ * The portal trial must not bite during beta — in the running app, not just in
+ * a unit test.
+ *
+ * The failure this guards is a whole class: ship a correct countdown, and every
+ * shop quietly loses a working feature. Both halves are checked, because they
+ * fail independently — the gate could refuse while the banner stays hidden, or
+ * the clock could start silently and only expire 30 days later, long after
+ * anyone would connect it to this release.
+ */
+async function testTrialDoesNotBiteDuringBeta(window) {
+  const loaded = await window.evaluate(() => typeof KhaytPortalTrial !== 'undefined');
+  if (!loaded) throw new Error('KhaytPortalTrial is not loaded in index.html');
+
+  const state = await window.evaluate(() => {
+    settings.cloud = settings.cloud || {};
+    return KhaytPortalTrial.portalTrialState({
+      betaFree: KhaytCloudPlans.isBetaFree(),
+      subscribed: false,
+      startedAt: settings.cloud.portalTrialStartedAt || null,
+      now: Date.now(),
+    });
+  });
+  if (state.state !== 'beta') throw new Error(`trial state is "${state.state}", expected "beta"`);
+  if (state.available !== true) throw new Error('the portal is not available during beta');
+
+  // The gate says yes, and — the part that would go unnoticed — starts no clock.
+  const gate = await window.evaluate(() => {
+    delete settings.cloud.portalTrialStartedAt;
+    const allowed = portalTrialAllows();
+    return { allowed, startedAt: settings.cloud.portalTrialStartedAt || null };
+  });
+  if (!gate.allowed) throw new Error('publishing is blocked during beta — this removes a working feature');
+  if (gate.startedAt) {
+    throw new Error(`beta publishing started the trial clock (${gate.startedAt}); a year of beta would leave a shop expired on day one of billing`);
+  }
+
+  // And no banner, because the plans block below already says free during beta.
+  const text = await window.evaluate(() => {
+    renderCloudSettings();
+    return document.querySelector('#cloudSettingsSection').innerText;
+  });
+  if (/trial/i.test(text) && /days left/i.test(text)) {
+    throw new Error('a trial countdown is on screen during beta, contradicting "Free during beta"');
+  }
+}
+
+/**
+ * What the shop will actually see AFTER the flag flips — exercised now, while
+ * anyone can still fix it cheaply.
+ *
+ * Everything the trial adds is dormant during beta, so without this the banner
+ * and the refusal are code that has never once rendered. `isBetaFree` is a
+ * function on the module object, so it can be stubbed here to look at the far
+ * side of the flip without shipping it.
+ */
+async function testPostBetaTrialSurfaces(window) {
+  const out = await window.evaluate(() => {
+    const orig = KhaytCloudPlans.isBetaFree;
+    try {
+      KhaytCloudPlans.isBetaFree = () => false;
+      settings.cloud = settings.cloud || {};
+      settings.cloud.planActive = false;
+
+      // 10 days in: the countdown should be on screen, and publishing allowed.
+      settings.cloud.portalTrialStartedAt = new Date(Date.now() - 10 * 86400000).toISOString();
+      renderCloudSettings();
+      const active = {
+        text: document.querySelector('#cloudSettingsSection').innerText,
+        allowed: portalTrialAllows(),
+      };
+
+      // 40 days in: expired. The banner changes and publishing is refused.
+      settings.cloud.portalTrialStartedAt = new Date(Date.now() - 40 * 86400000).toISOString();
+      renderCloudSettings();
+      // The contrast sweep above ran before this banner existed, so check it
+      // here, where it is actually on screen and in a LIGHT theme.
+      const banner = [...document.querySelectorAll('#cloudSettingsSection p')]
+        .find((p) => /has ended/i.test(p.innerText));
+      const expired = {
+        text: document.querySelector('#cloudSettingsSection').innerText,
+        allowed: portalTrialAllows(),
+        bannerColor: banner ? getComputedStyle(banner).color : null,
+        bodyColor: getComputedStyle(document.body).color,
+      };
+
+      // Paying restores it immediately, without touching the trial date.
+      settings.cloud.planActive = true;
+      renderCloudSettings();
+      const subscribed = {
+        text: document.querySelector('#cloudSettingsSection').innerText,
+        allowed: portalTrialAllows(),
+      };
+      return { active, expired, subscribed };
+    } finally {
+      KhaytCloudPlans.isBetaFree = orig;
+      delete settings.cloud.portalTrialStartedAt;
+      delete settings.cloud.planActive;
+      renderCloudSettings();
+    }
+  });
+
+  if (!/20 days left/i.test(out.active.text)) {
+    throw new Error(`day 10 of 30 should read "20 days left"; got: ${out.active.text.slice(0, 200)}`);
+  }
+  if (out.active.allowed !== true) throw new Error('publishing refused while the trial is still running');
+
+  if (!/has ended/i.test(out.expired.text)) {
+    throw new Error(`an expired trial should say so; got: ${out.expired.text.slice(0, 200)}`);
+  }
+  if (out.expired.allowed !== false) {
+    throw new Error('an expired trial still allows publishing — the trial means nothing');
+  }
+  if (out.expired.bannerColor && out.expired.bannerColor !== out.expired.bodyColor) {
+    throw new Error(
+      `the expiry banner sets its own text colour (${out.expired.bannerColor} vs body ${out.expired.bodyColor}); `
+      + 'tint the background instead — a colour token used as text is the beta.18 contrast failure',
+    );
+  }
+
+  if (out.subscribed.allowed !== true) throw new Error('a subscriber cannot publish');
+  if (/has ended/i.test(out.subscribed.text)) {
+    throw new Error('a paying shop is still being shown the expiry notice');
+  }
+}
+
 try {
   ({ electronApp } = await launchApp(userData));
   const window = await electronApp.firstWindow();
@@ -152,8 +278,10 @@ try {
   await testPricesAreStruckThroughAndReal(window, struck);
   await testCurrencyFollowsTheShop(window);
   await testLightThemeDoesNotColourTheText(window);
+  await testTrialDoesNotBiteDuringBeta(window);
+  await testPostBetaTrialSurfaces(window);
 
-  console.log('e2e-cloud-plans: ok (ladder renders, prices struck through and real, currency follows the shop, light theme safe)');
+  console.log('e2e-cloud-plans: ok (ladder renders, prices real + struck through, currency follows the shop, light theme safe, trial dormant during beta and correct after it)');
 } finally {
   if (electronApp) await electronApp.close().catch(() => {});
   fs.rmSync(userData, { recursive: true, force: true });

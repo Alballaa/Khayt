@@ -2748,6 +2748,8 @@
   "plans.soon": "Noch nicht gebaut",
   "plans.per_month": "/Mon.",
   "plans.price_free": "Für immer kostenlos",
+  "trial.portal_left": "Noch {n} Tage in Ihrer Portal-Testphase",
+  "trial.portal_over": "Ihre 30-tägige Portal-Testphase ist beendet — abonnieren Sie, um weiter Links zu veröffentlichen",
   "set.cloud_hint": "Optionales, Ende-zu-Ende-verschlüsseltes Backup/Sync Ihres Shops auf Ihren eigenen Khayt-Cloud-Server. Der Server speichert nur verschlüsselte Daten; Ihre Sync-Passphrase (nie hochgeladen) ist der Schlüssel.",
   "cloud.url": "Server-URL",
   "cloud.secret": "Registrierungsschlüssel (optional)",

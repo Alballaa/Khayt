@@ -2748,6 +2748,8 @@
   "plans.soon": "Henüz geliştirilmedi",
   "plans.per_month": "/ay",
   "plans.price_free": "Sonsuza dek ücretsiz",
+  "trial.portal_left": "Portal denemenizde {n} gün kaldı",
+  "trial.portal_over": "30 günlük portal denemeniz sona erdi — bağlantı yayınlamaya devam etmek için abone olun",
   "set.cloud_hint": "Atölyenizin kendi Khayt Cloud sunucunuza isteğe bağlı, uçtan uca şifreli yedeği/eşitlemesi. Sunucu yalnızca şifreli veri saklar; eşitleme parolanız (asla yüklenmez) anahtardır.",
   "cloud.url": "Sunucu URL'si",
   "cloud.secret": "Kayıt gizli anahtarı (isteğe bağlı)",

@@ -2748,6 +2748,8 @@
   "plans.soon": "尚未开发",
   "plans.per_month": "/月",
   "plans.price_free": "永久免费",
+  "trial.portal_left": "门户试用还剩 {n} 天",
+  "trial.portal_over": "30 天门户试用已结束 — 订阅以继续发布链接",
   "set.cloud_hint": "可选的端到端加密备份/同步，将您的店铺数据同步到您自己的 Khayt Cloud 服务器。服务器仅存储加密数据；您的同步密码短语（从不上传）即为密钥。",
   "cloud.url": "服务器 URL",
   "cloud.secret": "注册密钥（可选）",
