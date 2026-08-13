@@ -83,6 +83,13 @@ jobs:
       - name: Renderer globals are actually loaded
         run: npm run check:globals
 
+      # The Store listing is copy in a JSON file, so it breaks like copy — one
+      # long feature bullet over 200 characters and the whole submission is
+      # rejected. Checking it on every PR means that surfaces in review, not in
+      # a certification queue on release day.
+      - name: Microsoft Store listing is within limits
+        run: npm run store:check
+
       - name: Unit tests
         run: npm test
 

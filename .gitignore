@@ -38,3 +38,9 @@ ios/**/*.xcworkspace/xcuserdata/
 # Local Workbench theme screenshot captures (scripts/shot-workbench.mjs)
 .wb-shots/
 build-bedready/
+
+# Microsoft Store — generated from store/microsoft/listing.json + CHANGELOG.md.
+# Both are version-stamped, so a committed copy is stale the moment the version
+# bumps. Regenerate on demand: `npm run store:manual` / `npm run store:metadata`.
+store/microsoft/partner-center.md
+store/microsoft/metadata.json
