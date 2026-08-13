@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.6.0-rc.2] - 2026-08-13
+
 ### Fixed
 
 - **Every "Copy link" button in the app was copying nothing.** Reported from the
