@@ -7,25 +7,31 @@
  * hosting — so that envelope cannot price anything. This model replaces it with
  * measured numbers.
  *
- * The per-record constants below were MEASURED from a real store, not estimated:
+ * Every constant below was MEASURED through the shipped code path, not estimated.
+ * Re-measure any of them with scripts/measure-push-cost.mjs against a real store.
  *
  *     collection      count     bytes   bytes/record
  *     printLog           19     29591           1557
- *     printFiles         11      7241            658
+ *     printFiles         11      7261            660
  *     inventory           3       332            111
- *     settings (fixed)          4877
+ *     settings (fixed)          4926
  *
- * Two properties of the sync protocol turn those into the real cost, and both
- * are visible in lib/cloud-backend.js:
+ * Two properties of the sync protocol turn those into the real cost:
  *
- *   1. It is BLOB-FIRST. push() encrypts and sends the WHOLE store every time,
- *      so bandwidth is store size × how often the shop saves — not the size of
- *      what changed. A shop that edits often pays for its whole history on every
- *      edit.
- *   2. There is NO COMPRESSION, and the ciphertext is base64 in a JSON body, so
- *      the wire cost is about 4/3 of the plaintext. Measured on the same store:
- *      55,593 B plaintext → 74,124 B on the wire, where gzip would have sent
- *      7,556 B.
+ *   1. It is BLOB-FIRST. push() (lib/cloud-backend.js:50) encrypts and sends the
+ *      WHOLE store every time, so bandwidth is store size × how often the shop
+ *      saves — not the size of what changed. A shop that edits often pays for its
+ *      whole history on every edit, so cost per shop grows QUADRATICALLY with age.
+ *   2. Since v3.6.0-beta.18 the store is GZIPPED before encryption
+ *      (lib/sync-crypto.js:73, COMPRESS_ON_WRITE = true). Measured on a real
+ *      store, one push: 44,305 B plaintext → 59,175 B on the wire uncompressed,
+ *      → 9,590 B compressed. That is 6.17× like-for-like.
+ *
+ * The distinction this model exists to make, and the one the docs originally got
+ * wrong: COMPRESSION IS A UNIFORM MULTIPLIER. It divides the hobbyist and the
+ * farm by the same 6.17×, so it lowers the bill but leaves the ~12,000× SPREAD
+ * between them exactly where it was. Only entity-level deltas change the shape,
+ * because only they break the coupling between store SIZE and push COST.
  *
  * Shared hosting is a flat fee with capped resources, so "cost per shop" is not
  * a bill — it is the plan price divided by how many shops fit before the
@@ -34,20 +40,35 @@
  * Usage:
  *   node scripts/cloud-cost-model.mjs
  *   node scripts/cloud-cost-model.mjs --plan-price 25 --bandwidth-gb 500 --storage-gb 100
+ *   node scripts/cloud-cost-model.mjs --ceiling-gb 25      # test a fair-use ceiling
  */
 
 // ── measured constants ──────────────────────────────────────────────────────
 const BYTES = {
-  settingsFixed: 4877,
+  settingsFixed: 4926,
   perOrder: 1557,
-  perPrintFile: 658,
+  perPrintFile: 660,
   perInventoryItem: 111,
   perClient: 200,      // not in the sampled store; conservative, small either way
 };
-/** base64 of ciphertext inside a JSON body. Measured: 74124 / 55593 = 1.333. */
-const WIRE_OVERHEAD = 4 / 3;
-/** Measured gzip ratio on a real store — what compression WOULD save. */
-const GZIP_RATIO = 0.136;
+
+/**
+ * Wire bytes per plaintext byte, measured end to end on a real push — the JSON
+ * body of PUT /v1/shops/{id}/store, base64 ciphertext and all.
+ *   off: 59175/44305   on: 9590/44305
+ */
+const WIRE_UNCOMPRESSED = 1.336;
+const WIRE_COMPRESSED = 0.216;
+/** What compression actually bought, like for like. */
+const GZIP_SAVING = WIRE_UNCOMPRESSED / WIRE_COMPRESSED;   // 6.17×
+
+/**
+ * What ONE changed record costs on the wire if push were entity-level, measured
+ * the same way: a single printLog record, gzipped, encrypted, base64, in the
+ * request body = 1,134 B. It is dominated by the crypto/base64 envelope rather
+ * than by the record, which is the whole point — it does not grow with the store.
+ */
+const DELTA_WIRE_BYTES = 1134;
 
 // ── shop profiles ───────────────────────────────────────────────────────────
 // `savesPerDay` is the one number here that is judgement rather than measurement,
@@ -74,6 +95,8 @@ const PLAN = {
   storageGb: arg('--storage-gb', 100),
   currency: 'USD',
 };
+/** Fair-use bandwidth ceiling per shop per month, in GB. */
+const CEILING_GB = arg('--ceiling-gb', 25);
 
 const fmtBytes = (b) => b >= 1e9 ? (b / 1e9).toFixed(2) + ' GB'
   : b >= 1e6 ? (b / 1e6).toFixed(1) + ' MB'
@@ -86,44 +109,79 @@ function modelShop(p) {
     + p.files * BYTES.perPrintFile
     + p.inventory * BYTES.perInventoryItem
     + Math.round(orders * 0.3) * BYTES.perClient;
-  // Every save pushes the whole store; a pull costs the same again on a device
-  // that has fallen behind, but the common case is push-only.
-  const perPush = storeBytes * WIRE_OVERHEAD;
-  const monthlyBandwidth = perPush * p.savesPerDay * 30;
-  return { ...p, orders, storeBytes, perPush, monthlyBandwidth,
-    gzipMonthly: monthlyBandwidth * GZIP_RATIO };
+  const pushes = p.savesPerDay * 30;
+  // Today: every save pushes the whole store, gzipped.
+  const perPush = storeBytes * WIRE_COMPRESSED;
+  const monthlyBandwidth = perPush * pushes;
+  // Was: the same thing before beta.18, kept to show what compression bought.
+  const monthlyUncompressed = storeBytes * WIRE_UNCOMPRESSED * pushes;
+  // Would be: entity-level push — cost tracks ACTIVITY, not store size.
+  const monthlyDelta = DELTA_WIRE_BYTES * pushes;
+  return { ...p, orders, storeBytes, perPush, pushes,
+    monthlyBandwidth, monthlyUncompressed, monthlyDelta };
 }
 
 console.log('Khayt Cloud — measured cost model');
 console.log('Plan assumed: ' + PLAN.price + ' ' + PLAN.currency + '/mo · '
-  + PLAN.bandwidthGb + ' GB bandwidth · ' + PLAN.storageGb + ' GB storage\n');
+  + PLAN.bandwidthGb + ' GB bandwidth · ' + PLAN.storageGb + ' GB storage');
+console.log('Compression:  ON since v3.6.0-beta.18 — measured ' + GZIP_SAVING.toFixed(2) + '× like-for-like\n');
 
 const rows = PROFILES.map(modelShop);
 console.log(
   'profile'.padEnd(12), 'orders'.padStart(7), 'store'.padStart(9),
-  'per push'.padStart(9), 'bw/month'.padStart(10), 'gzipped'.padStart(9),
+  'per push'.padStart(9), 'was (no gzip)'.padStart(14), 'bw/month NOW'.padStart(13),
+  'if deltas'.padStart(10),
 );
 for (const r of rows) {
   console.log(
     r.name.padEnd(12), String(r.orders).padStart(7), fmtBytes(r.storeBytes).padStart(9),
-    fmtBytes(r.perPush).padStart(9), fmtBytes(r.monthlyBandwidth).padStart(10),
-    fmtBytes(r.gzipMonthly).padStart(9),
+    fmtBytes(r.perPush).padStart(9), fmtBytes(r.monthlyUncompressed).padStart(14),
+    fmtBytes(r.monthlyBandwidth).padStart(13), fmtBytes(r.monthlyDelta).padStart(10),
   );
 }
 
+// ── the finding the docs got wrong ──────────────────────────────────────────
+const lightest = rows[0], heaviest = rows[rows.length - 1];
+const spread = (a, b, key) => (b[key] / a[key]);
+console.log('\nSpread between the lightest and heaviest shop — who pay the SAME subscription:\n');
+console.log('  before compression :', Math.round(spread(lightest, heaviest, 'monthlyUncompressed')).toLocaleString() + '×');
+console.log('  after compression  :', Math.round(spread(lightest, heaviest, 'monthlyBandwidth')).toLocaleString() + '×',
+  ' <-- UNCHANGED. gzip is a uniform multiplier.');
+console.log('  with entity deltas :', Math.round(spread(lightest, heaviest, 'monthlyDelta')).toLocaleString() + '×',
+  '      <-- collapses to the ratio of ACTIVITY (saves/day), which is all it should ever have been.');
+
 console.log('\nHow many shops fit on one plan, and what that makes a shop cost:\n');
 console.log('profile'.padEnd(12), 'by bandwidth'.padStart(13), 'by storage'.padStart(11),
-  'binding'.padStart(10), 'cost/shop'.padStart(10));
+  'binding'.padStart(10), 'cost/shop'.padStart(10), 'if deltas'.padStart(10));
 for (const r of rows) {
   const byBw = Math.floor((PLAN.bandwidthGb * 1e9) / r.monthlyBandwidth);
   const bySt = Math.floor((PLAN.storageGb * 1e9) / r.storeBytes);
   const fits = Math.max(1, Math.min(byBw, bySt));
   const binding = byBw <= bySt ? 'bandwidth' : 'storage';
+  const byBwD = Math.floor((PLAN.bandwidthGb * 1e9) / r.monthlyDelta);
+  const fitsD = Math.max(1, Math.min(byBwD, bySt));
   console.log(
     r.name.padEnd(12), String(byBw).padStart(13), String(bySt).padStart(11),
     binding.padStart(10), (PLAN.price / fits).toFixed(2).padStart(10),
+    (PLAN.price / fitsD).toFixed(2).padStart(10),
   );
 }
+
+// ── what a fair-use ceiling has to be set to, and who it touches ────────────
+console.log(`\nA fair-use bandwidth ceiling of ${CEILING_GB} GB/shop/month — who it actually touches:\n`);
+console.log('profile'.padEnd(12), 'bw/month'.padStart(10), 'vs ceiling'.padStart(11), 'verdict'.padStart(24));
+for (const r of rows) {
+  const pct = r.monthlyBandwidth / (CEILING_GB * 1e9);
+  const verdict = pct <= 0.5 ? 'clear'
+    : pct <= 1 ? 'under, but in sight'
+    : 'OVER — needs deltas';
+  console.log(r.name.padEnd(12), fmtBytes(r.monthlyBandwidth).padStart(10),
+    (pct * 100).toFixed(0).padStart(10) + '%', verdict.padStart(24));
+}
+const worstUnderCeiling = Math.floor((PLAN.bandwidthGb * 1e9) / (CEILING_GB * 1e9));
+console.log(`\n  Worst case with the ceiling enforced: ${worstUnderCeiling} shops per plan,`);
+console.log(`  i.e. a floor price of ${(PLAN.price / worstUnderCeiling).toFixed(2)} ${PLAN.currency}/shop if EVERY shop pinned the ceiling.`);
+console.log('  Nobody does — the ceiling exists to cap the tail, not to describe the median.');
 
 console.log('\nSensitivity — the model turns on saves/day, so vary only that (Busy shop):\n');
 const busy = PROFILES.find((p) => p.name === 'Busy shop');
@@ -136,10 +194,15 @@ for (const saves of [25, 50, 100, 150, 300, 600]) {
 }
 
 const busyRow = rows.find((r) => r.name === 'Busy shop');
-console.log('\nWhat two cheap changes would do to the binding resource:\n');
-console.log('  gzip before encrypting :', fmtBytes(busyRow.monthlyBandwidth), '→',
-  fmtBytes(busyRow.gzipMonthly), `(${Math.round(1 / GZIP_RATIO)}× less)`);
-console.log('  entity deltas instead  : bandwidth stops scaling with store SIZE at all —');
-console.log('                           a shop pays for what changed, not its whole history.');
+console.log('\nWhere the remaining win is:\n');
+console.log('  gzip before encrypting : SHIPPED in v3.6.0-beta.18 —',
+  fmtBytes(busyRow.monthlyUncompressed), '→', fmtBytes(busyRow.monthlyBandwidth),
+  `(${GZIP_SAVING.toFixed(1)}× less)`);
+console.log('  entity deltas on push  : NOT SHIPPED —',
+  fmtBytes(busyRow.monthlyBandwidth), '→', fmtBytes(busyRow.monthlyDelta),
+  `(${Math.round(busyRow.monthlyBandwidth / busyRow.monthlyDelta)}× less, and it stops`);
+console.log('                           scaling with store SIZE at all: a shop pays for what');
+console.log('                           changed, not for its whole history, so the bill stops');
+console.log('                           growing as the shop gets older.');
 console.log('\nNumbers are per shop per month. Plan figures are inputs: pass --plan-price,');
 console.log('--bandwidth-gb and --storage-gb from the real Hostinger plan to get real answers.');
