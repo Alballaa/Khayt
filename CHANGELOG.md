@@ -6,6 +6,19 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Khayt Cloud can now read a store that arrives as a base plus a chain of
+  changes**, which is the first half of sending only what changed instead of
+  your whole shop on every save. Nothing sends changes that way yet and no
+  server offers them, so there is no visible difference today — this is the
+  half that has to be in the field first, so that no machine can meet the new
+  format without understanding it.
+
+  If a server ever does return that format to a copy of Khayt that cannot
+  assemble it, sync stops with an error rather than quietly handing over a store
+  that is missing its newest edits.
+
+### Added
+
 - **Khayt Cloud now shows what it will cost — and that it costs nothing yet.**
   The cloud settings card carries a three-tier price ladder: Free, Cloud and
   Branches. While Khayt Cloud is in beta every plan is free, so each paid price
