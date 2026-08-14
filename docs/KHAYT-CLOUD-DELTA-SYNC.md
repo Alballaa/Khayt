@@ -26,11 +26,11 @@ The 401 is the point: an unknown route answers 404 there, so "missing bearer
 token" means the route exists and is guarded.
 
 Nothing writes deltas — `DELTA_WRITES` in
-[`lib/cloud-backend.js`](../lib/cloud-backend.js) is `false`, and §3 is why. One
-thing now stands between here and flipping it: the reader has to reach the field
-(§3 step 2). The warm pull that used to stand beside it is built — the desktop
-asks for `?since=` and folds onto a retained server view (§7) — leaving only the
-*warm launch*, which pays more but guards nothing.
+[`lib/cloud-backend.js`](../lib/cloud-backend.js) is `false`, and §3 is why. **One
+thing now stands between here and flipping it: the reader has to reach the field**
+(§3 step 2). The pull half is finished on both counts — the desktop asks for
+`?since=` and folds onto a retained server view, and that view now survives a
+restart (§7), so launch is warm too.
 
 ---
 
@@ -121,11 +121,9 @@ So the order is:
    how long step 2 waits, which is why it shipped in the same change.
 4. **Flip `DELTA_WRITES`** — still blocked on step 2.
 
-   It is no longer blocked on §7. The pull half is now correct: a warm client
-   asks for a slice and folds it onto its own retained view. What is missing
-   there is the *warm launch*, and that is an improvement to the saving rather
-   than a condition on safety — flipping without it costs up to `1 + R` on the
-   one pull per launch, against a push saving that dwarfs it. Nor is it blocked
+   It is not blocked on §7, which is now finished on both counts: a client asks
+   for a slice and folds it onto its own retained view, and that view survives a
+   restart, so the launch pull is a slice too. Nor is it blocked
    on §8: the gate holds every `/m` shop to blob sync on its own, so the flip is
    safe with the PWA exactly as it is. §8 decides how *far* the saving reaches,
    not whether flipping is safe.
@@ -166,16 +164,16 @@ sync from an un-upgraded laptop is the one that loses data.
 | Fold a branch's chain in the org roll-up | desktop | **done** |
 | Compaction policy (when to force a full push) | desktop | **done** — §6 |
 | Ask for `?since=` on pull | desktop | **done** — §7 |
-| Persist the server view across restarts (warm launch) | desktop | **not started** — see §7 |
+| Persist the server view across restarts (warm launch) | desktop | **done** — §7 |
 | Fold a chain in the remote-mobile PWA | khayt-cloud `mobile/` | **not started** — see §8 |
 | Flip `DELTA_WRITES` | desktop | blocked on adoption (§3 step 2); §8 bounds its reach |
 
 The claim that what remained was "entirely server-side" was **wrong on one point**,
 and §7 is that point. Everything else server-side is built and merged-pending.
 
-The warm launch is listed separately on purpose. `?since=` being sent is what
-makes the pull half *correct*; persisting the view is what makes it *pay*, and
-only the first is done.
+The warm launch was listed separately on purpose: `?since=` being sent is what
+makes the pull half *correct*, and persisting the view is what makes it *pay*.
+Both are now done, and what is left on this desktop is the flip itself.
 
 ## 7. The pull half — warm within a session, still cold at launch
 
@@ -208,18 +206,61 @@ One thing a warm reply cannot show is the whole chain — only what is newer tha
 Adopting the slice length would undercount every time and let a chain run past
 both compaction bounds, visible only as cold pulls that grew steadily dearer.
 
-**Launch is still cold, and that is the half the cost model cares about.**
-`cloudBackend` is rebuilt on every unlock, so the view starts empty and the first
-pull of a session always fetches base + chain. Making launch warm means
-*persisting* the view and its rev across restarts — a feature, not a flag, and
-one whose failure mode is the same silent data loss above, which is why it is not
-bundled in here.
+### Launch is warm too now, and the guard is the feature
 
-So the shape of the bill today is: pushes drop by the full factor; the launch
-pull still costs up to `1 + R` (3× at R = 2) of a blob pull; every pull after it
-in the session is a slice. Pulls are rare — one per launch, plus the occasional
-409 — so the trade is strongly positive either way, but it is not yet the number
-in §1 and should not be quoted as one.
+`cloudBackend` is rebuilt on every unlock, so the view used to start empty and
+the first pull of a session — the dearest one — always fetched base + chain.
+[`lib/cloud-view-cache.js`](../lib/cloud-view-cache.js) keeps the pair on disk
+between sessions, and `hub:cloud-unlock` hands it to the backend.
+
+It is a **cache in the strict sense**: every failure path returns null and null
+means a cold pull, which is correct and merely dearer. It is written as
+`encryptStore` ciphertext under the DEK, so it is no weaker than the sync it
+accelerates — and a keyset rotation invalidates it for free, because the new key
+cannot read the old file.
+
+**The reason this was a feature and not a flag is the guard**, `viewSafeForLocal`
+in `cloud-backend.js`. A retained view claims the server holds certain records at
+certain revs, and everything newer than that claim is what gets pushed. Inside a
+session the claim cannot rot dangerously, because local state only moves forward.
+Across a restart it can: a store restored from a backup, healed from `.prev`, or
+copied in from another machine is **older** than the view, and adopting it would
+push those older records over the newer ones — for every device, silently. A cold
+pull never does that, because the merge engine keeps the higher rev.
+
+So a cached view is adopted only when every record it says the server holds is
+present locally at the same rev or newer, or is locally tombstoned — a deletion
+travelling forward rather than local state travelling backward. Anything else,
+including *no local store to check against*, deletes the cache and launches cold.
+A false refusal costs one cold pull; a false acceptance costs a shop its data,
+and the asymmetry decides every judgement call in there.
+
+Two things ride along with the view because they cannot be re-learned warm:
+`baseWireBytes` and the chain counters. They are only ever set by a cold reply or
+by this device's own full push, and a device that launches warm sees neither — so
+dropping them would quietly retire the byte half of the compaction policy (§6)
+and leave only `MAX_CHAIN_DELTAS`, visible to nobody but a cold pull that grew
+dearer every month.
+
+**What the guard compares is the store on DISK**, and the push sends the
+renderer's snapshot — which is not quite the same object. `hub:save-store` runs
+`normalizeStoreSnapshot` first, and that is an allowlist: an invalid record is
+dropped on the way to disk while the push has already sent it. Such a shop then
+holds a view naming a record its own store does not have, and launches cold
+forever. Not a correctness problem — cold is the old behaviour — but it is the
+way this feature would go quietly missing, and it is worth checking for before
+concluding the cache is broken. Found by driving the real app, where an invalid
+fixture order did exactly this.
+
+**What is NOT covered**: a restore performed *while the app is running*. The
+in-memory view is not rebuilt, so the same rollback push is possible — but that
+is true of the retained view as shipped in #703 and is not introduced here. It
+wants the restore path to reset the backend, which is renderer-side work.
+
+So the shape of the bill: pushes drop by the full factor, and pulls are slices
+from the first one of the session onwards. A cold pull still costs up to `1 + R`
+(3× at R = 2) of a blob pull and still happens — after a compaction, after a
+rotation, after a restore, and on a device's genuine first run.
 
 ---
 
