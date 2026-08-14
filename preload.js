@@ -216,6 +216,8 @@ contextBridge.exposeInMainWorld('hubAPI', {
   orgEnrolShop: (opts) => ipcRenderer.invoke('hub:org-enrol-shop', opts),
   orgRemoveShop: (opts) => ipcRenderer.invoke('hub:org-remove-shop', opts),
   orgChangePassphrase: (opts) => ipcRenderer.invoke('hub:org-change-passphrase', opts),
+  // opts carries `today` — the reader's local calendar day, which decides what
+  // counts as late. See renderOrgOverview.
   orgOverview: (opts) => ipcRenderer.invoke('hub:org-overview', opts),
   orgGet: (opts) => ipcRenderer.invoke('hub:org-get', opts),
   orgPut: (opts) => ipcRenderer.invoke('hub:org-put', opts),
