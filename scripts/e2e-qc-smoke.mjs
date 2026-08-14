@@ -40,7 +40,14 @@ try {
     }, extra || {});
     printLog.unshift(mk('QC-PASS-1', 'qc'));
     printLog.unshift(mk('QC-FAIL-1', 'qc'));
-    printLog.unshift(mk('QC-DEL-1', 'delivered', { deliveredAt: '2026-07-15T00:00:00Z', completedAt: '2026-07-15T00:00:00Z', materialDeducted: true }));
+    // Delivered RELATIVE to now, not on a fixed date. This order has to sit
+    // INSIDE the 30-day warranty configured above or the auto-detect assertion
+    // below means nothing — and a hardcoded date only means that until it does
+    // not. '2026-07-15' stopped meaning it at 00:00 on 2026-08-14, exactly 30
+    // days later, and from that moment failed the REQUIRED E2E check on every
+    // pull request, including ones that had touched nothing near this code.
+    const deliveredAt = new Date(Date.now() - 5 * 86400000).toISOString();
+    printLog.unshift(mk('QC-DEL-1', 'delivered', { deliveredAt, completedAt: deliveredAt, materialDeducted: true }));
     saveAll(); renderKanban();
   });
 
