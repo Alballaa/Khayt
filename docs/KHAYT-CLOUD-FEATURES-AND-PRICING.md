@@ -144,12 +144,41 @@ Ordered by leverage, not size. Each names what it builds on.
 > exists, so the free tier can offer it on day one at hobbyist bandwidth cost —
 > 6.9 MB/month.**
 
-1. **Entity-level push.** Finish what the pull side already does. Cuts sync cost
-   for every shop by a measured ~1,900×, retires the fair-use clause in §4, and
-   unblocks Phase 3. This is now the highest-leverage item on the list.
-2. **Phase 3 multi-shop + HQ dashboard.** The clearest step up in willingness to
-   pay, and the one that justifies a per-branch price. Nothing in §4 sells it
-   until it exists.
+> **Second pass, 2026-08-14.** Items 1 and 2 have both moved a long way since
+> this list was written, and one of them is no longer an engineering task at all.
+> Re-ranked below, with what is left of each.
+
+1. ~~**Entity-level push.**~~ **Built and waiting, not unbuilt.** The desktop
+   reads a chain, announces itself, asks for slices and now keeps its view across
+   restarts; the server stores chains, serves `?since=`, and refuses a delta push
+   for any shop with a blob-only device attached. `DELTA_WRITES` is still `false`
+   and what it waits on is **adoption of a released build** — a stable one, since
+   a beta does not satisfy it ([DELTA-SYNC §3](./KHAYT-CLOUD-DELTA-SYNC.md)).
+
+   So the ~1,900× saving is no longer bought with engineering. It is bought with
+   a release and the patience to let it land, and the one thing that would make
+   the decision evidence-based is **being able to see which shops are eligible**
+   — the server knows (it has the per-device capability record); nothing surfaces
+   it. That is a small khayt-cloud endpoint plus a line in the cloud card, and it
+   is the highest-leverage item on this list *because of what it unblocks*.
+2. **The HQ surface, not the HQ dashboard.** Organisations shipped in 3.5.0 and
+   *Across the branches* in 3.5.1, so the Branches tier is no longer selling
+   something that does not exist — but what it sells is thin. The overview
+   reports counts and last activity, and [`lib/branch-summary.js`](../lib/branch-summary.js)
+   deliberately omits the two things a chain owner asks for first:
+
+   - **Money.** Refused on purpose, and for a good reason: revenue is not "sum of
+     price" once voided invoices, refunds and credit notes are in, and a second
+     implementation that looked right would produce a chain total no branch could
+     reconcile against its own reporting. The way to add it is to reuse the
+     branch's own reporting code, which is the work — not the arithmetic.
+   - **Dates.** "Due today" needs a calendar day, and branches may sit in
+     different timezones from the person reading. The summary returns raw ISO
+     and lets the renderer's locale-aware helpers decide.
+
+   Both are desktop-only, need no server change, and are what the $29 tier is
+   actually promising. This is the best ratio of willingness-to-pay to work on
+   the list.
 3. ~~**Portal trial expiry.**~~ **Built** — [`lib/portal-trial.js`](../lib/portal-trial.js),
    dormant until billing goes live. Two rules shaped it, and both are the kind
    that are obvious in hindsight and expensive to retrofit:
@@ -167,13 +196,26 @@ Ordered by leverage, not size. Each names what it builds on.
    The clock starts at the first published link by a live free shop, not at
    signup: a shop that connects the cloud and never publishes has not used the
    thing it would be paying for.
-4. **Khayt-billed AI.** Roadmap decision #3 defers this until "Cloud billing
-   exists". It now half-exists, and BYO-key remains the free path.
+4. **Cloud-side scheduling.** Promoted above payments on the second pass. Every
+   automation today is a renderer `setInterval`, so quote follow-ups, payment
+   reminders and the email digest only run while the app is open — which is
+   precisely when the shop did not need reminding. Firing them with the laptop
+   shut is the kind of difference a shop notices in week one, and unlike the
+   items below it needs no new commercial machinery, only a server-side job.
+   Lives in khayt-cloud.
 5. **Portal payments.** Rails (Stripe/Tabby/Tamara) are already integrated
-   locally; taking a deposit through the portal closes the quote→cash loop.
-6. **Cloud-side scheduling.** Every automation today is a renderer `setInterval`,
-   so it only runs while the app is open. Quote follow-ups and reminders that
-   fire with the laptop shut is a real difference, and it needs a server.
+   locally; taking a deposit through the portal closes the quote→cash loop. Wants
+   the portal trial (built, §3.3) to be live first, so it sits behind a decision
+   rather than behind code.
+6. **Khayt-billed AI.** Roadmap decision #3 defers this until "Cloud billing
+   exists". It half-exists — `/v1/billing/me` reports a plan, nothing collects —
+   and §5.7 defers collection deliberately, so this is blocked on that decision
+   and not on engineering. BYO-key remains the free path.
+7. **Shared inventory across branches.** The last unbuilt Phase 3 pillar and the
+   spec's own "deferred hard part": two branches drawing from one pool is the
+   case blob-first single-writer sync cannot express. Correctly last — it is the
+   only item here that needs the sync protocol to change, and it should not be
+   started until `DELTA_WRITES` is actually on.
 
 ---
 

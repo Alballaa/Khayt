@@ -14,8 +14,13 @@ nothing is stated too.
 | 0 | Sync foundation (local change-tracking, deltas) | **Done** |
 | 1 | Identity + single-shop E2E sync | **Done** |
 | 2 | Remote mobile + customer portal | **Done**, beyond spec |
-| 3 | Multi-shop tenancy | **Not started** |
+| 3 | Multi-shop tenancy | **Part built** — organisations and a cross-branch view shipped; see below |
 | 4 | Franchise / separate shops | Not started (outline only) |
+
+> **Re-checked 2026-08-14.** Two rows below had gone stale in the direction that
+> matters — they said "not built" about things that ship today, which is the way
+> a status file causes work to be skipped rather than merely misread. Both are
+> corrected in place with the evidence that settled them.
 
 ---
 
@@ -64,31 +69,30 @@ Built, and past what the spec asked for:
 | Snapshot history + restore | `/v1/shops/{id}/snapshots` |
 | Billing plans + storage caps | `/v1/billing/*`, `/v1/admin/set-plan` |
 
-## Phase 3 — multi-shop tenancy: **not started**
+## Phase 3 — multi-shop tenancy: **part built**
 
 A design that reconciles the spec with the code, and states the choices it needs,
-is in [PHASE3-DESIGN](./KHAYT-3.0-PHASE3-DESIGN.md). Its headline: the entity-level
-delta engine Phase 3 needs already exists and is tested — `lib/cloud-backend.js`
-just ignores it and pushes the whole store as one blob.
+is in [PHASE3-DESIGN](./KHAYT-3.0-PHASE3-DESIGN.md).
 
-The spec's four pillars, and what searching for them finds:
+The spec's four pillars, as of 2026-08-14:
 
 | Pillar | Status |
 |---|---|
-| Org → many shops (`org_id` on every row) | **Not built** — no `org_id` anywhere in the schema; the 19 tables key on `shop_id` |
-| HQ aggregate dashboard | **Not built** — the only `aggregate` in the code is review scoring and storefront analytics |
-| Shared inventory with concurrent-draw merge | **Not built** |
-| Entity-level deltas (vs one blob per shop) | **Not built** — sync is still blob-first, one ciphertext per shop |
+| Org → many shops | **Built, by a different mechanism than the spec assumed.** Not `org_id` on every row: an org has its own keyset (the Org Data Key, [ORG-DATA-KEY](./KHAYT-3.0-ORG-DATA-KEY.md)) that opens every branch's DEK, and branches are joined by invite. `hub:org-create-keyset` / `-unlock` / `-enrol-shop` / `-invite` / `-join` / `-members` / `-leave` in main.js; `getOrg`, `putOrg`, `createOrgInvite`, `joinOrgRemote`, `getOrgKeysets`, `getBranchStore` in cloud-client. Shipped in **3.5.0** |
+| HQ aggregate dashboard | **Built at the "counts" level** — `hub:org-overview` reads every branch's store, decrypts each with the org key, and returns per-branch summaries plus a chain total; the UI is *Across the branches* ([renderer/settings.js](../renderer/settings.js), `openOrgOverview`). Shipped in **3.5.1**. What it deliberately omits is money and dates, and [`lib/branch-summary.js`](../lib/branch-summary.js) explains why — that omission is the gap worth closing next, not the dashboard itself |
+| Shared inventory with concurrent-draw merge | **Not built** — the spec's own "deferred hard part" |
+| Entity-level deltas (vs one blob per shop) | **Reader built, writer off.** Desktop folds `base + deltas`, announces `X-Delta-Capable`, asks `?since=`, and keeps its view across restarts; the server implements the chain, the slice and the per-shop gate (khayt-cloud#16, live). `DELTA_WRITES` is `false` and waits on adoption — [DELTA-SYNC §3](./KHAYT-CLOUD-DELTA-SYNC.md) |
 
-What *does* exist and is easy to mistake for it: **team accounts** — several
-people inside ONE shop (`/v1/shops/{id}/members`, invite / list / remove, with
-roles). That is multi-USER, not multi-SHOP. Phase 3 is about one owner running
-several branches.
+Still worth keeping straight, because it trips everyone: **team accounts** —
+several people inside ONE shop (`/v1/shops/{id}/members`, invite / list / remove,
+with roles) — are multi-USER. Organisations are multi-SHOP. Both now exist, and
+they are different features.
 
-Phase 3 is also the phase that breaks the current storage model: blob-first
+What remains of Phase 3 is the part that changes the storage model: blob-first
 single-writer sync cannot express two branches editing different records
 concurrently, which is why the spec calls conflict resolution "the deferred hard
-part". Starting it means changing the sync protocol, not adding endpoints.
+part". Shared inventory is that problem in its sharpest form — two branches
+drawing from one pool — and it is the one pillar with nothing behind it.
 
 ---
 

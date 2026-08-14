@@ -89,6 +89,20 @@ Each command updates `package.json` and `package-lock.json`. Edit `CHANGELOG.md`
 
 Use `npm run version:beta` then tag the resulting version (e.g. `v3.6.0-beta.1`). CI treats `-beta`, `-rc` and `-alpha` as GitHub pre-releases. Stable installs must not auto-update to pre-releases — see `lib/updater.js`.
 
+**`version:beta` only advances a `beta.N`.** Its matcher is `/^beta\.(\d+)$/`, so
+on any other prerelease it falls through to the "start a new line" branch and
+rolls the **minor**: from `3.6.0-rc.2` it produces `3.7.0-beta.1`, not
+`3.6.0-rc.3`. Cutting the next `rc` — or any prerelease that is not a `beta` —
+is therefore an explicit `set`:
+
+```bash
+node scripts/bump-version.js set 3.6.0-rc.3
+```
+
+The same applies in the other direction when promoting: `npm run version:minor`
+increments unconditionally and turns `3.6.0-rc.3` into `3.7.0`, so a promotion to
+stable is `set 3.6.0` as well.
+
 ## Bed Ready
 
 Bed Ready is a separate flavor built from this same repo (`KHAYT_FLAVOR=bedready`,
