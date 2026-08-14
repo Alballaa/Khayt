@@ -10,11 +10,25 @@ ratio of how *active* two shops are, which is all it should ever have been.
 Compression (beta.18) lowered the bill by 6.17× but left it quadratic, because a
 uniform multiplier cannot change a shape. This is the change that does.
 
-**Status:** the desktop **reader** is built and tested, and the **server** now
-implements the contract in both backends (KhaytApp/khayt-cloud#16, awaiting merge
-and a hand upload). Nothing writes deltas — `DELTA_WRITES` in
-[`lib/cloud-backend.js`](../lib/cloud-backend.js) is `false`, and §3 is why. The
-one piece still genuinely missing is the warm pull: §7.
+**Status:** the desktop **reader** is built and tested, and the **server is live**
+— KhaytApp/khayt-cloud#16 implements the contract in both backends, and production
+is serving it. Verified rather than assumed, using the build marker the README
+documents for exactly this:
+
+```
+shasum -a 256 index.php | cut -c1-12                       # 2cda2d3dbf8c
+curl -s https://cloud.khaytapp.com/v1/health               # "build":"2cda2d3dbf8c"
+curl -s -o /dev/null -w '%{http_code}' -X POST \
+  https://cloud.khaytapp.com/v1/shops/probe/deltas         # 401, not 404
+```
+
+The 401 is the point: an unknown route answers 404 there, so "missing bearer
+token" means the route exists and is guarded.
+
+Nothing writes deltas — `DELTA_WRITES` in
+[`lib/cloud-backend.js`](../lib/cloud-backend.js) is `false`, and §3 is why. Two
+things still stand between here and flipping it: the reader has to reach the field
+(§3 step 2), and the warm pull does not exist (§7).
 
 ---
 
@@ -100,9 +114,15 @@ So the order is:
 2. **Let it reach the field.** Same adoption wait the portal read gate is in
    ([PORTAL read gate](./KHAYT-3.0-CLOUD-STATUS.md)); a beta-only release does
    not satisfy it.
-3. **Build the server**, including the gate in §4 — without which step 4 is
-   unsafe no matter how long step 2 waits.
-4. **Flip `DELTA_WRITES`.**
+3. ~~**Build the server**, including the gate in §4~~ — done and deployed
+   (KhaytApp/khayt-cloud#16). Without the gate step 4 would be unsafe no matter
+   how long step 2 waits, which is why it shipped in the same change.
+4. **Flip `DELTA_WRITES`** — still blocked on step 2, and on §7.
+
+Step 2 is now the long pole. The gate cannot open for a shop until every device
+that reads its store has announced itself, and only builds carrying
+KhaytApp/Khayt#697 do that — so adoption is what decides when any shop becomes
+eligible, exactly as intended.
 
 ## 4. What the server has to do that this repo cannot
 
