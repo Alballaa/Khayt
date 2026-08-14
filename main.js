@@ -3663,7 +3663,10 @@ ipcMain.handle('hub:org-change-passphrase', (_e, { orgKeyset, currentPassphrase,
  * needs a handful of counts; see lib/branch-summary.js for what is deliberately
  * not counted (money, and anything needing a calendar day).
  */
-ipcMain.handle('hub:org-overview', async (_e, { url, shopId, token } = {}) => {
+// `today` is the READER's calendar day, passed in rather than computed here:
+// branches may sit in other timezones, and the day that decides what is late is
+// the day of the person looking at the screen. Omitted → no late counts at all.
+ipcMain.handle('hub:org-overview', async (_e, { url, shopId, token, today } = {}) => {
   if (!orgKey) return { ok: false, error: 'locked' };
   try {
     token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
@@ -3680,7 +3683,7 @@ ipcMain.handle('hub:org-overview', async (_e, { url, shopId, token } = {}) => {
         // decryptBranchStore, not decryptStore: a branch may hold a delta chain
         // on top of its base, and summarising the base alone would report figures
         // missing its newest orders with nothing saying so.
-        row.summary = summarizeBranch(cloudClient.decryptBranchStore(blob, dek));
+        row.summary = summarizeBranch(cloudClient.decryptBranchStore(blob, dek), { today });
       } catch (e) {
         row.error = String(e && e.message || e);
       }

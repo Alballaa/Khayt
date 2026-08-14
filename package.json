@@ -21,6 +21,7 @@
     "test:e2e:themes": "node scripts/e2e-theme-shells.mjs",
     "test:e2e:bedready": "node scripts/e2e-bedready-smoke.mjs",
     "test:e2e:qc": "node scripts/e2e-qc-smoke.mjs",
+    "test:e2e:orgview": "node scripts/e2e-org-overview.mjs",
     "test:e2e:printers": "node scripts/e2e-printer-catalog-smoke.mjs",
     "test:e2e:shipping": "node scripts/e2e-shipping-smoke.mjs",
     "test:e2e:bom": "node scripts/e2e-bom-smoke.mjs",

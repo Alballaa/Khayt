@@ -4,6 +4,29 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **"Across the branches" now shows the money, and what is late.** Until now the
+  organisation overview counted work — in flight, printing, on hold — and said
+  nothing about what any of it earned. Each branch now also shows what it earned
+  and what it is still owed, plus how many of its jobs are late or due today, and
+  the chain totals sit at the top.
+
+  The figures are the branch's own. They are produced by the same code that
+  branch's dashboard and analytics use, so a credit note, a refund and a voided
+  invoice all subtract exactly as they do on the branch's own screen — a chain
+  total you cannot reconcile against the branch it came from is worse than no
+  total at all.
+
+  **Each branch is shown in its own currency.** If your branches price in
+  different currencies, Khayt shows each one honestly and does not add them up:
+  a single total would mean applying one branch's exchange rates to another
+  branch's books. Where a branch could not be read, the totals say so rather
+  than quietly leaving it out.
+
+  Late and due-today are counted against *your* calendar day, so a branch in
+  another timezone is judged by the day you are actually having.
+
 ### Changed
 
 - **Khayt Cloud no longer re-downloads your whole shop every time you open the

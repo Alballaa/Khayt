@@ -1029,6 +1029,67 @@ function promptOrgUnlock(c) {
   });
 }
 
+/**
+ * "3 late · 1 due today" for one branch, or nothing.
+ *
+ * Absent rather than zero when the main process was given no calendar day: a
+ * silent "0 late" is a claim, and the one thing this view must not do is make
+ * claims about branches it could not judge.
+ */
+function orgLateLine(su) {
+  if (!su || typeof su.overdue !== 'number') return '';
+  const bits = [];
+  if (su.overdue > 0) {
+    bits.push(`<strong style="color:var(--danger);">${escapeHtml(String(su.overdue))}</strong> ${escapeHtml(t('org.overdue') || 'late')}`);
+  }
+  if (su.dueToday > 0) {
+    bits.push(`<strong>${escapeHtml(String(su.dueToday))}</strong> ${escapeHtml(t('org.due_today') || 'due today')}`);
+  }
+  if (!bits.length) return '';
+  return `<div style="font-size:12px;margin-top:1px;">${bits.join(' · ')}</div>`;
+}
+
+/**
+ * Money for one branch, in THAT branch's currency.
+ *
+ * fmtMoneyIn, not fmtPrice: fmtPrice formats in the currency of the shop you are
+ * sitting in, which would label a branch's riyals as dollars and read as a
+ * conversion that never happened.
+ */
+function orgMoneyLine(m) {
+  if (!m || typeof m !== 'object') return '';
+  const rev = fmtMoneyIn(m.revenue || 0, m.currency);
+  const owed = m.outstanding > 0
+    ? ` · <span style="color:var(--warning,#d97706);">${escapeHtml(fmtMoneyIn(m.outstanding, m.currency))} ${escapeHtml(t('org.outstanding') || 'outstanding')}</span>`
+    : '';
+  return `<div style="font-size:12px;margin-top:1px;">${escapeHtml(rev)} ${escapeHtml(t('org.earned') || 'earned')}${owed}</div>`;
+}
+
+/**
+ * The chain's money, or an honest refusal.
+ *
+ * Branches on different base currencies are not added — see totalMoney in
+ * lib/branch-summary.js. Naming the currencies is the useful half of saying no.
+ */
+function orgTotalMoneyLine(m) {
+  if (!m || typeof m !== 'object') return '';
+  if (m.mixed) {
+    const list = (m.currencies || []).join(', ');
+    return `<div style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">${escapeHtml(
+      (t('org.money_mixed') || 'Branches price in {list}, so there is no single chain total to show.').replace('{list}', list)
+    )}</div>`;
+  }
+  const owed = m.outstanding > 0
+    ? ` · <strong>${escapeHtml(fmtMoneyIn(m.outstanding, m.currency))}</strong> ${escapeHtml(t('org.outstanding') || 'outstanding')}`
+    : '';
+  const partial = m.partial
+    ? ` <span style="color:var(--warning,#d97706);">${escapeHtml(t('org.money_partial') || '(some branches left out)')}</span>`
+    : '';
+  return `<div style="font-size:12.5px;margin-top:4px;">
+    <strong>${escapeHtml(fmtMoneyIn(m.revenue || 0, m.currency))}</strong> ${escapeHtml(t('org.earned') || 'earned')}${owed}${partial}
+  </div>`;
+}
+
 async function renderOrgOverview(c) {
   openFormModal({
     title: `🏢 ${t('org.overview') || 'Across the branches'}`,
@@ -1036,7 +1097,13 @@ async function renderOrgOverview(c) {
     bodyHtml: `<p id="orgOvLoading" style="font-size:13px;color:var(--text-muted);">${escapeHtml(t('org.loading') || 'Reading your branches…')}</p>
       <div id="orgOvBody"></div>`,
     onMount: async (modal) => {
-      const r = await window.hubAPI.orgOverview({ url: c.url, shopId: c.shopId, token: c.token });
+      // The day that decides what is late is the day of the person reading, not
+      // whatever day it is where a branch happens to be. localDateStr is the
+      // local calendar day — never toISOString(), which test/local-dates.test.js
+      // fails on sight for exactly this class of bug.
+      const r = await window.hubAPI.orgOverview({
+        url: c.url, shopId: c.shopId, token: c.token, today: localDateStr(),
+      });
       const loading = modal.querySelector('#orgOvLoading');
       const body = modal.querySelector('#orgOvBody');
       if (loading) loading.remove();
@@ -1072,6 +1139,8 @@ async function renderOrgOverview(c) {
             ${su.onHold ? ` · <strong>${n(su.onHold)}</strong> ${escapeHtml(t('org.on_hold') || 'on hold')}` : ''}
             ${su.quotes ? ` · <strong>${n(su.quotes)}</strong> ${escapeHtml(t('org.quotes') || 'quotes')}` : ''}
           </div>
+          ${orgLateLine(su)}
+          ${orgMoneyLine(su.money)}
           <div style="font-size:11.5px;color:var(--text-muted);">${escapeHtml(t('org.last_activity') || 'last change')}: ${escapeHtml(when)}</div>
         </div>`;
       }).join('');
@@ -1084,6 +1153,8 @@ async function renderOrgOverview(c) {
           · <strong>${n(tot.printing)}</strong> ${escapeHtml(t('org.printing') || 'printing')}
           ${escapeHtml(((tot.reachable === 1 ? t('org.across_one') : t('org.across_many'))
               || (tot.reachable === 1 ? 'across one branch' : 'across {n} branches')).replace('{n}', String(tot.reachable || 0)))}
+          ${tot.overdue > 0 ? `<div style="font-size:12.5px;margin-top:2px;"><strong style="color:var(--danger);">${n(tot.overdue)}</strong> ${escapeHtml(t('org.overdue') || 'late')}${tot.dueToday > 0 ? ` · <strong>${n(tot.dueToday)}</strong> ${escapeHtml(t('org.due_today') || 'due today')}` : ''}</div>` : ''}
+          ${orgTotalMoneyLine(tot.money)}
         </div>
         ${rows}
         ${unreachable > 0 ? `<p style="font-size:11.5px;color:var(--warning,#d97706);margin-top:8px;">${escapeHtml((t('org.n_unreadable') || '{n} branch(es) could not be read — the totals above leave them out.').replace('{n}', String(unreachable)))}</p>` : ''}
@@ -5135,6 +5206,12 @@ function renderTelegramSettings() {
     // this line the typeof check there just sees undefined and the whole thing
     // silently never runs — which is the failure the four names above document.
     reportResurrectedRecords,
+    // The organisation overview's three line builders. Pure string in, string
+    // out, and the only place money is put in front of a chain owner — so they
+    // are exported to be asserted on rather than eyeballed inside a modal.
+    orgLateLine,
+    orgMoneyLine,
+    orgTotalMoneyLine,
   };
 
   Object.assign(global, api);
