@@ -307,3 +307,30 @@ test('a stale re-add of an already-deleted record is silent — it discards noth
 
   assert.equal(seen.length, 0, 'no conflict announced for a stale echo');
 });
+
+test('a failure tells the listener WHY, not just that it failed', async () => {
+  // The badge in settings paints from this callback. It used to take only the
+  // status string, so a shop that had outgrown its plan saw a red "Sync error"
+  // with no cause and no next step — while the server had already said, in words
+  // the owner could act on, that the store was over the plan's size limit.
+  //
+  // Pinned here rather than on the badge because this is the contract the badge
+  // consumes: if the reason stops arriving, no amount of DOM code can show it.
+  const reason = 'push failed: Store exceeds your plan’s size limit (HTTP 413)';
+  const { deps } = makeDeps({ push: async () => ({ ok: false, error: reason }) });
+  const seen = [];
+  const off = sync.onStatus((s, detail) => seen.push({ s, why: detail && detail.error }));
+  sync.configure(deps);
+  await sync.syncNow();
+  off();
+  // A push that keeps failing keeps rescheduling itself, and this is the last
+  // test in the file — without this the retry loop outlives the suite.
+  sync.stop();
+
+  const failed = seen.find((e) => e.s === 'error');
+  assert.ok(failed, 'the sync reported an error state');
+  assert.match(String(failed.why), /exceeds your plan/,
+    'the reason has to reach the listener, or the UI has nothing to show');
+  assert.match(String(sync.error()), /exceeds your plan/,
+    'and it is retained, for a listener that subscribes after the failure');
+});

@@ -4,6 +4,18 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **When cloud sync fails, it now says why.** The status in cloud settings turned
+  red and read "Sync error", and that was everything you got — no cause, no next
+  step, and it stayed that way. The most likely reason is one you can act on: a
+  shop whose store has outgrown its plan's size limit. The server has always
+  explained that in plain words; Khayt was throwing the explanation away and
+  showing a status code to nobody.
+
+  Hover the sync status to read the reason. Sync failures that carry no
+  explanation still show the code, which is what a bug report needs.
+
 ### Added
 
 - **The customer portal's free-tier trial now exists — and does nothing yet.**
