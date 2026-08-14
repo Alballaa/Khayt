@@ -175,3 +175,47 @@ test('SyncBackend interface: pushDeltas/pullDeltas/status integrate', async () =
   assert.deepEqual(p.store, STORE);
   assert.equal(a.status(), 'idle');
 });
+
+/* ── A failure a shop can act on ──────────────────────────────────────────────
+ *
+ * Every non-200 used to become `push failed: HTTP 413`, and the settings badge
+ * said only "Sync error". So a shop that had outgrown its plan saw a red light
+ * with no cause and no next step, indefinitely — while the server had already
+ * explained it in a sentence the owner could act on. The status code is still
+ * carried, because that is what a bug report needs.
+ */
+
+/** A server that refuses with `status` and the sentence a real one would send. */
+const refusingWith = (status, error) => ({
+  transport: async () => ({ status, body: error === undefined ? undefined : { error } }),
+  crypto: sc, shopId: 'shopA', getDek: () => freshDek(),
+});
+
+test('a push refused over the plan limit says so, not just "HTTP 413"', async () => {
+  const b = createCloudBackend(refusingWith(413, 'Store exceeds your plan’s size limit'));
+  // Pinned on the ACTIONABLE half, the way the portal 404 test is: a mutation
+  // that dropped the server's sentence and kept the number must fail here.
+  await assert.rejects(() => b.push(STORE), /exceeds your plan/,
+    'the owner has to be told what to fix, not handed a status code');
+  await assert.rejects(() => b.push(STORE), /413/, 'and the code survives for a bug report');
+});
+
+test('a push refused because this build cannot read the chain says what to DO', async () => {
+  // The 412 the server returns when a delta chain exists and this device has not
+  // said it can fold one. Failing loudly is the entire point of that refusal, and
+  // a bare "HTTP 412" is not loud, it is just unexplained.
+  const b = createCloudBackend(refusingWith(412, 'This shop has unsynced changes this build cannot read. Update Khayt to sync again.'));
+  await assert.rejects(() => b.push(STORE), /Update Khayt to sync again/);
+});
+
+test('a pull failure passes the server’s reason through too', async () => {
+  const b = createCloudBackend(refusingWith(500, 'Server error'));
+  await assert.rejects(() => b.pull(), /pull failed: Server error \(HTTP 500\)/);
+});
+
+test('a refusal with no body still names the status', async () => {
+  // Not every failure carries a sentence — a proxy or a dead gateway will not.
+  // The message must stay useful rather than reading "push failed: undefined".
+  const b = createCloudBackend(refusingWith(502));
+  await assert.rejects(() => b.push(STORE), /push failed: HTTP 502$/);
+});

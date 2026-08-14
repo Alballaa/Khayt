@@ -1698,12 +1698,25 @@ let _cloudStatusWired = false;
 function wireCloudSyncStatusOnce() {
   if (_cloudStatusWired || !window.KhaytCloudSync) return;
   _cloudStatusWired = true;
-  KhaytCloudSync.onStatus((s) => {
+  KhaytCloudSync.onStatus((s, detail) => {
     const badge = document.getElementById('cloudSyncStatus');
     if (!badge) return;
     badge.textContent = cloudSyncStatusLabel(s);
     badge.style.color = (s === 'error' || s === 'offline') ? 'var(--danger)'
       : (s === 'synced' ? 'var(--success)' : 'var(--text-muted)');
+    // Say WHY it failed. The reason has always reached this callback and was
+    // thrown away, so a shop that had outgrown its plan saw a red "Sync error"
+    // with no cause and no next step, indefinitely — while the server had
+    // already said "Store exceeds your plan's size limit" in as many words.
+    // Hover text rather than inline: the badge sits in a sentence, and the
+    // reasons are sentences themselves.
+    // `window.`-qualified, not bare: Bed Ready loads this file but not
+    // cloud-sync.js, and a bare global read there is a ReferenceError. The
+    // module-parity test enforces exactly that, and caught this.
+    const why = (detail && detail.error)
+      || (s === 'error' && window.KhaytCloudSync ? window.KhaytCloudSync.error() : '');
+    if ((s === 'error' || s === 'offline') && why) badge.title = String(why);
+    else badge.removeAttribute('title');
   });
 }
 
