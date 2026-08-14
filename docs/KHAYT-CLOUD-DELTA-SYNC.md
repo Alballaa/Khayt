@@ -117,7 +117,7 @@ So the order is:
 3. ~~**Build the server**, including the gate in §4~~ — done and deployed
    (KhaytApp/khayt-cloud#16). Without the gate step 4 would be unsafe no matter
    how long step 2 waits, which is why it shipped in the same change.
-4. **Flip `DELTA_WRITES`** — still blocked on step 2, and on §7.
+4. **Flip `DELTA_WRITES`** — still blocked on step 2, on §7, and on §8.
 
 Step 2 is now the long pole. The gate cannot open for a shop until every device
 that reads its store has announced itself, and only builds carrying
@@ -155,7 +155,8 @@ sync from an un-upgraded laptop is the one that loses data.
 | Fold a branch's chain in the org roll-up | desktop | **done** |
 | Compaction policy (when to force a full push) | desktop | **done** — §6 |
 | Ask for `?since=` on pull | desktop | **not started** — see §7 |
-| Flip `DELTA_WRITES` | desktop | blocked on deployment + §7 |
+| Fold a chain in the remote-mobile PWA | khayt-cloud `mobile/` | **not started** — see §8 |
+| Flip `DELTA_WRITES` | desktop | blocked on adoption + §7 |
 
 The claim that what remained was "entirely server-side" was **wrong on one point**,
 and §7 is that point. Everything else server-side is built and merged-pending.
@@ -232,3 +233,31 @@ already exceeds `R ×` a tiny base. Such a shop simply keeps sending blobs. The
 saving scales with store size, and where there is no saving the client falls back
 on its own. Pinned by a test; it was found by a test failing for what looked like
 the wrong reason.
+
+---
+
+## 8. The mobile PWA is a blob-only client, and the gate is right to say so
+
+`mobile/app.js` in khayt-cloud pulls `{ ciphertext, rev }` and pushes a whole
+store. It has no merge engine, so it cannot fold a chain — and if it pushed a full
+store over one it would flatten it, which is the §3 hazard exactly.
+
+The gate therefore does the correct thing and holds any shop that uses `/m` to
+blob sync forever. **That is not a bug to route around; it is the design working.**
+But it has a consequence worth stating before anyone plans the flip:
+
+> A shop whose owner uses the remote-mobile PWA will never get deltas, no matter
+> how long adoption runs.
+
+So §3 step 2 is not purely a waiting game. Adoption gets every *desktop* onto a
+build that announces itself; it does nothing for `/m`, because there is no version
+of `/m` that can fold a chain yet. Whatever share of shops use it is a share the
+saving does not reach.
+
+Making it capable means giving the PWA a merge engine. `renderer/sync.js` is pure
+logic with no DOM — `lib/lan-server.js` already reaches across for
+`calculator-cost.js`, and `lib/cloud-client.js` loads the same file into the main
+process for exactly this reason — so the shape is known. It is still a real piece
+of work in a client that handles end-to-end-encrypted data, and it cannot be
+exercised end-to-end until `DELTA_WRITES` is on, which is why it is written down
+here rather than half-built.
