@@ -3753,6 +3753,26 @@ ipcMain.handle('hub:cloud-pull', async () => {
   catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
+/**
+ * A restore or import has replaced local state — make the next sync cold.
+ *
+ * The restore path is renderer-side: this process only reads and decrypts the
+ * file, and `applyStoreFromSnapshot` does the replacing. So the backend cannot
+ * notice on its own that local just moved BACKWARDS, and its retained view then
+ * claims the server holds records local no longer has at those revs — the one
+ * direction that pushes older data over newer, on every device.
+ * docs/KHAYT-CLOUD-DELTA-SYNC.md §7.
+ *
+ * Locked is not an error: with no backend there is no in-memory claim to drop,
+ * and the cache on disk is checked against the restored store by
+ * `viewSafeForLocal` at the next unlock, which is what that guard is for.
+ */
+ipcMain.handle('hub:cloud-forget-view', () => {
+  if (!cloudBackend) return { ok: true, forgotten: false };
+  try { cloudBackend.forgetServerView(); return { ok: true, forgotten: true }; }
+  catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+});
+
 // Cloud snapshot history (cross-device restore). list returns metadata only;
 // get decrypts the chosen version with the session DEK held in cloudBackend.
 ipcMain.handle('hub:cloud-snapshots-list', async () => {

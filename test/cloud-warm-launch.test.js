@@ -112,14 +112,14 @@ function makeDeltaServer() {
  * a RESTART: same shop, same disk, a brand-new backend — which is exactly what
  * an unlock does.
  */
-function device(server, shopId, dek, dir, { localStore = null, engine = loadEngine() } = {}) {
+function device(server, shopId, dek, dir, { localStore = null, engine = loadEngine(), deltaWrites = true } = {}) {
   const backend = createCloudBackend({
     transport: (req) => server.handle(req),
     crypto: sc,
     shopId,
     getDek: () => dek,
     sync: engine,
-    deltaWrites: true,
+    deltaWrites,
     viewCache: dir ? createViewCache({ dir, shopId, crypto: sc, getDek: () => dek }) : null,
     getLocalSnapshot: () => localStore,
   });
@@ -378,6 +378,88 @@ test('an unwritable cache costs a cold launch, never a sync', async () => {
   assert.equal(res.conflict, false, 'the push went through regardless');
   const pulled = await backend.pull();
   assert.ok(pulled.store, 'and so did the pull');
+});
+
+/* ── The restore that happens while the app is running ──────────────────── */
+
+/**
+ * `viewSafeForLocal` stands at construction — unlock and launch. A restore
+ * performed mid-session walks past it: the backend is not rebuilt, so the view,
+ * the rev and the pushed-revs cursor all outlive the event that moved local
+ * state backwards. That is what `forgetServerView()` is for, and these three
+ * tests are the hazard, the fix, and the part `_setServerRev` would miss.
+ */
+
+/** A restore, as the renderer performs it: local becomes the older store. */
+async function pushTwice(server, dir, dek, deltaWrites) {
+  const d = device(server, 'shopA', dek, dir, { deltaWrites });
+  const old = stamped(d.engine, { printLog: [{ id: 'o1', price: 10 }] });
+  await d.backend.push(clone(old));
+
+  const current = clone(old);
+  current.printLog[0].price = 99;
+  d.engine.stampChanges(current);
+  await d.backend.push(current);
+  assert.ok(current.printLog[0].rev > old.printLog[0].rev, 'the fixture really did move the rev on');
+  return { d, old };
+}
+
+test('THE HAZARD: a mid-session restore pushes the older store straight over the newer one', async () => {
+  // Characterises the bug rather than the fix, so a "fix" that changes nothing
+  // cannot pass the next test by accident. deltaWrites:false because that is
+  // what ships today, and it is the destructive half: a full push whose baseRev
+  // the server accepts REPLACES the base, and every device pulls the old store.
+  const server = makeDeltaServer();
+  const dek = freshDek();
+  const { d, old } = await pushTwice(server, tmpdir('hazard'), dek, false);
+
+  const res = await d.backend.push(clone(old));
+  assert.equal(res.conflict, false, 'nothing rejects it — that is the whole problem');
+
+  const witness = device(server, 'shopA', dek, null);
+  const seen = await witness.backend.pull();
+  assert.equal(seen.store.printLog[0].price, 10,
+    'the newer record is gone from the server, and nothing said so');
+});
+
+test('THE FIX: forgetting the view turns that same restore into a conflict, and the newer record survives', async () => {
+  const server = makeDeltaServer();
+  const dek = freshDek();
+  const { d, old } = await pushTwice(server, tmpdir('midsession'), dek, false);
+
+  // What the renderer now does before it applies the snapshot.
+  d.backend.forgetServerView();
+
+  const res = await d.backend.push(clone(old));
+  assert.equal(res.conflict, true,
+    'a push guarded on rev 0 cannot overwrite a shop that has ever pushed');
+
+  // And a 409 is pull → merge → re-push, so the restore repairs instead.
+  const pulled = await d.backend.pull();
+  assert.equal(pulled.store.printLog[0].price, 99, 'the newer record survives the restore');
+});
+
+test('forgetting takes the pushed-revs cursor with it, not just the view', async () => {
+  // The reason _setServerRev is not enough on its own. It drops the view and the
+  // cache file but leaves `pushedRevs`, and the cursor is the dangerous half: a
+  // rolled-back record still disagrees with it, so it still ships.
+  const server = makeDeltaServer();
+  const dek = freshDek();
+  const dir = tmpdir('cursor');
+  const { d } = await pushTwice(server, dir, dek, true);
+
+  assert.ok(d.backend.pushedCount() > 0, 'there is a cursor to lose');
+  assert.equal(fs.readdirSync(dir).filter((f) => f.startsWith('cloud-view-')).length, 1);
+
+  d.backend.forgetServerView();
+
+  assert.equal(d.backend.isWarm(), false, 'no view');
+  assert.equal(d.backend.serverRev(), 0, 'no rev — this is what makes the next push conflict');
+  assert.equal(d.backend.pushedCount(), 0, 'and no cursor to measure a rolled-back record against');
+  assert.deepEqual(d.backend.chainState(), { baseWireBytes: 0, chainWireBytes: 0, chainCount: 0, dueForCompaction: false },
+    'the counters described a base this backend no longer claims');
+  assert.equal(fs.readdirSync(dir).filter((f) => f.startsWith('cloud-view-')).length, 0,
+    'on disk too, or the next launch restores the pair this just declared unusable');
 });
 
 /* ── The predicate on its own ───────────────────────────────────────────── */

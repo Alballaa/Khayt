@@ -1705,6 +1705,35 @@ function reportResurrectedRecords() {
   if (typeof toast === 'function') toast(msg, 'warning', 12000);
 }
 
+/**
+ * A restore or import is about to replace local state — tell the cloud backend
+ * to forget what it believes the server holds.
+ *
+ * Restores are renderer-side (the main process only decrypts the file), so the
+ * backend never learns that local just moved BACKWARDS. It goes on claiming the
+ * server holds records at the revs it last pushed, and everything that
+ * disagrees with that claim is what gets sent — which, after a restore, is the
+ * older copy of every record, sent over the newer one on every device, silently.
+ * `viewSafeForLocal` catches exactly this, but only when the backend is BUILT;
+ * a restore while the app is running never rebuilds it.
+ * docs/KHAYT-CLOUD-DELTA-SYNC.md §7.
+ *
+ * Called BEFORE the snapshot is applied, not after. The window between the two
+ * is small but it is not empty — a sync debounced from an earlier save can fire
+ * inside it — and the asymmetry is the same one that decides every judgement
+ * call in the backend: forgetting a view that turned out not to need it costs
+ * one cold pull, keeping one that did costs a shop its data.
+ *
+ * Never throws and never blocks the restore. Cloud off, cloud locked, or an IPC
+ * that fails all mean the same thing here: no in-memory claim was dropped, and
+ * the on-disk cache is still checked against the restored store at the next
+ * unlock.
+ */
+async function forgetCloudServerView() {
+  try { await window.hubAPI?.cloudForgetView?.(); }
+  catch (e) { console.error('cloudForgetView:', e); }
+}
+
 function cloudSyncDeps() {
   return {
     appendOnly: CLOUD_APPEND_ONLY,
@@ -4521,6 +4550,9 @@ async function openRestoreBackupModal() {
         const json = await window.hubAPI.restoreBackup(chosen.value);
         if (!json) { toast(t('set.restore_error'), 'error'); return false; }
         const data = safeJsonParse(json);
+        // Local is about to go backwards; the cloud backend has to stop claiming
+        // the server holds what this device last pushed.
+        await forgetCloudServerView();
       // Refuse a snapshot that failed validation — replaceStoreFromSnapshot leaves the
       // existing data untouched when it returns false, so do NOT save or report success.
         if (!replaceStoreFromSnapshot(data)) { toast(t('set.restore_error') || 'Restore failed — the backup could not be read', 'error'); return false; }
@@ -4573,6 +4605,8 @@ async function openRestorePointsModal() {
       const json = await window.hubAPI.readRestorePoint(b.dataset.f);
       if (!json) { toast(t('set.restore_error') || 'Restore failed', 'error'); return; }
       try {
+        // Same rollback as a backup restore, from a different folder.
+        await forgetCloudServerView();
       // Refuse a snapshot that failed validation — replaceStoreFromSnapshot leaves the
       // existing data untouched when it returns false, so do NOT save or report success.
         if (!replaceStoreFromSnapshot(safeJsonParse(json))) { toast(t('set.restore_error') || 'Restore failed', 'error'); return; }
@@ -4849,9 +4883,12 @@ async function importData(file) {
   );
   if (!ok) return;
   const reader = new FileReader();
-  reader.onload = (ev) => {
+  reader.onload = async (ev) => {
     try {
       const data = safeJsonParse(ev.target.result);
+      // An imported file is someone else's store, or an older copy of this one —
+      // either way the backend's claim about the server no longer describes it.
+      await forgetCloudServerView();
       // Refuse a snapshot that failed validation — replaceStoreFromSnapshot leaves the
       // existing data untouched when it returns false, so do NOT save or report success.
       if (!replaceStoreFromSnapshot(data)) { toast(t('set.import_error') || t('set.restore_error') || 'Import failed — that file is not a Khayt backup', 'error'); return; }
