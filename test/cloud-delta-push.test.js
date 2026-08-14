@@ -12,16 +12,21 @@
  *
  *   POST /v1/shops/{id}/deltas   { ciphertext, baseRev }
  *        200 { rev } · 409 { rev } on a stale head · 404 if unsupported
- *   GET  /v1/shops/{id}/store
- *        200 { ciphertext, rev, deltas: [{ rev, ciphertext }] }
+ *   GET  /v1/shops/{id}/store[?since={rev}]
+ *        200 { ciphertext?, rev, deltas: [{ rev, ciphertext }] }
+ *        `ciphertext` only when the caller is behind the base; `rev` is always
+ *        the head of the WHOLE chain, never of the returned slice.
  *
  * Writing the fixture first is the point: it is far cheaper to find out here
  * that the shape is wrong than after it exists in two server implementations
- * that a parity test pins together.
+ * that a parity test pins together. The `?since=` half arrived the other way
+ * round — the servers had it first — so the fixture models what they actually
+ * do, and index.php is quoted where it is easy to get wrong.
  *
- * The most important test in this file is the LAST one. It does not check that
+ * The most important test in this file is 'THE HAZARD'. It does not check that
  * the protocol works — it checks that the protocol is dangerous, and is why
- * DELTA_WRITES ships off.
+ * DELTA_WRITES ships off. The one nearest it in spirit is the last in the file:
+ * the warm pull's failure mode is silent, and it eats local edits.
  */
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -50,10 +55,11 @@ function freshDek(pass = 'p') {
 function makeDeltaServer({ takesDeltas = true } = {}) {
   const base = new Map();     // shopId -> { rev, ciphertext }
   const chain = new Map();    // shopId -> [{ rev, ciphertext }]
-  const bytes = { blob: 0, delta: 0 };
+  const bytes = { blob: 0, delta: 0, pull: 0 };
   return {
     bytes,
-    async handle({ method, path: p, body }) {
+    async handle({ method, path: rawPath, body }) {
+      const [p, query] = String(rawPath).split('?');
       const d = String(p).match(/^\/v1\/shops\/([^/]+)\/deltas$/);
       if (d) {
         if (!takesDeltas) return { status: 404 };       // a Phase 1 server
@@ -74,7 +80,19 @@ function makeDeltaServer({ takesDeltas = true } = {}) {
       if (method === 'GET') {
         const b = base.get(shopId);
         if (!b) return { status: 204 };
-        return { status: 200, body: { ciphertext: b.ciphertext, rev: headRev(shopId), deltas: chain.get(shopId) || [] } };
+        // `?since={rev}`: only entries newer than that rev, and the base only
+        // when the caller is actually behind it. Mirrors index.php — including
+        // the part that is easy to get wrong, that `rev` is the head of the
+        // WHOLE chain and never of the filtered slice. A caller that is already
+        // current gets no deltas back and must still be told the rev it is
+        // current WITH, or its next push guards on a stale head and 409s.
+        const sinceRaw = new URLSearchParams(query || '').get('since');
+        const since = (sinceRaw === null || sinceRaw === '') ? null : (sinceRaw | 0);
+        const deltas = (chain.get(shopId) || []).filter((x) => x.rev > (since === null ? 0 : since));
+        const out = { rev: headRev(shopId), deltas };
+        if (since === null || since < b.rev) out.ciphertext = b.ciphertext;
+        bytes.pull += JSON.stringify(out).length;
+        return { status: 200, body: out };
       }
       if (method === 'PUT') {
         const head = headRev(shopId);
@@ -466,4 +484,189 @@ test('an unknown base size still bounds the chain by count', () => {
   // chain run away on exactly the path where that state was lost.
   assert.equal(MAX_CHAIN_DELTAS, 1000);
   assert.equal(COMPACT_RATIO, 2);
+});
+
+/* ---------------------------------------------------------------------------
+ * The pull half. `?since=` is a requirement, not an optimisation: without it a
+ * warm device re-downloads the base AND the whole chain every time, which makes
+ * pulls WORSE than blob-only and can cancel the push saving on its own.
+ * ------------------------------------------------------------------------- */
+
+test('a warm pull asks for the slice and folds it onto the view it kept', async () => {
+  const server = makeDeltaServer();
+  const dek = freshDek();
+  const a = device(server, 'shopA', dek);
+  const b = device(server, 'shopA', dek);
+
+  const store = stamped(a.engine, {
+    printLog: Array.from({ length: 300 }, (_, i) => ({ id: 'o' + i, price: i, notes: 'x'.repeat(60) })),
+    clients: [{ id: 'c1', name: 'Acme' }],
+  });
+  await a.backend.push(store);
+
+  // B comes up cold: base + whole chain, and it now holds a server view.
+  await b.backend.pull();
+  assert.equal(b.backend.isWarm(), true, 'a pull leaves the backend warm');
+  const coldBytes = server.bytes.pull;
+
+  // A appends one record.
+  store.clients.push({ id: 'c2', name: 'Beta Ltd' });
+  a.engine.stampChanges(store);
+  await a.backend.push(store);
+
+  server.bytes.pull = 0;
+  const warm = await b.backend.pull();
+
+  assert.deepEqual(warm.store.clients.map((c) => c.name).sort(), ['Acme', 'Beta Ltd'],
+    'the warm pull produces the same store a cold one would');
+  // The bound is deliberately loose. This fixture's base is 400 records of the
+  // same repeated filler, so it compresses far better than a real store and the
+  // gap here (~7×) UNDERSTATES the saving rather than flattering it. What is
+  // being pinned is the shape — the base is not on the wire at all — not a ratio.
+  assert.ok(server.bytes.pull * 3 < coldBytes,
+    `a warm pull (${server.bytes.pull} B) must be a fraction of a cold one (${coldBytes} B)`);
+});
+
+test('a warm pull that is already current still learns the head rev', async () => {
+  // The subtle one, and the reason the server sends the whole chain's head
+  // rather than the slice's: a caller that is current gets no deltas back, and
+  // if it did not learn the rev it is current WITH, its next push would guard on
+  // a stale head and 409 forever.
+  const server = makeDeltaServer();
+  const dek = freshDek();
+  const a = device(server, 'shopA', dek);
+
+  const store = stamped(a.engine, { clients: [{ id: 'c1', name: 'Acme' }] });
+  await a.backend.push(store);
+  await a.backend.pull();
+  const rev = a.backend.serverRev();
+
+  const again = await a.backend.pull();
+  assert.equal(again.rev, rev, 'a no-op warm pull reports the same head');
+
+  store.clients.push({ id: 'c2', name: 'Beta Ltd' });
+  a.engine.stampChanges(store);
+  const res = await a.backend.push(store);
+  assert.equal(res.conflict, false, 'and the push after it is not refused as stale');
+});
+
+test('a compaction while a device was away comes back as a cold reply on its own', async () => {
+  // The client asks for a slice; the server decides what it is entitled to. When
+  // the base has moved past the caller's rev it sends the base too, so no special
+  // case is needed here for "my view is older than the chain".
+  const server = makeDeltaServer();
+  const dek = freshDek();
+  const a = device(server, 'shopA', dek);
+  const b = device(server, 'shopA', dek);
+
+  const store = bigStore(a.engine);
+  await a.backend.push(store);
+  await b.backend.pull();                       // B is warm at the old base
+
+  // Let A run the chain out until it compacts, all while B is away.
+  let guard = 0;
+  do {
+    store.clients.push({ id: 'c' + guard, name: 'client ' + guard });
+    a.engine.stampChanges(store);
+    await a.backend.push(store);
+  } while (server.chainLength('shopA') > 0 && guard++ < 200);
+  assert.equal(server.chainLength('shopA'), 0, 'a full push compacted the chain');
+
+  const pulled = await b.backend.pull();
+  assert.equal(pulled.store.printLog.length, 400, 'B got a whole store back, not a slice');
+  assert.equal(pulled.store.clients.length, store.clients.length,
+    'B folds nothing and simply adopts the new base');
+});
+
+test('a warm pull ADDS to the chain count, so compaction still fires', async () => {
+  // A warm reply shows only what is newer than `since`. Adopting its length as
+  // the chain length would undercount every time and let a chain run past both
+  // bounds — the failure would be a slow one, visible only as cold pulls that
+  // got steadily more expensive.
+  const server = makeDeltaServer();
+  const dek = freshDek();
+  const a = device(server, 'shopA', dek);
+  const b = device(server, 'shopA', dek);
+
+  const store = bigStore(a.engine);             // big enough that deltas are chosen
+  await a.backend.push(store);
+  await b.backend.pull();
+
+  for (const id of ['c2', 'c3', 'c4']) {
+    store.clients.push({ id, name: id.toUpperCase() });
+    a.engine.stampChanges(store);
+    const res = await a.backend.push(store);
+    assert.equal(res.delta, true, 'the setup needs real deltas, not full pushes');
+    await b.backend.pull();                     // warm each time: one delta apiece
+  }
+
+  assert.equal(server.chainLength('shopA'), 3);
+  assert.equal(b.backend.chainState().chainCount, 3,
+    'B counted the whole chain, not just the last slice it was sent');
+});
+
+test('THE WARM-PULL TRAP: a local-only edit still ships after a warm pull', async () => {
+  // The tempting target to fold onto is the local store, and it is quietly
+  // wrong. Records arrive by reference, and the local store carries edits the
+  // server has never seen; fold onto it and the markAllPushed that follows
+  // records those local-only records as already sent, so they never ship.
+  //
+  // Nothing else here would notice: the store looks right on this device, the
+  // push succeeds, and the record is simply absent from every other one.
+  const server = makeDeltaServer();
+  const dek = freshDek();
+  const a = device(server, 'shopA', dek);
+  const b = device(server, 'shopA', dek);
+
+  const store = stamped(a.engine, { clients: [{ id: 'c1', name: 'Acme' }] });
+  await a.backend.push(store);
+
+  const bStore = (await b.backend.pull()).store;  // B is warm
+
+  // B makes an edit of its own and does NOT push it yet.
+  bStore.clients.push({ id: 'b-local', name: 'B Only' });
+  b.engine.stampChanges(bStore);
+
+  // Meanwhile A pushes, and B pulls that in — warm, folding onto its view.
+  store.clients.push({ id: 'c2', name: 'Beta Ltd' });
+  a.engine.stampChanges(store);
+  await a.backend.push(store);
+
+  const pulled = await b.backend.pull();
+  // The merge a real caller performs: A's records land in B's local store.
+  b.engine.applyDeltas(bStore, { deltas: pulled.store.clients.map((record) => ({ collection: 'clients', record })), tombstones: [] }, {});
+
+  await b.backend.push(bStore);
+  const seen = (await a.backend.pull()).store.clients.map((c) => c.id).sort();
+  assert.ok(seen.includes('b-local'),
+    'B\'s unpushed local record survived the warm pull and reached the server');
+  assert.deepEqual(seen, ['b-local', 'c1', 'c2']);
+});
+
+test('the store a pull returns is the caller\'s, not the retained view', async () => {
+  // The other half of "cloned in and out". The caller merges the returned store
+  // into local state by reference and then goes on editing it; if those were our
+  // records, the view would drift into the local store one edit at a time and
+  // the next warm fold would be built on edits the server never received.
+  const server = makeDeltaServer();
+  const dek = freshDek();
+  const a = device(server, 'shopA', dek);
+  const b = device(server, 'shopA', dek);
+
+  const store = stamped(a.engine, { clients: [{ id: 'c1', name: 'Acme' }] });
+  await a.backend.push(store);
+
+  const first = (await b.backend.pull()).store;
+  first.clients[0].name = 'LOCAL EDIT';           // as a caller would, after merging
+  first.clients.push({ id: 'local', name: 'nope' });
+
+  store.clients.push({ id: 'c2', name: 'Beta Ltd' });
+  a.engine.stampChanges(store);
+  await a.backend.push(store);
+
+  const second = (await b.backend.pull()).store;
+  assert.equal(second.clients.find((c) => c.id === 'c1').name, 'Acme',
+    'the warm fold was built on the server view, untouched by the caller');
+  assert.equal(second.clients.some((c) => c.id === 'local'), false,
+    'and the caller\'s local-only record never entered it');
 });

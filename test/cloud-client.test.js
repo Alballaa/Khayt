@@ -34,9 +34,15 @@ function refServer() {
     return m && tokens.get(shopId)?.has(m[1]);
   };
   return http.createServer(async (req, res) => {
-    const path = req.url.replace(/\/+$/, '') || '/';
+    // Route on the path, keep the raw target. Both real backends do exactly this
+    // — index.php via parse_url(PHP_URL_PATH), src/server.js via URL.pathname —
+    // because `GET /store?since=7` is the same route as `GET /store`.
+    const target = req.url;
+    const query = new URL(req.url, 'http://localhost').searchParams;
+    const path = req.url.split('?')[0].replace(/\/+$/, '') || '/';
     seen.push({
-      method: req.method, path, auth: req.headers.authorization || '',
+      method: req.method, path, target, since: query.get('since'),
+      auth: req.headers.authorization || '',
       // Recorded so a test can assert what this device TELLS the server it can
       // read — the server refuses a shop a delta chain without it.
       cap: req.headers['x-delta-capable'] || '',

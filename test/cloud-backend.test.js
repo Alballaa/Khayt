@@ -21,7 +21,13 @@ function makeRefServer() {
   const snaps = new Map(); // shopId -> [{ id, rev, ciphertext, createdAt }]
   let seq = 0, clock = 1;
   return {
-    async handle({ method, path, body }) {
+    async handle({ method, path: rawPath, body }) {
+      // Route on the path alone. This server is blob-only and knows nothing of
+      // `?since=`, and a real one ignores it the same way — index.php routes on
+      // parse_url(PHP_URL_PATH) — so a warm client asking a Phase 1 server for a
+      // slice gets the whole blob back and folds nothing. That downgrade is the
+      // behaviour under test here, not an accident of the fixture.
+      const path = String(rawPath).split('?')[0];
       const sn = String(path).match(/^\/v1\/shops\/([^/]+)\/snapshots(?:\/(\d+))?$/);
       if (sn) {
         const shopId = sn[1];
