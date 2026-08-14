@@ -2,13 +2,13 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0-rc.3 — on `main`)
+## Now (post-3.6.0-rc.4 — on `main`)
 
 **Stable is v3.5.3** (2026-08-01, a security patch cut from the
-`release/3.5.x` maintenance branch). **`main` is `3.6.0-rc.3`** (2026-08-14) —
-the candidate for v3.6.0, on the pre-release channel, awaiting a soak. rc.1 and
-rc.2 are superseded, each replaced rather than promoted because a candidate is
-meant to *be* what stable will be. No hold is active — see
+`release/3.5.x` maintenance branch). **`main` is `3.6.0-rc.4`** (2026-08-14) —
+the candidate for v3.6.0, on the pre-release channel, awaiting a soak. rc.1,
+rc.2 and rc.3 are superseded, each replaced rather than promoted because a
+candidate is meant to *be* what stable will be. No hold is active — see
 [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md).
 
 **Bed Ready is on its own line and is current: `1.1.0`** (2026-08-12), built by
@@ -30,13 +30,14 @@ queue of code waiting to be written** — that is the honest state of this file.
       file-to-estimate-to-quote and estimator calibration — so re-running the
       suite adds nothing. **What is missing is the half CI cannot supply**, and
       naming the candidate does not supply it either.
-      **Decide replace-vs-promote first, every time.** `main` has moved past
-      `rc.3` — four commits, three user-facing, including a fix for a restore
-      while the app is running pushing rolled-back data over newer data on other
-      devices. Promoting a candidate that `main` has overtaken makes stable out
-      of code no candidate carried, which is why rc.2 and rc.3 were each cut
-      rather than promoted. Either cut the next rc from current `main` or
-      promote from it.
+      **Decide replace-vs-promote first, every time.** `main` is level with
+      `rc.4` — nothing has landed since the tag and `[Unreleased]` is empty — so
+      this is the first candidate on the line that can simply be promoted.
+      Promoting a candidate that `main` has overtaken makes stable out of code
+      no candidate carried, which is why rc.2, rc.3 and rc.4 were each cut
+      rather than promoted. Re-check on the day rather than trusting this file:
+      `main` moves several times an hour on an active day, and if it has moved
+      again, cut the next rc from it or promote from it instead.
       **This promotion is the only thing two server-side flips are waiting
       on** — the portal read gate and `DELTA_WRITES`. Both are built and
       dormant, and both count adoption in *stable* builds, so no prerelease
@@ -103,11 +104,14 @@ These are recorded so nobody assumes they exist:
 
 ## Shipped (3.3 → 3.6 — 2026-07 to 2026-08)
 
-Four stable lines, nineteen beta releases and one release candidate since 3.2.0. Full detail per release is in
+Four stable lines, nineteen beta releases and four release candidates since 3.2.0. Full detail per release is in
 [CHANGELOG.md](./CHANGELOG.md); this is the index.
 
 | Version | Date | What it was |
 |---------|------|-------------|
+| **3.6.0-rc.4** | 2026-08-14 | **A restore can no longer overwrite newer data.** Restoring a backup, a restore point, or an imported file *while the app was running* could push that older copy to the cloud as the latest, and every other device would take it — silently, with the newer records gone. A restore is now treated like a fresh start: forget what the server was thought to hold, refetch, merge ([#708]). Also the organisation overview showing what each branch earned and is still owed, each in its own currency and never summed across them ([#707]), and a launch sync that asks only for what changed ([#705]). The current candidate ([#710]). |
+| **3.6.0-rc.3** | 2026-08-14 | **Sync failures explain themselves.** A failed sync said "Sync error" and nothing else, forever ([#698]). Cut because thirteen commits had landed after rc.2 ([#704]). |
+| **3.6.0-rc.2** | 2026-08-13 | **The copy buttons work.** rc.1 shipped with every "Copy link" button copying nothing ([#688]) — the reason a candidate is soaked rather than assumed. Cut to replace rc.1 ([#691]). |
 | **3.6.0-rc.1** | 2026-08-12 | **The candidate for v3.6.0 stable**, and no behaviour change over `beta.19`. Cut because the promotion gate is real shop use and `beta.19` was 87 minutes old when promotion came up — so rather than assume a soak, the exact proposed code got a name, a mac build and a place on the pre-release channel where it can be installed and used on purpose. Stable stays on v3.5.3 ([#684]). |
 | **3.6.0-beta.19** | 2026-08-12 | **Low stock follows the theme again.** beta.18 gave "low stock" its own colour token so recolouring it would not also recolour overdue jobs and spool age — right idea, wrong default: the token was a literal amber while every theme darkens its warning colour for the light appearance. Low stock rendered at 1.77–2.03:1 where the theme's own colour measured 4.71–5.93:1, on all seven light themes ([#680]). Found by running the app, not by a failing test. |
 | **3.6.0-beta.18** | 2026-08-12 | **Cloud sync starts writing compressed** — 59 KB down to 9 KB on a real shop, the second half of the rollout beta.17 began; a second machine on beta.16 or earlier must be updated or it stops syncing ([#679]). Also documents that travel with a product, listed on the work order and — only if ticked to ship — the delivery note ([#678]); and marketplace fees in one click, including Etsy's two percentages *and* its 0.20 listing fee ([#677]). |
@@ -177,6 +181,14 @@ Four stable lines, nineteen beta releases and one release candidate since 3.2.0.
 [#679]: https://github.com/KhaytApp/Khayt/pull/679
 [#680]: https://github.com/KhaytApp/Khayt/pull/680
 [#684]: https://github.com/KhaytApp/Khayt/pull/684
+[#688]: https://github.com/KhaytApp/Khayt/pull/688
+[#691]: https://github.com/KhaytApp/Khayt/pull/691
+[#698]: https://github.com/KhaytApp/Khayt/pull/698
+[#704]: https://github.com/KhaytApp/Khayt/pull/704
+[#705]: https://github.com/KhaytApp/Khayt/pull/705
+[#707]: https://github.com/KhaytApp/Khayt/pull/707
+[#708]: https://github.com/KhaytApp/Khayt/pull/708
+[#710]: https://github.com/KhaytApp/Khayt/pull/710
 
 ## Shipped (3.2.0 beta line — 2026-07)
 
