@@ -10,9 +10,11 @@ ratio of how *active* two shops are, which is all it should ever have been.
 Compression (beta.18) lowered the bill by 6.17× but left it quadratic, because a
 uniform multiplier cannot change a shape. This is the change that does.
 
-**Status:** the desktop **reader** is built and tested. Nothing writes deltas —
-`DELTA_WRITES` in [`lib/cloud-backend.js`](../lib/cloud-backend.js) is `false`,
-and §3 is why. No server implements the contract yet.
+**Status:** the desktop **reader** is built and tested, and the **server** now
+implements the contract in both backends (KhaytApp/khayt-cloud#16, awaiting merge
+and a hand upload). Nothing writes deltas — `DELTA_WRITES` in
+[`lib/cloud-backend.js`](../lib/cloud-backend.js) is `false`, and §3 is why. The
+one piece still genuinely missing is the warm pull: §7.
 
 ---
 
@@ -126,13 +128,45 @@ sync from an un-upgraded laptop is the one that loses data.
 | Fold `base + deltas` on pull | desktop | **done** |
 | Push index (not a cursor) | desktop | **done** |
 | Contract proven against a reference server | desktop tests | **done** |
-| `POST /deltas` + chain storage | khayt-cloud (PHP **and** Node) | not started |
-| Per-device capability + per-shop gate | khayt-cloud | not started |
+| `POST /deltas` + chain storage | khayt-cloud (PHP **and** Node) | **done** — KhaytApp/khayt-cloud#16 |
+| `?since=` on `GET /store` | khayt-cloud | **done** — same PR |
+| Per-device capability + per-shop gate | khayt-cloud | **done** — same PR |
+| Announce `X-Delta-Capable` | desktop | **done** |
+| Fold a branch's chain in the org roll-up | desktop | **done** |
 | Compaction policy (when to force a full push) | desktop | **done** — §6 |
-| Flip `DELTA_WRITES` | desktop | blocked on all of the above |
+| Ask for `?since=` on pull | desktop | **not started** — see §7 |
+| Flip `DELTA_WRITES` | desktop | blocked on deployment + §7 |
 
-What remains is entirely server-side. The compaction question that was open in
-the first revision is answered in §6.
+The claim that what remained was "entirely server-side" was **wrong on one point**,
+and §7 is that point. Everything else server-side is built and merged-pending.
+
+## 7. The pull half is not free, and it is still open
+
+`?since=` exists on the server. **The desktop never sends it**, and it cannot
+usefully start: `pull()` in [`lib/cloud-backend.js`](../lib/cloud-backend.js)
+unconditionally decrypts `ciphertext`, and a warm reply deliberately does not
+carry a base. Folding onto what the caller already holds is the whole point, and
+that needs somewhere to fold *onto*.
+
+The obvious target — the local store — is the wrong one, and quietly so. Records
+arrive by reference (`applyDeltas` does `arr[i] = incoming`), and the local store
+carries edits the server has never seen; folding onto it and then calling
+`markAllPushed` would mark those local-only records as already sent, so they would
+never ship. That is a data-loss bug wearing the costume of an optimisation.
+
+What it actually needs is a **retained server-view snapshot** — the store as of
+`lastServerRev`, held apart from local state and cloned on the way in and out.
+
+And the case the cost model cares about is the *launch* pull, which this still
+would not fix: `cloudBackend` is rebuilt on every unlock, so `lastServerRev`
+starts at 0 and the first pull of a session is always cold. Making launch warm
+means **persisting** the server view and its rev across restarts, which is a
+feature, not a flag.
+
+Until then the shape of the bill is: pushes drop by the full factor, and a cold
+pull costs up to `1 + R` (3× at R = 2) of a blob pull. Pulls are rare — one per
+launch, plus the occasional 409 — so the trade is still strongly positive, but it
+is not the number in §1 and should not be quoted as one.
 
 ---
 
