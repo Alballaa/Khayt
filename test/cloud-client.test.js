@@ -316,6 +316,39 @@ test('the sync backend tells the server it can read a delta chain', async () => 
   }
 });
 
+test('a warm launch survives the process: the next backend asks for a slice', async () => {
+  // The wiring, over real fetch. cloud-warm-launch.test.js pins the behaviour;
+  // what is checked here is that backendFor actually hands the cache and the
+  // local-store check down to it — a backend built without them is silently
+  // cold, and every test that mocks the backend directly would still pass.
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const nodePath = require('node:path');
+  const dir = fs.mkdtempSync(nodePath.join(os.tmpdir(), 'khayt-warm-wire-'));
+
+  const { shopId, token } = await cc.register(base);
+  const { keyset } = cc.createKeyset('sync-pass', { kdf: FAST_KDF });
+  const dek = cc.unlockWithPassphrase('sync-pass', keyset);
+  const opts = { cacheDir: dir, getLocalSnapshot: () => STORE };
+
+  await cc.backendFor(base, shopId, token, dek, opts).push(STORE);
+
+  // A new backend over the same directory — what an unlock builds after a restart.
+  seen.length = 0;
+  const relaunched = cc.backendFor(base, shopId, token, dek, opts);
+  assert.equal(relaunched.isWarm(), true, 'the retained view outlived the backend that wrote it');
+  await relaunched.pull();
+
+  const get = seen.find((r) => r.method === 'GET' && r.path === `/v1/shops/${shopId}/store`);
+  assert.equal(get.since, String(relaunched.serverRev()), 'the first pull of the session asks ?since=');
+
+  // And without a cache directory nothing changes for anyone: still cold.
+  seen.length = 0;
+  await cc.backendFor(base, shopId, token, dek).pull();
+  const cold = seen.find((r) => r.method === 'GET' && r.path === `/v1/shops/${shopId}/store`);
+  assert.equal(cold.since, null, 'a backend with no cache asks for everything, as before');
+});
+
 test('a transport that is not the sync backend stays silent about capability', async () => {
   // The trap on the other side: the server records this on store reads, so a call
   // that arrives without the header from a device that CAN fold would mark it

@@ -4,6 +4,22 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Changed
+
+- **Khayt Cloud no longer re-downloads your whole shop every time you open the
+  app.** Once Khayt has read your data from the cloud, it remembers what the
+  server had and asks only for what changed since — including on the first sync
+  after a restart, which until now always fetched everything.
+
+  For a shop on a cloud server that supports it, the sync at startup drops from
+  the size of your whole shop to the size of the changes, and nothing about your
+  data or your setup changes. The remembered copy is kept encrypted on this
+  computer with your own sync passphrase, exactly like the copy on the server.
+
+  Khayt goes back to fetching everything whenever it cannot be sure the shortcut
+  is safe — after you restore a backup, after a passphrase change, or on a new
+  machine — because a full fetch is the version that can never lose an edit.
+
 ## [3.6.0-rc.3] - 2026-08-14
 
 ### Fixed

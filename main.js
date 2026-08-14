@@ -3559,7 +3559,19 @@ ipcMain.handle('hub:cloud-unlock', (_e, { url, shopId, token, keyset, passphrase
   try {
     token = resolveStoreSecret(token, d => d?.settings?.cloud?.token);
     const dek = cloudClient.unlockWithPassphrase(String(passphrase || ''), keyset);
-    cloudBackend = cloudClient.backendFor(url, shopId, token, dek);
+    cloudBackend = cloudClient.backendFor(url, shopId, token, dek, {
+      // Warm launch: let this session start from the server view the last one
+      // left behind, so the first pull asks for a slice instead of the base and
+      // the whole chain. docs/KHAYT-CLOUD-DELTA-SYNC.md §7.
+      cacheDir: ensureDir('cloud-cache'),
+      // The store as it is ON DISK, which is what the cached view was last
+      // reconciled against. Unsaved renderer edits only make local NEWER than
+      // disk, and the check refuses on local being OLDER — so reading the file
+      // here errs toward a cold pull, never toward adopting a view it should not.
+      getLocalSnapshot: () => {
+        try { return recoverStoreRaw(50_000_000).data || null; } catch (e) { return null; }
+      },
+    });
     return { ok: true };
   } catch (e) { cloudBackend = null; return { ok: false, error: 'Wrong passphrase or invalid keyset' }; }
 });
