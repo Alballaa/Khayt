@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.6.0-rc.3] - 2026-08-14
+
 ### Fixed
 
 - **When cloud sync fails, it now says why.** The status in cloud settings turned
