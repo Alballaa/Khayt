@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.6.0-rc.4] - 2026-08-14
+
 ### Added
 
 - **"Across the branches" now shows the money, and what is late.** Until now the
