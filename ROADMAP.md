@@ -2,11 +2,13 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0-rc.1 — on `main`)
+## Now (post-3.6.0-rc.3 — on `main`)
 
 **Stable is v3.5.3** (2026-08-01, a security patch cut from the
-`release/3.5.x` maintenance branch). **`main` is `3.6.0-rc.1`** — the candidate
-for v3.6.0, on the pre-release channel, awaiting a soak. No hold is active — see
+`release/3.5.x` maintenance branch). **`main` is `3.6.0-rc.3`** (2026-08-14) —
+the candidate for v3.6.0, on the pre-release channel, awaiting a soak. rc.1 and
+rc.2 are superseded, each replaced rather than promoted because a candidate is
+meant to *be* what stable will be. No hold is active — see
 [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md).
 
 **Bed Ready is on its own line and is current: `1.1.0`** (2026-08-12), built by
@@ -17,18 +19,28 @@ believed to be blocked on a token that in fact already existed.
 Everything below needs a switched-on printer or real shop use. **There is no
 queue of code waiting to be written** — that is the honest state of this file.
 
-- [ ] **Soak `v3.6.0-rc.1`, then promote it to `v3.6.0` stable.** It changes
-      what customers are quoted and how every geometry-based time estimate is
-      computed, so it needs real use against a real shop's settings before a
-      stable cut — not just a green suite.
-      **The candidate exists so this is testable rather than assumed.**
-      `rc.1` is the exact code proposed as v3.6.0, same as `beta.19` with a name
-      that says what it is for, built for all three platforms and installable
-      from the pre-release channel. It reaches nobody on stable. The green-suite
-      half of this gate is already met on that tree — 2433 unit tests and 31 e2e
-      suites, including file-to-estimate-to-quote and estimator calibration — so
-      re-running the suite adds nothing. **What is missing is the half CI cannot
-      supply**, and naming the candidate does not supply it either.
+- [ ] **Soak the current candidate, then promote it to `v3.6.0` stable.** It
+      changes what customers are quoted and how every geometry-based time
+      estimate is computed, so it needs real use against a real shop's settings
+      before a stable cut — not just a green suite.
+      **The candidate exists so this is testable rather than assumed.** It is
+      the exact code proposed as v3.6.0, installable from the pre-release
+      channel, and it reaches nobody on stable. The green-suite half of this
+      gate is met on that tree — unit and e2e suites including
+      file-to-estimate-to-quote and estimator calibration — so re-running the
+      suite adds nothing. **What is missing is the half CI cannot supply**, and
+      naming the candidate does not supply it either.
+      **Decide replace-vs-promote first, every time.** `main` has moved past
+      `rc.3` — four commits, three user-facing, including a fix for a restore
+      while the app is running pushing rolled-back data over newer data on other
+      devices. Promoting a candidate that `main` has overtaken makes stable out
+      of code no candidate carried, which is why rc.2 and rc.3 were each cut
+      rather than promoted. Either cut the next rc from current `main` or
+      promote from it.
+      **This promotion is the only thing two server-side flips are waiting
+      on** — the portal read gate and `DELTA_WRITES`. Both are built and
+      dormant, and both count adoption in *stable* builds, so no prerelease
+      moves them. Neither has any desktop work left.
       *When it is satisfied*, the promotion is: `node scripts/bump-version.js
       set 3.6.0` — **not** `npm run version:minor`, which increments the minor
       unconditionally and from a prerelease yields `3.7.0` — then `BUILD_MAC` on
