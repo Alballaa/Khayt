@@ -229,6 +229,9 @@ contextBridge.exposeInMainWorld('hubAPI', {
   cloudStatus: () => ipcRenderer.invoke('hub:cloud-status'),
   cloudPush: (snapshot) => ipcRenderer.invoke('hub:cloud-push', snapshot),
   cloudPull: () => ipcRenderer.invoke('hub:cloud-pull'),
+  // Call after a restore or import replaces local state, so the next sync is a
+  // cold pull + merge instead of a push of rolled-back records.
+  cloudForgetView: () => ipcRenderer.invoke('hub:cloud-forget-view'),
   cloudSnapshotsList: () => ipcRenderer.invoke('hub:cloud-snapshots-list'),
   cloudSnapshotGet: (opts) => ipcRenderer.invoke('hub:cloud-snapshot-get', opts),
 

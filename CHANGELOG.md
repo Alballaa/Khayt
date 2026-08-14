@@ -27,6 +27,20 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   Late and due-today are counted against *your* calendar day, so a branch in
   another timezone is judged by the day you are actually having.
 
+### Fixed
+
+- **Restoring a backup without closing Khayt could push the restored data over
+  newer data on your other devices.** If cloud sync was on and you restored a
+  backup, a named restore point, or imported a backup file while the app was
+  running, the next sync could send that older copy up as if it were the latest
+  — and every other device would take it. Nothing warned you, and the newer
+  records were gone.
+
+  Khayt now treats a restore the way it treats a fresh start: it forgets what it
+  thought the server had, fetches everything again, and merges, so the newer
+  version of a record always wins. Restoring after closing and reopening the app
+  was already safe and is unchanged.
+
 ### Changed
 
 - **Khayt Cloud no longer re-downloads your whole shop every time you open the

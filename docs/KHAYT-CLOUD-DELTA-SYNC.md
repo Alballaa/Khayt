@@ -252,10 +252,44 @@ way this feature would go quietly missing, and it is worth checking for before
 concluding the cache is broken. Found by driving the real app, where an invalid
 fixture order did exactly this.
 
-**What is NOT covered**: a restore performed *while the app is running*. The
-in-memory view is not rebuilt, so the same rollback push is possible — but that
-is true of the retained view as shipped in #703 and is not introduced here. It
-wants the restore path to reset the backend, which is renderer-side work.
+**The mid-session restore, and the door the guard does not stand in.**
+`viewSafeForLocal` runs at CONSTRUCTION — unlock and launch — against the store
+on disk. A restore performed *while the app is running* walks straight past it:
+the backend is not rebuilt, so the view, the rev and the pushed-revs cursor all
+outlive the one event that moves local state backwards. This predates the cache
+(the in-memory retained view shipped in #703); the guard only gave it a name.
+
+The dangerous half is the **cursor**, not the view. `changesSincePush` ships
+whatever disagrees with `pushedRevs`, which after a restore is every rolled-back
+record. On the blob path — what ships today, `DELTA_WRITES` being off — it is
+worse than that: a full push whose `baseRev` the server accepts *replaces* the
+base outright, so the older store lands on every device, silently.
+
+So `forgetServerView()` drops all five pieces and the rev with them, and
+`hub:cloud-forget-view` lets the renderer call it — the restore path is
+renderer-side, `hub:restore-backup` only reads and decrypts the file. It is
+wired into the three paths that replace local state wholesale: restoring a dated
+backup, restoring a named restore point, and importing a backup file. Each calls
+it **before** applying the snapshot, because the window between the two is small
+but not empty — a sync debounced from an earlier save can fire inside it.
+
+`lastServerRev = 0` is the load-bearing part. It makes the next push a blob
+guarded on rev 0, which any shop that has ever pushed refuses with a 409 — and a
+409 is pull → merge → re-push, where the merge engine keeps the higher rev. The
+restore then costs one cold pull and *repairs*, instead of succeeding quietly and
+destroying. Note this is strictly more than `_setServerRev` does: that drops the
+view and the cache file but leaves `pushedRevs` behind, which is the half that
+still ships the rolled-back records.
+
+Two restores deliberately do **not** call it. *Restore from cloud* applies the
+store the backend just pulled, so the view already describes it exactly and
+forgetting would buy a cold pull and a spurious conflict for nothing. *Cloud
+snapshot history* is a deliberate rollback that means to become the new head, and
+it relies on keeping the rev to push without a false conflict — resetting there
+would have the merge undo the restore the owner just asked for. That path has its
+own unfinished business under delta writes (an older record pushed as a delta is
+skipped by every peer's LWW, so the restore would not propagate at all), and it
+wants full-push semantics rather than this.
 
 So the shape of the bill: pushes drop by the full factor, and pulls are slices
 from the first one of the session onwards. A cold pull still costs up to `1 + R`
