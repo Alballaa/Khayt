@@ -26,9 +26,11 @@ The 401 is the point: an unknown route answers 404 there, so "missing bearer
 token" means the route exists and is guarded.
 
 Nothing writes deltas — `DELTA_WRITES` in
-[`lib/cloud-backend.js`](../lib/cloud-backend.js) is `false`, and §3 is why. Two
-things still stand between here and flipping it: the reader has to reach the field
-(§3 step 2), and the warm pull does not exist (§7).
+[`lib/cloud-backend.js`](../lib/cloud-backend.js) is `false`, and §3 is why. One
+thing now stands between here and flipping it: the reader has to reach the field
+(§3 step 2). The warm pull that used to stand beside it is built — the desktop
+asks for `?since=` and folds onto a retained server view (§7) — leaving only the
+*warm launch*, which pays more but guards nothing.
 
 ---
 
@@ -117,7 +119,16 @@ So the order is:
 3. ~~**Build the server**, including the gate in §4~~ — done and deployed
    (KhaytApp/khayt-cloud#16). Without the gate step 4 would be unsafe no matter
    how long step 2 waits, which is why it shipped in the same change.
-4. **Flip `DELTA_WRITES`** — still blocked on step 2, on §7, and on §8.
+4. **Flip `DELTA_WRITES`** — still blocked on step 2.
+
+   It is no longer blocked on §7. The pull half is now correct: a warm client
+   asks for a slice and folds it onto its own retained view. What is missing
+   there is the *warm launch*, and that is an improvement to the saving rather
+   than a condition on safety — flipping without it costs up to `1 + R` on the
+   one pull per launch, against a push saving that dwarfs it. Nor is it blocked
+   on §8: the gate holds every `/m` shop to blob sync on its own, so the flip is
+   safe with the PWA exactly as it is. §8 decides how *far* the saving reaches,
+   not whether flipping is safe.
 
 Step 2 is now the long pole. The gate cannot open for a shop until every device
 that reads its store has announced itself, and only builds carrying
@@ -154,40 +165,61 @@ sync from an un-upgraded laptop is the one that loses data.
 | Announce `X-Delta-Capable` | desktop | **done** |
 | Fold a branch's chain in the org roll-up | desktop | **done** |
 | Compaction policy (when to force a full push) | desktop | **done** — §6 |
-| Ask for `?since=` on pull | desktop | **not started** — see §7 |
+| Ask for `?since=` on pull | desktop | **done** — §7 |
+| Persist the server view across restarts (warm launch) | desktop | **not started** — see §7 |
 | Fold a chain in the remote-mobile PWA | khayt-cloud `mobile/` | **not started** — see §8 |
-| Flip `DELTA_WRITES` | desktop | blocked on adoption + §7 |
+| Flip `DELTA_WRITES` | desktop | blocked on adoption (§3 step 2); §8 bounds its reach |
 
 The claim that what remained was "entirely server-side" was **wrong on one point**,
 and §7 is that point. Everything else server-side is built and merged-pending.
 
-## 7. The pull half is not free, and it is still open
+The warm launch is listed separately on purpose. `?since=` being sent is what
+makes the pull half *correct*; persisting the view is what makes it *pay*, and
+only the first is done.
 
-`?since=` exists on the server. **The desktop never sends it**, and it cannot
-usefully start: `pull()` in [`lib/cloud-backend.js`](../lib/cloud-backend.js)
-unconditionally decrypts `ciphertext`, and a warm reply deliberately does not
-carry a base. Folding onto what the caller already holds is the whole point, and
-that needs somewhere to fold *onto*.
+## 7. The pull half — warm within a session, still cold at launch
 
-The obvious target — the local store — is the wrong one, and quietly so. Records
-arrive by reference (`applyDeltas` does `arr[i] = incoming`), and the local store
-carries edits the server has never seen; folding onto it and then calling
-`markAllPushed` would mark those local-only records as already sent, so they would
-never ship. That is a data-loss bug wearing the costume of an optimisation.
+`pull()` in [`lib/cloud-backend.js`](../lib/cloud-backend.js) now sends
+`?since=lastServerRev` whenever it holds a **retained server view**: the store as
+of that rev, kept apart from local state. A warm reply carries no base, so the
+chain folds onto the view and the base never crosses the wire. Measured against
+the real `index.php` on a 300-record store: **331 B warm against 3,602 B cold.**
 
-What it actually needs is a **retained server-view snapshot** — the store as of
-`lastServerRev`, held apart from local state and cloned on the way in and out.
+The obvious target to fold onto — the local store — is the wrong one, and quietly
+so. Records arrive by reference (`applyDeltas` does `arr[i] = incoming`), and the
+local store carries edits the server has never seen; folding onto it and then
+calling `markAllPushed` marks those local-only records as already sent, so they
+never ship. That is a data-loss bug wearing the costume of an optimisation, and
+it is silent — the store looks right on the device that lost the edit. The view
+is therefore its own copy, **cloned on the way in and on the way out**, and the
+last test in `test/cloud-delta-push.test.js` is written to fail if a local-only
+edit ever stops surviving a warm pull.
 
-And the case the cost model cares about is the *launch* pull, which this still
-would not fix: `cloudBackend` is rebuilt on every unlock, so `lastServerRev`
-starts at 0 and the first pull of a session is always cold. Making launch warm
-means **persisting** the server view and its rev across restarts, which is a
-feature, not a flag.
+The invariant that makes it safe is that **the view and the rev move together, or
+neither moves**: a full push adopts the pushed snapshot, a delta push mirrors the
+same payload it sent (not the whole snapshot — `settings` is not delta-covered,
+so the server's copy is unchanged and the view's must be too), and moving the rev
+by hand drops the view. A view lagging its rev is worse than no view: `?since=`
+would ask for a slice the server rightly considers empty, and the fold would hand
+back a store missing everything in between.
 
-Until then the shape of the bill is: pushes drop by the full factor, and a cold
-pull costs up to `1 + R` (3× at R = 2) of a blob pull. Pulls are rare — one per
-launch, plus the occasional 409 — so the trade is still strongly positive, but it
-is not the number in §1 and should not be quoted as one.
+One thing a warm reply cannot show is the whole chain — only what is newer than
+`since` — so its length **adds to** the chain counters rather than replacing them.
+Adopting the slice length would undercount every time and let a chain run past
+both compaction bounds, visible only as cold pulls that grew steadily dearer.
+
+**Launch is still cold, and that is the half the cost model cares about.**
+`cloudBackend` is rebuilt on every unlock, so the view starts empty and the first
+pull of a session always fetches base + chain. Making launch warm means
+*persisting* the view and its rev across restarts — a feature, not a flag, and
+one whose failure mode is the same silent data loss above, which is why it is not
+bundled in here.
+
+So the shape of the bill today is: pushes drop by the full factor; the launch
+pull still costs up to `1 + R` (3× at R = 2) of a blob pull; every pull after it
+in the session is a slice. Pulls are rare — one per launch, plus the occasional
+409 — so the trade is strongly positive either way, but it is not yet the number
+in §1 and should not be quoted as one.
 
 ---
 
