@@ -15,6 +15,7 @@
     "branches:stale": "node scripts/list-stale-branches.mjs",
     "check": "npm run lint && npm test",
     "test": "node --test test/*.test.js",
+    "test:future": "node scripts/test-future.mjs",
     "pretest:e2e": "node scripts/ensure-electron.js",
     "test:e2e": "node scripts/e2e-smoke.mjs",
     "test:e2e:themes": "node scripts/e2e-theme-shells.mjs",

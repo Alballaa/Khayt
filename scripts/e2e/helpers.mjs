@@ -6,6 +6,13 @@ import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { _electron as electron } from 'playwright-core';
+// Applies CLOCK_SHIFT_DAYS to THIS process, and does nothing without it. Every
+// e2e script reaches the app through this file, so importing it here is what
+// keeps the two sides on one clock: a fixture built out here with
+// `Date.now() - 60_000` and then judged in the renderer has to be measured
+// against the same "now", or it looks 400 days stale and the test fails for a
+// reason that has nothing to do with the code. See scripts/clock-shift.js.
+import '../clock-shift.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const root = path.join(__dirname, '../..');
@@ -26,6 +33,39 @@ export function makeUserDataDir() {
   return dir;
 }
 
+/**
+ * With CLOCK_SHIFT_DAYS set, move the RENDERER's clock forward. No-op otherwise.
+ *
+ * This is where it has to happen. The unit-suite equivalent (scripts/clock-shift.js)
+ * cannot reach here: the fixtures these scripts install, and the code that judges
+ * them, both run inside the Electron renderer, in its own realm. On 2026-08-14 a
+ * fixture in this very directory aged past a 30-day warranty and failed a REQUIRED
+ * check on every PR in the repository — so the e2e scripts are not a nice-to-have
+ * for this check, they are the place the last one actually hid.
+ *
+ * Only the two forms meaning "now" move. An explicit date is a fixed point the
+ * caller named on purpose, and shifting those would invent failures.
+ */
+export async function shiftRendererClock(window) {
+  const days = Number(process.env.CLOCK_SHIFT_DAYS || 0);
+  if (!Number.isFinite(days) || days <= 0) return 0;
+  await window.evaluate((ms) => {
+    const RealDate = Date;
+    class ShiftedDate extends RealDate {
+      constructor(...args) {
+        if (args.length === 0) super(RealDate.now() + ms);
+        else super(...args);
+      }
+      static now() { return RealDate.now() + ms; }
+    }
+    ShiftedDate.parse = RealDate.parse;
+    ShiftedDate.UTC = RealDate.UTC;
+    window.Date = ShiftedDate;
+  }, days * 86400000);
+  console.log(`  ⏱  renderer clock +${days} days`);
+  return days;
+}
+
 export async function launchApp(userData) {
   const electronApp = await electron.launch({
     args: ['.', `--user-data-dir=${userData}`],
@@ -42,6 +82,9 @@ export async function launchApp(userData) {
       && (document.querySelector('#dashboardContent')?.innerHTML?.length || 0) > 100,
     { timeout: 60_000 }
   );
+  // After boot, before any fixture: every script installs its data through
+  // evaluate() from here on, so they all see the shifted clock.
+  await shiftRendererClock(window);
   return { electronApp, window };
 }
 

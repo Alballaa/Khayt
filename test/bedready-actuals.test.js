@@ -36,6 +36,13 @@ function boot({ completion = null, machineId = 'M1' } = {}) {
     module: undefined,
   };
   ctx.globalThis = ctx;
+  // Share this realm's clock. A contextified object gets its OWN intrinsics, so
+  // without this the code under test reads a different `Date` from the fixture
+  // that feeds it — harmless while both are the real clock, and wrong the moment
+  // anything moves one of them. `npm run test:future` moves one of them, and all
+  // eight tests here failed on a measurement that looked like it arrived from the
+  // future. The bug was the split clock, not the code.
+  ctx.Date = globalThis.Date;
   vm.createContext(ctx);
   vm.runInContext(PA, ctx);            // provides KhaytPrinterActuals
   vm.runInContext(ACTUALS, ctx);
