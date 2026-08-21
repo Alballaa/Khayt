@@ -215,6 +215,31 @@ reversible; `config.php` `portal_read_gate` back to `false` undoes it.
 
 Neither flip should be automated off this endpoint. It reports; a person decides.
 
+### Until the endpoint exists, there is a crude proxy — use it rather than guessing
+
+GitHub counts asset downloads per release, and auto-update goes through those
+same assets. The manifest every stable desktop polls to discover an update is
+`latest.yml` **on whichever release is currently latest**, so its count is a live
+read on whether the field has even noticed a release:
+
+```bash
+gh api repos/KhaytApp/Khayt/releases/tags/vX.Y.Z \
+  --jq '.assets[] | select(.name|test("yml$")) | "\(.download_count)\t\(.name)"'
+gh api repos/KhaytApp/Khayt/releases/tags/vX.Y.Z --jq '[.assets[].download_count] | add'
+```
+
+It undercounts (mirrors, re-installs, a shop that never opens the app) and it
+cannot tell you *which* shop updated, which is the whole reason the endpoint is
+worth building. But it is decisive in the direction that matters: **zero means
+zero**, and a flip against zero is a flip against the entire field.
+
+Worked example, 2026-08-21 — the day v3.6.0 shipped. Three hours after
+publication every v3.6.0 asset stood at **0**, including `latest.yml`, while
+v3.5.3's `latest.yml` had taken 38 fetches over its 20 days as latest and rc.4's
+had taken 6. The counter works; nobody had picked the release up yet. The portal
+gate flip was **held** on that basis rather than on a feeling about how long a
+day is. Re-run it before proposing the flip again.
+
 ---
 
 **Status:** specified here, not yet implemented. The desktop side needs nothing
