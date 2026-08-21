@@ -308,7 +308,7 @@ async function aiSuggestPrice() {
     try {
       const system = KhaytAiPrice.buildPriceSystem({ shopName: settings.bizEn || settings.bizAr || 'Khayt', lang: settings.lang });
       const request = KhaytAiPrice.buildPriceRequest(comps, { material, grams, hours, cost, currency: cur });
-      const r = await khaytAiExtract({ apiKey: ai.apiKey, model: ai.model || 'claude-opus-4-8', task: 'price', system, request, schema: KhaytAiPrice.PRICE_SCHEMA });
+      const r = await khaytAiExtract({ apiKey: ai.apiKey, model: ai.model || 'claude-opus-5', task: 'price', system, request, schema: KhaytAiPrice.PRICE_SCHEMA });
       if (r && r.ok) reco = KhaytAiPrice.pickPrice(r, reco) || reco;
     } catch (_) { /* fall back to deterministic */ }
   }
@@ -1381,7 +1381,7 @@ function updateResinFieldsVisibility() {
             try {
               const r = await khaytAiExtract({
                 apiKey: key,
-                model: (settings.ai && settings.ai.model) || 'claude-opus-4-8',
+                model: (settings.ai && settings.ai.model) || 'claude-opus-5',
                 task: 'quote',
                 system: KhaytAiQuote.buildSystemContext(inventory),
                 request: 'Estimate: one small 20mm PLA calibration cube.',
@@ -1395,7 +1395,7 @@ function updateResinFieldsVisibility() {
         onSave(modal) {
           const typed = modal.querySelector('#aiKeyInput').value.trim();
           if (!typed && !ai.apiKey) { toast(t('calc.ai_need_key') || 'Enter an API key', 'error'); return false; }
-          settings.ai = Object.assign({ model: 'claude-opus-4-8' }, settings.ai, { enabled: true, apiKey: secretInputSave(ai.apiKey, typed) });
+          settings.ai = Object.assign({ model: 'claude-opus-5' }, settings.ai, { enabled: true, apiKey: secretInputSave(ai.apiKey, typed) });
           saveAll();
           toast(t('common.save') || 'Saved', 'success');
           return true;
@@ -1484,7 +1484,7 @@ function updateResinFieldsVisibility() {
         const turn = convo[convo.length - 1];
         try {
           const r = await khaytAiExtract({
-            apiKey: ai.apiKey, model: ai.model || 'claude-opus-4-8', task: 'assistant',
+            apiKey: ai.apiKey, model: ai.model || 'claude-opus-5', task: 'assistant',
             system: KhaytAiAssistant.buildAssistantSystem({ shopName: settings.bizEn || settings.bizAr || 'Khayt', lang: settings.lang }),
             request: KhaytAiAssistant.buildAssistantRequest(ctx, q, convo.slice(0, -1)),
             schema: KhaytAiAssistant.ASSISTANT_SCHEMA,

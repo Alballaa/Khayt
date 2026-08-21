@@ -4,6 +4,19 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Changed
+
+- **AI assist now uses a newer Claude model by default.** New shops get
+  `claude-opus-5` instead of `claude-opus-4-8`. **If you already have a model
+  set in Settings → Automation → AI assist, yours is left exactly as it is** —
+  change it there if you want the newer one.
+
+  The newer model reasons before it answers, so an AI answer may take a few
+  seconds longer and cost a little more per call on your own API key. Khayt's
+  own cost figures know the new price, so what the AI usage panel shows you
+  stays accurate. The model box is still free text: type any model name your
+  key can reach.
+
 ## [3.7.0-beta.1] - 2026-08-21
 
 ### Changed
