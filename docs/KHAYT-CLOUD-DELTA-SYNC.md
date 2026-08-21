@@ -150,6 +150,14 @@ The conservative default matters: a shop whose devices have **not** all reported
 capability is blob-only. Unknown must not mean permitted, or the first shop to
 sync from an un-upgraded laptop is the one that loses data.
 
+**And "refuse" has to name a status code, which this section never did.** The
+desktop treats only **404 and 405** as "this server cannot take deltas" and falls
+back to a whole-store push; every other status throws, so a gate refusing with
+403 turns every save on a not-yet-eligible shop into a sync error. Both branches
+are pinned at the end of `test/cloud-delta-push.test.js`. The gate must refuse
+with 404 or 405 — and if it does, step 4 below stops needing full adoption at
+all. See [the adoption endpoint spec](./KHAYT-CLOUD-ADOPTION-ENDPOINT.md) §5.
+
 ## 5. What is left
 
 | Piece | Where | Status |
@@ -166,7 +174,9 @@ sync from an un-upgraded laptop is the one that loses data.
 | Ask for `?since=` on pull | desktop | **done** — §7 |
 | Persist the server view across restarts (warm launch) | desktop | **done** — §7 |
 | Fold a chain in the remote-mobile PWA | khayt-cloud `mobile/` | **not started** — see §8 |
-| Flip `DELTA_WRITES` | desktop | blocked on adoption (§3 step 2); §8 bounds its reach |
+| Surface adoption so the flip can be decided | khayt-cloud | **specified, not built** — [KHAYT-CLOUD-ADOPTION-ENDPOINT.md](./KHAYT-CLOUD-ADOPTION-ENDPOINT.md) |
+| Gated-shop refusal is 404/405, not 403 | khayt-cloud | **unverified** — pinned desktop-side; check what #16 shipped |
+| Flip `DELTA_WRITES` | desktop | blocked on adoption (§3 step 2), which nothing currently measures; §8 bounds its reach |
 
 The claim that what remained was "entirely server-side" was **wrong on one point**,
 and §7 is that point. Everything else server-side is built and merged-pending.

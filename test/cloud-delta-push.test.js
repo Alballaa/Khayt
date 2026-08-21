@@ -52,7 +52,7 @@ function freshDek(pass = 'p') {
  * A delta-capable server: one base blob per shop plus an ordered chain of
  * opaque deltas. It never decrypts anything.
  */
-function makeDeltaServer({ takesDeltas = true } = {}) {
+function makeDeltaServer({ takesDeltas = true, gatedShops = null, gateStatus = 404 } = {}) {
   const base = new Map();     // shopId -> { rev, ciphertext }
   const chain = new Map();    // shopId -> [{ rev, ciphertext }]
   const bytes = { blob: 0, delta: 0, pull: 0 };
@@ -65,6 +65,10 @@ function makeDeltaServer({ takesDeltas = true } = {}) {
         if (!takesDeltas) return { status: 404 };       // a Phase 1 server
         if (method !== 'POST') return { status: 405 };
         const shopId = d[1];
+        // The per-shop gate of §4: this server takes deltas, just not for a shop
+        // that still has a blob-only device attached. `gateStatus` is what the
+        // desktop turns out to be sensitive to — see the last two tests here.
+        if (gatedShops && gatedShops.has(shopId)) return { status: gateStatus };
         const head = headRev(shopId);
         if ((body.baseRev | 0) !== head) return { status: 409, body: { rev: head } };
         const rev = head + 1;
@@ -669,4 +673,69 @@ test('the store a pull returns is the caller\'s, not the retained view', async (
     'the warm fold was built on the server view, untouched by the caller');
   assert.equal(second.clients.some((c) => c.id === 'local'), false,
     'and the caller\'s local-only record never entered it');
+});
+
+/**
+ * The two tests below are about the gate in §4 — the server-side refusal that
+ * makes flipping DELTA_WRITES safe at all — and specifically about the status
+ * code it refuses with, which the contract never named.
+ *
+ * The desktop treats only 404 and 405 as "this server cannot take deltas" and
+ * falls back to the blob. Every other status is an error. So the gate's choice
+ * of code decides whether a not-yet-adopted shop syncs quietly by blob or shows
+ * its owner a sync error on every save — and the doc that specifies the gate
+ * does not say which to use. These pin it from the side that has to live with it.
+ */
+test('a gated shop falls back to the blob, as long as the refusal is a 404', async () => {
+  const server = makeDeltaServer({ gatedShops: new Set(['shopA']) });
+  const dek = freshDek();
+  const a = device(server, 'shopA', dek);
+  const open = device(server, 'shopB', dek);
+
+  const store = stamped(a.engine, { clients: [{ id: 'c1', name: 'Acme' }] });
+  await a.backend.push(store);
+  store.clients.push({ id: 'c2', name: 'Beta Ltd' });
+  a.engine.stampChanges(store);
+
+  const res = await a.backend.push(store);
+  assert.equal(res.conflict, false);
+  assert.equal(res.delta, undefined, 'a gated shop must not get a chain');
+  assert.equal(server.chainLength('shopA'), 0);
+
+  // Round-trips, which is the property that matters: the shop is merely paying
+  // blob prices, not losing anything.
+  const b = device(server, 'shopA', dek);
+  assert.equal((await b.backend.pull()).store.clients.length, 2);
+
+  // And the gate is per shop, not a server-wide off switch.
+  const other = stamped(open.engine, { clients: [{ id: 'c9', name: 'Open' }] });
+  await open.backend.push(other);
+  other.clients.push({ id: 'c10', name: 'Second' });
+  open.engine.stampChanges(other);
+  await open.backend.push(other);
+  assert.equal(server.chainLength('shopB'), 1, 'an eligible shop still gets deltas');
+});
+
+test('a gated shop whose refusal is a 403 errors instead — the status is load-bearing', async () => {
+  const server = makeDeltaServer({ gatedShops: new Set(['shopA']), gateStatus: 403 });
+  const dek = freshDek();
+  const a = device(server, 'shopA', dek);
+
+  const store = stamped(a.engine, { clients: [{ id: 'c1', name: 'Acme' }] });
+  await a.backend.push(store);            // the first push is a blob anyway
+  store.clients.push({ id: 'c2', name: 'Beta Ltd' });
+  a.engine.stampChanges(store);
+
+  await assert.rejects(() => a.backend.push(store), /delta push failed/,
+    'anything but 404/405 surfaces as a sync error rather than a blob fallback');
+  assert.equal(a.backend.status(), 'error');
+
+  // The failure is loud but not lossy: the cursor did not advance, so the edit
+  // is still in the next payload. That is what makes this a rollout hazard
+  // rather than a data hazard — every save fails until the gate opens.
+  const server2 = makeDeltaServer();
+  const b = device(server2, 'shopA', dek);
+  const fresh = stamped(b.engine, { clients: [{ id: 'c1', name: 'Acme' }, { id: 'c2', name: 'Beta Ltd' }] });
+  await b.backend.push(fresh);
+  assert.equal((await device(server2, 'shopA', dek).backend.pull()).store.clients.length, 2);
 });
