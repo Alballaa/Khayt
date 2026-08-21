@@ -28,27 +28,28 @@ queue of code waiting to be written** — that is the honest state of this file.
       else. Seven days on the pre-release channel, the longest soak any
       candidate on this line got, and the first one `main` did not overtake
       while it sat.
-- [ ] **Flip the portal read gate and `DELTA_WRITES`, once 3.6.0 has reached
-      the field.** Both are built, deployed and dormant, and **neither is
-      waiting on the promotion any more** — they are waiting on *adoption*,
-      which they count in released stable builds. 3.6.0 being published is the
-      start of that clock, not the end of it.
-      **Nothing is left to build on the desktop for either.** What is missing is
-      the ability to see where adoption stands: the server holds the per-device
-      capability record that decides eligibility and nothing surfaces it, so
-      "has adoption happened" is a guess. That endpoint is now **specified** —
+- [x] **Flip `DELTA_WRITES`.** **Done 2026-08-21.** It turned out never to have
+      been blocked on adoption: the server gate refuses an un-eligible shop with
+      **404**, which is the status the desktop already falls back on, so such a
+      shop keeps blob-syncing with no error and nothing for its owner to do. It
+      takes effect in the next release — there is no open prerelease line, so
+      that is `3.7.0-beta.1`.
+- [ ] **Flip the portal read gate, once 3.6.0 has reached the field.** Built,
+      deployed and dormant, and no longer waiting on the promotion — it waits on
+      *adoption*, counted in released stable builds. **Asked and held on
+      2026-08-21**: three hours after v3.6.0 shipped, every one of its assets
+      stood at zero downloads including `latest.yml`, so flipping would have
+      401'd the Messages button across the whole field. Re-check with the proxy
+      in the adoption spec §7 before proposing it again.
+      **Nothing is left to build on the desktop for it.** What is missing is the
+      ability to see where adoption stands per shop, rather than the crude
+      whole-field proxy above: the server holds the per-device capability record
+      and nothing surfaces it. That endpoint is **specified** —
       [docs/KHAYT-CLOUD-ADOPTION-ENDPOINT.md](./docs/KHAYT-CLOUD-ADOPTION-ENDPOINT.md)
-      — and implementing it belongs to a khayt-cloud session. Writing it down
-      surfaced one thing that changed the plan: the delta gate's **refusal
-      status** is load-bearing and was never specified. Checked on 2026-08-21 —
-      it is **404**, the safe one, in both backends — so **`DELTA_WRITES` never
-      needed full adoption**. A gated shop just keeps blob-syncing. That flip is
-      now a judgement about how much saving is worth having, and the endpoint
-      matters mainly for the **portal gate**, which is the one still holding a
-      security exposure open.
-      The portal gate is the one with a deadline attached in spirit if not on
-      paper — until it is flipped, the fix for "anyone with a portal link can
-      read the whole message thread" is only *closable*, not closed.
+      — and implementing it belongs to a khayt-cloud session. With
+      `DELTA_WRITES` flipped, the portal gate is the only reason it is urgent:
+      until that gate is on, the fix for "anyone with a portal link can read the
+      whole message thread" is only *closable*, not closed.
 - [x] **Verify the actuals reader against real hardware.** ~~Never met a
       printer.~~ **Done 2026-08-01** — read live and mid-print from the
       Snapmaker U1 on stock firmware; every field name correct, and
