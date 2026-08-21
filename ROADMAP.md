@@ -39,9 +39,13 @@ queue of code waiting to be written** — that is the honest state of this file.
       "has adoption happened" is a guess. That endpoint is now **specified** —
       [docs/KHAYT-CLOUD-ADOPTION-ENDPOINT.md](./docs/KHAYT-CLOUD-ADOPTION-ENDPOINT.md)
       — and implementing it belongs to a khayt-cloud session. Writing it down
-      surfaced one thing that changes the plan: the delta gate's **refusal
-      status** is load-bearing and was never specified, so check what shipped
-      before flipping anything (§5 there).
+      surfaced one thing that changed the plan: the delta gate's **refusal
+      status** is load-bearing and was never specified. Checked on 2026-08-21 —
+      it is **404**, the safe one, in both backends — so **`DELTA_WRITES` never
+      needed full adoption**. A gated shop just keeps blob-syncing. That flip is
+      now a judgement about how much saving is worth having, and the endpoint
+      matters mainly for the **portal gate**, which is the one still holding a
+      security exposure open.
       The portal gate is the one with a deadline attached in spirit if not on
       paper — until it is flipped, the fix for "anyone with a portal link can
       read the whole message thread" is only *closable*, not closed.
