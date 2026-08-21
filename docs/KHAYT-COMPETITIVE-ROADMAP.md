@@ -125,7 +125,7 @@ and less work than estimating.
 The panel today is a 560px modal
 with a list and "download all" — no search, no filter, no preview, no thumbnails.
 Meshory and MeshVault show what this should be.
-*Exists:* the whole data path — `lib/bedready-library.js`, seven IPC channels
+*Exists:* the whole data path — `lib/makerrun-library.js`, seven IPC channels
 including `bedreadyImportToLib(item, vaultId)`, cover fetching, SSRF-guarded
 downloads. Only the browsing surface is missing.
 *This is the highest ratio of value to new code in the entire document.*

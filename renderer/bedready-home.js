@@ -403,7 +403,7 @@
     wireKits(el);
     el.querySelectorAll('.br-action').forEach(function (b) {
       b.addEventListener('click', function () {
-        // BedReady library card opens the sync modal; the rest switch tabs.
+        // MakerRun library card opens the sync modal; the rest switch tabs.
         if (b.getAttribute('data-library') && window.BedReadyLibrary && typeof window.BedReadyLibrary.open === 'function') {
           window.BedReadyLibrary.open();
           return;

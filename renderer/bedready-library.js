@@ -1,12 +1,21 @@
 /* ============================================================
    BED READY — cloud library panel (renderer).
-   A self-contained modal that connects the app to the user's BedReady
-   account and pulls their saved designs from bedready.io, using the
+   A self-contained modal that connects the app to the user's MakerRun
+   account and pulls their saved designs from makerrun.com, using the
    main-process bridge on window.hubAPI (see preload.js):
      bedreadyLinked / bedreadyOpenSignIn / onBedreadyLinked /
      bedreadyLibrary / bedreadyDownloadAll / bedreadyUnlink
+   NAMING, because the two halves of this feature do not share a name: the
+   main-process client is lib/makerrun-library.js (MakerRun is the product), while
+   this file keeps the bedready-* prefix because renderer/bedready-*.js is the Bed
+   Ready FLAVOR family — bedready-home, bedready-icons, bedready-queue. The prefix
+   here means "the Bed Ready app's UI", not "the BedReady product".
+
    Bed Ready flavor only; no dependency on the app's nav/tab system, so it
-   can't affect Khayt or the existing renderer.
+   can't affect Khayt or the existing renderer. Worth knowing that this gate is
+   why Khayt itself cannot open a MakerRun library today (see main.js, which also
+   refuses to link an account off this flavor) — a product question, not an
+   oversight of the rename.
    ============================================================ */
 (function () {
   if (typeof document === 'undefined' || document.documentElement.dataset.app !== 'bedready') return;
@@ -28,7 +37,12 @@
     root.innerHTML =
       '<div class="brl-modal" role="dialog" aria-modal="true" aria-label="' + esc(t('brl.title')) + '" style="width:100%;max-width:900px;max-height:86vh;overflow:auto;border-radius:18px;background:var(--surface,#ffffff);color:var(--text,#14201e);border:1px solid var(--border,rgba(17,40,37,0.10));box-shadow:0 20px 60px rgba(0,0,0,.5);">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--border,rgba(17,40,37,0.10));">' +
-          '<b style="font-size:16px;">☁️ My BedReady library</b>' +
+          // Was a hardcoded English "My BedReady library" while the aria-label beside it
+          // used t('brl.title') — so a translated build showed one name and announced another,
+          // and the MakerRun rename would have moved only the announced one. The leading emoji
+          // goes with it: this panel is Bed Ready-only, and t() strips decorative leading emoji
+          // in that flavor precisely because they read as off-identity there.
+          '<b style="font-size:16px;">' + esc(t('brl.title')) + '</b>' +
           '<button type="button" class="brl-close" aria-label="Close" style="border:0;background:transparent;color:inherit;font-size:20px;cursor:pointer;line-height:1;">✕</button>' +
         '</div>' +
         '<div class="brl-body" style="padding:20px;"></div>' +
@@ -336,7 +350,7 @@
       try {
         var r = await api.bedreadyDownloadAll([it]);
         if (!r || !r.ok) { result(esc((r && r.error) || t('brl.download_failed')), 'var(--danger,#e0492f)'); return; }
-        if (r.saved && r.saved.length) result(esc(t('brl.downloaded_one', { name: name })), 'var(--ok,#159d68)');
+        if (r.saved && r.saved.length) result(esc(t('brl.downloaded_one', { name: name, folder: folderOf(r) })), 'var(--ok,#159d68)');
         else if (r.skipped && r.skipped.length) result(esc(t('brl.skipped_one', { name: name })), '#fbbf24');
         else result(esc(t('brl.download_failed')), 'var(--danger,#e0492f)');
       } catch (e) { result(esc(e && e.message ? e.message : t('brl.download_failed')), 'var(--danger,#e0492f)'); }
@@ -404,6 +418,14 @@
     if (added && typeof switchTab === 'function') { close(); switchTab('printfiles-tab'); }
   }
 
+  /**
+   * The folder main actually wrote to. It is reported rather than named here because
+   * it varies: a shop that downloaded designs before the MakerRun rename keeps its
+   * existing BedReady-Library folder, and a message that hardcoded either name would
+   * be wrong for half of them.
+   */
+  function folderOf(r) { return (r && r.folder) || 'MakerRun-Library'; }
+
   async function downloadAll() {
     result(esc(t('brl.downloading')));
     try {
@@ -411,7 +433,7 @@
       // says "Download to folder" next to a grid of three designs.
       var r = await api.bedreadyDownloadAll(visible());
       if (!r || !r.ok) { result(esc((r && r.error) || t('brl.download_failed')), 'var(--danger,#e0492f)'); return; }
-      var msg = t(r.saved.length === 1 ? 'brl.saved_file_one' : 'brl.saved_file_other', { n: r.saved.length });
+      var msg = t(r.saved.length === 1 ? 'brl.saved_file_one' : 'brl.saved_file_other', { n: r.saved.length, folder: folderOf(r) });
       if (r.failed && r.failed.length) msg += ' ' + t('brl.n_failed', { n: r.failed.length });
       if (r.skipped && r.skipped.length) msg += ' ' + t('brl.n_skipped', { n: r.skipped.length });
       result(esc(msg), r.failed && r.failed.length ? '#fbbf24' : 'var(--ok,#159d68)');

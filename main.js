@@ -82,7 +82,7 @@ const cloudClient = require('./lib/cloud-client');
 const { summarizeBranch, totalBranches } = require('./lib/branch-summary');
 const aiTools = require('./lib/ai-tools');
 const aiPrivacy = require('./lib/ai-privacy');
-const bedreadyLibrary = require('./lib/bedready-library');
+const makerrunLibrary = require('./lib/makerrun-library');
 const calibProfile = require('./lib/calibration-profile');
 const orcaFila = require('./lib/orca-filament-install');
 // Login-CSRF guard for the bedready:// sign-in handoff: only honour a deep link the app itself just
@@ -3347,32 +3347,34 @@ ipcMain.handle('hub:cloud-catalog-get', async (_e, { url, shopId, token } = {}) 
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
-// ── BedReady library sync (site ↔ app) — pull the user's saved designs from bedready.io. Separate from
-// Khayt Cloud above: read-only, no encryption, no shop token; just the user's BedReady access token.
+// ── MakerRun library sync (site ↔ app) — pull the user's saved designs from makerrun.com. Separate from
+// Khayt Cloud above: read-only, no encryption, no shop token; just the user's MakerRun access token.
 ipcMain.handle('hub:bedready-linked', () => {
-  try { return { ok: true, linked: bedreadyAccount.isLinked(app.getPath('userData')) }; }
+  try { return { ok: true, linked: makerrunAccount.isLinked(app.getPath('userData')) }; }
   catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
 ipcMain.handle('hub:bedready-library', async () => {
   try {
-    const token = await bedreadyAccount.getAccessToken(app.getPath('userData')); // refreshes if needed
-    return { ok: true, items: await bedreadyLibrary.fetchLibrary(token) };
+    const token = await makerrunAccount.getAccessToken(app.getPath('userData')); // refreshes if needed
+    return { ok: true, items: await makerrunLibrary.fetchLibrary(token) };
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
 ipcMain.handle('hub:bedready-unlink', () => {
-  try { bedreadyAccount.clear(app.getPath('userData')); return { ok: true }; }
+  try { makerrunAccount.clear(app.getPath('userData')); return { ok: true }; }
   catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
 ipcMain.handle('hub:bedready-download-all', async (_e, { items } = {}) => {
   try {
     const { app, shell } = require('electron');
-    const dest = require('path').join(app.getPath('downloads'), 'BedReady-Library');
-    const r = await bedreadyLibrary.downloadAll(items, dest);
+    // Keeps an existing Downloads/BedReady-Library rather than splitting a renamed library across two
+    // folders. `folder` goes back so the UI names the folder it actually wrote to, not a guess.
+    const dest = makerrunLibrary.downloadsDir(app.getPath('downloads'));
+    const r = await makerrunLibrary.downloadAll(items, dest);
     if (r.saved.length) shell.openPath(dest).catch(() => {});
-    return { ok: true, dest, ...r };
+    return { ok: true, dest, folder: require('path').basename(dest), ...r };
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
@@ -3384,7 +3386,7 @@ ipcMain.handle('hub:bedready-download-into-vault', async (_e, { item, vaultId } 
     if (!vaultId) return { ok: false, error: 'Missing library id.' };
     const dir = printLibItemDir(vaultId);
     fs.mkdirSync(dir, { recursive: true });
-    const out = await bedreadyLibrary.downloadItem(item, dir);
+    const out = await makerrunLibrary.downloadItem(item, dir);
     if (!out) return { ok: false, skipped: true };
     const stat = fs.statSync(out);
     return { ok: true, filename: path.basename(out), ext: path.extname(out).slice(1).toLowerCase() || '3mf', size: stat.size };
@@ -3393,7 +3395,7 @@ ipcMain.handle('hub:bedready-download-into-vault', async (_e, { item, vaultId } 
 
 // Fetch a design cover as a data: URI (the renderer CSP forbids remote img-src). SSRF-guarded in the lib.
 ipcMain.handle('hub:bedready-cover', async (_e, { url } = {}) => {
-  try { return { ok: true, dataUrl: await bedreadyLibrary.fetchCoverDataUrl(url) }; }
+  try { return { ok: true, dataUrl: await makerrunLibrary.fetchCoverDataUrl(url) }; }
   catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 });
 
@@ -3401,7 +3403,7 @@ ipcMain.handle('hub:bedready-open-signin', () => {
   try {
     bedreadyLinkArmedAt = Date.now(); // arm: the next bedready:// link is user-initiated and expected
     bedreadyLinkNonce = crypto.randomBytes(16).toString('hex'); // bind the handshake to this click
-    const url = bedreadyLibrary.signInUrl() + '?state=' + encodeURIComponent(bedreadyLinkNonce);
+    const url = makerrunLibrary.signInUrl() + '?state=' + encodeURIComponent(bedreadyLinkNonce);
     require('electron').shell.openExternal(url);
     return { ok: true };
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
@@ -4121,28 +4123,28 @@ function buildMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
-// ── BedReady deep-link sign-in (bedready://auth#access_token=…&refresh_token=…) ────────────────────────
+// ── MakerRun deep-link sign-in (bedready://auth#access_token=…&refresh_token=…) ────────────────────────
 // Single-instance so a protocol activation (Windows/Linux relaunch) forwards its argv to the running app
 // instead of opening a second window; macOS delivers the URL via 'open-url'. Also gives Khayt one instance
 // (one data store), which is the desired behaviour for a business app.
-const bedreadyAccount = require('./lib/bedready-account');
+const makerrunAccount = require('./lib/makerrun-account');
 if (!app.requestSingleInstanceLock()) {
   app.quit();
   return;
 }
-// Only the Bed Ready flavor owns the bedready:// scheme — Khayt has no BedReady-account UI and must
+// Only the Bed Ready flavor owns the bedready:// scheme — Khayt has no MakerRun-account UI and must
 // not claim the scheme (it would cold-launch Khayt and write a token file it can't use).
 if (isBedReady) { try { app.setAsDefaultProtocolClient('bedready'); } catch { /* unpackaged/dev — fine */ } }
 
 function handleBedreadyLink(url) {
-  if (!isBedReady) return; // defence in depth — never link a BedReady account on the Khayt flavor
+  if (!isBedReady) return; // defence in depth — never link a MakerRun account on the Khayt flavor
   if (!url || String(url).indexOf('bedready://') !== 0) return;
   // Login-CSRF defence: accept only a link the app itself initiated within the arm window. A drive-by
   // bedready://auth#refresh_token=… fired by a random web page finds the app un-armed → ignored, so it
   // can't silently re-link the app to an attacker's account (session fixation).
   if (!bedreadyLinkArmedAt || Date.now() - bedreadyLinkArmedAt > BEDREADY_LINK_ARM_WINDOW_MS) return;
   bedreadyLinkArmedAt = 0; // single-use
-  const tokens = bedreadyAccount.parseDeepLink(url);
+  const tokens = makerrunAccount.parseDeepLink(url);
   if (!tokens) return;
   // Nonce check (defence-in-depth over the arm window): the link MUST carry a `state` equal to the nonce
   // we minted when we opened this sign-in (the website always echoes it). This closes the login-CSRF
@@ -4154,7 +4156,7 @@ function handleBedreadyLink(url) {
   const a = Buffer.from(tokens.state);
   const b = Buffer.from(expected);
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return;
-  if (bedreadyAccount.link(app.getPath('userData'), tokens)) {
+  if (makerrunAccount.link(app.getPath('userData'), tokens)) {
     const win = mainWindow || BrowserWindow.getAllWindows()[0];
     if (win) { try { if (win.isMinimized()) win.restore(); win.focus(); win.webContents.send('bedready-linked'); } catch { /* window gone */ } }
   }
@@ -4199,7 +4201,7 @@ app.whenReady().then(() => {
             "default-src 'self'",
             "script-src 'self'",  // Renderer uses data-act delegation; exported LAN/survey HTML may use inline scripts outside this CSP
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",  // keep in sync with renderer/index.html meta CSP
-            "img-src 'self' data: blob: https://*.supabase.co",  // *.supabase.co: BedReady library cover thumbnails (Supabase storage) in the Bed Ready flavor
+            "img-src 'self' data: blob: https://*.supabase.co",  // *.supabase.co: MakerRun library cover thumbnails (Supabase storage) in the Bed Ready flavor
             "font-src 'self' data: https://fonts.gstatic.com",
             "connect-src 'self' https://api.telegram.org https://api.sendgrid.com https://api.mailgun.net https://api.tabby.ai https://api.tamara.co https://api.stripe.com https://gw-fatoorah.zatca.gov.sa https://gw-apic-gov.gazt.gov.sa",
             "media-src 'self' blob:",

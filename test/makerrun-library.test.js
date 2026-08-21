@@ -5,7 +5,7 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const lib = require('../lib/bedready-library');
+const lib = require('../lib/makerrun-library');
 
 // Literal public IP as the initial host so the SSRF guard passes without a DNS lookup (offline-safe).
 const PUBLIC = 'https://93.184.216.34/f.3mf';
@@ -60,7 +60,7 @@ test('downloadAll skips file-less items without hitting the network', async () =
 
 test('downloadItem refuses a non-HTTPS download URL (SSRF guard, no network)', async () => {
   await assert.rejects(
-    () => lib.downloadItem({ title: 'x', downloadUrl: 'http://bedready.io/f.3mf' }, '/tmp/nope'),
+    () => lib.downloadItem({ title: 'x', downloadUrl: 'http://makerrun.com/f.3mf' }, '/tmp/nope'),
     /HTTPS/);
 });
 
@@ -127,10 +127,59 @@ test('fetchCoverDataUrl rejects a non-image, and a redirect to a private address
 });
 
 test('fetchLibrary rejects an empty token before any request', async () => {
-  await assert.rejects(() => lib.fetchLibrary(''), /Sign in to BedReady/);
-  await assert.rejects(() => lib.fetchLibrary('   '), /Sign in to BedReady/);
+  await assert.rejects(() => lib.fetchLibrary(''), /Sign in to MakerRun/);
+  await assert.rejects(() => lib.fetchLibrary('   '), /Sign in to MakerRun/);
 });
 
-test('signInUrl points at the BedReady app-link page', () => {
-  assert.equal(lib.signInUrl(), 'https://bedready.io/app-link');
+test('signInUrl points at the MakerRun app-link page', () => {
+  assert.equal(lib.signInUrl(), 'https://makerrun.com/app-link');
+});
+
+test('downloadsDir keeps a pre-rename BedReady-Library folder, else uses the new name', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'brl-dl-'));
+  try {
+    // Nothing downloaded before the rename → the new name.
+    assert.equal(lib.downloadsDir(root), path.join(root, 'MakerRun-Library'));
+
+    // A shop that downloaded designs before the rename keeps writing where its
+    // existing designs already are, rather than scattering one library over two
+    // folders with no hint that the older half exists.
+    fs.mkdirSync(path.join(root, lib.LEGACY_LIBRARY_FOLDER));
+    assert.equal(lib.downloadsDir(root), path.join(root, 'BedReady-Library'));
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test('downloadsDir falls back to the new name when Downloads cannot be read', () => {
+  // An unreadable Downloads must not throw out of an IPC handler — it just means
+  // "no legacy folder that we can see", and the new name is the safe answer.
+  const real = fs.existsSync;
+  fs.existsSync = () => { throw new Error('EACCES'); };
+  try {
+    assert.equal(lib.downloadsDir('/some/downloads'), path.join('/some/downloads', 'MakerRun-Library'));
+  } finally { fs.existsSync = real; }
+});
+
+test('the library listing is fetched from makerrun.com, not the old host', async () => {
+  // fetchLibrary takes an injectable base for tests, so the production path — no opts —
+  // is the one that has to be pinned. bedready.io still answers /api/*, so a regression
+  // here fails no test AND keeps working in production until the alias goes away.
+  let seen = null;
+  await withFetch(async (url, opts) => {
+    seen = { url: String(url), auth: opts && opts.headers && opts.headers.authorization };
+    return { ok: true, status: 200, headers: { get: () => null }, json: async () => ({ items: [] }) };
+  }, async () => {
+    await lib.fetchLibrary('TOKEN');
+  });
+  assert.equal(seen.url, 'https://makerrun.com/api/library');
+  assert.equal(new URL(seen.url).host, 'makerrun.com', 'never bedready.io, which is the converter now');
+  assert.equal(seen.auth, 'Bearer TOKEN', 'and the user token rides the same request');
+});
+
+test('the shared host is https and has no trailing slash', () => {
+  // Every URL here is built by concatenation ('.../api' + '/library'), so a trailing
+  // slash silently yields //api/library and https is what the SSRF guard assumes.
+  const { BASE } = require('../lib/makerrun');
+  assert.equal(BASE, 'https://makerrun.com');
+  assert.ok(!BASE.endsWith('/'), 'no trailing slash — paths are concatenated onto it');
+  assert.equal(new URL(BASE).protocol, 'https:');
 });

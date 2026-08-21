@@ -1,7 +1,7 @@
 /**
- * BedReady's planned-downtime gate.
+ * MakerRun's planned-downtime gate.
  *
- * While a migration is applied by hand to the live database, every bedready.io
+ * While a migration is applied by hand to the live database, every makerrun.com
  * endpoint answers 503 with `error.code === "maintenance"` and a `Retry-After`
  * header — reads included, /auth included.
  *
@@ -22,7 +22,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('http');
 
-const { isMaintenance, retryAfterSeconds, maintenanceError } = require('../lib/bedready-maintenance.js');
+const { isMaintenance, retryAfterSeconds, maintenanceError } = require('../lib/makerrun-maintenance.js');
 
 // ─────────────────────────────────────────────────────────── the decision
 
@@ -95,7 +95,7 @@ const gate = (retryAfter) => (req, res) => {
 test('fetchLibrary reports maintenance, not a failed fetch', async () => {
   // The bug, end to end: a shop is told its library sync is broken during a
   // planned migration.
-  const lib = require('../lib/bedready-library.js');
+  const lib = require('../lib/makerrun-library.js');
   await withServer(gate('180'), async (base) => {
     {
       const err = await lib.fetchLibrary('a-token', { baseUrl: base }).then(() => null, (e) => e);
@@ -108,7 +108,7 @@ test('fetchLibrary reports maintenance, not a failed fetch', async () => {
 });
 
 test('a real 503 that is NOT the gate still reports as a failure', async () => {
-  const lib = require('../lib/bedready-library.js');
+  const lib = require('../lib/makerrun-library.js');
   const broken = (req, res) => {
     res.writeHead(503, { 'content-type': 'application/json' });
     res.end(JSON.stringify({ error: { code: 'unavailable', message: 'not configured' } }));
@@ -128,7 +128,7 @@ test('the token refresh reports maintenance without clearing the link', () => {
   // must not look like an expired link, or a shop is signed out by a planned
   // window and has to reconnect from the website for no reason.
   const fs2 = require('fs');
-  const src = fs2.readFileSync(require('path').join(__dirname, '..', 'lib', 'bedready-account.js'), 'utf8');
+  const src = fs2.readFileSync(require('path').join(__dirname, '..', 'lib', 'makerrun-account.js'), 'utf8');
   const at = src.indexOf('async function doRefresh(');
   const body = src.slice(at, src.indexOf('\n}', at));
   assert.match(body, /MAINT\.isMaintenance\(res\.status, j\)/,
