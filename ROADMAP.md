@@ -2,13 +2,15 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0-rc.4 — on `main`)
+## Now (post-3.6.0 — on `main`)
 
-**Stable is v3.5.3** (2026-08-01, a security patch cut from the
-`release/3.5.x` maintenance branch). **`main` is `3.6.0-rc.4`** (2026-08-14) —
-the candidate for v3.6.0, on the pre-release channel, awaiting a soak. rc.1,
-rc.2 and rc.3 are superseded, each replaced rather than promoted because a
-candidate is meant to *be* what stable will be. No hold is active — see
+**Stable is v3.6.0** (2026-08-21) — the 3.6.0 line, promoted from
+`v3.6.0-rc.4` unchanged after a seven-day soak. rc.4 was the first candidate on
+this line that `main` did not overtake, so for once replace-vs-promote resolved
+to *promote*; rc.1, rc.2 and rc.3 were each replaced instead. **No prerelease
+line is currently open** — the next one opens at `3.7.0-beta.1` via
+`npm run version:beta`, which is correct only because `package.json` now carries
+a plain stable version. No hold is active — see
 [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md).
 
 **Bed Ready is on its own line and is current: `1.1.0`** (2026-08-12), built by
@@ -19,42 +21,26 @@ believed to be blocked on a token that in fact already existed.
 Everything below needs a switched-on printer or real shop use. **There is no
 queue of code waiting to be written** — that is the honest state of this file.
 
-- [ ] **Soak the current candidate, then promote it to `v3.6.0` stable.** It
-      changes what customers are quoted and how every geometry-based time
-      estimate is computed, so it needs real use against a real shop's settings
-      before a stable cut — not just a green suite.
-      **The candidate exists so this is testable rather than assumed.** It is
-      the exact code proposed as v3.6.0, installable from the pre-release
-      channel, and it reaches nobody on stable. The green-suite half of this
-      gate is met on that tree — unit and e2e suites including
-      file-to-estimate-to-quote and estimator calibration — so re-running the
-      suite adds nothing. **What is missing is the half CI cannot supply**, and
-      naming the candidate does not supply it either.
-      **Decide replace-vs-promote first, every time.** `main` is level with
-      `rc.4` — nothing has landed since the tag and `[Unreleased]` is empty — so
-      this is the first candidate on the line that can simply be promoted.
-      Promoting a candidate that `main` has overtaken makes stable out of code
-      no candidate carried, which is why rc.2, rc.3 and rc.4 were each cut
-      rather than promoted. Re-check on the day rather than trusting this file:
-      `main` moves several times an hour on an active day, and if it has moved
-      again, cut the next rc from it or promote from it instead.
-      **This promotion is the only thing two server-side flips are waiting
-      on** — the portal read gate and `DELTA_WRITES`. Both are built and
-      dormant, and both count adoption in *stable* builds, so no prerelease
-      moves them. Neither has any desktop work left.
-      *When it is satisfied*, the promotion is: `node scripts/bump-version.js
-      set 3.6.0` — **not** `npm run version:minor`, which increments the minor
-      unconditionally and from a prerelease yields `3.7.0` — then `BUILD_MAC` on
-      for the tag and off again after, since anything intended for stable should
-      carry a mac build and the variable is sticky.
-      **Soak the newest beta, always.** beta.1 still quotes a 100 mm part at
-      roughly double, and beta.2 still shows a five-hour print as 1% done with
-      a 178-hour ETA. Both were found after their own tag; soaking an older one
-      means judging Khayt by a bug that is already fixed.
-      **And soak it in a theme you actually use.** beta.18's low-stock colour
-      was legible on every dark theme and failed WCAG AA on all seven light
-      ones ([#680]); the e2e that covered it asserted a literal on the default
-      theme, so a green suite said nothing. Fixed in beta.19.
+- [x] **Soak the candidate, then promote it to `v3.6.0` stable.**
+      **Done 2026-08-21** — promoted from `v3.6.0-rc.4` with no code change
+      between the two: the only commit `main` had taken since the tag was
+      [#711], which touched this file and `docs/RELEASE-HOLD.md` and nothing
+      else. Seven days on the pre-release channel, the longest soak any
+      candidate on this line got, and the first one `main` did not overtake
+      while it sat.
+- [ ] **Flip the portal read gate and `DELTA_WRITES`, once 3.6.0 has reached
+      the field.** Both are built, deployed and dormant, and **neither is
+      waiting on the promotion any more** — they are waiting on *adoption*,
+      which they count in released stable builds. 3.6.0 being published is the
+      start of that clock, not the end of it.
+      **Nothing is left to build on the desktop for either.** What is missing is
+      the ability to see where adoption stands: the server holds the per-device
+      capability record that decides eligibility and nothing surfaces it, so
+      "has adoption happened" is a guess. That is a small khayt-cloud endpoint,
+      and it belongs in its own session.
+      The portal gate is the one with a deadline attached in spirit if not on
+      paper — until it is flipped, the fix for "anyone with a portal link can
+      read the whole message thread" is only *closable*, not closed.
 - [x] **Verify the actuals reader against real hardware.** ~~Never met a
       printer.~~ **Done 2026-08-01** — read live and mid-print from the
       Snapmaker U1 on stock firmware; every field name correct, and
@@ -109,6 +95,7 @@ Four stable lines, nineteen beta releases and four release candidates since 3.2.
 
 | Version | Date | What it was |
 |---------|------|-------------|
+| **3.6.0** | 2026-08-21 | **The 3.6.0 line, released as stable.** Promoted from `v3.6.0-rc.4` with no code change between the two — the only commit `main` took after the tag was [#711], a status-doc fix. Khayt learns what prints actually cost: a model becomes a quote, the printer reports the real filament and duration on completion, and the estimator calibrates itself from finished jobs. It also opens the app outside the Gulf (tax added to a price rather than included in it, thirty country presets, documents in the shop's own language), closes four security holes including a portal link that exposed a whole message thread, and stops a restore-while-running from pushing old data over new. Supersedes v3.5.3. |
 | **3.6.0-rc.4** | 2026-08-14 | **A restore can no longer overwrite newer data.** Restoring a backup, a restore point, or an imported file *while the app was running* could push that older copy to the cloud as the latest, and every other device would take it — silently, with the newer records gone. A restore is now treated like a fresh start: forget what the server was thought to hold, refetch, merge ([#708]). Also the organisation overview showing what each branch earned and is still owed, each in its own currency and never summed across them ([#707]), and a launch sync that asks only for what changed ([#705]). The current candidate ([#710]). |
 | **3.6.0-rc.3** | 2026-08-14 | **Sync failures explain themselves.** A failed sync said "Sync error" and nothing else, forever ([#698]). Cut because thirteen commits had landed after rc.2 ([#704]). |
 | **3.6.0-rc.2** | 2026-08-13 | **The copy buttons work.** rc.1 shipped with every "Copy link" button copying nothing ([#688]) — the reason a candidate is soaked rather than assumed. Cut to replace rc.1 ([#691]). |
@@ -189,6 +176,7 @@ Four stable lines, nineteen beta releases and four release candidates since 3.2.
 [#707]: https://github.com/KhaytApp/Khayt/pull/707
 [#708]: https://github.com/KhaytApp/Khayt/pull/708
 [#710]: https://github.com/KhaytApp/Khayt/pull/710
+[#711]: https://github.com/KhaytApp/Khayt/pull/711
 
 ## Shipped (3.2.0 beta line — 2026-07)
 
