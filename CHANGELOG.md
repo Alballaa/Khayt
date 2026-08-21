@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.7.0-beta.1] - 2026-08-21
+
 ### Changed
 
 - **Cloud sync now sends only what changed.** Every save used to upload your
