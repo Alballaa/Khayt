@@ -158,3 +158,28 @@ test('downloadsDir falls back to the new name when Downloads cannot be read', ()
     assert.equal(lib.downloadsDir('/some/downloads'), path.join('/some/downloads', 'MakerRun-Library'));
   } finally { fs.existsSync = real; }
 });
+
+test('the library listing is fetched from makerrun.com, not the old host', async () => {
+  // fetchLibrary takes an injectable base for tests, so the production path — no opts —
+  // is the one that has to be pinned. bedready.io still answers /api/*, so a regression
+  // here fails no test AND keeps working in production until the alias goes away.
+  let seen = null;
+  await withFetch(async (url, opts) => {
+    seen = { url: String(url), auth: opts && opts.headers && opts.headers.authorization };
+    return { ok: true, status: 200, headers: { get: () => null }, json: async () => ({ items: [] }) };
+  }, async () => {
+    await lib.fetchLibrary('TOKEN');
+  });
+  assert.equal(seen.url, 'https://makerrun.com/api/library');
+  assert.equal(new URL(seen.url).host, 'makerrun.com', 'never bedready.io, which is the converter now');
+  assert.equal(seen.auth, 'Bearer TOKEN', 'and the user token rides the same request');
+});
+
+test('the shared host is https and has no trailing slash', () => {
+  // Every URL here is built by concatenation ('.../api' + '/library'), so a trailing
+  // slash silently yields //api/library and https is what the SSRF guard assumes.
+  const { BASE } = require('../lib/makerrun');
+  assert.equal(BASE, 'https://makerrun.com');
+  assert.ok(!BASE.endsWith('/'), 'no trailing slash — paths are concatenated onto it');
+  assert.equal(new URL(BASE).protocol, 'https:');
+});

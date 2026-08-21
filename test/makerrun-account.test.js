@@ -126,3 +126,32 @@ test('getAccessToken keeps a racing-refresh session on 401 for a stale token', a
     global.fetch = real;
   }
 });
+
+test('the token refresh is POSTed to makerrun.com, not the old host', async () => {
+  // The one regression this whole migration cannot see on its own. bedready.io still
+  // serves /api/* as a compatibility alias, so a slip back to the old host keeps
+  // WORKING — until the alias is switched off, at which point every linked shop
+  // fails at once, far from the change that caused it. Nothing else in the suite
+  // pins the host the request actually goes to.
+  const dir = tmpDir();
+  acct.link(dir, { access: 'OLD', refresh: 'R0', expires: 100 });
+  const real = global.fetch;
+  let seen = null;
+  global.fetch = async (url, opts) => {
+    seen = { url: String(url), method: opts && opts.method };
+    return { status: 200, ok: true, json: async () => ({ access_token: 'NEW', refresh_token: 'R1', expires_at: 9_999 }) };
+  };
+  try {
+    await acct.getAccessToken(dir, /* now */ 1_000);
+    assert.equal(seen.url, 'https://makerrun.com/api/app-token');
+    assert.equal(new URL(seen.url).host, 'makerrun.com', 'never bedready.io, which is the converter now');
+    assert.equal(seen.method, 'POST');
+  } finally { global.fetch = real; }
+});
+
+test('the account client takes its host from the one shared constant', () => {
+  // Two copies of the host is the shape this migration was cleaning up: a move lands
+  // in one module and the other keeps quietly talking to the old address.
+  assert.equal(acct.BASE, require('../lib/makerrun').BASE);
+  assert.equal(acct.BASE, require('../lib/makerrun-library').BASE, 'both clients, one host');
+});

@@ -5,8 +5,17 @@
    main-process bridge on window.hubAPI (see preload.js):
      bedreadyLinked / bedreadyOpenSignIn / onBedreadyLinked /
      bedreadyLibrary / bedreadyDownloadAll / bedreadyUnlink
+   NAMING, because the two halves of this feature do not share a name: the
+   main-process client is lib/makerrun-library.js (MakerRun is the product), while
+   this file keeps the bedready-* prefix because renderer/bedready-*.js is the Bed
+   Ready FLAVOR family — bedready-home, bedready-icons, bedready-queue. The prefix
+   here means "the Bed Ready app's UI", not "the BedReady product".
+
    Bed Ready flavor only; no dependency on the app's nav/tab system, so it
-   can't affect Khayt or the existing renderer.
+   can't affect Khayt or the existing renderer. Worth knowing that this gate is
+   why Khayt itself cannot open a MakerRun library today (see main.js, which also
+   refuses to link an account off this flavor) — a product question, not an
+   oversight of the rename.
    ============================================================ */
 (function () {
   if (typeof document === 'undefined' || document.documentElement.dataset.app !== 'bedready') return;
