@@ -600,7 +600,7 @@ function renderAiSettings() {
     <label style="margin-top:10px;">${escapeHtml(t('calc.ai_key') || 'Anthropic API key')}</label>
     <input type="password" id="aiKeySetting" value="${escapeHtml(secretInputValue(ai.apiKey))}" placeholder="sk-ant-...">
     <label style="margin-top:10px;">${escapeHtml(t('set.ai_model') || 'Model')}</label>
-    <input type="text" id="aiModelSetting" value="${escapeHtml(ai.model || 'claude-opus-4-8')}" placeholder="claude-opus-4-8">
+    <input type="text" id="aiModelSetting" value="${escapeHtml(ai.model || 'claude-opus-5')}" placeholder="claude-opus-5">
     <div style="display:flex;gap:8px;align-items:center;margin-top:10px;">
       <button id="btnSaveAiSettings" class="btn primary small">${escapeHtml(t('common.save') || 'Save')}</button>
       <button id="btnTestAiSettings" class="btn small">🔌 ${escapeHtml(t('calc.ai_test') || 'Test connection')}</button>
@@ -619,7 +619,7 @@ function renderAiSettings() {
     el.querySelectorAll('.ai-feat-toggle').forEach((c) => { chosen[c.dataset.feature] = c.checked; });
     settings.ai = {
       enabled: el.querySelector('#aiEnabled').checked,
-      model: el.querySelector('#aiModelSetting').value.trim() || 'claude-opus-4-8',
+      model: el.querySelector('#aiModelSetting').value.trim() || 'claude-opus-5',
       apiKey: secretInputSave(ai.apiKey, el.querySelector('#aiKeySetting').value.trim()),
       // Persisting `features` is also what marks the consent migration as done,
       // so a saved choice is never re-migrated (migrateConsent is idempotent).
@@ -640,7 +640,7 @@ function renderAiSettings() {
     try {
       const r = await khaytAiExtract({
         apiKey: key,
-        model: el.querySelector('#aiModelSetting').value.trim() || 'claude-opus-4-8',
+        model: el.querySelector('#aiModelSetting').value.trim() || 'claude-opus-5',
         task: 'quote',
         system: (typeof KhaytAiQuote !== 'undefined') ? KhaytAiQuote.buildSystemContext(inventory) : '',
         request: 'Estimate: one small 20mm PLA calibration cube.',

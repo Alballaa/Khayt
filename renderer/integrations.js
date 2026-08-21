@@ -1114,7 +1114,7 @@ async function aiDraftReply(orderId) {
     try {
       const system = KhaytAiReply.buildReplySystem({ shopName: settings.bizEn || settings.bizAr || 'Khayt', lang: settings.lang });
       const request = KhaytAiReply.buildReplyRequest({ order, client, intent, currency: cur, extra });
-      const r = await khaytAiExtract({ apiKey: ai.apiKey, model: ai.model || 'claude-opus-4-8', task: 'reply', system, request, schema: KhaytAiReply.REPLY_SCHEMA });
+      const r = await khaytAiExtract({ apiKey: ai.apiKey, model: ai.model || 'claude-opus-5', task: 'reply', system, request, schema: KhaytAiReply.REPLY_SCHEMA });
       if (!r || !r.ok || !r.draft) return { ok: false, error: (r && r.error) || 'AI request failed' };
       return { ok: true, message: KhaytAiReply.pickMessage(r.draft) };
     } catch (e) { return { ok: false, error: String(e && e.message || e) }; }

@@ -3218,7 +3218,7 @@ ipcMain.handle('hub:ai-extract', async (_e, { apiKey, model, system, request, im
   const content = [{ type: 'text', text: String(request) }];
   if (image) content.push({ type: 'image', source: { type: 'base64', media_type: 'image/png', data: String(image) } });
   const body = JSON.stringify({
-    model: model || 'claude-opus-4-8',
+    model: model || 'claude-opus-5',
     max_tokens: maxTokens,
     system: String(system || ''),
     tools: [tool],
@@ -3237,7 +3237,11 @@ ipcMain.handle('hub:ai-extract', async (_e, { apiKey, model, system, request, im
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
         body,
-        signal: AbortSignal.timeout(30000),
+        // 60s, not 30s: the default model thinks before it answers, and thinking
+        // happens before the first byte of the reply. A 30s ceiling was set when
+        // the default model did not think, and would now abort a good answer
+        // mid-flight — which the shop would see as a network error.
+        signal: AbortSignal.timeout(60000),
       });
     } catch (e) {
       // Network fault or timeout — transient by nature, so it retries too.
