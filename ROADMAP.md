@@ -36,8 +36,12 @@ queue of code waiting to be written** — that is the honest state of this file.
       **Nothing is left to build on the desktop for either.** What is missing is
       the ability to see where adoption stands: the server holds the per-device
       capability record that decides eligibility and nothing surfaces it, so
-      "has adoption happened" is a guess. That is a small khayt-cloud endpoint,
-      and it belongs in its own session.
+      "has adoption happened" is a guess. That endpoint is now **specified** —
+      [docs/KHAYT-CLOUD-ADOPTION-ENDPOINT.md](./docs/KHAYT-CLOUD-ADOPTION-ENDPOINT.md)
+      — and implementing it belongs to a khayt-cloud session. Writing it down
+      surfaced one thing that changes the plan: the delta gate's **refusal
+      status** is load-bearing and was never specified, so check what shipped
+      before flipping anything (§5 there).
       The portal gate is the one with a deadline attached in spirit if not on
       paper — until it is flipped, the fix for "anyone with a portal link can
       read the whole message thread" is only *closable*, not closed.
