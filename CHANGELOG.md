@@ -4,6 +4,127 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.6.0] - 2026-08-21
+
+The 3.6.0 beta line, released as stable. Individual beta and candidate entries
+are kept below; this is what changed for you since 3.5.3.
+
+**Khayt now learns what your prints actually cost.** Until this release every
+figure the app gave you came from a formula — a guess about your printer, your
+filament and your infill, applied to a shape. Now a model dropped on the
+calculator becomes a quote, the printer reports the real filament and duration
+when the job finishes, the settings that worked are remembered against the file,
+and the estimator corrects itself from the jobs you have actually completed. An
+estimate also says whether the rate behind it was measured or assumed, and on
+which print it was measured — a number you cannot question is worse than one you
+can.
+
+That is why this line spent three weeks in beta: it changes **what your customers
+are quoted**, and how every geometry-based time estimate is worked out. The early
+betas got it wrong in both directions — a 100 mm part quoted at roughly double, a
+five-hour print shown as 1% done with 178 hours remaining — and both were found by
+running real jobs on a real printer, not by running the tests.
+
+**Khayt also works outside the Gulf now.** Tax can be added to a price rather than
+included in it, so a US shop quoting 100 invoices 108.25 where it used to invoice
+100. Thirty country presets come with it, your documents print in the language
+your shop chose rather than that language and Arabic, and a new shop outside Saudi
+Arabia is no longer set up for Saudi e-invoicing.
+
+**And four security holes are closed**, one of which exposed customers' messages
+to anyone holding a portal link.
+
+### Fixed — security
+
+- **Anyone with a portal link could read the whole message thread on it.** A
+  customer portal link now proves who is holding it before it will show a
+  conversation, and Khayt no longer has any way to read a thread without that.
+- **A printer address written as a number could point Khayt at your own network.**
+  An address like `2130706433` is another way of writing `127.0.0.1`, and the
+  check that was meant to refuse it did not recognise the form.
+- **The converter could be made to write a file anywhere the app could read.**
+- **The brute-force lockout never actually locked.** Ten wrong LAN PINs were
+  meant to lock the door; they did not.
+- **Every known vulnerability in the parts Khayt ships is patched**, including the
+  move to Electron 42.8.1.
+
+### Fixed — your data
+
+- **Restoring a backup without closing Khayt could push the restored data over
+  newer data on your other devices.** With cloud sync on, restoring a backup or a
+  named restore point while the app was running could send that older copy up as
+  the latest, and every other device would take it. Nothing warned you.
+- **Your data is now copied aside before any update touches it**, so there is
+  always a copy from immediately before the version changed.
+- **When cloud sync fails, it now says why.** The status used to read "Sync
+  error" and nothing more, indefinitely.
+- **Khayt Cloud no longer re-downloads your whole shop every time you open the
+  app.** It asks for the part it is missing and folds that onto the copy it
+  already has.
+- **Cloud sync uploads about a sixth as much.** If you run a second machine on
+  3.6.0-beta.16 or earlier, update it — otherwise it stops syncing until you do.
+
+### Added — what a print costs
+
+- **Drop a model on the calculator and get a quote.** One drop zone takes STL,
+  3MF and g-code, and your customers can price their own model too — optional,
+  and off until you turn it on.
+- **Khayt learns what a print actually cost.** When a job finishes on a Moonraker
+  or Klipper machine, the real filament and duration are captured and kept
+  against the file.
+- **Estimates that correct themselves.** Once a few jobs have finished with
+  measured figures, the estimator calibrates against them rather than against a
+  fixed assumption.
+- **Settings that worked, remembered.** A print file keeps the setups you have
+  used, and a model you have printed before is priced from its own prints.
+- **Khayt says when a model is one it cannot price**, instead of guessing.
+- **3MF files now give up their slicer figures**, and **Bambu and Orca print times
+  are no longer silently dropped** — neither had ever worked.
+
+### Added — your print library
+
+- **Keep the library on a network drive, an external disk, or a synced folder**,
+  and back it up to object storage alongside the backup folder.
+- **Khayt recognises a file you already have** — including a g-code file your shop
+  re-sliced, which used to come back as a stranger — and there is now an
+  **Identify** button for files it cannot place.
+- **Drop a .zip straight into your print files.** Model packs arrive as archives.
+- **Documents that travel with a product** — assembly instructions, a datasheet, a
+  licence.
+
+### Added — buying, stock and kits
+
+- **Consumables reach the reorder list and purchase orders**, which until now only
+  filament could, and they can be given categories.
+- **Receiving a filament purchase order records what it cost.**
+- **A fee can be a percentage**, not only a fixed amount, and **marketplace fees go
+  onto a quote in one click** for Etsy and the like.
+- **Kits — several prints that are one object.** A figure printed as a head, a
+  body and a base is one thing to the customer. Kits can be renamed, and they
+  reach Bed Ready.
+
+### Fixed — the converter and colour
+
+- **A large 3MF could convert into a model missing most of itself**, and report
+  success.
+- **The converter stopped the app while it worked.** That work has moved off the
+  main process.
+- **A big multi-colour 3MF could open as if it had no colours at all**, and **the
+  top colour was dropping out of the print.**
+- **Prints took about twice as long as they needed to** — the base of a relief was
+  being printed at full detail.
+- **HueForge FLAT mode** — colour by region instead of by height.
+
+### Added — elsewhere
+
+- **"Across the branches" now shows the money, and what is late.** The
+  organisation overview counted work and said nothing about what it earned. Each
+  branch is shown in its own currency and the figures are the branch's own.
+- **Elegoo resin printers** — Mars and Saturn machines.
+- **The production queue opens on the board**, and there is now a **Help menu**.
+- **Low stock can have its own colour**, under Settings → Appearance.
+- **Bed Ready no longer calls itself a beta.**
+
 ## [3.6.0-rc.4] - 2026-08-14
 
 ### Added
