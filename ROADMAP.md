@@ -2,15 +2,17 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0 — on `main`)
+## Now (post-3.6.0, 3.7.0-beta.1 cut — on `main`)
 
 **Stable is v3.6.0** (2026-08-21) — the 3.6.0 line, promoted from
 `v3.6.0-rc.4` unchanged after a seven-day soak. rc.4 was the first candidate on
 this line that `main` did not overtake, so for once replace-vs-promote resolved
-to *promote*; rc.1, rc.2 and rc.3 were each replaced instead. **No prerelease
-line is currently open** — the next one opens at `3.7.0-beta.1` via
-`npm run version:beta`, which is correct only because `package.json` now carries
-a plain stable version. No hold is active — see
+to *promote*; rc.1, rc.2 and rc.3 were each replaced instead.
+
+**The 3.7.0 line is open: `3.7.0-beta.1`** (cut 2026-08-21). It carries one
+change — cloud sync starts *writing* only what changed. Note that a version in
+`package.json` proves the cut landed and nothing more; check `gh release list`
+before saying it shipped. No hold is active — see
 [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md).
 
 **Bed Ready is on its own line and is current: `1.1.0`** (2026-08-12), built by
