@@ -25,7 +25,7 @@ const ITEMS = [
 ];
 
 /** Boot the panel against a jsdom document with a recording bridge. */
-async function boot({ items = ITEMS, canImport = true } = {}) {
+async function boot({ items = ITEMS, canImport = true, folder = 'MakerRun-Library' } = {}) {
   const dom = new JSDOM('<!doctype html><html data-app="bedready"><body></body></html>',
     { pretendToBeVisual: true });
   const { window } = dom;
@@ -36,7 +36,9 @@ async function boot({ items = ITEMS, canImport = true } = {}) {
     bedreadyLibrary: async () => ({ ok: true, items }),
     bedreadyDownloadAll: async (list) => {
       calls.downloadAll.push(list);
-      return { ok: true, saved: list.map((i) => i.slug), failed: [], skipped: [] };
+      // `folder` is what main actually wrote to — a shop that downloaded designs
+      // before the MakerRun rename keeps its existing BedReady-Library folder.
+      return { ok: true, folder, saved: list.map((i) => i.slug), failed: [], skipped: [] };
     },
     bedreadyImportToLib: canImport
       ? async (item, vaultId) => {
@@ -275,4 +277,30 @@ test('every design name is escaped, not injected', async () => {
   });
   assert.equal($$(window, '.brl-card img[src="x"]').length, 0, 'no injected element');
   assert.equal(cardNames(window)[0], '<img src=x onerror=alert(1)>', 'shown as text');
+});
+
+test('the visible heading is the translated title, not a hardcoded name', async () => {
+  // It used to be a hardcoded English "My BedReady library" next to an aria-label
+  // built from t('brl.title'), so a translated build showed one name and announced
+  // another — and only the announced one would have followed the MakerRun rename.
+  const { window } = await boot();
+  const modal = $(window, '.brl-modal');
+  const heading = modal.querySelector('b').textContent;
+  assert.equal(heading, 'MakerRun library');
+  assert.equal(modal.getAttribute('aria-label'), heading, 'what is shown is what is announced');
+});
+
+test('the download message names the folder that was actually written to', async () => {
+  // Not the folder this file thinks it should be. A shop that downloaded designs
+  // before the rename keeps saving into Downloads/BedReady-Library, and a message
+  // hardcoding either name would be wrong for half of them.
+  const { window } = await boot({ folder: 'BedReady-Library' });
+  click(window, '.brl-btn[data-act="download"]');
+  await tick(window);
+  assert.match($(window, '.brl-result').textContent, /Downloads\/BedReady-Library folder/);
+
+  const fresh = await boot({ folder: 'MakerRun-Library' });
+  click(fresh.window, '.brl-btn[data-act="download"]');
+  await tick(fresh.window);
+  assert.match($(fresh.window, '.brl-result').textContent, /Downloads\/MakerRun-Library folder/);
 });

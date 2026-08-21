@@ -21,7 +21,7 @@ const lib = [
 const titles = (r) => r.map((i) => i.title);
 
 test('an unknown or missing type is 3MF — the same lie extFor would not tell', () => {
-  // lib/bedready-library.js extFor() defaults to .3mf, so an item with no usable
+  // lib/makerrun-library.js extFor() defaults to .3mf, so an item with no usable
   // type DOES arrive as a 3MF. Calling it anything else here would mean ticking
   // "3MF" and not seeing a file that lands as one.
   assert.equal(typeOf({ fileType: 'stl' }), 'stl');

@@ -6,6 +6,29 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Changed
 
+- **The design library Khayt syncs with is now MakerRun, at `makerrun.com`.**
+  BedReady split into two products: the library — your saved designs, and the
+  account you sign in to — moved to **makerrun.com**, and `bedready.io` kept the
+  file converter. Khayt now connects, signs in and pulls your designs from
+  makerrun.com.
+
+  **There is nothing for you to do, and you do not have to sign in again.** It is
+  the same account with the same saved designs; only the address changed. If you
+  had already connected your account, it stays connected. The Connect button now
+  opens `makerrun.com/app-link` instead of the old address.
+
+  The panel is now called **MakerRun library** and the button reads **Connect
+  MakerRun account**, in all nine languages.
+
+  **"Download to folder" keeps using the folder you already have.** New downloads
+  go to `Downloads/MakerRun-Library`, but if you had already downloaded designs to
+  `Downloads/BedReady-Library`, Khayt keeps saving there instead of scattering one
+  library across two folders. Nothing on disk is moved or renamed, and the message
+  after a download names the folder it actually wrote to.
+
+  Bed Ready's own site links — the Feedback button and the Help menu — still go to
+  `bedready.io`, which is the converter and is unchanged.
+
 - **AI assist now uses a newer Claude model by default.** New shops get
   `claude-opus-5` instead of `claude-opus-4-8`. **If you already have a model
   set in Settings → Automation → AI assist, yours is left exactly as it is** —

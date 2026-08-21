@@ -5,7 +5,7 @@ const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const acct = require('../lib/bedready-account');
+const acct = require('../lib/makerrun-account');
 
 function tmpDir() {
   const d = path.join(os.tmpdir(), 'bedready-acct-test-' + process.pid + '-' + Math.floor(process.hrtime()[1]));

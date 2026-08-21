@@ -15,7 +15,9 @@ contextBridge.exposeInMainWorld('hubAPI', {
   generateQR: (text, options) => ipcRenderer.invoke('hub:generate-qr', text, options),
   appVersion: () => ipcRenderer.invoke('hub:app-version'),
 
-  // BedReady library sync (site ↔ app): pull the user's saved designs and download them locally.
+  // MakerRun library sync (site ↔ app): pull the user's saved designs and download them locally.
+  // The hub:bedready-* channel names are the pre-rename wire names, kept as-is: they are internal to
+  // this build and renaming them buys nothing.
   bedreadyLinked:       () => ipcRenderer.invoke('hub:bedready-linked'),
   bedreadyLibrary:      () => ipcRenderer.invoke('hub:bedready-library'),
   bedreadyDownloadAll:  (items) => ipcRenderer.invoke('hub:bedready-download-all', { items }),
