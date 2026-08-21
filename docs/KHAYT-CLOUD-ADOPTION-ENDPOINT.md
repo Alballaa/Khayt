@@ -202,10 +202,10 @@ counter becomes an outage. Prune beyond `windowDays`.
 
 ## 7. When to flip, once the numbers exist
 
-**`DELTA_WRITES`** — §5 settles this: the gate refuses with 404, so flip whenever
-the saving is worth having. Blocked shops are not harmed by it, just not helped
-by it yet, and `deltaWrites.shops.blocked` tells you how many are in that
-position rather than whether it is safe to proceed.
+**`DELTA_WRITES`** — **flipped 2026-08-21**, on the §5 reasoning: the gate
+refuses with 404, so a blocked shop is not harmed by the flip, just not helped by
+it yet. `deltaWrites.shops.blocked` therefore reports how much saving is still
+unrealised, not whether anything is safe. It takes effect in the next release.
 
 **The portal read gate** — flip when `wouldRefuse.byCaller.desktopBearer` has
 been `0` for a **full `windowDays`**, not merely at the instant of reading. A
@@ -242,5 +242,6 @@ day is. Re-run it before proposing the flip again.
 
 ---
 
-**Status:** specified here, not yet implemented. The desktop side needs nothing
-further for either flip — this is the last piece, and it is entirely server-side.
+**Status:** specified here, not yet implemented. `DELTA_WRITES` was flipped on
+2026-08-21 without it, which §5 explains; the **portal gate** is what still needs
+it, and that gate is the one holding a security exposure open.

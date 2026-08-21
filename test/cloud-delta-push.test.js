@@ -24,9 +24,12 @@
  * do, and index.php is quoted where it is easy to get wrong.
  *
  * The most important test in this file is 'THE HAZARD'. It does not check that
- * the protocol works — it checks that the protocol is dangerous, and is why
- * DELTA_WRITES ships off. The one nearest it in spirit is the last in the file:
- * the warm pull's failure mode is silent, and it eats local edits.
+ * the protocol works — it checks that the protocol is dangerous, and it is why
+ * DELTA_WRITES shipped off for the whole readers-first half of the rollout. It
+ * still passes now that the flag is on: the danger did not go away, the server
+ * gate simply stops a chain forming while a device that would flatten it is
+ * attached. The test nearest it in spirit is the warm pull's, further down:
+ * that failure mode is silent too, and it eats local edits.
  */
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -298,19 +301,32 @@ test('a pull with deltas but no engine refuses rather than returning a stale sto
     'silently dropping the deltas would hand the caller a store missing its newest edits');
 });
 
-test('DELTA_WRITES ships OFF — the reader lands a release before any writer', () => {
-  // Not style policing. The next test shows what happens if a blob-only desktop
-  // meets a delta store, and that desktop is whatever version the shop has not
-  // updated yet. Flip this only once the server can refuse delta pushes for a
-  // shop that still has one attached.
-  assert.equal(DELTA_WRITES, false);
+test('DELTA_WRITES is ON, and a build without the engine still refuses to write', () => {
+  // This asserted `false` for the whole readers-first half of the rollout. The
+  // condition it was waiting on — a server that refuses a delta push for a shop
+  // with a blob-only device attached — is met: khayt-cloud#16 refuses with 404,
+  // which is the status the client already falls back on. THE HAZARD below is
+  // unchanged and still passes; what changed is that a chain can no longer form
+  // while a device that would flatten it is attached.
+  assert.equal(DELTA_WRITES, true);
 
   const server = makeDeltaServer();
   const a = createCloudBackend({
     transport: (req) => server.handle(req),
     crypto: sc, shopId: 'shopA', getDek: () => freshDek(), sync: loadEngine(),
   });
-  assert.equal(a.writesDeltas(), false, 'the default build does not write deltas');
+  assert.equal(a.writesDeltas(), true, 'the default build writes deltas');
+
+  // The flag is necessary but not sufficient, and this is the half that must
+  // never regress: a build whose delta engine failed to load cannot fold a
+  // chain, so it must not write one either — or it would create a chain that it
+  // then flattens on its own next full push.
+  const engineless = createCloudBackend({
+    transport: (req) => server.handle(req),
+    crypto: sc, shopId: 'shopA', getDek: () => freshDek(),
+  });
+  assert.equal(engineless.writesDeltas(), false,
+    'no engine means no delta writes, whatever the flag says');
 });
 
 test('THE HAZARD: a blob-only desktop silently destroys every delta', async () => {

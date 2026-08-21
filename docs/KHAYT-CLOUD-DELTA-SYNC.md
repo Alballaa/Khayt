@@ -25,12 +25,16 @@ curl -s -o /dev/null -w '%{http_code}' -X POST \
 The 401 is the point: an unknown route answers 404 there, so "missing bearer
 token" means the route exists and is guarded.
 
-Nothing writes deltas — `DELTA_WRITES` in
-[`lib/cloud-backend.js`](../lib/cloud-backend.js) is `false`, and §3 is why. **One
-thing now stands between here and flipping it: the reader has to reach the field**
-(§3 step 2). The pull half is finished on both counts — the desktop asks for
-`?since=` and folds onto a retained server view, and that view now survives a
-restart (§7), so launch is warm too.
+**`DELTA_WRITES` in [`lib/cloud-backend.js`](../lib/cloud-backend.js) is now
+`true`.** It shipped `false` for the whole readers-first half of the rollout, and
+§3 is why. The condition it waited on was never "the field is fully updated" — it
+was a server that refuses a delta push for a shop with a blob-only device
+attached. That is khayt-cloud#16, and it refuses with **404**, the status the
+client already falls back on, so a shop that is not yet eligible keeps
+blob-syncing with no error and no action from its owner. The pull half is
+finished on both counts — the desktop asks for `?since=` and folds onto a
+retained server view, and that view survives a restart (§7), so launch is warm
+too.
 
 ---
 
@@ -93,7 +97,7 @@ The backend therefore keeps a **push index** — `collection:id -> rev` of what 
 last sent — rather than a cursor. It asks "is this the version they have?", which
 is the actual question and needs nothing global. The engine is untouched.
 
-## 3. The hazard, and why `DELTA_WRITES` is off
+## 3. The hazard, and why `DELTA_WRITES` was off until 2026-08-21
 
 **A blob-only desktop silently destroys every delta.** Pinned by the last test in
 `test/cloud-delta-push.test.js`, which is written to fail if this ever stops
@@ -119,7 +123,11 @@ So the order is:
 3. ~~**Build the server**, including the gate in §4~~ — done and deployed
    (KhaytApp/khayt-cloud#16). Without the gate step 4 would be unsafe no matter
    how long step 2 waits, which is why it shipped in the same change.
-4. **Flip `DELTA_WRITES`** — still blocked on step 2.
+4. ~~**Flip `DELTA_WRITES`**~~ — **done 2026-08-21.** It was never really
+   blocked on step 2, which took until the gate was read rather than assumed to
+   become clear: step 3's gate refuses with 404, so an un-adopted shop falls
+   through to the blob push it was already making. Adoption decides how much of
+   the saving is realised, not whether the flip is safe.
 
    It is not blocked on §7, which is now finished on both counts: a client asks
    for a slice and folds it onto its own retained view, and that view survives a
@@ -181,7 +189,7 @@ written up in [the adoption endpoint spec](./KHAYT-CLOUD-ADOPTION-ENDPOINT.md) �
 | Fold a chain in the remote-mobile PWA | khayt-cloud `mobile/` | **not started** — see §8 |
 | Surface adoption so the flip can be decided | khayt-cloud | **specified, not built** — [KHAYT-CLOUD-ADOPTION-ENDPOINT.md](./KHAYT-CLOUD-ADOPTION-ENDPOINT.md) |
 | Gated-shop refusal is 404/405, not 403 | khayt-cloud | **verified 404** — both backends; pinned desktop-side |
-| Flip `DELTA_WRITES` | desktop | **not blocked on full adoption after all** — the 404 refusal makes a gated shop blob-sync quietly; adoption sets how much is saved, §8 bounds its reach |
+| Flip `DELTA_WRITES` | desktop | **done** — 2026-08-21; the 404 refusal makes a gated shop blob-sync quietly, so adoption sets how much is saved rather than whether it is safe. §8 bounds its reach |
 
 The claim that what remained was "entirely server-side" was **wrong on one point**,
 and §7 is that point. Everything else server-side is built and merged-pending.
@@ -276,9 +284,10 @@ outlive the one event that moves local state backwards. This predates the cache
 
 The dangerous half is the **cursor**, not the view. `changesSincePush` ships
 whatever disagrees with `pushedRevs`, which after a restore is every rolled-back
-record. On the blob path — what ships today, `DELTA_WRITES` being off — it is
-worse than that: a full push whose `baseRev` the server accepts *replaces* the
-base outright, so the older store lands on every device, silently.
+record. On the blob path — which is still what an un-eligible shop takes, and
+what every shop took before the flip — it is worse than that: a full push whose
+`baseRev` the server accepts *replaces* the base outright, so the older store
+lands on every device, silently.
 
 So `forgetServerView()` drops all five pieces and the rev with them, and
 `hub:cloud-forget-view` lets the renderer call it — the restore path is
@@ -382,4 +391,6 @@ logic with no DOM — `lib/lan-server.js` already reaches across for
 process for exactly this reason — so the shape is known. It is still a real piece
 of work in a client that handles end-to-end-encrypted data, and it cannot be
 exercised end-to-end until `DELTA_WRITES` is on, which is why it is written down
-here rather than half-built.
+here rather than half-built. `DELTA_WRITES` being on as of 2026-08-21 does not
+change that: the PWA never announces capability, so a shop that uses it is held
+to blob sync by the gate and this stays unexercised until the PWA can fold.

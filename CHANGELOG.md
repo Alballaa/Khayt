@@ -4,6 +4,27 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Changed
+
+- **Cloud sync now sends only what changed.** Every save used to upload your
+  whole shop — every order, every client, every spool — because one card moved.
+  That cost grows with your history rather than with your work, so the longer
+  you have used Khayt the more each save cost. Khayt now sends just the records
+  that changed, and the whole shop only occasionally, to keep the cloud copy
+  tidy.
+
+  The previous releases taught Khayt to *read* that format; this one starts
+  *writing* it. Nothing about your data or its encryption changes, and there is
+  nothing to switch on.
+
+  **You do not have to update every machine first.** Khayt and the server work
+  out together whether every computer signed in to your shop can read the new
+  format — including one that is switched off, and the head office view if you
+  run branches. If any of them cannot, your shop quietly keeps sending whole
+  stores exactly as before, with no error and nothing for you to do. The saving
+  starts on its own once they are all updated.
+
+
 ## [3.6.0] - 2026-08-21
 
 The 3.6.0 beta line, released as stable. Individual beta and candidate entries
