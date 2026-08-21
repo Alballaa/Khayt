@@ -153,10 +153,15 @@ sync from an un-upgraded laptop is the one that loses data.
 **And "refuse" has to name a status code, which this section never did.** The
 desktop treats only **404 and 405** as "this server cannot take deltas" and falls
 back to a whole-store push; every other status throws, so a gate refusing with
-403 turns every save on a not-yet-eligible shop into a sync error. Both branches
-are pinned at the end of `test/cloud-delta-push.test.js`. The gate must refuse
-with 404 or 405 — and if it does, step 4 below stops needing full adoption at
-all. See [the adoption endpoint spec](./KHAYT-CLOUD-ADOPTION-ENDPOINT.md) §5.
+403 would turn every save on a not-yet-eligible shop into a sync error. Both
+branches are pinned at the end of `test/cloud-delta-push.test.js`.
+
+**Checked 2026-08-21: khayt-cloud#16 refuses with 404**, identically in both
+backends. So step 4 below **does not need full adoption** — a gated shop simply
+keeps blob-syncing. There is also a backstop the other way, a **412** on a full
+push from a device that never announced capability while a chain exists, which
+the desktop already surfaces by its sentence rather than its number. Both are
+written up in [the adoption endpoint spec](./KHAYT-CLOUD-ADOPTION-ENDPOINT.md) §5.
 
 ## 5. What is left
 
@@ -175,8 +180,8 @@ all. See [the adoption endpoint spec](./KHAYT-CLOUD-ADOPTION-ENDPOINT.md) §5.
 | Persist the server view across restarts (warm launch) | desktop | **done** — §7 |
 | Fold a chain in the remote-mobile PWA | khayt-cloud `mobile/` | **not started** — see §8 |
 | Surface adoption so the flip can be decided | khayt-cloud | **specified, not built** — [KHAYT-CLOUD-ADOPTION-ENDPOINT.md](./KHAYT-CLOUD-ADOPTION-ENDPOINT.md) |
-| Gated-shop refusal is 404/405, not 403 | khayt-cloud | **unverified** — pinned desktop-side; check what #16 shipped |
-| Flip `DELTA_WRITES` | desktop | blocked on adoption (§3 step 2), which nothing currently measures; §8 bounds its reach |
+| Gated-shop refusal is 404/405, not 403 | khayt-cloud | **verified 404** — both backends; pinned desktop-side |
+| Flip `DELTA_WRITES` | desktop | **not blocked on full adoption after all** — the 404 refusal makes a gated shop blob-sync quietly; adoption sets how much is saved, §8 bounds its reach |
 
 The claim that what remained was "entirely server-side" was **wrong on one point**,
 and §7 is that point. Everything else server-side is built and merged-pending.

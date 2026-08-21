@@ -150,14 +150,40 @@ Both branches are now pinned in
   the backend goes to `error`. Loud, not lossy: the cursor does not advance, so
   the edit is still in the next payload. A rollout hazard, not a data hazard.
 
-**So the gate must refuse with 404 or 405.** If it does, `DELTA_WRITES` can be
-flipped at partial adoption — un-eligible shops quietly keep blob-syncing and
-adoption then decides only how much of the saving is realised, not whether the
-flip is safe. If it refuses any other way, the flip has to wait for
-`shops.blocked` to reach zero.
+**Checked 2026-08-21, and the answer is the good one: it refuses with 404.**
+Identical in both backends, with the same sentence —
+`send(404, ['error' => 'This shop has a device that cannot read deltas'])` in
+`index.php`, `send(res, 404, {...})` in `src/server.js`. khayt-cloud#16's README
+says why in as many words: 404 is "the documented *this server takes no deltas*
+answer, so the desktop's existing fallback sends whole stores for the rest of the
+session with no new client code and no version negotiation."
 
-**Check which one khayt-cloud#16 actually shipped before flipping anything.**
-That is one grep in the server and it changes the whole rollout plan.
+**Therefore `DELTA_WRITES` does not need full adoption.** A gated shop quietly
+keeps blob-syncing; adoption decides only how much of the saving is realised.
+The endpoint's `deltaWrites` section is a *savings* report, not a safety gate —
+which is a different and much less urgent thing than it looked before checking.
+
+### The second refusal, which the desktop contract never mentioned either
+
+There is a backstop the other way round. `PUT /store` from a device that has
+**not** announced capability, while a chain exists, is refused with **412** and
+the sentence *"This shop has unsynced changes this build cannot read. Update
+Khayt to sync again."* That is deliberate: it is the loud failure that replaces
+THE HAZARD's silent data loss.
+
+The desktop already handles it well, by accident of a different fix —
+`httpFailure` in `lib/cloud-backend.js` leads with the server's sentence rather
+than the status code (the #698 fix for "a failed sync said Sync error and nothing
+else"), and `test/cloud-backend.test.js` pins exactly this 412. So the owner is
+told to update Khayt, which is the one action that resolves it.
+
+It is also hard to reach. `shopTakesDeltas()` fails closed on more than the
+obvious case: a device known to be blob-only, *and* a live token nobody has been
+observed using, *and* org siblings, since HQ reads a branch's store through
+`/org/branches/{id}/store`. So a chain cannot normally form while any un-upgraded
+device could still show up. The 412 covers what is left — a token minted after
+the chain formed — and self-clears, because that device has now reported itself
+blob-only and the next full push from a modern device compacts the chain away.
 
 ## 6. What never appears in the response
 
@@ -176,10 +202,10 @@ counter becomes an outage. Prune beyond `windowDays`.
 
 ## 7. When to flip, once the numbers exist
 
-**`DELTA_WRITES`** — flip when `deltaWrites.shops.blocked` is `0`, or when §5
-confirms the gate refuses with 404/405, in which case flip whenever the saving is
-worth having. Blocked shops are not harmed by the flip in that case; they are
-just not helped by it yet.
+**`DELTA_WRITES`** — §5 settles this: the gate refuses with 404, so flip whenever
+the saving is worth having. Blocked shops are not harmed by it, just not helped
+by it yet, and `deltaWrites.shops.blocked` tells you how many are in that
+position rather than whether it is safe to proceed.
 
 **The portal read gate** — flip when `wouldRefuse.byCaller.desktopBearer` has
 been `0` for a **full `windowDays`**, not merely at the instant of reading. A
