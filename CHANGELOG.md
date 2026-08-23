@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.7.0-beta.4] - 2026-08-23
+
 ### Added
 
 - **The storage provider list now links you to each provider's signup page.**
