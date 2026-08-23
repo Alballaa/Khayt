@@ -2,7 +2,7 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0, 3.7.0-beta.3 published, beta.4 cut but untagged — on `main`)
+## Now (post-3.6.0, 3.7.0-beta.4 published — on `main`)
 
 **Stable is v3.6.0** (2026-08-21) — the 3.6.0 line, promoted from
 `v3.6.0-rc.4` unchanged after a seven-day soak. rc.4 was the first candidate on
@@ -10,20 +10,28 @@ this line that `main` did not overtake, so for once replace-vs-promote resolved
 to *promote*; rc.1, rc.2 and rc.3 were each replaced instead.
 
 **The 3.7.0 line is open. The newest *published* pre-release is
-`v3.7.0-beta.3`** (2026-08-23). Three cuts so far: `beta.1` flipped
+`v3.7.0-beta.4`** (2026-08-23). Four cuts so far: `beta.1` flipped
 `DELTA_WRITES`, `beta.2` made the print library able to outgrow its disk (the
 substance of the line — cold models move to a bucket rather than being copied to
-one), and `beta.3` carries no app change at all, being `beta.2` rebuilt for macOS
-after `BUILD_MAC` was left unset at `beta.2`'s tag.
+one), `beta.3` carries no app change at all, being `beta.2` rebuilt for macOS
+after `BUILD_MAC` was left unset at `beta.2`'s tag, and `beta.4` adds the
+storage-provider signup links ([#722]).
 
-**`3.7.0-beta.4` is bumped on `main` (`11ef165`, [#723]) and has no tag.**
-Release CI never ran, no installer exists, and a beta user's newest available
-build is still `beta.3`. It would carry the storage-provider signup links
-([#722]). This file has warned since the last release that *a version in
-`package.json` proves the cut landed and nothing more* — that is no longer a
-caution, it is the current state, and `git ls-remote --tags origin` is the check
-that settles it. Finishing it is one command: tag `11ef165` and push the tag to
-`KhaytApp/Khayt`.
+**`3.7.0-beta.4` is tagged and published** (`11ef165`, [#723]). It sat bumped on
+`main` without a tag for most of 2026-08-23 — release CI had never run and no
+installer existed, so a beta user's newest available build was still `beta.3`
+while `package.json` claimed otherwise. This file had warned since the previous
+release that *a version in `package.json` proves the cut landed and nothing
+more*; for a day that stopped being a caution and became the state of the repo.
+The check that settles it is `git ls-remote --tags origin`, and the fix was the
+one command the warning named. Worth keeping the habit: the release is the tag,
+not the bump.
+
+`beta.4` is **Windows + Linux only** — `BUILD_MAC` was left unset deliberately,
+this being a small UI change rather than a release intended for promotion. macOS
+beta users stay on `beta.3` and their update check keeps working, because
+`carry-mac-manifest` copies `latest-mac.yml` forward from the last release that
+had one.
 
 No hold is active — see [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md).
 
