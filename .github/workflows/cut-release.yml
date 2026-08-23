@@ -74,6 +74,53 @@ jobs:
           fi
           echo "RELEASE_TAG_TOKEN is present."
 
+          # Present is not the same as usable, and the gap between them is a
+          # whole confusing failure later. A PAT that has expired, been revoked,
+          # or was issued against the wrong resource owner passes the -z test
+          # above and then dies inside actions/checkout as a git credentials
+          # error that names neither the secret nor the reason. An expiry date
+          # is a scheduled instance of exactly that, so ask GitHub whether the
+          # token still works while there is still a step whose job is to say so.
+          #
+          # GH_TOKEN rather than `curl -H`, so the secret is never a command-line
+          # argument. `repos/{owner}/{repo}` needs only Metadata:read, which
+          # every fine-grained PAT carries whether or not you ask for it, so a
+          # correctly-scoped token always clears this.
+          set +e
+          RESULT=$(GH_TOKEN="$RELEASE_TAG_TOKEN" gh api "repos/$GITHUB_REPOSITORY" --jq .full_name 2>&1)
+          STATUS=$?
+          set -e
+          if [ "$STATUS" -ne 0 ]; then
+            case "$RESULT" in
+              *401*|*"Bad credentials"*)
+                echo "::error::RELEASE_TAG_TOKEN is set, but GitHub rejected it (HTTP 401)."
+                echo "The token is expired, revoked, or malformed — this is what an expiry"
+                echo "date looks like on the day it lands. Mint a replacement with"
+                echo "contents:write on $GITHUB_REPOSITORY and update the secret."
+                ;;
+              *404*|*"Not Found"*)
+                echo "::error::RELEASE_TAG_TOKEN is a valid token, but it cannot see"
+                echo "$GITHUB_REPOSITORY (HTTP 404)."
+                echo "That is what a fine-grained PAT looks like when its resource owner is"
+                echo "your personal account rather than the org that owns this repo, or when"
+                echo "this repository is not in the token's repository list. It can also mean"
+                echo "an org approval is still pending."
+                ;;
+              *)
+                echo "::error::Could not verify RELEASE_TAG_TOKEN against the GitHub API."
+                echo "This is not necessarily the token — the API may be unreachable."
+                echo "$RESULT"
+                ;;
+            esac
+            exit 1
+          fi
+          echo "RELEASE_TAG_TOKEN is live and can see $RESULT."
+          # Deliberately not claimed: that it can WRITE. There is no read-only
+          # way to prove a write permission, so the honest statement is the one
+          # below rather than a green check that means less than it looks.
+          echo "Write access cannot be proven without writing. If it is missing, the"
+          echo "push at the end fails and no tag is created."
+
       # persist-credentials (the default) leaves the PAT configured as the
       # remote's credential, so the push at the end is a plain `git push` and the
       # token is never handled in a shell script where it could be echoed.
