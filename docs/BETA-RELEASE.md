@@ -144,10 +144,30 @@ gh variable delete BUILD_MAC --repo KhaytApp/Khayt      # it is sticky — unset
 
 macOS users are not stranded by a Windows/Linux-only release: the
 `carry-mac-manifest` job copies `latest-mac.yml` forward from the last release
-that had one, so their update check resolves to the newest version a mac binary
-actually exists for and reports "up to date" instead of failing. Without that
-they would see **"Update check failed"** — a missing `latest-mac.yml` 404s, which
-is the same fault the `bedready-v*` tag used to cause.
+that **shipped a mac build**, so their update check resolves to the newest
+version a mac binary actually exists for and reports "up to date" instead of
+failing. Without that they would see **"Update check failed"** — a missing
+`latest-mac.yml` 404s, which is the same fault the `bedready-v*` tag used to
+cause.
+
+It rewrites the file rather than copying it verbatim, and the difference is not
+cosmetic. electron-updater builds the download URL from the tag the *feed*
+pointed at, not from the version written inside the manifest, so a verbatim copy
+names a file the release it now sits in does not contain:
+
+    url: Khayt-<prev>-arm64-mac.zip
+      -> /releases/download/<this tag>/Khayt-<prev>-arm64-mac.zip     404
+
+The job therefore writes `../<prev>/<file>`, which the URL parser normalises back
+onto the release that holds the binaries. The blockmap follows for free, being
+derived from the already-resolved URL.
+
+That bug shipped in five releases before it was found, and it hides unusually
+well: a mac user already on the carried version compares it to what they are
+running, is told they are up to date, and downloads nothing. Only a user further
+back resolves it as an update and hits the 404. So "mac update checks still
+work" is not evidence the carry is correct — the check that settles it is
+whether the URL in the newest release's `latest-mac.yml` actually serves.
 
 **So cut a mac build when the beta is one you want mac users on** — anything
 touching the mac build itself, or a release you intend to promote to stable.
@@ -173,12 +193,31 @@ and the tag must not exist. Then it pushes the tag and stops — `release.yml`
 takes over on the tag push, unchanged.
 
 **It needs the `RELEASE_TAG_TOKEN` secret** (a PAT or App token with
-`contents: write`). This is not optional and it is not a preference: a tag pushed
-with the default `GITHUB_TOKEN` **does not trigger other workflows**, so the
-obvious version of this — tag with `GITHUB_TOKEN`, let `release.yml` notice —
-creates the tag and then builds nothing, with every job green and no error
-anywhere. The workflow refuses to start without the secret rather than hand you
-that.
+`contents: write`), and **that secret is configured** — added 2026-08-23 and
+exercised against the live API, so this path is ready to use rather than
+pending. It is not optional and not a preference: a tag pushed with the default
+`GITHUB_TOKEN` **does not trigger other workflows**, so the obvious version of
+this — tag with `GITHUB_TOKEN`, let `release.yml` notice — creates the tag and
+then builds nothing, with every job green and no error anywhere. The workflow
+refuses to start without the secret rather than hand you that.
+
+The preflight asks GitHub whether the token still works, not merely whether the
+secret is non-empty, because those are different questions and the gap between
+them is a confusing failure later: an expired or revoked PAT is not empty, so it
+would clear a presence check and then die inside `actions/checkout` as a git
+credentials error naming neither the secret nor the reason. **If the token
+carries an expiry date, that failure has a date too.** What you get instead:
+
+| | |
+|---|---|
+| `401` | expired, revoked or malformed — mint a replacement and update the secret |
+| `404` | a real token that cannot see this repo: wrong resource owner, repo missing from its list, or an org approval still pending |
+| anything else | reported as "could not verify" — an unreachable API is not a bad token |
+
+One thing preflight cannot tell you is whether the token has `contents: write`.
+There is no read-only way to prove a write permission, so it says so rather than
+showing a green check that means less than it looks. If the permission is
+missing, the push at the end fails and no tag is created.
 
 `BUILD_MAC` is unchanged: still a repository variable, still set before the tag
 and unset after. The run's summary tells you which way it went.

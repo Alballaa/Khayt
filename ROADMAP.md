@@ -31,7 +31,29 @@ not the bump.
 this being a small UI change rather than a release intended for promotion. macOS
 beta users stay on `beta.3` and their update check keeps working, because
 `carry-mac-manifest` copies `latest-mac.yml` forward from the last release that
-had one.
+shipped a mac build.
+
+**The tag no longer has to come from a laptop.** `cut-release.yml` ([#725])
+creates it from the Actions tab after checking what a maintainer would check —
+the commit is on `main`, `package.json` matches, the notes exist, the tag does
+not. `RELEASE_TAG_TOKEN` is configured, so the path is live rather than pending.
+See [docs/BETA-RELEASE.md](./docs/BETA-RELEASE.md).
+
+That workflow needed two fixes before it could cut anything, and neither was
+visible to CI, which is the part worth carrying forward. Its changelog guard
+piped `git show` into `grep -q`; grep exits on match, `git show` takes SIGPIPE,
+and under `pipefail` the step read a **present** section as a failure ([#728]).
+Its preflight tested that the token was non-empty rather than that it worked,
+which an expiry date turns into a scheduled outage ([#729]). Both surfaced only
+by dispatching the thing. **The four required checks lint and test the app; they
+never execute the release path**, so a green PR says nothing about whether a
+release workflow runs. Dispatching it against an already-cut version exercises
+every guard and creates nothing — that is the cheap test.
+
+The same lesson landed on `carry-mac-manifest`: it carried the mac manifest
+verbatim, so the carried file named binaries the release did not hold and the
+download 404'd for anyone far enough behind to try it ([#727]). Five published
+releases had shipped that way before anyone looked.
 
 No hold is active — see [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md).
 
@@ -210,6 +232,10 @@ Four stable lines, nineteen beta releases and four release candidates since 3.2.
 [#711]: https://github.com/KhaytApp/Khayt/pull/711
 [#722]: https://github.com/KhaytApp/Khayt/pull/722
 [#723]: https://github.com/KhaytApp/Khayt/pull/723
+[#725]: https://github.com/KhaytApp/Khayt/pull/725
+[#727]: https://github.com/KhaytApp/Khayt/pull/727
+[#728]: https://github.com/KhaytApp/Khayt/pull/728
+[#729]: https://github.com/KhaytApp/Khayt/pull/729
 
 ## Shipped (3.2.0 beta line — 2026-07)
 
