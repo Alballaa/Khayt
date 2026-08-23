@@ -145,7 +145,16 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          if ! git show "$SHA:CHANGELOG.md" | grep -qF "## [$VERSION]"; then
+          # Read the file, THEN match it. `git show … | grep -qF …` reads
+          # correctly and reports the opposite of what it found: grep -q exits
+          # the moment it matches, git show is still writing a 100 kB changelog
+          # into a closed pipe, takes SIGPIPE and exits 141, and pipefail hands
+          # that 141 to `if !` as failure. The guard then rejects BECAUSE the
+          # section is present. It bites only when the write is big enough to
+          # still be in flight, so a small file or a late match hides it — which
+          # is how it got past review and failed on its first real dispatch.
+          git show "$SHA:CHANGELOG.md" > /tmp/changelog-at-sha.md
+          if ! grep -qF "## [$VERSION]" /tmp/changelog-at-sha.md; then
             echo "::error::CHANGELOG.md at $SHA has no '## [$VERSION]' section."
             echo "Move the notes out of [Unreleased] into a section for this version first."
             exit 1
