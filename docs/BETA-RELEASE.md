@@ -152,6 +152,37 @@ is the same fault the `bedready-v*` tag used to cause.
 **So cut a mac build when the beta is one you want mac users on** — anything
 touching the mac build itself, or a release you intend to promote to stable.
 
+## Maintainer: cut the tag from GitHub instead of a laptop
+
+Everything below still works and is the reference path. But the tag itself can
+now be created from the Actions tab — **Cut release tag** → *Run workflow* —
+which is what you want when whoever finished the release PR does not have a
+checkout in front of them, or cannot push to `refs/tags/*` at all. That is not
+hypothetical: `3.7.0-beta.4` was merged and left untagged for exactly that
+reason.
+
+Give it the version exactly as `package.json` spells it (`3.7.0-beta.4`, no
+leading `v`) and, optionally, the commit — blank means the tip of `main`. **Name
+the commit when anything landed on top of the release PR**, or you will tag a
+tree whose `package.json` is right but whose contents are not what you tested.
+
+It refuses rather than guesses. The commit must be on `main` (the only ref whose
+required checks are enforced), `package.json` at that commit must say exactly the
+version you asked for, `CHANGELOG.md` must already have a `## [version]` section,
+and the tag must not exist. Then it pushes the tag and stops — `release.yml`
+takes over on the tag push, unchanged.
+
+**It needs the `RELEASE_TAG_TOKEN` secret** (a PAT or App token with
+`contents: write`). This is not optional and it is not a preference: a tag pushed
+with the default `GITHUB_TOKEN` **does not trigger other workflows**, so the
+obvious version of this — tag with `GITHUB_TOKEN`, let `release.yml` notice —
+creates the tag and then builds nothing, with every job green and no error
+anywhere. The workflow refuses to start without the secret rather than hand you
+that.
+
+`BUILD_MAC` is unchanged: still a repository variable, still set before the tag
+and unset after. The run's summary tells you which way it went.
+
 ## Maintainer: publish beta
 
 ```bash
