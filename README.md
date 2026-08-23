@@ -58,7 +58,7 @@ same maker toolset with none of the business side.
 | For | 3D printing **businesses** | **Solo makers** |
 | Has | quoting, invoicing, clients, payments, analytics — plus the maker tools | converter, 3D preview, print files, colour studio, inventory, costing, queue |
 | Does **not** have | — | anything commercial: no invoicing, clients, payments |
-| Version line | `3.x` (`3.6.0-beta.x` open) | **1.0.0** — shipped 2026-08-03 |
+| Version line | `3.x` — stable **3.6.0**, `3.7.0-beta.x` open | `1.x` — **1.1.0**, shipped 2026-08-12 |
 | Downloads | this repo's [releases](https://github.com/khaytapp/Khayt/releases) | [`KhaytApp/bedready`](https://github.com/KhaytApp/bedready/releases) |
 | Site | [khaytapp.com](https://khaytapp.com) | [bedready.io](https://bedready.io) |
 

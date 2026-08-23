@@ -5,54 +5,84 @@ Khayt publishes **two release channels** on GitHub:
 | Channel | Latest | GitHub | Auto-update |
 |---------|--------|--------|-------------|
 | **Stable** | `v3.6.0` | [Latest release](https://github.com/khaytapp/Khayt/releases/latest) | Default (beta off) |
-| **Beta / RC** | *none open* | [Pre-releases](https://github.com/khaytapp/Khayt/releases) (filter *Pre-release*) | Opt-in via Settings |
+| **Beta / RC** | `v3.7.0-beta.3` | [Pre-releases](https://github.com/khaytapp/Khayt/releases) (filter *Pre-release*) | Opt-in via Settings |
 
-> Verified 2026-08-21 against published tags. These rot fast — check with
+> Verified 2026-08-23 against published tags. These rot fast — check with
 > `gh release list --repo KhaytApp/Khayt` rather than trusting the table.
+
+> **⚠ `3.7.0-beta.4` is bumped on `main` (`11ef165`) but was never tagged**, so
+> release CI never ran and no `beta.4` installer exists. The newest build a beta
+> user can actually get is `beta.3`. `git ls-remote --tags origin` is the check
+> that settles it — `package.json` will tell you `beta.4` and be useless.
 
 ## What beta includes
 
-The open line is **`3.6.0-beta.x`**. It is about Khayt learning what your prints
-actually cost, rather than being told: a model becomes a quote, the printer
-reports the real filament and duration when the job finishes, the settings that
-worked are remembered against the file, and the estimator calibrates itself from
-your finished jobs instead of a constant.
+The open line is **`3.7.0-beta.x`**, and it is about the print library outgrowing
+the disk it lives on.
 
-It is a beta rather than a stable release for one reason: it changes **what your
-customers are quoted**, and how every geometry-based time estimate is worked out.
-Read the section below before you send a quote from it.
+**Your print library can be bigger than the machine it is on.** Khayt moves
+models you have not opened in a while into cloud storage and takes them off this
+computer, then downloads them again automatically the first time you open one.
+The library looks unchanged — every model still listed, still at its real size,
+marked as being in the cloud. Thumbnails never leave your disk, so browsing works
+with no internet at all.
 
-It also fixes two things that never worked — 3MF files never gave up the figures
-your slicer had already written into them, and Bambu/Orca print times were
-silently dropped — and, since `beta.1`, a converter that could drop whole objects
-from a large 3MF while reporting success.
+This is not the object-storage *backup* Khayt already had, and the difference is
+the point: a backup is a second copy and frees nothing, so a 50 GB library became
+50 GB here and 50 GB there. Tiering moves the file. Run both if you like — one
+answers "the workshop burned down", the other "the laptop is full".
+
+**Nothing is deleted until the cloud has provably received it.** Each file is
+uploaded, then checked in a *separate* request against a checksum of the file on
+your disk — not just its size, which a half-finished upload can match. Anything
+that cannot be verified is left where it is and named in the result. **Bring
+everything back** downloads the whole library again, which is the way out.
+
+It also carries the things that make that usable: a provider dropdown covering
+fifteen S3 hosts so the endpoint is built for you rather than typed from memory
+(and, since `beta.4`, a link to each provider's signup page — because every other
+field on that form is copied off a dashboard you need an account to see), Google
+Drive as a backend if you already pay Google for storage, and cloud sync that
+writes only what changed instead of the whole store.
+
+It is a beta rather than stable because eviction is the only deliberately
+destructive thing in the print library, and the delta write path had never run
+against production before `beta.1`.
 
 Shop data stays backward compatible across a beta line — backup/restore works
 between channels, and new fields are additive and absent-safe.
 
-Earlier lines are closed and their features are in stable: the `3.2.0-beta.x`
+Earlier lines are closed and their features are in stable: the `3.6.0-beta.x` /
+`rc.x` line carried measured print costs, self-calibrating estimates, tax outside
+the Gulf and four security fixes, all stable since **v3.6.0**; the `3.2.0-beta.x`
 line carried QC / reprint / RMA, shipping & fulfillment, BOM assemblies, privacy
 (PDPL) tooling, the scoped-token public API with a webhook event bus, opt-in
-telemetry and per-printer cameras, all stable since **v3.2.0**. You do not need
-a beta for any of them.
+telemetry and per-printer cameras, all stable since **v3.2.0**. You do not need a
+beta for any of them.
 
-## Your quotes changed in `beta.9` and `beta.10`
+## Your quotes changed on the way to v3.6.0 — read this if you are on 3.5.x
 
-If you price unsliced models and you are coming from `beta.8` or earlier, the
-numbers have moved — twice, for two different reasons. Re-check any quote you
-have not yet sent. **Neither `beta.11` nor `beta.12` changes an estimate you
-have already seen** — though from `beta.12`, **Slice for exact quote** fills in a
+**These are `3.6.0-beta.9` and `beta.10`, on the closed 3.6.0 line — not the open
+`3.7.0-beta.x` one.** They have been in **stable v3.6.0** since 2026-08-21, so
+this section is here for anyone still coming from 3.5.x, on either channel. If
+you are already on 3.6.0 or any 3.7.0 beta, the change is behind you and nothing
+below is pending.
+
+If you price unsliced models and you are coming from `3.6.0-beta.8` or earlier,
+the numbers moved — twice, for two different reasons. Re-check any quote you have
+not yet sent. **Neither `beta.11` nor `beta.12` changed an estimate you had
+already seen** — though from `beta.12`, **Slice for exact quote** fills in a
 weight where it used to leave the box empty, so a quote made that way is fuller
 than it was rather than different.
 
-**`beta.9` — the estimate started using your own numbers.** Print time now comes
+**`3.6.0-beta.9` — the estimate started using your own numbers.** Print time now comes
 from jobs your printer measured rather than a shipped constant of about 35.7
 g/hour, and material weight follows your **Default infill %** rather than a fixed
 20%. Until then the customer intake form used your real settings while the
 calculator did not, so the same file could come back from the two with different
 answers.
 
-**`beta.10` — a model you have printed before is priced from its own prints.**
+**`3.6.0-beta.10` — a model you have printed before is priced from its own prints.**
 One rate for the whole shop is the wrong shape for the number: measured across 67
 finished jobs on one printer it ran from 1.9 to 48.6 g/hour, because it follows
 the part's geometry, layer height and colour changes far more than the machine.
@@ -124,7 +154,9 @@ npm run check:changelog              # every shipped change carries a note
 npm run check:globals                # nothing wired up but silently inert
 npm run test:e2e:themes              # theme shells
 # plus the feature smokes — `npm run` lists them all as test:e2e:*; the ones
-# covering what this line changed are:
+# covering what THIS line (3.7.0) changed are:
+#   :cloudstorage   — the provider dropdown, signup links and tiering controls
+# the 3.6.0 line's, still worth running since that code is now stable:
 #   :intake :intakequote :estimator :actuals :setups :filelink :dedupe
 # and the standing set:
 #   :qc :shipping :bom :privacy :assembly :apitokens :webhooks :webhookretry

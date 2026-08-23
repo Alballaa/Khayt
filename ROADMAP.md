@@ -2,18 +2,30 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0, 3.7.0-beta.1 cut — on `main`)
+## Now (post-3.6.0, 3.7.0-beta.3 published, beta.4 cut but untagged — on `main`)
 
 **Stable is v3.6.0** (2026-08-21) — the 3.6.0 line, promoted from
 `v3.6.0-rc.4` unchanged after a seven-day soak. rc.4 was the first candidate on
 this line that `main` did not overtake, so for once replace-vs-promote resolved
 to *promote*; rc.1, rc.2 and rc.3 were each replaced instead.
 
-**The 3.7.0 line is open: `3.7.0-beta.1`** (cut 2026-08-21). It carries one
-change — cloud sync starts *writing* only what changed. Note that a version in
-`package.json` proves the cut landed and nothing more; check `gh release list`
-before saying it shipped. No hold is active — see
-[docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md).
+**The 3.7.0 line is open. The newest *published* pre-release is
+`v3.7.0-beta.3`** (2026-08-23). Three cuts so far: `beta.1` flipped
+`DELTA_WRITES`, `beta.2` made the print library able to outgrow its disk (the
+substance of the line — cold models move to a bucket rather than being copied to
+one), and `beta.3` carries no app change at all, being `beta.2` rebuilt for macOS
+after `BUILD_MAC` was left unset at `beta.2`'s tag.
+
+**`3.7.0-beta.4` is bumped on `main` (`11ef165`, [#723]) and has no tag.**
+Release CI never ran, no installer exists, and a beta user's newest available
+build is still `beta.3`. It would carry the storage-provider signup links
+([#722]). This file has warned since the last release that *a version in
+`package.json` proves the cut landed and nothing more* — that is no longer a
+caution, it is the current state, and `git ls-remote --tags origin` is the check
+that settles it. Finishing it is one command: tag `11ef165` and push the tag to
+`KhaytApp/Khayt`.
+
+No hold is active — see [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md).
 
 **Bed Ready is on its own line and is current: `1.1.0`** (2026-08-12), built by
 CI from this repo and published to `KhaytApp/bedready`. It had sat on 1.0.0 for
@@ -188,6 +200,8 @@ Four stable lines, nineteen beta releases and four release candidates since 3.2.
 [#708]: https://github.com/KhaytApp/Khayt/pull/708
 [#710]: https://github.com/KhaytApp/Khayt/pull/710
 [#711]: https://github.com/KhaytApp/Khayt/pull/711
+[#722]: https://github.com/KhaytApp/Khayt/pull/722
+[#723]: https://github.com/KhaytApp/Khayt/pull/723
 
 ## Shipped (3.2.0 beta line — 2026-07)
 
