@@ -5,15 +5,21 @@ Khayt publishes **two release channels** on GitHub:
 | Channel | Latest | GitHub | Auto-update |
 |---------|--------|--------|-------------|
 | **Stable** | `v3.6.0` | [Latest release](https://github.com/khaytapp/Khayt/releases/latest) | Default (beta off) |
-| **Beta / RC** | `v3.7.0-beta.3` | [Pre-releases](https://github.com/khaytapp/Khayt/releases) (filter *Pre-release*) | Opt-in via Settings |
+| **Beta / RC** | `v3.7.0-beta.4` | [Pre-releases](https://github.com/khaytapp/Khayt/releases) (filter *Pre-release*) | Opt-in via Settings |
 
 > Verified 2026-08-23 against published tags. These rot fast — check with
 > `gh release list --repo KhaytApp/Khayt` rather than trusting the table.
 
-> **⚠ `3.7.0-beta.4` is bumped on `main` (`11ef165`) but was never tagged**, so
-> release CI never ran and no `beta.4` installer exists. The newest build a beta
-> user can actually get is `beta.3`. `git ls-remote --tags origin` is the check
-> that settles it — `package.json` will tell you `beta.4` and be useless.
+> **`beta.4` sat bumped-but-untagged on `main` for most of a day** — `package.json`
+> said `3.7.0-beta.4` while the newest installer a beta user could get was
+> `beta.3`. It was tagged from `11ef165` and published on 2026-08-23. The check
+> that would have caught it in seconds is `git ls-remote --tags origin`; the one
+> that cannot is reading `package.json`, which records that the *cut* landed and
+> says nothing about whether it *shipped*.
+>
+> `beta.4` is **Windows + Linux only** — `BUILD_MAC` was deliberately left unset,
+> so macOS stays on `beta.3` with its update check healthy via the carried
+> `latest-mac.yml` (see below).
 
 ## What beta includes
 
