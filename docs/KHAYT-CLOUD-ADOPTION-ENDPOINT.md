@@ -59,7 +59,7 @@ Node — or `test/route-parity.test.js` will say so.
 
 | Name | Default | Meaning |
 |---|---|---|
-| `staleDays` | `45` | A device not seen for this long is reported as **stale** and counted separately. It does not change eligibility — see §4. |
+| `staleDays` | `45` | A device not seen for this long is reported as **stale** and counted separately. It does not change eligibility — see §4. **Not computable today**: nothing records last-seen, so the stale fields must be `null` until §4's `last_seen_on` exists. |
 | `limit` | `50` (max `500`) | Cap on each per-shop list. Set `truncated` when it bites. |
 
 ## 3. The response
@@ -129,6 +129,56 @@ months is still a laptop that can be opened, sync, and flatten a chain. The
 decision to write those shops off is a human one, taken with the number in front
 of them — which is exactly what "or on those shops being counted out" in the
 portal gate's notes was always pointing at.
+
+### ⚠ Staleness cannot be computed yet — the schema records no "last seen"
+
+Checked against khayt-cloud at `0aa082d`, in both backends. **There is no
+last-seen signal anywhere.** Every staleness field above is therefore
+unimplementable as written, and this was not noticed when the contract was
+drafted:
+
+| Candidate | What it actually records | Why it will not do |
+|---|---|---|
+| `tokens.created_at` | when the credential was minted | a token minted yesterday and never used looks fresh; one minted in March and used hourly looks ancient |
+| `tokens.expires_at` | when it stops working | nothing about use |
+| `device_caps.updated_at` | when the capability answer last **CHANGED** | the steady state is a primary-key read with no write, so a device syncing every day for six months keeps its first-announcement timestamp forever |
+
+`device_caps.updated_at` is the trap, because its name reads like last-seen and
+it is the obvious column to reach for. `recordDeviceCap()` returns early when the
+answer is unchanged — deliberately, and the comment says why: *"Writes only when
+the answer CHANGES: the steady state is one primary-key read."* Identical in
+`src/store.js`'s `recordCapSql()`. So using it would mark the most active,
+longest-running devices as the most stale, which is not merely imprecise but
+backwards, and the number would be read by someone deciding whether to write
+those shops off.
+
+**Do not substitute `created_at` quietly.** It is the nearest column and it is
+wrong in the direction that matters: it makes a dormant-but-recently-reissued
+credential look active, and the whole point of `blockedOnlyByStale` is to decide
+which devices are safe to ignore.
+
+**These four fields are affected, and nothing else is:**
+`deltaWrites.shops.blockedOnlyByStale`, `deltaWrites.devices.unknownStale`,
+`deltaWrites.blocked[].unknownStale`, `deltaWrites.blocked[].oldestUnknownSeenAt`.
+Everything else in `deltaWrites` — `total`, `eligible`, `blocked`, `capable`,
+`unknown`, the per-shop `devices`/`unknown` counts — comes from `device_caps` and
+`tokens` as they stand today and can be built now. `portalReadGate` is unaffected
+because it records its own rows and stamps its own `lastAt`.
+
+**What to build instead, when staleness is wanted:** a **day-granular** last-seen,
+`device_caps.last_seen_on DATE`, written only when it differs from today. That is
+at most one write per device per day — bounded, and exactly sufficient to answer a
+45-day question. It also keeps the property that made the current code write-averse
+in the first place, and that §6 states in as many words for the portal counter: *a
+write per read is how a counter becomes an outage*. A per-request `last_seen_at`
+would break that rule for precision nobody needs.
+
+Until that column exists and has been accumulating for at least `staleDays`, the
+four fields above must be **`null`, not `0`**. A zero here reads as "no stale
+devices", which is the answer most likely to make a blocked shop look safe to
+write off. `staleDays` should echo back as the value that *would* apply. The same
+rule as §3's `byCaller` split, for the same reason: a number that cannot be
+measured must not be reported as a measurement.
 
 ## 5. The refusal status is load-bearing, and the contract never named it
 
@@ -245,3 +295,19 @@ day is. Re-run it before proposing the flip again.
 **Status:** specified here, not yet implemented. `DELTA_WRITES` was flipped on
 2026-08-21 without it, which §5 explains; the **portal gate** is what still needs
 it, and that gate is the one holding a security exposure open.
+
+**Known gap, found 2026-08-23 while reading this against khayt-cloud `0aa082d`:**
+the staleness half of `deltaWrites` cannot be built — no last-seen exists in
+either backend, and `device_caps.updated_at` records last *change*, not last use.
+§4 has the detail and the `last_seen_on` design that fixes it. The rest of
+`deltaWrites` is buildable today against the current schema; `portalReadGate` is
+unaffected.
+
+**Adoption proxy, re-read 2026-08-23** (§7 says to re-run it rather than guess):
+v3.6.0's `latest.yml` now stands at **7** fetches with `latest-mac.yml` at 5 and
+`latest-linux.yml` at 5, against **0 for every asset** three hours after release
+on 2026-08-21. The field has begun picking the release up, so the specific reason
+the portal flip was held — a flip against a field that had not noticed — no longer
+holds. That is not permission to flip: §7's actual condition is
+`wouldRefuse.byCaller.desktopBearer` at zero for a full `windowDays`, which still
+needs the endpoint. It only means the proxy has stopped saying no.
