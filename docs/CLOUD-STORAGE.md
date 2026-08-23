@@ -39,21 +39,34 @@ before the provider list existed — they are all S3, and
 
 | Provider | ~500 GB/mo | Downloads | Notes |
 |---|---|---|---|
-| **Cloudflare R2** | ~$7.50 | **Free, unmetered** | The safest default. See below. |
-| **Backblaze B2** | ~$3.00 | Free to 3× stored | Cheapest mainstream option |
-| **IDrive e2** | ~$2.00 | Free up to stored | Endpoint is per-account — copy it from their dashboard |
-| **Hetzner** | ~$6 floor | 1 TB included | Flat fee including 1 TB; poor value well under that. EU only |
-| **Scaleway** | Free under 75 GB | 75 GB free | Real free tier — the cheapest way to try tiering. EU |
-| **OVHcloud** | ~$4–6 | Allowance | EU sovereign, has an archive tier |
-| **Synology C2** | ~$3 | Free | Sensible if the shop already runs Synology |
-| **Storj** | ~$2.00 | **Billed** | Also bills per segment — many small files cost more than their size |
-| **DigitalOcean Spaces** | ~$10 | 1 TB included | $5 covers the first 250 GB, then per-GB |
-| **Akamai / Linode** | ~$10 | 1 TB included | Same shape as Spaces |
-| **Wasabi** | ~$7 **minimum** | Free 1:1 | Bills a 1 TB minimum and 90-day minimum retention — see below |
-| **Amazon S3** | ~$11.50 | **~$0.09/GB** | Widest regions. Pick it if your IT requires it |
-| **Google Cloud Storage** | ~$10 | **Billed** | Needs an HMAC key from Settings → Interoperability |
-| **Oracle Cloud** | ~$12 | Large allowance | Generous always-free tier |
-| **MinIO / NAS** | Your hardware | Yours | Frees the laptop, but see the warning below |
+| **[Cloudflare R2](https://dash.cloudflare.com/sign-up)** | ~$7.50 | **Free, unmetered** | The safest default. See below. |
+| **[Backblaze B2](https://www.backblaze.com/sign-up/cloud-storage)** | ~$3.00 | Free to 3× stored | Cheapest mainstream option |
+| **[IDrive e2](https://www.idrive.com/e2/)** | ~$2.00 | Free up to stored | Endpoint is per-account — copy it from their dashboard |
+| **[Hetzner](https://www.hetzner.com/storage/object-storage/)** | ~$6 floor | 1 TB included | Flat fee including 1 TB; poor value well under that. EU only |
+| **[Scaleway](https://www.scaleway.com/en/object-storage/)** | Free under 75 GB | 75 GB free | Real free tier — the cheapest way to try tiering. EU |
+| **[OVHcloud](https://www.ovhcloud.com/en/public-cloud/object-storage/)** | ~$4–6 | Allowance | EU sovereign, has an archive tier |
+| **[Synology C2](https://c2.synology.com/en-global/object-storage/overview)** | ~$3 | Free | Sensible if the shop already runs Synology |
+| **[Storj](https://www.storj.io/signup)** | ~$2.00 | **Billed** | Also bills per segment — many small files cost more than their size |
+| **[DigitalOcean Spaces](https://www.digitalocean.com/products/spaces)** | ~$10 | 1 TB included | $5 covers the first 250 GB, then per-GB |
+| **[Akamai / Linode](https://www.linode.com/products/object-storage/)** | ~$10 | 1 TB included | Same shape as Spaces |
+| **[Wasabi](https://wasabi.com/cloud-object-storage)** | ~$7 **minimum** | Free 1:1 | Bills a 1 TB minimum and 90-day minimum retention — see below |
+| **[Amazon S3](https://aws.amazon.com/s3/)** | ~$11.50 | **~$0.09/GB** | Widest regions. Pick it if your IT requires it |
+| **[Google Cloud Storage](https://cloud.google.com/storage)** | ~$10 | **Billed** | Needs an HMAC key from Settings → Interoperability |
+| **[Oracle Cloud](https://www.oracle.com/cloud/free/)** | ~$12 | Large allowance | Generous always-free tier |
+| **[MinIO / NAS](https://min.io/download)** | Your hardware | Yours | Frees the laptop, but see the warning below |
+
+Every provider name above links to its signup page, and the same links are in
+the app under **Settings → Print library location → Provider**, next to whichever
+one you have selected. You do not need an account with any of them to read this
+page, but you do need one to fill in a single field of that form — which is why
+the link is there.
+
+**On referral links.** Khayt ships none today: every link above and in the app
+goes straight to the provider with nothing appended. If that ever changes, the
+app labels a referral link as one at the point you would click it, and the plain
+link stays here in this file. The mechanism lives in one table in
+[lib/storage-providers.js](../lib/storage-providers.js) so that all of it can be
+read at once.
 
 ### Why R2 is the default recommendation
 
@@ -83,8 +96,9 @@ one fire, one flood, one theft takes both. Pair it with an off-site copy.
 
 ## 3. Setting up a bucket
 
-1. Create a bucket at your provider. It does **not** need to be public — Khayt
-   signs every request.
+1. Create a bucket at your provider. No account yet? The provider dropdown in
+   Khayt links straight to their signup page. It does **not** need to be
+   public — Khayt signs every request.
 2. Create an access key with read and write on that bucket.
 3. In Khayt: **Settings → Print library location → Also back up to object
    storage**.

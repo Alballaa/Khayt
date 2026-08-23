@@ -86,6 +86,34 @@ try {
   ok(/\$/.test(note), 'the note carries a cost hint');
   ok(/checked \d{4}-\d{2}-\d{2}/.test(note), 'the cost hint carries the date it was checked');
 
+  // The signup link is the only control on this page a shop without an account
+  // can use, so a hidden or empty one leaves them exactly where they were.
+  const signup = await page.$eval('#plibS3Signup', (el) => ({
+    hidden: el.style.display === 'none',
+    text: el.textContent || '',
+    url: el.dataset.url || '',
+  }));
+  ok(!signup.hidden, 'R2 shows a signup link');
+  ok(/cloudflare/i.test(signup.url), `the link points at the provider: ${signup.url}`);
+  ok(/Cloudflare R2/.test(signup.text), `the link names the provider: "${signup.text}"`);
+  // No referral is configured, so nothing may claim one.
+  const refNote = await page.$eval('#plibS3SignupRef', (el) => el.style.display);
+  ok(refNote === 'none', 'no referral disclosure when no referral is configured');
+
+  // 'Other' has nothing to sign up for; the link must go rather than sit there
+  // pointing at whichever provider happened to be selected last.
+  await page.selectOption('#set_plibS3Provider', 'custom');
+  await page.waitForFunction(
+    () => document.querySelector('#plibS3Signup')?.style.display === 'none',
+    { timeout: 10_000 },
+  );
+  ok(true, '"Other" shows no signup link');
+  await page.selectOption('#set_plibS3Provider', 'r2');
+  await page.waitForFunction(
+    () => document.querySelectorAll('#plibS3Vars input[data-var]').length === 1,
+    { timeout: 10_000 },
+  );
+
   // The round trip that matters: type the one thing you know, get an endpoint.
   await page.fill('#set_plibVar_account', 'abc123');
   await page.waitForFunction(

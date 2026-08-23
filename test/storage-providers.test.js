@@ -128,3 +128,81 @@ test('Wasabi is listed with its minimums, not quietly omitted', () => {
   assert.match(w.note, /1 TB minimum/i);
   assert.match(w.note, /90/);
 });
+
+/**
+ * The signup links exist for the shop that has no account yet — every other
+ * field on the settings page is copied off a dashboard, so before the signup
+ * the whole form is unfillable. Two things are worth holding still:
+ *
+ *   1. Every provider a shop can pick has somewhere to go. A missing link is
+ *      not a visible bug: the anchor just does not render, and the one shop it
+ *      was for sees the same blank form as before.
+ *
+ *   2. A referral link cannot become an attack on the shop. It is the only
+ *      string in this file that arrives by paste rather than by literal, and
+ *      the renderer hands whatever it gets to the OS browser.
+ */
+test('every provider a shop can sign up for has a link', () => {
+  for (const p of SP.PROVIDERS) {
+    if (p.id === 'custom') {
+      assert.ok(!p.signup, 'custom has nothing to sign up for');
+      continue;
+    }
+    assert.ok(p.signup, `${p.id} needs a signup link`);
+    assert.ok(SP.isSafeSignupUrl(p.signup), `${p.id}: unsafe signup URL ${p.signup}`);
+  }
+});
+
+test('signupLink returns the plain link, undisclosed, when no referral is set', () => {
+  const r = SP.signupLink('r2');
+  assert.equal(r.url, SP.byId('r2').signup);
+  assert.equal(r.referral, false);
+});
+
+test('signupLink is null where there is nothing to sign up for', () => {
+  assert.equal(SP.signupLink('custom'), null);
+  assert.equal(SP.signupLink('nope'), null);
+});
+
+test('a configured referral is used AND flagged for disclosure', () => {
+  // Flagged is the half that matters: the renderer only discloses what it is
+  // told to, so a referral that resolves without the flag is an undisclosed
+  // commercial link in a settings page.
+  SP.REFERRALS.b2 = 'https://www.backblaze.com/sign-up/cloud-storage?ref=test';
+  try {
+    const r = SP.signupLink('b2');
+    assert.equal(r.url, 'https://www.backblaze.com/sign-up/cloud-storage?ref=test');
+    assert.equal(r.referral, true);
+    const listed = SP.list().find((p) => p.id === 'b2');
+    assert.equal(listed.signup, r.url);
+    assert.equal(listed.signupReferral, true);
+  } finally { delete SP.REFERRALS.b2; }
+});
+
+test('an unsafe referral falls back to the plain link rather than shipping', () => {
+  // A dead signup button is worse than an honest one, so this degrades to the
+  // literal rather than to nothing — and it must not degrade to *opening* it.
+  for (const bad of [
+    'javascript:alert(1)',
+    'http://www.backblaze.com/?ref=x',      // not https
+    'https://user:pw@backblaze.com/?ref=x', // credentials in the URL
+    'https://localhost/?ref=x',             // no dot: not a public host
+    'not a url',
+  ]) {
+    assert.equal(SP.isSafeSignupUrl(bad), false, `should be rejected: ${bad}`);
+    SP.REFERRALS.b2 = bad;
+    try {
+      const r = SP.signupLink('b2');
+      assert.equal(r.url, SP.byId('b2').signup, `fell through wrongly for ${bad}`);
+      assert.equal(r.referral, false);
+    } finally { delete SP.REFERRALS.b2; }
+  }
+});
+
+test('the renderer is handed a resolved link, never the referral table', () => {
+  for (const p of SP.list()) {
+    assert.equal(typeof p.signup, 'string');
+    assert.equal(typeof p.signupReferral, 'boolean');
+    assert.ok(!('REFERRALS' in p));
+  }
+});

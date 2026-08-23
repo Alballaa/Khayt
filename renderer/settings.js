@@ -1993,6 +1993,51 @@ function renderPrintLibProviderFields(preset) {
     if (p.cost && plibPricedOn) note.textContent += ` (checked ${plibPricedOn}; confirm with the provider)`;
   }
 
+  // "Where do I get an account id?" has no answer for a shop that has no
+  // account. Every other field here is copied off a dashboard, so before the
+  // signup this whole form is unfillable and the presets help the one shop that
+  // needs them most not at all. Hidden for 'Other', which has nothing to sign
+  // up for.
+  const signup = $('#plibS3Signup');
+  const signupRef = $('#plibS3SignupRef');
+  if (signup) {
+    // inline-block rather than '': an inline anchor ignores margin-top and the
+    // link ends up jammed against the cost note.
+    signup.style.display = p.signup ? 'inline-block' : 'none';
+    if (p.signup) {
+      signup.dataset.url = p.signup;
+      // The destination on hover. The shop is about to hand this provider a
+      // card number, so "where does this actually go" deserves an answer that
+      // does not require clicking it first.
+      signup.title = p.signup;
+      signup.textContent = p.selfHosted
+        ? (t('set.plib_s3_signup_self') || 'Download and run it yourself \u2197')
+        : t('set.plib_s3_signup', { provider: p.label });
+    } else {
+      delete signup.dataset.url;
+      signup.removeAttribute('title');
+    }
+    // Wired once: this function re-runs on every provider change, and a fresh
+    // listener each time would open the same page once per change.
+    if (!signup.dataset.wired) {
+      signup.dataset.wired = '1';
+      signup.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (signup.dataset.url) window.hubAPI?.openExternal?.(signup.dataset.url);
+      });
+    }
+  }
+  if (signupRef) {
+    // Disclosed next to the link rather than in a policy page nobody opens. A
+    // link that pays the project is still a link the shop is entitled to
+    // recognise as one before they click it.
+    const disclose = !!p.signup && !!p.signupReferral;
+    signupRef.style.display = disclose ? '' : 'none';
+    signupRef.textContent = disclose
+      ? (t('set.plib_s3_signup_ref') || 'Referral link \u2014 Khayt may receive credit. It costs you nothing.')
+      : '';
+  }
+
   // A templated provider builds its own endpoint; only the ones that cannot show
   // an editable box. IDrive e2 is the case that forced this — it issues every
   // account a different host, so there is no pattern to fill in.
