@@ -2,10 +2,17 @@
 
 Khayt uses [Semantic Versioning 2.0.0](https://semver.org/) as `MAJOR.MINOR.PATCH` (`X.Y.Z`).
 
-**Current release lines** (last verified 2026-08-21 against published tags):
+**Current release lines** (last verified 2026-08-23 against published tags):
 
 - **Stable:** `3.6.x` — latest tag **v3.6.0**, published 2026-08-21 ([releases/latest](https://github.com/khaytapp/Khayt/releases/latest)), promoted from `v3.6.0-rc.4` unchanged. Supersedes v3.5.3 (2026-08-01)
-- **Beta / RC:** **no pre-release line is open.** The `3.6.0` line closed when `v3.6.0-rc.4` was promoted to stable on 2026-08-21; it ran `beta.1`–`beta.19` then `rc.1`–`rc.4`, and `-rc` and `-beta` are the same channel to the updater. The next line opens at `3.7.0-beta.1`, and `npm run version:beta` produces that correctly **only because `package.json` now holds a plain stable version** — run from an `rc` it would have rolled the minor. See [docs/BETA-RELEASE.md](./docs/BETA-RELEASE.md)
+- **Beta / RC:** the **`3.7.0-beta.x` line is open** — latest *published* pre-release **v3.7.0-beta.3** (2026-08-23). The line has run `beta.1` (delta cloud writes), `beta.2` (a print library that can outgrow its disk) and `beta.3` (no app change at all — a macOS build of `beta.2`, which had gone out Windows + Linux only). The `3.6.0` line closed when `v3.6.0-rc.4` was promoted to stable on 2026-08-21; it ran `beta.1`–`beta.19` then `rc.1`–`rc.4`, and `-rc` and `-beta` are the same channel to the updater. See [docs/BETA-RELEASE.md](./docs/BETA-RELEASE.md)
+- **⚠ `3.7.0-beta.4` is bumped but NOT released.** `main` has carried version
+  `3.7.0-beta.4` since `11ef165`, and **no `v3.7.0-beta.4` tag exists on the
+  remote** — so release CI never ran and no installer exists. This is the trap
+  the note below warns about, live rather than hypothetical: a merged version
+  bump is evidence the *cut* landed and nothing more. A beta user's newest
+  available build is still `beta.3`. To finish it, tag `11ef165` and push the tag
+  to `KhaytApp/Khayt`; see [docs/BETA-RELEASE.md](./docs/BETA-RELEASE.md)
 - **Bed Ready:** a different app from the same repo, on its **own** version line
   with its own downloads repo — **1.1.0 shipped 2026-08-12** (`bedready-v1.1.0`,
   marked Latest; 1.0.0 was 2026-08-03 and the `1.0.0-beta.*` line is closed).
