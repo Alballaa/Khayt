@@ -1636,7 +1636,7 @@ let printLibDriveCache = { key: '', client: null };
 function printLibDrive() {
   const cfg = (printLibSettings() || {}).gdrive;
   if (!cfg || !cfg.enabled || !GD.isConfigured(cfg)) return null;
-  const key = `${cfg.clientId} ${cfg.refreshToken} ${cfg.folderName || ''}`;
+  const key = `${cfg.clientId}\u0000${cfg.refreshToken}\u0000${cfg.folderName || ''}`;
   if (printLibDriveCache.key !== key) {
     printLibDriveCache = { key, client: GD.createDrive(cfg) };
   }
