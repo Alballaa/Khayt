@@ -12,6 +12,13 @@ below, not v3.2.0.
 Nothing currently blocks a stable tag. To impose a new hold, replace this
 section with the channel it covers, the reason, and the condition for lifting.
 
+A tag can now be cut from the Actions tab — **Cut release tag**, see
+[docs/BETA-RELEASE.md](./BETA-RELEASE.md) — so "whoever merged the release PR
+cannot push a tag" has stopped being a reason a release stalls. It refuses a
+commit that is not on `main`, a `package.json` that disagrees with the version
+asked for, notes still sitting in `[Unreleased]`, and a tag that already exists.
+A hold is still a decision recorded here, not something that workflow enforces.
+
 | Channel | Last published | Notes |
 |---------|----------------|-------|
 | **Stable** | **v3.6.0** (2026-08-21) | [Latest release](https://github.com/khaytapp/Khayt/releases/latest) — **the 3.6.0 line, promoted from `v3.6.0-rc.4` unchanged.** Khayt learns what prints actually cost: a model becomes a quote, the printer reports the real filament and duration on completion, the settings that worked are remembered against the file, and the estimator calibrates itself from finished jobs. It changes **what customers are quoted** and how every geometry-based time estimate is computed, which is why the line soaked for three weeks in beta and seven days as a candidate. It also opens the app outside the Gulf (sales tax added to a price rather than included in it, thirty country presets, documents printed in the shop's chosen language rather than that language and Arabic), closes four security holes — a portal link that exposed a whole message thread, a printer address written as a number that could point at your own network, an arbitrary file write in the converter, and a brute-force lockout that never locked — and stops a restore performed *while the app is running* from pushing rolled-back data over newer data on other devices. The 3.5.1 note still applies: the cross-branch view needs the org branch-read routes in khayt-cloud (b3556a5), which ARE deployed — confirm with `curl -s -o /dev/null -w '%{http_code}' https://cloud.khaytapp.com/v1/shops/probe/org/keysets` (401 = present, 404 = not) |
