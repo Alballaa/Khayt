@@ -368,34 +368,57 @@ jobs:
   # that HAS one. macOS users then resolve to the newest version a mac binary
   # actually exists for, and are told they are up to date rather than shown an
   # error. That is true: there is no newer mac build.
+  #
+  # The manifest cannot be copied VERBATIM, and this is the part that looks
+  # finished but is not: electron-updater builds the download URL from the tag it
+  # found in the feed, not from the version written inside the manifest. A
+  # carried file naming `Khayt-<prev>-arm64-mac.zip` therefore resolves under
+  # THIS tag, which has no mac assets — that being why it was carried — and
+  # 404s. It hides well, because the only user who requests it is one far enough
+  # behind to treat the carried version as an update; anyone already on it is
+  # told they are up to date and downloads nothing.
+  #
+  # scripts/carry-mac-manifest.js rewrites each reference to `../<prev>/<file>`
+  # so the tag this workflow's release prepends is cancelled by the URL parser,
+  # and picks a source release that holds a real mac binary rather than another
+  # carried manifest. Its reasoning is at the top of that file, and
+  # test/carry-mac-manifest.test.js pins the resolved URLs — which is the only
+  # way to test this without cutting a release.
   carry-mac-manifest:
     name: macOS manifest (carried forward)
     needs: create-release
     if: ${{ github.event_name == 'push' && vars.BUILD_MAC != 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Copy latest-mac.yml from the most recent release that has one
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Copy latest-mac.yml from the most recent release with a mac build
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           echo "BUILD_MAC is not 'true' — macOS was skipped for $TAG (macOS bills at 10x)."
-          prev=""
-          for r in $(gh release list --repo "$GITHUB_REPOSITORY" --limit 20 --json tagName --jq '.[].tagName' | grep -v "^${TAG}$"); do
-            if gh release view "$r" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -qx 'latest-mac.yml'; then
-              prev="$r"; break
-            fi
-          done
+          releases=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=50" \
+            --jq '[.[] | {tagName: .tag_name, draft: .draft, publishedAt: .published_at, assets: [.assets[].name]}]')
+          prev=$(printf '%s' "$releases" | node scripts/carry-mac-manifest.js pick --current "$TAG")
           if [ -z "$prev" ]; then
-            echo "No earlier release carries latest-mac.yml — nothing to carry forward."
+            echo "No earlier release ships a mac build — nothing to carry forward."
             echo "macOS users have no build to update to either way, so this is not a regression."
             exit 0
           fi
           echo "Carrying latest-mac.yml forward from $prev"
           gh release download "$prev" --repo "$GITHUB_REPOSITORY" --pattern latest-mac.yml --dir .
+          node scripts/carry-mac-manifest.js rewrite --source "$prev" latest-mac.yml
+          echo "--- carried manifest ---"
+          cat latest-mac.yml
           gh release upload "$TAG" latest-mac.yml --repo "$GITHUB_REPOSITORY" --clobber
-          echo "macOS updaters resolve to $prev and report 'up to date'."
+          echo "macOS updaters resolve to $prev: up to date if already there, and a"
+          echo "working download from $prev if further behind."
 
   # ── Linux x64 (AppImage + deb) ────────────────────────────────────────────
   build-linux:
