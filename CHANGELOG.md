@@ -4,6 +4,19 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.7.0-beta.3] - 2026-08-23
+
+### Added
+
+- **A macOS build, which `beta.2` did not have.** `beta.2` went out for Windows
+  and Linux only, so a Mac on the beta channel stayed on `beta.1` and never saw
+  the print library that can outgrow its disk. This release carries **no app
+  changes at all** — it is `beta.2`'s code, built and notarized for Apple
+  Silicon so it will install on a Mac.
+
+  On Windows or Linux there is nothing here for you: `beta.2` and `beta.3` are
+  the same app, and you can stay where you are.
+
 ## [3.7.0-beta.2] - 2026-08-23
 
 ### Added
