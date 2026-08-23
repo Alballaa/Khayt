@@ -2210,6 +2210,11 @@
             <label data-i18n="set.plib_s3_provider">Provider</label>
             <select id="set_plibS3Provider"></select>
             <p id="plibS3ProviderNote" style="font-size:11.5px;color:var(--text-muted);margin:6px 0 0;"></p>
+            <!-- Every other field on this page is copied off a dashboard you need an
+                 account to see, so a shop without one has nothing it can fill in.
+                 Populated by renderPrintLibProviderFields(); hidden for "Other". -->
+            <a href="#" id="plibS3Signup" style="display:none; font-size:11.5px; margin-top:6px; color:var(--primary); cursor:pointer;"></a>
+            <p id="plibS3SignupRef" style="display:none;font-size:11px;color:var(--text-muted);margin:4px 0 0;"></p>
           </div>
           <div id="plibS3Fields" style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
             <!-- Filled from the chosen provider's `vars` — an account id, a region.

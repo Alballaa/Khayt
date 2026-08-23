@@ -4,6 +4,24 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **The storage provider list now links you to each provider's signup page.**
+  Picking a provider in **Settings → Print library location** used to leave you
+  with a form asking for an account ID or a region — things you can only read off
+  a dashboard you have to have an account to see. So the one shop the list helped
+  least was the shop that had never used cloud storage before. Each provider now
+  shows a link straight to where you open an account with them, next to what it
+  costs and whether downloads are billed. **Other (S3-compatible)** shows no
+  link, since there is nothing to sign up for.
+
+  The same links are in [docs/CLOUD-STORAGE.md](docs/CLOUD-STORAGE.md) if you
+  would rather read the comparison first.
+
+  These are plain links — **Khayt earns nothing from them.** Should that ever
+  change, any link that pays Khayt will say so on the spot, before you click it,
+  and the plain link will stay in the docs.
+
 ## [3.7.0-beta.3] - 2026-08-23
 
 ### Added
