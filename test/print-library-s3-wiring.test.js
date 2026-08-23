@@ -57,15 +57,26 @@ test('a plaintext secret still counts as one worth warning about', () => {
     'the keychain explanation would not mention a bucket key sitting in the clear');
 });
 
-test('nothing on the read path knows the bucket exists', () => {
-  // The seam's whole rule: mirrors are written, never read.
+test('no read path reaches into the bucket on its own', () => {
+  // The rule needed restating when tiering landed, because read paths now DO
+  // fetch from the cloud — and a test that still said "never" would have passed
+  // for the wrong reason, on the indirection alone.
+  //
+  // The rule was never "the read path is offline". It is that a read path must
+  // not decide for itself what the bucket is for. Mirroring and tiering write
+  // the same key for opposite reasons — one is a spare copy that must never be
+  // served, the other IS the file — and only printLibRehydrate() knows which
+  // case it is looking at, because only it checks for a sidecar first. A handler
+  // that called printLibS3() directly would happily serve the mirror of a file
+  // the shop deleted.
   const s3Uses = [...mainJs.matchAll(/printLibS3\(\)/g)].length;
   assert.ok(s3Uses >= 1, 'the bucket is never consulted at all');
   for (const readHandler of ['printlib-list', 'printlib-read-bytes', 'printlib-load-image', 'printlib-mesh']) {
     const at = mainJs.indexOf(`ipcMain.handle('hub:${readHandler}'`);
     assert.ok(at > -1, `${readHandler} went missing`);
     const body = mainJs.slice(at, at + 900);
-    assert.doesNotMatch(body, /printLibS3\(|S3C\./, `${readHandler} reads from the backup — that makes it a second primary`);
+    assert.doesNotMatch(body, /printLibS3\(|S3C\./,
+      `${readHandler} goes to the bucket itself instead of through printLibRehydrate()`);
   }
 });
 

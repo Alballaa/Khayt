@@ -4,6 +4,60 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.7.0-beta.2] - 2026-08-23
+
+### Added
+
+- **Your print library can now be bigger than the disk it lives on.** Khayt can
+  move models you have not touched in a while into cloud storage and take them
+  off this computer, then download them again automatically the first time you
+  open one. The library looks exactly the same — every model still listed, still
+  at its real size, with a mark showing it is in the cloud. Thumbnails always
+  stay on your computer, so browsing keeps working with no internet at all.
+
+  This is different from the object-storage backup Khayt already had, and it is
+  worth being clear about why. **The backup never freed any space** — it is a
+  second copy, so a 50 GB library became 50 GB here and 50 GB there. This moves
+  the file rather than copying it. You can run both: the backup for "the
+  workshop burned down", this for "the laptop is full".
+
+  Switch it on in **Settings → Print library location → Move old models to the
+  cloud**, choose how many days to keep files locally (90 by default), and press
+  **Free up space now**. It tells you how many models and how much space before
+  it does anything.
+
+  **Nothing is deleted until the cloud has provably received it.** Each file is
+  uploaded, then checked in a separate request against a checksum of the file on
+  your disk — not just its size, which a half-finished upload can match. Only
+  then is the local copy removed. Anything that cannot be verified is left
+  exactly where it is and named in the result, so you can see which model and
+  why. **Bring everything back** downloads the whole library again if you change
+  your mind or are moving away from Khayt.
+
+- **Pick your storage provider from a list instead of typing an endpoint.**
+  Settings now has a provider dropdown covering Cloudflare R2, Backblaze B2,
+  IDrive e2, Wasabi, Storj, Hetzner, Scaleway, OVHcloud, DigitalOcean Spaces,
+  Akamai/Linode, Amazon S3, Google Cloud Storage, Oracle Cloud, Synology C2, and
+  MinIO or a NAS you run yourself. Choose one, type the single thing only you
+  know — an account ID, a region — and Khayt builds the endpoint. Each option
+  shows roughly what it costs and whether downloads are billed, which is the
+  part that actually matters for a print library, since reprinting an old order
+  pulls the model back down.
+
+  These all worked before; they just needed an endpoint URL that nobody can type
+  from memory. Anything not on the list still works under **Other**.
+
+- **Google Drive can now hold your print library.** If you already pay Google for
+  storage, connect the account in Settings and Khayt will use it exactly as it
+  uses a bucket, including for freeing up disk space. **Khayt can only see files
+  it put there itself** — it has no access to the rest of your Drive, by design.
+  Signing in happens in your real browser, never inside Khayt.
+
+  You will need a free OAuth client ID from a Google Cloud project; the steps are
+  in [docs/CLOUD-STORAGE.md](docs/CLOUD-STORAGE.md). Dropbox and OneDrive do not
+  need any of this — point the library folder at their synced folder and it
+  already works.
+
 ### Changed
 
 - **The design library Khayt syncs with is now MakerRun, at `makerrun.com`.**

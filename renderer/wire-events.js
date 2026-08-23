@@ -2013,6 +2013,15 @@ function wireEvents() {
   $('#btnPlibS3Save')?.addEventListener('click', () => { if (typeof savePrintLibS3 === 'function') savePrintLibS3(); });
   $('#btnPlibS3Test')?.addEventListener('click', () => { if (typeof testPrintLibS3 === 'function') testPrintLibS3(); });
   $('#btnPlibMove')?.addEventListener('click', () => { if (typeof runPrintLibMigrate === 'function') runPrintLibMigrate(); });
+  // Cloud tiering. The provider dropdown rebuilds the fields below it, so it is
+  // a change listener rather than a click.
+  $('#set_plibS3Provider')?.addEventListener('change', () => { if (typeof onPrintLibProviderChange === 'function') onPrintLibProviderChange(); });
+  $('#btnPlibTierSave')?.addEventListener('click', () => { if (typeof savePrintLibTier === 'function') savePrintLibTier(); });
+  $('#btnPlibTierRun')?.addEventListener('click', () => { if (typeof runPrintLibTier === 'function') runPrintLibTier(); });
+  $('#btnPlibTierRestore')?.addEventListener('click', () => { if (typeof restorePrintLibTier === 'function') restorePrintLibTier(); });
+  $('#btnPlibGDSave')?.addEventListener('click', () => { if (typeof savePrintLibGDrive === 'function') savePrintLibGDrive(); });
+  $('#btnPlibGDConnect')?.addEventListener('click', () => { if (typeof connectPrintLibGDrive === 'function') connectPrintLibGDrive(); });
+  $('#btnPlibGDDisconnect')?.addEventListener('click', () => { if (typeof disconnectPrintLibGDrive === 'function') disconnectPrintLibGDrive(); });
 
   $('#btnRevealBackups')?.addEventListener('click', () => {
     if (window.hubAPI?.revealBackupsFolder) window.hubAPI.revealBackupsFolder();

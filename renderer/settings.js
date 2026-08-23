@@ -1852,6 +1852,19 @@ async function renderPrintLibLocation() {
   // nothing keeps what is on disk (see secretInputSave).
   const sec = $('#set_plibS3Secret');
   if (sec) { sec.value = ''; sec.placeholder = secretFieldPlaceholder(s3.secretAccessKey); }
+  // Both are independent of whether the library folder is reachable — a shop
+  // whose NAS is unplugged still needs to be able to configure its bucket, which
+  // is often the reason they are on this screen.
+  await renderPrintLibProviders();
+  renderPrintLibGDrive();
+  renderPrintLibTier();
+  // Typing an account id rebuilds the endpoint live, so the shop can see the URL
+  // the app will actually use rather than discovering it after a failed test.
+  const vars = $('#plibS3Vars');
+  if (vars && !vars.dataset.wired) {
+    vars.dataset.wired = '1';
+    vars.addEventListener('input', () => { refreshPrintLibEndpointPreview(); });
+  }
   if (!statusEl || !window.hubAPI?.printLibStatus) return;
   let st = null;
   try { st = await window.hubAPI.printLibStatus(); } catch (_) { st = null; }
@@ -1883,15 +1896,171 @@ async function renderPrintLibLocation() {
  * "clear it" — saving any other setting on this page would otherwise wipe the
  * credential.
  */
-function savePrintLibS3() {
+/**
+ * The provider table, fetched once. Main owns it; this is a read-through cache
+ * so the dropdown does not re-cross IPC on every keystroke.
+ */
+let plibProviders = null;
+let plibPricedOn = '';
+
+/**
+ * Paint the provider dropdown and the fields the chosen one needs.
+ *
+ * The endpoint box does not disappear for templated providers — it goes
+ * read-only and shows what was built. A shop that pastes an endpoint from a
+ * support article needs to see that the app agrees with it, and a field that
+ * vanishes looks like the setting was lost.
+ */
+async function renderPrintLibProviders() {
+  const sel = $('#set_plibS3Provider');
+  if (!sel || !window.hubAPI?.storageProviders) return;
+  if (!plibProviders) {
+    try {
+      const r = await window.hubAPI.storageProviders();
+      plibProviders = r && Array.isArray(r.providers) ? r.providers : [];
+      plibPricedOn = (r && r.pricedOn) || '';
+      // Only adopt main's detected provider on the FIRST paint. Re-detecting on
+      // every render would fight the shop mid-edit: pick a provider, start
+      // typing an account id, and the half-built endpoint would snap the
+      // dropdown back to whatever it currently parses as.
+      if (r && r.current) {
+        sel.dataset.initial = r.current;
+        sel.dataset.initialVars = JSON.stringify(r.vars || {});
+      }
+    } catch (_) { plibProviders = []; }
+  }
+  if (!plibProviders.length) return;
+
+  if (!sel.options.length) {
+    for (const p of plibProviders) {
+      const o = document.createElement('option');
+      o.value = p.id;
+      o.textContent = p.recommended ? `${p.label} ★` : p.label;
+      sel.appendChild(o);
+    }
+    sel.value = sel.dataset.initial || plibProviders[0].id;
+    let initVars = {};
+    try { initVars = JSON.parse(sel.dataset.initialVars || '{}'); } catch (_) { initVars = {}; }
+    renderPrintLibProviderFields(initVars);
+    return;
+  }
+  renderPrintLibProviderFields();
+}
+
+/** Build the account-id / region inputs the chosen provider asks for. */
+function renderPrintLibProviderFields(preset) {
+  const sel = $('#set_plibS3Provider');
+  const box = $('#plibS3Vars');
+  const note = $('#plibS3ProviderNote');
+  const epRow = $('#plibS3EndpointRow');
+  const ep = $('#set_plibS3Endpoint');
+  if (!sel || !box) return;
+  const p = (plibProviders || []).find((x) => x.id === sel.value);
+  if (!p) return;
+
+  // Keep whatever is already typed across a re-render, so switching provider and
+  // back does not silently empty a field the shop had filled in.
+  const existing = {};
+  for (const el of box.querySelectorAll('input[data-var]')) existing[el.dataset.var] = el.value;
+  const seed = preset && typeof preset === 'object' ? preset : existing;
+
+  box.innerHTML = '';
+  for (const v of p.vars) {
+    const wrap = document.createElement('div');
+    const label = document.createElement('label');
+    label.textContent = v.label;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.dataset.var = v.key;
+    input.id = `set_plibVar_${v.key}`;
+    input.value = seed[v.key] || '';
+    input.placeholder = v.hint || '';
+    const hint = document.createElement('p');
+    hint.style.cssText = 'font-size:11px;color:var(--text-muted);margin:4px 0 0;';
+    hint.textContent = v.hint || '';
+    wrap.appendChild(label); wrap.appendChild(input); wrap.appendChild(hint);
+    box.appendChild(wrap);
+  }
+
+  if (note) {
+    const bits = [];
+    if (p.cost) bits.push(p.cost);
+    if (p.note) bits.push(p.note);
+    note.textContent = bits.join(' · ');
+    // The figures are hints and are labelled as such — providers reprice, and a
+    // number in a dropdown that claims more precision than that is a lie with a
+    // currency symbol on it.
+    if (p.cost && plibPricedOn) note.textContent += ` (checked ${plibPricedOn}; confirm with the provider)`;
+  }
+
+  // A templated provider builds its own endpoint; only the ones that cannot show
+  // an editable box. IDrive e2 is the case that forced this — it issues every
+  // account a different host, so there is no pattern to fill in.
+  const templated = !!p.vars.length && !p.endpointFromDashboard && p.id !== 'custom';
+  if (ep) {
+    ep.readOnly = templated;
+    ep.style.opacity = templated ? '0.7' : '1';
+    ep.placeholder = p.endpointHint || 'https://…';
+  }
+  if (epRow) epRow.style.display = '';
+}
+
+function onPrintLibProviderChange() {
+  renderPrintLibProviderFields();
+  refreshPrintLibEndpointPreview();
+}
+
+/** Show the endpoint that will actually be saved, as it is typed. */
+async function refreshPrintLibEndpointPreview() {
+  const sel = $('#set_plibS3Provider');
+  const ep = $('#set_plibS3Endpoint');
+  if (!sel || !ep || !window.hubAPI?.storageResolveEndpoint) return;
+  const p = (plibProviders || []).find((x) => x.id === sel.value);
+  if (!p || !p.vars.length || p.endpointFromDashboard) return;
+  const vars = {};
+  for (const el of document.querySelectorAll('#plibS3Vars input[data-var]')) vars[el.dataset.var] = el.value.trim();
+  try {
+    const r = await window.hubAPI.storageResolveEndpoint(sel.value, vars);
+    if (r && r.ok && r.endpoint) {
+      ep.value = r.endpoint;
+      if (r.region && !($('#set_plibS3Region')?.value || '').trim()) $('#set_plibS3Region').value = r.region;
+    }
+  } catch (_) { /* the shop can still type one */ }
+}
+
+async function savePrintLibS3() {
   const v = (id) => ($(id)?.value || '').trim();
   const cur = ((settings.printLibrary || {}).s3) || {};
+  const sel = $('#set_plibS3Provider');
+  const provider = sel ? sel.value : '';
+
+  // Build the endpoint from the preset before saving. Main owns the table, so a
+  // provider the dropdown offers is always one main can resolve.
+  let endpoint = v('#set_plibS3Endpoint');
+  let region = v('#set_plibS3Region');
+  const p = (plibProviders || []).find((x) => x.id === provider);
+  if (p && p.vars.length && !p.endpointFromDashboard && window.hubAPI?.storageResolveEndpoint) {
+    const vars = {};
+    for (const el of document.querySelectorAll('#plibS3Vars input[data-var]')) vars[el.dataset.var] = el.value.trim();
+    let r;
+    try { r = await window.hubAPI.storageResolveEndpoint(provider, vars); } catch (_) { r = null; }
+    if (r && !r.ok) {
+      // Refuse rather than save half a URL. A bucket configured with a literal
+      // "{account}" in the hostname fails as a 403, which reads as a bad secret
+      // and sends the shop off to re-copy a key that was never wrong.
+      toast(r.error || t('set.plib_s3_incomplete') || 'Fill in the provider details first', 'error');
+      return;
+    }
+    if (r && r.ok) { endpoint = r.endpoint; region = region || r.region; }
+  }
+
   settings.printLibrary = Object.assign({}, settings.printLibrary, {
     s3: {
       enabled: !!$('#set_plibS3On')?.checked,
-      endpoint: v('#set_plibS3Endpoint'),
+      provider,
+      endpoint,
       bucket: v('#set_plibS3Bucket'),
-      region: v('#set_plibS3Region') || 'auto',
+      region: region || 'auto',
       prefix: v('#set_plibS3Prefix'),
       accessKeyId: v('#set_plibS3Key'),
       secretAccessKey: secretInputSave(cur.secretAccessKey, v('#set_plibS3Secret')),
@@ -1906,7 +2075,10 @@ function savePrintLibS3() {
 async function testPrintLibS3() {
   const out = $('#plibS3Result');
   if (!window.hubAPI?.printLibS3Test) return;
-  savePrintLibS3();                                  // test what is configured, not what was typed
+  // Awaited: savePrintLibS3 became async when it started building the endpoint
+  // from the provider preset, and testing before that lands tests the PREVIOUS
+  // endpoint — which passes or fails for reasons unrelated to what is on screen.
+  await savePrintLibS3();                            // test what is configured, not what was typed
   if (out) { out.textContent = t('set.plib_s3_testing') || 'Testing…'; out.style.color = 'var(--text-muted)'; }
   let r;
   try { r = await window.hubAPI.printLibS3Test(); } catch (err) { r = { ok: false, error: String(err.message || err) }; }
@@ -1915,6 +2087,250 @@ async function testPrintLibS3() {
     ? '✓ ' + (t('set.plib_s3_ok') || 'Wrote, read back and removed a test file')
     : '✗ ' + ((r && r.error) || '');
   out.style.color = r && r.ok ? 'var(--success, #16a34a)' : 'var(--danger)';
+}
+
+// ── Google Drive ────────────────────────────────────────────────────────────
+
+/**
+ * Bytes as a person reads them. Mirrors lib/print-library-tier's formatBytes —
+ * duplicated rather than imported because the renderer cannot require(), and
+ * crossing IPC to format a number would be worse than seven lines.
+ */
+function plibBytes(n) {
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let v = Number(n) || 0;
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) { v /= 1024; i += 1; }
+  return `${i === 0 ? v : v.toFixed(v < 10 ? 1 : 0)} ${units[i]}`;
+}
+
+/** Paint the Drive fields, and say who is actually connected. */
+async function renderPrintLibGDrive() {
+  const cfg = ((settings && settings.printLibrary) || {}).gdrive || {};
+  const status = $('#plibGDStatus');
+  if ($('#set_plibGDriveOn')) $('#set_plibGDriveOn').checked = !!cfg.enabled;
+  if ($('#set_plibGDClientId')) $('#set_plibGDClientId').value = cfg.clientId || '';
+  if ($('#set_plibGDFolder')) $('#set_plibGDFolder').value = cfg.folderName || '';
+  // Same rule as the bucket secret: the renderer holds a mask, never the value,
+  // so an empty box means "keep what is on disk".
+  const sec = $('#set_plibGDSecret');
+  if (sec) { sec.value = ''; sec.placeholder = secretFieldPlaceholder(cfg.clientSecret); }
+  if (!status || !window.hubAPI?.gdriveStatus) return;
+
+  let s;
+  try { s = await window.hubAPI.gdriveStatus(); } catch (_) { s = null; }
+  if (!s) { status.textContent = ''; return; }
+  if (!s.connected) {
+    // A revoked grant looks identical to "never connected" in the settings file,
+    // so the error from Drive is what distinguishes them.
+    status.textContent = s.error ? `⚠ ${s.error}` : (t('set.plib_gd_none') || 'No Google account connected.');
+    status.style.color = s.error ? 'var(--danger)' : 'var(--text-muted)';
+    return;
+  }
+  const cap = s.limit == null ? (t('set.plib_gd_unlimited') || 'unlimited') : plibBytes(s.limit);
+  status.textContent = `✓ ${s.email} · ${plibBytes(s.usage)} of ${cap} used`;
+  status.style.color = 'var(--text-muted)';
+}
+
+function savePrintLibGDrive(extra) {
+  const v = (id) => ($(id)?.value || '').trim();
+  const cur = ((settings.printLibrary || {}).gdrive) || {};
+  settings.printLibrary = Object.assign({}, settings.printLibrary, {
+    gdrive: Object.assign({}, cur, {
+      enabled: !!$('#set_plibGDriveOn')?.checked,
+      clientId: v('#set_plibGDClientId'),
+      clientSecret: secretInputSave(cur.clientSecret, v('#set_plibGDSecret')),
+      folderName: v('#set_plibGDFolder') || 'Khayt print library',
+    }, extra || {}),
+  });
+  saveAll();
+  renderPrintLibGDrive();
+  if (!extra) toast(t('set.plib_gd_saved') || 'Google Drive settings saved', 'success');
+}
+
+/**
+ * Open the consent screen and store what comes back.
+ *
+ * The client id is saved FIRST: main reads it from the store to build the auth
+ * URL, so connecting without saving would send the shop through a sign-in for
+ * whatever id was there before.
+ */
+async function connectPrintLibGDrive() {
+  const status = $('#plibGDStatus');
+  if (!window.hubAPI?.gdriveConnect) return;
+  savePrintLibGDrive({});
+  if (!($('#set_plibGDClientId')?.value || '').trim()) {
+    toast(t('set.plib_gd_need_client') || 'Add the OAuth client ID first', 'error');
+    return;
+  }
+  if (status) { status.textContent = t('set.plib_gd_waiting') || 'Waiting for the browser sign-in…'; status.style.color = 'var(--text-muted)'; }
+
+  let r;
+  try { r = await window.hubAPI.gdriveConnect(); } catch (err) { r = { ok: false, error: String(err.message || err) }; }
+  if (!r || !r.ok) {
+    if (status) { status.textContent = '✗ ' + ((r && r.error) || 'Could not connect.'); status.style.color = 'var(--danger)'; }
+    return;
+  }
+  // Saved through the ordinary settings path so store-io encrypts it like every
+  // other credential, rather than main writing it to disk its own way.
+  savePrintLibGDrive({ refreshToken: r.refreshToken, folderId: '' });
+  toast(t('set.plib_gd_connected') || 'Google Drive connected', 'success');
+}
+
+/**
+ * Forget the account.
+ *
+ * Clears the token here and points the shop at Google to revoke the grant —
+ * deleting our copy stops Khayt using it, but only Google can actually withdraw
+ * the access, and saying otherwise would overstate what this button does.
+ */
+function disconnectPrintLibGDrive() {
+  if (!confirm('Disconnect this Google account?\n\nAnything already in Drive stays there. If models have been moved to the cloud, bring them back first or they will not open.')) return;
+  const cur = ((settings.printLibrary || {}).gdrive) || {};
+  settings.printLibrary = Object.assign({}, settings.printLibrary, {
+    gdrive: Object.assign({}, cur, { enabled: false, refreshToken: '', folderId: '' }),
+  });
+  saveAll();
+  renderPrintLibGDrive();
+  toast(t('set.plib_gd_disconnected') || 'Disconnected. Remove Khayt at myaccount.google.com to fully revoke access.', 'success');
+}
+
+// ── Cloud tiering ───────────────────────────────────────────────────────────
+// The backup block above only ever writes. This one deletes local files once the
+// bucket has verifiably received them, so everything here leans towards saying
+// what is about to happen before it happens.
+
+/**
+ * Show what a sweep would free, and why it would not.
+ *
+ * "Nothing to free" and "your bucket is not configured" and "nothing is old
+ * enough yet" all produce a button that appears to do nothing, so the status
+ * line has to distinguish them.
+ */
+async function renderPrintLibTier() {
+  const cfg = ((settings && settings.printLibrary) || {}).tier || {};
+  const on = $('#set_plibTierOn');
+  const days = $('#set_plibTierDays');
+  const status = $('#plibTierStatus');
+  if (on) on.checked = !!cfg.enabled;
+  if (days) days.value = Number(cfg.keepDays) > 0 ? Number(cfg.keepDays) : 90;
+  if (!status || !window.hubAPI?.printLibTierScan) return;
+
+  let s;
+  try { s = await window.hubAPI.printLibTierScan(); } catch (_) { s = null; }
+  if (!s || !s.ok) { status.textContent = ''; return; }
+
+  const parts = [];
+  if (!s.configured) {
+    parts.push(t('set.plib_tier_no_bucket')
+      || 'Add your object storage details above before switching this on.');
+    status.style.color = 'var(--warning, #d97706)';
+  } else if (s.count > 0) {
+    parts.push(`${s.count} ${s.count === 1 ? 'model' : 'models'} could move to the cloud, freeing ${s.human}.`);
+    status.style.color = 'var(--text-muted)';
+  } else {
+    const recent = (s.skipped && s.skipped['too-recent']) || 0;
+    parts.push(recent
+      ? `Nothing to move yet — ${recent} ${recent === 1 ? 'model has' : 'models have'} been used in the last ${s.keepDays} days.`
+      : 'Nothing to move — the library is already as small as this setting allows.');
+    status.style.color = 'var(--text-muted)';
+  }
+  if (s.alreadyTiered > 0) parts.push(`${s.alreadyTiered} already in the cloud.`);
+  status.textContent = parts.join(' ');
+}
+
+function savePrintLibTier() {
+  const days = Number($('#set_plibTierDays')?.value);
+  settings.printLibrary = Object.assign({}, settings.printLibrary, {
+    tier: {
+      enabled: !!$('#set_plibTierOn')?.checked,
+      // Main normalises this too; doing it here as well means the box shows the
+      // value that will actually be used rather than the one that was typed.
+      keepDays: Number.isFinite(days) && days >= 1 ? Math.floor(days) : 90,
+    },
+  });
+  saveAll();
+  renderPrintLibTier();
+  toast(t('set.plib_tier_saved') || 'Cloud storage settings saved', 'success');
+}
+
+/**
+ * Run a sweep, having said out loud what it will delete.
+ *
+ * Confirmed because it removes models from this computer. The confirmation names
+ * the count and the space, since "are you sure?" with no figures is a dialog
+ * people learn to dismiss.
+ */
+async function runPrintLibTier() {
+  const out = $('#plibTierResult');
+  if (!window.hubAPI?.printLibTierRun) return;
+  savePrintLibTier();
+
+  let s;
+  try { s = await window.hubAPI.printLibTierScan(); } catch (_) { s = null; }
+  if (!s || !s.ok) { if (out) { out.textContent = '✗ ' + ((s && s.error) || 'Could not check the library.'); out.style.color = 'var(--danger)'; } return; }
+  if (!s.configured) { toast(t('set.plib_tier_no_bucket') || 'Add your object storage details first', 'error'); return; }
+  if (!s.count) { if (out) { out.textContent = t('set.plib_tier_nothing') || 'Nothing to move right now.'; out.style.color = 'var(--text-muted)'; } return; }
+
+  const ok = confirm(
+    `${s.count} ${s.count === 1 ? 'model' : 'models'} will be uploaded and then removed from this computer, freeing ${s.human}.\n\n`
+    + 'Each file is checked in the cloud before the local copy goes. They stay in your library and download again automatically when you open them.\n\n'
+    + 'Continue?',
+  );
+  if (!ok) return;
+
+  if (window.hubAPI.onPrintLibTierProgress) {
+    window.hubAPI.onPrintLibTierProgress((p) => {
+      if (!out || !p) return;
+      if (p.phase === 'file') { out.textContent = `Uploading ${p.filename}… (${p.done}/${p.total})`; out.style.color = 'var(--text-muted)'; }
+    });
+  }
+  if (out) { out.textContent = t('set.plib_tier_running') || 'Working…'; out.style.color = 'var(--text-muted)'; }
+
+  let r;
+  try { r = await window.hubAPI.printLibTierRun(); } catch (err) { r = { ok: false, error: String(err.message || err) }; }
+  if (!out) return;
+  if (!r || !r.ok) { out.textContent = '✗ ' + ((r && r.error) || 'Could not free up space.'); out.style.color = 'var(--danger)'; return; }
+
+  // Failures are named, not counted. "3 files failed" leaves the shop unable to
+  // tell whether it was three thumbnails or three customer models.
+  const bits = [`✓ Moved ${r.moved} of ${r.attempted}, freeing ${r.human}.`];
+  if (r.failed && r.failed.length) {
+    bits.push(`${r.failed.length} left on this computer: ` + r.failed.slice(0, 3).map((f) => `${f.filename} (${f.error})`).join('; '));
+    if (r.failed.length > 3) bits.push(`…and ${r.failed.length - 3} more.`);
+  }
+  out.textContent = bits.join(' ');
+  out.style.color = r.failed && r.failed.length ? 'var(--warning, #d97706)' : 'var(--success, #16a34a)';
+  renderPrintLibTier();
+}
+
+/**
+ * The way out. A feature that deletes local files and cannot be reversed is a
+ * trap, and a shop leaving Khayt must be able to get its models back without
+ * knowing what an object key is.
+ */
+async function restorePrintLibTier() {
+  const out = $('#plibTierResult');
+  if (!window.hubAPI?.printLibTierRestoreAll) return;
+  if (!confirm('Download every model that is currently in the cloud back onto this computer?\n\nThis needs enough free disk space for all of them.')) return;
+
+  if (window.hubAPI.onPrintLibTierProgress) {
+    window.hubAPI.onPrintLibTierProgress((p) => {
+      if (!out || !p) return;
+      if (p.phase === 'file') { out.textContent = `Downloading ${p.filename}… (${p.done}/${p.total})`; out.style.color = 'var(--text-muted)'; }
+    });
+  }
+  if (out) { out.textContent = t('set.plib_tier_running') || 'Working…'; out.style.color = 'var(--text-muted)'; }
+
+  let r;
+  try { r = await window.hubAPI.printLibTierRestoreAll(); } catch (err) { r = { ok: false, error: String(err.message || err) }; }
+  if (!out) return;
+  if (!r || !r.ok) { out.textContent = '✗ ' + ((r && r.error) || 'Could not bring the files back.'); out.style.color = 'var(--danger)'; return; }
+  out.textContent = r.failed && r.failed.length
+    ? `Brought back ${r.restored} of ${r.attempted}. Still in the cloud: ` + r.failed.slice(0, 3).map((f) => `${f.filename} (${f.error})`).join('; ')
+    : `✓ Brought back ${r.restored} ${r.restored === 1 ? 'model' : 'models'}.`;
+  out.style.color = r.failed && r.failed.length ? 'var(--warning, #d97706)' : 'var(--success, #16a34a)';
+  renderPrintLibTier();
 }
 
 /**
@@ -5182,6 +5598,13 @@ function renderTelegramSettings() {
     testPrintLibS3,
     scanPrintLibMigrate,
     runPrintLibMigrate,
+    onPrintLibProviderChange,
+    savePrintLibGDrive,
+    connectPrintLibGDrive,
+    disconnectPrintLibGDrive,
+    savePrintLibTier,
+    runPrintLibTier,
+    restorePrintLibTier,
     buildDigestEmailHtml,
     renderLocationsSettings,
     renderEmailNotificationSettings,

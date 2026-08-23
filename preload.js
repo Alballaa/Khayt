@@ -112,6 +112,18 @@ contextBridge.exposeInMainWorld('hubAPI', {
   printLibMigrateScan:()                  => ipcRenderer.invoke('hub:printlib-migrate-scan'),
   printLibMigrateRun: ()                  => ipcRenderer.invoke('hub:printlib-migrate-run'),
   onPrintLibMigrateProgress: (() => { let _cb=null; ipcRenderer.on('hub:printlib-migrate-progress', (_e,d)=>{ if(_cb) _cb(d); }); return cb=>{ _cb=cb; }; })(),
+  // Cloud tiering: move cold models into the bucket and off the disk. Restore is
+  // exposed alongside the sweep on purpose — a one-way door here deletes models.
+  printLibTierScan:   ()                  => ipcRenderer.invoke('hub:printlib-tier-scan'),
+  printLibTierRun:    ()                  => ipcRenderer.invoke('hub:printlib-tier-run'),
+  printLibTierRestoreAll: ()              => ipcRenderer.invoke('hub:printlib-tier-restore-all'),
+  onPrintLibTierProgress: (() => { let _cb=null; ipcRenderer.on('hub:printlib-tier-progress', (_e,d)=>{ if(_cb) _cb(d); }); return cb=>{ _cb=cb; }; })(),
+  storageProviders:   ()                  => ipcRenderer.invoke('hub:storage-providers'),
+  storageResolveEndpoint: (provider, vars) => ipcRenderer.invoke('hub:storage-resolve-endpoint', { provider, vars }),
+  // Google Drive. connect() opens the consent screen in the real browser and
+  // resolves with a refresh token for the renderer to save the ordinary way.
+  gdriveConnect:      ()                  => ipcRenderer.invoke('hub:gdrive-connect'),
+  gdriveStatus:       ()                  => ipcRenderer.invoke('hub:gdrive-status'),
   printLibPickMulti:  ()                  => ipcRenderer.invoke('hub:printlib-pick-multi'),
   printLibCopyPath:   (id, srcPath)       => ipcRenderer.invoke('hub:printlib-copy-path', { id, srcPath }),
   printLibUnpackZip:  (srcPath)           => ipcRenderer.invoke('hub:printlib-unpack-zip', { srcPath }),
