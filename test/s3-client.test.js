@@ -65,7 +65,13 @@ function fakeBucket() {
     if (opts.method === 'HEAD') {
       const v = objects.get(key);
       if (!v) return { status: 404 };
-      return { status: 200, headers: { get: (h) => (h === 'content-length' ? String(v.length) : null) } };
+      // Real buckets quote the etag. Tiering compares it against a local MD5 to
+      // decide whether deleting the local copy is safe, so the quoting is not a
+      // cosmetic detail — left on, every comparison fails and nothing is ever
+      // evicted; stripped in the wrong place, every comparison passes.
+      const etag = `"${crypto.createHash('md5').update(v).digest('hex')}"`;
+      const hdrs = { 'content-length': String(v.length), etag };
+      return { status: 200, headers: { get: (h) => (hdrs[String(h).toLowerCase()] ?? null) } };
     }
     if (opts.method === 'DELETE') { objects.delete(key); return { status: 204, headers: new Map() }; }
     return { status: 405 };
@@ -105,11 +111,18 @@ test('a missing object is absent, not an error', async () => {
   assert.equal(await s3.head('nothing/here'), null);
 });
 
-test('head reports a size, and delete removes', async () => {
+test('head reports a size and an unquoted etag, and delete removes', async () => {
   const bucket = fakeBucket();
   const s3 = createS3(CFG, { fetch: bucket.fetch, now: () => '20150830T123600Z' });
-  await s3.put('k/a.stl', Buffer.alloc(1234, 7));
-  assert.deepEqual(await s3.head('k/a.stl'), { size: 1234 });
+  const body = Buffer.alloc(1234, 7);
+  await s3.put('k/a.stl', body);
+  // The etag is what makes eviction safe: for the single-part uploads this
+  // client makes, it is the MD5 of the content, so it proves the bucket holds
+  // these bytes and not merely this many bytes.
+  assert.deepEqual(await s3.head('k/a.stl'), {
+    size: 1234,
+    etag: crypto.createHash('md5').update(body).digest('hex'),
+  });
   await s3.del('k/a.stl');
   assert.equal(await s3.get('k/a.stl'), null);
 });

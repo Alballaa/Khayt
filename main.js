@@ -1545,6 +1545,9 @@ ipcMain.handle('hub:delete-vault-file', async (_e, fullPath) => {
 // root; nothing here touches the network (offline contract).
 const PLL = require('./lib/print-library-location');
 const PLM = require('./lib/print-library-migrate');
+const PLT = require('./lib/print-library-tier');
+const SPROV = require('./lib/storage-providers');
+const GD = require('./lib/gdrive-client');
 const ZIPR = require('./lib/zip-read');
 const ZIPI = require('./lib/zip-intake');
 const S3C = require('./lib/s3-client');
@@ -1614,7 +1617,47 @@ function printLibMirrorItemDir(id) {
 function printLibS3() {
   const cfg = (printLibSettings() || {}).s3;
   if (!cfg || !cfg.enabled || !S3C.isConfigured(cfg)) return null;
-  return { client: S3C.createS3(cfg), prefix: cfg.prefix || '' };
+  return { client: S3C.createS3(cfg), prefix: cfg.prefix || '', kind: 's3' };
+}
+
+/** The connected Google Drive, or null. */
+// The Drive client, kept between calls.
+//
+// Not an optimisation so much as a correctness-of-cost thing: the client caches
+// the access token and the folder id in its own closure, and printLibDrive() is
+// called once PER FILE during a sweep. Building a fresh one each time would
+// re-authenticate and re-find the folder for every model — three extra round
+// trips per file, on the one operation that runs over the whole library.
+//
+// Keyed on the credentials so that reconnecting a different account, or turning
+// Drive off, does not keep serving the old one.
+let printLibDriveCache = { key: '', client: null };
+
+function printLibDrive() {
+  const cfg = (printLibSettings() || {}).gdrive;
+  if (!cfg || !cfg.enabled || !GD.isConfigured(cfg)) return null;
+  const key = `${cfg.clientId} ${cfg.refreshToken} ${cfg.folderName || ''}`;
+  if (printLibDriveCache.key !== key) {
+    printLibDriveCache = { key, client: GD.createDrive(cfg) };
+  }
+  return { client: printLibDriveCache.client, prefix: cfg.prefix || '', kind: 'gdrive' };
+}
+
+/**
+ * Wherever this library's remote copy lives.
+ *
+ * S3 and Drive expose the same four methods over the same opaque keys, so
+ * everything downstream — the mirror, the tiering sweep, rehydration — is
+ * written once and does not know which it is holding. That is the entire reason
+ * lib/gdrive-client.js bothers to imitate the S3 client's head() shape.
+ *
+ * Both configured is a real configuration and not an error: S3 for the off-site
+ * backup, Drive for the storage the shop already pays for. The bucket wins,
+ * because it is the one that was there first and the one a shop is more likely
+ * to have sized for the whole library.
+ */
+function printLibRemote() {
+  return printLibS3() || printLibDrive();
 }
 
 /**
@@ -1635,7 +1678,7 @@ function printLibS3() {
  */
 async function printLibMirrorFile(id, filename, srcPath) {
   const dir = printLibMirrorItemDir(id);
-  const s3 = printLibS3();
+  const s3 = printLibRemote();
   if (!dir && !s3) return null;
   const out = { folder: null, s3: null };
   if (dir) {
@@ -1662,6 +1705,164 @@ async function printLibMirrorFile(id, filename, srcPath) {
     }
   }
   return out;
+}
+
+// ── Tiering: keeping the library bigger than the disk ───────────────────────
+// The mirror above frees nothing — it is a second copy, by design. Tiering is
+// the other use for the same bucket: a cold model lives there ONLY, the local
+// copy is deleted, and it comes back the first time anyone opens it.
+//
+// The rule that keeps this from losing models: nothing is deleted locally until
+// the bucket has been asked, in its own round trip, and has answered with an
+// etag matching the local content. Not "the upload returned 200" — that is the
+// same call that would have failed. See lib/print-library-tier.js.
+
+const printLibTierPolicy = () => PLT.normalisePolicy((printLibSettings() || {}).tier);
+
+/**
+ * Both digests in ONE pass over the file.
+ *
+ * They answer different questions — the MD5 is compared with the bucket's etag
+ * to decide whether deleting is safe, the SHA-256 goes in the sidecar to check
+ * the file that eventually comes back — but reading a 400 MB model twice to get
+ * them separately doubles the slowest part of a sweep for no reason.
+ */
+function printLibDigests(p) {
+  return new Promise((resolve, reject) => {
+    const sha = crypto.createHash('sha256');
+    const md5 = crypto.createHash('md5');
+    const s = fs.createReadStream(p);
+    s.on('error', reject);
+    s.on('data', (d) => { sha.update(d); md5.update(d); });
+    s.on('end', () => resolve({ sha256: sha.digest('hex'), md5: md5.digest('hex') }));
+  });
+}
+
+/** The sidecars in one item folder, keyed by the filename each stands in for. */
+async function printLibSidecarMap(dir) {
+  const out = new Map();
+  let names;
+  try { names = await fs.promises.readdir(dir); } catch (_) { return out; }
+  for (const n of names) {
+    if (!PLT.isSidecar(n)) continue;
+    try {
+      const side = PLT.parseSidecar(await fs.promises.readFile(path.join(dir, n), 'utf8'));
+      // An unreadable sidecar is deliberately NOT added. The base file then shows
+      // as simply absent, which is the honest report: we have no verifiable
+      // record of where it went, and claiming it is safely in the bucket would
+      // be the one lie that costs a model.
+      if (side) out.set(PLT.baseName(n), { ...side, fullPath: path.join(dir, PLT.baseName(n)) });
+    } catch (_) { /* skip it; the file reads as missing rather than as safe */ }
+  }
+  return out;
+}
+
+/**
+ * Put a file in the bucket and prove it arrived.
+ *
+ * Returns the digests as well, because the caller needs the SHA-256 for the
+ * sidecar and computing it twice means reading the model twice.
+ */
+async function printLibEnsureInBucket(s3, id, filename, srcPath) {
+  const key = S3C.objectKey(s3.prefix, id, filename);
+  const { sha256, md5 } = await printLibDigests(srcPath);
+  const local = (await fs.promises.stat(srcPath)).size;
+
+  let head = null;
+  try { head = await s3.client.head(key); } catch (e) { return { ok: false, error: `Could not reach the bucket: ${e.message}` }; }
+
+  // Already there and provably identical — the mirror had done its job, and this
+  // sweep costs nothing but a HEAD.
+  if (head && head.size === local && PLT.etagVerdict(head.etag, md5) === 'match') {
+    return { ok: true, key, sha256, uploaded: false };
+  }
+
+  try { await s3.client.put(key, await fs.promises.readFile(srcPath)); }
+  catch (e) { return { ok: false, error: `Upload failed: ${e.message}` }; }
+
+  // Ask again, as a separate request. A PUT that returns 200 through a proxy
+  // that stored nothing is exactly the case this is here to catch.
+  let after = null;
+  try { after = await s3.client.head(key); } catch (e) { return { ok: false, error: `Could not confirm the upload: ${e.message}` }; }
+  if (!after) return { ok: false, error: 'The bucket accepted the upload but does not have the file.' };
+  if (after.size !== local) return { ok: false, error: `The bucket holds ${after.size} bytes, not ${local}.` };
+
+  const verdict = PLT.etagVerdict(after.etag, md5);
+  if (verdict === 'mismatch') return { ok: false, error: 'The bucket holds different bytes under this name.' };
+  if (verdict === 'unusable') {
+    // The bucket answered in a form that proves nothing — a multipart etag from
+    // some other tool. Rather than delete on a size match alone, pay for the
+    // download and check properly.
+    try {
+      const back = await s3.client.get(key);
+      if (!back) return { ok: false, error: 'The bucket lost the file between two requests.' };
+      if (crypto.createHash('sha256').update(back).digest('hex') !== sha256) {
+        return { ok: false, error: 'The stored file does not match the local one.' };
+      }
+    } catch (e) { return { ok: false, error: `Could not verify the stored file: ${e.message}` }; }
+  }
+  return { ok: true, key, sha256, uploaded: true };
+}
+
+// One rehydrate per file. Opening a model from two places at once — the grid and
+// the slicer button — would otherwise start two downloads writing the same path,
+// and the loser truncates the winner's file.
+const printLibRehydrating = new Map();
+
+/**
+ * Make sure a library path is actually on disk, fetching it back if it was tiered.
+ *
+ * Every read path goes through this. A file that is present, or that was never
+ * tiered, costs one existsSync and nothing else — so this is safe to call on the
+ * hot path.
+ *
+ * @returns {{ok: boolean, error?: string, restored?: boolean}}
+ */
+async function printLibRehydrate(fullPath) {
+  const p = path.resolve(String(fullPath || ''));
+  if (fs.existsSync(p)) return { ok: true, restored: false };
+
+  const sidePath = p + PLT.SIDECAR_EXT;
+  if (!fs.existsSync(sidePath)) return { ok: true, restored: false };  // simply not a library file we tiered
+
+  if (printLibRehydrating.has(p)) return printLibRehydrating.get(p);
+  const job = (async () => {
+    let side;
+    try { side = PLT.parseSidecar(await fs.promises.readFile(sidePath, 'utf8')); }
+    catch (_) { side = null; }
+    if (!side) return { ok: false, error: 'The record of this file in the cloud is unreadable.' };
+
+    const s3 = printLibRemote();
+    if (!s3) return { ok: false, error: 'This file is in cloud storage, but no bucket is configured. Add the credentials in Settings.' };
+
+    let buf;
+    try { buf = await s3.client.get(side.key); }
+    catch (e) { return { ok: false, error: `Could not download the file: ${e.message}` }; }
+    if (!buf) return { ok: false, error: 'The file is no longer in the bucket.' };
+
+    const v = PLT.verifyRehydrate(side, buf.length, crypto.createHash('sha256').update(buf).digest('hex'));
+    if (!v.ok) return { ok: false, error: v.error };
+
+    // Write beside, then rename. A half-written model at the real path would be
+    // indistinguishable from a whole one on the next open, and it would parse as
+    // a corrupt mesh rather than as a failure.
+    const tmp = `${p}.part-${process.pid}`;
+    try {
+      await fs.promises.mkdir(path.dirname(p), { recursive: true });
+      await fs.promises.writeFile(tmp, buf);
+      await fs.promises.rename(tmp, p);
+    } catch (e) {
+      try { await fs.promises.unlink(tmp); } catch (_) { /* nothing to clean up */ }
+      return { ok: false, error: `Could not save the downloaded file: ${e.message}` };
+    }
+    // Only now is the sidecar redundant. Removing it earlier would, on a crash
+    // mid-write, leave a file that is neither local nor known to be in the cloud.
+    try { await fs.promises.unlink(sidePath); } catch (_) { /* it will be ignored anyway */ }
+    return { ok: true, restored: true };
+  })();
+
+  printLibRehydrating.set(p, job);
+  try { return await job; } finally { printLibRehydrating.delete(p); }
 }
 
 /**
@@ -1691,6 +1892,179 @@ ipcMain.handle('hub:printlib-status', async () => {
  * indistinguishable until the first model fails to upload — by which time the
  * shop believes it has a backup. Writes, reads back, compares, deletes.
  */
+// ── Google Drive: connecting an account ─────────────────────────────────────
+// The loopback flow, which is what Google requires of a desktop app: the consent
+// screen opens in the shop's REAL browser, not an embedded window. Embedded
+// webviews are blocked by Google outright, and rightly — the app hosting the
+// window can read what is typed into it, so the shop has no way to tell a real
+// consent screen from a convincing drawing of one.
+//
+// The redirect comes back to a server on 127.0.0.1 that exists for the seconds
+// the flow takes, on a port the OS picks. Nothing is exposed off this machine.
+
+/** Ten minutes. Long enough to find a password, short enough not to sit open. */
+const GDRIVE_AUTH_TIMEOUT_MS = 600000;
+
+/**
+ * Run one consent flow and return the tokens.
+ *
+ * @returns {Promise<{ok: boolean, refreshToken?: string, error?: string}>}
+ */
+function gdriveAuthorize(cfg) {
+  return new Promise((resolve) => {
+    const http = require('node:http');
+    const { verifier, challenge } = GD.pkcePair();
+    // Binds the redirect to THIS attempt. Without it the loopback server would
+    // accept any code delivered to it, including one a local process obtained
+    // for a different account.
+    const state = crypto.randomBytes(16).toString('hex');
+    let settled = false;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      try { server.close(); } catch (_) { /* already closing */ }
+      resolve(result);
+    };
+
+    const page = (title, body) => `<!doctype html><meta charset="utf-8">`
+      + `<title>${title}</title><body style="font-family:system-ui;padding:3rem;max-width:32rem;margin:auto">`
+      + `<h2>${title}</h2><p>${body}</p></body>`;
+
+    const server = http.createServer(async (req, res) => {
+      let url;
+      try { url = new URL(req.url, 'http://127.0.0.1'); } catch (_) { res.writeHead(400).end(); return; }
+      if (url.pathname !== '/callback') { res.writeHead(404).end(); return; }
+
+      const err = url.searchParams.get('error');
+      const code = url.searchParams.get('code');
+      const gotState = url.searchParams.get('state');
+
+      const reply = (title, body) => {
+        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+        res.end(page(title, body));
+      };
+
+      if (err) { reply('Not connected', `Google reported: ${String(err).replace(/[<>&]/g, '')}`); finish({ ok: false, error: String(err) }); return; }
+      // Compared before the code is spent, and in constant time — a timing
+      // oracle on the state is a way to have a code redeemed by something else.
+      const a = Buffer.from(String(gotState || ''));
+      const b = Buffer.from(state);
+      if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+        reply('Not connected', 'That sign-in did not come from Khayt. Nothing was changed.');
+        finish({ ok: false, error: 'The sign-in response did not match this request.' });
+        return;
+      }
+      if (!code) { reply('Not connected', 'Google did not return an authorisation code.'); finish({ ok: false, error: 'No authorisation code.' }); return; }
+
+      try {
+        const tok = await GD.exchangeCode(globalThis.fetch, {
+          clientId: cfg.clientId, clientSecret: cfg.clientSecret, code, verifier, redirectUri,
+        });
+        if (!tok.refresh_token) {
+          // Almost always a re-consent where Google reuses the earlier grant.
+          // Naming the fix is the difference between a shop solving this in a
+          // minute and filing a bug.
+          reply('Almost there', 'Google did not issue a refresh token. Remove Khayt at myaccount.google.com → Security → Third-party access, then connect again.');
+          finish({ ok: false, error: 'Google did not issue a refresh token. Remove Khayt from your Google account\'s third-party access and try again.' });
+          return;
+        }
+        reply('Connected', 'Khayt can now use your Google Drive. You can close this tab.');
+        finish({ ok: true, refreshToken: String(tok.refresh_token) });
+      } catch (e) {
+        reply('Not connected', String(e.message || e).replace(/[<>&]/g, ''));
+        finish({ ok: false, error: String(e.message || e) });
+      }
+    });
+
+    const timer = setTimeout(() => finish({ ok: false, error: 'Timed out waiting for the browser sign-in.' }), GDRIVE_AUTH_TIMEOUT_MS);
+    let redirectUri = '';
+    server.on('error', (e) => finish({ ok: false, error: `Could not start the sign-in listener: ${e.message}` }));
+    // Port 0 = let the OS choose a free one. 127.0.0.1 rather than localhost,
+    // which can resolve to ::1 and produce a redirect_uri Google will not match.
+    server.listen(0, '127.0.0.1', () => {
+      redirectUri = `http://127.0.0.1:${server.address().port}/callback`;
+      shell.openExternal(GD.authUrl({ clientId: cfg.clientId, redirectUri, challenge, state }))
+        .catch((e) => finish({ ok: false, error: `Could not open the browser: ${e.message}` }));
+    });
+  });
+}
+
+// One flow at a time. Two open consent screens race to write the same token, and
+// the shop cannot tell which account they ended up connected to.
+let gdriveConnecting = false;
+
+ipcMain.handle('hub:gdrive-connect', async () => {
+  if (gdriveConnecting) return { ok: false, error: 'A Google sign-in is already open.' };
+  gdriveConnecting = true;
+  try {
+    const cfg = (printLibSettings() || {}).gdrive || {};
+    if (!String(cfg.clientId || '').trim()) {
+      return { ok: false, error: 'Add the OAuth client ID from your Google Cloud project first.' };
+    }
+    const r = await gdriveAuthorize(cfg);
+    if (!r.ok) return r;
+    // Handed back for the renderer to save through the ordinary settings path,
+    // so it goes through store-io's encryption like every other credential
+    // rather than getting its own way of reaching the disk.
+    return { ok: true, refreshToken: r.refreshToken };
+  } catch (e) {
+    return { ok: false, error: String((e && e.message) || e) };
+  } finally { gdriveConnecting = false; }
+});
+
+/**
+ * Who is connected, and is the account actually usable.
+ *
+ * Round-trips to Drive rather than reporting on the presence of a token: a
+ * revoked grant looks exactly like a working one from the settings file, and the
+ * shop would find out when a sweep deleted nothing.
+ */
+ipcMain.handle('hub:gdrive-status', async () => {
+  const cfg = (printLibSettings() || {}).gdrive || {};
+  if (!GD.isConfigured(cfg)) return { ok: true, connected: false };
+  try {
+    const about = await GD.createDrive(cfg).about();
+    return { ok: true, connected: true, ...about };
+  } catch (e) {
+    return { ok: true, connected: false, error: String((e && e.message) || e) };
+  }
+});
+
+/**
+ * The provider presets, for the Settings dropdown.
+ *
+ * Over IPC rather than a renderer script because the table is main-side data the
+ * endpoint builder also uses, and two copies of it would drift — the renderer
+ * offering a provider main cannot resolve is exactly the bug the presets exist
+ * to prevent.
+ */
+ipcMain.handle('hub:storage-providers', async () => {
+  const endpoint = ((printLibSettings() || {}).s3 || {}).endpoint || '';
+  const current = SPROV.detect(endpoint);
+  return {
+    providers: SPROV.list(),
+    pricedOn: SPROV.PRICED_ON,
+    current,
+    // The account id / region already in use, pulled back out of the saved
+    // endpoint. Without this the fields render empty and saving any other
+    // setting on the page would overwrite a working endpoint with a broken one.
+    vars: current ? SPROV.extractVars(current, endpoint) : {},
+    endpoint,
+  };
+});
+
+/**
+ * Turn a provider choice plus its variables into an endpoint.
+ *
+ * Over IPC rather than duplicated in the renderer: two copies of the table is
+ * how the dropdown ends up offering a provider main cannot resolve, which is the
+ * exact class of bug the presets were added to remove.
+ */
+ipcMain.handle('hub:storage-resolve-endpoint', async (_e, { provider, vars } = {}) => (
+  SPROV.resolveEndpoint(provider, vars || {})
+));
+
 ipcMain.handle('hub:printlib-s3-test', async () => {
   const cfg = (printLibSettings() || {}).s3;
   if (!cfg || !S3C.isConfigured(cfg)) return { ok: false, error: 'Fill in the endpoint, bucket, key and secret first.' };
@@ -1709,6 +2083,154 @@ ipcMain.handle('hub:printlib-s3-test', async () => {
     try { await s3.del(key); } catch (_) { /* nothing to clean up */ }
     return { ok: false, error: String((e && e.message) || e) };
   }
+});
+
+/**
+ * Every model in the library, with the id of the record it belongs to.
+ *
+ * Tiering needs the id because that is what the object key is built from, so
+ * this cannot reuse printLibWalk's relative paths — a file two folders deep
+ * under a record still belongs to that record.
+ */
+async function printLibAllFiles() {
+  const root = printLibRoots().primary;
+  const out = [];
+  let dirs;
+  try { dirs = await fs.promises.readdir(root, { withFileTypes: true }); } catch (_) { return out; }
+  for (const d of dirs) {
+    if (!d.isDirectory()) continue;
+    const dir = path.join(root, d.name);
+    let names;
+    try { names = await fs.promises.readdir(dir); } catch (_) { continue; }
+    for (const n of names) {
+      if (n === '.DS_Store') continue;
+      const full = path.join(dir, n);
+      try {
+        const st = await fs.promises.stat(full);
+        if (!st.isFile()) continue;
+        out.push({ id: d.name, filename: n, fullPath: full, size: st.size, mtimeMs: st.mtimeMs });
+      } catch (_) { /* raced with a delete */ }
+    }
+  }
+  return out;
+}
+
+/**
+ * What a sweep would free, without touching anything.
+ *
+ * A preview, not a plan to execute later — the run re-scans, for the same reason
+ * the migration does: acting on a list gathered minutes ago evicts files the
+ * shop has since opened.
+ */
+ipcMain.handle('hub:printlib-tier-scan', async () => {
+  try {
+    const policy = printLibTierPolicy();
+    const s3 = printLibRemote();
+    const files = await printLibAllFiles();
+    const p = PLT.plan(files, policy, Date.now());
+    const tiered = files.filter((f) => PLT.isSidecar(f.filename)).length;
+    return {
+      ok: true,
+      configured: !!s3,
+      enabled: policy.enabled,
+      keepDays: policy.keepDays,
+      count: p.candidates.length,
+      bytes: p.bytes,
+      human: PLT.formatBytes(p.bytes),
+      skipped: p.skipped,
+      alreadyTiered: tiered,
+    };
+  } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
+});
+
+// One at a time, for the same reason the migration is: two sweeps over the same
+// files would each be deleting what the other is still verifying.
+let printLibSweeping = false;
+
+/**
+ * Upload, verify, then delete — in that order, per file, with the verification
+ * as its own round trip.
+ *
+ * Per file rather than in phases: a sweep that uploaded everything and then
+ * deleted everything would, if interrupted between the phases, leave the shop
+ * paying for a full second copy with nothing freed. Doing one file end to end
+ * means an interrupted sweep is just a shorter sweep.
+ */
+ipcMain.handle('hub:printlib-tier-run', async (event) => {
+  if (printLibSweeping) return { ok: false, error: 'A cleanup is already running.' };
+  printLibSweeping = true;
+  try {
+    const policy = printLibTierPolicy();
+    if (!policy.enabled) return { ok: false, error: 'Cloud tiering is switched off.' };
+    const s3 = printLibRemote();
+    if (!s3) return { ok: false, error: 'No object storage is configured. Add the bucket details first.' };
+    requirePrintLib();
+
+    const p = PLT.plan(await printLibAllFiles(), policy, Date.now());
+    const send = (m) => { try { event.sender.send('hub:printlib-tier-progress', m); } catch (_) { /* window gone */ } };
+
+    let freed = 0;
+    let done = 0;
+    const failed = [];
+    for (const f of p.candidates) {
+      send({ phase: 'file', filename: f.filename, done, total: p.candidates.length });
+      const r = await printLibEnsureInBucket(s3, f.id, f.filename, f.fullPath);
+      if (!r.ok) { failed.push({ filename: f.filename, error: r.error }); continue; }
+
+      // The sidecar is written BEFORE the model is removed. Crash between the
+      // two and the shop has a redundant sidecar next to a file that is still
+      // there — which mergeListing already treats as present. The other order
+      // loses the model on the same crash.
+      const side = PLT.makeSidecar({
+        size: f.size, sha256: r.sha256, key: r.key,
+        provider: (printLibSettings().s3 || {}).endpoint || '', at: new Date().toISOString(),
+      });
+      try {
+        await fs.promises.writeFile(f.fullPath + PLT.SIDECAR_EXT, JSON.stringify(side));
+        await fs.promises.unlink(f.fullPath);
+      } catch (e) { failed.push({ filename: f.filename, error: String(e.message || e) }); continue; }
+
+      freed += f.size;
+      done += 1;
+    }
+    send({ phase: 'done', done, total: p.candidates.length });
+    return {
+      ok: true, moved: done, freed, human: PLT.formatBytes(freed),
+      failed, attempted: p.candidates.length,
+    };
+  } catch (e) {
+    return { ok: false, error: String((e && e.message) || e) };
+  } finally { printLibSweeping = false; }
+});
+
+/**
+ * Pull everything back down — the way out of tiering.
+ *
+ * A shop that changes its mind, or is leaving Khayt, must be able to get its
+ * models back onto a disk it controls without knowing what an object key is. A
+ * feature that deletes local files and has no reverse is a trap.
+ */
+ipcMain.handle('hub:printlib-tier-restore-all', async (event) => {
+  if (printLibSweeping) return { ok: false, error: 'A cleanup is already running.' };
+  printLibSweeping = true;
+  try {
+    requirePrintLib();
+    const files = await printLibAllFiles();
+    const sidecars = files.filter((f) => PLT.isSidecar(f.filename));
+    const send = (m) => { try { event.sender.send('hub:printlib-tier-progress', m); } catch (_) { /* window gone */ } };
+    let done = 0;
+    const failed = [];
+    for (const s of sidecars) {
+      const target = s.fullPath.slice(0, -PLT.SIDECAR_EXT.length);
+      send({ phase: 'file', filename: path.basename(target), done, total: sidecars.length });
+      const r = await printLibRehydrate(target);
+      if (r.ok) done += 1; else failed.push({ filename: path.basename(target), error: r.error });
+    }
+    send({ phase: 'done', done, total: sidecars.length });
+    return { ok: true, restored: done, failed, attempted: sidecars.length };
+  } catch (e) {
+    return { ok: false, error: String((e && e.message) || e) };
+  } finally { printLibSweeping = false; }
 });
 
 /**
@@ -2031,11 +2553,21 @@ ipcMain.handle('hub:printlib-list', async (_e, id) => {
   const dir = printLibItemDir(id);
   if (!fs.existsSync(dir)) return [];
   const files = await fs.promises.readdir(dir);
-  return Promise.all(files.map(async (f) => {
+  const entries = [];
+  for (const f of files) {
+    if (PLT.isSidecar(f)) continue;                  // folded in below, under the name it stands for
     const fullPath = path.join(dir, f);
-    const stat = await fs.promises.stat(fullPath);
-    return { filename: f, fullPath, size: stat.size };
-  }));
+    try {
+      const stat = await fs.promises.stat(fullPath);
+      entries.push({ filename: f, fullPath, size: stat.size });
+    } catch (_) { /* raced with a delete */ }
+  }
+  // A tiered model is listed exactly where it was, at its real size, flagged so
+  // the row can say so. Dropping it would make "in the cloud" and "gone" look
+  // identical to the person staring at the screen — and this listing has to keep
+  // working with the bucket unreachable, which is why it reads sidecars off the
+  // disk rather than asking the bucket what it holds.
+  return PLT.mergeListing(entries, await printLibSidecarMap(dir));
 });
 
 ipcMain.handle('hub:printlib-delete', async (_e, fullPath) => {
@@ -2043,6 +2575,20 @@ ipcMain.handle('hub:printlib-delete', async (_e, fullPath) => {
   if (!printLibContains(safe)) return false; // confine to the library, wherever it lives
   // Report the truth, like hub:delete-vault-file. Swallowing the error and returning true
   // removed the entry from the library while the file stayed on disk.
+  // A tiered file's local copy is a sidecar, not the model. Removing the model
+  // has to remove that too, or the library keeps listing a file the shop
+  // deleted and offers to download it.
+  //
+  // The OBJECT is deliberately left in the bucket. Mirroring and tiering write
+  // the same key, so deleting it here would destroy the off-site backup of a
+  // shop that runs both — and an orphaned object costs pennies where a deleted
+  // backup costs the model. Settings' sweep reports what is orphaned.
+  let removedSidecar = false;
+  try {
+    await fs.promises.unlink(safe + PLT.SIDECAR_EXT);
+    removedSidecar = true;
+  } catch (_) { /* the ordinary case: there was no sidecar */ }
+
   try {
     const stat = await fs.promises.stat(safe);
     if (stat.isDirectory()) await fs.promises.rm(safe, { recursive: true, force: true });
@@ -2050,7 +2596,7 @@ ipcMain.handle('hub:printlib-delete', async (_e, fullPath) => {
   } catch (e) {
     if (e && e.code === 'ENOENT') return true; // already gone — the desired end state
     console.error('hub:printlib-delete:', e);
-    return false;
+    return removedSidecar;                     // the tiered case: the sidecar WAS the file here
   }
   return true;
 });
@@ -2086,6 +2632,12 @@ ipcMain.handle('hub:printlib-load-image', async (_e, fullPath) => {
 ipcMain.handle('hub:printlib-open-in-slicer', async (_e, { filePath, slicerPath } = {}) => {
   const safe = path.resolve(String(filePath || ''));
   if (!printLibContains(safe)) return { ok: false, error: 'File is outside the library.' };
+  // The slicer opens a path, so the bytes have to be there before it launches —
+  // handing it a tiered file would open an empty window with no explanation.
+  // The error is surfaced rather than folded into "File not found": "your bucket
+  // credentials expired" and "you deleted this" need different responses.
+  const back = await printLibRehydrate(safe);
+  if (!back.ok) return { ok: false, error: back.error };
   if (!fs.existsSync(safe)) return { ok: false, error: 'File not found.' };
   if (slicerPath && fs.existsSync(slicerPath) && isSafeSlicerBinary(slicerPath)) {
     try {
@@ -2106,6 +2658,10 @@ ipcMain.handle('hub:printlib-open-in-slicer', async (_e, { filePath, slicerPath 
 ipcMain.handle('hub:printlib-read-bytes', async (_e, fullPath) => {
   const safe = path.resolve(String(fullPath || ''));
   if (!printLibContains(safe)) return null;
+  // Tiered? Fetch it back first. This returns immediately for the overwhelming
+  // majority of calls, where the file is simply present.
+  const back = await printLibRehydrate(safe);
+  if (!back.ok) return null;
   try {
     const stat = await fs.promises.stat(safe);
     if (stat.size > 60_000_000) return null; // too big to render a thumbnail for
@@ -2171,6 +2727,10 @@ async function mfDiscard(tmpPath) {
 ipcMain.handle('hub:printlib-mesh', async (_e, fullPath) => {
   const safe = path.resolve(String(fullPath || ''));
   if (!printLibContains(safe)) return { ok: false };
+  // The converter runs in a worker that only knows about paths, so a tiered file
+  // has to be back on disk before the job is handed over.
+  const back = await printLibRehydrate(safe);
+  if (!back.ok) return { ok: false, error: back.error };
   try {
     const stat = await fs.promises.stat(safe);
     if (stat.size > 200_000_000) return { ok: false, error: 'too-large' };
