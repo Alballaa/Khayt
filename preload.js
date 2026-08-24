@@ -173,6 +173,7 @@ contextBridge.exposeInMainWorld('hubAPI', {
   webcamDetect:   (o)     => ipcRenderer.invoke('hub:webcam-detect', o),
   discoverPrinters: (o)   => ipcRenderer.invoke('hub:discover-printers', o),
   relocatePrinters: (o)   => ipcRenderer.invoke('hub:relocate-printers', o),
+  webcamProbe: (o)        => ipcRenderer.invoke('hub:webcam-probe', o),
   // Quit handshake: main asks the renderer to flush its debounced save before exiting.
   onFlushSaveRequest:   (cb) => { ipcRenderer.on('hub:flush-save-request', () => { try { cb(); } catch { /* noop */ } }); },
   flushSaveDone:        ()   => ipcRenderer.send('hub:flush-save-done'),

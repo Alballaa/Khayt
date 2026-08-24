@@ -4,6 +4,26 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **A camera Khayt guessed at is no longer switched on before anything has
+  answered.** Setting up a printer's camera fills in the addresses these printers
+  usually use — but "usually" is doing a lot of work there, and for Klipper
+  machines there are **two** conventions in the wild, not one. Khayt filled the
+  first, ticked **Enabled**, and told you to check the preview. If you didn't, you
+  had saved a camera that could never load, and the machine's card showed a tile
+  reading *Camera offline* from then on.
+
+  Khayt now tries the addresses before switching anything on. If one answers with
+  a picture, the camera is filled in and enabled as before. If none does, the
+  usual address is still filled in so you have somewhere to start, but the camera
+  is **left off** and it says so — rather than quietly presenting a broken camera
+  as a working one.
+
+  Found on a Snapmaker U1 on stock firmware, which reports no camera, has nothing
+  listening on the port Khayt was guessing, and answers the other convention with
+  an error. Its camera had been switched on and blank the whole time.
+
 ### Added
 
 - **A printer that changed address can be found again, instead of just reading
