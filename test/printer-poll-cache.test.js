@@ -1,6 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { mergePollSuccess, mergePollFailure, isOffline } = require('../lib/printer-poll-cache.js');
+const C = require('../lib/printer-poll-cache.js');
 
 /**
  * The poller replaced the whole cache entry on any failed poll, so one missed
@@ -356,4 +357,131 @@ test('a failed poll keeps the history', () => {
   e = mergePollSuccess(e, ended('a.gcode', 100, 3600), 2000);
   const blip = mergePollFailure(e, 'ETIMEDOUT', 3000);
   assert.equal(blip.completions.length, 1, 'a Wi-Fi hiccup must not cost a measurement');
+});
+
+/*
+ * A measurement that survives only until the app is next quit.
+ *
+ * captureCompletion exists because the printer's counters reset when the next
+ * job starts, so "read them when the shop marks the order done" is not a plan.
+ * It froze them into MEMORY — so the window a measurement actually survived was
+ * never the 24 hours prefillActuals offers it for, it was "until Khayt is next
+ * quit". Finish an overnight print, close the app in the morning, mark the order
+ * done: an estimate is offered instead, correctly labelled, and the measurement
+ * that was genuinely taken no longer exists.
+ *
+ * Same shape as polling a printer at a stale address: not a number shown wrongly,
+ * a number that stops existing.
+ *
+ * The bench U1 finished a job at 49.97 g over 9682 s on 2026-08-24 while Khayt
+ * was closed. That reading is the fixture below.
+ */
+
+const REAL = {
+  at: 1787599214160,
+  filename: 'Articulated_01_V11-MiniDragon_03_PLA_2h48m.gcode',
+  actuals: { filamentMm: 16752.62018000013, filamentGrams: 49.965519368771425, durationS: 9682.160404825001, source: 'moonraker' },
+};
+
+test('a finished job round-trips through a restart', () => {
+  const cache = {
+    'MACH-1': { state: 'complete', progress: 100, lastUpdated: Date.now(), completions: [REAL], lastCompleted: REAL },
+  };
+  const saved = C.completionsToPersist(cache);
+  assert.deepEqual(Object.keys(saved), ['MACH-1']);
+  assert.equal(saved['MACH-1'][0].actuals.filamentGrams, REAL.actuals.filamentGrams);
+
+  const back = C.restoreCompletions(JSON.parse(JSON.stringify(saved)));
+  assert.equal(back['MACH-1'].completions.length, 1);
+  assert.equal(back['MACH-1'].lastCompleted.filename, REAL.filename);
+  // …and findCompletion can still name the job, which is what an order needs.
+  assert.equal(C.findCompletion(back['MACH-1'], { filename: REAL.filename }).actuals.durationS, REAL.actuals.durationS);
+});
+
+test('a restored machine is NOT restored as busy', () => {
+  // The one thing that must never come back: a saved status would read as a
+  // confident "Printing · 47%" for a machine that has been off all night, which
+  // is exactly the failure the dashboard's freshness check exists to prevent.
+  const cache = {
+    'MACH-1': { state: 'printing', progress: 47, tempNozzle: 210, error: 'x', consecutiveFailures: 3, lastUpdated: 111, completions: [REAL] },
+  };
+  const back = C.restoreCompletions(C.completionsToPersist(cache));
+  const entry = back['MACH-1'];
+  assert.deepEqual(Object.keys(entry).sort(), ['completions', 'lastCompleted']);
+  for (const dead of ['state', 'progress', 'tempNozzle', 'error', 'consecutiveFailures', 'lastUpdated']) {
+    assert.equal(entry[dead], undefined, `a restored machine came back carrying ${dead}`);
+  }
+  // …so it reads as "not polled yet", not as whatever it was doing at quit.
+  assert.equal(C.isOffline(entry, 2), false);
+});
+
+test('nothing worth keeping means nothing written', () => {
+  // A machine that has been polled but never finished a job must not put an
+  // empty entry in the store for every machine the shop owns.
+  assert.deepEqual(C.completionsToPersist({ 'MACH-1': { state: 'idle', progress: 0 } }), {});
+  assert.deepEqual(C.completionsToPersist({}), {});
+  assert.deepEqual(C.completionsToPersist(null), {});
+  assert.deepEqual(C.restoreCompletions(null), {});
+  assert.deepEqual(C.restoreCompletions({ 'MACH-1': [] }), {});
+});
+
+test('junk on disk is dropped rather than restored', () => {
+  // The store is a file a person can edit, and a half-written completion must
+  // not come back as a measurement with no numbers in it.
+  const back = C.restoreCompletions({
+    'MACH-1': [null, { at: 1 }, { actuals: {} }, 'nonsense', REAL],
+    'MACH-2': 'not an array',
+  });
+  assert.deepEqual(Object.keys(back), ['MACH-1']);
+  assert.equal(back['MACH-1'].completions.length, 1, 'only the entry with both a time and figures');
+  assert.equal(back['MACH-1'].completions[0].filename, REAL.filename);
+});
+
+test('the saved list is bounded the same way the live one is', () => {
+  const many = Array.from({ length: 30 }, (_, i) => ({ ...REAL, at: REAL.at + i, filename: `j${i}.gcode` }));
+  const saved = C.completionsToPersist({ 'MACH-1': { completions: many } });
+  assert.equal(saved['MACH-1'].length, C.COMPLETIONS_KEPT,
+    'the store would grow without bound on a busy machine');
+  assert.equal(C.restoreCompletions({ 'MACH-1': many })['MACH-1'].completions.length, C.COMPLETIONS_KEPT);
+});
+
+test('a machine with only lastCompleted and no list still survives', () => {
+  // Entries written before the list existed carry the single slot only.
+  const saved = C.completionsToPersist({ 'MACH-1': { lastCompleted: REAL } });
+  assert.equal(saved['MACH-1'].length, 1);
+  assert.equal(C.restoreCompletions(saved)['MACH-1'].lastCompleted.filename, REAL.filename);
+});
+
+test('completionIsNew fires once per job, not once per poll', () => {
+  // It decides when the store is written. Firing on every poll would be a disk
+  // write every thirty seconds for the life of the app, saving a figure that
+  // has not changed.
+  const before = { lastCompleted: null };
+  const after = { lastCompleted: REAL };
+  assert.equal(C.completionIsNew(before, after), true);
+  assert.equal(C.completionIsNew(after, after), false, 'the same job was written twice');
+  assert.equal(C.completionIsNew(after, { lastCompleted: { ...REAL, at: REAL.at + 1 } }), true,
+    'a second, genuinely different job was not written');
+  assert.equal(C.completionIsNew(null, { lastCompleted: null }), false);
+  assert.equal(C.completionIsNew(null, null), false);
+});
+
+test('the real capture, end to end through a merge', () => {
+  // Not a hand-built fixture: this is the shape mergePollSuccess produces from
+  // the printing→complete edge, exercised against the U1's actual figures.
+  const printing = { state: 'printing', filename: REAL.filename, actuals: { filamentGrams: 40, durationS: 8000 } };
+  const complete = { state: 'complete', filename: REAL.filename, actuals: REAL.actuals };
+
+  let entry = C.mergePollSuccess(null, printing, 1000);
+  assert.equal(entry.lastCompleted, undefined, 'mid-print is not a completion');
+  const mid = entry;
+  entry = C.mergePollSuccess(mid, complete, 2000);
+
+  assert.equal(C.completionIsNew(mid, entry), true);
+  assert.equal(entry.lastCompleted.actuals.filamentGrams, 49.965519368771425,
+    'the FINISHED reading is preferred over the last mid-print one');
+
+  // …and that is what reaches the disk and comes back.
+  const back = C.restoreCompletions(C.completionsToPersist({ 'MACH-1': entry }));
+  assert.equal(back['MACH-1'].lastCompleted.actuals.durationS, 9682.160404825001);
 });

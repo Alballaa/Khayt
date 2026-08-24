@@ -4,6 +4,25 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **A measured print no longer disappears when you close Khayt.** When a job
+  finishes, Khayt reads what it *actually* used — filament and time — off the
+  printer at the one moment those numbers are true, because the printer wipes
+  them when the next job starts. Those readings were then kept in memory only.
+  So the twenty-four hours Khayt offers a measurement for was really "until you
+  next quit": finish a print overnight, close the app in the morning, mark the
+  order done, and you were quietly given an *estimate* instead. Correctly
+  labelled — but the measurement you had genuinely taken was gone.
+
+  They are now saved, and come back when you reopen. Only the finished jobs are
+  kept: a printer never comes back looking like it is still running, so a machine
+  that has been off all night cannot greet you with "Printing · 47%".
+
+  This matters more than a tidier number. Measured jobs are what teach Khayt what
+  your printers really do — three of them and it stops guessing at print times
+  altogether — so every one that evaporated was a lesson the estimator never got.
+
 ## [3.7.0-beta.5] - 2026-08-24
 
 ### Added
