@@ -7,8 +7,9 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 ### Added
 
 - **Khayt now says what is likely to go WRONG with a model, not just what it will
-  cost.** Drop an STL, OBJ or unsliced 3MF into the calculator and, under the
-  estimate, you get the things worth looking at before you quote:
+  cost.** Drop an STL, OBJ or unsliced 3MF into the calculator — or pick one with
+  **Browse…**, or receive one from a customer through the intake form — and you
+  get the things worth looking at before you quote:
 
   - how much of the surface overhangs past your slicer's support angle, and how
     much of that is near-horizontal underside — the kind that sags rather than
@@ -35,6 +36,15 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   raised nothing at all (printer spares, clips, brackets, vases), 32 got a note,
   21 a warning, and exactly one was called unprintable — a mesh whose walls
   average 0.18 mm.
+
+  **On a customer's upload, the triage is for you and not for them.** A visitor
+  who prices a model through your intake form sees exactly what they saw before:
+  a price. The print-risk report is attached to the request when it reaches your
+  **Order requests**, which is the moment it is worth something — you are
+  deciding whether to take a job at a price the customer has already been shown,
+  and "a fifth of this needs supports" is what turns an acceptable price into an
+  unacceptable one. Uploads above 8 MB are still priced but not analysed, so a
+  large file cannot make the shop's machine do a large amount of work.
 
 ### Fixed
 

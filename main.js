@@ -3405,7 +3405,13 @@ async function gcodeSilhouette(fullPath, size) {
 }
 
 // --- Feature 1 (new batch): G-code / 3MF metadata extraction ---
-ipcMain.handle('hub:parse-print-file', async (_e, filePath) => {
+ipcMain.handle('hub:parse-print-file', async (_e, arg) => {
+  // Called with a bare path for most of this handler's life, and now optionally
+  // with { filePath, ...riskOpts } so the mesh analysis can answer for the
+  // machine being quoted. Both shapes are accepted rather than migrating every
+  // caller: the path is the only part this function needs to do its old job.
+  const payload = (arg && typeof arg === 'object') ? arg : null;
+  const filePath = payload ? payload.filePath : arg;
   const resolvedParse = path.resolve(String(filePath || ''));
   const allowedParseDirs = [
     app.getPath('userData'),
@@ -3464,7 +3470,16 @@ ipcMain.handle('hub:parse-print-file', async (_e, filePath) => {
       // caller must label as one; `exact` says which kind of answer this is.
       const mfStat = fs.statSync(resolvedParse);
       if (mfStat.size > 50_000_000) return { ok: false, error: 'File too large (max 50 MB)' };
-      const r = intakeModel({ filename: path.basename(filePath), bytes: fs.readFileSync(resolvedParse) });
+      // Same mesh analysis the drop-a-file path asks for. Browse… and drag-drop
+      // read the identical file through the identical intake, and a shop should
+      // not get a different answer for having used a different button.
+      const r = intakeModel({ filename: path.basename(filePath), bytes: fs.readFileSync(resolvedParse) }, {
+        risk: true,
+        nozzleDiameter: Number(payload && payload.nozzleDiameter) || undefined,
+        supportThresholdDeg: Number(payload && payload.supportThresholdDeg) || undefined,
+        layerHeight: Number(payload && payload.layerHeight) || undefined,
+        bed: (payload && payload.bed) || undefined,
+      });
       result.printTimeMins = r.printTimeMins;
       result.filamentGrams = r.filamentGrams;
       result.filamentType = r.filamentType;
@@ -3475,6 +3490,7 @@ ipcMain.handle('hub:parse-print-file', async (_e, filePath) => {
       result.geometry = r.geometry
         ? { volumeMm3: r.geometry.volumeMm3, bbox: r.geometry.bbox, triangleCount: r.geometry.triangleCount }
         : null;
+      result.risk = r.risk;
       result.warnings = r.warnings;
     }
   } catch(e) { /* silent fail */ }

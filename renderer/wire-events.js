@@ -379,6 +379,26 @@ function wireEvents() {
    * `quiet` is for a recompute the shop did not ask for by name — changing the
    * infill should update the number, not announce the file again.
    */
+  /**
+   * The mesh analysis answers THIS shop's question, not a generic one.
+   *
+   * The support angle a shop's slicer is set to decides what counts as an
+   * overhang; the nozzle decides what counts as a wall too thin to lay down; the
+   * bed decides whether it fits at all. All three come from the machine the part
+   * is being quoted for, when one has been picked — and with none picked the
+   * analysis falls back to its own defaults rather than to nothing.
+   *
+   * Shared by both ways in, because reading the same file through Browse… and
+   * through drag-drop must not produce two different answers.
+   */
+  function riskOptsForQuote() {
+    const id = $('#partMachineId')?.value || $('#machineAssign')?.value;
+    const m = (typeof machines !== 'undefined' && Array.isArray(machines))
+      ? machines.find((x) => x && x.id === id) : null;
+    if (!m) return {};
+    return { nozzleDiameter: m.nozzleDiameter, bed: m.bed };
+  }
+
   function applyIntake(res, filename, { quiet = false } = {}) {
     const over = {
       machineId: $('#partMachineId')?.value || $('#machineAssign')?.value || null,
@@ -554,18 +574,7 @@ function wireEvents() {
       } else {
         bytes = new Uint8Array(await file.arrayBuffer());
       }
-      // The mesh analysis answers THIS shop's question, not a generic one: the
-      // support angle a shop's slicer is set to decides what counts as an
-      // overhang, and the nozzle decides what counts as a wall too thin to lay
-      // down. Both come from the machine the part is being quoted for, when one
-      // has been picked.
-      const riskMachine = (typeof machines !== 'undefined' && Array.isArray(machines))
-        ? machines.find((m) => m && m.id === ($('#partMachineId')?.value || $('#machineAssign')?.value))
-        : null;
-      const res = await window.hubAPI.intakeModelBytes(name, bytes, {
-        nozzleDiameter: riskMachine && riskMachine.nozzleDiameter,
-        bed: riskMachine && riskMachine.bed,
-      });
+      const res = await window.hubAPI.intakeModelBytes(name, bytes, riskOptsForQuote());
       if (!res || !res.ok) { toast((res && res.error) || t('calc.parse_failed'), 'warning'); return; }
       applyIntake(res, name);
       // After the quote is on screen, not before: identifying a large g-code
@@ -606,7 +615,7 @@ function wireEvents() {
     const filePath = await window.hubAPI.pickFile({ filters: [{ name: '3D Files', extensions: ['gcode', 'gco', '3mf', 'stl', 'obj'] }] });
     if (!filePath) return;
     try {
-      const result = await window.hubAPI.parsePrintFile(filePath);
+      const result = await window.hubAPI.parsePrintFile(filePath, riskOptsForQuote());
       if (result && result.filename) {
         const frEl = $('#partFileRef');
         if (frEl && !frEl.value) frEl.value = result.filename;

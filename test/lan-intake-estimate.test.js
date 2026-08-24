@@ -359,3 +359,91 @@ test('only so many uploads may be in flight at once, and a slot comes back', asy
   }
   assert.equal(after.status, 200, 'an abandoned upload must not retire its slot permanently');
 });
+
+/*
+ * Break-risk on a stranger's upload.
+ *
+ * This is the placement where the triage is worth most: the shop is deciding
+ * whether to take a job at a price a customer has ALREADY been shown, and "a
+ * fifth of this needs supports" is exactly what turns an acceptable price into
+ * an unacceptable one.
+ *
+ * And it is the placement where the answer must not go back out. The visitor
+ * gets a price. Whether the model needs supports is the shop's call, not an
+ * argument to have with someone who cannot act on it — so the reply to the
+ * browser stays exactly as it was.
+ */
+
+/** A binary STL of a cube held up over a small pad: a real 100 mm² ceiling. */
+function bridgeStl() {
+  const tri = (a, b, c) => [a, b, c];
+  const boxTris = (x0, y0, z0, x1, y1, z1) => {
+    const v = [
+      [x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0],
+      [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1],
+    ];
+    const q = (a, b, c, d) => [tri(v[a], v[b], v[c]), tri(v[a], v[c], v[d])];
+    return [...q(0, 3, 2, 1), ...q(4, 5, 6, 7), ...q(0, 1, 5, 4),
+            ...q(2, 3, 7, 6), ...q(1, 2, 6, 5), ...q(0, 4, 7, 3)];
+  };
+  const tris = [...boxTris(0, 0, 0, 2, 2, 1), ...boxTris(0, 0, 8, 10, 10, 10)];
+  const buf = Buffer.alloc(84 + tris.length * 50);
+  buf.writeUInt32LE(tris.length, 80);
+  let off = 84;
+  for (const t of tris) {
+    off += 12;                                   // normal, which parseStl ignores
+    for (const p of t) for (const n of p) { buf.writeFloatLE(n, off); off += 4; }
+    off += 2;                                    // attribute bytes
+  }
+  return buf;
+}
+
+test('a customer upload is analysed for the shop, and the visitor is told only the price', async () => {
+  const res = await estimate('part.stl', bridgeStl());
+  const body = await res.json();
+  assert.equal(body.ok, true, JSON.stringify(body));
+  assert.ok(body.price > 0);
+  // The whole point: nothing about the mesh comes back out.
+  assert.equal(body.risk, undefined, 'the print-risk report was sent to the visitor');
+  assert.deepEqual(
+    Object.keys(body).sort(),
+    ['binding', 'currency', 'exact', 'grams', 'hours', 'ok', 'price', 'qty', 'ref', 'slicer'].sort(),
+    'the public reply grew a field — anything added here is visible to strangers',
+  );
+
+  // …and the shop sees it when the request lands in front of them.
+  const before = store.waitingList.length;
+  const r = await fetch(`${BASE}/api/intake`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-khayt-intake-token': 'tok' },
+    body: JSON.stringify({
+      name: 'A Customer', description: 'Print this please', consent: true, estimateRef: body.ref,
+    }),
+  });
+  assert.equal(r.status, 200, await r.text());
+  assert.equal(store.waitingList.length, before + 1);
+
+  const entry = store.waitingList[store.waitingList.length - 1];
+  const risk = entry.modelQuote && entry.modelQuote.risk;
+  assert.ok(risk, 'the shop was given no triage for a model with a 100 mm² ceiling');
+  const ids = risk.risks.map((x) => x.id);
+  assert.ok(ids.includes('overhang'), `expected an overhang finding, got ${JSON.stringify(ids)}`);
+  assert.ok(ids.includes('bridge'), 'a flat ceiling was not reported as a bridge');
+  // The measurement travels with it, or the shop cannot judge it.
+  const over = risk.risks.find((x) => x.id === 'overhang');
+  assert.ok(over.fraction > 0, 'the finding arrived without its measurement');
+  assert.equal(over.thresholdDeg, 45);
+});
+
+test('a request with no model attaches no risk, rather than an empty one', async () => {
+  const before = store.waitingList.length;
+  const r = await fetch(`${BASE}/api/intake`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-khayt-intake-token': 'tok' },
+    body: JSON.stringify({ name: 'B Customer', description: 'Just asking', consent: true }),
+  });
+  assert.equal(r.status, 200);
+  assert.equal(store.waitingList.length, before + 1);
+  const entry = store.waitingList[store.waitingList.length - 1];
+  assert.equal(entry.modelQuote, undefined, 'a request with no model grew a quote');
+});
