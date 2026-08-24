@@ -261,3 +261,88 @@ test('the port is only touched when it actually differs', () => {
   assert.equal(b.port, 7125);
   assert.equal(R.applyRelocation(odd, b).printerApi.port, 7125);
 });
+
+/* ── volunteering the diagnosis ─────────────────────────────────────────── */
+
+/*
+ * The original failure was SILENT, and that is the part a button does not fix.
+ * Nobody scans a printer they have no reason to think has moved, so the owner
+ * who needs the answer is the one who will never ask for it. shouldScan is what
+ * lets the poller work it out unprompted — and the whole question it answers is
+ * "how often", because a scan is a multicast burst and the poll loop runs every
+ * thirty seconds.
+ */
+
+const OK = { state: 'printing', consecutiveFailures: 0, lastUpdated: 1 };
+
+test('a scan runs only when something is offline and unexplained', () => {
+  const m = staleU1();
+  const base = { machines: [m], lastScanAt: 0, now: 60_000_000 };
+
+  assert.equal(R.shouldScan({ ...base, statusCache: { [m.id]: OK } }), false,
+    'a healthy printer triggered a LAN scan');
+  assert.equal(R.shouldScan({ ...base, statusCache: { [m.id]: { error: 'x', consecutiveFailures: 1 } } }), false,
+    'one missed poll triggered a LAN scan — that is a blip, not a relocation');
+  assert.equal(R.shouldScan({ ...base, statusCache: offline(m.id) }), true);
+
+  // Already explained: the answer is on screen, so scanning again buys nothing.
+  const explained = { ...offline(m.id)[m.id], relocated: { from: '.77', to: '.56' } };
+  assert.equal(R.shouldScan({ ...base, statusCache: { [m.id]: explained } }), false,
+    'a printer whose move is already known was scanned for again');
+
+  // A machine Khayt cannot talk to can never be the reason for a scan.
+  assert.equal(R.shouldScan({
+    ...base, machines: [{ id: 'x', printerApi: { type: 'none' } }], statusCache: { x: { error: 'x', consecutiveFailures: 9 } },
+  }), false);
+});
+
+test('scans are debounced globally, not per machine', () => {
+  // Ten printers going down together is one event on the network, and it is the
+  // same single scan that answers for all of them.
+  const machines = Array.from({ length: 10 }, (_, i) => ({
+    ...staleU1(), id: `M${i}`, printerApi: { type: 'moonraker', host: `192.168.68.${20 + i}`, port: 7125 },
+  }));
+  const statusCache = Object.fromEntries(machines.map((m) => [m.id, { error: 'x', consecutiveFailures: 9 }]));
+  const now = 60_000_000;
+
+  assert.equal(R.shouldScan({ machines, statusCache, lastScanAt: 0, now }), true);
+  // Just scanned: not again, however many machines are down.
+  assert.equal(R.shouldScan({ machines, statusCache, lastScanAt: now - 1000, now }), false);
+  assert.equal(R.shouldScan({ machines, statusCache, lastScanAt: now - 9 * 60_000, now }), false);
+  assert.equal(R.shouldScan({ machines, statusCache, lastScanAt: now - 11 * 60_000, now }), true);
+});
+
+test('a printer that is simply switched off keeps qualifying, and that is deliberate', () => {
+  // It is never "explained", so it never stops being a candidate. That costs one
+  // short scan every ten minutes and buys the case that matters: a machine that
+  // was off, came back, and came back on a different address than it left on.
+  const m = staleU1();
+  const off = { [m.id]: { error: 'connect EHOSTDOWN', consecutiveFailures: 40 } };
+  const now = 60_000_000;
+  assert.equal(R.shouldScan({ machines: [m], statusCache: off, lastScanAt: now - 11 * 60_000, now }), true);
+});
+
+test('the hint is only offered when there is something better than the error to say', () => {
+  assert.equal(R.relocationHint(null), null);
+  assert.equal(R.relocationHint({ error: 'connect ETIMEDOUT' }), null);
+  assert.equal(R.relocationHint({ relocated: {} }), null, 'a move with no destination is not a hint');
+  const h = R.relocationHint({ error: 'x', relocated: { from: '192.168.68.77', to: '192.168.68.56', confidence: 'serial', serial: 'AAA' } });
+  assert.deepEqual(h, { from: '192.168.68.77', to: '192.168.68.56', confidence: 'serial', serial: 'AAA' });
+});
+
+test('coming back online clears the explanation rather than leaving it stale', () => {
+  // mergePollSuccess builds a FRESH entry, so an annotation from while the
+  // printer was missing cannot outlive it and go on claiming a move that has
+  // already been accepted. Pinned here because the annotation is written from
+  // outside that module and nothing else would notice if it started surviving.
+  const cache = require('../lib/printer-poll-cache.js');
+  const stale = { error: 'x', consecutiveFailures: 9, relocated: { from: '.77', to: '.56' } };
+  const after = cache.mergePollSuccess(stale, { state: 'printing' }, Date.now());
+  assert.equal(after.relocated, undefined, 'a resolved relocation hint survived the printer coming back');
+  assert.equal(after.error, undefined);
+
+  // …but it must survive further FAILURES, or the diagnosis is lost on the very
+  // next poll and shouldScan starts the whole cycle again.
+  const kept = cache.mergePollFailure(stale, 'still down', Date.now());
+  assert.deepEqual(kept.relocated, { from: '.77', to: '.56' });
+});

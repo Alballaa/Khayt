@@ -3415,6 +3415,60 @@ ipcMain.handle('hub:parse-print-file', async (_e, filePath) => {
 
 // --- Feature 2 (new batch): Printer API polling infrastructure ---
 let printerPollInterval = null;
+let lastRelocateScanAt = 0;
+
+/**
+ * Work out WHY a machine stopped answering, rather than only that it did.
+ *
+ * "offline" is what Khayt says for a printer switched off at the wall and for a
+ * printer whose DHCP lease moved it to another address — and those have nothing
+ * in common except the symptom. The second one is a two-second fix that nobody
+ * makes, because nothing tells them there is one to make: the original bug was
+ * found on a bench where the U1 had been polled at a dead address long enough
+ * for the shop's entire completion history to be empty.
+ *
+ * Leaving this behind a button in the machine dialog would not have helped that
+ * shop. Nobody scans a printer they have no reason to think has moved, so the
+ * one owner who needs the answer is the one who will never ask for it. It has to
+ * volunteer itself.
+ *
+ * The cost is contained by lib/printer-relocate.js `shouldScan`: only when
+ * something is offline and not already explained, and at most once every ten
+ * minutes however many machines are down. The poll loop itself runs every thirty
+ * seconds, so the debounce is doing real work.
+ *
+ * Annotates the poll cache and writes nothing to the store. Every surface that
+ * already renders `entry.error` can render the better sentence instead, and the
+ * fix stays the owner's to accept.
+ */
+async function diagnoseMovedPrinters(machineList) {
+  const Relocate = require('./lib/printer-relocate.js');
+  const now = Date.now();
+  if (!Relocate.shouldScan({
+    machines: machineList, statusCache: printerStatusCache, lastScanAt: lastRelocateScanAt, now,
+  })) return;
+  // Stamped BEFORE the scan, not after: a scan takes seconds and the poll loop
+  // does not wait for this, so stamping afterwards would let a second poll start
+  // a second scan while the first was still listening.
+  lastRelocateScanAt = now;
+  let scan;
+  try { scan = await scanForPrinters(4000); } catch { return; }
+  if (!scan || !scan.ok) return;
+  const plan = Relocate.planRelocations({
+    machines: machineList, discovered: scan.printers, statusCache: printerStatusCache,
+  });
+  for (const move of plan.moves) {
+    const entry = printerStatusCache[move.machineId];
+    if (!entry || !entry.error) continue;   // came back while we were scanning
+    entry.relocated = {
+      from: move.from, to: move.to, port: move.port,
+      serial: move.serial, confidence: move.confidence,
+    };
+  }
+  if (plan.moves.length) {
+    BrowserWindow.getAllWindows().forEach(w => w.webContents.send('printer-status-update', printerStatusCache));
+  }
+}
 
 ipcMain.handle('hub:start-printer-polling', async (_e, machines) => {
   if (printerPollInterval) clearInterval(printerPollInterval);
@@ -3442,6 +3496,9 @@ ipcMain.handle('hub:start-printer-polling', async (_e, machines) => {
     }
     const wins = BrowserWindow.getAllWindows();
     wins.forEach(w => w.webContents.send('printer-status-update', printerStatusCache));
+    // Deliberately not awaited: a LAN scan takes seconds and polling must not
+    // stall behind it. It pushes its own update when it finds something.
+    diagnoseMovedPrinters(machineList).catch(() => { /* never break polling */ });
   };
   await poll();
   printerPollInterval = setInterval(poll, 30000);

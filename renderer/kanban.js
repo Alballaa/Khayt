@@ -13,7 +13,14 @@ function updateKanbanLiveStatus() {
     const mid = el.dataset.machineId;
     const s = machineStatusCache[mid];
     if (!s || s.error) {
-      el.innerHTML = s?.error ? `<span style="color:var(--danger);font-size:10px;">${_kIcoL('alert', '⚠', 12)}${escapeHtml(s.error)}</span>` : '';
+      // A printer that moved gets the reason rather than the errno — see the
+      // dashboard tile, which reads the same annotation from the same cache.
+      const hint = (typeof KhaytPrinterRelocate !== 'undefined')
+        ? KhaytPrinterRelocate.relocationHint(s) : null;
+      const text = hint ? t('mach.moved_found', { host: hint.to }) : (s && s.error);
+      el.innerHTML = text
+        ? `<span style="color:var(--${hint ? 'warning' : 'danger'});font-size:10px;">${_kIcoL('alert', '⚠', 12)}${escapeHtml(text)}</span>`
+        : '';
       return;
     }
     const pct = Math.min(100, Math.max(0, Math.round(+s.progress || 0)));

@@ -1008,6 +1008,7 @@
   "mach.scan_applied": "Rempli à partir de l’imprimante détectée.",
   "mach.scan_no_adapter": "Détectée, mais Khayt ne peut pas encore se connecter à ce modèle",
   "mach.scan_moved": "Même imprimante, nouvelle adresse",
+  "mach.moved_found": "Trouvée à {host} — l’adresse a changé",
   "mach.name_ph": "ex. Prusa MK4, Bambu X1C",
   "mach.color": "Couleur",
   "mach.unassigned": "— Aucune imprimante assignée —",

@@ -1008,6 +1008,7 @@
   "mach.scan_applied": "Aus dem gefundenen Drucker übernommen.",
   "mach.scan_no_adapter": "Gefunden, aber Khayt kann dieses Modell noch nicht verbinden",
   "mach.scan_moved": "Derselbe Drucker, neue Adresse",
+  "mach.moved_found": "Gefunden unter {host} — die Adresse hat sich geändert",
   "mach.name_ph": "z.B. Prusa MK4, Bambu X1C",
   "mach.color": "Farbe",
   "mach.unassigned": "— Kein Drucker zugewiesen —",

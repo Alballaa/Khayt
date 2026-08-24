@@ -1008,6 +1008,7 @@
   "mach.scan_applied": "検出したプリンターから入力しました。",
   "mach.scan_no_adapter": "検出しましたが、Khayt はこの機種にまだ接続できません",
   "mach.scan_moved": "同じプリンター、新しいアドレス",
+  "mach.moved_found": "{host} で見つかりました — アドレスが変わりました",
   "mach.name_ph": "例：Prusa MK4、Bambu X1C",
   "mach.color": "カラー",
   "mach.unassigned": "— プリンター未割り当て —",

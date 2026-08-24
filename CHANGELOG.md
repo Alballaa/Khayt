@@ -37,6 +37,22 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   found on a real bench: a Snapmaker U1 had moved from `.77` to `.56`, and the
   shop's completion history was empty rather than merely short.
 
+- **…and Khayt now works that out on its own, instead of waiting to be asked.**
+  A scan you have to think to run is no help to the one person who needs it:
+  nobody scans a printer they have no reason to believe has moved. So when a
+  machine has been unreachable for a couple of polls, Khayt quietly checks the
+  network itself, and where it used to print a raw `connect ETIMEDOUT
+  192.168.68.77:7125` it now says **"Found at 192.168.68.56 — the address
+  changed"**. On the dashboard printer tile, on the kanban machine chip, and on
+  **Test connection** in the machine's own settings.
+
+  It is still only telling you. Nothing is changed until you pick the printer in
+  **Scan network** and press Save.
+
+  This costs your network almost nothing: the check runs only when a printer is
+  actually unreachable and Khayt has not already worked out why, and at most once
+  every ten minutes no matter how many machines are down.
+
 ## [3.7.0-beta.4] - 2026-08-23
 
 ### Added
