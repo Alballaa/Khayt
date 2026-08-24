@@ -1098,6 +1098,7 @@
   "mach.scan_use": "استخدام",
   "mach.scan_applied": "تمت التعبئة من الطابعة المكتشفة.",
   "mach.scan_no_adapter": "تم العثور عليها، لكن خيط لا يستطيع الاتصال بهذا الطراز بعد",
+  "mach.scan_moved": "نفس الطابعة، عنوان جديد",
   "mach.name_ph": "مثال: Prusa MK4، Bambu X1C",
   "mach.color": "اللون",
   "mach.unassigned": "— بدون تخصيص طابعة —",

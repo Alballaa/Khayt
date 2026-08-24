@@ -1007,6 +1007,7 @@
   "mach.scan_use": "Kullan",
   "mach.scan_applied": "Bulunan yazıcıdan dolduruldu.",
   "mach.scan_no_adapter": "Bulundu, ancak Khayt bu modele henüz bağlanamıyor",
+  "mach.scan_moved": "Aynı yazıcı, yeni adres",
   "mach.name_ph": "örn. Prusa MK4, Bambu X1C",
   "mach.color": "Renk",
   "mach.unassigned": "— Yazıcı atanmadı —",
