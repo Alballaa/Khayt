@@ -63,7 +63,9 @@ const QRCode = require('qrcode');
 const { safeJsonParse } = require('./lib/safe-json');
 const { isBlockedHost, isAllowedPrinterHost, sanitizeMailgunDomain, resolvesToBlockedHost } = require('./lib/host-guard');
 const { sendCustomSmtp } = require('./lib/custom-smtp');
-const { mergePollSuccess, mergePollFailure } = require('./lib/printer-poll-cache');
+const {
+  mergePollSuccess, mergePollFailure, completionsToPersist, restoreCompletions, completionIsNew,
+} = require('./lib/printer-poll-cache');
 const { normalizeProgress, fileProgressPct, etaSeconds, moonrakerProgress } = require('./lib/printer-status');
 const printerCommands = require('./lib/printer-commands');
 const { normalizeStoreSnapshot, STORE_VERSION } = require('./lib/store-validate');
@@ -3262,6 +3264,65 @@ ipcMain.handle('hub:write-status-page', async (_event, { html, orderId }) => {
 // Shared with LAN API live telemetry endpoint (hub:start-printer-polling fills this)
 let printerStatusCache = {};
 
+/**
+ * Keep a finished job's measured figures across a restart.
+ *
+ * captureCompletion freezes filament and duration on the edge out of printing,
+ * because the printer's counters reset when the next job starts. It froze them
+ * into memory, so the window a measurement actually survived was not the 24
+ * hours prefillActuals offers it for — it was "until Khayt is next quit".
+ *
+ * Written under its OWN store key rather than onto the machine record. Machine
+ * records are rebuilt from the edit form when a shop saves one, so a field
+ * living there is dropped by any unrelated visit to that dialog — which is the
+ * failure print-kits already had to carry a comment about for `settings`.
+ *
+ * Never fails a poll: a completion that cannot be written is one measurement
+ * lost, and throwing here would cost the polling loop instead.
+ */
+const COMPLETIONS_KEY = 'printerCompletions';
+
+async function persistCompletions() {
+  try {
+    // Read the newest copy off disk FIRST, then add one key to it.
+    //
+    // This runs on a background timer and writes the WHOLE store back. Building
+    // that write from a long-lived in-memory copy is how a save made in the
+    // renderer thirty seconds ago gets overwritten by a snapshot taken before
+    // it — the same shape as the restore bug in #708, arriving from a different
+    // direction. Re-reading narrows the window to the length of this function
+    // instead of the lifetime of the process, and it costs a file read a few
+    // times a day.
+    syncLanServerStoreFromDisk();
+    const saved = completionsToPersist(printerStatusCache);
+    const store = { ...(lanServerStore || {}) };
+    store[COMPLETIONS_KEY] = saved;
+    await persistLanStoreUpdate(store);
+  } catch (e) {
+    console.error('persistCompletions:', e && e.message ? e.message : e);
+  }
+}
+
+/** Put yesterday's finished jobs back, and NOTHING that was live at the time. */
+function rehydrateCompletions() {
+  try {
+    // Polling can start before anything has populated the in-memory store, and
+    // an empty one here would restore nothing at all — silently, which is the
+    // shape of bug this whole change exists to remove. Same guard the operator
+    // PIN handler already uses for the same reason.
+    if (!lanServerStore || !Object.keys(lanServerStore).length) syncLanServerStoreFromDisk();
+    const saved = (lanServerStore || {})[COMPLETIONS_KEY];
+    const restored = restoreCompletions(saved);
+    for (const [machineId, entry] of Object.entries(restored)) {
+      // A poll that has already run since boot knows more than the disk does.
+      if (printerStatusCache[machineId]) continue;
+      printerStatusCache[machineId] = entry;
+    }
+  } catch (e) {
+    console.error('rehydrateCompletions:', e && e.message ? e.message : e);
+  }
+}
+
 const { registerLanServer } = require('./lib/lan-server');
 registerLanServer({
   fs,
@@ -3564,14 +3625,20 @@ ipcMain.handle('hub:start-printer-polling', async (_e, machines) => {
   // LAN ranges — so even a forged machine entry can only reach a LAN device,
   // never an arbitrary public host or cloud metadata endpoint.
   const machineList = Array.isArray(machines) ? machines : [];
+  // Anything captured before the app was last closed, back in the cache before
+  // the first poll overwrites the entry it belongs to.
+  rehydrateCompletions();
   const poll = async () => {
+    let captured = false;
     for (const machine of machineList) {
       if (!machine.printerApi?.type || machine.printerApi.type === 'none') continue;
       try {
         const status = await fetchPrinterStatus(machine);
-        printerStatusCache[machine.id] = mergePollSuccess(
-          printerStatusCache[machine.id], status, Date.now(),
-        );
+        const before = printerStatusCache[machine.id];
+        printerStatusCache[machine.id] = mergePollSuccess(before, status, Date.now());
+        // A job just ended. This is the only moment its figures are true, and
+        // now the only moment they are written down.
+        if (completionIsNew(before, printerStatusCache[machine.id])) captured = true;
       } catch(e) {
         printerStatusCache[machine.id] = mergePollFailure(
           printerStatusCache[machine.id], e.message, Date.now(),
@@ -3580,6 +3647,10 @@ ipcMain.handle('hub:start-printer-polling', async (_e, machines) => {
     }
     const wins = BrowserWindow.getAllWindows();
     wins.forEach(w => w.webContents.send('printer-status-update', printerStatusCache));
+    // Only when something finished — a write per poll would be a store write
+    // every thirty seconds for the life of the app, to save a figure that had
+    // not changed.
+    if (captured) persistCompletions().catch(() => { /* never break polling */ });
     // Deliberately not awaited: a LAN scan takes seconds and polling must not
     // stall behind it. It pushes its own update when it finds something.
     diagnoseMovedPrinters(machineList).catch(() => { /* never break polling */ });
