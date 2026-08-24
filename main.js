@@ -1351,6 +1351,63 @@ ipcMain.handle('hub:webcam-detect', async (_e, { machineId } = {}) => {
   }
 });
 
+/**
+ * Try the addresses a camera might be on, and report which one actually answers.
+ *
+ * Filling a GUESS and ticking "enabled" produces a machine card with a camera
+ * tile that says "Camera offline" forever. Observed on the bench: a Snapmaker U1
+ * had `webcam.enabled = true` pointing at `:8080/?action=snapshot`, an address
+ * where nothing on that printer has ever listened.
+ *
+ * The toast said "check the preview", which is not a substitute — by then the box
+ * is already ticked, and an owner who does not look has saved a camera that
+ * cannot work. A probe is a second of waiting and turns the guess into an answer.
+ *
+ * SAFETY: candidates are derived from the machine's OWN stored printerApi and
+ * every one is put through the same assertSameHostAsPrinter guard the snapshot
+ * proxy uses. Nothing from the renderer reaches fetch(), so this is not an SSRF
+ * pivot for the same reason that one is not.
+ */
+ipcMain.handle('hub:webcam-probe', async (_e, { machineId } = {}) => {
+  try {
+    const Webcam = require('./lib/webcam.js');
+    const machines = (lanServerStore && lanServerStore.machines) || [];
+    const m = machines.find(x => x && x.id === machineId);
+    if (!m) return { ok: false, error: 'unknown_machine' };
+    const candidates = Webcam.webcamCandidates(m.printerApi);
+    if (!candidates.length) return { ok: true, found: null, tried: [] };
+    const tried = [];
+    for (const cand of candidates) {
+      const url = cand.snapshotUrl;
+      if (!url) continue;
+      const guard = Webcam.assertSameHostAsPrinter(url, m.printerApi);
+      if (!guard.ok) { tried.push({ url, error: guard.reason }); continue; }
+      try {
+        // Shorter than the snapshot proxy's timeout on purpose: this runs up to
+        // twice with an owner waiting on it, and a candidate that has to be
+        // waited four seconds for is not the one to configure.
+        const res = await fetch(url, {
+          redirect: 'manual',
+          headers: Webcam.authHeadersFor(m.printerApi),
+          signal: AbortSignal.timeout(3000),
+        });
+        const pre = Webcam.checkSnapshotHeaders(res.status, res.headers.get('content-type'), res.headers.get('content-length'));
+        if (!pre.ok) { tried.push({ url, error: pre.reason, status: res.status }); continue; }
+        // Headers can promise an image the body does not deliver. Read it, since
+        // the whole value of a probe is that it is not another guess.
+        const buf = Buffer.from(await res.arrayBuffer());
+        if (!buf.length || buf.length > Webcam.MAX_SNAPSHOT_BYTES) { tried.push({ url, error: 'bad_size' }); continue; }
+        return { ok: true, found: cand, tried };
+      } catch (e) {
+        tried.push({ url, error: String((e && e.message) || e) });
+      }
+    }
+    return { ok: true, found: null, tried };
+  } catch (e) {
+    return { ok: false, error: String((e && e.message) || e) };
+  }
+});
+
 ipcMain.handle('hub:webcam-snapshot', async (_e, { machineId } = {}) => {
   try {
     const Webcam = require('./lib/webcam.js');

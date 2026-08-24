@@ -2571,6 +2571,7 @@
   "cam.flip_v": "Flip V",
   "cam.detect": "Detect from printer",
   "cam.detect_ok": "Camera URLs filled — check the preview",
+  "cam.probe_none": "No camera answered at the usual addresses — left switched off",
   "cam.detect_live": "Camera read from the printer — check the preview",
   "cam.detect_none_registered": "The printer reports no camera — filling the usual URLs to try",
   "cam.detect_none": "Set the printer type and address first",

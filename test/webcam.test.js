@@ -206,3 +206,69 @@ test('a Snapmaker U1 on stock firmware answers, and the answer is "none"', () =>
   assert.ok(found && found.snapshotUrl.startsWith('http://192.168.68.42:7125/'),
     'extended: a real camera, resolved against the printer host');
 });
+
+/*
+ * One guess is not enough, and a guess must not switch a camera on.
+ *
+ * Checked against a Snapmaker U1 on stock firmware, mid-print, on 2026-08-24:
+ *
+ *   /server/webcams/list          → {"webcams": []}   (auto-detect, correctly, finds nothing)
+ *   :8080/?action=snapshot        → nothing listening; the only open ports are 80, 1884, 7125
+ *   port 80 /webcam/?action=…     → 502 from the Fluidd/Mainsail nginx — the route exists,
+ *                                   no camera service runs behind it on this firmware
+ *
+ * So the address `deriveWebcamUrls` derives for a Moonraker printer is one of two
+ * real conventions, and on this machine it is the wrong one. The machine had
+ * `webcam.enabled = true` pointing at it, which is why its card showed a tile
+ * reading "Camera offline" indefinitely: an unverified guess had been switched on.
+ */
+
+test('webcamCandidates offers both Moonraker camera conventions, best first', () => {
+  const c = W.webcamCandidates({ type: 'moonraker', host: '192.168.68.56', port: 7125 });
+  assert.equal(c.length, 2, 'only one Moonraker convention was offered');
+  // crowsnest listening for itself…
+  assert.equal(c[0].snapshotUrl, 'http://192.168.68.56:8080/?action=snapshot');
+  assert.equal(c[0].streamUrl, 'http://192.168.68.56:8080/?action=stream');
+  // …and the same service behind the Fluidd/Mainsail proxy, which keeps working
+  // when crowsnest is bound to localhost.
+  assert.equal(c[1].snapshotUrl, 'http://192.168.68.56/webcam/?action=snapshot');
+  assert.equal(c[1].streamUrl, 'http://192.168.68.56/webcam/?action=stream');
+});
+
+test('the API port is never carried into a camera URL', () => {
+  // 7125 is Moonraker's, and a camera has never been on it. A candidate built by
+  // pasting the configured port onto the host would probe the printer's own API
+  // and get a JSON 404 that is not an image — a wasted probe that also looks like
+  // a camera failure.
+  for (const host of ['192.168.68.56:7125', 'http://192.168.68.56:7125', 'http://192.168.68.56:7125/']) {
+    const c = W.webcamCandidates({ type: 'moonraker', host, port: 7125 });
+    assert.ok(!c.some((x) => x.snapshotUrl.includes(':7125')), `API port leaked into a candidate from ${host}`);
+    assert.equal(c[0].snapshotUrl, 'http://192.168.68.56:8080/?action=snapshot');
+  }
+});
+
+test('candidates stay inside the host pinning that makes the proxy safe', () => {
+  // Every candidate is fetched through assertSameHostAsPrinter, so one that could
+  // not pass it would be a hole rather than a dead end.
+  const api = { type: 'moonraker', host: '192.168.68.56', port: 7125 };
+  for (const c of W.webcamCandidates(api)) {
+    assert.equal(W.assertSameHostAsPrinter(c.snapshotUrl, api).ok, true, c.snapshotUrl);
+    assert.equal(W.assertSameHostAsPrinter(c.streamUrl, api).ok, true, c.streamUrl);
+  }
+});
+
+test('families with a single documented convention still offer exactly that one', () => {
+  const p = W.webcamCandidates({ type: 'prusalink', host: '192.168.68.70' });
+  assert.deepEqual(p, [{ snapshotUrl: 'http://192.168.68.70/api/v1/cameras/snap', streamUrl: '' }]);
+  const o = W.webcamCandidates({ type: 'octoprint', host: '192.168.68.60' });
+  assert.equal(o.length, 1);
+  assert.equal(o[0].snapshotUrl, 'http://192.168.68.60/webcam/?action=snapshot');
+});
+
+test('nothing to guess yields nothing to probe, rather than a junk URL', () => {
+  assert.deepEqual(W.webcamCandidates({ type: 'bambu', host: '1.2.3.4' }), [],
+    'a family with no documented camera convention produced a candidate');
+  assert.deepEqual(W.webcamCandidates({ type: 'moonraker' }), [], 'no host → nothing');
+  assert.deepEqual(W.webcamCandidates(null), []);
+  assert.deepEqual(W.webcamCandidates({}), []);
+});

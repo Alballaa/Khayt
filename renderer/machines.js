@@ -525,10 +525,16 @@ function openMachineEditor(machineId = null) {
         const W = (typeof KhaytWebcam !== 'undefined') ? KhaytWebcam : null;
         if (!W) return;
         const api = { type: modal.querySelector('#machApiType')?.value, host: modal.querySelector('#machApiHost')?.value };
-        const fill = (snap, stream) => {
+        // `enabled` is only ticked for a camera that has actually answered. A
+        // guess that gets switched on produces a machine card with a tile
+        // reading "Camera offline" forever — seen on a Snapmaker U1 whose
+        // webcam was enabled against :8080, an address nothing on that printer
+        // has ever listened on. The URLs are still filled in either way, so
+        // nothing is lost if the owner knows better than the probe.
+        const fill = (snap, stream, verified) => {
           modal.querySelector('#machWebcamSnapshot').value = snap || '';
           modal.querySelector('#machWebcamStream').value = stream || '';
-          const en = modal.querySelector('#machWebcamEnabled'); if (en) en.checked = true;
+          const en = modal.querySelector('#machWebcamEnabled'); if (en) en.checked = !!verified;
         };
 
         // Only a saved machine can be queried: the main process resolves the
@@ -538,7 +544,8 @@ function openMachineEditor(machineId = null) {
         if (saved && W.detectPathFor(api) && window.hubAPI?.webcamDetect) {
           const r = await window.hubAPI.webcamDetect({ machineId: draft.id }).catch(() => null);
           if (r && r.ok && r.webcam) {
-            fill(r.webcam.snapshotUrl, r.webcam.streamUrl);
+            // The printer named this camera itself, which is as verified as it gets.
+            fill(r.webcam.snapshotUrl, r.webcam.streamUrl, true);
             toast(t('cam.detect_live') || 'Camera read from the printer — check the preview', 'success');
             return;
           }
@@ -550,9 +557,33 @@ function openMachineEditor(machineId = null) {
           }
         }
 
+        // The printer had nothing to say, so the remaining options are guesses —
+        // and there is more than one convention, so ask the printer which (if
+        // either) is real rather than picking the first and hoping.
+        if (saved && window.hubAPI?.webcamProbe) {
+          const pr = await window.hubAPI.webcamProbe({ machineId: draft.id }).catch(() => null);
+          if (pr && pr.ok && pr.found) {
+            fill(pr.found.snapshotUrl, pr.found.streamUrl, true);
+            toast(t('cam.detect_ok') || 'Camera URLs filled — check the preview', 'success');
+            return;
+          }
+          if (pr && pr.ok) {
+            // Nothing answered anywhere. Fill the usual address so the owner has
+            // somewhere to start, but leave the camera OFF: switching on a
+            // camera that did not answer is how a card ends up showing a
+            // permanently blank tile.
+            const g = W.deriveWebcamUrls(api);
+            fill(g.snapshotUrl, g.streamUrl, false);
+            toast(t('cam.probe_none') || 'No camera answered at the usual addresses — left switched off', 'warning', 6000);
+            return;
+          }
+        }
+
         const guess = W.deriveWebcamUrls(api);
         if (!guess.snapshotUrl && !guess.streamUrl) { toast(t('cam.detect_none') || 'Set the printer type and address first', 'warning'); return; }
-        fill(guess.snapshotUrl, guess.streamUrl);
+        // Unsaved machine, so there was nothing to probe against — the owner
+        // checks the preview, as before.
+        fill(guess.snapshotUrl, guess.streamUrl, true);
         toast(t('cam.detect_ok') || 'Camera URLs filled — check the preview', 'success');
       });
 
