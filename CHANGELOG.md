@@ -26,6 +26,23 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **A Salla or Zid order that arrives twice no longer becomes two orders.** When
+  a storefront sends the same order again — and they do, because a delivery that
+  times out or gets a slow answer is *retried* — Khayt could write it into your
+  queue a second time. The only thing stopping that was a list of recently-seen
+  deliveries held in memory, which is emptied every time you close the app, holds
+  ten minutes, and holds five hundred. Any of those three running out turned a
+  routine retry into a duplicate job: printed twice, or invoiced twice.
+
+  Khayt now records the store's own order number against the order and checks it
+  before writing another. That check reads your print log, which is on disk, so
+  it survives restarts and busy days. Orders already in your queue are recognised
+  too, by the reference shown in their notes.
+
+  A repeat delivery is answered as *received* rather than as an error, so the
+  storefront stops retrying instead of eventually reporting your webhook as
+  broken when it is working correctly.
+
 - **A measured print no longer disappears when you close Khayt.** When a job
   finishes, Khayt reads what it *actually* used — filament and time — off the
   printer at the one moment those numbers are true, because the printer wipes
