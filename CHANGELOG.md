@@ -4,90 +4,7 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
-### Added
-
-- **Adding a print to a kit it should have been in all along is now a choice
-  from a list, not a name you have to retype.** Kits — several printed jobs that
-  are one object — were always meant to be filed *after* the work was done. But
-  making one asked you to type the name every time, including when the kit
-  already existed, which is exactly the wrong way round: you file three parts as
-  "Dragon" one week, print the fourth the next, and have to reproduce that string
-  from memory. Get it right and it worked. Get it slightly wrong and nothing went
-  bang — you quietly ended up with two kits called almost the same thing and the
-  totals split between them.
-
-  Select the jobs in the print log and pick the kit from the dropdown beside
-  **Add to kit**. Naming one is only asked for when there is a new one to name.
-  And if you type something one letter off a kit you already have, Khayt asks
-  whether you meant that one — it asks, it never decides, because "Leg L" and
-  "Leg R" are one letter apart and genuinely different.
-
-- **A job can be taken back out of a kit without disbanding the whole thing.**
-  Choose **Remove from kit** in the same dropdown. Grouping after the fact means
-  occasionally grouping the wrong thing, and until now correcting one job meant
-  breaking up the kit and rebuilding it — which is why anyone would rather leave
-  it wrong. If that empties a kit, its name is tidied away with it; the prints
-  themselves are never touched.
-
-- **Khayt now says what is likely to go WRONG with a model, not just what it will
-  cost.** Drop an STL, OBJ or unsliced 3MF into the calculator — or pick one with
-  **Browse…**, or receive one from a customer through the intake form — and you
-  get the things worth looking at before you quote:
-
-  - how much of the surface overhangs past your slicer's support angle, and how
-    much of that is near-horizontal underside — the kind that sags rather than
-    merely printing rough. They are reported separately because they fail
-    differently and are fixed differently.
-  - whether the walls are too thin for your nozzle to lay down at all.
-  - whether it fits the machine's build volume — and, if it only fits turned a
-    quarter-turn, it says that instead of calling it too big.
-
-  It uses the printer you are quoting for, so it answers *your* question: a shop
-  whose slicer supports past 55° is told about the faces past 55°, and a 0.8 mm
-  nozzle moves the thin-wall line with it.
-
-  Every line carries the measurement behind it — *"24% of the surface overhangs
-  past 45°"*, not *"has overhangs"* — so you can disagree with it. A shop that
-  supports everything by default can see at a glance which line to ignore.
-
-  It comes **after** the price, never instead of it. And it is honest about what
-  it cannot see: this reads the mesh, not a slice, so it knows nothing about
-  supports you would add, and it measures the *average* wall — a chunky part with
-  one thin fin will not trip it.
-
-  Checked against 110 real models before any of the thresholds were chosen: 56
-  raised nothing at all (printer spares, clips, brackets, vases), 32 got a note,
-  21 a warning, and exactly one was called unprintable — a mesh whose walls
-  average 0.18 mm.
-
-  **On a customer's upload, the triage is for you and not for them.** A visitor
-  who prices a model through your intake form sees exactly what they saw before:
-  a price. The print-risk report is attached to the request when it reaches your
-  **Order requests**, which is the moment it is worth something — you are
-  deciding whether to take a job at a price the customer has already been shown,
-  and "a fifth of this needs supports" is what turns an acceptable price into an
-  unacceptable one. Uploads above 8 MB are still priced but not analysed, so a
-  large file cannot make the shop's machine do a large amount of work.
-
-### Fixed
-
-- **A camera Khayt guessed at is no longer switched on before anything has
-  answered.** Setting up a printer's camera fills in the addresses these printers
-  usually use — but "usually" is doing a lot of work there, and for Klipper
-  machines there are **two** conventions in the wild, not one. Khayt filled the
-  first, ticked **Enabled**, and told you to check the preview. If you didn't, you
-  had saved a camera that could never load, and the machine's card showed a tile
-  reading *Camera offline* from then on.
-
-  Khayt now tries the addresses before switching anything on. If one answers with
-  a picture, the camera is filled in and enabled as before. If none does, the
-  usual address is still filled in so you have somewhere to start, but the camera
-  is **left off** and it says so — rather than quietly presenting a broken camera
-  as a working one.
-
-  Found on a Snapmaker U1 on stock firmware, which reports no camera, has nothing
-  listening on the port Khayt was guessing, and answers the other convention with
-  an error. Its camera had been switched on and blank the whole time.
+## [3.7.0-beta.5] - 2026-08-24
 
 ### Added
 
@@ -137,6 +54,89 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   This costs your network almost nothing: the check runs only when a printer is
   actually unreachable and Khayt has not already worked out why, and at most once
   every ten minutes no matter how many machines are down.
+
+- **Khayt now says what is likely to go WRONG with a model, not just what it will
+  cost.** Drop an STL, OBJ or unsliced 3MF into the calculator — or pick one with
+  **Browse…**, or receive one from a customer through the intake form — and you
+  get the things worth looking at before you quote:
+
+  - how much of the surface overhangs past your slicer's support angle, and how
+    much of that is near-horizontal underside — the kind that sags rather than
+    merely printing rough. They are reported separately because they fail
+    differently and are fixed differently.
+  - whether the walls are too thin for your nozzle to lay down at all.
+  - whether it fits the machine's build volume — and, if it only fits turned a
+    quarter-turn, it says that instead of calling it too big.
+
+  It uses the printer you are quoting for, so it answers *your* question: a shop
+  whose slicer supports past 55° is told about the faces past 55°, and a 0.8 mm
+  nozzle moves the thin-wall line with it.
+
+  Every line carries the measurement behind it — *"24% of the surface overhangs
+  past 45°"*, not *"has overhangs"* — so you can disagree with it. A shop that
+  supports everything by default can see at a glance which line to ignore.
+
+  It comes **after** the price, never instead of it. And it is honest about what
+  it cannot see: this reads the mesh, not a slice, so it knows nothing about
+  supports you would add, and it measures the *average* wall — a chunky part with
+  one thin fin will not trip it.
+
+  Checked against 110 real models before any of the thresholds were chosen: 56
+  raised nothing at all (printer spares, clips, brackets, vases), 32 got a note,
+  21 a warning, and exactly one was called unprintable — a mesh whose walls
+  average 0.18 mm.
+
+  **On a customer's upload, the triage is for you and not for them.** A visitor
+  who prices a model through your intake form sees exactly what they saw before:
+  a price. The print-risk report is attached to the request when it reaches your
+  **Order requests**, which is the moment it is worth something — you are
+  deciding whether to take a job at a price the customer has already been shown,
+  and "a fifth of this needs supports" is what turns an acceptable price into an
+  unacceptable one. Uploads above 8 MB are still priced but not analysed, so a
+  large file cannot make the shop's machine do a large amount of work.
+
+- **Adding a print to a kit it should have been in all along is now a choice
+  from a list, not a name you have to retype.** Kits — several printed jobs that
+  are one object — were always meant to be filed *after* the work was done. But
+  making one asked you to type the name every time, including when the kit
+  already existed, which is exactly the wrong way round: you file three parts as
+  "Dragon" one week, print the fourth the next, and have to reproduce that string
+  from memory. Get it right and it worked. Get it slightly wrong and nothing went
+  bang — you quietly ended up with two kits called almost the same thing and the
+  totals split between them.
+
+  Select the jobs in the print log and pick the kit from the dropdown beside
+  **Add to kit**. Naming one is only asked for when there is a new one to name.
+  And if you type something one letter off a kit you already have, Khayt asks
+  whether you meant that one — it asks, it never decides, because "Leg L" and
+  "Leg R" are one letter apart and genuinely different.
+
+- **A job can be taken back out of a kit without disbanding the whole thing.**
+  Choose **Remove from kit** in the same dropdown. Grouping after the fact means
+  occasionally grouping the wrong thing, and until now correcting one job meant
+  breaking up the kit and rebuilding it — which is why anyone would rather leave
+  it wrong. If that empties a kit, its name is tidied away with it; the prints
+  themselves are never touched.
+
+### Fixed
+
+- **A camera Khayt guessed at is no longer switched on before anything has
+  answered.** Setting up a printer's camera fills in the addresses these printers
+  usually use — but "usually" is doing a lot of work there, and for Klipper
+  machines there are **two** conventions in the wild, not one. Khayt filled the
+  first, ticked **Enabled**, and told you to check the preview. If you didn't, you
+  had saved a camera that could never load, and the machine's card showed a tile
+  reading *Camera offline* from then on.
+
+  Khayt now tries the addresses before switching anything on. If one answers with
+  a picture, the camera is filled in and enabled as before. If none does, the
+  usual address is still filled in so you have somewhere to start, but the camera
+  is **left off** and it says so — rather than quietly presenting a broken camera
+  as a working one.
+
+  Found on a Snapmaker U1 on stock firmware, which reports no camera, has nothing
+  listening on the port Khayt was guessing, and answers the other convention with
+  an error. Its camera had been switched on and blank the whole time.
 
 ## [3.7.0-beta.4] - 2026-08-23
 
