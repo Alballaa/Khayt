@@ -183,7 +183,8 @@ contextBridge.exposeInMainWorld('hubAPI', {
   verifyOperatorPin: (opts) => ipcRenderer.invoke('hub:verify-operator-pin', opts),
 
   // Feature 1 (new batch): G-code / 3MF metadata extraction
-  parsePrintFile: (filePath) => ipcRenderer.invoke('hub:parse-print-file', filePath),
+  parsePrintFile: (filePath, opts) => ipcRenderer.invoke('hub:parse-print-file',
+    opts ? { filePath, ...opts } : filePath),
   // A DROPPED file has no path we are willing to trust — the allowlist on
   // hub:parse-print-file exists precisely so a renderer cannot name arbitrary
   // paths to read. So a drop sends the bytes the OS already handed us instead,
