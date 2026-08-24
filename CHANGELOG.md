@@ -4,6 +4,38 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **Khayt now says what is likely to go WRONG with a model, not just what it will
+  cost.** Drop an STL, OBJ or unsliced 3MF into the calculator and, under the
+  estimate, you get the things worth looking at before you quote:
+
+  - how much of the surface overhangs past your slicer's support angle, and how
+    much of that is near-horizontal underside — the kind that sags rather than
+    merely printing rough. They are reported separately because they fail
+    differently and are fixed differently.
+  - whether the walls are too thin for your nozzle to lay down at all.
+  - whether it fits the machine's build volume — and, if it only fits turned a
+    quarter-turn, it says that instead of calling it too big.
+
+  It uses the printer you are quoting for, so it answers *your* question: a shop
+  whose slicer supports past 55° is told about the faces past 55°, and a 0.8 mm
+  nozzle moves the thin-wall line with it.
+
+  Every line carries the measurement behind it — *"24% of the surface overhangs
+  past 45°"*, not *"has overhangs"* — so you can disagree with it. A shop that
+  supports everything by default can see at a glance which line to ignore.
+
+  It comes **after** the price, never instead of it. And it is honest about what
+  it cannot see: this reads the mesh, not a slice, so it knows nothing about
+  supports you would add, and it measures the *average* wall — a chunky part with
+  one thin fin will not trip it.
+
+  Checked against 110 real models before any of the thresholds were chosen: 56
+  raised nothing at all (printer spares, clips, brackets, vases), 32 got a note,
+  21 a warning, and exactly one was called unprintable — a mesh whose walls
+  average 0.18 mm.
+
 ### Fixed
 
 - **A camera Khayt guessed at is no longer switched on before anything has

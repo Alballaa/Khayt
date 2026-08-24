@@ -189,7 +189,7 @@ contextBridge.exposeInMainWorld('hubAPI', {
   // paths to read. So a drop sends the bytes the OS already handed us instead,
   // which grants no new filesystem reach. Callers slice G-code to head+tail
   // first; the parser only reads those and a spooled job can be hundreds of MB.
-  intakeModelBytes: (filename, bytes) => ipcRenderer.invoke('hub:intake-model-bytes', { filename, bytes }),
+  intakeModelBytes: (filename, bytes, opts) => ipcRenderer.invoke('hub:intake-model-bytes', { filename, bytes, ...(opts || {}) }),
   aiExtract: (opts) => ipcRenderer.invoke('hub:ai-extract', opts),
   cloudHealth: (url) => ipcRenderer.invoke('hub:cloud-health', url),
   cloudHealthDetail: (url) => ipcRenderer.invoke('hub:cloud-health-detail', url),

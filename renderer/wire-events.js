@@ -554,7 +554,18 @@ function wireEvents() {
       } else {
         bytes = new Uint8Array(await file.arrayBuffer());
       }
-      const res = await window.hubAPI.intakeModelBytes(name, bytes);
+      // The mesh analysis answers THIS shop's question, not a generic one: the
+      // support angle a shop's slicer is set to decides what counts as an
+      // overhang, and the nozzle decides what counts as a wall too thin to lay
+      // down. Both come from the machine the part is being quoted for, when one
+      // has been picked.
+      const riskMachine = (typeof machines !== 'undefined' && Array.isArray(machines))
+        ? machines.find((m) => m && m.id === ($('#partMachineId')?.value || $('#machineAssign')?.value))
+        : null;
+      const res = await window.hubAPI.intakeModelBytes(name, bytes, {
+        nozzleDiameter: riskMachine && riskMachine.nozzleDiameter,
+        bed: riskMachine && riskMachine.bed,
+      });
       if (!res || !res.ok) { toast((res && res.error) || t('calc.parse_failed'), 'warning'); return; }
       applyIntake(res, name);
       // After the quote is on screen, not before: identifying a large g-code

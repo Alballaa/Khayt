@@ -3349,7 +3349,17 @@ ipcMain.handle('hub:intake-model-bytes', async (_e, payload) => {
   if (!buf.length) return { ok: false, error: 'Empty file' };
   if (buf.length > INTAKE_MAX_BYTES) return { ok: false, error: 'File too large (max 150 MB)' };
   try {
-    const r = intakeModel({ filename, bytes: buf });
+    // The mesh analysis is asked for here rather than always, because it needs
+    // the triangle list. The nozzle and support angle come from the renderer,
+    // which knows which machine the shop is quoting for — a report answering the
+    // wrong machine's question is worse than no report.
+    const r = intakeModel({ filename, bytes: buf }, {
+      risk: true,
+      nozzleDiameter: Number(payload && payload.nozzleDiameter) || undefined,
+      supportThresholdDeg: Number(payload && payload.supportThresholdDeg) || undefined,
+      layerHeight: Number(payload && payload.layerHeight) || undefined,
+      bed: (payload && payload.bed) || undefined,
+    });
     return {
       ok: true,
       filename: path.basename(filename),
@@ -3363,6 +3373,7 @@ ipcMain.handle('hub:intake-model-bytes', async (_e, payload) => {
       geometry: r.geometry
         ? { volumeMm3: r.geometry.volumeMm3, bbox: r.geometry.bbox, triangleCount: r.geometry.triangleCount }
         : null,
+      risk: r.risk,
       warnings: r.warnings,
     };
   } catch (e) {

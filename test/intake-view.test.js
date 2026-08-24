@@ -8,7 +8,7 @@
  */
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { presentIntake } = require('../lib/intake-view.js');
+const { presentIntake, riskNote } = require('../lib/intake-view.js');
 const { estimateFromStl } = require('../lib/stl-estimate.js');
 
 const CUBE = { volumeMm3: 8000, areaMm2: 2400, bbox: { x: 20, y: 20, z: 20 }, triangleCount: 12 };
@@ -335,4 +335,71 @@ test('mode never claims more certainty than the source supports', () => {
         'only an exact result may use the exact wording');
     }
   }
+});
+
+/*
+ * The break-risk lines.
+ *
+ * They come AFTER the price, never instead of it: the shop asked what this
+ * costs and must get an answer. "There are overhangs" is the second thing they
+ * need, not a reason to withhold the first.
+ */
+
+test('risk lines carry their own measurement, so the reader can disagree', () => {
+  const lines = riskNote({
+    risk: {
+      risks: [
+        { id: 'overhang', severity: 'warn', fraction: 0.235, thresholdDeg: 45 },
+        { id: 'bridge', severity: 'warn', fraction: 0.09 },
+      ],
+    },
+  });
+  assert.equal(lines[0].key, 'risk.head');
+  assert.equal(lines[0].strong, true, 'the heading must stand out from the estimate above it');
+
+  const over = lines.find((l) => l.key === 'risk.overhang');
+  assert.equal(over.vars.pct, 24, '23.5% rounds to 24');
+  assert.equal(over.vars.deg, 45, 'the shop’s own support angle travels with the line');
+
+  const bridge = lines.find((l) => l.key === 'risk.bridge');
+  assert.equal(bridge.vars.pct, 9);
+});
+
+test('a wall too thin to print reads differently from one that is merely thin', () => {
+  const crit = riskNote({ risk: { risks: [
+    { id: 'thin', severity: 'crit', meanThicknessMm: 0.18, nozzleDiameter: 0.4, bores: 0.45 },
+  ] } });
+  assert.equal(crit[1].key, 'risk.thin_crit');
+  assert.equal(crit[1].strong, true, 'unprintable must not read as a footnote');
+  assert.equal(crit[1].vars.mm, 0.18);
+  assert.equal(crit[1].vars.nozzle, 0.4);
+
+  const warn = riskNote({ risk: { risks: [
+    { id: 'thin', severity: 'warn', meanThicknessMm: 0.71, nozzleDiameter: 0.4, bores: 1.775 },
+  ] } });
+  assert.equal(warn[1].key, 'risk.thin');
+  assert.ok(!warn[1].strong);
+  assert.equal(warn[1].vars.bores, 1.8);
+});
+
+test('a clean model says nothing at all — no heading over an empty list', () => {
+  assert.deepEqual(riskNote({ risk: { risks: [], worst: null } }), []);
+  assert.deepEqual(riskNote({ risk: null }), []);
+  assert.deepEqual(riskNote({}), []);
+  assert.deepEqual(riskNote(null), []);
+  assert.deepEqual(riskNote({ risk: { risks: 'nonsense' } }), []);
+});
+
+test('the estimate keeps its own note, and the risks are appended after it', () => {
+  // Regression on the ordering: a shop that drops a file wants the number first.
+  const res = {
+    source: 'geometry', exact: false, filename: 'x.stl', geometry: CUBE,
+    risk: { risks: [{ id: 'overhang', severity: 'warn', fraction: 0.2, thresholdDeg: 45 }] },
+  };
+  const view = presentIntake(res, opts);
+  assert.equal(view.mode, 'estimate');
+  const keys = view.note.map((l) => l.key);
+  assert.equal(keys[0], 'intake.estimate_head', 'the estimate must still lead');
+  assert.ok(keys.indexOf('risk.head') > keys.indexOf('intake.estimate_advice'),
+    'the risks were put ahead of the price the shop asked for');
 });
