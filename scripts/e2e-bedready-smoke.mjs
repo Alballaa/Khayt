@@ -10,6 +10,7 @@
  *
  * Requires a display (use xvfb-run on Linux CI). Run: node scripts/e2e-bedready-smoke.mjs
  */
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { _electron as electron } from 'playwright-core';
@@ -17,6 +18,9 @@ import { makeUserDataDir } from './e2e/helpers.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
+// The brief the website is written from. Read here so the guard below can hold
+// the app and the marketing claim apart rather than assuming they move together.
+const brief = fs.readFileSync(path.join(root, 'docs/BEDREADY-WEBSITE-FEATURES.md'), 'utf8');
 
 const userData = makeUserDataDir();
 let electronApp;
@@ -150,14 +154,28 @@ async function main() {
   // So the brief cannot describe a top-level "Printers view": setup lives in Settings,
   // in both flavours.
   assert('there is no top-level Printers tab', printers.topLevelTab === false);
-  // The exact six the website may name. SDCP is deliberately absent — it is roadmap
-  // (R7), not an adapter, and the brief said otherwise until it was corrected.
-  const EXPECTED = ['bambu', 'duet', 'moonraker', 'octoprint', 'prusalink', 'repetier'];
+  // What the app OFFERS, which since 2026-08-24 is seven: the SDCP socket layer
+  // landed and resin printers are selectable.
+  //
+  // The website may still name only SIX, and that gap is the point of this guard
+  // rather than an oversight. The seventh has never met a printer — there is no
+  // Elegoo on the bench — so it ships marked untested, and a shop that bought on
+  // the strength of a website line would have been misled by us rather than by
+  // its hardware. docs/BEDREADY-WEBSITE-FEATURES.md carries the same split and
+  // says what to delete when a Mars or a Saturn confirms it.
+  const EXPECTED = ['bambu', 'duet', 'moonraker', 'octoprint', 'prusalink', 'repetier', 'sdcp'];
+  const WEBSITE_MAY_NAME = 6;
   console.log(`    [machApiType] exists=${printers.selectExists} visible=${printers.selectVisible} `
     + `insidePfroOnly=${printers.proGated} bodyMode=${printers.bodyMode}`);
   console.log(`    [adapters] ${printers.adapters.join(', ') || '(none)'}`);
-  assert(`the adapter list is the documented six (${printers.adapters.join(', ') || 'none found'})`,
+  assert(`the adapter list is the documented set (${printers.adapters.join(', ') || 'none found'})`,
     JSON.stringify(printers.adapters) === JSON.stringify(EXPECTED));
+  // Said separately so the reason survives: adding an adapter is allowed, and
+  // quietly promoting it to a marketing claim is what must not happen by
+  // accident. If this number ever rises it should be because someone verified
+  // the adapter against hardware and edited the brief on purpose.
+  assert(`the website still names ${WEBSITE_MAY_NAME}, not every adapter that exists`,
+    /Six adapters/.test(brief) && /never met a printer/.test(brief));
   // The picker itself is inside a .pro-only block, which enthusiast mode hides — so in
   // Bed Ready it is NOT the path to connecting a printer. Scan-and-pick is: it lives
   // outside the gate and applyFound() writes the adapter type, host and port straight
