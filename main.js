@@ -3284,6 +3284,16 @@ const COMPLETIONS_KEY = 'printerCompletions';
 
 async function persistCompletions() {
   try {
+    // Read the newest copy off disk FIRST, then add one key to it.
+    //
+    // This runs on a background timer and writes the WHOLE store back. Building
+    // that write from a long-lived in-memory copy is how a save made in the
+    // renderer thirty seconds ago gets overwritten by a snapshot taken before
+    // it — the same shape as the restore bug in #708, arriving from a different
+    // direction. Re-reading narrows the window to the length of this function
+    // instead of the lifetime of the process, and it costs a file read a few
+    // times a day.
+    syncLanServerStoreFromDisk();
     const saved = completionsToPersist(printerStatusCache);
     const store = { ...(lanServerStore || {}) };
     store[COMPLETIONS_KEY] = saved;
