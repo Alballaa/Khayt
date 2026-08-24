@@ -1008,6 +1008,7 @@
   "mach.scan_applied": "已根据发现的打印机填充。",
   "mach.scan_no_adapter": "已发现，但 Khayt 尚不支持连接此型号",
   "mach.scan_moved": "同一台打印机，新地址",
+  "mach.moved_found": "已在 {host} 找到 — 地址已更改",
   "mach.name_ph": "例如 Prusa MK4、Bambu X1C",
   "mach.color": "颜色",
   "mach.unassigned": "— 未分配打印机 —",

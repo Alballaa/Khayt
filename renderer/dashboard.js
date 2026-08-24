@@ -1020,8 +1020,16 @@ function renderMaterialUsageChart() {
       const age = (s && s.lastUpdated) ? Date.now() - s.lastUpdated : null;
       const isStale = age !== null && age > STALE_MS;
       if (!s || s.error) {
-        const msg = s && s.error ? escapeHtml(s.error) : escapeHtml(t('dash.printer_offline'));
-        body = `<div role="status" aria-live="polite" class="dash-printer-state" style="color:var(--text-muted);">⚠ ${msg}</div>`;
+        // `connect ETIMEDOUT 192.168.68.77:7125` is true and useless — it states
+        // the symptom in the vocabulary of a socket. When the poller has worked
+        // out that the printer simply moved, say THAT instead: it is the same
+        // fact in the vocabulary of the person who has to fix it.
+        const hint = (typeof KhaytPrinterRelocate !== 'undefined')
+          ? KhaytPrinterRelocate.relocationHint(s) : null;
+        const msg = hint
+          ? escapeHtml(t('mach.moved_found', { host: hint.to }))
+          : (s && s.error ? escapeHtml(s.error) : escapeHtml(t('dash.printer_offline')));
+        body = `<div role="status" aria-live="polite" class="dash-printer-state" style="color:${hint ? 'var(--warning)' : 'var(--text-muted)'};">⚠ ${msg}</div>`;
       } else if (isStale) {
         const mins = Math.round(age / 60000);
         body = `<div role="status" aria-live="polite" class="dash-printer-state dash-printer-stale" style="color:var(--text-muted);">⚠ ${escapeHtml(

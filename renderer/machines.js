@@ -587,8 +587,15 @@ function openMachineEditor(machineId = null) {
             if (resultEl) {
               const s = cache[draft.id];
               if (s?.error) {
-                resultEl.textContent = t('mach.api_fail') + ': ' + s.error;
-                resultEl.style.color = 'var(--danger)';
+                // The owner is standing in the dialog that can fix it, so this is
+                // the best possible moment to say "it moved" rather than "it timed
+                // out" — Scan network is one button away and will offer the swap.
+                const hint = (typeof KhaytPrinterRelocate !== 'undefined')
+                  ? KhaytPrinterRelocate.relocationHint(s) : null;
+                resultEl.textContent = hint
+                  ? t('mach.moved_found', { host: hint.to })
+                  : t('mach.api_fail') + ': ' + s.error;
+                resultEl.style.color = hint ? 'var(--warning)' : 'var(--danger)';
               } else if (s) {
                 resultEl.textContent = t('mach.api_ok') + ' — ' + (s.state || '');
                 resultEl.style.color = 'var(--success)';
