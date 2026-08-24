@@ -15,6 +15,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { groupByKit, rollup, accuracy, isComplete } = require('../lib/print-kits.js');
+const K = require('../lib/print-kits.js');
 
 /** A print-log entry, in the store's real shape, with only what matters here. */
 const job = (o = {}) => ({
@@ -177,4 +178,118 @@ test('a kit is complete only when every job in it is measured', () => {
   assert.equal(isComplete(kits[0]), false, 'an unmeasured weight still read as complete');
   const { kits: k2 } = groupByKit([job({ kitId: 'B' })], [{ id: 'B', name: 'X' }]);
   assert.equal(isComplete(k2[0]), true);
+});
+
+/*
+ * Filing work into a kit AFTER it was printed.
+ *
+ * This is what kits are for — the module header has said so since they shipped —
+ * but both places that made one asked the shop to TYPE the name, including when
+ * the kit already existed. That is backwards for the case it serves: three parts
+ * filed last week, the fourth printed today, and now reproduce a string from
+ * memory. Get it right and it works. Get it slightly wrong and nothing fails —
+ * you quietly own two kits with almost the same name and a rollup split between
+ * them, which is the one outcome both call sites' comments claim to prevent.
+ */
+
+test('a name that already exists IS that kit, however it was typed', () => {
+  const defs = [{ id: 'KIT-1', name: 'Dragon' }, { id: 'KIT-2', name: 'Gundam RX' }];
+  for (const typed of ['Dragon', 'dragon', '  DRAGON  ', 'dRaGoN']) {
+    const r = K.resolveKitName(typed, defs);
+    assert.equal(r.id, 'KIT-1', `"${typed}" minted a second kit`);
+    assert.equal(r.created, false);
+    assert.equal(r.name, 'Dragon', 'the kit keeps the name it was given, not the one just typed');
+  }
+  // Repeated spaces are typing, not meaning.
+  assert.equal(K.resolveKitName('Gundam   RX', defs).id, 'KIT-2');
+});
+
+test('a genuinely new name mints a kit, and says that it did', () => {
+  const defs = [{ id: 'KIT-1', name: 'Dragon' }];
+  const r = K.resolveKitName('Castle', defs, () => 'KIT-NEW');
+  assert.deepEqual(r, { id: 'KIT-NEW', name: 'Castle', created: true });
+
+  assert.equal(K.resolveKitName('', defs), null, 'an empty name is not a kit');
+  assert.equal(K.resolveKitName('   ', defs), null);
+  assert.equal(K.resolveKitName(null, defs), null);
+});
+
+test('a near miss is offered, never taken', () => {
+  // The asymmetry that decides this: a wrongly-merged job is one click to pull
+  // back out, while a silently split rollup looks correct and is never noticed.
+  // So ask — and only ask.
+  const defs = [{ id: 'KIT-1', name: 'Dragon' }, { id: 'KIT-2', name: 'Castle' }];
+  const near = K.similarKitNames('Dragn', defs);
+  assert.equal(near.length, 1);
+  assert.equal(near[0].name, 'Dragon');
+  assert.equal(near[0].distance, 1);
+
+  // resolveKitName is NOT influenced by it: on its own, a near miss is a new kit.
+  assert.equal(K.resolveKitName('Dragn', defs, () => 'KIT-X').created, true);
+
+  // An exact match is a match, not a near miss — or the shop is asked to confirm
+  // the thing it just did correctly.
+  assert.deepEqual(K.similarKitNames('Dragon', defs), []);
+});
+
+test('two kits that really are one edit apart are still two kits', () => {
+  // "Leg L" and "Leg R" is the case that makes auto-merging unacceptable. They
+  // are offered as a question and nothing more.
+  const defs = [{ id: 'KIT-1', name: 'Leg L' }];
+  const near = K.similarKitNames('Leg R', defs);
+  assert.equal(near.length, 1, 'the suggestion is still worth making');
+  assert.equal(K.resolveKitName('Leg R', defs, () => 'KIT-R').created, true,
+    'a one-edit name was silently folded into another kit');
+});
+
+test('a short name gets a tighter budget than a long one', () => {
+  // At three or four characters, two edits is a different word rather than a slip.
+  assert.deepEqual(K.similarKitNames('Cat', [{ id: 'K', name: 'Dog' }]), []);
+  assert.equal(K.similarKitNames('Cat', [{ id: 'K', name: 'Cap' }]).length, 1);
+  // …and at length, two edits is still plausibly a slip.
+  assert.equal(K.similarKitNames('Millenium Falcn', [{ id: 'K', name: 'Millennium Falcon' }]).length, 1);
+  // Three edits is not.
+  assert.deepEqual(K.similarKitNames('Dragon', [{ id: 'K', name: 'Wagons' }]), []);
+});
+
+test('a kit nothing points at any more is reported, so it can be tidied away', () => {
+  const defs = [{ id: 'KIT-1', name: 'Dragon' }, { id: 'KIT-2', name: 'Castle' }];
+  const log = [{ id: 'a', kitId: 'KIT-1' }, { id: 'b' }, { id: 'c', kitId: 'KIT-1' }];
+  assert.deepEqual(K.emptyKitIds(log, defs), ['KIT-2']);
+
+  // Pull the last job out and the kit is a name attached to nothing.
+  assert.deepEqual(K.emptyKitIds([{ id: 'a' }, { id: 'b' }], defs), ['KIT-1', 'KIT-2']);
+  assert.deepEqual(K.emptyKitIds(log, []), []);
+  assert.deepEqual(K.emptyKitIds(null, defs).sort(), ['KIT-1', 'KIT-2']);
+
+  // This is NOT the mirror of `orphaned`: that is a job whose definition is
+  // gone, and such a job must never be reported as an empty definition.
+  assert.deepEqual(K.emptyKitIds([{ id: 'a', kitId: 'KIT-GONE' }], defs).sort(), ['KIT-1', 'KIT-2']);
+});
+
+test('the distance cap stops early instead of measuring how different two names are', () => {
+  assert.equal(K.editDistance('abc', 'abc', 2), 0);
+  assert.equal(K.editDistance('abc', 'abd', 2), 1);
+  assert.ok(K.editDistance('abc', 'xyzzy', 2) > 2, 'a far-off name must exceed the cap, not report a real distance');
+  // Length alone can settle it before any work is done.
+  assert.ok(K.editDistance('a', 'aaaaaaaa', 2) > 2);
+});
+
+test('grouping still works on the entries these helpers file', () => {
+  // End to end on the data model itself: resolve a name, stamp the entries,
+  // group them, and the rollup must see all three jobs.
+  const defs = [];
+  const r = K.resolveKitName('Dragon', defs, () => 'KIT-D');
+  defs.push({ id: r.id, name: r.name });
+  const log = [
+    { id: '1', status: 'completed', actualPrintTime: 2, actualWeight: 10, kitId: r.id },
+    { id: '2', status: 'completed', actualPrintTime: 3, actualWeight: 15, kitId: r.id },
+    { id: '3', status: 'completed', actualPrintTime: 1, actualWeight: 5 },
+  ];
+  const g = K.groupByKit(log, defs);
+  assert.equal(g.kits.length, 1);
+  assert.equal(g.kits[0].name, 'Dragon');
+  assert.equal(g.kits[0].rollup.jobs, 2);
+  assert.equal(g.ungrouped.length, 1);
+  assert.equal(K.emptyKitIds(log, defs).length, 0);
 });

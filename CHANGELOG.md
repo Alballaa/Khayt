@@ -6,6 +6,29 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Adding a print to a kit it should have been in all along is now a choice
+  from a list, not a name you have to retype.** Kits — several printed jobs that
+  are one object — were always meant to be filed *after* the work was done. But
+  making one asked you to type the name every time, including when the kit
+  already existed, which is exactly the wrong way round: you file three parts as
+  "Dragon" one week, print the fourth the next, and have to reproduce that string
+  from memory. Get it right and it worked. Get it slightly wrong and nothing went
+  bang — you quietly ended up with two kits called almost the same thing and the
+  totals split between them.
+
+  Select the jobs in the print log and pick the kit from the dropdown beside
+  **Add to kit**. Naming one is only asked for when there is a new one to name.
+  And if you type something one letter off a kit you already have, Khayt asks
+  whether you meant that one — it asks, it never decides, because "Leg L" and
+  "Leg R" are one letter apart and genuinely different.
+
+- **A job can be taken back out of a kit without disbanding the whole thing.**
+  Choose **Remove from kit** in the same dropdown. Grouping after the fact means
+  occasionally grouping the wrong thing, and until now correcting one job meant
+  breaking up the kit and rebuilding it — which is why anyone would rather leave
+  it wrong. If that empties a kit, its name is tidied away with it; the prints
+  themselves are never touched.
+
 - **Khayt now says what is likely to go WRONG with a model, not just what it will
   cost.** Drop an STL, OBJ or unsliced 3MF into the calculator — or pick one with
   **Browse…**, or receive one from a customer through the intake form — and you

@@ -352,10 +352,22 @@
         if (!picked.length || !name) return;          // nothing ticked, or unnamed
         if (!Array.isArray(settings.kits)) settings.kits = [];
         // Reuse a kit of the same name rather than splitting the rollup in two.
-        var kit = settings.kits.filter(function (k) {
-          return String(k.name).trim().toLowerCase() === name.toLowerCase();
-        })[0];
-        if (!kit) { kit = { id: 'KIT-' + Math.random().toString(36).slice(2, 11), name: name }; settings.kits.push(kit); }
+        // The rule lives in lib/print-kits.js so this and the print log cannot
+        // disagree about what a typed name means — they had two copies of it,
+        // and the copies had already drifted over what to do about a clash.
+        var K = (typeof KhaytPrintKits !== 'undefined') ? KhaytPrintKits : null;
+        var resolved = K
+          ? K.resolveKitName(name, settings.kits, function () { return 'KIT-' + Math.random().toString(36).slice(2, 11); })
+          : null;
+        var kit = resolved
+          ? settings.kits.filter(function (k) { return String(k.id) === resolved.id; })[0]
+          : settings.kits.filter(function (k) { return String(k.name).trim().toLowerCase() === name.toLowerCase(); })[0];
+        if (!kit) {
+          kit = resolved
+            ? { id: resolved.id, name: resolved.name }
+            : { id: 'KIT-' + Math.random().toString(36).slice(2, 11), name: name };
+          settings.kits.push(kit);
+        }
         picked.forEach(function (id) {
           var o = printLog.filter(function (x) { return x.id === id; })[0];
           if (o) o.kitId = kit.id;
@@ -391,6 +403,14 @@
         // Unfiles the jobs. It never removes a print.
         printLog.forEach(function (o) { if (o.kitId === id) delete o.kitId; });
         settings.kits = (settings.kits || []).filter(function (k) { return k.id !== id; });
+        // …and any kit this emptied along the way, so the list does not collect
+        // names attached to nothing. Same rule the print log applies.
+        if (typeof KhaytPrintKits !== 'undefined') {
+          var dead = KhaytPrintKits.emptyKitIds(printLog, settings.kits);
+          if (dead.length) {
+            settings.kits = settings.kits.filter(function (k) { return dead.indexOf(String(k.id)) === -1; });
+          }
+        }
         saveAll();
         if (typeof renderDashboard === 'function') renderDashboard();
       });

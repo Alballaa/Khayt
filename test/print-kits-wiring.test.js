@@ -110,20 +110,57 @@ test('a job in a deleted kit still shows as filed', () => {
 });
 
 test('two kits are not created for the same name', () => {
+  // The rule used to be an inline string comparison here AND another one in
+  // bedready-home.js, and the two copies had already drifted over what to do
+  // about a clash. It now lives in lib/print-kits.js, where it has tests of its
+  // own — so what this guards is that both call sites still go through it rather
+  // than growing a third opinion.
   const at = logs.indexOf('async function batchAddToKit(');
-  const body = logs.slice(at, logs.indexOf('\n}', at));
-  assert.match(body, /toLowerCase\(\) === clean\.toLowerCase\(\)/,
-    'typing an existing kit name mints a second kit and splits the rollup in half');
+  const body = logs.slice(at, logs.indexOf('\n}\n', at));
+  assert.match(body, /resolveKitName\(/,
+    'the print log mints kits without asking which one the name means');
+  assert.match(brHome, /resolveKitName\(/,
+    'BedReady mints kits without asking which one the name means');
+});
+
+test('adding to a kit that already exists is a pick, not a retype', () => {
+  // The case kits are FOR is retroactive: three parts filed last week, the
+  // fourth printed today. Asking for the name again is asking the shop to
+  // reproduce a string from memory, and a near miss does not fail loudly — it
+  // quietly splits the rollup.
+  assert.match(html, /id="batchKitSelect"/, 'no way to choose a kit that already exists');
+  assert.match(logs, /#batchKitSelect/, 'the picker is in the markup but nothing reads it');
+
+  const at = logs.indexOf('function renderBatchBar(');
+  const body = logs.slice(at, logs.indexOf('\n}\n', at));
+  assert.match(body, /settings\.kits/, 'the picker is never populated from the shop’s kits');
+});
+
+test('a job can be taken back out of a kit without disbanding it', () => {
+  // Grouping after the fact means grouping the wrong thing sometimes. Disbanding
+  // the whole kit to correct ONE job is why anyone would leave it wrong.
+  const at = logs.indexOf('async function batchAddToKit(');
+  const body = logs.slice(at, logs.indexOf('\n}\n', at));
+  assert.match(body, /delete o\.kitId/, 'nothing removes a single job from its kit');
+  assert.match(body, /emptyKitIds\(/,
+    'removing the last job leaves a kit name attached to nothing');
 });
 
 test('the section is translated everywhere, placeholders intact', () => {
   const keys = ['kit.add_to', 'kit.name_prompt', 'kit.jobs', 'kit.measured', 'kit.vs_estimate',
-    'kit.mixed_currency', 'kit.orphaned', 'kit.disband', 'kit.disband_confirm', 'kit.disbanded'];
+    'kit.mixed_currency', 'kit.orphaned', 'kit.disband', 'kit.disband_confirm', 'kit.disbanded',
+    'kit.opt_new', 'kit.opt_remove', 'kit.near_confirm'];
   for (const code of ['en', 'ar', 'de', 'es', 'fr', 'ja', 'pt-BR', 'tr', 'zh']) {
     const loc = read(`renderer/locales/${code}.js`);
     for (const k of keys) assert.ok(loc.includes(`"${k}":`), `${code} is missing ${k}`);
     const line = loc.split('\n').find((l) => l.includes('"kit.disband_confirm"'));
     assert.ok(line.includes('{name}'), `${code}'s kit.disband_confirm dropped {name}`);
+    // Both placeholders matter: the confirm names the kit it would use AND the
+    // one it would otherwise create, and a translation that drops either leaves
+    // the shop agreeing to something it cannot see.
+    const near = loc.split('\n').find((l) => l.includes('"kit.near_confirm"'));
+    assert.ok(near.includes('{name}') && near.includes('{typed}'),
+      `${code}'s kit.near_confirm dropped a placeholder`);
   }
 });
 

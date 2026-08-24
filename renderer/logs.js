@@ -377,6 +377,33 @@ function renderBatchBar() {
       machSel.innerHTML = `<option value="">${escapeHtml(t('batch.assign_machine_ph') || '— Assign machine —')}</option>` +
         machines.map(m => `<option value="${m.id}"${m.id === prev ? ' selected' : ''}>${escapeHtml(m.name)}</option>`).join('');
     }
+    // Kits the shop already has, offered rather than retyped.
+    //
+    // This is the case kits are FOR: three parts filed last week, the fourth
+    // printed today. Asking for the name again is asking the shop to reproduce a
+    // string from memory, and a near miss does not fail — it quietly mints a
+    // second kit and splits the rollup between them.
+    //
+    // Any kit is offered, not just an unfinished one: a shop that reprints a
+    // cracked leg is adding to a kit it already called done.
+    const kitSel = $('#batchKitSelect');
+    if (kitSel) {
+      const prev = kitSel.value;
+      const defs = (settings.kits || []).slice()
+        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+      // Is anything selected already in a kit? Only then is "take it out" a
+      // sensible thing to offer.
+      const anyFiled = [...selectedOrders].some((id) => {
+        const o = printLog.find((x) => x.id === id);
+        return !!(o && o.kitId);
+      });
+      kitSel.innerHTML =
+        `<option value="__new">${escapeHtml(t('kit.opt_new') || '— New kit… —')}</option>` +
+        defs.map((k) => `<option value="${escapeHtml(k.id)}"${k.id === prev ? ' selected' : ''}>${escapeHtml(k.name)}</option>`).join('') +
+        (anyFiled ? `<option value="__none">${escapeHtml(t('kit.opt_remove') || '— Remove from kit —')}</option>` : '');
+      if (prev) kitSel.value = prev;
+      if (!kitSel.value) kitSel.value = '__new';
+    }
   }
 }
 
@@ -505,23 +532,65 @@ async function batchAddToKit() {
   const ids = [...selectedOrders];
   if (ids.length === 0) return;
   if (!Array.isArray(settings.kits)) settings.kits = [];
-  const existing = settings.kits.map((k) => k.name).filter(Boolean);
-  // Existing kit names offered in the message, so a second "Dragon" is a choice
-  // rather than a typo. prompt() is what renderer/analytics.js already uses to
-  // name a thing; this does not invent a modal for one field.
-  const known = existing.length ? `\n\n${t('kit.existing') || 'Existing kits'}: ${existing.join(', ')}` : '';
-  const name = prompt((t('kit.name_prompt') || 'Kit name — these jobs are one object') + known,
-    printLog.find((o) => o.id === ids[0])?.project || '');
-  const clean = String(name || '').trim();
-  if (!clean) return;                       // cancelled, or nothing typed
+  const K = (typeof KhaytPrintKits !== 'undefined') ? KhaytPrintKits : null;
+  const picked = $('#batchKitSelect')?.value || '__new';
 
-  // Reuse a kit of the same name rather than minting a second one with the same
-  // label — two kits called "Dragon" is a rollup split in half for no reason.
-  let kit = settings.kits.find((k) => String(k.name).trim().toLowerCase() === clean.toLowerCase());
-  if (!kit) {
-    kit = { id: 'KIT-' + Math.random().toString(36).slice(2, 11), name: clean };
-    settings.kits.push(kit);
+  // Taking jobs back OUT. Grouping after the fact means grouping the wrong
+  // things sometimes, and disbanding the whole kit to correct one job was the
+  // only way to do it — which is why anyone would rather leave it wrong.
+  if (picked === '__none') {
+    let moved = 0;
+    for (const id of ids) {
+      const o = printLog.find((x) => x.id === id);
+      if (o && o.kitId) { delete o.kitId; moved++; }
+    }
+    if (!moved) return;
+    // A name attached to nothing is clutter the shop reads past every time it
+    // files something. The jobs are what a kit IS; with none left there is
+    // nothing to keep.
+    if (K) {
+      const dead = new Set(K.emptyKitIds(printLog, settings.kits));
+      if (dead.size) settings.kits = settings.kits.filter((k) => !dead.has(String(k.id)));
+    }
+    selectedOrders.clear();
+    saveAll();
+    renderBatchBar();
+    renderLogs();
+    toast(`🧩 ${moved} ${t('batch.orders') || 'order(s)'} — ${t('kit.opt_remove') || 'removed from kit'}`, 'success');
+    return;
   }
+
+  let kit = picked === '__new' ? null : settings.kits.find((k) => String(k.id) === picked);
+
+  // Naming one is only asked for when there is a new one to name. Adding to a
+  // kit that already exists is a pick, not a retype — see renderBatchBar.
+  if (!kit) {
+    const name = prompt(t('kit.name_prompt') || 'Kit name — these jobs are one object',
+      printLog.find((o) => o.id === ids[0])?.project || '');
+    const clean = String(name || '').trim();
+    if (!clean) return;                       // cancelled, or nothing typed
+
+    // A name one edit away from a kit that already exists is far more often a
+    // slip than a second kit, and the cost of being wrong is asymmetric: a
+    // wrongly-merged job is one click to pull out again, while a silently split
+    // rollup looks correct and is never noticed. Asked, never assumed — "Leg L"
+    // and "Leg R" are one edit apart and genuinely different.
+    const near = K ? K.similarKitNames(clean, settings.kits) : [];
+    if (near.length) {
+      const useExisting = confirm(
+        (t('kit.near_confirm') || 'A kit called "{name}" already exists. Add these jobs to it instead of creating "{typed}"?')
+          .replace('{name}', near[0].name).replace('{typed}', clean));
+      if (useExisting) kit = settings.kits.find((k) => String(k.id) === near[0].id) || null;
+    }
+    if (!kit) {
+      const resolved = K
+        ? K.resolveKitName(clean, settings.kits, () => 'KIT-' + Math.random().toString(36).slice(2, 11))
+        : { id: 'KIT-' + Math.random().toString(36).slice(2, 11), name: clean, created: true };
+      kit = settings.kits.find((k) => String(k.id) === resolved.id);
+      if (!kit) { kit = { id: resolved.id, name: resolved.name }; settings.kits.push(kit); }
+    }
+  }
+
   for (const id of ids) {
     const o = printLog.find((x) => x.id === id);
     if (o) o.kitId = kit.id;
@@ -530,7 +599,7 @@ async function batchAddToKit() {
   saveAll();
   renderBatchBar();
   renderLogs();
-  toast(`🧩 ${ids.length} ${t('batch.orders') || 'order(s)'} → ${clean}`, 'success');
+  toast(`🧩 ${ids.length} ${t('batch.orders') || 'order(s)'} → ${kit.name}`, 'success');
 }
 
 /**
