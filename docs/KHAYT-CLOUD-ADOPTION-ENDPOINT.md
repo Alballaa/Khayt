@@ -17,6 +17,14 @@ the contract can be stated and pinned. Implementation belongs to a khayt-cloud
 session. See [KHAYT-CLOUD-DELTA-SYNC.md](./KHAYT-CLOUD-DELTA-SYNC.md) for the
 same split on the sync protocol, which worked.
 
+> **Built and merged: khayt-cloud#19** (2026-08-24), in both backends. The
+> contract below held on implementation with four deliberate deviations, each
+> marked **▲ AS BUILT** where it applies. §4's staleness gap is closed — by the
+> `last_seen_on` design §4 itself proposed, plus one thing that design was
+> missing (see §4's *as built*). The endpoint now needs `staleDays` worth of
+> collection before its stale fields say anything, so the clock on that started
+> the day it deployed.
+
 ---
 
 ## 1. The two gates do not share a signal
@@ -93,6 +101,28 @@ Node — or `test/route-parity.test.js` will say so.
 }
 ```
 
+**▲ AS BUILT.** Four differences from the shape above, all additive except the
+last:
+
+- `staleness: { measurable, collectingSince, note }` sits beside `staleDays`. A
+  bare `null` makes the reader go and find a document to learn why; the response
+  now says it. `note` is `null` once `measurable` is true.
+- `deltaWrites.devices.blobOnly` — the *announced* subset of `unknown`. `unknown`
+  still means "not known to be capable" and still fails closed, so
+  `total = capable + unknown` holds; `blobOnly` separates "this device told us it
+  is old" from "we have never heard from this device", which are different
+  problems with different fixes.
+- `deltaWrites.blocked[]` is ordered by **device count, descending**, not by shop
+  id. The first real run showed the list dominated by registrations that never
+  synced — no devices, permanently blocked, nothing anyone can do — with `limit`
+  truncating the shops that actually mattered. It now truncates the noise.
+- `blocked[].oldestUnknownSeenAt` is a **date** (`2026-08-19`), not a datetime.
+  `last_seen_on` is day-granular by design, and emitting a fabricated time would
+  claim precision the column deliberately does not have.
+
+There is also a `windowDays` query parameter, defaulting to `30`, since the
+response reports the field and §7's flip condition is stated in terms of it.
+
 `byCaller` is what makes the portal number actionable, and it is cheap to record.
 An un-upgraded desktop reads the legacy route carrying **its shop bearer token**
 and no portal session — `lib/cloud-client.js` attaches the bearer to every
@@ -107,6 +137,30 @@ request it makes. So:
 Counting these together would keep the total permanently above zero and the gate
 would never look safe to flip. That is the failure mode this split exists to
 prevent.
+
+**▲ AS BUILT — how a caller is classified,** which the contract left implicit and
+which decides whether the split works at all:
+
+1. no bearer at all → `anonymous`. Costs nothing: it short-circuits first.
+2. the bearer resolves to a **live portal session** → `null` if the session's
+   email matches the item's (not refused, and nothing is recorded), else
+   `expiredSession` — a real customer signed in as the wrong person.
+3. no session, but the bearer authenticates **as the shop that owns the item** →
+   `desktopBearer`.
+4. anything else → `expiredSession`.
+
+Step 3 uses a read-only twin of the shop auth path — same two credential families
+(the never-expiring registration token and per-device login tokens, expiry
+filtered), but it slides no expiry and records no capability. The counter has to
+be able to *observe* a request without changing it. A read that would be allowed
+never reaches steps 3–4 at all, so the customer pays nothing for the measurement.
+
+**▲ AS BUILT — counting does not stop when the gate is switched on.** The field is
+still called `wouldRefuse`, because that is what it means in the state it exists
+for. Once the gate is on, the same rows say who is *actually* being refused —
+which is how an operator discovers the flip was premature while it is still the
+one config line §7 promises it is. A counter that went quiet at exactly that
+moment would take the evidence away when it is most wanted.
 
 ## 4. Three semantics that decide whether the numbers can be trusted
 
@@ -180,6 +234,39 @@ write off. `staleDays` should echo back as the value that *would* apply. The sam
 rule as §3's `byCaller` split, for the same reason: a number that cannot be
 measured must not be reported as a measurement.
 
+### ▲ AS BUILT — the gap is closed, and the design was one piece short
+
+`device_caps.last_seen_on DATE` exists in both backends, written by
+`recordDeviceCap` at most once per device per day and **never touching
+`updated_at` when the capability has not changed** — so `updated_at` keeps meaning
+"when the answer last changed" and the report can still read it as that. The
+steady state on every day but a device's first is still one primary-key read.
+
+The piece the design above was missing: **nothing in that column can say when it
+started collecting.** The obvious test — "is `MIN(last_seen_on)` at least
+`staleDays` old?" — fails in precisely the deployment where everything is
+healthy. The column only ever moves forward, so where every device is active the
+minimum is **today**, and it is today again tomorrow, forever. Staleness would
+read as unmeasurable a year in.
+
+So the day collection began is stamped once, as a single row in a new
+`service_meta` table, on whichever path first put the column there (a fresh
+`CREATE TABLE` or the guarded `ALTER`). `measurable` is then simply
+`collectingSince <= today - staleDays`. It unlocks itself — no deploy, no flag —
+and the response carries `staleness.collectingSince` so the wait is visible
+rather than mysterious.
+
+`NULL` in `last_seen_on` on an existing row means *seen, but before this column
+existed* — not *never seen*. It is never backfilled to today: that would claim a
+measurement nobody took, in the direction §4 above warns about.
+
+**One more rule the contract did not state, and it matters more than the rest.**
+The stale lever counts out only credentials whose last-seen day is **known** and
+old. A live token nobody has ever been observed using is *not* counted out — it
+is a device of unknown age, not a dormant one. Counting it out would hand the
+shop a chain that the very next sync from that laptop flattens, which is THE
+data-loss case the whole gate exists to prevent. Unknown fails closed here too.
+
 ## 5. The refusal status is load-bearing, and the contract never named it
 
 The delta doc says the server "must refuse `POST /deltas` for a shop that still
@@ -250,6 +337,13 @@ Record the portal counter as an aggregate row per `(shop, day, caller-kind)`,
 not a row per request — it sits on a request path, and a write per read is how a
 counter becomes an outage. Prune beyond `windowDays`.
 
+**▲ AS BUILT — pruning is on a FIXED 180 days, not on `windowDays`.** `windowDays`
+is a query parameter. Pruning to it would let anyone who asked a 7-day question
+destroy the rows the 30-day question needs — and the 30-day question is the one
+that decides the flip. Retention has to be a constant, or a casual read is a
+destructive write. The prune runs on the admin read, so nothing is deleted from
+the customer-facing path.
+
 ## 7. When to flip, once the numbers exist
 
 **`DELTA_WRITES`** — **flipped 2026-08-21**, on the §5 reasoning: the gate
@@ -292,16 +386,36 @@ day is. Re-run it before proposing the flip again.
 
 ---
 
-**Status:** specified here, not yet implemented. `DELTA_WRITES` was flipped on
-2026-08-21 without it, which §5 explains; the **portal gate** is what still needs
-it, and that gate is the one holding a security exposure open.
+**Status: built and merged — khayt-cloud#19, 2026-08-24.** Both backends, verified
+against PHP + MySQL rather than only the Node port, including the gate-ON path.
+`DELTA_WRITES` was flipped on 2026-08-21 without this, which §5 explains; the
+**portal gate** is what needed it, and that gate is the one holding a security
+exposure open.
 
-**Known gap, found 2026-08-23 while reading this against khayt-cloud `0aa082d`:**
-the staleness half of `deltaWrites` cannot be built — no last-seen exists in
-either backend, and `device_caps.updated_at` records last *change*, not last use.
-§4 has the detail and the `last_seen_on` design that fixes it. The rest of
-`deltaWrites` is buildable today against the current schema; `portalReadGate` is
-unaffected.
+**The staleness gap found on 2026-08-23 is closed** — see §4's *as built*. It
+needed one thing the `last_seen_on` design did not have: a record of *when the
+column started collecting*, because the column itself cannot say. Until it has
+been collecting for a full `staleDays` the four stale fields report `null`, and
+the response says so in `staleness.note`.
+
+### What is left, and it is not code
+
+**Nothing further is buildable here.** What remains is a wait and a decision:
+
+1. **The counter has to run.** The portal number is exact rather than estimated,
+   but it is exact about a *window*, and the window starts at deploy. §7's
+   condition is `desktopBearer` at zero for a full `windowDays` — so the earliest
+   the flip can be proposed is 30 days after khayt-cloud#19 reaches production,
+   i.e. **on or after 2026-09-23**, and only if the number is actually zero.
+2. **Then a person flips it.** `config.php` `portal_read_gate => true`. Reversible
+   on the same line, and — deliberately — the counter keeps counting afterwards,
+   so a premature flip shows up as `desktopBearer` still arriving.
+3. **The staleness half unlocks itself** 45 days after deploy (**on or after
+   2026-10-08** at the default `staleDays`), with no deploy. It informs
+   `blockedOnlyByStale`, which is a delta-savings question, not a safety one.
+
+Re-read §7's proxy before proposing the flip anyway. It is cruder, but it is
+decisive in the direction that matters and it costs one command.
 
 **Adoption proxy, re-read 2026-08-23** (§7 says to re-run it rather than guess):
 v3.6.0's `latest.yml` now stands at **7** fetches with `latest-mac.yml` at 5 and
