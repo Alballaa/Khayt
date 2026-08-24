@@ -62,8 +62,11 @@ CI from this repo and published to `KhaytApp/bedready`. It had sat on 1.0.0 for
 nine days with Kits and an accessibility fix unreleased, because the lane was
 believed to be blocked on a token that in fact already existed.
 
-Everything below needs a switched-on printer or real shop use. **There is no
-queue of code waiting to be written** — that is the honest state of this file.
+Everything below needs a switched-on printer, real shop use, or a calendar.
+**There is no queue of code waiting to be written** — that is the honest state of
+this file. The one item that did have code behind it, the adoption endpoint, was
+written on 2026-08-24 (khayt-cloud#19); what it left behind is a 30-day wait, not
+a task.
 
 - [x] **Soak the candidate, then promote it to `v3.6.0` stable.**
       **Done 2026-08-21** — promoted from `v3.6.0-rc.4` with no code change
@@ -78,22 +81,31 @@ queue of code waiting to be written** — that is the honest state of this file.
       shop keeps blob-syncing with no error and nothing for its owner to do. It
       takes effect in the next release — there is no open prerelease line, so
       that is `3.7.0-beta.1`.
-- [ ] **Flip the portal read gate, once 3.6.0 has reached the field.** Built,
-      deployed and dormant, and no longer waiting on the promotion — it waits on
-      *adoption*, counted in released stable builds. **Asked and held on
-      2026-08-21**: three hours after v3.6.0 shipped, every one of its assets
-      stood at zero downloads including `latest.yml`, so flipping would have
-      401'd the Messages button across the whole field. Re-check with the proxy
-      in the adoption spec §7 before proposing it again.
-      **Nothing is left to build on the desktop for it.** What is missing is the
-      ability to see where adoption stands per shop, rather than the crude
-      whole-field proxy above: the server holds the per-device capability record
-      and nothing surfaces it. That endpoint is **specified** —
+- [ ] **Flip the portal read gate.** Built, deployed and dormant. Until it is on,
+      the fix for "anyone with a portal link can read the whole message thread"
+      is only *closable*, not closed.
+      **It is no longer waiting on anything that has to be built.** The endpoint
+      that measures adoption —
       [docs/KHAYT-CLOUD-ADOPTION-ENDPOINT.md](./docs/KHAYT-CLOUD-ADOPTION-ENDPOINT.md)
-      — and implementing it belongs to a khayt-cloud session. With
-      `DELTA_WRITES` flipped, the portal gate is the only reason it is urgent:
-      until that gate is on, the fix for "anyone with a portal link can read the
-      whole message thread" is only *closable*, not closed.
+      — shipped as khayt-cloud#19 on **2026-08-24**, in both backends. The gate's
+      own predicate now runs on every portal read and, while the gate is off,
+      *counts* what it would have refused instead of refusing. The question
+      stopped being a guess.
+      What is left is a wait. The condition is
+      `wouldRefuse.byCaller.desktopBearer` at **zero for a full `windowDays`**,
+      not merely at the instant of reading — a shop that opens its Messages tab
+      once a month is exactly the shop this protects. The window starts when #19
+      reaches production, so the earliest this can honestly be proposed is
+      **2026-09-23**, and only if the number is actually zero:
+      ```bash
+      curl -s -H "x-admin-secret: $S" https://cloud.khaytapp.com/v1/admin/adoption \
+        | python3 -c 'import json,sys; g=json.load(sys.stdin)["portalReadGate"]; print(g["wouldRefuse"])'
+      ```
+      **Asked and held on 2026-08-21** on the crude proxy: three hours after
+      v3.6.0 shipped every one of its assets stood at zero downloads including
+      `latest.yml`, so flipping would have 401'd the Messages button across the
+      whole field. That proxy has since stopped saying no; it was never able to
+      say yes, which is what #19 is for.
 - [x] **Verify the actuals reader against real hardware.** ~~Never met a
       printer.~~ **Done 2026-08-01** — read live and mid-print from the
       Snapmaker U1 on stock firmware; every field name correct, and
