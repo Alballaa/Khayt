@@ -146,10 +146,19 @@ Details:
   and Repetier. Each firmware reports progress differently; Bed Ready normalises them to one shape,
   clamped 0–100, so a printer reporting something unexpected cannot render as 50,000,000%.
 
-  **Not SDCP / Elegoo resin.** An earlier draft of this listed it as a seventh. There is a protocol
-  note in the CHANGELOG — "groundwork, nothing to connect to yet" — and an open roadmap item (R7),
-  but no adapter: `sdcp` appears nowhere in the code, and it is not in the picker at
-  `renderer/machines.js`. Do not put resin printers on the website.
+  **Still not SDCP / Elegoo resin on the website — and the reason changed on 2026-08-24.** It used
+  to be that there was no adapter at all: `sdcp` appeared nowhere in the code. That is no longer
+  true. The socket layer landed, `sdcp` is in the picker at `renderer/machines.js`, discovery finds
+  these printers and the queue reads their status. Seven adapters exist.
+
+  The website may still name **six**, because the seventh **has never met a printer**. There is no
+  Elegoo on the bench; the protocol and the network handling are covered by tests and the discovery
+  broadcast has been run against a live LAN, but whether a real mainboard answers it is unproven.
+  A shop that buys on the strength of a website line and finds it does not work has been misled by
+  us, not by its printer.
+
+  So: the app offers it, marked as untested in the CHANGELOG, and the website waits for hardware.
+  The moment a Mars or a Saturn confirms it, this paragraph is what to come back and delete.
 - **Shows** state, progress, current filename, time remaining, nozzle and bed temperature, and the
   error text when there is one.
 - **Tells you when a printer stops.** Alerts come from diffing one poll against the last, with a

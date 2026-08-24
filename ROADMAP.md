@@ -130,8 +130,14 @@ a task.
       the **printer camera** live image path, and carrier **API** shipping
       (manual shipping is fully working and tested).
 - [ ] **R7 — SDCP resin printers.** Protocol layer built and tested
-      ([#529](https://github.com/KhaytApp/Khayt/pull/529)); needs the socket
-      layer, then an Elegoo Mars/Saturn to verify against.
+      ([#529](https://github.com/KhaytApp/Khayt/pull/529)); **socket layer built
+      2026-08-24** — a WebSocket client whose socket is injected so every branch
+      it takes is reachable from a test, UDP discovery, the poll branch, and a
+      way to add one in the machine dialog. **Now blocked on hardware alone.**
+      What is unproven is one step and worth stating precisely: whether a real
+      mainboard answers the `M99999` broadcast and accepts the request frame. The
+      broadcast itself was run against this LAN — binds, retransmits, times out
+      clean, finds nothing, because there is nothing here to find.
       See [docs/KHAYT-COMPETITIVE-ROADMAP.md](./docs/KHAYT-COMPETITIVE-ROADMAP.md).
 
 **Multi-shop is no longer deferred.** Organisations shipped in **3.5.0** (create

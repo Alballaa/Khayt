@@ -289,6 +289,7 @@ function openMachineEditor(machineId = null) {
             <option value="prusalink">PrusaLink (Prusa CORE One / MK4 / XL / Mini+)</option>
             <option value="duet">Duet / RepRapFirmware</option>
             <option value="repetier">Repetier-Server</option>
+            <option value="sdcp">Elegoo resin (SDCP — Mars / Saturn)</option>
           </select>
           <div id="machApiFields" style="display:none; margin-top:8px;">
             <div class="inline-pair">
@@ -305,7 +306,12 @@ function openMachineEditor(machineId = null) {
             <input id="machApiKey" type="password" placeholder="API key / token" style="font-size:12.5px;" value="${escapeHtml(secretInputValue(draft.printerApi?.apiKey))}" autocomplete="off">
             <label style="margin-top:8px;">Access code (Bambu)</label>
             <input id="machApiAccessCode" type="password" placeholder="Bambu access code" style="font-size:12.5px;" value="${escapeHtml(secretInputValue(draft.printerApi?.accessCode))}" autocomplete="off">
-            <label style="margin-top:8px;">Serial number (Bambu)</label>
+            <!-- One field, two protocols: Bambu addresses a printer by its serial
+                 and SDCP by its mainboard id, and both are the same thing here —
+                 the string that identifies the machine on its own transport.
+                 A network scan fills either one in, which matters more for SDCP
+                 because a mainboard id is not printed anywhere on the printer. -->
+            <label style="margin-top:8px;">Serial number (Bambu) / Mainboard ID (Elegoo SDCP)</label>
             <input id="machApiSerial" placeholder="e.g. 00M00A000000000" style="font-size:12.5px;" value="${escapeHtml(draft.printerApi?.serial || '')}" autocomplete="off">
             <label style="margin-top:8px;">Printer slug (Repetier)</label>
             <input id="machApiSlug" placeholder="default" style="font-size:12.5px;" value="${escapeHtml(draft.printerApi?.printerSlug || '')}">

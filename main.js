@@ -66,6 +66,7 @@ const { sendCustomSmtp } = require('./lib/custom-smtp');
 const {
   mergePollSuccess, mergePollFailure, completionsToPersist, restoreCompletions, completionIsNew,
 } = require('./lib/printer-poll-cache');
+const sdcpClient = require('./lib/sdcp-client');
 const { normalizeProgress, fileProgressPct, etaSeconds, moonrakerProgress } = require('./lib/printer-status');
 const printerCommands = require('./lib/printer-commands');
 const { normalizeStoreSnapshot, STORE_VERSION } = require('./lib/store-validate');
@@ -1251,11 +1252,83 @@ function scanForPrinters(timeoutMs) {
       // single query can miss a printer that replied moments ago. Observed on real
       // hardware — one query found the Snapmaker but not the Prusa.
       [0, 900, 2200, 4000].filter(d => d < window_).forEach(d => setTimeout(send, d));
-      setTimeout(() => {
+      setTimeout(async () => {
         let printers = [];
         try { printers = Discovery.discoverFromRecords(records); } catch { printers = []; }
+        // Elegoo resin printers do not speak mDNS at all — SDCP discovery is a
+        // UDP broadcast on its own port. Run alongside rather than instead, and
+        // never let it fail the scan that already worked.
+        try { printers = printers.concat(await scanForSdcp(Math.min(3000, window_))); } catch { /* mDNS results stand */ }
         finish({ ok: true, printers });
       }, window_);
+    });
+  });
+}
+
+/**
+ * Shout on the LAN and see which Elegoo mainboards answer.
+ *
+ * A different mechanism from the mDNS scan above and therefore a different
+ * socket: SDCP discovery is a plain UDP broadcast of one magic string, and the
+ * mainboard replies with a JSON blob naming itself. See lib/sdcp.js.
+ *
+ * The reply carries the MAINBOARD ID, which is the part that makes this worth
+ * having rather than a nicety — it is the printer's address on the protocol,
+ * every frame is topic-addressed by it, and it is printed nowhere on the machine.
+ * Without a scan a shop cannot configure one of these at all.
+ *
+ * Parsing is lib/sdcp-client.js's `collectDiscovered`, which is tested; this
+ * function is only the socket. Answers are mapped into the same shape the mDNS
+ * results use so the picker in the machine dialog needs no special case.
+ */
+function scanForSdcp(timeoutMs) {
+  const dgram = require('dgram');
+  const sdcp = require('./lib/sdcp.js');
+  const window_ = Math.max(1000, Math.min(8000, Number(timeoutMs) || 3000));
+  return new Promise((resolve) => {
+    const replies = [];
+    let socket;
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      try { socket && socket.close(); } catch { /* already closed */ }
+      let found = [];
+      try { found = sdcpClient.collectDiscovered(replies); } catch { found = []; }
+      resolve(found.map((f) => ({
+        id: `sdcp|${f.mainboardId}`,
+        name: f.name || f.model || 'Elegoo printer',
+        vendor: f.brand || 'ELEGOO',
+        model: f.model || '',
+        label: f.name || '',
+        host: f.ip,
+        port: sdcp.WEBSOCKET_PORT,
+        advertisedPort: sdcp.WEBSOCKET_PORT,
+        // Carried as `serial` because that is the field the machine dialog
+        // already binds and saves, and on this protocol it is the same idea.
+        serial: f.mainboardId,
+        firmware: f.firmwareVersion || '',
+        connection: 'sdcp',
+        catalogId: null,
+        linkMode: '',
+        raw: f,
+      })));
+    };
+    try {
+      socket = dgram.createSocket({ type: 'udp4', reuseAddr: true });
+    } catch { return resolve([]); }
+    socket.on('error', finish);
+    socket.on('message', (msg) => { replies.push(msg); });
+    socket.bind(() => {
+      try { socket.setBroadcast(true); } catch { /* not fatal */ }
+      const magic = Buffer.from(sdcp.DISCOVERY_MAGIC);
+      const send = () => {
+        try { socket.send(magic, 0, magic.length, sdcp.DISCOVERY_PORT, '255.255.255.255'); } catch { /* closed */ }
+      };
+      // Retransmitted for the same reason the mDNS query is: a single datagram
+      // is lost often enough on a busy wireless network to matter.
+      [0, 700, 1600].filter((d) => d < window_).forEach((d) => setTimeout(send, d));
+      setTimeout(finish, window_);
     });
   });
 }
@@ -3756,6 +3829,22 @@ async function fetchPrinterStatus(machine) {
     if (!accessCode) return { ok: false, error: 'Bambu needs the LAN access code.' };
     return bambu.fetchBambuStatus({ host: printerHost, port: portNum, accessCode, serial: dev });
   }
+  // SDCP (Elegoo resin): a WebSocket, not HTTP either. The mainboard id is its
+  // address on the protocol — every frame is topic-addressed by it — and
+  // discovery is where a shop gets one, since it is not printed on the machine.
+  //
+  // The global WebSocket is used rather than a dependency: Electron 42 ships
+  // Node 22, where it is standard. See lib/sdcp-client.js for why the socket is
+  // a parameter rather than opened in there.
+  if (type === 'sdcp') {
+    const board = String(serial || printerSlug || '').trim();
+    if (!board) return { ok: false, error: 'SDCP needs the printer’s mainboard ID — run a network scan to find it.' };
+    return sdcpClient.fetchStatus({
+      connect: (url) => new WebSocket(url),
+      ip: printerHost,
+      mainboardId: board,
+    });
+  }
   const baseUrl = `http://${printerHost}:${portNum}`;
   const headers = {};
   // Moonraker was missing here. It accepts X-Api-Key from untrusted clients, and
@@ -3881,7 +3970,7 @@ async function fetchPrinterStatus(machine) {
 }
 
 function defaultPrinterPort(type) {
-  const ports = { octoprint: 80, moonraker: 7125, bambu: 8883, prusalink: 80, duet: 80, repetier: 3344 };
+  const ports = { octoprint: 80, moonraker: 7125, bambu: 8883, prusalink: 80, duet: 80, repetier: 3344, sdcp: 3030 };
   return ports[type] || 80;
 }
 
