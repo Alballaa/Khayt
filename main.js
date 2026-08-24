@@ -1203,14 +1203,21 @@ ipcMain.handle('hub:load-store', async (event) => {
 // collect answers for a few seconds. Nothing leaves the local network, nothing runs on a
 // timer, and nothing is written to the store — the renderer shows candidates and the
 // owner picks. See lib/mdns.js for why this is hand-rolled rather than a dependency.
-ipcMain.handle('hub:discover-printers', async (_e, { timeoutMs } = {}) => {
+/**
+ * One LAN scan, shared by "add a printer" and "find the one that moved".
+ *
+ * Extracted rather than copied: both callers need the same retransmit schedule
+ * and the same multicast membership, and a second copy would drift from this one
+ * the first time either was tuned.
+ */
+function scanForPrinters(timeoutMs) {
   const dgram = require('dgram');
   const Mdns = require('./lib/mdns.js');
   const Discovery = require('./lib/printer-discovery.js');
   // Bounded so a wedged socket can't hold the dialog open indefinitely.
   const window_ = Math.max(2000, Math.min(15000, Number(timeoutMs) || 6000));
 
-  return await new Promise((resolve) => {
+  return new Promise((resolve) => {
     let socket;
     let settled = false;
     const records = [];
@@ -1249,6 +1256,52 @@ ipcMain.handle('hub:discover-printers', async (_e, { timeoutMs } = {}) => {
       }, window_);
     });
   });
+}
+
+ipcMain.handle('hub:discover-printers', async (_e, { timeoutMs } = {}) => scanForPrinters(timeoutMs));
+
+/**
+ * Find a configured printer that changed address.
+ *
+ * A DHCP lease moves overnight and Khayt goes on polling a host that answers
+ * nothing. The owner is shown "offline" — the same words as a printer that is
+ * switched off, and a completely different fix. What makes it worth an endpoint
+ * rather than a shrug is that some of what polling does cannot be caught up on:
+ * captureCompletion freezes a job's real filament and duration on the edge out
+ * of printing, so every print that finishes against a stale address is a
+ * measurement that no longer exists.
+ *
+ * Writes NOTHING, exactly like discovery above: this returns proposals and the
+ * renderer saves whatever the owner accepts. That matters more here than there,
+ * because the field being rewritten is where the app will later send print
+ * commands — so a wrong guess applied silently would send a job to the wrong
+ * machine. lib/printer-relocate.js only marks a move as applicable without
+ * asking when the printer announced a serial that was already recorded for it.
+ */
+ipcMain.handle('hub:relocate-printers', async (_e, { machines, statusCache, requireOffline, timeoutMs } = {}) => {
+  const Relocate = require('./lib/printer-relocate.js');
+  const scan = await scanForPrinters(timeoutMs);
+  if (!scan.ok) return scan;
+  // TRUST BOUNDARY: `machines` is renderer-supplied, and is used here only to
+  // decide which of the scan's own results to describe. Nothing is fetched from
+  // it and nothing is written, so a forged entry can at most produce a proposal
+  // the owner then declines.
+  const list = Array.isArray(machines) ? machines : [];
+  const plan = Relocate.planRelocations({
+    machines: list,
+    discovered: scan.printers,
+    statusCache: statusCache || {},
+    requireOffline: requireOffline !== false,
+  });
+  return {
+    ok: true,
+    printers: scan.printers,
+    moves: plan.moves,
+    noMoves: plan.noMoves,
+    // Identities worth recording while the printers are still answering where
+    // they are configured — the only moment a provable one is available.
+    learned: Relocate.learnSerials({ machines: list, discovered: scan.printers }),
+  };
 });
 
 // ── Webcam snapshot proxy ───────────────────────────────────────────────────

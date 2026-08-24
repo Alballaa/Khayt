@@ -4,6 +4,39 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **A printer that changed address can be found again, instead of just reading
+  "offline".** Machines are set up by IP, and an IP is not a promise — a router
+  hands out a different one after a power cut or a lease expires, and from then
+  on Khayt is asking a device that isn't there. It said *offline*, which is also
+  what it says when a printer is switched off, so the one fault with a two-second
+  fix looked exactly like the one that needs a trip to the workshop.
+
+  Now, when you **scan the network** in a machine's settings, a printer that is
+  *this* machine at a new address is put at the top of the list and labelled
+  **"Same printer, new address"**, showing the old address and the new one. One
+  click fills the form; nothing is saved until you press Save, as before.
+
+  Khayt also remembers a printer's **serial number** when you add it from a scan.
+  That is the one thing about a printer an address change cannot alter, so next
+  time it moves it is recognised outright rather than matched by make and model.
+  Printers already set up don't have one recorded yet — they pick it up the next
+  time a scan finds them where they are supposed to be.
+
+  Khayt will not guess. If two printers on the network could both be the machine,
+  it says so and lets you choose, and it will never point a machine at an address
+  another machine is already using.
+
+  **Why this is worth more than a tidier error message:** the figures a finished
+  print reports — what it actually weighed and how long it actually took — are
+  read live and only live. A printer's counters reset when the next job starts,
+  so a print that finishes while Khayt is asking the wrong address is not a
+  delayed measurement, it is one that no longer exists. That is where the
+  "measured" costs and the self-calibrating time estimate come from. This was
+  found on a real bench: a Snapmaker U1 had moved from `.77` to `.56`, and the
+  shop's completion history was empty rather than merely short.
+
 ## [3.7.0-beta.4] - 2026-08-23
 
 ### Added

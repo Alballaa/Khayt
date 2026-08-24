@@ -1008,6 +1008,7 @@
   "mach.scan_use": "Usar",
   "mach.scan_applied": "Preenchido a partir da impressora encontrada.",
   "mach.scan_no_adapter": "Encontrada, mas o Khayt ainda não consegue se conectar a este modelo",
+  "mach.scan_moved": "A mesma impressora, novo endereço",
   "mach.name_ph": "ex.: Prusa MK4, Bambu X1C",
   "mach.color": "Cor",
   "mach.unassigned": "— Nenhuma impressora atribuída —",

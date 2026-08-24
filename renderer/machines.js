@@ -398,6 +398,13 @@ function openMachineEditor(machineId = null) {
               if (portEl && p.port) portEl.value = p.port;
               draft.printerApi = Object.assign({}, draft.printerApi, {
                 type: p.connection, host: p.host, port: p.port || undefined,
+                // The serial is the one thing about a printer a DHCP lease cannot
+                // change, so it is what identifies this machine again if the
+                // address moves. Recorded here because this is the moment it is
+                // provable — once the printer has moved, its announcement no
+                // longer matches the address on file and the best available match
+                // has already dropped to a guess. See lib/printer-relocate.js.
+                serial: p.serial || draft.printerApi?.serial || undefined,
               });
             }
             if (statusEl) statusEl.textContent = t('mach.scan_applied') || '';
@@ -417,15 +424,50 @@ function openMachineEditor(machineId = null) {
               if (statusEl) statusEl.textContent = t('mach.scan_none');
               return;
             }
+
+            // Is one of these THIS machine, at an address it has moved to?
+            //
+            // A DHCP lease moves overnight and Khayt goes on polling a host that
+            // answers nothing. The owner sees "offline", which is also what a
+            // switched-off printer says — so without this the scan lists the
+            // printer they are looking for as if it were a new one, and they have
+            // to notice the IP differs to understand what happened.
+            //
+            // Only ever a suggestion, like every other result here: picking it
+            // fills the form and nothing is saved until Save. See
+            // lib/printer-relocate.js for why a guess is never applied silently.
+            let moved = null;
+            try {
+              const R = (typeof KhaytPrinterRelocate !== 'undefined') ? KhaytPrinterRelocate : null;
+              if (R && draft.id && draft.printerApi && draft.printerApi.host) {
+                // requireOffline is false: the owner opened this dialog and pressed
+                // the button, which is a stronger signal than a missed poll.
+                moved = R.planRelocations({
+                  machines: [draft], discovered: printers, requireOffline: false,
+                }).moves[0] || null;
+              }
+            } catch (_) { moved = null; }
+
+            // Put it first. It is the answer to the question that made them scan.
+            const ordered = moved
+              ? [...printers].sort((a, b) => (b.host === moved.to) - (a.host === moved.to))
+              : printers;
+
             if (statusEl) statusEl.textContent = '';
             if (!resultsEl) return;
             resultsEl.style.display = '';
-            resultsEl.innerHTML = printers.map((p, i) => {
+            resultsEl.innerHTML = ordered.map((p, i) => {
+              const isMoved = !!moved && p.host === moved.to;
               // Say plainly what Khayt can do with each result rather than implying
               // every discovered printer is connectable.
               const note = p.connection
                 ? `${escapeHtml(p.host)}${p.port ? ':' + p.port : ''}`
                 : escapeHtml(t('mach.scan_no_adapter'));
+              // The old address is shown alongside the new one because that is the
+              // whole explanation: nothing is broken, it is somewhere else.
+              const movedBadge = isMoved
+                ? `<div style="font-size:11px;color:var(--warning);margin-top:2px;">${_mIcoL('alert', '⚠', 12)}${escapeHtml(t('mach.scan_moved'))} — ${escapeHtml(moved.from)} → ${escapeHtml(moved.to)}</div>`
+                : '';
               // NOTE: no cloud-mode warning. link_mode=wan means the printer is bound to
               // its vendor cloud, but that does NOT stop local control — the Snapmaker U1
               // serves a full Moonraker API on the LAN while in wan mode (verified).
@@ -433,12 +475,13 @@ function openMachineEditor(machineId = null) {
                 <div style="flex:1;min-width:0;">
                   <div style="font-size:12.5px;font-weight:600;">${escapeHtml(p.name)}</div>
                   <div style="font-size:11px;color:var(--text-muted);">${note}</div>
+                  ${movedBadge}
                 </div>
-                <button class="btn ghost small" type="button" data-scan-pick="${i}">${escapeHtml(t('mach.scan_use'))}</button>
+                <button class="btn ${isMoved ? '' : 'ghost'} small" type="button" data-scan-pick="${i}">${escapeHtml(t('mach.scan_use'))}</button>
               </div>`;
             }).join('');
             resultsEl.querySelectorAll('[data-scan-pick]').forEach(el => {
-              el.addEventListener('click', () => applyFound(printers[+el.dataset.scanPick]));
+              el.addEventListener('click', () => applyFound(ordered[+el.dataset.scanPick]));
             });
           });
         })();
