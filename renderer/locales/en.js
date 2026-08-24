@@ -1160,7 +1160,6 @@
   "kit.name_taken": "Another kit is already called {name}",
   "kit.add_to": "🧩 Add to kit…",
   "kit.name_prompt": "Kit name — these jobs are one object",
-  "kit.existing": "Existing kits",
   "kit.near_confirm": "A kit called “{name}” already exists. Add these jobs to it instead of creating “{typed}”?",
   "kit.opt_remove": "— Remove from kit —",
   "kit.opt_new": "— New kit… —",

@@ -1160,7 +1160,6 @@
   "kit.name_taken": "{name} adlı başka bir kit zaten var",
   "kit.add_to": "🧩 Kite ekle…",
   "kit.name_prompt": "Kit adı — bu baskılar tek bir nesne",
-  "kit.existing": "Mevcut kitler",
   "kit.near_confirm": "“{name}” adlı bir kit zaten var. “{typed}” oluşturmak yerine bu işleri ona eklensin mi?",
   "kit.opt_remove": "— Kitten çıkar —",
   "kit.opt_new": "— Yeni kit… —",

@@ -1160,7 +1160,6 @@
   "kit.name_taken": "{name} という名前のキットが既にあります",
   "kit.add_to": "🧩 キットに追加…",
   "kit.name_prompt": "キット名 — これらのプリントは1つの物です",
-  "kit.existing": "既存のキット",
   "kit.near_confirm": "「{name}」というキットがすでにあります。「{typed}」を作らずに、そちらへ追加しますか？",
   "kit.opt_remove": "— キットから外す —",
   "kit.opt_new": "— 新しいキット… —",

@@ -1160,7 +1160,6 @@
   "kit.name_taken": "Ya hay otro kit llamado {name}",
   "kit.add_to": "🧩 Añadir al kit…",
   "kit.name_prompt": "Nombre del kit — estas impresiones son un objeto",
-  "kit.existing": "Kits existentes",
   "kit.near_confirm": "Ya existe un kit llamado «{name}». ¿Añadir estos trabajos a ese en vez de crear «{typed}»?",
   "kit.opt_remove": "— Quitar del kit —",
   "kit.opt_new": "— Kit nuevo… —",
