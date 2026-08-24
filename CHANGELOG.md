@@ -4,6 +4,26 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **Elegoo resin printers (Mars / Saturn) can be added and watched.** Pick
+  **Elegoo resin (SDCP)** as the connection type, or press **Scan network** and
+  let Khayt find it — which is the easier route, because these printers are
+  addressed by a *mainboard ID* that is printed nowhere on the machine, and the
+  scan reads it off the printer's own reply.
+
+  The queue shows what a resin job is doing in its own vocabulary — exposing,
+  lifting, dropping — with progress counted in **layers**, which is exact, rather
+  than extrapolated from elapsed time. Nozzle and bed temperatures read as blank
+  rather than as zero, because a resin printer has neither and a `0°` looks like
+  a cold hotend. The consumables you actually replace are shown instead: UV LED
+  temperature, release-film count and exposure-screen hours.
+
+  **Not yet tested against a real machine.** There is no Elegoo on the bench
+  here, so while the protocol and the network handling are covered by tests, the
+  final "does this printer answer" step is unproven. If you have a Mars or a
+  Saturn, this is the release to tell us about.
+
 ### Fixed
 
 - **A measured print no longer disappears when you close Khayt.** When a job

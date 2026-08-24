@@ -180,12 +180,21 @@ purpose — identical bytes is a certainty, identical geometry is a hint and is
 worded as one. Not built: the rest of the Meshory surface. That warning above
 was right.
 
-**R7. SDCP resin printers.** — **OPEN: protocol layer only**
-Protocol layer built and tested ([#529]); still needs the socket layer, and then
-an actual Elegoo Mars/Saturn to verify against. Deliberately small scope.
+**R7. SDCP resin printers.** — **OPEN: hardware only**
+Protocol layer built and tested ([#529]). The socket layer followed on
+2026-08-24: a WebSocket client with the socket injected — so opening late,
+answering out of order, answering for another machine, saying nothing, and
+hanging up mid-handshake are all reachable from tests rather than only from a
+printer — plus UDP discovery, the poll branch, and the connection type in the
+machine dialog. Discovery matters more here than it looks: SDCP addresses a
+printer by a mainboard id that is printed nowhere on the machine, so without a
+scan a shop cannot configure one at all.
 
-*This is the only item on this roadmap that is not done, and it is blocked on
-hardware rather than on anyone writing code.*
+*Still the only item on this roadmap that is not done, and now blocked on
+hardware alone.* What is unproven is exactly one step — whether a real mainboard
+answers the `M99999` broadcast and accepts the request frame. The broadcast was
+run against a live LAN with no Elegoo on it and behaved: bound, retransmitted
+three times, timed out cleanly, found nothing.
 
 [#529]: https://github.com/KhaytApp/Khayt/pull/529
 
