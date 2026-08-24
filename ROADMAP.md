@@ -2,7 +2,7 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0, 3.7.0-beta.4 published — on `main`)
+## Now (post-3.6.0, 3.7.0-beta.5 published — on `main`)
 
 **Stable is v3.6.0** (2026-08-21) — the 3.6.0 line, promoted from
 `v3.6.0-rc.4` unchanged after a seven-day soak. rc.4 was the first candidate on
@@ -10,50 +10,28 @@ this line that `main` did not overtake, so for once replace-vs-promote resolved
 to *promote*; rc.1, rc.2 and rc.3 were each replaced instead.
 
 **The 3.7.0 line is open. The newest *published* pre-release is
-`v3.7.0-beta.4`** (2026-08-23). Four cuts so far: `beta.1` flipped
-`DELTA_WRITES`, `beta.2` made the print library able to outgrow its disk (the
-substance of the line — cold models move to a bucket rather than being copied to
-one), `beta.3` carries no app change at all, being `beta.2` rebuilt for macOS
-after `BUILD_MAC` was left unset at `beta.2`'s tag, and `beta.4` adds the
-storage-provider signup links ([#722]).
+`v3.7.0-beta.5`** (2026-08-24) — tagged from `cdeefae`, and the first cut on this
+line built for **all three platforms**, macOS included. Verified the way this file
+keeps insisting on: `git ls-remote --tags origin` shows the tag, the tag resolves
+to `main`'s tip, `package.json` at that commit reads `3.7.0-beta.5`, and every
+update manifest was fetched and its named asset served a 200. `carry-mac-manifest`
+correctly skipped, because a real mac build shipped rather than a carried
+manifest.
 
-**`3.7.0-beta.4` is tagged and published** (`11ef165`, [#723]). It sat bumped on
-`main` without a tag for most of 2026-08-23 — release CI had never run and no
-installer existed, so a beta user's newest available build was still `beta.3`
-while `package.json` claimed otherwise. This file had warned since the previous
-release that *a version in `package.json` proves the cut landed and nothing
-more*; for a day that stopped being a caution and became the state of the repo.
-The check that settles it is `git ls-remote --tags origin`, and the fix was the
-one command the warning named. Worth keeping the habit: the release is the tag,
-not the bump.
+`BUILD_MAC` was set before the tag and **deleted after** — it is sticky, and the
+run summary says which way it went.
 
-`beta.4` is **Windows + Linux only** — `BUILD_MAC` was left unset deliberately,
-this being a small UI change rather than a release intended for promotion. macOS
-beta users stay on `beta.3` and their update check keeps working, because
-`carry-mac-manifest` copies `latest-mac.yml` forward from the last release that
-shipped a mac build.
+beta.5 is the printer-and-model release. A printer that changed address used to
+read as one that had gone away, which was not a cosmetic complaint: every print
+that finished against a stale address was a measurement that stopped existing.
+Alongside it, Khayt now says what is likely to go *wrong* with a model rather than
+only what it costs, kits can be filed after the fact from a picker instead of by
+retyping a name, and a camera Khayt merely guessed at is no longer switched on
+before anything has answered.
 
-**The tag no longer has to come from a laptop.** `cut-release.yml` ([#725])
-creates it from the Actions tab after checking what a maintainer would check —
-the commit is on `main`, `package.json` matches, the notes exist, the tag does
-not. `RELEASE_TAG_TOKEN` is configured, so the path is live rather than pending.
-See [docs/BETA-RELEASE.md](./docs/BETA-RELEASE.md).
-
-That workflow needed two fixes before it could cut anything, and neither was
-visible to CI, which is the part worth carrying forward. Its changelog guard
-piped `git show` into `grep -q`; grep exits on match, `git show` takes SIGPIPE,
-and under `pipefail` the step read a **present** section as a failure ([#728]).
-Its preflight tested that the token was non-empty rather than that it worked,
-which an expiry date turns into a scheduled outage ([#729]). Both surfaced only
-by dispatching the thing. **The four required checks lint and test the app; they
-never execute the release path**, so a green PR says nothing about whether a
-release workflow runs. Dispatching it against an already-cut version exercises
-every guard and creates nothing — that is the cheap test.
-
-The same lesson landed on `carry-mac-manifest`: it carried the mac manifest
-verbatim, so the carried file named binaries the release did not hold and the
-download 404'd for anyone far enough behind to try it ([#727]). Five published
-releases had shipped that way before anyone looked.
+**Landed on `main` after the tag** and therefore *not* in beta.5 — the next cut
+carries them: a measured job now survives quitting the app ([#742]), and R7's
+socket layer ([#743]).
 
 No hold is active — see [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md).
 
@@ -64,9 +42,10 @@ believed to be blocked on a token that in fact already existed.
 
 Everything below needs a switched-on printer, real shop use, or a calendar.
 **There is no queue of code waiting to be written** — that is the honest state of
-this file. The one item that did have code behind it, the adoption endpoint, was
-written on 2026-08-24 (khayt-cloud#19); what it left behind is a 30-day wait, not
-a task.
+this file, and it survived a day of writing code, because everything written on
+2026-08-24 was either something this file did not know was broken or an item it
+had already scoped. The adoption endpoint (khayt-cloud#19) left a 30-day wait
+rather than a task; R7 ([#743]) left a hardware dependency rather than a task.
 
 - [x] **Soak the candidate, then promote it to `v3.6.0` stable.**
       **Done 2026-08-21** — promoted from `v3.6.0-rc.4` with no code change
@@ -124,7 +103,21 @@ a task.
 - [ ] **Three finished jobs, then print time stops being a guess.**
       `throughputMm3PerS` is the last assumed constant in the chain;
       `lib/estimate-calibration.js` replaces it from measured jobs once there
-      are three.
+      are three. **Khayt still holds zero.**
+      One was measured on 2026-08-24 and is written down here because the app
+      was not open to receive it — a MiniDragon on the U1, **49.97 g over
+      9,682 s** (2h41m, 123 layers, 16.75 m of PLA), which is **18.6 g/h**. The
+      slicer had said 2h48m, so it ran **3.9% fast**. Captured by a standalone
+      script driving Khayt's own `extractActuals` and `captureCompletion`, since
+      nothing in the app was in a position to: it was closed, and configured for
+      an address the printer had left.
+      Two things came out of that. The address half is fixed ([#735], [#736]).
+      The other half was worse and is also fixed ([#742]): completions were
+      captured into MEMORY, so the twenty-four hours a measurement is offered for
+      was really "until Khayt is next quit" — an overnight print finishing before
+      the app was closed in the morning left nothing behind at all. Neither fix
+      recovers this job; both mean the next one does not need rescuing.
+      To enter it by hand: mark the order done and type 49.97 g / 2.69 h.
 - [ ] **The 3.2-era hardware pass is still outstanding** — see
       [docs/PRELAUNCH-QA.md](./docs/PRELAUNCH-QA.md). Two items need hardware:
       the **printer camera** live image path, and carrier **API** shipping
@@ -206,6 +199,10 @@ Four stable lines, nineteen beta releases and four release candidates since 3.2.
 [#536]: https://github.com/KhaytApp/Khayt/pull/536
 [#537]: https://github.com/KhaytApp/Khayt/pull/537
 [#548]: https://github.com/KhaytApp/Khayt/pull/548
+[#735]: https://github.com/KhaytApp/Khayt/pull/735
+[#736]: https://github.com/KhaytApp/Khayt/pull/736
+[#742]: https://github.com/KhaytApp/Khayt/pull/742
+[#743]: https://github.com/KhaytApp/Khayt/pull/743
 [#549]: https://github.com/KhaytApp/Khayt/pull/549
 [#551]: https://github.com/KhaytApp/Khayt/pull/551
 [#552]: https://github.com/KhaytApp/Khayt/pull/552
