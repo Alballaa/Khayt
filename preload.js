@@ -176,6 +176,7 @@ contextBridge.exposeInMainWorld('hubAPI', {
   // Installed themes live in userData, not beside the app — see lib/theme-store.js.
   themesList:      ()     => ipcRenderer.invoke('hub:themes-list'),
   themesInstall:   (o)    => ipcRenderer.invoke('hub:themes-install', o),
+  themesInstallFile: ()   => ipcRenderer.invoke('hub:themes-install-file'),
   themesRead:      (o)    => ipcRenderer.invoke('hub:themes-read', o),
   themesRemove:    (o)    => ipcRenderer.invoke('hub:themes-remove', o),
   webcamProbe: (o)        => ipcRenderer.invoke('hub:webcam-probe', o),

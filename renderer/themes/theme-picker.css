@@ -113,3 +113,24 @@
 .theme-picker-tradeoff.lost::before { content: "− "; }
 .theme-picker-tradeoff.gained::before { content: "+ "; }
 .theme-picker-tradeoff.gained { color: var(--success, #1f6b3f); }
+
+/* Installed designs — the ones the shop added, which can also be removed and
+   can turn out to be broken later. Kept visually quieter than the grid: this is
+   management, not choosing. */
+.theme-installed { margin-top: 14px; border-top: 1px solid var(--border-soft); padding-top: 12px; }
+.theme-installed-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--text-muted); margin-bottom: 8px;
+}
+.theme-installed-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 7px 0; border-bottom: 1px solid var(--border-soft);
+}
+.theme-installed-row:last-of-type { border-bottom: 0; }
+.theme-installed-row .ti-name { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.theme-installed-row .ti-by { font-size: 11px; color: var(--text-muted); }
+.theme-installed-row.is-broken .ti-name strong { text-decoration: line-through; opacity: .7; }
+.theme-installed-row .ti-broken { font-size: 11px; color: var(--danger); }
+.theme-installed-empty { font-size: 12.5px; color: var(--text-muted); margin: 4px 0 0; line-height: 1.5; }
+.theme-installed-result { font-size: 12px; margin-top: 8px; white-space: pre-line; }

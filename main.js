@@ -1488,7 +1488,9 @@ ipcMain.handle('hub:themes-list', async () => {
   return { ok: true, themes: out, root };
 });
 
-ipcMain.handle('hub:themes-install', async (_e, { text } = {}) => {
+ipcMain.handle('hub:themes-install', async (_e, { text } = {}) => themeInstallFromText(text));
+
+async function themeInstallFromText(text) {
   const Store = require('./lib/theme-store.js');
   const Pkg = require('./lib/theme-package.js');
 
@@ -1510,6 +1512,39 @@ ipcMain.handle('hub:themes-install', async (_e, { text } = {}) => {
     return { ok: false, error: `Could not write the theme: ${(err && err.message) || err}` };
   }
   return { ok: true, id: parsed.manifest.id, name: parsed.manifest.name || parsed.manifest.id, dir: plan.dir };
+}
+
+/**
+ * Pick a design file and install it, in one call.
+ *
+ * Deliberately not "pick a file" followed by "read that file". The second half
+ * of that pair is a general-purpose read-any-file capability handed to the
+ * renderer, which is a much larger thing to own than this feature needs — and
+ * once it exists, every future bug in the renderer inherits it. The path never
+ * leaves the main process instead.
+ */
+ipcMain.handle('hub:themes-install-file', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const result = await dialog.showOpenDialog(win, {
+    filters: [{ name: 'Khayt design', extensions: ['khayttheme', 'json'] }],
+    properties: ['openFile'],
+  });
+  if (result.canceled || !result.filePaths.length) return { ok: false, canceled: true };
+
+  const file = result.filePaths[0];
+  let text;
+  try {
+    const stat = await fs.promises.stat(file);
+    // A design is a stylesheet and a few fields. Anything of this size is not
+    // one, and reading it into memory to find that out would be the bug.
+    if (stat.size > 4 * 1024 * 1024) return { ok: false, error: 'That file is too large to be a design.' };
+    text = await fs.promises.readFile(file, 'utf8');
+  } catch (err) {
+    return { ok: false, error: `Could not read that file: ${(err && err.message) || err}` };
+  }
+  // Straight into the same handler's logic — the checks live there and are not
+  // repeated or relaxed here.
+  return themeInstallFromText(text);
 });
 
 ipcMain.handle('hub:themes-read', async (_e, { id } = {}) => {
