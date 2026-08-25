@@ -4,6 +4,19 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **The Flow board never marked an order late.** Not "rarely" — never, since the
+  board shipped. It asked the same part of Khayt that the dashboard's attention
+  bar asks, then misread the answer in two separate ways, and a safety net two
+  lines below hid the mistake. So a card that was a week overdue looked exactly
+  like one due next month, and the "3 late" warning at the top of the board has
+  never once appeared.
+
+  If you use Flow and have wondered why nothing ever looked urgent: it was this,
+  and it is fixed.
+
+
 ### Added
 
 - **A Duet 3 with a Raspberry Pi attached can now be added.** It could not be
