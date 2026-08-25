@@ -69,6 +69,25 @@
    * Build the docket. Returns rows of
    * { key, sev, title, detail, action:{label,tab}, orderId?, machineId? }
    */
+  /**
+   * The shared derivations. Layout stays this theme's business; the answers to
+   * "is it late", "is it printing", "does this shop show money" do not — six
+   * screens were each working those out, and one of them (Flow) had been getting
+   * `late` wrong since it shipped without anything to say so.
+   */
+  function facts(orders, mach) {
+    return global.KhaytDashboardFacts.dashboardFacts({
+      orders, machines: mach,
+      statusCache: (typeof machineStatusCache !== 'undefined' && machineStatusCache) || {},
+      settings: (typeof settings !== 'undefined') ? settings : {},
+      now: Date.now(),
+      attention: global.KhaytAttention,
+      tiers: (typeof KhaytTiers !== 'undefined') ? KhaytTiers : undefined,
+      money: (typeof payStatus === 'function' && typeof orderOwedBase === 'function')
+        ? { payStatus, owedFor: orderOwedBase } : undefined,
+    });
+  }
+
   function buildDocket() {
     const orders = scopedOrders();
     const mach = scopedMachines();
@@ -76,17 +95,10 @@
     const rows = [];
 
     // 1 + 2 — stopped machines and overdue work, straight from the shared selector.
-    let attn = { items: [] };
-    try {
-      if (global.KhaytAttention?.selectAttention) {
-        attn = global.KhaytAttention.selectAttention({
-          machines: mach,
-          orders,
-          statusCache: (typeof machineStatusCache !== 'undefined' ? machineStatusCache : {}),
-          now: Date.now(),
-        }) || { items: [] };
-      }
-    } catch (_) { attn = { items: [] }; }
+    // The try/catch that stood here now lives inside the shared derivation, which
+    // is rather the point: a catch at the call site is exactly what hid Flow's
+    // broken read of this same engine.
+    const attn = facts(orders, mach).attn;
 
     for (const it of attn.items || []) {
       if (it.kind === 'machine') {

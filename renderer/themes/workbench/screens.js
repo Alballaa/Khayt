@@ -206,6 +206,25 @@
       <span class="wb-qa-glyph" style="background:${tokenColor}">${svg(iconPath)}</span>${escapeHtml(label)}</button>`;
   }
 
+  /**
+   * The shared derivations. Layout stays this theme's business; the answers to
+   * "is it late", "is it printing", "does this shop show money" do not — six
+   * screens were each working those out, and one of them (Flow) had been getting
+   * `late` wrong since it shipped without anything to say so.
+   */
+  function facts(orders, mach) {
+    return global.KhaytDashboardFacts.dashboardFacts({
+      orders, machines: mach,
+      statusCache: (typeof machineStatusCache !== 'undefined' && machineStatusCache) || {},
+      settings: (typeof settings !== 'undefined') ? settings : {},
+      now: Date.now(),
+      attention: global.KhaytAttention,
+      tiers: (typeof KhaytTiers !== 'undefined') ? KhaytTiers : undefined,
+      money: (typeof payStatus === 'function' && typeof orderOwedBase === 'function')
+        ? { payStatus, owedFor: orderOwedBase } : undefined,
+    });
+  }
+
   /* =========================================================
      Dashboard
      ========================================================= */
@@ -268,14 +287,7 @@
     // One selector feeds both the bar and the panel below it. They used to be
     // derived separately and showed two different counts a few inches apart —
     // the bar saying 3 while the panel said 2, under near-identical wording.
-    const attn = (typeof KhaytAttention !== 'undefined')
-      ? KhaytAttention.selectAttention({
-        machines: mach,
-        orders: log,
-        statusCache: (typeof machineStatusCache !== 'undefined' ? machineStatusCache : {}),
-        now: Date.now(),
-      })
-      : { count: 0, items: [] };
+    const attn = facts(log, mach).attn;
 
     /* ---- Needs attention (real signals) ---- */
     // The panel is the bar's drill-down: the same urgent items in the same

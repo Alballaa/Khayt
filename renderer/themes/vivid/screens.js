@@ -220,6 +220,25 @@
     return { arcs, legend };
   }
 
+  /**
+   * The shared derivations. Layout stays this theme's business; the answers to
+   * "is it late", "is it printing", "does this shop show money" do not — six
+   * screens were each working those out, and one of them (Flow) had been getting
+   * `late` wrong since it shipped without anything to say so.
+   */
+  function facts(orders, mach) {
+    return global.KhaytDashboardFacts.dashboardFacts({
+      orders, machines: mach,
+      statusCache: (typeof machineStatusCache !== 'undefined' && machineStatusCache) || {},
+      settings: (typeof settings !== 'undefined') ? settings : {},
+      now: Date.now(),
+      attention: global.KhaytAttention,
+      tiers: (typeof KhaytTiers !== 'undefined') ? KhaytTiers : undefined,
+      money: (typeof payStatus === 'function' && typeof orderOwedBase === 'function')
+        ? { payStatus, owedFor: orderOwedBase } : undefined,
+    });
+  }
+
   /* =========================================================
      Dashboard
      ========================================================= */
@@ -346,14 +365,7 @@
     // show different counts. It also replaces `m.isOffline || cache.error`,
     // which called a printer broken on a single missed poll while fleetRow()
     // in this same file correctly showed it reconnecting.
-    const attn = (typeof KhaytAttention !== 'undefined')
-      ? KhaytAttention.selectAttention({
-        machines: mach,
-        orders: log,
-        statusCache: (typeof machineStatusCache !== 'undefined' ? machineStatusCache : {}),
-        now: Date.now(),
-      })
-      : { count: 0, items: [] };
+    const attn = facts(log, mach).attn;
 
     /* ---- Needs attention (real signals) ---- */
     // The panel is the bar's drill-down: urgent items first and in the same

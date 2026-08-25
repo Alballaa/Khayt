@@ -115,10 +115,14 @@ test('junk in never becomes numbers out', () => {
 
 /**
  * Themes that still call the attention engine directly. This list may SHRINK and
- * must never grow — that is the whole guard. Flow was the first removed, and
- * removing it fixed a bug that had been live since the board shipped.
+ * must never grow — that is the whole guard.
+ *
+ * It is empty, and the assertions below keep it that way: a theme that starts
+ * calling the engine itself fails, and a theme left on the list after being
+ * converted also fails, so this cannot rot into a permanent exemption. Flow was
+ * the first removed, and removing it fixed a bug live since the board shipped.
  */
-const STILL_DERIVING_THEIR_OWN = ['command', 'foreman', 'vivid', 'workbench'];
+const STILL_DERIVING_THEIR_OWN = [];
 
 test('no theme re-derives lateness for itself', () => {
   // The guard, in the spirit of route-parity and mapper-parity: the point of a
