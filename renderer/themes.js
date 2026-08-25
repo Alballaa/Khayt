@@ -46,12 +46,13 @@
   }
 
   function unloadCustomThemeStyles() {
-    document.querySelectorAll('link[data-khayt-theme-pack="custom"]').forEach((el) => el.remove());
+    document.querySelectorAll('[data-khayt-theme-pack="custom"]').forEach((el) => el.remove());
   }
 
   function loadCustomThemeStyles(theme) {
     unloadCustomThemeStyles();
-    if (!theme?.custom || !theme.stylesheets?.length) return;
+    if (!theme?.custom) return;
+    if (!theme.stylesheets?.length && !theme.inlineCss?.length) return;
     theme.stylesheets.forEach((href) => {
       // Defense in depth: only load .css bundled under the custom-theme folder (no traversal).
       if (typeof href !== 'string' || href.includes('..') || !href.startsWith('themes/custom/') || !href.endsWith('.css')) return;
@@ -60,6 +61,24 @@
       link.href = href;
       link.dataset.khaytThemePack = 'custom';
       document.head.appendChild(link);
+    });
+
+    // A theme installed in userData arrives as text rather than as a URL: it
+    // lives outside the app's origin, and the CSP that stops a <link> reaching
+    // the network stops it reaching the disk too.
+    //
+    // `textContent`, never innerHTML. The difference is the whole safety of this
+    // line — assigning to textContent cannot end the <style> element, so a
+    // stylesheet carrying `</style><script>` stays a string that does nothing.
+    // lib/theme-package.js refuses that construct on install and again on read,
+    // and this is the third place it cannot work.
+    (theme.inlineCss || []).forEach((sheet) => {
+      if (!sheet || typeof sheet.text !== 'string') return;
+      const el = document.createElement('style');
+      el.dataset.khaytThemePack = 'custom';
+      el.dataset.khaytThemeFile = String(sheet.name || '');
+      el.textContent = sheet.text;
+      document.head.appendChild(el);
     });
   }
 
