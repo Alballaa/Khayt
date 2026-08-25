@@ -60,32 +60,39 @@
     return fallback;
   }
 
-  function showsMoney() {
-    return (typeof KhaytTiers !== 'undefined' && KhaytTiers.showsBusiness)
-      ? KhaytTiers.showsBusiness(typeof settings !== 'undefined' ? settings.mode : undefined)
-      : false;
-  }
-
-  /** Orders in scope, honouring the location filter the rest of the app uses. */
-  function boardOrders() {
+  /**
+   * Everything this board needs to know about the shop, answered by the shared
+   * derivation rather than here.
+   *
+   * What used to live in this space was three helpers, one of which had been
+   * silently broken since it was written. `lateOrderIds()` called the attention
+   * engine — correctly, and its comment said so — then iterated the result as an
+   * array. `selectAttention` returns `{count, items}`, so `for…of` threw
+   * `TypeError: attn is not iterable` on every single render, and the catch two
+   * lines below it swallowed the throw. It also looked for `a.orderId` where the
+   * items carry `a.id`, so it would have found nothing even had it been
+   * iterable. Two independent mistakes, one silent result: no card on this board
+   * has ever shown a "late" chip, and the "{n} late" alert has never appeared.
+   *
+   * The board was not wrong to borrow. It was wrong to borrow at a call site
+   * that had to know the engine's return shape, where being wrong costs nothing
+   * visible. That knowledge now sits in one tested place.
+   */
+  function facts() {
     const all = (typeof printLog !== 'undefined' && Array.isArray(printLog)) ? printLog : [];
-    return (typeof orderMatchesActiveLocation === 'function')
-      ? all.filter(orderMatchesActiveLocation)
-      : all;
-  }
-
-  /** Ids the shared attention engine considers overdue — borrowed, not re-derived. */
-  function lateOrderIds() {
-    const ids = new Set();
-    try {
-      const attn = global.KhaytAttention?.selectAttention?.({
-        machines: typeof machines !== 'undefined' ? machines : [],
-        orders: boardOrders(),
-        settings: typeof settings !== 'undefined' ? settings : {},
-      }) || [];
-      for (const a of attn) if (a.orderId) ids.add(a.orderId);
-    } catch (_) { /* attention is advisory; a board still renders without it */ }
-    return ids;
+    return global.KhaytDashboardFacts.dashboardFacts({
+      // Location scoping stays here: which shop you are looking at is a renderer
+      // concern, and the facts module takes orders already narrowed.
+      orders: (typeof orderMatchesActiveLocation === 'function') ? all.filter(orderMatchesActiveLocation) : all,
+      machines: (typeof machines !== 'undefined' && Array.isArray(machines)) ? machines : [],
+      statusCache: (typeof machineStatusCache !== 'undefined' && machineStatusCache) || {},
+      settings: (typeof settings !== 'undefined') ? settings : {},
+      now: Date.now(),
+      attention: global.KhaytAttention,
+      tiers: (typeof KhaytTiers !== 'undefined') ? KhaytTiers : undefined,
+      money: (typeof payStatus === 'function' && typeof orderOwedBase === 'function')
+        ? { payStatus, owedFor: orderOwedBase } : undefined,
+    });
   }
 
   function wipLimitFor(status) {
@@ -137,20 +144,17 @@
     </section>`;
   }
 
-  function stripHtml(orders, late, money) {
-    const active = orders.filter((o) => ['pending', 'printing', 'post', 'qc'].includes(o.status)).length;
+  function stripHtml(f) {
     const bits = [
-      `<span>${esc(tr('flow.in_flight', 'In flight'))}: <b>${active}</b></span>`,
+      `<span>${esc(tr('flow.in_flight', 'In flight'))}: <b>${f.activeCount}</b></span>`,
     ];
-    if (late.size) {
-      bits.push(`<span class="alert">${esc(tr('flow.n_late', '{n} late', { n: late.size }))}</span>`);
+    // This branch has been dead since the board shipped, because f.lateCount was
+    // always 0. It is the same line; the number behind it is now real.
+    if (f.lateCount) {
+      bits.push(`<span class="alert">${esc(tr('flow.n_late', '{n} late', { n: f.lateCount }))}</span>`);
     }
-    if (money && typeof payStatus === 'function' && typeof orderOwedBase === 'function') {
-      let owed = 0;
-      for (const o of orders) if (payStatus(o) !== 'paid') owed += orderOwedBase(o) || 0;
-      if (owed > 0 && typeof fmtPrice === 'function') {
-        bits.push(`<span>${esc(tr('flow.owed', 'Owed'))}: <b>${esc(fmtPrice(owed))}</b></span>`);
-      }
+    if (f.owed > 0 && typeof fmtPrice === 'function') {
+      bits.push(`<span>${esc(tr('flow.owed', 'Owed'))}: <b>${esc(fmtPrice(f.owed))}</b></span>`);
     }
     bits.push(`<span>${esc(tr('flow.drag_hint', 'Drag a card to move it'))}</span>`);
     return `<div class="flow-strip">${bits.join('')}</div>`;
@@ -163,14 +167,13 @@
    */
   function renderDashboard(el) {
     if (!el || !document.body.classList.contains('khayt-flow')) return false;
-    const orders = boardOrders();
-    const late = lateOrderIds();
-    const money = showsMoney();
+    if (!global.KhaytDashboardFacts) return false;   // degrade to the shared dashboard
+    const f = facts();
 
     el.innerHTML = `
-      ${stripHtml(orders, late, money)}
+      ${stripHtml(f)}
       <div class="flow-board" role="list">
-        ${COLUMNS.map((c) => columnHtml(c, orders, late, money)).join('')}
+        ${COLUMNS.map((c) => columnHtml(c, f.orders, f.lateIds, f.showsMoney)).join('')}
       </div>`;
 
     global.KhaytFlowShell?.wireBoard?.(el);
