@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.7.0-beta.6] - 2026-08-25
+
 ### Fixed
 
 - **Duet printers showed every job sitting at 0% with no filename.** Not
