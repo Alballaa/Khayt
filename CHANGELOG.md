@@ -4,6 +4,32 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **Khayt can now find a printer that changed address, even one that does not
+  announce itself.** It could already repair a printer whose address moved — but
+  only by listening for printers that broadcast their presence, and the Snapmaker
+  U1 broadcasts nothing at all. Which meant the feature could not help the exact
+  printer it was written for: it sat on "offline", the same word it uses for a
+  printer switched off at the wall, while the real fix was a two-second edit
+  nobody knew to make.
+
+  Khayt now goes and asks. If a printer stops answering, it checks the other
+  addresses on the same network for something speaking that printer's language,
+  and offers to point the machine at it — showing you what it found rather than
+  moving anything on its own.
+
+  It also remembers each printer's hardware address while it is working. That is
+  the one thing about a printer a router cannot change, so the next time one
+  moves, Khayt knows which printer it found rather than guessing from what is
+  nearby.
+
+  Why this matters more than a wrong badge: when a printer is at the wrong
+  address, every print that finishes is a measurement that no longer exists —
+  Khayt reads the real filament and time off the printer at the moment it
+  finishes, and those numbers are gone once the next job starts.
+
+
 ## [3.7.0-beta.7] - 2026-08-25
 
 ### Added

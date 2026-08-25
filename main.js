@@ -1354,10 +1354,110 @@ ipcMain.handle('hub:discover-printers', async (_e, { timeoutMs } = {}) => scanFo
  * machine. lib/printer-relocate.js only marks a move as applicable without
  * asking when the printer announced a serial that was already recorded for it.
  */
+/**
+ * Ask the subnet directly for a printer that is not announcing itself.
+ *
+ * mDNS finds printers that want to be found. The Snapmaker U1 does not: browsed
+ * on its own LAN while printing, `_moonraker._tcp` and `_octoprint._tcp` both
+ * returned nothing, while mDNS itself happily turned up a NAS and an HP laser.
+ * So `scanForPrinters` handed `planRelocations` an empty list, and the one
+ * printer the relocation feature was written for could never be relocated.
+ *
+ * Bounded on purpose — see lib/printer-sweep.js. Only the /24 the machine was
+ * already on, only ports Khayt speaks, one short request each, and every target
+ * still passes `isAllowedPrinterHost`, so this cannot be pointed off the LAN.
+ */
+async function sweepForPrinters(machineList, timeoutMs) {
+  const Sweep = require('./lib/printer-sweep.js');
+  const list = Array.isArray(machineList) ? machineList : [];
+  const budget = Math.max(1500, Math.min(20000, Number(timeoutMs) || 8000));
+  const perRequest = 1200;
+  const CONCURRENCY = 24;
+
+  // One sweep per subnet, however many machines live on it.
+  const subnets = new Map();
+  for (const m of list) {
+    const host = m && m.printerApi && m.printerApi.host;
+    const type = String((m && m.printerApi && m.printerApi.type) || '').toLowerCase();
+    if (!host || !Sweep.PROBES[type]) continue;
+    const net = Sweep.subnetOf(String(host).replace(/^\w+:\/\//, '').split(':')[0]);
+    if (!net) continue;
+    const key = `${net.prefix}|${type}`;
+    if (!subnets.has(key)) subnets.set(key, { host, type });
+  }
+  if (!subnets.size) return [];
+
+  const deadline = Date.now() + budget;
+  const found = [];
+
+  const probeOne = async (type, host) => {
+    if (!isAllowedPrinterHost(host)) return null;
+    const probe = Sweep.PROBES[type];
+    try {
+      const res = await fetch(`http://${host}:${probe.port}${probe.path}`, {
+        redirect: 'manual', signal: AbortSignal.timeout(perRequest),
+      });
+      let body = null;
+      try { body = await res.json(); } catch (e) { /* status alone may identify */ }
+      return Sweep.identifyResponse(type, host, res.status, body);
+    } catch (e) { return null; }
+  };
+
+  for (const { host, type } of subnets.values()) {
+    const hosts = Sweep.candidateHosts(String(host).replace(/^\w+:\/\//, '').split(':')[0]);
+    for (let i = 0; i < hosts.length && Date.now() < deadline; i += CONCURRENCY) {
+      const batch = hosts.slice(i, i + CONCURRENCY);
+      const hits = (await Promise.all(batch.map((h) => probeOne(type, h)))).filter(Boolean);
+      found.push(...hits);
+    }
+  }
+
+  // A durable identity, taken while the printer is answering — the only moment
+  // one is available. Moonraker carries a board serial; the hardware address
+  // covers the protocols that carry nothing.
+  for (const f of found) {
+    const path = Sweep.identityProbeFor(f.connection);
+    if (!path) continue;
+    try {
+      const res = await fetch(`http://${f.host}:${f.port}${path}`, { signal: AbortSignal.timeout(perRequest) });
+      f.serial = Sweep.readIdentitySerial(f.connection, await res.json()) || '';
+    } catch (e) { /* identity is a bonus, never a requirement */ }
+  }
+  return Sweep.withMacs(found, await readNeighbourTable());
+}
+
+/**
+ * The operating system's neighbour table, for hardware addresses.
+ *
+ * Four platforms print four layouts and lib/printer-sweep.js parses all of them
+ * with one rule, so this only has to pick a command. It runs AFTER the sweep, on
+ * purpose: the table holds hosts this computer has spoken to recently and
+ * nothing else — measured on the bench, 230 of 256 entries were "(incomplete)"
+ * — so the probes are what put the printer in it.
+ */
+function readNeighbourTable() {
+  const { execFile } = require('child_process');
+  const cmd = process.platform === 'win32' ? ['arp', ['-a']] : ['arp', ['-an']];
+  return new Promise((resolve) => {
+    try {
+      execFile(cmd[0], cmd[1], { timeout: 2500, windowsHide: true }, (err, stdout) => {
+        if (err && !stdout) return resolve({});
+        try { resolve(require('./lib/printer-sweep.js').parseArpTable(stdout || '')); }
+        catch (e) { resolve({}); }
+      });
+    } catch (e) { resolve({}); }
+  });
+}
+
 ipcMain.handle('hub:relocate-printers', async (_e, { machines, statusCache, requireOffline, timeoutMs } = {}) => {
   const Relocate = require('./lib/printer-relocate.js');
   const scan = await scanForPrinters(timeoutMs);
   if (!scan.ok) return scan;
+  // mDNS first, then ask. A printer that announces nothing is still a printer,
+  // and it is disproportionately the one whose owner needs this.
+  const swept = await sweepForPrinters(machines, timeoutMs);
+  const known = new Set(scan.printers.map((p) => String(p.host || '').toLowerCase()));
+  scan.printers = scan.printers.concat(swept.filter((p) => !known.has(String(p.host || '').toLowerCase())));
   // TRUST BOUNDARY: `machines` is renderer-supplied, and is used here only to
   // decide which of the scan's own results to describe. Nothing is fetched from
   // it and nothing is written, so a forged entry can at most produce a proposal
@@ -3673,8 +3773,14 @@ async function diagnoseMovedPrinters(machineList) {
   let scan;
   try { scan = await scanForPrinters(4000); } catch { return; }
   if (!scan || !scan.ok) return;
+  let discovered = scan.printers || [];
+  // Nothing announced itself. That is the U1 case rather than an edge case, so
+  // go and ask the subnet before giving up and leaving the owner on "offline".
+  if (!discovered.length) {
+    try { discovered = await sweepForPrinters(machineList, 8000); } catch (e) { discovered = []; }
+  }
   const plan = Relocate.planRelocations({
-    machines: machineList, discovered: scan.printers, statusCache: printerStatusCache,
+    machines: machineList, discovered, statusCache: printerStatusCache,
   });
   for (const move of plan.moves) {
     const entry = printerStatusCache[move.machineId];
