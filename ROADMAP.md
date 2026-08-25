@@ -69,27 +69,30 @@ Below this line, the items still need a switched-on printer, real shop use, or a
 calendar. The adoption endpoint (khayt-cloud#19) left a 30-day wait rather than a
 task; R7 ([#743]) left a hardware dependency rather than a task.
 
-- [ ] **A retried storefront webhook still becomes a second order — in the
-      cloud.** [#745] fixed this for Salla and Zid on the LAN server, by recording
-      the platform's own order reference and checking it before writing another.
-      The **cloud** import route did not get that fix and is worse off than the
-      LAN one was: `POST /v1/shops/{shop}/import/{platform}` in `khayt-cloud`
-      does a bare `INSERT INTO intake` with **no duplicate check of any kind** —
-      no reference check, no replay window, and no unique key on the `intake`
-      table to fall back on. The LAN path at least had `isReplayedWebhook`
-      holding ten minutes and five hundred entries.
+- [x] **A retried storefront webhook still becomes a second order — in the
+      cloud.** **Done 2026-08-25** (khayt-cloud#22). [#745] had fixed this for
+      Salla and Zid on the LAN server; the cloud import route — how every *other*
+      storefront reaches Khayt — never got the fix, and was worse off than the
+      LAN path had been: a bare `INSERT` with no duplicate check of any kind,
+      where the LAN path at least had an in-memory ten-minute guard.
 
-      It affects every platform that imports through the cloud link — Shopify,
-      WooCommerce, Etsy, Shopware, PrestaShop, BASE, and Salla/Zid when they are
-      wired through the cloud rather than the LAN server. `mapPlatformOrder`
-      **already extracts the platform's order reference** for each of them
-      (Shopify `name`/`order_number`/`id`, Woo `number`/`id`, Etsy `receipt_id`)
-      — it just puts it in the intake text and never checks it. Providers retry
-      on timeout or a non-2xx answer as a matter of routine, so this is an
-      ordinary event, not an attack.
+      Closed with a **unique index** rather than a lookup: `intake.source_ref`
+      plus `UNIQUE KEY (shop_id, source_ref)`, written by a single
+      `INSERT … ON DUPLICATE KEY UPDATE`. A check-then-insert would have been
+      wrong for the case that actually happens — a provider retries *because the
+      first delivery was slow*, so the retry tends to land while the original is
+      still being written, and a check would close every case except that one.
+      `source_ref` is NULLable so manual requests and portal re-orders are
+      untouched, and a delivery carrying no usable reference is still written
+      rather than refused.
 
-      Found on 2026-08-25 while checking whether [#745] had covered every inbound
-      path. It had not.
+      Running the contract suite against **PHP** rather than only Node then found
+      an older defect it was not looking for: that route had been answering
+      `"id":"0"` for every storefront order ever imported, because
+      `lastInsertId()` reports the last insert on the *connection* and
+      `notifyOwnerOfIntake` runs its own queries first. The customer-intake route
+      forty lines below had always read it correctly. Nothing compared them,
+      because no test had ever looked at the id this route returns.
 
 - [x] **Soak the candidate, then promote it to `v3.6.0` stable.**
       **Done 2026-08-21** — promoted from `v3.6.0-rc.4` with no code change

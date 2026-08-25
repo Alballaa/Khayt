@@ -4,6 +4,27 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **An order that arrives twice from your online store no longer becomes two
+  jobs — whichever store it is.** The previous release fixed this for Salla and
+  Zid; it was still happening for every store that sends its orders through
+  Khayt's cloud link, which is Shopify, WooCommerce, Etsy, Shopware, PrestaShop,
+  BASE and Medusa.
+
+  Stores re-send an order when the first attempt is slow or gets no clear answer.
+  That is normal, not a fault, and it happened often enough to matter: each
+  re-send wrote a second order request, so a job could be printed twice or
+  invoiced twice. Khayt now records the store's own order number against the
+  request and refuses the second one, and answers the store with *received*
+  rather than an error so it stops re-sending instead of eventually reporting
+  your import link as broken.
+
+  Orders that carry no order number are still accepted exactly as before — an
+  order Khayt cannot recognise is still an order, and losing it would be worse
+  than the duplicate.
+
+
 ### Added
 
 - **Medusa stores can send their orders to Khayt.** Pick **Medusa** in
