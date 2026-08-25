@@ -5,9 +5,9 @@ Khayt publishes **two release channels** on GitHub:
 | Channel | Latest | GitHub | Auto-update |
 |---------|--------|--------|-------------|
 | **Stable** | `v3.6.0` | [Latest release](https://github.com/khaytapp/Khayt/releases/latest) | Default (beta off) |
-| **Beta / RC** | `v3.7.0-beta.4` | [Pre-releases](https://github.com/khaytapp/Khayt/releases) (filter *Pre-release*) | Opt-in via Settings |
+| **Beta / RC** | `v3.7.0-beta.5` | [Pre-releases](https://github.com/khaytapp/Khayt/releases) (filter *Pre-release*) | Opt-in via Settings |
 
-> Verified 2026-08-23 against published tags. These rot fast — check with
+> Verified 2026-08-25 against published tags. These rot fast — check with
 > `gh release list --repo KhaytApp/Khayt` rather than trusting the table.
 
 > **`beta.4` sat bumped-but-untagged on `main` for most of a day** — `package.json`
@@ -17,9 +17,12 @@ Khayt publishes **two release channels** on GitHub:
 > that cannot is reading `package.json`, which records that the *cut* landed and
 > says nothing about whether it *shipped*.
 >
-> `beta.4` is **Windows + Linux only** — `BUILD_MAC` was deliberately left unset,
-> so macOS stays on `beta.3` with its update check healthy via the carried
-> `latest-mac.yml` (see below).
+> `beta.4` was **Windows + Linux only** — `BUILD_MAC` was deliberately left unset,
+> so macOS stayed on `beta.3` with its update check healthy via the carried
+> `latest-mac.yml` (see below). **`beta.5` (2026-08-24) supersedes it and is built
+> for all three platforms**, macOS included: `BUILD_MAC` was set before the tag and
+> deleted after, and `carry-mac-manifest` skipped because a real mac build shipped
+> rather than a carried manifest.
 
 ## What beta includes
 

@@ -30,8 +30,13 @@ retyping a name, and a camera Khayt merely guessed at is no longer switched on
 before anything has answered.
 
 **Landed on `main` after the tag** and therefore *not* in beta.5 — the next cut
-carries them: a measured job now survives quitting the app ([#742]), and R7's
-socket layer ([#743]).
+carries them: a measured job now survives quitting the app ([#742]), R7's socket
+layer ([#743]), and a storefront order that arrives twice no longer becomes two
+jobs ([#745]). That last one is the reason this line should not be left to sit:
+until #745 ships, a shop taking Salla or Zid orders is guarded against an
+ordinary provider retry only by an in-memory list that empties on quit, holds ten
+minutes and holds five hundred — and a duplicate there is a job printed twice or
+invoiced twice. Merging it did not fix that for anybody; tagging it will.
 
 No hold is active — see [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md).
 
@@ -203,6 +208,7 @@ Four stable lines, nineteen beta releases and four release candidates since 3.2.
 [#736]: https://github.com/KhaytApp/Khayt/pull/736
 [#742]: https://github.com/KhaytApp/Khayt/pull/742
 [#743]: https://github.com/KhaytApp/Khayt/pull/743
+[#745]: https://github.com/KhaytApp/Khayt/pull/745
 [#549]: https://github.com/KhaytApp/Khayt/pull/549
 [#551]: https://github.com/KhaytApp/Khayt/pull/551
 [#552]: https://github.com/KhaytApp/Khayt/pull/552
