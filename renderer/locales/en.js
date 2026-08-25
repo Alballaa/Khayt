@@ -1426,6 +1426,12 @@
   "theme.design.custom_help": "Create your own theme →",
   "theme.design.custom_toast": "Copy renderer/themes/_template/ to renderer/themes/custom/ — see README there.",
   "theme.design.selected_badge": "Selected",
+  "theme.design.hides": "Hides",
+  "theme.design.adds": "Adds",
+  "cap.revenue": "revenue figures",
+  "cap.margin": "average margin",
+  "cap.receivables": "unpaid totals",
+  "cap.fleet_utilisation": "fleet utilisation",
   "theme.design.soon_badge": "Coming soon",
 
   "tab.sub.catalog": "{n} products",

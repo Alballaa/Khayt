@@ -28,7 +28,33 @@
     return base;
   }
 
-  function cardHtml(id, theme, { selected, disabled, soon }) {
+  /**
+   * What a shop gives up, or gains, by choosing this design.
+   *
+   * The layouts are deliberately different screens, so switching does not only
+   * change the look — it can remove a figure. Average margin is on two of the
+   * eight. Someone who picked a design because they liked it had no way to learn
+   * that until they went looking for a number that was no longer there.
+   *
+   * Only ever shown against the CURRENT choice, and only when something actually
+   * changes: a card that costs nothing says nothing.
+   */
+  function tradeoffHtml(id, currentId) {
+    const caps = global.KhaytThemeCapabilities;
+    if (!caps || !currentId || id === currentId) return '';
+    const { gained, lost } = caps.differenceBetween(currentId, id);
+    const name = (c) => escapeHtml(tr('cap.' + c, (caps.CAPABILITIES[c] || {}).label || c));
+    const bits = [];
+    if (lost.length) {
+      bits.push(`<span class="theme-picker-tradeoff lost">${escapeHtml(tr('theme.design.hides', 'Hides'))} ${lost.map(name).join(', ')}</span>`);
+    }
+    if (gained.length) {
+      bits.push(`<span class="theme-picker-tradeoff gained">${escapeHtml(tr('theme.design.adds', 'Adds'))} ${gained.map(name).join(', ')}</span>`);
+    }
+    return bits.join('');
+  }
+
+  function cardHtml(id, theme, { selected, disabled, soon, currentId }) {
     const label = escapeHtml(themeLabel(theme, id));
     const desc = escapeHtml(themeDesc(theme));
     const src = escapeHtml(previewSrc(theme, id));
@@ -44,6 +70,7 @@
       <span class="theme-picker-body">
         <strong>${label}</strong>
         <span>${desc}</span>
+        ${tradeoffHtml(id, currentId)}
         ${badge}
       </span>
     </button>`;
@@ -58,14 +85,14 @@
     let html = '';
     for (const id of selectable) {
       const theme = reg().getTheme(id);
-      html += cardHtml(id, theme, { selected: id === selected, disabled: false, soon: false });
+      html += cardHtml(id, theme, { selected: id === selected, disabled: false, soon: false, currentId: selected });
     }
     for (const id of soon) {
       // Coming-soon themes are enabled:false, and getTheme() normalises that to
       // workbench — so every one of these cards drew Workbench's name and
       // description under a COMING SOON badge. Label from the raw definition.
       const theme = reg().getThemeDefinition(id) || reg().getTheme(id);
-      html += cardHtml(id, theme, { selected: false, disabled: true, soon: true });
+      html += cardHtml(id, theme, { selected: false, disabled: true, soon: true, currentId: selected });
     }
 
     container.innerHTML = html;

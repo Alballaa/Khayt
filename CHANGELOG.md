@@ -4,6 +4,21 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **Choosing a design now tells you what it costs.** Khayt's eight designs are
+  eight genuinely different screens — that is the point of them — but it meant
+  switching could quietly take a number away. Average margin appears on two of
+  the eight. Revenue on three. If you picked a design because you liked the look,
+  nothing told you what you had given up, and you would only find out by going
+  looking for a figure that was no longer there.
+
+  Each design in **Settings → Appearance** now says what it hides or adds
+  compared with the one you are using — *"Hides average margin, fleet
+  utilisation"* — so you can choose on looks and know the price, or choose on the
+  numbers you need. A design that costs you nothing says nothing.
+
+
 ### Fixed
 
 - **The Flow board never marked an order late.** Not "rarely" — never, since the
