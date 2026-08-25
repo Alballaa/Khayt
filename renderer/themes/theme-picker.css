@@ -98,3 +98,18 @@
   max-width: 520px;
   margin-inline: auto;
 }
+
+/* What a design costs you.
+   Deliberately quiet: this is a footnote on a card, not a warning. A shop
+   should be able to read it if it is choosing carefully and ignore it if it
+   is choosing on looks — which is a legitimate way to choose. */
+.theme-picker-tradeoff {
+  display: block;
+  font-size: 11px;
+  line-height: 1.45;
+  margin-top: 3px;
+  color: var(--text-muted, #6b7280);
+}
+.theme-picker-tradeoff.lost::before { content: "− "; }
+.theme-picker-tradeoff.gained::before { content: "+ "; }
+.theme-picker-tradeoff.gained { color: var(--success, #1f6b3f); }
