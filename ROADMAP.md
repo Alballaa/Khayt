@@ -2,7 +2,7 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0, 3.7.0-beta.5 published — on `main`)
+## Now (post-3.6.0, 3.7.0-beta.6 published — on `main`)
 
 **Stable is v3.6.0** (2026-08-21) — the 3.6.0 line, promoted from
 `v3.6.0-rc.4` unchanged after a seven-day soak. rc.4 was the first candidate on
@@ -10,33 +10,34 @@ this line that `main` did not overtake, so for once replace-vs-promote resolved
 to *promote*; rc.1, rc.2 and rc.3 were each replaced instead.
 
 **The 3.7.0 line is open. The newest *published* pre-release is
-`v3.7.0-beta.5`** (2026-08-24) — tagged from `cdeefae`, and the first cut on this
-line built for **all three platforms**, macOS included. Verified the way this file
-keeps insisting on: `git ls-remote --tags origin` shows the tag, the tag resolves
-to `main`'s tip, `package.json` at that commit reads `3.7.0-beta.5`, and every
-update manifest was fetched and its named asset served a 200. `carry-mac-manifest`
-correctly skipped, because a real mac build shipped rather than a carried
-manifest.
+`v3.7.0-beta.6`** (2026-08-25) — tagged from `461cafd`, **Windows + Linux only**
+(`BUILD_MAC` deliberately unset), so macOS stays on `beta.5` with its update check
+healthy via a carried `latest-mac.yml`. Verified the way this file keeps insisting
+on: the tag resolves to `main`'s tip, `package.json` at that commit reads
+`3.7.0-beta.6`, all three manifests fetch 200, every asset they name serves 200,
+and the beta.5 mac zip the carried manifest points at still resolves.
 
-`BUILD_MAC` was set before the tag and **deleted after** — it is sticky, and the
-run summary says which way it went.
+beta.6 is the release where the printers Khayt was already polling started being
+heard correctly. Every adapter was audited against its vendor's own documentation
+and, where that was silent or wrong, that vendor's firmware source —
+[docs/PRINTER-PROTOCOL-AUDIT.md](./docs/PRINTER-PROTOCOL-AUDIT.md). Six defects,
+five of which had been reporting a wrong number indefinitely without ever
+throwing, which is exactly why none of them had been noticed: a Duet permanently
+at 0%, a Repetier that always looked idle, a PrusaLink with no filename, a Klipper
+toolchanger reading a nozzle that was not printing, and — the one that decided the
+cut could not wait — OctoPrint recording the slicer's own estimate as the measured
+weight, feeding `estimate-calibration.js` its own guesses as evidence and making
+every OctoPrint variance read as exactly zero.
 
-beta.5 is the printer-and-model release. A printer that changed address used to
-read as one that had gone away, which was not a cosmetic complaint: every print
-that finished against a stale address was a measurement that stopped existing.
-Alongside it, Khayt now says what is likely to go *wrong* with a model rather than
-only what it costs, kits can be filed after the fact from a picker instead of by
-retyping a name, and a camera Khayt merely guessed at is no longer switched on
-before anything has answered.
+It also carries **R7**: an Elegoo Mars or Saturn can be added and watched, found
+by a network scan because SDCP addresses a printer by a mainboard id printed
+nowhere on the machine. It has still never met one, and the release note says so.
 
-**Landed on `main` after the tag** and therefore *not* in beta.5 — the next cut
-carries them: a measured job now survives quitting the app ([#742]), R7's socket
-layer ([#743]), and a storefront order that arrives twice no longer becomes two
-jobs ([#745]). That last one is the reason this line should not be left to sit:
-until #745 ships, a shop taking Salla or Zid orders is guarded against an
-ordinary provider retry only by an in-memory list that empties on quit, holds ten
-minutes and holds five hundred — and a duplicate there is a job printed twice or
-invoiced twice. Merging it did not fix that for anybody; tagging it will.
+Alongside those: a measured job now survives quitting the app ([#742]), and a
+Salla or Zid order that arrives twice no longer becomes two jobs ([#745]).
+
+`main` and the newest published tag are **the same commit**. `[Unreleased]` is
+empty.
 
 No hold is active — see [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md).
 
@@ -45,12 +46,50 @@ CI from this repo and published to `KhaytApp/bedready`. It had sat on 1.0.0 for
 nine days with Kits and an accessibility fix unreleased, because the lane was
 believed to be blocked on a token that in fact already existed.
 
-Everything below needs a switched-on printer, real shop use, or a calendar.
-**There is no queue of code waiting to be written** — that is the honest state of
-this file, and it survived a day of writing code, because everything written on
-2026-08-24 was either something this file did not know was broken or an item it
-had already scoped. The adoption endpoint (khayt-cloud#19) left a 30-day wait
-rather than a task; R7 ([#743]) left a hardware dependency rather than a task.
+**That claim did not survive 2026-08-25.** This file said on 2026-08-24 that there
+was no queue of code waiting to be written, and it was wrong in a way worth
+recording rather than quietly editing out: six printer defects existed, five of
+them reporting a wrong number indefinitely, and this file did not know because
+nothing threw and nobody owned the printer. "No queue" meant "nothing on the
+list", and the list was built from what breaks loudly.
+
+The audit that found them is now a standing item, not a one-off —
+[docs/PRINTER-PROTOCOL-AUDIT.md](./docs/PRINTER-PROTOCOL-AUDIT.md). There is one
+printer on this bench and seven protocols; for six of them the vendor's
+documentation *is* the test fixture, and a fixture nobody re-reads rots. Re-run it
+when a vendor ships a major firmware line.
+
+The general lesson, because it is not printer-specific: **verify a field's
+provenance, not its units.** The 2026-07-31 pass checked every unit and every unit
+was right. "Is this in mm?" is answerable from documentation; "is this measured or
+predicted?" usually is not, and that is the question that had OctoPrint reporting
+a variance of zero against its own estimate.
+
+Below this line, the items still need a switched-on printer, real shop use, or a
+calendar. The adoption endpoint (khayt-cloud#19) left a 30-day wait rather than a
+task; R7 ([#743]) left a hardware dependency rather than a task.
+
+- [ ] **A retried storefront webhook still becomes a second order — in the
+      cloud.** [#745] fixed this for Salla and Zid on the LAN server, by recording
+      the platform's own order reference and checking it before writing another.
+      The **cloud** import route did not get that fix and is worse off than the
+      LAN one was: `POST /v1/shops/{shop}/import/{platform}` in `khayt-cloud`
+      does a bare `INSERT INTO intake` with **no duplicate check of any kind** —
+      no reference check, no replay window, and no unique key on the `intake`
+      table to fall back on. The LAN path at least had `isReplayedWebhook`
+      holding ten minutes and five hundred entries.
+
+      It affects every platform that imports through the cloud link — Shopify,
+      WooCommerce, Etsy, Shopware, PrestaShop, BASE, and Salla/Zid when they are
+      wired through the cloud rather than the LAN server. `mapPlatformOrder`
+      **already extracts the platform's order reference** for each of them
+      (Shopify `name`/`order_number`/`id`, Woo `number`/`id`, Etsy `receipt_id`)
+      — it just puts it in the intake text and never checks it. Providers retry
+      on timeout or a non-2xx answer as a matter of routine, so this is an
+      ordinary event, not an attack.
+
+      Found on 2026-08-25 while checking whether [#745] had covered every inbound
+      path. It had not.
 
 - [x] **Soak the candidate, then promote it to `v3.6.0` stable.**
       **Done 2026-08-21** — promoted from `v3.6.0-rc.4` with no code change
@@ -178,6 +217,7 @@ Four stable lines, nineteen beta releases and four release candidates since 3.2.
 
 | Version | Date | What it was |
 |---------|------|-------------|
+| **3.7.0-beta.6** | 2026-08-25 | **The printers were answering; Khayt was not listening.** Every printer adapter audited against its manufacturer's own documentation and, where that was silent or wrong, that manufacturer's firmware source — six defects, five of them reporting a wrong number indefinitely without ever throwing, which is why none had been noticed. A Duet permanently at 0% with no filename (the `f` query flag filters out the very file the percentage needs). A Repetier that always read Idle (its reply is keyed by slug and was being indexed as an array). A PrusaLink with no filename (that endpoint has never carried one). A Klipper toolchanger showing a nozzle that was not printing. And OctoPrint recording the slicer's own estimate as the measured weight, which made every variance read as exactly zero and fed `estimate-calibration.js` its own guesses as evidence ([#747]). Also **R7** — Elegoo Mars/Saturn can be added and watched, found by network scan, still never tested against a real machine and the note says so ([#743]) — a measured job surviving app quit ([#742]), and a retried Salla/Zid order no longer becoming two ([#745]). Windows + Linux only; macOS stays on beta.5 with a carried manifest ([#748]). |
 | **3.6.0** | 2026-08-21 | **The 3.6.0 line, released as stable.** Promoted from `v3.6.0-rc.4` with no code change between the two — the only commit `main` took after the tag was [#711], a status-doc fix. Khayt learns what prints actually cost: a model becomes a quote, the printer reports the real filament and duration on completion, and the estimator calibrates itself from finished jobs. It also opens the app outside the Gulf (tax added to a price rather than included in it, thirty country presets, documents in the shop's own language), closes four security holes including a portal link that exposed a whole message thread, and stops a restore-while-running from pushing old data over new. Supersedes v3.5.3. |
 | **3.6.0-rc.4** | 2026-08-14 | **A restore can no longer overwrite newer data.** Restoring a backup, a restore point, or an imported file *while the app was running* could push that older copy to the cloud as the latest, and every other device would take it — silently, with the newer records gone. A restore is now treated like a fresh start: forget what the server was thought to hold, refetch, merge ([#708]). Also the organisation overview showing what each branch earned and is still owed, each in its own currency and never summed across them ([#707]), and a launch sync that asks only for what changed ([#705]). The current candidate ([#710]). |
 | **3.6.0-rc.3** | 2026-08-14 | **Sync failures explain themselves.** A failed sync said "Sync error" and nothing else, forever ([#698]). Cut because thirteen commits had landed after rc.2 ([#704]). |
@@ -223,6 +263,8 @@ Four stable lines, nineteen beta releases and four release candidates since 3.2.
 [#742]: https://github.com/KhaytApp/Khayt/pull/742
 [#743]: https://github.com/KhaytApp/Khayt/pull/743
 [#745]: https://github.com/KhaytApp/Khayt/pull/745
+[#747]: https://github.com/KhaytApp/Khayt/pull/747
+[#748]: https://github.com/KhaytApp/Khayt/pull/748
 [#549]: https://github.com/KhaytApp/Khayt/pull/549
 [#551]: https://github.com/KhaytApp/Khayt/pull/551
 [#552]: https://github.com/KhaytApp/Khayt/pull/552
