@@ -44,3 +44,19 @@ build-bedready/
 # bumps. Regenerate on demand: `npm run store:manual` / `npm run store:metadata`.
 store/microsoft/partner-center.md
 store/microsoft/metadata.json
+
+# Sibling checkouts that live inside this one.
+#
+# `khayt-cloud` and `khayt-website` are separate repositories, and `Khayt/` is an
+# old copy of this one. Being untracked was not protection: a `git add -A` stages
+# all three as gitlinks — a one-line entry that looks harmless in a diff and
+# commits a pointer to a commit nobody else can resolve. That has now been caught
+# once at review, which is once more than it should take.
+#
+# They are also why the local suite disagrees with CI: tests that scan the repo
+# find three extra copies of everything here and none of them on a CI runner.
+/Khayt/
+/khayt-cloud/
+/khayt-website/
+/Khayt-Social-Launch-Kit.pdf
+ios/**/*.xcworkspace/contents.xcworkspacedata
