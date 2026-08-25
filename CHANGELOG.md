@@ -4,6 +4,41 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **Medusa stores can send their orders to Khayt.** Pick **Medusa** in
+  Settings → Integrations and you get two buttons instead of the usual one: the
+  import link, and the code that uses it.
+
+  The second button is the point. Every other storefront here has a settings page
+  where you paste a webhook URL; Medusa does not, because it is a framework you
+  host yourself rather than a shop you log into. Orders are announced inside your
+  own project, to a file you write. So Khayt writes it for you — press **Copy
+  subscriber code**, save it as `src/subscribers/khayt-order-placed.ts`, redeploy,
+  and every order placed from then on arrives in **Order requests** with the
+  customer's name, their email, the line items and quantities, and the order
+  number you and they both see (`#1042` — not the internal `order_01J…` id).
+
+  The generated file does two things that are easy to get wrong by hand. It
+  *fetches* the order, because Medusa's `order.placed` hands you an ID and
+  nothing else — a subscriber that forwards what it was given sends Khayt an
+  object with one field in it. And it asks for the line items and addresses
+  explicitly, because Medusa omits those unless you name them, which would
+  otherwise import an order with no products and no customer.
+
+  If the send fails it writes to your Medusa log and stops there rather than
+  throwing, so Medusa does not retry it into a duplicate order.
+
+### Fixed
+
+- **Shopware, PrestaShop and BASE orders imported with less detail than they
+  should have.** Their orders were being read by the generic reader rather than
+  the one written for them, so a customer name in a field only those platforms
+  use was dropped and the order arrived under an internal id instead of its order
+  number. Found while adding Medusa, by checking that Khayt's two cloud backends
+  agreed about which stores they knew — they did not.
+
+
 ## [3.7.0-beta.6] - 2026-08-25
 
 ### Fixed

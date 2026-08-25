@@ -3521,6 +3521,8 @@
   "integ.copy_import": "Copiar link de importação",
   "integ.import_copied": "Link de importação copiado — cole-o como webhook na sua loja",
   "integ.copy_feed": "Copiar link do feed",
+  "integ.copy_subscriber": "Copiar código do subscriber",
+  "integ.subscriber_copied": "Subscriber copiado — salve como src/subscribers/khayt-order-placed.ts no seu projeto Medusa",
   "integ.feed_copied": "Link do feed copiado — adicione-o como URL de importação de produtos na sua loja",
   "integ.import_help": "cole o link de importação como webhook de pedidos na sua loja — os novos pedidos chegam em Solicitações de pedido.",
   "integ.feed_help": "adicione o link do feed como URL de importação de produtos na sua loja — ele espelha o catálogo publicado.",

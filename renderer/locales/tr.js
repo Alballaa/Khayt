@@ -3520,6 +3520,8 @@
   "integ.copy_import": "İçe aktarma bağlantısını kopyala",
   "integ.import_copied": "İçe aktarma bağlantısı kopyalandı — mağazanıza webhook olarak yapıştırın",
   "integ.copy_feed": "Akış bağlantısını kopyala",
+  "integ.copy_subscriber": "Subscriber kodunu kopyala",
+  "integ.subscriber_copied": "Subscriber kopyalandı — Medusa projenizde src/subscribers/khayt-order-placed.ts olarak kaydedin",
   "integ.feed_copied": "Akış bağlantısı kopyalandı — mağazanıza ürün içe aktarma URL'si olarak ekleyin",
   "integ.import_help": "içe aktarma bağlantısını mağazanıza sipariş webhook'u olarak yapıştırın — yeni siparişler Sipariş taleplerine gelir.",
   "integ.feed_help": "akış bağlantısını mağazanıza ürün içe aktarma URL'si olarak ekleyin — yayınlanan vitrin kataloğunuzu yansıtır.",

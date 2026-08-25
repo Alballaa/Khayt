@@ -3520,6 +3520,8 @@
   "integ.copy_import": "Copier le lien d'importation",
   "integ.import_copied": "Lien d'importation copié — collez-le comme webhook dans votre boutique",
   "integ.copy_feed": "Copier le lien de flux",
+  "integ.copy_subscriber": "Copier le code du subscriber",
+  "integ.subscriber_copied": "Subscriber copié — enregistrez-le sous src/subscribers/khayt-order-placed.ts dans votre projet Medusa",
   "integ.feed_copied": "Lien de flux copié — ajoutez-le comme URL d'importation de produits dans votre boutique",
   "integ.import_help": "collez le lien d'importation comme webhook de commande dans votre boutique — les nouvelles commandes arrivent dans Demandes de commande.",
   "integ.feed_help": "ajoutez le lien de flux comme URL d'importation de produits dans votre boutique — il reflète le catalogue de votre vitrine publiée.",

@@ -3522,6 +3522,8 @@
   "integ.copy_import": "نسخ رابط الاستيراد",
   "integ.import_copied": "تم نسخ رابط الاستيراد — الصقه كـ webhook في متجرك",
   "integ.copy_feed": "نسخ رابط الخلاصة",
+  "integ.copy_subscriber": "نسخ كود المشترك",
+  "integ.subscriber_copied": "تم نسخ الكود — احفظه باسم src/subscribers/khayt-order-placed.ts في مشروع Medusa",
   "integ.feed_copied": "تم نسخ رابط الخلاصة — أضِفه كرابط استيراد للمنتجات في متجرك",
   "integ.import_help": "الصق رابط الاستيراد كـ webhook للطلبات في متجرك — تصل الطلبات الجديدة إلى طلبات العملاء.",
   "integ.feed_help": "أضِف رابط الخلاصة كرابط استيراد للمنتجات في متجرك — يعكس كتالوج متجرك المنشور.",
