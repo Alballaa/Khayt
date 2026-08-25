@@ -6,6 +6,49 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Duet printers showed every job sitting at 0% with no filename.** Not
+  occasionally — always, on every Duet, since the adapter was written. Khayt asked
+  RepRapFirmware for the values that "change frequently during a job", which is a
+  real setting and exactly the right instinct, and the file a job is printing is
+  not one of them. So the byte position arrived with nothing to be a percentage
+  of. Khayt now asks for the file separately, and a Duet reports its progress and
+  the name of what it is printing.
+
+  Its bed and nozzle temperatures could also be swapped or invented. They were
+  read from heater slots 0 and 1, which is right on a normal machine and wrong on
+  one built differently — a printer with no heated bed was shown its hotend
+  temperature labelled "bed". Khayt now asks the printer which heater is which.
+
+- **A Repetier-Server printer always looked idle.** Whatever it was doing:
+  mid-print at 42% with a hot nozzle, it read as Idle, 0%, no temperatures. Khayt
+  was picking the printer out of the server's reply by position, and the reply is
+  organised by name, so it never found the printer at all and quietly showed an
+  empty one. It now looks the printer up by name, reads the temperature of the
+  extruder actually in use, and no longer prints the word "none" in the queue as
+  though it were a filename.
+
+- **A PrusaLink printer never showed what it was printing.** The status endpoint
+  Khayt polls does not carry the filename — it never has, on any firmware — so the
+  name was blank on every Prusa in the queue. Khayt now fetches it, and shows the
+  long name you saved the file under rather than the shortened `SPICE~1.gco` form
+  the printer keeps internally.
+
+- **A multi-toolhead Klipper printer showed the wrong nozzle temperature.** Khayt
+  always read the first toolhead. On a machine printing with its third — a
+  Snapmaker U1, for instance — that meant watching a nozzle sit at room
+  temperature all the way through a job. It now reads whichever toolhead is
+  actually printing. (What the print *used* was already right: filament totals
+  carry across a toolchange correctly.)
+
+- **A Bambu Lab printer that will not connect now says the likely reason.**
+  "Timed out — check IP, access code & LAN mode" listed three things that are
+  usually all correct. Bambu keeps the connection Khayt uses behind a *second*
+  switch, **Developer Mode**, separate from LAN-only Mode; with it off the printer
+  accepts the connection and then says nothing at all, which looks identical to a
+  dead printer. The message now names it, and the machine dialog says so before
+  you spend eight seconds finding out.
+
+
 - **An OctoPrint printer reported the slicer's guess as the measured weight.**
   When a job finishes, Khayt reads what it *actually* used off the printer. On
   OctoPrint the filament half of that reading was never a reading: OctoPrint fills

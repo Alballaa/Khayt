@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
-const { normalizeProgress, fileProgressPct, etaSeconds, layerProgressPct, moonrakerProgress } = require('../lib/printer-status.js');
+const { normalizeProgress, fileProgressPct, etaSeconds, layerProgressPct, moonrakerProgress, duetHeaterTemp } = require('../lib/printer-status.js');
 
 /**
  * Six adapters, six different notions of "progress", none of them bounded.
@@ -169,4 +169,85 @@ test('layers are used only when Klipper actually reports them', () => {
 test('a printer that reports neither reads as 0, not as NaN', () => {
   assert.deepEqual(moonrakerProgress({}, {}), { percent: 0, source: 'bytes' });
   assert.deepEqual(moonrakerProgress(null, null), { percent: 0, source: 'bytes' });
+});
+
+// ---------------------------------------------------------------------------
+// The vendor-documentation audit of 2026-08-25. Each test below fixes a shape
+// that a vendor's own documentation or firmware source says is real, against a
+// reader that assumed a different one. See docs/PRINTER-PROTOCOL-AUDIT.md.
+// ---------------------------------------------------------------------------
+
+test('THE DUET BUG, second act: flags=f removes the file the percentage needs', () => {
+  // rr_model's `f` flag sets includeNonLive=false (ObjectModel.cpp) and job.file
+  // is tagged ObjectModelEntryFlags::none (PrintMonitor.cpp), so this is what a
+  // Duet actually returns to `rr_model?key=&flags=d99fn` — a job forty minutes in
+  // with no file object anywhere in it.
+  const live = { result: { state: { status: 'processing' },
+    job: { duration: 2400, filePosition: 337942, rawExtrusion: 9100, timesLeft: { file: 900 } } } };
+  assert.equal(fileProgressPct(live.result.job.filePosition, live.result.job.file?.size), 0,
+    'this is what every Duet showed: a running job at 0%');
+
+  // The second query, without `f`, is the one that carries it.
+  const fileQuery = { key: 'job.file', result: { fileName: '0:/gcodes/bracket.gcode', size: 1468987 } };
+  assert.equal(fileProgressPct(live.result.job.filePosition, fileQuery.result.size), 23);
+  assert.equal(fileQuery.result.fileName, '0:/gcodes/bracket.gcode');
+});
+
+test('Duet heaters are resolved from the machine, not from index 0 and 1', () => {
+  const heaters = [{ current: 59.8 }, { current: 212.4 }];
+
+  // A stock config publishes no mapping and must keep working unchanged.
+  assert.equal(duetHeaterTemp({ heaters }, undefined, 'bed'), 59.8);
+  assert.equal(duetHeaterTemp({ heaters }, undefined, 'tool'), 212.4);
+
+  // The same machine, describing itself. Same answers.
+  assert.equal(duetHeaterTemp({ heaters, bedHeaters: [0] }, [{ heaters: [1] }], 'bed'), 59.8);
+  assert.equal(duetHeaterTemp({ heaters, bedHeaters: [0] }, [{ heaters: [1] }], 'tool'), 212.4);
+
+  // A bedless machine with its hotend on heater 0. The old read showed the
+  // hotend's 212 degrees under "bed", and index 1 — which does not exist — as the
+  // nozzle. RRF documents bedHeaters entries as "may be -1 if unconfigured".
+  const bedless = { heaters: [{ current: 212.4 }], bedHeaters: [-1] };
+  assert.equal(duetHeaterTemp(bedless, [{ heaters: [0] }], 'bed'), null, 'no bed means no bed temperature');
+  assert.equal(duetHeaterTemp(bedless, [{ heaters: [0] }], 'tool'), 212.4);
+});
+
+test('Klipper reports "not set" as null, and null is not layer zero', () => {
+  // print_stats.py leaves info_current_layer as None until a slicer sends
+  // SET_PRINT_STATS_INFO CURRENT_LAYER. Number(null) is 0 and 0 is finite, so a
+  // slicer announcing only TOTAL_LAYER used to pin the job at 0% AND suppress the
+  // byte fallback, because layers had "answered".
+  assert.equal(layerProgressPct({ current_layer: null, total_layer: 500 }), null);
+  assert.deepEqual(moonrakerProgress({ info: { current_layer: null, total_layer: 500 } }, { progress: 0.44 }),
+    { percent: 44, source: 'bytes' });
+
+  // Neither set: unchanged, still falls back to bytes.
+  assert.deepEqual(moonrakerProgress({ info: { current_layer: null, total_layer: null } }, { progress: 0.44 }),
+    { percent: 44, source: 'bytes' });
+
+  // Both set: unchanged. This is the U1 measurement the fallback was built from.
+  assert.deepEqual(moonrakerProgress({ info: { current_layer: 5, total_layer: 28 } }, { progress: 0.00668 }),
+    { percent: 18, source: 'layers' });
+});
+
+test('Repetier stateList is keyed by slug, and "none" is not a filename', () => {
+  // Repetier's API doc: {error:"", data:{ "<slug>": {...} }}. Indexing that with
+  // [0] is always undefined, so every Repetier printer read as Idle / 0% / no
+  // temperatures however busy it was.
+  const body = { error: '', data: { irapid: {
+    activeExtruder: 0, job: 'bracket.gcode', done: 42.5,
+    extruder: [{ tempRead: 212.4 }], heatedBed: { tempRead: 59.8 },
+  } } };
+  assert.equal(body.data[0], undefined, 'the read that was there');
+
+  const state = body.data['irapid'] || Object.values(body.data)[0] || {};
+  assert.equal(normalizeProgress(state.done), 43);
+  assert.equal(state.extruder[state.activeExtruder].tempRead, 212.4);
+  assert.equal(state.heatedBed.tempRead, 59.8);
+  assert.equal(state.heated_bed, undefined, 'the key Khayt used to ask for');
+
+  // An idle printer reports the literal string "none" in `job`, which is truthy.
+  const idle = { job: 'none' };
+  const jobName = typeof idle.job === 'string' && idle.job !== 'none' ? idle.job : '';
+  assert.equal(jobName, '', '"none" must not appear in the queue as a print');
 });
