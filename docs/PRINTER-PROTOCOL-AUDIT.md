@@ -222,17 +222,26 @@ Recorded so the next audit can skip them, with what settled each.
 Not defects in what Khayt does; limits on what it reaches. Recorded so nobody
 assumes otherwise.
 
-- **A password-protected Duet cannot be polled at all.** Every `rr_` request
-  answers 401 without a session. "If no machine password is set, a user session
-  is created whenever an arbitrary HTTP request is made" — which is why the
-  default config works — but a shop that has set `M551` has no field in which to
-  put that password. Fix would be `rr_connect?password=…` plus a Duet password
-  field.
-- **Duet 3 with an SBC is unreachable.** Duet Software Framework serves
-  `/machine/*` (`/machine/connect` → `X-Session-Key` → `/machine/model`) and its
-  REST API wiki states plainly that these "differ from those provided by
-  RepRapFirmware's native network interface", with no `rr_` compatibility layer.
-  Both of Khayt's Duet requests 404 there. This is a common configuration.
+- ~~**A password-protected Duet cannot be polled at all.**~~ **Closed
+  2026-08-25.** `rr_connect?password=…&sessionKey=yes` is sent when the machine
+  has a secret configured, and the returned key travels in `X-Session-Key`. The
+  handshake only happens after a request is actually refused, so a password-less
+  Duet — the common case — costs exactly what it did before. The machine dialog
+  now says the API-key field is where a Duet password goes, which is the half
+  that was really missing: "API key" is precisely the label that stops someone
+  typing an `M551` password into it.
+- ~~**Duet 3 with an SBC is unreachable.**~~ **Closed 2026-08-25.** Both
+  surfaces are now spoken: standalone `rr_*` and DSF `machine/*`
+  (`machine/connect` → `X-Session-Key` → `machine/model`). The transports differ
+  and the OBJECT MODEL does not, so `lib/duet.js` parses it once and the
+  transports are reduced to "get me a model" — two parsers would have drifted,
+  and a test asserts the two produce an identical status from the same machine.
+  Which surface an address answered on is remembered, so the wasted probe happens
+  once rather than on every poll. **Not verified against hardware:** there is no
+  Duet here, so every branch is reachable from a test with an injected fetch and
+  that is all that is claimed — the standard R7's socket layer is held to.
+  `machine/model` returns the FULL model, so the SBC transport needs no second
+  file query and cannot hit the `f`-flag trap at all.
 - **Duet actuals may vanish at the moment they are captured.** `job.duration` and
   `job.rawExtrusion` are `OBJECT_MODEL_FUNC_IF(self->IsPrinting(), …)`, so they
   disappear the instant the job stops being "printing" — which is the

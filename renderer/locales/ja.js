@@ -2705,6 +2705,7 @@
   "mach.api_host": "IPアドレス",
   "mach.api_port": "ポート",
   "mach.api_key": "APIキー",
+  "mach.api_key_hint": "PrusaLink ではパスワードと呼ばれます（設定 → ネットワーク → PrusaLink）。Duet では M551 のマシンパスワードです — 未設定なら空のままにしてください。",
   "mach.api_test": "接続テスト",
   "mach.api_ok": "接続済み",
   "mach.api_fail": "接続失敗",

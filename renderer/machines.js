@@ -304,6 +304,16 @@ function openMachineEditor(machineId = null) {
             </div>
             <label style="margin-top:8px;">${escapeHtml(t('mach.api_key'))}</label>
             <input id="machApiKey" type="password" placeholder="API key / token" style="font-size:12.5px;" value="${escapeHtml(secretInputValue(draft.printerApi?.apiKey))}" autocomplete="off">
+            <!-- One field, several names. A Duet has no API key: it has a machine
+                 password (M551), and until now there was nowhere to put it, so a
+                 password-protected Duet could not be polled at all — every
+                 request answered 401 and the machine read as unreachable. Same
+                 field, because it is the same thing from Khayt's side: the secret
+                 that gets you in. Said out loud because "API key" is exactly what
+                 stops someone typing their Duet password here. -->
+            <div class="muted" style="font-size:11px;margin-top:4px;line-height:1.45;">
+              ${escapeHtml(t('mach.api_key_hint') || 'PrusaLink calls this the Password (Settings → Network → PrusaLink). On a Duet it is the machine password from M551 — leave it empty if you have not set one.')}
+            </div>
             <label style="margin-top:8px;">Access code (Bambu)</label>
             <input id="machApiAccessCode" type="password" placeholder="Bambu access code" style="font-size:12.5px;" value="${escapeHtml(secretInputValue(draft.printerApi?.accessCode))}" autocomplete="off">
             <!-- Said here rather than only in the error, because the error only

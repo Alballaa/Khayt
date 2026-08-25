@@ -2,7 +2,8 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
-const { normalizeProgress, fileProgressPct, etaSeconds, layerProgressPct, moonrakerProgress, duetHeaterTemp } = require('../lib/printer-status.js');
+const { normalizeProgress, fileProgressPct, etaSeconds, layerProgressPct, moonrakerProgress } = require('../lib/printer-status.js');
+const { duetHeaterTemp } = require('../lib/duet.js');
 
 /**
  * Six adapters, six different notions of "progress", none of them bounded.

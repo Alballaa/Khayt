@@ -2226,6 +2226,7 @@
   "mach.api_host": "العنوان",
   "mach.api_port": "المنفذ",
   "mach.api_key": "مفتاح API",
+  "mach.api_key_hint": "في PrusaLink يُسمى كلمة المرور (الإعدادات ← الشبكة ← PrusaLink). وفي Duet هو كلمة مرور الجهاز من M551 — اتركه فارغاً إن لم تضبط واحدة.",
   "mach.api_test": "اختبار الاتصال",
   "mach.api_ok": "الاتصال ناجح",
   "mach.api_fail": "فشل الاتصال",

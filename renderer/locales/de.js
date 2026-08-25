@@ -2705,6 +2705,7 @@
   "mach.api_host": "IP-Adresse",
   "mach.api_port": "Port",
   "mach.api_key": "API-Schlüssel",
+  "mach.api_key_hint": "PrusaLink nennt das Passwort (Einstellungen → Netzwerk → PrusaLink). Bei einem Duet ist es das Maschinenpasswort aus M551 — leer lassen, wenn keines gesetzt ist.",
   "mach.api_test": "Verbindung testen",
   "mach.api_ok": "Verbunden",
   "mach.api_fail": "Verbindung fehlgeschlagen",
