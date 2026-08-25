@@ -4,6 +4,27 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **An OctoPrint printer reported the slicer's guess as the measured weight.**
+  When a job finishes, Khayt reads what it *actually* used off the printer. On
+  OctoPrint the filament half of that reading was never a reading: OctoPrint fills
+  that field from the analysis it runs on the file when you upload it, so it is
+  the whole file's predicted total, it is the same number ten minutes in as at the
+  end, and it is the same number whether the print succeeded or you cancelled it
+  at layer three.
+
+  Shown as a measurement, it did something worse than being wrong: every
+  estimate-versus-actual comparison on an OctoPrint job reported the weight as
+  *exactly* as quoted, because the quote and the "actual" were the same figure
+  arriving twice. A print that used half a spool more than expected looked
+  perfect. And those figures are what teach Khayt what your printers really do, so
+  the estimator was being taught its own guesses.
+
+  OctoPrint now behaves the way PrusaLink already did: the **time** is measured
+  and offered, the **weight** is yours to type, and the dialog says which is
+  which. Nothing is silently invented.
+
 ### Added
 
 - **Elegoo resin printers (Mars / Saturn) can be added and watched.** Pick
