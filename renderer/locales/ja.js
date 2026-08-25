@@ -3520,6 +3520,8 @@
   "integ.copy_import": "インポートリンクをコピー",
   "integ.import_copied": "インポートリンクをコピーしました — ストアのWebhookとして貼り付けてください",
   "integ.copy_feed": "フィードリンクをコピー",
+  "integ.copy_subscriber": "サブスクライバーのコードをコピー",
+  "integ.subscriber_copied": "サブスクライバーをコピーしました — Medusa プロジェクトの src/subscribers/khayt-order-placed.ts として保存してください",
   "integ.feed_copied": "フィードリンクをコピーしました — ストアの製品インポートURLとして追加してください",
   "integ.import_help": "インポートリンクをストアの注文Webhookとして貼り付けてください — 新しい注文が注文リクエストに届きます。",
   "integ.feed_help": "フィードリンクをストアの製品インポートURLとして追加してください — 公開済みのストアフロントカタログをミラーリングします。",

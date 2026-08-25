@@ -3520,6 +3520,8 @@
   "integ.copy_import": "复制导入链接",
   "integ.import_copied": "导入链接已复制——将其作为 Webhook 粘贴到你的店铺中",
   "integ.copy_feed": "复制订阅源链接",
+  "integ.copy_subscriber": "复制订阅器代码",
+  "integ.subscriber_copied": "订阅器已复制 — 请在 Medusa 项目中保存为 src/subscribers/khayt-order-placed.ts",
   "integ.feed_copied": "订阅源链接已复制——将其作为产品导入 URL 添加到你的店铺中",
   "integ.import_help": "将导入链接作为订单 Webhook 粘贴到你的店铺中——新订单将出现在订单请求中。",
   "integ.feed_help": "将订阅源链接作为产品导入 URL 添加到你的店铺中——它会镜像你已发布的店面目录。",

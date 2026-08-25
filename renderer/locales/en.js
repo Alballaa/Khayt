@@ -3523,6 +3523,8 @@
   "integ.copy_import": "Copy import link",
   "integ.import_copied": "Import link copied — paste it as a webhook in your store",
   "integ.copy_feed": "Copy feed link",
+  "integ.copy_subscriber": "Copy subscriber code",
+  "integ.subscriber_copied": "Subscriber copied — save it as src/subscribers/khayt-order-placed.ts in your Medusa project",
   "integ.feed_copied": "Feed link copied — add it as a product import URL in your store",
   "integ.import_help": "paste the import link as an order webhook in your store — new orders arrive in Order requests.",
   "integ.feed_help": "add the feed link as a product import URL in your store — it mirrors your published storefront catalog.",

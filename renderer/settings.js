@@ -183,9 +183,13 @@ function renderIntegrationsSettings() {
   const feedUrl = (pid) => `${cloudBase}/v1/shops/${cloud.shopId}/feed/${pid}`;
   const pill = (label) => `<span style="font-size:10px;color:var(--text-muted);border:1px solid var(--border-soft);border-radius:999px;padding:1px 7px;">${escapeHtml(label)}</span>`;
   const linkBtn = (url, label) => `<button class="btn small ghost integCopy" type="button" data-url="${escapeHtml(url)}">${escapeHtml(label)}</button>`;
+  const codeBtn = (label) => `<button class="btn small ghost integCode" type="button">${escapeHtml(label)}</button>`;
   const storefrontRows = m.storefronts.map((sf) => {
     const actions = [];
     if (sf.dir.includes('in')) actions.push(cloudReady ? linkBtn(importUrl(sf.id), t('integ.copy_import') || 'Copy import link') : pill(t('integ.connect_cloud') || 'connect cloud'));
+    // A platform with no webhook UI needs the code as well as the URL — the link
+    // alone is a URL with nowhere to paste it. See lib/medusa-subscriber.js.
+    if (sf.setup === 'subscriber' && cloudReady) actions.push(codeBtn(t('integ.copy_subscriber') || 'Copy subscriber code'));
     if (sf.dir.includes('out')) actions.push(cloudReady ? linkBtn(feedUrl(sf.id), t('integ.copy_feed') || 'Copy feed link') : pill(t('integ.connect_cloud') || 'connect cloud'));
     if (!actions.length) actions.push(pill(t('integ.soon') || 'soon'));
     return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border-soft);flex-wrap:wrap;">
@@ -234,6 +238,16 @@ function renderIntegrationsSettings() {
     const r = el.querySelector('#integResult');
     if (!r) return;
     r.textContent = ok ? '✓ ' + msg : (t('common.copy_failed') || 'Copy failed');
+    r.style.color = ok ? 'var(--success)' : 'var(--danger)';
+  }));
+  el.querySelectorAll('.integCode').forEach((btn) => btn.addEventListener('click', async () => {
+    const r = el.querySelector('#integResult');
+    const src = (typeof KhaytMedusa !== 'undefined') ? KhaytMedusa.subscriberSource(importUrl('medusa')) : '';
+    const ok = src ? await copyText(src) : false;
+    if (!r) return;
+    r.textContent = ok
+      ? '✓ ' + (t('integ.subscriber_copied') || 'Subscriber copied — save it as src/subscribers/khayt-order-placed.ts in your Medusa project')
+      : (t('common.copy_failed') || 'Copy failed');
     r.style.color = ok ? 'var(--success)' : 'var(--danger)';
   }));
   el.querySelectorAll('.payEnable').forEach((cb) => cb.addEventListener('change', () => {

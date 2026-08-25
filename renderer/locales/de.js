@@ -3520,6 +3520,8 @@
   "integ.copy_import": "Import-Link kopieren",
   "integ.import_copied": "Import-Link kopiert — fügen Sie ihn als Webhook in Ihrem Shop ein",
   "integ.copy_feed": "Feed-Link kopieren",
+  "integ.copy_subscriber": "Subscriber-Code kopieren",
+  "integ.subscriber_copied": "Subscriber kopiert — als src/subscribers/khayt-order-placed.ts in deinem Medusa-Projekt speichern",
   "integ.feed_copied": "Feed-Link kopiert — fügen Sie ihn als Produktimport-URL in Ihrem Shop hinzu",
   "integ.import_help": "Fügen Sie den Import-Link als Auftrags-Webhook in Ihrem Shop ein — neue Aufträge erscheinen in Auftragsanfragen.",
   "integ.feed_help": "Fügen Sie den Feed-Link als Produktimport-URL in Ihrem Shop hinzu — er spiegelt Ihren veröffentlichten Storefront-Katalog wider.",
