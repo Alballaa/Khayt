@@ -1449,6 +1449,83 @@ function readNeighbourTable() {
   });
 }
 
+/* ── Installed themes ────────────────────────────────────────────────────────
+ *
+ * They live in userData rather than beside the app, because beside the app means
+ * inside `app.asar` — read-only, and replaced whole on every update. That is why
+ * the existing `themes/custom/index.json` has never had an entry: nobody could
+ * add one and keep it.
+ *
+ * Every path here comes from lib/theme-store.js, which resolves and confines
+ * them, and every stylesheet goes through lib/theme-package.js before a byte is
+ * written. Neither check is repeated in this file; both are required by it.
+ */
+function themesRootDir() {
+  const Store = require('./lib/theme-store.js');
+  return Store.themesRoot(app.getPath('userData'));
+}
+
+ipcMain.handle('hub:themes-list', async () => {
+  const Store = require('./lib/theme-store.js');
+  const root = themesRootDir();
+  const out = [];
+  try {
+    const entries = await fs.promises.readdir(root, { withFileTypes: true });
+    for (const e of entries) {
+      if (!e.isDirectory() || !Store.isValidId(e.name)) continue;
+      const dir = Store.themeDir(app.getPath('userData'), e.name);
+      if (!dir) continue;
+      let manifest = null;
+      const problems = [];
+      try {
+        manifest = JSON.parse(await fs.promises.readFile(path.join(dir, Store.MANIFEST_NAME), 'utf8'));
+      } catch (err) {
+        problems.push({ id: 'unreadable', why: 'manifest.json is missing or will not parse' });
+      }
+      out.push(Store.describeInstalled(e.name, manifest, problems));
+    }
+  } catch (err) { /* no themes directory yet is not an error, it is a new install */ }
+  return { ok: true, themes: out, root };
+});
+
+ipcMain.handle('hub:themes-install', async (_e, { text } = {}) => {
+  const Store = require('./lib/theme-store.js');
+  const Pkg = require('./lib/theme-package.js');
+
+  const parsed = Store.parseBundle(text);
+  if (!parsed.ok) return { ok: false, error: parsed.error };
+
+  // The CSS is judged before anything is written, not after. An install that has
+  // to be undone is an install that already ran.
+  const judged = Pkg.inspectPackage({ manifest: parsed.manifest, files: parsed.files });
+  if (!judged.ok) return { ok: false, error: Pkg.explain(judged), problems: judged.problems };
+
+  const plan = Store.planInstall(app.getPath('userData'), parsed.manifest, parsed.files);
+  if (!plan) return { ok: false, error: 'This theme could not be installed safely.' };
+
+  try {
+    await fs.promises.mkdir(plan.dir, { recursive: true });
+    for (const w of plan.writes) await fs.promises.writeFile(w.path, w.contents, 'utf8');
+  } catch (err) {
+    return { ok: false, error: `Could not write the theme: ${(err && err.message) || err}` };
+  }
+  return { ok: true, id: parsed.manifest.id, name: parsed.manifest.name || parsed.manifest.id, dir: plan.dir };
+});
+
+ipcMain.handle('hub:themes-remove', async (_e, { id } = {}) => {
+  const Store = require('./lib/theme-store.js');
+  const dir = Store.themeDir(app.getPath('userData'), id);
+  // A null dir means the id would not have been installable, so nothing under
+  // that name can be ours to delete. Refusing beats deleting something else.
+  if (!dir) return { ok: false, error: 'Unknown theme.' };
+  try {
+    await fs.promises.rm(dir, { recursive: true, force: true });
+  } catch (err) {
+    return { ok: false, error: `Could not remove the theme: ${(err && err.message) || err}` };
+  }
+  return { ok: true, id };
+});
+
 ipcMain.handle('hub:relocate-printers', async (_e, { machines, statusCache, requireOffline, timeoutMs } = {}) => {
   const Relocate = require('./lib/printer-relocate.js');
   const scan = await scanForPrinters(timeoutMs);
