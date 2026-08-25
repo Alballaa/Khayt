@@ -145,3 +145,83 @@ test('the whole chain agrees: install, store, read, register', () => {
 
   fs.rmSync(ud, { recursive: true, force: true });
 });
+
+/* ── The picker surface ──────────────────────────────────────────────────── */
+
+const picker = () => read('renderer/themes/theme-picker.js');
+
+test('installing never gives the renderer a filesystem path', () => {
+  // The obvious build is "pick a file" then "read that file". The second half is
+  // a general read-any-file capability handed to the renderer — far larger than
+  // this feature needs, and once it exists every future renderer bug inherits
+  // it. Picking, reading and installing happen in one main-process call instead.
+  const p = picker();
+  assert.ok(p.includes('themesInstallFile()'), 'one call does all three');
+  assert.ok(!/readTextFile/.test(p), 'no general file-read capability is used');
+  assert.ok(!/pickFile/.test(p), 'the renderer never receives a path');
+
+  const pre = read('preload.js');
+  assert.ok(pre.includes('hub:themes-install-file'));
+  assert.ok(!/readTextFile/.test(pre), 'and none is exposed');
+
+  const h = read('main.js');
+  const fn = h.slice(h.indexOf("ipcMain.handle('hub:themes-install-file'"), h.indexOf("ipcMain.handle('hub:themes-read'"));
+  assert.ok(fn.includes('showOpenDialog'), 'the dialog is opened in main');
+  assert.ok(fn.includes('themeInstallFromText'), 'and hands straight to the shared install path');
+  assert.ok(/stat\.size >/.test(fn), 'size is checked before the file is read into memory');
+});
+
+test('both install entry points run identical checks', () => {
+  // Two doors into one room. If the file-picking one grew its own copy of the
+  // logic, the checks would drift and the door people actually use would be the
+  // one that relaxed.
+  const h = read('main.js');
+  assert.ok(/ipcMain\.handle\('hub:themes-install',[^;]*themeInstallFromText\(text\)\)/.test(h),
+    'the text entry point delegates');
+  assert.equal((h.match(/async function themeInstallFromText/g) || []).length, 1,
+    'exactly one implementation');
+});
+
+test('a refusal reaches the person who can fix it', () => {
+  // lib/theme-package.js reports every problem at once and names the file. That
+  // is wasted if the UI replaces it with "could not install".
+  const p = picker();
+  assert.ok(/res && res\.error/.test(p), 'the real message is shown');
+  assert.ok(/canceled/.test(p), 'cancelling is not an error');
+  // …and rendered as text, not markup: the message quotes a stranger's CSS.
+  assert.ok(/\.textContent\s*=\s*msg/.test(p), 'shown via textContent');
+});
+
+test('removing the design in use hands the app back to a built-in', () => {
+  // Otherwise the app is left styled by a theme that no longer exists, which
+  // reads as "the app broke when I deleted something".
+  const p = picker();
+  const remove = p.slice(p.indexOf('.themeRemove'), p.indexOf('function mountSettingsPicker'));
+  assert.ok(/settings\.designTheme === `custom:\$\{id\}`/.test(remove), 'notices it was the active one');
+  assert.ok(/settings\.designTheme = 'workbench'/.test(remove), 'falls back to a built-in');
+  assert.ok(/saveAll/.test(remove), 'and persists that');
+});
+
+test('a broken design is listed, struck through, and still removable', () => {
+  const p = picker();
+  assert.ok(/is-broken/.test(p), 'marked in the markup');
+  assert.ok(/theme\.design\.broken/.test(p), 'and explained in words');
+  // The remove button is outside the broken branch, so it renders either way.
+  const row = p.slice(p.indexOf('function installedRowHtml'), p.indexOf('async function renderInstalledSection'));
+  assert.ok(/themeRemove/.test(row), 'every row can be removed, broken or not');
+
+  const css = read('renderer/themes/theme-picker.css');
+  assert.ok(/\.theme-installed-row\.is-broken/.test(css), 'and looks different');
+});
+
+test('every string the picker shows is translated', () => {
+  // The locale parity gate proves the keys exist in all nine bundles. This
+  // proves the picker uses keys at all rather than hard-coding English.
+  const p = picker();
+  const keys = [...p.matchAll(/tr\('(theme\.design\.[a-z_]+)'/g)].map((m) => m[1]);
+  assert.ok(keys.length >= 8, `expected the picker to use locale keys, found ${keys.length}`);
+  const en = read('renderer/locales/en.js');
+  for (const k of new Set(keys)) {
+    assert.ok(en.includes(`"${k}"`), `${k} missing from en.js`);
+  }
+});

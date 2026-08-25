@@ -4,6 +4,32 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **You can install a design someone else made.** Khayt has had the machinery
+  for custom designs for a long time and nobody has ever used it, because there
+  was nowhere to put one: designs lived inside the application file, which is
+  read-only and replaced wholesale every time you update. So adding one meant
+  building Khayt from source, and keeping one meant never updating.
+
+  **Settings → Appearance → Your designs → Install a design…** takes a single
+  `.khayttheme` file. It appears in the grid with the built-in ones, it survives
+  updates, and you can remove it again. Remove the one you are using and Khayt
+  hands itself back to Workbench rather than sitting there with no design at all.
+
+  A design is one file, on purpose — readable, easy to send to somebody, and
+  possible to look through before you trust it.
+
+  **Khayt checks it before it installs, and again every time it loads.** A design
+  is a stylesheet, and a stylesheet in an app that shows your prices and your
+  customers' addresses can do more than choose colours: it can quietly call out
+  to the internet, put a different number next to a real one, or cover a button.
+  Anything doing that is refused, and Khayt tells you which part of the file was
+  the problem rather than just saying no. Checking again on load matters because
+  a file that was fine when you installed it may not be fine tomorrow — if it
+  changes on disk it stops loading, and says so instead of quietly applying.
+
+
 ### Fixed
 
 - **Khayt can now find a printer that changed address, even one that does not
