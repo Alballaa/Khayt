@@ -306,6 +306,14 @@ function openMachineEditor(machineId = null) {
             <input id="machApiKey" type="password" placeholder="API key / token" style="font-size:12.5px;" value="${escapeHtml(secretInputValue(draft.printerApi?.apiKey))}" autocomplete="off">
             <label style="margin-top:8px;">Access code (Bambu)</label>
             <input id="machApiAccessCode" type="password" placeholder="Bambu access code" style="font-size:12.5px;" value="${escapeHtml(secretInputValue(draft.printerApi?.accessCode))}" autocomplete="off">
+            <!-- Said here rather than only in the error, because the error only
+                 arrives after an eight-second wait that looks like a dead
+                 printer. Developer Mode is a SEPARATE toggle from LAN-only Mode
+                 and it is what actually opens MQTT; with it off the printer
+                 accepts the connection and then answers nothing. -->
+            <div class="muted" style="font-size:11px;margin-top:4px;line-height:1.45;">
+              On the printer, turn on <b>LAN-only Mode</b> <i>and</i> <b>Developer Mode</b> — the access code is shown in that same screen. Developer Mode is what opens the connection Khayt uses; it also takes the printer off Bambu Cloud.
+            </div>
             <!-- One field, two protocols: Bambu addresses a printer by its serial
                  and SDCP by its mainboard id, and both are the same thing here —
                  the string that identifies the machine on its own transport.

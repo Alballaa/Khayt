@@ -74,35 +74,72 @@ test('Moonraker: print_duration, NOT total_duration', () => {
   assert.equal(extractActuals('moonraker', raw).durationS, 100);
 });
 
-test('OctoPrint: volume is preferred over length, and needs no diameter guess', () => {
-  // The volume figure is exact; deriving it from length requires knowing the
-  // stock diameter, which Khayt can only assume.
-  const raw = { job: { filament: { tool0: { length: 14025.6, volume: 33.74 } } }, progress: { printTime: 11560 } };
+test('OctoPrint: job.filament is the SLICER\'S estimate, and is refused as one', () => {
+  // These three tests used to assert the opposite, and that is how the defect
+  // survived: they were written against the field's units, which are correct,
+  // rather than against its provenance, which is not.
+  //
+  // OctoPrint fills job.filament from the file's GCODE ANALYSIS
+  // (octoprint/printer/standard.py: filament = fileData["analysis"]["filament"]),
+  // computed once at upload. It is the whole file's predicted total and it does
+  // not move while the job runs.
+  //
+  // The fixture below is that job TEN MINUTES IN. A reader that trusts the field
+  // reports the entire spool figure as measured and a variance of exactly zero.
+  const raw = {
+    job: { filament: { tool0: { length: 14025.6, volume: 33.74 } } },
+    progress: { printTime: 600, completion: 5.2 },
+  };
   const a = extractActuals('octoprint', raw);
-  assert.ok(Math.abs(a.filamentGrams - 33.74 * 1.24) < 0.001, `got ${a.filamentGrams}`);
-  assert.equal(a.durationS, 11560);
 
-  // And a wrong diameter must NOT move the answer when volume is available.
-  const wrongDia = extractActuals('octoprint', raw, { diameterMm: 2.85 });
-  assert.equal(wrongDia.filamentGrams, a.filamentGrams);
+  assert.equal(a.filamentGrams, null, 'the analysis total must not be reported as measured');
+  assert.equal(a.filamentMm, null);
+
+  // Time is genuinely measured, and stays measured — printTime is elapsed
+  // printing, not a prediction. Losing it too would have been the other mistake.
+  assert.equal(a.durationS, 600);
+  assert.equal(a.source, 'octoprint');
 });
 
-test('OctoPrint: a multi-tool job sums every tool, not just tool0', () => {
-  // Reading tool0 alone under-reports a two-colour job by whatever the second
-  // extruder laid down.
-  const raw = { job: { filament: { tool0: { length: 100 }, tool1: { length: 50 } } }, progress: { printTime: 60 } };
-  assert.equal(extractActuals('octoprint', raw).filamentMm, 150);
+test('OctoPrint: an estimate-shaped actual never reports a zero variance', () => {
+  // The failure this prevents, stated as a shop would see it: quoted 33.74 cm3
+  // of PLA, ten minutes into a job that will take three hours, and told the
+  // print used exactly what was quoted.
+  const a = extractActuals('octoprint', {
+    job: { filament: { tool0: { length: 14025.6, volume: 33.74 } } },
+    progress: { printTime: 600 },
+  });
+  const cmp = compareToEstimate({ printTime: 3.2, weightG: 33.74 * 1.24 }, a);
+
+  assert.equal(cmp.gramsDeltaPct, null, '"we do not know" must not read as "spot on"');
+  assert.equal(cmp.actualGrams, null);
+  // …while the time axis still reports the real overrun/underrun.
+  assert.equal(cmp.actualHours, 0.17);
+  assert.ok(cmp.hoursDeltaPct < 0);
 });
 
-test('OctoPrint and Moonraker agree on the same job', () => {
-  // One derives grams from length and diameter, the other from volume. If they
-  // disagreed, a shop's numbers would depend on which host they happened to run.
-  const moon = extractActuals('moonraker', {
-    result: { status: { print_stats: { filament_used: 14025.6, print_duration: 11560 } } } });
+test('OctoPrint offers time and asks for the weight — the PrusaLink shape', () => {
+  // Both hosts measure one axis and predict the other, so the dialog must say
+  // measured for the one and estimated for the other. Identical treatment is the
+  // point: which host a shop happens to run must not change what "measured"
+  // means.
   const octo = extractActuals('octoprint', {
-    job: { filament: { tool0: { length: 14025.6, volume: 33.74 } } }, progress: { printTime: 11560 } });
-  assert.ok(Math.abs(moon.filamentGrams - octo.filamentGrams) < 0.05,
-    `${moon.filamentGrams} vs ${octo.filamentGrams}`);
+    job: { filament: { tool0: { length: 14025.6, volume: 33.74 } } },
+    progress: { printTime: 11560 },
+  });
+  const prusa = extractActuals('prusalink', { job: { time_printing: 11560 } });
+
+  assert.equal(octo.filamentGrams, prusa.filamentGrams);
+  assert.equal(octo.durationS, prusa.durationS);
+
+  const prefill = prefillActuals({
+    estimate: { printTime: 3.2, weightG: 41.8 },
+    completion: { at: 1000, filename: 'vase.gcode', actuals: octo },
+    now: 1000 + 60_000,
+  });
+  assert.equal(prefill.timeMeasured, true);
+  assert.equal(prefill.weightMeasured, false);
+  assert.equal(prefill.weightG, 41.8, 'the estimate fills the axis nothing measured');
 });
 
 test('Duet reads rawExtrusion and duration', () => {

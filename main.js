@@ -67,7 +67,7 @@ const {
   mergePollSuccess, mergePollFailure, completionsToPersist, restoreCompletions, completionIsNew,
 } = require('./lib/printer-poll-cache');
 const sdcpClient = require('./lib/sdcp-client');
-const { normalizeProgress, fileProgressPct, etaSeconds, moonrakerProgress } = require('./lib/printer-status');
+const { normalizeProgress, fileProgressPct, etaSeconds, moonrakerProgress, duetHeaterTemp } = require('./lib/printer-status');
 const printerCommands = require('./lib/printer-commands');
 const { normalizeStoreSnapshot, STORE_VERSION } = require('./lib/store-validate');
 const upgradeBackup = require('./lib/upgrade-backup');
@@ -3885,9 +3885,23 @@ async function fetchPrinterStatus(machine) {
     };
   }
   if (type === 'moonraker') {
-    const data = await get('/printer/objects/query?print_stats&virtual_sdcard&extruder&heater_bed');
+    const data = await get('/printer/objects/query?print_stats&virtual_sdcard&extruder&heater_bed&toolhead');
     const ps = data.result?.status?.print_stats || {};
     const vs = data.result?.status?.virtual_sdcard || {};
+    // On a toolchanger `extruder` is toolhead 0 and nothing else. Klipper names
+    // the rest `extruder1`, `extruder2`… and publishes the live one as
+    // `toolhead.extruder`, so a U1 printing on its third head showed a nozzle
+    // sitting at room temperature — the machine on this bench has four of them.
+    // Only the machines that need it pay for the extra request.
+    const activeExtruder = data.result?.status?.toolhead?.extruder;
+    let nozzleTemp = data.result?.status?.extruder?.temperature;
+    if (typeof activeExtruder === 'string' && activeExtruder && activeExtruder !== 'extruder') {
+      try {
+        const hot = await get(`/printer/objects/query?${encodeURIComponent(activeExtruder)}`);
+        const t = hot.result?.status?.[activeExtruder]?.temperature;
+        if (Number.isFinite(Number(t))) nozzleTemp = Number(t);
+      } catch (e) { /* keep toolhead 0's reading rather than showing nothing */ }
+    }
     // Layers where Klipper reports them, bytes otherwise — see moonrakerProgress
     // for the measurement that settled it. And the ETA goes through etaSeconds,
     // which has existed (with a test saying "under 1% is noise, not a signal")
@@ -3904,19 +3918,40 @@ async function fetchPrinterStatus(machine) {
       // idling either side of the job, which is the same reason the actuals
       // reader prefers it.
       timeRemaining: etaSeconds(ps.print_duration, prog.percent / 100),
-      tempNozzle: data.result?.status?.extruder?.temperature || null,
+      tempNozzle: Number.isFinite(Number(nozzleTemp)) ? Number(nozzleTemp) : null,
       tempBed: data.result?.status?.heater_bed?.temperature || null,
+      // filament_used is a running total across toolchanges, not per-head:
+      // print_stats.py rebases its last extruder position on the
+      // `extruder:activate_extruder` event, so the jump between heads is not
+      // counted as extrusion and a four-colour job sums correctly.
       actuals: extractActuals('moonraker', data, stockOptsFor(machine)),
       type: 'moonraker'
     };
   }
   if (type === 'prusalink') {
-    const data = await get('/api/v1/status');
+    // `/api/v1/status` carries no file information, so the filename here was
+    // always the empty string. Not "usually" — the job object Prusa's Buddy
+    // firmware renders is exactly {id, progress, time_remaining,
+    // filament_change_in, time_printing} (lib/WUI/nhttp/status_renderer.cpp) and
+    // the OpenAPI spec's StatusJob agrees. `job.file` does not exist on this
+    // endpoint at any firmware version; it lives on `/api/v1/job`.
+    //
+    // That second request is allowed to fail: it answers 204 No Content when
+    // nothing is printing, and a missing name must not cost us the temperatures
+    // and progress the first request did return.
+    const [data, jobData] = await Promise.all([
+      get('/api/v1/status'),
+      get('/api/v1/job').catch(() => null),
+    ]);
     const job = data.job || {};
+    const file = jobData?.file || {};
     return {
       state: data.printer?.state || 'Unknown',
       progress: normalizeProgress(job.progress),
-      filename: job.file?.name || '',
+      // display_name is the long filename; `name` is the 8.3 short form, which
+      // Prusa's own spec illustrates as "SPICE~1.gco". A shop looking at its
+      // queue needs the one it saved the file under.
+      filename: file.display_name || file.name || '',
       timeRemaining: job.time_remaining || null,
       tempNozzle: data.printer?.temp_nozzle || null,
       tempBed: data.printer?.temp_bed || null,
@@ -3927,15 +3962,47 @@ async function fetchPrinterStatus(machine) {
   // (Bambu is handled above via MQTT before the HTTP branches.)
   if (type === 'duet') {
     try {
-      const data = await get('/rr_model?key=&flags=d99fn');
+      // TWO queries, and the second one is not optional.
+      //
+      // `flags=f` means "only values that typically change frequently during a
+      // job", which RepRapFirmware implements as `includeNonLive = false` and
+      // then filters every entry not tagged ObjectModelEntryFlags::live
+      // (ObjectModel.cpp, ShouldReport). In PrintMonitor.cpp the job entries are
+      // tagged like this:
+      //
+      //     duration      live          filePosition  live
+      //     rawExtrusion  liveNotPanelDue   timesLeft live
+      //     file          none          file.fileName none   file.size none
+      //
+      // So `job.file` was never in the reply. Not "sometimes absent during the
+      // pre-print phase", which is what the guard in fileProgressPct was written
+      // for — absent on every single poll, for every Duet, forever. filePosition
+      // arrived faithfully and had nothing to be a percentage OF, so
+      // fileProgressPct correctly refused to invent one and returned 0, and every
+      // Duet in the field showed a job sitting at 0% with a blank name.
+      //
+      // The live query stays as it is — it is the right query for the numbers
+      // that move. The file is static for the life of the job, so it gets its own
+      // query without `f`, and the two go out together.
+      const [data, fileData] = await Promise.all([
+        get('/rr_model?key=&flags=d99fn'),
+        get('/rr_model?key=job.file&flags=d99n').catch(() => null),
+      ]);
       const job = data.result?.job || {};
+      const file = fileData?.result || job.file || {};
+      const heat = data.result?.heat || {};
       return {
         state: data.result?.state?.status || 'Unknown',
-        progress: fileProgressPct(job.filePosition, job.file?.size),
-        filename: job.file?.fileName || '',
+        progress: fileProgressPct(job.filePosition, file.size),
+        filename: file.fileName || '',
         timeRemaining: job.timesLeft?.file || null,
-        tempNozzle: data.result?.heat?.heaters?.[1]?.current || null,
-        tempBed: data.result?.heat?.heaters?.[0]?.current || null,
+        // Heater 0 is the bed and heater 1 is the tool ONLY by convention. RRF
+        // says which is which: heat.bedHeaters[] carries the bed's index (and may
+        // hold -1 when none is configured), and each tool names its own in
+        // tools[].heaters[]. A machine with no bed, or with the hotend on heater
+        // 0, was being shown one temperature under the other's label.
+        tempNozzle: duetHeaterTemp(heat, data.result?.tools, 'tool'),
+        tempBed: duetHeaterTemp(heat, data.result?.tools, 'bed'),
         actuals: extractActuals('duet', data, stockOptsFor(machine)),
         type: 'duet'
       };
@@ -3955,14 +4022,46 @@ async function fetchPrinterStatus(machine) {
   if (type === 'repetier') {
     const slug = printerSlug || 'default';
     const data = await get(`/printer/api/${encodeURIComponent(slug)}?a=stateList`);
-    const state = data.data?.[0] || {};
+    // `stateList` answers for EVERY printer the server knows, as an object keyed
+    // by slug — "{error:'',data:{ '<slug>': {...} }}" in Repetier's own API
+    // documentation. This read `data.data[0]`, which indexes an object with a
+    // number and is therefore always undefined, so `state` was always {} and this
+    // adapter reported Idle / 0% / no temperatures no matter what the machine was
+    // doing. It never threw, which is why it went unnoticed: a printer running at
+    // 42% with a 212 degree hotend simply looked idle.
+    const byName = data.data && typeof data.data === 'object' ? data.data : {};
+    // Prefer the slug that was asked for; fall back to the only entry when the
+    // server names it something else (an unconfigured `printerSlug` is common).
+    const state = byName[slug] || Object.values(byName)[0] || {};
+
+    // `job` is the job's name while one is running and the string "none" when
+    // idle — not a truthy/falsy flag. Treating "none" as a filename put the word
+    // none in the queue as though it were a print.
+    const jobName = typeof state.job === 'string' && state.job !== 'none' ? state.job : '';
+
+    // The bed's key has moved across Repetier-Server versions: the vendor's own
+    // API example shows a single `heatedBed` object, while the client Home
+    // Assistant ships reads a plural `heatedbeds` LIST. Khayt was reading a third
+    // spelling, `heated_bed`, which is neither. Without a server here to settle
+    // it, accept the shapes that are attested rather than bet on one.
+    const bed = state.heatedBed
+      || (Array.isArray(state.heatedBeds) ? state.heatedBeds[0] : null)
+      || (Array.isArray(state.heatedbeds) ? state.heatedbeds[0] : null)
+      || state.heated_bed
+      || null;
+    // Multi-extruder machines report which one is live.
+    const nozzles = Array.isArray(state.extruder) ? state.extruder : [];
+    const activeIdx = Number.isInteger(state.activeExtruder) ? state.activeExtruder : 0;
+    const nozzle = nozzles[activeIdx] || nozzles[0] || null;
+    const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
+
     return {
-      state: state.job ? 'Printing' : 'Idle',
+      state: jobName ? 'Printing' : 'Idle',
       progress: normalizeProgress(state.done),
-      filename: state.job || '',
+      filename: jobName,
       timeRemaining: null,
-      tempNozzle: state.extruder?.[0]?.tempRead || null,
-      tempBed: state.heated_bed?.tempRead || null,
+      tempNozzle: num(nozzle && nozzle.tempRead),
+      tempBed: num(bed && bed.tempRead),
       type: 'repetier'
     };
   }

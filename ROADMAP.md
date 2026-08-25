@@ -138,6 +138,20 @@ rather than a task; R7 ([#743]) left a hardware dependency rather than a task.
       clean, finds nothing, because there is nothing here to find.
       See [docs/KHAYT-COMPETITIVE-ROADMAP.md](./docs/KHAYT-COMPETITIVE-ROADMAP.md).
 
+**Every printer protocol was audited against its vendor's own documentation and
+firmware source on 2026-08-25** —
+[docs/PRINTER-PROTOCOL-AUDIT.md](./docs/PRINTER-PROTOCOL-AUDIT.md). It found six
+defects, five of which had been showing a wrong number indefinitely without ever
+throwing: a Duet stuck at 0%, a Repetier that always looked idle, a PrusaLink
+with no filename, a Klipper toolchanger reading the wrong nozzle, and — worst —
+OctoPrint recording the slicer's own estimate as the measured weight, which fed
+`estimate-calibration.js` its own guesses as evidence.
+
+That audit is now a standing item, not a one-off. There is one printer on this
+bench and seven protocols; for six of them the vendor's documentation *is* the
+test fixture, so it needs re-running when a vendor ships a major firmware line.
+The method and every source is in that file.
+
 **Multi-shop is no longer deferred.** Organisations shipped in **3.5.0** (create
 one, add branches, one passphrase for all) and **3.5.1** (*Across the branches* —
 the cross-branch view). This file previously listed it as pending "the Cloud
