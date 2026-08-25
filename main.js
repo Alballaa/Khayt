@@ -1512,6 +1512,49 @@ ipcMain.handle('hub:themes-install', async (_e, { text } = {}) => {
   return { ok: true, id: parsed.manifest.id, name: parsed.manifest.name || parsed.manifest.id, dir: plan.dir };
 });
 
+ipcMain.handle('hub:themes-read', async (_e, { id } = {}) => {
+  const Store = require('./lib/theme-store.js');
+  const Pkg = require('./lib/theme-package.js');
+  const dir = Store.themeDir(app.getPath('userData'), id);
+  if (!dir) return { ok: false, error: 'Unknown theme.' };
+
+  let manifest;
+  try {
+    manifest = JSON.parse(await fs.promises.readFile(path.join(dir, Store.MANIFEST_NAME), 'utf8'));
+  } catch (err) {
+    return { ok: false, error: 'This theme is missing its manifest.' };
+  }
+
+  const files = {};
+  for (const field of ['tokens', 'compat', 'shellCss']) {
+    const name = manifest[field];
+    if (!name || !Store.SAFE_FILENAME.test(String(name))) continue;
+    const target = path.join(dir, String(name));
+    if (!Store.isInsideRoot(dir, target)) continue;
+    try { files[String(name)] = await fs.promises.readFile(target, 'utf8'); } catch (err) { /* reported below as missing */ }
+  }
+
+  // Judged AGAIN, on every read.
+  //
+  // The install-time check proved the file was safe when it arrived. It says
+  // nothing about the file now: userData is a directory the owner can open, and
+  // anything else running as that user can write to. A theme that passed once
+  // and was edited afterwards would otherwise be loaded on that old verdict —
+  // which is the same trust-on-first-use mistake as reviewing a dependency at
+  // the version you installed and then upgrading it silently.
+  //
+  // It costs a regex pass over a few KB, once per theme change.
+  const judged = Pkg.inspectPackage({ manifest, files });
+  if (!judged.ok) {
+    return { ok: false, error: Pkg.explain(judged), problems: judged.problems, changedSinceInstall: true };
+  }
+  return {
+    ok: true,
+    manifest,
+    css: judged.files.map((name) => ({ name, text: files[name] })),
+  };
+});
+
 ipcMain.handle('hub:themes-remove', async (_e, { id } = {}) => {
   const Store = require('./lib/theme-store.js');
   const dir = Store.themeDir(app.getPath('userData'), id);

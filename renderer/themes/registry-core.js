@@ -366,7 +366,14 @@
     return errors;
   }
 
-  function registerCustomTheme(manifest, basePath = 'themes/custom') {
+  /**
+   * @param {object} manifest
+   * @param {string|null} basePath  where its stylesheets can be linked from, or
+   *   null for a theme installed in userData — those have no URL the renderer is
+   *   allowed to fetch, so their CSS arrives as text over IPC instead.
+   * @param {Array<{name:string,text:string}>} [inlineCss] that text
+   */
+  function registerCustomTheme(manifest, basePath = 'themes/custom', inlineCss = null) {
     const errors = validateCustomManifest(manifest);
     if (errors.length) return { ok: false, errors };
     const id = manifest.id;
@@ -388,9 +395,16 @@
 
     const shell = manifest.shell || 'default';
     const bodyClass = manifest.bodyClass || `khayt-custom-${id}`;
-    const stylesheets = [`${basePath}/${id}/${manifest.tokens}`];
-    if (manifest.compat) stylesheets.push(`${basePath}/${id}/${manifest.compat}`);
-    if (manifest.shellCss) stylesheets.push(`${basePath}/${id}/${manifest.shellCss}`);
+    // A theme installed in userData has no linkable URL: userData is outside the
+    // app's origin, and the CSP that keeps a stray <link> from reaching the
+    // network is the same one that stops it reaching the disk. Its CSS comes
+    // over IPC as text and is injected; a bundled one still links, unchanged.
+    const stylesheets = [];
+    if (basePath) {
+      stylesheets.push(`${basePath}/${id}/${manifest.tokens}`);
+      if (manifest.compat) stylesheets.push(`${basePath}/${id}/${manifest.compat}`);
+      if (manifest.shellCss) stylesheets.push(`${basePath}/${id}/${manifest.shellCss}`);
+    }
 
     customThemes[id] = {
       id,
@@ -406,6 +420,7 @@
       defaultAppearance: manifest.defaultAppearance || 'dark',
       bodyClass,
       stylesheets,
+      inlineCss: Array.isArray(inlineCss) ? inlineCss : null,
       manifest,
     };
     return { ok: true, id: `custom:${id}` };
