@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.7.0-beta.7] - 2026-08-25
+
 ### Added
 
 - **Choosing a design now tells you what it costs.** Khayt's eight designs are
@@ -107,7 +109,6 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   use was dropped and the order arrived under an internal id instead of its order
   number. Found while adding Medusa, by checking that Khayt's two cloud backends
   agreed about which stores they knew — they did not.
-
 
 ## [3.7.0-beta.6] - 2026-08-25
 
