@@ -2706,6 +2706,7 @@
   "mach.api_host": "Endereço IP",
   "mach.api_port": "Porta",
   "mach.api_key": "Chave de API",
+  "mach.api_key_hint": "O PrusaLink chama isso de Senha (Configurações → Rede → PrusaLink). Numa Duet é a senha da máquina do M551 — deixe vazio se não definiu nenhuma.",
   "mach.api_test": "Testar conexão",
   "mach.api_ok": "Conectada",
   "mach.api_fail": "A conexão falhou",

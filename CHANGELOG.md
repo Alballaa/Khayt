@@ -4,6 +4,27 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **A Duet 3 with a Raspberry Pi attached can now be added.** It could not be
+  before — not "worked poorly", could not be reached at all. That build serves a
+  completely different set of web addresses from a Duet that runs its own
+  networking, and Khayt only knew the second set, so every request missed and the
+  printer looked switched off however healthy it was. Khayt now tries both and
+  remembers which one your board answered on.
+
+- **A Duet with a machine password can be polled.** If you have set one, a Duet
+  refuses every request from anything that has not logged in — and Khayt had
+  nowhere for you to type it, so the printer read as unreachable. Put it in the
+  **API key** box on the machine, which now says so: PrusaLink calls that field a
+  Password, a Duet calls it the machine password, and Khayt calls it the same
+  box. Leave it empty if you never set one; nothing changes for you.
+
+  Neither of these has met a real Duet — there is none here to try. The
+  behaviour is covered by tests end to end, but if you have one, this is the
+  release to tell us about it.
+
+
 ### Fixed
 
 - **An order that arrives twice from your online store no longer becomes two

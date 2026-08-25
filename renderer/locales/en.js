@@ -2706,6 +2706,7 @@
   "mach.api_host": "IP address",
   "mach.api_port": "Port",
   "mach.api_key": "API key",
+  "mach.api_key_hint": "PrusaLink calls this the Password (Settings → Network → PrusaLink). On a Duet it is the machine password from M551 — leave it empty if you have not set one.",
   "mach.api_test": "Test connection",
   "mach.api_ok": "Connected",
   "mach.api_fail": "Connection failed",

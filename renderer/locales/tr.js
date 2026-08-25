@@ -2705,6 +2705,7 @@
   "mach.api_host": "IP adresi",
   "mach.api_port": "Port",
   "mach.api_key": "API anahtarı",
+  "mach.api_key_hint": "PrusaLink buna Parola diyor (Ayarlar → Ağ → PrusaLink). Duet'te ise M551 makine parolasıdır — ayarlamadıysanız boş bırakın.",
   "mach.api_test": "Bağlantıyı test et",
   "mach.api_ok": "Bağlandı",
   "mach.api_fail": "Bağlantı başarısız",

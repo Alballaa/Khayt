@@ -67,7 +67,8 @@ const {
   mergePollSuccess, mergePollFailure, completionsToPersist, restoreCompletions, completionIsNew,
 } = require('./lib/printer-poll-cache');
 const sdcpClient = require('./lib/sdcp-client');
-const { normalizeProgress, fileProgressPct, etaSeconds, moonrakerProgress, duetHeaterTemp } = require('./lib/printer-status');
+const { normalizeProgress, fileProgressPct, etaSeconds, moonrakerProgress } = require('./lib/printer-status');
+const KhaytDuet = require('./lib/duet');
 const printerCommands = require('./lib/printer-commands');
 const { normalizeStoreSnapshot, STORE_VERSION } = require('./lib/store-validate');
 const upgradeBackup = require('./lib/upgrade-backup');
@@ -3860,12 +3861,18 @@ async function fetchPrinterStatus(machine) {
     if (type === 'repetier') headers['x-api-key'] = apiKey;
   }
 
-  const get = async (p) => {
+  const get = async (p, extraHeaders) => {
     // redirect:'manual' so a compromised/misconfigured printer host can't 302 the poller off the
     // validated LAN address to loopback/metadata (the response here IS returned to the renderer).
-    const res = await fetch(`${baseUrl}${p}`, { headers, redirect: 'manual', signal: AbortSignal.timeout(5000) });
+    const res = await fetch(`${baseUrl}${p}`, {
+      headers: extraHeaders ? { ...headers, ...extraHeaders } : headers,
+      redirect: 'manual', signal: AbortSignal.timeout(5000),
+    });
     if (res.status >= 300 && res.status < 400) throw new Error('Unexpected redirect from printer');
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    // The status is carried on the error rather than only in its text, because
+    // the Duet adapter has to tell "you need a session" (401 standalone, 403 SBC)
+    // apart from "this surface does not exist here" (404) to pick a transport.
+    if (!res.ok) { const e = new Error(`HTTP ${res.status}`); e.status = res.status; throw e; }
     return res.json();
   };
 
@@ -3961,53 +3968,66 @@ async function fetchPrinterStatus(machine) {
   }
   // (Bambu is handled above via MQTT before the HTTP branches.)
   if (type === 'duet') {
-    try {
-      // TWO queries, and the second one is not optional.
-      //
-      // `flags=f` means "only values that typically change frequently during a
-      // job", which RepRapFirmware implements as `includeNonLive = false` and
-      // then filters every entry not tagged ObjectModelEntryFlags::live
-      // (ObjectModel.cpp, ShouldReport). In PrintMonitor.cpp the job entries are
-      // tagged like this:
-      //
-      //     duration      live          filePosition  live
-      //     rawExtrusion  liveNotPanelDue   timesLeft live
-      //     file          none          file.fileName none   file.size none
-      //
-      // So `job.file` was never in the reply. Not "sometimes absent during the
-      // pre-print phase", which is what the guard in fileProgressPct was written
-      // for — absent on every single poll, for every Duet, forever. filePosition
-      // arrived faithfully and had nothing to be a percentage OF, so
-      // fileProgressPct correctly refused to invent one and returned 0, and every
-      // Duet in the field showed a job sitting at 0% with a blank name.
-      //
-      // The live query stays as it is — it is the right query for the numbers
-      // that move. The file is static for the life of the job, so it gets its own
-      // query without `f`, and the two go out together.
-      const [data, fileData] = await Promise.all([
-        get('/rr_model?key=&flags=d99fn'),
-        get('/rr_model?key=job.file&flags=d99n').catch(() => null),
-      ]);
-      const job = data.result?.job || {};
-      const file = fileData?.result || job.file || {};
-      const heat = data.result?.heat || {};
-      return {
-        state: data.result?.state?.status || 'Unknown',
-        progress: fileProgressPct(job.filePosition, file.size),
-        filename: file.fileName || '',
-        timeRemaining: job.timesLeft?.file || null,
-        // Heater 0 is the bed and heater 1 is the tool ONLY by convention. RRF
-        // says which is which: heat.bedHeaters[] carries the bed's index (and may
-        // hold -1 when none is configured), and each tool names its own in
-        // tools[].heaters[]. A machine with no bed, or with the hotend on heater
-        // 0, was being shown one temperature under the other's label.
-        tempNozzle: duetHeaterTemp(heat, data.result?.tools, 'tool'),
-        tempBed: duetHeaterTemp(heat, data.result?.tools, 'bed'),
-        actuals: extractActuals('duet', data, stockOptsFor(machine)),
-        type: 'duet'
+    // A Duet answers over one of two entirely different HTTP surfaces —
+    // RepRapFirmware standalone (`rr_*`) or a Duet 3 with an SBC attached
+    // (`machine/*`) — and this only ever spoke the first. Every request to a
+    // Duet 3 + SBC 404'd, so an officially supported configuration read as an
+    // unreachable machine rather than a degraded one. See lib/duet.js.
+    //
+    // Both are session-based. Standalone auto-creates a session for a machine
+    // with no password, which is why this worked for everyone who never ran
+    // M551 and for nobody who did; SBC always needs `machine/connect` first and
+    // its session lasts "at least 8 seconds", so re-authenticating between polls
+    // is ordinary operation rather than an error.
+    const password = apiKey || '';
+    const flavours = duetFlavourFor(baseUrl);
+
+    const tryFlavour = async (flavour) => {
+      const ep = KhaytDuet.ENDPOINTS[flavour];
+      const withSession = async () => {
+        const raw = await get(ep.connect(password));
+        const r = flavour === 'standalone' ? KhaytDuet.rrConnectResult(raw) : KhaytDuet.dsfConnectResult(raw);
+        if (!r.ok) throw new Error(r.error);
+        return r.sessionKey ? { 'X-Session-Key': r.sessionKey } : {};
       };
-    } catch(e) {
-      const data = await get('/rr_status?type=3');
+
+      // Try unauthenticated first and only pay for a handshake when refused.
+      // A password-less standalone Duet — the overwhelmingly common case — then
+      // costs exactly what it did before this change.
+      let extra = {};
+      const fetchModel = async () => {
+        const live = await get(ep.live, extra);
+        if (!ep.file) return { live, file: null };
+        const file = await get(ep.file, extra).catch(() => null);
+        return { live, file };
+      };
+
+      let got;
+      try {
+        got = await fetchModel();
+      } catch (e) {
+        if (!isHttpStatus(e, ep.unauthorized)) throw e;
+        extra = await withSession();
+        got = await fetchModel();
+      }
+      return KhaytDuet.statusFromObjectModel(got.live, KhaytDuet.objectModel(got.file), {
+        fileProgressPct, extractActuals, stockOpts: stockOptsFor(machine),
+      });
+    };
+
+    let lastErr = null;
+    for (const flavour of flavours) {
+      try {
+        const status = await tryFlavour(flavour);
+        rememberDuetFlavour(baseUrl, flavour);   // skip the wrong surface next time
+        return status;
+      } catch (e) { lastErr = e; }
+    }
+
+    // Both surfaces refused. The pre-RRF-3 status endpoint is the last thing to
+    // try — it predates the object model entirely and only exists standalone.
+    try {
+      const data = await get(KhaytDuet.ENDPOINTS.standalone.legacy);
       return {
         state: data.status || 'Unknown',
         progress: normalizeProgress((data.fractionPrinted || 0) * 100),
@@ -4017,7 +4037,7 @@ async function fetchPrinterStatus(machine) {
         tempBed: data.temps?.bed?.current || null,
         type: 'duet'
       };
-    }
+    } catch (e) { throw lastErr || e; }
   }
   if (type === 'repetier') {
     const slug = printerSlug || 'default';
@@ -4067,6 +4087,33 @@ async function fetchPrinterStatus(machine) {
   }
   throw new Error(`Unknown printer type: ${type}`);
 }
+
+/**
+ * Which Duet surface a given address answered on last time.
+ *
+ * A Duet is either standalone RepRapFirmware or a Duet 3 with an SBC, and the
+ * two share no endpoints. Detection means trying one and falling back, which
+ * costs a wasted request — once, not on every poll for the life of the machine.
+ * Remembered by address rather than by machine id so the same board reached
+ * twice under different names is still only probed once.
+ *
+ * Deliberately not persisted: a board that gets an SBC bolted to it, or has one
+ * removed, should be re-detected on the next launch rather than argued with.
+ */
+const duetFlavours = new Map();
+
+function duetFlavourFor(baseUrl) {
+  const known = duetFlavours.get(baseUrl);
+  // Standalone first when nothing is known: it is the far more common build, so
+  // the wasted probe lands on the rarer configuration.
+  if (known === 'sbc') return ['sbc', 'standalone'];
+  return ['standalone', 'sbc'];
+}
+
+function rememberDuetFlavour(baseUrl, flavour) { duetFlavours.set(baseUrl, flavour); }
+
+/** Did this error come from a specific HTTP status? */
+function isHttpStatus(err, status) { return !!err && err.status === status; }
 
 function defaultPrinterPort(type) {
   const ports = { octoprint: 80, moonraker: 7125, bambu: 8883, prusalink: 80, duet: 80, repetier: 3344, sdcp: 3030 };
