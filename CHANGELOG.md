@@ -6,6 +6,32 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Added
 
+- **Analytics now shows what each model actually costs you.** Khayt has been
+  reading the real filament and time off your printer as each job finishes for a
+  while now. Until today it did the arithmetic and showed you an average: how
+  close your estimates are, across everything. That tells you how you are doing.
+  It does not tell you what to change.
+
+  **Analytics → Cost per model** groups those measurements by the model that was
+  printed, so you can see that a particular part is quoted at 41 g and 3.2 h and
+  has actually taken 48 g and 3.8 h across four prints — and that you are
+  therefore charging about a sixth too little for it every time you quote it. An
+  order happened once, at a price already agreed. A model gets quoted again
+  tomorrow, which is why this is the useful way round.
+
+  Only prints a **printer measured** are counted, and only jobs that printed one
+  thing — a figure divided between several parts is a fair way to split a bill,
+  not a measurement of any one of them. Each row says how many prints it is based
+  on, because two prints and ten prints do not deserve the same confidence, and a
+  model is only flagged as underpriced once there is more than one print behind
+  the claim.
+
+  Printing something twice as fast as you quoted is not flagged. You will hear
+  about overcharging from your customers.
+
+
+### Added
+
 - **You can install a design someone else made.** Khayt has had the machinery
   for custom designs for a long time and nobody has ever used it, because there
   was nowhere to put one: designs lived inside the application file, which is

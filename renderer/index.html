@@ -885,6 +885,16 @@
         <ul class="activity-list" id="activityList"></ul>
       </div>
 
+      <!-- Cost per model sits ABOVE estimate accuracy, and in its own card,
+           because they answer different questions. Accuracy says how good the
+           estimates are; this says which model to re-price, which is the one a
+           shop can act on — an order happened once, at a price already charged,
+           but a model gets quoted again tomorrow. -->
+      <div class="card pro-only" style="margin-top: 16px;">
+        <h3 class="card-head"><span class="swatch"></span><span data-i18n="an.mv_title">Cost per model</span></h3>
+        <div id="modelVarianceSection"></div>
+      </div>
+
       <div class="card pro-only" style="margin-top: 16px;">
         <h3 class="card-head"><span class="swatch"></span><span data-i18n="an.accuracy_title">Estimate Accuracy</span></h3>
         <div id="accuracySection"></div>
@@ -2624,6 +2634,7 @@
 <script src="../lib/model-identity.js"></script>
 <script src="../lib/gcode-geometry.js"></script>
 <script src="../lib/order-file-link.js"></script>
+<script src="../lib/estimate-variance.js"></script>
 <script src="../lib/estimate-calibration.js"></script>
 <script src="../lib/stl-thumbnail.js"></script>
 <script src="../lib/reorder.js"></script>

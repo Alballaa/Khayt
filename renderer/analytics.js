@@ -395,6 +395,60 @@ function renderAnalytics() {
       </li>`).join('');
   }
 
+  /* Per-model variance — what a MODEL costs against what it is quoted at.
+   *
+   * The accuracy panel below answers "how good are my estimates". This answers
+   * "which model should I re-price", which is the one a shop can act on: an
+   * order happened once, at a price already charged, but a model gets quoted
+   * again tomorrow.
+   *
+   * Measured readings only, and only from single-part jobs — a divided figure is
+   * a fair way to split a bill and not a measurement of any one part. See
+   * lib/estimate-variance.js.
+   */
+  const varianceEl = $('#modelVarianceSection');
+  if (varianceEl && typeof KhaytEstimateVariance !== 'undefined'
+      && typeof KhaytOrderFileLink !== 'undefined' && typeof KhaytPrinterActuals !== 'undefined') {
+    const rows = KhaytEstimateVariance.varianceByModel(completed, {
+      allocate: (o) => KhaytOrderFileLink.allocateActuals(o),
+      compare: KhaytPrinterActuals.compareToEstimate,
+    });
+    if (!rows.length) {
+      varianceEl.innerHTML = `<p style="color:var(--text-muted);font-size:13px;">${escapeHtml(t('an.mv_none'))}</p>`;
+    } else {
+      const pct = (v) => (v === null ? '—' : (v >= 0 ? '+' : '') + v.toFixed(1) + '%');
+      const col = (v) => (v === null ? 'var(--text-muted)'
+        : v >= 15 ? 'var(--danger)' : v >= 8 ? 'var(--warning)' : 'var(--success)');
+      const conf = { good: t('an.mv_conf_good'), fair: t('an.mv_conf_fair'), thin: t('an.mv_conf_thin') };
+      const advised = rows.map((r) => [r, KhaytEstimateVariance.advice(r)]).filter(([, a]) => a);
+      varianceEl.innerHTML = `
+        ${advised.length ? `<div class="mv-advice">${advised.slice(0, 3).map(([r, a]) => `
+          <p>${escapeHtml(t('an.mv_underquoted', {
+            name: r.name || r.printFileId, pct: a.pct,
+            axis: a.axis === 'time' ? t('an.mv_axis_time') : t('an.mv_axis_filament'),
+            n: a.sampled,
+          }))}</p>`).join('')}</div>` : ''}
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>${escapeHtml(t('an.mv_model'))}</th>
+              <th>${escapeHtml(t('an.mv_prints'))}</th>
+              <th>${escapeHtml(t('an.mv_filament'))}</th>
+              <th>${escapeHtml(t('an.mv_time'))}</th>
+            </tr></thead>
+            <tbody>
+              ${rows.slice(0, 25).map((r) => `<tr>
+                <td>${escapeHtml(r.name || r.printFileId)}</td>
+                <td>${r.sampled} <span style="color:var(--text-muted);font-size:11px;">${escapeHtml(conf[r.confidence] || '')}</span></td>
+                <td style="color:${col(r.gramsDeltaPct)}">${escapeHtml(pct(r.gramsDeltaPct))}</td>
+                <td style="color:${col(r.hoursDeltaPct)}">${escapeHtml(pct(r.hoursDeltaPct))}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`;
+    }
+  }
+
   // Accuracy section
   const accuracyEl = $('#accuracySection');
   if (accuracyEl) {
