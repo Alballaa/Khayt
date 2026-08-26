@@ -2,7 +2,7 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0, 3.7.0-beta.6 published — on `main`)
+## Now (post-3.6.0, 3.7.0-beta.7 published — on `main`)
 
 **Stable is v3.6.0** (2026-08-21) — the 3.6.0 line, promoted from
 `v3.6.0-rc.4` unchanged after a seven-day soak. rc.4 was the first candidate on
@@ -10,34 +10,30 @@ this line that `main` did not overtake, so for once replace-vs-promote resolved
 to *promote*; rc.1, rc.2 and rc.3 were each replaced instead.
 
 **The 3.7.0 line is open. The newest *published* pre-release is
-`v3.7.0-beta.6`** (2026-08-25) — tagged from `461cafd`, **Windows + Linux only**
-(`BUILD_MAC` deliberately unset), so macOS stays on `beta.5` with its update check
-healthy via a carried `latest-mac.yml`. Verified the way this file keeps insisting
-on: the tag resolves to `main`'s tip, `package.json` at that commit reads
-`3.7.0-beta.6`, all three manifests fetch 200, every asset they name serves 200,
-and the beta.5 mac zip the carried manifest points at still resolves.
+`v3.7.0-beta.7`** (2026-08-25) — tagged from `1b5543a`, **Windows + Linux only**
+(`BUILD_MAC` deliberately unset), so macOS stays on `beta.5` and is now three
+cuts behind. Verified the way this file keeps insisting on: the tag resolves to
+`main`'s tip at the time, `package.json` there reads `3.7.0-beta.7`, all three
+manifests fetch 200, every asset they name serves 200, and the beta.5 mac zip the
+carried `latest-mac.yml` points at still resolves.
 
-beta.6 is the release where the printers Khayt was already polling started being
-heard correctly. Every adapter was audited against its vendor's own documentation
-and, where that was silent or wrong, that vendor's firmware source —
-[docs/PRINTER-PROTOCOL-AUDIT.md](./docs/PRINTER-PROTOCOL-AUDIT.md). Six defects,
-five of which had been reporting a wrong number indefinitely without ever
-throwing, which is exactly why none of them had been noticed: a Duet permanently
-at 0%, a Repetier that always looked idle, a PrusaLink with no filename, a Klipper
-toolchanger reading a nozzle that was not printing, and — the one that decided the
-cut could not wait — OctoPrint recording the slicer's own estimate as the measured
-weight, feeding `estimate-calibration.js` its own guesses as evidence and making
-every OctoPrint variance read as exactly zero.
+beta.7 is Medusa, both kinds of Duet, and what a design costs. Medusa stores can
+send orders to Khayt — and because Medusa has no webhook settings page, Khayt
+generates the subscriber rather than handing out a URL with nowhere to paste it.
+A Duet 3 with an SBC can be added at all for the first time, and so can a
+password-protected one. The Flow board marks orders late, which it never has:
+it borrowed the shared attention engine, misread the answer two ways at once, and
+its own catch hid the throw. And the design picker now says what each design
+hides or adds against the one in use, because eight designs that are genuinely
+eight different screens meant switching could quietly take a number away.
 
-It also carries **R7**: an Elegoo Mars or Saturn can be added and watched, found
-by a network scan because SDCP addresses a printer by a mainboard id printed
-nowhere on the machine. It has still never met one, and the release note says so.
-
-Alongside those: a measured job now survives quitting the app ([#742]), and a
-Salla or Zid order that arrives twice no longer becomes two jobs ([#745]).
-
-`main` and the newest published tag are **the same commit**. `[Unreleased]` is
-empty.
+**Landed on `main` after the tag** — five commits the next cut carries: the LAN
+sweep that finds a printer which does not announce itself ([#757]), and the four
+pieces of the modular design system — the CSS safety gate ([#758]), userData
+storage ([#759]), loading over IPC ([#760]) and the install/remove surface
+([#761]). Together those are the first time a shop can install a design somebody
+else made: the machinery existed for a long time and could never be used, because
+designs lived inside `app.asar` — read-only, and replaced whole on every update.
 
 No hold is active — see [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md).
 
@@ -147,24 +143,41 @@ task; R7 ([#743]) left a hardware dependency rather than a task.
       no fixture had imagined ([#566]).
       *Still unexercised:* the fallback for firmware that clears its stats on
       finish. This U1 retained them, so the primary path ran.
-- [ ] **Three finished jobs, then print time stops being a guess.**
-      `throughputMm3PerS` is the last assumed constant in the chain;
-      `lib/estimate-calibration.js` replaces it from measured jobs once there
-      are three. **Khayt still holds zero.**
-      One was measured on 2026-08-24 and is written down here because the app
-      was not open to receive it — a MiniDragon on the U1, **49.97 g over
-      9,682 s** (2h41m, 123 layers, 16.75 m of PLA), which is **18.6 g/h**. The
-      slicer had said 2h48m, so it ran **3.9% fast**. Captured by a standalone
-      script driving Khayt's own `extractActuals` and `captureCompletion`, since
-      nothing in the app was in a position to: it was closed, and configured for
-      an address the printer had left.
-      Two things came out of that. The address half is fixed ([#735], [#736]).
-      The other half was worse and is also fixed ([#742]): completions were
-      captured into MEMORY, so the twenty-four hours a measurement is offered for
-      was really "until Khayt is next quit" — an overnight print finishing before
-      the app was closed in the morning left nothing behind at all. Neither fix
-      recovers this job; both mean the next one does not need rescuing.
-      To enter it by hand: mark the order done and type 49.97 g / 2.69 h.
+- [x] **Three finished jobs, then print time stops being a guess.**
+      **Already done, and this file did not know.** It said "Khayt still holds
+      zero" from the day the item was written until 2026-08-26. Run against the
+      shop's own store on that date, `lib/estimate-calibration.js` answers:
+
+      ```
+      { scope: "shop", gramsPerHour: 21.02, jobs: 19, spread: 0.25 }
+      ```
+
+      Nineteen jobs, not zero, the oldest dated **2026-07-18** — so the threshold
+      was passed within days of the capture chain shipping in `3.6.0-beta.1`, and
+      the estimator has been calibrated for over a month. Every one of the
+      nineteen carries `actualsSource: {time: 'moonraker', weight: 'moonraker'}`;
+      they are printer readings, not typed figures. The spread is 0.25 against a
+      `MAX_RELATIVE_SPREAD` of 0.6, so the figure is not merely present, it is
+      inside the tolerance the module itself requires before it will be used.
+
+      For a sanity check against the one job this file did record by hand: the
+      MiniDragon measured **18.6 g/h**, and the shop-wide median is 21.02 g/h.
+      Same order of magnitude, and both a long way from the old assumed constant
+      the calibration work found to be optimistic by roughly 3×.
+
+      **How it went unnoticed is the part worth keeping.** Nothing was broken —
+      the app captured every one of those jobs correctly. This file was reading a
+      different signal, said zero, and nobody checked the claim against
+      `calibrate()` because the claim was already written down. A roadmap that
+      reports a solved problem as the headline blocker costs more than one that
+      says nothing, because it is trusted.
+      *Check it, do not assume it:* run `calibrate()` over `printLog` with
+      `order-file-link`'s `allocateActuals`, and read `jobs` and `spread`.
+
+      The MiniDragon job from 2026-08-24 is still unrecorded and still worth
+      entering by hand — mark the order done and type **49.97 g / 2.69 h**. It is
+      no longer the difference between calibrated and not; it is one more sample.
+
 - [ ] **The 3.2-era hardware pass is still outstanding** — see
       [docs/PRELAUNCH-QA.md](./docs/PRELAUNCH-QA.md). Two items need hardware:
       the **printer camera** live image path, and carrier **API** shipping
@@ -220,6 +233,7 @@ Four stable lines, nineteen beta releases and four release candidates since 3.2.
 
 | Version | Date | What it was |
 |---------|------|-------------|
+| **3.7.0-beta.7** | 2026-08-25 | **Medusa, both kinds of Duet, and what a design costs.** Medusa stores can send their orders to Khayt — and since Medusa has no webhook settings page, Khayt generates the subscriber rather than handing out a URL with nowhere to paste it ([#750]). A Duet 3 with an SBC becomes reachable at all: that build serves a completely different set of addresses and every request had been missing, so a supported configuration read as a switched-off printer — as did any Duet with a machine password, which had nowhere to be typed ([#752]). The Flow board marks orders late, which it never has: it borrowed the shared attention engine, misread the result two ways at once, and its own catch hid the throw, so a week-overdue job looked exactly like one due next month ([#753], [#754]). And the design picker says what each design hides or adds against the one in use ([#755]). Windows + Linux only; macOS stays on beta.5. |
 | **3.7.0-beta.6** | 2026-08-25 | **The printers were answering; Khayt was not listening.** Every printer adapter audited against its manufacturer's own documentation and, where that was silent or wrong, that manufacturer's firmware source — six defects, five of them reporting a wrong number indefinitely without ever throwing, which is why none had been noticed. A Duet permanently at 0% with no filename (the `f` query flag filters out the very file the percentage needs). A Repetier that always read Idle (its reply is keyed by slug and was being indexed as an array). A PrusaLink with no filename (that endpoint has never carried one). A Klipper toolchanger showing a nozzle that was not printing. And OctoPrint recording the slicer's own estimate as the measured weight, which made every variance read as exactly zero and fed `estimate-calibration.js` its own guesses as evidence ([#747]). Also **R7** — Elegoo Mars/Saturn can be added and watched, found by network scan, still never tested against a real machine and the note says so ([#743]) — a measured job surviving app quit ([#742]), and a retried Salla/Zid order no longer becoming two ([#745]). Windows + Linux only; macOS stays on beta.5 with a carried manifest ([#748]). |
 | **3.6.0** | 2026-08-21 | **The 3.6.0 line, released as stable.** Promoted from `v3.6.0-rc.4` with no code change between the two — the only commit `main` took after the tag was [#711], a status-doc fix. Khayt learns what prints actually cost: a model becomes a quote, the printer reports the real filament and duration on completion, and the estimator calibrates itself from finished jobs. It also opens the app outside the Gulf (tax added to a price rather than included in it, thirty country presets, documents in the shop's own language), closes four security holes including a portal link that exposed a whole message thread, and stops a restore-while-running from pushing old data over new. Supersedes v3.5.3. |
 | **3.6.0-rc.4** | 2026-08-14 | **A restore can no longer overwrite newer data.** Restoring a backup, a restore point, or an imported file *while the app was running* could push that older copy to the cloud as the latest, and every other device would take it — silently, with the newer records gone. A restore is now treated like a fresh start: forget what the server was thought to hold, refetch, merge ([#708]). Also the organisation overview showing what each branch earned and is still owed, each in its own currency and never summed across them ([#707]), and a launch sync that asks only for what changed ([#705]). The current candidate ([#710]). |
@@ -268,6 +282,18 @@ Four stable lines, nineteen beta releases and four release candidates since 3.2.
 [#745]: https://github.com/KhaytApp/Khayt/pull/745
 [#747]: https://github.com/KhaytApp/Khayt/pull/747
 [#748]: https://github.com/KhaytApp/Khayt/pull/748
+[#750]: https://github.com/KhaytApp/Khayt/pull/750
+[#751]: https://github.com/KhaytApp/Khayt/pull/751
+[#752]: https://github.com/KhaytApp/Khayt/pull/752
+[#753]: https://github.com/KhaytApp/Khayt/pull/753
+[#754]: https://github.com/KhaytApp/Khayt/pull/754
+[#755]: https://github.com/KhaytApp/Khayt/pull/755
+[#756]: https://github.com/KhaytApp/Khayt/pull/756
+[#757]: https://github.com/KhaytApp/Khayt/pull/757
+[#758]: https://github.com/KhaytApp/Khayt/pull/758
+[#759]: https://github.com/KhaytApp/Khayt/pull/759
+[#760]: https://github.com/KhaytApp/Khayt/pull/760
+[#761]: https://github.com/KhaytApp/Khayt/pull/761
 [#549]: https://github.com/KhaytApp/Khayt/pull/549
 [#551]: https://github.com/KhaytApp/Khayt/pull/551
 [#552]: https://github.com/KhaytApp/Khayt/pull/552
