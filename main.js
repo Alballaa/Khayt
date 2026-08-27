@@ -1779,8 +1779,14 @@ ipcMain.handle('hub:webcam-snapshot', async (_e, { machineId } = {}) => {
 // ── Telemetry (TELEMETRY-SPEC) ──────────────────────────────────────────────
 // OFF by default and gated on explicit per-stream consent. Scrubbing happens HERE — the
 // single trusted choke point — and the transport only ever accepts scrubber output, so an
-// unscrubbed send is impossible by construction. There is no endpoint yet: events are
-// queued locally only. Nothing is transmitted anywhere.
+// unscrubbed send is impossible by construction.
+//
+// There IS an endpoint now (khayt-cloud, POST /v1/telemetry) and lib/telemetry-sender.js
+// flushes to it. Two things stay true regardless: nothing leaves without the matching
+// per-stream consent, checked again at send time because consent can be withdrawn after an
+// event was queued; and the ingest ships DORMANT server-side, so today the flush gets a 404,
+// keeps the queue and waits. That is the designed state, not a failure — the field starts
+// reporting when the flag flips, with no desktop release needed.
 const TELEMETRY_QUEUE_FILE = () => path.join(app.getPath('userData'), 'telemetry-queue.json');
 
 function telemetryConsent() {
@@ -1820,6 +1826,47 @@ ipcMain.handle('hub:telemetry-record', async (_e, { kind, payload } = {}) => {
   enqueueTelemetry(kind === 'usage' ? 'usage' : 'crash', payload || {});
   return { ok: true };
 });
+
+/* ── Sending it ─────────────────────────────────────────────────────────────
+ *
+ * All of the policy lives in lib/telemetry-sender.js with its clock, its fetch
+ * and its queue injected, so every branch is reachable from a test. What is left
+ * here is the wiring: where the queue file is, what the consent is, and when to
+ * try. `backoff` and `nextAttempt` are process state on purpose — a shop that
+ * cannot reach the endpoint should not spend its next launch discovering that
+ * again, but it SHOULD get a fresh attempt on a new launch, which is often
+ * exactly what changed.
+ */
+let telemetryBackoffMs = 0;
+let telemetryNextAttempt = 0;
+
+async function flushTelemetry() {
+  try {
+    const Sender = require('./lib/telemetry-sender.js');
+    const r = await Sender.flushOnce({
+      readQueue: readTelemetryQueue,
+      writeQueue: (q) => fs.writeFileSync(TELEMETRY_QUEUE_FILE(), JSON.stringify(q), 'utf8'),
+      consent: telemetryConsent(),
+      fetchImpl: (...a) => fetch(...a),
+      appVersion: app.getVersion(),
+      backoffMs: telemetryBackoffMs,
+      nextAttemptAt: telemetryNextAttempt,
+    });
+    telemetryBackoffMs = r.backoffMs;
+    telemetryNextAttempt = r.nextAttemptAt;
+  } catch (_) { /* telemetry must never break or crash the app */ }
+}
+
+// Once shortly after launch — late enough that it is never racing the window
+// onto the screen — and then hourly. The interval is unref'd so it can never be
+// the reason the app does not quit.
+function startTelemetryFlush() {
+  const consent = telemetryConsent();
+  if (!consent.crash && !consent.usage) return;
+  setTimeout(flushTelemetry, 60 * 1000).unref?.();
+  const t = setInterval(flushTelemetry, 60 * 60 * 1000);
+  t.unref?.();
+}
 
 // Never crash the app in order to report a crash.
 process.on('uncaughtException', (err) => {
@@ -5561,6 +5608,10 @@ app.whenReady().then(() => {
   if (pendingBedreadyLink) { handleBedreadyLink(pendingBedreadyLink); pendingBedreadyLink = null; }
   migrateLegacyStatusPages().catch((e) => console.warn('status page migration:', e?.message || e));
   setupAutoUpdater(mainWindow);
+  // Sends nothing without consent, and nothing at all while the server-side
+  // ingest is dormant — it 404s, keeps the queue and waits. See the block above
+  // TELEMETRY_QUEUE_FILE.
+  startTelemetryFlush();
 
   const { session } = require('electron');
 
