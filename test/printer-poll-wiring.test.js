@@ -118,3 +118,33 @@ test('job control speaks both Duet surfaces, exactly as the poller does', () => 
   // Cancel is two requests; a descriptor may carry a sequence.
   assert.match(cmd, /Array\.isArray\(req\.sequence\)/, 'a multi-step command is run in order');
 });
+
+test('a carrier webhook tells an unreadable body apart from an unknown order', () => {
+  // These were one branch answering 200 "ignored", on one comment about not
+  // leaking order existence. That reason covers the ORDER lookup and not the
+  // parse: reaching the parse means the HMAC matched, so it genuinely is the
+  // carrier sending something Khayt cannot read. Answering "received, handled"
+  // to that hid a broken integration completely — the shop saw shipments that
+  // never advanced, which is what a silent carrier looks like too.
+  const lanServer = fs.readFileSync(path.join(__dirname, '..', 'lib', 'lan-server.js'), 'utf8');
+  const at = lanServer.indexOf("const carrierId = pathname.split('/').pop()");
+  assert.notEqual(at, -1, 'the carrier webhook handler has moved');
+  // Sized to the whole handler with room to spare, and measured rather than
+  // guessed: the first version of this cut at 4000 characters and missed the
+  // `idx < 0` branch by 400 once the comments explaining the split were added.
+  const body = lanServer.slice(at, at + 8000);
+
+  // Unreadable, but authentic → 422, so it lands in the carrier's own dashboard.
+  assert.match(body, /res\.writeHead\(422/, 'an unreadable payload is reported, not swallowed');
+  assert.match(body, /Signature valid, but this payload carried no tracking number/);
+
+  // Unknown order → still 200, because THAT is the case that would leak which
+  // tracking numbers this shop holds.
+  const unknownOrder = body.indexOf('if (idx < 0)');
+  assert.notEqual(unknownOrder, -1);
+  assert.match(body.slice(unknownOrder, unknownOrder + 300), /writeHead\(200/);
+
+  // And the signature check still comes first — a 422 must never be reachable
+  // by an unsigned caller probing for a response that differs.
+  assert.ok(body.indexOf('Invalid signature') < body.indexOf('422'), 'signature is verified before any parse');
+});

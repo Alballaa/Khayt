@@ -312,6 +312,82 @@ escaping into no escaping. Neither fails loudly.
   leaks existence and status, never contents. Uniform responses would cost
   legibility for customers holding a real link, which is the common case.
 
+## Findings, 2026-08-27 (fifth pass) — the CARRIER webhooks
+
+The last surface, and the one I said up front might not be auditable: SMSA,
+Aramex and SPL webhook documentation is partner-gated, so there is no public
+source to check field names against. That turned out to be true — and it did not
+make the pass worthless, because **how a parser fails is auditable even when
+what it parses is not.**
+
+| Symptom | Root cause | Tier |
+|---|---|---|
+| A nested carrier payload produced no event at all | the parser read only the top level | — |
+| The event timestamp was never read from `eventTime` | every key is lowercased first, so a camelCase lookup is dead | — |
+| An authentic delivery Khayt could not read answered "received, handled" | one branch served two different facts | — |
+
+### Nesting is ordinary, and only the top level was read
+
+`{"Shipments":[{"ShipmentNumber":…,"Status":…}]}` and `{"data":{…}}` are both
+unremarkable carrier envelopes. The parser indexed only the body's own keys, so
+either produced **no event** — and the handler then answered "received,
+ignored", so the shop's shipments never advanced and nothing anywhere said why.
+Indistinguishable from a carrier that sends nothing.
+
+The descent is now **one level, first complete match wins**, and it cannot
+invent an event: a container still has to carry both a tracking number and a
+status that normalises to a known one. A wrong container yields null rather than
+a wrong status on somebody's order, and a tracking number buried two levels deep
+is deliberately still not fished out.
+
+### A dead branch in a fallback chain
+
+```js
+for (const k of Object.keys(src)) b[k.toLowerCase()] = src[k];
+…
+const at = b.at || b.timestamp || b.time || b.date || b.eventTime || null;
+```
+
+Every key in `b` has been lowercased, so `b.eventTime` is **always** undefined.
+A carrier sending `eventTime` — a common spelling — had its timestamp dropped.
+Same family as the Medusa fallbacks: a branch that reads as a handled case and
+cannot run.
+
+### One branch, two different facts
+
+```js
+if (!evt || !evt.trackingNumber || !evt.shippingStatus) → 200 { ignored: true }
+```
+
+An **unreadable body** and an **unknown order** shared that answer, on a single
+comment about not leaking order existence. That reason is real, and it is about
+the order lookup — not about the parse.
+
+Reaching the parse means the HMAC already matched, so the sender genuinely is
+the carrier, sending something Khayt cannot read: a shape nobody mapped, or one
+that changed. Answering "received, handled" to that hides a broken integration
+completely — the shop sees shipments that never advance and no reason anywhere.
+
+So they are split. An unreadable payload now answers **422**, which puts it in
+the carrier's own delivery dashboard where a misconfiguration belongs, and leaks
+nothing — it is said only to a sender that has already proved it holds the
+shared secret. An unknown tracking number keeps its **200**, because that is the
+case that would confirm which shipments this shop holds. A test asserts the
+signature check still runs before either.
+
+### Verified correct — the carrier handler
+
+The handler around the parser is the strongest of the webhook surfaces and
+needed nothing: a per-carrier HMAC secret, `safeTokenEqual` on the signature, a
+per-carrier brute-force lockout, a replay guard, a body-size cap, and
+`advanceShippingStatus`, which refuses to regress a status — an out-of-order
+`in_transit` after `delivered` is ignored rather than applied.
+
+**What remains unverifiable:** the field names themselves. If SMSA, Aramex or
+SPL use spellings outside the list, the parser returns null — and from today
+that is at least *visible* as a 422 rather than silent. One real delivery from
+any of the three closes it; until then this is the honest ceiling.
+
 ## Verified correct — do not re-litigate
 
 - **Salla's envelope.** `{event, merchant, created_at, data:{…}}`, and
@@ -328,9 +404,11 @@ escaping into no escaping. Neither fails loudly.
 
 ## Not yet audited
 
-Still unaudited: the carrier shipping-status webhooks (SMSA / Aramex / SPL) — whose documentation is
-partner-gated, so those may not be settleable from public sources at all.
-Shopware and PrestaShop are audited only as far as "plausible"; see above. The same
+Every order-intake surface has now had a pass. What is left is not a surface
+but a set of specific unknowns, each closable by one real observation: a Zid
+delivery, a Repetier `send` request over HTTP, one webhook from any of SMSA,
+Aramex or SPL, and a Shopware or PrestaShop order body. Shopware and PrestaShop
+are audited only as far as "plausible"; see above. The same
 questions apply — which field, on which call, and what arrives when nothing
 does.
 

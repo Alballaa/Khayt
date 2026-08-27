@@ -84,3 +84,54 @@ test('projectShipping exposes only customer-safe fields (never meta/cost)', () =
   assert.equal(JSON.stringify(p).includes('internal'), false);
   assert.equal(C.projectShipping({}), null, 'nothing to show → null');
 });
+
+/**
+ * What a carrier actually sends, and what happens when Khayt cannot read it.
+ *
+ * There is no public documentation for SMSA, Aramex or SPL webhooks — it is
+ * partner-gated — so this parser cannot be verified field-for-field the way a
+ * printer's or Salla's could. What CAN be fixed without it is how the parser
+ * fails: nesting is an ordinary shape, and reading only the top level made a
+ * nested payload produce nothing at all.
+ */
+test('a nested carrier payload is read, not silently dropped', () => {
+  const smsa = C.getCarrier('smsa');
+
+  // The shape this used to miss entirely. Both are ordinary carrier envelopes.
+  const arrayNested = { Shipments: [{ ShipmentNumber: 'SM123', Status: 'delivered' }] };
+  const objectNested = { data: { awb: 'SM123', status: 'delivered' } };
+  for (const [label, body] of [['array', arrayNested], ['object', objectNested]]) {
+    const evt = smsa.parseWebhook(body, {}, {});
+    assert.ok(evt, `${label}-nested payload produced no event`);
+    assert.equal(evt.trackingNumber, 'SM123', label);
+    assert.equal(evt.shippingStatus, 'delivered', label);
+  }
+
+  // Top level still wins and is tried first.
+  const top = smsa.parseWebhook({ trackingNumber: 'TOP1', status: 'delivered', data: { awb: 'NESTED', status: 'delivered' } }, {}, {});
+  assert.equal(top.trackingNumber, 'TOP1');
+});
+
+test('the descent cannot invent an event', () => {
+  const smsa = C.getCarrier('smsa');
+  // A container is only used if it carries BOTH a tracking number and a status
+  // that normalises. Half of one is not an event.
+  assert.equal(smsa.parseWebhook({ data: { awb: 'SM1' } }, {}, {}), null, 'no status');
+  assert.equal(smsa.parseWebhook({ data: { status: 'delivered' } }, {}, {}), null, 'no tracking number');
+  assert.equal(smsa.parseWebhook({ data: { awb: 'SM1', status: 'zzz-unknown' } }, {}, {}), null, 'unknown status');
+  assert.equal(smsa.parseWebhook({ meta: { note: 'hello' } }, {}, {}), null, 'unrelated container');
+  // One level only — a tracking number buried two deep is not fished out.
+  assert.equal(smsa.parseWebhook({ a: { b: { awb: 'SM1', status: 'delivered' } } }, {}, {}), null, 'two levels deep');
+});
+
+test('the event timestamp is actually read', () => {
+  // `eventTime` was in the fallback chain and could never match: every key is
+  // lowercased before lookup, so a camelCase read is always undefined. A dead
+  // branch in a fallback chain reads as a handled case and is not one.
+  const smsa = C.getCarrier('smsa');
+  const evt = smsa.parseWebhook({ awb: 'SM1', status: 'delivered', eventTime: '2026-08-27T10:00:00Z' }, {}, {});
+  assert.equal(evt.at, '2026-08-27T10:00:00Z', 'eventTime is read case-insensitively');
+  // The other spellings still work.
+  assert.equal(smsa.parseWebhook({ awb: 'SM1', status: 'delivered', timestamp: 'T' }, {}, {}).at, 'T');
+  assert.equal(smsa.parseWebhook({ awb: 'SM1', status: 'delivered' }, {}, {}).at, null, 'absent stays null');
+});

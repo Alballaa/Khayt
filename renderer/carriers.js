@@ -46,8 +46,9 @@
 
   // Pull a tracking number and status from a webhook body regardless of the exact field
   // names a carrier uses (they all differ). Returns null when nothing usable is present.
-  function parseGenericWebhook(body, normalize) {
-    const src = body && typeof body === 'object' ? body : {};
+  /** One object's own keys, tried for a tracking number and a status. */
+  function parseOneLevel(src, normalize) {
+    if (!src || typeof src !== 'object') return null;
     // Carriers vary the casing (Aramex 'ShipmentNumber', others 'awb'/'tracking_number');
     // index by lowercased key so field lookup is case-insensitive.
     const b = {};
@@ -58,8 +59,37 @@
       b.statuscode || b.state || b.activity || null;
     const shippingStatus = normalize(rawStatus);
     if (!tn || !shippingStatus) return null;
-    const at = b.at || b.timestamp || b.time || b.date || b.eventTime || null;
+    // `eventTime` was in this list and could never match: every key in `b` has
+    // been lowercased, so a camelCase lookup is always undefined. A dead branch
+    // in a fallback chain reads as a handled case and is not one.
+    const at = b.at || b.timestamp || b.time || b.date || b.eventtime || null;
     return { trackingNumber: String(tn), shippingStatus, at: at ? String(at) : null };
+  }
+
+  /**
+   * A carrier event, from the top level or one level in.
+   *
+   * Carriers nest. `{"Shipments":[{"ShipmentNumber":…,"Status":…}]}` and
+   * `{"data":{…}}` are both ordinary shapes, and this used to read only the top
+   * level — so a nested payload produced no event, the handler answered
+   * "received, ignored", and the shop's shipments simply never advanced. Silent
+   * and indistinguishable from a carrier that sends nothing.
+   *
+   * The descent is ONE level and stops at the first complete match. It cannot
+   * invent an event: a candidate still has to carry both a tracking number and
+   * a status that normalises to a known one, so a wrong container yields null
+   * rather than a wrong status on somebody's order.
+   */
+  function parseGenericWebhook(body, normalize) {
+    const top = parseOneLevel(body, normalize);
+    if (top) return top;
+    if (!body || typeof body !== 'object') return null;
+    for (const value of Object.values(body)) {
+      const candidate = Array.isArray(value) ? value[0] : value;
+      const nested = parseOneLevel(candidate, normalize);
+      if (nested) return nested;
+    }
+    return null;
   }
 
   const MANUAL = {
