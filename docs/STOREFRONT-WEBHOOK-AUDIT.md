@@ -152,6 +152,94 @@ Khayt could never observe.
   defect repeating. Recorded because it is exactly what a later pass would
   otherwise flag as missing.
 
+## Findings, 2026-08-27 (third pass) — the remaining import branches
+
+Shopify, WooCommerce, Etsy, Shopware and PrestaShop. The stakes on this route
+are different from Salla's: the cloud mapper carries no money, so what a wrong
+field costs here is **`ref`** — and `ref` is what suppresses duplicate orders.
+Duplicates have bitten this codebase twice already ([#745] on the LAN path,
+khayt-cloud#22 on the cloud path), so a branch reading the wrong id field means
+that platform silently gets a duplicate on every provider retry.
+
+| Platform | Result |
+|---|---|
+| Shopify | Verified correct |
+| WooCommerce | Verified correct (tier 1) |
+| **Etsy** | **One paid order became a pile of blank rows** |
+| Shopware / PrestaShop | Field names plausible, unverified |
+
+### Etsy — the notification that is not an order
+
+**Etsy has webhooks now**, which is itself the finding behind the finding: for
+years the documented answer was that it never would, and developers were told to
+poll. It shipped `ORDER_PAID`, with signing secrets and retry-with-backoff. So
+"the Etsy branch is unreachable" — which is what this audit was about to
+conclude from memory — was two years out of date. *The thing you already know is
+the thing most likely to have expired.*
+
+The payload does not carry the order. It carries a pointer to it:
+
+```json
+{ "event_type": "ORDER_PAID",
+  "resource_url": "https://api.etsy.com/v3/application/shops/{id}/receipts/{id}",
+  "shop_id": 123 }
+```
+
+Fetching that needs an Etsy OAuth token the cloud does not have. So a shop
+wiring Etsy's own webhook straight at the import URL produced an intake with no
+name, no contact, no items — and **no `ref`**. No ref means no duplicate
+suppression, and Etsy retries with exponential backoff, so **one paid order
+became a growing pile of identical blank rows** in the shop's queue. Nothing
+threw at any point.
+
+**Why the existing guard could not catch it.** `sanitizeIntake` refuses a
+payload whose title *and* description are both empty, and `mapPlatformOrder`
+fills both in unconditionally — `"Etsy order"` / `"Imported from Etsy"`. By the
+time it looks, nothing looks blank. The question has to be asked while the
+source fields are still in scope, which is where `carriedNoOrder` now lives.
+
+Refusing beats storing: a retry cannot fix a body that never contained the
+order, and a rejected delivery shows up in the platform's own webhook dashboard,
+which is where a misconfiguration belongs. A blank imported order is visible
+nowhere but the shop's queue. Fixed in khayt-cloud#23, in **both** backends, and
+verified against the deployed PHP one rather than only the Node twin.
+
+The guard is narrow on purpose — name, contact, ref, items, note and link all
+empty — with a test per field so it cannot be quietly widened. It is not
+Etsy-specific: any id-only notification, and any body POSTed at the wrong
+platform's route, produced the same blank undeduplicatable row.
+
+### Shopify — correct, and incidentally future-proof
+
+`name` ("#1001"), `order_number` (1001), `id`, `email`, `phone`, `note`,
+`order_status_url`, `customer.first_name`/`last_name`, `line_items[].title`/
+`quantity` all exist and are read correctly.
+
+Worth recording: **the REST Admin API is legacy as of 2024-10-01**, and new
+public apps must use GraphQL from 2025-04-01. Merchant-configured webhooks still
+deliver REST-shaped JSON, so nothing is broken — and the `ref` fallback order
+happens to be resilient if that ever changes, because it prefers `name` (which
+survives) over `id` (which becomes a `gid://shopify/Order/…` string under
+GraphQL). Luck rather than design, but worth knowing before anyone "tidies" that
+order.
+
+### WooCommerce — correct, tier 1
+
+WooCommerce is open source, so this is the second place on this surface where
+the audit gets tier 1. `number` is in the order REST schema
+(`class-wc-rest-orders-v2-controller.php`, described as "Order number."), along
+with `billing`, `line_items` and `customer_note`. Woo webhooks deliver that same
+REST representation. Every field the branch reads is real.
+
+### Shopware and PrestaShop — plausible, unverified
+
+`orderNumber` / `lineItems[].label` are the right shapes for Shopware 6, and
+`reference` is right for PrestaShop, but neither was confirmed against a payload
+or source in this pass. They share a branch with `base`, and the fallback chains
+are wide enough that a wrong guess degrades to the raw `id` rather than to
+nothing — the failure would be a less recognisable order, not a lost one. Left
+as a known gap rather than claimed.
+
 ## Verified correct — do not re-litigate
 
 - **Salla's envelope.** `{event, merchant, created_at, data:{…}}`, and
@@ -168,10 +256,12 @@ Khayt could never observe.
 
 ## Not yet audited
 
-Still unaudited: the rest of the cloud import mapper's platform branches
-(Shopify, WooCommerce, Etsy, Shopware, PrestaShop), the customer intake form,
-and the carrier shipping-status webhooks (SMSA / Aramex / SPL) — whose vendor
-documentation is partner-gated, so those may not be settleable from sources at
-all. The same
+Still unaudited: the customer intake form (Khayt's own surface, so this is a
+correctness and abuse review rather than a payload audit), and the carrier
+shipping-status webhooks (SMSA / Aramex / SPL) — whose documentation is
+partner-gated, so those may not be settleable from public sources at all.
+Shopware and PrestaShop are audited only as far as "plausible"; see above. The same
 questions apply — which field, on which call, and what arrives when nothing
 does.
+
+[#745]: https://github.com/KhaytApp/Khayt/pull/745
