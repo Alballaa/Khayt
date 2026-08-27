@@ -240,6 +240,78 @@ are wide enough that a wrong guess degrades to the raw `id` rather than to
 nothing — the failure would be a less recognisable order, not a lost one. Left
 as a known gap rather than claimed.
 
+## Findings, 2026-08-27 (fourth pass) — the CUSTOMER INTAKE surface
+
+Khayt's own public surface: the intake form a shop shares with its customers,
+the quote link, and the tracking link. No vendor to check against, so this is a
+correctness and abuse review rather than a payload audit — what a stranger can
+reach, what they can write, and what the shop's app then does with it.
+
+**It came back clean.** One latent weakness hardened, two pieces of metadata
+leakage recorded and judged acceptable. Written down because a surface nobody
+has audited and a surface audited clean look identical from the outside.
+
+### The question that mattered most: can a stranger's text reach the Electron app as markup?
+
+An intake submission is written into the shop's print log and rendered in the
+desktop app. If any render site interpolated it into HTML unescaped, a stranger
+would be executing script inside an Electron renderer — far worse than anything
+else on this list.
+
+Scanned all 66 renderer files and both server-rendered page modules for
+stranger-controlled order fields (`project`, `client`, `notes`, `description`,
+`email`, `phone`, `material`, `referenceLink`, …) interpolated into HTML without
+an escape. **Two hits, both false positives** — local `esc()` wrappers — and the
+LAN pages' only unescaped interpolation is `icalEscape()` on the calendar feed,
+which is the correct escaping for that format rather than a missing one.
+
+### Hardened: an `esc()` that could stop escaping
+
+Both wrappers were written as:
+
+```js
+return (typeof escapeHtml === 'function') ? escapeHtml(v) : String(v);
+```
+
+The fallback returns the **raw string**. So a helper named `esc`, at a call site
+that reads as escaped, degrades silently into a pass-through if the global is
+ever missing. It is not reachable today — `escapeHtml` is always loaded and
+`check:globals` enforces that — but the reason it is safe lives in another
+file's load order, which is not a property an escaping function should depend
+on. Both now escape in the fallback too, and a test executes that branch with no
+global in scope against `<script>alert(1)</script>`.
+
+This is the same shape as the rest of the day: **a guard that silently becomes a
+non-guard.** The Salla one turned an unreadable price into `0`; this one turns
+escaping into no escaping. Neither fails loudly.
+
+### Verified correct — the customer-facing links
+
+- **The quote link is a capability, and it is a real one.** `/order/:id/quote`
+  requires `quoteApprovalToken` — **16 random bytes**, compared with
+  `crypto.timingSafeEqual` behind a length check. The order id alone opens
+  nothing.
+- **The tracking link is separately gated** on its own `trackingToken`, so a
+  customer who has one cannot read the other view.
+- **The write surface is gated three ways.** `POST /api/intake` needs an
+  IP-bound intake session or a shared token compared in constant time, then a
+  body-size cap, then a submission rate limit, then required-field and
+  length-clamp validation.
+- **Approval can only move a quote forward.** The public POST is documented as
+  quote → pending only.
+
+### Recorded, and judged acceptable
+
+- **Order ids are `prefix-<ms timestamp>-<2 random bytes>`** — 16 bits of
+  randomness over a largely predictable timestamp. That is weak *for a
+  capability*, and it is not used as one: every view behind an id demands a
+  128-bit token. It is worth knowing before anyone ever treats a bare order URL
+  as private.
+- **Existence is enumerable.** A stranger can tell "no such order" (404) from
+  "exists, wrong token" (403) and from "exists and is a quote" (302). That
+  leaks existence and status, never contents. Uniform responses would cost
+  legibility for customers holding a real link, which is the common case.
+
 ## Verified correct — do not re-litigate
 
 - **Salla's envelope.** `{event, merchant, created_at, data:{…}}`, and
@@ -256,9 +328,7 @@ as a known gap rather than claimed.
 
 ## Not yet audited
 
-Still unaudited: the customer intake form (Khayt's own surface, so this is a
-correctness and abuse review rather than a payload audit), and the carrier
-shipping-status webhooks (SMSA / Aramex / SPL) — whose documentation is
+Still unaudited: the carrier shipping-status webhooks (SMSA / Aramex / SPL) — whose documentation is
 partner-gated, so those may not be settleable from public sources at all.
 Shopware and PrestaShop are audited only as far as "plausible"; see above. The same
 questions apply — which field, on which call, and what arrives when nothing
