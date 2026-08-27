@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.7.0-beta.10] - 2026-08-27
+
 ### Fixed
 
 - **Shipment tracking could go quiet without anyone knowing.** Khayt reads

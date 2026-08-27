@@ -2,14 +2,36 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0, 3.7.0-beta.9 published — on `main`)
+## Now (post-3.6.0, 3.7.0-beta.10 being cut — on `main`)
 
 **Stable is v3.6.0** (2026-08-21) — the 3.6.0 line, promoted from
 `v3.6.0-rc.4` unchanged after a seven-day soak. rc.4 was the first candidate on
 this line that `main` did not overtake, so for once replace-vs-promote resolved
 to *promote*; rc.1, rc.2 and rc.3 were each replaced instead.
 
-**The 3.7.0 line is open. The newest *published* pre-release is
+**The 3.7.0 line is open, and `v3.7.0-beta.10` is the cut being made now**
+(2026-08-27) — **Windows + Linux only**, `BUILD_MAC` deliberately unset, so
+macOS stays on `beta.8` and goes **two** cuts behind rather than the usual one.
+That is a deliberate choice and not drift: `beta.8` brought macOS current on the
+morning of 2026-08-27, mac bills at 10×, and beta.10 carries no mac-specific
+change. `carry-mac-manifest` carries `beta.8`'s `latest-mac.yml` forward again.
+**Until the release run finishes, that is an intention and not a fact** — this
+file's own rule applies to its own claim, so confirm with `gh release list` and a
+fetched manifest before treating beta.10 as available.
+
+**beta.10 is the audit method's last three surfaces, and all three findings are
+the same shape: a guard that quietly stops guarding.** A carrier update Khayt
+could not read answered the carrier "received, handled", so a shipment simply
+stopped advancing and nothing anywhere said why — indistinguishable from a
+carrier that had gone silent ([#777]). An `esc()` helper fell back to returning
+the **raw** string if its global went missing, so a function named for escaping
+degraded into a pass-through on a load-order property in another file ([#776]).
+And two Medusa fallbacks could never fire, because the fields they read were
+never asked for — so an order landed named after a database id nobody recognises
+([#774]). [#775] is the audit record for the Etsy branch and changed no Khayt
+code; the fix shipped in khayt-cloud#23.
+
+**The newest *published* pre-release is
 `v3.7.0-beta.9`** (2026-08-27) — tagged from `b587777` ([#772]) and **Windows +
 Linux only**, `BUILD_MAC` deliberately unset, so macOS stays on `beta.8`, one cut
 behind, which is the ordinary state here: it bills at 10× and `beta.8` brought it
@@ -30,31 +52,14 @@ job control for a Duet 3 with an SBC and for a password-protected Duet ([#767]),
 Repetier cancel and resume ([#768]), and camera auto-detect on any modern
 OctoPrint ([#769]).
 
-*(This paragraph replaced a stale one that still called `beta.7` the newest
-published while the paragraph below already said `beta.8` — the file contradicted
-itself for half a day. beta.7 was Medusa, both kinds of Duet, and what a design
-costs; that is history now and lives in the shipped table.)*
-
-**The newest *published* pre-release is `v3.7.0-beta.8`** (2026-08-27) — tagged
-from `18a711a` ([#765]) and **built for all three platforms**, `BUILD_MAC` set
-for the tag and unset again immediately after. That ends macOS's three-cut drift:
-it had been on `beta.5` since 2026-08-24. Verified the way this file keeps
-insisting on, rather than assumed: the tag resolves to `main`'s tip, `package.json`
-there reads `3.7.0-beta.8`, all three manifests fetch 200 and name this release's
-own binaries, and each of the five assets they name serves 200. The
-`carry-mac-manifest` job skipped, which is the correct outcome when a real mac
-build exists to point at.
-
-It carries eight commits: the LAN sweep that finds a printer which does not
-announce itself ([#757]); the four pieces of the modular design system — the CSS
-safety gate ([#758]), userData storage ([#759]), loading over IPC ([#760]) and
-the install/remove surface ([#761]) — which together are the first time a shop
-can install a design somebody else made, the machinery having existed for a long
-time and never been usable because designs lived inside `app.asar`, read-only and
-replaced whole on every update; Analytics → Cost per model ([#763]), which turns
-the measurements Khayt already takes into the one question a shop can act on —
-what a model is quoted at against what it actually costs; and the second protocol
-audit ([#764]).
+*(#772 said it had collapsed the duplicated "newest published" paragraphs to
+one. It had not: it rewrote the beta.7 paragraph into a beta.9 one and left the
+beta.8 paragraph standing underneath, so the file went on naming two different
+newest-published releases — the exact defect that commit was recording a fix
+for. The beta.8 block is removed here rather than rewritten; that release's
+substance is in the shipped table, which is where a superseded cut belongs. The
+rule this keeps failing is that **only the top paragraph may say "newest
+published"**, and a cut adds one by REPLACING it, never by writing above it.)*
 
 No hold is active — see [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md).
 
@@ -283,6 +288,8 @@ Four stable lines, nineteen beta releases and four release candidates since 3.2.
 
 | Version | Date | What it was |
 |---------|------|-------------|
+| **3.7.0-beta.9** | 2026-08-27 | **The day the audit method left printers.** Every order imported from Salla had been recorded priced at **zero** since that integration shipped — `data.total` is not a field Salla sends, `Number(undefined)` is `NaN`, and the guard substituted 0, so revenue and margin were wrong on those orders and nothing ever threw ([#771], [docs/STOREFRONT-WEBHOOK-AUDIT.md](./docs/STOREFRONT-WEBHOOK-AUDIT.md)). Salla orders also stop all being titled "Salla: Order", and Zid is read whether or not its payload is wrapped. Plus job control for a Duet 3 with an SBC and for a password-protected Duet ([#767]) — both could be watched and never stopped — Repetier cancel and resume ([#768]), and camera auto-detect on any modern OctoPrint ([#769]). Windows + Linux only; macOS stays on beta.8 with a carried manifest. |
+| **3.7.0-beta.8** | 2026-08-27 | **Installable designs, cost per model, and a second audit.** The four pieces of the modular design system — the CSS safety gate ([#758]), userData storage ([#759]), loading over IPC ([#760]) and the install/remove surface ([#761]) — which together are the first time a shop can install a design somebody else made; the machinery had existed for a long time and was never usable, because designs lived inside `app.asar`, read-only and replaced whole on every update. Analytics → Cost per model ([#763]) turns the measurements Khayt already takes into the one question a shop can act on: what a model is quoted at against what it actually costs. Also the LAN sweep that finds a printer which does not announce itself ([#757]) and the second protocol audit ([#764]). **Built for all three platforms**, ending the three-cut macOS drift that had left it on beta.5 since 2026-08-24. |
 | **3.7.0-beta.7** | 2026-08-25 | **Medusa, both kinds of Duet, and what a design costs.** Medusa stores can send their orders to Khayt — and since Medusa has no webhook settings page, Khayt generates the subscriber rather than handing out a URL with nowhere to paste it ([#750]). A Duet 3 with an SBC becomes reachable at all: that build serves a completely different set of addresses and every request had been missing, so a supported configuration read as a switched-off printer — as did any Duet with a machine password, which had nowhere to be typed ([#752]). The Flow board marks orders late, which it never has: it borrowed the shared attention engine, misread the result two ways at once, and its own catch hid the throw, so a week-overdue job looked exactly like one due next month ([#753], [#754]). And the design picker says what each design hides or adds against the one in use ([#755]). Windows + Linux only; macOS stays on beta.5. |
 | **3.7.0-beta.6** | 2026-08-25 | **The printers were answering; Khayt was not listening.** Every printer adapter audited against its manufacturer's own documentation and, where that was silent or wrong, that manufacturer's firmware source — six defects, five of them reporting a wrong number indefinitely without ever throwing, which is why none had been noticed. A Duet permanently at 0% with no filename (the `f` query flag filters out the very file the percentage needs). A Repetier that always read Idle (its reply is keyed by slug and was being indexed as an array). A PrusaLink with no filename (that endpoint has never carried one). A Klipper toolchanger showing a nozzle that was not printing. And OctoPrint recording the slicer's own estimate as the measured weight, which made every variance read as exactly zero and fed `estimate-calibration.js` its own guesses as evidence ([#747]). Also **R7** — Elegoo Mars/Saturn can be added and watched, found by network scan, still never tested against a real machine and the note says so ([#743]) — a measured job surviving app quit ([#742]), and a retried Salla/Zid order no longer becoming two ([#745]). Windows + Linux only; macOS stays on beta.5 with a carried manifest ([#748]). |
 | **3.6.0** | 2026-08-21 | **The 3.6.0 line, released as stable.** Promoted from `v3.6.0-rc.4` with no code change between the two — the only commit `main` took after the tag was [#711], a status-doc fix. Khayt learns what prints actually cost: a model becomes a quote, the printer reports the real filament and duration on completion, and the estimator calibrates itself from finished jobs. It also opens the app outside the Gulf (tax added to a price rather than included in it, thirty country presets, documents in the shop's own language), closes four security holes including a portal link that exposed a whole message thread, and stops a restore-while-running from pushing old data over new. Supersedes v3.5.3. |
@@ -352,6 +359,10 @@ Four stable lines, nineteen beta releases and four release candidates since 3.2.
 [#769]: https://github.com/KhaytApp/Khayt/pull/769
 [#771]: https://github.com/KhaytApp/Khayt/pull/771
 [#772]: https://github.com/KhaytApp/Khayt/pull/772
+[#774]: https://github.com/KhaytApp/Khayt/pull/774
+[#775]: https://github.com/KhaytApp/Khayt/pull/775
+[#776]: https://github.com/KhaytApp/Khayt/pull/776
+[#777]: https://github.com/KhaytApp/Khayt/pull/777
 [#549]: https://github.com/KhaytApp/Khayt/pull/549
 [#551]: https://github.com/KhaytApp/Khayt/pull/551
 [#552]: https://github.com/KhaytApp/Khayt/pull/552
