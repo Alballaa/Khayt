@@ -143,6 +143,22 @@ gh workflow run "Build & Release" --repo KhaytApp/Khayt \
 The version you type **is** the version, and the release tag
 `bedready-v1.0.1` is created in `KhaytApp/bedready` by the workflow.
 
+**Then verify it, on a Mac:**
+
+```bash
+node scripts/verify-release.mjs bedready-v1.2.0
+```
+
+It downloads the published arm64 build, launches it and checks that it comes up
+as Bed Ready. That is not the same question CI answers: CI proves the SOURCE is
+good, and this proves the PACKAGING is — including the `flavor` marker, which
+exists only in build output and which `test:e2e:bedready` cannot see, because
+that test sets `KHAYT_FLAVOR=bedready` and so never uses the marker at all.
+Without the marker the app opens no window (a Bed Ready bundle has no
+`renderer/index.html` to fall back to) and the only symptom is a launch timeout.
+
+The same command verifies Khayt, with a `vX.Y.Z` tag.
+
 **Do not tag `bedready-v*` in `KhaytApp/Khayt`.** It no longer triggers anything,
 and it actively breaks Khayt's updater: electron-updater picks a release by walking
 that repo's `releases.atom`, and the feed lists **tags**, whether or not a release
