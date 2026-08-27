@@ -4,6 +4,23 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **Khayt can now send the diagnostics you opted in to.** If you have turned on
+  crash or usage reporting in Settings, Khayt has been collecting those reports
+  on your own computer and keeping them there — there was nowhere to send them
+  to. There is now, and Khayt sends them shortly after it starts and then about
+  once an hour.
+
+  Nothing changed about what is collected or how. The reports are stripped of
+  anything identifying before they are ever written down, they still never
+  include your customers, your orders or your files, and if you have not opted in
+  nothing is sent and no request is made at all. Turning an option back off stops
+  those reports being sent, including ones already waiting.
+
+  If Khayt cannot reach the internet it simply keeps them and tries later, and it
+  waits longer between attempts rather than retrying constantly.
+
 ## [3.7.0-beta.10] - 2026-08-27
 
 ### Fixed

@@ -255,7 +255,7 @@ These are recorded so nobody assumes they exist:
 
 | Gap | Why |
 |-----|-----|
-| **Telemetry transport** | No endpoint exists. Events are scrubbed and queued locally; nothing is transmitted. Build the endpoint before wiring a sender. |
+| **Telemetry transport** | ~~No endpoint exists.~~ **Built 2026-08-27** — `POST /v1/telemetry` in khayt-cloud (#25), both backends, and `lib/telemetry-sender.js` on this side. **Still dormant, and that is the gap now:** the ingest ships behind `telemetry_ingest`, off by default, so the flush 404s, keeps its queue and waits. It is the only write surface in the cloud that takes no credential — no shop, no account, just a consent box and a random install id — which is the design (telemetry gated on a cloud account would only ever describe cloud shops) and is why turning it on is a deliberate act after the deploy is verified. The 404 → 200 flip is the check. No desktop release is needed when it flips. |
 | **Timelapse capture/encoding** | Needs ffmpeg + a real printer. `machine.webcam` carries the fields; no capture runs. |
 | **Zapier / Make connectors** | External publishing artefacts, not code in this repo. |
 | **Cloud-relayed public API**, remote-mobile PWA, cloud infra | Live in the separate `khayt-cloud` repo. |
