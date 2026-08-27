@@ -4,6 +4,19 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **Khayt can now cancel and resume a print on a Repetier server.** It could
+  watch one and never touch it: every button reported that job control was not
+  supported.
+
+  Resume is worth having on its own, even though **pause is still missing**. A
+  print stops on its own more often than anyone chooses to stop it — a filament
+  runout, or a colour change the machine is waiting on — and this is the button
+  that gets it going again. Pause is a different kind of instruction on this
+  server than the other two, and Khayt would rather say it cannot do it than
+  send a running print something it half-recognises.
+
 ### Fixed
 
 - **A Duet 3 with a Raspberry Pi attached could be watched but never stopped.**
@@ -26,7 +39,6 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   paused. Khayt was sending the stop on its own, into a print that was still
   running. If the stop does not land, the print is left paused rather than in an
   unknown state, and Khayt says so.
-
 
 ## [3.7.0-beta.8] - 2026-08-27
 

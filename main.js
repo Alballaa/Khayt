@@ -4010,7 +4010,7 @@ ipcMain.handle('hub:get-printer-status', () => printerStatusCache);
  * address.
  */
 async function sendPrinterCommand(machine, command) {
-  const { type, host, port, apiKey } = (machine && machine.printerApi) || {};
+  const { type, host, port, apiKey, printerSlug } = (machine && machine.printerApi) || {};
   const printerHost = String(host || '').replace(/[^a-zA-Z0-9.\-]/g, '');
   if (!isAllowedPrinterHost(printerHost)) return { ok: false, error: 'Invalid printer host' };
   const portNum = parseInt(port || defaultPrinterPort(type), 10);
@@ -4103,7 +4103,7 @@ async function sendPrinterCommand(machine, command) {
       return { ok: false, error: String((lastErr && lastErr.message) || 'The Duet refused the command') };
     }
 
-    const req = printerCommands.buildCommand(type, command, jobId);
+    const req = printerCommands.buildCommand(type, command, jobId, { printerSlug });
     if (req.unsupported) return { ok: false, error: req.unsupported };
     await run(req);
     return { ok: true, command };
