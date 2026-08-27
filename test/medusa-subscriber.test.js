@@ -90,3 +90,47 @@ test('the renderer actually loads the module it calls', () => {
   const settings = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'settings.js'), 'utf8');
   assert.ok(settings.includes('KhaytMedusa.subscriberSource'), 'the renderer uses it');
 });
+
+test('a fallback the mapper relies on is actually requested', () => {
+  // The 2026-08-27 audit's finding here, and it is the quiet kind: the cloud
+  // mapper reads `custom_display_id` when `display_id` is empty, and reads
+  // `it.detail.quantity` when a line item carries no quantity of its own.
+  // Neither was in the field list, so neither could ever arrive — the fallbacks
+  // read as handled cases and were dead code. A ref fell through to the raw
+  // internal id instead of the number the shop and the buyer both say aloud.
+  const src = subscriberSource(URL);
+  for (const f of ['custom_display_id', 'items.detail.*']) {
+    assert.ok(FIELDS.includes(f), `${f} in FIELDS`);
+    assert.ok(src.includes(`"${f}"`), `${f} requested in the generated query`);
+  }
+
+  // `items.*` does NOT expand a nested relation — Medusa's own shipped
+  // subscriber lists `items.product.is_giftcard` explicitly alongside `items.*`
+  // for that exact reason — so `items.detail.*` has to stand on its own line
+  // and is not implied by the wildcard above it.
+  assert.ok(FIELDS.includes('items.*'), 'the wildcard is still there');
+  assert.notEqual(FIELDS.indexOf('items.detail.*'), FIELDS.indexOf('items.*'));
+});
+
+test('the generated file imports its types the way Medusa itself does', () => {
+  // Medusa's own subscribers use `import type { SubscriberArgs, SubscriberConfig }`.
+  // Khayt imported SubscriberArgs as a VALUE, which compiles under the default
+  // starter tsconfig (it sets neither verbatimModuleSyntax nor isolatedModules)
+  // and stops compiling the moment a shop turns either on. This is a file Khayt
+  // hands someone to paste into a repository it will never see, so matching the
+  // vendor's own form costs nothing and removes a break Khayt could not observe.
+  const src = subscriberSource(URL);
+  assert.match(src, /import type \{ SubscriberArgs, SubscriberConfig \} from "@medusajs\/framework"/);
+  assert.ok(!/import \{ SubscriberArgs/.test(src), 'a type is never imported as a value');
+});
+
+test('the event and its payload are the ones Medusa emits', () => {
+  // Verified against Medusa's own source, not inferred: OrderWorkflowEvents
+  // declares `PLACED: "order.placed"` with an @eventPayload of `{ id }`. If
+  // either changed, this subscriber would sit in a shop's repo firing never,
+  // and nothing on either side would say so.
+  const src = subscriberSource(URL);
+  assert.match(src, /event: "order\.placed"/);
+  assert.match(src, /SubscriberArgs<\{ id: string \}>/);
+  assert.match(src, /filters: \{ id: data\.id \}/, 'the id from the event is what is fetched');
+});

@@ -92,6 +92,66 @@ donate stray values.
 **This closes with one real delivery.** One Zid order webhook body, logged once,
 settles it permanently.
 
+## Findings, 2026-08-27 (second pass) — MEDUSA, and it is nearly clean
+
+Medusa is the one integration on this surface whose source is fully open, so it
+is the one place the audit gets tier 1 rather than tier 2. It came back nearly
+clean, and the two real findings are the same shape as each other.
+
+| Symptom | Root cause | Tier |
+|---|---|---|
+| The order ref falls through to a raw internal id | `custom_display_id` is read by the mapper and was never requested | 1 |
+| A line item with no quantity of its own counts as 1 | `items.detail.*` likewise | 1 |
+
+### Two fallbacks that could never fire
+
+`lib/medusa-subscriber.js` generates the subscriber a shop pastes into its own
+Medusa project, and its `fields` list is what the graph query asks for. The
+cloud mapper reads `custom_display_id` when `display_id` is empty, and
+`it.detail.quantity` when a line item carries no quantity of its own. **Neither
+field was in the list, so neither could ever arrive.**
+
+Nothing breaks loudly. The ref falls through to the raw internal id instead of
+the number the shop and the buyer both say out loud, and a quantity falls
+through to 1. Both read, in the mapper, as handled cases — which is the point
+worth keeping: **a fallback that cannot be reached is worse than no fallback,
+because the code says the case is covered.** Same family as the Salla guard that
+turned an unreadable price into 0.
+
+`items.*` does not imply `items.detail.*`: the wildcard selects the line item's
+own columns and not a nested relation. Medusa's own shipped subscriber
+(`packages/plugins/loyalty/src/subscribers/create-gift-card.ts`) lists
+`items.product.is_giftcard` explicitly *alongside* `items.*` for exactly that
+reason, which is what settles it.
+
+### A latent compile break, fixed while here
+
+The generated file imported `SubscriberArgs` as a **value**
+(`import { SubscriberArgs, type SubscriberConfig }`). That compiles under the
+default Medusa starter, which sets neither `verbatimModuleSyntax` nor
+`isolatedModules` — and stops compiling the moment a shop turns either on.
+Medusa's own subscribers write `import type { SubscriberArgs, SubscriberConfig }`.
+This is a file Khayt hands someone to paste into a repository it will never see
+again, so matching the vendor's own form costs nothing and removes a failure
+Khayt could never observe.
+
+### Verified correct — Medusa
+
+- **`order.placed` and its payload.** Medusa's `OrderWorkflowEvents` declares
+  `PLACED: "order.placed"` with an `@eventPayload` of `{ id }`. If either
+  changed, the subscriber would sit in a shop's repository firing never, and
+  nothing on either side would say so — which is why it is pinned in a test.
+- **The query API.** `container.resolve(ContainerRegistrationKeys.QUERY)` and
+  `query.graph({ entity: "order", filters, fields })` match Medusa's own shipped
+  subscriber call for call.
+- **Not throwing on a failed POST.** A subscriber that throws is retried by
+  Medusa, and a retry is a second order in the queue.
+- **The cloud import route carries no money, for any platform, by design.** The
+  mapper produces an order *request* to be quoted, not a priced order, so the
+  absence of a total in Medusa's field list is correct rather than the Salla
+  defect repeating. Recorded because it is exactly what a later pass would
+  otherwise flag as missing.
+
 ## Verified correct — do not re-litigate
 
 - **Salla's envelope.** `{event, merchant, created_at, data:{…}}`, and
@@ -108,8 +168,10 @@ settles it permanently.
 
 ## Not yet audited
 
-The other order sources have had no pass at all: the cloud import route (how
-every storefront other than Salla and Zid reaches Khayt), Medusa's subscriber,
-the customer intake form, and the carrier shipping-status webhooks. The same
+Still unaudited: the rest of the cloud import mapper's platform branches
+(Shopify, WooCommerce, Etsy, Shopware, PrestaShop), the customer intake form,
+and the carrier shipping-status webhooks (SMSA / Aramex / SPL) — whose vendor
+documentation is partner-gated, so those may not be settleable from sources at
+all. The same
 questions apply — which field, on which call, and what arrives when nothing
 does.

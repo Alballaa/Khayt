@@ -4,6 +4,21 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **A Medusa order arrived labelled with an internal id instead of its order
+  number.** Khayt asks a Medusa store for the order behind each event, and the
+  list of things it asked for was missing two of the ones it then tried to read.
+  So when a store had no display number, the fallback that was supposed to catch
+  that could never run, and the order landed named after a database id nobody
+  recognises. A line item that did not carry its own quantity counted as one for
+  the same reason.
+
+  The file Khayt generates for a Medusa store also declares its imports the way
+  Medusa's own examples do, which keeps it compiling in projects with stricter
+  TypeScript settings than the default.
+
+
 ## [3.7.0-beta.9] - 2026-08-27
 
 ### Added
