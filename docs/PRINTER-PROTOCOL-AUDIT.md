@@ -1,7 +1,7 @@
 # Printer protocol audit — what each vendor actually says
 
-**Last run: 2026-08-27.** Method, sources, and every finding. The first run was
-2026-08-25; both are kept, because what the second one found is mostly a comment on
+**Last run: 2026-08-27**, in two passes — the polling paths, then the command
+paths. Method, sources, and every finding. The first run was 2026-08-25; both are kept, because what the second one found is mostly a comment on
 what the first one missed.
 
 Khayt talks to seven printer protocols and there is one printer on the bench: a
@@ -228,6 +228,98 @@ a watchdog says nothing has arrived (`ha-bambulab` uses 60 s). That is a real
 change to `lib/bambu.js` with no Bambu here to test it against, so it is written
 down rather than guessed at — the same standard the Duet SBC transport and R7's
 socket layer were held to.
+
+## Findings, 2026-08-27 (second pass) — the COMMAND paths
+
+Both runs above audited **polling**: what Khayt reads. Nothing had ever audited
+what Khayt *sends* — upload a file, start it, pause, resume, cancel — and a
+defect there costs a shop filament and hours rather than a wrong number on a
+card. This pass covers that surface.
+
+| Protocol | Symptom | Root cause | Tier |
+|---|---|---|---|
+| Duet (SBC) | Every pause / resume / cancel 404s, on a machine that polls fine | `rr_gcode` does not exist on the DSF surface | 2 |
+| Duet (password) | Every command refused, 401 or 403 | no session handshake on this path | 2 |
+| Duet | Cancel sends a bare `M0` into a running print | the vendor's own UI only offers M0 when PAUSED | 2 |
+
+### Duet — the poller learned both surfaces and job control did not
+
+`lib/printer-commands.js` built `GET /rr_gcode?gcode=…` unconditionally. That is
+the RepRapFirmware standalone interface, and a Duet 3 with an SBC does not have
+it; DSF's REST documentation says so in as many words — "these endpoints differ
+from those provided by RepRapFirmware's native network interface". The SBC
+surface takes `POST /machine/code` with the code as a **`text/plain` body**, and
+answers **403** without an `X-Session-Key`.
+
+So on a Duet 3 + SBC, Khayt could watch a print perfectly and could not stop it.
+The poller gained that transport when SBC support landed; job control was
+written earlier, against the only surface that existed then, and nobody diffed
+the two paths afterwards. The same gap left the command path with no session
+handshake at all, so a Duet with an `M551` password refused every command with a
+status the shop could do nothing about — while the poller, which negotiates a
+session on exactly that refusal, kept working.
+
+Both paths now read `ENDPOINTS` in `lib/duet.js` and share
+`duetFlavourFor` / `rememberDuetFlavour`, so which surface a machine answers on
+is learned once and used by both. In practice the poll teaches the command path:
+it runs every thirty seconds, so by the time anyone presses Pause the answer is
+usually already known and the wasted probe never happens.
+
+**This is the third time in three passes that the finding was a fix applied to
+one path and not its sibling.** The first run fixed the Repetier envelope and
+left the job fields; the second fixed the Repetier job fields and found the poll
+path's status handling; this one found job control still living in the world
+before the SBC transport. The lesson is not about Duet: **when a protocol fix
+lands, ask what else speaks that protocol.** Khayt talks to a printer on three
+separate paths — poll, command, upload — and they were audited in that order,
+years apart, by whoever needed one of them.
+
+### Duet — cancel is two codes, and one of them was missing
+
+DuetWebControl renders pause and resume as `M25` / `M24`, and renders its cancel
+button **only when the machine is already paused**:
+
+```html
+<code-btn :code="isPaused ? 'M24' : 'M25'">        <!-- pause / resume -->
+<code-btn v-if="isPaused" code="M0">               <!-- cancel: paused only -->
+```
+
+It never offers `M0` to a running print. Khayt sent one anyway. Cancel is now
+`M25` then `M0`, matching the vendor's own two-step, and sent as **two requests**
+rather than one newline-joined payload — whether both surfaces split a multi-code
+body identically is not something this bench can establish, and two requests need
+no such assumption. If the second fails the machine is left paused, which is a
+safe place for a print to sit, and is reported rather than hidden.
+
+### Verified correct on the command paths — do not re-litigate
+
+The upload path came out clean, and three of these were near misses worth
+recording so the next pass does not re-derive them.
+
+- **Moonraker's upload flag is a strict string compare.**
+  `start_print: bool = upload_args.get('print', "false") == "true"`
+  (`file_manager.py`). Khayt sends `'true'` / `'false'`, which is exactly right —
+  and note how narrow the escape is: any spelling other than `"true"` silently
+  means "do not print", so a client sending `1` would upload and never start,
+  with nothing raised anywhere.
+- **PrusaLink's `Print-After-Upload` accepts three spellings**, from Buddy's own
+  automaton generator (`utils/gen-automata/http.py`):
+  `{'true': …, '1': …, '?1': …}`. Khayt sends `'1'`, which matches. `'0'` matches
+  none of them and therefore leaves the flag false, so "upload without printing"
+  is safe rather than lucky.
+- **`Overwrite` accepts ONLY `?1`** — `{'?1': 'OverwriteFile'}`, no numeric and
+  no `true`. Khayt never sends it and never needs to: every upload gets a unique
+  `khayt-<timestamp>.gcode`, so the 409 Conflict that PrusaLink documents for an
+  existing file cannot arise. **If that naming ever changes, this header becomes
+  required, and `1` will not do.**
+- **OctoPrint's upload booleans** go through `valid_boolean_trues`, which
+  contains `'true'` and not `'false'`. Correct as sent.
+- **OctoPrint's pause always sends `action` explicitly.** Its default is
+  *toggle*, which would make pause and resume the same button for an unattended
+  panel. Already correct, already commented, confirmed against
+  `server/api/job.py` in both the 1.11 and 2.0 lines.
+- **PrusaLink's job id is read immediately before use and never cached** — Buddy
+  404s a stale id.
 
 ## Findings, 2026-08-25 — the first run
 
@@ -475,6 +567,21 @@ assumes otherwise.
   compensated-versus-wall-clock are the same distinctions that made OctoPrint's
   `job.filament` an estimate in a measurement's clothes. Needs a Repetier server,
   or a vendor statement.
+- **Every file Khayt sends stays on the printer forever.** Each upload is named
+  `khayt-<timestamp>.gcode` — unique on purpose, which is what makes PrusaLink's
+  `Overwrite` header unnecessary — and nothing ever deletes them. A shop running
+  ten jobs a day leaves ten files a day on the USB stick or SD card until it
+  fills, and then uploads start failing for a reason that looks nothing like its
+  cause. Deleting files off someone's printer is destructive enough to want a
+  deliberate design rather than a fix bolted onto this audit, so it is recorded
+  here: it is a real limit, not an oversight nobody noticed.
+- **Repetier and Bambu job control are still declined.** Repetier's control
+  commands can now be sourced properly — RepetierSharp models them — so the
+  "documented only in a manual I could not verify" note in
+  `lib/printer-commands.js` is out of date and that gap is closable without
+  hardware. Bambu's decline says job control needs Bambu Connect, which sits
+  oddly beside `bambuSendPrint()` starting a print over MQTT in the same
+  codebase; one of the two is wrong and it needs a Bambu to say which.
 - **Bambu's poll is shaped for the X1 and used on the P1.** Fresh connection plus
   `pushall` every 30 s, against documented guidance of no more often than 5
   minutes on a P1P, and against two reports that the P1 line serves only one
@@ -531,6 +638,17 @@ Added 2026-08-27 — tier 1:
 `src/octoprint/server/api/{printer,job}.py`, `src/octoprint/schema/api/job.py`,
 `src/octoprint/printer/{standard.py,connection.py}` ·
 `Arksine/moonraker` `moonraker/klippy_connection.py`
+
+Added 2026-08-27 (command paths) — tier 1:
+`Arksine/moonraker` `moonraker/components/file_manager/file_manager.py` ·
+`prusa3d/Prusa-Firmware-Buddy` `utils/gen-automata/http.py`,
+`lib/WUI/nhttp/req_parser.cpp` ·
+`OctoPrint/OctoPrint` `src/octoprint/server/api/files.py`
+
+Added 2026-08-27 (command paths) — tier 2:
+[DSF REST API](https://github.com/Duet3D/DuetSoftwareFramework/wiki/REST-API) — `POST /machine/code`, `text/plain`, `X-Session-Key` ·
+[PrusaLink OpenAPI](https://github.com/prusa3d/Prusa-Link-Web/blob/master/spec/openapi.yaml) `PUT /api/v1/files/{storage}/{path}` headers and its 409 ·
+[`Duet3D/DuetWebControl`](https://github.com/Duet3D/DuetWebControl/blob/v3.6-dev/src/components/panels/JobControlPanel.vue) — the vendor's own client, which is what settles M25-then-M0
 
 Added 2026-08-27 — tier 2:
 [OctoPrint API versioning](https://docs.octoprint.org/en/dev/api/general.html#api-versioning) ·
