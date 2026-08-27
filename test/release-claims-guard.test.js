@@ -166,6 +166,62 @@ test('history is not a claim — old versions may be named freely', () => {
   assert.deepEqual(checkReleaseClaims(dir).failures, []);
 });
 
+// ── The stable channel ──────────────────────────────────────────────────────
+
+const stableRow = (v) => `| **Stable** | \`v${v}\` | [Latest release](x) | Default |`;
+
+test('the files must agree on which release is stable', () => {
+  // The drift this exists for happens on PROMOTION DAY: four files each carry
+  // the fact in their own wording, all have to change at once, and the person
+  // doing it is thinking about the release rather than the prose.
+  const dir = fixture(CURRENT, {
+    'ROADMAP.md': `Cutting ${CURRENT}.\n\n${claim(CURRENT)}\n\n**Stable is v3.6.0** (2026-08-21).\n`,
+    'VERSIONING.md': `This cut is ${CURRENT}.\n\n- **Stable:** \`3.5.x\` — latest tag **v3.5.3**.\n`,
+  });
+  const { failures } = checkReleaseClaims(dir);
+  assert.equal(failures.length, 1);
+  assert.match(failures[0], /disagree about which release is stable/);
+  assert.match(failures[0], /ROADMAP\.md:5 says 3\.6\.0/);
+  assert.match(failures[0], /VERSIONING\.md:3 says 3\.5\.3/);
+});
+
+test('nothing may be called stable before the bump that creates it', () => {
+  // Promoting the docs ahead of the version is the same trap as the beta.4 day,
+  // pointed the other way: the file says a release exists that does not.
+  const dir = fixture(CURRENT, {
+    'ROADMAP.md': `Cutting ${CURRENT}.\n\n${claim(CURRENT)}\n\n**Stable is v3.7.0** (today).\n`,
+    'VERSIONING.md': `This cut is ${CURRENT}.\n\n${stableRow('3.7.0')}\n`,
+  });
+  const { failures } = checkReleaseClaims(dir);
+  // They AGREE with each other and are both wrong, which is why the second rule
+  // is not redundant with the first.
+  assert.ok(!failures.some((f) => /disagree about which release is stable/.test(f)));
+  assert.equal(failures.length, 2);
+  for (const f of failures) assert.match(f, /calls 3\.7\.0 stable, but package\.json is 3\.7\.0-beta\.10/);
+});
+
+test('prose about stability is not a claim about the stable release', () => {
+  // All three of these are real lines from these files. A case-insensitive match
+  // would read every one as a claim and demand a version from it.
+  const dir = fixture(CURRENT, {
+    'ROADMAP.md': `Cutting ${CURRENT}.\n\n${claim(CURRENT)}\n\n**Stable is v3.6.0**.\n`,
+    'VERSIONING.md':
+      `This cut is ${CURRENT}. ${stableRow('3.6.0')}\n\n` +
+      `from a **stable** version it bumps the minor and starts at beta.1\n` +
+      `**stable** installers stay on the last published stable\n` +
+      `they have been in **stable v3.6.0** since 2026-08-21\n`,
+  });
+  assert.deepEqual(checkReleaseClaims(dir).failures, []);
+});
+
+test('the stable claim survives wrapping onto the next line', () => {
+  const dir = fixture(CURRENT, {
+    'ROADMAP.md': `Cutting ${CURRENT}.\n\n${claim(CURRENT)}\n\n**Stable is\nv3.6.0** (2026-08-21) — promoted from rc.4.\n`,
+    'VERSIONING.md': `This cut is ${CURRENT}. ${stableRow('3.6.0')}\n`,
+  });
+  assert.deepEqual(checkReleaseClaims(dir).failures, []);
+});
+
 // ── Bed Ready's separate line ───────────────────────────────────────────────
 
 test('the files must agree on the current Bed Ready release', () => {
