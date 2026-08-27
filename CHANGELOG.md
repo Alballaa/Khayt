@@ -4,6 +4,30 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **A Duet 3 with a Raspberry Pi attached could be watched but never stopped.**
+  Khayt showed its temperatures, its progress and its job perfectly well, and
+  then Pause and Cancel did nothing but report an error — on the one kind of
+  Duet where that combination is possible.
+
+  A Duet answers on one of two completely different interfaces depending on how
+  it was built, and Khayt learned the second one for *watching* a printer
+  without learning it for *controlling* one. The two halves were written a long
+  way apart and nobody put them side by side. They now share the same list of
+  addresses, so a machine Khayt can see is a machine Khayt can stop.
+
+  The same gap meant **a Duet with a password set refused every command**. Khayt
+  signs in for a command the way it already did for a status check.
+
+- **Cancelling a Duet print now does what Duet's own software does.** It sends
+  the pause first and the stop second, which is the order the machine's own web
+  interface uses — it will not offer you a stop button at all until the print is
+  paused. Khayt was sending the stop on its own, into a print that was still
+  running. If the stop does not land, the print is left paused rather than in an
+  unknown state, and Khayt says so.
+
+
 ## [3.7.0-beta.8] - 2026-08-27
 
 ### Added

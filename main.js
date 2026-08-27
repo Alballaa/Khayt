@@ -4037,23 +4037,80 @@ async function sendPrinterCommand(machine, command) {
     }
   }
 
-  const req = printerCommands.buildCommand(type, command, jobId);
-  if (req.unsupported) return { ok: false, error: req.unsupported };
-
-  try {
-    const init = { method: req.method, headers: { ...headers }, redirect: 'manual', signal: AbortSignal.timeout(10000) };
-    if (req.body) {
+  // One request from a descriptor. `extra` carries a Duet session key when one
+  // has been negotiated; everything else passes nothing.
+  const send = async (req, extra) => {
+    const init = { method: req.method, headers: { ...headers, ...(extra || {}) }, redirect: 'manual', signal: AbortSignal.timeout(10000) };
+    if (req.body !== undefined && req.body !== null) {
       init.headers['Content-Type'] = req.contentType || 'application/json';
-      init.body = JSON.stringify(req.body);
+      // A Duet takes its G-code as text/plain in the body; every other protocol
+      // here sends JSON. Encoding a string as JSON would wrap it in quotes and
+      // send `"M25"` to a firmware expecting `M25`.
+      init.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
     }
     const res = await fetch(`${base}${req.path}`, init);
-    if (res.status >= 300 && res.status < 400) return { ok: false, error: 'Unexpected redirect from printer' };
-    // OctoPrint answers 409 when there is no active job — say so rather than
-    // reporting a bare status code the user cannot act on.
-    if (res.status === 409) return { ok: false, error: 'No job is running on this printer' };
-    if (!res.ok) return { ok: false, error: `Printer responded ${res.status}` };
+    if (res.status >= 300 && res.status < 400) { const e = new Error('Unexpected redirect from printer'); e.fatal = true; throw e; }
+    if (!res.ok) { const e = new Error(`Printer responded ${res.status}`); e.status = res.status; throw e; }
+    return res;
+  };
+
+  // Run one descriptor, or a sequence of them in order. A sequence stops at the
+  // first failure — for Duet's cancel that leaves the machine paused, which is
+  // a safe place for a print to sit and is worth reporting rather than hiding.
+  const run = async (req, extra) => {
+    if (Array.isArray(req.sequence)) {
+      for (const step of req.sequence) await send(step, extra);
+      return;
+    }
+    await send(req, extra);
+  };
+
+  try {
+    // A DUET IS TWO MACHINES WEARING ONE NAME, and job control only ever spoke
+    // to one of them. The poller learned both surfaces and the session
+    // handshake when SBC support landed; this path did not, so a Duet 3 + SBC
+    // 404'd on every command and a password-protected Duet refused every one
+    // with a 401 nobody could act on. It now does exactly what the poller does,
+    // from the same endpoint table, including remembering which surface
+    // answered so the wasted probe happens once rather than on every command.
+    if (type === 'duet') {
+      const password = apiKey || '';
+      let lastErr = null;
+      for (const flavour of duetFlavourFor(base)) {
+        const req = printerCommands.buildCommand(type, command, jobId, { duetFlavour: flavour });
+        if (req.unsupported) return { ok: false, error: req.unsupported };
+        try {
+          try {
+            await run(req);
+          } catch (e) {
+            // Only a refusal earns the handshake. A password-less standalone
+            // Duet — the common case — pays nothing for this branch.
+            if (e.fatal || !isHttpStatus(e, KhaytDuet.ENDPOINTS[flavour].unauthorized)) throw e;
+            const raw = await (await fetch(`${base}${KhaytDuet.ENDPOINTS[flavour].connect(password)}`, {
+              headers, redirect: 'manual', signal: AbortSignal.timeout(10000),
+            })).json();
+            const r = flavour === 'standalone' ? KhaytDuet.rrConnectResult(raw) : KhaytDuet.dsfConnectResult(raw);
+            if (!r.ok) return { ok: false, error: r.error };
+            await run(req, r.sessionKey ? { 'X-Session-Key': r.sessionKey } : {});
+          }
+          rememberDuetFlavour(base, flavour);
+          return { ok: true, command };
+        } catch (e) {
+          if (e.fatal) return { ok: false, error: e.message };
+          lastErr = e;
+        }
+      }
+      return { ok: false, error: String((lastErr && lastErr.message) || 'The Duet refused the command') };
+    }
+
+    const req = printerCommands.buildCommand(type, command, jobId);
+    if (req.unsupported) return { ok: false, error: req.unsupported };
+    await run(req);
     return { ok: true, command };
   } catch (e) {
+    // OctoPrint answers 409 when there is no active job — say so rather than
+    // reporting a bare status code the user cannot act on.
+    if (isHttpStatus(e, 409)) return { ok: false, error: 'No job is running on this printer' };
     return { ok: false, error: String((e && e.message) || e) };
   }
 }

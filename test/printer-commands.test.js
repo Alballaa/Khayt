@@ -59,10 +59,51 @@ test('only PrusaLink needs a job id fetched first', () => {
   }
 });
 
-test('Duet has no REST job control — it is G-code', () => {
+test('Duet has no REST job control — it is G-code, on whichever surface answers', () => {
+  // Standalone RepRapFirmware: the code rides in the query string.
+  assert.equal(buildCommand('duet', 'pause', null, { duetFlavour: 'standalone' }).path, '/rr_gcode?gcode=M25');
+  assert.equal(buildCommand('duet', 'resume', null, { duetFlavour: 'standalone' }).path, '/rr_gcode?gcode=M24');
+
+  // A Duet 3 with an SBC has no rr_gcode AT ALL — DSF's own REST documentation
+  // says its endpoints "differ from those provided by RepRapFirmware's native
+  // network interface". Every command Khayt sent such a machine 404'd, while
+  // the poller watched it happily over machine/model. The code goes in the
+  // BODY, as text/plain.
+  const sbc = buildCommand('duet', 'pause', null, { duetFlavour: 'sbc' });
+  assert.equal(sbc.method, 'POST');
+  assert.equal(sbc.path, '/machine/code');
+  assert.equal(sbc.body, 'M25');
+  assert.equal(sbc.contentType, 'text/plain');
+  assert.ok(!/rr_gcode/.test(JSON.stringify(sbc)), 'the standalone path must not leak onto the SBC surface');
+
+  // Standalone is assumed when nothing says otherwise — it is the far more
+  // common build, and it is what every existing caller got before.
   assert.equal(buildCommand('duet', 'pause').path, '/rr_gcode?gcode=M25');
-  assert.equal(buildCommand('duet', 'resume').path, '/rr_gcode?gcode=M24');
-  assert.equal(buildCommand('duet', 'cancel').path, '/rr_gcode?gcode=M0');
+});
+
+test('Duet cancel is M25 then M0, because that is what Duet\'s own UI does', () => {
+  // DuetWebControl renders pause/resume as M25/M24, and renders the cancel
+  // button ONLY when the machine is already paused (`v-if="isPaused"`,
+  // `code="M0"`). It never offers M0 to a running print. Khayt sent a bare M0
+  // into one regardless.
+  for (const flavour of ['standalone', 'sbc']) {
+    const req = buildCommand('duet', 'cancel', null, { duetFlavour: flavour });
+    assert.equal(req.sequence.length, 2, `${flavour}: cancel is two codes`);
+    const codes = req.sequence.map((s) => (s.body || decodeURIComponent(s.path)).replace(/.*gcode=/, ''));
+    assert.deepEqual(codes, ['M25', 'M0'], `${flavour}: pause first, then stop`);
+  }
+
+  // Sent as two requests rather than one newline-joined payload: whether both
+  // surfaces split a multi-code body identically is not testable on this bench,
+  // and two requests need no such assumption.
+  const std = buildCommand('duet', 'cancel', null, { duetFlavour: 'standalone' });
+  assert.ok(std.sequence.every((s) => !/%0A|\n/.test(s.path + (s.body || ''))), 'no code is newline-joined');
+});
+
+test('an unknown Duet transport is refused, not silently sent somewhere', () => {
+  const req = buildCommand('duet', 'pause', null, { duetFlavour: 'carrier-pigeon' });
+  assert.match(req.unsupported, /unknown Duet transport/);
+  assert.equal(req.path, undefined, 'nothing to send is better than something to guess');
 });
 
 test('protocols that genuinely cannot do this say why', () => {

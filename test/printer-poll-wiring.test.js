@@ -8,7 +8,7 @@
  * test/printer-status.test.js. What is left in main.js is the ORCHESTRATION:
  * which endpoints are asked for, and which failures are allowed to be survived.
  *
- * That orchestration is where both defects found in the 2026-08-27 audit pass
+ * That orchestration is where the defects found in the 2026-08-27 audit passes
  * actually lived, so it gets a guard even though a source scan is the weakest
  * kind of test there is. Each assertion below is written to fail if the
  * behaviour is removed, not merely if the wording changes.
@@ -86,4 +86,35 @@ test('a refused poll is explained in the vendor’s terms, with its own body', (
   assert.match(get, /res\.text\(\)\.catch\(/, 'reading the body cannot itself fail the poll');
   assert.match(get, /\|\| `HTTP \$\{res\.status\}`/, 'an unexplained status still says what it was');
   assert.match(get, /e\.status = res\.status/, 'the Duet transport probe still needs the number');
+});
+
+
+test('job control speaks both Duet surfaces, exactly as the poller does', () => {
+  // The defect: the poller learned the SBC transport and the session handshake
+  // when Duet 3 + SBC support landed, and job control did not. So a machine
+  // Khayt could watch perfectly could not be paused — every command went to
+  // `rr_gcode`, which does not exist on that surface — and a password-protected
+  // Duet refused every command with a 401 nobody could act on.
+  //
+  // These assert that the command path uses the SAME helpers as the poll path
+  // rather than a second copy of the same knowledge, because two copies is what
+  // drifted in the first place.
+  const cmd = main.slice(
+    main.indexOf('async function sendPrinterCommand('),
+    main.indexOf("ipcMain.handle('hub:printer-command'"),
+  );
+  assert.ok(cmd.length > 0, 'sendPrinterCommand has been renamed');
+
+  assert.match(cmd, /duetFlavourFor\(base\)/, 'both surfaces are tried, most likely first');
+  assert.match(cmd, /rememberDuetFlavour\(base, flavour\)/, 'and the answer is remembered, as the poller does');
+  assert.match(cmd, /duetFlavour: flavour/, 'the descriptor is built for the surface being tried');
+  assert.match(cmd, /X-Session-Key/, 'a password-protected Duet gets its session key');
+  assert.match(cmd, /rrConnectResult|dsfConnectResult/, 'and the handshake is parsed by lib/duet.js, not re-implemented');
+  assert.match(cmd, /ENDPOINTS\[flavour\]\.unauthorized/, 'only a refusal earns the handshake — 401 standalone, 403 SBC');
+
+  // A Duet takes text/plain. Encoding a string as JSON would send "M25" with
+  // quotes to a firmware expecting M25.
+  assert.match(cmd, /typeof req\.body === 'string' \? req\.body : JSON\.stringify/, 'a text/plain body is not JSON-encoded');
+  // Cancel is two requests; a descriptor may carry a sequence.
+  assert.match(cmd, /Array\.isArray\(req\.sequence\)/, 'a multi-step command is run in order');
 });
