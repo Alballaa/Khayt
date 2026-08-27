@@ -2,7 +2,7 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0, 3.7.0-beta.8 being cut — on `main`)
+## Now (post-3.6.0, 3.7.0-beta.8 published — on `main`)
 
 **Stable is v3.6.0** (2026-08-21) — the 3.6.0 line, promoted from
 `v3.6.0-rc.4` unchanged after a seven-day soak. rc.4 was the first candidate on
@@ -27,12 +27,15 @@ its own catch hid the throw. And the design picker now says what each design
 hides or adds against the one in use, because eight designs that are genuinely
 eight different screens meant switching could quietly take a number away.
 
-**`v3.7.0-beta.8` is the cut being made now** (2026-08-27), and it is built for
-**all three platforms** — `BUILD_MAC` set immediately before the tag and unset
-immediately after — which is what ends macOS's three-cut drift. Until the release
-run finishes that is an intention, not a fact: this file's own rule applies to
-its own claim, so confirm with `gh release list` and by fetching the manifests
-before treating beta.8 as shipped.
+**The newest *published* pre-release is `v3.7.0-beta.8`** (2026-08-27) — tagged
+from `18a711a` ([#765]) and **built for all three platforms**, `BUILD_MAC` set
+for the tag and unset again immediately after. That ends macOS's three-cut drift:
+it had been on `beta.5` since 2026-08-24. Verified the way this file keeps
+insisting on, rather than assumed: the tag resolves to `main`'s tip, `package.json`
+there reads `3.7.0-beta.8`, all three manifests fetch 200 and name this release's
+own binaries, and each of the five assets they name serves 200. The
+`carry-mac-manifest` job skipped, which is the correct outcome when a real mac
+build exists to point at.
 
 It carries eight commits: the LAN sweep that finds a printer which does not
 announce itself ([#757]); the four pieces of the modular design system — the CSS
@@ -335,6 +338,7 @@ Four stable lines, nineteen beta releases and four release candidates since 3.2.
 [#761]: https://github.com/KhaytApp/Khayt/pull/761
 [#763]: https://github.com/KhaytApp/Khayt/pull/763
 [#764]: https://github.com/KhaytApp/Khayt/pull/764
+[#765]: https://github.com/KhaytApp/Khayt/pull/765
 [#549]: https://github.com/KhaytApp/Khayt/pull/549
 [#551]: https://github.com/KhaytApp/Khayt/pull/551
 [#552]: https://github.com/KhaytApp/Khayt/pull/552
