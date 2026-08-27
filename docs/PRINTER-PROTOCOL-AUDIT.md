@@ -241,6 +241,7 @@ card. This pass covers that surface.
 | Duet (SBC) | Every pause / resume / cancel 404s, on a machine that polls fine | `rr_gcode` does not exist on the DSF surface | 2 |
 | Duet (password) | Every command refused, 401 or 403 | no session handshake on this path | 2 |
 | Duet | Cancel sends a bare `M0` into a running print | the vendor's own UI only offers M0 when PAUSED | 2 |
+| Repetier | No job control at all, on a blanket "cannot verify" | `stopJob` / `continueJob` are sourceable; only pause is not | 2 + 3 |
 
 ### Duet — the poller learned both surfaces and job control did not
 
@@ -290,6 +291,43 @@ rather than one newline-joined payload — whether both surfaces split a multi-c
 body identically is not something this bench can establish, and two requests need
 no such assumption. If the second fails the machine is left paused, which is a
 safe place for a print to sit, and is reported rather than hidden.
+
+### Repetier — two of three, and the third declined precisely
+
+The old decline covered all three commands and gave a blanket reason: Repetier's
+commands were "documented only in a manual I could not verify against source".
+Two of them can be sourced, and the answer was **not** what the vendor's prose
+suggests on first reading.
+
+| | Action | Vendor's own words |
+|---|---|---|
+| Cancel | `stopJob`, no parameters | "Stops the running print!" |
+| Resume | `continueJob`, no parameters | "Continues the paused print!" |
+| Pause | not an action — `send { cmd: "@pause <reason>" }` | — |
+
+**The trap, which one reading of the documentation fell into.** `stopJob` sitting
+beside `continueJob` reads like a pause/resume pair, and a summary of the
+reference concluded exactly that — "stopJob functions as the pause mechanism
+rather than a complete termination". It is wrong. RepetierSharp models
+`PauseJob(reason)`, `StopJob()` and `ContinueJob()` as three separate operations
+and implements the first as `@pause` through the generic g-code action. Acting on
+the misreading would have made Khayt's **Cancel** button pause a print and its
+**Pause** button end one — a defect that would have looked like a UI mislabel and
+been nobody's first suspect.
+
+That is the third-tier method doing its job: prose was ambiguous, a typed client
+that has to actually work was not.
+
+**Why pause stays declined.** It is the only one of the three needing a
+parameter, and the HTTP parameter convention is unsettled — the reference says
+query parameters, the vendor's demo client is a websocket client and so cannot
+answer for HTTP. `stopJob` and `continueJob` take none, which is exactly why they
+could ship. A wrong guess here would not fail loudly; it would push some other
+string at a running print.
+
+Resume without pause is still worth having: a print can be paused by the machine
+itself — filament runout, `M600` — or from Repetier's own interface, and this is
+the button that restarts it.
 
 ### Verified correct on the command paths — do not re-litigate
 
@@ -575,13 +613,18 @@ assumes otherwise.
   cause. Deleting files off someone's printer is destructive enough to want a
   deliberate design rather than a fix bolted onto this audit, so it is recorded
   here: it is a real limit, not an oversight nobody noticed.
-- **Repetier and Bambu job control are still declined.** Repetier's control
-  commands can now be sourced properly — RepetierSharp models them — so the
-  "documented only in a manual I could not verify" note in
-  `lib/printer-commands.js` is out of date and that gap is closable without
-  hardware. Bambu's decline says job control needs Bambu Connect, which sits
-  oddly beside `bambuSendPrint()` starting a print over MQTT in the same
-  codebase; one of the two is wrong and it needs a Bambu to say which.
+- **Repetier PAUSE, and only pause.** Cancel and resume shipped on 2026-08-27
+  once they could be sourced: `stopJob` and `continueJob` take **no parameters**,
+  so there is nothing left to guess at. Pause is not an action at all — it is
+  `send { cmd: "@pause <reason>" }`, which needs the HTTP interface to carry a
+  parameter, and how it does that is the one thing this audit could not settle.
+  The reference says additional parameters are query parameters; the vendor's
+  own demo client is a **websocket** client, where they travel inside a JSON
+  `data` object, so it cannot answer the question for HTTP. One real HTTP client
+  sending `send` with a `cmd` would close this in a minute.
+- **Bambu job control is declined**, and the decline says it needs Bambu Connect
+  — which sits oddly beside `bambuSendPrint()` starting a print over MQTT in the
+  same codebase. One of the two is wrong. It needs a Bambu to say which.
 - **Bambu's poll is shaped for the X1 and used on the P1.** Fresh connection plus
   `pushall` every 30 s, against documented guidance of no more often than 5
   minutes on a P1P, and against two reports that the P1 line serves only one

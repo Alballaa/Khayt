@@ -106,6 +106,45 @@ test('an unknown Duet transport is refused, not silently sent somewhere', () => 
   assert.equal(req.path, undefined, 'nothing to send is better than something to guess');
 });
 
+test('Repetier can resume and cancel, and says precisely why it cannot pause', () => {
+  // stopJob and continueJob take NO parameters, which is what makes them
+  // shippable without a Repetier on the bench: there is no parameter-passing
+  // convention left to guess at.
+  assert.equal(
+    buildCommand('repetier', 'cancel', null, { printerSlug: 'irapid' }).path,
+    '/printer/api/irapid?a=stopJob',
+  );
+  assert.equal(
+    buildCommand('repetier', 'resume', null, { printerSlug: 'irapid' }).path,
+    '/printer/api/irapid?a=continueJob',
+  );
+
+  // THE TRAP. Read alone, "stopJob" beside "continueJob" reads like a
+  // pause/resume pair — one reading of the vendor's prose concluded exactly
+  // that. It is wrong: RepetierSharp models PauseJob, StopJob and ContinueJob
+  // as three distinct operations, and pause is `send { cmd: "@pause …" }`.
+  // Acting on the misreading would make Cancel pause and Pause end the print,
+  // so this asserts the mapping rather than trusting anyone to remember it.
+  assert.match(buildCommand('repetier', 'cancel', null, {}).path, /a=stopJob/, 'cancel is stopJob, never continueJob');
+  assert.ok(!/continueJob/.test(buildCommand('repetier', 'cancel', null, {}).path));
+
+  // Pause needs the `send` action to carry a `cmd`, and how the HTTP interface
+  // passes parameters is the one thing the audit could not settle — the
+  // vendor's own demo client is a websocket client, so it cannot answer for
+  // HTTP. Declining names the limit rather than guessing at a string to push
+  // into a running print.
+  const paused = buildCommand('repetier', 'pause', null, { printerSlug: 'irapid' });
+  assert.match(paused.unsupported, /not supported yet/);
+  assert.match(paused.unsupported, /resume or cancel/, 'and says what it CAN do');
+  assert.equal(paused.path, undefined);
+
+  // An unconfigured slug still produces a request; "default" is what the poller
+  // falls back to as well.
+  assert.equal(buildCommand('repetier', 'cancel').path, '/printer/api/default?a=stopJob');
+  // And a slug is escaped, never interpolated raw.
+  assert.match(buildCommand('repetier', 'cancel', null, { printerSlug: 'a b/c' }).path, /a%20b%2Fc/);
+});
+
 test('protocols that genuinely cannot do this say why', () => {
   // An honest refusal beats a request built on a guess and sent at a running print.
   assert.match(buildCommand('repetier', 'pause').unsupported, /not supported yet/);
