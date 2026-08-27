@@ -351,7 +351,15 @@
       return;
     }
     if (res?.status === 'error') {
-      if (statusEl) statusEl.textContent = `⚠ Update check failed: ${res.message || 'unknown error'}`;
+      if (statusEl) {
+        statusEl.textContent = `⚠ Update check failed: ${res.message || 'unknown error'}`;
+        // The library's own wording, kept but not shouted. `message` is now an
+        // explanation for recognised failures, and the raw text is what somebody
+        // quotes when reporting one — throwing it away would trade an unreadable
+        // message for an undiagnosable one.
+        if (res.detail) statusEl.title = res.detail;
+        else statusEl.removeAttribute('title');
+      }
       return;
     }
     if (res?.status === 'not-available') {

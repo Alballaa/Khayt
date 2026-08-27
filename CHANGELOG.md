@@ -4,6 +4,23 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Fixed
+
+- **"Update check failed" now says what actually happened.** When Khayt could not
+  check for a new version it showed the technical text the update library
+  produced — most often `getaddrinfo ENOTFOUND github.com`, which is what a
+  computer with no internet connection produces. That named a hostname and a
+  system call and nothing a shop can do about either.
+
+  The common cases now say what they are: no internet connection, GitHub
+  temporarily refusing checks from your network, GitHub having trouble, or a
+  release that does not yet include an update file for your platform — with a
+  note that the last one is a problem with the release rather than with your
+  copy. Anything Khayt does not recognise still shows exactly what it said
+  before, on purpose: a reassuring message over an unknown fault would hide it.
+  The original text is kept either way, on hovering the message, so it can still
+  be quoted in a bug report.
+
 ### Added
 
 - **Khayt can now send the diagnostics you opted in to.** If you have turned on

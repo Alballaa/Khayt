@@ -27,6 +27,7 @@ const {
   isVersionNewer,
   isPrereleaseVersion,
   interpretUpdateCheckResult,
+  explainUpdateError,
   canSelfUpdate,
   updateFeedPresent,
 } = require('../lib/updater');
@@ -338,4 +339,107 @@ test('the feed probe answers false rather than throwing', () => {
   assert.equal(updateFeedPresent('/nope/does/not/exist'), false);
   assert.equal(updateFeedPresent('/tmp', () => { throw new Error('EACCES'); }), false);
   assert.equal(updateFeedPresent('/tmp', () => true), true);
+});
+
+
+/*
+ * ── What the shop is told when the check fails ─────────────────────────────
+ *
+ * The errors below are not invented. They are constructed the way
+ * builder-util-runtime constructs them — `newError(message, code)` sets `.code`,
+ * and `HttpError` sets `.code = HTTP_ERROR_<n>` plus `.statusCode` — and the
+ * codes are the ones electron-updater actually throws, read out of
+ * GitHubProvider.js and AppUpdater.js.
+ *
+ * That distinction is the whole reason #764 existed: the first Repetier fix
+ * asserted against a payload the device does not send, so it passed while the
+ * defect stayed.
+ */
+
+/** As builder-util-runtime's newError() builds it. */
+const libError = (message, code) => Object.assign(new Error(message), { code });
+
+/** As builder-util-runtime's HttpError builds it. */
+const httpError = (statusCode, message) =>
+  Object.assign(new Error(message || `HTTP error: ${statusCode}`), {
+    name: 'HttpError', statusCode, code: `HTTP_ERROR_${statusCode}`,
+  });
+
+test('no internet is explained, not spelled out in syscalls', () => {
+  // The commonest failure by a distance, and what it used to print:
+  //   ⚠ Update check failed: getaddrinfo ENOTFOUND github.com
+  for (const code of ['ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED', 'ETIMEDOUT', 'ENETUNREACH']) {
+    const r = explainUpdateError(libError('getaddrinfo ENOTFOUND github.com', code));
+    assert.match(r.message, /could not reach github/i, `${code} should be explained`);
+    assert.doesNotMatch(r.message, /getaddrinfo|ENOTFOUND/);
+  }
+  // Chromium spells it differently and means the same thing.
+  const chromium = explainUpdateError(new Error('net::ERR_INTERNET_DISCONNECTED'));
+  assert.match(chromium.message, /could not reach github/i);
+});
+
+test('GitHub rate-limiting is not reported as a fault of this install', () => {
+  // GitHub rate-limits unauthenticated callers per IP, so a busy office network
+  // reaches this without anything being wrong anywhere.
+  for (const status of [403, 429]) {
+    const r = explainUpdateError(httpError(status));
+    assert.match(r.message, /temporarily refusing|clears within an hour/i);
+  }
+  const server = explainUpdateError(httpError(503));
+  assert.match(server.message, /nothing is wrong with this install/i);
+});
+
+test('a missing platform manifest says whose problem it is', () => {
+  // Live concern rather than hypothetical: cuts here are routinely Windows +
+  // Linux only and macOS is served by a manifest carried forward from an earlier
+  // release, so a failed carry lands exactly here.
+  const r = explainUpdateError(libError(
+    'Cannot find latest-mac.yml in the latest release artifacts (https://github.com/…): HttpError: 404',
+    'ERR_UPDATER_CHANNEL_FILE_NOT_FOUND'));
+  assert.match(r.message, /problem with the release rather than with this install/i);
+  assert.doesNotMatch(r.message, /https:\/\//, 'a URL is not something a shop can act on');
+});
+
+test('"No published versions on GitHub" points at the beta setting', () => {
+  // The library says this when /releases/latest 404s, which is what GitHub
+  // answers for a line that has only ever had prereleases — with the release
+  // sitting right there. See mustAllowPrerelease().
+  const r = explainUpdateError(libError('No published versions on GitHub', 'ERR_UPDATER_NO_PUBLISHED_VERSIONS'));
+  assert.match(r.message, /beta updates in Settings/i);
+});
+
+test('an unrecognised error keeps its own words', () => {
+  // The carrier audit's rule, applied here: something nobody has classified must
+  // not be answered as though it were handled. A friendly sentence over an
+  // unknown fault hides a real problem behind a reassuring one, and then the
+  // report is "it says something went wrong" with nothing to chase.
+  const r = explainUpdateError(new Error('EPERM: operation not permitted, rename'));
+  assert.equal(r.message, 'EPERM: operation not permitted, rename');
+  assert.equal(r.detail, null, 'no explanation means there is nothing to keep separately');
+});
+
+test('the raw message survives every explanation', () => {
+  // Explaining must not destroy what somebody would quote in a bug report.
+  const raw = 'getaddrinfo ENOTFOUND github.com';
+  const r = explainUpdateError(libError(raw, 'ENOTFOUND'));
+  assert.equal(r.detail, raw);
+  assert.notEqual(r.message, raw);
+});
+
+test('interpretUpdateCheckResult carries the explanation and the detail', () => {
+  const res = interpretUpdateCheckResult({
+    isPackaged: true,
+    currentVersion: '3.7.0-beta.10',
+    error: libError('getaddrinfo ENOTFOUND github.com', 'ENOTFOUND'),
+  });
+  assert.equal(res.status, 'error');
+  assert.match(res.message, /could not reach github/i);
+  assert.equal(res.detail, 'getaddrinfo ENOTFOUND github.com');
+});
+
+test('a bare string error still produces something sayable', () => {
+  const r = explainUpdateError('something broke');
+  assert.equal(r.message, 'something broke');
+  const empty = explainUpdateError(undefined);
+  assert.equal(empty.message, 'Update check failed');
 });
