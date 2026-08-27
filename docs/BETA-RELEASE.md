@@ -5,10 +5,14 @@ Khayt publishes **two release channels** on GitHub:
 | Channel | Latest | GitHub | Auto-update |
 |---------|--------|--------|-------------|
 | **Stable** | `v3.6.0` | [Latest release](https://github.com/khaytapp/Khayt/releases/latest) | Default (beta off) |
-| **Beta / RC** | `v3.7.0-beta.6` | [Pre-releases](https://github.com/khaytapp/Khayt/releases) (filter *Pre-release*) | Opt-in via Settings |
+| **Beta / RC** | `v3.7.0-beta.9` (`beta.10` being cut) | [Pre-releases](https://github.com/khaytapp/Khayt/releases) (filter *Pre-release*) | Opt-in via Settings |
 
-> Verified 2026-08-25 against published tags and fetched manifests. These rot fast — check with
-> `gh release list --repo KhaytApp/Khayt` rather than trusting the table.
+> Verified 2026-08-27 against published tags and fetched manifests: `latest.yml`
+> and `latest-linux.yml` read `3.7.0-beta.9`, `latest-mac.yml` reads
+> `3.7.0-beta.8` in the relative carry form, and every asset they name serves
+> 200. These rot fast — check with `gh release list --repo KhaytApp/Khayt`
+> rather than trusting the table. **`beta.10` is a cut in progress and not a
+> published release** until that run finishes.
 
 > **`beta.4` sat bumped-but-untagged on `main` for most of a day** — `package.json`
 > said `3.7.0-beta.4` while the newest installer a beta user could get was
@@ -17,14 +21,16 @@ Khayt publishes **two release channels** on GitHub:
 > that cannot is reading `package.json`, which records that the *cut* landed and
 > says nothing about whether it *shipped*.
 >
-> **`beta.6` (2026-08-25) is the current cut and is Windows + Linux only** —
-> `BUILD_MAC` deliberately unset, so macOS stays on `beta.5` and
-> `carry-mac-manifest` carried that release's `latest-mac.yml` forward. Verified,
-> not assumed: all three manifests fetch 200, every asset they name serves 200,
-> and the beta.5 mac zip the carried manifest points at still resolves.
->
-> (`beta.5` was the all-three-platforms cut before it; `beta.4` before that was
-> also Windows + Linux only, for the same reason and with the same carry.)
+> **macOS is deliberately a cut or two behind.** A mac build bills at roughly
+> 10× the others, so `BUILD_MAC` is set only for the cuts that bring it current.
+> `beta.8` (2026-08-27) was such a cut and was built for all three platforms,
+> ending a three-cut drift; `beta.9` and `beta.10` are Windows + Linux only, so
+> macOS sits on `beta.8` and `carry-mac-manifest` carries that release's
+> `latest-mac.yml` forward under each newer tag. Verified rather than assumed:
+> the carried manifest uses the **relative** `../v3.7.0-beta.8/` form, not a
+> verbatim copy, so both mac assets resolve 200 from the newer feed — a verbatim
+> copy would name a file the newer release does not contain and 404 for exactly
+> the users furthest behind.
 
 ## What beta includes
 

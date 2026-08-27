@@ -2,17 +2,12 @@
 
 Khayt uses [Semantic Versioning 2.0.0](https://semver.org/) as `MAJOR.MINOR.PATCH` (`X.Y.Z`).
 
-**Current release lines** (last verified 2026-08-23 against published tags):
+**Current release lines** (last verified 2026-08-27 against `gh release list` and a fetch of every published manifest):
 
 - **Stable:** `3.6.x` — latest tag **v3.6.0**, published 2026-08-21 ([releases/latest](https://github.com/khaytapp/Khayt/releases/latest)), promoted from `v3.6.0-rc.4` unchanged. Supersedes v3.5.3 (2026-08-01)
-- **Beta / RC:** the **`3.7.0-beta.x` line is open** — latest *published* pre-release **v3.7.0-beta.3** (2026-08-23). The line has run `beta.1` (delta cloud writes), `beta.2` (a print library that can outgrow its disk) and `beta.3` (no app change at all — a macOS build of `beta.2`, which had gone out Windows + Linux only). The `3.6.0` line closed when `v3.6.0-rc.4` was promoted to stable on 2026-08-21; it ran `beta.1`–`beta.19` then `rc.1`–`rc.4`, and `-rc` and `-beta` are the same channel to the updater. See [docs/BETA-RELEASE.md](./docs/BETA-RELEASE.md)
-- **⚠ `3.7.0-beta.4` is bumped but NOT released.** `main` has carried version
-  `3.7.0-beta.4` since `11ef165`, and **no `v3.7.0-beta.4` tag exists on the
-  remote** — so release CI never ran and no installer exists. This is the trap
-  the note below warns about, live rather than hypothetical: a merged version
-  bump is evidence the *cut* landed and nothing more. A beta user's newest
-  available build is still `beta.3`. To finish it, tag `11ef165` and push the tag
-  to `KhaytApp/Khayt`; see [docs/BETA-RELEASE.md](./docs/BETA-RELEASE.md)
+- **Beta / RC:** the **`3.7.0-beta.x` line is open** — latest *published* pre-release **v3.7.0-beta.9** (2026-08-27), with **v3.7.0-beta.10 being cut**. The line has run `beta.1` (delta cloud writes), `beta.2` (a print library that can outgrow its disk), `beta.3` (a macOS build of `beta.2`), `beta.4` (storage-provider signup links), `beta.5` (printers and models, first all-platform cut on this line), `beta.6` and `beta.9` (the vendor audits), `beta.7` (Medusa and both kinds of Duet), `beta.8` (installable designs and cost per model) and `beta.10` (the audit method's last three surfaces). The `3.6.0` line closed when `v3.6.0-rc.4` was promoted to stable on 2026-08-21; it ran `beta.1`–`beta.19` then `rc.1`–`rc.4`, and `-rc` and `-beta` are the same channel to the updater. See [docs/BETA-RELEASE.md](./docs/BETA-RELEASE.md)
+- **macOS runs behind on purpose.** A mac build bills at roughly 10× the others, so `BUILD_MAC` is set only for the cuts that bring it current rather than for every one. As of `beta.10` macOS is on **`beta.8`**, two cuts back, and `carry-mac-manifest` republishes that release's `latest-mac.yml` under each newer tag — in the **relative** `../v3.7.0-beta.8/` form, so the assets it names resolve from the newer feed. A verbatim copy would name files the newer release does not contain.
+- **The `beta.4` trap is resolved, and the lesson is not.** `main` carried version `3.7.0-beta.4` for most of 2026-08-23 with no `v3.7.0-beta.4` tag on the remote, so release CI never ran and no installer existed while `package.json` looked finished. It was tagged from `11ef165` and published the same day. **A merged version bump is evidence the *cut* landed and nothing more** — check with `git ls-remote --tags origin` or `gh release list`, never by reading `package.json`.
 - **Bed Ready:** a different app from the same repo, on its **own** version line
   with its own downloads repo — **1.1.0 shipped 2026-08-12** (`bedready-v1.1.0`,
   marked Latest; 1.0.0 was 2026-08-03 and the `1.0.0-beta.*` line is closed).
