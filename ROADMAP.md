@@ -43,10 +43,29 @@ and on two files naming different releases.)*
 
 No hold is active — see [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md).
 
-**Bed Ready is on its own line and is current: `1.1.0`** (2026-08-12), built by
-CI from this repo and published to `KhaytApp/bedready`. It had sat on 1.0.0 for
-nine days with Kits and an accessibility fix unreleased, because the lane was
-believed to be blocked on a token that in fact already existed.
+**Bed Ready is on its own line and is current: `1.2.0`** (2026-08-27), built by
+CI from this repo and published to `KhaytApp/bedready`, all three platforms.
+Verified after the publish rather than assumed: all three manifests read
+`version: 1.2.0` and each of the five binaries they name serves 200.
+
+It is `1.2.0` and not `1.1.1` because it carries a feature — **a Bed Ready user
+can install a design somebody else made** ([#758]–[#761]), which is the first
+time that machinery has been usable at all: designs lived inside `app.asar`,
+read-only and replaced whole on every update. Same rule that made `1.1.0` a minor
+for Kits.
+
+The number of shared commits it inherits is the part worth recording, because it
+is not what a glance at the flavour-specific files suggests. Between the `1.1.0`
+build point (`846a66a`) and this cut, `main` took **100 commits, 48 of them
+touching code Bed Ready runs** — but only two touch a `bedready-*` file. Counting
+the flavour's own files says "two commits, ship a patch"; counting what the
+flavour LOADS says otherwise. Bed Ready is a flavour of one codebase, not a
+separate app, so its release size is decided by `renderer/bedready.html`'s script
+list, not by filename.
+
+It had previously sat on 1.0.0 for nine days with Kits and an accessibility fix
+unreleased, because the lane was believed to be blocked on a token that in fact
+already existed.
 
 **That claim did not survive 2026-08-25.** This file said on 2026-08-24 that there
 was no queue of code waiting to be written, and it was wrong in a way worth

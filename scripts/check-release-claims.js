@@ -43,6 +43,32 @@
  *   4. All such claims, across all files, name the SAME version. Two files
  *      quietly disagreeing is the same defect spread out far enough that nobody
  *      reading either one notices.
+ *   5. The same, for BED READY's separate `1.x` line — see below.
+ *
+ * ── Bed Ready needs its own rule, and a different one ──────────────────────
+ *
+ * Bed Ready ships from this repo on an independent `1.x` line, and its version
+ * is NOT in package.json: it is typed into a workflow input at release time and
+ * committed nowhere. So rules 1 and 2 have nothing to compare against, and the
+ * only property left is the one that actually rots — ROADMAP.md and
+ * VERSIONING.md each state the current Bed Ready release in prose, and after a
+ * cut one of them gets updated.
+ *
+ * The rule is therefore: the HIGHEST Bed Ready version named in each file that
+ * names any must be the same. Highest rather than "all of them", because both
+ * files legitimately talk about older releases — 1.0.0's nine-day gap,
+ * VERSIONING's own `bedready-v1.0.0` updater-trap paragraph, and an example
+ * command that types `1.0.1`. Those are history and instruction, not claims.
+ *
+ * Every `1.x.y` in these files is Bed Ready's, because Khayt is on `3.x`. That
+ * is checked rather than assumed: a Khayt version can never match `^1\.`.
+ *
+ * "Highest wins" leans on one property of how these files are written: both
+ * state the version they chose ALONGSIDE the one they rejected — "1.2.0 rather
+ * than 1.1.1", "1.1.0 rather than 1.0.1" — and the rejected one is always the
+ * SMALLER, because the justification is always for taking a bigger bump than the
+ * obvious one. If that ever inverts, this rule reads the rejected number as the
+ * claim. Say it the same way round and it does not.
  *
  * It does NOT reach the network. Whether the tag was actually pushed and the
  * manifests actually serve is a different question with a different answer at
@@ -223,6 +249,38 @@ function checkReleaseClaims(root = ROOT) {
     }
   }
 
+  // 5 — Bed Ready's separate line. Only files that make a claim take part; a
+  // file that never mentions Bed Ready is not stale about it.
+  const bedready = new Map();
+  for (const rel of TRACKED) {
+    // `root`, not ROOT. Reading the module-level constant here made this rule
+    // check the real repository whatever it was pointed at — so it was green on
+    // a fixture built to fail it. Caught by the tests, which is the argument for
+    // driving a checker over fixtures rather than only over the tree it lives in.
+    const abs = path.join(root, rel);
+    if (!fs.existsSync(abs)) continue;
+    const text = fs.readFileSync(abs, 'utf8');
+    VERSION_TOKEN.lastIndex = 0;
+    let m;
+    let top = null;
+    while ((m = VERSION_TOKEN.exec(text)) !== null) {
+      if (!m[1].startsWith('1.')) continue;
+      if (!top || compare(m[1], top) > 0) top = m[1];
+    }
+    if (top) bedready.set(rel, top);
+  }
+  const brVersions = [...new Set(bedready.values())];
+  if (brVersions.length > 1) {
+    failures.push(
+      `The files disagree about the current Bed Ready release: ` +
+      `${[...bedready].map(([f, v]) => `${f} tops out at ${v}`).join('; ')}.\n` +
+      `    Bed Ready's version lives in a workflow input, not package.json, so ` +
+      `these files are the only record — they have to agree. (If one of them is ` +
+      `higher only because of an EXAMPLE command, lower the example rather than ` +
+      `raising the claim.)`
+    );
+  }
+
   // 4 — and they all name the same release.
   const named = claims.filter((c) => c.version);
   const distinct = [...new Set(named.map((c) => c.version))];
@@ -241,11 +299,11 @@ function checkReleaseClaims(root = ROOT) {
     );
   }
 
-  return { current, failures, claims };
+  return { current, failures, claims, bedready: Object.fromEntries(bedready) };
 }
 
 function main() {
-  const { current, failures, claims } = checkReleaseClaims();
+  const { current, failures, claims, bedready } = checkReleaseClaims();
 
   if (failures.length) {
     console.error(`release-claims check FAILED — package.json is ${current}\n`);
@@ -260,7 +318,9 @@ function main() {
 
   const versions = [...new Set(claims.map((c) => c.version).filter(Boolean))];
   const where = versions.length ? ` (newest published: ${versions[0]})` : '';
-  console.log(`release-claims check ok — ${TRACKED.length} files agree on ${current}${where}`);
+  const br = [...new Set(Object.values(bedready))];
+  const brNote = br.length ? `, Bed Ready ${br[0]}` : '';
+  console.log(`release-claims check ok — ${TRACKED.length} files agree on ${current}${where}${brNote}`);
 }
 
 if (require.main === module) main();
