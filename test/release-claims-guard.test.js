@@ -166,6 +166,57 @@ test('history is not a claim — old versions may be named freely', () => {
   assert.deepEqual(checkReleaseClaims(dir).failures, []);
 });
 
+// ── Bed Ready's separate line ───────────────────────────────────────────────
+
+test('the files must agree on the current Bed Ready release', () => {
+  // Bed Ready's version is typed into a workflow input at release time and
+  // committed nowhere, so these files are the only record of it. After a cut,
+  // one of them gets updated and the other does not.
+  const dir = fixture(CURRENT, {
+    'ROADMAP.md': `Cutting ${CURRENT}.\n\n${claim(CURRENT)}\n\nBed Ready is current: \`1.2.0\`.\n`,
+    'VERSIONING.md': `This cut is ${CURRENT}. Bed Ready: **1.1.0 shipped**.\n`,
+  });
+  const { failures } = checkReleaseClaims(dir);
+  assert.equal(failures.length, 1);
+  assert.match(failures[0], /disagree about the current Bed Ready release/);
+  assert.match(failures[0], /ROADMAP\.md tops out at 1\.2\.0/);
+  assert.match(failures[0], /VERSIONING\.md tops out at 1\.1\.0/);
+});
+
+test('older Bed Ready releases may be discussed freely', () => {
+  // Both files legitimately talk about history — 1.0.0's nine-day gap, the
+  // `bedready-v1.0.0` updater trap — and VERSIONING carries an EXAMPLE command
+  // that types a version. Only the highest in each file is read as the claim, so
+  // none of that fires.
+  const dir = fixture(CURRENT, {
+    'ROADMAP.md': `Cutting ${CURRENT}.\n\n${claim(CURRENT)}\n\nBed Ready is current: \`1.2.0\`; it sat on 1.0.0 for nine days.\n`,
+    'VERSIONING.md': `This cut is ${CURRENT}. Bed Ready 1.2.0 shipped; 1.1.0 was before it, 1.0.0 before that.\n\n    Bed Ready version: 1.0.1\n\nDo not tag bedready-v1.0.0 here.\n`,
+  });
+  assert.deepEqual(checkReleaseClaims(dir).failures, []);
+});
+
+test('a file that never mentions Bed Ready is not stale about it', () => {
+  const dir = fixture(CURRENT, {
+    'ROADMAP.md': `Cutting ${CURRENT}.\n\n${claim(CURRENT)}\n\nBed Ready is current: \`1.2.0\`.\n`,
+  });
+  const { failures, bedready } = checkReleaseClaims(dir);
+  assert.deepEqual(failures, []);
+  assert.deepEqual(Object.keys(bedready), ['ROADMAP.md']);
+});
+
+test('a Khayt version can never be mistaken for a Bed Ready one', () => {
+  // The rule rests on Khayt being 3.x and Bed Ready 1.x. Assert it rather than
+  // rely on it: a `1.` prefix test that also matched Khayt would make every file
+  // "disagree" the moment Khayt reached 1.x, which it never will — but the
+  // reason it is safe should be written down where it can fail.
+  assert.ok(CURRENT.startsWith('3.'));
+  const dir = fixture(CURRENT, {
+    'ROADMAP.md': `Cutting ${CURRENT}. Bed Ready is current: \`1.2.0\`.\n\n${claim(CURRENT)}\n`,
+    'VERSIONING.md': `This cut is ${CURRENT}, superseding 3.6.0 and 3.5.3. Bed Ready 1.2.0.\n`,
+  });
+  assert.deepEqual(checkReleaseClaims(dir).failures, []);
+});
+
 // ── The comparison the rules rest on ────────────────────────────────────────
 
 test('a stable release outranks every prerelease of the same core', () => {

@@ -9,10 +9,12 @@ Khayt uses [Semantic Versioning 2.0.0](https://semver.org/) as `MAJOR.MINOR.PATC
 - **macOS runs behind on purpose.** A mac build bills at roughly 10× the others, so `BUILD_MAC` is set only for the cuts that bring it current rather than for every one. As of `v3.7.0-beta.10` macOS is on **`beta.8`**, two cuts back, and `carry-mac-manifest` republishes that release's `latest-mac.yml` under each newer tag — in the **relative** `../v3.7.0-beta.8/` form, so the assets it names resolve from the newer feed. A verbatim copy would name files the newer release does not contain.
 - **The `beta.4` trap is resolved, and the lesson is not.** `main` carried version `3.7.0-beta.4` for most of 2026-08-23 with no `v3.7.0-beta.4` tag on the remote, so release CI never ran and no installer existed while `package.json` looked finished. It was tagged from `11ef165` and published the same day. **A merged version bump is evidence the *cut* landed and nothing more** — check with `git ls-remote --tags origin` or `gh release list`, never by reading `package.json`.
 - **Bed Ready:** a different app from the same repo, on its **own** version line
-  with its own downloads repo — **1.1.0 shipped 2026-08-12** (`bedready-v1.1.0`,
-  marked Latest; 1.0.0 was 2026-08-03 and the `1.0.0-beta.*` line is closed).
-  1.1.0 rather than 1.0.1 because it carries Kits, a feature. It does not follow
-  Khayt's numbers at all; see [Bed Ready](#bed-ready) below.
+  with its own downloads repo — **1.2.0 shipped 2026-08-27** (`bedready-v1.2.0`,
+  marked Latest, all three platforms; 1.1.0 was 2026-08-12, 1.0.0 was 2026-08-03,
+  and the `1.0.0-beta.*` line is closed). 1.2.0 rather than 1.1.1 because it
+  carries installable designs, a feature — the same rule that made 1.1.0 a minor
+  for Kits. It does not follow Khayt's numbers at all; see
+  [Bed Ready](#bed-ready) below.
 
 Beta pre-releases may ship alongside stable. For the stable channel's current
 policy — and for the **soak the 3.7.0 line has to serve before it can be
