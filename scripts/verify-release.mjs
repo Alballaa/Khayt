@@ -89,7 +89,7 @@ const FLAVORS = {
     // afterPack hooks have crossed and Khayt would boot as Bed Ready.
     marker: null,
     shellClass: 'khayt-app',
-    notClass: 'bedready-ui',
+    expectApp: null,        // <html data-app> is absent on Khayt
   },
   bedready: {
     repo: 'KhaytApp/bedready',
@@ -98,8 +98,8 @@ const FLAVORS = {
     bundle: 'Bed Ready.app',
     binary: 'Bed Ready',
     marker: 'bedready',
-    shellClass: 'khayt-app',   // the shared shell; the flavour shows in notClass
-    isClass: 'bedready-ui',
+    shellClass: 'khayt-app',   // the shared shell; the flavour shows in <html data-app>
+    expectApp: 'bedready',
   },
 };
 
@@ -252,17 +252,31 @@ try {
   await page.waitForSelector(`.${F.shellClass}`, { timeout: 90_000 });
   ok('the window opened');
 
-  // The consequence of the marker, asserted independently of it. A build could
-  // carry the right marker and still load the wrong entry HTML.
-  const isBedReady = await page.evaluate(() =>
-    !!document.querySelector('.bedready-ui') || document.documentElement.classList.contains('bedready-ui'));
-  if (F.isClass && !isBedReady) {
-    fail('the packaged app opened as KHAYT, not Bed Ready — the flavour did not take');
+  /*
+   * The consequence of the marker, asserted independently of it — a build could
+   * carry the right marker and still load the wrong entry document.
+   *
+   * The signal is `<html data-app>`, which is what the APP ITSELF uses:
+   * themes.js and shell.js both decide the flavour with
+   * `document.documentElement.dataset.app === 'bedready'`. Using the same
+   * predicate means this cannot disagree with the running app about what the
+   * running app is.
+   *
+   * It was `.bedready-ui` first, and that was wrong twice over. `bedready-ui` is
+   * a THEME body class, not a flavour marker — it sits in themes.js's list
+   * beside khayt-workbench and khayt-command — and `renderer/index.html` ships
+   * with it on `<body>` too. Worse, themes.js TOGGLES it off once it runs, so
+   * the answer depended on whether this evaluate landed before or after that:
+   * v3.6.0 passed and v3.7.0-beta.8 failed, on the same correct build shape. A
+   * check that reports a shipped release as the wrong app, intermittently, is
+   * worse than no check.
+   */
+  const runningApp = await page.evaluate(() => document.documentElement.dataset.app || null);
+  if (runningApp !== F.expectApp) {
+    fail(`the packaged app reports <html data-app=${JSON.stringify(runningApp)}>, ` +
+      `expected ${JSON.stringify(F.expectApp)} — it opened as the wrong flavour`);
   }
-  if (F.notClass && isBedReady) {
-    fail('the packaged Khayt app opened as BED READY — the flavour marker leaked into this build');
-  }
-  ok(`it opened as ${isBedReady ? 'Bed Ready' : 'Khayt'}`);
+  ok(`it opened as ${runningApp === 'bedready' ? 'Bed Ready' : 'Khayt'} (data-app=${runningApp})`);
 
   // Booting is not enough: the renderer must actually render, and the main
   // process must answer. A packaging fault often shows as a blank shell.
