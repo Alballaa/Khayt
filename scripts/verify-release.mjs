@@ -43,16 +43,85 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-const REPO = 'KhaytApp/Khayt';
+/**
+ * ── Two flavours, and the one that needed this more ────────────────────────
+ *
+ * Bed Ready ships from this repo as a second flavour, and until now this script
+ * could not look at it — which is backwards, because Bed Ready's packaging can
+ * fail in a way Khayt's cannot.
+ *
+ * `lib/flavor.js` resolves the flavour in three steps: KHAYT_FLAVOR, then a
+ * `flavor` marker file that `electron-builder.bedready.js`'s afterPack hook
+ * writes into the packaged app's Resources, then a DEFAULT OF 'khayt'.
+ *
+ * The shipped build has no env var, so it depends entirely on that marker.
+ *
+ * WHAT ACTUALLY HAPPENS WITHOUT IT, measured rather than reasoned about — I had
+ * written the opposite here first. Deleting the marker from the published
+ * 1.2.0 bundle and launching it does NOT produce a working Khayt. The app never
+ * opens a window at all: `electron.launch: Timeout 120000ms exceeded`. The cause
+ * is that a Bed Ready bundle contains exactly ONE entry document —
+ * `/renderer/bedready.html`, confirmed by listing the asar — so falling back to
+ * `entryHtml: 'index.html'` points at a file that is not there.
+ *
+ * That is a better failure than the one I assumed, and it is still worth a check
+ * here, for the reason `launchDiagnosis()` further down already exists: "Timeout
+ * 120000ms exceeded" is the least useful sentence available, and a missing
+ * module, a bad signature and a crashed GPU all read the same. This names the
+ * cause in one line, before anything is launched.
+ *
+ * The genuinely silent direction is the other one — a KHAYT build that picked up
+ * a marker — which is why that case is checked too rather than ignored.
+ *
+ * Either way the marker is invisible to every other check here.
+ * `test:e2e:bedready` sets KHAYT_FLAVOR=bedready and so exercises step 1, never
+ * the marker; the marker exists ONLY in build output, which no test in this repo
+ * has ever seen.
+ */
+const FLAVORS = {
+  khayt: {
+    repo: 'KhaytApp/Khayt',
+    tagPrefix: 'v',
+    asset: (v) => `Khayt-${v}-arm64-mac.zip`,
+    bundle: 'Khayt.app',
+    binary: 'Khayt',
+    // A Khayt build must NOT carry the marker; if it does, the two flavours'
+    // afterPack hooks have crossed and Khayt would boot as Bed Ready.
+    marker: null,
+    shellClass: 'khayt-app',
+    notClass: 'bedready-ui',
+  },
+  bedready: {
+    repo: 'KhaytApp/bedready',
+    tagPrefix: 'bedready-v',
+    asset: (v) => `BedReady-${v}-mac-arm64.zip`,
+    bundle: 'Bed Ready.app',
+    binary: 'Bed Ready',
+    marker: 'bedready',
+    shellClass: 'khayt-app',   // the shared shell; the flavour shows in notClass
+    isClass: 'bedready-ui',
+  },
+};
+
 const args = process.argv.slice(2);
 const appFlag = args.indexOf('--app');
 const tag = appFlag === -1 ? args[0] : null;
 let appPath = appFlag === -1 ? null : args[appFlag + 1];
 
 if (!tag && !appPath) {
-  console.error('usage: node scripts/verify-release.mjs <tag> | --app <Khayt.app>');
+  console.error('usage: node scripts/verify-release.mjs <tag> | --app <path to .app>');
+  console.error('       tags: v3.7.0-beta.8 (Khayt) | bedready-v1.2.0 (Bed Ready)');
   process.exit(2);
 }
+
+/** Which product this invocation is about, from the tag or the bundle name. */
+const flavorKey = (tag ? tag.startsWith('bedready-') : /Bed Ready\.app\/?$/.test(appPath))
+  ? 'bedready' : 'khayt';
+const F = FLAVORS[flavorKey];
+const REPO = F.repo;
+/** The version inside the tag, whichever prefix it carries. */
+const tagVersion = tag ? tag.replace(/^bedready-/, '').replace(/^v/, '') : null;
+console.log(`Verifying ${flavorKey === 'bedready' ? 'Bed Ready' : 'Khayt'} ${tag || appPath}`);
 
 const fail = (msg) => { console.error(`\n✗ ${msg}`); process.exit(1); };
 const ok = (msg) => console.log(`  ✓ ${msg}`);
@@ -60,7 +129,7 @@ const ok = (msg) => console.log(`  ✓ ${msg}`);
 const work = fs.mkdtempSync(path.join(os.tmpdir(), 'khayt-verify-'));
 
 if (tag) {
-  const asset = `Khayt-${tag.replace(/^v/, '')}-arm64-mac.zip`;
+  const asset = F.asset(tagVersion);
   const url = `https://github.com/${REPO}/releases/download/${tag}/${asset}`;
   console.log(`Downloading ${asset} …`);
   try {
@@ -69,12 +138,42 @@ if (tag) {
     fail(`could not download ${url}\n  A published release must carry ${asset}.`);
   }
   execFileSync('unzip', ['-q', path.join(work, 'mac.zip'), '-d', work]);
-  appPath = path.join(work, 'Khayt.app');
+  appPath = path.join(work, F.bundle);
   ok(`downloaded and unpacked ${asset}`);
 }
 
-const binary = path.join(appPath, 'Contents', 'MacOS', 'Khayt');
+const binary = path.join(appPath, 'Contents', 'MacOS', F.binary);
 if (!fs.existsSync(binary)) fail(`no executable at ${binary}`);
+
+/**
+ * The flavour marker, checked before anything is launched.
+ *
+ * Checked here rather than only at runtime because the runtime symptom is a
+ * working app that is the WRONG app, and "it opened fine" is exactly how that
+ * ships. The file is the mechanism; the runtime assertion further down is the
+ * consequence. Both, because either alone reads as fine.
+ */
+const markerPath = path.join(appPath, 'Contents', 'Resources', 'flavor');
+const markerValue = fs.existsSync(markerPath)
+  ? fs.readFileSync(markerPath, 'utf8').trim().toLowerCase() : null;
+if (F.marker) {
+  if (markerValue === null) {
+    fail(`no flavor marker in ${F.bundle}/Contents/Resources.\n` +
+      `  lib/flavor.js then falls back to 'khayt' and asks for renderer/index.html,\n` +
+      `  which a Bed Ready bundle does not contain — so the app opens no window at\n` +
+      `  all and the only symptom is a launch timeout. Check the afterPack hook in\n` +
+      `  electron-builder.bedready.js.`);
+  }
+  if (markerValue !== F.marker) {
+    fail(`the flavor marker says '${markerValue}', expected '${F.marker}'`);
+  }
+  ok(`the flavor marker says ${markerValue}`);
+} else if (markerValue !== null) {
+  fail(`a Khayt build carries a flavor marker saying '${markerValue}' — the two\n` +
+    `  afterPack hooks have crossed, and this build would boot as that flavour.`);
+} else {
+  ok('no flavor marker, which is correct for Khayt');
+}
 
 // The version inside the bundle must match the tag. A mismatch means the tag was
 // cut before the bump landed, which auto-update would then read as "no update".
@@ -88,7 +187,7 @@ try {
 } catch {
   console.log('  … could not read package.json from the asar (skipping that check)');
 }
-if (tag && packagedVersion && `v${packagedVersion}` !== tag) {
+if (tag && packagedVersion && packagedVersion !== tagVersion) {
   fail(`tag ${tag} but the bundle contains ${packagedVersion} — the tag was cut before the version bump`);
 }
 
@@ -150,8 +249,20 @@ try {
   page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
   page.on('console', (m) => { if (m.type() === 'error') problems.push('console.error: ' + m.text().slice(0, 200)); });
 
-  await page.waitForSelector('.khayt-app', { timeout: 90_000 });
+  await page.waitForSelector(`.${F.shellClass}`, { timeout: 90_000 });
   ok('the window opened');
+
+  // The consequence of the marker, asserted independently of it. A build could
+  // carry the right marker and still load the wrong entry HTML.
+  const isBedReady = await page.evaluate(() =>
+    !!document.querySelector('.bedready-ui') || document.documentElement.classList.contains('bedready-ui'));
+  if (F.isClass && !isBedReady) {
+    fail('the packaged app opened as KHAYT, not Bed Ready — the flavour did not take');
+  }
+  if (F.notClass && isBedReady) {
+    fail('the packaged Khayt app opened as BED READY — the flavour marker leaked into this build');
+  }
+  ok(`it opened as ${isBedReady ? 'Bed Ready' : 'Khayt'}`);
 
   // Booting is not enough: the renderer must actually render, and the main
   // process must answer. A packaging fault often shows as a blank shell.
@@ -162,7 +273,7 @@ try {
   ok('the dashboard rendered');
 
   const reported = await page.evaluate(() => window.hubAPI.appVersion());
-  if (tag && `v${reported}` !== tag) fail(`the running app reports ${reported}, not ${tag}`);
+  if (tag && reported !== tagVersion) fail(`the running app reports ${reported}, not ${tagVersion}`);
   ok(`the running app reports ${reported}`);
 
   // One round trip per process boundary — preload bridge and main handler. If a
