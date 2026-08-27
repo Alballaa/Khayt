@@ -1,5 +1,13 @@
 # Printer protocol audit — what each vendor actually says
 
+> **The method outgrew printers on 2026-08-27.** The same pass applied to the
+> STOREFRONT webhooks found that every Salla order Khayt had ever imported was
+> recorded priced at **zero** — `data.total` does not exist in Salla's payload,
+> `Number(undefined)` is `NaN`, and the guard substituted 0. Same signature as
+> every finding below: nothing threw, and a guard turned an unreadable value
+> into a plausible one. That work is in `docs/STOREFRONT-WEBHOOK-AUDIT.md`;
+> this file stays about printers.
+
 **Last run: 2026-08-27**, in four passes — the polling paths, the command paths,
 the camera paths, and discovery (which came out clean). Method, sources, and every finding. The first run was 2026-08-25; both are kept, because what the second one found is mostly a comment on
 what the first one missed.
