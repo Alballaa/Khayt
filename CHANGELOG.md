@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.7.0-beta.8] - 2026-08-27
+
 ### Added
 
 - **Analytics now shows what each model actually costs you.** Khayt has been
@@ -29,8 +31,6 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   Printing something twice as fast as you quoted is not flagged. You will hear
   about overcharging from your customers.
 
-
-### Added
 
 - **You can install a design someone else made.** Khayt has had the machinery
   for custom designs for a long time and nobody has ever used it, because there
@@ -111,7 +111,6 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   address, every print that finishes is a measurement that no longer exists —
   Khayt reads the real filament and time off the printer at the moment it
   finishes, and those numbers are gone once the next job starts.
-
 
 ## [3.7.0-beta.7] - 2026-08-25
 

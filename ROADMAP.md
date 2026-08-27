@@ -2,7 +2,7 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0, 3.7.0-beta.7 published — on `main`)
+## Now (post-3.6.0, 3.7.0-beta.8 being cut — on `main`)
 
 **Stable is v3.6.0** (2026-08-21) — the 3.6.0 line, promoted from
 `v3.6.0-rc.4` unchanged after a seven-day soak. rc.4 was the first candidate on
@@ -27,13 +27,23 @@ its own catch hid the throw. And the design picker now says what each design
 hides or adds against the one in use, because eight designs that are genuinely
 eight different screens meant switching could quietly take a number away.
 
-**Landed on `main` after the tag** — five commits the next cut carries: the LAN
-sweep that finds a printer which does not announce itself ([#757]), and the four
-pieces of the modular design system — the CSS safety gate ([#758]), userData
-storage ([#759]), loading over IPC ([#760]) and the install/remove surface
-([#761]). Together those are the first time a shop can install a design somebody
-else made: the machinery existed for a long time and could never be used, because
-designs lived inside `app.asar` — read-only, and replaced whole on every update.
+**`v3.7.0-beta.8` is the cut being made now** (2026-08-27), and it is built for
+**all three platforms** — `BUILD_MAC` set immediately before the tag and unset
+immediately after — which is what ends macOS's three-cut drift. Until the release
+run finishes that is an intention, not a fact: this file's own rule applies to
+its own claim, so confirm with `gh release list` and by fetching the manifests
+before treating beta.8 as shipped.
+
+It carries eight commits: the LAN sweep that finds a printer which does not
+announce itself ([#757]); the four pieces of the modular design system — the CSS
+safety gate ([#758]), userData storage ([#759]), loading over IPC ([#760]) and
+the install/remove surface ([#761]) — which together are the first time a shop
+can install a design somebody else made, the machinery having existed for a long
+time and never been usable because designs lived inside `app.asar`, read-only and
+replaced whole on every update; Analytics → Cost per model ([#763]), which turns
+the measurements Khayt already takes into the one question a shop can act on —
+what a model is quoted at against what it actually costs; and the second protocol
+audit ([#764]).
 
 No hold is active — see [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md).
 
@@ -55,8 +65,26 @@ printer on this bench and seven protocols; for six of them the vendor's
 documentation *is* the test fixture, and a fixture nobody re-reads rots. Re-run it
 when a vendor ships a major firmware line.
 
+**Re-run on 2026-08-27** ([#764]), triggered the way that file says it should be
+— OctoPrint shipped a major line (2.0, in RC). It found three more, and the worst
+of them is a comment on the first run rather than on the code: **Repetier was
+still reporting Idle / 0% on every printing machine**, the exact symptom the
+2026-08-25 pass had crossed off. That fix was real and addressed a different
+cause of it; `done` and `job` are on `listPrinter` and were being read off
+`stateList`, where they have never been. It also found that OctoPrint's 409
+("no printer is connected to me" — most of a normal day) failed the whole poll
+and printed `HTTP 409` on the dashboard.
+
+Two things worth carrying out of the second run. The first is that the audit
+found this defect **and filed it as needing hardware**: it sat in *Known gaps* as
+"if a real server reports 0% while printing, that is where to look". It needed a
+second document, not a printer. The second is that the test written with the
+first fix could not have caught it — it invented a payload Repetier does not send
+and asserted against a copy of the adapter written inline in the test.
+
 The general lesson, because it is not printer-specific: **verify a field's
-provenance, not its units.** The 2026-07-31 pass checked every unit and every unit
+provenance, not its units** — and then ask **which call the field is on**, and
+**what arrives when nothing arrives**. The 2026-07-31 pass checked every unit and every unit
 was right. "Is this in mm?" is answerable from documentation; "is this measured or
 predicted?" usually is not, and that is the question that had OctoPrint reporting
 a variance of zero against its own estimate.
@@ -193,19 +221,30 @@ task; R7 ([#743]) left a hardware dependency rather than a task.
       clean, finds nothing, because there is nothing here to find.
       See [docs/KHAYT-COMPETITIVE-ROADMAP.md](./docs/KHAYT-COMPETITIVE-ROADMAP.md).
 
-**Every printer protocol was audited against its vendor's own documentation and
-firmware source on 2026-08-25** —
-[docs/PRINTER-PROTOCOL-AUDIT.md](./docs/PRINTER-PROTOCOL-AUDIT.md). It found six
-defects, five of which had been showing a wrong number indefinitely without ever
-throwing: a Duet stuck at 0%, a Repetier that always looked idle, a PrusaLink
-with no filename, a Klipper toolchanger reading the wrong nozzle, and — worst —
-OctoPrint recording the slicer's own estimate as the measured weight, which fed
+**Every printer protocol has now been audited against its vendor's own
+documentation and firmware source twice** —
+[docs/PRINTER-PROTOCOL-AUDIT.md](./docs/PRINTER-PROTOCOL-AUDIT.md).
+
+The first run (2026-08-25, [#747]) found six defects, five of which had been
+showing a wrong number indefinitely without ever throwing: a Duet stuck at 0%, a
+Repetier that always looked idle, a PrusaLink with no filename, a Klipper
+toolchanger reading the wrong nozzle, and — worst — OctoPrint recording the
+slicer's own estimate as the measured weight, which fed
 `estimate-calibration.js` its own guesses as evidence.
 
-That audit is now a standing item, not a one-off. There is one printer on this
-bench and seven protocols; for six of them the vendor's documentation *is* the
-test fixture, so it needs re-running when a vendor ships a major firmware line.
-The method and every source is in that file.
+The second (2026-08-27, [#764]) found three more, in a blind spot the first run
+had by construction: it audited what was INSIDE the payload, and never asked
+which call a field is on, or what arrives when nothing arrives. Repetier was
+still Idle / 0% on every machine; OctoPrint's 409 and Moonraker's 503 — both
+ordinary, neither a fault — reached the shop as a raw `HTTP <status>`; and a
+Repetier with no heated bed reported a bed at 0 °C, because `Number(null)` is 0.
+
+Standing item, not a one-off. There is one printer on this bench and seven
+protocols; for six of them the vendor's documentation *is* the test fixture, so
+it needs re-running when a vendor ships a major firmware line. **Open and needing
+hardware:** Bambu's poll is shaped for an X1 and used on a P1 — a fresh
+connection and a `pushall` every 30 s, against documented guidance of no more
+often than five minutes. The method and every source is in that file.
 
 **Multi-shop is no longer deferred.** Organisations shipped in **3.5.0** (create
 one, add branches, one passphrase for all) and **3.5.1** (*Across the branches* —
@@ -294,6 +333,8 @@ Four stable lines, nineteen beta releases and four release candidates since 3.2.
 [#759]: https://github.com/KhaytApp/Khayt/pull/759
 [#760]: https://github.com/KhaytApp/Khayt/pull/760
 [#761]: https://github.com/KhaytApp/Khayt/pull/761
+[#763]: https://github.com/KhaytApp/Khayt/pull/763
+[#764]: https://github.com/KhaytApp/Khayt/pull/764
 [#549]: https://github.com/KhaytApp/Khayt/pull/549
 [#551]: https://github.com/KhaytApp/Khayt/pull/551
 [#552]: https://github.com/KhaytApp/Khayt/pull/552
