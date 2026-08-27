@@ -6,6 +6,17 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **A model measured in inches, centimetres or metres is now the right size in the
+  preview.** A 3MF file records the units its numbers are in, and the preview was
+  reading every file as though it were in millimetres. A part drawn as 12×12×6
+  inches showed as 12 mm across instead of 305 mm — small enough to look like it
+  fitted the bed when it does not — and a part drawn in microns showed as
+  enormous when it fits easily.
+
+  Conversion was never affected: that part of Khayt has always read the units.
+  What was wrong was the preview and everything measured from it, so the two
+  disagreed about the same file.
+
 - **"Update check failed" now says what actually happened.** When Khayt could not
   check for a new version it showed the technical text the update library
   produced — most often `getaddrinfo ENOTFOUND github.com`, which is what a
