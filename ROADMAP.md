@@ -2,22 +2,23 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0, 3.7.0-beta.10 being cut — on `main`)
+## Now (post-3.6.0, 3.7.0-beta.10 published — on `main`)
 
 **Stable is v3.6.0** (2026-08-21) — the 3.6.0 line, promoted from
 `v3.6.0-rc.4` unchanged after a seven-day soak. rc.4 was the first candidate on
 this line that `main` did not overtake, so for once replace-vs-promote resolved
 to *promote*; rc.1, rc.2 and rc.3 were each replaced instead.
 
-**The 3.7.0 line is open, and `v3.7.0-beta.10` is the cut being made now**
-(2026-08-27) — **Windows + Linux only**, `BUILD_MAC` deliberately unset, so
-macOS stays on `beta.8` and goes **two** cuts behind rather than the usual one.
-That is a deliberate choice and not drift: `beta.8` brought macOS current on the
-morning of 2026-08-27, mac bills at 10×, and beta.10 carries no mac-specific
-change. `carry-mac-manifest` carries `beta.8`'s `latest-mac.yml` forward again.
-**Until the release run finishes, that is an intention and not a fact** — this
-file's own rule applies to its own claim, so confirm with `gh release list` and a
-fetched manifest before treating beta.10 as available.
+**The 3.7.0 line is open. The newest *published* pre-release is
+`v3.7.0-beta.10`** (2026-08-27) — tagged from `a66b406` ([#778]) and **Windows +
+Linux only**, `BUILD_MAC` deliberately unset, so macOS stays on `beta.8` and is
+**two** cuts behind rather than the usual one. That is a decision, not drift:
+`beta.8` brought macOS current on the morning of the 27th, mac bills at 10×, and
+beta.10 carries no mac-specific change. Verified rather than assumed: `latest.yml`
+and `latest-linux.yml` read `3.7.0-beta.10` and their three binaries serve 200,
+and `carry-mac-manifest` wrote `latest-mac.yml` in the **relative**
+`../v3.7.0-beta.8/` form — not a verbatim copy, which would name a file this
+release does not contain — with both mac assets resolving from the beta.10 feed.
 
 **beta.10 is the audit method's last three surfaces, and all three findings are
 the same shape: a guard that quietly stops guarding.** A carrier update Khayt
@@ -31,35 +32,14 @@ never asked for — so an order landed named after a database id nobody recognis
 ([#774]). [#775] is the audit record for the Etsy branch and changed no Khayt
 code; the fix shipped in khayt-cloud#23.
 
-**The newest *published* pre-release is
-`v3.7.0-beta.9`** (2026-08-27) — tagged from `b587777` ([#772]) and **Windows +
-Linux only**, `BUILD_MAC` deliberately unset, so macOS stays on `beta.8`, one cut
-behind, which is the ordinary state here: it bills at 10× and `beta.8` brought it
-current the same day. Verified rather than assumed: `latest.yml` and
-`latest-linux.yml` read `3.7.0-beta.9` and their three binaries serve 200, and
-`carry-mac-manifest` wrote `latest-mac.yml` in the **relative** `../v3.7.0-beta.8/`
-form — not a verbatim copy, which would name a file this release does not contain
-— with both mac assets resolving 200 from the beta.9 feed.
-
-**beta.9 is the day the audit method left printers.** Four passes over the
-printer surfaces found nine defects; pointing the same method at the storefront
-webhooks then found that **every order imported from Salla had been recorded
-priced at zero** since that integration shipped — `data.total` is not a field
-Salla sends, `Number(undefined)` is `NaN`, and the guard substituted 0 ([#771],
-[docs/STOREFRONT-WEBHOOK-AUDIT.md](./docs/STOREFRONT-WEBHOOK-AUDIT.md)). Revenue
-and margin were wrong for those orders and nothing ever threw. It also carries
-job control for a Duet 3 with an SBC and for a password-protected Duet ([#767]),
-Repetier cancel and resume ([#768]), and camera auto-detect on any modern
-OctoPrint ([#769]).
-
-*(#772 said it had collapsed the duplicated "newest published" paragraphs to
-one. It had not: it rewrote the beta.7 paragraph into a beta.9 one and left the
-beta.8 paragraph standing underneath, so the file went on naming two different
-newest-published releases — the exact defect that commit was recording a fix
-for. The beta.8 block is removed here rather than rewritten; that release's
-substance is in the shipped table, which is where a superseded cut belongs. The
-rule this keeps failing is that **only the top paragraph may say "newest
-published"**, and a cut adds one by REPLACING it, never by writing above it.)*
+*(This section duplicated its own "newest published" paragraph twice in a week —
+#772 said it had collapsed the duplication and had in fact reintroduced it, by
+rewriting the stale paragraph instead of removing it. The rule is that **only the
+top paragraph may say "newest published"**, and a cut adds one by REPLACING it,
+never by writing above it; a superseded cut goes to the shipped table. That rule
+is now enforced rather than remembered — `scripts/check-release-claims.js` fails
+CI on a second claim, on a file that never names the version in `package.json`,
+and on two files naming different releases.)*
 
 No hold is active — see [docs/RELEASE-HOLD.md](./docs/RELEASE-HOLD.md).
 
@@ -363,6 +343,7 @@ Four stable lines, nineteen beta releases and four release candidates since 3.2.
 [#775]: https://github.com/KhaytApp/Khayt/pull/775
 [#776]: https://github.com/KhaytApp/Khayt/pull/776
 [#777]: https://github.com/KhaytApp/Khayt/pull/777
+[#778]: https://github.com/KhaytApp/Khayt/pull/778
 [#549]: https://github.com/KhaytApp/Khayt/pull/549
 [#551]: https://github.com/KhaytApp/Khayt/pull/551
 [#552]: https://github.com/KhaytApp/Khayt/pull/552
