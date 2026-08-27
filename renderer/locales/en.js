@@ -2614,6 +2614,7 @@
   "cam.detect_none": "Set the printer type and address first",
   "cam.loading": "Camera…",
   "cam.offline": "Camera offline",
+  "cam.no_frame": "No picture yet",
   "tel.hint": "Khayt sends nothing by default. You can optionally share crash reports and anonymous usage counts to help fix bugs. Never your orders, customers, prices or files.",
   "tel.crash": "Share crash reports",
   "tel.crash_hint": "A scrubbed error message and stack trace when something breaks.",

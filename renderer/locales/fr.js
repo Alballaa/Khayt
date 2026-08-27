@@ -2613,6 +2613,7 @@
   "cam.detect_none": "Définissez d’abord le type et l’adresse de l’imprimante",
   "cam.loading": "Caméra…",
   "cam.offline": "Caméra hors ligne",
+  "cam.no_frame": "Pas encore d’image",
   "tel.hint": "Khayt n'envoie rien par défaut. Vous pouvez éventuellement partager des rapports d'erreur et des compteurs d'utilisation anonymes pour aider à corriger les bugs. Jamais vos commandes, clients, prix ou fichiers.",
   "tel.crash": "Partager les rapports d'erreur",
   "tel.crash_hint": "Un message d'erreur nettoyé et une trace lorsqu'un problème survient.",

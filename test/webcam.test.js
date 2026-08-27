@@ -33,6 +33,71 @@ test('normalizeWebcamUrl resolves relative paths against the printer host', () =
   assert.equal(W.normalizeWebcamUrl('/cam', {}), '', 'no host → cannot resolve');
 });
 
+test('parseOctoprintSettings prefers the webcams list over the deprecated shim', () => {
+  // Every top-level field the old parser read — streamUrl, snapshotUrl, flipH,
+  // flipV, rotate90 — is on OctoPrint's own DEPRECATED_WEBCAM_KEYS list, in the
+  // 1.11 line and the 2.0 line alike. The settings handler nulls each of them
+  // on every response and fills the URLs back in ONLY if the default webcam
+  // publishes a `compat` block. The bundled classic webcam does, which is why
+  // this kept working; a camera from any other provider need not, and then
+  // Khayt reported no camera on a printer that has one.
+  const body = {
+    webcam: {
+      // the shim, nulled by OctoPrint when no compat block exists
+      streamUrl: null, snapshotUrl: null, flipH: null, flipV: null, rotate90: null,
+      defaultWebcam: 'front', snapshotWebcam: 'front',
+      webcams: [{
+        name: 'front', displayName: 'Front', canSnapshot: true,
+        flipH: true, flipV: false, rotate90: true,
+        compat: { stream: '/webcam/?action=stream', snapshot: '/webcam/?action=snapshot' },
+        provider: 'classicwebcam',
+      }],
+    },
+  };
+  const out = W.parseOctoprintSettings(body, OCTO);
+  assert.equal(out.snapshotUrl, 'http://192.168.1.50/webcam/?action=snapshot');
+  assert.equal(out.streamUrl, 'http://192.168.1.50/webcam/?action=stream');
+  assert.equal(out.flipH, true);
+  assert.equal(out.rotate, 90);
+});
+
+test('OctoPrint names the still camera separately, and it wins', () => {
+  // defaultWebcam is the one shown; snapshotWebcam is the one stills come from,
+  // and they are not always the same camera. Khayt proxies stills.
+  const cam = (name, snap) => ({
+    name, displayName: name, canSnapshot: true, flipH: false, flipV: false, rotate90: false,
+    compat: { stream: `/${name}/stream`, snapshot: snap },
+  });
+  const out = W.parseOctoprintSettings({
+    webcam: { defaultWebcam: 'wide', snapshotWebcam: 'macro', webcams: [cam('wide', '/wide/snap'), cam('macro', '/macro/snap')] },
+  }, OCTO);
+  assert.equal(out.snapshotUrl, 'http://192.168.1.50/macro/snap');
+
+  // With nothing nominated, the first camera that can take a still is used
+  // rather than simply the first camera.
+  const noSnap = { name: 'stream-only', canSnapshot: false, compat: { stream: '/s/stream', snapshot: '' } };
+  const out2 = W.parseOctoprintSettings({ webcam: { webcams: [noSnap, cam('macro', '/macro/snap')] } }, OCTO);
+  assert.equal(out2.snapshotUrl, 'http://192.168.1.50/macro/snap');
+});
+
+test('a webcams list carrying no usable URL falls through rather than winning empty', () => {
+  // A provider that publishes no compat block exposes no URL anywhere in
+  // OctoPrint's API. That is a real limit, not a parse failure — but it must
+  // not shadow an older OctoPrint whose top-level fields ARE the real thing.
+  const body = {
+    webcam: {
+      streamUrl: '/webcam/?action=stream', snapshotUrl: '/webcam/?action=snapshot',
+      webcams: [{ name: 'nocompat', canSnapshot: true }],
+    },
+  };
+  const out = W.parseOctoprintSettings(body, OCTO);
+  assert.equal(out.snapshotUrl, 'http://192.168.1.50/webcam/?action=snapshot', 'the legacy fallback still answers');
+
+  assert.equal(W.parseOctoprintSettings({ webcam: { webcams: [{ name: 'x' }] } }, OCTO), null, 'and nothing anywhere is null, not a throw');
+  assert.equal(W.parseOctoprintSettings({ webcam: { webcams: 'not-a-list' } }, OCTO), null);
+  assert.equal(W.parseOctoprintSettings({ webcam: { webcams: [null, 7] } }, OCTO), null);
+});
+
 test('parseOctoprintSettings reads the reported webcam config', () => {
   const out = W.parseOctoprintSettings({ webcam: { snapshotUrl: '/webcam/?action=snapshot', streamUrl: '/webcam/?action=stream', flipH: true, rotate90: true } }, OCTO);
   assert.equal(out.snapshotUrl, 'http://192.168.1.50/webcam/?action=snapshot');
@@ -128,6 +193,25 @@ test('checkSnapshotHeaders enforces image content-type, success status and no re
   assert.deepEqual(W.checkSnapshotHeaders(200, null, '10'), { ok: false, reason: 'not_an_image' }, 'missing type is not an image');
   assert.equal(W.checkSnapshotHeaders(404, 'image/jpeg', '10').ok, false);
   assert.equal(W.checkSnapshotHeaders(500, 'image/jpeg', '10').reason, 'HTTP 500');
+});
+
+test('a camera with nothing to show yet is not a camera that is broken', () => {
+  // PrusaLink documents 204 on /api/v1/cameras/snap as "No Content / No Error"
+  // and 503 as temporarily unavailable: a registered camera that has not
+  // captured a frame, or is busy. The tile rendered both as "Camera offline",
+  // which is the one thing they do not mean — the printer answered, promptly,
+  // about a camera it has.
+  assert.deepEqual(W.checkSnapshotHeaders(204, null, null), { ok: false, reason: 'no_frame_yet' });
+  assert.deepEqual(W.checkSnapshotHeaders(503, null, null), { ok: false, reason: 'no_frame_yet' });
+
+  // 204 is a 2xx, so it used to pass the status check and get caught by the
+  // content-type test instead — a camera warming up reported `not_an_image`.
+  assert.notEqual(W.checkSnapshotHeaders(204, null, null).reason, 'not_an_image');
+
+  // A genuine failure must not be softened into "warming up".
+  assert.equal(W.checkSnapshotHeaders(404, 'image/jpeg', '10').reason, 'HTTP 404');
+  assert.equal(W.checkSnapshotHeaders(500, 'image/jpeg', '10').reason, 'HTTP 500');
+  assert.equal(W.checkSnapshotHeaders(200, 'text/html', '10').reason, 'not_an_image');
 });
 
 test('checkSnapshotHeaders allows a missing content-length (body cap is the backstop)', () => {

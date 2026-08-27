@@ -19,6 +19,23 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **"Detect from printer" found no camera on OctoPrint machines that have one.**
+  The button asked OctoPrint where its camera was and read the answer from a
+  field OctoPrint has been phasing out — one that is filled in for its own
+  built-in camera and left empty for cameras added by anything else. So for some
+  setups it worked, for others it silently found nothing, and there was no way to
+  tell which you had except by trying.
+
+  Khayt now reads the camera list itself, which every version reports and which
+  covers every camera. If a printer has more than one, Khayt asks for the one
+  OctoPrint nominates for taking pictures rather than the one it happens to show
+  first — those are allowed to be different cameras.
+
+- **A camera that had not taken its first picture yet said it was offline.** A
+  printer answering "the camera is there, I just have no picture for you this
+  second" was reported the same way as a camera that is unplugged, which sends
+  you to check a cable that is fine. It now says **No picture yet**.
+
 - **A Duet 3 with a Raspberry Pi attached could be watched but never stopped.**
   Khayt showed its temperatures, its progress and its job perfectly well, and
   then Pause and Cancel did nothing but report an error — on the one kind of

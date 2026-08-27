@@ -1,7 +1,7 @@
 # Printer protocol audit — what each vendor actually says
 
-**Last run: 2026-08-27**, in two passes — the polling paths, then the command
-paths. Method, sources, and every finding. The first run was 2026-08-25; both are kept, because what the second one found is mostly a comment on
+**Last run: 2026-08-27**, in three passes — the polling paths, then the command
+paths, then the camera paths. Method, sources, and every finding. The first run was 2026-08-25; both are kept, because what the second one found is mostly a comment on
 what the first one missed.
 
 Khayt talks to seven printer protocols and there is one printer on the bench: a
@@ -358,6 +358,87 @@ recording so the next pass does not re-derive them.
   `server/api/job.py` in both the 1.11 and 2.0 lines.
 - **PrusaLink's job id is read immediately before use and never cached** — Buddy
   404s a stale id.
+
+## Findings, 2026-08-27 (third pass) — the CAMERA paths
+
+The third surface. Polling and commands had both been audited by now; nothing
+had ever looked at how Khayt finds and fetches a printer's camera.
+
+| Protocol | Symptom | Root cause | Tier |
+|---|---|---|---|
+| OctoPrint | "Detect from printer" finds nothing, on a printer with a camera | it reads a compatibility shim, not the camera list | 1 |
+| PrusaLink | A camera that has no frame yet reads as **Camera offline** | 204 and 503 handled as failures | 2 |
+
+### OctoPrint — reading a shim and calling it the answer
+
+`streamUrl`, `snapshotUrl`, `flipH`, `flipV`, `rotate90` — every field the
+parser read — are on OctoPrint's own `DEPRECATED_WEBCAM_KEYS` list, in the 1.11
+line and the 2.0 line alike. The settings handler nulls all of them on every
+response and then fills the URLs back in **only if the default webcam publishes
+a `compat` block**:
+
+```python
+for key in DEPRECATED_WEBCAM_KEYS:
+    data["webcam"][key] = None
+compatWebcam = defaultWebcam.config.compat if defaultWebcam is not None else None
+if compatWebcam:
+    data["webcam"].update({"streamUrl": compatWebcam.stream, "snapshotUrl": compatWebcam.snapshot, …})
+```
+
+The bundled classic webcam does publish one, which is why this kept working and
+why nothing ever looked wrong. A camera from any other provider plugin need not,
+and then every field is `null` and Khayt reports no camera on a printer that has
+one.
+
+**Auto-detect failing silently is a particularly quiet kind of defect.** Nothing
+throws, nothing is logged, and the owner does not file a bug — they type the URL
+by hand, conclude the button does not work, and never mention it. It is the
+camera equivalent of the OctoPrint filament field: a value that looks like the
+answer and is a compatibility artefact.
+
+The real answer is `webcam.webcams[]`, always present, listing every camera with
+`name`, `displayName`, `canSnapshot`, `flipH`, `flipV`, `rotate90` and a
+per-camera `compat: {stream, snapshot}` — and the response separately names
+`defaultWebcam` (the one shown) and `snapshotWebcam` (the one stills come from),
+which are **not always the same camera**. Khayt proxies stills, so it now asks
+for the snapshot camera first, then the default, then the first that can take a
+still. The old top-level read stays as the fallback for versions that predate
+the list.
+
+### PrusaLink — "Camera offline" is the one thing 204 does not mean
+
+`/api/v1/cameras/snap` is correct and stays (verified below), but Prusa
+documents **204 No Content — "No Error"** and **503** on it: a registered camera
+that has not captured a frame yet, or is busy. Both ended up as failures, and
+the tile renders every failure as **Camera offline** — which is precisely what
+they do not mean. The printer answered, promptly, about a camera it has.
+
+204 slipped through in a way worth noting: it is a **2xx**, so it passed the
+status check and was caught by the content-type test instead, reporting
+`not_an_image`. A camera warming up was described as sending something that was
+not a picture.
+
+Both now report `no_frame_yet`, and the tile says **"No picture yet"** rather
+than sending someone to check a cable. This is the same finding as the poll
+path's `HTTP 409` and `HTTP 503`, on a third surface: **a vendor's ordinary,
+non-fault response turned into the vocabulary of a failure.** Three passes, three
+paths, same lesson.
+
+### Verified correct on the camera paths — do not re-litigate
+
+- **PrusaLink's `/api/v1/cameras/snap` is real** and is the right endpoint: the
+  OpenAPI spec defines it as "Return a captured image from the default camera",
+  alongside the id-scoped `/api/v1/cameras/{id}/snap`. The unscoped one needs no
+  camera id, which is why it is the right default.
+- **The snapshot proxy sends the machine's own credential.** PrusaLink answers
+  401 without it, so an unauthenticated proxy would derive a perfectly correct
+  URL that could never load.
+- **Only stills are ever proxied, never `streamUrl`.** An MJPEG stream has no
+  end; buffering one in the main process would accumulate memory until the
+  timeout. A stream-only camera is pointed at directly by the `<img>` instead.
+- **Headers are checked before the body is read**, so an oversized or non-image
+  response is refused without being buffered first — with a length backstop for
+  a response that declares no `content-length`.
 
 ## Findings, 2026-08-25 — the first run
 
