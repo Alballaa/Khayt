@@ -19,6 +19,29 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Every order imported from Salla was recorded as costing nothing.** The price
+  column showed 0.00 for all of them, from the day the integration shipped.
+
+  Khayt was reading a field that does not exist in what Salla sends. Nothing
+  failed when it came back empty — the number simply became zero, which is a
+  price like any other, in the one column a workshop is actually measured in. So
+  revenue, margin and every report built on them have been wrong for Salla
+  orders, and nothing anywhere said so.
+
+  Khayt now reads the total Salla actually sends. **Existing orders are not
+  changed** — Khayt will not rewrite a figure you may have already invoiced
+  against — so correct any Salla order still showing 0.00 by hand.
+
+  Two smaller things came with it. Salla orders were all titled "Salla: Order",
+  which is no help in a queue of them; they are now named after what was
+  ordered. And when a storefront genuinely sends no price, that is no longer
+  quietly indistinguishable from a real zero.
+
+- **Orders from Zid are read more carefully.** Khayt expected one payload shape
+  and had no way to confirm it — Zid does not publish an example. It now accepts
+  either shape, so an order that would previously have arrived unnamed, unpriced
+  and impossible to deduplicate now arrives intact.
+
 - **"Detect from printer" found no camera on OctoPrint machines that have one.**
   The button asked OctoPrint where its camera was and read the answer from a
   field OctoPrint has been phasing out — one that is filled in for its own

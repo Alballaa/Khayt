@@ -127,7 +127,11 @@ test('both storefront handlers check before they create, and record the id', () 
   for (const source of ['salla', 'zid']) {
     const at = lan.indexOf(`sourceOrderIdFrom('${source}'`);
     assert.ok(at > 0, `the ${source} handler does not read the platform's order id`);
-    const body = lan.slice(at, at + 1400);
+    // The window is generous on purpose. It was 1400 and the handlers outgrew it
+    // the moment they gained a few lines of comment, which fails this guard for
+    // a reason that has nothing to do with what it checks — a test that breaks
+    // on prose is a test people learn to edit rather than read.
+    const body = lan.slice(at, at + 3000);
     const check = body.indexOf(`alreadyRecorded(storeData.printLog, '${source}'`);
     const create = body.indexOf('storeData.printLog.unshift(newOrder)');
     assert.ok(check > 0, `the ${source} handler does not check for a duplicate`);
@@ -151,4 +155,108 @@ test('a duplicate answers 200, so the provider stops retrying', () => {
     assert.match(body, /writeHead\(200/, `a duplicate ${source} delivery is answered with a non-2xx`);
     assert.match(body, /duplicate: true/, `the ${source} response does not say it was a duplicate`);
   }
+});
+
+/**
+ * What the order is WORTH, which is the field a shop is actually measured in.
+ *
+ * The fixture below is Salla's own published webhook sample, trimmed. It is
+ * used rather than an invented one for the same reason the Repetier tests are:
+ * a payload we made up would have agreed with the code that was wrong.
+ */
+const SALLA_ORDER = {
+  event: 'order.created',
+  merchant: 1305146709,
+  data: {
+    id: 2116149737,
+    reference_id: 41027662,
+    currency: 'SAR',
+    amounts: {
+      sub_total: { amount: 186, currency: 'SAR' },
+      shipping_cost: { amount: 15, currency: 'SAR' },
+      cash_on_delivery: { amount: 0, currency: 'SAR' },
+      total: { amount: 196, currency: 'SAR' },
+    },
+    items: [{ id: 70815337, name: 'بيتزا', sku: '54534534', quantity: 1 }],
+    customer: { id: 225167971, first_name: 'Mohammed', last_name: 'Ali', email: 'usertest@gmail.com' },
+  },
+};
+
+test('a Salla order is worth what Salla says it is worth', () => {
+  // THE DEFECT: this used to read `data.total`, which does not exist anywhere
+  // in a Salla payload — the top-level keys of `data` are id, reference_id,
+  // urls, date, draft, read, source, source_device, source_details, status,
+  // receipt_image, payment_method, currency, amounts, shipping, items,
+  // customer. Number(undefined) is NaN, isFinite(NaN) is false, and the guard
+  // substituted 0. Every Salla order ever imported was priced at zero.
+  assert.equal(S.orderPriceFrom('salla', SALLA_ORDER), 196);
+  assert.equal(SALLA_ORDER.data.total, undefined, 'the field the old code read');
+
+  // The total is an OBJECT, so a bare Number() could never have worked even
+  // against the right key.
+  assert.equal(S.money({ amount: 196, currency: 'SAR' }), 196);
+  assert.equal(S.money(196), 196, 'a plain number is equally ordinary');
+
+  // It must be the TOTAL, not the first amount that happens to parse. sub_total
+  // here is 186 and would look perfectly plausible on an invoice.
+  assert.notEqual(S.orderPriceFrom('salla', SALLA_ORDER), 186);
+});
+
+test('"I could not read the price" is never reported as "it is free"', () => {
+  // A guard that turns unknown into 0 is worse than no guard: 0 is a number a
+  // shop can act on. money() and orderPriceFrom() return null instead, and the
+  // caller decides — which is what makes the difference visible at all.
+  assert.equal(S.orderPriceFrom('salla', { data: {} }), null);
+  assert.equal(S.orderPriceFrom('salla', {}), null);
+  assert.equal(S.money(undefined), null);
+  assert.equal(S.money(''), null);
+  assert.equal(S.money({}), null);
+  assert.equal(S.money('not a number'), null);
+  assert.equal(S.money(-5), null, 'a negative total is not a total');
+  assert.equal(S.money(0), 0, 'but a genuine zero is a real answer and survives');
+});
+
+test('a Salla order is titled something a shop can tell apart', () => {
+  // `data.name` does not exist either, so `data.name || 'Order'` made every
+  // order in the queue read "Salla: Order".
+  assert.equal(SALLA_ORDER.data.name, undefined);
+  assert.equal(S.orderTitleFrom('salla', SALLA_ORDER), 'بيتزا');
+
+  // More than one line item says so rather than naming only the first.
+  const two = { data: { ...SALLA_ORDER.data, items: [{ name: 'A' }, { name: 'B' }] } };
+  assert.equal(S.orderTitleFrom('salla', two), 'A +1');
+
+  // With no items at all, the reference identifies the order; the word "Order"
+  // does not. It is the last resort, not the first.
+  assert.equal(S.orderTitleFrom('salla', { data: { reference_id: 41027662 } }), '#41027662');
+  assert.equal(S.orderTitleFrom('salla', { data: {} }), 'Order');
+
+  assert.equal(S.customerNameFrom('salla', SALLA_ORDER), 'Mohammed Ali');
+});
+
+test('Zid is read whether or not the order is wrapped', () => {
+  // This audit could NOT confirm Zid's payload shape: its webhook schema is
+  // rendered by a docs component that does not come out as text, and its own
+  // sample apps carry no fixture. The code assumed `{order:{…}}`. Rather than
+  // keep betting on that, both shapes are accepted — if the wrapper is there
+  // nothing changes, and if it is not, Zid starts working instead of recording
+  // an unnamed order priced at zero with no reference to deduplicate on.
+  const wrapped = { order: { id: 9, reference_id: 'Z-1', total: 250, customer: { name: 'Sara' }, items: [{ name: 'Bracket' }] } };
+  const flat = wrapped.order;
+
+  for (const [label, payload] of [['wrapped', wrapped], ['top level', flat]]) {
+    assert.equal(S.sourceOrderIdFrom('zid', payload), 'Z-1', label);
+    assert.equal(S.orderPriceFrom('zid', payload), 250, label);
+    assert.equal(S.orderTitleFrom('zid', payload), 'Bracket', label);
+    assert.equal(S.customerNameFrom('zid', payload), 'Sara', label);
+  }
+
+  // Several spellings of the total are accepted, since only one is ever present
+  // and which one was never verified.
+  assert.equal(S.orderPriceFrom('zid', { order: { order_total: 99 } }), 99);
+  assert.equal(S.orderPriceFrom('zid', { order: { amounts: { total: { amount: 42 } } } }), 42);
+
+  // An unrelated body must not donate stray fields just because it is not wrapped.
+  assert.deepEqual(S.orderObject('zid', { hello: 'world' }), {});
+  assert.equal(S.orderPriceFrom('zid', { hello: 'world' }), null);
 });
