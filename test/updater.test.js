@@ -31,6 +31,67 @@ const {
   updateFeedPresent,
 } = require('../lib/updater');
 
+/**
+ * The app compares versions twice, with two different implementations, and both
+ * have to agree or an update disappears without a word.
+ *
+ * electron-updater decides first, in `AppUpdater.isUpdateAvailable`, with
+ * `semver.gt(latest, current)`. `isVersionNewer` below then decides again, as
+ * the filter in `interpretUpdateCheckResult`. A disagreement is silent in
+ * whichever direction it goes: electron-updater offers a release and this filter
+ * discards it (the user is told they are up to date, and they are not), or this
+ * filter would accept something electron-updater never surfaces (a branch that
+ * cannot run).
+ *
+ * So the property is not "this function looks right", it is "this function
+ * agrees with the one on the other side of the pipeline". `semver` is not a
+ * declared dependency — it arrives with electron-updater, which is the point:
+ * the version under test is the version the updater is using.
+ */
+const semver = require('semver');
+
+test('isVersionNewer agrees with semver on every shape this repo has shipped', () => {
+  const vs = [
+    '2.1.0', '2.2.0', '3.2.0', '3.5.1', '3.5.3', '3.6.0',
+    '3.6.0-beta.1', '3.6.0-beta.9', '3.6.0-beta.10', '3.6.0-beta.19',
+    '3.6.0-rc.1', '3.6.0-rc.4',
+    '3.7.0', '3.7.0-alpha.1', '3.7.0-beta.1', '3.7.0-beta.2', '3.7.0-beta.9',
+    '3.7.0-beta.10', '3.7.0-beta.11', '3.7.0-rc.1',
+    '1.0.0', '1.0.0-beta.9', '1.1.0', '1.2.0', '4.0.0',
+  ];
+  const mismatches = [];
+  for (const a of vs) {
+    for (const b of vs) {
+      if (isVersionNewer(a, b) !== semver.gt(a, b)) mismatches.push(`${a} vs ${b}`);
+    }
+  }
+  assert.deepEqual(mismatches, [], `these pairs disagree with semver: ${mismatches.join(', ')}`);
+});
+
+test('a two-digit prerelease outranks a one-digit one', () => {
+  // The gap this fills: every prerelease case here compared single digits, and
+  // the one that looked like an exception — rc.1 vs beta.9 — is decided by the
+  // TAG, not the number. So nothing exercised the boundary, and the 3.7.0 line
+  // crossed it on 2026-08-27 with beta.10. A lexicographic compare ranks
+  // "10" below "9", and every beta user would quietly stop being offered
+  // updates: no error, no event, just an app that says it is up to date.
+  //
+  // It is correct — comparePrerelease parses numeric identifiers with parseInt.
+  // Checked rather than assumed, and now pinned, because the risk is not today's
+  // code, it is the next edit to it.
+  assert.equal(isVersionNewer('3.7.0-beta.10', '3.7.0-beta.9'), true);
+  assert.equal(isVersionNewer('3.7.0-beta.9', '3.7.0-beta.10'), false);
+  assert.equal(isVersionNewer('3.7.0-beta.10', '3.7.0-beta.2'), true);
+  assert.equal(isVersionNewer('3.7.0-beta.2', '3.7.0-beta.10'), false);
+  // The 3.6.0 line ran to beta.19 in the field, so this has been relied on
+  // before it was ever tested.
+  assert.equal(isVersionNewer('3.6.0-beta.19', '3.6.0-beta.9'), true);
+  assert.equal(isVersionNewer('3.6.0-beta.9', '3.6.0-beta.19'), false);
+  // And the graduation still works from a two-digit prerelease.
+  assert.equal(isVersionNewer('3.7.0', '3.7.0-beta.10'), true);
+  assert.equal(isVersionNewer('3.7.0-beta.10', '3.7.0'), false);
+});
+
 test('isVersionNewer compares dotted versions', () => {
   assert.equal(isVersionNewer('2.3.2', '2.3.1'), true);
   assert.equal(isVersionNewer('2.3.1', '2.3.2'), false);
