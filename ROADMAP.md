@@ -2,30 +2,38 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0, 3.7.0-beta.8 published — on `main`)
+## Now (post-3.6.0, 3.7.0-beta.9 being cut — on `main`)
 
 **Stable is v3.6.0** (2026-08-21) — the 3.6.0 line, promoted from
 `v3.6.0-rc.4` unchanged after a seven-day soak. rc.4 was the first candidate on
 this line that `main` did not overtake, so for once replace-vs-promote resolved
 to *promote*; rc.1, rc.2 and rc.3 were each replaced instead.
 
-**The 3.7.0 line is open. The newest *published* pre-release is
-`v3.7.0-beta.7`** (2026-08-25) — tagged from `1b5543a`, **Windows + Linux only**
-(`BUILD_MAC` deliberately unset), so macOS stays on `beta.5` and is now three
-cuts behind. Verified the way this file keeps insisting on: the tag resolves to
-`main`'s tip at the time, `package.json` there reads `3.7.0-beta.7`, all three
-manifests fetch 200, every asset they name serves 200, and the beta.5 mac zip the
-carried `latest-mac.yml` points at still resolves.
+**The 3.7.0 line is open, and `v3.7.0-beta.9` is the cut being made now**
+(2026-08-27) — **Windows + Linux only**, `BUILD_MAC` deliberately unset, so
+macOS stays on `beta.8` and `carry-mac-manifest` carries that release's
+`latest-mac.yml` forward. One cut behind is the ordinary state for macOS here;
+it bills at 10× and `beta.8` brought it current the same day, so paying twice in
+one day buys a single cut of currency. **Until the release run finishes that is
+an intention and not a fact** — this file's own rule applies to its own claim, so
+confirm with `gh release list` and a fetched manifest before treating beta.9 as
+shipped.
 
-beta.7 is Medusa, both kinds of Duet, and what a design costs. Medusa stores can
-send orders to Khayt — and because Medusa has no webhook settings page, Khayt
-generates the subscriber rather than handing out a URL with nowhere to paste it.
-A Duet 3 with an SBC can be added at all for the first time, and so can a
-password-protected one. The Flow board marks orders late, which it never has:
-it borrowed the shared attention engine, misread the answer two ways at once, and
-its own catch hid the throw. And the design picker now says what each design
-hides or adds against the one in use, because eight designs that are genuinely
-eight different screens meant switching could quietly take a number away.
+**beta.9 is the day the audit method left printers.** Four passes over the
+printer surfaces found nine defects; pointing the same method at the storefront
+webhooks then found that **every order imported from Salla had been recorded
+priced at zero** since that integration shipped — `data.total` is not a field
+Salla sends, `Number(undefined)` is `NaN`, and the guard substituted 0 ([#771],
+[docs/STOREFRONT-WEBHOOK-AUDIT.md](./docs/STOREFRONT-WEBHOOK-AUDIT.md)). Revenue
+and margin were wrong for those orders and nothing ever threw. It also carries
+job control for a Duet 3 with an SBC and for a password-protected Duet ([#767]),
+Repetier cancel and resume ([#768]), and camera auto-detect on any modern
+OctoPrint ([#769]).
+
+*(This paragraph replaced a stale one that still called `beta.7` the newest
+published while the paragraph below already said `beta.8` — the file contradicted
+itself for half a day. beta.7 was Medusa, both kinds of Duet, and what a design
+costs; that is history now and lives in the shipped table.)*
 
 **The newest *published* pre-release is `v3.7.0-beta.8`** (2026-08-27) — tagged
 from `18a711a` ([#765]) and **built for all three platforms**, `BUILD_MAC` set

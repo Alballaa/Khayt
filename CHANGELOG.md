@@ -4,6 +4,8 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+## [3.7.0-beta.9] - 2026-08-27
+
 ### Added
 
 - **Khayt can now cancel and resume a print on a Repetier server.** It could
