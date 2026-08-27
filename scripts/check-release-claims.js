@@ -44,6 +44,12 @@
  *      quietly disagreeing is the same defect spread out far enough that nobody
  *      reading either one notices.
  *   5. The same, for BED READY's separate `1.x` line — see below.
+ *   6. All four files agree on which release is STABLE, and it is never newer
+ *      than package.json. Rules 3 and 4 guard the pre-release claim; this is the
+ *      same fact for the other channel, and it is the one that will drift on
+ *      PROMOTION DAY — four files each carrying "Stable is v3.6.0" in their own
+ *      wording, all of which have to change at once, on the day these documents
+ *      matter most and the person doing it is thinking about the release.
  *
  * ── Bed Ready needs its own rule, and a different one ──────────────────────
  *
@@ -98,6 +104,16 @@ const TRACKED = [
  * strict about the words, so ordinary prose about publishing does not match.
  */
 const NEWEST_CLAIM = /newest[\s*_]+(?:\*+)?published(?:\*+)?/gi;
+
+/**
+ * A claim about the STABLE channel: `**Stable**` as a bolded label or table
+ * cell. Deliberately CASE-SENSITIVE, which is what separates the four claims
+ * from the ordinary prose in the same files — "from a **stable** version it
+ * bumps the minor", "**stable** installers stay on the last published stable",
+ * "they have been in **stable v3.6.0** since". Those are sentences about
+ * stability; the capitalised ones are labels on a fact.
+ */
+const STABLE_CLAIM = /\*\*Stable\b/g;
 
 /**
  * Quoted spans are removed before looking for a claim, because these files
@@ -249,6 +265,39 @@ function checkReleaseClaims(root = ROOT) {
     }
   }
 
+  // 6 — the stable channel, one fact in four files.
+  const stable = [];
+  for (const rel of TRACKED) {
+    const abs = path.join(root, rel);
+    if (!fs.existsSync(abs)) continue;
+    const lines = fs.readFileSync(abs, 'utf8').split('\n');
+    lines.forEach((line, i) => {
+      STABLE_CLAIM.lastIndex = 0;
+      const hit = STABLE_CLAIM.exec(withoutQuotes(line));
+      if (!hit) return;
+      stable.push({ file: rel, line: i + 1, version: versionNear(lines, i, hit.index + hit[0].length) });
+    });
+  }
+  const stableNamed = stable.filter((c) => c.version);
+  const stableVersions = [...new Set(stableNamed.map((c) => c.version))];
+  if (stableVersions.length > 1) {
+    failures.push(
+      `The files disagree about which release is stable: ` +
+      `${stableNamed.map((c) => `${c.file}:${c.line} says ${c.version}`).join('; ')}.\n` +
+      `    Promoting a line means changing this in every file that states it, and ` +
+      `each states it in its own wording.`
+    );
+  }
+  for (const c of stableNamed) {
+    if (compare(c.version, current) > 0) {
+      failures.push(
+        `${c.file}:${c.line} calls ${c.version} stable, but package.json is ` +
+        `${current}.\n` +
+        `    A release cannot be stable before the bump that creates it has landed.`
+      );
+    }
+  }
+
   // 5 — Bed Ready's separate line. Only files that make a claim take part; a
   // file that never mentions Bed Ready is not stale about it.
   const bedready = new Map();
@@ -299,11 +348,11 @@ function checkReleaseClaims(root = ROOT) {
     );
   }
 
-  return { current, failures, claims, bedready: Object.fromEntries(bedready) };
+  return { current, failures, claims, stable, bedready: Object.fromEntries(bedready) };
 }
 
 function main() {
-  const { current, failures, claims, bedready } = checkReleaseClaims();
+  const { current, failures, claims, stable, bedready } = checkReleaseClaims();
 
   if (failures.length) {
     console.error(`release-claims check FAILED — package.json is ${current}\n`);
@@ -320,7 +369,9 @@ function main() {
   const where = versions.length ? ` (newest published: ${versions[0]})` : '';
   const br = [...new Set(Object.values(bedready))];
   const brNote = br.length ? `, Bed Ready ${br[0]}` : '';
-  console.log(`release-claims check ok — ${TRACKED.length} files agree on ${current}${where}${brNote}`);
+  const st = [...new Set(stable.map((c) => c.version).filter(Boolean))];
+  const stNote = st.length ? `, stable ${st[0]}` : '';
+  console.log(`release-claims check ok — ${TRACKED.length} files agree on ${current}${where}${stNote}${brNote}`);
 }
 
 if (require.main === module) main();
