@@ -5,6 +5,7 @@ const path = require('path');
 const vm = require('vm');
 
 const root = path.join(__dirname, '..');
+const { trackedPaths } = require('./helpers/repo-files.js');
 
 test('locale files register KhaytLocales.en with app.title', () => {
   const ctx = vm.createContext({ globalThis: {} });
@@ -175,15 +176,15 @@ test('no locale key is unreachable from code', () => {
   vm.runInContext(fs.readFileSync(path.join(root, 'renderer/locales/en.js'), 'utf8'), ctx);
   const keys = Object.keys(ctx.globalThis.KhaytLocales.en);
 
-  const files = [];
-  (function walk(d) {
-    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
-      if (['node_modules', '.git', 'build', 'dist'].includes(e.name)) continue;
-      const p = path.join(d, e.name);
-      if (e.isDirectory()) walk(p);
-      else if (/\.(js|mjs|cjs|html|css|json|md)$/.test(e.name) && !p.includes(path.join('renderer', 'locales'))) files.push(p);
-    }
-  })(root);
+  // The corpus is what GIT tracks, not what is sitting in the checkout. Walking
+  // the working directory searched 4,886 files here of which 774 were in the
+  // repo: `.claude/worktrees/` held 2,151 and an untracked `Khayt/` another
+  // 1,907, all of them older copies of this same source. A key deleted from the
+  // live tree is still "reachable" in a stale copy, so this test passed locally
+  // and failed in CI — see test/helpers/repo-files.js, which is where the rest
+  // of that reasoning lives.
+  const files = trackedPaths((rel) =>
+    /\.(js|mjs|cjs|html|css|json|md)$/.test(rel) && !rel.startsWith('renderer/locales/'));
   const blob = files.map((f) => fs.readFileSync(f, 'utf8')).join('\n');
 
   // Prefixes some code concatenates onto, and tails some code appends.
