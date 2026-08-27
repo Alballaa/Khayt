@@ -2614,6 +2614,7 @@
   "cam.detect_none": "Defina primeiro o tipo e o endereço da impressora",
   "cam.loading": "Câmera…",
   "cam.offline": "Câmera offline",
+  "cam.no_frame": "Ainda sem imagem",
   "tel.hint": "O Khayt não envia nada por padrão. Você pode, se quiser, compartilhar relatórios de erro e contagens anônimas de uso para ajudar a corrigir problemas. Nunca seus pedidos, clientes, preços ou arquivos.",
   "tel.crash": "Compartilhar relatórios de erro",
   "tel.crash_hint": "Uma mensagem de erro higienizada e o rastreamento de pilha quando algo quebra.",

@@ -107,7 +107,15 @@ async function refreshMachineCameras() {
       if (r && r.ok && r.dataUrl) {
         el.innerHTML = `<img src="${r.dataUrl}" alt="" style="${style}">`;
       } else {
-        el.innerHTML = `<span style="font-size:11px;color:var(--text-muted);">${escapeHtml(t('cam.offline') || 'Camera offline')}</span>`;
+        // "Camera offline" was shown for every failure, including the one that
+        // means the opposite: the printer answered promptly, about a camera it
+        // has, that simply has no frame yet. Telling someone their camera is
+        // offline while it warms up sends them to check a cable.
+        const noFrame = r && r.error === 'no_frame_yet';
+        const msg = noFrame
+          ? (t('cam.no_frame') || 'No picture yet')
+          : (t('cam.offline') || 'Camera offline');
+        el.innerHTML = `<span style="font-size:11px;color:var(--text-muted);">${escapeHtml(msg)}</span>`;
       }
     } catch (e) {
       // Still must not break the machines view — but the tile was left reading "Camera…"

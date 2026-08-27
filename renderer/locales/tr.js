@@ -2613,6 +2613,7 @@
   "cam.detect_none": "Önce yazıcı türünü ve adresini belirleyin",
   "cam.loading": "Kamera…",
   "cam.offline": "Kamera çevrimdışı",
+  "cam.no_frame": "Henüz görüntü yok",
   "tel.hint": "Khayt varsayılan olarak hiçbir şey göndermez. Hataları düzeltmeye yardımcı olmak için isteğe bağlı olarak çökme raporlarını ve anonim kullanım sayılarını paylaşabilirsiniz. Siparişleriniz, müşterileriniz, fiyatlarınız veya dosyalarınız asla gönderilmez.",
   "tel.crash": "Çökme raporlarını paylaş",
   "tel.crash_hint": "Bir şey bozulduğunda temizlenmiş hata mesajı ve yığın izi.",
