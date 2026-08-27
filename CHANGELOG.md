@@ -6,6 +6,21 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Shipment tracking could go quiet without anyone knowing.** Khayt reads
+  delivery updates from SMSA, Aramex and SPL. If a carrier sent its update in a
+  slightly different arrangement than expected — a very ordinary difference —
+  Khayt could not find the tracking number inside it, and answered the carrier
+  as though everything was fine. The shipment then simply never moved past the
+  status it was on, and nothing anywhere said why. It looked exactly like a
+  carrier that had stopped sending.
+
+  Khayt now reads the common arrangements, and when it genuinely cannot make
+  sense of an update it says so to the carrier instead of silently accepting it
+  — so the failure shows up in the carrier's own delivery log rather than
+  nowhere. Update times sent as `eventTime` are also read now; they were being
+  dropped.
+
+
 - **Hardened a text-escaping helper that could have stopped escaping.** Two
   places in Khayt used a short helper to make customer-supplied text safe to
   display, and each was written to fall back to the raw text if the main
