@@ -1,7 +1,7 @@
 # Printer protocol audit — what each vendor actually says
 
-**Last run: 2026-08-27**, in three passes — the polling paths, then the command
-paths, then the camera paths. Method, sources, and every finding. The first run was 2026-08-25; both are kept, because what the second one found is mostly a comment on
+**Last run: 2026-08-27**, in four passes — the polling paths, the command paths,
+the camera paths, and discovery (which came out clean). Method, sources, and every finding. The first run was 2026-08-25; both are kept, because what the second one found is mostly a comment on
 what the first one missed.
 
 Khayt talks to seven printer protocols and there is one printer on the bench: a
@@ -439,6 +439,37 @@ paths, same lesson.
 - **Headers are checked before the body is read**, so an oversized or non-image
   response is refused without being buffered first — with a length backstop for
   a response that declares no `content-length`.
+
+## Findings, 2026-08-27 (fourth pass) — DISCOVERY, and it came out clean
+
+The fourth and last surface: how Khayt decides that something on the LAN is a
+printer, and which kind. **No defects.** Recorded anyway, because a pass that
+finds nothing is only worth having if the next one can tell it happened.
+
+This surface was in better shape than the other three, and visibly so — it
+already carries the one thing no document could have told it. Moonraker ships an
+OctoPrint compatibility shim, so a Snapmaker U1 answered `/api/version` on port
+80 with `{"server":"1.5.0","api":"0.1","text":"OctoPrint (Moonraker 1.5.2)"}`
+and was reported twice, as both. That was caught on a live run and is handled by
+taking the shim at its word (`text` names itself). Tier 3 doing what only tier 3
+can.
+
+**Checked against OctoPrint 2.0 specifically**, since a major line entering RC is
+what triggered this whole day:
+
+- `/api/version` still exists in the 2.0 line and is still guarded by
+  `@Permissions.STATUS.require(403)`. Khayt identifies an OctoPrint by that
+  refusal as much as by a 200 — "a printer we cannot yet authenticate to is
+  still a printer we have found" — and that behaviour is unchanged.
+- 2.0 adds a versioned handler that **drops the `api` field** for clients asking
+  for `>=2.0.0`. Khayt sends no version header, so it gets the pre-2.0 shape;
+  and it reads `server` and `text`, both of which are present either way.
+
+The other probes were re-read and stand: Moonraker's
+`system_info.cpu_info.serial_number` as a stable identity that does not move with
+a DHCP lease, PrusaLink's blanket 401 on `/api/v1/*` (settled from Buddy's own
+firmware in the first run), and RepRapFirmware's 401 on `rr_model` being a Duet
+rather than a dead end.
 
 ## Findings, 2026-08-25 — the first run
 
