@@ -11,7 +11,18 @@
  */
 (function (global) {
   const hub = () => (typeof window !== 'undefined' && window.hubAPI) || null;
-  const esc = (s) => (typeof escapeHtml === 'function' ? escapeHtml(String(s == null ? '' : s)) : String(s == null ? '' : s));
+  const esc = (s) => {
+    const v = String(s == null ? '' : s);
+    // Never a pass-through. This used to fall back to the RAW string when the
+    // global was missing, so a helper named `esc` could stop escaping without
+    // anything failing — a guard that silently becomes a non-guard, which is
+    // the shape of most of what the 2026-08-27 audits found. The global is
+    // always loaded in the app (check:globals enforces it), so this branch is
+    // not reachable today; it is written to be safe when it is.
+    return (typeof escapeHtml === 'function') ? escapeHtml(v)
+      : v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+         .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  };
 
   // Per-material recommended temperature range [start, end, step] (°C) and a typical
   // first-layer / print speed hint. Approximate starting points — adjust to your setup.

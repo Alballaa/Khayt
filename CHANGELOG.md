@@ -6,6 +6,14 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **Hardened a text-escaping helper that could have stopped escaping.** Two
+  places in Khayt used a short helper to make customer-supplied text safe to
+  display, and each was written to fall back to the raw text if the main
+  escaping function was ever unavailable. That never happened — the app always
+  loads it, and a build check enforces that — but a helper whose name promises
+  it is safe should not depend on another file to keep that promise. Both now
+  escape on their own.
+
 - **A Medusa order arrived labelled with an internal id instead of its order
   number.** Khayt asks a Medusa store for the order behind each event, and the
   list of things it asked for was missing two of the ones it then tried to read.

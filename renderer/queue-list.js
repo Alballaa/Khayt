@@ -49,7 +49,12 @@
   }
 
   function esc(s) {
-    return (typeof escapeHtml === 'function') ? escapeHtml(String(s ?? '')) : String(s ?? '');
+    const v = String(s ?? '');
+    // Never a pass-through — see renderer/calibration.js for why. The global is
+    // always loaded in the app; this branch is written to be safe when it is not.
+    return (typeof escapeHtml === 'function') ? escapeHtml(v)
+      : v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+         .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   function isBiz() {
