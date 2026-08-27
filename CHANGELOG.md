@@ -58,6 +58,37 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ### Fixed
 
+- **A Repetier printer showed as idle the whole time it was printing.** It
+  reported no job, no progress and no filename, whatever the machine was doing —
+  and did it quietly, next to temperatures that were correct, which is the
+  combination least likely to make anyone doubt the rest of the card.
+
+  Repetier answers two different questions on two different calls: one about the
+  machine, one about the job. Khayt only ever asked the first one, and looked for
+  the job on it. Nothing was missing and nothing failed; the answer simply was
+  not in the reply, and an empty answer reads exactly like an idle printer.
+
+  Progress, the file name, and paused, waiting and offline now all come from the
+  call that carries them. A machine with no heated bed also stops reporting a bed
+  at 0 °C, which it had been doing for as long as there has been a Repetier
+  adapter.
+
+- **"HTTP 409" is not something anyone can act on.** When OctoPrint was running
+  but no printer was connected to it — switched off at the wall, unplugged, or
+  simply not connected in OctoPrint, which is most of a normal day — Khayt showed
+  a red error reading `HTTP 409`, and threw away everything else OctoPrint had
+  told it in the same breath.
+
+  That is not a fault. It is a printer that is off, and OctoPrint says so plainly
+  in a part of the answer Khayt was discarding. The card now says **Offline**,
+  the way every other kind of printer already did.
+
+  The same went for a Klipper machine restarting, which read as `HTTP 503`. Where
+  the printer's own server explains itself, Khayt now says what happened and what
+  to do about it, and quotes the server's own words beside it — and where it has
+  nothing useful to add, it still tells you the status rather than inventing a
+  reason.
+
 - **Khayt can now find a printer that changed address, even one that does not
   announce itself.** It could already repair a printer whose address moved — but
   only by listening for printers that broadcast their presence, and the Snapmaker

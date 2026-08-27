@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
-const { normalizeProgress, fileProgressPct, etaSeconds, layerProgressPct, moonrakerProgress } = require('../lib/printer-status.js');
+const { normalizeProgress, fileProgressPct, etaSeconds, layerProgressPct, moonrakerProgress, explainPrinterHttp, vendorMessage } = require('../lib/printer-status.js');
 const { duetHeaterTemp } = require('../lib/duet.js');
 
 /**
@@ -231,24 +231,76 @@ test('Klipper reports "not set" as null, and null is not layer zero', () => {
     { percent: 18, source: 'layers' });
 });
 
-test('Repetier stateList is keyed by slug, and "none" is not a filename', () => {
-  // Repetier's API doc: {error:"", data:{ "<slug>": {...} }}. Indexing that with
-  // [0] is always undefined, so every Repetier printer read as Idle / 0% / no
-  // temperatures however busy it was.
+test('Repetier stateList is keyed by slug, and carries no job at all', () => {
+  // What this test used to do is worth recording, because it is why the adapter
+  // stayed broken through an audit that reported it fixed: it built its own
+  // fixture with `job` and `done` sitting on the stateList entry, asserted
+  // against a re-implementation of the adapter written inline, and passed. Both
+  // halves were wrong. Repetier does not send those fields on this call — they
+  // are on `?a=listPrinter` — and a test that re-implements the code under test
+  // can only ever prove the fixture agrees with itself.
+  //
+  // What survives here is the one claim that was true and is this file's
+  // business: the envelope. `{error:"", data:{ "<slug>": {...} }}` is an object
+  // keyed by slug, and indexing it with [0] is undefined.
+  //
+  // The adapter itself is now driven, with two real payload shapes, in
+  // test/repetier.test.js.
   const body = { error: '', data: { irapid: {
-    activeExtruder: 0, job: 'bracket.gcode', done: 42.5,
-    extruder: [{ tempRead: 212.4 }], heatedBed: { tempRead: 59.8 },
+    activeExtruder: 0, layer: 87,
+    extruder: [{ tempRead: 212.4 }], heatedBeds: [{ tempRead: 59.8 }],
   } } };
   assert.equal(body.data[0], undefined, 'the read that was there');
 
-  const state = body.data['irapid'] || Object.values(body.data)[0] || {};
-  assert.equal(normalizeProgress(state.done), 43);
+  const state = body.data.irapid;
   assert.equal(state.extruder[state.activeExtruder].tempRead, 212.4);
-  assert.equal(state.heatedBed.tempRead, 59.8);
-  assert.equal(state.heated_bed, undefined, 'the key Khayt used to ask for');
+  assert.equal(state.done, undefined, 'progress is not on this call, and never was');
+  assert.equal(state.job, undefined, 'nor is the job');
+});
 
-  // An idle printer reports the literal string "none" in `job`, which is truthy.
-  const idle = { job: 'none' };
-  const jobName = typeof idle.job === 'string' && idle.job !== 'none' ? idle.job : '';
-  assert.equal(jobName, '', '"none" must not appear in the queue as a print');
+/**
+ * What a shop is told when a printer's server refuses the poll.
+ *
+ * Every HTTP adapter threw `HTTP <status>` and that string is rendered raw on
+ * the dashboard card, so the two most ordinary conditions in the field —
+ * "OctoPrint is up but no printer is connected" and "your key is wrong" —
+ * reached the owner as HTTP 409 and HTTP 403.
+ */
+
+test('a status code is turned into something the owner can act on', () => {
+  const oct = explainPrinterHttp('octoprint', 409, '{"error":"Printer is not operational"}');
+  assert.match(oct, /not connected to a printer/i);
+  assert.match(oct, /Printer is not operational/, "the vendor's own words are quoted, not paraphrased");
+
+  const moon = explainPrinterHttp('moonraker', 503, '{"error":{"code":503,"message":"Klippy Host not connected"}}');
+  assert.match(moon, /Klipper is not running/i);
+  assert.match(moon, /Klippy Host not connected/, 'the message names WHICH failure it is');
+
+  assert.match(explainPrinterHttp('octoprint', 403, ''), /API key/i);
+  assert.match(explainPrinterHttp('moonraker', 401, ''), /trusted_clients/);
+  assert.match(explainPrinterHttp('prusalink', 401, ''), /Settings → Network → PrusaLink/);
+});
+
+test('nothing is invented for a status that has no known meaning', () => {
+  // Returning null hands the caller back its own `HTTP <status>`, which is
+  // useless but true. A confident sentence about the wrong cause is worse: the
+  // Bambu timeout message spent a release naming three settings that were all
+  // correct.
+  assert.equal(explainPrinterHttp('octoprint', 500, ''), null);
+  assert.equal(explainPrinterHttp('moonraker', 404, ''), null);
+  assert.equal(explainPrinterHttp('duet', 401, ''), null, 'Duet reads 401 as a transport signal, not an error');
+  assert.equal(explainPrinterHttp('repetier', 503, ''), null);
+  assert.equal(explainPrinterHttp('', 409, ''), null);
+});
+
+test('a printer error body cannot run away with the status line', () => {
+  // The body comes off a device on the LAN and lands in a one-line status on a
+  // card, so its length is not something this end controls.
+  assert.equal(vendorMessage({ error: 'a\nb   c' }), 'a b c');
+  const long = vendorMessage(JSON.stringify({ error: 'x'.repeat(500) }));
+  assert.equal(long.length, 198, 'capped, with an ellipsis');
+  assert.ok(long.endsWith('…'));
+  assert.equal(vendorMessage(''), '');
+  assert.equal(vendorMessage('not json at all'), 'not json at all');
+  assert.equal(vendorMessage('{"nothing":"useful"}'), '');
 });

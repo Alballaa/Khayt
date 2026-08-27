@@ -1,6 +1,8 @@
 # Printer protocol audit — what each vendor actually says
 
-**Last run: 2026-08-25.** Method, sources, and every finding.
+**Last run: 2026-08-27.** Method, sources, and every finding. The first run was
+2026-08-25; both are kept, because what the second one found is mostly a comment on
+what the first one missed.
 
 Khayt talks to seven printer protocols and there is one printer on the bench: a
 Snapmaker U1, plus a Prusa CORE One on the LAN. Everything else — every Duet,
@@ -36,11 +38,198 @@ on the mirror would have broken working Prusa support in the name of fixing it.
 
 The step that actually finds things is the fourth one: **run Khayt's shipped code
 against a payload shaped the way the source says it really arrives.** Four of the
-six defects below were invisible when reading Khayt's code, because Khayt's code
-is reasonable — it is the assumed payload that was wrong. Every one of them
-reproduced immediately once the payload was right.
+six defects in the first run were invisible when reading Khayt's code, because
+Khayt's code is reasonable — it is the assumed payload that was wrong. Every one
+of them reproduced immediately once the payload was right.
 
-## Findings, 2026-08-25
+The second run added two questions, because the first run's four found nothing
+the second time and these found three defects between them:
+
+5. **Which CALL is this field on?** A payload audit reads the body that arrived
+   and cannot see a field sitting on an endpoint nobody asked for. Repetier
+   splits machine state and job state across two calls and the response does not
+   say so; reading an absent field returns `undefined`, which normalises to `0`,
+   which renders as a plausible number.
+6. **What arrives when NOTHING arrives?** Every vendor has ordinary, non-fault
+   conditions it reports as a non-2xx — no printer connected, firmware
+   restarting, wrong key — and a poller that turns those into `HTTP <status>`
+   has taken a diagnosis and thrown it away at the last step. Check the status
+   codes on the guard clauses, not only the fields in the happy path.
+
+## Findings, 2026-08-27 — the second run
+
+Triggered by a vendor shipping a major line: **OctoPrint 2.0** entered release
+candidate (`2.0.0rc5`, 2026-08-24), and 2.0 rewrites the printer communication
+layer entirely — printers are now reached through *connectors*, with Moonraker
+and Bambu connectors alongside the bundled serial one.
+
+That turned out to be the least of it. **Three defects, all in the same blind
+spot, and one of them is a row this file marked fixed two days earlier.**
+
+| Protocol | Symptom | Root cause | Tier |
+|---|---|---|---|
+| Repetier | STILL Idle / 0% / no filename, on every machine | `done` and `job` are on `listPrinter`, not `stateList` | 2 + 3 |
+| Repetier | A machine with no heated bed reports a bed at 0 °C | `Number(null)` is `0`, and `0` is finite | — |
+| OctoPrint | Any printer not connected to OctoPrint reads as an ERROR | `GET /api/printer` is `abort(409)`, and it was awaited bare | 1 |
+| Moonraker | Klipper restarting reads as `HTTP 503` | the status code was rendered raw to the shop | 1 |
+
+### The blind spot, named — because it is what this run is actually about
+
+The 2026-08-25 pass audited **what is inside the payload**: field names, units,
+and — its own best lesson — provenance. Every one of its six findings was a
+value being read wrongly out of a body that arrived.
+
+Nothing in it asked **which call the value is on**, or **what happens when no
+body arrives at all**. Both are ways to be wrong that a payload audit cannot
+see, and all four findings above are one or the other. So the method below now
+has a fourth and fifth question, and they are the ones that found things this
+time.
+
+### Repetier — the right fix, applied to the wrong cause
+
+The last run reported this adapter fixed. The symptom it described —
+"always Idle, 0%, no temperatures" — was real, and the cause it found was real:
+`stateList` answers as an object keyed by printer slug and was being indexed
+`data.data[0]`, which is always `undefined`. Fixing that recovered the
+temperatures.
+
+It did not recover progress or the filename, because **those two fields were
+never on that call.** Repetier splits its API in a way nothing in the response
+announces:
+
+| Call | Answers about | Fields |
+|---|---|---|
+| `?a=stateList` | the MACHINE | `activeExtruder`, `extruder[]`, `heatedBeds[]`, `heatedChambers[]`, `layer`, `x/y/z`, fans, `speedMultiply`, `flowMultiply`, `firmware`, `sdcardMounted` |
+| `?a=listPrinter` | the JOB | `done`, `job`, `jobid`, `paused`, `pauseState`, `online`, `printStart`, `printTime`, `printedTimeComp`, `start`, `totalLines`, `linesSend`, `ofLayer` |
+
+Khayt asked only the first and read `state.done` and `state.job` off it. Absent
+fields do not throw: `undefined` normalises to `0`, an empty filename reads as
+"no job", and the adapter concluded Idle. **So the exact sentence this file
+crossed off two days ago was still true of every Repetier printer in the
+field** — a printer at 42% with a 212 °C nozzle still looked idle, and now it
+looked idle with correct temperatures next to it.
+
+Settled by Repetier's own API reference, which lists the `stateList` fields and
+includes neither `done` nor `job`, and by RepetierSharp — a typed C# client
+whose `PrinterState` model matches that list field for field while `done` and
+`job` sit on its `Printer` model, which is what `listPrinter` returns. That
+`done` is a percentage rather than a 0–1 fraction is settled by Home Assistant's
+`repetier` component, which publishes it as `PERCENTAGE` rounded to two decimals.
+
+**Two attested shapes for `job`, and both are now accepted.** Repetier documents
+the printer listing's `job` as a STATE — `none | paused | printing | waitstart` —
+while RepetierSharp types it as the job's NAME beside a separate `jobstate`.
+There is no Repetier server on this bench to settle which version answers which,
+so the four state words are treated as a state and anything else as a filename.
+Betting on the name would have put the literal word "printing" in a shop's queue
+as though somebody had sliced a file called it.
+
+**How the test suite helped it survive.** The Repetier test written with the
+last fix built its own fixture with `done` and `job` sitting on the `stateList`
+entry — a payload Repetier does not send — and asserted against a copy of the
+adapter's logic written inline in the test. It passed, and could not have
+failed: a fixture agreeing with itself. It has been replaced; `lib/repetier.js`
+is now driven with the two payloads separately in `test/repetier.test.js`, and a
+test asserts that putting `done` and `job` on the state object changes nothing.
+
+**Found while writing those tests, in code moved across unchanged:** `num()` was
+`Number.isFinite(Number(v)) ? Number(v) : null`, and `Number(null)` is `0`. A
+machine with no heated bed, or a poll that returned no temperatures at all,
+therefore reported a bed sitting at **0 °C** — a reading about a heater that
+does not exist. Absent has to stay absent.
+
+### OctoPrint — "no printer connected" is not an error, and 2.0 changes less than it looks
+
+`GET /api/printer` opens with `abort(409, description="Printer is not
+operational")`. Not an edge case: it is OctoPrint running with the printer
+switched off, unplugged, or simply not connected in OctoPrint — most of any
+working day, and the state a shop is in when it opens the app to check.
+
+Khayt awaited `/api/printer` and `/api/job` together, so that 409 failed the
+whole poll, and the raw string **`HTTP 409`** was rendered on the dashboard card.
+It also threw away the `/api/job` response, which arrives perfectly well in that
+state — its GET carries no operational guard — and whose `state` reads `Offline`
+straight from the connection's own string (`CLOSED = gettext("Offline")`).
+
+So the job is now asked for unconditionally and the printer tolerantly. Only 409
+is survived; every other status is still a fault.
+
+**On 2.0 itself, the answer is reassuring and worth writing down so the next run
+does not re-derive it:**
+
+- **API versioning is opt-in, and the default is the old behaviour.** 2.0 adds an
+  `X-OctoPrint-Api-Version` header; the documentation is explicit that "if the
+  header is left out, the API will behave according to its documented pre-2.0.0
+  behaviour". Khayt sends no header and therefore keeps the shape it parses.
+  `server/api/job.py` shows the mechanism — the un-versioned handler builds an
+  `ApiJobResponse_pre_2_0_0` explicitly, with `>=2.0.0` as a separate handler.
+- **`job.filament` is still the estimate**, and 2.0 stops pretending otherwise:
+  1.11 filled it from `fileData["analysis"]["filament"]`, and 2.0 fills it from
+  `job.filament_estimate`. The field the last run caught Khayt trusting is now
+  named "estimate" in the vendor's own source. Khayt's refusal stands.
+- **`sd` becomes `storage`, `/api/printer/sd` becomes `/api/printer/storage`**,
+  both with backwards-compatible routes, and the rename only takes effect when a
+  client asks for `>=2.0.0`. Khayt reads neither.
+- **New in `progress.printTimeLeftOrigin`: `printer`** — an estimate supplied by
+  the connector rather than computed by OctoPrint. Khayt reads `printTimeLeft`
+  and not its origin, so nothing changes; but this is the field to watch if
+  connector-supplied numbers ever need distinguishing from OctoPrint's own.
+
+### Moonraker — a restart is not a failure, and the status code says which it is
+
+`ServerError("Klippy Host not connected", 503)` and `ServerError("Klippy
+Disconnected", 503)` in `moonraker/klippy_connection.py` are what a query gets
+while Klipper restarts — and permanently after a config error stops it coming
+back. A shop saw `HTTP 503`.
+
+Both this and the OctoPrint case are the same failure at the last step: the
+poller threw `HTTP <status>` and that string is rendered verbatim on the
+dashboard card and in the machine dialog's *Test connection*. The comment above
+the dashboard's own render call already states the principle it was breaking —
+the raw status is "the symptom in the vocabulary of a socket", where what is
+needed is "the same fact in the vocabulary of the person who has to fix it" —
+and `lib/makerrun-maintenance.js` records the same lesson again, learned from a
+503 the library sent. The printer poller had not learned it either time.
+
+`explainPrinterHttp()` now turns the statuses whose meaning is in a vendor's own
+source into a sentence naming the fix, and quotes the vendor's message beside it
+rather than paraphrasing. A status with no known meaning still reports as
+`HTTP <status>`: useless but true beats a confident sentence about the wrong
+cause.
+
+### Bambu — found, recorded, NOT fixed: the poll is shaped wrongly for the P1 line
+
+No defect in what Khayt parses. The report fields were checked and are right:
+`mc_percent`, `mc_remaining_time` (minutes → seconds), `nozzle_temper`,
+`bed_temper`, `layer_num`, `total_layer_num`, `subtask_name`, `gcode_state`. The
+`pushall` request Khayt sends is byte-for-byte the one `ha-bambulab` sends. And
+**Bambu's LAN report carries no cumulative extrusion of any kind**, so
+`printer-actuals.js` refusing to claim a weight for Bambu is confirmed correct
+rather than merely cautious.
+
+What is wrong is the SHAPE of the poll, and it needs a Bambu to fix responsibly:
+
+- **`pushall` every 30 seconds, against documented guidance of no more often
+  than 5 minutes on the P1P** — "as it may cause lag due to its hardware
+  limitations". Khayt opens a fresh MQTT connection each poll, sends `pushall`,
+  takes the first snapshot and disconnects; that is 10× the documented rate, on
+  the cheapest and most numerous machine in the line.
+- **The P1 line is reported to serve only one local MQTT client correctly** —
+  "only the last connection gets data" — so a reconnect every 30 seconds may be
+  repeatedly evicting Bambu Studio, Handy, or Home Assistant, and being evicted
+  by them. Attested twice (`bambulab/BambuStudio#2404`, `ha-bambulab#174`) but
+  **against firmware 01.04 and not re-verified on a current line**, which is
+  exactly why it is not in the timeout message: naming an unverified cause is the
+  mistake that message already exists to correct.
+
+The shape that matches every real-hardware client: hold the connection, `pushall`
+once on connect, merge the deltas the printer pushes, and re-`pushall` only when
+a watchdog says nothing has arrived (`ha-bambulab` uses 60 s). That is a real
+change to `lib/bambu.js` with no Bambu here to test it against, so it is written
+down rather than guessed at — the same standard the Duet SBC transport and R7's
+socket layer were held to.
+
+## Findings, 2026-08-25 — the first run
 
 Six defects. Five of them produced a wrong number on screen indefinitely; none of
 them threw, which is why all six survived so long.
@@ -120,6 +309,12 @@ machine running non-unity flow carries that bias, as the code comment already
 said.
 
 ### Repetier — an object read as an array
+
+> **Superseded on 2026-08-27, and read the newer section before trusting this
+> one.** Everything below is true and the fix was real, but it was only half the
+> cause: `done` and `job` are not on `stateList` at all, so this adapter went on
+> reporting Idle / 0% for every machine after being marked fixed here.
+
 
 Repetier's API reference: the first level of every response is
 `{error:"", data:…}`, and `stateList` answers for *every* printer the server
@@ -211,6 +406,22 @@ Recorded so the next audit can skip them, with what settled each.
   seconds, `printer.state` enum `IDLE BUSY PRINTING PAUSED FINISHED STOPPED ERROR
   ATTENTION READY`. Plus the `X-Api-Key` point above.
 - **Duet.** `job.duration` and `rawExtrusion` as described above.
+- **OctoPrint 2.0 (checked 2026-08-27).** The new `X-OctoPrint-Api-Version`
+  header is opt-in and its absence means pre-2.0.0 behaviour, so Khayt's parsing
+  is unaffected by the 2.0 line; `job.filament` is filled from
+  `job.filament_estimate` there, which confirms the first run's provenance
+  finding in the vendor's own naming; the `sd` → `storage` rename applies only to
+  clients asking for `>=2.0.0`, and Khayt reads neither.
+- **Bambu report fields (checked 2026-08-27).** `mc_percent`,
+  `mc_remaining_time` (minutes — Khayt converts), `nozzle_temper`, `bed_temper`,
+  `layer_num`, `total_layer_num`, `subtask_name`, `gcode_state`. The `pushall`
+  payload Khayt sends is identical to `ha-bambulab`'s. There is **no cumulative
+  extrusion field of any kind**, so claiming no weight for Bambu is correct, not
+  merely careful.
+- **Repetier temperatures.** `extruder[].tempRead` / `heatedBeds[].tempRead` are
+  what RepetierSharp models and what Home Assistant's client reads. The plural
+  `heatedBeds` is the attested spelling; `heatedBed` and `heatedbeds` stay
+  accepted, `heated_bed` was never any version's.
 - **SDCP (Elegoo resin).** Matches `cbd-tech/SDCP-…-V3.0.0` on every field
   checked: UDP `M99999` on 3000, WebSocket `ws://IP:3030/websocket`, the six
   topics, both status enums, the error enum, `PrintScreen` in seconds (Khayt
@@ -248,10 +459,27 @@ assumes otherwise.
   printing→complete transition `captureCompletion` fires on. The U1 retained its
   stats, which is why the primary path has only ever been exercised on a printer
   that does. By source, a Duet will not. Unproven either way; needs a Duet.
-- **Repetier progress.** `done` is read from the state object, but Repetier's HTTP
-  API documentation does not show a progress field on `stateList` — the vendor
-  example is of an idle printer, and job-related fields appear in the websocket
-  push. If a real server reports 0% while printing, that is where to look.
+- ~~**Repetier progress.**~~ **Closed 2026-08-27 — and it should never have been
+  filed here.** The 2026-08-25 entry read: "`done` is read from the state object,
+  but Repetier's HTTP API documentation does not show a progress field on
+  `stateList` … If a real server reports 0% while printing, that is where to
+  look." That is the defect, stated correctly, filed as something only hardware
+  could settle. It was not: the vendor's own field list plus one typed client
+  settled it in an afternoon, and the answer was that every Repetier printer
+  reported 0%. **A suspicion strong enough to write down is strong enough to
+  chase to a second document before it is parked behind a printer nobody owns.**
+- **Repetier time remaining, and actuals.** `printTime` and `printedTimeComp` are
+  on `listPrinter` and are deliberately unused, because what they MEAN is
+  documented nowhere this audit could find — RepetierSharp annotates
+  `printedTimeComp` with a literal question mark. Total-versus-elapsed and
+  compensated-versus-wall-clock are the same distinctions that made OctoPrint's
+  `job.filament` an estimate in a measurement's clothes. Needs a Repetier server,
+  or a vendor statement.
+- **Bambu's poll is shaped for the X1 and used on the P1.** Fresh connection plus
+  `pushall` every 30 s, against documented guidance of no more often than 5
+  minutes on a P1P, and against two reports that the P1 line serves only one
+  local MQTT client correctly. The fix is a persistent connection with a
+  watchdog; it needs a Bambu to verify. See the 2026-08-27 findings.
 
 ## Where R7 stands after this
 
@@ -298,10 +526,29 @@ Tier 2 — specification:
 [SDCP V3.0.0](https://github.com/cbd-tech/SDCP-Smart-Device-Control-Protocol-V3.0.0) ·
 [Bambu third-party integration](https://blog.bambulab.com/updates-and-third-party-integration-with-bambu-connect/)
 
+Added 2026-08-27 — tier 1:
+`OctoPrint/OctoPrint` (`dev` = the 2.0 line, `main` = 1.11)
+`src/octoprint/server/api/{printer,job}.py`, `src/octoprint/schema/api/job.py`,
+`src/octoprint/printer/{standard.py,connection.py}` ·
+`Arksine/moonraker` `moonraker/klippy_connection.py`
+
+Added 2026-08-27 — tier 2:
+[OctoPrint API versioning](https://docs.octoprint.org/en/dev/api/general.html#api-versioning) ·
+[OctoPrint 2.0.0rc1 release notes](https://github.com/OctoPrint/OctoPrint/releases/tag/2.0.0rc1) ·
+[OpenBambuAPI `mqtt.md`](https://github.com/Doridian/OpenBambuAPI/blob/main/mqtt.md)
+
 Tier 3 — real hardware, other people's:
 [Saturn 4 Ultra SDCP V3 notes](https://github.com/alfiedennen/sdcp-saturn-4-ultra) ·
 [Bambu LAN + Developer Mode, per model](https://help.simplyprint.io/en/article/bambu-lab-lan-only-mode-and-developer-mode-how-to-enable-xa0hch/) ·
-`home-assistant/core` `components/repetier` ·
+`home-assistant/core` `components/repetier` (added 2026-08-27: `done` is published
+as a PERCENTAGE, which settles its range) ·
+[`Z0rdak/RepetierSharp`](https://github.com/Z0rdak/RepetierSharp) `Models/Common/{Printer,PrinterState}.cs`
+— a typed client whose two models split exactly along the `listPrinter` /
+`stateList` line ·
+[`greghesp/ha-bambulab`](https://github.com/greghesp/ha-bambulab) `pybambu/{bambu_client,commands}.py`
+— persistent connection, `pushall` on connect, 60 s watchdog ·
+[P1 single-client reports](https://github.com/greghesp/ha-bambulab/issues/174) (with
+`bambulab/BambuStudio#2404`; firmware 01.04, not re-verified since) ·
 [Snapmaker's Moonraker fork](https://github.com/Snapmaker/u1-moonraker) — the U1
 runs a Moonraker with roughly 15% of it modified, so it is the reference for that
 machine rather than upstream.
