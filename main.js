@@ -67,8 +67,9 @@ const {
   mergePollSuccess, mergePollFailure, completionsToPersist, restoreCompletions, completionIsNew,
 } = require('./lib/printer-poll-cache');
 const sdcpClient = require('./lib/sdcp-client');
-const { normalizeProgress, fileProgressPct, etaSeconds, moonrakerProgress } = require('./lib/printer-status');
+const { normalizeProgress, fileProgressPct, etaSeconds, moonrakerProgress, explainPrinterHttp } = require('./lib/printer-status');
 const KhaytDuet = require('./lib/duet');
+const KhaytRepetier = require('./lib/repetier');
 const printerCommands = require('./lib/printer-commands');
 const { normalizeStoreSnapshot, STORE_VERSION } = require('./lib/store-validate');
 const upgradeBackup = require('./lib/upgrade-backup');
@@ -4133,19 +4134,43 @@ async function fetchPrinterStatus(machine) {
     // The status is carried on the error rather than only in its text, because
     // the Duet adapter has to tell "you need a session" (401 standalone, 403 SBC)
     // apart from "this surface does not exist here" (404) to pick a transport.
-    if (!res.ok) { const e = new Error(`HTTP ${res.status}`); e.status = res.status; throw e; }
+    if (!res.ok) {
+      // The body is read before the message is built because the vendors put the
+      // useful half there: Moonraker names which Klippy failure it is, OctoPrint
+      // says "Printer is not operational" in words. Failing to read it must not
+      // turn a 409 into a network error, hence the catch.
+      const body = await res.text().catch(() => '');
+      const e = new Error(explainPrinterHttp(type, res.status, body) || `HTTP ${res.status}`);
+      e.status = res.status;
+      throw e;
+    }
     return res.json();
   };
 
   if (type === 'octoprint') {
-    const [printer, job] = await Promise.all([get('/api/printer'), get('/api/job')]);
+    // `/api/printer` is guarded by `abort(409, "Printer is not operational")` —
+    // in the 1.11 line and in the 2.0 line alike (server/api/printer.py). That
+    // is not a fault: it is OctoPrint running with the printer switched off or
+    // not connected, which is most of any working day. Because both requests
+    // were awaited together, that 409 failed the WHOLE poll, so the card showed
+    // an error where it should have shown "Offline" — and threw away the
+    // `/api/job` response, which answers fine in exactly that state (its GET
+    // carries no operational guard) and whose `state` reads "Offline" straight
+    // from the connection's own string.
+    //
+    // So the job is asked for unconditionally and the printer tolerantly. Any
+    // other status still fails the poll, because any other status is a fault.
+    const [printer, job] = await Promise.all([
+      get('/api/printer').catch((e) => { if (e && e.status === 409) return null; throw e; }),
+      get('/api/job'),
+    ]);
     return {
-      state: printer.state?.text || 'Unknown',
+      state: printer?.state?.text || job.state || 'Unknown',
       progress: normalizeProgress(job.progress?.completion),
       filename: job.job?.file?.name || '',
       timeRemaining: job.progress?.printTimeLeft || null,
-      tempNozzle: printer.temperature?.tool0?.actual || null,
-      tempBed: printer.temperature?.bed?.actual || null,
+      tempNozzle: printer?.temperature?.tool0?.actual || null,
+      tempBed: printer?.temperature?.bed?.actual || null,
       // What the job has ACTUALLY used so far. Already in this payload; Khayt
       // fetched it and threw it away until now.
       actuals: extractActuals('octoprint', job, stockOptsFor(machine)),
@@ -4302,49 +4327,24 @@ async function fetchPrinterStatus(machine) {
   }
   if (type === 'repetier') {
     const slug = printerSlug || 'default';
-    const data = await get(`/printer/api/${encodeURIComponent(slug)}?a=stateList`);
-    // `stateList` answers for EVERY printer the server knows, as an object keyed
-    // by slug — "{error:'',data:{ '<slug>': {...} }}" in Repetier's own API
-    // documentation. This read `data.data[0]`, which indexes an object with a
-    // number and is therefore always undefined, so `state` was always {} and this
-    // adapter reported Idle / 0% / no temperatures no matter what the machine was
-    // doing. It never threw, which is why it went unnoticed: a printer running at
-    // 42% with a 212 degree hotend simply looked idle.
-    const byName = data.data && typeof data.data === 'object' ? data.data : {};
-    // Prefer the slug that was asked for; fall back to the only entry when the
-    // server names it something else (an unconfigured `printerSlug` is common).
-    const state = byName[slug] || Object.values(byName)[0] || {};
-
-    // `job` is the job's name while one is running and the string "none" when
-    // idle — not a truthy/falsy flag. Treating "none" as a filename put the word
-    // none in the queue as though it were a print.
-    const jobName = typeof state.job === 'string' && state.job !== 'none' ? state.job : '';
-
-    // The bed's key has moved across Repetier-Server versions: the vendor's own
-    // API example shows a single `heatedBed` object, while the client Home
-    // Assistant ships reads a plural `heatedbeds` LIST. Khayt was reading a third
-    // spelling, `heated_bed`, which is neither. Without a server here to settle
-    // it, accept the shapes that are attested rather than bet on one.
-    const bed = state.heatedBed
-      || (Array.isArray(state.heatedBeds) ? state.heatedBeds[0] : null)
-      || (Array.isArray(state.heatedbeds) ? state.heatedbeds[0] : null)
-      || state.heated_bed
-      || null;
-    // Multi-extruder machines report which one is live.
-    const nozzles = Array.isArray(state.extruder) ? state.extruder : [];
-    const activeIdx = Number.isInteger(state.activeExtruder) ? state.activeExtruder : 0;
-    const nozzle = nozzles[activeIdx] || nozzles[0] || null;
-    const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
-
-    return {
-      state: jobName ? 'Printing' : 'Idle',
-      progress: normalizeProgress(state.done),
-      filename: jobName,
-      timeRemaining: null,
-      tempNozzle: num(nozzle && nozzle.tempRead),
-      tempBed: num(bed && bed.tempRead),
-      type: 'repetier'
-    };
+    // TWO CALLS, BECAUSE THE JOB IS NOT ON THE CALL THIS ASKED.
+    //
+    // `stateList` is the state of the MACHINE — temperatures, active extruder,
+    // layer, position. `listPrinter` is the state of the JOB — `done`, `job`,
+    // `paused`, `online`. This adapter read `done` and `job` off `stateList`,
+    // where Repetier's own API reference lists neither, so progress was always
+    // 0 and the filename always empty, and the machine therefore always looked
+    // Idle. See lib/repetier.js for the sources and for why that survived the
+    // 2026-08-25 audit, which fixed a different cause of the same symptom.
+    //
+    // The listing is allowed to fail on its own: losing the job must not cost
+    // the temperatures the first call did return — the same rule the PrusaLink
+    // branch above follows for its second request.
+    const [stateData, listData] = await Promise.all([
+      get(`/printer/api/${encodeURIComponent(slug)}?a=stateList`),
+      get(`/printer/api/${encodeURIComponent(slug)}?a=listPrinter`).catch(() => null),
+    ]);
+    return KhaytRepetier.repetierStatus({ stateData, listData, slug, normalizeProgress });
   }
   throw new Error(`Unknown printer type: ${type}`);
 }

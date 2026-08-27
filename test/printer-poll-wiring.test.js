@@ -1,0 +1,89 @@
+/**
+ * The half of the poller that lives in main.js, and cannot be called from here.
+ *
+ * `fetchPrinterStatus` is an Electron main-process function that opens sockets;
+ * it is not exported and there is nothing to require. The pure parsing it hands
+ * off to is properly tested — lib/repetier.js in test/repetier.test.js,
+ * lib/duet.js in test/duet.test.js, the shared normalisers in
+ * test/printer-status.test.js. What is left in main.js is the ORCHESTRATION:
+ * which endpoints are asked for, and which failures are allowed to be survived.
+ *
+ * That orchestration is where both defects found in the 2026-08-27 audit pass
+ * actually lived, so it gets a guard even though a source scan is the weakest
+ * kind of test there is. Each assertion below is written to fail if the
+ * behaviour is removed, not merely if the wording changes.
+ *
+ * A caution recorded with them: these read one named file, deliberately. Tests
+ * in this repo that walk the whole directory can pass locally against the stray
+ * checkouts sitting in the working root and fail in CI.
+ */
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('fs');
+const path = require('path');
+
+const main = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+
+/**
+ * The body of one `if (type === '<x>') { … }` branch in fetchPrinterStatus.
+ *
+ * Anchored on the function, not on the first match in the file: main.js also
+ * switches on `type` when UPLOADING to a printer, and that branch is the one a
+ * naive search finds first. A guard that reads the wrong function proves
+ * nothing about the one it names.
+ */
+function branch(type) {
+  const poller = main.indexOf('async function fetchPrinterStatus(');
+  assert.notEqual(poller, -1, 'fetchPrinterStatus has been renamed');
+  const start = main.indexOf(`if (type === '${type}') {`, poller);
+  assert.notEqual(start, -1, `no ${type} branch in fetchPrinterStatus`);
+  const end = main.indexOf("\n  if (type === '", start + 10);
+  return main.slice(start, end === -1 ? start + 4000 : end);
+}
+
+test('OctoPrint survives the 409 it answers whenever no printer is connected', () => {
+  // GET /api/printer is guarded by `abort(409, "Printer is not operational")` in
+  // OctoPrint's server/api/printer.py — in the 1.11 line and the 2.0 line alike.
+  // Awaiting it together with /api/job failed the whole poll on that 409, so a
+  // shop with OctoPrint running and the printer switched off saw an error where
+  // "Offline" belonged. GET /api/job carries no such guard and answers fine.
+  const octo = branch('octoprint');
+  assert.match(octo, /\/api\/job/, 'the job is still asked for');
+  assert.match(
+    octo,
+    /get\('\/api\/printer'\)\.catch\([^)]*\)/s,
+    '/api/printer must be asked for tolerantly, not awaited bare',
+  );
+  assert.match(octo, /status === 409/, 'and only 409 may be survived');
+  assert.match(octo, /throw e/, 'every other status is still a fault');
+  // The state has to come from somewhere when there is no printer payload.
+  assert.match(octo, /job\.state/, "falls back to the job endpoint's own state string");
+  // Optional chaining on every read of the payload that may now be null.
+  for (const read of ['printer?.state', 'printer?.temperature']) {
+    assert.ok(octo.includes(read), `${read} must tolerate a null printer payload`);
+  }
+});
+
+test('Repetier asks for the call the job is actually on', () => {
+  // `done` and `job` are on ?a=listPrinter. They are not on ?a=stateList, and
+  // reading them from there is why every Repetier machine reported Idle / 0%.
+  const rep = branch('repetier');
+  assert.match(rep, /a=stateList/, 'the machine state');
+  assert.match(rep, /a=listPrinter/, 'the job state — the call that was missing');
+  assert.match(rep, /KhaytRepetier\.repetierStatus/, 'parsing belongs in lib/repetier.js');
+  // Losing the job must not cost the temperatures, the rule PrusaLink follows.
+  assert.match(rep, /a=listPrinter[^\n]*\.catch\(/, 'the listing is allowed to fail on its own');
+  assert.ok(!/state\.done|state\.job\b/.test(rep), 'nothing may be read off the state object again');
+  assert.match(main, /require\('\.\/lib\/repetier'\)/, 'and the module is wired in');
+});
+
+test('a refused poll is explained in the vendor’s terms, with its own body', () => {
+  // `HTTP 409` is rendered verbatim on the dashboard card. The body is where the
+  // vendors put the useful half, so it has to be read before the message is
+  // built — and failing to read it must not turn a 409 into a network error.
+  const get = main.slice(main.indexOf('const get = async (p, extraHeaders)'));
+  assert.match(get, /explainPrinterHttp\(type, res\.status, body\)/);
+  assert.match(get, /res\.text\(\)\.catch\(/, 'reading the body cannot itself fail the poll');
+  assert.match(get, /\|\| `HTTP \$\{res\.status\}`/, 'an unexplained status still says what it was');
+  assert.match(get, /e\.status = res\.status/, 'the Duet transport probe still needs the number');
+});
