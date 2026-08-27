@@ -90,6 +90,15 @@ jobs:
       - name: Microsoft Store listing is within limits
         run: npm run store:check
 
+      # ROADMAP, VERSIONING, BETA-RELEASE and RELEASE-HOLD each claim which
+      # release is current, in prose, in four places. On 2026-08-27 they claimed
+      # four different things at once — one of them contradicting itself inside a
+      # single section — and every one was found by a human re-reading the files
+      # at cut time. This asks only that the repo agree with itself; whether the
+      # tag was really pushed is a question for `gh release list`, not for CI.
+      - name: Release docs agree on which release is current
+        run: npm run check:release-claims
+
       - name: Unit tests
         run: npm test
 
