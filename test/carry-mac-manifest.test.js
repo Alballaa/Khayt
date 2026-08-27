@@ -39,9 +39,51 @@ const MANIFEST = [
  * What electron-updater does with a `url:` from the manifest, reproduced:
  * GitHubProvider.getBaseDownloadPath(tag, url) then newUrlFromBase().
  */
+/**
+ * Resolve a manifest reference the way the app's updater ACTUALLY does.
+ *
+ * This used to be three lines of hand-written URL joining — a model of
+ * electron-updater, living in the test that was supposed to prove
+ * electron-updater would find the file. That is the same mistake the first
+ * Repetier fix shipped and #764 had to find again: a test that asserts against
+ * an inline copy of the thing it is testing can only ever confirm the copy.
+ *
+ * It would have stayed green through a change to `GitHubProvider`'s download
+ * path, a trailing slash in `newUrlFromBase`, or a provider swap — while the
+ * real download 404'd. And this mechanism's failure is invisible by
+ * construction: the manifest still fetches 200, the version inside it still
+ * reads correctly, and only the DOWNLOAD breaks, for exactly the users furthest
+ * behind, who are the ones the carry exists to serve.
+ *
+ * So it now calls electron-updater's own `resolveFiles` with `GitHubProvider`'s
+ * own `getBaseDownloadPath`. Checked against the real published feed on
+ * 2026-08-27: the beta.10 release's carried manifest resolves to
+ * `…/download/v3.7.0-beta.8/Khayt-3.7.0-beta.8-arm64-mac.zip`, which serves,
+ * while the verbatim-copy form resolves into v3.7.0-beta.10 and 404s. The old
+ * hand model gave the same answers — it was correct, and it was not pinned to
+ * anything.
+ *
+ * The deep import is deliberate. If electron-updater restructures, this fails
+ * loudly at require time and someone re-checks the carry against the new
+ * internals, which is the outcome to want; a shallower import would keep
+ * passing while meaning less.
+ */
+const { resolveFiles } = require('electron-updater/out/providers/Provider.js');
+
+/** GitHubProvider.getBaseDownloadPath, which is what transforms the reference. */
+const baseDownloadPath = (tag, fileName) =>
+  `/KhaytApp/Khayt/releases/download/${tag}/${fileName}`;
+
 function resolveAsUpdater(url, releaseTag) {
-  const path = `/KhaytApp/Khayt/releases/download/${releaseTag}/${url}`;
-  return new URL(path, 'https://github.com').href;
+  const [file] = resolveFiles(
+    // sha512 is required by resolveFiles and is not what is under test here;
+    // the real manifest carries one, and the checksum's survival across the
+    // rewrite has its own test below.
+    { tag: releaseTag, files: [{ url, sha512: 'not-under-test' }] },
+    new URL('https://github.com'),
+    (p) => baseDownloadPath(releaseTag, p.replace(/ /g, '-')),
+  );
+  return file.url.href;
 }
 
 /** Every `url:`/`path:` value in a manifest, in order. */
@@ -75,6 +117,33 @@ test('rewritten, every reference resolves into the release that has the binaries
       `${ref} should resolve into v3.7.0-beta.3`
     );
   }
+});
+
+test('the manifest actually published on beta.10 resolves into beta.8', () => {
+  // Not an invented shape: these are the two `url:` values fetched from
+  // https://github.com/KhaytApp/Khayt/releases/download/v3.7.0-beta.10/latest-mac.yml
+  // on 2026-08-27, and both resolved URLs were confirmed to serve on the same day.
+  //
+  // This is the live path right now, not a hypothetical. macOS is two cuts
+  // behind on beta.8, so any mac user on beta.5–beta.7 who checks for updates
+  // reads THIS manifest off the beta.10 release and downloads through exactly
+  // this resolution.
+  const published = [
+    '../v3.7.0-beta.8/Khayt-3.7.0-beta.8-arm64-mac.zip',
+    '../v3.7.0-beta.8/Khayt-3.7.0-beta.8-arm64.dmg',
+  ];
+  for (const ref of published) {
+    assert.equal(
+      resolveAsUpdater(ref, 'v3.7.0-beta.10'),
+      `https://github.com/KhaytApp/Khayt/releases/download/v3.7.0-beta.8/${ref.split('/').pop()}`,
+    );
+  }
+  // And the form a naive carry produces — a verbatim copy — lands in the release
+  // that has no mac assets. Verified over HTTP the same day: 404.
+  assert.equal(
+    resolveAsUpdater('Khayt-3.7.0-beta.8-arm64-mac.zip', 'v3.7.0-beta.10'),
+    'https://github.com/KhaytApp/Khayt/releases/download/v3.7.0-beta.10/Khayt-3.7.0-beta.8-arm64-mac.zip',
+  );
 });
 
 test('the version inside the manifest is untouched — it is what stops a needless update', () => {
