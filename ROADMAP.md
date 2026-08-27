@@ -2,22 +2,22 @@
 
 Living priorities for maintainers. Not a public commitment calendar — reorder as the product needs.
 
-## Now (post-3.6.0, 3.7.0-beta.9 being cut — on `main`)
+## Now (post-3.6.0, 3.7.0-beta.9 published — on `main`)
 
 **Stable is v3.6.0** (2026-08-21) — the 3.6.0 line, promoted from
 `v3.6.0-rc.4` unchanged after a seven-day soak. rc.4 was the first candidate on
 this line that `main` did not overtake, so for once replace-vs-promote resolved
 to *promote*; rc.1, rc.2 and rc.3 were each replaced instead.
 
-**The 3.7.0 line is open, and `v3.7.0-beta.9` is the cut being made now**
-(2026-08-27) — **Windows + Linux only**, `BUILD_MAC` deliberately unset, so
-macOS stays on `beta.8` and `carry-mac-manifest` carries that release's
-`latest-mac.yml` forward. One cut behind is the ordinary state for macOS here;
-it bills at 10× and `beta.8` brought it current the same day, so paying twice in
-one day buys a single cut of currency. **Until the release run finishes that is
-an intention and not a fact** — this file's own rule applies to its own claim, so
-confirm with `gh release list` and a fetched manifest before treating beta.9 as
-shipped.
+**The 3.7.0 line is open. The newest *published* pre-release is
+`v3.7.0-beta.9`** (2026-08-27) — tagged from `b587777` ([#772]) and **Windows +
+Linux only**, `BUILD_MAC` deliberately unset, so macOS stays on `beta.8`, one cut
+behind, which is the ordinary state here: it bills at 10× and `beta.8` brought it
+current the same day. Verified rather than assumed: `latest.yml` and
+`latest-linux.yml` read `3.7.0-beta.9` and their three binaries serve 200, and
+`carry-mac-manifest` wrote `latest-mac.yml` in the **relative** `../v3.7.0-beta.8/`
+form — not a verbatim copy, which would name a file this release does not contain
+— with both mac assets resolving 200 from the beta.9 feed.
 
 **beta.9 is the day the audit method left printers.** Four passes over the
 printer surfaces found nine defects; pointing the same method at the storefront
@@ -347,6 +347,11 @@ Four stable lines, nineteen beta releases and four release candidates since 3.2.
 [#763]: https://github.com/KhaytApp/Khayt/pull/763
 [#764]: https://github.com/KhaytApp/Khayt/pull/764
 [#765]: https://github.com/KhaytApp/Khayt/pull/765
+[#767]: https://github.com/KhaytApp/Khayt/pull/767
+[#768]: https://github.com/KhaytApp/Khayt/pull/768
+[#769]: https://github.com/KhaytApp/Khayt/pull/769
+[#771]: https://github.com/KhaytApp/Khayt/pull/771
+[#772]: https://github.com/KhaytApp/Khayt/pull/772
 [#549]: https://github.com/KhaytApp/Khayt/pull/549
 [#551]: https://github.com/KhaytApp/Khayt/pull/551
 [#552]: https://github.com/KhaytApp/Khayt/pull/552
