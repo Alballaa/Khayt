@@ -254,7 +254,14 @@ test('an ordinary failing status says what it means, not what number it was', ()
   // Same rule as lib/updater.js's explainUpdateError: `HTTP 502` names a number a
   // print shop cannot act on, and none of these is a fault of theirs.
   assert.match(lib.explainLibraryStatus(500), /having trouble right now/i);
-  assert.match(lib.explainLibraryStatus(503), /having trouble right now/i);
+  assert.match(lib.explainLibraryStatus(502), /having trouble right now/i);
+  // 503 is deliberately NOT folded in with the rest. A planned window is caught
+  // earlier, on error.code; a 503 reaching here is `unavailable` — a
+  // misconfigured server that retrying will not fix — so it keeps its number and
+  // says it needs reporting. See test/makerrun-maintenance.test.js, which caught
+  // a first draft that told the shop to wait for something that would not clear.
+  assert.match(lib.explainLibraryStatus(503), /HTTP 503/);
+  assert.doesNotMatch(lib.explainLibraryStatus(503), /nothing is wrong/i);
   assert.match(lib.explainLibraryStatus(429), /slow down/i);
   assert.match(lib.explainLibraryStatus(403), /sign in again/i);
   assert.match(lib.explainLibraryStatus(404), /needs an update/i);
