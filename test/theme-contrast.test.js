@@ -81,6 +81,35 @@ const decl = (blk, name) => {
   return m ? m[1].trim() : null;
 };
 
+/**
+ * Follow `var(--x)` chains inside the theme file.
+ *
+ * Themes name their palette privately and alias the semantic token onto it —
+ * `--warning: var(--bp-amber)`. Without this, seven of the eight themes declare
+ * their status colours in a notation the guard cannot read, and the muted-ink
+ * check above only escaped it because muted ink happens to be written literally.
+ * Unresolvable is treated as a failure by the caller, not skipped: an
+ * unmeasurable colour is an unguarded one wearing the appearance of a guarded
+ * one, which is the lesson the Flow note above already records.
+ */
+function resolveVar(raw, blk, base, src, depth = 0) {
+  let v = String(raw || '').trim();
+  while (depth < 6) {
+    const m = v.match(/^var\(\s*(--[a-z0-9-]+)\s*(?:,\s*([^)]+))?\)$/i);
+    if (!m) return v;
+    const name = m[1].slice(2);
+    const fromFile = () => {
+      const g = src.match(new RegExp(`--${name}:\\s*([^;]+);`));
+      return g ? g[1].trim() : null;
+    };
+    const next = decl(blk, name) || decl(base, name) || fromFile();
+    if (!next) return m[2] ? m[2].trim() : v;
+    v = next;
+    depth += 1;
+  }
+  return v;
+}
+
 test('muted text clears WCAG AA in every theme and appearance', () => {
   const failures = [];
   const measured = new Set();
@@ -130,4 +159,79 @@ test('muted text clears WCAG AA in every theme and appearance', () => {
     .filter((id) => !measured.has(id));
   assert.deepEqual(unmeasured, [],
     `these themes have a tokens.css this guard could not measure: ${unmeasured.join(', ')}`);
+});
+
+
+/**
+ * Status colours are TEXT here, and they had never been measured.
+ *
+ * `--success`, `--danger`, `--warning` and `--info` are used as `color:` in 50
+ * CSS rules — dashboard stat values, payment badges, the drying-warning pill,
+ * `.btn.danger`. The muted-ink guard above covers one token; these were a whole
+ * family with none.
+ *
+ * That family has already shipped broken once. #680: "low stock" got its own
+ * colour token and rendered at 1.77–2.03:1 on all seven light themes, against a
+ * theme colour measuring 4.71–5.93:1. Its own commit records that it was found
+ * "by running the app, not by a failing test" — because no test looked.
+ *
+ * Found here on 2026-08-28, before a release, three more of the same shape:
+ *
+ *   flow[light]     --success  3.77:1 on bg      (a dashboard stat value)
+ *   flow[light]     --success  4.15:1 on surface
+ *   flow[dark]      --danger   4.16:1 on surface
+ *   blueprint[light] --warning 4.38:1 on bg
+ *
+ * All four were corrected by the smallest change that clears AA — four points of
+ * lightness, three hex points — rather than by restyling anything.
+ *
+ * MEASURED AGAINST THE PLAIN GROUNDS ONLY. Many of these colours sit on a tinted
+ * badge (`rgba(245,166,35,.18)` over the surface), and this does not composite
+ * that tint. The plain grounds are the honest floor: `.stat-value` and
+ * `.btn.danger` really are on `--surface` with nothing behind them, so passing
+ * here is necessary. It is not sufficient for the badges, and saying so is
+ * better than implying a coverage that is not there.
+ */
+test('status colours clear WCAG AA as text, in every theme and appearance', () => {
+  const STATUS = ['success', 'danger', 'warning', 'info'];
+  const failures = [];
+  const unreadable = [];
+  let measured = 0;
+
+  for (const id of reg.listSelectableThemes().filter((t) => !t.startsWith('custom:'))) {
+    const file = path.join(ROOT, `renderer/themes/${id}/tokens.css`);
+    if (!fs.existsSync(file)) continue;
+    const src = fs.readFileSync(file, 'utf8');
+    const base = block(src, `html[data-design="${id}"] {`) || block(src, `html[data-design="${id}"]{`);
+    const dark = block(src, `html[data-design="${id}"][data-theme="dark"]`);
+    const light = block(src, `html[data-design="${id}"][data-theme="light"]`);
+
+    for (const [name, blk] of [['base', base], ['dark', dark], ['light', light]].filter(([, b]) => b)) {
+      for (const token of STATUS) {
+        const raw = decl(blk, token);
+        // Not declared in this block is fine: it inherits.
+        if (!raw) continue;
+        const resolved = resolveVar(raw, blk, base, src);
+        const colour = parseColor(resolved);
+        if (!colour) { unreadable.push(`${id}[${name}] --${token}: ${raw} → ${resolved}`); continue; }
+        for (const ground of ['bg', 'surface']) {
+          const g = parseColor(resolveVar(decl(blk, ground) || decl(base, ground), blk, base, src));
+          if (!g) continue;
+          measured += 1;
+          const r = ratio(colour, g);
+          if (r < 4.5) failures.push(`${id}[${name}] --${token} ${resolved} on ${ground} = ${r.toFixed(2)}:1`);
+        }
+      }
+    }
+  }
+
+  assert.deepEqual(unreadable, [],
+    `these status colours are in a notation this guard cannot measure — teach it, `
+    + `rather than leaving them unchecked:\n  ${unreadable.join('\n  ')}`);
+  assert.deepEqual(failures, [],
+    `status text below WCAG AA 4.5:1:\n  ${failures.join('\n  ')}`);
+  // Reading nothing must not pass. Seven of eight themes alias these onto a
+  // private palette token, so a guard that cannot follow `var()` measures almost
+  // nothing and says everything is fine.
+  assert.ok(measured >= 40, `only ${measured} status/ground pairs measured — the guard has stopped seeing most themes`);
 });
