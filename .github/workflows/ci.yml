@@ -277,6 +277,23 @@ jobs:
       - name: E2E smoke (durable webhook retry)
         run: xvfb-run -a npm run test:e2e:webhookretry
 
+      # These two were defined as npm scripts and wired to nothing. `npm test`
+      # runs the UNIT suite only, so a suite that is not named here does not run
+      # anywhere — it is a file that looks like coverage and is not.
+      #
+      # The cloud-storage one matters most: it covers print-library tiering,
+      # which is the 3.7.0 line's headline feature and the only deliberately
+      # destructive thing in the print library — it MOVES a shop's files off its
+      # disk. That is the one suite you would least want unwired, and it was.
+      #
+      # Both pass today; this is not a repair, it is a suite that was written and
+      # then never asked anything.
+      - name: E2E smoke (print library tiering to cloud storage)
+        run: xvfb-run -a npm run test:e2e:cloudstorage
+
+      - name: E2E smoke (consumable reorder)
+        run: xvfb-run -a npm run test:e2e:consumables
+
       - name: E2E smoke (copy buttons reach the OS clipboard)
         run: xvfb-run -a npm run test:e2e:clipboard
 

@@ -1,0 +1,72 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const ROOT = path.join(__dirname, '..');
+const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+const ci = fs.readFileSync(path.join(ROOT, '.github/workflows/ci.yml'), 'utf8');
+
+/**
+ * A test suite nobody runs is a file that looks like coverage and is not.
+ *
+ * `npm test` runs the UNIT suite only — `node --test test/*.test.js`. Every e2e
+ * suite is a separate npm script that runs ONLY if ci.yml names it, so adding
+ * `test:e2e:whatever` to package.json and stopping there produces a suite that
+ * never executes, passes review, and protects nothing. It cannot fail, so it
+ * never tells anyone it is not running.
+ *
+ * Found on 2026-08-28, before a release: two suites were in that state.
+ * `test:e2e:consumables` and — the one that matters — `test:e2e:cloudstorage`,
+ * which covers print-library tiering: the 3.7.0 line's headline feature and the
+ * only deliberately destructive thing in the print library, since it MOVES a
+ * shop's files off its disk. Both passed when finally run; the suites were fine,
+ * they were simply never asked anything.
+ *
+ * This is the same defect as the rest of that week in a different costume: a
+ * guard that silently is not a guard.
+ */
+
+const e2eScripts = Object.keys(pkg.scripts).filter((k) => k.startsWith('test:e2e'));
+
+/**
+ * Suites deliberately not in ci.yml, each with the reason and where it DOES run.
+ * An entry here is a decision; an absence is an accident.
+ */
+const ELSEWHERE = {
+  // Path-filtered workflow: ios-contract.yml runs it on changes to ios/**,
+  // lib/lan-server.js and scripts/ios-contract-*. CLAUDE.md explains why it is
+  // deliberately not a required check — a path-filtered job that never reports
+  // would block every PR that does not touch those paths.
+  'test:ios-contract': '.github/workflows/ios-contract.yml',
+};
+
+test('every e2e suite is actually run by CI', () => {
+  const missing = e2eScripts.filter((s) => !ci.includes(`npm run ${s}`) && !(s in ELSEWHERE));
+  assert.deepEqual(missing, [], missing.length
+    ? `these suites exist and run nowhere:\n  ${missing.join('\n  ')}\n` +
+      `Add a step to .github/workflows/ci.yml, or list it in ELSEWHERE here with ` +
+      `the workflow that does run it and why.`
+    : undefined);
+});
+
+test('every suite CI names is a script that exists', () => {
+  // The other direction: a renamed script leaves ci.yml running `npm run` on a
+  // name npm does not have. npm exits non-zero, so this one is loud rather than
+  // silent — but it fails the whole job with "Missing script", which is a worse
+  // place to find out than here.
+  const named = [...ci.matchAll(/npm run (test:[a-z0-9:]+)/g)].map((m) => m[1]);
+  const unknown = [...new Set(named)].filter((s) => !(s in pkg.scripts));
+  assert.deepEqual(unknown, [], `ci.yml runs scripts that do not exist: ${unknown.join(', ')}`);
+});
+
+test('the suites named as running elsewhere really do', () => {
+  // An ELSEWHERE entry is a claim about another file, and a claim nobody checks
+  // is how the first list went stale.
+  for (const [script, workflow] of Object.entries(ELSEWHERE)) {
+    const abs = path.join(ROOT, workflow);
+    assert.ok(fs.existsSync(abs), `${script} claims to run in ${workflow}, which does not exist`);
+    assert.match(fs.readFileSync(abs, 'utf8'), new RegExp(`npm run ${script.replace(/:/g, ':')}`),
+      `${workflow} does not run ${script}`);
+  }
+});
