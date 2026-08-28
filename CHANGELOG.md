@@ -4,6 +4,23 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
 
 ## [Unreleased]
 
+### Added
+
+- **A design from your MakerRun library now shows whether you can sell the
+  print, and what it was designed to print at.** Each card carries the layer
+  height, filament and colour count the designer recorded, and a line saying
+  whether the licence permits commercial use.
+
+  Where the licence cannot be read confidently, Khayt says **check the licence**
+  rather than guessing — guessing "no" would stop you selling a print you are
+  entitled to sell, and guessing "yes" would tell you to sell one you are not.
+  The licence's own name is there on hover either way. A "commercial use
+  allowed" refers only to the commercial clause; attribution and share-alike
+  conditions still apply.
+
+  Print numbers a designer typed in are marked with an asterisk; ones Khayt's
+  library measured from the design file itself are not. Hovering says which.
+
 ### Changed
 
 - **Syncing your MakerRun library no longer downloads files you already have.**
