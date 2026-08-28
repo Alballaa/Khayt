@@ -15,6 +15,17 @@ All notable changes to Khayt are documented here. Version format: [VERSIONING.md
   Each has been nudged the smallest amount that clears it; nothing else about
   the designs has changed.
 
+- **An empty MakerRun library now means your library is empty.** If MakerRun
+  answered in a way Khayt could not read — a changed field name, a reply that
+  was not proper JSON — Khayt showed no designs at all and said nothing, which
+  looks exactly like having saved none. Khayt now says it could not read the
+  answer, and says your designs are safe. A library that really is empty still
+  simply shows as empty.
+
+  Failures while loading the library also explain themselves rather than showing
+  a status number: MakerRun being busy, asking Khayt to slow down, or a session
+  that needs signing in again.
+
 
 - **A model measured in inches, centimetres or metres is now the right size in the
   preview.** A 3MF file records the units its numbers are in, and the preview was
