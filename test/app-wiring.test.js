@@ -21,8 +21,19 @@ const IPC_REGISTER_RE = /ipcMain\.(handle|handleOnce|on|once)\(\s*['"]([^'"]+)['
 const IPC_INVOKE_RE = /ipcRenderer\.(?:invoke|send)\(\s*['"]([^'"]+)['"]/g;
 
 function registeredChannels() {
-  const files = ['main.js', ...fs.readdirSync(path.join(root, 'lib'))
-    .filter((f) => f.endsWith('.js')).map((f) => 'lib/' + f)];
+  // Recursive: handlers live in lib/main/ as well as at the top of lib/. A
+  // one-level listing stopped seeing seven registered channels the day the
+  // printer-discovery, webcam and payment-link sections moved, and reported them
+  // as unregistered — the handlers were fine, the guard had stopped looking.
+  const libFiles = [];
+  const walk = (rel) => {
+    for (const e of fs.readdirSync(path.join(root, rel), { withFileTypes: true })) {
+      if (e.isDirectory()) walk(path.posix.join(rel, e.name));
+      else if (e.name.endsWith('.js')) libFiles.push(path.posix.join(rel, e.name));
+    }
+  };
+  walk('lib');
+  const files = ['main.js', ...libFiles];
   const map = new Map();
   for (const f of files) {
     const src = readRoot(f);

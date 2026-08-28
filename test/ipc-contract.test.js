@@ -23,10 +23,24 @@ const ROOT = path.join(__dirname, '..');
 
 function readMainSide() {
   let src = fs.readFileSync(path.join(ROOT, 'main.js'), 'utf8');
-  const libDir = path.join(ROOT, 'lib');
-  for (const f of fs.readdirSync(libDir)) {
-    if (f.endsWith('.js')) src += '\n' + fs.readFileSync(path.join(libDir, f), 'utf8');
-  }
+  // RECURSIVE, because handlers no longer live only at the top of lib/.
+  //
+  // This read `lib/*.js` one level deep. When the printer-discovery, webcam and
+  // payment-link handlers moved into `lib/main/`, seven registered channels
+  // became invisible to this guard and it reported them as unregistered — the
+  // handlers were fine, the guard had simply stopped looking where they were.
+  //
+  // A checker scoped to a path is a checker that expires the first time code
+  // moves, which is the whole reason extractions are risky. Walking is what
+  // makes the next extraction cost nothing here.
+  const walk = (dir) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, e.name);
+      if (e.isDirectory()) walk(full);
+      else if (e.name.endsWith('.js')) src += '\n' + fs.readFileSync(full, 'utf8');
+    }
+  };
+  walk(path.join(ROOT, 'lib'));
   return src;
 }
 

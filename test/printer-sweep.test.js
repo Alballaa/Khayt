@@ -152,10 +152,17 @@ test('candidates start where the printer was and work outwards', () => {
   for (const junk of ['nope', '999.1.1.1', '', null, 'fe80::1']) assert.deepEqual(S.candidateHosts(junk), []);
 });
 
-test('main.js sweeps only inside the existing host guard', () => {
+test('the main process sweeps only inside the existing host guard', () => {
   // A subnet sweep is a tool that can be mistaken for an attack. It must not be
   // able to leave the LAN even if a machine record is forged.
-  const src = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+  //
+  // `sweepForPrinters` moved from main.js into lib/main/printer-discovery.js.
+  // The properties asserted below are about the SWEEP, not about which file it
+  // sits in, so the guard follows it — and reads both files, because the
+  // fallback-ordering assertion at the end is about the caller, which is still
+  // in main.js.
+  const src = fs.readFileSync(path.join(__dirname, '..', 'lib', 'main', 'printer-discovery.js'), 'utf8')
+    + '\n' + fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
   const fn = src.slice(src.indexOf('async function sweepForPrinters'), src.indexOf('function readNeighbourTable'));
   assert.ok(fn.includes('isAllowedPrinterHost(host)'), 'every target passes the RFC1918 guard');
   assert.ok(/AbortSignal\.timeout/.test(fn), 'every request is bounded');
